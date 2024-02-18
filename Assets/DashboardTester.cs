@@ -1,6 +1,4 @@
-using Lautaro.Dashboard;
-using System.Collections;
-using System.Collections.Generic;
+using Laubrary.Dashboard;
 using UnityEngine;
 
 public class DashboardTester : MonoBehaviour

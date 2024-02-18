@@ -1,7 +1,5 @@
+using Laubrary.Notifyer;
 using Lautaro.Cookbook;
-using Lautaro.Notifyer;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class NotifyerTester : MonoBehaviour
