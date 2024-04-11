@@ -37,7 +37,6 @@ public class PocketTester : MonoBehaviour
 
     void Update()
     {
-        Dashboard.Log("Pocket One", pocketOne?.Amount.ToString(),textSize:20);
         
     }
 }

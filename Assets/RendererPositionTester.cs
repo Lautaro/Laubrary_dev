@@ -1,4 +1,4 @@
-using Lautaro.Cookbook2D;
+using Laubrary.Cookbook2D;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
@@ -6,7 +6,7 @@ using UnityEngine;
 public class RendererPositionTester : MonoBehaviour
 {
     public RendererPositionTester other;
-    public BoundsPositions position;
+    public NineSlicePosition position;
     public GameObject marker;
     [Range(-3,3)]public float space;
     public SpriteRenderer rendy => GetComponent<SpriteRenderer>();
@@ -15,6 +15,6 @@ public class RendererPositionTester : MonoBehaviour
     [Button]
     public void Position()
     {
-        rendy.PositionByBound(position,other.rendy, other.position, space);
+        rendy.PlaceNextTo(position,other.rendy, other.position, space);
     }
 }

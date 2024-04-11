@@ -1,5 +1,5 @@
 using Laubrary.Notifyer;
-using Lautaro.Cookbook;
+using Laubrary.Cookbook;
 using UnityEngine;
 
 public class NotifyerTester : MonoBehaviour
