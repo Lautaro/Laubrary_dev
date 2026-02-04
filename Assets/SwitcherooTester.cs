@@ -1,4 +1,5 @@
 using Laubrary.Cookbook;
+using Laubrary.Switcheroo;
 using Sirenix.OdinInspector;
 using System.Collections;
 using System.Collections.Generic;
@@ -13,10 +14,11 @@ public class SwitcherooTester : MonoBehaviour
     public string OnTransition;
     public float TransitionDuration;
     TextMeshProUGUI text;
-    Switcheroo switcheroo = new();
+    Switcheroo switcheroo;
 
     void Start()
     {
+        switcheroo = new();
         text= GetComponent<TextMeshProUGUI>();
 
         Vector3 defaultScale = transform.localScale;

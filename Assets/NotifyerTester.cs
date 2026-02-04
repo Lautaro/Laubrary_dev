@@ -1,24 +1,60 @@
 using Laubrary.Notifyer;
 using Laubrary.Cookbook;
 using UnityEngine;
+using Sirenix.OdinInspector;
+using UnityEngine.Events;
+using System;
 
 public class NotifyerTester : MonoBehaviour
 {
-    public string MyMessage = "To you RUDY!";
-    // Start is called before the first frame update
+
+    public string stringEventMessage = "Its happening!";
     void Start()
     {
-        Notifyer.AddReference(this, "TesterObject");
+        Notifyer.Subscribe<MyFunnyEvent>(OnFunnyEvent);
+        Notifyer.Subscribe<MyUnhappyEvent>(OnUnhappyEvent);
+        Notifyer.Subscribe(stringEventMessage, OnStringEvent);
     }
 
-    // Update is called once per frame
-    void Update()
+    [Button("Notify Happy Event")]
+    private void TriggerHappyEvent()
     {
-        if (KeyCode.Space.GetKeyDown())
-        {
-            var tester = Notifyer.Reference<NotifyerTester>("TesterObject");
-            Debug.Log(tester.MyMessage);
+        Notifyer.Notify(new MyFunnyEvent("Hello from happy event!"), "This was sent: " + DateTime.Now.ToShortTimeString());
+    }
 
-        }
+    [Button("Notify Happy Event")]
+    private void TriggerUnHappyEvent()
+    {
+        Notifyer.Notify(new MyUnhappyEvent("Buhuhuhu!!!" + DateTime.Now.Millisecond));
+    }
+    [Button("Notify String Event")]
+    private void NotifyStringEvent()
+    {
+        Notifyer.Notify(stringEventMessage);
+    }
+
+    private void OnFunnyEvent(MyFunnyEvent evt)
+    {
+        Debug.Log($"Received: {evt.Data}");
+    }
+
+    private void OnUnhappyEvent(MyUnhappyEvent evt)
+    {
+        Debug.Log($"Received: {evt.Data}");
+    }
+    
+    private void OnStringEvent()
+    {
+        Debug.Log("String event triggered");
     }
 }
+    public class MyFunnyEvent : NotifyerEventBase<string>
+    {
+        public MyFunnyEvent(string data) : base(data) { }
+    }
+
+    public class MyUnhappyEvent : NotifyerEventBase<string>
+    {
+        public MyUnhappyEvent(string data) : base(data) { }
+    }
+

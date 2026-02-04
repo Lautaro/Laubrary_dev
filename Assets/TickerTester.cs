@@ -1,19 +1,24 @@
-using System.Collections;
-using System.Collections.Generic;
+using Sirenix.OdinInspector;
+using System;
 using UnityEngine;
 
 public class TickerTester : MonoBehaviour
 {
-    public TickableTestType MyTickerType;
+    private TickableTestType MyTickerType;
 
-    // Start is called before the first frame update
-    void Start()
+    private void Start()
     {
+        MyTickerType = new();
     }
 
-    // Update is called once per frame
-    void Update()
+    private void OnDestroy()
     {
-        
+        MyTickerType.OnDestroy();
+    }
+
+    [Button]
+    void Kill()
+    {
+        DestroyImmediate(gameObject);
     }
 }

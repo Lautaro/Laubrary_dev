@@ -7,6 +7,7 @@ using UnityEngine;
 public class OverlapperTester : MonoBehaviour
 {
     public Overlapper2D overlapper2D;
+    public LayerMask layerMask;
     // Start is called before the first frame update
     void Start()
     {
@@ -16,9 +17,17 @@ public class OverlapperTester : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        var overlapsArea52 = overlapper2D.ByName("Area52");
-        var overlapsTriangle = overlapper2D.ByName("Triangle");
-        Dashboard.QuickLog("Are52", "Area52 : " + overlapsArea52, 20, DashboardColor.green);
-        Dashboard.QuickLog("Triangle", "Triangle : " + overlapsTriangle, 20, DashboardColor.yellow);
+        var overlaps = overlapper2D.GetTriggers();
+        string info = "";
+
+        if (overlaps != null)
+        {
+            foreach (var item in overlaps)
+            {
+                info += item.name + " ";
+            }
+        }
+
+        Dashboard.QuickLog("OverlapInfo", info, 20, DashboardColor.green);
     }
 }

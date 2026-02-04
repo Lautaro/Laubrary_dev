@@ -1,6 +1,6 @@
 using Laubrary.Dashboard;
 using UnityEngine;
-using static Laubrary.Dashboard.DashboardAttribute;
+using UnityEngine.UI;
 
 public class DashboardTester : MonoBehaviour
 {
@@ -10,11 +10,17 @@ public class DashboardTester : MonoBehaviour
     [Dashboard()]
     public string textMessage;
 
+    public Button ClickMe;
+
     void Update()
     {
-        //this.DashboardLog("Hello i am : " + textMessage, 9, DashboardColor.blue);
+        this.DashboardLog("Hello i am : " + textMessage, 9, DashboardColor.blue);
 
-        //Dashboard.QuickLog(this.GetInstanceID().ToString(), textMessage + "private", 18, DashboardColor.blue);
+        Dashboard.QuickLog(this.GetInstanceID().ToString(), textMessage + "private", 18, DashboardColor.blue);
+
+        ClickMe.onClick.AddListener(() => {
+            Dashboard.QuickLog("Button is clicked");
+        });
         
         //Dashboard.QuickLog("Testy",DashboardColor.red);
         //Dashboard.QuickLog("Id2", textMessage, 18, DashboardColor.magenta);
