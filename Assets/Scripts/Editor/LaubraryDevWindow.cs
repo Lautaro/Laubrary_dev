@@ -19,6 +19,44 @@ public class LaubraryDevWindow : EditorWindow
     private const string MAIN_BRANCH = "master";
     private const string RELEASE_BRANCH = "release";
 
+    private const string HELP_FIRST_RELEASE = 
+        "FIRST RELEASE WORKFLOW\n\n" +
+        "1. git checkout master\n   → Switch to development branch\n\n" +
+        "2. git add .\n   → Stage all changes\n\n" +
+        "3. git commit -m \"...\"\n   → Commit changes to master\n\n" +
+        "4. git push origin master\n   → Push master branch to remote\n\n" +
+        "5. git checkout --orphan release\n   → Create new branch with NO history\n\n" +
+        "6. git add .\n   → Stage all package files\n\n" +
+        "7. git commit -m \"Release vX.X.X\"\n   → Create first release commit\n\n" +
+        "8. git tag -a vX.X.X -m \"...\"\n   → Tag this version\n\n" +
+        "9. git push origin release\n   → Push release branch\n\n" +
+        "10. git push origin vX.X.X\n   → Push version tag\n\n" +
+        "11. git checkout master\n   → Return to development branch";
+
+    private const string HELP_SUBSEQUENT_RELEASE = 
+        "SUBSEQUENT RELEASE WORKFLOW\n\n" +
+        "1. git checkout master\n   → Switch to development branch\n\n" +
+        "2. git add .\n   → Stage all changes\n\n" +
+        "3. git commit -m \"...\"\n   → Commit changes to master\n\n" +
+        "4. git push origin master\n   → Push master branch to remote\n\n" +
+        "5. git checkout release\n   → Switch to release branch\n\n" +
+        "6. git merge --squash master --allow-unrelated-histories -X theirs\n   → Combine all master commits into one\n   → Allow merging unrelated histories (orphan branch)\n   → Auto-resolve conflicts using master's version\n\n" +
+        "7. git commit -m \"Release vX.X.X\"\n   → Create release commit\n\n" +
+        "8. git tag -a vX.X.X -m \"...\"\n   → Tag this version\n\n" +
+        "9. git push origin release\n   → Push release branch\n\n" +
+        "10. git push origin vX.X.X\n   → Push version tag\n\n" +
+        "11. git checkout master\n   → Return to development branch";
+
+    private const string HELP_DELETE_RELEASE = 
+        "DELETE RELEASE & TAGS (RESET)\n\n" +
+        "⚠️ WARNING: This deletes your release branch and ALL tags!\n\n" +
+        "1. git checkout master\n   → Switch to safe branch\n\n" +
+        "2. git branch -D release\n   → Force delete local release branch\n\n" +
+        "3. git push origin --delete release\n   → Delete remote release branch\n\n" +
+        "4. for /f %i in ('git tag') do git tag -d %i\n   → Delete all local tags (Windows CMD only)\n   → Run this in CMD, not PowerShell\n\n" +
+        "5. git ls-remote --tags origin\n   → List all remote tags\n   → Then manually delete each with:\n   → git push origin :refs/tags/v0.1.0\n   → git push origin :refs/tags/v0.1.1\n   → etc.\n\n" +
+        "After this you can create a fresh release branch.";
+
     private bool copyDemos = false;
     private bool copySimpleMenuUI = false;
     private bool createRelease = false;
@@ -198,7 +236,7 @@ public class LaubraryDevWindow : EditorWindow
         showSubsequentRelease = EditorGUILayout.BeginFoldoutHeaderGroup(showSubsequentRelease, "Subsequent Release (Release branch exists)");
         if (showSubsequentRelease)
         {
-            DrawCommandBlock(subsequentReleaseCommands, ref subsequentReleaseScrollPos);
+            DrawCommandBlock(subsequentReleaseCommands, ref subsequentReleaseScrollPos, HELP_SUBSEQUENT_RELEASE);
         }
         EditorGUILayout.EndFoldoutHeaderGroup();
         
@@ -207,7 +245,7 @@ public class LaubraryDevWindow : EditorWindow
         showFirstRelease = EditorGUILayout.BeginFoldoutHeaderGroup(showFirstRelease, "First Release (No release branch yet)");
         if (showFirstRelease)
         {
-            DrawCommandBlock(firstReleaseCommands, ref firstReleaseScrollPos);
+            DrawCommandBlock(firstReleaseCommands, ref firstReleaseScrollPos, HELP_FIRST_RELEASE);
         }
         EditorGUILayout.EndFoldoutHeaderGroup();
         
@@ -216,26 +254,35 @@ public class LaubraryDevWindow : EditorWindow
         showDeleteRelease = EditorGUILayout.BeginFoldoutHeaderGroup(showDeleteRelease, "Delete Release Branch & Tags");
         if (showDeleteRelease)
         {
-            DrawCommandBlock(deleteReleaseCommands, ref deleteReleaseScrollPos);
+            DrawCommandBlock(deleteReleaseCommands, ref deleteReleaseScrollPos, HELP_DELETE_RELEASE);
         }
         EditorGUILayout.EndFoldoutHeaderGroup();
     }
 
-    private void DrawCommandBlock(string commands, ref Vector2 scrollPos)
+    private void DrawCommandBlock(string commands, ref Vector2 scrollPos, string helpText = "")
     {
         if (string.IsNullOrEmpty(commands)) return;
         
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
         
-        scrollPos = EditorGUILayout.BeginScrollView(scrollPos, GUILayout.Height(250));
-        EditorGUILayout.TextArea(commands, GUILayout.ExpandHeight(true));
-        EditorGUILayout.EndScrollView();
+        EditorGUILayout.BeginHorizontal();
+        
+        if (!string.IsNullOrEmpty(helpText) && GUILayout.Button("❓", GUILayout.Width(30), GUILayout.Height(25)))
+        {
+            EditorUtility.DisplayDialog("Command Explanation", helpText, "OK");
+        }
         
         if (GUILayout.Button("📋 Copy All Commands", GUILayout.Height(25)))
         {
             EditorGUIUtility.systemCopyBuffer = commands;
             Debug.Log("[Laubrary Dev] All commands copied to clipboard!");
         }
+        
+        EditorGUILayout.EndHorizontal();
+        
+        scrollPos = EditorGUILayout.BeginScrollView(scrollPos, GUILayout.Height(250));
+        EditorGUILayout.TextArea(commands, GUILayout.ExpandHeight(true));
+        EditorGUILayout.EndScrollView();
         
         EditorGUILayout.EndVertical();
     }
@@ -516,75 +563,39 @@ public class LaubraryDevWindow : EditorWindow
         string escapedCommitMsg = commitMessage.Replace("\"", "\\\"");
         
         var sbFirst = new StringBuilder();
-        sbFirst.AppendLine($"# Step 1: Commit changes on {MAIN_BRANCH}");
         sbFirst.AppendLine($"git checkout {MAIN_BRANCH}");
         sbFirst.AppendLine("git add .");
         sbFirst.AppendLine($"git commit -m \"{escapedCommitMsg}\"");
         sbFirst.AppendLine($"git push origin {MAIN_BRANCH}");
-        sbFirst.AppendLine();
-        sbFirst.AppendLine("# Step 2: Create orphan release branch");
         sbFirst.AppendLine($"git checkout --orphan {RELEASE_BRANCH}");
-        sbFirst.AppendLine();
-        sbFirst.AppendLine("# Step 3: Commit all package files");
         sbFirst.AppendLine("git add .");
         sbFirst.AppendLine($"git commit -m \"{releaseCommitMsg}\"");
-        sbFirst.AppendLine();
-        sbFirst.AppendLine("# Step 4: Tag the release");
         sbFirst.AppendLine($"git tag -a v{versionNumber} -m \"{releaseCommitMsg}\"");
-        sbFirst.AppendLine();
-        sbFirst.AppendLine("# Step 5: Push release branch and tag");
         sbFirst.AppendLine($"git push origin {RELEASE_BRANCH}");
         sbFirst.AppendLine($"git push origin v{versionNumber}");
-        sbFirst.AppendLine();
-        sbFirst.AppendLine($"# Step 6: Return to {MAIN_BRANCH}");
         sbFirst.AppendLine($"git checkout {MAIN_BRANCH}");
         firstReleaseCommands = sbFirst.ToString();
         
         var sbSubsequent = new StringBuilder();
-        sbSubsequent.AppendLine($"# Step 1: Commit changes on {MAIN_BRANCH}");
         sbSubsequent.AppendLine($"git checkout {MAIN_BRANCH}");
         sbSubsequent.AppendLine("git add .");
         sbSubsequent.AppendLine($"git commit -m \"{escapedCommitMsg}\"");
         sbSubsequent.AppendLine($"git push origin {MAIN_BRANCH}");
-        sbSubsequent.AppendLine();
-        sbSubsequent.AppendLine($"# Step 2: Switch to {RELEASE_BRANCH} and squash merge (auto-resolve conflicts with {MAIN_BRANCH})");
         sbSubsequent.AppendLine($"git checkout {RELEASE_BRANCH}");
         sbSubsequent.AppendLine($"git merge --squash {MAIN_BRANCH} --allow-unrelated-histories -X theirs");
-        sbSubsequent.AppendLine();
-        sbSubsequent.AppendLine("# Step 3: Commit the squashed changes");
         sbSubsequent.AppendLine($"git commit -m \"{releaseCommitMsg}\"");
-        sbSubsequent.AppendLine();
-        sbSubsequent.AppendLine("# Step 4: Tag the release");
         sbSubsequent.AppendLine($"git tag -a v{versionNumber} -m \"{releaseCommitMsg}\"");
-        sbSubsequent.AppendLine();
-        sbSubsequent.AppendLine("# Step 5: Push release branch and tag");
         sbSubsequent.AppendLine($"git push origin {RELEASE_BRANCH}");
         sbSubsequent.AppendLine($"git push origin v{versionNumber}");
-        sbSubsequent.AppendLine();
-        sbSubsequent.AppendLine($"# Step 6: Return to {MAIN_BRANCH}");
         sbSubsequent.AppendLine($"git checkout {MAIN_BRANCH}");
         subsequentReleaseCommands = sbSubsequent.ToString();
         
         var sbDelete = new StringBuilder();
-        sbDelete.AppendLine("# WARNING: This will delete your release branch and all tags!");
-        sbDelete.AppendLine("# Use this to reset and start fresh.");
-        sbDelete.AppendLine();
-        sbDelete.AppendLine("# Step 1: Switch to master");
         sbDelete.AppendLine($"git checkout {MAIN_BRANCH}");
-        sbDelete.AppendLine();
-        sbDelete.AppendLine("# Step 2: Delete local release branch");
         sbDelete.AppendLine($"git branch -D {RELEASE_BRANCH}");
-        sbDelete.AppendLine();
-        sbDelete.AppendLine("# Step 3: Delete remote release branch");
         sbDelete.AppendLine($"git push origin --delete {RELEASE_BRANCH}");
-        sbDelete.AppendLine();
-        sbDelete.AppendLine("# Step 4: Delete all local tags");
-        sbDelete.AppendLine("git tag -l | xargs git tag -d");
-        sbDelete.AppendLine();
-        sbDelete.AppendLine("# Step 5: Delete all remote tags");
-        sbDelete.AppendLine("git ls-remote --tags origin | awk '{print $2}' | sed 's|refs/tags/||' | xargs -I {} git push origin :refs/tags/{}");
-        sbDelete.AppendLine();
-        sbDelete.AppendLine("# Done! You can now create a fresh release branch.");
+        sbDelete.AppendLine("for /f %i in ('git tag') do git tag -d %i");
+        sbDelete.AppendLine("git ls-remote --tags origin");
         deleteReleaseCommands = sbDelete.ToString();
     }
 
