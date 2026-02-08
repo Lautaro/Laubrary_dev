@@ -1,0 +1,16 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.VisualDebug3D",
+    "rootNamespace": "Laubrary.VisualDebug3D",
+    "references": [
+        "GUID:6xcvbe363267d64e46b49212b09b47b2f"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

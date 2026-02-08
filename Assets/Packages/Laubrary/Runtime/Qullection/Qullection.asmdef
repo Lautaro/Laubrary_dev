@@ -1,0 +1,16 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Qullection",
+    "rootNamespace": "Laubrary.Qullection",
+    "references": [
+        "GUID:b27d7998452bfdf47b4727f926a9909c"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

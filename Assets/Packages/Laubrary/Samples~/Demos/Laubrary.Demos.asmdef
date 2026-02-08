@@ -1,0 +1,32 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Demos",
+    "rootNamespace": "Laubrary.Demos",
+    "references": [
+        "GUID:23d27a907d388c34a870cda653bd9994",
+        "GUID:4743219762e6a4c4bbc6467743f7aba4",
+        "GUID:27bb96e6069cda14ea4cdb9cf2b79b36",
+        "GUID:9560cbe273b2583499cfb054d469db7b",
+        "GUID:dc39b488032b31d44b2fb8756cdbf308",
+        "GUID:63a364a6a0adeae49b8c6c3781de982c",
+        "GUID:78bec379f960e5e4f9d65d20b1b50a53",
+        "GUID:d1f6b5e876999364aab0e64346bd9185",
+        "GUID:95d8859a60511d04a8eee8ec732d5732",
+        "GUID:4f3cc5b09aaae5540bba6eb235c89057",
+        "GUID:cb075350ea02fe04a8074ca6d610022d",
+        "GUID:13c0b9d9d6634f24b936083f1f08bdd6",
+        "GUID:6d02ecc77fef02d4b8878d17bf0b74c3",
+        "GUID:b27d7998452bfdf47b4727f926a9909c",
+        "GUID:948c57e3ce301ef42b856d985f4f40e0",
+        "GUID:9fdce1d0ffd3d5e438ecef44f0cb9c4f",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

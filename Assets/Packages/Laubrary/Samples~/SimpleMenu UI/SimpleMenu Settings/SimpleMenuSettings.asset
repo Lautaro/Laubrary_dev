@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cd48fb1488a28b4591c110f460936a1, type: 3}
+  m_Name: SimpleMenuSettings
+  m_EditorClassIdentifier: Assembly-CSharp::SimpleMenuSystem.SimpleMenuSettings
+  buttonPrefab: {fileID: 1712434656686831459, guid: 70e6a739797b49348ada3504e51e97da, type: 3}
+  sliderPrefab: {fileID: 6673365864883468981, guid: 2ffbff51f85015a46b96182fb988096b, type: 3}
+  togglePrefab: {fileID: 6635181787605692732, guid: 83c48f4f15e6df144be5e5afc90de901, type: 3}
+  dropdownPrefab: {fileID: 7121520836212824724, guid: 71d019c2e2dd1354cad42d73051a1df0, type: 3}
+  inputFieldPrefab: {fileID: 675184360429758122, guid: e306a61d2393caa4b852e36f09fee7d7, type: 3}
+  labelPrefab: {fileID: 2603549582009866164, guid: 7c3e4d1678222fb46bd520f4024ed130, type: 3}
+  textBoxPrefab: {fileID: 2603549582009866164, guid: 5a0295c8e9060744a99c7d33b9a531fb, type: 3}
+  headerPrefab: {fileID: 2603549582009866164, guid: cbdfa74ad95f0354fb76658fc42604c8, type: 3}
+  paddingLeft: 50
+  paddingRight: 50
+  paddingTop: 50
+  paddingBottom: 50
+  controlTintColor: {r: 1, g: 0, b: 0.8361287, a: 0.5294118}
+  fontSize: -1
+  autoSizeFont: 1
+  sliderValueLabelWidth: 80
+  useControlTextStyleOverride: 1
+  controlTextStylePrefab: {fileID: 535487026184303342, guid: 1b07dddaa9300a341b37a078c9a22d8b, type: 3}
