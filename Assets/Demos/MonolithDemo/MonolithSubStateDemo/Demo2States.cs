@@ -1,11 +1,15 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public enum Demo2States 
+namespace Laubrary.Monolith.Samples
 {
-    Main,
-    GameOn,
-    GameOn_SubState1,
-    GameOn_SubState2
+    public enum MonolithDemo2States 
+    {
+        Main,
+        GameOn,
+        GameOn_SubState1,
+        GameOn_SubState2,
+        AlternativeGameOn,
+        AlternativeGameOn_SubState1,
+        AlternativeGameOn_SubState2
+    }
 }

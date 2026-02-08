@@ -1,34 +1,32 @@
 using Laubrary.Monolith;
-using Laubrary.Monolith.Demo;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
-public class MonolithTest : MonoBehaviour
+namespace Laubrary.Monolith.Samples
 {
-    public MonolithStateMachine<MonolithTest, MonolithTestStates> monolith;
-
-    public string gameName;
-    [ReadOnly, Multiline]
-    public string message;
-    void Start()
+    public class MonolithDemo1 : MonoBehaviour
     {
-        monolith = new(this);
+        public MonolithStateMachine<MonolithDemo1, MonolithDemo1States> monolith;
+        public string gameName;
+        public string message;
 
-        monolith.AddState(MonolithTestStates.GameOn, new GameOnState());
-        monolith.AddState(MonolithTestStates.GamePaused, new GamePausedState());
-        monolith.AddState(MonolithTestStates.Start, new StartState(gameName),true);
+        void Start()
+        {
+            monolith = new(this);
+            monolith.AddState(MonolithDemo1States.GameOn, new Demo1_GameOnState());
+            monolith.AddState(MonolithDemo1States.GamePaused, new Demo1_GamePausedState());
+            monolith.AddState(MonolithDemo1States.Start, new Demo1_StartState(gameName), true);
+        }
 
-       // monolith.CurrentStateEnum = MonolithTestStates.Start;
+        void Update()
+        {
+            monolith.UpdateState();
+        }
     }
 
-    void Update()
+    public enum MonolithDemo1States
     {
-        monolith.UpdateState();
+        GameOn,
+        GamePaused,
+        Start
     }
-}
-
-public enum MonolithTestStates
-{
-     GameOn, GamePaused, Start
-
 }

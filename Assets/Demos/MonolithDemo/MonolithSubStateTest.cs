@@ -2,11 +2,11 @@ using Sirenix.OdinInspector;
 using Unity.VisualScripting;
 using UnityEngine;
 
-namespace Laubrary.Monolith.Demo2
+namespace Laubrary.Monolith.Samples
 {
-    public class MonolithSubStateTest : MonoBehaviour
+    public class MonolithDemo2 : MonoBehaviour
     {
-        public MonolithStateMachine<MonolithSubStateTest, MonolithDemo2States> monolith;
+        public MonolithStateMachine<MonolithDemo2, MonolithDemo2States> monolith;
 
         public bool LogTransitions = false;
 
@@ -17,17 +17,6 @@ namespace Laubrary.Monolith.Demo2
         {
             monolith = new(this);
             monolith.logTransitions = LogTransitions;
-
-            // THIS IS THE HIERARCHY WE CONSTRUCT
-            /*
-            Main
-            GameOn
-                SubState1
-                SubState2
-            AlternativeGameOn
-                AlternativeSubState1
-                AlternativeSubState2
-            */
 
             monolith.AddState(MonolithDemo2States.Main, new Demo2_MainState(), true);
 
@@ -40,21 +29,9 @@ namespace Laubrary.Monolith.Demo2
             altGameOnState.AddChildState(MonolithDemo2States.AlternativeGameOn_SubState2, new Demo2_AltGameOnState_SubState2());
         }
 
-        // Update is called once per frame
         void Update()
         {
             monolith.UpdateState();
         }
-    }
-
-    public enum MonolithDemo2States
-    {
-        Main,
-        GameOn,
-        GameOn_SubState1,
-        GameOn_SubState2,
-        AlternativeGameOn,
-        AlternativeGameOn_SubState1,
-        AlternativeGameOn_SubState2
     }
 }

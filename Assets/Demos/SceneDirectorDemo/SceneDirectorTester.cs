@@ -1,35 +1,35 @@
-using Sirenix.OdinInspector;
 using UnityEngine;
 
-public class SceneDirectorTester : MonoBehaviour
+namespace Laubrary.SceneDirector.Samples
 {
-    [Button]
-    public void TriggerLoadingComplete()
+    public class SceneDirectorTester : MonoBehaviour
     {
-        var director = FindObjectOfType<MySceneDirector_Test>();
-        if (director != null)
+        public void TriggerLoadingComplete()
         {
-            director.TriggerCategory("LoadingComplete");
-            Debug.Log("[SceneDirectorTester] Triggered category: LoadingComplete", director);
+            var director = FindObjectOfType<MySceneDirector_Test>();
+            if (director != null)
+            {
+                director.TriggerCategory("LoadingComplete");
+                Debug.Log("[SceneDirectorTester] Triggered category: LoadingComplete", director);
+            }
+            else
+            {
+                Debug.LogWarning("[SceneDirectorTester] MySceneDirector_Test not found in scene.");
+            }
         }
-        else
-        {
-            Debug.LogWarning("[SceneDirectorTester] MySceneDirector_Test not found in scene.");
-        }
-    }
 
-    [Button]
-    public void TriggerStartTheAction()
-    {
-        var director = FindObjectOfType<MySceneDirector_Test>();
-        if (director != null)
+        public void TriggerStartTheAction()
         {
-            director.TriggerCategory("StartTheAction");
-            Debug.Log("[SceneDirectorTester] Triggered category: StartTheAction", director);
-        }
-        else
-        {
-            Debug.LogWarning("[SceneDirectorTester] MySceneDirector_Test not found in scene.");
+            var director = FindObjectOfType<MySceneDirector_Test>();
+            if (director != null)
+            {
+                director.TriggerCategory("StartTheAction");
+                Debug.Log("[SceneDirectorTester] Triggered category: StartTheAction", director);
+            }
+            else
+            {
+                Debug.LogWarning("[SceneDirectorTester] MySceneDirector_Test not found in scene.");
+            }
         }
     }
 }

@@ -1,25 +1,25 @@
-using Laubrary.Monolith;
+using Laubrary.Monolith.Samples;
 using UnityEngine;
-namespace Laubrary.Monolith.Demo
+namespace Laubrary.Monolith.Samples
 {
-    public class GamePausedState : MonolithStateBase<MonolithTest, MonolithTestStates>
+    public class Demo1_GamePausedState : MonolithStateBase<MonolithDemo1, MonolithDemo1States>
     {
-        public override MonolithTestStates UpdateState()
+        public override MonolithDemo1States UpdateState()
         {
             gameManager.message = "GAME IS PAUSED\nP to Unpause";
 
             if (Input.GetKeyDown(KeyCode.P))
-                return MonolithTestStates.GameOn;
+                return MonolithDemo1States.GameOn;
 
             return assignedGameState;
         }
 
-        public override void EnterState(MonolithTestStates previousStateEnum)
+        public override void EnterState(MonolithDemo1States previousStateEnum)
         {
             Debug.Log("Entering PAUSE state");
         }
 
-        public override void ExitState(MonolithTestStates nextStateEnum)
+        public override void ExitState(MonolithDemo1States nextStateEnum)
         {
             Debug.Log("UNPAUSING! next state :" + nextStateEnum.ToString());
         }

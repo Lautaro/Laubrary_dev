@@ -1,7 +1,7 @@
 using UnityEngine;
-namespace Laubrary.Monolith.Demo2
+namespace Laubrary.Monolith.Samples
 {
-    public class Demo2_GameOnState_SubState1 : MonolithStateBase<MonolithSubStateTest, MonolithDemo2States>
+    public class Demo2_GameOnState_SubState1 : MonolithStateBase<MonolithDemo2, MonolithDemo2States>
     {
         public override MonolithDemo2States UpdateState()
         {

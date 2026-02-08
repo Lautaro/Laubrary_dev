@@ -1,26 +1,27 @@
 using Laubrary.Monolith;
+using Laubrary.Monolith.Samples;
 using UnityEngine;
 
-namespace Laubrary.Monolith.Demo
+namespace Laubrary.Monolith.Samples
 {
-    public class StartState : MonolithStateBase<MonolithTest, MonolithTestStates>
+    public class Demo1_StartState : MonolithStateBase<MonolithDemo1, MonolithDemo1States>
     {
         string gameName;
 
-        public StartState(string gameName)
+        public Demo1_StartState(string gameName)
         {
             this.gameName = gameName;
         }
-        public override MonolithTestStates UpdateState()
+        public override MonolithDemo1States UpdateState()
         {
             gameManager.message = $"Welcome to {gameName} \nThis is the START STATE\nSpace to start game";
             if (Input.GetKeyDown(KeyCode.Space))
-                return MonolithTestStates.GameOn;
+                return MonolithDemo1States.GameOn;
 
             return assignedGameState;
         }
 
-        public override void EnterState(MonolithTestStates previousStateEnum)
+        public override void EnterState(MonolithDemo1States previousStateEnum)
         {
             if (previousStateEnum == assignedGameState)
                 Debug.Log("Booting up!....");
@@ -28,7 +29,7 @@ namespace Laubrary.Monolith.Demo
             Debug.Log("Entering START state. Previous: " + previousStateEnum.ToString());
         }
 
-        public override void ExitState(MonolithTestStates nextStateEnum)
+        public override void ExitState(MonolithDemo1States nextStateEnum)
         {
             Debug.Log("Exiting START state " + nextStateEnum.ToString());
         }
