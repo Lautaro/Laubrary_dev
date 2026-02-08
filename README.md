@@ -1,2 +1,2 @@
 URL To latest package release commit: 
-https://github.com/yourname/laubrary-dev.git?path=/Assets/Packages/Laubrary
+https://github.com/lautaro/laubrary_dev.git?path=/Assets/Packages/Laubrary
