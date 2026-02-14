@@ -1,4 +1,3 @@
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 
@@ -14,7 +13,6 @@ namespace Laubrary.VisualDebug.Samples
         public float padding = 0.1f;
         public int segments = 16;
 
-        [Button]
         void Arrow()
         {
             if (startPoint != null && endPoint != null)

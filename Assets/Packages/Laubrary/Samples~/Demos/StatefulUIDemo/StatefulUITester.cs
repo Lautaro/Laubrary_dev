@@ -1,5 +1,7 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Laubrary.Lau_StatefulUI;
+using Key = UnityEngine.InputSystem.Key;
 
 namespace Laubrary.Lau_StatefulUI.Demo
 {
@@ -9,9 +11,9 @@ namespace Laubrary.Lau_StatefulUI.Demo
         [SerializeField] private StatefulUI targetUI;
 
         [Header("Test Controls")]
-        [SerializeField] private KeyCode navigateKey = KeyCode.N;
-        [SerializeField] private KeyCode toggleKey = KeyCode.T;
-        [SerializeField] private KeyCode focusKey = KeyCode.F;
+        [SerializeField] private Key navigateKey = Key.N;
+        [SerializeField] private Key toggleKey = Key.T;
+        [SerializeField] private Key focusKey = Key.F;
 
         private bool _isNavigated = false;
         private bool _isToggled = false;
@@ -19,23 +21,23 @@ namespace Laubrary.Lau_StatefulUI.Demo
 
         private void Update()
         {
-            if (targetUI == null) return;
+            if (targetUI == null || Keyboard.current == null) return;
 
-            if (Input.GetKeyDown(navigateKey))
+            if (Keyboard.current[navigateKey].wasPressedThisFrame)
             {
                 _isNavigated = !_isNavigated;
                 targetUI.SetNavigated(_isNavigated);
                 Debug.Log($"Navigated: {_isNavigated}");
             }
 
-            if (Input.GetKeyDown(toggleKey))
+            if (Keyboard.current[toggleKey].wasPressedThisFrame)
             {
                 _isToggled = !_isToggled;
                 targetUI.SetToggled(_isToggled);
                 Debug.Log($"Toggled: {_isToggled}");
             }
 
-            if (Input.GetKeyDown(focusKey))
+            if (Keyboard.current[focusKey].wasPressedThisFrame)
             {
                 _isFocused = !_isFocused;
                 targetUI.SetFocused(_isFocused);

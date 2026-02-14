@@ -1,6 +1,7 @@
 using Laubrary.Switcheroo;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Laubrary.Switcheroo.Samples
 {
@@ -50,7 +51,7 @@ namespace Laubrary.Switcheroo.Samples
         {
             switcheroo.transitionSpeed = TransitionDuration;
 
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
                 switcheroo.Flip();
         }
 

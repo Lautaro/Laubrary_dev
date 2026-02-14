@@ -606,8 +606,6 @@ public class LaubraryDevWindow : EditorWindow
         foreach (string file in Directory.GetFiles(sourceDir))
         {
             string fileName = Path.GetFileName(file);
-            if (fileName.EndsWith(".meta")) continue;
-            
             string targetFile = Path.Combine(targetDir, fileName);
             File.Copy(file, targetFile, true);
         }

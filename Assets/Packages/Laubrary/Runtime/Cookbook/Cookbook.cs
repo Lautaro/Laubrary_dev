@@ -33,15 +33,6 @@ namespace Laubrary.Cookbook
             action();
         }
 
-        public static bool GetKey(this KeyCode keyCode)
-        {
-            return Input.GetKey(keyCode);
-        }
-        public static bool GetKeyDown(this KeyCode keyCode)
-        {
-            return Input.GetKeyDown(keyCode);
-        }
-
         public static T GetOrAddComponent<T>(this MonoBehaviour monoBehaviour) where T : Component
         {
                 return monoBehaviour.gameObject.GetOrAddComponent<T>();

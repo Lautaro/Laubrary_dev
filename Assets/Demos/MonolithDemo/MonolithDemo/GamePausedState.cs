@@ -1,5 +1,7 @@
 using Laubrary.Monolith.Samples;
 using UnityEngine;
+using UnityEngine.InputSystem;
+
 namespace Laubrary.Monolith.Samples
 {
     public class Demo1_GamePausedState : MonolithStateBase<MonolithDemo1, MonolithDemo1States>
@@ -8,7 +10,7 @@ namespace Laubrary.Monolith.Samples
         {
             gameManager.message = "GAME IS PAUSED\nP to Unpause";
 
-            if (Input.GetKeyDown(KeyCode.P))
+            if (Keyboard.current != null && Keyboard.current.pKey.wasPressedThisFrame)
                 return MonolithDemo1States.GameOn;
 
             return assignedGameState;

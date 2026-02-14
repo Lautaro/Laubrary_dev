@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Laubrary.SimpleUI;
 
 namespace Laubrary.SimpleUI.Demo
@@ -80,33 +81,33 @@ namespace Laubrary.SimpleUI.Demo
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
             {
                 TakeDamage(15);
             }
             
-            if (Input.GetKeyDown(KeyCode.R))
+            if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
             {
                 Heal(20);
             }
             
-            if (Input.GetKeyDown(KeyCode.G))
+            if (Keyboard.current != null && Keyboard.current.gKey.wasPressedThisFrame)
             {
                 AddGold(Random.Range(10, 100));
             }
             
-            if (Input.GetKeyDown(KeyCode.E))
+            if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
             {
                 AddExperience(50);
             }
 
-            if (Input.GetKeyDown(KeyCode.S))
+            if (Keyboard.current != null && Keyboard.current.sKey.wasPressedThisFrame)
             {
                 _character.stamina -= .05f;
                 _view.UpdateUI();
             }
 
-            if (Input.GetKeyDown(KeyCode.L))
+            if (Keyboard.current != null && Keyboard.current.lKey.wasPressedThisFrame)
             {
                 Debug.Log($"[SimpleUIDemo] Current POCO state:\n" +
                           $"  characterClass: {_character.characterClass}\n" +

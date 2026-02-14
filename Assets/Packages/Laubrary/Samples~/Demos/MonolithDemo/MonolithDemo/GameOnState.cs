@@ -1,5 +1,6 @@
 using Laubrary.Monolith.Samples;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Laubrary.Monolith.Samples
 {
@@ -9,10 +10,10 @@ namespace Laubrary.Monolith.Samples
         {
             gameManager.message = "GAME IS ON!\n(P)ause\nEsc to quit";
 
-            if (Input.GetKeyDown(KeyCode.P))
+            if (Keyboard.current != null && Keyboard.current.pKey.wasPressedThisFrame)
                 return MonolithDemo1States.GamePaused;
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
                 return MonolithDemo1States.Start;
 
             return assignedGameState;

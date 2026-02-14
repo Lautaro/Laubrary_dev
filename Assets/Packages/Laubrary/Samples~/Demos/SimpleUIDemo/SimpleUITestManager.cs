@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Laubrary.SimpleUI.Demo
 {
@@ -33,7 +34,7 @@ namespace Laubrary.SimpleUI.Demo
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
             {
                 _character.health -= 10;
                 _character.stamina -= 5f;
@@ -48,7 +49,7 @@ namespace Laubrary.SimpleUI.Demo
                 Debug.Log($"[Test] Took damage! Health: {_character.health}");
             }
 
-            if (Input.GetKeyDown(KeyCode.R))
+            if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
             {
                 _character.health = 100;
                 _character.stamina = 100f;
@@ -68,7 +69,7 @@ namespace Laubrary.SimpleUI.Demo
                 Debug.Log($"[Test] Found {goldGained} gold!");
             }
 
-            if (Input.GetKeyDown(KeyCode.G))
+            if (Keyboard.current != null && Keyboard.current.gKey.wasPressedThisFrame)
             {
                 _character.gold -= 10;
                 characterView.UpdateUI();
@@ -76,7 +77,7 @@ namespace Laubrary.SimpleUI.Demo
 
        
 
-            if (Input.GetKeyDown(KeyCode.S))
+            if (Keyboard.current != null && Keyboard.current.sKey.wasPressedThisFrame)
             {
                 _character.stamina -= .05f;
                 characterView.UpdateUI();

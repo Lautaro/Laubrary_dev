@@ -1,6 +1,7 @@
 using Laubrary.Monolith;
 using Laubrary.Monolith.Samples;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Laubrary.Monolith.Samples
 {
@@ -15,7 +16,7 @@ namespace Laubrary.Monolith.Samples
         public override MonolithDemo1States UpdateState()
         {
             gameManager.message = $"Welcome to {gameName} \nThis is the START STATE\nSpace to start game";
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
                 return MonolithDemo1States.GameOn;
 
             return assignedGameState;

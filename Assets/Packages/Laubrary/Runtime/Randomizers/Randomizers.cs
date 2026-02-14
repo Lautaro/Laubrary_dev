@@ -100,15 +100,20 @@ namespace Laubrary.Randomizers
     /// Provides round-robin random selection from a collection, ensuring each item is selected once per cycle before any repeats.
     /// Maintains internal state so callers do not need to manage an exclude list.
     /// </summary>
-    public class RoundRobinCollection<T>
+    public class RoundRobin<T>
     {
         private readonly IEnumerable<T> _collection;
         private List<T> _exclude = new List<T>();
         private readonly System.Random _random = new System.Random();
-
-        public RoundRobinCollection(IEnumerable<T> collection)
+        public IEnumerable<T> Collection => _collection;
+        public RoundRobin(IEnumerable<T> collection)
         {
             _collection = collection ?? throw new ArgumentNullException(nameof(collection));
+        }
+
+        public RoundRobin(params T[] items)
+        {
+            _collection = items;
         }
 
         public T GetNext()
@@ -124,6 +129,46 @@ namespace Laubrary.Randomizers
             int index = _random.Next(0, available.Count);
             var selected = available[index];
             _exclude.Add(selected);
+            return selected;
+        }
+    }
+
+    public class RoundRobinUnity<T>
+    {
+        private IEnumerable<T> _collection;
+        private List<T> _exclude = new List<T>();
+        private int _lastIndex = -1;
+        public IEnumerable<T> Collection => _collection;
+        public RoundRobinUnity(IEnumerable<T> collection)
+        {
+            _collection = collection;
+            ScrambleCollection();
+
+        }
+        public RoundRobinUnity(params T[] items)
+        {
+            _collection = items;
+            ScrambleCollection();
+        }
+
+        public void ScrambleCollection()
+        {
+            var list = _collection.ToList();
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                int j = Random.Range(0, i + 1);
+                (list[i], list[j]) = (list[j], list[i]);
+            }
+            _collection = list.ToList();
+            _lastIndex = -1;
+        }
+
+        public T GetNext()
+        {
+            _lastIndex++;
+            var selected = _collection.ElementAt((_lastIndex));
+            if (_lastIndex == _collection.Count())
+                ScrambleCollection();
             return selected;
         }
     }
