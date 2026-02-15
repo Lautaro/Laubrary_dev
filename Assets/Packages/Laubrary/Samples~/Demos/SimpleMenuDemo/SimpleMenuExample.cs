@@ -16,16 +16,18 @@ namespace Laubrary.SimpleMenu
         }
 
         [SimpleMenuTextBox("This is info text for the player.\n<color=yellow>Important:</color>\nThis is a dummy field.")]
-        private int dummyField;  // Field is not used, just needed for attribute
+        private int dummyField;
 
-        public AudioMenu AudioSettings;
+        [SimpleSubMenu("Audio Settings")]
+        private AudioMenu AudioSettings;
 
         [SimpleMenuInputField("Write Something")]
         public string someField;
 
-        public VideoMenu VideoSettings;
+        [SimpleSubMenu("Video Settings")]
+        private VideoMenu VideoSettings;
 
         [SimpleSubMenu("Edges")]
-        public EdgeSettings EdgeSettings;
+        private EdgeSettings EdgeSettings;
     }
 }

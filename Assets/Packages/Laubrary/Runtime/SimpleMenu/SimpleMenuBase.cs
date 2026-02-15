@@ -1,35 +1,20 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
 
 namespace Laubrary.SimpleMenu
-{
-    
+{   
     public abstract class SimpleMenuBase : MonoBehaviour
     {
         private static bool isCreatingSubMenu = false;
-        
-        private class MenuMetadata
-        {
-            public FieldInfo[] Fields;
-            public MethodInfo[] Methods;
-            public Dictionary<FieldInfo, Attribute> FieldAttributes = new Dictionary<FieldInfo, Attribute>();
-            public Dictionary<MethodInfo, Attribute> MethodAttributes = new Dictionary<MethodInfo, Attribute>();
-        }
-        
-        private static readonly Dictionary<Type, MenuMetadata> s_menuMetadataCache = new Dictionary<Type, MenuMetadata>();
-        
-#if UNITY_EDITOR
-        [UnityEditor.InitializeOnLoadMethod]
-        private static void InitializeCacheClear()
-        {
-            UnityEditor.AssemblyReloadEvents.afterAssemblyReload += () => s_menuMetadataCache.Clear();
-        }
-#endif
+        private const string DEFAULT_SETTINGS_FOLDER = "Assets/SimpleMenu Settings";
+
+        private static Dictionary<string, Type> s_MenuTypeCache = null;
+        private static bool s_MenuTypeCacheInitialized = false;
 
         protected GameObject menuContainer;
         protected GameObject contentContainer;
@@ -64,6 +49,22 @@ namespace Laubrary.SimpleMenu
 
         private SimpleMenuSettings FindMenuSettings()
         {
+            #if UNITY_EDITOR
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:SimpleMenuSettings");
+            if (guids.Length > 0)
+            {
+                foreach (string guid in guids)
+                {
+                    string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                    SimpleMenuSettings settings = UnityEditor.AssetDatabase.LoadAssetAtPath<SimpleMenuSettings>(path);
+                    if (settings != null)
+                    {
+                        return settings;
+                    }
+                }
+            }
+            #endif
+
             SimpleMenuSettings[] allSettings = Resources.FindObjectsOfTypeAll<SimpleMenuSettings>();
             
             if (allSettings.Length == 0)
@@ -71,29 +72,6 @@ namespace Laubrary.SimpleMenu
                 Debug.LogWarning("No SimpleMenuSettings found in project. Using code-generated controls.");
                 return null;
             }
-
-            #if UNITY_EDITOR
-            
-            foreach (var settings in allSettings)
-            {
-                string assetPath = UnityEditor.AssetDatabase.GetAssetPath(settings);
-                
-                if (assetPath.StartsWith("Assets/SimpleMenu UI/"))
-                {
-                    return settings;
-                }
-            }
-            
-            foreach (var settings in allSettings)
-            {
-                string assetPath = UnityEditor.AssetDatabase.GetAssetPath(settings);
-                
-                if (assetPath.StartsWith("Assets/Samples/"))
-                {
-                    return settings;
-                }
-            }
-            #endif
 
             return allSettings[0];
         }
@@ -123,6 +101,7 @@ namespace Laubrary.SimpleMenu
             {
                 isMainMenu = true;
                 isInitialized = true;
+                EnsureEventSystem();
                 CreateMenuContainer();
                 BuildMenu();
             }
@@ -159,6 +138,25 @@ namespace Laubrary.SimpleMenu
             }
 
             transform.SetParent(canvasObj.transform);
+        }
+
+        private void EnsureEventSystem()
+        {
+            EventSystem existingEventSystem = FindAnyObjectByType<EventSystem>();
+            if (existingEventSystem != null)
+            {
+                return;
+            }
+
+            GameObject eventSystemObj = new GameObject("EventSystem");
+            EventSystem eventSystem = eventSystemObj.AddComponent<EventSystem>();
+
+            #if UNITY_INPUTSYSTEM_PACKAGE
+            var inputModule = eventSystemObj.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            Debug.Log("SimpleMenu: Created EventSystem with InputSystemUIInputModule for UI interaction.");
+            #else
+            Debug.LogError("SimpleMenu: New Input System package is required but not found. UI interaction will not work. Please install com.unity.inputsystem package.");
+            #endif
         }
 
 
@@ -213,165 +211,90 @@ namespace Laubrary.SimpleMenu
         {
             CreateMenuHeader();
 
-            MenuMetadata metadata = GetOrCreateMenuMetadata();
-            
-            foreach (FieldInfo field in metadata.Fields)
+            FieldInfo[] fields = GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            foreach (FieldInfo field in fields)
             {
                 if (typeof(SimpleMenuBase).IsAssignableFrom(field.FieldType) && 
                     field.FieldType != typeof(SimpleMenuBase) &&
                     field.DeclaringType != typeof(SimpleMenuBase))
                 {
-                    SimpleSubMenuAttribute linkAttr = metadata.FieldAttributes.TryGetValue(field, out var attr) 
-                        ? attr as SimpleSubMenuAttribute 
-                        : null;
+                    object fieldValue = field.GetValue(this);
+                    if (fieldValue != null)
+                    {
+                        Debug.LogWarning($"SimpleMenu: Field '{field.Name}' on '{GetType().Name}' should not have a reference assigned. " +
+                                       $"Submenu fields are created dynamically at runtime. Clearing the reference.", this);
+                        field.SetValue(this, null);
+                    }
+                    
+                    SimpleSubMenuAttribute linkAttr = field.GetCustomAttribute<SimpleSubMenuAttribute>();
                     Type menuType = field.FieldType;
                     string label = linkAttr?.Label ?? GetMenuLabelFromType(menuType);
                     CreateButton(label, () => SwitchToMenu(menuType));
                     continue;
                 }
 
-                if (metadata.FieldAttributes.TryGetValue(field, out var fieldAttr))
-                {
-                    if (fieldAttr is SimpleMenuTextBoxAttribute textBoxAttr)
-                    {
-                        CreateTextBox(textBoxAttr);
-                        continue;
-                    }
-
-                    if (fieldAttr is SimpleMenuLabelAttribute labelAttr)
-                    {
-                        CreateLabel(labelAttr);
-                        continue;
-                    }
-
-                    if (fieldAttr is SimpleMenuToggleAttribute toggleAttr)
-                    {
-                        CreateToggle(field, toggleAttr);
-                        continue;
-                    }
-
-                    if (fieldAttr is SimpleMenuDropdownAttribute dropdownAttr)
-                    {
-                        CreateDropdown(field, dropdownAttr);
-                        continue;
-                    }
-
-                    if (fieldAttr is SimpleMenuSliderAttribute sliderAttr)
-                    {
-                        CreateSlider(field, sliderAttr);
-                        continue;
-                    }
-
-                    if (fieldAttr is SimpleMenuInputFieldAttribute inputFieldAttr)
-                    {
-                        CreateInputField(field, inputFieldAttr);
-                        continue;
-                    }
-                }
-            }
-
-            foreach (MethodInfo method in metadata.Methods)
-            {
-                if (metadata.MethodAttributes.TryGetValue(method, out var methodAttr))
-                {
-                    if (methodAttr is SimpleMenuButtonAttribute buttonAttr)
-                    {
-                        CreateButton(buttonAttr.Label ?? method.Name, () => method.Invoke(this, null));
-                        continue;
-                    }
-
-                    if (methodAttr is SubMenuAttribute subMenuAttr)
-                    {
-                        Debug.LogWarning($"[SubMenu] attribute on method '{method.Name}' is deprecated. Use [SimpleMenuLink] on a field instead.");
-                        CreateButton(subMenuAttr.Label ?? subMenuAttr.MenuType.Name, () => SwitchToMenu(subMenuAttr.MenuType));
-                    }
-                }
-            }
-        }
-        
-        private MenuMetadata GetOrCreateMenuMetadata()
-        {
-            Type menuType = GetType();
-            
-            if (s_menuMetadataCache.TryGetValue(menuType, out MenuMetadata metadata))
-            {
-                return metadata;
-            }
-            
-            metadata = new MenuMetadata();
-            
-            metadata.Fields = menuType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            metadata.Methods = menuType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            
-            foreach (FieldInfo field in metadata.Fields)
-            {
-                var textBoxAttr = field.GetCustomAttribute<SimpleMenuTextBoxAttribute>();
+                SimpleMenuTextBoxAttribute textBoxAttr = field.GetCustomAttribute<SimpleMenuTextBoxAttribute>();
                 if (textBoxAttr != null)
                 {
-                    metadata.FieldAttributes[field] = textBoxAttr;
+                    CreateTextBox(textBoxAttr);
                     continue;
                 }
-                
-                var labelAttr = field.GetCustomAttribute<SimpleMenuLabelAttribute>();
+
+                SimpleMenuLabelAttribute labelAttr = field.GetCustomAttribute<SimpleMenuLabelAttribute>();
                 if (labelAttr != null)
                 {
-                    metadata.FieldAttributes[field] = labelAttr;
+                    CreateLabel(labelAttr);
                     continue;
                 }
-                
-                var toggleAttr = field.GetCustomAttribute<SimpleMenuToggleAttribute>();
+
+                SimpleMenuToggleAttribute toggleAttr = field.GetCustomAttribute<SimpleMenuToggleAttribute>();
                 if (toggleAttr != null)
                 {
-                    metadata.FieldAttributes[field] = toggleAttr;
+                    CreateToggle(field, toggleAttr);
                     continue;
                 }
-                
-                var dropdownAttr = field.GetCustomAttribute<SimpleMenuDropdownAttribute>();
+
+                SimpleMenuDropdownAttribute dropdownAttr = field.GetCustomAttribute<SimpleMenuDropdownAttribute>();
                 if (dropdownAttr != null)
                 {
-                    metadata.FieldAttributes[field] = dropdownAttr;
+                    CreateDropdown(field, dropdownAttr);
                     continue;
                 }
-                
-                var sliderAttr = field.GetCustomAttribute<SimpleMenuSliderAttribute>();
+
+                SimpleMenuSliderAttribute sliderAttr = field.GetCustomAttribute<SimpleMenuSliderAttribute>();
                 if (sliderAttr != null)
                 {
-                    metadata.FieldAttributes[field] = sliderAttr;
+                    CreateSlider(field, sliderAttr);
                     continue;
                 }
-                
-                var inputFieldAttr = field.GetCustomAttribute<SimpleMenuInputFieldAttribute>();
+
+                SimpleMenuInputFieldAttribute inputFieldAttr = field.GetCustomAttribute<SimpleMenuInputFieldAttribute>();
                 if (inputFieldAttr != null)
                 {
-                    metadata.FieldAttributes[field] = inputFieldAttr;
+                    CreateInputField(field, inputFieldAttr);
                     continue;
                 }
-                
-                var subMenuAttr = field.GetCustomAttribute<SimpleSubMenuAttribute>();
-                if (subMenuAttr != null)
-                {
-                    metadata.FieldAttributes[field] = subMenuAttr;
-                }
             }
-            
-            foreach (MethodInfo method in metadata.Methods)
+
+            MethodInfo[] methods = GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            foreach (MethodInfo method in methods)
             {
-                var buttonAttr = method.GetCustomAttribute<SimpleMenuButtonAttribute>();
+                SimpleMenuButtonAttribute buttonAttr = method.GetCustomAttribute<SimpleMenuButtonAttribute>();
                 if (buttonAttr != null)
                 {
-                    metadata.MethodAttributes[method] = buttonAttr;
+                    CreateButton(buttonAttr.Label ?? method.Name, () => method.Invoke(this, null));
                     continue;
                 }
-                
-                var subMenuAttr = method.GetCustomAttribute<SubMenuAttribute>();
+
+                SubMenuAttribute subMenuAttr = method.GetCustomAttribute<SubMenuAttribute>();
                 if (subMenuAttr != null)
                 {
-                    metadata.MethodAttributes[method] = subMenuAttr;
+                    Debug.LogWarning($"[SubMenu] attribute on method '{method.Name}' is deprecated. Use [SimpleMenuLink] on a field instead.");
+                    CreateButton(subMenuAttr.Label ?? subMenuAttr.MenuType.Name, () => SwitchToMenu(subMenuAttr.MenuType));
                 }
             }
-            
-            s_menuMetadataCache[menuType] = metadata;
-            return metadata;
         }
 
         protected GameObject CreateButton(string label, Action onClick)
@@ -541,13 +464,38 @@ namespace Laubrary.SimpleMenu
                 ApplyTextSettings(textComponent);
             }
 
+            string persistenceKey = null;
+            if (attr.PersistenceId != null)
+            {
+                persistenceKey = string.IsNullOrEmpty(attr.PersistenceId) ? null : attr.PersistenceId;
+            }
+            else
+            {
+                string menuName = GetMenuName().Replace(" ", "");
+                string labelName = attr.Label.Replace(" ", "");
+                persistenceKey = $"{menuName}_{labelName}";
+            }
+
+            bool defaultValue = (bool)field.GetValue(this);
+            bool loadedValue = defaultValue;
+
+            if (persistenceKey != null && PlayerPrefs.HasKey(persistenceKey))
+            {
+                loadedValue = PlayerPrefs.GetInt(persistenceKey, defaultValue ? 1 : 0) == 1;
+                field.SetValue(this, loadedValue);
+            }
+
             UnityEngine.UI.Toggle toggle = toggleObj.GetComponent<UnityEngine.UI.Toggle>();
             if (toggle != null)
             {
-                toggle.isOn = (bool)field.GetValue(this);
+                toggle.isOn = loadedValue;
                 toggle.onValueChanged.AddListener((value) =>
                 {
                     field.SetValue(this, value);
+                    if (persistenceKey != null)
+                    {
+                        PlayerPrefs.SetInt(persistenceKey, value ? 1 : 0);
+                    }
                     InvokeCallback(attr.OnValueChanged, value);
                 });
                 var tintBackgroundImage = toggle.transform.Find("TintBackground").GetComponent<Image>(); 
@@ -582,6 +530,18 @@ namespace Laubrary.SimpleMenu
                 ApplyTextSettings(textComponent);
             }
 
+            string persistenceKey = null;
+            if (attr.PersistenceId != null)
+            {
+                persistenceKey = string.IsNullOrEmpty(attr.PersistenceId) ? null : attr.PersistenceId;
+            }
+            else
+            {
+                string menuName = GetMenuName().Replace(" ", "");
+                string labelName = attr.Label.Replace(" ", "");
+                persistenceKey = $"{menuName}_{labelName}";
+            }
+
             TMP_Dropdown dropdown = dropdownObj.GetComponent<TMP_Dropdown>();
             if (dropdown != null)
             {
@@ -591,7 +551,18 @@ namespace Laubrary.SimpleMenu
                 {
                     var enumNames = Enum.GetNames(field.FieldType);
                     dropdown.AddOptions(new System.Collections.Generic.List<string>(enumNames));
-                    dropdown.value = (int)field.GetValue(this);
+                    
+                    int defaultValue = (int)field.GetValue(this);
+                    int loadedValue = defaultValue;
+
+                    if (persistenceKey != null && PlayerPrefs.HasKey(persistenceKey))
+                    {
+                        loadedValue = PlayerPrefs.GetInt(persistenceKey, defaultValue);
+                        object enumValue = Enum.ToObject(field.FieldType, loadedValue);
+                        field.SetValue(this, enumValue);
+                    }
+
+                    dropdown.value = loadedValue;
                 }
                 else
                 {
@@ -611,8 +582,16 @@ namespace Laubrary.SimpleMenu
 
                         if (field.FieldType == typeof(string))
                         {
-                            string currentValue = (string)field.GetValue(this);
-                            int index = System.Array.IndexOf(options, currentValue);
+                            string defaultValue = (string)field.GetValue(this);
+                            string loadedValue = defaultValue;
+
+                            if (persistenceKey != null && PlayerPrefs.HasKey(persistenceKey))
+                            {
+                                loadedValue = PlayerPrefs.GetString(persistenceKey, defaultValue);
+                                field.SetValue(this, loadedValue);
+                            }
+
+                            int index = System.Array.IndexOf(options, loadedValue);
                             if (index >= 0)
                             {
                                 dropdown.value = index;
@@ -620,8 +599,16 @@ namespace Laubrary.SimpleMenu
                         }
                         else if (field.FieldType == typeof(int))
                         {
-                            int currentValue = (int)field.GetValue(this);
-                            dropdown.value = Mathf.Clamp(currentValue, 0, options.Length - 1);
+                            int defaultValue = (int)field.GetValue(this);
+                            int loadedValue = defaultValue;
+
+                            if (persistenceKey != null && PlayerPrefs.HasKey(persistenceKey))
+                            {
+                                loadedValue = PlayerPrefs.GetInt(persistenceKey, defaultValue);
+                                field.SetValue(this, loadedValue);
+                            }
+
+                            dropdown.value = Mathf.Clamp(loadedValue, 0, options.Length - 1);
                         }
                     }
                 }
@@ -632,17 +619,29 @@ namespace Laubrary.SimpleMenu
                     {
                         string newValue = dropdown.options[index].text;
                         field.SetValue(this, newValue);
+                        if (persistenceKey != null)
+                        {
+                            PlayerPrefs.SetString(persistenceKey, newValue);
+                        }
                         InvokeCallback(attr.OnValueChanged, newValue);
                     }
                     else if (field.FieldType == typeof(int))
                     {
                         field.SetValue(this, index);
+                        if (persistenceKey != null)
+                        {
+                            PlayerPrefs.SetInt(persistenceKey, index);
+                        }
                         InvokeCallback(attr.OnValueChanged, index);
                     }
                     else if (field.FieldType.IsEnum)
                     {
                         object enumValue = Enum.ToObject(field.FieldType, index);
                         field.SetValue(this, enumValue);
+                        if (persistenceKey != null)
+                        {
+                            PlayerPrefs.SetInt(persistenceKey, index);
+                        }
                         InvokeCallback(attr.OnValueChanged, enumValue);
                     }
                 });
@@ -755,17 +754,54 @@ namespace Laubrary.SimpleMenu
             UnityEngine.UI.Slider slider = sliderObj.GetComponent<UnityEngine.UI.Slider>();
             if (slider != null)
             {
-                slider.minValue = attr.MinValue;
-                slider.maxValue = attr.MaxValue;
-                slider.wholeNumbers = attr.WholeNumbers || field.FieldType == typeof(int);
+                if (attr.MinValue.HasValue)
+                    slider.minValue = attr.MinValue.Value;
+                
+                if (attr.MaxValue.HasValue)
+                    slider.maxValue = attr.MaxValue.Value;
+                
+                if (attr.WholeNumbers.HasValue)
+                    slider.wholeNumbers = attr.WholeNumbers.Value || field.FieldType == typeof(int);
+                else if (field.FieldType == typeof(int))
+                    slider.wholeNumbers = true;
+
+                string persistenceKey = null;
+                if (attr.PersistenceId != null)
+                {
+                    persistenceKey = string.IsNullOrEmpty(attr.PersistenceId) ? null : attr.PersistenceId;
+                }
+                else
+                {
+                    string menuName = GetMenuName().Replace(" ", "");
+                    string labelName = attr.Label.Replace(" ", "");
+                    persistenceKey = $"{menuName}_{labelName}";
+                }
 
                 if (field.FieldType == typeof(float))
                 {
-                    slider.value = (float)field.GetValue(this);
+                    float defaultValue = (float)field.GetValue(this);
+                    float loadedValue = defaultValue;
+                    
+                    if (persistenceKey != null && PlayerPrefs.HasKey(persistenceKey))
+                    {
+                        loadedValue = PlayerPrefs.GetFloat(persistenceKey, defaultValue);
+                        field.SetValue(this, loadedValue);
+                    }
+                    
+                    slider.value = loadedValue;
                 }
                 else if (field.FieldType == typeof(int))
                 {
-                    slider.value = (int)field.GetValue(this);
+                    int defaultValue = (int)field.GetValue(this);
+                    int loadedValue = defaultValue;
+                    
+                    if (persistenceKey != null && PlayerPrefs.HasKey(persistenceKey))
+                    {
+                        loadedValue = PlayerPrefs.GetInt(persistenceKey, defaultValue);
+                        field.SetValue(this, loadedValue);
+                    }
+                    
+                    slider.value = loadedValue;
                 }
 
                 slider.onValueChanged.AddListener((value) =>
@@ -773,12 +809,20 @@ namespace Laubrary.SimpleMenu
                     if (field.FieldType == typeof(float))
                     {
                         field.SetValue(this, value);
+                        if (persistenceKey != null)
+                        {
+                            PlayerPrefs.SetFloat(persistenceKey, value);
+                        }
                         InvokeCallback(attr.OnValueChanged, value);
                     }
                     else if (field.FieldType == typeof(int))
                     {
                         int intValue = Mathf.RoundToInt(value);
                         field.SetValue(this, intValue);
+                        if (persistenceKey != null)
+                        {
+                            PlayerPrefs.SetInt(persistenceKey, intValue);
+                        }
                         InvokeCallback(attr.OnValueChanged, intValue);
                     }
                 });
@@ -794,12 +838,15 @@ namespace Laubrary.SimpleMenu
                     ApplyTextSettings(sliderValueText);
                 }
 
+                bool useWholeNumbers = slider.wholeNumbers;
+
                 if (attr.ShowValueLabel && valueLabelText != null)
                 {
                     if (field.FieldType == typeof(float))
                     {
-                        valueLabelText.text = slider.value.ToString("F2");
-                        slider.onValueChanged.AddListener((value) => valueLabelText.text = value.ToString("F2"));
+                        string format = useWholeNumbers ? "F0" : "F2";
+                        valueLabelText.text = slider.value.ToString(format);
+                        slider.onValueChanged.AddListener((value) => valueLabelText.text = value.ToString(format));
                     }
                     else if (field.FieldType == typeof(int))
                     {
@@ -811,8 +858,9 @@ namespace Laubrary.SimpleMenu
                 {
                     if (field.FieldType == typeof(float))
                     {
-                        sliderValueText.text = slider.value.ToString("F2");
-                        slider.onValueChanged.AddListener((value) => sliderValueText.text = value.ToString("F2"));
+                        string format = useWholeNumbers ? "F0" : "F2";
+                        sliderValueText.text = slider.value.ToString(format);
+                        slider.onValueChanged.AddListener((value) => sliderValueText.text = value.ToString(format));
                     }
                     else if (field.FieldType == typeof(int))
                     {
@@ -918,69 +966,17 @@ namespace Laubrary.SimpleMenu
                 return;
 
             MethodInfo method = GetType().GetMethod(methodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            
-            if (method == null)
+            if (method != null)
             {
-                Debug.LogWarning($"Callback method '{methodName}' not found on {GetType().Name}");
-                return;
-            }
-            
-            ParameterInfo[] parameters = method.GetParameters();
-            
-            if (parameters.Length == 0)
-            {
-                try
+                ParameterInfo[] parameters = method.GetParameters();
+                if (parameters.Length == 0)
                 {
                     method.Invoke(this, null);
                 }
-                catch (Exception e)
+                else if (parameters.Length == 1)
                 {
-                    Debug.LogError($"Error invoking callback '{methodName}' on {GetType().Name}: {e.Message}");
+                    method.Invoke(this, new object[] { value });
                 }
-            }
-            else if (parameters.Length == 1)
-            {
-                Type expectedType = parameters[0].ParameterType;
-                
-                if (value == null || expectedType.IsAssignableFrom(value.GetType()) || CanConvert(value, expectedType))
-                {
-                    try
-                    {
-                        object convertedValue = value;
-                        if (value != null && !expectedType.IsAssignableFrom(value.GetType()))
-                        {
-                            convertedValue = Convert.ChangeType(value, expectedType);
-                        }
-                        method.Invoke(this, new object[] { convertedValue });
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogError($"Error invoking callback '{methodName}' on {GetType().Name}: {e.Message}");
-                    }
-                }
-                else
-                {
-                    Debug.LogWarning($"Callback '{methodName}' on {GetType().Name} expects parameter of type {expectedType.Name}, but received {value.GetType().Name}");
-                }
-            }
-            else
-            {
-                Debug.LogWarning($"Callback '{methodName}' on {GetType().Name} has {parameters.Length} parameters. Only 0 or 1 parameter callbacks are supported.");
-            }
-        }
-        
-        private bool CanConvert(object value, Type targetType)
-        {
-            if (value == null) return !targetType.IsValueType || Nullable.GetUnderlyingType(targetType) != null;
-            
-            try
-            {
-                Convert.ChangeType(value, targetType);
-                return true;
-            }
-            catch
-            {
-                return false;
             }
         }
 
@@ -1146,28 +1142,91 @@ namespace Laubrary.SimpleMenu
             return menuType.Name;
         }
 
-        protected Type FindMenuTypeById(string menuId)
+        private static bool ShouldScanAssembly(Assembly assembly)
         {
-            Assembly assembly = Assembly.GetExecutingAssembly();
-            Type[] types = assembly.GetTypes();
+            string name = assembly.GetName().Name;
+            
+            if (name.StartsWith("UnityEngine")) return false;
+            if (name.StartsWith("UnityEditor")) return false;
+            if (name.StartsWith("Unity.")) return false;
+            if (name.StartsWith("System")) return false;
+            if (name.StartsWith("mscorlib")) return false;
+            if (name.StartsWith("netstandard")) return false;
+            if (name.StartsWith("Microsoft.")) return false;
+            if (name.StartsWith("Mono.")) return false;
+            if (name.StartsWith("nunit.")) return false;
+            if (name.StartsWith("ExCSS")) return false;
+            
+            return true;
+        }
 
-            foreach (Type type in types)
+        private static void InitializeMenuTypeCache()
+        {
+            if (s_MenuTypeCacheInitialized)
+                return;
+
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            s_MenuTypeCache = new Dictionary<string, Type>();
+            
+            int totalAssemblies = 0;
+            int scannedAssemblies = 0;
+            
+            foreach (Assembly assembly in System.AppDomain.CurrentDomain.GetAssemblies())
             {
-                if (!typeof(SimpleMenuBase).IsAssignableFrom(type) || type.IsAbstract)
+                totalAssemblies++;
+                
+                if (!ShouldScanAssembly(assembly))
                     continue;
-
-                MenuIdAttribute menuIdAttr = type.GetCustomAttribute<MenuIdAttribute>();
-                if (menuIdAttr != null && menuIdAttr.Id == menuId)
+                
+                scannedAssemblies++;
+                Type[] types;
+                try
                 {
-                    return type;
+                    types = assembly.GetTypes();
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"SimpleMenu: Failed to get types from assembly {assembly.GetName().Name}: {ex.Message}");
+                    continue;
                 }
 
-                if (type.Name == menuId)
+                foreach (Type type in types)
                 {
-                    return type;
+                    try
+                    {
+                        if (!typeof(SimpleMenuBase).IsAssignableFrom(type) || type.IsAbstract)
+                            continue;
+
+                        MenuIdAttribute menuIdAttr = type.GetCustomAttribute<MenuIdAttribute>();
+                        if (menuIdAttr != null)
+                        {
+                            s_MenuTypeCache[menuIdAttr.Id] = type;
+                        }
+                        
+                        s_MenuTypeCache[type.Name] = type;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogWarning($"SimpleMenu: Error caching type {type.FullName}: {ex.Message}");
+                    }
                 }
             }
 
+            stopwatch.Stop();
+            s_MenuTypeCacheInitialized = true;
+            Debug.Log($"SimpleMenu: Cached {s_MenuTypeCache.Count} menu type entries in {stopwatch.ElapsedMilliseconds}ms ({stopwatch.Elapsed.TotalSeconds:F4}s) - Scanned {scannedAssemblies}/{totalAssemblies} assemblies");
+        }
+
+        protected Type FindMenuTypeById(string menuId)
+        {
+            InitializeMenuTypeCache();
+
+            if (s_MenuTypeCache.TryGetValue(menuId, out Type menuType))
+            {
+                return menuType;
+            }
+
+            Debug.LogError($"FindMenuTypeById: Could not find menu type '{menuId}' in cache");
             return null;
         }
     }

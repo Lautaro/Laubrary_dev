@@ -11,7 +11,7 @@ A runtime attribute-based menu system for Unity that creates UI menus automatica
 
 ```csharp
 using UnityEngine;
-using Laubrary.SimpleMenu;
+using SimpleMenuSystem;
 
 [SimpleMenu("My Game Menu")]
 public class MyMenu : SimpleMenuBase
@@ -263,7 +263,7 @@ See the Examples folder for complete implementations:
 
 ```csharp
 using UnityEngine;
-using Laubrary.SimpleMenu;
+using SimpleMenuSystem;
 
 [SimpleMenu("Main Menu")]
 public class MyMainMenu : SimpleMenuBase

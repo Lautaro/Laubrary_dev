@@ -9,6 +9,7 @@ namespace Laubrary.SimpleMenu
         public string[] Options { get; }
         public string GetOptionsMethod { get; }
         public string OnValueChanged { get; }
+        public string PersistenceId { get; }
 
         public SimpleMenuDropdownAttribute(string label, params string[] options)
         {
@@ -22,11 +23,12 @@ namespace Laubrary.SimpleMenu
             Options = options;
             OnValueChanged = onValueChanged;
         }
-        public SimpleMenuDropdownAttribute(string label, string getOptionsMethod = null, string onValueChanged = null)
+        public SimpleMenuDropdownAttribute(string label, string getOptionsMethod = null, string onValueChanged = null, string persistenceId = null)
         {
             Label = label;
             GetOptionsMethod = getOptionsMethod;
             OnValueChanged = onValueChanged;
+            PersistenceId = persistenceId;
         }
     }
 }

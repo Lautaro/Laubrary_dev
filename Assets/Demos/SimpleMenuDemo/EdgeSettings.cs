@@ -20,13 +20,13 @@ namespace Laubrary.SimpleMenu
     [SimpleMenu("Edges")]
     public class EdgeSettings : SimpleMenuBase
     {
-        [SimpleMenuDropdown("Difficulty")]
+        [SimpleMenuDropdown("Difficulty",persistenceId:"difficulty")]
         private GameDifficulty difficulty = GameDifficulty.Normal;
 
-        [SimpleMenuDropdown("Anti-Aliasing", onValueChanged: nameof(OnEdgesChanged))]
+        [SimpleMenuDropdown("Anti-Aliasing", onValueChanged: nameof(OnEdgesChanged),persistenceId:"antiAliasing")]
         private Edges antiAliasing = Edges.None;
 
-        [SimpleMenuDropdown("Debris Wrap Behaviour", getOptionsMethod: nameof(GetDebrisWrapBehaviourOptions), onValueChanged: nameof(OnEdgesChanged))]
+        [SimpleMenuDropdown("Debris Wrap Behaviour", getOptionsMethod: nameof(GetDebrisWrapBehaviourOptions), onValueChanged: nameof(OnEdgesChanged),persistenceId:"debrisWrapBehaviour")]
         private string debrisWrapBehaviour = "Same as player";
 
         private string[] GetDebrisWrapBehaviourOptions()
