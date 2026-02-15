@@ -5,10 +5,10 @@ namespace Laubrary.SimpleMenu
     [SimpleMenu("Audio Stuff")]
     public class AudioMenu : SimpleMenuBase
     {
-        [SimpleMenuSlider("SFX Volume", 0f, 100f)]
+        [SimpleMenuSlider("SFX Volume", 0f, 100f,persistenceId:"sfxVolume")]
         private float sfxVolume = 80f;
 
-        [SimpleMenuSlider("Music Volume", 0f, 100f)]
+        [SimpleMenuSlider("Music Volume", 0f, 100f,persistenceId:"musicVolume")]
         private float musicVolume = 80f;
 
         [SimpleMenuToggle("Enable Sound", nameof(OnSoundToggled))]
@@ -19,7 +19,7 @@ namespace Laubrary.SimpleMenu
             Debug.Log($"Sound Enabled: {enabled}");
         }
 
-        [SimpleMenuSlider("SFX Volume", 0f, 1f, showValueLabel: true)]
+        [SimpleMenuSlider("SFX Volume", 0f, 1f, showValueLabel: true,persistenceId:"masterVolume")]
         private float masterVolume = 1f;
     }
 }

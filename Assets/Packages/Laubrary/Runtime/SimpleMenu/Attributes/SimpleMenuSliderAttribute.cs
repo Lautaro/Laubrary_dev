@@ -6,22 +6,46 @@ namespace Laubrary.SimpleMenu
     public class SimpleMenuSliderAttribute : Attribute
     {
         public string Label { get; }
-        public float MinValue { get; }
-        public float MaxValue { get; }
-        public bool WholeNumbers { get; }
+        public float? MinValue { get; }
+        public float? MaxValue { get; }
+        public bool? WholeNumbers { get; }
         public string OnValueChanged { get; }
         public bool ShowTitleLabel { get; }
         public bool ShowValueLabel { get; }
+        public string PersistenceId { get; }
 
-        public SimpleMenuSliderAttribute(string label, float minValue = 0f, float maxValue = 1f, bool wholeNumbers = false, string onValueChanged = null, bool showTitleLabel = true, bool showValueLabel = false)
+        private const float DEFAULT_VALUE = float.NaN;
+
+        public SimpleMenuSliderAttribute(string label, string onValueChanged = null, bool showTitleLabel = true, bool showValueLabel = false, string persistenceId = null)
         {
             Label = label;
-            MinValue = minValue;
-            MaxValue = maxValue;
+            MinValue = null;
+            MaxValue = null;
+            WholeNumbers = null;
+            OnValueChanged = onValueChanged;
+            ShowTitleLabel = showTitleLabel;
+            ShowValueLabel = showValueLabel;
+            PersistenceId = persistenceId;
+        }
+
+        public SimpleMenuSliderAttribute(
+            string label, 
+            float minValue, 
+            float maxValue, 
+            bool wholeNumbers = false, 
+            string onValueChanged = null, 
+            bool showTitleLabel = true, 
+            bool showValueLabel = false,
+            string persistenceId = null)
+        {
+            Label = label;
+            MinValue = float.IsNaN(minValue) ? null : (float?)minValue;
+            MaxValue = float.IsNaN(maxValue) ? null : (float?)maxValue;
             WholeNumbers = wholeNumbers;
             OnValueChanged = onValueChanged;
             ShowTitleLabel = showTitleLabel;
             ShowValueLabel = showValueLabel;
+            PersistenceId = persistenceId;
         }
     }
 }
