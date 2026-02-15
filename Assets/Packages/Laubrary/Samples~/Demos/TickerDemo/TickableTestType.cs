@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Laubrary.Ticker.Samples
 {
@@ -21,8 +22,11 @@ namespace Laubrary.Ticker.Samples
 
         public void Update()
         {
-            info = Input.mousePosition.ToString();
-            Debug.Log(info);
+            if (Mouse.current != null)
+            {
+                info = Mouse.current.position.ReadValue().ToString();
+                Debug.Log(info);
+            }
         }
     }
 }

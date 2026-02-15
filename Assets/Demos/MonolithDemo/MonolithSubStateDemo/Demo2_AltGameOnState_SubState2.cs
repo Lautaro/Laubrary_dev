@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Laubrary.Monolith.Samples
 {
@@ -8,13 +9,13 @@ namespace Laubrary.Monolith.Samples
         {
             gameManager.message = "ALT SUBSTATE 2 \n(1)SubState 1\n(Q) back MAIN";
 
-            if (Input.GetKeyDown(KeyCode.Alpha1))
+            if (Keyboard.current != null && Keyboard.current.digit1Key.wasPressedThisFrame)
                 return MonolithDemo2States.AlternativeGameOn_SubState1;
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
                 return MonolithDemo2States.AlternativeGameOn;
 
-            if (Input.GetKeyDown(KeyCode.Q))
+            if (Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame)
                 return MonolithDemo2States.Main;
 
             return assignedGameState;
