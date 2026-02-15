@@ -8,7 +8,7 @@ namespace Laubrary.Monolith.Samples
     {
         public override MonolithDemo1States UpdateState()
         {
-            gameManager.message = "GAME IS ON!\n(P)ause\nEsc to quit";
+            gameManager.message = "GAME IS ON!\n(P) Pause\n(Esc) to quit";
 
             if (Keyboard.current != null && Keyboard.current.pKey.wasPressedThisFrame)
                 return MonolithDemo1States.GamePaused;
