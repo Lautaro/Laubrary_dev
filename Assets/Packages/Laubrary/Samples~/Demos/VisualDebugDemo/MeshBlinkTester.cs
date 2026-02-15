@@ -1,5 +1,4 @@
 using Laubrary.VisualDebug3D;
-using Sirenix.OdinInspector;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -15,7 +14,6 @@ namespace Laubrary.VisualDebug.Samples
         public Color color;
         public bool useUnlit;
 
-        [Button]
         public void BlinkMesh()
         {
             MeshBlink.Create(blinkMarker, color,durationBlinks, countBlinks, useUnlit);

@@ -1,4 +1,3 @@
-using Sirenix.OdinInspector;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -10,7 +9,7 @@ namespace Laubrary.Monolith.Samples
 
         public bool LogTransitions = false;
 
-        [ReadOnly, Multiline(10)]
+        [Multiline(10)]
         public string message;
 
         void Start()
