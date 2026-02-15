@@ -417,19 +417,19 @@ public class LaubraryDevWindow : EditorWindow
 
     private void OpenTerminal()
     {
-        string packagePath = Path.Combine(Directory.GetCurrentDirectory(), PACKAGE_PATH);
+        string projectRoot = Directory.GetCurrentDirectory();
         
         try
         {
             #if UNITY_EDITOR_WIN
-            Process.Start("cmd.exe", $"/K cd /d \"{packagePath}\"");
-            Debug.Log($"[Laubrary Dev] Opened terminal at: {packagePath}");
+            Process.Start("cmd.exe", $"/K cd /d \"{projectRoot}\"");
+            Debug.Log($"[Laubrary Dev] Opened terminal at: {projectRoot}");
             #elif UNITY_EDITOR_OSX
-            Process.Start("open", $"-a Terminal \"{packagePath}\"");
-            Debug.Log($"[Laubrary Dev] Opened terminal at: {packagePath}");
+            Process.Start("open", $"-a Terminal \"{projectRoot}\"");
+            Debug.Log($"[Laubrary Dev] Opened terminal at: {projectRoot}");
             #elif UNITY_EDITOR_LINUX
-            Process.Start("x-terminal-emulator", $"--working-directory=\"{packagePath}\"");
-            Debug.Log($"[Laubrary Dev] Opened terminal at: {packagePath}");
+            Process.Start("x-terminal-emulator", $"--working-directory=\"{projectRoot}\"");
+            Debug.Log($"[Laubrary Dev] Opened terminal at: {projectRoot}");
             #endif
         }
         catch (Exception e)

@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8cd48fb1488a28b4591c110f460936a1, type: 3}
   m_Name: SimpleMenuSettings
   m_EditorClassIdentifier: Assembly-CSharp::SimpleMenuSystem.SimpleMenuSettings
-  buttonPrefab: {fileID: 1712434656686831459, guid: 70e6a739797b49348ada3504e51e97da, type: 3}
-  sliderPrefab: {fileID: 6673365864883468981, guid: 2ffbff51f85015a46b96182fb988096b, type: 3}
-  togglePrefab: {fileID: 6635181787605692732, guid: 83c48f4f15e6df144be5e5afc90de901, type: 3}
-  dropdownPrefab: {fileID: 7121520836212824724, guid: 71d019c2e2dd1354cad42d73051a1df0, type: 3}
-  inputFieldPrefab: {fileID: 675184360429758122, guid: e306a61d2393caa4b852e36f09fee7d7, type: 3}
-  labelPrefab: {fileID: 2603549582009866164, guid: 7c3e4d1678222fb46bd520f4024ed130, type: 3}
-  textBoxPrefab: {fileID: 2603549582009866164, guid: 5a0295c8e9060744a99c7d33b9a531fb, type: 3}
-  headerPrefab: {fileID: 2603549582009866164, guid: cbdfa74ad95f0354fb76658fc42604c8, type: 3}
+  buttonPrefab: {fileID: 1712434656686831459, guid: 26cf90e77ff26124a915d9d352a32314, type: 3}
+  sliderPrefab: {fileID: 6673365864883468981, guid: f1de8ae39774f984eadc8e58ffef0e83, type: 3}
+  togglePrefab: {fileID: 6635181787605692732, guid: f3db482e6349f844099e35a9fa7781bf, type: 3}
+  dropdownPrefab: {fileID: 7121520836212824724, guid: bab075519e15c3b4c96cd2021956e9a1, type: 3}
+  inputFieldPrefab: {fileID: 675184360429758122, guid: cd53d516379a8c241af17009bc4e5cb9, type: 3}
+  labelPrefab: {fileID: 2603549582009866164, guid: 332954d9f61549b46a5c6fb7922e0bb2, type: 3}
+  textBoxPrefab: {fileID: 2603549582009866164, guid: 2bf933732f5b59b44a93201efab07457, type: 3}
+  headerPrefab: {fileID: 2603549582009866164, guid: 372234562a99e1a49a86bf13448ac35d, type: 3}
   paddingLeft: 50
   paddingRight: 50
   paddingTop: 50
