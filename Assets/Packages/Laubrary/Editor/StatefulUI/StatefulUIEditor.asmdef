@@ -1,0 +1,17 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.StatefulUI",
+    "rootNamespace": "Laubrary.Lau_StatefulUI.Editor",
+    "references": [
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:13c0b9d9d6634f24b936083f1f08bdd6"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

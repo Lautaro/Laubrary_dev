@@ -1,0 +1,16 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.LaubraryTicker",
+    "rootNamespace": "Laubrary.LaubraryTicker",
+    "references": [
+        "GUID:23d27a907d388c34a870cda653bd9994"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

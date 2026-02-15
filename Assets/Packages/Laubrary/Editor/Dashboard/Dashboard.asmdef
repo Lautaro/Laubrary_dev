@@ -1,0 +1,19 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Dashboard.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:4743219762e6a4c4bbc6467743f7aba4",
+        "GUID:478a2357cc57436488a56e564b08d223"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

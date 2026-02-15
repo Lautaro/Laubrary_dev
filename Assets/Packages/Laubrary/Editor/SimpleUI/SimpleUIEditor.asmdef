@@ -1,0 +1,16 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.SimpleUI.Editor",
+    "rootNamespace": "Laubrary.SimpleUI.Editor",
+    "references": [
+        "GUID:cb075350ea02fe04a8074ca6d610022d"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
