@@ -8,7 +8,7 @@ namespace Laubrary.Monolith.Samples
     {
         public override MonolithDemo1States UpdateState()
         {
-            gameManager.message = "GAME IS PAUSED\nP to Unpause";
+            gameManager.message = "GAME IS PAUSED\n(P) to Unpause";
 
             if (Keyboard.current != null && Keyboard.current.pKey.wasPressedThisFrame)
                 return MonolithDemo1States.GameOn;
