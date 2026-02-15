@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 964a291401979d140a3dbaa9ed5214cd
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 308224
+  packageName: Asset Inventory 3
+  packageVersion: 3.6.1
+  assetPath: Assets/AssetInventory/Editor/Scripts/GUI/SubViews/FTPAdminUI.cs
+  uploadId: 837862

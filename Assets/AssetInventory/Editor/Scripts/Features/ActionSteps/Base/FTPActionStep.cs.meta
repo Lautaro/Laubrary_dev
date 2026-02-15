@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 3263c0085589b0c428de13ede7fc4d17
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 308224
+  packageName: Asset Inventory 3
+  packageVersion: 3.6.1
+  assetPath: Assets/AssetInventory/Editor/Scripts/Features/ActionSteps/Base/FTPActionStep.cs
+  uploadId: 837862
