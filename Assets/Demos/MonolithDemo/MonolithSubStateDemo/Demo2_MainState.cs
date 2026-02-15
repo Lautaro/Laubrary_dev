@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Laubrary.Monolith.Samples
 {
@@ -8,10 +9,10 @@ namespace Laubrary.Monolith.Samples
         {
             gameManager.message = "Main state. Press A or B to start.";
             
-            if (Input.GetKeyDown(KeyCode.A))
+            if (Keyboard.current != null && Keyboard.current.aKey.wasPressedThisFrame)
                 return MonolithDemo2States.GameOn;
 
-            if (Input.GetKeyDown(KeyCode.B))
+            if (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame)
                 return MonolithDemo2States.AlternativeGameOn;
 
             return assignedGameState;
