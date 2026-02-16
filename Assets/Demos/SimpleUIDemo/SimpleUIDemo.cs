@@ -4,50 +4,6 @@ using Laubrary.SimpleUI;
 
 namespace Laubrary.SimpleUI.Demo
 {
-    [SimpleUI]
-    public class CharacterSheet : SimpleUIPoco
-    {
-        private string _characterName = "Adventurer";
-        
-        [SimpleUIPath("CharacterNameLabel")]
-        [SimpleUIPath("CharacterNameInput")]
-        public string characterName
-        {
-            get => _characterName;
-            set
-            {
-                _characterName = value;
-                Refresh();
-            }
-        }
-        
-        public int health = 100;
-        public float stamina = 1f;
-        public bool isAlive = true;
-        public CharacterClass characterClass = CharacterClass.Warrior;
-        
-        [SimpleUIFormat("Level {0}")]
-        public int level = 1;
-        
-        [SimpleUIFormat("Gold: {0:N0}")]
-        public int gold = 0;    
-        
-        [SimpleUIPath("Stats/Details/ExperienceBar")]
-        [SimpleUIFormat("XP: {0}/1000")]
-        public int experience = 0;
-        
-        [SimpleUIIgnore]
-        public float cachedDamage;
-    }
-
-    public enum CharacterClass
-    {
-        Warrior,
-        Mage,
-        Rogue,
-        Cleric
-    }
-
     public class SimpleUIDemo : MonoBehaviour
     {
         [SerializeField]private SimpleUIView _view;
@@ -166,13 +122,15 @@ namespace Laubrary.SimpleUI.Demo
 
         void OnGUI()
         {
-            GUILayout.BeginArea(new Rect(10, 10, 300, 150));
-            GUILayout.Label("=== SimpleUI Demo Controls ===", new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold });
-            GUILayout.Label("Space - Take Damage (15 HP)");
-            GUILayout.Label("R - Heal (20 HP)");
-            GUILayout.Label("G - Add Gold (random)");
-            GUILayout.Label("E - Add Experience (50 XP)");
-            GUILayout.Label("\nTry editing values in Inspector!");
+            GUILayout.BeginArea(new Rect(10, 10, 400, 350));
+            var style = new GUIStyle(GUI.skin.label) { fontSize = 25, fontStyle = FontStyle.Normal };
+            GUI.color = Color.blue;
+            GUILayout.Label("=== SimpleUI Demo Controls ===", style);
+            GUILayout.Label("Space - Take Damage (15 HP)", style);
+            GUILayout.Label("R - Heal (20 HP)", style);
+            GUILayout.Label("G - Add Gold (random)", style);
+            GUILayout.Label("E - Add Experience (50 XP)", style);
+            GUILayout.Label("\nTry editing values in Inspector!", style);
             GUILayout.EndArea();
         }
     }

@@ -26,7 +26,7 @@ MonoBehaviour:
   paddingBottom: 50
   controlTintColor: {r: 1, g: 0, b: 0.8361287, a: 0.5294118}
   fontSize: -1
-  autoSizeFont: 1
+  autoSizeFont: 0
   sliderValueLabelWidth: 80
   useControlTextStyleOverride: 1
   controlTextStylePrefab: {fileID: 535487026184303342, guid: 1b07dddaa9300a341b37a078c9a22d8b, type: 3}

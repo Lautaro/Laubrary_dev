@@ -22,18 +22,19 @@ namespace Laubrary.SimpleUI.Editor
         {
             _pocoTypeNameProp = serializedObject.FindProperty("pocoTypeName");
 
-            _simpleUITypes = TypeCache.GetTypesWithAttribute<SimpleUIAttribute>()
-                .Where(t => t.IsClass && !t.IsAbstract)
-                .OrderBy(t => t.Name)
-                .ToArray();
-
-            _simpleUITypeNames = _simpleUITypes.Select(t => t.Name).ToArray();
+            RefreshAvailableTypes();
 
             var currentTypeName = _pocoTypeNameProp.stringValue;
             if (!string.IsNullOrEmpty(currentTypeName))
             {
                 _selectedIndex = Array.FindIndex(_simpleUITypes, 
                     t => t.AssemblyQualifiedName == currentTypeName);
+                
+                if (_selectedIndex < 0)
+                {
+                    _pocoTypeNameProp.stringValue = "";
+                    serializedObject.ApplyModifiedProperties();
+                }
             }
 
             EditorApplication.update += OnEditorUpdate;
@@ -42,6 +43,16 @@ namespace Laubrary.SimpleUI.Editor
         void OnDisable()
         {
             EditorApplication.update -= OnEditorUpdate;
+        }
+
+        private void RefreshAvailableTypes()
+        {
+            _simpleUITypes = TypeCache.GetTypesWithAttribute<SimpleUIAttribute>()
+                .Where(t => t != null && t.IsClass && !t.IsAbstract)
+                .OrderBy(t => t.Name)
+                .ToArray();
+
+            _simpleUITypeNames = _simpleUITypes.Select(t => t.Name).ToArray();
         }
 
         private void OnEditorUpdate()
@@ -61,6 +72,24 @@ namespace Laubrary.SimpleUI.Editor
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("SimpleUI View", EditorStyles.boldLabel);
             EditorGUILayout.Space();
+
+            RefreshAvailableTypes();
+
+            var currentTypeName = _pocoTypeNameProp.stringValue;
+            if (!string.IsNullOrEmpty(currentTypeName))
+            {
+                var currentTypeExists = _simpleUITypes.Any(t => t.AssemblyQualifiedName == currentTypeName);
+                if (!currentTypeExists)
+                {
+                    EditorGUILayout.HelpBox(
+                        "⚠ The selected POCO type no longer exists. It may have been deleted.\nPlease select a new type from the dropdown below.",
+                        MessageType.Warning);
+                    
+                    _pocoTypeNameProp.stringValue = "";
+                    _selectedIndex = -1;
+                    serializedObject.ApplyModifiedProperties();
+                }
+            }
 
             if (_simpleUITypes.Length == 0)
             {
