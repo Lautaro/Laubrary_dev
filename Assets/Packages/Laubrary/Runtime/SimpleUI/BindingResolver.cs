@@ -72,19 +72,37 @@ namespace Laubrary.SimpleUI
             var reports = new List<BindingReport>();
             var members = new List<MemberAccessor>();
 
-            var fields = typeof(T).GetFields(BindingFlags.Public | BindingFlags.Instance);
-            foreach (var field in fields)
-            {
-                members.Add(new MemberAccessor(field));
-            }
-
+            // Get all properties first
             var properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            var propertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            
             foreach (var property in properties)
             {
                 if (property.CanRead)
                 {
                     members.Add(new MemberAccessor(property));
+                    propertyNames.Add(property.Name);
                 }
+            }
+
+            // Get fields, but skip private backing fields that have a corresponding property
+            var fields = typeof(T).GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            foreach (var field in fields)
+            {
+                // Skip compiler-generated backing fields (e.g., <PropertyName>k__BackingField)
+                if (field.Name.Contains("<") || field.Name.Contains(">"))
+                    continue;
+
+                // Skip private fields that start with _ if a matching property exists
+                // e.g., skip "_health" if "health" property exists
+                if (!field.IsPublic && field.Name.StartsWith("_"))
+                {
+                    string potentialPropertyName = field.Name.Substring(1);  // Remove leading underscore
+                    if (propertyNames.Contains(potentialPropertyName))
+                        continue;  // Skip this field - the property will handle it
+                }
+
+                members.Add(new MemberAccessor(field));
             }
 
             var tempCache = new BindingCache<T>(_config, new BindingReport[0]);
@@ -198,7 +216,7 @@ namespace Laubrary.SimpleUI
             if (member.GetCustomAttribute<SimpleUIIgnoreAttribute>() != null)
             {
                 trace.Add("Member has [SimpleUIIgnore] - skipping");
-                report.Status = BindingStatus.Success;
+                report.Status = BindingStatus.Skipped;
                 report.DecisionTrace = trace.ToArray();
                 return report;
             }
@@ -208,14 +226,17 @@ namespace Laubrary.SimpleUI
             bool shouldBind = _config.bindAll;
             if (!_config.bindAll)
             {
+                // Opt-in binding: field/property must have at least one of these attributes
                 shouldBind = pathAttrs.Length > 0 ||
-                           member.GetCustomAttribute<SimpleUIComponentAttribute>() != null;
+                           member.GetCustomAttribute<SimpleUIComponentAttribute>() != null ||
+                           member.GetCustomAttribute<SimpleUIFormatAttribute>() != null ||
+                           member.GetCustomAttribute<SimpleUIBindAttribute>() != null;
             }
 
             if (!shouldBind)
             {
                 trace.Add($"bindAll=false and no binding attributes - skipping");
-                report.Status = BindingStatus.Success;
+                report.Status = BindingStatus.Skipped;
                 report.DecisionTrace = trace.ToArray();
                 return report;
             }
@@ -504,7 +525,7 @@ namespace Laubrary.SimpleUI
                 AddIfExists<TMP_Text>(go, compatible);
                 AddIfExists<TMP_InputField>(go, compatible);
             }
-            else if (fieldType == typeof(int) || fieldType == typeof(float))
+            else if (fieldType == typeof(int) || fieldType == typeof(float) || fieldType == typeof(double))
             {
                 AddIfExists<TMP_Text>(go, compatible);
                 AddIfExists<Slider>(go, compatible);
@@ -527,6 +548,11 @@ namespace Laubrary.SimpleUI
             {
                 AddIfExists<TMP_Dropdown>(go, compatible);
             }
+            else if (fieldType == typeof(System.TimeSpan) || fieldType == typeof(System.DateTime))
+            {
+                // TimeSpan and DateTime can be formatted as text
+                AddIfExists<TMP_Text>(go, compatible);
+            }
 
             return compatible;
         }
@@ -542,7 +568,7 @@ namespace Laubrary.SimpleUI
         {
             if (fieldType == typeof(string))
                 return new[] { typeof(TMP_Text), typeof(TMP_InputField) };
-            else if (fieldType == typeof(int) || fieldType == typeof(float))
+            else if (fieldType == typeof(int) || fieldType == typeof(float) || fieldType == typeof(double))
                 return new[] { typeof(TMP_Text), typeof(Slider) };
             else if (fieldType == typeof(bool))
                 return new[] { typeof(TMP_Text), typeof(Toggle) };
@@ -552,6 +578,8 @@ namespace Laubrary.SimpleUI
                 return new[] { typeof(Image), typeof(TMP_Text) };
             else if (fieldType.IsEnum)
                 return new[] { typeof(TMP_Dropdown) };
+            else if (fieldType == typeof(System.TimeSpan) || fieldType == typeof(System.DateTime))
+                return new[] { typeof(TMP_Text) };
 
             return new Type[0];
         }

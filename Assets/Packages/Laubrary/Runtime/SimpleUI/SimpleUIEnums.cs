@@ -16,7 +16,8 @@ namespace Laubrary.SimpleUI
     public enum BindingStatus
     {
         Success,
-        Error
+        Error,
+        Skipped
     }
 
     public enum BindingMode

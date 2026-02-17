@@ -8,6 +8,9 @@ A lightweight, deterministic UI binding system for Unity that automatically maps
 ✓ Attribute-based and convention-based resolution  
 ✓ Deterministic GameObject and component resolution  
 ✓ Automatic two-way binding for interactive components  
+✓ Observer pattern with INotifyPropertyChanged and ValueChanged events  
+✓ Automatic property generation - eliminate boilerplate!  
+✓ **Edit mode validation** - catch binding errors before play mode!  
 ✓ Comprehensive diagnostics with suggested fixes  
 ✓ Editor inspector integration  
 ✓ TMP-only (TextMeshPro components)  
@@ -91,6 +94,194 @@ public class PlayerUIController : MonoBehaviour
     }
 }
 ```
+
+## Automatic Property Generation
+
+**Eliminate boilerplate!** SimpleUI can automatically generate properties with `SetField()` for all your private fields.
+
+### Quick Example
+
+**Your code:**
+```csharp
+[SimpleUI]
+[GenerateProperties(GenerateMode.All)]
+public partial class CharacterSheet : SimpleUIPoco
+{
+    private int _health = 100;
+    private string _name = "Hero";
+}
+```
+
+**Right-click script → SimpleUI → Generate Properties**
+
+**Generated code:**
+```csharp
+public partial class CharacterSheet
+{
+    public int health
+    {
+        get => _health;
+        set => SetField(ref _health, value);
+    }
+    
+    public string name
+    {
+        get => _name;
+        set => SetField(ref _name, value);
+    }
+}
+```
+
+**Benefits:**
+- ✅ No more repetitive property code
+- ✅ Automatic change notifications
+- ✅ Preserves SimpleUI attributes
+- ✅ Partial classes keep code clean
+
+**See the Property Generation Guide for complete documentation.**
+
+## Observer Pattern with INotifyPropertyChanged
+
+SimpleUI POCOs support the standard .NET `INotifyPropertyChanged` interface through the `SimpleUIPoco` base class. This enables automatic UI updates when properties change and allows external systems to listen for changes.
+
+### Using Properties with Change Notification
+
+Inherit from `SimpleUIPoco` and use the `SetField` helper method:
+
+```csharp
+using Laubrary.SimpleUI;
+
+[SimpleUI]
+public class CharacterSheet : SimpleUIPoco
+{
+    private int _health = 100;
+    private string _name = "Hero";
+    
+    public int health
+    {
+        get => _health;
+        set => SetField(ref _health, value);  // Automatic change notification + UI update
+    }
+    
+    public string characterName
+    {
+        get => _name;
+        set => SetField(ref _name, value);
+    }
+}
+```
+
+**Benefits of `SetField`:**
+- ✓ Automatically raises `PropertyChanged` event
+- ✓ Updates the UI through SimpleUIView
+- ✓ Only notifies if value actually changed (equality check)
+- ✓ Automatic property name via `[CallerMemberName]`
+
+### Listening to Property Changes
+
+Subscribe to events to react to changes. Both events use standard .NET EventArgs patterns:
+
+```csharp
+void Start()
+{
+    var character = new CharacterSheet 
+    { 
+        health = 100,
+        characterName = "Hero" 
+    };
+    
+    // Option 1: PropertyChanged (standard .NET INotifyPropertyChanged)
+    character.PropertyChanged += (sender, e) =>
+    {
+        var data = sender as CharacterSheet;
+        Debug.Log($"{data.characterName}.{e.PropertyName} changed!");
+        
+        if (e.PropertyName == nameof(data.health))
+        {
+            CheckHealthState(data.health);
+        }
+    };
+    
+    // Option 2: ValueChanged (includes old/new values with clear IntelliSense!)
+    character.ValueChanged += (sender, e) =>
+    {
+        var data = sender as CharacterSheet;
+        
+        // ✅ e.PropertyName, e.OldValue, e.NewValue - clear in IntelliSense!
+        Debug.Log($"{data.characterName}.{e.PropertyName}: {e.OldValue} → {e.NewValue}");
+        
+        if (e.PropertyName == nameof(data.health))
+        {
+            int damage = (int)e.OldValue - (int)e.NewValue;
+            if (damage > 0)
+                PlayDamageSound();
+        }
+        
+        // Easy analytics logging without switch statements
+        LogToAnalytics(data, e.PropertyName, e.NewValue);
+    };
+    
+    _view.UpdateUI(character);
+}
+
+void OnDestroy()
+{
+    character.PropertyChanged -= OnPropertyChanged;
+    character.ValueChanged -= OnValueChanged;
+}
+```
+
+### Manual Refresh
+
+For public fields or when you need manual control, use `Refresh()`:
+
+```csharp
+[SimpleUI]
+public class CharacterSheet : SimpleUIPoco
+{
+    // Public fields don't auto-notify
+    public int level = 1;
+    public float stamina = 100f;
+    
+    public void LevelUp()
+    {
+        level++;
+        stamina = 100f;
+        Refresh();  // Manually update UI
+    }
+}
+```
+
+### Hybrid Approach
+
+Mix both patterns in the same POCO:
+
+```csharp
+[SimpleUI]
+public class CharacterSheet : SimpleUIPoco
+{
+    // Properties with auto-notification
+    private int _health = 100;
+    public int health
+    {
+        get => _health;
+        set => SetField(ref _health, value);
+    }
+    
+    // Public fields for simple data
+    public int level = 1;
+    public float stamina = 100f;
+    
+    // Ignored internal data
+    [SimpleUIIgnore]
+    public float cachedValue;
+}
+```
+
+**When to use properties vs fields:**
+- **Properties** (`SetField`) - When you need change events, validation, or side effects
+- **Public fields** - For simple data that changes infrequently
+- **Manual `Refresh()`** - When updating multiple fields at once
 
 ## Attributes
 

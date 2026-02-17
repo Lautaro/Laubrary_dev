@@ -17,6 +17,11 @@ namespace Laubrary.SimpleUI.Editor
         private int _selectedIndex = -1;
         private bool _showPocoData = true;
         private bool _showBindings = false;
+        private bool _showEditModeValidation = true;
+        
+        private BindingReport[] _editModeReports;
+        private bool _needsValidation = true;
+        private string _lastValidatedTypeName = "";
 
         void OnEnable()
         {
@@ -27,8 +32,23 @@ namespace Laubrary.SimpleUI.Editor
             var currentTypeName = _pocoTypeNameProp.stringValue;
             if (!string.IsNullOrEmpty(currentTypeName))
             {
+                // Try exact assembly qualified name match first
                 _selectedIndex = Array.FindIndex(_simpleUITypes, 
                     t => t.AssemblyQualifiedName == currentTypeName);
+                
+                // If not found, try matching by full type name (namespace + class name)
+                if (_selectedIndex < 0)
+                {
+                    _selectedIndex = Array.FindIndex(_simpleUITypes,
+                        t => currentTypeName.StartsWith(t.FullName + ","));
+                    
+                    // Update the stored type name to the correct assembly qualified name
+                    if (_selectedIndex >= 0)
+                    {
+                        _pocoTypeNameProp.stringValue = _simpleUITypes[_selectedIndex].AssemblyQualifiedName;
+                        serializedObject.ApplyModifiedProperties();
+                    }
+                }
                 
                 if (_selectedIndex < 0)
                 {
@@ -38,6 +58,8 @@ namespace Laubrary.SimpleUI.Editor
             }
 
             EditorApplication.update += OnEditorUpdate;
+            _needsValidation = true;
+            _editModeReports = null; // Clear cache
         }
 
         void OnDisable()
@@ -61,6 +83,14 @@ namespace Laubrary.SimpleUI.Editor
             {
                 Repaint();
             }
+            else if (!Application.isPlaying && target != null)
+            {
+                // Auto-refresh validation in edit mode when inspector is visible
+                if (_needsValidation)
+                {
+                    Repaint();
+                }
+            }
         }
 
         public override void OnInspectorGUI()
@@ -78,8 +108,30 @@ namespace Laubrary.SimpleUI.Editor
             var currentTypeName = _pocoTypeNameProp.stringValue;
             if (!string.IsNullOrEmpty(currentTypeName))
             {
-                var currentTypeExists = _simpleUITypes.Any(t => t.AssemblyQualifiedName == currentTypeName);
-                if (!currentTypeExists)
+                // Find the type index
+                int foundIndex = Array.FindIndex(_simpleUITypes, 
+                    t => t.AssemblyQualifiedName == currentTypeName);
+                
+                // If not found by exact match, try matching by full type name
+                if (foundIndex < 0)
+                {
+                    foundIndex = Array.FindIndex(_simpleUITypes,
+                        t => currentTypeName.StartsWith(t.FullName + ","));
+                    
+                    // Update the stored type name to the correct assembly qualified name
+                    if (foundIndex >= 0)
+                    {
+                        _pocoTypeNameProp.stringValue = _simpleUITypes[foundIndex].AssemblyQualifiedName;
+                        _selectedIndex = foundIndex;
+                        serializedObject.ApplyModifiedProperties();
+                    }
+                }
+                else
+                {
+                    _selectedIndex = foundIndex;
+                }
+                
+                if (foundIndex < 0)
                 {
                     EditorGUILayout.HelpBox(
                         "⚠ The selected POCO type no longer exists. It may have been deleted.\nPlease select a new type from the dropdown below.",
@@ -108,6 +160,8 @@ namespace Laubrary.SimpleUI.Editor
                 _pocoTypeNameProp.stringValue = _simpleUITypes[newIndex].AssemblyQualifiedName;
                 serializedObject.ApplyModifiedProperties();
                 
+                _needsValidation = true;
+                
                 if (Application.isPlaying)
                 {
                     EditorUtility.DisplayDialog("POCO Type Changed", 
@@ -125,22 +179,167 @@ namespace Laubrary.SimpleUI.Editor
                 {
                     EditorGUILayout.HelpBox("✓ Auto-Refresh Enabled - UI updates every frame", MessageType.Info);
                 }
-
-                if (selectedType.IsSubclassOf(typeof(SimpleUIPoco)))
-                {
-                    EditorGUILayout.HelpBox("✓ Inherits SimpleUIPoco - Can call Refresh() for manual updates", MessageType.Info);
-                }
             }
-
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Binding Diagnostics", EditorStyles.boldLabel);
 
             if (!Application.isPlaying)
             {
-                EditorGUILayout.HelpBox("Enter Play mode to see binding diagnostics and POCO data.", MessageType.Info);
-                serializedObject.ApplyModifiedProperties();
+                DrawEditModeValidation(view);
+            }
+            else
+            {
+                DrawPlayModeBindings(view);
+            }
+
+            serializedObject.ApplyModifiedProperties();
+        }
+
+        private void DrawEditModeValidation(SimpleUIView view)
+        {
+            var currentTypeName = _pocoTypeNameProp.stringValue;
+            
+            if (string.IsNullOrEmpty(currentTypeName) || _selectedIndex < 0)
+            {
+                EditorGUILayout.HelpBox("Select a POCO type to validate bindings.", MessageType.Info);
                 return;
             }
+
+            if (currentTypeName != _lastValidatedTypeName)
+            {
+                _needsValidation = true;
+                _lastValidatedTypeName = currentTypeName;
+            }
+
+            if (_needsValidation || _editModeReports == null)
+            {
+                RunEditModeValidation(view);
+                _needsValidation = false;
+            }
+
+            EditorGUILayout.Space();
+            _showEditModeValidation = EditorGUILayout.Foldout(_showEditModeValidation, "Validation", true, EditorStyles.foldoutHeader);
+
+            if (!_showEditModeValidation)
+            {
+                return;
+            }
+
+            if (_editModeReports == null || _editModeReports.Length == 0)
+            {
+                EditorGUILayout.HelpBox("No fields found in POCO type.", MessageType.Info);
+                return;
+            }
+
+            // Filter out skipped bindings
+            var activeReports = _editModeReports.Where(r => r.Status != BindingStatus.Skipped).ToArray();
+
+            if (activeReports.Length == 0)
+            {
+                EditorGUILayout.HelpBox("All fields are marked with [SimpleUIIgnore] or excluded by bindAll=false.", MessageType.Info);
+                return;
+            }
+
+            int successCount = 0;
+            int errorCount = 0;
+
+            foreach (var report in activeReports)
+            {
+                if (report.Status == BindingStatus.Success)
+                    successCount++;
+                else
+                    errorCount++;
+
+                DrawEditModeReport(report);
+            }
+
+            EditorGUILayout.Space();
+            string summaryText = $"Summary: {successCount} Success, {errorCount} Errors";
+            EditorGUILayout.LabelField(summaryText, EditorStyles.boldLabel);
+
+            if (GUILayout.Button("Refresh Validation"))
+            {
+                _needsValidation = true;
+                Repaint();
+            }
+        }
+
+        private void RunEditModeValidation(SimpleUIView view)
+        {
+            if (_selectedIndex < 0 || _selectedIndex >= _simpleUITypes.Length)
+            {
+                _editModeReports = null;
+                return;
+            }
+
+            var pocoType = _simpleUITypes[_selectedIndex];
+            if (pocoType == null)
+            {
+                _editModeReports = null;
+                return;
+            }
+
+            try
+            {
+                var config = (SimpleUIAttribute)Attribute.GetCustomAttribute(pocoType, typeof(SimpleUIAttribute));
+                if (config == null)
+                {
+                    config = new SimpleUIAttribute();
+                }
+
+                var resolver = new BindingResolver(view.transform, config);
+                var resolveMethod = typeof(BindingResolver).GetMethod("Resolve").MakeGenericMethod(pocoType);
+                var cache = resolveMethod.Invoke(resolver, null);
+
+                var cacheType = typeof(BindingCache<>).MakeGenericType(pocoType);
+                var reportsProperty = cacheType.GetProperty("Reports");
+
+                _editModeReports = (BindingReport[])reportsProperty.GetValue(cache);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[SimpleUI] Failed to validate bindings for {pocoType.Name}: {e.Message}\n{e.StackTrace}");
+                _editModeReports = null;
+            }
+        }
+
+        private void DrawEditModeReport(BindingReport report)
+        {
+            MessageType messageType;
+            string icon;
+
+            if (report.Status == BindingStatus.Success)
+            {
+                messageType = MessageType.None;
+                icon = "✅";
+            }
+            else
+            {
+                messageType = MessageType.Error;
+                icon = "❌";
+            }
+
+            string message = $"{icon} {report.FieldName}";
+
+            if (report.Status == BindingStatus.Success)
+            {
+                message += $" ({report.FieldType?.Name})";
+                message += $"\n   → {report.GameObjectPath} ({report.ComponentType?.Name})";
+                message += $"\n   Mode: {report.Mode} | Confidence: {report.Confidence}";
+            }
+            else
+            {
+                message += $"\n   {report.ErrorMessage}";
+
+                if (report.SuggestedFixes != null && report.SuggestedFixes.Length > 0)
+                {
+                    message += $"\n   Fix: {string.Join(", ", report.SuggestedFixes)}";
+                }
+            }
+
+            EditorGUILayout.HelpBox(message, messageType);
+        }
+
+        private void DrawPlayModeBindings(SimpleUIView view)
+        {
 
             DrawPocoDataInspector(view);
             
@@ -163,13 +362,23 @@ namespace Laubrary.SimpleUI.Editor
                 return;
             }
 
+            // Filter out skipped bindings
+            var activeReports = reports.Where(r => r.Status != BindingStatus.Skipped).ToArray();
+
+            if (activeReports.Length == 0)
+            {
+                EditorGUILayout.HelpBox("All fields are marked with [SimpleUIIgnore] or excluded by binding configuration.", MessageType.Info);
+                serializedObject.ApplyModifiedProperties();
+                return;
+            }
+
             EditorGUILayout.LabelField($"POCO Type: {pocoType?.Name ?? "Unknown"}", EditorStyles.miniLabel);
             EditorGUILayout.Space();
 
             int successCount = 0;
             int errorCount = 0;
 
-            foreach (var report in reports)
+            foreach (var report in activeReports)
             {
                 if (report.Status == BindingStatus.Success)
                     successCount++;
