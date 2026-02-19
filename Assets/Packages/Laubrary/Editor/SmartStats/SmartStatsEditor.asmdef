@@ -1,0 +1,19 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.SmartStats.Editor",
+    "rootNamespace": "Laubrary.SmartStats.Editor",
+    "references": [
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "com.Lautaro-Arino.Laubrary.SmartStats"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
