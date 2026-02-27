@@ -135,20 +135,23 @@ public class FloatStatPropertyDrawer : PropertyDrawer
 
                 if (modsProp.arraySize > 0)
                 {
-                    int debugValueIndex = 1;
-                    
+                    var allModsList = GetFieldValue(floatStat, "floatStatMods");
+                    var activeModsList = GetFieldValue(floatStat, "activeFloatStatMods");
+
                     for (int i = 0; i < modsProp.arraySize; i++)
                     {
                         SerializedProperty modProp = modsProp.GetArrayElementAtIndex(i);
-                        
+
                         var isMergedIntoAnotherProp = modProp.FindPropertyRelative("isMergedIntoAnother");
                         bool isMergedIntoAnother = isMergedIntoAnotherProp != null && isMergedIntoAnotherProp.boolValue;
-                        
-                        if (isMergedIntoAnother)
-                        {
-                            continue;
-                        }
-                        
+
+                        if (isMergedIntoAnother) continue;
+
+                        // Resolve debug value indices via reference equality — avoids mismatch caused by
+                        // paused mods (excluded from activeFloatStatMods) or priority reordering.
+                        object runtimeMod = allModsList != null && i < allModsList.Count ? allModsList[i] : null;
+                        int activeIndex = FindInList(runtimeMod, activeModsList);
+
                         var mergedMultipliersProp = modProp.FindPropertyRelative("mergedMultipliers");
                         bool hasMergedMultipliers = mergedMultipliersProp != null && mergedMultipliersProp.arraySize > 0;
 
@@ -157,34 +160,34 @@ public class FloatStatPropertyDrawer : PropertyDrawer
                             for (int j = 0; j < mergedMultipliersProp.arraySize; j++)
                             {
                                 SerializedProperty mergedProp = mergedMultipliersProp.GetArrayElementAtIndex(j);
-                                
+
                                 var mergedDescProp = mergedProp.FindPropertyRelative("description");
                                 var mergedValueProp = mergedProp.FindPropertyRelative("modValue");
-                                
-                                Rect mergedRect = new Rect(currentRect.x + MERGED_INDENT, currentRect.y, 
+
+                                Rect mergedRect = new Rect(currentRect.x + MERGED_INDENT, currentRect.y,
                                     currentRect.width - MERGED_INDENT, MERGED_LINE_HEIGHT);
-                                
+
                                 string mergedValueText = FormatMergedMultiplierValue(mergedValueProp.floatValue);
-                                
+
                                 GUIStyle mergedStyle = new GUIStyle(EditorStyles.label);
                                 mergedStyle.fontSize = 10;
                                 mergedStyle.normal.textColor = new Color(0.6f, 0.6f, 0.6f);
-                                
+
                                 float leftColumnWidth = 100f;
                                 Rect leftRect = new Rect(mergedRect.x, mergedRect.y, leftColumnWidth, mergedRect.height);
-                                Rect descRect = new Rect(mergedRect.x + leftColumnWidth + 5f, mergedRect.y, 
+                                Rect descRect = new Rect(mergedRect.x + leftColumnWidth + 5f, mergedRect.y,
                                     mergedRect.width - leftColumnWidth - 5f, mergedRect.height);
-                                
+
                                 EditorGUI.LabelField(leftRect, $"({mergedValueText})", mergedStyle);
                                 EditorGUI.LabelField(descRect, mergedDescProp.stringValue, mergedStyle);
-                                
+
                                 currentRect.y += MERGED_LINE_HEIGHT + 1f;
                             }
-                            
+
                             var mainDescProp = modProp.FindPropertyRelative("description");
                             var mainValueProp = modProp.FindPropertyRelative("modValue");
                             var mainMergedProp = modProp.FindPropertyRelative("mergedMultipliers");
-                            
+
                             float mainOriginalValue = mainValueProp.floatValue;
                             if (mainMergedProp != null && mainMergedProp.arraySize > 0)
                             {
@@ -195,37 +198,37 @@ public class FloatStatPropertyDrawer : PropertyDrawer
                                     mainOriginalValue -= subValueProp.floatValue;
                                 }
                             }
-                            
-                            Rect mainMergedRect = new Rect(currentRect.x + MERGED_INDENT, currentRect.y, 
+
+                            Rect mainMergedRect = new Rect(currentRect.x + MERGED_INDENT, currentRect.y,
                                 currentRect.width - MERGED_INDENT, MERGED_LINE_HEIGHT);
-                            
+
                             string mainOriginalValueText = FormatMergedMultiplierValue(mainOriginalValue);
-                            
+
                             GUIStyle mainMergedStyle = new GUIStyle(EditorStyles.label);
                             mainMergedStyle.fontSize = 10;
                             mainMergedStyle.normal.textColor = new Color(0.6f, 0.6f, 0.6f);
-                            
+
                             float mainLeftColumnWidth = 100f;
                             Rect mainLeftRect = new Rect(mainMergedRect.x, mainMergedRect.y, mainLeftColumnWidth, mainMergedRect.height);
-                            Rect mainDescRect = new Rect(mainMergedRect.x + mainLeftColumnWidth + 5f, mainMergedRect.y, 
+                            Rect mainDescRect = new Rect(mainMergedRect.x + mainLeftColumnWidth + 5f, mainMergedRect.y,
                                 mainMergedRect.width - mainLeftColumnWidth - 5f, mainMergedRect.height);
-                            
+
                             EditorGUI.LabelField(mainLeftRect, $"({mainOriginalValueText})", mainMergedStyle);
                             EditorGUI.LabelField(mainDescRect, mainDescProp.stringValue, mainMergedStyle);
-                            
+
                             currentRect.y += MERGED_LINE_HEIGHT + 1f;
-                            
-                            float intermediateValue = (debugValues != null && debugValueIndex < debugValues.Count) ? (float)debugValues[debugValueIndex] : 0f;
-                            bool showResult = debugValues != null && debugValues.Count > 0;
-                            
+
+                            float intermediateValue = GetDebugValue(debugValues, activeIndex + 1);
+                            bool showResult = activeIndex >= 0 && debugValues != null && debugValues.Count > 0;
+
                             Rect mergedResultRect = new Rect(currentRect.x, currentRect.y, currentRect.width, MERGED_GROUP_LINE_HEIGHT);
                             string totalMergedValueText = FormatMergedMultiplierValue(mainValueProp.floatValue);
                             string mergedResultText = showResult ? $"{totalMergedValueText} (Merged) = {intermediateValue:F1}" : $"{totalMergedValueText} (Merged)";
-                            
+
                             GUIStyle mergedResultStyle = new GUIStyle(EditorStyles.boldLabel);
                             mergedResultStyle.normal.textColor = new Color(0.8f, 1f, 0.8f);
                             mergedResultStyle.fontSize = 11;
-                            
+
                             EditorGUI.LabelField(mergedResultRect, mergedResultText, mergedResultStyle);
                             currentRect.y += MERGED_GROUP_LINE_HEIGHT + SPACING;
                         }
@@ -233,24 +236,44 @@ public class FloatStatPropertyDrawer : PropertyDrawer
                         {
                             float mainModHeight = EditorGUI.GetPropertyHeight(modProp);
                             Rect mainModRect = new Rect(currentRect.x, currentRect.y, currentRect.width, mainModHeight);
-                            
-                            float previousIntermediate = (debugValues != null && debugValueIndex - 1 >= 0 && debugValueIndex - 1 < debugValues.Count) ? (float)debugValues[debugValueIndex - 1] : 0f;
-                            float intermediateValue = (debugValues != null && debugValueIndex < debugValues.Count) ? (float)debugValues[debugValueIndex] : 0f;
-                            bool showResult = debugValues != null && debugValues.Count > 0;
-                            
+
+                            float previousIntermediate = GetDebugValue(debugValues, activeIndex);
+                            float intermediateValue = GetDebugValue(debugValues, activeIndex + 1);
+                            bool showResult = activeIndex >= 0 && debugValues != null && debugValues.Count > 0;
+
                             FloatStatModifierPropertyDrawer.SetIntermediateResult(modProp.propertyPath, previousIntermediate, intermediateValue, showResult);
-                            
+
                             EditorGUI.PropertyField(mainModRect, modProp, GUIContent.none, true);
                             currentRect.y += mainModHeight + SPACING;
                         }
-                        
-                        debugValueIndex++;
                     }
                 }
             }
         }
 
         EditorGUI.EndProperty();
+    }
+
+    private System.Collections.IList GetFieldValue(object target, string fieldName)
+    {
+        if (target == null) return null;
+        var field = target.GetType().GetField(fieldName,
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+        return field?.GetValue(target) as System.Collections.IList;
+    }
+
+    private int FindInList(object item, System.Collections.IList list)
+    {
+        if (item == null || list == null) return -1;
+        for (int i = 0; i < list.Count; i++)
+            if (ReferenceEquals(list[i], item)) return i;
+        return -1;
+    }
+
+    private float GetDebugValue(System.Collections.IList debugValues, int index)
+    {
+        if (debugValues == null || index < 0 || index >= debugValues.Count) return 0f;
+        return (float)debugValues[index];
     }
 
     private string FormatMergedMultiplierValue(float value)

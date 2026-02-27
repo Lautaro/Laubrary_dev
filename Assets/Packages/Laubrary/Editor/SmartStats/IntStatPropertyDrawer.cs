@@ -132,39 +132,65 @@ public class IntStatPropertyDrawer : PropertyDrawer
                 {
                     var intStat = fieldInfo.GetValue(property.serializedObject.targetObject);
                     System.Collections.IList debugValues = null;
+                    System.Collections.IList allModsList = null;
+                    System.Collections.IList activeModsList = null;
 
                     if (intStat != null)
                     {
-                        var field = intStat.GetType().GetField("debugIntermediateValues",
+                        var debugField = intStat.GetType().GetField("debugIntermediateValues",
                             System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                        if (field != null)
-                            debugValues = field.GetValue(intStat) as System.Collections.IList;
-                    }
+                        if (debugField != null)
+                            debugValues = debugField.GetValue(intStat) as System.Collections.IList;
 
-                    int debugValueIndex = 1;
+                        var allField = intStat.GetType().GetField("intStatMods",
+                            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                        if (allField != null)
+                            allModsList = allField.GetValue(intStat) as System.Collections.IList;
+
+                        var activeField = intStat.GetType().GetField("activeIntStatMods",
+                            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                        if (activeField != null)
+                            activeModsList = activeField.GetValue(intStat) as System.Collections.IList;
+                    }
 
                     for (int i = 0; i < modsProp.arraySize; i++)
                     {
                         SerializedProperty modProp = modsProp.GetArrayElementAtIndex(i);
-                        
+
                         float mainModHeight = EditorGUI.GetPropertyHeight(modProp);
                         Rect mainModRect = new Rect(currentRect.x, currentRect.y, currentRect.width, mainModHeight);
 
-                        int previousIntermediate = (debugValues != null && debugValueIndex - 1 >= 0 && debugValueIndex - 1 < debugValues.Count) ? (int)debugValues[debugValueIndex - 1] : 0;
-                        int intermediateValue = (debugValues != null && debugValueIndex < debugValues.Count) ? (int)debugValues[debugValueIndex] : 0;
-                        bool showResult = debugValues != null && debugValues.Count > 0;
+                        object runtimeMod = allModsList != null && i < allModsList.Count ? allModsList[i] : null;
+                        int activeIndex = FindInList(runtimeMod, activeModsList);
+
+                        int previousIntermediate = GetDebugValueInt(debugValues, activeIndex);
+                        int intermediateValue = GetDebugValueInt(debugValues, activeIndex + 1);
+                        bool showResult = activeIndex >= 0 && debugValues != null && debugValues.Count > 0;
 
                         IntStatModifierPropertyDrawer.SetIntermediateResult(modProp.propertyPath, previousIntermediate, intermediateValue, showResult);
 
                         EditorGUI.PropertyField(mainModRect, modProp, GUIContent.none, true);
                         currentRect.y += mainModHeight + SPACING;
-                        debugValueIndex++;
                     }
                 }
             }
         }
 
         EditorGUI.EndProperty();
+    }
+
+    private int FindInList(object item, System.Collections.IList list)
+    {
+        if (item == null || list == null) return -1;
+        for (int i = 0; i < list.Count; i++)
+            if (ReferenceEquals(list[i], item)) return i;
+        return -1;
+    }
+
+    private int GetDebugValueInt(System.Collections.IList debugValues, int index)
+    {
+        if (debugValues == null || index < 0 || index >= debugValues.Count) return 0;
+        return (int)debugValues[index];
     }
 
     private float GetModifiersSectionHeight(SerializedProperty property)

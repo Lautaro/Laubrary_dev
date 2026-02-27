@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 namespace Lautaro.Stats
 {
@@ -23,12 +24,13 @@ namespace Lautaro.Stats
     {
         private Func<bool> condition;
 
+        /// <summary>Serialized condition state — updated each time ModValue() is called. Used by the inspector drawer.</summary>
+        [SerializeField] public bool conditionMet;
+
         public override float ModValue()
         {
-            if (condition())
-                return modValue;
-            else
-                return 0;
+            conditionMet = condition != null && condition();
+            return conditionMet ? modValue : 0f;
         }
 
         /// <summary>
@@ -45,7 +47,8 @@ namespace Lautaro.Stats
 
         public override string ToString()
         {
-            return $"[{ModValue().ToString()}] :{description}";
+            return $"[{ModValue()}] :{description}";
         }
     }
 }
+

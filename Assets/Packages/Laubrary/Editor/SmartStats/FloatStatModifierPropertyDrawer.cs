@@ -23,6 +23,14 @@ public class FloatStatModifierPropertyDrawer : PropertyDrawer
         showResults[propertyPath] = show;
     }
 
+    /// <summary>Reads the stored intermediate result for a given property path. Returns true if a result was set and should be shown.</summary>
+    public static bool TryGetIntermediateResult(string propertyPath, out float previous, out float current)
+    {
+        previous = previousResults.ContainsKey(propertyPath) ? previousResults[propertyPath] : 0f;
+        current = intermediateResults.ContainsKey(propertyPath) ? intermediateResults[propertyPath] : 0f;
+        return showResults.ContainsKey(propertyPath) && showResults[propertyPath];
+    }
+
     public float IntermediateResult { get; set; } = 0f;
     public bool ShowIntermediateResult { get; set; } = false;
     public bool IsMerged { get; set; } = false;
