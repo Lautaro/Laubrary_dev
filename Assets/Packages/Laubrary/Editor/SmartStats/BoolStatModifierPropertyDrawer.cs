@@ -11,7 +11,7 @@ public class BoolStatModifierPropertyDrawer : PropertyDrawer
 
         var descriptionProp = property.FindPropertyRelative("description");
         var modifierTypeProp = property.FindPropertyRelative("modifierType");
-        var isPausedProp = property.FindPropertyRelative("IsPaused");
+        var isPausedProp = property.FindPropertyRelative("isPaused");
 
         float pausedWidth = 60f;
         float labelWidth = position.width * 0.4f;

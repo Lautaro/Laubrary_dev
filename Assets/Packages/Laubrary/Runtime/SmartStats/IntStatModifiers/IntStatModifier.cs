@@ -9,28 +9,14 @@ namespace Lautaro.Stats
     /// All calculations are rounded to integers to maintain type consistency.
     /// </summary>
     [Serializable]
-    public class IntStatModifier : IUpdatable
+    public class IntStatModifier : StatModifierBase, IUpdatable
     {
         public int modValue;
-        public string description;
 
         [SerializeField] public int? priority = null;
-        [SerializeReference] public bool isPaused;
 
         public StatModifierTimer timer;
         public TimerMode timerMode = TimerMode.None;
-
-        protected bool remove = false;
-        public bool FlaggedForRemoval => remove;
-
-        public void Remove() 
-        {
-            remove = true;
-            if (this is IUpdatable) 
-            {
-                UpdateEngine.UnRegister((IUpdatable)this);
-            }
-        }
 
         public virtual int ModValue()
         {
@@ -66,9 +52,8 @@ namespace Lautaro.Stats
             return currentValue + ModValue();
         }
 
-        public IntStatModifier(int _modValue, string description = "")
+        public IntStatModifier(int _modValue, string description = "") : base(description)
         {
-            this.description = description;
             modValue = _modValue;
         }
 

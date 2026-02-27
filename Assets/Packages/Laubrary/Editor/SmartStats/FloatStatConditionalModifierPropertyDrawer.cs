@@ -1,46 +1,50 @@
-﻿using Lautaro.Stats;
-using Unity.VisualScripting;
+using Lautaro.Stats;
 using UnityEditor;
-using UnityEditor.UIElements;
-using UnityEngine.UIElements;
+using UnityEngine;
 
 [CustomPropertyDrawer(typeof(FloatStatConditionalModifier), true)]
 public class FloatStatConditionalModifierPropertyDrawer : PropertyDrawer
 {
-    public override VisualElement CreatePropertyGUI(SerializedProperty property)
+    private const float LEFT_COLUMN_WIDTH = 120f;
+    private const float SPACING = 5f;
+
+    public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
     {
-        var isPaused = property.FindPropertyRelative("isPaused");
-        var visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Stats/Editor/UI/FloatStatConditionalModifier.uxml");
-        var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/Stats/Editor/UI/USS_FloatStatModifier.uss");
+        EditorGUI.BeginProperty(position, label, property);
 
-        var root = visualTree.CloneTree();
-        root.styleSheets.Add(styleSheet);
+        var descriptionProp = property.FindPropertyRelative("description");
+        var modValueProp = property.FindPropertyRelative("modValue");
+        var isPausedProp = property.FindPropertyRelative("isPaused");
 
-        var modifierLabel = root.Q<Label>("modifierLabel");
-        var description = root.Q<Label>("descriptionLabel");
-  
-        var descriptionProperty = property.FindPropertyRelative("description").stringValue;
-        description.text = descriptionProperty + " : ";
-
-        var modValueProperty = property.FindPropertyRelative("modValue");
-        modifierLabel.BindProperty(modValueProperty);
-
-        root.TrackPropertyValue(isPaused, (prop) =>
+        if (descriptionProp == null || modValueProp == null || isPausedProp == null)
         {
-            var conditionMetValue = isPaused.boolValue;
-            UpdateCondition(conditionMetValue);
-        });
-
-        void UpdateCondition(bool isPaused)
-        {
-            if (isPaused)
-                root.AddToClassList("inactive");
-            else
-                root.RemoveFromClassList("inactive");
+            EditorGUI.LabelField(position, "FloatStatConditionalModifier: Missing properties");
+            EditorGUI.EndProperty();
+            return;
         }
-        UpdateCondition(isPaused.boolValue);
-        return root;
+
+        bool isActive = !isPausedProp.boolValue;
+        float value = modValueProp.floatValue;
+        string sign = value >= 0 ? "+" : "";
+        string stateLabel = isActive ? "TRUE" : "FALSE";
+        string valueText = $"{sign}{value:F1} [{stateLabel}]";
+
+        Rect mainRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
+        Rect leftRect = new Rect(mainRect.x, mainRect.y, LEFT_COLUMN_WIDTH, mainRect.height);
+        Rect descRect = new Rect(mainRect.x + LEFT_COLUMN_WIDTH + SPACING, mainRect.y,
+            mainRect.width - LEFT_COLUMN_WIDTH - SPACING, mainRect.height);
+
+        GUIStyle valueStyle = new GUIStyle(EditorStyles.boldLabel);
+        valueStyle.normal.textColor = isActive ? new Color(0.4f, 0.9f, 0.4f) : new Color(0.9f, 0.3f, 0.3f);
+
+        EditorGUI.LabelField(leftRect, valueText, valueStyle);
+        EditorGUI.LabelField(descRect, descriptionProp.stringValue);
+
+        EditorGUI.EndProperty();
     }
 
-
+    public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+    {
+        return EditorGUIUtility.singleLineHeight;
+    }
 }

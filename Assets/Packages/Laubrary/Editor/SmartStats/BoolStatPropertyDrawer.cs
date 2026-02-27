@@ -27,7 +27,7 @@ public class BoolStatPropertyDrawer : PropertyDrawer
             for (int i = 0; i < modsProp.arraySize; i++)
             {
                 var modProp = modsProp.GetArrayElementAtIndex(i);
-                var isPausedProp = modProp.FindPropertyRelative("IsPaused");
+                var isPausedProp = modProp.FindPropertyRelative("isPaused");
                 
                 if (isPausedProp != null && !isPausedProp.boolValue)
                 {

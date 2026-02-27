@@ -1,14 +1,14 @@
 using Lautaro.Stats;
 using UnityEditor;
 
-[CustomPropertyDrawer(typeof(FloatStatTimerModifier), true)]
-public class FloatStatTimerModifierPropertyDrawer : TimerModifierPropertyDrawerBase
+[CustomPropertyDrawer(typeof(IntStatTimerModifier), true)]
+public class IntStatTimerModifierPropertyDrawer : TimerModifierPropertyDrawerBase
 {
     protected override string FormatValue(SerializedProperty property)
     {
         var modValueProp = property.FindPropertyRelative("modValue");
-        float value = modValueProp?.floatValue ?? 0f;
+        int value = modValueProp?.intValue ?? 0;
         string sign = value >= 0 ? "+" : "";
-        return $"{sign}{value:F1}";
+        return $"{sign}{value}";
     }
 }

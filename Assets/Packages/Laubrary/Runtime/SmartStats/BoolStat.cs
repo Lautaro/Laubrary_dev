@@ -66,7 +66,7 @@ namespace Lautaro.Stats
         public bool CalculateCurrentValue()
         {
             var priorityModifer = boolStatMods
-                .Where(m => m.IsPaused == false)
+                .Where(m => m.isPaused == false)
                 .OrderBy(m => m.priority)
                 .FirstOrDefault();
 

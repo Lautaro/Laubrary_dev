@@ -24,7 +24,7 @@ namespace Lautaro.Stats
     /// Priority 10: +30 → 180 + 30 = 210
     /// </summary>
     [Serializable]
-    public class FloatStatModifier : IUpdatable
+    public class FloatStatModifier : StatModifierBase, IUpdatable
     {
         /// <summary>
         /// The numeric value of this modifier. Interpretation depends on modifier type.
@@ -33,20 +33,10 @@ namespace Lautaro.Stats
         public float modValue;
 
         /// <summary>
-        /// Human-readable description of this modifier's source/purpose (e.g., "Strength Potion", "Armor Bonus").
-        /// </summary>
-        public string description;
-
-        /// <summary>
         /// Priority category for this modifier. Lower values apply first.
         /// Null means use default priority (0).
         /// </summary>
         [SerializeField] public int? priority = null;
-
-        /// <summary>
-        /// When true, this modifier is temporarily disabled and won't affect calculations.
-        /// </summary>
-        [SerializeReference] public bool isPaused;
 
         /// <summary>
         /// Optional timer for this modifier. If set, the modifier will expire or scale based on the timer mode.
@@ -57,29 +47,6 @@ namespace Lautaro.Stats
         /// Defines how the timer affects this modifier's value.
         /// </summary>
         public TimerMode timerMode = TimerMode.None;
-
-        /// <summary>
-        /// Internal flag indicating this modifier should be removed on next cleanup.
-        /// </summary>
-        protected bool remove = false;
-
-        /// <summary>
-        /// Returns true if this modifier has been flagged for removal.
-        /// </summary>
-        public bool FlaggedForRemoval => remove;
-
-        /// <summary>
-        /// Flags this modifier for removal and unregisters it from the update system if applicable.
-        /// The modifier will be cleaned up on the next stat update cycle.
-        /// </summary>
-        public void Remove() 
-        {
-            remove = true;
-            if (this is IUpdatable) 
-            {
-                UpdateEngine.UnRegister((IUpdatable)this);
-            }
-        }
 
         /// <summary>
         /// Returns the current effective value of this modifier.
@@ -126,9 +93,8 @@ namespace Lautaro.Stats
             return currentValue + ModValue();
         }
 
-        public FloatStatModifier(float _modValue, string description = "")
+        public FloatStatModifier(float _modValue, string description = "") : base(description)
         {
-            this.description = description;
             modValue = _modValue;
         }
 

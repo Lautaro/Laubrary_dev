@@ -93,7 +93,15 @@ public class IntStatPropertyDrawer : PropertyDrawer
                 Rect modifierBgRect = new Rect(currentRect.x, currentRect.y, currentRect.width, modifiersSectionHeight);
                 EditorGUI.DrawRect(modifierBgRect, MODIFIER_BG_COLOR);
 
-                Rect baseValueLabelRect = new Rect(currentRect.x, currentRect.y, 70f, LINE_HEIGHT);
+                string minMaxKey = property.propertyPath + "_minmax";
+                bool minMaxFoldout = EditorPrefs.GetBool(minMaxKey, false);
+
+                Rect minMaxFoldoutRect = new Rect(currentRect.x, currentRect.y, FOLDOUT_WIDTH, LINE_HEIGHT);
+                bool newMinMaxFoldout = EditorGUI.Foldout(minMaxFoldoutRect, minMaxFoldout, GUIContent.none);
+                if (newMinMaxFoldout != minMaxFoldout)
+                    EditorPrefs.SetBool(minMaxKey, newMinMaxFoldout);
+
+                Rect baseValueLabelRect = new Rect(currentRect.x + FOLDOUT_WIDTH + 2f, currentRect.y, 70f, LINE_HEIGHT);
                 Rect baseValueFieldRect = new Rect(currentRect.x + 75f, currentRect.y, BASE_VALUE_WIDTH, LINE_HEIGHT);
                 
                 EditorGUI.LabelField(baseValueLabelRect, "Base value");
@@ -101,33 +109,56 @@ public class IntStatPropertyDrawer : PropertyDrawer
 
                 currentRect.y += LINE_HEIGHT + SPACING;
 
-                Rect minValueLabelRect = new Rect(currentRect.x, currentRect.y, 70f, LINE_HEIGHT);
-                Rect minValueFieldRect = new Rect(currentRect.x + 75f, currentRect.y, BASE_VALUE_WIDTH, LINE_HEIGHT);
-                
-                EditorGUI.LabelField(minValueLabelRect, "Min value");
-                EditorGUI.PropertyField(minValueFieldRect, minValueProp, GUIContent.none);
+                if (newMinMaxFoldout)
+                {
+                    Rect minValueLabelRect = new Rect(currentRect.x + FOLDOUT_WIDTH + 2f, currentRect.y, 70f, LINE_HEIGHT);
+                    Rect minValueFieldRect = new Rect(currentRect.x + 75f, currentRect.y, BASE_VALUE_WIDTH, LINE_HEIGHT);
+                    
+                    EditorGUI.LabelField(minValueLabelRect, "Min value");
+                    EditorGUI.PropertyField(minValueFieldRect, minValueProp, GUIContent.none);
 
-                currentRect.y += LINE_HEIGHT + SPACING;
+                    currentRect.y += LINE_HEIGHT + SPACING;
 
-                Rect maxValueLabelRect = new Rect(currentRect.x, currentRect.y, 70f, LINE_HEIGHT);
-                Rect maxValueFieldRect = new Rect(currentRect.x + 75f, currentRect.y, BASE_VALUE_WIDTH, LINE_HEIGHT);
-                
-                EditorGUI.LabelField(maxValueLabelRect, "Max value");
-                EditorGUI.PropertyField(maxValueFieldRect, maxValueProp, GUIContent.none);
+                    Rect maxValueLabelRect = new Rect(currentRect.x + FOLDOUT_WIDTH + 2f, currentRect.y, 70f, LINE_HEIGHT);
+                    Rect maxValueFieldRect = new Rect(currentRect.x + 75f, currentRect.y, BASE_VALUE_WIDTH, LINE_HEIGHT);
+                    
+                    EditorGUI.LabelField(maxValueLabelRect, "Max value");
+                    EditorGUI.PropertyField(maxValueFieldRect, maxValueProp, GUIContent.none);
 
-                currentRect.y += LINE_HEIGHT + SPACING;
+                    currentRect.y += LINE_HEIGHT + SPACING;
+                }
 
                 if (modsProp.arraySize > 0)
                 {
+                    var intStat = fieldInfo.GetValue(property.serializedObject.targetObject);
+                    System.Collections.IList debugValues = null;
+
+                    if (intStat != null)
+                    {
+                        var field = intStat.GetType().GetField("debugIntermediateValues",
+                            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                        if (field != null)
+                            debugValues = field.GetValue(intStat) as System.Collections.IList;
+                    }
+
+                    int debugValueIndex = 1;
+
                     for (int i = 0; i < modsProp.arraySize; i++)
                     {
                         SerializedProperty modProp = modsProp.GetArrayElementAtIndex(i);
                         
                         float mainModHeight = EditorGUI.GetPropertyHeight(modProp);
                         Rect mainModRect = new Rect(currentRect.x, currentRect.y, currentRect.width, mainModHeight);
-                        
+
+                        int previousIntermediate = (debugValues != null && debugValueIndex - 1 >= 0 && debugValueIndex - 1 < debugValues.Count) ? (int)debugValues[debugValueIndex - 1] : 0;
+                        int intermediateValue = (debugValues != null && debugValueIndex < debugValues.Count) ? (int)debugValues[debugValueIndex] : 0;
+                        bool showResult = debugValues != null && debugValues.Count > 0;
+
+                        IntStatModifierPropertyDrawer.SetIntermediateResult(modProp.propertyPath, previousIntermediate, intermediateValue, showResult);
+
                         EditorGUI.PropertyField(mainModRect, modProp, GUIContent.none, true);
                         currentRect.y += mainModHeight + SPACING;
+                        debugValueIndex++;
                     }
                 }
             }
@@ -138,9 +169,16 @@ public class IntStatPropertyDrawer : PropertyDrawer
 
     private float GetModifiersSectionHeight(SerializedProperty property)
     {
-        float height = LINE_HEIGHT + SPACING; // Base value
-        height += LINE_HEIGHT + SPACING; // Min value
-        height += LINE_HEIGHT + SPACING; // Max value
+        float height = LINE_HEIGHT + SPACING; // Base value (always shown)
+
+        string minMaxKey = property.propertyPath + "_minmax";
+        bool minMaxFoldout = EditorPrefs.GetBool(minMaxKey, false);
+
+        if (minMaxFoldout)
+        {
+            height += LINE_HEIGHT + SPACING; // Min value
+            height += LINE_HEIGHT + SPACING; // Max value
+        }
 
         var modsProp = property.FindPropertyRelative("intStatMods");
         for (int i = 0; i < modsProp.arraySize; i++)

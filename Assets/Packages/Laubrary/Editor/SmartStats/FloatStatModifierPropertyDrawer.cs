@@ -11,11 +11,14 @@ public class FloatStatModifierPropertyDrawer : PropertyDrawer
 
     private static System.Collections.Generic.Dictionary<string, float> intermediateResults = 
         new System.Collections.Generic.Dictionary<string, float>();
+    private static System.Collections.Generic.Dictionary<string, float> previousResults = 
+        new System.Collections.Generic.Dictionary<string, float>();
     private static System.Collections.Generic.Dictionary<string, bool> showResults = 
         new System.Collections.Generic.Dictionary<string, bool>();
 
-    public static void SetIntermediateResult(string propertyPath, float value, bool show)
+    public static void SetIntermediateResult(string propertyPath, float previousValue, float value, bool show)
     {
+        previousResults[propertyPath] = previousValue;
         intermediateResults[propertyPath] = value;
         showResults[propertyPath] = show;
     }
@@ -30,11 +33,13 @@ public class FloatStatModifierPropertyDrawer : PropertyDrawer
         
         string propertyPath = property.propertyPath;
         float intermediateValue = 0f;
+        float previousValue = 0f;
         bool showResult = false;
         
         if (intermediateResults.ContainsKey(propertyPath))
         {
             intermediateValue = intermediateResults[propertyPath];
+            previousValue = previousResults.ContainsKey(propertyPath) ? previousResults[propertyPath] : 0f;
             showResult = showResults.ContainsKey(propertyPath) && showResults[propertyPath];
         }
 
@@ -91,7 +96,13 @@ public class FloatStatModifierPropertyDrawer : PropertyDrawer
             
             if (showResult && !isPausedProp.boolValue)
             {
-                leftText = $"{valueText} = {intermediateValue:F1}";
+                bool isMultiplierOrDivider = modifierType.Contains("Multiplier") || modifierType.Contains("Divider");
+                if (isMultiplierOrDivider)
+                {
+                    float delta = intermediateValue - previousValue;
+                    string deltaSign = delta >= 0 ? "+" : "";
+                    leftText = $"{valueText} ({deltaSign}{delta:F1})";
+                }
             }
             
             int? priority = null;

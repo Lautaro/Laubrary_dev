@@ -78,5 +78,13 @@ namespace Laubrary.SmartStats.Demo
         {
             this.UnregisterAllStats();
         }
+
+        /// <summary>Flags all modifiers on all stats for removal on the next Update cycle.</summary>
+        public void ClearAllModifiers()
+        {
+            foreach (var mod in health.intStatMods) mod.Remove();
+            foreach (var mod in moveSpeed.floatStatMods) mod.Remove();
+            Debug.Log("<color=white>Simple: Cleared all modifiers</color>");
+        }
     }
 }
