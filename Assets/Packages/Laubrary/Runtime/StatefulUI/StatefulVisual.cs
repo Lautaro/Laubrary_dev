@@ -2,9 +2,11 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using Laubrary.Switcheroo;
 
 namespace Laubrary.Lau_StatefulUI
 {
+    [DisallowMultipleComponent]
     public class StatefulVisual : MonoBehaviour
     {
         [SerializeField] private StateDimension respondsToDimension = StateDimension.Interaction;
@@ -35,73 +37,55 @@ namespace Laubrary.Lau_StatefulUI
         [SerializeField, HideInInspector] private Sprite _originalSprite;
         [SerializeField, HideInInspector] private bool _hasStoredOriginals;
 
-        private bool _isTransitioning;
-        private float _transitionElapsed;
-        private float _transitionDuration;
-        private Color _transitionStartColor;
-        private Color _transitionTargetColor;
-        private Vector2 _transitionStartPosition;
-        private Vector2 _transitionTargetPosition;
-        private Vector3 _transitionStartScale;
-        private Vector3 _transitionTargetScale;
-        private Quaternion _transitionStartRotation;
-        private Quaternion _transitionTargetRotation;
+        private Switcheroo.Switcheroo _switcheroo;
+        private Color _colorA;
+        private Color _colorB;
+        private Vector2 _positionA;
+        private Vector2 _positionB;
+        private Vector3 _scaleA;
+        private Vector3 _scaleB;
+        private Quaternion _rotationA;
+        private Quaternion _rotationB;
 
         public StateDimension RespondsToDimension => respondsToDimension;
 
-        private void Update()
+        private void ApplyProgress(float t)
         {
-            if (_isTransitioning)
+            if (_graphicComponent != null)
+                _graphicComponent.color = Color.Lerp(_colorA, _colorB, t);
+
+            if (_rectTransform != null)
             {
-                _transitionElapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(_transitionElapsed / _transitionDuration);
-
-                if (_graphicComponent != null)
-                {
-                    _graphicComponent.color = Color.Lerp(_transitionStartColor, _transitionTargetColor, t);
-                }
-
-                if (_rectTransform != null)
-                {
-                    _rectTransform.anchoredPosition = Vector2.Lerp(_transitionStartPosition, _transitionTargetPosition, t);
-                    _rectTransform.localScale = Vector3.Lerp(_transitionStartScale, _transitionTargetScale, t);
-                    _rectTransform.localRotation = Quaternion.Lerp(_transitionStartRotation, _transitionTargetRotation, t);
-                }
-
-                if (t >= 1f)
-                {
-                    if (_graphicComponent != null)
-                    {
-                        _graphicComponent.color = _transitionTargetColor;
-                    }
-
-                    if (_rectTransform != null)
-                    {
-                        _rectTransform.anchoredPosition = _transitionTargetPosition;
-                        _rectTransform.localScale = _transitionTargetScale;
-                        _rectTransform.localRotation = _transitionTargetRotation;
-                    }
-
-                    _isTransitioning = false;
-                }
+                _rectTransform.anchoredPosition = Vector2.Lerp(_positionA, _positionB, t);
+                _rectTransform.localScale = Vector3.Lerp(_scaleA, _scaleB, t);
+                _rectTransform.localRotation = Quaternion.Lerp(_rotationA, _rotationB, t);
             }
         }
 
         private void StartTransition(Color targetColor, Vector2 targetPosition, Vector3 targetScale, Quaternion targetRotation, float duration)
         {
-            _transitionStartColor = _graphicComponent != null ? _graphicComponent.color : _originalColor;
-            _transitionStartPosition = _rectTransform != null ? _rectTransform.anchoredPosition : _originalPosition;
-            _transitionStartScale = _rectTransform != null ? _rectTransform.localScale : _originalScale;
-            _transitionStartRotation = _rectTransform != null ? _rectTransform.localRotation : _originalRotation;
+            _colorA = _graphicComponent != null ? _graphicComponent.color : _originalColor;
+            _positionA = _rectTransform != null ? _rectTransform.anchoredPosition : _originalPosition;
+            _scaleA = _rectTransform != null ? _rectTransform.localScale : _originalScale;
+            _rotationA = _rectTransform != null ? _rectTransform.localRotation : _originalRotation;
 
-            _transitionTargetColor = targetColor;
-            _transitionTargetPosition = targetPosition;
-            _transitionTargetScale = targetScale;
-            _transitionTargetRotation = targetRotation;
+            _colorB = targetColor;
+            _positionB = targetPosition;
+            _scaleB = targetScale;
+            _rotationB = targetRotation;
 
-            _transitionDuration = duration;
-            _transitionElapsed = 0f;
-            _isTransitioning = true;
+            _switcheroo.transitionSpeed = duration;
+            _switcheroo.SetProgress(0f);
+            _switcheroo.SwitchToOn(true);
+        }
+
+        private void SettleSwitcheroo()
+        {
+            _colorB = _graphicComponent != null ? _graphicComponent.color : _originalColor;
+            _positionB = _rectTransform != null ? _rectTransform.anchoredPosition : _originalPosition;
+            _scaleB = _rectTransform != null ? _rectTransform.localScale : _originalScale;
+            _rotationB = _rectTransform != null ? _rectTransform.localRotation : _originalRotation;
+            _switcheroo.SetProgress(1f);
         }
 
 #if UNITY_EDITOR
@@ -147,6 +131,13 @@ namespace Laubrary.Lau_StatefulUI
             FindVisualComponent();
             CacheComponentReferences();
             CaptureOriginalValues();
+            _switcheroo = new Switcheroo.Switcheroo();
+            _switcheroo.AddTransition("visual", ApplyProgress);
+        }
+
+        private void OnDestroy()
+        {
+            _switcheroo?.Dispose();
         }
 
         private void CacheComponentReferences()
@@ -301,7 +292,8 @@ namespace Laubrary.Lau_StatefulUI
                 return;
             }
 
-            if (transitionDuration > 0f)
+            float effectiveDuration = (config.enabledModifiers & StateModifierFlags.Duration) != 0 ? config.duration : transitionDuration;
+            if (effectiveDuration > 0f)
             {
                 Color targetColor = (config.enabledModifiers & StateModifierFlags.Color) != 0 ? config.color : _originalColor;
                 
@@ -350,7 +342,7 @@ namespace Laubrary.Lau_StatefulUI
                     ApplySprite(_originalSprite);
                 }
 
-                StartTransition(targetColor, targetPosition, targetScale, targetRotation, transitionDuration);
+                StartTransition(targetColor, targetPosition, targetScale, targetRotation, effectiveDuration);
             }
             else
             {
@@ -360,8 +352,6 @@ namespace Laubrary.Lau_StatefulUI
 
         private void ApplyInteractionConfigImmediate(InteractionStateConfig config)
         {
-            _isTransitioning = false;
-
             if ((config.enabledModifiers & StateModifierFlags.Color) != 0)
             {
                 ApplyColor(config.color);
@@ -421,6 +411,8 @@ namespace Laubrary.Lau_StatefulUI
             {
                 ApplySprite(_originalSprite);
             }
+
+            SettleSwitcheroo();
         }
 
         private void ApplyBooleanConfig(BooleanStateConfig config, float transitionDuration = 0f)
@@ -431,9 +423,10 @@ namespace Laubrary.Lau_StatefulUI
                 return;
             }
 
-            if (transitionDuration > 0f)
+            float effectiveDuration = (config.enabledModifiers & StateModifierFlags.Duration) != 0 ? config.duration : transitionDuration;
+            if (effectiveDuration > 0f)
             {
-                Color targetColor = _originalColor;
+                Color targetColor = (config.enabledModifiers & StateModifierFlags.Color) != 0 ? config.color : _originalColor;
                 
                 if ((config.enabledModifiers & StateModifierFlags.Alpha) != 0)
                 {
@@ -480,7 +473,7 @@ namespace Laubrary.Lau_StatefulUI
                     ApplySprite(_originalSprite);
                 }
 
-                StartTransition(targetColor, targetPosition, targetScale, targetRotation, transitionDuration);
+                StartTransition(targetColor, targetPosition, targetScale, targetRotation, effectiveDuration);
             }
             else
             {
@@ -490,9 +483,10 @@ namespace Laubrary.Lau_StatefulUI
 
         private void ApplyBooleanConfigImmediate(BooleanStateConfig config)
         {
-            _isTransitioning = false;
-
-            ApplyColor(_originalColor);
+            if ((config.enabledModifiers & StateModifierFlags.Color) != 0)
+                ApplyColor(config.color);
+            else
+                ApplyColor(_originalColor);
 
             if ((config.enabledModifiers & StateModifierFlags.Alpha) != 0)
             {
@@ -544,6 +538,8 @@ namespace Laubrary.Lau_StatefulUI
             {
                 ApplySprite(_originalSprite);
             }
+
+            SettleSwitcheroo();
         }
 
         private void ApplyColor(Color color)
@@ -703,8 +699,6 @@ namespace Laubrary.Lau_StatefulUI
 
         private void ResetToOriginalValuesImmediate()
         {
-            _isTransitioning = false;
-
             if (_graphicComponent != null)
             {
                 _graphicComponent.color = _originalColor;
@@ -721,6 +715,8 @@ namespace Laubrary.Lau_StatefulUI
             {
                 _imageComponent.sprite = _originalSprite;
             }
+
+            SettleSwitcheroo();
         }
 
         public void ResetToDefaults()

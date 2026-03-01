@@ -2,7 +2,9 @@
     "name": "com.Lautaro-Arino.Laubrary.SmartStats",
     "rootNamespace": "Laubrary.SmartStats",
     "references": [
-        "GUID:6055be8ebefd69e48b49212b09b47b2f"
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:b27d7998452bfdf47b4727f926a9909c",
+        "com.Lautaro-Arino.Laubrary.Cookbook"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

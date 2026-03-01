@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using Lautaro.Stats.Engine;
+using Laubrary.LaubraryTicker;
 
 namespace Lautaro.Stats
 {
@@ -9,23 +10,21 @@ namespace Lautaro.Stats
     /// All calculations are rounded to integers to maintain type consistency.
     /// </summary>
     [Serializable]
-    public class IntStatModifier : StatModifierBase, IUpdatable
+    public class IntStatModifier : StatModifierBase, ITickable
     {
         public int modValue;
 
         [SerializeField] public int? priority = null;
 
-        public StatModifierTimer timer;
+        public Ticker.Timer timer;
         public TimerMode timerMode = TimerMode.None;
 
         public virtual int ModValue()
         {
             if (timerMode == TimerMode.None || timer == null)
-            {
                 return modValue;
-            }
 
-            if (timer.Remaining <= 0)
+            if (timer.IsExpired)
             {
                 Remove();
                 return 0;
@@ -35,13 +34,10 @@ namespace Lautaro.Stats
             {
                 case TimerMode.Timer:
                     return modValue;
-
                 case TimerMode.TimerDecreasing:
-                    return Mathf.RoundToInt(modValue * timer.RemainingPercentage);
-
+                    return Mathf.RoundToInt(modValue * timer.RemainingNormalized);
                 case TimerMode.TimerIncreasing:
-                    return Mathf.RoundToInt(modValue * (1f - timer.RemainingPercentage));
-
+                    return Mathf.RoundToInt(modValue * timer.ElapsedNormalized);
                 default:
                     return modValue;
             }
@@ -57,19 +53,24 @@ namespace Lautaro.Stats
             modValue = _modValue;
         }
 
-        public void Update()
+        /// <summary>
+        /// Called every frame by Ticker when this modifier has an active timer.
+        /// Removes the modifier once the timer expires.
+        /// </summary>
+        public void Tick()
         {
-            if (timerMode != TimerMode.None && timer != null && timer.Remaining <= 0)
-            {
+            if (timerMode != TimerMode.None && timer != null && timer.IsExpired)
                 Remove();
-            }
         }
 
+        /// <summary>
+        /// Enables timer for this modifier and registers it with Ticker for automatic expiry.
+        /// </summary>
         internal void EnableTimer(float duration, TimerMode mode)
         {
-            timer = new StatModifierTimer(duration);
+            timer = new Ticker.Timer(duration);
             timerMode = mode;
-            UpdateEngine.Register(this);
+            Ticker.Register(this);
         }
     }
 }

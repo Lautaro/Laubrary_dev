@@ -1,4 +1,5 @@
 using System;
+using Laubrary.LaubraryTicker;
 
 namespace Lautaro.Stats.Engine
 {
@@ -20,15 +21,13 @@ namespace Lautaro.Stats.Engine
         }
 
         /// <summary>
-        /// Flags this modifier for removal and unregisters it from UpdateEngine if it implements IUpdatable.
+        /// Flags this modifier for removal and unregisters it from Ticker if it implements ITickable.
         /// </summary>
         public void Remove()
         {
             remove = true;
-            if (this is IUpdatable updatable)
-            {
-                UpdateEngine.UnRegister(updatable);
-            }
+            if (this is ITickable tickable)
+                Ticker.Unregister(tickable);
         }
     }
 }

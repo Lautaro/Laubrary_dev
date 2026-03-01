@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using Lautaro.Stats.Engine;
+using Laubrary.LaubraryTicker;
 
 namespace Lautaro.Stats
 {
@@ -8,7 +9,7 @@ namespace Lautaro.Stats
     /// Base class for all FloatStat modifiers. Modifiers temporarily adjust stat values without changing the base.
     /// Supports priority-based ordering where modifiers are grouped by priority and resolved using industry-standard
     /// math within each priority category.
-    /// 
+    ///
     /// Priority System:
     /// - Lower priority numbers apply first (e.g., -10 before 0 before 10)
     /// - Default priority is 0 if not specified
@@ -17,14 +18,14 @@ namespace Lautaro.Stats
     ///   * All multipliers stack additively (50% + 25% = 75% total)
     ///   * Result = (input + sumOfAdditions) * (1 + sumOfMultipliers)
     /// - Categories apply sequentially (output of priority N becomes input of priority N+1)
-    /// 
+    ///
     /// Example:
     /// Base: 100
     /// Priority 0: +20, *0.5 → (100 + 20) * 1.5 = 180
     /// Priority 10: +30 → 180 + 30 = 210
     /// </summary>
     [Serializable]
-    public class FloatStatModifier : StatModifierBase, IUpdatable
+    public class FloatStatModifier : StatModifierBase, ITickable
     {
         /// <summary>
         /// The numeric value of this modifier. Interpretation depends on modifier type.
@@ -41,7 +42,7 @@ namespace Lautaro.Stats
         /// <summary>
         /// Optional timer for this modifier. If set, the modifier will expire or scale based on the timer mode.
         /// </summary>
-        public StatModifierTimer timer;
+        public Ticker.Timer timer;
 
         /// <summary>
         /// Defines how the timer affects this modifier's value.
@@ -56,11 +57,9 @@ namespace Lautaro.Stats
         public virtual float ModValue()
         {
             if (timerMode == TimerMode.None || timer == null)
-            {
                 return modValue;
-            }
 
-            if (timer.Remaining <= 0)
+            if (timer.IsExpired)
             {
                 Remove();
                 return 0f;
@@ -70,13 +69,10 @@ namespace Lautaro.Stats
             {
                 case TimerMode.Timer:
                     return modValue;
-
                 case TimerMode.TimerDecreasing:
-                    return modValue * timer.RemainingPercentage;
-
+                    return modValue * timer.RemainingNormalized;
                 case TimerMode.TimerIncreasing:
-                    return modValue * (1f - timer.RemainingPercentage);
-
+                    return modValue * timer.ElapsedNormalized;
                 default:
                     return modValue;
             }
@@ -99,25 +95,23 @@ namespace Lautaro.Stats
         }
 
         /// <summary>
-        /// Called every frame by UpdateEngine if this modifier has a timer.
-        /// Checks if the timer has expired and removes the modifier if so.
+        /// Called every frame by Ticker when this modifier has an active timer.
+        /// Removes the modifier once the timer expires.
         /// </summary>
-        public void Update()
+        public void Tick()
         {
-            if (timerMode != TimerMode.None && timer != null && timer.Remaining <= 0)
-            {
+            if (timerMode != TimerMode.None && timer != null && timer.IsExpired)
                 Remove();
-            }
         }
 
         /// <summary>
-        /// Enables timer for this modifier. Automatically registers with UpdateEngine.
+        /// Enables timer for this modifier and registers it with Ticker for automatic expiry.
         /// </summary>
         internal void EnableTimer(float duration, TimerMode mode)
         {
-            timer = new StatModifierTimer(duration);
+            timer = new Ticker.Timer(duration);
             timerMode = mode;
-            UpdateEngine.Register(this);
+            Ticker.Register(this);
         }
     }
 }

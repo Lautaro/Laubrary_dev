@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Lautaro.Stats.Engine;
+using Laubrary.LaubraryTicker;
 
 namespace Lautaro.Stats
 {
@@ -13,7 +14,7 @@ namespace Lautaro.Stats
     /// See FloatStat documentation for detailed information about the modifier system.
     /// </summary>
     [Serializable]
-    public class IntStat : IUpdatable, ISerializationCallbackReceiver
+    public class IntStat : ITickable, ISerializationCallbackReceiver
     {
         private const int DEFAULT_PRIORITY = 0;
         private const int PRIORITY_SPACING = 10;
@@ -46,26 +47,40 @@ namespace Lautaro.Stats
             this.totalValue = baseValue;
         }
 
+        /// <summary>
+        /// Registers this stat with Ticker for automatic updates.
+        /// If using [AutoRegisterStats] or RegisterAllStats(), this is called automatically.
+        /// For runtime-created stats, call this manually after construction.
+        /// </summary>
         public void Init()
         {
             if (!isRegistered)
             {
-                UpdateEngine.Register(this);
+                Ticker.Register(this);
                 isRegistered = true;
             }
         }
 
+        /// <summary>
+        /// Unregisters this stat from Ticker. Call this in OnDestroy.
+        /// IntStat is a plain C# object — it will NOT be null-checked out of Ticker
+        /// when its parent MonoBehaviour is destroyed, so explicit cleanup is required.
+        /// </summary>
         public void Cleanup()
         {
             if (isRegistered)
             {
-                UpdateEngine.UnRegister(this);
+                Ticker.Unregister(this);
                 isRegistered = false;
             }
         }
 
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
+            // Safe: field assignment only. Do NOT call Ticker.Register() or any
+            // other Unity API here — OnAfterDeserialize can run off the main thread
+            // or mid-serialization. Registration is handled by [AutoRegisterStats],
+            // RegisterAllStats(), or manual Init() calls.
             totalValue = baseValue;
         }
 
@@ -226,21 +241,14 @@ namespace Lautaro.Stats
             RefreshActiveModifiers();
         }
 
-        public void Update()
+        /// <summary>
+        /// Called every frame by Ticker. Removes expired modifiers and recalculates the stat value.
+        /// </summary>
+        public void Tick()
         {
-            foreach (var mod in intStatMods)
-            {
-                if (mod is IUpdatable)
-                {
-                    (mod as IUpdatable).Update();
-                }
-            }
-
-            var remove = intStatMods.Where(mod => mod.FlaggedForRemoval == true).ToList();
+            var remove = intStatMods.Where(mod => mod.FlaggedForRemoval).ToList();
             foreach (var removeItem in remove)
-            {
                 intStatMods.Remove(removeItem);
-            }
 
             RefreshActiveModifiers();
         }

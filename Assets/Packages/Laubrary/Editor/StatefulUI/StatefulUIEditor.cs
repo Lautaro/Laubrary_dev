@@ -153,6 +153,10 @@ namespace Laubrary.Lau_StatefulUI.Editor
                 {
                     DrawGameObjectsList(config.FindPropertyRelative("gameObjects"));
                 }
+                if ((flags & StateModifierFlags.Duration) != 0)
+                {
+                    EditorGUILayout.PropertyField(config.FindPropertyRelative("duration"), new GUIContent("Duration"));
+                }
 
                 EditorGUILayout.EndVertical();
                 EditorGUILayout.Space(10);
@@ -242,6 +246,10 @@ namespace Laubrary.Lau_StatefulUI.Editor
 
                 StateModifierFlags flags = (StateModifierFlags)modifiers.intValue;
 
+                if ((flags & StateModifierFlags.Color) != 0)
+                {
+                    EditorGUILayout.PropertyField(config.FindPropertyRelative("color"));
+                }
                 if ((flags & StateModifierFlags.Alpha) != 0)
                 {
                     DrawModifierWithMode(config, "alpha", "alphaIsAdditive", "Alpha");
@@ -278,6 +286,10 @@ namespace Laubrary.Lau_StatefulUI.Editor
                 if ((flags & StateModifierFlags.GameObjects) != 0)
                 {
                     DrawGameObjectsList(config.FindPropertyRelative("gameObjects"));
+                }
+                if ((flags & StateModifierFlags.Duration) != 0)
+                {
+                    EditorGUILayout.PropertyField(config.FindPropertyRelative("duration"), new GUIContent("Duration"));
                 }
             }
         }

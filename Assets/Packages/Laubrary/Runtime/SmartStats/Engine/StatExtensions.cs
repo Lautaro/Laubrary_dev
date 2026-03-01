@@ -1,131 +1,85 @@
 using System.Reflection;
 using UnityEngine;
+using Laubrary.LaubraryTicker;
 
 namespace Lautaro.Stats.Engine
 {
     /// <summary>
-    /// Extension methods for SmartStats auto-registration and management.
-    /// Provides convenient methods to register/unregister stats with UpdateEngine.
+    /// Extension methods for SmartStats registration and management via Ticker.
     /// </summary>
     public static class StatExtensions
     {
         /// <summary>
-        /// Automatically discovers and registers all IUpdatable stats on this MonoBehaviour.
-        /// Searches all public instance fields for FloatStat, BoolStat, IntStat, and any custom IUpdatable types.
-        /// 
-        /// Usage in MonoBehaviour:
+        /// Automatically discovers and registers all ITickable stats on this MonoBehaviour with Ticker.
+        /// Searches all public instance fields for FloatStat, BoolStat, IntStat, and any custom ITickable types.
+        /// Call this in Awake and pair it with UnregisterAllStats() in OnDestroy.
+        ///
+        /// Usage:
         /// <code>
-        /// void Awake()
-        /// {
-        ///     this.RegisterAllStats();
-        /// }
+        /// void Awake()   => this.RegisterAllStats();
+        /// void OnDestroy() => this.UnregisterAllStats();
         /// </code>
-        /// 
-        /// This is useful when:
-        /// - You want explicit control over when stats are registered (vs automatic registration)
-        /// - You need stats to register at a specific point in the lifecycle (e.g., after other Awake logic)
-        /// - You prefer a single-line solution over manually calling Init() on each stat
-        /// 
-        /// Note: If SmartStatsConfig.AutoRegisterStats is true (default), stats auto-register on deserialization,
-        /// making this method redundant (but harmless to call).
         /// </summary>
         public static void RegisterAllStats(this MonoBehaviour behaviour)
         {
             var fields = behaviour.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance);
-            
+
             foreach (var field in fields)
             {
-                var stat = field.GetValue(behaviour) as IUpdatable;
-                if (stat != null)
-                {
-                    UpdateEngine.Register(stat);
-                }
+                if (field.GetValue(behaviour) is ITickable tickable)
+                    Ticker.Register(tickable);
             }
         }
 
         /// <summary>
-        /// Registers a single stat with the UpdateEngine.
-        /// Convenience method for explicit individual registration.
-        /// 
-        /// Usage:
-        /// <code>
-        /// void Awake()
-        /// {
-        ///     health.RegisterStat();
-        ///     stamina.RegisterStat();
-        /// }
-        /// </code>
-        /// 
-        /// Note: If SmartStatsConfig.AutoRegisterStats is true (default), this is redundant.
+        /// Registers a single stat with Ticker.
         /// </summary>
-        public static void RegisterStat(this IUpdatable stat)
+        public static void RegisterStat(this ITickable stat)
         {
-            UpdateEngine.Register(stat);
+            Ticker.Register(stat);
         }
 
         /// <summary>
-        /// Legacy method: Registers multiple stats with the UpdateEngine.
-        /// 
-        /// Usage:
-        /// <code>
-        /// void Awake()
-        /// {
-        ///     gameObject.RegisterStat(health, mana, stamina);
-        /// }
-        /// </code>
-        /// 
-        /// Note: Consider using RegisterAllStats() or individual RegisterStat() calls instead.
+        /// Registers multiple stats with Ticker.
         /// </summary>
-        public static void RegisterStat(this GameObject gameObject, params IUpdatable[] stats)
+        public static void RegisterStat(this GameObject gameObject, params ITickable[] stats)
         {
             foreach (var stat in stats)
-            {
-                UpdateEngine.Register(stat);
-            }
+                Ticker.Register(stat);
         }
 
         /// <summary>
-        /// Manually unregisters all IUpdatable stats on this MonoBehaviour.
-        /// Useful if you need to stop updates without destroying the GameObject.
-        /// 
-        /// Note: Cleanup is automatic when the owning GameObject is destroyed (UpdateEngine checks for null).
-        /// You only need this for special cases like disabling a character temporarily.
+        /// Unregisters all ITickable stats on this MonoBehaviour from Ticker.
+        /// Call this in OnDestroy. Stats are plain C# objects — they will NOT be
+        /// null-checked out of Ticker when their parent MonoBehaviour is destroyed,
+        /// so explicit unregistration is required to prevent leaking ticks.
         /// </summary>
         public static void UnregisterAllStats(this MonoBehaviour behaviour)
         {
             var fields = behaviour.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance);
-            
+
             foreach (var field in fields)
             {
-                var stat = field.GetValue(behaviour) as IUpdatable;
-                if (stat != null)
-                {
-                    UpdateEngine.UnRegister(stat);
-                }
+                if (field.GetValue(behaviour) is ITickable tickable)
+                    Ticker.Unregister(tickable);
             }
         }
 
         /// <summary>
-        /// Unregisters a single stat from the UpdateEngine.
-        /// Use this to stop updates without destroying the GameObject.
-        /// 
-        /// Note: Cleanup is automatic when the owning GameObject is destroyed.
+        /// Unregisters a single stat from Ticker.
         /// </summary>
-        public static void UnregisterStat(this IUpdatable stat)
+        public static void UnregisterStat(this ITickable stat)
         {
-            UpdateEngine.UnRegister(stat);
+            Ticker.Unregister(stat);
         }
 
         /// <summary>
-        /// Legacy method: Unregisters multiple stats from the UpdateEngine.
-        /// Note: Cleanup is automatic when GameObject is destroyed.
+        /// Unregisters multiple stats from Ticker.
         /// </summary>
-        public static void UnregisterStat(this GameObject gameObject, params IUpdatable[] stats)
+        public static void UnregisterStat(this GameObject gameObject, params ITickable[] stats)
         {
             foreach (var stat in stats)
-            {
-                UpdateEngine.UnRegister(stat);
-            }
+                Ticker.Unregister(stat);
         }
     }
 }

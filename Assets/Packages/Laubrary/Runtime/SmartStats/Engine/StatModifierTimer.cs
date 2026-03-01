@@ -1,41 +1,17 @@
-using System;
-using UnityEngine;
+using Laubrary.LaubraryTicker;
 
 namespace Lautaro.Stats.Engine
 {
+    /// <summary>
+    /// Compatibility subclass of Ticker.Timer.
+    /// Use Ticker.Timer directly in new code.
+    /// </summary>
     [System.Serializable]
-    public class StatModifierTimer
+    public class StatModifierTimer : Ticker.Timer
     {
-        public float StartTime;
-        public float Duration;
+        /// <summary>Alias for RemainingNormalized.</summary>
+        public float RemainingPercentage => RemainingNormalized;
 
-        public StatModifierTimer(float duration)
-        {
-            Duration = duration;
-            StartTime = Time.time;
-        }
-
-        public float Elapsed => Time.time - StartTime;
-
-        public float Remaining
-        {
-            get
-            {
-                if (Elapsed > Duration) return 0f;
-                return Duration - Elapsed;
-            }
-        }
-
-        public float RemainingPercentage
-        {
-            get
-            {
-                if (Elapsed > Duration) 
-                    return 0f;
-                
-                var elapsedPercentage = Elapsed / Duration;
-                return 1f - elapsedPercentage;
-            }
-        }
+        public StatModifierTimer(float duration) : base(duration) { }
     }
 }

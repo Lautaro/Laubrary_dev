@@ -181,6 +181,11 @@ namespace Laubrary.Lau_StatefulUI.Editor
             {
                 EditorGUILayout.PropertyField(config.FindPropertyRelative("sprite"));
             }
+
+            if ((flags & StateModifierFlags.Duration) != 0)
+            {
+                EditorGUILayout.PropertyField(config.FindPropertyRelative("duration"), new GUIContent("Duration"));
+            }
         }
 
         private void DrawModifierWithMode(SerializedProperty config, string valueName, string modeName, string label)
@@ -387,6 +392,10 @@ namespace Laubrary.Lau_StatefulUI.Editor
 
             StateModifierFlags flags = (StateModifierFlags)modifiers.intValue;
 
+            if ((flags & StateModifierFlags.Color) != 0)
+            {
+                EditorGUILayout.PropertyField(config.FindPropertyRelative("color"));
+            }
             if ((flags & StateModifierFlags.Alpha) != 0)
             {
                 DrawModifierWithMode(config, "alpha", "alphaIsAdditive", "Alpha");
@@ -419,6 +428,11 @@ namespace Laubrary.Lau_StatefulUI.Editor
             if ((flags & StateModifierFlags.Sprite) != 0)
             {
                 EditorGUILayout.PropertyField(config.FindPropertyRelative("sprite"));
+            }
+
+            if ((flags & StateModifierFlags.Duration) != 0)
+            {
+                EditorGUILayout.PropertyField(config.FindPropertyRelative("duration"), new GUIContent("Duration"));
             }
         }
 

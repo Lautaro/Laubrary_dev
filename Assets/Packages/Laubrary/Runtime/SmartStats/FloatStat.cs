@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Lautaro.Stats.Engine;
+using Laubrary.LaubraryTicker;
 
 namespace Lautaro.Stats
 {
@@ -58,7 +59,7 @@ namespace Lautaro.Stats
     ///   stat.AddBefore(newMod, existingMod);  // Insert relative to another modifier
     /// </summary>
     [Serializable]
-    public class FloatStat : IUpdatable, ISerializationCallbackReceiver
+    public class FloatStat : ITickable, ISerializationCallbackReceiver
     {
         private const int DEFAULT_PRIORITY = 0;
         private const int PRIORITY_SPACING = 10;
@@ -119,35 +120,39 @@ namespace Lautaro.Stats
         }
 
         /// <summary>
-        /// Registers this stat with the UpdateEngine for automatic updates.
-        /// Note: If SmartStatsConfig.AutoRegisterStats is true (default), stats auto-register when deserialized.
-        /// You only need to call this manually if auto-registration is disabled.
+        /// Registers this stat with Ticker for automatic updates.
+        /// If using [AutoRegisterStats] or RegisterAllStats(), this is called automatically.
+        /// For runtime-created stats, call this manually after construction.
         /// </summary>
         public void Init()
         {
             if (!isRegistered)
             {
-                UpdateEngine.Register(this);
+                Ticker.Register(this);
                 isRegistered = true;
             }
         }
 
         /// <summary>
-        /// Unregisters this stat from the UpdateEngine.
-        /// Note: Cleanup is automatic when the owning GameObject is destroyed (UpdateEngine checks for null).
-        /// You only need to call this manually if you want to stop updates without destroying the GameObject.
+        /// Unregisters this stat from Ticker. Call this in OnDestroy.
+        /// FloatStat is a plain C# object — it will NOT be null-checked out of Ticker
+        /// when its parent MonoBehaviour is destroyed, so explicit cleanup is required.
         /// </summary>
         public void Cleanup()
         {
             if (isRegistered)
             {
-                UpdateEngine.UnRegister(this);
+                Ticker.Unregister(this);
                 isRegistered = false;
             }
         }
 
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
+            // Safe: field assignment only. Do NOT call Ticker.Register() or any
+            // other Unity API here — OnAfterDeserialize can run off the main thread
+            // or mid-serialization. Registration is handled by [AutoRegisterStats],
+            // RegisterAllStats(), or manual Init() calls.
             totalValue = baseValue;
         }
 
@@ -383,23 +388,13 @@ namespace Lautaro.Stats
         }
 
         /// <summary>
-        /// Called every frame by UpdateEngine. Updates all modifiers and recalculates the stat value.
+        /// Called every frame by Ticker. Removes expired modifiers and recalculates the stat value.
         /// </summary>
-        public void Update()
+        public void Tick()
         {
-            foreach (var mod in floatStatMods)
-            {
-                if (mod is IUpdatable)
-                {
-                    (mod as IUpdatable).Update();
-                }
-            }
-
-            var remove = floatStatMods.Where(mod => mod.FlaggedForRemoval == true).ToList();
+            var remove = floatStatMods.Where(mod => mod.FlaggedForRemoval).ToList();
             foreach (var removeItem in remove)
-            {
                 floatStatMods.Remove(removeItem);
-            }
 
             RefreshActiveModifiers();
         }

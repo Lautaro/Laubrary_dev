@@ -1,11 +1,11 @@
-using System.Linq;
 using UnityEngine;
 
 namespace Lautaro.Stats.Engine
 {
     /// <summary>
     /// Internal component that handles automatic stat registration for classes marked with [AutoRegisterStats].
-    /// Do not add this component manually - it's automatically added by Unity when needed.
+    /// Do not add this component manually - it's automatically added by the editor processor when needed.
+    /// Registers stats in Awake and unregisters them in OnDestroy.
     /// </summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-100)]
@@ -13,12 +13,19 @@ namespace Lautaro.Stats.Engine
     {
         void Awake()
         {
-            var targetBehaviour = GetComponents<MonoBehaviour>()
-                .FirstOrDefault(c => c.GetType().GetCustomAttributes(typeof(AutoRegisterStatsAttribute), true).Length > 0);
-
-            if (targetBehaviour != null)
+            foreach (var behaviour in GetComponents<MonoBehaviour>())
             {
-                targetBehaviour.RegisterAllStats();
+                if (behaviour.GetType().GetCustomAttributes(typeof(AutoRegisterStatsAttribute), true).Length > 0)
+                    behaviour.RegisterAllStats();
+            }
+        }
+
+        void OnDestroy()
+        {
+            foreach (var behaviour in GetComponents<MonoBehaviour>())
+            {
+                if (behaviour.GetType().GetCustomAttributes(typeof(AutoRegisterStatsAttribute), true).Length > 0)
+                    behaviour.UnregisterAllStats();
             }
         }
     }

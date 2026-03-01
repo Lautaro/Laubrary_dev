@@ -46,7 +46,8 @@ namespace Laubrary.Lau_StatefulUI
         Scale = 1 << 5,
         Rotation = 1 << 6,
         Sprite = 1 << 7,
-        GameObjects = 1 << 8
+        GameObjects = 1 << 8,
+        Duration = 1 << 9
     }
 
     [Flags]
@@ -89,6 +90,7 @@ namespace Laubrary.Lau_StatefulUI
         public bool rotationIsAdditive;
         public UnityEngine.Sprite sprite;
         public List<GameObjectToggle> gameObjects = new List<GameObjectToggle>();
+        public float duration = 0.1f;
     }
 
     [Serializable]
@@ -96,6 +98,7 @@ namespace Laubrary.Lau_StatefulUI
     {
         public bool custom;
         public StateModifierFlags enabledModifiers;
+        public UnityEngine.Color color = UnityEngine.Color.white;
         public float alpha = 1f;
         public bool alphaIsAdditive;
         public float colorValue = 1f;
@@ -110,5 +113,6 @@ namespace Laubrary.Lau_StatefulUI
         public bool rotationIsAdditive;
         public UnityEngine.Sprite sprite;
         public List<GameObjectToggle> gameObjects = new List<GameObjectToggle>();
+        public float duration = 0.1f;
     }
 }

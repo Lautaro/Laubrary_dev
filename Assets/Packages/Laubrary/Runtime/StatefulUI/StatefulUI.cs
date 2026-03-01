@@ -52,6 +52,8 @@ namespace Laubrary.Lau_StatefulUI
         private StatefulVisual[] _childVisuals;
         private Dictionary<GameObject, bool> _originalGameObjectStates = new Dictionary<GameObject, bool>();
         private StatefulVisual _selfVisual;
+        private RectTransform _rectTransform;
+        private Canvas _rootCanvas;
 
         public InteractionState CurrentInteractionState => _currentInteractionState;
         public bool IsSelected => _isSelected;
@@ -69,12 +71,37 @@ namespace Laubrary.Lau_StatefulUI
         public BooleanStateConfig FocusedConfig => focusedConfig;
         public float TransitionDuration => transitionDuration;
 
+        /// <summary>Returns the screen-space center of this element, used by StatefulUINavigator for directional navigation.</summary>
+        public Vector2 GetScreenPosition()
+        {
+            if (_rectTransform == null) return Vector2.zero;
+            if (_rootCanvas == null) return _rectTransform.position;
+
+            return _rootCanvas.renderMode == RenderMode.ScreenSpaceOverlay
+                ? (Vector2)_rectTransform.position
+                : RectTransformUtility.WorldToScreenPoint(_rootCanvas.worldCamera, _rectTransform.position);
+        }
+
         private void Awake()
         {
+            _rectTransform = GetComponent<RectTransform>();
+            Canvas canvas = GetComponentInParent<Canvas>();
+            _rootCanvas = canvas != null ? canvas.rootCanvas : null;
+
             _childVisuals = GetComponentsInChildren<StatefulVisual>(true);
             InitializeSelfVisual();
             CaptureOriginalGameObjectStates();
             RegisterToRadioGroup();
+        }
+
+        private void OnEnable()
+        {
+            StatefulUINavigator.Register(this);
+        }
+
+        private void OnDisable()
+        {
+            StatefulUINavigator.Unregister(this);
         }
 
         private void OnDestroy()

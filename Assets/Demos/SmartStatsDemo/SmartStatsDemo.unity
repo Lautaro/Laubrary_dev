@@ -119,41 +119,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &252673245
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 252673246}
-  m_Layer: 0
-  m_Name: GameObject
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &252673246
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 252673245}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1695151462}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 1}
-  m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -100}
-  m_SizeDelta: {x: 1200, y: 800}
-  m_Pivot: {x: 0.5, y: 1}
 --- !u!1 &593776837
 GameObject:
   m_ObjectHideFlags: 0
@@ -219,8 +184,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 22
-  m_fontSizeBase: 22
+  m_fontSize: 30
+  m_fontSizeBase: 30
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -644,7 +609,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2110680913}
-  - {fileID: 252673246}
   - {fileID: 1716685572}
   - {fileID: 593776840}
   m_Father: {fileID: 0}
@@ -666,7 +630,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54391129b69f7784abedf392ad65e5bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.SmartStats.Demo.SmartStatsDemoUISimple
-  statsDemo: {fileID: 2059364958}
+  simpleDemo: {fileID: 0}
+  advancedFloatDemo: {fileID: 0}
+  boolDemo: {fileID: 0}
   statsText: {fileID: 1716685570}
   controlsText: {fileID: 593776838}
 --- !u!1 &1716685569
@@ -734,8 +700,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 24
-  m_fontSizeBase: 24
+  m_fontSize: 34
+  m_fontSizeBase: 34
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -816,6 +782,8 @@ GameObject:
   m_Component:
   - component: {fileID: 2059364957}
   - component: {fileID: 2059364958}
+  - component: {fileID: 2059364960}
+  - component: {fileID: 2059364959}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -866,6 +834,47 @@ MonoBehaviour:
     activeFloatStatMods: []
   healthBoostDuration: 5
   speedBoostDuration: 3
+  references:
+    version: 2
+    RefIds: []
+--- !u!114 &2059364959
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2059364955}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a836d0cf83f5d764185c7498e6d38314, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.SmartStats.Demo.SmartStatsDemoAdvancedFloat
+  power:
+    baseValue: 100
+    minValue: 0
+    maxValue: 1000
+    totalValue: 100
+    floatStatMods: []
+    activeFloatStatMods: []
+  timerDuration: 6
+  references:
+    version: 2
+    RefIds: []
+--- !u!114 &2059364960
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2059364955}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33ea78cdb23426d47b7fee80a6a134df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.SmartStats.Demo.SmartStatsDemoBool
+  isAlive:
+    baseValue: 1
+    boolStatMods: []
   references:
     version: 2
     RefIds: []
