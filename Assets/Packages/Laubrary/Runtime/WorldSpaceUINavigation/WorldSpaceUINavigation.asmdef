@@ -1,0 +1,14 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.WorldSpaceUINavigation",
+    "rootNamespace": "Laubrary.WorldSpaceUINavigation",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

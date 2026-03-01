@@ -21,7 +21,8 @@
         "GUID:6055be8ebefd69e48b49212b09b47b2f",
         "GUID:75469ad4d38634e559750d17036d5f7c",
         "GUID:0f6471bc4ae817c429fd82124b07ba0f",
-        "GUID:7b04904895f8d82499a7404505516ab5"
+        "GUID:7b04904895f8d82499a7404505516ab5",
+        "com.Lautaro-Arino.Laubrary.WorldSpaceUINavigation"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
