@@ -1,0 +1,14 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Overture",
+    "rootNamespace": "Laubrary.Overture",
+    "references": ["com.Lautaro-Arino.Laubrary.Switcheroo"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
