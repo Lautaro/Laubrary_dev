@@ -5,108 +5,131 @@ using UnityEngine;
 
 namespace Laubrary.Overture
 {
+    /// <summary>
+    /// Orchestrates a hierarchical state machine defined by child OvertureState GameObjects.
+    /// Handles state transitions, including substate enter/exit, with full animation support.
+    /// </summary>
     public class OvertureManager : MonoBehaviour
     {
         [Header("Initial State")]
         [SerializeField] private OvertureState initialState;
 
         [Header("Boot Up State (Optional)")]
-        [Tooltip("Runs once before entering the initial state. Assign any OvertureState.")]
+        [Tooltip("Runs once before entering the initial state.")]
         [SerializeField] private bool useBootUpState = false;
         [SerializeField] private OvertureState bootUpState;
 
         private OvertureState currentState;
         private bool isTransitioning;
+        private Dictionary<string, OvertureState> stateCache;
+
+        // ─── Initialization ──────────────────────────────────────────────────
 
         private async void Awake()
         {
-            OvertureState[] normalStates = GetNormalStates();
+            CacheStates();
 
-            if (normalStates.Length == 0)
+            if (stateCache.Count == 0)
             {
                 Debug.LogWarning($"OvertureManager '{gameObject.name}' has no child OvertureStates.", this);
                 return;
             }
 
-            DisableAllNormalStates(normalStates);
+            ValidateHierarchy();
+            DisableAllStates();
 
-            if (useBootUpState)
-            {
-                await InitializeAndRunBootUpState();
-            }
+            if (useBootUpState && bootUpState != null)
+                await RunBootUpState();
 
-            OvertureState targetState = initialState;
-            if (targetState == null)
-            {
-                targetState = normalStates.FirstOrDefault(state => state.transform.parent == transform);
-            }
+            OvertureState target = initialState
+                ?? stateCache.Values.FirstOrDefault(s => s.transform.parent == transform);
 
-            if (targetState != null)
-            {
-                TransitionTo(targetState.gameObject.name);
-            }
+            if (target != null)
+                TransitionTo(target.gameObject.name);
         }
 
-        #region Boot-Up State (Isolated Logic)
-
-        private async Task InitializeAndRunBootUpState()
+        private void CacheStates()
         {
-            if (bootUpState == null)
+            stateCache = new Dictionary<string, OvertureState>();
+
+            foreach (OvertureState state in GetComponentsInChildren<OvertureState>(true))
             {
-                Debug.LogWarning($"OvertureManager '{gameObject.name}' has 'Use Boot Up State' enabled but no Boot Up State is assigned.", this);
-                return;
-            }
+                if (state.transform == transform) continue;
 
-            bootUpState.gameObject.SetActive(true);
-            bootUpState.EnableChildren();
-            await EnterState(bootUpState);
-            await bootUpState.OnState();
-            await ExitState(bootUpState);
-            bootUpState.gameObject.SetActive(false);
-        }
-
-        #endregion
-
-        #region Normal State Management
-
-        private OvertureState[] GetNormalStates()
-        {
-            OvertureState[] allStates = GetComponentsInChildren<OvertureState>(true);
-            return allStates.Where(state => state.transform.parent != null).ToArray();
-        }
-
-        private void DisableAllNormalStates(OvertureState[] normalStates)
-        {
-            foreach (OvertureState state in normalStates)
-            {
-                state.gameObject.SetActive(false);
-                for (int i = 0; i < state.transform.childCount; i++)
+                string id = state.gameObject.name;
+                if (stateCache.ContainsKey(id))
                 {
-                    state.transform.GetChild(i).gameObject.SetActive(false);
+                    Debug.LogWarning(
+                        $"OvertureManager '{gameObject.name}': duplicate state name '{id}'. " +
+                        $"Only the first occurrence will be reachable.", state);
+                    continue;
+                }
+
+                stateCache[id] = state;
+            }
+        }
+
+        private void ValidateHierarchy()
+        {
+            foreach (OvertureState state in stateCache.Values)
+            {
+                Transform parent = state.transform.parent;
+                if (parent == null || parent == transform) continue;
+
+                if (parent.GetComponent<OvertureState>() == null)
+                {
+                    Debug.LogWarning(
+                        $"OvertureState '{state.gameObject.name}' has a non-state parent '{parent.name}'. " +
+                        $"States must be direct children of the OvertureManager or another OvertureState " +
+                        $"for path resolution to work correctly.", state);
                 }
             }
         }
 
+        private void DisableAllStates()
+        {
+            foreach (OvertureState state in stateCache.Values)
+            {
+                state.gameObject.SetActive(false);
+                for (int i = 0; i < state.transform.childCount; i++)
+                    state.transform.GetChild(i).gameObject.SetActive(false);
+            }
+        }
+
+        // ─── Boot Up ─────────────────────────────────────────────────────────
+
+        private async Task RunBootUpState()
+        {
+            bootUpState.gameObject.SetActive(true);
+            await ActivateState(bootUpState);
+            await bootUpState.OnState();
+            await DeactivateState(bootUpState);
+            bootUpState.gameObject.SetActive(false);
+        }
+
+        // ─── Public API ──────────────────────────────────────────────────────
+
+        /// <summary>Transitions to the state with the given name.</summary>
         public async void TransitionTo(string stateId)
         {
             if (isTransitioning)
             {
-                Debug.LogWarning("Already transitioning, ignoring request.");
+                Debug.LogWarning(
+                    $"OvertureManager '{gameObject.name}': transition already in progress, ignoring '{stateId}'.", this);
                 return;
             }
 
-            OvertureState targetState = FindStateById(stateId);
-            if (targetState == null)
+            if (!stateCache.TryGetValue(stateId, out OvertureState target))
             {
-                Debug.LogError($"State with ID '{stateId}' not found in OvertureManager '{gameObject.name}'.", this);
+                Debug.LogError(
+                    $"OvertureManager '{gameObject.name}': state '{stateId}' not found.", this);
                 return;
             }
 
-            Debug.Log($"Transitioning from {(currentState != null ? currentState.gameObject.name : "null")} to {targetState.gameObject.name}");
-
-            if (currentState == targetState)
+            if (currentState == target)
             {
-                Debug.LogWarning("Already in target state.");
+                Debug.LogWarning(
+                    $"OvertureManager '{gameObject.name}': already in state '{stateId}'.", this);
                 return;
             }
 
@@ -114,117 +137,124 @@ namespace Laubrary.Overture
 
             try
             {
-                await PerformTransition(currentState, targetState);
-                currentState = targetState;
-                Debug.Log($"Transition complete. Current state is now: {currentState.gameObject.name}");
+                await PerformTransition(currentState, target);
+                currentState = target;
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"Exception during transition: {ex.Message}\n{ex.StackTrace}");
+                Debug.LogError(
+                    $"OvertureManager '{gameObject.name}': transition failed — {ex.Message}\n{ex.StackTrace}", this);
             }
             finally
             {
                 isTransitioning = false;
             }
 
-            // OnState runs after the lock is released so that TransitionTo calls from within OnState are not blocked.
-            await targetState.OnState();
+            // OnState runs after the lock is released so that TransitionTo calls
+            // from within OnState are not blocked.
+            await target.OnState();
         }
 
-        private async Task PerformTransition(OvertureState fromState, OvertureState toState)
+        // ─── Transition orchestration ────────────────────────────────────────
+
+        private async Task PerformTransition(OvertureState from, OvertureState to)
         {
-            if (fromState == null)
+            if (from == null)
             {
-                Debug.Log($"Entering initial state: {toState.gameObject.name}");
-                List<OvertureState> enterPath = GetPathToRoot(toState);
-                enterPath.Reverse();
+                // Initial entry — activate the full path top-down.
+                List<OvertureState> path = BuildPathToRoot(to);
+                path.Reverse();
 
-                foreach (OvertureState state in enterPath)
+                foreach (OvertureState state in path)
                 {
-                    Debug.Log($"Enabling and entering state: {state.gameObject.name}");
                     state.gameObject.SetActive(true);
-                    state.EnableChildren();
-                    await EnterState(state);
+                    await ActivateState(state);
                 }
+
+                return;
             }
-            else
+
+            OvertureState ancestor = FindCommonAncestor(from, to);
+            List<OvertureState> exitPath  = BuildPathToAncestor(from, ancestor);
+            List<OvertureState> enterPath = BuildPathToAncestor(to,   ancestor);
+
+            bool enteringSubstate      = ancestor == from;
+            bool returningFromSubstate = ancestor == to;
+
+            // ── SuperState notification: descending into a substate ───────────
+            if (enteringSubstate)
             {
-                List<OvertureState> exitPath = new List<OvertureState>();
-                List<OvertureState> enterPath = new List<OvertureState>();
+                await ancestor.OnEnteringSubstate(to);
+                await ancestor.ExecuteToSubstateVisuals();
+            }
 
-                OvertureState lca = FindLastCommonAncestor(fromState, toState);
+            // ── Exit (bottom-up) ─────────────────────────────────────────────
+            foreach (OvertureState state in exitPath)
+            {
+                await DeactivateState(state);
+                state.gameObject.SetActive(false);
+            }
 
-                OvertureState current = fromState;
-                while (current != lca && current != null)
-                {
-                    exitPath.Add(current);
-                    Transform parentTransform = current.transform.parent;
-                    if (parentTransform == null || parentTransform == transform)
-                        break;
-                    current = parentTransform.GetComponent<OvertureState>();
-                }
+            // ── Enter (top-down) ─────────────────────────────────────────────
+            enterPath.Reverse();
+            foreach (OvertureState state in enterPath)
+            {
+                state.gameObject.SetActive(true);
+                await ActivateState(state);
+            }
 
-                current = toState;
-                while (current != lca && current != null)
-                {
-                    enterPath.Add(current);
-                    Transform parentTransform = current.transform.parent;
-                    if (parentTransform == null || parentTransform == transform)
-                        break;
-                    current = parentTransform.GetComponent<OvertureState>();
-                }
-
-                foreach (OvertureState state in exitPath)
-                {
-                    await ExitState(state);
-                    state.gameObject.SetActive(false);
-                }
-
-                enterPath.Reverse();
-                foreach (OvertureState state in enterPath)
-                {
-                    state.gameObject.SetActive(true);
-                    state.EnableChildren();
-                    await EnterState(state);
-                }
+            // ── SuperState notification: returning from a substate ───────────
+            if (returningFromSubstate)
+            {
+                await ancestor.ExecuteFromSubstateVisuals();
+                await ancestor.OnReturningFromSubstate(from);
             }
         }
 
-        private async Task EnterState(OvertureState state)
+        // ─── Symmetric lifecycle ─────────────────────────────────────────────
+
+        private async Task ActivateState(OvertureState state)
         {
-            await state.ExecuteEnteringPhase();
+            state.ApplyManagedObjects(StatePhase.Entering);
+            state.EnableChildren();
+            await state.ExecuteEnterAnimations();
             await state.OnEnter();
+            state.ApplyManagedObjects(StatePhase.Entered);
         }
 
-        private async Task ExitState(OvertureState state)
+        private async Task DeactivateState(OvertureState state)
         {
-            state.TriggerExiting();
-            await state.ExecuteExitTransitions();
+            state.ApplyManagedObjects(StatePhase.Exiting);
+            await state.ExecuteExitAnimations();
             await state.OnExit();
             state.DisableChildren();
+            state.ApplyManagedObjects(StatePhase.Exited);
+            state.ResetManagedObjects();
         }
 
-        private OvertureState FindLastCommonAncestor(OvertureState state1, OvertureState state2)
+        // ─── Path resolution ─────────────────────────────────────────────────
+
+        /// <summary>Builds path from state up to (not including) ancestor.</summary>
+        private List<OvertureState> BuildPathToAncestor(OvertureState from, OvertureState ancestor)
         {
-            List<OvertureState> path1 = GetPathToRoot(state1);
-            List<OvertureState> path2 = GetPathToRoot(state2);
+            var path = new List<OvertureState>();
+            OvertureState current = from;
 
-            HashSet<OvertureState> ancestors1 = new HashSet<OvertureState>(path1);
-
-            foreach (OvertureState state in path2)
+            while (current != ancestor && current != null)
             {
-                if (ancestors1.Contains(state))
-                {
-                    return state;
-                }
+                path.Add(current);
+                Transform parent = current.transform.parent;
+                if (parent == null || parent == transform) break;
+                current = parent.GetComponent<OvertureState>();
             }
 
-            return null;
+            return path;
         }
 
-        private List<OvertureState> GetPathToRoot(OvertureState state)
+        /// <summary>Builds path from state up to the manager root.</summary>
+        private List<OvertureState> BuildPathToRoot(OvertureState state)
         {
-            List<OvertureState> path = new List<OvertureState>();
+            var path = new List<OvertureState>();
             OvertureState current = state;
 
             while (current != null && current.transform != transform)
@@ -237,12 +267,17 @@ namespace Laubrary.Overture
             return path;
         }
 
-        private OvertureState FindStateById(string stateId)
+        private OvertureState FindCommonAncestor(OvertureState a, OvertureState b)
         {
-            OvertureState[] normalStates = GetNormalStates();
-            return normalStates.FirstOrDefault(state => state.gameObject.name == stateId);
-        }
+            var ancestorsA = new HashSet<OvertureState>(BuildPathToRoot(a));
 
-        #endregion
+            foreach (OvertureState state in BuildPathToRoot(b))
+            {
+                if (ancestorsA.Contains(state))
+                    return state;
+            }
+
+            return null;
+        }
     }
 }

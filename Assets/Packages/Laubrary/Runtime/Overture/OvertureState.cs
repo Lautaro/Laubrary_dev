@@ -1,10 +1,15 @@
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Laubrary.Overture
 {
+    /// <summary>
+    /// Base class for all Overture states. Place on a GameObject that is a direct child
+    /// of an OvertureManager or another OvertureState to form a hierarchical state machine.
+    /// Override lifecycle hooks (OnEntering, OnEnter, OnState, OnExit, etc.) in subclasses.
+    /// </summary>
+    [DisallowMultipleComponent]
     public class OvertureState : MonoBehaviour
     {
         [Header("Managed GameObjects")]
@@ -13,83 +18,101 @@ namespace Laubrary.Overture
         [SerializeField] private List<ManagedStateObject> managedObjects = new List<ManagedStateObject>();
 
         protected OvertureManager manager;
-        private IOvertureTransition[] transitions;
         private OvertureVisual[] childVisuals;
+        private HashSet<GameObject> managedGoCache;
 
+        /// <summary>The OvertureManager that owns this state.</summary>
         public OvertureManager Manager => manager;
 
         protected virtual void Awake()
         {
             manager = GetComponentInParent<OvertureManager>();
             if (manager == null)
-                manager = GetComponent<OvertureManager>();
+                Debug.LogError($"OvertureState '{gameObject.name}' must be a child of an OvertureManager.", this);
 
-            if (manager == null)
-                Debug.LogError($"OvertureState '{gameObject.name}' must be a child of an OvertureManager or on the same GameObject.", this);
-
-            transitions  = GetComponents<IOvertureTransition>();
-            childVisuals = GetComponentsInChildren<OvertureVisual>(true);
+            childVisuals = CollectOwnVisuals();
+            RebuildManagedCache();
         }
 
-        // ─── Children ────────────────────────────────────────────────────────
+        // ─── Managed objects cache ───────────────────────────────────────────
 
-        /// <summary>Activates all direct children of this state's GameObject.</summary>
-        public void EnableChildren()
+        private void RebuildManagedCache()
         {
-            for (int i = 0; i < transform.childCount; i++)
-                transform.GetChild(i).gameObject.SetActive(true);
+            managedGoCache = new HashSet<GameObject>();
+            foreach (ManagedStateObject entry in managedObjects)
+            {
+                if (entry.gameObject != null)
+                    managedGoCache.Add(entry.gameObject);
+            }
         }
 
-        /// <summary>Deactivates all direct children of this state's GameObject.</summary>
-        public void DisableChildren()
+        // ─── Visual collection (stops at substate boundaries) ────────────────
+
+        private OvertureVisual[] CollectOwnVisuals()
         {
-            for (int i = 0; i < transform.childCount; i++)
-                transform.GetChild(i).gameObject.SetActive(false);
+            var result = new List<OvertureVisual>();
+            result.AddRange(GetComponents<OvertureVisual>());
+            CollectVisualsRecursive(transform, result);
+            return result.ToArray();
         }
 
-        // ─── Phase hooks ─────────────────────────────────────────────────────
+        private static void CollectVisualsRecursive(Transform parent, List<OvertureVisual> result)
+        {
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                Transform child = parent.GetChild(i);
+                if (child.GetComponent<OvertureState>() != null) continue;
+                result.AddRange(child.GetComponents<OvertureVisual>());
+                CollectVisualsRecursive(child, result);
+            }
+        }
+
+        // ─── Children activation ─────────────────────────────────────────────
 
         /// <summary>
-        /// Runs the full entering phase: applies managed objects, fires all parallel processes,
-        /// and waits for all blocking ones before returning.
-        /// Blocking processes: IOvertureTransition components, OvertureVisuals with DontBlockOnEnter=false,
-        /// and the virtual OnEntering() override.
-        /// Non-blocking: OnEnteringBackground() override and OvertureVisuals with DontBlockOnEnter=true.
+        /// Activates the subtree under this state, recursively skipping substates
+        /// and managed objects at any depth. Managed objects are controlled solely
+        /// by ApplyManagedObjects at each phase.
         /// </summary>
-        public async Task ExecuteEnteringPhase()
+        internal void EnableChildren()
         {
-            ApplyManagedObjects(StatePhase.Entering);
-
-            var blockingTasks = new List<Task>();
-
-            // User blocking code — override OnEntering() to participate in the IsEntered gate.
-            blockingTasks.Add(OnEntering());
-
-            // User non-blocking code — fires and continues independently.
-            _ = OnEnteringBackground();
-
-            // IOvertureTransition components always block.
-            blockingTasks.AddRange(transitions
-                .Where(t => t.enabled && (t.transitionType == TransitionType.Enter || t.transitionType == TransitionType.Both))
-                .Select(t => t.Execute(true)));
-
-            // OvertureVisuals split by their flag.
-            foreach (OvertureVisual visual in childVisuals)
+            for (int i = 0; i < transform.childCount; i++)
             {
-                Task enterTask = visual.Enter();
-                if (!visual.DontBlockOnEnter)
-                    blockingTasks.Add(enterTask);
-                // else: already running in the background
+                Transform child = transform.GetChild(i);
+                if (child.GetComponent<OvertureState>() != null) continue;
+                ActivateSubtree(child);
             }
-
-            if (blockingTasks.Count > 0)
-                await Task.WhenAll(blockingTasks);
         }
 
-        /// <summary>Called by the manager at the start of the exit sequence.</summary>
-        public void TriggerExiting() => ApplyManagedObjects(StatePhase.Exiting);
+        /// <summary>
+        /// Deactivates all direct children except substates.
+        /// Managed objects are included because the state is being fully deactivated —
+        /// ResetManagedObjects restores their activeSelf afterward for clean re-entry.
+        /// </summary>
+        internal void DisableChildren()
+        {
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                Transform child = transform.GetChild(i);
+                if (child.GetComponent<OvertureState>() != null) continue;
+                child.gameObject.SetActive(false);
+            }
+        }
 
-        private void ApplyManagedObjects(StatePhase phase)
+        private void ActivateSubtree(Transform node)
+        {
+            if (managedGoCache.Contains(node.gameObject)) return;
+
+            node.gameObject.SetActive(true);
+
+            for (int i = 0; i < node.childCount; i++)
+                ActivateSubtree(node.GetChild(i));
+        }
+
+        // ─── Managed object phase control ────────────────────────────────────
+
+        /// <summary>Applies managed object rules for the given phase.</summary>
+        internal void ApplyManagedObjects(StatePhase phase)
         {
             foreach (ManagedStateObject entry in managedObjects)
             {
@@ -99,47 +122,104 @@ namespace Laubrary.Overture
             }
         }
 
-        // ─── Virtual state lifecycle — override in subclasses ────────────────
+        /// <summary>
+        /// Resets all managed objects to active so the next enter cycle starts from
+        /// a clean slate. Called after the state's GameObject has been deactivated.
+        /// </summary>
+        internal void ResetManagedObjects()
+        {
+            foreach (ManagedStateObject entry in managedObjects)
+            {
+                if (entry.gameObject != null)
+                    entry.gameObject.SetActive(true);
+            }
+        }
+
+        // ─── Enter / Exit animations ─────────────────────────────────────────
 
         /// <summary>
-        /// Async code that runs in parallel with enter animations and contributes to the IsEntered gate.
-        /// Override to add work that must complete before the state is considered fully entered.
+        /// Runs enter animations (OvertureVisual.Enter) and the blocking OnEntering()
+        /// hook in parallel. Waits for all blocking tasks before returning.
         /// </summary>
-        protected virtual Task OnEntering() => Task.CompletedTask;
+        internal async Task ExecuteEnterAnimations()
+        {
+            var blocking = new List<Task>();
+            blocking.Add(OnEntering());
 
-        /// <summary>
-        /// Async code that runs in parallel with enter animations but does NOT contribute to the IsEntered gate.
-        /// Override to fire background work that continues independently after IsEntered.
-        /// </summary>
-        protected virtual Task OnEnteringBackground() => Task.CompletedTask;
+            _ = OnEnteringBackground();
 
-        // ─── State lifecycle ─────────────────────────────────────────────────
+            foreach (OvertureVisual visual in childVisuals)
+            {
+                Task task = visual.Enter();
+                if (!visual.DontBlockOnEnter)
+                    blocking.Add(task);
+            }
 
-        /// <summary>Called by the manager when this state is entered.</summary>
-        public virtual Task OnEnter() => Task.CompletedTask;
+            if (blocking.Count > 0)
+                await Task.WhenAll(blocking);
+        }
 
-        /// <summary>Called by the manager after enter transitions complete. Override to run state logic.</summary>
-        public virtual Task OnState() => Task.CompletedTask;
-
-        /// <summary>Called by the manager when this state is exited.</summary>
-        public virtual Task OnExit() => Task.CompletedTask;
-
-        // ─── Transitions ─────────────────────────────────────────────────────
-
-        /// <summary>Runs all exit transitions and OvertureVisual exit animations in parallel.</summary>
-        public async Task ExecuteExitTransitions()
+        /// <summary>Runs all exit animations (OvertureVisual.Exit) in parallel.</summary>
+        internal async Task ExecuteExitAnimations()
         {
             var tasks = new List<Task>();
-
-            tasks.AddRange(transitions
-                .Where(t => t.enabled && (t.transitionType == TransitionType.Exit || t.transitionType == TransitionType.Both))
-                .Select(t => t.Execute(false)));
-
-            tasks.AddRange(childVisuals.Select(v => v.Exit()));
+            foreach (OvertureVisual visual in childVisuals)
+                tasks.Add(visual.Exit());
 
             if (tasks.Count > 0)
                 await Task.WhenAll(tasks);
         }
+
+        /// <summary>Runs ToSubstate visuals before a substate enters.</summary>
+        internal async Task ExecuteToSubstateVisuals()
+        {
+            var tasks = new List<Task>();
+            foreach (OvertureVisual visual in childVisuals)
+                tasks.Add(visual.ExitToSubstate());
+
+            if (tasks.Count > 0)
+                await Task.WhenAll(tasks);
+        }
+
+        /// <summary>Runs FromSubstate visuals after a substate exits.</summary>
+        internal async Task ExecuteFromSubstateVisuals()
+        {
+            var tasks = new List<Task>();
+            foreach (OvertureVisual visual in childVisuals)
+                tasks.Add(visual.EnterFromSubstate());
+
+            if (tasks.Count > 0)
+                await Task.WhenAll(tasks);
+        }
+
+        // ─── Virtual lifecycle hooks — override in subclasses ────────────────
+
+        /// <summary>
+        /// Runs in parallel with enter animations and contributes to the "entered" gate.
+        /// Override to add blocking work that must complete before the state is entered.
+        /// </summary>
+        protected virtual Task OnEntering() => Task.CompletedTask;
+
+        /// <summary>
+        /// Runs in parallel with enter animations but does NOT block the "entered" gate.
+        /// Override for fire-and-forget background work during enter.
+        /// </summary>
+        protected virtual Task OnEnteringBackground() => Task.CompletedTask;
+
+        /// <summary>Called on the superState before its substate begins entering.</summary>
+        public virtual Task OnEnteringSubstate(OvertureState substate) => Task.CompletedTask;
+
+        /// <summary>Called on the superState after its substate has fully exited.</summary>
+        public virtual Task OnReturningFromSubstate(OvertureState substate) => Task.CompletedTask;
+
+        /// <summary>Called after the entering phase completes.</summary>
+        public virtual Task OnEnter() => Task.CompletedTask;
+
+        /// <summary>Called after OnEnter. Override to run continuous state logic.</summary>
+        public virtual Task OnState() => Task.CompletedTask;
+
+        /// <summary>Called during the exit sequence, after exit animations.</summary>
+        public virtual Task OnExit() => Task.CompletedTask;
 
         // ─── Navigation ──────────────────────────────────────────────────────
 
@@ -149,7 +229,7 @@ namespace Laubrary.Overture
             if (manager != null)
                 manager.TransitionTo(gameObject.name);
             else
-                Debug.LogError($"Cannot transition to '{gameObject.name}': No OvertureManager found.", this);
+                Debug.LogError($"Cannot transition to '{gameObject.name}': no OvertureManager found.", this);
         }
     }
 }

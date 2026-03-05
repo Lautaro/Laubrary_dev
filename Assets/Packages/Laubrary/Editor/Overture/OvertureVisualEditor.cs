@@ -47,13 +47,18 @@ namespace Laubrary.Overture.Editor
             EditorGUILayout.PropertyField(serializedObject.FindProperty("enterDuration"), new GUIContent("Duration"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("enterCurve"), new GUIContent("Curve"));
 
-            if (direction == VisualDirection.Both)
+            // Exit Speed Multiplier only makes sense when BOTH an enter-type and an exit-type
+            // direction are active (it scales exit duration relative to enter duration).
+            bool playsEnterType = (direction & (VisualDirection.Enter | VisualDirection.FromSubstate)) != 0;
+            bool playsExitType  = (direction & (VisualDirection.Exit  | VisualDirection.ToSubstate))  != 0;
+            if (playsEnterType && playsExitType)
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("exitSpeedMultiplier"), new GUIContent("Exit Speed Multiplier"));
 
             EditorGUI.indentLevel--;
 
-            // ── Blocking (only when relevant) ─────────────────────────────────
-            if (direction != VisualDirection.ExitOnly)
+            // ── Blocking — only relevant when an enter animation is involved ───
+            bool playsEnter = playsEnterType;
+            if (playsEnter)
             {
                 EditorGUILayout.Space();
                 EditorGUILayout.PropertyField(

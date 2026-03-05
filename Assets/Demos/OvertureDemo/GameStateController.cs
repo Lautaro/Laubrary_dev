@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 
@@ -6,8 +7,9 @@ namespace Laubrary.Overture.Demo
     /// <summary>
     /// Drives the GameState gameplay: the cube drifts slowly across the plane,
     /// rewards a point on click, then dashes to a new position.
+    /// Extends OvertureState to hook into substate lifecycle.
     /// </summary>
-    public class GameStateController : MonoBehaviour
+    public class GameState : OvertureState
     {
         [Header("References")]
         [SerializeField] private ClickableCube interactable;
@@ -32,19 +34,27 @@ namespace Laubrary.Overture.Demo
         private bool    _excited;
         private float   _excitedTimer;
         private Vector3 _target;
+        private bool    _paused;
 
         private static readonly string[] Messages =
         {
             "Nice!", "Got it!", "Click faster!", "So skillful!", "Point!"
         };
 
+        protected override void Awake()
+        {
+            base.Awake();
+        }
+
         private void OnEnable()
         {
-            _points      = 0;
-            _excited     = false;
+            _points       = 0;
+            _excited      = false;
             _excitedTimer = 0f;
-            _target      = RandomPosition();
+            _paused       = false;
+            _target       = RandomPosition();
             interactable.transform.position = RandomPosition();
+            interactable.enabled = true;
             UpdateUI();
 
             interactable.OnClicked += HandleClick;
@@ -57,6 +67,8 @@ namespace Laubrary.Overture.Demo
 
         private void Update()
         {
+            if (_paused) return;
+
             if (_excited)
             {
                 // Spin wildly and dash to target.
@@ -109,5 +121,28 @@ namespace Laubrary.Overture.Demo
             Random.Range(-boundsX, boundsX),
             fixedY,
             Random.Range(-boundsZ, boundsZ));
+
+        // ─── Substate hooks ───────────────────────────────────────────────────
+
+        /// <summary>Pauses game logic and disables cube input before the substate enters.</summary>
+        public override Task OnEnteringSubstate(OvertureState substate)
+        {
+            _paused              = true;
+            interactable.enabled = false;
+            return Task.CompletedTask;
+        }
+
+        /// <summary>Resumes game logic and re-enables cube input after returning from the substate.</summary>
+        public override Task OnReturningFromSubstate(OvertureState substate)
+        {
+            _paused              = false;
+            interactable.enabled = true;
+            return Task.CompletedTask;
+        }
+
+        // ─── Called by the Menu button in the HUD ────────────────────────────
+
+        /// <summary>Transitions to the InGameMenu substate.</summary>
+        public void OpenMenu() => manager.TransitionTo("InGameMenu");
     }
 }

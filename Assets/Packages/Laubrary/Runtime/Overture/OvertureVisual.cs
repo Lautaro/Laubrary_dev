@@ -7,11 +7,19 @@ using Laubrary.Switcheroo;
 
 namespace Laubrary.Overture
 {
+    [Flags]
     public enum VisualDirection
     {
-        Both,
-        EnterOnly,
-        ExitOnly,
+        /// <summary>Plays Enter animation on normal state enter.</summary>
+        Enter        = 1 << 0,
+        /// <summary>Plays Exit animation on normal state exit.</summary>
+        Exit         = 1 << 1,
+        /// <summary>Plays Exit animation when the superState transitions into a substate.</summary>
+        ToSubstate   = 1 << 2,
+        /// <summary>Plays Enter animation when the superState returns from a substate.</summary>
+        FromSubstate = 1 << 3,
+        /// <summary>Plays on all four occasions: normal enter/exit and substate enter/exit.</summary>
+        Always       = Enter | Exit | ToSubstate | FromSubstate,
     }
 
     [Flags]
@@ -44,7 +52,7 @@ namespace Laubrary.Overture
         [SerializeField] private List<GameObject> targetList = new List<GameObject>();
 
         // ─── Direction & types ────────────────────────────────────────────────
-        [SerializeField] private VisualDirection direction = VisualDirection.Both;
+        [SerializeField] private VisualDirection direction = VisualDirection.Enter;
         [SerializeField] private VisualAnimationType animationType = VisualAnimationType.Alpha;
 
         // ─── Enter "from" values ──────────────────────────────────────────────
@@ -55,7 +63,7 @@ namespace Laubrary.Overture
         // ─── Timing ───────────────────────────────────────────────────────────
         [SerializeField] private float enterDuration = 0.4f;
         [SerializeField] private AnimationCurve enterCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
-        [Tooltip("Scales exit speed relative to enter duration. 2 = twice as fast. Only applies when Direction is Both.")]
+        [Tooltip("Scales exit speed relative to enter duration. 2 = twice as fast. Applies to Exit, ToSubstate, and Always.")]
         [SerializeField] private float exitSpeedMultiplier = 1f;
 
         // ─── Blocking ─────────────────────────────────────────────────────────
@@ -65,6 +73,13 @@ namespace Laubrary.Overture
 
         /// <summary>When false (default), this visual's Enter task contributes to the IsEntered gate.</summary>
         public bool DontBlockOnEnter => dontBlockOnEnter;
+
+        // ─── Direction helpers ────────────────────────────────────────────────
+
+        private bool PlaysOnEnter      => (direction & VisualDirection.Enter)        != 0;
+        private bool PlaysOnExit       => (direction & VisualDirection.Exit)         != 0;
+        private bool PlaysToSubstate   => (direction & VisualDirection.ToSubstate)   != 0;
+        private bool PlaysFromSubstate => (direction & VisualDirection.FromSubstate) != 0;
 
         // ─── Runtime target cache ─────────────────────────────────────────────
 
@@ -101,9 +116,17 @@ namespace Laubrary.Overture
 
         private void OnEnable()
         {
-            // For ExitOnly, the object starts at its resting state — don't snap to the from-values.
-            if (direction != VisualDirection.ExitOnly)
+            // Snap to from-values only when this visual plays an Enter animation on state enter.
+            // FromSubstate, ToSubstate, and Exit all start at their resting state.
+            if (PlaysOnEnter)
                 _enterSwitcheroo?.SetProgress(0f);
+        }
+
+        private void OnDisable()
+        {
+            // Restore all targets to their resting values so the next enable starts clean,
+            // regardless of where the exit animation left them.
+            ApplyEnterProgress(1f);
         }
 
         private void OnDestroy()
@@ -239,22 +262,43 @@ namespace Laubrary.Overture
 
         // ─── Public API ───────────────────────────────────────────────────────
 
-        /// <summary>Animates all targets to their resting state. Returns when the animation finishes.</summary>
+        /// <summary>Plays Enter animation during normal state enter. No-op if Direction is not Enter or Always.</summary>
         public Task Enter()
         {
-            if (direction == VisualDirection.ExitOnly) return Task.CompletedTask;
+            if (!PlaysOnEnter) return Task.CompletedTask;
             return RunSwitcheroo(_enterSwitcheroo, enterDuration);
         }
 
-        /// <summary>Animates all targets back to their from-state. Returns when the animation finishes.</summary>
+        /// <summary>Plays Exit animation during normal state exit. No-op if Direction is not Exit or Always.</summary>
         public Task Exit()
         {
-            if (direction == VisualDirection.EnterOnly) return Task.CompletedTask;
+            if (!PlaysOnExit) return Task.CompletedTask;
+            return RunExitSwitcheroo();
+        }
 
-            float duration = direction == VisualDirection.Both
-                ? enterDuration / Mathf.Max(exitSpeedMultiplier, 0.001f)
-                : enterDuration;
+        /// <summary>
+        /// Plays Exit animation when the superState transitions into a substate.
+        /// No-op if Direction is not ToSubstate or Always.
+        /// </summary>
+        public Task ExitToSubstate()
+        {
+            if (!PlaysToSubstate) return Task.CompletedTask;
+            return RunExitSwitcheroo();
+        }
 
+        /// <summary>
+        /// Plays Enter animation when the superState returns from a substate.
+        /// No-op if Direction is not FromSubstate or Always.
+        /// </summary>
+        public Task EnterFromSubstate()
+        {
+            if (!PlaysFromSubstate) return Task.CompletedTask;
+            return RunSwitcheroo(_enterSwitcheroo, enterDuration);
+        }
+
+        private Task RunExitSwitcheroo()
+        {
+            float duration = enterDuration / Mathf.Max(exitSpeedMultiplier, 0.001f);
             _exitSwitcheroo.SetProgress(0f);
             return RunSwitcheroo(_exitSwitcheroo, duration);
         }
