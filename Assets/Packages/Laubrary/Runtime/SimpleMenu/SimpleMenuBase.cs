@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -24,9 +25,40 @@ namespace Laubrary.SimpleMenu
         protected bool isMainMenu = false;
         protected bool isInitialized = false;
 
+        [HideInInspector, SerializeField] private bool isEditorPreview = false;
+
         [Header("Menu Settings")]
-        [Tooltip("Settings for this menu. If null, will auto-find first available settings.")]
+        [Tooltip("Settings for this menu. If null, will inherit from parent or use global default.")]
         public SimpleMenuSettings menuSettings;
+
+        private static SimpleMenuSettings s_GlobalDefaultSettings;
+
+        /// <summary>
+        /// The default settings asset to use when none is explicitly assigned.
+        /// Updated whenever a menu with an assigned settings asset is initialized.
+        /// </summary>
+        public static SimpleMenuSettings GlobalDefaultSettings
+        {
+            get => s_GlobalDefaultSettings;
+            set => s_GlobalDefaultSettings = value;
+        }
+
+        [Tooltip("Which properties to animate during menu enter/exit transitions.")]
+        [SerializeField] private SimpleMenuAnimationType transitionAnimationType = SimpleMenuAnimationType.None;
+        [SerializeField, Range(0f, 1f)] private float transitionFromAlpha = 0f;
+        [SerializeField] private Vector2 transitionFromPositionOffset = new Vector2(0f, -40f);
+        [SerializeField] private Vector3 transitionFromScale = Vector3.zero;
+        [SerializeField] private float transitionDuration = 0.35f;
+        [SerializeField] private AnimationCurve transitionCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+        [Tooltip("Exit speed relative to enter duration. 2 = twice as fast.")]
+        [SerializeField] private float transitionExitSpeedMultiplier = 2f;
+
+        [SerializeField] private bool elementAnimateEach = false;
+        [SerializeField] private ElementAnimationDirection elementDirection = ElementAnimationDirection.TopBottom;
+        [SerializeField] private ElementPickOrder elementPickOrder = ElementPickOrder.Sequential;
+        [SerializeField, Range(0f, 1f)] private float elementStagger = 0.5f;
+        [SerializeField] private bool useAlternateElementConfig = false;
+        [SerializeField] private SimpleMenuElementAnimConfig altElementConfig = new SimpleMenuElementAnimConfig();
 
         private SimpleMenuSettings cachedSettings;
 
@@ -36,13 +68,28 @@ namespace Laubrary.SimpleMenu
             {
                 if (cachedSettings != null) return cachedSettings;
 
+                // 1. Check local assignment
                 if (menuSettings != null)
                 {
                     cachedSettings = menuSettings;
+                    GlobalDefaultSettings = cachedSettings; // Update global default
                     return cachedSettings;
                 }
 
+                // 2. Check global default (set by another menu in scene)
+                if (GlobalDefaultSettings != null)
+                {
+                    cachedSettings = GlobalDefaultSettings;
+                    return cachedSettings;
+                }
+
+                // 3. Fallback to project search
                 cachedSettings = FindMenuSettings();
+                if (cachedSettings != null)
+                {
+                    GlobalDefaultSettings = cachedSettings;
+                }
+                
                 return cachedSettings;
             }
         }
@@ -107,6 +154,14 @@ namespace Laubrary.SimpleMenu
             }
         }
 
+        protected virtual void Start()
+        {
+            if (isMainMenu)
+            {
+                _ = PlayEnterAnimationAsync();
+            }
+        }
+
         private void EnsureCanvasParent()
         {
             if (GetComponentInParent<Canvas>() == null)
@@ -118,6 +173,7 @@ namespace Laubrary.SimpleMenu
         private void CreateCanvasParent()
         {
             GameObject canvasObj = new GameObject("Canvas");
+            if (!Application.isPlaying) canvasObj.hideFlags = HideFlags.DontSave | HideFlags.NotEditable;
             Canvas canvas = canvasObj.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 
@@ -166,6 +222,7 @@ namespace Laubrary.SimpleMenu
         protected void CreateMenuContainer()
         {
             menuContainer = new GameObject(GetMenuName());
+            if (isEditorPreview) menuContainer.hideFlags = HideFlags.DontSave | HideFlags.NotEditable;
             menuContainer.transform.SetParent(transform, false);
 
             var hasRectTransform = menuContainer.GetComponent<RectTransform>();
@@ -205,6 +262,27 @@ namespace Laubrary.SimpleMenu
             layoutGroup.childForceExpandHeight = false;
 
             contentContainer = menuContainer;
+
+            if (transitionAnimationType != SimpleMenuAnimationType.None || elementAnimateEach)
+            {
+                CanvasGroup cg = menuContainer.GetComponent<CanvasGroup>() ?? menuContainer.AddComponent<CanvasGroup>();
+                SimpleMenuVisual visual = menuContainer.AddComponent<SimpleMenuVisual>();
+                visual.Configure(
+                    transitionAnimationType,
+                    transitionFromAlpha,
+                    transitionFromPositionOffset,
+                    transitionFromScale,
+                    transitionDuration,
+                    transitionCurve,
+                    transitionExitSpeedMultiplier);
+                visual.ConfigureElements(
+                    elementAnimateEach,
+                    elementDirection,
+                    elementPickOrder,
+                    elementStagger,
+                    useAlternateElementConfig,
+                    altElementConfig);
+            }
         }
 
         protected virtual void BuildMenu()
@@ -1012,35 +1090,42 @@ namespace Laubrary.SimpleMenu
 
         public void SwitchToMenu(string menuId)
         {
+            _ = SwitchToMenuAsync(menuId);
+        }
+
+        private async Task SwitchToMenuAsync(string menuId)
+        {
             SimpleMenuBase mainMenu = GetMainMenu();
 
             if (mainMenu.subMenus.TryGetValue(menuId, out SimpleMenuBase existingMenu))
             {
-                mainMenu.HideAllMenus();
+                await mainMenu.HideAllMenusAnimatedAsync();
                 existingMenu.ShowMenu();
+                await existingMenu.PlayEnterAnimationAsync();
             }
             else
             {
                 Type menuType = FindMenuTypeById(menuId);
                 if (menuType != null)
-                {
-                    CreateSubMenu(menuType);
-                }
+                    await CreateSubMenuAsync(menuType);
                 else
-                {
                     Debug.LogError($"Menu with id '{menuId}' not found");
-                }
             }
         }
 
         protected void CreateSubMenu(Type menuType)
+        {
+            _ = CreateSubMenuAsync(menuType);
+        }
+
+        private async Task CreateSubMenuAsync(Type menuType)
         {
             SimpleMenuBase mainMenu = GetMainMenu();
             string menuId = GetMenuId(menuType);
 
             if (mainMenu.subMenus.ContainsKey(menuId))
             {
-                SwitchToMenu(menuId);
+                await SwitchToMenuAsync(menuId);
                 return;
             }
 
@@ -1051,8 +1136,15 @@ namespace Laubrary.SimpleMenu
             subMenu.parentMenu = this;
             subMenu.isMainMenu = false;
             subMenu.isInitialized = true;
+            
+            // Inherit settings from the parent/main menu
+            subMenu.menuSettings = Settings;
+
+            // Inherit transition settings from the main menu so all submenus animate consistently.
+            subMenu.InheritTransitionSettings(mainMenu);
 
             subMenu.CreateMenuContainer();
+            subMenu.menuContainer.SetActive(false); // keep hidden until exit animation completes
             subMenu.menuContainer.transform.SetParent(transform, false);
             subMenu.BuildMenu();
 
@@ -1060,19 +1152,135 @@ namespace Laubrary.SimpleMenu
             subMenu.CreateButton(backButtonLabel, () => ReturnToParent(subMenu));
 
             mainMenu.subMenus[menuId] = subMenu;
-            mainMenu.HideAllMenus();
+
+            await mainMenu.HideAllMenusAnimatedAsync();
             subMenu.ShowMenu();
+            await subMenu.PlayEnterAnimationAsync();
+        }
+
+        public void RebuildEditorPreview()
+        {
+            #if UNITY_EDITOR
+            ClearEditorPreview();
+            
+            isEditorPreview = true;
+            isInitialized = true;
+            isMainMenu = true;
+            
+            OverrideSettings();
+            EnsureCanvasParent();
+            CreateMenuContainer();
+            BuildMenu();
+            
+            // Force a full layout pass so heights and spacing resolve immediately
+            Canvas.ForceUpdateCanvases();
+            if (menuContainer != null)
+            {
+                var rt = menuContainer.GetComponent<RectTransform>();
+                if (rt != null)
+                    UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+            }
+            #endif
+        }
+
+        public void ClearEditorPreview()
+        {
+            #if UNITY_EDITOR
+            // Find any children that might be preview containers
+            var children = new List<GameObject>();
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                children.Add(transform.GetChild(i).gameObject);
+            }
+
+            foreach (var child in children)
+            {
+                // If it's the menuContainer we know about, or if it has HideFlags set (our preview style)
+                if (child == menuContainer || (child.hideFlags & HideFlags.DontSave) != 0)
+                {
+                    if (Application.isPlaying)
+                        Destroy(child);
+                    else
+                        DestroyImmediate(child);
+                }
+            }
+
+            menuContainer = null;
+            contentContainer = null;
+            controls.Clear();
+            subMenus.Clear();
+            isInitialized = false;
+            isEditorPreview = false;
+            #endif
+        }
+
+        private void InheritTransitionSettings(SimpleMenuBase source)
+        {
+            transitionAnimationType      = source.transitionAnimationType;
+            transitionFromAlpha          = source.transitionFromAlpha;
+            transitionFromPositionOffset = source.transitionFromPositionOffset;
+            transitionFromScale          = source.transitionFromScale;
+            transitionDuration           = source.transitionDuration;
+            transitionCurve              = source.transitionCurve;
+            transitionExitSpeedMultiplier = source.transitionExitSpeedMultiplier;
+
+            elementAnimateEach          = source.elementAnimateEach;
+            elementDirection            = source.elementDirection;
+            elementPickOrder            = source.elementPickOrder;
+            elementStagger              = source.elementStagger;
+            useAlternateElementConfig   = source.useAlternateElementConfig;
+            altElementConfig            = source.altElementConfig.Clone();
         }
 
         protected void ReturnToParent(SimpleMenuBase subMenu)
         {
+            _ = ReturnToParentAsync(subMenu);
+        }
+
+        private async Task ReturnToParentAsync(SimpleMenuBase subMenu)
+        {
             SimpleMenuBase mainMenu = GetMainMenu();
-            mainMenu.HideAllMenus();
+            await mainMenu.HideAllMenusAnimatedAsync();
 
             if (subMenu.parentMenu != null)
             {
                 subMenu.parentMenu.ShowMenu();
+                await subMenu.parentMenu.PlayEnterAnimationAsync();
             }
+        }
+
+        // ─── Animation helpers ────────────────────────────────────────────────
+
+        private Task PlayEnterAnimationAsync()
+        {
+            SimpleMenuVisual visual = menuContainer != null ? menuContainer.GetComponent<SimpleMenuVisual>() : null;
+            if (visual == null) return Task.CompletedTask;
+            return Task.WhenAll(visual.Enter(), visual.EnterElements(menuContainer.transform));
+        }
+
+        private Task PlayExitAnimationAsync()
+        {
+            SimpleMenuVisual visual = menuContainer != null ? menuContainer.GetComponent<SimpleMenuVisual>() : null;
+            if (visual == null) return Task.CompletedTask;
+            return Task.WhenAll(visual.Exit(), visual.ExitElements(menuContainer.transform));
+        }
+
+        /// <summary>Plays exit animations on all currently visible menus, then hides them all.</summary>
+        private async Task HideAllMenusAnimatedAsync()
+        {
+            var tasks = new List<Task>();
+
+            if (menuContainer != null && menuContainer.activeSelf)
+                tasks.Add(PlayExitAnimationAsync());
+
+            foreach (SimpleMenuBase sub in subMenus.Values)
+                if (sub.menuContainer != null && sub.menuContainer.activeSelf)
+                    tasks.Add(sub.PlayExitAnimationAsync());
+
+            if (tasks.Count > 0)
+                await Task.WhenAll(tasks);
+
+            HideAllMenus();
         }
 
         protected SimpleMenuBase GetMainMenu()

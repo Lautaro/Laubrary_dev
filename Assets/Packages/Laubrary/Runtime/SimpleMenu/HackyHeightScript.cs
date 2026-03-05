@@ -2,6 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+[ExecuteAlways]
 public class HackyHeightScript : MonoBehaviour
 {
     TextMeshProUGUI text;
@@ -18,6 +19,7 @@ public class HackyHeightScript : MonoBehaviour
 
     private void Update()
     {
+        if (text != null && layoutElement != null)
             layoutElement.minHeight = text.preferredHeight;
     }
 }
