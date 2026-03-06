@@ -36,6 +36,7 @@ namespace Laubrary.SimpleMenu
         // ─── Element animation ────────────────────────────────────────────────
         [SerializeField] private bool animateElements = false;
         [SerializeField] private ElementAnimationDirection elementDirection = ElementAnimationDirection.TopBottom;
+        [SerializeField] private bool mirrorExitDirection = false;
         [SerializeField] private ElementPickOrder elementPickOrder = ElementPickOrder.Sequential;
         [SerializeField, Range(0f, 1f)] private float elementStagger = 0.5f;
         [SerializeField] private bool useAlternateElementConfig = false;
@@ -184,7 +185,7 @@ namespace Laubrary.SimpleMenu
                 exitSpeedMultiplier = exitSpeedMultiplier,
             };
 
-            List<Transform> elements = GetOrderedElements(container);
+            List<Transform> elements = GetOrderedElements(container, isEnter);
             if (elements.Count == 0) return;
 
             // ── 1. Force layout to compute resting positions before capturing. ──
@@ -375,13 +376,21 @@ namespace Laubrary.SimpleMenu
 
         // ─── Ordering ─────────────────────────────────────────────────────────
 
-        private List<Transform> GetOrderedElements(Transform container)
+        private List<Transform> GetOrderedElements(Transform container, bool isEnter)
         {
             var children = new List<Transform>(container.childCount);
             for (int i = 0; i < container.childCount; i++)
                 children.Add(container.GetChild(i));
 
-            if (elementDirection == ElementAnimationDirection.BottomTop)
+            ElementAnimationDirection effectiveDir = elementDirection;
+            if (!isEnter && mirrorExitDirection)
+            {
+                effectiveDir = (elementDirection == ElementAnimationDirection.TopBottom) 
+                    ? ElementAnimationDirection.BottomTop 
+                    : ElementAnimationDirection.TopBottom;
+            }
+
+            if (effectiveDir == ElementAnimationDirection.BottomTop)
                 children.Reverse();
 
             switch (elementPickOrder)
@@ -429,11 +438,12 @@ namespace Laubrary.SimpleMenu
 
         /// <summary>Configures per-element stagger animation.</summary>
         public void ConfigureElements(
-            bool animEach, ElementAnimationDirection direction, ElementPickOrder pickOrder,
+            bool animEach, ElementAnimationDirection direction, bool mirror, ElementPickOrder pickOrder,
             float stagger, bool useAlt, SimpleMenuElementAnimConfig alt)
         {
             animateElements           = animEach;
             elementDirection          = direction;
+            mirrorExitDirection       = mirror;
             elementPickOrder          = pickOrder;
             elementStagger            = stagger;
             useAlternateElementConfig = useAlt;

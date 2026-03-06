@@ -28,7 +28,7 @@ namespace Laubrary.SimpleMenu.Editor
             EditorGUILayout.Space();
 
             // ── Transitions Foldout ───────────────────────────────────────────
-            bool newShowTransitions = EditorGUILayout.BeginFoldoutHeaderGroup(showTransitions, "Transitions");
+            bool newShowTransitions = EditorGUILayout.Foldout(showTransitions, "Transitions", true);
             if (newShowTransitions != showTransitions)
             {
                 showTransitions = newShowTransitions;
@@ -38,10 +38,18 @@ namespace Laubrary.SimpleMenu.Editor
             if (showTransitions)
             {
                 EditorGUI.indentLevel++;
+                // ...
 
                 // ── Container Transition ──────────────────────────────────────
                 SerializedProperty animTypeProp = serializedObject.FindProperty("transitionAnimationType");
-                EditorGUILayout.PropertyField(animTypeProp, new GUIContent("Transition Animation"));
+                EditorGUI.BeginChangeCheck();
+                SimpleMenuAnimationType currentFlags = (SimpleMenuAnimationType)animTypeProp.intValue;
+                SimpleMenuAnimationType selectedFlags = (SimpleMenuAnimationType)EditorGUILayout.EnumFlagsField(new GUIContent("Transition Animation"), currentFlags);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    animTypeProp.intValue = (int)selectedFlags;
+                    serializedObject.ApplyModifiedProperties();
+                }
                 SimpleMenuAnimationType flags = (SimpleMenuAnimationType)animTypeProp.intValue;
 
                 if (flags != SimpleMenuAnimationType.None)
@@ -93,6 +101,10 @@ namespace Laubrary.SimpleMenu.Editor
                         new GUIContent("Direction"));
 
                     EditorGUILayout.PropertyField(
+                        serializedObject.FindProperty("mirrorExitDirection"),
+                        new GUIContent("Mirror Exit Direction"));
+
+                    EditorGUILayout.PropertyField(
                         serializedObject.FindProperty("elementPickOrder"),
                         new GUIContent("Pick Order"));
 
@@ -123,8 +135,6 @@ namespace Laubrary.SimpleMenu.Editor
                 EditorGUI.indentLevel--;
             }
 
-            EditorGUILayout.EndFoldoutHeaderGroup();
-
             EditorGUILayout.Space();
 
             // ── Derived class fields ──────────────────────────────────────────
@@ -141,6 +151,7 @@ namespace Laubrary.SimpleMenu.Editor
                 "transitionExitSpeedMultiplier",
                 "elementAnimateEach",
                 "elementDirection",
+                "mirrorExitDirection",
                 "elementPickOrder",
                 "elementStagger",
                 "useAlternateElementConfig",
@@ -176,7 +187,7 @@ namespace Laubrary.SimpleMenu.Editor
             EditorGUILayout.LabelField(header, EditorStyles.boldLabel);
 
             SerializedProperty animTypeProp = serializedObject.FindProperty($"{propPath}.animationType");
-            EditorGUILayout.PropertyField(animTypeProp, new GUIContent("Properties"));
+            animTypeProp.intValue = (int)(SimpleMenuAnimationType)EditorGUILayout.EnumFlagsField(new GUIContent("Properties"), (SimpleMenuAnimationType)animTypeProp.intValue);
             SimpleMenuAnimationType animType = (SimpleMenuAnimationType)animTypeProp.intValue;
 
             if ((animType & SimpleMenuAnimationType.Alpha) != 0)

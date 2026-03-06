@@ -55,6 +55,7 @@ namespace Laubrary.SimpleMenu
 
         [SerializeField] private bool elementAnimateEach = false;
         [SerializeField] private ElementAnimationDirection elementDirection = ElementAnimationDirection.TopBottom;
+        [SerializeField] private bool mirrorExitDirection = false;
         [SerializeField] private ElementPickOrder elementPickOrder = ElementPickOrder.Sequential;
         [SerializeField, Range(0f, 1f)] private float elementStagger = 0.5f;
         [SerializeField] private bool useAlternateElementConfig = false;
@@ -278,6 +279,7 @@ namespace Laubrary.SimpleMenu
                 visual.ConfigureElements(
                     elementAnimateEach,
                     elementDirection,
+                    mirrorExitDirection,
                     elementPickOrder,
                     elementStagger,
                     useAlternateElementConfig,
@@ -1226,6 +1228,7 @@ namespace Laubrary.SimpleMenu
 
             elementAnimateEach          = source.elementAnimateEach;
             elementDirection            = source.elementDirection;
+            mirrorExitDirection         = source.mirrorExitDirection;
             elementPickOrder            = source.elementPickOrder;
             elementStagger              = source.elementStagger;
             useAlternateElementConfig   = source.useAlternateElementConfig;

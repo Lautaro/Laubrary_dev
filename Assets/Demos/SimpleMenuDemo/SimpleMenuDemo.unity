@@ -127,6 +127,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 4380655029499835623, guid: 45229dec7b4b8964983ad012537e2250, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5276928405828621079, guid: 45229dec7b4b8964983ad012537e2250, type: 3}
       propertyPath: m_Pivot.x
       value: 0
@@ -214,7 +218,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4380655029499835623, guid: 45229dec7b4b8964983ad012537e2250, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1809467926}
   m_SourcePrefab: {fileID: 100100000, guid: 45229dec7b4b8964983ad012537e2250, type: 3}
 --- !u!1 &1623783498
 GameObject:
@@ -308,6 +315,94 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1809467924 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4380655029499835623, guid: 45229dec7b4b8964983ad012537e2250, type: 3}
+  m_PrefabInstance: {fileID: 1343545339}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1809467926
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1809467924}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d7403e005ac3a2c498d4fe61e46414b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.SimpleMenu.SimpleMenuExample
+  isEditorPreview: 1
+  menuSettings: {fileID: 11400000, guid: 4399631c53b27254ebc81b577840ccd9, type: 2}
+  transitionAnimationType: 5
+  transitionFromAlpha: 0
+  transitionFromPositionOffset: {x: 0, y: -40}
+  transitionFromScale: {x: 1.5, y: 1.5, z: 2}
+  transitionDuration: 0.15
+  transitionCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 1
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  transitionExitSpeedMultiplier: 1
+  elementAnimateEach: 1
+  elementDirection: 1
+  mirrorExitDirection: 1
+  elementPickOrder: 0
+  elementStagger: 0.295
+  useAlternateElementConfig: 0
+  altElementConfig:
+    animationType: 1
+    fromAlpha: 0
+    fromPositionOffset: {x: -30, y: 0}
+    fromScale: {x: 0, y: 0, z: 0}
+    duration: 0.2
+    curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    exitSpeedMultiplier: 2
+  enableFeatureX: 0
+  someField: 
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
