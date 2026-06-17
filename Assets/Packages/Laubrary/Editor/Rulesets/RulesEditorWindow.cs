@@ -35,6 +35,7 @@ namespace Laubrary.Rulesets.Editor
         [SerializeField] int _stateFilter; // 0 = all, 1 = enabled only, 2 = disabled only
         [SerializeField] List<string> _activeTags = new List<string>();
         [SerializeField] string _selectedType;
+        [SerializeField] string _lastSingle; // last type auto-opened because it was the sole filtered result
         [SerializeField] Vector2 _leftScroll, _rightScroll, _rulesetsScroll;
 
         string _renamingPath, _renameBuffer, _peekPath;
@@ -157,13 +158,17 @@ namespace Laubrary.Rulesets.Editor
             int disabledN = rules.Length - enabledN;
 
             _leftScroll = GUILayout.BeginScrollView(_leftScroll, GUILayout.Height(260f));
-            if (RowButton("All", _selectedCategory == "All" && _stateFilter == 0, 0))
-            { _selectedCategory = "All"; _stateFilter = 0; }
-            if (RowButton($"Enabled ({enabledN})", _stateFilter == 1, 1)) _stateFilter = _stateFilter == 1 ? 0 : 1;
-            if (RowButton($"Disabled ({disabledN})", _stateFilter == 2, 1)) _stateFilter = _stateFilter == 2 ? 0 : 2;
+            if (RowButton("All", _selectedCategory == "All" && _stateFilter == 0, 0) != 0)
+            { _selectedCategory = "All"; _stateFilter = 0; _activeTags.Clear(); } // right- or left-click both reset
+            if (RowButton($"Enabled ({enabledN})", _stateFilter == 1, 1) != 0) _stateFilter = _stateFilter == 1 ? 0 : 1;
+            if (RowButton($"Disabled ({disabledN})", _stateFilter == 2, 1) != 0) _stateFilter = _stateFilter == 2 ? 0 : 2;
             GUILayout.Space(4);
             foreach (var cat in cats)
-                if (RowButton(cat, _selectedCategory == cat, 1)) _selectedCategory = cat;
+            {
+                int code = RowButton(cat, _selectedCategory == cat, 1);
+                if (code == 2) IsolateCategory(cat); // right-click: clear tags + state, show ONLY this category
+                else if (code == 1) _selectedCategory = cat;
+            }
             GUILayout.EndScrollView();
 
             GUILayout.Space(4);
@@ -176,15 +181,23 @@ namespace Laubrary.Rulesets.Editor
                 _activeTags.Clear();
         }
 
-        bool RowButton(string label, bool selected, int indent)
+        // 0 = no click, 1 = left-click, 2 = RIGHT-click (used as "isolate this filter").
+        int RowButton(string label, bool selected, int indent)
         {
             GUILayout.BeginHorizontal();
             GUILayout.Space(indent * 12f);
             var style = selected ? EditorStyles.boldLabel : EditorStyles.label;
             bool clicked = GUILayout.Button((selected ? "▸ " : "") + label, style);
+            Rect r = GUILayoutUtility.GetLastRect();
             GUILayout.EndHorizontal();
-            return clicked;
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && e.button == 1 && r.Contains(e.mousePosition)) { e.Use(); return 2; }
+            return clicked ? 1 : 0;
         }
+
+        // Right-click "isolate": drop every other filter and show ONLY the thing clicked.
+        void IsolateCategory(string cat) { _activeTags.Clear(); _stateFilter = 0; _selectedCategory = cat; }
+        void IsolateTag(string tag) { _activeTags.Clear(); _selectedCategory = "All"; _stateFilter = 0; _activeTags.Add(tag); }
 
         static bool InCategory(GameRule r, string category)
         {
@@ -203,7 +216,11 @@ namespace Laubrary.Rulesets.Editor
                 {
                     bool on = _activeTags.Contains(tags[i]);
                     bool now = GUILayout.Toggle(on, tags[i], EditorStyles.miniButton);
-                    if (now && !on) _activeTags.Add(tags[i]);
+                    Rect tr = GUILayoutUtility.GetLastRect();
+                    var e = Event.current;
+                    if (e.type == EventType.MouseDown && e.button == 1 && tr.Contains(e.mousePosition))
+                    { e.Use(); IsolateTag(tags[i]); }      // right-click: show ONLY this tag
+                    else if (now && !on) _activeTags.Add(tags[i]);
                     else if (!now && on) _activeTags.Remove(tags[i]);
                 }
                 GUILayout.EndHorizontal();
@@ -238,6 +255,15 @@ namespace Laubrary.Rulesets.Editor
         void DrawRightPanel(GameRule[] rules)
         {
             var filtered = rules.Where(PassesFilter).ToArray();
+            // When a filter narrows the view to exactly ONE rule, open it automatically (once per new
+            // single result; the user can still collapse it, and it won't re-pop every frame).
+            if (filtered.Length == 1)
+            {
+                string only = filtered[0].GetType().Name;
+                if (_lastSingle != only) { _selectedType = only; _lastSingle = only; }
+            }
+            else _lastSingle = null;
+
             string state = _stateFilter == 1 ? " · Enabled" : _stateFilter == 2 ? " · Disabled" : "";
             EditorGUILayout.LabelField($"{filtered.Length} rule(s)  ·  {_selectedCategory}{state}", EditorStyles.miniLabel);
 

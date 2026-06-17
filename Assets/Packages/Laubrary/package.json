@@ -1,6 +1,6 @@
 {
   "name": "com.lautaro.arino.laubrary",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "displayName": "Laubrary",
   "description": "Helpful utility library with various tools and systems for Unity development",
   "unity": "2020.1",
@@ -25,6 +25,11 @@
       "displayName": "SimpleMenu Default UI",
       "description": "Default UI prefabs and settings for SimpleMenu. Import this sample to customize the menu appearance.",
       "path": "Samples~/SimpleMenu UI"
+    },
+    {
+      "displayName": "SimpleUI Default UI",
+      "description": "Default UI prefabs and settings for SimpleUI. Import this sample to customize the generated UI appearance.",
+      "path": "Samples~/SimpleUI"
     },
     {
       "displayName": "All Demos",
