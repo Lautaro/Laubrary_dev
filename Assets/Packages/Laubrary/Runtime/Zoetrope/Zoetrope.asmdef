@@ -1,0 +1,14 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Zoetrope",
+    "rootNamespace": "Laubrary.Zoetrope",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

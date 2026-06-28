@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.16] - 2026-06-28
+
+### Added
+- **Zoetrope** — a new tool for authoring versioned 2D characters/animations (a *Zoe*) from
+  sprite sheets, extracted from the retired AssetScavenge project. Adds `Runtime/Zoetrope/`
+  (`com.Lautaro-Arino.Laubrary.Zoetrope`) and `Editor/Zoetrope/`
+  (`com.Lautaro-Arino.Laubrary.Zoetrope.Editor`), including the Zoe Browser, Animation Builder,
+  atlas baking, pixel-accurate meta-layer collision, and an Aseprite import/round-trip pipeline.
+  Zoes are authored into the host project's `Assets/Zoetrope/…`; the package ships zero assets.
+
+### Dependencies
+- Added `com.unity.2d.sprite` and `com.unity.nuget.newtonsoft-json` (required by Zoetrope).
+
 ## [0.0.14] - 2026-02-16
 
 Fixing still the monolith demo scene

@@ -1,11 +1,13 @@
 {
   "name": "com.lautaro.arino.laubrary",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "displayName": "Laubrary",
   "description": "Helpful utility library with various tools and systems for Unity development",
   "unity": "2020.1",
   "dependencies": {
+    "com.unity.2d.sprite": "1.0.0",
     "com.unity.editorcoroutines": "1.0.0",
+    "com.unity.nuget.newtonsoft-json": "3.2.2",
     "com.unity.textmeshpro": "3.0.0",
     "com.unity.ugui": "1.0.0"
   },

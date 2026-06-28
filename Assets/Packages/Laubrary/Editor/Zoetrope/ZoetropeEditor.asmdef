@@ -1,0 +1,19 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Zoetrope.Editor",
+    "rootNamespace": "Laubrary.Zoetrope.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Zoetrope",
+        "Unity.2D.Sprite.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
