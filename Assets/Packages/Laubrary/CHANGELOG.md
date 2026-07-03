@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.17] - 2026-07-03
+
+### Added
+- **ZuiRuntime** — the runtime sibling of the editor ZUI toolkit: trap-aware immediate-mode
+  (OnGUI) UI helpers for prototypes, adopted from TrueEye's nucleus and grown in ClaudeUI. Adds
+  `Runtime/ZuiRuntime/` (`com.Lautaro-Arino.Laubrary.ZuiRuntime`, namespace `ZuiRuntime`, pure
+  UnityEngine): `Zui` fill/contrast primitives, `UIScale` (one crisp font-based scaling rule),
+  cached scaled styles, `ZuiStack` (text measured before drawn — labels cannot clip; button rows
+  share one baseline), screen-clamped anchored panels, keyed scroll-stacks that auto-scroll when
+  content outgrows the box, tint scopes, `ZuiOverlay` hotkey-overlay base, and the **XYAB gamepad
+  face-button visualiser** (`FaceButtons` + `ControllerColors`) for gamepad games.
+  ⚠ Projects carrying a vendored `Assets/ZUI/Scripts/Runtime/ZuiRuntime*` copy (TrueEye, ClaudeUI)
+  must delete it when updating Laubrary, or the duplicate types collide.
+
 ## [0.0.16] - 2026-06-28
 
 ### Added
