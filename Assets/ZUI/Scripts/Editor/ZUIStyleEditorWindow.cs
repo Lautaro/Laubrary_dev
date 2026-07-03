@@ -31,6 +31,9 @@ public class ZUIStyleEditorWindow : ZUIWindow
     private int _selectedText;
     private int _selectedSlider;
     private int _selectedNineSlice;
+    // Draggable/resizable live-sample rect for the 9-slice inspector, stored relative to its canvas.
+    private Vector2 _nsSampleOffset = new Vector2(20f, 20f);
+    private Vector2 _nsSampleSize   = new Vector2(360f, 90f);
     private int _buttonStateTab;      // 0 = Normal, 1 = Hover, 2 = Active
     private int _sliderThumbModeTab;  // 0 = Normal (single), 1 = MinMax (two thumbs)
     private int _sliderThumbMinState; // 0 = Normal, 1 = Hover, 2 = Active  (min thumb inspector)
@@ -1804,6 +1807,13 @@ public class ZUIStyleEditorWindow : ZUIWindow
 
         TabTitle("9-Slice Frame");
 
+        var tex = def.ActiveTexture;
+        int texW = tex != null ? tex.width : 0;
+        int texH = tex != null ? tex.height : 0;
+        bool hInvalid = texW > 0 && def.left + def.right >= texW; // dividers would cross horizontally
+        bool vInvalid = texH > 0 && def.top + def.bottom >= texH; // ...or vertically
+        var red = new Color(1f, 0.45f, 0.45f);
+
         // ── Name ──
         EditorGUI.BeginChangeCheck();
         def.name = EditorGUILayout.TextField("Name", def.name);
@@ -1811,77 +1821,150 @@ public class ZUIStyleEditorWindow : ZUIWindow
 
         ZUI.VerticalSpace("V Control Gap");
 
-        // ── Source (texture + tint) ──────────────────────────────────────────
+        // ── Source: texture + tint on ONE row (both are narrow — no need to burn two rows). ──
         if (SectionHeaderPlain("Source", "nineslice_source"))
         {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Texture", GUILayout.Width(52f));
             EditorGUI.BeginChangeCheck();
-            def.texture = (Texture2D)EditorGUILayout.ObjectField("Texture", def.texture, typeof(Texture2D), false);
-            if (EditorGUI.EndChangeCheck()) { def.Invalidate(); changed = true; }
+            var newTex = (Texture2D)EditorGUILayout.ObjectField(def.texture, typeof(Texture2D), false);
+            if (EditorGUI.EndChangeCheck()) { def.texture = newTex; def.Invalidate(); changed = true; }
+            GUILayout.Space(10f);
+            GUILayout.Label("Tint", GUILayout.Width(26f));
+            EditorGUI.BeginChangeCheck();
+            var newTint = EditorGUILayout.ColorField(def.tint, GUILayout.Width(48f));
+            if (EditorGUI.EndChangeCheck()) { def.tint = newTint; def.Invalidate(); changed = true; }
+            GUILayout.EndHorizontal();
 
-            EditorGUI.BeginChangeCheck();
-            def.tint = EditorGUILayout.ColorField("Tint", def.tint);
-            if (EditorGUI.EndChangeCheck()) { def.Invalidate(); changed = true; }
+            // Bake: freeze a self-contained PNG copy into the Zheet so the frame survives the source
+            // changing/disappearing and the Zheet is portable across projects.
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(def.IsBaked ? "● Baked into the Zheet (self-contained)"
+                                        : "○ References the source texture", EditorStyles.miniLabel);
+            GUILayout.FlexibleSpace();
+            using (new EditorGUI.DisabledScope(def.texture == null))
+                if (GUILayout.Button(def.IsBaked ? "Re-bake" : "Bake source", GUILayout.Width(90f)))
+                { def.bakedPng = EncodeTextureToPng(def.texture); def.Invalidate(); changed = true; }
+            using (new EditorGUI.DisabledScope(!def.IsBaked))
+                if (GUILayout.Button("Unbake", GUILayout.Width(62f)))
+                { def.bakedPng = null; def.Invalidate(); changed = true; }
+            GUILayout.EndHorizontal();
         }
 
-        // ── Border insets (source pixels, clamped >= 0) ──────────────────────
+        // ── Borders: fields turn red while dividers would cross; the draw clamps so it never breaks. ──
         if (SectionHeaderPlain("Borders", "nineslice_borders"))
         {
             EditorGUI.BeginChangeCheck();
-            int l = Mathf.Max(0, EditorGUILayout.IntField("Left",   def.left));
-            int r = Mathf.Max(0, EditorGUILayout.IntField("Right",  def.right));
+            var prevCol = GUI.color;
+            GUI.color = hInvalid ? red : prevCol;
+            int l = Mathf.Max(0, EditorGUILayout.IntField("Left",  def.left));
+            int r = Mathf.Max(0, EditorGUILayout.IntField("Right", def.right));
+            GUI.color = vInvalid ? red : prevCol;
             int t = Mathf.Max(0, EditorGUILayout.IntField("Top",    def.top));
             int b = Mathf.Max(0, EditorGUILayout.IntField("Bottom", def.bottom));
+            GUI.color = prevCol;
             if (EditorGUI.EndChangeCheck())
             {
                 def.left = l; def.right = r; def.top = t; def.bottom = b;
-                def.Invalidate();
-                changed = true;
+                def.Invalidate(); changed = true;
             }
+            if (hInvalid || vInvalid)
+                EditorGUILayout.LabelField(" ", "Left+Right and Top+Bottom must each fit inside the texture.", EditorStyles.miniLabel);
         }
 
-        // ── Preview: texture aspect-fit with the four slice guide lines ───────
+        // ── Preview: texture aspect-fit, slice guides labelled with their pixel sizes (red if crossing). ──
         if (SectionHeaderPlain("Preview", "nineslice_preview"))
         {
-            var box = GUILayoutUtility.GetRect(256f, 256f, GUILayout.ExpandWidth(true));
+            var box = GUILayoutUtility.GetRect(256f, 240f, GUILayout.ExpandWidth(true));
             if (Event.current.type == EventType.Repaint)
             {
                 EditorGUI.DrawRect(box, new Color(.10f, .10f, .12f, 1f));
-                if (def.texture != null)
+                if (tex != null)
                 {
-                    // Aspect-fit (ScaleToFit) the texture inside the box, then map source-pixel
-                    // insets into the fitted rect so the guides line up with what GUI draws.
-                    float tw = def.texture.width, th = def.texture.height;
-                    float scale = Mathf.Min(box.width / tw, box.height / th);
-                    float fw = tw * scale, fh = th * scale;
-                    var fit = new Rect(box.x + (box.width - fw) * 0.5f,
-                                       box.y + (box.height - fh) * 0.5f, fw, fh);
-                    GUI.DrawTexture(fit, def.texture, ScaleMode.ScaleToFit);
+                    float scale = Mathf.Min(box.width / texW, box.height / texH);
+                    float fw = texW * scale, fh = texH * scale;
+                    var fit = new Rect(box.x + (box.width - fw) * 0.5f, box.y + (box.height - fh) * 0.5f, fw, fh);
+                    GUI.DrawTexture(fit, tex, ScaleMode.ScaleToFit);
 
-                    var lineCol = new Color(0.3f, 1f, 0.55f, 0.9f);
-                    if (def.left   > 0) EditorGUI.DrawRect(new Rect(fit.x   + def.left   * scale, fit.y, 1f, fit.height), lineCol);
-                    if (def.right  > 0) EditorGUI.DrawRect(new Rect(fit.xMax - def.right  * scale, fit.y, 1f, fit.height), lineCol);
-                    if (def.top    > 0) EditorGUI.DrawRect(new Rect(fit.x, fit.y   + def.top    * scale, fit.width, 1f), lineCol);
-                    if (def.bottom > 0) EditorGUI.DrawRect(new Rect(fit.x, fit.yMax - def.bottom * scale, fit.width, 1f), lineCol);
+                    var okCol = new Color(0.3f, 1f, 0.55f, 0.9f);
+                    var hCol = hInvalid ? red : okCol;
+                    var vCol = vInvalid ? red : okCol;
+                    float lx = fit.x + def.left * scale, rx = fit.xMax - def.right * scale;
+                    float ty = fit.y + def.top * scale,  by = fit.yMax - def.bottom * scale;
+                    if (def.left  > 0) EditorGUI.DrawRect(new Rect(lx, fit.y, 1f, fit.height), hCol);
+                    if (def.right > 0) EditorGUI.DrawRect(new Rect(rx, fit.y, 1f, fit.height), hCol);
+                    if (def.top   > 0) EditorGUI.DrawRect(new Rect(fit.x, ty, fit.width, 1f), vCol);
+                    if (def.bottom> 0) EditorGUI.DrawRect(new Rect(fit.x, by, fit.width, 1f), vCol);
+
+                    // Pixel-size labels on each inset + the center region size.
+                    var lab = EditorStyles.miniLabel;
+                    if (def.left  > 0) GUI.Label(new Rect(fit.x, ty - 14f, def.left * scale, 12f), def.left.ToString(), lab);
+                    if (def.right > 0) GUI.Label(new Rect(rx, ty - 14f, def.right * scale, 12f), def.right.ToString(), lab);
+                    if (def.top   > 0) GUI.Label(new Rect(lx + 2f, fit.y, 30f, 12f), def.top.ToString(), lab);
+                    if (def.bottom> 0) GUI.Label(new Rect(lx + 2f, by, 30f, 12f), def.bottom.ToString(), lab);
+                    int cw = texW - def.left - def.right, ch = texH - def.top - def.bottom;
+                    var cLab = new GUIStyle(lab) { alignment = TextAnchor.MiddleCenter };
+                    GUI.Label(new Rect(lx, (ty + by) * 0.5f - 6f, Mathf.Max(0, rx - lx), 12f), $"{cw}×{ch}", cLab);
                 }
-                else
-                {
-                    EditorGUI.LabelField(box, "No texture assigned", EditorStyles.centeredGreyMiniLabel);
-                }
+                else EditorGUI.LabelField(box, "No texture assigned", EditorStyles.centeredGreyMiniLabel);
             }
         }
 
-        // ── Live sample: draw the 9-slice stretched wide so the author sees it ─
+        // ── Live sample: a movable/resizable frame so the author sees the slicing at any size. ──
         if (SectionHeaderPlain("Live Sample", "nineslice_sample"))
         {
-            var sample = GUILayoutUtility.GetRect(1f, 90f, GUILayout.ExpandWidth(true));
-            if (Event.current.type == EventType.Repaint)
+            var canvas = GUILayoutUtility.GetRect(1f, 200f, GUILayout.ExpandWidth(true));
+            _nsSampleSize.x   = Mathf.Clamp(_nsSampleSize.x, 40f, Mathf.Max(40f, canvas.width - 4f));
+            _nsSampleSize.y   = Mathf.Clamp(_nsSampleSize.y, 30f, Mathf.Max(30f, canvas.height - 18f));
+            _nsSampleOffset.x = Mathf.Clamp(_nsSampleOffset.x, 0f, Mathf.Max(0f, canvas.width - _nsSampleSize.x));
+            _nsSampleOffset.y = Mathf.Clamp(_nsSampleOffset.y, 14f, Mathf.Max(14f, canvas.height - _nsSampleSize.y));
+            var sample = new Rect(canvas.x + _nsSampleOffset.x, canvas.y + _nsSampleOffset.y, _nsSampleSize.x, _nsSampleSize.y);
+            var grip = new Rect(sample.xMax - 14f, sample.yMax - 14f, 14f, 14f);
+
+            int moveId = GUIUtility.GetControlID(FocusType.Passive);
+            int sizeId = GUIUtility.GetControlID(FocusType.Passive);
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && canvas.Contains(e.mousePosition))
             {
-                EditorGUI.DrawRect(sample, new Color(.13f, .13f, .15f, 1f));
+                if (grip.Contains(e.mousePosition)) { GUIUtility.hotControl = sizeId; e.Use(); }
+                else if (sample.Contains(e.mousePosition)) { GUIUtility.hotControl = moveId; e.Use(); }
+            }
+            else if (e.type == EventType.MouseDrag && GUIUtility.hotControl == sizeId) { _nsSampleSize += e.delta; e.Use(); Repaint(); }
+            else if (e.type == EventType.MouseDrag && GUIUtility.hotControl == moveId) { _nsSampleOffset += e.delta; e.Use(); Repaint(); }
+            else if (e.type == EventType.MouseUp && (GUIUtility.hotControl == sizeId || GUIUtility.hotControl == moveId)) { GUIUtility.hotControl = 0; e.Use(); }
+            EditorGUIUtility.AddCursorRect(sample, MouseCursor.MoveArrow);
+            EditorGUIUtility.AddCursorRect(grip, MouseCursor.ResizeUpLeft);
+
+            if (e.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(canvas, new Color(.13f, .13f, .15f, 1f));
                 def.DrawFrame(sample);
+                EditorGUI.DrawRect(grip, new Color(1f, 1f, 1f, 0.28f));
+                GUI.Label(new Rect(canvas.x + 4f, canvas.y + 2f, canvas.width - 8f, 12f),
+                    $"{(int)sample.width}×{(int)sample.height}  —  drag to move, corner to resize", EditorStyles.miniLabel);
             }
         }
 
         if (changed) { EditorUtility.SetDirty(_sheet); RepaintShowcase(); }
+    }
+
+    // Read a texture's pixels (even if its import isn't "Read/Write") via a RenderTexture blit, and
+    // encode to PNG — the frozen, self-contained bytes a baked 9-slice stores.
+    static byte[] EncodeTextureToPng(Texture2D src)
+    {
+        if (src == null) return null;
+        var rt = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+        Graphics.Blit(src, rt);
+        var prev = RenderTexture.active;
+        RenderTexture.active = rt;
+        var readable = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false);
+        readable.ReadPixels(new Rect(0, 0, src.width, src.height), 0, 0);
+        readable.Apply();
+        RenderTexture.active = prev;
+        RenderTexture.ReleaseTemporary(rt);
+        var png = readable.EncodeToPNG();
+        UnityEngine.Object.DestroyImmediate(readable);
+        return png;
     }
 
     // ── Text style inspector ──────────────────────────────────────────────────
