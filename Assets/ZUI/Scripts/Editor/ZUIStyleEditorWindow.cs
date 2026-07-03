@@ -1881,14 +1881,14 @@ public class ZUIStyleEditorWindow : ZUIWindow
             using (ZUI.Flow())
             {
                 GUILayout.Label("Centre", GUILayout.Width(52f));
-                def.tileCenterX = GUILayout.Toggle(def.tileCenterX, new GUIContent(" Tile H", "Repeat the centre horizontally instead of stretching"), GUILayout.Width(72f));
-                def.tileCenterY = GUILayout.Toggle(def.tileCenterY, new GUIContent(" Tile V", "Repeat the centre vertically instead of stretching"), GUILayout.Width(72f));
+                TileModePopup("H", ref def.tileCenterX, ref def.mirrorCenterX);
+                TileModePopup("V", ref def.tileCenterY, ref def.mirrorCenterY);
             }
             using (ZUI.Flow())
             {
                 GUILayout.Label("Borders", GUILayout.Width(52f));
-                def.tileEdgesX = GUILayout.Toggle(def.tileEdgesX, new GUIContent(" Tile H", "Repeat the top & bottom edges horizontally"), GUILayout.Width(72f));
-                def.tileEdgesY = GUILayout.Toggle(def.tileEdgesY, new GUIContent(" Tile V", "Repeat the left & right edges vertically"), GUILayout.Width(72f));
+                TileModePopup("H", ref def.tileEdgesX, ref def.mirrorEdgesX);
+                TileModePopup("V", ref def.tileEdgesY, ref def.mirrorEdgesY);
             }
             using (ZUI.Flow())
                 def.snapToTiles = GUILayout.Toggle(def.snapToTiles, new GUIContent(" Snap size to whole tiles", "When drawn or resized, round the frame so tiled axes hold a whole number of tiles (no partial tile at the edge)"), GUILayout.Width(210f));
@@ -1993,6 +1993,19 @@ public class ZUIStyleEditorWindow : ZUIWindow
         }
 
         if (changed) { EditorUtility.SetDirty(_sheet); RepaintShowcase(); }
+    }
+
+    static readonly string[] _tileModeNames = { "Stretch", "Tile", "Mirror" };
+
+    // A compact 3-way fill selector for one axis, backed by the (tile, mirror) bool pair:
+    // Stretch (no tile) / Tile (repeat) / Mirror (repeat, flipping alternate copies).
+    static void TileModePopup(string axisLabel, ref bool tile, ref bool mirror)
+    {
+        GUILayout.Label(axisLabel, GUILayout.Width(14f));
+        int cur  = !tile ? 0 : (mirror ? 2 : 1);
+        int next = EditorGUILayout.Popup(cur, _tileModeNames, GUILayout.Width(84f));
+        tile = next != 0; mirror = next == 2;
+        GUILayout.Space(10f);
     }
 
     // Read a texture's pixels (even if its import isn't "Read/Write") via a RenderTexture blit, and

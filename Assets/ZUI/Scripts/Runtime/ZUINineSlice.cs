@@ -25,6 +25,9 @@ public class ZUINineSliceDef
     public bool tileCenterY;   // repeat the centre vertically
     public bool tileEdgesX;    // repeat the top & bottom edges horizontally
     public bool tileEdgesY;    // repeat the left & right edges vertically
+    // Mirror = alternate tiles are flipped (normal, flipped, normal, …) so a gradient meets itself
+    // seamlessly. Only meaningful on an axis that also tiles; ignored otherwise.
+    public bool mirrorCenterX, mirrorCenterY, mirrorEdgesX, mirrorEdgesY;
     public bool snapToTiles;   // when drawn, snap the frame so tiled axes hold a whole number of tiles
 
     [NonSerialized] GUIStyle _style;
@@ -144,17 +147,17 @@ public class ZUINineSliceDef
         DrawUV(Rect.MinMaxRect(x2, y2, r.xMax, r.yMax), tex, new Rect(uR, 0f, R / tw, vB));
 
         // Edges — top/bottom tile on X, left/right tile on Y.
-        FillH(Rect.MinMaxRect(x1, r.y, x2, y1), tex, new Rect(uL, vT, uR - uL, T / th), tileEdgesX, cWpx); // top
-        FillH(Rect.MinMaxRect(x1, y2, x2, r.yMax), tex, new Rect(uL, 0f, uR - uL, vB), tileEdgesX, cWpx);   // bottom
-        FillV(Rect.MinMaxRect(r.x, y1, x1, y2), tex, new Rect(0f, vB, uL, vT - vB), tileEdgesY, cHpx);      // left
-        FillV(Rect.MinMaxRect(x2, y1, r.xMax, y2), tex, new Rect(uR, vB, R / tw, vT - vB), tileEdgesY, cHpx); // right
+        FillH(Rect.MinMaxRect(x1, r.y, x2, y1), tex, new Rect(uL, vT, uR - uL, T / th), tileEdgesX, cWpx, mirrorEdgesX); // top
+        FillH(Rect.MinMaxRect(x1, y2, x2, r.yMax), tex, new Rect(uL, 0f, uR - uL, vB), tileEdgesX, cWpx, mirrorEdgesX);   // bottom
+        FillV(Rect.MinMaxRect(r.x, y1, x1, y2), tex, new Rect(0f, vB, uL, vT - vB), tileEdgesY, cHpx, mirrorEdgesY);      // left
+        FillV(Rect.MinMaxRect(x2, y1, r.xMax, y2), tex, new Rect(uR, vB, R / tw, vT - vB), tileEdgesY, cHpx, mirrorEdgesY); // right
 
         // Centre — tile per axis (stretch the other).
         var cSrc = new Rect(uL, vB, uR - uL, vT - vB);
         var cDst = Rect.MinMaxRect(x1, y1, x2, y2);
-        if (tileCenterX && tileCenterY) Fill2D(cDst, tex, cSrc, cWpx, cHpx);
-        else if (tileCenterX)           FillH(cDst, tex, cSrc, true, cWpx);
-        else if (tileCenterY)           FillV(cDst, tex, cSrc, true, cHpx);
+        if (tileCenterX && tileCenterY) Fill2D(cDst, tex, cSrc, cWpx, cHpx, mirrorCenterX, mirrorCenterY);
+        else if (tileCenterX)           FillH(cDst, tex, cSrc, true, cWpx, mirrorCenterX);
+        else if (tileCenterY)           FillV(cDst, tex, cSrc, true, cHpx, mirrorCenterY);
         else                            DrawUV(cDst, tex, cSrc);
     }
 
@@ -164,40 +167,58 @@ public class ZUINineSliceDef
         GUI.DrawTextureWithTexCoords(dst, tex, uv, true);
     }
 
-    // Stretch (one draw) or tile a strip horizontally at native tile width.
-    static void FillH(Rect dst, Texture tex, Rect uv, bool tile, float tileW)
+    // A source sub-rect covering fraction (fx,fy) of `uv`, optionally flipped on either axis (a flip is
+    // expressed as a negative-extent texCoords rect, which GUI.DrawTextureWithTexCoords samples reversed).
+    // The vertical anchor differs by flip because tiles stack top-down while UVs run bottom-up.
+    static Rect SubUV(Rect uv, float fx, float fy, bool flipX, bool flipY)
+    {
+        float x = flipX ? uv.xMax : uv.x;
+        float w = (flipX ? -uv.width : uv.width) * fx;
+        float y = flipY ? (uv.y + uv.height * fy) : (uv.yMax - uv.height * fy);
+        float h = (flipY ? -uv.height : uv.height) * fy;
+        return new Rect(x, y, w, h);
+    }
+
+    // Stretch (one draw) or tile a strip horizontally at native tile width; mirror flips odd tiles.
+    static void FillH(Rect dst, Texture tex, Rect uv, bool tile, float tileW, bool mirror = false)
     {
         if (!tile || tileW <= 0.5f) { DrawUV(dst, tex, uv); return; }
-        for (float x = dst.x; x < dst.xMax - 0.5f; x += tileW)
+        int i = 0;
+        for (float x = dst.x; x < dst.xMax - 0.5f; x += tileW, i++)
         {
             float w = Mathf.Min(tileW, dst.xMax - x);
-            DrawUV(new Rect(x, dst.y, w, dst.height), tex, new Rect(uv.x, uv.y, uv.width * (w / tileW), uv.height));
+            bool flip = mirror && (i & 1) == 1;
+            DrawUV(new Rect(x, dst.y, w, dst.height), tex, SubUV(uv, w / tileW, 1f, flip, false));
         }
     }
 
-    // Stretch or tile a strip vertically. Partial last tile shows the TOP of the source (high UV).
-    static void FillV(Rect dst, Texture tex, Rect uv, bool tile, float tileH)
+    // Stretch or tile a strip vertically; mirror flips odd tiles. Partial tile keeps the source's top.
+    static void FillV(Rect dst, Texture tex, Rect uv, bool tile, float tileH, bool mirror = false)
     {
         if (!tile || tileH <= 0.5f) { DrawUV(dst, tex, uv); return; }
-        for (float y = dst.y; y < dst.yMax - 0.5f; y += tileH)
+        int i = 0;
+        for (float y = dst.y; y < dst.yMax - 0.5f; y += tileH, i++)
         {
             float h = Mathf.Min(tileH, dst.yMax - y);
-            float f = h / tileH;
-            DrawUV(new Rect(dst.x, y, dst.width, h), tex, new Rect(uv.x, uv.yMax - uv.height * f, uv.width, uv.height * f));
+            bool flip = mirror && (i & 1) == 1;
+            DrawUV(new Rect(dst.x, y, dst.width, h), tex, SubUV(uv, 1f, h / tileH, false, flip));
         }
     }
 
-    static void Fill2D(Rect dst, Texture tex, Rect uv, float tileW, float tileH)
+    static void Fill2D(Rect dst, Texture tex, Rect uv, float tileW, float tileH, bool mirrorX = false, bool mirrorY = false)
     {
         if (tileW <= 0.5f || tileH <= 0.5f) { DrawUV(dst, tex, uv); return; }
-        for (float y = dst.y; y < dst.yMax - 0.5f; y += tileH)
+        int iy = 0;
+        for (float y = dst.y; y < dst.yMax - 0.5f; y += tileH, iy++)
         {
-            float h = Mathf.Min(tileH, dst.yMax - y), fy = h / tileH;
-            var rowUv = new Rect(uv.x, uv.yMax - uv.height * fy, uv.width, uv.height * fy);
-            for (float x = dst.x; x < dst.xMax - 0.5f; x += tileW)
+            float h = Mathf.Min(tileH, dst.yMax - y);
+            bool fly = mirrorY && (iy & 1) == 1;
+            int ix = 0;
+            for (float x = dst.x; x < dst.xMax - 0.5f; x += tileW, ix++)
             {
                 float w = Mathf.Min(tileW, dst.xMax - x);
-                DrawUV(new Rect(x, y, w, h), tex, new Rect(rowUv.x, rowUv.y, rowUv.width * (w / tileW), rowUv.height));
+                bool flx = mirrorX && (ix & 1) == 1;
+                DrawUV(new Rect(x, y, w, h), tex, SubUV(uv, w / tileW, h / tileH, flx, fly));
             }
         }
     }
