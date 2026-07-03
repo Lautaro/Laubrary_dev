@@ -22,6 +22,13 @@ public static class ZuiZheetDemoBuilder
         sheet.boxes.Add(GradientBox("Danger", new Color(0.62f, 0.20f, 0.20f), new Color(0.40f, 0.12f, 0.12f), 40,
             border: new Color(1f, 0.5f, 0.5f, 0.30f)));
 
+        // ── 9-slice: generate a frame texture asset, add a named 9-slice, and a box that uses it. ──
+        var frameTex = SaveFrameTexture("Assets/ZUIDemo/DemoFrame.png", 64, 20);
+        sheet.nineSlices.Clear();
+        sheet.nineSlices.Add(new ZUINineSliceDef { name = "DemoFrame", texture = frameTex, left = 20, right = 20, top = 20, bottom = 20 });
+        var framed = new ZUIBoxDef { name = "Framed", nineSliceId = "DemoFrame" };
+        sheet.boxes.Add(framed);
+
         // First box is the "Default" fallback name too.
         sheet.boxes[0].name = "Panel";
 
@@ -31,6 +38,45 @@ public static class ZuiZheetDemoBuilder
         AssetDatabase.Refresh();
         Selection.activeObject = sheet;
         Debug.Log($"[ZUIDemo] created demo Zheet with {sheet.boxes.Count} box styles at {Path}");
+    }
+
+    // Generate a rounded panel-frame texture (dark fill + a lighter inner ring) and import it readable
+    // so a 9-slice can stretch it. Border insets = corner radius, so the rounded corners stay fixed.
+    static Texture2D SaveFrameTexture(string path, int size, int radius)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        var fill   = new Color(0.16f, 0.18f, 0.24f, 0.98f);
+        var ring   = new Color(0.55f, 0.72f, 1f, 0.9f);
+        float r = radius;
+        var px = new Color[size * size];
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                // signed distance to a rounded-rect edge (negative = inside)
+                float dx = Mathf.Max(Mathf.Abs(x + 0.5f - size * 0.5f) - (size * 0.5f - r), 0f);
+                float dy = Mathf.Max(Mathf.Abs(y + 0.5f - size * 0.5f) - (size * 0.5f - r), 0f);
+                float d = Mathf.Sqrt(dx * dx + dy * dy) - r;
+                Color c;
+                if (d > 0.5f) c = new Color(0, 0, 0, 0);              // outside
+                else if (d > -3f) c = ring;                          // 3px inner ring (the visible frame)
+                else c = fill;                                       // interior fill
+                if (d > -0.5f && d <= 0.5f) c.a *= Mathf.Clamp01(0.5f - d); // 1px AA on the outer edge
+                px[y * size + x] = c;
+            }
+        tex.SetPixels(px); tex.Apply();
+
+        System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
+        AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+        var ti = (TextureImporter)AssetImporter.GetAtPath(path);
+        ti.textureType = TextureImporterType.Default;
+        ti.isReadable = true;
+        ti.filterMode = FilterMode.Bilinear;
+        ti.wrapMode = TextureWrapMode.Clamp;
+        ti.mipmapEnabled = false;
+        ti.textureCompression = TextureImporterCompression.Uncompressed;
+        ti.alphaIsTransparency = true;
+        ti.SaveAndReimport();
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
     }
 
     static ZUIBoxDef SolidBox(string name, Color c, int radius)

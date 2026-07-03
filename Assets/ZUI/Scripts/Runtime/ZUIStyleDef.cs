@@ -130,6 +130,10 @@ public class ZUIBoxDef : ISerializationCallbackReceiver
     public string      titleTextStyleId   = "";
     public string      contentTextStyleId = "";
 
+    // When set, this box is framed by a named 9-slice from the sheet instead of the procedural
+    // background + border (the sliced sprite provides both the fill and the edge).
+    public string      nineSliceId        = "";
+
     // Global override flags
     public bool useGlobalBorder      = false;
     public bool useGlobalPadding     = false;
@@ -379,6 +383,13 @@ public class ZUIBoxDef : ISerializationCallbackReceiver
 
         if (UnityEngine.Event.current.type != UnityEngine.EventType.Repaint) return;
         if (rect.width <= 1f) return;
+
+        // A 9-slice frame, when assigned, replaces the whole procedural background + border.
+        if (!string.IsNullOrEmpty(nineSliceId))
+        {
+            var ns = ownerSheet?.FindNineSlice(nineSliceId);
+            if (ns != null && ns.texture != null) { ns.DrawFrame(rect); return; }
+        }
 
         var resolvedBorder = GetResolvedBorder();
         Color bc1 = resolvedBorder.color.GetColorA(ownerSheet);

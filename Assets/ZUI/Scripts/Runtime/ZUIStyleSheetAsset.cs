@@ -110,6 +110,7 @@ public class ZUIStyleSheetAsset : ScriptableObject
     public List<ZUITextStyleDef>  textStyles = new List<ZUITextStyleDef>();
     public List<ZUISliderDef>     sliders    = new List<ZUISliderDef>();
     public List<ZUIEnvelopeDef>   envelopes  = new List<ZUIEnvelopeDef>();
+    public List<ZUINineSliceDef>  nineSlices = new List<ZUINineSliceDef>();
     [HideInInspector] public ZUIIconLibraryAsset iconLibrary; // legacy — kept for serialization
     public List<ZUIPaletteColor>  palette    = new List<ZUIPaletteColor>();
 
@@ -345,6 +346,14 @@ public class ZUIStyleSheetAsset : ScriptableObject
         var fallback = envelopes.Find(e => e.name == "Default") ?? (envelopes.Count > 0 ? envelopes[0] : k_EmptyEnvelope);
         fallback.ownerSheet = this;
         return fallback;
+    }
+
+    /// <summary>A named 9-slice frame, or null if the name isn't defined (no fallback — the caller
+    /// falls back to the procedural background/border).</summary>
+    public ZUINineSliceDef FindNineSlice(string name)
+    {
+        if (string.IsNullOrEmpty(name) || nineSlices == null) return null;
+        return nineSlices.Find(n => n.name == name);
     }
 
 }

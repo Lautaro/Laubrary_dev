@@ -23,6 +23,8 @@ public class ZuiZheetTestHud : MonoBehaviour
         DrawCard("Card", "Card — gradient + border", new Rect(60, 210, 300, 120), label);
         DrawCard("Accent", "Accent — solid blue", new Rect(400, 60, 300, 120), label);
         DrawCard("Danger", "Danger — gradient + border", new Rect(400, 210, 300, 120), label);
+        // 9-slice: one frame texture stretched wide — corners stay fixed, edges/center stretch.
+        DrawCard("Framed", "Framed — 9-slice from a texture (stretched wide)", new Rect(60, 360, 640, 130), label);
 
         var title = new GUIStyle(GUI.skin.label) { fontSize = 20, fontStyle = FontStyle.Bold };
         title.normal.textColor = Color.white;
