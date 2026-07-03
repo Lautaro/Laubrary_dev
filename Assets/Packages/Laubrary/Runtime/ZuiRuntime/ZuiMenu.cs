@@ -23,12 +23,23 @@ namespace ZuiRuntime
         int _drawIndex;
         int _lastCount;
         bool _activate;
+        bool _revealPending;      // set on nav so the focused item scrolls into view next frame
+        string _scrollKey;        // scroll region this menu last drew into (null = not scrollable)
+        bool _scrolling;
 
-        /// <summary>Move focus by ±1 (call from input, e.g. dpad/stick down = +1). Wraps.</summary>
+        /// <summary>The scroll region this menu drew into last frame, or null. For the input driver.</summary>
+        public string ScrollKey => _scrollKey;
+
+        /// <summary>Did this menu's list overflow its box last frame (scrollbar showing)?</summary>
+        public bool IsScrolling => _scrolling;
+
+        /// <summary>Move focus by ±1 (call from input, e.g. dpad/stick down = +1). Wraps, and asks the
+        /// focused item to scroll into view (focus-follows-scroll).</summary>
         public void MoveFocus(int delta)
         {
             if (_lastCount <= 0) return;
             Focus = ((Focus + delta) % _lastCount + _lastCount) % _lastCount;
+            _revealPending = true;
         }
 
         /// <summary>Activate the focused item (call from input, e.g. the A button).</summary>
@@ -45,12 +56,20 @@ namespace ZuiRuntime
         {
             int index = _drawIndex++;
             bool focused = index == Focus;
+            _scrollKey = s.ScrollKey;
+            _scrolling = s.Scrolling;
 
             var style = Zui.ButtonStyle(pts);
             float h = style.CalcSize(new GUIContent(label)).y + UIScale.S(8f);
             var r = s.Next(h);
 
             if (r.Contains(Event.current.mousePosition)) Focus = index;
+            // Focus-follows-scroll: when navigation just landed here, bring this item into view.
+            if (focused && _revealPending && s.ScrollKey != null)
+            {
+                Zui.ScrollToReveal(s.ScrollKey, r);
+                _revealPending = false;
+            }
             if (focused)
                 Zui.FillRect(new Rect(r.x - UIScale.S(4f), r.y, r.width + UIScale.S(8f), r.height), HighlightColor);
 

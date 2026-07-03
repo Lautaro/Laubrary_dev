@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now records one frame of its draws (double-buffered, zero cost when off) and the UIAudit IMGUI
   section lints that record for tiny text, text overflow, and off-screen elements. `ZuiStack` gains
   a `LabelIn` escape hatch (explicit-rect text, recorded so misuse is caught).
+- **Gamepad scroll** (no version bump) — scroll stacks gain `Zui.ScrollBy` / `ScrollToReveal` /
+  `IsScrolling` (viewport tracked), and `ZuiMenu` scrolls its focused item into view on navigation
+  (focus-follows-scroll) and exposes `ScrollKey`/`IsScrolling` so an input driver can route the right
+  stick to scrolling when a scrollbar is up and to navigation otherwise.
+- **`ZuiGamepad` visualiser family** (no version bump) — the sibling of `FaceButtons` (XYAB): `DrawDpad`,
+  `DrawStick` (left/right reusable), `DrawShoulder` (bumper+trigger, both sides reusable), and
+  `DrawFullMap` composing them plus Start/Select into a full controller map. Show only the controls a
+  situation needs (captioned = vivid, uncaptioned = dim) or the whole map.
 
 ## [0.0.17] - 2026-07-03
 

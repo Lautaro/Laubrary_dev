@@ -148,6 +148,7 @@ namespace ZuiRuntime
         static readonly Dictionary<int, GUIStyle> _toggleStyles = new Dictionary<int, GUIStyle>();
         static readonly Dictionary<string, Vector2> _scrollPos = new Dictionary<string, Vector2>();
         static readonly Dictionary<string, float> _scrollContentH = new Dictionary<string, float>();
+        static readonly Dictionary<string, float> _scrollViewH = new Dictionary<string, float>();
 
         public static GUIStyle ButtonStyle(float pts)
         {
@@ -174,6 +175,7 @@ namespace ZuiRuntime
         /// </summary>
         public static ZuiStack BeginScrollStack(string key, Rect outer, float gapPts = 6f)
         {
+            _scrollViewH[key] = outer.height;
             _scrollContentH.TryGetValue(key, out float contentH);
             bool scrolls = contentH > outer.height;
             Rect inner = outer;
@@ -195,6 +197,48 @@ namespace ZuiRuntime
         {
             if (stack.ScrollKey != null) _scrollContentH[stack.ScrollKey] = stack.UsedHeight;
             if (stack.Scrolling) GUI.EndScrollView();
+        }
+
+        /// <summary>Is this scroll region currently taller than its box (i.e. showing a scrollbar)?</summary>
+        public static bool IsScrolling(string key)
+        {
+            if (key == null) return false;
+            _scrollContentH.TryGetValue(key, out float contentH);
+            _scrollViewH.TryGetValue(key, out float viewH);
+            return contentH > viewH + 0.5f;
+        }
+
+        // Largest valid vertical scroll offset for a region (0 if it fits).
+        static float MaxScroll(string key)
+        {
+            _scrollContentH.TryGetValue(key, out float contentH);
+            _scrollViewH.TryGetValue(key, out float viewH);
+            return Mathf.Max(0f, contentH - viewH);
+        }
+
+        /// <summary>Nudge a scroll region by a pixel delta (e.g. from the right stick), clamped to content.</summary>
+        public static void ScrollBy(string key, Vector2 delta)
+        {
+            if (key == null) return;
+            _scrollPos.TryGetValue(key, out var pos);
+            pos.y = Mathf.Clamp(pos.y + delta.y, 0f, MaxScroll(key));
+            pos.x = Mathf.Max(0f, pos.x + delta.x); // horizontal only bites once horizontal regions exist
+            _scrollPos[key] = pos;
+        }
+
+        /// <summary>
+        /// Scroll the region just enough to bring a content-space rect fully into view. Used for
+        /// focus-follows-scroll: a menu reveals its focused item when navigation lands on it.
+        /// </summary>
+        public static void ScrollToReveal(string key, Rect contentRect)
+        {
+            if (key == null) return;
+            _scrollViewH.TryGetValue(key, out float viewH);
+            _scrollPos.TryGetValue(key, out var pos);
+            if (contentRect.y < pos.y) pos.y = contentRect.y;                       // above the viewport → scroll up
+            else if (contentRect.yMax > pos.y + viewH) pos.y = contentRect.yMax - viewH; // below → scroll down
+            pos.y = Mathf.Clamp(pos.y, 0f, MaxScroll(key));
+            _scrollPos[key] = pos;
         }
     }
 }
