@@ -1824,16 +1824,19 @@ public class ZUIStyleEditorWindow : ZUIWindow
         // ── Source: texture + tint on ONE row (both are narrow — no need to burn two rows). ──
         if (SectionHeaderPlain("Source", "nineslice_source"))
         {
+            // Fixed widths (not ExpandWidth) so the texture picker can't stretch to 1000px and hide
+            // the Tint beside it. Extra row space goes to the right via FlexibleSpace.
             GUILayout.BeginHorizontal();
             GUILayout.Label("Texture", GUILayout.Width(52f));
             EditorGUI.BeginChangeCheck();
-            var newTex = (Texture2D)EditorGUILayout.ObjectField(def.texture, typeof(Texture2D), false);
+            var newTex = (Texture2D)EditorGUILayout.ObjectField(def.texture, typeof(Texture2D), false, GUILayout.Width(220f));
             if (EditorGUI.EndChangeCheck()) { def.texture = newTex; def.Invalidate(); changed = true; }
-            GUILayout.Space(10f);
+            GUILayout.Space(14f);
             GUILayout.Label("Tint", GUILayout.Width(26f));
             EditorGUI.BeginChangeCheck();
             var newTint = EditorGUILayout.ColorField(def.tint, GUILayout.Width(48f));
             if (EditorGUI.EndChangeCheck()) { def.tint = newTint; def.Invalidate(); changed = true; }
+            GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
 
             // Bake: freeze a self-contained PNG copy into the Zheet so the frame survives the source
@@ -1896,15 +1899,14 @@ public class ZUIStyleEditorWindow : ZUIWindow
                     if (def.top   > 0) EditorGUI.DrawRect(new Rect(fit.x, ty, fit.width, 1f), vCol);
                     if (def.bottom> 0) EditorGUI.DrawRect(new Rect(fit.x, by, fit.width, 1f), vCol);
 
-                    // Pixel-size labels on each inset + the center region size.
-                    var lab = EditorStyles.miniLabel;
-                    if (def.left  > 0) GUI.Label(new Rect(fit.x, ty - 14f, def.left * scale, 12f), def.left.ToString(), lab);
-                    if (def.right > 0) GUI.Label(new Rect(rx, ty - 14f, def.right * scale, 12f), def.right.ToString(), lab);
-                    if (def.top   > 0) GUI.Label(new Rect(lx + 2f, fit.y, 30f, 12f), def.top.ToString(), lab);
-                    if (def.bottom> 0) GUI.Label(new Rect(lx + 2f, by, 30f, 12f), def.bottom.ToString(), lab);
+                    // Pixel-size badges (dark bg so they read on bright previews) on each inset + centre.
+                    float midY = (ty + by) * 0.5f, midX = (lx + rx) * 0.5f;
+                    if (def.left  > 0) DimBadge(fit.x + def.left  * scale * 0.5f, fit.y + 10f, def.left.ToString());
+                    if (def.right > 0) DimBadge(fit.xMax - def.right * scale * 0.5f, fit.y + 10f, def.right.ToString());
+                    if (def.top   > 0) DimBadge(fit.x + 14f, fit.y + def.top    * scale * 0.5f, def.top.ToString());
+                    if (def.bottom> 0) DimBadge(fit.x + 14f, fit.yMax - def.bottom * scale * 0.5f, def.bottom.ToString());
                     int cw = texW - def.left - def.right, ch = texH - def.top - def.bottom;
-                    var cLab = new GUIStyle(lab) { alignment = TextAnchor.MiddleCenter };
-                    GUI.Label(new Rect(lx, (ty + by) * 0.5f - 6f, Mathf.Max(0, rx - lx), 12f), $"{cw}×{ch}", cLab);
+                    DimBadge(midX, midY, $"{cw}×{ch}");
                 }
                 else EditorGUI.LabelField(box, "No texture assigned", EditorStyles.centeredGreyMiniLabel);
             }
@@ -1913,13 +1915,13 @@ public class ZUIStyleEditorWindow : ZUIWindow
         // ── Live sample: a movable/resizable frame so the author sees the slicing at any size. ──
         if (SectionHeaderPlain("Live Sample", "nineslice_sample"))
         {
-            var canvas = GUILayoutUtility.GetRect(1f, 200f, GUILayout.ExpandWidth(true));
+            var canvas = GUILayoutUtility.GetRect(1f, 340f, GUILayout.ExpandWidth(true));
             _nsSampleSize.x   = Mathf.Clamp(_nsSampleSize.x, 40f, Mathf.Max(40f, canvas.width - 4f));
-            _nsSampleSize.y   = Mathf.Clamp(_nsSampleSize.y, 30f, Mathf.Max(30f, canvas.height - 18f));
+            _nsSampleSize.y   = Mathf.Clamp(_nsSampleSize.y, 30f, Mathf.Max(30f, canvas.height - 20f));
             _nsSampleOffset.x = Mathf.Clamp(_nsSampleOffset.x, 0f, Mathf.Max(0f, canvas.width - _nsSampleSize.x));
-            _nsSampleOffset.y = Mathf.Clamp(_nsSampleOffset.y, 14f, Mathf.Max(14f, canvas.height - _nsSampleSize.y));
+            _nsSampleOffset.y = Mathf.Clamp(_nsSampleOffset.y, 16f, Mathf.Max(16f, canvas.height - _nsSampleSize.y));
             var sample = new Rect(canvas.x + _nsSampleOffset.x, canvas.y + _nsSampleOffset.y, _nsSampleSize.x, _nsSampleSize.y);
-            var grip = new Rect(sample.xMax - 14f, sample.yMax - 14f, 14f, 14f);
+            var grip = new Rect(sample.xMax - 18f, sample.yMax - 18f, 18f, 18f);
 
             int moveId = GUIUtility.GetControlID(FocusType.Passive);
             int sizeId = GUIUtility.GetControlID(FocusType.Passive);
@@ -1965,6 +1967,17 @@ public class ZUIStyleEditorWindow : ZUIWindow
         var png = readable.EncodeToPNG();
         UnityEngine.Object.DestroyImmediate(readable);
         return png;
+    }
+
+    // A small dark-backed pixel-size badge, centred at (cx,cy) — readable on any preview background.
+    static void DimBadge(float cx, float cy, string text)
+    {
+        var style = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleCenter, fontSize = 11 };
+        style.normal.textColor = Color.white;
+        var sz = style.CalcSize(new GUIContent(text));
+        var r = new Rect(cx - sz.x * 0.5f - 4f, cy - sz.y * 0.5f - 1f, sz.x + 8f, sz.y + 3f);
+        EditorGUI.DrawRect(r, new Color(0f, 0f, 0f, 0.78f));
+        GUI.Label(r, text, style);
     }
 
     // ── Text style inspector ──────────────────────────────────────────────────
