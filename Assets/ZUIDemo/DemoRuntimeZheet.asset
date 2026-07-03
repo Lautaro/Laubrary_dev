@@ -237,7 +237,7 @@ MonoBehaviour:
       innerRadius: 4
       innerPasses: 3
     shape:
-      cornerRadius: 8
+      cornerRadius: 22
       roundTL: 1
       roundTR: 1
       roundBL: 1
@@ -503,7 +503,7 @@ MonoBehaviour:
         isGradient: 0
         isRadial: 0
         colorA:
-          color: {r: 1, g: 1, b: 1, a: 0.12}
+          color: {r: 1, g: 1, b: 1, a: 0.18}
           paletteRef: 
           slot: 0
           autoColorRef: 
@@ -587,7 +587,7 @@ MonoBehaviour:
       innerRadius: 4
       innerPasses: 3
     shape:
-      cornerRadius: 12
+      cornerRadius: 28
       roundTL: 1
       roundTR: 1
       roundBL: 1
@@ -937,7 +937,7 @@ MonoBehaviour:
       innerRadius: 4
       innerPasses: 3
     shape:
-      cornerRadius: 6
+      cornerRadius: 16
       roundTL: 1
       roundTR: 1
       roundBL: 1
@@ -1203,7 +1203,7 @@ MonoBehaviour:
         isGradient: 0
         isRadial: 0
         colorA:
-          color: {r: 1, g: 0.5, b: 0.5, a: 0.18}
+          color: {r: 1, g: 0.5, b: 0.5, a: 0.3}
           paletteRef: 
           slot: 0
           autoColorRef: 
@@ -1287,7 +1287,7 @@ MonoBehaviour:
       innerRadius: 4
       innerPasses: 3
     shape:
-      cornerRadius: 10
+      cornerRadius: 40
       roundTL: 1
       roundTR: 1
       roundBL: 1

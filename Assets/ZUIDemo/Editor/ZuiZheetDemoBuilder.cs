@@ -15,12 +15,12 @@ public static class ZuiZheetDemoBuilder
         var sheet = ScriptableObject.CreateInstance<ZUIStyleSheetAsset>();
         sheet.boxes.Clear();
 
-        sheet.boxes.Add(SolidBox("Panel", new Color(0.13f, 0.14f, 0.18f, 0.96f), 8));
-        sheet.boxes.Add(GradientBox("Card", new Color(0.24f, 0.27f, 0.36f), new Color(0.13f, 0.14f, 0.20f), 12,
-            border: new Color(1f, 1f, 1f, 0.12f)));
-        sheet.boxes.Add(SolidBox("Accent", new Color(0.20f, 0.45f, 0.78f), 6));
-        sheet.boxes.Add(GradientBox("Danger", new Color(0.62f, 0.20f, 0.20f), new Color(0.40f, 0.12f, 0.12f), 10,
-            border: new Color(1f, 0.5f, 0.5f, 0.18f)));
+        sheet.boxes.Add(SolidBox("Panel", new Color(0.13f, 0.14f, 0.18f, 0.96f), 22));
+        sheet.boxes.Add(GradientBox("Card", new Color(0.24f, 0.27f, 0.36f), new Color(0.13f, 0.14f, 0.20f), 28,
+            border: new Color(1f, 1f, 1f, 0.18f)));
+        sheet.boxes.Add(SolidBox("Accent", new Color(0.20f, 0.45f, 0.78f), 16));
+        sheet.boxes.Add(GradientBox("Danger", new Color(0.62f, 0.20f, 0.20f), new Color(0.40f, 0.12f, 0.12f), 40,
+            border: new Color(1f, 0.5f, 0.5f, 0.30f)));
 
         // First box is the "Default" fallback name too.
         sheet.boxes[0].name = "Panel";
