@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.18] - 2026-07-03
+
+### Added
+- **UIAudit** — a vision-free UI linter that reports layout problems from the UI's own metrics
+  (rects, text sizes) so an agent or test can catch them without a screenshot. Adds
+  `Runtime/UIAudit/` (`com.Lautaro-Arino.Laubrary.UIAudit`, namespace `Laubrary.UIAudit`) with a
+  section architecture: a **uGUI** section (Canvas/RectTransform/TMP — off-screen, text overflow,
+  tiny text, list-needs-scroll) and an **IMGUI** section that lints ZuiRuntime-drawn immediate-mode
+  UI. Menu under **Laubrary ▸ UI Audit**; entry point `UIAudit.Report()` / `UIAudit.Run()`.
+- **ZuiRuntime draw recording (`ZuiAudit`)** — immediate mode has no retained tree, so ZuiRuntime
+  now records one frame of its draws (double-buffered, zero cost when off) and the UIAudit IMGUI
+  section lints that record for tiny text, text overflow, and off-screen elements. `ZuiStack` gains
+  a `LabelIn` escape hatch (explicit-rect text, recorded so misuse is caught).
+
 ## [0.0.17] - 2026-07-03
 
 ### Added

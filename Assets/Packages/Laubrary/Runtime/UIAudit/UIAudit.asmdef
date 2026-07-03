@@ -1,0 +1,10 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.UIAudit",
+    "rootNamespace": "Laubrary.UIAudit",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
+    ],
+    "autoReferenced": true
+}
