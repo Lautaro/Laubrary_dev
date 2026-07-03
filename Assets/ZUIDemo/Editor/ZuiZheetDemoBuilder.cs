@@ -29,6 +29,19 @@ public static class ZuiZheetDemoBuilder
         var framed = new ZUIBoxDef { name = "Framed", nineSliceId = "DemoFrame" };
         sheet.boxes.Add(framed);
 
+        // A 9-slice (sprite) BUTTON: three frames sharing the texture, tinted per state, referenced
+        // per state by the button def. Hover brightens, press darkens.
+        sheet.nineSlices.Add(new ZUINineSliceDef { name = "BtnNormal",  texture = frameTex, left = 20, right = 20, top = 20, bottom = 20, tint = new Color(0.82f, 0.84f, 0.92f) });
+        sheet.nineSlices.Add(new ZUINineSliceDef { name = "BtnHover",   texture = frameTex, left = 20, right = 20, top = 20, bottom = 20, tint = Color.white });
+        sheet.nineSlices.Add(new ZUINineSliceDef { name = "BtnPressed", texture = frameTex, left = 20, right = 20, top = 20, bottom = 20, tint = new Color(0.55f, 0.56f, 0.64f) });
+        var spriteBtn = new ZUIButtonDef
+        {
+            name = "SpriteButton",
+            nineSliceNormal = "BtnNormal", nineSliceHover = "BtnHover", nineSliceActive = "BtnPressed",
+            text = new ZUITextDef(Color.white) { fontSize = 16, fontStyle = FontStyle.Bold },
+        };
+        sheet.buttons.Add(spriteBtn);
+
         // First box is the "Default" fallback name too.
         sheet.boxes[0].name = "Panel";
 

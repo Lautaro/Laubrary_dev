@@ -7,6 +7,7 @@ using UnityEngine;
 public class ZuiZheetTestHud : MonoBehaviour
 {
     public ZUIStyleSheetAsset zheet;
+    int _clicks;
 
     void OnGUI()
     {
@@ -22,6 +23,11 @@ public class ZuiZheetTestHud : MonoBehaviour
         Card("Danger", "Danger", "gradient + border", new Rect(400, 220, 300, 130));
         // 9-slice: one frame texture stretched wide — corners stay fixed, edges/center stretch.
         Card("Framed", "Framed", "9-slice from a texture, stretched wide", new Rect(60, 380, 640, 120));
+
+        // Interactive 9-slice (sprite) BUTTON — hover brightens, press darkens (per-state frames).
+        if (ZUISheet.Button(zheet, "SpriteButton", new Rect(760, 60, 220, 60), "Sprite Button")) _clicks++;
+        var l = new GUIStyle(GUI.skin.label) { fontSize = 14 }; l.normal.textColor = Color.white;
+        GUI.Label(new Rect(760, 128, 260, 24), "9-slice button clicks: " + _clicks, l);
 
         var title = new GUIStyle(GUI.skin.label) { fontSize = 20, fontStyle = FontStyle.Bold };
         title.normal.textColor = Color.white;

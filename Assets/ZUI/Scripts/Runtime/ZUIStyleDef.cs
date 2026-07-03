@@ -506,6 +506,25 @@ public class ZUIButtonDef : ISerializationCallbackReceiver
     public string activeTextStyleId   = "";
     public string toggleOnTextStyleId = "";
 
+    // ── 9-slice frames per state ──────────────────────────────────────────────
+    // When nineSliceNormal is set, this button is a SPRITE button: it renders the state's 9-slice
+    // frame + label instead of the procedural draw. Empty per-state ids fall back to the normal frame.
+    public string nineSliceNormal   = "";
+    public string nineSliceHover    = "";
+    public string nineSliceActive   = "";
+    public string nineSliceToggleOn = "";
+
+    public bool UsesNineSlice => !string.IsNullOrEmpty(nineSliceNormal);
+
+    public string GetNineSliceId(ZUIButtonDrawState s)
+    {
+        string id =
+            s == ZUIButtonDrawState.ToggleOn ? nineSliceToggleOn :
+            s == ZUIButtonDrawState.Active   ? nineSliceActive   :
+            s == ZUIButtonDrawState.Hover    ? nineSliceHover    : nineSliceNormal;
+        return string.IsNullOrEmpty(id) ? nineSliceNormal : id;
+    }
+
     // ── Box style base (when set, the button inherits visuals from a ZUIBoxDef) ──
     // Per-section overrides: false = inherit from box, true = use button's own values
     [FormerlySerializedAs("boxStyleBg")]

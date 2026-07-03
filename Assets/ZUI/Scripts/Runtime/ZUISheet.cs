@@ -37,6 +37,42 @@ public static class ZUISheet
         }
     }
 
+    /// <summary>
+    /// An interactive 9-slice (sprite) button from a Zheet: draws the state's frame + styled label and
+    /// returns true on click. Only works for button styles that use 9-slice (nineSliceNormal set) —
+    /// procedural buttons don't render at runtime yet. Hover/press pick the hover/active frames.
+    /// </summary>
+    public static bool Button(ZUIStyleSheetAsset sheet, string styleName, Rect rect, string label)
+    {
+        if (sheet == null) return false;
+        ZUIStyleSheetAsset.Active = sheet;
+        var def = sheet.FindButton(styleName);
+        if (def == null || !def.UsesNineSlice) return false;
+
+        var e = Event.current;
+        bool over = rect.Contains(e.mousePosition);
+        int id = GUIUtility.GetControlID(FocusType.Passive, rect);
+        bool clicked = false;
+        switch (e.GetTypeForControl(id))
+        {
+            case EventType.MouseDown:
+                if (over && e.button == 0) { GUIUtility.hotControl = id; e.Use(); }
+                break;
+            case EventType.MouseUp:
+                if (GUIUtility.hotControl == id) { GUIUtility.hotControl = 0; if (over) clicked = true; e.Use(); }
+                break;
+        }
+        bool pressed = GUIUtility.hotControl == id && over;
+        var state = pressed ? ZUIButtonDrawState.Active : over ? ZUIButtonDrawState.Hover : ZUIButtonDrawState.Normal;
+
+        var frame = sheet.FindNineSlice(def.GetNineSliceId(state));
+        if (frame != null) frame.DrawFrame(rect);
+
+        var ls = TextStyle(def.text, sheet, TextAnchor.MiddleCenter, 15);
+        GUI.Label(rect, label, ls);
+        return clicked;
+    }
+
     // Build a GUIStyle from a Zheet text def (colour, font style, font size). Size 0 = inherit → the
     // supplied fallback. Font FACE still comes from the skin until font overrides are wired.
     static GUIStyle TextStyle(ZUITextDef td, ZUIStyleSheetAsset sheet, TextAnchor anchor, int fallbackSize)
