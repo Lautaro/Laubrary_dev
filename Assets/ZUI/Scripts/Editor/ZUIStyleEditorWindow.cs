@@ -1857,9 +1857,10 @@ public class ZUIStyleEditorWindow : ZUIWindow
             GUILayout.EndHorizontal();
         }
 
-        // ── Borders & fill: inset pairs share a row (L/R, T/B) to spend width not height; a field turns
-        //    red while its pair would cross (the draw clamps regardless). Tile toggles pick stretch vs
-        //    repeat for the edges and centre. ──
+        // ── Borders & fill: inset pairs share a row (L/R, T/B) to spend width not height, drag a label to
+        //    scrub it, and a field turns red while its pair would cross (the draw clamps regardless).
+        //    Tiling is chosen per axis for the centre and the borders; Snap keeps tiled axes on whole
+        //    tiles when resized. ──
         if (SectionHeaderPlain("Borders & Fill", "nineslice_borders"))
         {
             var prevCol = GUI.color;
@@ -1867,11 +1868,11 @@ public class ZUIStyleEditorWindow : ZUIWindow
             using (ZUI.Flow())
             {
                 GUI.color = hInvalid ? red : prevCol;
-                ZUI.Field("Left",  60f, () => def.left  = Mathf.Max(0, EditorGUILayout.IntField(def.left)));
-                ZUI.Field("Right", 60f, () => def.right = Mathf.Max(0, EditorGUILayout.IntField(def.right)));
+                def.left  = ZUI.IntField("Left",  def.left,  min: 0);
+                def.right = ZUI.IntField("Right", def.right, min: 0);
                 GUI.color = vInvalid ? red : prevCol;
-                ZUI.Field("Top",    60f, () => def.top    = Mathf.Max(0, EditorGUILayout.IntField(def.top)));
-                ZUI.Field("Bottom", 60f, () => def.bottom = Mathf.Max(0, EditorGUILayout.IntField(def.bottom)));
+                def.top    = ZUI.IntField("Top",    def.top,    min: 0);
+                def.bottom = ZUI.IntField("Bottom", def.bottom, min: 0);
                 GUI.color = prevCol;
             }
             if (EditorGUI.EndChangeCheck()) { def.Invalidate(); changed = true; }
@@ -1879,10 +1880,18 @@ public class ZUIStyleEditorWindow : ZUIWindow
             EditorGUI.BeginChangeCheck();
             using (ZUI.Flow())
             {
-                def.tileCenter = GUILayout.Toggle(def.tileCenter, " Tile centre", GUILayout.Width(110f));
-                GUILayout.Space(16f);
-                def.tileEdges  = GUILayout.Toggle(def.tileEdges,  " Tile edges",  GUILayout.Width(110f));
+                GUILayout.Label("Centre", GUILayout.Width(52f));
+                def.tileCenterX = GUILayout.Toggle(def.tileCenterX, new GUIContent(" Tile H", "Repeat the centre horizontally instead of stretching"), GUILayout.Width(72f));
+                def.tileCenterY = GUILayout.Toggle(def.tileCenterY, new GUIContent(" Tile V", "Repeat the centre vertically instead of stretching"), GUILayout.Width(72f));
             }
+            using (ZUI.Flow())
+            {
+                GUILayout.Label("Borders", GUILayout.Width(52f));
+                def.tileEdgesX = GUILayout.Toggle(def.tileEdgesX, new GUIContent(" Tile H", "Repeat the top & bottom edges horizontally"), GUILayout.Width(72f));
+                def.tileEdgesY = GUILayout.Toggle(def.tileEdgesY, new GUIContent(" Tile V", "Repeat the left & right edges vertically"), GUILayout.Width(72f));
+            }
+            using (ZUI.Flow())
+                def.snapToTiles = GUILayout.Toggle(def.snapToTiles, new GUIContent(" Snap size to whole tiles", "When drawn or resized, round the frame so tiled axes hold a whole number of tiles (no partial tile at the edge)"), GUILayout.Width(210f));
             if (EditorGUI.EndChangeCheck()) { def.Invalidate(); changed = true; }
 
             if (hInvalid || vInvalid)
@@ -1941,6 +1950,8 @@ public class ZUIStyleEditorWindow : ZUIWindow
             }
             _nsSampleSize.x = Mathf.Clamp(_nsSampleSize.x, 40f, 4000f);
             _nsSampleSize.y = Mathf.Clamp(_nsSampleSize.y, 30f, 4000f);
+            // With snap on, resizing (drag or slider) lands on whole-tile sizes only.
+            if (def.snapToTiles) _nsSampleSize = def.SnapSize(_nsSampleSize);
 
             const float pad = 18f;
             var viewport = GUILayoutUtility.GetRect(1f, 300f, GUILayout.ExpandWidth(true));

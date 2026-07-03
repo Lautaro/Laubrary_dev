@@ -48,4 +48,50 @@ public static partial class ZUI
         GUILayout.EndVertical();
         GUILayout.Space(12f);
     }
+
+    // Scrub accumulator so sub-pixel drag deltas add up to whole integer steps.
+    static float _scrubAccum;
+    static int   _scrubId = -1;
+
+    /// <summary>The standard ZUI integer input: a compact typable field with a DRAGGABLE label — drag
+    /// the label left/right to scrub the value (like Unity's own numeric fields). Returns the new value
+    /// and sets GUI.changed when it moves, so an enclosing BeginChangeCheck sees edits. Drop it straight
+    /// into a Flow row.</summary>
+    public static int IntField(string label, int value, float bodyWidth = 52f,
+                               int min = int.MinValue, int max = int.MaxValue, float sensitivity = 0.25f)
+    {
+        if (!string.IsNullOrEmpty(label))
+        {
+            float lw = EditorStyles.label.CalcSize(new GUIContent(label)).x + 4f;
+            GUILayout.Label(label, GUILayout.Width(lw));
+            var lr = GUILayoutUtility.GetLastRect();
+            EditorGUIUtility.AddCursorRect(lr, MouseCursor.SlideArrow);
+
+            int id = GUIUtility.GetControlID(FocusType.Passive);
+            var e = Event.current;
+            switch (e.GetTypeForControl(id))
+            {
+                case EventType.MouseDown:
+                    if (e.button == 0 && lr.Contains(e.mousePosition))
+                    { GUIUtility.hotControl = id; _scrubId = id; _scrubAccum = 0f; e.Use(); }
+                    break;
+                case EventType.MouseDrag:
+                    if (GUIUtility.hotControl == id)
+                    {
+                        _scrubAccum += e.delta.x * sensitivity;
+                        int step = (int)_scrubAccum;
+                        if (step != 0) { value = Mathf.Clamp(value + step, min, max); _scrubAccum -= step; GUI.changed = true; }
+                        e.Use();
+                    }
+                    break;
+                case EventType.MouseUp:
+                    if (GUIUtility.hotControl == id) { GUIUtility.hotControl = 0; _scrubId = -1; e.Use(); }
+                    break;
+            }
+        }
+        int typed = EditorGUILayout.IntField(value, GUILayout.Width(Mathf.Max(1f, bodyWidth)));
+        if (typed != value) { value = Mathf.Clamp(typed, min, max); GUI.changed = true; }
+        GUILayout.Space(12f);
+        return value;
+    }
 }

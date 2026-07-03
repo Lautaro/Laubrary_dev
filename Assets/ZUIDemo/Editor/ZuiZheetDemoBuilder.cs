@@ -32,9 +32,16 @@ public static class ZuiZheetDemoBuilder
         // Stretch-vs-tile proof: one patterned texture, two boxes — same insets, different fill mode.
         // The pattern (striped edges, checker centre) makes the difference obvious when drawn wide.
         var patTex = SavePatternTexture("Assets/ZUIDemo/DemoPattern.png", 48, 12);
-        sheet.nineSlices.Add(new ZUINineSliceDef { name = "PatStretch", texture = patTex, left = 12, right = 12, top = 12, bottom = 12, tileCenter = false, tileEdges = false });
-        sheet.nineSlices.Add(new ZUINineSliceDef { name = "PatTile",    texture = patTex, left = 12, right = 12, top = 12, bottom = 12, tileCenter = true,  tileEdges = true });
+        sheet.nineSlices.Add(new ZUINineSliceDef { name = "PatStretch", texture = patTex, left = 12, right = 12, top = 12, bottom = 12 });
+        sheet.nineSlices.Add(new ZUINineSliceDef { name = "PatTileH",   texture = patTex, left = 12, right = 12, top = 12, bottom = 12,
+            tileCenterX = true, tileEdgesX = true });                                  // tile horizontally, stretch vertically
+        sheet.nineSlices.Add(new ZUINineSliceDef { name = "PatTileV",   texture = patTex, left = 12, right = 12, top = 12, bottom = 12,
+            tileCenterY = true, tileEdgesY = true });                                  // tile vertically, stretch horizontally
+        sheet.nineSlices.Add(new ZUINineSliceDef { name = "PatTile",    texture = patTex, left = 12, right = 12, top = 12, bottom = 12,
+            tileCenterX = true, tileCenterY = true, tileEdgesX = true, tileEdgesY = true });
         sheet.boxes.Add(new ZUIBoxDef { name = "PatStretch", nineSliceId = "PatStretch" });
+        sheet.boxes.Add(new ZUIBoxDef { name = "PatTileH",   nineSliceId = "PatTileH" });
+        sheet.boxes.Add(new ZUIBoxDef { name = "PatTileV",   nineSliceId = "PatTileV" });
         sheet.boxes.Add(new ZUIBoxDef { name = "PatTile",    nineSliceId = "PatTile" });
 
         // A 9-slice (sprite) BUTTON: three frames sharing the texture, tinted per state, referenced
@@ -130,6 +137,7 @@ public static class ZuiZheetDemoBuilder
         ti.textureType = TextureImporterType.Default;
         ti.isReadable = true; ti.filterMode = FilterMode.Point; ti.wrapMode = TextureWrapMode.Clamp;
         ti.mipmapEnabled = false; ti.textureCompression = TextureImporterCompression.Uncompressed;
+        ti.npotScale = TextureImporterNPOTScale.None; // keep the authored 48px so insets stay literal
         ti.SaveAndReimport();
         return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
     }
