@@ -1915,38 +1915,45 @@ public class ZUIStyleEditorWindow : ZUIWindow
             }
         }
 
-        // ── Live sample: a movable/resizable frame so the author sees the slicing at any size. ──
+        // ── Live sample: W/H sliders drive the size (reliable inside a scroll view); drag the body to
+        //    reposition. The canvas grows with the sample so it's never cut off, and clamps to the
+        //    panel width so the whole frame stays visible. ──
         if (SectionHeaderPlain("Live Sample", "nineslice_sample"))
         {
-            var canvas = GUILayoutUtility.GetRect(1f, 340f, GUILayout.ExpandWidth(true));
-            _nsSampleSize.x   = Mathf.Clamp(_nsSampleSize.x, 40f, Mathf.Max(40f, canvas.width - 4f));
-            _nsSampleSize.y   = Mathf.Clamp(_nsSampleSize.y, 30f, Mathf.Max(30f, canvas.height - 20f));
-            _nsSampleOffset.x = Mathf.Clamp(_nsSampleOffset.x, 0f, Mathf.Max(0f, canvas.width - _nsSampleSize.x));
-            _nsSampleOffset.y = Mathf.Clamp(_nsSampleOffset.y, 16f, Mathf.Max(16f, canvas.height - _nsSampleSize.y));
-            var sample = new Rect(canvas.x + _nsSampleOffset.x, canvas.y + _nsSampleOffset.y, _nsSampleSize.x, _nsSampleSize.y);
-            var grip = new Rect(sample.xMax - 18f, sample.yMax - 18f, 18f, 18f);
+            using (ZUI.Flow())
+            {
+                ZUI.Field("W", 150f, () => _nsSampleSize.x = GUILayout.HorizontalSlider(_nsSampleSize.x, 40f, 900f));
+                ZUI.Field("", 30f, () => GUILayout.Label(((int)_nsSampleSize.x).ToString(), EditorStyles.miniLabel));
+                ZUI.Field("H", 150f, () => _nsSampleSize.y = GUILayout.HorizontalSlider(_nsSampleSize.y, 30f, 400f));
+                ZUI.Field("", 30f, () => GUILayout.Label(((int)_nsSampleSize.y).ToString(), EditorStyles.miniLabel));
+                ZUI.Field("", 58f, () => { if (GUILayout.Button("Reset")) { _nsSampleSize = new Vector2(260f, 90f); _nsSampleOffset = new Vector2(16f, 16f); } });
+            }
+
+            float canvasH = Mathf.Clamp(_nsSampleSize.y + 44f, 120f, 470f);
+            var canvas = GUILayoutUtility.GetRect(1f, canvasH, GUILayout.ExpandWidth(true));
+            float sw = Mathf.Min(_nsSampleSize.x, canvas.width - 4f);
+            float sh = Mathf.Min(_nsSampleSize.y, canvas.height - 4f);
+            _nsSampleOffset.x = Mathf.Clamp(_nsSampleOffset.x, 0f, Mathf.Max(0f, canvas.width  - sw));
+            _nsSampleOffset.y = Mathf.Clamp(_nsSampleOffset.y, 0f, Mathf.Max(0f, canvas.height - sh));
+            var sample = new Rect(canvas.x + _nsSampleOffset.x, canvas.y + _nsSampleOffset.y, sw, sh);
 
             int moveId = GUIUtility.GetControlID(FocusType.Passive);
-            int sizeId = GUIUtility.GetControlID(FocusType.Passive);
             var e = Event.current;
-            if (e.type == EventType.MouseDown && canvas.Contains(e.mousePosition))
-            {
-                if (grip.Contains(e.mousePosition)) { GUIUtility.hotControl = sizeId; e.Use(); }
-                else if (sample.Contains(e.mousePosition)) { GUIUtility.hotControl = moveId; e.Use(); }
-            }
-            else if (e.type == EventType.MouseDrag && GUIUtility.hotControl == sizeId) { _nsSampleSize += e.delta; e.Use(); Repaint(); }
+            if (e.type == EventType.MouseDown && sample.Contains(e.mousePosition)) { GUIUtility.hotControl = moveId; e.Use(); }
             else if (e.type == EventType.MouseDrag && GUIUtility.hotControl == moveId) { _nsSampleOffset += e.delta; e.Use(); Repaint(); }
-            else if (e.type == EventType.MouseUp && (GUIUtility.hotControl == sizeId || GUIUtility.hotControl == moveId)) { GUIUtility.hotControl = 0; e.Use(); }
+            else if (e.type == EventType.MouseUp && GUIUtility.hotControl == moveId) { GUIUtility.hotControl = 0; e.Use(); }
             EditorGUIUtility.AddCursorRect(sample, MouseCursor.MoveArrow);
-            EditorGUIUtility.AddCursorRect(grip, MouseCursor.ResizeUpLeft);
 
             if (e.type == EventType.Repaint)
             {
-                EditorGUI.DrawRect(canvas, new Color(.13f, .13f, .15f, 1f));
+                EditorGUI.DrawRect(canvas, new Color(.16f, .16f, .18f, 1f));
                 def.DrawFrame(sample);
-                EditorGUI.DrawRect(grip, new Color(1f, 1f, 1f, 0.28f));
-                GUI.Label(new Rect(canvas.x + 4f, canvas.y + 2f, canvas.width - 8f, 12f),
-                    $"{(int)sample.width}×{(int)sample.height}  —  drag to move, corner to resize", EditorStyles.miniLabel);
+                // Subtle 1px outline so the frame's bounds (and any transparent edge) are unmistakable.
+                var oc = new Color(1f, 1f, 1f, 0.22f);
+                EditorGUI.DrawRect(new Rect(sample.x, sample.y, sample.width, 1f), oc);
+                EditorGUI.DrawRect(new Rect(sample.x, sample.yMax - 1f, sample.width, 1f), oc);
+                EditorGUI.DrawRect(new Rect(sample.x, sample.y, 1f, sample.height), oc);
+                EditorGUI.DrawRect(new Rect(sample.xMax - 1f, sample.y, 1f, sample.height), oc);
             }
         }
 
