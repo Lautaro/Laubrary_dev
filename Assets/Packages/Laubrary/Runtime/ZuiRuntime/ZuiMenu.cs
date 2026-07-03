@@ -46,7 +46,12 @@ namespace ZuiRuntime
         public void Activate() => _activate = true;
 
         /// <summary>Call before drawing the frame's items.</summary>
-        public void Begin() => _drawIndex = 0;
+        public void Begin()
+        {
+            _drawIndex = 0;
+            _scrollKey = null;   // recomputed from this frame's items (below), so a trailing non-scrolling
+            _scrolling = false;  // item like a fixed "Back" can't clobber the list's scroll region
+        }
 
         /// <summary>
         /// One menu entry on the stack. Returns true when chosen — by mouse click, or by gamepad
@@ -56,8 +61,9 @@ namespace ZuiRuntime
         {
             int index = _drawIndex++;
             bool focused = index == Focus;
-            _scrollKey = s.ScrollKey;
-            _scrolling = s.Scrolling;
+            // Remember the SCROLLING region among this frame's items — a later fixed item (e.g. "Back")
+            // drawn on a non-scrolling stack must not blank this out.
+            if (s.Scrolling && s.ScrollKey != null) { _scrollKey = s.ScrollKey; _scrolling = true; }
 
             var style = Zui.ButtonStyle(pts);
             float h = style.CalcSize(new GUIContent(label)).y + UIScale.S(8f);

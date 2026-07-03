@@ -149,6 +149,8 @@ namespace ZuiRuntime
         static readonly Dictionary<string, Vector2> _scrollPos = new Dictionary<string, Vector2>();
         static readonly Dictionary<string, float> _scrollContentH = new Dictionary<string, float>();
         static readonly Dictionary<string, float> _scrollViewH = new Dictionary<string, float>();
+        static readonly Dictionary<string, float> _scrollContentW = new Dictionary<string, float>();
+        static readonly Dictionary<string, float> _scrollViewW = new Dictionary<string, float>();
 
         public static GUIStyle ButtonStyle(float pts)
         {
@@ -187,6 +189,11 @@ namespace ZuiRuntime
                 // Horizontal bar suppressed: a stack only ever grows downward.
                 _scrollPos[key] = GUI.BeginScrollView(outer, pos, inner, GUIStyle.none, GUI.skin.verticalScrollbar);
             }
+            // A stack never overflows horizontally (content is laid to the viewport width), so its
+            // horizontal max is 0 — right-stick-X does nothing here. When true horizontal-scroll regions
+            // arrive (container work) they set a wider content width and ScrollBy's X starts to bite.
+            _scrollViewW[key] = inner.width;
+            _scrollContentW[key] = inner.width;
             var stack = new ZuiStack(inner, gapPts);
             stack.ScrollKey = key;
             stack.Scrolling = scrolls;
@@ -208,7 +215,7 @@ namespace ZuiRuntime
             return contentH > viewH + 0.5f;
         }
 
-        // Largest valid vertical scroll offset for a region (0 if it fits).
+        // Largest valid scroll offsets for a region (0 on an axis that doesn't overflow).
         static float MaxScroll(string key)
         {
             _scrollContentH.TryGetValue(key, out float contentH);
@@ -216,13 +223,23 @@ namespace ZuiRuntime
             return Mathf.Max(0f, contentH - viewH);
         }
 
-        /// <summary>Nudge a scroll region by a pixel delta (e.g. from the right stick), clamped to content.</summary>
+        static float MaxScrollX(string key)
+        {
+            _scrollContentW.TryGetValue(key, out float contentW);
+            _scrollViewW.TryGetValue(key, out float viewW);
+            return Mathf.Max(0f, contentW - viewW);
+        }
+
+        /// <summary>
+        /// Nudge a scroll region by a pixel delta (e.g. from the right stick), clamped per axis to what
+        /// actually overflows — so X only moves where a horizontal scrollbar exists, Y only where vertical.
+        /// </summary>
         public static void ScrollBy(string key, Vector2 delta)
         {
             if (key == null) return;
             _scrollPos.TryGetValue(key, out var pos);
             pos.y = Mathf.Clamp(pos.y + delta.y, 0f, MaxScroll(key));
-            pos.x = Mathf.Max(0f, pos.x + delta.x); // horizontal only bites once horizontal regions exist
+            pos.x = Mathf.Clamp(pos.x + delta.x, 0f, MaxScrollX(key));
             _scrollPos[key] = pos;
         }
 
