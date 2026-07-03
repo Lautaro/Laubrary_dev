@@ -106,9 +106,7 @@ public class ZUIFloatFieldControl : IZUIControl
     public void Draw()
     {
         float val = _get();
-        float next = _width.HasValue
-            ? EditorGUILayout.FloatField(val, GUILayout.Width(_width.Value))
-            : EditorGUILayout.FloatField(val);
+        float next = ZUIDragField.DrawFloat(val, _width);
         if (next != val) _set(next);
     }
 }
@@ -129,10 +127,72 @@ public class ZUIIntFieldControl : IZUIControl
     public void Draw()
     {
         int val = _get();
-        int next = _width.HasValue
-            ? EditorGUILayout.IntField(val, GUILayout.Width(_width.Value))
-            : EditorGUILayout.IntField(val);
+        int next = ZUIDragField.DrawInt(val, _width);
         if (next != val) _set(next);
+    }
+}
+
+// ── Drag-scrub number field ───────────────────────────────────────────────────
+// The reusable internal control behind every ZUI numeric field: a small drag handle (the dotted grip
+// on the left) that scrubs the value Blender-style, next to a normal editable text field. Because the
+// ZUI field controls route through here, all similar numeric boxes get click-drag consistently.
+internal static class ZUIDragField
+{
+    const float HandleW = 12f;
+    static readonly int s_hint = "ZUIDragField".GetHashCode();
+
+    public static float DrawFloat(float val, float? width, float sensitivity = 0.05f)
+    {
+        Rect r = Reserve(width);
+        val = Scrub(r, val, sensitivity);
+        DrawHandle(r);
+        return EditorGUI.FloatField(FieldRect(r), val);
+    }
+
+    public static int DrawInt(int val, float? width, float sensitivity = 0.2f)
+    {
+        Rect r = Reserve(width);
+        int scrubbed = Mathf.RoundToInt(Scrub(r, val, sensitivity));
+        DrawHandle(r);
+        return EditorGUI.IntField(FieldRect(r), scrubbed);
+    }
+
+    static Rect Reserve(float? width) => width.HasValue
+        ? GUILayoutUtility.GetRect(width.Value, 18f, GUILayout.Width(width.Value))
+        : GUILayoutUtility.GetRect(50f, 18f, GUILayout.ExpandWidth(true));
+
+    static Rect FieldRect(Rect r) => new Rect(r.x + HandleW, r.y, r.width - HandleW, r.height);
+
+    static float Scrub(Rect r, float val, float sensitivity)
+    {
+        var handle = new Rect(r.x, r.y, HandleW, r.height);
+        EditorGUIUtility.AddCursorRect(handle, MouseCursor.SlideArrow);
+        int id = GUIUtility.GetControlID(s_hint, FocusType.Passive, r);
+        var e = Event.current;
+        switch (e.GetTypeForControl(id))
+        {
+            case EventType.MouseDown:
+                if (e.button == 0 && handle.Contains(e.mousePosition))
+                { GUIUtility.hotControl = id; e.Use(); EditorGUIUtility.SetWantsMouseJumping(1); }
+                break;
+            case EventType.MouseDrag:
+                if (GUIUtility.hotControl == id) { val += e.delta.x * sensitivity; GUI.changed = true; e.Use(); }
+                break;
+            case EventType.MouseUp:
+                if (GUIUtility.hotControl == id)
+                { GUIUtility.hotControl = 0; e.Use(); EditorGUIUtility.SetWantsMouseJumping(0); }
+                break;
+        }
+        return val;
+    }
+
+    static void DrawHandle(Rect r)
+    {
+        if (Event.current.type != EventType.Repaint) return;
+        var c = new Color(1f, 1f, 1f, 0.30f);
+        float cx = r.x + HandleW * 0.5f - 1f;
+        for (int i = 0; i < 3; i++)
+            EditorGUI.DrawRect(new Rect(cx, r.y + r.height * 0.5f - 5f + i * 4f, 2f, 2f), c);
     }
 }
 

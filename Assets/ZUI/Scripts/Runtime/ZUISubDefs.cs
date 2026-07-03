@@ -126,12 +126,15 @@ public class ZUITextShadowDef
 public class ZUIShapeDef
 {
     public int  cornerRadius = 0;
+    public bool fullyRound   = false;   // pill/capsule: corners round to half the element's size, any size
     public bool roundTL      = true;
     public bool roundTR      = true;
     public bool roundBL      = true;
     public bool roundBR      = true;
 
-    public int GetResolvedRadius() => cornerRadius;
+    // A very large radius when fully round — the draw clamps it to half the element's size, so a box
+    // of any dimensions becomes a pill/circle.
+    public int GetResolvedRadius() => fullyRound ? 100000 : cornerRadius;
 
     // Returns a Vector4(TL, TR, BR, BL) for GUI.DrawTexture's borderRadius parameter.
     public Vector4 GetCornerVector(float r) => new Vector4(

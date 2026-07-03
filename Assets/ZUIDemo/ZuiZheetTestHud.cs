@@ -1,9 +1,9 @@
 using UnityEngine;
 
 // Runtime proof that a Zheet's box styles render outside the editor. Assign the demo Zheet, press
-// Play: every panel below is painted by ZUISheet.DrawBox from the sheet's ZUIBoxDef — gradients,
-// rounded corners and borders, all drawn by the SAME style-definition code the editor uses, now
-// living in the runtime assembly.
+// Play: every panel is painted by ZUISheet.DrawBox from the sheet's ZUIBoxDef — background
+// (gradients, rounded corners, borders, 9-slice frames) AND the title/content text, styled by the
+// box's own text defs — all drawn by the same style-definition code the editor uses.
 public class ZuiZheetTestHud : MonoBehaviour
 {
     public ZUIStyleSheetAsset zheet;
@@ -16,24 +16,18 @@ public class ZuiZheetTestHud : MonoBehaviour
             return;
         }
 
-        var label = new GUIStyle(GUI.skin.label) { fontSize = 16, alignment = TextAnchor.MiddleCenter };
-        label.normal.textColor = Color.white;
-
-        DrawCard("Panel", "Panel — solid, rounded", new Rect(60, 60, 300, 120), label);
-        DrawCard("Card", "Card — gradient + border", new Rect(60, 210, 300, 120), label);
-        DrawCard("Accent", "Accent — solid blue", new Rect(400, 60, 300, 120), label);
-        DrawCard("Danger", "Danger — gradient + border", new Rect(400, 210, 300, 120), label);
+        Card("Panel",  "Panel",  "solid, rounded — title & content use the box text styles", new Rect(60, 60, 300, 130));
+        Card("Card",   "Card",   "gradient + border", new Rect(60, 220, 300, 130));
+        Card("Accent", "Accent", "solid blue", new Rect(400, 60, 300, 130));
+        Card("Danger", "Danger", "gradient + border", new Rect(400, 220, 300, 130));
         // 9-slice: one frame texture stretched wide — corners stay fixed, edges/center stretch.
-        DrawCard("Framed", "Framed — 9-slice from a texture (stretched wide)", new Rect(60, 360, 640, 130), label);
+        Card("Framed", "Framed", "9-slice from a texture, stretched wide", new Rect(60, 380, 640, 120));
 
         var title = new GUIStyle(GUI.skin.label) { fontSize = 20, fontStyle = FontStyle.Bold };
         title.normal.textColor = Color.white;
-        GUI.Label(new Rect(60, 20, 700, 30), "Runtime Zheet — box styles drawn from a ZUIStyleSheetAsset", title);
+        GUI.Label(new Rect(60, 20, 800, 30), "Runtime Zheet — box background + styled title/content text", title);
     }
 
-    void DrawCard(string style, string caption, Rect r, GUIStyle label)
-    {
-        ZUISheet.DrawBox(zheet, style, r);
-        GUI.Label(r, caption, label);
-    }
+    // Title + content are drawn by ZUISheet using THIS box's title/content text styles from the Zheet.
+    void Card(string style, string title, string content, Rect r) => ZUISheet.DrawBox(zheet, style, r, title, content);
 }

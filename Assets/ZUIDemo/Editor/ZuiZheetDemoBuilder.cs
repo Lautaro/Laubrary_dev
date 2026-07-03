@@ -85,6 +85,7 @@ public static class ZuiZheetDemoBuilder
         b.background = new ZUIColor(c);
         b.shape = new ZUIShapeDef { cornerRadius = radius, roundTL = true, roundTR = true, roundBL = true, roundBR = true };
         b.showBorder = false;
+        WithText(b);
         return b;
     }
 
@@ -96,7 +97,16 @@ public static class ZuiZheetDemoBuilder
         b.shape = new ZUIShapeDef { cornerRadius = radius, roundTL = true, roundTR = true, roundBL = true, roundBR = true };
         b.showBorder = true;
         b.border = new ZUIBorderDef { color = new ZUIColor(border), edgeWidth = new ZUIEdgeValuesFloat(1.5f) };
+        WithText(b);
         return b;
+    }
+
+    // Give the box distinct title/content text styles so they're visibly different at runtime
+    // (bold ~19px title, dimmer ~13px content) — proving the Zheet's text properties apply.
+    static void WithText(ZUIBoxDef b)
+    {
+        b.titleText   = new ZUITextDef(new Color(1f, 1f, 1f, 0.95f))   { fontSize = 19, fontStyle = FontStyle.Bold };
+        b.contentText = new ZUITextDef(new Color(0.78f, 0.82f, 0.9f))  { fontSize = 13 };
     }
 }
 #endif

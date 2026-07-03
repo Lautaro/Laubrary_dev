@@ -267,10 +267,10 @@ public class ZUIBoxDef : ISerializationCallbackReceiver
         if (useGlobalShape)
         {
             var g = ownerSheet?.globalBox;
-            if (g != null) return g.shape.cornerRadius;
+            if (g != null) return g.shape.GetResolvedRadius();
         }
 #endif
-        return shape.cornerRadius;
+        return shape.GetResolvedRadius();
     }
 
     public Vector4 GetCornerVector(float r)
@@ -292,19 +292,15 @@ public class ZUIBoxDef : ISerializationCallbackReceiver
 
     public ZUITextDef GetResolvedTitleText()
     {
-#if UNITY_EDITOR
         if (useGlobalTitleText) { var g = ownerSheet?.globalBox; if (g != null) return g.titleText; }
         if (!string.IsNullOrEmpty(titleTextStyleId)) { var s = ownerSheet?.FindText(titleTextStyleId); if (s != null) return s.text; }
-#endif
         return titleText;
     }
 
     public ZUITextDef GetResolvedContentText()
     {
-#if UNITY_EDITOR
         if (useGlobalContentText) { var g = ownerSheet?.globalBox; if (g != null) return g.contentText; }
         if (!string.IsNullOrEmpty(contentTextStyleId)) { var s = ownerSheet?.FindText(contentTextStyleId); if (s != null) return s.text; }
-#endif
         return contentText;
     }
 
@@ -762,10 +758,10 @@ public class ZUIButtonDef : ISerializationCallbackReceiver
     public int GetResolvedCornerRadius()
     {
 #if UNITY_EDITOR
-        if (!boxOverrideShape) { var b = ResolveBoxStyle(); if (b != null) return b.shape.cornerRadius; }
-        if (useGlobalShape) { var g = ownerSheet?.globalButton; if (g != null) return g.shape.cornerRadius; }
+        if (!boxOverrideShape) { var b = ResolveBoxStyle(); if (b != null) return b.shape.GetResolvedRadius(); }
+        if (useGlobalShape) { var g = ownerSheet?.globalButton; if (g != null) return g.shape.GetResolvedRadius(); }
 #endif
-        return shape.cornerRadius;
+        return shape.GetResolvedRadius();
     }
 
     /// <summary>Returns the resolved per-corner rounding flags, respecting box style and useGlobalShape.</summary>

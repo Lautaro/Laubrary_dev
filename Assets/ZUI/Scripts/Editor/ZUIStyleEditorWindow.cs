@@ -24,12 +24,13 @@ public class ZUIStyleEditorWindow : ZUIWindow
 
     private ZUIStyleSheetAsset _sheet;
 
-    private int _activeTab;        // 0 = Buttons, 1 = Boxes, 2 = Text, 3 = Sliders, 4 = Global, 5 = Palette, 6 = Assets, 7 = Missing
+    private int _activeTab;        // 0 = Buttons, 1 = Boxes, 2 = Text, 3 = Sliders, 4 = Global, 5 = Palette, 6 = Assets, 7 = Missing, 8 = 9-Slice
     private int _globalSubTab;     // 0 = Button, 1 = Box, 2 = Layout
     private int _selectedButton;
     private int _selectedBox;
     private int _selectedText;
     private int _selectedSlider;
+    private int _selectedNineSlice;
     private int _buttonStateTab;      // 0 = Normal, 1 = Hover, 2 = Active
     private int _sliderThumbModeTab;  // 0 = Normal (single), 1 = MinMax (two thumbs)
     private int _sliderThumbMinState; // 0 = Normal, 1 = Hover, 2 = Active  (min thumb inspector)
@@ -388,6 +389,14 @@ public class ZUIStyleEditorWindow : ZUIWindow
             }
         }
 
+        // 9-Slice tab — like Buttons/Boxes, has a left list + inspector (tab index 8).
+        using (new EditorGUI.DisabledGroupScope(prodLocked))
+        {
+            bool nsActive = _activeTab == 8;
+            if (GUILayout.Toggle(nsActive, "9-Slice", EditorStyles.toolbarButton, GUILayout.Width(70f)) && !nsActive && !prodLocked)
+                _activeTab = 8;
+        }
+
         // Missing tab — shows badge count when there are unresolved style lookups.
         // Count is scoped to the currently-selected sheet so badge matches the tab body.
         int missingCount = _sheet != null
@@ -504,6 +513,10 @@ public class ZUIStyleEditorWindow : ZUIWindow
                 DrawDynamicList(_sheet.textStyles, ref _selectedText,
                     () => new ZUITextStyleDef { name = "New Text Style" },
                     miniMode);
+            else if (_activeTab == 8)
+                DrawDynamicList(_sheet.nineSlices, ref _selectedNineSlice,
+                    () => new ZUINineSliceDef { name = "New 9-Slice" },
+                    miniMode);
             else
                 DrawDynamicList(_sheet.sliders, ref _selectedSlider,
                     () => new ZUISliderDef { name = "New Slider" },
@@ -546,6 +559,8 @@ public class ZUIStyleEditorWindow : ZUIWindow
             DrawDynamicList(_sheet.boxes, ref _selectedBox, null, true);
         else if (_activeTab == 2)
             DrawDynamicList(_sheet.textStyles, ref _selectedText, null, true);
+        else if (_activeTab == 8)
+            DrawDynamicList(_sheet.nineSlices, ref _selectedNineSlice, null, true);
         else
             DrawDynamicList(_sheet.sliders, ref _selectedSlider, null, true);
 
@@ -708,6 +723,13 @@ public class ZUIStyleEditorWindow : ZUIWindow
             if (_activeTab == 0)      DrawButtonInspector();
             else if (_activeTab == 1) DrawBoxInspector();
             else if (_activeTab == 2) DrawTextStyleInspector();
+            else if (_activeTab == 8)
+            {
+                if (_selectedNineSlice < 0 || _selectedNineSlice >= _sheet.nineSlices.Count)
+                    CenteredLabel("Select a 9-slice.");
+                else
+                    DrawNineSliceInspector(_sheet.nineSlices[_selectedNineSlice]);
+            }
             else                      DrawSliderInspector();
         }
         EndPreviousSectionArea();
@@ -1616,6 +1638,33 @@ public class ZUIStyleEditorWindow : ZUIWindow
         ZUI.VerticalSpace("V Section Rows");
         }
 
+        // ── 9-Slice frame ────────────────────────────────────────────────────
+        // When set, the box draws this named 9-slice (from the 9-Slice tab) as its
+        // whole frame instead of the procedural background + border above.
+        if (SectionHeaderPlain("9-Slice Frame", "box_nineslice"))
+        {
+            var nsNames = new string[_sheet.nineSlices.Count + 1];
+            nsNames[0] = "None";
+            for (int i = 0; i < _sheet.nineSlices.Count; i++) nsNames[i + 1] = _sheet.nineSlices[i].name;
+
+            int nsCur = 0;
+            if (!string.IsNullOrEmpty(def.nineSliceId))
+            {
+                for (int i = 0; i < _sheet.nineSlices.Count; i++)
+                    if (_sheet.nineSlices[i].name == def.nineSliceId) { nsCur = i + 1; break; }
+            }
+
+            EditorGUI.BeginChangeCheck();
+            int nsNew = EditorGUILayout.Popup("Frame", nsCur, nsNames);
+            if (EditorGUI.EndChangeCheck())
+            {
+                def.nineSliceId = (nsNew <= 0) ? "" : _sheet.nineSlices[nsNew - 1].name;
+                def.Invalidate();
+                changed = true;
+            }
+        }
+        ZUI.VerticalSpace("V Section Rows");
+
         // ── Title Text ───────────────────────────────────────────────────────
         if (def.showTitleText)
         {
@@ -1735,7 +1784,7 @@ public class ZUIStyleEditorWindow : ZUIWindow
             {
                 var gs = def.useGlobalShape ? ZUI.ActiveSheet?.globalBox : null;
                 using (new EditorGUI.DisabledGroupScope(def.useGlobalShape))
-                    DrawShapeEditor(gs != null ? gs.shape : def.shape, 24);
+                    DrawShapeEditor(gs != null ? gs.shape : def.shape, 64);
             }
             if (EditorGUI.EndChangeCheck()) changed = true;
         }
@@ -1744,6 +1793,95 @@ public class ZUIStyleEditorWindow : ZUIWindow
 
         if (changed) { EditorUtility.SetDirty(_sheet); RepaintShowcase(); }
 
+    }
+
+    // ── 9-Slice inspector ─────────────────────────────────────────────────────
+
+    void DrawNineSliceInspector(ZUINineSliceDef def)
+    {
+        bool changed = false;
+        EditorGUIUtility.labelWidth = k_LabelWidth;
+
+        TabTitle("9-Slice Frame");
+
+        // ── Name ──
+        EditorGUI.BeginChangeCheck();
+        def.name = EditorGUILayout.TextField("Name", def.name);
+        if (EditorGUI.EndChangeCheck()) changed = true;
+
+        ZUI.VerticalSpace("V Control Gap");
+
+        // ── Source (texture + tint) ──────────────────────────────────────────
+        if (SectionHeaderPlain("Source", "nineslice_source"))
+        {
+            EditorGUI.BeginChangeCheck();
+            def.texture = (Texture2D)EditorGUILayout.ObjectField("Texture", def.texture, typeof(Texture2D), false);
+            if (EditorGUI.EndChangeCheck()) { def.Invalidate(); changed = true; }
+
+            EditorGUI.BeginChangeCheck();
+            def.tint = EditorGUILayout.ColorField("Tint", def.tint);
+            if (EditorGUI.EndChangeCheck()) { def.Invalidate(); changed = true; }
+        }
+
+        // ── Border insets (source pixels, clamped >= 0) ──────────────────────
+        if (SectionHeaderPlain("Borders", "nineslice_borders"))
+        {
+            EditorGUI.BeginChangeCheck();
+            int l = Mathf.Max(0, EditorGUILayout.IntField("Left",   def.left));
+            int r = Mathf.Max(0, EditorGUILayout.IntField("Right",  def.right));
+            int t = Mathf.Max(0, EditorGUILayout.IntField("Top",    def.top));
+            int b = Mathf.Max(0, EditorGUILayout.IntField("Bottom", def.bottom));
+            if (EditorGUI.EndChangeCheck())
+            {
+                def.left = l; def.right = r; def.top = t; def.bottom = b;
+                def.Invalidate();
+                changed = true;
+            }
+        }
+
+        // ── Preview: texture aspect-fit with the four slice guide lines ───────
+        if (SectionHeaderPlain("Preview", "nineslice_preview"))
+        {
+            var box = GUILayoutUtility.GetRect(256f, 256f, GUILayout.ExpandWidth(true));
+            if (Event.current.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(box, new Color(.10f, .10f, .12f, 1f));
+                if (def.texture != null)
+                {
+                    // Aspect-fit (ScaleToFit) the texture inside the box, then map source-pixel
+                    // insets into the fitted rect so the guides line up with what GUI draws.
+                    float tw = def.texture.width, th = def.texture.height;
+                    float scale = Mathf.Min(box.width / tw, box.height / th);
+                    float fw = tw * scale, fh = th * scale;
+                    var fit = new Rect(box.x + (box.width - fw) * 0.5f,
+                                       box.y + (box.height - fh) * 0.5f, fw, fh);
+                    GUI.DrawTexture(fit, def.texture, ScaleMode.ScaleToFit);
+
+                    var lineCol = new Color(0.3f, 1f, 0.55f, 0.9f);
+                    if (def.left   > 0) EditorGUI.DrawRect(new Rect(fit.x   + def.left   * scale, fit.y, 1f, fit.height), lineCol);
+                    if (def.right  > 0) EditorGUI.DrawRect(new Rect(fit.xMax - def.right  * scale, fit.y, 1f, fit.height), lineCol);
+                    if (def.top    > 0) EditorGUI.DrawRect(new Rect(fit.x, fit.y   + def.top    * scale, fit.width, 1f), lineCol);
+                    if (def.bottom > 0) EditorGUI.DrawRect(new Rect(fit.x, fit.yMax - def.bottom * scale, fit.width, 1f), lineCol);
+                }
+                else
+                {
+                    EditorGUI.LabelField(box, "No texture assigned", EditorStyles.centeredGreyMiniLabel);
+                }
+            }
+        }
+
+        // ── Live sample: draw the 9-slice stretched wide so the author sees it ─
+        if (SectionHeaderPlain("Live Sample", "nineslice_sample"))
+        {
+            var sample = GUILayoutUtility.GetRect(1f, 90f, GUILayout.ExpandWidth(true));
+            if (Event.current.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(sample, new Color(.13f, .13f, .15f, 1f));
+                def.DrawFrame(sample);
+            }
+        }
+
+        if (changed) { EditorUtility.SetDirty(_sheet); RepaintShowcase(); }
     }
 
     // ── Text style inspector ──────────────────────────────────────────────────
@@ -2427,18 +2565,25 @@ public class ZUIStyleEditorWindow : ZUIWindow
     // ── Border field ──────────────────────────────────────────────────────────
 
     // ── Shared shape editor ─────────────────────────────────────────────────
-    void DrawShapeEditor(ZUIShapeDef shape, int maxRadius = 16)
+    void DrawShapeEditor(ZUIShapeDef shape, int maxRadius = 64)
     {
         const float rowH = 18f;
         const float gapH = 2f;
 
         GUILayout.BeginHorizontal();
 
-        // Left side: stacked slider (label+value on top, track below)
-        EditorGUI.BeginChangeCheck();
-        float sliderVal = ZUI.SliderStacked((float)shape.cornerRadius, 0, maxRadius, "Radius", "SmallSlider");
-        if (EditorGUI.EndChangeCheck())
-            shape.cornerRadius = Mathf.RoundToInt(sliderVal);
+        // Left side: stacked slider (label+value on top, track below) + a "Pill" toggle that rounds the
+        // corners completely at any size (the draw clamps to half the element). Slider is moot while Pill is on.
+        GUILayout.BeginVertical();
+        using (new EditorGUI.DisabledScope(shape.fullyRound))
+        {
+            EditorGUI.BeginChangeCheck();
+            float sliderVal = ZUI.SliderStacked((float)shape.cornerRadius, 0, maxRadius, "Radius", "SmallSlider");
+            if (EditorGUI.EndChangeCheck())
+                shape.cornerRadius = Mathf.RoundToInt(sliderVal);
+        }
+        shape.fullyRound = ZUI.Toggle(shape.fullyRound, "Pill (fully round)", "Toggle", GUILayout.Height(rowH));
+        GUILayout.EndVertical();
 
         ZUI.HorizontalSpace();
 
@@ -3525,6 +3670,7 @@ public class ZUIStyleEditorWindow : ZUIWindow
         if (item is ZUIBoxDef       x) return x.name;
         if (item is ZUITextStyleDef t) return t.name;
         if (item is ZUISliderDef    s) return s.name;
+        if (item is ZUINineSliceDef n) return n.name;
         return null;
     }
 
@@ -5599,7 +5745,7 @@ public class ZUIStyleEditorWindow : ZUIWindow
         if (EditorGUI.EndChangeCheck()) { box.border.color.Invalidate(); inv(); }
 
         ZUI.VerticalSpace("V Section Rows");
-        DrawShapeEditor(box.shape, 24);
+        DrawShapeEditor(box.shape, 64);
     }
 
     // Draws a ZUIButtonDef inline for the slider thumb — sub-sections use a visually
@@ -5627,7 +5773,7 @@ public class ZUIStyleEditorWindow : ZUIWindow
 
         if (SubsectionHeader("Shape", keyPrefix + "_shape"))
         {
-            DrawShapeEditor(btn.shape, 24);
+            DrawShapeEditor(btn.shape, 64);
         }
 
         if (SubsectionHeader("Border", keyPrefix + "_bdr"))
@@ -5666,7 +5812,7 @@ public class ZUIStyleEditorWindow : ZUIWindow
         ZUI.VerticalSpace("V Section Rows");
 
         // Shape
-        DrawShapeEditor(btn.shape, 24);
+        DrawShapeEditor(btn.shape, 64);
 
         // Border — inline
         ZUI.VerticalSpace("V Section Rows");
