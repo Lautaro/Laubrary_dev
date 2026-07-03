@@ -24,6 +24,13 @@ public class ZuiZheetTestHud : MonoBehaviour
         // 9-slice: one frame texture stretched wide — corners stay fixed, edges/center stretch.
         Card("Framed", "Framed", "9-slice from a texture, stretched wide", new Rect(60, 380, 640, 120));
 
+        // Stretch vs tile: SAME patterned texture, same insets — top box stretches edges+centre, bottom
+        // tiles them. Corners stay pixel-fixed in both. The pattern makes the difference obvious.
+        ZUISheet.DrawBox(zheet, "PatStretch", new Rect(60, 520, 640, 80));
+        ZUISheet.DrawBox(zheet, "PatTile",    new Rect(60, 620, 640, 80));
+        Label(60, 500, "Edges/centre STRETCHED");
+        Label(60, 600, "Edges/centre TILED");
+
         // Interactive 9-slice (sprite) BUTTON — hover brightens, press darkens (per-state frames).
         if (ZUISheet.Button(zheet, "SpriteButton", new Rect(760, 60, 220, 60), "Sprite Button")) _clicks++;
         var l = new GUIStyle(GUI.skin.label) { fontSize = 14 }; l.normal.textColor = Color.white;
@@ -36,4 +43,11 @@ public class ZuiZheetTestHud : MonoBehaviour
 
     // Title + content are drawn by ZUISheet using THIS box's title/content text styles from the Zheet.
     void Card(string style, string title, string content, Rect r) => ZUISheet.DrawBox(zheet, style, r, title, content);
+
+    static void Label(float x, float y, string text)
+    {
+        var s = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold };
+        s.normal.textColor = Color.white;
+        GUI.Label(new Rect(x, y, 400, 20), text, s);
+    }
 }

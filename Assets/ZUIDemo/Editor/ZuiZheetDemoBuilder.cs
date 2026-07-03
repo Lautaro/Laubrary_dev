@@ -29,6 +29,14 @@ public static class ZuiZheetDemoBuilder
         var framed = new ZUIBoxDef { name = "Framed", nineSliceId = "DemoFrame" };
         sheet.boxes.Add(framed);
 
+        // Stretch-vs-tile proof: one patterned texture, two boxes — same insets, different fill mode.
+        // The pattern (striped edges, checker centre) makes the difference obvious when drawn wide.
+        var patTex = SavePatternTexture("Assets/ZUIDemo/DemoPattern.png", 48, 12);
+        sheet.nineSlices.Add(new ZUINineSliceDef { name = "PatStretch", texture = patTex, left = 12, right = 12, top = 12, bottom = 12, tileCenter = false, tileEdges = false });
+        sheet.nineSlices.Add(new ZUINineSliceDef { name = "PatTile",    texture = patTex, left = 12, right = 12, top = 12, bottom = 12, tileCenter = true,  tileEdges = true });
+        sheet.boxes.Add(new ZUIBoxDef { name = "PatStretch", nineSliceId = "PatStretch" });
+        sheet.boxes.Add(new ZUIBoxDef { name = "PatTile",    nineSliceId = "PatTile" });
+
         // A 9-slice (sprite) BUTTON: three frames sharing the texture, tinted per state, referenced
         // per state by the button def. Hover brightens, press darkens.
         sheet.nineSlices.Add(new ZUINineSliceDef { name = "BtnNormal",  texture = frameTex, left = 20, right = 20, top = 20, bottom = 20, tint = new Color(0.82f, 0.84f, 0.92f) });
@@ -88,6 +96,40 @@ public static class ZuiZheetDemoBuilder
         ti.mipmapEnabled = false;
         ti.textureCompression = TextureImporterCompression.Uncompressed;
         ti.alphaIsTransparency = true;
+        ti.SaveAndReimport();
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+    }
+
+    // A frame whose regions carry a visible pattern so stretch-vs-tile is unmistakable when drawn wide:
+    // solid corners, striped edges (perpendicular to the edge), a checker centre.
+    static Texture2D SavePatternTexture(string path, int size, int inset)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        var corner = new Color(0.95f, 0.55f, 0.15f);   // orange corners
+        var stripeA = new Color(0.30f, 0.65f, 0.95f);  // edge stripes
+        var stripeB = new Color(0.12f, 0.22f, 0.35f);
+        var checkA = new Color(0.85f, 0.85f, 0.90f);   // centre checker
+        var checkB = new Color(0.20f, 0.22f, 0.30f);
+        var px = new Color[size * size];
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                bool left = x < inset, right = x >= size - inset;
+                bool bot = y < inset, top = y >= size - inset;
+                Color c;
+                if ((left || right) && (top || bot)) c = corner;                 // corners
+                else if (left || right) c = ((y / 3) % 2 == 0) ? stripeA : stripeB; // L/R edges: horizontal stripes
+                else if (top || bot)    c = ((x / 3) % 2 == 0) ? stripeA : stripeB; // T/B edges: vertical stripes
+                else c = (((x / 4) + (y / 4)) % 2 == 0) ? checkA : checkB;        // centre: checker
+                px[y * size + x] = c;
+            }
+        tex.SetPixels(px); tex.Apply();
+        System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
+        AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+        var ti = (TextureImporter)AssetImporter.GetAtPath(path);
+        ti.textureType = TextureImporterType.Default;
+        ti.isReadable = true; ti.filterMode = FilterMode.Point; ti.wrapMode = TextureWrapMode.Clamp;
+        ti.mipmapEnabled = false; ti.textureCompression = TextureImporterCompression.Uncompressed;
         ti.SaveAndReimport();
         return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
     }

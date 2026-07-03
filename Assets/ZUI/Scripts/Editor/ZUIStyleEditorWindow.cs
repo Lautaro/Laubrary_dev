@@ -32,8 +32,8 @@ public class ZUIStyleEditorWindow : ZUIWindow
     private int _selectedSlider;
     private int _selectedNineSlice;
     // Draggable/resizable live-sample rect for the 9-slice inspector, stored relative to its canvas.
-    private Vector2 _nsSampleOffset = new Vector2(20f, 20f);
     private Vector2 _nsSampleSize   = new Vector2(360f, 90f);
+    private Vector2 _nsSampleScroll = Vector2.zero;
     private int _buttonStateTab;      // 0 = Normal, 1 = Hover, 2 = Active
     private int _sliderThumbModeTab;  // 0 = Normal (single), 1 = MinMax (two thumbs)
     private int _sliderThumbMinState; // 0 = Normal, 1 = Hover, 2 = Active  (min thumb inspector)
@@ -1857,23 +1857,34 @@ public class ZUIStyleEditorWindow : ZUIWindow
             GUILayout.EndHorizontal();
         }
 
-        // ── Borders: fields turn red while dividers would cross; the draw clamps so it never breaks. ──
-        if (SectionHeaderPlain("Borders", "nineslice_borders"))
+        // ── Borders & fill: inset pairs share a row (L/R, T/B) to spend width not height; a field turns
+        //    red while its pair would cross (the draw clamps regardless). Tile toggles pick stretch vs
+        //    repeat for the edges and centre. ──
+        if (SectionHeaderPlain("Borders & Fill", "nineslice_borders"))
         {
-            EditorGUI.BeginChangeCheck();
             var prevCol = GUI.color;
-            GUI.color = hInvalid ? red : prevCol;
-            int l = Mathf.Max(0, EditorGUILayout.IntField("Left",  def.left));
-            int r = Mathf.Max(0, EditorGUILayout.IntField("Right", def.right));
-            GUI.color = vInvalid ? red : prevCol;
-            int t = Mathf.Max(0, EditorGUILayout.IntField("Top",    def.top));
-            int b = Mathf.Max(0, EditorGUILayout.IntField("Bottom", def.bottom));
-            GUI.color = prevCol;
-            if (EditorGUI.EndChangeCheck())
+            EditorGUI.BeginChangeCheck();
+            using (ZUI.Flow())
             {
-                def.left = l; def.right = r; def.top = t; def.bottom = b;
-                def.Invalidate(); changed = true;
+                GUI.color = hInvalid ? red : prevCol;
+                ZUI.Field("Left",  60f, () => def.left  = Mathf.Max(0, EditorGUILayout.IntField(def.left)));
+                ZUI.Field("Right", 60f, () => def.right = Mathf.Max(0, EditorGUILayout.IntField(def.right)));
+                GUI.color = vInvalid ? red : prevCol;
+                ZUI.Field("Top",    60f, () => def.top    = Mathf.Max(0, EditorGUILayout.IntField(def.top)));
+                ZUI.Field("Bottom", 60f, () => def.bottom = Mathf.Max(0, EditorGUILayout.IntField(def.bottom)));
+                GUI.color = prevCol;
             }
+            if (EditorGUI.EndChangeCheck()) { def.Invalidate(); changed = true; }
+
+            EditorGUI.BeginChangeCheck();
+            using (ZUI.Flow())
+            {
+                def.tileCenter = GUILayout.Toggle(def.tileCenter, " Tile centre", GUILayout.Width(110f));
+                GUILayout.Space(16f);
+                def.tileEdges  = GUILayout.Toggle(def.tileEdges,  " Tile edges",  GUILayout.Width(110f));
+            }
+            if (EditorGUI.EndChangeCheck()) { def.Invalidate(); changed = true; }
+
             if (hInvalid || vInvalid)
                 EditorGUILayout.LabelField(" ", "Left+Right and Top+Bottom must each fit inside the texture.", EditorStyles.miniLabel);
         }
@@ -1915,38 +1926,46 @@ public class ZUIStyleEditorWindow : ZUIWindow
             }
         }
 
-        // ── Live sample: W/H sliders drive the size (reliable inside a scroll view); drag the body to
-        //    reposition. The canvas grows with the sample so it's never cut off, and clamps to the
-        //    panel width so the whole frame stays visible. ──
+        // ── Live sample: drag the corner grip to resize (or use the W/H sliders). The canvas is a fixed
+        //    viewport with the sample as its scroll content, so an oversized sample scrolls instead of
+        //    being clipped — never cut off, however big it gets. ──
         if (SectionHeaderPlain("Live Sample", "nineslice_sample"))
         {
             using (ZUI.Flow())
             {
-                ZUI.Field("W", 150f, () => _nsSampleSize.x = GUILayout.HorizontalSlider(_nsSampleSize.x, 40f, 900f));
-                ZUI.Field("", 30f, () => GUILayout.Label(((int)_nsSampleSize.x).ToString(), EditorStyles.miniLabel));
-                ZUI.Field("H", 150f, () => _nsSampleSize.y = GUILayout.HorizontalSlider(_nsSampleSize.y, 30f, 400f));
-                ZUI.Field("", 30f, () => GUILayout.Label(((int)_nsSampleSize.y).ToString(), EditorStyles.miniLabel));
-                ZUI.Field("", 58f, () => { if (GUILayout.Button("Reset")) { _nsSampleSize = new Vector2(260f, 90f); _nsSampleOffset = new Vector2(16f, 16f); } });
+                ZUI.Field("W", 150f, () => _nsSampleSize.x = GUILayout.HorizontalSlider(_nsSampleSize.x, 40f, 1400f));
+                ZUI.Field("", 34f, () => GUILayout.Label(((int)_nsSampleSize.x).ToString(), EditorStyles.miniLabel));
+                ZUI.Field("H", 150f, () => _nsSampleSize.y = GUILayout.HorizontalSlider(_nsSampleSize.y, 30f, 900f));
+                ZUI.Field("", 34f, () => GUILayout.Label(((int)_nsSampleSize.y).ToString(), EditorStyles.miniLabel));
+                ZUI.Field("", 58f, () => { if (GUILayout.Button("Reset")) { _nsSampleSize = new Vector2(260f, 90f); _nsSampleScroll = Vector2.zero; } });
             }
+            _nsSampleSize.x = Mathf.Clamp(_nsSampleSize.x, 40f, 4000f);
+            _nsSampleSize.y = Mathf.Clamp(_nsSampleSize.y, 30f, 4000f);
 
-            float canvasH = Mathf.Clamp(_nsSampleSize.y + 44f, 120f, 470f);
-            var canvas = GUILayoutUtility.GetRect(1f, canvasH, GUILayout.ExpandWidth(true));
-            float sw = Mathf.Min(_nsSampleSize.x, canvas.width - 4f);
-            float sh = Mathf.Min(_nsSampleSize.y, canvas.height - 4f);
-            _nsSampleOffset.x = Mathf.Clamp(_nsSampleOffset.x, 0f, Mathf.Max(0f, canvas.width  - sw));
-            _nsSampleOffset.y = Mathf.Clamp(_nsSampleOffset.y, 0f, Mathf.Max(0f, canvas.height - sh));
-            var sample = new Rect(canvas.x + _nsSampleOffset.x, canvas.y + _nsSampleOffset.y, sw, sh);
+            const float pad = 18f;
+            var viewport = GUILayoutUtility.GetRect(1f, 300f, GUILayout.ExpandWidth(true));
+            var content  = new Rect(0f, 0f, _nsSampleSize.x + pad * 2f, _nsSampleSize.y + pad * 2f);
+            _nsSampleScroll = GUI.BeginScrollView(viewport, _nsSampleScroll, content);
 
-            int moveId = GUIUtility.GetControlID(FocusType.Passive);
+            // Coordinates below are content-local (inside the scroll view), so hit-tests just work.
+            var sample = new Rect(pad, pad, _nsSampleSize.x, _nsSampleSize.y);
+            var grip   = new Rect(sample.xMax - 16f, sample.yMax - 16f, 16f, 16f);
+
+            int sizeId = GUIUtility.GetControlID(FocusType.Passive);
             var e = Event.current;
-            if (e.type == EventType.MouseDown && sample.Contains(e.mousePosition)) { GUIUtility.hotControl = moveId; e.Use(); }
-            else if (e.type == EventType.MouseDrag && GUIUtility.hotControl == moveId) { _nsSampleOffset += e.delta; e.Use(); Repaint(); }
-            else if (e.type == EventType.MouseUp && GUIUtility.hotControl == moveId) { GUIUtility.hotControl = 0; e.Use(); }
-            EditorGUIUtility.AddCursorRect(sample, MouseCursor.MoveArrow);
+            if (e.type == EventType.MouseDown && grip.Contains(e.mousePosition)) { GUIUtility.hotControl = sizeId; e.Use(); }
+            else if (e.type == EventType.MouseDrag && GUIUtility.hotControl == sizeId)
+            {
+                _nsSampleSize.x = Mathf.Clamp(_nsSampleSize.x + e.delta.x, 40f, 4000f);
+                _nsSampleSize.y = Mathf.Clamp(_nsSampleSize.y + e.delta.y, 30f, 4000f);
+                e.Use(); Repaint();
+            }
+            else if (e.type == EventType.MouseUp && GUIUtility.hotControl == sizeId) { GUIUtility.hotControl = 0; e.Use(); }
+            EditorGUIUtility.AddCursorRect(grip, MouseCursor.ResizeUpLeft);
 
             if (e.type == EventType.Repaint)
             {
-                EditorGUI.DrawRect(canvas, new Color(.16f, .16f, .18f, 1f));
+                EditorGUI.DrawRect(content, new Color(.16f, .16f, .18f, 1f));
                 def.DrawFrame(sample);
                 // Subtle 1px outline so the frame's bounds (and any transparent edge) are unmistakable.
                 var oc = new Color(1f, 1f, 1f, 0.22f);
@@ -1954,7 +1973,12 @@ public class ZUIStyleEditorWindow : ZUIWindow
                 EditorGUI.DrawRect(new Rect(sample.x, sample.yMax - 1f, sample.width, 1f), oc);
                 EditorGUI.DrawRect(new Rect(sample.x, sample.y, 1f, sample.height), oc);
                 EditorGUI.DrawRect(new Rect(sample.xMax - 1f, sample.y, 1f, sample.height), oc);
+                // Corner grip handle (an L of ticks) so it's obvious you can drag to resize.
+                var gc = new Color(1f, 1f, 1f, 0.8f);
+                EditorGUI.DrawRect(new Rect(grip.xMax - 12f, grip.yMax - 2f, 12f, 2f), gc);
+                EditorGUI.DrawRect(new Rect(grip.xMax - 2f, grip.yMax - 12f, 2f, 12f), gc);
             }
+            GUI.EndScrollView();
         }
 
         if (changed) { EditorUtility.SetDirty(_sheet); RepaintShowcase(); }
