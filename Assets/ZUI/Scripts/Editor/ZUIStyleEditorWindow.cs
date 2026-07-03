@@ -1824,20 +1824,23 @@ public class ZUIStyleEditorWindow : ZUIWindow
         // ── Source: texture + tint on ONE row (both are narrow — no need to burn two rows). ──
         if (SectionHeaderPlain("Source", "nineslice_source"))
         {
-            // Fixed widths (not ExpandWidth) so the texture picker can't stretch to 1000px and hide
-            // the Tint beside it. Extra row space goes to the right via FlexibleSpace.
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("Texture", GUILayout.Width(52f));
-            EditorGUI.BeginChangeCheck();
-            var newTex = (Texture2D)EditorGUILayout.ObjectField(def.texture, typeof(Texture2D), false, GUILayout.Width(220f));
-            if (EditorGUI.EndChangeCheck()) { def.texture = newTex; def.Invalidate(); changed = true; }
-            GUILayout.Space(14f);
-            GUILayout.Label("Tint", GUILayout.Width(26f));
-            EditorGUI.BeginChangeCheck();
-            var newTint = EditorGUILayout.ColorField(def.tint, GUILayout.Width(48f));
-            if (EditorGUI.EndChangeCheck()) { def.tint = newTint; def.Invalidate(); changed = true; }
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
+            // Grouped on one row with width-capped bodies (via ZUI.Flow/Field) so the texture picker
+            // can't stretch across the window and bury the Tint — the landscape-aware default.
+            using (ZUI.Flow())
+            {
+                ZUI.Field("Texture", 220f, () =>
+                {
+                    EditorGUI.BeginChangeCheck();
+                    var nt = (Texture2D)EditorGUILayout.ObjectField(def.texture, typeof(Texture2D), false);
+                    if (EditorGUI.EndChangeCheck()) { def.texture = nt; def.Invalidate(); changed = true; }
+                });
+                ZUI.Field("Tint", 48f, () =>
+                {
+                    EditorGUI.BeginChangeCheck();
+                    var nc = EditorGUILayout.ColorField(def.tint);
+                    if (EditorGUI.EndChangeCheck()) { def.tint = nc; def.Invalidate(); changed = true; }
+                });
+            }
 
             // Bake: freeze a self-contained PNG copy into the Zheet so the frame survives the source
             // changing/disappearing and the Zheet is portable across projects.
