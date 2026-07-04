@@ -21,20 +21,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampled from its own texture, swaps to its next pre-generated **damage stage** (top torn off along an
   irregular scorched edge — 2–4 stages per ware), rattles, and can fling a broken chunk. Editor (`.Editor`)
   adds the **Larder** window under **Laubrary ▸ Larder**: live pixel preview, damage-stage strip, Randomize,
-  and a never-overwrite sprite baker into `Assets/Larder/`. Ships zero assets. Demo: a clickable
-  "shoot the stocked shelves" scene (**Laubrary ▸ Larder ▸ Build Demo Scene**).
-- **Pyre** — a tool for baking pixel-art **explosion / hit animations** from stacked **Layers** of timed
-  **Waves**. A **BlastSpec** (ScriptableObject) is Layers → Waves → shapes; a **Wave** is a burst of shapes
-  (**WaveShape**: Disc, Ring, DissolvingDisc, SparkleField, Crescent) alive over a span of frames, changing
-  size, position, colour and alpha across life, with **SpawnMode**/**EndMode** envelopes and global
-  squash/skew/wobble **deform** for directional blasts. Adds `Runtime/Pyre/`
-  (`com.Lautaro-Arino.Laubrary.Pyre`, namespace `Laubrary.Pyre`): `BlastRenderer` — one deterministic pure
-  renderer (`RenderFrame`/`RenderSheet`, per-shape RNG hashed from seed+layer+wave+shape) shared by preview,
-  baker and runtime — plus `BlastPlayer` (renders frames to cached in-memory sprites and plays them). Editor
-  (`.Editor`) adds the **Pyre** window under **Laubrary ▸ Pyre**: a layer/wave list editor, a live looping
-  preview with a frame scrubber and a **retime** (frame-count) slider so you can try counts after the fact,
-  and a never-overwrite baker to a sliced sprite sheet + looping **AnimationClip** in `Assets/Pyre/`. Ships
-  zero assets. Demo: a click-to-explode scene (**Laubrary ▸ Pyre ▸ Build Demo Scene**).
+  and a never-overwrite sprite baker (writes **beside the spec asset**). Ships zero assets. Demo: a clickable
+  "shoot the stocked shelves" scene stocked from real, editable `WareSpec` + baked-sprite assets (all flat in
+  `Assets/Demos/LarderDemo/`, following the Laubrary demo layout).
+- **Pyre** — a tool for baking pixel-art **explosion / hit animations** from a stack of timed **Layers**. A
+  **BlastSpec** (ScriptableObject) is a flat back-to-front list of **Layers**; each Layer is a burst of shapes
+  (**LayerShape**: Disc, Ring, DissolvingDisc, SparkleField, Crescent) alive over a span of frames, changing
+  size, position, colour and alpha across life, optionally **disintegrating** (pixels drop out) at the end.
+  Most numerics — count, spawn radius (0..1 of the blast, always kept on-canvas), position X/Y, start/end size,
+  crescent offset, and every **deform** value — are **animatable** via the ZUI multi-control (a slider whose
+  right-click menu switches it to a Min-Max random or an animation curve over the timeline). **Deform** (squash,
+  skew, **rotation**, wobble) is available both globally and **per layer** as a toggled section. Adds
+  `Runtime/Pyre/` (`com.Lautaro-Arino.Laubrary.Pyre`, namespace `Laubrary.Pyre`): `BlastRenderer` — one
+  deterministic pure renderer shared by preview, baker and runtime (per-shape RNG hashed from
+  seed+layer+shape) — plus `BlastPlayer`. Editor (`.Editor`) adds the **Pyre** window under **Laubrary ▸ Pyre**:
+  a drag-resizable Layer list (select / toggle / duplicate / delete), per-field multi-controls, a resizable +
+  zoomable preview with solid/gradient/image backdrops, and play/scrub/**retime** transport; a never-overwrite
+  baker writes a sliced sprite sheet + looping **AnimationClip** beside the spec. Ships zero assets. Demo:
+  a click-to-explode scene built from real `BlastSpec` assets (flat in `Assets/Demos/PyreDemo/`).
 
 ## [0.1.0] - 2026-07-04
 

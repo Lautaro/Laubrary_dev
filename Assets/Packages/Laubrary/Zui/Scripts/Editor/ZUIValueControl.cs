@@ -24,6 +24,7 @@ public static class ZUIValueControl
         public float absMax;
         public string sliderStyle;
         public string[] multiplierIds; // selectable globals for the multiplier menu (null = none)
+        public float? staticDefault;   // double-click reset target for the Static-mode slider (null = no reset)
 
         public static Options Default => new Options
         {
@@ -34,10 +35,12 @@ public static class ZUIValueControl
             absMax = 10f,
             sliderStyle = ZUI.SliderStyle.Default,
             multiplierIds = null,
+            staticDefault = null,
         };
 
         public Options WithRange(float lo, float hi) { absMin = lo; absMax = hi; return this; }
         public Options WithMultipliers(params string[] ids) { multiplierIds = ids; return this; }
+        public Options WithDefault(float value) { staticDefault = value; return this; }
     }
 
     // ── Per-value editor scaffolding (curve editor needs a persistent Def/Runtime/stateKey) ──
@@ -93,7 +96,9 @@ public static class ZUIValueControl
         switch (v.mode)
         {
             case ZUIValue.Mode.Static:
-                v.staticValue = ZUI.Slider(v.staticValue, opts.absMin, opts.absMax, "", opts.sliderStyle);
+                // staticDefault (when supplied) forwards to ZUI.Slider's double-click-to-reset target;
+                // null keeps the historic behaviour (no reset), so existing callers are unaffected.
+                v.staticValue = ZUI.Slider(v.staticValue, opts.absMin, opts.absMax, "", opts.sliderStyle, opts.staticDefault);
                 break;
             case ZUIValue.Mode.MinMax:
             {

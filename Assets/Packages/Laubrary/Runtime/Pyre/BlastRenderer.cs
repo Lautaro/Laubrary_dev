@@ -4,14 +4,31 @@ using UnityEngine;
 namespace Laubrary.Pyre
 {
     /// The ONE deterministic, pure, runtime-safe renderer shared by the editor preview, the asset baker and the
-    /// runtime player — so preview == bake == runtime. Never references UnityEditor. Every per-shape random value
-    /// derives from (seed, layerIndex, waveIndex, shapeIndex) via System.Random / a stable pixel hash — NOT
-    /// UnityEngine.Random — so the same blast produces byte-identical frames on every render.
+    /// runtime player — so preview == bake == runtime. Never references UnityEditor. Every per-shape / per-frame
+    /// random value derives from a stable int hash of (seed, layerIndex, shapeIndex|frameIndex, fieldId) fed to
+    /// System.Random — NOT UnityEngine.Random — so the same blast produces byte-identical frames on every render.
+    ///
+    /// Animatable knobs are ZUIValues, evaluated through <see cref="Eval"/>:
+    ///   • Static → the constant.
+    ///   • MinMax → a deterministic sample from a seeded System.Random (per-shape for scatter/size so it's stable
+    ///     across frames; per-frame for deform so it reads as a shake).
+    ///   • Curve  → ZUIEnvelopeEvaluator sampled at a normalized progress (blast progress for drift/scatter/count/
+    ///     deform, the shape's own life t for size).
     ///
     /// Pixel-art crisp: membership is a hard in/out test, never anti-aliased. Downstream uses FilterMode.Point.
     public static class BlastRenderer
     {
         static readonly Color32 Transparent = new Color32(0, 0, 0, 0);
+
+        // ── field ids (make each ZUIValue's MinMax sample independent) ─────────────
+        const int F_Count = 1, F_SpawnRadius = 2, F_PosX = 3, F_PosY = 4,
+                  F_StartSize = 5, F_EndSize = 6, F_CrescentX = 7, F_CrescentY = 8;
+        const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
+        const int GlobalLayerId = -1;   // stands in for "no layer" when hashing the global deform
+
+        /// One deform block resolved to plain floats for a given frame.
+        struct Deform { public float sq, skew, amp, freq, rotDeg; }
+        static readonly Deform Identity = new Deform { sq = 1f, skew = 0f, amp = 0f, freq = 0f, rotDeg = 0f };
 
         // ── the frame → Color32[] core ─────────────────────────────────────────
         public static Color32[] RenderFrame(BlastSpec spec, int frameIndex)
@@ -24,93 +41,123 @@ namespace Laubrary.Pyre
             if (spec == null || spec.layers == null) return buf;
 
             float center = size * 0.5f;
+            float half = size * 0.5f;
             int frameCount = Mathf.Max(1, spec.frameCount);
+            float bp = frameCount > 1 ? frameIndex / (float)(frameCount - 1) : 0f;   // blast progress 0..1
             float framePhase = frameCount > 1 ? (frameIndex / (float)frameCount) * Mathf.PI * 2f : 0f;
 
-            // Composite strictly back-to-front: layers in list order, waves in list order, shapes 0..count-1.
+            // Global deform is evaluated once per frame (per-frame MinMax gives a whole-blast shake).
+            Deform global = spec.deformEnabled
+                ? EvalDeform(spec.squash, spec.skew, spec.wobbleAmplitude, spec.wobbleFrequency, spec.rotation,
+                             bp, spec.seed, GlobalLayerId, frameIndex)
+                : Identity;
+
+            // Composite strictly back-to-front: layers in list order, shapes 0..count-1.
             for (int li = 0; li < spec.layers.Count; li++)
             {
                 var layer = spec.layers[li];
-                if (layer == null || !layer.visible || layer.waves == null) continue;
+                if (layer == null || !layer.enabled) continue;
 
-                for (int wi = 0; wi < layer.waves.Count; wi++)
+                // Per-layer deform, evaluated once per frame; composited UNDER the global deform.
+                Deform local = layer.deformEnabled
+                    ? EvalDeform(layer.deformSquash, layer.deformSkew, layer.deformWobbleAmplitude,
+                                 layer.deformWobbleFrequency, layer.deformRotation, bp, spec.seed, li, frameIndex)
+                    : Identity;
+
+                // Count: Curve reads blast progress; MinMax stays frame-stable (h2 = 0, no frame/shape).
+                int count = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.count, bp, spec.seed, li, 0, F_Count)));
+
+                for (int si = 0; si < count; si++)
                 {
-                    var wave = layer.waves[wi];
-                    if (wave == null || wave.count <= 0) continue;
+                    // Deterministic per-shape rng — same across every frame, so scatter/life are stable.
+                    int shapeSeed = ShapeSeed(spec.seed, li, si);
+                    var rng = new System.Random(shapeSeed);
 
-                    for (int si = 0; si < wave.count; si++)
+                    // Per-shape life window, optionally jittered so shapes don't pop in unison.
+                    float span = Mathf.Max(1f, layer.endFrame - layer.startFrame);
+                    float lifeJit = (float)(rng.NextDouble() * 2.0 - 1.0) * layer.perShapeLifeJitter * span * 0.5f;
+                    float start = layer.startFrame + lifeJit;
+                    float end = layer.endFrame + lifeJit;
+                    if (end <= start) end = start + 1f;
+                    if (frameIndex < start || frameIndex > end) continue;      // not alive this frame
+                    float t = Mathf.Clamp01((frameIndex - start) / (end - start));
+
+                    // Scatter the centre within spawnRadius (uniform disc). spawnRadius is 0..1 of the explosion;
+                    // 1 reaches (almost) the canvas edge. Curve reads blast progress so the ring can expand.
+                    double ang = rng.NextDouble() * Math.PI * 2.0;
+                    double radFrac = Math.Sqrt(rng.NextDouble());
+                    float sr01 = Mathf.Clamp01(Eval(layer.spawnRadius, bp, spec.seed, li, si, F_SpawnRadius));
+                    float scatterPx = sr01 * half * 0.9f;   // 0.9 safe margin off the very edge
+                    Vector2 c = new Vector2((float)(Math.Cos(ang) * radFrac) * scatterPx,
+                                            (float)(Math.Sin(ang) * radFrac) * scatterPx);
+
+                    // Position offset (fixed / per-shape random / animated drift over blast progress).
+                    c.x += Eval(layer.positionX, bp, spec.seed, li, si, F_PosX);
+                    c.y += Eval(layer.positionY, bp, spec.seed, li, si, F_PosY);
+
+                    // Radius: start/end size lerped over life. Curve reads the shape's own life t so size can be
+                    // shaped across each shape's life; MinMax is per-shape stable so each blob keeps its size.
+                    float ss = Eval(layer.startSize, t, spec.seed, li, si, F_StartSize);
+                    float es = Eval(layer.endSize, t, spec.seed, li, si, F_EndSize);
+                    float radius = Mathf.Lerp(ss, es, t);
+                    if (radius < 0.25f) continue;
+
+                    // Alpha over life ONLY (fade in/out lives entirely in this curve now).
+                    float alpha = layer.alphaOverLife != null ? Mathf.Clamp01(layer.alphaOverLife.Evaluate(t)) : 1f;
+                    if (alpha <= 0.001f) continue;
+
+                    Color baseCol = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(t) : Color.white;
+
+                    // Disintegrate: near the end, drop an increasing fraction (up to layer.disintegrate) of pixels.
+                    float disProb = 0f;
+                    if (layer.disintegrate > 0f)
                     {
-                        // Deterministic per-shape rng — same across every frame, so scatter is stable.
-                        int shapeSeed = ShapeSeed(spec.seed, li, wi, si);
-                        var rng = new System.Random(shapeSeed);
-
-                        // Per-shape life window, optionally jittered so shapes don't pop in unison.
-                        float span = Mathf.Max(1f, wave.endFrame - wave.startFrame);
-                        float lifeJit = (float)(rng.NextDouble() * 2.0 - 1.0) * wave.perShapeLifeJitter * span * 0.5f;
-                        float start = wave.startFrame + lifeJit;
-                        float end = wave.endFrame + lifeJit;
-                        if (end <= start) end = start + 1f;
-                        if (frameIndex < start || frameIndex > end) continue;      // not alive this frame
-                        float t = Mathf.Clamp01((frameIndex - start) / (end - start));
-
-                        // Scatter the centre within spawnRadius (uniform disc), plus square jitter.
-                        double ang = rng.NextDouble() * Math.PI * 2.0;
-                        double rad = Math.Sqrt(rng.NextDouble()) * wave.spawnRadius;
-                        float jx = (float)(rng.NextDouble() * 2.0 - 1.0) * wave.posJitter;
-                        float jy = (float)(rng.NextDouble() * 2.0 - 1.0) * wave.posJitter;
-                        Vector2 c = new Vector2((float)(Math.Cos(ang) * rad) + jx, (float)(Math.Sin(ang) * rad) + jy);
-
-                        // Radius over life, plus grow/shrink envelope from the spawn/end modes.
-                        float radius = Mathf.Lerp(wave.startSize, wave.endSize, t);
-                        const float spawnFrac = 0.25f, endFrac = 0.25f;
-                        if (wave.spawnMode == SpawnMode.GrowIn) radius *= Mathf.Clamp01(t / spawnFrac);
-                        if (wave.endMode == EndMode.Shrink) radius *= Mathf.Clamp01((1f - t) / endFrac);
-                        if (radius < 0.25f) continue;
-
-                        // Alpha over life × spawn/end fade envelope.
-                        float spawnEnv = wave.spawnMode == SpawnMode.FadeIn ? Mathf.Clamp01(t / spawnFrac) : 1f;
-                        float endEnv = wave.endMode == EndMode.FadeOut ? Mathf.Clamp01((1f - t) / endFrac) : 1f;
-                        float curveA = wave.alphaOverLife != null ? Mathf.Clamp01(wave.alphaOverLife.Evaluate(t)) : 1f;
-                        float alpha = curveA * spawnEnv * endEnv;
-                        if (alpha <= 0.001f) continue;
-
-                        Color baseCol = wave.colorOverLife != null ? wave.colorOverLife.Evaluate(t) : Color.white;
-
-                        // Disintegrate: near the end, drop an increasing fraction of pixels.
-                        float disProb = 0f;
-                        if (wave.endMode == EndMode.Disintegrate)
-                        {
-                            const float ds = 0.6f;
-                            disProb = t > ds ? (t - ds) / (1f - ds) : 0f;
-                        }
-
-                        RasterShape(buf, size, center, spec, framePhase, wave, c, radius, baseCol, alpha, t, shapeSeed, disProb);
+                        const float ds = 0.6f;
+                        disProb = t > ds ? (t - ds) / (1f - ds) * Mathf.Clamp01(layer.disintegrate) : 0f;
                     }
+
+                    // Crescent mask offset (animatable).
+                    float crescX = Eval(layer.crescentOffsetX, bp, spec.seed, li, si, F_CrescentX);
+                    float crescY = Eval(layer.crescentOffsetY, bp, spec.seed, li, si, F_CrescentY);
+
+                    // ── keep-on-screen guarantee ──────────────────────────────────
+                    // A pixel-art explosion must never be clipped flat at the canvas edge. Cap the radius to the
+                    // canvas half, then clamp the (undeformed) centre so the whole shape fits inside the canvas.
+                    // Deform warps sampling afterwards, but clamping here removes the "cut off" look the flat edge
+                    // produced; the rasterizer additionally only ever writes inside the canvas.
+                    float effR = Mathf.Min(radius, half);
+                    float absX = Mathf.Clamp(center + c.x, effR, size - effR);
+                    float absY = Mathf.Clamp(center + c.y, effR, size - effR);
+                    c = new Vector2(absX - center, absY - center);
+                    radius = effR;
+
+                    RasterShape(buf, size, center, global, local, framePhase, layer, c, radius, baseCol, alpha,
+                                t, shapeSeed, disProb, crescX, crescY);
                 }
             }
             return buf;
         }
 
         // ── per-shape rasteriser ───────────────────────────────────────────────
-        // Iterates the whole canvas, maps each pixel back through the global deform into undeformed "blast
-        // space", runs the hard shape test there, then composites source-over. Whole-canvas iteration keeps the
-        // deform correct with zero clipping risk; canvases are small and the runtime player caches its frames.
-        static void RasterShape(Color32[] buf, int size, float center, BlastSpec spec, float framePhase,
-                                Wave wave, Vector2 c, float radius, Color baseCol, float alpha, float t,
-                                int shapeSeed, float disProb)
+        // Iterates the whole canvas, maps each pixel back through (global ∘ per-layer) deform into undeformed
+        // "blast space", runs the hard shape test there, then composites source-over. Whole-canvas iteration keeps
+        // the deform correct with zero clipping risk; canvases are small and the runtime player caches its frames.
+        static void RasterShape(Color32[] buf, int size, float center, Deform global, Deform local, float framePhase,
+                                Layer layer, Vector2 c, float radius, Color baseCol, float alpha, float t,
+                                int shapeSeed, float disProb, float crescX, float crescY)
         {
-            float sq = Mathf.Approximately(spec.squash, 0f) ? 1f : spec.squash;
-
             for (int y = 0; y < size; y++)
             {
-                float uy = (y + 0.5f) - center;
-                float wob = spec.wobbleAmplitude * Mathf.Sin(uy * spec.wobbleFrequency * 0.1f + framePhase);
                 for (int x = 0; x < size; x++)
                 {
-                    // Inverse deform: y maps straight, x un-shears / un-squashes / un-wobbles.
-                    float ux = ((x + 0.5f) - center - spec.skew * uy - wob) / sq;
+                    // Forward map is screen = global(local(undeformed)); invert in reverse order.
+                    Vector2 off = new Vector2((x + 0.5f) - center, (y + 0.5f) - center);
+                    off = InverseDeform(off, global, framePhase);
+                    off = InverseDeform(off, local, framePhase);
+                    float ux = off.x, uy = off.y;
 
-                    if (!ShapeHit(wave, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, out Color col)) continue;
+                    if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, out Color col))
+                        continue;
 
                     // Disintegrate drop-out (deterministic per pixel).
                     if (disProb > 0f && Hash01(shapeSeed ^ 0x1B873593, x, y) < disProb) continue;
@@ -121,54 +168,114 @@ namespace Laubrary.Pyre
         }
 
         // Returns whether this undeformed pixel is inside the shape, and the colour to lay down.
-        static bool ShapeHit(Wave wave, float ux, float uy, Vector2 c, float radius, float t,
-                             int shapeSeed, int x, int y, Color baseCol, out Color col)
+        static bool ShapeHit(Layer layer, float ux, float uy, Vector2 c, float radius, float t,
+                             int shapeSeed, int x, int y, Color baseCol, float crescX, float crescY, out Color col)
         {
             col = baseCol;
             float dx = ux - c.x, dy = uy - c.y;
             float dist = Mathf.Sqrt(dx * dx + dy * dy);
 
-            switch (wave.shape)
+            switch (layer.shape)
             {
-                case WaveShape.Disc:
+                case LayerShape.Disc:
                     return dist <= radius;
 
-                case WaveShape.Ring:
+                case LayerShape.Ring:
                 {
-                    float thk = Mathf.Max(1f, wave.ringThickness);
+                    float thk = Mathf.Max(1f, layer.ringThickness);
                     return dist <= radius && dist >= radius - thk;
                 }
 
-                case WaveShape.DissolvingDisc:
+                case LayerShape.DissolvingDisc:
                 {
                     if (dist > radius) return false;
                     float holeR = t * radius;                                  // hole grows to full by end
-                    Vector2 hc = c + Vector2.right * (wave.dissolveCenter * radius);
+                    Vector2 hc = c + Vector2.right * (layer.dissolveCenter * radius);
                     float hdist = Vector2.Distance(new Vector2(ux, uy), hc);
-                    bool border = wave.dissolveKeepBorder && dist >= radius - 1f;
+                    bool border = layer.dissolveKeepBorder && dist >= radius - 1f;
                     return hdist >= holeR || border;
                 }
 
-                case WaveShape.SparkleField:
+                case LayerShape.SparkleField:
                 {
                     if (dist > radius) return false;
                     float h = Hash01(shapeSeed, x, y);
-                    if (h >= wave.sparkleDensity) return false;
+                    if (h >= layer.sparkleDensity) return false;
                     // Shimmer: shift each lit pixel along the gradient by its own hash and by life.
-                    if (wave.colorOverLife != null)
-                        col = wave.colorOverLife.Evaluate(Mathf.Repeat(t + h, 1f));
+                    if (layer.colorOverLife != null)
+                        col = layer.colorOverLife.Evaluate(Mathf.Repeat(t + h, 1f));
                     return true;
                 }
 
-                case WaveShape.Crescent:
+                case LayerShape.Crescent:
                 {
                     if (dist > radius) return false;
-                    Vector2 mc = c + wave.crescentOffset;
+                    Vector2 mc = c + new Vector2(crescX, crescY);
                     float mdist = Vector2.Distance(new Vector2(ux, uy), mc);
                     return mdist > radius;                                      // masked out where the offset disc overlaps
                 }
             }
             return false;
+        }
+
+        // ── ZUIValue evaluation (deterministic) ─────────────────────────────────
+        // curveProgress is the normalized time a Curve is sampled at (caller-chosen: blast progress or life t).
+        // The four hash ints seed the MinMax System.Random; pass a frame-stable set for per-shape values and one
+        // that includes the frame index for per-frame deform shakes.
+        static float Eval(ZUIValue v, float curveProgress, int h0, int h1, int h2, int h3)
+        {
+            if (v == null) return 0f;
+            switch (v.mode)
+            {
+                case ZUIValue.Mode.Static:
+                    return v.staticValue;
+                case ZUIValue.Mode.MinMax:
+                {
+                    var rng = new System.Random(Hash(h0, h1, h2, h3));
+                    return Mathf.Lerp(v.min, v.max, (float)rng.NextDouble());
+                }
+                case ZUIValue.Mode.Curve:
+                    // Points are authored in normalized [0..1]; sample directly (ignore duration/warmup/cooldown —
+                    // those are for the runtime-seconds use case, not our frame-baked timeline).
+                    return ZUIEnvelopeEvaluator.Evaluate(v.points, Mathf.Clamp01(curveProgress), v.yMax);
+                default:
+                    return v.staticValue;
+            }
+        }
+
+        static Deform EvalDeform(ZUIValue squash, ZUIValue skew, ZUIValue wobAmp, ZUIValue wobFreq, ZUIValue rot,
+                                 float bp, int seed, int layerId, int frameIndex)
+        {
+            return new Deform
+            {
+                sq = Eval(squash, bp, seed, layerId, frameIndex, F_Squash),
+                skew = Eval(skew, bp, seed, layerId, frameIndex, F_Skew),
+                amp = Eval(wobAmp, bp, seed, layerId, frameIndex, F_WobAmp),
+                freq = Eval(wobFreq, bp, seed, layerId, frameIndex, F_WobFreq),
+                rotDeg = Eval(rot, bp, seed, layerId, frameIndex, F_Rot),
+            };
+        }
+
+        // Inverse of one deform block, applied to a pixel offset from the canvas centre. Forward order is
+        // rotate → squash-x → skew → wobble (skew & wobble depend only on y, so the inverse is closed-form).
+        static Vector2 InverseDeform(Vector2 off, Deform d, float phase)
+        {
+            float x = off.x, y = off.y;
+            // un-wobble (depends on y only)
+            if (d.amp != 0f) x -= d.amp * Mathf.Sin(y * d.freq * 0.1f + phase);
+            // un-skew (depends on y only)
+            if (d.skew != 0f) x -= d.skew * y;
+            // un-squash
+            float sq = Mathf.Approximately(d.sq, 0f) ? 1f : d.sq;
+            x /= sq;
+            // un-rotate by -θ (recover the pre-rotation coords)
+            if (d.rotDeg != 0f)
+            {
+                float rad = -d.rotDeg * Mathf.Deg2Rad;
+                float cos = Mathf.Cos(rad), sin = Mathf.Sin(rad);
+                return new Vector2(x * cos - y * sin, x * sin + y * cos);
+            }
+            return new Vector2(x, y);
         }
 
         // ── source-over compositing in straight alpha ──────────────────────────
@@ -192,14 +299,28 @@ namespace Laubrary.Pyre
         }
 
         // ── determinism helpers ────────────────────────────────────────────────
-        static int ShapeSeed(int seed, int layer, int wave, int shape)
+        static int ShapeSeed(int seed, int layer, int shape)
         {
             unchecked
             {
                 int h = seed;
                 h = h * 397 + layer;
-                h = h * 397 + wave;
                 h = h * 397 + shape;
+                return h;
+            }
+        }
+
+        // Combine four ints into a stable seed (31-multiply chain). No GetHashCode / no UnityEngine.Random, so the
+        // result is identical on every platform and every render.
+        static int Hash(int a, int b, int c, int d)
+        {
+            unchecked
+            {
+                int h = 17;
+                h = h * 31 + a;
+                h = h * 31 + b;
+                h = h * 31 + c;
+                h = h * 31 + d;
                 return h;
             }
         }

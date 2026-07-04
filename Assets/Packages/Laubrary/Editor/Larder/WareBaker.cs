@@ -5,22 +5,29 @@ using UnityEngine;
 
 namespace Laubrary.Larder.Editor
 {
-    /// Bakes a WareSpec's damage-stage sprites out to real PNG assets in the HOST project (never into the package).
-    /// It leans on the same WareGenerator the preview uses, so a baked sprite is pixel-for-pixel what you saw. GUARD
+    /// Bakes a WareSpec's damage-stage sprites out to real PNG assets, written NEXT TO the WareSpec asset itself
+    /// (so a tool's content stays in one place, following the Laubrary layout — no separate top-level folder). It
+    /// leans on the same WareGenerator the preview uses, so a baked sprite is pixel-for-pixel what you saw. GUARD
     /// RAIL: it only ever creates files. If a target path already exists it versions the name (_1, _2…) rather than
     /// clobbering the user's asset, and it logs exactly what it wrote.
     public static class WareBaker
     {
-        public const string Root = "Assets/Larder";
+        /// The folder that holds the spec asset (fallback "Assets" for an unsaved, in-memory spec).
+        static string SpecFolder(WareSpec spec)
+        {
+            string p = AssetDatabase.GetAssetPath(spec);
+            return string.IsNullOrEmpty(p) ? "Assets" : Path.GetDirectoryName(p).Replace('\\', '/');
+        }
 
-        /// Bake all stages of one spec. subfolder (optional) groups a variation grid under Assets/Larder/<subfolder>.
+        /// Bake all stages of one spec, beside the spec asset. subfolder (optional) nests a variation grid under it.
         /// Returns the project-relative paths created.
-        public static List<string> Bake(WareSpec spec, string subfolder = null)
+        public static List<string> Bake(WareSpec spec, string subfolder = null, string baseDir = null)
         {
             var created = new List<string>();
             if (spec == null) { Debug.LogWarning("[Larder] Bake skipped: null spec."); return created; }
 
-            string dir = string.IsNullOrEmpty(subfolder) ? Root : Root + "/" + subfolder;
+            string dir = baseDir ?? SpecFolder(spec);
+            if (!string.IsNullOrEmpty(subfolder)) dir = dir + "/" + subfolder;
             EnsureFolder(dir);
 
             int stages = Mathf.Clamp(spec.damageStages, 1, 4);
@@ -47,22 +54,24 @@ namespace Laubrary.Larder.Editor
             return created;
         }
 
-        /// Roll `count` variations off a base spec and bake each into Assets/Larder/Variations. Each variation reseeds
-        /// itself in Randomize, so names never collide; the guard rail still versions any that somehow would.
+        /// Roll `count` variations off a base spec and bake each into a "Variations" subfolder BESIDE the base spec.
+        /// Each variation reseeds itself in Randomize, so names never collide; the guard rail still versions any that
+        /// somehow would.
         public static List<string> BakeVariationGrid(WareSpec baseSpec, int count)
         {
             var all = new List<string>();
             if (baseSpec == null) { Debug.LogWarning("[Larder] Variation bake skipped: null spec."); return all; }
             string sub = "Variations";
+            string baseDir = SpecFolder(baseSpec);
             var rng = new System.Random(baseSpec.seed);
             for (int i = 0; i < count; i++)
             {
                 var v = baseSpec.Clone();
                 v.Randomize(new System.Random(rng.Next()));
-                all.AddRange(Bake(v, sub));
+                all.AddRange(Bake(v, sub, baseDir));
                 Object.DestroyImmediate(v); // the clone is a throwaway SO, not an asset
             }
-            Debug.Log($"[Larder] Baked variation grid of {count} → {Root}/{sub}");
+            Debug.Log($"[Larder] Baked variation grid of {count} → {baseDir}/{sub}");
             return all;
         }
 

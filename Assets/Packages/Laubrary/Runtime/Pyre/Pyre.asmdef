@@ -1,7 +1,9 @@
 {
     "name": "com.Lautaro-Arino.Laubrary.Pyre",
     "rootNamespace": "Laubrary.Pyre",
-    "references": [],
+    "references": [
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

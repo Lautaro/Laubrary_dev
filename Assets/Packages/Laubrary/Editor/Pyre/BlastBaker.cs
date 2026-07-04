@@ -6,27 +6,31 @@ using Laubrary.Pyre;
 
 namespace Laubrary.Pyre.Editor
 {
-    /// Bakes a BlastSpec into the HOST project's Assets/Pyre/: a horizontal-ish sprite sheet PNG sliced into
+    /// Bakes a BlastSpec into the SAME folder as the spec asset: a horizontal-ish sprite sheet PNG sliced into
     /// per-frame sprites, plus an AnimationClip that cycles them. Renders through the shared BlastRenderer, so a
-    /// bake is byte-identical to the editor preview and the runtime player.
+    /// bake is byte-identical to the editor preview and the runtime player. No dedicated Assets/Pyre/ folder —
+    /// the outputs sit right next to the asset you baked (following the Laubrary flat-folder convention).
     ///
     /// GUARD RAIL: never overwrites an existing user asset. If a target path is taken, the name is versioned
     /// (blast_1, blast_2, …) and every created path is logged.
     public static class BlastBaker
     {
-        const string Dir = "Assets/Pyre";
-
         public static void Bake(BlastSpec spec, int fps = 24)
         {
             if (spec == null) { Debug.LogWarning("[Pyre] Bake skipped: no BlastSpec."); return; }
-            EnsureDir();
+
+            // Bake beside the spec asset; fall back to "Assets" if the spec is unsaved.
+            string specPath = AssetDatabase.GetAssetPath(spec);
+            string dir = string.IsNullOrEmpty(specPath) ? "Assets" : Path.GetDirectoryName(specPath);
+            if (string.IsNullOrEmpty(dir)) dir = "Assets";
+            dir = dir.Replace('\\', '/');
 
             int size = Mathf.Max(1, spec.canvasSize);
             var sheet = BlastRenderer.RenderSheet(spec, out int cols, out int rows, 8);
 
             // 1) write the PNG (never clobbering an existing file)
             string baseName = SanitizeName(spec.name.Length > 0 ? spec.name : "Blast");
-            string pngPath = UniquePath(Dir, baseName, "png");
+            string pngPath = UniquePath(dir, baseName, "png");
             File.WriteAllBytes(pngPath, sheet.EncodeToPNG());
             Object.DestroyImmediate(sheet);
             AssetDatabase.ImportAsset(pngPath, ImportAssetOptions.ForceUpdate);
@@ -79,18 +83,13 @@ namespace Laubrary.Pyre.Editor
             settings.loopTime = true;
             AnimationUtility.SetAnimationClipSettings(clip, settings);
 
-            string clipPath = UniquePath(Dir, baseName, "anim");
+            string clipPath = UniquePath(dir, baseName, "anim");
             AssetDatabase.CreateAsset(clip, clipPath);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
             Debug.Log($"[Pyre] Baked '{spec.name}' → sheet: {pngPath}  ·  clip: {clipPath}  ({sprites.Count} frames @ {fps}fps)");
             EditorGUIUtility.PingObject(AssetDatabase.LoadAssetAtPath<Object>(pngPath));
-        }
-
-        static void EnsureDir()
-        {
-            if (!AssetDatabase.IsValidFolder(Dir)) AssetDatabase.CreateFolder("Assets", "Pyre");
         }
 
         // Return a path under dir for baseName.ext that does not exist yet (versioning the name if needed).
