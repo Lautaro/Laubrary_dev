@@ -4,7 +4,7 @@
     "references": [
         "com.Lautaro-Arino.Laubrary.Choreographer",
         "ZUI.Editor",
-        "ZUI.Runtime"
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
     ],
     "includePlatforms": [
         "Editor"

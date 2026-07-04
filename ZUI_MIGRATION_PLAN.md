@@ -1,8 +1,25 @@
 # ZUI → Laubrary Migration Plan
 
-**Status:** Planning / Step 1 groundwork. No source moved yet.
-**Canonical base chosen:** this project (`Laubrary Dev`) — it holds the canonical package (v0.0.19, own git) and the most modern ZUI core.
+**Status:** In progress — ZUI moved into the package + runtimes merged (v0.1.0). Consumer rollout pending.
+**Canonical base:** this project (`Laubrary Dev`) — taken **as-is**, no reconciliation with forks.
 **Date started:** 2026-07-04.
+
+### Revised strategy (2026-07-04)
+Do **not** reconcile the diverged forks now. `Zounds`, `ZTracker`, and `S Som I Stella` keep their own
+flavour of ZUI. We make Laubrary.ZUI the shared, developable home from Laubrary Dev's current ZUI, roll
+it out to Laubrary/ZUI consumers, and **later** assimilate anything worthwhile from the forks and merge
+Laubrary.ZUI back into them. `ZUI_RECONCILE_MANIFEST.md` is therefore **deferred**, not part of this pass.
+
+### Progress
+- [x] **Move ZUI into the package** — `Assets/ZUI` → `Assets/Packages/Laubrary/Zui` (intact; SystemAssets
+      travel with it). Install-path auto-detection verified resolving to the package; editor sheet loads.
+- [x] **Merge the two runtimes** — data layer (`ZUI.Runtime`) + drawing (`ZuiRuntime`) → single assembly
+      `com.Lautaro-Arino.Laubrary.ZuiRuntime`. `ZUI.Editor` + Choreographer repointed. Compiles clean.
+- [x] Package bumped to **0.1.0** + CHANGELOG.
+- [ ] Visual smoke test (Zhowcase gallery + Zeditor render) — **needs an eyeball in the Editor**.
+- [ ] Optional: rename `ZUI.Editor` → `com.Lautaro-Arino.Laubrary.Zui.Editor` for naming consistency.
+- [ ] Optional: code-level dedup of `ZuiScale`↔`ZUISpacingScale`, `Zui` primitives↔`ZUICore`.
+- [ ] Roll out to Laubrary consumers (Template first, then ClaudeUI/OutBurner/TrueEye/RiskyRemake/3DLab/TinyWar).
 
 ---
 

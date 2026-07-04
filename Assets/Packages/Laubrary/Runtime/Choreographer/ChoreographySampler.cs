@@ -155,6 +155,10 @@ namespace Laubrary.Choreographer
 
         public static float Ni(int index, int count) => count > 1 ? (float)index / (count - 1) : 0.5f;
 
+        /// The canonical per-index colour (cyan→magenta by normalised index). Shared by the editor preview and the
+        /// runtime debug view so they never diverge.
+        public static Color IndexColor(float ni) => Color.HSVToRGB(Mathf.Lerp(0.52f, 0.95f, Mathf.Clamp01(ni)), 0.65f, 1f);
+
         static float Smooth01(float x) => Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(x));
     }
 

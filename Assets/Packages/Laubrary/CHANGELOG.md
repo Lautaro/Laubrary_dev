@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2026-07-04
+
+### Added
+- **ZUI** — the editor UI framework (the `ZUI` global type: style sheets, sliders, colour pickers,
+  envelopes, the Style Editor / Zeditor and the Zhowcase gallery) now ships **inside Laubrary** at
+  `Zui/` instead of being hand-copied into each project's `Assets/ZUI/`. Install-path auto-detection
+  resolves to the package location, so its SystemAssets (sheets, icons, fonts) travel with it.
+
+### Changed
+- **Runtime assemblies merged.** The editor toolkit's data layer (`ZUI.Runtime` — style defs,
+  palettes, colours, envelopes, `ZUIAssetLibrary`) and the immediate-mode drawing toolkit
+  (`ZuiRuntime` — `Zui`, `ZuiStack`, `ZuiMenu`, gamepad visualisers, `ZuiAudit`) are now a **single
+  runtime assembly** `com.Lautaro-Arino.Laubrary.ZuiRuntime`. The old `ZUI.Runtime` assembly is
+  retired; `ZUI.Editor` and Choreographer now reference the merged assembly. Type names and
+  namespaces are unchanged, so consumer `ZUI.*` / `ZuiRuntime.*` call sites are unaffected.
+  ⚠ Projects with a vendored `Assets/ZUI/` must delete it when adopting this version, or duplicate
+  global `ZUI` types collide.
+
 ## [0.0.19] - 2026-07-03
 
 ### Added
