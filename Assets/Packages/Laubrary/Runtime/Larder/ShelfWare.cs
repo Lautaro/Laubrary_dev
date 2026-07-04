@@ -2,15 +2,19 @@ using UnityEngine;
 
 namespace Laubrary.Larder
 {
-    /// A single destructible product on a shelf. It owns a WareSpec, asks WareGenerator for one sprite per damage
-    /// stage (once, cached), and shows stage 0. Every Hit rattles the object and coughs up a colour-sampled pixel
-    /// burst; each hpPerStage hits advance it one stage (swapping in the more-wrecked sprite) until, past the last
-    /// stage, it flings a final chunk and removes itself. The spec/renderer are guarded so a half-wired object is inert
-    /// rather than throwing.
+    /// A single destructible product on a shelf. Its damage-stage sprites come from one of two sources: pre-baked
+    /// sprite assets set in <see cref="bakedStages"/> (so the product is visible and editable in the scene at author
+    /// time), or, if none are assigned, generated on the fly from a WareSpec via WareGenerator. Either way it shows
+    /// stage 0 and every Hit rattles the object, coughs up a colour-sampled pixel burst, and — each hpPerStage hits —
+    /// advances one stage until, past the last, it flings a final chunk and removes itself. Everything is guarded so a
+    /// half-wired object is inert rather than throwing.
     [RequireComponent(typeof(SpriteRenderer))]
     [DisallowMultipleComponent]
     public class ShelfWare : MonoBehaviour
     {
+        [Tooltip("Pre-baked damage-stage sprites (stage 0 = intact). If set, these are used and the product shows in " +
+                 "the scene at author time. Leave empty to generate from the WareSpec at runtime instead.")]
+        public Sprite[] bakedStages;
         public WareSpec spec;
         public int currentStage;
         public int hpPerStage = 1;
@@ -27,10 +31,12 @@ namespace Laubrary.Larder
             sr = GetComponent<SpriteRenderer>();
             shake = GetComponent<WareShake>();
             if (shake == null) shake = gameObject.AddComponent<WareShake>();
+            if (sr == null) return;
 
-            if (spec == null || sr == null) return;
+            if (bakedStages != null && bakedStages.Length > 0) stages = bakedStages;
+            else if (spec != null) stages = WareGenerator.CreateAllStages(spec);
+            else return; // no source of sprites — stay inert
 
-            stages = WareGenerator.CreateAllStages(spec);
             currentStage = Mathf.Clamp(currentStage, 0, stages.Length - 1);
             sr.sprite = stages[currentStage];
             hp = Mathf.Max(1, hpPerStage);
@@ -67,7 +73,8 @@ namespace Laubrary.Larder
             if (tex == null) return;
             var rng = new System.Random(Random.Range(int.MinValue, int.MaxValue));
             var colors = WareGenerator.SampleOpaqueColors(tex, rng, 16);
-            float unit = 1f / Mathf.Max(1f, spec.pixelsPerUnit);
+            float ppu = spec != null ? spec.pixelsPerUnit : sr.sprite.pixelsPerUnit;
+            float unit = 1f / Mathf.Max(1f, ppu);
             WareDebris.Burst(at, colors, sr.bounds.size.magnitude * 0.25f * scaleMul + unit);
         }
 

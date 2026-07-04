@@ -77,6 +77,7 @@ namespace Laubrary.Larder.Editor
             imp.mipmapEnabled = false;
             imp.textureCompression = TextureImporterCompression.Uncompressed;
             imp.alphaIsTransparency = true;
+            imp.isReadable = true; // ShelfWare samples the sprite's pixels for its colour-matched destruction burst
             imp.SaveAndReimport();
         }
 
