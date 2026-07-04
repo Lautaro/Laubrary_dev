@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-07-04
+
+### Added
+- **Larder** — a tool for procedurally generating endless variations of pixel-art **shelf products**
+  ("Wares") seen from the front, for store-loot / horde-shooter scenes. A **WareSpec** (ScriptableObject)
+  describes one product by a small set of dials — **WareKind** (Book, Can, Box, Crate, Carton),
+  **WareShape** (Rectangular, RoundedRect, Round, Spherical), **FillMode** (Solid, Gradient, InnerGlow,
+  InnerShadow), a colour scheme (six palettes), a fake white scribble **Label** (Horizontal, Diagonal or a
+  narrower CenterPatch), **Corner** treatments (colour triangle, rounded, cut-off), decorative **Bands** and
+  spots, and an optional **Lid**. Adds `Runtime/Larder/` (`com.Lautaro-Arino.Laubrary.Larder`, namespace
+  `Laubrary.Larder`): `WareGenerator` — one deterministic, `System.Random(seed)`-seeded painter shared by the
+  editor preview, the baker and the runtime, so preview == bake == runtime — plus the **destruction system**
+  (`ShelfWare`, `WareShake`, `WareDebris`): a shot product bursts into a cloud of pixels whose colours are
+  sampled from its own texture, swaps to its next pre-generated **damage stage** (top torn off along an
+  irregular scorched edge — 2–4 stages per ware), rattles, and can fling a broken chunk. Editor (`.Editor`)
+  adds the **Larder** window under **Laubrary ▸ Larder**: live pixel preview, damage-stage strip, Randomize,
+  and a never-overwrite sprite baker into `Assets/Larder/`. Ships zero assets. Demo: a clickable
+  "shoot the stocked shelves" scene (**Laubrary ▸ Larder ▸ Build Demo Scene**).
+- **Pyre** — a tool for baking pixel-art **explosion / hit animations** from stacked **Layers** of timed
+  **Waves**. A **BlastSpec** (ScriptableObject) is Layers → Waves → shapes; a **Wave** is a burst of shapes
+  (**WaveShape**: Disc, Ring, DissolvingDisc, SparkleField, Crescent) alive over a span of frames, changing
+  size, position, colour and alpha across life, with **SpawnMode**/**EndMode** envelopes and global
+  squash/skew/wobble **deform** for directional blasts. Adds `Runtime/Pyre/`
+  (`com.Lautaro-Arino.Laubrary.Pyre`, namespace `Laubrary.Pyre`): `BlastRenderer` — one deterministic pure
+  renderer (`RenderFrame`/`RenderSheet`, per-shape RNG hashed from seed+layer+wave+shape) shared by preview,
+  baker and runtime — plus `BlastPlayer` (renders frames to cached in-memory sprites and plays them). Editor
+  (`.Editor`) adds the **Pyre** window under **Laubrary ▸ Pyre**: a layer/wave list editor, a live looping
+  preview with a frame scrubber and a **retime** (frame-count) slider so you can try counts after the fact,
+  and a never-overwrite baker to a sliced sprite sheet + looping **AnimationClip** in `Assets/Pyre/`. Ships
+  zero assets. Demo: a click-to-explode scene (**Laubrary ▸ Pyre ▸ Build Demo Scene**).
+
 ## [0.1.0] - 2026-07-04
 
 ### Added

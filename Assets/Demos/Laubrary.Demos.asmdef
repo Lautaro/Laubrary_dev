@@ -25,6 +25,8 @@
         "com.Lautaro-Arino.Laubrary.WorldSpaceUINavigation",
         "com.Lautaro-Arino.Laubrary.Overture",
         "com.Lautaro-Arino.Laubrary.Choreographer",
+        "com.Lautaro-Arino.Laubrary.Larder",
+        "com.Lautaro-Arino.Laubrary.Pyre",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime"
     ],
     "includePlatforms": [],
