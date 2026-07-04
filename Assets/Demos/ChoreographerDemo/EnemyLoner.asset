@@ -31,4 +31,5 @@ MonoBehaviour:
   useLauncher: 0
   launchBlend: 0.25
   useTarget: 0
-  retargetAt: 0.6
+  releaseAt: 0.6
+  targetBlend: 0.35

@@ -69,13 +69,15 @@ public static class ChoreoDemoBuilder
         boss.transform.position = new Vector3(-6f, 0f, 0f);
         var bw = boss.AddComponent<ChoreoDemoWander>(); bw.min = new(-8f, -3.5f); bw.max = new(-4.5f, 3.5f); bw.speed = 1.5f;
 
-        // Barrage projectiles: EnemyShots that explode on the player.
+        // Barrage projectiles: EnemyShots that explode on the player. Count is runtime-adjustable via DemoWave.
         var barrageRoot = new GameObject("Barrage");
         var barragePlayer = MakePlayer(barrageRoot, barrageC);
         barragePlayer.launcher = boss.transform;
         barragePlayer.target = player.transform;
-        SpawnActorDancers(barragePlayer, barrageRoot, barrageC.defaultCount, 0.4f, DemoSprites.Shape.Circle,
-            new Color(1f, 0.7f, 0.2f), DemoFaction.EnemyShot, new[] { DemoFaction.Player });
+        var bwave = barrageRoot.AddComponent<DemoWave>();
+        bwave.player = barragePlayer; bwave.count = barrageC.defaultCount; bwave.scale = 0.4f;
+        bwave.shape = DemoSprites.Shape.Circle; bwave.color = new Color(1f, 0.7f, 0.2f);
+        bwave.faction = DemoFaction.EnemyShot; bwave.explodesOn = new[] { DemoFaction.Player, DemoFaction.PlayerShot };
         barrageRoot.AddComponent<ChoreographyDebugView>().player = barragePlayer;
 
         // Four enemy formation waves — each a choreography, exploding on the player or the player's shots.
@@ -264,19 +266,6 @@ public static class ChoreoDemoBuilder
         return go;
     }
 
-    static void SpawnActorDancers(ChoreographyPlayer player, GameObject root, int n, float scale,
-                                  DemoSprites.Shape shape, Color color, DemoFaction faction, DemoFaction[] explodesOn)
-    {
-        for (int i = 0; i < n; i++)
-        {
-            var go = MakeActor("Dancer " + i, root.transform, shape, color, scale, faction, explodesOn);
-            var act = go.GetComponent<DemoActor>();
-            act.choreoPlayer = player;               // hide+respawn on the wave loop instead of destroying
-            act.choreoIndex = i;
-            player.targets.Add(go.transform);
-        }
-    }
-
     static void MakeChoreoWave(string name, Choreography choreo, Vector2 worldSize, Vector3 anchorPos,
                                DemoSprites.Shape shape, Color color, float scale)
     {
@@ -288,8 +277,9 @@ public static class ChoreoDemoBuilder
         cp.worldSize = worldSize;
         cp.applyFacing = true;
         cp.targets = new List<Transform>();
-        SpawnActorDancers(cp, root, choreo.defaultCount, scale, shape, color, DemoFaction.Enemy,
-            new[] { DemoFaction.Player, DemoFaction.PlayerShot });
+        var w = root.AddComponent<DemoWave>();
+        w.player = cp; w.count = choreo.defaultCount; w.scale = scale; w.shape = shape; w.color = color;
+        w.faction = DemoFaction.Enemy; w.explodesOn = new[] { DemoFaction.Player, DemoFaction.PlayerShot };
         root.AddComponent<ChoreographyDebugView>().player = cp;
     }
 
@@ -298,7 +288,7 @@ public static class ChoreoDemoBuilder
     {
         c.pathPoints = SinePoints(17, 0.15f);
         c.smooth = true; c.constantSpeed = true;
-        c.spreadLength = 3f; c.spreadBend = 0f; c.facing = FacingMode.Fixed;
+        c.spreadLength = 0.4f; c.spreadBend = 0f; c.facing = FacingMode.Fixed;
         c.defaultCount = 6; c.duration = 6f; c.stagger = 0.25f; c.direction = Direction.Scatter; c.loop = true;
         c.useLauncher = false; c.useTarget = false;
     }
@@ -307,7 +297,7 @@ public static class ChoreoDemoBuilder
     {
         c.pathPoints = new List<Vector2> { new(-0.6f, 0.4f), new(-0.2f, 0f), new(0.2f, -0.2f), new(0.6f, -0.5f) };
         c.smooth = true; c.constantSpeed = true;
-        c.spreadLength = 2.5f; c.spreadBend = 0.25f; c.facing = FacingMode.Fixed;
+        c.spreadLength = 0.35f; c.spreadBend = 0.25f; c.facing = FacingMode.Fixed;
         c.defaultCount = 5; c.duration = 5f; c.stagger = 0.15f; c.direction = Direction.Scatter; c.loop = true;
         c.useLauncher = false; c.useTarget = false;
     }
@@ -316,7 +306,7 @@ public static class ChoreoDemoBuilder
     {
         c.pathPoints = new List<Vector2> { new(-0.6f, 0f), new(0f, 0.35f), new(0.6f, 0f) };
         c.smooth = true; c.constantSpeed = true;
-        c.spreadLength = 3.5f; c.spreadBend = 0.1f; c.facing = FacingMode.Fixed;
+        c.spreadLength = 0.45f; c.spreadBend = 0.1f; c.facing = FacingMode.Fixed;
         c.defaultCount = 7; c.duration = 6f; c.stagger = 0.2f; c.direction = Direction.Scatter; c.loop = true;
         c.useLauncher = false; c.useTarget = false;
     }

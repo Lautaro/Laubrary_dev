@@ -19,7 +19,7 @@ MonoBehaviour:
   - {x: 0.6, y: -0.5}
   smooth: 1
   constantSpeed: 1
-  spreadLength: 2.5
+  spreadLength: 0.35
   spreadBend: 0.25
   facing: 0
   facingAngle: 0
@@ -31,4 +31,5 @@ MonoBehaviour:
   useLauncher: 0
   launchBlend: 0.25
   useTarget: 0
-  retargetAt: 0.6
+  releaseAt: 0.6
+  targetBlend: 0.35

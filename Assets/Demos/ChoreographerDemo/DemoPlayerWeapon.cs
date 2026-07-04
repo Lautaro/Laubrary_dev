@@ -1,28 +1,34 @@
 using UnityEngine;
 
-/// Demo-only: the player fires bullets to the side at random intervals. Bullets are PlayerShots that explode
-/// enemies (and the boss) on contact.
+/// Demo-only: the player fires bullets to the side. Fire rate (interval), its randomness, bullet speed and size
+/// are all tunable at runtime. Bullets are PlayerShots that explode enemies, the boss and boss missiles.
 public class DemoPlayerWeapon : MonoBehaviour
 {
-    public float minInterval = 0.25f;
-    public float maxInterval = 1.1f;
+    [Tooltip("Base seconds between shots.")]
+    public float fireInterval = 0.5f;
+    [Range(0f, 1f)]
+    [Tooltip("How much the interval varies each shot (0 = metronome, 1 = very erratic).")]
+    public float intervalRandomness = 0.4f;
     public float bulletSpeed = 12f;
     public float bulletScale = 0.3f;
+
     public Vector2 fireDir = new(-1f, 0f);   // toward the boss side
     public float spreadDegrees = 25f;
     public Color bulletColor = new(0.4f, 0.9f, 1f, 1f);
 
     float next;
 
-    void Start() => next = Random.Range(minInterval, maxInterval);
+    void Start() => next = NextInterval();
 
     void Update()
     {
         next -= Time.deltaTime;
         if (next > 0f) return;
-        next = Random.Range(minInterval, maxInterval);
+        next = NextInterval();
         Fire();
     }
+
+    float NextInterval() => Mathf.Max(0.03f, fireInterval * Random.Range(1f - intervalRandomness, 1f + intervalRandomness));
 
     void Fire()
     {
@@ -45,10 +51,10 @@ public class DemoPlayerWeapon : MonoBehaviour
 
         var act = go.AddComponent<DemoActor>();
         act.faction = DemoFaction.PlayerShot;
-        act.explodesOn = new[] { DemoFaction.Enemy, DemoFaction.Boss };
+        act.explodesOn = new[] { DemoFaction.Enemy, DemoFaction.Boss, DemoFaction.EnemyShot };
         act.shape = DemoSprites.Shape.Circle;
         act.color = bulletColor;
-        act.explosionSize = 0.5f;
+        act.explosionSize = bulletScale;
 
         float ang = Random.Range(-spreadDegrees, spreadDegrees);
         Vector2 dir = (Vector2)(Quaternion.Euler(0, 0, ang) * fireDir.normalized);
