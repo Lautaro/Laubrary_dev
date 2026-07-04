@@ -129,7 +129,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4380655029499835623, guid: 45229dec7b4b8964983ad012537e2250, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5276928405828621079, guid: 45229dec7b4b8964983ad012537e2250, type: 3}
       propertyPath: m_Pivot.x
@@ -332,7 +332,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d7403e005ac3a2c498d4fe61e46414b0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.SimpleMenu.SimpleMenuExample
-  isEditorPreview: 1
+  isEditorPreview: 0
   menuSettings: {fileID: 11400000, guid: 4399631c53b27254ebc81b577840ccd9, type: 2}
   transitionAnimationType: 5
   transitionFromAlpha: 0
@@ -401,7 +401,7 @@ MonoBehaviour:
       m_PostInfinity: 2
       m_RotationOrder: 4
     exitSpeedMultiplier: 2
-  enableFeatureX: 0
+  enableFeatureX: 1
   someField: 
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

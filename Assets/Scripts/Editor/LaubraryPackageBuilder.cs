@@ -7,10 +7,13 @@ public class LaubraryPackageBuilder
     private const string DEMOS_SOURCE_PATH = "Assets/Demos";
     private const string DEMOS_TARGET_PATH = "Assets/Packages/Laubrary/Samples~/Demos";
     
-    private const string SIMPLEMENU_UI_SOURCE_PATH = "Assets/SimpleMenu UI";
+    private const string SIMPLEMENU_UI_SOURCE_PATH = "Assets/Samples/SimpleMenu UI";
     private const string SIMPLEMENU_UI_TARGET_PATH = "Assets/Packages/Laubrary/Samples~/SimpleMenu UI";
 
-    [MenuItem("Tools/Laubrary/Copy Demos to Package")]
+    private const string SIMPLEUI_SOURCE_PATH = "Assets/Samples/SimpleUI";
+    private const string SIMPLEUI_TARGET_PATH = "Assets/Packages/Laubrary/Samples~/SimpleUI";
+
+    [MenuItem("Laubrary Dev/Copy Demos to Package")]
     public static void CopyDemosToPackage()
     {
         if (!Directory.Exists(DEMOS_SOURCE_PATH))
@@ -63,7 +66,7 @@ public class LaubraryPackageBuilder
         }
     }
     
-    [MenuItem("Tools/Laubrary/Copy SimpleMenu UI to Package")]
+    [MenuItem("Laubrary Dev/Copy SimpleMenu UI to Package")]
     public static void CopySimpleMenuUIToPackage()
     {
         if (!Directory.Exists(SIMPLEMENU_UI_SOURCE_PATH))
@@ -116,12 +119,12 @@ public class LaubraryPackageBuilder
         }
     }
     
-    [MenuItem("Tools/Laubrary/Copy All Samples to Package")]
+    [MenuItem("Laubrary Dev/Copy All Samples to Package")]
     public static void CopyAllSamplesToPackage()
     {
         bool proceed = EditorUtility.DisplayDialog(
             "Copy All Samples to Package",
-            "This will copy:\n\n1. Demos → Samples~/Demos\n2. SimpleMenu UI → Samples~/SimpleMenu UI\n\nContinue?",
+            "This will copy:\n\n1. Demos → Samples~/Demos\n2. SimpleMenu UI → Samples~/SimpleMenu UI\n3. SimpleUI → Samples~/SimpleUI\n\nContinue?",
             "Copy All",
             "Cancel"
         );
@@ -155,6 +158,17 @@ public class LaubraryPackageBuilder
                 CopyDirectory(SIMPLEMENU_UI_SOURCE_PATH, SIMPLEMENU_UI_TARGET_PATH);
                 totalFiles += GetFileCount(SIMPLEMENU_UI_TARGET_PATH);
                 Debug.Log($"[Laubrary Package Builder] SimpleMenu UI copied to {SIMPLEMENU_UI_TARGET_PATH}");
+            }
+
+            if (Directory.Exists(SIMPLEUI_SOURCE_PATH))
+            {
+                if (Directory.Exists(SIMPLEUI_TARGET_PATH))
+                {
+                    Directory.Delete(SIMPLEUI_TARGET_PATH, true);
+                }
+                CopyDirectory(SIMPLEUI_SOURCE_PATH, SIMPLEUI_TARGET_PATH);
+                totalFiles += GetFileCount(SIMPLEUI_TARGET_PATH);
+                Debug.Log($"[Laubrary Package Builder] SimpleUI copied to {SIMPLEUI_TARGET_PATH}");
             }
 
             EditorUtility.DisplayDialog(

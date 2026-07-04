@@ -34,6 +34,8 @@ public class ZUIStyleEditorWindow : ZUIWindow
     // Draggable/resizable live-sample rect for the 9-slice inspector, stored relative to its canvas.
     private Vector2 _nsSampleSize   = new Vector2(360f, 90f);
     private Vector2 _nsSampleScroll = Vector2.zero;
+    private float   _nsPreviewZoom  = 1f;            // 9-slice preview magnification (wheel/slider)
+    private Vector2 _nsPreviewPan   = Vector2.zero;  // pan offset from centre, in screen points
     private int _buttonStateTab;      // 0 = Normal, 1 = Hover, 2 = Active
     private int _sliderThumbModeTab;  // 0 = Normal (single), 1 = MinMax (two thumbs)
     private int _sliderThumbMinState; // 0 = Normal, 1 = Hover, 2 = Active  (min thumb inspector)
@@ -1878,17 +1880,24 @@ public class ZUIStyleEditorWindow : ZUIWindow
             if (EditorGUI.EndChangeCheck()) { def.Invalidate(); changed = true; }
 
             EditorGUI.BeginChangeCheck();
+            if (def.centerScale <= 0f) def.centerScale = 1f;
+            if (def.edgeScale   <= 0f) def.edgeScale   = 1f;
             using (ZUI.Flow())
             {
                 GUILayout.Label("Centre", GUILayout.Width(52f));
                 TileModePopup("H", ref def.tileCenterX, ref def.mirrorCenterX);
                 TileModePopup("V", ref def.tileCenterY, ref def.mirrorCenterY);
+                // Scale rides the same row (use the width, not another line); live only while tiling.
+                using (new EditorGUI.DisabledScope(!def.tileCenterX && !def.tileCenterY))
+                    def.centerScale = ZUI.FloatField("Scale", def.centerScale, 56f, 0.05f, 20f);
             }
             using (ZUI.Flow())
             {
                 GUILayout.Label("Borders", GUILayout.Width(52f));
                 TileModePopup("H", ref def.tileEdgesX, ref def.mirrorEdgesX);
                 TileModePopup("V", ref def.tileEdgesY, ref def.mirrorEdgesY);
+                using (new EditorGUI.DisabledScope(!def.tileEdgesX && !def.tileEdgesY))
+                    def.edgeScale = ZUI.FloatField("Scale", def.edgeScale, 56f, 0.05f, 20f);
             }
             using (ZUI.Flow())
                 def.snapToTiles = GUILayout.Toggle(def.snapToTiles, new GUIContent(" Snap size to whole tiles", "When drawn or resized, round the frame so tiled axes hold a whole number of tiles (no partial tile at the edge)"), GUILayout.Width(210f));
@@ -1898,19 +1907,55 @@ public class ZUIStyleEditorWindow : ZUIWindow
                 EditorGUILayout.LabelField(" ", "Left+Right and Top+Bottom must each fit inside the texture.", EditorStyles.miniLabel);
         }
 
-        // ── Preview: texture aspect-fit, slice guides labelled with their pixel sizes (red if crossing). ──
+        // ── Preview: texture aspect-fit, slice guides labelled with their pixel sizes (red if crossing).
+        //    Zoom (wheel over the preview, or the slider) + drag to pan, so you can inspect the exact pixel
+        //    a divider lands on when choosing inset values. Drawn point-filtered so pixels stay crisp. ──
         if (SectionHeaderPlain("Preview", "nineslice_preview"))
         {
+            using (ZUI.Flow())
+            {
+                ZUI.Field("Zoom", 170f, () => _nsPreviewZoom = GUILayout.HorizontalSlider(_nsPreviewZoom, 1f, 32f));
+                ZUI.Field("", 40f, () => GUILayout.Label(_nsPreviewZoom.ToString("0.0") + "×", EditorStyles.miniLabel));
+                ZUI.Field("", 96f, () => { if (GUILayout.Button("Reset view")) { _nsPreviewZoom = 1f; _nsPreviewPan = Vector2.zero; } });
+            }
+
             var box = GUILayoutUtility.GetRect(256f, 240f, GUILayout.ExpandWidth(true));
-            if (Event.current.type == EventType.Repaint)
+            var e = Event.current;
+            // Wheel zooms toward the cursor (keeps the hovered texel put); left-drag pans. Handled outside
+            // the Repaint guard because input events never arrive during Repaint.
+            if (tex != null && box.Contains(e.mousePosition))
+            {
+                if (e.type == EventType.ScrollWheel)
+                {
+                    float old = _nsPreviewZoom;
+                    _nsPreviewZoom = Mathf.Clamp(_nsPreviewZoom * (1f - e.delta.y * 0.05f), 1f, 64f);
+                    float k = _nsPreviewZoom / old;
+                    Vector2 rel = e.mousePosition - box.center;
+                    _nsPreviewPan = k * _nsPreviewPan - (k - 1f) * rel;
+                    e.Use(); Repaint();
+                }
+                else if (e.type == EventType.MouseDrag && e.button == 0)
+                {
+                    _nsPreviewPan += e.delta; e.Use(); Repaint();
+                }
+                EditorGUIUtility.AddCursorRect(box, MouseCursor.Pan);
+            }
+
+            if (e.type == EventType.Repaint)
             {
                 EditorGUI.DrawRect(box, new Color(.10f, .10f, .12f, 1f));
                 if (tex != null)
                 {
-                    float scale = Mathf.Min(box.width / texW, box.height / texH);
+                    float scale = Mathf.Min(box.width / texW, box.height / texH) * _nsPreviewZoom;
                     float fw = texW * scale, fh = texH * scale;
-                    var fit = new Rect(box.x + (box.width - fw) * 0.5f, box.y + (box.height - fh) * 0.5f, fw, fh);
-                    GUI.DrawTexture(fit, tex, ScaleMode.ScaleToFit);
+                    // Content is clipped to the box so a zoomed texture can't spill into the rest of the UI.
+                    GUI.BeginClip(box);
+                    var fit = new Rect(box.width * 0.5f - fw * 0.5f + _nsPreviewPan.x,
+                                       box.height * 0.5f - fh * 0.5f + _nsPreviewPan.y, fw, fh);
+                    var prevFilter = tex.filterMode;
+                    tex.filterMode = FilterMode.Point; // crisp texels while inspecting divider positions
+                    GUI.DrawTexture(fit, tex, ScaleMode.ScaleToFit, true);
+                    tex.filterMode = prevFilter;
 
                     var okCol = new Color(0.3f, 1f, 0.55f, 0.9f);
                     var hCol = hInvalid ? red : okCol;
@@ -1930,6 +1975,7 @@ public class ZUIStyleEditorWindow : ZUIWindow
                     if (def.bottom> 0) DimBadge(fit.x + 14f, fit.yMax - def.bottom * scale * 0.5f, def.bottom.ToString());
                     int cw = texW - def.left - def.right, ch = texH - def.top - def.bottom;
                     DimBadge(midX, midY, $"{cw}×{ch}");
+                    GUI.EndClip();
                 }
                 else EditorGUI.LabelField(box, "No texture assigned", EditorStyles.centeredGreyMiniLabel);
             }

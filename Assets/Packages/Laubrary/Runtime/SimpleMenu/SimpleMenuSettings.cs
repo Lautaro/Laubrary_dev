@@ -6,6 +6,8 @@ namespace Laubrary.SimpleMenu
     [CreateAssetMenu(fileName = "SimpleMenuSettings", menuName = "Simple Menu/Settings")]
     public class SimpleMenuSettings : ScriptableObject
     {
+        private const string DEFAULT_SETTINGS_FOLDER = "Assets/Samples/SimpleMenu UI";
+
         [Header("Control Prefabs")]
         [Tooltip("Prefab for button controls")]
         public GameObject buttonPrefab;

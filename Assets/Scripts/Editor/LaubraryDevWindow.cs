@@ -77,7 +77,7 @@ public class LaubraryDevWindow : EditorWindow
     private bool showSubsequentRelease = true;
     private bool showDeleteRelease = false;
 
-    [MenuItem("Window/Laubrary Dev")]
+    [MenuItem("Laubrary Dev/Package Builder")]
     public static void ShowWindow()
     {
         var window = GetWindow<LaubraryDevWindow>("Laubrary Dev");

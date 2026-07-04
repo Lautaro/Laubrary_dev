@@ -94,4 +94,38 @@ public static partial class ZUI
         GUILayout.Space(12f);
         return value;
     }
+
+    /// <summary>The float sibling of IntField: a compact typable float with a DRAGGABLE label. Sets
+    /// GUI.changed when it moves. Drop it into a Flow row.</summary>
+    public static float FloatField(string label, float value, float bodyWidth = 56f,
+                                   float min = float.MinValue, float max = float.MaxValue, float sensitivity = 0.01f)
+    {
+        if (!string.IsNullOrEmpty(label))
+        {
+            float lw = EditorStyles.label.CalcSize(new GUIContent(label)).x + 4f;
+            GUILayout.Label(label, GUILayout.Width(lw));
+            var lr = GUILayoutUtility.GetLastRect();
+            EditorGUIUtility.AddCursorRect(lr, MouseCursor.SlideArrow);
+
+            int id = GUIUtility.GetControlID(FocusType.Passive);
+            var e = Event.current;
+            switch (e.GetTypeForControl(id))
+            {
+                case EventType.MouseDown:
+                    if (e.button == 0 && lr.Contains(e.mousePosition)) { GUIUtility.hotControl = id; e.Use(); }
+                    break;
+                case EventType.MouseDrag:
+                    if (GUIUtility.hotControl == id)
+                    { value = Mathf.Clamp(value + e.delta.x * sensitivity, min, max); GUI.changed = true; e.Use(); }
+                    break;
+                case EventType.MouseUp:
+                    if (GUIUtility.hotControl == id) { GUIUtility.hotControl = 0; e.Use(); }
+                    break;
+            }
+        }
+        float typed = EditorGUILayout.FloatField(value, GUILayout.Width(Mathf.Max(1f, bodyWidth)));
+        if (!Mathf.Approximately(typed, value)) { value = Mathf.Clamp(typed, min, max); GUI.changed = true; }
+        GUILayout.Space(12f);
+        return value;
+    }
 }

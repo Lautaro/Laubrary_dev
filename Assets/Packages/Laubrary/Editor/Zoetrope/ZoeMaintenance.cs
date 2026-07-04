@@ -11,7 +11,7 @@ namespace Laubrary.Zoetrope.Editor
     /// </summary>
     public static class ZoeMaintenance
     {
-        [MenuItem("Tools/Laubrary/Zoetrope/Repair Zoe Assets")]
+        [MenuItem("Laubrary/Zoetrope/Repair Zoe Assets")]
         public static void RepairAll()
         {
             int healed = 0, scanned = 0;

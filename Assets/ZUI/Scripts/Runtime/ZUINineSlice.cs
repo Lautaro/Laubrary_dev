@@ -28,7 +28,13 @@ public class ZUINineSliceDef
     // Mirror = alternate tiles are flipped (normal, flipped, normal, …) so a gradient meets itself
     // seamlessly. Only meaningful on an axis that also tiles; ignored otherwise.
     public bool mirrorCenterX, mirrorCenterY, mirrorEdgesX, mirrorEdgesY;
+    public float centerScale = 1f; // scales the centre's drawn tile size on BOTH axes (tiling only)
+    public float edgeScale   = 1f; // scales the edges' drawn tile length along their run (tiling only)
     public bool snapToTiles;   // when drawn, snap the frame so tiled axes hold a whole number of tiles
+
+    // Sanitised scales (a bad/zero value from old data reads as 1×).
+    float CScale => centerScale <= 0f ? 1f : Mathf.Clamp(centerScale, 0.05f, 20f);
+    float EScale => edgeScale   <= 0f ? 1f : Mathf.Clamp(edgeScale,   0.05f, 20f);
 
     [NonSerialized] GUIStyle _style;
     [NonSerialized] Texture2D _builtFor;
@@ -93,10 +99,12 @@ public class ZUINineSliceDef
         if (!Metrics(out _, out int L, out int R, out int T, out int B, out float cW, out float cH))
             return desired;
         float w = desired.x, h = desired.y;
-        if ((tileCenterX || tileEdgesX) && cW > 0.5f)
-            w = L + R + Mathf.Max(1, Mathf.RoundToInt((desired.x - L - R) / cW)) * cW;
-        if ((tileCenterY || tileEdgesY) && cH > 0.5f)
-            h = T + B + Mathf.Max(1, Mathf.RoundToInt((desired.y - T - B) / cH)) * cH;
+        // Snap to whichever tiling is visible on the axis, at its own scaled tile size; edges win over
+        // the centre so the frame boundary stays aligned to the run that touches it.
+        float uX = tileEdgesX ? cW * EScale : (tileCenterX ? cW * CScale : 0f);
+        float uY = tileEdgesY ? cH * EScale : (tileCenterY ? cH * CScale : 0f);
+        if (uX > 0.5f) w = L + R + Mathf.Max(1, Mathf.RoundToInt((desired.x - L - R) / uX)) * uX;
+        if (uY > 0.5f) h = T + B + Mathf.Max(1, Mathf.RoundToInt((desired.y - T - B) / uY)) * uY;
         return new Vector2(w, h);
     }
 
@@ -146,18 +154,20 @@ public class ZUINineSliceDef
         DrawUV(Rect.MinMaxRect(r.x, y2, x1, r.yMax), tex, new Rect(0f, 0f, uL, vB));
         DrawUV(Rect.MinMaxRect(x2, y2, r.xMax, r.yMax), tex, new Rect(uR, 0f, R / tw, vB));
 
-        // Edges — top/bottom tile on X, left/right tile on Y.
-        FillH(Rect.MinMaxRect(x1, r.y, x2, y1), tex, new Rect(uL, vT, uR - uL, T / th), tileEdgesX, cWpx, mirrorEdgesX); // top
-        FillH(Rect.MinMaxRect(x1, y2, x2, r.yMax), tex, new Rect(uL, 0f, uR - uL, vB), tileEdgesX, cWpx, mirrorEdgesX);   // bottom
-        FillV(Rect.MinMaxRect(r.x, y1, x1, y2), tex, new Rect(0f, vB, uL, vT - vB), tileEdgesY, cHpx, mirrorEdgesY);      // left
-        FillV(Rect.MinMaxRect(x2, y1, r.xMax, y2), tex, new Rect(uR, vB, R / tw, vT - vB), tileEdgesY, cHpx, mirrorEdgesY); // right
+        // Edges — top/bottom tile on X, left/right tile on Y; the edge scale sizes each edge tile's run.
+        float etW = cWpx * EScale, etH = cHpx * EScale;
+        FillH(Rect.MinMaxRect(x1, r.y, x2, y1), tex, new Rect(uL, vT, uR - uL, T / th), tileEdgesX, etW, mirrorEdgesX); // top
+        FillH(Rect.MinMaxRect(x1, y2, x2, r.yMax), tex, new Rect(uL, 0f, uR - uL, vB), tileEdgesX, etW, mirrorEdgesX);   // bottom
+        FillV(Rect.MinMaxRect(r.x, y1, x1, y2), tex, new Rect(0f, vB, uL, vT - vB), tileEdgesY, etH, mirrorEdgesY);      // left
+        FillV(Rect.MinMaxRect(x2, y1, r.xMax, y2), tex, new Rect(uR, vB, R / tw, vT - vB), tileEdgesY, etH, mirrorEdgesY); // right
 
-        // Centre — tile per axis (stretch the other).
+        // Centre — tile per axis (stretch the other). The scale sizes each drawn tile on both axes.
         var cSrc = new Rect(uL, vB, uR - uL, vT - vB);
         var cDst = Rect.MinMaxRect(x1, y1, x2, y2);
-        if (tileCenterX && tileCenterY) Fill2D(cDst, tex, cSrc, cWpx, cHpx, mirrorCenterX, mirrorCenterY);
-        else if (tileCenterX)           FillH(cDst, tex, cSrc, true, cWpx, mirrorCenterX);
-        else if (tileCenterY)           FillV(cDst, tex, cSrc, true, cHpx, mirrorCenterY);
+        float ecW = cWpx * CScale, ecH = cHpx * CScale;
+        if (tileCenterX && tileCenterY) Fill2D(cDst, tex, cSrc, ecW, ecH, mirrorCenterX, mirrorCenterY);
+        else if (tileCenterX)           FillH(cDst, tex, cSrc, true, ecW, mirrorCenterX);
+        else if (tileCenterY)           FillV(cDst, tex, cSrc, true, ecH, mirrorCenterY);
         else                            DrawUV(cDst, tex, cSrc);
     }
 
@@ -179,16 +189,33 @@ public class ZUINineSliceDef
         return new Rect(x, y, w, h);
     }
 
-    // Stretch (one draw) or tile a strip horizontally at native tile width; mirror flips odd tiles.
+    // Snap a coordinate to the pixel grid. Tiling seams come from a tile's shared edge landing on a
+    // fractional coordinate: the rasteriser then leaves that pixel column partly uncovered and the dark
+    // background shows through as a hair-thin line. Snapping every interior boundary the SAME way lands it
+    // on the grid AND makes tile N's right edge bit-identical to tile N+1's left edge — they butt exactly.
+    static float SnapPx(float v) { return Mathf.Round(v); }
+
+    // The left/top edge of tile i in a run from `start`, tiling every `size` until `end`. The first and
+    // last boundaries are the exact band ends (butt against the corners); interior ones are pixel-snapped.
+    static float Edge(int i, int count, float start, float end, float size)
+        => i <= 0 ? start : i >= count ? end : SnapPx(start + i * size);
+
+    // Stretch (one draw) or tile a strip horizontally at tile width; mirror flips odd tiles.
     static void FillH(Rect dst, Texture tex, Rect uv, bool tile, float tileW, bool mirror = false)
     {
         if (!tile || tileW <= 0.5f) { DrawUV(dst, tex, uv); return; }
-        int i = 0;
-        for (float x = dst.x; x < dst.xMax - 0.5f; x += tileW, i++)
+        int count = Mathf.Max(1, Mathf.CeilToInt((dst.width - 0.01f) / tileW));
+        for (int i = 0; i < count; i++)
         {
-            float w = Mathf.Min(tileW, dst.xMax - x);
+            float xa = Edge(i, count, dst.x, dst.xMax, tileW);
+            float xb = Edge(i + 1, count, dst.x, dst.xMax, tileW);
+            float w = xb - xa;
+            if (w <= 0f) continue;
             bool flip = mirror && (i & 1) == 1;
-            DrawUV(new Rect(x, dst.y, w, dst.height), tex, SubUV(uv, w / tileW, 1f, flip, false));
+            // A full tile draws the whole source (fraction 1) so its content flows continuously into the
+            // next; only the final short tile shows a fraction of the source.
+            float frac = Mathf.Min(1f, (dst.x + (i + 1) * tileW <= dst.xMax + 0.01f) ? 1f : (dst.xMax - (dst.x + i * tileW)) / tileW);
+            DrawUV(new Rect(xa, dst.y, w, dst.height), tex, SubUV(uv, frac, 1f, flip, false));
         }
     }
 
@@ -196,29 +223,41 @@ public class ZUINineSliceDef
     static void FillV(Rect dst, Texture tex, Rect uv, bool tile, float tileH, bool mirror = false)
     {
         if (!tile || tileH <= 0.5f) { DrawUV(dst, tex, uv); return; }
-        int i = 0;
-        for (float y = dst.y; y < dst.yMax - 0.5f; y += tileH, i++)
+        int count = Mathf.Max(1, Mathf.CeilToInt((dst.height - 0.01f) / tileH));
+        for (int i = 0; i < count; i++)
         {
-            float h = Mathf.Min(tileH, dst.yMax - y);
+            float ya = Edge(i, count, dst.y, dst.yMax, tileH);
+            float yb = Edge(i + 1, count, dst.y, dst.yMax, tileH);
+            float h = yb - ya;
+            if (h <= 0f) continue;
             bool flip = mirror && (i & 1) == 1;
-            DrawUV(new Rect(dst.x, y, dst.width, h), tex, SubUV(uv, 1f, h / tileH, false, flip));
+            float frac = Mathf.Min(1f, (dst.y + (i + 1) * tileH <= dst.yMax + 0.01f) ? 1f : (dst.yMax - (dst.y + i * tileH)) / tileH);
+            DrawUV(new Rect(dst.x, ya, dst.width, h), tex, SubUV(uv, 1f, frac, false, flip));
         }
     }
 
     static void Fill2D(Rect dst, Texture tex, Rect uv, float tileW, float tileH, bool mirrorX = false, bool mirrorY = false)
     {
         if (tileW <= 0.5f || tileH <= 0.5f) { DrawUV(dst, tex, uv); return; }
-        int iy = 0;
-        for (float y = dst.y; y < dst.yMax - 0.5f; y += tileH, iy++)
+        int cx = Mathf.Max(1, Mathf.CeilToInt((dst.width  - 0.01f) / tileW));
+        int cy = Mathf.Max(1, Mathf.CeilToInt((dst.height - 0.01f) / tileH));
+        for (int iy = 0; iy < cy; iy++)
         {
-            float h = Mathf.Min(tileH, dst.yMax - y);
+            float ya = Edge(iy, cy, dst.y, dst.yMax, tileH);
+            float yb = Edge(iy + 1, cy, dst.y, dst.yMax, tileH);
+            float h = yb - ya;
+            if (h <= 0f) continue;
             bool fly = mirrorY && (iy & 1) == 1;
-            int ix = 0;
-            for (float x = dst.x; x < dst.xMax - 0.5f; x += tileW, ix++)
+            float fracY = Mathf.Min(1f, (dst.y + (iy + 1) * tileH <= dst.yMax + 0.01f) ? 1f : (dst.yMax - (dst.y + iy * tileH)) / tileH);
+            for (int ix = 0; ix < cx; ix++)
             {
-                float w = Mathf.Min(tileW, dst.xMax - x);
+                float xa = Edge(ix, cx, dst.x, dst.xMax, tileW);
+                float xb = Edge(ix + 1, cx, dst.x, dst.xMax, tileW);
+                float w = xb - xa;
+                if (w <= 0f) continue;
                 bool flx = mirrorX && (ix & 1) == 1;
-                DrawUV(new Rect(x, y, w, h), tex, SubUV(uv, w / tileW, h / tileH, flx, fly));
+                float fracX = Mathf.Min(1f, (dst.x + (ix + 1) * tileW <= dst.xMax + 0.01f) ? 1f : (dst.xMax - (dst.x + ix * tileW)) / tileW);
+                DrawUV(new Rect(xa, ya, w, h), tex, SubUV(uv, fracX, fracY, flx, fly));
             }
         }
     }

@@ -1,0 +1,20 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Choreographer.Editor",
+    "rootNamespace": "Laubrary.Choreographer.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Choreographer",
+        "ZUI.Editor",
+        "ZUI.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

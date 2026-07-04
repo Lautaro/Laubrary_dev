@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "coplay-mcp": {
+      "type": "stdio",
+      "command": "C:\\Users\\Lauta\\.local\\bin\\coplay-mcp-server.exe",
+      "args": [],
+      "env": { "MCP_TOOL_TIMEOUT": "720000" }
+    }
+  }
+}

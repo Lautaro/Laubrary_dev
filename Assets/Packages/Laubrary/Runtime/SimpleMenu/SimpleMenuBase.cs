@@ -12,7 +12,7 @@ namespace Laubrary.SimpleMenu
     public abstract class SimpleMenuBase : MonoBehaviour
     {
         private static bool isCreatingSubMenu = false;
-        private const string DEFAULT_SETTINGS_FOLDER = "Assets/SimpleMenu Settings";
+        private const string DEFAULT_SETTINGS_FOLDER = "Assets/Samples/SimpleMenu UI";
 
         private static Dictionary<string, Type> s_MenuTypeCache = null;
         private static bool s_MenuTypeCacheInitialized = false;

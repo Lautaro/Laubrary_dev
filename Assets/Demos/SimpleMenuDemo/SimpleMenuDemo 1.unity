@@ -142,7 +142,7 @@ MonoBehaviour:
   transitionFromAlpha: 0
   transitionFromPositionOffset: {x: -200, y: 0}
   transitionFromScale: {x: 1.5, y: 1.5, z: 0}
-  transitionDuration: 0.4
+  transitionDuration: 0.5
   transitionCurve:
     serializedVersion: 2
     m_Curve:
@@ -179,6 +179,7 @@ MonoBehaviour:
   transitionExitSpeedMultiplier: 1
   elementAnimateEach: 1
   elementDirection: 0
+  mirrorExitDirection: 0
   elementPickOrder: 1
   elementStagger: 0.214
   useAlternateElementConfig: 1
@@ -251,7 +252,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4380655029499835623, guid: 45229dec7b4b8964983ad012537e2250, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5276928405828621079, guid: 45229dec7b4b8964983ad012537e2250, type: 3}
       propertyPath: m_Pivot.x

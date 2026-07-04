@@ -20,7 +20,7 @@ namespace Laubrary.Zoetrope.Editor
         private const string TmpFolder = "Assets/Zoetrope/_TestTmp";
         private const int CellW = 16, CellH = 32, Frames = 4, ShiftDown = 6;
 
-        [MenuItem("Tools/Laubrary/Zoetrope/Tests/Run Aseprite Round-Trip Test")]
+        [MenuItem("Laubrary/Zoetrope/Tests/Run Aseprite Round-Trip Test")]
         public static void Run()
         {
             var results = new List<(string name, bool ok, string detail)>();

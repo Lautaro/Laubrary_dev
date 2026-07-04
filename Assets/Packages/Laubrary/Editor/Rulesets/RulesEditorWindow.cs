@@ -24,10 +24,10 @@ namespace Laubrary.Rulesets.Editor
 {
     public class RulesEditorWindow : EditorWindow
     {
-        [MenuItem("Tools/Laubrary/Rules Editor")]
+        [MenuItem("Laubrary/Rules Editor")]
         static void Open() => GetWindow<RulesEditorWindow>("Rules");
 
-        enum Tab { Rules, Rulesets }
+        enum Tab { Rules, Rulesets, GlobalRules }
         [SerializeField] Tab _tab;
 
         [SerializeField] string _search = "";
@@ -43,10 +43,11 @@ namespace Laubrary.Rulesets.Editor
 
         void OnGUI()
         {
-            _tab = (Tab)GUILayout.Toolbar((int)_tab, new[] { "Rules", "Rulesets" });
+            _tab = (Tab)GUILayout.Toolbar((int)_tab, new[] { "Rules", "Rulesets", "Global Rules" });
             GUILayout.Space(4);
             if (_tab == Tab.Rules) DrawRulesTab();
-            else DrawRulesetsTab();
+            else if (_tab == Tab.Rulesets) DrawRulesetsTab();
+            else DrawGlobalRulesTab();
         }
 
         void Update()
@@ -429,15 +430,92 @@ namespace Laubrary.Rulesets.Editor
             }
         }
 
+        // ── Global Rules tab ──────────────────────────────────────────────────────────
+        // Edits the GLOBAL ruleset asset (Resources/Rulesets/Global.asset) — the rules that apply under EVERY
+        // ruleset. Same list/detail UI as the Rules tab, always bound to the Global asset (never the live
+        // host). A ruleset overrides a global single-instance rule only by ENABLING its own copy of that type
+        // (see RulesHost.BuildLive). Rules are listed DISABLED by default here — global rules are opt-in.
+
+        RuleSet _globalSet;
+
+        RuleSet GetGlobalSet()
+        {
+            if (_globalSet == null)
+                _globalSet = AssetDatabase.LoadAssetAtPath<RuleSet>($"{RulesetDir}/{RuleSetManager.GlobalName}.asset");
+            return _globalSet;
+        }
+
+        // Like EnsureAllRuleTypes, but every newly-added rule is left DISABLED (the Rules-tab variant honours
+        // each rule's DefaultActive, which would silently turn rules on globally). Global rules are opt-in.
+        static void EnsureAllRuleTypesDisabled(RuleSet set)
+        {
+            if (set == null) return;
+            var present = new HashSet<Type>(set.Rules.Where(r => r != null).Select(r => r.GetType()));
+            bool added = false;
+            foreach (var t in AllRuleTypes())
+            {
+                if (present.Contains(t)) continue;
+                if (Activator.CreateInstance(t) is GameRule rule)
+                {
+                    rule.ResetToDefault();
+                    rule.Active = false;
+                    set.Rules.Add(rule);
+                    added = true;
+                }
+            }
+            if (added) EditorUtility.SetDirty(set);
+        }
+
+        void DrawGlobalRulesTab()
+        {
+            EditorGUILayout.LabelField("The GLOBAL ruleset applies under EVERY ruleset. Enable a rule here to make it global. A ruleset overrides a global (single-instance) rule only by ENABLING its own copy of that rule type. Edits save to the asset and take effect on the next RulesHost load.", EditorStyles.wordWrappedMiniLabel);
+            GUILayout.Space(4);
+
+            var set = GetGlobalSet();
+            if (set == null)
+            {
+                EditorGUILayout.HelpBox("No Global ruleset yet. Create one to start adding global rules.", MessageType.Info);
+                if (GUILayout.Button("Create Global ruleset")) CreateGlobalSet();
+                return;
+            }
+
+            EnsureAllRuleTypesDisabled(set); // list every rule type (disabled); toggle the ones you want global
+            _owner = set;
+            var rules = set.Rules.Where(r => r != null).OrderBy(r => r.GetType().Name).ToArray();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.BeginVertical(GUILayout.Width(210f));
+            DrawLeftPanel(rules);
+            GUILayout.EndVertical();
+            GUILayout.Space(6);
+            GUILayout.BeginVertical(GUILayout.ExpandWidth(true));
+            DrawRightPanel(rules);
+            GUILayout.EndVertical();
+            GUILayout.EndHorizontal();
+        }
+
+        void CreateGlobalSet()
+        {
+            Directory.CreateDirectory(RulesetDir);
+            var set = ScriptableObject.CreateInstance<RuleSet>();
+            EnsureAllRuleTypesDisabled(set); // one of every rule, all disabled
+            AssetDatabase.CreateAsset(set, $"{RulesetDir}/{RuleSetManager.GlobalName}.asset");
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            _globalSet = set;
+        }
+
         // ── Rulesets tab ────────────────────────────────────────────────────────────
 
         const string RulesetDir = "Assets/Resources/Rulesets";
 
+        // Per-ruleset list — EXCLUDES the Global ruleset (it isn't a selectable ruleset; edit it in the
+        // "Global Rules" tab).
         static List<(string path, RuleSet asset)> AllRuleSets() =>
             AssetDatabase.FindAssets("t:RuleSet")
                 .Select(g => AssetDatabase.GUIDToAssetPath(g))
                 .Select(p => (p, asset: AssetDatabase.LoadAssetAtPath<RuleSet>(p)))
-                .Where(x => x.asset != null)
+                .Where(x => x.asset != null && x.asset.name != RuleSetManager.GlobalName)
                 .OrderBy(x => x.asset.name)
                 .ToList();
 

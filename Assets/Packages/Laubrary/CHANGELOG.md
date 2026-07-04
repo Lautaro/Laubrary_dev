@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.19] - 2026-07-03
+
+### Added
+- **Choreographer** (first slice) — a tool for authoring the collective motion of N **Dancers** as one
+  reusable, unitless shape. A **Choreography** is a single **Path** (a Catmull-Rom spline, optionally
+  arc-length paced for constant speed), a **Spread** (a start line that bends into a full circle), a
+  **Facing** mode (Radial = paths fan out along the curve, Fixed = all parallel), plus population and timing
+  (default count, duration, per-dancer **stagger**, Scatter/Gather direction, loop). It is N-agnostic:
+  everything is a function of the normalised index `ni = i/(N-1)`, so the same asset drives 3 dancers or 300,
+  packing tighter as N grows. Adds `Runtime/Choreographer/` (`com.Lautaro-Arino.Laubrary.Choreographer`,
+  namespace `Laubrary.Choreographer`): `Choreography` (ScriptableObject), `ChoreographySampler` (the one
+  `Evaluate(choreo, i, N, phase)` both the editor and runtime call, so preview == runtime), `PathCache`
+  (dense arc-length table), and `ChoreographyPlayer` (drives a list of target Transforms through an anchor +
+  world size). Editor (`.Editor`) adds the **Choreographer** window under **Laubrary ▸ Choreographer**: a
+  looping 2D stage with path presets, drag-to-reshape control points, and toggleable visualisation — path
+  lines, onion-skin, trails, index-coloured dots, facing ticks, and drop-in sample sprites. Ships zero
+  assets; choreographies are authored into the host project. A Dancer is only ever a sampled pose.
+- **Choreographer anchors (Launcher / Target)** — a choreography can optionally bind two world anchors,
+  supplied by `ChoreographyPlayer` (`launcher`, `target` Transforms) or the preview. The path is the **spine** of
+  the formation, anchored (translate-only) so its first point sits on the **Launcher** — the choreo keeps its
+  authored orientation and scale. Dancers fan around the spine (spread tapers to zero over `launchBlend` so they
+  converge at the launcher). **Target homing uses a retarget marker (`retargetAt`)**: a dancer flies the exact
+  path until that progress, then the tail is course-corrected so its endpoint lands on the **Target** — sampled
+  the moment THAT dancer reaches the marker, not at launch — while the spread converges to a point there. So a
+  barrage fires from one launcher, fans out, then each missile commits and homes onto where the player is when it
+  crosses the marker (dodge after that and it misses). The math lives in `ChoreographySampler`
+  (`ChoreoAnchors` + `SamplePosition` + `FramePoint`); facing comes from the actual travelled direction. Demo
+  adds a **Barrage** scene (`Build Demo Scene (Barrage)`) with a wandering Launcher and Target.
+- **Choreographer preview honours the retarget freeze** — the editor preview now mirrors the runtime's per-dancer
+  anchor freeze: each dancer locks the launcher at launch and the target when it crosses the retarget marker, so
+  moving the target (e.g. dragging the marker) only re-aims dancers that haven't passed the marker yet — those
+  already past keep the committed path. Preview == runtime for homing.
+- **Choreographer preview no longer collapses** — dragging a launcher/target marker divides the mouse delta by
+  the view scale, so once the auto-fit scale went small a single drag could fling a marker to huge coordinates,
+  which shrank the view further until the path and handles were an invisible sub-pixel dot (path data itself was
+  never affected). Preview markers are now sanity-healed each frame and all drags are clamped to a sane range.
+- **Choreographer crash fix** — `ChoreographyPlayer` could throw `IndexOutOfRangeException` every frame after a
+  domain reload (the per-dancer capture arrays fell out of sync); each array is now length-checked independently.
+- **Demo builder guard rail** — `ChoreoDemoBuilder` no longer overwrites an existing choreography asset when a
+  demo scene is rebuilt (it seeds fields only when creating the asset). A separate, confirm-first "Reset … to
+  defaults" menu is the only path that overwrites. Adds a runtime **control UI** (`ChoreoDemoControlUI`, built with
+  ZuiRuntime) to the barrage demo to steer the boss/player wandering in play mode, plus an "Add Controls to Open
+  Scene" menu that injects it without rebuilding.
+- **Choreographer anchors frozen per dancer** — `ChoreographyPlayer` samples the **launcher when each dancer
+  launches** and the **target when that dancer reaches the retarget marker**, then holds each (`freezeAnchors`,
+  default on). Later movement of those transforms no longer drags the whole choreography around, and each dancer
+  homes onto where the target was at the instant it committed. Turn it off to track both every frame.
+- **Choreographer preview toggles** — every stage element (grid, path+handles, spread, routes, onion, trails,
+  dots, facing, sprites, anchors, blend marks) is now an independent toggle in a 2-column grid; with all off the
+  stage is empty. Fixes the Dots toggle appearing to do nothing (facing ticks/other elements now have their own).
+- **Choreographer editor on ZUI** — the window now extends `ZUIWindow` and its chrome (buttons, sliders,
+  toggles, section headers, min/max-ready controls, enum radios) is built with ZUI, per the new "all UI is ZUI"
+  rule; the 2D preview stage stays raw IMGUI. (Requires the `ZUI.Editor` / `ZUI.Runtime` asmdefs.)
+- **Choreographer editor clarity** — the stage now draws the authored **path template** faintly (distinct from
+  the vivid dancer routes, which apply spread/facing/anchors), so the shape you edit and the paths dancers
+  actually travel are no longer conflated. **Click the path curve to add a control point, right-click a handle
+  to remove one** (drag still reshapes); with Constant speed off, point spacing sets local speed. When a
+  Launcher/Target is used, **blend-stage markers** show where the fan-out completes (progress = launchBlend)
+  and where the converge begins (progress = 1 − targetBlend).
+
 ## [0.0.18] - 2026-07-03
 
 ### Added

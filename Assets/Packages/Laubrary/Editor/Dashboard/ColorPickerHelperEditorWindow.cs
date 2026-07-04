@@ -8,7 +8,7 @@ public class ColorPickerHelper : EditorWindow
     public string RGBValues => $"RGB: ({SelectedColor.r:F2}, {SelectedColor.g:F2}, {SelectedColor.b:F2})";
 
 
-    [MenuItem("Tools/Color Picker Helper")]
+    [MenuItem("Laubrary/Color Picker Helper")]
     private static void ShowWindow()
     {
         var window = GetWindow<ColorPickerHelper>();

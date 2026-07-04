@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 129b7a17263ce7f4ba5b2c746102ee59, type: 3}
+  m_Name: Barrage
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Choreographer::Laubrary.Choreographer.Choreography
+  pathPoints:
+  - {x: -0.5, y: 0}
+  - {x: 0, y: 0.35}
+  - {x: 0.5, y: 0}
+  smooth: 1
+  constantSpeed: 0
+  spreadLength: 1.8156018
+  spreadBend: 0.26973403
+  facing: 0
+  facingAngle: 92.999374
+  defaultCount: 36
+  duration: 2.5
+  stagger: 0.5
+  direction: 0
+  loop: 1
+  useLauncher: 1
+  launchBlend: 0.3
+  useTarget: 1
+  retargetAt: 0.4712337

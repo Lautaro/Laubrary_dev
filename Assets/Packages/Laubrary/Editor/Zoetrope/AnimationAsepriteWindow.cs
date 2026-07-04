@@ -17,7 +17,7 @@ namespace Laubrary.Zoetrope.Editor
         private int _animIndex;
         private string _status = "";
 
-        [MenuItem("Tools/Laubrary/Zoetrope/Animation ↔ Aseprite")]
+        [MenuItem("Laubrary/Zoetrope/Animation ↔ Aseprite")]
         public static void Open() => GetWindow<AnimationAsepriteWindow>("Anim ↔ Aseprite");
 
         private void OnGUI()

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Laubrary.Rulesets
@@ -22,15 +24,54 @@ namespace Laubrary.Rulesets
         void Awake()
         {
             Active = this;
-            Rules = new List<GameRule>();
-            if (SourceSet != null)
-            {
-                var clone = SourceSet.Clone();
-                if (clone != null && clone.Rules != null)
-                    foreach (var r in clone.Rules)
-                        if (r != null) Rules.Add(r);
-            }
+            BuildLive(SourceSet);
             for (int i = 0; i < Rules.Count; i++) Rules[i]?.HostLoad();
+        }
+
+        // Build the live rule list = CHOSEN ruleset + GLOBAL ruleset. Global rules (Resources/Rulesets/Global)
+        // apply under every ruleset, EXCEPT that a single-instance type (AllowMultiple == false) the chosen
+        // ruleset ENABLES overrides the global one — only one copy ever, the global is dropped. A merely-
+        // present-but-disabled copy in the chosen set (e.g. an editor placeholder) does NOT override: the
+        // global still applies. Multi-instance globals always coexist. Both sets are cloned so play-mode edits
+        // don't dirty the source assets. If no Global asset exists this is just the chosen ruleset.
+        void BuildLive(RuleSet chosen)
+        {
+            Rules = new List<GameRule>();
+            var chosenRules = CloneRules(chosen);
+            var globalRules = CloneRules(RuleSetManager.LoadGlobalAsset());
+
+            // Single-instance types the GLOBAL provides — a chosen-set DISABLED copy of such a type yields to
+            // the global (so an auto-added/disabled placeholder doesn't suppress a real global rule).
+            var globalSingle = new HashSet<Type>(globalRules.Where(r => !r.AllowMultiple).Select(r => r.GetType()));
+
+            foreach (var r in chosenRules)
+            {
+                if (!r.AllowMultiple && !r.Active && globalSingle.Contains(r.GetType())) continue; // global wins
+                Rules.Add(r);
+            }
+
+            // Global rules: add unless that single-instance type is already covered (a chosen ENABLED override,
+            // or a copy the global lacked). Multi-instance globals always coexist.
+            foreach (var g in globalRules)
+            {
+                if (!g.AllowMultiple && HasRuleType(g.GetType())) continue;
+                Rules.Add(g);
+            }
+        }
+
+        static List<GameRule> CloneRules(RuleSet set)
+        {
+            var list = new List<GameRule>();
+            if (set == null) return list;
+            var c = set.Clone();
+            if (c != null && c.Rules != null) foreach (var r in c.Rules) if (r != null) list.Add(r);
+            return list;
+        }
+
+        bool HasRuleType(Type t)
+        {
+            for (int i = 0; i < Rules.Count; i++) if (Rules[i] != null && Rules[i].GetType() == t) return true;
+            return false;
         }
 
         void Start()
@@ -93,15 +134,8 @@ namespace Laubrary.Rulesets
                 if (Rules[i].IsRunning) Rules[i].HostDeactivate();
                 Rules[i].HostUnload();
             }
-            Rules.Clear();
             SourceSet = set;
-            if (set != null)
-            {
-                var clone = set.Clone();
-                if (clone != null && clone.Rules != null)
-                    foreach (var r in clone.Rules)
-                        if (r != null) Rules.Add(r);
-            }
+            BuildLive(set); // chosen + global (single-instance enabled chosen types override globals)
             for (int i = 0; i < Rules.Count; i++) Rules[i]?.HostLoad();
             if (_started) Reconcile();
         }

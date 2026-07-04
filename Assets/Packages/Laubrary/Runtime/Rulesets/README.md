@@ -96,3 +96,20 @@ For runtime preset switching, place ruleset assets under **`Resources/Rulesets/`
 
 > Runtime persistence is currently Resources-only. SaveGame integration (a player's tuned ruleset surviving
 > across sessions) is deferred.
+
+## Global rules
+
+A single optional **Global ruleset** (`Resources/Rulesets/Global.asset`) holds rules that apply under **every**
+ruleset, so you don't repeat them in each preset. At boot/load, `RulesHost.BuildLive` merges the chosen
+ruleset with the Global one:
+
+- **Multi-instance rules** (`AllowMultiple == true`) from both sets always coexist.
+- **Single-instance rules** (`AllowMultiple == false`) end up with exactly one live instance per type, with
+  precedence: the chosen ruleset's **enabled** copy → the Global copy → the chosen ruleset's disabled copy.
+  In other words, a ruleset overrides a global rule **only by enabling its own copy of that rule type**. A
+  merely-present-but-disabled copy (e.g. an editor placeholder the Rules tab auto-adds) does **not** override —
+  the global still applies.
+
+Edit the Global ruleset in the **Global Rules tab** of the Rules Editor (it's listed separately from the
+per-preset Rulesets, and its rules are listed disabled by default — global rules are opt-in). If no
+`Global.asset` exists, `BuildLive` is just the chosen ruleset, so the feature is zero-cost when unused.

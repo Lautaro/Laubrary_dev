@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 780a6556d0aa1834c9ce14087594d56b, type: 3}
+  m_Name: SimpleUISettings
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.SimpleUI::Laubrary.SimpleUI.SimpleUISettings
+  displayPrefab: {fileID: 8865006697986868868, guid: 87cda3aa72d2401458fdc27e9b530c51, type: 3}
+  inputPrefab: {fileID: 7361758110268190968, guid: 8b21fc0391e4dae49beb31c4a14578ed, type: 3}
+  togglePrefab: {fileID: 9138823494375686337, guid: 2dc239236d2a1da4a80391a40a385f4d, type: 3}
+  sliderPrefab: {fileID: 7142410687506812349, guid: abca2f01768fed947b433bcb0db196b9, type: 3}
+  dropdownPrefab: {fileID: 5909043281035723378, guid: c9377182d23d3fc4e9598d0486b87b52, type: 3}
+  font: {fileID: 0}
+  fontSize: 0
+  labelColor: {r: 1, g: 1, b: 1, a: 1}
+  valueColor: {r: 1, g: 1, b: 1, a: 1}

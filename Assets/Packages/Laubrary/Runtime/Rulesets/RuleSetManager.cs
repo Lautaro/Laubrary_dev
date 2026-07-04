@@ -11,9 +11,15 @@ namespace Laubrary.Rulesets
         public const string ResourceDir = "Rulesets";
         public const string Default = "Standard";
 
-        // Names of every saved ruleset asset.
+        // The GLOBAL ruleset: rules that apply under EVERY ruleset/scenario. A single-instance rule type the
+        // chosen ruleset ENABLES overrides the global one (RulesHost merges; see BuildLive). Optional — null
+        // if not authored.
+        public const string GlobalName = "Global";
+        public static RuleSet LoadGlobalAsset() => Resources.Load<RuleSet>(ResourceDir + "/" + GlobalName);
+
+        // Names of every saved ruleset asset (excluding the Global set, which isn't a selectable ruleset).
         public static string[] List() =>
-            Resources.LoadAll<RuleSet>(ResourceDir).Select(p => p.name).Distinct().ToArray();
+            Resources.LoadAll<RuleSet>(ResourceDir).Select(p => p.name).Where(n => n != GlobalName).Distinct().ToArray();
 
         public static RuleSet LoadAsset(string name) => Resources.Load<RuleSet>(ResourceDir + "/" + name);
 

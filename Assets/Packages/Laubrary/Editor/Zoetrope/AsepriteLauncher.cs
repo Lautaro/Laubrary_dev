@@ -57,7 +57,7 @@ namespace Laubrary.Zoetrope.Editor
             }
         }
 
-        [MenuItem("Tools/Laubrary/Zoetrope/Set Aseprite Path…")]
+        [MenuItem("Laubrary/Zoetrope/Set Aseprite Path…")]
         static void SetPath()
         {
             string start = File.Exists(ExePath) ? Path.GetDirectoryName(ExePath) : "C:/Program Files";

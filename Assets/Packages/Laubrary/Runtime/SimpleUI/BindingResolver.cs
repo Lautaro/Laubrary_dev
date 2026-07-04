@@ -520,6 +520,12 @@ namespace Laubrary.SimpleUI
         {
             var compatible = new List<Component>();
 
+            // SimpleUIEditableField is compatible with any text-representable type
+            AddIfExists<SimpleUIEditableField>(go, compatible);
+
+            if (compatible.Count > 0)
+                return compatible;
+
             if (fieldType == typeof(string))
             {
                 AddIfExists<TMP_Text>(go, compatible);
@@ -550,7 +556,6 @@ namespace Laubrary.SimpleUI
             }
             else if (fieldType == typeof(System.TimeSpan) || fieldType == typeof(System.DateTime))
             {
-                // TimeSpan and DateTime can be formatted as text
                 AddIfExists<TMP_Text>(go, compatible);
             }
 
@@ -589,7 +594,37 @@ namespace Laubrary.SimpleUI
             var bindingEntry = new BindingCache<T>.BindingEntry { FieldName = member.Name };
             bool isTwoWay = false;
 
-            if (component is TMP_Text tmpText)
+            // Respect explicit BindingMode from [SimpleUIBind] if present
+            var bindAttr = member.GetCustomAttribute<SimpleUIBindAttribute>();
+            bool forcedOneWay = bindAttr != null && bindAttr.Mode == BindingMode.OneWay;
+
+            if (component is SimpleUIEditableField editableField)
+            {
+                bindingEntry.UpdateUI = poco =>
+                {
+                    var value = member.GetValue(poco);
+                    editableField.SetDisplayValue(FormatValue(value, format));
+                };
+
+                if (!forcedOneWay)
+                {
+                    bindingEntry.SetupTwoWay = poco =>
+                    {
+                        editableField.onValueSubmitted.AddListener(newValue =>
+                        {
+                            SetMemberFromString(member, poco, newValue);
+                        });
+                    };
+                    cache.AddCleanupAction(() => editableField.onValueSubmitted.RemoveAllListeners());
+                    isTwoWay = true;
+                    trace.Add("Created two-way binding to SimpleUIEditableField");
+                }
+                else
+                {
+                    trace.Add("Created one-way binding to SimpleUIEditableField (forced by [SimpleUIBind(OneWay)])");
+                }
+            }
+            else if (component is TMP_Text tmpText)
             {
                 bindingEntry.UpdateUI = poco =>
                 {
@@ -606,17 +641,23 @@ namespace Laubrary.SimpleUI
                     tmpInput.text = FormatValue(value, format);
                 };
 
-                bindingEntry.SetupTwoWay = poco =>
+                if (!forcedOneWay)
                 {
-                    tmpInput.onValueChanged.AddListener(newValue =>
+                    bindingEntry.SetupTwoWay = poco =>
                     {
-                        member.SetValue(poco, newValue);
-                    });
-                };
-
-                cache.AddCleanupAction(() => tmpInput.onValueChanged.RemoveAllListeners());
-                isTwoWay = true;
-                trace.Add("Created two-way binding to TMP_InputField");
+                        tmpInput.onValueChanged.AddListener(newValue =>
+                        {
+                            member.SetValue(poco, newValue);
+                        });
+                    };
+                    cache.AddCleanupAction(() => tmpInput.onValueChanged.RemoveAllListeners());
+                    isTwoWay = true;
+                    trace.Add("Created two-way binding to TMP_InputField");
+                }
+                else
+                {
+                    trace.Add("Created one-way binding to TMP_InputField (forced by [SimpleUIBind(OneWay)])");
+                }
             }
             else if (component is Slider slider)
             {
@@ -626,20 +667,26 @@ namespace Laubrary.SimpleUI
                     slider.value = Convert.ToSingle(value);
                 };
 
-                bindingEntry.SetupTwoWay = poco =>
+                if (!forcedOneWay)
                 {
-                    slider.onValueChanged.AddListener(newValue =>
+                    bindingEntry.SetupTwoWay = poco =>
                     {
-                        if (member.MemberType == typeof(int))
-                            member.SetValue(poco, Mathf.RoundToInt(newValue));
-                        else
-                            member.SetValue(poco, newValue);
-                    });
-                };
-
-                cache.AddCleanupAction(() => slider.onValueChanged.RemoveAllListeners());
-                isTwoWay = true;
-                trace.Add("Created two-way binding to Slider");
+                        slider.onValueChanged.AddListener(newValue =>
+                        {
+                            if (member.MemberType == typeof(int))
+                                member.SetValue(poco, Mathf.RoundToInt(newValue));
+                            else
+                                member.SetValue(poco, newValue);
+                        });
+                    };
+                    cache.AddCleanupAction(() => slider.onValueChanged.RemoveAllListeners());
+                    isTwoWay = true;
+                    trace.Add("Created two-way binding to Slider");
+                }
+                else
+                {
+                    trace.Add("Created one-way binding to Slider (forced by [SimpleUIBind(OneWay)])");
+                }
             }
             else if (component is Toggle toggle)
             {
@@ -649,17 +696,23 @@ namespace Laubrary.SimpleUI
                     toggle.isOn = (bool)value;
                 };
 
-                bindingEntry.SetupTwoWay = poco =>
+                if (!forcedOneWay)
                 {
-                    toggle.onValueChanged.AddListener(newValue =>
+                    bindingEntry.SetupTwoWay = poco =>
                     {
-                        member.SetValue(poco, newValue);
-                    });
-                };
-
-                cache.AddCleanupAction(() => toggle.onValueChanged.RemoveAllListeners());
-                isTwoWay = true;
-                trace.Add("Created two-way binding to Toggle");
+                        toggle.onValueChanged.AddListener(newValue =>
+                        {
+                            member.SetValue(poco, newValue);
+                        });
+                    };
+                    cache.AddCleanupAction(() => toggle.onValueChanged.RemoveAllListeners());
+                    isTwoWay = true;
+                    trace.Add("Created two-way binding to Toggle");
+                }
+                else
+                {
+                    trace.Add("Created one-way binding to Toggle (forced by [SimpleUIBind(OneWay)])");
+                }
             }
             else if (component is Image image)
             {
@@ -696,23 +749,46 @@ namespace Laubrary.SimpleUI
                         dropdown.value = Convert.ToInt32(value);
                     };
 
-                    bindingEntry.SetupTwoWay = poco =>
+                    if (!forcedOneWay)
                     {
-                        dropdown.onValueChanged.AddListener(newValue =>
+                        bindingEntry.SetupTwoWay = poco =>
                         {
-                            var enumValue = Enum.ToObject(member.MemberType, newValue);
-                            member.SetValue(poco, enumValue);
-                        });
-                    };
-
-                    cache.AddCleanupAction(() => dropdown.onValueChanged.RemoveAllListeners());
-                    isTwoWay = true;
-                    trace.Add("Created two-way binding to TMP_Dropdown with auto-populated enum options");
+                            dropdown.onValueChanged.AddListener(newValue =>
+                            {
+                                var enumValue = Enum.ToObject(member.MemberType, newValue);
+                                member.SetValue(poco, enumValue);
+                            });
+                        };
+                        cache.AddCleanupAction(() => dropdown.onValueChanged.RemoveAllListeners());
+                        isTwoWay = true;
+                        trace.Add("Created two-way binding to TMP_Dropdown with auto-populated enum options");
+                    }
+                    else
+                    {
+                        trace.Add("Created one-way binding to TMP_Dropdown (forced by [SimpleUIBind(OneWay)])");
+                    }
                 }
             }
 
             cache.AddBinding(bindingEntry);
             report.Mode = isTwoWay ? BindingMode.TwoWay : BindingMode.OneWay;
+        }
+
+        /// <summary>
+        /// Converts a string value to the member's type and sets it.
+        /// Used for components like SimpleUIEditableField that always submit strings.
+        /// </summary>
+        private void SetMemberFromString(MemberAccessor member, object poco, string rawValue)
+        {
+            try
+            {
+                object converted = Convert.ChangeType(rawValue, member.MemberType);
+                member.SetValue(poco, converted);
+            }
+            catch
+            {
+                Debug.LogWarning($"[SimpleUI] Could not convert \"{rawValue}\" to {member.MemberType.Name} for field '{member.Name}'.");
+            }
         }
 
         private string FormatValue(object value, string format)

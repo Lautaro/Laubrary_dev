@@ -4,7 +4,7 @@ using UnityEditor;
 
 public class FindNullReferences : EditorWindow
 {
-    [MenuItem("Tools/Find Assets With Null References")]
+    [MenuItem("Laubrary Dev/Find Assets With Null References")]
     static void FindAssets()
     {
         string[] allAssets = AssetDatabase.GetAllAssetPaths();

@@ -44,7 +44,7 @@ namespace Laubrary.Zoetrope.Editor
 
         private Vector2 _charScroll, _animScroll;
 
-        [MenuItem("Tools/Laubrary/Zoetrope/Zoe Browser")]
+        [MenuItem("Laubrary/Zoetrope/Zoe Browser")]
         public static void Open()
         {
             var w = GetWindow<ZoeBrowserWindow>("Zoe Browser");

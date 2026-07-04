@@ -3035,7 +3035,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1605826853
 Transform:
   m_ObjectHideFlags: 0
@@ -3465,7 +3465,75 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2fc0818ed0a71d544aa6958b92cfe408, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
+  isEditorPreview: 0
   menuSettings: {fileID: 0}
+  transitionAnimationType: 0
+  transitionFromAlpha: 0
+  transitionFromPositionOffset: {x: 0, y: -40}
+  transitionFromScale: {x: 0, y: 0, z: 0}
+  transitionDuration: 0.35
+  transitionCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  transitionExitSpeedMultiplier: 2
+  elementAnimateEach: 0
+  elementDirection: 0
+  mirrorExitDirection: 0
+  elementPickOrder: 0
+  elementStagger: 0.5
+  useAlternateElementConfig: 0
+  altElementConfig:
+    animationType: 1
+    fromAlpha: 0
+    fromPositionOffset: {x: -30, y: 0}
+    fromScale: {x: 0, y: 0, z: 0}
+    duration: 0.2
+    curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    exitSpeedMultiplier: 2
   inGameMenuState: {fileID: 543018266}
 --- !u!1 &2046665061
 GameObject:
@@ -3652,7 +3720,75 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 671b2204931ff93478b11bdf94d6bd6c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Overture.Demo.DemoMainMenu
+  isEditorPreview: 0
   menuSettings: {fileID: 0}
+  transitionAnimationType: 0
+  transitionFromAlpha: 0
+  transitionFromPositionOffset: {x: 0, y: -40}
+  transitionFromScale: {x: 0, y: 0, z: 0}
+  transitionDuration: 0.35
+  transitionCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  transitionExitSpeedMultiplier: 2
+  elementAnimateEach: 0
+  elementDirection: 0
+  mirrorExitDirection: 0
+  elementPickOrder: 0
+  elementStagger: 0.5
+  useAlternateElementConfig: 0
+  altElementConfig:
+    animationType: 1
+    fromAlpha: 0
+    fromPositionOffset: {x: -30, y: 0}
+    fromScale: {x: 0, y: 0, z: 0}
+    duration: 0.2
+    curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    exitSpeedMultiplier: 2
   startGameStateName: StartGameState
 --- !u!1 &2129649863
 GameObject:
