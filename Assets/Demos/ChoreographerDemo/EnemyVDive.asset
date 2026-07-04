@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 129b7a17263ce7f4ba5b2c746102ee59, type: 3}
+  m_Name: EnemyVDive
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Choreographer::Laubrary.Choreographer.Choreography
+  pathPoints:
+  - {x: -0.6, y: 0.4}
+  - {x: -0.2, y: 0}
+  - {x: 0.2, y: -0.2}
+  - {x: 0.6, y: -0.5}
+  smooth: 1
+  constantSpeed: 1
+  spreadLength: 2.5
+  spreadBend: 0.25
+  facing: 0
+  facingAngle: 0
+  defaultCount: 5
+  duration: 5
+  stagger: 0.15
+  direction: 0
+  loop: 1
+  useLauncher: 0
+  launchBlend: 0.25
+  useTarget: 0
+  retargetAt: 0.6

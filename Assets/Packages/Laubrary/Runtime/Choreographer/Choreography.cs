@@ -57,9 +57,14 @@ namespace Laubrary.Choreographer
         [Tooltip("Home the end of every dancer's journey onto the Target coordinate (e.g. the player).")]
         public bool useTarget = false;
         [Range(0f, 1f)]
-        [Tooltip("Progress at which a dancer commits to the target: it flies the exact path until here, then the " +
-                 "tail is re-aimed so the endpoint lands on where the target is at THAT moment (sampled per dancer).")]
-        public float retargetAt = 0.6f;
+        [Tooltip("Release: progress at which a dancer samples & commits to the target. Before it the dancer flies the " +
+                 "exact path (target has no effect); at it the target is locked and the tail homes so the endpoint " +
+                 "lands on it.")]
+        public float releaseAt = 0.6f;
+        [Range(0.01f, 1f)]
+        [Tooltip("Target blend: the fraction of the tail-end over which the spread converges to a point on the target. " +
+                 "Separate from Release (which is when the aim is committed).")]
+        public float targetBlend = 0.35f;
 
         /// One full cycle in seconds, including the stagger tail so the last dancer also completes.
         public float CycleSeconds => duration * (1f + stagger);

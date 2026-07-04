@@ -26,12 +26,6 @@ namespace Laubrary.Choreographer
         [Tooltip("If set and the choreography uses it, every dancer's journey ends on here (e.g. the player).")]
         public Transform target;
 
-        [Tooltip("Freeze the anchors per dancer: sample the launcher when it launches, and the target when it " +
-                 "reaches the retarget marker — then hold each. So the choreography does NOT slide around if those " +
-                 "transforms keep moving, and each dancer homes onto where the target was when it committed. Off = " +
-                 "track both every frame.")]
-        public bool freezeAnchors = true;
-
         [Tooltip("Rotate each dancer to face its travel direction.")]
         public bool applyFacing = false;
         public bool playOnEnable = true;
@@ -90,25 +84,43 @@ namespace Laubrary.Choreographer
                 if (t == null) continue;
 
                 float progress = ChoreographySampler.ProgressAt(choreography, i, n, phase);
-                if (freezeAnchors)
-                {
-                    // Launcher: frozen the instant the dancer leaves the launcher.
-                    if (progress <= 0f) capturedL[i] = false;
-                    else if (!capturedL[i]) { capLauncher[i] = curL; capturedL[i] = true; }
-                    // Target: frozen the instant the dancer reaches the retarget marker (where it commits to home).
-                    if (progress < choreography.retargetAt) capturedT[i] = false;
-                    else if (!capturedT[i]) { capTarget[i] = curT; capturedT[i] = true; }
-                }
+                // Launcher frozen the instant the dancer leaves the launcher; target frozen the instant it reaches Release.
+                if (progress <= 0f) capturedL[i] = false;
+                else if (!capturedL[i]) { capLauncher[i] = curL; capturedL[i] = true; }
+                if (progress < choreography.releaseAt) capturedT[i] = false;
+                else if (!capturedT[i]) { capTarget[i] = curT; capturedT[i] = true; }
 
                 var an = new ChoreoAnchors();
-                if (useL) { an.hasLauncher = true; an.launcher = (freezeAnchors && capturedL[i]) ? capLauncher[i] : curL; }
-                if (useT) { an.hasTarget = true; an.target = (freezeAnchors && capturedT[i]) ? capTarget[i] : curT; }
+                if (useL) { an.hasLauncher = true; an.launcher = capturedL[i] ? capLauncher[i] : curL; }
+                if (useT) { an.hasTarget = true; an.target = capturedT[i] ? capTarget[i] : curT; }
 
                 var pose = ChoreographySampler.Evaluate(choreography, i, n, phase, an);
                 t.position = a.TransformPoint(new Vector3(pose.position.x * worldSize.x, pose.position.y * worldSize.y, 0f));
                 if (applyFacing)
                     t.rotation = a.rotation * Quaternion.Euler(0f, 0f, pose.facingDegrees);
             }
+        }
+
+        // ── read-only accessors for debug views / gameplay hooks ──────────────────
+        public int DancerCount => targets.Count;
+
+        /// A dancer's own journey progress (0..1) right now — used to detect wave restarts (progress wrapping to 0).
+        public float ProgressOf(int i) => choreography != null ? ChoreographySampler.ProgressAt(choreography, i, Mathf.Max(1, targets.Count), Phase()) : 0f;
+
+        /// Map a normalised choreography position into the world (through this player's anchor + worldSize).
+        public Vector3 WorldPoint(Vector2 normalized) => Anchor.TransformPoint(new Vector3(normalized.x * worldSize.x, normalized.y * worldSize.y, 0f));
+
+        /// The anchors a given dancer is flying with right now (frozen values honoured) — so a debug view draws
+        /// exactly the committed route.
+        public ChoreoAnchors AnchorsForDancer(int i)
+        {
+            var a = Anchor;
+            bool useL = launcher != null && choreography != null && choreography.useLauncher;
+            bool useT = target != null && choreography != null && choreography.useTarget;
+            var an = new ChoreoAnchors();
+            if (useL) { an.hasLauncher = true; an.launcher = i < capturedL.Length && capturedL[i] ? capLauncher[i] : WorldToNorm(a, launcher.position); }
+            if (useT) { an.hasTarget = true; an.target = i < capturedT.Length && capturedT[i] ? capTarget[i] : WorldToNorm(a, target.position); }
+            return an;
         }
 
         Vector2 WorldToNorm(Transform a, Vector3 world)

@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 129b7a17263ce7f4ba5b2c746102ee59, type: 3}
+  m_Name: EnemySineSweep
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Choreographer::Laubrary.Choreographer.Choreography
+  pathPoints:
+  - {x: -0.5, y: 0}
+  - {x: -0.4375, y: 0.05740252}
+  - {x: -0.375, y: 0.10606602}
+  - {x: -0.3125, y: 0.13858193}
+  - {x: -0.25, y: 0.15}
+  - {x: -0.1875, y: 0.13858193}
+  - {x: -0.125, y: 0.10606602}
+  - {x: -0.0625, y: 0.057402495}
+  - {x: 0, y: -0.000000013113417}
+  - {x: 0.0625, y: -0.057402518}
+  - {x: 0.125, y: -0.10606604}
+  - {x: 0.1875, y: -0.13858196}
+  - {x: 0.25, y: -0.15}
+  - {x: 0.3125, y: -0.13858192}
+  - {x: 0.375, y: -0.10606598}
+  - {x: 0.4375, y: -0.057402518}
+  - {x: 0.5, y: 0.000000026226834}
+  smooth: 1
+  constantSpeed: 1
+  spreadLength: 3
+  spreadBend: 0
+  facing: 0
+  facingAngle: 0
+  defaultCount: 6
+  duration: 6
+  stagger: 0.25
+  direction: 0
+  loop: 1
+  useLauncher: 0
+  launchBlend: 0.25
+  useTarget: 0
+  retargetAt: 0.6

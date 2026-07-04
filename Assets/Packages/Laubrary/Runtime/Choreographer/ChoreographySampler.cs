@@ -85,15 +85,16 @@ namespace Laubrary.Choreographer
             bool useT = anchors.hasTarget && c.useTarget;
             float taper = 1f;
             if (useL) taper *= Smooth01(progress / Mathf.Max(1e-4f, c.launchBlend));
-            if (useT) taper *= Smooth01((1f - progress) / Mathf.Max(1e-4f, 1f - c.retargetAt));
+            if (useT) taper *= Smooth01((1f - progress) / Mathf.Max(1e-4f, c.targetBlend));   // spread convergence window
 
             Vector2 pos = spine + off * taper;
 
-            // Homing: fly the exact path until the retarget marker, then drift the tail so the endpoint lands on the
-            // target — which the player samples at the moment THIS dancer reaches the marker, not back at launch.
+            // Homing: fly the exact path until Release, then drift the tail so the endpoint lands on the target —
+            // which the player samples at the moment THIS dancer reaches Release, not back at launch.
             if (useL && useT)
             {
-                float w = Smooth01((progress - c.retargetAt) / Mathf.Max(1e-4f, 1f - c.retargetAt));
+                float rel = Mathf.Min(c.releaseAt, 0.999f);          // keep the window non-zero so the endpoint always lands
+                float w = Smooth01((progress - rel) / (1f - rel));
                 Vector2 spineEnd = origin + (c.Cache.Sample(1f, false, out _) - basePoint);
                 pos += w * (anchors.target - spineEnd);
             }

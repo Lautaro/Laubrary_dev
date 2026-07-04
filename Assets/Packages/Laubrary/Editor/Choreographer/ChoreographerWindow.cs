@@ -52,6 +52,11 @@ namespace Laubrary.Choreographer.Editor
         int dragIndex = -1;
         const int DragLauncher = -2, DragTarget = -3;
 
+        // multi-select of path points + marquee
+        readonly System.Collections.Generic.HashSet<int> selection = new();
+        bool marqueeing;
+        Vector2 marqueeStart, marqueeCur;
+
         const int MaxRouteDancers = 48;   // cap line/onion detail on huge N
         const int MaxDots = 500;
 
@@ -107,7 +112,7 @@ namespace Laubrary.Choreographer.Editor
                 float progress = ChoreographySampler.ProgressAt(choreo, i, n, phase);
                 if (progress <= 0f) capturedL[i] = false;
                 else if (!capturedL[i]) { capLauncherN[i] = launcherN; capturedL[i] = true; }
-                if (progress < choreo.retargetAt) capturedT[i] = false;
+                if (progress < choreo.releaseAt) capturedT[i] = false;
                 else if (!capturedT[i]) { capTargetN[i] = targetN; capturedT[i] = true; }
             }
         }
@@ -165,9 +170,23 @@ namespace Laubrary.Choreographer.Editor
                 using (new EditorGUI.DisabledScope(choreo.pathPoints.Count <= 2))
                     if (row.Button("- point")) { choreo.pathPoints.RemoveAt(choreo.pathPoints.Count - 1); choreo.MarkPathDirty(); }
             }
-            Label("Faint orange = the path template you edit. Drag handles to reshape · click the curve to add a " +
-                "point · right-click a handle to remove. Coloured lines are the actual dancer routes. Turn off " +
-                "Constant speed to let point spacing set speed.", ZUI.ZTextStyle.Subtle);
+            Label("Drag a handle to move it · click the curve to add a point · right-click a handle to remove. " +
+                "Marquee-drag empty space to select many · shift-click to add · drag any selected handle to move them together.",
+                ZUI.ZTextStyle.Subtle);
+
+            if (selection.Count > 0)
+            {
+                Section($"Selection — {selection.Count} points");
+                using (ZUI.HRow()) { if (Button("Rotate ⟲")) RotateSelection(-15f); if (Button("Rotate ⟳")) RotateSelection(15f); }
+                using (ZUI.HRow()) { if (Button("Wider")) ScaleSelection(1.15f, 1f); if (Button("Narrower")) ScaleSelection(1f / 1.15f, 1f); }
+                using (ZUI.HRow()) { if (Button("Taller")) ScaleSelection(1f, 1.15f); if (Button("Shorter")) ScaleSelection(1f, 1f / 1.15f); }
+                using (ZUI.HRow()) { if (Button("Flip H")) ScaleSelection(-1f, 1f); if (Button("Flip V")) ScaleSelection(1f, -1f); }
+                using (ZUI.HRow())
+                {
+                    if (Button("Select all")) { selection.Clear(); for (int i = 0; i < choreo.pathPoints.Count; i++) selection.Add(i); }
+                    if (Button("Clear")) selection.Clear();
+                }
+            }
 
             Section("Spread (start line → circle)");
             choreo.spreadLength = Slider(choreo.spreadLength, 0f, 4f, "Length");
@@ -188,7 +207,11 @@ namespace Laubrary.Choreographer.Editor
             choreo.useLauncher = Toggle(choreo.useLauncher, "Use launcher");
             if (choreo.useLauncher) choreo.launchBlend = Slider(choreo.launchBlend, 0.01f, 1f, "Launch blend");
             choreo.useTarget = Toggle(choreo.useTarget, "Use target");
-            if (choreo.useTarget) choreo.retargetAt = Slider(choreo.retargetAt, 0f, 0.99f, "Retarget at");
+            if (choreo.useTarget)
+            {
+                choreo.releaseAt = Slider(choreo.releaseAt, 0f, 0.99f, "Release");
+                choreo.targetBlend = Slider(choreo.targetBlend, 0.01f, 1f, "Target blend");
+            }
 
             if (EditorGUI.EndChangeCheck()) { EditorUtility.SetDirty(choreo); choreo.MarkPathDirty(); Repaint(); }
 
@@ -290,7 +313,7 @@ namespace Laubrary.Choreographer.Editor
                 GUI.Label(new Rect(view.x + 8, view.yMax - 20, view.width, 20), $"phase {phase:0.00}", EditorStyles.miniLabel);
                 if (showBlend && ((an.hasLauncher && choreo.useLauncher) || (an.hasTarget && choreo.useTarget)))
                     GUI.Label(new Rect(view.x + 8, view.y + 4, view.width - 16, 16),
-                        "◦ green ring = fanned out (launch blend)   ◦ red ring = homing begins (retarget marker)", EditorStyles.miniLabel);
+                        "◦ green ring = fanned out (launch blend)   ◦ red ring = Release (target committed)", EditorStyles.miniLabel);
             }
 
             if (showTemplate) DrawHandlesOverlay(view);
@@ -337,7 +360,7 @@ namespace Laubrary.Choreographer.Editor
                 if (launch)
                     DrawDot(N2P(ChoreographySampler.SamplePosition(choreo, i, n, choreo.launchBlend, an)), 5f, new Color(0.3f, 0.95f, 0.4f, 0.9f));
                 if (target)
-                    DrawDot(N2P(ChoreographySampler.SamplePosition(choreo, i, n, choreo.retargetAt, an)), 5f, new Color(0.95f, 0.3f, 0.3f, 0.9f));
+                    DrawDot(N2P(ChoreographySampler.SamplePosition(choreo, i, n, choreo.releaseAt, an)), 5f, ReleaseColor);
             }
         }
 
@@ -437,15 +460,43 @@ namespace Laubrary.Choreographer.Editor
         }
 
         // ── path-point handles (drawn as GUI, so they work on non-repaint events) ──
+        static readonly Color ReleaseColor = new(0.95f, 0.3f, 0.3f, 0.95f);
+
         void DrawHandlesOverlay(Rect view)
         {
             var an = PreviewAnchors();
+            int releaseIdx = NearestPointToRelease();
             for (int i = 0; i < choreo.pathPoints.Count; i++)
             {
                 Vector2 p = N2P(ChoreographySampler.FramePoint(choreo, choreo.pathPoints[i], an));
+                if (i == releaseIdx) EditorGUI.DrawRect(new Rect(p.x - 8, p.y - 8, 16, 16), ReleaseColor);   // release border
+                bool sel = selection.Contains(i);
                 var r = new Rect(p.x - 5, p.y - 5, 10, 10);
-                EditorGUI.DrawRect(r, i == dragIndex ? Color.yellow : new Color(1f, 0.8f, 0.2f, 0.9f));
+                EditorGUI.DrawRect(r, i == dragIndex ? Color.yellow : sel ? new Color(0.3f, 0.9f, 1f) : new Color(1f, 0.8f, 0.2f, 0.9f));
             }
+            if (marqueeing)
+            {
+                var r = MarqueeRect();
+                EditorGUI.DrawRect(r, new Color(0.3f, 0.7f, 1f, 0.12f));
+                EditorGUI.DrawRect(new Rect(r.x, r.y, r.width, 1), Color.white);
+                EditorGUI.DrawRect(new Rect(r.x, r.yMax - 1, r.width, 1), Color.white);
+                EditorGUI.DrawRect(new Rect(r.x, r.y, 1, r.height), Color.white);
+                EditorGUI.DrawRect(new Rect(r.xMax - 1, r.y, 1, r.height), Color.white);
+            }
+        }
+
+        // The control point closest to where the Release marker sits along the path (so you can see where release begins).
+        int NearestPointToRelease()
+        {
+            if (!choreo.useTarget || choreo.pathPoints.Count == 0) return -1;
+            Vector2 relPt = choreo.Cache.Sample(Mathf.Clamp01(choreo.releaseAt), choreo.constantSpeed, out _);
+            int best = -1; float bestD = float.MaxValue;
+            for (int i = 0; i < choreo.pathPoints.Count; i++)
+            {
+                float d = (choreo.pathPoints[i] - relPt).sqrMagnitude;
+                if (d < bestD) { bestD = d; best = i; }
+            }
+            return best;
         }
 
         void HandlePointDrag(Rect view)
@@ -474,8 +525,14 @@ namespace Laubrary.Choreographer.Editor
                 if (showTemplate)
                 {
                     for (int i = 0; i < choreo.pathPoints.Count; i++)
-                        if ((HandlePix(i) - e.mousePosition).sqrMagnitude < 100f) { dragIndex = i; e.Use(); return; }
-                    if (TryInsertPointAt(e.mousePosition, an)) { e.Use(); Repaint(); }   // click on the curve adds a point
+                        if ((HandlePix(i) - e.mousePosition).sqrMagnitude < 100f)
+                        {
+                            if (e.shift) { if (!selection.Remove(i)) selection.Add(i); }   // shift-click toggles selection
+                            else if (!selection.Contains(i)) { selection.Clear(); selection.Add(i); } // fresh single-select
+                            dragIndex = i; e.Use(); Repaint(); return;
+                        }
+                    // empty space → start a marquee (which, if it turns out to be a click on the curve, inserts a point)
+                    marqueeing = true; marqueeStart = marqueeCur = e.mousePosition; e.Use();
                 }
             }
             else if (e.type == EventType.MouseDrag && dragIndex != -1)
@@ -483,11 +540,63 @@ namespace Laubrary.Choreographer.Editor
                 Vector2 nrm = ClampN(P2N(e.mousePosition));
                 if (dragIndex == DragLauncher) launcherN = nrm;
                 else if (dragIndex == DragTarget) targetN = nrm;
-                else { choreo.pathPoints[dragIndex] = ClampN(ChoreographySampler.InverseFramePoint(choreo, nrm, an)); choreo.MarkPathDirty(); EditorUtility.SetDirty(choreo); }
+                else
+                {
+                    Vector2 target = ClampN(ChoreographySampler.InverseFramePoint(choreo, nrm, an));
+                    Vector2 delta = target - choreo.pathPoints[dragIndex];       // move the whole selection by the same delta
+                    if (selection.Count == 0) selection.Add(dragIndex);
+                    foreach (int i in selection) choreo.pathPoints[i] = ClampN(choreo.pathPoints[i] + delta);
+                    choreo.MarkPathDirty(); EditorUtility.SetDirty(choreo);
+                }
                 e.Use(); Repaint();
             }
-            else if (e.type == EventType.MouseUp && dragIndex != -1) { dragIndex = -1; e.Use(); }
+            else if (e.type == EventType.MouseDrag && marqueeing) { marqueeCur = e.mousePosition; e.Use(); Repaint(); }
+            else if (e.type == EventType.MouseUp)
+            {
+                if (dragIndex != -1) { dragIndex = -1; e.Use(); }
+                else if (marqueeing)
+                {
+                    marqueeing = false;
+                    if ((marqueeCur - marqueeStart).sqrMagnitude < 16f)          // a click, not a drag
+                    {
+                        if (!TryInsertPointAt(marqueeStart, an) && !e.shift) selection.Clear();
+                    }
+                    else
+                    {
+                        if (!e.shift) selection.Clear();
+                        var rect = MarqueeRect();
+                        for (int i = 0; i < choreo.pathPoints.Count; i++)
+                            if (rect.Contains(HandlePix(i))) selection.Add(i);
+                    }
+                    e.Use(); Repaint();
+                }
+            }
         }
+
+        Rect MarqueeRect()
+        {
+            return Rect.MinMaxRect(Mathf.Min(marqueeStart.x, marqueeCur.x), Mathf.Min(marqueeStart.y, marqueeCur.y),
+                                   Mathf.Max(marqueeStart.x, marqueeCur.x), Mathf.Max(marqueeStart.y, marqueeCur.y));
+        }
+
+        Vector2 SelectionCentroid()
+        {
+            Vector2 c = Vector2.zero; int n = 0;
+            foreach (int i in selection) if (i < choreo.pathPoints.Count) { c += choreo.pathPoints[i]; n++; }
+            return n > 0 ? c / n : Vector2.zero;
+        }
+
+        void TransformSelection(System.Func<Vector2, Vector2, Vector2> op)   // op(point, centroid) -> new point
+        {
+            if (selection.Count == 0) return;
+            Undo.RecordObject(choreo, "Transform selection");
+            Vector2 c = SelectionCentroid();
+            foreach (int i in selection) if (i < choreo.pathPoints.Count) choreo.pathPoints[i] = ClampN(op(choreo.pathPoints[i], c));
+            choreo.MarkPathDirty(); EditorUtility.SetDirty(choreo); Repaint();
+        }
+
+        void RotateSelection(float deg) => TransformSelection((p, c) => c + ChoreographySampler.Rotate(p - c, deg));
+        void ScaleSelection(float sx, float sy) => TransformSelection((p, c) => c + Vector2.Scale(p - c, new Vector2(sx, sy)));
 
         // Insert a control point where the user clicked the path curve. Only fires if the click is near the
         // drawn template; the new point goes into whichever control-polygon edge it least distorts.
@@ -599,7 +708,7 @@ namespace Laubrary.Choreographer.Editor
             GUI.matrix = old;
         }
 
-        static Color IndexColor(float ni) => Color.HSVToRGB(Mathf.Lerp(0.52f, 0.95f, ni), 0.65f, 1f);
+        static Color IndexColor(float ni) => ChoreographySampler.IndexColor(ni);
 
         // ── asset & path helpers ──────────────────────────────────────────────
         void SetPath(List<Vector2> pts) { Undo.RecordObject(choreo, "Path preset"); choreo.pathPoints = pts; choreo.MarkPathDirty(); EditorUtility.SetDirty(choreo); }

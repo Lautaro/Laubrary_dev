@@ -45,6 +45,50 @@ public static class ChoreoDemoBuilder
         SaveScene(Dir + "/ChoreographerBarrage.unity", c.defaultCount, "barrage");
     }
 
+    // ── the full shmup: boss barrage + player (wanders & shoots) + four enemy formation waves + debug view ──
+    [MenuItem("Laubrary/Choreographer/Build Demo Scene (Shmup)")]
+    public static void BuildShmup()
+    {
+        EnsureDir();
+        var barrageC = LoadOrSeed(Dir + "/Barrage.asset", SeedBarrage);
+        var waveSine = LoadOrSeed(Dir + "/EnemySineSweep.asset", SeedSineSweep);
+        var waveDive = LoadOrSeed(Dir + "/EnemyVDive.asset", SeedVDive);
+        var waveArc = LoadOrSeed(Dir + "/EnemyArc.asset", SeedArc);
+        var waveLoner = LoadOrSeed(Dir + "/EnemyLoner.asset", SeedLoner);
+
+        NewScene();
+
+        // Player (right side): wanders and fires bullets to the side. Nothing kills it in the demo.
+        var player = MakeActor("Player", null, DemoSprites.Shape.Triangle, new Color(0.4f, 0.9f, 1f), 0.9f, DemoFaction.Player, new DemoFaction[0]);
+        player.transform.position = new Vector3(6f, 0f, 0f);
+        var pw = player.AddComponent<ChoreoDemoWander>(); pw.min = new(3.5f, -3.5f); pw.max = new(8f, 3.5f); pw.speed = 3f;
+        player.AddComponent<DemoPlayerWeapon>();
+
+        // Boss (left side): wanders and fires the homing barrage.
+        var boss = MakeActor("Boss", null, DemoSprites.Shape.Square, new Color(0.95f, 0.35f, 0.3f), 1.6f, DemoFaction.Boss, new DemoFaction[0]);
+        boss.transform.position = new Vector3(-6f, 0f, 0f);
+        var bw = boss.AddComponent<ChoreoDemoWander>(); bw.min = new(-8f, -3.5f); bw.max = new(-4.5f, 3.5f); bw.speed = 1.5f;
+
+        // Barrage projectiles: EnemyShots that explode on the player.
+        var barrageRoot = new GameObject("Barrage");
+        var barragePlayer = MakePlayer(barrageRoot, barrageC);
+        barragePlayer.launcher = boss.transform;
+        barragePlayer.target = player.transform;
+        SpawnActorDancers(barragePlayer, barrageRoot, barrageC.defaultCount, 0.4f, DemoSprites.Shape.Circle,
+            new Color(1f, 0.7f, 0.2f), DemoFaction.EnemyShot, new[] { DemoFaction.Player });
+        barrageRoot.AddComponent<ChoreographyDebugView>().player = barragePlayer;
+
+        // Four enemy formation waves — each a choreography, exploding on the player or the player's shots.
+        MakeChoreoWave("Wave Sine", waveSine, new Vector2(18f, 8f), new Vector3(0f, 2.5f, 0f), DemoSprites.Shape.Circle, new Color(0.6f, 0.9f, 0.4f), 0.8f);
+        MakeChoreoWave("Wave VDive", waveDive, new Vector2(18f, 10f), new Vector3(0f, 0.5f, 0f), DemoSprites.Shape.Square, new Color(0.9f, 0.6f, 0.3f), 0.8f);
+        MakeChoreoWave("Wave Arc", waveArc, new Vector2(18f, 8f), new Vector3(0f, 1.5f, 0f), DemoSprites.Shape.Triangle, new Color(0.9f, 0.45f, 0.85f), 0.8f);
+        MakeChoreoWave("Wave Loner", waveLoner, new Vector2(16f, 8f), new Vector3(0f, -2.5f, 0f), DemoSprites.Shape.Diamond, new Color(0.95f, 0.85f, 0.35f), 1.0f);
+
+        var ui = new GameObject("Demo Controls"); ui.AddComponent<ChoreoDemoControlUI>();
+
+        SaveScene(Dir + "/ChoreographerShmup.unity", 0, "shmup");
+    }
+
     // ── shared helpers ────────────────────────────────────────────────────────
     static void EnsureDir()
     {
@@ -86,7 +130,7 @@ public static class ChoreoDemoBuilder
         c.defaultCount = 14; c.duration = 2.5f; c.stagger = 0.5f;
         c.direction = Direction.Scatter; c.loop = true;
         c.useLauncher = true; c.launchBlend = 0.3f;
-        c.useTarget = true; c.retargetAt = 0.6f;
+        c.useTarget = true; c.releaseAt = 0.6f; c.targetBlend = 0.35f;
     }
 
     // Non-destructive: add the runtime control UI to the already-open scene (no rebuild, no data touched).
@@ -190,5 +234,99 @@ public static class ChoreoDemoBuilder
             pts.Add(new Vector2(Mathf.Lerp(-0.5f, 0.5f, u), amp * Mathf.Sin(u * Mathf.PI * 2f)));
         }
         return pts;
+    }
+
+    // ── shmup actor / wave helpers ──────────────────────────────────────────────
+    static GameObject MakeActor(string name, Transform parent, DemoSprites.Shape shape, Color color, float scale,
+                                DemoFaction faction, DemoFaction[] explodesOn)
+    {
+        var go = new GameObject(name);
+        if (parent != null) go.transform.SetParent(parent, false);
+        go.transform.localScale = Vector3.one * scale;
+
+        var sr = go.AddComponent<SpriteRenderer>();
+        sr.sortingOrder = 200;                       // sprite itself is assigned at play time by DemoActor
+
+        var rb = go.AddComponent<Rigidbody2D>();
+        rb.bodyType = RigidbodyType2D.Kinematic;
+        rb.gravityScale = 0f;
+
+        var cc = go.AddComponent<CircleCollider2D>();
+        cc.isTrigger = true;
+        cc.radius = 0.5f;                            // sprite is 1 unit, so 0.5 local matches at any scale
+
+        var act = go.AddComponent<DemoActor>();
+        act.faction = faction;
+        act.explodesOn = explodesOn;
+        act.shape = shape;
+        act.color = color;
+        act.explosionSize = scale;
+        return go;
+    }
+
+    static void SpawnActorDancers(ChoreographyPlayer player, GameObject root, int n, float scale,
+                                  DemoSprites.Shape shape, Color color, DemoFaction faction, DemoFaction[] explodesOn)
+    {
+        for (int i = 0; i < n; i++)
+        {
+            var go = MakeActor("Dancer " + i, root.transform, shape, color, scale, faction, explodesOn);
+            var act = go.GetComponent<DemoActor>();
+            act.choreoPlayer = player;               // hide+respawn on the wave loop instead of destroying
+            act.choreoIndex = i;
+            player.targets.Add(go.transform);
+        }
+    }
+
+    static void MakeChoreoWave(string name, Choreography choreo, Vector2 worldSize, Vector3 anchorPos,
+                               DemoSprites.Shape shape, Color color, float scale)
+    {
+        var root = new GameObject(name);
+        root.transform.position = anchorPos;
+        var cp = root.AddComponent<ChoreographyPlayer>();
+        cp.choreography = choreo;
+        cp.anchor = root.transform;
+        cp.worldSize = worldSize;
+        cp.applyFacing = true;
+        cp.targets = new List<Transform>();
+        SpawnActorDancers(cp, root, choreo.defaultCount, scale, shape, color, DemoFaction.Enemy,
+            new[] { DemoFaction.Player, DemoFaction.PlayerShot });
+        root.AddComponent<ChoreographyDebugView>().player = cp;
+    }
+
+    // ── enemy formation seeds (4 types; only ever written when the asset is first created) ──
+    static void SeedSineSweep(Choreography c)
+    {
+        c.pathPoints = SinePoints(17, 0.15f);
+        c.smooth = true; c.constantSpeed = true;
+        c.spreadLength = 3f; c.spreadBend = 0f; c.facing = FacingMode.Fixed;
+        c.defaultCount = 6; c.duration = 6f; c.stagger = 0.25f; c.direction = Direction.Scatter; c.loop = true;
+        c.useLauncher = false; c.useTarget = false;
+    }
+
+    static void SeedVDive(Choreography c)
+    {
+        c.pathPoints = new List<Vector2> { new(-0.6f, 0.4f), new(-0.2f, 0f), new(0.2f, -0.2f), new(0.6f, -0.5f) };
+        c.smooth = true; c.constantSpeed = true;
+        c.spreadLength = 2.5f; c.spreadBend = 0.25f; c.facing = FacingMode.Fixed;
+        c.defaultCount = 5; c.duration = 5f; c.stagger = 0.15f; c.direction = Direction.Scatter; c.loop = true;
+        c.useLauncher = false; c.useTarget = false;
+    }
+
+    static void SeedArc(Choreography c)
+    {
+        c.pathPoints = new List<Vector2> { new(-0.6f, 0f), new(0f, 0.35f), new(0.6f, 0f) };
+        c.smooth = true; c.constantSpeed = true;
+        c.spreadLength = 3.5f; c.spreadBend = 0.1f; c.facing = FacingMode.Fixed;
+        c.defaultCount = 7; c.duration = 6f; c.stagger = 0.2f; c.direction = Direction.Scatter; c.loop = true;
+        c.useLauncher = false; c.useTarget = false;
+    }
+
+    static void SeedLoner(Choreography c)
+    {
+        c.pathPoints = new List<Vector2> { new(-0.6f, -0.2f), new(-0.2f, 0.3f), new(0.2f, -0.3f), new(0.6f, 0.2f) };
+        c.smooth = true; c.constantSpeed = true;
+        c.spreadLength = 0f; c.spreadBend = 0f; c.facing = FacingMode.Fixed;
+        c.defaultCount = 1; c.duration = 7f; c.stagger = 0f; c.direction = Direction.Scatter; c.loop = true;
+        c.useLauncher = false; c.useTarget = false;
     }
 }
