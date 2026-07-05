@@ -17,4 +17,11 @@ namespace Laubrary.Pyre
         Radial,      // shapes scatter within a disc around the centre and grow outward (a normal explosion)
         Directional  // shapes start on a (bendable) origin line/surface and stream one way across the frame
     }
+
+    /// How a Bars layer ends: contract back (size envelope shrinks) or hold + dissolve from the centre outward.
+    public enum BarDecay
+    {
+        Contract,   // forward reach / width follow their envelope down again (grow then shrink)
+        Dissolve    // forward reach / width expand and HOLD; bars then fade out from the centre bar outward
+    }
 }

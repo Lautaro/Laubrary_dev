@@ -150,6 +150,12 @@ namespace Laubrary.Pyre
         public ZUIValue barAngleDeg = new ZUIValue(0f);
         [Tooltip("Bars: also draw a mirror of this layer's angle on the other side of the base angle.")]
         public bool barMirror = false;
+        [Tooltip("Bars: Contract = size envelope shrinks back; Dissolve = size holds at its peak, then bars fade " +
+                 "out from the centre outward (a transparency front spreads across the row).")]
+        public BarDecay barDecay = BarDecay.Contract;
+        [Range(0f, 1f)]
+        [Tooltip("Bars (Dissolve): fraction of the layer's life at which the dissolve front starts spreading.")]
+        public float dissolveStart = 0.45f;
         [Tooltip("Bars: push the origin this many pixels in from the surface edge, for a little breathing room. Animatable.")]
         public ZUIValue originInset = new ZUIValue(4f);
 

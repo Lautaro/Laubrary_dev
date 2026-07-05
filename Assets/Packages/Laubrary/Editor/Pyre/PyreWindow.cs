@@ -54,6 +54,7 @@ namespace Laubrary.Pyre.Editor
 
         static readonly string[] ShapeLabels = { "Disc", "Ring", "Dissolve", "Sparkle", "Crescent", "Bars" };
         static readonly string[] EmissionLabels = { "Radial", "Directional" };
+        static readonly string[] BarDecayLabels = { "Contract", "Dissolve" };
 
         protected override void OnZUIEnable()
         {
@@ -364,6 +365,10 @@ namespace Laubrary.Pyre.Editor
                     ValRow("Layer angle", l.barAngleDeg, -180f, 180f, 0f);
                     l.barMirror = Toggle(l.barMirror, "Mirror angle");
                     ValRow("Origin inset", l.originInset, 0f, 40f, 4f);
+                    var decayForLayout = l.barDecay;
+                    l.barDecay = (BarDecay)MiniRadio((int)l.barDecay, BarDecayLabels);
+                    if (decayForLayout == BarDecay.Dissolve)
+                        l.dissolveStart = Slider(l.dissolveStart, 0f, 1f, "Dissolve start");
                     l.barLengthDist ??= Layer.DefaultBarLengthDist();
                     CurveField("pyre.barlen." + layerSel, "Length by distance (centre→edge)", l.barLengthDist, 0f, 1.2f);
                 }

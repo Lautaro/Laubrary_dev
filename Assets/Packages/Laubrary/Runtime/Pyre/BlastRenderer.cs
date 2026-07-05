@@ -28,6 +28,7 @@ namespace Laubrary.Pyre
                   F_OriginInset = 18, F_BarCount = 19;
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
         const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
+        const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing the global deform
 
         /// One deform block resolved to plain floats for a given frame.
@@ -78,6 +79,18 @@ namespace Laubrary.Pyre
         }
 
         static Color MulRGB(Color a, Color b) => new Color(a.r * b.r, a.g * b.g, a.b * b.b, a.a);
+
+        // Running maximum of a value from 0..t — makes a Curve "expand and hold" (never contract). Static/MinMax
+        // are already constant, so they pass straight through.
+        static float EvalRisingMax(ZUIValue v, float t, int seed, int li, int si, int fid)
+        {
+            if (v == null) return 0f;
+            if (v.mode != ZUIValue.Mode.Curve) return Eval(v, t, seed, li, si, fid);
+            float m = 0f;
+            const int N = 8;
+            for (int k = 0; k <= N; k++) m = Mathf.Max(m, Eval(v, t * k / (float)N, seed, li, si, fid));
+            return m;
+        }
 
         // ── the frame → Color32[] core ─────────────────────────────────────────
         public static Color32[] RenderFrame(BlastSpec spec, int frameIndex)
@@ -292,8 +305,14 @@ namespace Laubrary.Pyre
             Vector2 origin = EdgePoint(center, W, H, -dir) + dir * inset;               // start just in from the back edge
             int B = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.barCount, lp, spec.seed, li, 0, F_BarCount)));
             float spacing = Eval(layer.barSpacing, lp, spec.seed, li, 0, F_BarSpacing);
-            float width = Eval(layer.barWidth, lp, spec.seed, li, 0, F_BarWidth);
             float backFrac = Mathf.Clamp01(Eval(layer.barBackwardFrac, lp, spec.seed, li, 0, F_BarBackward));
+
+            // Dissolve decay: forward reach / width EXPAND and hold (running-max, never contract), then a
+            // transparency front spreads from the centre bar outward, fading bars line by line until none remain.
+            bool dissolve = layer.barDecay == BarDecay.Dissolve;
+            float width = dissolve ? EvalRisingMax(layer.barWidth, lp, spec.seed, li, 0, F_BarWidth)
+                                   : Eval(layer.barWidth, lp, spec.seed, li, 0, F_BarWidth);
+            float front = dissolve ? Mathf.Clamp01(Mathf.InverseLerp(layer.dissolveStart, 1f, lp)) * (1f + DissolveBand) : 0f;
 
             void DrawBar(int i)
             {
@@ -306,12 +325,14 @@ namespace Laubrary.Pyre
                 if (lp < appear) return;
                 float tb = Mathf.Clamp01((lp - appear) / Mathf.Max(0.0001f, 1f - appear)); // bar's own life
 
-                float fwd = Eval(layer.barForward, tb, spec.seed, li, i, F_BarForward) * lenMul;
+                float fwd = (dissolve ? EvalRisingMax(layer.barForward, tb, spec.seed, li, i, F_BarForward)
+                                      : Eval(layer.barForward, tb, spec.seed, li, i, F_BarForward)) * lenMul;
                 if (fwd < 0.4f) return;
                 float bwd = fwd * backFrac;
 
                 Color col = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(d) : Color.white;
                 float alpha = Mathf.Clamp01(Eval(layer.alpha, tb, spec.seed, li, i, F_Alpha));
+                if (dissolve) alpha *= 1f - Mathf.Clamp01((front - d) / DissolveBand);    // centre (d=0) dissolves first
                 if (alpha < 0.004f) return;
 
                 RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, width, col, alpha, grade);
