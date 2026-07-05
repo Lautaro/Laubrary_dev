@@ -27,6 +27,7 @@ namespace Laubrary.Pyre.Editor
         [SerializeField] Color bgSolid = new Color(0.08f, 0.08f, 0.10f);
         [SerializeField] Gradient bgGradient;
         [SerializeField] Texture2D bgImage;
+        [SerializeField] Color bgImageTint = Color.white; // multiplies the backdrop image; white = untouched
 
         // add-layer shape picker
         [SerializeField] LayerShape addShape = LayerShape.Disc;
@@ -394,6 +395,7 @@ namespace Laubrary.Pyre.Editor
                         break;
                     case PreviewBgMode.Image:
                         bgImage = (Texture2D)EditorGUILayout.ObjectField("Image", bgImage, typeof(Texture2D), false);
+                        bgImageTint = EditorGUILayout.ColorField("Tint", bgImageTint);
                         break;
                 }
             }
@@ -419,7 +421,13 @@ namespace Laubrary.Pyre.Editor
                     break;
                 }
                 case PreviewBgMode.Image:
-                    if (bgImage != null) GUI.DrawTexture(view, bgImage, ScaleMode.ScaleAndCrop, false);
+                    if (bgImage != null)
+                    {
+                        var prevCol = GUI.color;
+                        GUI.color = bgImageTint;
+                        GUI.DrawTexture(view, bgImage, ScaleMode.ScaleAndCrop, false);
+                        GUI.color = prevCol;
+                    }
                     else EditorGUI.DrawRect(view, bgSolid);
                     break;
             }
