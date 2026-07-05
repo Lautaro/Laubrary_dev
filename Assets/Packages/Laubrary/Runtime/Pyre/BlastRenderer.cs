@@ -246,7 +246,7 @@ namespace Laubrary.Pyre
             float width = Eval(layer.barWidth, lp, spec.seed, li, 0, F_BarWidth);
             float backFrac = Mathf.Clamp01(Eval(layer.barBackwardFrac, lp, spec.seed, li, 0, F_BarBackward));
 
-            for (int i = -B; i <= B; i++)
+            void DrawBar(int i)
             {
                 Vector2 barCenter = origin + perp * (i * spacing);
                 float d = B > 0 ? Mathf.Abs(i) / (float)B : 0f;                          // 0 = centre bar
@@ -254,19 +254,25 @@ namespace Laubrary.Pyre
                     ? Mathf.Max(0f, ZUIEnvelopeEvaluator.Evaluate(layer.barLengthDist, d, 1f)) : 1f;
 
                 float appear = Mathf.Abs(i) * layer.barStagger;                          // centre bar first, then outward
-                if (lp < appear) continue;
+                if (lp < appear) return;
                 float tb = Mathf.Clamp01((lp - appear) / Mathf.Max(0.0001f, 1f - appear)); // bar's own life
 
                 float fwd = Eval(layer.barForward, tb, spec.seed, li, i, F_BarForward) * lenMul;
-                if (fwd < 0.4f) continue;
+                if (fwd < 0.4f) return;
                 float bwd = fwd * backFrac;
 
                 Color col = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(d) : Color.white;
                 float alpha = Mathf.Clamp01(Eval(layer.alpha, tb, spec.seed, li, i, F_Alpha));
-                if (alpha < 0.004f) continue;
+                if (alpha < 0.004f) return;
 
                 RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, width, col, alpha);
             }
+
+            // Draw outermost bars first and the centre last, so when bars overlap (width > spacing) both wings
+            // layer identically (inner over outer, centre on top). The naive -B..B order overwrote the two sides
+            // in opposite directions, which made one side look wider and the centre appear to drift.
+            for (int k = B; k >= 1; k--) { DrawBar(-k); DrawBar(k); }
+            DrawBar(0);
         }
 
         // Fill a rotated rectangle: from alongMin..alongMax along `dir`, ±halfWidth across `perp`.

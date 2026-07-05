@@ -29,6 +29,7 @@ namespace Laubrary.Pyre.Editor
         [SerializeField] Texture2D bgImage;
         [SerializeField] Color bgImageTint = Color.white; // multiplies the backdrop image; white = untouched
         [SerializeField] float bgImageZoom = 1f;          // scales the backdrop image within the viewport
+        [SerializeField] bool showFrame = false;          // draw the sprite-frame (canvas) border in the preview
 
         // add-layer shape picker
         [SerializeField] LayerShape addShape = LayerShape.Disc;
@@ -470,6 +471,14 @@ namespace Laubrary.Pyre.Editor
                     GUI.BeginClip(view);
                     var local = new Rect((view.width - w) * 0.5f, (view.height - h) * 0.5f, w, h);
                     GUI.DrawTexture(local, previewTex, ScaleMode.StretchToFill, true);
+                    if (showFrame)
+                    {
+                        var frameCol = new Color(1f, 1f, 1f, 0.55f);
+                        EditorGUI.DrawRect(new Rect(local.x, local.y, local.width, 1f), frameCol);
+                        EditorGUI.DrawRect(new Rect(local.x, local.yMax - 1f, local.width, 1f), frameCol);
+                        EditorGUI.DrawRect(new Rect(local.x, local.y, 1f, local.height), frameCol);
+                        EditorGUI.DrawRect(new Rect(local.xMax - 1f, local.y, 1f, local.height), frameCol);
+                    }
                     GUI.EndClip();
                 }
             }
@@ -481,6 +490,7 @@ namespace Laubrary.Pyre.Editor
             if (Button(playing ? "❚❚ Pause" : "▶ Play")) { playing = !playing; scrub = -1; }
             if (Button("⟲ Restart")) { frame = 0; acc = 0f; scrub = -1; }
             if (Button("Fit")) FitZoom();
+            showFrame = Toggle(showFrame, "Frame");
             if (Button("Bake")) BlastBaker.Bake(spec);
             EditorGUILayout.EndHorizontal();
 
