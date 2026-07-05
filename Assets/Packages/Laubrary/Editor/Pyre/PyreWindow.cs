@@ -55,10 +55,9 @@ namespace Laubrary.Pyre.Editor
         static readonly string[] ShapeLabels = { "Disc", "Ring", "Dissolve", "Sparkle", "Crescent", "Bars" };
         static readonly string[] EmissionLabels = { "Radial", "Directional" };
         static readonly string[] BarDecayLabels = { "Contract", "Dissolve" };
-        static readonly string[] SpreadModeLabels = { "Orbit", "Star" };
 
-        // Whether the canvas is star-auto-fit, captured on the Layout event only so the width/height control set
-        // can't change between Layout and Repaint of the same frame (IMGUI reflow hazard). See OnZUI.
+        // Whether Star is on, captured on the Layout event only so the width/height + arms control sets can't change
+        // between Layout and Repaint of the same frame (IMGUI reflow hazard). See OnZUI.
         bool starLayout;
 
         protected override void OnZUIEnable()
@@ -95,7 +94,7 @@ namespace Laubrary.Pyre.Editor
             // Capture the star gate on Layout only, so the width/height block below has a stable control count
             // across this frame's Layout and Repaint passes even if the Orbit/Star radio is clicked.
             if (Event.current.type == EventType.Layout)
-                starLayout = spec != null && spec.spreadMode == SpreadMode.Radiate;
+                starLayout = spec != null && spec.star;
 
             DrawTopBar();
             if (spec == null)
@@ -156,18 +155,18 @@ namespace Laubrary.Pyre.Editor
             spec.background = EditorGUILayout.ColorField("Bake background", spec.background);
             spec.frameCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.frameCount, 1, 64, "Frame count")));
 
-            using (Box("Directional / spread (bars & directional layers)"))
+            using (Box("Directional / star (bars & directional layers)"))
             {
                 spec.baseAngleDeg = Slider(spec.baseAngleDeg, -180f, 180f, "Base angle");
-                spec.spreadMode = (SpreadMode)MiniRadio((int)spec.spreadMode, SpreadModeLabels);
-                spec.spreadCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.spreadCount, 1, 24,
-                    spec.spreadMode == SpreadMode.Radiate ? "Arms" : "Spread count")));
-                spec.spreadDegrees = Slider(spec.spreadDegrees, 0f, 360f, "Spread degrees");
-                // A Label is always one control regardless of text, so the hint can key off the live mode safely.
-                Label(spec.spreadMode == SpreadMode.Radiate
-                        ? "Star: bar arms share the centre and radiate outward; canvas auto-fits."
-                        : (spec.spreadCount > 1 ? "Tip: widen the canvas (square) so orbit copies fit." : " "),
-                      ZUI.ZTextStyle.Small);
+                spec.star = Toggle(spec.star, "Star (arms radiate from the centre)");
+                // Arms/Spread only exist while Star is on — gate on the Layout-captured value so the control count
+                // is stable across this frame's Layout and Repaint passes even if the toggle is clicked.
+                if (starLayout)
+                {
+                    spec.spreadCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.spreadCount, 1, 24, "Arms")));
+                    spec.spreadDegrees = Slider(spec.spreadDegrees, 0f, 360f, "Spread degrees");
+                    Label("Arms share the centre and radiate outward; canvas auto-fits.", ZUI.ZTextStyle.Small);
+                }
             }
 
             VerticalSpace();
@@ -373,14 +372,17 @@ namespace Laubrary.Pyre.Editor
             // so show ONLY the Bars box.
             if (shapeForLayout == LayerShape.Bars)
             {
-                using (Box("Bars — symmetric forward-growing row"))
+                using (Box("Bars — forward-growing row"))
                 {
                     ValRow("Bars per side", l.barCount, 0f, 40f, 7f);
                     ValRow("Spacing", l.barSpacing, 0.5f, 12f, 4f);
                     ValRow("Width", l.barWidth, 0.5f, 12f, 3f);
                     ValRow("Forward reach", l.barForward, 0f, cs, 40f);
+                    // Taper is the arm-shape control: +1 = centre longest → triangle/flame, 0 = flat, -1 = concave.
+                    l.barTaper = Slider(l.barTaper, -1f, 1f, "Taper (centre↔edge)");
                     ValRow("Backward frac", l.barBackwardFrac, 0f, 1f, 0.18f);
-                    l.barStagger = Slider(l.barStagger, 0f, 0.5f, "Stagger");
+                    // Stagger is TIMING, not shape: it delays outer bars so the row unfurls centre-out.
+                    l.barStagger = Slider(l.barStagger, 0f, 0.5f, "Stagger (timing)");
                     ValRow("Layer angle", l.barAngleDeg, -180f, 180f, 0f);
                     l.barMirror = Toggle(l.barMirror, "Mirror angle");
                     ValRow("Origin inset", l.originInset, 0f, 40f, 4f);
@@ -388,8 +390,6 @@ namespace Laubrary.Pyre.Editor
                     l.barDecay = (BarDecay)MiniRadio((int)l.barDecay, BarDecayLabels);
                     if (decayForLayout == BarDecay.Dissolve)
                         l.dissolveStart = Slider(l.dissolveStart, 0f, 1f, "Dissolve start");
-                    l.barLengthDist ??= Layer.DefaultBarLengthDist();
-                    CurveField("pyre.barlen." + layerSel, "Length by distance (centre→edge)", l.barLengthDist, 0f, 1.2f);
                 }
                 return;
             }

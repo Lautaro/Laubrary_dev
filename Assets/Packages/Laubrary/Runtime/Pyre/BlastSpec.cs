@@ -32,24 +32,23 @@ namespace Laubrary.Pyre
         // ── bar/directional composition (used by Bars-mode layers and the circular spread) ──
         [Tooltip("Fundamental direction (deg) the blast grows toward. Bar layer angles are relative to this.")]
         public float baseAngleDeg = 0f;
+        [Tooltip("Star: duplicate the blast into `arms` copies that share the centre and radiate OUTWARD (an " +
+                 "asterisk of bar-combs); the canvas auto-fits. Off = a single arm (bars stream off the back edge).")]
+        public bool star = false;
         [Min(1)]
-        [Tooltip("Spread: how many copies of the blast to place. Orbit = rotated around the centre; Star = arms.")]
-        public int spreadCount = 1;
-        [Tooltip("Spread: total arc (deg) the copies span. 360 = a full circle / star. Orbit needs a bigger square " +
-                 "canvas to fit; Star auto-fits its own canvas.")]
+        [Tooltip("Star: how many arms radiate from the centre.")]
+        public int spreadCount = 5;
+        [Tooltip("Star: total arc (deg) the arms span. 360 = evenly around the full circle.")]
         public float spreadDegrees = 360f;
-        [Tooltip("Orbit = rotate the whole stack around the centre (bars point inward). Star = bar arms share the " +
-                 "centre origin and radiate OUTWARD (an asterisk of bar-combs); the canvas auto-fits the arms.")]
-        public SpreadMode spreadMode = SpreadMode.Orbit;
 
         /// Canvas width/height in pixels. Normally the authored size (height falls back to width when 0 = square);
-        /// in Star (Radiate) spread the canvas auto-fits the bar arms so nothing clips.
-        public int Width  { get { if (spreadMode == SpreadMode.Radiate) { ComputeStarBox(out int w, out _); return w; } return Mathf.Max(1, canvasSize); } }
-        public int Height { get { if (spreadMode == SpreadMode.Radiate) { ComputeStarBox(out _, out int h); return h; } return canvasHeight > 0 ? canvasHeight : Mathf.Max(1, canvasSize); } }
+        /// when Star is on the canvas auto-fits the bar arms so nothing clips.
+        public int Width  { get { if (star) { ComputeStarBox(out int w, out _); return w; } return Mathf.Max(1, canvasSize); } }
+        public int Height { get { if (star) { ComputeStarBox(out _, out int h); return h; } return canvasHeight > 0 ? canvasHeight : Mathf.Max(1, canvasSize); } }
 
-        // In Star spread the bar arms share the centre and reach outward, so the canvas must fit the arms in every
+        // When Star is on the bar arms share the centre and reach outward, so the canvas must fit the arms in every
         // direction they point. Sized from the bar layers' max forward reach + the arm angles, symmetric about the
-        // centre so the shared origin stays centred. No bar layers (or non-star) → fall back to the authored canvas.
+        // centre so the shared origin stays centred. No bar layers (or star off) → fall back to the authored canvas.
         void ComputeStarBox(out int w, out int h)
         {
             float reach = 0f, combHalf = 0f;

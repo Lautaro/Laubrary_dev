@@ -140,9 +140,11 @@ namespace Laubrary.Pyre
         public ZUIValue barForward = DefaultBarForward();
         [Tooltip("Bars: backward reach as a fraction of the forward reach (a little spill behind the surface). Animatable.")]
         public ZUIValue barBackwardFrac = new ZUIValue(0.18f);
-        [Tooltip("Bars: forward-length multiplier by distance from centre (0 = centre bar, 1 = outermost). The curve " +
-                 "IS the blast silhouette — a falling curve makes a triangle/flame. Editable envelope.")]
-        public List<ZUIEnvelopePoint> barLengthDist = DefaultBarLengthDist();
+        [Range(-1f, 1f)]
+        [Tooltip("Bars: arm silhouette by distance from the centre bar. +1 = centre longest, tapering to the edges " +
+                 "(a triangle/flame); 0 = all bars equal (a rectangle); -1 = concave (edges longest). This is the " +
+                 "shape control — independent of the timing Stagger.")]
+        public float barTaper = 0.85f;
         [Range(0f, 0.5f)]
         [Tooltip("Bars: per-bar appearance delay as a fraction of the layer window (centre bar first, then outward).")]
         public float barStagger = 0.05f;
@@ -243,8 +245,7 @@ namespace Laubrary.Pyre
             l.barBackwardFrac = CloneVal(barBackwardFrac);
             l.barAngleDeg = CloneVal(barAngleDeg);
             l.originInset = CloneVal(originInset);
-            l.barLengthDist = barLengthDist == null ? DefaultBarLengthDist()
-                : barLengthDist.ConvertAll(p => new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
+            // barTaper is a plain float — copied by MemberwiseClone.
             l.colorOverLife = CloneGradient(colorOverLife);
             l.alpha = CloneVal(alpha);
             l.crossGradient = CloneGradient(crossGradient);
@@ -361,9 +362,5 @@ namespace Laubrary.Pyre
 
         /// A bar's forward reach over its life: shoot out fast, then pull back.
         public static ZUIValue DefaultBarForward() => CurveVal(48f, 0f, 2f, 0.4f, 40f, 1f, 8f);
-
-        /// Forward-length multiplier by distance from centre — a falling curve makes a triangle/flame silhouette.
-        public static List<ZUIEnvelopePoint> DefaultBarLengthDist() => new List<ZUIEnvelopePoint>
-        { new ZUIEnvelopePoint(0f, 1f), new ZUIEnvelopePoint(0.5f, 0.68f), new ZUIEnvelopePoint(1f, 0.12f) };
     }
 }

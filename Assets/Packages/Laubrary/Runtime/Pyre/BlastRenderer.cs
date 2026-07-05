@@ -115,10 +115,10 @@ namespace Laubrary.Pyre
                              bp, spec.seed, GlobalLayerId, frameIndex)
                 : Identity;
 
-            // Circular spread: draw the whole layer stack `spreadCount` times, each rotated around the centre
-            // (spread 360 = a full circular explosion). Radial layers are symmetric so it only overdraws them;
-            // directional / bar layers fan out.
-            int spread = Mathf.Max(1, spec.spreadCount);
+            // Star: draw the whole layer stack `spreadCount` times, each rotated around the centre, so bar arms
+            // radiate outward (an asterisk). Off = a single copy. Radial layers are symmetric so extra copies only
+            // overdraw them; bar / directional layers fan into arms.
+            int spread = spec.star ? Mathf.Max(1, spec.spreadCount) : 1;
             for (int inst = 0; inst < spread; inst++)
             {
               float instAngle = spread > 1 ? (spec.spreadDegrees / spread) * inst : 0f;
@@ -302,9 +302,9 @@ namespace Laubrary.Pyre
             Vector2 center = new Vector2(cx, cy);
             // The per-row bar knobs are multicontrols evaluated over the layer's timeline (once per frame).
             float inset = Eval(layer.originInset, lp, spec.seed, li, 0, F_OriginInset);
-            // Orbit/normal: the row sits on the back edge and reaches forward across the frame (tips point inward).
-            // Star (Radiate): every arm shares the CENTRE as its origin and reaches OUTWARD — an asterisk of combs.
-            Vector2 origin = spec.spreadMode == SpreadMode.Radiate
+            // Star off: the row sits on the back edge and reaches forward across the frame (a directional blast).
+            // Star on: every arm shares the CENTRE as its origin and reaches OUTWARD — an asterisk of combs.
+            Vector2 origin = spec.star
                 ? center + dir * inset
                 : EdgePoint(center, W, H, -dir) + dir * inset;
             int B = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.barCount, lp, spec.seed, li, 0, F_BarCount)));
@@ -321,9 +321,13 @@ namespace Laubrary.Pyre
             void DrawBar(int i)
             {
                 Vector2 barCenter = origin + perp * (i * spacing);
-                float d = B > 0 ? Mathf.Abs(i) / (float)B : 0f;                          // 0 = centre bar
-                float lenMul = layer.barLengthDist != null && layer.barLengthDist.Count > 0
-                    ? Mathf.Max(0f, ZUIEnvelopeEvaluator.Evaluate(layer.barLengthDist, d, 1f)) : 1f;
+                float d = B > 0 ? Mathf.Abs(i) / (float)B : 0f;                          // 0 = centre bar, 1 = outermost
+                // Taper shapes the arm silhouette by distance from the centre bar: +1 = centre longest tapering to
+                // nothing at the edges (a triangle/flame), 0 = all bars equal (a rectangle), −1 = concave (edges
+                // longest, centre short). A static per-bar length multiplier — independent of the timing Stagger.
+                float taper = Mathf.Clamp(layer.barTaper, -1f, 1f);
+                float lenMul = taper >= 0f ? 1f - taper * d : 1f + taper * (1f - d);
+                lenMul = Mathf.Max(0.04f, lenMul);
 
                 float appear = Mathf.Abs(i) * layer.barStagger;                          // centre bar first, then outward
                 if (lp < appear) return;
