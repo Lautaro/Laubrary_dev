@@ -27,6 +27,7 @@ namespace Laubrary.Pyre
                   F_BarSpacing = 14, F_BarWidth = 15, F_BarBackward = 16, F_BarAngle = 17,
                   F_OriginInset = 18, F_BarCount = 19;
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
+        const int F_BaseAngle = 25, F_SpreadDeg = 26, F_Taper = 27, F_Stagger = 28;
         const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing the global deform
@@ -115,18 +116,16 @@ namespace Laubrary.Pyre
                              bp, spec.seed, GlobalLayerId, frameIndex)
                 : Identity;
 
-            // Star: draw the whole layer stack `spreadCount` times, each rotated around the centre, so bar arms
-            // radiate outward (an asterisk). Off = a single copy. Radial layers are symmetric so extra copies only
-            // overdraw them; bar / directional layers fan into arms.
+            // Base angle & star spread arc are (animatable) blast-globals, evaluated once per frame.
+            float baseA = Eval(spec.baseAngleDeg, bp, spec.seed, GlobalLayerId, frameIndex, F_BaseAngle);
             int spread = spec.star ? Mathf.Max(1, spec.spreadCount) : 1;
-            for (int inst = 0; inst < spread; inst++)
-            {
-              float instAngle = spread > 1 ? (spec.spreadDegrees / spread) * inst : 0f;
-              float instRad = instAngle * Mathf.Deg2Rad;
+            float spreadDeg = spec.star ? Eval(spec.spreadDegrees, bp, spec.seed, GlobalLayerId, frameIndex, F_SpreadDeg) : 0f;
 
-              // Composite strictly back-to-front: layers in list order, shapes 0..count-1.
-              for (int li = 0; li < spec.layers.Count; li++)
-              {
+            // Composite strictly back-to-front. Bars render ALL their star arms internally (interleaved by bar
+            // index so overlapping arms layer consistently); scatter layers draw once per star copy, rotated
+            // about the centre.
+            for (int li = 0; li < spec.layers.Count; li++)
+            {
                 var layer = spec.layers[li];
                 if (layer == null || !layer.enabled) continue;
 
@@ -138,10 +137,10 @@ namespace Laubrary.Pyre
                 // Colour grade (cross gradient + contrast/brightness/saturation), resolved once for this layer/frame.
                 Grade grade = BuildGrade(layer, spec, li, lp, bp, frameIndex);
 
-                // Bars mode is a wholly different, directional composition — handled separately.
+                // Bars mode is a wholly different, directional composition — draws all its arms itself.
                 if (layer.shape == LayerShape.Bars)
                 {
-                    RenderBarsLayer(buf, W, H, cx, cy, layer, li, spec, lp, instAngle, grade);
+                    RenderBarsLayerStar(buf, W, H, cx, cy, layer, li, spec, lp, baseA, spreadDeg, spread, grade);
                     continue;
                 }
 
@@ -154,8 +153,11 @@ namespace Laubrary.Pyre
                 // Count: Curve reads the layer's life progress; MinMax stays frame-stable (h2 = 0, no frame/shape).
                 int count = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.count, lp, spec.seed, li, 0, F_Count)));
 
-                for (int si = 0; si < count; si++)
+                for (int inst = 0; inst < spread; inst++)
                 {
+                    float instRad = (spread > 1 ? (spreadDeg / spread) * inst : 0f) * Mathf.Deg2Rad;
+                    for (int si = 0; si < count; si++)
+                    {
                     // Deterministic per-shape rng — same across every frame, so scatter/life are stable.
                     int shapeSeed = ShapeSeed(spec.seed, li, si);
                     var rng = new System.Random(shapeSeed);
@@ -278,65 +280,68 @@ namespace Laubrary.Pyre
             return new Vector2(v.x * c - v.y * s, v.x * s + v.y * c);
         }
 
-        // ── Bars mode: a symmetric row of forward-growing bars streaming off an edge ─────────────
-        // The row sits on an origin line at the back edge and each bar reaches FORWARD along the blast
-        // direction, longest at the centre and (per barLengthDist) shorter toward the ends — so the row's tips
-        // trace the blast silhouette (a falling distribution = a triangle / flame). Bars appear staggered from
-        // the centre outward and each reaches out then pulls back over its own life. Deform is not applied here.
-        static void RenderBarsLayer(Color32[] buf, int W, int H, float cx, float cy,
-                                    Layer layer, int li, BlastSpec spec, float lp, float instAngle, Grade grade)
+        // ── Bars mode: rows of forward-growing bars. Star off = one arm off the back edge; Star on = `spread`
+        // arms sharing the centre and radiating outward (an asterisk). Each bar reaches FORWARD, its length scaled
+        // by Taper (centre-longest → triangle/flame). Arms are drawn INTERLEAVED by bar index — the centre bar of
+        // every arm, then the next bar out of every arm, … — so overlapping arms layer consistently instead of
+        // each whole arm stacking over the previous one. Deform is not applied to bars.
+        static void RenderBarsLayerStar(Color32[] buf, int W, int H, float cx, float cy,
+                                        Layer layer, int li, BlastSpec spec, float lp,
+                                        float baseA, float spreadDeg, int spread, Grade grade)
         {
-            float baseA = spec.baseAngleDeg + instAngle;
-            float ang = Eval(layer.barAngleDeg, lp, spec.seed, li, 0, F_BarAngle);
-            RenderBarRow(buf, W, H, cx, cy, layer, li, spec, lp, baseA + ang, grade);
-            if (layer.barMirror && Mathf.Abs(ang) > 0.001f)
-                RenderBarRow(buf, W, H, cx, cy, layer, li, spec, lp, baseA - ang, grade);
-        }
-
-        static void RenderBarRow(Color32[] buf, int W, int H, float cx, float cy,
-                                 Layer layer, int li, BlastSpec spec, float lp, float angleDeg, Grade grade)
-        {
-            float a = angleDeg * Mathf.Deg2Rad;
-            Vector2 dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
-            Vector2 perp = new Vector2(-Mathf.Sin(a), Mathf.Cos(a));
             Vector2 center = new Vector2(cx, cy);
-            // The per-row bar knobs are multicontrols evaluated over the layer's timeline (once per frame).
-            float inset = Eval(layer.originInset, lp, spec.seed, li, 0, F_OriginInset);
-            // Star off: the row sits on the back edge and reaches forward across the frame (a directional blast).
-            // Star on: every arm shares the CENTRE as its origin and reaches OUTWARD — an asterisk of combs.
-            Vector2 origin = spec.star
-                ? center + dir * inset
-                : EdgePoint(center, W, H, -dir) + dir * inset;
+            bool star = spec.star;
+
+            // per-layer bar knobs (multicontrols evaluated once over the layer's life)
             int B = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.barCount, lp, spec.seed, li, 0, F_BarCount)));
             float spacing = Eval(layer.barSpacing, lp, spec.seed, li, 0, F_BarSpacing);
             float backFrac = Mathf.Clamp01(Eval(layer.barBackwardFrac, lp, spec.seed, li, 0, F_BarBackward));
+            float inset = Eval(layer.originInset, lp, spec.seed, li, 0, F_OriginInset);
+            float taper = Mathf.Clamp(Eval(layer.barTaper, lp, spec.seed, li, 0, F_Taper), -1f, 1f);
+            float stagger = Mathf.Max(0f, Eval(layer.barStagger, lp, spec.seed, li, 0, F_Stagger));
+            float ang = Eval(layer.barAngleDeg, lp, spec.seed, li, 0, F_BarAngle);
 
-            // Dissolve decay: forward reach / width EXPAND and hold (running-max, never contract), then a
-            // transparency front spreads from the centre bar outward, fading bars line by line until none remain.
             bool dissolve = layer.barDecay == BarDecay.Dissolve;
             float width = dissolve ? EvalRisingMax(layer.barWidth, lp, spec.seed, li, 0, F_BarWidth)
                                    : Eval(layer.barWidth, lp, spec.seed, li, 0, F_BarWidth);
             float front = dissolve ? Mathf.Clamp01(Mathf.InverseLerp(layer.dissolveStart, 1f, lp)) * (1f + DissolveBand) : 0f;
 
-            void DrawBar(int i)
+            // Build each arm's geometry once. Mirror adds a second row per instance on the far side of the angle.
+            bool mirror = layer.barMirror && Mathf.Abs(ang) > 0.001f;
+            int rows = spread * (mirror ? 2 : 1);
+            var dirs = new Vector2[rows];
+            var perps = new Vector2[rows];
+            var origins = new Vector2[rows];
+            for (int r = 0; r < rows; r++)
             {
-                Vector2 barCenter = origin + perp * (i * spacing);
+                int inst = mirror ? r / 2 : r;
+                bool isMir = mirror && (r & 1) == 1;
+                float instAngle = spread > 1 ? (spreadDeg / spread) * inst : 0f;
+                float a = (baseA + instAngle + (isMir ? -ang : ang)) * Mathf.Deg2Rad;
+                Vector2 dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+                dirs[r] = dir;
+                perps[r] = new Vector2(-dir.y, dir.x);
+                // Star off: origin on the back edge, arm reaches across the frame. Star on: origin at the shared
+                // centre (just past it by `inset`), arm reaches outward — no backward tail through the middle.
+                origins[r] = star ? center + dir * inset : EdgePoint(center, W, H, -dir) + dir * inset;
+            }
+
+            void DrawBar(int r, int i)
+            {
+                Vector2 dir = dirs[r], perp = perps[r];
+                Vector2 barCenter = origins[r] + perp * (i * spacing);
                 float d = B > 0 ? Mathf.Abs(i) / (float)B : 0f;                          // 0 = centre bar, 1 = outermost
-                // Taper shapes the arm silhouette by distance from the centre bar: +1 = centre longest tapering to
-                // nothing at the edges (a triangle/flame), 0 = all bars equal (a rectangle), −1 = concave (edges
-                // longest, centre short). A static per-bar length multiplier — independent of the timing Stagger.
-                float taper = Mathf.Clamp(layer.barTaper, -1f, 1f);
-                float lenMul = taper >= 0f ? 1f - taper * d : 1f + taper * (1f - d);
+                float lenMul = taper >= 0f ? 1f - taper * d : 1f + taper * (1f - d);      // Taper = the arm silhouette
                 lenMul = Mathf.Max(0.04f, lenMul);
 
-                float appear = Mathf.Abs(i) * layer.barStagger;                          // centre bar first, then outward
+                float appear = Mathf.Abs(i) * stagger;                                    // Stagger = timing, centre first
                 if (lp < appear) return;
                 float tb = Mathf.Clamp01((lp - appear) / Mathf.Max(0.0001f, 1f - appear)); // bar's own life
 
                 float fwd = (dissolve ? EvalRisingMax(layer.barForward, tb, spec.seed, li, i, F_BarForward)
                                       : Eval(layer.barForward, tb, spec.seed, li, i, F_BarForward)) * lenMul;
                 if (fwd < 0.4f) return;
-                float bwd = fwd * backFrac;
+                float bwd = star ? 0f : fwd * backFrac;   // no backward spill when arms share the centre
 
                 Color col = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(d) : Color.white;
                 float alpha = Mathf.Clamp01(Eval(layer.alpha, tb, spec.seed, li, i, F_Alpha));
@@ -346,11 +351,14 @@ namespace Laubrary.Pyre
                 RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, width, col, alpha, grade);
             }
 
-            // Draw outermost bars first and the centre last, so when bars overlap (width > spacing) both wings
-            // layer identically (inner over outer, centre on top). The naive -B..B order overwrote the two sides
-            // in opposite directions, which made one side look wider and the centre appear to drift.
-            for (int k = B; k >= 1; k--) { DrawBar(-k); DrawBar(k); }
-            DrawBar(0);
+            // Interleave: centre bar of every arm first, then the ±1 bars of every arm, … outward. Within a bar
+            // index both wings are drawn together so overlaps (width > spacing) stay symmetric — no centre drift.
+            for (int k = 0; k <= B; k++)
+                for (int r = 0; r < rows; r++)
+                {
+                    DrawBar(r, k);
+                    if (k > 0) DrawBar(r, -k);
+                }
         }
 
         // Fill a rotated rectangle: from alongMin..alongMax along `dir`, ±halfWidth across `perp`.

@@ -56,9 +56,11 @@ namespace Laubrary.Pyre.Editor
         static readonly string[] EmissionLabels = { "Radial", "Directional" };
         static readonly string[] BarDecayLabels = { "Contract", "Dissolve" };
 
-        // Whether Star is on, captured on the Layout event only so the width/height + arms control sets can't change
-        // between Layout and Repaint of the same frame (IMGUI reflow hazard). See OnZUI.
+        // Captured on the Layout event only so the control set can't change between Layout and Repaint of the same
+        // frame (IMGUI reflow hazard). starLayout = Star on (gates canvas + arms); deformUsefulLayout = at least one
+        // non-Bars layer exists (bars ignore deform, so Global deform is hidden for an all-bars blast). See OnZUI.
         bool starLayout;
+        bool deformUsefulLayout;
 
         protected override void OnZUIEnable()
         {
@@ -94,7 +96,10 @@ namespace Laubrary.Pyre.Editor
             // Capture the star gate on Layout only, so the width/height block below has a stable control count
             // across this frame's Layout and Repaint passes even if the Orbit/Star radio is clicked.
             if (Event.current.type == EventType.Layout)
+            {
                 starLayout = spec != null && spec.star;
+                deformUsefulLayout = HasNonBarsLayer();
+            }
 
             DrawTopBar();
             if (spec == null)
@@ -117,6 +122,14 @@ namespace Laubrary.Pyre.Editor
             // Any edit (layer toggle, a dial, a deform value…) must rebuild the preview even while paused —
             // the preview texture is only regenerated on Repaint, so schedule one whenever something changed.
             if (GUI.changed) Repaint();
+        }
+
+        bool HasNonBarsLayer()
+        {
+            if (spec == null || spec.layers == null) return false;
+            foreach (var l in spec.layers)
+                if (l != null && l.enabled && l.shape != LayerShape.Bars) return true;
+            return false;
         }
 
         // ── top bar ────────────────────────────────────────────────────────────
@@ -157,20 +170,20 @@ namespace Laubrary.Pyre.Editor
 
             using (Box("Directional / star (bars & directional layers)"))
             {
-                spec.baseAngleDeg = Slider(spec.baseAngleDeg, -180f, 180f, "Base angle");
+                ValRow("Base angle", spec.baseAngleDeg, -180f, 180f, 0f);
                 spec.star = Toggle(spec.star, "Star (arms radiate from the centre)");
                 // Arms/Spread only exist while Star is on — gate on the Layout-captured value so the control count
                 // is stable across this frame's Layout and Repaint passes even if the toggle is clicked.
                 if (starLayout)
                 {
                     spec.spreadCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.spreadCount, 1, 24, "Arms")));
-                    spec.spreadDegrees = Slider(spec.spreadDegrees, 0f, 360f, "Spread degrees");
+                    ValRow("Spread degrees", spec.spreadDegrees, 0f, 360f, 360f);
                     Label("Arms share the centre and radiate outward; canvas auto-fits.", ZUI.ZTextStyle.Small);
                 }
             }
 
-            VerticalSpace();
-            DrawGlobalDeform();
+            // Global deform is never applied to Bars layers, so hide it when every enabled layer is Bars.
+            if (deformUsefulLayout) { VerticalSpace(); DrawGlobalDeform(); }
 
             using (Box("Global colour grade"))
             {
@@ -379,10 +392,10 @@ namespace Laubrary.Pyre.Editor
                     ValRow("Width", l.barWidth, 0.5f, 12f, 3f);
                     ValRow("Forward reach", l.barForward, 0f, cs, 40f);
                     // Taper is the arm-shape control: +1 = centre longest → triangle/flame, 0 = flat, -1 = concave.
-                    l.barTaper = Slider(l.barTaper, -1f, 1f, "Taper (centre↔edge)");
+                    ValRow("Taper (centre↔edge)", l.barTaper, -1f, 1f, 0.85f);
                     ValRow("Backward frac", l.barBackwardFrac, 0f, 1f, 0.18f);
                     // Stagger is TIMING, not shape: it delays outer bars so the row unfurls centre-out.
-                    l.barStagger = Slider(l.barStagger, 0f, 0.5f, "Stagger (timing)");
+                    ValRow("Stagger (timing)", l.barStagger, 0f, 0.5f, 0.05f);
                     ValRow("Layer angle", l.barAngleDeg, -180f, 180f, 0f);
                     l.barMirror = Toggle(l.barMirror, "Mirror angle");
                     ValRow("Origin inset", l.originInset, 0f, 40f, 4f);

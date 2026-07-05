@@ -140,14 +140,13 @@ namespace Laubrary.Pyre
         public ZUIValue barForward = DefaultBarForward();
         [Tooltip("Bars: backward reach as a fraction of the forward reach (a little spill behind the surface). Animatable.")]
         public ZUIValue barBackwardFrac = new ZUIValue(0.18f);
-        [Range(-1f, 1f)]
         [Tooltip("Bars: arm silhouette by distance from the centre bar. +1 = centre longest, tapering to the edges " +
                  "(a triangle/flame); 0 = all bars equal (a rectangle); -1 = concave (edges longest). This is the " +
-                 "shape control — independent of the timing Stagger.")]
-        public float barTaper = 0.85f;
-        [Range(0f, 0.5f)]
-        [Tooltip("Bars: per-bar appearance delay as a fraction of the layer window (centre bar first, then outward).")]
-        public float barStagger = 0.05f;
+                 "shape control — independent of the timing Stagger. Animatable.")]
+        public ZUIValue barTaper = new ZUIValue(0.85f);
+        [Tooltip("Bars: per-bar appearance delay as a fraction of the layer window (centre bar first, then outward). " +
+                 "Timing only — the arm silhouette is Taper. Animatable.")]
+        public ZUIValue barStagger = new ZUIValue(0.05f);
         [Tooltip("Bars: this layer's angle offset from the blast's base angle, in degrees. Animatable (sweep the row).")]
         public ZUIValue barAngleDeg = new ZUIValue(0f);
         [Tooltip("Bars: also draw a mirror of this layer's angle on the other side of the base angle.")]
@@ -245,7 +244,8 @@ namespace Laubrary.Pyre
             l.barBackwardFrac = CloneVal(barBackwardFrac);
             l.barAngleDeg = CloneVal(barAngleDeg);
             l.originInset = CloneVal(originInset);
-            // barTaper is a plain float — copied by MemberwiseClone.
+            l.barTaper = CloneVal(barTaper);
+            l.barStagger = CloneVal(barStagger);
             l.colorOverLife = CloneGradient(colorOverLife);
             l.alpha = CloneVal(alpha);
             l.crossGradient = CloneGradient(crossGradient);

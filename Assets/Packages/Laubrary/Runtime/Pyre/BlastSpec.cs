@@ -29,17 +29,17 @@ namespace Laubrary.Pyre
         [Tooltip("Pixels-per-unit used for the baked sprites and the runtime player.")]
         public float pixelsPerUnit = 64f;
 
-        // ── bar/directional composition (used by Bars-mode layers and the circular spread) ──
-        [Tooltip("Fundamental direction (deg) the blast grows toward. Bar layer angles are relative to this.")]
-        public float baseAngleDeg = 0f;
+        // ── bar/directional composition (used by Bars-mode layers and the star spread) ──
+        [Tooltip("Fundamental direction (deg) the blast grows toward. Bar layer angles are relative to this. Animatable.")]
+        public ZUIValue baseAngleDeg = new ZUIValue(0f);
         [Tooltip("Star: duplicate the blast into `arms` copies that share the centre and radiate OUTWARD (an " +
                  "asterisk of bar-combs); the canvas auto-fits. Off = a single arm (bars stream off the back edge).")]
         public bool star = false;
         [Min(1)]
         [Tooltip("Star: how many arms radiate from the centre.")]
         public int spreadCount = 5;
-        [Tooltip("Star: total arc (deg) the arms span. 360 = evenly around the full circle.")]
-        public float spreadDegrees = 360f;
+        [Tooltip("Star: total arc (deg) the arms span. 360 = evenly around the full circle. Animatable.")]
+        public ZUIValue spreadDegrees = new ZUIValue(360f);
 
         /// Canvas width/height in pixels. Normally the authored size (height falls back to width when 0 = square);
         /// when Star is on the canvas auto-fits the bar arms so nothing clips.
@@ -66,15 +66,26 @@ namespace Laubrary.Pyre
                 return;
             }
             int n = Mathf.Max(1, spreadCount);
-            float step = n > 1 ? spreadDegrees / n : 0f;
+            const float margin = 3f;
+            // If the base angle or arc animate, the arms sweep, so fit a square that covers any rotation. Otherwise
+            // fit a tight symmetric box to the static arm directions.
+            bool tight = baseAngleDeg != null && spreadDegrees != null
+                         && baseAngleDeg.mode == ZUIValue.Mode.Static && spreadDegrees.mode == ZUIValue.Mode.Static;
+            if (!tight)
+            {
+                int s = Mathf.Clamp(Mathf.CeilToInt((Mathf.Max(reach, combHalf) + margin) * 2f), 4, 1024);
+                w = s; h = s;
+                return;
+            }
+            float baseDeg = baseAngleDeg.staticValue;
+            float step = n > 1 ? spreadDegrees.staticValue / n : 0f;
             float maxX = combHalf, maxY = combHalf;   // the comb base spans ±combHalf around the shared origin
             for (int i = 0; i < n; i++)
             {
-                float a = (baseAngleDeg + step * i) * Mathf.Deg2Rad;
+                float a = (baseDeg + step * i) * Mathf.Deg2Rad;
                 maxX = Mathf.Max(maxX, Mathf.Abs(Mathf.Cos(a) * reach));
                 maxY = Mathf.Max(maxY, Mathf.Abs(Mathf.Sin(a) * reach));
             }
-            const float margin = 3f;
             w = Mathf.Clamp(Mathf.CeilToInt((maxX + margin) * 2f), 4, 1024);
             h = Mathf.Clamp(Mathf.CeilToInt((maxY + margin) * 2f), 4, 1024);
         }
