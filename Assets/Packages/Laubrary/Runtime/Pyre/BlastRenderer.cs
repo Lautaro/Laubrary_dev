@@ -27,11 +27,57 @@ namespace Laubrary.Pyre
                   F_BarSpacing = 14, F_BarWidth = 15, F_BarBackward = 16, F_BarAngle = 17,
                   F_OriginInset = 18, F_BarCount = 19;
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
+        const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing the global deform
 
         /// One deform block resolved to plain floats for a given frame.
         struct Deform { public float sq, skew, amp, freq, rotDeg; }
         static readonly Deform Identity = new Deform { sq = 1f, skew = 0f, amp = 0f, freq = 0f, rotDeg = 0f };
+
+        // ── colour grade: a cross gradient (multiplies across the shape/bar) + contrast/brightness/saturation.
+        // Resolved once per layer per frame (per-layer values × the blast-global values), applied per pixel.
+        struct Grade
+        {
+            public Gradient crossL, crossG;
+            public float amtL, amtG;
+            public float contrast, brightness, saturation;
+            public bool active;
+        }
+
+        static Grade BuildGrade(Layer layer, BlastSpec spec, int li, float lp, float bp, int frameIndex)
+        {
+            var g = new Grade
+            {
+                crossL = layer.crossGradient,
+                amtL = Mathf.Clamp01(Eval(layer.crossAmount, lp, spec.seed, li, 0, F_CrossAmt)),
+                crossG = spec.crossGradient,
+                amtG = Mathf.Clamp01(Eval(spec.crossAmount, bp, spec.seed, GlobalLayerId, frameIndex, F_CrossAmt)),
+                contrast   = Eval(layer.contrast,   lp, spec.seed, li, 0, F_Contrast)   * Eval(spec.contrast,   bp, spec.seed, GlobalLayerId, frameIndex, F_Contrast),
+                brightness = Eval(layer.brightness, lp, spec.seed, li, 0, F_Brightness) * Eval(spec.brightness, bp, spec.seed, GlobalLayerId, frameIndex, F_Brightness),
+                saturation = Eval(layer.saturation, lp, spec.seed, li, 0, F_Saturation) * Eval(spec.saturation, bp, spec.seed, GlobalLayerId, frameIndex, F_Saturation),
+            };
+            g.active = g.amtL > 0.001f || g.amtG > 0.001f
+                     || Mathf.Abs(g.contrast - 1f) > 0.001f
+                     || Mathf.Abs(g.brightness - 1f) > 0.001f
+                     || Mathf.Abs(g.saturation - 1f) > 0.001f;
+            return g;
+        }
+
+        // crossFrac 0..1 across the shape (centre→edge) or bar (back→tip).
+        static Color ApplyGrade(Color c, float crossFrac, in Grade g)
+        {
+            if (!g.active) return c;
+            crossFrac = Mathf.Clamp01(crossFrac);
+            if (g.amtL > 0.001f && g.crossL != null) c = MulRGB(c, Color.Lerp(Color.white, g.crossL.Evaluate(crossFrac), g.amtL));
+            if (g.amtG > 0.001f && g.crossG != null) c = MulRGB(c, Color.Lerp(Color.white, g.crossG.Evaluate(crossFrac), g.amtG));
+            float r = c.r * g.brightness, gg = c.g * g.brightness, b = c.b * g.brightness;   // brightness
+            r = (r - 0.5f) * g.contrast + 0.5f; gg = (gg - 0.5f) * g.contrast + 0.5f; b = (b - 0.5f) * g.contrast + 0.5f;  // contrast
+            float lum = r * 0.299f + gg * 0.587f + b * 0.114f;                               // saturation
+            r = Mathf.Lerp(lum, r, g.saturation); gg = Mathf.Lerp(lum, gg, g.saturation); b = Mathf.Lerp(lum, b, g.saturation);
+            return new Color(Mathf.Clamp01(r), Mathf.Clamp01(gg), Mathf.Clamp01(b), c.a);
+        }
+
+        static Color MulRGB(Color a, Color b) => new Color(a.r * b.r, a.g * b.g, a.b * b.b, a.a);
 
         // ── the frame → Color32[] core ─────────────────────────────────────────
         public static Color32[] RenderFrame(BlastSpec spec, int frameIndex)
@@ -76,10 +122,13 @@ namespace Laubrary.Pyre
                 float lp = Mathf.Clamp01((frameIndex - layer.startFrame) /
                                          (float)Mathf.Max(1, layer.endFrame - layer.startFrame));
 
+                // Colour grade (cross gradient + contrast/brightness/saturation), resolved once for this layer/frame.
+                Grade grade = BuildGrade(layer, spec, li, lp, bp, frameIndex);
+
                 // Bars mode is a wholly different, directional composition — handled separately.
                 if (layer.shape == LayerShape.Bars)
                 {
-                    RenderBarsLayer(buf, W, H, cx, cy, layer, li, spec, lp, instAngle);
+                    RenderBarsLayer(buf, W, H, cx, cy, layer, li, spec, lp, instAngle, grade);
                     continue;
                 }
 
@@ -180,7 +229,7 @@ namespace Laubrary.Pyre
                     radius = effR;
 
                     RasterShape(buf, W, H, cx, cy, global, local, framePhase, layer, c, radius, baseCol, alpha,
-                                t, shapeSeed, disProb, crescX, crescY);
+                                t, shapeSeed, disProb, crescX, crescY, grade);
                 }
               }
             }
@@ -222,17 +271,17 @@ namespace Laubrary.Pyre
         // trace the blast silhouette (a falling distribution = a triangle / flame). Bars appear staggered from
         // the centre outward and each reaches out then pulls back over its own life. Deform is not applied here.
         static void RenderBarsLayer(Color32[] buf, int W, int H, float cx, float cy,
-                                    Layer layer, int li, BlastSpec spec, float lp, float instAngle)
+                                    Layer layer, int li, BlastSpec spec, float lp, float instAngle, Grade grade)
         {
             float baseA = spec.baseAngleDeg + instAngle;
             float ang = Eval(layer.barAngleDeg, lp, spec.seed, li, 0, F_BarAngle);
-            RenderBarRow(buf, W, H, cx, cy, layer, li, spec, lp, baseA + ang);
+            RenderBarRow(buf, W, H, cx, cy, layer, li, spec, lp, baseA + ang, grade);
             if (layer.barMirror && Mathf.Abs(ang) > 0.001f)
-                RenderBarRow(buf, W, H, cx, cy, layer, li, spec, lp, baseA - ang);
+                RenderBarRow(buf, W, H, cx, cy, layer, li, spec, lp, baseA - ang, grade);
         }
 
         static void RenderBarRow(Color32[] buf, int W, int H, float cx, float cy,
-                                 Layer layer, int li, BlastSpec spec, float lp, float angleDeg)
+                                 Layer layer, int li, BlastSpec spec, float lp, float angleDeg, Grade grade)
         {
             float a = angleDeg * Mathf.Deg2Rad;
             Vector2 dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
@@ -265,7 +314,7 @@ namespace Laubrary.Pyre
                 float alpha = Mathf.Clamp01(Eval(layer.alpha, tb, spec.seed, li, i, F_Alpha));
                 if (alpha < 0.004f) return;
 
-                RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, width, col, alpha);
+                RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, width, col, alpha, grade);
             }
 
             // Draw outermost bars first and the centre last, so when bars overlap (width > spacing) both wings
@@ -277,9 +326,10 @@ namespace Laubrary.Pyre
 
         // Fill a rotated rectangle: from alongMin..alongMax along `dir`, ±halfWidth across `perp`.
         static void RasterBar(Color32[] buf, int W, int H, Vector2 barCenter, Vector2 dir, Vector2 perp,
-                              float alongMin, float alongMax, float width, Color col, float alpha)
+                              float alongMin, float alongMax, float width, Color col, float alpha, Grade grade)
         {
             float hw = width * 0.5f;
+            float span = Mathf.Max(0.0001f, alongMax - alongMin);
             // bounding box over the 4 corners
             float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
             for (int sa = 0; sa < 2; sa++)
@@ -298,7 +348,10 @@ namespace Laubrary.Pyre
                     float along = px * dir.x + py * dir.y;
                     float across = px * perp.x + py * perp.y;
                     if (along >= alongMin && along <= alongMax && across >= -hw && across <= hw)
-                        Over(buf, y * W + x, col.r, col.g, col.b, alpha * col.a);
+                    {
+                        Color fc = grade.active ? ApplyGrade(col, (along - alongMin) / span, grade) : col;
+                        Over(buf, y * W + x, fc.r, fc.g, fc.b, alpha * fc.a);
+                    }
                 }
         }
 
@@ -320,7 +373,7 @@ namespace Laubrary.Pyre
         // the deform correct with zero clipping risk; canvases are small and the runtime player caches its frames.
         static void RasterShape(Color32[] buf, int W, int H, float cx, float cy, Deform global, Deform local,
                                 float framePhase, Layer layer, Vector2 c, float radius, Color baseCol, float alpha,
-                                float t, int shapeSeed, float disProb, float crescX, float crescY)
+                                float t, int shapeSeed, float disProb, float crescX, float crescY, Grade grade)
         {
             for (int y = 0; y < H; y++)
             {
@@ -338,17 +391,18 @@ namespace Laubrary.Pyre
                     // Disintegrate drop-out (deterministic per pixel).
                     if (disProb > 0f && Hash01(shapeSeed ^ 0x1B873593, x, y) < disProb) continue;
 
-                    // Radial alpha: an optional envelope over normalised distance from the shape centre (0 = centre,
-                    // 1 = edge), so a shape can be soft-edged / hollow / haloed instead of a hard disc.
+                    // Normalised distance from the shape centre (0 = centre, 1 = edge) — drives radial alpha AND
+                    // the colour grade's cross gradient.
+                    float nd = radius > 0.001f
+                        ? Mathf.Clamp01(Mathf.Sqrt((ux - c.x) * (ux - c.x) + (uy - c.y) * (uy - c.y)) / radius) : 0f;
+
                     float pixelAlpha = alpha;
-                    if (layer.radialAlpha != null && layer.radialAlpha.Count > 0 && radius > 0.001f)
-                    {
-                        float nd = Mathf.Clamp01(Mathf.Sqrt((ux - c.x) * (ux - c.x) + (uy - c.y) * (uy - c.y)) / radius);
+                    if (layer.radialAlpha != null && layer.radialAlpha.Count > 0)
                         pixelAlpha *= Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(layer.radialAlpha, nd, 1f));
-                    }
                     if (pixelAlpha <= 0.001f) continue;
 
-                    Over(buf, y * W + x, col.r, col.g, col.b, pixelAlpha * col.a);
+                    Color fc = grade.active ? ApplyGrade(col, nd, grade) : col;
+                    Over(buf, y * W + x, fc.r, fc.g, fc.b, pixelAlpha * fc.a);
                 }
             }
         }

@@ -52,6 +52,19 @@ namespace Laubrary.Pyre
                  "multiplies alpha per pixel. null = off. Makes a shape soft-edged / hollow / haloed instead of a hard disc.")]
         public List<ZUIEnvelopePoint> radialAlpha = null;
 
+        // ── colour grade (per-layer; composes with the blast-global grade) ──────────────────────────
+        [Tooltip("Cross gradient: colours each bar/shape ACROSS itself (bar: back→tip, circular: centre→edge) and " +
+                 "MULTIPLIES the base colour. Default white = no effect; blend in with Cross amount.")]
+        public Gradient crossGradient = WhiteGradient();
+        [Tooltip("How strongly the cross gradient applies (0 = off, 1 = full). Animatable.")]
+        public ZUIValue crossAmount = new ZUIValue(0f);
+        [Tooltip("Contrast (1 = unchanged). Animatable.")]
+        public ZUIValue contrast = new ZUIValue(1f);
+        [Tooltip("Brightness (1 = unchanged). Animatable.")]
+        public ZUIValue brightness = new ZUIValue(1f);
+        [Tooltip("Saturation (1 = unchanged, 0 = greyscale). Animatable.")]
+        public ZUIValue saturation = new ZUIValue(1f);
+
         [Tooltip("Ring: thickness of the annulus in pixels (drawn inward from the radius).")]
         public float ringThickness = 2f;
 
@@ -228,6 +241,11 @@ namespace Laubrary.Pyre
                 : barLengthDist.ConvertAll(p => new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
             l.colorOverLife = CloneGradient(colorOverLife);
             l.alpha = CloneVal(alpha);
+            l.crossGradient = CloneGradient(crossGradient);
+            l.crossAmount = CloneVal(crossAmount);
+            l.contrast = CloneVal(contrast);
+            l.brightness = CloneVal(brightness);
+            l.saturation = CloneVal(saturation);
             l.radialAlpha = radialAlpha == null ? null
                 : radialAlpha.ConvertAll(p => new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
             return l;
@@ -244,6 +262,15 @@ namespace Laubrary.Pyre
             v.points.Clear();
             foreach (var p in s.points) v.points.Add(new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
             return v;
+        }
+
+        /// A flat white gradient — the identity for the multiplying cross gradient / colour grade.
+        public static Gradient WhiteGradient()
+        {
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                      new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+            return g;
         }
 
         static Gradient CloneGradient(Gradient g)

@@ -64,6 +64,18 @@ namespace Laubrary.Pyre
         [Tooltip("Rotation (degrees) of the whole blast about the centre.")]
         public ZUIValue rotation = new ZUIValue(0f);
 
+        // ── global colour grade (composes on top of each layer's own grade) ──
+        [Tooltip("Global cross gradient — colours every bar/shape across itself and multiplies. White = no effect.")]
+        public Gradient crossGradient = Layer.WhiteGradient();
+        [Tooltip("Global cross-gradient strength (0 = off). Animatable.")]
+        public ZUIValue crossAmount = new ZUIValue(0f);
+        [Tooltip("Global contrast (1 = unchanged). Animatable.")]
+        public ZUIValue contrast = new ZUIValue(1f);
+        [Tooltip("Global brightness (1 = unchanged). Animatable.")]
+        public ZUIValue brightness = new ZUIValue(1f);
+        [Tooltip("Global saturation (1 = unchanged, 0 = greyscale). Animatable.")]
+        public ZUIValue saturation = new ZUIValue(1f);
+
         /// Wipe the layers and build a punchy white-hot core -> orange/red fire -> dark smoke -> shockwave ring ->
         /// sparks explosion from scratch. Used by the editor's "New example blast" button and by the demo so there
         /// is always something good to look at. Fade in/out is owned entirely by each layer's alpha curve; grow /

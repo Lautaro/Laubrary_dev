@@ -153,6 +153,16 @@ namespace Laubrary.Pyre.Editor
             VerticalSpace();
             DrawGlobalDeform();
 
+            using (Box("Global colour grade"))
+            {
+                spec.crossGradient ??= Layer.WhiteGradient();
+                spec.crossGradient = EditorGUILayout.GradientField("Cross grad", spec.crossGradient);
+                ValRow("Cross amount", spec.crossAmount, 0f, 1f, 0f);
+                ValRow("Contrast", spec.contrast, 0f, 2f, 1f);
+                ValRow("Brightness", spec.brightness, 0f, 2f, 1f);
+                ValRow("Saturation", spec.saturation, 0f, 2f, 1f);
+            }
+
             VerticalSpace();
             DrawLayerList();
 
@@ -328,6 +338,16 @@ namespace Laubrary.Pyre.Editor
             l.alpha ??= Layer.DefaultAlpha();
             l.colorOverLife = EditorGUILayout.GradientField("Colour", l.colorOverLife);
             ValRow("Alpha", l.alpha, 0f, 1f);
+
+            using (Box("Colour grade (per layer)"))
+            {
+                l.crossGradient ??= Layer.WhiteGradient();
+                l.crossGradient = EditorGUILayout.GradientField("Cross grad", l.crossGradient);
+                ValRow("Cross amount", l.crossAmount, 0f, 1f, 0f);
+                ValRow("Contrast", l.contrast, 0f, 2f, 1f);
+                ValRow("Brightness", l.brightness, 0f, 2f, 1f);
+                ValRow("Saturation", l.saturation, 0f, 2f, 1f);
+            }
 
             // Bars is a self-contained directional mode — none of the scatter / emission / deform controls apply,
             // so show ONLY the Bars box.
