@@ -98,6 +98,10 @@ namespace Laubrary.Pyre.Editor
             DrawVerticalSplitter();
             DrawPreview();
             EditorGUILayout.EndHorizontal();
+
+            // Any edit (layer toggle, a dial, a deform value…) must rebuild the preview even while paused —
+            // the preview texture is only regenerated on Repaint, so schedule one whenever something changed.
+            if (GUI.changed) Repaint();
         }
 
         // ── top bar ────────────────────────────────────────────────────────────
@@ -188,8 +192,11 @@ namespace Laubrary.Pyre.Editor
                 if (sel && Event.current.type == EventType.Repaint)
                     EditorGUI.DrawRect(row, new Color(0.35f, 0.55f, 0.95f, 0.18f));
 
-                layer.enabled = Toggle(layer.enabled, "", ZUI.Style.Default, GUILayout.Width(22));
-                if (Button((sel ? "● " : "○ ") + layer.name)) layerSel = li;
+                bool wasEnabled = layer.enabled;
+                layer.enabled = Toggle(layer.enabled, layer.enabled ? "✓" : "", ZUI.Style.Default, GUILayout.Width(26));
+                if (layer.enabled != wasEnabled) { EditorUtility.SetDirty(spec); Repaint(); }
+                string nm = (sel ? "● " : "○ ") + layer.name + (layer.enabled ? "" : "  (off)");
+                if (Button(nm)) layerSel = li;
                 if (Button("Dup", ZUI.Style.Default, GUILayout.Width(40))) dup = li;
                 if (Button("X", ZUI.Style.Default, GUILayout.Width(22))) remove = li;
                 EditorGUILayout.EndHorizontal();
