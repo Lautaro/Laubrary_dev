@@ -75,10 +75,9 @@ namespace Laubrary.Pyre
             smoke.spawnRadius = new ZUIValue(0.34f);
             smoke.positionX = MinMax(-2f, 2f);
             smoke.positionY = MinMax(-1f, 3f);
-            smoke.startSize = new ZUIValue(6f);
-            smoke.endSize = new ZUIValue(20f);
+            smoke.size = Layer.CurveVal(22f, 0f, 6f, 1f, 20f);
             smoke.perShapeLifeJitter = 0.4f;
-            smoke.alphaOverLife = SmokeAlpha();     // ease in, hold, slow fade
+            smoke.alpha = SmokeAlpha();     // ease in, hold, slow fade
             layers.Add(smoke);
 
             // ── mid: the fire body — hot core falling through orange to red, crumbling as it dies ──
@@ -89,11 +88,10 @@ namespace Laubrary.Pyre
             fire.spawnRadius = new ZUIValue(0.30f);
             fire.positionX = MinMax(-2f, 2f);
             fire.positionY = MinMax(-2f, 2f);
-            fire.startSize = MinMax(7f, 10f);       // varied blobs
-            fire.endSize = new ZUIValue(5f);
+            fire.size = Layer.CurveVal(12f, 0f, 9f, 0.3f, 10f, 1f, 5f);  // swell then crumble
             fire.disintegrate = 0.85f;              // break up near the end
             fire.perShapeLifeJitter = 0.3f;
-            fire.alphaOverLife = Layer.DefaultAlpha();
+            fire.alpha = Layer.DefaultAlpha();
             layers.Add(fire);
 
             // ── mid-front: a tight white-hot core that pops then shrinks away ──
@@ -104,10 +102,9 @@ namespace Laubrary.Pyre
             core.spawnRadius = new ZUIValue(0.10f);
             core.positionX = MinMax(-1f, 1f);
             core.positionY = MinMax(-1f, 1f);
-            core.startSize = new ZUIValue(8f);
-            core.endSize = new ZUIValue(3f);
+            core.size = Layer.CurveVal(10f, 0f, 8f, 1f, 3f);
             core.colorOverLife = Layer.WhiteHotGradient();
-            core.alphaOverLife = CoreAlpha();       // instant on, quick fade
+            core.alpha = CoreAlpha();       // instant on, quick fade
             layers.Add(core);
 
             // ── front: a single expanding shockwave ring ──
@@ -116,11 +113,10 @@ namespace Laubrary.Pyre
             ring.startFrame = 0; ring.endFrame = 9;
             ring.count = new ZUIValue(1f);
             ring.spawnRadius = new ZUIValue(0f);
-            ring.startSize = new ZUIValue(3f);
-            ring.endSize = new ZUIValue(28f);
+            ring.size = Layer.CurveVal(30f, 0f, 3f, 1f, 28f);
             ring.ringThickness = 2f;
             ring.colorOverLife = Layer.WhiteHotGradient();
-            ring.alphaOverLife = RingAlpha();       // bright then fades as it expands
+            ring.alpha = RingAlpha();       // bright then fades as it expands
             layers.Add(ring);
 
             // ── front: a scatter of hot sparks that spread outward ──
@@ -129,10 +125,9 @@ namespace Laubrary.Pyre
             sparks.startFrame = 1; sparks.endFrame = 14;
             sparks.count = new ZUIValue(1f);
             sparks.spawnRadius = new ZUIValue(0f);
-            sparks.startSize = new ZUIValue(8f);
-            sparks.endSize = new ZUIValue(24f);
+            sparks.size = Layer.CurveVal(26f, 0f, 8f, 1f, 24f);
             sparks.sparkleDensity = 0.10f;
-            sparks.alphaOverLife = Layer.DefaultAlpha();
+            sparks.alpha = Layer.DefaultAlpha();
             layers.Add(sparks);
         }
 
@@ -143,13 +138,8 @@ namespace Laubrary.Pyre
             return v;
         }
 
-        static List<ZUIEnvelopePoint> SmokeAlpha() => new List<ZUIEnvelopePoint>
-        { new ZUIEnvelopePoint(0f, 0f), new ZUIEnvelopePoint(0.25f, 0.9f), new ZUIEnvelopePoint(0.7f, 0.8f), new ZUIEnvelopePoint(1f, 0f) };
-
-        static List<ZUIEnvelopePoint> CoreAlpha() => new List<ZUIEnvelopePoint>
-        { new ZUIEnvelopePoint(0f, 1f), new ZUIEnvelopePoint(0.5f, 0.9f), new ZUIEnvelopePoint(1f, 0f) };
-
-        static List<ZUIEnvelopePoint> RingAlpha() => new List<ZUIEnvelopePoint>
-        { new ZUIEnvelopePoint(0f, 0f), new ZUIEnvelopePoint(0.1f, 1f), new ZUIEnvelopePoint(0.55f, 0.7f), new ZUIEnvelopePoint(1f, 0f) };
+        static ZUIValue SmokeAlpha() => Layer.CurveVal(1f, 0f, 0f, 0.25f, 0.9f, 0.7f, 0.8f, 1f, 0f);
+        static ZUIValue CoreAlpha() => Layer.CurveVal(1f, 0f, 1f, 0.5f, 0.9f, 1f, 0f);
+        static ZUIValue RingAlpha() => Layer.CurveVal(1f, 0f, 0f, 0.1f, 1f, 0.55f, 0.7f, 1f, 0f);
     }
 }

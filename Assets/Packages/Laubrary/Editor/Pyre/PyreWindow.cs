@@ -305,8 +305,7 @@ namespace Laubrary.Pyre.Editor
             ValRow("Spawn radius", l.spawnRadius, 0f, 1f);
             ValRow("Position X", l.positionX, -half, half);
             ValRow("Position Y", l.positionY, -half, half);
-            ValRow("Start size", l.startSize, 0f, half);
-            ValRow("End size", l.endSize, 0f, half);
+            ValRow("Size", l.size, 0f, half);
 
             l.perShapeLifeJitter = Slider(l.perShapeLifeJitter, 0f, 1f, "Life jitter");
             l.disintegrate = Slider(l.disintegrate, 0f, 1f, "Disintegrate");
@@ -330,9 +329,9 @@ namespace Laubrary.Pyre.Editor
             }
 
             l.colorOverLife ??= Layer.DefaultColor(l.shape);
-            l.alphaOverLife ??= Layer.DefaultAlpha();
-            l.colorOverLife = EditorGUILayout.GradientField("Colour over life", l.colorOverLife);
-            CurveField("pyre.alpha." + layerSel, "Alpha over life", l.alphaOverLife, 0f, 1f);
+            l.alpha ??= Layer.DefaultAlpha();
+            l.colorOverLife = EditorGUILayout.GradientField("Colour", l.colorOverLife);
+            ValRow("Alpha", l.alpha, 0f, 1f);
 
             using (Box("Layer deform"))
             {

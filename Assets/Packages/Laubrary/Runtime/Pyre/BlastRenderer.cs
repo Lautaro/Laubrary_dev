@@ -22,7 +22,7 @@ namespace Laubrary.Pyre
 
         // ── field ids (make each ZUIValue's MinMax sample independent) ─────────────
         const int F_Count = 1, F_SpawnRadius = 2, F_PosX = 3, F_PosY = 4,
-                  F_StartSize = 5, F_EndSize = 6, F_CrescentX = 7, F_CrescentY = 8;
+                  F_Size = 5, F_Alpha = 6, F_CrescentX = 7, F_CrescentY = 8;
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing the global deform
 
@@ -100,18 +100,13 @@ namespace Laubrary.Pyre
                     c.x += Eval(layer.positionX, lp, spec.seed, li, si, F_PosX);
                     c.y += Eval(layer.positionY, lp, spec.seed, li, si, F_PosY);
 
-                    // Radius: start/end size lerped over the shape's life. When either is a Curve it reads the
-                    // layer's life progress (its window = the layer's frames); MinMax is per-shape stable so each
-                    // blob keeps its own size.
-                    float ss = Eval(layer.startSize, lp, spec.seed, li, si, F_StartSize);
-                    float es = Eval(layer.endSize, lp, spec.seed, li, si, F_EndSize);
-                    float radius = Mathf.Lerp(ss, es, t);
+                    // Radius: one Size multicontrol over the shape's own life t (Curve = an envelope, Static =
+                    // constant, MinMax = a per-shape-stable random size).
+                    float radius = Eval(layer.size, t, spec.seed, li, si, F_Size);
                     if (radius < 0.25f) continue;
 
-                    // Alpha over life ONLY (fade in/out lives entirely in this envelope now).
-                    float alpha = layer.alphaOverLife != null && layer.alphaOverLife.Count > 0
-                        ? Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(layer.alphaOverLife, t, 1f))
-                        : 1f;
+                    // Alpha: one multicontrol over life (Curve envelope by default) — the only thing that fades.
+                    float alpha = Mathf.Clamp01(Eval(layer.alpha, t, spec.seed, li, si, F_Alpha));
                     if (alpha <= 0.001f) continue;
 
                     Color baseCol = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(t) : Color.white;

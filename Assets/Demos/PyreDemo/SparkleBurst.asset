@@ -71,26 +71,22 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    startSize:
-      m_mode: 0
-      m_static: 6
+    size:
+      m_mode: 2
+      m_static: 1
       m_min: 0
       m_max: 1
-      m_points: []
+      m_points:
+      - time: 0
+        value: 6
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 20
+        exponent: 1
+        editState: 0
       m_yMin: 0
-      m_yMax: 1
-      m_duration: 4
-      m_warmup: 0
-      m_cooldown: -1
-      m_multiplierId: 
-    endSize:
-      m_mode: 0
-      m_static: 20
-      m_min: 0
-      m_max: 1
-      m_points: []
-      m_yMin: 0
-      m_yMax: 1
+      m_yMax: 22
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
@@ -125,23 +121,34 @@ MonoBehaviour:
       m_ColorSpace: -1
       m_NumColorKeys: 3
       m_NumAlphaKeys: 2
-    alphaOverLife:
-    - time: 0
-      value: 0
-      exponent: 1
-      editState: 0
-    - time: 0.25
-      value: 0.9
-      exponent: 1
-      editState: 0
-    - time: 0.7
-      value: 0.8
-      exponent: 1
-      editState: 0
-    - time: 1
-      value: 0
-      exponent: 1
-      editState: 0
+    alpha:
+      m_mode: 2
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points:
+      - time: 0
+        value: 0
+        exponent: 1
+        editState: 0
+      - time: 0.25
+        value: 0.9
+        exponent: 1
+        editState: 0
+      - time: 0.7
+        value: 0.8
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 0
+        exponent: 1
+        editState: 0
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_multiplierId: 
     ringThickness: 2
     dissolveCenter: 0
     dissolveKeepBorder: 1
@@ -286,26 +293,26 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    startSize:
-      m_mode: 1
-      m_static: 8.5
-      m_min: 7
-      m_max: 10
-      m_points: []
-      m_yMin: 0
-      m_yMax: 1
-      m_duration: 4
-      m_warmup: 0
-      m_cooldown: -1
-      m_multiplierId: 
-    endSize:
-      m_mode: 0
-      m_static: 5
+    size:
+      m_mode: 2
+      m_static: 1
       m_min: 0
       m_max: 1
-      m_points: []
+      m_points:
+      - time: 0
+        value: 9
+        exponent: 1
+        editState: 0
+      - time: 0.3
+        value: 10
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 5
+        exponent: 1
+        editState: 0
       m_yMin: 0
-      m_yMax: 1
+      m_yMax: 12
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
@@ -340,23 +347,34 @@ MonoBehaviour:
       m_ColorSpace: -1
       m_NumColorKeys: 4
       m_NumAlphaKeys: 2
-    alphaOverLife:
-    - time: 0
-      value: 0
-      exponent: 1
-      editState: 0
-    - time: 0.15
-      value: 1
-      exponent: 1
-      editState: 0
-    - time: 0.7
-      value: 1
-      exponent: 1
-      editState: 0
-    - time: 1
-      value: 0
-      exponent: 1
-      editState: 0
+    alpha:
+      m_mode: 2
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points:
+      - time: 0
+        value: 0
+        exponent: 1
+        editState: 0
+      - time: 0.15
+        value: 1
+        exponent: 1
+        editState: 0
+      - time: 0.7
+        value: 1
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 0
+        exponent: 1
+        editState: 0
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_multiplierId: 
     ringThickness: 2
     dissolveCenter: 0
     dissolveKeepBorder: 1
@@ -501,26 +519,22 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    startSize:
-      m_mode: 0
-      m_static: 8
+    size:
+      m_mode: 2
+      m_static: 1
       m_min: 0
       m_max: 1
-      m_points: []
+      m_points:
+      - time: 0
+        value: 8
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 3
+        exponent: 1
+        editState: 0
       m_yMin: 0
-      m_yMax: 1
-      m_duration: 4
-      m_warmup: 0
-      m_cooldown: -1
-      m_multiplierId: 
-    endSize:
-      m_mode: 0
-      m_static: 3
-      m_min: 0
-      m_max: 1
-      m_points: []
-      m_yMin: 0
-      m_yMax: 1
+      m_yMax: 10
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
@@ -555,19 +569,30 @@ MonoBehaviour:
       m_ColorSpace: -1
       m_NumColorKeys: 3
       m_NumAlphaKeys: 2
-    alphaOverLife:
-    - time: 0
-      value: 1
-      exponent: 1
-      editState: 0
-    - time: 0.5
-      value: 0.9
-      exponent: 1
-      editState: 0
-    - time: 1
-      value: 0
-      exponent: 1
-      editState: 0
+    alpha:
+      m_mode: 2
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points:
+      - time: 0
+        value: 1
+        exponent: 1
+        editState: 0
+      - time: 0.5
+        value: 0.9
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 0
+        exponent: 1
+        editState: 0
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_multiplierId: 
     ringThickness: 2
     dissolveCenter: 0
     dissolveKeepBorder: 1
@@ -712,26 +737,22 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    startSize:
-      m_mode: 0
-      m_static: 3
+    size:
+      m_mode: 2
+      m_static: 1
       m_min: 0
       m_max: 1
-      m_points: []
+      m_points:
+      - time: 0
+        value: 3
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 28
+        exponent: 1
+        editState: 0
       m_yMin: 0
-      m_yMax: 1
-      m_duration: 4
-      m_warmup: 0
-      m_cooldown: -1
-      m_multiplierId: 
-    endSize:
-      m_mode: 0
-      m_static: 28
-      m_min: 0
-      m_max: 1
-      m_points: []
-      m_yMin: 0
-      m_yMax: 1
+      m_yMax: 30
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
@@ -766,23 +787,34 @@ MonoBehaviour:
       m_ColorSpace: -1
       m_NumColorKeys: 3
       m_NumAlphaKeys: 2
-    alphaOverLife:
-    - time: 0
-      value: 0
-      exponent: 1
-      editState: 0
-    - time: 0.1
-      value: 1
-      exponent: 1
-      editState: 0
-    - time: 0.55
-      value: 0.7
-      exponent: 1
-      editState: 0
-    - time: 1
-      value: 0
-      exponent: 1
-      editState: 0
+    alpha:
+      m_mode: 2
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points:
+      - time: 0
+        value: 0
+        exponent: 1
+        editState: 0
+      - time: 0.1
+        value: 1
+        exponent: 1
+        editState: 0
+      - time: 0.55
+        value: 0.7
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 0
+        exponent: 1
+        editState: 0
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_multiplierId: 
     ringThickness: 2
     dissolveCenter: 0
     dissolveKeepBorder: 1
@@ -927,26 +959,22 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    startSize:
-      m_mode: 0
-      m_static: 8
+    size:
+      m_mode: 2
+      m_static: 1
       m_min: 0
       m_max: 1
-      m_points: []
+      m_points:
+      - time: 0
+        value: 8
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 24
+        exponent: 1
+        editState: 0
       m_yMin: 0
-      m_yMax: 1
-      m_duration: 4
-      m_warmup: 0
-      m_cooldown: -1
-      m_multiplierId: 
-    endSize:
-      m_mode: 0
-      m_static: 24
-      m_min: 0
-      m_max: 1
-      m_points: []
-      m_yMin: 0
-      m_yMax: 1
+      m_yMax: 26
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
@@ -981,23 +1009,34 @@ MonoBehaviour:
       m_ColorSpace: -1
       m_NumColorKeys: 3
       m_NumAlphaKeys: 2
-    alphaOverLife:
-    - time: 0
-      value: 0
-      exponent: 1
-      editState: 0
-    - time: 0.15
-      value: 1
-      exponent: 1
-      editState: 0
-    - time: 0.7
-      value: 1
-      exponent: 1
-      editState: 0
-    - time: 1
-      value: 0
-      exponent: 1
-      editState: 0
+    alpha:
+      m_mode: 2
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points:
+      - time: 0
+        value: 0
+        exponent: 1
+        editState: 0
+      - time: 0.15
+        value: 1
+        exponent: 1
+        editState: 0
+      - time: 0.7
+        value: 1
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 0
+        exponent: 1
+        editState: 0
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_multiplierId: 
     ringThickness: 2
     dissolveCenter: 0
     dissolveKeepBorder: 1

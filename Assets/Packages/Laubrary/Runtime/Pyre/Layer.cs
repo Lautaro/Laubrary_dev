@@ -40,15 +40,13 @@ namespace Laubrary.Pyre
         [Tooltip("Extra Y offset per shape, in pixels (fixed, random spread, or animated drift).")]
         public ZUIValue positionY = new ZUIValue(0f);
 
-        [Tooltip("Shape radius in pixels at the start of its life.")]
-        public ZUIValue startSize = new ZUIValue(6f);
-        [Tooltip("Shape radius in pixels at the end of its life (lerped from startSize over life).")]
-        public ZUIValue endSize = new ZUIValue(10f);
+        [Tooltip("Shape radius in pixels over life — a multicontrol (defaults to a grow-then-shrink envelope).")]
+        public ZUIValue size = DefaultSize();
 
         [Tooltip("Colour vs normalised life 0..1.")]
         public Gradient colorOverLife = DefaultColor(LayerShape.Disc);
-        [Tooltip("Alpha vs normalised life 0..1 (a ZUI envelope). This is the ONLY thing that fades a shape in/out.")]
-        public List<ZUIEnvelopePoint> alphaOverLife = DefaultAlpha();
+        [Tooltip("Alpha over life — a multicontrol (defaults to an envelope). The ONLY thing that fades a shape.")]
+        public ZUIValue alpha = DefaultAlpha();
 
         [Tooltip("Ring: thickness of the annulus in pixels (drawn inward from the radius).")]
         public float ringThickness = 2f;
@@ -106,8 +104,7 @@ namespace Laubrary.Pyre
                 spawnRadius = new ZUIValue(0.28f),
                 positionX = new ZUIValue(0f),
                 positionY = new ZUIValue(0f),
-                startSize = new ZUIValue(6f),
-                endSize = new ZUIValue(10f),
+                size = DefaultSize(),
                 ringThickness = 2f,
                 dissolveCenter = 0f,
                 dissolveKeepBorder = true,
@@ -117,26 +114,26 @@ namespace Laubrary.Pyre
                 perShapeLifeJitter = 0.3f,
                 disintegrate = 0f,
                 colorOverLife = DefaultColor(shape),
-                alphaOverLife = DefaultAlpha(),
+                alpha = DefaultAlpha(),
             };
 
             switch (shape)
             {
                 case LayerShape.Ring:
                     l.count = new ZUIValue(1f); l.spawnRadius = new ZUIValue(0f);
-                    l.startSize = new ZUIValue(3f); l.endSize = new ZUIValue(26f); l.ringThickness = 2f;
+                    l.size = CurveVal(30f, 0f, 3f, 1f, 26f); l.ringThickness = 2f;
                     break;
                 case LayerShape.DissolvingDisc:
                     l.count = new ZUIValue(5f); l.spawnRadius = new ZUIValue(0.24f);
-                    l.startSize = new ZUIValue(8f); l.endSize = new ZUIValue(16f);
+                    l.size = CurveVal(20f, 0f, 8f, 1f, 16f);
                     break;
                 case LayerShape.SparkleField:
                     l.count = new ZUIValue(1f); l.spawnRadius = new ZUIValue(0f);
-                    l.startSize = new ZUIValue(10f); l.endSize = new ZUIValue(22f); l.sparkleDensity = 0.12f;
+                    l.size = CurveVal(26f, 0f, 10f, 1f, 22f); l.sparkleDensity = 0.12f;
                     break;
                 case LayerShape.Crescent:
                     l.count = new ZUIValue(4f); l.spawnRadius = new ZUIValue(0.28f);
-                    l.startSize = new ZUIValue(7f); l.endSize = new ZUIValue(11f);
+                    l.size = CurveVal(14f, 0f, 7f, 1f, 11f);
                     break;
             }
             return l;
@@ -151,8 +148,7 @@ namespace Laubrary.Pyre
             l.spawnRadius = CloneVal(spawnRadius);
             l.positionX = CloneVal(positionX);
             l.positionY = CloneVal(positionY);
-            l.startSize = CloneVal(startSize);
-            l.endSize = CloneVal(endSize);
+            l.size = CloneVal(size);
             l.crescentOffsetX = CloneVal(crescentOffsetX);
             l.crescentOffsetY = CloneVal(crescentOffsetY);
             l.deformSquash = CloneVal(deformSquash);
@@ -161,16 +157,8 @@ namespace Laubrary.Pyre
             l.deformWobbleFrequency = CloneVal(deformWobbleFrequency);
             l.deformRotation = CloneVal(deformRotation);
             l.colorOverLife = CloneGradient(colorOverLife);
-            l.alphaOverLife = CloneEnv(alphaOverLife);
+            l.alpha = CloneVal(alpha);
             return l;
-        }
-
-        static List<ZUIEnvelopePoint> CloneEnv(List<ZUIEnvelopePoint> s)
-        {
-            if (s == null) return DefaultAlpha();
-            var n = new List<ZUIEnvelopePoint>(s.Count);
-            foreach (var p in s) n.Add(new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
-            return n;
         }
 
         static ZUIValue CloneVal(ZUIValue s)
@@ -251,13 +239,19 @@ namespace Laubrary.Pyre
             return g;
         }
 
-        /// Rise quickly, hold, then fade — a punchy explosion envelope (ZUI envelope points).
-        public static List<ZUIEnvelopePoint> DefaultAlpha() => new List<ZUIEnvelopePoint>
+        /// A ZUIValue in Curve mode built from flat (time, value) pairs. yMax bounds the curve editor's Y axis.
+        public static ZUIValue CurveVal(float yMax, params float[] tv)
         {
-            new ZUIEnvelopePoint(0f, 0f),
-            new ZUIEnvelopePoint(0.15f, 1f),
-            new ZUIEnvelopePoint(0.7f, 1f),
-            new ZUIEnvelopePoint(1f, 0f),
-        };
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = yMax };
+            v.points.Clear();
+            for (int i = 0; i + 1 < tv.Length; i += 2) v.points.Add(new ZUIEnvelopePoint(tv[i], tv[i + 1]));
+            return v;
+        }
+
+        /// Grow-then-shrink radius envelope — a sensible default a shape's size animates through over its life.
+        public static ZUIValue DefaultSize() => CurveVal(16f, 0f, 4f, 0.3f, 11f, 1f, 5f);
+
+        /// Rise quickly, hold, then fade — a punchy explosion alpha envelope.
+        public static ZUIValue DefaultAlpha() => CurveVal(1f, 0f, 0f, 0.15f, 1f, 0.7f, 1f, 1f, 0f);
     }
 }
