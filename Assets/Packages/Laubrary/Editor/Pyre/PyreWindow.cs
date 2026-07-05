@@ -28,6 +28,7 @@ namespace Laubrary.Pyre.Editor
         [SerializeField] Gradient bgGradient;
         [SerializeField] Texture2D bgImage;
         [SerializeField] Color bgImageTint = Color.white; // multiplies the backdrop image; white = untouched
+        [SerializeField] float bgImageZoom = 1f;          // scales the backdrop image within the viewport
 
         // add-layer shape picker
         [SerializeField] LayerShape addShape = LayerShape.Disc;
@@ -396,6 +397,7 @@ namespace Laubrary.Pyre.Editor
                     case PreviewBgMode.Image:
                         bgImage = (Texture2D)EditorGUILayout.ObjectField("Image", bgImage, typeof(Texture2D), false);
                         bgImageTint = EditorGUILayout.ColorField("Tint", bgImageTint);
+                        bgImageZoom = EditorGUILayout.Slider("Zoom", bgImageZoom, 0.1f, 8f);
                         break;
                 }
             }
@@ -423,9 +425,14 @@ namespace Laubrary.Pyre.Editor
                 case PreviewBgMode.Image:
                     if (bgImage != null)
                     {
+                        EditorGUI.DrawRect(view, bgSolid); // shows behind the image when zoomed out (<1)
                         var prevCol = GUI.color;
                         GUI.color = bgImageTint;
-                        GUI.DrawTexture(view, bgImage, ScaleMode.ScaleAndCrop, false);
+                        GUI.BeginClip(view);
+                        float w = view.width * bgImageZoom, h = view.height * bgImageZoom;
+                        var imgRect = new Rect((view.width - w) * 0.5f, (view.height - h) * 0.5f, w, h);
+                        GUI.DrawTexture(imgRect, bgImage, ScaleMode.ScaleAndCrop, false);
+                        GUI.EndClip();
                         GUI.color = prevCol;
                     }
                     else EditorGUI.DrawRect(view, bgSolid);
