@@ -14,6 +14,7 @@ public class ChoreoDemoControlUI : MonoBehaviour
     GameObject bossGO;
     ChoreoDemoWander bossWander, playerWander;
     DemoPlayerWeapon weapon;
+    DemoBackground bg;
     readonly List<DemoWave> enemyWaves = new();
 
     static readonly Color PanelBg = new(0.06f, 0.06f, 0.09f, 0.93f);
@@ -36,7 +37,11 @@ public class ChoreoDemoControlUI : MonoBehaviour
             playerWander = playerGO != null ? playerGO.GetComponent<ChoreoDemoWander>() : null;
             weapon = playerGO != null ? playerGO.GetComponent<DemoPlayerWeapon>() : null;
         }
+        bg = Object.FindFirstObjectByType<DemoBackground>();
+        if (bg == null) bg = gameObject.AddComponent<DemoBackground>();
     }
+
+    static float HueOf(Color c) { Color.RGBToHSV(c, out float h, out _, out _); return h; }
 
     // ── persistence helpers ──────────────────────────────────────────────────
     static float GF(string k, float d) => PlayerPrefs.GetFloat(P + k, d);
@@ -70,6 +75,11 @@ public class ChoreoDemoControlUI : MonoBehaviour
             w.gameObject.SetActive(on);
             if (on) w.SetCount(GI(k + ".count", w.Count));
         }
+        DemoExplosion.GlobalSizeMul = GF("expSize", DemoExplosion.GlobalSizeMul);
+        DemoExplosion.GlobalDurationMul = GF("expDur", DemoExplosion.GlobalDurationMul);
+        if (weapon != null) weapon.bulletColor = Color.HSVToRGB(GF("bulletHue", HueOf(weapon.bulletColor)), 0.85f, 1f);
+        if (barrage != null) barrage.SetColor(Color.HSVToRGB(GF("missileHue", HueOf(barrage.color)), 0.85f, 1f));
+        if (bg != null) bg.SetIndex(GI("bgIndex", -1));
     }
 
     // ── UI ───────────────────────────────────────────────────────────────────
@@ -83,7 +93,7 @@ public class ChoreoDemoControlUI : MonoBehaviour
             return;
         }
 
-        Rect content = Zui.Panel(ZuiAnchor.TopLeft, 260f, 640f, PanelBg);
+        Rect content = Zui.Panel(ZuiAnchor.TopLeft, 260f, 830f, PanelBg);
         var s = new ZuiStack(content);
         if (s.Button("▾ Hide controls")) { expanded = false; return; }
         if (barrage == null) Refind();
@@ -99,7 +109,7 @@ public class ChoreoDemoControlUI : MonoBehaviour
         }
         int mc = Mathf.RoundToInt(s.Slider("Missiles", barrage.Count, 0f, 40f));
         if (mc != barrage.Count) { barrage.SetCount(mc); SI("missiles", mc); }
-        float ms = s.Slider("Missile size", barrage.scale, 0.1f, 1.5f);
+        float ms = s.Slider("Missile size", barrage.scale, 0.01f, 0.5f, format: "0.###");
         if (Mathf.Abs(ms - barrage.scale) > 0.001f) { barrage.SetScale(ms); SF("missileSize", ms); }
         WanderSlider(ref s, "Boss speed", "bossSpeed", bossWander);
         s.Space();
@@ -111,7 +121,7 @@ public class ChoreoDemoControlUI : MonoBehaviour
             weapon.fireInterval = PSlider(ref s, "Fire interval", "fireInterval", weapon.fireInterval, 0.05f, 2f);
             weapon.intervalRandomness = PSlider(ref s, "Fire randomness", "fireRandom", weapon.intervalRandomness, 0f, 1f);
             weapon.bulletSpeed = PSlider(ref s, "Bullet speed", "bulletSpeed", weapon.bulletSpeed, 2f, 30f);
-            weapon.bulletScale = PSlider(ref s, "Bullet size", "bulletSize", weapon.bulletScale, 0.1f, 1f);
+            weapon.bulletScale = PSlider(ref s, "Bullet size", "bulletSize", weapon.bulletScale, 0.01f, 0.5f, "0.###");
         }
         s.Space();
 
@@ -131,6 +141,26 @@ public class ChoreoDemoControlUI : MonoBehaviour
         }
         s.Space();
 
+        s.Label("Look & effects", bold: true);
+        if (weapon != null)
+        {
+            float bh = GF("bulletHue", HueOf(weapon.bulletColor));
+            float nbh = s.Slider("Bullet colour", bh, 0f, 1f);
+            if (!Mathf.Approximately(nbh, bh)) { SF("bulletHue", nbh); weapon.bulletColor = Color.HSVToRGB(nbh, 0.85f, 1f); }
+        }
+        float mh = GF("missileHue", HueOf(barrage.color));
+        float nmh = s.Slider("Missile colour", mh, 0f, 1f);
+        if (!Mathf.Approximately(nmh, mh)) { SF("missileHue", nmh); barrage.SetColor(Color.HSVToRGB(nmh, 0.85f, 1f)); }
+        DemoExplosion.GlobalSizeMul = PSlider(ref s, "Explosion size", "expSize", DemoExplosion.GlobalSizeMul, 0.2f, 4f);
+        DemoExplosion.GlobalDurationMul = PSlider(ref s, "Explosion duration", "expDur", DemoExplosion.GlobalDurationMul, 0.2f, 4f);
+        if (bg != null && bg.Count > 0)
+        {
+            s.Label("Background: " + (bg.Index < 0 ? "none" : (bg.Index + 1) + " / " + bg.Count));
+            if (s.Button("◀ Prev background")) { int i = bg.Index - 1; if (i < -1) i = bg.Count - 1; bg.SetIndex(i); SI("bgIndex", bg.Index); }
+            if (s.Button("Next background ▶")) { int i = bg.Index + 1; if (i >= bg.Count) i = -1; bg.SetIndex(i); SI("bgIndex", bg.Index); }
+        }
+        s.Space();
+
         bool dbg = s.Toggle("Show choreo paths (debug)", ChoreographyDebugView.GlobalEnabled);
         if (dbg != ChoreographyDebugView.GlobalEnabled) { ChoreographyDebugView.GlobalEnabled = dbg; SI("debug", dbg ? 1 : 0); }
         if (s.Button(barrage.player.IsPlaying ? "Pause barrage" : "Resume barrage"))
@@ -139,9 +169,9 @@ public class ChoreoDemoControlUI : MonoBehaviour
         }
     }
 
-    static float PSlider(ref ZuiStack s, string label, string key, float value, float min, float max)
+    static float PSlider(ref ZuiStack s, string label, string key, float value, float min, float max, string format = "0.##")
     {
-        float nv = s.Slider(label, value, min, max);
+        float nv = s.Slider(label, value, min, max, format: format);
         if (!Mathf.Approximately(nv, value)) SF(key, nv);
         return nv;
     }

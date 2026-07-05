@@ -33,13 +33,26 @@ public class DemoWave : MonoBehaviour
 
     public void SetScale(float s)
     {
-        scale = Mathf.Max(0.05f, s);
+        scale = Mathf.Max(0.01f, s);
         foreach (var go in pool)
             if (go)
             {
                 go.transform.localScale = Vector3.one * scale;
                 var a = go.GetComponent<DemoActor>();
                 if (a) a.explosionSize = scale;
+            }
+    }
+
+    public void SetColor(Color c)
+    {
+        color = c;
+        foreach (var go in pool)
+            if (go)
+            {
+                var sr = go.GetComponent<SpriteRenderer>();
+                if (sr) sr.color = c;
+                var a = go.GetComponent<DemoActor>();
+                if (a) a.color = c;
             }
     }
 

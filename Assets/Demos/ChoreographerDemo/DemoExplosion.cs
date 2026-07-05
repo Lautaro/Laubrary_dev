@@ -4,6 +4,10 @@ using UnityEngine;
 /// via DemoExplosion.Spawn() wherever something explodes. No prefab / no shipped assets.
 public class DemoExplosion : MonoBehaviour
 {
+    // Global intensity multipliers driven by the demo UI (size = how big, duration = how long).
+    public static float GlobalSizeMul = 1f;
+    public static float GlobalDurationMul = 1f;
+
     public float life = 0.35f;
     public float startScale = 0.4f;
     public float endScale = 1.6f;
@@ -23,8 +27,10 @@ public class DemoExplosion : MonoBehaviour
         var e = go.AddComponent<DemoExplosion>();
         e.sr = sr;
         e.baseColor = color;
-        e.startScale *= size;
-        e.endScale *= size;
+        e.life = 0.35f * Mathf.Max(0.05f, GlobalDurationMul);
+        float sz = size * Mathf.Max(0.05f, GlobalSizeMul);
+        e.startScale *= sz;
+        e.endScale *= sz;
         go.transform.localScale = Vector3.one * e.startScale;
     }
 
