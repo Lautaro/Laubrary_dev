@@ -39,6 +39,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zoomable preview with solid/gradient/image backdrops, and play/scrub/**retime** transport; a never-overwrite
   baker writes a sliced sprite sheet + looping **AnimationClip** beside the spec. Ships zero assets. Demo:
   a click-to-explode scene built from real `BlastSpec` assets (flat in `Assets/Demos/PyreDemo/`).
+  Later additions: every animatable value (incl. **Size** and **Alpha**, now single multicontrols) can be a
+  Static value, a Min-Max random, or an **animation curve** authored with the new foldable curve field; a
+  per-layer **emission mode** — Radial or **Directional** (shapes stream off a bendable origin line/surface,
+  Choreographer-style); an animatable **wind drift** that sweeps every shape one way over time; and an optional
+  **radial alpha** falloff for soft-edged / hollow / haloed shapes.
+- **Chunks** — a **runtime** tool that flings physical debris/shrapnel (the gameplay companion to Pyre: Pyre
+  bakes the explosion sprite, Chunks throws the moving bits). A **ChunkSpec** (ScriptableObject) describes a burst
+  — count, speed, a direction cone + upward bias, gravity / drag / spin, life, size / alpha / colour over life,
+  chunk sprites (or a procedural pixel fallback), and a simple floor bounce / settle. `ChunkEmitter.Burst(...)` or
+  the static `Chunks.Burst(pos, spec)` spawn independent `Chunk` behaviours that self-integrate gravity + drag,
+  spin or face their velocity, bounce / rest on a floor, fade, and despawn; an optional colour palette tints them
+  to a sampled object (the `WareDebris` pattern, generalised). Adds `Runtime/Chunks/`
+  (`com.Lautaro-Arino.Laubrary.Chunks`, namespace `Laubrary.Chunks`); depends on neither Pyre nor Larder but can
+  play any sprite they bake. Ships zero assets. Demo: click to spark-burst, Space for a directional wall burst.
+
+### New ZUI controls (used by these tools)
+- **`ZUIValueControl` / `ZUIValue`** multicontrol (a slider whose `⋯` menu switches to Min-Max random or an
+  animation curve; the Curve mode folds to a thumbnail; optional flags hide the timing/range chrome).
+- **`ZUI.CurveField`** — a foldable envelope curve field (thumbnail folded, full editor expanded) replacing
+  `EditorGUILayout.CurveField`, on the ZUI-native point list.
+- **`ZUI.FoldControls`** — a control group with always-visible + expand-on-arrow/hover members.
+- **`ZUI.MultiToggle`** — a super-toggle over grouped sub-toggles (built on FoldControls).
 
 ## [0.1.0] - 2026-07-04
 
