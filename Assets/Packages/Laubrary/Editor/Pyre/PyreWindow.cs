@@ -316,12 +316,41 @@ namespace Laubrary.Pyre.Editor
             l.startFrame = Mathf.RoundToInt(sf);
             l.endFrame = Mathf.Clamp(Mathf.RoundToInt(ef), l.startFrame, fcMax);
 
+            // Colour + alpha apply to every mode.
+            l.colorOverLife ??= Layer.DefaultColor(l.shape);
+            l.alpha ??= Layer.DefaultAlpha();
+            l.colorOverLife = EditorGUILayout.GradientField("Colour", l.colorOverLife);
+            ValRow("Alpha", l.alpha, 0f, 1f);
+
+            // Bars is a self-contained directional mode — none of the scatter / emission / deform controls apply,
+            // so show ONLY the Bars box.
+            if (shapeForLayout == LayerShape.Bars)
+            {
+                using (Box("Bars — symmetric forward-growing row"))
+                {
+                    ValRow("Bars per side", l.barCount, 0f, 40f, 7f);
+                    ValRow("Spacing", l.barSpacing, 0.5f, 12f, 4f);
+                    ValRow("Width", l.barWidth, 0.5f, 12f, 3f);
+                    ValRow("Forward reach", l.barForward, 0f, cs, 40f);
+                    ValRow("Backward frac", l.barBackwardFrac, 0f, 1f, 0.18f);
+                    l.barStagger = Slider(l.barStagger, 0f, 0.5f, "Stagger");
+                    ValRow("Layer angle", l.barAngleDeg, -180f, 180f, 0f);
+                    l.barMirror = Toggle(l.barMirror, "Mirror angle");
+                    ValRow("Origin inset", l.originInset, 0f, 40f, 4f);
+                    l.barLengthDist ??= Layer.DefaultBarLengthDist();
+                    CurveField("pyre.barlen." + layerSel, "Length by distance (centre→edge)", l.barLengthDist, 0f, 1.2f);
+                }
+                return;
+            }
+
+            // ── shape (scatter) modes ────────────────────────────────────────────
+            bool directional = l.emission == EmissionMode.Directional;   // captured for layout
+
             ValRow("Count", l.count, 1f, 40f);
-            ValRow("Spawn radius", l.spawnRadius, 0f, 1f);
+            if (!directional) ValRow("Spawn radius", l.spawnRadius, 0f, 1f);   // radial-only; directional uses origin/travel
             ValRow("Position X", l.positionX, -half, half);
             ValRow("Position Y", l.positionY, -half, half);
             ValRow("Size", l.size, 0f, half);
-
             l.perShapeLifeJitter = Slider(l.perShapeLifeJitter, 0f, 1f, "Life jitter");
             l.disintegrate = Slider(l.disintegrate, 0f, 1f, "Disintegrate");
 
@@ -342,29 +371,6 @@ namespace Laubrary.Pyre.Editor
                     ValRow("Crescent Y", l.crescentOffsetY, -half, half);
                     break;
             }
-
-            if (shapeForLayout == LayerShape.Bars)
-            {
-                using (Box("Bars — symmetric forward-growing row"))
-                {
-                    l.barCount = Mathf.RoundToInt(Slider(l.barCount, 0, 40, "Bars per side"));
-                    l.barSpacing = Slider(l.barSpacing, 0.5f, 12f, "Spacing");
-                    l.barWidth = Slider(l.barWidth, 0.5f, 12f, "Width");
-                    ValRow("Forward reach", l.barForward, 0f, cs, 40f);
-                    l.barBackwardFrac = Slider(l.barBackwardFrac, 0f, 1f, "Backward frac");
-                    l.barStagger = Slider(l.barStagger, 0f, 0.5f, "Stagger");
-                    l.barAngleDeg = Slider(l.barAngleDeg, -180f, 180f, "Layer angle");
-                    l.barMirror = Toggle(l.barMirror, "Mirror angle");
-                    l.originInset = Slider(l.originInset, 0f, 40f, "Origin inset");
-                    l.barLengthDist ??= Layer.DefaultBarLengthDist();
-                    CurveField("pyre.barlen." + layerSel, "Length by distance (centre→edge)", l.barLengthDist, 0f, 1.2f);
-                }
-            }
-
-            l.colorOverLife ??= Layer.DefaultColor(l.shape);
-            l.alpha ??= Layer.DefaultAlpha();
-            l.colorOverLife = EditorGUILayout.GradientField("Colour", l.colorOverLife);
-            ValRow("Alpha", l.alpha, 0f, 1f);
 
             using (Box("Radial alpha (per-pixel, by distance from centre)"))
             {

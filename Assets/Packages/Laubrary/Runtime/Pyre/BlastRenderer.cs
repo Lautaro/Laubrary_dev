@@ -23,7 +23,9 @@ namespace Laubrary.Pyre
         // ── field ids (make each ZUIValue's MinMax sample independent) ─────────────
         const int F_Count = 1, F_SpawnRadius = 2, F_PosX = 3, F_PosY = 4,
                   F_Size = 5, F_Alpha = 6, F_CrescentX = 7, F_CrescentY = 8,
-                  F_EmitAngle = 9, F_Travel = 10, F_WindX = 11, F_WindY = 12, F_BarForward = 13;
+                  F_EmitAngle = 9, F_Travel = 10, F_WindX = 11, F_WindY = 12, F_BarForward = 13,
+                  F_BarSpacing = 14, F_BarWidth = 15, F_BarBackward = 16, F_BarAngle = 17,
+                  F_OriginInset = 18, F_BarCount = 19;
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing the global deform
 
@@ -223,9 +225,10 @@ namespace Laubrary.Pyre
                                     Layer layer, int li, BlastSpec spec, float lp, float instAngle)
         {
             float baseA = spec.baseAngleDeg + instAngle;
-            RenderBarRow(buf, W, H, cx, cy, layer, li, spec, lp, baseA + layer.barAngleDeg);
-            if (layer.barMirror && Mathf.Abs(layer.barAngleDeg) > 0.001f)
-                RenderBarRow(buf, W, H, cx, cy, layer, li, spec, lp, baseA - layer.barAngleDeg);
+            float ang = Eval(layer.barAngleDeg, lp, spec.seed, li, 0, F_BarAngle);
+            RenderBarRow(buf, W, H, cx, cy, layer, li, spec, lp, baseA + ang);
+            if (layer.barMirror && Mathf.Abs(ang) > 0.001f)
+                RenderBarRow(buf, W, H, cx, cy, layer, li, spec, lp, baseA - ang);
         }
 
         static void RenderBarRow(Color32[] buf, int W, int H, float cx, float cy,
@@ -235,12 +238,17 @@ namespace Laubrary.Pyre
             Vector2 dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
             Vector2 perp = new Vector2(-Mathf.Sin(a), Mathf.Cos(a));
             Vector2 center = new Vector2(cx, cy);
-            Vector2 origin = EdgePoint(center, W, H, -dir) + dir * layer.originInset;  // start just in from the back edge
+            // The per-row bar knobs are multicontrols evaluated over the layer's timeline (once per frame).
+            float inset = Eval(layer.originInset, lp, spec.seed, li, 0, F_OriginInset);
+            Vector2 origin = EdgePoint(center, W, H, -dir) + dir * inset;               // start just in from the back edge
+            int B = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.barCount, lp, spec.seed, li, 0, F_BarCount)));
+            float spacing = Eval(layer.barSpacing, lp, spec.seed, li, 0, F_BarSpacing);
+            float width = Eval(layer.barWidth, lp, spec.seed, li, 0, F_BarWidth);
+            float backFrac = Mathf.Clamp01(Eval(layer.barBackwardFrac, lp, spec.seed, li, 0, F_BarBackward));
 
-            int B = Mathf.Max(0, layer.barCount);
             for (int i = -B; i <= B; i++)
             {
-                Vector2 barCenter = origin + perp * (i * layer.barSpacing);
+                Vector2 barCenter = origin + perp * (i * spacing);
                 float d = B > 0 ? Mathf.Abs(i) / (float)B : 0f;                          // 0 = centre bar
                 float lenMul = layer.barLengthDist != null && layer.barLengthDist.Count > 0
                     ? Mathf.Max(0f, ZUIEnvelopeEvaluator.Evaluate(layer.barLengthDist, d, 1f)) : 1f;
@@ -251,13 +259,13 @@ namespace Laubrary.Pyre
 
                 float fwd = Eval(layer.barForward, tb, spec.seed, li, i, F_BarForward) * lenMul;
                 if (fwd < 0.4f) continue;
-                float bwd = fwd * Mathf.Clamp01(layer.barBackwardFrac);
+                float bwd = fwd * backFrac;
 
                 Color col = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(d) : Color.white;
                 float alpha = Mathf.Clamp01(Eval(layer.alpha, tb, spec.seed, li, i, F_Alpha));
                 if (alpha < 0.004f) continue;
 
-                RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, layer.barWidth, col, alpha);
+                RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, width, col, alpha);
             }
         }
 
