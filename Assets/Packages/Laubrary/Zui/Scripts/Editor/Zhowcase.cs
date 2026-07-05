@@ -118,7 +118,7 @@ public class Zhowcase : ZUIWindow
 
     protected override void OnZUI()
     {
-        string[] tabs = { "Buttons", "Sliders", "Color", "Layout", "Forms", "Fill", "Row", "Envelope", "Value" };
+        string[] tabs = { "Buttons", "Sliders", "Color", "Layout", "Forms", "Fill", "Row", "Envelope", "Value", "Fold" };
         _showcaseTab = this.MiniRadio(_showcaseTab, tabs, "TabButton");
         this.VerticalSpace("V Control Gap");
 
@@ -161,9 +161,56 @@ public class Zhowcase : ZUIWindow
             case 8: // Value — the configurable tri-mode numeric control
                 DrawSection_ZUIValue();
                 break;
+            case 9: // Fold — FoldControls + MultiToggle
+                DrawSection_Fold();
+                break;
         }
 
         GUILayout.EndScrollView();
+    }
+
+    // ── FoldControls / MultiToggle ────────────────────────────────────────────
+
+    bool _foldSuper = true;
+    bool[] _foldSubs = { true, false, true };
+    string[] _foldSubLabels = { "Bloom", "Vignette", "Grain" };
+    float _foldGain = 0.5f, _foldDetail = 0.3f;
+    bool _foldExtra = true;
+
+    void DrawSection_Fold()
+    {
+        this.Label("FoldControls — one or more controls stay visible; the rest appear when expanded. " +
+                   "Right-click the header row to switch between Arrow (click) and Hover expand.", ZUI.ZTextStyle.Subtle);
+        this.VerticalSpace();
+
+        using (this.Box("FoldControls — Arrow mode (click the ▶)"))
+        {
+            this.FoldControls("zhowcase.fold.arrow",
+                alwaysVisible: () => { _foldGain = this.Slider(_foldGain, 0f, 1f, "Gain"); },
+                expandable: () =>
+                {
+                    _foldDetail = this.Slider(_foldDetail, 0f, 1f, "Detail");
+                    _foldExtra = this.Toggle(_foldExtra, "Extra pass");
+                },
+                ZUI.FoldMode.Arrow);
+        }
+
+        this.VerticalSpace();
+        using (this.Box("FoldControls — Hover mode (hover the header)"))
+        {
+            this.FoldControls("zhowcase.fold.hover",
+                alwaysVisible: () => { _foldGain = this.Slider(_foldGain, 0f, 1f, "Gain"); },
+                expandable: () => { _foldDetail = this.Slider(_foldDetail, 0f, 1f, "Detail"); },
+                ZUI.FoldMode.Hover);
+        }
+
+        this.VerticalSpace();
+        using (this.Box("MultiToggle — a super toggle over grouped sub-toggles"))
+        {
+            _foldSuper = this.MultiToggle("zhowcase.multitoggle", _foldSuper, "Post FX", _foldSubLabels, _foldSubs);
+            this.Label($"super={_foldSuper}   subs=[{_foldSubs[0]}, {_foldSubs[1]}, {_foldSubs[2]}]  " +
+                       "(sub values are kept even while the super is off)", ZUI.ZTextStyle.Small);
+        }
     }
 
     // ── ZUIValue ────────────────────────────────────────────────────────────

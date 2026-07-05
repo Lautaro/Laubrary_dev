@@ -500,6 +500,16 @@ public abstract partial class ZUIWindow
                                 params GUILayoutOption[] options)
     { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.ToggleRow(values, labels, style, options); }
 
+    // ===== FoldControls / MultiToggle =========================================
+
+    protected bool FoldControls(string key, Action alwaysVisible, Action expandable,
+                                ZUI.FoldMode defaultMode = ZUI.FoldMode.Arrow)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.FoldControls(key, alwaysVisible, expandable, defaultMode); }
+
+    protected bool MultiToggle(string key, bool superOn, string superLabel,
+                               string[] subLabels, bool[] subValues, string style = ZUI.Style.Default)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.MultiToggle(key, superOn, superLabel, subLabels, subValues, style); }
+
     // ===== Palette / misc =====================================================
 
     protected Color PaletteColor(string name, Color fallback)
