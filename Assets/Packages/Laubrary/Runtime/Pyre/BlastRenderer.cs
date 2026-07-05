@@ -22,7 +22,8 @@ namespace Laubrary.Pyre
 
         // ── field ids (make each ZUIValue's MinMax sample independent) ─────────────
         const int F_Count = 1, F_SpawnRadius = 2, F_PosX = 3, F_PosY = 4,
-                  F_Size = 5, F_Alpha = 6, F_CrescentX = 7, F_CrescentY = 8;
+                  F_Size = 5, F_Alpha = 6, F_CrescentX = 7, F_CrescentY = 8,
+                  F_EmitAngle = 9, F_Travel = 10, F_WindX = 11, F_WindY = 12;
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing the global deform
 
@@ -87,18 +88,38 @@ namespace Laubrary.Pyre
                     if (frameIndex < start || frameIndex > end) continue;      // not alive this frame
                     float t = Mathf.Clamp01((frameIndex - start) / (end - start));
 
-                    // Scatter the centre within spawnRadius (uniform disc). spawnRadius is 0..1 of the explosion;
-                    // 1 reaches (almost) the canvas edge. Curve reads blast progress so the ring can expand.
-                    double ang = rng.NextDouble() * Math.PI * 2.0;
-                    double radFrac = Math.Sqrt(rng.NextDouble());
-                    float sr01 = Mathf.Clamp01(Eval(layer.spawnRadius, lp, spec.seed, li, si, F_SpawnRadius));
-                    float scatterPx = sr01 * half * 0.9f;   // 0.9 safe margin off the very edge
-                    Vector2 c = new Vector2((float)(Math.Cos(ang) * radFrac) * scatterPx,
-                                            (float)(Math.Sin(ang) * radFrac) * scatterPx);
+                    Vector2 c;
+                    if (layer.emission == EmissionMode.Directional)
+                    {
+                        // Start on the (optionally bent) origin line and stream outward along its normal.
+                        float niD = count > 1 ? si / (float)(count - 1) : 0.5f;
+                        c = OriginPoint(niD, layer.originOffsetX, layer.originOffsetY, layer.originLength,
+                                        layer.originBend, layer.originAngleDeg, out Vector2 normal);
+                        float spreadJit = (float)(rng.NextDouble() * 2.0 - 1.0) * layer.emitSpreadDeg;
+                        float emitDeg = Eval(layer.emitAngleDeg, lp, spec.seed, li, si, F_EmitAngle) + spreadJit;
+                        Vector2 emitDir = Rotate(normal, emitDeg * Mathf.Deg2Rad);
+                        float travelPx = Eval(layer.travel, lp, spec.seed, li, si, F_Travel);
+                        c += emitDir * (travelPx * t);
+                    }
+                    else
+                    {
+                        // Radial: scatter the centre within spawnRadius (uniform disc). spawnRadius is 0..1 of the
+                        // explosion; 1 reaches (almost) the canvas edge. Curve reads layer progress so it can expand.
+                        double ang = rng.NextDouble() * Math.PI * 2.0;
+                        double radFrac = Math.Sqrt(rng.NextDouble());
+                        float sr01 = Mathf.Clamp01(Eval(layer.spawnRadius, lp, spec.seed, li, si, F_SpawnRadius));
+                        float scatterPx = sr01 * half * 0.9f;   // 0.9 safe margin off the very edge
+                        c = new Vector2((float)(Math.Cos(ang) * radFrac) * scatterPx,
+                                        (float)(Math.Sin(ang) * radFrac) * scatterPx);
+                    }
 
-                    // Position offset (fixed / per-shape random / animated drift over blast progress).
+                    // Position offset (fixed / per-shape random / animated drift over layer progress).
                     c.x += Eval(layer.positionX, lp, spec.seed, li, si, F_PosX);
                     c.y += Eval(layer.positionY, lp, spec.seed, li, si, F_PosY);
+
+                    // Wind drift: a directional push added to every shape, growing with its age t (any emission mode).
+                    c.x += Eval(layer.windX, lp, spec.seed, li, si, F_WindX) * t;
+                    c.y += Eval(layer.windY, lp, spec.seed, li, si, F_WindY) * t;
 
                     // Radius: one Size multicontrol over the shape's own life t (Curve = an envelope, Static =
                     // constant, MinMax = a per-shape-stable random size).
@@ -123,15 +144,17 @@ namespace Laubrary.Pyre
                     float crescX = Eval(layer.crescentOffsetX, lp, spec.seed, li, si, F_CrescentX);
                     float crescY = Eval(layer.crescentOffsetY, lp, spec.seed, li, si, F_CrescentY);
 
-                    // ── keep-on-screen guarantee ──────────────────────────────────
-                    // A pixel-art explosion must never be clipped flat at the canvas edge. Cap the radius to the
-                    // canvas half, then clamp the (undeformed) centre so the whole shape fits inside the canvas.
-                    // Deform warps sampling afterwards, but clamping here removes the "cut off" look the flat edge
-                    // produced; the rasterizer additionally only ever writes inside the canvas.
+                    // ── keep-on-screen guarantee (Radial only) ────────────────────
+                    // A radial pixel-art explosion must never be clipped flat at the canvas edge, so cap the radius
+                    // to the canvas half and clamp the centre so the whole shape fits. Directional shapes are MEANT
+                    // to stream off the frame, so they aren't clamped — the rasterizer still only writes in-canvas.
                     float effR = Mathf.Min(radius, half);
-                    float absX = Mathf.Clamp(center + c.x, effR, size - effR);
-                    float absY = Mathf.Clamp(center + c.y, effR, size - effR);
-                    c = new Vector2(absX - center, absY - center);
+                    if (layer.emission == EmissionMode.Radial)
+                    {
+                        float absX = Mathf.Clamp(center + c.x, effR, size - effR);
+                        float absY = Mathf.Clamp(center + c.y, effR, size - effR);
+                        c = new Vector2(absX - center, absY - center);
+                    }
                     radius = effR;
 
                     RasterShape(buf, size, center, global, local, framePhase, layer, c, radius, baseCol, alpha,
@@ -139,6 +162,35 @@ namespace Laubrary.Pyre
                 }
             }
             return buf;
+        }
+
+        // A point on the (optionally bent) origin line for parameter ni in [0,1], with the outward normal there.
+        // bend 0 = a straight line of `length`; bend 1 = the line curled into a full circle (Choreographer-style).
+        static Vector2 OriginPoint(float ni, float offX, float offY, float length, float bend, float angleDeg,
+                                   out Vector2 normal)
+        {
+            Vector2 origin = new Vector2(offX, offY);
+            float a = angleDeg * Mathf.Deg2Rad;
+            Vector2 tangent = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+            Vector2 norm = new Vector2(-Mathf.Sin(a), Mathf.Cos(a));   // +90° from the tangent = outward side
+            if (bend < 0.001f)
+            {
+                normal = norm;
+                return origin + tangent * ((ni - 0.5f) * length);
+            }
+            float arcSpan = bend * Mathf.PI * 2f;      // up to a full circle
+            float radius = length / arcSpan;           // so the arc length stays == length
+            float theta = (ni - 0.5f) * arcSpan;
+            Vector2 arcCenter = origin - norm * radius; // arc bows toward +norm (the emission side)
+            Vector2 p = arcCenter + norm * (radius * Mathf.Cos(theta)) + tangent * (radius * Mathf.Sin(theta));
+            normal = (p - arcCenter).normalized;
+            return p;
+        }
+
+        static Vector2 Rotate(Vector2 v, float rad)
+        {
+            float c = Mathf.Cos(rad), s = Mathf.Sin(rad);
+            return new Vector2(v.x * c - v.y * s, v.x * s + v.y * c);
         }
 
         // ── per-shape rasteriser ───────────────────────────────────────────────
@@ -165,7 +217,17 @@ namespace Laubrary.Pyre
                     // Disintegrate drop-out (deterministic per pixel).
                     if (disProb > 0f && Hash01(shapeSeed ^ 0x1B873593, x, y) < disProb) continue;
 
-                    Over(buf, y * size + x, col.r, col.g, col.b, alpha * col.a);
+                    // Radial alpha: an optional envelope over normalised distance from the shape centre (0 = centre,
+                    // 1 = edge), so a shape can be soft-edged / hollow / haloed instead of a hard disc.
+                    float pixelAlpha = alpha;
+                    if (layer.radialAlpha != null && layer.radialAlpha.Count > 0 && radius > 0.001f)
+                    {
+                        float nd = Mathf.Clamp01(Mathf.Sqrt((ux - c.x) * (ux - c.x) + (uy - c.y) * (uy - c.y)) / radius);
+                        pixelAlpha *= Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(layer.radialAlpha, nd, 1f));
+                    }
+                    if (pixelAlpha <= 0.001f) continue;
+
+                    Over(buf, y * size + x, col.r, col.g, col.b, pixelAlpha * col.a);
                 }
             }
         }

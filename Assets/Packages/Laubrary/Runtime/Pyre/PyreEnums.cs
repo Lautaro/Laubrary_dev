@@ -9,4 +9,11 @@ namespace Laubrary.Pyre
         SparkleField,   // random single lit pixels scattered inside a circle
         Crescent        // a disc with a second offset disc masked out
     }
+
+    /// How a Layer places and moves its shapes.
+    public enum EmissionMode
+    {
+        Radial,      // shapes scatter within a disc around the centre and grow outward (a normal explosion)
+        Directional  // shapes start on a (bendable) origin line/surface and stream one way across the frame
+    }
 }

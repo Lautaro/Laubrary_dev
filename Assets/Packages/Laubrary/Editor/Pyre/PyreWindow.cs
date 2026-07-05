@@ -52,6 +52,7 @@ namespace Laubrary.Pyre.Editor
         Rect lastView;                  // remembered for the Fit button
 
         static readonly string[] ShapeLabels = { "Disc", "Ring", "Dissolve", "Sparkle", "Crescent" };
+        static readonly string[] EmissionLabels = { "Radial", "Directional" };
 
         protected override void OnZUIEnable()
         {
@@ -332,6 +333,43 @@ namespace Laubrary.Pyre.Editor
             l.alpha ??= Layer.DefaultAlpha();
             l.colorOverLife = EditorGUILayout.GradientField("Colour", l.colorOverLife);
             ValRow("Alpha", l.alpha, 0f, 1f);
+
+            using (Box("Radial alpha (per-pixel, by distance from centre)"))
+            {
+                bool hasRA = l.radialAlpha != null;   // captured for layout — a change reflows next frame
+                bool wantRA = Toggle(hasRA, "Enable");
+                if (wantRA && l.radialAlpha == null)
+                    l.radialAlpha = new System.Collections.Generic.List<ZUIEnvelopePoint>
+                        { new ZUIEnvelopePoint(0f, 1f), new ZUIEnvelopePoint(1f, 0f) };
+                else if (!wantRA && l.radialAlpha != null)
+                    l.radialAlpha = null;
+                if (hasRA)
+                    CurveField("pyre.radial." + layerSel, "Falloff centre→edge", l.radialAlpha, 0f, 1f);
+            }
+
+            using (Box("Emission"))
+            {
+                // capture for layout (a mode change reflows the directional fields next frame, not mid-frame)
+                var emitForLayout = l.emission;
+                l.emission = (EmissionMode)MiniRadio((int)l.emission, EmissionLabels);
+                if (emitForLayout == EmissionMode.Directional)
+                {
+                    l.originOffsetX = Slider(l.originOffsetX, -half, half, "Origin X");
+                    l.originOffsetY = Slider(l.originOffsetY, -half, half, "Origin Y");
+                    l.originLength = Slider(l.originLength, 1f, cs, "Origin length");
+                    l.originBend = Slider(l.originBend, 0f, 1f, "Origin bend");
+                    l.originAngleDeg = Slider(l.originAngleDeg, -180f, 180f, "Origin angle");
+                    ValRow("Emit angle", l.emitAngleDeg, -180f, 180f, 0f);
+                    ValRow("Travel", l.travel, 0f, cs, 34f);
+                    l.emitSpreadDeg = Slider(l.emitSpreadDeg, 0f, 90f, "Emit spread");
+                }
+            }
+
+            using (Box("Wind drift"))
+            {
+                ValRow("Wind X", l.windX, -half, half, 0f);
+                ValRow("Wind Y", l.windY, -half, half, 0f);
+            }
 
             using (Box("Layer deform"))
             {

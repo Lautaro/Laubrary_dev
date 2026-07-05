@@ -48,6 +48,10 @@ namespace Laubrary.Pyre
         [Tooltip("Alpha over life — a multicontrol (defaults to an envelope). The ONLY thing that fades a shape.")]
         public ZUIValue alpha = DefaultAlpha();
 
+        [Tooltip("Optional radial alpha: an envelope over distance from the shape centre (0 = centre, 1 = edge) that " +
+                 "multiplies alpha per pixel. null = off. Makes a shape soft-edged / hollow / haloed instead of a hard disc.")]
+        public List<ZUIEnvelopePoint> radialAlpha = null;
+
         [Tooltip("Ring: thickness of the annulus in pixels (drawn inward from the radius).")]
         public float ringThickness = 2f;
 
@@ -89,6 +93,33 @@ namespace Laubrary.Pyre
         public ZUIValue deformWobbleFrequency = new ZUIValue(1f);
         [Tooltip("Rotation (degrees) applied about the centre.")]
         public ZUIValue deformRotation = new ZUIValue(0f);
+
+        // ── emission: Radial (default) or Directional (stream off a bendable origin line) ────────────
+        [Tooltip("Radial = scatter around the centre and grow outward. Directional = start on an origin line and " +
+                 "stream one way across the frame.")]
+        public EmissionMode emission = EmissionMode.Radial;
+        [Tooltip("Directional: centre of the origin line, in pixels from the canvas centre (e.g. y=-28 = bottom).")]
+        public float originOffsetX = 0f;
+        public float originOffsetY = 0f;
+        [Tooltip("Directional: length of the origin line/surface in pixels.")]
+        public float originLength = 40f;
+        [Tooltip("Directional: bend of the origin line, 0 = straight, 1 = full circle (like a Choreographer spread).")]
+        [Range(0f, 1f)] public float originBend = 0f;
+        [Tooltip("Directional: rotation of the origin line in degrees.")]
+        public float originAngleDeg = 0f;
+        [Tooltip("Directional: travel direction offset from the line's outward normal, in degrees (animatable).")]
+        public ZUIValue emitAngleDeg = new ZUIValue(0f);
+        [Tooltip("Directional: how far a shape travels from its origin over life, in pixels (animatable).")]
+        public ZUIValue travel = new ZUIValue(34f);
+        [Tooltip("Directional: random per-shape spread of the travel direction, in degrees.")]
+        public float emitSpreadDeg = 8f;
+
+        // ── wind: a directional drift added to EVERY shape, growing with the shape's age (any emission mode) ──
+        [Tooltip("Wind drift X in pixels, applied × the shape's life so older particles drift further (animatable). " +
+                 "Models e.g. a fast-moving object exploding — everything gets pushed one way over time.")]
+        public ZUIValue windX = new ZUIValue(0f);
+        [Tooltip("Wind drift Y in pixels, applied × the shape's life (animatable).")]
+        public ZUIValue windY = new ZUIValue(0f);
 
         /// A pleasing starting point per shape type; the editor adds layers through this.
         public static Layer Default(LayerShape shape)
@@ -156,8 +187,14 @@ namespace Laubrary.Pyre
             l.deformWobbleAmplitude = CloneVal(deformWobbleAmplitude);
             l.deformWobbleFrequency = CloneVal(deformWobbleFrequency);
             l.deformRotation = CloneVal(deformRotation);
+            l.emitAngleDeg = CloneVal(emitAngleDeg);
+            l.travel = CloneVal(travel);
+            l.windX = CloneVal(windX);
+            l.windY = CloneVal(windY);
             l.colorOverLife = CloneGradient(colorOverLife);
             l.alpha = CloneVal(alpha);
+            l.radialAlpha = radialAlpha == null ? null
+                : radialAlpha.ConvertAll(p => new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
             return l;
         }
 
