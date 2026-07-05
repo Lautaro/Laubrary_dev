@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-07-06
+
+### Added
+- **Colosseum** — a reusable **2D-combat backbone**: the generalised health/damage/factions/projectiles
+  foundation the shmup, arena and store games all share. Adds `Runtime/Colosseum/`
+  (`com.Lautaro-Arino.Laubrary.Colosseum`, namespace `Laubrary.Colosseum`): **Faction** (SO) — team
+  hostility (friendly to self + allies, hostile to the rest; friendlyFire / hostileToAll; a null faction is an
+  unaligned hazard); **DamageInfo** + **IDamageable**; **Health** — hit points with C# events (Damaged /
+  Healed / Died) and designer UnityEvents (onHealthChanged, onDied), invulnerability + i-frames, lazy-init;
+  **Combatant** — identity (faction + Health + optional hit filter); **Hurtbox** / **Hitbox** — regions that
+  receive / deal damage (per-region multiplier for headshots; armed strike window, once-per-target);
+  **Projectile** + **ProjectileWeapon** — a faction-stamped straight-flying bullet (pierce, wall blockers) and
+  an emitter (fire rate, spread, burst, autofire); **Combat** — the one hit funnel (collider overlap → faction
+  → optional pixel filter → apply) shared by everything; and **IHitFilter** — the seam Zoetrope plugs
+  pixel/meta-layer detection into later. Death stays a fired event so Pyre / Chunks / animation / score react.
+  Demo: **ColosseumDemo** — a playable shmup on the backbone (fly + fire; Choreographer-swept enemies that
+  shoot back; deaths spawn Pyre explosions + Chunks debris; in-game tuning panel + HUD) — the intended
+  replacement for the ChoreographerShmup. Ships zero art (shared DemoSprites).
+
+### Changed
+- **Pyre** — major bar/star pass: a **Star** on/off spread (bar arms share the centre and radiate outward as
+  an asterisk; canvas auto-fits) replacing the old inward "orbit" circular spread; a **Taper** slider for the
+  bar-arm silhouette (centre-longest → flat → concave) replacing the fiddly length-by-distance curve; arms
+  drawn interleaved by bar index so overlaps stay symmetric; a **Bars "Dissolve"** decay (expand-hold then fade
+  from the centre out); an experimental **colour grade** (cross gradient + contrast/brightness/saturation,
+  per-layer and global); and more **animatable multicontrols** (base angle, spread degrees, taper, stagger,
+  size, alpha). Bars no longer masquerade with a length curve; Global deform is hidden for all-bars blasts.
+
 ## [0.2.0] - 2026-07-04
 
 ### Added
