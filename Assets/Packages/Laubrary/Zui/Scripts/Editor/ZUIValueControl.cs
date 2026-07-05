@@ -59,6 +59,7 @@ public static class ZUIValueControl
         public ZUIEnvelopeRuntime rt;
         public ZUIColorRef color;
         public int key;
+        public bool expanded;   // Curve mode folds to a thumbnail; expand to show the full envelope editor
     }
 
     static readonly Dictionary<ZUIValue, CurveState> s_curve = new Dictionary<ZUIValue, CurveState>();
@@ -165,6 +166,26 @@ public static class ZUIValueControl
             v.yMin = Mathf.Min(opts.absMin, opts.absMax);
             v.yMax = Mathf.Max(opts.absMin, opts.absMax);
         }
+
+        // Folded header: a live thumbnail (click to expand) + caret — same affordance as ZUI.CurveField.
+        // `expanded` is captured up front so a click only takes effect NEXT frame; toggling the drawn control
+        // set mid-frame would mismatch the Layout/Repaint passes (IMGUI control-count exception).
+        bool expanded = cs.expanded;
+        GUILayout.BeginHorizontal();
+        Rect thumb = GUILayoutUtility.GetRect(60f, 18f, GUILayout.ExpandWidth(true), GUILayout.Height(18f));
+        ZUI.DrawCurveThumbnail(thumb, v.points, v.yMin, v.yMax);
+        EditorGUIUtility.AddCursorRect(thumb, MouseCursor.Link);
+        var ev = Event.current;
+        if (ev.type == EventType.MouseDown && ev.button == 0 && thumb.Contains(ev.mousePosition))
+        {
+            cs.expanded = !expanded;
+            ev.Use();
+            GUI.changed = true;
+        }
+        GUILayout.Label(expanded ? "▼" : "▶", EditorStyles.miniLabel, GUILayout.Width(14f));
+        GUILayout.EndHorizontal();
+
+        if (!expanded) return;
 
         cs.rt.yMin = v.yMin;
         cs.rt.yMax = v.yMax;

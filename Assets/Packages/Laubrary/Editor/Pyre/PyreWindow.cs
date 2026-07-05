@@ -153,9 +153,10 @@ namespace Laubrary.Pyre.Editor
         {
             using (Box("Global deform"))
             {
+                bool wasDeform = spec.deformEnabled;
                 spec.deformEnabled = Toggle(spec.deformEnabled, "Enable global deform");
-                if (spec.deformEnabled) DrawDeformFields(spec.squash, spec.skew, spec.wobbleAmplitude,
-                                                          spec.wobbleFrequency, spec.rotation);
+                if (wasDeform) DrawDeformFields(spec.squash, spec.skew, spec.wobbleAmplitude,
+                                                spec.wobbleFrequency, spec.rotation);
             }
         }
 
@@ -287,6 +288,9 @@ namespace Laubrary.Pyre.Editor
             Label($"Layer — {l.name}", ZUI.ZTextStyle.SectionHeader);
 
             l.name = EditorGUILayout.TextField("Name", l.name);
+            // Capture the shape used for THIS frame's layout; a change from the radio applies next frame so the
+            // per-shape control block below doesn't change the drawn control set mid-frame.
+            var shapeForLayout = l.shape;
             l.shape = (LayerShape)MiniRadio((int)l.shape, ShapeLabels);
 
             // Life window as a min-max range that can't exceed the current frame count.
@@ -307,7 +311,7 @@ namespace Laubrary.Pyre.Editor
             l.perShapeLifeJitter = Slider(l.perShapeLifeJitter, 0f, 1f, "Life jitter");
             l.disintegrate = Slider(l.disintegrate, 0f, 1f, "Disintegrate");
 
-            switch (l.shape)
+            switch (shapeForLayout)
             {
                 case LayerShape.Ring:
                     l.ringThickness = Slider(l.ringThickness, 1f, 12f, "Ring thickness");
@@ -332,8 +336,9 @@ namespace Laubrary.Pyre.Editor
 
             using (Box("Layer deform"))
             {
+                bool wasLayerDeform = l.deformEnabled;
                 l.deformEnabled = Toggle(l.deformEnabled, "Enable layer deform");
-                if (l.deformEnabled) DrawDeformFields(l.deformSquash, l.deformSkew, l.deformWobbleAmplitude,
+                if (wasLayerDeform) DrawDeformFields(l.deformSquash, l.deformSkew, l.deformWobbleAmplitude,
                                                       l.deformWobbleFrequency, l.deformRotation);
             }
         }

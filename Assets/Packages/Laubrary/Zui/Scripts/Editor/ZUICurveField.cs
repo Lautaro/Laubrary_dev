@@ -53,6 +53,8 @@ public static partial class ZUI
             points.Add(new ZUIEnvelopePoint(1f, yMax));
         }
 
+        // Captured up front so a click only takes effect NEXT frame — toggling the drawn control set mid-frame
+        // would mismatch IMGUI's Layout/Repaint passes (control-count exception).
         bool expanded = s_curveFieldExpanded.TryGetValue(key, out var e) && e;
         bool changed = false;
 
@@ -68,8 +70,7 @@ public static partial class ZUI
         var ev = Event.current;
         if (ev.type == EventType.MouseDown && ev.button == 0 && thumb.Contains(ev.mousePosition))
         {
-            expanded = !expanded;
-            s_curveFieldExpanded[key] = expanded;
+            s_curveFieldExpanded[key] = !expanded;
             ev.Use();
             GUI.changed = true;
         }
@@ -90,7 +91,8 @@ public static partial class ZUI
     }
 
     // A small non-interactive plot of the curve, sampled through the same evaluator the consumer uses.
-    static void DrawCurveThumbnail(Rect rect, List<ZUIEnvelopePoint> points, float yMin, float yMax)
+    // internal so ZUIValueControl (same assembly) can reuse it for the multicontrol's folded Curve mode.
+    internal static void DrawCurveThumbnail(Rect rect, List<ZUIEnvelopePoint> points, float yMin, float yMax)
     {
         EditorGUI.DrawRect(rect, new Color(0.12f, 0.13f, 0.16f));
         if (Event.current.type != EventType.Repaint) return;
