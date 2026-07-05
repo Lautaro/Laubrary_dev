@@ -229,8 +229,14 @@ namespace Laubrary.Pyre.Editor
                 bool wasEnabled = layer.enabled;
                 layer.enabled = Toggle(layer.enabled, layer.enabled ? "✓" : "", ZUI.Style.Default, GUILayout.Width(26));
                 if (layer.enabled != wasEnabled) { EditorUtility.SetDirty(spec); Repaint(); }
-                string nm = (sel ? "● " : "○ ") + layer.name + (layer.enabled ? "" : "  (off)");
-                if (Button(nm)) layerSel = li;
+                // select dot + inline-editable name (rename right here in the list)
+                if (Button(sel ? "●" : "○", ZUI.Style.Default, GUILayout.Width(24))) layerSel = li;
+                EditorGUI.BeginChangeCheck();
+                string newName = EditorGUILayout.TextField(layer.name, GUILayout.MinWidth(50));
+                if (EditorGUI.EndChangeCheck()) { layer.name = newName; EditorUtility.SetDirty(spec); }
+                Rect nameRect = GUILayoutUtility.GetLastRect();
+                if (Event.current.type == EventType.MouseDown && nameRect.Contains(Event.current.mousePosition)) layerSel = li;
+                if (!layer.enabled) GUILayout.Label("off", EditorStyles.miniLabel, GUILayout.Width(20));
                 if (Button("Dup", ZUI.Style.Default, GUILayout.Width(40))) dup = li;
                 if (Button("X", ZUI.Style.Default, GUILayout.Width(22))) remove = li;
                 EditorGUILayout.EndHorizontal();
@@ -303,7 +309,7 @@ namespace Laubrary.Pyre.Editor
 
             Label($"Layer — {l.name}", ZUI.ZTextStyle.SectionHeader);
 
-            l.name = EditorGUILayout.TextField("Name", l.name);
+            // (renamed inline in the layer list above)
             // Capture the shape used for THIS frame's layout; a change from the radio applies next frame so the
             // per-shape control block below doesn't change the drawn control set mid-frame.
             var shapeForLayout = l.shape;
