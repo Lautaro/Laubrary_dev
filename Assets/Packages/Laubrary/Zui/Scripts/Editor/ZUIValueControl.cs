@@ -26,6 +26,12 @@ public static class ZUIValueControl
         public string[] multiplierIds; // selectable globals for the multiplier menu (null = none)
         public float? staticDefault;   // double-click reset target for the Static-mode slider (null = no reset)
 
+        // Curve-mode chrome. Some hosts drive the curve's time axis and value range externally (e.g. a baked
+        // animation where the curve simply spans a fixed frame window and its Y range is the field's range) and
+        // don't want the Duration/Warmup/Loop or Value-Range fields shown. Default false = show them (unchanged).
+        public bool hideCurveTiming;   // hide the Duration / Warmup / Loop row
+        public bool hideCurveRange;    // hide the Value-Range row AND pin the curve's Y range to [absMin, absMax]
+
         public static Options Default => new Options
         {
             allowStatic = true,
@@ -41,6 +47,9 @@ public static class ZUIValueControl
         public Options WithRange(float lo, float hi) { absMin = lo; absMax = hi; return this; }
         public Options WithMultipliers(params string[] ids) { multiplierIds = ids; return this; }
         public Options WithDefault(float value) { staticDefault = value; return this; }
+        /// <summary>Hide the curve's Duration/Warmup/Loop and Value-Range fields; the curve then spans the host's
+        /// own time window and takes its Y range from [absMin, absMax].</summary>
+        public Options WithoutCurveExtras() { hideCurveTiming = true; hideCurveRange = true; return this; }
     }
 
     // ── Per-value editor scaffolding (curve editor needs a persistent Def/Runtime/stateKey) ──
@@ -149,30 +158,44 @@ public static class ZUIValueControl
     {
         v.EnsureCurveDefaults();
         var cs = GetCurveState(v);
+
+        // When the range is host-driven, pin the curve's Y domain to the field's [absMin, absMax].
+        if (opts.hideCurveRange)
+        {
+            v.yMin = Mathf.Min(opts.absMin, opts.absMax);
+            v.yMax = Mathf.Max(opts.absMin, opts.absMax);
+        }
+
         cs.rt.yMin = v.yMin;
         cs.rt.yMax = v.yMax;
 
         ZUI.Envelope(v.points, cs.color, cs.def, cs.rt, 200f, 90f, cs.key);
 
         // Timing — free number fields (no artificial cap; a curve can run for any duration / warmup).
-        GUILayout.BeginHorizontal();
-        v.duration = NumField("Dur s", v.duration);
-        v.warmup   = NumField("Warm s", v.warmup);
-        bool loop = v.cooldown >= 0f;
-        bool newLoop = GUILayout.Toggle(loop, "Loop", EditorStyles.miniButton, GUILayout.Width(44f));
-        if (newLoop != loop) v.cooldown = newLoop ? 0f : -1f;
-        if (newLoop) v.cooldown = Mathf.Max(0f, NumField("Cool s", v.cooldown));
-        GUILayout.FlexibleSpace();
-        GUILayout.EndHorizontal();
+        if (!opts.hideCurveTiming)
+        {
+            GUILayout.BeginHorizontal();
+            v.duration = NumField("Dur s", v.duration);
+            v.warmup   = NumField("Warm s", v.warmup);
+            bool loop = v.cooldown >= 0f;
+            bool newLoop = GUILayout.Toggle(loop, "Loop", EditorStyles.miniButton, GUILayout.Width(44f));
+            if (newLoop != loop) v.cooldown = newLoop ? 0f : -1f;
+            if (newLoop) v.cooldown = Mathf.Max(0f, NumField("Cool s", v.cooldown));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+        }
 
         // Value range — the curve's min/max output, per controller (e.g. 0..600 for a long spawn interval).
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("Value range", EditorStyles.miniLabel, GUILayout.Width(72f));
-        v.yMin = NumField("min", v.yMin);
-        v.yMax = NumField("max", v.yMax);
-        if (v.yMax < v.yMin) v.yMax = v.yMin;
-        GUILayout.FlexibleSpace();
-        GUILayout.EndHorizontal();
+        if (!opts.hideCurveRange)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Value range", EditorStyles.miniLabel, GUILayout.Width(72f));
+            v.yMin = NumField("min", v.yMin);
+            v.yMax = NumField("max", v.yMax);
+            if (v.yMax < v.yMin) v.yMax = v.yMin;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+        }
 
         // Keep all point values (and the warmup hold) inside the live [yMin..yMax]
         // domain. Shrinking the range under existing points would otherwise leave

@@ -58,14 +58,19 @@ namespace Laubrary.Pyre
                 var layer = spec.layers[li];
                 if (layer == null || !layer.enabled) continue;
 
+                // Layer life progress: the curve envelope of any animated value spans exactly the frames this
+                // layer exists — frame startFrame → 0, frame endFrame → 1 — NOT the whole blast.
+                float lp = Mathf.Clamp01((frameIndex - layer.startFrame) /
+                                         (float)Mathf.Max(1, layer.endFrame - layer.startFrame));
+
                 // Per-layer deform, evaluated once per frame; composited UNDER the global deform.
                 Deform local = layer.deformEnabled
                     ? EvalDeform(layer.deformSquash, layer.deformSkew, layer.deformWobbleAmplitude,
-                                 layer.deformWobbleFrequency, layer.deformRotation, bp, spec.seed, li, frameIndex)
+                                 layer.deformWobbleFrequency, layer.deformRotation, lp, spec.seed, li, frameIndex)
                     : Identity;
 
-                // Count: Curve reads blast progress; MinMax stays frame-stable (h2 = 0, no frame/shape).
-                int count = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.count, bp, spec.seed, li, 0, F_Count)));
+                // Count: Curve reads the layer's life progress; MinMax stays frame-stable (h2 = 0, no frame/shape).
+                int count = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.count, lp, spec.seed, li, 0, F_Count)));
 
                 for (int si = 0; si < count; si++)
                 {
@@ -86,19 +91,20 @@ namespace Laubrary.Pyre
                     // 1 reaches (almost) the canvas edge. Curve reads blast progress so the ring can expand.
                     double ang = rng.NextDouble() * Math.PI * 2.0;
                     double radFrac = Math.Sqrt(rng.NextDouble());
-                    float sr01 = Mathf.Clamp01(Eval(layer.spawnRadius, bp, spec.seed, li, si, F_SpawnRadius));
+                    float sr01 = Mathf.Clamp01(Eval(layer.spawnRadius, lp, spec.seed, li, si, F_SpawnRadius));
                     float scatterPx = sr01 * half * 0.9f;   // 0.9 safe margin off the very edge
                     Vector2 c = new Vector2((float)(Math.Cos(ang) * radFrac) * scatterPx,
                                             (float)(Math.Sin(ang) * radFrac) * scatterPx);
 
                     // Position offset (fixed / per-shape random / animated drift over blast progress).
-                    c.x += Eval(layer.positionX, bp, spec.seed, li, si, F_PosX);
-                    c.y += Eval(layer.positionY, bp, spec.seed, li, si, F_PosY);
+                    c.x += Eval(layer.positionX, lp, spec.seed, li, si, F_PosX);
+                    c.y += Eval(layer.positionY, lp, spec.seed, li, si, F_PosY);
 
-                    // Radius: start/end size lerped over life. Curve reads the shape's own life t so size can be
-                    // shaped across each shape's life; MinMax is per-shape stable so each blob keeps its size.
-                    float ss = Eval(layer.startSize, t, spec.seed, li, si, F_StartSize);
-                    float es = Eval(layer.endSize, t, spec.seed, li, si, F_EndSize);
+                    // Radius: start/end size lerped over the shape's life. When either is a Curve it reads the
+                    // layer's life progress (its window = the layer's frames); MinMax is per-shape stable so each
+                    // blob keeps its own size.
+                    float ss = Eval(layer.startSize, lp, spec.seed, li, si, F_StartSize);
+                    float es = Eval(layer.endSize, lp, spec.seed, li, si, F_EndSize);
                     float radius = Mathf.Lerp(ss, es, t);
                     if (radius < 0.25f) continue;
 
@@ -117,8 +123,8 @@ namespace Laubrary.Pyre
                     }
 
                     // Crescent mask offset (animatable).
-                    float crescX = Eval(layer.crescentOffsetX, bp, spec.seed, li, si, F_CrescentX);
-                    float crescY = Eval(layer.crescentOffsetY, bp, spec.seed, li, si, F_CrescentY);
+                    float crescX = Eval(layer.crescentOffsetX, lp, spec.seed, li, si, F_CrescentX);
+                    float crescY = Eval(layer.crescentOffsetY, lp, spec.seed, li, si, F_CrescentY);
 
                     // ── keep-on-screen guarantee ──────────────────────────────────
                     // A pixel-art explosion must never be clipped flat at the canvas edge. Cap the radius to the

@@ -234,10 +234,13 @@ namespace Laubrary.Pyre.Editor
             l.name = EditorGUILayout.TextField("Name", l.name);
             l.shape = (LayerShape)MiniRadio((int)l.shape, ShapeLabels);
 
-            EditorGUILayout.BeginHorizontal();
-            l.startFrame = EditorGUILayout.IntField("Start", l.startFrame);
-            l.endFrame = EditorGUILayout.IntField("End", l.endFrame);
-            EditorGUILayout.EndHorizontal();
+            // Life window as a min-max range that can't exceed the current frame count.
+            int fcMax = Mathf.Max(1, FrameCount - 1);
+            float sf = Mathf.Clamp(l.startFrame, 0, fcMax);
+            float ef = Mathf.Clamp(l.endFrame, 0, fcMax);
+            MicroMinMax(ref sf, ref ef, 0f, fcMax, "Life (frames)", ZUI.SliderStyle.Default, true);
+            l.startFrame = Mathf.RoundToInt(sf);
+            l.endFrame = Mathf.Clamp(Mathf.RoundToInt(ef), l.startFrame, fcMax);
 
             ValRow("Count", l.count, 1f, 40f);
             ValRow("Spawn radius", l.spawnRadius, 0f, 1f);
@@ -281,9 +284,11 @@ namespace Laubrary.Pyre.Editor
         }
 
         // One animatable-value row (ZUIValueControl). def (when given) is the double-click reset target.
+        // Curve mode here spans the LAYER's frame window and takes its Y range from [lo, hi], so the curve's
+        // Duration/Warmup/Loop and Value-Range fields are hidden (not meaningful for a frame-baked blast).
         void ValRow(string label, ZUIValue v, float lo, float hi, float? def = null)
         {
-            var o = ZUIValueControl.Options.Default.WithRange(lo, hi);
+            var o = ZUIValueControl.Options.Default.WithRange(lo, hi).WithoutCurveExtras();
             if (def.HasValue) o = o.WithDefault(def.Value);
             ZUIValueControl.Draw(label, v, o);
         }
