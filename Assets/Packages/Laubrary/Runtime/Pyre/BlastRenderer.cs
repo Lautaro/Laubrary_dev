@@ -23,7 +23,7 @@ namespace Laubrary.Pyre
         // ── field ids (make each ZUIValue's MinMax sample independent) ─────────────
         const int F_Count = 1, F_SpawnRadius = 2, F_PosX = 3, F_PosY = 4,
                   F_Size = 5, F_Alpha = 6, F_CrescentX = 7, F_CrescentY = 8,
-                  F_EmitAngle = 9, F_Travel = 10, F_WindX = 11, F_WindY = 12;
+                  F_EmitAngle = 9, F_Travel = 10, F_WindX = 11, F_WindY = 12, F_BarForward = 13;
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing the global deform
 
@@ -34,15 +34,16 @@ namespace Laubrary.Pyre
         // ── the frame → Color32[] core ─────────────────────────────────────────
         public static Color32[] RenderFrame(BlastSpec spec, int frameIndex)
         {
-            int size = Mathf.Max(1, spec != null ? spec.canvasSize : 1);
-            var buf = new Color32[size * size];
+            int W = spec != null ? spec.Width : 1;
+            int H = spec != null ? spec.Height : 1;
+            var buf = new Color32[W * H];
 
             Color32 bg = spec != null ? (Color32)spec.background : Transparent;
             for (int i = 0; i < buf.Length; i++) buf[i] = bg;
             if (spec == null || spec.layers == null) return buf;
 
-            float center = size * 0.5f;
-            float half = size * 0.5f;
+            float cx = W * 0.5f, cy = H * 0.5f;
+            float half = Mathf.Min(W, H) * 0.5f;
             int frameCount = Mathf.Max(1, spec.frameCount);
             float bp = frameCount > 1 ? frameIndex / (float)(frameCount - 1) : 0f;   // blast progress 0..1
             float framePhase = frameCount > 1 ? (frameIndex / (float)frameCount) * Mathf.PI * 2f : 0f;
@@ -53,9 +54,18 @@ namespace Laubrary.Pyre
                              bp, spec.seed, GlobalLayerId, frameIndex)
                 : Identity;
 
-            // Composite strictly back-to-front: layers in list order, shapes 0..count-1.
-            for (int li = 0; li < spec.layers.Count; li++)
+            // Circular spread: draw the whole layer stack `spreadCount` times, each rotated around the centre
+            // (spread 360 = a full circular explosion). Radial layers are symmetric so it only overdraws them;
+            // directional / bar layers fan out.
+            int spread = Mathf.Max(1, spec.spreadCount);
+            for (int inst = 0; inst < spread; inst++)
             {
+              float instAngle = spread > 1 ? (spec.spreadDegrees / spread) * inst : 0f;
+              float instRad = instAngle * Mathf.Deg2Rad;
+
+              // Composite strictly back-to-front: layers in list order, shapes 0..count-1.
+              for (int li = 0; li < spec.layers.Count; li++)
+              {
                 var layer = spec.layers[li];
                 if (layer == null || !layer.enabled) continue;
 
@@ -63,6 +73,13 @@ namespace Laubrary.Pyre
                 // layer exists — frame startFrame → 0, frame endFrame → 1 — NOT the whole blast.
                 float lp = Mathf.Clamp01((frameIndex - layer.startFrame) /
                                          (float)Mathf.Max(1, layer.endFrame - layer.startFrame));
+
+                // Bars mode is a wholly different, directional composition — handled separately.
+                if (layer.shape == LayerShape.Bars)
+                {
+                    RenderBarsLayer(buf, W, H, cx, cy, layer, li, spec, lp, instAngle);
+                    continue;
+                }
 
                 // Per-layer deform, evaluated once per frame; composited UNDER the global deform.
                 Deform local = layer.deformEnabled
@@ -144,22 +161,26 @@ namespace Laubrary.Pyre
                     float crescX = Eval(layer.crescentOffsetX, lp, spec.seed, li, si, F_CrescentX);
                     float crescY = Eval(layer.crescentOffsetY, lp, spec.seed, li, si, F_CrescentY);
 
+                    // Circular spread: rotate this shape's offset around the centre for this instance.
+                    if (spread > 1) c = Rotate(c, instRad);
+
                     // ── keep-on-screen guarantee (Radial only) ────────────────────
                     // A radial pixel-art explosion must never be clipped flat at the canvas edge, so cap the radius
-                    // to the canvas half and clamp the centre so the whole shape fits. Directional shapes are MEANT
-                    // to stream off the frame, so they aren't clamped — the rasterizer still only writes in-canvas.
+                    // to the canvas half and clamp the centre so the whole shape fits. Directional / bar shapes are
+                    // MEANT to stream off the frame, so they aren't clamped — the rasterizer still writes in-canvas.
                     float effR = Mathf.Min(radius, half);
                     if (layer.emission == EmissionMode.Radial)
                     {
-                        float absX = Mathf.Clamp(center + c.x, effR, size - effR);
-                        float absY = Mathf.Clamp(center + c.y, effR, size - effR);
-                        c = new Vector2(absX - center, absY - center);
+                        float absX = Mathf.Clamp(cx + c.x, effR, W - effR);
+                        float absY = Mathf.Clamp(cy + c.y, effR, H - effR);
+                        c = new Vector2(absX - cx, absY - cy);
                     }
                     radius = effR;
 
-                    RasterShape(buf, size, center, global, local, framePhase, layer, c, radius, baseCol, alpha,
+                    RasterShape(buf, W, H, cx, cy, global, local, framePhase, layer, c, radius, baseCol, alpha,
                                 t, shapeSeed, disProb, crescX, crescY);
                 }
+              }
             }
             return buf;
         }
@@ -193,20 +214,106 @@ namespace Laubrary.Pyre
             return new Vector2(v.x * c - v.y * s, v.x * s + v.y * c);
         }
 
+        // ── Bars mode: a symmetric row of forward-growing bars streaming off an edge ─────────────
+        // The row sits on an origin line at the back edge and each bar reaches FORWARD along the blast
+        // direction, longest at the centre and (per barLengthDist) shorter toward the ends — so the row's tips
+        // trace the blast silhouette (a falling distribution = a triangle / flame). Bars appear staggered from
+        // the centre outward and each reaches out then pulls back over its own life. Deform is not applied here.
+        static void RenderBarsLayer(Color32[] buf, int W, int H, float cx, float cy,
+                                    Layer layer, int li, BlastSpec spec, float lp, float instAngle)
+        {
+            float baseA = spec.baseAngleDeg + instAngle;
+            RenderBarRow(buf, W, H, cx, cy, layer, li, spec, lp, baseA + layer.barAngleDeg);
+            if (layer.barMirror && Mathf.Abs(layer.barAngleDeg) > 0.001f)
+                RenderBarRow(buf, W, H, cx, cy, layer, li, spec, lp, baseA - layer.barAngleDeg);
+        }
+
+        static void RenderBarRow(Color32[] buf, int W, int H, float cx, float cy,
+                                 Layer layer, int li, BlastSpec spec, float lp, float angleDeg)
+        {
+            float a = angleDeg * Mathf.Deg2Rad;
+            Vector2 dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+            Vector2 perp = new Vector2(-Mathf.Sin(a), Mathf.Cos(a));
+            Vector2 center = new Vector2(cx, cy);
+            Vector2 origin = EdgePoint(center, W, H, -dir) + dir * layer.originInset;  // start just in from the back edge
+
+            int B = Mathf.Max(0, layer.barCount);
+            for (int i = -B; i <= B; i++)
+            {
+                Vector2 barCenter = origin + perp * (i * layer.barSpacing);
+                float d = B > 0 ? Mathf.Abs(i) / (float)B : 0f;                          // 0 = centre bar
+                float lenMul = layer.barLengthDist != null && layer.barLengthDist.Count > 0
+                    ? Mathf.Max(0f, ZUIEnvelopeEvaluator.Evaluate(layer.barLengthDist, d, 1f)) : 1f;
+
+                float appear = Mathf.Abs(i) * layer.barStagger;                          // centre bar first, then outward
+                if (lp < appear) continue;
+                float tb = Mathf.Clamp01((lp - appear) / Mathf.Max(0.0001f, 1f - appear)); // bar's own life
+
+                float fwd = Eval(layer.barForward, tb, spec.seed, li, i, F_BarForward) * lenMul;
+                if (fwd < 0.4f) continue;
+                float bwd = fwd * Mathf.Clamp01(layer.barBackwardFrac);
+
+                Color col = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(d) : Color.white;
+                float alpha = Mathf.Clamp01(Eval(layer.alpha, tb, spec.seed, li, i, F_Alpha));
+                if (alpha < 0.004f) continue;
+
+                RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, layer.barWidth, col, alpha);
+            }
+        }
+
+        // Fill a rotated rectangle: from alongMin..alongMax along `dir`, ±halfWidth across `perp`.
+        static void RasterBar(Color32[] buf, int W, int H, Vector2 barCenter, Vector2 dir, Vector2 perp,
+                              float alongMin, float alongMax, float width, Color col, float alpha)
+        {
+            float hw = width * 0.5f;
+            // bounding box over the 4 corners
+            float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+            for (int sa = 0; sa < 2; sa++)
+                for (int sp = 0; sp < 2; sp++)
+                {
+                    Vector2 p = barCenter + dir * (sa == 0 ? alongMin : alongMax) + perp * (sp == 0 ? -hw : hw);
+                    minX = Mathf.Min(minX, p.x); maxX = Mathf.Max(maxX, p.x);
+                    minY = Mathf.Min(minY, p.y); maxY = Mathf.Max(maxY, p.y);
+                }
+            int x0 = Mathf.Max(0, Mathf.FloorToInt(minX)), x1 = Mathf.Min(W - 1, Mathf.CeilToInt(maxX));
+            int y0 = Mathf.Max(0, Mathf.FloorToInt(minY)), y1 = Mathf.Min(H - 1, Mathf.CeilToInt(maxY));
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    float px = (x + 0.5f) - barCenter.x, py = (y + 0.5f) - barCenter.y;
+                    float along = px * dir.x + py * dir.y;
+                    float across = px * perp.x + py * perp.y;
+                    if (along >= alongMin && along <= alongMax && across >= -hw && across <= hw)
+                        Over(buf, y * W + x, col.r, col.g, col.b, alpha * col.a);
+                }
+        }
+
+        // From `from` (inside the rect), march along unit `d` to the [0,W]x[0,H] border; returns the hit point.
+        static Vector2 EdgePoint(Vector2 from, int W, int H, Vector2 d)
+        {
+            float t = float.MaxValue;
+            if (d.x > 1e-4f) t = Mathf.Min(t, (W - from.x) / d.x);
+            else if (d.x < -1e-4f) t = Mathf.Min(t, -from.x / d.x);
+            if (d.y > 1e-4f) t = Mathf.Min(t, (H - from.y) / d.y);
+            else if (d.y < -1e-4f) t = Mathf.Min(t, -from.y / d.y);
+            if (t == float.MaxValue || t < 0f) t = 0f;
+            return from + d * t;
+        }
+
         // ── per-shape rasteriser ───────────────────────────────────────────────
         // Iterates the whole canvas, maps each pixel back through (global ∘ per-layer) deform into undeformed
         // "blast space", runs the hard shape test there, then composites source-over. Whole-canvas iteration keeps
         // the deform correct with zero clipping risk; canvases are small and the runtime player caches its frames.
-        static void RasterShape(Color32[] buf, int size, float center, Deform global, Deform local, float framePhase,
-                                Layer layer, Vector2 c, float radius, Color baseCol, float alpha, float t,
-                                int shapeSeed, float disProb, float crescX, float crescY)
+        static void RasterShape(Color32[] buf, int W, int H, float cx, float cy, Deform global, Deform local,
+                                float framePhase, Layer layer, Vector2 c, float radius, Color baseCol, float alpha,
+                                float t, int shapeSeed, float disProb, float crescX, float crescY)
         {
-            for (int y = 0; y < size; y++)
+            for (int y = 0; y < H; y++)
             {
-                for (int x = 0; x < size; x++)
+                for (int x = 0; x < W; x++)
                 {
                     // Forward map is screen = global(local(undeformed)); invert in reverse order.
-                    Vector2 off = new Vector2((x + 0.5f) - center, (y + 0.5f) - center);
+                    Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
                     off = InverseDeform(off, global, framePhase);
                     off = InverseDeform(off, local, framePhase);
                     float ux = off.x, uy = off.y;
@@ -227,7 +334,7 @@ namespace Laubrary.Pyre
                     }
                     if (pixelAlpha <= 0.001f) continue;
 
-                    Over(buf, y * size + x, col.r, col.g, col.b, pixelAlpha * col.a);
+                    Over(buf, y * W + x, col.r, col.g, col.b, pixelAlpha * col.a);
                 }
             }
         }
@@ -408,8 +515,9 @@ namespace Laubrary.Pyre
         // ── texture helpers ────────────────────────────────────────────────────
         public static Texture2D RenderFrameTexture(BlastSpec spec, int frameIndex)
         {
-            int size = Mathf.Max(1, spec != null ? spec.canvasSize : 1);
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            int W = spec != null ? spec.Width : 1;
+            int H = spec != null ? spec.Height : 1;
+            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp,
@@ -423,25 +531,26 @@ namespace Laubrary.Pyre
         /// Pack every frame into a grid sheet (cols left→right, rows top→bottom) for baking / preview.
         public static Texture2D RenderSheet(BlastSpec spec, out int cols, out int rows, int maxCols = 8)
         {
-            int size = Mathf.Max(1, spec != null ? spec.canvasSize : 1);
+            int W = spec != null ? spec.Width : 1;
+            int H = spec != null ? spec.Height : 1;
             int frames = Mathf.Max(1, spec != null ? spec.frameCount : 1);
             SheetLayout(frames, maxCols, out cols, out rows);
 
-            var sheet = new Texture2D(cols * size, rows * size, TextureFormat.RGBA32, false)
+            var sheet = new Texture2D(cols * W, rows * H, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp,
                 name = "Pyre_Sheet"
             };
-            var clear = new Color32[cols * size * rows * size];
+            var clear = new Color32[cols * W * rows * H];
             for (int i = 0; i < clear.Length; i++) clear[i] = Transparent;
             sheet.SetPixels32(clear);
 
             for (int f = 0; f < frames; f++)
             {
                 var px = RenderFrame(spec, f);
-                Rect r = FrameRect(f, cols, rows, size);
-                sheet.SetPixels32((int)r.x, (int)r.y, size, size, px);
+                Rect r = FrameRect(f, cols, rows, W, H);
+                sheet.SetPixels32((int)r.x, (int)r.y, W, H, px);
             }
             sheet.Apply();
             return sheet;
@@ -456,13 +565,13 @@ namespace Laubrary.Pyre
         }
 
         /// The texture-space rect (y-up) of a frame in the packed sheet. Row 0 sits at the top visually.
-        public static Rect FrameRect(int frame, int cols, int rows, int size)
+        public static Rect FrameRect(int frame, int cols, int rows, int cellW, int cellH)
         {
             int col = frame % cols;
             int row = frame / cols;
-            int px = col * size;
-            int py = (rows - 1 - row) * size;   // flip so row 0 is the top row in the image
-            return new Rect(px, py, size, size);
+            int px = col * cellW;
+            int py = (rows - 1 - row) * cellH;   // flip so row 0 is the top row in the image
+            return new Rect(px, py, cellW, cellH);
         }
     }
 }

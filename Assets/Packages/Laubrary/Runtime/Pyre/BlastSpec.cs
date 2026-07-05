@@ -18,12 +18,30 @@ namespace Laubrary.Pyre
         public int frameCount = 16;
 
         [Min(4)]
-        [Tooltip("Square canvas edge in pixels. Every frame is canvasSize x canvasSize.")]
+        [Tooltip("Canvas WIDTH in pixels.")]
         public int canvasSize = 64;
+
+        [Min(0)]
+        [Tooltip("Canvas HEIGHT in pixels. 0 = square (use the width). Bar/directional blasts want a rectangle.")]
+        public int canvasHeight = 0;
 
         [Min(1f)]
         [Tooltip("Pixels-per-unit used for the baked sprites and the runtime player.")]
         public float pixelsPerUnit = 64f;
+
+        // ── bar/directional composition (used by Bars-mode layers and the circular spread) ──
+        [Tooltip("Fundamental direction (deg) the blast grows toward. Bar layer angles are relative to this.")]
+        public float baseAngleDeg = 0f;
+        [Min(1)]
+        [Tooltip("Circular spread: how many rotated copies of the whole layer stack to place around the centre.")]
+        public int spreadCount = 1;
+        [Tooltip("Circular spread: total arc (deg) the copies span. 360 = a full circular explosion. Use a bigger " +
+                 "square canvas when spreading wide so the copies fit.")]
+        public float spreadDegrees = 360f;
+
+        /// Canvas width/height in pixels (height falls back to width when 0 = square).
+        public int Width => Mathf.Max(1, canvasSize);
+        public int Height => canvasHeight > 0 ? canvasHeight : Mathf.Max(1, canvasSize);
 
         [Tooltip("Colour the canvas is cleared to before compositing. Usually fully transparent.")]
         public Color background = new Color(0f, 0f, 0f, 0f);

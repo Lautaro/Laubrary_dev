@@ -7,7 +7,8 @@ namespace Laubrary.Pyre
         Ring,           // hollow annulus (shockwave)
         DissolvingDisc, // filled circle eaten away by a growing hole
         SparkleField,   // random single lit pixels scattered inside a circle
-        Crescent        // a disc with a second offset disc masked out
+        Crescent,       // a disc with a second offset disc masked out
+        Bars            // a symmetric row of forward-growing bars streaming off an edge (directional blast)
     }
 
     /// How a Layer places and moves its shapes.

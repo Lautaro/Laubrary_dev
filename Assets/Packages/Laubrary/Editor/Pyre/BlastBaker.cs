@@ -25,7 +25,7 @@ namespace Laubrary.Pyre.Editor
             if (string.IsNullOrEmpty(dir)) dir = "Assets";
             dir = dir.Replace('\\', '/');
 
-            int size = Mathf.Max(1, spec.canvasSize);
+            int cw = spec.Width, ch = spec.Height;
             var sheet = BlastRenderer.RenderSheet(spec, out int cols, out int rows, 8);
 
             // 1) write the PNG (never clobbering an existing file)
@@ -48,7 +48,7 @@ namespace Laubrary.Pyre.Editor
             var meta = new SpriteMetaData[frames];
             for (int f = 0; f < frames; f++)
             {
-                Rect r = BlastRenderer.FrameRect(f, cols, rows, size);
+                Rect r = BlastRenderer.FrameRect(f, cols, rows, cw, ch);
                 meta[f] = new SpriteMetaData
                 {
                     name = "blast_" + f,

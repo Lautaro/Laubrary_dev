@@ -51,7 +51,7 @@ namespace Laubrary.Pyre.Editor
         Texture2D previewTex;
         Rect lastView;                  // remembered for the Fit button
 
-        static readonly string[] ShapeLabels = { "Disc", "Ring", "Dissolve", "Sparkle", "Crescent" };
+        static readonly string[] ShapeLabels = { "Disc", "Ring", "Dissolve", "Sparkle", "Crescent", "Bars" };
         static readonly string[] EmissionLabels = { "Radial", "Directional" };
 
         protected override void OnZUIEnable()
@@ -130,10 +130,20 @@ namespace Laubrary.Pyre.Editor
 
             Label("Blast", ZUI.ZTextStyle.SectionHeader);
             spec.seed = EditorGUILayout.IntField("Seed", spec.seed);
-            spec.canvasSize = Mathf.Clamp(EditorGUILayout.IntField("Canvas size", spec.canvasSize), 4, 256);
+            spec.canvasSize = Mathf.Clamp(EditorGUILayout.IntField("Canvas width", spec.canvasSize), 4, 512);
+            spec.canvasHeight = Mathf.Clamp(EditorGUILayout.IntField("Canvas height (0=square)", spec.canvasHeight), 0, 512);
             spec.pixelsPerUnit = Mathf.Max(1f, EditorGUILayout.FloatField("Pixels per unit", spec.pixelsPerUnit));
             spec.background = EditorGUILayout.ColorField("Bake background", spec.background);
             spec.frameCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.frameCount, 1, 64, "Frame count")));
+
+            using (Box("Directional / spread (bars & directional layers)"))
+            {
+                spec.baseAngleDeg = Slider(spec.baseAngleDeg, -180f, 180f, "Base angle");
+                spec.spreadCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.spreadCount, 1, 24, "Spread count")));
+                spec.spreadDegrees = Slider(spec.spreadDegrees, 0f, 360f, "Spread degrees");
+                if (spec.spreadCount > 1)
+                    Label("Tip: widen the canvas (square) so spread copies fit.", ZUI.ZTextStyle.Small);
+            }
 
             VerticalSpace();
             DrawGlobalDeform();
@@ -329,6 +339,24 @@ namespace Laubrary.Pyre.Editor
                     break;
             }
 
+            if (shapeForLayout == LayerShape.Bars)
+            {
+                using (Box("Bars — symmetric forward-growing row"))
+                {
+                    l.barCount = Mathf.RoundToInt(Slider(l.barCount, 0, 40, "Bars per side"));
+                    l.barSpacing = Slider(l.barSpacing, 0.5f, 12f, "Spacing");
+                    l.barWidth = Slider(l.barWidth, 0.5f, 12f, "Width");
+                    ValRow("Forward reach", l.barForward, 0f, cs, 40f);
+                    l.barBackwardFrac = Slider(l.barBackwardFrac, 0f, 1f, "Backward frac");
+                    l.barStagger = Slider(l.barStagger, 0f, 0.5f, "Stagger");
+                    l.barAngleDeg = Slider(l.barAngleDeg, -180f, 180f, "Layer angle");
+                    l.barMirror = Toggle(l.barMirror, "Mirror angle");
+                    l.originInset = Slider(l.originInset, 0f, 40f, "Origin inset");
+                    l.barLengthDist ??= Layer.DefaultBarLengthDist();
+                    CurveField("pyre.barlen." + layerSel, "Length by distance (centre→edge)", l.barLengthDist, 0f, 1.2f);
+                }
+            }
+
             l.colorOverLife ??= Layer.DefaultColor(l.shape);
             l.alpha ??= Layer.DefaultAlpha();
             l.colorOverLife = EditorGUILayout.GradientField("Colour", l.colorOverLife);
@@ -428,7 +456,7 @@ namespace Laubrary.Pyre.Editor
                 UpdatePreviewTexture(cur);
                 if (previewTex != null)
                 {
-                    float w = spec.canvasSize * zoom, h = spec.canvasSize * zoom;
+                    float w = spec.Width * zoom, h = spec.Height * zoom;
                     GUI.BeginClip(view);
                     var local = new Rect((view.width - w) * 0.5f, (view.height - h) * 0.5f, w, h);
                     GUI.DrawTexture(local, previewTex, ScaleMode.StretchToFill, true);
@@ -545,7 +573,7 @@ namespace Laubrary.Pyre.Editor
         void FitZoom()
         {
             if (lastView.width < 2f || spec == null) return;
-            float z = Mathf.Floor(Mathf.Min(lastView.width, lastView.height) / Mathf.Max(1, spec.canvasSize));
+            float z = Mathf.Floor(Mathf.Min(lastView.width / Mathf.Max(1, spec.Width), lastView.height / Mathf.Max(1, spec.Height)));
             zoom = Mathf.Clamp(z, 1f, 16f);
             Repaint();
         }

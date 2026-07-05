@@ -114,6 +114,31 @@ namespace Laubrary.Pyre
         [Tooltip("Directional: random per-shape spread of the travel direction, in degrees.")]
         public float emitSpreadDeg = 8f;
 
+        // ── Bars mode (LayerShape.Bars): a symmetric row of forward-growing bars streaming off an edge ──
+        [Tooltip("Bars: number of bars on EACH side of the centre bar (total = 2*barCount + 1).")]
+        [Min(0)] public int barCount = 7;
+        [Tooltip("Bars: perpendicular spacing between neighbouring bars, in pixels.")]
+        public float barSpacing = 4f;
+        [Tooltip("Bars: thickness of each bar (across the direction), in pixels.")]
+        public float barWidth = 3f;
+        [Tooltip("Bars: how far a bar reaches FORWARD (along the direction) at full growth — animatable over its life.")]
+        public ZUIValue barForward = DefaultBarForward();
+        [Range(0f, 1f)]
+        [Tooltip("Bars: backward reach as a fraction of the forward reach (a little spill behind the surface).")]
+        public float barBackwardFrac = 0.18f;
+        [Tooltip("Bars: forward-length multiplier by distance from centre (0 = centre bar, 1 = outermost). The curve " +
+                 "IS the blast silhouette — a falling curve makes a triangle/flame. Editable envelope.")]
+        public List<ZUIEnvelopePoint> barLengthDist = DefaultBarLengthDist();
+        [Range(0f, 0.5f)]
+        [Tooltip("Bars: per-bar appearance delay as a fraction of the layer window (centre bar first, then outward).")]
+        public float barStagger = 0.05f;
+        [Tooltip("Bars: this layer's angle offset from the blast's base angle, in degrees.")]
+        public float barAngleDeg = 0f;
+        [Tooltip("Bars: also draw a mirror of this layer's angle on the other side of the base angle.")]
+        public bool barMirror = false;
+        [Tooltip("Bars: push the origin this many pixels in from the surface edge, for a little breathing room.")]
+        public float originInset = 4f;
+
         // ── wind: a directional drift added to EVERY shape, growing with the shape's age (any emission mode) ──
         [Tooltip("Wind drift X in pixels, applied × the shape's life so older particles drift further (animatable). " +
                  "Models e.g. a fast-moving object exploding — everything gets pushed one way over time.")]
@@ -191,6 +216,9 @@ namespace Laubrary.Pyre
             l.travel = CloneVal(travel);
             l.windX = CloneVal(windX);
             l.windY = CloneVal(windY);
+            l.barForward = CloneVal(barForward);
+            l.barLengthDist = barLengthDist == null ? DefaultBarLengthDist()
+                : barLengthDist.ConvertAll(p => new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
             l.colorOverLife = CloneGradient(colorOverLife);
             l.alpha = CloneVal(alpha);
             l.radialAlpha = radialAlpha == null ? null
@@ -290,5 +318,12 @@ namespace Laubrary.Pyre
 
         /// Rise quickly, hold, then fade — a punchy explosion alpha envelope.
         public static ZUIValue DefaultAlpha() => CurveVal(1f, 0f, 0f, 0.15f, 1f, 0.7f, 1f, 1f, 0f);
+
+        /// A bar's forward reach over its life: shoot out fast, then pull back.
+        public static ZUIValue DefaultBarForward() => CurveVal(48f, 0f, 2f, 0.4f, 40f, 1f, 8f);
+
+        /// Forward-length multiplier by distance from centre — a falling curve makes a triangle/flame silhouette.
+        public static List<ZUIEnvelopePoint> DefaultBarLengthDist() => new List<ZUIEnvelopePoint>
+        { new ZUIEnvelopePoint(0f, 1f), new ZUIEnvelopePoint(0.5f, 0.68f), new ZUIEnvelopePoint(1f, 0.12f) };
     }
 }
