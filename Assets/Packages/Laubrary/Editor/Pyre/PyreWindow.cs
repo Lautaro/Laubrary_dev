@@ -38,6 +38,7 @@ namespace Laubrary.Pyre.Editor
 
         // splitters
         bool dragLeft, dragPreview;
+        int draggingLayer = -1;   // index of the layer being drag-reordered, or -1
 
         // playback
         double lastTime;
@@ -185,14 +186,28 @@ namespace Laubrary.Pyre.Editor
             EditorGUILayout.EndHorizontal();
 
             int dup = -1, remove = -1;
+            var rowRects = new System.Collections.Generic.List<Rect>(spec.layers.Count);
             for (int li = 0; li < spec.layers.Count; li++)
             {
                 var layer = spec.layers[li];
                 bool sel = li == layerSel;
 
                 Rect row = EditorGUILayout.BeginHorizontal();
-                if (sel && Event.current.type == EventType.Repaint)
-                    EditorGUI.DrawRect(row, new Color(0.35f, 0.55f, 0.95f, 0.18f));
+                rowRects.Add(row);
+                if (Event.current.type == EventType.Repaint)
+                {
+                    if (li == draggingLayer) EditorGUI.DrawRect(row, new Color(0.35f, 0.55f, 0.95f, 0.30f));
+                    else if (sel) EditorGUI.DrawRect(row, new Color(0.35f, 0.55f, 0.95f, 0.18f));
+                }
+
+                // drag handle — grab to reorder
+                GUILayout.Label("≡", EditorStyles.boldLabel, GUILayout.Width(16));
+                Rect grip = GUILayoutUtility.GetLastRect();
+                EditorGUIUtility.AddCursorRect(grip, MouseCursor.Pan);
+                if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && grip.Contains(Event.current.mousePosition))
+                {
+                    draggingLayer = li; layerSel = li; Event.current.Use(); Repaint();
+                }
 
                 bool wasEnabled = layer.enabled;
                 layer.enabled = Toggle(layer.enabled, layer.enabled ? "✓" : "", ZUI.Style.Default, GUILayout.Width(26));
@@ -203,6 +218,8 @@ namespace Laubrary.Pyre.Editor
                 if (Button("X", ZUI.Style.Default, GUILayout.Width(22))) remove = li;
                 EditorGUILayout.EndHorizontal();
             }
+
+            HandleLayerDrag(rowRects);
 
             if (dup >= 0)
             {
@@ -219,6 +236,44 @@ namespace Laubrary.Pyre.Editor
                 spec.layers.RemoveAt(remove);
                 layerSel = Mathf.Clamp(layerSel, 0, Mathf.Max(0, spec.layers.Count - 1));
                 EditorUtility.SetDirty(spec);
+            }
+        }
+
+        // Drag a layer by its ≡ grip to reorder it; draws an insertion line and moves on release.
+        void HandleLayerDrag(System.Collections.Generic.List<Rect> rowRects)
+        {
+            if (draggingLayer < 0 || rowRects.Count == 0) return;
+            var e = Event.current;
+
+            int target = rowRects.Count;
+            for (int i = 0; i < rowRects.Count; i++)
+                if (e.mousePosition.y < rowRects[i].center.y) { target = i; break; }
+
+            if (e.type == EventType.Repaint)
+            {
+                float y = target < rowRects.Count ? rowRects[target].yMin : rowRects[rowRects.Count - 1].yMax;
+                var r0 = rowRects[0];
+                EditorGUI.DrawRect(new Rect(r0.x, y - 1f, r0.width, 2f), new Color(0.4f, 0.8f, 1f));
+            }
+            else if (e.type == EventType.MouseDrag) { Repaint(); e.Use(); }
+            else if (e.type == EventType.MouseUp)
+            {
+                int from = draggingLayer;
+                draggingLayer = -1;
+                int to = target;
+                if (from >= 0 && from < spec.layers.Count && to != from && to != from + 1)
+                {
+                    Undo.RecordObject(spec, "Reorder layer");
+                    var lay = spec.layers[from];
+                    spec.layers.RemoveAt(from);
+                    if (to > from) to--;
+                    to = Mathf.Clamp(to, 0, spec.layers.Count);
+                    spec.layers.Insert(to, lay);
+                    layerSel = to;
+                    EditorUtility.SetDirty(spec);
+                }
+                e.Use();
+                Repaint();
             }
         }
 
@@ -273,7 +328,7 @@ namespace Laubrary.Pyre.Editor
             l.colorOverLife ??= Layer.DefaultColor(l.shape);
             l.alphaOverLife ??= Layer.DefaultAlpha();
             l.colorOverLife = EditorGUILayout.GradientField("Colour over life", l.colorOverLife);
-            l.alphaOverLife = EditorGUILayout.CurveField("Alpha over life", l.alphaOverLife);
+            CurveField("pyre.alpha." + layerSel, "Alpha over life", l.alphaOverLife, 0f, 1f);
 
             using (Box("Layer deform"))
             {

@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ff39de1584e317c4da10900b8cf063dd, type: 3}
   m_Name: SparkleBurst
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Pyre::Laubrary.Pyre.BlastSpec
-  seed: 4242
-  frameCount: 18
+  seed: 42
+  frameCount: 16
   canvasSize: 64
   pixelsPerUnit: 64
   background: {r: 0, g: 0, b: 0, a: 0}
   layers:
   - name: Smoke
-    enabled: 0
+    enabled: 1
     startFrame: 3
     endFrame: 15
     shape: 2
@@ -126,47 +126,22 @@ MonoBehaviour:
       m_NumColorKeys: 3
       m_NumAlphaKeys: 2
     alphaOverLife:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.25
-        value: 0.9
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.7
-        value: 0.8
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
+    - time: 0
+      value: 0
+      exponent: 1
+      editState: 0
+    - time: 0.25
+      value: 0.9
+      exponent: 1
+      editState: 0
+    - time: 0.7
+      value: 0.8
+      exponent: 1
+      editState: 0
+    - time: 1
+      value: 0
+      exponent: 1
+      editState: 0
     ringThickness: 2
     dissolveCenter: 0
     dissolveKeepBorder: 1
@@ -366,47 +341,22 @@ MonoBehaviour:
       m_NumColorKeys: 4
       m_NumAlphaKeys: 2
     alphaOverLife:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.15
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.7
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
+    - time: 0
+      value: 0
+      exponent: 1
+      editState: 0
+    - time: 0.15
+      value: 1
+      exponent: 1
+      editState: 0
+    - time: 0.7
+      value: 1
+      exponent: 1
+      editState: 0
+    - time: 1
+      value: 0
+      exponent: 1
+      editState: 0
     ringThickness: 2
     dissolveCenter: 0
     dissolveKeepBorder: 1
@@ -606,38 +556,18 @@ MonoBehaviour:
       m_NumColorKeys: 3
       m_NumAlphaKeys: 2
     alphaOverLife:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.5
-        value: 0.9
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
+    - time: 0
+      value: 1
+      exponent: 1
+      editState: 0
+    - time: 0.5
+      value: 0.9
+      exponent: 1
+      editState: 0
+    - time: 1
+      value: 0
+      exponent: 1
+      editState: 0
     ringThickness: 2
     dissolveCenter: 0
     dissolveKeepBorder: 1
@@ -837,47 +767,22 @@ MonoBehaviour:
       m_NumColorKeys: 3
       m_NumAlphaKeys: 2
     alphaOverLife:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.1
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.55
-        value: 0.7
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
+    - time: 0
+      value: 0
+      exponent: 1
+      editState: 0
+    - time: 0.1
+      value: 1
+      exponent: 1
+      editState: 0
+    - time: 0.55
+      value: 0.7
+      exponent: 1
+      editState: 0
+    - time: 1
+      value: 0
+      exponent: 1
+      editState: 0
     ringThickness: 2
     dissolveCenter: 0
     dissolveKeepBorder: 1
@@ -1024,7 +929,7 @@ MonoBehaviour:
       m_multiplierId: 
     startSize:
       m_mode: 0
-      m_static: 6
+      m_static: 8
       m_min: 0
       m_max: 1
       m_points: []
@@ -1036,7 +941,7 @@ MonoBehaviour:
       m_multiplierId: 
     endSize:
       m_mode: 0
-      m_static: 30
+      m_static: 24
       m_min: 0
       m_max: 1
       m_points: []
@@ -1077,51 +982,26 @@ MonoBehaviour:
       m_NumColorKeys: 3
       m_NumAlphaKeys: 2
     alphaOverLife:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.15
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.7
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
+    - time: 0
+      value: 0
+      exponent: 1
+      editState: 0
+    - time: 0.15
+      value: 1
+      exponent: 1
+      editState: 0
+    - time: 0.7
+      value: 1
+      exponent: 1
+      editState: 0
+    - time: 1
+      value: 0
+      exponent: 1
+      editState: 0
     ringThickness: 2
     dissolveCenter: 0
     dissolveKeepBorder: 1
-    sparkleDensity: 0.16
+    sparkleDensity: 0.1
     crescentOffsetX:
       m_mode: 0
       m_static: 6

@@ -143,13 +143,13 @@ namespace Laubrary.Pyre
             return v;
         }
 
-        static AnimationCurve SmokeAlpha() => new AnimationCurve(
-            new Keyframe(0f, 0f), new Keyframe(0.25f, 0.9f), new Keyframe(0.7f, 0.8f), new Keyframe(1f, 0f));
+        static List<ZUIEnvelopePoint> SmokeAlpha() => new List<ZUIEnvelopePoint>
+        { new ZUIEnvelopePoint(0f, 0f), new ZUIEnvelopePoint(0.25f, 0.9f), new ZUIEnvelopePoint(0.7f, 0.8f), new ZUIEnvelopePoint(1f, 0f) };
 
-        static AnimationCurve CoreAlpha() => new AnimationCurve(
-            new Keyframe(0f, 1f), new Keyframe(0.5f, 0.9f), new Keyframe(1f, 0f));
+        static List<ZUIEnvelopePoint> CoreAlpha() => new List<ZUIEnvelopePoint>
+        { new ZUIEnvelopePoint(0f, 1f), new ZUIEnvelopePoint(0.5f, 0.9f), new ZUIEnvelopePoint(1f, 0f) };
 
-        static AnimationCurve RingAlpha() => new AnimationCurve(
-            new Keyframe(0f, 0f), new Keyframe(0.1f, 1f), new Keyframe(0.55f, 0.7f), new Keyframe(1f, 0f));
+        static List<ZUIEnvelopePoint> RingAlpha() => new List<ZUIEnvelopePoint>
+        { new ZUIEnvelopePoint(0f, 0f), new ZUIEnvelopePoint(0.1f, 1f), new ZUIEnvelopePoint(0.55f, 0.7f), new ZUIEnvelopePoint(1f, 0f) };
     }
 }

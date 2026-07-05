@@ -108,8 +108,10 @@ namespace Laubrary.Pyre
                     float radius = Mathf.Lerp(ss, es, t);
                     if (radius < 0.25f) continue;
 
-                    // Alpha over life ONLY (fade in/out lives entirely in this curve now).
-                    float alpha = layer.alphaOverLife != null ? Mathf.Clamp01(layer.alphaOverLife.Evaluate(t)) : 1f;
+                    // Alpha over life ONLY (fade in/out lives entirely in this envelope now).
+                    float alpha = layer.alphaOverLife != null && layer.alphaOverLife.Count > 0
+                        ? Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(layer.alphaOverLife, t, 1f))
+                        : 1f;
                     if (alpha <= 0.001f) continue;
 
                     Color baseCol = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(t) : Color.white;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Laubrary.Pyre
@@ -46,8 +47,8 @@ namespace Laubrary.Pyre
 
         [Tooltip("Colour vs normalised life 0..1.")]
         public Gradient colorOverLife = DefaultColor(LayerShape.Disc);
-        [Tooltip("Alpha vs normalised life 0..1. This is the ONLY thing that fades a shape in/out.")]
-        public AnimationCurve alphaOverLife = DefaultAlpha();
+        [Tooltip("Alpha vs normalised life 0..1 (a ZUI envelope). This is the ONLY thing that fades a shape in/out.")]
+        public List<ZUIEnvelopePoint> alphaOverLife = DefaultAlpha();
 
         [Tooltip("Ring: thickness of the annulus in pixels (drawn inward from the radius).")]
         public float ringThickness = 2f;
@@ -160,8 +161,16 @@ namespace Laubrary.Pyre
             l.deformWobbleFrequency = CloneVal(deformWobbleFrequency);
             l.deformRotation = CloneVal(deformRotation);
             l.colorOverLife = CloneGradient(colorOverLife);
-            l.alphaOverLife = alphaOverLife != null ? new AnimationCurve(alphaOverLife.keys) : DefaultAlpha();
+            l.alphaOverLife = CloneEnv(alphaOverLife);
             return l;
+        }
+
+        static List<ZUIEnvelopePoint> CloneEnv(List<ZUIEnvelopePoint> s)
+        {
+            if (s == null) return DefaultAlpha();
+            var n = new List<ZUIEnvelopePoint>(s.Count);
+            foreach (var p in s) n.Add(new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
+            return n;
         }
 
         static ZUIValue CloneVal(ZUIValue s)
@@ -242,11 +251,13 @@ namespace Laubrary.Pyre
             return g;
         }
 
-        /// Rise quickly, hold, then fade — a punchy explosion envelope.
-        public static AnimationCurve DefaultAlpha() => new AnimationCurve(
-            new Keyframe(0f, 0f),
-            new Keyframe(0.15f, 1f),
-            new Keyframe(0.7f, 1f),
-            new Keyframe(1f, 0f));
+        /// Rise quickly, hold, then fade — a punchy explosion envelope (ZUI envelope points).
+        public static List<ZUIEnvelopePoint> DefaultAlpha() => new List<ZUIEnvelopePoint>
+        {
+            new ZUIEnvelopePoint(0f, 0f),
+            new ZUIEnvelopePoint(0.15f, 1f),
+            new ZUIEnvelopePoint(0.7f, 1f),
+            new ZUIEnvelopePoint(1f, 0f),
+        };
     }
 }

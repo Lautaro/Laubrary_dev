@@ -510,6 +510,10 @@ public abstract partial class ZUIWindow
                                string[] subLabels, bool[] subValues, string style = ZUI.Style.Default)
     { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.MultiToggle(key, superOn, superLabel, subLabels, subValues, style); }
 
+    protected bool CurveField(string key, string label, List<ZUIEnvelopePoint> points,
+                              float yMin = 0f, float yMax = 1f, float height = 90f)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.CurveField(key, label, points, yMin, yMax, height); }
+
     // ===== Palette / misc =====================================================
 
     protected Color PaletteColor(string name, Color fallback)
