@@ -130,8 +130,12 @@ namespace Laubrary.Pyre.Editor
 
             Label("Blast", ZUI.ZTextStyle.SectionHeader);
             spec.seed = EditorGUILayout.IntField("Seed", spec.seed);
-            spec.canvasSize = Mathf.Clamp(EditorGUILayout.IntField("Canvas width", spec.canvasSize), 4, 512);
-            spec.canvasHeight = Mathf.Clamp(EditorGUILayout.IntField("Canvas height (0=square)", spec.canvasHeight), 0, 512);
+            // ZUI.IntField measures its own label width (in a Flow row), so long labels can't be clipped.
+            using (ZUI.Flow())
+            {
+                spec.canvasSize = ZUI.IntField("Width", spec.canvasSize, 52f, 4, 512);
+                spec.canvasHeight = ZUI.IntField("Height (0 = square)", spec.canvasHeight, 52f, 0, 512);
+            }
             spec.pixelsPerUnit = Mathf.Max(1f, EditorGUILayout.FloatField("Pixels per unit", spec.pixelsPerUnit));
             spec.background = EditorGUILayout.ColorField("Bake background", spec.background);
             spec.frameCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.frameCount, 1, 64, "Frame count")));
