@@ -55,6 +55,11 @@ namespace Laubrary.Pyre.Editor
         static readonly string[] ShapeLabels = { "Disc", "Ring", "Dissolve", "Sparkle", "Crescent", "Bars" };
         static readonly string[] EmissionLabels = { "Radial", "Directional" };
         static readonly string[] BarDecayLabels = { "Contract", "Dissolve" };
+        static readonly string[] SpreadModeLabels = { "Orbit", "Star" };
+
+        // Whether the canvas is star-auto-fit, captured on the Layout event only so the width/height control set
+        // can't change between Layout and Repaint of the same frame (IMGUI reflow hazard). See OnZUI.
+        bool starLayout;
 
         protected override void OnZUIEnable()
         {
@@ -87,6 +92,11 @@ namespace Laubrary.Pyre.Editor
 
         protected override void OnZUI()
         {
+            // Capture the star gate on Layout only, so the width/height block below has a stable control count
+            // across this frame's Layout and Repaint passes even if the Orbit/Star radio is clicked.
+            if (Event.current.type == EventType.Layout)
+                starLayout = spec != null && spec.spreadMode == SpreadMode.Radiate;
+
             DrawTopBar();
             if (spec == null)
             {
@@ -133,11 +143,15 @@ namespace Laubrary.Pyre.Editor
             Label("Blast", ZUI.ZTextStyle.SectionHeader);
             spec.seed = EditorGUILayout.IntField("Seed", spec.seed);
             // ZUI.IntField measures its own label width (in a Flow row), so long labels can't be clipped.
-            using (ZUI.Flow())
-            {
-                spec.canvasSize = ZUI.IntField("Width", spec.canvasSize, 52f, 4, 512);
-                spec.canvasHeight = ZUI.IntField("Height (0 = square)", spec.canvasHeight, 52f, 0, 512);
-            }
+            // In Star spread the canvas auto-fits the arms, so show the resolved size instead of editable fields.
+            if (starLayout)
+                Label($"Canvas {spec.Width}×{spec.Height}  (auto-fit for star)", ZUI.ZTextStyle.Subtle);
+            else
+                using (ZUI.Flow())
+                {
+                    spec.canvasSize = ZUI.IntField("Width", spec.canvasSize, 52f, 4, 512);
+                    spec.canvasHeight = ZUI.IntField("Height (0 = square)", spec.canvasHeight, 52f, 0, 512);
+                }
             spec.pixelsPerUnit = Mathf.Max(1f, EditorGUILayout.FloatField("Pixels per unit", spec.pixelsPerUnit));
             spec.background = EditorGUILayout.ColorField("Bake background", spec.background);
             spec.frameCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.frameCount, 1, 64, "Frame count")));
@@ -145,10 +159,15 @@ namespace Laubrary.Pyre.Editor
             using (Box("Directional / spread (bars & directional layers)"))
             {
                 spec.baseAngleDeg = Slider(spec.baseAngleDeg, -180f, 180f, "Base angle");
-                spec.spreadCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.spreadCount, 1, 24, "Spread count")));
+                spec.spreadMode = (SpreadMode)MiniRadio((int)spec.spreadMode, SpreadModeLabels);
+                spec.spreadCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.spreadCount, 1, 24,
+                    spec.spreadMode == SpreadMode.Radiate ? "Arms" : "Spread count")));
                 spec.spreadDegrees = Slider(spec.spreadDegrees, 0f, 360f, "Spread degrees");
-                if (spec.spreadCount > 1)
-                    Label("Tip: widen the canvas (square) so spread copies fit.", ZUI.ZTextStyle.Small);
+                // A Label is always one control regardless of text, so the hint can key off the live mode safely.
+                Label(spec.spreadMode == SpreadMode.Radiate
+                        ? "Star: bar arms share the centre and radiate outward; canvas auto-fits."
+                        : (spec.spreadCount > 1 ? "Tip: widen the canvas (square) so orbit copies fit." : " "),
+                      ZUI.ZTextStyle.Small);
             }
 
             VerticalSpace();

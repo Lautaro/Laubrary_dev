@@ -302,7 +302,11 @@ namespace Laubrary.Pyre
             Vector2 center = new Vector2(cx, cy);
             // The per-row bar knobs are multicontrols evaluated over the layer's timeline (once per frame).
             float inset = Eval(layer.originInset, lp, spec.seed, li, 0, F_OriginInset);
-            Vector2 origin = EdgePoint(center, W, H, -dir) + dir * inset;               // start just in from the back edge
+            // Orbit/normal: the row sits on the back edge and reaches forward across the frame (tips point inward).
+            // Star (Radiate): every arm shares the CENTRE as its origin and reaches OUTWARD — an asterisk of combs.
+            Vector2 origin = spec.spreadMode == SpreadMode.Radiate
+                ? center + dir * inset
+                : EdgePoint(center, W, H, -dir) + dir * inset;
             int B = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.barCount, lp, spec.seed, li, 0, F_BarCount)));
             float spacing = Eval(layer.barSpacing, lp, spec.seed, li, 0, F_BarSpacing);
             float backFrac = Mathf.Clamp01(Eval(layer.barBackwardFrac, lp, spec.seed, li, 0, F_BarBackward));

@@ -33,15 +33,69 @@ namespace Laubrary.Pyre
         [Tooltip("Fundamental direction (deg) the blast grows toward. Bar layer angles are relative to this.")]
         public float baseAngleDeg = 0f;
         [Min(1)]
-        [Tooltip("Circular spread: how many rotated copies of the whole layer stack to place around the centre.")]
+        [Tooltip("Spread: how many copies of the blast to place. Orbit = rotated around the centre; Star = arms.")]
         public int spreadCount = 1;
-        [Tooltip("Circular spread: total arc (deg) the copies span. 360 = a full circular explosion. Use a bigger " +
-                 "square canvas when spreading wide so the copies fit.")]
+        [Tooltip("Spread: total arc (deg) the copies span. 360 = a full circle / star. Orbit needs a bigger square " +
+                 "canvas to fit; Star auto-fits its own canvas.")]
         public float spreadDegrees = 360f;
+        [Tooltip("Orbit = rotate the whole stack around the centre (bars point inward). Star = bar arms share the " +
+                 "centre origin and radiate OUTWARD (an asterisk of bar-combs); the canvas auto-fits the arms.")]
+        public SpreadMode spreadMode = SpreadMode.Orbit;
 
-        /// Canvas width/height in pixels (height falls back to width when 0 = square).
-        public int Width => Mathf.Max(1, canvasSize);
-        public int Height => canvasHeight > 0 ? canvasHeight : Mathf.Max(1, canvasSize);
+        /// Canvas width/height in pixels. Normally the authored size (height falls back to width when 0 = square);
+        /// in Star (Radiate) spread the canvas auto-fits the bar arms so nothing clips.
+        public int Width  { get { if (spreadMode == SpreadMode.Radiate) { ComputeStarBox(out int w, out _); return w; } return Mathf.Max(1, canvasSize); } }
+        public int Height { get { if (spreadMode == SpreadMode.Radiate) { ComputeStarBox(out _, out int h); return h; } return canvasHeight > 0 ? canvasHeight : Mathf.Max(1, canvasSize); } }
+
+        // In Star spread the bar arms share the centre and reach outward, so the canvas must fit the arms in every
+        // direction they point. Sized from the bar layers' max forward reach + the arm angles, symmetric about the
+        // centre so the shared origin stays centred. No bar layers (or non-star) → fall back to the authored canvas.
+        void ComputeStarBox(out int w, out int h)
+        {
+            float reach = 0f, combHalf = 0f;
+            if (layers != null)
+                foreach (var l in layers)
+                {
+                    if (l == null || !l.enabled || l.shape != LayerShape.Bars) continue;
+                    reach = Mathf.Max(reach, MaxOf(l.barForward) + Mathf.Max(0f, MaxOf(l.originInset)));
+                    combHalf = Mathf.Max(combHalf, MaxOf(l.barCount) * MaxOf(l.barSpacing) + MaxOf(l.barWidth));
+                }
+            if (reach < 1f)   // nothing to fit — keep the authored canvas
+            {
+                w = Mathf.Max(1, canvasSize);
+                h = canvasHeight > 0 ? canvasHeight : w;
+                return;
+            }
+            int n = Mathf.Max(1, spreadCount);
+            float step = n > 1 ? spreadDegrees / n : 0f;
+            float maxX = combHalf, maxY = combHalf;   // the comb base spans ±combHalf around the shared origin
+            for (int i = 0; i < n; i++)
+            {
+                float a = (baseAngleDeg + step * i) * Mathf.Deg2Rad;
+                maxX = Mathf.Max(maxX, Mathf.Abs(Mathf.Cos(a) * reach));
+                maxY = Mathf.Max(maxY, Mathf.Abs(Mathf.Sin(a) * reach));
+            }
+            const float margin = 3f;
+            w = Mathf.Clamp(Mathf.CeilToInt((maxX + margin) * 2f), 4, 1024);
+            h = Mathf.Clamp(Mathf.CeilToInt((maxY + margin) * 2f), 4, 1024);
+        }
+
+        // Upper bound of a ZUIValue (used only to size the star canvas): the constant, the max of a random range,
+        // or the highest authored curve point.
+        static float MaxOf(ZUIValue v)
+        {
+            if (v == null) return 0f;
+            switch (v.mode)
+            {
+                case ZUIValue.Mode.Static: return v.staticValue;
+                case ZUIValue.Mode.MinMax: return Mathf.Max(v.min, v.max);
+                case ZUIValue.Mode.Curve:
+                    float m = 0f;
+                    if (v.points != null) foreach (var p in v.points) m = Mathf.Max(m, p.value);
+                    return m;
+                default: return v.staticValue;
+            }
+        }
 
         [Tooltip("Colour the canvas is cleared to before compositing. Usually fully transparent.")]
         public Color background = new Color(0f, 0f, 0f, 0f);
