@@ -57,10 +57,8 @@ namespace Laubrary.Pyre.Editor
         static readonly string[] BarDecayLabels = { "Contract", "Dissolve" };
 
         // Captured on the Layout event only so the control set can't change between Layout and Repaint of the same
-        // frame (IMGUI reflow hazard). starLayout = Star on (gates canvas + arms); deformUsefulLayout = at least one
-        // non-Bars layer exists (bars ignore deform, so Global deform is hidden for an all-bars blast). See OnZUI.
+        // frame (IMGUI reflow hazard). starLayout = Star on (gates the canvas size + arms fields). See OnZUI.
         bool starLayout;
-        bool deformUsefulLayout;
 
         protected override void OnZUIEnable()
         {
@@ -96,10 +94,7 @@ namespace Laubrary.Pyre.Editor
             // Capture the star gate on Layout only, so the width/height block below has a stable control count
             // across this frame's Layout and Repaint passes even if the Orbit/Star radio is clicked.
             if (Event.current.type == EventType.Layout)
-            {
                 starLayout = spec != null && spec.star;
-                deformUsefulLayout = HasNonBarsLayer();
-            }
 
             DrawTopBar();
             if (spec == null)
@@ -124,13 +119,6 @@ namespace Laubrary.Pyre.Editor
             if (GUI.changed) Repaint();
         }
 
-        bool HasNonBarsLayer()
-        {
-            if (spec == null || spec.layers == null) return false;
-            foreach (var l in spec.layers)
-                if (l != null && l.enabled && l.shape != LayerShape.Bars) return true;
-            return false;
-        }
 
         // ── top bar ────────────────────────────────────────────────────────────
         void DrawTopBar()
@@ -182,18 +170,9 @@ namespace Laubrary.Pyre.Editor
                 }
             }
 
-            // Global deform is never applied to Bars layers, so hide it when every enabled layer is Bars.
-            if (deformUsefulLayout) { VerticalSpace(); DrawGlobalDeform(); }
-
-            using (Box("Global colour grade"))
-            {
-                spec.crossGradient ??= Layer.WhiteGradient();
-                spec.crossGradient = EditorGUILayout.GradientField("Cross grad", spec.crossGradient);
-                ValRow("Cross amount", spec.crossAmount, 0f, 1f, 0f);
-                ValRow("Contrast", spec.contrast, 0f, 2f, 1f);
-                ValRow("Brightness", spec.brightness, 0f, 2f, 1f);
-                ValRow("Saturation", spec.saturation, 0f, 2f, 1f);
-            }
+            VerticalSpace();
+            Label("Global modifiers", ZUI.ZTextStyle.SectionHeader);
+            DrawModifiers(spec.globalModifiers, "gm.");
 
             VerticalSpace();
             DrawLayerList();
@@ -205,28 +184,6 @@ namespace Laubrary.Pyre.Editor
 
             EditorGUILayout.EndScrollView();
             EditorGUILayout.EndVertical();
-        }
-
-        void DrawGlobalDeform()
-        {
-            using (Box("Global deform"))
-            {
-                bool wasDeform = spec.deformEnabled;
-                spec.deformEnabled = Toggle(spec.deformEnabled, "Enable global deform");
-                if (wasDeform) DrawDeformFields(spec.squash, spec.skew, spec.wobbleAmplitude,
-                                                spec.wobbleFrequency, spec.rotation);
-            }
-        }
-
-        // The 5 shared deform controls (used for both the global block and the per-layer block).
-        void DrawDeformFields(ZUIValue squash, ZUIValue skew, ZUIValue wobAmp, ZUIValue wobFreq, ZUIValue rot)
-        {
-            float half = spec.canvasSize * 0.5f;
-            ValRow("Squash", squash, 0.3f, 3f, 1f);
-            ValRow("Skew", skew, -2f, 2f, 0f);
-            ValRow("Rotation", rot, -180f, 180f, 0f);
-            ValRow("Wobble amp", wobAmp, 0f, half, 0f);
-            ValRow("Wobble freq", wobFreq, 0f, 8f, 1f);
         }
 
         void DrawLayerList()
@@ -371,16 +328,6 @@ namespace Laubrary.Pyre.Editor
             l.colorOverLife = EditorGUILayout.GradientField("Colour", l.colorOverLife);
             ValRow("Alpha", l.alpha, 0f, 1f);
 
-            using (Box("Colour grade (per layer)"))
-            {
-                l.crossGradient ??= Layer.WhiteGradient();
-                l.crossGradient = EditorGUILayout.GradientField("Cross grad", l.crossGradient);
-                ValRow("Cross amount", l.crossAmount, 0f, 1f, 0f);
-                ValRow("Contrast", l.contrast, 0f, 2f, 1f);
-                ValRow("Brightness", l.brightness, 0f, 2f, 1f);
-                ValRow("Saturation", l.saturation, 0f, 2f, 1f);
-            }
-
             // Bars is a self-contained directional mode — none of the scatter / emission / deform controls apply,
             // so show ONLY the Bars box.
             if (shapeForLayout == LayerShape.Bars)
@@ -404,6 +351,9 @@ namespace Laubrary.Pyre.Editor
                     if (decayForLayout == BarDecay.Dissolve)
                         l.dissolveStart = Slider(l.dissolveStart, 0f, 1f, "Dissolve start");
                 }
+                VerticalSpace();
+                Label("Modifiers", ZUI.ZTextStyle.SectionHeader);
+                DrawModifiers(l.modifiers, "lm." + layerSel + ".");
                 return;
             }
 
@@ -416,7 +366,6 @@ namespace Laubrary.Pyre.Editor
             ValRow("Position Y", l.positionY, -half, half);
             ValRow("Size", l.size, 0f, half);
             l.perShapeLifeJitter = Slider(l.perShapeLifeJitter, 0f, 1f, "Life jitter");
-            l.disintegrate = Slider(l.disintegrate, 0f, 1f, "Disintegrate");
 
             switch (shapeForLayout)
             {
@@ -473,13 +422,9 @@ namespace Laubrary.Pyre.Editor
                 ValRow("Wind Y", l.windY, -half, half, 0f);
             }
 
-            using (Box("Layer deform"))
-            {
-                bool wasLayerDeform = l.deformEnabled;
-                l.deformEnabled = Toggle(l.deformEnabled, "Enable layer deform");
-                if (wasLayerDeform) DrawDeformFields(l.deformSquash, l.deformSkew, l.deformWobbleAmplitude,
-                                                      l.deformWobbleFrequency, l.deformRotation);
-            }
+            VerticalSpace();
+            Label("Modifiers", ZUI.ZTextStyle.SectionHeader);
+            DrawModifiers(l.modifiers, "lm." + layerSel + ".");
         }
 
         // One animatable-value row (ZUIValueControl). def (when given) is the double-click reset target.
@@ -490,6 +435,82 @@ namespace Laubrary.Pyre.Editor
             var o = ZUIValueControl.Options.Default.WithRange(lo, hi).WithoutCurveExtras();
             if (def.HasValue) o = o.WithDefault(def.Value);
             ZUIValueControl.Draw(label, v, o);
+        }
+
+        static readonly string[] DissolveModeLabels = { "Erase", "Fade", "Bleed", "Scatter" };
+
+        // ── modifier stack UI (Pyre v2): the opt-in geometry/pixel effects on a layer or globally ──────────
+        // Shared by the Blast panel (global modifiers) and the Layer panel (per-layer). Removal is deferred to
+        // after the loop so the control set is stable within a frame; adds come from a GenericMenu (also deferred).
+        void DrawModifiers(System.Collections.Generic.List<PyreModifier> list, string idp)
+        {
+            if (list == null) return;
+            float half = spec.canvasSize * 0.5f;
+            int remove = -1;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var m = list[i];
+                if (m == null) { remove = i; continue; }
+                using (Box(m.DisplayName))
+                {
+                    EditorGUILayout.BeginHorizontal();
+                    m.enabled = Toggle(m.enabled, m.enabled ? "✓" : "", ZUI.Style.Default, GUILayout.Width(28));
+                    GUILayout.Label(m.DisplayName, EditorStyles.miniBoldLabel);
+                    GUILayout.FlexibleSpace();
+                    if (Button("X", ZUI.Style.Default, GUILayout.Width(22))) remove = i;
+                    EditorGUILayout.EndHorizontal();
+                    if (m.enabled) DrawModBody(m, half, idp + i);
+                }
+            }
+            if (Button("+ Add modifier")) ShowAddModifierMenu(list);
+            if (remove >= 0) { Undo.RecordObject(spec, "Remove modifier"); list.RemoveAt(remove); EditorUtility.SetDirty(spec); }
+        }
+
+        void DrawModBody(PyreModifier m, float half, string id)
+        {
+            switch (m)
+            {
+                case SkewModifier s: ValRow("Amount", s.amount, -2f, 2f, 0f); break;
+                case SquashModifier s: ValRow("Amount", s.amount, 0.3f, 3f, 1f); break;
+                case RotateModifier r: ValRow("Degrees", r.degrees, -180f, 180f, 0f); break;
+                case WobbleModifier w:
+                    ValRow("Amplitude", w.amplitude, 0f, Mathf.Max(4f, half), 0f);
+                    ValRow("Frequency", w.frequency, 0f, 8f, 1f);
+                    break;
+                case TintModifier t:
+                    t.tint = EditorGUILayout.ColorField("Tint", t.tint);
+                    t.crossGradient ??= Layer.WhiteGradient();
+                    t.crossGradient = EditorGUILayout.GradientField("Cross grad", t.crossGradient);
+                    ValRow("Cross amount", t.crossAmount, 0f, 1f, 1f);
+                    ValRow("Contrast", t.contrast, 0f, 2f, 1f);
+                    ValRow("Brightness", t.brightness, 0f, 2f, 1f);
+                    ValRow("Saturation", t.saturation, 0f, 2f, 1f);
+                    break;
+                case DissolveModifier d:
+                    ValRow("Amount", d.amount, 0f, 1f, 0f);
+                    d.mode = (DissolveMode)MiniRadio((int)d.mode, DissolveModeLabels);
+                    break;
+            }
+        }
+
+        void ShowAddModifierMenu(System.Collections.Generic.List<PyreModifier> list)
+        {
+            var menu = new GenericMenu();
+            void Add(string label, System.Func<PyreModifier> make) =>
+                menu.AddItem(new GUIContent(label), false, () =>
+                {
+                    Undo.RecordObject(spec, "Add modifier");
+                    list.Add(make());
+                    EditorUtility.SetDirty(spec);
+                    Repaint();
+                });
+            Add("Geometry/Skew", () => new SkewModifier());
+            Add("Geometry/Rotate", () => new RotateModifier());
+            Add("Geometry/Squash", () => new SquashModifier());
+            Add("Geometry/Wobble", () => new WobbleModifier());
+            Add("Tint", () => new TintModifier());
+            Add("Dissolve", () => new DissolveModifier());
+            menu.ShowAsContext();
         }
 
         // ── vertical splitter between the left pane and the preview ──────────────

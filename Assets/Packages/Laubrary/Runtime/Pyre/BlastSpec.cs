@@ -187,9 +187,9 @@ namespace Laubrary.Pyre
             fire.positionX = MinMax(-2f, 2f);
             fire.positionY = MinMax(-2f, 2f);
             fire.size = Layer.CurveVal(12f, 0f, 9f, 0.3f, 10f, 1f, 5f);  // swell then crumble
-            fire.disintegrate = 0.85f;              // break up near the end
             fire.perShapeLifeJitter = 0.3f;
             fire.alpha = Layer.DefaultAlpha();
+            fire.modifiers.Add(new DissolveModifier { mode = DissolveMode.Erase });   // crumble away near the end
             layers.Add(fire);
 
             // ── mid-front: a tight white-hot core that pops then shrinks away ──
