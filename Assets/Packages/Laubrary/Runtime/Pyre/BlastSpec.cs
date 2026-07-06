@@ -173,7 +173,7 @@ namespace Laubrary.Pyre
             ring.count = new ZUIValue(1f);
             ring.spawnRadius = new ZUIValue(0f);
             ring.size = Layer.CurveVal(30f, 0f, 3f, 1f, 28f);
-            ring.thickness = new ZUIValue(0.08f);   // thin ring
+            ring.hollow = true; ring.holeSize = new ZUIValue(0.9f);   // thin ring
             ring.colorOverLife = Layer.WhiteHotGradient();
             ring.alpha = RingAlpha();       // bright then fades as it expands
             layers.Add(ring);

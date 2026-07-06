@@ -59,7 +59,7 @@ namespace Laubrary.Pyre.Editor
         // Captured on the Layout event only so the control set can't change between Layout and Repaint of the same
         // frame (IMGUI reflow hazard). starLayout = any Bars layer has Star (gates the auto-canvas readout);
         // barStarLayout = the SELECTED layer is a star Bars layer (gates its Arms/Spread rows). See OnZUI.
-        bool starLayout, barStarLayout;
+        bool starLayout, barStarLayout, discHollowLayout;
 
         protected override void OnZUIEnable()
         {
@@ -99,6 +99,7 @@ namespace Laubrary.Pyre.Editor
                 starLayout = AnyStarLayer();
                 var sel = spec != null && layerSel >= 0 && layerSel < spec.layers.Count ? spec.layers[layerSel] : null;
                 barStarLayout = sel != null && sel.shape == LayerShape.Bars && sel.star;
+                discHollowLayout = sel != null && sel.shape == LayerShape.Disc && sel.hollow;
             }
 
             DrawTopBar();
@@ -332,7 +333,10 @@ namespace Laubrary.Pyre.Editor
                 var colorModeForLayout = l.colorMode;
                 l.colorMode = (ColorMode)MiniRadio((int)l.colorMode, ColorModeLabels);
                 if (colorModeForLayout == ColorMode.FlowingFill)
-                    l.colorFlowScale = Slider(l.colorFlowScale, 0.1f, 4f, "Flow speed");
+                {
+                    ValRow("Flow position", l.colorFlow, -2f, 2f, 0f);
+                    ValRow("Flow zoom", l.colorFlowZoom, 0.1f, 4f, 1f);
+                }
             }
             ValRow("Alpha", l.alpha, 0f, 1f);
 
@@ -387,8 +391,13 @@ namespace Laubrary.Pyre.Editor
             switch (shapeForLayout)
             {
                 case LayerShape.Disc:
-                    ValRow("Thickness", l.thickness, 0f, 1f, 1f);   // 1 = full disc, 0 = 1px ring
-                    ValRow("Edge blur", l.thicknessBlur, 0f, 1f, 0f);   // soft inner edge
+                    ValRow("Outer softness", l.outerSoftness, 0f, 1f, 0f);   // always: soft outer edge
+                    l.hollow = Toggle(l.hollow, "Hollow");
+                    if (discHollowLayout)   // Layout-captured gate so the control count is reflow-safe
+                    {
+                        ValRow("Hole size", l.holeSize, 0f, 1f, 0.5f);
+                        ValRow("Inner softness", l.innerSoftness, 0f, 1f, 0f);
+                    }
                     break;
                 case LayerShape.SparkleField:
                     ValRow("Sparkle density", l.sparkleDensity, 0f, 1f, 0.25f);
@@ -407,19 +416,6 @@ namespace Laubrary.Pyre.Editor
                     if (Button("Edit in Aseprite") && l.particleSprite != null) OpenInAseprite(l.particleSprite);
                     EditorGUILayout.EndHorizontal();
                     break;
-            }
-
-            using (Box("Radial alpha (per-pixel, by distance from centre)"))
-            {
-                bool hasRA = l.radialAlpha != null;   // captured for layout — a change reflows next frame
-                bool wantRA = Toggle(hasRA, "Enable");
-                if (wantRA && l.radialAlpha == null)
-                    l.radialAlpha = new System.Collections.Generic.List<ZUIEnvelopePoint>
-                        { new ZUIEnvelopePoint(0f, 1f), new ZUIEnvelopePoint(1f, 0f) };
-                else if (!wantRA && l.radialAlpha != null)
-                    l.radialAlpha = null;
-                if (hasRA)
-                    CurveField("pyre.radial." + layerSel, "Falloff centre→edge", l.radialAlpha, 0f, 1f);
             }
 
             using (Box("Emission"))

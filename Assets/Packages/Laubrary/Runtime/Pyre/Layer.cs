@@ -46,28 +46,32 @@ namespace Laubrary.Pyre
         [Tooltip("The shape's colour gradient. How it's applied is set by Colour mode.")]
         public Gradient colorOverLife = DefaultColor(LayerShape.Disc);
         [Tooltip("Disc/Crescent: Over life = one colour sampled at life; Fill = the gradient fills the shape " +
-                 "centre→edge; Flow fill = that spatial fill scrolls through the gradient over life.")]
+                 "centre→edge; Flow fill = that spatial fill scrolls through the (mirrored) gradient by Flow position.")]
         public ColorMode colorMode = ColorMode.OverLife;
-        [Tooltip("Flow fill: how many times the gradient scrolls across the shape over its life.")]
-        public float colorFlowScale = 1f;
+        [Tooltip("Flow fill: the gradient scroll POSITION (multicontrol). Animate it — the curve's slope is the " +
+                 "speed, its sign the direction. Default = a 0→1 sweep over life; make it static for no flow.")]
+        public ZUIValue colorFlow = DefaultFlow();
+        [Tooltip("Flow fill: how much of the gradient spans the shape. 1 = the whole gradient once; <1 = only part " +
+                 "of it; >1 = it repeats. Animatable.")]
+        public ZUIValue colorFlowZoom = new ZUIValue(1f);
         [Tooltip("Alpha over life — a multicontrol (defaults to an envelope). The ONLY thing that fades a shape.")]
         public ZUIValue alpha = DefaultAlpha();
-
-        [Tooltip("Optional radial alpha: an envelope over distance from the shape centre (0 = centre, 1 = edge) that " +
-                 "multiplies alpha per pixel. null = off. Makes a shape soft-edged / hollow / haloed instead of a hard disc.")]
-        public List<ZUIEnvelopePoint> radialAlpha = null;
 
         // ── opt-in modifiers (Pyre v2): geometry warps (skew/rotate/squash/wobble) + pixel effects
         // (tint/dissolve/…) composed on top of this layer. Empty = no clutter. Serialized polymorphically.
         [SerializeReference]
         public List<PyreModifier> modifiers = new();
 
-        [Tooltip("Disc: border thickness. 1 = a full disc; lower values grow a ring inward from the edge; 0 = a " +
-                 "1px border. Animatable — a Disc IS a ring/circle/sphere in one type.")]
-        public ZUIValue thickness = new ZUIValue(1f);
-        [Tooltip("Disc: softens the ring's INNER edge — fades the alpha of the inner pixels. 0 = hard edge, 1 = the " +
-                 "fade spans the whole ring width. Animatable.")]
-        public ZUIValue thicknessBlur = new ZUIValue(0f);
+        [Tooltip("Disc: alpha gradient on the OUTER edge (0 = sharp, 1 = the whole disc fades out to its edge). " +
+                 "Always available. Animatable.")]
+        public ZUIValue outerSoftness = new ZUIValue(0f);
+        [Tooltip("Disc: carve a hole out of the centre (a ring). Reveals Hole size + Inner softness.")]
+        public bool hollow = false;
+        [Tooltip("Disc (Hollow): hole radius as a fraction of the disc (0 = no hole → full disc, 1 = no disc left). " +
+                 "Animatable — the hole can grow/shrink over time regardless of the edge softness.")]
+        public ZUIValue holeSize = new ZUIValue(0.5f);
+        [Tooltip("Disc (Hollow): alpha gradient on the hole's INNER edge (0 = sharp, 1 = soft). Animatable.")]
+        public ZUIValue innerSoftness = new ZUIValue(0f);
 
         [Tooltip("Sprite: the sprite stamped as particles (its texture must be read/write enabled). Use the editor's " +
                  "'New sprite (Aseprite)' button to make + edit one.")]
@@ -175,7 +179,6 @@ namespace Laubrary.Pyre
                 positionX = new ZUIValue(0f),
                 positionY = new ZUIValue(0f),
                 size = DefaultSize(),
-                thickness = new ZUIValue(1f),
                 sparkleDensity = new ZUIValue(0.25f),
                 crescentOffsetX = new ZUIValue(6f),
                 crescentOffsetY = new ZUIValue(0f),
@@ -220,8 +223,11 @@ namespace Laubrary.Pyre
             l.originAngleDeg = CloneVal(originAngleDeg);
             l.emitSpreadDeg = CloneVal(emitSpreadDeg);
             l.sparkleDensity = CloneVal(sparkleDensity);
-            l.thickness = CloneVal(thickness);
-            l.thicknessBlur = CloneVal(thicknessBlur);
+            l.outerSoftness = CloneVal(outerSoftness);
+            l.holeSize = CloneVal(holeSize);
+            l.innerSoftness = CloneVal(innerSoftness);
+            l.colorFlow = CloneVal(colorFlow);
+            l.colorFlowZoom = CloneVal(colorFlowZoom);
             l.windX = CloneVal(windX);
             l.windY = CloneVal(windY);
             l.barCount = CloneVal(barCount);
@@ -238,8 +244,6 @@ namespace Laubrary.Pyre
             l.spriteSpin = CloneVal(spriteSpin);
             l.colorOverLife = CloneGradient(colorOverLife);
             l.alpha = CloneVal(alpha);
-            l.radialAlpha = radialAlpha == null ? null
-                : radialAlpha.ConvertAll(p => new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
             l.modifiers = modifiers == null ? new List<PyreModifier>()
                 : modifiers.ConvertAll(m => m?.Clone());
             return l;
@@ -352,6 +356,9 @@ namespace Laubrary.Pyre
 
         /// Rise quickly, hold, then fade — a punchy explosion alpha envelope.
         public static ZUIValue DefaultAlpha() => CurveVal(1f, 0f, 0f, 0.15f, 1f, 0.7f, 1f, 1f, 0f);
+
+        /// Flow-fill scroll position — a 0→1 sweep over life by default (so it flows; the user re-shapes it).
+        public static ZUIValue DefaultFlow() => CurveVal(1f, 0f, 0f, 1f, 1f);
 
         /// A bar's forward reach over its life: shoot out fast, then pull back.
         public static ZUIValue DefaultBarForward() => CurveVal(48f, 0f, 2f, 0.4f, 40f, 1f, 8f);

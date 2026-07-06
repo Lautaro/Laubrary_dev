@@ -18,8 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     / SwipeH / SwipeV with animatable progress, sharpness, size, rotation, offset).
   - The old per-layer + global **deform** and **colour-grade** boxes and the **disintegrate** slider are gone,
     replaced by the modifier stack (their engine code was deleted).
-  - **Layer types merged**: **Disc** absorbs Circle/Ring/Sphere via a **Thickness** param (0 = a 1px ring →
-    1 = a full disc); **Ring** and **DissolvingDisc** retired.
+  - **Layer types merged**: **Disc** absorbs Circle/Ring/Sphere — a full disc, or a **Hollow** ring with an
+    animatable **Hole size**, plus independent **Inner / Outer edge softness** (alpha gradients, 0 = sharp);
+    **Ring** and **DissolvingDisc** retired.
   - **New Sprite layer type** — stamps a supplied sprite as spinning particles (a mini particle system), with a
     **New/Edit sprite (Aseprite)** button that creates a read/write PNG and opens it in Aseprite.
   - **Bars Star is now per-layer** (base angle / arms / spread arc live on the Layer; the canvas auto-fits every
@@ -29,7 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     taper, stagger, thickness, dissolve, mask progress, …).
   - **Colour mode** for Disc/Crescent: **Over life** (one colour sampled over life — the original), **Fill** (the
     gradient fills the shape centre→edge, constant over life), or **Flow fill** (that spatial fill scrolls through
-    the gradient over life, at an adjustable flow speed).
+    the **mirrored** gradient — red→white→red, seamless — by an animatable **Flow position**, with a **Flow zoom**
+    for how much of the gradient spans the shape).
   - Editor: a single **Modifiers** section (global + per-layer) with a grouped "+ Add" menu; label column widened
     so long labels don't clip; the **Image backdrop** now shows the whole image (ScaleToFit) instead of cropping.
 
