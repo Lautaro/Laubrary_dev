@@ -137,16 +137,70 @@ namespace Laubrary.Pyre.Editor
         }
 
         // ── top bar ────────────────────────────────────────────────────────────
+        bool renaming;
+        string renameText = "";
+
         void DrawTopBar()
         {
             EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginChangeCheck();
-            spec = (BlastSpec)EditorGUILayout.ObjectField(spec, typeof(BlastSpec), false, GUILayout.Width(220));
-            if (EditorGUI.EndChangeCheck()) { frame = 0; layerSel = 0; scrub = -1; Repaint(); }
+            spec = (BlastSpec)EditorGUILayout.ObjectField(spec, typeof(BlastSpec), false, GUILayout.Width(200));
+            if (EditorGUI.EndChangeCheck()) { frame = 0; layerSel = 0; scrub = -1; renaming = false; Repaint(); }
             if (Button("New asset")) CreateAsset();
             if (spec != null && Button("New example blast")) NewExample();
+
+            string path = spec != null ? AssetDatabase.GetAssetPath(spec) : null;
+            bool isAsset = !string.IsNullOrEmpty(path);
+            if (isAsset)
+            {
+                if (Button("Duplicate")) DuplicateAsset(path);
+                if (Button("Rename")) { renaming = !renaming; renameText = System.IO.Path.GetFileNameWithoutExtension(path); }
+                if (Button("Delete")) DeleteAsset(path);
+            }
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
+
+            // Inline rename row (a modal text prompt isn't worth it in IMGUI).
+            if (isAsset && renaming)
+            {
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label("New name", GUILayout.Width(64));
+                bool enter = Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return;
+                renameText = EditorGUILayout.TextField(renameText, GUILayout.Width(200));
+                if (Button("OK") || enter) { RenameAsset(path, renameText); renaming = false; }
+                if (Button("Cancel")) renaming = false;
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+
+        void DuplicateAsset(string path)
+        {
+            string copy = AssetDatabase.GenerateUniqueAssetPath(path);
+            if (AssetDatabase.CopyAsset(path, copy))
+            {
+                AssetDatabase.SaveAssets();
+                var s = AssetDatabase.LoadAssetAtPath<BlastSpec>(copy);
+                if (s != null) { spec = s; frame = 0; layerSel = 0; scrub = -1; }
+                Repaint();
+            }
+        }
+
+        void RenameAsset(string path, string newName)
+        {
+            newName = newName?.Trim();
+            if (string.IsNullOrEmpty(newName)) return;
+            string err = AssetDatabase.RenameAsset(path, newName);
+            if (!string.IsNullOrEmpty(err)) Debug.LogWarning($"[Pyre] rename failed: {err}");
+            else AssetDatabase.SaveAssets();
+            Repaint();
+        }
+
+        void DeleteAsset(string path)
+        {
+            if (!EditorUtility.DisplayDialog("Delete BlastSpec",
+                    $"Delete '{System.IO.Path.GetFileName(path)}'? This cannot be undone.", "Delete", "Cancel"))
+                return;
+            if (AssetDatabase.DeleteAsset(path)) { spec = null; renaming = false; layerSel = 0; scrub = -1; Repaint(); }
         }
 
         // ── left: dials + layer list + selected-layer inspector ──────────────────
