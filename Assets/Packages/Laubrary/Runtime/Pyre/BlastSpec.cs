@@ -224,7 +224,7 @@ namespace Laubrary.Pyre
             sparks.count = new ZUIValue(1f);
             sparks.spawnRadius = new ZUIValue(0f);
             sparks.size = Layer.CurveVal(26f, 0f, 8f, 1f, 24f);
-            sparks.sparkleDensity = 0.10f;
+            sparks.sparkleDensity = new ZUIValue(0.10f);
             sparks.alpha = Layer.DefaultAlpha();
             layers.Add(sparks);
         }

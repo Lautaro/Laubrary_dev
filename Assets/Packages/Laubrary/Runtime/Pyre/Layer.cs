@@ -79,9 +79,9 @@ namespace Laubrary.Pyre
         [Tooltip("DissolvingDisc: keep a 1px outer border even after the middle has dissolved away.")]
         public bool dissolveKeepBorder = true;
 
-        [Range(0f, 1f)]
-        [Tooltip("SparkleField: fraction of pixels inside the circle that light up.")]
-        public float sparkleDensity = 0.25f;
+        [Tooltip("SparkleField: fraction of pixels inside the circle that light up. Animatable — a rising envelope " +
+                 "makes the sparkles ignite over the shape's life.")]
+        public ZUIValue sparkleDensity = new ZUIValue(0.25f);
 
         [Tooltip("Crescent: X offset (px) of the mask disc that bites into the main disc.")]
         public ZUIValue crescentOffsetX = new ZUIValue(6f);
@@ -121,16 +121,16 @@ namespace Laubrary.Pyre
         public float originOffsetY = 0f;
         [Tooltip("Directional: length of the origin line/surface in pixels.")]
         public float originLength = 40f;
-        [Tooltip("Directional: bend of the origin line, 0 = straight, 1 = full circle (like a Choreographer spread).")]
-        [Range(0f, 1f)] public float originBend = 0f;
-        [Tooltip("Directional: rotation of the origin line in degrees.")]
-        public float originAngleDeg = 0f;
+        [Tooltip("Directional: bend of the origin line, 0 = straight, 1 = full circle (like a Choreographer spread). Animatable.")]
+        public ZUIValue originBend = new ZUIValue(0f);
+        [Tooltip("Directional: rotation of the origin line in degrees. Animatable — sweep the emitting surface.")]
+        public ZUIValue originAngleDeg = new ZUIValue(0f);
         [Tooltip("Directional: travel direction offset from the line's outward normal, in degrees (animatable).")]
         public ZUIValue emitAngleDeg = new ZUIValue(0f);
         [Tooltip("Directional: how far a shape travels from its origin over life, in pixels (animatable).")]
         public ZUIValue travel = new ZUIValue(34f);
-        [Tooltip("Directional: random per-shape spread of the travel direction, in degrees.")]
-        public float emitSpreadDeg = 8f;
+        [Tooltip("Directional: random per-shape spread of the travel direction, in degrees. Animatable — widen the fan over time.")]
+        public ZUIValue emitSpreadDeg = new ZUIValue(8f);
 
         // ── Bars mode (LayerShape.Bars): a symmetric row of forward-growing bars streaming off an edge ──
         // Most are multicontrols evaluated over the layer's timeline, so the whole row can animate (sweep the
@@ -190,7 +190,7 @@ namespace Laubrary.Pyre
                 ringThickness = 2f,
                 dissolveCenter = 0f,
                 dissolveKeepBorder = true,
-                sparkleDensity = 0.25f,
+                sparkleDensity = new ZUIValue(0.25f),
                 crescentOffsetX = new ZUIValue(6f),
                 crescentOffsetY = new ZUIValue(0f),
                 perShapeLifeJitter = 0.3f,
@@ -211,7 +211,7 @@ namespace Laubrary.Pyre
                     break;
                 case LayerShape.SparkleField:
                     l.count = new ZUIValue(1f); l.spawnRadius = new ZUIValue(0f);
-                    l.size = CurveVal(26f, 0f, 10f, 1f, 22f); l.sparkleDensity = 0.12f;
+                    l.size = CurveVal(26f, 0f, 10f, 1f, 22f); l.sparkleDensity = new ZUIValue(0.12f);
                     break;
                 case LayerShape.Crescent:
                     l.count = new ZUIValue(4f); l.spawnRadius = new ZUIValue(0.28f);
@@ -240,6 +240,10 @@ namespace Laubrary.Pyre
             l.deformRotation = CloneVal(deformRotation);
             l.emitAngleDeg = CloneVal(emitAngleDeg);
             l.travel = CloneVal(travel);
+            l.originBend = CloneVal(originBend);
+            l.originAngleDeg = CloneVal(originAngleDeg);
+            l.emitSpreadDeg = CloneVal(emitSpreadDeg);
+            l.sparkleDensity = CloneVal(sparkleDensity);
             l.windX = CloneVal(windX);
             l.windY = CloneVal(windY);
             l.barCount = CloneVal(barCount);

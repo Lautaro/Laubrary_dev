@@ -106,7 +106,9 @@ namespace Laubrary.Pyre.Editor
                 return;
             }
 
-            EditorGUIUtility.labelWidth = 92f;
+            // Wider label column so the longer ValRow labels ("Taper (centre↔edge)", "Sparkle density", …) don't
+            // clip — the text-overflow rule from the UIAudit heuristics applied to this editor window.
+            EditorGUIUtility.labelWidth = 112f;
 
             EditorGUILayout.BeginHorizontal();
             DrawLeft();
@@ -377,7 +379,7 @@ namespace Laubrary.Pyre.Editor
                     l.dissolveKeepBorder = Toggle(l.dissolveKeepBorder, "Keep border");
                     break;
                 case LayerShape.SparkleField:
-                    l.sparkleDensity = Slider(l.sparkleDensity, 0f, 1f, "Sparkle density");
+                    ValRow("Sparkle density", l.sparkleDensity, 0f, 1f, 0.25f);
                     break;
                 case LayerShape.Crescent:
                     ValRow("Crescent X", l.crescentOffsetX, -half, half);
@@ -408,11 +410,11 @@ namespace Laubrary.Pyre.Editor
                     l.originOffsetX = Slider(l.originOffsetX, -half, half, "Origin X");
                     l.originOffsetY = Slider(l.originOffsetY, -half, half, "Origin Y");
                     l.originLength = Slider(l.originLength, 1f, cs, "Origin length");
-                    l.originBend = Slider(l.originBend, 0f, 1f, "Origin bend");
-                    l.originAngleDeg = Slider(l.originAngleDeg, -180f, 180f, "Origin angle");
+                    ValRow("Origin bend", l.originBend, 0f, 1f, 0f);
+                    ValRow("Origin angle", l.originAngleDeg, -180f, 180f, 0f);
                     ValRow("Emit angle", l.emitAngleDeg, -180f, 180f, 0f);
                     ValRow("Travel", l.travel, 0f, cs, 34f);
-                    l.emitSpreadDeg = Slider(l.emitSpreadDeg, 0f, 90f, "Emit spread");
+                    ValRow("Emit spread", l.emitSpreadDeg, 0f, 90f, 8f);
                 }
             }
 

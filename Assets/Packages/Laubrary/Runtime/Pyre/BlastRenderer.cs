@@ -29,6 +29,7 @@ namespace Laubrary.Pyre
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
         const int F_BaseAngle = 25, F_SpreadDeg = 26, F_Taper = 27, F_Stagger = 28;
         const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
+        const int F_SparkleDensity = 34, F_OriginAngle = 35, F_OriginBend = 36, F_EmitSpread = 37;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing the global deform
 
@@ -233,11 +234,15 @@ namespace Laubrary.Pyre
                     Vector2 c;
                     if (layer.emission == EmissionMode.Directional)
                     {
-                        // Start on the (optionally bent) origin line and stream outward along its normal.
+                        // Start on the (optionally bent) origin line and stream outward along its normal. The line's
+                        // bend/angle and the fan spread are animatable (layer-level → shape index 0).
                         float niD = count > 1 ? si / (float)(count - 1) : 0.5f;
+                        float oBend = Eval(layer.originBend, lp, spec.seed, li, 0, F_OriginBend);
+                        float oAngle = Eval(layer.originAngleDeg, lp, spec.seed, li, 0, F_OriginAngle);
                         c = OriginPoint(niD, layer.originOffsetX, layer.originOffsetY, layer.originLength,
-                                        layer.originBend, layer.originAngleDeg, out Vector2 normal);
-                        float spreadJit = (float)(rng.NextDouble() * 2.0 - 1.0) * layer.emitSpreadDeg;
+                                        oBend, oAngle, out Vector2 normal);
+                        float emitSpread = Eval(layer.emitSpreadDeg, lp, spec.seed, li, 0, F_EmitSpread);
+                        float spreadJit = (float)(rng.NextDouble() * 2.0 - 1.0) * emitSpread;
                         float emitDeg = Eval(layer.emitAngleDeg, lp, spec.seed, li, si, F_EmitAngle) + spreadJit;
                         Vector2 emitDir = Rotate(normal, emitDeg * Mathf.Deg2Rad);
                         float travelPx = Eval(layer.travel, lp, spec.seed, li, si, F_Travel);
@@ -302,8 +307,10 @@ namespace Laubrary.Pyre
                     }
                     radius = effR;
 
+                    float sparkleD = layer.shape == LayerShape.SparkleField
+                        ? Mathf.Clamp01(Eval(layer.sparkleDensity, t, spec.seed, li, si, F_SparkleDensity)) : 1f;
                     RasterShape(buf, W, H, cx, cy, global, local, framePhase, layer, c, radius, baseCol, alpha,
-                                t, shapeSeed, disProb, crescX, crescY, grade, stack, frameIndex);
+                                t, shapeSeed, disProb, crescX, crescY, grade, stack, frameIndex, sparkleD);
                 }
               }
             }
@@ -476,7 +483,7 @@ namespace Laubrary.Pyre
         static void RasterShape(Color32[] buf, int W, int H, float cx, float cy, Deform global, Deform local,
                                 float framePhase, Layer layer, Vector2 c, float radius, Color baseCol, float alpha,
                                 float t, int shapeSeed, float disProb, float crescX, float crescY, Grade grade,
-                                ModStack stack, int frameIndex)
+                                ModStack stack, int frameIndex, float sparkleDensity)
         {
             for (int y = 0; y < H; y++)
             {
@@ -490,7 +497,7 @@ namespace Laubrary.Pyre
                     if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase);
                     float ux = off.x, uy = off.y;
 
-                    if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, out Color col))
+                    if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, sparkleDensity, out Color col))
                         continue;
 
                     // Disintegrate drop-out (deterministic per pixel).
@@ -517,7 +524,8 @@ namespace Laubrary.Pyre
 
         // Returns whether this undeformed pixel is inside the shape, and the colour to lay down.
         static bool ShapeHit(Layer layer, float ux, float uy, Vector2 c, float radius, float t,
-                             int shapeSeed, int x, int y, Color baseCol, float crescX, float crescY, out Color col)
+                             int shapeSeed, int x, int y, Color baseCol, float crescX, float crescY,
+                             float sparkleDensity, out Color col)
         {
             col = baseCol;
             float dx = ux - c.x, dy = uy - c.y;
@@ -548,7 +556,7 @@ namespace Laubrary.Pyre
                 {
                     if (dist > radius) return false;
                     float h = Hash01(shapeSeed, x, y);
-                    if (h >= layer.sparkleDensity) return false;
+                    if (h >= sparkleDensity) return false;
                     // Shimmer: shift each lit pixel along the gradient by its own hash and by life.
                     if (layer.colorOverLife != null)
                         col = layer.colorOverLife.Evaluate(Mathf.Repeat(t + h, 1f));
