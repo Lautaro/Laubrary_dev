@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **No built-in motion**: Size/Alpha default to grow→shrink envelopes and everything is an exposed multi-control;
     more params promoted to multi-controls (sparkle density, origin bend/angle, emit spread, base angle, spread,
     taper, stagger, thickness, dissolve, mask progress, …).
+  - **Spawn stagger** (Count types): distributes the Count shapes across the layer's timeline (each spawns later
+    with a correspondingly shorter life) — 0 = all live the full window, 1 = evenly spread first-frame→last-frame.
   - **Colour mode** for Disc/Crescent: **Over life** (one colour sampled over life — the original), **Fill** (the
     gradient fills the shape centre→edge, constant over life), or **Flow fill** (that spatial fill scrolls through
     the **mirrored** gradient — red→white→red, seamless — by an animatable **Flow position**, with a **Flow zoom**

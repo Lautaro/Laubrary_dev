@@ -387,6 +387,7 @@ namespace Laubrary.Pyre.Editor
             ValRow("Position Y", l.positionY, -half, half);
             ValRow("Size", l.size, 0f, half);
             l.perShapeLifeJitter = Slider(l.perShapeLifeJitter, 0f, 1f, "Life jitter");
+            l.spawnStagger = Slider(l.spawnStagger, 0f, 1f, "Spawn stagger");
 
             switch (shapeForLayout)
             {

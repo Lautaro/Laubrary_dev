@@ -92,6 +92,12 @@ namespace Laubrary.Pyre
         [Tooltip("Randomises each shape's start/end within the layer window so they don't all pop together.")]
         public float perShapeLifeJitter = 0.3f;
 
+        [Range(0f, 1f)]
+        [Tooltip("Distributes the Count shapes across the layer's timeline (each spawns later, with a correspondingly " +
+                 "shorter life). 0 = all live the full window; 1 = evenly spread — first spawn starts at the first " +
+                 "frame, last spawn ends at the last.")]
+        public float spawnStagger = 0f;
+
         // ── emission: Radial (default) or Directional (stream off a bendable origin line) ────────────
         [Tooltip("Radial = scatter around the centre and grow outward. Directional = start on an origin line and " +
                  "stream one way across the frame.")]

@@ -160,14 +160,19 @@ namespace Laubrary.Pyre
                     int shapeSeed = ShapeSeed(spec.seed, li, si);
                     var rng = new System.Random(shapeSeed);
 
-                    // Per-shape life window, optionally jittered so shapes don't pop in unison.
+                    // Per-shape life window. Spawn stagger distributes the Count shapes across the layer window,
+                    // shortening each life so they tile it (0 = all live the full window; 1 = evenly spread, first
+                    // spawn at the first frame, last spawn ending at the last). Jitter then nudges each one.
                     float span = Mathf.Max(1f, layer.endFrame - layer.startFrame);
-                    float lifeJit = (float)(rng.NextDouble() * 2.0 - 1.0) * layer.perShapeLifeJitter * span * 0.5f;
-                    float start = layer.startFrame + lifeJit;
-                    float end = layer.endFrame + lifeJit;
-                    if (end <= start) end = start + 1f;
+                    float s = Mathf.Clamp01(layer.spawnStagger);
+                    float life = span * (1f - s * (count - 1) / (float)Mathf.Max(1, count));
+                    if (life < 1f) life = 1f;
+                    float spawnAt = count > 1 ? (si / (float)(count - 1)) * (span - life) : 0f;
+                    float lifeJit = (float)(rng.NextDouble() * 2.0 - 1.0) * layer.perShapeLifeJitter * life * 0.5f;
+                    float start = layer.startFrame + spawnAt + lifeJit;
+                    float end = start + life;
                     if (frameIndex < start || frameIndex > end) continue;      // not alive this frame
-                    float t = Mathf.Clamp01((frameIndex - start) / (end - start));
+                    float t = Mathf.Clamp01((frameIndex - start) / Mathf.Max(0.0001f, end - start));
 
                     Vector2 c;
                     if (layer.emission == EmissionMode.Directional)
