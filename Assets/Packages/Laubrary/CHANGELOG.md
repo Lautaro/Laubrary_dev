@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07-06
+
+### Changed
+- **Pyre v2 — a modifier-stack rework** (cleaner to author, open to extend). Anything that distorts or recolours
+  pixels is now an opt-in **PyreModifier** added to a layer or globally (`[SerializeReference]` polymorphic list),
+  so new effects are just new subclasses:
+  - **Geometry** modifiers (warp the grid): **Skew, Rotate, Squash, Wobble** — now apply to **every** layer type,
+    Bars included.
+  - **Pixel** modifiers (recolour / mask / remove): **Tint** (flat + cross-gradient + contrast/brightness/
+    saturation), **Dissolve** (Erase / Fade / Bleed / Scatter modes), and a moving **Alpha Mask** (DiscOut / DiscIn
+    / SwipeH / SwipeV with animatable progress, sharpness, size, rotation, offset).
+  - The old per-layer + global **deform** and **colour-grade** boxes and the **disintegrate** slider are gone,
+    replaced by the modifier stack (their engine code was deleted).
+  - **Layer types merged**: **Disc** absorbs Circle/Ring/Sphere via a **Thickness** param (0 = a 1px ring →
+    1 = a full disc); **Ring** and **DissolvingDisc** retired.
+  - **New Sprite layer type** — stamps a supplied sprite as spinning particles (a mini particle system), with a
+    **New/Edit sprite (Aseprite)** button that creates a read/write PNG and opens it in Aseprite.
+  - **Bars Star is now per-layer** (base angle / arms / spread arc live on the Layer; the canvas auto-fits every
+    star layer's arms), instead of one global star for the whole blast.
+  - **No built-in motion**: Size/Alpha default to grow→shrink envelopes and everything is an exposed multi-control;
+    more params promoted to multi-controls (sparkle density, origin bend/angle, emit spread, base angle, spread,
+    taper, stagger, thickness, dissolve, mask progress, …).
+  - Editor: a single **Modifiers** section (global + per-layer) with a grouped "+ Add" menu; label column widened
+    so long labels don't clip; the **Image backdrop** now shows the whole image (ScaleToFit) instead of cropping.
+
 ## [0.3.0] - 2026-07-06
 
 ### Added
