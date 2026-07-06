@@ -82,6 +82,9 @@ namespace Laubrary.Pyre
         [Tooltip("SparkleField: fraction of pixels inside the circle that light up. Animatable — a rising envelope " +
                  "makes the sparkles ignite over the shape's life.")]
         public ZUIValue sparkleDensity = new ZUIValue(0.25f);
+        [Tooltip("SparkleField: a sub-seed choosing WHICH pixels light up. Default = Min-Max random (re-rolls every " +
+                 "frame, so the sparkles TWINKLE). Set it Static to freeze the pattern in place.")]
+        public ZUIValue sparkleSeed = DefaultSparkleSeed();
 
         [Tooltip("Crescent: X offset (px) of the mask disc that bites into the main disc.")]
         public ZUIValue crescentOffsetX = new ZUIValue(6f);
@@ -229,6 +232,7 @@ namespace Laubrary.Pyre
             l.originAngleDeg = CloneVal(originAngleDeg);
             l.emitSpreadDeg = CloneVal(emitSpreadDeg);
             l.sparkleDensity = CloneVal(sparkleDensity);
+            l.sparkleSeed = CloneVal(sparkleSeed);
             l.outerSoftness = CloneVal(outerSoftness);
             l.holeSize = CloneVal(holeSize);
             l.innerSoftness = CloneVal(innerSoftness);
@@ -365,6 +369,9 @@ namespace Laubrary.Pyre
 
         /// Flow-fill scroll position — a 0→1 sweep over life by default (so it flows; the user re-shapes it).
         public static ZUIValue DefaultFlow() => CurveVal(1f, 0f, 0f, 1f, 1f);
+
+        /// Sparkle sub-seed — a Min-Max random by default so it re-rolls every frame (the sparkles twinkle).
+        public static ZUIValue DefaultSparkleSeed() => new ZUIValue(0f) { mode = ZUIValue.Mode.MinMax, min = 0f, max = 1f };
 
         /// A bar's forward reach over its life: shoot out fast, then pull back.
         public static ZUIValue DefaultBarForward() => CurveVal(48f, 0f, 2f, 0.4f, 40f, 1f, 8f);

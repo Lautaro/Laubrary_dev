@@ -99,7 +99,7 @@ namespace Laubrary.Pyre.Editor
                 starLayout = AnyStarLayer();
                 var sel = spec != null && layerSel >= 0 && layerSel < spec.layers.Count ? spec.layers[layerSel] : null;
                 barStarLayout = sel != null && sel.shape == LayerShape.Bars && sel.star;
-                discHollowLayout = sel != null && sel.shape == LayerShape.Disc && sel.hollow;
+                discHollowLayout = sel != null && (sel.shape == LayerShape.Disc || sel.shape == LayerShape.SparkleField) && sel.hollow;
             }
 
             DrawTopBar();
@@ -392,16 +392,12 @@ namespace Laubrary.Pyre.Editor
             switch (shapeForLayout)
             {
                 case LayerShape.Disc:
-                    ValRow("Outer softness", l.outerSoftness, 0f, 1f, 0f);   // always: soft outer edge
-                    l.hollow = Toggle(l.hollow, "Hollow");
-                    if (discHollowLayout)   // Layout-captured gate so the control count is reflow-safe
-                    {
-                        ValRow("Hole size", l.holeSize, 0f, 1f, 0.5f);
-                        ValRow("Inner softness", l.innerSoftness, 0f, 1f, 0f);
-                    }
+                    DrawDiscEdges(l);
                     break;
                 case LayerShape.SparkleField:
                     ValRow("Sparkle density", l.sparkleDensity, 0f, 1f, 0.25f);
+                    ValRow("Sparkle seed", l.sparkleSeed, 0f, 1f);   // Min-Max default → twinkles per frame
+                    DrawDiscEdges(l);                                 // a sparkle field is a disc: soft edges + hole
                     break;
                 case LayerShape.Crescent:
                     ValRow("Crescent X", l.crescentOffsetX, -half, half);
@@ -456,6 +452,19 @@ namespace Laubrary.Pyre.Editor
             var o = ZUIValueControl.Options.Default.WithRange(lo, hi).WithoutCurveExtras();
             if (def.HasValue) o = o.WithDefault(def.Value);
             ZUIValueControl.Draw(label, v, o);
+        }
+
+        // The disc-like edge controls (Disc + SparkleField): always an outer-edge alpha gradient, and an optional
+        // Hollow hole with its own size + inner-edge alpha gradient.
+        void DrawDiscEdges(Layer l)
+        {
+            ValRow("Outer softness", l.outerSoftness, 0f, 1f, 0f);
+            l.hollow = Toggle(l.hollow, "Hollow");
+            if (discHollowLayout)   // Layout-captured gate so the control count is reflow-safe
+            {
+                ValRow("Hole size", l.holeSize, 0f, 1f, 0.5f);
+                ValRow("Inner softness", l.innerSoftness, 0f, 1f, 0f);
+            }
         }
 
         static readonly string[] DissolveModeLabels = { "Erase", "Fade", "Bleed", "Scatter" };

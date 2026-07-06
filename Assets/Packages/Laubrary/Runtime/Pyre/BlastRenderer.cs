@@ -30,7 +30,7 @@ namespace Laubrary.Pyre
         const int F_BaseAngle = 25, F_SpreadDeg = 26, F_Taper = 27, F_Stagger = 28;
         const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
         const int F_SparkleDensity = 34, F_OriginAngle = 35, F_OriginBend = 36, F_EmitSpread = 37, F_HoleSize = 38, F_SpriteSpin = 39;
-        const int F_InnerSoft = 40, F_OuterSoft = 41, F_ColorFlow = 42, F_ColorZoom = 43;
+        const int F_InnerSoft = 40, F_OuterSoft = 41, F_ColorFlow = 42, F_ColorZoom = 43, F_SparkleSeed = 44;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -256,10 +256,15 @@ namespace Laubrary.Pyre
 
                     float sparkleD = layer.shape == LayerShape.SparkleField
                         ? Mathf.Clamp01(Eval(layer.sparkleDensity, t, spec.seed, li, si, F_SparkleDensity)) : 1f;
-                    bool isDisc = layer.shape == LayerShape.Disc;
-                    float holeSize = isDisc && layer.hollow ? Mathf.Clamp01(Eval(layer.holeSize, t, spec.seed, li, si, F_HoleSize)) : 0f;
-                    float outerSoft = isDisc ? Mathf.Clamp01(Eval(layer.outerSoftness, t, spec.seed, li, si, F_OuterSoft)) : 0f;
-                    float innerSoft = isDisc && layer.hollow ? Mathf.Clamp01(Eval(layer.innerSoftness, t, spec.seed, li, si, F_InnerSoft)) : 0f;
+                    // Sparkle sub-seed: re-rolls which pixels light up. Evaluated with the frame in the hash so a
+                    // Min-Max value twinkles per frame; a Static value freezes the pattern.
+                    int sparkleSub = layer.shape == LayerShape.SparkleField
+                        ? Mathf.RoundToInt(Eval(layer.sparkleSeed, t, spec.seed, li, frameIndex, F_SparkleSeed) * 100000f) : 0;
+                    // Disc-like edge params (hole + softness) apply to Disc AND SparkleField (a sparkle field is a disc).
+                    bool discLike = layer.shape == LayerShape.Disc || layer.shape == LayerShape.SparkleField;
+                    float holeSize = discLike && layer.hollow ? Mathf.Clamp01(Eval(layer.holeSize, t, spec.seed, li, si, F_HoleSize)) : 0f;
+                    float outerSoft = discLike ? Mathf.Clamp01(Eval(layer.outerSoftness, t, spec.seed, li, si, F_OuterSoft)) : 0f;
+                    float innerSoft = discLike && layer.hollow ? Mathf.Clamp01(Eval(layer.innerSoftness, t, spec.seed, li, si, F_InnerSoft)) : 0f;
                     float flowPos = 0f, flowZoom = 1f;
                     if (layer.colorMode == ColorMode.FlowingFill)
                     {
@@ -267,7 +272,7 @@ namespace Laubrary.Pyre
                         flowZoom = Eval(layer.colorFlowZoom, t, spec.seed, li, si, F_ColorZoom);
                     }
                     RasterShape(buf, W, H, cx, cy, framePhase, layer, c, radius, baseCol, alpha,
-                                t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, holeSize, outerSoft, innerSoft, flowPos, flowZoom);
+                                t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, sparkleSub, holeSize, outerSoft, innerSoft, flowPos, flowZoom);
                 }
               }
             }
@@ -451,7 +456,7 @@ namespace Laubrary.Pyre
         static void RasterShape(Color32[] buf, int W, int H, float cx, float cy,
                                 float framePhase, Layer layer, Vector2 c, float radius, Color baseCol, float alpha,
                                 float t, int shapeSeed, float crescX, float crescY,
-                                ModStack stack, int frameIndex, float sparkleDensity, float holeSize,
+                                ModStack stack, int frameIndex, float sparkleDensity, int sparkleSub, float holeSize,
                                 float outerSoft, float innerSoft, float flowPos, float flowZoom)
         {
             for (int y = 0; y < H; y++)
@@ -463,7 +468,7 @@ namespace Laubrary.Pyre
                     if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase);
                     float ux = off.x, uy = off.y;
 
-                    if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, sparkleDensity, holeSize, out Color col))
+                    if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, sparkleDensity, sparkleSub, holeSize, out Color col))
                         continue;
 
                     // Normalised distance from the shape centre (0 = centre, 1 = edge) — drives the edge softness AND
@@ -471,10 +476,10 @@ namespace Laubrary.Pyre
                     float nd = radius > 0.001f
                         ? Mathf.Clamp01(Mathf.Sqrt((ux - c.x) * (ux - c.x) + (uy - c.y) * (uy - c.y)) / radius) : 0f;
 
-                    // Disc edge softness: fade alpha near the hole's inner edge (nd = holeSize) and near the outer
-                    // edge (nd = 1). Bands are in nd; 0 = sharp. Hole size is independent of the softness.
+                    // Disc/Sparkle edge softness: fade alpha near the hole's inner edge (nd = holeSize) and near the
+                    // outer edge (nd = 1). Bands are in nd; 0 = sharp. Hole size is independent of the softness.
                     float pixelAlpha = alpha;
-                    if (layer.shape == LayerShape.Disc)
+                    if (layer.shape == LayerShape.Disc || layer.shape == LayerShape.SparkleField)
                     {
                         if (innerSoft > 0.001f) pixelAlpha *= Mathf.Clamp01((nd - holeSize) / innerSoft);
                         if (outerSoft > 0.001f) pixelAlpha *= Mathf.Clamp01((1f - nd) / outerSoft);
@@ -570,7 +575,7 @@ namespace Laubrary.Pyre
         // Returns whether this undeformed pixel is inside the shape, and the colour to lay down.
         static bool ShapeHit(Layer layer, float ux, float uy, Vector2 c, float radius, float t,
                              int shapeSeed, int x, int y, Color baseCol, float crescX, float crescY,
-                             float sparkleDensity, float holeSize, out Color col)
+                             float sparkleDensity, int sparkleSub, float holeSize, out Color col)
         {
             col = baseCol;
             float dx = ux - c.x, dy = uy - c.y;
@@ -587,8 +592,9 @@ namespace Laubrary.Pyre
 
                 case LayerShape.SparkleField:
                 {
-                    if (dist > radius) return false;
-                    float h = Hash01(shapeSeed, x, y);
+                    if (dist > radius || dist < holeSize * radius) return false;   // disc, with an optional hole
+                    // Which pixels light up: hashed with the sub-seed so it re-rolls (twinkles) when animated.
+                    float h = Hash01(shapeSeed ^ sparkleSub, x, y);
                     if (h >= sparkleDensity) return false;
                     // Shimmer: shift each lit pixel along the gradient by its own hash and by life.
                     if (layer.colorOverLife != null)
