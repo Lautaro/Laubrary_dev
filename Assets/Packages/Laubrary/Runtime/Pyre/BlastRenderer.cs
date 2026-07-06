@@ -477,11 +477,13 @@ namespace Laubrary.Pyre
                         ? Mathf.Clamp01(Mathf.Sqrt((ux - c.x) * (ux - c.x) + (uy - c.y) * (uy - c.y)) / radius) : 0f;
 
                     // Disc/Sparkle edge softness: fade alpha near the hole's inner edge (nd = holeSize) and near the
-                    // outer edge (nd = 1). Bands are in nd; 0 = sharp. Hole size is independent of the softness.
+                    // outer edge (nd = 1). Bands are in nd; 0 = sharp. The inner fade is scaled by the hole size, so
+                    // it does nothing when there's no hole and grows with it.
                     float pixelAlpha = alpha;
                     if (layer.shape == LayerShape.Disc || layer.shape == LayerShape.SparkleField)
                     {
-                        if (innerSoft > 0.001f) pixelAlpha *= Mathf.Clamp01((nd - holeSize) / innerSoft);
+                        if (innerSoft > 0.001f && holeSize > 0.001f)
+                            pixelAlpha *= Mathf.Clamp01((nd - holeSize) / (innerSoft * holeSize));
                         if (outerSoft > 0.001f) pixelAlpha *= Mathf.Clamp01((1f - nd) / outerSoft);
                     }
                     if (pixelAlpha <= 0.001f) continue;

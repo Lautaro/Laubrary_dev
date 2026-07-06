@@ -70,7 +70,8 @@ namespace Laubrary.Pyre
         [Tooltip("Disc (Hollow): hole radius as a fraction of the disc (0 = no hole → full disc, 1 = no disc left). " +
                  "Animatable — the hole can grow/shrink over time regardless of the edge softness.")]
         public ZUIValue holeSize = new ZUIValue(0.5f);
-        [Tooltip("Disc (Hollow): alpha gradient on the hole's INNER edge (0 = sharp, 1 = soft). Animatable.")]
+        [Tooltip("Disc (Hollow): alpha gradient on the hole's INNER edge (0 = sharp, 1 = soft). Scaled by Hole size, " +
+                 "so it does nothing when the hole is 0 and grows with it. Animatable.")]
         public ZUIValue innerSoftness = new ZUIValue(0f);
 
         [Tooltip("Sprite: the sprite stamped as particles (its texture must be read/write enabled). Use the editor's " +
