@@ -144,17 +144,10 @@ namespace Laubrary.Pyre
         public Gradient crossGradient = Layer.WhiteGradient();
         [Tooltip("How strongly the cross gradient applies (0 = off). Animatable.")]
         public ZUIValue crossAmount = new ZUIValue(1f);
-        [Tooltip("Contrast (1 = unchanged). Animatable.")]
-        public ZUIValue contrast = new ZUIValue(1f);
-        [Tooltip("Brightness (1 = unchanged). Animatable.")]
-        public ZUIValue brightness = new ZUIValue(1f);
-        [Tooltip("Saturation (1 = unchanged, 0 = greyscale). Animatable.")]
-        public ZUIValue saturation = new ZUIValue(1f);
 
-        float amt, con, bri, sat;
+        float amt;
         public override string DisplayName => "Tint";
-        public override void Prepare(Func<ZUIValue, int, float> e)
-        { amt = Mathf.Clamp01(e(crossAmount, 0)); con = e(contrast, 1); bri = e(brightness, 2); sat = e(saturation, 3); }
+        public override void Prepare(Func<ZUIValue, int, float> e) => amt = Mathf.Clamp01(e(crossAmount, 0));
 
         public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
         {
@@ -164,11 +157,57 @@ namespace Laubrary.Pyre
                 Color g = crossGradient.Evaluate(Mathf.Clamp01(p.crossFrac));
                 c = new Color(c.r * Mathf.Lerp(1f, g.r, amt), c.g * Mathf.Lerp(1f, g.g, amt), c.b * Mathf.Lerp(1f, g.b, amt), c.a);
             }
-            float r = c.r * bri, gg = c.g * bri, b = c.b * bri;
-            r = (r - 0.5f) * con + 0.5f; gg = (gg - 0.5f) * con + 0.5f; b = (b - 0.5f) * con + 0.5f;
-            float lum = r * 0.299f + gg * 0.587f + b * 0.114f;
-            r = Mathf.Lerp(lum, r, sat); gg = Mathf.Lerp(lum, gg, sat); b = Mathf.Lerp(lum, b, sat);
-            c = new Color(Mathf.Clamp01(r), Mathf.Clamp01(gg), Mathf.Clamp01(b), c.a);
+            return true;
+        }
+    }
+
+    /// Contrast (1 = unchanged). Its own opt-in modifier.
+    [Serializable]
+    public class ContrastModifier : PixelModifier
+    {
+        [Tooltip("Contrast. 1 = unchanged, >1 harder, <1 flatter. Animatable.")]
+        public ZUIValue amount = new ZUIValue(1f);
+        float v;
+        public override string DisplayName => "Contrast";
+        public override void Prepare(Func<ZUIValue, int, float> e) => v = e(amount, 0);
+        public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
+        {
+            c = new Color(Mathf.Clamp01((c.r - 0.5f) * v + 0.5f), Mathf.Clamp01((c.g - 0.5f) * v + 0.5f),
+                          Mathf.Clamp01((c.b - 0.5f) * v + 0.5f), c.a);
+            return true;
+        }
+    }
+
+    /// Brightness (1 = unchanged). Its own opt-in modifier.
+    [Serializable]
+    public class BrightnessModifier : PixelModifier
+    {
+        [Tooltip("Brightness multiplier. 1 = unchanged. Animatable.")]
+        public ZUIValue amount = new ZUIValue(1f);
+        float v;
+        public override string DisplayName => "Brightness";
+        public override void Prepare(Func<ZUIValue, int, float> e) => v = e(amount, 0);
+        public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
+        {
+            c = new Color(Mathf.Clamp01(c.r * v), Mathf.Clamp01(c.g * v), Mathf.Clamp01(c.b * v), c.a);
+            return true;
+        }
+    }
+
+    /// Saturation (1 = unchanged, 0 = greyscale). Its own opt-in modifier.
+    [Serializable]
+    public class SaturationModifier : PixelModifier
+    {
+        [Tooltip("Saturation. 1 = unchanged, 0 = greyscale, >1 more vivid. Animatable.")]
+        public ZUIValue amount = new ZUIValue(1f);
+        float v;
+        public override string DisplayName => "Saturation";
+        public override void Prepare(Func<ZUIValue, int, float> e) => v = e(amount, 0);
+        public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
+        {
+            float lum = c.r * 0.299f + c.g * 0.587f + c.b * 0.114f;
+            c = new Color(Mathf.Clamp01(Mathf.Lerp(lum, c.r, v)), Mathf.Clamp01(Mathf.Lerp(lum, c.g, v)),
+                          Mathf.Clamp01(Mathf.Lerp(lum, c.b, v)), c.a);
             return true;
         }
     }

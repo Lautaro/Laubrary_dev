@@ -514,10 +514,10 @@ namespace Laubrary.Pyre.Editor
                     t.crossGradient ??= Layer.WhiteGradient();
                     t.crossGradient = EditorGUILayout.GradientField("Cross grad", t.crossGradient);
                     ValRow("Cross amount", t.crossAmount, 0f, 1f, 1f);
-                    ValRow("Contrast", t.contrast, 0f, 2f, 1f);
-                    ValRow("Brightness", t.brightness, 0f, 2f, 1f);
-                    ValRow("Saturation", t.saturation, 0f, 2f, 1f);
                     break;
+                case ContrastModifier cm: ValRow("Contrast", cm.amount, 0f, 2f, 1f); break;
+                case BrightnessModifier bm: ValRow("Brightness", bm.amount, 0f, 2f, 1f); break;
+                case SaturationModifier sm: ValRow("Saturation", sm.amount, 0f, 2f, 1f); break;
                 case DissolveModifier d:
                     ValRow("Amount", d.amount, 0f, 1f, 0f);
                     d.mode = (DissolveMode)MiniRadio((int)d.mode, DissolveModeLabels);
@@ -549,7 +549,10 @@ namespace Laubrary.Pyre.Editor
             Add("Geometry/Rotate", () => new RotateModifier());
             Add("Geometry/Squash", () => new SquashModifier());
             Add("Geometry/Wobble", () => new WobbleModifier());
-            Add("Tint", () => new TintModifier());
+            Add("Colour/Tint", () => new TintModifier());
+            Add("Colour/Contrast", () => new ContrastModifier());
+            Add("Colour/Brightness", () => new BrightnessModifier());
+            Add("Colour/Saturation", () => new SaturationModifier());
             Add("Dissolve", () => new DissolveModifier());
             Add("Alpha mask", () => new AlphaMaskModifier());
             menu.ShowAsContext();
