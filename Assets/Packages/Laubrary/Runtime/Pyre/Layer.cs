@@ -337,8 +337,9 @@ namespace Laubrary.Pyre
             return v;
         }
 
-        /// Grow-then-shrink radius envelope — a sensible default a shape's size animates through over its life.
-        public static ZUIValue DefaultSize() => CurveVal(16f, 0f, 4f, 0.3f, 11f, 1f, 5f);
+        /// Grow-from-nothing then shrink-to-nothing radius envelope — no motion is built in, so Size defaults to an
+        /// envelope the user tweaks (Pyre v2: nothing grows/shrinks on its own).
+        public static ZUIValue DefaultSize() => CurveVal(16f, 0f, 1f, 0.35f, 14f, 1f, 1f);
 
         /// Rise quickly, hold, then fade — a punchy explosion alpha envelope.
         public static ZUIValue DefaultAlpha() => CurveVal(1f, 0f, 0f, 0.15f, 1f, 0.7f, 1f, 1f, 0f);

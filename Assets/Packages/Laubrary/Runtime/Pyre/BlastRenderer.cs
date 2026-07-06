@@ -143,7 +143,7 @@ namespace Laubrary.Pyre
                 if (layer.shape == LayerShape.Bars)
                 {
                     float baseA = Eval(layer.baseAngleDeg, lp, spec.seed, li, 0, F_BaseAngle);
-                    RenderBarsLayerStar(buf, W, H, cx, cy, layer, li, spec, lp, frameIndex, baseA, spreadDeg, spread, stack);
+                    RenderBarsLayerStar(buf, W, H, cx, cy, layer, li, spec, lp, frameIndex, framePhase, baseA, spreadDeg, spread, stack);
                     continue;
                 }
 
@@ -293,9 +293,9 @@ namespace Laubrary.Pyre
         // arms sharing the centre and radiating outward (an asterisk). Each bar reaches FORWARD, its length scaled
         // by Taper (centre-longest → triangle/flame). Arms are drawn INTERLEAVED by bar index — the centre bar of
         // every arm, then the next bar out of every arm, … — so overlapping arms layer consistently instead of
-        // each whole arm stacking over the previous one. Deform is not applied to bars.
+        // each whole arm stacking over the previous one. Geometry + pixel modifiers apply to bars (in RasterBar).
         static void RenderBarsLayerStar(Color32[] buf, int W, int H, float cx, float cy,
-                                        Layer layer, int li, BlastSpec spec, float lp, int frameIndex,
+                                        Layer layer, int li, BlastSpec spec, float lp, int frameIndex, float framePhase,
                                         float baseA, float spreadDeg, int spread, ModStack stack)
         {
             Vector2 center = new Vector2(cx, cy);
@@ -357,8 +357,8 @@ namespace Laubrary.Pyre
                 if (dissolve) alpha *= 1f - Mathf.Clamp01((front - d) / DissolveBand);    // centre (d=0) dissolves first
                 if (alpha < 0.004f) return;
 
-                RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, width, col, alpha,
-                          stack, frameIndex, tb, ShapeSeed(spec.seed, li, i));
+                RasterBar(buf, W, H, cx, cy, barCenter, dir, perp, -bwd, fwd, width, col, alpha,
+                          stack, frameIndex, framePhase, tb, ShapeSeed(spec.seed, li, i));
             }
 
             // Interleave: centre bar of every arm first, then the ±1 bars of every arm, … outward. Within a bar
@@ -371,28 +371,39 @@ namespace Laubrary.Pyre
                 }
         }
 
-        // Fill a rotated rectangle: from alongMin..alongMax along `dir`, ±halfWidth across `perp`.
-        static void RasterBar(Color32[] buf, int W, int H, Vector2 barCenter, Vector2 dir, Vector2 perp,
+        // Fill a rotated rectangle: from alongMin..alongMax along `dir`, ±halfWidth across `perp`. When geometry
+        // modifiers are present each pixel is un-warped into blast space first (so skew/rotate/squash/wobble apply
+        // to bars too); that pushes the bar out of its axis-aligned bbox, so the whole canvas is scanned.
+        static void RasterBar(Color32[] buf, int W, int H, float cx, float cy, Vector2 barCenter, Vector2 dir, Vector2 perp,
                               float alongMin, float alongMax, float width, Color col, float alpha,
-                              ModStack stack, int frameIndex, float life, int hash)
+                              ModStack stack, int frameIndex, float framePhase, float life, int hash)
         {
             float hw = width * 0.5f;
             float span = Mathf.Max(0.0001f, alongMax - alongMin);
-            // bounding box over the 4 corners
-            float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
-            for (int sa = 0; sa < 2; sa++)
-                for (int sp = 0; sp < 2; sp++)
-                {
-                    Vector2 p = barCenter + dir * (sa == 0 ? alongMin : alongMax) + perp * (sp == 0 ? -hw : hw);
-                    minX = Mathf.Min(minX, p.x); maxX = Mathf.Max(maxX, p.x);
-                    minY = Mathf.Min(minY, p.y); maxY = Mathf.Max(maxY, p.y);
-                }
-            int x0 = Mathf.Max(0, Mathf.FloorToInt(minX)), x1 = Mathf.Min(W - 1, Mathf.CeilToInt(maxX));
-            int y0 = Mathf.Max(0, Mathf.FloorToInt(minY)), y1 = Mathf.Min(H - 1, Mathf.CeilToInt(maxY));
+            int x0, x1, y0, y1;
+            if (stack.AnyGeo)
+            {
+                x0 = 0; x1 = W - 1; y0 = 0; y1 = H - 1;
+            }
+            else
+            {
+                float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+                for (int sa = 0; sa < 2; sa++)
+                    for (int sp = 0; sp < 2; sp++)
+                    {
+                        Vector2 p = barCenter + dir * (sa == 0 ? alongMin : alongMax) + perp * (sp == 0 ? -hw : hw);
+                        minX = Mathf.Min(minX, p.x); maxX = Mathf.Max(maxX, p.x);
+                        minY = Mathf.Min(minY, p.y); maxY = Mathf.Max(maxY, p.y);
+                    }
+                x0 = Mathf.Max(0, Mathf.FloorToInt(minX)); x1 = Mathf.Min(W - 1, Mathf.CeilToInt(maxX));
+                y0 = Mathf.Max(0, Mathf.FloorToInt(minY)); y1 = Mathf.Min(H - 1, Mathf.CeilToInt(maxY));
+            }
             for (int y = y0; y <= y1; y++)
                 for (int x = x0; x <= x1; x++)
                 {
-                    float px = (x + 0.5f) - barCenter.x, py = (y + 0.5f) - barCenter.y;
+                    float wx = x + 0.5f, wy = y + 0.5f;
+                    if (stack.AnyGeo) { Vector2 o = ApplyGeo(stack, new Vector2(wx - cx, wy - cy), framePhase); wx = cx + o.x; wy = cy + o.y; }
+                    float px = wx - barCenter.x, py = wy - barCenter.y;
                     float along = px * dir.x + py * dir.y;
                     float across = px * perp.x + py * perp.y;
                     if (along >= alongMin && along <= alongMax && across >= -hw && across <= hw)
