@@ -140,6 +140,10 @@ namespace Laubrary.Pyre
         [Tooltip("Global saturation (1 = unchanged, 0 = greyscale). Animatable.")]
         public ZUIValue saturation = new ZUIValue(1f);
 
+        // ── opt-in GLOBAL modifiers (Pyre v2): geometry warps + pixel effects applied to every layer. ──
+        [SerializeReference]
+        public List<PyreModifier> globalModifiers = new();
+
         /// Wipe the layers and build a punchy white-hot core -> orange/red fire -> dark smoke -> shockwave ring ->
         /// sparks explosion from scratch. Used by the editor's "New example blast" button and by the demo so there
         /// is always something good to look at. Fade in/out is owned entirely by each layer's alpha curve; grow /

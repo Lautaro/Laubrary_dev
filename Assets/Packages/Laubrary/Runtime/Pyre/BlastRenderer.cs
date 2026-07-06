@@ -81,6 +81,64 @@ namespace Laubrary.Pyre
 
         static Color MulRGB(Color a, Color b) => new Color(a.r * b.r, a.g * b.g, a.b * b.b, a.a);
 
+        // ── modifier pipeline (Pyre v2): opt-in geometry warps + pixel effects, per-layer and global ─────────
+        readonly struct ModStack
+        {
+            public readonly GeometryModifier[] geo;   // forward order; inverse-apply in reverse
+            public readonly PixelModifier[] pix;      // apply in order
+            public ModStack(GeometryModifier[] g, PixelModifier[] p) { geo = g; pix = p; }
+            public bool AnyGeo => geo.Length > 0;
+            public bool AnyPix => pix.Length > 0;
+        }
+        static readonly ModStack EmptyStack = new ModStack(Array.Empty<GeometryModifier>(), Array.Empty<PixelModifier>());
+
+        // Collect + Prepare the enabled modifiers of a layer (progress = layer life) and the blast (progress = blast
+        // progress) for this frame. Layer mods come first (inner); global mods wrap them (outer).
+        static ModStack BuildStack(Layer layer, BlastSpec spec, int li, float lp, float bp, int frameIndex)
+        {
+            var geo = new System.Collections.Generic.List<GeometryModifier>();
+            var pix = new System.Collections.Generic.List<PixelModifier>();
+            CollectMods(layer != null ? layer.modifiers : null, spec, li, lp, frameIndex, geo, pix, 0);
+            CollectMods(spec != null ? spec.globalModifiers : null, spec, GlobalLayerId, bp, frameIndex, geo, pix, 500);
+            if (geo.Count == 0 && pix.Count == 0) return EmptyStack;
+            return new ModStack(geo.ToArray(), pix.ToArray());
+        }
+
+        static void CollectMods(System.Collections.Generic.List<PyreModifier> mods, BlastSpec spec, int layerId,
+                                float progress, int frameIndex,
+                                System.Collections.Generic.List<GeometryModifier> geo,
+                                System.Collections.Generic.List<PixelModifier> pix, int baseId)
+        {
+            if (mods == null) return;
+            int seed = spec != null ? spec.seed : 0;
+            for (int i = 0; i < mods.Count; i++)
+            {
+                var m = mods[i];
+                if (m == null || !m.enabled) continue;
+                int uid = baseId + i;
+                m.Prepare((v, fid) => Eval(v, progress, seed, layerId, frameIndex, 1000 + uid * 8 + fid));
+                if (m is GeometryModifier gm) geo.Add(gm);
+                else if (m is PixelModifier pm) pix.Add(pm);
+            }
+        }
+
+        // Undo the geometry modifiers (outermost first) on a pixel offset from the canvas centre.
+        static Vector2 ApplyGeo(in ModStack s, Vector2 off, float phase)
+        {
+            for (int i = s.geo.Length - 1; i >= 0; i--) off = s.geo[i].InverseWarp(off, phase);
+            return off;
+        }
+
+        // Run the pixel modifiers on a hit pixel; false = drop it.
+        static bool ApplyPix(in ModStack s, ref Color col, ref float alpha, int x, int y, int frame,
+                             float crossFrac, float life, int hash, int W, int H)
+        {
+            var info = new PixelInfo(x, y, frame, crossFrac, life, hash, W, H);
+            for (int i = 0; i < s.pix.Length; i++)
+                if (!s.pix[i].ApplyPixel(ref col, ref alpha, info)) return false;
+            return true;
+        }
+
         // Running maximum of a value from 0..t — makes a Curve "expand and hold" (never contract). Static/MinMax
         // are already constant, so they pass straight through.
         static float EvalRisingMax(ZUIValue v, float t, int seed, int li, int si, int fid)
@@ -136,11 +194,12 @@ namespace Laubrary.Pyre
 
                 // Colour grade (cross gradient + contrast/brightness/saturation), resolved once for this layer/frame.
                 Grade grade = BuildGrade(layer, spec, li, lp, bp, frameIndex);
+                ModStack stack = BuildStack(layer, spec, li, lp, bp, frameIndex);
 
                 // Bars mode is a wholly different, directional composition — draws all its arms itself.
                 if (layer.shape == LayerShape.Bars)
                 {
-                    RenderBarsLayerStar(buf, W, H, cx, cy, layer, li, spec, lp, baseA, spreadDeg, spread, grade);
+                    RenderBarsLayerStar(buf, W, H, cx, cy, layer, li, spec, lp, frameIndex, baseA, spreadDeg, spread, grade, stack);
                     continue;
                 }
 
@@ -244,7 +303,7 @@ namespace Laubrary.Pyre
                     radius = effR;
 
                     RasterShape(buf, W, H, cx, cy, global, local, framePhase, layer, c, radius, baseCol, alpha,
-                                t, shapeSeed, disProb, crescX, crescY, grade);
+                                t, shapeSeed, disProb, crescX, crescY, grade, stack, frameIndex);
                 }
               }
             }
@@ -286,8 +345,8 @@ namespace Laubrary.Pyre
         // every arm, then the next bar out of every arm, … — so overlapping arms layer consistently instead of
         // each whole arm stacking over the previous one. Deform is not applied to bars.
         static void RenderBarsLayerStar(Color32[] buf, int W, int H, float cx, float cy,
-                                        Layer layer, int li, BlastSpec spec, float lp,
-                                        float baseA, float spreadDeg, int spread, Grade grade)
+                                        Layer layer, int li, BlastSpec spec, float lp, int frameIndex,
+                                        float baseA, float spreadDeg, int spread, Grade grade, ModStack stack)
         {
             Vector2 center = new Vector2(cx, cy);
             bool star = spec.star;
@@ -348,7 +407,8 @@ namespace Laubrary.Pyre
                 if (dissolve) alpha *= 1f - Mathf.Clamp01((front - d) / DissolveBand);    // centre (d=0) dissolves first
                 if (alpha < 0.004f) return;
 
-                RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, width, col, alpha, grade);
+                RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, width, col, alpha, grade,
+                          stack, frameIndex, tb, ShapeSeed(spec.seed, li, i));
             }
 
             // Interleave: centre bar of every arm first, then the ±1 bars of every arm, … outward. Within a bar
@@ -363,7 +423,8 @@ namespace Laubrary.Pyre
 
         // Fill a rotated rectangle: from alongMin..alongMax along `dir`, ±halfWidth across `perp`.
         static void RasterBar(Color32[] buf, int W, int H, Vector2 barCenter, Vector2 dir, Vector2 perp,
-                              float alongMin, float alongMax, float width, Color col, float alpha, Grade grade)
+                              float alongMin, float alongMax, float width, Color col, float alpha, Grade grade,
+                              ModStack stack, int frameIndex, float life, int hash)
         {
             float hw = width * 0.5f;
             float span = Mathf.Max(0.0001f, alongMax - alongMin);
@@ -386,8 +447,12 @@ namespace Laubrary.Pyre
                     float across = px * perp.x + py * perp.y;
                     if (along >= alongMin && along <= alongMax && across >= -hw && across <= hw)
                     {
-                        Color fc = grade.active ? ApplyGrade(col, (along - alongMin) / span, grade) : col;
-                        Over(buf, y * W + x, fc.r, fc.g, fc.b, alpha * fc.a);
+                        float crossFrac = (along - alongMin) / span;
+                        Color fc = grade.active ? ApplyGrade(col, crossFrac, grade) : col;
+                        float outA = alpha * fc.a;
+                        if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, crossFrac, life, hash, W, H))
+                            continue;
+                        Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
                     }
                 }
         }
@@ -410,16 +475,19 @@ namespace Laubrary.Pyre
         // the deform correct with zero clipping risk; canvases are small and the runtime player caches its frames.
         static void RasterShape(Color32[] buf, int W, int H, float cx, float cy, Deform global, Deform local,
                                 float framePhase, Layer layer, Vector2 c, float radius, Color baseCol, float alpha,
-                                float t, int shapeSeed, float disProb, float crescX, float crescY, Grade grade)
+                                float t, int shapeSeed, float disProb, float crescX, float crescY, Grade grade,
+                                ModStack stack, int frameIndex)
         {
             for (int y = 0; y < H; y++)
             {
                 for (int x = 0; x < W; x++)
                 {
-                    // Forward map is screen = global(local(undeformed)); invert in reverse order.
+                    // Forward map is screen = global(local(undeformed)); invert in reverse order, then undo the
+                    // opt-in geometry modifiers (outermost first).
                     Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
                     off = InverseDeform(off, global, framePhase);
                     off = InverseDeform(off, local, framePhase);
+                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase);
                     float ux = off.x, uy = off.y;
 
                     if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, out Color col))
@@ -429,7 +497,7 @@ namespace Laubrary.Pyre
                     if (disProb > 0f && Hash01(shapeSeed ^ 0x1B873593, x, y) < disProb) continue;
 
                     // Normalised distance from the shape centre (0 = centre, 1 = edge) — drives radial alpha AND
-                    // the colour grade's cross gradient.
+                    // the colour grade's / Tint modifier's cross gradient.
                     float nd = radius > 0.001f
                         ? Mathf.Clamp01(Mathf.Sqrt((ux - c.x) * (ux - c.x) + (uy - c.y) * (uy - c.y)) / radius) : 0f;
 
@@ -439,7 +507,10 @@ namespace Laubrary.Pyre
                     if (pixelAlpha <= 0.001f) continue;
 
                     Color fc = grade.active ? ApplyGrade(col, nd, grade) : col;
-                    Over(buf, y * W + x, fc.r, fc.g, fc.b, pixelAlpha * fc.a);
+                    float outA = pixelAlpha * fc.a;
+                    if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, nd, t, shapeSeed, W, H))
+                        continue;
+                    Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
                 }
             }
         }
@@ -602,9 +673,9 @@ namespace Laubrary.Pyre
             }
         }
 
-        // Stable 0..1 hash of three ints — used for per-pixel sparkle / disintegrate so results don't depend on
-        // iteration order and never touch UnityEngine.Random.
-        static float Hash01(int a, int b, int c)
+        // Stable 0..1 hash of three ints — used for per-pixel sparkle / disintegrate / dissolve so results don't
+        // depend on iteration order and never touch UnityEngine.Random. Internal so PixelModifiers can share it.
+        internal static float Hash01(int a, int b, int c)
         {
             unchecked
             {

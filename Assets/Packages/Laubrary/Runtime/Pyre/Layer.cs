@@ -52,6 +52,11 @@ namespace Laubrary.Pyre
                  "multiplies alpha per pixel. null = off. Makes a shape soft-edged / hollow / haloed instead of a hard disc.")]
         public List<ZUIEnvelopePoint> radialAlpha = null;
 
+        // ── opt-in modifiers (Pyre v2): geometry warps (skew/rotate/squash/wobble) + pixel effects
+        // (tint/dissolve/…) composed on top of this layer. Empty = no clutter. Serialized polymorphically.
+        [SerializeReference]
+        public List<PyreModifier> modifiers = new();
+
         // ── colour grade (per-layer; composes with the blast-global grade) ──────────────────────────
         [Tooltip("Cross gradient: colours each bar/shape ACROSS itself (bar: back→tip, circular: centre→edge) and " +
                  "MULTIPLIES the base colour. Default white = no effect; blend in with Cross amount.")]
@@ -255,10 +260,12 @@ namespace Laubrary.Pyre
             l.saturation = CloneVal(saturation);
             l.radialAlpha = radialAlpha == null ? null
                 : radialAlpha.ConvertAll(p => new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
+            l.modifiers = modifiers == null ? new List<PyreModifier>()
+                : modifiers.ConvertAll(m => m?.Clone());
             return l;
         }
 
-        static ZUIValue CloneVal(ZUIValue s)
+        internal static ZUIValue CloneVal(ZUIValue s)
         {
             if (s == null) return new ZUIValue();
             var v = new ZUIValue(s.staticValue)
@@ -280,7 +287,7 @@ namespace Laubrary.Pyre
             return g;
         }
 
-        static Gradient CloneGradient(Gradient g)
+        internal static Gradient CloneGradient(Gradient g)
         {
             if (g == null) return null;
             var n = new Gradient();

@@ -1,0 +1,212 @@
+using System;
+using UnityEngine;
+
+namespace Laubrary.Pyre
+{
+    /// How a Dissolve modifier eats pixels as its amount rises to 1 (everything gone).
+    public enum DissolveMode
+    {
+        Erase,    // hard-remove a random `amount` fraction of pixels (stable holes)
+        Fade,     // don't remove — drop every pixel's alpha by `amount` (all transparent at 1)
+        Bleed,    // remove a random fraction AND leave the pixels next to the threshold semi-transparent (a soft edge)
+        Scatter   // remove a random fraction, but the removed set is reshuffled every frame (a boiling churn)
+    }
+
+    /// An opt-in effect added to a layer or the whole blast. Serialized polymorphically ([SerializeReference]) so
+    /// new effects are just new subclasses — the "clean but open for experimentation" seam. Two families:
+    /// GeometryModifier warps the pixel grid (skew/rotate/squash/wobble); PixelModifier recolours / masks / removes
+    /// pixels (tint/dissolve/…). Animatable params are ZUIValues resolved once per frame via Prepare().
+    [Serializable]
+    public abstract class PyreModifier
+    {
+        public bool enabled = true;
+
+        /// Resolve this frame's animatable params to plain floats. eval(value, localFieldId) returns the value at
+        /// the current progress; localFieldId (0,1,2…) keeps each param's Min-Max randomness independent.
+        public virtual void Prepare(Func<ZUIValue, int, float> eval) { }
+
+        /// Label shown in the editor's modifier list.
+        public abstract string DisplayName { get; }
+
+        /// Deep copy (for the editor's layer/modifier "Dup"). MemberwiseClone copies value fields; ZUIValue and
+        /// Gradient reference fields are cloned so tweaking a copy never bleeds into the original.
+        public virtual PyreModifier Clone()
+        {
+            var m = (PyreModifier)MemberwiseClone();
+            foreach (var f in GetType().GetFields())
+            {
+                object v = f.GetValue(this);
+                if (v is ZUIValue zv) f.SetValue(m, Layer.CloneVal(zv));
+                else if (v is Gradient g) f.SetValue(m, Layer.CloneGradient(g));
+            }
+            return m;
+        }
+    }
+
+    // ── geometry: warps the coordinate grid (applied as an inverse map when rasterising) ──────────────────
+    [Serializable]
+    public abstract class GeometryModifier : PyreModifier
+    {
+        /// Undo this modifier's warp on a pixel offset from the canvas centre. phase = a per-frame wobble phase.
+        public abstract Vector2 InverseWarp(Vector2 off, float phase);
+    }
+
+    [Serializable]
+    public class SkewModifier : GeometryModifier
+    {
+        [Tooltip("Horizontal shear based on height — leans the layer. Animatable.")]
+        public ZUIValue amount = new ZUIValue(0.4f);
+        float a;
+        public override string DisplayName => "Skew";
+        public override void Prepare(Func<ZUIValue, int, float> e) => a = e(amount, 0);
+        public override Vector2 InverseWarp(Vector2 off, float phase) { off.x -= a * off.y; return off; }
+    }
+
+    [Serializable]
+    public class SquashModifier : GeometryModifier
+    {
+        [Tooltip("Horizontal squash/stretch about the centre. 1 = none, <1 tall & thin, >1 wide & flat. Animatable.")]
+        public ZUIValue amount = new ZUIValue(1f);
+        float sq;
+        public override string DisplayName => "Squash";
+        public override void Prepare(Func<ZUIValue, int, float> e) { sq = e(amount, 0); if (Mathf.Approximately(sq, 0f)) sq = 1f; }
+        public override Vector2 InverseWarp(Vector2 off, float phase) { off.x /= sq; return off; }
+    }
+
+    [Serializable]
+    public class RotateModifier : GeometryModifier
+    {
+        [Tooltip("Rotation about the centre, in degrees. Animatable.")]
+        public ZUIValue degrees = new ZUIValue(0f);
+        float rad;
+        public override string DisplayName => "Rotate";
+        public override void Prepare(Func<ZUIValue, int, float> e) => rad = -e(degrees, 0) * Mathf.Deg2Rad;   // inverse
+        public override Vector2 InverseWarp(Vector2 off, float phase)
+        {
+            if (rad == 0f) return off;
+            float c = Mathf.Cos(rad), s = Mathf.Sin(rad);
+            return new Vector2(off.x * c - off.y * s, off.x * s + off.y * c);
+        }
+    }
+
+    [Serializable]
+    public class WobbleModifier : GeometryModifier
+    {
+        [Tooltip("Amplitude (px) of a vertical wobble that ripples the layer horizontally. Animatable.")]
+        public ZUIValue amplitude = new ZUIValue(3f);
+        [Tooltip("How many wobble ripples run up the canvas. Animatable.")]
+        public ZUIValue frequency = new ZUIValue(1f);
+        float amp, freq;
+        public override string DisplayName => "Wobble";
+        public override void Prepare(Func<ZUIValue, int, float> e) { amp = e(amplitude, 0); freq = e(frequency, 1); }
+        public override Vector2 InverseWarp(Vector2 off, float phase)
+        {
+            if (amp != 0f) off.x -= amp * Mathf.Sin(off.y * freq * 0.1f + phase);
+            return off;
+        }
+    }
+
+    // ── pixel: recolour / mask / remove ───────────────────────────────────────────────────────────────────
+    /// Per-pixel context handed to a PixelModifier.
+    public readonly struct PixelInfo
+    {
+        public readonly int x, y, frame;
+        public readonly float crossFrac;   // 0..1 across the shape (centre→edge, or bar back→tip)
+        public readonly float life;        // the shape's own life, 0..1
+        public readonly int hash;          // a stable per-pixel seed
+        public readonly int W, H;
+        public PixelInfo(int x, int y, int frame, float crossFrac, float life, int hash, int W, int H)
+        { this.x = x; this.y = y; this.frame = frame; this.crossFrac = crossFrac; this.life = life; this.hash = hash; this.W = W; this.H = H; }
+    }
+
+    [Serializable]
+    public abstract class PixelModifier : PyreModifier
+    {
+        /// Recolour / fade the pixel; return false to drop it entirely.
+        public abstract bool ApplyPixel(ref Color col, ref float alpha, in PixelInfo info);
+    }
+
+    [Serializable]
+    public class TintModifier : PixelModifier
+    {
+        [Tooltip("Flat multiply tint over the whole layer.")]
+        public Color tint = Color.white;
+        [Tooltip("A gradient painted ACROSS each shape (centre→edge / bar back→tip) and multiplied in.")]
+        public Gradient crossGradient = Layer.WhiteGradient();
+        [Tooltip("How strongly the cross gradient applies (0 = off). Animatable.")]
+        public ZUIValue crossAmount = new ZUIValue(1f);
+        [Tooltip("Contrast (1 = unchanged). Animatable.")]
+        public ZUIValue contrast = new ZUIValue(1f);
+        [Tooltip("Brightness (1 = unchanged). Animatable.")]
+        public ZUIValue brightness = new ZUIValue(1f);
+        [Tooltip("Saturation (1 = unchanged, 0 = greyscale). Animatable.")]
+        public ZUIValue saturation = new ZUIValue(1f);
+
+        float amt, con, bri, sat;
+        public override string DisplayName => "Tint";
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        { amt = Mathf.Clamp01(e(crossAmount, 0)); con = e(contrast, 1); bri = e(brightness, 2); sat = e(saturation, 3); }
+
+        public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
+        {
+            c = new Color(c.r * tint.r, c.g * tint.g, c.b * tint.b, c.a);
+            if (amt > 0.001f && crossGradient != null)
+            {
+                Color g = crossGradient.Evaluate(Mathf.Clamp01(p.crossFrac));
+                c = new Color(c.r * Mathf.Lerp(1f, g.r, amt), c.g * Mathf.Lerp(1f, g.g, amt), c.b * Mathf.Lerp(1f, g.b, amt), c.a);
+            }
+            float r = c.r * bri, gg = c.g * bri, b = c.b * bri;
+            r = (r - 0.5f) * con + 0.5f; gg = (gg - 0.5f) * con + 0.5f; b = (b - 0.5f) * con + 0.5f;
+            float lum = r * 0.299f + gg * 0.587f + b * 0.114f;
+            r = Mathf.Lerp(lum, r, sat); gg = Mathf.Lerp(lum, gg, sat); b = Mathf.Lerp(lum, b, sat);
+            c = new Color(Mathf.Clamp01(r), Mathf.Clamp01(gg), Mathf.Clamp01(b), c.a);
+            return true;
+        }
+    }
+
+    [Serializable]
+    public class DissolveModifier : PixelModifier
+    {
+        [Tooltip("0 = nothing removed, 1 = everything gone. Animatable — the classic 'crumble away at the end' is " +
+                 "this ramping 0→1 over the layer's life.")]
+        public ZUIValue amount = DefaultAmount();
+        [Tooltip("Erase = hard random holes; Fade = all pixels go transparent; Bleed = holes with a soft edge; " +
+                 "Scatter = holes that reshuffle every frame (a boiling churn).")]
+        public DissolveMode mode = DissolveMode.Erase;
+
+        const float BleedBand = 0.14f;
+        float amt;
+        public override string DisplayName => "Dissolve";
+        public override void Prepare(Func<ZUIValue, int, float> e) => amt = Mathf.Clamp01(e(amount, 0));
+
+        public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
+        {
+            if (amt <= 0.001f) return true;
+            switch (mode)
+            {
+                case DissolveMode.Fade:
+                    a *= 1f - amt;
+                    return a > 0.003f;
+                case DissolveMode.Scatter:
+                {
+                    float h = BlastRenderer.Hash01(unchecked(p.hash ^ (p.frame * 92821)), p.x, p.y);
+                    return h >= amt;
+                }
+                case DissolveMode.Bleed:
+                {
+                    float h = BlastRenderer.Hash01(p.hash, p.x, p.y);
+                    if (h < amt) return false;
+                    a *= Mathf.Clamp01((h - amt) / BleedBand);   // pixels just above the cut fade out
+                    return a > 0.003f;
+                }
+                default: // Erase
+                {
+                    float h = BlastRenderer.Hash01(p.hash, p.x, p.y);
+                    return h >= amt;
+                }
+            }
+        }
+
+        static ZUIValue DefaultAmount() => Layer.CurveVal(1f, 0f, 0f, 0.6f, 0f, 1f, 1f);
+    }
+}
