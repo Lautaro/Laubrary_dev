@@ -57,8 +57,9 @@ namespace Laubrary.Pyre.Editor
         static readonly string[] BarDecayLabels = { "Contract", "Dissolve" };
 
         // Captured on the Layout event only so the control set can't change between Layout and Repaint of the same
-        // frame (IMGUI reflow hazard). starLayout = Star on (gates the canvas size + arms fields). See OnZUI.
-        bool starLayout;
+        // frame (IMGUI reflow hazard). starLayout = any Bars layer has Star (gates the auto-canvas readout);
+        // barStarLayout = the SELECTED layer is a star Bars layer (gates its Arms/Spread rows). See OnZUI.
+        bool starLayout, barStarLayout;
 
         protected override void OnZUIEnable()
         {
@@ -94,7 +95,11 @@ namespace Laubrary.Pyre.Editor
             // Capture the star gate on Layout only, so the width/height block below has a stable control count
             // across this frame's Layout and Repaint passes even if the Orbit/Star radio is clicked.
             if (Event.current.type == EventType.Layout)
-                starLayout = spec != null && spec.star;
+            {
+                starLayout = AnyStarLayer();
+                var sel = spec != null && layerSel >= 0 && layerSel < spec.layers.Count ? spec.layers[layerSel] : null;
+                barStarLayout = sel != null && sel.shape == LayerShape.Bars && sel.star;
+            }
 
             DrawTopBar();
             if (spec == null)
@@ -121,6 +126,14 @@ namespace Laubrary.Pyre.Editor
             if (GUI.changed) Repaint();
         }
 
+
+        bool AnyStarLayer()
+        {
+            if (spec == null || spec.layers == null) return false;
+            foreach (var l in spec.layers)
+                if (l != null && l.enabled && l.shape == LayerShape.Bars && l.star) return true;
+            return false;
+        }
 
         // ── top bar ────────────────────────────────────────────────────────────
         void DrawTopBar()
@@ -157,20 +170,6 @@ namespace Laubrary.Pyre.Editor
             spec.pixelsPerUnit = Mathf.Max(1f, EditorGUILayout.FloatField("Pixels per unit", spec.pixelsPerUnit));
             spec.background = EditorGUILayout.ColorField("Bake background", spec.background);
             spec.frameCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.frameCount, 1, 64, "Frame count")));
-
-            using (Box("Directional / star (bars & directional layers)"))
-            {
-                ValRow("Base angle", spec.baseAngleDeg, -180f, 180f, 0f);
-                spec.star = Toggle(spec.star, "Star (arms radiate from the centre)");
-                // Arms/Spread only exist while Star is on — gate on the Layout-captured value so the control count
-                // is stable across this frame's Layout and Repaint passes even if the toggle is clicked.
-                if (starLayout)
-                {
-                    spec.spreadCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.spreadCount, 1, 24, "Arms")));
-                    ValRow("Spread degrees", spec.spreadDegrees, 0f, 360f, 360f);
-                    Label("Arms share the centre and radiate outward; canvas auto-fits.", ZUI.ZTextStyle.Small);
-                }
-            }
 
             VerticalSpace();
             Label("Global modifiers", ZUI.ZTextStyle.SectionHeader);
@@ -352,6 +351,15 @@ namespace Laubrary.Pyre.Editor
                     l.barDecay = (BarDecay)MiniRadio((int)l.barDecay, BarDecayLabels);
                     if (decayForLayout == BarDecay.Dissolve)
                         l.dissolveStart = Slider(l.dissolveStart, 0f, 1f, "Dissolve start");
+
+                    ValRow("Base angle", l.baseAngleDeg, -180f, 180f, 0f);
+                    l.star = Toggle(l.star, "Star (arms radiate from centre)");
+                    if (barStarLayout)   // Layout-captured gate so the control count is reflow-safe
+                    {
+                        l.spreadCount = Mathf.Max(1, Mathf.RoundToInt(Slider(l.spreadCount, 1, 24, "Arms")));
+                        ValRow("Spread degrees", l.spreadDegrees, 0f, 360f, 360f);
+                        Label("Arms share the centre and radiate outward; canvas auto-fits.", ZUI.ZTextStyle.Small);
+                    }
                 }
                 VerticalSpace();
                 Label("Modifiers", ZUI.ZTextStyle.SectionHeader);

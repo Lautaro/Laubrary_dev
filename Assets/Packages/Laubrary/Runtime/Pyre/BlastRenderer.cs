@@ -120,14 +120,9 @@ namespace Laubrary.Pyre
             float bp = frameCount > 1 ? frameIndex / (float)(frameCount - 1) : 0f;   // blast progress 0..1
             float framePhase = frameCount > 1 ? (frameIndex / (float)frameCount) * Mathf.PI * 2f : 0f;
 
-            // Base angle & star spread arc are (animatable) blast-globals, evaluated once per frame.
-            float baseA = Eval(spec.baseAngleDeg, bp, spec.seed, GlobalLayerId, frameIndex, F_BaseAngle);
-            int spread = spec.star ? Mathf.Max(1, spec.spreadCount) : 1;
-            float spreadDeg = spec.star ? Eval(spec.spreadDegrees, bp, spec.seed, GlobalLayerId, frameIndex, F_SpreadDeg) : 0f;
-
             // Composite strictly back-to-front. Bars render ALL their star arms internally (interleaved by bar
             // index so overlapping arms layer consistently); scatter layers draw once per star copy, rotated
-            // about the centre.
+            // about the centre. Star (base angle / arms / spread arc) is now PER-LAYER.
             for (int li = 0; li < spec.layers.Count; li++)
             {
                 var layer = spec.layers[li];
@@ -140,9 +135,14 @@ namespace Laubrary.Pyre
 
                 ModStack stack = BuildStack(layer, spec, li, lp, bp, frameIndex);
 
+                // Per-layer star: how many rotated copies and the arc they span.
+                int spread = layer.star ? Mathf.Max(1, layer.spreadCount) : 1;
+                float spreadDeg = layer.star ? Eval(layer.spreadDegrees, lp, spec.seed, li, 0, F_SpreadDeg) : 0f;
+
                 // Bars mode is a wholly different, directional composition — draws all its arms itself.
                 if (layer.shape == LayerShape.Bars)
                 {
+                    float baseA = Eval(layer.baseAngleDeg, lp, spec.seed, li, 0, F_BaseAngle);
                     RenderBarsLayerStar(buf, W, H, cx, cy, layer, li, spec, lp, frameIndex, baseA, spreadDeg, spread, stack);
                     continue;
                 }
@@ -287,7 +287,7 @@ namespace Laubrary.Pyre
                                         float baseA, float spreadDeg, int spread, ModStack stack)
         {
             Vector2 center = new Vector2(cx, cy);
-            bool star = spec.star;
+            bool star = layer.star;
 
             // per-layer bar knobs (multicontrols evaluated once over the layer's life)
             int B = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.barCount, lp, spec.seed, li, 0, F_BarCount)));

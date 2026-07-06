@@ -29,63 +29,57 @@ namespace Laubrary.Pyre
         [Tooltip("Pixels-per-unit used for the baked sprites and the runtime player.")]
         public float pixelsPerUnit = 64f;
 
-        // ── bar/directional composition (used by Bars-mode layers and the star spread) ──
-        [Tooltip("Fundamental direction (deg) the blast grows toward. Bar layer angles are relative to this. Animatable.")]
-        public ZUIValue baseAngleDeg = new ZUIValue(0f);
-        [Tooltip("Star: duplicate the blast into `arms` copies that share the centre and radiate OUTWARD (an " +
-                 "asterisk of bar-combs); the canvas auto-fits. Off = a single arm (bars stream off the back edge).")]
-        public bool star = false;
-        [Min(1)]
-        [Tooltip("Star: how many arms radiate from the centre.")]
-        public int spreadCount = 5;
-        [Tooltip("Star: total arc (deg) the arms span. 360 = evenly around the full circle. Animatable.")]
-        public ZUIValue spreadDegrees = new ZUIValue(360f);
-
         /// Canvas width/height in pixels. Normally the authored size (height falls back to width when 0 = square);
-        /// when Star is on the canvas auto-fits the bar arms so nothing clips.
-        public int Width  { get { if (star) { ComputeStarBox(out int w, out _); return w; } return Mathf.Max(1, canvasSize); } }
-        public int Height { get { if (star) { ComputeStarBox(out _, out int h); return h; } return canvasHeight > 0 ? canvasHeight : Mathf.Max(1, canvasSize); } }
+        /// when any Bars layer has Star on, the canvas auto-fits its arms so nothing clips.
+        public int Width  { get { if (AnyStar) { ComputeStarBox(out int w, out _); return w; } return Mathf.Max(1, canvasSize); } }
+        public int Height { get { if (AnyStar) { ComputeStarBox(out _, out int h); return h; } return canvasHeight > 0 ? canvasHeight : Mathf.Max(1, canvasSize); } }
 
-        // When Star is on the bar arms share the centre and reach outward, so the canvas must fit the arms in every
-        // direction they point. Sized from the bar layers' max forward reach + the arm angles, symmetric about the
-        // centre so the shared origin stays centred. No bar layers (or star off) → fall back to the authored canvas.
+        bool AnyStar
+        {
+            get
+            {
+                if (layers == null) return false;
+                foreach (var l in layers)
+                    if (l != null && l.enabled && l.shape == LayerShape.Bars && l.star) return true;
+                return false;
+            }
+        }
+
+        // Fit the canvas to every star Bars layer's arms (each arm radiates outward from the shared centre). Sized
+        // symmetric about the centre so the shared origin stays centred. No star layers → authored canvas.
         void ComputeStarBox(out int w, out int h)
         {
-            float reach = 0f, combHalf = 0f;
+            float maxX = 0f, maxY = 0f;
+            bool any = false;
             if (layers != null)
                 foreach (var l in layers)
                 {
-                    if (l == null || !l.enabled || l.shape != LayerShape.Bars) continue;
-                    reach = Mathf.Max(reach, MaxOf(l.barForward) + Mathf.Max(0f, MaxOf(l.originInset)));
-                    combHalf = Mathf.Max(combHalf, MaxOf(l.barCount) * MaxOf(l.barSpacing) + MaxOf(l.barWidth));
+                    if (l == null || !l.enabled || l.shape != LayerShape.Bars || !l.star) continue;
+                    any = true;
+                    float reach = MaxOf(l.barForward) + Mathf.Max(0f, MaxOf(l.originInset));
+                    float combHalf = MaxOf(l.barCount) * MaxOf(l.barSpacing) + MaxOf(l.barWidth);
+                    maxX = Mathf.Max(maxX, combHalf); maxY = Mathf.Max(maxY, combHalf);
+                    int n = Mathf.Max(1, l.spreadCount);
+                    bool tight = l.baseAngleDeg != null && l.spreadDegrees != null
+                                 && l.baseAngleDeg.mode == ZUIValue.Mode.Static && l.spreadDegrees.mode == ZUIValue.Mode.Static;
+                    if (!tight)
+                    {
+                        maxX = Mathf.Max(maxX, reach); maxY = Mathf.Max(maxY, reach);   // arms may sweep → fit a square
+                    }
+                    else
+                    {
+                        float baseDeg = l.baseAngleDeg.staticValue;
+                        float step = n > 1 ? l.spreadDegrees.staticValue / n : 0f;
+                        for (int i = 0; i < n; i++)
+                        {
+                            float a = (baseDeg + step * i) * Mathf.Deg2Rad;
+                            maxX = Mathf.Max(maxX, Mathf.Abs(Mathf.Cos(a) * reach));
+                            maxY = Mathf.Max(maxY, Mathf.Abs(Mathf.Sin(a) * reach));
+                        }
+                    }
                 }
-            if (reach < 1f)   // nothing to fit — keep the authored canvas
-            {
-                w = Mathf.Max(1, canvasSize);
-                h = canvasHeight > 0 ? canvasHeight : w;
-                return;
-            }
-            int n = Mathf.Max(1, spreadCount);
+            if (!any) { w = Mathf.Max(1, canvasSize); h = canvasHeight > 0 ? canvasHeight : w; return; }
             const float margin = 3f;
-            // If the base angle or arc animate, the arms sweep, so fit a square that covers any rotation. Otherwise
-            // fit a tight symmetric box to the static arm directions.
-            bool tight = baseAngleDeg != null && spreadDegrees != null
-                         && baseAngleDeg.mode == ZUIValue.Mode.Static && spreadDegrees.mode == ZUIValue.Mode.Static;
-            if (!tight)
-            {
-                int s = Mathf.Clamp(Mathf.CeilToInt((Mathf.Max(reach, combHalf) + margin) * 2f), 4, 1024);
-                w = s; h = s;
-                return;
-            }
-            float baseDeg = baseAngleDeg.staticValue;
-            float step = n > 1 ? spreadDegrees.staticValue / n : 0f;
-            float maxX = combHalf, maxY = combHalf;   // the comb base spans ±combHalf around the shared origin
-            for (int i = 0; i < n; i++)
-            {
-                float a = (baseDeg + step * i) * Mathf.Deg2Rad;
-                maxX = Mathf.Max(maxX, Mathf.Abs(Mathf.Cos(a) * reach));
-                maxY = Mathf.Max(maxY, Mathf.Abs(Mathf.Sin(a) * reach));
-            }
             w = Mathf.Clamp(Mathf.CeilToInt((maxX + margin) * 2f), 4, 1024);
             h = Mathf.Clamp(Mathf.CeilToInt((maxY + margin) * 2f), 4, 1024);
         }

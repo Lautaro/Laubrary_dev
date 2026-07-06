@@ -131,6 +131,18 @@ namespace Laubrary.Pyre
         [Tooltip("Bars: push the origin this many pixels in from the surface edge, for a little breathing room. Animatable.")]
         public ZUIValue originInset = new ZUIValue(4f);
 
+        // ── Bars star (PER-LAYER): duplicate this bar row into arms radiating from the centre ──
+        [Tooltip("Bars: fundamental direction (deg) this row grows toward. Animatable.")]
+        public ZUIValue baseAngleDeg = new ZUIValue(0f);
+        [Tooltip("Bars: Star = duplicate this layer into `arms` copies sharing the centre and radiating outward (an " +
+                 "asterisk); the canvas auto-fits. Off = a single arm off the back edge. Per-layer.")]
+        public bool star = false;
+        [Min(1)]
+        [Tooltip("Bars star: how many arms radiate from the centre.")]
+        public int spreadCount = 5;
+        [Tooltip("Bars star: total arc (deg) the arms span. 360 = a full circle. Animatable.")]
+        public ZUIValue spreadDegrees = new ZUIValue(360f);
+
         // ── wind: a directional drift added to EVERY shape, growing with the shape's age (any emission mode) ──
         [Tooltip("Wind drift X in pixels, applied × the shape's life so older particles drift further (animatable). " +
                  "Models e.g. a fast-moving object exploding — everything gets pushed one way over time.")]
@@ -210,6 +222,8 @@ namespace Laubrary.Pyre
             l.originInset = CloneVal(originInset);
             l.barTaper = CloneVal(barTaper);
             l.barStagger = CloneVal(barStagger);
+            l.baseAngleDeg = CloneVal(baseAngleDeg);
+            l.spreadDegrees = CloneVal(spreadDegrees);
             l.colorOverLife = CloneGradient(colorOverLife);
             l.alpha = CloneVal(alpha);
             l.radialAlpha = radialAlpha == null ? null
