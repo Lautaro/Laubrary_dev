@@ -420,6 +420,11 @@ namespace Laubrary.Pyre.Editor
                 // capture for layout (a mode change reflows the directional fields next frame, not mid-frame)
                 var emitForLayout = l.emission;
                 l.emission = (EmissionMode)MiniRadio((int)l.emission, EmissionLabels);
+                // A Label is always one control, so the hint can key off the live mode safely.
+                Label(l.emission == EmissionMode.Radial
+                        ? "Radial: shapes scatter in a disc around the centre and grow out (a normal explosion)."
+                        : "Directional: shapes emit off a line/surface one way (flames, a jet, sparks off a wall).",
+                      ZUI.ZTextStyle.Small);
                 if (emitForLayout == EmissionMode.Directional)
                 {
                     l.originOffsetX = Slider(l.originOffsetX, -half, half, "Origin X");
