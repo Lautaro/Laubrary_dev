@@ -166,8 +166,9 @@ namespace Laubrary.Pyre
             layers = new List<Layer>();
 
             // ── back: dark smoke that starts a touch late and billows out big ──
-            var smoke = Layer.Default(LayerShape.DissolvingDisc);
+            var smoke = Layer.Default(LayerShape.Disc);
             smoke.name = "Smoke";
+            smoke.colorOverLife = Layer.SmokeGradient();
             smoke.startFrame = 3; smoke.endFrame = 15;
             smoke.count = new ZUIValue(6f);
             smoke.spawnRadius = new ZUIValue(0.34f);
@@ -205,14 +206,14 @@ namespace Laubrary.Pyre
             core.alpha = CoreAlpha();       // instant on, quick fade
             layers.Add(core);
 
-            // ── front: a single expanding shockwave ring ──
-            var ring = Layer.Default(LayerShape.Ring);
+            // ── front: a single expanding shockwave ring (a thin-Thickness Disc) ──
+            var ring = Layer.Default(LayerShape.Disc);
             ring.name = "Shockwave";
             ring.startFrame = 0; ring.endFrame = 9;
             ring.count = new ZUIValue(1f);
             ring.spawnRadius = new ZUIValue(0f);
             ring.size = Layer.CurveVal(30f, 0f, 3f, 1f, 28f);
-            ring.ringThickness = 2f;
+            ring.thickness = new ZUIValue(0.08f);   // thin ring
             ring.colorOverLife = Layer.WhiteHotGradient();
             ring.alpha = RingAlpha();       // bright then fades as it expands
             layers.Add(ring);

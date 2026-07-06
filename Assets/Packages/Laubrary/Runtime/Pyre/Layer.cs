@@ -70,14 +70,13 @@ namespace Laubrary.Pyre
         [Tooltip("Saturation (1 = unchanged, 0 = greyscale). Animatable.")]
         public ZUIValue saturation = new ZUIValue(1f);
 
-        [Tooltip("Ring: thickness of the annulus in pixels (drawn inward from the radius).")]
-        public float ringThickness = 2f;
+        [Tooltip("Disc: border thickness. 1 = a full disc; lower values grow a ring inward from the edge; 0 = a " +
+                 "1px border. Animatable — a Disc IS a ring/circle/sphere in one type.")]
+        public ZUIValue thickness = new ZUIValue(1f);
 
-        [Range(0f, 1f)]
-        [Tooltip("DissolvingDisc: where the growing hole sits, 0 = centred, 1 = pushed to the rim.")]
-        public float dissolveCenter = 0f;
-        [Tooltip("DissolvingDisc: keep a 1px outer border even after the middle has dissolved away.")]
-        public bool dissolveKeepBorder = true;
+        [Tooltip("Sprite: the sprite stamped as particles (its texture must be read/write enabled). Use the editor's " +
+                 "'New sprite (Aseprite)' button to make + edit one.")]
+        public Sprite particleSprite;
 
         [Tooltip("SparkleField: fraction of pixels inside the circle that light up. Animatable — a rising envelope " +
                  "makes the sparkles ignite over the shape's life.")]
@@ -187,9 +186,7 @@ namespace Laubrary.Pyre
                 positionX = new ZUIValue(0f),
                 positionY = new ZUIValue(0f),
                 size = DefaultSize(),
-                ringThickness = 2f,
-                dissolveCenter = 0f,
-                dissolveKeepBorder = true,
+                thickness = new ZUIValue(1f),
                 sparkleDensity = new ZUIValue(0.25f),
                 crescentOffsetX = new ZUIValue(6f),
                 crescentOffsetY = new ZUIValue(0f),
@@ -201,13 +198,9 @@ namespace Laubrary.Pyre
 
             switch (shape)
             {
-                case LayerShape.Ring:
-                    l.count = new ZUIValue(1f); l.spawnRadius = new ZUIValue(0f);
-                    l.size = CurveVal(30f, 0f, 3f, 1f, 26f); l.ringThickness = 2f;
-                    break;
-                case LayerShape.DissolvingDisc:
-                    l.count = new ZUIValue(5f); l.spawnRadius = new ZUIValue(0.24f);
-                    l.size = CurveVal(20f, 0f, 8f, 1f, 16f);
+                case LayerShape.Sprite:
+                    l.count = new ZUIValue(10f); l.spawnRadius = new ZUIValue(0.4f);
+                    l.size = CurveVal(8f, 0f, 6f, 0.5f, 8f, 1f, 4f);
                     break;
                 case LayerShape.SparkleField:
                     l.count = new ZUIValue(1f); l.spawnRadius = new ZUIValue(0f);
@@ -244,6 +237,7 @@ namespace Laubrary.Pyre
             l.originAngleDeg = CloneVal(originAngleDeg);
             l.emitSpreadDeg = CloneVal(emitSpreadDeg);
             l.sparkleDensity = CloneVal(sparkleDensity);
+            l.thickness = CloneVal(thickness);
             l.windX = CloneVal(windX);
             l.windY = CloneVal(windY);
             l.barCount = CloneVal(barCount);
@@ -300,22 +294,27 @@ namespace Laubrary.Pyre
             return n;
         }
 
-        /// A shape-appropriate default gradient (fire for most, smoke for dissolving discs).
+        /// A dark grey→charcoal smoke gradient.
+        public static Gradient SmokeGradient()
+        {
+            var g = new Gradient();
+            g.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(new Color(0.55f, 0.52f, 0.5f), 0f),
+                    new GradientColorKey(new Color(0.28f, 0.26f, 0.26f), 0.5f),
+                    new GradientColorKey(new Color(0.10f, 0.10f, 0.12f), 1f),
+                },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+            return g;
+        }
+
+        /// A shape-appropriate default gradient (fire for most, hot sparks for sparkle fields).
         public static Gradient DefaultColor(LayerShape shape)
         {
             var g = new Gradient();
             switch (shape)
             {
-                case LayerShape.DissolvingDisc:   // dark smoke
-                    g.SetKeys(
-                        new[]
-                        {
-                            new GradientColorKey(new Color(0.55f, 0.52f, 0.5f), 0f),
-                            new GradientColorKey(new Color(0.28f, 0.26f, 0.26f), 0.5f),
-                            new GradientColorKey(new Color(0.10f, 0.10f, 0.12f), 1f),
-                        },
-                        new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
-                    break;
                 case LayerShape.SparkleField:     // hot sparks
                     g.SetKeys(
                         new[]

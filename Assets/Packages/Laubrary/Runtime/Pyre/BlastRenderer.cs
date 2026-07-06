@@ -29,7 +29,7 @@ namespace Laubrary.Pyre
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
         const int F_BaseAngle = 25, F_SpreadDeg = 26, F_Taper = 27, F_Stagger = 28;
         const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
-        const int F_SparkleDensity = 34, F_OriginAngle = 35, F_OriginBend = 36, F_EmitSpread = 37;
+        const int F_SparkleDensity = 34, F_OriginAngle = 35, F_OriginBend = 36, F_EmitSpread = 37, F_Thickness = 38;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing the global deform
 
@@ -309,8 +309,10 @@ namespace Laubrary.Pyre
 
                     float sparkleD = layer.shape == LayerShape.SparkleField
                         ? Mathf.Clamp01(Eval(layer.sparkleDensity, t, spec.seed, li, si, F_SparkleDensity)) : 1f;
+                    float discThick = layer.shape == LayerShape.Disc
+                        ? Mathf.Clamp01(Eval(layer.thickness, t, spec.seed, li, si, F_Thickness)) : 1f;
                     RasterShape(buf, W, H, cx, cy, global, local, framePhase, layer, c, radius, baseCol, alpha,
-                                t, shapeSeed, disProb, crescX, crescY, grade, stack, frameIndex, sparkleD);
+                                t, shapeSeed, disProb, crescX, crescY, grade, stack, frameIndex, sparkleD, discThick);
                 }
               }
             }
@@ -483,7 +485,7 @@ namespace Laubrary.Pyre
         static void RasterShape(Color32[] buf, int W, int H, float cx, float cy, Deform global, Deform local,
                                 float framePhase, Layer layer, Vector2 c, float radius, Color baseCol, float alpha,
                                 float t, int shapeSeed, float disProb, float crescX, float crescY, Grade grade,
-                                ModStack stack, int frameIndex, float sparkleDensity)
+                                ModStack stack, int frameIndex, float sparkleDensity, float discThickness)
         {
             for (int y = 0; y < H; y++)
             {
@@ -497,7 +499,7 @@ namespace Laubrary.Pyre
                     if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase);
                     float ux = off.x, uy = off.y;
 
-                    if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, sparkleDensity, out Color col))
+                    if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, sparkleDensity, discThickness, out Color col))
                         continue;
 
                     // Disintegrate drop-out (deterministic per pixel).
@@ -525,7 +527,7 @@ namespace Laubrary.Pyre
         // Returns whether this undeformed pixel is inside the shape, and the colour to lay down.
         static bool ShapeHit(Layer layer, float ux, float uy, Vector2 c, float radius, float t,
                              int shapeSeed, int x, int y, Color baseCol, float crescX, float crescY,
-                             float sparkleDensity, out Color col)
+                             float sparkleDensity, float discThickness, out Color col)
         {
             col = baseCol;
             float dx = ux - c.x, dy = uy - c.y;
@@ -534,22 +536,13 @@ namespace Laubrary.Pyre
             switch (layer.shape)
             {
                 case LayerShape.Disc:
-                    return dist <= radius;
-
-                case LayerShape.Ring:
-                {
-                    float thk = Mathf.Max(1f, layer.ringThickness);
-                    return dist <= radius && dist >= radius - thk;
-                }
-
-                case LayerShape.DissolvingDisc:
                 {
                     if (dist > radius) return false;
-                    float holeR = t * radius;                                  // hole grows to full by end
-                    Vector2 hc = c + Vector2.right * (layer.dissolveCenter * radius);
-                    float hdist = Vector2.Distance(new Vector2(ux, uy), hc);
-                    bool border = layer.dissolveKeepBorder && dist >= radius - 1f;
-                    return hdist >= holeR || border;
+                    // Thickness 1 = full disc; lower grows a ring inward from the edge; 0 = a ~1px border.
+                    float inner = radius * (1f - discThickness);
+                    if (inner > radius - 1f) inner = radius - 1f;
+                    if (inner < 0f) inner = 0f;
+                    return dist >= inner;
                 }
 
                 case LayerShape.SparkleField:

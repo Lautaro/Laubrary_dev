@@ -3,12 +3,11 @@ namespace Laubrary.Pyre
     /// The primitive a Layer stamps. Kept deliberately small and chunky so bakes read as pixel art.
     public enum LayerShape
     {
-        Disc,           // filled circle
-        Ring,           // hollow annulus (shockwave)
-        DissolvingDisc, // filled circle eaten away by a growing hole
-        SparkleField,   // random single lit pixels scattered inside a circle
+        Disc,           // filled circle → ring via the Thickness param (0 = 1px border, 1 = full disc)
         Crescent,       // a disc with a second offset disc masked out
-        Bars            // a symmetric row of forward-growing bars streaming off an edge (directional blast)
+        SparkleField,   // random single lit pixels scattered inside a circle
+        Bars,           // a symmetric row of forward-growing bars streaming off an edge (directional blast)
+        Sprite          // stamps a supplied sprite as particles (a mini particle system)
     }
 
     /// How a Layer places and moves its shapes.

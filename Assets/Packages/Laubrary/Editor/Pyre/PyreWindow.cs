@@ -52,7 +52,7 @@ namespace Laubrary.Pyre.Editor
         Texture2D previewTex;
         Rect lastView;                  // remembered for the Fit button
 
-        static readonly string[] ShapeLabels = { "Disc", "Ring", "Dissolve", "Sparkle", "Crescent", "Bars" };
+        static readonly string[] ShapeLabels = { "Disc", "Crescent", "Sparkle", "Bars", "Sprite" };
         static readonly string[] EmissionLabels = { "Radial", "Directional" };
         static readonly string[] BarDecayLabels = { "Contract", "Dissolve" };
 
@@ -371,12 +371,8 @@ namespace Laubrary.Pyre.Editor
 
             switch (shapeForLayout)
             {
-                case LayerShape.Ring:
-                    l.ringThickness = Slider(l.ringThickness, 1f, 12f, "Ring thickness");
-                    break;
-                case LayerShape.DissolvingDisc:
-                    l.dissolveCenter = Slider(l.dissolveCenter, 0f, 1f, "Dissolve centre");
-                    l.dissolveKeepBorder = Toggle(l.dissolveKeepBorder, "Keep border");
+                case LayerShape.Disc:
+                    ValRow("Thickness", l.thickness, 0f, 1f, 1f);   // 1 = full disc, 0 = 1px ring
                     break;
                 case LayerShape.SparkleField:
                     ValRow("Sparkle density", l.sparkleDensity, 0f, 1f, 0.25f);
