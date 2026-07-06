@@ -461,7 +461,16 @@ namespace Laubrary.Pyre
                         pixelAlpha *= Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(layer.radialAlpha, nd, 1f));
                     if (pixelAlpha <= 0.001f) continue;
 
+                    // Colour mode: Over life = the per-shape colour; Fill = the gradient across the shape (centre→
+                    // edge); Flow fill = that spatial fill scrolled through the gradient over life. (Sparkle keeps
+                    // its own per-pixel shimmer.)
                     Color fc = col;
+                    if (layer.colorMode != ColorMode.OverLife && layer.shape != LayerShape.SparkleField && layer.colorOverLife != null)
+                    {
+                        float frac = layer.colorMode == ColorMode.FlowingFill
+                            ? Mathf.Repeat(nd + t * layer.colorFlowScale, 1f) : nd;
+                        fc = layer.colorOverLife.Evaluate(frac);
+                    }
                     float outA = pixelAlpha * fc.a;
                     if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, nd, t, shapeSeed, W, H))
                         continue;

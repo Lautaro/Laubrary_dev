@@ -10,6 +10,14 @@ namespace Laubrary.Pyre
         Sprite          // stamps a supplied sprite as particles (a mini particle system)
     }
 
+    /// How a shape's colour gradient is applied (solid shapes — Disc / Crescent).
+    public enum ColorMode
+    {
+        OverLife,     // one colour for the whole shape, sampled from the gradient at the shape's life 0→1
+        Fill,         // the gradient fills the shape spatially (centre → edge), constant over life
+        FlowingFill   // a spatial fill whose gradient scrolls through its spectrum over the shape's life
+    }
+
     /// How a Layer places and moves its shapes.
     public enum EmissionMode
     {

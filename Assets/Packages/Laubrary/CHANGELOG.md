@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **No built-in motion**: Size/Alpha default to grow→shrink envelopes and everything is an exposed multi-control;
     more params promoted to multi-controls (sparkle density, origin bend/angle, emit spread, base angle, spread,
     taper, stagger, thickness, dissolve, mask progress, …).
+  - **Colour mode** for Disc/Crescent: **Over life** (one colour sampled over life — the original), **Fill** (the
+    gradient fills the shape centre→edge, constant over life), or **Flow fill** (that spatial fill scrolls through
+    the gradient over life, at an adjustable flow speed).
   - Editor: a single **Modifiers** section (global + per-layer) with a grouped "+ Add" menu; label column widened
     so long labels don't clip; the **Image backdrop** now shows the whole image (ScaleToFit) instead of cropping.
 

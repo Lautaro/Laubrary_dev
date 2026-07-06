@@ -327,6 +327,13 @@ namespace Laubrary.Pyre.Editor
             l.colorOverLife ??= Layer.DefaultColor(l.shape);
             l.alpha ??= Layer.DefaultAlpha();
             l.colorOverLife = EditorGUILayout.GradientField("Colour", l.colorOverLife);
+            if (shapeForLayout == LayerShape.Disc || shapeForLayout == LayerShape.Crescent)
+            {
+                var colorModeForLayout = l.colorMode;
+                l.colorMode = (ColorMode)MiniRadio((int)l.colorMode, ColorModeLabels);
+                if (colorModeForLayout == ColorMode.FlowingFill)
+                    l.colorFlowScale = Slider(l.colorFlowScale, 0.1f, 4f, "Flow speed");
+            }
             ValRow("Alpha", l.alpha, 0f, 1f);
 
             // Bars is a self-contained directional mode — none of the scatter / emission / deform controls apply,
@@ -455,6 +462,7 @@ namespace Laubrary.Pyre.Editor
 
         static readonly string[] DissolveModeLabels = { "Erase", "Fade", "Bleed", "Scatter" };
         static readonly string[] MaskShapeLabels = { "Disc out", "Disc in", "Swipe H", "Swipe V" };
+        static readonly string[] ColorModeLabels = { "Over life", "Fill", "Flow fill" };
 
         // ── modifier stack UI (Pyre v2): the opt-in geometry/pixel effects on a layer or globally ──────────
         // Shared by the Blast panel (global modifiers) and the Layer panel (per-layer). Removal is deferred to

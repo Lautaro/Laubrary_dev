@@ -43,8 +43,13 @@ namespace Laubrary.Pyre
         [Tooltip("Shape radius in pixels over life — a multicontrol (defaults to a grow-then-shrink envelope).")]
         public ZUIValue size = DefaultSize();
 
-        [Tooltip("Colour vs normalised life 0..1.")]
+        [Tooltip("The shape's colour gradient. How it's applied is set by Colour mode.")]
         public Gradient colorOverLife = DefaultColor(LayerShape.Disc);
+        [Tooltip("Disc/Crescent: Over life = one colour sampled at life; Fill = the gradient fills the shape " +
+                 "centre→edge; Flow fill = that spatial fill scrolls through the gradient over life.")]
+        public ColorMode colorMode = ColorMode.OverLife;
+        [Tooltip("Flow fill: how many times the gradient scrolls across the shape over its life.")]
+        public float colorFlowScale = 1f;
         [Tooltip("Alpha over life — a multicontrol (defaults to an envelope). The ONLY thing that fades a shape.")]
         public ZUIValue alpha = DefaultAlpha();
 
