@@ -64,6 +64,8 @@ namespace Laubrary.Pyre
         [Tooltip("Sprite: the sprite stamped as particles (its texture must be read/write enabled). Use the editor's " +
                  "'New sprite (Aseprite)' button to make + edit one.")]
         public Sprite particleSprite;
+        [Tooltip("Sprite: degrees each particle spins over its life (each starts at a random angle). Animatable.")]
+        public ZUIValue spriteSpin = new ZUIValue(0f);
 
         [Tooltip("SparkleField: fraction of pixels inside the circle that light up. Animatable — a rising envelope " +
                  "makes the sparkles ignite over the shape's life.")]
@@ -224,6 +226,7 @@ namespace Laubrary.Pyre
             l.barStagger = CloneVal(barStagger);
             l.baseAngleDeg = CloneVal(baseAngleDeg);
             l.spreadDegrees = CloneVal(spreadDegrees);
+            l.spriteSpin = CloneVal(spriteSpin);
             l.colorOverLife = CloneGradient(colorOverLife);
             l.alpha = CloneVal(alpha);
             l.radialAlpha = radialAlpha == null ? null

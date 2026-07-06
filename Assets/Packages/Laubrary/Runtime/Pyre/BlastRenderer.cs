@@ -29,7 +29,7 @@ namespace Laubrary.Pyre
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
         const int F_BaseAngle = 25, F_SpreadDeg = 26, F_Taper = 27, F_Stagger = 28;
         const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
-        const int F_SparkleDensity = 34, F_OriginAngle = 35, F_OriginBend = 36, F_EmitSpread = 37, F_Thickness = 38;
+        const int F_SparkleDensity = 34, F_OriginAngle = 35, F_OriginBend = 36, F_EmitSpread = 37, F_Thickness = 38, F_SpriteSpin = 39;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -235,6 +235,18 @@ namespace Laubrary.Pyre
                         c = new Vector2(absX - cx, absY - cy);
                     }
                     radius = effR;
+
+                    if (layer.shape == LayerShape.Sprite)
+                    {
+                        if (layer.particleSprite != null)
+                        {
+                            float startAng = (float)(rng.NextDouble() * 360.0);
+                            float spin = Eval(layer.spriteSpin, t, spec.seed, li, si, F_SpriteSpin);
+                            RasterSprite(buf, W, H, cx, cy, layer.particleSprite, c, radius, startAng + spin,
+                                         baseCol, alpha, stack, frameIndex, t, shapeSeed);
+                        }
+                        continue;
+                    }
 
                     float sparkleD = layer.shape == LayerShape.SparkleField
                         ? Mathf.Clamp01(Eval(layer.sparkleDensity, t, spec.seed, li, si, F_SparkleDensity)) : 1f;
@@ -445,6 +457,67 @@ namespace Laubrary.Pyre
                     Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
                 }
             }
+        }
+
+        // ── Sprite particles: stamp a sprite's pixels at each particle, scaled + rotated. ─────────────────
+        // Sprite pixels are read once and cached (GetPixels needs the texture read/write-enabled). Editor edits in
+        // Aseprite reimport the texture; call ClearSpriteCache to see them without a domain reload.
+        static readonly System.Collections.Generic.Dictionary<Sprite, (Color[] px, int w, int h)> spriteCache = new();
+
+        /// Drop the cached sprite pixels (e.g. after a sprite was edited/reimported).
+        public static void ClearSpriteCache() => spriteCache.Clear();
+
+        static bool TryGetSpritePixels(Sprite s, out Color[] px, out int w, out int h)
+        {
+            px = null; w = 0; h = 0;
+            if (s == null || s.texture == null) return false;
+            if (spriteCache.TryGetValue(s, out var e)) { px = e.px; w = e.w; h = e.h; return px != null; }
+            Color[] got = null; int gw = 0, gh = 0;
+            try
+            {
+                Rect r = s.textureRect;
+                gw = Mathf.Max(1, (int)r.width); gh = Mathf.Max(1, (int)r.height);
+                got = s.texture.GetPixels((int)r.x, (int)r.y, gw, gh);
+            }
+            catch { got = null; }
+            spriteCache[s] = (got, gw, gh);
+            px = got; w = gw; h = gh;
+            return got != null;
+        }
+
+        // Stamp one sprite particle: fit the sprite's larger dimension to 2*radius, rotate by angleDeg, tint by the
+        // layer colour, composite. Pixel modifiers (tint/dissolve/mask) apply; geometry modifiers don't (like bars).
+        static void RasterSprite(Color32[] buf, int W, int H, float cx, float cy, Sprite sprite, Vector2 c,
+                                 float radius, float angleDeg, Color tint, float alpha,
+                                 ModStack stack, int frameIndex, float life, int hash)
+        {
+            if (radius < 0.25f || !TryGetSpritePixels(sprite, out var spx, out int sw, out int sh)) return;
+            float cxp = cx + c.x, cyp = cy + c.y;
+            float scale = (2f * radius) / Mathf.Max(sw, sh);
+            if (scale <= 1e-4f) return;
+            float rad = -angleDeg * Mathf.Deg2Rad;                 // inverse-rotate canvas → sprite space
+            float cosr = Mathf.Cos(rad), sinr = Mathf.Sin(rad);
+            float box = radius * 1.5f;                              // generous bbox to cover rotation
+            int x0 = Mathf.Max(0, Mathf.FloorToInt(cxp - box)), x1 = Mathf.Min(W - 1, Mathf.CeilToInt(cxp + box));
+            int y0 = Mathf.Max(0, Mathf.FloorToInt(cyp - box)), y1 = Mathf.Min(H - 1, Mathf.CeilToInt(cyp + box));
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    float dx = (x + 0.5f) - cxp, dy = (y + 0.5f) - cyp;
+                    float lx = dx * cosr - dy * sinr, ly = dx * sinr + dy * cosr;
+                    int su = Mathf.FloorToInt(lx / scale + sw * 0.5f);
+                    int sv = Mathf.FloorToInt(ly / scale + sh * 0.5f);
+                    if (su < 0 || su >= sw || sv < 0 || sv >= sh) continue;
+                    Color sc = spx[sv * sw + su];
+                    if (sc.a <= 0.003f) continue;
+
+                    Color fc = new Color(sc.r * tint.r, sc.g * tint.g, sc.b * tint.b, 1f);
+                    float outA = sc.a * alpha * tint.a;
+                    float crossFrac = Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy) / Mathf.Max(0.001f, radius));
+                    if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, crossFrac, life, hash, W, H))
+                        continue;
+                    Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
+                }
         }
 
         // Returns whether this undeformed pixel is inside the shape, and the colour to lay down.

@@ -389,6 +389,16 @@ namespace Laubrary.Pyre.Editor
                     ValRow("Crescent X", l.crescentOffsetX, -half, half);
                     ValRow("Crescent Y", l.crescentOffsetY, -half, half);
                     break;
+                case LayerShape.Sprite:
+                    EditorGUI.BeginChangeCheck();
+                    l.particleSprite = (Sprite)EditorGUILayout.ObjectField("Sprite", l.particleSprite, typeof(Sprite), false);
+                    if (EditorGUI.EndChangeCheck()) BlastRenderer.ClearSpriteCache();
+                    ValRow("Spin", l.spriteSpin, -360f, 360f, 0f);
+                    EditorGUILayout.BeginHorizontal();
+                    if (Button("New sprite (Aseprite)")) CreateParticleSprite(l);
+                    if (Button("Edit in Aseprite") && l.particleSprite != null) OpenInAseprite(l.particleSprite);
+                    EditorGUILayout.EndHorizontal();
+                    break;
             }
 
             using (Box("Radial alpha (per-pixel, by distance from centre)"))
@@ -721,6 +731,78 @@ namespace Laubrary.Pyre.Editor
         }
 
         // ── asset helpers ────────────────────────────────────────────────────────
+        // ── Sprite particles: create a starter PNG + open/edit it in Aseprite (like Zoetrope) ──────────────
+        void CreateParticleSprite(Layer l)
+        {
+            string specPath = spec != null ? AssetDatabase.GetAssetPath(spec) : null;
+            string dir = string.IsNullOrEmpty(specPath) ? "Assets" : System.IO.Path.GetDirectoryName(specPath);
+            string path = AssetDatabase.GenerateUniqueAssetPath(dir + "/PyreSprite.png");
+
+            // A tiny 8×8 starter with a 2×2 white dot so it renders before you draw anything.
+            const int size = 8;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var px = new Color32[size * size];
+            for (int i = 0; i < px.Length; i++) px[i] = new Color32(255, 255, 255, 0);
+            for (int yy = 3; yy <= 4; yy++) for (int xx = 3; xx <= 4; xx++) px[yy * size + xx] = new Color32(255, 255, 255, 255);
+            tex.SetPixels32(px); tex.Apply();
+            System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
+            DestroyImmediate(tex);
+            AssetDatabase.ImportAsset(path);
+
+            if (AssetImporter.GetAtPath(path) is TextureImporter imp)
+            {
+                imp.textureType = TextureImporterType.Sprite;
+                imp.spriteImportMode = SpriteImportMode.Single;
+                imp.isReadable = true;                 // BlastRenderer reads the pixels
+                imp.filterMode = FilterMode.Point;
+                imp.textureCompression = TextureImporterCompression.Uncompressed;
+                imp.mipmapEnabled = false;
+                imp.SaveAndReimport();
+            }
+
+            l.particleSprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (spec != null) EditorUtility.SetDirty(spec);
+            BlastRenderer.ClearSpriteCache();
+            OpenInAseprite(l.particleSprite);
+            Repaint();
+        }
+
+        void OpenInAseprite(Sprite s)
+        {
+            if (s == null) return;
+            BlastRenderer.ClearSpriteCache();
+            string p = System.IO.Path.GetFullPath(AssetDatabase.GetAssetPath(s));
+            if (!System.IO.File.Exists(p)) return;
+            string exe = ResolveAsepriteExe();
+            try
+            {
+                var psi = exe != null
+                    ? new System.Diagnostics.ProcessStartInfo(exe, $"\"{p}\"") { UseShellExecute = false }
+                    : new System.Diagnostics.ProcessStartInfo(p) { UseShellExecute = true };
+                System.Diagnostics.Process.Start(psi);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[Pyre] could not open Aseprite ({e.Message}). Set the path via Tools ▸ Zoetrope ▸ Set Aseprite Path…");
+            }
+        }
+
+        // Shares Zoetrope's saved Aseprite path (EditorPref) so it's set once for the whole library.
+        static string ResolveAsepriteExe()
+        {
+            string p = EditorPrefs.GetString("Zoetrope.AsepritePath", "");
+            if (System.IO.File.Exists(p)) return p;
+            string[] common =
+            {
+                @"C:\Program Files\Aseprite\Aseprite.exe",
+                @"C:\Program Files (x86)\Steam\steamapps\common\Aseprite\Aseprite.exe",
+                @"C:\Program Files\Steam\steamapps\common\Aseprite\Aseprite.exe",
+                "/Applications/Aseprite.app/Contents/MacOS/aseprite",
+            };
+            foreach (var c in common) if (System.IO.File.Exists(c)) return c;
+            return null;
+        }
+
         void NewExample()
         {
             if (spec == null)
