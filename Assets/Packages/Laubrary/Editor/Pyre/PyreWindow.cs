@@ -444,6 +444,7 @@ namespace Laubrary.Pyre.Editor
         }
 
         static readonly string[] DissolveModeLabels = { "Erase", "Fade", "Bleed", "Scatter" };
+        static readonly string[] MaskShapeLabels = { "Disc out", "Disc in", "Swipe H", "Swipe V" };
 
         // ── modifier stack UI (Pyre v2): the opt-in geometry/pixel effects on a layer or globally ──────────
         // Shared by the Blast panel (global modifiers) and the Layer panel (per-layer). Removal is deferred to
@@ -496,6 +497,15 @@ namespace Laubrary.Pyre.Editor
                     ValRow("Amount", d.amount, 0f, 1f, 0f);
                     d.mode = (DissolveMode)MiniRadio((int)d.mode, DissolveModeLabels);
                     break;
+                case AlphaMaskModifier am:
+                    am.shape = (MaskShape)MiniRadio((int)am.shape, MaskShapeLabels);
+                    ValRow("Progress", am.progress, 0f, 1f, 1f);
+                    am.sharpness = Slider(am.sharpness, 0f, 1f, "Sharpness");
+                    ValRow("Size", am.size, 0.1f, 4f, 1f);
+                    ValRow("Rotation", am.rotation, -180f, 180f, 0f);
+                    am.offsetX = Slider(am.offsetX, -1f, 1f, "Offset X");
+                    am.offsetY = Slider(am.offsetY, -1f, 1f, "Offset Y");
+                    break;
             }
         }
 
@@ -516,6 +526,7 @@ namespace Laubrary.Pyre.Editor
             Add("Geometry/Wobble", () => new WobbleModifier());
             Add("Tint", () => new TintModifier());
             Add("Dissolve", () => new DissolveModifier());
+            Add("Alpha mask", () => new AlphaMaskModifier());
             menu.ShowAsContext();
         }
 

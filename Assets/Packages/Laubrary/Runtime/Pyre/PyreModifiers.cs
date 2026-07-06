@@ -3,6 +3,15 @@ using UnityEngine;
 
 namespace Laubrary.Pyre
 {
+    /// The moving shape an Alpha-Mask modifier sweeps across the layer.
+    public enum MaskShape
+    {
+        DiscOut,   // a disc that reveals from the centre outward as progress rises (grow from within)
+        DiscIn,    // transparency grows from the edges inward, consuming the frame as progress rises
+        SwipeH,    // a horizontal wipe (left → right), like a scene transition
+        SwipeV     // a vertical wipe (bottom → top)
+    }
+
     /// How a Dissolve modifier eats pixels as its amount rises to 1 (everything gone).
     public enum DissolveMode
     {
@@ -208,5 +217,69 @@ namespace Laubrary.Pyre
         }
 
         static ZUIValue DefaultAmount() => Layer.CurveVal(1f, 0f, 0f, 0.6f, 0f, 1f, 1f);
+    }
+
+    /// A moving transparency mask: sweeps a soft-edged shape across the layer, multiplying alpha. A disc that
+    /// reveals from the centre out or eats inward from the edges, or a horizontal / vertical wipe (scene-transition
+    /// style). Animate `progress` (0→1) to drive the sweep; sharpness sets the edge hardness; size scales it;
+    /// rotation + offset place it.
+    [Serializable]
+    public class AlphaMaskModifier : PixelModifier
+    {
+        public MaskShape shape = MaskShape.DiscOut;
+        [Tooltip("0→1 sweep position. A rising envelope reveals the layer; a falling one hides it. Animatable.")]
+        public ZUIValue progress = DefaultProgress();
+        [Range(0f, 1f)]
+        [Tooltip("Edge hardness: 1 = a crisp cut, 0 = a wide soft gradient.")]
+        public float sharpness = 0.6f;
+        [Tooltip("Mask scale. 1 = spans the half-canvas. Animatable.")]
+        public ZUIValue size = new ZUIValue(1f);
+        [Tooltip("Mask rotation in degrees (rotates the wipe direction / disc axis). Animatable.")]
+        public ZUIValue rotation = new ZUIValue(0f);
+        [Tooltip("Mask centre offset X, in half-canvas units (-1..1).")]
+        public float offsetX = 0f;
+        [Tooltip("Mask centre offset Y, in half-canvas units (-1..1).")]
+        public float offsetY = 0f;
+
+        float prog, siz, rotRad;
+        public override string DisplayName => "Alpha mask";
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        {
+            prog = Mathf.Clamp01(e(progress, 0));
+            siz = Mathf.Max(0.01f, e(size, 1));
+            rotRad = e(rotation, 2) * Mathf.Deg2Rad;
+        }
+
+        public override bool ApplyPixel(ref Color col, ref float a, in PixelInfo p)
+        {
+            float halfW = p.W * 0.5f, halfH = p.H * 0.5f;
+            float unit = Mathf.Max(1f, Mathf.Min(halfW, halfH));
+            float nx = ((p.x + 0.5f) - halfW) / unit - offsetX;
+            float ny = ((p.y + 0.5f) - halfH) / unit - offsetY;
+            if (rotRad != 0f)
+            {
+                float c = Mathf.Cos(-rotRad), s = Mathf.Sin(-rotRad);
+                float rx = nx * c - ny * s; ny = nx * s + ny * c; nx = rx;
+            }
+
+            float field;
+            switch (shape)
+            {
+                case MaskShape.SwipeH: field = (nx / siz) * 0.5f + 0.5f; break;   // 0..1 left→right
+                case MaskShape.SwipeV: field = (ny / siz) * 0.5f + 0.5f; break;   // 0..1 bottom→top
+                default: field = Mathf.Sqrt(nx * nx + ny * ny) / siz; break;      // radial 0 = centre
+            }
+
+            float w = Mathf.Max(0.001f, (1f - sharpness) * 0.5f);
+            float threshold = shape == MaskShape.DiscIn ? (1f - prog) : prog;     // visible where field < threshold
+            // GLSL-style smoothstep(edge0, edge1, field) — Unity's Mathf.SmoothStep interpolates BETWEEN its args,
+            // which is a different thing. 0 inside the threshold → fully visible; 1 outside → masked.
+            float ss = Mathf.Clamp01((field - (threshold - w)) / (2f * w));
+            ss = ss * ss * (3f - 2f * ss);
+            a *= 1f - ss;
+            return a > 0.003f;
+        }
+
+        static ZUIValue DefaultProgress() => Layer.CurveVal(1f, 0f, 0f, 1f, 1f);   // reveal over life
     }
 }
