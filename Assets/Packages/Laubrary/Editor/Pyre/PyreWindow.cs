@@ -388,6 +388,7 @@ namespace Laubrary.Pyre.Editor
             {
                 case LayerShape.Disc:
                     ValRow("Thickness", l.thickness, 0f, 1f, 1f);   // 1 = full disc, 0 = 1px ring
+                    ValRow("Edge blur", l.thicknessBlur, 0f, 1f, 0f);   // soft inner edge
                     break;
                 case LayerShape.SparkleField:
                     ValRow("Sparkle density", l.sparkleDensity, 0f, 1f, 0.25f);

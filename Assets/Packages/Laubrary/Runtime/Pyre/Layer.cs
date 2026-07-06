@@ -65,6 +65,9 @@ namespace Laubrary.Pyre
         [Tooltip("Disc: border thickness. 1 = a full disc; lower values grow a ring inward from the edge; 0 = a " +
                  "1px border. Animatable — a Disc IS a ring/circle/sphere in one type.")]
         public ZUIValue thickness = new ZUIValue(1f);
+        [Tooltip("Disc: softens the ring's INNER edge — fades the alpha of the inner pixels. 0 = hard edge, 1 = the " +
+                 "fade spans the whole ring width. Animatable.")]
+        public ZUIValue thicknessBlur = new ZUIValue(0f);
 
         [Tooltip("Sprite: the sprite stamped as particles (its texture must be read/write enabled). Use the editor's " +
                  "'New sprite (Aseprite)' button to make + edit one.")]
@@ -218,6 +221,7 @@ namespace Laubrary.Pyre
             l.emitSpreadDeg = CloneVal(emitSpreadDeg);
             l.sparkleDensity = CloneVal(sparkleDensity);
             l.thickness = CloneVal(thickness);
+            l.thicknessBlur = CloneVal(thicknessBlur);
             l.windX = CloneVal(windX);
             l.windY = CloneVal(windY);
             l.barCount = CloneVal(barCount);

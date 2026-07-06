@@ -29,7 +29,7 @@ namespace Laubrary.Pyre
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
         const int F_BaseAngle = 25, F_SpreadDeg = 26, F_Taper = 27, F_Stagger = 28;
         const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
-        const int F_SparkleDensity = 34, F_OriginAngle = 35, F_OriginBend = 36, F_EmitSpread = 37, F_Thickness = 38, F_SpriteSpin = 39;
+        const int F_SparkleDensity = 34, F_OriginAngle = 35, F_OriginBend = 36, F_EmitSpread = 37, F_Thickness = 38, F_SpriteSpin = 39, F_ThicknessBlur = 40;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -252,8 +252,10 @@ namespace Laubrary.Pyre
                         ? Mathf.Clamp01(Eval(layer.sparkleDensity, t, spec.seed, li, si, F_SparkleDensity)) : 1f;
                     float discThick = layer.shape == LayerShape.Disc
                         ? Mathf.Clamp01(Eval(layer.thickness, t, spec.seed, li, si, F_Thickness)) : 1f;
+                    float discBlur = layer.shape == LayerShape.Disc
+                        ? Mathf.Clamp01(Eval(layer.thicknessBlur, t, spec.seed, li, si, F_ThicknessBlur)) : 0f;
                     RasterShape(buf, W, H, cx, cy, framePhase, layer, c, radius, baseCol, alpha,
-                                t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, discThick);
+                                t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, discThick, discBlur);
                 }
               }
             }
@@ -437,7 +439,7 @@ namespace Laubrary.Pyre
         static void RasterShape(Color32[] buf, int W, int H, float cx, float cy,
                                 float framePhase, Layer layer, Vector2 c, float radius, Color baseCol, float alpha,
                                 float t, int shapeSeed, float crescX, float crescY,
-                                ModStack stack, int frameIndex, float sparkleDensity, float discThickness)
+                                ModStack stack, int frameIndex, float sparkleDensity, float discThickness, float discBlur)
         {
             for (int y = 0; y < H; y++)
             {
@@ -459,6 +461,15 @@ namespace Laubrary.Pyre
                     float pixelAlpha = alpha;
                     if (layer.radialAlpha != null && layer.radialAlpha.Count > 0)
                         pixelAlpha *= Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(layer.radialAlpha, nd, 1f));
+
+                    // Disc inner-edge blur: fade the ring's inner pixels. The fade band spans a fraction (discBlur)
+                    // of the ring width, in nd space (nd = 0 centre → 1 edge; the ring spans [1-thickness, 1]).
+                    if (discBlur > 0.001f && layer.shape == LayerShape.Disc)
+                    {
+                        float innerNd = 1f - discThickness;
+                        float band = discBlur * Mathf.Max(0.02f, discThickness);
+                        pixelAlpha *= Mathf.Clamp01((nd - innerNd) / band);
+                    }
                     if (pixelAlpha <= 0.001f) continue;
 
                     // Colour mode: Over life = the per-shape colour; Fill = the gradient across the shape (centre→
@@ -467,8 +478,15 @@ namespace Laubrary.Pyre
                     Color fc = col;
                     if (layer.colorMode != ColorMode.OverLife && layer.shape != LayerShape.SparkleField && layer.colorOverLife != null)
                     {
-                        float frac = layer.colorMode == ColorMode.FlowingFill
-                            ? Mathf.Repeat(nd + t * layer.colorFlowScale, 1f) : nd;
+                        float frac;
+                        if (layer.colorMode == ColorMode.FlowingFill)
+                        {
+                            // Mirror the gradient (red→white→red) so the scroll loops seamlessly with no hard seam:
+                            // sample it 0→1→0 as the scrolling coordinate goes 0→1.
+                            float f = Mathf.Repeat(nd + t * layer.colorFlowScale, 1f);
+                            frac = 1f - Mathf.Abs(2f * f - 1f);
+                        }
+                        else frac = nd;   // Fill
                         fc = layer.colorOverLife.Evaluate(frac);
                     }
                     float outA = pixelAlpha * fc.a;
