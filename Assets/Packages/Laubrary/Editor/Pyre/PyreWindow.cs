@@ -665,9 +665,11 @@ namespace Laubrary.Pyre.Editor
                         var prevCol = GUI.color;
                         GUI.color = bgImageTint;
                         GUI.BeginClip(view);
+                        // ScaleToFit shows the WHOLE image (aspect-preserved, letterboxed) instead of ScaleAndCrop,
+                        // which filled the viewport by cropping the edges off. Zoom scales it within the viewport.
                         float w = view.width * bgImageZoom, h = view.height * bgImageZoom;
                         var imgRect = new Rect((view.width - w) * 0.5f, (view.height - h) * 0.5f, w, h);
-                        GUI.DrawTexture(imgRect, bgImage, ScaleMode.ScaleAndCrop, false);
+                        GUI.DrawTexture(imgRect, bgImage, ScaleMode.ScaleToFit, false);
                         GUI.EndClip();
                         GUI.color = prevCol;
                     }
