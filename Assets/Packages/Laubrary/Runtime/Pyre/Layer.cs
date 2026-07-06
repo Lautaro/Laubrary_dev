@@ -57,19 +57,6 @@ namespace Laubrary.Pyre
         [SerializeReference]
         public List<PyreModifier> modifiers = new();
 
-        // ── colour grade (per-layer; composes with the blast-global grade) ──────────────────────────
-        [Tooltip("Cross gradient: colours each bar/shape ACROSS itself (bar: back→tip, circular: centre→edge) and " +
-                 "MULTIPLIES the base colour. Default white = no effect; blend in with Cross amount.")]
-        public Gradient crossGradient = WhiteGradient();
-        [Tooltip("How strongly the cross gradient applies (0 = off, 1 = full). Animatable.")]
-        public ZUIValue crossAmount = new ZUIValue(0f);
-        [Tooltip("Contrast (1 = unchanged). Animatable.")]
-        public ZUIValue contrast = new ZUIValue(1f);
-        [Tooltip("Brightness (1 = unchanged). Animatable.")]
-        public ZUIValue brightness = new ZUIValue(1f);
-        [Tooltip("Saturation (1 = unchanged, 0 = greyscale). Animatable.")]
-        public ZUIValue saturation = new ZUIValue(1f);
-
         [Tooltip("Disc: border thickness. 1 = a full disc; lower values grow a ring inward from the edge; 0 = a " +
                  "1px border. Animatable — a Disc IS a ring/circle/sphere in one type.")]
         public ZUIValue thickness = new ZUIValue(1f);
@@ -90,26 +77,6 @@ namespace Laubrary.Pyre
         [Range(0f, 1f)]
         [Tooltip("Randomises each shape's start/end within the layer window so they don't all pop together.")]
         public float perShapeLifeJitter = 0.3f;
-
-        [Range(0f, 1f)]
-        [Tooltip("As life ends, deterministically drop up to this fraction of the shape's pixels (crumble away). " +
-                 "The one dissolve effect a plain alpha curve can't express.")]
-        public float disintegrate = 0f;
-
-        // ── per-layer deform (composited under the global blast deform) ──────────
-        [Tooltip("Enable this layer's own directional deform. When off, the block is identity (skipped).")]
-        public bool deformEnabled = false;
-
-        [Tooltip("Horizontal squash/stretch about the centre. 1 = none, <1 tall & thin, >1 wide & flat.")]
-        public ZUIValue deformSquash = new ZUIValue(1f);
-        [Tooltip("Horizontal shear based on height — leans this layer for a directional look.")]
-        public ZUIValue deformSkew = new ZUIValue(0f);
-        [Tooltip("Amplitude (px) of a vertical wobble that ripples this layer horizontally.")]
-        public ZUIValue deformWobbleAmplitude = new ZUIValue(0f);
-        [Tooltip("How many wobble ripples run up the canvas.")]
-        public ZUIValue deformWobbleFrequency = new ZUIValue(1f);
-        [Tooltip("Rotation (degrees) applied about the centre.")]
-        public ZUIValue deformRotation = new ZUIValue(0f);
 
         // ── emission: Radial (default) or Directional (stream off a bendable origin line) ────────────
         [Tooltip("Radial = scatter around the centre and grow outward. Directional = start on an origin line and " +
@@ -191,7 +158,6 @@ namespace Laubrary.Pyre
                 crescentOffsetX = new ZUIValue(6f),
                 crescentOffsetY = new ZUIValue(0f),
                 perShapeLifeJitter = 0.3f,
-                disintegrate = 0f,
                 colorOverLife = DefaultColor(shape),
                 alpha = DefaultAlpha(),
             };
@@ -226,11 +192,6 @@ namespace Laubrary.Pyre
             l.size = CloneVal(size);
             l.crescentOffsetX = CloneVal(crescentOffsetX);
             l.crescentOffsetY = CloneVal(crescentOffsetY);
-            l.deformSquash = CloneVal(deformSquash);
-            l.deformSkew = CloneVal(deformSkew);
-            l.deformWobbleAmplitude = CloneVal(deformWobbleAmplitude);
-            l.deformWobbleFrequency = CloneVal(deformWobbleFrequency);
-            l.deformRotation = CloneVal(deformRotation);
             l.emitAngleDeg = CloneVal(emitAngleDeg);
             l.travel = CloneVal(travel);
             l.originBend = CloneVal(originBend);
@@ -251,11 +212,6 @@ namespace Laubrary.Pyre
             l.barStagger = CloneVal(barStagger);
             l.colorOverLife = CloneGradient(colorOverLife);
             l.alpha = CloneVal(alpha);
-            l.crossGradient = CloneGradient(crossGradient);
-            l.crossAmount = CloneVal(crossAmount);
-            l.contrast = CloneVal(contrast);
-            l.brightness = CloneVal(brightness);
-            l.saturation = CloneVal(saturation);
             l.radialAlpha = radialAlpha == null ? null
                 : radialAlpha.ConvertAll(p => new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
             l.modifiers = modifiers == null ? new List<PyreModifier>()

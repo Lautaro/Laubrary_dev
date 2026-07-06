@@ -113,33 +113,6 @@ namespace Laubrary.Pyre
         [Tooltip("Back-to-front layer stack. First layer is drawn behind the rest.")]
         public List<Layer> layers = new();
 
-        // ── global directional deform, applied while mapping pixels in BlastRenderer ──
-        [Tooltip("Enable the whole-blast deform. When off, the block is identity (skipped).")]
-        public bool deformEnabled = false;
-
-        [Tooltip("Horizontal squash/stretch. 1 = none, <1 tall & thin, >1 wide & flat.")]
-        public ZUIValue squash = new ZUIValue(1f);
-        [Tooltip("Horizontal shear based on height — leans the blast for a directional look.")]
-        public ZUIValue skew = new ZUIValue(0f);
-        [Tooltip("Amplitude (px) of a vertical wobble that ripples the blast horizontally.")]
-        public ZUIValue wobbleAmplitude = new ZUIValue(0f);
-        [Tooltip("How many wobble ripples run up the canvas.")]
-        public ZUIValue wobbleFrequency = new ZUIValue(1f);
-        [Tooltip("Rotation (degrees) of the whole blast about the centre.")]
-        public ZUIValue rotation = new ZUIValue(0f);
-
-        // ── global colour grade (composes on top of each layer's own grade) ──
-        [Tooltip("Global cross gradient — colours every bar/shape across itself and multiplies. White = no effect.")]
-        public Gradient crossGradient = Layer.WhiteGradient();
-        [Tooltip("Global cross-gradient strength (0 = off). Animatable.")]
-        public ZUIValue crossAmount = new ZUIValue(0f);
-        [Tooltip("Global contrast (1 = unchanged). Animatable.")]
-        public ZUIValue contrast = new ZUIValue(1f);
-        [Tooltip("Global brightness (1 = unchanged). Animatable.")]
-        public ZUIValue brightness = new ZUIValue(1f);
-        [Tooltip("Global saturation (1 = unchanged, 0 = greyscale). Animatable.")]
-        public ZUIValue saturation = new ZUIValue(1f);
-
         // ── opt-in GLOBAL modifiers (Pyre v2): geometry warps + pixel effects applied to every layer. ──
         [SerializeReference]
         public List<PyreModifier> globalModifiers = new();
@@ -155,13 +128,6 @@ namespace Laubrary.Pyre
             canvasSize = 64;
             pixelsPerUnit = 64f;
             background = new Color(0f, 0f, 0f, 0f);
-
-            deformEnabled = false;
-            squash = new ZUIValue(1f);
-            skew = new ZUIValue(0f);
-            wobbleAmplitude = new ZUIValue(0f);
-            wobbleFrequency = new ZUIValue(1f);
-            rotation = new ZUIValue(0f);
 
             layers = new List<Layer>();
 

@@ -31,56 +31,7 @@ namespace Laubrary.Pyre
         const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
         const int F_SparkleDensity = 34, F_OriginAngle = 35, F_OriginBend = 36, F_EmitSpread = 37, F_Thickness = 38;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
-        const int GlobalLayerId = -1;   // stands in for "no layer" when hashing the global deform
-
-        /// One deform block resolved to plain floats for a given frame.
-        struct Deform { public float sq, skew, amp, freq, rotDeg; }
-        static readonly Deform Identity = new Deform { sq = 1f, skew = 0f, amp = 0f, freq = 0f, rotDeg = 0f };
-
-        // ── colour grade: a cross gradient (multiplies across the shape/bar) + contrast/brightness/saturation.
-        // Resolved once per layer per frame (per-layer values × the blast-global values), applied per pixel.
-        struct Grade
-        {
-            public Gradient crossL, crossG;
-            public float amtL, amtG;
-            public float contrast, brightness, saturation;
-            public bool active;
-        }
-
-        static Grade BuildGrade(Layer layer, BlastSpec spec, int li, float lp, float bp, int frameIndex)
-        {
-            var g = new Grade
-            {
-                crossL = layer.crossGradient,
-                amtL = Mathf.Clamp01(Eval(layer.crossAmount, lp, spec.seed, li, 0, F_CrossAmt)),
-                crossG = spec.crossGradient,
-                amtG = Mathf.Clamp01(Eval(spec.crossAmount, bp, spec.seed, GlobalLayerId, frameIndex, F_CrossAmt)),
-                contrast   = Eval(layer.contrast,   lp, spec.seed, li, 0, F_Contrast)   * Eval(spec.contrast,   bp, spec.seed, GlobalLayerId, frameIndex, F_Contrast),
-                brightness = Eval(layer.brightness, lp, spec.seed, li, 0, F_Brightness) * Eval(spec.brightness, bp, spec.seed, GlobalLayerId, frameIndex, F_Brightness),
-                saturation = Eval(layer.saturation, lp, spec.seed, li, 0, F_Saturation) * Eval(spec.saturation, bp, spec.seed, GlobalLayerId, frameIndex, F_Saturation),
-            };
-            g.active = g.amtL > 0.001f || g.amtG > 0.001f
-                     || Mathf.Abs(g.contrast - 1f) > 0.001f
-                     || Mathf.Abs(g.brightness - 1f) > 0.001f
-                     || Mathf.Abs(g.saturation - 1f) > 0.001f;
-            return g;
-        }
-
-        // crossFrac 0..1 across the shape (centre→edge) or bar (back→tip).
-        static Color ApplyGrade(Color c, float crossFrac, in Grade g)
-        {
-            if (!g.active) return c;
-            crossFrac = Mathf.Clamp01(crossFrac);
-            if (g.amtL > 0.001f && g.crossL != null) c = MulRGB(c, Color.Lerp(Color.white, g.crossL.Evaluate(crossFrac), g.amtL));
-            if (g.amtG > 0.001f && g.crossG != null) c = MulRGB(c, Color.Lerp(Color.white, g.crossG.Evaluate(crossFrac), g.amtG));
-            float r = c.r * g.brightness, gg = c.g * g.brightness, b = c.b * g.brightness;   // brightness
-            r = (r - 0.5f) * g.contrast + 0.5f; gg = (gg - 0.5f) * g.contrast + 0.5f; b = (b - 0.5f) * g.contrast + 0.5f;  // contrast
-            float lum = r * 0.299f + gg * 0.587f + b * 0.114f;                               // saturation
-            r = Mathf.Lerp(lum, r, g.saturation); gg = Mathf.Lerp(lum, gg, g.saturation); b = Mathf.Lerp(lum, b, g.saturation);
-            return new Color(Mathf.Clamp01(r), Mathf.Clamp01(gg), Mathf.Clamp01(b), c.a);
-        }
-
-        static Color MulRGB(Color a, Color b) => new Color(a.r * b.r, a.g * b.g, a.b * b.b, a.a);
+        const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
         // ── modifier pipeline (Pyre v2): opt-in geometry warps + pixel effects, per-layer and global ─────────
         readonly struct ModStack
@@ -169,12 +120,6 @@ namespace Laubrary.Pyre
             float bp = frameCount > 1 ? frameIndex / (float)(frameCount - 1) : 0f;   // blast progress 0..1
             float framePhase = frameCount > 1 ? (frameIndex / (float)frameCount) * Mathf.PI * 2f : 0f;
 
-            // Global deform is evaluated once per frame (per-frame MinMax gives a whole-blast shake).
-            Deform global = spec.deformEnabled
-                ? EvalDeform(spec.squash, spec.skew, spec.wobbleAmplitude, spec.wobbleFrequency, spec.rotation,
-                             bp, spec.seed, GlobalLayerId, frameIndex)
-                : Identity;
-
             // Base angle & star spread arc are (animatable) blast-globals, evaluated once per frame.
             float baseA = Eval(spec.baseAngleDeg, bp, spec.seed, GlobalLayerId, frameIndex, F_BaseAngle);
             int spread = spec.star ? Mathf.Max(1, spec.spreadCount) : 1;
@@ -193,22 +138,14 @@ namespace Laubrary.Pyre
                 float lp = Mathf.Clamp01((frameIndex - layer.startFrame) /
                                          (float)Mathf.Max(1, layer.endFrame - layer.startFrame));
 
-                // Colour grade (cross gradient + contrast/brightness/saturation), resolved once for this layer/frame.
-                Grade grade = BuildGrade(layer, spec, li, lp, bp, frameIndex);
                 ModStack stack = BuildStack(layer, spec, li, lp, bp, frameIndex);
 
                 // Bars mode is a wholly different, directional composition — draws all its arms itself.
                 if (layer.shape == LayerShape.Bars)
                 {
-                    RenderBarsLayerStar(buf, W, H, cx, cy, layer, li, spec, lp, frameIndex, baseA, spreadDeg, spread, grade, stack);
+                    RenderBarsLayerStar(buf, W, H, cx, cy, layer, li, spec, lp, frameIndex, baseA, spreadDeg, spread, stack);
                     continue;
                 }
-
-                // Per-layer deform, evaluated once per frame; composited UNDER the global deform.
-                Deform local = layer.deformEnabled
-                    ? EvalDeform(layer.deformSquash, layer.deformSkew, layer.deformWobbleAmplitude,
-                                 layer.deformWobbleFrequency, layer.deformRotation, lp, spec.seed, li, frameIndex)
-                    : Identity;
 
                 // Count: Curve reads the layer's life progress; MinMax stays frame-stable (h2 = 0, no frame/shape).
                 int count = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.count, lp, spec.seed, li, 0, F_Count)));
@@ -279,14 +216,6 @@ namespace Laubrary.Pyre
 
                     Color baseCol = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(t) : Color.white;
 
-                    // Disintegrate: near the end, drop an increasing fraction (up to layer.disintegrate) of pixels.
-                    float disProb = 0f;
-                    if (layer.disintegrate > 0f)
-                    {
-                        const float ds = 0.6f;
-                        disProb = t > ds ? (t - ds) / (1f - ds) * Mathf.Clamp01(layer.disintegrate) : 0f;
-                    }
-
                     // Crescent mask offset (animatable).
                     float crescX = Eval(layer.crescentOffsetX, lp, spec.seed, li, si, F_CrescentX);
                     float crescY = Eval(layer.crescentOffsetY, lp, spec.seed, li, si, F_CrescentY);
@@ -311,8 +240,8 @@ namespace Laubrary.Pyre
                         ? Mathf.Clamp01(Eval(layer.sparkleDensity, t, spec.seed, li, si, F_SparkleDensity)) : 1f;
                     float discThick = layer.shape == LayerShape.Disc
                         ? Mathf.Clamp01(Eval(layer.thickness, t, spec.seed, li, si, F_Thickness)) : 1f;
-                    RasterShape(buf, W, H, cx, cy, global, local, framePhase, layer, c, radius, baseCol, alpha,
-                                t, shapeSeed, disProb, crescX, crescY, grade, stack, frameIndex, sparkleD, discThick);
+                    RasterShape(buf, W, H, cx, cy, framePhase, layer, c, radius, baseCol, alpha,
+                                t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, discThick);
                 }
               }
             }
@@ -355,7 +284,7 @@ namespace Laubrary.Pyre
         // each whole arm stacking over the previous one. Deform is not applied to bars.
         static void RenderBarsLayerStar(Color32[] buf, int W, int H, float cx, float cy,
                                         Layer layer, int li, BlastSpec spec, float lp, int frameIndex,
-                                        float baseA, float spreadDeg, int spread, Grade grade, ModStack stack)
+                                        float baseA, float spreadDeg, int spread, ModStack stack)
         {
             Vector2 center = new Vector2(cx, cy);
             bool star = spec.star;
@@ -416,7 +345,7 @@ namespace Laubrary.Pyre
                 if (dissolve) alpha *= 1f - Mathf.Clamp01((front - d) / DissolveBand);    // centre (d=0) dissolves first
                 if (alpha < 0.004f) return;
 
-                RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, width, col, alpha, grade,
+                RasterBar(buf, W, H, barCenter, dir, perp, -bwd, fwd, width, col, alpha,
                           stack, frameIndex, tb, ShapeSeed(spec.seed, li, i));
             }
 
@@ -432,7 +361,7 @@ namespace Laubrary.Pyre
 
         // Fill a rotated rectangle: from alongMin..alongMax along `dir`, ±halfWidth across `perp`.
         static void RasterBar(Color32[] buf, int W, int H, Vector2 barCenter, Vector2 dir, Vector2 perp,
-                              float alongMin, float alongMax, float width, Color col, float alpha, Grade grade,
+                              float alongMin, float alongMax, float width, Color col, float alpha,
                               ModStack stack, int frameIndex, float life, int hash)
         {
             float hw = width * 0.5f;
@@ -457,7 +386,7 @@ namespace Laubrary.Pyre
                     if (along >= alongMin && along <= alongMax && across >= -hw && across <= hw)
                     {
                         float crossFrac = (along - alongMin) / span;
-                        Color fc = grade.active ? ApplyGrade(col, crossFrac, grade) : col;
+                        Color fc = col;
                         float outA = alpha * fc.a;
                         if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, crossFrac, life, hash, W, H))
                             continue;
@@ -479,34 +408,28 @@ namespace Laubrary.Pyre
         }
 
         // ── per-shape rasteriser ───────────────────────────────────────────────
-        // Iterates the whole canvas, maps each pixel back through (global ∘ per-layer) deform into undeformed
+        // Iterates the whole canvas, maps each pixel back through the opt-in geometry modifiers into undeformed
         // "blast space", runs the hard shape test there, then composites source-over. Whole-canvas iteration keeps
-        // the deform correct with zero clipping risk; canvases are small and the runtime player caches its frames.
-        static void RasterShape(Color32[] buf, int W, int H, float cx, float cy, Deform global, Deform local,
+        // the warp correct with zero clipping risk; canvases are small and the runtime player caches its frames.
+        static void RasterShape(Color32[] buf, int W, int H, float cx, float cy,
                                 float framePhase, Layer layer, Vector2 c, float radius, Color baseCol, float alpha,
-                                float t, int shapeSeed, float disProb, float crescX, float crescY, Grade grade,
+                                float t, int shapeSeed, float crescX, float crescY,
                                 ModStack stack, int frameIndex, float sparkleDensity, float discThickness)
         {
             for (int y = 0; y < H; y++)
             {
                 for (int x = 0; x < W; x++)
                 {
-                    // Forward map is screen = global(local(undeformed)); invert in reverse order, then undo the
-                    // opt-in geometry modifiers (outermost first).
+                    // Undo the opt-in geometry modifiers (outermost first) to reach undeformed blast space.
                     Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
-                    off = InverseDeform(off, global, framePhase);
-                    off = InverseDeform(off, local, framePhase);
                     if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase);
                     float ux = off.x, uy = off.y;
 
                     if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, sparkleDensity, discThickness, out Color col))
                         continue;
 
-                    // Disintegrate drop-out (deterministic per pixel).
-                    if (disProb > 0f && Hash01(shapeSeed ^ 0x1B873593, x, y) < disProb) continue;
-
                     // Normalised distance from the shape centre (0 = centre, 1 = edge) — drives radial alpha AND
-                    // the colour grade's / Tint modifier's cross gradient.
+                    // the Tint modifier's cross gradient (crossFrac).
                     float nd = radius > 0.001f
                         ? Mathf.Clamp01(Mathf.Sqrt((ux - c.x) * (ux - c.x) + (uy - c.y) * (uy - c.y)) / radius) : 0f;
 
@@ -515,7 +438,7 @@ namespace Laubrary.Pyre
                         pixelAlpha *= Mathf.Clamp01(ZUIEnvelopeEvaluator.Evaluate(layer.radialAlpha, nd, 1f));
                     if (pixelAlpha <= 0.001f) continue;
 
-                    Color fc = grade.active ? ApplyGrade(col, nd, grade) : col;
+                    Color fc = col;
                     float outA = pixelAlpha * fc.a;
                     if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, nd, t, shapeSeed, W, H))
                         continue;
@@ -590,41 +513,6 @@ namespace Laubrary.Pyre
                 default:
                     return v.staticValue;
             }
-        }
-
-        static Deform EvalDeform(ZUIValue squash, ZUIValue skew, ZUIValue wobAmp, ZUIValue wobFreq, ZUIValue rot,
-                                 float bp, int seed, int layerId, int frameIndex)
-        {
-            return new Deform
-            {
-                sq = Eval(squash, bp, seed, layerId, frameIndex, F_Squash),
-                skew = Eval(skew, bp, seed, layerId, frameIndex, F_Skew),
-                amp = Eval(wobAmp, bp, seed, layerId, frameIndex, F_WobAmp),
-                freq = Eval(wobFreq, bp, seed, layerId, frameIndex, F_WobFreq),
-                rotDeg = Eval(rot, bp, seed, layerId, frameIndex, F_Rot),
-            };
-        }
-
-        // Inverse of one deform block, applied to a pixel offset from the canvas centre. Forward order is
-        // rotate → squash-x → skew → wobble (skew & wobble depend only on y, so the inverse is closed-form).
-        static Vector2 InverseDeform(Vector2 off, Deform d, float phase)
-        {
-            float x = off.x, y = off.y;
-            // un-wobble (depends on y only)
-            if (d.amp != 0f) x -= d.amp * Mathf.Sin(y * d.freq * 0.1f + phase);
-            // un-skew (depends on y only)
-            if (d.skew != 0f) x -= d.skew * y;
-            // un-squash
-            float sq = Mathf.Approximately(d.sq, 0f) ? 1f : d.sq;
-            x /= sq;
-            // un-rotate by -θ (recover the pre-rotation coords)
-            if (d.rotDeg != 0f)
-            {
-                float rad = -d.rotDeg * Mathf.Deg2Rad;
-                float cos = Mathf.Cos(rad), sin = Mathf.Sin(rad);
-                return new Vector2(x * cos - y * sin, x * sin + y * cos);
-            }
-            return new Vector2(x, y);
         }
 
         // ── source-over compositing in straight alpha ──────────────────────────
