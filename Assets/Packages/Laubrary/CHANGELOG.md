@@ -11,8 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Pyre v2 — a modifier-stack rework** (cleaner to author, open to extend). Anything that distorts or recolours
   pixels is now an opt-in **PyreModifier** added to a layer or globally (`[SerializeReference]` polymorphic list),
   so new effects are just new subclasses:
-  - **Geometry** modifiers (warp the grid): **Skew, Rotate, Squash, Wobble** — now apply to **every** layer type,
-    Bars included.
+  - **Geometry** modifiers (warp the grid): **Skew, Rotate, Squash, Wobble, Profile** — now apply to **every** layer
+    type, Bars included.
+  - **Profile (mold shape)** geometry modifier — sculpts a shape's silhouette by driving its horizontal **width at
+    each canvas height** from a spatial curve (0 = bottom → 1 = top), with an animatable **Strength** to blend the
+    profile in over life. Turns a plain Disc into directional shapes — candle/teardrop flames, flickering campfire
+    tongues (stack profiles + Wobble), or a **mushroom cloud** rising out of a surface (thin stem → wide domed cap).
+    Each stacked layer can carry its own profile, so the inner plume differs from the outer.
   - **Pixel** modifiers (recolour / mask / remove): **Tint** (flat + cross-gradient + contrast/brightness/
     saturation), **Dissolve** (Erase / Fade / Bleed / Scatter modes), and a moving **Alpha Mask** (DiscOut / DiscIn
     / SwipeH / SwipeV with animatable progress, sharpness, size, rotation, offset).

@@ -568,6 +568,11 @@ namespace Laubrary.Pyre.Editor
                     ValRow("Amplitude", w.amplitude, 0f, Mathf.Max(4f, half), 0f);
                     ValRow("Frequency", w.frequency, 0f, 8f, 1f);
                     break;
+                case ProfileModifier pm:
+                    pm.widthByHeight ??= ProfileModifier.DefaultProfile();
+                    CurveField("pyre.profile." + id, "Width by height", pm.widthByHeight, 0f, 2f);
+                    ValRow("Strength", pm.strength, 0f, 1f, 1f);
+                    break;
                 case TintModifier t:
                     t.tint = EditorGUILayout.ColorField("Tint", t.tint);
                     t.crossGradient ??= Layer.WhiteGradient();
@@ -608,6 +613,7 @@ namespace Laubrary.Pyre.Editor
             Add("Geometry/Rotate", () => new RotateModifier());
             Add("Geometry/Squash", () => new SquashModifier());
             Add("Geometry/Wobble", () => new WobbleModifier());
+            Add("Geometry/Profile (mold shape)", () => new ProfileModifier());
             Add("Colour/Tint", () => new TintModifier());
             Add("Colour/Contrast", () => new ContrastModifier());
             Add("Colour/Brightness", () => new BrightnessModifier());

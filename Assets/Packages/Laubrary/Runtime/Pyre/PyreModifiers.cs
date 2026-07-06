@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Laubrary.Pyre
@@ -47,6 +48,8 @@ namespace Laubrary.Pyre
                 object v = f.GetValue(this);
                 if (v is ZUIValue zv) f.SetValue(m, Layer.CloneVal(zv));
                 else if (v is Gradient g) f.SetValue(m, Layer.CloneGradient(g));
+                else if (v is List<ZUIEnvelopePoint> pts)
+                    f.SetValue(m, pts.ConvertAll(p => new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState)));
             }
             return m;
         }
@@ -57,7 +60,7 @@ namespace Laubrary.Pyre
     public abstract class GeometryModifier : PyreModifier
     {
         /// Undo this modifier's warp on a pixel offset from the canvas centre. phase = a per-frame wobble phase.
-        public abstract Vector2 InverseWarp(Vector2 off, float phase);
+        public abstract Vector2 InverseWarp(Vector2 off, float phase, float half);
     }
 
     [Serializable]
@@ -68,7 +71,7 @@ namespace Laubrary.Pyre
         float a;
         public override string DisplayName => "Skew";
         public override void Prepare(Func<ZUIValue, int, float> e) => a = e(amount, 0);
-        public override Vector2 InverseWarp(Vector2 off, float phase) { off.x -= a * off.y; return off; }
+        public override Vector2 InverseWarp(Vector2 off, float phase, float half) { off.x -= a * off.y; return off; }
     }
 
     [Serializable]
@@ -79,7 +82,7 @@ namespace Laubrary.Pyre
         float sq;
         public override string DisplayName => "Squash";
         public override void Prepare(Func<ZUIValue, int, float> e) { sq = e(amount, 0); if (Mathf.Approximately(sq, 0f)) sq = 1f; }
-        public override Vector2 InverseWarp(Vector2 off, float phase) { off.x /= sq; return off; }
+        public override Vector2 InverseWarp(Vector2 off, float phase, float half) { off.x /= sq; return off; }
     }
 
     [Serializable]
@@ -90,7 +93,7 @@ namespace Laubrary.Pyre
         float rad;
         public override string DisplayName => "Rotate";
         public override void Prepare(Func<ZUIValue, int, float> e) => rad = -e(degrees, 0) * Mathf.Deg2Rad;   // inverse
-        public override Vector2 InverseWarp(Vector2 off, float phase)
+        public override Vector2 InverseWarp(Vector2 off, float phase, float half)
         {
             if (rad == 0f) return off;
             float c = Mathf.Cos(rad), s = Mathf.Sin(rad);
@@ -108,11 +111,44 @@ namespace Laubrary.Pyre
         float amp, freq;
         public override string DisplayName => "Wobble";
         public override void Prepare(Func<ZUIValue, int, float> e) { amp = e(amplitude, 0); freq = e(frequency, 1); }
-        public override Vector2 InverseWarp(Vector2 off, float phase)
+        public override Vector2 InverseWarp(Vector2 off, float phase, float half)
         {
             if (amp != 0f) off.x -= amp * Mathf.Sin(off.y * freq * 0.1f + phase);
             return off;
         }
+    }
+
+    /// Silhouette molder: sets the horizontal WIDTH at each height, so a disc becomes a teardrop / flame /
+    /// mushroom. widthByHeight is a spatial curve (0 = canvas bottom → 1 = top) of a width multiplier: a curve
+    /// that falls from 1→~0 gives a flame; a narrow stem then a bump gives a mushroom cap; wide-narrow-wide an
+    /// hourglass. Stack a couple of profiled layers (a wide "cap", a thin "stem") for real mushroom clouds.
+    [Serializable]
+    public class ProfileModifier : GeometryModifier
+    {
+        [Tooltip("Width multiplier vs height (0 = canvas bottom → 1 = top). Falling = flame/teardrop; a bump near " +
+                 "the top = a mushroom cap; wide-narrow-wide = an hourglass.")]
+        public List<ZUIEnvelopePoint> widthByHeight = DefaultProfile();
+        [Tooltip("Blend the profile in (0 = off, 1 = full). Animatable — grow a disc into the profile over life.")]
+        public ZUIValue strength = new ZUIValue(1f);
+
+        float str;
+        public override string DisplayName => "Profile";
+        public override void Prepare(Func<ZUIValue, int, float> e) => str = Mathf.Clamp01(e(strength, 0));
+        public override Vector2 InverseWarp(Vector2 off, float phase, float half)
+        {
+            if (str <= 0.001f || widthByHeight == null || widthByHeight.Count == 0) return off;
+            // ny: canvas-vertical position 0 (bottom) → 1 (top). Width is a horizontal scale, so y is untouched and
+            // the inverse is just x / width(ny).
+            float ny = Mathf.Clamp01(off.y / (2f * Mathf.Max(1f, half)) + 0.5f);
+            float w = Mathf.Lerp(1f, Mathf.Max(0.02f, ZUIEnvelopeEvaluator.Evaluate(widthByHeight, ny, 1f)), str);
+            off.x /= Mathf.Max(0.02f, w);
+            return off;
+        }
+
+        public static List<ZUIEnvelopePoint> DefaultProfile() => new()
+        {
+            new ZUIEnvelopePoint(0f, 1f), new ZUIEnvelopePoint(0.6f, 0.65f), new ZUIEnvelopePoint(1f, 0.12f)
+        };
     }
 
     // ── pixel: recolour / mask / remove ───────────────────────────────────────────────────────────────────
