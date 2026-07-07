@@ -72,6 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Bars spacing is now in bar-widths** — Spacing = 1 means neighbouring bars **exactly touch** (no gap), 2 = a
     one-bar gap, etc. (centre-to-centre pitch = spacing × width). Width and Spacing both floor at 1 px / 1×, so the
     lowest setting is a single solid bar. (Was an independent pixel spacing that let bars overlap or drift apart.)
+  - **Blast browser** — a **Browse** button swaps the dials/layers pane for a grid of every BlastSpec in the
+    project (live thumbnails). Click one to preview it in the viewport; the toolbar renames / duplicates / deletes
+    it or opens it for edit (double-click a cell also opens it).
   - **Layer library** — a **★** button on each layer row saves a deep clone of that layer to a shared, project-wide
     library asset (`Assets/Pyre/PyreLayerLibrary.asset`, created on demand); a **Recall…** button opens a popup that
     lists every saved layer with a live thumbnail and inserts a chosen one into the current blast (or deletes it).

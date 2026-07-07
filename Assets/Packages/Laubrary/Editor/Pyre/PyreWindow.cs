@@ -43,6 +43,12 @@ namespace Laubrary.Pyre.Editor
         int draggingMod = -1;     // index of the modifier being drag-reordered, or -1
         string draggingModList;   // idp of the modifier list that drag belongs to (layer mods vs global mods)
 
+        // browser ("blast library") mode: the left pane becomes a grid of every BlastSpec in the project
+        bool browsing;
+        Vector2 browseScroll;
+        string[] browseGuids;
+        readonly System.Collections.Generic.Dictionary<string, Texture2D> browseThumbs = new();
+
         // playback
         double lastTime;
         float acc;
@@ -74,6 +80,7 @@ namespace Laubrary.Pyre.Editor
         {
             EditorApplication.update -= Tick;
             if (previewTex != null) { DestroyImmediate(previewTex); previewTex = null; }
+            ClearBrowseThumbs();
         }
 
         int FrameCount => spec != null ? Mathf.Max(1, spec.frameCount) : 1;
@@ -105,10 +112,24 @@ namespace Laubrary.Pyre.Editor
             }
 
             DrawTopBar();
+
+            // Browser mode: the left dials/layers pane is swapped for a grid of every blast; the preview stays.
+            if (browsing)
+            {
+                EditorGUILayout.BeginHorizontal();
+                DrawBrowser();
+                DrawVerticalSplitter();
+                DrawPreview();
+                EditorGUILayout.EndHorizontal();
+                if (GUI.changed) Repaint();
+                return;
+            }
+
             if (spec == null)
             {
                 VerticalSpace();
-                Label("Pick a BlastSpec above, or hit \"New asset\" to create one.", ZUI.ZTextStyle.Subtle);
+                Label("Pick a BlastSpec above, or hit \"New asset\" to create one — or \"Browse\" the library.",
+                    ZUI.ZTextStyle.Subtle);
                 return;
             }
 
@@ -150,6 +171,7 @@ namespace Laubrary.Pyre.Editor
             spec = (BlastSpec)EditorGUILayout.ObjectField(spec, typeof(BlastSpec), false, GUILayout.Width(200));
             if (EditorGUI.EndChangeCheck()) { frame = 0; layerSel = 0; scrub = -1; renaming = false; creating = false; Repaint(); }
             if (Button("New asset")) { creating = true; renaming = false; createText = "New Pyre"; focusNewField = true; }
+            if (Button(browsing ? "Close browser" : "Browse")) { browsing = !browsing; renaming = false; creating = false; if (browsing) RefreshBrowse(); }
 
             string path = spec != null ? AssetDatabase.GetAssetPath(spec) : null;
             bool isAsset = !string.IsNullOrEmpty(path);
@@ -754,6 +776,126 @@ namespace Laubrary.Pyre.Editor
         }
 
         // ── right: live preview ──────────────────────────────────────────────────
+        // ── browser: a grid of every BlastSpec in the project, in place of the dials/layers pane ──────────────
+        void DrawBrowser()
+        {
+            EditorGUILayout.BeginVertical(GUILayout.Width(leftWidth));
+            if (browseGuids == null) RefreshBrowse();
+
+            EditorGUILayout.BeginHorizontal();
+            Label($"Blast library ({browseGuids.Length})", ZUI.ZTextStyle.SectionHeader);
+            GUILayout.FlexibleSpace();
+            if (Button("Refresh")) RefreshBrowse();
+            EditorGUILayout.EndHorizontal();
+
+            // actions on the currently-previewed blast
+            string selPath = spec != null ? AssetDatabase.GetAssetPath(spec) : null;
+            if (!string.IsNullOrEmpty(selPath))
+            {
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label(System.IO.Path.GetFileNameWithoutExtension(selPath), EditorStyles.boldLabel);
+                GUILayout.FlexibleSpace();
+                if (Button("Edit")) { browsing = false; frame = 0; layerSel = 0; scrub = -1; }
+                if (Button("Dup")) { DuplicateAsset(selPath); RefreshBrowse(); }
+                if (Button("Rename")) { renaming = !renaming; renameText = System.IO.Path.GetFileNameWithoutExtension(selPath); }
+                if (Button("Del")) { DeleteAsset(selPath); RefreshBrowse(); }
+                EditorGUILayout.EndHorizontal();
+
+                if (renaming)
+                {
+                    EditorGUILayout.BeginHorizontal();
+                    GUILayout.Label("New name", GUILayout.Width(72));
+                    bool enter = Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return;
+                    renameText = EditorGUILayout.TextField(renameText, GUILayout.Width(160));
+                    if (Button("OK") || enter) { RenameAsset(selPath, renameText); renaming = false; RefreshBrowse(); }
+                    if (Button("Cancel")) renaming = false;
+                    EditorGUILayout.EndHorizontal();
+                }
+            }
+            else Label("Click a blast to preview it; double-click (or Edit) to open it.", ZUI.ZTextStyle.Subtle);
+
+            browseScroll = EditorGUILayout.BeginScrollView(browseScroll);
+            const float cell = 104f, thumb = 92f;
+            int cols = Mathf.Max(1, Mathf.FloorToInt((leftWidth - 16f) / cell));
+            int i = 0;
+            while (i < browseGuids.Length)
+            {
+                EditorGUILayout.BeginHorizontal();
+                for (int c = 0; c < cols && i < browseGuids.Length; c++, i++)
+                {
+                    var guid = browseGuids[i];
+                    var path = AssetDatabase.GUIDToAssetPath(guid);
+                    var s = AssetDatabase.LoadAssetAtPath<BlastSpec>(path);
+                    if (s != null) DrawBrowseCell(guid, s, cell, thumb);
+                }
+                GUILayout.FlexibleSpace();
+                EditorGUILayout.EndHorizontal();
+            }
+            EditorGUILayout.EndScrollView();
+            EditorGUILayout.EndVertical();
+        }
+
+        void DrawBrowseCell(string guid, BlastSpec s, float cell, float thumb)
+        {
+            EditorGUILayout.BeginVertical(GUILayout.Width(cell));
+            bool selected = spec == s;
+
+            Rect tr = GUILayoutUtility.GetRect(thumb, thumb, GUILayout.Width(thumb), GUILayout.Height(thumb));
+            if (Event.current.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(tr, selected ? new Color(0.35f, 0.55f, 0.95f, 0.35f) : new Color(0.11f, 0.12f, 0.15f));
+                var tex = BrowseThumb(guid, s);
+                if (tex != null)
+                {
+                    float sc = Mathf.Min((thumb - 6f) / Mathf.Max(1, tex.width), (thumb - 6f) / Mathf.Max(1, tex.height));
+                    float w = tex.width * sc, h = tex.height * sc;
+                    GUI.DrawTexture(new Rect(tr.x + (thumb - w) * 0.5f, tr.y + (thumb - h) * 0.5f, w, h), tex, ScaleMode.StretchToFill, true);
+                }
+                if (selected)
+                {
+                    var b = new Color(0.4f, 0.8f, 1f, 0.9f);
+                    EditorGUI.DrawRect(new Rect(tr.x, tr.y, tr.width, 1f), b);
+                    EditorGUI.DrawRect(new Rect(tr.x, tr.yMax - 1f, tr.width, 1f), b);
+                    EditorGUI.DrawRect(new Rect(tr.x, tr.y, 1f, tr.height), b);
+                    EditorGUI.DrawRect(new Rect(tr.xMax - 1f, tr.y, 1f, tr.height), b);
+                }
+            }
+            EditorGUIUtility.AddCursorRect(tr, MouseCursor.Link);
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && e.button == 0 && tr.Contains(e.mousePosition))
+            {
+                bool open = e.clickCount == 2;
+                spec = s; frame = 0; scrub = -1; renaming = false;
+                if (open) { browsing = false; layerSel = 0; }
+                e.Use(); Repaint();
+            }
+            GUILayout.Label(new GUIContent(s.name, s.name), EditorStyles.miniLabel, GUILayout.Width(thumb));
+            EditorGUILayout.EndVertical();
+        }
+
+        // Cached representative-frame thumbnail per blast (rendered once through the real BlastRenderer).
+        Texture2D BrowseThumb(string guid, BlastSpec s)
+        {
+            if (browseThumbs.TryGetValue(guid, out var t) && t != null) return t;
+            int mid = Mathf.Clamp(s.frameCount / 2, 0, Mathf.Max(0, s.frameCount - 1));
+            var tex = BlastRenderer.RenderFrameTexture(s, mid);
+            tex.filterMode = FilterMode.Point;
+            browseThumbs[guid] = tex;
+            return tex;
+        }
+
+        void RefreshBrowse()
+        {
+            ClearBrowseThumbs();
+            browseGuids = AssetDatabase.FindAssets("t:BlastSpec");
+        }
+
+        void ClearBrowseThumbs()
+        {
+            foreach (var t in browseThumbs.Values) if (t != null) DestroyImmediate(t);
+            browseThumbs.Clear();
+        }
+
         void DrawPreview()
         {
             EditorGUILayout.BeginVertical();
@@ -767,7 +909,12 @@ namespace Laubrary.Pyre.Editor
             if (Event.current.type == EventType.Repaint)
             {
                 DrawBackdrop(view);
-                UpdatePreviewTexture(cur);
+                if (spec == null)
+                {
+                    var c = new GUIStyle(EditorStyles.centeredGreyMiniLabel);
+                    GUI.Label(view, "No blast selected", c);
+                }
+                else { UpdatePreviewTexture(cur);
                 if (previewTex != null)
                 {
                     float w = spec.Width * zoom, h = spec.Height * zoom;
@@ -783,6 +930,7 @@ namespace Laubrary.Pyre.Editor
                         EditorGUI.DrawRect(new Rect(local.xMax - 1f, local.y, 1f, local.height), frameCol);
                     }
                     GUI.EndClip();
+                }
                 }
             }
 
