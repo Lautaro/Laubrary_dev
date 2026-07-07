@@ -53,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     for how much of the gradient spans the shape).
   - Editor: a single **Modifiers** section (global + per-layer) with a grouped "+ Add" menu; label column widened
     so long labels don't clip; the **Image backdrop** now shows the whole image (ScaleToFit) instead of cropping.
+  - **Modifier lists are drag-reorderable** — grab a modifier's **≡** grip to reorder it within its list (per-layer
+    or global), same as the layer list. Order matters (pixel modifiers apply in order; Ground still runs before
+    Profile via its warp-pass).
   - **Simpler new-asset flow** — the redundant **New example blast** button is gone; **New asset** now shows an inline
     name field (suggesting "New Pyre") and saves the `.asset` with no file dialog, beside the current spec or in
     `Assets/Pyre`.

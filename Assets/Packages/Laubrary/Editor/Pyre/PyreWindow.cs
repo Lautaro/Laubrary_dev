@@ -40,6 +40,8 @@ namespace Laubrary.Pyre.Editor
         // splitters
         bool dragLeft, dragPreview;
         int draggingLayer = -1;   // index of the layer being drag-reordered, or -1
+        int draggingMod = -1;     // index of the modifier being drag-reordered, or -1
+        string draggingModList;   // idp of the modifier list that drag belongs to (layer mods vs global mods)
 
         // playback
         double lastTime;
@@ -579,6 +581,7 @@ namespace Laubrary.Pyre.Editor
             if (list == null) return;
             float half = spec.canvasSize * 0.5f;
             int remove = -1;
+            var rowRects = new System.Collections.Generic.List<Rect>(list.Count);
             for (int i = 0; i < list.Count; i++)
             {
                 var m = list[i];
@@ -586,6 +589,14 @@ namespace Laubrary.Pyre.Editor
                 using (Box(m.DisplayName))
                 {
                     EditorGUILayout.BeginHorizontal();
+                    // drag grip — grab to reorder within this list
+                    GUILayout.Label("≡", EditorStyles.boldLabel, GUILayout.Width(16));
+                    Rect grip = GUILayoutUtility.GetLastRect();
+                    EditorGUIUtility.AddCursorRect(grip, MouseCursor.Pan);
+                    if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && grip.Contains(Event.current.mousePosition))
+                    {
+                        draggingMod = i; draggingModList = idp; Event.current.Use(); Repaint();
+                    }
                     m.enabled = Toggle(m.enabled, m.enabled ? "✓" : "", ZUI.Style.Default, GUILayout.Width(28));
                     GUILayout.Label(m.DisplayName, EditorStyles.miniBoldLabel);
                     GUILayout.FlexibleSpace();
@@ -593,9 +604,55 @@ namespace Laubrary.Pyre.Editor
                     EditorGUILayout.EndHorizontal();
                     if (m.enabled) DrawModBody(m, half, idp + i);
                 }
+                rowRects.Add(GUILayoutUtility.GetLastRect());   // the whole modifier block (Box rect) = drop target
             }
+
+            HandleModDrag(list, idp, rowRects);
+
             if (Button("+ Add modifier")) ShowAddModifierMenu(list);
             if (remove >= 0) { Undo.RecordObject(spec, "Remove modifier"); list.RemoveAt(remove); EditorUtility.SetDirty(spec); }
+        }
+
+        // Drag a modifier by its ≡ grip to reorder it within its own list; draws an insertion line and moves on
+        // release. `idp` scopes the drag so the per-layer and global modifier lists don't cross-talk. Mirrors
+        // HandleLayerDrag; rowRects[i] is the block rect of list[i] (assumes no null entries, pruned each frame).
+        void HandleModDrag(System.Collections.Generic.List<PyreModifier> list, string idp,
+                           System.Collections.Generic.List<Rect> rowRects)
+        {
+            if (draggingMod < 0 || draggingModList != idp || rowRects.Count == 0) return;
+            var e = Event.current;
+
+            int target = rowRects.Count;
+            for (int i = 0; i < rowRects.Count; i++)
+                if (e.mousePosition.y < rowRects[i].center.y) { target = i; break; }
+
+            if (e.type == EventType.Repaint)
+            {
+                if (draggingMod < rowRects.Count)
+                    EditorGUI.DrawRect(rowRects[draggingMod], new Color(0.35f, 0.55f, 0.95f, 0.18f));
+                float y = target < rowRects.Count ? rowRects[target].yMin : rowRects[rowRects.Count - 1].yMax;
+                var r0 = rowRects[0];
+                EditorGUI.DrawRect(new Rect(r0.x, y - 1f, r0.width, 2f), new Color(0.4f, 0.8f, 1f));
+            }
+            else if (e.type == EventType.MouseDrag) { Repaint(); e.Use(); }
+            else if (e.type == EventType.MouseUp)
+            {
+                int from = draggingMod;
+                draggingMod = -1; draggingModList = null;
+                int to = target;
+                if (from >= 0 && from < list.Count && to != from && to != from + 1)
+                {
+                    Undo.RecordObject(spec, "Reorder modifier");
+                    var mm = list[from];
+                    list.RemoveAt(from);
+                    if (to > from) to--;
+                    to = Mathf.Clamp(to, 0, list.Count);
+                    list.Insert(to, mm);
+                    EditorUtility.SetDirty(spec);
+                }
+                e.Use();
+                Repaint();
+            }
         }
 
         void DrawModBody(PyreModifier m, float half, string id)
