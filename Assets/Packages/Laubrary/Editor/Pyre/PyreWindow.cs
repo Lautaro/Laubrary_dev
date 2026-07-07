@@ -106,9 +106,7 @@ namespace Laubrary.Pyre.Editor
             if (spec == null)
             {
                 VerticalSpace();
-                Label("Pick or create a BlastSpec, or hit \"New example blast\" for a ready-made explosion.",
-                    ZUI.ZTextStyle.Subtle);
-                if (Button("New example blast")) NewExample();
+                Label("Pick a BlastSpec above, or hit \"New asset\" to create one.", ZUI.ZTextStyle.Subtle);
                 return;
             }
 
@@ -139,32 +137,50 @@ namespace Laubrary.Pyre.Editor
         // ── top bar ────────────────────────────────────────────────────────────
         bool renaming;
         string renameText = "";
+        bool creating;
+        string createText = "";
+        bool focusNewField;
 
         void DrawTopBar()
         {
             EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginChangeCheck();
             spec = (BlastSpec)EditorGUILayout.ObjectField(spec, typeof(BlastSpec), false, GUILayout.Width(200));
-            if (EditorGUI.EndChangeCheck()) { frame = 0; layerSel = 0; scrub = -1; renaming = false; Repaint(); }
-            if (Button("New asset")) CreateAsset();
-            if (spec != null && Button("New example blast")) NewExample();
+            if (EditorGUI.EndChangeCheck()) { frame = 0; layerSel = 0; scrub = -1; renaming = false; creating = false; Repaint(); }
+            if (Button("New asset")) { creating = true; renaming = false; createText = "New Pyre"; focusNewField = true; }
 
             string path = spec != null ? AssetDatabase.GetAssetPath(spec) : null;
             bool isAsset = !string.IsNullOrEmpty(path);
             if (isAsset)
             {
                 if (Button("Duplicate")) DuplicateAsset(path);
-                if (Button("Rename")) { renaming = !renaming; renameText = System.IO.Path.GetFileNameWithoutExtension(path); }
+                if (Button("Rename")) { renaming = !renaming; creating = false; renameText = System.IO.Path.GetFileNameWithoutExtension(path); }
                 if (Button("Delete")) DeleteAsset(path);
             }
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
 
+            // Inline name prompt for a brand-new asset — no file dialog; it's saved beside the current spec (or in
+            // Assets/Pyre) under the typed name.
+            if (creating)
+            {
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label("Asset name", GUILayout.Width(72));
+                bool enter = Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return;
+                GUI.SetNextControlName("PyreNewAssetField");
+                createText = EditorGUILayout.TextField(createText, GUILayout.Width(200));
+                if (focusNewField && Event.current.type == EventType.Repaint)
+                { EditorGUI.FocusTextInControl("PyreNewAssetField"); focusNewField = false; }
+                if (Button("Create") || enter) CreateAssetNamed(createText);
+                if (Button("Cancel")) creating = false;
+                EditorGUILayout.EndHorizontal();
+            }
+
             // Inline rename row (a modal text prompt isn't worth it in IMGUI).
             if (isAsset && renaming)
             {
                 EditorGUILayout.BeginHorizontal();
-                GUILayout.Label("New name", GUILayout.Width(64));
+                GUILayout.Label("New name", GUILayout.Width(72));
                 bool enter = Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return;
                 renameText = EditorGUILayout.TextField(renameText, GUILayout.Width(200));
                 if (Button("OK") || enter) { RenameAsset(path, renameText); renaming = false; }
@@ -917,32 +933,28 @@ namespace Laubrary.Pyre.Editor
             return null;
         }
 
-        void NewExample()
+        // Create + save a new BlastSpec under the typed name, no file dialog. Saved beside the current spec if there
+        // is one, otherwise in Assets/Pyre (created on demand).
+        void CreateAssetNamed(string name)
         {
-            if (spec == null)
-            {
-                spec = CreateInstance<BlastSpec>();
-                spec.AddExampleContent();
-            }
-            else
-            {
-                Undo.RecordObject(spec, "Pyre example content");
-                spec.AddExampleContent();
-                EditorUtility.SetDirty(spec);
-            }
-            frame = 0; acc = 0f; scrub = -1; layerSel = 0;
-            Repaint();
-        }
+            name = name?.Trim();
+            if (string.IsNullOrEmpty(name)) name = "New Pyre";
 
-        void CreateAsset()
-        {
-            string path = EditorUtility.SaveFilePanelInProject("New Blast", "Blast", "asset", "");
-            if (string.IsNullOrEmpty(path)) return;
+            string dir = "Assets/Pyre";
+            if (spec != null)
+            {
+                string cur = AssetDatabase.GetAssetPath(spec);
+                if (!string.IsNullOrEmpty(cur)) dir = System.IO.Path.GetDirectoryName(cur).Replace('\\', '/');
+            }
+            if (!AssetDatabase.IsValidFolder(dir)) AssetDatabase.CreateFolder("Assets", "Pyre");
+
+            string path = AssetDatabase.GenerateUniqueAssetPath($"{dir}/{name}.asset");
             var s = CreateInstance<BlastSpec>();
             s.AddExampleContent();
             AssetDatabase.CreateAsset(s, path);
             AssetDatabase.SaveAssets();
-            spec = s; frame = 0; layerSel = 0; scrub = -1;
+            spec = s; frame = 0; layerSel = 0; scrub = -1; creating = false;
+            Repaint();
         }
     }
 }
