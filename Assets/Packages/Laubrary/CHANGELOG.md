@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   strength / twist). **Smudge** (geometry) drags a patch of the shape one way like a finger through wet paint
   (origin / direction / size / strength). **Drop shadow** (post) composites a darkened, offset copy behind the
   shape for depth (offset / colour). All animatable where it makes sense.
+- **Pyre: movable hole (offset hollow).** A hollow Disc's hole can be pushed off-centre (Hole offset X/Y, animatable)
+  — an offset hole carves a **crescent**, so the Crescent shape is now reproducible with a hollow Disc (and can be
+  retired). Inner-edge softness is measured from the offset hole centre.
 - **Pyre: Wedge (pie) alpha mask.** The Alpha-Mask modifier gains a **Wedge** shape — removes an angular slice of
   `progress`·360° (0.25 = a pac-man, 0.5 = a half), rotation aims the mouth, sharpness feathers the cut.
 - **Pyre: authorable blast Origin / pivot.** A BlastSpec now carries a normalized **Origin** (0,0 = bottom-left …

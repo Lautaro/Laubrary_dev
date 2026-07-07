@@ -78,6 +78,11 @@ namespace Laubrary.Pyre
         [Tooltip("Disc (Hollow): alpha gradient on the hole's INNER edge (0 = sharp, 1 = soft). Scaled by Hole size, " +
                  "so it does nothing when the hole is 0 and grows with it. Animatable.")]
         public ZUIValue innerSoftness = new ZUIValue(0f);
+        [Tooltip("Disc (Hollow): move the hole CENTRE off the shape centre, X, in −1..1 of the radius. Offset hole = " +
+                 "a crescent. Animatable — slide the hole across.")]
+        public ZUIValue holeOffsetX = new ZUIValue(0f);
+        [Tooltip("Disc (Hollow): move the hole CENTRE off the shape centre, Y, in −1..1 of the radius. Animatable.")]
+        public ZUIValue holeOffsetY = new ZUIValue(0f);
 
         [Tooltip("Sprite: the sprite stamped as particles (its texture must be read/write enabled). Use the editor's " +
                  "'New sprite (Aseprite)' button to make + edit one.")]
@@ -217,6 +222,8 @@ namespace Laubrary.Pyre
             l.outerSoftness = CloneVal(outerSoftness);
             l.holeSize = CloneVal(holeSize);
             l.innerSoftness = CloneVal(innerSoftness);
+            l.holeOffsetX = CloneVal(holeOffsetX);
+            l.holeOffsetY = CloneVal(holeOffsetY);
             l.colorFlow = CloneVal(colorFlow);
             l.colorFlowZoom = CloneVal(colorFlowZoom);
             l.gradientOffsetX = CloneVal(gradientOffsetX);

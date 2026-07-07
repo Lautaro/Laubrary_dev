@@ -31,7 +31,7 @@ namespace Laubrary.Pyre
         const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
         const int F_SparkleDensity = 34, F_HoleSize = 38, F_SpriteSpin = 39;
         const int F_InnerSoft = 40, F_OuterSoft = 41, F_ColorFlow = 42, F_ColorZoom = 43, F_SparkleSeed = 44;
-        const int F_GradX = 45, F_GradY = 46;
+        const int F_GradX = 45, F_GradY = 46, F_HoleOffX = 47, F_HoleOffY = 48;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -276,6 +276,13 @@ namespace Laubrary.Pyre
                     float holeSize = discLike && layer.hollow ? Mathf.Clamp01(Eval(layer.holeSize, t, spec.seed, li, si, F_HoleSize)) : 0f;
                     float outerSoft = discLike ? Mathf.Clamp01(Eval(layer.outerSoftness, t, spec.seed, li, si, F_OuterSoft)) : 0f;
                     float innerSoft = discLike && layer.hollow ? Mathf.Clamp01(Eval(layer.innerSoftness, t, spec.seed, li, si, F_InnerSoft)) : 0f;
+                    // Hole centre can be offset off the shape centre (an offset hole = a crescent).
+                    float holeOffX = 0f, holeOffY = 0f;
+                    if (discLike && layer.hollow)
+                    {
+                        holeOffX = Eval(layer.holeOffsetX, t, spec.seed, li, si, F_HoleOffX) * radius;
+                        holeOffY = Eval(layer.holeOffsetY, t, spec.seed, li, si, F_HoleOffY) * radius;
+                    }
                     // Gradient position/zoom + a movable gradient CORE apply to BOTH spatial fill modes (Fill and
                     // Flow fill). Core offset is in pixels (normalised −1..1 × radius) — offset it + a bright→dark
                     // gradient makes a 3D orb / energy-ball highlight; animate it for a moving core.
@@ -288,7 +295,7 @@ namespace Laubrary.Pyre
                         gradY = Eval(layer.gradientOffsetY, t, spec.seed, li, si, F_GradY) * radius;
                     }
                     RasterShape(buf, W, H, cx, cy, framePhase, layer, c, radius, baseCol, alpha,
-                                t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, sparkleSub, holeSize, outerSoft, innerSoft, flowPos, flowZoom, gradX, gradY);
+                                t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, sparkleSub, holeSize, outerSoft, innerSoft, flowPos, flowZoom, gradX, gradY, holeOffX, holeOffY);
                 }
               }
             }
@@ -463,7 +470,8 @@ namespace Laubrary.Pyre
                                 float framePhase, Layer layer, Vector2 c, float radius, Color baseCol, float alpha,
                                 float t, int shapeSeed, float crescX, float crescY,
                                 ModStack stack, int frameIndex, float sparkleDensity, int sparkleSub, float holeSize,
-                                float outerSoft, float innerSoft, float flowPos, float flowZoom, float gradX, float gradY)
+                                float outerSoft, float innerSoft, float flowPos, float flowZoom, float gradX, float gradY,
+                                float holeOffX, float holeOffY)
         {
             for (int y = 0; y < H; y++)
             {
@@ -474,22 +482,27 @@ namespace Laubrary.Pyre
                     if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, new GeoCtx(W * 0.5f, H * 0.5f, c, radius));
                     float ux = off.x, uy = off.y;
 
-                    if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, sparkleDensity, sparkleSub, holeSize, out Color col))
+                    if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, sparkleDensity, sparkleSub, holeSize, holeOffX, holeOffY, out Color col))
                         continue;
 
-                    // Normalised distance from the shape centre (0 = centre, 1 = edge) — drives the edge softness AND
+                    // Normalised distance from the shape centre (0 = centre, 1 = edge) — drives the outer softness AND
                     // the Tint modifier's cross gradient / fill (crossFrac).
                     float nd = radius > 0.001f
                         ? Mathf.Clamp01(Mathf.Sqrt((ux - c.x) * (ux - c.x) + (uy - c.y) * (uy - c.y)) / radius) : 0f;
 
-                    // Disc/Sparkle edge softness: fade alpha near the hole's inner edge (nd = holeSize) and near the
-                    // outer edge (nd = 1). Bands are in nd; 0 = sharp. The inner fade is scaled by the hole size, so
-                    // it does nothing when there's no hole and grows with it.
+                    // Disc/Sparkle edge softness: fade alpha near the hole's inner edge (measured from the — possibly
+                    // offset — HOLE centre) and near the outer edge (nd = 1). The inner fade scales by hole size, so it
+                    // does nothing when there's no hole and grows with it.
                     float pixelAlpha = alpha;
                     if (layer.shape == LayerShape.Disc || layer.shape == LayerShape.SparkleField)
                     {
                         if (innerSoft > 0.001f && holeSize > 0.001f)
-                            pixelAlpha *= Mathf.Clamp01((nd - holeSize) / (innerSoft * holeSize));
+                        {
+                            float hnd = radius > 0.001f
+                                ? Mathf.Sqrt((ux - (c.x + holeOffX)) * (ux - (c.x + holeOffX)) +
+                                             (uy - (c.y + holeOffY)) * (uy - (c.y + holeOffY))) / radius : 0f;
+                            pixelAlpha *= Mathf.Clamp01((hnd - holeSize) / (innerSoft * holeSize));
+                        }
                         if (outerSoft > 0.001f) pixelAlpha *= Mathf.Clamp01((1f - nd) / outerSoft);
                     }
                     if (pixelAlpha <= 0.001f) continue;
@@ -590,24 +603,27 @@ namespace Laubrary.Pyre
         // Returns whether this undeformed pixel is inside the shape, and the colour to lay down.
         static bool ShapeHit(Layer layer, float ux, float uy, Vector2 c, float radius, float t,
                              int shapeSeed, int x, int y, Color baseCol, float crescX, float crescY,
-                             float sparkleDensity, int sparkleSub, float holeSize, out Color col)
+                             float sparkleDensity, int sparkleSub, float holeSize, float holeOffX, float holeOffY, out Color col)
         {
             col = baseCol;
             float dx = ux - c.x, dy = uy - c.y;
             float dist = Mathf.Sqrt(dx * dx + dy * dy);
+            // Hole distance is measured from the (optionally offset) hole centre — an offset hole carves a crescent.
+            float hdx = ux - (c.x + holeOffX), hdy = uy - (c.y + holeOffY);
+            float holeDist = Mathf.Sqrt(hdx * hdx + hdy * hdy);
 
             switch (layer.shape)
             {
                 case LayerShape.Disc:
                 {
                     if (dist > radius) return false;
-                    // holeSize = inner radius fraction (0 = full disc; a Hollow disc carves a centre hole).
-                    return dist >= holeSize * radius;
+                    // holeSize = inner radius fraction (0 = full disc; a Hollow disc carves a — possibly offset — hole).
+                    return holeDist >= holeSize * radius;
                 }
 
                 case LayerShape.SparkleField:
                 {
-                    if (dist > radius || dist < holeSize * radius) return false;   // disc, with an optional hole
+                    if (dist > radius || holeDist < holeSize * radius) return false;   // disc, with an optional hole
                     // Which pixels light up: hashed with the sub-seed so it re-rolls (twinkles) when animated.
                     float h = Hash01(shapeSeed ^ sparkleSub, x, y);
                     if (h >= sparkleDensity) return false;

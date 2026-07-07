@@ -577,6 +577,8 @@ namespace Laubrary.Pyre.Editor
             {
                 ValRow("Hole size", l.holeSize, 0f, 1f, 0.5f);
                 ValRow("Inner softness", l.innerSoftness, 0f, 1f, 0f);
+                ValRow("Hole offset X", l.holeOffsetX, -1f, 1f, 0f);   // offset the hole = a crescent
+                ValRow("Hole offset Y", l.holeOffsetY, -1f, 1f, 0f);
             }
         }
 
