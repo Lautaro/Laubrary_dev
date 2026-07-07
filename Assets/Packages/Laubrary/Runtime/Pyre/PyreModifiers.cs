@@ -57,10 +57,25 @@ namespace Laubrary.Pyre
 
     // ── geometry: warps the coordinate grid (applied as an inverse map when rasterising) ──────────────────
     [Serializable]
+    /// Everything a position-dependent geometry warp needs about the shape it's deforming, so warps can reason in
+    /// the shape's own frame (locked to it) instead of the canvas. `center` is the shape centre as an offset from
+    /// the canvas centre; `radius` its radius; `vHalf` the canvas half-height. For Bars (no single disc) radius is 0.
+    public readonly struct GeoCtx
+    {
+        public readonly float vHalf;
+        public readonly Vector2 center;
+        public readonly float radius;
+        public GeoCtx(float vHalf, Vector2 center, float radius) { this.vHalf = vHalf; this.center = center; this.radius = radius; }
+    }
+
     public abstract class GeometryModifier : PyreModifier
     {
         /// Undo this modifier's warp on a pixel offset from the canvas centre. phase = a per-frame wobble phase.
-        public abstract Vector2 InverseWarp(Vector2 off, float phase, float half);
+        public abstract Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx);
+
+        /// Warps with a HIGHER pass are applied FIRST (they reframe the shape before shape-local warps like Profile
+        /// read it). Default 0; Ground raises it so the base-anchor happens before the silhouette is measured.
+        public virtual int WarpPass => 0;
     }
 
     [Serializable]
@@ -71,7 +86,7 @@ namespace Laubrary.Pyre
         float a;
         public override string DisplayName => "Skew";
         public override void Prepare(Func<ZUIValue, int, float> e) => a = e(amount, 0);
-        public override Vector2 InverseWarp(Vector2 off, float phase, float half) { off.x -= a * off.y; return off; }
+        public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx) { off.x -= a * off.y; return off; }
     }
 
     [Serializable]
@@ -82,7 +97,7 @@ namespace Laubrary.Pyre
         float sq;
         public override string DisplayName => "Squash";
         public override void Prepare(Func<ZUIValue, int, float> e) { sq = e(amount, 0); if (Mathf.Approximately(sq, 0f)) sq = 1f; }
-        public override Vector2 InverseWarp(Vector2 off, float phase, float half) { off.x /= sq; return off; }
+        public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx) { off.x /= sq; return off; }
     }
 
     [Serializable]
@@ -93,7 +108,7 @@ namespace Laubrary.Pyre
         float rad;
         public override string DisplayName => "Rotate";
         public override void Prepare(Func<ZUIValue, int, float> e) => rad = -e(degrees, 0) * Mathf.Deg2Rad;   // inverse
-        public override Vector2 InverseWarp(Vector2 off, float phase, float half)
+        public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
         {
             if (rad == 0f) return off;
             float c = Mathf.Cos(rad), s = Mathf.Sin(rad);
@@ -111,7 +126,7 @@ namespace Laubrary.Pyre
         float amp, freq;
         public override string DisplayName => "Wobble";
         public override void Prepare(Func<ZUIValue, int, float> e) { amp = e(amplitude, 0); freq = e(frequency, 1); }
-        public override Vector2 InverseWarp(Vector2 off, float phase, float half)
+        public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
         {
             if (amp != 0f) off.x -= amp * Mathf.Sin(off.y * freq * 0.1f + phase);
             return off;
@@ -134,14 +149,15 @@ namespace Laubrary.Pyre
         float str;
         public override string DisplayName => "Profile";
         public override void Prepare(Func<ZUIValue, int, float> e) => str = Mathf.Clamp01(e(strength, 0));
-        public override Vector2 InverseWarp(Vector2 off, float phase, float half)
+        public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
         {
-            if (str <= 0.001f || widthByHeight == null || widthByHeight.Count == 0) return off;
-            // ny: canvas-vertical position 0 (bottom) → 1 (top). Width is a horizontal scale, so y is untouched and
-            // the inverse is just x / width(ny).
-            float ny = Mathf.Clamp01(off.y / (2f * Mathf.Max(1f, half)) + 0.5f);
+            if (str <= 0.001f || ctx.radius <= 0.001f || widthByHeight == null || widthByHeight.Count == 0) return off;
+            // Height is measured in the SHAPE's own frame (0 = its bottom, 1 = its top), NOT the canvas — so the
+            // silhouette stays locked to the shape wherever it sits or however big it grows, and composes with Ground
+            // (which reframes off.y to the surface before this runs). Width is a horizontal scale about the shape's x.
+            float ny = Mathf.Clamp01((off.y - (ctx.center.y - ctx.radius)) / (2f * ctx.radius));
             float w = Mathf.Lerp(1f, Mathf.Max(0.02f, ZUIEnvelopeEvaluator.Evaluate(widthByHeight, ny, 1f)), str);
-            off.x /= Mathf.Max(0.02f, w);
+            off.x = ctx.center.x + (off.x - ctx.center.x) / Mathf.Max(0.02f, w);
             return off;
         }
 
@@ -149,6 +165,37 @@ namespace Laubrary.Pyre
         {
             new ZUIEnvelopePoint(0f, 1f), new ZUIEnvelopePoint(0.6f, 0.65f), new ZUIEnvelopePoint(1f, 0.12f)
         };
+    }
+
+    /// Anchors a shape's BASE to a flat surface line and grows it UP from there (like Bars stream off an edge),
+    /// instead of the shape being locked to the canvas centre. `surface` places the line (−1 = bottom edge, 0 =
+    /// centre, +1 = top). `stretch` scales the plume's height about that base — animate it 0→N and the shape shoots
+    /// up out of the surface. `bury` sinks the base below the line (0 = base sits on it, 0.5 = a half-buried dome for
+    /// a ground burst). Pair with Profile for grounded mushrooms / candles / campfires. Applied before Profile.
+    [Serializable]
+    public class GroundModifier : GeometryModifier
+    {
+        [Tooltip("Surface line the base sits on: −1 = bottom edge, 0 = centre, +1 = top edge.")]
+        [Range(-1f, 1f)] public float surface = -1f;
+        [Tooltip("Vertical height multiplier about the base. 1 = as tall as wide; animate 0→N to shoot up. Animatable.")]
+        public ZUIValue stretch = new ZUIValue(1f);
+        [Tooltip("Sink the base below the surface: 0 = base on the line, 0.5 = centre on the line (a dome).")]
+        [Range(0f, 1f)] public float bury;
+
+        float k;
+        public override int WarpPass => 10;   // reframe the shape onto the surface before Profile measures its height
+        public override string DisplayName => "Ground";
+        public override void Prepare(Func<ZUIValue, int, float> e) => k = Mathf.Max(0.05f, e(stretch, 0));
+        public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
+        {
+            if (ctx.radius <= 0.001f) return off;   // no disc extent to ground (e.g. Bars)
+            float surfaceY = surface * ctx.vHalf;
+            float baseY = surfaceY - bury * 2f * ctx.radius * k;
+            // Map the grounded, stretched screen column back into the shape's undeformed frame (centred at ctx.center,
+            // radius ctx.radius): base → −radius, top → +radius. y only; x is left to Profile / other warps.
+            off.y = (ctx.center.y - ctx.radius) + (off.y - baseY) / k;
+            return off;
+        }
     }
 
     // ── pixel: recolour / mask / remove ───────────────────────────────────────────────────────────────────

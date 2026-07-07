@@ -54,6 +54,9 @@ namespace Laubrary.Pyre
             CollectMods(layer != null ? layer.modifiers : null, spec, li, lp, frameIndex, geo, pix, 0);
             CollectMods(spec != null ? spec.globalModifiers : null, spec, GlobalLayerId, bp, frameIndex, geo, pix, 500);
             if (geo.Count == 0 && pix.Count == 0) return EmptyStack;
+            // Higher WarpPass applies FIRST (ApplyGeo walks the array back-to-front), so Ground reframes the shape
+            // onto its surface before Profile measures its height. Stable so equal passes keep authoring order.
+            if (geo.Count > 1) StableSortByPass(geo);
             return new ModStack(geo.ToArray(), pix.ToArray());
         }
 
@@ -75,11 +78,23 @@ namespace Laubrary.Pyre
             }
         }
 
-        // Undo the geometry modifiers (outermost first) on a pixel offset from the canvas centre. `half` is the
-        // canvas half-height, so position-dependent warps (Profile) can normalise the vertical coordinate.
-        static Vector2 ApplyGeo(in ModStack s, Vector2 off, float phase, float half)
+        // Ascending by WarpPass so the array ends with the highest pass; ApplyGeo then reaches them first. Insertion
+        // sort keeps it stable (tiny lists) so same-pass modifiers preserve the order the user added them.
+        static void StableSortByPass(System.Collections.Generic.List<GeometryModifier> geo)
         {
-            for (int i = s.geo.Length - 1; i >= 0; i--) off = s.geo[i].InverseWarp(off, phase, half);
+            for (int i = 1; i < geo.Count; i++)
+            {
+                var m = geo[i]; int j = i - 1;
+                while (j >= 0 && geo[j].WarpPass > m.WarpPass) { geo[j + 1] = geo[j]; j--; }
+                geo[j + 1] = m;
+            }
+        }
+
+        // Undo the geometry modifiers on a pixel offset from the canvas centre, in shape-aware context (so position-
+        // dependent warps like Ground/Profile can work in the shape's own frame). Highest WarpPass is applied first.
+        static Vector2 ApplyGeo(in ModStack s, Vector2 off, float phase, in GeoCtx ctx)
+        {
+            for (int i = s.geo.Length - 1; i >= 0; i--) off = s.geo[i].InverseWarp(off, phase, ctx);
             return off;
         }
 
@@ -422,7 +437,7 @@ namespace Laubrary.Pyre
                 for (int x = x0; x <= x1; x++)
                 {
                     float wx = x + 0.5f, wy = y + 0.5f;
-                    if (stack.AnyGeo) { Vector2 o = ApplyGeo(stack, new Vector2(wx - cx, wy - cy), framePhase, H * 0.5f); wx = cx + o.x; wy = cy + o.y; }
+                    if (stack.AnyGeo) { Vector2 o = ApplyGeo(stack, new Vector2(wx - cx, wy - cy), framePhase, new GeoCtx(H * 0.5f, Vector2.zero, 0f)); wx = cx + o.x; wy = cy + o.y; }
                     float px = wx - barCenter.x, py = wy - barCenter.y;
                     float along = px * dir.x + py * dir.y;
                     float across = px * perp.x + py * perp.y;
@@ -466,7 +481,7 @@ namespace Laubrary.Pyre
                 {
                     // Undo the opt-in geometry modifiers (outermost first) to reach undeformed blast space.
                     Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
-                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, H * 0.5f);
+                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, new GeoCtx(H * 0.5f, c, radius));
                     float ux = off.x, uy = off.y;
 
                     if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, sparkleDensity, sparkleSub, holeSize, out Color col))

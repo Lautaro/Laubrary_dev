@@ -14,10 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Geometry** modifiers (warp the grid): **Skew, Rotate, Squash, Wobble, Profile** — now apply to **every** layer
     type, Bars included.
   - **Profile (mold shape)** geometry modifier — sculpts a shape's silhouette by driving its horizontal **width at
-    each canvas height** from a spatial curve (0 = bottom → 1 = top), with an animatable **Strength** to blend the
-    profile in over life. Turns a plain Disc into directional shapes — candle/teardrop flames, flickering campfire
-    tongues (stack profiles + Wobble), or a **mushroom cloud** rising out of a surface (thin stem → wide domed cap).
-    Each stacked layer can carry its own profile, so the inner plume differs from the outer.
+    each height** from a spatial curve (0 = bottom → 1 = top), with an animatable **Strength** to blend the profile
+    in over life. Turns a plain Disc into directional shapes — candle/teardrop flames, flickering campfire tongues
+    (stack profiles + Wobble), or a **mushroom cloud** (thin stem → wide domed cap). Height is now measured in the
+    shape's **own frame** (not the canvas), so the silhouette stays locked to the shape wherever it sits or grows,
+    and composes with Ground. Each stacked layer can carry its own profile, so the inner plume differs from the outer.
+  - **Ground (grow from surface)** geometry modifier — plants a shape's **base on a flat surface line** and grows it
+    **up** from there (like Bars stream off an edge), instead of the shape being locked to the canvas centre.
+    `Surface` (−1 bottom edge … +1 top) places the line; an animatable `Stretch` scales the plume's height about that
+    base (animate 0→N and it shoots up out of the surface); `Bury` sinks the base for a half-buried dome / ground
+    burst. Pairs with Profile for surface-rooted candles, campfires (several grounded tongues + Wobble) and mushroom
+    clouds (a grounded thin stem + a wide dome cap grounded higher). Geometry warps now run in a shape-aware context
+    (centre + radius + canvas half-height); Ground applies before Profile via a warp-pass order.
   - **Pixel** modifiers (recolour / mask / remove): **Tint** (flat + cross-gradient + contrast/brightness/
     saturation), **Dissolve** (Erase / Fade / Bleed / Scatter modes), and a moving **Alpha Mask** (DiscOut / DiscIn
     / SwipeH / SwipeV with animatable progress, sharpness, size, rotation, offset).

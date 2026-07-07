@@ -598,6 +598,11 @@ namespace Laubrary.Pyre.Editor
                     CurveField("pyre.profile." + id, "Width by height", pm.widthByHeight, 0f, 2f);
                     ValRow("Strength", pm.strength, 0f, 1f, 1f);
                     break;
+                case GroundModifier g:
+                    g.surface = EditorGUILayout.Slider("Surface", g.surface, -1f, 1f);
+                    ValRow("Stretch (height)", g.stretch, 0f, 4f, 1f);
+                    g.bury = EditorGUILayout.Slider("Bury base", g.bury, 0f, 1f);
+                    break;
                 case TintModifier t:
                     t.tint = EditorGUILayout.ColorField("Tint", t.tint);
                     t.crossGradient ??= Layer.WhiteGradient();
@@ -639,6 +644,7 @@ namespace Laubrary.Pyre.Editor
             Add("Geometry/Squash", () => new SquashModifier());
             Add("Geometry/Wobble", () => new WobbleModifier());
             Add("Geometry/Profile (mold shape)", () => new ProfileModifier());
+            Add("Geometry/Ground (grow from surface)", () => new GroundModifier());
             Add("Colour/Tint", () => new TintModifier());
             Add("Colour/Contrast", () => new ContrastModifier());
             Add("Colour/Brightness", () => new BrightnessModifier());
