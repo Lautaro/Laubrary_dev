@@ -62,10 +62,12 @@ namespace Laubrary.Pyre
     /// the canvas centre; `radius` its radius; `vHalf` the canvas half-height. For Bars (no single disc) radius is 0.
     public readonly struct GeoCtx
     {
-        public readonly float vHalf;
+        public readonly float hHalf;   // canvas half-width  (for direction-aware warps + pivots)
+        public readonly float vHalf;   // canvas half-height
         public readonly Vector2 center;
         public readonly float radius;
-        public GeoCtx(float vHalf, Vector2 center, float radius) { this.vHalf = vHalf; this.center = center; this.radius = radius; }
+        public GeoCtx(float hHalf, float vHalf, Vector2 center, float radius)
+        { this.hHalf = hHalf; this.vHalf = vHalf; this.center = center; this.radius = radius; }
     }
 
     public abstract class GeometryModifier : PyreModifier
@@ -103,8 +105,12 @@ namespace Laubrary.Pyre
     [Serializable]
     public class RotateModifier : GeometryModifier
     {
-        [Tooltip("Rotation about the centre, in degrees. Animatable.")]
+        [Tooltip("Rotation about the pivot, in degrees. Animatable.")]
         public ZUIValue degrees = new ZUIValue(0f);
+        [Tooltip("Pivot X in normalized canvas coords: -1 = left edge, 0 = centre, +1 = right edge.")]
+        [Range(-1f, 1f)] public float pivotX;
+        [Tooltip("Pivot Y in normalized canvas coords: -1 = bottom edge, 0 = centre, +1 = top edge.")]
+        [Range(-1f, 1f)] public float pivotY;
         float rad;
         public override string DisplayName => "Rotate";
         public override void Prepare(Func<ZUIValue, int, float> e) => rad = -e(degrees, 0) * Mathf.Deg2Rad;   // inverse
@@ -112,7 +118,10 @@ namespace Laubrary.Pyre
         {
             if (rad == 0f) return off;
             float c = Mathf.Cos(rad), s = Mathf.Sin(rad);
-            return new Vector2(off.x * c - off.y * s, off.x * s + off.y * c);
+            // Rotate about the pivot (default 0,0 = canvas centre): translate to pivot, rotate, translate back.
+            Vector2 p = new Vector2(pivotX * ctx.hHalf, pivotY * ctx.vHalf);
+            Vector2 d = off - p;
+            return p + new Vector2(d.x * c - d.y * s, d.x * s + d.y * c);
         }
     }
 
@@ -175,26 +184,44 @@ namespace Laubrary.Pyre
     [Serializable]
     public class GroundModifier : GeometryModifier
     {
-        [Tooltip("Surface line the base sits on: −1 = bottom edge, 0 = centre, +1 = top edge.")]
+        [Tooltip("Direction the shape grows: 0 = up, 90 = right, 180 = down, −90 = left. The base sits on a surface " +
+                 "line perpendicular to this, and the plume shoots out along it. Animatable — sweep it over life.")]
+        public ZUIValue angle = new ZUIValue(0f);
+        [Tooltip("Where the base sits along the grow direction: −1 = the canvas edge behind it, 0 = centre, +1 = far edge.")]
         [Range(-1f, 1f)] public float surface = -1f;
-        [Tooltip("Vertical height multiplier about the base. 1 = as tall as wide; animate 0→N to shoot up. Animatable.")]
+        [Tooltip("Height multiplier along the grow direction, about the base. 1 = as tall as wide; animate 0→N to " +
+                 "shoot out. Animatable.")]
         public ZUIValue stretch = new ZUIValue(1f);
-        [Tooltip("Sink the base below the surface: 0 = base on the line, 0.5 = centre on the line (a dome).")]
+        [Tooltip("Sink the base behind the surface: 0 = base on the line, 0.5 = centre on the line (a dome).")]
         [Range(0f, 1f)] public float bury;
 
-        float k;
+        float k, deg;
         public override int WarpPass => 10;   // reframe the shape onto the surface before Profile measures its height
         public override string DisplayName => "Ground";
-        public override void Prepare(Func<ZUIValue, int, float> e) => k = Mathf.Max(0.05f, e(stretch, 0));
+        public override void Prepare(Func<ZUIValue, int, float> e) { k = Mathf.Max(0.05f, e(stretch, 0)); deg = e(angle, 1); }
         public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
         {
             if (ctx.radius <= 0.001f) return off;   // no disc extent to ground (e.g. Bars)
-            float surfaceY = surface * ctx.vHalf;
-            float baseY = surfaceY - bury * 2f * ctx.radius * k;
-            // Map the grounded, stretched screen column back into the shape's undeformed frame (centred at ctx.center,
-            // radius ctx.radius): base → −radius, top → +radius. y only; x is left to Profile / other warps.
-            off.y = (ctx.center.y - ctx.radius) + (off.y - baseY) / k;
-            return off;
+
+            float th = deg * Mathf.Deg2Rad;
+            Vector2 dir  = new Vector2(Mathf.Sin(th),  Mathf.Cos(th));   // 0° = up (+y); grow direction
+            Vector2 perp = new Vector2(Mathf.Cos(th), -Mathf.Sin(th));   // across the plume
+
+            // Reach from the canvas centre to the edge along `dir`, so surface = −1 lands on that edge at any angle.
+            float rx = Mathf.Abs(dir.x) > 1e-4f ? ctx.hHalf / Mathf.Abs(dir.x) : float.MaxValue;
+            float ry = Mathf.Abs(dir.y) > 1e-4f ? ctx.vHalf / Mathf.Abs(dir.y) : float.MaxValue;
+            float reach = Mathf.Min(rx, ry);
+
+            float r = ctx.radius;
+            float baseAlong = surface * reach - bury * 2f * r * k;
+            float cw = Vector2.Dot(ctx.center, perp);   // shape's across offset — positionX/Y slide it along the surface
+
+            // Decompose the pixel into along-grow / across, then rebuild it in the shape's canonical up-growing frame
+            // (base → −r, top → +r along y; across → x). Profile + the disc hit-test then work unchanged, and the
+            // whole molded plume ends up rooted on the surface and pointing along `dir`.
+            float py = (Vector2.Dot(off, dir) - baseAlong) / k - r;
+            float px = Vector2.Dot(off, perp) - cw;
+            return ctx.center + new Vector2(px, py);
         }
     }
 

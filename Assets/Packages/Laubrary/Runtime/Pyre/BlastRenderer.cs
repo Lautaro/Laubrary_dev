@@ -440,7 +440,7 @@ namespace Laubrary.Pyre
                 for (int x = x0; x <= x1; x++)
                 {
                     float wx = x + 0.5f, wy = y + 0.5f;
-                    if (stack.AnyGeo) { Vector2 o = ApplyGeo(stack, new Vector2(wx - cx, wy - cy), framePhase, new GeoCtx(H * 0.5f, Vector2.zero, 0f)); wx = cx + o.x; wy = cy + o.y; }
+                    if (stack.AnyGeo) { Vector2 o = ApplyGeo(stack, new Vector2(wx - cx, wy - cy), framePhase, new GeoCtx(W * 0.5f, H * 0.5f, Vector2.zero, 0f)); wx = cx + o.x; wy = cy + o.y; }
                     float px = wx - barCenter.x, py = wy - barCenter.y;
                     float along = px * dir.x + py * dir.y;
                     float across = px * perp.x + py * perp.y;
@@ -484,7 +484,7 @@ namespace Laubrary.Pyre
                 {
                     // Undo the opt-in geometry modifiers (outermost first) to reach undeformed blast space.
                     Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
-                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, new GeoCtx(H * 0.5f, c, radius));
+                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, new GeoCtx(W * 0.5f, H * 0.5f, c, radius));
                     float ux = off.x, uy = off.y;
 
                     if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, sparkleDensity, sparkleSub, holeSize, out Color col))

@@ -23,13 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (stack profiles + Wobble), or a **mushroom cloud** (thin stem → wide domed cap). Height is now measured in the
     shape's **own frame** (not the canvas), so the silhouette stays locked to the shape wherever it sits or grows,
     and composes with Ground. Each stacked layer can carry its own profile, so the inner plume differs from the outer.
-  - **Ground (grow from surface)** geometry modifier — plants a shape's **base on a flat surface line** and grows it
-    **up** from there (like Bars stream off an edge), instead of the shape being locked to the canvas centre.
-    `Surface` (−1 bottom edge … +1 top) places the line; an animatable `Stretch` scales the plume's height about that
-    base (animate 0→N and it shoots up out of the surface); `Bury` sinks the base for a half-buried dome / ground
-    burst. Pairs with Profile for surface-rooted candles, campfires (several grounded tongues + Wobble) and mushroom
-    clouds (a grounded thin stem + a wide dome cap grounded higher). Geometry warps now run in a shape-aware context
-    (centre + radius + canvas half-height); Ground applies before Profile via a warp-pass order.
+  - **Ground (grow from surface)** geometry modifier — plants a shape's **base on a surface line** and grows it out
+    from there (like Bars stream off an edge), instead of the shape being locked to the canvas centre. An animatable
+    **Grow angle** aims the plume in **any direction** (0 = up, 90 = right, 180 = down, −90 = left) — the base roots
+    on the corresponding edge/corner and the whole molded silhouette follows. `Surface` (−1 edge behind … +1 far
+    edge) slides the base along that axis; an animatable `Stretch` scales the plume's height about the base (animate
+    0→N and it shoots out); `Bury` sinks the base for a half-buried dome / ground burst. Pairs with Profile for
+    surface-rooted candles, campfires (several grounded tongues + Wobble) and mushroom clouds. Geometry warps now run
+    in a shape-aware context (centre + radius + canvas half-width/height); Ground applies before Profile via a
+    warp-pass order.
+  - **Rotate** now takes an optional **pivot** (Pivot X / Y in normalized canvas coords; 0,0 = centre = the old
+    behaviour) so it can spin about any point instead of only the canvas centre.
   - **Pixel** modifiers (recolour / mask / remove): **Tint** (flat + cross-gradient + contrast/brightness/
     saturation), **Dissolve** (Erase / Fade / Bleed / Scatter modes), and a moving **Alpha Mask** (DiscOut / DiscIn
     / SwipeH / SwipeV with animatable progress, sharpness, size, rotation, offset).

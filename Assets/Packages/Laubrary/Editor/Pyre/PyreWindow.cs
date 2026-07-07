@@ -661,7 +661,11 @@ namespace Laubrary.Pyre.Editor
             {
                 case SkewModifier s: ValRow("Amount", s.amount, -2f, 2f, 0f); break;
                 case SquashModifier s: ValRow("Amount", s.amount, 0.3f, 3f, 1f); break;
-                case RotateModifier r: ValRow("Degrees", r.degrees, -180f, 180f, 0f); break;
+                case RotateModifier r:
+                    ValRow("Degrees", r.degrees, -180f, 180f, 0f);
+                    r.pivotX = EditorGUILayout.Slider("Pivot X", r.pivotX, -1f, 1f);
+                    r.pivotY = EditorGUILayout.Slider("Pivot Y", r.pivotY, -1f, 1f);
+                    break;
                 case WobbleModifier w:
                     ValRow("Amplitude", w.amplitude, 0f, Mathf.Max(4f, half), 0f);
                     ValRow("Frequency", w.frequency, 0f, 8f, 1f);
@@ -672,6 +676,7 @@ namespace Laubrary.Pyre.Editor
                     ValRow("Strength", pm.strength, 0f, 1f, 1f);
                     break;
                 case GroundModifier g:
+                    ValRow("Grow angle", g.angle, -180f, 180f, 0f);
                     g.surface = EditorGUILayout.Slider("Surface", g.surface, -1f, 1f);
                     ValRow("Stretch (height)", g.stretch, 0f, 4f, 1f);
                     g.bury = EditorGUILayout.Slider("Bury base", g.bury, 0f, 1f);
