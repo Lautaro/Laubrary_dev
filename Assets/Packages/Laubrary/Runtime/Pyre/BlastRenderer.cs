@@ -31,6 +31,7 @@ namespace Laubrary.Pyre
         const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
         const int F_SparkleDensity = 34, F_OriginAngle = 35, F_OriginBend = 36, F_EmitSpread = 37, F_HoleSize = 38, F_SpriteSpin = 39;
         const int F_InnerSoft = 40, F_OuterSoft = 41, F_ColorFlow = 42, F_ColorZoom = 43, F_SparkleSeed = 44;
+        const int F_GradX = 45, F_GradY = 46;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -291,14 +292,19 @@ namespace Laubrary.Pyre
                     float holeSize = discLike && layer.hollow ? Mathf.Clamp01(Eval(layer.holeSize, t, spec.seed, li, si, F_HoleSize)) : 0f;
                     float outerSoft = discLike ? Mathf.Clamp01(Eval(layer.outerSoftness, t, spec.seed, li, si, F_OuterSoft)) : 0f;
                     float innerSoft = discLike && layer.hollow ? Mathf.Clamp01(Eval(layer.innerSoftness, t, spec.seed, li, si, F_InnerSoft)) : 0f;
-                    float flowPos = 0f, flowZoom = 1f;
-                    if (layer.colorMode == ColorMode.FlowingFill)
+                    // Gradient position/zoom + a movable gradient CORE apply to BOTH spatial fill modes (Fill and
+                    // Flow fill). Core offset is in pixels (normalised −1..1 × radius) — offset it + a bright→dark
+                    // gradient makes a 3D orb / energy-ball highlight; animate it for a moving core.
+                    float flowPos = 0f, flowZoom = 1f, gradX = 0f, gradY = 0f;
+                    if (layer.colorMode != ColorMode.OverLife)
                     {
                         flowPos = Eval(layer.colorFlow, t, spec.seed, li, si, F_ColorFlow);
                         flowZoom = Eval(layer.colorFlowZoom, t, spec.seed, li, si, F_ColorZoom);
+                        gradX = Eval(layer.gradientOffsetX, t, spec.seed, li, si, F_GradX) * radius;
+                        gradY = Eval(layer.gradientOffsetY, t, spec.seed, li, si, F_GradY) * radius;
                     }
                     RasterShape(buf, W, H, cx, cy, framePhase, layer, c, radius, baseCol, alpha,
-                                t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, sparkleSub, holeSize, outerSoft, innerSoft, flowPos, flowZoom);
+                                t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, sparkleSub, holeSize, outerSoft, innerSoft, flowPos, flowZoom, gradX, gradY);
                 }
               }
             }
@@ -486,7 +492,7 @@ namespace Laubrary.Pyre
                                 float framePhase, Layer layer, Vector2 c, float radius, Color baseCol, float alpha,
                                 float t, int shapeSeed, float crescX, float crescY,
                                 ModStack stack, int frameIndex, float sparkleDensity, int sparkleSub, float holeSize,
-                                float outerSoft, float innerSoft, float flowPos, float flowZoom)
+                                float outerSoft, float innerSoft, float flowPos, float flowZoom, float gradX, float gradY)
         {
             for (int y = 0; y < H; y++)
             {
@@ -523,15 +529,22 @@ namespace Laubrary.Pyre
                     Color fc = col;
                     if (layer.colorMode != ColorMode.OverLife && layer.shape != LayerShape.SparkleField && layer.colorOverLife != null)
                     {
+                        // Colour distance is measured from the (optionally offset) gradient core, not the shape centre
+                        // — so the highlight can sit off-centre for a 3D orb. Edge softness still uses `nd`.
+                        float cnd = nd;
+                        if (gradX != 0f || gradY != 0f)
+                            cnd = radius > 0.001f
+                                ? Mathf.Clamp01(Mathf.Sqrt((ux - (c.x + gradX)) * (ux - (c.x + gradX)) +
+                                                           (uy - (c.y + gradY)) * (uy - (c.y + gradY))) / radius) : 0f;
                         float frac;
                         if (layer.colorMode == ColorMode.FlowingFill)
                         {
                             // Flow position scrolls the (mirrored) gradient; zoom sets how much of it spans the
                             // shape. Mirror (sample 0→1→0) so the scroll loops seamlessly with no hard seam.
-                            float f = Mathf.Repeat(nd * flowZoom + flowPos, 1f);
+                            float f = Mathf.Repeat(cnd * flowZoom + flowPos, 1f);
                             frac = 1f - Mathf.Abs(2f * f - 1f);
                         }
-                        else frac = nd;   // Fill
+                        else frac = Mathf.Clamp01(cnd * flowZoom + flowPos);   // Fill: gradient position + zoom now apply here too
                         fc = layer.colorOverLife.Evaluate(frac);
                     }
                     float outA = pixelAlpha * fc.a;

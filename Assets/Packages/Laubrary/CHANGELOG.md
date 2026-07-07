@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.0] - 2026-07-06
 
 ### Changed
+- **Gradient fill: position + zoom now work in plain Fill mode too** (not just Flow fill), and a new **movable
+  gradient core** (Core offset X/Y, animatable) shifts where the gradient radiates from. Offset the core under a
+  bright→dark gradient and a Disc becomes a **3D orb / energy ball** (bowling-ball highlight); animate the core for
+  a moving hotspot. Great for energy-weapon projectiles/blasts.
 - **ZUI envelope control** (reusable — used by every multi-control's Curve mode and `ZUI.CurveField`): hovering or
   selecting a point now shows its **value** (and time, when the x-domain isn't 0–1) in a tag beside the handle; and
   **edge points (first/last) are reliably grabbable** — MouseDown now accepts the same padding-expanded region that

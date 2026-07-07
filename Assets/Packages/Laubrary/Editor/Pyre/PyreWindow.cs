@@ -451,10 +451,14 @@ namespace Laubrary.Pyre.Editor
             {
                 var colorModeForLayout = l.colorMode;
                 l.colorMode = (ColorMode)MiniRadio((int)l.colorMode, ColorModeLabels);
-                if (colorModeForLayout == ColorMode.FlowingFill)
+                // Gradient position/zoom + a movable core apply to both spatial fills (Fill + Flow fill). Offset the
+                // core + a bright→dark gradient = a 3D orb / energy ball.
+                if (colorModeForLayout != ColorMode.OverLife)
                 {
-                    ValRow("Flow position", l.colorFlow, -2f, 2f, 0f);
-                    ValRow("Flow zoom", l.colorFlowZoom, 0.1f, 4f, 1f);
+                    ValRow("Gradient position", l.colorFlow, -2f, 2f, 0f);
+                    ValRow("Gradient zoom", l.colorFlowZoom, 0.1f, 4f, 1f);
+                    ValRow("Core offset X", l.gradientOffsetX, -1f, 1f, 0f);
+                    ValRow("Core offset Y", l.gradientOffsetY, -1f, 1f, 0f);
                 }
             }
             ValRow("Alpha", l.alpha, 0f, 1f);

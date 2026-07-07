@@ -51,9 +51,14 @@ namespace Laubrary.Pyre
         [Tooltip("Flow fill: the gradient scroll POSITION (multicontrol). Animate it — the curve's slope is the " +
                  "speed, its sign the direction. Default = a 0→1 sweep over life; make it static for no flow.")]
         public ZUIValue colorFlow = DefaultFlow();
-        [Tooltip("Flow fill: how much of the gradient spans the shape. 1 = the whole gradient once; <1 = only part " +
-                 "of it; >1 = it repeats. Animatable.")]
+        [Tooltip("Fill / Flow fill: how much of the gradient spans the shape. 1 = the whole gradient once; <1 = only " +
+                 "part of it; >1 = it repeats. Animatable.")]
         public ZUIValue colorFlowZoom = new ZUIValue(1f);
+        [Tooltip("Fill / Flow fill: moves the gradient CORE off-centre horizontally (−1..1 of the radius). Offset the " +
+                 "core + a bright→dark gradient = a 3D orb / bowling-ball highlight. Animatable — a moving core.")]
+        public ZUIValue gradientOffsetX = new ZUIValue(0f);
+        [Tooltip("Fill / Flow fill: moves the gradient CORE off-centre vertically (−1..1 of the radius). Animatable.")]
+        public ZUIValue gradientOffsetY = new ZUIValue(0f);
         [Tooltip("Alpha over life — a multicontrol (defaults to an envelope). The ONLY thing that fades a shape.")]
         public ZUIValue alpha = DefaultAlpha();
 
@@ -239,6 +244,8 @@ namespace Laubrary.Pyre
             l.innerSoftness = CloneVal(innerSoftness);
             l.colorFlow = CloneVal(colorFlow);
             l.colorFlowZoom = CloneVal(colorFlowZoom);
+            l.gradientOffsetX = CloneVal(gradientOffsetX);
+            l.gradientOffsetY = CloneVal(gradientOffsetY);
             l.windX = CloneVal(windX);
             l.windY = CloneVal(windY);
             l.barCount = CloneVal(barCount);
