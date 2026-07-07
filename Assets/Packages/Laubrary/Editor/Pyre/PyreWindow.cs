@@ -255,9 +255,15 @@ namespace Laubrary.Pyre.Editor
                 layerSel = spec.layers.Count - 1;
                 EditorUtility.SetDirty(spec);
             }
+            if (Button("Recall…"))
+            {
+                Rect act = GUILayoutUtility.GetLastRect();
+                PopupWindow.Show(act, new PyreLayerLibraryPopup(PyreLayerLibrary.Load(), leftWidth - 24f,
+                                                               InsertLibraryLayer));
+            }
             EditorGUILayout.EndHorizontal();
 
-            int dup = -1, remove = -1;
+            int dup = -1, remove = -1, saveToLib = -1;
             var rowRects = new System.Collections.Generic.List<Rect>(spec.layers.Count);
             for (int li = 0; li < spec.layers.Count; li++)
             {
@@ -292,6 +298,7 @@ namespace Laubrary.Pyre.Editor
                 Rect nameRect = GUILayoutUtility.GetLastRect();
                 if (Event.current.type == EventType.MouseDown && nameRect.Contains(Event.current.mousePosition)) layerSel = li;
                 if (!layer.enabled) GUILayout.Label("off", EditorStyles.miniLabel, GUILayout.Width(20));
+                if (Button("★", ZUI.Style.Default, GUILayout.Width(24))) saveToLib = li;
                 if (Button("Dup", ZUI.Style.Default, GUILayout.Width(40))) dup = li;
                 if (Button("X", ZUI.Style.Default, GUILayout.Width(22))) remove = li;
                 EditorGUILayout.EndHorizontal();
@@ -299,6 +306,12 @@ namespace Laubrary.Pyre.Editor
 
             HandleLayerDrag(rowRects);
 
+            if (saveToLib >= 0)
+            {
+                var layer = spec.layers[saveToLib];
+                PyreLayerLibrary.Load().Add(layer, layer.name);
+                ShowNotification(new GUIContent($"Saved “{layer.name}” to layer library"));
+            }
             if (dup >= 0)
             {
                 Undo.RecordObject(spec, "Duplicate layer");
@@ -315,6 +328,18 @@ namespace Laubrary.Pyre.Editor
                 layerSel = Mathf.Clamp(layerSel, 0, Mathf.Max(0, spec.layers.Count - 1));
                 EditorUtility.SetDirty(spec);
             }
+        }
+
+        // Drop a recalled library layer (already a clone) in just after the current selection.
+        void InsertLibraryLayer(Layer layer)
+        {
+            if (spec == null || layer == null) return;
+            Undo.RecordObject(spec, "Recall layer");
+            int at = Mathf.Clamp(layerSel + 1, 0, spec.layers.Count);
+            spec.layers.Insert(at, layer);
+            layerSel = at;
+            EditorUtility.SetDirty(spec);
+            Repaint();
         }
 
         // Drag a layer by its ≡ grip to reorder it; draws an insertion line and moves on release.

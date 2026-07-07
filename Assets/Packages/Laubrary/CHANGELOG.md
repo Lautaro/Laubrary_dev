@@ -41,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     for how much of the gradient spans the shape).
   - Editor: a single **Modifiers** section (global + per-layer) with a grouped "+ Add" menu; label column widened
     so long labels don't clip; the **Image backdrop** now shows the whole image (ScaleToFit) instead of cropping.
+  - **Layer library** — a **★** button on each layer row saves a deep clone of that layer to a shared, project-wide
+    library asset (`Assets/Pyre/PyreLayerLibrary.asset`, created on demand); a **Recall…** button opens a popup that
+    lists every saved layer with a live thumbnail and inserts a chosen one into the current blast (or deletes it).
+    Lets layers be moved/copied between BlastSpecs.
 
 ## [0.3.0] - 2026-07-06
 
