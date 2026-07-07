@@ -29,6 +29,11 @@ namespace Laubrary.Pyre
         [Tooltip("Pixels-per-unit used for the baked sprites and the runtime player.")]
         public float pixelsPerUnit = 64f;
 
+        [Tooltip("Sprite ORIGIN / pivot in normalized canvas coords (0,0 = bottom-left, 0.5,0.5 = centre, 1,1 = " +
+                 "top-right). This is the point that lands on the spawn position — e.g. set it to a directional " +
+                 "blast's muzzle/back edge so a game (Colosseum) can align the blast to the exact hit pixel.")]
+        public Vector2 origin = new Vector2(0.5f, 0.5f);
+
         /// Canvas width/height in pixels. Normally the authored size (height falls back to width when 0 = square);
         /// when any Bars layer has Star on, the canvas auto-fits its arms so nothing clips.
         public int Width  { get { if (AnyStar) { ComputeStarBox(out int w, out _); return w; } return Mathf.Max(1, canvasSize); } }

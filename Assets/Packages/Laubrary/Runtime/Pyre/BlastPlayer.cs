@@ -80,7 +80,7 @@ namespace Laubrary.Pyre
 
             int n = Mathf.Max(1, spec.frameCount);
             var built = new Sprite[n];
-            var pivot = new Vector2(0.5f, 0.5f);
+            var pivot = spec.origin;
             for (int f = 0; f < n; f++)
             {
                 var tex = BlastRenderer.RenderFrameTexture(spec, f);

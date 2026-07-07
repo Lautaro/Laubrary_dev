@@ -39,6 +39,7 @@ namespace Laubrary.Pyre.Editor
 
         // splitters
         bool dragLeft, dragPreview;
+        bool draggingOrigin;   // dragging the origin/pivot ✛ handle in the preview
         int draggingLayer = -1;   // index of the layer being drag-reordered, or -1
         int draggingMod = -1;     // index of the modifier being drag-reordered, or -1
         string draggingModList;   // idp of the modifier list that drag belongs to (layer mods vs global mods)
@@ -265,6 +266,12 @@ namespace Laubrary.Pyre.Editor
             spec.pixelsPerUnit = Mathf.Max(1f, EditorGUILayout.FloatField("Pixels per unit", spec.pixelsPerUnit));
             spec.background = EditorGUILayout.ColorField("Bake background", spec.background);
             spec.frameCount = Mathf.Max(1, Mathf.RoundToInt(Slider(spec.frameCount, 1, 64, "Frame count")));
+
+            // Origin / pivot (normalized): the point that lands on the spawn position. Editable here and by dragging
+            // the ✛ handle in the preview. A game aligns this to the hit pixel.
+            spec.origin.x = EditorGUILayout.Slider("Origin X", spec.origin.x, 0f, 1f);
+            spec.origin.y = EditorGUILayout.Slider("Origin Y", spec.origin.y, 0f, 1f);
+            if (Button("Origin → centre")) spec.origin = new Vector2(0.5f, 0.5f);
 
             VerticalSpace();
             Label("Global modifiers", ZUI.ZTextStyle.SectionHeader);
@@ -938,6 +945,9 @@ namespace Laubrary.Pyre.Editor
                 }
             }
 
+            // Origin/pivot ✛ handle — drag it to set where the blast anchors to a spawn point (the hit pixel).
+            if (spec != null) DrawOriginHandle(view);
+
             DrawPreviewSplitter();
 
             // transport
@@ -982,6 +992,41 @@ namespace Laubrary.Pyre.Editor
                 if (e.type == EventType.MouseDrag) { previewHeight = Mathf.Clamp(previewHeight + e.delta.y, 120f, 1200f); Repaint(); }
                 if (e.type == EventType.MouseUp) { dragPreview = false; }
                 if (e.type == EventType.MouseDrag || e.type == EventType.MouseUp) e.Use();
+            }
+        }
+
+        // A draggable ✛ marking the blast's origin/pivot over the preview. Dragging it writes spec.origin (0..1,
+        // y bottom-up). This is the point a game (Colosseum) aligns to the hit pixel.
+        void DrawOriginHandle(Rect view)
+        {
+            float w = spec.Width * zoom, h = spec.Height * zoom;
+            Rect spr = new Rect(view.x + (view.width - w) * 0.5f, view.y + (view.height - h) * 0.5f, w, h);
+            float ox = spr.x + Mathf.Clamp01(spec.origin.x) * w;
+            float oy = spr.yMax - Mathf.Clamp01(spec.origin.y) * h;   // origin.y = 0 is the bottom
+
+            var e = Event.current;
+            Rect zone = new Rect(ox - 8f, oy - 8f, 16f, 16f);
+            if (view.Contains(new Vector2(ox, oy))) EditorGUIUtility.AddCursorRect(zone, MouseCursor.MoveArrow);
+
+            if (e.type == EventType.MouseDown && e.button == 0 && zone.Contains(e.mousePosition) && view.Contains(e.mousePosition))
+            { draggingOrigin = true; e.Use(); }
+            if (draggingOrigin)
+            {
+                if (e.type == EventType.MouseDrag)
+                {
+                    spec.origin = new Vector2(Mathf.Clamp01((e.mousePosition.x - spr.x) / Mathf.Max(1f, w)),
+                                              Mathf.Clamp01((spr.yMax - e.mousePosition.y) / Mathf.Max(1f, h)));
+                    EditorUtility.SetDirty(spec); Repaint(); e.Use();
+                }
+                if (e.type == EventType.MouseUp) { draggingOrigin = false; e.Use(); }
+            }
+
+            if (e.type == EventType.Repaint && view.Contains(new Vector2(ox, oy)))
+            {
+                Color c = new Color(1f, 0.85f, 0.15f, 0.95f);
+                EditorGUI.DrawRect(new Rect(ox - 7f, oy - 1f, 14f, 2f), c);
+                EditorGUI.DrawRect(new Rect(ox - 1f, oy - 7f, 2f, 14f), c);
+                EditorGUI.DrawRect(new Rect(ox - 2f, oy - 2f, 4f, 4f), new Color(0f, 0f, 0f, 0.6f));
             }
         }
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0] - 2026-07-07
 
+### Changed
+- **Pyre: authorable blast Origin / pivot.** A BlastSpec now carries a normalized **Origin** (0,0 = bottom-left …
+  1,1 = top-right, default centre) — the point that lands on the spawn position. Set it (sliders, or **drag the ✛
+  handle** in the preview) to a directional blast's muzzle/back edge, and the runtime `BlastPlayer` + the baked
+  sprites pivot there, so a game (Colosseum/Codex) aligns the blast to the exact hit pixel instead of its centre.
+
 ### Added
 - **Codex** — a composition layer that ties battle visuals together: small, portable ScriptableObject "recipes"
   that reference the primitives (Colosseum factions, Pyre blasts, Chunks debris) instead of owning art. Adds

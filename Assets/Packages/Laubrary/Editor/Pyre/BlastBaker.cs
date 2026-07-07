@@ -53,8 +53,8 @@ namespace Laubrary.Pyre.Editor
                 {
                     name = "blast_" + f,
                     rect = r,
-                    alignment = (int)SpriteAlignment.Center,
-                    pivot = new Vector2(0.5f, 0.5f)
+                    alignment = (int)SpriteAlignment.Custom,
+                    pivot = spec.origin
                 };
             }
 #pragma warning disable CS0618 // TextureImporter.spritesheet is legacy but is the documented slice-from-code path
