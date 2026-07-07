@@ -176,6 +176,14 @@ namespace Laubrary.Pyre
                     continue;
                 }
 
+                // MetaBlob: the placed orbs fuse into one gradient-shaded shape (SDF metaballs). Drawn as a whole.
+                if (layer.shape == LayerShape.MetaBlob)
+                {
+                    float mAlpha = Mathf.Clamp01(Eval(layer.alpha, lp, spec.seed, li, 0, F_Alpha));
+                    RenderMetaBlob(buf, W, H, cx, cy, framePhase, layer, lp, mAlpha, stack, frameIndex, ShapeSeed(spec.seed, li, 0));
+                    continue;
+                }
+
                 // Count: Curve reads the layer's life progress; MinMax stays frame-stable (h2 = 0, no frame/shape).
                 int count = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.count, lp, spec.seed, li, 0, F_Count)));
 
@@ -478,6 +486,61 @@ namespace Laubrary.Pyre
         // Iterates the whole canvas, maps each pixel back through the opt-in geometry modifiers into undeformed
         // "blast space", runs the hard shape test there, then composites source-over. Whole-canvas iteration keeps
         // the warp correct with zero clipping risk; canvases are small and the runtime player caches its frames.
+        // ── MetaBlob: sum a compact metaball field from the placed orbs (each with a grow-in→hold→melt-out weight
+        // over its own life), threshold it, and shade by the field value through the layer's gradient (surface→core).
+        // Geometry modifiers warp the sampling; pixel modifiers + the global post passes (Bloom/Outline) still apply.
+        static void RenderMetaBlob(Color32[] buf, int W, int H, float cx, float cy, float framePhase,
+                                   Layer layer, float lp, float alpha, in ModStack stack, int frameIndex, int hash)
+        {
+            var orbs = layer.metaOrbs;
+            if (orbs == null || orbs.Count == 0 || alpha <= 0.001f) return;
+            float threshold = Mathf.Max(0.02f, layer.metaThreshold);
+            float range = Mathf.Max(0.05f, layer.metaShadeRange);
+            float band = Mathf.Max(0.01f, layer.metaSoftness);
+
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
+                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, new GeoCtx(W * 0.5f, H * 0.5f, Vector2.zero, 0f));
+
+                    float field = 0f;
+                    for (int i = 0; i < orbs.Count; i++)
+                    {
+                        var o = orbs[i];
+                        if (o == null || o.radius < 0.5f) continue;
+                        float t = (lp - o.birth) / Mathf.Max(0.02f, o.life);   // 0..1 across this orb's own life
+                        if (t <= 0f || t >= 1f) continue;
+                        float w = MetaEnv(t);
+                        if (w <= 0.001f) continue;
+                        float dx = off.x - o.pos.x, dy = off.y - o.pos.y;
+                        float r2 = o.radius * o.radius;
+                        float d2 = dx * dx + dy * dy;
+                        if (d2 >= r2) continue;
+                        float k = 1f - d2 / r2; k *= k;    // compact polynomial kernel: 1 at centre → 0 at radius
+                        field += w * k;
+                    }
+
+                    if (field <= threshold - band) continue;
+                    float a = Mathf.Clamp01((field - (threshold - band)) / band) * alpha;   // AA across the iso-surface
+                    if (a <= 0.003f) continue;
+                    float frac = Mathf.Clamp01((field - threshold) / range);                 // 0 = surface, 1 = deep core
+                    Color fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(frac) : Color.white;
+                    float outA = a * fc.a;
+                    if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, frac, lp, hash, W, H)) continue;
+                    Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
+                }
+        }
+
+        // Orb weight over its own life t∈[0,1]: ease in, hold, melt out (smoothstep both ends). Melting the weight
+        // sinks the orb back out of the fused field, so the merged shape reshapes as orbs come and go.
+        static float MetaEnv(float t)
+        {
+            const float grow = 0.22f;
+            float w = Mathf.Min(Mathf.Clamp01(t / grow), Mathf.Clamp01((1f - t) / grow));
+            return w * w * (3f - 2f * w);
+        }
+
         static void RasterShape(Color32[] buf, int W, int H, float cx, float cy,
                                 float framePhase, Layer layer, Vector2 c, float radius, Color baseCol, float alpha,
                                 float t, int shapeSeed, float crescX, float crescY,

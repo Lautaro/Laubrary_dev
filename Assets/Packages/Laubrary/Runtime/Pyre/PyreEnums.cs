@@ -7,7 +7,8 @@ namespace Laubrary.Pyre
         Crescent,       // a disc with a second offset disc masked out
         SparkleField,   // random single lit pixels scattered inside a circle
         Bars,           // a symmetric row of forward-growing bars streaming off an edge (directional blast)
-        Sprite          // stamps a supplied sprite as particles (a mini particle system)
+        Sprite,         // stamps a supplied sprite as particles (a mini particle system)
+        MetaBlob        // click-placed orbs that fuse (SDF metaballs) into one gradient-shaded shape
     }
 
     /// How a shape's colour gradient is applied (solid shapes — Disc / Crescent).

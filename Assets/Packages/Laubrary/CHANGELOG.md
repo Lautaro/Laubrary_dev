@@ -41,6 +41,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The ✛ marker has an **opacity slider** and **oscillates white↔black** so it stays visible over any backdrop.
 
 ### Added
+- **Pyre: MetaBlob layer — click-placed fusing orbs (SDF metaballs).** A new layer shape where you **click the
+  preview to drop orbs** (in order); each contributes to a summed metaball field that is thresholded and **shaded by
+  the gradient across the whole merged shape** (surface→core). Overlapping orbs **fuse** into one organic blob with
+  smooth necks. Each orb has a **position, radius, birth** (set by placement order via a spawn interval) and **life**
+  (grows in → holds → melts out), so the fused shape **grows and reshapes over time**. Controls: threshold (how
+  eagerly they fuse), shade range, edge softness. Orbs are draggable in the preview (with radius rings + order
+  numbers); geometry/pixel modifiers and the Bloom/Outline post-passes all still apply — great for organic
+  fireballs, lava, smoke and energy blobs.
 - **PreviewStage** — a reusable, editor-only **test backdrop** for any tool's preview: a `PreviewBackground` asset
   (fill + placed, tinted, scaled **sprites**) plus `PreviewStageGUI` (draw + drag-to-position + save/recall).
   Wired into **Pyre's preview**: a "Test background (sprites)" panel to add sprites, drag them behind the animation

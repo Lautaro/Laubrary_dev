@@ -47,6 +47,9 @@ namespace Laubrary.Pyre.Editor
         [SerializeField] PreviewBackground stageBg;         // reusable sprite test-backdrop (separate from the frame)
         int stageSel = -1;
         bool draggingStage;
+        bool placeMetaMode;    // MetaBlob: clicking the preview drops orbs
+        int metaSel = -1;
+        bool draggingMetaOrb;
         int draggingLayer = -1;   // index of the layer being drag-reordered, or -1
         int draggingMod = -1;     // index of the modifier being drag-reordered, or -1
         string draggingModList;   // idp of the modifier list that drag belongs to (layer mods vs global mods)
@@ -68,7 +71,7 @@ namespace Laubrary.Pyre.Editor
         Texture2D previewTex;
         Rect lastView;                  // remembered for the Fit button
 
-        static readonly string[] ShapeLabels = { "Disc", "Crescent", "Sparkle", "Bars", "Sprite" };
+        static readonly string[] ShapeLabels = { "Disc", "Crescent", "Sparkle", "Bars", "Sprite", "Meta blob" };
         static readonly string[] BarDecayLabels = { "Contract", "Dissolve" };
 
         // Captured on the Layout event only so the control set can't change between Layout and Repaint of the same
@@ -511,6 +514,49 @@ namespace Laubrary.Pyre.Editor
                         ValRow("Spread degrees", l.spreadDegrees, 0f, 360f, 360f);
                         Label("Arms share the centre and radiate outward; canvas auto-fits.", ZUI.ZTextStyle.Small);
                     }
+                }
+                VerticalSpace();
+                Label("Modifiers", ZUI.ZTextStyle.SectionHeader);
+                DrawModifiers(l.modifiers, "lm." + layerSel + ".");
+                return;
+            }
+
+            // MetaBlob is authored by clicking the preview to drop fusing orbs — no scatter/count controls.
+            if (shapeForLayout == LayerShape.MetaBlob)
+            {
+                using (Box("MetaBlob — orbs fuse into one gradient-shaded shape"))
+                {
+                    placeMetaMode = Toggle(placeMetaMode, placeMetaMode ? "● Placing — click the preview" : "○ Place orbs (click preview)");
+                    l.metaThreshold = Slider(l.metaThreshold, 0.1f, 2f, "Threshold");
+                    l.metaShadeRange = Slider(l.metaShadeRange, 0.1f, 3f, "Shade range");
+                    l.metaSoftness = Slider(l.metaSoftness, 0.01f, 1f, "Edge softness");
+                    l.metaSpawnInterval = Slider(l.metaSpawnInterval, 0f, 0.5f, "Spawn interval");
+
+                    int rm = -1;
+                    for (int i = 0; i < l.metaOrbs.Count; i++)
+                    {
+                        var o = l.metaOrbs[i];
+                        using (Box(null))
+                        {
+                            EditorGUILayout.BeginHorizontal();
+                            if (Button(metaSel == i ? "●" : "○", ZUI.Style.Default, GUILayout.Width(24))) metaSel = i;
+                            GUILayout.Label($"Orb #{i + 1}", EditorStyles.miniBoldLabel);
+                            GUILayout.FlexibleSpace();
+                            if (Button("X", ZUI.Style.Default, GUILayout.Width(22))) rm = i;
+                            EditorGUILayout.EndHorizontal();
+                            o.pos = EditorGUILayout.Vector2Field("Position", o.pos);
+                            o.radius = EditorGUILayout.Slider("Radius", o.radius, 2f, half);
+                            o.birth = EditorGUILayout.Slider("Birth", o.birth, 0f, 1f);
+                            o.life = EditorGUILayout.Slider("Life", o.life, 0.02f, 1f);
+                        }
+                    }
+                    if (rm >= 0) { l.metaOrbs.RemoveAt(rm); metaSel = -1; }
+
+                    EditorGUILayout.BeginHorizontal();
+                    if (Button("Clear orbs")) { l.metaOrbs.Clear(); metaSel = -1; }
+                    GUILayout.FlexibleSpace();
+                    GUILayout.Label($"{l.metaOrbs.Count} orb(s)", EditorStyles.miniLabel);
+                    EditorGUILayout.EndHorizontal();
                 }
                 VerticalSpace();
                 Label("Modifiers", ZUI.ZTextStyle.SectionHeader);
@@ -972,11 +1018,13 @@ namespace Laubrary.Pyre.Editor
                 if (stageBg != null) PreviewStageGUI.Draw(view, stageBg, zoom, true);   // decoration sprites IN FRONT of the frame
             }
 
-            // Priority for a click in the viewport: (1) origin ✛ handle, (2) a stage sprite, (3) fall through to
-            // panning the animation frame. Each earlier step Use()s the event when it grabs, so the later ones skip.
+            // Priority for a click in the viewport: (1) origin ✛ handle, (2) a stage sprite, (3) MetaBlob orbs
+            // (place / drag), (4) fall through to panning the animation frame. Each earlier step Use()s the event.
             if (spec != null) DrawOriginHandle(view);
             if (stageBg != null && PreviewStageGUI.Edit(view, stageBg, zoom, ref stageSel, ref draggingStage))
                 EditorUtility.SetDirty(stageBg);
+            HandleMetaBlob(view);
+            DrawMetaOrbMarkers(view);
 
             // Position the animation frame against the backdrop: left-drag empty space (or middle-drag anywhere).
             var pe = Event.current;
@@ -1070,6 +1118,81 @@ namespace Laubrary.Pyre.Editor
                 EditorGUI.DrawRect(new Rect(ox - 7f, oy - 1f, 14f, 2f), c);
                 EditorGUI.DrawRect(new Rect(ox - 1f, oy - 7f, 2f, 14f), c);
             }
+        }
+
+        // The frame's on-screen rect in window space (incl. zoom + pan) — shared by the origin handle + MetaBlob.
+        Rect FrameRect(Rect view)
+        {
+            float w = spec.Width * zoom, h = spec.Height * zoom;
+            return new Rect(view.x + (view.width - w) * 0.5f + previewPan.x, view.y + (view.height - h) * 0.5f + previewPan.y, w, h);
+        }
+
+        // MetaBlob authoring in the preview: place mode drops orbs on click (birth by order); otherwise drag an orb.
+        void HandleMetaBlob(Rect view)
+        {
+            if (spec == null || layerSel < 0 || layerSel >= spec.layers.Count) return;
+            var l = spec.layers[layerSel];
+            if (l == null || l.shape != LayerShape.MetaBlob) return;
+
+            var e = Event.current;
+            Vector2 ctr = FrameRect(view).center;
+
+            if (placeMetaMode)
+            {
+                if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
+                {
+                    float ox = (e.mousePosition.x - ctr.x) / Mathf.Max(0.01f, zoom);
+                    float oy = (ctr.y - e.mousePosition.y) / Mathf.Max(0.01f, zoom);   // canvas y is up
+                    float birth = Mathf.Clamp01(l.metaOrbs.Count * l.metaSpawnInterval);
+                    l.metaOrbs.Add(new MetaOrb { pos = new Vector2(ox, oy), radius = 12f, birth = birth, life = Mathf.Clamp(1f - birth, 0.25f, 1f) });
+                    metaSel = l.metaOrbs.Count - 1;
+                    EditorUtility.SetDirty(spec); e.Use(); Repaint();
+                }
+                return;
+            }
+
+            if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
+                for (int i = l.metaOrbs.Count - 1; i >= 0; i--)
+                {
+                    var o = l.metaOrbs[i];
+                    Vector2 mp = new Vector2(ctr.x + o.pos.x * zoom, ctr.y - o.pos.y * zoom);
+                    if ((mp - e.mousePosition).sqrMagnitude <= 100f) { metaSel = i; draggingMetaOrb = true; e.Use(); break; }
+                }
+            if (draggingMetaOrb && metaSel >= 0 && metaSel < l.metaOrbs.Count)
+            {
+                if (e.type == EventType.MouseDrag)
+                {
+                    l.metaOrbs[metaSel].pos += new Vector2(e.delta.x, -e.delta.y) / Mathf.Max(0.01f, zoom);
+                    EditorUtility.SetDirty(spec); Repaint(); e.Use();
+                }
+                if (e.type == EventType.MouseUp) { draggingMetaOrb = false; e.Use(); }
+            }
+        }
+
+        void DrawMetaOrbMarkers(Rect view)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            if (spec == null || layerSel < 0 || layerSel >= spec.layers.Count) return;
+            var l = spec.layers[layerSel];
+            if (l == null || l.shape != LayerShape.MetaBlob) return;
+
+            Vector2 ctr = FrameRect(view).center;
+            Handles.BeginGUI();
+            var prevC = Handles.color;
+            for (int i = 0; i < l.metaOrbs.Count; i++)
+            {
+                var o = l.metaOrbs[i];
+                Vector2 mp = new Vector2(ctr.x + o.pos.x * zoom, ctr.y - o.pos.y * zoom);
+                if (!view.Contains(mp)) continue;
+                bool sel = metaSel == i;
+                Color c = sel ? new Color(0.4f, 0.8f, 1f) : new Color(1f, 1f, 1f, 0.75f);
+                Handles.color = new Color(c.r, c.g, c.b, 0.4f);
+                Handles.DrawWireDisc(new Vector3(mp.x, mp.y, 0f), Vector3.forward, o.radius * zoom);
+                EditorGUI.DrawRect(new Rect(mp.x - 2f, mp.y - 2f, 4f, 4f), c);
+                GUI.Label(new Rect(mp.x + 4f, mp.y - 9f, 26f, 14f), (i + 1).ToString(), EditorStyles.miniLabel);
+            }
+            Handles.color = prevC;
+            Handles.EndGUI();
         }
 
         void DrawBackdropOptions()

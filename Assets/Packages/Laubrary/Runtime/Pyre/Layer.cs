@@ -3,6 +3,20 @@ using UnityEngine;
 
 namespace Laubrary.Pyre
 {
+    /// One click-placed orb of a MetaBlob layer: a position + radius that contributes to the fused metaball field,
+    /// appearing at `birth` (0..1 of the layer's life, set by placement order) and living for `life` after — it
+    /// grows in, holds, then melts out, so the merged shape grows and reshapes over time.
+    [System.Serializable]
+    public class MetaOrb
+    {
+        public Vector2 pos;
+        public float radius = 12f;
+        [Range(0f, 1f)] public float birth = 0f;
+        [Range(0.02f, 1f)] public float life = 0.8f;
+
+        public MetaOrb Clone() => new MetaOrb { pos = pos, radius = radius, birth = birth, life = life };
+    }
+
     /// One timed burst of N identical shapes that share a life span (startFrame..endFrame) and animate their
     /// size, position, colour and alpha across that life. A blast is a flat back-to-front stack of Layers.
     ///
@@ -167,6 +181,20 @@ namespace Laubrary.Pyre
         [Tooltip("Wind drift Y in pixels, applied × the shape's life (animatable).")]
         public ZUIValue windY = new ZUIValue(0f);
 
+        // ── MetaBlob: click-placed orbs that fuse into ONE gradient-shaded shape (SDF metaballs) ──
+        [Tooltip("MetaBlob: the placed orbs. Click in the preview to drop them (in order); each grows in, holds, then " +
+                 "melts out over its life, so the fused field grows and reshapes.")]
+        public List<MetaOrb> metaOrbs = new List<MetaOrb>();
+        [Tooltip("MetaBlob: iso-threshold. Lower = orbs fuse more eagerly (fatter necks, one shape); higher = distinct lobes.")]
+        public float metaThreshold = 0.6f;
+        [Tooltip("MetaBlob: how much field above the threshold spans the gradient (surface→core). Smaller = punchier core.")]
+        public float metaShadeRange = 1.5f;
+        [Tooltip("MetaBlob: edge softness (alpha AA band across the iso-surface). 0 = crisp.")]
+        public float metaSoftness = 0.18f;
+        [Range(0f, 1f)]
+        [Tooltip("MetaBlob: default gap (fraction of the layer life) between successive orbs' birth times when placing.")]
+        public float metaSpawnInterval = 0.12f;
+
         /// A pleasing starting point per shape type; the editor adds layers through this.
         public static Layer Default(LayerShape shape)
         {
@@ -203,6 +231,16 @@ namespace Laubrary.Pyre
                 case LayerShape.Crescent:
                     l.count = new ZUIValue(4f); l.spawnRadius = new ZUIValue(0.28f);
                     l.size = CurveVal(14f, 0f, 7f, 1f, 11f);
+                    break;
+                case LayerShape.MetaBlob:
+                    l.alpha = new ZUIValue(1f);
+                    l.colorOverLife = WhiteHotGradient();   // fire: white-hot core → dark edge across the field
+                    l.metaOrbs = new List<MetaOrb>
+                    {
+                        new MetaOrb { pos = new Vector2(-8f, 0f), radius = 16f, birth = 0f,    life = 1f },
+                        new MetaOrb { pos = new Vector2( 9f, 3f), radius = 14f, birth = 0.15f, life = 0.85f },
+                        new MetaOrb { pos = new Vector2( 0f,-9f), radius = 12f, birth = 0.3f,  life = 0.7f },
+                    };
                     break;
             }
             return l;
@@ -250,6 +288,8 @@ namespace Laubrary.Pyre
             l.alpha = CloneVal(alpha);
             l.modifiers = modifiers == null ? new List<PyreModifier>()
                 : modifiers.ConvertAll(m => m?.Clone());
+            l.metaOrbs = metaOrbs == null ? new List<MetaOrb>()
+                : metaOrbs.ConvertAll(o => o == null ? new MetaOrb() : o.Clone());
             return l;
         }
 
