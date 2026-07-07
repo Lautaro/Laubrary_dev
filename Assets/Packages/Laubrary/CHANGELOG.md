@@ -57,6 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     for how much of the gradient spans the shape).
   - Editor: a single **Modifiers** section (global + per-layer) with a grouped "+ Add" menu; label column widened
     so long labels don't clip; the **Image backdrop** now shows the whole image (ScaleToFit) instead of cropping.
+  - **Global geometry modifiers now warp the whole frame as one** — a modifier in the blast's **global** list
+    (Rotate / Skew / Squash / Wobble) resamples the finished composited image, so a global Rotate spins the entire
+    animation (all layers together) rigidly, instead of deforming each layer's shapes in their own frames. (Global
+    *pixel* effects still act per drawn pixel; Ground/Profile are inherently per-shape and no-op in the global list.)
   - **Modifier lists are drag-reorderable** — grab a modifier's **≡** grip to reorder it within its list (per-layer
     or global), same as the layer list. Order matters (pixel modifiers apply in order; Ground still runs before
     Profile via its warp-pass).
