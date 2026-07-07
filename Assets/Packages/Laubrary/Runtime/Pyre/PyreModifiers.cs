@@ -431,4 +431,152 @@ namespace Laubrary.Pyre
 
         static ZUIValue DefaultProgress() => Layer.CurveVal(1f, 0f, 0f, 1f, 1f);   // reveal over life
     }
+
+    // ── post: whole-frame passes run AFTER compositing (neighbourhood effects a per-pixel modifier can't do) ──────
+    /// A modifier that processes the finished frame buffer in place. Lives in the blast's GLOBAL modifier list and
+    /// runs once per frame after every layer composites (in list order). This is how bloom/outline — which read a
+    /// pixel's NEIGHBOURS — are possible at all, since geometry/pixel modifiers only see one pixel at a time.
+    public abstract class PostModifier : PyreModifier
+    {
+        public abstract void Apply(Color32[] buf, int W, int H);
+
+        protected static byte ToByte(float v) => (byte)(Mathf.Clamp01(v) * 255f + 0.5f);
+    }
+
+    /// Bloom / glow: bright pixels bleed a soft halo outward (additive), and the halo lifts alpha so it glows into
+    /// the transparent surround. Essential for energy weapons/blasts. `threshold` picks what's "bright", `radius` how
+    /// far it spreads, `intensity` how strong (animatable — pulse the glow).
+    [Serializable]
+    public class BloomModifier : PostModifier
+    {
+        [Range(0f, 1f)]
+        [Tooltip("Brightness a pixel must exceed to bloom.")]
+        public float threshold = 0.6f;
+        [Range(0, 16)]
+        [Tooltip("How far the glow spreads, in pixels.")]
+        public int radius = 4;
+        [Tooltip("Glow strength, added back additively. Animatable — pulse the glow.")]
+        public ZUIValue intensity = new ZUIValue(1.2f);
+
+        float inten;
+        public override string DisplayName => "Bloom (glow)";
+        public override void Prepare(Func<ZUIValue, int, float> e) => inten = Mathf.Max(0f, e(intensity, 0));
+
+        public override void Apply(Color32[] buf, int W, int H)
+        {
+            if (inten <= 0.001f || radius < 1) return;
+            int n = W * H;
+            var br = new float[n * 3];
+            float denom = Mathf.Max(0.001f, 1f - threshold);
+            for (int i = 0; i < n; i++)
+            {
+                var c = buf[i];
+                float a = c.a * (1f / 255f);
+                float lum = (c.r + c.g + c.b) * (1f / (3f * 255f)) * a;
+                float k = (lum - threshold) / denom;
+                if (k <= 0f) continue;
+                k = Mathf.Clamp01(k);
+                br[i * 3] = c.r * (1f / 255f) * k;
+                br[i * 3 + 1] = c.g * (1f / 255f) * k;
+                br[i * 3 + 2] = c.b * (1f / 255f) * k;
+            }
+            BoxBlur3(br, W, H, radius);
+            for (int i = 0; i < n; i++)
+            {
+                float rr = br[i * 3], gg = br[i * 3 + 1], bb = br[i * 3 + 2];
+                if (rr <= 0f && gg <= 0f && bb <= 0f) continue;
+                var c = buf[i];
+                float r = c.r * (1f / 255f) + rr * inten;
+                float g = c.g * (1f / 255f) + gg * inten;
+                float b = c.b * (1f / 255f) + bb * inten;
+                float addA = (rr + gg + bb) * (1f / 3f) * inten;
+                float a = Mathf.Clamp01(c.a * (1f / 255f) + addA);
+                buf[i] = new Color32(ToByte(r), ToByte(g), ToByte(b), ToByte(a));
+            }
+        }
+
+        // Separable box blur on an interleaved rgb float buffer (O(n·radius) per axis).
+        static void BoxBlur3(float[] rgb, int W, int H, int R)
+        {
+            var tmp = new float[rgb.Length];
+            float inv = 1f / (2 * R + 1);
+            for (int y = 0; y < H; y++)
+                for (int ch = 0; ch < 3; ch++)
+                    for (int x = 0; x < W; x++)
+                    {
+                        float s = 0f;
+                        for (int dx = -R; dx <= R; dx++) { int xx = Mathf.Clamp(x + dx, 0, W - 1); s += rgb[(y * W + xx) * 3 + ch]; }
+                        tmp[(y * W + x) * 3 + ch] = s * inv;
+                    }
+            for (int x = 0; x < W; x++)
+                for (int ch = 0; ch < 3; ch++)
+                    for (int y = 0; y < H; y++)
+                    {
+                        float s = 0f;
+                        for (int dy = -R; dy <= R; dy++) { int yy = Mathf.Clamp(y + dy, 0, H - 1); s += tmp[(yy * W + x) * 3 + ch]; }
+                        rgb[(y * W + x) * 3 + ch] = s * inv;
+                    }
+        }
+    }
+
+    /// Outline: draws a border in the transparent ring around the shape's silhouette. `color` is sampled across the
+    /// thickness (inner edge → outer) — a single flat colour gives a sharp one-colour outline; a gradient fades or
+    /// recolours outward (and multiple stops = concentric bands). `size` is the thickness (animatable — grow it out).
+    [Serializable]
+    public class OutlineModifier : PostModifier
+    {
+        [Tooltip("Outline colour across its thickness (0 = inner edge, 1 = outer). Flat colour = a sharp one-colour " +
+                 "outline; a gradient fades / recolours / bands outward.")]
+        public Gradient color = White();
+        [Tooltip("Outline thickness in pixels. Animatable — grow the outline outward.")]
+        public ZUIValue size = new ZUIValue(1f);
+        [Range(0.01f, 1f)]
+        [Tooltip("Alpha above which a pixel counts as part of the shape (the silhouette the outline hugs).")]
+        public float alphaThreshold = 0.3f;
+
+        int sz;
+        public override string DisplayName => "Outline";
+        public override void Prepare(Func<ZUIValue, int, float> e) => sz = Mathf.Clamp(Mathf.RoundToInt(e(size, 0)), 0, 32);
+
+        public override void Apply(Color32[] buf, int W, int H)
+        {
+            if (sz < 1 || color == null) return;
+            byte at = (byte)(alphaThreshold * 255f);
+            var src = (Color32[])buf.Clone();
+            int R = sz, R2 = R * R;
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int idx = y * W + x;
+                    if (src[idx].a > at) continue;   // a shape pixel — the outline goes in the transparent ring only
+
+                    int best2 = int.MaxValue;
+                    for (int dy = -R; dy <= R; dy++)
+                    {
+                        int yy = y + dy; if (yy < 0 || yy >= H) continue;
+                        for (int dx = -R; dx <= R; dx++)
+                        {
+                            int xx = x + dx; if (xx < 0 || xx >= W) continue;
+                            if (src[yy * W + xx].a <= at) continue;
+                            int d2 = dx * dx + dy * dy;
+                            if (d2 < best2) best2 = d2;
+                        }
+                    }
+                    if (best2 > R2) continue;   // beyond the thickness
+
+                    float d = Mathf.Sqrt(best2);
+                    float frac = R > 1 ? Mathf.Clamp01((d - 1f) / (R - 1f)) : 0f;   // 0 inner edge → 1 outer
+                    Color oc = color.Evaluate(frac);
+                    buf[idx] = new Color32(ToByte(oc.r), ToByte(oc.g), ToByte(oc.b), ToByte(oc.a));
+                }
+        }
+
+        static Gradient White()
+        {
+            var g = new Gradient();
+            g.colorKeys = new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) };
+            g.alphaKeys = new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) };
+            return g;
+        }
+    }
 }

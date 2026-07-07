@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   used Directional emission now render as radial.)
 
 ### Changed
+- **Pyre: Bloom + Outline post-effects (energy FX).** A new **PostModifier** family runs as a whole-frame pass
+  after compositing (in the blast's **global** list, `Post/…` in the +Add menu) — the way neighbourhood effects a
+  per-pixel modifier can't do become possible. **Bloom (glow)** blooms bright pixels into a soft additive halo that
+  also lifts alpha (glows into the transparent surround); threshold / radius / animatable intensity. **Outline**
+  draws a border in the ring around the silhouette — a flat colour = a sharp one-colour outline, a gradient
+  fades/recolours/bands outward; animatable thickness. Together they make glowing energy orbs/projectiles/beams.
 - **Pyre: authorable blast Origin / pivot.** A BlastSpec now carries a normalized **Origin** (0,0 = bottom-left …
   1,1 = top-right, default centre) — the point that lands on the spawn position. Set it (sliders, or **drag the ✛
   handle** in the preview) to a directional blast's muzzle/back edge, and the runtime `BlastPlayer` + the baked

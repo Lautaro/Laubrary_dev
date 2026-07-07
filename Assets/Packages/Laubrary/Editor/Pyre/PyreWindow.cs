@@ -616,7 +616,7 @@ namespace Laubrary.Pyre.Editor
 
             HandleModDrag(list, idp, rowRects);
 
-            if (Button("+ Add modifier")) ShowAddModifierMenu(list);
+            if (Button("+ Add modifier")) ShowAddModifierMenu(list, idp != null && idp.StartsWith("gm"));
             if (remove >= 0) { Undo.RecordObject(spec, "Remove modifier"); list.RemoveAt(remove); EditorUtility.SetDirty(spec); }
         }
 
@@ -710,10 +710,21 @@ namespace Laubrary.Pyre.Editor
                     am.offsetX = Slider(am.offsetX, -1f, 1f, "Offset X");
                     am.offsetY = Slider(am.offsetY, -1f, 1f, "Offset Y");
                     break;
+                case BloomModifier bm:
+                    bm.threshold = Slider(bm.threshold, 0f, 1f, "Threshold");
+                    bm.radius = Mathf.RoundToInt(Slider(bm.radius, 0, 16, "Radius (px)"));
+                    ValRow("Intensity", bm.intensity, 0f, 3f, 1.2f);
+                    break;
+                case OutlineModifier om:
+                    om.color ??= new Gradient();
+                    om.color = EditorGUILayout.GradientField("Colour (in→out)", om.color);
+                    ValRow("Size (px)", om.size, 0f, 12f, 1f);
+                    om.alphaThreshold = Slider(om.alphaThreshold, 0.01f, 1f, "Edge alpha");
+                    break;
             }
         }
 
-        void ShowAddModifierMenu(System.Collections.Generic.List<PyreModifier> list)
+        void ShowAddModifierMenu(System.Collections.Generic.List<PyreModifier> list, bool isGlobal)
         {
             var menu = new GenericMenu();
             void Add(string label, System.Func<PyreModifier> make) =>
@@ -736,6 +747,12 @@ namespace Laubrary.Pyre.Editor
             Add("Colour/Saturation", () => new SaturationModifier());
             Add("Dissolve", () => new DissolveModifier());
             Add("Alpha mask", () => new AlphaMaskModifier());
+            // Whole-frame post effects only make sense on the blast's GLOBAL list (they run once after compositing).
+            if (isGlobal)
+            {
+                Add("Post/Bloom (glow)", () => new BloomModifier());
+                Add("Post/Outline", () => new OutlineModifier());
+            }
             menu.ShowAsContext();
         }
 

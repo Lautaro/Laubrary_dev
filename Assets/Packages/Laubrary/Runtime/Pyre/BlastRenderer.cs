@@ -84,6 +84,7 @@ namespace Laubrary.Pyre
             {
                 var m = mods[i];
                 if (m == null || !m.enabled) continue;
+                if (m is PostModifier) continue;   // whole-frame passes run after compositing, not in the per-shape stack
                 int uid = baseId + i;
                 m.Prepare((v, fid) => Eval(v, progress, seed, layerId, frameIndex, 1000 + uid * 8 + fid));
                 if (m is GeometryModifier gm) geo.Add(new GeoEntry { mod = gm, pass = gm.WarpPass + passOffset });
@@ -291,6 +292,16 @@ namespace Laubrary.Pyre
                 }
               }
             }
+
+            // Whole-frame post passes (Bloom, Outline) from the global list, in order, after everything composites.
+            if (spec.globalModifiers != null)
+                for (int i = 0; i < spec.globalModifiers.Count; i++)
+                {
+                    var m = spec.globalModifiers[i];
+                    if (m == null || !m.enabled || !(m is PostModifier post)) continue;
+                    m.Prepare((v, fid) => Eval(v, bp, spec.seed, GlobalLayerId, frameIndex, 1000 + (700 + i) * 8 + fid));
+                    post.Apply(buf, W, H);
+                }
             return buf;
         }
 
