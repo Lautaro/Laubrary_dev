@@ -10,7 +10,8 @@ namespace Laubrary.Pyre
         DiscOut,   // a disc that reveals from the centre outward as progress rises (grow from within)
         DiscIn,    // transparency grows from the edges inward, consuming the frame as progress rises
         SwipeH,    // a horizontal wipe (left → right), like a scene transition
-        SwipeV     // a vertical wipe (bottom → top)
+        SwipeV,    // a vertical wipe (bottom → top)
+        Wedge      // a pac-man pie slice removed by angle: progress 0 = none, 0.25 = a quarter bite, 0.5 = half
     }
 
     /// How a Dissolve modifier eats pixels as its amount rises to 1 (everything gone).
@@ -409,6 +410,17 @@ namespace Laubrary.Pyre
             {
                 float c = Mathf.Cos(-rotRad), s = Mathf.Sin(-rotRad);
                 float rx = nx * c - ny * s; ny = nx * s + ny * c; nx = rx;
+            }
+
+            if (shape == MaskShape.Wedge)
+            {
+                // Remove an angular slice of `prog`·360° (symmetric about +x; rotation aims the mouth). prog 0.25 =
+                // a pac-man, 0.5 = a half. Sharpness feathers the two cut edges.
+                float d = Mathf.Abs(Mathf.Atan2(ny, nx));            // 0 (+x) … π (−x)
+                float half = Mathf.Clamp01(prog) * Mathf.PI;        // half-angle of the removed wedge
+                float edge = Mathf.Max(0.0001f, (1f - sharpness) * 0.4f);
+                a *= Mathf.Clamp01((d - half) / edge);              // inside the wedge → 0 (removed)
+                return a > 0.003f;
             }
 
             float field;

@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   also lifts alpha (glows into the transparent surround); threshold / radius / animatable intensity. **Outline**
   draws a border in the ring around the silhouette — a flat colour = a sharp one-colour outline, a gradient
   fades/recolours/bands outward; animatable thickness. Together they make glowing energy orbs/projectiles/beams.
+- **Pyre: Wedge (pie) alpha mask.** The Alpha-Mask modifier gains a **Wedge** shape — removes an angular slice of
+  `progress`·360° (0.25 = a pac-man, 0.5 = a half), rotation aims the mouth, sharpness feathers the cut.
 - **Pyre: authorable blast Origin / pivot.** A BlastSpec now carries a normalized **Origin** (0,0 = bottom-left …
   1,1 = top-right, default centre) — the point that lands on the spawn position. Set it (sliders, or **drag the ✛
   handle** in the preview) to a directional blast's muzzle/back edge, and the runtime `BlastPlayer` + the baked

@@ -581,7 +581,7 @@ namespace Laubrary.Pyre.Editor
         }
 
         static readonly string[] DissolveModeLabels = { "Erase", "Fade", "Bleed", "Scatter" };
-        static readonly string[] MaskShapeLabels = { "Disc out", "Disc in", "Swipe H", "Swipe V" };
+        static readonly string[] MaskShapeLabels = { "Disc out", "Disc in", "Swipe H", "Swipe V", "Wedge" };
         static readonly string[] ColorModeLabels = { "Over life", "Fill", "Flow fill" };
 
         // ── modifier stack UI (Pyre v2): the opt-in geometry/pixel effects on a layer or globally ──────────
