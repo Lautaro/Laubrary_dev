@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   strength / twist). **Smudge** (geometry) drags a patch of the shape one way like a finger through wet paint
   (origin / direction / size / strength). **Drop shadow** (post) composites a darkened, offset copy behind the
   shape for depth (offset / colour). All animatable where it makes sense.
+- **Pyre: pan the preview frame.** Middle-drag moves the animation frame off-centre in the viewport (for composing
+  against a test backdrop); Fit / **Centre** reset it. (Editor-only; not baked.)
 - **Pyre: movable hole (offset hollow).** A hollow Disc's hole can be pushed off-centre (Hole offset X/Y, animatable)
   — an offset hole carves a **crescent**, so the Crescent shape is now reproducible with a hollow Disc (and can be
   retired). Inner-edge softness is measured from the offset hole centre.

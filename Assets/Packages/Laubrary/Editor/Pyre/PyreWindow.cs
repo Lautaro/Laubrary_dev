@@ -40,7 +40,9 @@ namespace Laubrary.Pyre.Editor
         // splitters
         bool dragLeft, dragPreview;
         bool draggingOrigin;   // dragging the origin/pivot ✛ handle in the preview
+        bool draggingPan;      // middle-dragging to pan the animation frame
         [SerializeField] float originMarkerAlpha = 0.95f;   // preview-only: origin ✛ opacity
+        [SerializeField] Vector2 previewPan;                // preview-only: offset the animation frame (middle-drag)
         int draggingLayer = -1;   // index of the layer being drag-reordered, or -1
         int draggingMod = -1;     // index of the modifier being drag-reordered, or -1
         string draggingModList;   // idp of the modifier list that drag belongs to (layer mods vs global mods)
@@ -948,7 +950,7 @@ namespace Laubrary.Pyre.Editor
                 {
                     float w = spec.Width * zoom, h = spec.Height * zoom;
                     GUI.BeginClip(view);
-                    var local = new Rect((view.width - w) * 0.5f, (view.height - h) * 0.5f, w, h);
+                    var local = new Rect((view.width - w) * 0.5f + previewPan.x, (view.height - h) * 0.5f + previewPan.y, w, h);
                     GUI.DrawTexture(local, previewTex, ScaleMode.StretchToFill, true);
                     if (showFrame)
                     {
@@ -963,6 +965,15 @@ namespace Laubrary.Pyre.Editor
                 }
             }
 
+            // Middle-drag pans the animation frame within the viewport (position it off-centre).
+            var pe = Event.current;
+            if (pe.type == EventType.MouseDown && pe.button == 2 && view.Contains(pe.mousePosition)) { draggingPan = true; pe.Use(); }
+            if (draggingPan)
+            {
+                if (pe.type == EventType.MouseDrag) { previewPan += pe.delta; Repaint(); pe.Use(); }
+                if (pe.type == EventType.MouseUp) { draggingPan = false; pe.Use(); }
+            }
+
             // Origin/pivot ✛ handle — drag it to set where the blast anchors to a spawn point (the hit pixel).
             if (spec != null) DrawOriginHandle(view);
 
@@ -972,7 +983,8 @@ namespace Laubrary.Pyre.Editor
             EditorGUILayout.BeginHorizontal();
             if (Button(playing ? "❚❚ Pause" : "▶ Play")) { playing = !playing; scrub = -1; }
             if (Button("⟲ Restart")) { frame = 0; acc = 0f; scrub = -1; }
-            if (Button("Fit")) FitZoom();
+            if (Button("Fit")) { FitZoom(); previewPan = Vector2.zero; }
+            if (Button("Centre")) previewPan = Vector2.zero;
             showFrame = Toggle(showFrame, "Frame");
             if (Button("Bake")) BlastBaker.Bake(spec);
             EditorGUILayout.EndHorizontal();
@@ -1018,7 +1030,7 @@ namespace Laubrary.Pyre.Editor
         void DrawOriginHandle(Rect view)
         {
             float w = spec.Width * zoom, h = spec.Height * zoom;
-            Rect spr = new Rect(view.x + (view.width - w) * 0.5f, view.y + (view.height - h) * 0.5f, w, h);
+            Rect spr = new Rect(view.x + (view.width - w) * 0.5f + previewPan.x, view.y + (view.height - h) * 0.5f + previewPan.y, w, h);
             float ox = spr.x + Mathf.Clamp01(spec.origin.x) * w;
             float oy = spr.yMax - Mathf.Clamp01(spec.origin.y) * h;   // origin.y = 0 is the bottom
 
