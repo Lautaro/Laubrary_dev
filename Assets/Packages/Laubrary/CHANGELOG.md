@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.0] - 2026-07-06
 
 ### Changed
+- **ZUI envelope control** (reusable — used by every multi-control's Curve mode and `ZUI.CurveField`): hovering or
+  selecting a point now shows its **value** (and time, when the x-domain isn't 0–1) in a tag beside the handle; and
+  **edge points (first/last) are reliably grabbable** — MouseDown now accepts the same padding-expanded region that
+  hover already did, so clicking the outer half of an edge handle (which sits on the plot boundary) no longer misses.
 - **Pyre v2 — a modifier-stack rework** (cleaner to author, open to extend). Anything that distorts or recolours
   pixels is now an opt-in **PyreModifier** added to a layer or globally (`[SerializeReference]` polymorphic list),
   so new effects are just new subclasses:

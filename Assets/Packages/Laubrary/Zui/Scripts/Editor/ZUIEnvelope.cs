@@ -461,7 +461,47 @@ public static partial class ZUI
                 Handles.color = selCol;
                 Handles.DrawWireDisc(c, Vector3.forward, visualR + 1.5f);
             }
+
+            // Show the point's value next to it while hovered / selected / dragged, so the exact number is readable
+            // without a separate field. Repaint-only so it never touches IMGUI's control count.
+            if ((isHover || isSel) && Event.current.type == EventType.Repaint)
+                DrawPointValueTag(rect, c, visualR, p.time, p.value, rt);
         }
+    }
+
+    static GUIStyle s_pointTagStyle;
+
+    // A compact dark tag showing the point value (and time), placed just off the handle and nudged to stay on-plot.
+    static void DrawPointValueTag(Rect plot, Vector3 center, float visualR, float time, float value, ZUIEnvelopeRuntime rt)
+    {
+        if (s_pointTagStyle == null)
+            s_pointTagStyle = new GUIStyle(EditorStyles.miniLabel)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 10,
+                padding = new RectOffset(4, 4, 1, 1),
+                normal = { textColor = Color.white },
+            };
+
+        // Show the y value; if the x-domain isn't the default 0..1 unit range the time is meaningful too, so add it.
+        bool showTime = !(Mathf.Approximately(rt.xMin, 0f) && Mathf.Approximately(rt.xMax, 1f));
+        var content = new GUIContent(showTime ? $"{FmtNum(time)}, {FmtNum(value)}" : FmtNum(value));
+        Vector2 sz = s_pointTagStyle.CalcSize(content);
+
+        float lx = center.x + visualR + 5f;
+        float ly = center.y - sz.y - 3f;
+        if (lx + sz.x > plot.xMax + 3f) lx = center.x - visualR - 5f - sz.x;   // flip to the left near the right edge
+        if (ly < plot.y - 1f)          ly = center.y + visualR + 3f;           // drop below near the top edge
+        var r = new Rect(lx, ly, sz.x, sz.y);
+
+        EditorGUI.DrawRect(r, new Color(0f, 0f, 0f, 0.78f));
+        GUI.Label(r, content, s_pointTagStyle);
+    }
+
+    static string FmtNum(float v)
+    {
+        float a = Mathf.Abs(v);
+        return a >= 100f ? v.ToString("0") : a >= 10f ? v.ToString("0.#") : v.ToString("0.##");
     }
 
     static void DrawMarkerFillBands(Rect rect, ZUIEnvelopeRuntime rt, ZUIEnvelopeDef def,
@@ -676,7 +716,15 @@ public static partial class ZUI
             return true;
         }
 
-        if (!rect.Contains(e.mousePosition)) return false;
+        // Accept MouseDown across the SAME expanded region hover uses, so an edge point/marker whose handle spills
+        // into the padding (first/last points sit on the plot's left/right edge) is grabbable everywhere it lights
+        // up — not just on the inner half that falls inside plotRect. Line-add and box-select stay strictly inside.
+        float grabSlop = Mathf.Max(def.editable.radius, Mathf.Max(def.xEditable.radius,
+                                    Mathf.Max(def.yEditable.radius, def.notEditable.radius))) + def.hitRadiusExtra;
+        Rect inputRect = new Rect(rect.x - grabSlop, rect.y - grabSlop,
+                                  rect.width + grabSlop * 2f, rect.height + grabSlop * 2f);
+        bool insidePlot = rect.Contains(e.mousePosition);
+        if (!inputRect.Contains(e.mousePosition)) return false;
 
         if (e.type == EventType.MouseDown)
         {
@@ -748,49 +796,54 @@ public static partial class ZUI
                 return false;
             }
 
-            // 3) Line hit?
-            int lineHit = HitLine(rect, points, rt, e.mousePosition);
-            if (lineHit > 0)
+            // Line-add and box-select only make sense strictly inside the plot (unlike point/marker grabs above,
+            // which are distance-based and reach edge handles sitting in the padding).
+            if (insidePlot)
             {
-                if (e.shift && e.button == 0 && rt.allowSegmentDrag)
+                // 3) Line hit?
+                int lineHit = HitLine(rect, points, rt, e.mousePosition);
+                if (lineHit > 0)
                 {
-                    rt.onDragStarted?.Invoke();
-                    state.dragLineIdx = lineHit;
-                    state.selected.Clear();
-                    e.Use();
-                    return false;
+                    if (e.shift && e.button == 0 && rt.allowSegmentDrag)
+                    {
+                        rt.onDragStarted?.Invoke();
+                        state.dragLineIdx = lineHit;
+                        state.selected.Clear();
+                        e.Use();
+                        return false;
+                    }
+                    if (e.shift && e.button == 1 && rt.allowExponentEdit)
+                    {
+                        rt.onDragStarted?.Invoke();
+                        state.dragExponentIdx = lineHit;
+                        state.selected.Clear();
+                        e.Use();
+                        return false;
+                    }
+                    if (e.button == 0 && rt.allowAddPoints)
+                    {
+                        float t = XToTime(e.mousePosition.x, rect, rt);
+                        float v = EvaluateEnvelope(points, t, rt.yMax);
+                        rt.onDragStarted?.Invoke();
+                        int insert = InsertSorted(points, new ZUIEnvelopePoint(t, v, 1f));
+                        state.dragPointIdx = insert;
+                        state.selected.Clear();
+                        state.selected.Add(insert);
+                        e.Use();
+                        rt.onMutated?.Invoke();
+                        return true;
+                    }
                 }
-                if (e.shift && e.button == 1 && rt.allowExponentEdit)
-                {
-                    rt.onDragStarted?.Invoke();
-                    state.dragExponentIdx = lineHit;
-                    state.selected.Clear();
-                    e.Use();
-                    return false;
-                }
-                if (e.button == 0 && rt.allowAddPoints)
-                {
-                    float t = XToTime(e.mousePosition.x, rect, rt);
-                    float v = EvaluateEnvelope(points, t, rt.yMax);
-                    rt.onDragStarted?.Invoke();
-                    int insert = InsertSorted(points, new ZUIEnvelopePoint(t, v, 1f));
-                    state.dragPointIdx = insert;
-                    state.selected.Clear();
-                    state.selected.Add(insert);
-                    e.Use();
-                    rt.onMutated?.Invoke();
-                    return true;
-                }
-            }
 
-            // 4) Empty area — start box select (LMB).
-            if (e.button == 0 && rt.allowBoxSelect)
-            {
-                state.isBoxSelecting = true;
-                state.boxStart = e.mousePosition;
-                state.selected.Clear();
-                GUI.FocusControl(null);
-                e.Use();
+                // 4) Empty area — start box select (LMB).
+                if (e.button == 0 && rt.allowBoxSelect)
+                {
+                    state.isBoxSelecting = true;
+                    state.boxStart = e.mousePosition;
+                    state.selected.Clear();
+                    GUI.FocusControl(null);
+                    e.Use();
+                }
             }
         }
 
