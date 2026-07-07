@@ -29,6 +29,7 @@
         "com.Lautaro-Arino.Laubrary.Pyre",
         "com.Lautaro-Arino.Laubrary.Chunks",
         "com.Lautaro-Arino.Laubrary.Colosseum",
+        "com.Lautaro-Arino.Laubrary.Codex",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime"
     ],
     "includePlatforms": [],
