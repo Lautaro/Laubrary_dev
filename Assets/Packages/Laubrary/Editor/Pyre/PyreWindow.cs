@@ -725,6 +725,24 @@ namespace Laubrary.Pyre.Editor
                     ValRow("Size (px)", om.size, 0f, 12f, 1f);
                     om.alphaThreshold = Slider(om.alphaThreshold, 0.01f, 1f, "Edge alpha");
                     break;
+                case JaggModifier jm:
+                    jm.arms = Mathf.RoundToInt(Slider(jm.arms, 2, 24, "Arms"));
+                    ValRow("Strength", jm.strength, 0f, 0.95f, 0.4f);
+                    ValRow("Twist", jm.twist, -180f, 180f, 0f);
+                    break;
+                case SmudgeModifier sm:
+                    sm.originX = Slider(sm.originX, -1f, 1f, "Origin X");
+                    sm.originY = Slider(sm.originY, -1f, 1f, "Origin Y");
+                    ValRow("Direction", sm.direction, -180f, 180f, 90f);
+                    ValRow("Size (px)", sm.size, 1f, half, 16f);
+                    ValRow("Strength (px)", sm.strength, 0f, half, 10f);
+                    break;
+                case DropShadowModifier ds:
+                    ds.offsetX = Slider(ds.offsetX, -16f, 16f, "Offset X");
+                    ds.offsetY = Slider(ds.offsetY, -16f, 16f, "Offset Y");
+                    ds.color = EditorGUILayout.ColorField("Shadow colour", ds.color);
+                    ds.alphaThreshold = Slider(ds.alphaThreshold, 0.01f, 1f, "Edge alpha");
+                    break;
             }
         }
 
@@ -745,6 +763,8 @@ namespace Laubrary.Pyre.Editor
             Add("Geometry/Wobble", () => new WobbleModifier());
             Add("Geometry/Profile (mold shape)", () => new ProfileModifier());
             Add("Geometry/Ground (grow from surface)", () => new GroundModifier());
+            Add("Geometry/Jagg (star)", () => new JaggModifier());
+            Add("Geometry/Smudge", () => new SmudgeModifier());
             Add("Colour/Tint", () => new TintModifier());
             Add("Colour/Contrast", () => new ContrastModifier());
             Add("Colour/Brightness", () => new BrightnessModifier());
@@ -756,6 +776,7 @@ namespace Laubrary.Pyre.Editor
             {
                 Add("Post/Bloom (glow)", () => new BloomModifier());
                 Add("Post/Outline", () => new OutlineModifier());
+                Add("Post/Drop shadow", () => new DropShadowModifier());
             }
             menu.ShowAsContext();
         }

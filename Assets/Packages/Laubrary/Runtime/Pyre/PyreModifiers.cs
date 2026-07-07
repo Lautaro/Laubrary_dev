@@ -591,4 +591,108 @@ namespace Laubrary.Pyre
             return g;
         }
     }
+
+    /// Jagg: pushes a circle out into an N-armed star by modulating its radius with the angle. `arms` = how many
+    /// points; `strength` = how far the arms stick out AND how deep the valleys between them bite in (0 = circle,
+    /// →1 = spiky); `twist` aims the points. A radial coordinate scale about the shape centre — soft edges come from
+    /// the shape's own Outer softness.
+    [Serializable]
+    public class JaggModifier : GeometryModifier
+    {
+        [Range(2, 24)] public int arms = 5;
+        [Tooltip("Arm length / valley depth (0 = circle, →1 = spiky star). Animatable.")]
+        public ZUIValue strength = new ZUIValue(0.4f);
+        [Tooltip("Rotate the star, in degrees. Animatable — spin the points.")]
+        public ZUIValue twist = new ZUIValue(0f);
+
+        float s, tw;
+        public override string DisplayName => "Jagg (star)";
+        public override void Prepare(Func<ZUIValue, int, float> e) { s = Mathf.Clamp(e(strength, 0), 0f, 0.95f); tw = e(twist, 1) * Mathf.Deg2Rad; }
+        public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
+        {
+            if (s <= 0.001f) return off;
+            Vector2 d = off - ctx.center;
+            float ang = Mathf.Atan2(d.y, d.x) - tw;
+            float scale = 1f + s * Mathf.Cos(arms * ang);   // >1 at arms (pull the sample in → shape reaches out)
+            return ctx.center + d / Mathf.Max(0.05f, scale);
+        }
+    }
+
+    /// Smudge: drags a patch of the shape one way, like a finger pulled across wet paint. Within `size` px of an
+    /// origin it displaces pixels along `direction` with a soft falloff, so content near the origin streaks outward.
+    [Serializable]
+    public class SmudgeModifier : GeometryModifier
+    {
+        [Tooltip("Smudge origin X in half-canvas units (−1..1).")]
+        [Range(-1f, 1f)] public float originX = 0f;
+        [Tooltip("Smudge origin Y in half-canvas units (−1..1).")]
+        [Range(-1f, 1f)] public float originY = 0f;
+        [Tooltip("Drag direction in degrees (0 = right, 90 = up). Animatable.")]
+        public ZUIValue direction = new ZUIValue(90f);
+        [Tooltip("Radius of the smudged patch, in pixels. Animatable.")]
+        public ZUIValue size = new ZUIValue(16f);
+        [Tooltip("How far the patch is dragged, in pixels. Animatable.")]
+        public ZUIValue strength = new ZUIValue(10f);
+
+        float dirRad, siz, str;
+        public override string DisplayName => "Smudge";
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        { dirRad = e(direction, 0) * Mathf.Deg2Rad; siz = Mathf.Max(0.5f, e(size, 1)); str = e(strength, 2); }
+        public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
+        {
+            if (Mathf.Abs(str) < 0.01f) return off;
+            Vector2 o = new Vector2(originX * ctx.hHalf, originY * ctx.vHalf);
+            float dist = (off - o).magnitude;
+            if (dist >= siz) return off;
+            float fall = 1f - dist / siz; fall *= fall;                 // smooth falloff to the patch edge
+            Vector2 dir = new Vector2(Mathf.Cos(dirRad), Mathf.Sin(dirRad));
+            return off - dir * (str * fall);                            // sample from behind → content streaks forward
+        }
+    }
+
+    /// Drop shadow: a darkened, offset copy of the shape composited BEHIND it — grounds an orb / gives depth. A
+    /// whole-frame post pass (it reads the silhouette). `offset` in px, `color` (usually black w/ alpha) the shadow.
+    [Serializable]
+    public class DropShadowModifier : PostModifier
+    {
+        [Tooltip("Shadow offset X in pixels (screen right).")]
+        public float offsetX = 3f;
+        [Tooltip("Shadow offset Y in pixels (screen DOWN is negative).")]
+        public float offsetY = -3f;
+        [Tooltip("Shadow colour (alpha = opacity). Animatable opacity via… (flat for now).")]
+        public Color color = new Color(0f, 0f, 0f, 0.5f);
+        [Range(0.01f, 1f)]
+        [Tooltip("Alpha above which a pixel casts a shadow.")]
+        public float alphaThreshold = 0.2f;
+
+        public override string DisplayName => "Drop shadow";
+        public override void Prepare(Func<ZUIValue, int, float> e) { }
+
+        public override void Apply(Color32[] buf, int W, int H)
+        {
+            if (color.a <= 0.001f) return;
+            int dx = Mathf.RoundToInt(offsetX), dy = Mathf.RoundToInt(offsetY);
+            if (dx == 0 && dy == 0) return;
+            byte at = (byte)(alphaThreshold * 255f);
+            var src = (Color32[])buf.Clone();
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int sx = x - dx, sy = y - dy;                         // the shape pixel that casts here
+                    if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+                    if (src[sy * W + sx].a <= at) continue;
+                    // composite the existing (top) pixel OVER the shadow (bottom).
+                    int idx = y * W + x;
+                    Color32 top = src[idx];
+                    float ta = top.a * (1f / 255f);
+                    float sa = color.a * (src[sy * W + sx].a * (1f / 255f));   // shadow follows the caster's alpha
+                    float outA = ta + sa * (1f - ta);
+                    if (outA <= 0.001f) continue;
+                    float r = (top.r * (1f / 255f) * ta + color.r * sa * (1f - ta)) / outA;
+                    float g = (top.g * (1f / 255f) * ta + color.g * sa * (1f - ta)) / outA;
+                    float b = (top.b * (1f / 255f) * ta + color.b * sa * (1f - ta)) / outA;
+                    buf[idx] = new Color32(ToByte(r), ToByte(g), ToByte(b), ToByte(outA));
+                }
+        }
+    }
 }

@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   also lifts alpha (glows into the transparent surround); threshold / radius / animatable intensity. **Outline**
   draws a border in the ring around the silhouette — a flat colour = a sharp one-colour outline, a gradient
   fades/recolours/bands outward; animatable thickness. Together they make glowing energy orbs/projectiles/beams.
+- **Pyre: three more modifiers.** **Jagg** (geometry) pushes a circle out into an N-armed **star** (arms /
+  strength / twist). **Smudge** (geometry) drags a patch of the shape one way like a finger through wet paint
+  (origin / direction / size / strength). **Drop shadow** (post) composites a darkened, offset copy behind the
+  shape for depth (offset / colour). All animatable where it makes sense.
 - **Pyre: Wedge (pie) alpha mask.** The Alpha-Mask modifier gains a **Wedge** shape — removes an angular slice of
   `progress`·360° (0.25 = a pac-man, 0.5 = a half), rotation aims the mouth, sharpness feathers the cut.
 - **Pyre: authorable blast Origin / pivot.** A BlastSpec now carries a normalized **Origin** (0,0 = bottom-left …
