@@ -24,5 +24,7 @@ namespace Laubrary.PreviewStage
         public Vector2 position;
         public float scale = 1f;
         public Color tint = Color.white;
+        [Tooltip("Draw IN FRONT of the tool's subject (a foreground decoration that occludes it) instead of behind.")]
+        public bool front = false;
     }
 }

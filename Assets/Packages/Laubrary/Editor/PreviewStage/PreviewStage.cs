@@ -13,17 +13,19 @@ namespace Laubrary.PreviewStage
         const string Folder = "Assets/PreviewBackgrounds";
 
         // ── draw ──────────────────────────────────────────────────────────────────
-        /// Draw the fill + placed sprites into `view`, centred and scaled by `zoom`. Call inside a Repaint.
-        public static void Draw(Rect view, PreviewBackground bg, float zoom)
+        /// Draw the placed sprites of one layer into `view`, centred and scaled by `zoom`. Call inside a Repaint.
+        /// `foreground` false = the behind-the-subject backdrop layer (also paints the fill); true = the in-front
+        /// decoration layer (drawn over the subject). Call once with false BEFORE the subject and once with true after.
+        public static void Draw(Rect view, PreviewBackground bg, float zoom, bool foreground)
         {
             if (bg == null) return;
-            if (bg.fill.a > 0f) EditorGUI.DrawRect(view, bg.fill);
+            if (!foreground && bg.fill.a > 0f) EditorGUI.DrawRect(view, bg.fill);
             Vector2 c = view.center;
             var prev = GUI.color;
             for (int i = 0; i < bg.sprites.Count; i++)
             {
                 var s = bg.sprites[i];
-                if (s == null || s.sprite == null) continue;
+                if (s == null || s.sprite == null || s.front != foreground) continue;
                 DrawSprite(new Vector2(c.x + s.position.x * zoom, c.y + s.position.y * zoom), s.sprite, s.scale * zoom, s.tint);
             }
             GUI.color = prev;

@@ -944,7 +944,7 @@ namespace Laubrary.Pyre.Editor
             if (Event.current.type == EventType.Repaint)
             {
                 DrawBackdrop(view);
-                if (stageBg != null) PreviewStageGUI.Draw(view, stageBg, zoom);   // test-background sprites behind the frame
+                if (stageBg != null) PreviewStageGUI.Draw(view, stageBg, zoom, false);   // backdrop sprites BEHIND the frame
                 if (spec == null)
                 {
                     var c = new GUIStyle(EditorStyles.centeredGreyMiniLabel);
@@ -968,23 +968,24 @@ namespace Laubrary.Pyre.Editor
                     GUI.EndClip();
                 }
                 }
+                if (stageBg != null) PreviewStageGUI.Draw(view, stageBg, zoom, true);   // decoration sprites IN FRONT of the frame
             }
 
-            // Middle-drag pans the animation frame within the viewport (position it off-centre).
+            // Priority for a click in the viewport: (1) origin ✛ handle, (2) a stage sprite, (3) fall through to
+            // panning the animation frame. Each earlier step Use()s the event when it grabs, so the later ones skip.
+            if (spec != null) DrawOriginHandle(view);
+            if (stageBg != null && PreviewStageGUI.Edit(view, stageBg, zoom, ref stageSel, ref draggingStage))
+                EditorUtility.SetDirty(stageBg);
+
+            // Position the animation frame against the backdrop: left-drag empty space (or middle-drag anywhere).
             var pe = Event.current;
-            if (pe.type == EventType.MouseDown && pe.button == 2 && view.Contains(pe.mousePosition)) { draggingPan = true; pe.Use(); }
+            if (pe.type == EventType.MouseDown && (pe.button == 0 || pe.button == 2) && view.Contains(pe.mousePosition))
+            { draggingPan = true; pe.Use(); }
             if (draggingPan)
             {
                 if (pe.type == EventType.MouseDrag) { previewPan += pe.delta; Repaint(); pe.Use(); }
                 if (pe.type == EventType.MouseUp) { draggingPan = false; pe.Use(); }
             }
-
-            // Origin/pivot ✛ handle — drag it to set where the blast anchors to a spawn point (the hit pixel).
-            if (spec != null) DrawOriginHandle(view);
-
-            // Drag test-background sprites (after the origin handle, so the ✛ wins where they overlap).
-            if (stageBg != null && PreviewStageGUI.Edit(view, stageBg, zoom, ref stageSel, ref draggingStage))
-                EditorUtility.SetDirty(stageBg);
 
             DrawPreviewSplitter();
 
@@ -1125,6 +1126,7 @@ namespace Laubrary.Pyre.Editor
                         bool sel = stageSel == i;
                         if (Button(sel ? "●" : "○", ZUI.Style.Default, GUILayout.Width(24))) stageSel = i;
                         s.sprite = (Sprite)EditorGUILayout.ObjectField(s.sprite, typeof(Sprite), false);
+                        s.front = GUILayout.Toggle(s.front, "Front", "Button", GUILayout.Width(48));
                         if (Button("X", ZUI.Style.Default, GUILayout.Width(22))) removeAt = i;
                         EditorGUILayout.EndHorizontal();
                         s.scale = EditorGUILayout.Slider("Scale", s.scale, 0.1f, 8f);
