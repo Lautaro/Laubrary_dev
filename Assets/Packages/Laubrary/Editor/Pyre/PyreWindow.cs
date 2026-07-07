@@ -62,7 +62,6 @@ namespace Laubrary.Pyre.Editor
         Rect lastView;                  // remembered for the Fit button
 
         static readonly string[] ShapeLabels = { "Disc", "Crescent", "Sparkle", "Bars", "Sprite" };
-        static readonly string[] EmissionLabels = { "Radial", "Directional" };
         static readonly string[] BarDecayLabels = { "Contract", "Dissolve" };
 
         // Captured on the Layout event only so the control set can't change between Layout and Repaint of the same
@@ -508,11 +507,9 @@ namespace Laubrary.Pyre.Editor
                 return;
             }
 
-            // ── shape (scatter) modes ────────────────────────────────────────────
-            bool directional = l.emission == EmissionMode.Directional;   // captured for layout
-
+            // ── shape (scatter) controls ─────────────────────────────────────────
             ValRow("Count", l.count, 1f, 40f);
-            if (!directional) ValRow("Spawn radius", l.spawnRadius, 0f, 1f);   // radial-only; directional uses origin/travel
+            ValRow("Spawn radius", l.spawnRadius, 0f, 1f);
             ValRow("Position X", l.positionX, -half, half);
             ValRow("Position Y", l.positionY, -half, half);
             ValRow("Size", l.size, 0f, half);
@@ -543,29 +540,6 @@ namespace Laubrary.Pyre.Editor
                     if (Button("Edit in Aseprite") && l.particleSprite != null) OpenInAseprite(l.particleSprite);
                     EditorGUILayout.EndHorizontal();
                     break;
-            }
-
-            using (Box("Emission"))
-            {
-                // capture for layout (a mode change reflows the directional fields next frame, not mid-frame)
-                var emitForLayout = l.emission;
-                l.emission = (EmissionMode)MiniRadio((int)l.emission, EmissionLabels);
-                // A Label is always one control, so the hint can key off the live mode safely.
-                Label(l.emission == EmissionMode.Radial
-                        ? "Radial: shapes scatter in a disc around the centre and grow out (a normal explosion)."
-                        : "Directional: shapes emit off a line/surface one way (flames, a jet, sparks off a wall).",
-                      ZUI.ZTextStyle.Small);
-                if (emitForLayout == EmissionMode.Directional)
-                {
-                    l.originOffsetX = Slider(l.originOffsetX, -half, half, "Origin X");
-                    l.originOffsetY = Slider(l.originOffsetY, -half, half, "Origin Y");
-                    l.originLength = Slider(l.originLength, 1f, cs, "Origin length");
-                    ValRow("Origin bend", l.originBend, 0f, 1f, 0f);
-                    ValRow("Origin angle", l.originAngleDeg, -180f, 180f, 0f);
-                    ValRow("Emit angle", l.emitAngleDeg, -180f, 180f, 0f);
-                    ValRow("Travel", l.travel, 0f, cs, 34f);
-                    ValRow("Emit spread", l.emitSpreadDeg, 0f, 90f, 8f);
-                }
             }
 
             using (Box("Wind drift"))

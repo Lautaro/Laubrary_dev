@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0] - 2026-07-07
 
+### Removed
+- **Pyre: the per-layer Directional emission system** (origin line / bend / angle, emit angle / spread, travel) is
+  gone — it predated and is superseded by the **Ground** modifier (directional growth) and **Bars**. Layers now use
+  the simple radial scatter (Count + Spawn radius + Position) only; the "Emission" box is removed. (Old assets that
+  used Directional emission now render as radial.)
+
 ### Changed
 - **Pyre: authorable blast Origin / pivot.** A BlastSpec now carries a normalized **Origin** (0,0 = bottom-left …
   1,1 = top-right, default centre) — the point that lands on the spawn position. Set it (sliders, or **drag the ✛

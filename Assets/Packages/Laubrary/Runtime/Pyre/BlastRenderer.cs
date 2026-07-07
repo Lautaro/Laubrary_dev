@@ -23,13 +23,13 @@ namespace Laubrary.Pyre
         // ── field ids (make each ZUIValue's MinMax sample independent) ─────────────
         const int F_Count = 1, F_SpawnRadius = 2, F_PosX = 3, F_PosY = 4,
                   F_Size = 5, F_Alpha = 6, F_CrescentX = 7, F_CrescentY = 8,
-                  F_EmitAngle = 9, F_Travel = 10, F_WindX = 11, F_WindY = 12, F_BarForward = 13,
+                  F_WindX = 11, F_WindY = 12, F_BarForward = 13,
                   F_BarSpacing = 14, F_BarWidth = 15, F_BarBackward = 16, F_BarAngle = 17,
                   F_OriginInset = 18, F_BarCount = 19;
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
         const int F_BaseAngle = 25, F_SpreadDeg = 26, F_Taper = 27, F_Stagger = 28;
         const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
-        const int F_SparkleDensity = 34, F_OriginAngle = 35, F_OriginBend = 36, F_EmitSpread = 37, F_HoleSize = 38, F_SpriteSpin = 39;
+        const int F_SparkleDensity = 34, F_HoleSize = 38, F_SpriteSpin = 39;
         const int F_InnerSoft = 40, F_OuterSoft = 41, F_ColorFlow = 42, F_ColorZoom = 43, F_SparkleSeed = 44;
         const int F_GradX = 45, F_GradY = 46;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
@@ -201,27 +201,11 @@ namespace Laubrary.Pyre
                     if (frameIndex < start || frameIndex > end) continue;      // not alive this frame
                     float t = Mathf.Clamp01((frameIndex - start) / Mathf.Max(0.0001f, end - start));
 
+                    // Scatter the centre within spawnRadius (uniform disc). spawnRadius is 0..1 of the explosion; 1
+                    // reaches (almost) the canvas edge. Curve reads layer progress so it can expand over life.
+                    // (Directional placement is now the job of the Ground modifier + Bars, not a per-layer mode.)
                     Vector2 c;
-                    if (layer.emission == EmissionMode.Directional)
                     {
-                        // Start on the (optionally bent) origin line and stream outward along its normal. The line's
-                        // bend/angle and the fan spread are animatable (layer-level → shape index 0).
-                        float niD = count > 1 ? si / (float)(count - 1) : 0.5f;
-                        float oBend = Eval(layer.originBend, lp, spec.seed, li, 0, F_OriginBend);
-                        float oAngle = Eval(layer.originAngleDeg, lp, spec.seed, li, 0, F_OriginAngle);
-                        c = OriginPoint(niD, layer.originOffsetX, layer.originOffsetY, layer.originLength,
-                                        oBend, oAngle, out Vector2 normal);
-                        float emitSpread = Eval(layer.emitSpreadDeg, lp, spec.seed, li, 0, F_EmitSpread);
-                        float spreadJit = (float)(rng.NextDouble() * 2.0 - 1.0) * emitSpread;
-                        float emitDeg = Eval(layer.emitAngleDeg, lp, spec.seed, li, si, F_EmitAngle) + spreadJit;
-                        Vector2 emitDir = Rotate(normal, emitDeg * Mathf.Deg2Rad);
-                        float travelPx = Eval(layer.travel, lp, spec.seed, li, si, F_Travel);
-                        c += emitDir * (travelPx * t);
-                    }
-                    else
-                    {
-                        // Radial: scatter the centre within spawnRadius (uniform disc). spawnRadius is 0..1 of the
-                        // explosion; 1 reaches (almost) the canvas edge. Curve reads layer progress so it can expand.
                         double ang = rng.NextDouble() * Math.PI * 2.0;
                         double radFrac = Math.Sqrt(rng.NextDouble());
                         float sr01 = Mathf.Clamp01(Eval(layer.spawnRadius, lp, spec.seed, li, si, F_SpawnRadius));
@@ -256,12 +240,11 @@ namespace Laubrary.Pyre
                     // Circular spread: rotate this shape's offset around the centre for this instance.
                     if (spread > 1) c = Rotate(c, instRad);
 
-                    // ── keep-on-screen guarantee (Radial only) ────────────────────
-                    // A radial pixel-art explosion must never be clipped flat at the canvas edge, so cap the radius
-                    // to the canvas half and clamp the centre so the whole shape fits. Directional / bar shapes are
-                    // MEANT to stream off the frame, so they aren't clamped — the rasterizer still writes in-canvas.
+                    // ── keep-on-screen guarantee ──────────────────────────────────
+                    // A radial pixel-art explosion must never be clipped flat at the canvas edge, so cap the radius to
+                    // the canvas half and clamp the centre so the whole shape fits. (Ground/Bars deliberately push
+                    // content off-frame via their own warp/placement, downstream of this pre-warp scatter clamp.)
                     float effR = Mathf.Min(radius, half);
-                    if (layer.emission == EmissionMode.Radial)
                     {
                         float absX = Mathf.Clamp(cx + c.x, effR, W - effR);
                         float absY = Mathf.Clamp(cy + c.y, effR, H - effR);
@@ -309,29 +292,6 @@ namespace Laubrary.Pyre
               }
             }
             return buf;
-        }
-
-        // A point on the (optionally bent) origin line for parameter ni in [0,1], with the outward normal there.
-        // bend 0 = a straight line of `length`; bend 1 = the line curled into a full circle (Choreographer-style).
-        static Vector2 OriginPoint(float ni, float offX, float offY, float length, float bend, float angleDeg,
-                                   out Vector2 normal)
-        {
-            Vector2 origin = new Vector2(offX, offY);
-            float a = angleDeg * Mathf.Deg2Rad;
-            Vector2 tangent = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
-            Vector2 norm = new Vector2(-Mathf.Sin(a), Mathf.Cos(a));   // +90° from the tangent = outward side
-            if (bend < 0.001f)
-            {
-                normal = norm;
-                return origin + tangent * ((ni - 0.5f) * length);
-            }
-            float arcSpan = bend * Mathf.PI * 2f;      // up to a full circle
-            float radius = length / arcSpan;           // so the arc length stays == length
-            float theta = (ni - 0.5f) * arcSpan;
-            Vector2 arcCenter = origin - norm * radius; // arc bows toward +norm (the emission side)
-            Vector2 p = arcCenter + norm * (radius * Mathf.Cos(theta)) + tangent * (radius * Mathf.Sin(theta));
-            normal = (p - arcCenter).normalized;
-            return p;
         }
 
         static Vector2 Rotate(Vector2 v, float rad)

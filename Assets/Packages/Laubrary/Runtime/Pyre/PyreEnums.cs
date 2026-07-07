@@ -18,13 +18,6 @@ namespace Laubrary.Pyre
         FlowingFill   // a spatial fill whose gradient scrolls through its spectrum over the shape's life
     }
 
-    /// How a Layer places and moves its shapes.
-    public enum EmissionMode
-    {
-        Radial,      // shapes scatter within a disc around the centre and grow outward (a normal explosion)
-        Directional  // shapes start on a (bendable) origin line/surface and stream one way across the frame
-    }
-
     /// How a Bars layer ends: contract back (size envelope shrinks) or hold + dissolve from the centre outward.
     public enum BarDecay
     {

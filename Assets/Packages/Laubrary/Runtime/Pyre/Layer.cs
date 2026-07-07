@@ -107,26 +107,6 @@ namespace Laubrary.Pyre
                  "frame, last spawn ends at the last.")]
         public float spawnStagger = 0f;
 
-        // ── emission: Radial (default) or Directional (stream off a bendable origin line) ────────────
-        [Tooltip("Radial = scatter around the centre and grow outward. Directional = start on an origin line and " +
-                 "stream one way across the frame.")]
-        public EmissionMode emission = EmissionMode.Radial;
-        [Tooltip("Directional: centre of the origin line, in pixels from the canvas centre (e.g. y=-28 = bottom).")]
-        public float originOffsetX = 0f;
-        public float originOffsetY = 0f;
-        [Tooltip("Directional: length of the origin line/surface in pixels.")]
-        public float originLength = 40f;
-        [Tooltip("Directional: bend of the origin line, 0 = straight, 1 = full circle (like a Choreographer spread). Animatable.")]
-        public ZUIValue originBend = new ZUIValue(0f);
-        [Tooltip("Directional: rotation of the origin line in degrees. Animatable — sweep the emitting surface.")]
-        public ZUIValue originAngleDeg = new ZUIValue(0f);
-        [Tooltip("Directional: travel direction offset from the line's outward normal, in degrees (animatable).")]
-        public ZUIValue emitAngleDeg = new ZUIValue(0f);
-        [Tooltip("Directional: how far a shape travels from its origin over life, in pixels (animatable).")]
-        public ZUIValue travel = new ZUIValue(34f);
-        [Tooltip("Directional: random per-shape spread of the travel direction, in degrees. Animatable — widen the fan over time.")]
-        public ZUIValue emitSpreadDeg = new ZUIValue(8f);
-
         // ── Bars mode (LayerShape.Bars): a symmetric row of forward-growing bars streaming off an edge ──
         // Most are multicontrols evaluated over the layer's timeline, so the whole row can animate (sweep the
         // angle, widen the spacing, pulse the width…).
@@ -232,11 +212,6 @@ namespace Laubrary.Pyre
             l.size = CloneVal(size);
             l.crescentOffsetX = CloneVal(crescentOffsetX);
             l.crescentOffsetY = CloneVal(crescentOffsetY);
-            l.emitAngleDeg = CloneVal(emitAngleDeg);
-            l.travel = CloneVal(travel);
-            l.originBend = CloneVal(originBend);
-            l.originAngleDeg = CloneVal(originAngleDeg);
-            l.emitSpreadDeg = CloneVal(emitSpreadDeg);
             l.sparkleDensity = CloneVal(sparkleDensity);
             l.sparkleSeed = CloneVal(sparkleSeed);
             l.outerSoftness = CloneVal(outerSoftness);
