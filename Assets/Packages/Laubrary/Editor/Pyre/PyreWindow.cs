@@ -40,6 +40,7 @@ namespace Laubrary.Pyre.Editor
         // splitters
         bool dragLeft, dragPreview;
         bool draggingOrigin;   // dragging the origin/pivot ✛ handle in the preview
+        [SerializeField] float originMarkerAlpha = 0.95f;   // preview-only: origin ✛ opacity
         int draggingLayer = -1;   // index of the layer being drag-reordered, or -1
         int draggingMod = -1;     // index of the modifier being drag-reordered, or -1
         string draggingModList;   // idp of the modifier list that drag belongs to (layer mods vs global mods)
@@ -97,6 +98,8 @@ namespace Laubrary.Pyre.Editor
                 while (acc >= 1f) { acc -= 1f; frame = (frame + 1) % FrameCount; }
                 Repaint();
             }
+            // Keep the preview repainting while paused too (not the browser) so the origin ✛ marker flashes.
+            else if (spec != null && !browsing && originMarkerAlpha > 0.001f) Repaint();
         }
 
         protected override void OnZUI()
@@ -270,6 +273,7 @@ namespace Laubrary.Pyre.Editor
             // the ✛ handle in the preview. A game aligns this to the hit pixel.
             spec.origin.x = EditorGUILayout.Slider("Origin X", spec.origin.x, 0f, 1f);
             spec.origin.y = EditorGUILayout.Slider("Origin Y", spec.origin.y, 0f, 1f);
+            originMarkerAlpha = EditorGUILayout.Slider("Origin marker α", originMarkerAlpha, 0f, 1f);
             if (Button("Origin → centre")) spec.origin = new Vector2(0.5f, 0.5f);
 
             VerticalSpace();
@@ -1012,12 +1016,13 @@ namespace Laubrary.Pyre.Editor
                 if (e.type == EventType.MouseUp) { draggingOrigin = false; e.Use(); }
             }
 
-            if (e.type == EventType.Repaint && view.Contains(new Vector2(ox, oy)))
+            if (e.type == EventType.Repaint && view.Contains(new Vector2(ox, oy)) && originMarkerAlpha > 0.001f)
             {
-                Color c = new Color(1f, 0.85f, 0.15f, 0.95f);
+                // Oscillate the marker white↔black fast so it reads against ANY backdrop colour. Alpha from the slider.
+                bool white = Mathf.Repeat((float)(EditorApplication.timeSinceStartup * 6.0), 1f) < 0.5f;
+                Color c = white ? Color.white : Color.black;   c.a = originMarkerAlpha;
                 EditorGUI.DrawRect(new Rect(ox - 7f, oy - 1f, 14f, 2f), c);
                 EditorGUI.DrawRect(new Rect(ox - 1f, oy - 7f, 2f, 14f), c);
-                EditorGUI.DrawRect(new Rect(ox - 2f, oy - 2f, 4f, 4f), new Color(0f, 0f, 0f, 0.6f));
             }
         }
 
