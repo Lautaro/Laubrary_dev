@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-07-07
+
+### Added
+- **Codex** — a composition layer that ties battle visuals together: small, portable ScriptableObject "recipes"
+  that reference the primitives (Colosseum factions, Pyre blasts, Chunks debris) instead of owning art. Adds
+  `Runtime/Codex/` (`com.Lautaro-Arino.Laubrary.Codex`, namespace `Laubrary.Codex`):
+  - **CharacterDef** — an enemy/NPC: stats (max health, faction, i-frames), a placeholder look (Sprite now; Zoetrope
+    Zoe swap-point marked), and **hit / death VFX**.
+  - **WeaponDef** — fire stats (rate, damage, speed, spread, projectiles-per-shot), a projectile, and **muzzle VFX**.
+  - **ProjectileDef** — a projectile's look (sprite, spin, face-travel), flight (lifetime, pierce, Chunks trail) and
+    **impact VFX**.
+  - **CombatVfx** — the shared VFX slot (a Pyre blast + a Chunks burst) played at a world point/direction; the one
+    building block behind every Def's hit/death/muzzle/impact.
+  - **CombatPresenter** — a runtime bridge that plays a CharacterDef's hit/death VFX from Colosseum's `Health`
+    events (at the `DamageInfo` point + direction), keeping Colosseum agnostic. Zound refs are stubbed for later.
+  - First step of the battle-authoring plan (the ColosseumDemo shooting gallery + a generic content browser follow).
+
 ## [0.4.0] - 2026-07-06
 
 ### Changed
