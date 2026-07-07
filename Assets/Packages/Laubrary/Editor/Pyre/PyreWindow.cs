@@ -1018,13 +1018,14 @@ namespace Laubrary.Pyre.Editor
                 if (stageBg != null) PreviewStageGUI.Draw(view, stageBg, zoom, true);   // decoration sprites IN FRONT of the frame
             }
 
-            // Priority for a click in the viewport: (1) origin ✛ handle, (2) a stage sprite, (3) MetaBlob orbs
-            // (place / drag), (4) fall through to panning the animation frame. Each earlier step Use()s the event.
+            // Priority for a click in the viewport: (1) MetaBlob orbs when editing a MetaBlob layer (place / drag) —
+            // it must win over the centred origin ✛, or placing near the centre would grab the pivot instead;
+            // (2) origin ✛ handle, (3) a stage sprite, (4) fall through to panning the frame. Each Use()s its event.
+            HandleMetaBlob(view);
+            DrawMetaOrbMarkers(view);
             if (spec != null) DrawOriginHandle(view);
             if (stageBg != null && PreviewStageGUI.Edit(view, stageBg, zoom, ref stageSel, ref draggingStage))
                 EditorUtility.SetDirty(stageBg);
-            HandleMetaBlob(view);
-            DrawMetaOrbMarkers(view);
 
             // Position the animation frame against the backdrop: left-drag empty space (or middle-drag anywhere).
             var pe = Event.current;
