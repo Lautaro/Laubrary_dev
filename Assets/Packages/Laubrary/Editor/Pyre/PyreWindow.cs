@@ -1,6 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 using Laubrary.Pyre;
+using Laubrary.PreviewStage;
 
 namespace Laubrary.Pyre.Editor
 {
@@ -43,6 +44,9 @@ namespace Laubrary.Pyre.Editor
         bool draggingPan;      // middle-dragging to pan the animation frame
         [SerializeField] float originMarkerAlpha = 0.95f;   // preview-only: origin ✛ opacity
         [SerializeField] Vector2 previewPan;                // preview-only: offset the animation frame (middle-drag)
+        [SerializeField] PreviewBackground stageBg;         // reusable sprite test-backdrop (separate from the frame)
+        int stageSel = -1;
+        bool draggingStage;
         int draggingLayer = -1;   // index of the layer being drag-reordered, or -1
         int draggingMod = -1;     // index of the modifier being drag-reordered, or -1
         string draggingModList;   // idp of the modifier list that drag belongs to (layer mods vs global mods)
@@ -940,6 +944,7 @@ namespace Laubrary.Pyre.Editor
             if (Event.current.type == EventType.Repaint)
             {
                 DrawBackdrop(view);
+                if (stageBg != null) PreviewStageGUI.Draw(view, stageBg, zoom);   // test-background sprites behind the frame
                 if (spec == null)
                 {
                     var c = new GUIStyle(EditorStyles.centeredGreyMiniLabel);
@@ -976,6 +981,10 @@ namespace Laubrary.Pyre.Editor
 
             // Origin/pivot ✛ handle — drag it to set where the blast anchors to a spawn point (the hit pixel).
             if (spec != null) DrawOriginHandle(view);
+
+            // Drag test-background sprites (after the origin handle, so the ✛ wins where they overlap).
+            if (stageBg != null && PreviewStageGUI.Edit(view, stageBg, zoom, ref stageSel, ref draggingStage))
+                EditorUtility.SetDirty(stageBg);
 
             DrawPreviewSplitter();
 
@@ -1081,6 +1090,59 @@ namespace Laubrary.Pyre.Editor
                         bgImageZoom = EditorGUILayout.Slider("Zoom", bgImageZoom, 0.1f, 8f);
                         break;
                 }
+            }
+
+            DrawTestBackground();
+        }
+
+        // Reusable sprite test-backdrop (PreviewStage): compose the effect against props (floor/wall/…). Saved
+        // separately from the frame position, and recallable across tools.
+        [SerializeField] string stageSaveName = "PreviewBg";
+        void DrawTestBackground()
+        {
+            using (Box("Test background (sprites)"))
+            {
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label(stageBg != null ? (AssetDatabase.Contains(stageBg) ? stageBg.name : "· unsaved ·") : "· none ·",
+                                EditorStyles.miniBoldLabel);
+                GUILayout.FlexibleSpace();
+                if (Button("Recall…"))
+                    PreviewStageGUI.ShowRecall(GUILayoutUtility.GetLastRect(), b => { stageBg = b; stageSel = -1; Repaint(); });
+                if (Button("New")) { stageBg = ScriptableObject.CreateInstance<PreviewBackground>(); stageSel = -1; }
+                EditorGUILayout.EndHorizontal();
+
+                if (stageBg == null) { Label("Recall a backdrop or hit New to build one.", ZUI.ZTextStyle.Subtle); return; }
+
+                stageBg.fill = EditorGUILayout.ColorField("Fill (α0 = overlay)", stageBg.fill);
+
+                int removeAt = -1;
+                for (int i = 0; i < stageBg.sprites.Count; i++)
+                {
+                    var s = stageBg.sprites[i];
+                    using (Box(null))
+                    {
+                        EditorGUILayout.BeginHorizontal();
+                        bool sel = stageSel == i;
+                        if (Button(sel ? "●" : "○", ZUI.Style.Default, GUILayout.Width(24))) stageSel = i;
+                        s.sprite = (Sprite)EditorGUILayout.ObjectField(s.sprite, typeof(Sprite), false);
+                        if (Button("X", ZUI.Style.Default, GUILayout.Width(22))) removeAt = i;
+                        EditorGUILayout.EndHorizontal();
+                        s.scale = EditorGUILayout.Slider("Scale", s.scale, 0.1f, 8f);
+                        s.tint = EditorGUILayout.ColorField("Tint", s.tint);
+                        s.position = EditorGUILayout.Vector2Field("Position", s.position);
+                    }
+                }
+                if (removeAt >= 0) { stageBg.sprites.RemoveAt(removeAt); stageSel = -1; }
+
+                EditorGUILayout.BeginHorizontal();
+                if (Button("+ Add sprite")) { stageBg.sprites.Add(new StageSprite()); stageSel = stageBg.sprites.Count - 1; }
+                if (Button("Clear")) { stageBg.sprites.Clear(); stageSel = -1; }
+                GUILayout.FlexibleSpace();
+                stageSaveName = EditorGUILayout.TextField(stageSaveName, GUILayout.Width(110));
+                if (Button("Save")) { PreviewStageGUI.Save(ref stageBg, stageSaveName); }
+                EditorGUILayout.EndHorizontal();
+
+                if (GUI.changed) EditorUtility.SetDirty(stageBg);
             }
         }
 

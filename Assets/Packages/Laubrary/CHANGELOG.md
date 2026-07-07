@@ -38,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The ✛ marker has an **opacity slider** and **oscillates white↔black** so it stays visible over any backdrop.
 
 ### Added
+- **PreviewStage** — a reusable, editor-only **test backdrop** for any tool's preview: a `PreviewBackground` asset
+  (fill + placed, tinted, scaled **sprites**) plus `PreviewStageGUI` (draw + drag-to-position + save/recall).
+  Wired into **Pyre's preview**: a "Test background (sprites)" panel to add sprites, drag them behind the animation
+  frame, and **Save / Recall** arrangements (stored under `Assets/PreviewBackgrounds/`). The backdrop is saved
+  **separately** from the frame's own pan, so the same backdrop is reusable across tools and subjects.
 - **Codex** — a composition layer that ties battle visuals together: small, portable ScriptableObject "recipes"
   that reference the primitives (Colosseum factions, Pyre blasts, Chunks debris) instead of owning art. Adds
   `Runtime/Codex/` (`com.Lautaro-Arino.Laubrary.Codex`, namespace `Laubrary.Codex`):
