@@ -1,0 +1,108 @@
+using UnityEngine;
+using Laubrary.Colosseum;
+
+namespace Laubrary.Codex
+{
+    /// The bridge from Codex data recipes to live GameObjects — builds damageable characters and configured weapons
+    /// out of the primitives so a scene (the shooting gallery, or a real level) can assemble a fight from Defs.
+    public static class CodexArsenal
+    {
+        /// Build a damageable character: Combatant + Health + a Hurtbox collider + a sprite view + a CombatPresenter
+        /// wired to the Def's hit/death VFX. (Zoetrope Zoe view swaps in here later.)
+        public static GameObject SpawnCharacter(CharacterDef def, Vector3 pos, Transform parent = null)
+        {
+            var go = new GameObject(def != null && !string.IsNullOrEmpty(def.displayName) ? def.displayName : "Character");
+            go.transform.position = pos;
+            if (parent != null) go.transform.SetParent(parent, true);
+
+            var sr = go.AddComponent<SpriteRenderer>();
+            if (def != null && def.idleSprite != null)
+            {
+                sr.sprite = def.idleSprite;
+                go.transform.localScale = Vector3.one * Mathf.Max(0.01f, def.spriteScale);
+            }
+
+            var health = go.AddComponent<Health>();
+            var comb = go.AddComponent<Combatant>();
+            if (def != null)
+            {
+                health.maxHealth = Mathf.Max(1f, def.maxHealth);
+                health.invulnerableAfterHit = def.invulnerableAfterHit;
+                comb.faction = def.faction;
+                comb.label = def.displayName;
+            }
+
+            var col = go.AddComponent<BoxCollider2D>();
+            col.isTrigger = true;
+            col.size = sr.sprite != null ? (Vector2)sr.sprite.bounds.size : Vector2.one;
+
+            go.AddComponent<Hurtbox>();   // owner auto-found on this GO
+            go.AddComponent<CombatPresenter>().def = def;
+            return go;
+        }
+
+        /// Build an INACTIVE projectile template (a runtime "prefab") from a ProjectileDef for a ProjectileWeapon to
+        /// clone. Kept inactive so it never flies itself; ProjectileWeapon activates each clone.
+        public static Projectile BuildProjectileTemplate(ProjectileDef def, LayerMask blockers, Transform holder = null)
+        {
+            var go = new GameObject((def != null ? def.displayName : "Projectile") + " (template)");
+            if (holder != null) go.transform.SetParent(holder, false);
+            go.SetActive(false);
+
+            var sr = go.AddComponent<SpriteRenderer>();
+            if (def != null && def.sprite != null)
+            {
+                sr.sprite = def.sprite;
+                go.transform.localScale = Vector3.one * Mathf.Max(0.01f, def.scale);
+            }
+            sr.sortingOrder = 5;
+
+            var col = go.AddComponent<CircleCollider2D>();
+            col.isTrigger = true;
+            col.radius = sr.sprite != null ? Mathf.Max(0.05f, sr.sprite.bounds.extents.magnitude * 0.5f) : 0.15f;
+
+            go.AddComponent<Rigidbody2D>();   // Projectile.Awake sets it kinematic
+
+            var proj = go.AddComponent<Projectile>();
+            if (def != null)
+            {
+                proj.lifetime = def.lifetime;
+                proj.pierce = def.pierce ? 1 : 0;
+                proj.faceDirection = def.faceTravel && !def.spin;
+            }
+            proj.blockers = blockers;
+
+            go.AddComponent<ProjectileFx>().def = def;
+            return proj;
+        }
+
+        /// Configure (or add) a ProjectileWeapon on `shooter` from a WeaponDef: fire stats + a projectile template +
+        /// muzzle VFX on each shot. `owner` supplies the firing faction; `muzzle` is the spawn point.
+        public static ProjectileWeapon EquipWeapon(GameObject shooter, WeaponDef def, Combatant owner, Transform muzzle,
+                                                   LayerMask projectileBlockers = default)
+        {
+            var w = shooter.GetComponent<ProjectileWeapon>();
+            if (w == null) w = shooter.AddComponent<ProjectileWeapon>();
+            w.owner = owner;
+            w.muzzle = muzzle;
+            w.autoFire = false;
+            if (def == null) return w;
+
+            w.fireRate = def.fireRate;
+            w.damage = def.damage;
+            w.projectileSpeed = def.projectileSpeed;
+            w.spreadDeg = def.spreadDeg;
+            w.projectilesPerShot = def.projectilesPerShot;
+            w.projectilePrefab = def.projectile != null
+                ? BuildProjectileTemplate(def.projectile, projectileBlockers, shooter.transform) : null;
+
+            if (!def.muzzle.IsEmpty)
+            {
+                var vfx = def.muzzle;
+                Transform m = muzzle != null ? muzzle : shooter.transform;
+                w.Fired += _ => vfx.Play(m.position);
+            }
+            return w;
+        }
+    }
+}

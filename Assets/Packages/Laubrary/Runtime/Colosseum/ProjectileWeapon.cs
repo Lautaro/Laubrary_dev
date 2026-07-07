@@ -65,6 +65,7 @@ namespace Laubrary.Colosseum
                 Vector2 d = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
 
                 var p = Instantiate(projectilePrefab, pos, Quaternion.identity);
+                if (!p.gameObject.activeSelf) p.gameObject.SetActive(true);   // allow inactive (runtime-built) templates
                 p.damage = damage;
                 p.Launch(d, fac, src, projectileSpeed);
                 Fired?.Invoke(p);

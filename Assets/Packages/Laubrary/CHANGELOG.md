@@ -20,7 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     building block behind every Def's hit/death/muzzle/impact.
   - **CombatPresenter** — a runtime bridge that plays a CharacterDef's hit/death VFX from Colosseum's `Health`
     events (at the `DamageInfo` point + direction), keeping Colosseum agnostic. Zound refs are stubbed for later.
+  - **CodexArsenal** + **ProjectileFx** — the factory that turns Defs into live objects: `SpawnCharacter`
+    (Combatant + Health + Hurtbox + view + presenter), `BuildProjectileTemplate` and `EquipWeapon` (a configured
+    ProjectileWeapon + a runtime projectile that spins and plays its impact VFX where it lands).
   - First step of the battle-authoring plan (the ColosseumDemo shooting gallery + a generic content browser follow).
+- **Colosseum:** `ProjectileWeapon` now activates the instantiated projectile if the prefab was inactive, so
+  runtime-built (Codex) projectile templates work as well as project-asset prefabs.
 
 ## [0.4.0] - 2026-07-06
 
