@@ -47,26 +47,35 @@ namespace Laubrary.Pyre
 
         // Collect + Prepare the enabled modifiers of a layer (progress = layer life) and the blast (progress = blast
         // progress) for this frame. Layer mods come first (inner); global mods wrap them (outer).
+        // A geometry modifier paired with its effective warp pass (higher = applied first = outermost warp).
+        struct GeoEntry { public GeometryModifier mod; public int pass; }
+
+        // Global modifiers get this added to their WarpPass so they sort ABOVE every layer modifier — a global warp
+        // (Rotate/Skew/Wobble/Squash) is the OUTERMOST transform, wrapping each shape's own Ground/Profile/etc. That
+        // makes a global Rotate spin the whole animation as one (every shape rotates identically about the same
+        // pivot) while composing correctly with per-layer grounding — and, being a coordinate transform rather than
+        // a buffer resample, it never clips the frame the way a post-pass on a non-square canvas would.
+        const int GlobalPassOffset = 1000;
+
         static ModStack BuildStack(Layer layer, BlastSpec spec, int li, float lp, float bp, int frameIndex)
         {
-            var geo = new System.Collections.Generic.List<GeometryModifier>();
+            var geo = new System.Collections.Generic.List<GeoEntry>();
             var pix = new System.Collections.Generic.List<PixelModifier>();
-            CollectMods(layer != null ? layer.modifiers : null, spec, li, lp, frameIndex, geo, pix, 0, true);
-            // Global GEOMETRY warps the whole composited frame as one (a post-pass), NOT each shape — otherwise a
-            // global Rotate would spin every layer's shapes about their own frames instead of the image. Global
-            // PIXEL effects stay per-shape here (they act per drawn pixel either way).
-            CollectMods(spec != null ? spec.globalModifiers : null, spec, GlobalLayerId, bp, frameIndex, geo, pix, 500, false);
+            CollectMods(layer != null ? layer.modifiers : null, spec, li, lp, frameIndex, geo, pix, 0, 0);
+            CollectMods(spec != null ? spec.globalModifiers : null, spec, GlobalLayerId, bp, frameIndex, geo, pix, 500, GlobalPassOffset);
             if (geo.Count == 0 && pix.Count == 0) return EmptyStack;
-            // Higher WarpPass applies FIRST (ApplyGeo walks the array back-to-front), so Ground reframes the shape
-            // onto its surface before Profile measures its height. Stable so equal passes keep authoring order.
-            if (geo.Count > 1) StableSortByPass(geo);
-            return new ModStack(geo.ToArray(), pix.ToArray());
+            // Sort ascending by effective pass so the array ends with the highest; ApplyGeo (back-to-front) then
+            // applies them first. Insertion sort keeps it stable so same-pass modifiers keep authoring order.
+            if (geo.Count > 1) SortGeoStable(geo);
+            var arr = new GeometryModifier[geo.Count];
+            for (int i = 0; i < geo.Count; i++) arr[i] = geo[i].mod;
+            return new ModStack(arr, pix.ToArray());
         }
 
         static void CollectMods(System.Collections.Generic.List<PyreModifier> mods, BlastSpec spec, int layerId,
                                 float progress, int frameIndex,
-                                System.Collections.Generic.List<GeometryModifier> geo,
-                                System.Collections.Generic.List<PixelModifier> pix, int baseId, bool includeGeo)
+                                System.Collections.Generic.List<GeoEntry> geo,
+                                System.Collections.Generic.List<PixelModifier> pix, int baseId, int passOffset)
         {
             if (mods == null) return;
             int seed = spec != null ? spec.seed : 0;
@@ -74,43 +83,20 @@ namespace Laubrary.Pyre
             {
                 var m = mods[i];
                 if (m == null || !m.enabled) continue;
-                bool isGeo = m is GeometryModifier;
-                if (isGeo && !includeGeo) continue;   // global geometry is handled as a whole-image post-pass
                 int uid = baseId + i;
                 m.Prepare((v, fid) => Eval(v, progress, seed, layerId, frameIndex, 1000 + uid * 8 + fid));
-                if (isGeo) geo.Add((GeometryModifier)m);
+                if (m is GeometryModifier gm) geo.Add(new GeoEntry { mod = gm, pass = gm.WarpPass + passOffset });
                 else if (m is PixelModifier pm) pix.Add(pm);
             }
         }
 
-        // Collect + Prepare the enabled GLOBAL geometry modifiers (progress = blast progress), for the whole-image
-        // post-warp. Ground/Profile are per-shape by nature (they need a shape radius) and no-op here (radius 0).
-        static GeometryModifier[] BuildGlobalGeo(BlastSpec spec, float bp, int frameIndex)
-        {
-            if (spec == null || spec.globalModifiers == null) return Array.Empty<GeometryModifier>();
-            var list = new System.Collections.Generic.List<GeometryModifier>();
-            int seed = spec.seed;
-            for (int i = 0; i < spec.globalModifiers.Count; i++)
-            {
-                var m = spec.globalModifiers[i];
-                if (m == null || !m.enabled || !(m is GeometryModifier gm)) continue;
-                int uid = 500 + i;
-                m.Prepare((v, fid) => Eval(v, bp, seed, GlobalLayerId, frameIndex, 1000 + uid * 8 + fid));
-                list.Add(gm);
-            }
-            if (list.Count > 1) StableSortByPass(list);
-            return list.ToArray();
-        }
-
-        // Ascending by WarpPass so the array ends with the highest pass; ApplyGeo then reaches them first. Insertion
-        // sort keeps it stable (tiny lists) so same-pass modifiers preserve the order the user added them.
-        static void StableSortByPass(System.Collections.Generic.List<GeometryModifier> geo)
+        static void SortGeoStable(System.Collections.Generic.List<GeoEntry> geo)
         {
             for (int i = 1; i < geo.Count; i++)
             {
-                var m = geo[i]; int j = i - 1;
-                while (j >= 0 && geo[j].WarpPass > m.WarpPass) { geo[j + 1] = geo[j]; j--; }
-                geo[j + 1] = m;
+                var e = geo[i]; int j = i - 1;
+                while (j >= 0 && geo[j].pass > e.pass) { geo[j + 1] = geo[j]; j--; }
+                geo[j + 1] = e;
             }
         }
 
@@ -316,28 +302,6 @@ namespace Laubrary.Pyre
                 }
               }
             }
-
-            // ── global geometry post-pass ────────────────────────────────────────
-            // Warp the WHOLE composited frame as one rigid image (rotate / skew / squash / wobble about the canvas),
-            // so a global Rotate spins the entire animation together instead of deforming each layer's shapes. Done
-            // by resampling: every output pixel pulls from the inverse-warped source coordinate (nearest neighbour to
-            // keep pixel art crisp). Ground/Profile no-op here (they need a per-shape radius, which is 0 globally).
-            var globalGeo = BuildGlobalGeo(spec, bp, frameIndex);
-            if (globalGeo.Length > 0)
-            {
-                var gstack = new ModStack(globalGeo, Array.Empty<PixelModifier>());
-                var gctx = new GeoCtx(W * 0.5f, H * 0.5f, Vector2.zero, 0f);
-                var src = (Color32[])buf.Clone();
-                for (int y = 0; y < H; y++)
-                    for (int x = 0; x < W; x++)
-                    {
-                        Vector2 off = ApplyGeo(gstack, new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy), framePhase, gctx);
-                        int sx = Mathf.FloorToInt(cx + off.x);
-                        int sy = Mathf.FloorToInt(cy + off.y);
-                        buf[y * W + x] = (sx >= 0 && sx < W && sy >= 0 && sy < H) ? src[sy * W + sx] : Transparent;
-                    }
-            }
-
             return buf;
         }
 
