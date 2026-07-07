@@ -57,7 +57,9 @@ namespace Laubrary.Pyre
                     if (l == null || !l.enabled || l.shape != LayerShape.Bars || !l.star) continue;
                     any = true;
                     float reach = MaxOf(l.barForward) + Mathf.Max(0f, MaxOf(l.originInset));
-                    float combHalf = MaxOf(l.barCount) * MaxOf(l.barSpacing) + MaxOf(l.barWidth);
+                    // pitch is spacing * width (spacing measured in bar-widths); comb half-reach = count*pitch + halfWidth
+                    float combHalf = MaxOf(l.barCount) * Mathf.Max(1f, MaxOf(l.barSpacing)) * Mathf.Max(1f, MaxOf(l.barWidth))
+                                     + MaxOf(l.barWidth);
                     maxX = Mathf.Max(maxX, combHalf); maxY = Mathf.Max(maxY, combHalf);
                     int n = Mathf.Max(1, l.spreadCount);
                     bool tight = l.baseAngleDeg != null && l.spreadDegrees != null

@@ -127,9 +127,9 @@ namespace Laubrary.Pyre
         // angle, widen the spacing, pulse the width…).
         [Tooltip("Bars: number of bars on EACH side of the centre bar (total = 2*barCount + 1). Animatable.")]
         public ZUIValue barCount = new ZUIValue(7f);
-        [Tooltip("Bars: perpendicular spacing between neighbouring bars, in pixels. Animatable.")]
-        public ZUIValue barSpacing = new ZUIValue(4f);
-        [Tooltip("Bars: thickness of each bar (across the direction), in pixels. Animatable.")]
+        [Tooltip("Bars: neighbour spacing in bar-WIDTHS. 1 = bars touch (no gap), 2 = a one-bar gap, … (min 1). Animatable.")]
+        public ZUIValue barSpacing = new ZUIValue(1.5f);
+        [Tooltip("Bars: thickness of each bar (across the direction), in pixels (min 1). Animatable.")]
         public ZUIValue barWidth = new ZUIValue(3f);
         [Tooltip("Bars: how far a bar reaches FORWARD (along the direction) at full growth — animatable over its life.")]
         public ZUIValue barForward = DefaultBarForward();

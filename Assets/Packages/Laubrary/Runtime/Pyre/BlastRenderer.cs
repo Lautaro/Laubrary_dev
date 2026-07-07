@@ -338,7 +338,9 @@ namespace Laubrary.Pyre
 
             // per-layer bar knobs (multicontrols evaluated once over the layer's life)
             int B = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.barCount, lp, spec.seed, li, 0, F_BarCount)));
-            float spacing = Eval(layer.barSpacing, lp, spec.seed, li, 0, F_BarSpacing);
+            // Spacing is measured in bar-WIDTHS: 1 = bars exactly touch (pitch = one bar, no gap), 2 = one bar of gap
+            // between them, etc. Width is pixels, floored at 1. So the centre-to-centre pitch is spacing * width.
+            float spacing = Mathf.Max(1f, Eval(layer.barSpacing, lp, spec.seed, li, 0, F_BarSpacing));
             float backFrac = Mathf.Clamp01(Eval(layer.barBackwardFrac, lp, spec.seed, li, 0, F_BarBackward));
             float inset = Eval(layer.originInset, lp, spec.seed, li, 0, F_OriginInset);
             float taper = Mathf.Clamp(Eval(layer.barTaper, lp, spec.seed, li, 0, F_Taper), -1f, 1f);
@@ -346,8 +348,9 @@ namespace Laubrary.Pyre
             float ang = Eval(layer.barAngleDeg, lp, spec.seed, li, 0, F_BarAngle);
 
             bool dissolve = layer.barDecay == BarDecay.Dissolve;
-            float width = dissolve ? EvalRisingMax(layer.barWidth, lp, spec.seed, li, 0, F_BarWidth)
-                                   : Eval(layer.barWidth, lp, spec.seed, li, 0, F_BarWidth);
+            float width = Mathf.Max(1f, dissolve ? EvalRisingMax(layer.barWidth, lp, spec.seed, li, 0, F_BarWidth)
+                                                 : Eval(layer.barWidth, lp, spec.seed, li, 0, F_BarWidth));
+            float pitch = spacing * width;   // centre-to-centre distance between neighbouring bars
             float front = dissolve ? Mathf.Clamp01(Mathf.InverseLerp(layer.dissolveStart, 1f, lp)) * (1f + DissolveBand) : 0f;
 
             // Build each arm's geometry once. Mirror adds a second row per instance on the far side of the angle.
@@ -373,7 +376,7 @@ namespace Laubrary.Pyre
             void DrawBar(int r, int i)
             {
                 Vector2 dir = dirs[r], perp = perps[r];
-                Vector2 barCenter = origins[r] + perp * (i * spacing);
+                Vector2 barCenter = origins[r] + perp * (i * pitch);
                 float d = B > 0 ? Mathf.Abs(i) / (float)B : 0f;                          // 0 = centre bar, 1 = outermost
                 float lenMul = taper >= 0f ? 1f - taper * d : 1f + taper * (1f - d);      // Taper = the arm silhouette
                 lenMul = Mathf.Max(0.04f, lenMul);
