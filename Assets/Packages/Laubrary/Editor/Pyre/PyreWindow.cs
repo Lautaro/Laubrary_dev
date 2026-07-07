@@ -488,6 +488,7 @@ namespace Laubrary.Pyre.Editor
                     ValRow("Bars per side", l.barCount, 0f, 40f, 7f);
                     ValRow("Width (px)", l.barWidth, 1f, 12f, 3f);
                     ValRow("Spacing (×width)", l.barSpacing, 1f, 6f, 1.5f);   // 1 = bars touch, 2 = one-bar gap, …
+                    ValRow("Edge softness", l.barSoftness, 0f, 1f, 0f);       // soft sides + tip (dissolve too)
                     ValRow("Forward reach", l.barForward, 0f, cs, 40f);
                     // Taper is the arm-shape control: +1 = centre longest → triangle/flame, 0 = flat, -1 = concave.
                     ValRow("Taper (centre↔edge)", l.barTaper, -1f, 1f, 0.85f);

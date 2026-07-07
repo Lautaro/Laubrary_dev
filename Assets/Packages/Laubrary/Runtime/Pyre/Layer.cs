@@ -121,6 +121,9 @@ namespace Laubrary.Pyre
         public ZUIValue barSpacing = new ZUIValue(1.5f);
         [Tooltip("Bars: thickness of each bar (across the direction), in pixels (min 1). Animatable.")]
         public ZUIValue barWidth = new ZUIValue(3f);
+        [Tooltip("Bars: edge softness — alpha gradient on the bar SIDES and TIP (0 = sharp, 1 = very soft). Applies " +
+                 "in Dissolve mode too. Animatable.")]
+        public ZUIValue barSoftness = new ZUIValue(0f);
         [Tooltip("Bars: how far a bar reaches FORWARD (along the direction) at full growth — animatable over its life.")]
         public ZUIValue barForward = DefaultBarForward();
         [Tooltip("Bars: backward reach as a fraction of the forward reach (a little spill behind the surface). Animatable.")]
@@ -233,6 +236,7 @@ namespace Laubrary.Pyre
             l.barCount = CloneVal(barCount);
             l.barSpacing = CloneVal(barSpacing);
             l.barWidth = CloneVal(barWidth);
+            l.barSoftness = CloneVal(barSoftness);
             l.barForward = CloneVal(barForward);
             l.barBackwardFrac = CloneVal(barBackwardFrac);
             l.barAngleDeg = CloneVal(barAngleDeg);

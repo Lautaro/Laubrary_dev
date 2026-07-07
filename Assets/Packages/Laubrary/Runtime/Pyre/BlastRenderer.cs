@@ -31,7 +31,7 @@ namespace Laubrary.Pyre
         const int F_CrossAmt = 30, F_Contrast = 31, F_Brightness = 32, F_Saturation = 33;
         const int F_SparkleDensity = 34, F_HoleSize = 38, F_SpriteSpin = 39;
         const int F_InnerSoft = 40, F_OuterSoft = 41, F_ColorFlow = 42, F_ColorZoom = 43, F_SparkleSeed = 44;
-        const int F_GradX = 45, F_GradY = 46, F_HoleOffX = 47, F_HoleOffY = 48;
+        const int F_GradX = 45, F_GradY = 46, F_HoleOffX = 47, F_HoleOffY = 48, F_BarSoft = 49;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -340,6 +340,7 @@ namespace Laubrary.Pyre
             float taper = Mathf.Clamp(Eval(layer.barTaper, lp, spec.seed, li, 0, F_Taper), -1f, 1f);
             float stagger = Mathf.Max(0f, Eval(layer.barStagger, lp, spec.seed, li, 0, F_Stagger));
             float ang = Eval(layer.barAngleDeg, lp, spec.seed, li, 0, F_BarAngle);
+            float barSoft = Mathf.Clamp01(Eval(layer.barSoftness, lp, spec.seed, li, 0, F_BarSoft));   // soft sides + tip
 
             bool dissolve = layer.barDecay == BarDecay.Dissolve;
             float width = Mathf.Max(1f, dissolve ? EvalRisingMax(layer.barWidth, lp, spec.seed, li, 0, F_BarWidth)
@@ -390,7 +391,7 @@ namespace Laubrary.Pyre
                 if (alpha < 0.004f) return;
 
                 RasterBar(buf, W, H, cx, cy, barCenter, dir, perp, -bwd, fwd, width, col, alpha,
-                          stack, frameIndex, framePhase, tb, ShapeSeed(spec.seed, li, i));
+                          stack, frameIndex, framePhase, tb, ShapeSeed(spec.seed, li, i), barSoft);
             }
 
             // Interleave: centre bar of every arm first, then the ±1 bars of every arm, … outward. Within a bar
@@ -408,10 +409,14 @@ namespace Laubrary.Pyre
         // to bars too); that pushes the bar out of its axis-aligned bbox, so the whole canvas is scanned.
         static void RasterBar(Color32[] buf, int W, int H, float cx, float cy, Vector2 barCenter, Vector2 dir, Vector2 perp,
                               float alongMin, float alongMax, float width, Color col, float alpha,
-                              ModStack stack, int frameIndex, float framePhase, float life, int hash)
+                              ModStack stack, int frameIndex, float framePhase, float life, int hash, float soft)
         {
             float hw = width * 0.5f;
             float span = Mathf.Max(0.0001f, alongMax - alongMin);
+            // Edge softness: fade alpha within a band of the (half-)width from the two SIDES and the TIP (alongMax).
+            // The base (alongMin) stays hard so bars stay connected to their origin. Bands are in pixels.
+            float sideBand = soft > 0.001f ? Mathf.Max(0.5f, soft * hw) : 0f;
+            float tipBand = soft > 0.001f ? Mathf.Max(0.5f, soft * span) : 0f;
             int x0, x1, y0, y1;
             if (stack.AnyGeo)
             {
@@ -443,6 +448,13 @@ namespace Laubrary.Pyre
                         float crossFrac = (along - alongMin) / span;
                         Color fc = col;
                         float outA = alpha * fc.a;
+                        if (soft > 0.001f)
+                        {
+                            float e = Mathf.Clamp01((hw - Mathf.Abs(across)) / sideBand);   // fade near both sides
+                            e *= Mathf.Clamp01((alongMax - along) / tipBand);               // fade near the tip
+                            outA *= e;
+                            if (outA <= 0.002f) continue;
+                        }
                         if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, crossFrac, life, hash, W, H))
                             continue;
                         Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);

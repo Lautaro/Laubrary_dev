@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   also lifts alpha (glows into the transparent surround); threshold / radius / animatable intensity. **Outline**
   draws a border in the ring around the silhouette — a flat colour = a sharp one-colour outline, a gradient
   fades/recolours/bands outward; animatable thickness. Together they make glowing energy orbs/projectiles/beams.
+- **Pyre: Bars edge softness.** Bars get an animatable **Edge softness** — an alpha gradient on the bar **sides + tip**
+  (the base stays hard so bars stay connected to their origin), for soft rays / flames. Applies in **Dissolve** mode
+  too (composes with the centre-out fade).
 - **Pyre: three more modifiers.** **Jagg** (geometry) pushes a circle out into an N-armed **star** (arms /
   strength / twist). **Smudge** (geometry) drags a patch of the shape one way like a finger through wet paint
   (origin / direction / size / strength). **Drop shadow** (post) composites a darkened, offset copy behind the
