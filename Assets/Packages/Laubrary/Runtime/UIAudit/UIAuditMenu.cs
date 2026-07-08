@@ -27,13 +27,6 @@ namespace Laubrary.UIAudit
             ZuiRuntime.ZuiAudit.Recording = !ZuiRuntime.ZuiAudit.Recording;
             Debug.Log($"[UIAudit] IMGUI recording {(ZuiRuntime.ZuiAudit.Recording ? "ON — draw the screen, then Audit Current UI" : "OFF")}");
         }
-
-        // Issues are resolution-dependent — audit at the shipping target, not a maximized editor view.
-        [MenuItem("Laubrary/UI Audit/Set Game View 1280x800 (Steam Deck)")]
-        static void SetDeck() => PlayModeWindow.SetCustomRenderingResolution(1280, 800, "SteamDeck");
-
-        [MenuItem("Laubrary/UI Audit/Set Game View 1920x1080")]
-        static void Set1080() => PlayModeWindow.SetCustomRenderingResolution(1920, 1080, "1080p");
     }
 }
 #endif
