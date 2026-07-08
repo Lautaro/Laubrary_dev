@@ -23,10 +23,10 @@ namespace Laubrary.Zoetrope.Editor
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button(_leftCollapsed
+                if (Button(_leftCollapsed
                         ? "▶ Show sheet & canvas"
                         : "◀ Hide sheet & canvas — more room for sprites, animation & the list",
-                        EditorStyles.miniButton, GUILayout.Width(360)))
+                        ZUI.Style.Default, GUILayout.Width(360)))
                     _leftCollapsed = !_leftCollapsed;
                 GUILayout.FlexibleSpace();
             }

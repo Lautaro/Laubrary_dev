@@ -14,7 +14,7 @@ namespace Laubrary.Zoetrope.Editor
     /// into a zoe's editable draft (see <see cref="ZoeRepo"/>). Two-column layout: left =
     /// sheet/grid/canvas, right = identified sprites (#4) + animation preview &amp; save (#5).
     /// </summary>
-    public partial class AnimationBuilderWindow : EditorWindow
+    public partial class AnimationBuilderWindow : ZUIWindow
     {
         private const string Disclaimer =
             "Prototyping only. Sprites may derive from copyrighted rips and must not be shipped or redistributed.";
@@ -225,7 +225,7 @@ namespace Laubrary.Zoetrope.Editor
             w.TryApplyPending();
         }
 
-        private void OnEnable() { _animLastStep = EditorApplication.timeSinceStartup; EditorApplication.update += AnimTick; }
+        protected override void OnZUIEnable() { _animLastStep = EditorApplication.timeSinceStartup; EditorApplication.update += AnimTick; }
         private void OnDisable()
         {
             EditorApplication.update -= AnimTick; DestroyDisplaySheet(); DestroyPreviewBake(); ClearThumbCache(); ClearMaskCache();
@@ -350,7 +350,7 @@ namespace Laubrary.Zoetrope.Editor
             EditorGUIUtility.labelWidth = prev; return result;
         }
 
-        private void OnGUI()
+        protected override void OnZUI()
         {
             float prevLabelWidth = EditorGUIUtility.labelWidth;
             EditorGUIUtility.labelWidth = 58f;
@@ -364,7 +364,7 @@ namespace Laubrary.Zoetrope.Editor
                 // hijacking the nudge; consuming the KeyDown here wins because IMGUI dispatches in draw order.
                 HandleSpriteKeys();
 
-                EditorGUILayout.HelpBox(Disclaimer, MessageType.Warning);
+                NoteBox(Disclaimer);
                 DrawBindingBanner();
                 DrawCollapseToggleRow();
                 DrawTopArea();
@@ -406,19 +406,18 @@ namespace Laubrary.Zoetrope.Editor
         private void DrawBindingBanner()
         {
             if (_boundZoe != null)
-                EditorGUILayout.HelpBox($"Editing animation '{_animName}' for zoe '{_boundZoe.zoeName}'. " +
-                    "Saving writes back to that zoe's draft.", MessageType.Info);
+                InfoBox($"Editing animation '{_animName}' for zoe '{_boundZoe.zoeName}'. " +
+                    "Saving writes back to that zoe's draft.");
             else
-                EditorGUILayout.HelpBox(_orphanAsset != null
+                InfoBox(_orphanAsset != null
                     ? $"Editing orphaned animation '{_animName}'. Include it into a zoe from the Zoe Browser."
-                    : "Authoring a new orphaned animation (not tied to a zoe). Include it later from the Zoe Browser.",
-                    MessageType.None);
+                    : "Authoring a new orphaned animation (not tied to a zoe). Include it later from the Zoe Browser.");
         }
 
         private void DrawStatus()
         {
             if (!string.IsNullOrEmpty(_status))
-                EditorGUILayout.HelpBox(_status, MessageType.Info);
+                InfoBox(_status);
         }
 
         // ── 1 · sheet ────────────────────────────────────────────────────────
@@ -430,7 +429,7 @@ namespace Laubrary.Zoetrope.Editor
                 {
                     GUILayout.Label("1 · Sheet", EditorStyles.boldLabel, GUILayout.Width(58));
                     var picked = (Texture2D)EditorGUILayout.ObjectField(GUIContent.none, _sheet, typeof(Texture2D), false);
-                    if (GUILayout.Button("Load", GUILayout.Width(48))) LoadSheet(picked);
+                    if (Button("Load", ZUI.Style.Default, GUILayout.Width(48))) LoadSheet(picked);
                     else if (picked != _sheet) _sheet = picked;
                     bool openRecent = GUILayout.Button(new GUIContent("Recent ▾",
                         "Pick a sheet from Assets/SpriteSheets (downloaded or previously sliced). Entries are deletable."),
@@ -441,13 +440,13 @@ namespace Laubrary.Zoetrope.Editor
                     GUILayout.FlexibleSpace();
                     using (new EditorGUI.DisabledScope(_sheet == null))
                     {
-                        if (GUILayout.Button(new GUIContent("Save", "Write slicing state (regions, cells, pivots) to a JSON sidecar."), GUILayout.Width(48)))
+                        if (Button(new GUIContent("Save", "Write slicing state (regions, cells, pivots) to a JSON sidecar."), ZUI.Style.Default, GUILayout.Width(48)))
                             SaveState();
                         using (new EditorGUI.DisabledScope(!RegionSlicerPersistence.Exists(_sheetPath)))
                         {
-                            if (GUILayout.Button(new GUIContent("Restore", "Reload slicing state from this sheet's sidecar."), GUILayout.Width(60)))
+                            if (Button(new GUIContent("Restore", "Reload slicing state from this sheet's sidecar."), ZUI.Style.Default, GUILayout.Width(60)))
                                 LoadStateFromSidecar(false);
-                            if (GUILayout.Button(new GUIContent("Clear", "Delete this sheet's saved slicing sidecar and empty the palette (#4). Your saved animations are not affected."), GUILayout.Width(48)))
+                            if (Button(new GUIContent("Clear", "Delete this sheet's saved slicing sidecar and empty the palette (#4). Your saved animations are not affected."), ZUI.Style.Default, GUILayout.Width(48)))
                                 ClearSavedSlicing();
                         }
                     }
@@ -458,7 +457,7 @@ namespace Laubrary.Zoetrope.Editor
                     _sheetUrl = EditorGUILayout.TextField(_sheetUrl);
                     _downloadName = EditorGUILayout.TextField(new GUIContent(GUIContent.none) { tooltip = "Optional display name for the downloaded sheet." }, _downloadName, GUILayout.Width(120));
                     using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(_sheetUrl)))
-                        if (GUILayout.Button(new GUIContent("Download", "Save the image to Assets/SpriteSheets and load it as the sheet."), GUILayout.Width(80)))
+                        if (Button(new GUIContent("Download", "Save the image to Assets/SpriteSheets and load it as the sheet."), ZUI.Style.Default, GUILayout.Width(80)))
                             DownloadSheetFromUrl();
                 }
                 if (_sheet != null)
@@ -493,12 +492,13 @@ namespace Laubrary.Zoetrope.Editor
             using (new EditorGUILayout.HorizontalScope(EditorStyles.helpBox))
             {
                 GUILayout.Label("Mode", EditorStyles.boldLabel, GUILayout.Width(40));
-                EditorGUI.BeginChangeCheck();
-                var newMode = (ToolMode)GUILayout.Toolbar((int)_toolMode,
-                    new[] { "Grid (uniform sheet)", "Box (one sprite)", "Pick (scattered sprites)" }, GUILayout.Width(420));
-                if (EditorGUI.EndChangeCheck())
+                int prevMode = (int)_toolMode;
+                int newModeIdx = MiniRadio(prevMode,
+                    new[] { "Grid (uniform sheet)", "Box (one sprite)", "Pick (scattered sprites)" },
+                    ZUI.Style.Default, true, GUILayout.Width(420));
+                if (newModeIdx != prevMode)
                 {
-                    _toolMode = newMode;
+                    _toolMode = (ToolMode)newModeIdx;
                     if (_toolMode != ToolMode.Grid) { _hasBox = false; _box = default; }
                     Repaint();
                 }
@@ -515,11 +515,11 @@ namespace Laubrary.Zoetrope.Editor
         // ── 2 · region grid UI (mode-gated) ──────────────────────────────────
         private void DrawRegionGridUI()
         {
-            EditorGUILayout.LabelField("2 · Identify Sprites", EditorStyles.boldLabel);
+            Label("2 · Identify Sprites", ZUI.ZTextStyle.SectionHeader);
 
             if (_toolMode == ToolMode.Grid)
             {
-                _mode = (RegionSlicer.GridMode)GUILayout.Toolbar((int)_mode, new[] { "Columns/Rows", "Cell Size" });
+                _mode = (RegionSlicer.GridMode)MiniRadio((int)_mode, new[] { "Columns/Rows", "Cell Size" });
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     if (_mode == RegionSlicer.GridMode.FixedColsRows)
@@ -545,7 +545,7 @@ namespace Laubrary.Zoetrope.Editor
                 _ppu = CompactFloatField("PPU", _ppu, 30f);
                 GUILayout.Space(8);
                 GUILayout.Label("Pivot", GUILayout.Width(36));
-                _pivot = (GridSlicer.PivotMode)EditorGUILayout.EnumPopup(_pivot, GUILayout.Width(110));
+                _pivot = EnumPopup(_pivot, 110f);
                 if (_pivot == GridSlicer.PivotMode.Custom)
                     _customPivot = EditorGUILayout.Vector2Field(GUIContent.none, _customPivot, GUILayout.Width(110));
                 GUILayout.FlexibleSpace();
@@ -554,6 +554,7 @@ namespace Laubrary.Zoetrope.Editor
             // Alpha threshold / trim (relevant to both: Pick uses the threshold; Grid can trim).
             using (new EditorGUILayout.HorizontalScope())
             {
+                // ZUI-GAP: EditorGUILayout.ToggleLeft is a label-right checkbox; ZUI Toggle is a toggle-button (different widget) — kept raw.
                 if (_toolMode == ToolMode.Grid)
                     _alphaTrim = EditorGUILayout.ToggleLeft(
                         new GUIContent("Alpha-trim", "Snap each cell to the tight bbox of its non-transparent pixels."),
@@ -566,6 +567,7 @@ namespace Laubrary.Zoetrope.Editor
             // Background colour key: sheets with a solid-colour background (no alpha) — eyedrop it transparent.
             using (new EditorGUILayout.HorizontalScope())
             {
+                // ZUI-GAP: ToggleLeft (checkbox) + ColorField are coupled to Begin/EndChangeCheck (keyChanged) — kept raw to preserve change detection.
                 EditorGUI.BeginChangeCheck();
                 _bgKeyEnabled = EditorGUILayout.ToggleLeft(
                     new GUIContent("BG color", "Treat a solid background colour as transparent (sheets with no alpha)."),
@@ -578,9 +580,9 @@ namespace Laubrary.Zoetrope.Editor
                 }
                 bool keyChanged = EditorGUI.EndChangeCheck();
 
-                if (GUILayout.Button(new GUIContent(_pickingBgColor ? "Click sheet…" : "Pick ☉",
+                if (Button(new GUIContent(_pickingBgColor ? "Click sheet…" : "Pick ☉",
                         "Eyedropper: click a background pixel on the canvas to set the colour."),
-                        GUILayout.Width(_pickingBgColor ? 80 : 58)))
+                        ZUI.Style.Default, GUILayout.Width(_pickingBgColor ? 80 : 58)))
                 {
                     _pickingBgColor = !_pickingBgColor;
                     if (_pickingBgColor) _bgKeyEnabled = true;
@@ -618,8 +620,8 @@ namespace Laubrary.Zoetrope.Editor
                 {
                     using (new EditorGUI.DisabledScope(!_hasBox))
                     {
-                        if (GUILayout.Button("Clear Box", GUILayout.Width(74))) { _hasBox = false; _box = default; Repaint(); }
-                        if (GUILayout.Button($"Add Region ({CurrentBoxCellCount()})", GUILayout.Width(120))) AddRegion();
+                        if (Button("Clear Box", ZUI.Style.Default, GUILayout.Width(74))) { _hasBox = false; _box = default; Repaint(); }
+                        if (Button($"Add Region ({CurrentBoxCellCount()})", ZUI.Style.Default, GUILayout.Width(120))) AddRegion();
                     }
                     GUILayout.FlexibleSpace();
                 }
@@ -629,8 +631,8 @@ namespace Laubrary.Zoetrope.Editor
             using (new EditorGUILayout.HorizontalScope())
             {
                 GUILayout.Label("Zoom", GUILayout.Width(38));
-                _zoom = EditorGUILayout.Slider(_zoom, 0.5f, 8f, GUILayout.Width(150));
-                if (GUILayout.Button("Fit", GUILayout.Width(40))) _zoomInitialized = false;
+                _zoom = Slider(_zoom, 0.5f, 8f, "", ZUI.SliderStyle.Default, null, GUILayout.Width(150));
+                if (Button("Fit", ZUI.Style.Default, GUILayout.Width(40))) _zoomInitialized = false;
                 GUILayout.FlexibleSpace();
             }
         }
@@ -638,11 +640,11 @@ namespace Laubrary.Zoetrope.Editor
         // ── 3 · canvas ───────────────────────────────────────────────────────
         private void DrawCanvas(float colWidth)
         {
-            EditorGUILayout.LabelField(
+            Label(
                 _pickingBgColor ? "3 · Canvas — click a background pixel to set the transparent colour"
                 : _toolMode == ToolMode.Grid ? "3 · Canvas — drag to marquee; drag interior/edges to move/resize"
                 : _toolMode == ToolMode.Box ? "3 · Canvas — drag a box around one sprite (added on release)"
-                : "3 · Canvas — click a sprite to extract it", EditorStyles.boldLabel);
+                : "3 · Canvas — click a sprite to extract it", ZUI.ZTextStyle.SectionHeader);
 
             float viewportH = Mathf.Max(240f, position.height * 0.48f);
             Rect viewport = GUILayoutUtility.GetRect(10, viewportH, GUILayout.ExpandWidth(true), GUILayout.Height(viewportH));
@@ -872,19 +874,19 @@ namespace Laubrary.Zoetrope.Editor
             int total = TotalCells();
             using (new EditorGUILayout.HorizontalScope())
             {
-                EditorGUILayout.LabelField($"4 · Sprite Palette ({total})", EditorStyles.boldLabel, GUILayout.Width(170));
+                Label($"4 · Sprite Palette ({total})", ZUI.ZTextStyle.SectionHeader, GUILayout.Width(170));
                 HelpButton("Click = select · Ctrl/Shift-click = multi-select · Double-click = add to sequence · Right-click = actions menu.\n\n" +
                            "Keys (with a sprite selected): A / D = previous / next sprite · arrow keys = nudge registration.\n\n" +
                            "Edit in Aseprite: bakes the selected sprite(s) into an owned .aseprite and opens Aseprite. (Set the app path under Tools ▸ Zoetrope.)");
                 GUILayout.FlexibleSpace();
                 using (new EditorGUI.DisabledScope(!HasSelectedCell()))
-                    if (GUILayout.Button(new GUIContent("Edit in Aseprite", "Export the selected sprite(s) to an owned .aseprite and open Aseprite to edit them."), GUILayout.Width(112)))
+                    if (Button(new GUIContent("Edit in Aseprite", "Export the selected sprite(s) to an owned .aseprite and open Aseprite to edit them."), ZUI.Style.Default, GUILayout.Width(112)))
                         OpenSelectionInAseprite();
                 using (new EditorGUI.DisabledScope(string.IsNullOrEmpty(_editAsePath)))
-                    if (GUILayout.Button(new GUIContent("Sync edits", "Pull the edited .aseprite back into the palette (writes into an owned copy of the sheet)."), GUILayout.Width(78)))
+                    if (Button(new GUIContent("Sync edits", "Pull the edited .aseprite back into the palette (writes into an owned copy of the sheet)."), ZUI.Style.Default, GUILayout.Width(78)))
                         SyncFromAseprite();
                 using (new EditorGUI.DisabledScope(total == 0))
-                    if (GUILayout.Button("Clear all", GUILayout.Width(72))) ClearAllCells();
+                    if (Button("Clear all", ZUI.Style.Default, GUILayout.Width(72))) ClearAllCells();
             }
             // (Key handling runs at the top of OnGUI so the #3 scroll view can't eat Left/Right first.)
 
@@ -960,10 +962,10 @@ namespace Laubrary.Zoetrope.Editor
                 {
                     Rect canvas = GUILayoutUtility.GetRect(previewW, 220, GUILayout.Width(previewW), GUILayout.Height(220));
                     DrawRegistrationCanvas(canvas);
-                    EditorGUILayout.LabelField(HasSelectedCell()
+                    Label(HasSelectedCell()
                         ? (_fixedFrame ? "Drag to place the sprite in the box. Faint = other frames."
                                        : "Drag to align the sprite. Faint = other frames.")
-                        : "Select a sprite above to place it.", EditorStyles.wordWrappedMiniLabel);
+                        : "Select a sprite above to place it.");
                 }
                 using (new EditorGUILayout.VerticalScope())
                 {
@@ -1136,23 +1138,23 @@ namespace Laubrary.Zoetrope.Editor
                     Rect cell = _regions[_selRegion].cells[_selCell];
                     EditorGUILayout.LabelField($"Sel {cell.width:0}×{cell.height:0}px", EditorStyles.miniBoldLabel, GUILayout.Width(86));
                 }
-                if (GUILayout.Button("←", GUILayout.Width(24))) NudgeSelectedPivot(-1, 0);
-                if (GUILayout.Button("→", GUILayout.Width(24))) NudgeSelectedPivot(1, 0);
-                if (GUILayout.Button("↓", GUILayout.Width(24))) NudgeSelectedPivot(0, -1);
-                if (GUILayout.Button("↑", GUILayout.Width(24))) NudgeSelectedPivot(0, 1);
-                if (GUILayout.Button(new GUIContent("Baseline", "Set pivot to content bottom-center (align feet)."), GUILayout.Width(66)))
+                if (Button("←", ZUI.Style.Default, GUILayout.Width(24))) NudgeSelectedPivot(-1, 0);
+                if (Button("→", ZUI.Style.Default, GUILayout.Width(24))) NudgeSelectedPivot(1, 0);
+                if (Button("↓", ZUI.Style.Default, GUILayout.Width(24))) NudgeSelectedPivot(0, -1);
+                if (Button("↑", ZUI.Style.Default, GUILayout.Width(24))) NudgeSelectedPivot(0, 1);
+                if (Button(new GUIContent("Baseline", "Set pivot to content bottom-center (align feet)."), ZUI.Style.Default, GUILayout.Width(66)))
                     BaselineSelected();
-                if (GUILayout.Button(new GUIContent("Head", "Set pivot to content top-center (align heads — handy for climbing/hanging)."), GUILayout.Width(48)))
+                if (Button(new GUIContent("Head", "Set pivot to content top-center (align heads — handy for climbing/hanging)."), ZUI.Style.Default, GUILayout.Width(48)))
                     TopCenterSelected();
                 GUILayout.FlexibleSpace();
             }
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button(multi ? $"Add {sel.Count} → seq" : "Add → seq", GUILayout.Width(96))) AddSelectedToSequence();
-                if (GUILayout.Button("Trim to content", GUILayout.Width(110))) TrimSelected();
-                if (GUILayout.Button(new GUIContent(multi ? $"Duplicate ({sel.Count})" : "Duplicate", "Make an independent copy of the sprite(s) so you can flip/rotate/scale the copy without affecting the original a sequence frame uses."), GUILayout.Width(100)))
+                if (Button(multi ? $"Add {sel.Count} → seq" : "Add → seq", ZUI.Style.Default, GUILayout.Width(96))) AddSelectedToSequence();
+                if (Button("Trim to content", ZUI.Style.Default, GUILayout.Width(110))) TrimSelected();
+                if (Button(new GUIContent(multi ? $"Duplicate ({sel.Count})" : "Duplicate", "Make an independent copy of the sprite(s) so you can flip/rotate/scale the copy without affecting the original a sequence frame uses."), ZUI.Style.Default, GUILayout.Width(100)))
                     DuplicateSelectedSprites();
-                if (GUILayout.Button(multi ? $"Delete ({sel.Count})" : "Delete sprite", GUILayout.Width(100))) DeleteSelectedCells();
+                if (Button(multi ? $"Delete ({sel.Count})" : "Delete sprite", ZUI.Style.Default, GUILayout.Width(100))) DeleteSelectedCells();
                 GUILayout.FlexibleSpace();
             }
 
@@ -1161,31 +1163,31 @@ namespace Laubrary.Zoetrope.Editor
             using (new EditorGUILayout.HorizontalScope())
             {
                 GUILayout.Label("Edit:", EditorStyles.miniBoldLabel, GUILayout.Width(30));
-                if (GUILayout.Button(new GUIContent("Flip H", "Mirror horizontally (lossless)."), GUILayout.Width(48)))
+                if (Button(new GUIContent("Flip H", "Mirror horizontally (lossless)."), ZUI.Style.Default, GUILayout.Width(48)))
                     MutateSelectedTransforms(t => { t.flipX = !t.flipX; return t; });
-                if (GUILayout.Button(new GUIContent("Flip V", "Mirror vertically (lossless)."), GUILayout.Width(48)))
+                if (Button(new GUIContent("Flip V", "Mirror vertically (lossless)."), ZUI.Style.Default, GUILayout.Width(48)))
                     MutateSelectedTransforms(t => { t.flipY = !t.flipY; return t; });
-                if (GUILayout.Button(new GUIContent("⟲ 90", "Rotate 90° counter-clockwise (lossless)."), GUILayout.Width(44)))
+                if (Button(new GUIContent("⟲ 90", "Rotate 90° counter-clockwise (lossless)."), ZUI.Style.Default, GUILayout.Width(44)))
                     MutateSelectedTransforms(t => { t.rot90 = ((t.rot90 + 1) % 4 + 4) % 4; return t; });
-                if (GUILayout.Button(new GUIContent("⟳ 90", "Rotate 90° clockwise (lossless)."), GUILayout.Width(44)))
+                if (Button(new GUIContent("⟳ 90", "Rotate 90° clockwise (lossless)."), ZUI.Style.Default, GUILayout.Width(44)))
                     MutateSelectedTransforms(t => { t.rot90 = ((t.rot90 - 1) % 4 + 4) % 4; return t; });
-                if (GUILayout.Button(new GUIContent("Reset", "Clear all edits on the selected sprite(s)."), GUILayout.Width(48)))
+                if (Button(new GUIContent("Reset", "Clear all edits on the selected sprite(s)."), ZUI.Style.Default, GUILayout.Width(48)))
                     MutateSelectedTransforms(_ => CellTransform.Identity);
                 GUILayout.FlexibleSpace();
             }
             using (new EditorGUILayout.HorizontalScope())
             {
                 GUILayout.Label(new GUIContent("Rot°", "Arbitrary rotation (degrees, CCW). Resampled. Use −/+ to step, or type an exact angle."), GUILayout.Width(30));
-                if (GUILayout.Button(new GUIContent("−", "Rotate −5° (stepwise)."), GUILayout.Width(20)))
+                if (Button(new GUIContent("−", "Rotate −5° (stepwise)."), ZUI.Style.Default, GUILayout.Width(20)))
                     MutateSelectedTransforms(t => { t.angle -= RotStepDeg; return t; });
                 float ang = EditorGUILayout.FloatField(prim.angle, GUILayout.Width(40));
-                if (GUILayout.Button(new GUIContent("+", "Rotate +5° (stepwise)."), GUILayout.Width(20)))
+                if (Button(new GUIContent("+", "Rotate +5° (stepwise)."), ZUI.Style.Default, GUILayout.Width(20)))
                     MutateSelectedTransforms(t => { t.angle += RotStepDeg; return t; });
                 GUILayout.Label(new GUIContent("Scale X", "Squash/stretch horizontally (1 = none)."), GUILayout.Width(48));
                 float sxv = EditorGUILayout.FloatField(prim.SX, GUILayout.Width(40));
                 GUILayout.Label(new GUIContent("Y", "Squash/stretch vertically (1 = none)."), GUILayout.Width(12));
                 float syv = EditorGUILayout.FloatField(prim.SY, GUILayout.Width(40));
-                bool sm = GUILayout.Toggle(prim.smooth, new GUIContent("Smooth", "Bilinear sampling for rotate/scale (smooth but blurs); off = crisp nearest-neighbor."), "Button", GUILayout.Width(60));
+                bool sm = Toggle(prim.smooth, new GUIContent("Smooth", "Bilinear sampling for rotate/scale (smooth but blurs); off = crisp nearest-neighbor."), ZUI.Style.Default, GUILayout.Width(60));
                 if (!Mathf.Approximately(ang, prim.angle)) MutateSelectedTransforms(t => { t.angle = ang; return t; });
                 if (!Mathf.Approximately(sxv, prim.SX)) MutateSelectedTransforms(t => { t.scaleX = Mathf.Max(0.01f, sxv); return t; });
                 if (!Mathf.Approximately(syv, prim.SY)) MutateSelectedTransforms(t => { t.scaleY = Mathf.Max(0.01f, syv); return t; });
@@ -1472,10 +1474,10 @@ namespace Laubrary.Zoetrope.Editor
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                EditorGUILayout.LabelField("Registration", EditorStyles.boldLabel, GUILayout.Width(86));
-                EditorGUI.BeginChangeCheck();
-                int mode = GUILayout.Toolbar(_fixedFrame ? 1 : 0, new[] { "Auto size", "Fixed box" }, GUILayout.Width(160));
-                if (EditorGUI.EndChangeCheck())
+                Label("Registration", ZUI.ZTextStyle.SectionHeader, GUILayout.Width(86));
+                int prevReg = _fixedFrame ? 1 : 0;
+                int mode = MiniRadio(prevReg, new[] { "Auto size", "Fixed box" }, ZUI.Style.Default, true, GUILayout.Width(160));
+                if (mode != prevReg)
                 {
                     bool wasFixed = _fixedFrame;
                     _fixedFrame = mode == 1;
@@ -1490,7 +1492,7 @@ namespace Laubrary.Zoetrope.Editor
                 {
                     _frameW = Mathf.Max(1, CompactIntField("W", _frameW, 14f));
                     _frameH = Mathf.Max(1, CompactIntField("H", _frameH, 14f));
-                    if (GUILayout.Button(new GUIContent("Fit", "Size the box to hold every frame at its current placement."), GUILayout.Width(40)))
+                    if (Button(new GUIContent("Fit", "Size the box to hold every frame at its current placement."), ZUI.Style.Default, GUILayout.Width(40)))
                         FitFrameBox();
                     GUILayout.FlexibleSpace();
                 }
@@ -1504,7 +1506,7 @@ namespace Laubrary.Zoetrope.Editor
                 _ghostAfter = Mathf.Clamp(EditorGUILayout.IntField(_ghostAfter, GUILayout.Width(28)), 0, 99);
                 GUILayout.Space(8);
                 GUILayout.Label(new GUIContent("Opacity", "Ghost transparency. Drag to 0 to hide ghosts."), GUILayout.Width(50));
-                _ghostOpacity = GUILayout.HorizontalSlider(_ghostOpacity, 0f, 1f, GUILayout.Width(90));
+                _ghostOpacity = Slider(_ghostOpacity, 0f, 1f, "", ZUI.SliderStyle.Default, null, GUILayout.Width(90));
                 GUILayout.FlexibleSpace();
             }
         }
@@ -1728,7 +1730,7 @@ namespace Laubrary.Zoetrope.Editor
             _seqMultiSel.RemoveWhere(k => k < 0 || k >= _sequence.Count);
             SyncMetaFrames();
 
-            EditorGUILayout.LabelField($"5 · Animation — sequence ({_sequence.Count})", EditorStyles.boldLabel);
+            Label($"5 · Animation — sequence ({_sequence.Count})", ZUI.ZTextStyle.SectionHeader);
 
             // Animation PREVIEW (doubles as the meta paint editor) on the LEFT, all tools on the RIGHT.
             using (new EditorGUILayout.HorizontalScope())
@@ -1757,43 +1759,43 @@ namespace Laubrary.Zoetrope.Editor
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                _animPlaying = GUILayout.Toggle(_animPlaying, _animPlaying ? "❚❚" : "▶", "Button", GUILayout.Width(36));
-                _animFps = EditorGUILayout.Slider("FPS", _animFps, 1f, 30f);
+                _animPlaying = Toggle(_animPlaying, _animPlaying ? "❚❚" : "▶", ZUI.Style.Default, GUILayout.Width(36));
+                _animFps = Slider(_animFps, 1f, 30f, "FPS");
             }
 
             using (new EditorGUILayout.HorizontalScope())
             {
                 GUILayout.Label(new GUIContent("Loop gap", "A preview-only pause between loops. Never saved into the animation."), GUILayout.Width(58));
-                _loopDivider = (LoopDivider)GUILayout.Toolbar((int)_loopDivider, new[] { "None", "Pause", "Idle" }, GUILayout.Width(170));
+                _loopDivider = (LoopDivider)MiniRadio((int)_loopDivider, new[] { "None", "Pause", "Idle" }, ZUI.Style.Default, true, GUILayout.Width(170));
                 if (_loopDivider != LoopDivider.None)
                     _loopPause = CompactFloatField("s", Mathf.Max(0f, _loopPause), 12f);
                 GUILayout.FlexibleSpace();
             }
             if (_loopDivider == LoopDivider.IdleSprite)
                 using (new EditorGUI.DisabledScope(!HasSelectedCell()))
-                    if (GUILayout.Button(new GUIContent("Set idle = selected sprite", SeqRefValid(_idleRef) ? "" : "Select a sprite (#4) first."), GUILayout.Width(200)))
+                    if (Button(new GUIContent("Set idle = selected sprite", SeqRefValid(_idleRef) ? "" : "Select a sprite (#4) first."), ZUI.Style.Default, GUILayout.Width(200)))
                         _idleRef = new CellRef(_selRegion, _selCell);
 
             using (new EditorGUILayout.HorizontalScope())
             {
                 int selCount = _seqMultiSel.Count;
                 using (new EditorGUI.DisabledScope(selCount < 2))
-                    if (GUILayout.Button(new GUIContent("Reverse", "Reverse the order of the selected frames."), GUILayout.Width(74))) ReverseSelectedFrames();
+                    if (Button(new GUIContent("Reverse", "Reverse the order of the selected frames."), ZUI.Style.Default, GUILayout.Width(74))) ReverseSelectedFrames();
                 using (new EditorGUI.DisabledScope(selCount == 0))
                 {
-                    if (GUILayout.Button(selCount > 1 ? $"Duplicate ({selCount})" : "Duplicate", GUILayout.Width(96))) DuplicateSelectedFrames();
-                    if (GUILayout.Button(selCount > 1 ? $"Delete ({selCount})" : "Delete", GUILayout.Width(86))) DeleteSelectedFrames();
+                    if (Button(selCount > 1 ? $"Duplicate ({selCount})" : "Duplicate", ZUI.Style.Default, GUILayout.Width(96))) DuplicateSelectedFrames();
+                    if (Button(selCount > 1 ? $"Delete ({selCount})" : "Delete", ZUI.Style.Default, GUILayout.Width(86))) DeleteSelectedFrames();
                 }
                 GUILayout.FlexibleSpace();
             }
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                _metaEnabled = GUILayout.Toggle(_metaEnabled, new GUIContent("Meta layers",
+                _metaEnabled = Toggle(_metaEnabled, new GUIContent("Meta layers",
                     "Gameplay overlays (hitbox/muzzle/trail) drawn over the sequence. Off keeps the UI clean."),
-                    "Button", GUILayout.Width(90));
+                    ZUI.Style.Default, GUILayout.Width(90));
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Clear seq", GUILayout.Width(74))) { RecordUndo("Clear sequence"); _sequence.Clear(); _seqSelected = -1; _animFrame = 0; }
+                if (Button("Clear seq", ZUI.Style.Default, GUILayout.Width(74))) { RecordUndo("Clear sequence"); _sequence.Clear(); _seqSelected = -1; _animFrame = 0; }
             }
         }
 
@@ -1830,7 +1832,7 @@ namespace Laubrary.Zoetrope.Editor
             using (new EditorGUILayout.HorizontalScope())
             {
                 GUILayout.Label("Layers", EditorStyles.miniBoldLabel, GUILayout.Width(44));
-                if (GUILayout.Button(new GUIContent("+ Layer", "Add a meta-layer (e.g. hitbox, muzzle, trail)."), GUILayout.Width(66)))
+                if (Button(new GUIContent("+ Layer", "Add a meta-layer (e.g. hitbox, muzzle, trail)."), ZUI.Style.Default, GUILayout.Width(66)))
                 {
                     RecordUndo("Add layer");
                     _metaLayers.Add(new MetaLayer { id = $"layer{_metaLayers.Count + 1}", color = MetaLayer.Palette[_metaLayers.Count % MetaLayer.Palette.Length] });
@@ -1844,8 +1846,8 @@ namespace Laubrary.Zoetrope.Editor
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     bool active = i == _activeLayer;
-                    if (GUILayout.Button(active ? "●" : "○", GUILayout.Width(22))) _activeLayer = i;
-                    string nid = EditorGUILayout.TextField(L.id, GUILayout.Width(108));
+                    if (Button(active ? "●" : "○", ZUI.Style.Default, GUILayout.Width(22))) _activeLayer = i;
+                    string nid = TextField(L.id, 108f);
                     if (nid != L.id) { RecordUndo("Rename layer"); L.id = nid; }
 
                     Rect swr = GUILayoutUtility.GetRect(28, 16, GUILayout.Width(28));
@@ -1857,7 +1859,7 @@ namespace Laubrary.Zoetrope.Editor
                         PopupWindow.Show(swr, new ColorPalettePopup(solid, c =>
                         { RecordUndo("Layer colour"); var cc = c; cc.a = _metaLayers[li].color.a; _metaLayers[li].color = cc; ClearMaskCache(); }));
                     }
-                    if (GUILayout.Button(new GUIContent("✕", "Remove this layer."), GUILayout.Width(22)))
+                    if (Button(new GUIContent("✕", "Remove this layer."), ZUI.Style.Default, GUILayout.Width(22)))
                     { RecordUndo("Remove layer"); _metaLayers.RemoveAt(i); if (_activeLayer >= _metaLayers.Count) _activeLayer = _metaLayers.Count - 1; ClearMaskCache(); GUIUtility.ExitGUI(); }
                     GUILayout.FlexibleSpace();
                 }
@@ -1872,7 +1874,7 @@ namespace Laubrary.Zoetrope.Editor
             using (new EditorGUILayout.HorizontalScope())
             {
                 GUILayout.Label(new GUIContent("Opacity", "Display transparency for this layer's mask."), GUILayout.Width(54));
-                float a = EditorGUILayout.Slider(layer.color.a, 0.1f, 1f);
+                float a = Slider(layer.color.a, 0.1f, 1f);
                 if (!Mathf.Approximately(a, layer.color.a)) { var c = layer.color; c.a = a; layer.color = c; ClearMaskCache(); }
             }
 
@@ -1885,12 +1887,12 @@ namespace Laubrary.Zoetrope.Editor
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                _metaShowValues = GUILayout.Toggle(_metaShowValues, new GUIContent("Values",
+                _metaShowValues = Toggle(_metaShowValues, new GUIContent("Values",
                     "Per-pixel value 1–10 as a channel. Off = always paint value 5. Any value triggers a hit unless the consumer reads it."),
-                    "Button", GUILayout.Width(58));
+                    ZUI.Style.Default, GUILayout.Width(58));
                 if (!_metaShowValues) _paintValue = 5;
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button(new GUIContent("Clear frame", "Erase this layer's mask on the current frame."), GUILayout.Width(86)))
+                if (Button(new GUIContent("Clear frame", "Erase this layer's mask on the current frame."), ZUI.Style.Default, GUILayout.Width(86)))
                     ClearActiveFrame();
             }
             if (_metaShowValues)
@@ -1910,8 +1912,8 @@ namespace Laubrary.Zoetrope.Editor
             using (new EditorGUILayout.HorizontalScope())
             {
                 GUILayout.Label("Zoom", GUILayout.Width(54));
-                _metaZoom = Mathf.Round(GUILayout.HorizontalSlider(_metaZoom, 2f, 24f, GUILayout.Width(110)));
-                if (GUILayout.Button(new GUIContent("Center", "Recentre the paint view."), GUILayout.Width(56))) _metaPan = Vector2.zero;
+                _metaZoom = Mathf.Round(Slider(_metaZoom, 2f, 24f, "", ZUI.SliderStyle.Default, null, GUILayout.Width(110)));
+                if (Button(new GUIContent("Center", "Recentre the paint view."), ZUI.Style.Default, GUILayout.Width(56))) _metaPan = Vector2.zero;
                 GUILayout.FlexibleSpace();
             }
 
@@ -1920,10 +1922,10 @@ namespace Laubrary.Zoetrope.Editor
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     GUILayout.Label(new GUIContent($"F{f + 1} param", "Free-text parameter for this frame on the active layer."), GUILayout.Width(54));
-                    string np = EditorGUILayout.TextField(layer.frames[f].param ?? "");
+                    string np = TextField(layer.frames[f].param ?? "");
                     if (np != (layer.frames[f].param ?? "")) { RecordUndo("Frame param"); layer.frames[f].param = np; }
                 }
-            EditorGUILayout.LabelField("Left-drag = paint · right-drag = erase · middle-drag = pan.", EditorStyles.wordWrappedMiniLabel);
+            Label("Left-drag = paint · right-drag = erase · middle-drag = pan.");
         }
 
         private void BrushButton(string label, int w, int h)
@@ -2082,8 +2084,8 @@ namespace Laubrary.Zoetrope.Editor
                         EditorStyles.boldLabel);
                     GUILayout.FlexibleSpace();
                     using (new EditorGUI.DisabledScope(_sequence.Count == 0))
-                        if (GUILayout.Button(new GUIContent($"+ event @ frame {cur + 1}",
-                            "Add a named event on the frame shown in the preview, then rename it below (e.g. hit, footstep, Lift Off)."), GUILayout.Width(150)))
+                        if (Button(new GUIContent($"+ event @ frame {cur + 1}",
+                            "Add a named event on the frame shown in the preview, then rename it below (e.g. hit, footstep, Lift Off)."), ZUI.Style.Default, GUILayout.Width(150)))
                         { RecordUndo("Add event"); _events.Add(new FrameEvent { frame = cur, name = "event" }); }
                 }
 
@@ -2096,9 +2098,9 @@ namespace Laubrary.Zoetrope.Editor
                         GUILayout.Label("frame", GUILayout.Width(40));
                         int newFrame = Mathf.Clamp(EditorGUILayout.IntField(_events[e].frame + 1, GUILayout.Width(42)), 1, maxFrame + 1) - 1;
                         if (newFrame != _events[e].frame) { RecordUndo("Move event"); _events[e].frame = newFrame; }
-                        string newName = EditorGUILayout.TextField(_events[e].name);
+                        string newName = TextField(_events[e].name);
                         if (newName != _events[e].name) { RecordUndo("Rename event"); _events[e].name = newName; }
-                        if (GUILayout.Button("✕", GUILayout.Width(22))) removeAt = e;
+                        if (Button("✕", ZUI.Style.Default, GUILayout.Width(22))) removeAt = e;
                     }
                 }
                 if (removeAt >= 0) { RecordUndo("Remove event"); _events.RemoveAt(removeAt); }
@@ -2190,8 +2192,7 @@ namespace Laubrary.Zoetrope.Editor
             }
             EditorGUILayout.EndScrollView();
 
-            EditorGUILayout.LabelField("Drag to reorder · Ctrl/Shift-click = multi-select · Right-click → menu · (Reverse/Duplicate/Delete in the tools panel).",
-                EditorStyles.miniLabel);
+            Label("Drag to reorder · Ctrl/Shift-click = multi-select · Right-click → menu · (Reverse/Duplicate/Delete in the tools panel).");
         }
 
         // ── sequence batch selection (mirrors the Sprite Palette's multi-select) ──────
@@ -2318,30 +2319,29 @@ namespace Laubrary.Zoetrope.Editor
             EditorGUILayout.Space();
             bool bound = _boundZoe != null;
             bool newOrphan = !bound && _orphanAsset == null;
-            EditorGUILayout.LabelField(bound
+            Label(bound
                 ? $"Save → zoe '{_boundZoe.zoeName}'"
                 : (_orphanAsset != null ? "Save → orphaned animation" : "Save → new orphaned animation"),
-                EditorStyles.boldLabel);
+                ZUI.ZTextStyle.SectionHeader);
 
             // The name only needs editing when authoring a brand-new orphan. When editing an existing
             // animation (bound or an existing orphan) the target is fixed, so show it read-only.
             if (newOrphan)
             {
-                string nm = EditorGUILayout.TextField("Animation name", _animName);
+                string nm = TextField("Animation name", _animName);
                 if (nm != _animName) { RecordUndo("Rename animation"); _animName = nm; }
             }
             else
-                EditorGUILayout.LabelField("Animation name", _animName);
+                Label($"Animation name: {_animName}");
 
             using (new EditorGUI.DisabledScope(_sequence.Count == 0))
-                if (GUILayout.Button(bound ? $"Save to '{_boundZoe.zoeName}'" : "Save orphaned animation", GUILayout.Height(26)))
+                if (Button(bound ? $"Save to '{_boundZoe.zoeName}'" : "Save orphaned animation", ZUI.Style.Default, GUILayout.Height(26)))
                     DoSave();
 
             if (!bound)
-                EditorGUILayout.LabelField("Orphaned animations are included into a zoe from the Zoe Browser.",
-                    EditorStyles.wordWrappedMiniLabel);
+                Label("Orphaned animations are included into a zoe from the Zoe Browser.");
 
-            if (GUILayout.Button("Open Zoe Browser")) ZoeBrowserWindow.Open();
+            if (Button("Open Zoe Browser")) ZoeBrowserWindow.Open();
         }
 
         /// <summary>The recipe (per-frame source rect + pivot) for the current sequence. The source sheet is

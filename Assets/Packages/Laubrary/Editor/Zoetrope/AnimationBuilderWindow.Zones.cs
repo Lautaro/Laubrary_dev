@@ -29,9 +29,9 @@ namespace Laubrary.Zoetrope.Editor
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                _zonesEnabled = GUILayout.Toggle(_zonesEnabled, new GUIContent("Zones",
+                _zonesEnabled = Toggle(_zonesEnabled, new GUIContent("Zones",
                     "Mark phased ranges (Start/Air/Fall/Land) on this strip for the runtime ZonedAnimationPlayer."),
-                    "Button", GUILayout.Width(70));
+                    ZUI.Style.Default, GUILayout.Width(70));
                 if (_zonesEnabled)
                     GUILayout.Label("phased strip — mark ranges, set PlayThrough / Loop", EditorStyles.miniLabel);
                 GUILayout.FlexibleSpace();
@@ -47,9 +47,9 @@ namespace Laubrary.Zoetrope.Editor
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     EditorGUI.DrawRect(GUILayoutUtility.GetRect(12, 16, GUILayout.Width(12), GUILayout.Height(16)), ZoneColor(zi));
-                    string zn = EditorGUILayout.TextField(z.name, GUILayout.Width(90));
+                    string zn = TextField(z.name, 90f);
                     if (zn != z.name) { RecordUndo("Rename zone"); z.name = zn; }
-                    var zb = (ZoneBehavior)EditorGUILayout.EnumPopup(z.behavior, GUILayout.Width(100));
+                    var zb = EnumPopup(z.behavior, 100f);
                     if (zb != z.behavior) { RecordUndo("Zone behavior"); z.behavior = zb; }
                     GUILayout.Label("frames", EditorStyles.miniLabel, GUILayout.Width(44));
                     int zs = EditorGUILayout.IntField(z.startFrame, GUILayout.Width(38));
@@ -58,9 +58,9 @@ namespace Laubrary.Zoetrope.Editor
                     int ze = EditorGUILayout.IntField(z.endFrame, GUILayout.Width(38));
                     if (ze != z.endFrame) { RecordUndo("Zone range"); z.endFrame = ze; }
                     using (new EditorGUI.DisabledScope(_seqMultiSel.Count == 0))
-                        if (GUILayout.Button(new GUIContent("Set = selection", "Set this zone's range to the currently selected sequence frames."), GUILayout.Width(108)))
+                        if (Button(new GUIContent("Set = selection", "Set this zone's range to the currently selected sequence frames."), ZUI.Style.Default, GUILayout.Width(108)))
                         { RecordUndo("Zone range"); z.startFrame = _seqMultiSel.Min(); z.endFrame = _seqMultiSel.Max(); }
-                    if (GUILayout.Button(new GUIContent("✕", "Remove this zone."), GUILayout.Width(22)))
+                    if (Button(new GUIContent("✕", "Remove this zone."), ZUI.Style.Default, GUILayout.Width(22)))
                     { RecordUndo("Remove zone"); _zones.RemoveAt(zi); GUIUtility.ExitGUI(); }
                     GUILayout.FlexibleSpace();
                 }
@@ -68,9 +68,8 @@ namespace Laubrary.Zoetrope.Editor
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("+ Zone", GUILayout.Width(70))) { RecordUndo("Add zone"); AddZone(); }
-                EditorGUILayout.LabelField("PlayThrough = play once → next zone.   Loop = loop here until the game Advances.",
-                    EditorStyles.miniLabel);
+                if (Button("+ Zone", ZUI.Style.Default, GUILayout.Width(70))) { RecordUndo("Add zone"); AddZone(); }
+                Label("PlayThrough = play once → next zone.   Loop = loop here until the game Advances.");
             }
         }
 

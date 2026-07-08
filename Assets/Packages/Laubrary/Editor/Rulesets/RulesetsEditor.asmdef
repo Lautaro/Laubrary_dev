@@ -2,7 +2,9 @@
     "name": "com.Lautaro-Arino.Laubrary.Rulesets.Editor",
     "rootNamespace": "Laubrary.Rulesets.Editor",
     "references": [
-        "com.Lautaro-Arino.Laubrary.Rulesets"
+        "com.Lautaro-Arino.Laubrary.Rulesets",
+        "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
     ],
     "includePlatforms": [
         "Editor"

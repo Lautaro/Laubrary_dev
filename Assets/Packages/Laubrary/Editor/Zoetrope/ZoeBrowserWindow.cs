@@ -14,7 +14,7 @@ namespace Laubrary.Zoetrope.Editor
     /// zoe, add a named animation, then <b>Edit</b> it in the Animation Builder (which saves back here).
     /// It also lists standalone "orphaned" animations and can include them into a zoe's draft.
     /// </summary>
-    public class ZoeBrowserWindow : EditorWindow
+    public class ZoeBrowserWindow : ZUIWindow
     {
         private List<Zoe> _zoes = new List<Zoe>();
         private List<AnimationAsset> _orphans = new List<AnimationAsset>();
@@ -53,7 +53,7 @@ namespace Laubrary.Zoetrope.Editor
             w.Show();
         }
 
-        private void OnEnable() { _lastStep = EditorApplication.timeSinceStartup; EditorApplication.update += Tick; Refresh(); }
+        protected override void OnZUIEnable() { _lastStep = EditorApplication.timeSinceStartup; EditorApplication.update += Tick; Refresh(); }
         private void OnDisable() { EditorApplication.update -= Tick; DestroyOrphanPreview(); }
         private void OnFocus() { Refresh(); Repaint(); }
 
@@ -141,14 +141,15 @@ namespace Laubrary.Zoetrope.Editor
             }
         }
 
-        private void OnGUI()
+        protected override void OnZUI()
         {
-            using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+            // ZUI-GAP: toolbar strip styling (EditorStyles.toolbar) dropped — ZUI has no toolbar scope; using a plain HRow.
+            using (ZUI.HRow())
             {
-                if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(64))) Refresh();
+                if (Button("Refresh", ZUI.Style.Default, GUILayout.Width(64))) Refresh();
                 GUILayout.FlexibleSpace();
-                _newName = EditorGUILayout.TextField(_newName, EditorStyles.toolbarTextField, GUILayout.Width(140));
-                if (GUILayout.Button("New zoe", EditorStyles.toolbarButton, GUILayout.Width(100)))
+                _newName = TextField(_newName, 140f);
+                if (Button("New zoe", ZUI.Style.Default, GUILayout.Width(100)))
                 {
                     var created = ZoeRepo.CreateZoe(_newName);
                     Refresh();
@@ -156,7 +157,7 @@ namespace Laubrary.Zoetrope.Editor
                 }
             }
 
-            using (new EditorGUILayout.HorizontalScope())
+            using (ZUI.HRow())
             {
                 DrawZoeList();
                 DrawZoeDetail();
@@ -166,49 +167,52 @@ namespace Laubrary.Zoetrope.Editor
         // ── left: zoe list + lifecycle ─────────────────────────────────
         private void DrawZoeList()
         {
+            // ZUI-GAP: no ZUI vertical-scope wrapper in the sheet; kept raw VerticalScope for the fixed 240px column.
             using (new EditorGUILayout.VerticalScope(GUILayout.Width(240)))
             {
-                GUILayout.Label("Zoes", EditorStyles.boldLabel);
-                _charScroll = EditorGUILayout.BeginScrollView(_charScroll, "box", GUILayout.Height(170));
-                if (_zoes.Count == 0)
-                    GUILayout.Label("None yet. Click 'New zoe', or author an animation in the Animation Builder.",
-                        EditorStyles.wordWrappedMiniLabel);
-                var rowStyle = new GUIStyle(EditorStyles.miniButton) { alignment = TextAnchor.MiddleLeft };
-
-                // "Orphaned" pseudo-entry — selecting it lists all orphaned animations in the detail panel,
-                // using the same row UI as zoe animations (so there's one browser, not two).
+                Label("Zoes", ZUI.ZTextStyle.SectionHeader);
+                // ZUI-GAP: the scroll view's "box" background is dropped (ScrollView wrapper takes no GUIStyle).
+                using (ScrollView(ref _charScroll, GUILayout.Height(170)))
                 {
-                    var bg = GUI.backgroundColor;
-                    if (_showingOrphans) GUI.backgroundColor = new Color(0.40f, 0.60f, 1f);
-                    if (GUILayout.Button($"Orphaned   ({_orphans.Count})", rowStyle))
-                        SelectOrphaned();
-                    GUI.backgroundColor = bg;
-                }
+                    if (_zoes.Count == 0)
+                        Label("None yet. Click 'New zoe', or author an animation in the Animation Builder.",
+                            ZUI.ZTextStyle.Small);
 
-                foreach (var c in _zoes)
-                {
-                    var bg = GUI.backgroundColor;
-                    if (!_showingOrphans && c == _selected) GUI.backgroundColor = new Color(0.40f, 0.60f, 1f);
-                    if (GUILayout.Button($"{c.zoeName}   (latest v{c.latestVersion})", rowStyle))
-                        SelectZoe(c);
-                    GUI.backgroundColor = bg;
+                    // "Orphaned" pseudo-entry — selecting it lists all orphaned animations in the detail panel,
+                    // using the same row UI as zoe animations (so there's one browser, not two).
+                    // ZUI-GAP: list-row left-alignment (custom miniButton style) dropped; selection tint kept via raw GUI.backgroundColor.
+                    {
+                        var bg = GUI.backgroundColor;
+                        if (_showingOrphans) GUI.backgroundColor = new Color(0.40f, 0.60f, 1f);
+                        if (Button($"Orphaned   ({_orphans.Count})"))
+                            SelectOrphaned();
+                        GUI.backgroundColor = bg;
+                    }
+
+                    foreach (var c in _zoes)
+                    {
+                        var bg = GUI.backgroundColor;
+                        if (!_showingOrphans && c == _selected) GUI.backgroundColor = new Color(0.40f, 0.60f, 1f);
+                        if (Button($"{c.zoeName}   (latest v{c.latestVersion})"))
+                            SelectZoe(c);
+                        GUI.backgroundColor = bg;
+                    }
                 }
-                EditorGUILayout.EndScrollView();
 
                 using (new EditorGUI.DisabledScope(_selected == null))
                 {
-                    if (GUILayout.Button("Duplicate"))
+                    if (Button("Duplicate"))
                     {
                         var dup = ZoeRepo.Duplicate(_selected, _selected.zoeName + " Copy");
                         Refresh(); _selected = dup; _versionSel = 0; _animSel = -1;
                     }
-                    using (new EditorGUILayout.HorizontalScope())
+                    using (ZUI.HRow())
                     {
-                        _renameBuffer = EditorGUILayout.TextField(_renameBuffer);
-                        if (GUILayout.Button("Rename", GUILayout.Width(64)) && _selected != null)
+                        _renameBuffer = TextField(_renameBuffer, 170f);
+                        if (Button("Rename", ZUI.Style.Default, GUILayout.Width(64)) && _selected != null)
                         { ZoeRepo.Rename(_selected, _renameBuffer); Refresh(); }
                     }
-                    if (GUILayout.Button("Delete…") && _selected != null)
+                    if (Button("Delete…") && _selected != null)
                     {
                         if (EditorUtility.DisplayDialog("Delete zoe",
                             $"Delete '{_selected.zoeName}' and ALL its versions (draft + v1..v{_selected.latestVersion})?\n\n" +
@@ -277,12 +281,12 @@ namespace Laubrary.Zoetrope.Editor
         // Author one with "New animation", Edit opens it in the Animation Builder, → includes it into a zoe.
         private void DrawOrphanDetail()
         {
-            EditorGUILayout.LabelField("Orphaned animations", EditorStyles.boldLabel);
+            Label("Orphaned animations", ZUI.ZTextStyle.SectionHeader);
 
-            using (new EditorGUILayout.HorizontalScope())
+            using (ZUI.HRow())
             {
-                _newOrphanName = EditorGUILayout.TextField(_newOrphanName);
-                if (GUILayout.Button("New animation", GUILayout.Width(110)))
+                _newOrphanName = TextField(_newOrphanName, 200f);
+                if (Button("New animation", ZUI.Style.Default, GUILayout.Width(110)))
                 {
                     var a = AnimationLibrary.Create(_newOrphanName);
                     Refresh();
@@ -291,57 +295,62 @@ namespace Laubrary.Zoetrope.Editor
             }
 
             if (_zoes.Count > 0)
-                using (new EditorGUILayout.HorizontalScope())
+                using (ZUI.HRow())
                 {
-                    GUILayout.Label(new GUIContent("Include into", "The → on each row adds that orphan into this zoe's draft."), GUILayout.Width(80));
+                    // ZUI-GAP: tooltip on the "Include into" label dropped (ZUI Label form takes no GUIContent).
+                    Label("Include into", ZUI.ZTextStyle.Default, GUILayout.Width(80));
                     int ti = Mathf.Max(0, _zoes.IndexOf(_orphanIncludeTarget));
-                    int nti = EditorGUILayout.Popup(ti, _zoes.Select(c => c.zoeName).ToArray(), GUILayout.Width(160));
+                    int nti = Dropdown(ti, _zoes.Select(c => c.zoeName).ToArray(), 160f);
                     _orphanIncludeTarget = _zoes[Mathf.Clamp(nti, 0, _zoes.Count - 1)];
                     GUILayout.FlexibleSpace();
                 }
 
-            EditorGUILayout.LabelField($"Animations ({_orphans.Count})", EditorStyles.boldLabel);
-            _animScroll = EditorGUILayout.BeginScrollView(_animScroll, GUILayout.Height(160));
-            if (_orphans.Count == 0)
-                EditorGUILayout.LabelField("None yet. 'New animation' authors a standalone one.", EditorStyles.miniLabel);
-
-            for (int i = 0; i < _orphans.Count; i++)
+            Label($"Animations ({_orphans.Count})", ZUI.ZTextStyle.SectionHeader);
+            using (ScrollView(ref _animScroll, GUILayout.Height(160)))
             {
-                var o = _orphans[i];
-                var def = o.animation;
-                using (new EditorGUILayout.HorizontalScope(i == _animSel ? EditorStyles.helpBox : GUIStyle.none))
+                if (_orphans.Count == 0)
+                    Label("None yet. 'New animation' authors a standalone one.", ZUI.ZTextStyle.Small);
+
+                for (int i = 0; i < _orphans.Count; i++)
                 {
-                    if (_renamingOrphan == i)
+                    var o = _orphans[i];
+                    var def = o.animation;
+                    // Row container kept raw: the conditional helpBox style is the selected-row highlight, which the styleless ZUI.HRow() can't express.
+                    using (new EditorGUILayout.HorizontalScope(i == _animSel ? EditorStyles.helpBox : GUIStyle.none))
                     {
-                        _orphanRenameBuffer = EditorGUILayout.TextField(_orphanRenameBuffer, GUILayout.Width(160));
-                        if (GUILayout.Button("OK", GUILayout.Width(36))) CommitOrphanRename(o);
-                        if (GUILayout.Button("Cancel", GUILayout.Width(56))) _renamingOrphan = -1;
-                        GUILayout.FlexibleSpace();
-                    }
-                    else
-                    {
-                        if (GUILayout.Button($"{def.name}", EditorStyles.label, GUILayout.ExpandWidth(true)))
-                            SelectOrphanForPreview(i, o);
-                        int fcount = def.frames.Count > 0 ? def.frames.Count : (def.recipe?.Count ?? 0);
-                        GUILayout.Label($"{fcount}f", EditorStyles.miniLabel, GUILayout.Width(28));
-                        EditorGUI.BeginChangeCheck();
-                        float nf = EditorGUILayout.DelayedFloatField(def.fps, GUILayout.Width(42));
-                        GUILayout.Label("fps", EditorStyles.miniLabel, GUILayout.Width(22));
-                        if (EditorGUI.EndChangeCheck()) SetOrphanFps(o, nf);
-                        if (GUILayout.Button(new GUIContent("Edit", "Open this orphaned animation in the Animation Builder."), GUILayout.Width(44)))
-                            AnimationBuilderWindow.OpenForOrphan(o);
-                        if (GUILayout.Button(new GUIContent("Rename", "Rename this orphaned animation."), GUILayout.Width(60)))
-                        { _renamingOrphan = i; _orphanRenameBuffer = def.name; }
-                        using (new EditorGUI.DisabledScope(_orphanIncludeTarget == null))
-                            if (GUILayout.Button(new GUIContent("→", _orphanIncludeTarget != null ? $"Include into '{_orphanIncludeTarget.zoeName}' draft" : "No zoe to include into"), GUILayout.Width(24)))
-                                IncludeOrphanInto(o, _orphanIncludeTarget);
-                        if (GUILayout.Button(new GUIContent("✕", "Delete this orphaned animation."), GUILayout.Width(24)))
-                            if (EditorUtility.DisplayDialog("Delete orphan", $"Delete orphaned animation '{def.name}'?", "Delete", "Cancel"))
-                            { AnimationLibrary.Delete(o); Refresh(); GUIUtility.ExitGUI(); }
+                        if (_renamingOrphan == i)
+                        {
+                            _orphanRenameBuffer = TextField(_orphanRenameBuffer, 160f);
+                            if (Button("OK", ZUI.Style.Default, GUILayout.Width(36))) CommitOrphanRename(o);
+                            if (Button("Cancel", ZUI.Style.Default, GUILayout.Width(56))) _renamingOrphan = -1;
+                            GUILayout.FlexibleSpace();
+                        }
+                        else
+                        {
+                            if (Button($"{def.name}", ZUI.Style.Default, GUILayout.ExpandWidth(true)))
+                                SelectOrphanForPreview(i, o);
+                            int fcount = def.frames.Count > 0 ? def.frames.Count : (def.recipe?.Count ?? 0);
+                            Label($"{fcount}f", ZUI.ZTextStyle.Small, GUILayout.Width(28));
+                            // ZUI-GAP: DelayedFloatField kept raw — ZUI.FloatField commits every keystroke, which would
+                            // rebuild + ExitGUI mid-edit; the delayed field's commit-on-Enter/blur semantics are load-bearing here.
+                            EditorGUI.BeginChangeCheck();
+                            float nf = EditorGUILayout.DelayedFloatField(def.fps, GUILayout.Width(42));
+                            Label("fps", ZUI.ZTextStyle.Small, GUILayout.Width(22));
+                            if (EditorGUI.EndChangeCheck()) SetOrphanFps(o, nf);
+                            if (Button(new GUIContent("Edit", "Open this orphaned animation in the Animation Builder."), ZUI.Style.Default, GUILayout.Width(44)))
+                                AnimationBuilderWindow.OpenForOrphan(o);
+                            if (Button(new GUIContent("Rename", "Rename this orphaned animation."), ZUI.Style.Default, GUILayout.Width(60)))
+                            { _renamingOrphan = i; _orphanRenameBuffer = def.name; }
+                            using (new EditorGUI.DisabledScope(_orphanIncludeTarget == null))
+                                if (Button(new GUIContent("→", _orphanIncludeTarget != null ? $"Include into '{_orphanIncludeTarget.zoeName}' draft" : "No zoe to include into"), ZUI.Style.Default, GUILayout.Width(24)))
+                                    IncludeOrphanInto(o, _orphanIncludeTarget);
+                            if (Button(new GUIContent("✕", "Delete this orphaned animation."), ZUI.Style.Default, GUILayout.Width(24)))
+                                if (EditorUtility.DisplayDialog("Delete orphan", $"Delete orphaned animation '{def.name}'?", "Delete", "Cancel"))
+                                { AnimationLibrary.Delete(o); Refresh(); GUIUtility.ExitGUI(); }
+                        }
                     }
                 }
             }
-            EditorGUILayout.EndScrollView();
 
             DrawPreview();
         }
@@ -357,19 +366,20 @@ namespace Laubrary.Zoetrope.Editor
         // ── right: versions + animations + preview ───────────────────────────
         private void DrawZoeDetail()
         {
+            // ZUI-GAP: no ZUI vertical-scope wrapper in the sheet; kept raw VerticalScope for the detail column.
             using (new EditorGUILayout.VerticalScope())
             {
                 if (_showingOrphans) { DrawOrphanDetail(); return; }
 
                 if (_selected == null)
                 {
-                    EditorGUILayout.HelpBox("Select a zoe or 'Orphaned', or create one. Animations are authored in the Animation Builder.", MessageType.Info);
-                    if (GUILayout.Button("Open Animation Builder", GUILayout.Width(180))) AnimationBuilderWindow.Open();
+                    InfoBox("Select a zoe or 'Orphaned', or create one. Animations are authored in the Animation Builder.");
+                    if (Button("Open Animation Builder", ZUI.Style.Default, GUILayout.Width(180))) AnimationBuilderWindow.Open();
                     return;
                 }
 
-                EditorGUILayout.LabelField(_selected.zoeName, EditorStyles.boldLabel);
-                EditorGUILayout.LabelField($"id {_selected.zoeId}", EditorStyles.miniLabel);
+                Label(_selected.zoeName, ZUI.ZTextStyle.SectionHeader);
+                Label($"id {_selected.zoeId}", ZUI.ZTextStyle.Small);
 
                 // version selector
                 var options = new List<string> { "draft" };
@@ -377,75 +387,78 @@ namespace Laubrary.Zoetrope.Editor
                 options.AddRange(committed.Select(n => "v" + n));
                 int curIdx = _versionSel == 0 ? 0 : committed.IndexOf(_versionSel) + 1;
                 if (curIdx < 0) curIdx = 0;
-                using (new EditorGUILayout.HorizontalScope())
+                using (ZUI.HRow())
                 {
-                    GUILayout.Label("Version", GUILayout.Width(56));
-                    int newIdx = EditorGUILayout.Popup(curIdx, options.ToArray(), GUILayout.Width(120));
+                    Label("Version", ZUI.ZTextStyle.Default, GUILayout.Width(56));
+                    int newIdx = Dropdown(curIdx, options.ToArray(), 120f);
                     if (newIdx != curIdx) { _versionSel = newIdx == 0 ? 0 : committed[newIdx - 1]; AutoPlayFirstAnimation(); }
                     GUILayout.FlexibleSpace();
                     using (new EditorGUI.DisabledScope(_versionSel != 0))
-                        if (GUILayout.Button("Save draft as new version", GUILayout.Width(180)))
+                        if (Button("Save draft as new version", ZUI.Style.Default, GUILayout.Width(180)))
                             TryCommit();
                 }
 
                 var version = ZoeRepo.LoadVersion(_selected, _versionSel);
-                if (version == null) { EditorGUILayout.HelpBox("Version not found.", MessageType.Warning); return; }
+                if (version == null) { NoteBox("Version not found."); return; }
                 bool isDraft = _versionSel == 0;
 
-                EditorGUILayout.LabelField($"Animations ({version.animations.Count})", EditorStyles.boldLabel);
-                _animScroll = EditorGUILayout.BeginScrollView(_animScroll, GUILayout.Height(160));
-                for (int i = 0; i < version.animations.Count; i++)
+                Label($"Animations ({version.animations.Count})", ZUI.ZTextStyle.SectionHeader);
+                using (ScrollView(ref _animScroll, GUILayout.Height(160)))
                 {
-                    var def = version.animations[i];
-                    using (new EditorGUILayout.HorizontalScope(i == _animSel ? EditorStyles.helpBox : GUIStyle.none))
+                    for (int i = 0; i < version.animations.Count; i++)
                     {
-                        if (isDraft && _renamingAnim == i)
+                        var def = version.animations[i];
+                        // Row container kept raw: the conditional helpBox style is the selected-row highlight, which the styleless ZUI.HRow() can't express.
+                        using (new EditorGUILayout.HorizontalScope(i == _animSel ? EditorStyles.helpBox : GUIStyle.none))
                         {
-                            _animRenameBuffer = EditorGUILayout.TextField(_animRenameBuffer, GUILayout.Width(160));
-                            if (GUILayout.Button("OK", GUILayout.Width(36))) CommitRename(def);
-                            if (GUILayout.Button("Cancel", GUILayout.Width(56))) _renamingAnim = -1;
-                            GUILayout.FlexibleSpace();
-                        }
-                        else
-                        {
-                            if (GUILayout.Button($"{def.name}", EditorStyles.label, GUILayout.Width(160)))
-                            { _animSel = i; _previewing = def; }
-                            GUILayout.Label($"{def.frames.Count}f", EditorStyles.miniLabel, GUILayout.Width(28));
-                            if (isDraft)
+                            if (isDraft && _renamingAnim == i)
                             {
-                                EditorGUI.BeginChangeCheck();
-                                float nf = EditorGUILayout.DelayedFloatField(def.fps, GUILayout.Width(42));
-                                GUILayout.Label("fps", EditorStyles.miniLabel, GUILayout.Width(22));
-                                if (EditorGUI.EndChangeCheck()) SetAnimFps(def, nf);
+                                _animRenameBuffer = TextField(_animRenameBuffer, 160f);
+                                if (Button("OK", ZUI.Style.Default, GUILayout.Width(36))) CommitRename(def);
+                                if (Button("Cancel", ZUI.Style.Default, GUILayout.Width(56))) _renamingAnim = -1;
+                                GUILayout.FlexibleSpace();
                             }
                             else
-                                GUILayout.Label($"@ {def.fps:0}fps", EditorStyles.miniLabel, GUILayout.Width(64));
-                            GUILayout.FlexibleSpace();
-                            if (GUILayout.Button(new GUIContent("Edit", "Open this animation in the Animation Builder."), GUILayout.Width(44)))
-                                EditAnimation(def, isDraft);
-                            if (isDraft)
                             {
-                                if (GUILayout.Button(new GUIContent("Rename", "Rename this animation."), GUILayout.Width(60)))
-                                { _renamingAnim = i; _animRenameBuffer = def.name; }
-                                if (GUILayout.Button(new GUIContent("Dup", "Duplicate this animation."), GUILayout.Width(40)))
-                                    DuplicateAnim(def);
-                                if (GUILayout.Button(new GUIContent("✕", "Delete this animation from the draft."), GUILayout.Width(24)))
-                                    DeleteAnim(def);
+                                if (Button($"{def.name}", ZUI.Style.Default, GUILayout.Width(160)))
+                                { _animSel = i; _previewing = def; }
+                                Label($"{def.frames.Count}f", ZUI.ZTextStyle.Small, GUILayout.Width(28));
+                                if (isDraft)
+                                {
+                                    // ZUI-GAP: DelayedFloatField kept raw — see DrawOrphanDetail; commit-on-Enter/blur is load-bearing.
+                                    EditorGUI.BeginChangeCheck();
+                                    float nf = EditorGUILayout.DelayedFloatField(def.fps, GUILayout.Width(42));
+                                    Label("fps", ZUI.ZTextStyle.Small, GUILayout.Width(22));
+                                    if (EditorGUI.EndChangeCheck()) SetAnimFps(def, nf);
+                                }
+                                else
+                                    Label($"@ {def.fps:0}fps", ZUI.ZTextStyle.Small, GUILayout.Width(64));
+                                GUILayout.FlexibleSpace();
+                                if (Button(new GUIContent("Edit", "Open this animation in the Animation Builder."), ZUI.Style.Default, GUILayout.Width(44)))
+                                    EditAnimation(def, isDraft);
+                                if (isDraft)
+                                {
+                                    if (Button(new GUIContent("Rename", "Rename this animation."), ZUI.Style.Default, GUILayout.Width(60)))
+                                    { _renamingAnim = i; _animRenameBuffer = def.name; }
+                                    if (Button(new GUIContent("Dup", "Duplicate this animation."), ZUI.Style.Default, GUILayout.Width(40)))
+                                        DuplicateAnim(def);
+                                    if (Button(new GUIContent("✕", "Delete this animation from the draft."), ZUI.Style.Default, GUILayout.Width(24)))
+                                        DeleteAnim(def);
+                                }
                             }
                         }
                     }
                 }
-                EditorGUILayout.EndScrollView();
 
                 if (isDraft)
-                    using (new EditorGUILayout.HorizontalScope())
+                    using (ZUI.HRow())
                     {
-                        _newAnimName = EditorGUILayout.TextField(_newAnimName);
-                        if (GUILayout.Button("New animation", GUILayout.Width(110))) CreateEmptyAnimation();
+                        _newAnimName = TextField(_newAnimName, 200f);
+                        if (Button("New animation", ZUI.Style.Default, GUILayout.Width(110))) CreateEmptyAnimation();
                     }
                 else
-                    EditorGUILayout.LabelField("Committed versions are read-only. Edit copies an animation into the draft.",
-                        EditorStyles.miniLabel);
+                    Label("Committed versions are read-only. Edit copies an animation into the draft.",
+                        ZUI.ZTextStyle.Small);
 
                 DrawPreview();
             }
@@ -453,10 +466,12 @@ namespace Laubrary.Zoetrope.Editor
 
         private void DrawPreview()
         {
-            using (new EditorGUILayout.HorizontalScope())
+            using (ZUI.HRow())
             {
+                // ZUI-GAP: play/pause is a fixed-width, button-styled toggle; the ZUI Toggle wrapper form
+                // (Toggle(value,label)) takes no width/button style, so this transport control stays raw.
                 _playing = GUILayout.Toggle(_playing, _playing ? "❚❚" : "▶", "Button", GUILayout.Width(36));
-                GUILayout.Label(_previewing != null ? $"Preview: {_previewing.name}" : "Select an animation to preview", EditorStyles.miniLabel);
+                Label(_previewing != null ? $"Preview: {_previewing.name}" : "Select an animation to preview", ZUI.ZTextStyle.Small);
                 GUILayout.FlexibleSpace();
             }
             var box = GUILayoutUtility.GetRect(10, 160, GUILayout.ExpandWidth(true), GUILayout.Height(160));
