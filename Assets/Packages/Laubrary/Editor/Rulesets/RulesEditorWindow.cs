@@ -183,19 +183,11 @@ namespace Laubrary.Rulesets.Editor
                 _activeTags.Clear();
         }
 
-        // 0 = no click, 1 = left-click, 2 = RIGHT-click (used as "isolate this filter").
-        // ZUI-GAP: selectable tree-row widget — bespoke GetLastRect + right-click hit-test; kept raw.
+        // 0 = no click, 1 = left-click, 2 = RIGHT-click (used as "isolate this filter"). Now on ZUI.SelectableRow.
         int RowButton(string label, bool selected, int indent)
         {
-            GUILayout.BeginHorizontal();
-            GUILayout.Space(indent * 12f);
-            var style = selected ? EditorStyles.boldLabel : EditorStyles.label;
-            bool clicked = GUILayout.Button((selected ? "▸ " : "") + label, style);
-            Rect r = GUILayoutUtility.GetLastRect();
-            GUILayout.EndHorizontal();
-            var e = Event.current;
-            if (e.type == EventType.MouseDown && e.button == 1 && r.Contains(e.mousePosition)) { e.Use(); return 2; }
-            return clicked ? 1 : 0;
+            bool clicked = SelectableRow(label, selected, out bool rightClicked, indent);
+            return rightClicked ? 2 : clicked ? 1 : 0;
         }
 
         // Right-click "isolate": drop every other filter and show ONLY the thing clicked.
@@ -209,7 +201,6 @@ namespace Laubrary.Rulesets.Editor
             return cat == category || cat.StartsWith(category + "/");
         }
 
-        // ZUI-GAP: toggle-chip widget — bespoke GetLastRect + right-click hit-test; kept raw.
         void DrawTagChips(string[] tags)
         {
             int perRow = 3, i = 0;
@@ -219,11 +210,8 @@ namespace Laubrary.Rulesets.Editor
                 for (int c = 0; c < perRow && i < tags.Length; c++, i++)
                 {
                     bool on = _activeTags.Contains(tags[i]);
-                    bool now = GUILayout.Toggle(on, tags[i], EditorStyles.miniButton);
-                    Rect tr = GUILayoutUtility.GetLastRect();
-                    var e = Event.current;
-                    if (e.type == EventType.MouseDown && e.button == 1 && tr.Contains(e.mousePosition))
-                    { e.Use(); IsolateTag(tags[i]); }      // right-click: show ONLY this tag
+                    bool now = Chip(on, tags[i], out bool rightClicked);
+                    if (rightClicked) IsolateTag(tags[i]);      // right-click: show ONLY this tag
                     else if (now && !on) _activeTags.Add(tags[i]);
                     else if (!now && on) _activeTags.Remove(tags[i]);
                 }

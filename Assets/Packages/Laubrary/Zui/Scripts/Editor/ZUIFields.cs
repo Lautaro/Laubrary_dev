@@ -67,6 +67,24 @@ public static partial class ZUI
     public static Enum EnumField(string label, Enum value)
         => EditorGUILayout.EnumPopup(label, value);
 
+    // ── Delayed-commit fields (fire on Enter/blur, not every keystroke) ──────────
+    public static string DelayedTextField(string value, float bodyWidth = DefaultFieldWidth)
+        => EditorGUILayout.DelayedTextField(value ?? "", GUILayout.Width(Mathf.Max(1f, bodyWidth)));
+    public static string DelayedTextField(string label, string value)
+        => EditorGUILayout.DelayedTextField(label, value ?? "");
+    public static float DelayedFloatField(string label, float value)
+        => EditorGUILayout.DelayedFloatField(label, value);
+    public static float DelayedFloatField(float value, float bodyWidth = DefaultFieldWidth)
+        => EditorGUILayout.DelayedFloatField(value, GUILayout.Width(Mathf.Max(1f, bodyWidth)));
+    public static int DelayedIntField(string label, int value)
+        => EditorGUILayout.DelayedIntField(label, value);
+
+    // ── Object field by runtime Type (for reflection renderers where T isn't known at compile time) ──
+    public static Object ObjectField(Object value, System.Type type, bool allowSceneObjects = false, float bodyWidth = DefaultFieldWidth)
+        => EditorGUILayout.ObjectField(value, type, allowSceneObjects, GUILayout.Width(Mathf.Max(1f, bodyWidth)));
+    public static Object ObjectField(string label, Object value, System.Type type, bool allowSceneObjects = false)
+        => EditorGUILayout.ObjectField(label, value, type, allowSceneObjects);
+
     // ── Info / note boxes ────────────────────────────────────────────────────────
     // The only IMGUI way to draw a wrapping, iconed callout; ZUI owns the call so tools stop reaching past it.
     public static void InfoBox(string text) => EditorGUILayout.HelpBox(text, MessageType.Info);

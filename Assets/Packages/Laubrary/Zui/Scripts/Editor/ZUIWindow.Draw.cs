@@ -568,6 +568,30 @@ public abstract partial class ZUIWindow
     protected ZUI.ScrollScope ScrollView(ref Vector2 scroll, params GUILayoutOption[] options)
         => ZUI.ScrollView(ref scroll, options);
 
+    protected string DelayedTextField(string label, string value)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.DelayedTextField(label, value); }
+
+    protected string DelayedTextField(string value, float bodyWidth = ZUI.DefaultFieldWidth)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.DelayedTextField(value, bodyWidth); }
+
+    protected float DelayedFloatField(string label, float value)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.DelayedFloatField(label, value); }
+
+    protected int DelayedIntField(string label, int value)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.DelayedIntField(label, value); }
+
+    protected UnityEngine.Object ObjectField(UnityEngine.Object value, System.Type type, bool allowSceneObjects = false, float bodyWidth = ZUI.DefaultFieldWidth)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.ObjectField(value, type, allowSceneObjects, bodyWidth); }
+
+    protected UnityEngine.Object ObjectField(string label, UnityEngine.Object value, System.Type type, bool allowSceneObjects = false)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.ObjectField(label, value, type, allowSceneObjects); }
+
+    protected bool SelectableRow(string label, bool selected, out bool rightClicked, int indent = 0)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.SelectableRow(label, selected, out rightClicked, indent); }
+
+    protected bool Chip(bool on, string label, out bool rightClicked)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.Chip(on, label, out rightClicked); }
+
     // ===== Palette / misc =====================================================
 
     protected Color PaletteColor(string name, Color fallback)
