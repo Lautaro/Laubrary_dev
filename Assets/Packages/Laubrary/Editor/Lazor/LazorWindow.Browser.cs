@@ -23,6 +23,16 @@ namespace Laubrary.Lazor.Editor
             ClearBrowseThumbs();
         }
 
+        // Auto-refresh: whenever Lazor Shapes are added / removed / renamed / re-imported ANYWHERE, invalidate the
+        // browse cache (+ stale thumbnails) so the grid re-scans on the next repaint — the browser always reflects
+        // what actually exists, no manual Refresh needed.
+        void OnProjectChanged()
+        {
+            browseGuids = null;
+            ClearBrowseThumbs();
+            Repaint();
+        }
+
         void ClearBrowseThumbs()
         {
             foreach (var t in browseThumbs.Values)

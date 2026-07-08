@@ -50,10 +50,12 @@ namespace Laubrary.Lazor.Editor
         {
             wantsMouseMove = true;
             EnsureWhiteTex();
+            EditorApplication.projectChanged += OnProjectChanged;
         }
 
         void OnDisable()
         {
+            EditorApplication.projectChanged -= OnProjectChanged;
             ClearBrowseThumbs();
             if (_white != null) { DestroyImmediate(_white); _white = null; }
         }
