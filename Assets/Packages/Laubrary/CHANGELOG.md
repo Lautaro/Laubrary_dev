@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-07-08
+
+### Changed (BREAKING)
+- **Colosseum → `Combat2D`.** The combat backbone (Health/Factions/Hitbox-Hurtbox/Projectiles) has no authoring UI,
+  so it's plainly named now (new rule: only systems with a visual UI get cool names). Namespace `Laubrary.Colosseum`
+  → `Laubrary.Combat2D`, asmdef `…Colosseum` → `…Combat2D`. Source-only (scene/asset GUID refs unaffected).
+  **Consumers must update `using Laubrary.Colosseum` → `Laubrary.Combat2D`.**
+- **Codex → `Bestiarium`, rebuilt fully pluggable.** The enemy/character-recipe layer keeps a cool name (it now has
+  a browser UI) and is decoupled: its core depends on **Combat2D only**. A character's look (`ICharacterView`, with a
+  dependency-free `SpriteView` in core) and its hit/death/muzzle/impact effects (`ICombatFx`) are `[SerializeReference]`
+  seams. The old hard-coded Pyre+Chunks `CombatVfx` is now `PyreChunksFx : ICombatFx` in a new **optional** module
+  `Bestiarium.Pyre`. `CodexArsenal` → `Bestiary`. So a project with only Combat2D (no Pyre/Chunks) can use Bestiarium
+  with a sprite view and no effects. New editor hub (AssetKit): **Laubrary/Bestiarium/{Characters, Weapons, Projectiles}**.
+
+### Added
+- **ZUI rollout complete + expanded.** Every IMGUI editor window is now on `ZUIWindow` (added the Rulesets editor,
+  the Zoetrope Zoe Browser / Animation Builder / Animation↔Aseprite, and the AssetKit-based tools). ZUI gained the
+  field controls it lacked (`ZUIFields.cs`: TextField, ObjectField<T>, ColorField, EnumPopup/EnumField, Dropdown,
+  IntSlider, Vector2Field/Vector2IntField, InfoBox/NoteBox, and a ScrollView scope) — so tools stop reaching past ZUI.
+- **AssetKit** browsers now auto-refresh on `EditorApplication.projectChanged`, and New/Duplicate are Undo-able.
+
 ## [0.6.0] - 2026-07-08
 
 ### Added
