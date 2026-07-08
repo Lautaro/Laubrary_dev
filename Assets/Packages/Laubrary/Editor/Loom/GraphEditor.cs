@@ -277,11 +277,14 @@ namespace Laubrary.Loom.Editor
             extensionContainer.Add(section);
         }
 
-        VisualElement BuildField(FieldInfo fi, object target)
+        VisualElement BuildField(FieldInfo fi, object target, Action refresh = null)
         {
             var t = fi.FieldType; string name = fi.Name;
             if (t == typeof(string))
             {
+                var dd = fi.GetCustomAttribute<GraphDropdownAttribute>();
+                if (dd != null) return BuildDropdown(fi, target, dd, refresh);
+
                 bool multi = fi.GetCustomAttribute<TextAreaAttribute>() != null;
                 var f = new TextField(name) { value = (string)fi.GetValue(target) ?? "", multiline = multi };
                 f.labelElement.style.minWidth = 70;
@@ -294,6 +297,39 @@ namespace Laubrary.Loom.Editor
             if (t.IsEnum) { var f = new EnumField(name, (Enum)fi.GetValue(target)); f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { fi.SetValue(target, e.newValue); Dirty(); }); return f; }
             if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>)) return BuildList(fi, target);
             return new Label(name + ": (edit in Inspector)") { style = { opacity = 0.5f, fontSize = 10, marginTop = 2, whiteSpace = WhiteSpace.Normal } };
+        }
+
+        // A dropdown for a [GraphDropdown]-annotated string field. Options come from an instance method on the
+        // target; the current value stays selectable even if it's no longer a valid choice (so stale data shows).
+        VisualElement BuildDropdown(FieldInfo fi, object target, GraphDropdownAttribute dd, Action refresh)
+        {
+            var options = ResolveChoices(target, dd.ChoicesMethod);
+            string cur = (string)fi.GetValue(target) ?? "";
+            if (!string.IsNullOrEmpty(cur) && !options.Contains(cur)) options.Insert(0, cur);
+            if (options.Count == 0) options.Add("");
+
+            var f = new DropdownField(fi.Name, options, Mathf.Max(0, options.IndexOf(cur)));
+            f.labelElement.style.minWidth = 70;
+            f.RegisterValueChangedCallback(e =>
+            {
+                fi.SetValue(target, e.newValue);
+                Dirty();
+                refresh?.Invoke();   // dependent dropdowns (e.g. a field list that depends on the chosen rule) rebuild
+            });
+            return f;
+        }
+
+        static List<string> ResolveChoices(object target, string method)
+        {
+            try
+            {
+                var mi = target?.GetType().GetMethod(method, BindingFlags.Public | BindingFlags.Instance);
+                if (mi != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(mi.ReturnType))
+                    if (mi.Invoke(target, null) is System.Collections.IEnumerable res)
+                        return res.Cast<object>().Select(o => o?.ToString() ?? "").ToList();
+            }
+            catch { /* a bad provider shouldn't break the node */ }
+            return new List<string>();
         }
 
         VisualElement BuildList(FieldInfo fi, object target)
@@ -320,7 +356,7 @@ namespace Laubrary.Loom.Editor
                         row.Add(rowHead);
                         if (item != null)
                             foreach (var efi in elemType.GetFields(BindingFlags.Public | BindingFlags.Instance))
-                                row.Add(BuildField(efi, item));
+                                row.Add(BuildField(efi, item, rebuild));   // rebuild = refresh dependent dropdowns
                         box.Add(row);
                     }
             };

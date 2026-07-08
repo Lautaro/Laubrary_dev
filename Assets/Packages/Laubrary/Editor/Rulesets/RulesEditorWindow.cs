@@ -376,6 +376,16 @@ namespace Laubrary.Rulesets.Editor
             else if (typeof(UnityEngine.Object).IsAssignableFrom(f.FieldType))
                 // ZUI-GAP: typed object field by runtime Type — ZUI.ObjectField<T> needs a compile-time T; kept raw.
                 f.SetValue(owner, EditorGUILayout.ObjectField(nice, (UnityEngine.Object)v, f.FieldType, true));
+            // A 'float staticValue' wrapper (e.g. ZUIValue): expose its static value as a plain float so these
+            // tunables are editable here and thus targetable by Story — one shared "exposed" definition (RuleParams,
+            // duck-typed so Rulesets stays ZUI-free).
+            else if (RuleParams.StaticValueProp(f.FieldType) is PropertyInfo sv && v != null)
+            {
+                float cur = (float)sv.GetValue(v);
+                var range = (RangeAttribute)Attribute.GetCustomAttribute(f, typeof(RangeAttribute));
+                float nv = range != null ? Slider(cur, range.min, range.max, nice) : ZUI.FloatField(nice, cur);
+                if (!Mathf.Approximately(nv, cur)) { sv.SetValue(v, nv); f.SetValue(owner, v); }
+            }
             else if (f.FieldType.IsGenericType && f.FieldType.GetGenericTypeDefinition() == typeof(List<>))
                 DrawList(owner, f, nice);
         }

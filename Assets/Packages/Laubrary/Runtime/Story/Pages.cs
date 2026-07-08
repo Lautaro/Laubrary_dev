@@ -204,9 +204,21 @@ namespace Laubrary.Story
         public class Op
         {
             public OpKind Kind;
-            public string RuleId;   // rule type name (game-defined)
-            public string Field;    // for SetParam
+
+            [Laubrary.Loom.GraphDropdown(nameof(RuleChoices))]
+            public string RuleId;   // rule type name — picked from the rules that actually exist
+
+            [Laubrary.Loom.GraphDropdown(nameof(FieldChoices))]
+            public string Field;    // for SetParam — picked from the chosen rule's exposed parameters
+
             public string Value;    // for SetParam
+
+            // Dropdown providers (read by the Story Graph editor): only offer rules and parameters that the
+            // Rulesets actually expose, so a plot twist can never target a non-existent/unexposed parameter.
+            public System.Collections.Generic.IEnumerable<string> RuleChoices() =>
+                Laubrary.Rulesets.RuleParams.AllRuleTypeNames();
+            public System.Collections.Generic.IEnumerable<string> FieldChoices() =>
+                Laubrary.Rulesets.RuleParams.ParamNames(RuleId);
         }
 
         public List<Op> Ops = new List<Op>();
