@@ -618,36 +618,108 @@ namespace Laubrary.Pyre
         }
     }
 
-    /// Smudge: drags a patch of the shape one way, like a finger pulled across wet paint. Within `size` px of an
-    /// origin it displaces pixels along `direction` with a soft falloff, so content near the origin streaks outward.
+    /// One painted smear stroke: an ordered list of points in canvas-centre pixels (y up).
+    [Serializable]
+    public class SmudgeStroke
+    {
+        public List<Vector2> points = new List<Vector2>();
+        public SmudgeStroke Clone() => new SmudgeStroke { points = points != null ? new List<Vector2>(points) : new List<Vector2>() };
+    }
+
+    /// Smudge: drags paint along PAINTED STROKES, like a finger pulled through wet paint. The user paints one or
+    /// more strokes in the preview; each pixel within `size` px of a stroke is displaced BACKWARD along the stroke's
+    /// local tangent (sampled from behind → paint streaks forward along the path). `grow` (0..1, animatable) advances
+    /// a front along EACH stroke from its start — so the smear grows out over life — and every stroke grows in
+    /// parallel (each normalised to its own length, so they all complete together regardless of length). Strokes are
+    /// authored in canvas-centre pixels, the frame every shape rasterises in, so Smudge is type-agnostic — it smears
+    /// Discs, Bars, MetaBlobs, sprites, whatever is under the stroke.
     [Serializable]
     public class SmudgeModifier : GeometryModifier
     {
-        [Tooltip("Smudge origin X in half-canvas units (−1..1).")]
-        [Range(-1f, 1f)] public float originX = 0f;
-        [Tooltip("Smudge origin Y in half-canvas units (−1..1).")]
-        [Range(-1f, 1f)] public float originY = 0f;
-        [Tooltip("Drag direction in degrees (0 = right, 90 = up). Animatable.")]
-        public ZUIValue direction = new ZUIValue(90f);
-        [Tooltip("Radius of the smudged patch, in pixels. Animatable.")]
-        public ZUIValue size = new ZUIValue(16f);
-        [Tooltip("How far the patch is dragged, in pixels. Animatable.")]
-        public ZUIValue strength = new ZUIValue(10f);
+        [Tooltip("The painted smear strokes. Paint each in the preview; they all grow in parallel driven by Grow.")]
+        public List<SmudgeStroke> strokes = new List<SmudgeStroke>();
+        [Tooltip("Brush radius — half the smear WIDTH, in pixels. Pixels this far from a stroke are dragged. Animatable.")]
+        public ZUIValue size = new ZUIValue(12f);
+        [Tooltip("How far paint is dragged ALONG a stroke, in pixels. Animatable.")]
+        public ZUIValue strength = new ZUIValue(12f);
+        [Tooltip("How far the smear has grown along each stroke, 0..1 (a front advancing from each stroke's start). " +
+                 "Animate 0→1 (the default) so the smear draws itself out over life. All strokes grow in parallel.")]
+        public ZUIValue grow = DefaultGrow();
 
-        float dirRad, siz, str;
+        // Resolved once per frame in Prepare: every stroke's segments flattened, each tagged with its arc-length at the
+        // segment start and its stroke's total length (so the Grow front can be normalised per stroke).
+        struct Seg { public Vector2 a, dir; public float len, arc, total; }
+        float rad, str, prog;
+        Seg[] segs;
+
         public override string DisplayName => "Smudge";
+
         public override void Prepare(Func<ZUIValue, int, float> e)
-        { dirRad = e(direction, 0) * Mathf.Deg2Rad; siz = Mathf.Max(0.5f, e(size, 1)); str = e(strength, 2); }
+        {
+            rad = Mathf.Max(0.5f, e(size, 0));
+            str = e(strength, 1);
+            prog = Mathf.Clamp01(e(grow, 2));
+
+            var list = new List<Seg>();
+            if (strokes != null)
+                foreach (var s in strokes)
+                {
+                    var p = s != null ? s.points : null;
+                    if (p == null || p.Count < 2) continue;
+                    float total = 0f;
+                    for (int i = 0; i < p.Count - 1; i++) total += (p[i + 1] - p[i]).magnitude;
+                    if (total < 1e-4f) continue;
+                    float arc = 0f;
+                    for (int i = 0; i < p.Count - 1; i++)
+                    {
+                        Vector2 a = p[i], d = p[i + 1] - a;
+                        float len = d.magnitude;
+                        list.Add(new Seg { a = a, dir = len > 1e-4f ? d / len : Vector2.zero, len = len, arc = arc, total = total });
+                        arc += len;
+                    }
+                }
+            segs = list.Count > 0 ? list.ToArray() : null;
+        }
+
         public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
         {
-            if (Mathf.Abs(str) < 0.01f) return off;
-            Vector2 o = new Vector2(originX * ctx.hHalf, originY * ctx.vHalf);
-            float dist = (off - o).magnitude;
-            if (dist >= siz) return off;
-            float fall = 1f - dist / siz; fall *= fall;                 // smooth falloff to the patch edge
-            Vector2 dir = new Vector2(Mathf.Cos(dirRad), Mathf.Sin(dirRad));
-            return off - dir * (str * fall);                            // sample from behind → content streaks forward
+            if (segs == null || Mathf.Abs(str) < 0.01f || prog <= 0.0001f) return off;
+
+            // Nearest point across ALL strokes' segments: its tangent, arc-length along its stroke, and that stroke's
+            // total length (so the growth front is per-stroke).
+            float best2 = float.MaxValue; Vector2 bestTan = Vector2.zero; float bestArc = 0f, bestTotal = 1f;
+            for (int i = 0; i < segs.Length; i++)
+            {
+                Seg s = segs[i];
+                float t = s.len > 1e-4f ? Mathf.Clamp(Vector2.Dot(off - s.a, s.dir), 0f, s.len) : 0f;
+                Vector2 cp = s.a + s.dir * t;
+                float d2 = (off - cp).sqrMagnitude;
+                if (d2 < best2) { best2 = d2; bestTan = s.dir; bestArc = s.arc + t; bestTotal = s.total; }
+            }
+            if (best2 >= rad * rad) return off;
+
+            // Growth gate: this stroke's front sits at grow·length. Paint behind the front is smeared (and stays);
+            // a soft band feathers the leading edge so the smear draws out smoothly rather than snapping on.
+            float front = prog * bestTotal;
+            float feather = Mathf.Max(2f, rad);
+            float gate = Mathf.Clamp01((front - bestArc) / feather);
+            if (gate <= 0.0001f) return off;
+
+            float fall = 1f - Mathf.Sqrt(best2) / rad; fall *= fall;   // perpendicular falloff to the brush edge
+            return off - bestTan * (str * fall * gate);                // sample from behind → paint streaks forward
         }
+
+        // The base Clone reflects over ZUIValue fields but not the stroke list — deep-copy the strokes so a duplicated
+        // modifier gets its own paths instead of sharing the original's.
+        public override PyreModifier Clone()
+        {
+            var m = (SmudgeModifier)base.Clone();
+            m.strokes = new List<SmudgeStroke>();
+            if (strokes != null) foreach (var s in strokes) m.strokes.Add(s != null ? s.Clone() : new SmudgeStroke());
+            return m;
+        }
+
+        static ZUIValue DefaultGrow() => Layer.CurveVal(1f, 0f, 0f, 1f, 1f);   // draw the smear out over life
     }
 
     /// Drop shadow: a darkened, offset copy of the shape composited BEHIND it — grounds an orb / gives depth. A

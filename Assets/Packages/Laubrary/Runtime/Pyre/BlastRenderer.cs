@@ -32,6 +32,7 @@ namespace Laubrary.Pyre
         const int F_SparkleDensity = 34, F_HoleSize = 38, F_SpriteSpin = 39;
         const int F_InnerSoft = 40, F_OuterSoft = 41, F_ColorFlow = 42, F_ColorZoom = 43, F_SparkleSeed = 44;
         const int F_GradX = 45, F_GradY = 46, F_HoleOffX = 47, F_HoleOffY = 48, F_BarSoft = 49;
+        const int F_MetaRadius = 50, F_MetaExpand = 51, F_MetaFlow = 52, F_MetaFlowZoom = 53;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -180,7 +181,15 @@ namespace Laubrary.Pyre
                 if (layer.shape == LayerShape.MetaBlob)
                 {
                     float mAlpha = Mathf.Clamp01(Eval(layer.alpha, lp, spec.seed, li, 0, F_Alpha));
-                    RenderMetaBlob(buf, W, H, cx, cy, framePhase, layer, lp, mAlpha, stack, frameIndex, ShapeSeed(spec.seed, li, 0));
+                    // Layer-wide motion (one value shared by every orb, animated over the layer's life).
+                    float radScale = Mathf.Max(0f, Eval(layer.metaRadiusScale, lp, spec.seed, li, 0, F_MetaRadius));
+                    float expand = Eval(layer.metaExpand, lp, spec.seed, li, 0, F_MetaExpand);
+                    // Expansion pivots on the blast origin (the spawn/pivot pixel), expressed as an offset from centre.
+                    Vector2 originOff = new Vector2((spec.origin.x - 0.5f) * W, (spec.origin.y - 0.5f) * H);
+                    float flowPos = layer.metaFlow ? Eval(layer.colorFlow, lp, spec.seed, li, 0, F_MetaFlow) : 0f;
+                    float flowZoom = layer.metaFlow ? Eval(layer.colorFlowZoom, lp, spec.seed, li, 0, F_MetaFlowZoom) : 1f;
+                    RenderMetaBlob(buf, W, H, cx, cy, framePhase, layer, lp, mAlpha, radScale, expand, originOff,
+                                   layer.metaFlow, flowPos, flowZoom, stack, frameIndex, ShapeSeed(spec.seed, li, 0));
                     continue;
                 }
 
@@ -488,9 +497,14 @@ namespace Laubrary.Pyre
         // the warp correct with zero clipping risk; canvases are small and the runtime player caches its frames.
         // ── MetaBlob: sum a compact metaball field from the placed orbs (each with a grow-in→hold→melt-out weight
         // over its own life), threshold it, and shade by the field value through the layer's gradient (surface→core).
-        // Geometry modifiers warp the sampling; pixel modifiers + the global post passes (Bloom/Outline) still apply.
+        // radScale multiplies every orb's radius, expand scales the orb centres about the origin — both shared,
+        // animated layer-wide, so the whole blob can breathe / burst / gather. Geometry modifiers warp the sampling
+        // (the blob presents ONE aggregate shape frame so Profile/Ground/Jagg mold it as a single shape); pixel
+        // modifiers + the global post passes (Bloom/Outline) still apply.
         static void RenderMetaBlob(Color32[] buf, int W, int H, float cx, float cy, float framePhase,
-                                   Layer layer, float lp, float alpha, in ModStack stack, int frameIndex, int hash)
+                                   Layer layer, float lp, float alpha, float radScale, float expand, Vector2 originOff,
+                                   bool metaFlow, float flowPos, float flowZoom,
+                                   in ModStack stack, int frameIndex, int hash)
         {
             var orbs = layer.metaOrbs;
             if (orbs == null || orbs.Count == 0 || alpha <= 0.001f) return;
@@ -498,23 +512,49 @@ namespace Laubrary.Pyre
             float range = Mathf.Max(0.05f, layer.metaShadeRange);
             float band = Mathf.Max(0.01f, layer.metaSoftness);
 
+            // Resolve each orb's on-screen position + radius ONCE (apply the shared expand about the origin and the
+            // radius scale), and its current life weight. Also grow a bounding box over ALL valid orbs so the whole
+            // blob can present a single aggregate shape frame (centre + enclosing radius) to shape-frame geometry
+            // modifiers (Profile/Ground/Jagg) — they treat the fused field as one shape instead of no-oping on it.
+            int n = orbs.Count;
+            var px = new float[n]; var py = new float[n]; var pr2 = new float[n]; var pw = new float[n];
+            float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+            bool any = false;
+            for (int i = 0; i < n; i++)
+            {
+                var o = orbs[i];
+                if (o == null) { pw[i] = 0f; continue; }
+                float r = o.radius * radScale;
+                if (r < 0.5f) { pw[i] = 0f; continue; }
+                Vector2 p = originOff + (o.pos - originOff) * expand;
+                px[i] = p.x; py[i] = p.y; pr2[i] = r * r;
+
+                float t = (lp - o.birth) / Mathf.Max(0.02f, o.life);   // 0..1 across this orb's own life
+                pw[i] = (t <= 0f || t >= 1f) ? 0f : MetaEnv(t);
+
+                if (p.x - r < minX) minX = p.x - r; if (p.x + r > maxX) maxX = p.x + r;
+                if (p.y - r < minY) minY = p.y - r; if (p.y + r > maxY) maxY = p.y + r;
+                any = true;
+            }
+            if (!any) return;
+
+            Vector2 fieldCenter = new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
+            float fieldRadius = 0.5f * Mathf.Max(maxX - minX, maxY - minY);
+            var ctx = new GeoCtx(W * 0.5f, H * 0.5f, fieldCenter, fieldRadius);
+
             for (int y = 0; y < H; y++)
                 for (int x = 0; x < W; x++)
                 {
                     Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
-                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, new GeoCtx(W * 0.5f, H * 0.5f, Vector2.zero, 0f));
+                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, ctx);
 
                     float field = 0f;
-                    for (int i = 0; i < orbs.Count; i++)
+                    for (int i = 0; i < n; i++)
                     {
-                        var o = orbs[i];
-                        if (o == null || o.radius < 0.5f) continue;
-                        float t = (lp - o.birth) / Mathf.Max(0.02f, o.life);   // 0..1 across this orb's own life
-                        if (t <= 0f || t >= 1f) continue;
-                        float w = MetaEnv(t);
+                        float w = pw[i];
                         if (w <= 0.001f) continue;
-                        float dx = off.x - o.pos.x, dy = off.y - o.pos.y;
-                        float r2 = o.radius * o.radius;
+                        float dx = off.x - px[i], dy = off.y - py[i];
+                        float r2 = pr2[i];
                         float d2 = dx * dx + dy * dy;
                         if (d2 >= r2) continue;
                         float k = 1f - d2 / r2; k *= k;    // compact polynomial kernel: 1 at centre → 0 at radius
@@ -525,6 +565,13 @@ namespace Laubrary.Pyre
                     float a = Mathf.Clamp01((field - (threshold - band)) / band) * alpha;   // AA across the iso-surface
                     if (a <= 0.003f) continue;
                     float frac = Mathf.Clamp01((field - threshold) / range);                 // 0 = surface, 1 = deep core
+                    if (metaFlow)
+                    {
+                        // Scroll the (mirrored) gradient through the field depth: position sweeps it, zoom sets how much
+                        // spans surface→core. Mirror (0→1→0) so an animated position loops with no hard seam.
+                        float f = Mathf.Repeat(frac * flowZoom + flowPos, 1f);
+                        frac = 1f - Mathf.Abs(2f * f - 1f);
+                    }
                     Color fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(frac) : Color.white;
                     float outA = a * fc.a;
                     if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, frac, lp, hash, W, H)) continue;

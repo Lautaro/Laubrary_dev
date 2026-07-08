@@ -48,8 +48,11 @@ namespace Laubrary.Pyre.Editor
         int stageSel = -1;
         bool draggingStage;
         bool placeMetaMode;    // MetaBlob: clicking the preview drops orbs
+        [SerializeField] bool showMetaMarkers = true;   // MetaBlob: draw the orb rings + numbers over the preview
         int metaSel = -1;
         bool draggingMetaOrb;
+        SmudgeModifier paintSmudge;   // the Smudge modifier currently recording a stroke in the preview (null = none)
+        bool draggingSmudge;          // true while a smudge stroke is being dragged out
         int draggingLayer = -1;   // index of the layer being drag-reordered, or -1
         int draggingMod = -1;     // index of the modifier being drag-reordered, or -1
         string draggingModList;   // idp of the modifier list that drag belongs to (layer mods vs global mods)
@@ -77,7 +80,7 @@ namespace Laubrary.Pyre.Editor
         // Captured on the Layout event only so the control set can't change between Layout and Repaint of the same
         // frame (IMGUI reflow hazard). starLayout = any Bars layer has Star (gates the auto-canvas readout);
         // barStarLayout = the SELECTED layer is a star Bars layer (gates its Arms/Spread rows). See OnZUI.
-        bool starLayout, barStarLayout, discHollowLayout;
+        bool starLayout, barStarLayout, discHollowLayout, metaFlowLayout;
 
         protected override void OnZUIEnable()
         {
@@ -121,6 +124,7 @@ namespace Laubrary.Pyre.Editor
                 var sel = spec != null && layerSel >= 0 && layerSel < spec.layers.Count ? spec.layers[layerSel] : null;
                 barStarLayout = sel != null && sel.shape == LayerShape.Bars && sel.star;
                 discHollowLayout = sel != null && (sel.shape == LayerShape.Disc || sel.shape == LayerShape.SparkleField) && sel.hollow;
+                metaFlowLayout = sel != null && sel.shape == LayerShape.MetaBlob && sel.metaFlow;
             }
 
             DrawTopBar();
@@ -526,28 +530,54 @@ namespace Laubrary.Pyre.Editor
             {
                 using (Box("MetaBlob — orbs fuse into one gradient-shaded shape"))
                 {
+                    EditorGUILayout.BeginHorizontal();
                     placeMetaMode = Toggle(placeMetaMode, placeMetaMode ? "● Placing — click the preview" : "○ Place orbs (click preview)");
+                    showMetaMarkers = Toggle(showMetaMarkers, "Markers", ZUI.Style.Default, GUILayout.Width(72));
+                    EditorGUILayout.EndHorizontal();
                     l.metaThreshold = Slider(l.metaThreshold, 0.1f, 2f, "Threshold");
                     l.metaShadeRange = Slider(l.metaShadeRange, 0.1f, 3f, "Shade range");
                     l.metaSoftness = Slider(l.metaSoftness, 0.01f, 1f, "Edge softness");
                     l.metaSpawnInterval = Slider(l.metaSpawnInterval, 0f, 0.5f, "Spawn interval");
 
+                    // Layer-wide motion — one animatable value shared by every orb, so the whole blob comes alive.
+                    ValRow("Radius pulse", l.metaRadiusScale, 0f, 3f, 1f);   // ×radius of every orb over life
+                    ValRow("Expand", l.metaExpand, 0f, 3f, 1f);              // contract/expand centres about the origin
+
+                    // Flow shading: scroll/zoom the gradient through the field depth (mirrored) instead of static.
+                    l.metaFlow = Toggle(l.metaFlow, "Flow gradient (scroll depth)");
+                    if (metaFlowLayout)   // Layout-captured gate so the control count is reflow-safe
+                    {
+                        ValRow("Gradient position", l.colorFlow, -2f, 2f, 0f);
+                        ValRow("Gradient zoom", l.colorFlowZoom, 0.1f, 4f, 1f);
+                    }
+
                     int rm = -1;
+                    float lw = EditorGUIUtility.labelWidth;
                     for (int i = 0; i < l.metaOrbs.Count; i++)
                     {
                         var o = l.metaOrbs[i];
-                        using (Box(null))
+                        using (Box())
                         {
+                            // Row 1: select · number · position (X/Y) · radius · delete — packed onto one line so the
+                            // orb list stays vertically compact and spreads across the pane's width.
                             EditorGUILayout.BeginHorizontal();
                             if (Button(metaSel == i ? "●" : "○", ZUI.Style.Default, GUILayout.Width(24))) metaSel = i;
-                            GUILayout.Label($"Orb #{i + 1}", EditorStyles.miniBoldLabel);
-                            GUILayout.FlexibleSpace();
+                            GUILayout.Label($"#{i + 1}", EditorStyles.miniBoldLabel, GUILayout.Width(24));
+                            EditorGUIUtility.labelWidth = 1f;   // hide the (empty) Vector2Field label column
+                            o.pos = EditorGUILayout.Vector2Field(GUIContent.none, o.pos, GUILayout.MinWidth(96));
+                            EditorGUIUtility.labelWidth = 30f;
+                            o.radius = EditorGUILayout.Slider("Rad", o.radius, 2f, half);
+                            EditorGUIUtility.labelWidth = lw;
                             if (Button("X", ZUI.Style.Default, GUILayout.Width(22))) rm = i;
                             EditorGUILayout.EndHorizontal();
-                            o.pos = EditorGUILayout.Vector2Field("Position", o.pos);
-                            o.radius = EditorGUILayout.Slider("Radius", o.radius, 2f, half);
+
+                            // Row 2: birth + life split the width.
+                            EditorGUILayout.BeginHorizontal();
+                            EditorGUIUtility.labelWidth = 34f;
                             o.birth = EditorGUILayout.Slider("Birth", o.birth, 0f, 1f);
                             o.life = EditorGUILayout.Slider("Life", o.life, 0.02f, 1f);
+                            EditorGUIUtility.labelWidth = lw;
+                            EditorGUILayout.EndHorizontal();
                         }
                     }
                     if (rm >= 0) { l.metaOrbs.RemoveAt(rm); metaSel = -1; }
@@ -676,7 +706,11 @@ namespace Laubrary.Pyre.Editor
             HandleModDrag(list, idp, rowRects);
 
             if (Button("+ Add modifier")) ShowAddModifierMenu(list, idp != null && idp.StartsWith("gm"));
-            if (remove >= 0) { Undo.RecordObject(spec, "Remove modifier"); list.RemoveAt(remove); EditorUtility.SetDirty(spec); }
+            if (remove >= 0)
+            {
+                if (list[remove] == paintSmudge) { paintSmudge = null; draggingSmudge = false; }
+                Undo.RecordObject(spec, "Remove modifier"); list.RemoveAt(remove); EditorUtility.SetDirty(spec);
+            }
         }
 
         // Drag a modifier by its ≡ grip to reorder it within its own list; draws an insertion line and moves on
@@ -786,11 +820,20 @@ namespace Laubrary.Pyre.Editor
                     ValRow("Twist", jm.twist, -180f, 180f, 0f);
                     break;
                 case SmudgeModifier sm:
-                    sm.originX = Slider(sm.originX, -1f, 1f, "Origin X");
-                    sm.originY = Slider(sm.originY, -1f, 1f, "Origin Y");
-                    ValRow("Direction", sm.direction, -180f, 180f, 90f);
-                    ValRow("Size (px)", sm.size, 1f, half, 16f);
-                    ValRow("Strength (px)", sm.strength, 0f, half, 10f);
+                    ValRow("Brush size (px)", sm.size, 1f, half, 12f);
+                    ValRow("Strength (px)", sm.strength, 0f, half, 12f);
+                    ValRow("Grow", sm.grow, 0f, 1f, 1f);   // 0→1 front advancing along each stroke (all in parallel)
+                    EditorGUILayout.BeginHorizontal();
+                    bool painting = paintSmudge == sm;
+                    if (Button(painting ? "● Painting — drag to add strokes" : "○ Paint stroke"))
+                    { paintSmudge = painting ? null : sm; draggingSmudge = false; Repaint(); }
+                    GUILayout.FlexibleSpace();
+                    if (Button("⌫ Last", ZUI.Style.Default, GUILayout.Width(56)) && sm.strokes.Count > 0)
+                    { sm.strokes.RemoveAt(sm.strokes.Count - 1); EditorUtility.SetDirty(spec); Repaint(); }
+                    if (Button("Clear", ZUI.Style.Default, GUILayout.Width(48)))
+                    { sm.strokes.Clear(); EditorUtility.SetDirty(spec); Repaint(); }
+                    EditorGUILayout.EndHorizontal();
+                    GUILayout.Label($"{sm.strokes.Count} stroke(s)", EditorStyles.miniLabel);
                     break;
                 case DropShadowModifier ds:
                     ds.offsetX = Slider(ds.offsetX, -16f, 16f, "Offset X");
@@ -1018,11 +1061,14 @@ namespace Laubrary.Pyre.Editor
                 if (stageBg != null) PreviewStageGUI.Draw(view, stageBg, zoom, true);   // decoration sprites IN FRONT of the frame
             }
 
-            // Priority for a click in the viewport: (1) MetaBlob orbs when editing a MetaBlob layer (place / drag) —
-            // it must win over the centred origin ✛, or placing near the centre would grab the pivot instead;
-            // (2) origin ✛ handle, (3) a stage sprite, (4) fall through to panning the frame. Each Use()s its event.
+            // Priority for a click in the viewport: (0) Smudge stroke painting when a Smudge modifier is armed — it
+            // owns the drag entirely; (1) MetaBlob orbs when editing a MetaBlob layer (place / drag) — it must win
+            // over the centred origin ✛, or placing near the centre would grab the pivot instead; (2) origin ✛
+            // handle, (3) a stage sprite, (4) fall through to panning the frame. Each Use()s its event.
+            HandleSmudgePaint(view);
             HandleMetaBlob(view);
             DrawMetaOrbMarkers(view);
+            DrawSmudgeStroke(view);
             if (spec != null) DrawOriginHandle(view);
             if (stageBg != null && PreviewStageGUI.Edit(view, stageBg, zoom, ref stageSel, ref draggingStage))
                 EditorUtility.SetDirty(stageBg);
@@ -1170,9 +1216,81 @@ namespace Laubrary.Pyre.Editor
             }
         }
 
+        // Smudge authoring: while a Smudge modifier is in paint mode, EACH left-drag in the preview records a NEW
+        // stroke of canvas-centre points (min-spaced so the polyline stays light). Multiple strokes accumulate and
+        // grow in parallel at bake time. A click with no drag (<2 points) is dropped.
+        void HandleSmudgePaint(Rect view)
+        {
+            if (paintSmudge == null || spec == null) return;
+            var e = Event.current;
+            Vector2 ctr = FrameRect(view).center;
+            Vector2 ToCanvas(Vector2 mp) => new Vector2((mp.x - ctr.x) / Mathf.Max(0.01f, zoom),
+                                                        (ctr.y - mp.y) / Mathf.Max(0.01f, zoom));
+
+            if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
+            {
+                var stroke = new SmudgeStroke();
+                stroke.points.Add(ToCanvas(e.mousePosition));
+                paintSmudge.strokes.Add(stroke);
+                draggingSmudge = true; EditorUtility.SetDirty(spec); e.Use(); Repaint();
+            }
+            else if (draggingSmudge && e.type == EventType.MouseDrag && paintSmudge.strokes.Count > 0)
+            {
+                var pts = paintSmudge.strokes[paintSmudge.strokes.Count - 1].points;
+                Vector2 p = ToCanvas(e.mousePosition);
+                if (pts.Count == 0 || (p - pts[pts.Count - 1]).sqrMagnitude >= 4f)   // ~2px canvas min spacing
+                    pts.Add(p);
+                EditorUtility.SetDirty(spec); e.Use(); Repaint();
+            }
+            else if (draggingSmudge && e.type == EventType.MouseUp)
+            {
+                var s = paintSmudge.strokes;
+                if (s.Count > 0 && s[s.Count - 1].points.Count < 2) s.RemoveAt(s.Count - 1);   // drop click-only strokes
+                draggingSmudge = false; EditorUtility.SetDirty(spec); e.Use(); Repaint();
+            }
+        }
+
+        // Draw every painted smudge stroke (polylines) + a brush-radius disc at the head of the most recent one so
+        // the smear width is visible while authoring.
+        void DrawSmudgeStroke(Rect view)
+        {
+            if (Event.current.type != EventType.Repaint || paintSmudge == null) return;
+            var strokes = paintSmudge.strokes;
+            if (strokes == null || strokes.Count == 0) return;
+            Vector2 ctr = FrameRect(view).center;
+            Vector2 ToScreen(Vector2 p) => new Vector2(ctr.x + p.x * zoom, ctr.y - p.y * zoom);
+
+            Handles.BeginGUI();
+            var prev = Handles.color;
+            Handles.color = new Color(0.4f, 0.85f, 1f, 0.9f);
+            foreach (var stroke in strokes)
+            {
+                var pts = stroke != null ? stroke.points : null;
+                if (pts == null || pts.Count < 2) continue;
+                for (int i = 1; i < pts.Count; i++)
+                {
+                    Vector2 a = ToScreen(pts[i - 1]), b = ToScreen(pts[i]);
+                    if (view.Contains(a) || view.Contains(b)) Handles.DrawAAPolyLine(3f, a, b);
+                }
+            }
+            var lastPts = strokes[strokes.Count - 1].points;
+            if (lastPts != null && lastPts.Count > 0)
+            {
+                Vector2 head = ToScreen(lastPts[lastPts.Count - 1]);
+                if (view.Contains(head))
+                {
+                    float r = Mathf.Max(1f, paintSmudge.size != null ? paintSmudge.size.staticValue : 12f) * zoom;
+                    Handles.color = new Color(0.4f, 0.85f, 1f, 0.35f);
+                    Handles.DrawWireDisc(new Vector3(head.x, head.y, 0f), Vector3.forward, r);
+                }
+            }
+            Handles.color = prev;
+            Handles.EndGUI();
+        }
+
         void DrawMetaOrbMarkers(Rect view)
         {
-            if (Event.current.type != EventType.Repaint) return;
+            if (Event.current.type != EventType.Repaint || !showMetaMarkers) return;
             if (spec == null || layerSel < 0 || layerSel >= spec.layers.Count) return;
             var l = spec.layers[layerSel];
             if (l == null || l.shape != LayerShape.MetaBlob) return;
@@ -1245,7 +1363,7 @@ namespace Laubrary.Pyre.Editor
                 for (int i = 0; i < stageBg.sprites.Count; i++)
                 {
                     var s = stageBg.sprites[i];
-                    using (Box(null))
+                    using (Box())
                     {
                         EditorGUILayout.BeginHorizontal();
                         bool sel = stageSel == i;

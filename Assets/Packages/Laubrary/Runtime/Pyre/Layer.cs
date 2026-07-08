@@ -194,6 +194,15 @@ namespace Laubrary.Pyre
         [Range(0f, 1f)]
         [Tooltip("MetaBlob: default gap (fraction of the layer life) between successive orbs' birth times when placing.")]
         public float metaSpawnInterval = 0.12f;
+        [Tooltip("MetaBlob: multiply EVERY orb's radius over the layer's life — a shared breathe/pulse. Animate it " +
+                 "(a curve) to swell then settle the whole blob at once. 1 = the placed radii.")]
+        public ZUIValue metaRadiusScale = new ZUIValue(1f);
+        [Tooltip("MetaBlob: contract/expand ALL orb centres about the blast's origin. <1 implodes toward the origin, " +
+                 ">1 flings them out. Animate 0→N for a burst, or N→1 to gather in. 1 = the placed positions.")]
+        public ZUIValue metaExpand = new ZUIValue(1f);
+        [Tooltip("MetaBlob: shade the gradient by SCROLLED/zoomed field depth (mirrored, like Flow fill) instead of raw " +
+                 "surface→core depth — animate Gradient position to sweep bands smoothly through the blob.")]
+        public bool metaFlow = false;
 
         /// A pleasing starting point per shape type; the editor adds layers through this.
         public static Layer Default(LayerShape shape)
@@ -288,6 +297,8 @@ namespace Laubrary.Pyre
             l.alpha = CloneVal(alpha);
             l.modifiers = modifiers == null ? new List<PyreModifier>()
                 : modifiers.ConvertAll(m => m?.Clone());
+            l.metaRadiusScale = CloneVal(metaRadiusScale);
+            l.metaExpand = CloneVal(metaExpand);
             l.metaOrbs = metaOrbs == null ? new List<MetaOrb>()
                 : metaOrbs.ConvertAll(o => o == null ? new MetaOrb() : o.Clone());
             return l;
