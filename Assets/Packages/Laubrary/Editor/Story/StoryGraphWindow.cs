@@ -8,6 +8,7 @@ using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Laubrary.Story;
+using LEdge = Laubrary.Loom.Edge;
 using GV = UnityEditor.Experimental.GraphView;
 
 namespace Laubrary.Story.Editor
@@ -228,13 +229,13 @@ namespace Laubrary.Story.Editor
             _sp.Pages = nodeViews.Select(n => n.Page).ToList();
             foreach (var n in nodeViews) n.Page.GraphPos = n.GetPosition().position;
 
-            _sp.Edges = new List<Edge>();
+            _sp.Edges = new List<LEdge>();
             foreach (var e in edges.ToList())
             {
                 var o = e.output?.node as StoryNodeView;
                 var i = e.input?.node as StoryNodeView;
                 if (o == null || i == null) continue;
-                _sp.Edges.Add(new Edge(o.Page.Id, e.output.portName, i.Page.Id));
+                _sp.Edges.Add(new LEdge(o.Page.Id, e.output.portName, i.Page.Id));
             }
 
             if (_sp.GetPage(_sp.EntryId) == null) _sp.EntryId = _sp.ResolveEntry();

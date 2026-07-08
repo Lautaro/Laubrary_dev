@@ -1,11 +1,7 @@
 {
-    "name": "com.Lautaro-Arino.Laubrary.Story",
-    "rootNamespace": "Laubrary.Story",
-    "references": [
-        "com.Lautaro-Arino.Laubrary.Loom",
-        "com.Lautaro-Arino.Laubrary.Notifyer",
-        "com.Lautaro-Arino.Laubrary.Rulesets"
-    ],
+    "name": "com.Lautaro-Arino.Laubrary.Loom",
+    "rootNamespace": "Laubrary.Loom",
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

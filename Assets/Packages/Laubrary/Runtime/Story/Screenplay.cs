@@ -1,23 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Laubrary.Loom;
 
 namespace Laubrary.Story
 {
-    // A directed edge: leaving Page `From` through output port `Port`, arrive at Page `To`.
-    [System.Serializable]
-    public struct Edge
-    {
-        public string From;
-        public string Port;
-        public string To;
-
-        public Edge(string from, string port, string to) { From = from; Port = port; To = to; }
-    }
-
     // The authored asset: a branching graph of Pages plus the wiring between them. Run by a StoryRunner.
     // Pages are [SerializeReference] so games can store their own Page subclasses here, exactly like rules.
+    // Implements Loom's IRunnableGraph so the shared GraphRunner can walk it.
     [CreateAssetMenu(menuName = "Laubrary/Story/Screenplay", fileName = "Screenplay")]
-    public class Screenplay : ScriptableObject
+    public class Screenplay : ScriptableObject, IRunnableGraph<Page>
     {
         [SerializeReference] public List<Page> Pages = new List<Page>();
         public List<Edge> Edges = new List<Edge>();
@@ -30,6 +21,9 @@ namespace Laubrary.Story
                 if (Pages[i] != null && Pages[i].Id == id) return Pages[i];
             return null;
         }
+
+        // IRunnableGraph<Page>
+        public Page GetNode(string id) => GetPage(id);
 
         public IEnumerable<Edge> OutEdges(string fromId)
         {

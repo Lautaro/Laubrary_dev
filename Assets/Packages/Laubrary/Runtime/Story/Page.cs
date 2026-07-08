@@ -1,21 +1,12 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Laubrary.Loom;
 
 namespace Laubrary.Story
 {
-    // A Bookmark is a moving cursor walking a Screenplay's Pages. There can be several (a Fork spawns more).
-    // It carries per-walk transient state so Pages stay re-entrant (a parked wait stores its flags here, not
-    // on the shared Page data).
-    public class Bookmark
-    {
-        public string PageId;
-        public bool Parked;
-        public readonly Dictionary<string, object> Locals = new Dictionary<string, object>();
-    }
-
     // Everything a Page needs while it runs. The Runner fills this in per step and points Bookmark at the
-    // bookmark currently being advanced.
-    public class StoryContext
+    // bookmark currently being advanced. (Bookmark is Loom's moving cursor — a Fork spawns more.)
+    public class StoryContext : IGraphContext
     {
         public StoryRunner Runner;
         public Screenplay Screenplay;
@@ -23,7 +14,7 @@ namespace Laubrary.Story
         public IRuleBridge Rules;
         public IMessagePresenter Presenter;
         public IConditionSource Conditions;
-        public Bookmark Bookmark;
+        public Bookmark Bookmark { get; set; }
 
         public T GetLocal<T>(string key, T def = default)
             => Bookmark != null && Bookmark.Locals.TryGetValue(key, out var v) && v is T t ? t : def;
@@ -40,7 +31,7 @@ namespace Laubrary.Story
     //   Exit(ctx)  → called once just before advancing away (after a parked wait resolves).
     // Special return values: Page.Stop ends this bookmark; Page.All takes every outgoing edge (Fork).
     [System.Serializable]
-    public abstract class Page
+    public abstract class Page : IGraphNode<StoryContext>
     {
         [SerializeField] string m_id;
         public string Id { get => m_id; set => m_id = value; }
@@ -48,8 +39,9 @@ namespace Laubrary.Story
         public string Title;
         public Vector2 GraphPos; // editor canvas position
 
-        public const string Stop = "__stop__";
-        public const string All = "__all__";
+        // Sentinels (Loom values) — kept as Page.Stop / Page.All so existing pages read unchanged.
+        public const string Stop = GraphPort.Stop;
+        public const string All = GraphPort.All;
 
         static readonly string[] DefaultPorts = { "out" };
         public virtual IReadOnlyList<string> Ports => DefaultPorts;
