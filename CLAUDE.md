@@ -34,6 +34,11 @@ nothing speculative. If you think an extra menu item is warranted, propose it in
 (This is the general rule in `D:\Unity\UNITY_DEV_GUIDE.md` → Coding best practices, restated here because it keeps
 recurring.)
 
+**Keep it as FLAT as possible.** No redundant nesting: never a single-item submenu that just echoes the tool name
+(`Laubrary/Pyre/Pyre` → `Laubrary/Pyre`). Put every item directly under `Laubrary/` root. The *only* exception is a
+large multi-tool like Zoetrope, which may keep **one** submenu capped at **~3** items — and even then the core
+windows go at root, with just secondary/utility actions tucked in the submenu.
+
 ## Demos — ship SCENES, not scripts that build scenes
 
 A Laubrary tool's demo is a **real saved `.unity` scene** (plus any authored `.asset` it needs), committed to
