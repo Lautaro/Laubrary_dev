@@ -1,7 +1,7 @@
 using UnityEngine;
-using Laubrary.Colosseum;
+using Laubrary.Combat2D;
 
-namespace Laubrary.Codex
+namespace Laubrary.Bestiarium
 {
     /// Bridges Colosseum's damage events to a CharacterDef's VFX — the "presentation" layer that keeps Colosseum
     /// itself agnostic (Health just fires Damaged/Died; this decides they mean a Pyre flash + Chunks debris). Add it
@@ -29,12 +29,12 @@ namespace Laubrary.Codex
 
         void OnHit(DamageInfo info)
         {
-            if (def != null && !def.hit.IsEmpty) def.hit.Play(PointOf(info), DirOf(info));
+            if (def != null && def.hit != null && !def.hit.IsEmpty) def.hit.Play(PointOf(info), DirOf(info));
         }
 
         void OnDeath(DamageInfo info)
         {
-            if (def != null && !def.death.IsEmpty) def.death.Play(PointOf(info), DirOf(info));
+            if (def != null && def.death != null && !def.death.IsEmpty) def.death.Play(PointOf(info), DirOf(info));
         }
 
         // Fall back to the character's own position when the hit didn't record a point.

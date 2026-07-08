@@ -1,11 +1,11 @@
 using UnityEngine;
 
-namespace Laubrary.Codex
+namespace Laubrary.Bestiarium
 {
-    /// A composition recipe for a weapon: its fire stats, the projectile it shoots, and its muzzle VFX. Feeds a
-    /// Colosseum ProjectileWeapon at spawn/equip time (fire rate, damage, spread, speed, projectiles-per-shot), and
-    /// the muzzle CombatVfx plays at the muzzle each shot. The projectile's own look + impact live on ProjectileDef.
-    [CreateAssetMenu(menuName = "Laubrary/Codex/Weapon", fileName = "Weapon")]
+    /// A composition recipe for a weapon: its fire stats, the projectile it shoots, and its muzzle effect. Feeds a
+    /// Combat2D ProjectileWeapon at spawn/equip time (fire rate, damage, spread, speed, projectiles-per-shot), and
+    /// the muzzle effect plays at the muzzle each shot. The projectile's own look + impact live on ProjectileDef.
+    [CreateAssetMenu(menuName = "Laubrary/Bestiarium/Weapon", fileName = "Weapon")]
     public class WeaponDef : ScriptableObject
     {
         [Header("Identity")]
@@ -19,12 +19,12 @@ namespace Laubrary.Codex
         [Min(1)] public int projectilesPerShot = 1;
 
         [Header("Ammo")]
-        [Tooltip("What this weapon fires (look + impact + trail).")]
+        [Tooltip("What this weapon fires (look + impact).")]
         public ProjectileDef projectile;
 
         [Header("Muzzle")]
-        [Tooltip("Flash / smoke played at the muzzle each shot.")]
-        public CombatVfx muzzle = new CombatVfx();
+        [Tooltip("Flash / smoke played at the muzzle each shot (pluggable effect).")]
+        [SerializeReference] public ICombatFx muzzle;
         [Tooltip("Muzzle offset from the shooter, along its aim (x = forward, y = up).")]
         public Vector2 muzzleOffset = new Vector2(0.5f, 0f);
 

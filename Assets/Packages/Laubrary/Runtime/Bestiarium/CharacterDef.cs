@@ -1,15 +1,14 @@
 using UnityEngine;
-using Laubrary.Colosseum;
+using Laubrary.Combat2D;
 
-namespace Laubrary.Codex
+namespace Laubrary.Bestiarium
 {
     /// A composition "recipe" for one combat character (enemy / NPC / the player's target): its stats, its look, and
-    /// the VFX it plays when hit and when it dies. It REFERENCES the primitives (a Faction, Pyre blasts, Chunks
-    /// bursts) rather than owning art, so a Character is a small portable data asset. The runtime side is built by a
-    /// spawner that adds Colosseum's Combatant + Health + a view + a CombatPresenter wired to these VFX.
-    ///
-    /// Look is a placeholder Sprite for now; the Zoetrope Zoe swap-point is marked below.
-    [CreateAssetMenu(menuName = "Laubrary/Codex/Character", fileName = "Character")]
+    /// the effects it plays when hit and when it dies. Look and effects are PLUGGABLE (<c>[SerializeReference]</c>),
+    /// so this core asset depends on Combat2D ONLY — a project supplies concrete views (a sprite, a Zoetrope Zoe, a
+    /// Lazor shape) and effects (a Pyre blast + Chunks debris) from whatever bridge modules it includes. A small
+    /// portable data asset; the runtime is assembled by <see cref="Bestiary.SpawnCharacter"/>.
+    [CreateAssetMenu(menuName = "Laubrary/Bestiarium/Character", fileName = "Character")]
     public class CharacterDef : ScriptableObject
     {
         [Header("Identity")]
@@ -22,16 +21,18 @@ namespace Laubrary.Codex
         [Tooltip("Seconds of invulnerability after a hit (stops one shot dealing many hits). 0 = none.")]
         public float invulnerableAfterHit = 0f;
 
-        [Header("Look (placeholder — Zoe swap later)")]
-        [Tooltip("Idle sprite for now. TODO: swap for a Zoetrope Zoe (idle/hit/death clips) once wired.")]
-        public Sprite idleSprite;
-        public float spriteScale = 1f;
+        [Header("Look (pluggable — a sprite by default; a Zoe / Lazor view via a bridge module)")]
+        [SerializeReference] public ICharacterView view = new SpriteView();
 
-        [Header("VFX")]
+        [Header("Effects (pluggable — e.g. a Pyre blast + Chunks debris via the Bestiarium.Pyre bridge)")]
         [Tooltip("Played at the hit point every time this character takes damage.")]
-        public CombatVfx hit = new CombatVfx();
+        [SerializeReference] public ICombatFx hit;
         [Tooltip("Played once at the killing-blow point when this character dies.")]
-        public CombatVfx death = new CombatVfx();
+        [SerializeReference] public ICombatFx death;
+
+        [Header("AI (pluggable — a Daemon brain via the Bestiarium.Daemon bridge)")]
+        [Tooltip("Optional decision-making attached at spawn. The game supplies the agent body (movement/perception).")]
+        [SerializeReference] public IBrainSpec brain;
 
         // TODO(zounds): onHit / onDied Zound refs — embedded + registered if the Zounds engine is present.
     }

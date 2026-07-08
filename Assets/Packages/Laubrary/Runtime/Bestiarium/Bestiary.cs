@@ -1,26 +1,23 @@
 using UnityEngine;
-using Laubrary.Colosseum;
+using Laubrary.Combat2D;
 
-namespace Laubrary.Codex
+namespace Laubrary.Bestiarium
 {
-    /// The bridge from Codex data recipes to live GameObjects — builds damageable characters and configured weapons
-    /// out of the primitives so a scene (the shooting gallery, or a real level) can assemble a fight from Defs.
-    public static class CodexArsenal
+    /// The bridge from Bestiarium data recipes to live GameObjects — builds damageable characters and configured
+    /// weapons out of the primitives so a scene (the shooting gallery, or a real level) can assemble a fight from Defs.
+    public static class Bestiary
     {
-        /// Build a damageable character: Combatant + Health + a Hurtbox collider + a sprite view + a CombatPresenter
-        /// wired to the Def's hit/death VFX. (Zoetrope Zoe view swaps in here later.)
+        /// Build a damageable character: Combatant + Health + a Hurtbox collider + the Def's pluggable view + a
+        /// CombatPresenter wired to the Def's hit/death effects.
         public static GameObject SpawnCharacter(CharacterDef def, Vector3 pos, Transform parent = null)
         {
             var go = new GameObject(def != null && !string.IsNullOrEmpty(def.displayName) ? def.displayName : "Character");
             go.transform.position = pos;
             if (parent != null) go.transform.SetParent(parent, true);
 
-            var sr = go.AddComponent<SpriteRenderer>();
-            if (def != null && def.idleSprite != null)
-            {
-                sr.sprite = def.idleSprite;
-                go.transform.localScale = Vector3.one * Mathf.Max(0.01f, def.spriteScale);
-            }
+            // The pluggable view attaches the visual (sprite / Zoe / Lazor …) and reports its size for the hurtbox.
+            Vector2 viewSize = Vector2.one;
+            if (def != null && def.view != null) viewSize = def.view.Build(go);
 
             var health = go.AddComponent<Health>();
             var comb = go.AddComponent<Combatant>();
@@ -34,10 +31,13 @@ namespace Laubrary.Codex
 
             var col = go.AddComponent<BoxCollider2D>();
             col.isTrigger = true;
-            col.size = sr.sprite != null ? (Vector2)sr.sprite.bounds.size : Vector2.one;
+            col.size = viewSize;
 
             go.AddComponent<Hurtbox>();   // owner auto-found on this GO
             go.AddComponent<CombatPresenter>().def = def;
+
+            // Pluggable AI: a bridge (Bestiarium.Daemon) attaches the brain. The game still supplies the agent body.
+            if (def != null && def.brain != null) def.brain.Attach(go);
             return go;
         }
 
@@ -96,11 +96,11 @@ namespace Laubrary.Codex
             w.projectilePrefab = def.projectile != null
                 ? BuildProjectileTemplate(def.projectile, projectileBlockers, shooter.transform) : null;
 
-            if (!def.muzzle.IsEmpty)
+            if (def.muzzle != null && !def.muzzle.IsEmpty)
             {
-                var vfx = def.muzzle;
+                var fx = def.muzzle;
                 Transform m = muzzle != null ? muzzle : shooter.transform;
-                w.Fired += _ => vfx.Play(m.position);
+                w.Fired += _ => fx.Play(m.position);
             }
             return w;
         }

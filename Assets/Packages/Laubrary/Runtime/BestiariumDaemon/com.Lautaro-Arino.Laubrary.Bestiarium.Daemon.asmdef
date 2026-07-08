@@ -1,8 +1,10 @@
 {
-    "name": "com.Lautaro-Arino.Laubrary.Bestiarium",
-    "rootNamespace": "Laubrary.Bestiarium",
+    "name": "com.Lautaro-Arino.Laubrary.Bestiarium.Daemon",
+    "rootNamespace": "Laubrary.BestiariumDaemon",
     "references": [
-        "com.Lautaro-Arino.Laubrary.Combat2D"
+        "com.Lautaro-Arino.Laubrary.Bestiarium",
+        "com.Lautaro-Arino.Laubrary.Daemon",
+        "com.Lautaro-Arino.Laubrary.Loom"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,20 +1,19 @@
 using UnityEngine;
-using Laubrary.Chunks;
 
-namespace Laubrary.Codex
+namespace Laubrary.Bestiarium
 {
-    /// A composition recipe for a projectile's LOOK + flight + impact — the visual half of a shot. Colosseum's
+    /// A composition recipe for a projectile's LOOK + flight + impact — the visual half of a shot. Combat2D's
     /// Projectile is the spine (movement / faction / damage / collision); a Weapon supplies the damage & speed. This
-    /// adds the sprite (a spinning rocket, a bolt), an optional Chunks trail (jet stream / smoke out the back), and
-    /// the impact VFX played where it lands. A spawner bridges this onto a runtime Colosseum Projectile.
-    [CreateAssetMenu(menuName = "Laubrary/Codex/Projectile", fileName = "Projectile")]
+    /// adds the sprite (a spinning rocket, a bolt) and the impact effect played where it lands. A spawner bridges
+    /// this onto a runtime Combat2D Projectile.
+    [CreateAssetMenu(menuName = "Laubrary/Bestiarium/Projectile", fileName = "Projectile")]
     public class ProjectileDef : ScriptableObject
     {
         [Header("Identity")]
         public string displayName = "New Projectile";
 
         [Header("Look")]
-        [Tooltip("Bullet / bolt / rocket sprite. TODO: allow a Zoe for animated projectiles.")]
+        [Tooltip("Bullet / bolt / rocket sprite.")]
         public Sprite sprite;
         public float scale = 1f;
         [Tooltip("Spin the sprite while it flies (rotating rocket / grenade).")]
@@ -28,13 +27,13 @@ namespace Laubrary.Codex
         [Min(0.05f)] public float lifetime = 3f;
         [Tooltip("Pass through targets instead of dying on first hit.")]
         public bool pierce = false;
-        [Tooltip("Optional Chunks trail emitted along the flight path (jet stream / smoke).")]
-        public ChunkSpec trail;
 
         [Header("Impact")]
-        [Tooltip("Blast + debris played where the projectile hits.")]
-        public CombatVfx impact = new CombatVfx();
+        [Tooltip("Effect played where the projectile hits (pluggable — e.g. blast + debris via the Bestiarium.Pyre bridge).")]
+        [SerializeReference] public ICombatFx impact;
 
+        // TODO(bridge): a pluggable flight trail (was a Chunks trail on the old coupled Codex) belongs in a
+        // presentation bridge as an ITrail-style seam, keeping this core Combat2D-only.
         // TODO(zounds): impact Zound ref.
     }
 }

@@ -1,8 +1,9 @@
 {
-    "name": "com.Lautaro-Arino.Laubrary.Bestiarium",
-    "rootNamespace": "Laubrary.Bestiarium",
+    "name": "com.Lautaro-Arino.Laubrary.Bestiarium.Zoetrope",
+    "rootNamespace": "Laubrary.BestiariumZoetrope",
     "references": [
-        "com.Lautaro-Arino.Laubrary.Combat2D"
+        "com.Lautaro-Arino.Laubrary.Bestiarium",
+        "com.Lautaro-Arino.Laubrary.Zoetrope"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,7 +1,7 @@
 using UnityEngine;
-using Laubrary.Colosseum;
+using Laubrary.Combat2D;
 
-namespace Laubrary.Codex
+namespace Laubrary.Bestiarium
 {
     /// Drives a runtime projectile's LOOK + impact from its ProjectileDef: spins the sprite while flying and plays the
     /// impact CombatVfx (Pyre blast + Chunks debris) where it lands. Sits on the projectile GameObject next to the
@@ -30,7 +30,7 @@ namespace Laubrary.Codex
 
         void OnHit(Hurtbox hb, DamageInfo info)
         {
-            if (def == null || def.impact.IsEmpty) return;
+            if (def == null || def.impact == null || def.impact.IsEmpty) return;
             float dir = info.direction.sqrMagnitude > 1e-6f
                 ? Mathf.Atan2(info.direction.y, info.direction.x) * Mathf.Rad2Deg : float.NaN;
             def.impact.Play(info.point, dir);
