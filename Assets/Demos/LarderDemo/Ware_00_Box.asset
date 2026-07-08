@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1518fa17b5988c48b567e7bbde92ea4, type: 3}
   m_Name: Ware_00_Box
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Larder::Laubrary.Larder.WareSpec
-  seed: 5101
-  kind: 2
+  seed: 880744812
+  kind: 1
   shape: 1
-  widthRatio: 0.9
-  heightRatio: 0.8
+  widthRatio: 0.2046184
+  heightRatio: 0.4157312
   fill: 1
   paletteIndex: 3
   useCustomColors: 0
@@ -26,13 +26,13 @@ MonoBehaviour:
   customAccent: {r: 0.47, g: 0.33, b: 0.19, a: 1}
   customLabel: {r: 0.89, g: 0.82, b: 0.69, a: 1}
   customInk: {r: 0.24, g: 0.16, b: 0.1, a: 1}
-  label: 3
-  labelWidth: 0.7
-  corner: 2
+  label: 0
+  labelWidth: 0.74744654
+  corner: 3
   bands: 0
-  bandCount: 1
+  bandCount: 3
   spots: 0
-  hasLid: 0
+  hasLid: 1
   resolution: 48
-  damageStages: 3
+  damageStages: 4
   pixelsPerUnit: 48

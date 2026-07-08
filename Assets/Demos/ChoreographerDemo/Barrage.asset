@@ -14,31 +14,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Choreographer::Laubrary.Choreographer.Choreography
   pathPoints:
   - {x: -0.5, y: 0}
-  - {x: -0.62986594, y: 0.2189492}
-  - {x: -0.56736594, y: 0.3162762}
-  - {x: -0.50486594, y: 0.38130802}
-  - {x: -0.44236594, y: 0.40414417}
-  - {x: -0.37986594, y: 0.38130802}
-  - {x: -0.31736594, y: 0.3162762}
-  - {x: -0.15482664, y: 0.1474107}
-  - {x: -0.07333624, y: 0.12948284}
-  - {x: -0.015478104, y: 0.08547804}
-  - {x: -0.016024083, y: -0.005736078}
+  - {x: -0.5757514, y: 0.4035666}
+  - {x: -0.57609546, y: 0.57637787}
+  - {x: -0.5160289, y: 0.71405554}
+  - {x: -0.3799237, y: 0.7877248}
+  - {x: -0.22234136, y: 0.30438572}
+  - {x: -0.10471052, y: 0.08468673}
   - {x: 0.065502524, y: -0.046920024}
+  - {x: 0.29480612, y: 0.0689007}
   - {x: 0.50606036, y: 0.21667758}
   smooth: 1
   constantSpeed: 0
-  spreadLength: 0.18641347
-  spreadBend: 0.3126008
+  spreadLength: 0.75234187
+  spreadBend: 0.52489334
   facing: 0
   facingAngle: 92.999374
   defaultCount: 1
-  duration: 2.5
-  stagger: 0.5
+  duration: 1.6906621
+  stagger: 0.30572352
   direction: 0
   loop: 1
   useLauncher: 1
   launchBlend: 0.18033117
   useTarget: 1
-  releaseAt: 0.838476
+  releaseAt: 0.5495486
   targetBlend: 0.37333038

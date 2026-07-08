@@ -14,11 +14,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Choreographer::Laubrary.Choreographer.Choreography
   pathPoints:
   - {x: -0.6, y: -0.2}
-  - {x: -0.2, y: 0.3}
+  - {x: -0.43628028, y: 0.0033109097}
+  - {x: -0.2508706, y: 0.22580247}
+  - {x: -0.18881507, y: 0.1160702}
+  - {x: -0.12600288, y: -0.094312966}
+  - {x: 0.15324675, y: -0.10642135}
+  - {x: 0.11616483, y: 0.30147985}
+  - {x: -0.13357064, y: 0.27953342}
+  - {x: -0.1441655, y: -0.11777295}
+  - {x: -0.028379062, y: -0.23355943}
   - {x: 0.2, y: -0.3}
   - {x: 0.6, y: 0.2}
   smooth: 1
-  constantSpeed: 1
+  constantSpeed: 0
   spreadLength: 0
   spreadBend: 0
   facing: 0
