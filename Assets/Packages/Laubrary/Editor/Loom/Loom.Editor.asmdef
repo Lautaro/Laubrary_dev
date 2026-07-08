@@ -1,11 +1,8 @@
 {
-    "name": "com.Lautaro-Arino.Laubrary.Story.Editor",
-    "rootNamespace": "Laubrary.Story.Editor",
+    "name": "com.Lautaro-Arino.Laubrary.Loom.Editor",
+    "rootNamespace": "Laubrary.Loom.Editor",
     "references": [
-        "com.Lautaro-Arino.Laubrary.Loom",
-        "com.Lautaro-Arino.Laubrary.Loom.Editor",
-        "com.Lautaro-Arino.Laubrary.Story",
-        "com.Lautaro-Arino.Laubrary.Rulesets"
+        "com.Lautaro-Arino.Laubrary.Loom"
     ],
     "includePlatforms": [
         "Editor"

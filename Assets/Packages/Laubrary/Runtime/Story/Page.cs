@@ -31,13 +31,18 @@ namespace Laubrary.Story
     //   Exit(ctx)  → called once just before advancing away (after a parked wait resolves).
     // Special return values: Page.Stop ends this bookmark; Page.All takes every outgoing edge (Fork).
     [System.Serializable]
-    public abstract class Page : IGraphNode<StoryContext>
+    public abstract class Page : IGraphNode<StoryContext>, INode
     {
         [SerializeField] string m_id;
         public string Id { get => m_id; set => m_id = value; }
 
         public string Title;
-        public Vector2 GraphPos; // editor canvas position
+        [SerializeField, UnityEngine.Serialization.FormerlySerializedAs("GraphPos")] Vector2 m_graphPos;
+        public Vector2 GraphPos { get => m_graphPos; set => m_graphPos = value; }   // editor canvas position
+
+        // INode header text (folds in the type name when untitled).
+        public string DisplayTitle => string.IsNullOrEmpty(Title) ? Pretty(GetType().Name) : Title;
+        static string Pretty(string n) => n.EndsWith("Page") ? n.Substring(0, n.Length - 4) : n;
 
         // Sentinels (Loom values) — kept as Page.Stop / Page.All so existing pages read unchanged.
         public const string Stop = GraphPort.Stop;

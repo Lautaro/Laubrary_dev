@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Laubrary.Loom;
@@ -6,9 +7,9 @@ namespace Laubrary.Story
 {
     // The authored asset: a branching graph of Pages plus the wiring between them. Run by a StoryRunner.
     // Pages are [SerializeReference] so games can store their own Page subclasses here, exactly like rules.
-    // Implements Loom's IRunnableGraph so the shared GraphRunner can walk it.
+    // Implements Loom's IRunnableGraph (the runner walks it) + IGraphAsset (the shared graph editor authors it).
     [CreateAssetMenu(menuName = "Laubrary/Story/Screenplay", fileName = "Screenplay")]
-    public class Screenplay : ScriptableObject, IRunnableGraph<Page>
+    public class Screenplay : ScriptableObject, IRunnableGraph<Page>, IGraphAsset
     {
         [SerializeReference] public List<Page> Pages = new List<Page>();
         public List<Edge> Edges = new List<Edge>();
@@ -42,6 +43,29 @@ namespace Laubrary.Story
                 if (Pages.Count > 0 && Pages[0] != null) return Pages[0].Id;
             }
             return null;
+        }
+
+        // ── IGraphAsset (shared Loom editor) ────────────────────────────────────────────────────────────────
+        IReadOnlyList<INode> IGraphAsset.Nodes => Pages;   // covariant: List<Page> → IReadOnlyList<INode>
+        List<Edge> IGraphAsset.Edges { get => Edges; set => Edges = value; }
+        string IGraphAsset.EntryId { get => EntryId; set => EntryId = value; }
+        INode IGraphAsset.GetNodeUntyped(string id) => GetPage(id);
+        Type IGraphAsset.NodeBaseType => typeof(Page);
+        bool IGraphAsset.IsEntryNode(INode node) => node is EntryPage;
+        UnityEngine.Object IGraphAsset.AssetObject => this;
+
+        INode IGraphAsset.AddNode(Type nodeType, string id, Vector2 pos)
+        {
+            var p = (Page)Activator.CreateInstance(nodeType);
+            p.Id = id; p.GraphPos = pos;
+            Pages.Add(p);
+            return p;
+        }
+
+        void IGraphAsset.RebuildNodes(IReadOnlyList<INode> nodesInOrder)
+        {
+            Pages = new List<Page>(nodesInOrder.Count);
+            foreach (var n in nodesInOrder) if (n is Page pg) Pages.Add(pg);
         }
     }
 }
