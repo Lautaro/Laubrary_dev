@@ -30,8 +30,7 @@ namespace Laubrary.Zoetrope.Editor
         protected override void DrawAsset(SpriteCatalog asset)
         {
             EditorGUI.BeginChangeCheck();
-            // ZUI-GAP: no object picker — Unity's ObjectField for the sheet.
-            asset.sheet = (Texture2D)EditorGUILayout.ObjectField("Sheet", asset.sheet, typeof(Texture2D), false);
+            asset.sheet = ObjectField("Sheet", asset.sheet);
             asset.pixelsPerUnit = ZUI.FloatField("Pixels per unit", asset.pixelsPerUnit, 70f, 1f);
             if (EditorGUI.EndChangeCheck()) EditorUtility.SetDirty(asset);
 
@@ -58,25 +57,25 @@ namespace Laubrary.Zoetrope.Editor
             VerticalSpace();
             Label($"Sprites ({catalog.entries.Count})", ZUI.ZTextStyle.SectionHeader);
 
-            // ZUI-GAP: no scroll container — Unity's ScrollView.
-            listScroll = EditorGUILayout.BeginScrollView(listScroll);
             int remove = -1;
-            for (int i = 0; i < catalog.entries.Count; i++)
+            using (ScrollView(ref listScroll))
             {
-                var e = catalog.entries[i];
-                using (var row = ZUI.HRow())
+                for (int i = 0; i < catalog.entries.Count; i++)
                 {
-                    var tex = e.sprite != null ? AssetPreview.GetAssetPreview(e.sprite) : null;
-                    var box = GUILayoutUtility.GetRect(24, 24, GUILayout.Width(24), GUILayout.Height(24));
-                    if (tex != null) GUI.DrawTexture(box, tex, ScaleMode.ScaleToFit);
-                    else EditorGUI.DrawRect(box, new Color(0, 0, 0, 0.2f));
-                    EditorGUI.BeginChangeCheck();
-                    e.name = EditorGUILayout.TextField(e.name);   // ZUI-GAP: text input
-                    if (EditorGUI.EndChangeCheck()) EditorUtility.SetDirty(catalog);
-                    if (row.Button("×", ZUI.Style.Default, GUILayout.Width(22))) remove = i;
+                    var e = catalog.entries[i];
+                    using (var row = ZUI.HRow())
+                    {
+                        var tex = e.sprite != null ? AssetPreview.GetAssetPreview(e.sprite) : null;
+                        var box = GUILayoutUtility.GetRect(24, 24, GUILayout.Width(24), GUILayout.Height(24));
+                        if (tex != null) GUI.DrawTexture(box, tex, ScaleMode.ScaleToFit);
+                        else EditorGUI.DrawRect(box, new Color(0, 0, 0, 0.2f));
+                        EditorGUI.BeginChangeCheck();
+                        e.name = TextField(e.name, 200f);
+                        if (EditorGUI.EndChangeCheck()) EditorUtility.SetDirty(catalog);
+                        if (row.Button("×", ZUI.Style.Default, GUILayout.Width(22))) remove = i;
+                    }
                 }
             }
-            EditorGUILayout.EndScrollView();
             if (remove >= 0) { catalog.entries.RemoveAt(remove); EditorUtility.SetDirty(catalog); }
 
             VerticalSpace();

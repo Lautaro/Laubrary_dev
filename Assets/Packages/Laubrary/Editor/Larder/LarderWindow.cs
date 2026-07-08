@@ -87,12 +87,12 @@ namespace Laubrary.Larder.Editor
             spec.useCustomColors = Toggle(spec.useCustomColors, "Custom colours");
             if (spec.useCustomColors)
             {
-                spec.customBody = EditorGUILayout.ColorField("Body", spec.customBody);
-                spec.customBodyDark = EditorGUILayout.ColorField("Body dark", spec.customBodyDark);
-                spec.customBodyLight = EditorGUILayout.ColorField("Body light", spec.customBodyLight);
-                spec.customAccent = EditorGUILayout.ColorField("Accent", spec.customAccent);
-                spec.customLabel = EditorGUILayout.ColorField("Label", spec.customLabel);
-                spec.customInk = EditorGUILayout.ColorField("Ink", spec.customInk);
+                spec.customBody = ColorField("Body", spec.customBody);
+                spec.customBodyDark = ColorField("Body dark", spec.customBodyDark);
+                spec.customBodyLight = ColorField("Body light", spec.customBodyLight);
+                spec.customAccent = ColorField("Accent", spec.customAccent);
+                spec.customLabel = ColorField("Label", spec.customLabel);
+                spec.customInk = ColorField("Ink", spec.customInk);
             }
             else
             {

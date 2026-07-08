@@ -78,16 +78,14 @@ namespace Laubrary.AssetKit.Editor
 
         protected virtual void OnDisable() => ClearThumbs();
 
-        // NOTE: this chrome is ZUI-first — ZUI.HRow rows and this.Button/this.Label controls throughout. The only
-        // raw-IMGUI calls left are ones ZUI has NO control for yet (ObjectField, TextField, ScrollView) — those are
-        // flagged inline as ZUI-expansion candidates, and the thumbnail grid is hand-painted canvas (legitimately raw).
+        // This chrome is fully ZUI: ZUI.HRow rows, this.Button/this.Label controls, this.ObjectField/TextField/
+        // ScrollView fields. The only raw IMGUI is the hand-painted thumbnail grid (legitimately canvas).
         void DrawToolbar()
         {
             using (var row = ZUI.HRow())
             {
-                // ZUI-GAP: no object-picker control — Unity's ObjectField is the fallback (expansion candidate).
                 EditorGUI.BeginChangeCheck();
-                var picked = (T)EditorGUILayout.ObjectField(asset, typeof(T), false, GUILayout.Width(200));
+                var picked = ObjectField(asset, false, 200f);
                 if (EditorGUI.EndChangeCheck()) SetAsset(picked);
 
                 if (row.Button("New")) { creating = true; renaming = false; createText = NewAssetName; focusNew = true; }
@@ -115,8 +113,7 @@ namespace Laubrary.AssetKit.Editor
                 row.Label("Asset name", GUILayout.Width(72));
                 bool enter = Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return;
                 GUI.SetNextControlName("AssetKitNewField");
-                // ZUI-GAP: no text-input control — Unity's TextField is the fallback (expansion candidate).
-                createText = EditorGUILayout.TextField(createText, GUILayout.Width(200));
+                createText = TextField(createText, 200f);
                 if (focusNew && Event.current.type == EventType.Repaint) { EditorGUI.FocusTextInControl("AssetKitNewField"); focusNew = false; }
                 if (row.Button("Create") || enter)
                 {
@@ -141,7 +138,7 @@ namespace Laubrary.AssetKit.Editor
             {
                 row.Label("New name", GUILayout.Width(72));
                 bool enter = Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return;
-                renameText = EditorGUILayout.TextField(renameText, GUILayout.Width(200));   // ZUI-GAP: text input
+                renameText = TextField(renameText, 200f);
                 if (row.Button("OK") || enter) { AssetLibrary<T>.Rename(asset, renameText); renaming = false; if (browsing) RefreshBrowse(); }
                 if (row.Button("Cancel")) renaming = false;
             }
@@ -177,20 +174,21 @@ namespace Laubrary.AssetKit.Editor
             if (_browse.Count == 0)
                 Label($"No {TypeLabel} assets yet — hit New to make one.", ZUI.ZTextStyle.Subtle);
 
-            // ZUI-GAP: no scroll-container control — Unity's ScrollView is the fallback (expansion candidate).
-            _browseScroll = EditorGUILayout.BeginScrollView(_browseScroll);
-            float cell = CellSize, thumb = ThumbSize;
-            int cols = Mathf.Max(1, Mathf.FloorToInt((position.width - 24f) / cell));
-            int i = 0;
-            while (i < _browse.Count)
+            using (ScrollView(ref _browseScroll))
             {
-                EditorGUILayout.BeginHorizontal();
-                for (int c = 0; c < cols && i < _browse.Count; c++, i++)
-                    if (_browse[i] != null) DrawCell(_browse[i], cell, thumb);
-                GUILayout.FlexibleSpace();
-                EditorGUILayout.EndHorizontal();
+                float cell = CellSize, thumb = ThumbSize;
+                int cols = Mathf.Max(1, Mathf.FloorToInt((position.width - 24f) / cell));
+                int i = 0;
+                while (i < _browse.Count)
+                {
+                    using (ZUI.HRow())
+                    {
+                        for (int c = 0; c < cols && i < _browse.Count; c++, i++)
+                            if (_browse[i] != null) DrawCell(_browse[i], cell, thumb);
+                        GUILayout.FlexibleSpace();
+                    }
+                }
             }
-            EditorGUILayout.EndScrollView();
         }
 
         void DrawCell(T item, float cell, float thumb)

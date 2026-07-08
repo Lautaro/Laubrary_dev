@@ -514,6 +514,42 @@ public abstract partial class ZUIWindow
                               float yMin = 0f, float yMax = 1f, float height = 90f)
     { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.CurveField(key, label, points, yMin, yMax, height); }
 
+    // ===== Fields (text / object / color / enum / dropdown / scroll) ==========
+
+    protected string TextField(string value, float bodyWidth = ZUI.DefaultFieldWidth)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.TextField(value, bodyWidth); }
+
+    protected string TextField(string label, string value)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.TextField(label, value); }
+
+    protected T ObjectField<T>(T value, bool allowSceneObjects = false, float bodyWidth = ZUI.DefaultFieldWidth) where T : UnityEngine.Object
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.ObjectField(value, allowSceneObjects, bodyWidth); }
+
+    protected T ObjectField<T>(string label, T value, bool allowSceneObjects = false) where T : UnityEngine.Object
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.ObjectField(label, value, allowSceneObjects); }
+
+    protected Color ColorField(Color value, float bodyWidth = ZUI.DefaultFieldWidth)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.ColorField(value, bodyWidth); }
+
+    protected Color ColorField(string label, Color value)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.ColorField(label, value); }
+
+    protected TEnum EnumPopup<TEnum>(TEnum value, float bodyWidth = ZUI.DefaultFieldWidth) where TEnum : System.Enum
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.EnumPopup(value, bodyWidth); }
+
+    protected TEnum EnumPopup<TEnum>(string label, TEnum value) where TEnum : System.Enum
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.EnumPopup(label, value); }
+
+    protected int Dropdown(int index, string[] options, float bodyWidth = ZUI.DefaultFieldWidth)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.Dropdown(index, options, bodyWidth); }
+
+    protected int Dropdown(string label, int index, string[] options)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.Dropdown(label, index, options); }
+
+    // Layout-only (inner content carries its own per-call sheet scope), so no outer UseSheet needed.
+    protected ZUI.ScrollScope ScrollView(ref Vector2 scroll, params GUILayoutOption[] options)
+        => ZUI.ScrollView(ref scroll, options);
+
     // ===== Palette / misc =====================================================
 
     protected Color PaletteColor(string name, Color fallback)
