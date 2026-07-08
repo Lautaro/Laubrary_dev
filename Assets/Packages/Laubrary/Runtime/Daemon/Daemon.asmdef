@@ -2,7 +2,8 @@
     "name": "com.Lautaro-Arino.Laubrary.Daemon",
     "rootNamespace": "Laubrary.Daemon",
     "references": [
-        "com.Lautaro-Arino.Laubrary.Loom"
+        "com.Lautaro-Arino.Laubrary.Loom",
+        "com.Lautaro-Arino.Laubrary.Notifyer"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

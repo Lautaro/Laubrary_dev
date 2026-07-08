@@ -30,7 +30,9 @@
         "com.Lautaro-Arino.Laubrary.Chunks",
         "com.Lautaro-Arino.Laubrary.Colosseum",
         "com.Lautaro-Arino.Laubrary.Codex",
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.Loom",
+        "com.Lautaro-Arino.Laubrary.Daemon"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

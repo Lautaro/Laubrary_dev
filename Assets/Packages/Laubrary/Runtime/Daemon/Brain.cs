@@ -218,4 +218,57 @@ namespace Laubrary.Daemon
         public override string Tick(AgentContext ctx) => ctx.Check(Condition) ? "out" : null;
         public override string Describe() => "Wait until [" + Condition + "]";
     }
+
+    // Park until a GLOBAL Notifyer string event fires (e.g. "WaveStarted", "PlayerSpotted"). For PER-AGENT
+    // reactions (this enemy got hit) prefer a Fork + WaitCondition on a blackboard flag the combat adapter sets.
+    [Serializable]
+    public class WaitEventNode : BrainNode
+    {
+        public string EventId;
+        public override string Enter(AgentContext ctx)
+        {
+            var bm = ctx.Bookmark;
+            bm.Locals[Id + ":fired"] = false;
+            UnityEngine.Events.UnityAction h = () => bm.Locals[Id + ":fired"] = true;
+            bm.Locals[Id + ":handler"] = h;
+            Laubrary.Notifyer.Notifyer.Subscribe(EventId, h);
+            return null;
+        }
+        public override string Tick(AgentContext ctx) => ctx.GetLocal(Id + ":fired", false) ? "out" : null;
+        public override void Exit(AgentContext ctx)
+        {
+            var h = ctx.GetLocal<UnityEngine.Events.UnityAction>(Id + ":handler", null);
+            if (h != null) Laubrary.Notifyer.Notifyer.Unsubscribe(EventId, h);
+            ctx.ClearLocal(Id + ":handler");
+        }
+        public override string Describe() => "Wait event [" + EventId + "]";
+    }
+
+    // Spawn a bookmark down EVERY outgoing edge — run concurrent sub-graphs (e.g. a main FSM plus a "flee when
+    // hurt" watchdog). Loom's runner tracks each bookmark independently.
+    [Serializable]
+    public class ForkNode : BrainNode
+    {
+        public override string Enter(AgentContext ctx) => GraphPort.All;
+        public override string Describe() => "Fork";
+    }
+
+    // Write a per-agent blackboard value (a flag/counter conditions can read: "hasTarget", "alertLevel"…).
+    [Serializable]
+    public class SetBlackboardNode : BrainNode
+    {
+        public string Key;
+        public string Value;
+        public override string Enter(AgentContext ctx) { ctx.Blackboard?.Set(Key, Value); return "out"; }
+        public override string Describe() => "Set " + Key + " = " + Value;
+    }
+
+    // Push a status label onto the body (debug overlay / animation cue).
+    [Serializable]
+    public class SetStatusNode : BrainNode
+    {
+        public string Label;
+        public override string Enter(AgentContext ctx) { ctx.Body?.SetStatus(Label); return "out"; }
+        public override string Describe() => "Status: " + Label;
+    }
 }
