@@ -62,7 +62,7 @@ MonoBehaviour:
       type: {class: StateNode, ns: Laubrary.Daemon, asm: com.Lautaro-Arino.Laubrary.Daemon}
       data:
         m_id: seek
-        m_graphPos: {x: 700, y: 100}
+        m_graphPos: {x: 700, y: 100.00001}
         Title: 
         BehaviourId: SeekBehaviour
         Transitions:
