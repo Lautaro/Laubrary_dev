@@ -83,10 +83,34 @@ namespace Laubrary.Lazor.Editor
 
         void FitView(Rect canvasRect)
         {
+            // Frame the ACTUAL resolved content (mirror/symmetry included), unioned with the design grid, so nothing
+            // is ever clipped — however far off-centre the drawing is or the mirror spreads it. Honour BOTH canvas
+            // dimensions (not just the smaller one): a small/narrow window used to cut off strokes that fell outside
+            // the fixed grid frame.
             float half = shape != null ? shape.gridResolution * 0.5f : 8f;
-            float fit = Mathf.Min(canvasRect.width, canvasRect.height) / ((half * 2f) + 2f);
-            zoom = Mathf.Clamp(fit, 2f, 200f);
-            pan = Vector2.zero;
+            float minX = -half, minY = -half, maxX = half, maxY = half;
+            if (shape != null && shape.layers != null)
+            {
+                var buf = new List<ResolvedPolyline>();
+                foreach (var layer in shape.layers)
+                {
+                    if (layer == null || !layer.enabled) continue;
+                    buf.Clear();
+                    LazorGeometry.ResolveLayer(layer, 1f, buf);   // grid units, same as the canvas draws
+                    foreach (var poly in buf)
+                        if (poly.points != null)
+                            foreach (var p in poly.points)
+                            {
+                                if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+                                if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+                            }
+                }
+            }
+            float w = (maxX - minX) + 2f;   // ~1-cell margin each side
+            float h = (maxY - minY) + 2f;
+            zoom = Mathf.Clamp(Mathf.Min(canvasRect.width / w, canvasRect.height / h), 2f, 200f);
+            Vector2 c = new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
+            pan = new Vector2(-c.x * zoom, c.y * zoom);   // centre the content in the canvas
         }
 
         // ---- Rendering ----
