@@ -13,7 +13,7 @@ namespace Laubrary.Zoetrope.Editor
     /// </summary>
     public class SpriteCatalogWindow : EditorWindow
     {
-        [MenuItem("Laubrary/Zoetrope/Sprite Catalog")]
+        [MenuItem("Laubrary/Sprite Catalog")]
         public static void Open() => GetWindow<SpriteCatalogWindow>("Sprite Catalog");
 
         [SerializeField] SpriteCatalog catalog;

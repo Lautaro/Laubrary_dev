@@ -11,7 +11,7 @@ namespace Laubrary.Choreographer.Editor
     /// what plays. Drag the path control points right in the stage.
     public class ChoreographerWindow : ZUIWindow
     {
-        [MenuItem("Laubrary/Choreographer/Choreographer")]
+        [MenuItem("Laubrary/Choreographer")]
         public static void Open() => GetWindow<ChoreographerWindow>("Choreographer");
 
         [SerializeField] Choreography choreo;

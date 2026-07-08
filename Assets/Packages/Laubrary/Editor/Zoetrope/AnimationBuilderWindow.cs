@@ -191,7 +191,7 @@ namespace Laubrary.Zoetrope.Editor
         private Vector2 _leftScroll, _rightScroll;
         private Vector2 _cellsScroll, _seqScroll;
 
-        [MenuItem("Laubrary/Zoetrope/Animation Builder")]
+        [MenuItem("Laubrary/Animation Builder")]
         public static void Open()
         {
             var w = GetWindow<AnimationBuilderWindow>("Animation Builder");

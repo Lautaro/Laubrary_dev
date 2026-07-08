@@ -9,7 +9,7 @@ namespace Laubrary.Larder.Editor
     /// are rebuilt only when the spec changes and disposed on the way out so the editor never leaks them.
     public class LarderWindow : ZUIWindow
     {
-        [MenuItem("Laubrary/Larder/Larder")]
+        [MenuItem("Laubrary/Larder")]
         public static void Open() => GetWindow<LarderWindow>("Larder");
 
         [SerializeField] WareSpec spec;

@@ -8,7 +8,7 @@ namespace Laubrary.UIAudit
     // but these menu items make it a two-click check for a human too.
     static class UIAuditMenu
     {
-        [MenuItem("Laubrary/UI Audit/Audit Current UI")]
+        [MenuItem("Laubrary/Audit Current UI")]
         static void AuditNow()
         {
             if (!Application.isPlaying)
@@ -21,7 +21,7 @@ namespace Laubrary.UIAudit
 
         // IMGUI is immediate-mode: it must be recorded for a frame before it can be audited. Toggle this on,
         // let the screen you want draw a frame, then run "Audit Current UI".
-        [MenuItem("Laubrary/UI Audit/Toggle IMGUI Recording")]
+        [MenuItem("Laubrary/Toggle IMGUI Recording")]
         static void ToggleImgui()
         {
             ZuiRuntime.ZuiAudit.Recording = !ZuiRuntime.ZuiAudit.Recording;

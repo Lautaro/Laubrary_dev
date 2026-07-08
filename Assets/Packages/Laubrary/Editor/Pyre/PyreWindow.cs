@@ -12,7 +12,7 @@ namespace Laubrary.Pyre.Editor
     /// same BlastRenderer frames the baker and the runtime player use, so preview == bake == runtime.
     public class PyreWindow : ZUIWindow
     {
-        [MenuItem("Laubrary/Pyre/Pyre")]
+        [MenuItem("Laubrary/Pyre")]
         public static void Open() => GetWindow<PyreWindow>("Pyre");
 
         [SerializeField] BlastSpec spec;
