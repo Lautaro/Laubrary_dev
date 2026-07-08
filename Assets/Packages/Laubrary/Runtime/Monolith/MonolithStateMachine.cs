@@ -14,7 +14,17 @@ namespace Laubrary.Monolith
     /// </summary>
     /// <typeparam name="GameManager">The type of the class used as game manager. Its expected to contain context and functions that the states can use to controll the game.</typeparam>
     /// <typeparam name="GameStateEnum">The game specific custom enum type used to identify different game states.</typeparam>
-
+    /// <remarks>
+    /// DEPRECATED (2026-07-08) — superseded by the graph-driven state system on <b>Loom</b>. Monolith is a
+    /// hand-wired, code-only HSM; the Loom graph engine (Runtime/Loom) is the same abstraction with a visual
+    /// authoring window and per-instance ergonomics. Prefer:
+    ///   • game-flow / scenario state → <b>Story</b> (Runtime/Story: a Loom graph that sequences + mutates Rulesets);
+    ///   • per-agent / enemy state machines → <b>Daemon</b> (Runtime/Daemon: a Brain graph that orchestrates Behaviours).
+    /// Both share Loom's <see cref="Laubrary.Loom.GraphRunner{TNode,TCtx}"/> (bookmarks, forks, parking, undo, live
+    /// traversal viz) and author in the one shared graph window (Laubrary ▸ Story Graph / Brain Graph). Migration:
+    /// replace AddState/AddChildState hand-wiring with nodes + condition-gated edges in a graph asset. Monolith is
+    /// kept compiling for existing users; new work should not use it.
+    /// </remarks>
     public class MonolithStateMachine<GameManager, GameStateEnum> where GameStateEnum : Enum
     {
         /// <summary>Reference to the central game manager controlling game-wide logic. </summary>
