@@ -51,6 +51,27 @@ public static partial class ZUI
     public static int Dropdown(string label, int index, string[] options)
         => EditorGUILayout.Popup(label, index, options);
 
+    // ── Int slider ───────────────────────────────────────────────────────────────
+    public static int IntSlider(string label, int value, int min, int max)
+        => EditorGUILayout.IntSlider(label, value, min, max);
+
+    // ── Vector fields ──────────────────────────────────────────────────────────────
+    public static Vector2 Vector2Field(string label, Vector2 value)
+        => EditorGUILayout.Vector2Field(label, value);
+
+    public static Vector2Int Vector2IntField(string label, Vector2Int value)
+        => EditorGUILayout.Vector2IntField(label, value);
+
+    // ── Enum (boxed) ───────────────────────────────────────────────────────────────
+    // Non-generic sibling of EnumPopup for reflection scenarios where the type is only known as System.Enum.
+    public static Enum EnumField(string label, Enum value)
+        => EditorGUILayout.EnumPopup(label, value);
+
+    // ── Info / note boxes ────────────────────────────────────────────────────────
+    // The only IMGUI way to draw a wrapping, iconed callout; ZUI owns the call so tools stop reaching past it.
+    public static void InfoBox(string text) => EditorGUILayout.HelpBox(text, MessageType.Info);
+    public static void NoteBox(string text) => EditorGUILayout.HelpBox(text, MessageType.None);
+
     // ── Scroll view (scope) ──────────────────────────────────────────────────────
     /// <summary>A scrollable region: <c>using (ZUI.ScrollView(ref scroll)) { … }</c>. The ref is updated in place
     /// so you keep your own persisted scroll Vector2.</summary>

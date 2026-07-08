@@ -69,14 +69,27 @@ namespace Laubrary.AssetKit.Editor
         }
 
         // ── window loop ─────────────────────────────────────────────────────────────────
+        [System.NonSerialized] bool _hookedProjectChange;
+
         protected sealed override void OnZUI()
         {
+            // Keep the browser in sync with the project: re-scan whenever assets are added/removed/renamed/imported
+            // ANYWHERE (Project window, external CRUD), not just via this window's own buttons. Hooked lazily here so
+            // it works regardless of whether a subclass overrides OnZUIEnable without calling base.
+            if (!_hookedProjectChange) { EditorApplication.projectChanged += OnProjectChanged; _hookedProjectChange = true; }
+
             DrawToolbar();
             if (asset == null || browsing) DrawBrowser();
             else DrawAsset(asset);
         }
 
-        protected virtual void OnDisable() => ClearThumbs();
+        void OnProjectChanged() { RefreshBrowse(); Repaint(); }
+
+        protected virtual void OnDisable()
+        {
+            if (_hookedProjectChange) { EditorApplication.projectChanged -= OnProjectChanged; _hookedProjectChange = false; }
+            ClearThumbs();
+        }
 
         // This chrome is fully ZUI: ZUI.HRow rows, this.Button/this.Label controls, this.ObjectField/TextField/
         // ScrollView fields. The only raw IMGUI is the hand-painted thumbnail grid (legitimately canvas).
@@ -95,7 +108,7 @@ namespace Laubrary.AssetKit.Editor
                 string p = AssetLibrary<T>.PathOf(asset);
                 if (!string.IsNullOrEmpty(p))
                 {
-                    if (row.Button("Duplicate")) { var d = AssetLibrary<T>.Duplicate(asset); if (d != null) { SetAsset(d); if (browsing) RefreshBrowse(); } }
+                    if (row.Button("Duplicate")) { var d = AssetLibrary<T>.Duplicate(asset); if (d != null) { Undo.RegisterCreatedObjectUndo(d, "Duplicate " + TypeLabel); SetAsset(d); if (browsing) RefreshBrowse(); } }
                     if (row.Button("Rename")) { renaming = !renaming; creating = false; renameText = Path.GetFileNameWithoutExtension(p); }
                     if (row.Button("Delete")) DeleteCurrent();
                 }
@@ -124,6 +137,7 @@ namespace Laubrary.AssetKit.Editor
                         InitializeNewAsset(created);
                         EditorUtility.SetDirty(created);
                         AssetDatabase.SaveAssets();
+                        Undo.RegisterCreatedObjectUndo(created, "Create " + TypeLabel);   // New is undoable (delete needs the confirm dialog)
                         browsing = false;
                         SetAsset(created);
                     }

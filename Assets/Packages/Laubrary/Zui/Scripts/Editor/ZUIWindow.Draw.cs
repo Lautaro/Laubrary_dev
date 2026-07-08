@@ -546,6 +546,24 @@ public abstract partial class ZUIWindow
     protected int Dropdown(string label, int index, string[] options)
     { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.Dropdown(label, index, options); }
 
+    protected int IntSlider(string label, int value, int min, int max)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.IntSlider(label, value, min, max); }
+
+    protected Vector2 Vector2Field(string label, Vector2 value)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.Vector2Field(label, value); }
+
+    protected Vector2Int Vector2IntField(string label, Vector2Int value)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.Vector2IntField(label, value); }
+
+    protected System.Enum EnumField(string label, System.Enum value)
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.EnumField(label, value); }
+
+    protected void InfoBox(string text)
+    { using (ZUI.UseSheet(ResolvedSheet)) ZUI.InfoBox(text); }
+
+    protected void NoteBox(string text)
+    { using (ZUI.UseSheet(ResolvedSheet)) ZUI.NoteBox(text); }
+
     // Layout-only (inner content carries its own per-call sheet scope), so no outer UseSheet needed.
     protected ZUI.ScrollScope ScrollView(ref Vector2 scroll, params GUILayoutOption[] options)
         => ZUI.ScrollView(ref scroll, options);

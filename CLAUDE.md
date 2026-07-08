@@ -39,6 +39,15 @@ recurring.)
 large multi-tool like Zoetrope, which may keep **one** submenu capped at **~3** items — and even then the core
 windows go at root, with just secondary/utility actions tucked in the submenu.
 
+## Undo — every tool, always
+
+Editor tools must be Undo-safe (general rule in `D:\Unity\UNITY_DEV_GUIDE.md` → Coding best practices #7, restated
+here because it's mandatory for Laubrary). `Undo.RecordObject(asset, "…")` before a serialized edit (inside a
+`BeginChangeCheck/EndChangeCheck`); `Undo.RegisterCreatedObjectUndo` for created assets. The `AssetKit` base already
+makes **New/Duplicate** undoable and gates **Delete** behind a confirm dialog (asset delete can't be undone). When
+you build/port a tool, wire its per-field dial edits through `Undo.RecordObject` too — several older tools
+(Rulesets, some Pyre/Larder dials) still edit without recording undo and should be retrofitted.
+
 ## Demos — ship SCENES, not scripts that build scenes
 
 A Laubrary tool's demo is a **real saved `.unity` scene** (plus any authored `.asset` it needs), committed to
