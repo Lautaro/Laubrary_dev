@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-07-09
+
+### Added (converged from Asteroid+)
+- **Lazor** — vector line-art ("laser") shape authoring + rendering: `LazorShape` SO + layers/paths, a Shapes-free
+  geometry/rasterizer core, and an editor window (grid canvas, per-layer mirror/symmetry, CRUD browser, SVG import).
+  The Shapes rendering binding stays project-side. (Follow-up: modernize its window to ZUIWindow + AssetKit; add a
+  `Bestiarium.Lazor` view bridge.)
+- **RuleParams + `[GraphDropdown]`** — the "Story graph can only target exposed rule parameters" feature: `RuleParams`
+  (Rulesets) discovers rule types + their exposed params (public scalars + `staticValue`/ZUIValue wrappers, duck-typed
+  so Rulesets stays ZUI-free); `[GraphDropdown]` (Loom) + GraphEditor render annotated string fields as dependent
+  dropdowns; PlotTwistPage rule/field are dropdowns; RulesEditorWindow renders ZUIValue tunables.
+
 ## [0.7.0] - 2026-07-08
 
 ### Changed (BREAKING)
