@@ -53,6 +53,7 @@ namespace Laubrary.Lazor
             foreach (var path in layer.paths)
             {
                 if (path == null || path.points == null || path.points.Count < 2) continue;
+                if (IsDegenerate(path.points)) continue;   // skip zero-extent (all-coincident) stray/garbage strokes
 
                 foreach (var xf in copies)
                 {
@@ -119,6 +120,17 @@ namespace Laubrary.Lazor
                 });
             }
             return list;
+        }
+
+        /// <summary>True when every point of a stroke is (nearly) coincident — a stray click with no extent, not a
+        /// shape. Skipped everywhere so it never renders as a dot or inflates the content bounds.</summary>
+        public static bool IsDegenerate(List<Vector2> pts)
+        {
+            if (pts == null || pts.Count == 0) return true;
+            var p0 = pts[0];
+            for (int i = 1; i < pts.Count; i++)
+                if ((pts[i] - p0).sqrMagnitude > 1e-6f) return false;
+            return true;
         }
 
         public static Vector2 Rotate(Vector2 v, float deg)

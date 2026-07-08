@@ -311,6 +311,14 @@ namespace Laubrary.Lazor.Editor
                     }
                 }
 
+                // Ignore a click on the same cell as the last point — no zero-length segments / degenerate strokes.
+                if (activePath >= 0 && activePath < layer.paths.Count)
+                {
+                    var apc = layer.paths[activePath];
+                    if (apc.points.Count > 0 && (apc.points[apc.points.Count - 1] - g).sqrMagnitude < 1e-6f)
+                    { e.Use(); return; }
+                }
+
                 RecordShape("Draw Lazor point");
                 if (activePath < 0 || activePath >= layer.paths.Count)
                 {
@@ -343,7 +351,8 @@ namespace Laubrary.Lazor.Editor
             if (activePath >= 0 && shape.layers.Count > 0 && layerSel < shape.layers.Count)
             {
                 var layer = shape.layers[layerSel];
-                if (activePath < layer.paths.Count && layer.paths[activePath].points.Count < 2)
+                if (activePath < layer.paths.Count &&
+                    (layer.paths[activePath].points.Count < 2 || LazorGeometry.IsDegenerate(layer.paths[activePath].points)))
                 {
                     RecordShape("Discard Lazor stroke");
                     layer.paths.RemoveAt(activePath);
