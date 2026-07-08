@@ -1,0 +1,16 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Daemon",
+    "rootNamespace": "Laubrary.Daemon",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Loom"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
