@@ -1,5 +1,6 @@
 using UnityEditor;
 using UnityEngine;
+using Laubrary.AssetKit.Editor;
 
 namespace Laubrary.Larder.Editor
 {
@@ -7,12 +8,14 @@ namespace Laubrary.Larder.Editor
     /// sprites. Left column = every WareSpec dial as ZUI controls; right column = a live pixel preview plus a row of
     /// all damage stages — all drawn by the exact WareGenerator the game uses, so the preview IS the product. Textures
     /// are rebuilt only when the spec changes and disposed on the way out so the editor never leaks them.
-    public class LarderWindow : ZUIWindow
+    /// Asset browse + CRUD (New/Duplicate/Rename/Delete + empty-state library) come from LaubraryAssetWindow.
+    public class LarderWindow : LaubraryAssetWindow<WareSpec>
     {
         [MenuItem("Laubrary/Larder")]
         public static void Open() => GetWindow<LarderWindow>("Larder");
 
-        [SerializeField] WareSpec spec;
+        WareSpec spec => Current;         // the base owns the current asset; alias for the dial code below
+
         int gridCount = 6;
         Vector2 leftScroll;
 
@@ -29,28 +32,19 @@ namespace Laubrary.Larder.Editor
         static readonly string[] BandLabels = { "None", "Horiz", "Vert", "Diag" };
         static readonly string[] SpotLabels = { "None", "Circle", "Spots" };
 
+        protected override string TypeLabel => "Ware";
+        protected override string NewAssetName => "Ware";
+        protected override string DefaultFolder => "Assets/Larder";
+
         protected override void OnZUIEnable() => dirty = true;
+        protected override void OnAssetChanged() => dirty = true;
+        protected override void OnDisable() { base.OnDisable(); DisposeTextures(); }
 
-        void OnDisable() => DisposeTextures();
+        // Browser thumbnails: the intact ware, rendered by the real generator.
+        protected override Texture2D RenderThumbnail(WareSpec item) => MakeTex(item, 0);
 
-        protected override void OnZUI()
+        protected override void DrawAsset(WareSpec asset)
         {
-            using (var row = ZUINullSafeRow())
-            {
-                EditorGUILayout.LabelField("Ware Spec", GUILayout.Width(70));
-                EditorGUI.BeginChangeCheck();
-                spec = (WareSpec)EditorGUILayout.ObjectField(spec, typeof(WareSpec), false, GUILayout.Width(220));
-                if (EditorGUI.EndChangeCheck()) dirty = true;
-                if (GUILayout.Button("New", GUILayout.Width(50))) CreateSpec();
-            }
-
-            if (spec == null)
-            {
-                Label("Pick or create a Ware Spec to start. One spec + a seed drives the preview, the bake, and the " +
-                      "runtime demo — same pixels everywhere.", ZUI.ZTextStyle.Subtle);
-                return;
-            }
-
             EditorGUILayout.BeginHorizontal();
             DrawDials(GUILayout.Width(320));
             DrawPreview();
@@ -59,7 +53,7 @@ namespace Laubrary.Larder.Editor
             if (dirty || intactTex == null) RebuildPreview();
         }
 
-        // A plain horizontal row (ZUI has no object-field wrapper, so the spec slot uses EditorGUILayout).
+        // A plain horizontal row (ZUI has no object-field wrapper, so mixed slots use EditorGUILayout).
         static System.IDisposable ZUINullSafeRow()
         {
             EditorGUILayout.BeginHorizontal();
@@ -215,17 +209,6 @@ namespace Laubrary.Larder.Editor
                     if (stageTex[i] != null) Object.DestroyImmediate(stageTex[i]);
                 stageTex = null;
             }
-        }
-
-        void CreateSpec()
-        {
-            string path = EditorUtility.SaveFilePanelInProject("New Ware Spec", "Ware", "asset", "");
-            if (string.IsNullOrEmpty(path)) return;
-            var s = CreateInstance<WareSpec>();
-            AssetDatabase.CreateAsset(s, path);
-            AssetDatabase.SaveAssets();
-            spec = s;
-            dirty = true;
         }
     }
 }

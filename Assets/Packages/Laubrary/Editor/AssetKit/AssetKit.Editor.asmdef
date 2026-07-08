@@ -1,9 +1,7 @@
 {
-    "name": "com.Lautaro-Arino.Laubrary.Larder.Editor",
-    "rootNamespace": "Laubrary.Larder.Editor",
+    "name": "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
+    "rootNamespace": "Laubrary.AssetKit.Editor",
     "references": [
-        "com.Lautaro-Arino.Laubrary.Larder",
-        "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
         "ZUI.Editor",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime"
     ],

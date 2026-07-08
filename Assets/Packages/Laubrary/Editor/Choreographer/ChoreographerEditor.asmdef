@@ -3,6 +3,7 @@
     "rootNamespace": "Laubrary.Choreographer.Editor",
     "references": [
         "com.Lautaro-Arino.Laubrary.Choreographer",
+        "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
         "ZUI.Editor",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime"
     ],

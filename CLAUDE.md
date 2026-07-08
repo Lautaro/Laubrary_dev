@@ -58,6 +58,16 @@ Slider/Toggle/Label/MiniRadio/SliderRange/Box/...` wrappers; custom canvas paint
 raw IMGUI, matching the OutBurner editors. The ZUI editor toolkit is `Assets/ZUI/` (asmdefs `ZUI.Editor` +
 `ZUI.Runtime`) — reference both from an `Editor` asmdef that needs it.
 
+**ZUI-first — use the standard controls, then expand ZUI (don't route around it).** When you write OR port a UI to
+ZUI, reach FIRST for ZUI's standard controls, containers and helpers (Button, Toggle, Slider/MicroSlider, Label,
+MiniRadio/CycleButton, Envelope/CurveField, Box/FoldoutBox/AreaBox, HRow/Flow/Field, IntField/FloatField,
+Blocks/Form, spacing). Do NOT drop to raw `EditorGUILayout`/`GUILayout` for something ZUI already provides. **If no
+ZUI control fits, that's a smell** — surface it and consider EXPANDING ZUI (add the control there so every tool
+gains it) rather than silently hand-rolling raw IMGUI in one window. Known current ZUI gaps (legitimate raw
+fallbacks today, and prime expansion candidates): a **text-input field**, an **object/asset picker**, a **color
+field**, an **enum popup/dropdown**, and a **scroll container**. Genuinely bespoke *canvas painting* (a 2D preview
+stage, a thumbnail grid) stays raw — that's not a missing control.
+
 **Open packaging gap:** `Assets/ZUI/` currently lives OUTSIDE the package (`Assets/Packages/Laubrary/`), so a
 Laubrary editor that references `ZUI.Editor` compiles here but would NOT ship self-contained to a consumer
 project. To make "ZUI is part of Laubrary" real, ZUI needs to move into the package (or be a declared dependency).

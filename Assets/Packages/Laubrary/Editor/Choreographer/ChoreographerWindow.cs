@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using Laubrary.AssetKit.Editor;
 
 namespace Laubrary.Choreographer.Editor
 {
@@ -9,13 +10,17 @@ namespace Laubrary.Choreographer.Editor
     /// visualisation — full path lines, onion-skin ghosts, trails, index-coloured dots, and drop-in sample
     /// sprites. The preview samples the exact same ChoreographySampler the runtime uses, so what you tune is
     /// what plays. Drag the path control points right in the stage.
-    public class ChoreographerWindow : ZUIWindow
+    public class ChoreographerWindow : LaubraryAssetWindow<Choreography>
     {
         [MenuItem("Laubrary/Choreographer")]
         public static void Open() => GetWindow<ChoreographerWindow>("Choreographer");
 
-        [SerializeField] Choreography choreo;
+        Choreography choreo => Current;   // the base owns the current asset; alias for the dial/stage code
         [SerializeField] List<Sprite> previewSprites = new();
+
+        protected override string TypeLabel => "Choreography";
+        protected override string NewAssetName => "Choreography";
+        protected override string DefaultFolder => "Assets/Choreographer";
 
         // playback
         double lastTime;
@@ -61,7 +66,8 @@ namespace Laubrary.Choreographer.Editor
         const int MaxDots = 500;
 
         protected override void OnZUIEnable() { lastTime = EditorApplication.timeSinceStartup; EditorApplication.update += Tick; }
-        void OnDisable() { EditorApplication.update -= Tick; }
+        protected override void OnDisable() { base.OnDisable(); EditorApplication.update -= Tick; }
+        protected override void OnAssetChanged() { previewTime = 0f; }
 
         void Tick()
         {
@@ -117,33 +123,14 @@ namespace Laubrary.Choreographer.Editor
             }
         }
 
-        protected override void OnZUI()
+        protected override void DrawAsset(Choreography asset)
         {
-            DrawToolbar();
-            if (choreo == null)
-            {
-                Label("Pick or create a Choreography to start. A choreo is one reusable shape; " +
-                    "the same asset drives any number of dancers.", ZUI.ZTextStyle.Subtle);
-                return;
-            }
+            Label($"len {asset.Cache.Length:0.00}  ·  {Count} dancers", ZUI.ZTextStyle.Small);
 
             EditorGUILayout.BeginHorizontal();
             DrawControls(GUILayout.Width(320));
             DrawStage();
             EditorGUILayout.EndHorizontal();
-        }
-
-        void DrawToolbar()
-        {
-            using (var row = ZUI.HRow())
-            {
-                EditorGUI.BeginChangeCheck();
-                choreo = (Choreography)EditorGUILayout.ObjectField(choreo, typeof(Choreography), false, GUILayout.Width(220));
-                if (EditorGUI.EndChangeCheck()) { previewTime = 0f; Repaint(); }
-                if (row.Button("New", ZUI.Style.Default, GUILayout.Width(50))) CreateChoreo();
-                row.Flexible();
-                if (choreo != null) row.Label($"len {choreo.Cache.Length:0.00}  ·  {Count} dancers");
-            }
         }
 
         // ── left: the dials (ZUI) ─────────────────────────────────────────────
@@ -719,16 +706,6 @@ namespace Laubrary.Choreographer.Editor
             var prev = choreo.pathPoints[choreo.pathPoints.Count - 2];
             choreo.pathPoints.Add(last + (last - prev));
             choreo.MarkPathDirty();
-        }
-
-        void CreateChoreo()
-        {
-            string path = EditorUtility.SaveFilePanelInProject("New Choreography", "Choreography", "asset", "");
-            if (string.IsNullOrEmpty(path)) return;
-            var c = CreateInstance<Choreography>();
-            AssetDatabase.CreateAsset(c, path);
-            AssetDatabase.SaveAssets();
-            choreo = c; previewTime = 0f;
         }
 
         static class Presets
