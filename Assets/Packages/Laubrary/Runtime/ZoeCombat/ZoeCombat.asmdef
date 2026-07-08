@@ -1,0 +1,17 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.ZoeCombat",
+    "rootNamespace": "Laubrary.ZoeCombat",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Colosseum",
+        "com.Lautaro-Arino.Laubrary.Zoetrope"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

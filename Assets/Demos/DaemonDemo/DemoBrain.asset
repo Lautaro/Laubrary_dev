@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73ae37dd8cdcd1f4a96b987280e84ead, type: 3}
+  m_Name: DemoBrain
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Daemon::Laubrary.Daemon.Brain
+  Nodes:
+  - rid: 1452077905276567656
+  - rid: 1452077905276567657
+  - rid: 1452077905276567658
+  - rid: 1452077905276567659
+  - rid: 1452077905276567660
+  Edges:
+  - From: entry
+    Port: out
+    To: status
+  - From: status
+    Port: out
+    To: wait
+  - From: wait
+    Port: out
+    To: seek
+  - From: seek
+    Port: toShoot
+    To: shoot
+  - From: shoot
+    Port: toSeek
+    To: seek
+  EntryId: entry
+  references:
+    version: 2
+    RefIds:
+    - rid: 1452077905276567656
+      type: {class: EntryNode, ns: Laubrary.Daemon, asm: com.Lautaro-Arino.Laubrary.Daemon}
+      data:
+        m_id: entry
+        m_graphPos: {x: 40, y: 200}
+        Title: Start
+    - rid: 1452077905276567657
+      type: {class: SetStatusNode, ns: Laubrary.Daemon, asm: com.Lautaro-Arino.Laubrary.Daemon}
+      data:
+        m_id: status
+        m_graphPos: {x: 240, y: 200}
+        Title: 
+        Label: Spawn
+    - rid: 1452077905276567658
+      type: {class: WaitConditionNode, ns: Laubrary.Daemon, asm: com.Lautaro-Arino.Laubrary.Daemon}
+      data:
+        m_id: wait
+        m_graphPos: {x: 460, y: 200}
+        Title: 
+        Condition: hasTarget
+    - rid: 1452077905276567659
+      type: {class: StateNode, ns: Laubrary.Daemon, asm: com.Lautaro-Arino.Laubrary.Daemon}
+      data:
+        m_id: seek
+        m_graphPos: {x: 700, y: 100}
+        Title: 
+        BehaviourId: SeekBehaviour
+        Transitions:
+        - Port: toShoot
+          Condition: inRange
+    - rid: 1452077905276567660
+      type: {class: StateNode, ns: Laubrary.Daemon, asm: com.Lautaro-Arino.Laubrary.Daemon}
+      data:
+        m_id: shoot
+        m_graphPos: {x: 700, y: 320}
+        Title: 
+        BehaviourId: ShootBehaviour
+        Transitions:
+        - Port: toSeek
+          Condition: outOfRange

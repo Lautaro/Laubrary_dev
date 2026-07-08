@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-07-08
+
+### Added
+- **ZoeCombat — the Zoetrope ⇄ Colosseum pixel-perfect bridge.** A tiny integration module (`Runtime/ZoeCombat/`,
+  asmdef `com.Lautaro-Arino.Laubrary.ZoeCombat`) so neither combat backbone nor animation tool has to depend on the
+  other. Its one component, **`ZoeHitFilter`**, implements Colosseum's `IHitFilter`: after the cheap checks
+  (distance + collider overlap + faction) pass, a hit only lands if the contact point falls on a painted cell of the
+  Zoe's `hurtLayer` meta-layer at the current frame (`ZonedAnimationPlayer.IsMetaPainted`). Optionally, when the
+  attacker is itself a Zoe, it runs a full mask-vs-mask `PixelOverlaps` against an `attackLayer`. `acceptWhenUnresolved`
+  keeps a misconfigured filter fail-open so a bad layer id never makes a target invincible. This closes the long-deferred
+  Zoetrope pixel-perfect seam.
+- **DaemonDemo: an authored Brain asset.** `Assets/Demos/DaemonDemo/DemoBrain.asset` (+ `DemoBehaviours.asset`) so the
+  shared Loom graph window (**Laubrary/Brain Graph**) has a real graph to open, drag and rewire —
+  Entry → Status → Wait[hasTarget] → Seek ⇄ Shoot, the authored twin of the in-code brain in `DaemonEnemyDemo`. A
+  create-if-missing builder lives under **Laubrary/Demos/Build Daemon Demo Brain**.
+
 ## [0.5.0] - 2026-07-07
 
 ### Removed
