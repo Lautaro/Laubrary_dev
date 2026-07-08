@@ -1,0 +1,17 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Story",
+    "rootNamespace": "Laubrary.Story",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Notifyer",
+        "com.Lautaro-Arino.Laubrary.Rulesets"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

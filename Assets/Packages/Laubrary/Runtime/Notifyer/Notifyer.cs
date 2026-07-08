@@ -84,6 +84,24 @@ namespace Laubrary.Notifyer
             instance.textNotifications[notificationId].Add(callback);
         }
 
+        /// <summary>Unsubscribes a callback from a string-identified notification event.</summary>
+        public static void Unsubscribe(string notificationId, UnityAction callback)
+        {
+            if (instance.textNotifications.TryGetValue(notificationId, out var list))
+            {
+                list.Remove(callback);
+                if (list.Count == 0) instance.textNotifications.Remove(notificationId);
+            }
+        }
+
+        /// <summary>Subscribes to a string-identified event and auto-unsubscribes after the first fire.</summary>
+        public static void SubscribeOnce(string notificationId, UnityAction callback)
+        {
+            UnityAction wrapper = null;
+            wrapper = () => { Unsubscribe(notificationId, wrapper); callback?.Invoke(); };
+            Subscribe(notificationId, wrapper);
+        }
+
         /// <summary>Notifies all subscribers of an event with a string identifier. Throws an exception if no subscribers are found and throwError is true.</summary>
         public static void Notify(string notificationId, string logMessage = "", bool throwError = false)
         {
