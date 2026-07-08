@@ -10,12 +10,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added (converged from Asteroid+)
 - **Lazor** — vector line-art ("laser") shape authoring + rendering: `LazorShape` SO + layers/paths, a Shapes-free
   geometry/rasterizer core, and an editor window (grid canvas, per-layer mirror/symmetry, CRUD browser, SVG import).
-  The Shapes rendering binding stays project-side. (Follow-up: modernize its window to ZUIWindow + AssetKit; add a
-  `Bestiarium.Lazor` view bridge.)
+  The Shapes rendering binding stays project-side. (Follow-up: add a `Bestiarium.Lazor` view bridge.)
 - **RuleParams + `[GraphDropdown]`** — the "Story graph can only target exposed rule parameters" feature: `RuleParams`
   (Rulesets) discovers rule types + their exposed params (public scalars + `staticValue`/ZUIValue wrappers, duck-typed
   so Rulesets stays ZUI-free); `[GraphDropdown]` (Loom) + GraphEditor render annotated string fields as dependent
   dropdowns; PlotTwistPage rule/field are dropdowns; RulesEditorWindow renders ZUIValue tunables.
+
+### Changed
+- **Lazor window modernized to `ZUIWindow` + AssetKit.** `LazorWindow` now derives from `LaubraryAssetWindow<LazorShape>`,
+  so its toolbar, the auto-refreshing thumbnail browser, and "show the browser when nothing's selected" come from the
+  shared base and it matches the other editors. The left panel (tools / layer stack / selected-layer style + mirror) is
+  drawn with the ZUI `Box`/`Label`/`Button`/`Toggle`/`Slider`/`EnumPopup` wrappers; the grid canvas stays raw IMGUI
+  (legitimate custom painting). The old hand-rolled `LazorWindow.Browser.cs` was removed. Lazor's editor asmdef now
+  references `AssetKit.Editor`, `ZUI.Editor`, `ZuiRuntime`.
+
+### Fixed
+- **Lazor: stray/degenerate strokes no longer render or break framing.** A single-point or all-coincident (zero-extent)
+  stroke — a stray click, not a shape — used to draw as a dot and, via its mirror copies landing far off-grid, blow up
+  the content bounds so the canvas showed detached fragments and Fit framed junk. `LazorGeometry.ResolveLayer` now skips
+  degenerate strokes (public `IsDegenerate` helper), the pen refuses a click on the last point's cell, and `FinishStroke`
+  discards degenerate strokes; Fit frames the resolved content.
 
 ## [0.7.0] - 2026-07-08
 

@@ -56,11 +56,15 @@ namespace Laubrary.Lazor.Editor
             EnsureWhiteTex();
             _canvasCenter = new Vector2(canvasRect.width * 0.5f, canvasRect.height * 0.5f);
 
-            if (!zoomInitialized) { FitView(canvasRect); zoomInitialized = true; }
+            var e = Event.current;
+
+            // Frame the content on first show — but only on a Repaint with a real rect. DrawAsset carves the canvas
+            // rect out of the GUILayout flow, so on the Layout pass it isn't resolved yet (near-zero); fitting then
+            // would bake a bogus zoom that never re-fits. Gate on Repaint + a sane size so Fit sees the true rect.
+            if (!zoomInitialized && e.type == EventType.Repaint && canvasRect.width > 40f && canvasRect.height > 40f)
+            { FitView(canvasRect); zoomInitialized = true; }
 
             EditorGUI.DrawRect(canvasRect, CanvasBg);
-
-            var e = Event.current;
             Vector2 mouseLocal = e.mousePosition - canvasRect.position;
             bool inside = canvasRect.Contains(e.mousePosition);
 
@@ -236,6 +240,7 @@ namespace Laubrary.Lazor.Editor
 
         void HandleCanvasInput(Rect canvasRect, Vector2 mouseLocal, bool inside, Event e)
         {
+            if (e.type == EventType.Layout) return;   // the canvas rect isn't resolved on the Layout pass
             _lastMouseLocal = mouseLocal;
 
             // Zoom toward cursor.

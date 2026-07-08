@@ -1,26 +1,31 @@
-// LazorWindow.cs — the Lazor authoring window (plain EditorWindow; ZUI is not present in this Laubrary copy,
-// matching the RulesEditorWindow convention). Left: tools, layer stack, and the selected layer's style +
-// mirror settings. Right: a zoomable/pannable grid canvas you draw vector strokes on, with live per-layer
-// mirror symmetry. Shapes are LazorShape assets, created/duplicated/renamed/deleted and browsed here.
+// LazorWindow.cs — the Lazor authoring window. It builds on LaubraryAssetWindow<LazorShape>, the shared ZUI
+// AssetKit base every single-asset Laubrary editor uses, so the toolbar (assign / New / Duplicate / Rename /
+// Delete / Browse), the auto-refreshing thumbnail browser, and "show the browser when nothing's selected" all
+// come for free and look like Pyre / Larder / the rest. This window adds the per-asset body: left a ZUI panel
+// (tools, layer stack, the selected layer's style + mirror), right a zoomable/pannable grid canvas you draw
+// vector strokes on with live per-layer mirror symmetry.
 //
-// This file holds window state, lifecycle, the top bar, and asset CRUD. Canvas drawing/input is in
-// LazorWindow.Canvas.cs, the layer panel in LazorWindow.Layers.cs, and the browser in LazorWindow.Browser.cs.
+// This file holds window state, lifecycle, layout, and the tiny asset hooks. Canvas drawing/input is in
+// LazorWindow.Canvas.cs and the left panel in LazorWindow.Layers.cs. (The browser lives in the base now — the
+// old hand-rolled LazorWindow.Browser.cs was removed.)
 
-using System.IO;
 using UnityEditor;
 using UnityEngine;
 using Laubrary.Lazor;
+using Laubrary.AssetKit.Editor;
 
 namespace Laubrary.Lazor.Editor
 {
-    public partial class LazorWindow : EditorWindow
+    public partial class LazorWindow : LaubraryAssetWindow<LazorShape>
     {
         [MenuItem("Laubrary/Lazor/Lazor")]
         public static void Open() => GetWindow<LazorWindow>("Lazor");
 
         enum Tool { Pen, Edit, Erase }
 
-        [SerializeField] LazorShape shape;
+        // The base owns the current asset; `shape` is an alias so the canvas / layer code reads naturally.
+        LazorShape shape => Current;
+
         [SerializeField] float leftWidth = 288f;
         [SerializeField] Tool tool = Tool.Pen;
         [SerializeField] bool snap = true;
@@ -40,46 +45,35 @@ namespace Laubrary.Lazor.Editor
         bool draggingSplit = false;
         Vector2 leftScroll;
 
-        // Inline asset prompts (create / rename), matching Pyre's inline-prompt-over-modal convention.
-        bool creating, renaming;
-        string nameBuffer = "";
+        // ── AssetKit hooks ─────────────────────────────────────────────────────
+        protected override string TypeLabel => "Lazor Shape";
+        protected override string NewAssetName => "New Lazor Shape";
+        protected override string DefaultFolder => "Assets/Lazor";
+        protected override void InitializeNewAsset(LazorShape item) => item.AddExampleContent();
+        protected override void OnAssetChanged() { layerSel = 0; activePath = -1; zoomInitialized = false; }
+        protected override Texture2D RenderThumbnail(LazorShape item)
+            => LazorRasterizer.Render(item, 96, new Color(0.05f, 0.06f, 0.08f, 1f));
 
-        const string DefaultFolder = "Assets/Lazor";
+        protected override void OnZUIEnable() => EnsureWhiteTex();   // wantsMouseMove is already set by ZUIWindow
 
-        void OnEnable()
+        protected override void OnDisable()
         {
-            wantsMouseMove = true;
-            EnsureWhiteTex();
-            EditorApplication.projectChanged += OnProjectChanged;
-        }
-
-        void OnDisable()
-        {
-            EditorApplication.projectChanged -= OnProjectChanged;
-            ClearBrowseThumbs();
+            base.OnDisable();   // AssetKit unhooks projectChanged + clears browser thumbnails
             if (_white != null) { DestroyImmediate(_white); _white = null; }
         }
 
-        void OnGUI()
+        // ── per-asset body: left ZUI panel | drag-splitter | grid canvas ──────────
+        protected override void DrawAsset(LazorShape asset)
         {
-            DrawTopBar();
+            layerSel = Mathf.Clamp(layerSel, 0, Mathf.Max(0, asset.layers.Count - 1));
 
-            if (browsing)
-            {
-                DrawBrowser();
-                return;
-            }
+            // Claim the whole area below the toolbar for the split view. A 1px anchor records a cursor Y that's
+            // stable across Layout/Repaint (the toolbar's height is constant), so the manually-carved canvas rect
+            // is valid on every event pass — the canvas then owns its own painting and input inside that rect.
+            Rect anchor = GUILayoutUtility.GetRect(1f, 1f);
+            float pad = anchor.x;
+            Rect body = new Rect(pad, anchor.yMax, position.width - pad * 2f, position.height - anchor.yMax - pad);
 
-            if (shape == null)
-            {
-                EditorGUILayout.HelpBox("Pick or create a Lazor Shape to start drawing.", MessageType.Info);
-                return;
-            }
-
-            layerSel = Mathf.Clamp(layerSel, 0, Mathf.Max(0, shape.layers.Count - 1));
-
-            float top = EditorGUIUtility.singleLineHeight + 8 + ((creating || renaming) ? 26f : 0f);
-            Rect body = new Rect(0, top, position.width, position.height - top);
             Rect leftRect = new Rect(body.x, body.y, leftWidth, body.height);
             Rect splitRect = new Rect(body.x + leftWidth, body.y, 5f, body.height);
             Rect canvasRect = new Rect(body.x + leftWidth + 5f, body.y, body.width - leftWidth - 5f, body.height);
@@ -89,114 +83,6 @@ namespace Laubrary.Lazor.Editor
             DrawCanvas(canvasRect);
 
             if (GUI.changed) Repaint();
-        }
-
-        // ---- Top bar ----
-
-        void DrawTopBar()
-        {
-            using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
-            {
-                EditorGUI.BeginChangeCheck();
-                var picked = (LazorShape)EditorGUILayout.ObjectField(shape, typeof(LazorShape), false, GUILayout.Width(200));
-                if (EditorGUI.EndChangeCheck()) { shape = picked; layerSel = 0; activePath = -1; }
-
-                if (GUILayout.Button(new GUIContent("New", "Create a new Lazor Shape asset."), EditorStyles.toolbarButton, GUILayout.Width(40)))
-                { creating = true; renaming = false; nameBuffer = "LazorShape"; }
-
-                using (new EditorGUI.DisabledScope(shape == null))
-                {
-                    if (GUILayout.Button(new GUIContent("Dup", "Duplicate this shape into a new asset."), EditorStyles.toolbarButton, GUILayout.Width(40)))
-                        DuplicateAsset();
-                    if (GUILayout.Button(new GUIContent("Rename", "Rename this shape's asset file."), EditorStyles.toolbarButton, GUILayout.Width(56)))
-                    { renaming = true; creating = false; nameBuffer = shape.name; }
-                    if (GUILayout.Button(new GUIContent("Delete", "Delete this shape's asset file."), EditorStyles.toolbarButton, GUILayout.Width(56)))
-                        DeleteAsset();
-                }
-
-                GUILayout.FlexibleSpace();
-                browsing = GUILayout.Toggle(browsing, new GUIContent("Browse", "Browse all Lazor Shapes in the project."), EditorStyles.toolbarButton, GUILayout.Width(60));
-            }
-
-            if (creating) DrawNamePrompt("Create shape:", name => CreateAssetNamed(name));
-            if (renaming && shape != null) DrawNamePrompt("Rename to:", name => RenameAsset(name));
-        }
-
-        void DrawNamePrompt(string label, System.Action<string> commit)
-        {
-            using (new EditorGUILayout.HorizontalScope(EditorStyles.helpBox))
-            {
-                GUILayout.Label(label, GUILayout.Width(90));
-                GUI.SetNextControlName("LazorNamePrompt");
-                nameBuffer = EditorGUILayout.TextField(nameBuffer);
-                bool enter = Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return;
-                if (GUILayout.Button("OK", GUILayout.Width(40)) || enter)
-                {
-                    if (!string.IsNullOrWhiteSpace(nameBuffer)) commit(nameBuffer.Trim());
-                    creating = renaming = false;
-                    GUI.FocusControl(null);
-                    if (enter) Event.current.Use();
-                }
-                if (GUILayout.Button("Cancel", GUILayout.Width(60))) { creating = renaming = false; GUI.FocusControl(null); }
-            }
-        }
-
-        // ---- Asset CRUD ----
-
-        void CreateAssetNamed(string niceName)
-        {
-            var s = CreateInstance<LazorShape>();
-            s.AddExampleContent();
-            string dir = shape != null && !string.IsNullOrEmpty(AssetDatabase.GetAssetPath(shape))
-                ? Path.GetDirectoryName(AssetDatabase.GetAssetPath(shape))
-                : DefaultFolder;
-            EnsureFolder(dir);
-            string path = AssetDatabase.GenerateUniqueAssetPath($"{dir}/{niceName}.asset");
-            AssetDatabase.CreateAsset(s, path);
-            AssetDatabase.SaveAssets();
-            shape = s; layerSel = 0; activePath = -1;
-        }
-
-        void DuplicateAsset()
-        {
-            string path = AssetDatabase.GetAssetPath(shape);
-            if (string.IsNullOrEmpty(path)) { CreateAssetNamed(shape.name + " Copy"); return; }
-            string copy = AssetDatabase.GenerateUniqueAssetPath(path);
-            if (AssetDatabase.CopyAsset(path, copy))
-            {
-                AssetDatabase.SaveAssets();
-                shape = AssetDatabase.LoadAssetAtPath<LazorShape>(copy);
-                layerSel = 0; activePath = -1;
-            }
-        }
-
-        void RenameAsset(string newName)
-        {
-            string path = AssetDatabase.GetAssetPath(shape);
-            if (string.IsNullOrEmpty(path)) { shape.name = newName; EditorUtility.SetDirty(shape); return; }
-            string err = AssetDatabase.RenameAsset(path, newName);
-            if (!string.IsNullOrEmpty(err)) Debug.LogWarning($"Lazor rename failed: {err}");
-            AssetDatabase.SaveAssets();
-        }
-
-        void DeleteAsset()
-        {
-            string path = AssetDatabase.GetAssetPath(shape);
-            if (string.IsNullOrEmpty(path)) { shape = null; return; }
-            if (EditorUtility.DisplayDialog("Delete Lazor Shape", $"Delete '{shape.name}'? This cannot be undone.", "Delete", "Cancel"))
-            {
-                AssetDatabase.DeleteAsset(path);
-                shape = null; activePath = -1;
-            }
-        }
-
-        static void EnsureFolder(string dir)
-        {
-            if (AssetDatabase.IsValidFolder(dir)) return;
-            string parent = Path.GetDirectoryName(dir);
-            string leaf = Path.GetFileName(dir);
-            if (!string.IsNullOrEmpty(parent) && !AssetDatabase.IsValidFolder(parent)) EnsureFolder(parent);
-            AssetDatabase.CreateFolder(string.IsNullOrEmpty(parent) ? "Assets" : parent, leaf);
         }
 
         void DrawVerticalSplitter(Rect r)
