@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Laubrary.Combat2D;
 
@@ -33,6 +34,10 @@ namespace Laubrary.Bestiarium
         [Header("AI (pluggable — a Daemon brain via the Bestiarium.Daemon bridge)")]
         [Tooltip("Optional decision-making attached at spawn. The game supplies the agent body (movement/perception).")]
         [SerializeReference] public IBrainSpec brain;
+
+        [Header("Loadout (pluggable weapons + abilities the character can activate)")]
+        [Tooltip("Weapons + abilities; triggered by the brain (enemies) or input (player) via the LoadoutController.")]
+        [SerializeReference] public List<IActivatable> loadout = new List<IActivatable>();
 
         // TODO(zounds): onHit / onDied Zound refs — embedded + registered if the Zounds engine is present.
     }

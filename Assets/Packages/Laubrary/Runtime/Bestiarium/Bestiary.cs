@@ -36,6 +36,10 @@ namespace Laubrary.Bestiarium
             go.AddComponent<Hurtbox>();   // owner auto-found on this GO
             go.AddComponent<CombatPresenter>().def = def;
 
+            // Loadout: weapons + abilities the character can activate (trigger = brain for enemies / input for player).
+            if (def != null && def.loadout != null && def.loadout.Count > 0)
+                go.AddComponent<LoadoutController>().Set(def.loadout);
+
             // Pluggable AI: a bridge (Bestiarium.Daemon) attaches the brain. The game still supplies the agent body.
             if (def != null && def.brain != null) def.brain.Attach(go);
             return go;
