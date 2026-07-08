@@ -3,7 +3,10 @@
     "rootNamespace": "Laubrary.Zoetrope.Editor",
     "references": [
         "com.Lautaro-Arino.Laubrary.Zoetrope",
-        "Unity.2D.Sprite.Editor"
+        "Unity.2D.Sprite.Editor",
+        "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
+        "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
     ],
     "includePlatforms": [
         "Editor"

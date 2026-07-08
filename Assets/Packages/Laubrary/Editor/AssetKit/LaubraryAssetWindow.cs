@@ -42,6 +42,9 @@ namespace Laubrary.AssetKit.Editor
         protected virtual Texture2D RenderThumbnail(T item) => null;
         /// Called whenever the edited asset changes (assign / create / duplicate / browse pick). Reset caches here.
         protected virtual void OnAssetChanged() { }
+        /// Seed a freshly-created asset with tool-specific default content (e.g. example layers). Called once, right
+        /// after New creates the asset and before it's saved.
+        protected virtual void InitializeNewAsset(T item) { }
         protected virtual float CellSize => 104f;
         protected virtual float ThumbSize => 92f;
 
@@ -119,7 +122,14 @@ namespace Laubrary.AssetKit.Editor
                 {
                     var created = AssetLibrary<T>.Create(createText, FolderForNew());
                     creating = false;
-                    if (created != null) { browsing = false; SetAsset(created); }
+                    if (created != null)
+                    {
+                        InitializeNewAsset(created);
+                        EditorUtility.SetDirty(created);
+                        AssetDatabase.SaveAssets();
+                        browsing = false;
+                        SetAsset(created);
+                    }
                 }
                 if (row.Button("Cancel")) creating = false;
             }

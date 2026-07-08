@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Laubrary.Zoetrope;
+using Laubrary.AssetKit.Editor;
 using UnityEditor;
 using UnityEngine;
 
@@ -9,38 +10,30 @@ namespace Laubrary.Zoetrope.Editor
     /// Editor for a <see cref="SpriteCatalog"/>: pick a source sheet, auto-grid (or hand-place) cells, name every
     /// sprite, and slice — reusing the same registration pipeline (<see cref="RegionSlicer"/>) as animations, so the
     /// resulting named sprites are usable directly by the game and pickable from the Animation Builder. The stage
-    /// shows the sheet with every cell outlined and labelled.
+    /// shows the sheet with every cell outlined and labelled. Asset browse + CRUD come from LaubraryAssetWindow.
     /// </summary>
-    public class SpriteCatalogWindow : EditorWindow
+    public class SpriteCatalogWindow : LaubraryAssetWindow<SpriteCatalog>
     {
         [MenuItem("Laubrary/Sprite Catalog")]
         public static void Open() => GetWindow<SpriteCatalogWindow>("Sprite Catalog");
 
-        [SerializeField] SpriteCatalog catalog;
+        SpriteCatalog catalog => Current;   // the base owns the current asset; alias for the editor body
         Vector2 listScroll;
         int gridCols = 8, gridRows = 8;
 
-        void OnGUI()
+        protected override string TypeLabel => "Sprite Catalog";
+        protected override string NewAssetName => "SpriteCatalog";
+        protected override string DefaultFolder => "Assets/Zoetrope";
+        // No RenderThumbnail override: the browser falls back to Unity's asset icon. (Do NOT return catalog.sheet —
+        // it's a Unity-owned asset and the base destroys the textures it's handed.)
+
+        protected override void DrawAsset(SpriteCatalog asset)
         {
-            using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
-            {
-                catalog = (SpriteCatalog)EditorGUILayout.ObjectField(catalog, typeof(SpriteCatalog), false, GUILayout.Width(240));
-                if (GUILayout.Button("New", EditorStyles.toolbarButton, GUILayout.Width(50))) CreateCatalog();
-                GUILayout.FlexibleSpace();
-                if (catalog != null) GUILayout.Label($"{catalog.entries.Count} sprites", EditorStyles.miniLabel);
-            }
-
-            if (catalog == null)
-            {
-                EditorGUILayout.HelpBox("Pick or create a Sprite Catalog. It slices a sheet into NAMED sprites — use them " +
-                    "directly (catalog.Get(\"name\")) or pick them from the Animation Builder. Not just for animations.", MessageType.Info);
-                return;
-            }
-
             EditorGUI.BeginChangeCheck();
-            catalog.sheet = (Texture2D)EditorGUILayout.ObjectField("Sheet", catalog.sheet, typeof(Texture2D), false);
-            catalog.pixelsPerUnit = EditorGUILayout.FloatField("Pixels per unit", catalog.pixelsPerUnit);
-            if (EditorGUI.EndChangeCheck()) EditorUtility.SetDirty(catalog);
+            // ZUI-GAP: no object picker — Unity's ObjectField for the sheet.
+            asset.sheet = (Texture2D)EditorGUILayout.ObjectField("Sheet", asset.sheet, typeof(Texture2D), false);
+            asset.pixelsPerUnit = ZUI.FloatField("Pixels per unit", asset.pixelsPerUnit, 70f, 1f);
+            if (EditorGUI.EndChangeCheck()) EditorUtility.SetDirty(asset);
 
             EditorGUILayout.BeginHorizontal();
             DrawControls(GUILayout.Width(320));
@@ -52,41 +45,43 @@ namespace Laubrary.Zoetrope.Editor
         {
             EditorGUILayout.BeginVertical(opt);
 
-            EditorGUILayout.LabelField("Auto-grid", EditorStyles.boldLabel);
-            using (new EditorGUILayout.HorizontalScope())
+            Label("Auto-grid", ZUI.ZTextStyle.SectionHeader);
+            using (ZUI.HRow())
             {
-                gridCols = Mathf.Max(1, EditorGUILayout.IntField("Cols", gridCols));
-                gridRows = Mathf.Max(1, EditorGUILayout.IntField("Rows", gridRows));
+                gridCols = Mathf.Max(1, ZUI.IntField("Cols", gridCols, 46f, 1));
+                gridRows = Mathf.Max(1, ZUI.IntField("Rows", gridRows, 46f, 1));
             }
             using (new EditorGUI.DisabledScope(catalog.sheet == null))
-                if (GUILayout.Button("Generate grid cells")) GenerateGrid();
-            EditorGUILayout.HelpBox("Splits the whole sheet into Cols×Rows cells with default names. Rename below, then Slice.", MessageType.None);
+                if (Button("Generate grid cells")) GenerateGrid();
+            Label("Splits the whole sheet into Cols×Rows cells with default names. Rename below, then Slice.", ZUI.ZTextStyle.Subtle);
 
-            EditorGUILayout.Space(4);
-            EditorGUILayout.LabelField($"Sprites ({catalog.entries.Count})", EditorStyles.boldLabel);
+            VerticalSpace();
+            Label($"Sprites ({catalog.entries.Count})", ZUI.ZTextStyle.SectionHeader);
+
+            // ZUI-GAP: no scroll container — Unity's ScrollView.
             listScroll = EditorGUILayout.BeginScrollView(listScroll);
             int remove = -1;
             for (int i = 0; i < catalog.entries.Count; i++)
             {
                 var e = catalog.entries[i];
-                using (new EditorGUILayout.HorizontalScope())
+                using (var row = ZUI.HRow())
                 {
                     var tex = e.sprite != null ? AssetPreview.GetAssetPreview(e.sprite) : null;
                     var box = GUILayoutUtility.GetRect(24, 24, GUILayout.Width(24), GUILayout.Height(24));
                     if (tex != null) GUI.DrawTexture(box, tex, ScaleMode.ScaleToFit);
                     else EditorGUI.DrawRect(box, new Color(0, 0, 0, 0.2f));
                     EditorGUI.BeginChangeCheck();
-                    e.name = EditorGUILayout.TextField(e.name);
+                    e.name = EditorGUILayout.TextField(e.name);   // ZUI-GAP: text input
                     if (EditorGUI.EndChangeCheck()) EditorUtility.SetDirty(catalog);
-                    if (GUILayout.Button("×", GUILayout.Width(22))) remove = i;
+                    if (row.Button("×", ZUI.Style.Default, GUILayout.Width(22))) remove = i;
                 }
             }
             EditorGUILayout.EndScrollView();
             if (remove >= 0) { catalog.entries.RemoveAt(remove); EditorUtility.SetDirty(catalog); }
 
-            EditorGUILayout.Space(4);
+            VerticalSpace();
             using (new EditorGUI.DisabledScope(catalog.sheet == null || catalog.entries.Count == 0))
-                if (GUILayout.Button("Slice & apply", GUILayout.Height(26))) Slice();
+                if (Button("Slice & apply")) Slice();
 
             EditorGUILayout.EndVertical();
         }
@@ -153,16 +148,6 @@ namespace Laubrary.Zoetrope.Editor
             EditorUtility.SetDirty(catalog);
             AssetDatabase.SaveAssets();
             Debug.Log($"[SpriteCatalog] Sliced {catalog.entries.Count} sprites from {path}.");
-        }
-
-        void CreateCatalog()
-        {
-            string path = EditorUtility.SaveFilePanelInProject("New Sprite Catalog", "SpriteCatalog", "asset", "");
-            if (string.IsNullOrEmpty(path)) return;
-            var c = CreateInstance<SpriteCatalog>();
-            AssetDatabase.CreateAsset(c, path);
-            AssetDatabase.SaveAssets();
-            catalog = c;
         }
     }
 }
