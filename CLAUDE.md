@@ -24,6 +24,25 @@ reflection won't find new types — re-run steps 1–3. `set_unity_project_root`
   references the runtime asmdef. Demos live in `Assets/Demos/` and are copied to `Samples~/` via
   `Tools/Laubrary/Copy Demos to Package`. One package version for all of Laubrary; keep `CHANGELOG.md` updated.
 
+## Menus — never add one the user didn't ask for
+
+Do **NOT** add editor menu items, windows, or tools that weren't explicitly requested. Stashing functionality in
+the `Laubrary/` menu "in case it's needed" is clutter, not help — the user has repeatedly had to hunt down and
+delete unrequested items. Add a `[MenuItem("Laubrary/…")]` **only** when the user asked for that specific tool or
+action. Keep the `Laubrary/` menu lean: it should contain the way to *open each tool* and genuine tool actions —
+nothing speculative. If you think an extra menu item is warranted, propose it in prose and let the user decide.
+(This is the general rule in `D:\Unity\UNITY_DEV_GUIDE.md` → Coding best practices, restated here because it keeps
+recurring.)
+
+## Demos — ship SCENES, not scripts that build scenes
+
+A Laubrary tool's demo is a **real saved `.unity` scene** (plus any authored `.asset` it needs), committed to
+`Assets/Demos/<Tool>Demo/`. Do **NOT** write an editor menu-item / `[MenuItem]` builder that constructs the demo
+scene or its assets on demand — that's the same authoring work, plus a permanent stray menu item and code file
+nobody invokes. Author the scene directly (via Coplay: create GameObjects, wire components, `save_scene`). If you
+use a throwaway script to bootstrap it, keep that script **ephemeral** (scratchpad, uncommitted) and **delete any
+committed builder once the scene/asset exists**. The scene is the deliverable; the builder is a middleman.
+
 ## UI rule — ZUI for ALL UI (editor AND runtime)
 
 ZUI is now part of Laubrary and is the **mandatory toolkit for all UI**, both editor windows and runtime/in-game
