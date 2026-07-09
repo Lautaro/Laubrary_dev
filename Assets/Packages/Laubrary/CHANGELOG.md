@@ -27,11 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tool popover at the cursor.
 
 ### Fixed
-- **Lazor canvas: strokes reaching off-screen points now draw (zoom-in fixed).** The canvas drew each segment as a long
-  rotated `GUI.DrawTexture` quad; zoomed in, any segment toward an off-canvas vertex had huge coordinates and IMGUI
-  culled/mis-clipped the whole quad — so lines vanished and a shape fragmented into disconnected pieces. Segments are now
-  Liang–Barsky clipped to the viewport before drawing, so the visible portion always renders and you can zoom right in on
-  detail. (This, not stray strokes, was the real "detached lines" bug.)
+- **Lazor canvas: strokes reaching off-screen points now draw (zoom-in fixed).** The canvas draws each segment as a
+  horizontal `GUI.DrawTexture` quad that it then rotates, and IMGUI decides culling from the quad's *un-rotated* bounds.
+  Zoomed in, a segment toward an off-canvas vertex had its un-rotated strip land entirely off-screen, so the whole line
+  was culled — the "top triangle" of a shape vanished while the rest drew. Segments are now Liang–Barsky clipped to the
+  viewport with **zero margin**, so both endpoints stay on/inside the view and the un-rotated quad always overlaps it and
+  is never culled; the stroke thickness still covers the edge and `GUI.BeginClip` trims the overhang. (This, not stray
+  strokes, was the real "detached lines" bug — verified segment-by-segment.)
+- **Lazor toolbar no longer overlapped by the left panel.** The split view reserved its top with a 1px sliver that could
+  ride up over the AssetKit toolbar (cutting off Browse/New/Duplicate); it now reserves a real full-width strip below the
+  toolbar.
 - **Lazor: stray/degenerate strokes no longer render or inflate bounds.** A single-point or all-coincident (zero-extent)
   stray click used to draw as a dot and, via its mirror copies, blow up the content bounds. `LazorGeometry.ResolveLayer`
   skips degenerate strokes (public `IsDegenerate`), the pen refuses a click on the last point's cell, and `FinishStroke`

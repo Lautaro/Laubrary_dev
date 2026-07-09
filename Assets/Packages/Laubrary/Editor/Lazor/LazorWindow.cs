@@ -82,12 +82,13 @@ namespace Laubrary.Lazor.Editor
         {
             layerSel = Mathf.Clamp(layerSel, 0, Mathf.Max(0, asset.layers.Count - 1));
 
-            // Claim the whole area below the toolbar for the split view. A 1px anchor records a cursor Y that's
-            // stable across Layout/Repaint (the toolbar's height is constant), so the manually-carved canvas rect
-            // is valid on every event pass — the canvas then owns its own painting and input inside that rect.
-            Rect anchor = GUILayoutUtility.GetRect(1f, 1f);
-            float pad = anchor.x;
-            Rect body = new Rect(pad, anchor.yMax, position.width - pad * 2f, position.height - anchor.yMax - pad);
+            // Claim the whole area below the toolbar for the split view. Reserve a real full-width strip (not a 1px
+            // sliver) via the GUILayout flow: its yMax sits cleanly below the toolbar so the left panel can't ride up
+            // over the toolbar buttons, and its x/width give the true content bounds. The Y is stable across
+            // Layout/Repaint, so the manually-carved canvas rect is valid on every event pass.
+            Rect strip = GUILayoutUtility.GetRect(10f, 6f, GUILayout.ExpandWidth(true));
+            float pad = strip.x;
+            Rect body = new Rect(strip.x, strip.yMax, strip.width, position.height - strip.yMax - pad);
 
             Rect leftRect = new Rect(body.x, body.y, leftWidth, body.height);
             Rect splitRect = new Rect(body.x + leftWidth, body.y, 5f, body.height);

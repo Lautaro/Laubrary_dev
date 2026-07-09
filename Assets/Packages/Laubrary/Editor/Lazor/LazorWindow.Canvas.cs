@@ -424,11 +424,13 @@ namespace Laubrary.Lazor.Editor
 
         void GuiLine(Vector2 a, Vector2 b, Color color, float thickness)
         {
-            // Clip the segment to the visible canvas FIRST. Each line is a long rotated GUI.DrawTexture quad; when
-            // zoomed in, a segment reaching toward an off-canvas point has huge coordinates and IMGUI culls/mis-clips
-            // the whole quad, so the line vanishes or fragments. Clipping to the view keeps coordinates bounded and
-            // always draws the visible portion — so you can zoom right in on detail and every line still shows.
-            if (!ClipSegment(ref a, ref b, _clipSize.x, _clipSize.y, thickness + 2f)) return;
+            // Clip the segment to the visible canvas FIRST, with ZERO margin so both endpoints land INSIDE the view.
+            // Each line is a horizontal GUI.DrawTexture quad that we then rotate, and IMGUI decides culling from the
+            // UN-rotated rect's bounds: if a clipped endpoint sits outside the view (any margin > 0), a steep line's
+            // un-rotated strip falls entirely off-screen and the whole quad is culled — which is why zoomed-in top
+            // segments vanished. Clipping with no margin keeps endpoints on/inside the view so the quad is never
+            // culled; the stroke thickness still covers the edge and GUI.BeginClip trims any overhang.
+            if (!ClipSegment(ref a, ref b, _clipSize.x, _clipSize.y, 0f)) return;
             Vector2 d = b - a; float len = d.magnitude;
             if (len < 0.5f) return;
             float ang = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
