@@ -503,13 +503,17 @@ namespace Laubrary.Lazor.Editor
             return true;
         }
 
-        // Middle-click tool menu — a quick popover at the cursor to switch Pen / Edit / Erase.
+        // Middle-click tool menu — a quick popover at the cursor to switch Pen / Edit / Erase, plus Undo / Redo
+        // (handy right on the canvas, since Ctrl+Z can miss when the pointer's over the drawing surface).
         void ShowToolMenu()
         {
             var menu = new GenericMenu();
             menu.AddItem(new GUIContent("Pen"), tool == Tool.Pen, () => SetTool(Tool.Pen));
             menu.AddItem(new GUIContent("Edit"), tool == Tool.Edit, () => SetTool(Tool.Edit));
             menu.AddItem(new GUIContent("Erase"), tool == Tool.Erase, () => SetTool(Tool.Erase));
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent("Undo"), false, () => { FinishStroke(); Undo.PerformUndo(); Repaint(); });
+            menu.AddItem(new GUIContent("Redo"), false, () => { Undo.PerformRedo(); Repaint(); });
             menu.ShowAsContext();
         }
 

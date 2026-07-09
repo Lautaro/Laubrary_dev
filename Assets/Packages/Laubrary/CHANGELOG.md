@@ -23,8 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drawn with the ZUI `Box`/`Label`/`Button`/`Toggle`/`Slider`/`EnumPopup` wrappers; the grid canvas stays raw IMGUI
   (legitimate custom painting). The old hand-rolled `LazorWindow.Browser.cs` was removed. Lazor's editor asmdef now
   references `AssetKit.Editor`, `ZUI.Editor`, `ZuiRuntime`.
-- **Lazor canvas navigation:** middle-drag pans the canvas; a middle click (no drag) opens a quick Pen / Edit / Erase
-  tool popover at the cursor.
+- **Lazor canvas navigation:** middle-drag pans the canvas; a middle click (no drag) opens a quick popover at the cursor
+  with Pen / Edit / Erase and **Undo / Redo** (Ctrl+Z can miss while the pointer is over the drawing surface).
 
 ### Fixed
 - **Lazor canvas: strokes reaching off-screen points now draw (zoom-in fixed).** The canvas draws each segment as a
