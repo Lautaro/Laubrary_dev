@@ -54,12 +54,27 @@ namespace Laubrary.Lazor.Editor
         protected override Texture2D RenderThumbnail(LazorShape item)
             => LazorRasterizer.Render(item, 96, new Color(0.05f, 0.06f, 0.08f, 1f));
 
-        protected override void OnZUIEnable() => EnsureWhiteTex();   // wantsMouseMove is already set by ZUIWindow
+        protected override void OnZUIEnable()
+        {
+            EnsureWhiteTex();   // wantsMouseMove is already set by ZUIWindow
+            Undo.undoRedoPerformed += OnUndoRedo;
+        }
 
         protected override void OnDisable()
         {
+            Undo.undoRedoPerformed -= OnUndoRedo;
             base.OnDisable();   // AssetKit unhooks projectChanged + clears browser thumbnails
             if (_white != null) { DestroyImmediate(_white); _white = null; }
+        }
+
+        // After an undo/redo the shape's serialized data is restored under us — clamp the transient selection to the
+        // restored layer count and repaint so the canvas actually reflects it (else undo looks like it did nothing).
+        void OnUndoRedo()
+        {
+            if (shape != null)
+                layerSel = Mathf.Clamp(layerSel, 0, Mathf.Max(0, shape.layers.Count - 1));
+            activePath = -1;
+            Repaint();
         }
 
         // ── per-asset body: left ZUI panel | drag-splitter | grid canvas ──────────

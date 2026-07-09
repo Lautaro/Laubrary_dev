@@ -47,7 +47,7 @@ namespace Laubrary.Lazor.Editor
 
                 EditorGUI.BeginChangeCheck();
                 int res = IntSlider("Grid cells", shape.gridResolution, 4, 64);
-                if (EditorGUI.EndChangeCheck()) { shape.gridResolution = res; MarkDirty(); }
+                if (EditorGUI.EndChangeCheck()) { RecordShape("Edit Lazor grid"); shape.gridResolution = res; MarkDirty(); }
             }
         }
 
@@ -78,14 +78,14 @@ namespace Laubrary.Lazor.Editor
 
                     EditorGUI.BeginChangeCheck();
                     bool en = Toggle(layer.enabled, layer.enabled ? "✓" : "", ZUI.Style.Default, GUILayout.Width(26));
-                    if (EditorGUI.EndChangeCheck()) { layer.enabled = en; MarkDirty(); }
+                    if (EditorGUI.EndChangeCheck()) { RecordShape("Toggle Lazor layer"); layer.enabled = en; MarkDirty(); }
 
                     if (Button(sel ? "●" : "○", ZUI.Style.Default, GUILayout.Width(24)) && !sel)
                     { layerSel = i; activePath = -1; }
 
                     EditorGUI.BeginChangeCheck();
                     string nm = EditorGUILayout.TextField(layer.name, GUILayout.MinWidth(50));
-                    if (EditorGUI.EndChangeCheck()) { layer.name = nm; MarkDirty(); }
+                    if (EditorGUI.EndChangeCheck()) { RecordShape("Rename Lazor layer"); layer.name = nm; MarkDirty(); }
 
                     // Swatch so a layer is identifiable at a glance.
                     Rect sw = GUILayoutUtility.GetRect(14, 14, GUILayout.Width(14));
@@ -131,26 +131,40 @@ namespace Laubrary.Lazor.Editor
             {
                 Label($"Layer — {layer.name}", ZUI.ZTextStyle.SectionHeader);
 
+                // Read into temps so undo can snapshot the pre-edit state (RecordObject before the assignment).
                 EditorGUI.BeginChangeCheck();
-                layer.color = ColorField("Color", layer.color);
-                layer.thickness = Slider(layer.thickness, 0.002f, 0.2f, "Thickness");
-                layer.cap = EnumPopup("Caps", layer.cap);
-                layer.join = EnumPopup("Joins", layer.join);
-                layer.blend = EnumPopup("Blend", layer.blend);
-                layer.facing = EnumPopup("Facing", layer.facing);
-                if (EditorGUI.EndChangeCheck()) MarkDirty();
+                var color = ColorField("Color", layer.color);
+                var thickness = Slider(layer.thickness, 0.002f, 0.2f, "Thickness");
+                var cap = EnumPopup("Caps", layer.cap);
+                var join = EnumPopup("Joins", layer.join);
+                var blend = EnumPopup("Blend", layer.blend);
+                var facing = EnumPopup("Facing", layer.facing);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    RecordShape("Edit Lazor layer style");
+                    layer.color = color; layer.thickness = thickness; layer.cap = cap;
+                    layer.join = join; layer.blend = blend; layer.facing = facing;
+                    MarkDirty();
+                }
 
                 VerticalSpace();
                 Label("Mirror / Symmetry", ZUI.ZTextStyle.SectionHeader);
                 EditorGUI.BeginChangeCheck();
-                layer.symmetryEnabled = Toggle(layer.symmetryEnabled, "Enabled");
-                using (new EditorGUI.DisabledScope(!layer.symmetryEnabled))
+                bool symEnabled = Toggle(layer.symmetryEnabled, "Enabled");
+                int symCount = layer.symmetryCount; float symAngle = layer.symmetryAngle; bool symReflect = layer.symmetryReflect;
+                using (new EditorGUI.DisabledScope(!symEnabled))
                 {
-                    layer.symmetryCount = IntSlider("Sections", layer.symmetryCount, 2, 8);
-                    layer.symmetryAngle = Slider(layer.symmetryAngle, 0f, 360f, "Angle");
-                    layer.symmetryReflect = Toggle(layer.symmetryReflect, "Reflect (kaleidoscope)");
+                    symCount = IntSlider("Sections", layer.symmetryCount, 2, 8);
+                    symAngle = Slider(layer.symmetryAngle, 0f, 360f, "Angle");
+                    symReflect = Toggle(layer.symmetryReflect, "Reflect (kaleidoscope)");
                 }
-                if (EditorGUI.EndChangeCheck()) MarkDirty();
+                if (EditorGUI.EndChangeCheck())
+                {
+                    RecordShape("Edit Lazor mirror");
+                    layer.symmetryEnabled = symEnabled; layer.symmetryCount = symCount;
+                    layer.symmetryAngle = symAngle; layer.symmetryReflect = symReflect;
+                    MarkDirty();
+                }
 
                 VerticalSpace();
                 int strokes = layer.paths.Count;

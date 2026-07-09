@@ -23,13 +23,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drawn with the ZUI `Box`/`Label`/`Button`/`Toggle`/`Slider`/`EnumPopup` wrappers; the grid canvas stays raw IMGUI
   (legitimate custom painting). The old hand-rolled `LazorWindow.Browser.cs` was removed. Lazor's editor asmdef now
   references `AssetKit.Editor`, `ZUI.Editor`, `ZuiRuntime`.
+- **Lazor canvas navigation:** middle-drag pans the canvas; a middle click (no drag) opens a quick Pen / Edit / Erase
+  tool popover at the cursor.
 
 ### Fixed
-- **Lazor: stray/degenerate strokes no longer render or break framing.** A single-point or all-coincident (zero-extent)
-  stroke — a stray click, not a shape — used to draw as a dot and, via its mirror copies landing far off-grid, blow up
-  the content bounds so the canvas showed detached fragments and Fit framed junk. `LazorGeometry.ResolveLayer` now skips
-  degenerate strokes (public `IsDegenerate` helper), the pen refuses a click on the last point's cell, and `FinishStroke`
-  discards degenerate strokes; Fit frames the resolved content.
+- **Lazor canvas: strokes reaching off-screen points now draw (zoom-in fixed).** The canvas drew each segment as a long
+  rotated `GUI.DrawTexture` quad; zoomed in, any segment toward an off-canvas vertex had huge coordinates and IMGUI
+  culled/mis-clipped the whole quad — so lines vanished and a shape fragmented into disconnected pieces. Segments are now
+  Liang–Barsky clipped to the viewport before drawing, so the visible portion always renders and you can zoom right in on
+  detail. (This, not stray strokes, was the real "detached lines" bug.)
+- **Lazor: stray/degenerate strokes no longer render or inflate bounds.** A single-point or all-coincident (zero-extent)
+  stray click used to draw as a dot and, via its mirror copies, blow up the content bounds. `LazorGeometry.ResolveLayer`
+  skips degenerate strokes (public `IsDegenerate`), the pen refuses a click on the last point's cell, and `FinishStroke`
+  discards them; Fit frames the resolved content.
+- **Lazor: Undo now covers every edit + refreshes the canvas.** Layer style, mirror, grid-resolution and name/enable
+  edits go through `Undo.RecordObject` (they were dirtied without recording), and `undoRedoPerformed` repaints + reclamps
+  the selection so an undo is actually visible instead of looking like a no-op.
 
 ## [0.7.0] - 2026-07-08
 

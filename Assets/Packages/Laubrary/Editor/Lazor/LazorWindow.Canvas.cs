@@ -13,6 +13,7 @@ namespace Laubrary.Lazor.Editor
     public partial class LazorWindow
     {
         Texture2D _white;
+        Vector2 _clipSize;   // canvas rect size (clip-local); used to clip strokes so off-screen points still draw
         int hoverVertex = -1, hoverVertexPath = -1;
 
         static readonly Color GridMinor = new Color(1, 1, 1, 0.06f);
@@ -55,6 +56,7 @@ namespace Laubrary.Lazor.Editor
         {
             EnsureWhiteTex();
             _canvasCenter = new Vector2(canvasRect.width * 0.5f, canvasRect.height * 0.5f);
+            _clipSize = new Vector2(canvasRect.width, canvasRect.height);
 
             var e = Event.current;
 
@@ -252,13 +254,20 @@ namespace Laubrary.Lazor.Editor
                 e.Use(); Repaint(); return;
             }
 
-            // Pan: middle mouse, or left mouse while holding space/alt.
+            // Middle-drag (or space/alt + left-drag) pans the canvas; a middle click that DOESN'T drag pops up the
+            // tool menu (Pen / Edit / Erase) at the cursor.
             bool panButton = e.button == 2 || (e.button == 0 && (e.alt || _spaceHeld));
-            if (e.type == EventType.MouseDown && inside && panButton) { draggingPan = true; e.Use(); return; }
+            if (e.type == EventType.MouseDown && inside && panButton)
+            { draggingPan = true; _panButton = e.button; _panDist = 0f; e.Use(); return; }
             if (draggingPan)
             {
-                if (e.type == EventType.MouseDrag) { pan += e.delta; Repaint(); e.Use(); }
-                if (e.type == EventType.MouseUp) { draggingPan = false; e.Use(); }
+                if (e.type == EventType.MouseDrag) { pan += e.delta; _panDist += e.delta.magnitude; Repaint(); e.Use(); }
+                if (e.type == EventType.MouseUp)
+                {
+                    draggingPan = false;
+                    if (_panButton == 2 && _panDist < 4f) ShowToolMenu();   // middle click without drag = tool menu
+                    e.Use();
+                }
                 return;
             }
 
@@ -278,6 +287,8 @@ namespace Laubrary.Lazor.Editor
         }
 
         bool _spaceHeld;
+        int _panButton;    // which mouse button started the current pan (2 = middle → click-with-no-drag opens tools)
+        float _panDist;    // accumulated drag distance this pan, to tell a click from a drag
 
         void UpdateHover(Vector2 mouseLocal, bool inside)
         {
@@ -413,6 +424,11 @@ namespace Laubrary.Lazor.Editor
 
         void GuiLine(Vector2 a, Vector2 b, Color color, float thickness)
         {
+            // Clip the segment to the visible canvas FIRST. Each line is a long rotated GUI.DrawTexture quad; when
+            // zoomed in, a segment reaching toward an off-canvas point has huge coordinates and IMGUI culls/mis-clips
+            // the whole quad, so the line vanishes or fragments. Clipping to the view keeps coordinates bounded and
+            // always draws the visible portion — so you can zoom right in on detail and every line still shows.
+            if (!ClipSegment(ref a, ref b, _clipSize.x, _clipSize.y, thickness + 2f)) return;
             Vector2 d = b - a; float len = d.magnitude;
             if (len < 0.5f) return;
             float ang = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
@@ -421,6 +437,47 @@ namespace Laubrary.Lazor.Editor
             Color cs = GUI.color; GUI.color = color;
             GUI.DrawTexture(new Rect(a.x, a.y - thickness * 0.5f, len, thickness), _white);
             GUI.color = cs; GUI.matrix = save;
+        }
+
+        // Liang–Barsky: clip segment (a,b) to the rect [-margin, w+margin] × [-margin, h+margin] (clip-local canvas
+        // space). Trims a,b to the visible portion and returns true; returns false if the segment misses entirely.
+        static bool ClipSegment(ref Vector2 a, ref Vector2 b, float w, float h, float margin)
+        {
+            float dx = b.x - a.x, dy = b.y - a.y;
+            float t0 = 0f, t1 = 1f;
+            if (!ClipT(-dx, a.x - (-margin), ref t0, ref t1)) return false;   // left
+            if (!ClipT( dx, (w + margin) - a.x, ref t0, ref t1)) return false; // right
+            if (!ClipT(-dy, a.y - (-margin), ref t0, ref t1)) return false;   // top
+            if (!ClipT( dy, (h + margin) - a.y, ref t0, ref t1)) return false; // bottom
+            Vector2 na = new Vector2(a.x + t0 * dx, a.y + t0 * dy);
+            b = new Vector2(a.x + t1 * dx, a.y + t1 * dy);
+            a = na;
+            return true;
+        }
+
+        static bool ClipT(float p, float q, ref float t0, ref float t1)
+        {
+            if (Mathf.Abs(p) < 1e-6f) return q >= 0f;   // parallel to this edge — keep only if inside it
+            float r = q / p;
+            if (p < 0f) { if (r > t1) return false; if (r > t0) t0 = r; }
+            else        { if (r < t0) return false; if (r < t1) t1 = r; }
+            return true;
+        }
+
+        // Middle-click tool menu — a quick popover at the cursor to switch Pen / Edit / Erase.
+        void ShowToolMenu()
+        {
+            var menu = new GenericMenu();
+            menu.AddItem(new GUIContent("Pen"), tool == Tool.Pen, () => SetTool(Tool.Pen));
+            menu.AddItem(new GUIContent("Edit"), tool == Tool.Edit, () => SetTool(Tool.Edit));
+            menu.AddItem(new GUIContent("Erase"), tool == Tool.Erase, () => SetTool(Tool.Erase));
+            menu.ShowAsContext();
+        }
+
+        void SetTool(Tool t)
+        {
+            if (tool == Tool.Pen && t != Tool.Pen) FinishStroke();
+            tool = t; Repaint();
         }
 
         void GuiRectOutline(Rect r, Color c, float t)
