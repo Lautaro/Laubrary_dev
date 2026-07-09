@@ -22,6 +22,7 @@ namespace Laubrary.Lazor.Editor
         static readonly Color GridFrame = new Color(1, 1, 1, 0.18f);
         static readonly Color CanvasBg = new Color(0.06f, 0.07f, 0.09f, 1f);
         static readonly Color GuideColor = new Color(1f, 0.5f, 0.2f, 0.5f);
+        static readonly Color ForwardColor = new Color(0.4f, 1f, 0.5f, 0.95f);
 
         void EnsureWhiteTex()
         {
@@ -71,6 +72,10 @@ namespace Laubrary.Lazor.Editor
 
         float PxThickness(LazorLayer l) => Mathf.Max(1f, l.thickness * shape.gridResolution * zoom);
 
+        // Implemented in LazorWindow.Preview.cs when Shapes is present; a no-op otherwise. Called from OnDisable to
+        // tear down the hidden preview camera + RenderTexture.
+        partial void CleanupPreview();
+
         // ---- Main entry ----
 
         void DrawCanvas(Rect canvasRect)
@@ -93,10 +98,24 @@ namespace Laubrary.Lazor.Editor
 
             if (e.type == EventType.Repaint)
             {
+#if SHAPES_INSTALLED
+                // Strokes are drawn by the ONE shared Shapes renderer into a RenderTexture (zoom/pan = camera, so
+                // no per-segment IMGUI culling). Render it before the clip (GPU render, independent of the GUI clip).
+                RenderStrokePreview(canvasRect);
+#endif
                 GUI.BeginClip(canvasRect);
+#if SHAPES_INSTALLED
+                BlitStrokePreview(canvasRect);       // background + strokes, as the base layer
                 if (showGrid) DrawGrid(canvasRect);
+                DrawForwardMarker();
                 DrawSymmetryGuides();
-                DrawAllStrokes();
+                DrawPenPreview();
+#else
+                if (showGrid) DrawGrid(canvasRect);
+                DrawForwardMarker();
+                DrawSymmetryGuides();
+                DrawAllStrokes();                    // legacy IMGUI strokes (no Shapes)
+#endif
                 DrawEditOverlay(mouseLocal, inside);
                 GUI.EndClip();
             }
@@ -166,6 +185,26 @@ namespace Laubrary.Lazor.Editor
             GuiRectOutline(Rect.MinMaxRect(tl.x, tl.y, br.x, br.y), GridFrame, 1.5f);
         }
 
+        // Laubrary's forward convention is +X: gameplay code rotates entities via
+        // Quaternion.Euler(0, 0, Atan2(dir.y, dir.x)), which spins the shape's local +X to face `dir`. Draw a
+        // short arrow along +X from the origin so authors never have to guess/memorize which way "forward" is.
+        void DrawForwardMarker()
+        {
+            Vector2 origin = GridToLocal(Vector2.zero);
+            float len = Mathf.Min(shape.gridResolution * 0.3f, 6f);
+            Vector2 tip = GridToLocal(new Vector2(len, 0f));
+            GuiLine(origin, tip, ForwardColor, 2f);
+
+            Vector2 dir = (tip - origin).normalized;
+            Vector2 perp = new Vector2(-dir.y, dir.x);
+            const float head = 8f;
+            GuiLine(tip, tip - dir * head + perp * head * 0.6f, ForwardColor, 2f);
+            GuiLine(tip, tip - dir * head - perp * head * 0.6f, ForwardColor, 2f);
+
+            var style = new GUIStyle(EditorStyles.miniBoldLabel) { normal = { textColor = ForwardColor } };
+            GUI.Label(new Rect(tip.x + 4f, tip.y - 8f, 60f, 16f), "forward", style);
+        }
+
         void DrawSymmetryGuides()
         {
             if (shape.layers.Count == 0) return;
@@ -216,6 +255,19 @@ namespace Laubrary.Lazor.Editor
                     }
                 }
             }
+        }
+
+        // The active pen stroke's rubber-band to the cursor — an IMGUI overlay drawn on top of the stroke preview.
+        void DrawPenPreview()
+        {
+            if (tool != Tool.Pen || activePath < 0 || shape.layers.Count == 0) return;
+            var l = shape.layers[layerSel];
+            if (activePath >= l.paths.Count) return;
+            var p = l.paths[activePath];
+            if (p.points.Count == 0) return;
+            Vector2 lastLocal = GridToLocal(p.points[p.points.Count - 1]);
+            Vector2 curLocal = GridToLocal(SnapGrid(LocalToGrid(_lastMouseLocal)));
+            GuiLine(lastLocal, curLocal, new Color(1, 1, 1, 0.4f), 1f);
         }
 
         void DrawEditOverlay(Vector2 mouseLocal, bool inside)

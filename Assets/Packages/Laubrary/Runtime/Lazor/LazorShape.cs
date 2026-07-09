@@ -24,25 +24,27 @@ namespace Laubrary.Lazor
             gridResolution = 16;
             layers.Clear();
 
-            // A classic Asteroids-style ship: a triangular hull with a notched tail.
+            // A classic Asteroids-style ship: a triangular hull with a notched tail. Nose points along +X —
+            // Laubrary's forward convention (gameplay rotates entities via Atan2(dir.y, dir.x), which spins the
+            // shape's local +X to face `dir`; the Lazor window draws a "forward" marker along +X as a reminder).
             var hull = new LazorLayer("Hull")
             {
                 color = Color.cyan,
                 thickness = 0.03f,
                 symmetryEnabled = true,
                 symmetryCount = 2,
-                symmetryAngle = 0f,      // mirror across the vertical axis: draw the right half, get the left
+                symmetryAngle = 90f,     // mirror across the x-axis: draw the top half, get the bottom
                 symmetryReflect = true,
             };
-            // Draw only the right half; the left half is produced by the mirror.
+            // Draw only the top half; the bottom half is produced by the mirror.
             hull.paths.Add(new LazorPath(false)
             {
                 points = new List<Vector2>
                 {
-                    new Vector2(0f, 5f),    // nose
-                    new Vector2(3f, -4f),   // right wing tip
-                    new Vector2(1.2f, -2.5f), // right tail notch
-                    new Vector2(0f, -3.2f), // tail center
+                    new Vector2(5f, 0f),      // nose (on axis)
+                    new Vector2(-4f, 3f),     // top wing tip
+                    new Vector2(-2.5f, 1.2f), // top tail notch
+                    new Vector2(-3.2f, 0f),   // tail center (on axis)
                 },
             });
             layers.Add(hull);

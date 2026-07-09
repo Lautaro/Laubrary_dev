@@ -70,6 +70,7 @@ namespace Laubrary.Lazor.Editor
             base.OnDisable();   // AssetKit unhooks projectChanged + clears browser thumbnails
             if (_white != null) { DestroyImmediate(_white); _white = null; }
             if (_disc != null) { DestroyImmediate(_disc); _disc = null; }
+            CleanupPreview();   // tears down the hidden preview camera + RT (no-op when Shapes isn't present)
         }
 
         // After an undo/redo the shape's serialized data is restored under us — clamp the transient selection to the

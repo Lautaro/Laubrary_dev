@@ -774,7 +774,7 @@ PlayerSettings:
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
-    Standalone: ASSET_INVENTORY
+    Standalone: ASSET_INVENTORY;SHAPES_URP;SHAPES_INSTALLED
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:
