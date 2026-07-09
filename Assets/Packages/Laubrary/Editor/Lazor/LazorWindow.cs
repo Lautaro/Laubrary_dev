@@ -65,6 +65,7 @@ namespace Laubrary.Lazor.Editor
             Undo.undoRedoPerformed -= OnUndoRedo;
             base.OnDisable();   // AssetKit unhooks projectChanged + clears browser thumbnails
             if (_white != null) { DestroyImmediate(_white); _white = null; }
+            if (_disc != null) { DestroyImmediate(_disc); _disc = null; }
         }
 
         // After an undo/redo the shape's serialized data is restored under us — clamp the transient selection to the

@@ -13,6 +13,7 @@ namespace Laubrary.Lazor.Editor
     public partial class LazorWindow
     {
         Texture2D _white;
+        Texture2D _disc;     // soft filled circle for round joins/caps at each vertex
         Vector2 _clipSize;   // canvas rect size (clip-local); used to clip strokes so off-screen points still draw
         int hoverVertex = -1, hoverVertexPath = -1;
 
@@ -24,10 +25,30 @@ namespace Laubrary.Lazor.Editor
 
         void EnsureWhiteTex()
         {
-            if (_white != null) return;
-            _white = new Texture2D(1, 1) { hideFlags = HideFlags.HideAndDontSave };
-            _white.SetPixel(0, 0, Color.white);
-            _white.Apply();
+            if (_white == null)
+            {
+                _white = new Texture2D(1, 1) { hideFlags = HideFlags.HideAndDontSave };
+                _white.SetPixel(0, 0, Color.white);
+                _white.Apply();
+            }
+            if (_disc == null)
+            {
+                // A soft-edged filled circle, drawn at every vertex for round joins/caps so segments read as one
+                // continuous stroke of uniform width instead of straight quads with gaps/overlaps at corners.
+                const int s = 64;
+                _disc = new Texture2D(s, s, TextureFormat.RGBA32, false) { hideFlags = HideFlags.HideAndDontSave };
+                float r = s * 0.5f;
+                var px = new Color[s * s];
+                for (int y = 0; y < s; y++)
+                    for (int x = 0; x < s; x++)
+                    {
+                        float dx = x + 0.5f - r, dy = y + 0.5f - r;
+                        float a = Mathf.Clamp01(r - Mathf.Sqrt(dx * dx + dy * dy));   // ~1px anti-aliased edge
+                        px[y * s + x] = new Color(1, 1, 1, a);
+                    }
+                _disc.SetPixels(px);
+                _disc.Apply();
+            }
         }
 
         // ---- Coordinate transforms (clip-local: coordinates relative to the canvas rect origin) ----
@@ -422,6 +443,18 @@ namespace Laubrary.Lazor.Editor
             GUI.DrawTexture(r, _white); GUI.color = save;
         }
 
+        // A filled disc centred at c — used for round joins/caps. Simple AABB cull (no rotation) keeps off-canvas
+        // vertices cheap; GUI.BeginClip trims any that straddle the edge.
+        void GuiDisc(Vector2 c, float diameter, Color color)
+        {
+            if (diameter < 1.5f || _disc == null) return;
+            float hd = diameter * 0.5f;
+            if (c.x + hd < 0f || c.x - hd > _clipSize.x || c.y + hd < 0f || c.y - hd > _clipSize.y) return;
+            Color save = GUI.color; GUI.color = color;
+            GUI.DrawTexture(new Rect(c.x - hd, c.y - hd, diameter, diameter), _disc, ScaleMode.StretchToFill, true);
+            GUI.color = save;
+        }
+
         void GuiLine(Vector2 a, Vector2 b, Color color, float thickness)
         {
             // Clip the segment to the visible canvas FIRST, with ZERO margin so both endpoints land INSIDE the view.
@@ -493,7 +526,10 @@ namespace Laubrary.Lazor.Editor
         void DrawPolylineGrid(Vector2[] gridPts, bool closed, Color color, float thickness)
         {
             if (gridPts == null || gridPts.Length < 2) return;
-            // A soft dark halo underneath so bright strokes read against the grid, then the bright core.
+            // A soft dark halo underneath so bright strokes read against the grid, then the bright core. Each pass
+            // draws the segments PLUS a disc at every vertex — round joins (and round caps on open ends) so the
+            // stroke reads as one continuous, uniform-width line instead of straight quads that gap or overlap at
+            // corners (which looked messy / uneven-width when zoomed in).
             Color halo = new Color(0, 0, 0, color.a * 0.5f);
             int last = closed ? gridPts.Length : gridPts.Length - 1;
             for (int pass = 0; pass < 2; pass++)
@@ -506,6 +542,8 @@ namespace Laubrary.Lazor.Editor
                     Vector2 b = GridToLocal(gridPts[(i + 1) % gridPts.Length]);
                     GuiLine(a, b, c, t);
                 }
+                for (int i = 0; i < gridPts.Length; i++)
+                    GuiDisc(GridToLocal(gridPts[i]), t, c);
             }
         }
     }

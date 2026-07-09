@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Lazor toolbar no longer overlapped by the left panel.** The split view reserved its top with a 1px sliver that could
   ride up over the AssetKit toolbar (cutting off Browse/New/Duplicate); it now reserves a real full-width strip below the
   toolbar.
+- **Lazor canvas: round joins/caps — no more messy, uneven-width corners.** Each stroke was drawn as independent straight
+  quads with nothing at the vertices, so corners gapped and acute angles overlapped into blobs (very visible zoomed in).
+  A soft filled disc is now drawn at every vertex (round joins, and round caps on open ends), so a stroke reads as one
+  continuous, uniform-width line.
 - **Lazor: stray/degenerate strokes no longer render or inflate bounds.** A single-point or all-coincident (zero-extent)
   stray click used to draw as a dot and, via its mirror copies, blow up the content bounds. `LazorGeometry.ResolveLayer`
   skips degenerate strokes (public `IsDegenerate`), the pen refuses a click on the last point's cell, and `FinishStroke`
