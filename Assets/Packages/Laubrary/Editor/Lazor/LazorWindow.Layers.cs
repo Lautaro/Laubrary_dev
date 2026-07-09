@@ -13,11 +13,12 @@ namespace Laubrary.Lazor.Editor
     {
         static readonly string[] ToolLabels = { "Pen", "Edit", "Erase" };
 
-        void DrawLeftPanel(Rect r)
+        void DrawLeftPanel()
         {
-            using (new GUILayout.AreaScope(r))
-            using (ScrollView(ref leftScroll))
+            using (new EditorGUILayout.VerticalScope(GUILayout.Width(leftWidth), GUILayout.ExpandHeight(true)))
+            using (var sv = new EditorGUILayout.ScrollViewScope(leftScroll))
             {
+                leftScroll = sv.scrollPosition;
                 DrawToolsSection();
                 VerticalSpace();
                 DrawLayerList();

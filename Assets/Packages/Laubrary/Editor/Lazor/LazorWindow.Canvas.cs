@@ -464,6 +464,10 @@ namespace Laubrary.Lazor.Editor
             // segments vanished. Clipping with no margin keeps endpoints on/inside the view so the quad is never
             // culled; the stroke thickness still covers the edge and GUI.BeginClip trims any overhang.
             if (!ClipSegment(ref a, ref b, _clipSize.x, _clipSize.y, 0f)) return;
+            // Draw from the LEFT-most endpoint. The quad below starts at `a` and extends rightward by `len` before
+            // rotating; if `a` sat on the right edge (a segment clipped there) the un-rotated quad would fall fully
+            // off-screen-right and IMGUI would cull it. Starting from the smaller-x point keeps the quad in view.
+            if (a.x > b.x) { var s = a; a = b; b = s; }
             Vector2 d = b - a; float len = d.magnitude;
             if (len < 0.5f) return;
             float ang = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;

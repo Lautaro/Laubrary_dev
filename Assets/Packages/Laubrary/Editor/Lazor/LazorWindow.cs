@@ -21,6 +21,10 @@ namespace Laubrary.Lazor.Editor
         [MenuItem("Laubrary/Lazor/Lazor")]
         public static void Open() => GetWindow<LazorWindow>("Lazor");
 
+        // No root box: the canvas fills the right side edge-to-edge, and a box would only add padding that
+        // desyncs GUILayout coordinates from the absolute canvas rect. The window lays itself out.
+        protected override string RootBoxStyle => null;
+
         enum Tool { Pen, Edit, Erase }
 
         // The base owns the current asset; `shape` is an alias so the canvas / layer code reads naturally.
@@ -79,31 +83,27 @@ namespace Laubrary.Lazor.Editor
         }
 
         // ── per-asset body: left ZUI panel | drag-splitter | grid canvas ──────────
+        // Pure GUILayout flow (no absolute rects): the toolbar is drawn by the base above us, then this horizontal
+        // fills the rest of the window. The canvas is a GetRect that expands to fill — so its rect is always correct
+        // (right size for the clip, right hit-area for input) and the panel can never ride up over the toolbar.
         protected override void DrawAsset(LazorShape asset)
         {
             layerSel = Mathf.Clamp(layerSel, 0, Mathf.Max(0, asset.layers.Count - 1));
 
-            // Claim the whole area below the toolbar for the split view. Reserve a real full-width strip (not a 1px
-            // sliver) via the GUILayout flow: its yMax sits cleanly below the toolbar so the left panel can't ride up
-            // over the toolbar buttons, and its x/width give the true content bounds. The Y is stable across
-            // Layout/Repaint, so the manually-carved canvas rect is valid on every event pass.
-            Rect strip = GUILayoutUtility.GetRect(10f, 6f, GUILayout.ExpandWidth(true));
-            float pad = strip.x;
-            Rect body = new Rect(strip.x, strip.yMax, strip.width, position.height - strip.yMax - pad);
-
-            Rect leftRect = new Rect(body.x, body.y, leftWidth, body.height);
-            Rect splitRect = new Rect(body.x + leftWidth, body.y, 5f, body.height);
-            Rect canvasRect = new Rect(body.x + leftWidth + 5f, body.y, body.width - leftWidth - 5f, body.height);
-
-            DrawLeftPanel(leftRect);
-            DrawVerticalSplitter(splitRect);
-            DrawCanvas(canvasRect);
+            using (new EditorGUILayout.HorizontalScope(GUILayout.ExpandHeight(true)))
+            {
+                DrawLeftPanel();
+                DrawVerticalSplitter();
+                Rect canvasRect = GUILayoutUtility.GetRect(60f, 60f, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+                DrawCanvas(canvasRect);
+            }
 
             if (GUI.changed) Repaint();
         }
 
-        void DrawVerticalSplitter(Rect r)
+        void DrawVerticalSplitter()
         {
+            Rect r = GUILayoutUtility.GetRect(5f, 5f, GUILayout.Width(5f), GUILayout.ExpandHeight(true));
             EditorGUIUtility.AddCursorRect(r, MouseCursor.ResizeHorizontal);
             EditorGUI.DrawRect(r, new Color(0, 0, 0, 0.35f));
             var e = Event.current;

@@ -34,9 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   viewport with **zero margin**, so both endpoints stay on/inside the view and the un-rotated quad always overlaps it and
   is never culled; the stroke thickness still covers the edge and `GUI.BeginClip` trims the overhang. (This, not stray
   strokes, was the real "detached lines" bug — verified segment-by-segment.)
-- **Lazor toolbar no longer overlapped by the left panel.** The split view reserved its top with a 1px sliver that could
-  ride up over the AssetKit toolbar (cutting off Browse/New/Duplicate); it now reserves a real full-width strip below the
-  toolbar.
+- **Lazor window relaid out in pure GUILayout flow (fixes toolbar cut-off + wrong canvas size).** The split view used
+  absolute rects carved from `position`, which could ride up over the AssetKit toolbar (cutting off Browse/New) AND, when
+  wrong, fed a bad size into the canvas clip so strokes near the edge were dropped. It's now a plain `HorizontalScope`
+  (left panel | splitter | expanding canvas) with `RootBoxStyle = null`, so the canvas rect is always correct for both
+  clipping and mouse hit-testing.
+- **Lazor canvas: segments exiting the right/bottom edge no longer vanish when zoomed.** Even clipped to the viewport, a
+  line is a horizontal quad extended rightward from its start then rotated, so a segment clipped to the right edge had its
+  un-rotated quad off-screen and IMGUI culled it. `GuiLine` now draws from the left-most endpoint, keeping the quad in
+  view. (With this, every visible segment draws at any zoom — verified segment-by-segment against the live window.)
 - **Lazor canvas: round joins/caps — no more messy, uneven-width corners.** Each stroke was drawn as independent straight
   quads with nothing at the vertices, so corners gapped and acute angles overlapped into blobs (very visible zoomed in).
   A soft filled disc is now drawn at every vertex (round joins, and round caps on open ends), so a stroke reads as one
