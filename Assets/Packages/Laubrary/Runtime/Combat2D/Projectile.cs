@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Laubrary.Colosseum
+namespace Laubrary.Combat2D
 {
     /// A moving damage-dealer — a bullet, missile, thrown rock. Fire it with <see cref="Launch"/> (a weapon does
     /// this) and it travels in a straight line, damaging the first hostile <see cref="Hurtbox"/> it overlaps, then

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Laubrary.Colosseum
+namespace Laubrary.Combat2D
 {
     /// The identity of a fighter: which <see cref="Faction"/> it's on, plus quick access to its <see cref="Health"/>
     /// and (optionally) a pixel-perfect <see cref="IHitFilter"/>. Hitboxes, Hurtboxes and Projectiles all resolve

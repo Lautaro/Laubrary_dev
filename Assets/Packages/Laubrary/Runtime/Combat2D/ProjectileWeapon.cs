@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Laubrary.Colosseum
+namespace Laubrary.Combat2D
 {
     /// Fires <see cref="Projectile"/>s. Give it a projectile prefab and a fire rate; call <see cref="TryFire()"/>
     /// (respecting the cooldown) from input or AI, or set <see cref="autoFire"/> for a turret. It stamps each shot

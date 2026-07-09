@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 using Laubrary.Daemon;
-using Laubrary.Colosseum;
+using Laubrary.Combat2D;
 using Laubrary.Pyre;
 
 namespace Laubrary.Demos.DaemonDemo

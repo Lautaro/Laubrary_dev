@@ -1,9 +1,10 @@
 {
-    "name": "com.Lautaro-Arino.Laubrary.ZoeCombat",
-    "rootNamespace": "Laubrary.ZoeCombat",
+    "name": "com.Lautaro-Arino.Laubrary.Bestiarium.Pyre",
+    "rootNamespace": "Laubrary.BestiariumPyre",
     "references": [
-        "com.Lautaro-Arino.Laubrary.Combat2D",
-        "com.Lautaro-Arino.Laubrary.Zoetrope"
+        "com.Lautaro-Arino.Laubrary.Bestiarium",
+        "com.Lautaro-Arino.Laubrary.Pyre",
+        "com.Lautaro-Arino.Laubrary.Chunks"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

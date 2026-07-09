@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Laubrary.Colosseum
+namespace Laubrary.Combat2D
 {
     /// The one place a hit is resolved, shared by Hitbox and Projectile so the funnel — collider overlap →
     /// faction check → optional pixel-perfect filter → apply — is identical everywhere. Keeping it here means

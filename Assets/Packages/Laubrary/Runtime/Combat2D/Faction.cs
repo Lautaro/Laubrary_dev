@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Laubrary.Colosseum
+namespace Laubrary.Combat2D
 {
     /// A team. Two combatants can hurt each other only when one's faction is HOSTILE to the other's. By default a
     /// faction is friendly to itself (no friendly fire) and to anyone in its <see cref="allies"/> list, and hostile

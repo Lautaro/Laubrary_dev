@@ -1,5 +1,5 @@
 using UnityEngine;
-using Laubrary.Colosseum;
+using Laubrary.Combat2D;
 
 namespace Laubrary.Demos.ColosseumShmup
 {

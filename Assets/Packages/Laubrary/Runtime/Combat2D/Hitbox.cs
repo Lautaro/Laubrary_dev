@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Laubrary.Colosseum
+namespace Laubrary.Combat2D
 {
     /// A region that DEALS damage while armed — a melee swing, a contact-damage body, a hazard. Put it on a trigger
     /// collider; every hostile <see cref="Hurtbox"/> that overlaps takes <see cref="damage"/> (once per arming when

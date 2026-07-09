@@ -1,6 +1,6 @@
 {
-    "name": "com.Lautaro-Arino.Laubrary.Colosseum",
-    "rootNamespace": "Laubrary.Colosseum",
+    "name": "com.Lautaro-Arino.Laubrary.Combat2D",
+    "rootNamespace": "Laubrary.Combat2D",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

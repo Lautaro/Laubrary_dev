@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Events;
 
-namespace Laubrary.Colosseum
+namespace Laubrary.Combat2D
 {
     /// Hit points + the damage/heal/death events everything else keys off. Colosseum stays agnostic about what a
     /// death MEANS — it just fires <see cref="Died"/>; consumers spawn a Pyre blast, a Chunks burst, play a Zoe

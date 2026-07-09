@@ -1,5 +1,5 @@
 using UnityEngine;
-using Laubrary.Colosseum;
+using Laubrary.Combat2D;
 using Laubrary.Daemon;
 
 namespace Laubrary.Demos.DaemonDemo

@@ -1,4 +1,4 @@
-namespace Laubrary.Colosseum
+namespace Laubrary.Combat2D
 {
     /// Anything that can take damage. <see cref="Health"/> is the standard implementation; games can add their own
     /// (destructible props, shields) and Hitboxes/Projectiles will still drive them through this interface.

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Laubrary.Colosseum
+namespace Laubrary.Combat2D
 {
     /// One damage event, passed to <see cref="IDamageable.ApplyDamage"/> and carried through the damage/death
     /// events so listeners (Pyre explosions, Chunks debris, hit-flashes, score) know how much, from whom, and where.

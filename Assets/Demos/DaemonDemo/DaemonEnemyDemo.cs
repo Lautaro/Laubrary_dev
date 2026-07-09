@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Laubrary.Loom;
 using Laubrary.Daemon;
-using Laubrary.Colosseum;
+using Laubrary.Combat2D;
 
 namespace Laubrary.Demos.DaemonDemo
 {

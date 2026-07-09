@@ -57,6 +57,13 @@ nobody invokes. Author the scene directly (via Coplay: create GameObjects, wire 
 use a throwaway script to bootstrap it, keep that script **ephemeral** (scratchpad, uncommitted) and **delete any
 committed builder once the scene/asset exists**. The scene is the deliverable; the builder is a middleman.
 
+## Naming — cool names are earned by a UI
+
+A system gets a **cool/thematic name** (Pyre, Zoetrope, Bestiarium, Daemon…) ONLY if it has a **visual UI /
+authoring component**. A pure **code backbone** with no editor window gets a **plain descriptive name** — e.g. the
+combat backbone is `Combat2D` (namespace `Laubrary.Combat2D`; "2DCombat" is not a valid C# identifier), not a cool
+name, because it has no authoring window. A cool name promises a tool to open; don't hang one on infrastructure.
+
 ## UI rule — ZUI for ALL UI (editor AND runtime)
 
 ZUI is now part of Laubrary and is the **mandatory toolkit for all UI**, both editor windows and runtime/in-game

@@ -1,15 +1,16 @@
 using UnityEngine;
-using Laubrary.Colosseum;
+using Laubrary.Combat2D;
 using Laubrary.Pyre;
 using Laubrary.Chunks;
-using Laubrary.Codex;
+using Laubrary.Bestiarium;
+using Laubrary.BestiariumPyre;
 
 namespace Laubrary.Demos.Gallery
 {
     /// A shooting gallery for the Codex battle-authoring layer: click to fire the equipped weapon at an idle target
     /// character; the target plays its hit/death VFX and respawns. It assembles sample Character/Weapon/Projectile
     /// Defs at runtime from scene-assigned primitives (Pyre blasts, Chunks bursts, factions) + placeholder DemoSprites,
-    /// so it demonstrates the whole pipeline end-to-end (Def → CodexArsenal → Colosseum funnel → CombatVfx).
+    /// so it demonstrates the whole pipeline end-to-end (Def → Bestiary → Colosseum funnel → CombatVfx).
     public class GalleryDirector : MonoBehaviour
     {
         [Header("Factions")]
@@ -51,7 +52,7 @@ namespace Laubrary.Demos.Gallery
             shooter.transform.localScale = Vector3.one * 0.7f;
             var comb = shooter.AddComponent<Combatant>();
             comb.faction = playerFaction;
-            weapon = CodexArsenal.EquipWeapon(shooter, weaponDef, comb, shooter.transform);
+            weapon = Bestiary.EquipWeapon(shooter, weaponDef, comb, shooter.transform);
 
             SpawnTarget();
         }
@@ -63,8 +64,7 @@ namespace Laubrary.Demos.Gallery
             proj.sprite = DemoSprites.Get(DemoSprites.Shape.Circle);
             proj.scale = 0.28f;
             proj.lifetime = 3f;
-            proj.impact.blast = impactBlast;
-            proj.impact.chunks = impactSparks;
+            proj.impact = new PyreChunksFx { blast = impactBlast, chunks = impactSparks };
 
             weaponDef = ScriptableObject.CreateInstance<WeaponDef>();
             weaponDef.displayName = "Blaster";
@@ -72,23 +72,21 @@ namespace Laubrary.Demos.Gallery
             weaponDef.damage = 12f;
             weaponDef.projectileSpeed = 16f;
             weaponDef.projectile = proj;
-            weaponDef.muzzle.blast = muzzleFlash;
+            weaponDef.muzzle = new PyreChunksFx { blast = muzzleFlash };
 
             targetDef = ScriptableObject.CreateInstance<CharacterDef>();
             targetDef.displayName = "Dummy";
             targetDef.maxHealth = 60f;
             targetDef.faction = enemyFaction;
-            targetDef.idleSprite = DemoSprites.Get(DemoSprites.Shape.Diamond);
-            targetDef.spriteScale = 1.3f;
+            targetDef.view = new SpriteView { sprite = DemoSprites.Get(DemoSprites.Shape.Diamond), scale = 1.3f };
             targetDef.invulnerableAfterHit = 0.03f;
-            targetDef.hit.blast = hitBlast;
-            targetDef.death.blast = deathBlast;
-            targetDef.death.chunks = deathDebris;
+            targetDef.hit = new PyreChunksFx { blast = hitBlast };
+            targetDef.death = new PyreChunksFx { blast = deathBlast, chunks = deathDebris };
         }
 
         void SpawnTarget()
         {
-            targetGo = CodexArsenal.SpawnCharacter(targetDef, targetPos);
+            targetGo = Bestiary.SpawnCharacter(targetDef, targetPos);
             var sr = targetGo.GetComponent<SpriteRenderer>();
             if (sr != null) sr.color = new Color(0.95f, 0.5f, 0.5f);   // tint the white placeholder
             targetHealth = targetGo.GetComponent<Health>();

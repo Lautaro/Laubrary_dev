@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Laubrary.Colosseum;
+using Laubrary.Combat2D;
 using Laubrary.Pyre;
 using Laubrary.Chunks;
 using Laubrary.Choreographer;

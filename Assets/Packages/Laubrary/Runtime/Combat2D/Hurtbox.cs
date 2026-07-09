@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Laubrary.Colosseum
+namespace Laubrary.Combat2D
 {
     /// A region that can RECEIVE damage on behalf of a <see cref="Combatant"/>. Put it on the collider(s) that should
     /// be hittable; a body can have several (a head hurtbox at 2× for headshots, a body at 1×, an armoured part at
