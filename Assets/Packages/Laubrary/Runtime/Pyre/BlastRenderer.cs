@@ -916,7 +916,11 @@ namespace Laubrary.Pyre
             if (orbs == null || orbs.Count == 0 || alpha <= 0.001f) return;
             float threshold = Mathf.Max(0.02f, layer.metaThreshold);
             float range = Mathf.Max(0.05f, layer.metaShadeRange);
-            float band = Mathf.Max(0.01f, layer.metaSoftness);
+            // Capped at threshold: the AA band below reads as `field > threshold - band`, so once band exceeds
+            // threshold that lower bound goes negative and EVERY pixel (including empty field=0 ones, far from
+            // any orb) satisfies it — the whole frame washes out with a uniform faint fill instead of just the
+            // blob's own edge softening. Capping keeps threshold - band >= 0 always.
+            float band = Mathf.Clamp(layer.metaSoftness, 0.01f, threshold);
             // Over life = one flat colour for the whole blob, sampled at the layer's own life — constant across
             // the field, so it's resolved once here rather than per pixel (matches Disc's Over life exactly).
             Color overLifeColor = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(lp) : Color.white;
@@ -1040,7 +1044,10 @@ namespace Laubrary.Pyre
             if (n == 0) return;
             float threshold = Mathf.Max(0.02f, layer.metaThreshold);
             float range = Mathf.Max(0.05f, layer.metaShadeRange);
-            float band = Mathf.Max(0.01f, layer.metaSoftness);
+            // Capped at threshold — see RenderMetaBlob's identical band clamp for why: past that point the AA
+            // band's lower bound (threshold - band) goes negative and every pixel in the WHOLE frame (not just
+            // near the fused shape) starts contributing a faint uniform alpha.
+            float band = Mathf.Clamp(layer.metaSoftness, 0.01f, threshold);
             Color overLifeColor = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(life) : Color.white;
             float nrCos = Mathf.Cos(noiseRotRad), nrSin = Mathf.Sin(noiseRotRad);
 

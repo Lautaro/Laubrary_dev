@@ -33,6 +33,19 @@ namespace Laubrary.Pyre.Editor
             tex.filterMode = FilterMode.Point;
             return tex;
         }
+        // Browser thumbnails loop the actual baked animation instead of sitting on one static frame — Pyre's own
+        // opt-in via AssetKit's AnimateThumbnails hook (see LaubraryAssetWindow<T>); every other AssetKit tool is
+        // untouched by this. Paced by the asset's own Preview fps, same clock every thumbnail shares
+        // (EditorApplication.timeSinceStartup) so they're not each individually timed, just cheaply in sync.
+        protected override bool AnimateThumbnails => true;
+        protected override void UpdateAnimatedThumbnail(BlastSpec item, Texture2D tex, double time)
+        {
+            if (item == null || item.frameCount <= 1) return;
+            float fps = Mathf.Max(1f, item.previewFps);
+            int f = Mathf.FloorToInt((float)(time * fps)) % item.frameCount;
+            tex.SetPixels32(BlastRenderer.RenderFrame(item, f));
+            tex.Apply();
+        }
 
         // layout (serialized so it sticks — window chrome, not per-asset content)
         [SerializeField] float leftWidth = 340f;
@@ -208,6 +221,15 @@ namespace Laubrary.Pyre.Editor
             EditorGUILayout.BeginVertical(GUILayout.Width(leftWidth));
             leftScroll = EditorGUILayout.BeginScrollView(leftScroll);
             EditorGUI.BeginChangeCheck();
+            // Snapshots spec BEFORE any control below can mutate it — this is the ONE thing EndChangeCheck's
+            // SetDirty below was missing, so every dial edit in this whole tree (Blast settings, Global
+            // modifiers, layer list, and everything DrawSelectedLayer draws — shape params, RoseRings, Colour/
+            // Alpha, per-layer Modifiers) had NO undo support at all: only the structural list ops (Add/Remove/
+            // Reorder layer or modifier) called Undo.RecordObject of their own accord. Recording unconditionally
+            // every repaint is the standard pattern for a hand-rolled (non-SerializedProperty) editor — cheap,
+            // and Unity coalesces repeated no-op records so a slider drag becomes ONE undo step, not one per
+            // frame dragged.
+            Undo.RecordObject(spec, "Edit Pyre Blast");
 
             Label("Blast", ZUI.ZTextStyle.SectionHeader);
             spec.seed = EditorGUILayout.IntField("Seed", spec.seed);
@@ -1064,9 +1086,11 @@ namespace Laubrary.Pyre.Editor
                     om.color = EditorGUILayout.GradientField(
                         om.mode == ColorMode.OverLife ? "Colour (over life)" : "Colour (in→out)", om.color);
                     ValRow("Size (px)", om.size, 0f, 12f, 1f);
-                    om.alphaThreshold = Slider(om.alphaThreshold, 0.01f, 1f, "Edge alpha");
-                    om.innerSoftness = Slider(om.innerSoftness, 0f, 4f, "Inner softness (px)");
-                    om.outerSoftness = Slider(om.outerSoftness, 0f, 8f, "Outer softness (px)");
+                    om.alphaThreshold = Slider(om.alphaThreshold, 0.01f, 1f, "Edge sensitivity");
+                    om.innerSoftness = Slider(om.innerSoftness, 0f, 16f, "Inner softness (px)");
+                    om.innerSoftnessCurve = Slider(om.innerSoftnessCurve, 0.2f, 5f, "Inner curve");
+                    om.outerSoftness = Slider(om.outerSoftness, 0f, 16f, "Outer softness (px)");
+                    om.outerSoftnessCurve = Slider(om.outerSoftnessCurve, 0.2f, 5f, "Outer curve");
                     break;
                 case JaggModifier jm:
                     jm.arms = Mathf.RoundToInt(Slider(jm.arms, 2, 24, "Arms"));
@@ -1373,7 +1397,11 @@ namespace Laubrary.Pyre.Editor
 
             // retime: same layers, different number of frames
             int fc = Mathf.RoundToInt(Slider(spec.frameCount, 1, 64, "Frame count"));
-            if (fc != spec.frameCount) { spec.frameCount = Mathf.Max(1, fc); EditorUtility.SetDirty(spec); frame = Mathf.Min(frame, FrameCount - 1); }
+            if (fc != spec.frameCount)
+            {
+                Undo.RecordObject(spec, "Change frame count");
+                spec.frameCount = Mathf.Max(1, fc); EditorUtility.SetDirty(spec); frame = Mathf.Min(frame, FrameCount - 1);
+            }
 
             zoom = Mathf.Max(1f, Mathf.Round(Slider(zoom, 1f, 16f, "Zoom")));
             speed = Slider(speed, 0.1f, 3f, "Speed");
@@ -1416,7 +1444,7 @@ namespace Laubrary.Pyre.Editor
             if (view.Contains(new Vector2(ox, oy))) EditorGUIUtility.AddCursorRect(zone, MouseCursor.MoveArrow);
 
             if (e.type == EventType.MouseDown && e.button == 0 && zone.Contains(e.mousePosition) && view.Contains(e.mousePosition))
-            { draggingOrigin = true; e.Use(); }
+            { Undo.RecordObject(spec, "Move origin"); draggingOrigin = true; e.Use(); }
             if (draggingOrigin)
             {
                 if (e.type == EventType.MouseDrag)
@@ -1462,6 +1490,7 @@ namespace Laubrary.Pyre.Editor
                     float ox = (e.mousePosition.x - ctr.x) / Mathf.Max(0.01f, zoom);
                     float oy = (ctr.y - e.mousePosition.y) / Mathf.Max(0.01f, zoom);   // canvas y is up
                     float birth = Mathf.Clamp01(l.metaOrbs.Count * l.metaSpawnInterval);
+                    Undo.RecordObject(spec, "Place MetaBlob orb");
                     l.metaOrbs.Add(new MetaOrb { pos = new Vector2(ox, oy), radius = 12f, birth = birth, life = Mathf.Clamp(1f - birth, 0.25f, 1f) });
                     metaSel = l.metaOrbs.Count - 1;
                     EditorUtility.SetDirty(spec); e.Use(); Repaint();
@@ -1474,7 +1503,8 @@ namespace Laubrary.Pyre.Editor
                 {
                     var o = l.metaOrbs[i];
                     Vector2 mp = new Vector2(ctr.x + o.pos.x * zoom, ctr.y - o.pos.y * zoom);
-                    if ((mp - e.mousePosition).sqrMagnitude <= 100f) { metaSel = i; draggingMetaOrb = true; e.Use(); break; }
+                    if ((mp - e.mousePosition).sqrMagnitude <= 100f)
+                    { Undo.RecordObject(spec, "Move MetaBlob orb"); metaSel = i; draggingMetaOrb = true; e.Use(); break; }
                 }
             if (draggingMetaOrb && metaSel >= 0 && metaSel < l.metaOrbs.Count)
             {
@@ -1505,7 +1535,8 @@ namespace Laubrary.Pyre.Editor
                     if (d == null) continue;
                     Vector2 p = d.Evaluate(curFrame);
                     Vector2 mp = new Vector2(ctr.x + p.x * zoom, ctr.y - p.y * zoom);
-                    if ((mp - e.mousePosition).sqrMagnitude <= 100f) { pinSel = i; draggingPin = true; e.Use(); return; }
+                    if ((mp - e.mousePosition).sqrMagnitude <= 100f)
+                    { Undo.RecordObject(spec, "Move pin"); pinSel = i; draggingPin = true; e.Use(); return; }
                 }
                 // No existing pin under the click — add a new one, born here, at the current frame.
                 float ox = (e.mousePosition.x - ctr.x) / Mathf.Max(0.01f, zoom);
@@ -1514,6 +1545,7 @@ namespace Laubrary.Pyre.Editor
                 foreach (var d in editPin.dots) if (d != null) nextId = Mathf.Max(nextId, d.id + 1);
                 var dot = new PinDot { id = nextId, radius = 16f };
                 dot.SetKeyframe(curFrame, new Vector2(ox, oy));
+                Undo.RecordObject(spec, "Add pin");
                 editPin.dots.Add(dot);
                 pinSel = editPin.dots.Count - 1;
                 EditorUtility.SetDirty(spec); e.Use(); Repaint();
@@ -1577,6 +1609,7 @@ namespace Laubrary.Pyre.Editor
 
             if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
             {
+                Undo.RecordObject(spec, "Paint smudge stroke");
                 var stroke = new SmudgeStroke();
                 stroke.points.Add(ToCanvas(e.mousePosition));
                 paintSmudge.strokes.Add(stroke);

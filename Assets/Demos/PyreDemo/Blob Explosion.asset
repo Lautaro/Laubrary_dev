@@ -10,24 +10,24 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ff39de1584e317c4da10900b8cf063dd, type: 3}
-  m_Name: Rose Blast
+  m_Name: Blob Explosion
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Pyre::Laubrary.Pyre.BlastSpec
-  seed: 1234
-  frameCount: 20
+  seed: 1242
+  frameCount: 16
   canvasSize: 64
   canvasHeight: 0
   pixelsPerUnit: 64
   origin: {x: 0.5, y: 0.5}
   background: {r: 0, g: 0, b: 0, a: 0}
   layers:
-  - name: Smoke Rosing
+  - name: Fire body
     enabled: 1
-    startFrame: 3
-    endFrame: 19
+    startFrame: 0
+    endFrame: 12
     shape: 0
     count:
       m_mode: 0
-      m_static: 13.11058
+      m_static: 10
       m_min: 0
       m_max: 1
       m_points: []
@@ -39,22 +39,18 @@ MonoBehaviour:
       m_multiplierId: 
     spawnRadius:
       m_mode: 0
-      m_static: 0.61707777
-      m_min: 0
-      m_max: 1
-      m_points:
-      - time: 1
-        value: 1
-        exponent: 1
-        editState: 0
+      m_static: 0.3
+      m_min: 0.34159005
+      m_max: 0.64260435
+      m_points: []
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    scatterMode: 2
-    ringOrder: 1
+    scatterMode: 0
+    ringOrder: 0
     ringStartAngle:
       m_mode: 0
       m_static: 0
@@ -80,7 +76,7 @@ MonoBehaviour:
       m_cooldown: -1
       m_multiplierId: 
     ringAlignRotation: 0
-    roseReverseDraw: 1
+    roseReverseDraw: 0
     spinDegrees:
       m_mode: 0
       m_static: 0
@@ -98,23 +94,23 @@ MonoBehaviour:
       radius: 0.15
       sizeScale: 1
       birth: 0
-      life: 0.73333305
+      life: 1
     - count: 10
       radius: 0.35
       sizeScale: 1
       birth: 0.15
-      life: 0.58333296
+      life: 0.85
     - count: 18
       radius: 0.55
       sizeScale: 1
       birth: 0.3
-      life: 0.36666662
+      life: 0.7
     fuse: 0
     positionX:
-      m_mode: 0
+      m_mode: 1
       m_static: 0
-      m_min: 0
-      m_max: 1
+      m_min: -2
+      m_max: 2
       m_points: []
       m_yMin: 0
       m_yMax: 1
@@ -123,10 +119,10 @@ MonoBehaviour:
       m_cooldown: -1
       m_multiplierId: 
     positionY:
-      m_mode: 0
+      m_mode: 1
       m_static: 0
-      m_min: 0
-      m_max: 1
+      m_min: -2
+      m_max: 2
       m_points: []
       m_yMin: 0
       m_yMax: 1
@@ -141,19 +137,15 @@ MonoBehaviour:
       m_max: 1
       m_points:
       - time: 0
-        value: 3.0540864
+        value: 9
         exponent: 1
         editState: 0
-      - time: 0.23214719
-        value: 11.304788
+      - time: 0.3
+        value: 10
         exponent: 1
         editState: 0
-      - time: 0.6446381
-        value: 15.680889
-        exponent: 1
-        editState: 0
-      - time: 0.99709517
-        value: 7.658103
+      - time: 1
+        value: 5
         exponent: 1
         editState: 0
       m_yMin: 0
@@ -164,21 +156,21 @@ MonoBehaviour:
       m_multiplierId: 
     colorOverLife:
       serializedVersion: 2
-      key0: {r: 0.11949688, g: 0.11949688, b: 0.11949688, a: 1}
-      key1: {r: 0.19077557, g: 0.19077557, b: 0.19077557, a: 1}
-      key2: {r: 0.19496858, g: 0.081134714, b: 0.081134714, a: 0}
-      key3: {r: 0, g: 0, b: 0, a: 0}
-      key4: {r: 0.18658274, g: 0.10659076, b: 0.10659076, a: 0}
-      key5: {r: 0.14884692, g: 0.14494632, b: 0.14494632, a: 0}
-      key6: {r: 0.01470381, g: 0.01470381, b: 0.01470381, a: 0}
+      key0: {r: 1, g: 1, b: 1, a: 1}
+      key1: {r: 1, g: 0.92, b: 0.5, a: 1}
+      key2: {r: 1, g: 0.55, b: 0.12, a: 0}
+      key3: {r: 0.7, g: 0.12, b: 0.05, a: 0}
+      key4: {r: 0, g: 0, b: 0, a: 0}
+      key5: {r: 0, g: 0, b: 0, a: 0}
+      key6: {r: 0, g: 0, b: 0, a: 0}
       key7: {r: 0, g: 0, b: 0, a: 0}
       ctime0: 0
-      ctime1: 13921
-      ctime2: 25829
-      ctime3: 32853
-      ctime4: 42619
-      ctime5: 49301
-      ctime6: 65535
+      ctime1: 16384
+      ctime2: 39321
+      ctime3: 65535
+      ctime4: 0
+      ctime5: 0
+      ctime6: 0
       ctime7: 0
       atime0: 0
       atime1: 65535
@@ -190,7 +182,7 @@ MonoBehaviour:
       atime7: 0
       m_Mode: 0
       m_ColorSpace: 0
-      m_NumColorKeys: 7
+      m_NumColorKeys: 4
       m_NumAlphaKeys: 2
     colorMode: 0
     colorFlow:
@@ -200,22 +192,22 @@ MonoBehaviour:
       m_max: 1
       m_points:
       - time: 0
-        value: -2
+        value: 0
         exponent: 1
         editState: 0
       - time: 1
-        value: 2
+        value: 1
         exponent: 1
         editState: 0
-      m_yMin: -2
-      m_yMax: 2
+      m_yMin: 0
+      m_yMax: 1
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
     colorFlowZoom:
       m_mode: 0
-      m_static: 1.0504376
+      m_static: 1
       m_min: 0
       m_max: 1
       m_points: []
@@ -259,20 +251,12 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
-      - time: 0.13531834
-        value: 0.9814821
-        exponent: 1
-        editState: 0
-      - time: 0.68336964
+      - time: 0.15
         value: 1
         exponent: 1
         editState: 0
-      - time: 0.8169935
-        value: 0.1923077
-        exponent: 1
-        editState: 0
-      - time: 0.9981168
-        value: 0
+      - time: 0.7
+        value: 1
         exponent: 1
         editState: 0
       m_yMin: 0
@@ -281,10 +265,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    modifiers: []
+    modifiers:
+    - rid: 1452078007603691620
     outerSoftness:
       m_mode: 0
-      m_static: 0.102625296
+      m_static: 0.22752585
       m_min: 0
       m_max: 1
       m_points: []
@@ -294,21 +279,13 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    hollow: 1
+    hollow: 0
     holeSize:
-      m_mode: 2
-      m_static: 0.19958295
+      m_mode: 0
+      m_static: 0.5
       m_min: 0
       m_max: 1
-      m_points:
-      - time: 0
-        value: 0.19958295
-        exponent: 1
-        editState: 0
-      - time: 1
-        value: 0.27350402
-        exponent: 1
-        editState: 0
+      m_points: []
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -317,7 +294,7 @@ MonoBehaviour:
       m_multiplierId: 
     innerSoftness:
       m_mode: 0
-      m_static: 0.15907058
+      m_static: 0
       m_min: 0
       m_max: 1
       m_points: []
@@ -366,7 +343,7 @@ MonoBehaviour:
       m_multiplierId: 
     sparkleDensity:
       m_mode: 0
-      m_static: 0.5391719
+      m_static: 0.25
       m_min: 0
       m_max: 1
       m_points: []
@@ -426,60 +403,32 @@ MonoBehaviour:
       m_cooldown: -1
       m_multiplierId: 
     crescentOffsetX:
-      m_mode: 2
-      m_static: 1.8969345
+      m_mode: 0
+      m_static: 0.45
       m_min: 0
       m_max: 1
-      m_points:
-      - time: 0
-        value: -31.452974
-        exponent: 1
-        editState: 0
-      - time: 0.5536723
-        value: -13.219351
-        exponent: 1
-        editState: 0
-      - time: 0.9862792
-        value: 5.3789062
-        exponent: 1
-        editState: 0
-      m_yMin: -32
-      m_yMax: 32
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
     crescentOffsetY:
-      m_mode: 2
-      m_static: -4.585047
+      m_mode: 0
+      m_static: 0
       m_min: 0
       m_max: 1
-      m_points:
-      - time: 0
-        value: 32
-        exponent: 1
-        editState: 0
-      - time: 0.26957223
-        value: 7.3846154
-        exponent: 1
-        editState: 0
-      - time: 0.6107076
-        value: -6.83759
-        exponent: 1
-        editState: 0
-      - time: 1
-        value: 2.2791967
-        exponent: 1
-        editState: 0
-      m_yMin: -32
-      m_yMax: 32
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    perShapeLifeJitter: 0.25602517
-    spawnStagger: 0.165085
-    syncDeath: 1
+    perShapeLifeJitter: 0.3
+    spawnStagger: 0
+    syncDeath: 0
     barCount:
       m_mode: 0
       m_static: 7
@@ -494,7 +443,7 @@ MonoBehaviour:
       m_multiplierId: 
     barSpacing:
       m_mode: 0
-      m_static: 4
+      m_static: 1.5
       m_min: 0
       m_max: 1
       m_points: []
@@ -547,7 +496,7 @@ MonoBehaviour:
         exponent: 1
         editState: 0
       m_yMin: 0
-      m_yMax: 64
+      m_yMax: 48
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
@@ -722,14 +671,14 @@ MonoBehaviour:
     noiseBands: 4
     noiseThreshold: 0.45
     noiseEdgeSoftness: 0.25
-  - name: Fire Rosing
+  - name: Sparks
     enabled: 1
-    startFrame: 0
-    endFrame: 16
-    shape: 0
+    startFrame: 1
+    endFrame: 14
+    shape: 2
     count:
       m_mode: 0
-      m_static: 13.720762
+      m_static: 1
       m_min: 0
       m_max: 1
       m_points: []
@@ -741,42 +690,26 @@ MonoBehaviour:
       m_multiplierId: 
     spawnRadius:
       m_mode: 0
-      m_static: 0.5234686
+      m_static: 0
       m_min: 0
       m_max: 1
-      m_points:
-      - time: 0
-        value: 0
-        exponent: 1
-        editState: 0
-      - time: 0.4178165
-        value: 0.85897434
-        exponent: 1
-        editState: 0
-      - time: 1
-        value: 0.77920216
-        exponent: 1
-        editState: 0
+      m_points: []
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    scatterMode: 2
-    ringOrder: 1
+    scatterMode: 0
+    ringOrder: 0
     ringStartAngle:
       m_mode: 0
-      m_static: -54.27185
+      m_static: 0
       m_min: 0
       m_max: 1
-      m_points:
-      - time: 0
-        value: 180
-        exponent: 1
-        editState: 0
-      m_yMin: -180
-      m_yMax: 180
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
@@ -786,57 +719,49 @@ MonoBehaviour:
       m_static: 360
       m_min: 0
       m_max: 1
-      m_points:
-      - time: 0
-        value: 360
-        exponent: 1
-        editState: 0
+      m_points: []
       m_yMin: 0
-      m_yMax: 360
+      m_yMax: 1
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
     ringAlignRotation: 0
-    roseReverseDraw: 1
+    roseReverseDraw: 0
     spinDegrees:
-      m_mode: 2
+      m_mode: 0
       m_static: 0
-      m_min: 8.925671
-      m_max: 80.925674
-      m_points:
-      - time: 0
-        value: 0
-        exponent: 1
-        editState: 0
-      m_yMin: -360
-      m_yMax: 360
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
     roseRings:
-    - count: 15
-      radius: 0.105555356
+    - count: 4
+      radius: 0.15
       sizeScale: 1
       birth: 0
-      life: 0.5
-    - count: 20
-      radius: 0.1944443
+      life: 1
+    - count: 10
+      radius: 0.35
       sizeScale: 1
-      birth: 0.158
+      birth: 0.15
       life: 0.85
-    - count: 40
-      radius: 0.35000002
+    - count: 18
+      radius: 0.55
       sizeScale: 1
-      birth: 0.269
-      life: 0.572
+      birth: 0.3
+      life: 0.7
     fuse: 0
     positionX:
       m_mode: 0
       m_static: 0
-      m_min: 0.3699004
-      m_max: 0.3699004
+      m_min: 0
+      m_max: 1
       m_points: []
       m_yMin: 0
       m_yMax: 1
@@ -847,8 +772,8 @@ MonoBehaviour:
     positionY:
       m_mode: 0
       m_static: 0
-      m_min: 0.49271774
-      m_max: 0.49271774
+      m_min: 0
+      m_max: 1
       m_points: []
       m_yMin: 0
       m_yMax: 1
@@ -858,28 +783,16 @@ MonoBehaviour:
       m_multiplierId: 
     size:
       m_mode: 2
-      m_static: 2.0535665
+      m_static: 1
       m_min: 0
       m_max: 1
       m_points:
       - time: 0
-        value: 0
+        value: 8
         exponent: 1
         editState: 0
-      - time: 0.30259016
-        value: 6.290565
-        exponent: 1
-        editState: 0
-      - time: 0.5785524
-        value: 13.401692
-        exponent: 1
-        editState: 0
-      - time: 0.9029291
-        value: 2.5526843
-        exponent: 1
-        editState: 0
-      - time: 0.99878967
-        value: 10.210837
+      - time: 1
+        value: 24
         exponent: 1
         editState: 0
       m_yMin: 0
@@ -890,19 +803,19 @@ MonoBehaviour:
       m_multiplierId: 
     colorOverLife:
       serializedVersion: 2
-      key0: {r: 1, g: 0.9555937, b: 0.75576514, a: 1}
-      key1: {r: 1, g: 0.92, b: 0.5, a: 1}
-      key2: {r: 1, g: 0.55, b: 0.12, a: 0}
-      key3: {r: 0.8247373, g: 0.2987902, b: 0.07910538, a: 0}
-      key4: {r: 0.6645702, g: 0.10643928, b: 0.0034830763, a: 0}
+      key0: {r: 1, g: 1, b: 1, a: 1}
+      key1: {r: 1, g: 0.9, b: 0.35, a: 1}
+      key2: {r: 1, g: 0.55, b: 0.15, a: 0}
+      key3: {r: 0, g: 0, b: 0, a: 0}
+      key4: {r: 0, g: 0, b: 0, a: 0}
       key5: {r: 0, g: 0, b: 0, a: 0}
       key6: {r: 0, g: 0, b: 0, a: 0}
       key7: {r: 0, g: 0, b: 0, a: 0}
       ctime0: 0
-      ctime1: 2956
-      ctime2: 19147
-      ctime3: 37308
-      ctime4: 65535
+      ctime1: 26214
+      ctime2: 65535
+      ctime3: 0
+      ctime4: 0
       ctime5: 0
       ctime6: 0
       ctime7: 0
@@ -916,56 +829,12 @@ MonoBehaviour:
       atime7: 0
       m_Mode: 0
       m_ColorSpace: -1
-      m_NumColorKeys: 5
+      m_NumColorKeys: 3
       m_NumAlphaKeys: 2
-    colorMode: 1
+    colorMode: 0
     colorFlow:
       m_mode: 2
-      m_static: -0.016441345
-      m_min: -0.30526048
-      m_max: 0.5138004
-      m_points:
-      - time: 0
-        value: -1.321937
-        exponent: 1
-        editState: 0
-      - time: 0.99782133
-        value: 0.9116806
-        exponent: 1
-        editState: 0
-      m_yMin: -2
-      m_yMax: 2
-      m_duration: 4
-      m_warmup: 0
-      m_cooldown: -1
-      m_multiplierId: 
-    colorFlowZoom:
-      m_mode: 2
-      m_static: 2.0546541
-      m_min: 2.70184
-      m_max: 3.7322714
-      m_points:
-      - time: 0
-        value: 0.23888856
-        exponent: 1
-        editState: 0
-      - time: 0.48462844
-        value: 1.0388886
-        exponent: 1
-        editState: 0
-      - time: 1
-        value: 1.1277802
-        exponent: 1
-        editState: 0
-      m_yMin: 0.1
-      m_yMax: 4
-      m_duration: 4
-      m_warmup: 0
-      m_cooldown: -1
-      m_multiplierId: 
-    gradientOffsetX:
-      m_mode: 0
-      m_static: 0.036507964
+      m_static: 1
       m_min: 0
       m_max: 1
       m_points:
@@ -974,10 +843,34 @@ MonoBehaviour:
         exponent: 1
         editState: 0
       - time: 1
-        value: 0
+        value: 1
         exponent: 1
         editState: 0
-      m_yMin: -1
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_multiplierId: 
+    colorFlowZoom:
+      m_mode: 0
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_multiplierId: 
+    gradientOffsetX:
+      m_mode: 0
+      m_static: 0
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
       m_yMax: 1
       m_duration: 4
       m_warmup: 0
@@ -985,19 +878,11 @@ MonoBehaviour:
       m_multiplierId: 
     gradientOffsetY:
       m_mode: 0
-      m_static: 0.014285684
+      m_static: 0
       m_min: 0
       m_max: 1
-      m_points:
-      - time: 0
-        value: 0
-        exponent: 1
-        editState: 0
-      - time: 1
-        value: 0
-        exponent: 1
-        editState: 0
-      m_yMin: -1
+      m_points: []
+      m_yMin: 0
       m_yMax: 1
       m_duration: 4
       m_warmup: 0
@@ -1010,15 +895,15 @@ MonoBehaviour:
       m_max: 1
       m_points:
       - time: 0
+        value: 0
+        exponent: 1
+        editState: 0
+      - time: 0.15
         value: 1
         exponent: 1
         editState: 0
-      - time: 0.69571537
+      - time: 0.7
         value: 1
-        exponent: 1
-        editState: 0
-      - time: 0.97167754
-        value: 0.74501467
         exponent: 1
         editState: 0
       - time: 1
@@ -1031,26 +916,13 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    modifiers:
-    - rid: 1452078007603691617
+    modifiers: []
     outerSoftness:
-      m_mode: 2
-      m_static: 0.3526916
+      m_mode: 0
+      m_static: 0
       m_min: 0
       m_max: 1
-      m_points:
-      - time: 0
-        value: 0.3526916
-        exponent: 1
-        editState: 0
-      - time: 0.6918422
-        value: 0.2848996
-        exponent: 1
-        editState: 0
-      - time: 1
-        value: 0.47863144
-        exponent: 1
-        editState: 0
+      m_points: []
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -1059,27 +931,11 @@ MonoBehaviour:
       m_multiplierId: 
     hollow: 0
     holeSize:
-      m_mode: 2
-      m_static: 0.23009844
+      m_mode: 0
+      m_static: 0.5
       m_min: 0
       m_max: 1
-      m_points:
-      - time: 0
-        value: 0
-        exponent: 1
-        editState: 0
-      - time: 0.16730523
-        value: 0.25071052
-        exponent: 1
-        editState: 0
-      - time: 0.58450407
-        value: 0.54700804
-        exponent: 1
-        editState: 0
-      - time: 1
-        value: 0.97720724
-        exponent: 1.4157274
-        editState: 0
+      m_points: []
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -1088,7 +944,7 @@ MonoBehaviour:
       m_multiplierId: 
     innerSoftness:
       m_mode: 0
-      m_static: 0.16706444
+      m_static: 0
       m_min: 0
       m_max: 1
       m_points: []
@@ -1100,7 +956,7 @@ MonoBehaviour:
       m_multiplierId: 
     holeOffsetX:
       m_mode: 0
-      m_static: 0.44810128
+      m_static: 0
       m_min: 0
       m_max: 1
       m_points: []
@@ -1112,7 +968,7 @@ MonoBehaviour:
       m_multiplierId: 
     holeOffsetY:
       m_mode: 0
-      m_static: -0.05372715
+      m_static: 0
       m_min: 0
       m_max: 1
       m_points: []
@@ -1137,7 +993,7 @@ MonoBehaviour:
       m_multiplierId: 
     sparkleDensity:
       m_mode: 0
-      m_static: 0.06417395
+      m_static: 0.1
       m_min: 0
       m_max: 1
       m_points: []
@@ -1198,19 +1054,11 @@ MonoBehaviour:
       m_multiplierId: 
     crescentOffsetX:
       m_mode: 0
-      m_static: 0.80952406
+      m_static: 0.45
       m_min: 0
       m_max: 1
-      m_points:
-      - time: 0
-        value: 0.06190467
-        exponent: 1
-        editState: 0
-      - time: 1
-        value: -0.5158731
-        exponent: 1
-        editState: 0
-      m_yMin: -1
+      m_points: []
+      m_yMin: 0
       m_yMax: 1
       m_duration: 4
       m_warmup: 0
@@ -1218,26 +1066,18 @@ MonoBehaviour:
       m_multiplierId: 
     crescentOffsetY:
       m_mode: 0
-      m_static: 0.90793467
+      m_static: 0
       m_min: 0
       m_max: 1
-      m_points:
-      - time: 0
-        value: -0.031746984
-        exponent: 1
-        editState: 0
-      - time: 1
-        value: -0.050795197
-        exponent: 1
-        editState: 0
-      m_yMin: -1
+      m_points: []
+      m_yMin: 0
       m_yMax: 1
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    perShapeLifeJitter: 0.22425644
-    spawnStagger: 0.5078929
+    perShapeLifeJitter: 0.3
+    spawnStagger: 0
     syncDeath: 0
     barCount:
       m_mode: 0
@@ -1401,9 +1241,9 @@ MonoBehaviour:
       m_cooldown: -1
       m_multiplierId: 
     metaOrbs: []
-    metaThreshold: 0.28433925
-    metaShadeRange: 2.0854797
-    metaSoftness: 0.15725537
+    metaThreshold: 0.6
+    metaShadeRange: 1.5
+    metaSoftness: 0.18
     metaSpawnInterval: 0.12
     metaRadiusScale:
       m_mode: 0
@@ -1482,11 +1322,11 @@ MonoBehaviour:
     noiseThreshold: 0.45
     noiseEdgeSoftness: 0.25
   globalModifiers: []
-  previewZoom: 2
+  previewZoom: 3
   previewFps: 12
-  previewSpeed: 1.2143154
+  previewSpeed: 1.0963644
   previewBgMode: 2
-  previewBgSolid: {r: 0.08, g: 0.08, b: 0.1, a: 1}
+  previewBgSolid: {r: 0.19100726, g: 0.6268344, b: 0.10053006, a: 1}
   previewBgGradient:
     serializedVersion: 2
     key0: {r: 1, g: 1, b: 1, a: 1}
@@ -1517,72 +1357,51 @@ MonoBehaviour:
     m_ColorSpace: -1
     m_NumColorKeys: 2
     m_NumAlphaKeys: 2
-  previewBgImage: {fileID: 2800000, guid: 2fd091658b9920b4d906712919f9877f, type: 3}
+  previewBgImage: {fileID: 2800000, guid: ba81d84c6abb7ac4f91fe837bbd23a82, type: 3}
   previewBgImageTint: {r: 1, g: 1, b: 1, a: 1}
   previewBgImageZoom: 1
-  previewShowFrame: 1
+  previewShowFrame: 0
   previewStageBg: {fileID: 0}
-  previewLayerSel: 0
-  previewScroll: {x: 0.96435547, y: 0}
-  previewFrame: 11
+  previewLayerSel: 1
+  previewScroll: {x: 0, y: 199.71997}
+  previewFrame: 0
   previewShapeOn: 0
-  previewShapeGradientFill: 0
+  previewShapeGradientFill: 1
   previewShapeCrescent: 1
   previewShapeHollow: 1
-  previewShapeSize: 0
+  previewShapeSize: 1
   previewShapeSpin: 1
   previewShapeAlpha: 1
-  previewShapeModifiers: 0
+  previewShapeModifiers: 1
   references:
     version: 2
     RefIds:
-    - rid: 1452078007603691617
-      type: {class: OutlineModifier, ns: Laubrary.Pyre, asm: com.Lautaro-Arino.Laubrary.Pyre}
+    - rid: 1452078007603691620
+      type: {class: DissolveModifier, ns: Laubrary.Pyre, asm: com.Lautaro-Arino.Laubrary.Pyre}
       data:
-        enabled: 0
-        mode: 0
-        color:
-          serializedVersion: 2
-          key0: {r: 1, g: 1, b: 1, a: 1}
-          key1: {r: 0, g: 0, b: 0, a: 1}
-          key2: {r: 0, g: 0, b: 0, a: 0}
-          key3: {r: 0, g: 0, b: 0, a: 0}
-          key4: {r: 0, g: 0, b: 0, a: 0}
-          key5: {r: 0, g: 0, b: 0, a: 0}
-          key6: {r: 0, g: 0, b: 0, a: 0}
-          key7: {r: 0, g: 0, b: 0, a: 0}
-          ctime0: 0
-          ctime1: 62151
-          ctime2: 0
-          ctime3: 0
-          ctime4: 0
-          ctime5: 0
-          ctime6: 0
-          ctime7: 0
-          atime0: 0
-          atime1: 65535
-          atime2: 0
-          atime3: 0
-          atime4: 0
-          atime5: 0
-          atime6: 0
-          atime7: 0
-          m_Mode: 0
-          m_ColorSpace: -1
-          m_NumColorKeys: 2
-          m_NumAlphaKeys: 2
-        size:
-          m_mode: 0
-          m_static: 3.961165
+        enabled: 1
+        amount:
+          m_mode: 2
+          m_static: 1
           m_min: 0
           m_max: 1
-          m_points: []
+          m_points:
+          - time: 0
+            value: 0
+            exponent: 1
+            editState: 0
+          - time: 0.6
+            value: 0
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 1
+            exponent: 1
+            editState: 0
           m_yMin: 0
           m_yMax: 1
           m_duration: 4
           m_warmup: 0
           m_cooldown: -1
           m_multiplierId: 
-        alphaThreshold: 0.64442116
-        innerSoftness: 0
-        outerSoftness: 0
+        mode: 0

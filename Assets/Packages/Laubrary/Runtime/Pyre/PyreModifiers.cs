@@ -966,23 +966,43 @@ namespace Laubrary.Pyre
                  "flat = a sharp one-colour outline, a gradient fades/recolours/bands outward. Over life mode " +
                  "samples the whole gradient once, at the blast's own life.")]
         public Gradient color = White();
-        [Tooltip("Outline thickness in pixels. Animatable — grow the outline outward.")]
+        [Tooltip("Outline thickness in pixels, measured OUTWARD from the shape's edge — 0 is only meaningful " +
+                 "together with Inner softness (a pure inward glow with no outward ring at all); otherwise " +
+                 "this is the ring you actually see, so it wants to start at 1. Animatable — grow it outward.")]
         public ZUIValue size = new ZUIValue(1f);
         [Range(0.01f, 1f)]
-        [Tooltip("Alpha above which a pixel counts as part of the shape (the silhouette the outline hugs).")]
+        [Tooltip("Sensitivity for WHERE the outline traces on a soft-edged shape (outer softness, a gradient " +
+                 "fill's own fade, a Crescent bite, anywhere alpha isn't a hard 0/1 step) — the alpha level a " +
+                 "pixel needs to count as \"shape\" rather than \"background.\" Raise it to trace further IN, " +
+                 "toward the shape's more solid core; lower it to trace further OUT, into the fade itself.")]
         public float alphaThreshold = 0.3f;
-        [Range(0f, 4f)]
-        [Tooltip("Fades the outline's OWN alpha near its INNER edge (right against the shape's silhouette) — 0 " +
-                 "= a hard cutoff there (the default, crisp look), higher fades it in gradually moving away " +
-                 "from the shape instead of starting at full strength immediately.")]
+
+        // Inner and Outer below are the two EDGES of one single outline ring (where it meets the shape, and
+        // where it meets the background) — not two separate outlines. Same knobs on both sides: a softness
+        // (how many px the fade spans) and a curve (how that fade is shaped), applied symmetrically.
+        [Range(0f, 16f)]
+        [Tooltip("Spills the outline INWARD, into the shape's own silhouette, over this many pixels — 0 = the " +
+                 "outline stays entirely outside the shape (the default, crisp look). Higher values blend the " +
+                 "outline colour over the shape's own pixels near the boundary, fading from full strength right " +
+                 "at the edge down to the shape's own colour this many pixels deep — an inset glow, not a gap.")]
         public float innerSoftness = 0f;
-        [Range(0f, 8f)]
+        [Range(0.2f, 5f)]
+        [Tooltip("Shapes the Inner softness falloff curve — 1 = linear (the default). Higher holds full " +
+                 "strength longer near the boundary then drops off sharply right at the tail (reads as a " +
+                 "tighter, more contained inset glow); lower drops off quickly then lingers faintly deeper in. " +
+                 "Has no effect while Inner softness is 0.")]
+        public float innerSoftnessCurve = 1f;
+        [Range(0f, 16f)]
         [Tooltip("Fades the outline's OWN alpha near its OUTER edge (furthest from the shape) — 0 = a hard " +
                  "cutoff exactly at Size (the default), higher fades it out gradually, extending the visible " +
-                 "falloff a bit PAST Size. Capped further out than Inner softness since the outward fade " +
-                 "typically wants to read as a longer glow/dissipation, while the inner edge (right against " +
-                 "the shape) usually wants to stay crisp.")]
+                 "falloff a bit PAST Size.")]
         public float outerSoftness = 0f;
+        [Range(0.2f, 5f)]
+        [Tooltip("Shapes the Outer softness falloff curve — 1 = linear (the default). Higher stays near full " +
+                 "strength longer then drops off sharply right at the tail (a tighter, more \"smoothed\" edge to " +
+                 "the glow instead of a straight ramp); lower drops off quickly then lingers faintly for longer. " +
+                 "Has no effect while Outer softness is 0.")]
+        public float outerSoftnessCurve = 1f;
 
         int sz;
         Color overLifeColor;
@@ -995,52 +1015,105 @@ namespace Laubrary.Pyre
 
         public override void Apply(Color32[] buf, int W, int H)
         {
-            if (sz < 1 || color == null) return;
+            if ((sz < 1 && innerSoftness < 0.001f) || color == null) return;
             byte at = (byte)(alphaThreshold * 255f);
             var src = (Color32[])buf.Clone();
             int R = sz;
-            // The outward fade can read a bit past the nominal thickness, so the neighbour search has to reach
-            // that far too — otherwise pixels in the fade band beyond R would never find a shape pixel to
-            // measure distance from and'd just be skipped.
-            int searchR = Mathf.CeilToInt(R + outerSoftness);
-            for (int y = 0; y < H; y++)
-                for (int x = 0; x < W; x++)
-                {
-                    int idx = y * W + x;
-                    if (src[idx].a > at) continue;   // a shape pixel — the outline goes in the transparent ring only
 
-                    int best2 = int.MaxValue;
-                    for (int dy = -searchR; dy <= searchR; dy++)
+            // ── outward ring: transparent pixels near the shape, within Size (+ its own outward fade) ──────
+            if (sz >= 1)
+            {
+                // The outward fade can read a bit past the nominal thickness, so the neighbour search has to
+                // reach that far too — otherwise pixels in the fade band beyond R would never find a shape
+                // pixel to measure distance from and'd just be skipped.
+                int searchOut = Mathf.CeilToInt(R + outerSoftness);
+                for (int y = 0; y < H; y++)
+                    for (int x = 0; x < W; x++)
                     {
-                        int yy = y + dy; if (yy < 0 || yy >= H) continue;
-                        for (int dx = -searchR; dx <= searchR; dx++)
+                        int idx = y * W + x;
+                        if (src[idx].a > at) continue;   // a shape pixel — handled by the inward pass below instead
+
+                        int best2 = int.MaxValue;
+                        for (int dy = -searchOut; dy <= searchOut; dy++)
                         {
-                            int xx = x + dx; if (xx < 0 || xx >= W) continue;
-                            if (src[yy * W + xx].a <= at) continue;
-                            int d2 = dx * dx + dy * dy;
-                            if (d2 < best2) best2 = d2;
+                            int yy = y + dy; if (yy < 0 || yy >= H) continue;
+                            for (int dx = -searchOut; dx <= searchOut; dx++)
+                            {
+                                int xx = x + dx; if (xx < 0 || xx >= W) continue;
+                                if (src[yy * W + xx].a <= at) continue;
+                                int d2 = dx * dx + dy * dy;
+                                if (d2 < best2) best2 = d2;
+                            }
                         }
+                        float d = Mathf.Sqrt(best2);
+                        if (d > R + outerSoftness) continue;   // beyond the thickness (+ its outward fade)
+
+                        float fadeA = 1f;
+                        if (outerSoftness > 0.001f)
+                        {
+                            float lin = Mathf.Clamp01((R + outerSoftness - d) / outerSoftness);
+                            fadeA = Mathf.Pow(lin, outerSoftnessCurve);
+                        }
+                        if (fadeA <= 0.003f) continue;
+
+                        Color oc;
+                        if (mode == ColorMode.OverLife) oc = overLifeColor;
+                        else
+                        {
+                            float frac = R > 1 ? Mathf.Clamp01((Mathf.Min(d, R) - 1f) / (R - 1f)) : 0f;   // 0 inner edge → 1 outer
+                            oc = color.Evaluate(frac);
+                        }
+                        buf[idx] = new Color32(ToByte(oc.r), ToByte(oc.g), ToByte(oc.b), ToByte(oc.a * fadeA));
                     }
-                    float d = Mathf.Sqrt(best2);
-                    if (d > R + outerSoftness) continue;   // beyond the thickness (+ its outward fade)
+            }
 
-                    // Edge fade: inner (d=0, right at the shape) fades IN over innerSoftness px; outer (d=R)
-                    // fades OUT over the next outerSoftness px past R. Independent of the colour gradient's own
-                    // 0..1 fraction below, which is about WHICH colour, not how visible the outline is here.
-                    float fadeA = 1f;
-                    if (innerSoftness > 0.001f) fadeA *= Mathf.Clamp01(d / innerSoftness);
-                    if (outerSoftness > 0.001f) fadeA *= Mathf.Clamp01((R + outerSoftness - d) / outerSoftness);
-                    if (fadeA <= 0.003f) continue;
-
-                    Color oc;
-                    if (mode == ColorMode.OverLife) oc = overLifeColor;
-                    else
+            // ── inward spill: shape pixels within Inner softness of the boundary get the outline colour ────
+            // blended OVER their own colour (an inset glow) — full strength right at the edge, fading back to
+            // the shape's own colour deeper in. A separate pass over the SAME src snapshot (not the ring pass's
+            // partial results above) so the two never interfere with each other's distance search.
+            if (innerSoftness > 0.001f)
+            {
+                int searchIn = Mathf.CeilToInt(innerSoftness);
+                Color edgeColor = mode == ColorMode.OverLife ? overLifeColor : color.Evaluate(0f);
+                for (int y = 0; y < H; y++)
+                    for (int x = 0; x < W; x++)
                     {
-                        float frac = R > 1 ? Mathf.Clamp01((Mathf.Min(d, R) - 1f) / (R - 1f)) : 0f;   // 0 inner edge → 1 outer
-                        oc = color.Evaluate(frac);
+                        int idx = y * W + x;
+                        if (src[idx].a <= at) continue;   // not a shape pixel — handled by the outward pass above
+
+                        int best2 = int.MaxValue;
+                        for (int dy = -searchIn; dy <= searchIn; dy++)
+                        {
+                            int yy = y + dy; if (yy < 0 || yy >= H) continue;
+                            for (int dx = -searchIn; dx <= searchIn; dx++)
+                            {
+                                int xx = x + dx; if (xx < 0 || xx >= W) continue;
+                                if (src[yy * W + xx].a > at) continue;   // looking for the nearest BACKGROUND pixel now
+                                int d2 = dx * dx + dy * dy;
+                                if (d2 < best2) best2 = d2;
+                            }
+                        }
+                        if (best2 == int.MaxValue) continue;   // no background within reach — deep interior, untouched
+                        float d = Mathf.Sqrt(best2);
+                        if (d > innerSoftness) continue;
+
+                        float lin = Mathf.Clamp01(1f - d / innerSoftness);   // full AT the boundary, fading inward
+                        float fadeA = Mathf.Pow(lin, innerSoftnessCurve);
+                        float outA = Mathf.Clamp01(edgeColor.a * fadeA);
+                        if (outA <= 0.003f) continue;
+
+                        // Straight alpha-over: outline colour over the shape's own existing pixel colour.
+                        Color32 baseC = buf[idx];
+                        float baseA = baseC.a / 255f;
+                        float resultA = outA + baseA * (1f - outA);
+                        if (resultA <= 0.0001f) { buf[idx] = new Color32(0, 0, 0, 0); continue; }
+                        float inv = 1f - outA;
+                        float r = (edgeColor.r * outA + (baseC.r / 255f) * baseA * inv) / resultA;
+                        float g = (edgeColor.g * outA + (baseC.g / 255f) * baseA * inv) / resultA;
+                        float b = (edgeColor.b * outA + (baseC.b / 255f) * baseA * inv) / resultA;
+                        buf[idx] = new Color32(ToByte(r), ToByte(g), ToByte(b), ToByte(resultA));
                     }
-                    buf[idx] = new Color32(ToByte(oc.r), ToByte(oc.g), ToByte(oc.b), ToByte(oc.a * fadeA));
-                }
+            }
         }
 
         static Gradient White()

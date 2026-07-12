@@ -317,6 +317,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   coverage, and Size-off at an early life-progress (t=0.1, where the authored Size curve would still be small)
   shows MORE lit pixels than Size-on at t=0.5 — confirming the "pin to max regardless of the curve" override
   actually overrides rather than just reading through.
+- **AssetKit browser thumbnails can now animate — opt-in per tool, zero effect on tools that don't.**
+  `LaubraryAssetWindow<T>` gains `AnimateThumbnails` (virtual, default `false`) and `UpdateAnimatedThumbnail
+  (item, tex, time)` (virtual, no-op default): when a subclass opts in, its cached browser thumbnail
+  `Texture2D`s get mutated in place (`SetPixels32`+`Apply`) on a throttled ~12fps timer while the browser is
+  visible, instead of being rendered once and frozen forever. The timer (`EditorApplication.update`, lazy-
+  hooked exactly like the existing `projectChanged` hook) is only ever subscribed for a window whose
+  `AnimateThumbnails` is true, so every other AssetKit tool (Larder, Choreographer, SpriteCatalog, Bestiarium,
+  Lazor) pays literally zero cost — not even an extra subscribed delegate. Pyre is the first (only) adopter:
+  `RenderThumbnail` still bakes the initial (middle-frame) texture as before, and the new
+  `UpdateAnimatedThumbnail` override advances it through the asset's own baked frames at its own Preview fps,
+  looping — so the browser grid shows every blast actually playing instead of one static pose. Verified: two
+  frames of the SAME texture rendered 0.5s apart differ in 748/4096 pixels, confirming genuine frame
+  advancement (not a frozen/no-op call).
+- **Fixed: Pyre had essentially no Undo support for per-field dial edits.** Only structural list operations
+  (Add/Remove/Reorder layer or modifier, Add/Remove rose ring) called `Undo.RecordObject` — every slider,
+  toggle, gradient, MiniRadio, and `ZUIValue`/`ZUIValue2DControl` edit throughout the entire layer inspector
+  (shape params, Colour/Alpha, RoseRings, per-layer Modifiers, Blast settings, Global modifiers) had NO undo
+  at all: Ctrl+Z did nothing after dragging a slider. Root cause: `DrawLeft()` already wrapped its whole tree
+  in `EditorGUI.BeginChangeCheck()`/`EndChangeCheck()` (to call `EditorUtility.SetDirty`), but never called
+  `Undo.RecordObject` — and since Undo has to snapshot state BEFORE a control can mutate it, that single
+  missing call at the top of the block (right after `BeginChangeCheck()`) was the entire gap for that whole
+  subtree. Also added `Undo.RecordObject` to four preview-viewport drag interactions that live outside
+  `DrawLeft()`'s span and so weren't covered by that fix: the origin `✛` handle, MetaBlob orb placement/drag,
+  Pin warp pin placement/drag, and Smudge stroke painting (recorded once at the start of each gesture, so a
+  whole drag undoes as one step) — plus the preview transport's own duplicate Frame-count slider. Recording
+  `Undo.RecordObject` unconditionally every repaint (rather than only when a change is detected) is the
+  standard pattern for a hand-rolled, non-`SerializedProperty` editor like this one — cheap, and Unity
+  coalesces repeated no-op records so a slider drag becomes ONE undo step, not one per frame dragged. Note:
+  the project's own dev guide already flagged "some Pyre/Larder dials" as a known gap to retrofit — Larder and
+  Rulesets likely have the same issue and weren't touched here (out of scope for this pass).
+- **Fixed: MetaBlob/Fuse's `Edge softness` washed the WHOLE FRAME with a faint uniform fill once raised past
+  `Threshold`.** Both `RenderMetaBlob` and `RenderFusedField` anti-alias their iso-surface as `field >
+  threshold - band` (band = Edge softness); once `band > threshold`, that lower bound goes negative, and since
+  the metaball field is 0 (not undefined) everywhere far from any orb/fused shape, EVERY pixel in the buffer —
+  not just near the blob's own edge — started satisfying the "in range" test and picking up a faint alpha.
+  Fixed by clamping `band` to never exceed `threshold` (`Mathf.Clamp(layer.metaSoftness, 0.01f, threshold)`) —
+  the formula is only valid below that point regardless of how far a user pushes the slider, so this is a
+  correctness clamp, not an arbitrary cap. Affected MetaBlob orbs and Fuse (a Ring/Rosing Disc's metaball
+  fusion) identically, since both share the same threshold/range/softness fields and formula.
+- **Fixed: `OutlineModifier`'s `Inner softness` faded the WRONG way** — it multiplied the outward ring's alpha
+  by `d / innerSoftness` (`d` = distance from the shape boundary, increasing outward), which is 0 right at the
+  shape and ramps up moving AWAY from it — the exact opposite of "soften the inner edge," and visibly wrong: a
+  transparent gap between the shape and its own outline. Inner softness is now a genuinely separate INWARD
+  pass over the shape's own pixels (not the transparent ring at all) — full outline strength right at the
+  boundary, alpha-composited OVER the shape's existing colour, fading back to the shape's own colour moving
+  DEEPER IN over that many pixels. An inset glow, not a gap. Also added `Outer softness curve` (0.2–5, default
+  1 = linear/unchanged) — raises the outward fade to this power, so it can stay near full strength longer and
+  then drop off sharply right at the tail instead of a straight linear ramp.
+- **`OutlineModifier` follow-up tuning**: `Edge alpha` renamed `Edge sensitivity` (same field, `alphaThreshold`
+  — clarifies it's the control for WHERE the outline traces on a soft-edged shape, not a separate alpha
+  setting easily confused with Inner/Outer softness sitting right next to it). `Inner softness` widened 0–4 →
+  0–16 (to match Outer, and reach as deep as a user actually wants now that it's fixed) and gained its own
+  `Inner curve` (mirrors `Outer curve` — same `Mathf.Pow` shaping, applied to the inward fade). `Size` can
+  still go to 0 — now meaningfully, as "no outward ring, pure Inner-softness glow" (the `Apply` early-return
+  is `(sz < 1 && innerSoftness < 0.001f)`, not `sz < 1` alone) — not a dead value like it was before Inner
+  softness actually worked.
 - **`OutlineModifier` gains `Inner softness`/`Outer softness`** — previously the outline ring had a hard cutoff
   at both its own edges: full alpha the instant it touched the shape's silhouette, and a hard clip exactly at
   `Size`. Inner softness (0–4px) fades it IN gradually from the shape boundary instead of starting at full

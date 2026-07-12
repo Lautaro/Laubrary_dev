@@ -40,6 +40,17 @@ namespace Laubrary.AssetKit.Editor
         protected virtual string NewAssetName => "New " + typeof(T).Name;
         /// Return a FRESH preview texture for the browser (this base owns and destroys it). Null → Unity asset icon.
         protected virtual Texture2D RenderThumbnail(T item) => null;
+        /// When true, this tool's browser thumbnails refresh periodically (via <see cref="UpdateAnimatedThumbnail"/>)
+        /// instead of being cached forever after the first <see cref="RenderThumbnail"/> call. Default false — zero
+        /// behaviour change for every other <see cref="LaubraryAssetWindow{T}"/> subclass; only a tool that opts in
+        /// pays the cost of periodic re-rendering.
+        protected virtual bool AnimateThumbnails => false;
+        /// Called periodically (while the browser is visible) for a thumbnail this tool opted into animating —
+        /// update <paramref name="tex"/>'s pixels IN PLACE however the tool likes (e.g. SetPixels32 + Apply for a
+        /// different baked frame each call). <paramref name="time"/> is EditorApplication.timeSinceStartup, so the
+        /// tool can derive its own frame index without tracking a timer itself. Only invoked when
+        /// <see cref="AnimateThumbnails"/> is true; no-op by default.
+        protected virtual void UpdateAnimatedThumbnail(T item, Texture2D tex, double time) { }
         /// Called whenever the edited asset changes (assign / create / duplicate / browse pick). Reset caches here.
         protected virtual void OnAssetChanged() { }
         /// Seed a freshly-created asset with tool-specific default content (e.g. example layers). Called once, right
@@ -70,6 +81,9 @@ namespace Laubrary.AssetKit.Editor
 
         // ── window loop ─────────────────────────────────────────────────────────────────
         [System.NonSerialized] bool _hookedProjectChange;
+        [System.NonSerialized] bool _hookedThumbAnimation;
+        [System.NonSerialized] double _lastThumbTick;
+        const double ThumbAnimateInterval = 1.0 / 12.0;   // a common baked-preview fps; smooth enough, cheap enough
 
         protected sealed override void OnZUI()
         {
@@ -77,6 +91,9 @@ namespace Laubrary.AssetKit.Editor
             // ANYWHERE (Project window, external CRUD), not just via this window's own buttons. Hooked lazily here so
             // it works regardless of whether a subclass overrides OnZUIEnable without calling base.
             if (!_hookedProjectChange) { EditorApplication.projectChanged += OnProjectChanged; _hookedProjectChange = true; }
+            // Same lazy-hook pattern for thumbnail animation — only subscribed at all when a subclass opts in via
+            // AnimateThumbnails, so every other tool pays zero cost (not even an extra delegate on the update event).
+            if (AnimateThumbnails && !_hookedThumbAnimation) { EditorApplication.update += TickThumbAnimation; _hookedThumbAnimation = true; }
 
             DrawToolbar();
             if (asset == null || browsing) DrawBrowser();
@@ -85,9 +102,23 @@ namespace Laubrary.AssetKit.Editor
 
         void OnProjectChanged() { RefreshBrowse(); Repaint(); }
 
+        // Advances every cached thumbnail in place (mutating the SAME Texture2D DrawCell already draws — no
+        // change needed there) while the browser is actually visible, throttled to ThumbAnimateInterval so this
+        // doesn't try to out-run the editor's own repaint rate for no visual benefit.
+        void TickThumbAnimation()
+        {
+            if (!AnimateThumbnails || !(asset == null || browsing) || _thumbs.Count == 0) return;
+            double now = EditorApplication.timeSinceStartup;
+            if (now - _lastThumbTick < ThumbAnimateInterval) return;
+            _lastThumbTick = now;
+            foreach (var kv in _thumbs) if (kv.Value != null) UpdateAnimatedThumbnail(kv.Key, kv.Value, now);
+            Repaint();
+        }
+
         protected virtual void OnDisable()
         {
             if (_hookedProjectChange) { EditorApplication.projectChanged -= OnProjectChanged; _hookedProjectChange = false; }
+            if (_hookedThumbAnimation) { EditorApplication.update -= TickThumbAnimation; _hookedThumbAnimation = false; }
             ClearThumbs();
         }
 
