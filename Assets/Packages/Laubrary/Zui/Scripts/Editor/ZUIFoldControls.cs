@@ -105,13 +105,14 @@ public static partial class ZUI
 
     static void ShowFoldMenu(string key, FoldState st)
     {
+        // Only one category here (how to expand), so no "Expand on/" submenu — items sit at the top level.
         var menu = new GenericMenu();
-        menu.AddItem(new GUIContent("Expand on/Arrow (click)"), st.mode == FoldMode.Arrow, () =>
+        menu.AddItem(new GUIContent("Arrow (click)"), st.mode == FoldMode.Arrow, () =>
         {
             st.mode = FoldMode.Arrow;
             EditorPrefs.SetInt(FoldPrefKey(key), (int)st.mode);
         });
-        menu.AddItem(new GUIContent("Expand on/Hover"), st.mode == FoldMode.Hover, () =>
+        menu.AddItem(new GUIContent("Hover"), st.mode == FoldMode.Hover, () =>
         {
             st.mode = FoldMode.Hover;
             EditorPrefs.SetInt(FoldPrefKey(key), (int)st.mode);

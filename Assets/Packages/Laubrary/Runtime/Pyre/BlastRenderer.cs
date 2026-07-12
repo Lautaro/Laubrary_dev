@@ -23,7 +23,7 @@ namespace Laubrary.Pyre
         // ── field ids (make each ZUIValue's MinMax sample independent) ─────────────
         const int F_Count = 1, F_SpawnRadius = 2, F_PosX = 3, F_PosY = 4,
                   F_Size = 5, F_Alpha = 6, F_CrescentX = 7, F_CrescentY = 8,
-                  F_WindX = 11, F_WindY = 12, F_BarForward = 13,
+                  F_BarForward = 13,
                   F_BarSpacing = 14, F_BarWidth = 15, F_BarBackward = 16, F_BarAngle = 17,
                   F_OriginInset = 18, F_BarCount = 19;
         const int F_Squash = 20, F_Skew = 21, F_WobAmp = 22, F_WobFreq = 23, F_Rot = 24;
@@ -33,6 +33,9 @@ namespace Laubrary.Pyre
         const int F_InnerSoft = 40, F_OuterSoft = 41, F_ColorFlow = 42, F_ColorZoom = 43, F_SparkleSeed = 44;
         const int F_GradX = 45, F_GradY = 46, F_HoleOffX = 47, F_HoleOffY = 48, F_BarSoft = 49;
         const int F_MetaRadius = 50, F_MetaExpand = 51, F_MetaFlow = 52, F_MetaFlowZoom = 53;
+        const int F_NoiseZoom = 54, F_NoiseRot = 55, F_NoiseDriftX = 56, F_NoiseDriftY = 57;
+        const int F_RingStart = 58, F_RingArc = 59, F_SpinDegrees = 60;
+        const int F_SparkleBlobRadius = 61, F_SparkleBlobLife = 62, F_SparkleBlobSoft = 63;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -41,11 +44,13 @@ namespace Laubrary.Pyre
         {
             public readonly GeometryModifier[] geo;   // forward order; inverse-apply in reverse
             public readonly PixelModifier[] pix;      // apply in order
-            public ModStack(GeometryModifier[] g, PixelModifier[] p) { geo = g; pix = p; }
+            public readonly EdgeModifier[] edge;      // perturb only the outer silhouette test (RasterShape)
+            public ModStack(GeometryModifier[] g, PixelModifier[] p, EdgeModifier[] ed) { geo = g; pix = p; edge = ed; }
             public bool AnyGeo => geo.Length > 0;
             public bool AnyPix => pix.Length > 0;
+            public bool AnyEdge => edge.Length > 0;
         }
-        static readonly ModStack EmptyStack = new ModStack(Array.Empty<GeometryModifier>(), Array.Empty<PixelModifier>());
+        static readonly ModStack EmptyStack = new ModStack(Array.Empty<GeometryModifier>(), Array.Empty<PixelModifier>(), Array.Empty<EdgeModifier>());
 
         // Collect + Prepare the enabled modifiers of a layer (progress = layer life) and the blast (progress = blast
         // progress) for this frame. Layer mods come first (inner); global mods wrap them (outer).
@@ -63,24 +68,27 @@ namespace Laubrary.Pyre
         {
             var geo = new System.Collections.Generic.List<GeoEntry>();
             var pix = new System.Collections.Generic.List<PixelModifier>();
-            CollectMods(layer != null ? layer.modifiers : null, spec, li, lp, frameIndex, geo, pix, 0, 0);
-            CollectMods(spec != null ? spec.globalModifiers : null, spec, GlobalLayerId, bp, frameIndex, geo, pix, 500, GlobalPassOffset);
-            if (geo.Count == 0 && pix.Count == 0) return EmptyStack;
+            var edge = new System.Collections.Generic.List<EdgeModifier>();
+            CollectMods(layer != null ? layer.modifiers : null, spec, li, lp, frameIndex, geo, pix, edge, 0, 0);
+            CollectMods(spec != null ? spec.globalModifiers : null, spec, GlobalLayerId, bp, frameIndex, geo, pix, edge, 500, GlobalPassOffset);
+            if (geo.Count == 0 && pix.Count == 0 && edge.Count == 0) return EmptyStack;
             // Sort ascending by effective pass so the array ends with the highest; ApplyGeo (back-to-front) then
             // applies them first. Insertion sort keeps it stable so same-pass modifiers keep authoring order.
             if (geo.Count > 1) SortGeoStable(geo);
             var arr = new GeometryModifier[geo.Count];
             for (int i = 0; i < geo.Count; i++) arr[i] = geo[i].mod;
-            return new ModStack(arr, pix.ToArray());
+            return new ModStack(arr, pix.ToArray(), edge.ToArray());
         }
 
         static void CollectMods(System.Collections.Generic.List<PyreModifier> mods, BlastSpec spec, int layerId,
                                 float progress, int frameIndex,
                                 System.Collections.Generic.List<GeoEntry> geo,
-                                System.Collections.Generic.List<PixelModifier> pix, int baseId, int passOffset)
+                                System.Collections.Generic.List<PixelModifier> pix,
+                                System.Collections.Generic.List<EdgeModifier> edge, int baseId, int passOffset)
         {
             if (mods == null) return;
             int seed = spec != null ? spec.seed : 0;
+            Vector2 originPx = spec != null ? new Vector2(spec.origin.x * spec.Width, spec.origin.y * spec.Height) : Vector2.zero;
             for (int i = 0; i < mods.Count; i++)
             {
                 var m = mods[i];
@@ -88,8 +96,37 @@ namespace Laubrary.Pyre
                 if (m is PostModifier) continue;   // whole-frame passes run after compositing, not in the per-shape stack
                 int uid = baseId + i;
                 m.Prepare((v, fid) => Eval(v, progress, seed, layerId, frameIndex, 1000 + uid * 8 + fid));
+                if (m is PinWarpModifier pinWarp) pinWarp.SetFrame(frameIndex);   // pins key off the raw frame, not a 0..1 progress
+                if (m is VoronoiCrackModifier vcm) vcm.SetOrigin(originPx);       // rotation pivots on the blast's Origin marker
                 if (m is GeometryModifier gm) geo.Add(new GeoEntry { mod = gm, pass = gm.WarpPass + passOffset });
+                else if (m is EdgeModifier em) edge.Add(em);
                 else if (m is PixelModifier pm) pix.Add(pm);
+            }
+        }
+
+        // Runs a layer's own PostModifiers (Bloom/Outline/Fuse/...) on its isolated buffer, then composites the
+        // result onto the frame. A no-op when hasPost is false — layerTarget IS buf already in that case, so
+        // there is nothing to run or composite back. `life` is this layer's own life (lp), matching every other
+        // layer-scoped animatable param — NOT the whole blast's progress (that's only meaningful for the GLOBAL
+        // post pass at the bottom of RenderFrame, which is untouched by this).
+        static void FinishLayerPost(Color32[] buf, Color32[] layerTarget, bool hasPost, Layer layer, BlastSpec spec,
+                                    int li, float life, int frameIndex, int W, int H)
+        {
+            if (!hasPost) return;
+            var mods = layer.modifiers;
+            for (int i = 0; i < mods.Count; i++)
+            {
+                var m = mods[i];
+                if (m == null || !m.enabled || !(m is PostModifier post)) continue;
+                post.SetLife(life);
+                m.Prepare((v, fid) => Eval(v, life, spec.seed, li, frameIndex, 1000 + i * 8 + fid));
+                post.Apply(layerTarget, W, H);
+            }
+            for (int i = 0; i < layerTarget.Length; i++)
+            {
+                var c = layerTarget[i];
+                if (c.a == 0) continue;
+                Over(buf, i, c.r * (1f / 255f), c.g * (1f / 255f), c.b * (1f / 255f), c.a * (1f / 255f));
             }
         }
 
@@ -111,11 +148,12 @@ namespace Laubrary.Pyre
             return off;
         }
 
-        // Run the pixel modifiers on a hit pixel; false = drop it.
-        static bool ApplyPix(in ModStack s, ref Color col, ref float alpha, int x, int y, int frame,
+        // Run the pixel modifiers on a hit pixel; false = drop it. wx/wy = the geometry-warped canvas position
+        // (see PixelInfo) — pass x+0.5/y+0.5 at call sites where no geometry warp applies (e.g. RasterSprite).
+        static bool ApplyPix(in ModStack s, ref Color col, ref float alpha, int x, int y, float wx, float wy, int frame,
                              float crossFrac, float life, int hash, int W, int H)
         {
-            var info = new PixelInfo(x, y, frame, crossFrac, life, hash, W, H);
+            var info = new PixelInfo(x, y, wx, wy, frame, crossFrac, life, hash, W, H);
             for (int i = 0; i < s.pix.Length; i++)
                 if (!s.pix[i].ApplyPixel(ref col, ref alpha, info)) return false;
             return true;
@@ -165,6 +203,13 @@ namespace Laubrary.Pyre
 
                 ModStack stack = BuildStack(layer, spec, li, lp, bp, frameIndex);
 
+                // A layer with its own enabled PostModifiers (Bloom/Outline/Fuse/...) draws into an ISOLATED
+                // buffer first, so its post pass only sees/affects this layer's own pixels — never the pixels of
+                // layers already composited below it — then that buffer composites onto the frame. Layers with no
+                // post modifiers (the overwhelming common case) skip this entirely and draw straight into `buf`.
+                bool hasLayerPost = layer.modifiers != null && layer.modifiers.Exists(m => m != null && m.enabled && m is PostModifier);
+                Color32[] layerTarget = hasLayerPost ? new Color32[W * H] : buf;
+
                 // Per-layer star: how many rotated copies and the arc they span.
                 int spread = layer.star ? Mathf.Max(1, layer.spreadCount) : 1;
                 float spreadDeg = layer.star ? Eval(layer.spreadDegrees, lp, spec.seed, li, 0, F_SpreadDeg) : 0f;
@@ -173,7 +218,8 @@ namespace Laubrary.Pyre
                 if (layer.shape == LayerShape.Bars)
                 {
                     float baseA = Eval(layer.baseAngleDeg, lp, spec.seed, li, 0, F_BaseAngle);
-                    RenderBarsLayerStar(buf, W, H, cx, cy, layer, li, spec, lp, frameIndex, framePhase, baseA, spreadDeg, spread, stack);
+                    RenderBarsLayerStar(layerTarget, W, H, cx, cy, layer, li, spec, lp, frameIndex, framePhase, baseA, spreadDeg, spread, stack);
+                    FinishLayerPost(buf, layerTarget, hasLayerPost, layer, spec, li, lp, frameIndex, W, H);
                     continue;
                 }
 
@@ -186,15 +232,57 @@ namespace Laubrary.Pyre
                     float expand = Eval(layer.metaExpand, lp, spec.seed, li, 0, F_MetaExpand);
                     // Expansion pivots on the blast origin (the spawn/pivot pixel), expressed as an offset from centre.
                     Vector2 originOff = new Vector2((spec.origin.x - 0.5f) * W, (spec.origin.y - 0.5f) * H);
-                    float flowPos = layer.metaFlow ? Eval(layer.colorFlow, lp, spec.seed, li, 0, F_MetaFlow) : 0f;
-                    float flowZoom = layer.metaFlow ? Eval(layer.colorFlowZoom, lp, spec.seed, li, 0, F_MetaFlowZoom) : 1f;
-                    RenderMetaBlob(buf, W, H, cx, cy, framePhase, layer, lp, mAlpha, radScale, expand, originOff,
-                                   layer.metaFlow, flowPos, flowZoom, stack, frameIndex, ShapeSeed(spec.seed, li, 0));
+                    // Same gradient options as Disc/Crescent's Fill/Flow fill: Over life needs neither (flat colour
+                    // by life); Fill and Flow fill both honour Gradient position/zoom, only their frac wrap differs.
+                    bool metaNoiseFill = layer.colorMode == ColorMode.NoiseFill;
+                    bool metaNeedsFlow = layer.colorMode != ColorMode.OverLife && !metaNoiseFill;
+                    float flowPos = metaNeedsFlow ? Eval(layer.colorFlow, lp, spec.seed, li, 0, F_MetaFlow) : 0f;
+                    float flowZoom = metaNeedsFlow ? Eval(layer.colorFlowZoom, lp, spec.seed, li, 0, F_MetaFlowZoom) : 1f;
+                    float metaNoiseZoom = 20f, metaNoiseRot = 0f, metaNoiseDriftX = 0f, metaNoiseDriftY = 0f;
+                    if (metaNoiseFill)
+                    {
+                        metaNoiseZoom = Mathf.Max(1f, Eval(layer.noiseZoom, lp, spec.seed, li, 0, F_NoiseZoom));
+                        metaNoiseRot = Eval(layer.noiseRotation, lp, spec.seed, li, 0, F_NoiseRot) * Mathf.Deg2Rad;
+                        metaNoiseDriftX = Eval(layer.noiseDriftX, lp, spec.seed, li, 0, F_NoiseDriftX);
+                        metaNoiseDriftY = Eval(layer.noiseDriftY, lp, spec.seed, li, 0, F_NoiseDriftY);
+                    }
+                    RenderMetaBlob(layerTarget, W, H, cx, cy, framePhase, layer, lp, mAlpha, radScale, expand, originOff,
+                                   layer.colorMode, flowPos, flowZoom, metaNoiseZoom, metaNoiseRot, metaNoiseDriftX, metaNoiseDriftY,
+                                   stack, frameIndex, ShapeSeed(spec.seed, li, 0));
+                    FinishLayerPost(buf, layerTarget, hasLayerPost, layer, spec, li, lp, frameIndex, W, H);
+                    continue;
+                }
+
+                // NoiseField: a single domain-warped noise cloud, drawn as a whole (dust cloud / gas cloud / churning
+                // energy field) — no scatter/count, just one field shaped by the layer's own Size (its radius) and
+                // Position X/Y (its centre).
+                if (layer.shape == LayerShape.NoiseField)
+                {
+                    float nfAlpha = Mathf.Clamp01(Eval(layer.alpha, lp, spec.seed, li, 0, F_Alpha));
+                    float nfRadius = Eval(layer.size, lp, spec.seed, li, 0, F_Size);
+                    Vector2 nfPos = new Vector2(Eval(layer.positionX, lp, spec.seed, li, 0, F_PosX),
+                                                 Eval(layer.positionY, lp, spec.seed, li, 0, F_PosY));
+                    float nfZoom = Mathf.Max(1f, Eval(layer.noiseZoom, lp, spec.seed, li, 0, F_NoiseZoom));
+                    float nfRot = Eval(layer.noiseRotation, lp, spec.seed, li, 0, F_NoiseRot) * Mathf.Deg2Rad;
+                    float nfDriftX = Eval(layer.noiseDriftX, lp, spec.seed, li, 0, F_NoiseDriftX);
+                    float nfDriftY = Eval(layer.noiseDriftY, lp, spec.seed, li, 0, F_NoiseDriftY);
+                    RenderNoiseField(layerTarget, W, H, cx, cy, framePhase, layer, lp, nfAlpha, nfPos, nfRadius,
+                                      nfZoom, nfRot, nfDriftX, nfDriftY, stack, frameIndex, ShapeSeed(spec.seed, li, 0));
+                    FinishLayerPost(buf, layerTarget, hasLayerPost, layer, spec, li, lp, frameIndex, W, H);
                     continue;
                 }
 
                 // Count: Curve reads the layer's life progress; MinMax stays frame-stable (h2 = 0, no frame/shape).
-                int count = Mathf.Max(0, Mathf.RoundToInt(Eval(layer.count, lp, spec.seed, li, 0, F_Count)));
+                // Rosing ignores Count entirely — its total is the sum of every authored ring's own count.
+                bool rosing = layer.scatterMode == ScatterMode.Rosing;
+                int count = rosing ? RoseTotalCount(layer.roseRings)
+                                    : Mathf.Max(0, Mathf.RoundToInt(Eval(layer.count, lp, spec.seed, li, 0, F_Count)));
+
+                // Fuse: a Ring/Rosing Disc layer melts its own shapes into one metaball field (RenderFusedField)
+                // instead of compositing them independently — collected below instead of rasterised per-shape.
+                bool fuseActive = layer.fuse && layer.shape == LayerShape.Disc
+                                  && (layer.scatterMode == ScatterMode.Ring || rosing);
+                var fusionCircles = fuseActive ? new System.Collections.Generic.List<FusionCircle>(count) : null;
 
                 for (int inst = 0; inst < spread; inst++)
                 {
@@ -205,44 +293,118 @@ namespace Laubrary.Pyre
                     int shapeSeed = ShapeSeed(spec.seed, li, si);
                     var rng = new System.Random(shapeSeed);
 
-                    // Per-shape life window. Spawn stagger distributes the Count shapes across the layer window,
-                    // shortening each life so they tile it (0 = all live the full window; 1 = evenly spread, first
-                    // spawn at the first frame, last spawn ending at the last). Jitter then nudges each one.
+                    // Rosing: each shape belongs to one authored ring (its own count/radius/timing); every other
+                    // scatter mode uses the flat per-layer Count/Spawn radius instead.
+                    RoseRing rose = null; int roseLocalIdx = 0, roseRingCount = 0;
+                    if (rosing)
+                    {
+                        RoseRingLookup(layer.roseRings, si, layer.roseReverseDraw, out rose, out roseLocalIdx, out roseRingCount);
+                        if (rose == null) continue;   // shouldn't happen (si is bounded by count), but stay safe
+                    }
+
+                    // Per-shape life window. Rosing: the shape's own ring sets Birth/Life directly (a coarse,
+                    // authored bloom timing) — Spawn stagger doesn't apply. Area/Ring: Spawn stagger distributes
+                    // the Count shapes across the layer window, shortening each life so they tile it (0 = all live
+                    // the full window; 1 = evenly spread, first spawn at the first frame, last ending at the
+                    // last). Life jitter then nudges each shape's start either way, scaled to its own life span.
                     float span = Mathf.Max(1f, layer.endFrame - layer.startFrame);
-                    float s = Mathf.Clamp01(layer.spawnStagger);
-                    float life = span * (1f - s * (count - 1) / (float)Mathf.Max(1, count));
-                    if (life < 1f) life = 1f;
-                    float spawnAt = count > 1 ? (si / (float)(count - 1)) * (span - life) : 0f;
+                    float life;
+                    float spawnAt;
+                    if (rosing)
+                    {
+                        life = Mathf.Max(1f, rose.life * span);
+                        spawnAt = rose.birth * span;
+                    }
+                    else
+                    {
+                        float s = Mathf.Clamp01(layer.spawnStagger);
+                        // lifeForSpacing only drives spawnAt's SPACING (how far apart consecutive shapes spawn),
+                        // matching the original formula exactly — Sync death then overrides the actual life each
+                        // shape gets, deriving it so every shape's own end lands on the layer's endFrame together,
+                        // instead of everyone sharing lifeForSpacing (which makes later spawns end later too).
+                        float lifeForSpacing = span * (1f - s * (count - 1) / (float)Mathf.Max(1, count));
+                        if (lifeForSpacing < 1f) lifeForSpacing = 1f;
+                        spawnAt = count > 1 ? (si / (float)(count - 1)) * (span - lifeForSpacing) : 0f;
+                        life = layer.syncDeath ? Mathf.Max(1f, span - spawnAt) : lifeForSpacing;
+                    }
                     float lifeJit = (float)(rng.NextDouble() * 2.0 - 1.0) * layer.perShapeLifeJitter * life * 0.5f;
                     float start = layer.startFrame + spawnAt + lifeJit;
                     float end = start + life;
                     if (frameIndex < start || frameIndex > end) continue;      // not alive this frame
                     float t = Mathf.Clamp01((frameIndex - start) / Mathf.Max(0.0001f, end - start));
 
-                    // Scatter the centre within spawnRadius (uniform disc). spawnRadius is 0..1 of the explosion; 1
-                    // reaches (almost) the canvas edge. Curve reads layer progress so it can expand over life.
-                    // (Directional placement is now the job of the Ground modifier + Bars, not a per-layer mode.)
+                    // Scatter the centre within spawnRadius (uniform disc); in Ring/Rosing mode place it ON the rim
+                    // at spawnRadius (Ring) or the shape's own ring's Radius (Rosing) instead, sharing the exact
+                    // same Ring order/Start angle/Arc angle placement math either way. spawnRadius/ring radius are
+                    // 0..1 of the explosion; 1 reaches (almost) the canvas edge. (Directional placement is
+                    // otherwise the job of the Ground modifier + Bars, not a per-layer mode.)
                     Vector2 c;
+                    // Ring/Rosing + Align rotation: rotate the shape's own frame to face its angle around the ring,
+                    // so an asymmetric shape (Crescent, an offset hole) orients outward instead of every instance
+                    // sharing one fixed orientation. Zero for Area scatter or when the toggle is off.
+                    float shapeRotRad = 0f;
                     {
-                        double ang = rng.NextDouble() * Math.PI * 2.0;
-                        double radFrac = Math.Sqrt(rng.NextDouble());
-                        float sr01 = Mathf.Clamp01(Eval(layer.spawnRadius, lp, spec.seed, li, si, F_SpawnRadius));
-                        float scatterPx = sr01 * half * 0.9f;   // 0.9 safe margin off the very edge
-                        c = new Vector2((float)(Math.Cos(ang) * radFrac) * scatterPx,
-                                        (float)(Math.Sin(ang) * radFrac) * scatterPx);
+                        // This shape's own spawn-time layer-progress — used below so an animated Spawn radius
+                        // locks each shape's placement permanently once it spawns (see the comment there).
+                        float spawnLp = Mathf.Clamp01((start - layer.startFrame) / span);
+
+                        float scatterPx;
+                        if (rosing) scatterPx = Mathf.Clamp01(rose.radius) * half * 0.9f;
+                        else
+                        {
+                            // Evaluated at THIS SHAPE's own spawn-time progress, not the current frame's lp — so
+                            // an animated Spawn radius locks each shape's placement permanently once it spawns,
+                            // instead of retroactively sliding every already-placed shape in/out every frame as
+                            // lp keeps changing (that read as one shared position SCALE, not a spawn radius).
+                            // The ring/area still visibly grows over life: NEW shapes just spawn further out as
+                            // later shapes are born, exactly like Count/other per-shape values already do via t.
+                            float sr01 = Mathf.Clamp01(Eval(layer.spawnRadius, spawnLp, spec.seed, li, si, F_SpawnRadius));
+                            scatterPx = sr01 * half * 0.9f;   // 0.9 safe margin off the very edge
+                        }
+
+                        if (layer.scatterMode == ScatterMode.Ring || rosing)
+                        {
+                            // Evaluated at THIS SHAPE's own spawn-time progress, exactly like Spawn radius above —
+                            // Start angle/Arc degrees are a PLACEMENT decision (where does a new shape land), not a
+                            // live ongoing transform, so once a shape spawns its angular slot stays fixed forever,
+                            // the same way its radius already does. For a whole ring that visibly spins as time
+                            // passes (a genuinely different, still fully supported effect), add a Rotate geometry
+                            // modifier to the layer/globally — that's a live transform BY DESIGN and composes
+                            // correctly with everything else, unlike overloading a placement field for the job.
+                            float startDeg = Eval(layer.ringStartAngle, spawnLp, spec.seed, li, 0, F_RingStart);
+                            float arcDeg = Eval(layer.ringArcDegrees, spawnLp, spec.seed, li, 0, F_RingArc);
+                            int arcCount = rosing ? roseRingCount : count;
+                            int arcIdx = rosing ? roseLocalIdx : si;
+                            float angDeg = layer.ringOrder == RingOrder.Sequential
+                                ? startDeg + (arcCount > 1 ? (arcDeg / arcCount) * arcIdx : 0f)
+                                : startDeg + (float)(rng.NextDouble() * arcDeg);
+                            float ang = angDeg * Mathf.Deg2Rad;
+                            c = new Vector2(Mathf.Cos(ang) * scatterPx, Mathf.Sin(ang) * scatterPx);
+                            if (layer.ringAlignRotation) shapeRotRad = ang;
+                        }
+                        else
+                        {
+                            double ang = rng.NextDouble() * Math.PI * 2.0;
+                            double radFrac = Math.Sqrt(rng.NextDouble());
+                            c = new Vector2((float)(Math.Cos(ang) * radFrac) * scatterPx,
+                                            (float)(Math.Sin(ang) * radFrac) * scatterPx);
+                        }
                     }
+
+                    // Self-rotation: spins the shape around its OWN centre over its OWN life (t), independent of
+                    // Ring/Rosing placement — adds onto whatever Align rotation set as the initial facing.
+                    float spinDeg = Eval(layer.spinDegrees, t, spec.seed, li, si, F_SpinDegrees);
+                    if (spinDeg != 0f) shapeRotRad += spinDeg * Mathf.Deg2Rad;
 
                     // Position offset (fixed / per-shape random / animated drift over layer progress).
                     c.x += Eval(layer.positionX, lp, spec.seed, li, si, F_PosX);
                     c.y += Eval(layer.positionY, lp, spec.seed, li, si, F_PosY);
 
-                    // Wind drift: a directional push added to every shape, growing with its age t (any emission mode).
-                    c.x += Eval(layer.windX, lp, spec.seed, li, si, F_WindX) * t;
-                    c.y += Eval(layer.windY, lp, spec.seed, li, si, F_WindY) * t;
-
                     // Radius: one Size multicontrol over the shape's own life t (Curve = an envelope, Static =
-                    // constant, MinMax = a per-shape-stable random size).
+                    // constant, MinMax = a per-shape-stable random size). Rosing: each ring's own Size ×scales
+                    // this on top — Radius (placement) and Size (disc scale) are independent per ring.
                     float radius = Eval(layer.size, t, spec.seed, li, si, F_Size);
+                    if (rosing && rose != null) radius *= Mathf.Max(0f, rose.sizeScale);
                     if (radius < 0.25f) continue;
 
                     // Alpha: one multicontrol over life (Curve envelope by default) — the only thing that fades.
@@ -251,24 +413,33 @@ namespace Laubrary.Pyre
 
                     Color baseCol = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(t) : Color.white;
 
-                    // Crescent mask offset (animatable).
-                    float crescX = Eval(layer.crescentOffsetX, lp, spec.seed, li, si, F_CrescentX);
-                    float crescY = Eval(layer.crescentOffsetY, lp, spec.seed, li, si, F_CrescentY);
-
                     // Circular spread: rotate this shape's offset around the centre for this instance.
-                    if (spread > 1) c = Rotate(c, instRad);
+                    if (spread > 1) { c = Rotate(c, instRad); shapeRotRad += instRad; }
 
                     // ── keep-on-screen guarantee ──────────────────────────────────
                     // A radial pixel-art explosion must never be clipped flat at the canvas edge, so cap the radius to
-                    // the canvas half and clamp the centre so the whole shape fits. (Ground/Bars deliberately push
-                    // content off-frame via their own warp/placement, downstream of this pre-warp scatter clamp.)
+                    // the canvas half and clamp the centre so the whole shape fits — AS LONG AS that still leaves
+                    // room to move. Once a shape's own radius reaches canvas half, full containment and any
+                    // placement freedom are mutually exclusive (the shape is as wide as the canvas): forcing full
+                    // containment there collapses the clamp range to a single dead-centre point, silently erasing
+                    // Position/Spawn radius/Ring angle/every other placement value for that shape. So past that
+                    // point we back off to the weaker guarantee — keep the centre on-canvas — instead of cancelling
+                    // authored placement. (Ground/Bars deliberately push content off-frame via their own
+                    // warp/placement, downstream of this pre-warp scatter clamp.)
                     float effR = Mathf.Min(radius, half);
                     {
-                        float absX = Mathf.Clamp(cx + c.x, effR, W - effR);
-                        float absY = Mathf.Clamp(cy + c.y, effR, H - effR);
+                        bool fitsWithRoom = radius < half;
+                        float loX = fitsWithRoom ? effR : 0f, hiX = fitsWithRoom ? W - effR : W;
+                        float loY = fitsWithRoom ? effR : 0f, hiY = fitsWithRoom ? H - effR : H;
+                        float absX = Mathf.Clamp(cx + c.x, loX, hiX);
+                        float absY = Mathf.Clamp(cy + c.y, loY, hiY);
                         c = new Vector2(absX - cx, absY - cy);
                     }
                     radius = effR;
+
+                    // Fuse: collect this shape as a circle in the fused field instead of rasterising it on its
+                    // own — c is already canvas-centre-relative, the exact space RenderFusedField samples in.
+                    if (fuseActive) { fusionCircles.Add(new FusionCircle(c.x, c.y, radius, alpha)); continue; }
 
                     if (layer.shape == LayerShape.Sprite)
                     {
@@ -276,7 +447,8 @@ namespace Laubrary.Pyre
                         {
                             float startAng = (float)(rng.NextDouble() * 360.0);
                             float spin = Eval(layer.spriteSpin, t, spec.seed, li, si, F_SpriteSpin);
-                            RasterSprite(buf, W, H, cx, cy, layer.particleSprite, c, radius, startAng + spin,
+                            RasterSprite(layerTarget, W, H, cx, cy, layer.particleSprite, c, radius,
+                                         startAng + spin + shapeRotRad * Mathf.Rad2Deg,
                                          baseCol, alpha, stack, frameIndex, t, shapeSeed);
                         }
                         continue;
@@ -288,11 +460,30 @@ namespace Laubrary.Pyre
                     // Min-Max value twinkles per frame; a Static value freezes the pattern.
                     int sparkleSub = layer.shape == LayerShape.SparkleField
                         ? Mathf.RoundToInt(Eval(layer.sparkleSeed, t, spec.seed, li, frameIndex, F_SparkleSeed) * 100000f) : 0;
+                    float sparkleBlobRadiusV = 2f, sparkleBlobLifeV = 8f, sparkleBlobSoftV = 0.6f;
+                    if (layer.shape == LayerShape.SparkleField && layer.sparkleBlobs)
+                    {
+                        sparkleBlobRadiusV = Mathf.Max(0.5f, Eval(layer.sparkleBlobRadius, t, spec.seed, li, si, F_SparkleBlobRadius));
+                        sparkleBlobLifeV = Mathf.Max(1f, Eval(layer.sparkleBlobLife, t, spec.seed, li, si, F_SparkleBlobLife));
+                        sparkleBlobSoftV = Mathf.Clamp01(Eval(layer.sparkleBlobSoftness, t, spec.seed, li, si, F_SparkleBlobSoft));
+                    }
                     // Disc-like edge params (hole + softness) apply to Disc AND SparkleField (a sparkle field is a disc).
                     bool discLike = layer.shape == LayerShape.Disc || layer.shape == LayerShape.SparkleField;
+                    bool crescentShape = layer.shape == LayerShape.Crescent;
                     float holeSize = discLike && layer.hollow ? Mathf.Clamp01(Eval(layer.holeSize, t, spec.seed, li, si, F_HoleSize)) : 0f;
-                    float outerSoft = discLike ? Mathf.Clamp01(Eval(layer.outerSoftness, t, spec.seed, li, si, F_OuterSoft)) : 0f;
-                    float innerSoft = discLike && layer.hollow ? Mathf.Clamp01(Eval(layer.innerSoftness, t, spec.seed, li, si, F_InnerSoft)) : 0f;
+                    // Outer softness: Disc/SparkleField always, Crescent always too (its own outer boundary, same
+                    // as Disc's). Inner softness: Disc/SparkleField only when Hollow; Crescent always (its BITE
+                    // edge, which — unlike a Hollow hole — has no separate on/off toggle of its own).
+                    float outerSoft = (discLike || crescentShape) ? Mathf.Clamp01(Eval(layer.outerSoftness, t, spec.seed, li, si, F_OuterSoft)) : 0f;
+                    float innerSoft = (discLike && layer.hollow) || crescentShape ? Mathf.Clamp01(Eval(layer.innerSoftness, t, spec.seed, li, si, F_InnerSoft)) : 0f;
+                    // Crescent mask offset — in units of the (post-clamp) radius, same convention as Hole offset
+                    // X/Y just below, so the crescent's proportions stay put as Size changes instead of a fixed
+                    // pixel offset distorting/collapsing the bite as the disc grows or shrinks. Magnitude 2 is
+                    // where the (same-radius) mask disc fully clears the main one — no overlap, no bite left.
+                    float crescX = layer.shape == LayerShape.Crescent
+                        ? Eval(layer.crescentOffsetX, t, spec.seed, li, si, F_CrescentX) * radius : 0f;
+                    float crescY = layer.shape == LayerShape.Crescent
+                        ? Eval(layer.crescentOffsetY, t, spec.seed, li, si, F_CrescentY) * radius : 0f;
                     // Hole centre can be offset off the shape centre (an offset hole = a crescent).
                     float holeOffX = 0f, holeOffY = 0f;
                     if (discLike && layer.hollow)
@@ -304,17 +495,50 @@ namespace Laubrary.Pyre
                     // Flow fill). Core offset is in pixels (normalised −1..1 × radius) — offset it + a bright→dark
                     // gradient makes a 3D orb / energy-ball highlight; animate it for a moving core.
                     float flowPos = 0f, flowZoom = 1f, gradX = 0f, gradY = 0f;
-                    if (layer.colorMode != ColorMode.OverLife)
+                    float noiseZoomV = 20f, noiseRotV = 0f, noiseDriftXV = 0f, noiseDriftYV = 0f;
+                    if (layer.colorMode == ColorMode.NoiseFill)
+                    {
+                        noiseZoomV = Mathf.Max(1f, Eval(layer.noiseZoom, t, spec.seed, li, si, F_NoiseZoom));
+                        noiseRotV = Eval(layer.noiseRotation, t, spec.seed, li, si, F_NoiseRot) * Mathf.Deg2Rad;
+                        noiseDriftXV = Eval(layer.noiseDriftX, t, spec.seed, li, si, F_NoiseDriftX);
+                        noiseDriftYV = Eval(layer.noiseDriftY, t, spec.seed, li, si, F_NoiseDriftY);
+                    }
+                    else if (layer.colorMode != ColorMode.OverLife)
                     {
                         flowPos = Eval(layer.colorFlow, t, spec.seed, li, si, F_ColorFlow);
                         flowZoom = Eval(layer.colorFlowZoom, t, spec.seed, li, si, F_ColorZoom);
                         gradX = Eval(layer.gradientOffsetX, t, spec.seed, li, si, F_GradX) * radius;
                         gradY = Eval(layer.gradientOffsetY, t, spec.seed, li, si, F_GradY) * radius;
                     }
-                    RasterShape(buf, W, H, cx, cy, framePhase, layer, c, radius, baseCol, alpha,
-                                t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, sparkleSub, holeSize, outerSoft, innerSoft, flowPos, flowZoom, gradX, gradY, holeOffX, holeOffY);
+                    RasterShape(layerTarget, W, H, cx, cy, framePhase, layer, c, radius, baseCol, alpha,
+                                t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, sparkleSub, holeSize, outerSoft, innerSoft,
+                                flowPos, flowZoom, gradX, gradY, holeOffX, holeOffY, shapeRotRad,
+                                noiseZoomV, noiseRotV, noiseDriftXV, noiseDriftYV,
+                                sparkleBlobRadiusV, sparkleBlobLifeV, sparkleBlobSoftV);
                 }
               }
+                if (fuseActive && fusionCircles.Count > 0)
+                {
+                    // Same gradient-options rule as MetaBlob: Over life needs neither flow nor noise params (one
+                    // flat colour by the layer's own life); Fill/Flow fill honour Gradient position/zoom; Noise
+                    // fill reuses the NoiseField zoom/rotation/drift/warp/bands fields instead.
+                    bool fuseNoiseFill = layer.colorMode == ColorMode.NoiseFill;
+                    bool fuseNeedsFlow = layer.colorMode != ColorMode.OverLife && !fuseNoiseFill;
+                    float fuseFlowPos = fuseNeedsFlow ? Eval(layer.colorFlow, lp, spec.seed, li, 0, F_MetaFlow) : 0f;
+                    float fuseFlowZoom = fuseNeedsFlow ? Eval(layer.colorFlowZoom, lp, spec.seed, li, 0, F_MetaFlowZoom) : 1f;
+                    float fuseNoiseZoom = 20f, fuseNoiseRot = 0f, fuseNoiseDriftX = 0f, fuseNoiseDriftY = 0f;
+                    if (fuseNoiseFill)
+                    {
+                        fuseNoiseZoom = Mathf.Max(1f, Eval(layer.noiseZoom, lp, spec.seed, li, 0, F_NoiseZoom));
+                        fuseNoiseRot = Eval(layer.noiseRotation, lp, spec.seed, li, 0, F_NoiseRot) * Mathf.Deg2Rad;
+                        fuseNoiseDriftX = Eval(layer.noiseDriftX, lp, spec.seed, li, 0, F_NoiseDriftX);
+                        fuseNoiseDriftY = Eval(layer.noiseDriftY, lp, spec.seed, li, 0, F_NoiseDriftY);
+                    }
+                    RenderFusedField(layerTarget, W, H, framePhase, layer, lp, fusionCircles, layer.colorMode,
+                                     fuseFlowPos, fuseFlowZoom, fuseNoiseZoom, fuseNoiseRot, fuseNoiseDriftX, fuseNoiseDriftY,
+                                     stack, frameIndex, ShapeSeed(spec.seed, li, 0));
+                }
+                FinishLayerPost(buf, layerTarget, hasLayerPost, layer, spec, li, lp, frameIndex, W, H);
             }
 
             // Whole-frame post passes (Bloom, Outline) from the global list, in order, after everything composites.
@@ -323,16 +547,196 @@ namespace Laubrary.Pyre
                 {
                     var m = spec.globalModifiers[i];
                     if (m == null || !m.enabled || !(m is PostModifier post)) continue;
+                    post.SetLife(bp);   // blast progress — see PostModifier.life (mirrors PinWarpModifier.SetFrame)
                     m.Prepare((v, fid) => Eval(v, bp, spec.seed, GlobalLayerId, frameIndex, 1000 + (700 + i) * 8 + fid));
                     post.Apply(buf, W, H);
                 }
             return buf;
         }
 
+        // ── Isolated single-shape preview ──────────────────────────────────────────────────────────────────
+        // ALWAYS exactly one shape, centred, sized to fill the given canvas — ignores Count/Position/Spawn
+        // radius/Ring-Rosing placement entirely. For dialing in a layer's own per-shape look (gradient,
+        // crescent bite, hollow, the Size curve's own SHAPE, spin, alpha, modifiers) without scatter/movement/
+        // instance-count noise. `t` is 0..1 of the layer's own life (same meaning as the main loop's per-shape
+        // `t`). Each `show*` flag independently opts that aspect IN, reflecting its authored animation/value;
+        // off freezes it to a neutral default instead, so distracting aspects can be isolated away one at a
+        // time. A dedicated, simplified path (not a count-1 call into the main loop) — reuses RasterShape/
+        // RasterSprite and the modifier-stack machinery, but skips spawn timing, scatter placement and the
+        // multi-instance loop entirely, none of which a single centred preview shape has any use for.
+        public static Color32[] RenderShapePreview(Layer layer, BlastSpec spec, int li, float t, int frameIndex, int W, int H,
+                                                    bool showGradientFill, bool showCrescent, bool showHollow, bool showSize,
+                                                    bool showSpin, bool showAlpha, bool showModifiers)
+        {
+            var buf = new Color32[W * H];
+            for (int i = 0; i < buf.Length; i++) buf[i] = Transparent;
+            if (layer == null || spec == null) return buf;
+            bool previewable = layer.shape == LayerShape.Disc || layer.shape == LayerShape.Crescent ||
+                               layer.shape == LayerShape.SparkleField || layer.shape == LayerShape.Sprite;
+            if (!previewable) return buf;
+
+            float cx = W * 0.5f, cy = H * 0.5f;
+            float maxRadius = Mathf.Min(W, H) * 0.5f * 0.9f;   // safe margin off the very edge
+            int shapeSeed = ShapeSeed(spec.seed, li, 0);
+
+            // Size: ON reflects the authored curve's own relative animation, rescaled so its own peak fills
+            // the preview; OFF pins to the preview's max size always, ignoring the curve/animation entirely.
+            float radius;
+            if (showSize)
+            {
+                float natural = Eval(layer.size, t, spec.seed, li, 0, F_Size);
+                float peak = PeakValue(layer.size);
+                radius = peak > 0.001f ? natural * (maxRadius / peak) : maxRadius;
+            }
+            else radius = maxRadius;
+            if (radius < 0.25f) return buf;
+
+            float spinDeg = showSpin ? Eval(layer.spinDegrees, t, spec.seed, li, 0, F_SpinDegrees) : 0f;
+            Color baseCol = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(t) : Color.white;
+
+            if (layer.shape == LayerShape.Sprite)
+            {
+                if (layer.particleSprite != null)
+                {
+                    float pixelAlphaS = showAlpha ? Mathf.Clamp01(Eval(layer.alpha, t, spec.seed, li, 0, F_Alpha)) : 1f;
+                    ModStack spriteStack = showModifiers ? BuildLayerOnlyStack(layer, spec, li, t, frameIndex) : EmptyStack;
+                    RasterSprite(buf, W, H, cx, cy, layer.particleSprite, Vector2.zero, radius, spinDeg,
+                                baseCol, pixelAlphaS, spriteStack, frameIndex, t, shapeSeed);
+                }
+                return buf;
+            }
+
+            float pixelAlpha = showAlpha ? Mathf.Clamp01(Eval(layer.alpha, t, spec.seed, li, 0, F_Alpha)) : 1f;
+            if (pixelAlpha <= 0.001f) return buf;
+
+            bool discLike = layer.shape == LayerShape.Disc || layer.shape == LayerShape.SparkleField;
+            bool crescentShape = layer.shape == LayerShape.Crescent;
+            bool hollowOn = showHollow && layer.hollow;
+            float holeSize = discLike && hollowOn ? Mathf.Clamp01(Eval(layer.holeSize, t, spec.seed, li, 0, F_HoleSize)) : 0f;
+            float outerSoft = (discLike || crescentShape) ? Mathf.Clamp01(Eval(layer.outerSoftness, t, spec.seed, li, 0, F_OuterSoft)) : 0f;
+            float innerSoft = (discLike && hollowOn) || crescentShape ? Mathf.Clamp01(Eval(layer.innerSoftness, t, spec.seed, li, 0, F_InnerSoft)) : 0f;
+            float crescX = crescentShape && showCrescent ? Eval(layer.crescentOffsetX, t, spec.seed, li, 0, F_CrescentX) * radius : 0f;
+            float crescY = crescentShape && showCrescent ? Eval(layer.crescentOffsetY, t, spec.seed, li, 0, F_CrescentY) * radius : 0f;
+            float holeOffX = 0f, holeOffY = 0f;
+            if (discLike && hollowOn)
+            {
+                holeOffX = Eval(layer.holeOffsetX, t, spec.seed, li, 0, F_HoleOffX) * radius;
+                holeOffY = Eval(layer.holeOffsetY, t, spec.seed, li, 0, F_HoleOffY) * radius;
+            }
+
+            float flowPos = 0f, flowZoom = 1f, gradX = 0f, gradY = 0f;
+            float noiseZoomV = 20f, noiseRotV = 0f, noiseDriftXV = 0f, noiseDriftYV = 0f;
+            if (showGradientFill && layer.colorMode == ColorMode.NoiseFill)
+            {
+                noiseZoomV = Mathf.Max(1f, Eval(layer.noiseZoom, t, spec.seed, li, 0, F_NoiseZoom));
+                noiseRotV = Eval(layer.noiseRotation, t, spec.seed, li, 0, F_NoiseRot) * Mathf.Deg2Rad;
+                noiseDriftXV = Eval(layer.noiseDriftX, t, spec.seed, li, 0, F_NoiseDriftX);
+                noiseDriftYV = Eval(layer.noiseDriftY, t, spec.seed, li, 0, F_NoiseDriftY);
+            }
+            else if (showGradientFill && layer.colorMode != ColorMode.OverLife)
+            {
+                flowPos = Eval(layer.colorFlow, t, spec.seed, li, 0, F_ColorFlow);
+                flowZoom = Eval(layer.colorFlowZoom, t, spec.seed, li, 0, F_ColorZoom);
+                gradX = Eval(layer.gradientOffsetX, t, spec.seed, li, 0, F_GradX) * radius;
+                gradY = Eval(layer.gradientOffsetY, t, spec.seed, li, 0, F_GradY) * radius;
+            }
+
+            float sparkleD = layer.shape == LayerShape.SparkleField
+                ? Mathf.Clamp01(Eval(layer.sparkleDensity, t, spec.seed, li, 0, F_SparkleDensity)) : 1f;
+            int sparkleSub = layer.shape == LayerShape.SparkleField
+                ? Mathf.RoundToInt(Eval(layer.sparkleSeed, t, spec.seed, li, frameIndex, F_SparkleSeed) * 100000f) : 0;
+            float sparkleBlobRadiusV = 2f, sparkleBlobLifeV = 8f, sparkleBlobSoftV = 0.6f;
+            if (layer.shape == LayerShape.SparkleField && layer.sparkleBlobs)
+            {
+                sparkleBlobRadiusV = Mathf.Max(0.5f, Eval(layer.sparkleBlobRadius, t, spec.seed, li, 0, F_SparkleBlobRadius));
+                sparkleBlobLifeV = Mathf.Max(1f, Eval(layer.sparkleBlobLife, t, spec.seed, li, 0, F_SparkleBlobLife));
+                sparkleBlobSoftV = Mathf.Clamp01(Eval(layer.sparkleBlobSoftness, t, spec.seed, li, 0, F_SparkleBlobSoft));
+            }
+
+            ModStack stack = showModifiers ? BuildLayerOnlyStack(layer, spec, li, t, frameIndex) : EmptyStack;
+
+            RasterShape(buf, W, H, cx, cy, 0f, layer, Vector2.zero, radius, baseCol, pixelAlpha,
+                        t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, sparkleSub, holeSize, outerSoft, innerSoft,
+                        flowPos, flowZoom, gradX, gradY, holeOffX, holeOffY, spinDeg * Mathf.Deg2Rad,
+                        noiseZoomV, noiseRotV, noiseDriftXV, noiseDriftYV,
+                        sparkleBlobRadiusV, sparkleBlobLifeV, sparkleBlobSoftV, showGradientFill);
+            return buf;
+        }
+
+        // The largest value a ZUIValue could realistically produce, for rescaling a "preview at max size"
+        // render. Static/MinMax: their own value/max. Curve: the highest authored point (points already store
+        // real units, not normalized — see ZUIValueControl's ClampToRange).
+        static float PeakValue(ZUIValue v)
+        {
+            if (v == null) return 0f;
+            switch (v.mode)
+            {
+                case ZUIValue.Mode.Static: return v.staticValue;
+                case ZUIValue.Mode.MinMax: return Mathf.Max(v.min, v.max);
+                case ZUIValue.Mode.Curve:
+                {
+                    float m = 0f;
+                    if (v.points != null) foreach (var p in v.points) if (p.value > m) m = p.value;
+                    return m;
+                }
+                default: return v.staticValue;
+            }
+        }
+
+        // Same as BuildStack but LAYER modifiers only — no global modifiers — for the isolated shape preview,
+        // which is dialing in this one layer's own look, not the whole composited blast's post pass.
+        static ModStack BuildLayerOnlyStack(Layer layer, BlastSpec spec, int li, float lp, int frameIndex)
+        {
+            var geo = new System.Collections.Generic.List<GeoEntry>();
+            var pix = new System.Collections.Generic.List<PixelModifier>();
+            var edge = new System.Collections.Generic.List<EdgeModifier>();
+            CollectMods(layer != null ? layer.modifiers : null, spec, li, lp, frameIndex, geo, pix, edge, 0, 0);
+            if (geo.Count == 0 && pix.Count == 0 && edge.Count == 0) return EmptyStack;
+            if (geo.Count > 1) SortGeoStable(geo);
+            var arr = new GeometryModifier[geo.Count];
+            for (int i = 0; i < geo.Count; i++) arr[i] = geo[i].mod;
+            return new ModStack(arr, pix.ToArray(), edge.ToArray());
+        }
+
         static Vector2 Rotate(Vector2 v, float rad)
         {
             float c = Mathf.Cos(rad), s = Mathf.Sin(rad);
             return new Vector2(v.x * c - v.y * s, v.x * s + v.y * c);
+        }
+
+        // ── Rosing scatter: an authored list of rings, each with its own count — flattens to one linear shape
+        // index (0..RoseTotalCount-1), same as Area/Ring's `si`, so the rest of the per-shape pipeline (seed,
+        // modifiers, rendering) doesn't need to know rings exist at all.
+        static int RoseTotalCount(System.Collections.Generic.List<RoseRing> rings)
+        {
+            int total = 0;
+            if (rings != null) for (int i = 0; i < rings.Count; i++) if (rings[i] != null) total += Mathf.Max(0, rings[i].count);
+            return total;
+        }
+
+        // Maps a flat shape index back to its ring + its own slot within that ring (for angle placement) + that
+        // ring's total count (for evenly spacing its slots around the shared arc). ring == null if si is out of
+        // range (shouldn't happen since the si-loop is bounded by RoseTotalCount, but callers must check).
+        // reverseDraw only changes which ring CLAIMS the low (drawn-first/behind) vs high (drawn-last/in-front)
+        // si range — walking the rings list back-to-front for that assignment — so it flips compositing depth
+        // without touching localIndex/ringCount (a ring's own internal angle placement is unaffected).
+        static void RoseRingLookup(System.Collections.Generic.List<RoseRing> rings, int si, bool reverseDraw,
+                                   out RoseRing ring, out int localIndex, out int ringCount)
+        {
+            int acc = 0;
+            if (rings != null)
+            {
+                int n = rings.Count;
+                for (int k = 0; k < n; k++)
+                {
+                    var r = rings[reverseDraw ? n - 1 - k : k];
+                    if (r == null) continue;
+                    int c = Mathf.Max(0, r.count);
+                    if (si < acc + c) { ring = r; localIndex = si - acc; ringCount = c; return; }
+                    acc += c;
+                }
+            }
+            ring = null; localIndex = 0; ringCount = 0;
         }
 
         // ── Bars mode: rows of forward-growing bars. Star off = one arm off the back edge; Star on = `spread`
@@ -472,7 +876,7 @@ namespace Laubrary.Pyre
                             outA *= e;
                             if (outA <= 0.002f) continue;
                         }
-                        if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, crossFrac, life, hash, W, H))
+                        if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, wx, wy, frameIndex, crossFrac, life, hash, W, H))
                             continue;
                         Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
                     }
@@ -503,14 +907,19 @@ namespace Laubrary.Pyre
         // modifiers + the global post passes (Bloom/Outline) still apply.
         static void RenderMetaBlob(Color32[] buf, int W, int H, float cx, float cy, float framePhase,
                                    Layer layer, float lp, float alpha, float radScale, float expand, Vector2 originOff,
-                                   bool metaFlow, float flowPos, float flowZoom,
+                                   ColorMode colorMode, float flowPos, float flowZoom,
+                                   float noiseZoomV, float noiseRotRad, float noiseDriftXV, float noiseDriftYV,
                                    in ModStack stack, int frameIndex, int hash)
         {
+            float nrCos = Mathf.Cos(noiseRotRad), nrSin = Mathf.Sin(noiseRotRad);
             var orbs = layer.metaOrbs;
             if (orbs == null || orbs.Count == 0 || alpha <= 0.001f) return;
             float threshold = Mathf.Max(0.02f, layer.metaThreshold);
             float range = Mathf.Max(0.05f, layer.metaShadeRange);
             float band = Mathf.Max(0.01f, layer.metaSoftness);
+            // Over life = one flat colour for the whole blob, sampled at the layer's own life — constant across
+            // the field, so it's resolved once here rather than per pixel (matches Disc's Over life exactly).
+            Color overLifeColor = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(lp) : Color.white;
 
             // Resolve each orb's on-screen position + radius ONCE (apply the shared expand about the origin and the
             // radius scale), and its current life weight. Also grow a bounding box over ALL valid orbs so the whole
@@ -564,17 +973,38 @@ namespace Laubrary.Pyre
                     if (field <= threshold - band) continue;
                     float a = Mathf.Clamp01((field - (threshold - band)) / band) * alpha;   // AA across the iso-surface
                     if (a <= 0.003f) continue;
-                    float frac = Mathf.Clamp01((field - threshold) / range);                 // 0 = surface, 1 = deep core
-                    if (metaFlow)
+
+                    // 0 = surface, 1 = deep core — always resolved (used as the pixel modifiers' crossFrac too,
+                    // matching RasterShape's nd, regardless of which colour mode is shading this pixel).
+                    float rawFrac = Mathf.Clamp01((field - threshold) / range);
+                    Color fc;
+                    if (colorMode == ColorMode.OverLife) fc = overLifeColor;
+                    else if (colorMode == ColorMode.NoiseFill)
                     {
-                        // Scroll the (mirrored) gradient through the field depth: position sweeps it, zoom sets how much
-                        // spans surface→core. Mirror (0→1→0) so an animated position loops with no hard seam.
-                        float f = Mathf.Repeat(frac * flowZoom + flowPos, 1f);
-                        frac = 1f - Mathf.Abs(2f * f - 1f);
+                        // Sample the noise field centred on the fused blob's own aggregate centre, independent of
+                        // the Fill/Flow fill's field-depth-based frac above.
+                        float rx = off.x - fieldCenter.x, ry = off.y - fieldCenter.y;
+                        float nrx = rx * nrCos - ry * nrSin, nry = rx * nrSin + ry * nrCos;
+                        float noiseN = PyreNoise.Sample((nrx + noiseDriftXV) / noiseZoomV, (nry + noiseDriftYV) / noiseZoomV, hash, layer.noiseWarp);
+                        int bands = Mathf.Max(1, layer.noiseBands);
+                        float nfrac = bands > 1 ? Mathf.Floor(Mathf.Clamp01(noiseN) * bands) / (bands - 1) : noiseN;
+                        fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(Mathf.Clamp01(nfrac)) : Color.white;
                     }
-                    Color fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(frac) : Color.white;
+                    else
+                    {
+                        float frac;
+                        if (colorMode == ColorMode.FlowingFill)
+                        {
+                            // Scroll the (mirrored) gradient through the field depth: position sweeps it, zoom sets
+                            // how much spans surface→core. Mirror (0→1→0) so an animated position loops with no seam.
+                            float f = Mathf.Repeat(rawFrac * flowZoom + flowPos, 1f);
+                            frac = 1f - Mathf.Abs(2f * f - 1f);
+                        }
+                        else frac = Mathf.Clamp01(rawFrac * flowZoom + flowPos);   // Fill: position + zoom apply here too
+                        fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(frac) : Color.white;
+                    }
                     float outA = a * fc.a;
-                    if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, frac, lp, hash, W, H)) continue;
+                    if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, cx + off.x, cy + off.y, frameIndex, rawFrac, lp, hash, W, H)) continue;
                     Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
                 }
         }
@@ -588,29 +1018,212 @@ namespace Laubrary.Pyre
             return w * w * (3f - 2f * w);
         }
 
+        // ── Fuse: melts a Ring/Rosing-scattered Disc layer's own shapes into ONE gradient-shaded metaball field,
+        // via the same SDF-sum → threshold → shade approach RenderMetaBlob uses for hand-placed orbs (a "twin"
+        // pattern reuse — MetaBlob's per-orb birth/life envelope and Fuse's per-shape scatter/timing differ enough
+        // that forcing both through one shared function would obscure each). `circles` are the shapes' already-
+        // computed (position, radius, current alpha-as-weight) — how they got placed (Ring/Rosing math, per-shape
+        // jitter/timing) is entirely the caller's concern in RenderFrame.
+        readonly struct FusionCircle
+        {
+            public readonly float x, y, r, weight;
+            public FusionCircle(float x, float y, float r, float weight) { this.x = x; this.y = y; this.r = r; this.weight = weight; }
+        }
+
+        static void RenderFusedField(Color32[] buf, int W, int H, float framePhase, Layer layer, float life,
+                                     System.Collections.Generic.List<FusionCircle> circles,
+                                     ColorMode colorMode, float flowPos, float flowZoom,
+                                     float noiseZoomV, float noiseRotRad, float noiseDriftXV, float noiseDriftYV,
+                                     in ModStack stack, int frameIndex, int hash)
+        {
+            int n = circles.Count;
+            if (n == 0) return;
+            float threshold = Mathf.Max(0.02f, layer.metaThreshold);
+            float range = Mathf.Max(0.05f, layer.metaShadeRange);
+            float band = Mathf.Max(0.01f, layer.metaSoftness);
+            Color overLifeColor = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(life) : Color.white;
+            float nrCos = Mathf.Cos(noiseRotRad), nrSin = Mathf.Sin(noiseRotRad);
+
+            float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+            for (int i = 0; i < n; i++)
+            {
+                var c = circles[i];
+                if (c.x - c.r < minX) minX = c.x - c.r; if (c.x + c.r > maxX) maxX = c.x + c.r;
+                if (c.y - c.r < minY) minY = c.y - c.r; if (c.y + c.r > maxY) maxY = c.y + c.r;
+            }
+            Vector2 fieldCenter = new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
+            float fieldRadius = 0.5f * Mathf.Max(maxX - minX, maxY - minY);
+            var ctx = new GeoCtx(W * 0.5f, H * 0.5f, fieldCenter, fieldRadius);
+            float cx = W * 0.5f, cy = H * 0.5f;
+
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
+                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, ctx);
+
+                    float field = 0f;
+                    for (int i = 0; i < n; i++)
+                    {
+                        var c = circles[i];
+                        if (c.weight <= 0.001f) continue;
+                        float dx = off.x - c.x, dy = off.y - c.y;
+                        float r2 = c.r * c.r;
+                        float d2 = dx * dx + dy * dy;
+                        if (d2 >= r2) continue;
+                        float k = 1f - d2 / r2; k *= k;   // compact polynomial kernel: 1 at centre → 0 at radius
+                        field += c.weight * k;
+                    }
+
+                    if (field <= threshold - band) continue;
+                    float a = Mathf.Clamp01((field - (threshold - band)) / band);   // AA across the iso-surface
+                    if (a <= 0.003f) continue;
+
+                    float rawFrac = Mathf.Clamp01((field - threshold) / range);
+                    Color fc;
+                    if (colorMode == ColorMode.OverLife) fc = overLifeColor;
+                    else if (colorMode == ColorMode.NoiseFill)
+                    {
+                        float rx = off.x - fieldCenter.x, ry = off.y - fieldCenter.y;
+                        float nrx = rx * nrCos - ry * nrSin, nry = rx * nrSin + ry * nrCos;
+                        float noiseN = PyreNoise.Sample((nrx + noiseDriftXV) / noiseZoomV, (nry + noiseDriftYV) / noiseZoomV, hash, layer.noiseWarp);
+                        int bands = Mathf.Max(1, layer.noiseBands);
+                        float nfrac = bands > 1 ? Mathf.Floor(Mathf.Clamp01(noiseN) * bands) / (bands - 1) : noiseN;
+                        fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(Mathf.Clamp01(nfrac)) : Color.white;
+                    }
+                    else
+                    {
+                        float frac;
+                        if (colorMode == ColorMode.FlowingFill)
+                        {
+                            float f = Mathf.Repeat(rawFrac * flowZoom + flowPos, 1f);
+                            frac = 1f - Mathf.Abs(2f * f - 1f);
+                        }
+                        else frac = Mathf.Clamp01(rawFrac * flowZoom + flowPos);
+                        fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(frac) : Color.white;
+                    }
+                    float outA = a * fc.a;
+                    if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, cx + off.x, cy + off.y, frameIndex, rawFrac, life, hash, W, H)) continue;
+                    Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
+                }
+        }
+
+        // ── NoiseField: a single domain-warped noise cloud, drawn as a whole (like MetaBlob) rather than scattered
+        // per-instance. `pos`/`radius` place and size the field (the layer's own Position/Size); zoom/rotation/drift
+        // control the noise sampling domain (rotation spins it in place — a rolling cloud — drift scrolls it).
+        // Density blends the noise value with a radial falloff so the silhouette thins raggedly toward its edge
+        // instead of clipping to a hard circle; `noiseBands` optionally quantizes the shading into discrete steps
+        // (like MetaBlob's surface→core banding) for a more hand-painted look. Geometry modifiers (Ground/Profile/
+        // Turbulence) still mold/churn it; pixel modifiers (Tint/Posterize/Dither/…) still apply.
+        static void RenderNoiseField(Color32[] buf, int W, int H, float cx, float cy, float framePhase,
+                                      Layer layer, float lp, float alpha, Vector2 pos, float radius,
+                                      float zoom, float rotRad, float driftX, float driftY,
+                                      in ModStack stack, int frameIndex, int hash)
+        {
+            if (alpha <= 0.001f || radius < 0.5f) return;
+            var ctx = new GeoCtx(W * 0.5f, H * 0.5f, pos, radius);
+            int bands = Mathf.Max(1, layer.noiseBands);
+            float threshold = Mathf.Clamp01(layer.noiseThreshold);
+            float soft = Mathf.Max(0.01f, layer.noiseEdgeSoftness);
+            float cr = Mathf.Cos(rotRad), sr = Mathf.Sin(rotRad);
+
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
+                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, ctx);
+
+                    float dx = off.x - pos.x, dy = off.y - pos.y;
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (dist > radius) continue;   // outside the field's overall extent
+
+                    float rx = dx * cr - dy * sr, ry = dx * sr + dy * cr;   // into the (rotating) noise domain
+                    float n = PyreNoise.Sample((rx + driftX) / zoom, (ry + driftY) / zoom, hash, layer.noiseWarp);
+
+                    // Two INDEPENDENT, separately-bounded fades multiplied together — kept apart so neither can
+                    // push the other's threshold negative (a combined "density" product fed into one threshold
+                    // used to wash the whole radius out to a visible haze whenever soft > threshold: the gate
+                    // that was meant to cut low values never fired, since density can't go negative to begin
+                    // with). Edge fade: radial, from fully opaque at the centre to transparent at `radius`, over
+                    // the outer `soft` fraction — always well-behaved for any soft in its valid (0, 1] range.
+                    float edgeFrac = dist / radius;
+                    float edgeAlpha = 1f - Mathf.Clamp01((edgeFrac - (1f - soft)) / soft);
+                    // Noise threshold: a smoothstep band of half-width `w` centred on `threshold` (same bounded
+                    // pattern AlphaMaskModifier's sharpness band uses) — is this pixel's noise value "inside" the
+                    // cloud. w is capped at 0.5 regardless of how high soft goes, so threshold-w can go negative
+                    // only at the true edge case (threshold near 0 AND softness maxed) rather than well within
+                    // normal settings.
+                    float w = Mathf.Max(0.02f, soft * 0.5f);
+                    float noiseAlpha = Mathf.Clamp01((n - (threshold - w)) / (2f * w));
+                    noiseAlpha = noiseAlpha * noiseAlpha * (3f - 2f * noiseAlpha);
+                    float a = edgeAlpha * noiseAlpha * alpha;
+                    if (a <= 0.003f) continue;
+
+                    float frac = bands > 1 ? Mathf.Floor(Mathf.Clamp01(n) * bands) / (bands - 1) : n;
+                    Color fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(frac) : Color.white;
+                    float outA = a * fc.a;
+                    if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, cx + off.x, cy + off.y, frameIndex, n, lp, hash, W, H)) continue;
+                    Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
+                }
+        }
+
         static void RasterShape(Color32[] buf, int W, int H, float cx, float cy,
                                 float framePhase, Layer layer, Vector2 c, float radius, Color baseCol, float alpha,
                                 float t, int shapeSeed, float crescX, float crescY,
                                 ModStack stack, int frameIndex, float sparkleDensity, int sparkleSub, float holeSize,
                                 float outerSoft, float innerSoft, float flowPos, float flowZoom, float gradX, float gradY,
-                                float holeOffX, float holeOffY)
+                                float holeOffX, float holeOffY, float shapeRotRad,
+                                float noiseZoomV, float noiseRotRad, float noiseDriftXV, float noiseDriftYV,
+                                float sparkleBlobRadius, float sparkleBlobLife, float sparkleBlobSoft,
+                                bool useGradientFill = true)
         {
+            var ctx = new GeoCtx(W * 0.5f, H * 0.5f, c, radius);
+            float nrCos = Mathf.Cos(noiseRotRad), nrSin = Mathf.Sin(noiseRotRad);
             for (int y = 0; y < H; y++)
             {
                 for (int x = 0; x < W; x++)
                 {
                     // Undo the opt-in geometry modifiers (outermost first) to reach undeformed blast space.
                     Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
-                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, new GeoCtx(W * 0.5f, H * 0.5f, c, radius));
+                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, ctx);
+                    // Ring + Align rotation: spin the shape's own frame about its centre (Crescent bite, hollow
+                    // hole offset, gradient core all follow) so it faces its ring angle instead of a fixed one.
+                    if (shapeRotRad != 0f)
+                    {
+                        float dxr = off.x - c.x, dyr = off.y - c.y;
+                        float cr = Mathf.Cos(-shapeRotRad), sr = Mathf.Sin(-shapeRotRad);
+                        off = new Vector2(c.x + dxr * cr - dyr * sr, c.y + dxr * sr + dyr * cr);
+                    }
                     float ux = off.x, uy = off.y;
 
-                    if (!ShapeHit(layer, ux, uy, c, radius, t, shapeSeed, x, y, baseCol, crescX, crescY, sparkleDensity, sparkleSub, holeSize, holeOffX, holeOffY, out Color col))
+                    // Edge modifiers perturb ONLY the outer boundary test (by angle around the shape centre),
+                    // leaving ux/uy — and so the fill/gradient sampling below — untouched: a jagged/wavy silhouette
+                    // with a clean interior instead of a warped one. edgeSoftPx (if any modifier sets it) widens
+                    // the hit-test radius so pixels in the fade band still register as a hit below, then fades
+                    // their alpha back out afterwards — a soft edge that correctly tracks the PERTURBED boundary,
+                    // unlike the layer's own Outer softness (which fades from the shape's true, unwarped radius).
+                    float outerRadius = radius;
+                    float edgeSoftPx = 0f;
+                    if (stack.AnyEdge)
+                    {
+                        float edgeAng = Mathf.Atan2(uy - c.y, ux - c.x);
+                        for (int ei = 0; ei < stack.edge.Length; ei++)
+                        {
+                            outerRadius += stack.edge[ei].EdgeOffset(edgeAng, shapeSeed, ctx);
+                            edgeSoftPx = Mathf.Max(edgeSoftPx, stack.edge[ei].EdgeSoftness(edgeAng, shapeSeed, ctx));
+                        }
+                        outerRadius = Mathf.Max(0.1f, outerRadius);
+                    }
+
+                    if (!ShapeHit(layer, ux, uy, c, radius, outerRadius + edgeSoftPx, t, shapeSeed, x, y, frameIndex, baseCol, crescX, crescY,
+                                 sparkleDensity, sparkleSub, holeSize, holeOffX, holeOffY,
+                                 sparkleBlobRadius, sparkleBlobLife, sparkleBlobSoft, out Color col))
                         continue;
 
                     // Normalised distance from the shape centre (0 = centre, 1 = edge) — drives the outer softness AND
                     // the Tint modifier's cross gradient / fill (crossFrac).
-                    float nd = radius > 0.001f
-                        ? Mathf.Clamp01(Mathf.Sqrt((ux - c.x) * (ux - c.x) + (uy - c.y) * (uy - c.y)) / radius) : 0f;
+                    float distFromCenter = Mathf.Sqrt((ux - c.x) * (ux - c.x) + (uy - c.y) * (uy - c.y));
+                    float nd = radius > 0.001f ? Mathf.Clamp01(distFromCenter / radius) : 0f;
 
                     // Disc/Sparkle edge softness: fade alpha near the hole's inner edge (measured from the — possibly
                     // offset — HOLE centre) and near the outer edge (nd = 1). The inner fade scales by hole size, so it
@@ -627,34 +1240,66 @@ namespace Laubrary.Pyre
                         }
                         if (outerSoft > 0.001f) pixelAlpha *= Mathf.Clamp01((1f - nd) / outerSoft);
                     }
+                    else if (layer.shape == LayerShape.Crescent)
+                    {
+                        // Same two fades as Disc/Hollow, just renamed to Crescent's own geometry: the OUTER
+                        // boundary (nd, identical to Disc) and the BITE edge (measured from the mask disc's
+                        // centre) — the bite's "hole size" is implicitly always 1 (full radius), since the mask
+                        // disc is always the same size as the main one, so the Hollow-disc hole-size scaling term
+                        // simply drops out of the same formula.
+                        if (outerSoft > 0.001f) pixelAlpha *= Mathf.Clamp01((1f - nd) / outerSoft);
+                        if (innerSoft > 0.001f)
+                        {
+                            Vector2 mc = c + new Vector2(crescX, crescY);
+                            float mnd = radius > 0.001f
+                                ? Mathf.Sqrt((ux - mc.x) * (ux - mc.x) + (uy - mc.y) * (uy - mc.y)) / radius : 0f;
+                            pixelAlpha *= Mathf.Clamp01((mnd - 1f) / innerSoft);
+                        }
+                    }
+                    if (edgeSoftPx > 0.001f)
+                        pixelAlpha *= Mathf.Clamp01((outerRadius + edgeSoftPx - distFromCenter) / edgeSoftPx);
                     if (pixelAlpha <= 0.001f) continue;
 
                     // Colour mode: Over life = the per-shape colour; Fill = the gradient across the shape (centre→
                     // edge); Flow fill = that spatial fill scrolled through the gradient over life. (Sparkle keeps
                     // its own per-pixel shimmer.)
                     Color fc = col;
-                    if (layer.colorMode != ColorMode.OverLife && layer.shape != LayerShape.SparkleField && layer.colorOverLife != null)
+                    if (useGradientFill && layer.colorMode != ColorMode.OverLife && layer.shape != LayerShape.SparkleField && layer.colorOverLife != null)
                     {
-                        // Colour distance is measured from the (optionally offset) gradient core, not the shape centre
-                        // — so the highlight can sit off-centre for a 3D orb. Edge softness still uses `nd`.
-                        float cnd = nd;
-                        if (gradX != 0f || gradY != 0f)
-                            cnd = radius > 0.001f
-                                ? Mathf.Clamp01(Mathf.Sqrt((ux - (c.x + gradX)) * (ux - (c.x + gradX)) +
-                                                           (uy - (c.y + gradY)) * (uy - (c.y + gradY))) / radius) : 0f;
-                        float frac;
-                        if (layer.colorMode == ColorMode.FlowingFill)
+                        if (layer.colorMode == ColorMode.NoiseFill)
                         {
-                            // Flow position scrolls the (mirrored) gradient; zoom sets how much of it spans the
-                            // shape. Mirror (sample 0→1→0) so the scroll loops seamlessly with no hard seam.
-                            float f = Mathf.Repeat(cnd * flowZoom + flowPos, 1f);
-                            frac = 1f - Mathf.Abs(2f * f - 1f);
+                            // Sample the domain-warped noise field in the shape's own (rotated) frame, centred on
+                            // the shape — independent of the Fill/Flow fill gradient-position/zoom/core fields above.
+                            float rx = ux - c.x, ry = uy - c.y;
+                            float nrx = rx * nrCos - ry * nrSin, nry = rx * nrSin + ry * nrCos;
+                            float n = PyreNoise.Sample((nrx + noiseDriftXV) / noiseZoomV, (nry + noiseDriftYV) / noiseZoomV, shapeSeed, layer.noiseWarp);
+                            int bands = Mathf.Max(1, layer.noiseBands);
+                            float nfrac = bands > 1 ? Mathf.Floor(Mathf.Clamp01(n) * bands) / (bands - 1) : n;
+                            fc = layer.colorOverLife.Evaluate(Mathf.Clamp01(nfrac));
                         }
-                        else frac = Mathf.Clamp01(cnd * flowZoom + flowPos);   // Fill: gradient position + zoom now apply here too
-                        fc = layer.colorOverLife.Evaluate(frac);
+                        else
+                        {
+                            // Colour distance is measured from the (optionally offset) gradient core, not the shape
+                            // centre — so the highlight can sit off-centre for a 3D orb. Edge softness still uses `nd`.
+                            float cnd = nd;
+                            if (gradX != 0f || gradY != 0f)
+                                cnd = radius > 0.001f
+                                    ? Mathf.Clamp01(Mathf.Sqrt((ux - (c.x + gradX)) * (ux - (c.x + gradX)) +
+                                                               (uy - (c.y + gradY)) * (uy - (c.y + gradY))) / radius) : 0f;
+                            float frac;
+                            if (layer.colorMode == ColorMode.FlowingFill)
+                            {
+                                // Flow position scrolls the (mirrored) gradient; zoom sets how much of it spans the
+                                // shape. Mirror (sample 0→1→0) so the scroll loops seamlessly with no hard seam.
+                                float f = Mathf.Repeat(cnd * flowZoom + flowPos, 1f);
+                                frac = 1f - Mathf.Abs(2f * f - 1f);
+                            }
+                            else frac = Mathf.Clamp01(cnd * flowZoom + flowPos);   // Fill: gradient position + zoom now apply here too
+                            fc = layer.colorOverLife.Evaluate(frac);
+                        }
                     }
                     float outA = pixelAlpha * fc.a;
-                    if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, nd, t, shapeSeed, W, H))
+                    if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, ux + cx, uy + cy, frameIndex, nd, t, shapeSeed, W, H))
                         continue;
                     Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
                 }
@@ -716,16 +1361,19 @@ namespace Laubrary.Pyre
                     Color fc = new Color(sc.r * tint.r, sc.g * tint.g, sc.b * tint.b, 1f);
                     float outA = sc.a * alpha * tint.a;
                     float crossFrac = Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy) / Mathf.Max(0.001f, radius));
-                    if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, frameIndex, crossFrac, life, hash, W, H))
+                    // No geometry-warp stack applies to Sprite particles (see the class doc above), so the
+                    // "warped" position is just the plain pixel centre.
+                    if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, x + 0.5f, y + 0.5f, frameIndex, crossFrac, life, hash, W, H))
                         continue;
                     Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
                 }
         }
 
         // Returns whether this undeformed pixel is inside the shape, and the colour to lay down.
-        static bool ShapeHit(Layer layer, float ux, float uy, Vector2 c, float radius, float t,
-                             int shapeSeed, int x, int y, Color baseCol, float crescX, float crescY,
-                             float sparkleDensity, int sparkleSub, float holeSize, float holeOffX, float holeOffY, out Color col)
+        static bool ShapeHit(Layer layer, float ux, float uy, Vector2 c, float radius, float outerRadius, float t,
+                             int shapeSeed, int x, int y, int frameIndex, Color baseCol, float crescX, float crescY,
+                             float sparkleDensity, int sparkleSub, float holeSize, float holeOffX, float holeOffY,
+                             float sparkleBlobRadius, float sparkleBlobLife, float sparkleBlobSoft, out Color col)
         {
             col = baseCol;
             float dx = ux - c.x, dy = uy - c.y;
@@ -738,26 +1386,62 @@ namespace Laubrary.Pyre
             {
                 case LayerShape.Disc:
                 {
-                    if (dist > radius) return false;
+                    // outerRadius (not radius) gates the boundary so Rough-edge modifiers can jag/wave the rim
+                    // without disturbing the hole/fill, which still read the shape's TRUE, un-perturbed radius.
+                    if (dist > outerRadius) return false;
                     // holeSize = inner radius fraction (0 = full disc; a Hollow disc carves a — possibly offset — hole).
                     return holeDist >= holeSize * radius;
                 }
 
                 case LayerShape.SparkleField:
                 {
-                    if (dist > radius || holeDist < holeSize * radius) return false;   // disc, with an optional hole
-                    // Which pixels light up: hashed with the sub-seed so it re-rolls (twinkles) when animated.
-                    float h = Hash01(shapeSeed ^ sparkleSub, x, y);
-                    if (h >= sparkleDensity) return false;
-                    // Shimmer: shift each lit pixel along the gradient by its own hash and by life.
-                    if (layer.colorOverLife != null)
-                        col = layer.colorOverLife.Evaluate(Mathf.Repeat(t + h, 1f));
-                    return true;
+                    if (dist > outerRadius || holeDist < holeSize * radius) return false;   // disc, with an optional hole
+
+                    if (!layer.sparkleBlobs)
+                    {
+                        // Original single-pixel-per-frame mode: which pixels light up, hashed with the sub-seed so
+                        // it re-rolls (twinkles) when animated.
+                        float h = Hash01(shapeSeed ^ sparkleSub, x, y);
+                        if (h >= sparkleDensity) return false;
+                        // Shimmer: shift each lit pixel along the gradient by its own hash and by life.
+                        if (layer.colorOverLife != null)
+                            col = layer.colorOverLife.Evaluate(Mathf.Repeat(t + h, 1f));
+                        return true;
+                    }
+
+                    // Blob mode: quantize to a cell grid so each cell can host one persistent, multi-frame sparkle
+                    // (grow in, hold, fade out via MetaEnv — the same envelope MetaBlob's orbs use) instead of a
+                    // single flickering pixel. Cell presence/phase/jitter are hashed off shapeSeed alone (NOT
+                    // sparkleSub, which bakes in frameIndex for the twinkle-every-frame mode) so a sparkle's
+                    // identity stays stable across its own multi-frame lifetime; the "twinkle" quality instead
+                    // comes from each cell's own repeating on/off cycle.
+                    float cellSize = Mathf.Max(1f, sparkleBlobRadius * 2.2f);
+                    int gx = Mathf.FloorToInt(ux / cellSize), gy = Mathf.FloorToInt(uy / cellSize);
+                    float presence = Hash01(shapeSeed, gx * 4, gy * 4);
+                    if (presence >= sparkleDensity) return false;   // this cell never gets a sparkle at all
+
+                    float phase = Hash01(shapeSeed, gx * 4 + 1, gy * 4 + 1);         // desyncs cells' cycles
+                    float jx = Hash01(shapeSeed, gx * 4 + 2, gy * 4 + 2) - 0.5f;      // jittered centre within
+                    float jy = Hash01(shapeSeed, gx * 4 + 3, gy * 4 + 3) - 0.5f;      // the cell, for an organic scatter
+                    Vector2 cellCentre = new Vector2((gx + 0.5f + jx * 0.6f) * cellSize, (gy + 0.5f + jy * 0.6f) * cellSize);
+
+                    float cyclePos = Mathf.Repeat(frameIndex / sparkleBlobLife + phase, 1f);
+                    float env = MetaEnv(cyclePos);   // 0..1 grow-hold-fade, repeating
+                    if (env <= 0.01f) return false;
+
+                    float curRadius = sparkleBlobRadius * env;   // area of effect fades in/out with brightness
+                    float bd = Vector2.Distance(new Vector2(ux, uy), cellCentre);
+                    if (bd > curRadius) return false;
+                    float edgeFade = sparkleBlobSoft > 0.001f ? Mathf.Clamp01((curRadius - bd) / (curRadius * sparkleBlobSoft)) : 1f;
+
+                    col = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(Mathf.Repeat(t + phase, 1f)) : Color.white;
+                    col.a *= env * edgeFade;
+                    return col.a > 0.003f;
                 }
 
                 case LayerShape.Crescent:
                 {
-                    if (dist > radius) return false;
+                    if (dist > outerRadius) return false;
                     Vector2 mc = c + new Vector2(crescX, crescY);
                     float mdist = Vector2.Distance(new Vector2(ux, uy), mc);
                     return mdist > radius;                                      // masked out where the offset disc overlaps
@@ -865,6 +1549,25 @@ namespace Laubrary.Pyre
                 name = "Pyre_Frame_" + frameIndex
             };
             tex.SetPixels32(RenderFrame(spec, frameIndex));
+            tex.Apply();
+            return tex;
+        }
+
+        /// Texture2D wrapper around RenderShapePreview, same pattern as RenderFrameTexture — for PyreWindow's
+        /// isolated single-shape preview box.
+        public static Texture2D RenderShapePreviewTexture(Layer layer, BlastSpec spec, int li, float t, int frameIndex,
+                                                           int W, int H, bool showGradientFill, bool showCrescent,
+                                                           bool showHollow, bool showSize, bool showSpin, bool showAlpha,
+                                                           bool showModifiers)
+        {
+            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                name = "Pyre_ShapePreview"
+            };
+            tex.SetPixels32(RenderShapePreview(layer, spec, li, t, frameIndex, W, H, showGradientFill, showCrescent,
+                                               showHollow, showSize, showSpin, showAlpha, showModifiers));
             tex.Apply();
             return tex;
         }

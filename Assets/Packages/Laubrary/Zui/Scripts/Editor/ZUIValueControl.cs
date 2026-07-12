@@ -245,13 +245,19 @@ public static class ZUIValueControl
     static void ShowMenu(ZUIValue v, Options opts)
     {
         var menu = new GenericMenu();
+        bool hasMultiplier = opts.multiplierIds != null && opts.multiplierIds.Length > 0;
+
+        // A "Mode ▸ ..." submenu only earns its own click when there's a SECOND category (Multiplier) to
+        // disambiguate it from — with just one category, nest it under nothing: put Mode's items directly at
+        // the top level instead of behind a submenu holding literally everything in the menu.
+        string modePrefix = hasMultiplier ? "Mode/" : "";
 
         if (opts.allowStatic)
-            menu.AddItem(new GUIContent("Mode/Static"), v.mode == ZUIValue.Mode.Static, () => v.mode = ZUIValue.Mode.Static);
+            menu.AddItem(new GUIContent(modePrefix + "Static"), v.mode == ZUIValue.Mode.Static, () => v.mode = ZUIValue.Mode.Static);
         if (opts.allowMinMax)
-            menu.AddItem(new GUIContent("Mode/Min-Max range"), v.mode == ZUIValue.Mode.MinMax, () => v.mode = ZUIValue.Mode.MinMax);
+            menu.AddItem(new GUIContent(modePrefix + "Min-Max range"), v.mode == ZUIValue.Mode.MinMax, () => v.mode = ZUIValue.Mode.MinMax);
         if (opts.allowCurve)
-            menu.AddItem(new GUIContent("Mode/Curve over time"), v.mode == ZUIValue.Mode.Curve, () =>
+            menu.AddItem(new GUIContent(modePrefix + "Curve over time"), v.mode == ZUIValue.Mode.Curve, () =>
             {
                 bool wasCurve = v.mode == ZUIValue.Mode.Curve;
                 v.mode = ZUIValue.Mode.Curve;
@@ -269,14 +275,19 @@ public static class ZUIValueControl
                 else v.EnsureCurveDefaults();
             });
 
-        menu.AddSeparator("");
-        menu.AddItem(new GUIContent("Multiplier/(none)"), !v.HasMultiplier, () => v.multiplierId = "");
-        if (opts.multiplierIds != null)
+        // Only hosts that actually declare multiplier ids (e.g. a SmartStats-style external modifier) get this
+        // section — otherwise it was ALWAYS present as a "Multiplier ▸ (none)" submenu with nothing else in it
+        // (Pyre never sets multiplierIds, so every ValRow menu paid an extra click to open an empty submenu).
+        if (hasMultiplier)
+        {
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent("Multiplier/(none)"), !v.HasMultiplier, () => v.multiplierId = "");
             foreach (var id in opts.multiplierIds)
             {
                 string captured = id;
                 menu.AddItem(new GUIContent("Multiplier/" + id), v.multiplierId == id, () => v.multiplierId = captured);
             }
+        }
 
         menu.ShowAsContext();
     }

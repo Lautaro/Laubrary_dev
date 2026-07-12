@@ -5,6 +5,374 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Pyre: noise-driven modifiers for churning/rolling explosions** (dust clouds, roiling fireballs, mushroom-cloud
+  blasts) — all opt-in, nothing existing changes behavior unless a new modifier is explicitly added:
+  - **Alpha mask gains a `Noise` shape** — carves an irregular cloud silhouette from domain-warped noise instead of
+    a clean geometric edge, reusing the existing Size/Rotation/Offset params as the noise's zoom/placement, plus a
+    new Noise-only warp strength and drift X/Y (for a cloud that visibly rolls as it reveals).
+  - **`TurbulenceModifier`** (Geometry) — displaces pixels via a 2D noise field whose own domain spins (Rotation)
+    and drifts (Offset X/Y) over life. This is the churn/roll engine: stack on a Disc/MetaBlob with a spatial fill
+    to churn the colour bands (a roiling fireball), or after Ground/Profile to roll an already-molded silhouette (a
+    mushroom cloud's characteristic turning cap).
+  - **`PosterizeModifier`** (Colour) — quantizes colour (and optionally alpha) into a fixed number of bands, the
+    main lever for reading as hand-painted shading instead of a smooth procedural gradient.
+  - **`OrderedDitherModifier`** — converts smooth alpha into a hard 4x4-Bayer stipple (the genuine crosshatch dither
+    pattern classic pixel art uses for shading), as an alternative to Dissolve's random speckle.
+  - **`LayerShape.NoiseField`** — a new layer shape: a single domain-warped noise cloud drawn as a whole (no
+    scatter/count, like MetaBlob), shaped by the layer's own Size (radius) and Position (centre), with its own
+    Zoom/Rotation/Drift/Warp/Bands/Threshold/Edge-softness controls. The dedicated "dust cloud / gas cloud /
+    churning energy field" primitive the other additions here support but don't by themselves provide.
+  - All noise is built on the existing deterministic `Hash01` primitive (a shared `PyreNoise` helper) — never
+    `UnityEngine.Random` or `Mathf.PerlinNoise` — so preview == bake == runtime stays bit-identical.
+- **Pyre: five more modifiers exploring non-noise procedural techniques** (also opt-in, additive only):
+  - **`RingWaveModifier`** (Geometry) — a RADIAL ripple (unlike Wobble's fixed linear one); animate Phase over life
+    to send a shockwave ring travelling outward through a shape's own texture/shading.
+  - **`SunburstModifier`** (Colour) — N alternating bright/dim rays around the canvas centre, for a charging-energy
+    or classic-sunburst look.
+  - **`PulseRingsModifier`** (Colour) — concentric brightness rings travelling outward across a shape over its own
+    life (a sonar-ping / energy-pulse look); a pure function of the already-available crossFrac/life, so it works
+    on Disc, MetaBlob, Bars, Sprite alike.
+  - **`VoronoiCrackModifier`** (Colour) — a cellular (Worley) crack pattern: darkens/brightens near the seams of a
+    jittered feature-point grid, for a shattered-crystal / cracked-earth / lightning-crackle look. A genuinely
+    different visual family from the Perlin-style domain-warped noise above (faceted/linear vs. blobby/smooth); can
+    also tint each cell's interior for a stained-glass look.
+  - **`ChromaticAberrationModifier`** (Post, global only) — RGB channel split (radial from the canvas centre, or a
+    flat direction) for the classic energy/impact chromatic-fringe look.
+- **Pyre: Ring scatter mode** (`Layer.scatterMode`) — an alternative to the existing Area scatter (random points
+  filling the Spawn radius disc). Ring places a layer's shapes along the RIM at Spawn radius instead, via
+  `RingOrder` (Sequential = evenly spaced in index order; Random = independent random angle) and an animatable
+  `ringStartAngle`/`ringArcDegrees` pair (360° = the full rim; less confines shapes to a wedge/fan). Editor: a
+  Ring box under the Area/Ring radio in the layer inspector.
+- **`PinWarpModifier`** (Geometry) — hand-animated pin/lattice warp, a different KIND of tool from everything else
+  above: instead of a procedural formula, you place "pins" directly in the preview and drag each one on whichever
+  frames matter (a small "Pin warp" authoring box + preview click/drag, mirroring the existing MetaBlob-orb/Smudge-
+  stroke authoring pattern) — the frames you don't touch interpolate automatically (smoothstep between the
+  keyframes you did set; held before the first and after the last), so only the moments where a pin's motion
+  actually changes need keyframing. Nearby pixels drag along based on inverse-distance falloff from the pin's
+  radius (anchored at its very first keyframe, its "rest" position); multiple pins simply add together. Zero
+  randomness — fully deterministic authored data, no seed/hash needed at all. One small, deliberately isolated
+  addition to `BlastRenderer.CollectMods` (a type-check handing the modifier the raw frame index) was needed since
+  this is the first modifier that cares about the actual frame number rather than a 0..1 progress — every other
+  modifier's `Prepare`/`InverseWarp` contract is untouched.
+- Noted for later: Pyre's demo scene (`Assets/Demos/PyreDemo/`) predates and doesn't follow the `authoring.md` §8
+  "Build Demo Scene" menu-command convention (it's hand-authored). Not addressed now — flagged so a future session
+  doesn't assume it already matches the convention `authoring.md` itself cites it as an example of.
+- **Pyre: Ring scatter gains "Align rotation"** (`Layer.ringAlignRotation`) — rotates each shape to face its own
+  angle around the ring instead of every instance sharing one fixed orientation. Matters for asymmetric shapes
+  (Crescent's bite, an offset Hollow hole); a plain Disc looks the same either way. Composes with Star spread's own
+  per-instance rotation.
+- **`ColorMode.NoiseFill`** (Disc/Crescent/MetaBlob) — fills the shape through a domain-warped noise field instead
+  of a clean radial gradient, for a cloudy/marbled interior. Reuses the existing `NoiseField` shape's Zoom/Rotation/
+  Drift/Warp/Bands params (revealed in the layer inspector whenever Noise fill is selected) rather than adding a
+  parallel set of knobs.
+- **`EdgeWarpModifier`** (named `RoughEdgeModifier` earlier in this same Unreleased window — renamed before ever
+  shipping) — a new modifier family (`EdgeModifier`, alongside Geometry/Pixel/Post) that roughens a shape's OUTER
+  silhouette (Disc/Crescent/SparkleField) without touching the fill: unlike a `GeometryModifier` (Wobble/Jagg/
+  Turbulence), which warps the whole coordinate frame so the fill ripples along with the boundary, this only
+  perturbs the hit-test radius per angle around the shape centre — a jagged/torn or smooth/wavy rim over an
+  undisturbed gradient/noise-fill interior. `Jaggedness` blends between a smooth noise wave and a hard faceted
+  step. `Softness` feathers that PERTURBED boundary with its own alpha fade — added because the layer's own Outer
+  softness fades from the shape's true, unwarped radius, so it doesn't track a jagged/wavy edge correctly. Every
+  param on this modifier — including `Jaggedness`/`Warp`, initially left as plain floats matching the package's
+  usual "discrete/waveform-character knobs stay static" convention (Jagg's arms, Posterize's levels, Sunburst's
+  sharpness) — is MultiCont (`ZUIValue`, animatable) by explicit request for this modifier specifically.
+- **Outline gains an Over life / Fill colour mode** (reuses `ColorMode`, like every shape's own fill already does)
+  — Fill is the existing behaviour (the gradient read across the outline's thickness, inner→outer); Over life
+  instead samples ONE colour from the whole gradient, at the blast's own life. Needed a small new `PostModifier.
+  life` hook (set by `BlastRenderer` right before `Prepare`/`Apply`, mirroring `PinWarpModifier`'s frame-index
+  hook) since `Apply` otherwise has no access to progress at all.
+- **Voronoi crack gains Zoom/Rotation/Drift X/Drift Y/Seed offset** (mirroring `NoiseField`'s own domain controls,
+  `cellSize` renamed to `zoom` to match — `[FormerlySerializedAs]` keeps old authored values) so the crack pattern
+  can zoom, spin, pan, and re-seed. Rotation pivots on the blast's own Origin marker (not the canvas corner), then
+  Drift pans along the — now possibly rotated — grid axes, matching `NoiseField`'s own rotate-then-drift order.
+  `Seed offset` is the crack-pattern twin of `Layer.sparkleSeed`, rounded to whole STEPS before hashing (0.7 and
+  1.4 both land on step 1) so an animated Curve jumps between a handful of distinct patterns over life instead of
+  reshuffling into unrelated noise on every fractional change: Static freezes the pattern, Min-Max re-rolls a fresh
+  step every frame for a boiling/crackling reshuffle. Its flat `crackTint` Color is now a `Gradient` with the same
+  Over life / Fill split as Outline above — Fill paints the gradient across each seam's own width (0 = away from a
+  seam, 1 = right on it) instead of a single flat tint. `Crack width` and `Cell shade strength` are now MultiCont
+  (`ZUIValue`, animatable) rather than flat floats — continuous magnitude/blend knobs like these follow the
+  existing package convention of being animatable (unlike discrete/waveform-character knobs such as Jaggedness or
+  Warp, which stay plain floats since animating those reads as flicker, not motion). `Crack width`'s range was
+  also raised from a 0–1 cap to 0–3, since the seam-distance it's compared against can itself exceed 1 near a
+  cell's centre — the old cap meant even the maximum setting always left some untouched cell interior; the wider
+  range can now genuinely erase cell interiors entirely, reading as one connected crack field.
+- **Chromatic aberration gains an Alpha blend** (0 = untouched image, 1 = full effect, animatable — separate from
+  `Amount`, the split distance itself) and `Angle` is now a MultiCont (`ZUIValue`, animatable — sweep the split
+  direction) instead of a flat float.
+- **Pyre preview settings (zoom, playback fps/speed, backdrop, test-backdrop sprite) are now saved on the BlastSpec
+  asset itself** (`BlastSpec.previewX` fields, `[HideInInspector]`), not the Pyre window — each blast now
+  remembers its own preview setup across switching assets, closing the window, or restarting the editor, instead
+  of the whole window sharing one global preview state that reset unpredictably. `previewStageBg` is typed as a
+  plain `Object` since `Laubrary.PreviewStage.PreviewBackground` is editor-only and Runtime code can't reference
+  it (`PyreWindow` casts it back).
+- **Same per-asset persistence extended to UI state: which layer's inspector is open, the left pane's scroll
+  position, and the current preview frame** (`BlastSpec.previewLayerSel`/`previewScroll`/`previewFrame`) — opening
+  an asset now resumes wherever you left it instead of always landing on layer 0. Layer selection explicitly
+  dirties the asset on change (a discrete, meaningful pick worth reliably saving); scroll position and preview
+  frame don't (they change continuously while dragging/playing — dirtying on every tick would leave the asset
+  permanently "modified" just from watching a preview play), so those two persist for the session and whenever
+  any other edit happens to save the asset anyway, rather than being guaranteed durable across every close.
+- **Post modifiers (Bloom/Outline/Drop shadow/Chromatic aberration/Fuse) now work on individual LAYERS, not just
+  the blast's global list.** A layer with its own enabled Post modifier renders into an isolated buffer first (so
+  its post pass only ever sees/affects that layer's own pixels, never anything already composited below it), runs
+  its post modifiers, then composites the result onto the frame (`BlastRenderer.FinishLayerPost`) — layers with no
+  Post modifiers (the common case) skip this and draw straight into the shared buffer as before, so there's no
+  cost when the feature isn't used. The editor's "+ Add modifier" menu no longer hides the Post group on a
+  per-layer list.
+- **`FuseModifier`** ("Fuse (blob melt)", Post) — a cheap, general "melt nearby shapes into one blob" effect: box-
+  blurs the whole (premultiplied) frame, then re-thresholds alpha with a soft band so overlapping/nearby
+  silhouettes' blurred halos cross the threshold together and read as fused, while an isolated shape mostly
+  reconstitutes near its own edge. A pixel-space APPROXIMATION of MetaBlob's exact SDF-field fusion — much
+  cheaper, and (unlike MetaBlob) works on ANY already-rendered pixels: any layer shape (even Bars/Sprite/
+  NoiseField), any modifier stack, or — as a global modifier, now that Post modifiers can target a layer or the
+  whole blast — several different layers melted together after they all composite. `Colour bleed` separately
+  controls how much colour blends across the fused seam, independent of the silhouette fusion.
+- **`ScatterMode.Rosing`** — a third scatter mode (`Layer.roseRings`, alongside Area/Ring) for a blooming-rose
+  effect: an authored list of rings, each with its own Count/Radius/Birth/Life (mirrors `MetaOrb`'s birth/life
+  exactly, just for a whole ring of shapes instead of one orb) — a few shapes close in and early, more shapes
+  further out and later, blooming outward over the layer's life. Shares Ring's Start angle/Arc degrees/Ring order/
+  Align rotation placement math rather than inventing a parallel set.
+- **Ring/Rosing Disc layers gain a Fuse toggle** (`Layer.fuse`) — melts every shape into ONE gradient-shaded
+  metaball field via the same SDF-sum → threshold → shade approach `RenderMetaBlob` uses for hand-placed orbs
+  (a new `RenderFusedField`, sharing the pattern rather than the literal code — the two per-shape life models
+  differ enough that forcing them through one function would obscure both), instead of compositing the shapes
+  independently. Reuses MetaBlob's own Threshold/Shade range/Edge softness fields rather than adding a parallel
+  set.
+- **Copy/paste for modifiers** — every modifier row gets a Copy button; a Paste button appears next to "+ Add
+  modifier" (disabled until something's copied). A single in-memory clipboard (last-copied wins, no asset/browser)
+  that survives closing and reopening the Pyre window within the session, so a tuned modifier can be carried to
+  another slot, another layer, or the global list without re-authoring it.
+- **Crescent gains Outer softness + Bite softness** — it previously had no edge softening at all (`outerSoftness`/
+  `innerSoftness` were only ever evaluated for Disc/SparkleField), even though the Hollow-disc "offset hole = a
+  crescent" alternative already had both via Outer/Inner softness. Reuses those exact same two fields rather than
+  adding new ones: Outer softness fades the same outer boundary Disc's does; Bite softness (the label shown for
+  Crescent — same underlying `innerSoftness` field as Hollow's Inner softness) fades the edge where the mask disc
+  bites in. No separate "bite size" scaling term needed (unlike Hollow's Hole size) since the mask disc is always
+  the same size as the main one. Verified: 134 intermediate-alpha pixels with softness on vs. 0 with it off (a
+  crisp cutout) on the same crescent.
+- **`Layer.spinDegrees`** — a shape's own rotation over its own life (0..1 of ITS life span, via `t`), independent
+  of Ring/Rosing placement entirely and available for Area scatter too. Adds onto whatever `Align rotation` set as
+  the initial facing, so a shape can start aligned outward (via Align rotation) and then keep spinning from there
+  under its own power — e.g. a Crescent that faces the ring's rim on spawn, then continuously turns in place.
+  Verified: a Crescent animating Spin 0°→180° over its life rotated its bite direction by ~174° between its first
+  and last frame while its own placement stayed fixed.
+- **SparkleField gains a Blobs mode** (`Layer.sparkleBlobs`) — off (default) keeps the original single-pixel-per-
+  frame twinkle exactly as it was; on, each sparkle becomes a small blob with its own multi-frame lifetime (grow
+  in, hold, fade out — the same `MetaEnv` envelope MetaBlob's orbs already use) instead of one flickering pixel,
+  and its radius fades in/out along with that same envelope so its "area of effect" breathes too, not just its
+  brightness — real sparkles instead of static. Cell presence/phase are hashed off the shape's own seed rather
+  than the existing (frame-reseeding) Sparkle seed, so a sparkle's identity stays stable across its own lifetime
+  instead of rerolling into a different one every frame; `Blob radius`/`Blob life`/`Blob softness` are all
+  animatable. Verified: pixel mode's frame-to-frame lit-pixel overlap (35px) matches the statistically-expected
+  COINCIDENTAL overlap for a fully independent reroll (~41px), confirming no regression; Blobs mode's overlap
+  (52px of 57-83px lit) is far higher, confirming genuine multi-frame persistence. Blobs mode also gets soft
+  edges (50 intermediate-alpha pixels vs. 0 in pixel mode).
+- **Rosing: each ring gets its own `Size` (×scale on the layer's own Size, 0.1–3)**, independent of the ring's
+  `Radius` (placement distance). Previously the layer's shared `Size` field set every ring's disc size equally
+  — no way to make an inner ring's discs small and an outer ring's big without also changing how far out they
+  sit, since Radius and disc size were coupled through the single shared field. `RoseRing.sizeScale` multiplies
+  onto `Eval(layer.size, ...)` only when Rosing.
+- **Rosing: `Layer.roseReverseDraw` toggle** — flips which ring composites over which. Off (default, unchanged
+  behaviour): rings later in the authored list draw on top of earlier ones (with the default 3-ring stack, that
+  puts the outer/later-blooming ring in front). On: reversed, so earlier (typically inner) rings draw in front
+  instead. Implemented by walking `roseRings` back-to-front when assigning each ring its flat shape-index (`si`)
+  range in `RoseRingLookup` — the ring that claims the low end of `si` draws first (behind), the ring claiming
+  the high end draws last (in front); a ring's own internal angle placement (`localIndex`/`ringCount`) is
+  untouched, so this only ever changes depth ordering between rings, never the individual discs' draw order
+  within one ring.
+- **New ZUI control: `ZUI.StackedFloat`/`StackedInt`** (`ZUIStackedDragField.cs`) — a compact "label above,
+  value below" numeric field for packing several short fields into a narrow column, where `ZUI.FloatField`/
+  `Slider`'s wide inline "label : field" row doesn't fit. The label itself is the drag-scrub handle (click-drag
+  horizontally to scrub, Unity's classic prefix-label-drag feel) rather than a separate grip icon — reuses the
+  same scrub math as `ZUIDragField` (the internal drag-handle already behind every `ZUI.FloatField`/`IntField`)
+  so the feel matches. Both a plain-value form (`ZUI.StackedFloat(label, value, width)`) and a typed-control
+  factory for `ZUIForm`/`ZUIRow` (`ZUI.StackedFloat(label, get, set, width)`) are provided. (The ZUI reference
+  doc's `ZUIStackedField` — a *different*, undragable "label above, control below" wrapper — turned out not to
+  actually exist in the codebase despite being documented; this is a new, from-scratch control, not a fix to
+  that one.)
+- **Rosing's ring-list UI rewritten** (raw `EditorGUILayout` + manual `EditorGUIUtility.labelWidth` juggling
+  before) — per the ZUI reference's own guidance that packing related short fields into one row is the default
+  for any inspector-style panel, not one-field-per-row. Each ring is now a single untitled-box row — ring
+  number, then Count/Radius/Size/Birth/Life/✕ — every field its own `ZUI.StackedInt`/`StackedFloat` (see the
+  new-control entry above) instead of an unlabelled slider under a shared row label. Dropped the titled
+  `Box("Ring N")` wrapper too (a titled box draws its own header line above the content, which was a second
+  "row" in practice) in favour of an untitled `Box()` holding just the one line — each field still reads
+  clearly and is individually drag-scrubbable by its own label, at a fraction of the old footprint.
+- **`Layer.syncDeath`** — Area/Ring toggle: every shape reaches the END of its life at the layer's own End frame
+  together, instead of each shape getting the same fixed duration (which, combined with Spawn stagger, makes
+  later spawns end later too). Shapes born earlier now mature more slowly (a longer life) so the whole burst
+  finishes on the same frame. Implemented by keeping the existing formula for spawn SPACING unchanged
+  (`lifeForSpacing`, so Spawn stagger still controls how far apart consecutive shapes spawn) and only overriding
+  the actual `life` each shape gets: `span - spawnAt` (floored at 1 frame) instead of the shared `lifeForSpacing`
+  — algebraically this makes `spawnAt + life == span` for every shape, where previously only the LAST-spawned
+  shape's end landed exactly on `span`. Composes oddly with a large Spawn stagger: a very-late spawn gets squeezed
+  into a very short life to still die on time, so it can read as a pop rather than a fade — noted in the field's
+  tooltip.
+- **`ZUIValue2DControl` (new ZUI editor control)** — a synchronized 2D-position editor for a PAIR of ZUIValues,
+  replacing two separate 1D sliders (hard to aim a position with) with one XY plot. Static mode = one draggable
+  point + numeric X/Y fields + Reset; Curve mode = several numbered points connected by lines, tracing a path —
+  unlike the 1D envelope editor, time isn't plotted at all here (both axes are spatial); it's implicit in point
+  ORDER, evenly divided across the lifetime as points are added/removed. Deliberately reuses the existing
+  `ZUIValue`/`ZUIEnvelopePoint` data model and `ZUIEnvelopeEvaluator` completely unchanged — x/y are two ordinary
+  `ZUIValue`s kept in lockstep by this control, so nothing that already evaluates a `ZUIValue` (including every
+  field in `BlastRenderer`) needs any changes to consume a pair authored this way. Folds to a one-line thumbnail
+  by default (a shrunk dot/path preview, click to expand) — same affordance as the 1D envelope's curve thumbnail —
+  so it no longer eats a fixed 140px of vertical space when you're not actively aiming it. When expanded, a fixed-
+  width side panel (label, X/Y fields + Reset, or point-count/hint text in Curve mode, plus the mode and collapse
+  buttons) sits LEFT of the XY plot at the same height, laid out horizontally, instead of stacking those rows
+  above/below a tall plot. Reset (resets both X and Y to the field's default) is now available in Curve mode
+  too, not just Static — collapses both point lists back to a flat 2-point path at the default value. Trialled
+  first on
+  Pyre's `Position X/Y`, then, confirmed to feel better, rolled out to every other X/Y field pair in Pyre: `Core
+  offset X/Y` (gradient core), `Crescent offset X/Y`, `Hole offset X/Y`, and `Noise drift X/Y` (both the layer's
+  own Noise fill and `AlphaMaskModifier`'s Noise mask). `AlphaMaskModifier.offsetX/offsetY` were left as plain
+  float sliders (not `ZUIValue`s) since they're a different underlying data type — a plain-Vector2 variant of this
+  control for non-animatable X/Y pairs is a candidate follow-up, not done here.
+
+### Removed
+- **Pyre: Wind drift** (`Layer.windX`/`windY`) removed — a directional push applied to every shape, growing with
+  its age. Redundant with existing, more controllable tools (Position X/Y drift, Ground's grow-angle, per-shape
+  Curve envelopes) and never found a use. UI box and backing fields both removed.
+
+### Changed
+- **Pyre: MetaBlob's gradient now has the same Over life / Fill / Flow fill options as Disc/Crescent** (`ColorMode`,
+  Gradient position/zoom), replacing the old bespoke `metaFlow` bool. Fill and Flow fill now both honour Gradient
+  position/zoom (previously only the flow-toggled path did); Over life is new for MetaBlob — one flat colour for
+  the whole blob, sampled at the layer's own life, instead of always shading by surface→core field depth.
+- **`SquashModifier` replaced by `ScaleModifier`.** Adds an Axis choice (Vertical / Horizontal / Both); Both scales
+  both axes together from one shared value instead of needing two synced sliders. All three values (Vertical,
+  Horizontal, Both) are MultiCont (`ZUIValue`), matching the old Squash's single animatable Amount.
+- **`PixelInfo` gains `wx`/`wy` (the geometry-warped canvas position)**, and `VoronoiCrackModifier` now samples
+  from it instead of the raw `x`/`y`. Previously a `PixelModifier` stacked after a `GeometryModifier` (e.g.
+  Wobble → Voronoi crack) would only see the WARPED SILHOUETTE — the crack pattern itself stayed glued to the
+  screen underneath it, since `x`/`y` are always the pre-warp canvas position regardless of any earlier warp in
+  the stack. `wx`/`wy` are the same position AFTER that warp (equal to `x+0.5`/`y+0.5` when no geometry modifier
+  is active, so this is a no-op unless one is stacked before Voronoi crack). Other canvas-anchored modifiers
+  (Sunburst — deliberately canvas-centred; Dissolve; OrderedDither, whose Bayer matrix needs raw screen alignment
+  to work at all) are unchanged; only Voronoi crack's own pattern-sampling switched to `wx`/`wy`.
+
+### Fixed
+- **Pyre: an animated Spawn radius moved shapes that had ALREADY spawned, instead of only affecting where NEW
+  shapes appear.** `spawnRadius` was evaluated at the CURRENT FRAME's layer progress (`lp`) for every shape on
+  every frame, rather than at each shape's own spawn moment — so a rising Spawn radius curve read as "the whole
+  scatter field's positions scale outward over time" (every shape sliding together, every frame) instead of "the
+  ring/area itself grows, and each new shape spawns further out than the last, while already-placed shapes stay
+  put." Fixed by evaluating it at the shape's own spawn-time progress instead (already available via its
+  `start` frame), so its scatter position — and therefore its Ring/Rosing angle-placement radius — is now
+  effectively locked in permanently once it spawns. **`Start angle`/`Arc degrees` now get the identical fix, and
+  unconditionally (no toggle)** — a `Lock angle at spawn` opt-in was tried and reverted earlier in this same
+  Unreleased window (it read as pointless with `Align rotation` off, since it only ever moved position, which
+  Spawn radius already covered) — but that framed it as a rotation feature. It's actually the same placement-vs-
+  live-transform conflation Spawn radius had: Start angle/Arc degrees determine WHERE a new shape lands (a spawn-
+  time decision), not an ongoing transform, so — like Spawn radius — they should always lock at spawn, full stop,
+  not offer a choice. Animating them now changes where new shapes appear over time (e.g. a slow spiral bloom as
+  the ring's reference angle drifts between spawns) without ever moving an already-placed shape. For the
+  previously-available "whole ring visibly spins live" look, add a `Rotate` geometry modifier instead — that's a
+  genuine live transform, and was always the semantically correct tool for that job.
+- **Pyre: Crescent's mask-disc offset (Crescent X/Y) was a fixed PIXEL amount, so it desynced from the shape's own
+  proportions the moment Size changed** — a large enough Size made the fixed offset barely bite into the disc
+  (reading as nearly a full circle), a small enough Size made it overshoot the disc entirely (no crescent left at
+  all). Changed to −1..1 of the shape's own (post-clamp) radius, the exact convention `Hole offset X/Y` (the
+  Hollow-disc "offset hole = a crescent" alternative) already used — now Size changes scale the bite proportionally
+  and the crescent's silhouette (sliver thickness/curvature) stays put. Verified: coverage fraction (lit px ÷ full-
+  disc area) is 0.283 at radius 6 and 0.282 at radius 24 with the same authored offset, was wildly different
+  before. Also switched its evaluation from the layer's life (`lp`) to the shape's own life (`t`), matching every
+  other per-shape animatable value (Hole offset included) — it was the only one of these still reading `lp`.
+  Default `crescentOffsetX` changed from `6` (px) to `0.45` (of radius) to preserve roughly the old look.
+- **ZUI: `ZUIValueControl`'s "⋯" context menu always showed a `Multiplier ▸ (none)` submenu, even for hosts
+  (like every Pyre `ValRow`) that never call `.WithMultipliers(...)`** — an extra click into a submenu with
+  nothing useful in it, on every single value in the entire tool. The Multiplier feature itself is real and
+  still used (e.g. `Zhowcase`'s demo), so the submenu now only appears when the caller actually declared
+  multiplier ids. Also generalised: a "Mode ▸ ..." submenu only earns its own click when there's a second
+  category (Multiplier) to disambiguate it from; with a single category, its items now sit directly at the
+  menu's top level instead of behind a submenu holding literally everything in the menu. Pyre's `ValRow` menus
+  (no multiplier ids ever) now show three flat top-level items with zero submenus. Swept every other
+  `GenericMenu` in the package for the same anti-pattern (Pyre, Lazor, Zoetrope, and the rest of ZUI's editor
+  windows) — only one other offender found: `ZUIFoldControls`'s fold-mode right-click menu nested both its
+  options under a pointless single `"Expand on/"` category; flattened the same way.
+- **Pyre: isolated single-shape preview** (`Layer` panel, "Shape preview" toggle, off by default) — shows
+  exactly ONE of the selected layer's shapes, centred and rendered at max size for a fixed preview box,
+  ignoring Count/Position/Spawn radius/Ring-Rosing placement entirely (scatter concerns, not the shape's own
+  look). Seven toggles (Gradient Fill/Crescent/Hollow/Size/Spin/Alpha/Layer Modifiers) independently opt each
+  aspect IN — reflecting its authored animation/value — or freeze it to a neutral default when off, so whichever
+  aspect is currently a visual distraction can be isolated away while dialing in the rest. Purpose: a layer
+  with a lot of scatter/movement and a high instance count makes it hard to visually verify any ONE shape's own
+  intrinsic look; this strips all of that away. Layout: preview box on the left, the 7 toggles stacked 2-per-
+  row (4 rows, last solo) on the right. Tracks the main transport's current frame (mapped into the layer's own
+  life window) instead of a separate scrub control, so the normal Play/scrub/frame slider animates it too.
+  New `BlastRenderer.RenderShapePreview`/`RenderShapePreviewTexture` — a dedicated, simplified render path (not
+  a count-1 call into the main scatter loop) that reuses `RasterShape`/`RasterSprite` and the modifier-stack
+  machinery, skipping spawn timing/scatter placement/the multi-instance loop entirely. Needed two small,
+  backward-compatible `RasterShape` additions to reach: a `useGradientFill` param (defaults `true`, only this
+  new caller ever passes `false`) so "Gradient Fill off" can force flat `OverLife`-style colour without
+  touching the shared `layer.colorMode` state; Hollow/Crescent toggles needed no such change since they're
+  already expressed as ordinary `holeSize`/`crescX`/`crescY` values RasterShape already takes as parameters, not
+  fields it reads off `layer` directly. `BlastSpec` gains `previewShapeOn` + the 7 `previewShape*` toggle
+  fields (per-asset UI state, same category as `previewZoom`/`previewLayerSel`/etc.). Verified headlessly (no
+  visual screenshot yet): renders without exceptions on a Crescent layer, produces non-degenerate pixel
+  coverage, and Size-off at an early life-progress (t=0.1, where the authored Size curve would still be small)
+  shows MORE lit pixels than Size-on at t=0.5 — confirming the "pin to max regardless of the curve" override
+  actually overrides rather than just reading through.
+- **`OutlineModifier` gains `Inner softness`/`Outer softness`** — previously the outline ring had a hard cutoff
+  at both its own edges: full alpha the instant it touched the shape's silhouette, and a hard clip exactly at
+  `Size`. Inner softness (0–4px) fades it IN gradually from the shape boundary instead of starting at full
+  strength immediately; Outer softness (0–8px, a larger cap — the outward fade typically wants to read as a
+  longer glow/dissipation, while the inner edge against the shape usually wants to stay crisp) fades it OUT
+  past `Size` instead of clipping there. Both default to 0 (unchanged, crisp behaviour). Required extending the
+  neighbour-distance search radius to `Size + Outer softness` — pixels in the new outward fade band are past
+  the old search window and would never find a shape pixel to measure from otherwise.
+- **Pyre: `ValRow`'s Min-Max mode is now hidden for fields that don't actually vary per shape.** Min-Max is a
+  per-shape-stable randomizer (`BlastRenderer.Eval` hashes it by shape index `si`) — genuinely useful when a
+  field is sampled once per SHAPE, so several instances in one baked animation each land on their own
+  fixed-but-different value (Spawn radius, Size, Spin, Sparkle density, Crescent/Hole offsets, ...). But a good
+  number of fields are sampled only ONCE for the whole layer instead (`si` isn't in their hash at all) — Count,
+  Start angle/Arc degrees (spawn-locked per-layer, not per-shape), every Bars knob except Forward reach, every
+  MetaBlob/NoiseField field (no scatter/count at all), and Noise zoom/rotation on a Fused disc. For those, Min-
+  Max was just picking one random-but-still-frozen number — no variety to see, just a de-facto Static value
+  hidden behind a menu that implied otherwise. New `ValRow(..., allowMinMax: false)` (and a matching `perShape`
+  flag threaded through the shared `DrawNoiseFillParams`) hides the option at exactly those call sites. Left
+  the Modifiers panel (`DrawModifiers`) alone — modifier fields turned out to be a THIRD case: `Prepare()` bakes
+  the current `frameIndex` into the Min-Max hash, so they re-roll every single frame (flicker/static) rather
+  than landing on one frozen value OR varying per shape — a different semantic worth a separate conversation,
+  not folded into this pass.
+- **Pyre: the "keep shape on-screen" scatter clamp could silently cancel EVERY placement value** (Position, Spawn
+  radius, Ring angle...) for a shape whose own radius reaches or exceeds the canvas half-size — a common case for
+  a big filling layer (e.g. a "Smoke" layer sized to nearly cover the canvas). On a square canvas the clamp's
+  valid range collapsed to a single point exactly at dead-centre once `radius >= half`, forcing every shape back
+  to the same spot regardless of any authored offset, with no error or visual hint why. Full containment (`no
+  clipping at all`) and any placement freedom are mutually exclusive once a shape is that big, so the clamp now
+  only enforces full containment while it still leaves room to move (`radius < half`); past that point it backs
+  off to the weaker "keep the centre on-canvas" guarantee instead of erasing the placement value outright.
+- **PyreWindow gave no indication a selected layer was disabled** — its param panel looked and behaved fully live
+  even when the layer's own `enabled` checkbox (in the layer list) was off, so any change made there (this is what
+  originally read as "Position/Spin do nothing") had no visible effect for a completely unrelated reason: the
+  whole layer wasn't drawing. Added a warning `HelpBox` at the top of the layer panel whenever the selected
+  layer is disabled.
+- **Pyre: `BloomModifier` ("Bloom (glow)") rendered a dark halo instead of a glow.** Its final blend combined the
+  original straight-alpha colour with the additive glow, then stored the result at the new (higher) alpha WITHOUT
+  dividing back down — since this codebase stores colour as straight alpha throughout (`BlastRenderer.Over` un-
+  premultiplies explicitly), a pixel that started transparent ended up with straight colour ≈ glowValue at alpha ≈
+  glowValue, which displays as glowValue² — a dim, dark smudge instead of a bright halo, worst exactly where the
+  glow spreads into previously-transparent space around a shape. Fixed by blending in premultiplied space and
+  dividing back down by the new alpha, matching how `Over` already does it elsewhere in Pyre.
+- **Pyre: `NoiseField` showed a semi-transparent white/grey haze across the whole radius whenever Edge softness
+  exceeded Threshold** (e.g. threshold < ~0.3 or softness > ~0.3). The density gate multiplied the noise value and
+  the radial edge falloff together BEFORE thresholding, then compared the product to `threshold - softness` — once
+  softness exceeded threshold that difference went negative, and since the product can't itself go negative the
+  gate never excluded anything, so the whole disc rendered at a visible alpha (showing the gradient's low end,
+  e.g. `SmokeGradient`'s pale grey). Fixed by computing the radial edge fade and the noise threshold as two
+  independent, separately-bounded smoothstep bands (the same bounded pattern `AlphaMaskModifier`'s sharpness band
+  already uses correctly) and multiplying their alphas together, instead of thresholding a combined value.
+- **Pyre: MetaBlob's Spawn interval slider looked inert.** It only ever set a NEWLY placed orb's birth time
+  (`orbCount x interval`) at the moment you click to place it — moving the slider afterward, or with orbs already
+  placed, visibly changed nothing, since nothing re-reads it at render time. Added a "Renumber births" button next
+  to it that explicitly re-applies the current interval to every existing orb, so the slider has an actual, visible
+  effect on demand instead of only being observable one new orb at a time. (Tooltip also now says this plainly.)
+
 ## [0.8.0] - 2026-07-09
 
 ### Added (converged from Asteroid+)

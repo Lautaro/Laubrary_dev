@@ -17,6 +17,25 @@ namespace Laubrary.Pyre
         public MetaOrb Clone() => new MetaOrb { pos = pos, radius = radius, birth = birth, life = life };
     }
 
+    /// One ring of a Rosing-scatter layer: Count shapes evenly placed around this ring's own Radius (0..1, same
+    /// convention as the plain Spawn radius), appearing together at Birth (0..1 of the layer's life) and living
+    /// for Life after — mirrors MetaOrb's birth/life exactly, just for a whole ring of shapes instead of one orb.
+    /// Radius is PLACEMENT (how far this ring sits from the origin); Size is a separate ×multiplier on the
+    /// layer's own Size for just this ring's discs, so rings can graduate in disc size independently of how far
+    /// out they sit — a fixed radius with tiny discs reads completely differently from the same radius with big
+    /// ones. Stack a few (few shapes/small radius/early birth, then more/bigger/later) for a blooming rose.
+    [System.Serializable]
+    public class RoseRing
+    {
+        [Min(1)] public int count = 6;
+        [Range(0f, 1f)] public float radius = 0.3f;
+        [Range(0.1f, 3f)] public float sizeScale = 1f;
+        [Range(0f, 1f)] public float birth = 0f;
+        [Range(0.02f, 1f)] public float life = 1f;
+
+        public RoseRing Clone() => new RoseRing { count = count, radius = radius, sizeScale = sizeScale, birth = birth, life = life };
+    }
+
     /// One timed burst of N identical shapes that share a life span (startFrame..endFrame) and animate their
     /// size, position, colour and alpha across that life. A blast is a flat back-to-front stack of Layers.
     ///
@@ -46,8 +65,58 @@ namespace Laubrary.Pyre
         [Tooltip("How many shapes this layer scatters (rounded). Curve is sampled over blast progress.")]
         public ZUIValue count = new ZUIValue(6f);
 
-        [Tooltip("Scatter radius as a fraction of the explosion (0 = centre, 1 = canvas edge).")]
+        [Tooltip("Scatter radius as a fraction of the explosion (0 = centre, 1 = canvas edge). In Ring mode this is " +
+                 "the rim's radius rather than the max of a random scatter.")]
         public ZUIValue spawnRadius = new ZUIValue(0.3f);
+
+        [Tooltip("Area = the shapes scatter at random points inside Spawn radius (the existing behaviour). " +
+                 "Ring = they're placed along the RIM at Spawn radius instead, per Ring order + the arc range. " +
+                 "Rosing = an authored list of RINGS (below), each with its own count/radius/timing, blooming " +
+                 "outward over life like a rose.")]
+        public ScatterMode scatterMode = ScatterMode.Area;
+        [Tooltip("Ring/Rosing: Sequential = shape #i sits at its own evenly-spaced slot around the arc, in index " +
+                 "order. Random = each shape gets an independent random angle within the arc.")]
+        public RingOrder ringOrder = RingOrder.Sequential;
+        [Tooltip("Ring/Rosing: where the arc begins, in degrees (0 = +X axis, increasing counter-clockwise). A " +
+                 "PLACEMENT value — read once, at each shape's own spawn moment, then fixed for that shape's life " +
+                 "(same as Spawn radius). Animate it to change where NEW shapes land over time; it will never move " +
+                 "an already-placed shape. For the whole ring to visibly spin as a live, ongoing effect, add a " +
+                 "Rotate geometry modifier instead — that's a transform, not a placement decision.")]
+        public ZUIValue ringStartAngle = new ZUIValue(0f);
+        [Tooltip("Ring/Rosing: how much of the circle the arc spans, in degrees. 360 = the full rim; less confines " +
+                 "the shapes to a wedge/fan starting at Ring start angle. Same spawn-locked placement semantics as " +
+                 "Ring start angle above. Animatable.")]
+        public ZUIValue ringArcDegrees = new ZUIValue(360f);
+        [Tooltip("Ring/Rosing: rotate each shape to face its own angle around the ring, so an asymmetric shape " +
+                 "(Crescent, an offset hole) orients outward/consistently instead of every instance sharing " +
+                 "one fixed orientation.")]
+        public bool ringAlignRotation = false;
+        [Tooltip("Rosing: draw order of the RINGS (not the discs within a ring). Off (default) = rings later in " +
+                 "the list below composite ON TOP of earlier ones — with the default stack (small/early first, " +
+                 "big/late last) that puts the outer, later-blooming ring in front. On = reversed, so earlier " +
+                 "(usually inner) rings draw in front of later ones instead. Doesn't affect placement, timing, " +
+                 "or count — only which ring's shapes composite over which.")]
+        public bool roseReverseDraw = false;
+        [Tooltip("Degrees this shape spins around its OWN centre over its OWN life (0..1 of ITS life span, not the " +
+                 "layer's) — independent of Ring/Rosing placement entirely, and works for Area scatter too. Adds " +
+                 "onto whatever Align rotation set as the initial facing, so a shape can start aligned outward " +
+                 "then keep spinning from there. Animatable — e.g. a rising Curve spins it up continuously.")]
+        public ZUIValue spinDegrees = new ZUIValue(0f);
+        [Tooltip("Rosing: the rings. Each spawns its own Count shapes evenly around the shared arc (Start angle/ " +
+                 "Arc degrees/Ring order above), at its own Radius, appearing together at Birth and living for " +
+                 "Life after. Stack a few — fewer shapes, smaller radius, earlier birth for the first; more, " +
+                 "bigger, later for the next — for a blooming rose.")]
+        public List<RoseRing> roseRings = new List<RoseRing>
+        {
+            new RoseRing { count = 4, radius = 0.15f, birth = 0f, life = 1f },
+            new RoseRing { count = 10, radius = 0.35f, birth = 0.15f, life = 0.85f },
+            new RoseRing { count = 18, radius = 0.55f, birth = 0.3f, life = 0.7f },
+        };
+        [Tooltip("Ring/Rosing + Disc only: fuse every shape into ONE gradient-shaded metaball field (like " +
+                 "MetaBlob, but fed by this layer's own procedurally-placed discs) instead of compositing them " +
+                 "independently — nearby/overlapping discs melt together into one blob. Uses the same Threshold/ " +
+                 "Shade range/Edge softness knobs as MetaBlob (revealed below when this is on).")]
+        public bool fuse = false;
 
         [Tooltip("Extra X offset per shape, in pixels (fixed, random spread, or animated drift).")]
         public ZUIValue positionX = new ZUIValue(0f);
@@ -60,7 +129,9 @@ namespace Laubrary.Pyre
         [Tooltip("The shape's colour gradient. How it's applied is set by Colour mode.")]
         public Gradient colorOverLife = DefaultColor(LayerShape.Disc);
         [Tooltip("Disc/Crescent: Over life = one colour sampled at life; Fill = the gradient fills the shape " +
-                 "centre→edge; Flow fill = that spatial fill scrolls through the (mirrored) gradient by Flow position.")]
+                 "centre→edge; Flow fill = that spatial fill scrolls through the (mirrored) gradient by Flow " +
+                 "position; Noise fill = the gradient is painted through the layer's noise field (see the Noise " +
+                 "params revealed below) for a cloudy/marbled interior.")]
         public ColorMode colorMode = ColorMode.OverLife;
         [Tooltip("Flow fill: the gradient scroll POSITION (multicontrol). Animate it — the curve's slope is the " +
                  "speed, its sign the direction. Default = a 0→1 sweep over life; make it static for no flow.")]
@@ -81,8 +152,8 @@ namespace Laubrary.Pyre
         [SerializeReference]
         public List<PyreModifier> modifiers = new();
 
-        [Tooltip("Disc: alpha gradient on the OUTER edge (0 = sharp, 1 = the whole disc fades out to its edge). " +
-                 "Always available. Animatable.")]
+        [Tooltip("Disc/Crescent: alpha gradient on the OUTER edge (0 = sharp, 1 = the whole shape fades out to its " +
+                 "edge). Always available. Animatable.")]
         public ZUIValue outerSoftness = new ZUIValue(0f);
         [Tooltip("Disc: carve a hole out of the centre (a ring). Reveals Hole size + Inner softness.")]
         public bool hollow = false;
@@ -90,7 +161,9 @@ namespace Laubrary.Pyre
                  "Animatable — the hole can grow/shrink over time regardless of the edge softness.")]
         public ZUIValue holeSize = new ZUIValue(0.5f);
         [Tooltip("Disc (Hollow): alpha gradient on the hole's INNER edge (0 = sharp, 1 = soft). Scaled by Hole size, " +
-                 "so it does nothing when the hole is 0 and grows with it. Animatable.")]
+                 "so it does nothing when the hole is 0 and grows with it. Crescent: the same softness, applied to " +
+                 "the BITE edge instead of a hole (no Hole size scaling — the bite disc is always full-radius). " +
+                 "Animatable.")]
         public ZUIValue innerSoftness = new ZUIValue(0f);
         [Tooltip("Disc (Hollow): move the hole CENTRE off the shape centre, X, in −1..1 of the radius. Offset hole = " +
                  "a crescent. Animatable — slide the hole across.")]
@@ -108,12 +181,34 @@ namespace Laubrary.Pyre
                  "makes the sparkles ignite over the shape's life.")]
         public ZUIValue sparkleDensity = new ZUIValue(0.25f);
         [Tooltip("SparkleField: a sub-seed choosing WHICH pixels light up. Default = Min-Max random (re-rolls every " +
-                 "frame, so the sparkles TWINKLE). Set it Static to freeze the pattern in place.")]
+                 "frame, so the sparkles TWINKLE). Set it Static to freeze the pattern in place. Only used in the " +
+                 "original single-pixel mode below — Blobs has its own, independent persistence mechanism.")]
         public ZUIValue sparkleSeed = DefaultSparkleSeed();
+        [Tooltip("SparkleField: off (default) = the original single-pixel-per-frame twinkle, unchanged. On = each " +
+                 "sparkle becomes a small blob with its own lifetime instead of a single flickering pixel — grows " +
+                 "in, holds, fades out, and its own radius grows/shrinks along with that same envelope (so both " +
+                 "its brightness AND its area of effect fade together), repeating on a cycle so it keeps twinkling " +
+                 "without needing a fresh reroll every frame. Density still picks which cells get a sparkle at " +
+                 "all; the reroll-every-frame Sparkle seed above doesn't apply here.")]
+        public bool sparkleBlobs = false;
+        [Tooltip("SparkleField (Blobs): each sparkle's radius at the peak of its cycle, in pixels. Animatable.")]
+        public ZUIValue sparkleBlobRadius = new ZUIValue(2f);
+        [Tooltip("SparkleField (Blobs): how many frames one full grow-hold-fade cycle takes. Animatable — longer " +
+                 "life reads as a lingering glow, shorter as a rapid twinkle.")]
+        public ZUIValue sparkleBlobLife = new ZUIValue(8f);
+        [Tooltip("SparkleField (Blobs): softness of each sparkle's own edge (0 = a hard dot, 1 = a soft glow). Animatable.")]
+        public ZUIValue sparkleBlobSoftness = new ZUIValue(0.6f);
 
-        [Tooltip("Crescent: X offset (px) of the mask disc that bites into the main disc.")]
-        public ZUIValue crescentOffsetX = new ZUIValue(6f);
-        [Tooltip("Crescent: Y offset (px) of the mask disc that bites into the main disc.")]
+        [Tooltip("Crescent: X offset of the mask disc that bites into the main disc, in units of the RADIUS (same " +
+                 "convention as Hole offset X/Y) — so the crescent's proportions (sliver thickness/curvature) stay " +
+                 "put as Size changes, instead of a fixed pixel offset going from barely-a-bite to no-overlap-at-" +
+                 "all as the disc grows or shrinks. The mask disc shares the main disc's own radius, so the bite " +
+                 "only fully vanishes (a plain disc, no crescent) once the offset magnitude reaches 2 (both discs " +
+                 "the same size, pushed apart by their combined radii) — 1 alone only reaches the half-moon " +
+                 "bisection. Animatable.")]
+        public ZUIValue crescentOffsetX = new ZUIValue(0.45f);
+        [Tooltip("Crescent: Y offset of the mask disc, in units of the RADIUS — see X offset for the full range " +
+                 "explanation. Animatable.")]
         public ZUIValue crescentOffsetY = new ZUIValue(0f);
 
         [Range(0f, 1f)]
@@ -125,6 +220,13 @@ namespace Laubrary.Pyre
                  "shorter life). 0 = all live the full window; 1 = evenly spread — first spawn starts at the first " +
                  "frame, last spawn ends at the last.")]
         public float spawnStagger = 0f;
+        [Tooltip("Area/Ring: every shape reaches the END of its life at the SAME frame (this layer's own End " +
+                 "frame) regardless of when it spawned, instead of each shape getting the same fixed duration " +
+                 "(which — with Spawn stagger above — makes later spawns end later too). Shapes born earlier " +
+                 "mature more slowly (a longer life) so the whole burst finishes together. Composes oddly with a " +
+                 "large Spawn stagger: a very-late spawn gets squeezed into a very short life (down to a 1-frame " +
+                 "floor) to still die on time, so it can read as a pop rather than a fade.")]
+        public bool syncDeath = false;
 
         // ── Bars mode (LayerShape.Bars): a symmetric row of forward-growing bars streaming off an edge ──
         // Most are multicontrols evaluated over the layer's timeline, so the whole row can animate (sweep the
@@ -174,13 +276,6 @@ namespace Laubrary.Pyre
         [Tooltip("Bars star: total arc (deg) the arms span. 360 = a full circle. Animatable.")]
         public ZUIValue spreadDegrees = new ZUIValue(360f);
 
-        // ── wind: a directional drift added to EVERY shape, growing with the shape's age (any emission mode) ──
-        [Tooltip("Wind drift X in pixels, applied × the shape's life so older particles drift further (animatable). " +
-                 "Models e.g. a fast-moving object exploding — everything gets pushed one way over time.")]
-        public ZUIValue windX = new ZUIValue(0f);
-        [Tooltip("Wind drift Y in pixels, applied × the shape's life (animatable).")]
-        public ZUIValue windY = new ZUIValue(0f);
-
         // ── MetaBlob: click-placed orbs that fuse into ONE gradient-shaded shape (SDF metaballs) ──
         [Tooltip("MetaBlob: the placed orbs. Click in the preview to drop them (in order); each grows in, holds, then " +
                  "melts out over its life, so the fused field grows and reshapes.")]
@@ -192,7 +287,9 @@ namespace Laubrary.Pyre
         [Tooltip("MetaBlob: edge softness (alpha AA band across the iso-surface). 0 = crisp.")]
         public float metaSoftness = 0.18f;
         [Range(0f, 1f)]
-        [Tooltip("MetaBlob: default gap (fraction of the layer life) between successive orbs' birth times when placing.")]
+        [Tooltip("MetaBlob: gap (fraction of the layer life) applied between successive orbs' birth times. Only takes " +
+                 "effect when you PLACE A NEW ORB (sets its birth = orb count x this) or hit 'Renumber births' below " +
+                 "— it does not retroactively change already-placed orbs just by moving this slider.")]
         public float metaSpawnInterval = 0.12f;
         [Tooltip("MetaBlob: multiply EVERY orb's radius over the layer's life — a shared breathe/pulse. Animate it " +
                  "(a curve) to swell then settle the whole blob at once. 1 = the placed radii.")]
@@ -200,9 +297,30 @@ namespace Laubrary.Pyre
         [Tooltip("MetaBlob: contract/expand ALL orb centres about the blast's origin. <1 implodes toward the origin, " +
                  ">1 flings them out. Animate 0→N for a burst, or N→1 to gather in. 1 = the placed positions.")]
         public ZUIValue metaExpand = new ZUIValue(1f);
-        [Tooltip("MetaBlob: shade the gradient by SCROLLED/zoomed field depth (mirrored, like Flow fill) instead of raw " +
-                 "surface→core depth — animate Gradient position to sweep bands smoothly through the blob.")]
-        public bool metaFlow = false;
+
+        // ── NoiseField: a single domain-warped noise cloud, drawn as a whole (dust cloud / gas cloud / energy field) ──
+        [Tooltip("NoiseField: noise frequency — bigger = larger, slower-looking billows; smaller = fine, busy detail. Animatable.")]
+        public ZUIValue noiseZoom = new ZUIValue(20f);
+        [Tooltip("NoiseField: rotates the noise sampling domain, in degrees — spins the churn in place. Animatable.")]
+        public ZUIValue noiseRotation = new ZUIValue(0f);
+        [Tooltip("NoiseField: drifts the noise sampling domain horizontally over life, in pixels. Animatable.")]
+        public ZUIValue noiseDriftX = new ZUIValue(0f);
+        [Tooltip("NoiseField: drifts the noise sampling domain vertically over life, in pixels. Animatable.")]
+        public ZUIValue noiseDriftY = new ZUIValue(0f);
+        [Range(0f, 2f)]
+        [Tooltip("NoiseField: domain-warp strength — how much the noise bends on itself (0 = smooth blobby cloud, " +
+                 "higher = churned/organic eddies).")]
+        public float noiseWarp = 0.6f;
+        [Range(1, 8)]
+        [Tooltip("NoiseField: number of discrete shading bands across the field's depth. 1 = smooth (no banding).")]
+        public int noiseBands = 4;
+        [Range(0f, 1f)]
+        [Tooltip("NoiseField: how much of the noise field counts as 'inside' the cloud — higher = sparser/wispier, " +
+                 "lower = denser/fuller.")]
+        public float noiseThreshold = 0.45f;
+        [Range(0.01f, 1f)]
+        [Tooltip("NoiseField: softness of the cloud's edge (low = a harder cutoff, high = very soft/wispy).")]
+        public float noiseEdgeSoftness = 0.25f;
 
         /// A pleasing starting point per shape type; the editor adds layers through this.
         public static Layer Default(LayerShape shape)
@@ -220,7 +338,7 @@ namespace Laubrary.Pyre
                 positionY = new ZUIValue(0f),
                 size = DefaultSize(),
                 sparkleDensity = new ZUIValue(0.25f),
-                crescentOffsetX = new ZUIValue(6f),
+                crescentOffsetX = new ZUIValue(0.45f),
                 crescentOffsetY = new ZUIValue(0f),
                 perShapeLifeJitter = 0.3f,
                 colorOverLife = DefaultColor(shape),
@@ -251,6 +369,10 @@ namespace Laubrary.Pyre
                         new MetaOrb { pos = new Vector2( 0f,-9f), radius = 12f, birth = 0.3f,  life = 0.7f },
                     };
                     break;
+                case LayerShape.NoiseField:
+                    l.colorOverLife = SmokeGradient();
+                    l.size = CurveVal(20f, 0f, 4f, 0.4f, 18f, 1f, 15f);   // billow out, settle slightly
+                    break;
             }
             return l;
         }
@@ -262,6 +384,8 @@ namespace Laubrary.Pyre
             var l = (Layer)MemberwiseClone();
             l.count = CloneVal(count);
             l.spawnRadius = CloneVal(spawnRadius);
+            l.ringStartAngle = CloneVal(ringStartAngle);
+            l.ringArcDegrees = CloneVal(ringArcDegrees);
             l.positionX = CloneVal(positionX);
             l.positionY = CloneVal(positionY);
             l.size = CloneVal(size);
@@ -269,6 +393,9 @@ namespace Laubrary.Pyre
             l.crescentOffsetY = CloneVal(crescentOffsetY);
             l.sparkleDensity = CloneVal(sparkleDensity);
             l.sparkleSeed = CloneVal(sparkleSeed);
+            l.sparkleBlobRadius = CloneVal(sparkleBlobRadius);
+            l.sparkleBlobLife = CloneVal(sparkleBlobLife);
+            l.sparkleBlobSoftness = CloneVal(sparkleBlobSoftness);
             l.outerSoftness = CloneVal(outerSoftness);
             l.holeSize = CloneVal(holeSize);
             l.innerSoftness = CloneVal(innerSoftness);
@@ -278,8 +405,6 @@ namespace Laubrary.Pyre
             l.colorFlowZoom = CloneVal(colorFlowZoom);
             l.gradientOffsetX = CloneVal(gradientOffsetX);
             l.gradientOffsetY = CloneVal(gradientOffsetY);
-            l.windX = CloneVal(windX);
-            l.windY = CloneVal(windY);
             l.barCount = CloneVal(barCount);
             l.barSpacing = CloneVal(barSpacing);
             l.barWidth = CloneVal(barWidth);
@@ -293,6 +418,7 @@ namespace Laubrary.Pyre
             l.baseAngleDeg = CloneVal(baseAngleDeg);
             l.spreadDegrees = CloneVal(spreadDegrees);
             l.spriteSpin = CloneVal(spriteSpin);
+            l.spinDegrees = CloneVal(spinDegrees);
             l.colorOverLife = CloneGradient(colorOverLife);
             l.alpha = CloneVal(alpha);
             l.modifiers = modifiers == null ? new List<PyreModifier>()
@@ -301,6 +427,12 @@ namespace Laubrary.Pyre
             l.metaExpand = CloneVal(metaExpand);
             l.metaOrbs = metaOrbs == null ? new List<MetaOrb>()
                 : metaOrbs.ConvertAll(o => o == null ? new MetaOrb() : o.Clone());
+            l.roseRings = roseRings == null ? new List<RoseRing>()
+                : roseRings.ConvertAll(r => r == null ? new RoseRing() : r.Clone());
+            l.noiseZoom = CloneVal(noiseZoom);
+            l.noiseRotation = CloneVal(noiseRotation);
+            l.noiseDriftX = CloneVal(noiseDriftX);
+            l.noiseDriftY = CloneVal(noiseDriftY);
             return l;
         }
 

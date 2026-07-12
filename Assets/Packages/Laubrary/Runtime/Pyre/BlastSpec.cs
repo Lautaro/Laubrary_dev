@@ -118,6 +118,44 @@ namespace Laubrary.Pyre
         [SerializeReference]
         public List<PyreModifier> globalModifiers = new();
 
+        // ── Editor preview settings (Pyre window) — cosmetic only, NEVER read by BlastRenderer / never baked.
+        // Kept on the asset (not the window) so each blast remembers its own zoom/speed/backdrop regardless of
+        // the Pyre window's own open/close lifecycle. previewStageBg is typed as a plain Object rather than
+        // Laubrary.PreviewStage.PreviewBackground — that type is editor-only and Runtime code must never
+        // reference Editor code (see authoring.md §2) — PyreWindow casts it back to the real type.
+        [HideInInspector] public float previewZoom = 4f;
+        [HideInInspector] public float previewFps = 12f;
+        [HideInInspector] public float previewSpeed = 1f;
+        [HideInInspector] public PreviewBgMode previewBgMode = PreviewBgMode.Solid;
+        [HideInInspector] public Color previewBgSolid = new Color(0.08f, 0.08f, 0.10f);
+        [HideInInspector] public Gradient previewBgGradient;
+        [HideInInspector] public Texture2D previewBgImage;
+        [HideInInspector] public Color previewBgImageTint = Color.white;
+        [HideInInspector] public float previewBgImageZoom = 1f;
+        [HideInInspector] public bool previewShowFrame = false;
+        [HideInInspector] public UnityEngine.Object previewStageBg;
+        // UI state (which layer's inspector is open, left-pane scroll, current preview frame) — same "cosmetic,
+        // per-asset, survives window close/reopen" reasoning as the preview settings above: authoring an asset
+        // tends to mean working a specific layer/spot repeatedly, so losing that setup on every reopen is friction.
+        [HideInInspector] public int previewLayerSel = 0;
+        [HideInInspector] public Vector2 previewScroll = Vector2.zero;
+        [HideInInspector] public int previewFrame = 0;
+
+        // Isolated single-shape preview: shows exactly ONE shape of the selected layer, centred, at max size
+        // for its preview box — for dialing in a layer's own per-shape look (gradient/crescent/hollow/size
+        // curve/spin/alpha/modifiers) without scatter/movement/instance-count noise. Same "editor UI state,
+        // survives reopen" reasoning as the fields above; the 7 show* toggles default ON so enabling the
+        // preview initially reflects the shape as authored, then individual aspects can be frozen off one at
+        // a time to isolate whichever one is currently a visual distraction.
+        [HideInInspector] public bool previewShapeOn = false;
+        [HideInInspector] public bool previewShapeGradientFill = true;
+        [HideInInspector] public bool previewShapeCrescent = true;
+        [HideInInspector] public bool previewShapeHollow = true;
+        [HideInInspector] public bool previewShapeSize = true;
+        [HideInInspector] public bool previewShapeSpin = true;
+        [HideInInspector] public bool previewShapeAlpha = true;
+        [HideInInspector] public bool previewShapeModifiers = true;
+
         /// Wipe the layers and build a punchy white-hot core -> orange/red fire -> dark smoke -> shockwave ring ->
         /// sparks explosion from scratch. Used by the editor's "New example blast" button and by the demo so there
         /// is always something good to look at. Fade in/out is owned entirely by each layer's alpha curve; grow /
