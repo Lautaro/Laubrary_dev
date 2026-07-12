@@ -568,6 +568,17 @@ namespace Laubrary.Pyre
         }
     }
 
+    /// How VoronoiCrackModifier's crack tint reveals spatially as Spread progress rises — a fracture "actively
+    /// spreading" rather than appearing everywhere at once. CenterOut/EdgeIn mirror AlphaMaskModifier's own
+    /// DiscOut/DiscIn naming for the same reason (grow from within vs. consumed from the edges).
+    public enum CrackSpreadMode
+    {
+        Uniform,     // every seam tints at once, regardless of position (the original, unconditional behaviour)
+        CenterOut,   // cracks nearest the shape's own centre light up first, spreading outward
+        EdgeIn,      // cracks nearest the shape's own outer edge light up first, spreading inward
+        Both         // lights up from the centre AND the edge simultaneously, meeting in the middle last
+    }
+
     /// Cellular (Worley/Voronoi) crack pattern — darkens/brightens pixels near the seams of a jittered feature-point
     /// grid, giving a shattered-crystal / cracked-earth / lightning-crackle look. A genuinely different visual
     /// family from PyreNoise's smooth domain-warped Perlin-style field — faceted and linear rather than blobby.
@@ -620,8 +631,21 @@ namespace Laubrary.Pyre
                  "Animatable — the per-cell shade PATTERN stays fixed (same hash), only how much of it shows " +
                  "ramps, so this animates smoothly rather than flickering.")]
         public ZUIValue cellShadeStrength = new ZUIValue(0.25f);
+        [Tooltip("How the crack tint reveals spatially as it spreads, instead of tinting every seam at once: " +
+                 "Centre out = cracks nearest the shape's own centre light up first, spreading outward. Edge in " +
+                 "= cracks nearest the outer edge light up first, spreading inward. Both = lights up from the " +
+                 "centre AND the edge simultaneously, meeting in the middle last. Uniform (default) = the " +
+                 "original, unconditional behaviour — every seam alike regardless of position.")]
+        public CrackSpreadMode spreadMode = CrackSpreadMode.Uniform;
+        [Tooltip("0→1 spread position (ignored while Spread mode is Uniform). Animatable — a rising envelope " +
+                 "reads as the fracture actively spreading outward/inward/both over the shape's life.")]
+        public ZUIValue spreadProgress = DefaultSpreadProgress();
+        [Range(0f, 1f)]
+        [Tooltip("Softness of the spreading reveal's own leading edge — 0 = a hard cutoff between lit and unlit " +
+                 "cracks, higher blends more gradually across the front.")]
+        public float spreadSoftness = 0.2f;
 
-        float size, amt, rotRad, driftXv, driftYv, width, cellShade;
+        float size, amt, rotRad, driftXv, driftYv, width, cellShade, spreadProg;
         int seedStep;
         Vector2 originPx;
         public override string DisplayName => "Voronoi crack";
@@ -631,6 +655,7 @@ namespace Laubrary.Pyre
             amt = Mathf.Clamp01(e(strength, 1));
             rotRad = e(rotation, 2) * Mathf.Deg2Rad;
             driftXv = e(driftX, 3);
+            spreadProg = Mathf.Clamp01(e(spreadProgress, 8));
             driftYv = e(driftY, 4);
             // Rounded to a whole STEP (not scaled up first) so a smoothly-animated Curve only jumps the pattern at
             // each integer crossing instead of reshuffling into unrelated noise on every tiny fractional change.
@@ -690,6 +715,7 @@ namespace Laubrary.Pyre
             {
                 float gap = f2 - f1;
                 float k = 1f - Mathf.Clamp01(gap / width);   // 1 at the seam, 0 away from it
+                if (spreadMode != CrackSpreadMode.Uniform) k *= SpreadMask(p.crossFrac);
                 if (k > 0.001f && crackTint != null)
                 {
                     Color tint = crackTint.Evaluate(mode == ColorMode.Fill ? k : Mathf.Clamp01(p.life));
@@ -701,6 +727,39 @@ namespace Laubrary.Pyre
             }
             return a > 0.003f;
         }
+
+        // 0 at the reveal front (the fresh, just-lit edge) → 1 deep inside the already-revealed zone, 0 deep
+        // inside the not-yet-revealed zone — a smoothstepped gate, same shape as AlphaMaskModifier's own edge.
+        float SpreadMask(float crossFrac)
+        {
+            float w = Mathf.Max(0.001f, spreadSoftness);
+            switch (spreadMode)
+            {
+                case CrackSpreadMode.CenterOut:
+                    return Smooth01((spreadProg - crossFrac) / w + 0.5f);
+                case CrackSpreadMode.EdgeIn:
+                    return Smooth01((crossFrac - (1f - spreadProg)) / w + 0.5f);
+                case CrackSpreadMode.Both:
+                {
+                    // Each wavefront only covers HALF of spreadProg's range, so they meet exactly at the
+                    // midpoint (crossFrac 0.5) when spreadProg reaches 1 — not immediately at spreadProg 0.5,
+                    // which is what using the full range for both simultaneously would do.
+                    float half = spreadProg * 0.5f;
+                    float outMask = Smooth01((half - crossFrac) / w + 0.5f);
+                    float inMask = Smooth01((crossFrac - (1f - half)) / w + 0.5f);
+                    return Mathf.Max(outMask, inMask);
+                }
+                default: return 1f;
+            }
+        }
+
+        static float Smooth01(float t)
+        {
+            t = Mathf.Clamp01(t);
+            return t * t * (3f - 2f * t);
+        }
+
+        static ZUIValue DefaultSpreadProgress() => Layer.CurveVal(1f, 0f, 0f, 1f, 1f);
 
         static Gradient Black()
         {

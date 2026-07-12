@@ -910,6 +910,7 @@ namespace Laubrary.Pyre.Editor
         // neither has, so they're left off this shared 2-option picker.
         static readonly string[] OverLifeFillLabels = { "Over life", "Fill" };
         static readonly string[] ScaleAxisLabels = { "Vertical", "Horizontal", "Both" };
+        static readonly string[] CrackSpreadModeLabels = { "Uniform", "Centre out", "Edge in", "Both" };
 
         // Single in-memory clipboard (last-copied wins) — no asset/browser, just a quick way to carry one
         // modifier's settings to another slot in the same list, a different layer, or the global list. Static so
@@ -1164,6 +1165,16 @@ namespace Laubrary.Pyre.Editor
                     ValRow("Strength", vc.strength, 0f, 1f, 1f);
                     vc.tintCells = Toggle(vc.tintCells, "Tint cells");
                     if (vc.tintCells) ValRow("Cell shade", vc.cellShadeStrength, 0f, 1f, 0.25f);
+                    // Captured BEFORE the radio can change it, same reflow-safety reason as colorModeForLayout/
+                    // shapeForLayout elsewhere in this file — the control SET drawn this frame must match what
+                    // was true at the start of THIS OnGUI pass, not a value the radio just changed mid-draw.
+                    var spreadModeForLayout = vc.spreadMode;
+                    vc.spreadMode = (CrackSpreadMode)MiniRadio((int)vc.spreadMode, CrackSpreadModeLabels);
+                    if (spreadModeForLayout != CrackSpreadMode.Uniform)
+                    {
+                        ValRow("Spread", vc.spreadProgress, 0f, 1f, 1f);
+                        vc.spreadSoftness = Slider(vc.spreadSoftness, 0f, 1f, "Spread softness");
+                    }
                     break;
                 case ChromaticAberrationModifier ca:
                     ValRow("Amount (px)", ca.amount, 0f, 8f, 1.5f);

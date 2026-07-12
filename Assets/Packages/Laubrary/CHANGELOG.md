@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`VoronoiCrackModifier` gains a Spread mode** — instead of every seam tinting at once (still the default,
+  `Uniform`), the crack reveal can now sweep spatially: `Centre out` (cracks nearest the shape's own centre
+  light up first, spreading outward), `Edge in` (nearest the outer edge first, spreading inward), or `Both`
+  (lights up from the centre AND the edge simultaneously, meeting in the middle last). Driven by a new
+  animatable `Spread` (0→1, a rising curve by default — the fracture actively spreading over the shape's life)
+  and a `Spread softness` for how hard/soft the reveal's own leading edge reads. Reuses
+  `PixelInfo.crossFrac` (already computed per-pixel as 0=shape centre→1=shape edge for every shape kind, not
+  just a canvas-relative radius) rather than inventing new position math, so the reveal correctly follows the
+  actual shape's own geometry (Disc, Crescent, Bars' back→tip axis, ...). `Both` mode scales each wavefront to
+  only half of `Spread`'s range so they meet at the midpoint exactly when `Spread` reaches 1, instead of both
+  covering the full range simultaneously and washing out the "meeting" effect. Verified directly: at Spread=0.5,
+  Both reveals crossFrac 0.0–0.2 and 0.8–1.0 while leaving 0.4–0.6 dark — confirming the wavefronts converge
+  rather than overlapping immediately.
 - **Pyre: noise-driven modifiers for churning/rolling explosions** (dust clouds, roiling fireballs, mushroom-cloud
   blasts) — all opt-in, nothing existing changes behavior unless a new modifier is explicitly added:
   - **Alpha mask gains a `Noise` shape** — carves an irregular cloud silhouette from domain-warped noise instead of
