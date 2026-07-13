@@ -1,0 +1,16 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Zoetrope",
+    "rootNamespace": "Laubrary.Zoetrope",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Combat2D"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

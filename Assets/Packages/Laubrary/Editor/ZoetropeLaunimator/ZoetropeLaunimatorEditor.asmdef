@@ -1,0 +1,22 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Zoetrope.Launimator.Editor",
+    "rootNamespace": "Laubrary.ZoetropeLaunimator.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Zoetrope.Launimator",
+        "com.Lautaro-Arino.Laubrary.Launimator",
+        "com.Lautaro-Arino.Laubrary.Launimator.Editor",
+        "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
+        "ZUI.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

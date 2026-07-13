@@ -18,7 +18,7 @@ namespace Laubrary.Pyre.Editor
         public static void Open() => GetWindow<PyreWindow>("Pyre");
 
         /// Open the window focused directly on a specific blast — the entry point other tools (e.g. the
-        /// Bestiarium.Pyre editor bridge) use to jump straight into previewing/editing a referenced BlastSpec.
+        /// Zoetrope.Pyre editor bridge) use to jump straight into previewing/editing a referenced BlastSpec.
         public static void OpenFor(BlastSpec spec)
         {
             var w = GetWindow<PyreWindow>("Pyre");

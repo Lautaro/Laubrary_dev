@@ -2,13 +2,13 @@ using UnityEngine;
 using Laubrary.Combat2D;
 using Laubrary.Pyre;
 using Laubrary.Chunks;
-using Laubrary.Bestiarium;
-using Laubrary.BestiariumPyre;
+using Laubrary.Zoetrope;
+using Laubrary.ZoetropePyre;
 
 namespace Laubrary.Demos.Gallery
 {
     /// A shooting gallery for the Codex battle-authoring layer: click to fire the equipped weapon at an idle target
-    /// character; the target plays its hit/death VFX and respawns. It assembles sample Character/Weapon/Projectile
+    /// character; the target plays its hit/death VFX and respawns. It assembles sample Zoe/Weapon/Projectile
     /// Defs at runtime from scene-assigned primitives (Pyre blasts, Chunks bursts, factions) + placeholder DemoSprites,
     /// so it demonstrates the whole pipeline end-to-end (Def → Bestiary → Colosseum funnel → CombatVfx).
     public class GalleryDirector : MonoBehaviour
@@ -32,7 +32,7 @@ namespace Laubrary.Demos.Gallery
         public Vector3 shooterPos = new Vector3(0f, -3.5f, 0f);
         public float respawnDelay = 1.2f;
 
-        CharacterDef targetDef;
+        Zoe targetDef;
         WeaponDef weaponDef;
         GameObject shooter;
         ProjectileWeapon weapon;
@@ -74,7 +74,7 @@ namespace Laubrary.Demos.Gallery
             weaponDef.projectile = proj;
             weaponDef.muzzle = new PyreChunksFx { blast = muzzleFlash };
 
-            targetDef = ScriptableObject.CreateInstance<CharacterDef>();
+            targetDef = ScriptableObject.CreateInstance<Zoe>();
             targetDef.displayName = "Dummy";
             targetDef.maxHealth = 60f;
             targetDef.faction = enemyFaction;

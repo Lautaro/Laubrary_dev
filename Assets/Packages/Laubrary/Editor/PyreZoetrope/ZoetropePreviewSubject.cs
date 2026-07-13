@@ -13,7 +13,7 @@ namespace Laubrary.PyreZoetrope.Editor
     /// <see cref="ReelVersion"/>, so Pyre can play one of its clips live in its own preview with the blast's
     /// origin tracking a named MetaLayer point every frame. Neither Pyre core nor the generic panel that sets
     /// these fields knows Launimator exists — only this bridge does, matching the same pattern as
-    /// Bestiarium.Zoetrope/Bestiarium.Pyre.
+    /// Zoetrope.Launimator/Zoetrope.Pyre.
     /// </summary>
     [InitializeOnLoad]
     static class ZoetropePreviewSubjectRegistration
