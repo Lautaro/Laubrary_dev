@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Renamed the Zoetrope/Bestiarium/Zoe naming triangle: `Zoetrope`→`Launimator`, `Bestiarium`→`Zoetrope`,
+  `CharacterDef`→`Zoe`.** The old `Zoetrope` (sprite-sheet animation module) is now **Launimator**, freeing
+  "Zoetrope" for its better-fitting new meaning: the composition/catalog module previously called
+  `Bestiarium` (an antique device that creates the illusion of one continuous living thing from separate
+  frames is a better metaphor for "assembles separate parts into one entity" than it ever was for raw frame
+  animation). `Zoe`/`ZoeVersion` (the old per-animation asset) become `Reel`/`ReelVersion`; `CharacterDef`
+  becomes the new top-level **`Zoe`** — the whole composed agent (body, weapon, FX, behaviors) a project
+  spawns as one thing. Bridge folders follow: `BestiariumZoetrope`→`ZoetropeLaunimator`,
+  `BestiariumPyre`→`ZoetropePyre`, `BestiariumDaemon`→`ZoetropeDaemon`, `PyreZoetrope`(Editor bridge, name
+  unchanged — still bridges Pyre↔Launimator, just via the new name internally), `ZoeCombat`→`ReelCombat`.
+  Full design rationale in `ZOE_ARCHITECTURE_DESIGN.md`. `[SerializeReference]` polymorphic fields
+  (`Zoe.view`, `WeaponDef.muzzle`, `ProjectileDef.impact`) self-heal via `OutBurner ▸ Setup Scavenge Combat`;
+  plain-serialized fields (`Reel.reelId`/`reelName`, formerly `zoeId`/`zoeName`) carry `[FormerlySerializedAs]`
+  so existing saved data survives the rename.
 - **Pyre: wider rollout of the 2D drag-pad control to X/Y field pairs across shapes and modifiers.** The
   "Position" 2D control was originally added as a prototype ("tried here first... before any wider rollout").
   Full sweep of every shape/modifier param now converts the genuine X/Y spatial pairs still using two separate

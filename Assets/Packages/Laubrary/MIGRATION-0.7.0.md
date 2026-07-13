@@ -1,5 +1,11 @@
 # Migrating a consumer project to Laubrary 0.7.0
 
+> **Superseded:** the `Laubrary.Bestiarium*` namespaces this doc describes were themselves renamed in a later
+> pass — `Bestiarium`→`Zoetrope`, `Zoetrope`(the old animation module)→`Launimator`, `CharacterDef`→`Zoe`. See
+> `ZOE_ARCHITECTURE_DESIGN.md` and the `[Unreleased]` `CHANGELOG.md` entry. This file is left as historical
+> record of the 0.7.0 migration step; do not follow it literally for a current project without also applying
+> that later rename.
+
 Two breaking renames landed in 0.7.0. Apply the **package update and the code changes together** (in one commit),
 because a project's game code and its Laubrary copy must agree on the names.
 

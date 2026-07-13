@@ -36,7 +36,7 @@ recurring.)
 
 **Keep it as FLAT as possible.** No redundant nesting: never a single-item submenu that just echoes the tool name
 (`Laubrary/Pyre/Pyre` → `Laubrary/Pyre`). Put every item directly under `Laubrary/` root. The *only* exception is a
-large multi-tool like Zoetrope, which may keep **one** submenu capped at **~3** items — and even then the core
+large multi-tool like Launimator, which may keep **one** submenu capped at **~3** items — and even then the core
 windows go at root, with just secondary/utility actions tucked in the submenu.
 
 ## Undo — every tool, always
@@ -59,7 +59,7 @@ committed builder once the scene/asset exists**. The scene is the deliverable; t
 
 ## Naming — cool names are earned by a UI
 
-A system gets a **cool/thematic name** (Pyre, Zoetrope, Bestiarium, Daemon…) ONLY if it has a **visual UI /
+A system gets a **cool/thematic name** (Pyre, Launimator, Zoetrope, Daemon…) ONLY if it has a **visual UI /
 authoring component**. A pure **code backbone** with no editor window gets a **plain descriptive name** — e.g. the
 combat backbone is `Combat2D` (namespace `Laubrary.Combat2D`; "2DCombat" is not a valid C# identifier), not a cool
 name, because it has no authoring window. A cool name promises a tool to open; don't hang one on infrastructure.
@@ -89,9 +89,23 @@ Laubrary editor that references `ZUI.Editor` compiles here but would NOT ship se
 project. To make "ZUI is part of Laubrary" real, ZUI needs to move into the package (or be a declared dependency).
 Until then, package tools referencing ZUI only work in this dev host.
 
-## Current work — Zoetrope tool
+## Naming — the Zoetrope/Launimator/Zoe triangle
 
-We are landing **Zoetrope** (a sprite-sheet → versioned 2D character/animation authoring tool; entity = a **Zoe**)
-as a new Laubrary tool, extracted from the retired AssetScavenge project. It adds `Runtime/Zoetrope/` +
-`Editor/Zoetrope/` and requires the `com.unity.2d.sprite` package (+ `com.unity.nuget.newtonsoft-json`). The tool
-ships ZERO assets — Zoes are authored into the host project's `Assets/Zoetrope/…`, never into the package.
+Three related but distinct things share this naming, easy to confuse:
+
+- **Launimator** — the sprite-sheet → versioned 2D animation authoring tool (`Runtime/Launimator/` +
+  `Editor/Launimator/`; entity = a **Reel**/`ReelVersion`). Was originally called "Zoetrope"; renamed once
+  "Zoetrope" was needed for the composition module below. Requires `com.unity.2d.sprite` (+
+  `com.unity.nuget.newtonsoft-json`). Ships ZERO assets — Reels are authored into the host project's
+  `Assets/Launimator/…`, never into the package.
+- **Zoetrope** (current meaning) — the composition/catalog module (`Runtime/Zoetrope/` + `Editor/Zoetrope/`,
+  formerly "Bestiarium") that assembles a **Zoe**'s recipe: body/weapon/FX/behaviors as one asset. Named for
+  the antique device that creates the illusion of one continuous living thing from separate frames — a fit
+  for "assembles parts into one entity," which raw frame animation (now Launimator) never quite was.
+- **Zoe** — the top-level composed entity asset (formerly `CharacterDef`) a project spawns as one thing:
+  body, weapon, FX, behaviors. Lives in the Zoetrope module.
+
+Bridge folders are named for which two systems they connect: `ZoetropeLaunimator` (Zoetrope↔Launimator,
+formerly `BestiariumZoetrope`), `ZoetropePyre` (formerly `BestiariumPyre`), `ZoetropeDaemon` (formerly
+`BestiariumDaemon`), `PyreZoetrope`/`PyreLaunimator` (Pyre's own Editor-side preview bridge — folder name
+unchanged, still internally points at Launimator). Full design rationale: `ZOE_ARCHITECTURE_DESIGN.md`.
