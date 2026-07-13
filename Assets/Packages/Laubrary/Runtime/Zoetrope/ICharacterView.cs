@@ -5,7 +5,7 @@ namespace Laubrary.Zoetrope
     /// <summary>
     /// A pluggable look for a character: builds the visual onto the spawned GameObject and reports its bounds (used
     /// to size the hurtbox). Concrete implementations are <c>[Serializable]</c> and carry their own data.
-    /// <see cref="SpriteView"/> is the dependency-free default that ships in core; richer views (a Zoetrope Zoe, a
+    /// <see cref="SpriteView"/> is the dependency-free default that ships in core; richer views (a Launimator Reel, a
     /// Lazor vector shape) come from OPTIONAL bridge modules so Zoetrope core stays Combat2D-only. Assigned via
     /// <c>[SerializeReference]</c> on <see cref="Zoe"/>.
     /// </summary>

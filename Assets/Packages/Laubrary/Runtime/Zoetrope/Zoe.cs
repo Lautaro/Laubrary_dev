@@ -22,7 +22,8 @@ namespace Laubrary.Zoetrope
         [Tooltip("Seconds of invulnerability after a hit (stops one shot dealing many hits). 0 = none.")]
         public float invulnerableAfterHit = 0f;
 
-        [Header("Look (pluggable — a sprite by default; a Reel / Lazor view via a bridge module)")]
+        [Header("Look (pluggable — a sprite by default; a Reel / Lazor view via a bridge module; a composite " +
+                "multi-part body via the Zoetrope.Launimator bridge's CompositeReelView)")]
         [SerializeReference] public ICharacterView view = new SpriteView();
 
         [Header("Effects (pluggable — e.g. a Pyre blast + Chunks debris via the Zoetrope.Pyre bridge)")]
