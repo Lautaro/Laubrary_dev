@@ -1,0 +1,28 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Zounds.Editor",
+    "rootNamespace": "Laubrary.Zounds",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Zounds",
+        "ZUI.Editor",
+        "GUID:9e24947de15b9834991c9d8411ea37cf",
+        "GUID:69448af7b92c7f342b298e06a37122aa",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.addressables",
+            "expression": "1.18.19",
+            "define": "ADDRESSABLES_INSTALLED"
+        }
+    ],
+    "noEngineReferences": false
+}
