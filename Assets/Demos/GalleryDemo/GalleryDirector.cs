@@ -59,9 +59,13 @@ namespace Laubrary.Demos.Gallery
 
         void BuildDefs()
         {
-            var proj = ScriptableObject.CreateInstance<ProjectileDef>();
+            var proj = ScriptableObject.CreateInstance<AmmoDef>();
             proj.displayName = "Bolt";
-            proj.sprite = DemoSprites.Get(DemoSprites.Shape.Circle);
+            // NOTE: no `visual` asset assigned — AmmoDef's look is now an IChunkAnimation asset reference
+            // (a Pyre Blast Chunk Animation or a Reel Chunk Animation), not a raw Sprite this runtime-built
+            // demo def could construct in-memory. The bolt still fires and deals damage; it just renders
+            // without a sprite. Wiring a real IChunkAnimation asset here is future demo polish, not required
+            // for this scene's purpose (proving the Def → Bestiary → Combat2D funnel end-to-end).
             proj.scale = 0.28f;
             proj.lifetime = 3f;
             proj.impact = new PyreChunksFx { blast = impactBlast, chunks = impactSparks };
@@ -71,7 +75,7 @@ namespace Laubrary.Demos.Gallery
             weaponDef.fireRate = 5f;
             weaponDef.damage = 12f;
             weaponDef.projectileSpeed = 16f;
-            weaponDef.projectile = proj;
+            weaponDef.ammoTypes = new System.Collections.Generic.List<AmmoDef> { proj };
             weaponDef.muzzle = new PyreChunksFx { blast = muzzleFlash };
 
             targetDef = ScriptableObject.CreateInstance<Zoe>();

@@ -51,11 +51,11 @@ namespace Laubrary.Zoetrope.Editor
         protected override string NewAssetName => "Weapon";
     }
 
-    public class ProjectileDefWindow : ZoetropeDefWindow<ProjectileDef>
+    public class AmmoDefWindow : ZoetropeDefWindow<AmmoDef>
     {
-        [MenuItem("Laubrary/Zoetrope/Projectiles")]
-        public static void Open() => GetWindow<ProjectileDefWindow>("Projectiles");
-        protected override string TypeLabel => "Projectile";
-        protected override string NewAssetName => "Projectile";
+        [MenuItem("Laubrary/Zoetrope/Ammo")]
+        public static void Open() => GetWindow<AmmoDefWindow>("Ammo");
+        protected override string TypeLabel => "Ammo";
+        protected override string NewAssetName => "Ammo";
     }
 }

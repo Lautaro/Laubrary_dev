@@ -2,7 +2,8 @@
     "name": "com.Lautaro-Arino.Laubrary.Zoetrope",
     "rootNamespace": "Laubrary.Zoetrope",
     "references": [
-        "com.Lautaro-Arino.Laubrary.Combat2D"
+        "com.Lautaro-Arino.Laubrary.Combat2D",
+        "com.Lautaro-Arino.Laubrary.Chunks"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

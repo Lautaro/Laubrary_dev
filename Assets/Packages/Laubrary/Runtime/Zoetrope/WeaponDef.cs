@@ -1,10 +1,12 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Laubrary.Zoetrope
 {
-    /// A composition recipe for a weapon: its fire stats, the projectile it shoots, and its muzzle effect. Feeds a
+    /// A composition recipe for a weapon: its fire stats, the ammo it shoots, and its muzzle effect. Feeds a
     /// Combat2D ProjectileWeapon at spawn/equip time (fire rate, damage, spread, speed, projectiles-per-shot), and
-    /// the muzzle effect plays at the muzzle each shot. The projectile's own look + impact live on ProjectileDef.
+    /// the muzzle effect plays at the muzzle each shot. Stats-only — the gun's own LOOK lives on the Zoe's body
+    /// via a SpriteLayer, not here. The ammo's own look + impact live on AmmoDef.
     [CreateAssetMenu(menuName = "Laubrary/Zoetrope/Weapon", fileName = "Weapon")]
     public class WeaponDef : ScriptableObject
     {
@@ -19,8 +21,9 @@ namespace Laubrary.Zoetrope
         [Min(1)] public int projectilesPerShot = 1;
 
         [Header("Ammo")]
-        [Tooltip("What this weapon fires (look + impact).")]
-        public ProjectileDef projectile;
+        [Tooltip("What this weapon fires (look + flight + impact). The first entry is used today; a weapon " +
+                 "supporting multiple ammo types (e.g. a crossbow firing bolts or explosive bolts) is future work.")]
+        public List<AmmoDef> ammoTypes = new List<AmmoDef>();
 
         [Header("Muzzle")]
         [Tooltip("Flash / smoke played at the muzzle each shot (pluggable effect).")]

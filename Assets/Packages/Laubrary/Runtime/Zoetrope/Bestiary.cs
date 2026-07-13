@@ -45,18 +45,19 @@ namespace Laubrary.Zoetrope
             return go;
         }
 
-        /// Build an INACTIVE projectile template (a runtime "prefab") from a ProjectileDef for a ProjectileWeapon to
+        /// Build an INACTIVE projectile template (a runtime "prefab") from an AmmoDef for a ProjectileWeapon to
         /// clone. Kept inactive so it never flies itself; ProjectileWeapon activates each clone.
-        public static Projectile BuildProjectileTemplate(ProjectileDef def, LayerMask blockers, Transform holder = null)
+        public static Projectile BuildProjectileTemplate(AmmoDef def, LayerMask blockers, Transform holder = null)
         {
             var go = new GameObject((def != null ? def.displayName : "Projectile") + " (template)");
             if (holder != null) go.transform.SetParent(holder, false);
             go.SetActive(false);
 
             var sr = go.AddComponent<SpriteRenderer>();
-            if (def != null && def.sprite != null)
+            var frames = def != null ? def.Visual?.GetFrames() : null;
+            if (frames != null && frames.Length > 0 && frames[0] != null)
             {
-                sr.sprite = def.sprite;
+                sr.sprite = frames[0];
                 go.transform.localScale = Vector3.one * Mathf.Max(0.01f, def.scale);
             }
             sr.sortingOrder = 5;
@@ -97,8 +98,9 @@ namespace Laubrary.Zoetrope
             w.projectileSpeed = def.projectileSpeed;
             w.spreadDeg = def.spreadDeg;
             w.projectilesPerShot = def.projectilesPerShot;
-            w.projectilePrefab = def.projectile != null
-                ? BuildProjectileTemplate(def.projectile, projectileBlockers, shooter.transform) : null;
+            var ammo = def.ammoTypes != null && def.ammoTypes.Count > 0 ? def.ammoTypes[0] : null;
+            w.projectilePrefab = ammo != null
+                ? BuildProjectileTemplate(ammo, projectileBlockers, shooter.transform) : null;
 
             if (def.muzzle != null && !def.muzzle.IsEmpty)
             {

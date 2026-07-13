@@ -3,13 +3,13 @@ using Laubrary.Combat2D;
 
 namespace Laubrary.Zoetrope
 {
-    /// Drives a runtime projectile's LOOK + impact from its ProjectileDef: spins the sprite while flying and plays the
+    /// Drives a runtime projectile's LOOK + impact from its AmmoDef: spins the sprite while flying and plays the
     /// impact CombatVfx (Pyre blast + Chunks debris) where it lands. Sits on the projectile GameObject next to the
     /// Colosseum Projectile and listens to its Hit event, so the blast spawns at the exact contact point/direction.
     [RequireComponent(typeof(Projectile))]
     public class ProjectileFx : MonoBehaviour
     {
-        public ProjectileDef def;
+        public AmmoDef def;
 
         Projectile proj;
 
