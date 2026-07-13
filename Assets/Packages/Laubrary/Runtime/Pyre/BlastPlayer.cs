@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Laubrary.Caching;
 
 namespace Laubrary.Pyre
 {
@@ -25,6 +26,17 @@ namespace Laubrary.Pyre
         public bool playOnAwake = true;
 
         static readonly Dictionary<int, Sprite[]> cache = new();
+
+        // Opts into the general, engine-wide cache-invalidation bus (Laubrary.Caching): whenever ANY editor
+        // tool edits a BlastSpec asset (Pyre's own window, the plain Inspector, doesn't matter which), the
+        // Editor-side bridge detects it via Unity's own ObjectChangeEvents and calls Invalidate() — so this
+        // cache drops automatically and the NEXT play re-renders with the edited data, including mid-Play-Mode
+        // live tuning. First preference, not hard-wired: this is a plain opt-in subscription, not a
+        // requirement BlastSpec imposes on anything.
+        static BlastPlayer()
+        {
+            AssetCacheInvalidation.Invalidated += asset => { if (asset is BlastSpec spec) ClearCache(spec); };
+        }
 
         SpriteRenderer sr;
         Sprite[] frames;

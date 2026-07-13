@@ -836,8 +836,15 @@ namespace Laubrary.Pyre
             float span = Mathf.Max(0.0001f, alongMax - alongMin);
             // Edge softness: fade alpha within a band of the (half-)width from the two SIDES and the TIP (alongMax).
             // The base (alongMin) stays hard so bars stay connected to their origin. Bands are in pixels.
+            // Both bands scale off the bar's WIDTH (hw), not its length — a bar grows over its own lifetime, so
+            // sizing the tip band off `span` (as this used to) made the fade zone grow right along with it: once
+            // a bar had grown past ~2x its width at any real softness, the tip band exceeded the bar's own length
+            // and the "fade near the tip" gradient stretched back through the ENTIRE bar, reading as a uniformly
+            // semi-transparent body instead of a solid bar with soft ends. Width-relative sizing (matching
+            // sideBand) keeps the softness a constant, proportional "how rounded are the caps" amount regardless
+            // of how long the bar currently is — a capsule-style rounded end, not a growing gradient.
             float sideBand = soft > 0.001f ? Mathf.Max(0.5f, soft * hw) : 0f;
-            float tipBand = soft > 0.001f ? Mathf.Max(0.5f, soft * span) : 0f;
+            float tipBand = soft > 0.001f ? Mathf.Min(span, Mathf.Max(0.5f, soft * hw)) : 0f;
             int x0, x1, y0, y1;
             if (stack.AnyGeo)
             {

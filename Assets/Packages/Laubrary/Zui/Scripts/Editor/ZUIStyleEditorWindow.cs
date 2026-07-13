@@ -2391,6 +2391,21 @@ public class ZUIStyleEditorWindow : ZUIWindow
             "Pass a float scale (0.5f, 2f) or a named scale (see below).",
             EditorStyles.wordWrappedMiniLabel);
 
+        // Content padding — distinct from the two above: not spacing BETWEEN controls, the inset around a
+        // whole content area (a window pane) from its container's edge. See ZUI.PaddedArea().
+        ZUI.VerticalSpace("V Control Gap");
+        GUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("Content padding", GUILayout.Width(k_LabelWidth));
+        EditorGUI.BeginChangeCheck();
+        float newPadding = ZUI.Slider(_sheet.contentPadding, 0f, 32f, "", "SmallSlider");
+        if (EditorGUI.EndChangeCheck()) { _sheet.contentPadding = newPadding; changed = true; }
+        GUILayout.Space(k_FlashButtonPad);
+        GUILayout.EndHorizontal();
+        EditorGUILayout.LabelField(
+            "Inset around a whole content area (e.g. a window pane) from its container's edge. Use via " +
+            "ZUI.PaddedArea().",
+            EditorStyles.wordWrappedMiniLabel);
+
         ZUI.VerticalSpace("V Control Gap");
         TabTitle("Named Scales");
         EditorGUILayout.LabelField(

@@ -358,8 +358,24 @@ namespace Laubrary.Zoetrope.Editor
         private void CreateEmptyAnimation()
         {
             if (_selected == null || string.IsNullOrWhiteSpace(_newAnimName)) return;
+
+            // The name field doesn't clear itself after a successful create, so a second stray click (or one
+            // left over from renaming/inspecting a different animation) silently overwrites an existing
+            // animation of the same name with a blank one — SaveAnimationToDraft matches by name and replaces
+            // in place. That's real, unrecoverable-in-practice data loss (Undo only survives until the next
+            // edit), so guard it the same way the rest of the toolset confirms before an edit Undo can't
+            // reliably cover.
+            bool exists = ZoeRepo.EnsureDraft(_selected).animations.Exists(
+                a => a != null && string.Equals(a.name, _newAnimName, System.StringComparison.OrdinalIgnoreCase));
+            if (exists && !EditorUtility.DisplayDialog("Overwrite animation?",
+                    $"'{_newAnimName}' already exists on this zoe's draft. Creating a new (empty) animation with " +
+                    "the same name will replace it — its frames and meta-layers will be gone.",
+                    "Overwrite", "Cancel"))
+                return;
+
             ZoeRepo.SaveAnimationToDraft(_selected, new AnimationDef { name = _newAnimName });
             _versionSel = 0;
+            _newAnimName = ""; // clear so a follow-up click can't silently repeat the same collision
             Refresh();
         }
 

@@ -6,7 +6,8 @@
         "Unity.2D.Sprite.Editor",
         "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
         "ZUI.Editor",
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.Chunks.Editor"
     ],
     "includePlatforms": [
         "Editor"

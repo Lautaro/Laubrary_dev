@@ -85,6 +85,16 @@ namespace Laubrary.Chunks
         [Tooltip("When a chunk goes slow on the floor, settle it there (stop + rest until it fades) instead of despawning.")]
         public bool restOnFloor = true;
 
+        // ── Animated content (optional) ──────────────────────────────────────────
+        [Header("Animated content (optional)")]
+        [Tooltip("Optional animated content every chunk plays instead of a static/procedural sprite — an asset " +
+                 "implementing IChunkAnimation (e.g. a Pyre Blast Chunk Animation or a Zoe Chunk Animation). " +
+                 "Leave empty for plain debris.")]
+        public Object animationSource;
+
+        /// animationSource cast to the interface Chunks actually needs, or null if unset/incompatible.
+        public IChunkAnimation AnimationSource => animationSource as IChunkAnimation;
+
         void OnValidate()
         {
             countMin = Mathf.Max(0, countMin);

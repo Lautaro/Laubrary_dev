@@ -3,6 +3,7 @@ using UnityEngine;
 using Laubrary.Pyre;
 using Laubrary.PreviewStage;
 using Laubrary.AssetKit.Editor;
+using Laubrary.PreviewKit.Editor;
 
 namespace Laubrary.Pyre.Editor
 {
@@ -16,6 +17,14 @@ namespace Laubrary.Pyre.Editor
         [MenuItem("Laubrary/Pyre")]
         public static void Open() => GetWindow<PyreWindow>("Pyre");
 
+        /// Open the window focused directly on a specific blast — the entry point other tools (e.g. the
+        /// Bestiarium.Pyre editor bridge) use to jump straight into previewing/editing a referenced BlastSpec.
+        public static void OpenFor(BlastSpec spec)
+        {
+            var w = GetWindow<PyreWindow>("Pyre");
+            if (spec != null) w.SetAsset(spec);
+        }
+
         BlastSpec spec => Current;   // the base owns the current asset; alias for the dial/preview code
 
         protected override string TypeLabel => "Blast";
@@ -24,7 +33,7 @@ namespace Laubrary.Pyre.Editor
         // layerSel/leftScroll/frame are per-asset (BlastSpec.previewX below) and load in with the new asset, so
         // there's nothing to reset here beyond scrub — a transient "actively being dragged" interaction state,
         // not a "where was I" position, so it always starts fresh regardless of which asset is now current.
-        protected override void OnAssetChanged() { scrub = -1; }
+        protected override void OnAssetChanged() { scrub = -1; DisposePreviewSubject(); }
         protected override void InitializeNewAsset(BlastSpec item) => item.AddExampleContent();
         protected override Texture2D RenderThumbnail(BlastSpec item)
         {
@@ -74,7 +83,17 @@ namespace Laubrary.Pyre.Editor
         Texture2D bgImage { get => spec != null ? spec.previewBgImage : null; set { if (spec != null) spec.previewBgImage = value; } }
         Color bgImageTint { get => spec != null ? spec.previewBgImageTint : Color.white; set { if (spec != null) spec.previewBgImageTint = value; } }
         float bgImageZoom { get => spec != null ? spec.previewBgImageZoom : 1f; set { if (spec != null) spec.previewBgImageZoom = value; } }
+        Vector2 bgImagePos { get => spec != null ? spec.previewBgImagePos : Vector2.zero; set { if (spec != null) spec.previewBgImagePos = value; } }
         bool showFrame { get => spec != null && spec.previewShowFrame; set { if (spec != null) spec.previewShowFrame = value; } }
+
+        // Compact-control width caps (see EDITOR_TOOL_CONVENTIONS.md: no infinite-width sliders/colour
+        // fields) — a slider or swatch stretched across an 1000+px wide panel is harder to read at a glance
+        // than one sized to what its own content actually needs, so combo rows below give each control an
+        // explicit width instead of GUILayout's default "fill whatever's left" behaviour.
+        const float CompactPadSize = 68f;   // 56 * 1.2 — the settings area can afford ~20% more vertical room
+        const float CompactSliderWidth = 150f;
+        const float CompactColorWidth = 130f;
+        static readonly string[] BgModeLabels = { "Solid", "Gradient", "Image" };   // matches PreviewBgMode order
 
         // add-layer shape picker
         [SerializeField] LayerShape addShape = LayerShape.Disc;
@@ -97,6 +116,10 @@ namespace Laubrary.Pyre.Editor
         bool draggingPan;      // middle-dragging to pan the animation frame
         [SerializeField] float originMarkerAlpha = 0.95f;   // preview-only: origin ✛ opacity
         [SerializeField] Vector2 previewPan;                // preview-only: offset the animation frame (middle-drag)
+        // Auto-computed each Repaint (see DrawPreview) when a live preview subject is configured — an EXTRA
+        // offset, on top of previewPan, that lands the blast's origin marker on the subject's attach point.
+        // DrawOriginHandle folds it in too so the ✛ handle stays visually consistent with the shifted frame.
+        Vector2 subjectAlignOffset;
         // Reusable sprite test-backdrop — per-asset (BlastSpec.previewStageBg), like zoom/bgMode above. Stored on
         // the asset as a plain Object since PreviewBackground is an editor-only type Runtime code can't reference.
         PreviewBackground stageBg
@@ -106,6 +129,46 @@ namespace Laubrary.Pyre.Editor
         }
         int stageSel = -1;
         bool draggingStage;
+
+        // Optional LIVE animated preview subject (see IPyrePreviewSubject) — resolved lazily and cached
+        // against the (asset, clip, attachId) triple it was built from, so it only rebuilds when one of
+        // those actually changes, not every repaint. Entirely inert (previewSubject stays null, zero cost)
+        // unless a bridge module has registered a resolver AND the asset has a previewSubjectAsset assigned.
+        IPyrePreviewSubject previewSubject;
+        UnityEngine.Object previewSubjectFor;
+        string previewSubjectClipFor, previewSubjectAttachFor;
+
+        IPyrePreviewSubject ResolvePreviewSubject()
+        {
+            if (spec == null || spec.previewSubjectAsset == null || PyrePreviewSubjectProvider.Resolve == null)
+            { DisposePreviewSubject(); return null; }
+
+            bool stale = previewSubject == null || previewSubjectFor != spec.previewSubjectAsset
+                         || previewSubjectClipFor != spec.previewSubjectClip || previewSubjectAttachFor != spec.previewSubjectAttachId;
+            if (stale)
+            {
+                DisposePreviewSubject();
+                previewSubject = PyrePreviewSubjectProvider.Resolve(spec);
+                previewSubjectFor = spec.previewSubjectAsset;
+                previewSubjectClipFor = spec.previewSubjectClip;
+                previewSubjectAttachFor = spec.previewSubjectAttachId;
+            }
+            return previewSubject;
+        }
+
+        // Lazily created, torn down only when the WINDOW closes (not per-asset like previewSubject) — a real
+        // Editor resource (an isolated scene + render target) wrapping UnityEditor.PreviewRenderUtility, so
+        // whatever subject is currently resolved renders through an actual camera + actual gameplay components
+        // instead of hand-rolled IMGUI pivot/scale math. See LiveScenePreview's own doc for why.
+        LiveScenePreview livePreview;
+        LiveScenePreview LivePreview => livePreview ??= new LiveScenePreview();
+
+        void DisposePreviewSubject()
+        {
+            previewSubject?.Dispose();
+            previewSubject = null;
+            previewSubjectFor = null;
+        }
         bool placeMetaMode;    // MetaBlob: clicking the preview drops orbs
         [SerializeField] bool showMetaMarkers = true;   // MetaBlob: draw the orb rings + numbers over the preview
         int metaSel = -1;
@@ -155,6 +218,9 @@ namespace Laubrary.Pyre.Editor
             EditorApplication.update -= Tick;
             if (previewTex != null) { DestroyImmediate(previewTex); previewTex = null; }
             if (shapePreviewTex != null) { DestroyImmediate(shapePreviewTex); shapePreviewTex = null; }
+            DisposePreviewSubject();
+            livePreview?.Dispose();
+            livePreview = null;
         }
 
         int FrameCount => spec != null ? Mathf.Max(1, spec.frameCount) : 1;
@@ -165,10 +231,18 @@ namespace Laubrary.Pyre.Editor
             double now = EditorApplication.timeSinceStartup;
             float dt = Mathf.Clamp((float)(now - lastTime), 0f, 0.1f);
             lastTime = now;
+            var subject = !IsBrowsing ? ResolvePreviewSubject() : null;
             if (playing && spec != null && scrub < 0)
             {
                 acc += dt * fps * speed;
-                while (acc >= 1f) { acc -= 1f; frame = (frame + 1) % FrameCount; }
+                while (acc >= 1f)
+                {
+                    acc -= 1f;
+                    int next = (frame + 1) % FrameCount;
+                    if (next == 0) subject?.Restart();   // blast looped — restart the subject alongside it,
+                    frame = next;                         // matching them starting together in-game
+                }
+                subject?.Tick(dt * speed);
                 Repaint();
             }
             // Keep the preview repainting while paused too (not the browser) so the origin ✛ marker flashes.
@@ -198,7 +272,7 @@ namespace Laubrary.Pyre.Editor
             EditorGUILayout.BeginHorizontal();
             DrawLeft();
             DrawVerticalSplitter();
-            DrawPreview();
+            using (ZUI.PaddedArea()) DrawPreview();
             EditorGUILayout.EndHorizontal();
 
             // Any edit (layer toggle, a dial, a deform value…) must rebuild the preview even while paused —
@@ -666,8 +740,13 @@ namespace Laubrary.Pyre.Editor
                 using (Box("Noise field — a single churning cloud"))
                 {
                     ValRow("Radius", l.size, 0f, half, half * 0.5f, allowMinMax: false);
-                    ValRow("Position X", l.positionX, -half, half, 0f, allowMinMax: false);
-                    ValRow("Position Y", l.positionY, -half, half, 0f, allowMinMax: false);
+                    // Same field the general "Position" 2D control at the shared call site below already
+                    // covers — but the NoiseField branch returns early above that point, so it needs its own
+                    // copy. ZUIValue2DControl has no min/max-range authoring mode at all (Static point or
+                    // Curve only), so it already satisfies the old allowMinMax:false restriction with nothing
+                    // extra needed.
+                    ZUIValue2DControl.Draw("Position", l.positionX, l.positionY,
+                        ZUIValue2DControl.Options.Default.WithRange(-half, half, -half, half).WithDefault(Vector2.zero));
                     DrawNoiseFillParams(l, half, perShape: false);   // one shared cloud, not per-shape
                     l.noiseThreshold = Slider(l.noiseThreshold, 0f, 1f, "Threshold (density)");
                     l.noiseEdgeSoftness = Slider(l.noiseEdgeSoftness, 0.01f, 1f, "Edge softness");
@@ -1030,8 +1109,13 @@ namespace Laubrary.Pyre.Editor
                     break;
                 case RotateModifier r:
                     ValRow("Degrees", r.degrees, -180f, 180f, 0f);
-                    r.pivotX = EditorGUILayout.Slider("Pivot X", r.pivotX, -1f, 1f);
-                    r.pivotY = EditorGUILayout.Slider("Pivot Y", r.pivotY, -1f, 1f);
+                    // pivotX/Y are plain floats, not ZUIValue (not animatable) — ZUIValue2DControl can't take
+                    // them directly, and promoting the field TYPE to make them animatable would be a real data
+                    // model change affecting existing saved BlastSpecs, well beyond a UI swap. ZUI.PositionPad
+                    // (works on plain Vector2) is the fit for this tier instead.
+                    GUILayout.Label("Pivot", EditorStyles.miniLabel);
+                    var rPivot = ZUI.PositionPad(new Vector2(r.pivotX, r.pivotY), new Rect(-1f, -1f, 2f, 2f));
+                    r.pivotX = rPivot.x; r.pivotY = rPivot.y;
                     break;
                 case WobbleModifier w:
                     ValRow("Amplitude", w.amplitude, 0f, Mathf.Max(4f, half), 0f);
@@ -1067,8 +1151,11 @@ namespace Laubrary.Pyre.Editor
                     am.sharpness = Slider(am.sharpness, 0f, 1f, "Sharpness");
                     ValRow("Size", am.size, 0.1f, 4f, 1f);
                     ValRow("Rotation", am.rotation, -180f, 180f, 0f);
-                    am.offsetX = Slider(am.offsetX, -1f, 1f, "Offset X");
-                    am.offsetY = Slider(am.offsetY, -1f, 1f, "Offset Y");
+                    // Plain floats (not ZUIValue) — same tier as RotateModifier's pivot above, ZUI.PositionPad
+                    // not ZUIValue2DControl. Sits right above the already-converted Noise-drift pad below.
+                    GUILayout.Label("Offset", EditorStyles.miniLabel);
+                    var amOffset = ZUI.PositionPad(new Vector2(am.offsetX, am.offsetY), new Rect(-1f, -1f, 2f, 2f));
+                    am.offsetX = amOffset.x; am.offsetY = amOffset.y;
                     if (am.shape == MaskShape.Noise)
                     {
                         am.noiseWarp = Slider(am.noiseWarp, 0f, 2f, "Noise warp");
@@ -1115,8 +1202,10 @@ namespace Laubrary.Pyre.Editor
                     GUILayout.Label($"{sm.strokes.Count} stroke(s)", EditorStyles.miniLabel);
                     break;
                 case DropShadowModifier ds:
-                    ds.offsetX = Slider(ds.offsetX, -16f, 16f, "Offset X");
-                    ds.offsetY = Slider(ds.offsetY, -16f, 16f, "Offset Y");
+                    // Plain floats, same tier as RotateModifier's pivot / AlphaMaskModifier's offset above.
+                    GUILayout.Label("Offset", EditorStyles.miniLabel);
+                    var dsOffset = ZUI.PositionPad(new Vector2(ds.offsetX, ds.offsetY), new Rect(-16f, -16f, 32f, 32f));
+                    ds.offsetX = dsOffset.x; ds.offsetY = dsOffset.y;
                     ds.color = EditorGUILayout.ColorField("Shadow colour", ds.color);
                     ds.alphaThreshold = Slider(ds.alphaThreshold, 0.01f, 1f, "Edge alpha");
                     break;
@@ -1131,8 +1220,8 @@ namespace Laubrary.Pyre.Editor
                     ValRow("Amplitude", tb.amplitude, 0f, Mathf.Max(4f, half), 4f);
                     ValRow("Zoom", tb.zoom, 1f, Mathf.Max(8f, half * 2f), 24f);
                     ValRow("Rotation", tb.rotation, -720f, 720f, 0f);
-                    ValRow("Offset X", tb.offsetX, -half, half, 0f);
-                    ValRow("Offset Y", tb.offsetY, -half, half, 0f);
+                    ZUIValue2DControl.Draw("Offset", tb.offsetX, tb.offsetY,
+                        ZUIValue2DControl.Options.Default.WithRange(-half, half, -half, half).WithDefault(Vector2.zero));
                     tb.warp = Slider(tb.warp, 0f, 2f, "Warp");
                     break;
                 case RingWaveModifier rw:
@@ -1154,8 +1243,8 @@ namespace Laubrary.Pyre.Editor
                 case VoronoiCrackModifier vc:
                     ValRow("Zoom", vc.zoom, 1f, Mathf.Max(8f, half), 10f);
                     ValRow("Rotation", vc.rotation, -720f, 720f, 0f);
-                    ValRow("Drift X", vc.driftX, -half, half, 0f);
-                    ValRow("Drift Y", vc.driftY, -half, half, 0f);
+                    ZUIValue2DControl.Draw("Drift", vc.driftX, vc.driftY,
+                        ZUIValue2DControl.Options.Default.WithRange(-half, half, -half, half).WithDefault(Vector2.zero));
                     ValRow("Seed offset", vc.seedOffset, -8f, 8f, 0f);
                     ValRow("Crack width", vc.crackWidth, 0.01f, 3f, 0.15f);
                     vc.mode = (ColorMode)MiniRadio((int)vc.mode, OverLifeFillLabels);
@@ -1338,6 +1427,59 @@ namespace Laubrary.Pyre.Editor
             {
                 DrawBackdrop(view);
                 if (stageBg != null) PreviewStageGUI.Draw(view, stageBg, zoom, false);   // backdrop sprites BEHIND the frame
+
+                // Live animated preview subject (if configured) — rendered through a REAL isolated camera and
+                // the subject's own real gameplay components (see LiveScenePreview / IPyrePreviewSubject),
+                // not hand-drawn IMGUI pivot/scale math — so it's pixel-for-pixel what gameplay would render.
+                // Anchored near the viewport's BOTTOM edge (its own pivot, typically a character's feet, lands
+                // there) via the render rect's own placement, not dead-centre: a pivot at the exact centre
+                // pushes the whole body into the upper half of the view. The blast's own canvas keeps
+                // rendering as raw canvas-pixels × zoom (pixel-perfect WYSIWYG authoring — origin handle,
+                // MetaBlob, Smudge, PinWarp all rely on that 1:1 canvas-pixel mapping and must NOT change);
+                // it then gets an extra auto-computed offset so its own origin marker lands exactly on the
+                // subject's live attach point, itself read back from the SAME real camera's own projection
+                // (Camera.WorldToScreenPoint) — not a second, hand-matched formula.
+                var subject = ResolvePreviewSubject();
+                subjectAlignOffset = Vector2.zero;
+                if (subject != null && spec != null)
+                {
+                    var live = LivePreview;
+
+                    // This blast's own canvas-px-per-world-unit (its pixelsPerUnit) times the shared zoom —
+                    // the same conversion the blast's canvas uses — so the subject renders at its TRUE size
+                    // relative to the (fixed-canvas-pixel) blast, matching how their relative on-screen size
+                    // actually changes in gameplay when either asset's pixelsPerUnit is tuned.
+                    float screenPxPerWorldUnit = zoom * spec.pixelsPerUnit;
+                    Vector2 subjectAnchorScreen = new Vector2(view.center.x, view.yMax - view.height * 0.15f) + previewPan;
+                    float boxSize = view.height;
+                    Rect subjectRect = new Rect(subjectAnchorScreen.x - boxSize * 0.5f, subjectAnchorScreen.y - boxSize * 0.5f, boxSize, boxSize);
+
+                    subject.SpawnInto(live, Vector3.zero);
+                    live.Frame(Vector3.zero, boxSize / screenPxPerWorldUnit);
+                    GUI.BeginClip(view);
+                    live.Draw(new Rect(subjectRect.x - view.x, subjectRect.y - view.y, subjectRect.width, subjectRect.height));
+                    GUI.EndClip();
+
+                    if (subject.TryGetAttachWorldPos(out var attachWorld))
+                    {
+                        // The camera's own projection — the same one that just rendered the subject — turns
+                        // the attach point into a screen position, so alignment can never drift from size.
+                        // WorldToScreenPoint returns coordinates in the render TEXTURE's own pixel space, which
+                        // PreviewRenderUtility renders at retina/HiDPI resolution (camera.pixelWidth/Height),
+                        // NOT in the GUI-point space subjectRect is expressed in — scale back down by the
+                        // actual ratio between the two, or the offset overshoots by the display's DPI factor.
+                        Vector3 sp = live.Camera.WorldToScreenPoint(attachWorld);
+                        float px2pt = subjectRect.width / Mathf.Max(1, live.Camera.pixelWidth);
+                        float py2pt = subjectRect.height / Mathf.Max(1, live.Camera.pixelHeight);
+                        Vector2 attachScreen = new Vector2(subjectRect.x + sp.x * px2pt, subjectRect.y + (subjectRect.height - sp.y * py2pt));
+                        float ow = spec.Width * zoom, oh = spec.Height * zoom;
+                        Vector2 originNoOffset = new Vector2(
+                            view.x + (view.width - ow) * 0.5f + previewPan.x + Mathf.Clamp01(spec.origin.x) * ow,
+                            view.y + (view.height - oh) * 0.5f + previewPan.y + oh - Mathf.Clamp01(spec.origin.y) * oh);
+                        subjectAlignOffset = attachScreen - originNoOffset;
+                    }
+                }
+
                 if (spec == null)
                 {
                     var c = new GUIStyle(EditorStyles.centeredGreyMiniLabel);
@@ -1348,7 +1490,8 @@ namespace Laubrary.Pyre.Editor
                 {
                     float w = spec.Width * zoom, h = spec.Height * zoom;
                     GUI.BeginClip(view);
-                    var local = new Rect((view.width - w) * 0.5f + previewPan.x, (view.height - h) * 0.5f + previewPan.y, w, h);
+                    var local = new Rect((view.width - w) * 0.5f + previewPan.x + subjectAlignOffset.x,
+                                          (view.height - h) * 0.5f + previewPan.y + subjectAlignOffset.y, w, h);
                     GUI.DrawTexture(local, previewTex, ScaleMode.StretchToFill, true);
                     if (showFrame)
                     {
@@ -1394,7 +1537,7 @@ namespace Laubrary.Pyre.Editor
             // transport
             EditorGUILayout.BeginHorizontal();
             if (Button(playing ? "❚❚ Pause" : "▶ Play")) { playing = !playing; scrub = -1; }
-            if (Button("⟲ Restart")) { frame = 0; acc = 0f; scrub = -1; }
+            if (Button("⟲ Restart")) { frame = 0; acc = 0f; scrub = -1; previewSubject?.Restart(); }
             if (Button("Fit")) { FitZoom(); previewPan = Vector2.zero; }
             if (Button("Centre")) previewPan = Vector2.zero;
             showFrame = Toggle(showFrame, "Frame");
@@ -1406,17 +1549,35 @@ namespace Laubrary.Pyre.Editor
             int scrubbed = Mathf.RoundToInt(Slider(shown, 0, Mathf.Max(0, FrameCount - 1), "Frame"));
             if (scrubbed != shown) { scrub = scrubbed; playing = false; Repaint(); }
 
-            // retime: same layers, different number of frames
-            int fc = Mathf.RoundToInt(Slider(spec.frameCount, 1, 64, "Frame count"));
-            if (fc != spec.frameCount)
+            // retime, zoom, speed — three settings tweaked far less often than the scrubber above, so they
+            // share one row instead of each claiming a full-width slider row of their own. Each still gets a
+            // bit more than the bare minimum (the row has room to spare with only 3 of them in it — taking
+            // horizontal space isn't bad by itself, cramming or truncating is) and ZUI.HorizontalSpace()
+            // between each pair, not one FlexibleSpace dumped at the end, so the gap reads as deliberate
+            // separation rather than leftover space.
+            using (ZUI.HRow())
             {
-                Undo.RecordObject(spec, "Change frame count");
-                spec.frameCount = Mathf.Max(1, fc); EditorUtility.SetDirty(spec); frame = Mathf.Min(frame, FrameCount - 1);
-            }
+                var sliderOpts = new[] { GUILayout.Width(CompactSliderWidth + 40f) };
+                int fc = Mathf.RoundToInt(ZUI.MicroSlider(spec.frameCount, 1, 64, "Frame count", showInputField: true, options: sliderOpts));
+                if (fc != spec.frameCount)
+                {
+                    Undo.RecordObject(spec, "Change frame count");
+                    spec.frameCount = Mathf.Max(1, fc); EditorUtility.SetDirty(spec); frame = Mathf.Min(frame, FrameCount - 1);
+                }
+                ZUI.HorizontalSpace(2f);
 
-            zoom = Mathf.Max(1f, Mathf.Round(Slider(zoom, 1f, 16f, "Zoom")));
-            speed = Slider(speed, 0.1f, 3f, "Speed");
-            Label($"frame {cur + 1} / {FrameCount}", ZUI.ZTextStyle.Subtle);
+                zoom = Mathf.Max(1f, Mathf.Round(ZUI.MicroSlider(zoom, 1f, 16f, "Zoom", showInputField: true, options: sliderOpts)));
+                ZUI.HorizontalSpace(2f);
+
+                // 1 decimal — a preview playback speed multiplier has no practical use finer than 0.1
+                // increments, and constraining it (not just cleaning up float noise) keeps the input field
+                // from ever having more to show than the value actually means.
+                speed = ZUI.MicroSlider(speed, 0.1f, 3f, "Speed", decimals: 1, showInputField: true, options: sliderOpts);
+                ZUI.HorizontalSpace(2f);
+
+                GUILayout.FlexibleSpace();
+                Label($"frame {cur + 1}/{FrameCount}", ZUI.ZTextStyle.Subtle, GUILayout.Width(70f));
+            }
 
             VerticalSpace();
             DrawBackdropOptions();
@@ -1446,7 +1607,8 @@ namespace Laubrary.Pyre.Editor
         void DrawOriginHandle(Rect view)
         {
             float w = spec.Width * zoom, h = spec.Height * zoom;
-            Rect spr = new Rect(view.x + (view.width - w) * 0.5f + previewPan.x, view.y + (view.height - h) * 0.5f + previewPan.y, w, h);
+            Rect spr = new Rect(view.x + (view.width - w) * 0.5f + previewPan.x + subjectAlignOffset.x,
+                                 view.y + (view.height - h) * 0.5f + previewPan.y + subjectAlignOffset.y, w, h);
             float ox = spr.x + Mathf.Clamp01(spec.origin.x) * w;
             float oy = spr.yMax - Mathf.Clamp01(spec.origin.y) * h;   // origin.y = 0 is the bottom
 
@@ -1708,27 +1870,180 @@ namespace Laubrary.Pyre.Editor
 
         void DrawBackdropOptions()
         {
-            using (Box("Preview backdrop (not baked)"))
+            using (Box("Preview backdrop"))
             {
-                bgMode = (PreviewBgMode)EditorGUILayout.EnumPopup("Mode", bgMode);
-                switch (bgMode)
+                using (ZUI.HRow()) { GUILayout.FlexibleSpace(); ZUI.HelpIcon(
+                    "Renders live every repaint, purely as a visual aid for authoring — it's never baked into " +
+                    "any asset and has no effect on the baked sprite sheet or the runtime blast."); }
+
+                // Mode as a vertical radio stack beside its own content, not a dropdown above it — built by
+                // hand (not MiniRadioVertical, whose height is auto-measured from label text and ignores any
+                // passed-in Height option) so it's EXACTLY CompactPadSize tall, matching the image combo next
+                // to it pixel-for-pixel. ZUI.HorizontalSpace() between each column is the sheet-configurable
+                // gap (Style Editor → "H Control Gap") — the ZUI-native way to get adjustable spacing, versus
+                // packing controls with zero gap between them.
+                using (ZUI.HRow())
                 {
-                    case PreviewBgMode.Solid:
-                        bgSolid = EditorGUILayout.ColorField("Colour", bgSolid);
-                        break;
-                    case PreviewBgMode.Gradient:
-                        bgGradient ??= DefaultBgGradient();
-                        bgGradient = EditorGUILayout.GradientField("Gradient", bgGradient);
-                        break;
-                    case PreviewBgMode.Image:
-                        bgImage = (Texture2D)EditorGUILayout.ObjectField("Image", bgImage, typeof(Texture2D), false);
-                        bgImageTint = EditorGUILayout.ColorField("Tint", bgImageTint);
-                        bgImageZoom = EditorGUILayout.Slider("Zoom", bgImageZoom, 0.1f, 8f);
-                        break;
+                    int modeIdx = DrawModeRadio((int)bgMode, BgModeLabels, CompactPadSize, 70f);
+                    if ((PreviewBgMode)modeIdx != bgMode) bgMode = (PreviewBgMode)modeIdx;
+                    ZUI.HorizontalSpace();
+
+                    switch (bgMode)
+                    {
+                        case PreviewBgMode.Solid:
+                            // NarrowLabel: without it, the ambient EditorGUIUtility.labelWidth (112f, set
+                            // above for the LEFT panel's long dial labels) would reserve 112 of this field's
+                            // 130px CompactColorWidth just for a 5-character label, leaving almost nothing for
+                            // the actual swatch.
+                            using (ZUI.NarrowLabel("Colour"))
+                                bgSolid = EditorGUILayout.ColorField(new GUIContent("Colour"), bgSolid, true, true, false,
+                                                                      GUILayout.Width(CompactColorWidth), GUILayout.Height(18f));
+                            break;
+                        case PreviewBgMode.Gradient:
+                            bgGradient ??= DefaultBgGradient();
+                            bgGradient = EditorGUILayout.GradientField(GUIContent.none, bgGradient, GUILayout.Width(CompactSliderWidth + CompactColorWidth));
+                            break;
+                        case PreviewBgMode.Image:
+                            // Compact combo: a small thumbnail/picker beside a position drag-pad (both
+                            // naturally square) with Zoom + Tint stacked next to them — replaces what used to
+                            // be a big ~140px preview swatch plus three separate infinite-width rows.
+                            var thumbRect = GUILayoutUtility.GetRect(CompactPadSize, CompactPadSize, GUILayout.Width(CompactPadSize), GUILayout.Height(CompactPadSize));
+                            bgImage = (Texture2D)EditorGUI.ObjectField(thumbRect, bgImage, typeof(Texture2D), false);
+                            ZUI.HorizontalSpace();
+
+                            bgImagePos = ZUI.PositionPad(bgImagePos, new Rect(-200f, -200f, 400f, 400f), CompactPadSize);
+                            ZUI.HorizontalSpace();
+
+                            // Zoom shows its value inline in the bar's own label ("Zoom: 1.88") — no separate
+                            // input field, so it stays compact; Tint's label sits on its own line above the
+                            // swatch (rather than Unity's default label-left/swatch-right) so the swatch keeps
+                            // a usable width within this narrow stacked column.
+                            GUILayout.BeginVertical(GUILayout.Width(CompactSliderWidth), GUILayout.Height(CompactPadSize));
+                            GUILayout.FlexibleSpace();
+                            bgImageZoom = ZUI.MicroSlider(bgImageZoom, 0.1f, 8f, "Zoom", defaultValue: 1f,
+                                                           options: new[] { GUILayout.Width(CompactSliderWidth), GUILayout.Height(18f) });
+                            EditorGUILayout.Space(3f);
+                            GUILayout.Label("Tint", EditorStyles.miniLabel);
+                            bgImageTint = EditorGUILayout.ColorField(GUIContent.none, bgImageTint, true, true, false,
+                                                                      GUILayout.Width(CompactSliderWidth), GUILayout.Height(18f));
+                            GUILayout.FlexibleSpace();
+                            GUILayout.EndVertical();
+                            break;
+                    }
+                    GUILayout.FlexibleSpace();
                 }
             }
 
             DrawTestBackground();
+            DrawPreviewSubjectOptions();
+        }
+
+        // A vertical radio stack built from Rect-based ZUI.Toggle calls, not ZUI.MiniRadioVertical — that
+        // helper auto-measures each item's height from its own label text and ignores any Height option
+        // passed to it, so it can't be forced to match another control's height exactly. This can, because it
+        // owns the whole Rect and splits it itself.
+        static int DrawModeRadio(int selected, string[] labels, float totalHeight, float width)
+        {
+            Rect area = GUILayoutUtility.GetRect(width, totalHeight, GUILayout.Width(width), GUILayout.Height(totalHeight));
+            float itemH = totalHeight / labels.Length;
+            for (int i = 0; i < labels.Length; i++)
+            {
+                var r = new Rect(area.x, area.y + i * itemH, area.width, itemH);
+                bool isFirst = i == 0, isLast = i == labels.Length - 1;
+                var mask = isFirst && isLast ? ZUICornerMask.All
+                         : isFirst          ? ZUICornerMask.Top
+                         : isLast           ? ZUICornerMask.Bottom
+                         :                    ZUICornerMask.Square;
+                if (ZUI.Toggle(r, selected == i, labels[i], ZUI.Style.Default, null, mask) && selected != i)
+                    selected = i;
+            }
+            return selected;
+        }
+
+        // Optional LIVE animated preview subject (see IPyrePreviewSubject/PyrePreviewSubjectProvider) — the
+        // field itself is a plain Object (any asset can be dragged in) so this panel has zero dependency on
+        // whatever asset TYPE actually resolves; a bridge module (e.g. Pyre.Zoetrope.Editor) is what makes a
+        // dragged-in asset actually do anything. With no bridge loaded this panel still works for
+        // authoring/persisting the fields, it just won't render/align anything. Named "Zoe Preview" (not the
+        // more generic "Live preview subject") because Zoetrope is currently the ONLY bridge that resolves
+        // anything here — if a second asset type ever gets its own bridge, rename back to something generic
+        // at that point; the underlying fields/interface stay fully generic either way, only this label
+        // reflects what's actually usable today.
+        void DrawPreviewSubjectOptions()
+        {
+            if (spec == null) return;
+            using (Box("Zoe Preview"))
+            {
+                using (ZUI.HRow()) { GUILayout.FlexibleSpace(); ZUI.HelpIcon(
+                    "Plays through the same real gameplay components the subject uses in-game (a real " +
+                    "SpriteRenderer-driven player, rendered via LiveScenePreview) — nothing here is baked. " +
+                    "These fields are preview-time wiring only; they aren't part of the runtime blast. " +
+                    "Attach id targets a MetaLayer painted on the Zoe's clip."); }
+                EditorGUI.BeginChangeCheck();
+                UnityEngine.Object asset; string clip, attachId;
+
+                // Asset/Clip/Attach share ONE row, as originally asked. The earlier split into two rows was
+                // a wrong call on my part — the truncation that prompted it was actually the
+                // EditorGUIUtility.labelWidth leak (see NarrowLabel below), not a real space shortage. Asset's
+                // max is generous (500) rather than tightly rationed against its row-mates: Clip/Attach are
+                // small, fixed-ish widths and the row ends in FlexibleSpace(), so there's no real contention
+                // to protect them from — a cap only earns its keep when it's actually shielding a sibling
+                // control from being squeezed, not as a reflexive "don't let anything get big" default. No
+                // truncation should happen here short of a genuinely absurd asset name.
+                string assetLabel = spec.previewSubjectAsset != null ? spec.previewSubjectAsset.name : "";
+                using (ZUI.HRow())
+                {
+                    using (ZUI.NarrowLabel("Asset"))
+                        asset = EditorGUILayout.ObjectField("Asset", spec.previewSubjectAsset, typeof(UnityEngine.Object), false,
+                                                             GUILayout.Width(ZUI.FitWidth("Asset", assetLabel, 160f, 500f)));
+                    ZUI.HorizontalSpace();
+
+                    // Every FitWidth-sized field here is also wrapped in ZUI.NarrowLabel — otherwise Unity's
+                    // AMBIENT EditorGUIUtility.labelWidth (set to 112f above, for the LEFT panel's long dial
+                    // labels like "Taper (centre↔edge)") leaks into these fields too, reserving 112px for a
+                    // label that only needs ~35px and eating most of FitWidth's carefully-computed content
+                    // budget — exactly how "Asset" ended up rendering almost nothing but its icon and button.
+                    using (ZUI.NarrowLabel("Clip"))
+                        clip = EditorGUILayout.TextField("Clip", spec.previewSubjectClip,
+                                                           GUILayout.Width(ZUI.FitWidth("Clip", spec.previewSubjectClip, 90f, 220f)));
+                    ZUI.HorizontalSpace();
+
+                    // Attach id is a MetaLayer name on the selected Zoe/clip. ALWAYS a plain text field —
+                    // never conditionally swapped for a Popup — because that field's own current value (the
+                    // "options" list depends on `clip`, which changes on every keystroke while typing) would
+                    // then decide which CONTROL TYPE gets drawn here. Structural GUILayout differences that
+                    // hinge on a live-edited value are exactly what corrupts Unity's Layout/Repaint rect
+                    // matching for the rest of the draw call — this shipped once already (the Asset field
+                    // above and this row both rendered garbled/overlapping mid-edit). A small "▾" button next
+                    // to the field instead opens a GenericMenu (a modal overlay, not part of the persistent
+                    // layout) when options are available — same convenience, zero structural risk.
+                    using (ZUI.NarrowLabel("Attach"))
+                        attachId = EditorGUILayout.TextField("Attach", spec.previewSubjectAttachId,
+                                                              GUILayout.Width(ZUI.FitWidth("Attach", spec.previewSubjectAttachId, 90f, 220f)));
+
+                    var options = PyrePreviewSubjectProvider.GetAttachPointOptions?.Invoke(spec.previewSubjectAsset, spec.previewSubjectClip);
+                    if (options != null && options.Length > 0 && Button("▾", ZUI.Style.Default, GUILayout.Width(20f)))
+                    {
+                        var menu = new GenericMenu();
+                        foreach (var opt in options)
+                        {
+                            string captured = opt;
+                            menu.AddItem(new GUIContent(captured), captured == spec.previewSubjectAttachId,
+                                         () => { Undo.RecordObject(spec, "Change attach id"); spec.previewSubjectAttachId = captured; EditorUtility.SetDirty(spec); });
+                        }
+                        menu.ShowAsContext();
+                    }
+                    GUILayout.FlexibleSpace();
+                }
+                if (EditorGUI.EndChangeCheck())
+                {
+                    Undo.RecordObject(spec, "Change preview subject");
+                    spec.previewSubjectAsset = asset; spec.previewSubjectClip = clip; spec.previewSubjectAttachId = attachId;
+                    EditorUtility.SetDirty(spec);
+                }
+                if (spec.previewSubjectAsset != null && PyrePreviewSubjectProvider.Resolve == null)
+                    EditorGUILayout.HelpBox("No bridge module registered to resolve this asset type (e.g. Pyre.Zoetrope.Editor).", MessageType.Info);
+            }
         }
 
         // Reusable sprite test-backdrop (PreviewStage): compose the effect against props (floor/wall/…). Saved
@@ -1749,7 +2064,8 @@ namespace Laubrary.Pyre.Editor
 
                 if (stageBg == null) { Label("Recall a backdrop or hit New to build one.", ZUI.ZTextStyle.Subtle); return; }
 
-                stageBg.fill = EditorGUILayout.ColorField("Fill (α0 = overlay)", stageBg.fill);
+                stageBg.fill = EditorGUILayout.ColorField(new GUIContent("Fill (α0 = overlay)"), stageBg.fill, true, true, false,
+                                                            GUILayout.Width(CompactSliderWidth + CompactColorWidth));
 
                 int removeAt = -1;
                 for (int i = 0; i < stageBg.sprites.Count; i++)
@@ -1757,16 +2073,45 @@ namespace Laubrary.Pyre.Editor
                     var s = stageBg.sprites[i];
                     using (Box())
                     {
+                        // Slim identity/select row, then one compact combo row (picker + position pad + scale
+                        // & tint stacked) instead of three separate infinite-width rows — same pattern as the
+                        // "Preview backdrop" Image mode above, so both read as the same visual language.
                         EditorGUILayout.BeginHorizontal();
                         bool sel = stageSel == i;
                         if (Button(sel ? "●" : "○", ZUI.Style.Default, GUILayout.Width(24))) stageSel = i;
-                        s.sprite = (Sprite)EditorGUILayout.ObjectField(s.sprite, typeof(Sprite), false);
                         s.front = GUILayout.Toggle(s.front, "Front", "Button", GUILayout.Width(48));
                         if (Button("X", ZUI.Style.Default, GUILayout.Width(22))) removeAt = i;
                         EditorGUILayout.EndHorizontal();
-                        s.scale = EditorGUILayout.Slider("Scale", s.scale, 0.1f, 8f);
-                        s.tint = EditorGUILayout.ColorField("Tint", s.tint);
-                        s.position = EditorGUILayout.Vector2Field("Position", s.position);
+
+                        using (ZUI.HRow())
+                        {
+                            var spriteRect = GUILayoutUtility.GetRect(CompactPadSize, CompactPadSize, GUILayout.Width(CompactPadSize), GUILayout.Height(CompactPadSize));
+                            s.sprite = (Sprite)EditorGUI.ObjectField(spriteRect, s.sprite, typeof(Sprite), false);
+
+                            // flipY:false — this position is ALREADY consumed with a screen-Y-down convention
+                            // by PreviewStageGUI's own direct viewport dragging (position.y increases = moves
+                            // DOWN); matching that existing convention matters more than the pad's own default
+                            // "up feels like up" feel, since the same field edited two different-feeling ways
+                            // would be far more confusing than either alone.
+                            s.position = ZUI.PositionPad(s.position, new Rect(-200f, -200f, 400f, 400f), CompactPadSize, flipY: false);
+
+                            GUILayout.BeginVertical(GUILayout.Height(CompactPadSize));
+                            GUILayout.FlexibleSpace();
+                            s.scale = ZUI.MicroSlider(s.scale, 0.1f, 8f, "Scale", showInputField: true, defaultValue: 1f,
+                                                       options: new[] { GUILayout.Width(CompactSliderWidth), GUILayout.Height(18f) });
+                            EditorGUILayout.Space(2f);
+                            // GUIContent.none + a separate stacked Label (matching the backdrop image's Tint
+                            // above) instead of ColorField's own inline label — sidesteps the ambient
+                            // EditorGUIUtility.labelWidth entirely (a real inline label would eat most of
+                            // CompactSliderWidth for a 4-character word) rather than needing a NarrowLabel
+                            // scope around it.
+                            GUILayout.Label("Tint", EditorStyles.miniLabel);
+                            s.tint = EditorGUILayout.ColorField(GUIContent.none, s.tint, true, true, false,
+                                                                 GUILayout.Width(CompactSliderWidth), GUILayout.Height(18f));
+                            GUILayout.FlexibleSpace();
+                            GUILayout.EndVertical();
+                            GUILayout.FlexibleSpace();
+                        }
                     }
                 }
                 if (removeAt >= 0) { stageBg.sprites.RemoveAt(removeAt); stageSel = -1; }
@@ -1819,7 +2164,7 @@ namespace Laubrary.Pyre.Editor
                         // ScaleToFit shows the WHOLE image (aspect-preserved, letterboxed) instead of ScaleAndCrop,
                         // which filled the viewport by cropping the edges off. Zoom scales it within the viewport.
                         float w = view.width * bgImageZoom, h = view.height * bgImageZoom;
-                        var imgRect = new Rect((view.width - w) * 0.5f, (view.height - h) * 0.5f, w, h);
+                        var imgRect = new Rect((view.width - w) * 0.5f + bgImagePos.x, (view.height - h) * 0.5f - bgImagePos.y, w, h);
                         GUI.DrawTexture(imgRect, bgImage, ScaleMode.ScaleToFit, false);
                         GUI.EndClip();
                         GUI.color = prevCol;

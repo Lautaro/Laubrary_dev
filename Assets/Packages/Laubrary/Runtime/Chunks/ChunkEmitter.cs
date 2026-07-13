@@ -20,17 +20,21 @@ namespace Laubrary.Chunks
         public void Burst() => Burst((Vector2)transform.position, float.NaN);
 
         /// Burst at a world position; pass a direction (degrees) to override the spec's directionDeg for this burst.
-        public void Burst(Vector2 worldPos, float directionDegOverride = float.NaN)
-            => SpawnBurst(worldPos, spec, null, directionDegOverride, transform, sortingOrder);
+        /// animationOverride, if supplied, plays instead of the spec's own animationSource for this burst only.
+        public void Burst(Vector2 worldPos, float directionDegOverride = float.NaN, IChunkAnimation animationOverride = null)
+            => SpawnBurst(worldPos, spec, null, directionDegOverride, transform, sortingOrder, animationOverride);
 
         /// Burst tinted to a supplied palette (e.g. colours sampled off the exploded object).
-        public void Burst(Vector2 worldPos, IList<Color32> tintPalette, float directionDegOverride = float.NaN)
-            => SpawnBurst(worldPos, spec, tintPalette, directionDegOverride, transform, sortingOrder);
+        public void Burst(Vector2 worldPos, IList<Color32> tintPalette, float directionDegOverride = float.NaN,
+                          IChunkAnimation animationOverride = null)
+            => SpawnBurst(worldPos, spec, tintPalette, directionDegOverride, transform, sortingOrder, animationOverride);
 
         /// The one place chunks are actually created. Shared by the component and the static API.
         /// parent may be null (a temporary self-destroying container is made). Returns the container transform.
+        /// animationOverride wins over spec.AnimationSource when both are set.
         public static Transform SpawnBurst(Vector2 worldPos, ChunkSpec spec, IList<Color32> palette,
-                                           float directionDegOverride, Transform parent, int sortingOrder)
+                                           float directionDegOverride, Transform parent, int sortingOrder,
+                                           IChunkAnimation animationOverride = null)
         {
             if (spec == null) return null;
 
@@ -42,6 +46,7 @@ namespace Laubrary.Chunks
             float centerDeg = float.IsNaN(directionDegOverride) ? spec.directionDeg : directionDegOverride;
             bool haveSprites = spec.sprites != null && spec.sprites.Count > 0;
             bool havePalette = palette != null && palette.Count > 0;
+            IChunkAnimation anim = animationOverride ?? spec.AnimationSource;
 
             for (int i = 0; i < count; i++)
             {
@@ -51,9 +56,12 @@ namespace Laubrary.Chunks
 
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sortingOrder = sortingOrder;
-                sr.sprite = haveSprites
-                    ? spec.sprites[Random.Range(0, spec.sprites.Count)]
-                    : ChunkSprites.Random(spec.pixelsPerUnit);
+                if (anim == null)
+                {
+                    sr.sprite = haveSprites
+                        ? spec.sprites[Random.Range(0, spec.sprites.Count)]
+                        : ChunkSprites.Random(spec.pixelsPerUnit);
+                }
 
                 Color baseColor = havePalette ? (Color)palette[Random.Range(0, palette.Count)] : Color.white;
 
@@ -67,7 +75,7 @@ namespace Laubrary.Chunks
                 float life = Random.Range(spec.lifeMin, spec.lifeMax);
                 float size = Random.Range(spec.sizeMin, spec.sizeMax);
 
-                go.AddComponent<Chunk>().Init(spec, vel, angular, life, size, baseColor);
+                go.AddComponent<Chunk>().Init(spec, vel, angular, life, size, baseColor, anim);
             }
 
             // If we own the container, tear it down after the longest chunk could possibly live (plus slack).
@@ -84,11 +92,13 @@ namespace Laubrary.Chunks
     public static class Chunks
     {
         /// Throw a burst at a world point. Pass directionDeg to override the spec's direction. Returns the container.
-        public static Transform Burst(Vector2 worldPos, ChunkSpec spec, float directionDeg = float.NaN)
-            => ChunkEmitter.SpawnBurst(worldPos, spec, null, directionDeg, null, 500);
+        public static Transform Burst(Vector2 worldPos, ChunkSpec spec, float directionDeg = float.NaN,
+                                      IChunkAnimation animationOverride = null)
+            => ChunkEmitter.SpawnBurst(worldPos, spec, null, directionDeg, null, 500, animationOverride);
 
         /// Throw a burst tinted to a supplied palette (e.g. colours sampled off the exploded object).
-        public static Transform Burst(Vector2 worldPos, ChunkSpec spec, IList<Color32> tintPalette, float directionDeg = float.NaN)
-            => ChunkEmitter.SpawnBurst(worldPos, spec, tintPalette, directionDeg, null, 500);
+        public static Transform Burst(Vector2 worldPos, ChunkSpec spec, IList<Color32> tintPalette, float directionDeg = float.NaN,
+                                      IChunkAnimation animationOverride = null)
+            => ChunkEmitter.SpawnBurst(worldPos, spec, tintPalette, directionDeg, null, 500, animationOverride);
     }
 }

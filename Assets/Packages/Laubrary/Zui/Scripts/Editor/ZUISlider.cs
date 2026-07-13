@@ -1019,6 +1019,27 @@ public static partial class ZUI
         return DrawMicroSlider(rect, value, min, max, label, def, style, showInputField, defaultValue, MicroSliderLabelMode.Auto);
     }
 
+    /// <summary>
+    /// MicroSlider variant that quantizes the value to a deliberate number of decimal places (not just the
+    /// float-noise cleanup every MicroSlider already does — an actual precision choice, e.g. a playback speed
+    /// multiplier that has no practical use beyond 1 decimal). A distinct overload (not an extra optional
+    /// parameter on the one above) because that overload ends in `params GUILayoutOption[] options`, and at
+    /// least one existing caller passes options positionally — inserting a parameter before `options` would
+    /// silently break it. The `int decimals` in the 5th position disambiguates overload resolution from the
+    /// `string style` 5th position on the one above.
+    /// </summary>
+    public static float MicroSlider(float value, float min, float max, string label, int decimals,
+                                     string style = SliderStyle.Default,
+                                     bool showInputField = false,
+                                     float? defaultValue = null,
+                                     params GUILayoutOption[] options)
+    {
+        var def = ActiveSheet?.FindSlider(style) ?? new ZUISliderDef();
+        float h = Mathf.Max(def.trackHeight, 18f);
+        var rect = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, AppendHeight(options, h));
+        return DrawMicroSlider(rect, value, min, max, label, def, style, showInputField, defaultValue, MicroSliderLabelMode.Auto, decimals);
+    }
+
     public static float MicroSlider(Rect rect, float value, float min, float max,
                                      string label = "",
                                      string style = SliderStyle.Default,
@@ -1046,8 +1067,12 @@ public static partial class ZUI
     static float DrawMicroSlider(Rect totalRect, float value, float min, float max,
                                   string label, ZUISliderDef def, string styleName,
                                   bool showInputField, float? defaultValue,
-                                  MicroSliderLabelMode labelMode)
+                                  MicroSliderLabelMode labelMode, int decimals = -1)
     {
+        // decimals < 0 (the default): just the float-noise cleanup every slider gets (RoundValue, 5dp).
+        // decimals >= 0: a deliberate, caller-chosen precision — overrides the noise-only cleanup.
+        float Round(float v) => decimals >= 0 ? (float)System.Math.Round(v, decimals) : RoundValue(v);
+
         value = Mathf.Clamp(value, min, max);
 
         // Carve input field if needed
@@ -1085,7 +1110,7 @@ public static partial class ZUI
                 if (trackRect.Contains(ev.mousePosition) && ev.button == 0)
                 {
                     GUIUtility.hotControl = id;
-                    value = SamplePosition(ev.mousePosition.x, trackRect.x, trackRect.xMax, min, max);
+                    value = Round(SamplePosition(ev.mousePosition.x, trackRect.x, trackRect.xMax, min, max));
                     GUI.changed = true;
                     ev.Use();
                 }
@@ -1093,7 +1118,7 @@ public static partial class ZUI
             case EventType.MouseDrag:
                 if (isDrag)
                 {
-                    value = SamplePosition(ev.mousePosition.x, trackRect.x, trackRect.xMax, min, max);
+                    value = Round(SamplePosition(ev.mousePosition.x, trackRect.x, trackRect.xMax, min, max));
                     GUI.changed = true;
                     ev.Use();
                 }
@@ -1146,13 +1171,16 @@ public static partial class ZUI
             }
         }
 
-        // Value input field
+        // Value input field. Unity's FloatField supports its OWN drag-to-scrub directly on the number text —
+        // a completely separate interaction path from the track drag above, with its own float accumulation
+        // that Round() on the track-drag path alone does nothing to fix. Round here too, or scrubbing the
+        // field itself is exactly how "0.4" ends up displaying a dozen meaningless decimals.
         if (showInputField && def.valueWidth > 0f)
         {
             EditorGUI.BeginChangeCheck();
             float next = EditorGUI.FloatField(fieldRect, value, def.GetValueStyle(ActiveSheet));
             if (EditorGUI.EndChangeCheck())
-                value = Mathf.Clamp(next, min, max);
+                value = Round(Mathf.Clamp(next, min, max));
         }
 
         if (StyleDebugMode && IsDebugHit(trackRect))
@@ -1554,17 +1582,24 @@ public static partial class ZUI
         return Mathf.InverseLerp(max, min, v);
     }
 
+    // Rounds off float32 mantissa noise a Lerp/InverseLerp round-trip introduces (e.g. dragging to "0.4"
+    // landing on 0.40000000596...) — nobody reads a UI slider to its 6th decimal place, and unrounded noise
+    // is exactly what makes EditorGUI.FloatField show a long trail of meaningless digits once focused. See
+    // EDITOR_TOOL_CONVENTIONS.md's decimals-in-numeric-fields note.
+    const float ValuePrecision = 100000f;   // 5 decimal places
+    static float RoundValue(float v) => Mathf.Round(v * ValuePrecision) / ValuePrecision;
+
     static float SamplePosition(float mouseX, float travelMin, float travelMax, float min, float max)
     {
         float t = Mathf.InverseLerp(travelMin, travelMax, mouseX);
-        return Mathf.Lerp(min, max, Mathf.Clamp01(t));
+        return RoundValue(Mathf.Lerp(min, max, Mathf.Clamp01(t)));
     }
 
     // Vertical: mouseY maps to value. travelTop = max value pixel, travelBottom = min value pixel.
     static float SamplePositionVertical(float mouseY, float travelTop, float travelBottom, float min, float max)
     {
         float t = Mathf.InverseLerp(travelBottom, travelTop, mouseY);
-        return Mathf.Lerp(min, max, Mathf.Clamp01(t));
+        return RoundValue(Mathf.Lerp(min, max, Mathf.Clamp01(t)));
     }
 
     // For horizontal sliders: height is derived from thumbHeight / trackHeight.

@@ -253,6 +253,7 @@ namespace Laubrary.Zoetrope.Editor
                     Color32 c = (sx >= 0 && sx < texW && sy >= 0 && sy < texH) ? sheet[sy * texW + sx] : default;
                     src[y * cw + x] = key.IsBackground(c) ? new Color32(0, 0, 0, 0) : c;
                 }
+            if (key.enabled) src = ErodeKeyFringe(src, cw, ch);
 
             if (t.IsIdentity) { outW = cw; outH = ch; pivotOut = pivotIn; return src; }
 
@@ -298,6 +299,51 @@ namespace Laubrary.Zoetrope.Editor
             Vector2 pf = Fwd(pu, pv);
             pivotOut = new Vector2((pf.x - minX) / outW, (pf.y - minY) / outH);
             return outPx;
+        }
+
+        /// <summary>
+        /// Softens the 1-pixel-wide contaminated ring a hard colour-key cutoff leaves on anti-aliased source
+        /// art: most ripped sheets have a rim of pixels around every sprite that are a genuine RGB blend of
+        /// the sprite and the background colour, not a clean match to either — a hard key leaves them fully
+        /// opaque and visibly tinted toward the background (the reported "bright outline"). Rather than trying
+        /// to colour-correct that blend (which needs the true foreground colour and breaks down badly on
+        /// high-contrast art — a saturated colour blended even slightly toward white already reads as very
+        /// far from either endpoint), this fades the ring's ALPHA out proportionally to how close each pixel
+        /// sits to a background pixel (Chebyshev distance, radius 1) — a purely spatial fix, independent of
+        /// the sheet's actual colours, so it works the same regardless of contrast. A pixel exactly adjacent
+        /// to background drops to ~1/3 alpha; the next ring in is untouched. Genuine interior content (no
+        /// background neighbour within radius) is never touched.
+        /// </summary>
+        private static Color32[] ErodeKeyFringe(Color32[] px, int w, int h)
+        {
+            const int radius = 1;
+            var result = (Color32[])px.Clone();
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    int i = y * w + x;
+                    if (px[i].a == 0) continue; // already background — nothing to fade
+
+                    int minD = int.MaxValue;
+                    for (int dy = -radius; dy <= radius; dy++)
+                        for (int dx = -radius; dx <= radius; dx++)
+                        {
+                            if (dx == 0 && dy == 0) continue;
+                            int nx = x + dx, ny = y + dy;
+                            if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                            if (px[ny * w + nx].a == 0)
+                            {
+                                int d = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy));
+                                if (d < minD) minD = d;
+                            }
+                        }
+                    if (minD == int.MaxValue) continue; // no background within radius — untouched interior
+
+                    float t = (float)minD / (radius + 1); // in (0, 1) since 1 <= minD <= radius
+                    var c = px[i];
+                    result[i] = new Color32(c.r, c.g, c.b, (byte)Mathf.RoundToInt(c.a * t));
+                }
+            return result;
         }
 
         private static Color32 SampleNearest(Color32[] px, int w, int h, float fx, float fy)

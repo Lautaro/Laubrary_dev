@@ -7,7 +7,280 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Pyre: wider rollout of the 2D drag-pad control to X/Y field pairs across shapes and modifiers.** The
+  "Position" 2D control was originally added as a prototype ("tried here first... before any wider rollout").
+  Full sweep of every shape/modifier param now converts the genuine X/Y spatial pairs still using two separate
+  sliders: `TurbulenceModifier.offsetX/Y`, `VoronoiCrackModifier.driftX/Y`, and `Layer.positionX/Y`'s second,
+  forgotten call site in the NoiseField shape branch (which returns early before reaching the already-converted
+  shared "Position" control, so it had its own un-converted copy of the same field) all now use
+  `ZUIValue2DControl.Draw`. Three more pairs — `RotateModifier.pivotX/Y`, `AlphaMaskModifier.offsetX/Y`,
+  `DropShadowModifier.offsetX/Y` — are plain `float` fields, not `ZUIValue` (not animatable); `ZUIValue2DControl`
+  can't take them directly, and promoting the field TYPE to make them animatable would be a real data-model
+  change risking existing saved BlastSpec assets, well beyond a UI swap nobody asked for. These use
+  `ZUI.PositionPad` instead (works on plain `Vector2`, already built this session for the same reason).
+  Explicitly NOT converted: `ScaleModifier.vertical/horizontal/both` (mutually exclusive via a radio toggle —
+  never two axes live at once, so a simultaneous-XY drag-pad doesn't fit the actual UX) and `BlastSpec.origin`
+  (a genuine 2D quantity, but a blast-level field outside "shape/modifier params," and a plain `Vector2` rather
+  than two separate fields — a candidate for a future pass, not this one).
+- **Zoe Preview's Asset/Clip/Attach un-split back to one row, and Asset's cap raised.** Two follow-ups after
+  the `labelWidth` fix below: (1) the earlier split of Asset onto its own row was a wrong call — it was
+  working around the `labelWidth` bug, not a real space shortage, and the original ask was one row. (2) Asset's
+  width cap was tightened to 300 "to protect Clip/Attach" even though the row ends in `FlexibleSpace()` with
+  nothing actually contending for that space — raised to 500. `ZUI.FitWidth`'s icon/button slack also bumped
+  24→34px; it was still clipping the last character or two of an ObjectField's text even when the [min,max]
+  clamp wasn't the binding constraint. Verified against the real `PlayerZoe_draft` asset: displayed text needs
+  ~244px, comfortably under the new 500px cap.
+- **The real reason Pyre's compact right-pane fields (Asset/Clip/Attach in "Zoe Preview", "Colour" in
+  "Preview backdrop") kept truncating despite `ZUI.FitWidth` sizing them correctly**: `EditorGUIUtility.
+  labelWidth` is a GLOBAL Unity setting. `PyreWindow` sets it to `112f` once, for the LEFT panel's long dial
+  labels ("Taper (centre↔edge)"), and that value silently persists into the right pane too — every labelled
+  field there reserved 112px just for its label (a 5-character word needs ~35px), eating most of whatever
+  total width `FitWidth` had carefully computed, regardless of how correct that computation was. New
+  `ZUI.NarrowLabel(label)` scope temporarily sets `labelWidth` to match the label's own actual text width
+  (restoring the ambient value on dispose) — wrap any `FitWidth`-sized or otherwise deliberately compact
+  labelled field in it. Applied to Zoe Preview's Asset/Clip/Attach and backdrop's Colour field; the backdrop's
+  own Tint field and Test Background's per-sprite Tint switched to the `GUIContent.none` + separate stacked
+  `Label` pattern instead (sidesteps the ambient value entirely, no scope needed). Verified numerically:
+  available content width for the Asset field went from 126px (broken — label ate 112 of FitWidth's 238)
+  to 198px (correct), with the ambient value confirmed restored after the scope closes. See
+  `EDITOR_TOOL_CONVENTIONS.md`'s new note on this.
+
 ### Added
+- **`ZUI.PaddedArea()`** (`ZUIPaddedArea.cs`) — insets a whole content block (e.g. a window pane) from its
+  container's edge on all four sides, distinct from `ZUI.HorizontalSpace()`/`VerticalSpace()` which space
+  controls apart from EACH OTHER rather than from the outer boundary. Backed by a new sheet field,
+  `ZUIStyleSheetAsset.contentPadding` (wired into the Style Editor's Layout tab, next to the existing
+  Vertical/Horizontal spacing sliders) — a user-adjustable value, not a hardcoded pixel number. Pyre's right
+  pane (the preview viewport + all its settings sections) is the first adopter: `using (ZUI.PaddedArea())
+  DrawPreview();` around the existing call, so its controls no longer start flush against the window edge.
+
+### Fixed
+- **Pyre's "Zoe Preview" Attach id field rendered garbled/overlapping controls, including the unrelated Asset
+  field above it.** Root cause: Attach id conditionally drew either a `Popup` or a `TextField` depending on
+  whether a dropdown option list was available — and that list was computed from the Clip text field's value
+  read fresh THIS SAME FRAME (changes on every keystroke while typing). Unity's IMGUI matches Layout and
+  Repaint passes by call order; a genuinely different SEQUENCE of GUI calls between the two passes (not just a
+  different value) corrupts rect/control-ID matching for the rest of the draw call, not just that one row.
+  Fixed: Attach id is now ALWAYS a plain `TextField` (stable structure every frame); when options are
+  available it also shows a small "▾" button opening a `GenericMenu` (a modal overlay outside the
+  Layout/Repaint-matched hierarchy) instead of swapping the field itself for a different control type. The
+  option list now reads the STORED `spec.previewSubjectClip`/`previewSubjectAsset`, not the live text-field
+  return value, so its presence/absence is stable within one frame even while typing. See
+  `EDITOR_TOOL_CONVENTIONS.md`'s new "Never let a live-edited value decide which control type gets drawn".
+- **`ZUI.Slider`/`MicroSlider` numeric input fields could show a long trail of meaningless decimals** (e.g.
+  "Speed" landing on `0.40000000596...` instead of `0.4`) — a `Mathf.Lerp`/`InverseLerp` round-trip through
+  normalized 0–1 space accumulates float32 mantissa noise, and `EditorGUI.FloatField` reveals it in full once
+  focused. First pass only rounded the TRACK-drag path (`SamplePosition`/`SamplePositionVertical`, via new
+  `RoundValue`); the bug persisted because `EditorGUI.FloatField`'s number text supports its OWN drag-to-scrub,
+  a completely separate interaction path with its own float accumulation that the track fix did nothing for.
+  `DrawMicroSlider` now rounds both paths. Verified via the round-trip (`"R"`) format, which shows the full
+  precision needed to exactly reconstruct a float (i.e. would expose any hidden noise) — prints a clean `0.4`.
+
+### Added
+- **`ZUI.MicroSlider(value, min, max, label, decimals, ...)`** — an overload taking an explicit `int decimals`
+  for values whose PRACTICAL precision is genuinely coarser than float-noise cleanup alone justifies (a
+  playback speed multiplier has no use beyond 1 decimal even though 5dp noise-cleanup is technically "clean").
+  Quantizes every interaction path (track drag and field scrub/type) to exactly that many decimals. A separate
+  overload rather than a new parameter on the existing one, because that one ends in
+  `params GUILayoutOption[] options` and at least one existing caller passes `options` positionally —
+  inserting a parameter before it would have silently broken that call. Pyre's preview Speed slider is the
+  first adopter (`decimals: 1`).
+- **`ZUI.FitWidth(label, value, min, max)`** (`ZUIFields.cs`) — measures how wide a labelled field actually
+  needs to be to show its CURRENT content without truncating (via `GUIStyle.CalcSize`), clamped to a sane
+  range. The fix for "no infinite-width controls" is a fixed pixel cap regardless of content, which truncates
+  the moment a value is longer than whoever picked that number expected (an asset name, a typed clip name, a
+  dropdown selection). This grows/shrinks with whatever the field currently shows instead. Pyre's "Zoe
+  Preview" panel (formerly "Live preview subject") adopts it: `Asset` (long, variable-length names) now gets
+  its own row instead of being force-fit alongside the others; `Clip`/`Attach id` (normally short) share a
+  second row, each still sized to their own current content rather than one blind shared cap. `Attach id` is
+  a dropdown of the selected Zoe/clip's actual MetaLayer names when the (new, optional)
+  `PyrePreviewSubjectProvider.GetAttachPointOptions` bridge hook can enumerate them, falling back to free text
+  otherwise — verified against real project data, resolves to `["Muzzle"]` for `PlayerZoe_draft`/`"Shot"`.
+  Also: "Preview backdrop"'s compact combo grew ~20% (56px → 68px) — the panel had the room to spare, and
+  three sliders sharing the retimed/zoom/speed row now get real gaps (`ZUI.HorizontalSpace()`) between each
+  pair instead of one `FlexibleSpace()` dumped at the row's end.
+- **Pyre preview panel, second compaction pass.** "Preview backdrop"'s Mode selector is now an exact-height
+  hand-built vertical radio stack (`PyreWindow.DrawModeRadio`, using the Rect-based `ZUI.Toggle` overload —
+  `ZUI.MiniRadioVertical` auto-measures its own height from label text and can't be forced to match another
+  control's size) so it lines up pixel-for-pixel beside the image picker/position-pad combo. Zoom dropped its
+  separate numeric input field (shows "Zoom: 1.88" inline in the bar instead); Tint's label now sits on its
+  own line above the swatch instead of Unity's default label-left/swatch-right, so the swatch keeps a usable
+  width in the narrow stacked column. `ZUI.HorizontalSpace()` now separates every column in the row (radio |
+  picker | position pad | zoom+tint) — the sheet-configurable gap (Style Editor → "H Control Gap"), not a bare
+  `GUILayout.Space`. Test Background sprites got the same combo treatment. "Live preview subject" renamed to
+  **"Zoe Preview"** (Zoetrope is currently the only registered bridge; the underlying fields/interface stay
+  fully generic) and its three fields (Asset/Clip/Attach) now share one row.
+- **Attach id is now a dropdown of real MetaLayer names when the bridge can enumerate them**, instead of a
+  free-text field the user had to get exactly right by memory. New
+  `PyrePreviewSubjectProvider.GetAttachPointOptions: Func<Object, string, string[]>` — optional, bridge-
+  supplied, falls back to free text when null/empty (an unresolved asset, no clip yet, or a bridge that
+  doesn't support enumeration). `Pyre.Zoetrope.Editor` is the first implementation: returns the selected
+  clip's `AnimationDef.metaLayers[].id` list. Verified against real project data: resolves to `["Muzzle"]` for
+  `PlayerZoe_draft`/`"Shot"`, matching the actually-painted MetaLayer.
+- **`ZUI.PositionPad`** (`Zui/Scripts/Editor/ZUIPositionPad.cs`) — a small, compact 2D drag-pad for a plain
+  `Vector2` setting (screen/pixel-space offsets, UV nudges — anything that isn't an animatable per-frame
+  value). `ZUIValue2DControl` already solves "drag to aim a position" for the animatable `ZUIValue` pair case;
+  this is the lightweight cousin for a single static setting that just needs "drag a dot in a box." Has a
+  `flipY` option (default true = "drag up increases Y", the natural feel for a fresh value with no prior
+  convention; pass `false` to match an existing screen-Y-down convention some other control already reads the
+  same field with).
+- **Pyre's "Preview backdrop" and "Test background (sprites)" sections redesigned for compactness** — the
+  Image mode's big ~140px preview swatch plus three separate infinite-width rows (Image/Tint/Zoom) is now one
+  row: a 56px picker thumbnail + a `ZUI.PositionPad` (both naturally square, side by side) with Zoom
+  (`ZUI.MicroSlider`, Zounds-style label+value-on-the-bar) and Tint stacked beside them. `Mode` is now a
+  vertical `MiniRadioVertical` beside its own content instead of a dropdown above it, sized to match the combo's
+  height so the two read as one unit. Each Test Background sprite entry got the same combo treatment (picker +
+  position pad + Scale/Tint), replacing its own three stacked full-width rows — `position` there is wired with
+  `flipY: false` to match `PreviewStageGUI`'s pre-existing screen-Y-down convention for direct viewport
+  dragging, so the compact pad and dragging the sprite directly in the preview never disagree about which way
+  is "up". New `BlastSpec.previewBgImagePos` field backs the backdrop image's own position. The preview's
+  transport row (Frame count/Zoom/Speed) collapsed from three full-width slider rows into one compact row of
+  `MicroSlider`s. See `EDITOR_TOOL_CONVENTIONS.md`'s new "No infinite-width controls" section for the general
+  rule this follows (rough width targets: ~150px slider, ~130px colour field, ~110px short text field).
+- **`Laubrary.Caching.AssetCacheInvalidation`** — a general, opt-in "this authored asset just changed, drop
+  any cached data derived from it" bus for runtime systems that cache something DERIVED from a
+  ScriptableObject asset (rendered frames, a baked mesh, whatever). A new `Laubrary.Caching.Editor` bridge
+  (`AssetCacheInvalidationBridge`) watches Unity's own `ObjectChangeEvents` — the same signal the Editor uses
+  internally, so it fires regardless of which tool made the edit (a custom ZUI window, the plain Inspector, an
+  Undo/Redo) — and forwards asset property changes into the bus automatically. No individual editor tool needs
+  to call `Invalidate()` at its own edit sites; a Runtime cache just subscribes once and checks the asset's
+  type/identity itself. First preference, not a hard rule: an asset type that wants a frozen/snapshot cache
+  simply never subscribes. `BlastPlayer`'s per-spec frame cache is the first subscriber — editing a `BlastSpec`
+  anywhere (Pyre's window, the Inspector, mid-Play-Mode) now drops its cached frames automatically, so the next
+  play re-renders with the edited data instead of showing stale frames until a domain reload. Verified
+  end-to-end: edited a live `BlastSpec`'s `seed` the same way Pyre's own UI does (`Undo.RecordObject` + field
+  write + `EditorUtility.SetDirty`), and the next `BlastPlayer.GetFrames` call returned genuinely regenerated
+  Sprite instances (different instance IDs), not the stale cached array.
+- **Chunks can now fling animated content, not just static/procedural sprites.** A new `IChunkAnimation`
+  interface (frames + fps + loop) lets a `ChunkSpec` play any animated asset per chunk instead of a plain
+  tinted sprite — e.g. fireballs shot in a line from a jet engine, or a Pyre blast reused as flung debris.
+  Chunks itself stays a standalone, zero-dependency package: Pyre and Zoetrope each ship their own adapter
+  (`BlastSpecChunkAnimation`, `ZoeAnimationChunkAdapter`) that implements the interface and references Chunks,
+  not the other way around. `Chunk`'s existing size/alpha/color-over-life curves apply on top unchanged, so a
+  spec can shrink/fade a flung fireball instance without Pyre needing to bake that in.
+  Also new: **`Laubrary.PreviewKit.IVisualPreview`**, a small Runtime interface (render a preview texture +
+  optionally animate it) any pickable visual asset type can implement — generalizes the
+  `RenderThumbnail`/`AnimateThumbnails` pattern `LaubraryAssetWindow<T>` subclasses (Pyre, etc.) already had
+  per-window, so a picker outside that asset's own tool can show a live preview too. Both new Chunk animation
+  adapters implement it. Chunks gained its first Editor code (`Editor/Chunks/`): a `ChunkSpec` custom
+  inspector shows a live preview of the chosen `animationSource` and, when the concrete adapter type has
+  registered one via `ChunkAnimationEditors` (mirrors Pyre's own `IPyrePreviewSubject` provider-seam pattern),
+  an "Edit…" button that jumps straight into that asset's real authoring tool (Pyre / the Animation Builder).
+  Not yet done: `ZUI.LabeledObjectPicker` (named in the ZUI reference docs as the intended long-term home for
+  this kind of preview+picker) doesn't exist yet in this codebase — the new `ChunkSpecEditor` draws its own
+  preview block with plain `EditorGUILayout` instead (consistent with the documented CustomEditor/no-sheet
+  rule); retrofitting `BlastSpec`/`ZoeVersion`/`LazorShape`'s own existing browsers onto `IVisualPreview` is
+  deferred too, since nothing today required it.
+- **`ZonedAnimationPlayer.PlayAndCaptureMetaPoint(clip, metaLayerId, out worldPos)`** — starts a clip as a
+  one-shot and captures a named MetaLayer's point at that exact instant, in one call. This is now the single
+  shared definition of "trigger an effect at a point on this animation, captured once when the action
+  starts" (a muzzle flash, a footstep dust cloud) — both gameplay code and the `Pyre.Zoetrope.Editor` preview
+  bridge call it instead of each separately calling `Play` then `TryGetMetaPoint`, so the two can never
+  quietly drift out of alignment with each other again.
+- **Pyre: a live, animated preview subject.** A BlastSpec can now reference any asset in a new "Subject
+  asset" field (Pyre's own preview panel — a plain `Object` field, zero dependency on what it holds) plus a
+  clip name and an "attach point id"; Pyre plays it behind the blast and auto-offsets the blast's own origin
+  marker to track a named point on it every frame, restarting together each time the preview loops. Pyre
+  core has zero knowledge of what resolves the asset — `IPyrePreviewSubject`/`PyrePreviewSubjectProvider` is
+  the seam (same pattern as `ICharacterView`/`ICombatFx` in Bestiarium). The new **`Pyre.Zoetrope.Editor`**
+  bridge is the first (only, so far) implementation: drag in a `ZoeVersion`, name a clip, name a MetaLayer
+  id (e.g. "Muzzle") — the character's real clip plays via a hidden, editor-only `ZonedAnimationPlayer` (the
+  same runtime component the game uses, not a reimplementation — "preview == runtime" for the subject too,
+  matching Pyre's own BlastRenderer guarantee). The attach point is captured ONCE at the moment the clip
+  (re)starts, not re-sampled every repaint — matching how the real game reads it once at the instant of
+  firing. An earlier draft of this feature re-sampled continuously, which read as empty on every frame
+  except the one actually painted (a MetaLayer typically has data on only one frame) and made the blast's
+  origin visibly snap between "aligned" and "centred" as the clip played. Generic by construction: nothing
+  references a specific asset, clip, or layer name anywhere in the mechanism — it works for any
+  BlastSpec/ZoeVersion/clip/MetaLayer combination.
+
+### Added
+- **`Laubrary.PreviewKit.Editor.LiveScenePreview`** — a generic, Pyre-agnostic utility any IMGUI editor window
+  can use to preview real gameplay objects with a structural guarantee they render exactly as they would
+  in-game, instead of hand-reimplementing pivot/scale/flip math (which can only ever approximate the real
+  rendering and silently drifts the moment a real component's own behavior changes). Wraps
+  `UnityEditor.PreviewRenderUtility` — the same isolated-scene-plus-camera primitive behind Unity's own
+  material/prefab preview thumbnails — with a small API: `Spawn`/`Adopt` a real GameObject (add whatever real
+  components gameplay uses — a `SpriteRenderer`, a `ZonedAnimationPlayer`, ...) into an isolated scene,
+  `Frame(worldCenter, worldHeight)` to point an orthographic camera at it (mirroring a real 2D gameplay
+  camera's own `orthographicSize` convention), `Draw(rect)` to render and blit into IMGUI with a transparent
+  background that composites over whatever the caller already drew. `Camera` is exposed read-only so callers
+  can `WorldToScreenPoint` other world positions into the same projection for perfectly consistent alignment.
+- **Pyre's live preview subject now renders through `LiveScenePreview`** instead of hand-drawn IMGUI. Because
+  `ZonedAnimationPlayer` already drives a real `SpriteRenderer` every `Tick` (pivot, `pixelsPerUnit`, `flipX`
+  — all of it), the `Pyre.Zoetrope.Editor` bridge's preview subject now has no custom drawing code left at
+  all: it spawns its existing hidden GameObject into the shared `LiveScenePreview` and lets the isolated
+  camera render it. `IPyrePreviewSubject`'s contract changed from `Draw(originPx, zoom)` +
+  `TryGetAttachOffsetPx` (an IMGUI pixel-offset convention) to `SpawnInto(LiveScenePreview, worldPosition)` +
+  `TryGetAttachWorldPos` (plain world space) to match. The blast's own origin-marker alignment now reads the
+  attach point back via the SAME camera's own `WorldToScreenPoint` rather than a second, hand-matched
+  screen-space formula, so size and alignment structurally cannot drift apart from each other or from
+  gameplay again. The blast's own canvas still renders as canvas-pixels × zoom on purpose (pixel-perfect
+  WYSIWYG — the origin handle, MetaBlob, Smudge and PinWarp tools all depend on that 1:1 mapping) but is now
+  scale-matched to the subject via `zoom * blast.pixelsPerUnit` as the shared screen-pixels-per-world-unit
+  conversion, so tuning either asset's `pixelsPerUnit` correctly resizes the subject relative to the blast in
+  the preview, matching how their relative on-screen size actually changes in gameplay — previously the
+  preview was invariant to `pixelsPerUnit` entirely. Verified end-to-end with a live `MuzzleFlash`/`PlayerZoe`
+  pair: `TryGetAttachWorldPos` returned the real captured muzzle point, `Camera.WorldToScreenPoint` placed it
+  correctly offset from centre in the rendered frame, and a pixel readback confirmed non-transparent sprite
+  content actually reached the render target (not a blank/failed render).
+  **Follow-up fix:** the blast's own origin-marker offset went invisible (rendered far outside the viewport)
+  because `Camera.WorldToScreenPoint` returns coordinates in the render TEXTURE's own pixel space —
+  `PreviewRenderUtility` renders at retina/HiDPI resolution (`camera.pixelWidth/Height`), not the GUI-point
+  space the rest of the window's Rects are expressed in. Fixed by scaling the projected point down by the
+  actual ratio between the two before combining it with any other screen Rect.
+- **`ZUI.HelpIcon(string tooltip)`** (`ZUIFields.cs`) — a small "?" glyph that shows explanatory text as a
+  native hover tooltip. New standing convention (see `EDITOR_TOOL_CONVENTIONS.md`): box/section titles and
+  field labels stay short and literal; anything explaining *why* or *how* a control works goes in a
+  `HelpIcon` tooltip instead of printed into the UI itself. Pyre's "Preview backdrop"/"Live preview subject"
+  boxes are the first adopters (previously titled `"... (not baked)"`, which was exactly this problem).
+
+### Fixed
+- **Zoe Browser: "New animation" could silently overwrite an existing animation of the same name.**
+  `_newAnimName` never cleared after a successful create, so a stray second click (or a value left over from
+  renaming/inspecting a different animation) would call `CreateEmptyAnimation` → `SaveAnimationToDraft` with
+  a name that matched something real — which replaces in place, discarding its frames/recipe/meta-layers with
+  zero warning. Real data loss hit in practice. Now: the field clears itself after a successful create, and a
+  name collision with an existing animation prompts a confirmation dialog first (matching the project's own
+  convention of confirming before an edit Undo can't reliably cover).
+
+### Added
+- **`ZonedZoeView`** (`Bestiarium.Zoetrope`) — a second `ICharacterView` alongside `ZoeView`, backed by
+  `ZonedAnimationPlayer` instead of the simpler `ZoePlayer`. For characters that need a one-shot clip to
+  auto-hold on its last frame (`Play(clip, loop: false)` — no zone authoring needed, that's already
+  `ZonedAnimationPlayer`'s plain-clip behavior) and/or `TryGetMetaPoint` to read a named MetaLayer's painted
+  point each frame (a muzzle exit point, a blade position, ...).
+
+### Fixed
+- **Zoetrope: colour-key background removal left a bright, tinted fringe around sprites on anti-aliased
+  source sheets** — `RegionSlicer.ColorKey`'s hard per-channel-distance cutoff either left the 1px blend
+  ring most ripped sheets have (a genuine RGB mix of sprite and background colour) fully opaque and visibly
+  tinted toward the key colour (tolerance too low), or, raising tolerance to hide it, ate into genuine edge
+  detail too (tolerance too high) — an unavoidable tradeoff of a binary in/out test. `AtlasBaker.TransformCell`
+  now runs a new `ErodeKeyFringe` pass after keying: pixels still opaque but spatially adjacent (Chebyshev,
+  radius 1) to a newly-transparent pixel get their alpha faded proportionally instead of staying fully
+  opaque — a purely spatial fix, so unlike an RGB-distance-based decontamination attempt (tried first, then
+  dropped — it degenerates badly on high-contrast art, since even a slight blend toward the key colour on a
+  saturated foreground already reads as "far" from the key by distance) it works the same regardless of the
+  sheet's actual palette. Verified with a synthetic red-on-white test sheet: the 40 pixels that were fully
+  opaque while touching background all now fade to partial alpha; sprite interior and far background pixels
+  are untouched.
+
+### Added
+- **Editor bridges for Bestiarium's optional presentation modules** (`Bestiarium.Zoetrope.Editor`,
+  `Bestiarium.Pyre.Editor`) — the runtime bridges (`ZoeView`, `PyreChunksFx`) already hard-reference concrete
+  Zoetrope/Pyre/Chunks types; these add the matching EDITOR-side coupling so a Bestiarium recipe's look/effects
+  are actually reachable from where they're authored, not just inert object references. A `[CustomPropertyDrawer]`
+  on `ZoeView` adds an "Open in Animation Builder" button next to its `version` field — resolves the owning `Zoe`
+  by folder convention (a `ZoeVersion` carries no back-reference to it) via `ZoeRepo.EnumerateZoes()`, since
+  without this a selected `ZoeVersion` only ever lands on its bare, useless default ScriptableObject inspector.
+  A matching drawer on `PyreChunksFx` adds a "Preview in Pyre" button. `PyreWindow` gains a small
+  `public static OpenFor(BlastSpec)` (mirroring the existing parameterless `Open()`) as the entry point these
+  drawers — or any future caller — use to jump straight into editing/previewing a specific blast, since the
+  base `LaubraryAssetWindow<T>.SetAsset` is protected and wasn't otherwise reachable from outside the window
+  class. `Bestiarium.Editor` core itself is untouched — the drawers are purely additive, matching the existing
+  optional-bridge pattern rather than adding a hard dependency to the core recipe editor.
 - **`VoronoiCrackModifier` gains a Spread mode** — instead of every seam tinting at once (still the default,
   `Uniform`), the crack reveal can now sweep spatially: `Centre out` (cracks nearest the shape's own centre
   light up first, spreading outward), `Edge in` (nearest the outer edge first, spreading inward), or `Both`

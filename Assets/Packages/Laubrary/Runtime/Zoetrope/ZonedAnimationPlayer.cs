@@ -85,6 +85,24 @@ namespace Laubrary.Zoetrope
                 if (a != null && !string.IsNullOrEmpty(a.name)) _byName[a.name] = a;
         }
 
+        /// <summary>
+        /// Starts <paramref name="clip"/> as a one-shot (<c>loop: false</c>) and captures a named MetaLayer's
+        /// point at that exact instant — the shared definition of "trigger an effect at a point on this
+        /// animation, captured once when the action starts" (a muzzle flash, a footstep dust cloud). Gameplay
+        /// code and Pyre's own live preview (see the <c>Pyre.Zoetrope.Editor</c> bridge) both call THIS method
+        /// rather than each separately calling <see cref="Play"/> then <see cref="TryGetMetaPoint"/> — so the
+        /// two can never drift out of alignment with each other; whatever this does IS "where/when that point
+        /// is," for both. Capturing once matters: re-sampling the point every frame instead reads as jumping
+        /// between "aligned" and "not found" as the clip's later frames — which usually don't carry the same
+        /// painted data — play out. Returns false (and leaves <paramref name="capturedWorldPos"/> at its
+        /// default) if the clip is unknown or the layer has no painted point on the frame the clip starts on.
+        /// </summary>
+        public bool PlayAndCaptureMetaPoint(string clip, string metaLayerId, out Vector3 capturedWorldPos)
+        {
+            Play(clip, loop: false);
+            return TryGetMetaPoint(metaLayerId, out capturedWorldPos, out _);
+        }
+
         // ── verbs ────────────────────────────────────────────────────────────
         /// <summary>Start an animation from its beginning. Zoned strips begin at zone 0 and traverse; plain
         /// clips loop (or play once when <paramref name="loop"/> is false). Returns false if the name is unknown.</summary>

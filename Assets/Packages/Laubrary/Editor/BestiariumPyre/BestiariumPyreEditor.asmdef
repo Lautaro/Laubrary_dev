@@ -1,0 +1,23 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Bestiarium.Pyre.Editor",
+    "rootNamespace": "Laubrary.BestiariumPyre.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Bestiarium.Pyre",
+        "com.Lautaro-Arino.Laubrary.Pyre",
+        "com.Lautaro-Arino.Laubrary.Pyre.Editor",
+        "com.Lautaro-Arino.Laubrary.Chunks",
+        "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
+        "ZUI.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

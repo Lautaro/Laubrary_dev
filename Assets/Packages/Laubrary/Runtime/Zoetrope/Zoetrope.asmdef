@@ -1,7 +1,10 @@
 {
     "name": "com.Lautaro-Arino.Laubrary.Zoetrope",
     "rootNamespace": "Laubrary.Zoetrope",
-    "references": [],
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Chunks",
+        "com.Lautaro-Arino.Laubrary.PreviewKit"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

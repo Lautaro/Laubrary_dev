@@ -90,6 +90,68 @@ public static partial class ZUI
     public static void InfoBox(string text) => EditorGUILayout.HelpBox(text, MessageType.Info);
     public static void NoteBox(string text) => EditorGUILayout.HelpBox(text, MessageType.None);
 
+    static GUIStyle _helpIconStyle;
+
+    /// <summary>
+    /// A small "(?)" glyph that shows <paramref name="tooltip"/> as a native hover tooltip — the standing
+    /// convention for explaining what a control DOES or WHY it exists (baked vs. live, a non-obvious unit, a
+    /// gotcha) without printing that explanation into the UI itself. Box/section titles and field labels
+    /// should stay short and literal; put the "why"/"how it works" text here instead. Place it right after a
+    /// box title or field label via <c>ZUI.HRow</c>/inline GUILayout, e.g.
+    /// <c>using (ZUI.HRow()) { GUILayout.Label("Live preview subject"); ZUI.HelpIcon("..."); }</c>.
+    /// </summary>
+    public static void HelpIcon(string tooltip)
+    {
+        _helpIconStyle ??= new GUIStyle(EditorStyles.miniLabel)
+        {
+            normal = { textColor = new Color(0.6f, 0.6f, 0.6f) },
+            alignment = TextAnchor.MiddleCenter,
+        };
+        GUILayout.Label(new GUIContent("ⓘ", tooltip), _helpIconStyle, GUILayout.Width(14f));
+    }
+
+    /// <summary>
+    /// Measures how wide a labelled field (a prefix label + its current text content — an asset name, a typed
+    /// string, a dropdown's current selection) actually needs to be to show that content without truncating,
+    /// clamped to [min, max]. The fix for "no infinite-width controls" (see EDITOR_TOOL_CONVENTIONS.md)
+    /// tightening a field down to a fixed pixel width regardless of its ACTUAL content — a short value gets
+    /// wasted space, a long one gets truncated. This grows/shrinks with whatever the field currently shows.
+    /// </summary>
+    public static float FitWidth(string label, string value, float min = 60f, float max = 320f)
+    {
+        float labelW = string.IsNullOrEmpty(label) ? 0f : EditorStyles.label.CalcSize(new GUIContent(label)).x + 6f;
+        float valueW = EditorStyles.textField.CalcSize(new GUIContent(value ?? "")).x;
+        // +34: icon/dropdown-arrow/select-button slack, generous enough that an ObjectField's actual icon +
+        // circle-select-button never eats into the measured text (a too-tight slack here was still clipping
+        // the last character or two even when the [min,max] clamp wasn't the binding constraint).
+        return Mathf.Clamp(labelW + valueW + 34f, min, max);
+    }
+
+    /// <summary>
+    /// `EditorGUIUtility.labelWidth` is a GLOBAL, ambient Unity setting — a window that sets it once for its
+    /// own long labels (e.g. `EditorGUIUtility.labelWidth = 112f;` for "Taper (centre↔edge)") leaks that same
+    /// reservation onto EVERY other labelled field drawn afterward in the same OnGUI call, including compact
+    /// ones sized via <see cref="FitWidth"/> — which assumes the label consumes roughly ITS OWN text width,
+    /// not whatever the ambient value happens to be. The result: a field's total requested width gets split
+    /// as "[ambient labelWidth] + [whatever's left]" instead of "[actual label width] + [content]", and the
+    /// content portion can end up far narrower than FitWidth intended — exactly the kind of truncation this
+    /// was supposed to prevent. Wrap any FitWidth-sized (or otherwise deliberately compact) labelled field in
+    /// this scope so Unity's own label reservation matches what was actually measured:
+    /// <c>using (ZUI.NarrowLabel("Asset")) EditorGUILayout.ObjectField("Asset", ..., GUILayout.Width(ZUI.FitWidth("Asset", ...)));</c>
+    /// </summary>
+    public static NarrowLabelScope NarrowLabel(string label, float extraPad = 6f) => new NarrowLabelScope(label, extraPad);
+
+    public struct NarrowLabelScope : IDisposable
+    {
+        readonly float prev;
+        public NarrowLabelScope(string label, float extraPad)
+        {
+            prev = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = string.IsNullOrEmpty(label) ? 0f : EditorStyles.label.CalcSize(new GUIContent(label)).x + extraPad;
+        }
+        public void Dispose() => EditorGUIUtility.labelWidth = prev;
+    }
+
     // ── Scroll view (scope) ──────────────────────────────────────────────────────
     /// <summary>A scrollable region: <c>using (ZUI.ScrollView(ref scroll)) { … }</c>. The ref is updated in place
     /// so you keep your own persisted scroll Vector2.</summary>

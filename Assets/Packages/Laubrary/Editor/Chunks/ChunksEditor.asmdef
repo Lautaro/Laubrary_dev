@@ -1,0 +1,19 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Chunks.Editor",
+    "rootNamespace": "Laubrary.Chunks.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Chunks",
+        "com.Lautaro-Arino.Laubrary.PreviewKit"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

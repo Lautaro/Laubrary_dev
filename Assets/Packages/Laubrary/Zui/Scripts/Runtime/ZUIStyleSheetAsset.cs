@@ -151,6 +151,15 @@ public class ZUIStyleSheetAsset : ScriptableObject
     public float horizontalSpacing = 8f;
 
     /// <summary>
+    /// Default inset around a whole content area (e.g. a window pane) from its container's edge, on all four
+    /// sides. Distinct from `horizontalSpacing`/`verticalSpacing`, which space controls apart from EACH OTHER
+    /// — this is the gap between the content and the OUTER boundary it's drawn inside. Use via
+    /// ZUI.PaddedArea().
+    /// </summary>
+    [Min(0f)]
+    public float contentPadding = 8f;
+
+    /// <summary>
     /// Named spacing scales. Each is a multiplier applied on top of the base vertical or horizontal
     /// spacing. E.g. scale 0.25 named "EqToolbar" → ZUI.VerticalSpace("EqToolbar") = verticalSpacing × 0.25.
     /// </summary>

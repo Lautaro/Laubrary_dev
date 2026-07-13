@@ -132,8 +132,18 @@ namespace Laubrary.Pyre
         [HideInInspector] public Texture2D previewBgImage;
         [HideInInspector] public Color previewBgImageTint = Color.white;
         [HideInInspector] public float previewBgImageZoom = 1f;
+        [HideInInspector] public Vector2 previewBgImagePos = Vector2.zero;
         [HideInInspector] public bool previewShowFrame = false;
         [HideInInspector] public UnityEngine.Object previewStageBg;
+        // An optional LIVE, animated preview subject (e.g. a Zoetrope character playing a clip) shown behind
+        // the blast, with the blast's own render origin tracked to a named point on it each frame (a muzzle,
+        // a blade tip) — for tuning a blast against the actual context it plays in, not just a static mock.
+        // previewSubjectAsset is typed as a plain Object for the same reason as previewStageBg (Runtime code
+        // can't reference the Editor-only type that resolves it); previewSubjectClip/AttachId are plain
+        // strings matched by name — this is entirely generic, not tied to any specific asset/clip/layer name.
+        [HideInInspector] public UnityEngine.Object previewSubjectAsset;
+        [HideInInspector] public string previewSubjectClip = "";
+        [HideInInspector] public string previewSubjectAttachId = "";
         // UI state (which layer's inspector is open, left-pane scroll, current preview frame) — same "cosmetic,
         // per-asset, survives window close/reopen" reasoning as the preview settings above: authoring an asset
         // tends to mean working a specific layer/spot repeatedly, so losing that setup on every reopen is friction.

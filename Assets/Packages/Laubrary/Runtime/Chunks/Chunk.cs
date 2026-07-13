@@ -6,6 +6,9 @@ namespace Laubrary.Chunks
     /// integrate gravity + air drag, move, spin (or face its travel direction), bounce/settle on an optional floor,
     /// evaluate size / alpha / tint over its normalised life, and destroy itself when its life ends (or shortly
     /// after it settles). The <see cref="ChunkEmitter"/> creates it, adds a SpriteRenderer, and calls <see cref="Init"/>.
+    /// If handed an <see cref="IChunkAnimation"/> it also cycles that animation's frames instead of showing a
+    /// static sprite — the size/alpha/tint-over-life curves still apply on top, so a Pyre fireball instance can
+    /// shrink/fade via the spec exactly like a plain chunk does.
     /// Everything is null-guarded so a half-wired chunk goes inert rather than throwing. Uses scaled Time.deltaTime.
     [DisallowMultipleComponent]
     public class Chunk : MonoBehaviour
@@ -22,11 +25,17 @@ namespace Laubrary.Chunks
         Color baseColor;       // per-chunk tint (palette colour or white), before the gradient/alpha
         bool settled;          // came to rest on the floor
 
+        IChunkAnimation anim;
+        Sprite[] animFrames;
+        float animClock;
+
         const float SettleSpeed = 0.4f;   // below this on the floor, a chunk rests/despawns
         const float FloorEps = 0.0001f;
 
         /// Configure a freshly created chunk. worldSize is the desired on-screen size in world units.
-        public void Init(ChunkSpec spec, Vector2 velocity, float angularVel, float life, float worldSize, Color baseColor)
+        /// animation, if supplied, is cycled instead of the sprite the emitter assigned.
+        public void Init(ChunkSpec spec, Vector2 velocity, float angularVel, float life, float worldSize, Color baseColor,
+                         IChunkAnimation animation = null)
         {
             this.spec = spec;
             this.velocity = velocity;
@@ -37,6 +46,13 @@ namespace Laubrary.Chunks
             this.settled = false;
 
             sr = GetComponent<SpriteRenderer>();
+
+            anim = animation;
+            animFrames = anim?.GetFrames();
+            animClock = 0f;
+            if (animFrames != null && animFrames.Length > 0 && sr != null)
+                sr.sprite = animFrames[0];
+
             float spriteUnit = 1f;
             if (sr != null && sr.sprite != null)
                 spriteUnit = Mathf.Max(sr.sprite.bounds.size.x, sr.sprite.bounds.size.y);
@@ -102,6 +118,18 @@ namespace Laubrary.Chunks
                     spinAngle += angularVel * dt;
                     transform.rotation = Quaternion.Euler(0f, 0f, spinAngle);
                 }
+            }
+
+            if (animFrames != null && animFrames.Length > 0 && sr != null)
+            {
+                animClock += dt * Mathf.Max(0.01f, anim.Fps);
+                int frame = Mathf.FloorToInt(animClock);
+                if (frame >= animFrames.Length)
+                {
+                    if (anim.Loop) { animClock %= animFrames.Length; frame = Mathf.FloorToInt(animClock); }
+                    else frame = animFrames.Length - 1;
+                }
+                sr.sprite = animFrames[frame];
             }
 
             ApplyLook(Mathf.Clamp01(life / maxLife));
