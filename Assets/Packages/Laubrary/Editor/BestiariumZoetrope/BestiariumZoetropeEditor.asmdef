@@ -3,8 +3,8 @@
     "rootNamespace": "Laubrary.BestiariumZoetrope.Editor",
     "references": [
         "com.Lautaro-Arino.Laubrary.Bestiarium.Zoetrope",
-        "com.Lautaro-Arino.Laubrary.Zoetrope",
-        "com.Lautaro-Arino.Laubrary.Zoetrope.Editor",
+        "com.Lautaro-Arino.Laubrary.Launimator",
+        "com.Lautaro-Arino.Laubrary.Launimator.Editor",
         "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
         "ZUI.Editor"
     ],

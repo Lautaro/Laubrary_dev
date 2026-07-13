@@ -1,8 +1,8 @@
 {
-    "name": "com.Lautaro-Arino.Laubrary.Bestiarium.Zoetrope",
-    "rootNamespace": "Laubrary.BestiariumZoetrope",
+    "name": "com.Lautaro-Arino.Laubrary.ReelCombat",
+    "rootNamespace": "Laubrary.ReelCombat",
     "references": [
-        "com.Lautaro-Arino.Laubrary.Bestiarium",
+        "com.Lautaro-Arino.Laubrary.Combat2D",
         "com.Lautaro-Arino.Laubrary.Launimator"
     ],
     "includePlatforms": [],

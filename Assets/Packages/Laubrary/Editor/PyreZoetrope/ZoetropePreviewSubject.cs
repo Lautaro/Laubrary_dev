@@ -3,16 +3,16 @@ using UnityEngine;
 using Laubrary.Pyre;
 using Laubrary.Pyre.Editor;
 using Laubrary.PreviewKit.Editor;
-using Laubrary.Zoetrope;
+using Laubrary.Launimator;
 
 namespace Laubrary.PyreZoetrope.Editor
 {
     /// <summary>
-    /// Registers the Zoetrope-backed <see cref="IPyrePreviewSubject"/> resolver with Pyre — the bridge that
+    /// Registers the Launimator-backed <see cref="IPyrePreviewSubject"/> resolver with Pyre — the bridge that
     /// lets a BlastSpec's "Subject asset" field (a plain Object, set in Pyre's own preview panel) hold a
-    /// <see cref="ZoeVersion"/>, so Pyre can play one of its clips live in its own preview with the blast's
+    /// <see cref="ReelVersion"/>, so Pyre can play one of its clips live in its own preview with the blast's
     /// origin tracking a named MetaLayer point every frame. Neither Pyre core nor the generic panel that sets
-    /// these fields knows Zoetrope exists — only this bridge does, matching the same pattern as
+    /// these fields knows Launimator exists — only this bridge does, matching the same pattern as
     /// Bestiarium.Zoetrope/Bestiarium.Pyre.
     /// </summary>
     [InitializeOnLoad]
@@ -22,16 +22,16 @@ namespace Laubrary.PyreZoetrope.Editor
         {
             PyrePreviewSubjectProvider.Resolve = spec =>
             {
-                var version = spec != null ? spec.previewSubjectAsset as ZoeVersion : null;
+                var version = spec != null ? spec.previewSubjectAsset as ReelVersion : null;
                 return version != null ? new ZoetropePreviewSubject(version, spec.previewSubjectClip, spec.previewSubjectAttachId) : null;
             };
 
-            // Attach ids for a Zoe are its MetaLayer names on the selected clip — the same "id" TryGetMetaPoint
+            // Attach ids for a Reel are its MetaLayer names on the selected clip — the same "id" TryGetMetaPoint
             // looks up by. Lets Pyre's panel show a dropdown of what's actually painted instead of a free-text
             // field the user has to get exactly right by memory.
             PyrePreviewSubjectProvider.GetAttachPointOptions = (asset, clip) =>
             {
-                var version = asset as ZoeVersion;
+                var version = asset as ReelVersion;
                 if (version == null || string.IsNullOrEmpty(clip)) return null;
                 var anim = version.animations?.Find(a => a.name == clip);
                 if (anim?.metaLayers == null || anim.metaLayers.Count == 0) return null;
@@ -69,7 +69,7 @@ namespace Laubrary.PyreZoetrope.Editor
         bool hasCapturedOffset;
         Vector3 capturedLocalOffset;
 
-        public ZoetropePreviewSubject(ZoeVersion version, string clip, string attachId)
+        public ZoetropePreviewSubject(ReelVersion version, string clip, string attachId)
         {
             this.clip = clip;
             this.attachId = attachId;

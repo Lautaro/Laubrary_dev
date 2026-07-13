@@ -1,9 +1,9 @@
 {
-    "name": "com.Lautaro-Arino.Laubrary.Bestiarium.Zoetrope",
-    "rootNamespace": "Laubrary.BestiariumZoetrope",
+    "name": "com.Lautaro-Arino.Laubrary.Launimator",
+    "rootNamespace": "Laubrary.Launimator",
     "references": [
-        "com.Lautaro-Arino.Laubrary.Bestiarium",
-        "com.Lautaro-Arino.Laubrary.Launimator"
+        "com.Lautaro-Arino.Laubrary.Chunks",
+        "com.Lautaro-Arino.Laubrary.PreviewKit"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

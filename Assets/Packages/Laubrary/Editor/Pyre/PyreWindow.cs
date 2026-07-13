@@ -1962,23 +1962,23 @@ namespace Laubrary.Pyre.Editor
 
         // Optional LIVE animated preview subject (see IPyrePreviewSubject/PyrePreviewSubjectProvider) — the
         // field itself is a plain Object (any asset can be dragged in) so this panel has zero dependency on
-        // whatever asset TYPE actually resolves; a bridge module (e.g. Pyre.Zoetrope.Editor) is what makes a
+        // whatever asset TYPE actually resolves; a bridge module (e.g. Pyre.Launimator.Editor) is what makes a
         // dragged-in asset actually do anything. With no bridge loaded this panel still works for
-        // authoring/persisting the fields, it just won't render/align anything. Named "Zoe Preview" (not the
-        // more generic "Live preview subject") because Zoetrope is currently the ONLY bridge that resolves
+        // authoring/persisting the fields, it just won't render/align anything. Named "Reel Preview" (not the
+        // more generic "Live preview subject") because Launimator is currently the ONLY bridge that resolves
         // anything here — if a second asset type ever gets its own bridge, rename back to something generic
         // at that point; the underlying fields/interface stay fully generic either way, only this label
         // reflects what's actually usable today.
         void DrawPreviewSubjectOptions()
         {
             if (spec == null) return;
-            using (Box("Zoe Preview"))
+            using (Box("Reel Preview"))
             {
                 using (ZUI.HRow()) { GUILayout.FlexibleSpace(); ZUI.HelpIcon(
                     "Plays through the same real gameplay components the subject uses in-game (a real " +
                     "SpriteRenderer-driven player, rendered via LiveScenePreview) — nothing here is baked. " +
                     "These fields are preview-time wiring only; they aren't part of the runtime blast. " +
-                    "Attach id targets a MetaLayer painted on the Zoe's clip."); }
+                    "Attach id targets a MetaLayer painted on the Reel's clip."); }
                 EditorGUI.BeginChangeCheck();
                 UnityEngine.Object asset; string clip, attachId;
 
@@ -2008,7 +2008,7 @@ namespace Laubrary.Pyre.Editor
                                                            GUILayout.Width(ZUI.FitWidth("Clip", spec.previewSubjectClip, 90f, 220f)));
                     ZUI.HorizontalSpace();
 
-                    // Attach id is a MetaLayer name on the selected Zoe/clip. ALWAYS a plain text field —
+                    // Attach id is a MetaLayer name on the selected Reel/clip. ALWAYS a plain text field —
                     // never conditionally swapped for a Popup — because that field's own current value (the
                     // "options" list depends on `clip`, which changes on every keystroke while typing) would
                     // then decide which CONTROL TYPE gets drawn here. Structural GUILayout differences that
@@ -2042,7 +2042,7 @@ namespace Laubrary.Pyre.Editor
                     EditorUtility.SetDirty(spec);
                 }
                 if (spec.previewSubjectAsset != null && PyrePreviewSubjectProvider.Resolve == null)
-                    EditorGUILayout.HelpBox("No bridge module registered to resolve this asset type (e.g. Pyre.Zoetrope.Editor).", MessageType.Info);
+                    EditorGUILayout.HelpBox("No bridge module registered to resolve this asset type (e.g. Pyre.Launimator.Editor).", MessageType.Info);
             }
         }
 
@@ -2202,7 +2202,7 @@ namespace Laubrary.Pyre.Editor
         }
 
         // ── asset helpers ────────────────────────────────────────────────────────
-        // ── Sprite particles: create a starter PNG + open/edit it in Aseprite (like Zoetrope) ──────────────
+        // ── Sprite particles: create a starter PNG + open/edit it in Aseprite (like Launimator) ──────────────
         void CreateParticleSprite(Layer l)
         {
             string specPath = spec != null ? AssetDatabase.GetAssetPath(spec) : null;
@@ -2254,14 +2254,14 @@ namespace Laubrary.Pyre.Editor
             }
             catch (System.Exception e)
             {
-                Debug.LogWarning($"[Pyre] could not open Aseprite ({e.Message}). Set the path via Tools ▸ Zoetrope ▸ Set Aseprite Path…");
+                Debug.LogWarning($"[Pyre] could not open Aseprite ({e.Message}). Set the path via Tools ▸ Launimator ▸ Set Aseprite Path…");
             }
         }
 
-        // Shares Zoetrope's saved Aseprite path (EditorPref) so it's set once for the whole library.
+        // Shares Launimator's saved Aseprite path (EditorPref) so it's set once for the whole library.
         static string ResolveAsepriteExe()
         {
-            string p = EditorPrefs.GetString("Zoetrope.AsepritePath", "");
+            string p = EditorPrefs.GetString("Launimator.AsepritePath", "");
             if (System.IO.File.Exists(p)) return p;
             string[] common =
             {
