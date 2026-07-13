@@ -85,6 +85,8 @@ namespace Laubrary.Launimator
         public int frame;
         [Tooltip("Event name the consumer matches on (e.g. \"hit\", \"footstep\", \"sfx\").")]
         public string name = "hit";
+        [Tooltip("Optional Zound (by name) auto-played when this event fires, via the Launimator.Zounds bridge. Empty = no sound.")]
+        public string zoundName = "";
     }
 
     /// <summary>

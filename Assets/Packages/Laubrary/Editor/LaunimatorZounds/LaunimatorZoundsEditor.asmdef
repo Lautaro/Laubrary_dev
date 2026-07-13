@@ -1,0 +1,19 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Launimator.Zounds.Editor",
+    "rootNamespace": "Laubrary.LaunimatorZounds.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Zounds",
+        "com.Lautaro-Arino.Laubrary.Zounds.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

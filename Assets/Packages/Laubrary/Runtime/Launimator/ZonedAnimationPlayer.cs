@@ -62,6 +62,14 @@ namespace Laubrary.Launimator
         /// Animation Builder's "Frame events" section.</summary>
         public event Action<string, int> OnFrameEvent;
 
+        /// <summary>Fires once per frame-entry (edge-triggered — same convention as <see cref="OnFrameEvent"/>)
+        /// for every MetaLayer with painted data on the just-entered frame. worldPos is the same value-weighted
+        /// centroid <see cref="TryGetMetaPoint"/> computes. Lets gameplay subscribe once ("when the animator
+        /// paints a point on layer X, do Y") instead of sampling at play-time via
+        /// <see cref="PlayAndCaptureMetaPoint"/> — the animator then controls exactly which frame the point
+        /// fires on purely by where they paint it.</summary>
+        public event Action<string /*layerId*/, Vector3 /*worldPos*/> OnMetaLayerReached;
+
         public string CurrentClip => _anim != null ? _anim.name : null;
         public bool IsZoned => _zones != null;
         public bool IsPlaying => _playing;
@@ -71,6 +79,9 @@ namespace Laubrary.Launimator
         public string CurrentZoneName => (_zones != null && _zoneIdx >= 0 && _zoneIdx < _zones.Count) ? _zones[_zoneIdx].name : null;
         /// <summary>The current animation's meta-layers (empty if none) — for debug visualisation.</summary>
         public IReadOnlyList<MetaLayer> CurrentMetaLayers => (IReadOnlyList<MetaLayer>)_anim?.metaLayers ?? Array.Empty<MetaLayer>();
+        /// <summary>The current animation's authored frame events (empty if none) — lets a listener re-look-up
+        /// the specific FrameEvent behind an OnFrameEvent firing (e.g. to read its zoundName).</summary>
+        public IReadOnlyList<FrameEvent> CurrentEvents => (IReadOnlyList<FrameEvent>)_anim?.events ?? Array.Empty<FrameEvent>();
 
         void Awake() { _sr = GetComponent<SpriteRenderer>(); Reindex(); }
         void Update() => Tick(Time.deltaTime);
@@ -129,6 +140,7 @@ namespace Laubrary.Launimator
             }
             PushSprite();
             FireFrameEvents(); // frame-0 events
+            FireMetaLayerReached();
             return true;
         }
 
@@ -145,6 +157,7 @@ namespace Laubrary.Launimator
             _ending = false; _playing = true; _wantZone = null;
             PushSprite();
             FireFrameEvents();
+            FireMetaLayerReached();
             return true;
         }
 
@@ -248,6 +261,7 @@ namespace Laubrary.Launimator
                 }
             }
             FireFrameEvents(); // entered frame _i
+            FireMetaLayerReached();
         }
 
         /// <summary>If a zone was requested via WantZone and it's a different zone, switch to its start now and
@@ -273,7 +287,7 @@ namespace Laubrary.Launimator
             _endElapsed += dt; _endFrameTimer += dt;
             float p = Mathf.Clamp01(_endElapsed / _endDur);
             int target = _endStart + Mathf.RoundToInt(p * (_endLast - _endStart));
-            if (target != _i && _endFrameTimer >= 1f / Mathf.Max(1f, maxFps)) { _i = target; _endFrameTimer = 0f; PushSprite(); FireFrameEvents(); }
+            if (target != _i && _endFrameTimer >= 1f / Mathf.Max(1f, maxFps)) { _i = target; _endFrameTimer = 0f; PushSprite(); FireFrameEvents(); FireMetaLayerReached(); }
             if (p >= 1f)
             {
                 _i = _endLast; PushSprite();
@@ -292,6 +306,21 @@ namespace Laubrary.Launimator
             if (evs == null || OnFrameEvent == null) return;
             for (int k = 0; k < evs.Count; k++)
                 if (evs[k] != null && evs[k].frame == _i) OnFrameEvent.Invoke(evs[k].name, _i);
+        }
+
+        /// <summary>Invoke OnMetaLayerReached for every MetaLayer with painted data on the current frame _i.</summary>
+        void FireMetaLayerReached()
+        {
+            if (OnMetaLayerReached == null || _anim == null || _anim.metaLayers == null) return;
+            var spr = CurrentSprite;
+            if (spr == null) return;
+            foreach (var layer in _anim.metaLayers)
+            {
+                if (layer == null || layer.frames == null || _i < 0 || _i >= layer.frames.Count) continue;
+                var mf = layer.frames[_i];
+                if (!TryComputeCentroid(mf, out _, out double nx, out double ny)) continue;
+                OnMetaLayerReached.Invoke(layer.id, MaskToWorld(spr, mf, (float)nx, (float)ny));
+            }
         }
 
         void PushSprite()
@@ -415,9 +444,19 @@ namespace Laubrary.Launimator
             if (layer == null || layer.frames == null || _i < 0 || _i >= layer.frames.Count) return false;
 
             var mf = layer.frames[_i];
+            if (!TryComputeCentroid(mf, out strength01, out double nx, out double ny)) return false;
+            worldPos = MaskToWorld(spr, mf, (float)nx, (float)ny);
+            return true;
+        }
+
+        /// <summary>Value-weighted centroid of a MetaFrame's painted cells, in normalized mask-cell space
+        /// (0..w, 0..h) plus peak intensity (0..1) — the shared math behind <see cref="TryGetMetaPoint"/> and
+        /// <see cref="FireMetaLayerReached"/>. Returns false if the frame has no painted cells.</summary>
+        static bool TryComputeCentroid(MetaFrame mf, out float strength01, out double nx, out double ny)
+        {
+            strength01 = 0f; nx = 0; ny = 0;
             if (mf == null || mf.cells == null || mf.w <= 0 || mf.h <= 0) return false;
 
-            // Value-weighted centroid (mask cell space, bottom-left origin) + peak value.
             double sx = 0, sy = 0, sw = 0; int peak = 0;
             for (int y = 0; y < mf.h; y++)
                 for (int x = 0; x < mf.w; x++)
@@ -429,7 +468,7 @@ namespace Laubrary.Launimator
                 }
             if (sw <= 0) return false;
             strength01 = Mathf.Clamp01(peak / 10f);
-            worldPos = MaskToWorld(spr, mf, (float)(sx / sw), (float)(sy / sw));
+            nx = sx / sw; ny = sy / sw;
             return true;
         }
 

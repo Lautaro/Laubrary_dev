@@ -58,14 +58,13 @@ namespace Laubrary.PyreZoetrope.Editor
         readonly string attachId;
         bool adopted;
 
-        // The attach point is captured ONCE, at the instant the clip (re)starts — matching real gameplay,
-        // where the game reads it once at the moment of firing and never re-reads it mid-animation. Sampling
-        // it every repaint instead (the original design) reads whatever frame the clip currently happens to
-        // be showing, which is empty on every frame except the one it was actually painted on — the blast's
-        // origin would snap between "aligned" and "centred" as the clip played, reading as it "jumping
-        // around". Held fixed here until the next Restart() fixes that. Stored as a LOCAL-space offset (not a
-        // world position) so it stays correct regardless of where SpawnInto later repositions the subject —
-        // world position = go.transform.TransformPoint(capturedLocalOffset), recomputed live every query.
+        // The attach point updates live via OnMetaLayerReached — fired once per frame-entry whenever that
+        // frame has painted data for `attachId`. Per the authoring convention (a muzzle-style layer should
+        // only have one painted pixel on one frame), this fires once per Restart() in practice, matching the
+        // old capture-at-play-time behavior — but now sourced from the SAME live notification gameplay code
+        // can subscribe to (see ZonedAnimationPlayer.OnMetaLayerReached), rather than a separate manual sample.
+        // Stored as a LOCAL-space offset (not a world position) so it stays correct regardless of where
+        // SpawnInto later repositions the subject — world position = go.transform.TransformPoint(capturedLocalOffset).
         bool hasCapturedOffset;
         Vector3 capturedLocalOffset;
 
@@ -76,6 +75,7 @@ namespace Laubrary.PyreZoetrope.Editor
             go = new GameObject("~PyrePreviewSubject");
             player = go.AddComponent<ZonedAnimationPlayer>();
             player.SetVersion(version);
+            player.OnMetaLayerReached += OnMetaLayerReached;
             Restart();
         }
 
@@ -83,13 +83,20 @@ namespace Laubrary.PyreZoetrope.Editor
 
         public void Restart()
         {
-            if (string.IsNullOrEmpty(clip)) { hasCapturedOffset = false; return; }
+            hasCapturedOffset = false;
+            if (string.IsNullOrEmpty(clip)) return;
 
-            // The SAME method gameplay code calls (ScavengeGame.PlayShotAndUpdateMuzzle) — plays the clip as
-            // a one-shot and captures the named point at that exact instant. One shared definition of
-            // "trigger + capture", so preview and game can never quietly diverge on it.
-            hasCapturedOffset = player.PlayAndCaptureMetaPoint(clip, attachId, out var worldPos);
-            if (hasCapturedOffset) capturedLocalOffset = go.transform.InverseTransformPoint(worldPos);
+            // The SAME component gameplay uses (ZonedAnimationPlayer) — plays the clip as a one-shot; the
+            // attach point arrives via the OnMetaLayerReached subscription above the instant the painted
+            // frame is entered, so preview and game can never quietly diverge on "where/when that point is".
+            player.Play(clip, loop: false);
+        }
+
+        void OnMetaLayerReached(string layerId, Vector3 worldPos)
+        {
+            if (!string.Equals(layerId, attachId, System.StringComparison.OrdinalIgnoreCase)) return;
+            hasCapturedOffset = true;
+            capturedLocalOffset = go.transform.InverseTransformPoint(worldPos);
         }
 
         public void SpawnInto(LiveScenePreview preview, Vector3 worldPosition)
@@ -106,6 +113,7 @@ namespace Laubrary.PyreZoetrope.Editor
 
         public void Dispose()
         {
+            if (player != null) player.OnMetaLayerReached -= OnMetaLayerReached;
             if (go != null) Object.DestroyImmediate(go);
         }
     }

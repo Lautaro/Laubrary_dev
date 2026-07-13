@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Laubrary.Launimator;
+using Laubrary.LaunimatorZounds.Editor;
 using UnityEditor;
 using UnityEngine;
 
@@ -2100,6 +2101,16 @@ namespace Laubrary.Launimator.Editor
                         if (newFrame != _events[e].frame) { RecordUndo("Move event"); _events[e].frame = newFrame; }
                         string newName = TextField(_events[e].name);
                         if (newName != _events[e].name) { RecordUndo("Rename event"); _events[e].name = newName; }
+
+                        string zoundLabel = string.IsNullOrEmpty(_events[e].zoundName) ? "— zound —" : _events[e].zoundName;
+                        if (Button(new GUIContent(zoundLabel, "Zound auto-played when this event fires, via the Launimator.Zounds bridge. Click to pick."),
+                            ZUI.Style.Default, GUILayout.Width(90)))
+                        {
+                            int idx = e;
+                            ZoundPickerPopup.Show(Event.current.mousePosition, picked =>
+                            { RecordUndo("Set event zound"); _events[idx].zoundName = picked; });
+                        }
+
                         if (Button("✕", ZUI.Style.Default, GUILayout.Width(22))) removeAt = e;
                     }
                 }
