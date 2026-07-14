@@ -9,8 +9,8 @@ namespace Laubrary.ZoetropeLaunimator.Editor
 {
     /// <summary>
     /// "Spawn a Zoe into a sandbox and look at it" — the composition-level preview. Owns a
-    /// <see cref="LiveScenePreview"/> and spawns through the REAL <see cref="Bestiary.SpawnCharacter"/>/
-    /// <see cref="Bestiary.EquipWeapon"/> path — not a reimplementation — so this window can never visually
+    /// <see cref="LiveScenePreview"/> and spawns through the REAL <see cref="ZoeSpawner.SpawnCharacter"/>/
+    /// <see cref="ZoeSpawner.EquipWeapon"/> path — not a reimplementation — so this window can never visually
     /// drift from what a Zoe actually looks like in gameplay (the "one process" rule,
     /// ZOE_ARCHITECTURE_DESIGN.md §3). Shows the full composed character: composite body (if any), equipped
     /// weapon, a muzzle position marker, and the hurtbox outline.
@@ -104,7 +104,7 @@ namespace Laubrary.ZoetropeLaunimator.Editor
             if (_go != null && _spawnedFor == _zoe && _spawnedWeaponFor == _weapon) return;
             TearDown();
 
-            _go = Bestiary.SpawnCharacter(_zoe, Vector3.zero);
+            _go = ZoeSpawner.SpawnCharacter(_zoe, Vector3.zero);
             Live.Adopt(_go);
             _combatant = _go.GetComponent<Combatant>();
             _hurtbox = _go.GetComponent<BoxCollider2D>();
@@ -115,7 +115,7 @@ namespace Laubrary.ZoetropeLaunimator.Editor
                 muzzleGo.transform.SetParent(_go.transform, false);
                 muzzleGo.transform.localPosition = _weapon.muzzleOffset;
                 _muzzle = muzzleGo.transform;
-                Bestiary.EquipWeapon(_go, _weapon, _combatant, _muzzle);
+                ZoeSpawner.EquipWeapon(_go, _weapon, _combatant, _muzzle);
             }
 
             _spawnedFor = _zoe;

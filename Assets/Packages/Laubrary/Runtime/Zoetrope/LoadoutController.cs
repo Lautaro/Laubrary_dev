@@ -6,7 +6,7 @@ namespace Laubrary.Zoetrope
     /// <summary>
     /// Runtime holder for a character's loadout of <see cref="IActivatable"/>s (weapons + abilities). Tracks a
     /// per-slot cooldown so the TRIGGER — a Daemon behaviour for an enemy, or input for the player — just calls
-    /// <see cref="TryActivate"/> and the gate is handled here. Attached by <c>Bestiary.SpawnCharacter</c> when the
+    /// <see cref="TryActivate"/> and the gate is handled here. Attached by <c>ZoeSpawner.SpawnCharacter</c> when the
     /// def has a loadout. Cooldown state lives here (not in the activatable), so activatables stay stateless data
     /// that can be shared across every character spawned from one def.
     /// </summary>

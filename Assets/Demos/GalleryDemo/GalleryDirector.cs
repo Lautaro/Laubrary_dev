@@ -10,7 +10,7 @@ namespace Laubrary.Demos.Gallery
     /// A shooting gallery for the Codex battle-authoring layer: click to fire the equipped weapon at an idle target
     /// character; the target plays its hit/death VFX and respawns. It assembles sample Zoe/Weapon/Projectile
     /// Defs at runtime from scene-assigned primitives (Pyre blasts, Chunks bursts, factions) + placeholder DemoSprites,
-    /// so it demonstrates the whole pipeline end-to-end (Def → Bestiary → Colosseum funnel → CombatVfx).
+    /// so it demonstrates the whole pipeline end-to-end (Def → ZoeSpawner → Colosseum funnel → CombatVfx).
     public class GalleryDirector : MonoBehaviour
     {
         [Header("Factions")]
@@ -52,7 +52,7 @@ namespace Laubrary.Demos.Gallery
             shooter.transform.localScale = Vector3.one * 0.7f;
             var comb = shooter.AddComponent<Combatant>();
             comb.faction = playerFaction;
-            weapon = Bestiary.EquipWeapon(shooter, weaponDef, comb, shooter.transform);
+            weapon = ZoeSpawner.EquipWeapon(shooter, weaponDef, comb, shooter.transform);
 
             SpawnTarget();
         }
@@ -65,7 +65,7 @@ namespace Laubrary.Demos.Gallery
             // (a Pyre Blast Chunk Animation or a Reel Chunk Animation), not a raw Sprite this runtime-built
             // demo def could construct in-memory. The bolt still fires and deals damage; it just renders
             // without a sprite. Wiring a real IChunkAnimation asset here is future demo polish, not required
-            // for this scene's purpose (proving the Def → Bestiary → Combat2D funnel end-to-end).
+            // for this scene's purpose (proving the Def → ZoeSpawner → Combat2D funnel end-to-end).
             proj.scale = 0.28f;
             proj.lifetime = 3f;
             proj.impact = new PyreChunksFx { blast = impactBlast, chunks = impactSparks };
@@ -90,7 +90,7 @@ namespace Laubrary.Demos.Gallery
 
         void SpawnTarget()
         {
-            targetGo = Bestiary.SpawnCharacter(targetDef, targetPos);
+            targetGo = ZoeSpawner.SpawnCharacter(targetDef, targetPos);
             var sr = targetGo.GetComponent<SpriteRenderer>();
             if (sr != null) sr.color = new Color(0.95f, 0.5f, 0.5f);   // tint the white placeholder
             targetHealth = targetGo.GetComponent<Health>();

@@ -5,7 +5,7 @@ namespace Laubrary.Zoetrope
 {
     /// The bridge from Zoetrope data recipes to live GameObjects — builds damageable characters and configured
     /// weapons out of the primitives so a scene (the shooting gallery, or a real level) can assemble a fight from Defs.
-    public static class Bestiary
+    public static class ZoeSpawner
     {
         /// Build a damageable character: Combatant + Health + a Hurtbox collider + the Def's pluggable view + a
         /// CombatPresenter wired to the Def's hit/death effects.

@@ -8,7 +8,7 @@ namespace Laubrary.Zoetrope
     /// the effects it plays when hit and when it dies. Look and effects are PLUGGABLE (<c>[SerializeReference]</c>),
     /// so this core asset depends on Combat2D ONLY — a project supplies concrete views (a sprite, a Launimator-driven
     /// ReelView, a Lazor shape) and effects (a Pyre blast + Chunks debris) from whatever bridge modules it includes.
-    /// A small portable data asset; the runtime is assembled by <see cref="Bestiary.SpawnCharacter"/>.
+    /// A small portable data asset; the runtime is assembled by <see cref="ZoeSpawner.SpawnCharacter"/>.
     [CreateAssetMenu(menuName = "Laubrary/Zoetrope/Zoe", fileName = "Zoe")]
     public class Zoe : ScriptableObject
     {
