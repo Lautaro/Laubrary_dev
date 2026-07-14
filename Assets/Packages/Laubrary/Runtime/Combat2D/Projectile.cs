@@ -25,6 +25,10 @@ namespace Laubrary.Combat2D
         public Faction faction;
         public GameObject source;
 
+        [Tooltip("How this projectile actually moves each frame (straight-line 2D by default). See " +
+                 "IProjectileMotion for the full launch-mode taxonomy — DepthMotion for rail-shooter travel.")]
+        [SerializeReference] public IProjectileMotion motion = new PlanarMotion();
+
         /// Fired when the projectile damages a hurtbox.
         public event Action<Hurtbox, DamageInfo> Hit;
         /// Fired when it despawns for any reason (lifetime, wall, or its last hit).
@@ -49,6 +53,23 @@ namespace Laubrary.Combat2D
         public void Launch(Vector2 direction, Faction fac, GameObject src, float? speedOverride = null)
         {
             dir = direction.sqrMagnitude > 1e-6f ? direction.normalized : Vector2.right;
+            LaunchCommon(fac, src, speedOverride);
+            (motion ??= new PlanarMotion()).Init(transform.position, dir, speed, null);
+        }
+
+        /// Fire toward an explicit world-space target — the entry point target-seeking motions (e.g.
+        /// DepthMotion) need a real endpoint for, rather than just a direction. `direction` is still derived
+        /// (for faceDirection orientation and as a fallback), but `motion` gets the real target too.
+        public void Launch(Vector3 target, Faction fac, GameObject src, float? speedOverride = null)
+        {
+            Vector3 delta = target - transform.position;
+            dir = delta.sqrMagnitude > 1e-6f ? ((Vector2)delta).normalized : Vector2.right;
+            LaunchCommon(fac, src, speedOverride);
+            (motion ??= new PlanarMotion()).Init(transform.position, delta.normalized, speed, target);
+        }
+
+        void LaunchCommon(Faction fac, GameObject src, float? speedOverride)
+        {
             faction = fac;
             source = src;
             if (speedOverride.HasValue) speed = speedOverride.Value;
@@ -61,7 +82,7 @@ namespace Laubrary.Combat2D
 
         void Update()
         {
-            transform.position += (Vector3)(dir * (speed * Time.deltaTime));
+            transform.position = (motion ??= new PlanarMotion()).Tick(transform.position, Time.deltaTime);
             age += Time.deltaTime;
             if (age >= lifetime) Expire();
         }

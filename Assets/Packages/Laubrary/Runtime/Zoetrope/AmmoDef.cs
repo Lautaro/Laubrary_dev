@@ -1,5 +1,6 @@
 using UnityEngine;
 using Laubrary.Chunks;
+using Laubrary.Combat2D;
 
 namespace Laubrary.Zoetrope
 {
@@ -33,9 +34,12 @@ namespace Laubrary.Zoetrope
         [Min(0.05f)] public float lifetime = 3f;
         [Tooltip("Pass through targets instead of dying on first hit.")]
         public bool pierce = false;
-        [Tooltip("Not yet wired into flight — Combat2D's Projectile has no gravity/homing concept today.")]
+        [Tooltip("How this ammo actually moves each frame (straight-line 2D by default). Pick DepthMotion for " +
+                 "rail-shooter travel toward a resolved target. See Combat2D.IProjectileMotion.")]
+        [SerializeReference] public IProjectileMotion motion = new PlanarMotion();
+        [Tooltip("Not yet wired into flight — a future BallisticMotion (IProjectileMotion) would consume this.")]
         public float gravity = 0f;
-        [Tooltip("Not yet wired into flight — Combat2D's Projectile has no gravity/homing concept today.")]
+        [Tooltip("Not yet wired into flight — a future HomingMotion (IProjectileMotion) would consume this.")]
         public bool homing = false;
 
         [Header("Impact")]

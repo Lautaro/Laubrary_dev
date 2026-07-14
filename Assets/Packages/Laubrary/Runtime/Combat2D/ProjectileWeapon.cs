@@ -72,5 +72,37 @@ namespace Laubrary.Combat2D
             }
             return true;
         }
+
+        /// Fire toward an explicit world-space target if off cooldown — the entry point for aim techniques that
+        /// resolve a real target point (a screen-reticle) rather than just a direction, and for
+        /// target-seeking flight (e.g. Projectile's DepthMotion). Returns true if a volley went out. Spread
+        /// fans the TARGET itself along screen-space X at its own depth (a resolved-point-appropriate shape),
+        /// not the angle-around-a-direction fan <see cref="TryFire(Vector2)"/> uses.
+        public bool TryFireAt(Vector3 worldTarget)
+        {
+            if (cooldown > 0f || projectilePrefab == null) return false;
+            cooldown = 1f / Mathf.Max(0.01f, fireRate);
+
+            Vector3 pos = muzzle != null ? muzzle.position : transform.position;
+            Faction fac = owner != null ? owner.faction : null;
+            GameObject src = owner != null ? owner.gameObject : gameObject;
+            int n = Mathf.Max(1, projectilesPerShot);
+
+            float spreadWorld = Mathf.Tan(spreadDeg * Mathf.Deg2Rad) * Vector3.Distance(pos, worldTarget);
+
+            for (int i = 0; i < n; i++)
+            {
+                float off = n > 1 ? Mathf.Lerp(-spreadWorld, spreadWorld, i / (float)(n - 1))
+                                  : (spreadWorld > 0f ? UnityEngine.Random.Range(-spreadWorld, spreadWorld) : 0f);
+                Vector3 shotTarget = worldTarget + new Vector3(off, 0f, 0f);
+
+                var p = Instantiate(projectilePrefab, pos, Quaternion.identity);
+                if (!p.gameObject.activeSelf) p.gameObject.SetActive(true);
+                p.damage = damage;
+                p.Launch(shotTarget, fac, src, projectileSpeed);
+                Fired?.Invoke(p);
+            }
+            return true;
+        }
     }
 }

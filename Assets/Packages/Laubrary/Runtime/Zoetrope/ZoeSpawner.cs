@@ -74,6 +74,7 @@ namespace Laubrary.Zoetrope
                 proj.lifetime = def.lifetime;
                 proj.pierce = def.pierce ? 1 : 0;
                 proj.faceDirection = def.faceTravel && !def.spin;
+                proj.motion = def.motion ?? new PlanarMotion();
             }
             proj.blockers = blockers;
 
