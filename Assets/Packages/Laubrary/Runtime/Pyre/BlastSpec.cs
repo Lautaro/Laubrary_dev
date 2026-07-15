@@ -118,6 +118,15 @@ namespace Laubrary.Pyre
         [SerializeReference]
         public List<PyreModifier> globalModifiers = new();
 
+        // ── opt-in SIMULATION modifier (Pyre v2): a single, genuinely iterative modifier (real state carried
+        // frame-to-frame), always applied dead last, after everything above has fully composited. A separate
+        // slot rather than another entry in globalModifiers ABOVE — that trivially guarantees "at most one" and
+        // "always last" by construction, instead of needing extra validation/sorting logic. See
+        // SimulationModifier's own class doc for the full reasoning. Null = none (the overwhelmingly common,
+        // zero-cost case).
+        [SerializeReference]
+        public PyreModifier simulationModifier;
+
         // ── Editor preview settings (Pyre window) — cosmetic only, NEVER read by BlastRenderer / never baked.
         // Kept on the asset (not the window) so each blast remembers its own zoom/speed/backdrop regardless of
         // the Pyre window's own open/close lifecycle. previewStageBg is typed as a plain Object rather than

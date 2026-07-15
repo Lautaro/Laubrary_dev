@@ -159,6 +159,15 @@ namespace Laubrary.Pyre
         [SerializeReference]
         public List<PyreModifier> modifiers = new();
 
+        /// The one, always-last SIMULATION modifier for just THIS layer — mirrors BlastSpec.simulationModifier
+        /// exactly (its own dedicated single slot, not part of `modifiers` above), except scoped to this one
+        /// layer's own isolated buffer instead of the whole composited frame. Lets a Pixel fluid (etc.) react to
+        /// only this layer's own pixels/shape, independent of a blast-wide one in BlastSpec.simulationModifier —
+        /// both can be used together (this one runs first, on this layer's own isolated buffer, before it
+        /// composites onto the frame; the blast-wide one runs last of all, after every layer has composited).
+        [SerializeReference]
+        public PyreModifier simulationModifier;
+
         [Tooltip("Disc/Crescent: alpha gradient on the OUTER edge (0 = sharp, 1 = the whole shape fades out to its " +
                  "edge). Always available. Animatable.")]
         public ZUIValue outerSoftness = new ZUIValue(0f);
@@ -307,6 +316,15 @@ namespace Laubrary.Pyre
 
         // ── Noise fill: the domain-warped noise field ColorMode.NoiseFill paints through a shape's own silhouette
         // (Disc/Crescent/MetaBlob) — the shape stays the alpha mask; this is texture only, no silhouette of its own.
+        [Tooltip("Noise fill: shifts which part of the gradient the noise field maps to, wrapping around — the " +
+                 "SAME noise pattern reads as a different band of colour. Animate it and the gradient sweeps " +
+                 "through the noise like a glow/ember effect, independent of the noise pattern's own drift.")]
+        public ZUIValue noiseGradientPosition = new ZUIValue(0f);
+        [Tooltip("Noise fill: scales the noise value onto the gradient before Position shifts it — 1 (default) = " +
+                 "one full gradient cycle across the noise's own range, unchanged from before this field existed. " +
+                 "Higher repeats the gradient several times through the SAME pattern (more, tighter colour bands); " +
+                 "lower compresses it into a narrower slice of the gradient. Animatable.")]
+        public ZUIValue noiseGradientZoom = new ZUIValue(1f);
         [Tooltip("Noise fill: noise frequency — bigger = larger, slower-looking billows; smaller = fine, busy detail. Animatable.")]
         public ZUIValue noiseZoom = new ZUIValue(20f);
         [Tooltip("Noise fill: rotates the noise sampling domain, in degrees — spins the churn in place. Animatable.")]
@@ -315,13 +333,17 @@ namespace Laubrary.Pyre
         public ZUIValue noiseDriftX = new ZUIValue(0f);
         [Tooltip("Noise fill: drifts the noise sampling domain vertically over life, in pixels. Animatable.")]
         public ZUIValue noiseDriftY = new ZUIValue(0f);
-        [Range(0f, 2f)]
         [Tooltip("Noise fill: domain-warp strength — how much the noise bends on itself (0 = smooth blobby cloud, " +
-                 "higher = churned/organic eddies).")]
-        public float noiseWarp = 0.6f;
+                 "higher = churned/organic eddies). Animatable.")]
+        public ZUIValue noiseWarp = new ZUIValue(0.6f);
         [Range(1, 8)]
         [Tooltip("Noise fill: number of discrete shading bands across the field's depth. 1 = smooth (no banding).")]
         public int noiseBands = 4;
+        [Range(0f, 1f)]
+        [Tooltip("Noise fill: softens the cut between adjacent shading bands. 0 = the hard step Bands has always " +
+                 "had; 1 = each band blends fully into its neighbour (no visible step at all, same look as " +
+                 "Bands=1). Use a small amount to keep recognizable bands without the harsh pop between them.")]
+        public float noiseBandSoftness = 0f;
 
         /// A pleasing starting point per shape type; the editor adds layers through this.
         public static Layer Default(LayerShape shape)
@@ -427,6 +449,8 @@ namespace Laubrary.Pyre
                 : metaOrbs.ConvertAll(o => o == null ? new MetaOrb() : o.Clone());
             l.roseRings = roseRings == null ? new List<RoseRing>()
                 : roseRings.ConvertAll(r => r == null ? new RoseRing() : r.Clone());
+            l.noiseGradientPosition = CloneVal(noiseGradientPosition);
+            l.noiseGradientZoom = CloneVal(noiseGradientZoom);
             l.noiseZoom = CloneVal(noiseZoom);
             l.noiseRotation = CloneVal(noiseRotation);
             l.noiseDriftX = CloneVal(noiseDriftX);

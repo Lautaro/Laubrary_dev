@@ -37,6 +37,9 @@ namespace Laubrary.Pyre
         const int F_RingStart = 58, F_RingArc = 59, F_SpinDegrees = 60;
         const int F_SparkleBlobRadius = 61, F_SparkleBlobLife = 62, F_SparkleBlobSoft = 63;
         const int F_RingExpand = 64;
+        const int F_NoiseGradPos = 65;
+        const int F_NoiseGradZoom = 66;
+        const int F_NoiseWarp = 67;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -118,11 +121,32 @@ namespace Laubrary.Pyre
             for (int i = 0; i < mods.Count; i++)
             {
                 var m = mods[i];
-                if (m == null || !m.enabled || !(m is PostModifier post)) continue;
-                post.SetLife(life);
-                m.Prepare((v, fid) => Eval(v, life, spec.seed, li, frameIndex, 1000 + i * 8 + fid));
-                post.Apply(layerTarget, W, H);
+                if (m == null || !m.enabled) continue;
+                if (m is PostModifier post)
+                {
+                    post.SetLife(life);
+                    post.SetSeed(spec.seed);
+                    post.SetFrameIndex(frameIndex);
+                    m.Prepare((v, fid) => Eval(v, life, spec.seed, li, frameIndex, 1000 + i * 8 + fid));
+                    post.Apply(layerTarget, W, H);
+                }
             }
+
+            // This layer's own SIMULATION modifier (its own dedicated slot, separate from BlastSpec's
+            // blast-wide one) — runs last within THIS layer's own isolated buffer, before it composites onto
+            // the frame. See Layer.simulationModifier's own doc for how it composes with the global slot.
+            if (layer.simulationModifier is SimulationModifier layerSim && layerSim.enabled)
+            {
+                layerSim.SetSeed(spec.seed);
+                Func<int, Func<ZUIValue, int, float>> layerSimParamsForFrame = f =>
+                {
+                    float flp = Mathf.Clamp01((f - layer.startFrame) / (float)Mathf.Max(1, layer.endFrame - layer.startFrame));
+                    return (v, fid) => Eval(v, flp, spec.seed, li, f, 1000 + 800 * 8 + fid);
+                };
+                layerSim.EnsureFrame(frameIndex, layerTarget, W, H, layerSimParamsForFrame);
+                layerSim.Render(layerTarget, W, H);
+            }
+
             for (int i = 0; i < layerTarget.Length; i++)
             {
                 var c = layerTarget[i];
@@ -208,7 +232,9 @@ namespace Laubrary.Pyre
                 // buffer first, so its post pass only sees/affects this layer's own pixels — never the pixels of
                 // layers already composited below it — then that buffer composites onto the frame. Layers with no
                 // post modifiers (the overwhelming common case) skip this entirely and draw straight into `buf`.
-                bool hasLayerPost = layer.modifiers != null && layer.modifiers.Exists(m => m != null && m.enabled && m is PostModifier);
+                bool hasLayerSim = layer.simulationModifier is SimulationModifier layerSim0 && layerSim0.enabled;
+                bool hasLayerPost = hasLayerSim ||
+                    (layer.modifiers != null && layer.modifiers.Exists(m => m != null && m.enabled && m is PostModifier));
                 Color32[] layerTarget = hasLayerPost ? new Color32[W * H] : buf;
 
                 // Per-layer star: how many rotated copies and the arc they span.
@@ -239,16 +265,19 @@ namespace Laubrary.Pyre
                     bool metaNeedsFlow = layer.colorMode != ColorMode.OverLife && !metaNoiseFill;
                     float flowPos = metaNeedsFlow ? Eval(layer.colorFlow, lp, spec.seed, li, 0, F_MetaFlow) : 0f;
                     float flowZoom = metaNeedsFlow ? Eval(layer.colorFlowZoom, lp, spec.seed, li, 0, F_MetaFlowZoom) : 1f;
-                    float metaNoiseZoom = 20f, metaNoiseRot = 0f, metaNoiseDriftX = 0f, metaNoiseDriftY = 0f;
+                    float metaNoiseZoom = 20f, metaNoiseRot = 0f, metaNoiseDriftX = 0f, metaNoiseDriftY = 0f, metaNoiseGradPos = 0f, metaNoiseGradZoom = 1f, metaNoiseWarp = 0.6f;
                     if (metaNoiseFill)
                     {
                         metaNoiseZoom = Mathf.Max(1f, Eval(layer.noiseZoom, lp, spec.seed, li, 0, F_NoiseZoom));
                         metaNoiseRot = Eval(layer.noiseRotation, lp, spec.seed, li, 0, F_NoiseRot) * Mathf.Deg2Rad;
                         metaNoiseDriftX = Eval(layer.noiseDriftX, lp, spec.seed, li, 0, F_NoiseDriftX);
                         metaNoiseDriftY = Eval(layer.noiseDriftY, lp, spec.seed, li, 0, F_NoiseDriftY);
+                        metaNoiseGradPos = Eval(layer.noiseGradientPosition, lp, spec.seed, li, 0, F_NoiseGradPos);
+                        metaNoiseGradZoom = Eval(layer.noiseGradientZoom, lp, spec.seed, li, 0, F_NoiseGradZoom);
+                        metaNoiseWarp = Eval(layer.noiseWarp, lp, spec.seed, li, 0, F_NoiseWarp);
                     }
                     RenderMetaBlob(layerTarget, W, H, cx, cy, framePhase, layer, lp, mAlpha, radScale, expand, originOff,
-                                   layer.colorMode, flowPos, flowZoom, metaNoiseZoom, metaNoiseRot, metaNoiseDriftX, metaNoiseDriftY,
+                                   layer.colorMode, flowPos, flowZoom, metaNoiseZoom, metaNoiseRot, metaNoiseDriftX, metaNoiseDriftY, metaNoiseGradPos, metaNoiseGradZoom, metaNoiseWarp,
                                    stack, frameIndex, ShapeSeed(spec.seed, li, 0));
                     FinishLayerPost(buf, layerTarget, hasLayerPost, layer, spec, li, lp, frameIndex, W, H);
                     continue;
@@ -496,13 +525,16 @@ namespace Laubrary.Pyre
                     // Flow fill). Core offset is in pixels (normalised −1..1 × radius) — offset it + a bright→dark
                     // gradient makes a 3D orb / energy-ball highlight; animate it for a moving core.
                     float flowPos = 0f, flowZoom = 1f, gradX = 0f, gradY = 0f;
-                    float noiseZoomV = 20f, noiseRotV = 0f, noiseDriftXV = 0f, noiseDriftYV = 0f;
+                    float noiseZoomV = 20f, noiseRotV = 0f, noiseDriftXV = 0f, noiseDriftYV = 0f, noiseGradPosV = 0f, noiseGradZoomV = 1f, noiseWarpV = 0.6f;
                     if (layer.colorMode == ColorMode.NoiseFill)
                     {
                         noiseZoomV = Mathf.Max(1f, Eval(layer.noiseZoom, t, spec.seed, li, si, F_NoiseZoom));
                         noiseRotV = Eval(layer.noiseRotation, t, spec.seed, li, si, F_NoiseRot) * Mathf.Deg2Rad;
                         noiseDriftXV = Eval(layer.noiseDriftX, t, spec.seed, li, si, F_NoiseDriftX);
                         noiseDriftYV = Eval(layer.noiseDriftY, t, spec.seed, li, si, F_NoiseDriftY);
+                        noiseGradPosV = Eval(layer.noiseGradientPosition, t, spec.seed, li, si, F_NoiseGradPos);
+                        noiseGradZoomV = Eval(layer.noiseGradientZoom, t, spec.seed, li, si, F_NoiseGradZoom);
+                        noiseWarpV = Eval(layer.noiseWarp, t, spec.seed, li, si, F_NoiseWarp);
                     }
                     else if (layer.colorMode != ColorMode.OverLife)
                     {
@@ -514,7 +546,7 @@ namespace Laubrary.Pyre
                     RasterShape(layerTarget, W, H, cx, cy, framePhase, layer, c, radius, baseCol, alpha,
                                 t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, sparkleSub, holeSize, outerSoft, innerSoft,
                                 flowPos, flowZoom, gradX, gradY, holeOffX, holeOffY, shapeRotRad,
-                                noiseZoomV, noiseRotV, noiseDriftXV, noiseDriftYV,
+                                noiseZoomV, noiseRotV, noiseDriftXV, noiseDriftYV, noiseGradPosV, noiseGradZoomV, noiseWarpV,
                                 sparkleBlobRadiusV, sparkleBlobLifeV, sparkleBlobSoftV);
                 }
               }
@@ -527,31 +559,58 @@ namespace Laubrary.Pyre
                     bool fuseNeedsFlow = layer.colorMode != ColorMode.OverLife && !fuseNoiseFill;
                     float fuseFlowPos = fuseNeedsFlow ? Eval(layer.colorFlow, lp, spec.seed, li, 0, F_MetaFlow) : 0f;
                     float fuseFlowZoom = fuseNeedsFlow ? Eval(layer.colorFlowZoom, lp, spec.seed, li, 0, F_MetaFlowZoom) : 1f;
-                    float fuseNoiseZoom = 20f, fuseNoiseRot = 0f, fuseNoiseDriftX = 0f, fuseNoiseDriftY = 0f;
+                    float fuseNoiseZoom = 20f, fuseNoiseRot = 0f, fuseNoiseDriftX = 0f, fuseNoiseDriftY = 0f, fuseNoiseGradPos = 0f, fuseNoiseGradZoom = 1f, fuseNoiseWarp = 0.6f;
                     if (fuseNoiseFill)
                     {
                         fuseNoiseZoom = Mathf.Max(1f, Eval(layer.noiseZoom, lp, spec.seed, li, 0, F_NoiseZoom));
                         fuseNoiseRot = Eval(layer.noiseRotation, lp, spec.seed, li, 0, F_NoiseRot) * Mathf.Deg2Rad;
                         fuseNoiseDriftX = Eval(layer.noiseDriftX, lp, spec.seed, li, 0, F_NoiseDriftX);
                         fuseNoiseDriftY = Eval(layer.noiseDriftY, lp, spec.seed, li, 0, F_NoiseDriftY);
+                        fuseNoiseGradPos = Eval(layer.noiseGradientPosition, lp, spec.seed, li, 0, F_NoiseGradPos);
+                        fuseNoiseGradZoom = Eval(layer.noiseGradientZoom, lp, spec.seed, li, 0, F_NoiseGradZoom);
+                        fuseNoiseWarp = Eval(layer.noiseWarp, lp, spec.seed, li, 0, F_NoiseWarp);
                     }
                     RenderFusedField(layerTarget, W, H, framePhase, layer, lp, fusionCircles, layer.colorMode,
-                                     fuseFlowPos, fuseFlowZoom, fuseNoiseZoom, fuseNoiseRot, fuseNoiseDriftX, fuseNoiseDriftY,
+                                     fuseFlowPos, fuseFlowZoom, fuseNoiseZoom, fuseNoiseRot, fuseNoiseDriftX, fuseNoiseDriftY, fuseNoiseGradPos, fuseNoiseGradZoom, fuseNoiseWarp,
                                      stack, frameIndex, ShapeSeed(spec.seed, li, 0));
                 }
                 FinishLayerPost(buf, layerTarget, hasLayerPost, layer, spec, li, lp, frameIndex, W, H);
             }
 
-            // Whole-frame post passes (Bloom, Outline) from the global list, in order, after everything composites.
+            // Whole-frame post passes (Bloom, Outline, ...) from the global list, in order, after everything
+            // composites.
             if (spec.globalModifiers != null)
                 for (int i = 0; i < spec.globalModifiers.Count; i++)
                 {
                     var m = spec.globalModifiers[i];
-                    if (m == null || !m.enabled || !(m is PostModifier post)) continue;
-                    post.SetLife(bp);   // blast progress — see PostModifier.life (mirrors PinWarpModifier.SetFrame)
-                    m.Prepare((v, fid) => Eval(v, bp, spec.seed, GlobalLayerId, frameIndex, 1000 + (700 + i) * 8 + fid));
-                    post.Apply(buf, W, H);
+                    if (m == null || !m.enabled) continue;
+                    if (m is PostModifier post)
+                    {
+                        post.SetLife(bp);   // blast progress — see PostModifier.life (mirrors PinWarpModifier.SetFrame)
+                        post.SetSeed(spec.seed);
+                        post.SetFrameIndex(frameIndex);
+                        m.Prepare((v, fid) => Eval(v, bp, spec.seed, GlobalLayerId, frameIndex, 1000 + (700 + i) * 8 + fid));
+                        post.Apply(buf, W, H);
+                    }
                 }
+
+            // The one, always-last SIMULATION modifier (its own dedicated slot, not part of globalModifiers
+            // above) — see SimulationModifier's own class doc for why this lives outside the normal modifier
+            // dispatch entirely. Runs after every other layer/global modifier has fully composited.
+            if (spec.simulationModifier is SimulationModifier sim && sim.enabled)
+            {
+                sim.SetSeed(spec.seed);
+                // Resolves how frame f itself would evaluate this modifier's ZUIValues — EnsureFrame calls this
+                // once per Step, INCLUDING for frames it replays on a cold start/jump, so a replayed history
+                // uses each of ITS OWN frames' parameters rather than whatever frameIndex itself resolves to.
+                Func<int, Func<ZUIValue, int, float>> simParamsForFrame = f =>
+                {
+                    float fp = frameCount > 1 ? f / (float)(frameCount - 1) : 0f;
+                    return (v, fid) => Eval(v, fp, spec.seed, GlobalLayerId, f, 1000 + 900 * 8 + fid);
+                };
+                sim.EnsureFrame(frameIndex, buf, W, H, simParamsForFrame);
+                sim.Render(buf, W, H);
+            }
             return buf;
         }
 
@@ -626,13 +685,16 @@ namespace Laubrary.Pyre
             }
 
             float flowPos = 0f, flowZoom = 1f, gradX = 0f, gradY = 0f;
-            float noiseZoomV = 20f, noiseRotV = 0f, noiseDriftXV = 0f, noiseDriftYV = 0f;
+            float noiseZoomV = 20f, noiseRotV = 0f, noiseDriftXV = 0f, noiseDriftYV = 0f, noiseGradPosV = 0f, noiseGradZoomV = 1f, noiseWarpV = 0.6f;
             if (showGradientFill && layer.colorMode == ColorMode.NoiseFill)
             {
                 noiseZoomV = Mathf.Max(1f, Eval(layer.noiseZoom, t, spec.seed, li, 0, F_NoiseZoom));
                 noiseRotV = Eval(layer.noiseRotation, t, spec.seed, li, 0, F_NoiseRot) * Mathf.Deg2Rad;
                 noiseDriftXV = Eval(layer.noiseDriftX, t, spec.seed, li, 0, F_NoiseDriftX);
                 noiseDriftYV = Eval(layer.noiseDriftY, t, spec.seed, li, 0, F_NoiseDriftY);
+                noiseGradPosV = Eval(layer.noiseGradientPosition, t, spec.seed, li, 0, F_NoiseGradPos);
+                noiseGradZoomV = Eval(layer.noiseGradientZoom, t, spec.seed, li, 0, F_NoiseGradZoom);
+                noiseWarpV = Eval(layer.noiseWarp, t, spec.seed, li, 0, F_NoiseWarp);
             }
             else if (showGradientFill && layer.colorMode != ColorMode.OverLife)
             {
@@ -659,7 +721,7 @@ namespace Laubrary.Pyre
             RasterShape(buf, W, H, cx, cy, 0f, layer, Vector2.zero, radius, baseCol, pixelAlpha,
                         t, shapeSeed, crescX, crescY, stack, frameIndex, sparkleD, sparkleSub, holeSize, outerSoft, innerSoft,
                         flowPos, flowZoom, gradX, gradY, holeOffX, holeOffY, spinDeg * Mathf.Deg2Rad,
-                        noiseZoomV, noiseRotV, noiseDriftXV, noiseDriftYV,
+                        noiseZoomV, noiseRotV, noiseDriftXV, noiseDriftYV, noiseGradPosV, noiseGradZoomV, noiseWarpV,
                         sparkleBlobRadiusV, sparkleBlobLifeV, sparkleBlobSoftV, showGradientFill);
             return buf;
         }
@@ -916,7 +978,7 @@ namespace Laubrary.Pyre
         static void RenderMetaBlob(Color32[] buf, int W, int H, float cx, float cy, float framePhase,
                                    Layer layer, float lp, float alpha, float radScale, float expand, Vector2 originOff,
                                    ColorMode colorMode, float flowPos, float flowZoom,
-                                   float noiseZoomV, float noiseRotRad, float noiseDriftXV, float noiseDriftYV,
+                                   float noiseZoomV, float noiseRotRad, float noiseDriftXV, float noiseDriftYV, float noiseGradPosV, float noiseGradZoomV, float noiseWarpV,
                                    in ModStack stack, int frameIndex, int hash)
         {
             float nrCos = Mathf.Cos(noiseRotRad), nrSin = Mathf.Sin(noiseRotRad);
@@ -997,10 +1059,16 @@ namespace Laubrary.Pyre
                         // the Fill/Flow fill's field-depth-based frac above.
                         float rx = off.x - fieldCenter.x, ry = off.y - fieldCenter.y;
                         float nrx = rx * nrCos - ry * nrSin, nry = rx * nrSin + ry * nrCos;
-                        float noiseN = PyreNoise.Sample((nrx + noiseDriftXV) / noiseZoomV, (nry + noiseDriftYV) / noiseZoomV, hash, layer.noiseWarp);
+                        float noiseN = PyreNoise.Sample((nrx + noiseDriftXV) / noiseZoomV, (nry + noiseDriftYV) / noiseZoomV, hash, noiseWarpV);
                         int bands = Mathf.Max(1, layer.noiseBands);
-                        float nfrac = bands > 1 ? Mathf.Floor(Mathf.Clamp01(noiseN) * bands) / (bands - 1) : noiseN;
-                        fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(Mathf.Clamp01(nfrac)) : Color.white;
+                        float nfrac = NoiseBandFrac(noiseN, bands, layer.noiseBandSoftness);
+                        // Mirror (0→1→0), not a plain wrap, same reasoning as FlowingFill below — a gradient's own
+                        // start/end colours are rarely identical, so wrapping this straight into another 0 would
+                        // jump between them every cycle. Mirroring instead plays the gradient forward then
+                        // backward, so it's smooth at every period boundary regardless of Position/Zoom.
+                        float noiseGradF = Mathf.Repeat(nfrac * noiseGradZoomV + noiseGradPosV, 1f);
+                        float noiseGradFrac = 1f - Mathf.Abs(2f * noiseGradF - 1f);
+                        fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(noiseGradFrac) : Color.white;
                     }
                     else
                     {
@@ -1045,7 +1113,7 @@ namespace Laubrary.Pyre
         static void RenderFusedField(Color32[] buf, int W, int H, float framePhase, Layer layer, float life,
                                      System.Collections.Generic.List<FusionCircle> circles,
                                      ColorMode colorMode, float flowPos, float flowZoom,
-                                     float noiseZoomV, float noiseRotRad, float noiseDriftXV, float noiseDriftYV,
+                                     float noiseZoomV, float noiseRotRad, float noiseDriftXV, float noiseDriftYV, float noiseGradPosV, float noiseGradZoomV, float noiseWarpV,
                                      in ModStack stack, int frameIndex, int hash)
         {
             int n = circles.Count;
@@ -1101,10 +1169,16 @@ namespace Laubrary.Pyre
                     {
                         float rx = off.x - fieldCenter.x, ry = off.y - fieldCenter.y;
                         float nrx = rx * nrCos - ry * nrSin, nry = rx * nrSin + ry * nrCos;
-                        float noiseN = PyreNoise.Sample((nrx + noiseDriftXV) / noiseZoomV, (nry + noiseDriftYV) / noiseZoomV, hash, layer.noiseWarp);
+                        float noiseN = PyreNoise.Sample((nrx + noiseDriftXV) / noiseZoomV, (nry + noiseDriftYV) / noiseZoomV, hash, noiseWarpV);
                         int bands = Mathf.Max(1, layer.noiseBands);
-                        float nfrac = bands > 1 ? Mathf.Floor(Mathf.Clamp01(noiseN) * bands) / (bands - 1) : noiseN;
-                        fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(Mathf.Clamp01(nfrac)) : Color.white;
+                        float nfrac = NoiseBandFrac(noiseN, bands, layer.noiseBandSoftness);
+                        // Mirror (0→1→0), not a plain wrap, same reasoning as FlowingFill below — a gradient's own
+                        // start/end colours are rarely identical, so wrapping this straight into another 0 would
+                        // jump between them every cycle. Mirroring instead plays the gradient forward then
+                        // backward, so it's smooth at every period boundary regardless of Position/Zoom.
+                        float noiseGradF = Mathf.Repeat(nfrac * noiseGradZoomV + noiseGradPosV, 1f);
+                        float noiseGradFrac = 1f - Mathf.Abs(2f * noiseGradF - 1f);
+                        fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(noiseGradFrac) : Color.white;
                     }
                     else
                     {
@@ -1129,7 +1203,7 @@ namespace Laubrary.Pyre
                                 ModStack stack, int frameIndex, float sparkleDensity, int sparkleSub, float holeSize,
                                 float outerSoft, float innerSoft, float flowPos, float flowZoom, float gradX, float gradY,
                                 float holeOffX, float holeOffY, float shapeRotRad,
-                                float noiseZoomV, float noiseRotRad, float noiseDriftXV, float noiseDriftYV,
+                                float noiseZoomV, float noiseRotRad, float noiseDriftXV, float noiseDriftYV, float noiseGradPosV, float noiseGradZoomV, float noiseWarpV,
                                 float sparkleBlobRadius, float sparkleBlobLife, float sparkleBlobSoft,
                                 bool useGradientFill = true)
         {
@@ -1177,9 +1251,15 @@ namespace Laubrary.Pyre
                         continue;
 
                     // Normalised distance from the shape centre (0 = centre, 1 = edge) — drives the outer softness AND
-                    // the Tint modifier's cross gradient / fill (crossFrac).
+                    // the Tint modifier's cross gradient / fill (crossFrac). Divides by outerRadius (== radius when
+                    // no Edge modifier is active, so this is a no-op then), NOT the shape's true unperturbed radius —
+                    // using `radius` here was the actual bug behind "Edge warp doesn't seem to do anything": the
+                    // outer-softness fade below (pixelAlpha *= (1-nd)/outerSoft) zeroed out anything past the TRUE
+                    // round radius regardless of how far the edge warp had bulged outerRadius outward, so any
+                    // outward bulge got silently erased back to fully transparent by the very next fade — only a
+                    // faint trace of inward dents (already low-alpha that close to the edge) ever showed through.
                     float distFromCenter = Mathf.Sqrt((ux - c.x) * (ux - c.x) + (uy - c.y) * (uy - c.y));
-                    float nd = radius > 0.001f ? Mathf.Clamp01(distFromCenter / radius) : 0f;
+                    float nd = outerRadius > 0.001f ? Mathf.Clamp01(distFromCenter / outerRadius) : 0f;
 
                     // Disc/Sparkle edge softness: fade alpha near the hole's inner edge (measured from the — possibly
                     // offset — HOLE centre) and near the outer edge (nd = 1). The inner fade scales by hole size, so it
@@ -1228,10 +1308,13 @@ namespace Laubrary.Pyre
                             // the shape — independent of the Fill/Flow fill gradient-position/zoom/core fields above.
                             float rx = ux - c.x, ry = uy - c.y;
                             float nrx = rx * nrCos - ry * nrSin, nry = rx * nrSin + ry * nrCos;
-                            float n = PyreNoise.Sample((nrx + noiseDriftXV) / noiseZoomV, (nry + noiseDriftYV) / noiseZoomV, shapeSeed, layer.noiseWarp);
+                            float n = PyreNoise.Sample((nrx + noiseDriftXV) / noiseZoomV, (nry + noiseDriftYV) / noiseZoomV, shapeSeed, noiseWarpV);
                             int bands = Mathf.Max(1, layer.noiseBands);
-                            float nfrac = bands > 1 ? Mathf.Floor(Mathf.Clamp01(n) * bands) / (bands - 1) : n;
-                            fc = layer.colorOverLife.Evaluate(Mathf.Clamp01(nfrac));
+                            float nfrac = NoiseBandFrac(n, bands, layer.noiseBandSoftness);
+                            // Mirror (0→1→0), not a plain wrap — see the other Noise fill paths' identical comment.
+                            float noiseGradF = Mathf.Repeat(nfrac * noiseGradZoomV + noiseGradPosV, 1f);
+                            float noiseGradFrac = 1f - Mathf.Abs(2f * noiseGradF - 1f);
+                            fc = layer.colorOverLife.Evaluate(noiseGradFrac);
                         }
                         else
                         {
@@ -1476,6 +1559,19 @@ namespace Laubrary.Pyre
                 h = h * 31 + d;
                 return h;
             }
+        }
+
+        // Noise fill's shading-band quantization, shared by all three NoiseFill sampling sites below. At
+        // softness=0 this is byte-identical to the original hard `Floor(noiseN*bands)/(bands-1)` step; at
+        // softness=1 it's the fully continuous `noiseN` (same look as Bands=1) — a plain crossfade between the
+        // two, so any softness in between blends a recognizable band with its neighbour instead of popping.
+        static float NoiseBandFrac(float noiseN, int bands, float softness)
+        {
+            if (bands <= 1) return noiseN;
+            float n = Mathf.Clamp01(noiseN);
+            float hardFrac = Mathf.Floor(n * bands) / (bands - 1);
+            if (softness <= 0.0001f) return hardFrac;
+            return Mathf.Lerp(hardFrac, n, softness);
         }
 
         // Stable 0..1 hash of three ints — used for per-pixel sparkle / disintegrate / dissolve so results don't

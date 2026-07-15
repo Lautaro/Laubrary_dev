@@ -7,7 +7,549 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Pyre: `PixelFluidModifier`'s vortex/shockwave/viscosity sliders looked almost inert while the preview was
+  paused mid-clip** (reported: "none of the vortices sliders actually do anything... viscosity doesn't do
+  anything... shockwave sliders also do very little"). Root cause was in `SimulationModifier.EnsureFrame`
+  itself, not the simulation math (confirmed by isolating each subsystem directly — all three produced strong,
+  correct displacement on their own): a "same frame re-request" (e.g. a slider dragged while paused) took a
+  cheap checkpoint-restore-and-re-step shortcut, re-stepping only the CURRENT frame with the new value while
+  every earlier frame's contribution to accumulated state — an already-spawned emitter's own strength/radius,
+  baked in at spawn time; the velocity field's whole accumulated history — still reflected the OLD value. One
+  re-stepped frame barely moves cumulative state built from many frames under the old value, so parameters that
+  mostly matter cumulatively looked unresponsive, while the projectile tunnel's own strong, immediate, current-
+  frame injection looked fine by contrast. Fixed by removing that shortcut entirely: any frame request other
+  than the guaranteed-next-sequential one (which is all the real bake ever does) now does a full, deterministic
+  replay from frame 0 with the CURRENT parameters — the only way an edited slider correctly reflects across the
+  whole accumulated history, including every emitter's own spawn. `SaveCheckpoint`/`RestoreCheckpoint` (now
+  dead weight) removed from `SimulationModifier`'s abstract contract and from `PixelFluidModifier` entirely, a
+  nice simplification alongside the fix. Verified: dragging a slider while paused on frame 10 (after previously
+  playing there with a low value) now shows the full-strength effect immediately, not just a small nudge; all
+  earlier sequential/redo/jump/clone regression checks still pass.
+- **Pyre: `DissolveModifier`'s Erase pattern stayed rigid in screen space even under a Sphere/Ground/Jagg warp
+  in the same stack** (reported: "having a Sphere after a Dissolve, I would expect the Erase dots to be affected
+  by the sphere distortion"). This was true even before this session's Smoothness work — Dissolve has always
+  hashed on the raw, POST-composite screen (x, y), by which point any geometry warp has already been baked into
+  final pixel positions with no way back to "what local position was this before the warp." Not fixed in place
+  (see `LayerDissolveModifier` under Added, and Changed below for how the two now split).
+
 ### Added
+- **Pyre: `LayerDissolveModifier` ("Layer dissolve")** — Dissolve's shape-local sibling, offered only in a
+  layer's own Add-modifier menu (not global): hashes on `p.wx`/`p.wy`, the geometry-WARPED position every
+  PixelModifier already receives, instead of Dissolve's fixed screen (x, y) — so a Sphere/Ground/Jagg/Wobble
+  earlier in the SAME layer's stack genuinely drags the erase-dot pattern along with it. The trade-off: as a
+  PixelModifier (one pixel at a time, no neighbour access), its own Smoothness can only do the self-fade half of
+  Dissolve's Smoothness (a pixel fades out over subsequent frames as Amount keeps rising past its own
+  threshold), not the neighbour-bleed half — that needs whole-frame buffer access, exactly what Dissolve's own
+  PostModifier form has and this one gives up in exchange for geometry-awareness. Verified: hashing is provably
+  a pure function of (wx, wy) — two different raw (x, y) with identical warped position give the same erase
+  decision, and the same raw (x, y) with different warped positions disagree on ~49% of samples; end-to-end,
+  stacking Sphere before it and raising Sphere's Strength measurably changes the composited erase pattern.
+- **Pyre: `Layer.simulationModifier`** — a per-layer counterpart to `BlastSpec.simulationModifier`, so a Pixel
+  fluid (or future SimulationModifier) can react to just ONE layer's own pixels/shape instead of (or alongside)
+  a blast-wide one. Mirrors the blast-wide slot exactly — its own single nullable field, not a list, guaranteeing
+  "only one, always last" the same way — except scoped to that layer's own isolated buffer: runs at the tail of
+  `FinishLayerPost`, after the layer's own Post modifiers, before it composites onto the frame. A layer with a
+  simulation modifier now forces the isolated-buffer path (same as having a Post modifier) even with no other
+  Post modifier present, since the simulation needs that layer's own composited pixels to react to. New editor
+  section ("Simulation (genuinely iterative, always last IN THIS LAYER)") added to every per-layer panel,
+  reusing the same UI helper as the blast-wide section (now parameterized by getter/setter instead of being
+  hard-wired to `BlastSpec`). Verified: a layer-level Pixel fluid measurably displaces/erodes that layer's own
+  pixels; renders without error alongside a separate blast-wide Pixel fluid at the same time.
+- **Pyre: Noise fill's Warp promoted from a plain float to MultiCont (ZUIValue)** — now animatable, matching
+  every other Noise fill field (Zoom/Rotation/Drift/Gradient position/Gradient zoom). Threaded through all four
+  places that resolve Noise fill's per-frame values (the regular Disc/Crescent/SparkleField path used by both
+  the per-shape and single-shape-preview call sites, MetaBlob, and Fused blobs) via a new `F_NoiseWarp` field id,
+  same pattern as the sibling fields. Verified: an animated Warp curve genuinely changes the rendered noise
+  pattern frame to frame (checked against a black→white gradient, since Layer's own flat `WhiteGradient()` helper
+  masks any noise-pattern difference behind a solid colour — a test-design trap, not a code bug); all three
+  colour paths (Disc/Crescent, MetaBlob, Fused) render without error with an animated/non-default Warp.
+- **Pyre: `SimulationModifier` + `PixelFluidModifier` ("Pixel fluid")** — the genuinely ITERATIVE modifier the
+- **Pyre: `SimulationModifier` + `PixelFluidModifier` ("Pixel fluid")** — the genuinely ITERATIVE modifier the
+  Ballistic shockwave closed-form trick couldn't deliver ("this is the third try we do and it hasnt turned out
+  well... can we build a modifier that is genuinely iterative — each frame's density/velocity grids depend on
+  the previous frame's?"). `SimulationModifier` is a new, FOURTH modifier family living in its own dedicated
+  single slot, `BlastSpec.simulationModifier` — deliberately NOT a list like Geometry/Pixel/Post modifiers —
+  which trivially guarantees "only one" and "always applied last" by construction, with zero changes to any
+  other modifier's behaviour. Its `EnsureFrame` checkpoint/replay scheme keeps this safe under Pyre's non-
+  sequential access patterns (scrubbing, animated thumbnail sampling): a sequential next-frame request costs one
+  cheap `Step()`; a same-frame re-request (e.g. a slider dragged mid-pause) restores a checkpoint and re-steps;
+  any other jump — including the very first-ever call — does a full, deterministic replay from frame 0,
+  re-resolving each replayed frame's OWN animated parameters (not just whatever the caller most recently asked
+  for) so a cold scrub straight to frame 40 reproduces bit-for-bit the same state a sequential 0→40 run would
+  have. The real bake (`BlastRenderer.RenderSheet`, confirmed strictly sequential with no threading/reordering)
+  always hits the cheap path.
+  `PixelFluidModifier` itself keeps REAL persisted state — a velocity displacement field and an alpha-erosion
+  field, both sized to the canvas — modelled on a reference Python `PixelFluidSimulation` (projectile tunnel +
+  trailing shockwave rings + an alternating vortex street advecting density through velocity). Unlike Ballistic
+  shockwave's age-derived closed form, a second wave crossing an already-eroded patch genuinely digs it deeper,
+  and a vortex's drift is a real integrated position, not re-derived from how old it is. Vortices can shed a
+  smaller child of their own (the reference's stochastic branching), safe here because the randomness comes
+  from `FluidRandom`, a tiny explicit-`ulong`-state PRNG that checkpoints/restores like every other field
+  (`System.Random` can't be rewound mid-stream, which a checkpoint-restore needs). Verified: state genuinely
+  persists and displaces/erodes across sequential frames; a same-frame redo reproduces the original result; a
+  cold jump straight to frame 10 on a fresh instance matches a sequential 0→10 run byte-for-byte; jumping
+  backward mid-run then forward again still reproduces the original sequential result; a freshly-`Clone()`d
+  instance (for asset "Dup") renders untouched until it's actually stepped, rather than sharing the original's
+  live simulation arrays.
+- **Pyre: Noise fill gained a "Band softness" slider** (reported: "the shapes jump too harshly between the
+  stages of the gradient fill"). At 0 (default) it's byte-identical to the existing hard
+  `Floor(noise×Bands)/(Bands−1)` step; higher crossfades that hard step toward the fully continuous noise value
+  (1 = same look as Bands=1), so a small amount keeps recognizable shading bands without the harsh pop between
+  them. Verified: softness=0 matches the original formula exactly across sampled inputs; softness=1 reproduces
+  the raw continuous value; intermediate softness falls strictly between the hard and raw values.
+
+### Changed
+- **Pyre: `DissolveModifier` — removed Fade and Bleed modes, added a Smoothness slider for Erase/Scatter**
+  (reported: "Fade and bleed mode... not useful"). Converted from a per-pixel `PixelModifier` to a `PostModifier`
+  specifically so Smoothness can see real NEIGHBOUR pixels, which a per-pixel effect has no way to do. At
+  Smoothness 0 it's unchanged — the same hard random holes/churn as before. Above 0 it softens two ways: a pixel
+  that just crossed the removal threshold doesn't vanish outright, fading out over several SUBSEQUENT frames as
+  Amount keeps rising past its own threshold (closed-form — no persisted state needed, since Amount itself
+  already changes frame to frame); and a still-solid pixel next to an already-hollowed one bleeds some of its
+  own alpha toward it, so growing holes spread/soften into their surround instead of popping in as hard single-
+  pixel speckle. `PostModifier` gained `SetSeed`/`SetFrameIndex` hooks (mirroring its existing `SetLife`) so
+  Dissolve can hash per-pixel without `PixelInfo.hash`, which only per-pixel Geometry/PixelModifiers get.
+  Verified: Smoothness=0 still produces only fully-kept-or-fully-removed pixels (no partial alpha, matching the
+  old behaviour exactly); Smoothness>0 produces genuine partial-alpha edge pixels.
+- **Pyre: Dissolve's Add-modifier entry now differs by context** (organizing the split with the new
+  `LayerDissolveModifier` above so it's unambiguous which one a project is using): the GLOBAL modifiers list
+  still offers plain "Alpha/Dissolve" (screen-space, full Smoothness) since there's no single shape/geometry
+  stack to be "local" to across a whole composited frame; a LAYER's own list instead offers "Alpha/Layer dissolve
+  (follows this layer's own geometry warps)". `ShowAddModifierMenu`/`DrawModifiers` gained an `isGlobal` flag to
+  pick the right one.
+
+### Fixed
+- **Pyre: `EdgeSmoothModifier` mostly smoothed the WHOLE shape, not just its edges** (reported: "even on the
+  lowest setting... the result is all over the shape"). Root cause: it blurred and blended R/G/B/A everywhere,
+  unconditionally — any shape with a gradient/noise fill has real pixel-to-pixel colour variation all the way
+  through its own interior, and that got blended too, not just the outer alpha transition. Fixed to be genuinely
+  edge-aware: a pixel that already has meaningful alpha now keeps its EXACT original colour always (only alpha
+  itself may soften); only pixels near the true boundary (low/near-zero original alpha) borrow a blurred colour
+  from the premultiplied blur average (still needed there to avoid a black fringe). Verified: deep-interior
+  pixels (with their own gradient) come out byte-for-byte identical; the outer edge still softens as expected.
+- **Pyre: `SunburstModifier` and `PulseRingsModifier` only tinted colour, doing nothing to geometry** (reported,
+  same complaint for both: "just a dark pattern overlaid" / "just dark semitransparent rings" — what was wanted
+  was the rays/rings actually pushing pixels). Both converted from `PixelModifier` to `GeometryModifier`:
+  - Sunburst now reuses Jagg's own radial-scale mechanism (a ray line pushes the silhouette further OUT, the
+    gap between two rays pulls it further IN) with its existing Rays/Sharpness/Rotation fields unchanged in
+    meaning — a sharper-edged sibling to Jagg's own rounded star points.
+  - Pulse rings now pushes pixels radially (same push mechanism as Ring wave) but keeps its own distinct
+    authoring feel: ring count is relative to the SHAPE'S OWN RADIUS (like the old colour version's crossFrac),
+    not a fixed pixel wavelength, so it isn't a pure duplicate of Ring wave. Strength is now a pixel push
+    distance rather than a 0..1 colour delta (default changed from 0.5 to 3px accordingly).
+  - Both moved from the Colour menu category to Geometry to match.
+
+### Added
+- **Pyre: `BallisticShockwaveModifier` ("Ballistic shockwave")** — a richer sibling to Cloud projectile, modelled
+  on a reference pixel-fluid simulation (projectile tunnel + trailing pressure rings + an alternating vortex
+  street, advecting density through a velocity field). The reference is a genuine ITERATIVE simulation — each
+  frame's density/velocity depend on the previous frame's — which doesn't fit Pyre's bake-any-frame-
+  independently model directly, so every emitter here is re-expressed as a CLOSED-FORM function of "how far
+  past its own spawn point the projectile now is" instead of an iterated accumulation: a shockwave/vortex
+  spawns every Spacing (a fraction of the whole travel); if the current Depth hasn't reached its own spawn
+  point yet, it simply doesn't exist this frame; its age (Depth − its own spawn Depth) alone gives its current
+  radius and strength (strength = Strength × exp(−Decay × age) — the reference's per-frame `persistence **
+  (dt×60)` accumulation IS this same exponential decay, just re-derived in closed form against elapsed age
+  rather than iterated frame by frame). Per-vortex jitter (position offset, drift, radius variance) is drawn
+  from a deterministic hash keyed on the vortex's own index instead of the reference's real RNG, so the same
+  frame always renders identically (required for a baked, scrubbable timeline). Spin alternates by index parity
+  (+1/−1/+1/−1...), reproducing the reference's alternating vortex street exactly. The reference's stochastic
+  child-vortex shedding (a per-frame random chance, an unbounded/unpredictable branching tree) is the one piece
+  left out — the least closed-form-friendly part of the simulation; everything else carries over. Like Cloud
+  projectile, resamples directly from a snapshot of the already-rendered frame (the pixel data IS the cloud)
+  rather than advecting a separately-simulated grid. Verified: identity at Depth 0; real displacement at Depth
+  0.5; the tunnel's own erosion measurably reduces alpha at its core while leaving distant pixels untouched;
+  active wave/vortex counts match the closed-form spawn math; vortex spin alternates correctly. Kept alongside
+  the simpler Cloud projectile rather than replacing it.
+
+### Fixed
+- **Pyre: two Add-modifier menu entries were silently buried under spurious nested submenus** ("Edge warp
+  (jagged/wavy silhouette only)" and "Blast (disc/arc/line)") — Unity's `GenericMenu` splits on EVERY "/" in a
+  label to build submenu nesting, not just the first one separating the category, so the "/" inside their own
+  descriptive text created extra unintended submenu levels (Geometry → "Edge warp (jagged" → "wavy silhouette
+  only)"; Geometry → "Blast (disc" → "arc" → "line)") instead of a flat item under Geometry like every other
+  modifier. Audited every Add-modifier label for the same mistake (none of the other 34 have a second "/") and
+  reworded these two with commas instead.
+
+### Removed
+- **Pyre: "X" (formerly LineForceModifier) and `PiercingModifier` removed entirely** — neither delivered the
+  piercing feel asked for. Also removed the `PierceMode` enum and the `IExtraPost` interface (X was its only
+  implementer), and both of its dispatch sites in `BlastRenderer`.
+
+### Added
+- **Pyre: `SunburstWobbleModifier` ("Sunburst wobble")** — Wobble's radial sibling: instead of a fixed
+  horizontal ripple keyed to vertical position, this pushes pixels outward/inward along the ray from the
+  shape's own centre, with the push keyed to ANGLE around that centre — the same sin(x×freq+phase) idiom
+  Wobble uses, just walking the circumference instead of up the canvas. Reads as wavy "sunbeams" that reach
+  further out or pull further in than their neighbours, and phase (free, same as Wobble) sweeps/pulses the
+  whole pattern over life. Verified: identity at Amplitude 0; displacement bounded within the amplitude range
+  once sampled at angles that don't alias onto the sine's own zero-crossings.
+- **Pyre: `PointBlastModifier` ("Blast")** — a single expanding shockwave from an arbitrary origin point, with
+  one continuous Arc setting spanning disc → wedge → line: 360° = a full circular explosion in every direction
+  at once; a smaller arc narrows it to a wedge that widens with distance from the origin, like a real blast
+  cone; 0° collapses to a straight, CONSTANT-width rod along Angle (a directional punch-through, like a
+  bullet's exit force) instead of vanishing to nothing the way a literal zero-width wedge test would — the
+  wedge's own half-angle is floored at whatever angle a fixed-width rod would subtend at that distance, so the
+  0° limit is exactly a rod, not a special-cased branch. Radius (animate it rising over life) is how far the
+  front has currently travelled; the push is strongest right at Radius and fades over Band width either side —
+  one sweeping front, not a repeating ripple (that's RingWave). Found and fixed a real bug during verification:
+  at Arc 360°, the point exactly OPPOSITE Angle sat precisely at the arc-softness math's edge-feathering
+  boundary and got silently zeroed, even though a full circle has no edge to feather at all — skip the
+  feathering entirely when Arc is a full 360°. Verified post-fix: all 12 sampled directions around a full
+  circle (including that exact opposite point) show equal full-strength push; line mode correctly isolates to
+  the rod's own axis.
+- **Pyre: `CloudProjectileModifier` ("Cloud projectile")** — a projectile tunnelling through the ALREADY-
+  RENDERED frame as if it were a cloud of some density: the pixel data itself (alpha) IS the cloud, not a
+  separately-authored field, so a dense/opaque region genuinely resists the shot more than empty space. Marches
+  the travel line from the canvas edge to its current Depth each frame, integrating the cloud's own alpha along
+  the way (Beer-Lambert-style absorption — remaining force = Strength × exp(-integrated density × Density)),
+  then resamples from a pre-modifier snapshot so pixels near the path get their content pulled sideways using
+  the cloud's OWN pixels. Necessarily a whole-frame Post effect, not a per-shape geometry warp — only a Post
+  pass sees finished pixels to read density from at all. Verified: Strength 0 leaves the frame untouched; a
+  dense medium measurably absorbs more force than a thin one, showing less displacement by the far side of the
+  travel (required a monotonic test gradient rather than a periodic stripe/checkerboard pattern, which aliases
+  unpredictably against periodic displacement amounts and gave misleading readings at first).
+- **Pyre: `PerlinTurbulenceModifier` ("Perlin turbulence")** — a sibling to Turbulence using genuine 2D GRADIENT
+  noise (`PyreNoise.SampleGradient`: interpolated random direction vectors dotted with the offset to each
+  lattice corner, plus a quintic fade) instead of Turbulence's own bilinear VALUE noise (raw random values
+  interpolated with a cubic fade). Value noise's hills sit visibly centred ON each lattice point, which is what
+  gives it a faintly blobby/grid-aligned look at low octave counts (reported: "I get the feeling it could be
+  sharper/smoother") — gradient noise doesn't have that bias. Added as a separate, opt-in modifier rather than
+  swapping the shared sampler in place, since Turbulence/Curl/Noise fill/AlphaMask's Noise shape are ALL built
+  on the same `PyreNoise.Sample`, and changing it under them would silently reshape every asset already using
+  any of those. Same fields as Turbulence (Amplitude/Zoom/Rotation/Offset/Warp), Warp included, so the two can
+  be compared side by side. Verified: genuinely different output from Turbulence's own noise (differs on ~80%
+  of sampled points), zero displacement at Amplitude 0.
+- **Pyre: Turbulence's own "Warp" promoted from a plain float to MultiCont** (now animatable, matching every
+  other Turbulence field) — same change applied to Perlin turbulence's own Warp above.
+- **Pyre: `EdgeSmoothModifier` ("Edge smooth")** — a standalone Post modifier that softens jagged/torn
+  silhouette edges (Radius + Strength, both animatable), for when Turbulence/Perlin turbulence's own Warp is
+  pushed high enough to fold the noise field over itself and carve sharp notches into what should be a smooth
+  edge. Not specific to Turbulence — works on any jagged-edge source (Jagg, EdgeWarp, a wild Wobble), so it's
+  a separate opt-in modifier rather than baked into Turbulence itself. Blurs ONLY alpha, done in PREMULTIPLIED
+  space specifically to avoid the classic "black fringe" bug a naive straight-alpha blur produces (a pixel
+  rising from fully transparent would otherwise blend in whatever arbitrary colour it happened to hold) —
+  verified: a pixel just past a hard red/transparent edge comes out red-tinted at partial alpha after blurring,
+  not black.
+- **Pyre: Noise fill gained a "Gradient" group (Position + a new Zoom)**, mirroring Fill/Flow fill's own
+  Gradient group exactly. Zoom (default 1 = unchanged) scales the noise value onto the gradient before Position
+  shifts it — higher repeats the gradient several times through the SAME noise pattern (tighter, more numerous
+  colour bands); lower compresses it into a narrower slice. Threaded through all three Noise fill paths (Disc/
+  Crescent/SparkleField, MetaBlob, Fused Disc), same as Position. Both wrap via the SAME mirror (0→1→0) trick
+  FlowingFill already uses, not a plain wrap — a gradient's own start/end colours are rarely identical, so
+  wrapping straight into another 0 would jump between them every cycle at Position/Zoom values that cross a
+  period boundary, precisely where a smooth result matters most. Verified: at the exact wrap point, a plain
+  wrap jumps the whole way across a white→orange gradient in one step; mirrored, the colour stays continuous
+  through it. Also verified zoom 1→4 visibly recolours ~76% of the shape's pixels (the feature itself works).
+- **Pyre: relabeled Noise fill's field group** to match the "Gradient" group's own convention — a "Noise"
+  group title over Zoom/Rotation/Drift/Warp (each label had its own redundant "Noise " prefix before: "Noise
+  zoom", "Noise rotation", etc., now just "Zoom", "Rotation", "Drift", "Warp" under the one group title).
+- **Pyre: `VoronoiCrackModifier` gained "Seam sharpness"** (reported: "I get the feeling I can't get a totally
+  clean crack seam that doesn't bleed over... Perhaps spread softness is not working?"). Diagnosis: Spread
+  softness was working exactly as built, but it's a different thing entirely — it only softens the TEMPORAL
+  spreading-reveal front, and only in the three non-Uniform Spread modes (there's no "front" in Uniform to
+  soften, which is why the control disappears there — not a bug). What was actually missing: a way to control
+  how HARD any one seam's own edge looks. Crack width previously conflated "how wide the tinted band is" with
+  "how it fades across that width" — it was always a plain linear ramp, at any width, with no way to make it a
+  crisp line instead of a soft gradient. New Seam sharpness (default 1 = that same unchanged linear fade)
+  reshapes the SAME band into a harder step (higher = a clean seam with no bleed into the cell interior) or a
+  softer one (lower), independent of Crack width and working in every Spread mode including Uniform — verified
+  numerically: raising it from 1 to 6 cut the "still bleeding" pixel fraction by roughly half.
+
+### Fixed
+- **Pyre: `EdgeWarpModifier` ("Edge warp") silently did almost nothing** (reported: "doesn't seem to do
+  anything"). Root cause: Disc/Crescent/SparkleField's own outer-softness alpha fade computed its "distance
+  from centre, 0..1" fraction against the shape's TRUE, un-perturbed radius — so any pixel the edge warp bulged
+  OUTWARD past that true radius got immediately zeroed back to fully transparent by that very next fade,
+  regardless of how far outerRadius itself had bulged. Only faint inward dents (already near-zero alpha that
+  close to the true edge anyway) ever had a chance of showing at all. Fixed by measuring that fraction against
+  the (possibly edge-warped) outerRadius instead — a no-op when no Edge modifier is active (outerRadius ==
+  radius then), so every other shape's fade is unaffected. Verified: a bulged direction now correctly fades
+  alpha well past the true radius instead of hard-cutting at it.
+- **Pyre: `SphereModifier`'s negative range ("Strength" -1..0) read as almost nothing but a plain size-scale**
+  (reported: "not useful"). Root cause: the negative branch reused the SAME convex ratio (rSphere/r) as the
+  positive/fisheye side, just with a negative exponent — which only inverts that ratio's own narrow (2/π, 1]
+  range, so any modest negative Strength stayed close to identity (at -1, the shape only varied ~22%
+  corner-to-corner, vs +1's ~82%) — nowhere near a comparable mirror, just a mild overall size-up. Replaced with
+  the ACTUAL inverse function of the positive side's projection (sin(r·π/2) instead of asin(r)/(π/2)) — a
+  genuine concave dimple with the same order of dynamic range as the convex side, so -1 is now as
+  strong/characterful as +1, just pushed the other way (verified: -1 now varies ~38% corner-to-corner). 0..1
+  (the fisheye side the user already found useful) is completely unchanged; widened the slider to -5..5 too so
+  the exaggerated end of the mirrored range is reachable.
+
+### Added
+- **Pyre: Noise fill gained a Gradient position field** (MultiCont, 0..1, wraps) — shifts which part of the
+  colour gradient the noise field maps to, independent of the noise pattern's own drift/zoom/rotation. Animate
+  it and the gradient sweeps through the noise like an ember/glow effect, the same pattern staying put while
+  its colouring cycles. Threaded through all three Noise fill paths (per-shape Disc/Crescent/SparkleField,
+  MetaBlob, and Fused Disc) so it works identically everywhere Noise fill does. Verified: pos 0→0.5 visibly
+  recolours ~80% of the shape's pixels, and pos 1.0 wraps back to an exact match with pos 0.
+- **Pyre: `SphereModifier` gained Origin (a 2D pad, px offset from the shape's own centre) and Radius (px, 0 =
+  auto/matches the shape's own radius, unchanged from before this field existed)** — the fisheye/dimple lens no
+  longer has to be dead-centre or exactly the shape's own size; a smaller Radius makes a tight bubble, a larger
+  one lets it extend past the shape's own edge. Both animatable (MultiCont). Verified the lens's own edge stays
+  correctly anchored (zero displacement) and everything beyond it is untouched, same invariant as before.
+- **Pyre: `PiercingModifier` ("Piercing")** — a from-scratch second attempt at a piercing rod, replacing the
+  never-quite-right feel of the old LineForceModifier (renamed to "X" below, kept as-is). Params match the
+  requested design directly: **Angle** (the rod's direction — it has an implicit Start/End at the canvas edges
+  along that angle), **Depth** (0..1 — how far the tip has travelled, 0 = hasn't entered, 1 = all the way
+  across; a MultiCont curve, so travel can ease, hold, or reverse), **Length** (0..1 — how much of the tip's
+  OWN travelled distance still has solid rod behind it: 0 = a bare point/bullet, 1 = a solid rod filling the
+  whole distance from Start to the tip), **Offset** (px, slides the rod's line sideways off-centre), plus
+  **Radius**/**Strength** (the push's reach and magnitude) and **Ripple memory** (how long, in the same 0..1
+  units as Depth, a past instant's push keeps contributing before fading).
+  - The key behavioral difference from "X": this one gives the push MEMORY. Area the tip passed through EARLY
+    keeps accumulating push from the shockwaves the advancing rod keeps throwing off, ending up more displaced
+    by the end than area the tip only just reached — Ripple memory controls how long that accumulation window
+    is (small ≈ a plain instantaneous push, no build-up; large ≈ the whole traversal keeps contributing, even
+    continuing to settle after the rod stops or exits).
+  - Still fully re-derivable from THIS frame's own progress alone — no cross-frame state, matching Pyre's
+    fully-baked model. The "memory" is a numerical integral over Depth's own curve, re-sampled backward from
+    the current phase at a fixed small step (auto-scaled to Ripple memory, capped at 128 steps) every frame,
+    weighted by a proper exponential-decay density so a point's dose ramps up smoothly from zero the moment the
+    tip reaches it (rather than jumping to a large fraction immediately) and asymptotes toward a stable max
+    regardless of Ripple memory's own value.
+  - Does NOT include "X"'s actual alpha-carve/gap toggle (ShapeAware/Always Pierce) — this one is push-only for
+    now; ask if a genuine divide/gap should be added on top.
+
+### Changed
+- **Pyre: `LineForceModifier` renamed to "X"** (a temporary placeholder label) — its own Pierce toggle never
+  quite delivered a convincing piercing feel, so `PiercingModifier` (above) is a fresh attempt at that concept
+  under the freed-up name. Nothing about X's own behavior changed; it's a genuinely useful stretch/burst effect
+  in its own right and stays available (Geometry menu, labeled "X (was: line force / piercing rod)" for now so
+  it's easy to find while it's between names).
+- **Pyre: Save/Recall for the preview background moved from "Test background (sprites)" up to "Preview
+  backdrop"**, and collapsed from three actions (Recall, New, a separate bottom Save + name field) into two
+  (Recall, and a single ★ — same quick-save affordance the layer list already uses). ★ does what New+Save used
+  to do in two steps: seeds a fresh asset from whatever's currently showing if nothing's loaded yet, otherwise
+  just re-saves in place — one action that saves the WHOLE preset (this box's mode/colour/gradient/image AND
+  Test background's sprites together), not two separate save flows for what was always one recallable unit.
+
+### Fixed
+- **`ZUI.SliderStacked` silently rounded plain 0..1 float fields to just 0 or 1** — RoseRing's Radius and Birth
+  (both a real 0..1 fraction) were affected (reported: "Its either 0 or 1"). Root cause: the numeric field's
+  int-vs-float display was GUESSED from the range's shape (`isInt = (max-min)>=1 && both whole numbers`), which
+  can't tell a genuine integer range (Count, 1..60) apart from a plain 0..1 fraction (same shape, both ends
+  whole). `isInt` is now an explicit opt-in parameter instead of a guess — RoseRing's Count and the Style
+  Editor's corner-radius slider (same shape-guess bug, silently already present there too) now request it
+  explicitly; every 0..1-shaped float field (Radius, Birth, and any other caller) is continuous again.
+- **Pyre: the left pane's scroll view had no real width ceiling**, so ANY child using `ExpandWidth(true)` (a
+  plain full-width `ValRow`/`Slider`, the "+ Add modifier"/Paste buttons, the layer-name field) sized itself
+  against the scroll view's own virtual content width — which could silently balloon past the visible pane the
+  moment one row demanded more room, forcing a horizontal scrollbar and pushing other rows' trailing controls
+  (a numeric value box, a button) out of view. This is the same family of bug as the packed-row overflow fixed
+  below, just for UN-packed, single, full-width controls — reported as "sliders hundreds of pixels wide... the
+  numeric input box gets cut off." Wrapped the whole scroll view's content in one `GUILayout.MaxWidth` instead
+  of chasing every leaf control individually — a real ceiling for the whole subtree, not a hint any one control
+  could ignore.
+- **Pyre: the previous entry's `PaneRowBudget` (760px flat guess) was itself the bug — it overflowed the real
+  left pane, forcing a horizontal scrollbar and clipping controls off past the edge** (reported: the Gradient
+  row's Offset field pushed off-view, "+ Add modifier"/"Paste" needing to scroll to reach Paste at all) **even
+  after widening the pane well past half the screen.** Root causes, all fixed:
+  - `PaneRowBudget` now reads the pane's real, live `leftWidth` (the actual resizable splitter width) instead
+    of a static guess, and `GroupFieldWidth` no longer floors a field's width ABOVE what that real budget can
+    support — the floor was exactly what forced overflow on crowded rows (RoseRing's 5 fields demanded
+    5×200px regardless of how much pane was actually there).
+  - The Gradient row's Position/Zoom/Offset undercounted itself (`GroupFieldWidth(2)` for 3 fields sharing the
+    row), and Offset (a 2D position control) was never width-capped at all — its internal thumbnail uses
+    `ExpandWidth(true)` and, left unconstrained, greedily filled whatever was left. New `CompactValue2DRow`
+    helper caps it the same way `CompactValRow` already caps a plain ValRow; applied to every 2D control that
+    shares a packed row (Gradient's Offset, Position+Spin, Noise drift+Noise warp).
+  - "+ Add modifier"/"Paste" had no width cap and no trailing FlexibleSpace, so the button style's default
+    stretch inflated "+ Add modifier" to match whatever width other (now-overflowing) rows had already forced
+    the scroll view to — pushing Paste out of view. Both now `ExpandWidth(false)` with a FlexibleSpace after.
+- **Pyre: still-missing vertical space** between the Seed/Frame count/Bake background row and the Origin row
+  right below it (both packed rows, but nothing separated the two groups) — added the same `VerticalSpace(2f)`
+  used at every other group boundary this pass.
+- **Pyre: Ring expand + Align rotation** — Align rotation is just a checkbox, so it now shares Ring expand's row
+  (same pattern as Outer softness/Hollow) instead of the checkbox getting a whole row of empty space to itself.
+- **Pyre: single-value modifiers (Skew, Contrast, Brightness, Saturation, Sphere, Ordered dither) no longer draw
+  a separate labelled row for their one slider** — the header row already names the modifier ("Contrast"), so a
+  second row repeating that label ("Contrast" again, next to a slider stretched across the whole pane) was pure
+  redundancy on top of being needlessly wide for one number. Now drawn inline in the header row itself
+  (unlabeled, compactly sized) — one row per modifier instead of two.
+- **ZUIValueControl's "live: X" readout was noise in Pyre.** It evaluates the field against real wall-clock time
+  (`Time.time`/`EditorApplication.timeSinceStartup`) — meaningful for a value genuinely driven by elapsed
+  gameplay time, meaningless for Pyre, which evaluates the same ZUIValue against its own BAKED frame/life-phase
+  instead (reported: "Why does it say Live:2?" — an arbitrary number with no relation to the frame being
+  previewed). New `Options.WithoutLiveReadout()` on the shared control (default off, so Zhowcase's own demo of
+  the feature is unaffected); Pyre's `ValRow` wrapper now sets it.
+- **New `ZUI.ZTextStyle.GroupTitle`** — for a label that titles a small in-body group of related controls (e.g.
+  "Gradient" over Position/Zoom/Offset), one step bigger/bolder than the ad hoc `EditorStyles.miniBoldLabel`
+  these used before, without competing with a full `SectionHeader` ("Blast", "Modifiers"). Applied to both of
+  Pyre's "Gradient" group labels.
+
+### Added
+- **Pyre: `CurlProgressModifier` ("Vortex field (progress)")** — a standalone sibling to Curl's vortices, added
+  non-invasively (CurlModifier itself is untouched) so the two driving models can be compared directly: instead
+  of a vortex's rotation accumulating as Strength × life-phase × Speed, here it's Strength × Progress, where
+  Progress is authored as its own MultiCont value (0 = no rotation, 1 = Strength fully applied) with no
+  automatic tie to how far into its life the blast is — a Curve can ease in, hold, pulse, or reverse
+  independent of life fraction, which Speed alone can't do cleanly. Shares CurlModifier's click-to-place/drag/
+  gizmo authoring via a new `IVortexHost` interface (`VortexPoint` gained a `progress` field alongside the
+  existing `speed`, ignored by the other's mode). No ambient churn — pair with Curl's own ambient Strength/Zoom
+  if wanted. Add via Geometry/Vortex field (progress).
+- **Pyre: a real, tunable width policy for packed control rows, instead of one narrow flat guess.** The earlier
+  `CompactValRowWidth` (200px) badly under-used the pane's actual space — reported via screenshots showing
+  RoseRing's 5-field rows and the Count/Position/Size rows each filling well under half their row, the rest
+  sitting empty. New `PaneRowBudget` (760px, the sizing TARGET this whole left pane realistically gets — see
+  `EDITOR_TOOL_CONVENTIONS.md`, a static assumption, not a live measurement) and `GroupFieldWidth(fieldCount)`
+  divide that budget evenly across however many fields share one row (floored at `CompactValRowWidth` so a
+  crowded 5-field row never goes unusably narrow) — applied across every packed group from the earlier
+  regrouping pass (Gradient, Count+Spawn radius, Position+Spin, Size+Alpha, the whole Bars box, MetaBlob's
+  fields, Disc/SparkleField/Crescent's edge controls, Noise fill, Curl's ambient+vortex rows) plus the new
+  ones below. If it's still off for your own window size, `PaneRowBudget` is the one constant to tune — same
+  idea as ZUI's own `verticalSpacing`.
+- **Pyre: RoseRing rows switched from `ZUI.StackedInt`/`StackedFloat` (a hidden drag-the-label gesture, no
+  visible track) to `ZUI.SliderStacked`** (same label-on-top look, kept as asked, but with an actual draggable
+  slider underneath) — a real slider is more discoverable than a gesture you have to already know about. Each
+  of the 5 fields (Count/Radius/Size/Birth/Life) now gets its fair share of the row via `GroupFieldWidth(5)`
+  instead of a flat ~40-44px regardless of available space, and rings now have a visible gap between them
+  (`VerticalSpace(2f)`, was none).
+- **`ZUI.SliderStacked` gains a `widthOverride` parameter** (`ZUISlider.cs`) — previously its width was ENTIRELY
+  auto-computed from the label text + a fixed ~40px value field, silently ignoring its own `options` parameter
+  (dead code — accepted a width but never used it), so there was no way to widen it for a packed multi-field
+  row. `widthOverride = 0` (default) reproduces the exact old auto-sizing for every existing caller; `> 0`
+  overrides both the value-field column and the track below it. `ZUIWindow.Draw.cs`'s forwarding wrapper
+  updated to match.
+- **Pyre: blast-level settings regrouped the same way.** Width/Height/PPU now share one row (compact typed
+  fields — these are exact sizes you type, not drag, so no slider needed) instead of Width+Height sharing a
+  row while Pixels-per-unit sat alone on a full-width-stretched field. Seed/Frame count/Bake background now
+  share a row (was: full-width IntField, full-width Slider, full-width ColorField, each its own row). Origin
+  X/Y converted from two separate full-width sliders to a `ZUI.PositionPad` (matching Position/Crescent
+  offset/Hole offset elsewhere), sharing a row with Origin marker alpha and the "Origin → centre" button.
+  "Bake background" gained an inline tooltip clarifying it's the actual pixel colour baked into every EXPORTED
+  frame (usually fully transparent) — distinct from "Preview backdrop" further down, which is cosmetic-only
+  and never baked, a real point of confusion between two similarly-named but different things.
+
+### Fixed
+- **Pyre: the preview transport row's "frame X/XX" counter had a fixed 70px width that was right at the edge
+  of what its own worst-case text ("frame 64/64") needs — wrapping/reflowing depending on exact digit count
+  and font metrics, changing the row's own height frame-to-frame during playback as the counter ticked over a
+  digit boundary. Reported as the whole preview flickering. It's the last element on its row with nothing
+  after it, so removed the fixed width entirely (`GUILayout.ExpandWidth(false)`) — auto-sizes to its own
+  content, the same safety `ZUI.FitWidth` already relies on elsewhere for varying-length text.
+- **Pyre: `SphereModifier` broke down (reported: "fills the whole frame") once Strength climbed past 1.** The
+  old extrapolation (`Mathf.LerpUnclamped(r, rSphere, amt)`) kept applying the SAME fixed per-radius delta
+  harder as `amt` grew — a runaway, not a hard crash: at Strength 1 ALONE, half-radius already sampled from a
+  third of the radius; by 2 it sampled from a sixth. Most of the disc's own AREA collapsed toward a tiny
+  central patch well before any actual sign flip, so it read as "the shape just fills with one solid colour"
+  once that patch's colour dominated. Replaced with `scale = Mathf.Pow(rSphere/r, amt)` — exponentiating the
+  RATIO instead of linearly extrapolating the RADIUS: identical result at Strength 1 (unchanged), true identity
+  at 0, and — since `Mathf.Pow` of a positive base can never go negative or flip sign — permanently well-behaved
+  at any Strength, verified from -3 to 50 with no break, still matching the exact old values at Strength 1.
+- **Pyre: dangling "armed for editing" modifier references (`editPin`/`editCurl`/`paintSmudge`) could leave
+  stale gizmos/strokes stuck in the preview with no way to clear them.** Each was only ever nulled by the
+  modifier list's own "X" remove button — deleting the whole LAYER that owned the armed modifier, an Undo that
+  removed it, or switching to a different asset entirely all left the reference dangling: the C# object stays
+  alive (still referenced by the window), so its vortex markers / painted strokes kept rendering indefinitely
+  (reported: a Curl vortex circle + "1 CCW" label still visible after removing that Curl modifier, alongside
+  unrelated leftover Smudge doodles). New `ValidateArmedModifiers()`/`ModifierStillExists()`, called once at
+  the top of `DrawAsset` every frame, self-heals all three by checking whether the referenced modifier is still
+  present anywhere in the CURRENT asset (any layer's list, or global) — covers every removal path at once
+  instead of patching each one individually, and naturally also clears on an asset switch (the old asset's
+  modifiers can never match the new asset's lists).
+- **Pyre: `Mathf.Lerp` silently clamps its blend factor to [0,1]**, unlike `LerpUnclamped` — this was quietly
+  breaking every "beyond 1 exaggerates further" / "negative inverts/pulls the other way" behaviour already
+  advertised in tooltips: `SphereModifier`'s Strength (beyond 1 fisheye exaggeration, negative concave dimple)
+  and `LineForceModifier`'s Strength × Tip-strength blend (the new tip-vs-body force differentiation was
+  completely inert whenever the combined multiplier reached 1, which it does by design at the tip) were both
+  no-ops past their [0,1] range. Caught by direct verification (a tip-strength=3 test showed IDENTICAL
+  displacement at the tip and far behind it — the smoking gun) before either shipped in a commit. Both switched
+  to `Mathf.LerpUnclamped`; re-verified: tip displacement now measures notably larger (7.65 vs 2.55) than the
+  already-pierced shaft, as intended.
+
+### Added
+- **Pyre: `LineForceModifier` — Reach/Length/Tip strength model the rod as a genuinely finite, animatable
+  segment** instead of an infinite always-fully-present line. `Reach` (animatable) is where the leading tip
+  currently sits along the rod's own axis — ahead of it, nothing has happened yet at all; animate it from well
+  before the shape to well past it for a real stabbing-through motion. `Length` bounds how far back from the
+  tip the rod's own body still reaches (a short stub vs. a long spear — previously unbounded/always-infinite).
+  `Tip strength`/`Tip falloff` make the leading tip hit harder than the already-pierced shaft trailing behind
+  it (1 = uniform, the old behaviour; higher = a genuine puncture point). Defaults (Reach/Length generously
+  large, Tip strength 1) reproduce the original behaviour with nothing new touched. Verified via direct
+  `InverseWarp` checks: ahead-of-tip points stay exactly unchanged, points beyond Length are excluded, and
+  points within Length correctly stretch.
+- **Pyre: `LineForceModifier` gains `Star` mode — an explosion of N piercing rods radiating from a shared
+  centre**, mirroring Bars' own Star/ArmCount/ArmSpread exactly. Every arm shares the same Radius/Strength/
+  Pierce/Reach/Length settings, summed per pixel like PinWarp sums its pins' displacements (not one arm
+  overwriting another) — so Reach animates the whole burst's shrapnel-expanding-outward motion for free.
+  `Offset` (the single-rod perpendicular slide) is ignored in Star mode — arms share `ctx.centre` exactly,
+  since sliding it per-arm would pull the arms apart rather than move the whole burst.
+- **Pyre: `CurlModifier`'s vortex parameters (Radius/Strength/Speed) are now full MultiConts (`ZUIValue`)**
+  instead of plain floats, so each vortex can be independently animated (Static/MinMax/Curve), not just a
+  fixed placement. `CurlModifier.Prepare()` resolves every vortex's ZUIValues once per frame into a cached
+  `ResolvedVortex` list (Eval's curve-sampling/hashing is too costly to redo per-pixel) using a small
+  wrapped field-id range (this modifier's id budget within `BlastRenderer`'s per-modifier spacing is only 8
+  wide, and a vortex list is unbounded) — Static/Curve modes (the common case) are fully independent per
+  vortex regardless; only MinMax's per-field random roll could rarely coincide between two vortices sharing
+  a wrapped id, a minor accepted tradeoff. Verified: two vortices with different static Radius/Strength values
+  each produce independently-correct rotation with no cross-contamination. Vortex `Strength`'s default and
+  slider range rebalanced (default 25, range 0–50, was 60 default / 0–360 range) per hands-on testing — below
+  ~15° barely reads, above ~40° tends to tear rather than read as a tighter whirlpool.
+- **Pyre: Curl's controls packed onto fewer rows**, mirroring the preview transport bar's Frame count/Zoom/
+  Speed row — new `CompactValRow` helper (`ZUI.NarrowLabel` + a fixed-width column, several packed into one
+  `ZUI.HRow()`) applied to the ambient-swirl box (Strength/Zoom/Speed/Warp, was 4 full-width rows, now one)
+  and each vortex's own Radius/Strength/Speed (was spread across 2 rows with Radius alone eating the first;
+  now the non-ZUIValue controls — select/id/CW-CCW/delete — share one row, and all three animatable fields
+  share a second, all compact). Widened to a dedicated `CompactValRowWidth` (200px, was reusing the narrower
+  150px `CompactSliderWidth` meant for plain-float `ZUI.MicroSlider` fields) — a `ValRow`/`ZUIValueControl`
+  field reserves a fixed ~40px numeric value box (`ZUISliderDef.valueWidth`, not adaptive to the field's own
+  min/max range — a real ZUI gap, not something to design around per call site) plus a 24px "⋯" config button
+  on top of label + slider, so it needs more room than a plain `MicroSlider` field or the slider portion gets
+  squeezed to nothing. New `CompactSlider` sibling helper for the handful of plain-float (non-`ZUIValue`)
+  fields (`perShapeLifeJitter`, `spawnStagger`, `noiseWarp`, MetaBlob's Threshold/Shade range/Edge softness),
+  same packing trick without the value-width/config-button overhead ValRow pays.
+- **Pyre: the whole per-layer shape inspector re-grouped and packed onto far fewer rows**, applying the same
+  `CompactValRow`/`CompactSlider` treatment throughout instead of just Curl: Gradient position/zoom/core
+  offset (Disc/Crescent and MetaBlob) now share one labelled "Gradient" row; Count+Spawn radius; Ring/Rosing's
+  Start angle+Arc degrees, and MetaBlob's Radius pulse+Expand and Threshold/Shade range/Edge softness (both the
+  MetaBlob box's own copy and the Fuse box's); Position (2D pad)+Spin; Size+Alpha (Alpha now draws once,
+  early, for Bars/MetaBlob specifically — since they never reach the scatter section where Size lives — and
+  shares Size's row for every other shape, instead of drawing twice or Bars/MetaBlob losing Alpha); Life
+  jitter+Spawn stagger; the whole Bars box (Bars per side+Width, Spacing+Edge softness, Forward reach+Backward
+  frac, Taper+Stagger, Layer angle+Mirror, Base angle+Star, Arms+Spread degrees); Disc/SparkleField's Outer
+  softness+Hollow and Hole size+Inner softness; SparkleField's Blob radius/life/softness; Crescent's Outer+Bite
+  softness; Noise fill's Zoom+Rotation and Drift+Warp. `VerticalSpace()` between every group so the packing
+  reads as distinct clusters, not one dense wall of controls. Design guidance recorded in
+  `EDITOR_TOOL_CONVENTIONS.md`: assume the host panel realistically gets roughly HALF the screen's width as a
+  sizing target, and don't shrink controls below what they need just because there's spare room — the
+  no-infinite-width rule is about not stretching one control across an absurdly wide panel, not a mandate to
+  minimize every field.
+- **Pyre: `LineForceModifier` gains a `Pierce` toggle — the rod can now actually divide the shape, not just
+  stretch texture around itself.** New `IExtraPost` interface (`PyreModifiers.cs`) lets one modifier serve a
+  second role beyond its declared Geometry/Pixel base class — a whole-frame post pass — since GeometryModifier
+  and PostModifier are separate base classes and a pure position warp has no way to touch alpha on its own.
+  `NeedsPost` lets `BlastRenderer` skip the isolated-buffer/post-loop overhead entirely when an instance's own
+  post behaviour is currently off (checked at the same three sites `is PostModifier` already is: the per-layer
+  isolated-buffer gate, `FinishLayerPost`'s loop, and the global-modifier post pass). Two Pierce modes, one set
+  of Angle/Offset/Radius/Pierce-width values driving both instead of needing two separately-kept-in-sync
+  modifier instances: **Shape-aware** shoves the pierced core hard enough to exit the HOST shape's own radius
+  — no new alpha code, just reusing the same silhouette test every GeometryModifier already feeds through, so
+  the tear inherits that shape's own edge softness/contour (organic, but only works on a bounded shape —
+  Disc/Crescent/MetaBlob). **Always** is a genuine alpha carve via `IExtraPost` on the finished pixels,
+  shape-agnostic (Bars/Sprite/fused fields, or as a Global modifier tearing through several composited layers
+  at once) — a cleaner, more mechanical cut. Pierce off (default) is unchanged: purely the stretch, an energy
+  pushing texture aside, never an actual gap. Verified via direct math checks: a straight linear taper across
+  the whole pierced core made the push too weak to actually clear the shape's radius partway through (a real
+  bug caught before shipping — distance-from-centre landed under the shape's own radius at 60% through the
+  core); fixed to a threshold shape (the inner ~70% gets the full guaranteed-exceed push, only the outer 30%
+  eases out) — now the inner core reliably opens a gap (36.05/36.45px from centre against a 24px shape radius)
+  while the outer edge blends smoothly back into the plain stretch. Always-mode carve confirmed on a raw
+  buffer with no shape at all: alpha rises 7→127→247→255 moving out from the line to the core's own edge.
+- **Pyre: `LineForceModifier` ("Line force (piercing rod)")** — a straight rod piercing through the shape,
+  shoving texture to its sides. A genuinely new mechanism among Pyre's modifiers: LINE-based rather than
+  point-based (`RingWaveModifier`) or a directional growth anchor (`GroundModifier`, not a perpendicular
+  distortion of existing content). Content only moves PERPENDICULAR to the rod's own axis (Angle); the
+  along-rod component is untouched. Same direct-inverse-remap approach as Sphere: sampling at output
+  perpendicular distance `rOut` pulls from `rSample = rOut²/Radius` — 0 right at the line (a thin source band
+  stretched wide, reading as "pushed clear of the rod"), rising back to meet `rOut` exactly at Radius (seamless
+  blend into undisturbed texture). `Offset` slides the line sideways — animate it corner-to-corner for a rod
+  that visibly travels THROUGH the shape over life rather than sitting static; negative Strength pulls inward
+  (a suction trail) instead of pushing outward. Verified via direct `InverseWarp` checks: perpendicular
+  distances 2/6/10/14/18/20 map to sampled 0.2/1.8/5.0/9.8/16.2/20.0 (exactly `t²·radius`, seamless at the
+  radius boundary), the along-axis point is exactly unchanged, and ±y mirror with equal magnitude/opposite sign.
 - **Pyre: `SphereModifier` ("Sphere (fake depth)")** — fakes volumetric depth on a flat shape via the standard
   "sphere impostor" projection: remaps the radial sample position as if painted on an orthographically-viewed
   sphere (r' = asin(r)/(π/2), the sphere's own surface arc-length from the pole instead of the flat screen
