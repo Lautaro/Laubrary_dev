@@ -35,6 +35,19 @@ namespace Laubrary.Pyre
             return Mathf.Clamp01(baseN * 0.65f + detail * 0.35f);
         }
 
+        /// The perpendicular of Sample()'s own spatial gradient (finite differences) — a divergence-free flow
+        /// field: it swirls (rotates around high/low spots in the potential) without ever pulling toward or away
+        /// from a point, unlike using the noise value itself as a displacement. This is the standard "curl noise"
+        /// trick for faking coherent, fluid-like swirl cheaply, without an actual fluid simulation's per-frame
+        /// advected state — CurlModifier is the only caller.
+        public static Vector2 Curl(float x, float y, int seed, float warp, float eps = 0.6f)
+        {
+            float dPotY = Sample(x, y + eps, seed, warp) - Sample(x, y - eps, seed, warp);   // d/dy
+            float dPotX = Sample(x + eps, y, seed, warp) - Sample(x - eps, y, seed, warp);   // d/dx
+            float k = 1f / (2f * eps);
+            return new Vector2(dPotY * k, -dPotX * k);   // rotate the gradient 90°
+        }
+
         // Bilinear-interpolated hash lattice (smoothstepped) — smooth, deterministic value noise, 0..1.
         static float ValueNoise(float x, float y, int seed)
         {
@@ -582,7 +595,7 @@ namespace Laubrary.Pyre
     /// Cellular (Worley/Voronoi) crack pattern — darkens/brightens pixels near the seams of a jittered feature-point
     /// grid, giving a shattered-crystal / cracked-earth / lightning-crackle look. A genuinely different visual
     /// family from PyreNoise's smooth domain-warped Perlin-style field — faceted and linear rather than blobby.
-    /// Zoom/Rotation/Drift mirror NoiseField's own domain controls (same reasoning, applied to a cellular field
+    /// Zoom/Rotation/Drift mirror Noise fill's own domain controls (same reasoning, applied to a cellular field
     /// instead of a smooth one); `seedOffset` is the crack-pattern twin of Layer.sparkleSeed — Static freezes the
     /// pattern, Min-Max re-rolls it every frame (a boiling/crackling reshuffle), a Curve jumps it between distinct
     /// patterns over life. Samples PixelInfo.wx/wy (the geometry-warped position), NOT the raw x/y, so the crack
@@ -593,7 +606,7 @@ namespace Laubrary.Pyre
     {
         [UnityEngine.Serialization.FormerlySerializedAs("cellSize")]
         [Tooltip("Zoom of the cell grid, in pixels — bigger = fewer, larger facets/cracks (zoomed in); smaller = a " +
-                 "finer, busier web (zoomed out). Same role as NoiseField's own Zoom, just over a cellular field " +
+                 "finer, busier web (zoomed out). Same role as Noise fill's own Zoom, just over a cellular field " +
                  "instead of a smooth one. Animatable.")]
         public ZUIValue zoom = new ZUIValue(10f);
         [Tooltip("Rotates the cell grid about the blast's own Origin marker, in degrees. Animatable — spin the " +
@@ -676,7 +689,7 @@ namespace Laubrary.Pyre
             int hash = seedStep != 0 ? unchecked(p.hash + seedStep * 92821) : p.hash;
 
             // Rotate about the blast's Origin marker (not the canvas corner), then drift along the — now possibly
-            // rotated — grid axes, matching NoiseField's own rotate-then-drift order.
+            // rotated — grid axes, matching Noise fill's own rotate-then-drift order.
             float rx = p.wx - originPx.x, ry = p.wy - originPx.y;
             if (rotRad != 0f)
             {
@@ -1255,7 +1268,7 @@ namespace Laubrary.Pyre
     /// re-threshold alpha with a soft band so overlapping/nearby silhouettes' blurred halos cross the threshold
     /// together and read as fused, while an isolated shape mostly reconstitutes near its own edge. A pixel-space
     /// APPROXIMATION of MetaBlob's exact SDF-field fusion — much cheaper, and (unlike MetaBlob) works on ANY
-    /// already-rendered pixels: any layer shape (even Bars/Sprite/NoiseField), any modifier stack, or — as a
+    /// already-rendered pixels: any layer shape (even Bars/Sprite), any modifier stack, or — as a
     /// global modifier — several different layers melted together after they all composite. `colorBleed`
     /// separately controls how much colour blends across the fused seam, independent of the silhouette fusion.
     [Serializable]
@@ -1504,6 +1517,147 @@ namespace Laubrary.Pyre
             off.x += n1 * amp;
             off.y += n2 * amp;
             return off;
+        }
+    }
+
+    /// One discrete swirl centre for CurlModifier — position in canvas-centre pixels (the same space as
+    /// MetaOrb/PinDot), authored by clicking the preview like MetaBlob's orbs / Pin warp's pins. Unlike the
+    /// ambient curl-noise below (organic, all-over churn), a vortex is a clean localized whirlpool: everything
+    /// within Radius spins around Pos, strongest at the centre, smoothly fading to nothing at the edge.
+    [Serializable]
+    public class VortexPoint
+    {
+        public Vector2 pos;
+        [Tooltip("Zone of influence, in pixels — the swirl fades smoothly to nothing at this distance from the vortex's own centre.")]
+        public float radius = 24f;
+        [Tooltip("Swirl strength, in degrees — how far a pixel at the vortex's own centre rotates per full blast " +
+                 "loop at Speed 1. Bigger = a tighter, more forceful whirlpool.")]
+        public float strength = 60f;
+        [Tooltip("How fast this vortex's rotation accumulates over the blast's loop, relative to Strength's " +
+                 "per-loop baseline — 2 = twice as fast (overshoots Strength and keeps going), 0 = no rotation " +
+                 "at all (effectively disables this vortex without removing it).")]
+        public float speed = 1f;
+        [Tooltip("Spin direction: on = clockwise, off = counter-clockwise.")]
+        public bool clockwise = false;
+
+        public VortexPoint Clone() => new VortexPoint { pos = pos, radius = radius, strength = strength, speed = speed, clockwise = clockwise };
+    }
+
+    /// Curl noise: fakes coherent, fluid-like swirl without an actual fluid simulation (which would need
+    /// per-frame ADVECTED state carried across the bake — a poor fit for Pyre's fully deterministic, compute-
+    /// any-frame-directly model). Two stackable layers: an AMBIENT domain-warped curl field (organic, all-over
+    /// churn — a fireball's roll, a mushroom cloud's turning cap) plus discrete, placeable VORTICES (clean
+    /// localized whirlpools with their own position/size/speed/strength). The shape this modifier sits on stays
+    /// the alpha mask throughout — Curl only ever displaces WHERE texture is sampled from, never what's visible
+    /// outside the shape's own silhouette (same as every other GeometryModifier).
+    [Serializable]
+    public class CurlModifier : GeometryModifier
+    {
+        [Tooltip("Ambient swirl displacement, in pixels — 0 = no ambient churn, just the vortices below (if any). Animatable.")]
+        public ZUIValue strength = new ZUIValue(4f);
+        [Tooltip("Ambient swirl noise frequency — bigger = larger, slower-looking eddies; smaller = fine, busy churn. Animatable.")]
+        public ZUIValue zoom = new ZUIValue(24f);
+        [Tooltip("How fast the ambient swirl's own flow field evolves over the blast's loop — 0 = a static " +
+                 "(non-animated) bend. Animatable.")]
+        public ZUIValue speed = new ZUIValue(1f);
+        [Range(0f, 2f)]
+        [Tooltip("Domain-warp strength on the underlying noise (0 = smooth eddies, higher = more churned/organic).")]
+        public float warp = 0.6f;
+
+        [Tooltip("Discrete swirl centres, layered on top of the ambient swirl above — each spins everything " +
+                 "within its own Radius around its own Pos. Add one via the box below (click the preview), " +
+                 "like Pin warp's pins.")]
+        public List<VortexPoint> vortices = new List<VortexPoint>();
+
+        float amt, zm, spd;
+        public override string DisplayName => "Curl (swirl)";
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        {
+            amt = e(strength, 0);
+            zm = Mathf.Max(1f, e(zoom, 1));
+            spd = e(speed, 2);
+        }
+
+        public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
+        {
+            Vector2 result = off;
+
+            if (Mathf.Abs(amt) > 0.01f)
+            {
+                Vector2 d = result - ctx.center;
+                float nx = d.x / zm + phase * spd;
+                float ny = d.y / zm;
+                // Per-shape-stable seed derived from the shape's own centre (Turbulence's own pattern), so
+                // different scattered shapes churn with different, still-deterministic flow fields instead of
+                // an identical repeated swirl.
+                int seed = unchecked((Mathf.RoundToInt(ctx.center.x * 8f) * 92821) ^ (Mathf.RoundToInt(ctx.center.y * 8f) * 68111));
+                Vector2 curl = PyreNoise.Curl(nx, ny, seed, warp);
+                result += curl * amt;
+            }
+
+            if (vortices != null)
+                for (int i = 0; i < vortices.Count; i++)
+                {
+                    var v = vortices[i];
+                    if (v == null) continue;
+                    Vector2 d = result - v.pos;
+                    float dist = d.magnitude;
+                    float r = Mathf.Max(0.5f, v.radius);
+                    if (dist >= r) continue;
+                    float w = 1f - dist / r; w = w * w * (3f - 2f * w);   // smoothstep falloff: 1 at centre -> 0 at radius
+                    float dirSign = v.clockwise ? -1f : 1f;
+                    float ang = dirSign * v.strength * Mathf.Deg2Rad * w * phase * v.speed;
+                    if (Mathf.Abs(ang) < 0.0001f) continue;
+                    // Inverse warp: rotate BACKWARD by the angle this vortex would have spun the pixel FORWARD by.
+                    float c = Mathf.Cos(-ang), s = Mathf.Sin(-ang);
+                    result = v.pos + new Vector2(d.x * c - d.y * s, d.x * s + d.y * c);
+                }
+
+            return result;
+        }
+
+        // Deep-copy the vortex list (PyreModifier.Clone's reflection pass only clones ZUIValue/Gradient/curve
+        // fields, not custom list types) so a duplicated modifier gets its own vortices, same as PinWarp's dots.
+        public override PyreModifier Clone()
+        {
+            var m = (CurlModifier)base.Clone();
+            m.vortices = vortices != null ? vortices.ConvertAll(v => v?.Clone() ?? new VortexPoint()) : new List<VortexPoint>();
+            return m;
+        }
+    }
+
+    /// Fakes volumetric depth on a flat shape by remapping the radial sample position as if it were painted
+    /// on an orthographically-viewed SPHERE (the standard "sphere impostor" projection). A unit sphere's depth
+    /// at normalised radius r (0 = centre/pole, facing the viewer head-on; 1 = the silhouette edge, tangent to
+    /// the view) is z = sqrt(1-r²); walking the sphere's own SURFACE ARC-LENGTH from the pole instead of the
+    /// flat screen radius gives r' = asin(r)/(π/2) — near-identity at the centre (little foreshortening,
+    /// facing you) but its slope races toward infinity as r→1, so texture detail crowds together toward the
+    /// silhouette exactly like a real sphere's grazing-angle foreshortening: bulged/magnified at the centre,
+    /// compressed toward the rim. Composes with Curl (swirl the flow, THEN bulge the result over the implied
+    /// sphere) or any spatial fill (Fill/Flow fill/Noise fill — bulges the colour gradient itself). Radius
+    /// always tracks the SHAPE's own current radius (ctx.radius, including its own animated Size), so the
+    /// bulge automatically stays sized to a growing/shrinking fireball with no separate radius to keep in sync.
+    [Serializable]
+    public class SphereModifier : GeometryModifier
+    {
+        [Tooltip("0 = no distortion (flat); 1 = the physically-correct sphere projection; beyond 1 exaggerates " +
+                 "past it for a more extreme fisheye. Negative inverts into a concave dimple instead of a bulge. " +
+                 "Animatable — e.g. ease the depth in as the shape matures.")]
+        public ZUIValue strength = new ZUIValue(1f);
+
+        float amt;
+        public override string DisplayName => "Sphere (fake depth)";
+        public override void Prepare(Func<ZUIValue, int, float> e) => amt = e(strength, 0);
+
+        public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
+        {
+            if (Mathf.Abs(amt) < 0.001f || ctx.radius <= 0.001f) return off;
+            Vector2 d = off - ctx.center;
+            float r = d.magnitude / ctx.radius;
+            if (r <= 0.0001f) return off;
+            float rSphere = Mathf.Asin(Mathf.Clamp01(r)) / (Mathf.PI * 0.5f);
+            float rFinal = Mathf.Lerp(r, rSphere, amt);
+            return ctx.center + d * (rFinal / r);
         }
     }
 

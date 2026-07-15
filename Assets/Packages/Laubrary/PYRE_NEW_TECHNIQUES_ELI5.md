@@ -94,10 +94,12 @@ Applies genuine Bayer-matrix dithering (above) to a shape's edge, turning a smoo
 the actual crosshatched dot pattern classic 16/32-bit pixel art uses, instead of the random speckle the
 existing "Dissolve" modifier makes.
 
-### 5. `NoiseField` — a whole new shape type (dust cloud / gas cloud / energy field)
-Until today, Pyre's shapes were geometric (circle, bars, sprite, fused blobs...). This is a genuinely new
-one: a shape that IS a noise field — a single churning, billowing cloud with no hard edge, controlled by
-its own zoom/spin/drift knobs. This is the direct, dedicated tool for "make an animated dust cloud."
+### 5. `NoiseField` — *removed*, folded into the existing Noise fill + modifiers instead
+This used to be its own shape (a churning cloud with no hard edge, no scatter/count). It was removed:
+Disc/Crescent/MetaBlob's own `ColorMode.NoiseFill` already paints the identical noise texture through a
+shape's silhouette, and `AlphaMaskModifier`'s Noise mask shape already carves an irregular cloud edge from
+any shape — so a standalone shape duplicated both rather than adding real capability. The shape defines
+where pixels exist (the alpha mask); noise/curl modifiers only affect texture and displacement within it.
 
 ### 6. `RingWaveModifier` — a shockwave ripple
 A ripple that travels *outward from the center* over time (as opposed to the existing "Wobble" modifier,
@@ -137,5 +139,4 @@ elsewhere. Should now produce an actual bright halo instead of a smudge.
 ## Quick reference: where to find each one
 
 All are opt-in — add them via the **"+ Add modifier"** button on a layer or on the blast's global modifier
-list, except `NoiseField`, which is a **layer shape** (pick it from the shape radio at the top of a layer,
-same place as Disc/Bars/MetaBlob).
+list.

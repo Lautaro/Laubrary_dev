@@ -7,6 +7,158 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Pyre: `SphereModifier` ("Sphere (fake depth)")** — fakes volumetric depth on a flat shape via the standard
+  "sphere impostor" projection: remaps the radial sample position as if painted on an orthographically-viewed
+  sphere (r' = asin(r)/(π/2), the sphere's own surface arc-length from the pole instead of the flat screen
+  radius) — magnified near the centre, increasingly compressed toward the silhouette, exactly like a real
+  sphere's grazing-angle foreshortening. Radius always tracks the shape's own CURRENT radius (`ctx.radius`,
+  including its animated Size), so the bulge stays sized to a growing/shrinking fireball automatically, no
+  separate radius field to keep in sync. Composes with Curl (swirl the flow, then bulge it over the implied
+  sphere). Verified: sampled radius is smaller than screen radius everywhere (centre magnification), and the
+  per-equal-step compression increases monotonically toward the edge (0.064→0.130→0.139→0.160→0.219 across
+  even screenR steps) — the intended fisheye/foreshortening curve, not a linear scale.
+- **Pyre modifier menu re-categorised.** Five modifiers sat as bare, un-prefixed entries in the flat "+ Add
+  modifier" menu (`EdgeWarpModifier`, `DissolveModifier`, `OrderedDitherModifier`, `VoronoiCrackModifier`,
+  `AlphaMaskModifier`) while everything else was grouped under `Geometry/`/`Colour/`/`Post/` — inconsistent,
+  and mixed in among the Colour submenu with no visual grouping. New **`Alpha/`** category (Dissolve, Ordered
+  dither, Alpha mask) groups the "changes what's VISIBLE and where" family, distinct from Colour's "changes
+  shading without touching alpha" family; `Voronoi crack` (fundamentally a pattern-driven recolour) joins
+  `Colour/`; `Edge warp` joins `Geometry/` (technically its own base class, `EdgeModifier` — silhouette-only,
+  doesn't touch fill — but that distinction lives in its label/tooltip, not a separate single-item submenu).
+- **Pyre: `CurlModifier` ("Curl (swirl)")** — fakes coherent, fluid-like swirl (fireball roll, mushroom-cloud
+  cap turn) without an actual fluid simulation, which would need per-frame ADVECTED state a poor fit for
+  Pyre's fully deterministic "compute any frame directly" bake model. Two stackable layers: an ambient
+  domain-warped **curl-noise** field (`PyreNoise.Curl` — the perpendicular of the existing `Sample()`
+  field's own spatial gradient via finite differences; divergence-free, so it swirls without ever pulling
+  toward/away from a point, unlike feeding the raw noise value in as a displacement) plus discrete,
+  placeable **vortices** (`VortexPoint`: position/radius/strength°/speed/CW-CCW) — each a clean localized
+  whirlpool, smoothstep-falloff to zero at its own radius, continuously rotating via the shared per-frame
+  `framePhase` (same clock Wobble/Ring wave already animate on). Authored by clicking the preview to place/
+  drag vortices, mirroring Pin warp's pin authoring exactly (`HandleCurlVortices`/`DrawCurlVortexMarkers`).
+  Verified: direct `InverseWarp` unit check confirms a vortex holds a pixel's distance from its own centre
+  exactly fixed (pure rotation) while its angle advances continuously with phase, and CW/CCW mirror correctly.
+- **Pyre: Ring/Rosing gains "Ring expand"** (`Layer.ringExpand`, animatable) — scales a ring's own placement
+  radius EVERY FRAME (unlike Spawn radius / a ring's own Radius, which lock in place the instant a shape
+  spawns), so every shape already on the ring rides outward/inward together as this animates, fully
+  independent of Size — the missing "Rotate, but radial" analog for a ring that visibly blooms over its own
+  life instead of only via stacked Rosing rings blooming in sequence.
+- **`PreviewBackground`** (`Laubrary.PreviewStage`, shared across tools) gains an optional flat backdrop
+  style (`mode`: None/Solid/Gradient/Image + `solid`/`gradient`/`image`/`imageTint`/`imageZoom`/`imagePos`),
+  alongside its existing `fill`/`sprites` — so Pyre's Save/Recall on this one asset now carries the WHOLE
+  preview background (style + sprite props) as a single recallable preset, not just the sprites. Pyre's
+  `bgMode`/`bgSolid`/`bgGradient`/`bgImage`/... proxies read/write these fields once a Test-background asset
+  exists, falling back to the legacy per-`BlastSpec` fields when it doesn't — zero migration, no data loss
+  for any already-authored blast that never touches Save/Recall.
+
+### Removed
+- **Pyre: `LayerShape.NoiseField`** (a standalone "single domain-warped noise cloud" shape). It duplicated
+  capability that already existed compositionally: `ColorMode.NoiseFill` already paints the identical
+  texture through any Disc/Crescent/MetaBlob's own silhouette, and `AlphaMaskModifier`'s Noise mask shape
+  already carves an irregular cloud edge from any shape — so a dedicated shape added upkeep (a second SDF/
+  threshold implementation to keep in sync) without adding real capability, and blurred the shape-vs-texture
+  line: Disc/Crescent/Sprite/MetaBlob define WHERE pixels exist, Noise fill/masks only ever affect texture
+  and edges within that. `noiseThreshold`/`noiseEdgeSoftness` (NoiseField-only) removed with it; `noiseZoom`/
+  `noiseRotation`/`noiseDriftX`/`Y`/`noiseWarp`/`noiseBands` kept (still `ColorMode.NoiseFill`'s own params).
+  One existing demo asset, `Assets/Demos/PyreDemo/NoiseField Ball.asset`, has a layer using the removed shape
+  and needs manual attention (repurpose or remove) — flagged, not touched.
+
+### Fixed
+- **Pyre: Ring/Rosing's "keep shape on screen" containment clamp was silently coupling Size to ring
+  placement.** The clamp re-centred a shape using its OWN current (possibly animated) radius as the safe-
+  window bound — for Ring/Rosing that's a spawn-locked PLACEMENT decision, meant to be fully independent of
+  Size (already documented as such: "Radius (placement) and Size (disc scale) are independent per ring").
+  Once a ring sat close enough to the canvas edge, growing a shape's Size pulled its clamped centre inward,
+  visibly shrinking/distorting the ring's actual radius and inter-shape spacing purely as a side effect of a
+  Size curve. Ring/Rosing now skip this centre re-clamp entirely (Area scatter — genuinely random placement —
+  keeps it); an oversized shape on an outer ring can now clip past the canvas edge instead, same tradeoff
+  Ring start angle/Arc degrees already accept for their own spawn-locked placement. Verified via a direct
+  `RenderFrame` comparison: a ring shape's placement centre now measures identical (34.5px) at Size 4 and
+  Size 8, where it previously drifted with Size.
+- **The Style Editor's flash-highlight now also reaches runtime-rendered controls.** `ZUI.StartFlash`
+  (fired by the flash-icon buttons in `ZUIStyleEditorWindow`) previously only highlighted controls drawn
+  by the editor toolkit's own draw calls (`ZUIButton.cs`/`ZUISlider.cs`/`ZUIText.cs`/`ZUIToggle.cs`,
+  Editor-only) — a Play-mode HUD rendered via `ZUISheet.DrawBox`/`Button` never lit up when you flashed
+  its style in the Zeditor. New `ZUIFlash.cs` (Runtime assembly, wrapped in `#if UNITY_EDITOR` — a
+  diagnostic aid, not a shipped-build feature, so it compiles out of a real build) holds the same
+  state/draw logic, editor-only-safe since it only ever runs inside the Unity Editor process anyway.
+  `ZUI.StartFlash` forwards into it alongside its own existing editor-only state (no existing editor call
+  site changed); `ZUISheet.DrawBox`/`Button` call it right after drawing their visual. Verified in Play
+  mode: flashing "Framed" from a script (simulating the Style Editor's flash button) lit up both the
+  direct `ZUISheet.DrawBox` card and the new `Zui.Panel` wrapper using the same style. Slider/Text flashes
+  don't forward (no runtime rendering counterpart exists for those today).
+- **Testable demos for this session's ZUI runtime and Chunks work.** `ZuiZheetTestHud.cs`
+  (`Assets/ZUIDemo/ZUIRuntimeTest.unity`) gains a procedural (non-9-slice) `ProceduralButton` style on
+  `DemoRuntimeZheet.asset` and a `Zui.Panel(rect, styleName, sheet)` demonstration, sitting next to the
+  existing 9-slice `SpriteButton` card for direct comparison — press Play and everything (9-slice box,
+  9-slice button, procedural button, the new sheet-aware Panel wrapper) is visible on one screen.
+  `ChunksDemoSpawner.cs` (`Assets/Demos/ChunksDemo/ChunksDemo.unity`) gains a third burst key (`T`, at the
+  mouse) firing a new `SampledDebris.asset` `ChunkSpec` — samples chunks from a `DemoSprites`-built shape
+  (no shipped art, matching this demo's own convention) and tumbles them via the new pseudo-3D trick;
+  on-screen control legend added since there wasn't one before.
+- **Chunks: sampled pseudo-3D debris.** New optional `ChunkSpec` mode — instead of a flat procedural shape
+  or a hand-authored sprite, a chunk can now be cut directly out of the exploding object's own sprite
+  (`sampleSource`, `samplePxMin`/`samplePxMax`, new `SampledChunkSprites.Sample`, biased toward opaque
+  pixels so cuts aren't blank) and tumbled with a squash+shade trick (`tumble`, `tumbleSpeedMin`/`Max`,
+  `tumbleShadeStrength`, new pure `ChunkTumble.Evaluate`) that fakes a lit 3D fragment turning in place —
+  width squashes by `|cos(phase)|`, colour shades by a phase-offset `sin`, no real 3D geometry involved.
+  `Chunk`/`ChunkEmitter` wire it in as a third orientation mode alongside the existing free-spin/
+  `faceVelocity`, applied only to chunks the emitter actually sourced via sampling (tumbling a full
+  pre-made sprite would look wrong — the trick assumes a small, roughly-flat-shaded patch). Requires the
+  source texture's Read/Write Enabled import flag; degrades to the existing sprites/procedural fallback
+  if sampling fails (unreadable texture, or every attempt landed on transparent space). Compiles clean
+  (fixed one bug found on first real compile: `GetPixels32` has no sub-rect overload, switched to
+  `GetPixels`/`Color[]`) — still wants an in-editor visual look to judge whether the squash+shade actually
+  reads as convincing tumbling debris; that's a judgment call, not something a compiler catches.
+- **`UIAudit` gains `Overlap` and `Crowded` detection** (new `UIIssueKind` members) alongside the existing
+  `OffScreen`/`TextOverflow`/`TinyText`/`NeedsScrollView`. Shared pairwise geometry logic
+  (`UIAuditGeometry.CheckProximity`, `Runtime/UIAudit/UIAuditGeometry.cs`) is used by both the uGUI and
+  IMGUI sections so the heuristic is defined once. Deliberately scoped to INTERACTIVE elements only — a
+  panel background legitimately sits behind its own content, so checking every draw pair would be mostly
+  false positives; two independently-clickable controls overlapping or crammed edge-to-edge is the actual
+  bug. New `UIAuditContext.MinControlGap` (default 2px) is the crowding threshold. `ZuiDrawRecord` gains an
+  `AllowOverlap` opt-out field (mirrors the existing `Clipped` flag) for deliberate IMGUI overlaps; no
+  per-element opt-out exists yet on the uGUI side.
+- **Ground-truth test fixture for UIAudit's IMGUI section** (`Assets/Tests/UIAudit/`, dev-host-only — NOT
+  shipped in the package, first use of Unity Test Framework anywhere in Laubrary). `ImguiFixtureHud`
+  draws a deliberately-bad frame (one instance each of TinyText/TextOverflow/OffScreen/Overlap/Crowded,
+  spatially isolated so each fires independently) and a correctly-built equivalent using the same content
+  through proper `ZuiStack` calls. `UIAuditImguiFixtureTests` (`[UnityTest]`, PlayMode — `ZuiAudit.Record`
+  only appends during a live OnGUI Repaint pass, so this can't be an EditMode test) asserts the bad frame
+  reports all five issue kinds and the fixed frame reports none. **Verified working** by manually replaying
+  the test's own steps via `play_game` + `execute_script` (driving `TestRunnerApi.Execute` for a PlayMode
+  run through Coplay turned out to conflict with Coplay's own play-mode management — see the Coplay
+  gotchas memory/skill note; the `[UnityTest]` file itself is left for the user to run by hand via the
+  Test Runner window): bad frame reported exactly the 5 expected issues, fixed frame reported 0. See
+  `ZUI_API_AND_RUNTIME_ROADMAP.md` Task 3.
+- **Runtime sheet-aware `Zui.Panel(rect, styleName, sheet?, padPts?)` overload** (`ZuiPanels.cs`) — draws a
+  9-slice/procedural sheet-styled background via `ZUISheet.DrawBox` instead of a flat `Color`, additive
+  alongside the existing flat-color `Panel`. Resolves `sheet ?? Zui.DefaultSheet`; a new
+  `ZuiRuntimeSheet.cs` gives `ZuiRuntime.Zui` its own `DefaultSheet`, loaded via `Resources.Load` (works in
+  a build, unlike the editor's AssetDatabase-based `ZUI.DefaultSheet`) and kept deliberately separate from
+  it. Degrades to drawing nothing (returns the rect un-padded) if no sheet resolves, rather than throwing.
+  New backing asset `Zui/SystemAssets/Resources/ZUIRuntimeDefaultSheet.asset` (a copy of `ZUIDemo`'s
+  `DemoRuntimeZheet.asset`, which already had real 9-slice content, unlike `ZUIDefaultSheet.asset`/
+  `ZUIShowcaseSheet.asset`/`ZeditorZheet.asset`, none of which define any `ZUINineSliceDef`).
+- **`ZUISheet.Button` now renders procedural (non-9-slice) button styles at runtime**, closing a gap its
+  own doc comment used to flag ("procedural buttons don't render at runtime yet"). Turned out to be a
+  wiring gap, not a capability one: `ZUIButtonDef.DrawVisual`/`GetResolvedCornerRadius` (the same renderer
+  the editor toolkit's own button drawing uses) have no editor-only dependency, so the runtime path now
+  calls them directly when the style has no 9-slice frame set, using the same call convention as
+  `ZUIButton.cs`.
+  **All of the above verified working in Play mode** (screenshot-confirmed, `play_game`/`execute_script`
+  probing): the sheet-aware `Panel` renders a real 9-slice-framed box; the procedural button fix renders a
+  correctly-filled background; and a live in-memory edit to a sheet's button color (simulating a Style
+  Editor tweak) was confirmed to repaint on the very next frame with no restart needed — so restyling a
+  running game's runtime HUD via the Style Editor works. Along the way, found and fixed a genuine stale
+  reference in `DemoRuntimeZheet.asset`: `SpriteButton`'s `nineSliceNormal`/`Hover`/`Active`/`ToggleOn` all
+  pointed at `"BtnNormal"`/`"BtnHover"`/`"BtnPressed"`, none of which match either of the sheet's actual
+  `ZUINineSliceDef` names (`"DemoFrame"`, `"Metal 9slice"`) — `ZUISheet.Button`'s existing (unmodified)
+  9-slice path silently draws no background when `FindNineSlice` comes up empty, so this demo's own
+  9-slice button test had never actually shown a frame. Re-pointed all four states at `"DemoFrame"`.
+  Still pending: promoting `ZUIDemo`'s throwaway scene/scripts into a real `Assets/Demos/` entry (see
+  `ZUI_API_AND_RUNTIME_ROADMAP.md` Task 2's remaining item).
+
 ### Changed
 - **Renamed the Zoetrope/Bestiarium/Zoe naming triangle: `Zoetrope`→`Launimator`, `Bestiarium`→`Zoetrope`,
   `CharacterDef`→`Zoe`.** The old `Zoetrope` (sprite-sheet animation module) is now **Launimator**, freeing
@@ -61,6 +213,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `EDITOR_TOOL_CONVENTIONS.md`'s new note on this.
 
 ### Added
+- **`ZUI.Popover(activatorRect, size, drawContent)`** (`ZUIPopover.cs`) and **`ZUI.ContextMenu(params
+  ZUIMenuItem[])`** with **`ZUI.MenuItem`/`ZUI.MenuSeparator`** (`ZUIContextMenu.cs`) — generic wrappers
+  over `PopupWindow.Show`/`GenericMenu` for the common flat/simple case, so a one-off popup or right-click
+  menu no longer needs a hand-rolled `PopupWindowContent` subclass or `GenericMenu` builder at every call
+  site. `ZUI.ContextMenu` pairs with `SelectableRow`/`Chip`'s existing `rightClicked` out-param as the
+  canonical "row with a context menu" pattern. Popups/menus with real internal state (color picker,
+  gradient-stop editor, mode-dependent branching menus) stay hand-rolled — these are additive helpers, not
+  a replacement for `PopupWindowContent`/`GenericMenu`. Prompted by a session audit finding every existing
+  popup/menu in the package (6+ `PopupWindowContent` subclasses, 11+ `GenericMenu` builders) was a one-off,
+  with no shared primitive despite the repetition.
+- **`references/zui.md` completeness pass** — documented several real, shipped scopes that had zero
+  mention in the reference despite being in active use: `ZUI.VGroup`/`VGroupBox`, `ZUI.AnimatedFoldout2`,
+  `ZUI.FoldControls`, `ZUI.Blocks`/`.Cell(...)`, `ZUI.SelectableRow`/`ZUI.Chip`, `ZUI.Toolbar`. Added a
+  "Quick index" task→control lookup table, a paired before/after "Avoiding common layout mistakes" gallery
+  (truncated text, overly-wide controls, clumped controls, one-field-per-row), and moved the "if nothing
+  fits, that's a smell — propose extending ZUI" policy into the doc itself (previously only stated in this
+  dev host's own `CLAUDE.md`, so it never reached Claude sessions working in consumer projects). See
+  `authoring.md` rule #14 for the new freshness discipline this gap prompted.
 - **`ZUI.PaddedArea()`** (`ZUIPaddedArea.cs`) — insets a whole content block (e.g. a window pane) from its
   container's edge on all four sides, distinct from `ZUI.HorizontalSpace()`/`VerticalSpace()` which space
   controls apart from EACH OTHER rather than from the outer boundary. Backed by a new sheet field,

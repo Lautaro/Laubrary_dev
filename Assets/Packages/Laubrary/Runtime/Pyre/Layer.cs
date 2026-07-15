@@ -91,6 +91,13 @@ namespace Laubrary.Pyre
                  "(Crescent, an offset hole) orients outward/consistently instead of every instance sharing " +
                  "one fixed orientation.")]
         public bool ringAlignRotation = false;
+        [Tooltip("Ring/Rosing: scales the ring's own placement radius EVERY FRAME (unlike Spawn radius/a ring's " +
+                 "own Radius, which lock in place the moment a shape spawns) — so every shape already on the ring " +
+                 "moves together as this animates, staying attached to the ring at its own angular slot while the " +
+                 "ring itself grows or shrinks. Only moves shapes; never touches Size, so each disc/crescent's " +
+                 "own size stays exactly what Size/a ring's own Size scale already gave it. 1 = unchanged. " +
+                 "Animate it (a rising curve) for a ring that visibly blooms outward over life.")]
+        public ZUIValue ringExpand = new ZUIValue(1f);
         [Tooltip("Rosing: draw order of the RINGS (not the discs within a ring). Off (default) = rings later in " +
                  "the list below composite ON TOP of earlier ones — with the default stack (small/early first, " +
                  "big/late last) that puts the outer, later-blooming ring in front. On = reversed, so earlier " +
@@ -298,29 +305,23 @@ namespace Laubrary.Pyre
                  ">1 flings them out. Animate 0→N for a burst, or N→1 to gather in. 1 = the placed positions.")]
         public ZUIValue metaExpand = new ZUIValue(1f);
 
-        // ── NoiseField: a single domain-warped noise cloud, drawn as a whole (dust cloud / gas cloud / energy field) ──
-        [Tooltip("NoiseField: noise frequency — bigger = larger, slower-looking billows; smaller = fine, busy detail. Animatable.")]
+        // ── Noise fill: the domain-warped noise field ColorMode.NoiseFill paints through a shape's own silhouette
+        // (Disc/Crescent/MetaBlob) — the shape stays the alpha mask; this is texture only, no silhouette of its own.
+        [Tooltip("Noise fill: noise frequency — bigger = larger, slower-looking billows; smaller = fine, busy detail. Animatable.")]
         public ZUIValue noiseZoom = new ZUIValue(20f);
-        [Tooltip("NoiseField: rotates the noise sampling domain, in degrees — spins the churn in place. Animatable.")]
+        [Tooltip("Noise fill: rotates the noise sampling domain, in degrees — spins the churn in place. Animatable.")]
         public ZUIValue noiseRotation = new ZUIValue(0f);
-        [Tooltip("NoiseField: drifts the noise sampling domain horizontally over life, in pixels. Animatable.")]
+        [Tooltip("Noise fill: drifts the noise sampling domain horizontally over life, in pixels. Animatable.")]
         public ZUIValue noiseDriftX = new ZUIValue(0f);
-        [Tooltip("NoiseField: drifts the noise sampling domain vertically over life, in pixels. Animatable.")]
+        [Tooltip("Noise fill: drifts the noise sampling domain vertically over life, in pixels. Animatable.")]
         public ZUIValue noiseDriftY = new ZUIValue(0f);
         [Range(0f, 2f)]
-        [Tooltip("NoiseField: domain-warp strength — how much the noise bends on itself (0 = smooth blobby cloud, " +
+        [Tooltip("Noise fill: domain-warp strength — how much the noise bends on itself (0 = smooth blobby cloud, " +
                  "higher = churned/organic eddies).")]
         public float noiseWarp = 0.6f;
         [Range(1, 8)]
-        [Tooltip("NoiseField: number of discrete shading bands across the field's depth. 1 = smooth (no banding).")]
+        [Tooltip("Noise fill: number of discrete shading bands across the field's depth. 1 = smooth (no banding).")]
         public int noiseBands = 4;
-        [Range(0f, 1f)]
-        [Tooltip("NoiseField: how much of the noise field counts as 'inside' the cloud — higher = sparser/wispier, " +
-                 "lower = denser/fuller.")]
-        public float noiseThreshold = 0.45f;
-        [Range(0.01f, 1f)]
-        [Tooltip("NoiseField: softness of the cloud's edge (low = a harder cutoff, high = very soft/wispy).")]
-        public float noiseEdgeSoftness = 0.25f;
 
         /// A pleasing starting point per shape type; the editor adds layers through this.
         public static Layer Default(LayerShape shape)
@@ -369,10 +370,6 @@ namespace Laubrary.Pyre
                         new MetaOrb { pos = new Vector2( 0f,-9f), radius = 12f, birth = 0.3f,  life = 0.7f },
                     };
                     break;
-                case LayerShape.NoiseField:
-                    l.colorOverLife = SmokeGradient();
-                    l.size = CurveVal(20f, 0f, 4f, 0.4f, 18f, 1f, 15f);   // billow out, settle slightly
-                    break;
             }
             return l;
         }
@@ -386,6 +383,7 @@ namespace Laubrary.Pyre
             l.spawnRadius = CloneVal(spawnRadius);
             l.ringStartAngle = CloneVal(ringStartAngle);
             l.ringArcDegrees = CloneVal(ringArcDegrees);
+            l.ringExpand = CloneVal(ringExpand);
             l.positionX = CloneVal(positionX);
             l.positionY = CloneVal(positionY);
             l.size = CloneVal(size);

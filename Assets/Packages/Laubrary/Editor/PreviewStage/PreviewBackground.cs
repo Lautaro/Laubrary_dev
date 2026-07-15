@@ -13,6 +13,20 @@ namespace Laubrary.PreviewStage
         public Color fill = new Color(0f, 0f, 0f, 0f);
 
         public List<StageSprite> sprites = new List<StageSprite>();
+
+        /// A whole-viewport flat backdrop STYLE (Solid/Gradient/Image), saved/recalled alongside the sprites so a
+        /// preset carries the WHOLE background, not just the props on top of it. None = this asset doesn't own a
+        /// style at all — the tool keeps drawing whatever backdrop it already had (its own default, or a
+        /// per-asset value it stores itself). Any tool wanting this style is responsible for reading/drawing it —
+        /// this class only stores it; see Pyre's PyreWindow.DrawBackdrop for a reference implementation.
+        public enum Mode { None, Solid, Gradient, Image }
+        public Mode mode = Mode.None;
+        public Color solid = new Color(0.08f, 0.08f, 0.10f);
+        public Gradient gradient;
+        public Texture2D image;
+        public Color imageTint = Color.white;
+        public float imageZoom = 1f;
+        public Vector2 imagePos;
     }
 
     /// One placed sprite in a PreviewBackground.

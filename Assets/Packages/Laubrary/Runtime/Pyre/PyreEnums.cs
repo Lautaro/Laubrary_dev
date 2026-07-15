@@ -9,7 +9,6 @@ namespace Laubrary.Pyre
         Bars,           // a symmetric row of forward-growing bars streaming off an edge (directional blast)
         Sprite,         // stamps a supplied sprite as particles (a mini particle system)
         MetaBlob,       // click-placed orbs that fuse (SDF metaballs) into one gradient-shaded shape
-        NoiseField      // a single domain-warped noise cloud (dust cloud / gas cloud / churning energy field)
     }
 
     /// How a shape's colour gradient is applied (solid shapes — Disc / Crescent / MetaBlob).
@@ -19,7 +18,7 @@ namespace Laubrary.Pyre
         Fill,         // the gradient fills the shape spatially (centre → edge), constant over life
         FlowingFill,  // a spatial fill whose gradient scrolls through its spectrum over the shape's life
         NoiseFill     // the gradient is painted through a domain-warped noise field sampled inside the shape
-                      // (reuses the layer's NoiseField zoom/rotation/drift/warp/bands params below), for a
+                      // (the layer's own noise zoom/rotation/drift/warp/bands params below), for a
                       // cloudy/marbled interior instead of a clean radial fill
     }
 

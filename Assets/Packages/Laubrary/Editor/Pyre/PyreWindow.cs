@@ -65,25 +65,64 @@ namespace Laubrary.Pyre.Editor
         // the window, always shows that blast's own preview setup instead of whatever the window last had. Each
         // property below is a thin proxy so every existing call site keeps reading/writing a plain-looking field.
         float zoom { get => spec != null ? spec.previewZoom : 4f; set { if (spec != null) spec.previewZoom = value; } }
+
+        // Preview backdrop (Solid/Gradient/Image): once a Test-background asset (stageBg, below) exists, these
+        // proxy ITS fields instead of the legacy per-BlastSpec ones — so Save/Recall on that one shared asset
+        // carries the WHOLE background (style + sprites) as a single recallable preset, not just the sprites.
+        // Falls back to the legacy spec.previewBgX fields whenever stageBg is null (no preset saved/recalled yet)
+        // so every already-authored blast keeps rendering exactly as before with zero migration.
+        static PreviewBgMode ToPyreMode(PreviewBackground.Mode m) => m switch
+        {
+            PreviewBackground.Mode.Gradient => PreviewBgMode.Gradient,
+            PreviewBackground.Mode.Image => PreviewBgMode.Image,
+            _ => PreviewBgMode.Solid,   // None (another tool's unset preset) or Solid both read as Solid here
+        };
+        static PreviewBackground.Mode ToStageMode(PreviewBgMode m) => m switch
+        {
+            PreviewBgMode.Gradient => PreviewBackground.Mode.Gradient,
+            PreviewBgMode.Image => PreviewBackground.Mode.Image,
+            _ => PreviewBackground.Mode.Solid,
+        };
         PreviewBgMode bgMode
         {
-            get => spec != null ? spec.previewBgMode : PreviewBgMode.Solid;
-            set { if (spec != null) spec.previewBgMode = value; }
+            get => stageBg != null ? ToPyreMode(stageBg.mode) : (spec != null ? spec.previewBgMode : PreviewBgMode.Solid);
+            set { if (stageBg != null) stageBg.mode = ToStageMode(value); else if (spec != null) spec.previewBgMode = value; }
         }
-        Color bgSolid { get => spec != null ? spec.previewBgSolid : Color.black; set { if (spec != null) spec.previewBgSolid = value; } }
+        Color bgSolid
+        {
+            get => stageBg != null ? stageBg.solid : (spec != null ? spec.previewBgSolid : Color.black);
+            set { if (stageBg != null) stageBg.solid = value; else if (spec != null) spec.previewBgSolid = value; }
+        }
         Gradient bgGradient
         {
             get
             {
+                if (stageBg != null) return stageBg.gradient ??= DefaultBgGradient();
                 if (spec == null) return DefaultBgGradient();
                 return spec.previewBgGradient ??= DefaultBgGradient();
             }
-            set { if (spec != null) spec.previewBgGradient = value; }
+            set { if (stageBg != null) stageBg.gradient = value; else if (spec != null) spec.previewBgGradient = value; }
         }
-        Texture2D bgImage { get => spec != null ? spec.previewBgImage : null; set { if (spec != null) spec.previewBgImage = value; } }
-        Color bgImageTint { get => spec != null ? spec.previewBgImageTint : Color.white; set { if (spec != null) spec.previewBgImageTint = value; } }
-        float bgImageZoom { get => spec != null ? spec.previewBgImageZoom : 1f; set { if (spec != null) spec.previewBgImageZoom = value; } }
-        Vector2 bgImagePos { get => spec != null ? spec.previewBgImagePos : Vector2.zero; set { if (spec != null) spec.previewBgImagePos = value; } }
+        Texture2D bgImage
+        {
+            get => stageBg != null ? stageBg.image : (spec != null ? spec.previewBgImage : null);
+            set { if (stageBg != null) stageBg.image = value; else if (spec != null) spec.previewBgImage = value; }
+        }
+        Color bgImageTint
+        {
+            get => stageBg != null ? stageBg.imageTint : (spec != null ? spec.previewBgImageTint : Color.white);
+            set { if (stageBg != null) stageBg.imageTint = value; else if (spec != null) spec.previewBgImageTint = value; }
+        }
+        float bgImageZoom
+        {
+            get => stageBg != null ? stageBg.imageZoom : (spec != null ? spec.previewBgImageZoom : 1f);
+            set { if (stageBg != null) stageBg.imageZoom = value; else if (spec != null) spec.previewBgImageZoom = value; }
+        }
+        Vector2 bgImagePos
+        {
+            get => stageBg != null ? stageBg.imagePos : (spec != null ? spec.previewBgImagePos : Vector2.zero);
+            set { if (stageBg != null) stageBg.imagePos = value; else if (spec != null) spec.previewBgImagePos = value; }
+        }
         bool showFrame { get => spec != null && spec.previewShowFrame; set { if (spec != null) spec.previewShowFrame = value; } }
 
         // Compact-control width caps (see EDITOR_TOOL_CONVENTIONS.md: no infinite-width sliders/colour
@@ -178,6 +217,9 @@ namespace Laubrary.Pyre.Editor
         PinWarpModifier editPin;      // the Pin warp modifier currently being authored in the preview (null = none)
         int pinSel = -1;
         bool draggingPin;
+        CurlModifier editCurl;        // the Curl modifier currently being authored in the preview (null = none)
+        int vortexSel = -1;
+        bool draggingVortex;
         int draggingLayer = -1;   // index of the layer being drag-reordered, or -1
         int draggingMod = -1;     // index of the modifier being drag-reordered, or -1
         string draggingModList;   // idp of the modifier list that drag belongs to (layer mods vs global mods)
@@ -196,7 +238,7 @@ namespace Laubrary.Pyre.Editor
         Texture2D shapePreviewTex;      // isolated single-shape preview (see DrawShapePreview)
         Rect lastView;                  // remembered for the Fit button
 
-        static readonly string[] ShapeLabels = { "Disc", "Crescent", "Sparkle", "Bars", "Sprite", "Meta blob", "Noise field" };
+        static readonly string[] ShapeLabels = { "Disc", "Crescent", "Sparkle", "Bars", "Sprite", "Meta blob" };
         static readonly string[] BarDecayLabels = { "Contract", "Dissolve" };
         static readonly string[] ScatterModeLabels = { "Area", "Ring", "Rosing" };
         static readonly string[] RingOrderLabels = { "Sequential", "Random" };
@@ -596,10 +638,9 @@ namespace Laubrary.Pyre.Editor
                         ZUIValue2DControl.Options.Default.WithRange(-1f, 1f, -1f, 1f).WithDefault(Vector2.zero));
                 }
             }
-            // Per-shape everywhere EXCEPT MetaBlob/NoiseField, which have no scatter/count and sample Alpha once
-            // for the whole layer instead.
-            ValRow("Alpha", l.alpha, 0f, 1f,
-                allowMinMax: shapeForLayout != LayerShape.MetaBlob && shapeForLayout != LayerShape.NoiseField);
+            // Per-shape everywhere EXCEPT MetaBlob, which has no scatter/count and samples Alpha once for the
+            // whole layer instead.
+            ValRow("Alpha", l.alpha, 0f, 1f, allowMinMax: shapeForLayout != LayerShape.MetaBlob);
 
             // Bars is a self-contained directional mode — none of the scatter / emission / deform controls apply,
             // so show ONLY the Bars box.
@@ -733,30 +774,6 @@ namespace Laubrary.Pyre.Editor
                 return;
             }
 
-            // NoiseField is a single domain-warped noise cloud, drawn as a whole — no scatter/count, just one field
-            // shaped by Size (its radius) and Position (its centre), same as the general controls already drawn.
-            if (shapeForLayout == LayerShape.NoiseField)
-            {
-                using (Box("Noise field — a single churning cloud"))
-                {
-                    ValRow("Radius", l.size, 0f, half, half * 0.5f, allowMinMax: false);
-                    // Same field the general "Position" 2D control at the shared call site below already
-                    // covers — but the NoiseField branch returns early above that point, so it needs its own
-                    // copy. ZUIValue2DControl has no min/max-range authoring mode at all (Static point or
-                    // Curve only), so it already satisfies the old allowMinMax:false restriction with nothing
-                    // extra needed.
-                    ZUIValue2DControl.Draw("Position", l.positionX, l.positionY,
-                        ZUIValue2DControl.Options.Default.WithRange(-half, half, -half, half).WithDefault(Vector2.zero));
-                    DrawNoiseFillParams(l, half, perShape: false);   // one shared cloud, not per-shape
-                    l.noiseThreshold = Slider(l.noiseThreshold, 0f, 1f, "Threshold (density)");
-                    l.noiseEdgeSoftness = Slider(l.noiseEdgeSoftness, 0.01f, 1f, "Edge softness");
-                }
-                VerticalSpace();
-                Label("Modifiers", ZUI.ZTextStyle.SectionHeader);
-                DrawModifiers(l.modifiers, "lm." + layerSel + ".");
-                return;
-            }
-
             // ── shape (scatter) controls ─────────────────────────────────────────
             if (!rosingLayout)   // Rosing's rings each carry their own count/radius — the flat ones don't apply
             {
@@ -775,6 +792,9 @@ namespace Laubrary.Pyre.Editor
                     // comment), so Min-Max here is one frozen roll for the whole ring, not per-shape variety.
                     ValRow("Start angle", l.ringStartAngle, -180f, 180f, 0f, allowMinMax: false);
                     ValRow("Arc degrees", l.ringArcDegrees, 0f, 360f, 360f, allowMinMax: false);
+                    // Live EVERY frame (not spawn-locked like the two above) — animate it and the whole ring
+                    // grows/shrinks with every shape already on it riding along, independent of Size entirely.
+                    ValRow("Ring expand", l.ringExpand, 0f, 3f, 1f, allowMinMax: false);
                     l.ringAlignRotation = Toggle(l.ringAlignRotation, new GUIContent("Align rotation",
                         "Rotates each shape to face its own angle around the ring — matters for asymmetric " +
                         "shapes (Crescent, an offset hole); a plain Disc looks the same either way."));
@@ -966,10 +986,10 @@ namespace Laubrary.Pyre.Editor
             EditorGUILayout.EndHorizontal();
         }
 
-        // Zoom/Rotation/Drift/Warp/Bands — shared by the NoiseField shape's own cloud AND any layer's Noise fill
-        // colour mode (Disc/Crescent/MetaBlob), since both sample the very same PyreNoise field off these fields.
-        // perShape: true only when the caller evaluates these per-shape (si) — NoiseField/MetaBlob/a fused Disc
-        // sample them ONCE for the whole layer instead, where Min-Max is just a frozen dice roll, not variety.
+        // Zoom/Rotation/Drift/Warp/Bands — the Noise fill colour mode's own params (Disc/Crescent/MetaBlob),
+        // all sampling the same PyreNoise field.
+        // perShape: true only when the caller evaluates these per-shape (si) — MetaBlob/a fused Disc sample
+        // them ONCE for the whole layer instead, where Min-Max is just a frozen dice roll, not variety.
         void DrawNoiseFillParams(Layer l, float half, bool perShape)
         {
             ValRow("Noise zoom", l.noiseZoom, 1f, Mathf.Max(8f, half), 20f, allowMinMax: perShape);
@@ -1047,6 +1067,7 @@ namespace Laubrary.Pyre.Editor
             {
                 if (list[remove] == paintSmudge) { paintSmudge = null; draggingSmudge = false; }
                 if (list[remove] == editPin) { editPin = null; pinSel = -1; draggingPin = false; }
+                if (list[remove] == editCurl) { editCurl = null; vortexSel = -1; draggingVortex = false; }
                 Undo.RecordObject(spec, "Remove modifier"); list.RemoveAt(remove); EditorUtility.SetDirty(spec);
             }
         }
@@ -1274,6 +1295,12 @@ namespace Laubrary.Pyre.Editor
                 case PinWarpModifier pw:
                     DrawPinWarpBody(pw);
                     break;
+                case CurlModifier cu:
+                    DrawCurlBody(cu, half);
+                    break;
+                case SphereModifier sp:
+                    ValRow("Strength", sp.strength, -1f, 2f, 1f);
+                    break;
                 case FuseModifier fu:
                     ValRow("Radius (px)", fu.radius, 0f, Mathf.Max(4f, half * 0.5f), 4f);
                     ValRow("Threshold", fu.threshold, 0f, 1f, 0.5f);
@@ -1346,6 +1373,62 @@ namespace Laubrary.Pyre.Editor
             }
         }
 
+        // Curl's inspector body: the ambient swirl params, then a compact per-vortex list (radius/strength/speed/
+        // direction, delete), plus the same preview-click authoring toggle Pin warp uses for its own pins.
+        void DrawCurlBody(CurlModifier cu, float half)
+        {
+            using (Box("Curl — ambient swirl"))
+            {
+                ValRow("Strength (px)", cu.strength, 0f, 24f, 4f);
+                ValRow("Zoom", cu.zoom, 1f, Mathf.Max(8f, half), 24f);
+                ValRow("Speed", cu.speed, -4f, 4f, 1f);
+                cu.warp = Slider(cu.warp, 0f, 2f, "Warp");
+            }
+            using (Box("Curl — vortices (click the preview to add / drag to move)"))
+            {
+                bool editing = editCurl == cu;
+                if (Button(editing ? "● Editing vortices — click preview to add, drag to move" : "○ Edit vortices (click preview)"))
+                {
+                    editCurl = editing ? null : cu;
+                    vortexSel = -1; draggingVortex = false; Repaint();
+                }
+
+                int rm = -1;
+                for (int i = 0; i < cu.vortices.Count; i++)
+                {
+                    var v = cu.vortices[i];
+                    if (v == null) continue;
+                    using (Box())
+                    {
+                        EditorGUILayout.BeginHorizontal();
+                        if (Button(vortexSel == i ? "●" : "○", ZUI.Style.Default, GUILayout.Width(24))) vortexSel = i;
+                        GUILayout.Label($"Vortex #{i + 1}", EditorStyles.miniBoldLabel, GUILayout.Width(64));
+                        v.radius = EditorGUILayout.Slider("Radius", v.radius, 2f, Mathf.Max(8f, half));
+                        if (Button("X", ZUI.Style.Default, GUILayout.Width(22))) rm = i;
+                        EditorGUILayout.EndHorizontal();
+
+                        EditorGUILayout.BeginHorizontal();
+                        v.strength = EditorGUILayout.Slider("Strength°", v.strength, 0f, 360f);
+                        v.speed = EditorGUILayout.Slider("Speed", v.speed, -4f, 4f);
+                        v.clockwise = GUILayout.Toggle(v.clockwise, v.clockwise ? "CW" : "CCW", "Button", GUILayout.Width(40));
+                        EditorGUILayout.EndHorizontal();
+                    }
+                }
+                if (rm >= 0)
+                {
+                    cu.vortices.RemoveAt(rm);
+                    if (vortexSel == rm) vortexSel = -1;
+                    EditorUtility.SetDirty(spec);
+                }
+
+                EditorGUILayout.BeginHorizontal();
+                if (Button("Clear vortices")) { cu.vortices.Clear(); vortexSel = -1; EditorUtility.SetDirty(spec); }
+                GUILayout.FlexibleSpace();
+                GUILayout.Label($"{cu.vortices.Count} vortex(es)", EditorStyles.miniLabel);
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+
         void ShowAddModifierMenu(System.Collections.Generic.List<PyreModifier> list)
         {
             var menu = new GenericMenu();
@@ -1357,6 +1440,9 @@ namespace Laubrary.Pyre.Editor
                     EditorUtility.SetDirty(spec);
                     Repaint();
                 });
+            // Geometry: warps the coordinate frame (silhouette + fill both move) — includes EdgeWarp even
+            // though it's technically its own base class (EdgeModifier, silhouette-only), since "this changes
+            // the shape's boundary" is where a user looks for it regardless of the C# family underneath.
             Add("Geometry/Skew", () => new SkewModifier());
             Add("Geometry/Rotate", () => new RotateModifier());
             Add("Geometry/Scale", () => new ScaleModifier());
@@ -1364,10 +1450,14 @@ namespace Laubrary.Pyre.Editor
             Add("Geometry/Profile (mold shape)", () => new ProfileModifier());
             Add("Geometry/Ground (grow from surface)", () => new GroundModifier());
             Add("Geometry/Jagg (star)", () => new JaggModifier());
+            Add("Geometry/Edge warp (jagged/wavy silhouette only)", () => new EdgeWarpModifier());
             Add("Geometry/Smudge", () => new SmudgeModifier());
             Add("Geometry/Turbulence (churn)", () => new TurbulenceModifier());
+            Add("Geometry/Curl (swirl)", () => new CurlModifier());
+            Add("Geometry/Sphere (fake depth)", () => new SphereModifier());
             Add("Geometry/Ring wave (shockwave ripple)", () => new RingWaveModifier());
             Add("Geometry/Pin warp (hand-animated drag)", () => new PinWarpModifier());
+            // Colour: recolours pixels without changing what's visible (alpha untouched, or only a side effect).
             Add("Colour/Tint", () => new TintModifier());
             Add("Colour/Contrast", () => new ContrastModifier());
             Add("Colour/Brightness", () => new BrightnessModifier());
@@ -1375,11 +1465,11 @@ namespace Laubrary.Pyre.Editor
             Add("Colour/Posterize", () => new PosterizeModifier());
             Add("Colour/Sunburst", () => new SunburstModifier());
             Add("Colour/Pulse rings", () => new PulseRingsModifier());
-            Add("Edge warp (jagged/wavy silhouette)", () => new EdgeWarpModifier());
-            Add("Dissolve", () => new DissolveModifier());
-            Add("Ordered dither", () => new OrderedDitherModifier());
-            Add("Voronoi crack", () => new VoronoiCrackModifier());
-            Add("Alpha mask", () => new AlphaMaskModifier());
+            Add("Colour/Voronoi crack", () => new VoronoiCrackModifier());
+            // Alpha: changes WHAT'S VISIBLE and where — erosion/dither/masking, as opposed to Colour's shading.
+            Add("Alpha/Dissolve", () => new DissolveModifier());
+            Add("Alpha/Ordered dither", () => new OrderedDitherModifier());
+            Add("Alpha/Alpha mask", () => new AlphaMaskModifier());
             // Whole-frame post effects: on a layer they isolate to that layer's own pixels (rendered into a
             // private buffer, post-processed, then composited); on the global list they run once after every
             // layer composites — see BlastRenderer.FinishLayerPost / the global post pass at RenderFrame's tail.
@@ -1509,15 +1599,18 @@ namespace Laubrary.Pyre.Editor
 
             // Priority for a click in the viewport: (0) Smudge stroke painting when a Smudge modifier is armed — it
             // owns the drag entirely; (1) Pin warp pins when a Pin warp modifier is armed (add / select / drag);
-            // (2) MetaBlob orbs when editing a MetaBlob layer (place / drag) — it must win over the centred origin
-            // ✛, or placing near the centre would grab the pivot instead; (3) origin ✛ handle, (4) a stage sprite,
-            // (5) fall through to panning the frame. Each Use()s its event.
+            // (1.5) Curl vortices when a Curl modifier is armed, same reasoning as Pin warp; (2) MetaBlob orbs when
+            // editing a MetaBlob layer (place / drag) — it must win over the centred origin ✛, or placing near the
+            // centre would grab the pivot instead; (3) origin ✛ handle, (4) a stage sprite, (5) fall through to
+            // panning the frame. Each Use()s its event.
             HandleSmudgePaint(view);
             HandlePinWarp(view);
+            HandleCurlVortices(view);
             HandleMetaBlob(view);
             DrawMetaOrbMarkers(view);
             DrawSmudgeStroke(view);
             DrawPinMarkers(view);
+            DrawCurlVortexMarkers(view);
             if (spec != null) DrawOriginHandle(view);
             if (stageBg != null && PreviewStageGUI.Edit(view, stageBg, zoom, ref stageSel, ref draggingStage))
                 EditorUtility.SetDirty(stageBg);
@@ -1764,6 +1857,76 @@ namespace Laubrary.Pyre.Editor
                 if (exactKeyframe) EditorGUI.DrawRect(new Rect(mp.x - 3f, mp.y - 3f, 6f, 6f), c);
                 else Handles.DrawWireDisc(new Vector3(mp.x, mp.y, 0f), Vector3.forward, 3f);
                 GUI.Label(new Rect(mp.x + 5f, mp.y - 9f, 26f, 14f), d.id.ToString(), EditorStyles.miniLabel);
+            }
+            Handles.color = prevC;
+            Handles.EndGUI();
+        }
+
+        // Curl vortex authoring: while `editCurl` is armed, clicking an existing vortex selects+drags it; clicking
+        // empty space adds a new one there with default radius/strength/speed — mirrors HandlePinWarp, minus the
+        // keyframe machinery (a vortex has just one, non-animated placement).
+        void HandleCurlVortices(Rect view)
+        {
+            if (editCurl == null || spec == null) return;
+            var e = Event.current;
+            Vector2 ctr = FrameRect(view).center;
+
+            if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
+            {
+                for (int i = editCurl.vortices.Count - 1; i >= 0; i--)
+                {
+                    var v = editCurl.vortices[i];
+                    if (v == null) continue;
+                    Vector2 mp = new Vector2(ctr.x + v.pos.x * zoom, ctr.y - v.pos.y * zoom);
+                    if ((mp - e.mousePosition).sqrMagnitude <= 100f)
+                    { Undo.RecordObject(spec, "Move vortex"); vortexSel = i; draggingVortex = true; e.Use(); return; }
+                }
+                // No existing vortex under the click — add a new one here.
+                float ox = (e.mousePosition.x - ctr.x) / Mathf.Max(0.01f, zoom);
+                float oy = (ctr.y - e.mousePosition.y) / Mathf.Max(0.01f, zoom);
+                Undo.RecordObject(spec, "Add vortex");
+                editCurl.vortices.Add(new VortexPoint { pos = new Vector2(ox, oy) });
+                vortexSel = editCurl.vortices.Count - 1;
+                EditorUtility.SetDirty(spec); e.Use(); Repaint();
+                return;
+            }
+
+            if (draggingVortex && vortexSel >= 0 && vortexSel < editCurl.vortices.Count)
+            {
+                if (e.type == EventType.MouseDrag)
+                {
+                    editCurl.vortices[vortexSel].pos += new Vector2(e.delta.x, -e.delta.y) / Mathf.Max(0.01f, zoom);
+                    EditorUtility.SetDirty(spec); Repaint(); e.Use();
+                }
+                if (e.type == EventType.MouseUp) { draggingVortex = false; e.Use(); }
+            }
+        }
+
+        // Draw every vortex of the armed Curl modifier: a wire circle for its radius of influence, a short tick
+        // showing spin direction (CW/CCW), and its index — mirrors DrawPinMarkers.
+        void DrawCurlVortexMarkers(Rect view)
+        {
+            if (Event.current.type != EventType.Repaint || editCurl == null) return;
+            Vector2 ctr = FrameRect(view).center;
+            Handles.BeginGUI();
+            var prevC = Handles.color;
+            for (int i = 0; i < editCurl.vortices.Count; i++)
+            {
+                var v = editCurl.vortices[i];
+                if (v == null) continue;
+                Vector2 mp = new Vector2(ctr.x + v.pos.x * zoom, ctr.y - v.pos.y * zoom);
+                if (!view.Contains(mp)) continue;
+                bool sel = vortexSel == i;
+                Color c = sel ? new Color(1f, 0.7f, 0.2f) : new Color(0.5f, 0.8f, 1f, 0.9f);
+                Handles.color = new Color(c.r, c.g, c.b, 0.35f);
+                Handles.DrawWireDisc(new Vector3(mp.x, mp.y, 0f), Vector3.forward, v.radius * zoom);
+                Handles.color = c;
+                EditorGUI.DrawRect(new Rect(mp.x - 3f, mp.y - 3f, 6f, 6f), c);
+                // A short tangential tick showing spin direction — CW swings down-right, CCW swings up-right.
+                float tickAng = (v.clockwise ? -1f : 1f) * 40f * Mathf.Deg2Rad;
+                Vector2 tick = new Vector2(Mathf.Cos(tickAng), Mathf.Sin(tickAng)) * 14f;
+                Handles.DrawLine(new Vector3(mp.x, mp.y, 0f), new Vector3(mp.x + tick.x, mp.y - tick.y, 0f));
+                GUI.Label(new Rect(mp.x + 5f, mp.y - 9f, 60f, 14f), $"{i + 1} {(v.clockwise ? "CW" : "CCW")}", EditorStyles.miniLabel);
             }
             Handles.color = prevC;
             Handles.EndGUI();
@@ -2053,13 +2216,32 @@ namespace Laubrary.Pyre.Editor
         {
             using (Box("Test background (sprites)"))
             {
+                Label("Save/Recall below saves the WHOLE background as one preset — the Preview backdrop style " +
+                      "above (mode/colour/gradient/image) travels with these sprites, not just the sprites alone.",
+                      ZUI.ZTextStyle.Small);
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Label(stageBg != null ? (AssetDatabase.Contains(stageBg) ? stageBg.name : "· unsaved ·") : "· none ·",
                                 EditorStyles.miniBoldLabel);
                 GUILayout.FlexibleSpace();
                 if (Button("Recall…"))
                     PreviewStageGUI.ShowRecall(GUILayoutUtility.GetLastRect(), b => { stageBg = b; stageSel = -1; Repaint(); });
-                if (Button("New")) { stageBg = ScriptableObject.CreateInstance<PreviewBackground>(); stageSel = -1; }
+                if (Button("New"))
+                {
+                    // Seed the new asset from whatever's currently showing (the legacy per-blast Solid/Gradient/
+                    // Image, read through bgMode/bgSolid/... below while stageBg is still null) so switching to a
+                    // saveable preset doesn't visually jump — only from here on does editing "Preview backdrop"
+                    // write into THIS asset, making it (and the sprites below) one recallable unit.
+                    var seeded = ScriptableObject.CreateInstance<PreviewBackground>();
+                    seeded.mode = ToStageMode(bgMode);
+                    seeded.solid = bgSolid;
+                    var srcGrad = bgGradient;
+                    var clonedGrad = new Gradient();
+                    if (srcGrad != null) { clonedGrad.SetKeys(srcGrad.colorKeys, srcGrad.alphaKeys); clonedGrad.mode = srcGrad.mode; }
+                    seeded.gradient = clonedGrad;
+                    seeded.image = bgImage; seeded.imageTint = bgImageTint;
+                    seeded.imageZoom = bgImageZoom; seeded.imagePos = bgImagePos;
+                    stageBg = seeded; stageSel = -1;
+                }
                 EditorGUILayout.EndHorizontal();
 
                 if (stageBg == null) { Label("Recall a backdrop or hit New to build one.", ZUI.ZTextStyle.Subtle); return; }

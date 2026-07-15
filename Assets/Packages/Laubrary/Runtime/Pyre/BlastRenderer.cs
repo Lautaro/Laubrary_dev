@@ -36,6 +36,7 @@ namespace Laubrary.Pyre
         const int F_NoiseZoom = 54, F_NoiseRot = 55, F_NoiseDriftX = 56, F_NoiseDriftY = 57;
         const int F_RingStart = 58, F_RingArc = 59, F_SpinDegrees = 60;
         const int F_SparkleBlobRadius = 61, F_SparkleBlobLife = 62, F_SparkleBlobSoft = 63;
+        const int F_RingExpand = 64;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -253,24 +254,6 @@ namespace Laubrary.Pyre
                     continue;
                 }
 
-                // NoiseField: a single domain-warped noise cloud, drawn as a whole (dust cloud / gas cloud / churning
-                // energy field) — no scatter/count, just one field shaped by the layer's own Size (its radius) and
-                // Position X/Y (its centre).
-                if (layer.shape == LayerShape.NoiseField)
-                {
-                    float nfAlpha = Mathf.Clamp01(Eval(layer.alpha, lp, spec.seed, li, 0, F_Alpha));
-                    float nfRadius = Eval(layer.size, lp, spec.seed, li, 0, F_Size);
-                    Vector2 nfPos = new Vector2(Eval(layer.positionX, lp, spec.seed, li, 0, F_PosX),
-                                                 Eval(layer.positionY, lp, spec.seed, li, 0, F_PosY));
-                    float nfZoom = Mathf.Max(1f, Eval(layer.noiseZoom, lp, spec.seed, li, 0, F_NoiseZoom));
-                    float nfRot = Eval(layer.noiseRotation, lp, spec.seed, li, 0, F_NoiseRot) * Mathf.Deg2Rad;
-                    float nfDriftX = Eval(layer.noiseDriftX, lp, spec.seed, li, 0, F_NoiseDriftX);
-                    float nfDriftY = Eval(layer.noiseDriftY, lp, spec.seed, li, 0, F_NoiseDriftY);
-                    RenderNoiseField(layerTarget, W, H, cx, cy, framePhase, layer, lp, nfAlpha, nfPos, nfRadius,
-                                      nfZoom, nfRot, nfDriftX, nfDriftY, stack, frameIndex, ShapeSeed(spec.seed, li, 0));
-                    FinishLayerPost(buf, layerTarget, hasLayerPost, layer, spec, li, lp, frameIndex, W, H);
-                    continue;
-                }
 
                 // Count: Curve reads the layer's life progress; MinMax stays frame-stable (h2 = 0, no frame/shape).
                 // Rosing ignores Count entirely — its total is the sum of every authored ring's own count.
@@ -364,6 +347,16 @@ namespace Laubrary.Pyre
 
                         if (layer.scatterMode == ScatterMode.Ring || rosing)
                         {
+                            // Ring expand: UNLIKE Spawn radius/a ring's own Radius (spawn-locked placement — see
+                            // above), this is evaluated at the CURRENT frame's shared layer progress (lp), so it
+                            // moves every shape ALREADY on the ring, together, every frame — the ring itself grows/
+                            // shrinks as a live, ongoing transform (all shapes staying attached to it, keeping
+                            // their angular slot) instead of only affecting where NEW shapes spawn. It scales
+                            // scatterPx only — never Radius (the shape's own Size), so the ring can bloom outward
+                            // while every disc/crescent on it stays whatever size Size/sizeScale already gave it.
+                            // 1 = the authored Spawn radius / ring Radius, unchanged.
+                            scatterPx *= Mathf.Max(0f, Eval(layer.ringExpand, lp, spec.seed, li, 0, F_RingExpand));
+
                             // Evaluated at THIS SHAPE's own spawn-time progress, exactly like Spawn radius above —
                             // Start angle/Arc degrees are a PLACEMENT decision (where does a new shape land), not a
                             // live ongoing transform, so once a shape spawns its angular slot stays fixed forever,
@@ -426,7 +419,15 @@ namespace Laubrary.Pyre
                     // point we back off to the weaker guarantee — keep the centre on-canvas — instead of cancelling
                     // authored placement. (Ground/Bars deliberately push content off-frame via their own
                     // warp/placement, downstream of this pre-warp scatter clamp.)
+                    // Ring/Rosing: placement (Spawn radius / a ring's own Radius) is an authored, spawn-locked
+                    // decision — exactly like Ring start angle/Arc degrees above — and must stay independent of
+                    // Size, including this clamp. Re-centring shapes here as their Size animates would silently
+                    // shrink/distort the ring's actual radius and inter-shape spacing as a side effect of a size
+                    // curve, defeating that independence. So Ring/Rosing skip the centre re-clamp entirely (an
+                    // oversized shape can clip past the canvas edge there — compensate with canvas size or the
+                    // ring's own Radius, not by having the renderer override your placement).
                     float effR = Mathf.Min(radius, half);
+                    if (!(layer.scatterMode == ScatterMode.Ring || rosing))
                     {
                         bool fitsWithRoom = radius < half;
                         float loX = fitsWithRoom ? effR : 0f, hiX = fitsWithRoom ? W - effR : W;
@@ -521,7 +522,7 @@ namespace Laubrary.Pyre
                 {
                     // Same gradient-options rule as MetaBlob: Over life needs neither flow nor noise params (one
                     // flat colour by the layer's own life); Fill/Flow fill honour Gradient position/zoom; Noise
-                    // fill reuses the NoiseField zoom/rotation/drift/warp/bands fields instead.
+                    // fill reuses the layer's own zoom/rotation/drift/warp/bands fields instead.
                     bool fuseNoiseFill = layer.colorMode == ColorMode.NoiseFill;
                     bool fuseNeedsFlow = layer.colorMode != ColorMode.OverLife && !fuseNoiseFill;
                     float fuseFlowPos = fuseNeedsFlow ? Eval(layer.colorFlow, lp, spec.seed, li, 0, F_MetaFlow) : 0f;
@@ -1118,65 +1119,6 @@ namespace Laubrary.Pyre
                     }
                     float outA = a * fc.a;
                     if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, cx + off.x, cy + off.y, frameIndex, rawFrac, life, hash, W, H)) continue;
-                    Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
-                }
-        }
-
-        // ── NoiseField: a single domain-warped noise cloud, drawn as a whole (like MetaBlob) rather than scattered
-        // per-instance. `pos`/`radius` place and size the field (the layer's own Position/Size); zoom/rotation/drift
-        // control the noise sampling domain (rotation spins it in place — a rolling cloud — drift scrolls it).
-        // Density blends the noise value with a radial falloff so the silhouette thins raggedly toward its edge
-        // instead of clipping to a hard circle; `noiseBands` optionally quantizes the shading into discrete steps
-        // (like MetaBlob's surface→core banding) for a more hand-painted look. Geometry modifiers (Ground/Profile/
-        // Turbulence) still mold/churn it; pixel modifiers (Tint/Posterize/Dither/…) still apply.
-        static void RenderNoiseField(Color32[] buf, int W, int H, float cx, float cy, float framePhase,
-                                      Layer layer, float lp, float alpha, Vector2 pos, float radius,
-                                      float zoom, float rotRad, float driftX, float driftY,
-                                      in ModStack stack, int frameIndex, int hash)
-        {
-            if (alpha <= 0.001f || radius < 0.5f) return;
-            var ctx = new GeoCtx(W * 0.5f, H * 0.5f, pos, radius);
-            int bands = Mathf.Max(1, layer.noiseBands);
-            float threshold = Mathf.Clamp01(layer.noiseThreshold);
-            float soft = Mathf.Max(0.01f, layer.noiseEdgeSoftness);
-            float cr = Mathf.Cos(rotRad), sr = Mathf.Sin(rotRad);
-
-            for (int y = 0; y < H; y++)
-                for (int x = 0; x < W; x++)
-                {
-                    Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
-                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, ctx);
-
-                    float dx = off.x - pos.x, dy = off.y - pos.y;
-                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                    if (dist > radius) continue;   // outside the field's overall extent
-
-                    float rx = dx * cr - dy * sr, ry = dx * sr + dy * cr;   // into the (rotating) noise domain
-                    float n = PyreNoise.Sample((rx + driftX) / zoom, (ry + driftY) / zoom, hash, layer.noiseWarp);
-
-                    // Two INDEPENDENT, separately-bounded fades multiplied together — kept apart so neither can
-                    // push the other's threshold negative (a combined "density" product fed into one threshold
-                    // used to wash the whole radius out to a visible haze whenever soft > threshold: the gate
-                    // that was meant to cut low values never fired, since density can't go negative to begin
-                    // with). Edge fade: radial, from fully opaque at the centre to transparent at `radius`, over
-                    // the outer `soft` fraction — always well-behaved for any soft in its valid (0, 1] range.
-                    float edgeFrac = dist / radius;
-                    float edgeAlpha = 1f - Mathf.Clamp01((edgeFrac - (1f - soft)) / soft);
-                    // Noise threshold: a smoothstep band of half-width `w` centred on `threshold` (same bounded
-                    // pattern AlphaMaskModifier's sharpness band uses) — is this pixel's noise value "inside" the
-                    // cloud. w is capped at 0.5 regardless of how high soft goes, so threshold-w can go negative
-                    // only at the true edge case (threshold near 0 AND softness maxed) rather than well within
-                    // normal settings.
-                    float w = Mathf.Max(0.02f, soft * 0.5f);
-                    float noiseAlpha = Mathf.Clamp01((n - (threshold - w)) / (2f * w));
-                    noiseAlpha = noiseAlpha * noiseAlpha * (3f - 2f * noiseAlpha);
-                    float a = edgeAlpha * noiseAlpha * alpha;
-                    if (a <= 0.003f) continue;
-
-                    float frac = bands > 1 ? Mathf.Floor(Mathf.Clamp01(n) * bands) / (bands - 1) : n;
-                    Color fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(frac) : Color.white;
-                    float outA = a * fc.a;
-                    if (stack.AnyPix && !ApplyPix(stack, ref fc, ref outA, x, y, cx + off.x, cy + off.y, frameIndex, n, lp, hash, W, H)) continue;
                     Over(buf, y * W + x, fc.r, fc.g, fc.b, outA);
                 }
         }
