@@ -8,7 +8,8 @@
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.Chunks",
         "com.Lautaro-Arino.Laubrary.Launimator.Zounds.Editor",
-        "com.Lautaro-Arino.Laubrary.Combat2D"
+        "com.Lautaro-Arino.Laubrary.Combat2D",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor"
     ],
     "includePlatforms": [
         "Editor"

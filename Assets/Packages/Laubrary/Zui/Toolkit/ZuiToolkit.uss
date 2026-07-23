@@ -37,6 +37,19 @@
     margin-right: 4px;
 }
 
+/* flex-grow:0 only governs the MAIN axis. A control sitting in a column still stretches across the
+   CROSS axis (its width) unless told otherwise — which for a Toggle means a 700px-wide click target
+   for a 12px checkbox, and an over-width audit finding. Size it to its own content instead. Inside a
+   row the cross axis is height, so there it keeps the row's vertical centring. */
+.zui-root .unity-toggle {
+    align-self: flex-start;
+}
+
+.zui-root .zui-row .unity-toggle,
+.zui-root .zui-field .unity-toggle {
+    align-self: center;
+}
+
 /* Containers ------------------------------------------------------------- */
 
 .zui-box {
@@ -250,6 +263,59 @@
 .zui-radio__on {
     background-color: var(--zui-accent-soft);
     -unity-font-style: bold;
+}
+
+/* A PropertyField built through ZuiSerialized already carries the label we gave it, so the field's
+   own [Header] decorator would draw that same word a second time, right above it. */
+.zui-no-decorators > .unity-decorator-drawers-container {
+    display: none;
+}
+
+/* Managed reference ([SerializeReference] polymorphic field) --------------- */
+
+.zui-mref {
+    margin-top: 2px;
+    margin-bottom: 4px;
+}
+
+.zui-mref__header {
+    flex-direction: row;
+    align-items: center;
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+
+.zui-mref__header:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.zui-mref__caret {
+    width: 12px;
+    opacity: 0.6;
+    -unity-text-align: middle-center;
+}
+
+.zui-mref__title {
+    -unity-font-style: bold;
+    white-space: nowrap;
+}
+
+/* Quieter than a normal button — it names a type, it isn't the field's main action. */
+.zui-mref__type {
+    font-size: 10px;
+    opacity: 0.9;
+    max-width: 220px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* The body sits under the header, indented so it reads as belonging to it. */
+.zui-mref__body {
+    padding-left: 12px;
+    border-left-width: 1px;
+    border-left-color: var(--zui-line);
+    margin-left: 5px;
 }
 
 /* 2D pad + envelope ------------------------------------------------------ */

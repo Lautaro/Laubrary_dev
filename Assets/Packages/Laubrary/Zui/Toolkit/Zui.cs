@@ -366,6 +366,32 @@ namespace Laubrary.Zui
             return f;
         }
 
+        /// A plain AnimationCurve field. Distinct from Z.Envelope: an envelope is ZUI's own draggable
+        /// multi-point editor over a List&lt;ZUIEnvelopePoint&gt;, whereas this edits a real UnityEngine
+        /// AnimationCurve through Unity's own curve editor — which is what a runtime type already storing an
+        /// AnimationCurve (ChunkSpec's size/alpha-over-life) actually needs. Width and height are paired:
+        /// widening one without the other just makes a curve clumsier to read, not more useful.
+        public static CurveField Curve(AnimationCurve value, string tooltip, Action<AnimationCurve> onChanged,
+            float width = 180f, float height = 24f)
+        {
+            var f = new CurveField { value = value, tooltip = tooltip };
+            f.style.width = width;
+            f.style.height = height;
+            f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
+            return f;
+        }
+
+        /// A plain Gradient field (Unity's own gradient editor), sized rather than left to stretch.
+        public static GradientField Gradient(Gradient value, string tooltip, Action<Gradient> onChanged,
+            float width = 180f, float height = 20f)
+        {
+            var f = new GradientField { value = value, tooltip = tooltip };
+            f.style.width = width;
+            f.style.height = height;
+            f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
+            return f;
+        }
+
         /// A min/max range: numeric low field + MinMaxSlider + numeric high field, kept in sync
         /// (the SliderRange pattern). Rounded to 5 decimals like every slider.
         public static VisualElement MinMax(float low, float high, float min, float max, string tooltip,
@@ -451,6 +477,13 @@ namespace Laubrary.Zui
             if (onBeforeMutate != null) c.OnBeforeMutate += onBeforeMutate;
             return c;
         }
+
+        /// A [SerializeReference] polymorphic field: a fold header naming the current concrete type, with a
+        /// button that switches it, over a body the CALLER fills with that type's own fields (so a child can
+        /// get a better control than Unity's default — a clip-name dropdown, an asset picker). Subscribe to
+        /// OnTypeChanged and rebuild: switching the type changes which fields exist.
+        public static ZuiManagedRef ManagedRef(SerializedProperty property, string title, string tooltip)
+            => new ZuiManagedRef(property, title, tooltip);
 
         /// DAW-style multi-point envelope editor over a caller-owned List&lt;ZUIEnvelopePoint&gt;
         /// (the same runtime data ZUI.Envelope edits). Pass `onBeforeMutate` to record Undo on the
