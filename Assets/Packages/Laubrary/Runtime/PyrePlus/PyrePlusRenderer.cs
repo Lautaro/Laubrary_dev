@@ -6,8 +6,17 @@
 // standalone. Swarm off ⇒ a single centred particle through the Shape fields. Swarm on ⇒ N particles, each
 // spawned at its own point on the blast timeline and placed by a spawn-time snapshot of the shape transform
 // (T2: Area = uniform-by-area point inside Circle/regular-polygon; Path = a point on the outline positioned by
-// swarmProgress, or the swarmCustomX/Y envelopes for a Custom polyline). Modifiers follow.
+// swarmProgress, or the swarmCustomX/Y envelopes for a Custom polyline).
+//
+// T6 — Modifiers: reuses Pyre's own PyreModifier stack directly (spec.modifiers), applied exactly as
+// BlastRenderer applies a layer's stack, adapted to PyrePlus's procedural discs. GeometryModifiers fold the
+// sample position per candidate pixel (bending each disc) BEFORE the distance/edge test; PixelModifiers recolour
+// or drop each lit pixel before it composites; PostModifiers run over the whole finished frame buffer in list
+// order. When the list is empty / all-disabled, ALL modifier machinery is skipped and the output is
+// byte-identical to the pre-T6 raster (the orchestrator hash-checks this).
 using System.Collections.Generic;
+using System.Reflection;
+using Laubrary.Pyre;
 using UnityEngine;
 
 namespace Laubrary.PyrePlus
@@ -37,6 +46,16 @@ namespace Laubrary.PyrePlus
         const int FldPathY = 13;     // per-particle position-path Y, own life            [T7]  (reserved)
         const int FldCustomX = 14;   // swarmCustomX — Custom Path X(progress), sampled at progress p [T2]
         const int FldCustomY = 15;   // swarmCustomY — Custom Path Y(progress), sampled at progress p [T2]
+        // Modifiers (T6): each PyreModifier in spec.modifiers owns an 8-wide field-id BLOCK starting at
+        // FldModifier + listIndex*8, so a modifier's local field id (its Prepare's fid, 0..7) maps to
+        // FldModifier + listIndex*8 + fid. Since every modifier has a distinct list index the blocks never
+        // overlap, and starting at 16 they never collide with the single-field ids 1..15 above. Mirrors
+        // BlastRenderer's own `1000 + uid*8 + fid` keying, just rebased for PyrePlus.
+        const int FldModifier = 16;
+        // Modifier params are frame-global (not per-particle), so their Eval uses this sentinel particle index —
+        // real particles are 0..N-1, so -1 never shares a Min-Max RNG stream with a particle draw. Mirrors
+        // BlastRenderer feeding its GlobalLayerId (-1) as the layer id for global modifiers.
+        const int ModParticleIndex = -1;
 
         /// One swarm particle's spawn data: where it lands on the blast timeline and its absolute canvas-pixel
         /// position. RenderFrame consumes this; the preview overlay (T5) calls ComputeSpawns to draw a dot at
@@ -62,20 +81,150 @@ namespace Laubrary.PyrePlus
             int frames = Mathf.Max(1, spec.frameCount);
             float life = frames > 1 ? frameIndex / (float)(frames - 1) : 0f;
 
-            if (!spec.swarmEnabled)
-            {
-                // Single particle, at the centre, on its own life = the blast life. (Unchanged Slice-1 path.)
-                DrawParticle(buf, W, H, W * 0.5f, H * 0.5f, life, spec, particleIndex: 0);
-                return buf;
-            }
+            // Build + Prepare the geometry/pixel modifier stack for THIS frame. Empty (list null/empty or every
+            // entry disabled/null) ⇒ ModSet.Empty ⇒ DrawParticle takes its byte-identical fast path and ApplyPost
+            // below is a no-op, so a no-modifier asset renders exactly as before T6 (orchestrator hash-checked).
+            ModSet mods = BuildMods(spec, life);
+            // Per-frame wobble phase handed to every GeometryModifier.InverseWarp — matches BlastRenderer.framePhase
+            // (note the divide by `frames`, not frames-1, deliberately mirroring BlastRenderer).
+            float phase = frames > 1 ? (frameIndex / (float)frames) * Mathf.PI * 2f : 0f;
 
-            RenderSwarm(buf, W, H, life, spec);
+            if (!spec.swarmEnabled)
+                // Single particle, at the centre, on its own life = the blast life. (Slice-1 path; now also warps.)
+                DrawParticle(buf, W, H, W * 0.5f, H * 0.5f, life, spec, 0, mods, phase, frameIndex);
+            else
+                RenderSwarm(buf, W, H, life, spec, mods, phase, frameIndex);
+
+            // Whole-frame post passes (Bloom / Outline / Kaleidoscope) after every particle has composited, in
+            // list order — exactly the stage BlastRenderer runs its global PostModifiers at.
+            ApplyPost(spec, buf, W, H, life, frameIndex);
             return buf;
+        }
+
+        // ── modifiers (T6) ───────────────────────────────────────────────────────────
+        // The geometry + pixel modifiers resolved & prepared for the current frame. Sorted/arranged the way
+        // BlastRenderer's ModStack is; PostModifiers are NOT here (they run buffer-wide in ApplyPost).
+        readonly struct ModSet
+        {
+            public readonly GeometryModifier[] geo;   // enabled, ascending by WarpPass; InverseWarp applied in REVERSE (highest pass first), mirroring BlastRenderer.ApplyGeo
+            public readonly PixelModifier[] pix;      // enabled, list order
+            public ModSet(GeometryModifier[] g, PixelModifier[] p) { geo = g; pix = p; }
+            public bool AnyGeo => geo != null && geo.Length > 0;
+            public bool AnyPix => pix != null && pix.Length > 0;
+            public bool Any => AnyGeo || AnyPix;
+            public static readonly ModSet Empty = new ModSet(System.Array.Empty<GeometryModifier>(), System.Array.Empty<PixelModifier>());
+        }
+
+        // Collect + Prepare this frame's enabled Geometry/Pixel modifiers (Post ones are handled by ApplyPost).
+        // Each modifier's animatable params resolve through the SAME closure shape BlastRenderer builds — Eval
+        // keyed on the blast life, the seed, the modifier-scope particle sentinel, and this modifier's own 8-wide
+        // field-id block (see the registry). Returns ModSet.Empty when nothing applies, which is the byte-identical
+        // gate. EdgeModifier / SimulationModifier have no apply stage in PyrePlus's disc raster, so they are
+        // ignored here (and the editor's add-menu never offers them).
+        static ModSet BuildMods(PyrePlusSpec spec, float life)
+        {
+            var list = spec.modifiers;
+            if (list == null || list.Count == 0) return ModSet.Empty;
+            List<GeometryModifier> geo = null;
+            List<PixelModifier> pix = null;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var m = list[i];
+                if (m == null || !m.enabled) continue;
+                if (m is PostModifier) continue;
+                int idx = i;   // Prepare invokes the closure synchronously, but copy the loop var anyway for hygiene
+                m.Prepare((v, fid) => Eval(v, life, spec.seed, ModParticleIndex, FldModifier + idx * 8 + fid));
+                if (m is GeometryModifier gm) (geo ??= new List<GeometryModifier>()).Add(gm);
+                else if (m is PixelModifier pm) (pix ??= new List<PixelModifier>()).Add(pm);
+            }
+            if (geo == null && pix == null) return ModSet.Empty;
+
+            GeometryModifier[] geoArr;
+            if (geo == null) geoArr = System.Array.Empty<GeometryModifier>();
+            else
+            {
+                geoArr = geo.ToArray();
+                // Stable insertion sort ascending by WarpPass (mirrors BlastRenderer.SortGeoStable): a higher-pass
+                // warp reframes the shape first, so ApplyGeo (walking from the end) applies it OUTERMOST. Same-pass
+                // modifiers keep authoring order.
+                for (int a = 1; a < geoArr.Length; a++)
+                {
+                    var e = geoArr[a];
+                    int p = e.WarpPass;
+                    int b = a - 1;
+                    while (b >= 0 && geoArr[b].WarpPass > p) { geoArr[b + 1] = geoArr[b]; b--; }
+                    geoArr[b + 1] = e;
+                }
+            }
+            return new ModSet(geoArr, pix == null ? System.Array.Empty<PixelModifier>() : pix.ToArray());
+        }
+
+        // Undo the geometry modifiers on a pixel offset from the canvas centre (highest WarpPass first), in
+        // shape-aware context — the exact fold BlastRenderer.ApplyGeo performs.
+        static Vector2 ApplyGeo(GeometryModifier[] geo, Vector2 off, float phase, in GeoCtx ctx)
+        {
+            for (int i = geo.Length - 1; i >= 0; i--) off = geo[i].InverseWarp(off, phase, ctx);
+            return off;
+        }
+
+        // Run the pixel modifiers on one lit pixel; false = drop it. Mirrors BlastRenderer.ApplyPix.
+        static bool ApplyPix(PixelModifier[] pix, ref Color col, ref float alpha, int x, int y, float wx, float wy,
+                             int frame, float crossFrac, float life, int hash, int W, int H)
+        {
+            var info = new PixelInfo(x, y, wx, wy, frame, crossFrac, life, hash, W, H);
+            for (int i = 0; i < pix.Length; i++)
+                if (!pix[i].ApplyPixel(ref col, ref alpha, info)) return false;
+            return true;
+        }
+
+        // Whole-frame post passes after everything composites, in list order — the stage & keying of
+        // BlastRenderer's global PostModifier loop.
+        static void ApplyPost(PyrePlusSpec spec, Color32[] buf, int W, int H, float life, int frameIndex)
+        {
+            var list = spec.modifiers;
+            if (list == null) return;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var m = list[i];
+                if (m == null || !m.enabled) continue;
+                if (m is PostModifier post)
+                {
+                    SetPostContext(post, life, spec.seed, frameIndex);
+                    int idx = i;
+                    m.Prepare((v, fid) => Eval(v, life, spec.seed, ModParticleIndex, FldModifier + idx * 8 + fid));
+                    post.Apply(buf, W, H);
+                }
+            }
+        }
+
+        // PostModifier exposes its per-frame context (life/seed/frameIndex) through INTERNAL setters — BlastRenderer,
+        // in the same assembly, calls them directly (SetLife/SetSeed/SetFrameIndex). PyrePlus is a SEPARATE assembly
+        // with no InternalsVisibleTo, and may not modify Pyre, so it reaches them by reflection: resolved once,
+        // null-guarded so a rename degrades to "context not set" instead of throwing. This keeps seed/frame-dependent
+        // post passes deterministic and correct (e.g. Dissolve's per-frame Scatter churn, Kaleidoscope's Vary
+        // seeding) exactly as they render inside Pyre.
+        static MethodInfo _postSetLife, _postSetSeed, _postSetFrame;
+        static bool _postReflectResolved;
+        static void SetPostContext(PostModifier post, float life, int seed, int frameIndex)
+        {
+            if (!_postReflectResolved)
+            {
+                const BindingFlags F = BindingFlags.Instance | BindingFlags.NonPublic;
+                var t = typeof(PostModifier);
+                _postSetLife = t.GetMethod("SetLife", F);
+                _postSetSeed = t.GetMethod("SetSeed", F);
+                _postSetFrame = t.GetMethod("SetFrameIndex", F);
+                _postReflectResolved = true;
+            }
+            _postSetLife?.Invoke(post, new object[] { life });
+            _postSetSeed?.Invoke(post, new object[] { seed });
+            _postSetFrame?.Invoke(post, new object[] { frameIndex });
         }
 
         // ── swarm ──────────────────────────────────────────────────────────────────
 
-        static void RenderSwarm(Color32[] buf, int W, int H, float life, PyrePlusSpec spec)
+        static void RenderSwarm(Color32[] buf, int W, int H, float life, PyrePlusSpec spec,
+                                in ModSet mods, float phase, int frameIndex)
         {
             var spawns = new List<SpawnPoint>(Mathf.Max(2, spec.swarmCount));
             ComputeSpawns(spec, spawns);
@@ -93,7 +242,7 @@ namespace Laubrary.PyrePlus
                 // renders byte-identical to the pre-T3 output.
                 float sizeMul = Mathf.Clamp(1f + 0.35f * sp.zNorm, 0.5f, 1.6f);
                 float brightMul = Mathf.Clamp(1f + 0.30f * sp.zNorm, 0.55f, 1.45f);
-                DrawParticle(buf, W, H, sp.pos.x, sp.pos.y, own, spec, i, sizeMul, brightMul);
+                DrawParticle(buf, W, H, sp.pos.x, sp.pos.y, own, spec, i, mods, phase, frameIndex, sizeMul, brightMul);
             }
         }
 
@@ -317,8 +466,11 @@ namespace Laubrary.PyrePlus
 
         // sizeMul/brightMul default to 1 → the swarm-off single-particle call (and any untilted swarm particle,
         // whose zNorm is 0) draws byte-identical to the pre-T3 path: radius unchanged, colour passed through raw.
+        // `mods` carries this frame's geometry+pixel modifiers (ModSet.Empty ⇒ the fast path below, byte-identical
+        // to pre-T6). Both the single-particle and swarm callers share this one method so warps apply to either.
         static void DrawParticle(Color32[] buf, int W, int H, float cx, float cy, float life,
-                                 PyrePlusSpec spec, int particleIndex, float sizeMul = 1f, float brightMul = 1f)
+                                 PyrePlusSpec spec, int particleIndex, in ModSet mods, float phase, int frameIndex,
+                                 float sizeMul = 1f, float brightMul = 1f)
         {
             float radius = Mathf.Max(0f, Eval(spec.size, life, spec.seed, particleIndex, FldSize));
             radius *= sizeMul;                    // depth size shading (exact no-op at sizeMul == 1)
@@ -340,21 +492,73 @@ namespace Laubrary.PyrePlus
             float soft = Mathf.Clamp01(spec.edgeSoftness);
             float inner = radius * (1f - soft);
 
-            int x0 = Mathf.Max(0, Mathf.FloorToInt(cx - radius));
-            int x1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + radius));
-            int y0 = Mathf.Max(0, Mathf.FloorToInt(cy - radius));
-            int y1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + radius));
+            // ── fast path: no modifiers → the exact pre-T6 raster, kept verbatim so the no-modifier hash is
+            //    byte-identical (do NOT refactor this loop's arithmetic). ──
+            if (!mods.Any)
+            {
+                int x0 = Mathf.Max(0, Mathf.FloorToInt(cx - radius));
+                int x1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + radius));
+                int y0 = Mathf.Max(0, Mathf.FloorToInt(cy - radius));
+                int y1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + radius));
+                for (int y = y0; y <= y1; y++)
+                    for (int x = x0; x <= x1; x++)
+                    {
+                        float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+                        float d = Mathf.Sqrt(dx * dx + dy * dy);
+                        if (d > radius) continue;
+                        float edge = d <= inner ? 1f : 1f - Mathf.InverseLerp(inner, radius, d);
+                        float a = alpha * col.a * edge;
+                        if (a <= 0.002f) continue;
+                        Over(buf, y * W + x, cr, cg, cb, a);
+                    }
+                return;
+            }
 
-            for (int y = y0; y <= y1; y++)
-                for (int x = x0; x <= x1; x++)
+            // ── modifier path: fold each candidate pixel's position through the GeometryModifiers (bending the
+            //    disc) BEFORE the distance/edge test, then run the PixelModifiers on each lit pixel before it
+            //    composites. Mirrors BlastRenderer.RasterShape's per-pixel loop. ──
+            bool anyGeo = mods.AnyGeo;
+            float ccx = W * 0.5f, ccy = H * 0.5f;             // canvas centre — the frame origin the warps fold around
+            Vector2 c = new Vector2(cx - ccx, cy - ccy);      // this particle's centre AS AN OFFSET from the canvas centre (GeoCtx.center convention)
+            var ctx = new GeoCtx(ccx, ccy, c, radius);        // hHalf/vHalf = canvas halves; centre = this particle; radius = its radius — exactly how BlastRenderer fills GeoCtx per shape
+            int px0, px1, py0, py1;
+            if (anyGeo) { px0 = 0; py0 = 0; px1 = W - 1; py1 = H - 1; }   // a warp can pull any pixel into the disc, so scan the whole canvas (as RasterShape does)
+            else
+            {
+                px0 = Mathf.Max(0, Mathf.FloorToInt(cx - radius));
+                px1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + radius));
+                py0 = Mathf.Max(0, Mathf.FloorToInt(cy - radius));
+                py1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + radius));
+            }
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);   // a stable per-particle seed for PixelInfo.hash (modifiers combine it with x/y)
+            for (int y = py0; y <= py1; y++)
+                for (int x = px0; x <= px1; x++)
                 {
-                    float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+                    float sx = x + 0.5f, sy = y + 0.5f;
+                    float wx = sx, wy = sy, dx, dy;
+                    if (anyGeo)
+                    {
+                        Vector2 off = ApplyGeo(mods.geo, new Vector2(sx - ccx, sy - ccy), phase, ctx);
+                        wx = ccx + off.x; wy = ccy + off.y;   // geometry-warped absolute position (== sx,sy when no geo warp moves it)
+                        dx = off.x - c.x; dy = off.y - c.y;   // warped position − this particle's centre (== sx-cx, sy-cy when no warp)
+                    }
+                    else { dx = sx - cx; dy = sy - cy; }
                     float d = Mathf.Sqrt(dx * dx + dy * dy);
                     if (d > radius) continue;
                     float edge = d <= inner ? 1f : 1f - Mathf.InverseLerp(inner, radius, d);
-                    float a = alpha * col.a * edge;
-                    if (a <= 0.002f) continue;
-                    Over(buf, y * W + x, cr, cg, cb, a);
+                    float baseA = alpha * col.a * edge;
+                    if (baseA <= 0.002f) continue;
+                    if (mods.AnyPix)
+                    {
+                        // RasterShape convention: the colour carries RGB with alpha 1, the real pixel alpha rides
+                        // separately, and both are handed to the modifiers (which may recolour, fade, or drop).
+                        Color pc = new Color(cr, cg, cb, 1f);
+                        float pa = baseA;
+                        float crossFrac = Mathf.Clamp01(d / Mathf.Max(0.001f, radius));   // 0 = centre, 1 = edge
+                        if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, wx, wy, frameIndex, crossFrac, life, pHash, W, H)) continue;
+                        Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                    }
+                    else Over(buf, y * W + x, cr, cg, cb, baseA);
                 }
         }
 

@@ -94,6 +94,7 @@ namespace Laubrary.PyrePlus.Editor
             BuildCanvas(dials, s);
             BuildShape(dials, s);
             BuildSwarm(dials, s);
+            BuildModifiers(dials, s);   // PyrePlusWindow.Modifiers.cs
 
             // ── right: preview ───────────────────────────────────────────────────
             preview = new IMGUIContainer(() => DrawPreview(s));
