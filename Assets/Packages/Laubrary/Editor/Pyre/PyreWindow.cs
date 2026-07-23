@@ -158,7 +158,7 @@ namespace Laubrary.Pyre.Editor
             previewSubjectFor = null;
         }
 
-        static readonly string[] ShapeLabels = { "Disc", "Crescent", "Sparkle", "Bars", "Sprite", "Meta blob", "Height balls" };
+        static readonly string[] ShapeLabels = { "Disc", "Crescent", "Sparkle", "Bars", "Sprite", "Meta blob", "Height balls", "Fire" };
         static readonly string[] BarDecayLabels = { "Contract", "Dissolve" };
         static readonly string[] ScatterModeLabels = { "Area", "Ring", "Rosing" };
         static readonly string[] RingOrderLabels = { "Sequential", "Random" };

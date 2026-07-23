@@ -44,6 +44,9 @@ namespace Laubrary.Pyre
         const int F_HbWavePush = 75, F_HbLightAngle = 76;
         const int F_HbSpread = 77, F_HbGroupAlpha = 78, F_HbRotation = 79;
         const int F_MatteStrength = 90, F_MatteAmount = 91, F_MatteHue = 92;
+        const int F_FireDir = 100, F_FireWidth = 101, F_FireInset = 102, F_FireHeat = 103, F_FireFuel = 104;
+        const int F_FirePulse = 105, F_FireFlow = 106, F_FireBuoy = 107, F_FireCurl = 108, F_FireCurlScale = 109;
+        const int F_FireFlicker = 110, F_FireDissip = 111, F_FireBurn = 112, F_FireReach = 113, F_FireEdgeCool = 114;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -192,6 +195,70 @@ namespace Laubrary.Pyre
                 if (c.a == 0) continue;
                 Over(buf, i, c.r * (1f / 255f), c.g * (1f / 255f), c.b * (1f / 255f), c.a * (1f / 255f));
             }
+        }
+
+        // ── Fire ─────────────────────────────────────────────────────────────────────────────────────────
+        // Reached by REPLAY, not by evaluation: a flame carries state, so frame N is produced by running the
+        // simulation from a reset up to N. That is the same discipline SimulationModifier uses, and for the
+        // same reason — it is the only version that cannot show a frame built under stale dial values. One
+        // sim instance is reused so the arrays aren't reallocated every frame; it is always Reset first.
+        [System.ThreadStatic] static FireSim _fireSim;
+
+        static FireParams FireParamsAt(Layer layer, Pyre spec, int li, int frameIndex)
+        {
+            float lp = Mathf.Clamp01((frameIndex - layer.startFrame) /
+                                     (float)Mathf.Max(1, layer.endFrame - layer.startFrame));
+            float E(ZUIValue v, int fid) => Eval(v, lp, spec.seed, li, frameIndex, fid);
+            return new FireParams
+            {
+                arms = Mathf.Max(1, layer.fireArms),
+                armMode = layer.fireArmMode,
+                steps = Mathf.Max(1, layer.fireSteps),
+                directionDeg = E(layer.fireDirection, F_FireDir),
+                emitterWidth = Mathf.Max(1f, E(layer.fireEmitterWidth, F_FireWidth)),
+                emitterInset = E(layer.fireEmitterInset, F_FireInset),
+                heat = Mathf.Clamp01(E(layer.fireHeat, F_FireHeat)),
+                fuel = Mathf.Clamp01(E(layer.fireFuel, F_FireFuel)),
+                pulse = Mathf.Max(0f, E(layer.firePulse, F_FirePulse)),
+                flow = E(layer.fireFlow, F_FireFlow),
+                buoyancy = E(layer.fireBuoyancy, F_FireBuoy),
+                curl = Mathf.Max(0f, E(layer.fireCurl, F_FireCurl)),
+                curlScale = Mathf.Max(2f, E(layer.fireCurlScale, F_FireCurlScale)),
+                flicker = Mathf.Max(0f, E(layer.fireFlicker, F_FireFlicker)),
+                dissipation = Mathf.Max(0f, E(layer.fireDissipation, F_FireDissip)),
+                burn = Mathf.Max(0f, E(layer.fireBurn, F_FireBurn)),
+                reach = Mathf.Clamp01(E(layer.fireReach, F_FireReach)),
+                edgeCooling = Mathf.Clamp01(E(layer.fireEdgeCooling, F_FireEdgeCool)),
+            };
+        }
+
+        static void RenderFire(Color32[] target, int W, int H, Layer layer, Pyre spec, int li,
+                               int frameIndex, float layerAlpha)
+        {
+            var sim = _fireSim ??= new FireSim();
+            sim.Allocate(W, H);
+            sim.Reset();
+
+            int seed = ShapeSeed(spec.seed, li, 0);
+            int last = Mathf.Clamp(frameIndex, layer.startFrame, layer.endFrame);
+            int steps = Mathf.Max(1, layer.fireSteps);
+            // dt is ONE FRAME, split across the substeps — so every velocity dial is read in PIXELS PER FRAME
+            // and every rate dial in per-frame terms. Anything else makes the numbers meaningless to author
+            // against: the first version used 1/12 here and a buoyancy of 0.5 moved heat 0.02px per step, so
+            // the "flame" was the emitter disc and nothing else.
+            const float dt = 1f;
+
+            // Replay every frame from the layer's own start. Frames before it exists stay empty.
+            for (int f = layer.startFrame; f <= last; f++)
+            {
+                var p = FireParamsAt(layer, spec, li, f);
+                float t = Mathf.Clamp01((f - layer.startFrame) /
+                                        (float)Mathf.Max(1, layer.endFrame - layer.startFrame));
+                for (int s = 0; s < steps; s++)
+                    sim.Step(p, seed, t + s / (float)steps * 0.01f, dt / steps);
+            }
+
+            sim.Render(target, layer.colorOverLife, layerAlpha, layer.fireThreshold, layer.fireContrast);
         }
 
         // ── mattes ───────────────────────────────────────────────────────────────────────────────────────
@@ -477,6 +544,14 @@ namespace Laubrary.Pyre
                     Vector2 hbOriginOff = new Vector2((spec.origin.x - 0.5f) * W, (spec.origin.y - 0.5f) * H);
                     RenderHeightBalls(layerTarget, W, H, cx, cy, framePhase, layer, spec, li, lp, hbAlpha,
                                       hbOriginOff, stack, frameIndex, ShapeSeed(spec.seed, li, 0));
+                    FinishLayerPost(buf, layerTarget, hasLayerPost, layer, spec, li, lp, frameIndex, W, H, ref matteState);
+                    continue;
+                }
+
+                if (layer.shape == LayerShape.Fire)
+                {
+                    float fAlpha = Mathf.Clamp01(Eval(layer.alpha, lp, spec.seed, li, 0, F_Alpha));
+                    RenderFire(layerTarget, W, H, layer, spec, li, frameIndex, fAlpha);
                     FinishLayerPost(buf, layerTarget, hasLayerPost, layer, spec, li, lp, frameIndex, W, H, ref matteState);
                     continue;
                 }

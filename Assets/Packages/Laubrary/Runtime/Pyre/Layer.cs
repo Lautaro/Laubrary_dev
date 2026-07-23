@@ -349,6 +349,59 @@ namespace Laubrary.Pyre
         [Tooltip("Which primitive every shape in this layer draws.")]
         public LayerShape shape = LayerShape.Disc;
 
+        // ── Fire (LayerShape.Fire) ───────────────────────────────────────────────
+        // Every rate here is an envelope over the LAYER's life on purpose: what you author is the shape of
+        // the burn — swell, roar, die back — rather than a speed you then have to time by hand.
+        [Min(1)]
+        [Tooltip("Fire: how many flame arms radiate from the centre. 1 = a single directional flame.")]
+        public int fireArms = 1;
+        [Tooltip("Fire: Mirror = every arm emits identically (symmetric). Vary = each arm gets its own seed, " +
+                 "so the flames genuinely differ while sharing these dials.")]
+        public FireArmMode fireArmMode = FireArmMode.Mirror;
+        [Tooltip("Fire: which way arm 0 points, in degrees. 90 = up.")]
+        public ZUIValue fireDirection = new ZUIValue(90f);
+        [Tooltip("Fire: width of each arm's emitter, in pixels — the base of the flame.")]
+        public ZUIValue fireEmitterWidth = new ZUIValue(9f);
+        [Tooltip("Fire: how far each emitter sits from the centre, in pixels.")]
+        public ZUIValue fireEmitterInset = new ZUIValue(0f);
+        [Tooltip("Fire: how hot the emitter injects. Animate it to ignite, roar and die back.")]
+        public ZUIValue fireHeat = new ZUIValue(0.95f);
+        [Tooltip("Fire: how much unburnt fuel the emitter injects. Fuel turns into heat as it burns, which is " +
+                 "what gives a flame a body rather than a glow.")]
+        public ZUIValue fireFuel = new ZUIValue(0.75f);
+        [Tooltip("Fire: how much the emitter's output breathes in and out.")]
+        public ZUIValue firePulse = new ZUIValue(0.18f);
+        [Tooltip("Fire: steady outward push away from the centre — a jet.")]
+        public ZUIValue fireFlow = new ZUIValue(1f);
+        [Tooltip("Fire: how strongly HEAT carries itself outward. This is what makes a flame climb rather " +
+                 "than just spread.")]
+        public ZUIValue fireBuoyancy = new ZUIValue(4f);
+        [Tooltip("Fire: swirl strength. This is what curls the tongues instead of merely stretching them.")]
+        public ZUIValue fireCurl = new ZUIValue(1.5f);
+        [Tooltip("Fire: size of the swirls. Small = fine turbulence, large = slow broad rolls.")]
+        public ZUIValue fireCurlScale = new ZUIValue(7f);
+        [Tooltip("Fire: per-pixel jitter, so edges break up instead of staying glassy.")]
+        public ZUIValue fireFlicker = new ZUIValue(0.6f);
+        [Tooltip("Fire: how fast heat fades. High = a short sharp flame, low = long lingering tongues.")]
+        public ZUIValue fireDissipation = new ZUIValue(0.35f);
+        [Tooltip("Fire: how fast fuel converts into heat.")]
+        public ZUIValue fireBurn = new ZUIValue(1.5f);
+        [Tooltip("Fire: how far the flame may reach, as a fraction of the canvas half-size. Past this the " +
+                 "flame is cooled to nothing, so it can NEVER touch the frame edge however hard it is driven — " +
+                 "raise it for more room, not to make the fire bigger.")]
+        public ZUIValue fireReach = new ZUIValue(0.8f);
+        [Tooltip("Fire: how hard the flame is cooled once past the reach radius.")]
+        public ZUIValue fireEdgeCooling = new ZUIValue(0.9f);
+        [Min(1)]
+        [Tooltip("Fire: simulation steps per frame. More = smoother, faster-evolving motion for the same " +
+                 "frame count; it does not change the flame's shape, only how far it gets each frame.")]
+        public int fireSteps = 2;
+        [Range(0f, 0.9f)]
+        [Tooltip("Fire: heat below this reads as empty. Raise it to carve a crisper silhouette.")]
+        public float fireThreshold = 0.06f;
+        [Tooltip("Fire: contrast on the gradient lookup. Below 1 pushes more of the flame toward the hot end.")]
+        public float fireContrast = 0.85f;
+
         // ── matte ────────────────────────────────────────────────────────────────
         // A matte layer isn't drawn: its LUMINANCE (times its own alpha) becomes a mask driving the layers
         // above it. Deliberately a ROLE rather than a shape or a fill mode, because it is orthogonal to both —

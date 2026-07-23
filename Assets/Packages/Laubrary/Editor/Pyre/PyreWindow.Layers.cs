@@ -216,6 +216,7 @@ namespace Laubrary.Pyre.Editor
             if (shape == LayerShape.Bars) { BuildBarsSection(root, l, cs); BuildLayerModifierSections(root, l); return; }
             if (shape == LayerShape.MetaBlob) { BuildMetaBlobSection(root, l, half); BuildLayerModifierSections(root, l); return; }
             if (shape == LayerShape.HeightBalls) { BuildHeightBallsSection(root, l, half); BuildLayerModifierSections(root, l); return; }
+            if (shape == LayerShape.Fire) { BuildFireSection(root, l); BuildLayerModifierSections(root, l); return; }
 
             BuildScatterSection(root, l, half);
 
@@ -599,6 +600,83 @@ namespace Laubrary.Pyre.Editor
         }
 
         // ── Height balls section ────────────────────────────────────────────────────────────
+        /// Fire. Grouped by what a dial does to the flame rather than by which part of the sim it touches —
+        /// the emitter (where fire comes from), the motion (what carries it), the life (how it dies), and the
+        /// confinement (how far it may go). Every rate is a ValRow, i.e. animatable: the burn is authored as a
+        /// SHAPE over the layer's life, not as a speed that then has to be timed by hand.
+        void BuildFireSection(VisualElement root, Layer l)
+        {
+            root.Add(Z.Help("Fire carries state from frame to frame, so it is reached by replaying the " +
+                "simulation rather than by evaluating a formula. Scrubbing and baking stay exact; very long " +
+                "layers just cost more to scrub.", HelpBoxMessageType.Info));
+
+            var arms = Z.Box("Arms", "Repeat the flame radially. Unlike the Kaleidoscope modifier — which " +
+                "copies finished pixels — these are real emitters in one shared grid, so neighbouring arms " +
+                "bleed into each other, and Vary gives each arm its own seed rather than a reshuffled copy.");
+            arms.Add(WrapRow(
+                PackedSlider("Arms", "How many flame arms radiate from the centre. 1 = a single directional flame.",
+                    l.fireArms, 1f, 12f, v => l.fireArms = Mathf.RoundToInt(v), 150f),
+                Z.Field("Mode", "Mirror = every arm emits identically. Vary = each arm gets its own seed.",
+                    Z.EnumDropdown(l.fireArmMode,
+                        "Mirror = every arm emits identically (symmetric). Vary = each arm gets its own seed, " +
+                        "so the flames genuinely differ while sharing these dials.",
+                        v => Dial("Fire arm mode", () => l.fireArmMode = v), 110f))));
+            arms.Add(ValRow("Direction °", "Which way arm 0 points. 90 = up.", l.fireDirection, 0f, 360f, 90f));
+            root.Add(arms);
+
+            var emit = Z.Box("Emitter", "Where the fire comes from, and how hard.");
+            emit.Add(WrapRow(
+                PackedVal("Width (px)", "Width of each arm's emitter — the base of the flame.", l.fireEmitterWidth, 1f, 64f),
+                PackedVal("Inset (px)", "How far each emitter sits from the centre.", l.fireEmitterInset, 0f, 40f)));
+            emit.Add(WrapRow(
+                PackedVal("Heat", "How hot the emitter injects. Animate it to ignite, roar and die back.", l.fireHeat, 0f, 1f),
+                PackedVal("Fuel", "Unburnt fuel injected. Fuel turns into heat as it burns, which is what gives a " +
+                    "flame a body rather than a glow.", l.fireFuel, 0f, 1f)));
+            emit.Add(ValRow("Pulse", "How much the emitter's output breathes in and out.", l.firePulse, 0f, 1f, 0.18f));
+            root.Add(emit);
+
+            var motion = Z.Box("Motion", "What carries the flame once it exists.");
+            motion.Add(WrapRow(
+                PackedVal("Flow", "Steady outward push away from the centre — a jet.", l.fireFlow, 0f, 16f),
+                PackedVal("Buoyancy", "How strongly HEAT carries itself outward — what makes a flame climb " +
+                    "rather than just spread.", l.fireBuoyancy, 0f, 16f)));
+            motion.Add(WrapRow(
+                PackedVal("Curl", "Swirl strength — what curls the tongues instead of merely stretching them.", l.fireCurl, 0f, 8f),
+                PackedVal("Curl size", "Size of the swirls. Small = fine turbulence, large = slow broad rolls.", l.fireCurlScale, 2f, 40f)));
+            motion.Add(ValRow("Flicker", "Per-pixel jitter, so edges break up instead of staying glassy.",
+                l.fireFlicker, 0f, 4f, 0.6f));
+            root.Add(motion);
+
+            var life = Z.Box("Burn / life", "How the flame consumes itself and fades.");
+            life.Add(WrapRow(
+                PackedVal("Dissipation", "How fast heat fades. High = short and sharp, low = long lingering tongues.",
+                    l.fireDissipation, 0f, 2f),
+                PackedVal("Burn rate", "How fast fuel converts into heat.", l.fireBurn, 0f, 4f)));
+            life.Add(WrapRow(
+                Z.Field("Threshold", "Heat below this reads as empty. Raise it to carve a crisper silhouette.",
+                    Z.Slider(l.fireThreshold, 0f, 0.9f, "Heat below this reads as empty.",
+                        v => Dial("Fire threshold", () => l.fireThreshold = v), 130f)),
+                Z.Field("Contrast", "Contrast on the gradient lookup. Below 1 pushes more of the flame toward " +
+                    "the hot end.", Z.Slider(l.fireContrast, 0.1f, 3f,
+                        "Contrast on the gradient lookup.",
+                        v => Dial("Fire contrast", () => l.fireContrast = v), 130f))));
+            root.Add(life);
+
+            var box = Z.Box("Confinement", "The reason a hot setting stays usable as a game asset.");
+            box.Add(Z.Help("Past Reach the flame is cooled to nothing, so it can never touch the frame edge " +
+                "however hard Flow and Buoyancy are driven. Raise Reach for more room — not to make the fire " +
+                "bigger.", HelpBoxMessageType.None));
+            box.Add(WrapRow(
+                PackedVal("Reach", "How far the flame may go, as a fraction of the canvas half-size.", l.fireReach, 0.1f, 1f),
+                PackedVal("Edge cooling", "How hard the flame is cooled once past Reach.", l.fireEdgeCooling, 0f, 1f)));
+            box.Add(Z.Field("Steps / frame", "Simulation steps per frame. More = smoother, faster-evolving " +
+                "motion for the same frame count; it doesn't change the flame's shape, only how far it gets " +
+                "each frame.",
+                Z.SliderInt(l.fireSteps, 1, 6, "Simulation steps per frame.",
+                    v => Dial("Fire steps", () => l.fireSteps = v), 130f)));
+            root.Add(box);
+        }
+
         void BuildHeightBallsSection(VisualElement root, Layer l, float half)
         {
             var shading = Z.Box("Fused cloud — shared by every group",

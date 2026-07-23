@@ -44,6 +44,8 @@ namespace Laubrary.Pyre
         MetaBlob,       // click-placed orbs that fuse (SDF metaballs) into one gradient-shaded shape
         HeightBalls,    // a churning cloud of soft balls fused into density/heat/height fields, relief-lit and
                         // shaded through ONE gradient (low = smoke, high = fire); energy waves climb that gradient
+        Fire,           // a directional flame: a heat/fuel grid advected by buoyancy + curl noise, reached by
+                        // REPLAY rather than closed-form evaluation (see FireSim), with N radial arms
     }
 
     /// How a shape's colour gradient is applied (solid shapes — Disc / Crescent / MetaBlob).
