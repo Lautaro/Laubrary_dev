@@ -100,14 +100,13 @@ namespace Laubrary.Pyre.Editor
             root.Add(Z.Field("Frame", "Scrub to an exact frame — dragging pauses playback and holds the frame.", scrubSlider));
 
             frameLabel = Z.Text("", ZuiText.Subtle, "Current frame / total frames.");
-            root.Add(WrapRow(
-                Z.Field("Zoom", "Preview magnification (canvas pixels × zoom).",
-                    Z.Slider(zoom, 1f, 16f, "Preview magnification (canvas pixels × zoom).",
-                        v => { zoom = Mathf.Max(1f, Mathf.Round(v)); DirtySpec(); }, 130f)),
-                Z.Field("Speed", "Preview playback speed multiplier.",
-                    Z.Slider(speed, 0.1f, 3f, "Preview playback speed multiplier.",
-                        v => { speed = (float)System.Math.Round(v, 1); DirtySpec(); }, 130f)),
-                frameLabel));
+            var zoomMs = Z.MicroSlider("Zoom", zoom, 1f, 16f, "Preview magnification (canvas pixels × zoom).",
+                v => { zoom = Mathf.Max(1f, Mathf.Round(v)); DirtySpec(); }, 130f, showValue: true);
+            zoomMs.style.flexGrow = 1f; zoomMs.style.flexShrink = 1f; zoomMs.style.maxWidth = 260f;
+            var speedMs = Z.MicroSlider("Speed", speed, 0.1f, 3f, "Preview playback speed multiplier.",
+                v => { speed = (float)System.Math.Round(v, 1); DirtySpec(); }, 130f, showValue: true);
+            speedMs.style.flexGrow = 1f; speedMs.style.flexShrink = 1f; speedMs.style.maxWidth = 260f;
+            root.Add(WrapRow(zoomMs, speedMs, frameLabel));
             RefreshTransport();
         }
 

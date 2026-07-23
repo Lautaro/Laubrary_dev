@@ -383,10 +383,9 @@ namespace Laubrary.Pyre.Editor
                     .WithPlotSize(96f)
                     .Expanded()
                     .WithSidePanelExtra(() =>
-                        Z.Field("α", "Opacity of the flashing origin ✛ marker in the preview (preview-only — never baked).",
-                            Z.Slider(originMarkerAlpha, 0f, 1f,
-                                "Opacity of the flashing origin ✛ marker in the preview (preview-only — never baked).",
-                                v => { originMarkerAlpha = v; previewContainer?.MarkDirtyRepaint(); }, 62f, showInput: false))),
+                        Z.MicroSlider("α", originMarkerAlpha, 0f, 1f,
+                            "Opacity of the flashing origin ✛ marker in the preview (preview-only — never baked).",
+                            v => { originMarkerAlpha = v; previewContainer?.MarkDirtyRepaint(); }, 90f, showValue: false)),
                 "The blast's pivot (0..1, y bottom-up) — the point a game aligns to the spawn/hit position. Also draggable as the ✛ handle in the preview.",
                 DirtySpec, RecordSpec));
         }
@@ -439,7 +438,7 @@ namespace Laubrary.Pyre.Editor
         {
             var ms = Z.MicroSlider(label, value, lo, hi, tooltip,
                 v => Dial("Edit Pyre", () => set(v)), width, showValue: true);
-            ms.style.flexGrow = 1f; ms.style.flexShrink = 1f; ms.style.maxWidth = width * 2.6f;
+            ms.style.flexGrow = 1f; ms.style.flexShrink = 1f; ms.style.maxWidth = width * 3.2f;
             return ms;
         }
 

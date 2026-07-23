@@ -40,7 +40,7 @@ namespace Laubrary.Zui
             // sitting at a fixed width and leaving the rest of a wide row empty. Off by default so tools that
             // haven't opted in keep their exact layout; Pyre turns it on.
             public bool grow = false;
-            public float maxWidthFactor = 2.4f;
+            public float maxWidthFactor = 3.2f;   // how far a grown control may widen past its compact width
             // Static (MicroSlider) mode only: draw the field's LABEL inside the slider track (the point of a
             // MicroSlider) instead of as a separate label to its left. MinMax/Curve modes always use an
             // external label — they aren't MicroSliders. Default true; set false to keep the label outside.

@@ -304,7 +304,7 @@ MonoBehaviour:
       m_multiplierId: 
     fireballSourceRadius:
       m_mode: 0
-      m_static: 4
+      m_static: 9.76048
       m_min: 0
       m_max: 1
       m_points: []
@@ -335,13 +335,21 @@ MonoBehaviour:
       m_cooldown: -1
       m_multiplierId: 
     fireballSharpness:
-      m_mode: 0
-      m_static: 0.2
+      m_mode: 2
+      m_static: 0.36886
       m_min: 0
       m_max: 1
-      m_points: []
+      m_points:
+      - time: 0
+        value: 0.36886
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 0.36886
+        exponent: 1
+        editState: 0
       m_yMin: 0
-      m_yMax: 1
+      m_yMax: 0.6
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
@@ -360,7 +368,7 @@ MonoBehaviour:
       m_multiplierId: 
     fireballReach:
       m_mode: 0
-      m_static: 0.82469
+      m_static: 0.62679
       m_min: 0
       m_max: 1
       m_points: []
@@ -372,7 +380,7 @@ MonoBehaviour:
       m_multiplierId: 
     fireballArms: 1
     fireballMirror: 1
-    fireballThreshold: 0.06
+    fireballThreshold: 0.18358
     fireballContrast: 0.85
     role: 0
     matteChannel: 1
@@ -1228,7 +1236,7 @@ MonoBehaviour:
   previewSubjectAttachId: 
   previewLayerSel: 0
   previewScroll: {x: 0, y: 0}
-  previewFrame: 6
+  previewFrame: 13
   previewShapeOn: 0
   previewShapeGradientFill: 1
   previewShapeCrescent: 1
@@ -1245,7 +1253,7 @@ MonoBehaviour:
     - rid: 1452077893817991326
       type: {class: OutlineModifier, ns: Laubrary.Pyre, asm: com.Lautaro-Arino.Laubrary.Pyre}
       data:
-        enabled: 0
+        enabled: 1
         mode: 1
         color:
           serializedVersion: 2
@@ -1282,9 +1290,17 @@ MonoBehaviour:
           m_static: 3.5567012
           m_min: 0
           m_max: 1
-          m_points: []
+          m_points:
+          - time: 0
+            value: 3.5567012
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 3.5567012
+            exponent: 1
+            editState: 0
           m_yMin: 0
-          m_yMax: 1
+          m_yMax: 12
           m_duration: 4
           m_warmup: 0
           m_cooldown: -1
