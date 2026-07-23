@@ -530,7 +530,13 @@ namespace Laubrary.Pyre
                 // A matte layer, and any layer a matte is acting on, MUST render into its own buffer: a matte
                 // reads (or masks) exactly one layer's pixels, and drawing straight into `buf` would mean
                 // reading — or worse, masking — everything already composited below it.
-                bool hasLayerPost = hasLayerSim || layer.role == LayerRole.Matte || matteState.mask != null ||
+                // Fire ALSO needs its own buffer: FireSim.Render OVERWRITES its target pixels (it isn't a
+                // per-pixel alpha compositor), so drawing it straight into `buf` would replace the layers
+                // already composited below with the flame's own — often low — alpha, punching a hole clear
+                // through to the background wherever the flame is dim. Its own transparent buffer + the
+                // FinishLayerPost Over pass composites it correctly instead.
+                bool hasLayerPost = hasLayerSim || layer.shape == LayerShape.Fire
+                    || layer.role == LayerRole.Matte || matteState.mask != null ||
                     (layer.modifiers != null && layer.modifiers.Exists(m => m != null && m.enabled && m is PostModifier));
                 Color32[] layerTarget = hasLayerPost ? new Color32[W * H] : buf;
 
