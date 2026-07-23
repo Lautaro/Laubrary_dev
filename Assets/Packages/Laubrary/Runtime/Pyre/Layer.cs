@@ -377,6 +377,87 @@ namespace Laubrary.Pyre
                  ">1 flings them out. Animate 0→N for a burst, or N→1 to gather in. 1 = the placed positions.")]
         public ZUIValue metaExpand = new ZUIValue(1f);
 
+        // ── Height balls: a cloud of soft balls fused into density/heat/height fields, relief-lit, shaded by ONE
+        // gradient (low = smoke, high = fire). Placement, energy and confinement are all closed-form functions of
+        // (seed, ball index, frame) — no frame-to-frame state — so it scrubs and bakes like every other shape.
+        // Count / Spawn radius / Size / Position / Alpha / Colour are the layer's own shared fields, reused here.
+        [Tooltip("Height balls: how much MASS each ball adds to the cloud. Raises the whole cloud's height (so it " +
+                 "catches more relief light) and pushes it up the gradient even with no heat at all. Animatable.")]
+        public ZUIValue hbDensity = new ZUIValue(0.16f);
+        [Tooltip("Height balls: the RESTING heat every ball idles at — where an ordinary, un-energised bubble sits " +
+                 "on the gradient (near the smoke end). A newly born wave ball starts here too, then climbs. " +
+                 "Animatable — raise it over life to warm the whole cloud at once.")]
+        public ZUIValue hbBaseHeat = new ZUIValue(0.06f);
+        [Range(0f, 1f)]
+        [Tooltip("Height balls: how eagerly neighbouring balls MELT into each other (a smooth-max blend instead of " +
+                 "a hard one). 0 = each ball keeps its own hard edge; higher fuses them into one metaball-like mass " +
+                 "with soft necks between lobes.")]
+        public float hbFusion = 0.35f;
+        [Range(0.5f, 12f)]
+        [Tooltip("Height balls: how fast the cloud reaches full opacity as it thickens. Low = a wispy, translucent " +
+                 "cloud whose thin rim stays see-through; high = a solid silhouette that only fades at the very edge.")]
+        public float hbCoverage = 8f;
+        [Tooltip("Height balls: shade the cloud by the local SLOPE of its height field, as if lit from one side. " +
+                 "This is what gives the chunky pixel-art 3D read; off leaves flat gradient shading.")]
+        public bool hbLighting = true;
+        [Range(0.2f, 6f)]
+        [Tooltip("Height balls: how steeply the height field is treated when lighting it — how pronounced the " +
+                 "bumps and creases between fused balls read. High values exaggerate every lobe into hard facets.")]
+        public float hbRelief = 3f;
+        [Tooltip("Height balls: where the light comes from, in degrees (0 = from the right, 90 = from above). " +
+                 "Animatable — sweep it and the whole cloud's shading rolls across.")]
+        public ZUIValue hbLightAngle = new ZUIValue(135f);
+        [Tooltip("Height balls: how far each ball wanders from its resting spot, in pixels — the cloud's idle " +
+                 "churn. Animatable.")]
+        public ZUIValue hbChurn = new ZUIValue(2.5f);
+        [Range(0.1f, 8f)]
+        [Tooltip("Height balls: how many full churn cycles a ball completes across this layer's life. Low = a slow " +
+                 "roll; high = a busy boil.")]
+        public float hbChurnSpeed = 1.6f;
+        [Tooltip("Height balls: pixels the cloud drifts upward across its life — smoke rising. Animatable.")]
+        public ZUIValue hbRise = new ZUIValue(0f);
+
+        [Range(0, 12)]
+        [Tooltip("Height balls: how many bursts of energy fire off over this layer's life, evenly spaced so the " +
+                 "last one still finishes before the layer ends. 0 = a purely idling cloud.")]
+        public int hbWaves = 3;
+        [Range(1, 24)]
+        [Tooltip("Height balls: how many balls each wave adds, spread around a circle from the cloud's centre.")]
+        public int hbWaveBalls = 7;
+        [Range(0.05f, 1f)]
+        [Tooltip("Height balls: how long one wave lasts, as a fraction of this layer's life — its whole climb, " +
+                 "hold and wither.")]
+        public float hbWaveLife = 0.55f;
+        [Range(0f, 1f)]
+        [Tooltip("Height balls: 1 = a wave's balls sit at perfectly even angles; lower scatters them, so bursts " +
+                 "read as lopsided and organic rather than as a clean rosette.")]
+        public float hbWaveSymmetry = 0.8f;
+        [Tooltip("Height balls: the heat a wave ball reaches at its peak — how far UP the gradient it climbs " +
+                 "(toward the fire end). Animatable: make later waves hotter or cooler than earlier ones.")]
+        public ZUIValue hbWaveHeat = new ZUIValue(0.8f);
+        [Tooltip("Height balls: how far outward a wave ball travels, in pixels, before the push runs out. It " +
+                 "eases to a stop rather than flying, and Confine below caps it regardless. Animatable.")]
+        public ZUIValue hbWavePush = new ZUIValue(14f);
+        [Range(0.02f, 0.9f)]
+        [Tooltip("Height balls: the fraction of a wave ball's life spent CLIMBING from resting heat to its peak. " +
+                 "Large values mean a new ball is indistinguishable from an ordinary cloud ball when it appears " +
+                 "and only heats up gradually; tiny values make it flash hot the moment it's born.")]
+        public float hbIgnition = 0.35f;
+        [Range(0.02f, 0.95f)]
+        [Tooltip("Height balls: the fraction of a wave ball's life spent WITHERING — cooling back down the gradient " +
+                 "toward smoke while shrinking and thinning out, so it dies away instead of blinking out.")]
+        public float hbWither = 0.5f;
+        [Range(0.05f, 1f)]
+        [Tooltip("Height balls: the cloud's self-limiting radius, as a fraction of the canvas half-size. Nothing " +
+                 "the cloud draws can ever reach past it — travel is squeezed smoothly toward this limit rather " +
+                 "than clipped — so the animation never collides with the frame edge.")]
+        public float hbConfine = 0.8f;
+        [Range(0f, 1f)]
+        [Tooltip("Height balls: how much of the outer cloud gets FOLDED UNDER by pressure. A ball pushed into that " +
+                 "band loses mass and heat, shrinks, sinks back toward smoke and is tucked inward — so pushing " +
+                 "harder thickens and churns the cloud instead of flinging balls outward. 0 = no folding.")]
+        public float hbFold = 0.4f;
+
         // ── Noise fill: the domain-warped noise field ColorMode.NoiseFill paints through a shape's own silhouette
         // (Disc/Crescent/MetaBlob) — the shape stays the alpha mask; this is texture only, no silhouette of its own.
         [Tooltip("Noise fill: shifts which part of the gradient the noise field maps to, wrapping around — the " +
@@ -455,6 +536,12 @@ namespace Laubrary.Pyre
                         new MetaOrb(new Vector2( 0f,-9f), 12f, 0.3f,  0.7f),
                     };
                     break;
+                case LayerShape.HeightBalls:
+                    l.count = new ZUIValue(48f);
+                    l.spawnRadius = new ZUIValue(0.34f);
+                    l.size = new ZUIValue(6f);          // one steady ball radius; the CLOUD does the animating
+                    l.colorOverLife = SmokeToFireGradient();
+                    break;
             }
             return l;
         }
@@ -512,6 +599,13 @@ namespace Laubrary.Pyre
                 : metaOrbs.ConvertAll(o => o == null ? new MetaOrb() : o.Clone());
             l.roseRings = roseRings == null ? new List<RoseRing>()
                 : roseRings.ConvertAll(r => r == null ? new RoseRing() : r.Clone());
+            l.hbDensity = CloneVal(hbDensity);
+            l.hbBaseHeat = CloneVal(hbBaseHeat);
+            l.hbLightAngle = CloneVal(hbLightAngle);
+            l.hbChurn = CloneVal(hbChurn);
+            l.hbRise = CloneVal(hbRise);
+            l.hbWaveHeat = CloneVal(hbWaveHeat);
+            l.hbWavePush = CloneVal(hbWavePush);
             l.noiseGradientPosition = CloneVal(noiseGradientPosition);
             l.noiseGradientZoom = CloneVal(noiseGradientZoom);
             l.noiseZoom = CloneVal(noiseZoom);
@@ -573,6 +667,8 @@ namespace Laubrary.Pyre
             var g = new Gradient();
             switch (shape)
             {
+                case LayerShape.HeightBalls:      // one continuous smoke → fire ramp
+                    return SmokeToFireGradient();
                 case LayerShape.SparkleField:     // hot sparks
                     g.SetKeys(
                         new[]
@@ -595,6 +691,28 @@ namespace Laubrary.Pyre
                         new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
                     break;
             }
+            return g;
+        }
+
+        /// ONE continuous smoke→fire ramp: near-black smoke at the low end climbing through ember red and orange
+        /// into a pale hot core. Height balls index this by a pixel's combined density+heat, so "adding energy"
+        /// literally walks a ball up this gradient (and withering walks it back down).
+        public static Gradient SmokeToFireGradient()
+        {
+            var g = new Gradient();
+            g.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(new Color(0.051f, 0.059f, 0.078f), 0f),
+                    new GradientColorKey(new Color(0.102f, 0.114f, 0.141f), 0.14f),
+                    new GradientColorKey(new Color(0.204f, 0.204f, 0.227f), 0.26f),
+                    new GradientColorKey(new Color(0.333f, 0.125f, 0.086f), 0.40f),
+                    new GradientColorKey(new Color(0.651f, 0.165f, 0.051f), 0.55f),
+                    new GradientColorKey(new Color(0.941f, 0.392f, 0.047f), 0.70f),
+                    new GradientColorKey(new Color(1f, 0.757f, 0.173f), 0.85f),
+                    new GradientColorKey(new Color(1f, 0.961f, 0.784f), 1f),
+                },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
             return g;
         }
 

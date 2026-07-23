@@ -1,11 +1,18 @@
 // RulesEditorWindow.cs
 // One window to browse + tune every game rule. Left: a category tree (built from RuleTaxonomy) with a
 // search box and tag chips. Right: the filtered rule list and the selected rule's fields, rendered by
-// reflection (EditorGUILayout). A Rulesets tab manages the RuleSet assets in Resources/Rulesets and points
-// the scene's RulesHost at one (hot-swapping it in Play).
+// reflection. A Rulesets tab manages the RuleSet assets in Resources/Rulesets and points the scene's
+// RulesHost at one (hot-swapping it in Play).
 //
 // Operates on the live rules: the running RulesHost in Play mode, else the authored host's SourceSet asset.
-// ZUIWindow + reflection (ZUI toolkit) — no Odin. Rules use plain primitive fields.
+//
+// UI TOOLKIT PORT (ZUI → UI Toolkit migration): fully native, and it closes all three of this file's old
+// `// ZUI-GAP:` markers, because UI Toolkit solves natively what IMGUI could not:
+//   • "typed object field by runtime Type" → ZuiReflect.ObjectByType (ObjectField.objectType is settable,
+//     so no compile-time generic is needed);
+//   • "helpBox-framed list row / detail panel / card" → Z.Box;
+//   • the whole reflection-driven field renderer now lives in the shared ZuiReflect, so any other
+//     data-driven tool gets it too instead of this window hand-rolling it.
 //
 // CROSS-ASSEMBLY DISCOVERY: GameRule lives in the Laubrary.Rulesets plugin assembly, but concrete rule
 // subclasses live in the consuming game's assembly. AllRuleTypes() therefore scans EVERY loaded assembly
@@ -16,13 +23,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
-using Laubrary.Rulesets;
+using UnityEngine.UIElements;
 
 namespace Laubrary.Rulesets.Editor
 {
-    public class RulesEditorWindow : ZUIWindow
+    public class RulesEditorWindow : ZuiWindow
     {
         [MenuItem("Laubrary/Rules Editor")]
         static void Open() => GetWindow<RulesEditorWindow>("Rules");
@@ -36,23 +44,30 @@ namespace Laubrary.Rulesets.Editor
         [SerializeField] List<string> _activeTags = new List<string>();
         [SerializeField] string _selectedType;
         [SerializeField] string _lastSingle; // last type auto-opened because it was the sole filtered result
-        [SerializeField] Vector2 _leftScroll, _rightScroll, _rulesetsScroll;
 
         string _renamingPath, _renameBuffer, _peekPath;
         UnityEngine.Object _owner; // what to SetDirty after an edit (the RuleSet asset in edit mode)
 
-        protected override void OnZUI()
+        // Play mode changes what the window shows (live host vs authored asset) and rules report live
+        // info — so refresh on a slow tick rather than the IMGUI original's every-frame Repaint.
+        void OnEnable()
         {
-            _tab = (Tab)MiniRadio((int)_tab, new[] { "Rules", "Rulesets", "Global Rules" });
-            GUILayout.Space(4);
-            if (_tab == Tab.Rules) DrawRulesTab();
-            else if (_tab == Tab.Rulesets) DrawRulesetsTab();
-            else DrawGlobalRulesTab();
+            rootVisualElement.schedule.Execute(() =>
+            {
+                if (Application.isPlaying) Rebuild();
+            }).Every(500);
         }
 
-        void Update()
+        protected override void BuildUI(VisualElement root)
         {
-            if (Application.isPlaying) Repaint();
+            root.Add(Z.MiniRadio((int)_tab, new[] { "Rules", "Rulesets", "Global Rules" },
+                "Rules = tune the active ruleset. Rulesets = manage RuleSet assets. Global Rules = the rules that apply under EVERY ruleset.",
+                v => { _tab = (Tab)v; Rebuild(); }));
+            root.Add(Z.VSpace(4f));
+
+            if (_tab == Tab.Rules) BuildRulesTab(root);
+            else if (_tab == Tab.Rulesets) BuildRulesetsTab(root);
+            else BuildGlobalRulesTab(root);
         }
 
         // ── Rule discovery ──────────────────────────────────────────────────────────
@@ -126,68 +141,115 @@ namespace Laubrary.Rulesets.Editor
 
         // ── Rules tab ───────────────────────────────────────────────────────────────
 
-        void DrawRulesTab()
+        void BuildRulesTab(VisualElement root)
         {
             var rules = CurrentRules();
             if (rules.Length == 0)
             {
-                InfoBox("No rules found. In Play mode this shows the live RulesHost; in edit mode it shows the authored RulesHost's RuleSet asset. Open a scene with a RulesHost (and define some GameRule subclasses) to edit rules.");
+                root.Add(Z.Help("No rules found. In Play mode this shows the live RulesHost; in edit mode it shows " +
+                    "the authored RulesHost's RuleSet asset. Open a scene with a RulesHost (and define some GameRule " +
+                    "subclasses) to edit rules.", HelpBoxMessageType.Info));
                 return;
             }
-
-            GUILayout.BeginHorizontal();
-            GUILayout.BeginVertical(GUILayout.Width(210f));
-            DrawLeftPanel(rules);
-            GUILayout.EndVertical();
-            GUILayout.Space(6);
-            GUILayout.BeginVertical(GUILayout.ExpandWidth(true));
-            DrawRightPanel(rules);
-            GUILayout.EndVertical();
-            GUILayout.EndHorizontal();
+            BuildTwoPane(root, rules);
         }
 
-        void DrawLeftPanel(GameRule[] rules)
+        void BuildTwoPane(VisualElement root, GameRule[] rules)
         {
-            Label("Search", ZUI.ZTextStyle.SectionHeader);
-            _search = TextField(_search, 200f);
+            var split = new VisualElement();
+            split.style.flexDirection = FlexDirection.Row;
+            split.style.flexGrow = 1f;
+            split.style.minHeight = 0f;
 
-            GUILayout.Space(4);
-            Label("Categories", ZUI.ZTextStyle.SectionHeader);
+            var left = new VisualElement();
+            left.style.width = 210f;
+            left.style.flexShrink = 0f;
+            left.style.minHeight = 0f;
+            BuildLeftPanel(left, rules);
+            split.Add(left);
+
+            split.Add(Z.HSpace(6f));
+
+            var right = new VisualElement();
+            right.style.flexGrow = 1f;
+            right.style.minWidth = 0f;
+            right.style.minHeight = 0f;
+            BuildRightPanel(right, rules);
+            split.Add(right);
+
+            root.Add(split);
+        }
+
+        void BuildLeftPanel(VisualElement root, GameRule[] rules)
+        {
+            root.Add(Z.Text("Search", ZuiText.Section, "Filter rules by name or description."));
+            root.Add(Z.TextInput(_search, "Filter rules by name or description text.",
+                v => { _search = v; RebuildRight(); }, 200f));
+
+            root.Add(Z.VSpace(4f));
+            root.Add(Z.Text("Categories", ZuiText.Section,
+                "Rule categories from RuleTaxonomy. Right-click a category to isolate it (drops every other filter)."));
 
             var cats = rules.Select(r => RuleTaxonomy.CategoryOf(r.GetType())).Distinct().OrderBy(c => c).ToList();
             int enabledN = rules.Count(r => r.Active);
             int disabledN = rules.Length - enabledN;
 
-            using (ScrollView(ref _leftScroll, GUILayout.Height(260f)))
+            var catScroll = new ScrollView(ScrollViewMode.Vertical);
+            catScroll.style.height = 260f;
+            catScroll.Add(CategoryRow("All", _selectedCategory == "All" && _stateFilter == 0, 0,
+                "Show every rule (clears all filters).",
+                () => { _selectedCategory = "All"; _stateFilter = 0; _activeTags.Clear(); Rebuild(); },
+                () => { _selectedCategory = "All"; _stateFilter = 0; _activeTags.Clear(); Rebuild(); }));
+            catScroll.Add(CategoryRow($"Enabled ({enabledN})", _stateFilter == 1, 1,
+                "Show only rules that are currently switched on.",
+                () => { _stateFilter = _stateFilter == 1 ? 0 : 1; Rebuild(); }, null));
+            catScroll.Add(CategoryRow($"Disabled ({disabledN})", _stateFilter == 2, 1,
+                "Show only rules that are currently switched off.",
+                () => { _stateFilter = _stateFilter == 2 ? 0 : 2; Rebuild(); }, null));
+            catScroll.Add(Z.VSpace(4f));
+            foreach (var cat in cats)
             {
-                if (RowButton("All", _selectedCategory == "All" && _stateFilter == 0, 0) != 0)
-                { _selectedCategory = "All"; _stateFilter = 0; _activeTags.Clear(); } // right- or left-click both reset
-                if (RowButton($"Enabled ({enabledN})", _stateFilter == 1, 1) != 0) _stateFilter = _stateFilter == 1 ? 0 : 1;
-                if (RowButton($"Disabled ({disabledN})", _stateFilter == 2, 1) != 0) _stateFilter = _stateFilter == 2 ? 0 : 2;
-                GUILayout.Space(4);
-                foreach (var cat in cats)
-                {
-                    int code = RowButton(cat, _selectedCategory == cat, 1);
-                    if (code == 2) IsolateCategory(cat); // right-click: clear tags + state, show ONLY this category
-                    else if (code == 1) _selectedCategory = cat;
-                }
+                string captured = cat;
+                catScroll.Add(CategoryRow(captured, _selectedCategory == captured, 1,
+                    $"Show rules in the '{captured}' category. Right-click to isolate it.",
+                    () => { _selectedCategory = captured; Rebuild(); },
+                    () => { IsolateCategory(captured); Rebuild(); }));
             }
+            root.Add(catScroll);
 
-            GUILayout.Space(4);
-            Label("Tags", ZUI.ZTextStyle.SectionHeader);
+            root.Add(Z.VSpace(4f));
+            root.Add(Z.Text("Tags", ZuiText.Section,
+                "Rule tags from RuleTaxonomy. Click to filter; right-click a tag to isolate it."));
             var allTags = rules.SelectMany(r => RuleTaxonomy.TagsOf(r.GetType()))
                                .Concat(new[] { "enabled", "disabled" })
                                .Distinct().OrderBy(t => t).ToArray();
-            DrawTagChips(allTags);
-            if (_activeTags.Count > 0 && Button("clear tags"))
-                _activeTags.Clear();
+            root.Add(BuildTagChips(allTags));
+            if (_activeTags.Count > 0)
+                root.Add(Z.Button("clear tags", "Remove every active tag filter.",
+                    () => { _activeTags.Clear(); Rebuild(); }));
         }
 
-        // 0 = no click, 1 = left-click, 2 = RIGHT-click (used as "isolate this filter"). Now on ZUI.SelectableRow.
-        int RowButton(string label, bool selected, int indent)
+        /// A selectable list row. Left-click runs `onClick`; right-click runs `onIsolate` when given
+        /// (the IMGUI original used ZUI.SelectableRow's out-param for the same two-button behaviour).
+        VisualElement CategoryRow(string label, bool selected, int indent, string tooltip,
+            Action onClick, Action onIsolate)
         {
-            bool clicked = SelectableRow(label, selected, out bool rightClicked, indent);
-            return rightClicked ? 2 : clicked ? 1 : 0;
+            var row = new VisualElement();
+            row.AddToClassList("zui-row");
+            row.style.paddingLeft = 4f + indent * 12f;
+            row.tooltip = tooltip;
+            if (selected) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.22f);
+
+            var text = new Label(label) { tooltip = tooltip };
+            if (selected) text.style.unityFontStyleAndWeight = FontStyle.Bold;
+            row.Add(text);
+
+            row.RegisterCallback<PointerDownEvent>(e =>
+            {
+                if (e.button == 1 && onIsolate != null) { onIsolate(); e.StopPropagation(); }
+                else if (e.button == 0) { onClick?.Invoke(); e.StopPropagation(); }
+            });
+            return row;
         }
 
         // Right-click "isolate": drop every other filter and show ONLY the thing clicked.
@@ -201,22 +263,38 @@ namespace Laubrary.Rulesets.Editor
             return cat == category || cat.StartsWith(category + "/");
         }
 
-        void DrawTagChips(string[] tags)
+        VisualElement BuildTagChips(string[] tags)
         {
-            int perRow = 3, i = 0;
-            while (i < tags.Length)
+            var wrap = new VisualElement();
+            wrap.style.flexDirection = FlexDirection.Row;
+            wrap.style.flexWrap = Wrap.Wrap;
+            foreach (var tag in tags)
             {
-                GUILayout.BeginHorizontal();
-                for (int c = 0; c < perRow && i < tags.Length; c++, i++)
+                string captured = tag;
+                bool on = _activeTags.Contains(captured);
+                var chip = new Button(() =>
                 {
-                    bool on = _activeTags.Contains(tags[i]);
-                    bool now = Chip(on, tags[i], out bool rightClicked);
-                    if (rightClicked) IsolateTag(tags[i]);      // right-click: show ONLY this tag
-                    else if (now && !on) _activeTags.Add(tags[i]);
-                    else if (!now && on) _activeTags.Remove(tags[i]);
-                }
-                GUILayout.EndHorizontal();
+                    if (_activeTags.Contains(captured)) _activeTags.Remove(captured);
+                    else _activeTags.Add(captured);
+                    Rebuild();
+                })
+                {
+                    text = captured,
+                    tooltip = $"Filter by the '{captured}' tag. Right-click to show ONLY this tag.",
+                };
+                chip.style.marginRight = 2f;
+                chip.style.marginBottom = 2f;
+                if (on) chip.AddToClassList("zui-radio__on");
+                chip.RegisterCallback<PointerDownEvent>(e =>
+                {
+                    if (e.button != 1) return;
+                    IsolateTag(captured);
+                    Rebuild();
+                    e.StopPropagation();
+                });
+                wrap.Add(chip);
             }
+            return wrap;
         }
 
         bool PassesFilter(GameRule r)
@@ -244,11 +322,31 @@ namespace Laubrary.Rulesets.Editor
             return true;
         }
 
-        void DrawRightPanel(GameRule[] rules)
+        VisualElement _rightHost;
+        GameRule[] _rightRules = Array.Empty<GameRule>();
+
+        void RebuildRight()
+        {
+            if (_rightHost == null) { Rebuild(); return; }
+            _rightHost.Clear();
+            BuildRightList(_rightHost, _rightRules);
+        }
+
+        void BuildRightPanel(VisualElement root, GameRule[] rules)
+        {
+            _rightRules = rules;
+            _rightHost = new VisualElement();
+            _rightHost.style.flexGrow = 1f;
+            _rightHost.style.minHeight = 0f;
+            BuildRightList(_rightHost, rules);
+            root.Add(_rightHost);
+        }
+
+        void BuildRightList(VisualElement root, GameRule[] rules)
         {
             var filtered = rules.Where(PassesFilter).ToArray();
             // When a filter narrows the view to exactly ONE rule, open it automatically (once per new
-            // single result; the user can still collapse it, and it won't re-pop every frame).
+            // single result; the user can still collapse it, and it won't re-pop every rebuild).
             if (filtered.Length == 1)
             {
                 string only = filtered[0].GetType().Name;
@@ -257,185 +355,94 @@ namespace Laubrary.Rulesets.Editor
             else _lastSingle = null;
 
             string state = _stateFilter == 1 ? " · Enabled" : _stateFilter == 2 ? " · Disabled" : "";
-            Label($"{filtered.Length} rule(s)  ·  {_selectedCategory}{state}", ZUI.ZTextStyle.Small);
+            root.Add(Z.Text($"{filtered.Length} rule(s)  ·  {_selectedCategory}{state}", ZuiText.Small,
+                "How many rules match the current filters."));
 
             bool playing = Application.isPlaying;
-            using (ScrollView(ref _rightScroll))
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.flexGrow = 1f;
+            scroll.style.minHeight = 0f;
+
+            foreach (var r in filtered)
             {
-                foreach (var r in filtered)
+                var rule = r;
+                string typeName = rule.GetType().Name;
+                bool isSel = _selectedType == typeName;
+
+                var card = Z.Box(null, null);
+                var header = new VisualElement();
+                header.AddToClassList("zui-row");
+
+                header.Add(Z.Toggle("", $"Switch the {typeName} rule on or off.", rule.Active, v =>
                 {
-                    string typeName = r.GetType().Name;
-                    // ZUI-GAP: boxed list row — helpBox-framed row with an inline enable checkbox and a
-                    // label-styled selectable button (bold when selected); kept raw to preserve the look.
-                    GUILayout.BeginHorizontal(EditorStyles.helpBox);
+                    rule.Active = v;
+                    MarkDirty();
+                    RebuildRight();
+                }));
 
-                    bool en = r.Active;
-                    bool newEn = GUILayout.Toggle(en, GUIContent.none, GUILayout.Width(16f));
-                    if (newEn != en) { r.Active = newEn; MarkDirty(); }
+                var nameButton = new Button(() =>
+                {
+                    _selectedType = isSel ? null : typeName;
+                    RebuildRight();
+                })
+                {
+                    text = typeName,
+                    tooltip = SafeDescribe(rule),
+                };
+                nameButton.style.unityFontStyleAndWeight = isSel ? FontStyle.Bold : FontStyle.Normal;
+                header.Add(nameButton);
 
-                    bool isSel = _selectedType == typeName;
-                    if (GUILayout.Button(typeName, isSel ? EditorStyles.boldLabel : EditorStyles.label, GUILayout.ExpandWidth(false)))
-                        _selectedType = isSel ? null : typeName;
-
-                    if (playing && r.Active)
-                    {
-                        string info = SafeRuntimeInfo(r);
-                        if (!string.IsNullOrEmpty(info))
-                            EditorGUILayout.LabelField(info.Replace("\n", "   "), EditorStyles.miniLabel);
-                    }
-                    GUILayout.FlexibleSpace();
-                    GUILayout.EndHorizontal();
-
-                    if (_selectedType == typeName) DrawRuleDetail(r);
+                if (playing && rule.Active)
+                {
+                    string info = SafeRuntimeInfo(rule);
+                    if (!string.IsNullOrEmpty(info))
+                        header.Add(Z.Text(info.Replace("\n", "   "), ZuiText.Small,
+                            "Live runtime state reported by this rule."));
                 }
+                header.Add(Z.Flexible());
+                card.Add(header);
+
+                if (isSel) BuildRuleDetail(card, rule);
+                scroll.Add(card);
             }
+            root.Add(scroll);
         }
 
-        void DrawRuleDetail(GameRule r)
+        void BuildRuleDetail(VisualElement root, GameRule r)
         {
-            // ZUI-GAP: boxed detail panel — helpBox-framed group; kept raw to preserve the look.
-            GUILayout.BeginVertical(EditorStyles.helpBox);
-            Label(SafeDescribe(r), ZUI.ZTextStyle.Small);
+            var panel = Z.Box(null, null);
+            panel.Add(Z.Text(SafeDescribe(r), ZuiText.Small, "What this rule does."));
             var brief = SafeBrief(r);
             if (!string.IsNullOrEmpty(brief))
-                Label("Brief: " + brief.Replace("\n", " / "), ZUI.ZTextStyle.Small);
+                panel.Add(Z.Text("Brief: " + brief.Replace("\n", " / "), ZuiText.Small, "The rule's short summary."));
             if (Application.isPlaying)
             {
                 string info = SafeRuntimeInfo(r);
                 if (!string.IsNullOrEmpty(info))
-                    Label(info, ZUI.ZTextStyle.Small);
+                    panel.Add(Z.Text(info, ZuiText.Small, "Live runtime state reported by this rule."));
             }
-            GUILayout.Space(2);
 
-            var fields = FieldsOf(r.GetType());
-            float labelW = 90f;
-            foreach (var f in fields)
-                labelW = Mathf.Max(labelW, EditorStyles.label.CalcSize(new GUIContent(ObjectNames.NicifyVariableName(f.Name))).x);
-            labelW = Mathf.Min(labelW + 12f, 260f);
-            float prevLW = EditorGUIUtility.labelWidth;
-            EditorGUIUtility.labelWidth = labelW;
-
-            EditorGUI.BeginChangeCheck();
-            foreach (var f in fields)
-                DrawField(r, f);
-            if (EditorGUI.EndChangeCheck()) MarkDirty();
-
-            EditorGUIUtility.labelWidth = prevLW;
-
-            GUILayout.Space(2);
-            if (Button("Reset to default")) { r.ResetToDefault(); MarkDirty(); }
-            GUILayout.EndVertical();
-        }
-
-        // ── Reflection field rendering ──────────────────────────────────────────────
-
-        static readonly Dictionary<Type, FieldInfo[]> _fieldCache = new Dictionary<Type, FieldInfo[]>();
-
-        static FieldInfo[] FieldsOf(Type t)
-        {
-            if (_fieldCache.TryGetValue(t, out var arr)) return arr;
-            var list = new List<FieldInfo>();
-            var chain = new List<Type>();
-            for (Type cur = t; cur != null && cur != typeof(object); cur = cur.BaseType) chain.Add(cur);
-            chain.Reverse();
-            foreach (var ct in chain)
-                foreach (var f in ct.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-                {
-                    if (f.IsNotSerialized) continue;
-                    if (Attribute.IsDefined(f, typeof(HideInInspector))) continue;
-                    list.Add(f);
-                }
-            arr = list.ToArray();
-            _fieldCache[t] = arr;
-            return arr;
-        }
-
-        void DrawField(object owner, FieldInfo f)
-        {
-            string nice = ObjectNames.NicifyVariableName(f.Name);
-            object v = f.GetValue(owner);
-
-            if (f.FieldType == typeof(float))
+            // Every tunable field, rendered by reflection through the shared ZuiReflect — this is what
+            // used to be this file's own DrawField/DrawList pair plus three ZUI-GAP workarounds.
+            ZuiReflect.BuildFields(panel, r, new ZuiReflect.Options
             {
-                var range = (RangeAttribute)Attribute.GetCustomAttribute(f, typeof(RangeAttribute));
-                if (range != null) f.SetValue(owner, Slider((float)v, range.min, range.max, nice));
-                else f.SetValue(owner, ZUI.FloatField(nice, (float)v));
-            }
-            else if (f.FieldType == typeof(int))
-            {
-                var range = (RangeAttribute)Attribute.GetCustomAttribute(f, typeof(RangeAttribute));
-                if (range != null) f.SetValue(owner, IntSlider(nice, (int)v, (int)range.min, (int)range.max));
-                else f.SetValue(owner, ZUI.IntField(nice, (int)v));
-            }
-            else if (f.FieldType == typeof(bool)) f.SetValue(owner, Toggle((bool)v, nice));
-            else if (f.FieldType == typeof(string)) f.SetValue(owner, TextField(nice, (string)v));
-            else if (f.FieldType.IsEnum) f.SetValue(owner, EnumField(nice, (Enum)v));
-            else if (f.FieldType == typeof(Color)) f.SetValue(owner, ColorField(nice, (Color)v));
-            else if (f.FieldType == typeof(Vector2)) f.SetValue(owner, Vector2Field(nice, (Vector2)v));
-            else if (f.FieldType == typeof(Vector2Int)) f.SetValue(owner, Vector2IntField(nice, (Vector2Int)v));
-            else if (typeof(UnityEngine.Object).IsAssignableFrom(f.FieldType))
-                // ZUI-GAP: typed object field by runtime Type — ZUI.ObjectField<T> needs a compile-time T; kept raw.
-                f.SetValue(owner, EditorGUILayout.ObjectField(nice, (UnityEngine.Object)v, f.FieldType, true));
-            // A 'float staticValue' wrapper (e.g. ZUIValue): expose its static value as a plain float so these
-            // tunables are editable here and thus targetable by Story — one shared "exposed" definition (RuleParams,
-            // duck-typed so Rulesets stays ZUI-free).
-            else if (RuleParams.StaticValueProp(f.FieldType) is PropertyInfo sv && v != null)
-            {
-                float cur = (float)sv.GetValue(v);
-                var range = (RangeAttribute)Attribute.GetCustomAttribute(f, typeof(RangeAttribute));
-                float nv = range != null ? Slider(cur, range.min, range.max, nice) : ZUI.FloatField(nice, cur);
-                if (!Mathf.Approximately(nv, cur)) { sv.SetValue(v, nv); f.SetValue(owner, v); }
-            }
-            else if (f.FieldType.IsGenericType && f.FieldType.GetGenericTypeDefinition() == typeof(List<>))
-                DrawList(owner, f, nice);
-        }
+                // Undo the OWNING asset: a GameRule is a plain object living inside the RuleSet, so the
+                // ScriptableObject is what Unity can restore. In Play mode `_owner` is null (the rules are
+                // a live clone with no asset behind them) and there is correctly nothing to record.
+                OnBeforeChange = RecordOwner,
+                OnChanged = MarkDirty,
+                OnStructureChanged = RebuildRight,
+                FloatWrapperProperty = RuleParams.StaticValueProp,
+                TooltipFor = f => $"{ObjectNames.NicifyVariableName(f.Name)} — a tunable of the {r.GetType().Name} rule.",
+            });
 
-        void DrawList(object owner, FieldInfo f, string nice)
-        {
-            var elemType = f.FieldType.GetGenericArguments()[0];
-            var list = f.GetValue(owner) as System.Collections.IList;
-            if (list == null)
+            panel.Add(Z.Button("Reset to default", "Restore every field of this rule to its coded default.", () =>
             {
-                list = (System.Collections.IList)Activator.CreateInstance(f.FieldType);
-                f.SetValue(owner, list);
-            }
-
-            Label($"{nice}  ({list.Count})", ZUI.ZTextStyle.SectionHeader);
-            bool isClass = elemType.IsClass && elemType != typeof(string) && !typeof(UnityEngine.Object).IsAssignableFrom(elemType);
-
-            int removeAt = -1;
-            for (int i = 0; i < list.Count; i++)
-            {
-                // ZUI-GAP: boxed list-element card — helpBox-framed group; kept raw to preserve the look.
-                GUILayout.BeginVertical(EditorStyles.helpBox);
-                GUILayout.BeginHorizontal();
-                Label($"[{i}]", GUILayout.Width(28f));
-                if (Button("×", ZUI.Style.Default, GUILayout.Width(22f))) removeAt = i;
-                GUILayout.EndHorizontal();
-
-                if (isClass)
-                {
-                    var elem = list[i];
-                    if (elem == null) { elem = Activator.CreateInstance(elemType); list[i] = elem; }
-                    foreach (var ef in FieldsOf(elemType)) DrawField(elem, ef);
-                }
-                // ZUI-GAP: typed object field by runtime Type — ZUI.ObjectField<T> needs a compile-time T; kept raw.
-                else if (typeof(UnityEngine.Object).IsAssignableFrom(elemType))
-                    list[i] = EditorGUILayout.ObjectField((UnityEngine.Object)list[i], elemType, true);
-                else if (elemType.IsEnum) list[i] = EnumField("", (Enum)list[i]);
-                else if (elemType == typeof(float)) list[i] = ZUI.FloatField("", (float)list[i]);
-                else if (elemType == typeof(int)) list[i] = ZUI.IntField("", (int)list[i]);
-                else if (elemType == typeof(string)) list[i] = TextField((string)(list[i] ?? ""));
-                GUILayout.EndVertical();
-            }
-            if (removeAt >= 0) { list.RemoveAt(removeAt); GUI.changed = true; }
-
-            if (Button("+ Add " + elemType.Name))
-            {
-                list.Add(isClass || elemType.IsValueType ? Activator.CreateInstance(elemType)
-                                                          : (elemType == typeof(string) ? "" : null));
-                GUI.changed = true;
-            }
+                r.ResetToDefault();
+                MarkDirty();
+                RebuildRight();
+            }));
+            root.Add(panel);
         }
 
         // ── Global Rules tab ──────────────────────────────────────────────────────────
@@ -474,32 +481,27 @@ namespace Laubrary.Rulesets.Editor
             if (added) EditorUtility.SetDirty(set);
         }
 
-        void DrawGlobalRulesTab()
+        void BuildGlobalRulesTab(VisualElement root)
         {
-            Label("The GLOBAL ruleset applies under EVERY ruleset. Enable a rule here to make it global. A ruleset overrides a global (single-instance) rule only by ENABLING its own copy of that rule type. Edits save to the asset and take effect on the next RulesHost load.", ZUI.ZTextStyle.Small);
-            GUILayout.Space(4);
+            root.Add(Z.Text("The GLOBAL ruleset applies under EVERY ruleset. Enable a rule here to make it global. " +
+                "A ruleset overrides a global (single-instance) rule only by ENABLING its own copy of that rule type. " +
+                "Edits save to the asset and take effect on the next RulesHost load.", ZuiText.Subtle,
+                "How the global ruleset relates to per-ruleset rules."));
+            root.Add(Z.VSpace(4f));
 
             var set = GetGlobalSet();
             if (set == null)
             {
-                InfoBox("No Global ruleset yet. Create one to start adding global rules.");
-                if (Button("Create Global ruleset")) CreateGlobalSet();
+                root.Add(Z.Help("No Global ruleset yet. Create one to start adding global rules.", HelpBoxMessageType.Info));
+                root.Add(Z.Button("Create Global ruleset", "Create the Global RuleSet asset in Resources/Rulesets.",
+                    () => { CreateGlobalSet(); Rebuild(); }));
                 return;
             }
 
             EnsureAllRuleTypesDisabled(set); // list every rule type (disabled); toggle the ones you want global
             _owner = set;
             var rules = set.Rules.Where(r => r != null).OrderBy(r => r.GetType().Name).ToArray();
-
-            GUILayout.BeginHorizontal();
-            GUILayout.BeginVertical(GUILayout.Width(210f));
-            DrawLeftPanel(rules);
-            GUILayout.EndVertical();
-            GUILayout.Space(6);
-            GUILayout.BeginVertical(GUILayout.ExpandWidth(true));
-            DrawRightPanel(rules);
-            GUILayout.EndVertical();
-            GUILayout.EndHorizontal();
+            BuildTwoPane(root, rules);
         }
 
         void CreateGlobalSet()
@@ -527,70 +529,109 @@ namespace Laubrary.Rulesets.Editor
                 .OrderBy(x => x.asset.name)
                 .ToList();
 
-        void DrawRulesetsTab()
+        void BuildRulesetsTab(VisualElement root)
         {
             var host = UnityEngine.Object.FindAnyObjectByType<RulesHost>(FindObjectsInactive.Include);
             var applied = host != null ? host.SourceSet : null;
 
-            Label("Rulesets are RuleSet assets in Resources/Rulesets. \"Apply\" points the scene's RulesHost at one (and hot-swaps it in Play). Edit a ruleset by Applying it, then using the Rules tab.", ZUI.ZTextStyle.Small);
+            root.Add(Z.Text("Rulesets are RuleSet assets in Resources/Rulesets. \"Apply\" points the scene's RulesHost " +
+                "at one (and hot-swaps it in Play). Edit a ruleset by Applying it, then using the Rules tab.",
+                ZuiText.Subtle, "What a ruleset is and how Apply works."));
             if (host == null)
-                InfoBox("No RulesHost in the open scene — Apply has nowhere to attach.");
+                root.Add(Z.Help("No RulesHost in the open scene — Apply has nowhere to attach.", HelpBoxMessageType.Warning));
 
-            GUILayout.BeginHorizontal();
-            if (Button("New empty", ZUI.Style.Default, GUILayout.Width(80))) CreateRuleset(null);
-            using (new EditorGUI.DisabledScope(applied == null))
-                if (Button("New from current", ZUI.Style.Default, GUILayout.Width(120))) CreateRuleset(applied);
-            if (Button("Save to disk", ZUI.Style.Default, GUILayout.Width(90))) AssetDatabase.SaveAssets();
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
-            GUILayout.Space(4);
+            var newFromCurrent = Z.Button("New from current", "Duplicate the applied ruleset into a new asset.",
+                () => { CreateRuleset(applied); Rebuild(); });
+            newFromCurrent.SetEnabled(applied != null);
+            root.Add(Z.Row(
+                Z.Button("New empty", "Create a ruleset containing one of every rule type, at their defaults.",
+                    () => { CreateRuleset(null); Rebuild(); }),
+                newFromCurrent,
+                Z.Button("Save to disk", "Flush every pending ruleset edit to disk.", AssetDatabase.SaveAssets)));
+            root.Add(Z.VSpace(4f));
 
             var sets = AllRuleSets();
-            if (sets.Count == 0) { InfoBox("No rulesets yet — create one above."); return; }
-
-            using (ScrollView(ref _rulesetsScroll))
+            if (sets.Count == 0)
             {
+                root.Add(Z.Help("No rulesets yet — create one above.", HelpBoxMessageType.Info));
+                return;
+            }
+
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.flexGrow = 1f;
+            scroll.style.minHeight = 0f;
+
             foreach (var (path, asset) in sets)
             {
-                bool isApplied = asset == applied;
-                // ZUI-GAP: boxed list row — helpBox-framed ruleset card; kept raw to preserve the look.
-                GUILayout.BeginVertical(EditorStyles.helpBox);
-                GUILayout.BeginHorizontal();
+                string capturedPath = path;
+                var capturedAsset = asset;
+                bool isApplied = capturedAsset == applied;
 
-                if (_renamingPath == path)
+                var card = Z.Box(null, null);
+                var row = new VisualElement();
+                row.AddToClassList("zui-row");
+
+                if (_renamingPath == capturedPath)
                 {
-                    _renameBuffer = TextField(_renameBuffer, 120f);
-                    if (Button("OK", ZUI.Style.Default, GUILayout.Width(32))) { RenameRuleset(path, _renameBuffer); _renamingPath = null; }
-                    if (Button("✕", ZUI.Style.Default, GUILayout.Width(24))) _renamingPath = null;
+                    var nameField = Z.TextInput(_renameBuffer, "New name for this ruleset asset.",
+                        v => _renameBuffer = v, 120f);
+                    row.Add(nameField);
+                    row.Add(Z.Button("OK", "Apply the rename.", () =>
+                    {
+                        RenameRuleset(capturedPath, _renameBuffer);
+                        _renamingPath = null;
+                        Rebuild();
+                    }).W(32f));
+                    row.Add(Z.Button("X", "Cancel renaming.", () => { _renamingPath = null; Rebuild(); }).W(24f));
                 }
                 else
                 {
-                    int activeN = asset.Rules.Count(r => r != null && r.Active);
-                    string label = (isApplied ? "● " : "") + asset.name + $"   ({activeN}/{asset.Rules.Count} on)";
-                    Label(label, isApplied ? ZUI.ZTextStyle.SectionHeader : ZUI.ZTextStyle.Default, GUILayout.ExpandWidth(true));
-                    using (new EditorGUI.DisabledScope(isApplied || host == null))
-                        if (Button("Apply", ZUI.Style.Default, GUILayout.Width(48))) ApplyRuleset(host, asset);
-                    if (Button(_peekPath == path ? "Hide" : "Peek", ZUI.Style.Default, GUILayout.Width(44)))
-                        _peekPath = _peekPath == path ? null : path;
-                    if (Button("Dup", ZUI.Style.Default, GUILayout.Width(38))) DuplicateRuleset(path);
-                    if (Button("Rename", ZUI.Style.Default, GUILayout.Width(56))) { _renamingPath = path; _renameBuffer = asset.name; }
-                    using (new EditorGUI.DisabledScope(isApplied))
-                        if (Button("Del", ZUI.Style.Default, GUILayout.Width(36))) DeleteRuleset(path);
-                }
-                GUILayout.EndHorizontal();
+                    int activeN = capturedAsset.Rules.Count(r => r != null && r.Active);
+                    string label = (isApplied ? "● " : "") + capturedAsset.name + $"   ({activeN}/{capturedAsset.Rules.Count} on)";
+                    var title = Z.Text(label, isApplied ? ZuiText.Section : ZuiText.Body,
+                        isApplied ? "The ruleset currently applied to the scene's RulesHost." : "A ruleset asset.");
+                    row.Add(title);
+                    row.Add(Z.Flexible());
 
-                if (_peekPath == path)
-                {
-                    EditorGUI.indentLevel++;
-                    var active = asset.Rules.Where(r => r != null && r.Active).OrderBy(r => r.GetType().Name).ToList();
-                    if (active.Count == 0) Label("(no active rules)", ZUI.ZTextStyle.Small);
-                    foreach (var r in active) Label("• " + SafeDescribe(r), ZUI.ZTextStyle.Small);
-                    EditorGUI.indentLevel--;
+                    var applyBtn = Z.Button("Apply", "Point the scene's RulesHost at this ruleset (hot-swaps in Play).",
+                        () => { ApplyRuleset(host, capturedAsset); Rebuild(); }).W(48f);
+                    applyBtn.SetEnabled(!isApplied && host != null);
+                    row.Add(applyBtn);
+
+                    row.Add(Z.Button(_peekPath == capturedPath ? "Hide" : "Peek",
+                        "Show this ruleset's active rules without applying it.",
+                        () => { _peekPath = _peekPath == capturedPath ? null : capturedPath; Rebuild(); }).W(44f));
+                    row.Add(Z.Button("Dup", "Duplicate this ruleset asset.",
+                        () => { DuplicateRuleset(capturedPath); Rebuild(); }).W(38f));
+                    row.Add(Z.Button("Rename", "Rename this ruleset asset.", () =>
+                    {
+                        _renamingPath = capturedPath;
+                        _renameBuffer = capturedAsset.name;
+                        Rebuild();
+                    }).W(56f));
+
+                    var delBtn = Z.Button("Del", "Delete this ruleset asset (asks first).",
+                        () => { DeleteRuleset(capturedPath); Rebuild(); }).W(36f);
+                    delBtn.SetEnabled(!isApplied);
+                    row.Add(delBtn);
                 }
-                GUILayout.EndVertical();
-                GUILayout.Space(2);
+                card.Add(row);
+
+                if (_peekPath == capturedPath)
+                {
+                    var peek = new VisualElement();
+                    peek.style.paddingLeft = 12f;
+                    var active = capturedAsset.Rules.Where(r => r != null && r.Active)
+                                                    .OrderBy(r => r.GetType().Name).ToList();
+                    if (active.Count == 0)
+                        peek.Add(Z.Text("(no active rules)", ZuiText.Small, "This ruleset has nothing switched on."));
+                    foreach (var r in active)
+                        peek.Add(Z.Text("• " + SafeDescribe(r), ZuiText.Small, "An active rule in this ruleset."));
+                    card.Add(peek);
+                }
+                scroll.Add(card);
             }
-            }
+            root.Add(scroll);
         }
 
         void ApplyRuleset(RulesHost host, RuleSet asset)
@@ -647,6 +688,13 @@ namespace Laubrary.Rulesets.Editor
             if (_owner == null) return;
             EditorUtility.SetDirty(_owner);
             if (!Application.isPlaying) AssetDatabase.SaveAssets();
+        }
+
+        /// Record the owning asset before a rule field changes, so Ctrl+Z restores it. `Undo.RecordObject`
+        /// coalesces repeated identical records, so a slider drag stays ONE undo step.
+        void RecordOwner()
+        {
+            if (_owner != null) Undo.RecordObject(_owner, "Edit rule");
         }
         static string SafeDescribe(GameRule r) { try { return r.Describe(); } catch { return r.GetType().Name; } }
         static string SafeRuntimeInfo(GameRule r) { try { return r.RuntimeInfo(); } catch { return null; } }

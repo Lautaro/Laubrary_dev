@@ -3,8 +3,7 @@
     "rootNamespace": "Laubrary.Rulesets.Editor",
     "references": [
         "com.Lautaro-Arino.Laubrary.Rulesets",
-        "ZUI.Editor",
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+        "com.Lautaro-Arino.Laubrary.Zui.Editor"
     ],
     "includePlatforms": [
         "Editor"

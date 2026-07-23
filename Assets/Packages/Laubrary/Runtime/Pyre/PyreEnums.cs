@@ -9,6 +9,8 @@ namespace Laubrary.Pyre
         Bars,           // a symmetric row of forward-growing bars streaming off an edge (directional blast)
         Sprite,         // stamps a supplied sprite as particles (a mini particle system)
         MetaBlob,       // click-placed orbs that fuse (SDF metaballs) into one gradient-shaded shape
+        HeightBalls,    // a churning cloud of soft balls fused into density/heat/height fields, relief-lit and
+                        // shaded through ONE gradient (low = smoke, high = fire); energy waves climb that gradient
     }
 
     /// How a shape's colour gradient is applied (solid shapes — Disc / Crescent / MetaBlob).

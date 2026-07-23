@@ -40,6 +40,8 @@ namespace Laubrary.Pyre
         const int F_NoiseGradPos = 65;
         const int F_NoiseGradZoom = 66;
         const int F_NoiseWarp = 67;
+        const int F_HbDensity = 70, F_HbBaseHeat = 71, F_HbChurn = 72, F_HbRise = 73;
+        const int F_HbWaveHeat = 74, F_HbWavePush = 75, F_HbLightAngle = 76;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -283,6 +285,18 @@ namespace Laubrary.Pyre
                     continue;
                 }
 
+                // Height balls: a whole cloud of soft balls fused into density/heat/height FIELDS and relief-lit
+                // as one surface — a per-shape rasteriser can't produce that (the lighting normal needs the
+                // neighbouring pixels of the FUSED field), so like MetaBlob it draws itself in one pass.
+                if (layer.shape == LayerShape.HeightBalls)
+                {
+                    float hbAlpha = Mathf.Clamp01(Eval(layer.alpha, lp, spec.seed, li, 0, F_Alpha));
+                    Vector2 hbOriginOff = new Vector2((spec.origin.x - 0.5f) * W, (spec.origin.y - 0.5f) * H);
+                    RenderHeightBalls(layerTarget, W, H, cx, cy, framePhase, layer, spec, li, lp, hbAlpha,
+                                      hbOriginOff, stack, frameIndex, ShapeSeed(spec.seed, li, 0));
+                    FinishLayerPost(buf, layerTarget, hasLayerPost, layer, spec, li, lp, frameIndex, W, H);
+                    continue;
+                }
 
                 // Count: Curve reads the layer's life progress; MinMax stays frame-stable (h2 = 0, no frame/shape).
                 // Rosing ignores Count entirely — its total is the sum of every authored ring's own count.
@@ -1100,6 +1114,288 @@ namespace Laubrary.Pyre
             const float grow = 0.22f;
             float w = Mathf.Min(Mathf.Clamp01(t / grow), Mathf.Clamp01((1f - t) / grow));
             return w * w * (3f - 2f * w);
+        }
+
+        // ── Height balls ───────────────────────────────────────────────────────────────────────────────────────
+        // A churning cloud of soft balls, each carrying a DENSITY (mass) and a HEAT (energy). The balls are fused
+        // into three scalar fields with a smooth max — density, heat, and a height field weighting heat above
+        // density — so overlapping balls melt into one continuous mass instead of stacking as separate discs. The
+        // height field's local slope lights the cloud (a normal dotted with a light direction), which is what gives
+        // the chunky pixel-art 3D read; density+heat then indexes ONE gradient whose low end is smoke and whose
+        // high end is fire. Adding energy to a ball therefore literally walks it UP that gradient, and losing
+        // energy walks it back down.
+        //
+        // Every ball's entire state at a frame — where it rests, how it churns, when its wave was born, how much
+        // energy it currently carries, how far out it has travelled, how far it has withered — is a CLOSED-FORM
+        // function of (layer hash, ball index, layer life progress). Nothing accumulates between frames, so this
+        // scrubs, bakes and plays back identically like every other Pyre shape.
+        readonly struct HeightBall
+        {
+            public readonly float x, y, r, density, heat;
+            public HeightBall(float x, float y, float r, float density, float heat)
+            { this.x = x; this.y = y; this.r = r; this.density = density; this.heat = heat; }
+        }
+
+        // Blends toward max(a,b) with a soft knee of width k — the "fusion" that melts neighbouring balls into one
+        // mass rather than letting the brighter one simply win.
+        static float SmoothMax(float a, float b, float k)
+        {
+            if (k <= 0.0001f) return Mathf.Max(a, b);
+            float h = Mathf.Clamp01(0.5f + 0.5f * (b - a) / k);
+            return Mathf.Lerp(a, b, h) + k * h * (1f - h);
+        }
+
+        static float SmoothStep01(float t) { t = Mathf.Clamp01(t); return t * t * (3f - 2f * t); }
+
+        // Places one ball, after squeezing it into the cloud's self-limiting radius. Two things happen out here,
+        // and together they are why the cloud can never reach the canvas edge no matter how hard it is pushed:
+        //   • distance from the cloud centre passes through unchanged until it nears the limit, then bends into a
+        //     curve that only ever APPROACHES it — a ball pushed twice as hard barely gets further out, it just
+        //     piles up against the crowd ahead of it;
+        //   • inside the outer `fold` band the ball loses mass and heat, shrinks, and is tucked back inward, so
+        //     pressure at the rim converts into withering and churn instead of escape velocity.
+        // `limit` is measured so the ball's whole EXTENT (centre + radius) stays inside the confinement circle.
+        static void AddHeightBall(System.Collections.Generic.List<HeightBall> balls, Vector2 center,
+                                  float x, float y, float r, float density, float heat,
+                                  float confineR, float foldStart)
+        {
+            if (r < 0.35f || (density <= 0.0005f && heat <= 0.0005f)) return;
+            float limit = Mathf.Max(confineR * 0.15f, confineR - r);
+            float dx = x - center.x, dy = y - center.y;
+            float d = Mathf.Sqrt(dx * dx + dy * dy);
+            if (d > 0.0001f)
+            {
+                // Free travel out to `knee`, then a u/(1+u) bend that asymptotes to `limit` — so the Push dial
+                // stays linear and responsive over its useful range instead of being throttled from zero.
+                float knee = limit * 0.6f;
+                float soft = d;
+                if (d > knee)
+                {
+                    float u = (d - knee) / Mathf.Max(0.0001f, limit - knee);
+                    soft = knee + (limit - knee) * (u / (1f + u));
+                }
+                float press = Mathf.Clamp01((soft - foldStart * limit) / Mathf.Max(0.0001f, (1f - foldStart) * limit));
+                if (press > 0f)
+                {
+                    density *= Mathf.Lerp(1f, 0.12f, press);
+                    heat *= Mathf.Lerp(1f, 0.06f, press);
+                    r *= Mathf.Lerp(1f, 0.55f, press);
+                    soft -= press * press * limit * 0.18f;      // folded in under the cloud
+                    if (r < 0.35f) return;
+                }
+                float k = soft / d;
+                x = center.x + dx * k;
+                y = center.y + dy * k;
+            }
+            balls.Add(new HeightBall(x, y, r, density, heat));
+        }
+
+        // Resolves the whole cloud for one frame: the resting balls, plus every energy wave currently alive.
+        static void BuildHeightBalls(System.Collections.Generic.List<HeightBall> balls, Layer layer, BlastSpec spec,
+                                     int li, float lp, Vector2 center, float half, int hash)
+        {
+            const float Tau = Mathf.PI * 2f;
+            int seed = spec.seed;
+            int count = Mathf.Clamp(Mathf.RoundToInt(Eval(layer.count, lp, seed, li, 0, F_Count)), 0, 400);
+            float cloudR = Mathf.Clamp01(Eval(layer.spawnRadius, lp, seed, li, 0, F_SpawnRadius)) * half;
+            float dens = Mathf.Max(0f, Eval(layer.hbDensity, lp, seed, li, 0, F_HbDensity));
+            float baseHeat = Mathf.Max(0f, Eval(layer.hbBaseHeat, lp, seed, li, 0, F_HbBaseHeat));
+            float churn = Mathf.Max(0f, Eval(layer.hbChurn, lp, seed, li, 0, F_HbChurn));
+            float rise = Eval(layer.hbRise, lp, seed, li, 0, F_HbRise);
+            float churnPhase = lp * Mathf.Max(0.1f, layer.hbChurnSpeed) * Tau;
+            float confineR = Mathf.Clamp01(layer.hbConfine) * half;
+            float foldStart = 1f - Mathf.Clamp01(layer.hbFold);
+
+            // The resting cloud — balls that simply sit there and churn, near the smoke end of the gradient.
+            for (int i = 0; i < count; i++)
+            {
+                float ang = Hash01(hash, i, 1) * Tau;
+                float rad = Mathf.Sqrt(Hash01(hash, i, 2)) * cloudR;   // sqrt keeps the disc evenly filled
+                float r = Eval(layer.size, lp, seed, li, i, F_Size) * Mathf.Lerp(0.72f, 1.28f, Hash01(hash, i, 3));
+                float ph = Hash01(hash, i, 4) * Tau;
+                float fr = Mathf.Lerp(0.6f, 1.7f, Hash01(hash, i, 5));
+                float x = center.x + Mathf.Cos(ang) * rad + Mathf.Sin(churnPhase * fr + ph) * churn;
+                float y = center.y + Mathf.Sin(ang) * rad + Mathf.Cos(churnPhase * fr * 0.71f + ph) * churn * 0.8f
+                          + rise * lp * Mathf.Lerp(0.6f, 1.4f, Hash01(hash, i, 6));
+                AddHeightBall(balls, center, x, y, r,
+                              dens * Mathf.Lerp(0.85f, 1.15f, Hash01(hash, i, 7)),
+                              baseHeat * Mathf.Lerp(0.35f, 1.25f, Hash01(hash, i, 8)),
+                              confineR, foldStart);
+            }
+
+            // Energy waves. Births are spread evenly across the part of the layer's life that still leaves room for
+            // a whole wave to finish, so nothing is cut off mid-wither at the last frame.
+            int waves = Mathf.Clamp(layer.hbWaves, 0, 12);
+            if (waves == 0) return;
+            int per = Mathf.Clamp(layer.hbWaveBalls, 1, 24);
+            float waveLife = Mathf.Clamp(layer.hbWaveLife, 0.05f, 1f);
+            float ignition = Mathf.Clamp(layer.hbIgnition, 0.02f, 0.9f);
+            float wither = Mathf.Clamp(layer.hbWither, 0.02f, 0.95f);
+            float symmetry = Mathf.Clamp01(layer.hbWaveSymmetry);
+            float waveHeat = Mathf.Max(0f, Eval(layer.hbWaveHeat, lp, seed, li, 0, F_HbWaveHeat));
+            float push = Eval(layer.hbWavePush, lp, seed, li, 0, F_HbWavePush);
+
+            for (int w = 0; w < waves; w++)
+            {
+                float birth = waves > 1 ? (w / (float)(waves - 1)) * (1f - waveLife) : 0f;
+                float a = (lp - birth) / waveLife;                  // this wave's own 0..1 age
+                if (a <= 0f || a >= 1f) continue;
+
+                // Energy: climbs from nothing over `ignition`, holds, then sinks back down over `wither`. A ball's
+                // heat is lerped from the RESTING heat by this, so at birth it is indistinguishable from an
+                // ordinary cloud ball and at death it has cooled all the way back to smoke — never a pop, never a
+                // blink-out.
+                float energy = SmoothStep01(a / ignition) * SmoothStep01((1f - a) / wither);
+                float fade = SmoothStep01((1f - a) / wither);       // mass/size wither, trailing the heat
+                float grow = Mathf.Lerp(0.45f, 1f, SmoothStep01(a / (ignition * 0.7f)));
+                // Outward travel eases to a halt well before the wave ends: a push, then churn — not a launch.
+                float reach = push * SmoothStep01(a / 0.7f);
+                float rot = Hash01(hash, 500 + w, 11) * Tau;
+
+                for (int j = 0; j < per; j++)
+                {
+                    int bi = w * 64 + j;
+                    float jitter = (1f - symmetry) * (Hash01(hash, bi, 12) * 2f - 1f) * (Mathf.PI / per) * 1.7f;
+                    float ang = rot + (j / (float)per) * Tau + jitter;
+                    float rr = reach * Mathf.Lerp(0.75f, 1.15f, Hash01(hash, bi, 13));
+                    float ph = Hash01(hash, bi, 14) * Tau;
+                    float fr = Mathf.Lerp(0.7f, 1.8f, Hash01(hash, bi, 15));
+                    float x = center.x + Mathf.Cos(ang) * rr + Mathf.Sin(churnPhase * fr + ph) * churn;
+                    float y = center.y + Mathf.Sin(ang) * rr + Mathf.Cos(churnPhase * fr * 0.71f + ph) * churn * 0.8f;
+                    float r = Eval(layer.size, a, seed, li, 1000 + bi, F_Size)
+                              * Mathf.Lerp(0.8f, 1.2f, Hash01(hash, bi, 16))
+                              * grow * Mathf.Lerp(0.45f, 1f, fade);
+                    AddHeightBall(balls, center, x, y, r,
+                                  dens * Mathf.Lerp(0.95f, 1.3f, Hash01(hash, bi, 17)) * grow * fade,
+                                  Mathf.Lerp(baseHeat, waveHeat * Mathf.Lerp(0.7f, 1.1f, Hash01(hash, bi, 18)), energy),
+                                  confineR, foldStart);
+                }
+            }
+        }
+
+        static void RenderHeightBalls(Color32[] buf, int W, int H, float cx, float cy, float framePhase,
+                                      Layer layer, BlastSpec spec, int li, float lp, float alpha, Vector2 originOff,
+                                      in ModStack stack, int frameIndex, int hash)
+        {
+            if (alpha <= 0.001f) return;
+            float half = Mathf.Min(W, H) * 0.5f;
+            Vector2 center = originOff + new Vector2(Eval(layer.positionX, lp, spec.seed, li, 0, F_PosX),
+                                                     Eval(layer.positionY, lp, spec.seed, li, 0, F_PosY));
+
+            var balls = new System.Collections.Generic.List<HeightBall>();
+            BuildHeightBalls(balls, layer, spec, li, lp, center, half, hash);
+            int n = balls.Count;
+            if (n == 0) return;
+
+            // Geometry modifiers mold the cloud as ONE aggregate shape (same treatment MetaBlob's fused field
+            // gets), so Profile/Ground/Jagg see a single silhouette rather than dozens of tiny balls.
+            float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+            for (int i = 0; i < n; i++)
+            {
+                var b = balls[i];
+                if (b.x - b.r < minX) minX = b.x - b.r; if (b.x + b.r > maxX) maxX = b.x + b.r;
+                if (b.y - b.r < minY) minY = b.y - b.r; if (b.y + b.r > maxY) maxY = b.y + b.r;
+            }
+            var ctx = new GeoCtx(W * 0.5f, H * 0.5f, new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f),
+                                 0.5f * Mathf.Max(maxX - minX, maxY - minY));
+
+            // The melt knee is sized RELATIVE to the strongest ball in each channel, not an absolute number:
+            // energy runs several times larger than mass, so one shared constant melted mass nicely while
+            // leaving energy an almost-hard max — hot balls stayed visibly separate orbs. Scaling each knee to
+            // its own channel makes the Fusion dial mean the same thing no matter how hot the cloud is set.
+            float fusion = Mathf.Max(0f, layer.hbFusion);
+            float maxD = 0f, maxHe = 0f, maxHi = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                var b = balls[i];
+                if (b.density > maxD) maxD = b.density;
+                if (b.heat > maxHe) maxHe = b.heat;
+                float hi = b.density * 2.65f + b.heat * 0.72f;
+                if (hi > maxHi) maxHi = hi;
+            }
+            float kD = fusion * maxD, kHe = fusion * maxHe, kHi = fusion * maxHi;
+
+            var density = new float[W * H];
+            var heat = new float[W * H];
+            var height = new float[W * H];
+
+            // Pass 1 — fuse the balls into the three fields. Height weights heat well above density, so an
+            // energised ball genuinely stands TALLER than a cold one and catches more of the relief light.
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
+                    if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, ctx);
+
+                    float d = 0f, he = 0f, hi = 0f;
+                    for (int i = 0; i < n; i++)
+                    {
+                        var b = balls[i];
+                        float dx = off.x - b.x, dy = off.y - b.y;
+                        float q = (dx * dx + dy * dy) / (b.r * b.r);
+                        if (q >= 1f) continue;
+                        float s = Mathf.Sqrt(1f - q);              // a soft dome, 1 at the centre → 0 at the rim
+                        d = SmoothMax(d, s * b.density, kD);
+                        he = SmoothMax(he, s * b.heat, kHe);
+                        hi = SmoothMax(hi, s * (b.density * 2.65f + b.heat * 0.72f), kHi);
+                    }
+                    int idx = y * W + x;
+                    density[idx] = Mathf.Clamp01(d);
+                    heat[idx] = Mathf.Clamp01(he);
+                    height[idx] = Mathf.Clamp01(hi);
+                }
+
+            // Pass 2 — relief lighting from the height field's local slope.
+            float[] light = null;
+            if (layer.hbLighting)
+            {
+                light = new float[W * H];
+                float ang = Eval(layer.hbLightAngle, lp, spec.seed, li, 0, F_HbLightAngle) * Mathf.Deg2Rad;
+                float lx = Mathf.Cos(ang), ly = Mathf.Sin(ang), lz = 0.72f;
+                float ll = Mathf.Sqrt(lx * lx + ly * ly + lz * lz);
+                lx /= ll; ly /= ll; lz /= ll;
+                float relief = Mathf.Max(0.01f, layer.hbRelief);
+                for (int y = 0; y < H; y++)
+                    for (int x = 0; x < W; x++)
+                    {
+                        int i = y * W + x;
+                        if (height[i] <= 0f) continue;
+                        float hl = height[y * W + Mathf.Max(0, x - 1)], hr = height[y * W + Mathf.Min(W - 1, x + 1)];
+                        float hd = height[Mathf.Max(0, y - 1) * W + x], hu = height[Mathf.Min(H - 1, y + 1) * W + x];
+                        float nx = -(hr - hl) * relief, ny = -(hu - hd) * relief, nz = 1f;
+                        float nl = Mathf.Sqrt(nx * nx + ny * ny + nz * nz);
+                        light[i] = 0.18f + Mathf.Max(0f, (nx * lx + ny * ly + nz * lz) / nl) * 0.82f;
+                    }
+            }
+
+            // Pass 3 — shade. The pixel's combined density+heat, lit, is its position on the ONE gradient;
+            // how MUCH of the cloud is there (whichever field is stronger) is its opacity.
+            float coverage = Mathf.Max(0.1f, layer.hbCoverage);
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int i = y * W + x;
+                    float occupied = Mathf.Max(density[i], heat[i]);
+                    if (occupied < 0.004f) continue;
+
+                    float value = Mathf.Clamp01(density[i] + heat[i]);
+                    // The lit range is deliberately wide (roughly 0.4x on a face turned away, 1.5x on one turned
+                    // into the light): the resting cloud sits low on the ramp where a narrow modulation would be
+                    // swallowed by the ramp's own dark end, and the carved look is the whole point of the shape.
+                    if (light != null) value = Mathf.Clamp01(value * (0.35f + light[i] * 1.15f));
+                    Color fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(value) : Color.white;
+                    float outA = Mathf.Clamp01(occupied * coverage) * alpha * fc.a;
+                    if (outA <= 0.003f) continue;
+
+                    if (stack.AnyPix)
+                    {
+                        Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
+                        if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, ctx);
+                        if (!ApplyPix(stack, ref fc, ref outA, x, y, cx + off.x, cy + off.y, frameIndex, value, lp, hash, W, H))
+                            continue;
+                    }
+                    Over(buf, i, fc.r, fc.g, fc.b, outA);
+                }
         }
 
         // ── Fuse: melts a Ring/Rosing-scattered Disc layer's own shapes into ONE gradient-shaded metaball field,

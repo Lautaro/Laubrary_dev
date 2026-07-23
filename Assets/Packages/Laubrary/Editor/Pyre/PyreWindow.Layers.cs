@@ -169,7 +169,10 @@ namespace Laubrary.Pyre.Editor
 
             l.colorOverLife ??= Layer.DefaultColor(l.shape);
             l.alpha ??= Layer.DefaultAlpha();
-            root.Add(GradientRow("Colour", "The layer's colour ramp (meaning depends on the colour mode below).",
+            root.Add(GradientRow("Colour",
+                l.shape == LayerShape.HeightBalls
+                    ? "The cloud's ONE continuous ramp — its low end is a cold, un-energised ball (smoke), its high end a fully energised one (fire). Adding energy to a ball walks it up this ramp; withering walks it back down."
+                    : "The layer's colour ramp (meaning depends on the colour mode below).",
                 () => l.colorOverLife, g => l.colorOverLife = g));
 
             var shape = l.shape;
@@ -192,12 +195,13 @@ namespace Laubrary.Pyre.Editor
                 }
             }
 
-            if (shape == LayerShape.Bars || shape == LayerShape.MetaBlob)
+            if (shape == LayerShape.Bars || shape == LayerShape.MetaBlob || shape == LayerShape.HeightBalls)
                 root.Add(ValRow("Alpha", "Opacity over this layer's life.", l.alpha, 0f, 1f,
-                    allowMinMax: shape != LayerShape.MetaBlob));
+                    allowMinMax: shape == LayerShape.Bars));
 
             if (shape == LayerShape.Bars) { BuildBarsSection(root, l, cs); BuildLayerModifierSections(root, l); return; }
             if (shape == LayerShape.MetaBlob) { BuildMetaBlobSection(root, l, half); BuildLayerModifierSections(root, l); return; }
+            if (shape == LayerShape.HeightBalls) { BuildHeightBallsSection(root, l, half); BuildLayerModifierSections(root, l); return; }
 
             BuildScatterSection(root, l, half);
 
@@ -521,6 +525,67 @@ namespace Laubrary.Pyre.Editor
                 }),
                 Z.Text($"{l.metaOrbs.Count} orb(s)", ZuiText.Small, "How many orbs the blob currently has.")));
             root.Add(box);
+        }
+
+        // ── Height balls section ────────────────────────────────────────────────────────────
+        void BuildHeightBallsSection(VisualElement root, Layer l, float half)
+        {
+            var cloud = Z.Box("Cloud — the resting body",
+                "The resting body of the cloud: balls that sit around the origin and churn in place, idling near the smoke end of the ramp.");
+            cloud.Add(WrapRow(
+                PackedVal("Balls", "How many resting balls the cloud is made of.", l.count, 1f, 120f, 26f, allowMinMax: false),
+                PackedVal("Cloud radius", "How far out the resting balls spread (0-1 of the canvas).", l.spawnRadius, 0f, 1f, 0.4f, allowMinMax: false),
+                PackedVal("Ball radius", "Each ball's radius in pixels — bigger balls melt together into a smoother, heavier mass.", l.size, 1f, half, 7f, allowMinMax: false)));
+            cloud.Add(WrapRow(
+                PackedVal("Mass", "How much each ball adds to the cloud — raises its height (so it catches more light) and its place on the ramp even with no energy.", l.hbDensity, 0f, 0.5f, 0.16f, allowMinMax: false),
+                PackedVal("Resting heat", "Where an un-energised ball idles on the ramp. Newly born wave balls start here too, which is why they don't pop in.", l.hbBaseHeat, 0f, 0.5f, 0.06f, allowMinMax: false)));
+            cloud.Add(WrapRow(
+                PackedVal("Churn", "How far a ball wanders from its resting spot, in pixels — the cloud's idle boil.", l.hbChurn, 0f, 20f, 2.5f, allowMinMax: false),
+                PackedSlider("Churn speed", "How many full churn cycles a ball completes across this layer's life.", l.hbChurnSpeed, 0.1f, 8f, v => l.hbChurnSpeed = v),
+                PackedVal("Rise", "Pixels the cloud drifts upward over its life — smoke rising.", l.hbRise, -40f, 40f, 0f, allowMinMax: false)));
+            cloud.Add(PackedVal2D("Position", "Moves the whole cloud off the blast's origin.",
+                l.positionX, l.positionY,
+                new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero)));
+            root.Add(cloud);
+
+            var waves = Z.Box("Energy waves — climb, then wither",
+                "Bursts of energy released into the cloud. A wave's balls appear looking like ordinary resting balls, heat up into the fire end of the ramp, then cool and thin away again.");
+            waves.Add(WrapRow(
+                Z.Field("Waves", "How many bursts fire off over this layer's life, spaced so the last one still finishes.",
+                    Z.SliderInt(l.hbWaves, 0, 12, "How many bursts fire off over this layer's life, spaced so the last one still finishes.",
+                        v => Dial("Waves", () => l.hbWaves = v), 110f)),
+                Z.Field("Balls per wave", "How many balls each burst adds around the cloud's centre.",
+                    Z.SliderInt(l.hbWaveBalls, 1, 24, "How many balls each burst adds around the cloud's centre.",
+                        v => Dial("Balls per wave", () => l.hbWaveBalls = v), 110f)),
+                PackedSlider("Wave life", "How long one burst lasts, as a fraction of this layer's life.", l.hbWaveLife, 0.05f, 1f, v => l.hbWaveLife = v)));
+            waves.Add(WrapRow(
+                PackedVal("Peak heat", "How far up the ramp a ball climbs at the height of its burst.", l.hbWaveHeat, 0f, 1.5f, 0.8f, allowMinMax: false),
+                PackedVal("Push", "How far outward a burst carries its balls, in pixels. It eases to a halt rather than launching, and Confine caps it regardless.", l.hbWavePush, 0f, half, 14f, allowMinMax: false),
+                PackedSlider("Symmetry", "1 = the burst's balls sit at perfectly even angles; lower scatters them for a lopsided, organic burst.", l.hbWaveSymmetry, 0f, 1f, v => l.hbWaveSymmetry = v)));
+            waves.Add(WrapRow(
+                PackedSlider("Ignition", "How much of a ball's life it spends CLIMBING from resting heat to its peak. High = it is indistinguishable from an ordinary cloud ball when it appears; near zero = it flashes hot instantly.", l.hbIgnition, 0.02f, 0.9f, v => l.hbIgnition = v),
+                PackedSlider("Wither", "How much of a ball's life it spends COOLING back down the ramp while shrinking and thinning out, so it dies away instead of blinking out.", l.hbWither, 0.02f, 0.95f, v => l.hbWither = v)));
+            root.Add(waves);
+
+            root.Add(Z.Box("Pressure — a self-limiting silhouette",
+                "Why the cloud never races off the canvas: outward travel is squeezed smoothly toward a limit it can only approach, and balls crowding that limit lose mass and heat and get tucked back under the cloud.",
+                WrapRow(
+                    PackedSlider("Confine", "The cloud's self-limiting radius, as a fraction of the canvas half-size. Nothing it draws can reach past this — so the animation never collides with the frame edge.", l.hbConfine, 0.05f, 1f, v => l.hbConfine = v),
+                    PackedSlider("Fold under", "How much of the outer cloud gets folded under by pressure — a ball out there loses mass and heat, shrinks, sinks back toward smoke and is pulled inward. 0 = no folding.", l.hbFold, 0f, 1f, v => l.hbFold = v))));
+
+            var shading = Z.Box("Height shading",
+                "How the fused cloud is turned into pixels: how eagerly balls melt together, how solid the result reads, and how it catches the light.");
+            shading.Add(WrapRow(
+                PackedSlider("Fusion", "How eagerly neighbouring balls melt into each other. 0 = every ball keeps its own hard edge; higher blends them into one mass with soft necks.", l.hbFusion, 0f, 1f, v => l.hbFusion = v),
+                PackedSlider("Coverage", "How fast the cloud turns opaque as it thickens. Low = wispy and translucent; high = a solid silhouette that only fades at the very edge.", l.hbCoverage, 0.5f, 12f, v => l.hbCoverage = v)));
+            shading.Add(Z.Toggle("Relief lighting",
+                "Shade the cloud by the local slope of its height field, as if lit from one side — this is what gives it the chunky 3D read. Off leaves flat ramp shading.",
+                l.hbLighting, v => { Dial("Relief lighting", () => l.hbLighting = v); RebuildLeft(); }));
+            if (l.hbLighting)
+                shading.Add(WrapRow(
+                    PackedSlider("Relief", "How steep the height field is treated as being — how pronounced the bumps and creases between fused balls read.", l.hbRelief, 0.2f, 6f, v => l.hbRelief = v),
+                    PackedVal("Light angle", "Where the light comes from, in degrees (0 = from the right, 90 = from above). Animate it to roll the shading across the cloud.", l.hbLightAngle, 0f, 360f, 135f, allowMinMax: false)));
+            root.Add(shading);
         }
 
         // ── disc edges (Disc + SparkleField) ────────────────────────────────────────────────

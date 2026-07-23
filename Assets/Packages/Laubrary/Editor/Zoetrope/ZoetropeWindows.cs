@@ -1,37 +1,51 @@
-using UnityEditor;
-using UnityEngine;
 using Laubrary.AssetKit.Editor;
+using UnityEditor;
+using UnityEditor.UIElements;
+using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Laubrary.Zoetrope.Editor
 {
     /// <summary>
     /// The enemy-authoring hub: browse / create / duplicate / rename / delete Zoetrope Defs, and configure the
-    /// selected one — all from the shared AssetKit base (empty-state shows the library). The per-asset body is drawn
-    /// through a SerializedObject so Unity renders the pluggable <c>[SerializeReference]</c> pickers (the view type,
-    /// the effect types) and edits get Undo for free.
+    /// selected one — all from the shared AssetKit base (empty-state shows the library). The per-asset body is
+    /// bound to a SerializedObject so Unity renders the pluggable <c>[SerializeReference]</c> pickers (the view
+    /// type, the effect types) and edits get Undo for free.
+    ///
+    /// UI TOOLKIT PORT: the IMGUI version carried a `// ZUI-GAP:` note saying a managed-reference picker could
+    /// only be drawn by `SerializedObject` + `EditorGUILayout.PropertyField`. UI Toolkit closes that gap without
+    /// a workaround — a bound <see cref="PropertyField"/> renders the same type dropdowns, keeps automatic Undo,
+    /// AND (unlike the IMGUI loop) tracks external changes to the asset by itself once bound.
     /// </summary>
-    public abstract class ZoetropeDefWindow<T> : LaubraryAssetWindow<T> where T : ScriptableObject
+    public abstract class ZoetropeDefWindow<T> : ZuiAssetWindow<T> where T : ScriptableObject
     {
         protected override string DefaultFolder => "Assets/Zoetrope";
 
-        SerializedObject _so;
-
-        // ZUI-GAP: a [SerializeReference] managed-reference picker. Unity's SerializedObject + PropertyField is the
-        // only thing that renders the "which ICharacterView / ICombatFx" type dropdowns — and it makes every field
-        // edit Undo-able automatically. So the recipe body is a SerializedObject inspector inside the ZUI chrome.
-        protected override void DrawAsset(T asset)
+        protected override void BuildAsset(VisualElement root, T asset)
         {
-            if (_so == null || _so.targetObject != asset) _so = new SerializedObject(asset);
-            _so.Update();
-            var it = _so.GetIterator();
+            var so = new SerializedObject(asset);
+
+            var body = new ScrollView(ScrollViewMode.Vertical);
+            body.style.flexGrow = 1f;
+            body.style.minHeight = 0f;
+
+            // Every visible serialized property except the script reference. PropertyField handles
+            // [SerializeReference] pickers, nested classes, lists and Undo on its own.
+            var it = so.GetIterator();
             bool enter = true;
             while (it.NextVisible(enter))
             {
                 enter = false;
                 if (it.propertyPath == "m_Script") continue;
-                EditorGUILayout.PropertyField(it, true);
+                var field = new PropertyField(it.Copy());
+                field.Bind(so);
+                body.Add(field);
             }
-            _so.ApplyModifiedProperties();
+
+            // A managed-reference type change swaps the whole sub-tree of fields, which the bound
+            // PropertyFields above can't express on their own — rebuild the body when that happens.
+            body.TrackSerializedObjectValue(so, _ => { });
+            root.Add(body);
         }
     }
 
