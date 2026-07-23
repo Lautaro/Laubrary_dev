@@ -125,18 +125,58 @@ namespace Laubrary.PyrePlus.Editor
             root.Add(box);
         }
 
+        // The Shape section is a stable header + a body container we clear/refill whenever the Advanced gate
+        // flips — the same mechanism BuildSwarm uses for swarmBody/RebuildSwarm, so the opt-in Travel/Spin
+        // controls appear/disappear without rebuilding the whole window.
+        VisualElement shapeBody;
+
         void BuildShape(VisualElement root, PyrePlusSpec s)
         {
             var sec = Z.Section("Shape", "The particle's own look — colour, opacity and size over its life.");
+            shapeBody = new VisualElement();
+            sec.Add(shapeBody);
+            root.Add(sec);
+            RebuildShape();
+        }
+
+        void RebuildShape()
+        {
+            var s = spec;
+            if (s == null || shapeBody == null) return;
+            shapeBody.Clear();
+
             s.alpha ??= new ZUIValue(1f);
-            sec.Add(Z.Field("Colour", "Colour over the particle's life (0 = birth, 1 = death).",
+            shapeBody.Add(Z.Field("Colour", "Colour over the particle's life (0 = birth, 1 = death).",
                 GradientField("Colour", () => s.colorOverLife, g => Dirty(() => s.colorOverLife = g))));
-            sec.Add(Val("Alpha", "Opacity over the particle's own life.", s.alpha, 0f, 1f));
-            sec.Add(Val("Size (px)", "Radius in pixels over the particle's own life.", s.size, 0f, 32f));
-            sec.Add(Z.Field("Edge", "Soft rim (1) vs a hard pixel edge (0).",
+            shapeBody.Add(Val("Alpha", "Opacity over the particle's own life.", s.alpha, 0f, 1f));
+            shapeBody.Add(Val("Size (px)", "Radius in pixels over the particle's own life.", s.size, 0f, 32f));
+            shapeBody.Add(Z.Field("Edge", "Soft rim (1) vs a hard pixel edge (0).",
                 Z.MicroSlider("Edge", s.edgeSoftness, 0f, 1f, "Soft rim vs hard edge.",
                     v => Dirty(() => s.edgeSoftness = v), 150f, showValue: true)));
-            root.Add(sec);
+
+            // Advanced gate: the particle's OWN motion after birth (opt-in). Toggling rebuilds just this section.
+            shapeBody.Add(Z.Toggle("Advanced",
+                "Per-particle motion on the particle's own life clock: a travel path added to its spawn position, "
+                + "and an in-place spin.",
+                s.shapeAdvanced, v => { Dirty(() => s.shapeAdvanced = v); RebuildShape(); }));
+            if (!s.shapeAdvanced) return;
+
+            float half = Mathf.Max(1f, s.canvasSize * 0.5f);
+            s.particlePathX ??= new ZUIValue(0f);
+            s.particlePathY ??= new ZUIValue(0f);
+            s.particleSpin ??= new ZUIValue(0f);
+
+            shapeBody.Add(Val2D("Travel",
+                "The particle's own path after birth: canvas-pixel offsets ADDED to its spawn position, sampled on "
+                + "the particle's OWN life (0 = birth, 1 = death). Author it as a Curve to make the particle "
+                + "drift/arc as it lives; Static 0 = no travel.",
+                s.particlePathX, s.particlePathY,
+                new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero)));
+            shapeBody.Add(Val("Spin °",
+                "Degrees the particle's own pixels rotate in place over its own life. Needs visual structure to be "
+                + "visible — a plain disc is radially symmetric and shows nothing; add a geometry/texture Modifier "
+                + "so the spin reads. 2D only (the pseudo-3D tilt lives on the Swarm shape transform).",
+                s.particleSpin, -720f, 720f));
         }
 
         // ── Swarm ──────────────────────────────────────────────────────────────────

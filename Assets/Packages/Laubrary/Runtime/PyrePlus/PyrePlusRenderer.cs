@@ -41,9 +41,9 @@ namespace Laubrary.PyrePlus
         const int FldRotation = 8;   // shapeRotation 2D, spawn-time snapshot             [T3]
         const int FldPitch = 9;      // shapePitch, spawn-time snapshot                   [T3]
         const int FldYaw = 10;       // shapeYaw, spawn-time snapshot                     [T3]
-        const int FldSpin = 11;      // per-particle 2D spin, particle's own life         [T7]  (reserved)
-        const int FldPathX = 12;     // per-particle position-path X, own life            [T7]  (reserved)
-        const int FldPathY = 13;     // per-particle position-path Y, own life            [T7]  (reserved)
+        const int FldSpin = 11;      // per-particle 2D spin, particle's own life         [T7]
+        const int FldPathX = 12;     // per-particle position-path X, own life            [T7]
+        const int FldPathY = 13;     // per-particle position-path Y, own life            [T7]
         const int FldCustomX = 14;   // swarmCustomX — Custom Path X(progress), sampled at progress p [T2]
         const int FldCustomY = 15;   // swarmCustomY — Custom Path Y(progress), sampled at progress p [T2]
         // Modifiers (T6): each PyreModifier in spec.modifiers owns an 8-wide field-id BLOCK starting at
@@ -478,6 +478,18 @@ namespace Laubrary.PyrePlus
             float alpha = Mathf.Clamp01(Eval(spec.alpha, life, spec.seed, particleIndex, FldAlpha));
             if (alpha <= 0.002f) return;
 
+            // Per-particle travel (T7): the particle's OWN path after birth — canvas-pixel offsets ADDED to its
+            // centre on its own life clock (this method's `life` IS that own clock in both callers: the single
+            // particle's own life == the blast life, and a swarm particle's is `own`). Applied before BOTH the fast
+            // raster and the modifier raster below, so the whole disc — bounds and warp context included — travels
+            // as a unit. Guarded to an exact no-op when BOTH values are Static 0, keeping a default asset (and its
+            // fast-path bounds/arith) byte-identical; a Curve/MinMax always evaluates.
+            if (!(IsStaticZero(spec.particlePathX) && IsStaticZero(spec.particlePathY)))
+            {
+                cx += Eval(spec.particlePathX, life, spec.seed, particleIndex, FldPathX);
+                cy += Eval(spec.particlePathY, life, spec.seed, particleIndex, FldPathY);
+            }
+
             Color col = spec.colorOverLife != null ? spec.colorOverLife.Evaluate(life) : Color.white;
             // Depth brightness shading: scale RGB (alpha untouched) and clamp each channel to [0,1]. Guarded so
             // brightMul == 1 passes the colour through byte-for-byte (the swarm-off and untilted-swarm paths).
@@ -531,6 +543,21 @@ namespace Laubrary.PyrePlus
                 py1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + radius));
             }
             int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);   // a stable per-particle seed for PixelInfo.hash (modifiers combine it with x/y)
+
+            // Per-particle 2D spin (T7): rotate this particle's OWN pixels in place. Each sample's LOCAL offset
+            // (from the particle centre) is rotated by −spin, composed BEFORE the geometry InverseWarp fold — so a
+            // warped/textured disc turns as a unit. The per-pixel order is: local offset → spin-rotate → geometry
+            // fold → distance test. A plain disc is radially symmetric so spin shows nothing on it — which is why
+            // spin lives ONLY on this modifier path (the fast path above can't display it, so it's left untouched
+            // and byte-identical). Guarded on spin != 0f exactly: when 0 the rotation is skipped and the offsets fed
+            // to the fold/test are the pre-T7 expressions verbatim, so a default asset stays byte-identical. Raster
+            // bounds need NO change — rotation preserves the offset's length (a symmetric disc's extent is
+            // unchanged) and an active geometry warp already forces the whole-canvas scan.
+            float spin = Eval(spec.particleSpin, life, spec.seed, particleIndex, FldSpin);
+            bool doSpin = spin != 0f;
+            float spinCos = 1f, spinSin = 0f;
+            if (doSpin) { float sa = -spin * Mathf.Deg2Rad; spinCos = Mathf.Cos(sa); spinSin = Mathf.Sin(sa); }
+
             for (int y = py0; y <= py1; y++)
                 for (int x = px0; x <= px1; x++)
                 {
@@ -538,9 +565,26 @@ namespace Laubrary.PyrePlus
                     float wx = sx, wy = sy, dx, dy;
                     if (anyGeo)
                     {
-                        Vector2 off = ApplyGeo(mods.geo, new Vector2(sx - ccx, sy - ccy), phase, ctx);
+                        // Sample offset lifted into canvas-centre space, spin-rotated about THIS particle's centre
+                        // BEFORE the geometry fold. When spin is 0 the input is exactly the pre-T7 (sx-ccx, sy-ccy),
+                        // so the folded result is bit-identical.
+                        Vector2 geoIn;
+                        if (doSpin)
+                        {
+                            float lox = sx - cx, loy = sy - cy;   // local offset from the particle centre
+                            geoIn = new Vector2(c.x + (lox * spinCos - loy * spinSin),
+                                                c.y + (lox * spinSin + loy * spinCos));
+                        }
+                        else geoIn = new Vector2(sx - ccx, sy - ccy);
+                        Vector2 off = ApplyGeo(mods.geo, geoIn, phase, ctx);
                         wx = ccx + off.x; wy = ccy + off.y;   // geometry-warped absolute position (== sx,sy when no geo warp moves it)
-                        dx = off.x - c.x; dy = off.y - c.y;   // warped position − this particle's centre (== sx-cx, sy-cy when no warp)
+                        dx = off.x - c.x; dy = off.y - c.y;   // warped position − this particle's centre (== sx-cx, sy-cy when no warp/spin)
+                    }
+                    else if (doSpin)
+                    {
+                        float lox = sx - cx, loy = sy - cy;   // spin the local offset in place (no geometry warp to fold)
+                        dx = lox * spinCos - loy * spinSin;
+                        dy = lox * spinSin + loy * spinCos;
                     }
                     else { dx = sx - cx; dy = sy - cy; }
                     float d = Mathf.Sqrt(dx * dx + dy * dy);
@@ -575,6 +619,11 @@ namespace Laubrary.PyrePlus
                 (byte)(Mathf.Clamp01((b * a + dst.b * (1f / 255f) * da * (1f - a)) * inv) * 255f),
                 (byte)(Mathf.Clamp01(outA) * 255f));
         }
+
+        /// True when a value is exactly Static 0 — the default state of the T7 opt-in travel-path fields. Gates
+        /// their Evals so a default asset's particle centre (and thus its whole raster) stays byte-identical; a
+        /// Curve or MinMax value always evaluates. A null value counts as zero (Eval(null) == 0 too).
+        static bool IsStaticZero(ZUIValue v) => v == null || (v.mode == ZUIValue.Mode.Static && v.staticValue == 0f);
 
         /// Evaluate a ZUIValue for a given particle deterministically — Static reads the value, Curve reads
         /// the envelope at the particle's life, MinMax draws once from a seeded RNG keyed by (seed, index,

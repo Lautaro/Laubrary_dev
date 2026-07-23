@@ -34,7 +34,17 @@ namespace Laubrary.PyrePlus
         public ZUIValue size = DefaultSize();       // radius in pixels, over the particle's own life
         [Range(0f, 1f)] public float edgeSoftness = 0.4f;   // soft rim vs hard pixel edge
 
-        // opt-in Shape fields (later slices): a per-particle position path, a 2D spin.
+        // ── opt-in Shape fields (T7) — the particle's OWN motion after birth, on its own life clock ────────
+        // A per-particle travel path: canvas-pixel offsets ADDED to the particle's spawn position, evaluated on
+        // its OWN life (0 = birth, 1 = death). Default Static 0 (a no-op — the renderer skips the Eval entirely
+        // when both are Static 0, so a default asset renders byte-identical).
+        public ZUIValue particlePathX = new ZUIValue(0f);
+        public ZUIValue particlePathY = new ZUIValue(0f);
+        // The particle's own pixels rotating IN PLACE over its own life, degrees. 2D only — the pseudo-3D tilt
+        // belongs to the swarm shape transform (shapePitch/shapeYaw), not here. Default Static 0 (a no-op).
+        public ZUIValue particleSpin = new ZUIValue(0f);
+        // Pure UI gate for the advanced controls above — cosmetic, NEVER read by the renderer (like previewZoom).
+        [HideInInspector] public bool shapeAdvanced;
 
         // ── Swarm ──────────────────────────────────────────────────────────────────
         // Off ⇒ exactly one centred particle (the Shape section alone). On ⇒ swarmCount particles placed in a
