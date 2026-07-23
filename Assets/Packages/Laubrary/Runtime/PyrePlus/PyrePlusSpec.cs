@@ -38,16 +38,23 @@ namespace Laubrary.PyrePlus
 
         // ── Swarm ──────────────────────────────────────────────────────────────────
         // Off ⇒ exactly one centred particle (the Shape section alone). On ⇒ swarmCount particles placed in a
-        // shape. The full model lives here; the T1 renderer uses count/window/particle-life + shapeScale and
-        // does Area+Circle placement — the rest (Path progress, polygon kinds, offset/rotation/pitch/yaw) is
-        // wired for T2/T3. Every shape-transform field below is a per-spawn SNAPSHOT animatable: each particle
+        // shape. The full model lives here; the renderer uses count/window/particle-life + shapeScale, and does
+        // full placement (T2): Area = uniform-by-area inside Circle or a regular polygon; Path = a point on the
+        // outline positioned by swarmProgress, or the swarmCustomX/Y envelopes for Custom. The shared transform's
+        // offset/rotation/pitch/yaw remain wired-not-applied (T3). Every shape-transform field below is a
+        // per-spawn SNAPSHOT animatable: each particle
         // samples it at ITS OWN spawn frame and keeps that value for life, so an animated transform leaves a
         // trail of placements instead of retroactively sliding already-placed particles (see PyrePlusRenderer).
         public bool swarmEnabled = false;
         [Min(2)] public int swarmCount = 8;
         public SwarmSpawnMode swarmSpawnMode = SwarmSpawnMode.Area;
         public SwarmShapeKind swarmShapeKind = SwarmShapeKind.Circle;
-        public List<Vector2> swarmCustomPoints = new List<Vector2>();   // polyline points, canvas-pixel offsets from centre; point order = travel order
+        // Custom shape (Path only): the hand-drawn polyline authored as a PAIR of envelopes over progress —
+        // x(progress) and y(progress) in Curve mode, values in canvas-pixel offsets from the shape centre.
+        // The polyline IS these two curves: point order is progress/time, so the T5 preview click-to-adds a
+        // paired point onto both, and the renderer just evaluates both at progress p to get the path position.
+        public ZUIValue swarmCustomX = DefaultCustomX();
+        public ZUIValue swarmCustomY = DefaultCustomY();
         public ZUIValue swarmProgress = DefaultProgress();              // Path only: 0 = shape start, 1 = once around; sampled per-particle at its spawn frame
         [Range(0f, 1f)] public float swarmSpawnWindow = 0.5f;           // fraction of the blast timeline the N spawns spread across (0 = all at frame 0)
         [Range(0.05f, 1f)] public float swarmParticleLife = 0.5f;       // each particle's own life duration as a fraction of the blast timeline
@@ -116,6 +123,30 @@ namespace Laubrary.PyrePlus
             v.points.Clear();
             v.points.Add(new ZUIEnvelopePoint(0f, 0f));
             v.points.Add(new ZUIEnvelopePoint(1f, 1f));
+            return v;
+        }
+
+        static ZUIValue DefaultCustomX()
+        {
+            // A small visible starter path so switching to Custom shows something immediately: a shallow
+            // zigzag sweeping left → centre → right in canvas-pixel offsets. yMin/yMax bound the editor's
+            // draw range; the point VALUES are the actual pixel offsets the renderer reads.
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = -32f, yMax = 32f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, -16f));
+            v.points.Add(new ZUIEnvelopePoint(0.5f, 0f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 16f));
+            return v;
+        }
+
+        static ZUIValue DefaultCustomY()
+        {
+            // The Y half of the starter zigzag: dip down then back up (paired with DefaultCustomX by progress).
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = -32f, yMax = 32f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, -10f));
+            v.points.Add(new ZUIEnvelopePoint(0.5f, 14f));
+            v.points.Add(new ZUIEnvelopePoint(1f, -10f));
             return v;
         }
     }

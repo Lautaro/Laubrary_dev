@@ -5,7 +5,8 @@
 // so preview, bake and runtime all produce byte-identical output from the same inputs, and any frame renders
 // standalone. Swarm off ⇒ a single centred particle through the Shape fields. Swarm on ⇒ N particles, each
 // spawned at its own point on the blast timeline and placed by a spawn-time snapshot of the shape transform
-// (T1: Area+Circle placement). Modifiers follow.
+// (T2: Area = uniform-by-area point inside Circle/regular-polygon; Path = a point on the outline positioned by
+// swarmProgress, or the swarmCustomX/Y envelopes for a Custom polyline). Modifiers follow.
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -25,7 +26,7 @@ namespace Laubrary.PyrePlus
         const int FldAlpha = 2;      // Shape alpha envelope, particle's own life         [T1]
         const int FldPlacement = 3;  // Area disc sampling (u1/u2 random draw)            [T1]
         const int FldScale = 4;      // shapeScale — shape radius, spawn-time snapshot    [T1]
-        const int FldProgress = 5;   // swarmProgress — Path position, spawn-time snapshot [T2]  (reserved)
+        const int FldProgress = 5;   // swarmProgress — Path position, spawn-time snapshot [T2]
         const int FldOffsetX = 6;    // shapeOffsetX, spawn-time snapshot                 [T3]  (reserved)
         const int FldOffsetY = 7;    // shapeOffsetY, spawn-time snapshot                 [T3]  (reserved)
         const int FldRotation = 8;   // shapeRotation 2D, spawn-time snapshot             [T3]  (reserved)
@@ -34,6 +35,8 @@ namespace Laubrary.PyrePlus
         const int FldSpin = 11;      // per-particle 2D spin, particle's own life         [T7]  (reserved)
         const int FldPathX = 12;     // per-particle position-path X, own life            [T7]  (reserved)
         const int FldPathY = 13;     // per-particle position-path Y, own life            [T7]  (reserved)
+        const int FldCustomX = 14;   // swarmCustomX — Custom Path X(progress), sampled at progress p [T2]
+        const int FldCustomY = 15;   // swarmCustomY — Custom Path Y(progress), sampled at progress p [T2]
 
         /// One swarm particle's spawn data: where it lands on the blast timeline and its absolute canvas-pixel
         /// position. RenderFrame consumes this; the preview overlay (T5) calls ComputeSpawns to draw a dot at
@@ -115,12 +118,115 @@ namespace Laubrary.PyrePlus
                 float snap = spec.shapeScaleSnap;
                 if (snap > 0f) r = Mathf.Round(r / snap) * snap;
 
-                // T2: only Area + Circle is placed here — a uniform point in a disc centred on the canvas. Every
-                // other swarmSpawnMode / swarmShapeKind combination falls back to this same placement for now
-                // (T2 replaces it with polygon-boundary sampling and Path-progress placement).
-                Vector2 off = SampleDisc(r, spec.seed, i);
-                into.Add(new SpawnPoint { spawnLife = spawnLife, pos = new Vector2(cx + off.x, cy + off.y) });
+                Vector2 pos = PlaceParticle(spec, i, spawnLife, cx, cy, r);
+                into.Add(new SpawnPoint { spawnLife = spawnLife, pos = pos });
             }
+        }
+
+        /// Place one swarm particle in absolute canvas-pixel coords, given its spawn-time-snapshot shape radius
+        /// `r` (circumradius) and index `i`. THE single source of placement truth — RenderSwarm and T5's preview
+        /// overlay both get every dot from ComputeSpawns, i.e. from here. Pure/deterministic: any randomness is a
+        /// System.Random keyed via Hash by (seed, i, field), stable across frames, never UnityEngine.Random.
+        ///   Area — a uniform-by-AREA random point INSIDE the shape (disc for Circle/Custom, fan-triangulated
+        ///          regular polygon otherwise).
+        ///   Path — a point ON the shape's outline, positioned by progress (see below).
+        /// Geometry conventions: regular N-gon has vertex 0 at the TOP (angle +90°), vertices counter-clockwise;
+        /// side count Triangle 3 / Square 4 / Pentagon 5 / Hexagon 6.
+        static Vector2 PlaceParticle(PyrePlusSpec spec, int i, float spawnLife, float cx, float cy, float r)
+        {
+            var kind = spec.swarmShapeKind;
+
+            if (spec.swarmSpawnMode == SwarmSpawnMode.Area)
+            {
+                // Custom is Path-only (the UI enforces it), so Area+Custom falls back to a disc — as does Circle.
+                if (kind == SwarmShapeKind.Circle || kind == SwarmShapeKind.Custom)
+                {
+                    Vector2 off = SampleDisc(r, spec.seed, i);
+                    return new Vector2(cx + off.x, cy + off.y);
+                }
+                return SamplePolygonArea(cx, cy, r, SideCount(kind), spec.seed, i);
+            }
+
+            // Path mode. Progress is a SPAWN-TIME SNAPSHOT: sample swarmProgress at THIS particle's own spawn
+            // life, NOT the current frame — so a Curve/rewinding progress leaves a trail of placements instead of
+            // retroactively sliding already-placed particles. A MinMax swarmProgress falls out of Eval as a
+            // per-particle random point along the path (no special-casing). Path mode uses NO disc randomness of
+            // its own — the only randomness is whatever mode swarmProgress itself is in.
+            float p = Mathf.Clamp01(Eval(spec.swarmProgress, spawnLife, spec.seed, i, FldProgress));
+
+            if (kind == SwarmShapeKind.Custom)
+            {
+                // The two envelopes ARE the path: x(p), y(p) as canvas-pixel offsets from the centre, sampled at
+                // progress p. Open (not wrapped): p=0 is the path's start, p=1 its end.
+                float ox = Eval(spec.swarmCustomX, p, spec.seed, i, FldCustomX);
+                float oy = Eval(spec.swarmCustomY, p, spec.seed, i, FldCustomY);
+                return new Vector2(cx + ox, cy + oy);
+            }
+
+            if (kind == SwarmShapeKind.Circle)
+            {
+                // Counter-clockwise from the top (+90°): p=0 at the top, p=1 once around back to the top.
+                float ang = Mathf.PI / 2f + 2f * Mathf.PI * p;
+                return new Vector2(cx + r * Mathf.Cos(ang), cy + r * Mathf.Sin(ang));
+            }
+
+            // Regular N-gon: walk the closed perimeter by arc length. Every side is the same length, so p·N is
+            // directly the (segment index + fraction) arc-length parameter — no need to accumulate side lengths.
+            // p=0 is vertex 0 (top), p=1 wraps back to vertex 0.
+            int n = SideCount(kind);
+            float t = p * n;
+            int k = (int)t;
+            float frac = t - k;
+            if (k >= n) { k = n - 1; frac = 1f; }        // p == 1 exactly
+            Vector2 a = PolyVertex(cx, cy, r, k, n);
+            Vector2 b = PolyVertex(cx, cy, r, k + 1, n); // k+1 may equal n; trig is periodic → vertex 0
+            return Vector2.Lerp(a, b, frac);
+        }
+
+        /// Side count for a regular-polygon shape kind (0 for Circle/Custom, which are not regular polygons).
+        static int SideCount(SwarmShapeKind kind)
+        {
+            switch (kind)
+            {
+                case SwarmShapeKind.Triangle: return 3;
+                case SwarmShapeKind.Square:   return 4;
+                case SwarmShapeKind.Pentagon: return 5;
+                case SwarmShapeKind.Hexagon:  return 6;
+                default:                      return 0;
+            }
+        }
+
+        /// Absolute canvas-pixel position of vertex `k` of a regular `n`-gon (circumradius `r`, centre cx/cy).
+        /// Vertex 0 is at the TOP (angle +90°) and vertices advance counter-clockwise. `k` may exceed n-1; the
+        /// trig is periodic so k and k%n coincide (used when lerping the last side back to vertex 0).
+        static Vector2 PolyVertex(float cx, float cy, float r, int k, int n)
+        {
+            float ang = Mathf.PI / 2f + 2f * Mathf.PI * k / n;
+            return new Vector2(cx + r * Mathf.Cos(ang), cy + r * Mathf.Sin(ang));
+        }
+
+        /// A uniform-by-AREA random point inside a regular `n`-gon (circumradius `r`, centre cx/cy). Fan-
+        /// triangulates the polygon into n congruent triangles sharing the centre; draws ONE System.Random keyed
+        /// exactly like SampleDisc — (seed, particleIndex, FldPlacement) — and takes three doubles from that one
+        /// stream: u0 picks the triangle (congruent ⇒ uniform by area), u1/u2 sample uniformly inside it via the
+        /// standard sqrt barycentric trick. One rng, one stream ⇒ per-particle stable across frames.
+        static Vector2 SamplePolygonArea(float cx, float cy, float r, int n, int seed, int particleIndex)
+        {
+            var rng = new System.Random(Hash(seed, particleIndex, FldPlacement, 0));
+            double u0 = rng.NextDouble();
+            double u1 = rng.NextDouble();
+            double u2 = rng.NextDouble();
+
+            int tri = Mathf.Clamp((int)(u0 * n), 0, n - 1);
+            Vector2 A = PolyVertex(cx, cy, r, tri, n);       // rim vertices of the chosen fan triangle
+            Vector2 B = PolyVertex(cx, cy, r, tri + 1, n);   // C = centre (cx, cy)
+
+            float s = Mathf.Sqrt((float)u1);
+            float wC = 1f - s;                 // P = C·(1-s) + A·(s·(1-u2)) + B·(s·u2)
+            float wA = s * (1f - (float)u2);
+            float wB = s * (float)u2;
+            return new Vector2(cx * wC + A.x * wA + B.x * wB,
+                               cy * wC + A.y * wA + B.y * wB);
         }
 
         /// A uniformly-distributed random point inside a disc of the given radius — sqrt-distributed radius so
