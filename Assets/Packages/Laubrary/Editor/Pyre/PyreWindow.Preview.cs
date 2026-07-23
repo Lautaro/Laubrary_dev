@@ -298,8 +298,15 @@ namespace Laubrary.Pyre.Editor
 
         void UpdatePreviewTexture(int f)
         {
+            // Only re-render on a frame change or a real edit. Re-rendering the same frame on every one of the
+            // many repaints per displayed frame is wasted work in general, and for a Fire layer it forces a
+            // full simulation replay from 0 each time (the same frame isn't the sim's cheap forward step) —
+            // the "lags worse every loop" the flame preview showed.
+            if (previewTex != null && f == lastRenderedFrame && !previewDirty) return;
             if (previewTex != null) DestroyImmediate(previewTex);
             previewTex = BlastRenderer.RenderFrameTexture(spec, f);
+            lastRenderedFrame = f;
+            previewDirty = false;
         }
 
         // A draggable ✛ marking the blast's origin/pivot over the preview.

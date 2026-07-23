@@ -209,8 +209,12 @@ namespace Laubrary.Pyre.Editor
                 }
             }
 
-            if (shape == LayerShape.Bars || shape == LayerShape.MetaBlob || shape == LayerShape.HeightBalls)
-                root.Add(ValRow("Alpha", "Opacity over this layer's life.", l.alpha, 0f, 1f,
+            if (shape == LayerShape.Bars || shape == LayerShape.MetaBlob || shape == LayerShape.HeightBalls
+                || shape == LayerShape.Fire)
+                root.Add(ValRow("Alpha", shape == LayerShape.Fire
+                        ? "Opacity over the layer's life. Fire's fade is normally shaped by Intensity below, so " +
+                          "this stays flat by default — lower it to make the whole flame more transparent."
+                        : "Opacity over this layer's life.", l.alpha, 0f, 1f,
                     allowMinMax: shape == LayerShape.Bars));
 
             if (shape == LayerShape.Bars) { BuildBarsSection(root, l, cs); BuildLayerModifierSections(root, l); return; }
@@ -630,6 +634,12 @@ namespace Laubrary.Pyre.Editor
             root.Add(Z.Help("Fire carries state from frame to frame, so it is reached by replaying the " +
                 "simulation rather than by evaluating a formula. Scrubbing and baking stay exact; very long " +
                 "layers just cost more to scrub.", HelpBoxMessageType.Info));
+
+            // The progress driver, first and prominent: shape the burn with this curve rather than setting a
+            // speed. It scales emission, so the flame ignites, holds and dies along the envelope.
+            root.Add(ValRow("Intensity", "The burn's PROGRESS over the layer's life — 0 = emitter off, 1 = " +
+                "full. Shape this curve to control how the fire ignites, holds and dies; it scales the " +
+                "emitter so the flame physically grows and shrinks with it.", l.fireIntensity, 0f, 1f, 1f));
 
             var arms = Z.Box("Arms", "Repeat the flame radially. Unlike the Kaleidoscope modifier — which " +
                 "copies finished pixels — these are real emitters in one shared grid, so neighbouring arms " +

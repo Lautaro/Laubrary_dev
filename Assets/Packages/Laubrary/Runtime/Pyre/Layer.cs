@@ -352,6 +352,11 @@ namespace Laubrary.Pyre
         // ── Fire (LayerShape.Fire) ───────────────────────────────────────────────
         // Every rate here is an envelope over the LAYER's life on purpose: what you author is the shape of
         // the burn — swell, roar, die back — rather than a speed you then have to time by hand.
+        [Tooltip("Fire: the burn's PROGRESS over the layer's life, as ONE envelope — 0 = the emitter is off, " +
+                 "1 = full. This is the control for how the fire ignites, holds and dies: shape this curve " +
+                 "instead of setting a speed. It scales the emitter's heat and fuel, so the flame physically " +
+                 "grows and shrinks with it. Defaults to a quick ignite, a hold, then a fade to nothing.")]
+        public ZUIValue fireIntensity = CurveVal(1f, 0f, 0f, 0.18f, 1f, 0.7f, 1f, 1f, 0f);
         [Min(1)]
         [Tooltip("Fire: how many flame arms radiate from the centre. 1 = a single directional flame.")]
         public int fireArms = 1;
@@ -904,6 +909,14 @@ namespace Laubrary.Pyre
                 case LayerShape.Crescent:
                     l.count = new ZUIValue(4f); l.spawnRadius = new ZUIValue(0.28f);
                     l.size = CurveVal(14f, 0f, 7f, 1f, 11f);
+                    break;
+                case LayerShape.Fire:
+                    // The Intensity envelope shapes the whole burn, so alpha stays flat — otherwise the
+                    // default fade-in-out alpha would double up with intensity's own fade. More frames than
+                    // the 12 default, because a flame wants room to ignite, hold and die.
+                    l.alpha = new ZUIValue(1f);
+                    l.endFrame = 23;
+                    l.colorOverLife = SmokeToFireGradient();
                     break;
                 case LayerShape.MetaBlob:
                     l.alpha = new ZUIValue(1f);

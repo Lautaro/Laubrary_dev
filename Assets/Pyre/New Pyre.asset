@@ -25,6 +25,34 @@ MonoBehaviour:
     startFrame: 0
     endFrame: 29
     shape: 7
+    fireIntensity:
+      m_mode: 2
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points:
+      - time: 0
+        value: 0
+        exponent: 1
+        editState: 0
+      - time: 0.15992
+        value: 0.78697
+        exponent: 1
+        editState: 0
+      - time: 0.69999987
+        value: 0.78697
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 0
+        exponent: 1
+        editState: 0
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_multiplierId: 
     fireArms: 8
     fireArmMode: 0
     fireDirection:
@@ -40,13 +68,21 @@ MonoBehaviour:
       m_cooldown: -1
       m_multiplierId: 
     fireEmitterWidth:
-      m_mode: 0
-      m_static: 13
+      m_mode: 2
+      m_static: 14
       m_min: 0
       m_max: 1
-      m_points: []
-      m_yMin: 0
-      m_yMax: 1
+      m_points:
+      - time: 0
+        value: 8.43134
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 14
+        exponent: 1
+        editState: 0
+      m_yMin: 1
+      m_yMax: 64
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
@@ -76,11 +112,23 @@ MonoBehaviour:
       m_cooldown: -1
       m_multiplierId: 
     fireHeat:
-      m_mode: 0
-      m_static: 0.95
+      m_mode: 2
+      m_static: 0.49
       m_min: 0
       m_max: 1
-      m_points: []
+      m_points:
+      - time: 0
+        value: 0.45247
+        exponent: 1
+        editState: 0
+      - time: 0.37054
+        value: 0.93486
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 1
+        exponent: 1
+        editState: 0
       m_yMin: 0
       m_yMax: 1
       m_duration: 4
@@ -101,7 +149,7 @@ MonoBehaviour:
       m_multiplierId: 
     firePulse:
       m_mode: 0
-      m_static: 0.617
+      m_static: 0
       m_min: 0
       m_max: 1
       m_points: []
@@ -113,7 +161,7 @@ MonoBehaviour:
       m_multiplierId: 
     fireFlow:
       m_mode: 0
-      m_static: 1
+      m_static: 2.2
       m_min: 0
       m_max: 1
       m_points: []
@@ -258,7 +306,7 @@ MonoBehaviour:
     fireSteps: 3
     fireThreshold: 0.26
     fireContrast: 1.26
-    role: 1
+    role: 0
     matteChannel: 5
     matteScope: 1
     matteInvert: 0
@@ -544,11 +592,11 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
-      - time: 0.15
+      - time: 0
         value: 1
         exponent: 1
         editState: 0
-      - time: 0.7
+      - time: 1
         value: 1
         exponent: 1
         editState: 0
@@ -1111,7 +1159,7 @@ MonoBehaviour:
     rid: -2
   previewZoom: 4
   previewFps: 12
-  previewSpeed: 2.1
+  previewSpeed: 1
   previewShowFrame: 1
   previewBackSplash:
     cameraColor: {r: 0.2830189, g: 0.25048652, b: 0.35686275, a: 1}
@@ -1124,7 +1172,7 @@ MonoBehaviour:
   previewSubjectAttachId: 
   previewLayerSel: 0
   previewScroll: {x: 0, y: 0}
-  previewFrame: 27
+  previewFrame: 22
   previewShapeOn: 0
   previewShapeGradientFill: 1
   previewShapeCrescent: 1

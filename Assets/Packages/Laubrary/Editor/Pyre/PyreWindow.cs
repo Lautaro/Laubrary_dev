@@ -40,7 +40,7 @@ namespace Laubrary.Pyre.Editor
         protected override string TypeLabel => "Pyre";
         protected override string NewAssetName => "New Pyre";
         protected override string DefaultFolder => "Assets/Pyre";
-        protected override void OnAssetChanged() { scrub = -1; DisposePreviewSubject(); }
+        protected override void OnAssetChanged() { scrub = -1; DisposePreviewSubject(); previewDirty = true; lastRenderedFrame = -1; }
         protected override void InitializeNewAsset(Pyre item) => item.AddExampleContent();
         protected override Texture2D RenderThumbnail(Pyre item)
         {
@@ -228,11 +228,21 @@ namespace Laubrary.Pyre.Editor
         void RecordSpec() { if (spec != null) Undo.RecordObject(spec, "Edit Pyre"); }
 
         /// onChanged hook for Z controls: dirty + refresh the preview.
+        // The preview repaints far more often than the frame advances (Tick MarkDirtyRepaints every editor
+        // update; playback only advances at `fps`), and gizmos/backdrop want those repaints. But re-rendering
+        // the FRAME TEXTURE on a repaint where nothing changed is pure waste — and for a Fire layer it's
+        // ruinous: re-rendering the same frame isn't the sim's cheap forward step, so it replays the whole
+        // history from 0. previewDirty gates the texture rebuild so it only happens on a frame change or a real
+        // edit; the texture is just re-blitted on the other repaints.
+        int lastRenderedFrame = -1;
+        bool previewDirty = true;
+
         void DirtySpec()
         {
             if (spec == null) return;
             EditorUtility.SetDirty(spec);
             frame = Mathf.Min(frame, FrameCount - 1);
+            previewDirty = true;
             previewContainer?.MarkDirtyRepaint();
         }
 

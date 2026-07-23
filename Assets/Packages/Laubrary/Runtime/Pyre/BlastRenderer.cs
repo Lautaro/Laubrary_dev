@@ -47,7 +47,7 @@ namespace Laubrary.Pyre
         const int F_FireDir = 100, F_FireWidth = 101, F_FireInset = 102, F_FireHeat = 103, F_FireFuel = 104;
         const int F_FirePulse = 105, F_FireFlow = 106, F_FireBuoy = 107, F_FireCurl = 108, F_FireCurlScale = 109;
         const int F_FireFlicker = 110, F_FireDissip = 111, F_FireBurn = 112, F_FireReach = 113, F_FireEdgeCool = 114;
-        const int F_FireStretch = 115, F_FirePinch = 116, F_FireBreakup = 117;
+        const int F_FireStretch = 115, F_FirePinch = 116, F_FireBreakup = 117, F_FireIntensity = 118;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -216,6 +216,10 @@ namespace Laubrary.Pyre
             float lp = Mathf.Clamp01((frameIndex - layer.startFrame) /
                                      (float)Mathf.Max(1, layer.endFrame - layer.startFrame));
             float E(ZUIValue v, int fid) => Eval(v, lp, spec.seed, li, frameIndex, fid);
+            // Intensity is the burn's progress envelope: it scales what the emitter puts out, so at 0 the
+            // fire is off and the existing heat dies away, and at 1 it burns full. This is the "control the
+            // progress with a curve, not a speed" dial.
+            float intensity = Mathf.Clamp01(E(layer.fireIntensity, F_FireIntensity));
             return new FireParams
             {
                 arms = Mathf.Max(1, layer.fireArms),
@@ -224,8 +228,8 @@ namespace Laubrary.Pyre
                 directionDeg = E(layer.fireDirection, F_FireDir),
                 emitterWidth = Mathf.Max(1f, E(layer.fireEmitterWidth, F_FireWidth)),
                 emitterInset = E(layer.fireEmitterInset, F_FireInset),
-                heat = Mathf.Clamp01(E(layer.fireHeat, F_FireHeat)),
-                fuel = Mathf.Clamp01(E(layer.fireFuel, F_FireFuel)),
+                heat = Mathf.Clamp01(E(layer.fireHeat, F_FireHeat) * intensity),
+                fuel = Mathf.Clamp01(E(layer.fireFuel, F_FireFuel) * intensity),
                 pulse = Mathf.Max(0f, E(layer.firePulse, F_FirePulse)),
                 flow = E(layer.fireFlow, F_FireFlow),
                 buoyancy = E(layer.fireBuoyancy, F_FireBuoy),
