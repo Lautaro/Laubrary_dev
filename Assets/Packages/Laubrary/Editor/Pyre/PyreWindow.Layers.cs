@@ -530,60 +530,11 @@ namespace Laubrary.Pyre.Editor
         // ── Height balls section ────────────────────────────────────────────────────────────
         void BuildHeightBallsSection(VisualElement root, Layer l, float half)
         {
-            var cloud = Z.Box("Cloud — the resting body",
-                "The resting body of the cloud: balls that sit around the origin and churn in place, idling near the smoke end of the ramp.");
-            cloud.Add(WrapRow(
-                PackedVal("Balls", "How many resting balls the cloud is made of.", l.count, 1f, 120f, 26f, allowMinMax: false),
-                PackedVal("Cloud radius", "How far out the resting balls spread (0-1 of the canvas).", l.spawnRadius, 0f, 1f, 0.4f, allowMinMax: false),
-                PackedVal("Ball radius", "Each ball's radius in pixels — bigger balls melt together into a smoother, heavier mass.", l.size, 1f, half, 7f, allowMinMax: false)));
-            cloud.Add(WrapRow(
-                PackedVal("Mass", "How much each ball adds to the cloud — raises its height (so it catches more light) and its place on the ramp even with no energy.", l.hbDensity, 0f, 0.5f, 0.16f, allowMinMax: false),
-                PackedVal("Resting heat", "Where an un-energised ball idles on the ramp. Newly born wave balls start here too, which is why they don't pop in.", l.hbBaseHeat, 0f, 0.5f, 0.06f, allowMinMax: false)));
-            cloud.Add(WrapRow(
-                PackedVal("Churn", "How far a ball wanders from its resting spot, in pixels — the cloud's idle boil.", l.hbChurn, 0f, 20f, 2.5f, allowMinMax: false),
-                PackedSlider("Churn speed", "How many full churn cycles a ball completes across this layer's life.", l.hbChurnSpeed, 0.1f, 8f, v => l.hbChurnSpeed = v),
-                PackedVal("Rise", "Pixels the cloud drifts upward over its life — smoke rising.", l.hbRise, -40f, 40f, 0f, allowMinMax: false)));
-            cloud.Add(PackedVal2D("Position", "Moves the whole cloud off the blast's origin.",
+            var shading = Z.Box("Fused cloud — shared by every group",
+                "Every group below feeds ONE set of density/heat/height fields, in one pass, before any shading happens — which is why a smoke base and a flame burst melt together instead of stacking as two silhouettes. These dials describe that single fused result, so they can't be per-group.");
+            shading.Add(PackedVal2D("Position", "Moves the whole cloud off the blast's origin. Animatable — this is also what drifts the cloud upward or sideways over its life.",
                 l.positionX, l.positionY,
                 new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero)));
-            root.Add(cloud);
-
-            var waves = Z.Box("Energy waves — climb, then wither",
-                "Bursts of energy released into the cloud. A wave's balls appear looking like ordinary resting balls, heat up into the fire end of the ramp, then cool and thin away again.");
-            waves.Add(WrapRow(
-                Z.Field("Waves", "How many bursts fire off over this layer's life, spaced so the last one still finishes.",
-                    Z.SliderInt(l.hbWaves, 0, 12, "How many bursts fire off over this layer's life, spaced so the last one still finishes.",
-                        v => Dial("Waves", () => l.hbWaves = v), 110f)),
-                Z.Field("Balls per wave", "How many balls each burst adds around the cloud's centre.",
-                    Z.SliderInt(l.hbWaveBalls, 1, 24, "How many balls each burst adds around the cloud's centre.",
-                        v => Dial("Balls per wave", () => l.hbWaveBalls = v), 110f)),
-                PackedSlider("Wave life", "How long one burst lasts, as a fraction of this layer's life.", l.hbWaveLife, 0.05f, 1f, v => l.hbWaveLife = v)));
-            waves.Add(WrapRow(
-                PackedVal("Peak heat", "How far up the ramp a ball climbs at the height of its burst.", l.hbWaveHeat, 0f, 1.5f, 0.8f, allowMinMax: false),
-                PackedVal("Push", "How far outward a burst carries its balls, in pixels. It eases to a halt rather than launching, and Confine caps it regardless.", l.hbWavePush, 0f, half, 14f, allowMinMax: false),
-                PackedSlider("Symmetry", "1 = the burst's balls sit at perfectly even angles; lower scatters them for a lopsided, organic burst.", l.hbWaveSymmetry, 0f, 1f, v => l.hbWaveSymmetry = v)));
-            waves.Add(WrapRow(
-                PackedSlider("Ignition", "How much of a ball's life it spends CLIMBING from resting heat to its peak. High = it is indistinguishable from an ordinary cloud ball when it appears; near zero = it flashes hot instantly.", l.hbIgnition, 0.02f, 0.9f, v => l.hbIgnition = v),
-                PackedSlider("Wither", "How much of a ball's life it spends COOLING back down the ramp while shrinking and thinning out, so it dies away instead of blinking out.", l.hbWither, 0.02f, 0.95f, v => l.hbWither = v)));
-            root.Add(waves);
-
-            root.Add(Z.Box("Pressure — a self-limiting silhouette",
-                "Why the cloud never races off the canvas: outward travel is squeezed smoothly toward a limit it can only approach, and balls crowding that limit lose mass and heat and get tucked back under the cloud.",
-                WrapRow(
-                    PackedSlider("Confine", "The cloud's self-limiting radius, as a fraction of the canvas half-size. Nothing it draws can reach past this — so the animation never collides with the frame edge.", l.hbConfine, 0.05f, 1f, v => l.hbConfine = v),
-                    PackedSlider("Fold under", "How much of the outer cloud gets folded under by pressure — a ball out there loses mass and heat, shrinks, sinks back toward smoke and is pulled inward. 0 = no folding.", l.hbFold, 0f, 1f, v => l.hbFold = v))));
-
-            root.Add(Z.Box("Shape — breaking up the roundness",
-                "Perfect domes fused together still read as a bag of marbles. These two dials are what make the balls reshape each other: Squash makes each one its own ellipse, and Surface noise stretches every ball at a given pixel by the SAME amount, so neighbours bulge and dent together and their rims interlock.",
-                WrapRow(
-                    PackedSlider("Squash", "How far each ball departs from a circle — its own seeded ellipse at its own angle (up to about 2:1), with a burst's balls leaning along their travel direction. 0 = perfectly round.", l.hbSquash, 0f, 1f, v => l.hbSquash = v),
-                    PackedSlider("Surface noise", "Roughens the surface with SHARED noise, so neighbouring balls deform together into one lumpy mass and the relief lighting picks the roughness up as texture. 0 = smooth domes.", l.hbSurfaceNoise, 0f, 1f, v => l.hbSurfaceNoise = v)),
-                WrapRow(
-                    PackedSlider("Noise size", "Feature size of the surface noise, in pixels. Small = a fine crumbly boil; large = a few big soft lobes.", l.hbSurfaceZoom, 2f, 48f, v => l.hbSurfaceZoom = v),
-                    PackedSlider("Noise drift", "How fast the surface noise crawls across the cloud over the layer's life, so the surface roils instead of holding one frozen pattern.", l.hbSurfaceDrift, 0f, 4f, v => l.hbSurfaceDrift = v))));
-
-            var shading = Z.Box("Height shading",
-                "How the fused cloud is turned into pixels: how eagerly balls melt together, how solid the result reads, and how it catches the light.");
             shading.Add(WrapRow(
                 PackedSlider("Fusion", "How eagerly neighbouring balls melt into each other. 0 = every ball keeps its own hard edge; higher blends them into one mass with soft necks.", l.hbFusion, 0f, 1f, v => l.hbFusion = v),
                 PackedSlider("Coverage", "How fast the cloud turns opaque as it thickens. Low = wispy and translucent; high = a solid silhouette that only fades at the very edge.", l.hbCoverage, 0.5f, 12f, v => l.hbCoverage = v)));
@@ -594,7 +545,145 @@ namespace Laubrary.Pyre.Editor
                 shading.Add(WrapRow(
                     PackedSlider("Relief", "How steep the height field is treated as being — how pronounced the bumps and creases between fused balls read.", l.hbRelief, 0.2f, 6f, v => l.hbRelief = v),
                     PackedVal("Light angle", "Where the light comes from, in degrees (0 = from the right, 90 = from above). Animate it to roll the shading across the cloud.", l.hbLightAngle, 0f, 360f, 135f, allowMinMax: false)));
+            shading.Add(WrapRow(
+                PackedSlider("Confine", "The cloud's self-limiting radius, as a fraction of the canvas half-size. Nothing any group draws can reach past this — travel is squeezed smoothly toward the limit rather than clipped — so the animation never collides with the frame edge.", l.hbConfine, 0.05f, 1f, v => l.hbConfine = v),
+                PackedSlider("Fold under", "How much of the outer cloud gets folded under by pressure — a ball out there loses mass and heat, shrinks, sinks back toward smoke and is pulled inward. 0 = no folding.", l.hbFold, 0f, 1f, v => l.hbFold = v)));
             root.Add(shading);
+
+            var groups = l.HeightBallGroups;
+            root.Add(Z.Text("Ball groups", ZuiText.Section,
+                "Each group is its own cloud of balls with its own count, size, spread, height on the ramp, alpha, rotation and waves — but all of them fuse into the single mass above."));
+
+            var host = new VisualElement();
+            root.Add(host);
+            for (int gi = 0; gi < groups.Count; gi++)
+                host.Add(BuildHeightBallGroupBox(host, l, groups, gi, half));
+
+            root.Add(WrapRow(
+                Z.Button("+ Add group", "Append another group of balls to this same fused cloud (undoable).", () =>
+                {
+                    Dial("Add ball group", () => groups.Add(new HeightBallGroup
+                    {
+                        name = $"Group {groups.Count + 1}",
+                        seedSalt = HeightBallGroup.NextSeedSalt(groups),
+                    }));
+                    RebuildLeft();
+                }),
+                Z.Text($"{groups.Count} group(s)", ZuiText.Small, "How many ball groups feed this layer's fused cloud.")));
+        }
+
+        VisualElement BuildHeightBallGroupBox(VisualElement host, Layer l, List<HeightBallGroup> groups, int gi, float half)
+        {
+            var g = groups[gi];
+            bool open = !hbGroupClosed.Contains(gi);
+            var box = Z.Box(null, null);
+
+            var grip = Z.Text("≡", ZuiText.Body,
+                "Drag to reorder this group in the list. Purely cosmetic: every group fuses into the same mass, so none draws in front of another, and each keeps its own arrangement wherever it sits.");
+            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
+            grip.style.width = 16f;
+            ZuiReorder.MakeGrip(grip, box, host, (from, to) =>
+            {
+                Dial("Reorder ball group", () =>
+                {
+                    var moved = groups[from];
+                    groups.RemoveAt(from);
+                    groups.Insert(to, moved);
+                });
+                hbGroupClosed.Clear();
+                RebuildLeft();
+            });
+
+            var nameField = Z.TextInput(g.name, "This group's name — rename it right here.", v =>
+            {
+                RecordSpec();
+                g.name = v;
+                DirtySpec();
+            }, 0f);
+            nameField.style.width = StyleKeyword.Auto;
+            nameField.style.flexGrow = 1f;
+            nameField.style.flexShrink = 1f;
+            nameField.style.minWidth = 50f;
+            nameField.AddToClassList("zui-audit-allow-stretch");
+
+            box.Add(Z.Row(
+                grip,
+                Z.Button(open ? "-" : "+", open ? "Fold this group's dials away." : "Unfold this group's dials.", () =>
+                {
+                    if (open) hbGroupClosed.Add(gi); else hbGroupClosed.Remove(gi);
+                    RebuildLeft();
+                }).W(24f),
+                Z.Toggle("", "Include this group in the fused cloud. Off hides its balls without deleting the group.",
+                    g.enabled, v => Dial(v ? "Enable ball group" : "Disable ball group", () => g.enabled = v)),
+                nameField,
+                Z.Button("Dup", "Duplicate this group just after itself. The copy gets its own random arrangement, so it lands beside the original rather than exactly on top of it (undoable).", () =>
+                {
+                    Dial("Duplicate ball group", () =>
+                    {
+                        var copy = g.Clone();
+                        copy.name += " copy";
+                        copy.seedSalt = HeightBallGroup.NextSeedSalt(groups);
+                        groups.Insert(gi + 1, copy);
+                    });
+                    hbGroupClosed.Clear();
+                    RebuildLeft();
+                }).W(40f),
+                Z.Button("X", "Delete this group (undoable).", () =>
+                {
+                    Dial("Remove ball group", () => groups.RemoveAt(gi));
+                    hbGroupClosed.Clear();
+                    RebuildLeft();
+                }).W(22f)));
+
+            var body = new VisualElement();
+            box.Add(body.Shown(open));
+            if (!open) return box;
+
+            body.Add(WrapRow(
+                PackedVal("Balls", "How many resting balls this group is made of. Animatable over the layer's life.", g.count, 1f, 120f, 26f, allowMinMax: false),
+                PackedVal("Cloud size", "This group's overall radius (0-1 of the canvas half-size) — how far out its balls can reach. Spread below decides where INSIDE that radius they sit.", g.cloudSize, 0f, 1f, 0.4f, allowMinMax: false),
+                PackedVal("Spread", "Where inside the group's radius the balls bunch up. 0 = crowded at the centre; 0.5 = an evenly filled disc; 1 = pushed out to the rim as a hollow shell. Animate 0→1 to blow a solid puff out into an expanding ring.", g.spread, 0f, 1f, 0.5f, allowMinMax: false),
+                PackedVal("Ball size", "Each ball's radius in pixels — bigger balls melt together into a smoother, heavier mass.", g.ballSize, 1f, half, 7f, allowMinMax: false)));
+            body.Add(WrapRow(
+                PackedVal("Height", "How far UP the smoke→fire ramp this group's balls sit — their energy. Low = cold smoke, and a flat cloud; high = fire, and a tall one that catches the relief light. Animate it to walk the whole group up and down the ramp.", g.height, 0f, 1f, 0.06f, allowMinMax: false),
+                PackedVal("Mass", "How much body each ball adds — raises the cloud's height (so it catches more light) and nudges it up the ramp even with no energy at all.", g.mass, 0f, 0.5f, 0.16f, allowMinMax: false),
+                PackedVal("Alpha", "This group's own opacity, multiplied with the layer's Alpha above. Fade one stratum out while another stays.", g.alpha, 0f, 1f, 1f, allowMinMax: false),
+                PackedVal("Rotation", "Turns the whole group about the cloud's centre, in degrees. Animate it (a rising curve) and the group visibly rotates over the layer's life.", g.rotation, -360f, 360f, 0f, allowMinMax: false)));
+            body.Add(WrapRow(
+                PackedVal("Churn", "How far a ball wanders from its resting spot, in pixels — this group's idle boil.", g.churn, 0f, 20f, 2.5f, allowMinMax: false),
+                PackedSlider("Churn speed", "How many full churn cycles a ball completes across the layer's life. Low = a slow roll; high = a busy boil.", g.churnSpeed, 0.1f, 8f, v => g.churnSpeed = v)));
+
+            var waves = Z.Box("Waves — extra balls, pushed outward",
+                "Bursts that add balls to this group and shove them outward. They are NOT their own little fires: a wave ball sits exactly where the group's Height curve says, same as every resting ball — the waves add motion and body, the Height curve owns the heat.");
+            waves.Add(WrapRow(
+                Z.Field("Waves", "How many bursts this group fires over the layer's life, spaced so the last one still finishes. 1 = a single burst spanning the WHOLE layer life.",
+                    Z.SliderInt(g.waves, 0, 12, "How many bursts this group fires over the layer's life, spaced so the last one still finishes. 1 = a single burst spanning the WHOLE layer life.",
+                        v => Dial("Waves", () => g.waves = v), 110f)),
+                Z.Field("Balls per wave", "How many balls each burst adds around the group's centre.",
+                    Z.SliderInt(g.waveBalls, 1, 24, "How many balls each burst adds around the group's centre.",
+                        v => Dial("Balls per wave", () => g.waveBalls = v), 110f)),
+                PackedSlider("Wave life", "How long one burst lasts, as a fraction of the layer's life. Ignored when Waves is 1 — a single burst always spans the whole life.", g.waveLife, 0.05f, 1f, v => g.waveLife = v)));
+            if (g.waves == 1)
+                waves.Add(Z.Text("One wave — it spans the layer's whole life.", ZuiText.Small,
+                    "With a single burst there is nothing to leave room for, so Wave life is bypassed and the burst covers every frame of the layer."));
+            waves.Add(WrapRow(
+                PackedVal("Push", "How far outward a burst carries its balls, in pixels. It eases to a halt rather than launching, and the shared Confine caps it regardless.", g.wavePush, 0f, half, 14f, allowMinMax: false),
+                PackedSlider("Symmetry", "1 = the burst's balls sit at perfectly even angles; lower scatters them for a lopsided, organic burst.", g.symmetry, 0f, 1f, v => g.symmetry = v)));
+            waves.Add(WrapRow(
+                PackedSlider("Fade in", "How much of a ball's life it spends GROWING INTO the cloud — mass and size ramping up from nothing, so it never pops into existence. It joins at whatever the group's Height curve is at that moment; this doesn't change its heat.", g.fadeIn, 0.02f, 0.9f, v => g.fadeIn = v),
+                PackedSlider("Fade out", "How much of a ball's life it spends THINNING OUT again — mass and size ramping back down, so it dies away instead of blinking out. Presence only, same as Fade in.", g.fadeOut, 0.02f, 0.95f, v => g.fadeOut = v)));
+            body.Add(waves);
+
+            body.Add(Z.Box("Shape — breaking up the roundness",
+                "Perfect domes fused together still read as a bag of marbles. Squash makes each ball its own ellipse, and Surface noise stretches every ball of THIS group at a given pixel by the same amount, so its neighbours bulge and dent together and their rims interlock. Each group gets its own noise field, so a smoke base and a flame burst can be rough in different ways.",
+                WrapRow(
+                    PackedSlider("Squash", "How far each ball departs from a circle — its own seeded ellipse at its own angle (up to about 2:1), with a burst's balls leaning along their travel direction. 0 = perfectly round.", g.squash, 0f, 1f, v => g.squash = v),
+                    PackedSlider("Surface noise", "Roughens this group's surface with noise shared by all of ITS balls, so neighbours deform together into one lumpy mass and the relief lighting picks the roughness up as texture. 0 = smooth domes.", g.surfaceNoise, 0f, 1f, v => g.surfaceNoise = v)),
+                WrapRow(
+                    PackedSlider("Noise size", "Feature size of this group's surface noise, in pixels. Small = a fine crumbly boil; large = a few big soft lobes.", g.surfaceZoom, 2f, 48f, v => g.surfaceZoom = v),
+                    PackedSlider("Noise drift", "How fast this group's surface noise crawls over the layer's life, so the surface roils instead of holding one frozen pattern.", g.surfaceDrift, 0f, 4f, v => g.surfaceDrift = v))));
+
+            return box;
         }
 
         // ── disc edges (Disc + SparkleField) ────────────────────────────────────────────────

@@ -149,6 +149,8 @@ namespace Laubrary.Pyre.Editor
         bool draggingStage;
         bool placeMetaMode;
         int metaSel = -1;
+        // Height-balls groups that are currently folded shut (by index). Transient chrome, not asset data.
+        readonly System.Collections.Generic.HashSet<int> hbGroupClosed = new System.Collections.Generic.HashSet<int>();
         bool draggingMetaOrb;
         bool draggingMetaRadius;   // dragging an orb's ring to resize it (Static radius only)
         SmudgeModifier paintSmudge;

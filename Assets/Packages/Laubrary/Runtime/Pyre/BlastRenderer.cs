@@ -40,8 +40,9 @@ namespace Laubrary.Pyre
         const int F_NoiseGradPos = 65;
         const int F_NoiseGradZoom = 66;
         const int F_NoiseWarp = 67;
-        const int F_HbDensity = 70, F_HbBaseHeat = 71, F_HbChurn = 72, F_HbRise = 73;
-        const int F_HbWaveHeat = 74, F_HbWavePush = 75, F_HbLightAngle = 76;
+        const int F_HbDensity = 70, F_HbBaseHeat = 71, F_HbChurn = 72;
+        const int F_HbWavePush = 75, F_HbLightAngle = 76;
+        const int F_HbSpread = 77, F_HbGroupAlpha = 78, F_HbRotation = 79;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -1125,20 +1126,26 @@ namespace Laubrary.Pyre
         // high end is fire. Adding energy to a ball therefore literally walks it UP that gradient, and losing
         // energy walks it back down.
         //
+        // A layer holds any number of GROUPS. Every group's balls land in ONE shared list and are fused in ONE
+        // pass, so a low, cool group and a hot one on top melt together — which is precisely what two separate
+        // Pyre layers could never do, since those composite independently.
+        //
         // Every ball's entire state at a frame — where it rests, how it churns, when its wave was born, how much
         // energy it currently carries, how far out it has travelled, how far it has withered — is a CLOSED-FORM
-        // function of (layer hash, ball index, layer life progress). Nothing accumulates between frames, so this
-        // scrubs, bakes and plays back identically like every other Pyre shape.
+        // function of (layer hash, group, ball index, layer life progress). Nothing accumulates between frames, so
+        // this scrubs, bakes and plays back identically like every other Pyre shape.
         readonly struct HeightBall
         {
             public readonly float x, y, r, density, heat;
+            /// The owning group's own opacity at this frame — blended per pixel across whichever groups cover it.
+            public readonly float alpha;
             // Per-ball shape: `rx`/`ry` are the ellipse's semi-axes and `cs`/`sn` its rotation. A ball is only a
             // circle when Squash is 0 — otherwise every ball is its own seeded ellipse at its own angle, which is
             // what stops a fused cloud from reading as a bag of marbles no matter how well it melts.
             public readonly float rx, ry, cs, sn;
-            public HeightBall(float x, float y, float r, float density, float heat, float aspect, float rot)
+            public HeightBall(float x, float y, float r, float density, float heat, float aspect, float rot, float alpha)
             {
-                this.x = x; this.y = y; this.r = r; this.density = density; this.heat = heat;
+                this.x = x; this.y = y; this.r = r; this.density = density; this.heat = heat; this.alpha = alpha;
                 rx = r * aspect;
                 ry = r / aspect;
                 cs = Mathf.Cos(rot);
@@ -1147,6 +1154,29 @@ namespace Laubrary.Pyre
             /// The largest distance this ball reaches from its own centre (used for bounds + confinement).
             public float Extent => Mathf.Max(rx, ry);
         }
+
+        // One group's slice of the shared ball list, plus the surface-noise field that slice is deformed by.
+        // Noise is sampled PER GROUP rather than once for the whole layer: the coherence that matters is
+        // "neighbouring balls in the same stratum bulge together", and a smoke base and a flame burst have no
+        // reason to share a roughness, a feature size or a drift rate.
+        readonly struct HbGroupSlice
+        {
+            public readonly int start, end, surfSeed;
+            public readonly float surfAmp, surfZoom, surfDriftX, surfDriftY;
+            public HbGroupSlice(int start, int end, int surfSeed, float surfAmp, float surfZoom,
+                                float surfDriftX, float surfDriftY)
+            {
+                this.start = start; this.end = end; this.surfSeed = surfSeed;
+                this.surfAmp = surfAmp; this.surfZoom = surfZoom;
+                this.surfDriftX = surfDriftX; this.surfDriftY = surfDriftY;
+            }
+        }
+
+        // Each group gets its own disjoint block of ball indices, chosen by its OWN stable seedSalt rather than
+        // its position in the list — so two groups never share a stream (which would place them identically),
+        // and reordering the list is purely cosmetic. Salt 0's block starts at 0, so an upgraded single-group
+        // layer keeps the exact placement/churn/wave stream it had before groups existed.
+        const int HbGroupIndexBlock = 4096;
 
         // Blends toward max(a,b) with a soft knee of width k — the "fusion" that melts neighbouring balls into one
         // mass rather than letting the brighter one simply win.
@@ -1179,7 +1209,7 @@ namespace Laubrary.Pyre
         // `limit` is measured so the ball's whole EXTENT (centre + radius) stays inside the confinement circle.
         static void AddHeightBall(System.Collections.Generic.List<HeightBall> balls, Vector2 center,
                                   float x, float y, float r, float density, float heat,
-                                  float confineR, float foldStart, float aspect, float rot)
+                                  float confineR, float foldStart, float aspect, float rot, float alpha)
         {
             if (r < 0.35f || (density <= 0.0005f && heat <= 0.0005f)) return;
             // Confine by the ball's LONGEST axis, not its mean radius — otherwise a strongly squashed ball could
@@ -1212,80 +1242,142 @@ namespace Laubrary.Pyre
                 x = center.x + dx * k;
                 y = center.y + dy * k;
             }
-            balls.Add(new HeightBall(x, y, r, density, heat, aspect, rot));
+            balls.Add(new HeightBall(x, y, r, density, heat, aspect, rot, alpha));
         }
 
-        // Resolves the whole cloud for one frame: the resting balls, plus every energy wave currently alive.
-        static void BuildHeightBalls(System.Collections.Generic.List<HeightBall> balls, Layer layer, BlastSpec spec,
-                                     int li, float lp, Vector2 center, float half, int hash)
+        /// A uniform 0..1 sample turned into a radial fraction. Exponent 0.5 is the evenly-filled disc; larger
+        /// crowds the balls into the middle, smaller pushes them out toward the rim. The 0.5 fast path keeps
+        /// the pre-Spread `sqrt` bit-exact, so an upgraded layer places its balls in exactly the same spots.
+        static float RadialFraction(float u, float exponent)
+            => exponent == 0.5f ? Mathf.Sqrt(u) : Mathf.Pow(u, exponent);
+
+        /// Spread (0..1) → the radial exponent above. 0 → 3 (crowded into the middle), 0.5 → exactly 0.5 (an
+        /// evenly filled disc), 1 → 0.04 (a thin shell at the rim). Interpolated in log space through those
+        /// three anchors so the feel is even across the whole slider rather than bunched at one end.
+        static float SpreadExponent(float spread)
+        {
+            float s = Mathf.Clamp01(spread);
+            return s <= 0.5f
+                ? Mathf.Pow(3f, 1f - s * 2f) * Mathf.Pow(0.5f, s * 2f)
+                : Mathf.Pow(0.5f, 2f - s * 2f) * Mathf.Pow(0.04f, s * 2f - 1f);
+        }
+
+        // Resolves the whole layer for one frame: every enabled GROUP's resting balls and live energy waves, all
+        // appended into ONE shared list so the shading pass fuses them together. `slices` records where each
+        // group's balls sit in that list, plus the surface-noise field that group is deformed by.
+        static void BuildHeightBalls(System.Collections.Generic.List<HeightBall> balls,
+                                     System.Collections.Generic.List<HbGroupSlice> slices,
+                                     Layer layer, BlastSpec spec, int li, float lp, Vector2 center, float half, int hash)
+        {
+            var groups = layer.HeightBallGroups;
+            if (groups == null) return;
+            float confineR = Mathf.Clamp01(layer.hbConfine) * half;
+            float foldStart = 1f - Mathf.Clamp01(layer.hbFold);
+
+            // Two groups sharing an identity would draw from the same number stream and place their balls on
+            // top of each other. The editor hands out unique salts, but a hand-built or hand-edited list might
+            // not — so collisions are resolved here, locally, for this render only. Nothing is written back.
+            var usedSalts = new System.Collections.Generic.List<int>();
+
+            for (int gi = 0; gi < groups.Count; gi++)
+            {
+                var g = groups[gi];
+                if (g == null || !g.enabled) continue;
+                int gs = Mathf.Max(0, g.seedSalt);
+                while (usedSalts.Contains(gs)) gs++;
+                usedSalts.Add(gs);
+
+                int start = balls.Count;
+                BuildHeightBallGroup(balls, g, gs, spec, li, lp, center, half, hash, confineR, foldStart);
+                if (balls.Count == start) continue;
+
+                // Drift the noise field over the layer's life so the surface roils instead of sitting still.
+                // Still a pure function of `lp`, so scrubbing/baking stay identical.
+                slices.Add(new HbGroupSlice(start, balls.Count,
+                    Hash(spec.seed, li, gs, 0x5B1F),
+                    Mathf.Clamp01(g.surfaceNoise), Mathf.Max(1f, g.surfaceZoom),
+                    lp * g.surfaceDrift * 8f, lp * g.surfaceDrift * -5f));
+            }
+        }
+
+        // One group: the resting balls that simply sit there and churn, plus every energy wave currently alive.
+        static void BuildHeightBallGroup(System.Collections.Generic.List<HeightBall> balls, HeightBallGroup g, int gs,
+                                         BlastSpec spec, int li, float lp, Vector2 center, float half, int hash,
+                                         float confineR, float foldStart)
         {
             const float Tau = Mathf.PI * 2f;
             int seed = spec.seed;
-            int count = Mathf.Clamp(Mathf.RoundToInt(Eval(layer.count, lp, seed, li, 0, F_Count)), 0, 400);
-            float cloudR = Mathf.Clamp01(Eval(layer.spawnRadius, lp, seed, li, 0, F_SpawnRadius)) * half;
-            float dens = Mathf.Max(0f, Eval(layer.hbDensity, lp, seed, li, 0, F_HbDensity));
-            float baseHeat = Mathf.Max(0f, Eval(layer.hbBaseHeat, lp, seed, li, 0, F_HbBaseHeat));
-            float churn = Mathf.Max(0f, Eval(layer.hbChurn, lp, seed, li, 0, F_HbChurn));
-            float rise = Eval(layer.hbRise, lp, seed, li, 0, F_HbRise);
-            float churnPhase = lp * Mathf.Max(0.1f, layer.hbChurnSpeed) * Tau;
-            float confineR = Mathf.Clamp01(layer.hbConfine) * half;
-            float foldStart = 1f - Mathf.Clamp01(layer.hbFold);
+            int gb = gs * HbGroupIndexBlock;
+
+            int count = Mathf.Clamp(Mathf.RoundToInt(Eval(g.count, lp, seed, li, gs, F_Count)), 0, 400);
+            float cloudR = Mathf.Clamp01(Eval(g.cloudSize, lp, seed, li, gs, F_SpawnRadius)) * half;
+            float spreadExp = SpreadExponent(Eval(g.spread, lp, seed, li, gs, F_HbSpread));
+            float dens = Mathf.Max(0f, Eval(g.mass, lp, seed, li, gs, F_HbDensity));
+            float baseHeat = Mathf.Max(0f, Eval(g.height, lp, seed, li, gs, F_HbBaseHeat));
+            float churn = Mathf.Max(0f, Eval(g.churn, lp, seed, li, gs, F_HbChurn));
+            float gAlpha = Mathf.Clamp01(Eval(g.alpha, lp, seed, li, gs, F_HbGroupAlpha));
+            // One angle added to every placement in the group — resting balls and wave rosettes alike — so the
+            // whole group turns about the cloud's centre as a rigid arrangement.
+            float spin = Eval(g.rotation, lp, seed, li, gs, F_HbRotation) * Mathf.Deg2Rad;
+            float churnPhase = lp * Mathf.Max(0.1f, g.churnSpeed) * Tau;
             // Squash 0 = every ball a circle (the original look); 1 = each ball a strongly seeded ellipse at its
             // own angle. Balls also slowly TURN as the cloud churns, so a squashed cloud rolls instead of looking
             // like a frozen arrangement of ovals.
-            float squash = Mathf.Clamp01(layer.hbSquash);
+            float squash = Mathf.Clamp01(g.squash);
 
-            // The resting cloud — balls that simply sit there and churn, near the smoke end of the gradient.
             for (int i = 0; i < count; i++)
             {
-                float ang = Hash01(hash, i, 1) * Tau;
-                float rad = Mathf.Sqrt(Hash01(hash, i, 2)) * cloudR;   // sqrt keeps the disc evenly filled
-                float r = Eval(layer.size, lp, seed, li, i, F_Size) * Mathf.Lerp(0.72f, 1.28f, Hash01(hash, i, 3));
-                float ph = Hash01(hash, i, 4) * Tau;
-                float fr = Mathf.Lerp(0.6f, 1.7f, Hash01(hash, i, 5));
+                int bi = gb + i;
+                float ang = Hash01(hash, bi, 1) * Tau + spin;
+                float rad = RadialFraction(Hash01(hash, bi, 2), spreadExp) * cloudR;
+                float r = Eval(g.ballSize, lp, seed, li, bi, F_Size) * Mathf.Lerp(0.72f, 1.28f, Hash01(hash, bi, 3));
+                float ph = Hash01(hash, bi, 4) * Tau;
+                float fr = Mathf.Lerp(0.6f, 1.7f, Hash01(hash, bi, 5));
                 float x = center.x + Mathf.Cos(ang) * rad + Mathf.Sin(churnPhase * fr + ph) * churn;
-                float y = center.y + Mathf.Sin(ang) * rad + Mathf.Cos(churnPhase * fr * 0.71f + ph) * churn * 0.8f
-                          + rise * lp * Mathf.Lerp(0.6f, 1.4f, Hash01(hash, i, 6));
+                float y = center.y + Mathf.Sin(ang) * rad + Mathf.Cos(churnPhase * fr * 0.71f + ph) * churn * 0.8f;
                 AddHeightBall(balls, center, x, y, r,
-                              dens * Mathf.Lerp(0.85f, 1.15f, Hash01(hash, i, 7)),
-                              baseHeat * Mathf.Lerp(0.35f, 1.25f, Hash01(hash, i, 8)),
+                              dens * Mathf.Lerp(0.85f, 1.15f, Hash01(hash, bi, 7)),
+                              baseHeat * Mathf.Lerp(0.35f, 1.25f, Hash01(hash, bi, 8)),
                               confineR, foldStart,
-                              BallAspect(squash, hash, i, 9),
-                              Hash01(hash, i, 10) * Tau + churnPhase * 0.35f);
+                              BallAspect(squash, hash, bi, 9),
+                              Hash01(hash, bi, 10) * Tau + churnPhase * 0.35f,
+                              gAlpha);
             }
 
-            // Energy waves. Births are spread evenly across the part of the layer's life that still leaves room for
-            // a whole wave to finish, so nothing is cut off mid-wither at the last frame.
-            int waves = Mathf.Clamp(layer.hbWaves, 0, 12);
+            // Waves. Births are spread evenly across the part of the layer's life that still leaves room for a
+            // whole wave to finish, so nothing is cut off mid-fade at the last frame.
+            //
+            // A wave ball is NOT its own little energy event: where it sits on the smoke→fire ramp is this
+            // group's Height at the frame being drawn, exactly like a resting ball. The group's authored Height
+            // curve is the one and only source of "how hot is this". Fade in/out govern PRESENCE alone — mass
+            // and size ramping in at birth and out at death — which is what stops a ball popping or blinking.
+            int waves = Mathf.Clamp(g.waves, 0, 12);
             if (waves == 0) return;
-            int per = Mathf.Clamp(layer.hbWaveBalls, 1, 24);
-            float waveLife = Mathf.Clamp(layer.hbWaveLife, 0.05f, 1f);
-            float ignition = Mathf.Clamp(layer.hbIgnition, 0.02f, 0.9f);
-            float wither = Mathf.Clamp(layer.hbWither, 0.02f, 0.95f);
-            float symmetry = Mathf.Clamp01(layer.hbWaveSymmetry);
-            float waveHeat = Mathf.Max(0f, Eval(layer.hbWaveHeat, lp, seed, li, 0, F_HbWaveHeat));
-            float push = Eval(layer.hbWavePush, lp, seed, li, 0, F_HbWavePush);
+            int per = Mathf.Clamp(g.waveBalls, 1, 24);
+            float waveLife = Mathf.Clamp(g.waveLife, 0.05f, 1f);
+            // A single wave IS the layer: with one burst there is nothing to leave room for, so it spans the whole
+            // life regardless of the Wave-life dial (which only exists to fit several bursts into one window).
+            float span = waves == 1 ? 1f : waveLife;
+            float fadeIn = Mathf.Clamp(g.fadeIn, 0.02f, 0.9f);
+            float fadeOut = Mathf.Clamp(g.fadeOut, 0.02f, 0.95f);
+            float symmetry = Mathf.Clamp01(g.symmetry);
+            float push = Eval(g.wavePush, lp, seed, li, gs, F_HbWavePush);
 
             for (int w = 0; w < waves; w++)
             {
                 float birth = waves > 1 ? (w / (float)(waves - 1)) * (1f - waveLife) : 0f;
-                float a = (lp - birth) / waveLife;                  // this wave's own 0..1 age
+                float a = (lp - birth) / span;                      // this wave's own 0..1 age
                 if (a <= 0f || a >= 1f) continue;
 
-                // Energy: climbs from nothing over `ignition`, holds, then sinks back down over `wither`. A ball's
-                // heat is lerped from the RESTING heat by this, so at birth it is indistinguishable from an
-                // ordinary cloud ball and at death it has cooled all the way back to smoke — never a pop, never a
-                // blink-out.
-                float energy = SmoothStep01(a / ignition) * SmoothStep01((1f - a) / wither);
-                float fade = SmoothStep01((1f - a) / wither);       // mass/size wither, trailing the heat
-                float grow = Mathf.Lerp(0.45f, 1f, SmoothStep01(a / (ignition * 0.7f)));
+                float fade = SmoothStep01((1f - a) / fadeOut);      // mass/size thinning out toward death
+                float grow = Mathf.Lerp(0.45f, 1f, SmoothStep01(a / (fadeIn * 0.7f)));
                 // Outward travel eases to a halt well before the wave ends: a push, then churn — not a launch.
                 float reach = push * SmoothStep01(a / 0.7f);
-                float rot = Hash01(hash, 500 + w, 11) * Tau;
+                float rot = Hash01(hash, gb + 500 + w, 11) * Tau + spin;
 
                 for (int j = 0; j < per; j++)
                 {
-                    int bi = w * 64 + j;
+                    int bi = gb + w * 64 + j;
                     float jitter = (1f - symmetry) * (Hash01(hash, bi, 12) * 2f - 1f) * (Mathf.PI / per) * 1.7f;
                     float ang = rot + (j / (float)per) * Tau + jitter;
                     float rr = reach * Mathf.Lerp(0.75f, 1.15f, Hash01(hash, bi, 13));
@@ -1293,17 +1385,20 @@ namespace Laubrary.Pyre
                     float fr = Mathf.Lerp(0.7f, 1.8f, Hash01(hash, bi, 15));
                     float x = center.x + Mathf.Cos(ang) * rr + Mathf.Sin(churnPhase * fr + ph) * churn;
                     float y = center.y + Mathf.Sin(ang) * rr + Mathf.Cos(churnPhase * fr * 0.71f + ph) * churn * 0.8f;
-                    float r = Eval(layer.size, a, seed, li, 1000 + bi, F_Size)
+                    float r = Eval(g.ballSize, a, seed, li, 1000 + bi, F_Size)
                               * Mathf.Lerp(0.8f, 1.2f, Hash01(hash, bi, 16))
                               * grow * Mathf.Lerp(0.45f, 1f, fade);
-                    // A wave ball's long axis leans along its own travel direction, so an energised burst stretches
-                    // outward the way a real plume does instead of pushing a ring of circles.
+                    // A wave ball's long axis leans along its own travel direction, so a burst stretches outward
+                    // the way a real plume does instead of pushing a ring of circles. Its heat is the group's
+                    // own Height with the SAME per-ball spread a resting ball gets — so a ball born mid-life is
+                    // indistinguishable from the cloud it joins, wherever the authored curve happens to be.
                     AddHeightBall(balls, center, x, y, r,
                                   dens * Mathf.Lerp(0.95f, 1.3f, Hash01(hash, bi, 17)) * grow * fade,
-                                  Mathf.Lerp(baseHeat, waveHeat * Mathf.Lerp(0.7f, 1.1f, Hash01(hash, bi, 18)), energy),
+                                  baseHeat * Mathf.Lerp(0.35f, 1.25f, Hash01(hash, bi, 18)),
                                   confineR, foldStart,
                                   BallAspect(squash, hash, bi, 19),
-                                  ang + (Hash01(hash, bi, 20) - 0.5f) * squash);
+                                  ang + (Hash01(hash, bi, 20) - 0.5f) * squash,
+                                  gAlpha);
                 }
             }
         }
@@ -1318,7 +1413,8 @@ namespace Laubrary.Pyre
                                                      Eval(layer.positionY, lp, spec.seed, li, 0, F_PosY));
 
             var balls = new System.Collections.Generic.List<HeightBall>();
-            BuildHeightBalls(balls, layer, spec, li, lp, center, half, hash);
+            var slices = new System.Collections.Generic.List<HbGroupSlice>();
+            BuildHeightBalls(balls, slices, layer, spec, li, lp, center, half, hash);
             int n = balls.Count;
             if (n == 0) return;
 
@@ -1354,61 +1450,81 @@ namespace Laubrary.Pyre
             var density = new float[W * H];
             var heat = new float[W * H];
             var height = new float[W * H];
+            var groupAlpha = new float[W * H];
 
-            // Surface noise is sampled in the CLOUD's own space, once per pixel — not per ball. That is the whole
-            // point: because every ball at a given pixel is stretched or pinched by the SAME value, neighbouring
+            // Pass 1 — fuse every group's balls into the three shared fields. Height weights heat well above
+            // density, so an energised ball genuinely stands TALLER than a cold one and catches more of the
+            // relief light.
+            //
+            // Surface noise is sampled once per pixel PER GROUP — not per ball. That is the whole point: because
+            // every ball of a group at a given pixel is stretched or pinched by the SAME value, neighbouring
             // balls bulge and dent together and their rims interlock, so they read as one lumpy mass reshaping
             // itself rather than as separate wobbly circles. (A per-ball noise would just give each ball its own
-            // independent wobble, which still reads as a pile of blobs.)
-            float surfAmp = Mathf.Clamp01(layer.hbSurfaceNoise);
-            float surfZoom = Mathf.Max(1f, layer.hbSurfaceZoom);
-            int surfSeed = Hash(spec.seed, li, 0, 0x5B1F);
-            // Drift the noise field over the layer's life so the surface roils instead of sitting still. Still a
-            // pure function of `lp`, so scrubbing/baking stay identical.
-            float surfDriftX = lp * layer.hbSurfaceDrift * 8f;
-            float surfDriftY = lp * layer.hbSurfaceDrift * -5f;
-
-            // Pass 1 — fuse the balls into the three fields. Height weights heat well above density, so an
-            // energised ball genuinely stands TALLER than a cold one and catches more of the relief light.
+            // independent wobble, which still reads as a pile of blobs.) Groups deform independently because
+            // they are separate strata — a cool smoke base and a flame burst have no reason to share roughness.
             for (int y = 0; y < H; y++)
                 for (int x = 0; x < W; x++)
                 {
                     Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
                     if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, ctx);
 
-                    // One shared reshaping factor for this pixel: >1 pushes every ball's rim outward here, <1
-                    // pulls it in. Applied to q (the normalised radius) so it warps the SILHOUETTE, and reused
-                    // below as a height ripple so the relief lighting picks the roughness up as texture.
-                    float surf = 0f;
-                    if (surfAmp > 0.001f)
-                        surf = PyreNoise.Sample(off.x / surfZoom + surfDriftX, off.y / surfZoom + surfDriftY,
-                                                surfSeed, 0.6f) * 2f - 1f;
-                    float rimScale = 1f + surf * surfAmp;
-                    float invRim2 = 1f / Mathf.Max(0.05f, rimScale * rimScale);
-
                     float d = 0f, he = 0f, hi = 0f;
-                    for (int i = 0; i < n; i++)
+                    float aWeight = 0f, aSum = 0f;
+                    bool anyGroup = false;
+
+                    for (int gi = 0; gi < slices.Count; gi++)
                     {
-                        var b = balls[i];
-                        float dx = off.x - b.x, dy = off.y - b.y;
-                        // into the ball's own rotated frame, then an ELLIPSE test rather than a circle
-                        float lx = dx * b.cs + dy * b.sn;
-                        float ly = -dx * b.sn + dy * b.cs;
-                        float q = ((lx * lx) / (b.rx * b.rx) + (ly * ly) / (b.ry * b.ry)) * invRim2;
-                        if (q >= 1f) continue;
-                        float s = Mathf.Sqrt(1f - q);              // a soft dome, 1 at the centre → 0 at the rim
-                        d = SmoothMax(d, s * b.density, kD);
-                        he = SmoothMax(he, s * b.heat, kHe);
-                        hi = SmoothMax(hi, s * (b.density * 2.65f + b.heat * 0.72f), kHi);
+                        var sl = slices[gi];
+                        float surf = 0f;
+                        if (sl.surfAmp > 0.001f)
+                            surf = PyreNoise.Sample(off.x / sl.surfZoom + sl.surfDriftX,
+                                                    off.y / sl.surfZoom + sl.surfDriftY, sl.surfSeed, 0.6f) * 2f - 1f;
+                        float rimScale = 1f + surf * sl.surfAmp;
+                        float invRim2 = 1f / Mathf.Max(0.05f, rimScale * rimScale);
+
+                        float gd = 0f, ghe = 0f, ghi = 0f;
+                        bool gHit = false;
+                        for (int i = sl.start; i < sl.end; i++)
+                        {
+                            var b = balls[i];
+                            float dx = off.x - b.x, dy = off.y - b.y;
+                            // into the ball's own rotated frame, then an ELLIPSE test rather than a circle
+                            float lx = dx * b.cs + dy * b.sn;
+                            float ly = -dx * b.sn + dy * b.cs;
+                            float q = ((lx * lx) / (b.rx * b.rx) + (ly * ly) / (b.ry * b.ry)) * invRim2;
+                            if (q >= 1f) continue;
+                            gHit = true;
+                            float s = Mathf.Sqrt(1f - q);          // a soft dome, 1 at the centre → 0 at the rim
+                            gd = SmoothMax(gd, s * b.density, kD);
+                            ghe = SmoothMax(ghe, s * b.heat, kHe);
+                            ghi = SmoothMax(ghi, s * (b.density * 2.65f + b.heat * 0.72f), kHi);
+                            // Opacity is a coverage-weighted blend of whichever groups reach this pixel, so an
+                            // overlap crossfades between their alphas instead of one group winning outright.
+                            float w = s * (b.density + b.heat);
+                            aWeight += w;
+                            aSum += w * b.alpha;
+                        }
+                        // A group that reaches nowhere near this pixel must contribute NOTHING — a smooth max is
+                        // not the identity on two zeroes (SmoothMax(0,0,k) == 0.25k), so folding an absent group
+                        // in anyway would raise a faint uniform haze across the entire frame.
+                        if (!gHit) continue;
+
+                        // Height also takes the noise directly, scaled by how much cloud is actually here, so the
+                        // lit surface gains roughness in the interior too — not just a wobbly outline.
+                        if (sl.surfAmp > 0.001f && ghi > 0f) ghi *= 1f + surf * sl.surfAmp * 0.55f;
+
+                        // The first group present SEEDS each field, later ones melt into it with the same soft
+                        // knee — so a single group is byte-identical to the pre-groups renderer, and several
+                        // genuinely fuse rather than compositing.
+                        if (!anyGroup) { d = gd; he = ghe; hi = ghi; anyGroup = true; }
+                        else { d = SmoothMax(d, gd, kD); he = SmoothMax(he, ghe, kHe); hi = SmoothMax(hi, ghi, kHi); }
                     }
-                    // Height also takes the noise directly, scaled by how much cloud is actually here, so the lit
-                    // surface gains roughness in the interior too — not just a wobbly outline.
-                    if (surfAmp > 0.001f && hi > 0f) hi *= 1f + surf * surfAmp * 0.55f;
 
                     int idx = y * W + x;
                     density[idx] = Mathf.Clamp01(d);
                     heat[idx] = Mathf.Clamp01(he);
                     height[idx] = Mathf.Clamp01(hi);
+                    groupAlpha[idx] = aWeight > 0f ? aSum / aWeight : 1f;
                 }
 
             // Pass 2 — relief lighting from the height field's local slope.
@@ -1450,7 +1566,7 @@ namespace Laubrary.Pyre
                     // swallowed by the ramp's own dark end, and the carved look is the whole point of the shape.
                     if (light != null) value = Mathf.Clamp01(value * (0.35f + light[i] * 1.15f));
                     Color fc = layer.colorOverLife != null ? layer.colorOverLife.Evaluate(value) : Color.white;
-                    float outA = Mathf.Clamp01(occupied * coverage) * alpha * fc.a;
+                    float outA = Mathf.Clamp01(occupied * coverage) * alpha * groupAlpha[i] * fc.a;
                     if (outA <= 0.003f) continue;
 
                     if (stack.AnyPix)
