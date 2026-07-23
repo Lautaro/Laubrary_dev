@@ -476,23 +476,37 @@ namespace Laubrary.Pyre.Editor
                 int idx = i;
                 var o = l.metaOrbs[idx];
                 var orbBox = Z.Box(null, null);
-                orbBox.Add(WrapRow(
+
+                // Header row: select · number · (spacer) · delete — delete sits at the row's END, not
+                // wedged between fields (reported 2026-07-23).
+                orbBox.Add(Z.Row(
                     Z.Button(metaSel == idx ? "●" : "○", "Select this orb (also draggable in the preview).",
                         () => { metaSel = idx; RebuildLeft(); }).W(24f),
                     Z.Text($"#{idx + 1}", ZuiText.Small, "Orb number (placement order)."),
-                    Z.Field("X", "Orb centre X (canvas px from the middle).",
-                        Z.Float(o.pos.x, "Orb centre X (canvas px from the middle).",
-                            v => Dial("Move orb", () => o.pos = new Vector2(v, o.pos.y)), 46f)),
-                    Z.Field("Y", "Orb centre Y (canvas px from the middle).",
-                        Z.Float(o.pos.y, "Orb centre Y (canvas px from the middle).",
-                            v => Dial("Move orb", () => o.pos = new Vector2(o.pos.x, v)), 46f)),
-                    PackedSlider("Rad", "Orb radius in pixels.", o.radius, 2f, half, v => o.radius = v, 90f),
+                    Z.Flexible(),
                     Z.Button("X", "Delete this orb.", () =>
                     {
                         Dial("Remove orb", () => l.metaOrbs.RemoveAt(idx));
                         metaSel = -1;
                         RebuildLeft();
                     }).W(22f)));
+
+                // Position as a real 2D pad (plain Vector2 — an orb's placement never animates),
+                // beside its animatable radius.
+                orbBox.Add(WrapRow(
+                    Z.Vector2Field("Position", () => o.pos, v => o.pos = v, o,
+                        new ZuiValue2DControl.Options()
+                            .WithRange(-half, half, -half, half)
+                            .WithDefault(Vector2.zero)
+                            .WithPlotSize(72f)
+                            .WithValueDisplay(false, false)   // the pad IS the display; 16 orbs stay compact
+                            .WithoutSidePanel()
+                            .Expanded(),
+                        "Drag to place this orb on the canvas (pixels from the middle).",
+                        DirtySpec, RecordSpec),
+                    ValRow("Rad", "This orb's radius in pixels — animatable over its OWN life (birth→death).",
+                        o.Radius, 2f, half, 12f, allowMinMax: false, width: 130f)));
+
                 orbBox.Add(WrapRow(
                     PackedSlider("Birth", "Life fraction at which this orb appears.", o.birth, 0f, 1f, v => o.birth = v),
                     PackedSlider("Life", "How long this orb lives (fraction of the layer's life).", o.life, 0.02f, 1f, v => o.life = v)));

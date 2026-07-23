@@ -150,6 +150,7 @@ namespace Laubrary.Pyre.Editor
         bool placeMetaMode;
         int metaSel = -1;
         bool draggingMetaOrb;
+        bool draggingMetaRadius;   // dragging an orb's ring to resize it (Static radius only)
         SmudgeModifier paintSmudge;
         bool draggingSmudge;
         PinWarpModifier editPin;
@@ -404,16 +405,24 @@ namespace Laubrary.Pyre.Editor
                     Z.Color(spec.background, "The actual pixel colour baked into every EXPORTED frame — usually fully transparent so it composites into a game scene.",
                         v => Dial("Bake background", () => spec.background = v)))));
 
-            root.Add(WrapRow(
-                Z.Field("Origin", "The blast's pivot (0..1, y bottom-up) — the point a game aligns to the spawn/hit position. Also draggable as the ✛ handle in the preview.",
-                    Z.Pad(spec.origin, new Rect(0f, 0f, 1f, 1f),
-                        "Drag to set the blast's pivot — the point a game aligns to the spawn/hit position.",
-                        v => Dial("Move origin", () => spec.origin = v), 64f)),
-                Z.Field("Marker α", "Opacity of the flashing origin ✛ marker in the preview (preview-only).",
-                    Z.Slider(originMarkerAlpha, 0f, 1f, "Opacity of the flashing origin ✛ marker in the preview (preview-only).",
-                        v => { originMarkerAlpha = v; previewContainer?.MarkDirtyRepaint(); }, 110f)),
-                Z.Button("Origin → centre", "Reset the pivot to the canvas centre.",
-                    () => Dial("Move origin", () => spec.origin = new Vector2(0.5f, 0.5f)))));
+            // Origin is a full 2D control (not a bare pad) so it carries the same label/Reset/⋯/value-
+            // display chrome as every other XY field — but over a PLAIN Vector2, so it never offers
+            // animation (a pivot must not move over the blast's life). Its side panel hosts the
+            // preview-only marker-α slider, and its Reset (default = centre) replaces the old
+            // "Origin → centre" button.
+            root.Add(Z.Vector2Field("Origin", () => spec.origin, v => spec.origin = v, spec,
+                new ZuiValue2DControl.Options()
+                    .WithRange(0f, 1f, 0f, 1f)
+                    .WithDefault(new Vector2(0.5f, 0.5f))
+                    .WithPlotSize(96f)
+                    .Expanded()
+                    .WithSidePanelExtra(() =>
+                        Z.Field("α", "Opacity of the flashing origin ✛ marker in the preview (preview-only — never baked).",
+                            Z.Slider(originMarkerAlpha, 0f, 1f,
+                                "Opacity of the flashing origin ✛ marker in the preview (preview-only — never baked).",
+                                v => { originMarkerAlpha = v; previewContainer?.MarkDirtyRepaint(); }, 62f, showInput: false))),
+                "The blast's pivot (0..1, y bottom-up) — the point a game aligns to the spawn/hit position. Also draggable as the ✛ handle in the preview.",
+                DirtySpec, RecordSpec));
         }
 
         // ── shared row/value helpers ────────────────────────────────────────────────────────

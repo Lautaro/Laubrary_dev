@@ -1007,12 +1007,16 @@ namespace Laubrary.Pyre
             {
                 var o = orbs[i];
                 if (o == null) { pw[i] = 0f; continue; }
-                float r = o.radius * radScale;
+
+                // The orb's own life progress drives BOTH its fade weight and (since 2026-07-23) its
+                // animatable radius — so a Curve-mode radius reads as "over THIS orb's life", not the
+                // layer's. Computed before the radius for exactly that reason.
+                float t = (lp - o.birth) / Mathf.Max(0.02f, o.life);   // 0..1 across this orb's own life
+                float r = Eval(o.Radius, t, hash, i, 0, frameIndex) * radScale;
                 if (r < 0.5f) { pw[i] = 0f; continue; }
                 Vector2 p = originOff + (o.pos - originOff) * expand;
                 px[i] = p.x; py[i] = p.y; pr2[i] = r * r;
 
-                float t = (lp - o.birth) / Mathf.Max(0.02f, o.life);   // 0..1 across this orb's own life
                 pw[i] = (t <= 0f || t >= 1f) ? 0f : MetaEnv(t);
 
                 if (p.x - r < minX) minX = p.x - r; if (p.x + r > maxX) maxX = p.x + r;

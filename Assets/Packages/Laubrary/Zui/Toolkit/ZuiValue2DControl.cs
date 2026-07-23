@@ -1,12 +1,12 @@
-// ZuiValue2DControl — UI Toolkit counterpart of the IMGUI ZUIValue2DControl: a PAIR of ZUIValues
-// (x, y) presented as one synchronized 2D-position control. Static mode: one draggable dot in an
-// XY plot (+ optional "(x, y)" text and/or a compact numeric X/Y input block). Curve mode:
-// numbered points tracing a PATH through XY space — both axes spatial, time implicit in point
-// ORDER (evenly re-normalized across the lifetime on add/remove). Pure editor-side UX layer over
-// the unchanged ZUIValue/ZUIEnvelopePoint data model, exactly like the IMGUI original.
+// ZuiValue2DControl — UI Toolkit counterpart of the IMGUI ZUIValue2DControl: an XY value presented
+// as ONE synchronized 2D control instead of two sliders. Static mode: a draggable dot in an XY plot
+// (+ optional "(x, y)" text and/or a numeric X/Y block). Curve mode: numbered points tracing a PATH
+// through XY space — both axes spatial, time implicit in point ORDER.
 //
-// Clipboard payloads use the SAME "ZUIVALUE2:" prefix and JSON shape as the IMGUI control, so
-// copy/paste interoperates across the two halves during the migration.
+// Works over TWO data shapes via Zui2DSource (2026-07-23): an animatable ZUIValue pair, or a PLAIN
+// Vector2 (a get/set pair) for values that must never animate — Pyre's blast origin, a MetaBlob orb's
+// position. The plain source reports SupportsAnimation=false, which hides the mode switch entirely
+// so the control still looks and feels like the same ZUI 2D pad everywhere.
 using System;
 using System.Collections.Generic;
 using UnityEditor;
@@ -15,6 +15,148 @@ using UnityEngine.UIElements;
 
 namespace Laubrary.Zui
 {
+    /// Where a ZuiValue2DControl reads/writes its XY value. Two shipped implementations:
+    /// <see cref="ZuiValuePairSource"/> (animatable ZUIValue pair) and <see cref="ZuiVector2Source"/>
+    /// (a plain Vector2 accessor — no animation).
+    public abstract class Zui2DSource
+    {
+        /// False hides the Static/Curve mode switch: this value can never animate.
+        public abstract bool SupportsAnimation { get; }
+        public abstract bool IsCurve { get; }
+        public abstract void SetCurve(bool on, Vector2 fallback);
+        public abstract Vector2 Static { get; set; }
+        public abstract int PointCount { get; }
+        public abstract Vector2 GetPoint(int i);
+        public abstract void SetPoint(int i, Vector2 v);
+        public abstract void AddPoint(Vector2 v);
+        public abstract void RemovePoint(int i);
+        /// Pin each axis's own value range to the control's plot bounds (curve sources only).
+        public virtual void PinRange(float xMin, float xMax, float yMin, float yMax) { }
+        /// Clipboard payload, or null when this source doesn't support copy/paste.
+        public virtual string ToClipboard() => null;
+        public virtual bool TryPaste(string s) => false;
+    }
+
+    /// The animatable source: a matched pair of ZUIValues kept in lockstep (both Static or both Curve).
+    public class ZuiValuePairSource : Zui2DSource
+    {
+        readonly ZUIValue _x, _y;
+        public ZuiValuePairSource(ZUIValue x, ZUIValue y)
+        {
+            _x = x ?? throw new ArgumentNullException(nameof(x));
+            _y = y ?? throw new ArgumentNullException(nameof(y));
+        }
+        public ZUIValue X => _x;
+        public ZUIValue Y => _y;
+
+        public override bool SupportsAnimation => true;
+        public override bool IsCurve => _x.mode == ZUIValue.Mode.Curve
+            && _x.points.Count > 0 && _x.points.Count == _y.points.Count;
+
+        public override void SetCurve(bool on, Vector2 fallback)
+        {
+            _x.mode = _y.mode = on ? ZUIValue.Mode.Curve : ZUIValue.Mode.Static;
+            if (on) EnsurePaired(fallback);
+        }
+
+        public override Vector2 Static
+        {
+            get => new Vector2(_x.staticValue, _y.staticValue);
+            set { _x.staticValue = value.x; _y.staticValue = value.y; }
+        }
+
+        public override int PointCount => Mathf.Min(_x.points.Count, _y.points.Count);
+        public override Vector2 GetPoint(int i) => new Vector2(_x.points[i].value, _y.points[i].value);
+        public override void SetPoint(int i, Vector2 v) { _x.points[i].value = v.x; _y.points[i].value = v.y; }
+
+        public override void AddPoint(Vector2 v)
+        {
+            _x.points.Add(new ZUIEnvelopePoint(0f, v.x));
+            _y.points.Add(new ZUIEnvelopePoint(0f, v.y));
+            Renormalize();
+        }
+
+        public override void RemovePoint(int i)
+        {
+            _x.points.RemoveAt(i);
+            _y.points.RemoveAt(i);
+            Renormalize();
+        }
+
+        public override void PinRange(float xMin, float xMax, float yMin, float yMax)
+        {
+            _x.yMin = xMin; _x.yMax = xMax;
+            _y.yMin = yMin; _y.yMax = yMax;
+        }
+
+        // Point order IS time order — re-deriving `time` from index keeps points evenly spaced
+        // across the lifetime with no separate per-point timing to author.
+        void Renormalize()
+        {
+            int n = PointCount;
+            for (int i = 0; i < n; i++)
+            {
+                float tm = n > 1 ? i / (float)(n - 1) : 0f;
+                _x.points[i].time = tm;
+                _y.points[i].time = tm;
+            }
+        }
+
+        void EnsurePaired(Vector2 fallback)
+        {
+            if (_x.points.Count > 0 && _x.points.Count == _y.points.Count) return;
+            Vector2 s = new Vector2(_x.staticValue, _y.staticValue);
+            if (s == Vector2.zero) s = fallback;
+            _x.points.Clear(); _y.points.Clear();
+            _x.points.Add(new ZUIEnvelopePoint(0f, s.x));
+            _y.points.Add(new ZUIEnvelopePoint(0f, s.y));
+            _x.points.Add(new ZUIEnvelopePoint(1f, s.x));
+            _y.points.Add(new ZUIEnvelopePoint(1f, s.y));
+        }
+
+        // Same prefix + JSON shape as the IMGUI ZUIValue2DControl — the two halves' clipboards interoperate.
+        [Serializable]
+        class ClipboardPair { public ZUIValue x = new ZUIValue(); public ZUIValue y = new ZUIValue(); }
+        const string Prefix = "ZUIVALUE2:";
+
+        public override string ToClipboard()
+            => Prefix + JsonUtility.ToJson(new ClipboardPair { x = _x, y = _y });
+
+        public override bool TryPaste(string s)
+        {
+            if (string.IsNullOrEmpty(s) || !s.StartsWith(Prefix)) return false;
+            try
+            {
+                var pair = JsonUtility.FromJson<ClipboardPair>(s.Substring(Prefix.Length));
+                if (pair == null) return false;
+                _x.CopyFrom(pair.x); _y.CopyFrom(pair.y);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        public static bool CanPaste(string s) => !string.IsNullOrEmpty(s) && s.StartsWith(Prefix);
+    }
+
+    /// The non-animatable source: a plain Vector2 behind a get/set pair (Pyre's blast origin, a
+    /// MetaBlob orb position). Never offers Curve mode.
+    public class ZuiVector2Source : Zui2DSource
+    {
+        readonly Func<Vector2> _get;
+        readonly Action<Vector2> _set;
+        public ZuiVector2Source(Func<Vector2> get, Action<Vector2> set) { _get = get; _set = set; }
+
+        public override bool SupportsAnimation => false;
+        public override bool IsCurve => false;
+        public override void SetCurve(bool on, Vector2 fallback) { }
+        public override Vector2 Static { get => _get(); set => _set(value); }
+        public override int PointCount => 0;
+        public override Vector2 GetPoint(int i) => Vector2.zero;
+        public override void SetPoint(int i, Vector2 v) { }
+        public override void AddPoint(Vector2 v) { }
+        public override void RemovePoint(int i) { }
+    }
+
     public class ZuiValue2DControl : VisualElement
     {
         public class Options
@@ -25,6 +167,10 @@ namespace Laubrary.Zui
             public bool showValueText = false;       // small "(x, y)" beside the dot (Static mode)
             public bool showNumericInputs = true;    // compact numeric X/Y block (Static mode)
             public bool stackInputsVertically = false;   // code-only layout call, not a menu item
+            public bool startExpanded = false;       // first-open state (per control instance key)
+            public bool showSidePanel = true;        // the label / Reset / ⋯ column left of the plot
+            /// Extra content appended into the side panel under the label (e.g. Pyre's origin α slider).
+            public Func<VisualElement> sidePanelExtra = null;
 
             public Options WithRange(float xLo, float xHi, float yLo, float yHi)
             { xMin = xLo; xMax = xHi; yMin = yLo; yMax = yHi; return this; }
@@ -33,6 +179,9 @@ namespace Laubrary.Zui
             public Options WithValueDisplay(bool showText, bool showInputs)
             { showValueText = showText; showNumericInputs = showInputs; return this; }
             public Options WithVerticalStack(bool vertical = true) { stackInputsVertically = vertical; return this; }
+            public Options Expanded(bool on = true) { startExpanded = on; return this; }
+            public Options WithoutSidePanel() { showSidePanel = false; return this; }
+            public Options WithSidePanelExtra(Func<VisualElement> extra) { sidePanelExtra = extra; return this; }
         }
 
         static readonly Color PointColor = new Color(0.4f, 0.85f, 1f);
@@ -41,17 +190,18 @@ namespace Laubrary.Zui
         const float SidePanelWidth = 108f;
         const float NumericFieldWidth = 78f;
 
-        // Fold + per-control display overrides, keyed by the X value so they survive window rebuilds
-        // (undo/redo) — the same session-state trick as the IMGUI control and ZuiValueControl.
-        class FoldState { public bool expanded; public bool? showValueTextOverride; public bool? showNumericInputsOverride; }
-        static readonly Dictionary<ZUIValue, FoldState> s_fold = new();
-        static FoldState GetFold(ZUIValue x)
+        // Fold + per-control display overrides, keyed by the source's identity object so they survive
+        // window rebuilds (undo/redo) — same session-state trick as ZuiValueControl.
+        class FoldState { public bool expanded; public bool? showValueTextOverride; public bool? showNumericInputsOverride; public bool seeded; }
+        static readonly Dictionary<object, FoldState> s_fold = new();
+        static FoldState GetFold(object key)
         {
-            if (!s_fold.TryGetValue(x, out var st)) { st = new FoldState(); s_fold[x] = st; }
+            if (!s_fold.TryGetValue(key, out var st)) { st = new FoldState(); s_fold[key] = st; }
             return st;
         }
 
-        readonly ZUIValue _x, _y;
+        readonly Zui2DSource _src;
+        readonly object _key;
         readonly Options _opt;
         readonly string _label;
         readonly string _tooltip;
@@ -59,14 +209,23 @@ namespace Laubrary.Zui
         public Action OnBeforeMutate;
         public Action OnChanged;
 
+        /// Animatable XY pair.
         public ZuiValue2DControl(string label, ZUIValue x, ZUIValue y, Options options, string tooltip)
+            : this(label, new ZuiValuePairSource(x, y), x, options, tooltip) { }
+
+        /// Any source. `stateKey` identifies this control for fold/display state across rebuilds —
+        /// pass a stable object (the edited data instance).
+        public ZuiValue2DControl(string label, Zui2DSource source, object stateKey, Options options, string tooltip)
         {
-            _x = x ?? throw new ArgumentNullException(nameof(x));
-            _y = y ?? throw new ArgumentNullException(nameof(y));
+            _src = source ?? throw new ArgumentNullException(nameof(source));
+            _key = stateKey ?? source;
             _opt = options ?? new Options();
             _label = label;
             _tooltip = tooltip;
             this.tooltip = tooltip;
+
+            var fold = GetFold(_key);
+            if (!fold.seeded) { fold.seeded = true; fold.expanded = _opt.startExpanded; }
             Build();
         }
 
@@ -75,91 +234,101 @@ namespace Laubrary.Zui
         void Build()
         {
             Clear();
-            var fold = GetFold(_x);
+            var fold = GetFold(_key);
             if (fold.expanded) BuildExpanded(fold); else BuildCollapsed(fold);
         }
 
-        // ── collapsed: label · mini thumbnail · caret · ⋯ ───────────────────────────
+        Button MenuButton() => Z.Button("⋯",
+            (_src.SupportsAnimation ? "Static point, or animate over time; " : "") +
+            "value display; reset" + (_src.ToClipboard() != null ? "; copy/paste." : "."), ShowMenu).W(24f);
+
+        // ── collapsed: label · mini thumbnail · ⋯ ───────────────────────────────────
         void BuildCollapsed(FoldState fold)
         {
             var row = new VisualElement();
             row.AddToClassList("zui-row");
             if (!string.IsNullOrEmpty(_label))
             {
-                var l = new Label(_label) { tooltip = _tooltip };
+                var l = new Label(_label)
+                {
+                    tooltip = (_tooltip + " ").TrimStart() + "Click to expand the 2D editor.",
+                };
                 l.AddToClassList("zui-field__label");
+                l.AddToClassList("zui-fold-label");
+                l.RegisterCallback<PointerDownEvent>(e =>
+                {
+                    if (e.button != 0) return;
+                    fold.expanded = true; Build(); e.StopPropagation();
+                });
                 row.Add(l);
             }
-            var thumb = new Plot2D(this, thumbnail: true)
-            { tooltip = "Click to expand the 2D editor." };
+            var thumb = new Plot2D(this, thumbnail: true) { tooltip = "Click to expand the 2D editor." };
             thumb.style.width = 120f;
             thumb.style.height = 18f;
             thumb.RegisterCallback<PointerDownEvent>(e =>
             {
                 if (e.button != 0) return;
-                fold.expanded = true;
-                Build();
-                e.StopPropagation();
+                fold.expanded = true; Build(); e.StopPropagation();
             });
             row.Add(thumb);
-            row.Add(Z.Text("▶", ZuiText.Small, "2D editor fold state."));
-            row.Add(Z.Button("⋯", "Static point, or animate over time; value display; copy/paste.", ShowMenu).W(24f));
+            row.Add(MenuButton());
             Add(row);
         }
 
         // ── expanded: side panel · (numeric block) · plot ───────────────────────────
         void BuildExpanded(FoldState fold)
         {
-            bool isCurve = _x.mode == ZUIValue.Mode.Curve;
+            bool isCurve = _src.IsCurve;
             bool showInputs = !isCurve && (fold.showNumericInputsOverride ?? _opt.showNumericInputs);
-            if (isCurve) EnsurePairedCurveDefaults();
+            if (isCurve) _src.PinRange(_opt.xMin, _opt.xMax, _opt.yMin, _opt.yMax);
 
             var row = new VisualElement();
             row.AddToClassList("zui-row");
             row.style.alignItems = Align.FlexStart;
 
-            // side panel
-            var side = new VisualElement();
-            side.style.width = SidePanelWidth;
-            side.style.flexShrink = 0f;
-            side.style.height = _opt.plotSize;
-            var title = new Label(_label) { tooltip = _tooltip };
-            title.AddToClassList("zui-box__title");
-            side.Add(title);
-            if (isCurve)
+            if (_opt.showSidePanel)
             {
-                side.Add(Z.Text($"{_x.points.Count} point(s)", ZuiText.Small, "How many path points the animation has."));
-                var hint = Z.Text("Click empty space to add, drag to move, right-click to remove (min 2).",
-                    ZuiText.Subtle, "Path editing hints.");
-                hint.style.whiteSpace = WhiteSpace.Normal;
-                side.Add(hint);
-            }
-            side.Add(Z.Button("Reset", "Reset the value to this field's default.", () =>
-            {
-                Vector2 d = _opt.staticDefault ?? Vector2.zero;
-                Mutate(() =>
+                var side = new VisualElement();
+                side.style.width = SidePanelWidth;
+                side.style.flexShrink = 0f;
+                side.style.minHeight = _opt.plotSize;
+
+                var title = new Label(_label ?? "")
                 {
-                    if (_x.mode == ZUIValue.Mode.Curve)
-                    {
-                        _x.points.Clear(); _y.points.Clear();
-                        _x.points.Add(new ZUIEnvelopePoint(0f, d.x));
-                        _y.points.Add(new ZUIEnvelopePoint(0f, d.y));
-                        _x.points.Add(new ZUIEnvelopePoint(1f, d.x));
-                        _y.points.Add(new ZUIEnvelopePoint(1f, d.y));
-                    }
-                    else { _x.staticValue = d.x; _y.staticValue = d.y; }
+                    tooltip = (_tooltip + " ").TrimStart() + "Click to collapse the 2D editor.",
+                };
+                title.AddToClassList("zui-box__title");
+                title.AddToClassList("zui-fold-label");
+                title.RegisterCallback<PointerDownEvent>(e =>
+                {
+                    if (e.button != 0) return;
+                    fold.expanded = false; Build(); e.StopPropagation();
                 });
-                Build();
-            }));
-            side.Add(Z.Flexible());
-            side.Add(Z.Row(
-                Z.Button("⋯", "Static point, or animate over time; value display; copy/paste.", ShowMenu).W(24f),
-                Z.Button("▲", "Collapse the 2D editor back to its one-line thumbnail.", () =>
+                side.Add(title);
+
+                if (_opt.sidePanelExtra != null)
                 {
-                    GetFold(_x).expanded = false;
-                    Build();
-                }).W(22f)));
-            row.Add(side);
+                    var extra = _opt.sidePanelExtra();
+                    if (extra != null) side.Add(extra);
+                }
+
+                if (isCurve)
+                {
+                    side.Add(Z.Text($"{_src.PointCount} point(s)", ZuiText.Small, "How many path points the animation has."));
+                    var hint = Z.Text("Click empty space to add, drag to move, right-click to remove (min 2).",
+                        ZuiText.Subtle, "Path editing hints.");
+                    hint.style.whiteSpace = WhiteSpace.Normal;
+                    side.Add(hint);
+                }
+                side.Add(Z.Button("Reset", "Reset this value to its default.", ResetToDefault));
+                // No flexible spacer before these: the side panel stretches to whatever the numeric
+                // block/plot beside it is tall, which left the buttons floating far below the rest of
+                // the column (reported 2026-07-23). A tight column reads as one group.
+                side.Add(Z.Row(MenuButton(),
+                    Z.Button("▲", "Collapse the 2D editor back to its one-line thumbnail.",
+                        () => { fold.expanded = false; Build(); }).W(22f)));
+                row.Add(side);
+            }
 
             var plot = new Plot2D(this, thumbnail: false) { tooltip = _tooltip };
             plot.style.width = _opt.plotSize;
@@ -179,7 +348,24 @@ namespace Laubrary.Zui
             }
             else row.Add(plot);
 
+            if (!_opt.showSidePanel) row.Add(MenuButton());
             Add(row);
+        }
+
+        void ResetToDefault()
+        {
+            Vector2 d = _opt.staticDefault ?? Vector2.zero;
+            Mutate(() =>
+            {
+                if (_src.IsCurve)
+                {
+                    while (_src.PointCount > 0) _src.RemovePoint(_src.PointCount - 1);
+                    _src.AddPoint(d);
+                    _src.AddPoint(d);
+                }
+                else _src.Static = d;
+            });
+            Build();
         }
 
         VisualElement BuildNumericBlock(Plot2D plot)
@@ -188,113 +374,90 @@ namespace Laubrary.Zui
             col.style.width = NumericFieldWidth + 4f;
             col.style.flexShrink = 0f;
             col.Add(Z.Text("Y", ZuiText.Small, "The Y component."));
-            var yField = Z.Float(_y.staticValue, "The Y component.", v =>
+            var yField = Z.Float(_src.Static.y, "The Y component.", v =>
             {
-                Mutate(() => _y.staticValue = v);
+                Mutate(() => _src.Static = new Vector2(_src.Static.x, v));
                 plot.MarkDirtyRepaint();
             }, NumericFieldWidth);
             col.Add(yField);
             col.Add(Z.VSpace(4f));
             col.Add(Z.Text("X", ZuiText.Small, "The X component."));
-            var xField = Z.Float(_x.staticValue, "The X component.", v =>
+            var xField = Z.Float(_src.Static.x, "The X component.", v =>
             {
-                Mutate(() => _x.staticValue = v);
+                Mutate(() => _src.Static = new Vector2(v, _src.Static.y));
                 plot.MarkDirtyRepaint();
             }, NumericFieldWidth);
             col.Add(xField);
             plot.OnPlotEdited += () =>
             {
-                xField.SetValueWithoutNotify(_x.staticValue);
-                yField.SetValueWithoutNotify(_y.staticValue);
+                var s = _src.Static;
+                xField.SetValueWithoutNotify(s.x);
+                yField.SetValueWithoutNotify(s.y);
             };
             return col;
-        }
-
-        // ── data helpers (identical semantics to the IMGUI control) ─────────────────
-        void EnsurePairedCurveDefaults()
-        {
-            _x.yMin = _opt.xMin; _x.yMax = _opt.xMax;
-            _y.yMin = _opt.yMin; _y.yMax = _opt.yMax;
-            if (_x.points.Count == 0 || _x.points.Count != _y.points.Count)
-            {
-                float sx = _x.staticValue, sy = _y.staticValue;
-                _x.points.Clear(); _y.points.Clear();
-                _x.points.Add(new ZUIEnvelopePoint(0f, sx));
-                _y.points.Add(new ZUIEnvelopePoint(0f, sy));
-                _x.points.Add(new ZUIEnvelopePoint(1f, sx));
-                _y.points.Add(new ZUIEnvelopePoint(1f, sy));
-            }
-        }
-
-        void RenormalizeTimes()
-        {
-            int n = _x.points.Count;
-            for (int i = 0; i < n; i++)
-            {
-                float tm = n > 1 ? i / (float)(n - 1) : 0f;
-                _x.points[i].time = tm;
-                _y.points[i].time = tm;
-            }
         }
 
         // ── the ⋯ menu ──────────────────────────────────────────────────────────────
         void ShowMenu()
         {
-            var fold = GetFold(_x);
+            var fold = GetFold(_key);
             var menu = new GenericMenu();
-            bool isCurve = _x.mode == ZUIValue.Mode.Curve;
-            menu.AddItem(new GUIContent("Static (one point)"), !isCurve, () =>
-            {
-                Mutate(() => { _x.mode = ZUIValue.Mode.Static; _y.mode = ZUIValue.Mode.Static; });
-                Build();
-            });
-            menu.AddItem(new GUIContent("Animate over time (a path)"), isCurve, () =>
-            {
-                Mutate(() =>
-                {
-                    _x.mode = ZUIValue.Mode.Curve; _y.mode = ZUIValue.Mode.Curve;
-                    EnsurePairedCurveDefaults();
-                });
-                Build();
-            });
 
-            menu.AddSeparator("");
-            bool showText = fold.showValueTextOverride ?? _opt.showValueText;
-            bool showInputs = fold.showNumericInputsOverride ?? _opt.showNumericInputs;
-            menu.AddItem(new GUIContent("Show value as text"), showText,
-                () => { fold.showValueTextOverride = !showText; Build(); });
-            menu.AddItem(new GUIContent("Show value as numeric inputs"), showInputs,
-                () => { fold.showNumericInputsOverride = !showInputs; Build(); });
-
-            menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Copy value"), false,
-                () => EditorGUIUtility.systemCopyBuffer = PairToClipboardString(_x, _y));
-            if (TryPairFromClipboardString(EditorGUIUtility.systemCopyBuffer, out _))
-                menu.AddItem(new GUIContent("Paste value"), false, () =>
+            if (_src.SupportsAnimation)
+            {
+                bool isCurve = _src.IsCurve;
+                menu.AddItem(new GUIContent("Static (one point)"), !isCurve, () =>
                 {
-                    if (TryPairFromClipboardString(EditorGUIUtility.systemCopyBuffer, out var pair))
-                        Mutate(() => { _x.CopyFrom(pair.x); _y.CopyFrom(pair.y); });
+                    Mutate(() => _src.SetCurve(false, _opt.staticDefault ?? Vector2.zero));
+                    fold.expanded = true;
                     Build();
                 });
-            else
-                menu.AddDisabledItem(new GUIContent("Paste value"));
+                menu.AddItem(new GUIContent("Animate over time (a path)"), isCurve, () =>
+                {
+                    Mutate(() => _src.SetCurve(true, _opt.staticDefault ?? Vector2.zero));
+                    fold.expanded = true;
+                    Build();
+                });
+                menu.AddSeparator("");
+            }
+
+            // Display options only affect the EXPANDED static view, so toggling one also expands —
+            // otherwise the menu item silently appears to do nothing (reported 2026-07-23).
+            bool showText = fold.showValueTextOverride ?? _opt.showValueText;
+            bool showInputs = fold.showNumericInputsOverride ?? _opt.showNumericInputs;
+            menu.AddItem(new GUIContent("Show value as text"), showText, () =>
+            {
+                fold.showValueTextOverride = !showText;
+                fold.expanded = true;
+                Build();
+            });
+            menu.AddItem(new GUIContent("Show value as numeric inputs"), showInputs, () =>
+            {
+                fold.showNumericInputsOverride = !showInputs;
+                fold.expanded = true;
+                Build();
+            });
+
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent("Reset to default"), false, ResetToDefault);
+
+            string payload = _src.ToClipboard();
+            if (payload != null)
+            {
+                menu.AddSeparator("");
+                menu.AddItem(new GUIContent("Copy value"), false,
+                    () => EditorGUIUtility.systemCopyBuffer = payload);
+                if (ZuiValuePairSource.CanPaste(EditorGUIUtility.systemCopyBuffer))
+                    menu.AddItem(new GUIContent("Paste value"), false, () =>
+                    {
+                        Mutate(() => _src.TryPaste(EditorGUIUtility.systemCopyBuffer));
+                        Build();
+                    });
+                else
+                    menu.AddDisabledItem(new GUIContent("Paste value"));
+            }
 
             menu.ShowAsContext();
-        }
-
-        // Same prefix + JSON shape as the IMGUI ZUIValue2DControl — the two halves' clipboards interoperate.
-        [Serializable]
-        class ClipboardPair { public ZUIValue x = new ZUIValue(); public ZUIValue y = new ZUIValue(); }
-        const string PairClipboardPrefix = "ZUIVALUE2:";
-
-        static string PairToClipboardString(ZUIValue x, ZUIValue y)
-            => PairClipboardPrefix + JsonUtility.ToJson(new ClipboardPair { x = x, y = y });
-
-        static bool TryPairFromClipboardString(string s, out ClipboardPair pair)
-        {
-            if (string.IsNullOrEmpty(s) || !s.StartsWith(PairClipboardPrefix)) { pair = null; return false; }
-            try { pair = JsonUtility.FromJson<ClipboardPair>(s.Substring(PairClipboardPrefix.Length)); return pair != null; }
-            catch { pair = null; return false; }
         }
 
         // ── the plot element (shared by thumbnail + full plot) ──────────────────────
@@ -321,8 +484,7 @@ namespace Laubrary.Zui
                 }
             }
 
-            bool IsCurve => c._x.mode == ZUIValue.Mode.Curve
-                && c._x.points.Count > 0 && c._x.points.Count == c._y.points.Count;
+            bool IsCurve => c._src.IsCurve;
 
             Vector2 ToPlot(Vector2 val)
             {
@@ -348,7 +510,6 @@ namespace Laubrary.Zui
                 if (!(r.width > 4f) || !(r.height > 4f)) return;
                 var p = mgc.painter2D;
 
-                // zero-axis crosshairs
                 p.strokeColor = new Color(1f, 1f, 1f, 0.25f);
                 p.lineWidth = 1f;
                 if (c._opt.xMin < 0f && c._opt.xMax > 0f)
@@ -365,20 +526,19 @@ namespace Laubrary.Zui
                 float dotR = thumb ? 2.5f : 5f;
                 if (IsCurve)
                 {
-                    int n = c._x.points.Count;
+                    int n = c._src.PointCount;
                     if (n >= 2)
                     {
                         p.strokeColor = LineColor;
                         p.lineWidth = thumb ? 1f : 1.5f;
                         p.BeginPath();
-                        p.MoveTo(ToPlot(new Vector2(c._x.points[0].value, c._y.points[0].value)));
-                        for (int i = 1; i < n; i++)
-                            p.LineTo(ToPlot(new Vector2(c._x.points[i].value, c._y.points[i].value)));
+                        p.MoveTo(ToPlot(c._src.GetPoint(0)));
+                        for (int i = 1; i < n; i++) p.LineTo(ToPlot(c._src.GetPoint(i)));
                         p.Stroke();
                     }
                     for (int i = 0; i < n; i++)
                     {
-                        Vector2 pt = ToPlot(new Vector2(c._x.points[i].value, c._y.points[i].value));
+                        Vector2 pt = ToPlot(c._src.GetPoint(i));
                         p.fillColor = PointColor;
                         p.BeginPath(); p.Arc(pt, dotR, 0f, 360f); p.Fill();
                         if (!thumb)
@@ -387,30 +547,30 @@ namespace Laubrary.Zui
                 }
                 else
                 {
-                    Vector2 pt = ToPlot(new Vector2(c._x.staticValue, c._y.staticValue));
+                    Vector2 s = c._src.Static;
+                    Vector2 pt = ToPlot(s);
                     p.fillColor = PointColor;
                     p.BeginPath(); p.Arc(pt, dotR + (thumb ? 0.5f : 0f), 0f, 360f); p.Fill();
 
-                    var fold = GetFold(c._x);
+                    var fold = GetFold(c._key);
                     bool showText = fold.showValueTextOverride ?? c._opt.showValueText;
                     if (!thumb && showText)
-                        mgc.DrawText($"({c._x.staticValue:0.##}, {c._y.staticValue:0.##})",
-                            new Vector2(pt.x + 7f, pt.y - 14f), 10f, new Color(1f, 1f, 1f, 0.85f));
+                    {
+                        string txt = $"({s.x:0.##}, {s.y:0.##})";
+                        bool rightHalf = pt.x > r.xMin + r.width * 0.6f;
+                        var tp = rightHalf ? new Vector2(pt.x - 7f - txt.Length * 5.5f, pt.y - 14f)
+                                           : new Vector2(pt.x + 7f, pt.y - 14f);
+                        mgc.DrawText(txt, tp, 10f, new Color(1f, 1f, 1f, 0.85f));
+                    }
                 }
             }
 
             int FindPointNear(Vector2 local)
             {
                 if (!IsCurve)
-                {
-                    Vector2 pt = ToPlot(new Vector2(c._x.staticValue, c._y.staticValue));
-                    return Vector2.Distance(pt, local) <= HitRadius ? 0 : -1;
-                }
-                for (int i = 0; i < c._x.points.Count; i++)
-                {
-                    Vector2 pt = ToPlot(new Vector2(c._x.points[i].value, c._y.points[i].value));
-                    if (Vector2.Distance(pt, local) <= HitRadius) return i;
-                }
+                    return Vector2.Distance(ToPlot(c._src.Static), local) <= HitRadius ? 0 : -1;
+                for (int i = 0; i < c._src.PointCount; i++)
+                    if (Vector2.Distance(ToPlot(c._src.GetPoint(i)), local) <= HitRadius) return i;
                 return -1;
             }
 
@@ -420,15 +580,10 @@ namespace Laubrary.Zui
 
                 if (e.button == 1)
                 {
-                    if (!IsCurve || c._x.points.Count <= 2) return;
+                    if (!IsCurve || c._src.PointCount <= 2) return;
                     int hit = FindPointNear(local);
                     if (hit < 0) return;
-                    c.Mutate(() =>
-                    {
-                        c._x.points.RemoveAt(hit);
-                        c._y.points.RemoveAt(hit);
-                        c.RenormalizeTimes();
-                    });
+                    c.Mutate(() => c._src.RemovePoint(hit));
                     MarkDirtyRepaint();
                     OnPlotEdited?.Invoke();
                     e.StopPropagation();
@@ -449,13 +604,19 @@ namespace Laubrary.Zui
                 if (IsCurve)   // click empty plot space appends a new point there (curve mode only)
                 {
                     Vector2 val = FromPlot(local);
-                    c.Mutate(() =>
-                    {
-                        c._x.points.Add(new ZUIEnvelopePoint(0f, val.x));
-                        c._y.points.Add(new ZUIEnvelopePoint(0f, val.y));
-                        c.RenormalizeTimes();
-                    });
-                    _dragIndex = c._x.points.Count - 1;
+                    c.Mutate(() => c._src.AddPoint(val));
+                    _dragIndex = c._src.PointCount - 1;
+                    this.CapturePointer(e.pointerId);
+                    MarkDirtyRepaint();
+                    OnPlotEdited?.Invoke();
+                    e.StopPropagation();
+                }
+                else   // static: clicking anywhere moves the dot straight there, then keeps dragging
+                {
+                    c.OnBeforeMutate?.Invoke();
+                    _dragIndex = 0;
+                    c._src.Static = FromPlot(local);
+                    c.OnChanged?.Invoke();
                     this.CapturePointer(e.pointerId);
                     MarkDirtyRepaint();
                     OnPlotEdited?.Invoke();
@@ -467,16 +628,8 @@ namespace Laubrary.Zui
             {
                 if (_dragIndex < 0 || !this.HasPointerCapture(e.pointerId)) return;
                 Vector2 val = FromPlot(e.localPosition);
-                if (IsCurve && _dragIndex < c._x.points.Count)
-                {
-                    c._x.points[_dragIndex].value = val.x;
-                    c._y.points[_dragIndex].value = val.y;
-                }
-                else
-                {
-                    c._x.staticValue = val.x;
-                    c._y.staticValue = val.y;
-                }
+                if (IsCurve && _dragIndex < c._src.PointCount) c._src.SetPoint(_dragIndex, val);
+                else c._src.Static = val;
                 c.OnChanged?.Invoke();
                 MarkDirtyRepaint();
                 OnPlotEdited?.Invoke();

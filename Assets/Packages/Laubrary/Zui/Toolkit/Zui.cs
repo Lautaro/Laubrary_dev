@@ -174,12 +174,14 @@ namespace Laubrary.Zui
             return t;
         }
 
-        /// Slider with an inline numeric input. Values are rounded to 5 decimals at the source so
-        /// float noise from drag interpolation never reaches the display or the stored value.
+        /// Slider with an inline numeric input (pass showInput:false for a bare track — for values
+        /// whose exact number doesn't matter, e.g. a preview-only opacity). Values are rounded to 5
+        /// decimals at the source so float noise from drag interpolation never reaches the display
+        /// or the stored value.
         public static Slider Slider(float value, float min, float max, string tooltip,
-            Action<float> onChanged, float width = 170f)
+            Action<float> onChanged, float width = 170f, bool showInput = true)
         {
-            var s = new Slider(min, max) { value = value, tooltip = tooltip, showInputField = true };
+            var s = new Slider(min, max) { value = value, tooltip = tooltip, showInputField = showInput };
             s.style.width = width;
             s.RegisterValueChangedCallback(e =>
             {
@@ -437,6 +439,19 @@ namespace Laubrary.Zui
             ZuiValue2DControl.Options options, string tooltip, Action onChanged, Action onBeforeMutate = null)
         {
             var c = new ZuiValue2DControl(label, x, y, options, tooltip);
+            if (onChanged != null) c.OnChanged += onChanged;
+            if (onBeforeMutate != null) c.OnBeforeMutate += onBeforeMutate;
+            return c;
+        }
+
+        /// The SAME 2D control over a PLAIN Vector2 (no animation, no mode switch) — for values that
+        /// must never animate (a pivot, an authored placement). `stateKey` should be the edited data
+        /// instance so fold/display state survives window rebuilds.
+        public static ZuiValue2DControl Vector2Field(string label, Func<Vector2> get, Action<Vector2> set,
+            object stateKey, ZuiValue2DControl.Options options, string tooltip,
+            Action onChanged, Action onBeforeMutate = null)
+        {
+            var c = new ZuiValue2DControl(label, new ZuiVector2Source(get, set), stateKey, options, tooltip);
             if (onChanged != null) c.OnChanged += onChanged;
             if (onBeforeMutate != null) c.OnBeforeMutate += onBeforeMutate;
             return c;

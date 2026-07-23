@@ -105,6 +105,11 @@
     -unity-text-align: middle-left;
 }
 
+/* A label that folds/unfolds its control when clicked (envelope headers). */
+.zui-fold-label:hover {
+    color: var(--zui-accent);
+}
+
 /* Controls --------------------------------------------------------------- */
 
 .zui-radio {

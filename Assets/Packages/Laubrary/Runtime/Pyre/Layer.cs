@@ -10,11 +10,74 @@ namespace Laubrary.Pyre
     public class MetaOrb
     {
         public Vector2 pos;
-        public float radius = 12f;
         [Range(0f, 1f)] public float birth = 0f;
         [Range(0.02f, 1f)] public float life = 0.8f;
 
-        public MetaOrb Clone() => new MetaOrb { pos = pos, radius = radius, birth = birth, life = life };
+        // Radius became an animatable ZUIValue (2026-07-23) so an orb can pulse/grow over its OWN
+        // life. Migration: `radius` is the legacy scalar every already-authored BlastSpec still
+        // serializes; `radiusValue` only becomes authoritative once `radiusUpgraded` is set, which
+        // Radius does lazily on first access (seeded from the legacy scalar, so nothing shifts
+        // visually). Unity never leaves a [Serializable]-class field null after deserialization, so
+        // an explicit flag — not a null check — is what tells the two apart.
+        [SerializeField] float radius = 12f;
+        [SerializeField] ZUIValue radiusValue = new ZUIValue(12f);
+        [SerializeField] bool radiusUpgraded;
+
+        /// This orb's radius in canvas pixels, evaluated over its own life (Static by default).
+        public ZUIValue Radius
+        {
+            get
+            {
+                if (!radiusUpgraded)
+                {
+                    radiusValue = new ZUIValue(radius);
+                    radiusUpgraded = true;
+                }
+                return radiusValue;
+            }
+        }
+
+        /// The radius as a plain number — the Static value, or the curve sampled at `t` (0..1 of
+        /// this orb's own life). Editor gizmos that need one number use t = 0.
+        public float RadiusAt(float t)
+        {
+            var v = Radius;
+            return v.mode == ZUIValue.Mode.Curve
+                ? ZUIEnvelopeEvaluator.Evaluate(v.points, Mathf.Clamp01(t), v.yMax)
+                : v.staticValue;
+        }
+
+        /// True while the radius is a single fixed number (so an editor may offer a drag handle for it).
+        public bool RadiusIsStatic => Radius.mode == ZUIValue.Mode.Static;
+
+        /// Set a plain radius (the common editor path: a drag handle, a Static-mode edit).
+        public void SetStaticRadius(float r)
+        {
+            var v = Radius;
+            v.mode = ZUIValue.Mode.Static;
+            v.staticValue = r;
+            radius = r;   // keep the legacy scalar in step so older readers stay sane
+        }
+
+        public MetaOrb() { }
+
+        public MetaOrb(Vector2 pos, float radius, float birth, float life)
+        {
+            this.pos = pos;
+            this.birth = birth;
+            this.life = life;
+            this.radius = radius;
+            radiusValue = new ZUIValue(radius);
+            radiusUpgraded = true;
+        }
+
+        public MetaOrb Clone()
+        {
+            var c = new MetaOrb { pos = pos, birth = birth, life = life, radius = radius, radiusUpgraded = true };
+            c.radiusValue = new ZUIValue();
+            c.radiusValue.CopyFrom(Radius);
+            return c;
+        }
     }
 
     /// One ring of a Rosing-scatter layer: Count shapes evenly placed around this ring's own Radius (0..1, same
@@ -387,9 +450,9 @@ namespace Laubrary.Pyre
                     l.colorOverLife = WhiteHotGradient();   // fire: white-hot core → dark edge across the field
                     l.metaOrbs = new List<MetaOrb>
                     {
-                        new MetaOrb { pos = new Vector2(-8f, 0f), radius = 16f, birth = 0f,    life = 1f },
-                        new MetaOrb { pos = new Vector2( 9f, 3f), radius = 14f, birth = 0.15f, life = 0.85f },
-                        new MetaOrb { pos = new Vector2( 0f,-9f), radius = 12f, birth = 0.3f,  life = 0.7f },
+                        new MetaOrb(new Vector2(-8f, 0f), 16f, 0f,    1f),
+                        new MetaOrb(new Vector2( 9f, 3f), 14f, 0.15f, 0.85f),
+                        new MetaOrb(new Vector2( 0f,-9f), 12f, 0.3f,  0.7f),
                     };
                     break;
             }

@@ -526,7 +526,7 @@ namespace Laubrary.Pyre.Editor
                     float oy = (ctr.y - e.mousePosition.y) / Mathf.Max(0.01f, zoom);
                     float birth = Mathf.Clamp01(l.metaOrbs.Count * l.metaSpawnInterval);
                     Undo.RecordObject(spec, "Place MetaBlob orb");
-                    l.metaOrbs.Add(new MetaOrb { pos = new Vector2(ox, oy), radius = 12f, birth = birth, life = Mathf.Clamp(1f - birth, 0.25f, 1f) });
+                    l.metaOrbs.Add(new MetaOrb(new Vector2(ox, oy), 12f, birth, Mathf.Clamp(1f - birth, 0.25f, 1f)));
                     metaSel = l.metaOrbs.Count - 1;
                     EditorUtility.SetDirty(spec); e.Use();
                     EditorApplication.delayCall += RebuildLeft;   // the orb list in the left pane changed
@@ -534,14 +534,42 @@ namespace Laubrary.Pyre.Editor
                 return;
             }
 
+            // A click near an orb's RING (rather than its centre) grabs a radius handle instead of the
+            // orb — only while that orb's radius is a plain Static number, since dragging one number
+            // can't meaningfully edit a curve. Centre-grab wins wherever the two zones overlap.
             if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
+            {
                 for (int i = l.metaOrbs.Count - 1; i >= 0; i--)
                 {
                     var o = l.metaOrbs[i];
                     Vector2 mp = new Vector2(ctr.x + o.pos.x * zoom, ctr.y - o.pos.y * zoom);
                     if ((mp - e.mousePosition).sqrMagnitude <= 100f)
-                    { Undo.RecordObject(spec, "Move MetaBlob orb"); metaSel = i; draggingMetaOrb = true; e.Use(); break; }
+                    { Undo.RecordObject(spec, "Move MetaBlob orb"); metaSel = i; draggingMetaOrb = true; e.Use(); return; }
                 }
+                for (int i = l.metaOrbs.Count - 1; i >= 0; i--)
+                {
+                    var o = l.metaOrbs[i];
+                    if (!o.RadiusIsStatic) continue;
+                    Vector2 mp = new Vector2(ctr.x + o.pos.x * zoom, ctr.y - o.pos.y * zoom);
+                    float ringPx = o.RadiusAt(0f) * zoom;
+                    float dist = (mp - e.mousePosition).magnitude;
+                    if (Mathf.Abs(dist - ringPx) <= Mathf.Max(5f, 3f * zoom * 0.5f))
+                    { Undo.RecordObject(spec, "Resize MetaBlob orb"); metaSel = i; draggingMetaRadius = true; e.Use(); return; }
+                }
+            }
+            if (draggingMetaRadius && metaSel >= 0 && metaSel < l.metaOrbs.Count)
+            {
+                var o = l.metaOrbs[metaSel];
+                if (e.type == EventType.MouseDrag)
+                {
+                    Vector2 mp = new Vector2(ctr.x + o.pos.x * zoom, ctr.y - o.pos.y * zoom);
+                    float r = (mp - e.mousePosition).magnitude / Mathf.Max(0.01f, zoom);
+                    o.SetStaticRadius(Mathf.Clamp(r, 1f, spec.canvasSize));
+                    EditorUtility.SetDirty(spec); previewContainer.MarkDirtyRepaint(); e.Use();
+                }
+                if (e.type == EventType.MouseUp) { draggingMetaRadius = false; e.Use(); EditorApplication.delayCall += RebuildLeft; }
+                return;
+            }
             if (draggingMetaOrb && metaSel >= 0 && metaSel < l.metaOrbs.Count)
             {
                 if (e.type == EventType.MouseDrag)
@@ -769,6 +797,10 @@ namespace Laubrary.Pyre.Editor
             Vector2 ctr = FrameRect(view).center;
             Handles.BeginGUI();
             var prevC = Handles.color;
+            // The ring is drawn at the orb's radius AS OF THE CURRENT FRAME (so an animated radius is
+            // visible while scrubbing); a static one also gets a small square grip on its right edge,
+            // marking the drag-to-resize handle HandleMetaBlob offers.
+            float lp = Mathf.Clamp01((CurrentFrame() - l.startFrame) / Mathf.Max(1f, l.endFrame - l.startFrame));
             for (int i = 0; i < l.metaOrbs.Count; i++)
             {
                 var o = l.metaOrbs[i];
@@ -776,9 +808,14 @@ namespace Laubrary.Pyre.Editor
                 if (!view.Contains(mp)) continue;
                 bool sel = metaSel == i;
                 Color c = sel ? new Color(0.4f, 0.8f, 1f) : new Color(1f, 1f, 1f, 0.75f);
+                float orbT = Mathf.Clamp01((lp - o.birth) / Mathf.Max(0.02f, o.life));
+                float ringPx = o.RadiusAt(orbT) * zoom;
                 Handles.color = new Color(c.r, c.g, c.b, 0.4f);
-                Handles.DrawWireDisc(new Vector3(mp.x, mp.y, 0f), Vector3.forward, o.radius * zoom);
+                Handles.DrawWireDisc(new Vector3(mp.x, mp.y, 0f), Vector3.forward, ringPx);
                 EditorGUI.DrawRect(new Rect(mp.x - 2f, mp.y - 2f, 4f, 4f), c);
+                if (o.RadiusIsStatic)
+                    EditorGUI.DrawRect(new Rect(mp.x + ringPx - 2.5f, mp.y - 2.5f, 5f, 5f),
+                        new Color(c.r, c.g, c.b, sel ? 1f : 0.7f));
                 GUI.Label(new Rect(mp.x + 4f, mp.y - 9f, 26f, 14f), (i + 1).ToString(), EditorStyles.miniLabel);
             }
             Handles.color = prevC;
