@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b079c38b9be3264497da085b6359275, type: 3}
+  m_Name: Tinty
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.BackSplash::Laubrary.BackSplash.BackSplash
+  cameraColor: {r: 0.2830189, g: 0.25048652, b: 0.35686275, a: 1}
+  image: {fileID: 21300000, guid: cbb85836e56efab4dabc5e4460edaae2, type: 3}
+  imageTint: {r: 0.5888406, g: 0.61006296, b: 0.34851602, a: 1}
+  imageZoom: 10.85311
+  imagePos: {x: -3.3725476, y: 0.980393}

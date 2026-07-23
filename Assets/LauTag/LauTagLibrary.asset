@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65c3e61c522e3de409c8869ebb12e424, type: 3}
+  m_Name: LauTagLibrary
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.AssetKit.Editor::Laubrary.AssetKit.Editor.LauTagLibrary
+  tags:
+  - id: 9
+    name: Hero:Super
+  - id: 10
+    name: Key1:V1
+  - id: 11
+    name: Key1
+  - id: 12
+    name: Test2
+  - id: 13
+    name: Preview
+  - id: 14
+    name: Wtf:isThis
+  assetTags:
+  - guid: 94c47046cad7bdd45a0cfdbc56795909
+    tagIds: 0c000000
+  - guid: f767a8505451a5343a77c416e05c1ba9
+    tagIds: 090000000b000000
+  - guid: b49ee32ed53f29d4fa7884fd1346cd22
+    tagIds: 0d0000000e000000
+  nextId: 15

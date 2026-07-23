@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f47c6b625f5940a4983f47cb1f8f879d, type: 3}
+  m_Name: Bullets_draft
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Launimator::Laubrary.Launimator.ReelVersion
+  versionNumber: 0
+  createdUtc: 2026-07-20T13:27:00.7959981Z
+  animations:
+  - name: Hero Gun Projectile
+    fps: 12
+    recipe: []
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames: []
+    spriteLayers: []
+    atlas: {fileID: 0}
+    sourceTextureGuid: 
+    clip: {fileID: 0}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  prefab: {fileID: 5758803832569551377, guid: 28807bc596321db41920f1156e82ef42, type: 3}
+  controller: {fileID: 9100000, guid: 74a6f257a04678748b3948b9e8521cc7, type: 2}
