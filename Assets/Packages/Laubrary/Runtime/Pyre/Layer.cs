@@ -99,9 +99,20 @@ namespace Laubrary.Pyre
         public RoseRing Clone() => new RoseRing { count = count, radius = radius, sizeScale = sizeScale, birth = birth, life = life };
     }
 
-    /// One GROUP of balls inside a single Height-balls layer — its own resting cloud plus its own energy
-    /// waves, with its own count, cloud size, spread, ball size, height (position on the smoke→fire ramp),
-    /// alpha, rotation and churn, each animatable across the LAYER's life.
+    /// One GROUP of balls inside a single Height-balls layer: a series of WAVES, each spawning the same
+    /// number of balls, with its own cloud size, spread, ball size, height (position on the smoke→fire
+    /// ramp), mass, alpha, rotation and churn.
+    ///
+    /// Every ball belongs to a wave, so every ball has a LIFE — born with its wave, dead when that wave
+    /// ends. There is exactly one ball population and exactly one way for a ball to exist, which is what
+    /// makes a frozen configuration unreachable: a group always fires at least one wave, and everything
+    /// that describes a single ball is authored across that ball's own birth→death.
+    ///
+    /// TWO TIME AXES, and which one a dial uses is part of its meaning:
+    ///   • over a BALL's own life (0 = its birth, 1 = its death) — Alpha, Height, Mass, Ball size, Spread.
+    ///     An Alpha curve that starts and ends at 0 IS the ball's fade in and out; nothing else fades.
+    ///   • over the LAYER's life — Cloud size, Rotation, Churn, Push. These describe the group as a whole,
+    ///     not one ball in it, so they read the same clock the rest of the layer does.
     ///
     /// Every group in a layer feeds the SAME fused density/heat/height fields, in one pass, before any
     /// shading happens — so a low, cool group and a hot one on top MELT INTO ONE MASS. That is the whole
@@ -113,6 +124,12 @@ namespace Laubrary.Pyre
     [System.Serializable]
     public class HeightBallGroup
     {
+        /// Upper bound on Balls per wave — it now carries a group's ENTIRE ball population, so it needs a
+        /// range the old "extra balls on top of a resting cloud" dial never did. Kept under
+        /// BlastRenderer's per-wave index block so two waves can never share a ball's random identity.
+        public const int MaxWaveBalls = 64;
+        public const int MaxWaves = 12;
+
         [Tooltip("Label shown in the editor's group list. Cosmetic only.")]
         public string name = "Group";
         [Tooltip("Hide this group without deleting it — its balls stop contributing to the fused cloud.")]
@@ -135,33 +152,31 @@ namespace Laubrary.Pyre
             return next;
         }
 
-        [Tooltip("How many resting balls this group is made of. Animatable over the layer's life.")]
-        public ZUIValue count = new ZUIValue(26f);
-        [Tooltip("This group's overall radius, as a fraction of the canvas half-size — how far out its " +
-                 "balls can reach. Animatable: grow the whole group over life.")]
+        [Tooltip("This group's overall radius, as a fraction of the canvas half-size — how far out a wave " +
+                 "places its balls. The layer's Confine is the hard ceiling on it. Animated over the " +
+                 "LAYER's life: grow the whole group as it goes.")]
         public ZUIValue cloudSize = new ZUIValue(0.4f);
-        [Tooltip("Where INSIDE the group's radius the balls bunch up. 0 = crowded at the centre; 0.5 = an " +
-                 "evenly filled disc; 1 = pushed out to the rim as a hollow shell. Independent of Cloud " +
-                 "size, which sets the group's extent — this only redistributes balls within it. Animate " +
-                 "it 0→1 to blow a solid puff out into an expanding ring.")]
+        [Tooltip("Where INSIDE the group's radius a wave's balls sit. 0 = every ball clumped in the middle; " +
+                 "0.5 = a perfectly even spread; 1 = every ball out on the rim, a ring. Independent of " +
+                 "Cloud size, which sets the extent — this only redistributes balls within it. Animated " +
+                 "over each BALL's own life, so a 0→1 curve blows a clump out into an expanding ring.")]
         public ZUIValue spread = new ZUIValue(0.5f);
         [Tooltip("Each ball's radius in pixels — bigger balls melt together into a smoother, heavier mass. " +
-                 "Animatable.")]
+                 "Animated over each BALL's own life (birth → death).")]
         public ZUIValue ballSize = new ZUIValue(7f);
-        [Tooltip("How far UP the smoke→fire ramp this group's balls sit — their energy. Low = cold smoke " +
-                 "(and a flat, low cloud); high = fire (and a tall one that catches the relief light). " +
-                 "Animate it to walk the whole group up and down the ramp over the layer's life.")]
-        public ZUIValue height = new ZUIValue(0.06f);
-        [Tooltip("How much MASS each ball adds to the cloud — its body. Raises the cloud's height (so it " +
-                 "catches more light) and nudges it up the ramp even with no energy at all. Animatable.")]
+        [Tooltip("How far UP the smoke→fire ramp a ball sits — its energy. Low = cold smoke (and a flat, " +
+                 "low cloud); high = fire (and a tall one that catches the relief light). Animated over " +
+                 "each BALL's own life, so a ball can cool as it ages.")]
+        public ZUIValue height = new ZUIValue(0.45f);
+        [Tooltip("How much MASS a ball adds to the cloud — its body. Raises the cloud's height (so it " +
+                 "catches more light) and nudges it up the ramp even with no energy at all. Animated over " +
+                 "each BALL's own life.")]
         public ZUIValue mass = new ZUIValue(0.16f);
-        [Tooltip("This group's own opacity, multiplied with the layer's Alpha. Animatable — fade one " +
-                 "stratum out while another stays.")]
-        public ZUIValue alpha = new ZUIValue(1f);
-        [Tooltip("Turns the whole group about the cloud's centre, in degrees. Animate it (a rising curve) " +
-                 "and the group visibly rotates over the layer's life.")]
+        [Tooltip("Turns the whole group about the cloud's centre, in degrees. Animated over the LAYER's " +
+                 "life — a rising curve visibly rotates the group as the blast plays.")]
         public ZUIValue rotation = new ZUIValue(0f);
-        [Tooltip("How far a ball wanders from its resting spot, in pixels — this group's idle boil. Animatable.")]
+        [Tooltip("How far a ball wanders from its placed spot, in pixels — this group's idle boil. " +
+                 "Animated over the LAYER's life.")]
         public ZUIValue churn = new ZUIValue(2.5f);
 
         [Range(0.1f, 8f)]
@@ -186,33 +201,111 @@ namespace Laubrary.Pyre
                  "instead of holding one frozen pattern. 0 = a still surface.")]
         public float surfaceDrift = 1f;
 
-        [Range(0, 12)]
-        [Tooltip("How many bursts of energy this group fires over the layer's life. 1 = a single wave " +
-                 "spanning the WHOLE layer life. 0 = a purely idling group.")]
+        [Range(1, MaxWaves)]
+        [Tooltip("How many waves of balls this group fires across the layer's life, spaced so the last one " +
+                 "still finishes. 1 = a single wave spanning the WHOLE layer life. Never 0 — a group with " +
+                 "no waves would have no balls, and a ball with no wave would have no life to animate over.")]
         public int waves = 3;
-        [Range(1, 24)]
-        [Tooltip("How many balls each burst adds, spread around a circle from the group's centre.")]
-        public int waveBalls = 7;
+        [Range(1, MaxWaveBalls)]
+        [Tooltip("How many balls one wave places. This is the group's ONLY ball count: total balls alive " +
+                 "at once is roughly this times however many waves overlap. One single ball = Waves 1, " +
+                 "Balls per wave 1.")]
+        public int waveBalls = 16;
         [Range(0.05f, 1f)]
-        [Tooltip("How long one burst lasts, as a fraction of the layer's life. Ignored when Waves is 1 — " +
-                 "a single wave always spans the whole life.")]
+        [Tooltip("How long one wave lasts, as a fraction of the layer's life — which is also how long each " +
+                 "of its balls lives. Ignored when Waves is 1: a single wave always spans the whole life.")]
         public float waveLife = 0.55f;
-        [Range(0.02f, 0.9f)]
-        [Tooltip("The fraction of a wave ball's life spent GROWING INTO the cloud — its mass and size ramping " +
-                 "up from nothing, so it never pops into existence. Purely presence: a wave ball's place on " +
-                 "the ramp is this group's Height, whatever that curve says at the moment it is born.")]
-        public float fadeIn = 0.35f;
-        [Range(0.02f, 0.95f)]
-        [Tooltip("The fraction of a wave ball's life spent THINNING OUT again — mass and size ramping back " +
-                 "down, so it dies away instead of blinking out. Presence only, same as Fade in.")]
-        public float fadeOut = 0.5f;
         [Range(0f, 1f)]
-        [Tooltip("1 = a burst's balls sit at perfectly even angles; lower scatters them, so bursts read as " +
+        [Tooltip("1 = a wave's balls sit at perfectly even angles; lower scatters them, so waves read as " +
                  "lopsided and organic rather than as a clean rosette.")]
         public float symmetry = 0.8f;
-        [Tooltip("How far outward a wave ball travels, in pixels, before the push runs out. It eases to a " +
-                 "stop rather than flying, and the layer's Confine caps it regardless. Animatable.")]
+        [Tooltip("How far outward a wave carries its balls beyond their placed radius, in pixels. It eases " +
+                 "to a stop rather than flying, and the layer's Confine caps it regardless. Animated over " +
+                 "the LAYER's life.")]
         public ZUIValue wavePush = new ZUIValue(14f);
+
+        // ── pre-simplification fields, kept serialized ONLY so the one-time upgrade below can read them
+        // (nothing is deleted, so an un-upgraded asset still holds everything it ever held):
+        //   • count — a SECOND ball population that lived outside any wave, and therefore had no life
+        //     envelope at all. A group whose Waves was 0 was made entirely of these, which is exactly how a
+        //     layer could sit frozen at full mass from frame 0. Folded into Balls per wave.
+        //   • fadeIn/fadeOut — presence ramps that existed only because Alpha was read over the LAYER's
+        //     life and so could not describe one ball's arrival and departure. Alpha is read over a BALL's
+        //     own life now, so an Alpha curve that starts and ends at 0 IS the fade; these seed its shape.
+        [SerializeField] internal ZUIValue count = new ZUIValue(26f);
+        [SerializeField] internal float fadeIn = 0.35f;
+        [SerializeField] internal float fadeOut = 0.5f;
+
+        [SerializeField] ZUIValue alpha = DefaultAlpha();
+        // Unity never leaves a [Serializable]-class field null after deserialization, so a null check can't
+        // tell an old group from a new one — an explicit flag can. Same pattern as MetaOrb.Radius.
+        [SerializeField] bool ballsUpgraded;
+
+        /// A ball's own opacity, multiplied with the layer's Alpha — evaluated over THAT BALL's own life,
+        /// so a curve rising from and falling back to 0 is its fade in and out. The only thing that fades
+        /// a ball.
+        public ZUIValue Alpha { get { Upgrade(); return alpha; } }
+
+        /// Rise, hold, fall across one ball's life — the shape that makes a fresh group fade in and out
+        /// with no extra dials. `peak` is the opacity it holds at; `rise`/`fall` are the fractions of the
+        /// ball's life spent arriving and leaving.
+        public static ZUIValue FadeAlpha(float peak, float rise, float fall)
+        {
+            float inT = Mathf.Clamp(rise, 0.02f, 0.9f);
+            float outT = Mathf.Clamp01(1f - Mathf.Clamp(fall, 0.02f, 0.95f));
+            if (outT < inT) outT = inT;                  // degenerate authoring collapses to a single peak
+            float p = Mathf.Clamp01(peak);
+            return Layer.CurveVal(1f, 0f, 0f, inT, p, outT, p, 1f, 0f);
+        }
+
+        public static ZUIValue DefaultAlpha() => FadeAlpha(1f, 0.35f, 0.5f);
+
+        /// A brand-new group, already in the simplified shape so the legacy fold below never touches it —
+        /// otherwise adding a group would silently inherit the resting-ball count of an authoring model it
+        /// was never part of.
+        public static HeightBallGroup New(string name, int seedSalt)
+            => new HeightBallGroup { name = name, seedSalt = seedSalt, ballsUpgraded = true };
+
+        /// Folds the two removed dials into the one that replaced each. Runs once per group, gated by an
+        /// explicit flag; `Layer.HeightBallGroups` is the single place that calls it, so both the renderer
+        /// and the editor see an upgraded group no matter which of them touches the layer first.
+        ///
+        /// The resting balls become extra balls per wave rather than an extra wave of their own: keeping
+        /// the wave COUNT fixed keeps the group's timing, and a group that had no waves at all becomes a
+        /// single wave carrying exactly its old population — which is what un-freezes it.
+        internal void Upgrade()
+        {
+            if (ballsUpgraded) return;
+            ballsUpgraded = true;
+
+            int oldWaves = Mathf.Clamp(waves, 0, MaxWaves);
+            int resting = Mathf.Clamp(Mathf.RoundToInt(PeakOf(count)), 0, 400);
+            waves = Mathf.Max(1, oldWaves);
+            int folded = Mathf.CeilToInt(resting / (float)waves);
+            waveBalls = Mathf.Clamp((oldWaves >= 1 ? Mathf.Max(1, waveBalls) : 0) + folded, 1, MaxWaveBalls);
+
+            // A group whose Alpha was a plain number keeps that number as the curve's held peak; one that
+            // was already a curve is left alone — an authored shape carries intent a reshuffle would throw
+            // away, even though it now reads on the ball's clock rather than the layer's.
+            if (alpha == null || alpha.mode == ZUIValue.Mode.Static)
+                alpha = FadeAlpha(alpha?.staticValue ?? 1f, fadeIn, fadeOut);
+        }
+
+        /// The largest value a ZUIValue ever takes — how many balls the old resting cloud was worth at its
+        /// fullest. A curve that dips to nothing mid-life still described a real population.
+        static float PeakOf(ZUIValue v)
+        {
+            if (v == null) return 0f;
+            switch (v.mode)
+            {
+                case ZUIValue.Mode.MinMax: return Mathf.Max(v.min, v.max);
+                case ZUIValue.Mode.Curve:
+                    float peak = 0f;
+                    foreach (var p in v.points) if (p.value > peak) peak = p.value;
+                    return peak;
+                default: return v.staticValue;
+            }
+        }
 
         public HeightBallGroup Clone()
         {
@@ -524,7 +617,10 @@ namespace Laubrary.Pyre
         [SerializeField] bool hbGroupsUpgraded;
 
         /// This layer's ball groups. On first access an un-upgraded (pre-groups) layer is seeded with a single
-        /// group rebuilt from its flat hb* values, so it renders exactly what it always rendered.
+        /// group rebuilt from its flat hb* values, so it renders essentially what it always rendered; every
+        /// group then gets its own one-time fold of the removed resting-cloud/fade dials. This property is
+        /// the SINGLE gate both the renderer and the editor come through, which is what makes one upgrade
+        /// path enough.
         public List<HeightBallGroup> HeightBallGroups
         {
             get
@@ -536,6 +632,7 @@ namespace Laubrary.Pyre
                     hbGroups.Add(BuildLegacyGroup());
                     hbGroupsUpgraded = true;
                 }
+                for (int i = 0; i < hbGroups.Count; i++) hbGroups[i]?.Upgrade();
                 return hbGroups;
             }
         }
@@ -566,9 +663,10 @@ namespace Laubrary.Pyre
                  "than clipped — so the animation never collides with the frame edge.")]
         public float hbConfine = 0.8f;
         [Range(0f, 1f)]
-        [Tooltip("Height balls: how much of the outer cloud gets FOLDED UNDER by pressure. A ball pushed into that " +
-                 "band loses mass and heat, shrinks, sinks back toward smoke and is tucked inward — so pushing " +
-                 "harder thickens and churns the cloud instead of flinging balls outward. 0 = no folding.")]
+        [Tooltip("Height balls: how readily a SQUEEZED ball FOLDS UNDER. A ball the confinement had to pull back " +
+                 "in loses mass and heat, shrinks, sinks toward smoke and is tucked inward — so pushing harder " +
+                 "thickens and churns the cloud instead of flinging balls outward. A ball placed inside the " +
+                 "confinement is under no pressure and never folds, however far out it sits. 0 = no folding.")]
         public float hbFold = 0.4f;
 
         // ── pre-groups Height-balls fields, kept serialized ONLY so the one-time upgrade above can read them
@@ -576,9 +674,9 @@ namespace Laubrary.Pyre
         // HeightBallGroups instead; nothing below is edited or displayed any more. Two have no successor:
         //   • Rise — the layer's own animatable Position already drifts the whole cloud, and "how high a ball
         //     sits" is now the group's Height (its place on the smoke→fire ramp), which is what it was for.
-        //   • Wave heat — a wave ball's place on the ramp IS its group's Height at the moment it is born. A
-        //     separate per-ball heat target would be a second source of truth competing with the authored
-        //     curve; Ignition/Wither survive as Fade in/Fade out, governing PRESENCE (mass and size) only.
+        //   • Wave heat — a ball's place on the ramp IS its group's Height, now read over the ball's own
+        //     life. A separate per-ball heat target would be a second source of truth competing with the
+        //     authored curve. Ignition/Wither pass through Fade in/Fade out into the Alpha curve's shape.
         [SerializeField] ZUIValue hbDensity = new ZUIValue(0.16f);
         [SerializeField] ZUIValue hbBaseHeat = new ZUIValue(0.06f);
         [SerializeField] ZUIValue hbChurn = new ZUIValue(2.5f);
@@ -599,7 +697,9 @@ namespace Laubrary.Pyre
 
         /// Rebuilds one group from this layer's pre-groups flat hb* values (plus the shared Count / Spawn
         /// radius / Size the old Height-balls shape borrowed). Spread lands at 0.5 — the evenly-filled disc
-        /// the old placement used.
+        /// the old placement used. It is left UN-upgraded on purpose: the group-level fold that follows is
+        /// the same one every already-grouped layer gets, so there is only ever one place resting balls and
+        /// fades are folded away.
         ///
         /// Height can't be a pure copy of one old field. The old shape had TWO heat levels — a resting one and
         /// a hotter one wave balls climbed to — and the new one has a single authored curve by design. A layer
@@ -616,7 +716,6 @@ namespace Laubrary.Pyre
             ballSize = CloneVal(size),
             height = LegacyHeight(),
             mass = CloneVal(hbDensity),
-            alpha = new ZUIValue(1f),
             rotation = new ZUIValue(0f),
             churn = CloneVal(hbChurn),
             churnSpeed = hbChurnSpeed,

@@ -1199,37 +1199,45 @@ namespace Laubrary.Pyre
             return Mathf.Pow(1.9f, t * squash);
         }
 
-        // Places one ball, after squeezing it into the cloud's self-limiting radius. Two things happen out here,
-        // and together they are why the cloud can never reach the canvas edge no matter how hard it is pushed:
-        //   • distance from the cloud centre passes through unchanged until it nears the limit, then bends into a
-        //     curve that only ever APPROACHES it — a ball pushed twice as hard barely gets further out, it just
-        //     piles up against the crowd ahead of it;
-        //   • inside the outer `fold` band the ball loses mass and heat, shrinks, and is tucked back inward, so
-        //     pressure at the rim converts into withering and churn instead of escape velocity.
-        // `limit` is measured so the ball's whole EXTENT (centre + radius) stays inside the confinement circle.
+        // Places one ball. The caller says where the group ASKED for it (`placedR`, in pixels from the cloud
+        // centre) and how far a wave is carrying it beyond that (`push`); everything about staying inside the
+        // frame happens here.
+        //
+        // The split between the two matters, and getting it wrong is what left the top of the Cloud-size dial
+        // doing nothing. A ball placed inside the confinement circle is not under any pressure — it goes
+        // exactly where it was put, untouched. Only travel BEYOND that has to be fought:
+        //   • the overshoot passes through a u/(1+u) bend that only ever APPROACHES the limit, so a ball pushed
+        //     twice as hard barely gets further out — it piles up against the crowd ahead of it;
+        //   • and the harder the confinement had to pull it back, the more it FOLDS: it loses mass and heat,
+        //     shrinks, and is tucked inward, so pressure at the rim converts into withering and churn instead
+        //     of escape velocity. That is the layer's Fold dial, now measured against how much a ball was
+        //     actually compressed rather than against its absolute distance out — which used to wither the
+        //     whole outer third of the cloud whether anything had pushed it there or not.
+        // `limit` is measured so the ball's whole EXTENT (centre + longest semi-axis, swollen by however much
+        // this group's Surface noise can inflate its rim) stays inside the confinement circle, with half a
+        // pixel to spare — so the silhouette approaches that circle without ever landing on it.
         static void AddHeightBall(System.Collections.Generic.List<HeightBall> balls, Vector2 center,
-                                  float x, float y, float r, float density, float heat,
-                                  float confineR, float foldStart, float aspect, float rot, float alpha)
+                                  float ang, float placedR, float push, Vector2 churnOffset,
+                                  float r, float density, float heat,
+                                  float confineR, float fold, float rimSwell, float aspect, float rot, float alpha)
         {
             if (r < 0.35f || (density <= 0.0005f && heat <= 0.0005f)) return;
             // Confine by the ball's LONGEST axis, not its mean radius — otherwise a strongly squashed ball could
             // poke its long end past the confinement circle that the whole feature exists to guarantee.
-            float extent = r * Mathf.Max(aspect, 1f / Mathf.Max(0.0001f, aspect));
-            float limit = Mathf.Max(confineR * 0.15f, confineR - extent);
+            float extent = r * Mathf.Max(aspect, 1f / Mathf.Max(0.0001f, aspect)) * rimSwell;
+            float limit = Mathf.Max(confineR * 0.15f, confineR - extent - 0.5f);
+            float free = Mathf.Clamp(placedR, 0f, limit);
+
+            float x = center.x + Mathf.Cos(ang) * (free + Mathf.Max(0f, push)) + churnOffset.x;
+            float y = center.y + Mathf.Sin(ang) * (free + Mathf.Max(0f, push)) + churnOffset.y;
             float dx = x - center.x, dy = y - center.y;
             float d = Mathf.Sqrt(dx * dx + dy * dy);
-            if (d > 0.0001f)
+            if (d > free && d > 0.0001f)
             {
-                // Free travel out to `knee`, then a u/(1+u) bend that asymptotes to `limit` — so the Push dial
-                // stays linear and responsive over its useful range instead of being throttled from zero.
-                float knee = limit * 0.6f;
-                float soft = d;
-                if (d > knee)
-                {
-                    float u = (d - knee) / Mathf.Max(0.0001f, limit - knee);
-                    soft = knee + (limit - knee) * (u / (1f + u));
-                }
-                float press = Mathf.Clamp01((soft - foldStart * limit) / Mathf.Max(0.0001f, (1f - foldStart) * limit));
+                float u = (d - free) / Mathf.Max(0.0001f, limit - free);
+                float soft = free + (limit - free) * (u / (1f + u));
+                float press = fold <= 0.0001f ? 0f
+                            : Mathf.Clamp01((d - soft) / Mathf.Max(0.0001f, fold * limit));
                 if (press > 0f)
                 {
                     density *= Mathf.Lerp(1f, 0.12f, press);
@@ -1245,26 +1253,23 @@ namespace Laubrary.Pyre
             balls.Add(new HeightBall(x, y, r, density, heat, aspect, rot, alpha));
         }
 
-        /// A uniform 0..1 sample turned into a radial fraction. Exponent 0.5 is the evenly-filled disc; larger
-        /// crowds the balls into the middle, smaller pushes them out toward the rim. The 0.5 fast path keeps
-        /// the pre-Spread `sqrt` bit-exact, so an upgraded layer places its balls in exactly the same spots.
-        static float RadialFraction(float u, float exponent)
-            => exponent == 0.5f ? Mathf.Sqrt(u) : Mathf.Pow(u, exponent);
-
-        /// Spread (0..1) → the radial exponent above. 0 → 3 (crowded into the middle), 0.5 → exactly 0.5 (an
-        /// evenly filled disc), 1 → 0.04 (a thin shell at the rim). Interpolated in log space through those
-        /// three anchors so the feel is even across the whole slider rather than bunched at one end.
-        static float SpreadExponent(float spread)
+        /// Where one ball of a wave lands radially, as 0..1 of the cloud's radius, from a uniform sample and
+        /// the group's Spread. All three anchors are EXACT, not approximate — that is the whole point of the
+        /// dial: 0 puts every ball at the centre (one clump, nothing left straggling near the rim), 0.5 is the
+        /// evenly filled disc (the square root of a uniform sample — equal area per unit radius, and bit-exact
+        /// with what the placement did before Spread existed), 1 puts every ball on the rim as a ring. Between
+        /// those it slides linearly through whichever pair it sits inside, so the slider reads as one
+        /// continuous gather-in/push-out gesture rather than a curve that only bites at its ends.
+        static float SpreadRadius(float u, float spread)
         {
+            float even = Mathf.Sqrt(Mathf.Clamp01(u));
             float s = Mathf.Clamp01(spread);
-            return s <= 0.5f
-                ? Mathf.Pow(3f, 1f - s * 2f) * Mathf.Pow(0.5f, s * 2f)
-                : Mathf.Pow(0.5f, 2f - s * 2f) * Mathf.Pow(0.04f, s * 2f - 1f);
+            return s <= 0.5f ? even * (s * 2f) : Mathf.Lerp(even, 1f, (s - 0.5f) * 2f);
         }
 
-        // Resolves the whole layer for one frame: every enabled GROUP's resting balls and live energy waves, all
-        // appended into ONE shared list so the shading pass fuses them together. `slices` records where each
-        // group's balls sit in that list, plus the surface-noise field that group is deformed by.
+        // Resolves the whole layer for one frame: every enabled GROUP's currently-alive waves, all appended into
+        // ONE shared list so the shading pass fuses them together. `slices` records where each group's balls sit
+        // in that list, plus the surface-noise field that group is deformed by.
         static void BuildHeightBalls(System.Collections.Generic.List<HeightBall> balls,
                                      System.Collections.Generic.List<HbGroupSlice> slices,
                                      Layer layer, BlastSpec spec, int li, float lp, Vector2 center, float half, int hash)
@@ -1272,7 +1277,7 @@ namespace Laubrary.Pyre
             var groups = layer.HeightBallGroups;
             if (groups == null) return;
             float confineR = Mathf.Clamp01(layer.hbConfine) * half;
-            float foldStart = 1f - Mathf.Clamp01(layer.hbFold);
+            float fold = Mathf.Clamp01(layer.hbFold);
 
             // Two groups sharing an identity would draw from the same number stream and place their balls on
             // top of each other. The editor hands out unique salts, but a hand-built or hand-edited list might
@@ -1288,7 +1293,7 @@ namespace Laubrary.Pyre
                 usedSalts.Add(gs);
 
                 int start = balls.Count;
-                BuildHeightBallGroup(balls, g, gs, spec, li, lp, center, half, hash, confineR, foldStart);
+                BuildHeightBallGroup(balls, g, gs, spec, li, lp, center, half, hash, confineR, fold);
                 if (balls.Count == start) continue;
 
                 // Drift the noise field over the layer's life so the surface roils instead of sitting still.
@@ -1300,104 +1305,96 @@ namespace Laubrary.Pyre
             }
         }
 
-        // One group: the resting balls that simply sit there and churn, plus every energy wave currently alive.
+        // Index stride between two waves of the same group, so no ball ever shares another's random identity.
+        // Must be >= HeightBallGroup.MaxWaveBalls, and MaxWaves * this (plus one slot per wave for the wave's
+        // own starting angle) must stay inside HbGroupIndexBlock.
+        const int HbWaveIndexBlock = 128;
+
+        // One group: every wave currently alive. There is no second, wave-less ball population — a group IS
+        // its waves, which is what guarantees every ball has a birth and a death to be animated across.
+        //
+        // Two clocks are in play and the split is deliberate:
+        //   • `lp` — the LAYER's life. Cloud size, Rotation, Churn and Push describe the group as a whole,
+        //     so they move on the same clock as everything else in the layer.
+        //   • `a` — one WAVE's own 0..1 age, which is the age of every ball in it. Alpha, Height, Mass,
+        //     Ball size and Spread describe a single ball, so they are read here. That is what makes an
+        //     Alpha curve rising from and falling back to 0 a genuine fade in and out, with no separate
+        //     fade dials, and what lets a Spread curve blow a clump out into a ring as the wave ages.
         static void BuildHeightBallGroup(System.Collections.Generic.List<HeightBall> balls, HeightBallGroup g, int gs,
                                          BlastSpec spec, int li, float lp, Vector2 center, float half, int hash,
-                                         float confineR, float foldStart)
+                                         float confineR, float fold)
         {
             const float Tau = Mathf.PI * 2f;
             int seed = spec.seed;
             int gb = gs * HbGroupIndexBlock;
 
-            int count = Mathf.Clamp(Mathf.RoundToInt(Eval(g.count, lp, seed, li, gs, F_Count)), 0, 400);
             float cloudR = Mathf.Clamp01(Eval(g.cloudSize, lp, seed, li, gs, F_SpawnRadius)) * half;
-            float spreadExp = SpreadExponent(Eval(g.spread, lp, seed, li, gs, F_HbSpread));
-            float dens = Mathf.Max(0f, Eval(g.mass, lp, seed, li, gs, F_HbDensity));
-            float baseHeat = Mathf.Max(0f, Eval(g.height, lp, seed, li, gs, F_HbBaseHeat));
             float churn = Mathf.Max(0f, Eval(g.churn, lp, seed, li, gs, F_HbChurn));
-            float gAlpha = Mathf.Clamp01(Eval(g.alpha, lp, seed, li, gs, F_HbGroupAlpha));
-            // One angle added to every placement in the group — resting balls and wave rosettes alike — so the
-            // whole group turns about the cloud's centre as a rigid arrangement.
+            // One angle added to every placement in the group, so the whole arrangement turns about the
+            // cloud's centre as a rigid body rather than each wave drifting independently.
             float spin = Eval(g.rotation, lp, seed, li, gs, F_HbRotation) * Mathf.Deg2Rad;
+            float push = Eval(g.wavePush, lp, seed, li, gs, F_HbWavePush);
             float churnPhase = lp * Mathf.Max(0.1f, g.churnSpeed) * Tau;
             // Squash 0 = every ball a circle (the original look); 1 = each ball a strongly seeded ellipse at its
             // own angle. Balls also slowly TURN as the cloud churns, so a squashed cloud rolls instead of looking
             // like a frozen arrangement of ovals.
             float squash = Mathf.Clamp01(g.squash);
+            // How far Surface noise can push a ball's rim past its nominal radius — the confinement has to
+            // budget for it, or a noisy cloud pokes out of the circle that is supposed to contain it.
+            float rimSwell = 1f + Mathf.Clamp01(g.surfaceNoise);
 
-            for (int i = 0; i < count; i++)
-            {
-                int bi = gb + i;
-                float ang = Hash01(hash, bi, 1) * Tau + spin;
-                float rad = RadialFraction(Hash01(hash, bi, 2), spreadExp) * cloudR;
-                float r = Eval(g.ballSize, lp, seed, li, bi, F_Size) * Mathf.Lerp(0.72f, 1.28f, Hash01(hash, bi, 3));
-                float ph = Hash01(hash, bi, 4) * Tau;
-                float fr = Mathf.Lerp(0.6f, 1.7f, Hash01(hash, bi, 5));
-                float x = center.x + Mathf.Cos(ang) * rad + Mathf.Sin(churnPhase * fr + ph) * churn;
-                float y = center.y + Mathf.Sin(ang) * rad + Mathf.Cos(churnPhase * fr * 0.71f + ph) * churn * 0.8f;
-                AddHeightBall(balls, center, x, y, r,
-                              dens * Mathf.Lerp(0.85f, 1.15f, Hash01(hash, bi, 7)),
-                              baseHeat * Mathf.Lerp(0.35f, 1.25f, Hash01(hash, bi, 8)),
-                              confineR, foldStart,
-                              BallAspect(squash, hash, bi, 9),
-                              Hash01(hash, bi, 10) * Tau + churnPhase * 0.35f,
-                              gAlpha);
-            }
-
-            // Waves. Births are spread evenly across the part of the layer's life that still leaves room for a
-            // whole wave to finish, so nothing is cut off mid-fade at the last frame.
-            //
-            // A wave ball is NOT its own little energy event: where it sits on the smoke→fire ramp is this
-            // group's Height at the frame being drawn, exactly like a resting ball. The group's authored Height
-            // curve is the one and only source of "how hot is this". Fade in/out govern PRESENCE alone — mass
-            // and size ramping in at birth and out at death — which is what stops a ball popping or blinking.
-            int waves = Mathf.Clamp(g.waves, 0, 12);
-            if (waves == 0) return;
-            int per = Mathf.Clamp(g.waveBalls, 1, 24);
+            // Waves are born evenly across the part of the layer's life that still leaves room for the last
+            // one to finish, so nothing is cut off mid-fade at the final frame. At least one, always.
+            int waves = Mathf.Clamp(g.waves, 1, HeightBallGroup.MaxWaves);
+            int per = Mathf.Clamp(g.waveBalls, 1, HeightBallGroup.MaxWaveBalls);
             float waveLife = Mathf.Clamp(g.waveLife, 0.05f, 1f);
-            // A single wave IS the layer: with one burst there is nothing to leave room for, so it spans the whole
-            // life regardless of the Wave-life dial (which only exists to fit several bursts into one window).
+            // A single wave IS the layer: with one wave there is nothing to leave room for, so it spans the whole
+            // life regardless of the Wave-life dial (which only exists to fit several waves into one window).
             float span = waves == 1 ? 1f : waveLife;
-            float fadeIn = Mathf.Clamp(g.fadeIn, 0.02f, 0.9f);
-            float fadeOut = Mathf.Clamp(g.fadeOut, 0.02f, 0.95f);
             float symmetry = Mathf.Clamp01(g.symmetry);
-            float push = Eval(g.wavePush, lp, seed, li, gs, F_HbWavePush);
 
             for (int w = 0; w < waves; w++)
             {
                 float birth = waves > 1 ? (w / (float)(waves - 1)) * (1f - waveLife) : 0f;
                 float a = (lp - birth) / span;                      // this wave's own 0..1 age
-                if (a <= 0f || a >= 1f) continue;
+                if (a < 0f || a > 1f) continue;
 
-                float fade = SmoothStep01((1f - a) / fadeOut);      // mass/size thinning out toward death
-                float grow = Mathf.Lerp(0.45f, 1f, SmoothStep01(a / (fadeIn * 0.7f)));
+                float gAlpha = Mathf.Clamp01(Eval(g.Alpha, a, seed, li, gs, F_HbGroupAlpha));
+                // An invisible ball must not exist at all: it would still add mass to the fused field and
+                // still drag the blended opacity of whatever it overlaps down toward nothing.
+                if (gAlpha <= 0.0005f) continue;
+                float dens = Mathf.Max(0f, Eval(g.mass, a, seed, li, gs, F_HbDensity));
+                float baseHeat = Mathf.Max(0f, Eval(g.height, a, seed, li, gs, F_HbBaseHeat));
+                float spread = Eval(g.spread, a, seed, li, gs, F_HbSpread);
+
                 // Outward travel eases to a halt well before the wave ends: a push, then churn — not a launch.
                 float reach = push * SmoothStep01(a / 0.7f);
-                float rot = Hash01(hash, gb + 500 + w, 11) * Tau + spin;
+                // Past every wave's ball block, so a wave's own starting angle can never collide with a ball's
+                // random identity however high Balls per wave goes.
+                float rot = Hash01(hash, gb + HbWaveIndexBlock * HeightBallGroup.MaxWaves + w, 11) * Tau + spin;
 
                 for (int j = 0; j < per; j++)
                 {
-                    int bi = gb + w * 64 + j;
+                    int bi = gb + w * HbWaveIndexBlock + j;
+                    // Evenly-spaced angles scattered by Symmetry, and a Spread-shaped radius inside the
+                    // cloud: at Spread 0 every ball of the wave lands in the middle, at 0.5 they fill the
+                    // disc evenly, at 1 they sit on the rim as a ring. Push then carries the whole wave out
+                    // from wherever Spread placed it.
                     float jitter = (1f - symmetry) * (Hash01(hash, bi, 12) * 2f - 1f) * (Mathf.PI / per) * 1.7f;
                     float ang = rot + (j / (float)per) * Tau + jitter;
-                    float rr = reach * Mathf.Lerp(0.75f, 1.15f, Hash01(hash, bi, 13));
+                    float placedR = SpreadRadius(Hash01(hash, bi, 2), spread) * cloudR;
                     float ph = Hash01(hash, bi, 14) * Tau;
                     float fr = Mathf.Lerp(0.7f, 1.8f, Hash01(hash, bi, 15));
-                    float x = center.x + Mathf.Cos(ang) * rr + Mathf.Sin(churnPhase * fr + ph) * churn;
-                    float y = center.y + Mathf.Sin(ang) * rr + Mathf.Cos(churnPhase * fr * 0.71f + ph) * churn * 0.8f;
-                    float r = Eval(g.ballSize, a, seed, li, 1000 + bi, F_Size)
-                              * Mathf.Lerp(0.8f, 1.2f, Hash01(hash, bi, 16))
-                              * grow * Mathf.Lerp(0.45f, 1f, fade);
-                    // A wave ball's long axis leans along its own travel direction, so a burst stretches outward
-                    // the way a real plume does instead of pushing a ring of circles. Its heat is the group's
-                    // own Height with the SAME per-ball spread a resting ball gets — so a ball born mid-life is
-                    // indistinguishable from the cloud it joins, wherever the authored curve happens to be.
-                    AddHeightBall(balls, center, x, y, r,
-                                  dens * Mathf.Lerp(0.95f, 1.3f, Hash01(hash, bi, 17)) * grow * fade,
+                    var churnOff = new Vector2(Mathf.Sin(churnPhase * fr + ph) * churn,
+                                               Mathf.Cos(churnPhase * fr * 0.71f + ph) * churn * 0.8f);
+                    float r = Eval(g.ballSize, a, seed, li, bi, F_Size) * Mathf.Lerp(0.8f, 1.2f, Hash01(hash, bi, 16));
+                    AddHeightBall(balls, center, ang, placedR,
+                                  reach * Mathf.Lerp(0.75f, 1.15f, Hash01(hash, bi, 13)), churnOff, r,
+                                  dens * Mathf.Lerp(0.85f, 1.15f, Hash01(hash, bi, 17)),
                                   baseHeat * Mathf.Lerp(0.35f, 1.25f, Hash01(hash, bi, 18)),
-                                  confineR, foldStart,
+                                  confineR, fold, rimSwell,
                                   BallAspect(squash, hash, bi, 19),
-                                  ang + (Hash01(hash, bi, 20) - 0.5f) * squash,
+                                  Hash01(hash, bi, 10) * Tau + churnPhase * 0.35f,
                                   gAlpha);
                 }
             }
@@ -1498,9 +1495,12 @@ namespace Laubrary.Pyre
                             gd = SmoothMax(gd, s * b.density, kD);
                             ghe = SmoothMax(ghe, s * b.heat, kHe);
                             ghi = SmoothMax(ghi, s * (b.density * 2.65f + b.heat * 0.72f), kHi);
-                            // Opacity is a coverage-weighted blend of whichever groups reach this pixel, so an
-                            // overlap crossfades between their alphas instead of one group winning outright.
-                            float w = s * (b.density + b.heat);
+                            // Opacity blends whichever balls reach this pixel, weighted by coverage AND by
+                            // their own opacity — so a ball on its way out cannot drag a solid one it happens
+                            // to overlap down with it. A plain coverage mean did exactly that, which now
+                            // matters constantly: every ball fades through its own Alpha curve, so a dying
+                            // wave overlapping a fresh one is the normal case, not an edge case.
+                            float w = s * (b.density + b.heat) * b.alpha;
                             aWeight += w;
                             aSum += w * b.alpha;
                         }
@@ -1524,7 +1524,9 @@ namespace Laubrary.Pyre
                     density[idx] = Mathf.Clamp01(d);
                     heat[idx] = Mathf.Clamp01(he);
                     height[idx] = Mathf.Clamp01(hi);
-                    groupAlpha[idx] = aWeight > 0f ? aSum / aWeight : 1f;
+                    // No weight at all means nothing opaque reached here — either no cloud (culled by the
+                    // occupancy test below) or only fully faded balls, which must read as fully faded.
+                    groupAlpha[idx] = aWeight > 1e-6f ? aSum / aWeight : 0f;
                 }
 
             // Pass 2 — relief lighting from the height field's local slope.

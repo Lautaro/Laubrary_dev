@@ -547,12 +547,12 @@ namespace Laubrary.Pyre.Editor
                     PackedVal("Light angle", "Where the light comes from, in degrees (0 = from the right, 90 = from above). Animate it to roll the shading across the cloud.", l.hbLightAngle, 0f, 360f, 135f, allowMinMax: false)));
             shading.Add(WrapRow(
                 PackedSlider("Confine", "The cloud's self-limiting radius, as a fraction of the canvas half-size. Nothing any group draws can reach past this — travel is squeezed smoothly toward the limit rather than clipped — so the animation never collides with the frame edge.", l.hbConfine, 0.05f, 1f, v => l.hbConfine = v),
-                PackedSlider("Fold under", "How much of the outer cloud gets folded under by pressure — a ball out there loses mass and heat, shrinks, sinks back toward smoke and is pulled inward. 0 = no folding.", l.hbFold, 0f, 1f, v => l.hbFold = v)));
+                PackedSlider("Fold under", "How readily a squeezed ball folds under — one the Confine circle had to pull back in loses mass and heat, shrinks, sinks toward smoke and is tucked inward. A ball that fits inside Confine is under no pressure and never folds. 0 = no folding.", l.hbFold, 0f, 1f, v => l.hbFold = v)));
             root.Add(shading);
 
             var groups = l.HeightBallGroups;
             root.Add(Z.Text("Ball groups", ZuiText.Section,
-                "Each group is its own cloud of balls with its own count, size, spread, height on the ramp, alpha, rotation and waves — but all of them fuse into the single mass above."));
+                "Each group is its own series of waves of balls, with its own size, spread, height on the ramp, alpha and rotation — but all of them fuse into the single mass above."));
 
             var host = new VisualElement();
             root.Add(host);
@@ -562,15 +562,18 @@ namespace Laubrary.Pyre.Editor
             root.Add(WrapRow(
                 Z.Button("+ Add group", "Append another group of balls to this same fused cloud (undoable).", () =>
                 {
-                    Dial("Add ball group", () => groups.Add(new HeightBallGroup
-                    {
-                        name = $"Group {groups.Count + 1}",
-                        seedSalt = HeightBallGroup.NextSeedSalt(groups),
-                    }));
+                    Dial("Add ball group", () => groups.Add(
+                        HeightBallGroup.New($"Group {groups.Count + 1}", HeightBallGroup.NextSeedSalt(groups))));
                     RebuildLeft();
                 }),
                 Z.Text($"{groups.Count} group(s)", ZuiText.Small, "How many ball groups feed this layer's fused cloud.")));
         }
+
+        // A group's dials run on one of two clocks, and confusing them is the difference between "the ball
+        // fades" and "the whole cloud fades." Every animatable tooltip in a group says which, in the same
+        // words, so the answer is one hover away wherever the reader happens to be looking.
+        const string BallAxis = " Read across THIS BALL's own life: 0 the moment its wave places it, 1 the moment that wave ends.";
+        const string LayerAxis = " Read across the LAYER's life, like every other layer dial.";
 
         VisualElement BuildHeightBallGroupBox(VisualElement host, Layer l, List<HeightBallGroup> groups, int gi, float half)
         {
@@ -639,39 +642,38 @@ namespace Laubrary.Pyre.Editor
             box.Add(body.Shown(open));
             if (!open) return box;
 
-            body.Add(WrapRow(
-                PackedVal("Balls", "How many resting balls this group is made of. Animatable over the layer's life.", g.count, 1f, 120f, 26f, allowMinMax: false),
-                PackedVal("Cloud size", "This group's overall radius (0-1 of the canvas half-size) — how far out its balls can reach. Spread below decides where INSIDE that radius they sit.", g.cloudSize, 0f, 1f, 0.4f, allowMinMax: false),
-                PackedVal("Spread", "Where inside the group's radius the balls bunch up. 0 = crowded at the centre; 0.5 = an evenly filled disc; 1 = pushed out to the rim as a hollow shell. Animate 0→1 to blow a solid puff out into an expanding ring.", g.spread, 0f, 1f, 0.5f, allowMinMax: false),
-                PackedVal("Ball size", "Each ball's radius in pixels — bigger balls melt together into a smoother, heavier mass.", g.ballSize, 1f, half, 7f, allowMinMax: false)));
-            body.Add(WrapRow(
-                PackedVal("Height", "How far UP the smoke→fire ramp this group's balls sit — their energy. Low = cold smoke, and a flat cloud; high = fire, and a tall one that catches the relief light. Animate it to walk the whole group up and down the ramp.", g.height, 0f, 1f, 0.06f, allowMinMax: false),
-                PackedVal("Mass", "How much body each ball adds — raises the cloud's height (so it catches more light) and nudges it up the ramp even with no energy at all.", g.mass, 0f, 0.5f, 0.16f, allowMinMax: false),
-                PackedVal("Alpha", "This group's own opacity, multiplied with the layer's Alpha above. Fade one stratum out while another stays.", g.alpha, 0f, 1f, 1f, allowMinMax: false),
-                PackedVal("Rotation", "Turns the whole group about the cloud's centre, in degrees. Animate it (a rising curve) and the group visibly rotates over the layer's life.", g.rotation, -360f, 360f, 0f, allowMinMax: false)));
-            body.Add(WrapRow(
-                PackedVal("Churn", "How far a ball wanders from its resting spot, in pixels — this group's idle boil.", g.churn, 0f, 20f, 2.5f, allowMinMax: false),
-                PackedSlider("Churn speed", "How many full churn cycles a ball completes across the layer's life. Low = a slow roll; high = a busy boil.", g.churnSpeed, 0.1f, 8f, v => g.churnSpeed = v)));
+            body.Add(Z.Box("Every ball — over its own life",
+                "Everything here describes a single ball, so it is authored on that ball's own clock: 0 is the moment its wave places it, 1 is the moment that wave ends. That is why Alpha is the fade — a curve rising from 0 and falling back to it IS the ball arriving and leaving, and nothing else fades one.",
+                WrapRow(
+                    PackedVal("Alpha", "A ball's own opacity, multiplied with the layer's Alpha above. The default rise-hold-fall curve is what fades each ball in and out." + BallAxis, g.Alpha, 0f, 1f, allowMinMax: false),
+                    PackedVal("Height", "How far UP the smoke→fire ramp a ball sits — its energy. Low = cold smoke, and a flat cloud; high = fire, and a tall one that catches the relief light. A falling curve cools a ball as it ages." + BallAxis, g.height, 0f, 1f, 0.45f, allowMinMax: false),
+                    PackedVal("Mass", "How much body a ball adds — raises the cloud's height (so it catches more light) and nudges it up the ramp even with no energy at all." + BallAxis, g.mass, 0f, 0.5f, 0.16f, allowMinMax: false),
+                    PackedVal("Ball size", "A ball's radius in pixels — bigger balls melt together into a smoother, heavier mass." + BallAxis, g.ballSize, 1f, half, 7f, allowMinMax: false),
+                    PackedVal("Spread", "Where inside the cloud a wave's balls sit. 0 = every ball clumped in the middle; 0.5 = a perfectly even spread; 1 = every ball out on the rim, a ring. A 0→1 curve blows a clump out into an expanding ring." + BallAxis, g.spread, 0f, 1f, 0.5f, allowMinMax: false))));
 
-            var waves = Z.Box("Waves — extra balls, pushed outward",
-                "Bursts that add balls to this group and shove them outward. They are NOT their own little fires: a wave ball sits exactly where the group's Height curve says, same as every resting ball — the waves add motion and body, the Height curve owns the heat.");
+            body.Add(Z.Box("The whole group — over the layer's life",
+                "These describe the group as a whole rather than any one ball in it, so they run on the layer's own clock alongside every other layer dial.",
+                WrapRow(
+                    PackedVal("Cloud size", "The group's radius (0-1 of the canvas half-size) — how far out a wave places its balls, and Spread decides where INSIDE that radius they sit. Confine above is the hard ceiling: raise it if you want the cloud to use more of the frame." + LayerAxis, g.cloudSize, 0f, 1f, 0.4f, allowMinMax: false),
+                    PackedVal("Push", "How far outward a wave carries its balls beyond where Spread placed them, in pixels. It eases to a halt rather than launching, and the shared Confine caps it regardless." + LayerAxis, g.wavePush, 0f, half, 14f, allowMinMax: false),
+                    PackedVal("Rotation", "Turns the whole group about the cloud's centre, in degrees. A rising curve visibly rotates it as the blast plays." + LayerAxis, g.rotation, -360f, 360f, 0f, allowMinMax: false),
+                    PackedVal("Churn", "How far a ball wanders from its placed spot, in pixels — this group's idle boil." + LayerAxis, g.churn, 0f, 20f, 2.5f, allowMinMax: false),
+                    PackedSlider("Churn speed", "How many full churn cycles a ball completes across the layer's life. Low = a slow roll; high = a busy boil.", g.churnSpeed, 0.1f, 8f, v => g.churnSpeed = v))));
+
+            var waves = Z.Box("Waves — how many balls, and when they live",
+                "A group is nothing but its waves: every ball belongs to one, is born with it and dies with it. Waves times Balls per wave is the whole population — one single ball is Waves 1, Balls per wave 1.");
             waves.Add(WrapRow(
-                Z.Field("Waves", "How many bursts this group fires over the layer's life, spaced so the last one still finishes. 1 = a single burst spanning the WHOLE layer life.",
-                    Z.SliderInt(g.waves, 0, 12, "How many bursts this group fires over the layer's life, spaced so the last one still finishes. 1 = a single burst spanning the WHOLE layer life.",
+                Z.Field("Waves", "How many waves this group fires across the layer's life, spaced so the last one still finishes. 1 = a single wave spanning the WHOLE layer life. Never 0 — a ball with no wave would have no life to animate over.",
+                    Z.SliderInt(g.waves, 1, HeightBallGroup.MaxWaves, "How many waves this group fires across the layer's life, spaced so the last one still finishes. 1 = a single wave spanning the WHOLE layer life. Never 0 — a ball with no wave would have no life to animate over.",
                         v => Dial("Waves", () => g.waves = v), 110f)),
-                Z.Field("Balls per wave", "How many balls each burst adds around the group's centre.",
-                    Z.SliderInt(g.waveBalls, 1, 24, "How many balls each burst adds around the group's centre.",
+                Z.Field("Balls per wave", "How many balls one wave places, around the group's centre. This is the group's ONLY ball count.",
+                    Z.SliderInt(g.waveBalls, 1, HeightBallGroup.MaxWaveBalls, "How many balls one wave places, around the group's centre. This is the group's ONLY ball count.",
                         v => Dial("Balls per wave", () => g.waveBalls = v), 110f)),
-                PackedSlider("Wave life", "How long one burst lasts, as a fraction of the layer's life. Ignored when Waves is 1 — a single burst always spans the whole life.", g.waveLife, 0.05f, 1f, v => g.waveLife = v)));
+                PackedSlider("Wave life", "How long one wave lasts, as a fraction of the layer's life — which is also how long each of its balls lives. Ignored when Waves is 1.", g.waveLife, 0.05f, 1f, v => g.waveLife = v),
+                PackedSlider("Symmetry", "1 = a wave's balls sit at perfectly even angles; lower scatters them for a lopsided, organic wave.", g.symmetry, 0f, 1f, v => g.symmetry = v)));
             if (g.waves == 1)
                 waves.Add(Z.Text("One wave — it spans the layer's whole life.", ZuiText.Small,
-                    "With a single burst there is nothing to leave room for, so Wave life is bypassed and the burst covers every frame of the layer."));
-            waves.Add(WrapRow(
-                PackedVal("Push", "How far outward a burst carries its balls, in pixels. It eases to a halt rather than launching, and the shared Confine caps it regardless.", g.wavePush, 0f, half, 14f, allowMinMax: false),
-                PackedSlider("Symmetry", "1 = the burst's balls sit at perfectly even angles; lower scatters them for a lopsided, organic burst.", g.symmetry, 0f, 1f, v => g.symmetry = v)));
-            waves.Add(WrapRow(
-                PackedSlider("Fade in", "How much of a ball's life it spends GROWING INTO the cloud — mass and size ramping up from nothing, so it never pops into existence. It joins at whatever the group's Height curve is at that moment; this doesn't change its heat.", g.fadeIn, 0.02f, 0.9f, v => g.fadeIn = v),
-                PackedSlider("Fade out", "How much of a ball's life it spends THINNING OUT again — mass and size ramping back down, so it dies away instead of blinking out. Presence only, same as Fade in.", g.fadeOut, 0.02f, 0.95f, v => g.fadeOut = v)));
+                    "With a single wave there is nothing to leave room for, so Wave life is bypassed and the wave covers every frame of the layer."));
             body.Add(waves);
 
             body.Add(Z.Box("Shape — breaking up the roundness",
