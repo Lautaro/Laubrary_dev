@@ -370,6 +370,17 @@ namespace Laubrary.Zui
             return c;
         }
 
+        /// Synchronized XY pair of ZUIValues as ONE 2D control (drag a dot / trace a path) — the
+        /// 2D analog of Z.Value. Pass `onBeforeMutate` to record Undo on the owning asset.
+        public static ZuiValue2DControl Value2D(string label, ZUIValue x, ZUIValue y,
+            ZuiValue2DControl.Options options, string tooltip, Action onChanged, Action onBeforeMutate = null)
+        {
+            var c = new ZuiValue2DControl(label, x, y, options, tooltip);
+            if (onChanged != null) c.OnChanged += onChanged;
+            if (onBeforeMutate != null) c.OnBeforeMutate += onBeforeMutate;
+            return c;
+        }
+
         /// DAW-style multi-point envelope editor over a caller-owned List&lt;ZUIEnvelopePoint&gt;
         /// (the same runtime data ZUI.Envelope edits). Pass `onBeforeMutate` to record Undo on the
         /// owning asset — it fires once per gesture, before the first mutation.
