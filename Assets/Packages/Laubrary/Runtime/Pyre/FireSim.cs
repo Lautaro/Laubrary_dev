@@ -39,6 +39,10 @@ namespace Laubrary.Pyre
         public float emitterWidth, emitterInset, heat, fuel, pulse;
         public float flow, buoyancy, curl, curlScale, flicker;
         public float dissipation, burn, reach, edgeCooling, directionDeg;
+        // Shape — these are what make it read as a FLAME rather than an expanding blob.
+        public float stretch;   // elongate along the arm axis
+        public float pinch;     // taper the sides into a tongue (also what keeps arms distinct)
+        public float breakup;   // wispy, broken edges instead of a smooth silhouette
         public int arms, steps;
         public FireArmMode armMode;
     }
@@ -52,12 +56,19 @@ namespace Laubrary.Pyre
         float[] heat, fuel, heatB, fuelB;
         public int LastFrame = -1;
 
+        // The box that currently holds any heat/fuel. The step only processes this (expanded by how far one
+        // step can advect), because everything outside is cold and — being confined — stays cold. A small
+        // candle then touches ~900 pixels instead of all 4096, which is most of the paused-drag cost. Reset()
+        // widens it to the whole canvas so the first step after a reset is unconditionally correct.
+        int boxX0, boxY0, boxX1, boxY1;
+
         public void Allocate(int w, int h)
         {
             if (W == w && H == h && heat != null) return;
             W = w; H = h;
             heat = new float[w * h]; fuel = new float[w * h];
             heatB = new float[w * h]; fuelB = new float[w * h];
+            boxX0 = 0; boxY0 = 0; boxX1 = w - 1; boxY1 = h - 1;
         }
 
         public void Reset()
@@ -65,6 +76,7 @@ namespace Laubrary.Pyre
             System.Array.Clear(heat, 0, heat.Length);
             System.Array.Clear(fuel, 0, fuel.Length);
             LastFrame = -1;
+            boxX0 = 0; boxY0 = 0; boxX1 = W - 1; boxY1 = H - 1;   // first step after a reset scans everything
         }
 
         static float Hash01(int a, int b, int c)
@@ -106,6 +118,7 @@ namespace Laubrary.Pyre
             float dirRad = p.directionDeg * Mathf.Deg2Rad;
 
             // ── inject ────────────────────────────────────────────────────────────────────────
+            int injX0 = W, injY0 = H, injX1 = -1, injY1 = -1;   // where injection touched this step
             for (int a = 0; a < arms; a++)
             {
                 // Vary gives each arm its own seed, so its pulse and flicker run on a different phase.
@@ -131,64 +144,90 @@ namespace Laubrary.Pyre
                         int i = y * W + x;
                         heat[i] = Mathf.Max(heat[i], Mathf.Clamp01(p.heat * pulse * falloff));
                         fuel[i] = Mathf.Max(fuel[i], Mathf.Clamp01(p.fuel * pulse * falloff));
+                        if (x < injX0) injX0 = x; if (x > injX1) injX1 = x;
+                        if (y < injY0) injY0 = y; if (y > injY1) injY1 = y;
                     }
             }
 
+            // The box worth scanning: wherever heat already is (boxX0..) OR was just injected, grown by how
+            // far a single step could carry it. Everything outside is cold and confined, so it stays cold.
+            int margin = Mathf.CeilToInt(p.flow + p.buoyancy + p.stretch + p.curl * 3f + p.flicker * 2f) + 2;
+            int ax0 = Mathf.Max(0, Mathf.Min(boxX0, injX1 < 0 ? boxX0 : injX0) - margin);
+            int ay0 = Mathf.Max(0, Mathf.Min(boxY0, injY1 < 0 ? boxY0 : injY0) - margin);
+            int ax1 = Mathf.Min(W - 1, Mathf.Max(boxX1, injX1) + margin);
+            int ay1 = Mathf.Min(H - 1, Mathf.Max(boxY1, injY1) + margin);
+
+            // The target buffers must be zero everywhere the loop won't write, or the swap would surface stale
+            // state from two steps ago outside the box. A memset is trivial next to the per-pixel noise/trig.
+            System.Array.Clear(heatB, 0, heatB.Length);
+            System.Array.Clear(fuelB, 0, fuelB.Length);
+            int nbx0 = W, nby0 = H, nbx1 = -1, nby1 = -1;
+
             // ── advect + cool ─────────────────────────────────────────────────────────────────
             float curlScale = Mathf.Max(2f, p.curlScale);
-            for (int y = 0; y < H; y++)
-                for (int x = 0; x < W; x++)
+            int tKey = Mathf.FloorToInt(t * 200f);   // slow enough that flicker reads as motion, not static noise
+            // One arm's axis never changes across the canvas, so hoist it out of the pixel loop — the common
+            // (candle) case then does no per-pixel trig for the axis at all.
+            bool multi = arms > 1;
+            float dirNx = Mathf.Cos(dirRad), dirNy = Mathf.Sin(dirRad);
+            for (int y = ay0; y <= ay1; y++)
+                for (int x = ax0; x <= ax1; x++)
                 {
                     int i = y * W + x;
                     float ox = x - cx, oy = y - cy;
                     float dist = Mathf.Sqrt(ox * ox + oy * oy);
 
-                    // Which ARM this pixel belongs to decides which way its fire travels. Not the radial
-                    // direction from the centre: with one arm that would ignore Direction entirely and
-                    // spread heat evenly in all directions, which is a growing blob rather than a flame
-                    // (exactly what the first version produced). One arm = one direction for the whole
-                    // canvas; N arms = each sector carries its fire along its own axis.
-                    float armAng = dirRad;
-                    if (arms > 1)
+                    // Which ARM this pixel belongs to. Its fire travels along THAT arm's axis, not radially
+                    // from the centre — one arm would otherwise ignore Direction and spread evenly, which is
+                    // a growing blob, not a flame.
+                    float nx = dirNx, ny = dirNy;
+                    float pixAng = 0f;
+                    if (multi)
                     {
-                        float rel = Mathf.Atan2(oy, ox) - dirRad;
-                        armAng = dirRad + Mathf.Round(rel / sector) * sector;
+                        pixAng = Mathf.Atan2(oy, ox);
+                        float armAng = dirRad + Mathf.Round((pixAng - dirRad) / sector) * sector;
+                        nx = Mathf.Cos(armAng); ny = Mathf.Sin(armAng);
                     }
-                    float nx = Mathf.Cos(armAng), ny = Mathf.Sin(armAng);
+
+                    // Arm-local coordinates: `along` = distance from the emitter toward the tip; `lat` = signed
+                    // sideways distance from the arm's own axis. Everything that shapes the flame is expressed
+                    // in these, which is what makes it anisotropic (a tongue) instead of isotropic (a blob).
+                    float along = ox * nx + oy * ny;
+                    float lat = -ox * ny + oy * nx;
+                    float latAbs = Mathf.Abs(lat);
+                    // How far off the arm axis, as sin(angle) = lat/dist — a cheap stand-in for the angle that
+                    // costs no atan2. Both the tongue taper and (multi-arm) the gap between arms come from
+                    // cooling by this; directly-behind pixels are handled by the along<0 term below.
+                    float angOff = dist > 0.001f ? latAbs / dist : 0f;
 
                     float h = heat[i];
-                    float vx = nx * (p.flow + p.buoyancy * h);
-                    float vy = ny * (p.flow + p.buoyancy * h);
+                    // Rise: outward along the axis, accelerating with heat (buoyancy) and elongated by stretch.
+                    float rise = p.flow + (p.buoyancy + p.stretch) * h;
+                    float vx = nx * rise, vy = ny * rise;
 
-                    // Turbulence is sampled in the pixel's own ARM SECTOR, folded back to sector 0. Without
-                    // this the noise field is shared across the whole canvas, so "Mirror" arms move through
-                    // DIFFERENT turbulence and the symmetry it promises never actually appears (measured: a
-                    // 4-arm Mirror was as asymmetric as Vary). Folding makes the field N-fold symmetric, and
-                    // Mirror folds once more within the sector so neighbouring arms meet as reflections.
+                    // Turbulence sampled in the pixel's own ARM SECTOR, folded to sector 0 (and mirrored once
+                    // more for Mirror mode) so the arms genuinely share/reflect one field instead of each
+                    // moving through different noise. The curl acts SIDEWAYS (perpendicular to the axis), which
+                    // is what makes a tongue wave and lick rather than just travel straight.
                     float qx = ox, qy = oy;
-                    if (arms > 1 && p.armMode == FireArmMode.Mirror)
+                    if (multi)
                     {
-                        float a0 = Mathf.Atan2(oy, ox) - dirRad;
-                        float folded = Mathf.Repeat(a0, sector);
-                        if (folded > sector * 0.5f) folded = sector - folded;   // mirror within the sector
-                        float fa = folded + dirRad;
-                        qx = Mathf.Cos(fa) * dist; qy = Mathf.Sin(fa) * dist;
+                        float folded = Mathf.Repeat(pixAng - dirRad, sector);
+                        if (p.armMode == FireArmMode.Mirror && folded > sector * 0.5f) folded = sector - folded;
+                        qx = Mathf.Cos(folded + dirRad) * dist; qy = Mathf.Sin(folded + dirRad) * dist;
                     }
+                    // warp 0 on the noise: fire doesn't need the domain-distortion octave, and dropping it
+                    // halves the lattice sampling — the dominant per-pixel cost.
+                    float swirl = (PyreNoise.Sample((qx + cx) / curlScale, (qy + cy - t * 60f) / curlScale, seed + 31, 0f) - 0.5f)
+                                  * p.curl * 3f * (0.3f + h);   // stronger where there's fire, so cold air is calm
+                    vx += -ny * swirl;   // perpendicular to the arm axis
+                    vy += nx * swirl;
 
-                    // Curl noise: two offset noise samples give a divergence-free-ish swirl, which is what
-                    // makes the tongues curl instead of just stretching.
-                    float n1 = PyreNoise.Sample((qx + cx + t * 40f) / curlScale, (qy + cy) / curlScale, seed + 31, 0.5f) - 0.5f;
-                    float n2 = PyreNoise.Sample((qx + cx) / curlScale, (qy + cy - t * 40f) / curlScale, seed + 57, 0.5f) - 0.5f;
-                    vx += n2 * p.curl * 2f;
-                    vy -= n1 * p.curl * 2f;
-
-                    // Flicker: a small jitter so edges break up rather than staying glassy. Keyed on the
-                    // FOLDED position too, for the same symmetry reason as the curl above.
                     if (p.flicker > 0.001f)
                     {
-                        int fh = Mathf.RoundToInt(qx * 4f) * 73856093 ^ Mathf.RoundToInt(qy * 4f) * 19349663;
-                        vx += (Hash01(seed, fh, Mathf.FloorToInt(t * 97f)) - 0.5f) * p.flicker * 2f;
-                        vy += (Hash01(seed, fh, Mathf.FloorToInt(t * 97f) + 5) - 0.5f) * p.flicker * 2f;
+                        int fh = (Mathf.RoundToInt(qx * 3f) * 73856093) ^ (Mathf.RoundToInt(qy * 3f) * 19349663);
+                        vx += -ny * (Hash01(seed, fh, tKey) - 0.5f) * p.flicker * 2f;
+                        vy += nx * (Hash01(seed, fh, tKey) - 0.5f) * p.flicker * 2f;
                     }
 
                     // Semi-Lagrangian: read from where this pixel's content came FROM.
@@ -199,13 +238,27 @@ namespace Laubrary.Pyre
                     float burned = sf * p.burn * dt;
                     sh += burned;
                     sf -= burned;
-                    sh *= 1f - p.dissipation * dt;
+
+                    // ── cooling: this is the shape ──────────────────────────────────────────────
+                    float cool = p.dissipation;
+                    // Pinch — cool by ANGLE off the arm axis, so each arm narrows to a pointed tongue and,
+                    // with several arms, the cold gaps between them open up. This one term does most of the
+                    // work of making it read as fire AND of keeping arms distinct.
+                    cool += p.pinch * angOff * 2.2f;
+                    // Anything behind the emitter (along < 0) is cooled hard — fire only goes forward.
+                    if (along < 0f) cool += (-along) * 0.06f + p.pinch;
+                    // Breakup — a finer, faster noise that eats the edges into wisps rather than a smooth
+                    // silhouette. Scaled by (1-h) so it bites the cool outer flame, not the hot core.
+                    if (p.breakup > 0.001f)
+                    {
+                        float nb = PyreNoise.Sample((qx + cx) / 5f + tKey * 0.13f, (qy + cy) / 5f - tKey * 0.19f, seed + 91, 0f);
+                        cool += p.breakup * Mathf.Max(0f, nb - 0.35f) * 2.5f * (1.2f - sh);
+                    }
+                    sh *= Mathf.Max(0f, 1f - cool * dt);
 
                     // ── confinement ───────────────────────────────────────────────────────────
-                    // The reason "crank it up" is safe. Past the reach radius, heat is cooled hard and
-                    // ramps to zero at the limit, so the flame CANNOT reach the canvas edge no matter how
-                    // much flow or buoyancy is dialled in — the thing that made a hot setting unusable as a
-                    // game asset. Inside the radius nothing is touched at all.
+                    // Past the reach radius heat is killed and ramps to zero at the limit, so the flame can
+                    // never reach the canvas edge however hard flow/buoyancy are driven. Inside, untouched.
                     if (dist > reachPx)
                     {
                         float over = Mathf.Clamp01((dist - reachPx) / Mathf.Max(1f, half - reachPx));
@@ -214,12 +267,22 @@ namespace Laubrary.Pyre
                         sf *= kill;
                     }
 
-                    heatB[i] = Mathf.Clamp01(sh);
-                    fuelB[i] = Mathf.Clamp01(sf);
+                    float nh = Mathf.Clamp01(sh), nf = Mathf.Clamp01(sf);
+                    heatB[i] = nh;
+                    fuelB[i] = nf;
+                    if (nh > 0.002f || nf > 0.002f)
+                    {
+                        if (x < nbx0) nbx0 = x; if (x > nbx1) nbx1 = x;
+                        if (y < nby0) nby0 = y; if (y > nby1) nby1 = y;
+                    }
                 }
 
             var th = heat; heat = heatB; heatB = th;
             var tf = fuel; fuel = fuelB; fuelB = tf;
+            // Carry the live box forward. If nothing survived, collapse to the emitter so re-ignition still
+            // gets scanned next step (the active box unions the emitter region regardless).
+            if (nbx1 < nbx0) { boxX0 = boxY0 = 0; boxX1 = boxY1 = 0; }
+            else { boxX0 = nbx0; boxY0 = nby0; boxX1 = nbx1; boxY1 = nby1; }
         }
 
         /// Composite the current state into a layer buffer through the layer's own gradient — one ramp whose

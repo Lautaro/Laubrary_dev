@@ -47,6 +47,7 @@ namespace Laubrary.Pyre
         const int F_FireDir = 100, F_FireWidth = 101, F_FireInset = 102, F_FireHeat = 103, F_FireFuel = 104;
         const int F_FirePulse = 105, F_FireFlow = 106, F_FireBuoy = 107, F_FireCurl = 108, F_FireCurlScale = 109;
         const int F_FireFlicker = 110, F_FireDissip = 111, F_FireBurn = 112, F_FireReach = 113, F_FireEdgeCool = 114;
+        const int F_FireStretch = 115, F_FirePinch = 116, F_FireBreakup = 117;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -202,7 +203,12 @@ namespace Laubrary.Pyre
         // simulation from a reset up to N. That is the same discipline SimulationModifier uses, and for the
         // same reason — it is the only version that cannot show a frame built under stale dial values. One
         // sim instance is reused so the arrays aren't reallocated every frame; it is always Reset first.
-        [System.ThreadStatic] static FireSim _fireSim;
+        // One FireSim per Layer, kept across calls so PLAYBACK can step forward one frame instead of replaying
+        // the whole history every repaint — the O(frames²)-per-repaint cost that made the preview crawl. A
+        // weak table means a deleted layer's sim is collected on its own, and a cloned layer (a fresh Layer
+        // object) naturally gets its own entry rather than sharing one. Keyed by object identity, so two specs
+        // that happen to hold equal layers still get separate sims.
+        static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Layer, FireSim> _fireSims = new();
 
         static FireParams FireParamsAt(Layer layer, Pyre spec, int li, int frameIndex)
         {
@@ -225,6 +231,9 @@ namespace Laubrary.Pyre
                 curl = Mathf.Max(0f, E(layer.fireCurl, F_FireCurl)),
                 curlScale = Mathf.Max(2f, E(layer.fireCurlScale, F_FireCurlScale)),
                 flicker = Mathf.Max(0f, E(layer.fireFlicker, F_FireFlicker)),
+                stretch = Mathf.Max(0f, E(layer.fireStretch, F_FireStretch)),
+                pinch = Mathf.Max(0f, E(layer.firePinch, F_FirePinch)),
+                breakup = Mathf.Max(0f, E(layer.fireBreakup, F_FireBreakup)),
                 dissipation = Mathf.Max(0f, E(layer.fireDissipation, F_FireDissip)),
                 burn = Mathf.Max(0f, E(layer.fireBurn, F_FireBurn)),
                 reach = Mathf.Clamp01(E(layer.fireReach, F_FireReach)),
@@ -232,30 +241,50 @@ namespace Laubrary.Pyre
             };
         }
 
+        // dt is ONE FRAME, split across the substeps — so every velocity dial reads in PIXELS PER FRAME and
+        // every rate dial in per-frame terms. Anything else makes the numbers meaningless to author against:
+        // an early version used 1/12 here and a buoyancy of 0.5 moved heat 0.02px per step, so the "flame" was
+        // the emitter disc and nothing else.
+        const float FireDt = 1f;
+
+        static void StepFire(FireSim sim, Layer layer, Pyre spec, int li, int seed, int f)
+        {
+            var p = FireParamsAt(layer, spec, li, f);
+            int steps = Mathf.Max(1, layer.fireSteps);
+            float t = Mathf.Clamp01((f - layer.startFrame) / (float)Mathf.Max(1, layer.endFrame - layer.startFrame));
+            for (int s = 0; s < steps; s++)
+                sim.Step(p, seed, t + s / (float)steps * 0.01f, FireDt / steps);
+        }
+
         static void RenderFire(Color32[] target, int W, int H, Layer layer, Pyre spec, int li,
                                int frameIndex, float layerAlpha)
         {
-            var sim = _fireSim ??= new FireSim();
+            var sim = _fireSims.GetValue(layer, _ => new FireSim());
+            bool sizeChanged = sim.W != W || sim.H != H;
             sim.Allocate(W, H);
-            sim.Reset();
 
             int seed = ShapeSeed(spec.seed, li, 0);
             int last = Mathf.Clamp(frameIndex, layer.startFrame, layer.endFrame);
-            int steps = Mathf.Max(1, layer.fireSteps);
-            // dt is ONE FRAME, split across the substeps — so every velocity dial is read in PIXELS PER FRAME
-            // and every rate dial in per-frame terms. Anything else makes the numbers meaningless to author
-            // against: the first version used 1/12 here and a buoyancy of 0.5 moved heat 0.02px per step, so
-            // the "flame" was the emitter disc and nothing else.
-            const float dt = 1f;
 
-            // Replay every frame from the layer's own start. Frames before it exists stay empty.
-            for (int f = layer.startFrame; f <= last; f++)
+            // The cheap path: exactly one frame past where the sim already is (normal forward playback) → step
+            // once. Any other request — a scrub backward, the same frame re-asked while a dial is being
+            // dragged, a size change — replays from the layer's start. Replaying on a same-frame re-request is
+            // what makes a dial edit take effect: the parameters of every earlier frame changed too, so the
+            // whole history has to be re-run under the new values (the exact reason SimulationModifier dropped
+            // its checkpoint shortcut). This mirrors SimulationModifier.EnsureFrame.
+            if (!sizeChanged && sim.LastFrame >= layer.startFrame && last == sim.LastFrame + 1)
             {
-                var p = FireParamsAt(layer, spec, li, f);
-                float t = Mathf.Clamp01((f - layer.startFrame) /
-                                        (float)Mathf.Max(1, layer.endFrame - layer.startFrame));
-                for (int s = 0; s < steps; s++)
-                    sim.Step(p, seed, t + s / (float)steps * 0.01f, dt / steps);
+                StepFire(sim, layer, spec, li, seed, last);
+                sim.LastFrame = last;
+            }
+            else
+            {
+                sim.Reset();
+                for (int f = layer.startFrame; f <= last; f++)
+                {
+                    StepFire(sim, layer, spec, li, seed, f);
+                    sim.LastFrame = f;
+                }
             }
 
             sim.Render(target, layer.colorOverLife, layerAlpha, layer.fireThreshold, layer.fireContrast);

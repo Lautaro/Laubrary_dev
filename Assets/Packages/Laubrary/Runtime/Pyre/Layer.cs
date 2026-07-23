@@ -380,8 +380,16 @@ namespace Laubrary.Pyre
         public ZUIValue fireCurl = new ZUIValue(1.5f);
         [Tooltip("Fire: size of the swirls. Small = fine turbulence, large = slow broad rolls.")]
         public ZUIValue fireCurlScale = new ZUIValue(7f);
-        [Tooltip("Fire: per-pixel jitter, so edges break up instead of staying glassy.")]
+        [Tooltip("Fire: sideways wobble of the tongues — how much they lick and wave.")]
         public ZUIValue fireFlicker = new ZUIValue(0.6f);
+        [Tooltip("Fire: elongate the flame along its direction. High = long licking tongues, 0 = squat.")]
+        public ZUIValue fireStretch = new ZUIValue(3f);
+        [Tooltip("Fire: taper the sides into a pointed tongue. This is most of what makes it read as a flame " +
+                 "rather than a blob — and with several arms, it's what opens the cold gaps between them, so " +
+                 "raise it if the arms merge into a polygon.")]
+        public ZUIValue firePinch = new ZUIValue(0.6f);
+        [Tooltip("Fire: eat the edges into wisps instead of a smooth silhouette.")]
+        public ZUIValue fireBreakup = new ZUIValue(0.4f);
         [Tooltip("Fire: how fast heat fades. High = a short sharp flame, low = long lingering tongues.")]
         public ZUIValue fireDissipation = new ZUIValue(0.35f);
         [Tooltip("Fire: how fast fuel converts into heat.")]

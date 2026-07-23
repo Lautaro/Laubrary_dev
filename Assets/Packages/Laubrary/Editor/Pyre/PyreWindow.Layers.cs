@@ -643,9 +643,17 @@ namespace Laubrary.Pyre.Editor
             motion.Add(WrapRow(
                 PackedVal("Curl", "Swirl strength — what curls the tongues instead of merely stretching them.", l.fireCurl, 0f, 8f),
                 PackedVal("Curl size", "Size of the swirls. Small = fine turbulence, large = slow broad rolls.", l.fireCurlScale, 2f, 40f)));
-            motion.Add(ValRow("Flicker", "Per-pixel jitter, so edges break up instead of staying glassy.",
+            motion.Add(ValRow("Flicker", "Sideways wobble of the tongues — how much they lick and wave.",
                 l.fireFlicker, 0f, 4f, 0.6f));
             root.Add(motion);
+
+            var shape = Z.Box("Flame shape", "What turns the moving heat into a FLAME rather than a spreading " +
+                "blob. If arms merge into a polygon, this is where to fix it — raise Pinch.");
+            shape.Add(WrapRow(
+                PackedVal("Stretch", "Elongate the flame along its direction. High = long licking tongues.", l.fireStretch, 0f, 12f),
+                PackedVal("Pinch", "Taper the sides into a pointed tongue — and open the cold gaps between arms.", l.firePinch, 0f, 3f)));
+            shape.Add(ValRow("Breakup", "Eat the edges into wisps instead of a smooth silhouette.", l.fireBreakup, 0f, 3f, 0.4f));
+            root.Add(shape);
 
             var life = Z.Box("Burn / life", "How the flame consumes itself and fades.");
             life.Add(WrapRow(
