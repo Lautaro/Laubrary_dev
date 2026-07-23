@@ -693,13 +693,10 @@ namespace Laubrary.Pyre.Editor
                     l.fireDissipation, 0f, 2f),
                 PackedVal("Burn rate", "How fast fuel converts into heat.", l.fireBurn, 0f, 4f)));
             life.Add(WrapRow(
-                Z.Field("Threshold", "Heat below this reads as empty. Raise it to carve a crisper silhouette.",
-                    Z.Slider(l.fireThreshold, 0f, 0.9f, "Heat below this reads as empty.",
-                        v => Dial("Fire threshold", () => l.fireThreshold = v), 130f)),
-                Z.Field("Contrast", "Contrast on the gradient lookup. Below 1 pushes more of the flame toward " +
-                    "the hot end.", Z.Slider(l.fireContrast, 0.1f, 3f,
-                        "Contrast on the gradient lookup.",
-                        v => Dial("Fire contrast", () => l.fireContrast = v), 130f))));
+                PackedSlider("Threshold", "Heat below this reads as empty. Raise it to carve a crisper silhouette.",
+                    l.fireThreshold, 0f, 0.9f, v => l.fireThreshold = v, 130f),
+                PackedSlider("Contrast", "Contrast on the gradient lookup. Below 1 pushes more of the flame " +
+                    "toward the hot end.", l.fireContrast, 0.1f, 3f, v => l.fireContrast = v, 130f)));
             root.Add(life);
 
             var box = Z.Box("Confinement", "The reason a hot setting stays usable as a game asset.");
@@ -753,12 +750,10 @@ namespace Laubrary.Pyre.Editor
 
             var look = Z.Box("Look", "Threshold and contrast on the gradient.");
             look.Add(WrapRow(
-                Z.Field("Threshold", "Heat below this reads as empty.",
-                    Z.Slider(l.fireballThreshold, 0f, 0.9f, "Heat below this reads as empty.",
-                        v => Dial("Fireball threshold", () => l.fireballThreshold = v), 130f)),
-                Z.Field("Contrast", "Contrast on the gradient lookup.",
-                    Z.Slider(l.fireballContrast, 0.1f, 3f, "Contrast on the gradient lookup.",
-                        v => Dial("Fireball contrast", () => l.fireballContrast = v), 130f))));
+                PackedSlider("Threshold", "Heat below this reads as empty.", l.fireballThreshold, 0f, 0.9f,
+                    v => l.fireballThreshold = v, 130f),
+                PackedSlider("Contrast", "Contrast on the gradient lookup.", l.fireballContrast, 0.1f, 3f,
+                    v => l.fireballContrast = v, 130f)));
             root.Add(look);
         }
 

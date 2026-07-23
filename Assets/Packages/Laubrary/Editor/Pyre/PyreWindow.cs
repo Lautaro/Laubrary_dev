@@ -416,6 +416,7 @@ namespace Laubrary.Pyre.Editor
                 hideLiveReadout = true,
                 staticDefault = def,
                 controlWidth = width,
+                grow = true,   // fill the row's spare horizontal space instead of leaving it empty
             };
             return Z.Value(label, v, o, tooltip, DirtySpec, RecordSpec);
         }
@@ -431,10 +432,16 @@ namespace Laubrary.Pyre.Editor
             => Z.Value2D(label, x, y, opts, tooltip, DirtySpec, RecordSpec);
 
         /// Plain-float compact slider (for the handful of bare-float fields never promoted to ZUIValue).
+        /// A MicroSlider with the LABEL and value both inside the track — matching the animatable rows'
+        /// Static look — and growing to fill the row's spare width.
         VisualElement PackedSlider(string label, string tooltip, float value, float lo, float hi,
             System.Action<float> set, float width = 110f)
-            => Z.Field(label, tooltip, Z.Slider(value, lo, hi, tooltip,
-                v => Dial("Edit Pyre", () => set(v)), width));
+        {
+            var ms = Z.MicroSlider(label, value, lo, hi, tooltip,
+                v => Dial("Edit Pyre", () => set(v)), width, showValue: true);
+            ms.style.flexGrow = 1f; ms.style.flexShrink = 1f; ms.style.maxWidth = width * 2.6f;
+            return ms;
+        }
 
 
         // ── splitters ───────────────────────────────────────────────────────────────────────

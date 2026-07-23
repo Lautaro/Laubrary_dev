@@ -36,8 +36,18 @@ namespace Laubrary.Zui
             public bool hideCurveRange = false;   // hide the Value-Range row AND pin Y range to [absMin, absMax]
             public bool hideLiveReadout = false;
             public float controlWidth = 170f;     // width of the slider/range/envelope body (packed-row support)
+            // Grow to fill available horizontal space (up to maxWidthFactor × controlWidth), instead of
+            // sitting at a fixed width and leaving the rest of a wide row empty. Off by default so tools that
+            // haven't opted in keep their exact layout; Pyre turns it on.
+            public bool grow = false;
+            public float maxWidthFactor = 2.4f;
+            // Static (MicroSlider) mode only: draw the field's LABEL inside the slider track (the point of a
+            // MicroSlider) instead of as a separate label to its left. MinMax/Curve modes always use an
+            // external label — they aren't MicroSliders. Default true; set false to keep the label outside.
+            public bool sliderLabelInside = true;
 
             public Options WithRange(float lo, float hi) { absMin = lo; absMax = hi; return this; }
+            public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
             public Options WithMultipliers(params string[] ids) { multiplierIds = ids; return this; }
             public Options WithDefault(float value) { staticDefault = value; return this; }
             public Options WithoutCurveExtras() { hideCurveTiming = true; hideCurveRange = true; return this; }
@@ -87,6 +97,16 @@ namespace Laubrary.Zui
             _tooltip = tooltip;
             this.tooltip = tooltip;
 
+            if (_opt.grow)
+            {
+                // Fill available width up to a cap, so a control uses the horizontal space a wide pane offers
+                // instead of leaving it empty — and packed pairs share the row and reflow when it's narrow.
+                style.flexGrow = 1f;
+                style.flexShrink = 1f;
+                style.minWidth = _opt.controlWidth;
+                style.maxWidth = _opt.controlWidth * Mathf.Max(1f, _opt.maxWidthFactor);
+            }
+
             _content = new VisualElement();
             Add(_content);
 
@@ -126,16 +146,14 @@ namespace Laubrary.Zui
             {
                 case ZUIValue.Mode.Static:
                 {
-                    var slider = Z.Slider(_v.staticValue, _opt.absMin, _opt.absMax, _tooltip,
-                        val => Mutate(() => _v.staticValue = val), _opt.controlWidth);
-                    if (_opt.staticDefault.HasValue)
-                        slider.RegisterCallback<PointerDownEvent>(e =>
-                        {
-                            if (e.clickCount != 2) return;
-                            Mutate(() => _v.staticValue = _opt.staticDefault.Value);
-                            slider.SetValueWithoutNotify(_v.staticValue);
-                        });
-                    AddHeaderRow(_label, slider);
+                    // MicroSlider: label AND value sit inside the filled track (the whole point of a
+                    // MicroSlider), the fill is the handle — the old-ZUI look, half a vanilla Slider's height.
+                    // Label inside by default, so no external label; sliderLabelInside=false keeps it outside.
+                    bool inside = _opt.sliderLabelInside;
+                    var slider = Z.MicroSlider(inside ? _label : "", _v.staticValue, _opt.absMin, _opt.absMax,
+                        _tooltip, val => Mutate(() => _v.staticValue = val), _opt.controlWidth, showValue: true,
+                        defaultValue: _opt.staticDefault);
+                    AddHeaderRow(inside ? null : _label, slider);
                     break;
                 }
                 case ZUIValue.Mode.MinMax:
@@ -155,7 +173,8 @@ namespace Laubrary.Zui
             row.AddToClassList("zui-row");
             row.style.alignItems = Align.FlexStart;
             if (!string.IsNullOrEmpty(label)) row.Add(FieldLabel(label));
-            body.style.flexShrink = 0f;
+            if (_opt.grow) { body.style.flexGrow = 1f; body.style.flexShrink = 1f; }
+            else body.style.flexShrink = 0f;
             row.Add(body);
             row.Add(MenuButton());
             _content.Add(row);
@@ -197,6 +216,13 @@ namespace Laubrary.Zui
             {
                 var thumb = new CurveThumb(_v) { tooltip = "Click to expand the curve editor." };
                 thumb.style.width = Mathf.Max(60f, _opt.controlWidth - 20f);
+                // A collapsed thumbnail should fill the row's spare width too, not sit narrow with the rest
+                // empty — same grow rule as the sliders, capped so it never runs infinitely wide.
+                if (_opt.grow)
+                {
+                    thumb.style.flexGrow = 1f; thumb.style.flexShrink = 1f;
+                    thumb.style.maxWidth = _opt.controlWidth * Mathf.Max(1f, _opt.maxWidthFactor);
+                }
                 thumb.RegisterCallback<PointerDownEvent>(e =>
                 {
                     if (e.button != 0) return;
