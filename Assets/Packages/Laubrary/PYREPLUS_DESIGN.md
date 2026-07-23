@@ -1,84 +1,88 @@
-> **STATUS UPDATE 2026-07-23:** the IMGUI → UI Toolkit switch this design was waiting on HAS happened — the whole editor toolkit (`Laubrary.Zui`, `Z.*`) is now UI Toolkit, and every Laubrary tool window is ported. Per the shelved note below, that means this design is now due for **reconsideration in a UI Toolkit world, not a straight port**. Some of it already exists: `ZuiSection`/`ZuiBox` are collapsible bordered sections that fold, and `Z.Divider` groups within one. Still absent: multi-column field flow, the gear-panel opt-in, cross-column drag, per-project layout persistence, and templates (Zolumn); and the whole Swarm shape-system (PyrePlus). Copied from PreviewLab into the canonical host, where it was missing after the 2026-07-23 merge.
+# PyrePlus — modular, opt-in Pyre rework (parallel prototype)
 
-# PyrePlus — modular, opt-in Pyre rework (prototype)
-
-> **Shelved (on hold).** This design and its companion `ZOLUMN_DESIGN.md` are on hold while the project
-> investigates switching its editor UI stack from IMGUI to UI Toolkit. Everything below is written
-> against ZUI (IMGUI) and assumes `Zolumn` (also IMGUI) as its container primitive — if the UI Toolkit
-> switch happens, this design needs to be reconsidered, not just ported, before any implementation
-> starts. Do not begin building this without first checking whether the IMGUI vs. UI Toolkit decision
-> has been made.
+> **HANDOFF STATUS (2026-07-23).** The IMGUI → UI Toolkit switch this design was once shelved for is **done** — the whole Laubrary editor toolkit is UI Toolkit (`Laubrary.Zui`, the `Z.*` factory) and every tool window is ported. Per the original shelving note, that means this design was **reconsidered for a UITK world**, not ported verbatim: **Zolumn is dropped** (the UITK toolkit already gives collapsible bordered sections that fold — `ZuiSection`/`ZuiBox` — plus a grow-to-fill column layout and a `Z.Divider`), and the window is built directly on `ZuiAssetWindow<T>` + `Z.*` controls. **Slice 1 is BUILT and committed** (Shape section + renderer + window, rendering one live particle). This document is the brief for **Fable Claude** to continue from there. Everything below is current unless a paragraph says "(SLICE 1, DONE)".
 
 ## Purpose
 
-Pyre's `Layer` (`Assets/Packages/Laubrary/Runtime/Pyre/Layer.cs`) is one flat ~40-field bag mixing placement, population, per-particle shape, and modifiers, all always visible regardless of whether they currently do anything. This document specifies a restructured data model and UI, built on the `Zolumn` container (see `ZOLUMN_DESIGN.md`), validated as a parallel prototype — its own asset type, its own renderer, its own window — so the shipping Pyre tool is never put at risk. Folding this back into real `BlastSpec`/`Layer`/`BlastRenderer`, and ideally emitting real `BlastSpec` assets from it, is explicit future work, not part of this build.
+Pyre's `Layer` (`Runtime/Pyre/Layer.cs`) is one flat ~60-field bag mixing placement, population, per-particle shape, and modifiers, all always visible regardless of whether they currently do anything (this session added Fire/Fireball/Matte fields to it, making the point sharper). PyrePlus is a restructured data model + UI, validated as a **parallel prototype — its own asset type, its own renderer, its own window** — so the shipping Pyre tool is **never** put at risk. Folding this back into real `Pyre`/`Layer`/`BlastRenderer`, and ideally emitting real `Pyre` assets from it, is explicit future work, not part of this build.
 
-## Sections
+## What exists right now (SLICE 1, DONE — read this before touching anything)
 
-A `PyrePlusSpec` asset has exactly one implicit layer (no layer-list UI — layers are out of scope for this pass) organized into three `Zolumn` sections:
+- **Menu:** `Laubrary/Pyre Plus` opens `PyrePlusWindow`.
+- **`Runtime/PyrePlus/`** — asmdef `com.Lautaro-Arino.Laubrary.PyrePlus` (references `ZuiRuntime` for `ZUIValue` + `Pyre` for `PyreModifier`):
+  - `PyrePlusSpec.cs` — the asset. `[CreateAssetMenu("Laubrary/Pyre Plus")]`. Canvas/timing fields (`canvasSize`, `frameCount`, `seed`, `background`, `pixelsPerUnit`); the **Shape** section (`colorOverLife` Gradient, `alpha` ZUIValue, `size` ZUIValue, `edgeSoftness` float); a `swarmEnabled` stub; a `[SerializeReference] List<PyreModifier> modifiers`; cosmetic preview state.
+  - `PyrePlusRenderer.cs` — `RenderFrame(spec, frameIndex) → Color32[]` and `RenderFrameTexture(...)`. Pure, static, deterministic. Renders **one centred particle** through the Shape fields (soft disc, alpha·colour(life)·edge, Over-composited). Has the `Eval(ZUIValue, life, seed, particleIndex, fieldId)` helper (mirrors `BlastRenderer.Eval` — Static reads the value, Curve reads the envelope at the particle's life, MinMax draws once from a seeded `System.Random`) and a `Hash(...)`. **This is the pattern to extend** for Swarm.
+- **`Editor/PyrePlus/`** — asmdef `com.Lautaro-Arino.Laubrary.PyrePlus.Editor` (references `PyrePlus`, `Pyre`, `AssetKit.Editor`, `Zui.Editor`, `ZuiRuntime`):
+  - `PyrePlusWindow.cs` — `ZuiAssetWindow<PyrePlusSpec>`. Left pane = a `ScrollView` of `Z.Box`/`Z.Section` sections (Canvas, Shape). Right pane = an `IMGUIContainer` preview with a looping transport (frame-gated re-render via `previewDirty`, so a replay-style renderer isn't re-run every repaint — see the Fire lag note below). `BuildAsset(root, spec)` is the entry point; helpers `Val(...)` (a grow-enabled `ZuiValueControl` row), `WrapRow(...)`, `Dirty(...)`.
 
-### Shape (mandatory section, always drawn)
+Open it, hit New, and you get a pulsing soft particle. That is the whole of slice 1.
 
-The particle's own look. Mandatory fields: form (Disc only — Pyre's other five `LayerShape`s are out of scope for this prototype), `colorOverLife` (`Gradient`), `alpha` (`ZUIValue`, over the particle's own life), `size` (`ZUIValue`). Opt-in fields, via the section's gear panel:
-- **Position** — the particle's own path after its own birth, on its own life clock — reuses `ZUIValue2DControl`'s existing "animate over time" Curve mode verbatim (`Zui/Scripts/Editor/ZUIValue2DControl.cs` — click to add points, point order is time, no separate authored time field needed).
-- **2D rotation** (spin, one `ZUIValue` of degrees) — 2D only; this is one particle's own pixels rotating in place, not a 3D tilt (3D tilt belongs to the swarm-wide shape transform, below).
+## The UITK conventions PyrePlus MUST follow (this is the new world)
 
-### Swarm (single top-level on/off toggle; off = exactly one instance, section fully hidden)
+Read `references/ui-layout-rules.md` in the `laubrary` skill IN FULL before writing UI — it is mandatory, not optional. Then:
 
-When enabled:
-- Mandatory: `count` (min 2).
-- `Spawn mode`: **Area** | **Path** (`MiniRadio`, matching the compact-enum-picker idiom already used for `ScatterMode` today).
-- `Shape kind` (available to both modes): **Circle | Triangle | Square | Pentagon | Hexagon**, reusing `PolygonRadiusFactor`/`BandSides` (`Runtime/Pyre/BlastRenderer.cs:498-504`), currently Rosing-only, generalized here. **Custom** (a hand-drawn polyline via the 2D pad in animate-over-time mode) is a **Path-only** addition to that list.
-- **Area**: a uniformly-random point within the chosen shape's boundary (extends the existing random-in-disc math at `BlastRenderer.cs:525-531` to the other boundary shapes). No progress/spawn-point concept — particles simply scatter inside the (possibly live-transforming, see below) shape.
-- **Path**: placement is driven by one **spawn point** travelling along the chosen shape/polyline, positioned by a **`progress`** field (`ZUIValue` — Static/MinMax/Curve, the same authoring control used for every other animatable Pyre field) running 0→1 across the shape: 0 = the path's start, 1 = its end (once around, for a closed shape). Because `progress` is an ordinary authored envelope, it can ease, hold, rewind (dip back down), or run at variable speed exactly like any other curve — there is no separate per-particle stagger control. Each particle samples `progress` (and therefore its position along the shape) **at its own spawn frame** and keeps that position for its whole life — a spawn-time snapshot, not a shared live value — so particles born while `progress` is moving slowly cluster together and particles born while it's moving fast land further apart. Particle spawn *timing* itself stays a plain, even distribution across the swarm's life window.
-- Shared **shape transform**, applied to the whole Area/Path shape and evaluated live at the swarm's current-frame progress (not spawn-locked): **Position** (`ZUIValue2DControl`), **Scale** (`ZUIValue`, with an optional **discrete-step snap** — evaluate the envelope normally, then round to the nearest step, so successive placements land on a fixed set of radii instead of a continuum), **Rotation 2D** (`ZUIValue` degrees), **Rotation 3D** (pitch + yaw, two `ZUIValue`s, reusing the pseudo-3D `RotatePitchYaw` math and the `roseZ`/`zSizeInfluence` depth-scaling trick already in `BlastRenderer.cs:509-523`, so a tilted shape visibly shows depth in the preview — nearer parts of the path render bigger/brighter).
-- Each particle's actual placement (its Area random point, or its Path progress-sampled point) is computed against a **snapshot of the shape transform taken at that particle's own spawn frame**, not the live transform — otherwise a live-growing/orbiting shape would retroactively slide every already-placed particle instead of leaving a trail behind it. Pyre's own renderer already makes exactly this distinction deliberately: `ringExpand` is evaluated live so an existing ring visibly grows (`BlastRenderer.cs:470-480`), while `spawnRadius`/`ringStartAngle` are evaluated at each shape's own spawn-time progress specifically so already-placed shapes don't retroactively slide (`BlastRenderer.cs:452-490` — see the comments there for the reasoning). Swarm's shape-transform-vs-per-particle-snapshot split is that same principle applied one level up.
+- **Every control is a `Z.*` factory and REQUIRES a tooltip.** No raw `EditorGUILayout`/`GUILayout`, no bare labels. Use `Z.Field`, `Z.Row`, `Z.Box`, `Z.Section` (collapsible), `Z.MicroSlider`, `Z.Toggle`/`Z.ToggleButton`, `Z.MiniRadio`/`Z.Segmented`, `Z.EnumDropdown`, `Z.Color`, `Z.Object`, `Z.Value` (the animatable `ZUIValue` control), `Z.Value2D` (the animatable XY pair), `Z.Pad` (plain Vector2). Genuine canvas painting (the preview) stays an `IMGUIContainer` — that is the one sanctioned IMGUI island.
+- **Animatable fields are `ZUIValue`, drawn with `Z.Value`/`ZuiValueControl`.** Its Static mode now draws a **MicroSlider** by default — label AND value inside the filled track, no thumb (the fill is the handle), a horizontal-gradient fill. MinMax and Curve modes still use an external label. Turn on `Options.grow` (or `WithGrow()`) so a control fills the row's spare width up to a cap and packed pairs share/reflow — PyrePlus's `Val(...)` already does this. (This is exactly the "use the empty horizontal space" and "label inside the microslider" feedback that drove the current look; keep it.)
+- **Plain (non-`ZUIValue`) sliders should also be `Z.MicroSlider` with the label inside**, not `Z.Slider` (which is the vanilla thumbed Unity slider) and not a MicroSlider with an external `Z.Field` label. The convention across Pyre is: label + value INSIDE the microslider track. Pyre's `PackedSlider` helper is the reference.
+- **Sections fold.** `Z.Section(title, tooltip)` is a collapsible header that owns its body; `Z.Box(title, tooltip)` is a framed foldable box. Use `Z.Section` for the three top-level sections (Shape / Swarm / Modifiers) and `Z.Box` for sub-groups. The design's "gear panel to opt fields in/out" is NOT needed as its own mechanism — a section that folds, plus a single `Z.Toggle` gating the opt-in fields' visibility (rebuild on toggle), gives the same result far more simply. Prefer that.
+- **Every edit records Undo and marks the preview dirty.** Route mutations through a `Dirty(Action)` helper: `Undo.RecordObject(spec, "...")` → apply → `EditorUtility.SetDirty(spec)` → mark the preview dirty. The value controls take an `onBeforeMutate` (record) + `onChanged` (dirty) pair.
+- **Do NOT add any menu item beyond `Laubrary/Pyre Plus`.** (Laubrary house rule — no speculative menu items.)
+- **Verification (do this, every slice):** flip fields / build a spec **in memory** via `execute_script` (never write a `.asset` from a probe, and never call `AssetDatabase.SaveAssets()` — two assets were silently gutted this way earlier); run `ZuiAudit.Audit(window, out int skipped)` and require **0 findings with skipped==0** (a folded section audits clean falsely — `ZuiAudit.ExpandAll(window)` first); and BAKE frames to a PNG strip and read them back by eye (a scratchpad `CaptureWindow.ps1` does a DPI-aware PrintWindow by window title). For a generator, correctness is visual — "compiles + 0 audit findings" is necessary, not sufficient.
 
-### Modifiers (a Zolumn section whose gear panel is the existing "add modifier" menu)
+## Determinism contract (non-negotiable — the renderer's whole point)
 
-Reuses `PyreModifier` **directly** — its contract has no `BlastSpec`/`Layer` coupling in any method signature (`Runtime/Pyre/PyreModifiers.cs`: `Prepare(Func<ZUIValue,int,float>)` at line 129, `GeometryModifier.InverseWarp(Vector2, float, in GeoCtx)` at line 169, `PixelModifier.ApplyPixel(ref Color, ref float, in PixelInfo)` at line 560, `PostModifier.Apply(Color32[], int, int)` at line 1224) — so `PyrePlus`'s runtime asmdef references Pyre's own runtime asmdef and stores a plain `List<PyreModifier> modifiers` with **zero reimplementation of any modifier**. Only the drawing chrome is new: the same enable/reorder/"+Add" loop Pyre's own `DrawModifiers` already implements (`Editor/Pyre/PyreWindow.cs:1422`), re-skinned into a `Zolumn` body whose gear icon opens the existing `GenericMenu` "+Add modifier" flow instead of a separate button below the list.
+`PyrePlusRenderer` mirrors `BlastRenderer`'s contract exactly: **pure, static, every random value derived from a seeded `System.Random` keyed by `(seed, particleIndex, fieldId, …)` — never `UnityEngine.Random`, never `Time`**, so preview, bake and runtime produce **byte-identical** output from the same inputs, and any frame renders on its own (no state carried between frames). `Eval(ZUIValue, life, seed, particleIndex, fieldId)` in the renderer is the single funnel for this — a MinMax field becomes a per-particle random draw, a Curve field reads the envelope at that particle's own life, a Static field is the value. **Verify determinism per slice:** render a frame cold, render it again after a forward pass, compare — must be 0 differing pixels. (`PyreNoise` in `Runtime/Pyre/PyreModifiers.cs` is `internal` and NOT reachable from PyrePlus — write your own hash/value-noise if you need noise; the renderer already has a `Hash`.)
 
-### Layers
+## Remaining work
 
-Explicitly out of scope for this prototype — important for the eventual integration back into real Pyre, not for validating this rework.
+### SLICE 2 — Swarm (the big one)
 
-## Renderer
+A single top-level `Z.Toggle` "Swarm" gates the whole section (off = exactly one particle, the current behaviour; the section's other controls are hidden — rebuild on toggle). When on:
 
-`PyrePlusRenderer` (new, `Runtime/PyrePlus/`) mirrors `BlastRenderer`'s determinism contract exactly: pure, static, every random value derived from a seeded `System.Random` keyed by `(seed, particleIndex, fieldId)` — never `UnityEngine.Random` (see `BlastRenderer.cs`'s own top-of-file doc comment, lines 6-9, for why: preview, bake, and runtime must all produce byte-identical output from the same inputs). Public surface mirrors `BlastRenderer.cs:247` (`RenderFrame(spec, frameIndex) -> Color32[]`) and `:1808` (`RenderFrameTexture` wrapper).
+- **Mandatory:** `count` (int, min 2) — an ordinary field.
+- **Spawn mode** (`Z.Segmented`/`MiniRadio`): **Area** | **Path**.
+- **Shape kind** (both modes): **Circle | Triangle | Square | Pentagon | Hexagon**, plus **Custom** (Path only). This is a regular polygon by side count (Circle = ∞ sides). The original design pointed at `PolygonRadiusFactor`/`BandSides` in `BlastRenderer.cs` as reusable, but **those exact symbols may have drifted or never landed — grep the current `Runtime/Pyre/BlastRenderer.cs` for the Rosing (`ScatterMode.Rosing`) placement math before assuming; if it isn't there, write the polygon boundary math fresh** (a point-in-regular-polygon test and a random-point-in-polygon are both short). Custom = a hand-drawn polyline authored via `Z.Value2D` in animate-over-time (Curve) mode (click to add points, point order is time) and/or click-to-add on the preview canvas.
+- **Area:** each particle is a uniformly-random point inside the chosen shape's boundary (generalise the existing random-in-disc to the polygon boundary). No progress/spawn-point concept.
+- **Path:** placement is a **spawn point travelling along the shape**, positioned by a **`progress` ZUIValue** (Static/MinMax/Curve, 0→1 around the shape, 0 = start, 1 = end/once-around). Because `progress` is an authored envelope it can ease/hold/rewind; **each particle samples `progress` at its OWN spawn frame and keeps that position for its whole life** (a spawn-time snapshot, not a shared live value) — so particles born while `progress` moves slowly cluster, and fast-moving ones spread. Spawn *timing* is a plain even distribution across the swarm's life window.
+- **Shared shape transform**, applied to the whole Area/Path shape: **Position** (`Z.Value2D`), **Scale** (`ZUIValue`, with an optional discrete-step snap — evaluate then round to the nearest step so placements land on fixed radii), **Rotation 2D** (`ZUIValue` degrees), **Rotation 3D** (pitch + yaw, two `ZUIValue`s — a pseudo-3D tilt: rotate the shape's points in 3D, project, and scale/brighten by depth so nearer parts render bigger/brighter). The original design cited `RotatePitchYaw`/`roseZ`/`zSizeInfluence` in `BlastRenderer.cs`; **those names may not exist as written — the pseudo-3D lighting/normal math in `BlastRenderer.cs` (search for the `lx/ly/lz` normal-dot-light block) is the style to mirror, but expect to write the tilt+project fresh.**
+- **The crucial snapshot rule:** each particle's placement is computed against a **snapshot of the shape transform at THAT particle's spawn frame**, NOT the live transform — otherwise a growing/orbiting shape retroactively slides every already-placed particle instead of leaving a trail. (Pyre makes exactly this split deliberately: `ringExpand` is live so a ring visibly grows, but `spawnRadius`/`ringStartAngle` are spawn-time-snapshot so placed shapes don't slide — read those comments in `BlastRenderer.cs`'s scatter section for the reasoning.) This is the single most important thing to get right in Swarm.
+- **Preview authoring overlay:** while editing Swarm, draw the active shape over the canvas plus a dot at every particle's ACTUAL computed spawn location (not just the outline), and make Custom points / the shape's position handle draggable. Mirror the gizmo-interaction style in Pyre's own `Editor/Pyre/PyreWindow.Preview.cs` (the MetaBlob orb markers, Pin-warp handles, Curl-vortex handles: `Handle*`/`Draw*Markers` methods) — click-to-add / drag / right-click-to-remove, mutation on mouse-up, wrapped in Undo.
 
-## Preview & authoring UI
+### SLICE 3 — Modifiers
 
-- Canvas draw: `GUI.DrawTexture` inside `GUI.BeginClip`, following `PyreWindow.DrawPreview` (`Editor/Pyre/PyreWindow.cs:2410-2427`).
-- Canvas↔screen conversion: the `FrameRect(Rect view)` helper plus the inline conversions used throughout `PyreWindow.cs` (e.g. `:2570-2574` and the call sites around `:2584`, `:2627`, `:2674`, `:2707`) — small enough to duplicate rather than reference Pyre's own private method.
-- Editable path/shape overlay (Custom points, the shape's position handle): copy the click-to-add / drag / right-click-to-remove precedent from `HandlePinWarp`/`DrawPinMarkers` (`PyreWindow.cs:2623-2666`, `:2671-2697`).
-- While editing Swarm, draw the active Area/Path shape directly over the canvas, plus a dot at every particle's actual computed spawn location (not just the shape outline) — same idea as `DrawMetaOrbMarkers`/`HandleMetaBlob` (`PyreWindow.cs:2577-2618`).
-- Transport (play/pause/scrub/zoom/fps): copy `Tick()`/`FitZoom` (`PyreWindow.cs:245-266`, `:2459-2513`).
-- "New from template" / "Save as template": via `Zolumn`'s template system, instantiated for `PyrePlusSpec`, thumbnail rendered via `PyrePlusRenderer.RenderFrameTexture`.
+Reuses `PyreModifier` **directly** — its contract has NO `Pyre`/`Layer` coupling in any signature, so `PyrePlus.asmdef` already references `Pyre` and the `[SerializeReference] List<PyreModifier> modifiers` field is already on the spec. The four kinds and their apply points (all in `Runtime/Pyre/PyreModifiers.cs`):
+- `PyreModifier.Prepare(Func<ZUIValue,int,float> eval)` — call before applying, passing an eval closure that resolves the modifier's own animatable fields (mirror how `BlastRenderer` builds that closure).
+- `GeometryModifier.InverseWarp(Vector2 off, float phase, in GeoCtx ctx)` — a coordinate warp applied when sampling each pixel's source position.
+- `PixelModifier.ApplyPixel(ref Color col, ref float alpha, in PixelInfo info)` — per-pixel colour/alpha (return false to drop the pixel).
+- `PostModifier.Apply(Color32[] buf, int W, int H)` — a whole-buffer pass (Bloom, Outline, **Kaleidoscope** — new this session, mirrors a layer into N arms, a good demo for PyrePlus).
+Apply them exactly as `BlastRenderer` does (study its per-layer modifier application: geometry warps folded into the sample position, pixel modifiers per lit pixel, post modifiers over the finished buffer). The UI is the same enable/reorder/"+ Add modifier" loop Pyre already draws — reuse Pyre's editor pattern (`Editor/Pyre/PyreWindow.Modifiers.cs` — the `GenericMenu` "+Add" flow and the per-modifier bodies) rather than reinventing it; the shared drag-reorder grip is `ZuiReorder` in the toolkit.
 
-## Non-goals for this pass
+### Opt-in Shape fields (small, do alongside Swarm or after)
 
-- Layers, layer groups, the layer-library save/recall popup (`PyreLayerLibrary`/`PyreLayerLibraryPopup` stay Pyre-only for now).
-- Rosing's nested multi-ring composition (each ring its own count/radius/birth/life) — Swarm's closed shapes here are single-ring equivalents only.
-- Bars, MetaBlob, SparkleField, Sprite particle shapes.
-- `BlastBaker`-equivalent sprite-sheet/AnimationClip export, and `IPyrePreviewSubject` (attached-to-a-character preview).
-- Converting/exporting to a real `BlastSpec` — worth doing once this data model stabilizes.
+- **Position** — the particle's own path after birth, on its own life clock — `Z.Value2D` in Curve (animate-over-time) mode.
+- **2D spin** — one `ZUIValue` of degrees, the particle's own pixels rotating in place (2D; the 3D tilt belongs to the swarm shape transform).
+Gate both behind a single "advanced" toggle in the Shape section (rebuild on toggle) rather than a gear panel.
 
-## Asmdefs
+## Non-goals for this prototype
 
-- `Runtime/PyrePlus/PyrePlus.asmdef` — `"name": "com.Lautaro-Arino.Laubrary.PyrePlus"`, rootNamespace `Laubrary.PyrePlus`, references: `["com.Lautaro-Arino.Laubrary.ZuiRuntime", "com.Lautaro-Arino.Laubrary.Pyre"]` (the latter for direct `PyreModifier` reuse).
-- `Editor/PyrePlus/PyrePlusEditor.asmdef` — `"name": "com.Lautaro-Arino.Laubrary.PyrePlus.Editor"`, rootNamespace `Laubrary.PyrePlus.Editor`, `includePlatforms: ["Editor"]`, references: `["com.Lautaro-Arino.Laubrary.PyrePlus", "com.Lautaro-Arino.Laubrary.AssetKit.Editor", "ZUI.Editor", "com.Lautaro-Arino.Laubrary.ZuiRuntime"]` — matching `Choreographer`'s asmdef shape (`Editor/Choreographer/ChoreographerEditor.asmdef`).
+- Layers / layer groups / the layer-library save-recall popup (Pyre-only for now).
+- Rosing's nested multi-ring composition (Swarm's closed shapes here are single-ring equivalents).
+- Bars / MetaBlob / SparkleField / Sprite / Fire / Fireball / Height-balls particle forms — Shape here is a soft disc only.
+- Sprite-sheet / AnimationClip export (`BlastBaker` equivalent) and the attached-to-a-character preview (`IPyrePreviewSubject`).
+- Converting/exporting to a real `Pyre` asset — worth doing once this data model stabilises, but out of scope here.
+- Zolumn (columns/gear-panel/drag-between-columns/layout-persistence/templates) — **shelved**; see `ZOLUMN_DESIGN.md`. If field density ever demands columns, revisit then, built on the UITK toolkit.
 
-`PyrePlusWindow : LaubraryAssetWindow<PyrePlusSpec>`, matching `ChoreographerWindow`'s structure (`DrawAsset(PyrePlusSpec asset)`, not a raw `OnZUI()` override).
+## Coplay bridge (target THIS editor first, every session)
 
-Undo: every field edit wrapped in `Undo.RecordObject(spec, "...")` inside `BeginChangeCheck`/`EndChangeCheck`, matching Pyre's own window. Every user-facing control gets a tooltip. `CHANGELOG.md` gets an `## [Unreleased]` entry once it compiles.
+The Coplay MCP discovers every open Unity editor. Before any Coplay action: `list_unity_project_roots` → confirm `D:\Unity\Laubrary Dev` is present → `set_unity_project_root` to it → verify with `execute_script` logging `Application.dataPath` (must resolve under `D:\Unity\Laubrary Dev`). If it points elsewhere, `check_compile_errors` looks clean despite broken code and reflection won't find new types. `set_unity_project_root` is per-session.
 
-## Verification
+## Verification checklist (run before calling a slice done)
 
-1. `check_compile_errors` via the Coplay bridge (`set_unity_project_root` to this project first, per this project's own CLAUDE.md).
-2. Open the PyrePlus window, create a new asset, confirm the default view is minimal (Shape only — Swarm off, Modifiers empty).
-3. Turn Swarm on, set count > 1; exercise Area vs. Path for each shape kind, including Custom.
-4. Author a `progress` envelope that eases, holds, and rewinds; confirm placements trace the expected pattern (a linear ramp traces the shape once; a rewind visibly retraces it).
-5. Animate the Swarm shape's scale/rotation live and confirm already-spawned particles don't retroactively slide (spawn-time snapshot behaving correctly) while new spawns visibly trail the live transform.
-6. Enable Rotation 3D and confirm depth-shaded dots in the preview.
-7. Save an asset as a template, create a new asset from it, edit the new one, and confirm the template itself is unchanged.
-8. The actual drag-authoring *feel* (dragging path points, dragging Zolumn fields between columns) is an interactive, visual judgment call for a human to make in the Editor — confirm it compiles and drives correctly from script where possible, but the UX verdict needs a person actually using it.
+1. `check_compile_errors` via the Coplay bridge (after the bridge setup above).
+2. Open the window, New asset, confirm the default view is minimal (Shape only; Swarm off; Modifiers empty).
+3. Swarm on, count > 1: exercise Area vs Path for each shape kind incl. Custom; author a `progress` envelope that eases/holds/rewinds and confirm placements trace it (a linear ramp = once around, a rewind = a visible retrace).
+4. Animate the shape transform live and confirm already-spawned particles do NOT retroactively slide (spawn-time snapshot) while new spawns trail the live transform.
+5. Enable Rotation 3D → depth-shaded dots (nearer bigger/brighter).
+6. `ZuiAudit` clean with sections expanded; determinism check (cold vs sequential = 0 differing pixels); a baked PNG strip read by eye.
+7. `CHANGELOG.md` gets an `## [Unreleased]` entry per slice. Commit per slice (the branch is `feat/zui-uitoolkit`; commit freely).
+8. The drag-authoring FEEL (dragging path points, dragging the shape handle) is a human's visual judgement — drive it from script where possible, but flag it for a person to actually use.
