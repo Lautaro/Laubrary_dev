@@ -458,6 +458,26 @@ namespace Laubrary.Pyre
                  "harder thickens and churns the cloud instead of flinging balls outward. 0 = no folding.")]
         public float hbFold = 0.4f;
 
+        // ── shape: what stops the cloud reading as a pile of circles ─────────────────────────
+        [Range(0f, 1f)]
+        [Tooltip("Height balls: how far each ball departs from a circle. 0 = every ball is round; higher stretches " +
+                 "each one into its own seeded ellipse at its own angle (up to about 2:1), and leans a burst's " +
+                 "balls along their travel direction. The single most effective dial against a 'bag of marbles' look.")]
+        public float hbSquash = 0.45f;
+        [Range(0f, 1f)]
+        [Tooltip("Height balls: roughens the cloud's SURFACE with shared noise — one value per pixel that stretches " +
+                 "or pinches every ball there at once, so neighbouring balls bulge and dent TOGETHER and their rims " +
+                 "interlock into one lumpy mass instead of staying separate round edges. It also ripples the height " +
+                 "field, so the relief lighting reads the roughness as texture. 0 = perfectly smooth domes.")]
+        public float hbSurfaceNoise = 0.35f;
+        [Tooltip("Height balls: feature size of the surface noise, in pixels. Small values give a fine crumbly " +
+                 "boil; large values give a few big soft lobes.")]
+        public float hbSurfaceZoom = 14f;
+        [Range(0f, 4f)]
+        [Tooltip("Height balls: how fast the surface noise drifts across the cloud over the layer's life, so the " +
+                 "surface roils and churns instead of holding one frozen pattern. 0 = a still surface.")]
+        public float hbSurfaceDrift = 1f;
+
         // ── Noise fill: the domain-warped noise field ColorMode.NoiseFill paints through a shape's own silhouette
         // (Disc/Crescent/MetaBlob) — the shape stays the alpha mask; this is texture only, no silhouette of its own.
         [Tooltip("Noise fill: shifts which part of the gradient the noise field maps to, wrapping around — the " +

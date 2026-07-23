@@ -573,6 +573,15 @@ namespace Laubrary.Pyre.Editor
                     PackedSlider("Confine", "The cloud's self-limiting radius, as a fraction of the canvas half-size. Nothing it draws can reach past this — so the animation never collides with the frame edge.", l.hbConfine, 0.05f, 1f, v => l.hbConfine = v),
                     PackedSlider("Fold under", "How much of the outer cloud gets folded under by pressure — a ball out there loses mass and heat, shrinks, sinks back toward smoke and is pulled inward. 0 = no folding.", l.hbFold, 0f, 1f, v => l.hbFold = v))));
 
+            root.Add(Z.Box("Shape — breaking up the roundness",
+                "Perfect domes fused together still read as a bag of marbles. These two dials are what make the balls reshape each other: Squash makes each one its own ellipse, and Surface noise stretches every ball at a given pixel by the SAME amount, so neighbours bulge and dent together and their rims interlock.",
+                WrapRow(
+                    PackedSlider("Squash", "How far each ball departs from a circle — its own seeded ellipse at its own angle (up to about 2:1), with a burst's balls leaning along their travel direction. 0 = perfectly round.", l.hbSquash, 0f, 1f, v => l.hbSquash = v),
+                    PackedSlider("Surface noise", "Roughens the surface with SHARED noise, so neighbouring balls deform together into one lumpy mass and the relief lighting picks the roughness up as texture. 0 = smooth domes.", l.hbSurfaceNoise, 0f, 1f, v => l.hbSurfaceNoise = v)),
+                WrapRow(
+                    PackedSlider("Noise size", "Feature size of the surface noise, in pixels. Small = a fine crumbly boil; large = a few big soft lobes.", l.hbSurfaceZoom, 2f, 48f, v => l.hbSurfaceZoom = v),
+                    PackedSlider("Noise drift", "How fast the surface noise crawls across the cloud over the layer's life, so the surface roils instead of holding one frozen pattern.", l.hbSurfaceDrift, 0f, 4f, v => l.hbSurfaceDrift = v))));
+
             var shading = Z.Box("Height shading",
                 "How the fused cloud is turned into pixels: how eagerly balls melt together, how solid the result reads, and how it catches the light.");
             shading.Add(WrapRow(

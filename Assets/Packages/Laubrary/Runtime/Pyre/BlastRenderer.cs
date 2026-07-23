@@ -1132,8 +1132,20 @@ namespace Laubrary.Pyre
         readonly struct HeightBall
         {
             public readonly float x, y, r, density, heat;
-            public HeightBall(float x, float y, float r, float density, float heat)
-            { this.x = x; this.y = y; this.r = r; this.density = density; this.heat = heat; }
+            // Per-ball shape: `rx`/`ry` are the ellipse's semi-axes and `cs`/`sn` its rotation. A ball is only a
+            // circle when Squash is 0 — otherwise every ball is its own seeded ellipse at its own angle, which is
+            // what stops a fused cloud from reading as a bag of marbles no matter how well it melts.
+            public readonly float rx, ry, cs, sn;
+            public HeightBall(float x, float y, float r, float density, float heat, float aspect, float rot)
+            {
+                this.x = x; this.y = y; this.r = r; this.density = density; this.heat = heat;
+                rx = r * aspect;
+                ry = r / aspect;
+                cs = Mathf.Cos(rot);
+                sn = Mathf.Sin(rot);
+            }
+            /// The largest distance this ball reaches from its own centre (used for bounds + confinement).
+            public float Extent => Mathf.Max(rx, ry);
         }
 
         // Blends toward max(a,b) with a soft knee of width k — the "fusion" that melts neighbouring balls into one
@@ -1147,6 +1159,16 @@ namespace Laubrary.Pyre
 
         static float SmoothStep01(float t) { t = Mathf.Clamp01(t); return t * t * (3f - 2f * t); }
 
+        /// A ball's seeded long/short axis ratio. 1 at Squash 0 (a circle), fanning out to roughly 1.9:1 either
+        /// way at Squash 1 — either way, so the cloud gets both wide and tall balls rather than all leaning
+        /// the same direction.
+        static float BallAspect(float squash, int hash, int i, int salt)
+        {
+            if (squash <= 0.001f) return 1f;
+            float t = Hash01(hash, i, salt) * 2f - 1f;          // -1..1
+            return Mathf.Pow(1.9f, t * squash);
+        }
+
         // Places one ball, after squeezing it into the cloud's self-limiting radius. Two things happen out here,
         // and together they are why the cloud can never reach the canvas edge no matter how hard it is pushed:
         //   • distance from the cloud centre passes through unchanged until it nears the limit, then bends into a
@@ -1157,10 +1179,13 @@ namespace Laubrary.Pyre
         // `limit` is measured so the ball's whole EXTENT (centre + radius) stays inside the confinement circle.
         static void AddHeightBall(System.Collections.Generic.List<HeightBall> balls, Vector2 center,
                                   float x, float y, float r, float density, float heat,
-                                  float confineR, float foldStart)
+                                  float confineR, float foldStart, float aspect, float rot)
         {
             if (r < 0.35f || (density <= 0.0005f && heat <= 0.0005f)) return;
-            float limit = Mathf.Max(confineR * 0.15f, confineR - r);
+            // Confine by the ball's LONGEST axis, not its mean radius — otherwise a strongly squashed ball could
+            // poke its long end past the confinement circle that the whole feature exists to guarantee.
+            float extent = r * Mathf.Max(aspect, 1f / Mathf.Max(0.0001f, aspect));
+            float limit = Mathf.Max(confineR * 0.15f, confineR - extent);
             float dx = x - center.x, dy = y - center.y;
             float d = Mathf.Sqrt(dx * dx + dy * dy);
             if (d > 0.0001f)
@@ -1187,7 +1212,7 @@ namespace Laubrary.Pyre
                 x = center.x + dx * k;
                 y = center.y + dy * k;
             }
-            balls.Add(new HeightBall(x, y, r, density, heat));
+            balls.Add(new HeightBall(x, y, r, density, heat, aspect, rot));
         }
 
         // Resolves the whole cloud for one frame: the resting balls, plus every energy wave currently alive.
@@ -1205,6 +1230,10 @@ namespace Laubrary.Pyre
             float churnPhase = lp * Mathf.Max(0.1f, layer.hbChurnSpeed) * Tau;
             float confineR = Mathf.Clamp01(layer.hbConfine) * half;
             float foldStart = 1f - Mathf.Clamp01(layer.hbFold);
+            // Squash 0 = every ball a circle (the original look); 1 = each ball a strongly seeded ellipse at its
+            // own angle. Balls also slowly TURN as the cloud churns, so a squashed cloud rolls instead of looking
+            // like a frozen arrangement of ovals.
+            float squash = Mathf.Clamp01(layer.hbSquash);
 
             // The resting cloud — balls that simply sit there and churn, near the smoke end of the gradient.
             for (int i = 0; i < count; i++)
@@ -1220,7 +1249,9 @@ namespace Laubrary.Pyre
                 AddHeightBall(balls, center, x, y, r,
                               dens * Mathf.Lerp(0.85f, 1.15f, Hash01(hash, i, 7)),
                               baseHeat * Mathf.Lerp(0.35f, 1.25f, Hash01(hash, i, 8)),
-                              confineR, foldStart);
+                              confineR, foldStart,
+                              BallAspect(squash, hash, i, 9),
+                              Hash01(hash, i, 10) * Tau + churnPhase * 0.35f);
             }
 
             // Energy waves. Births are spread evenly across the part of the layer's life that still leaves room for
@@ -1265,10 +1296,14 @@ namespace Laubrary.Pyre
                     float r = Eval(layer.size, a, seed, li, 1000 + bi, F_Size)
                               * Mathf.Lerp(0.8f, 1.2f, Hash01(hash, bi, 16))
                               * grow * Mathf.Lerp(0.45f, 1f, fade);
+                    // A wave ball's long axis leans along its own travel direction, so an energised burst stretches
+                    // outward the way a real plume does instead of pushing a ring of circles.
                     AddHeightBall(balls, center, x, y, r,
                                   dens * Mathf.Lerp(0.95f, 1.3f, Hash01(hash, bi, 17)) * grow * fade,
                                   Mathf.Lerp(baseHeat, waveHeat * Mathf.Lerp(0.7f, 1.1f, Hash01(hash, bi, 18)), energy),
-                                  confineR, foldStart);
+                                  confineR, foldStart,
+                                  BallAspect(squash, hash, bi, 19),
+                                  ang + (Hash01(hash, bi, 20) - 0.5f) * squash);
                 }
             }
         }
@@ -1293,8 +1328,9 @@ namespace Laubrary.Pyre
             for (int i = 0; i < n; i++)
             {
                 var b = balls[i];
-                if (b.x - b.r < minX) minX = b.x - b.r; if (b.x + b.r > maxX) maxX = b.x + b.r;
-                if (b.y - b.r < minY) minY = b.y - b.r; if (b.y + b.r > maxY) maxY = b.y + b.r;
+                float e = b.Extent;
+                if (b.x - e < minX) minX = b.x - e; if (b.x + e > maxX) maxX = b.x + e;
+                if (b.y - e < minY) minY = b.y - e; if (b.y + e > maxY) maxY = b.y + e;
             }
             var ctx = new GeoCtx(W * 0.5f, H * 0.5f, new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f),
                                  0.5f * Mathf.Max(maxX - minX, maxY - minY));
@@ -1319,6 +1355,19 @@ namespace Laubrary.Pyre
             var heat = new float[W * H];
             var height = new float[W * H];
 
+            // Surface noise is sampled in the CLOUD's own space, once per pixel — not per ball. That is the whole
+            // point: because every ball at a given pixel is stretched or pinched by the SAME value, neighbouring
+            // balls bulge and dent together and their rims interlock, so they read as one lumpy mass reshaping
+            // itself rather than as separate wobbly circles. (A per-ball noise would just give each ball its own
+            // independent wobble, which still reads as a pile of blobs.)
+            float surfAmp = Mathf.Clamp01(layer.hbSurfaceNoise);
+            float surfZoom = Mathf.Max(1f, layer.hbSurfaceZoom);
+            int surfSeed = Hash(spec.seed, li, 0, 0x5B1F);
+            // Drift the noise field over the layer's life so the surface roils instead of sitting still. Still a
+            // pure function of `lp`, so scrubbing/baking stay identical.
+            float surfDriftX = lp * layer.hbSurfaceDrift * 8f;
+            float surfDriftY = lp * layer.hbSurfaceDrift * -5f;
+
             // Pass 1 — fuse the balls into the three fields. Height weights heat well above density, so an
             // energised ball genuinely stands TALLER than a cold one and catches more of the relief light.
             for (int y = 0; y < H; y++)
@@ -1327,18 +1376,35 @@ namespace Laubrary.Pyre
                     Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
                     if (stack.AnyGeo) off = ApplyGeo(stack, off, framePhase, ctx);
 
+                    // One shared reshaping factor for this pixel: >1 pushes every ball's rim outward here, <1
+                    // pulls it in. Applied to q (the normalised radius) so it warps the SILHOUETTE, and reused
+                    // below as a height ripple so the relief lighting picks the roughness up as texture.
+                    float surf = 0f;
+                    if (surfAmp > 0.001f)
+                        surf = PyreNoise.Sample(off.x / surfZoom + surfDriftX, off.y / surfZoom + surfDriftY,
+                                                surfSeed, 0.6f) * 2f - 1f;
+                    float rimScale = 1f + surf * surfAmp;
+                    float invRim2 = 1f / Mathf.Max(0.05f, rimScale * rimScale);
+
                     float d = 0f, he = 0f, hi = 0f;
                     for (int i = 0; i < n; i++)
                     {
                         var b = balls[i];
                         float dx = off.x - b.x, dy = off.y - b.y;
-                        float q = (dx * dx + dy * dy) / (b.r * b.r);
+                        // into the ball's own rotated frame, then an ELLIPSE test rather than a circle
+                        float lx = dx * b.cs + dy * b.sn;
+                        float ly = -dx * b.sn + dy * b.cs;
+                        float q = ((lx * lx) / (b.rx * b.rx) + (ly * ly) / (b.ry * b.ry)) * invRim2;
                         if (q >= 1f) continue;
                         float s = Mathf.Sqrt(1f - q);              // a soft dome, 1 at the centre → 0 at the rim
                         d = SmoothMax(d, s * b.density, kD);
                         he = SmoothMax(he, s * b.heat, kHe);
                         hi = SmoothMax(hi, s * (b.density * 2.65f + b.heat * 0.72f), kHi);
                     }
+                    // Height also takes the noise directly, scaled by how much cloud is actually here, so the lit
+                    // surface gains roughness in the interior too — not just a wobbly outline.
+                    if (surfAmp > 0.001f && hi > 0f) hi *= 1f + surf * surfAmp * 0.55f;
+
                     int idx = y * W + x;
                     density[idx] = Mathf.Clamp01(d);
                     heat[idx] = Mathf.Clamp01(he);
