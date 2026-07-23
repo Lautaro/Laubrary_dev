@@ -308,10 +308,8 @@ namespace Laubrary.Pyre.Editor
             box.style.marginLeft = 16f;   // indent under its row, so the list still reads as a list
 
             // Channels are a flag SET — tick any combination and they all act. The "tick any combination"
-            // explanation is a tooltip, not on-screen prose; the label itself stays short and literal, and
-            // the six toggles wrap to the pane rather than being hand-split into fixed rows.
-            box.Add(Z.Divider("Drives", "Tick any combination — every ticked channel acts, in a fixed order " +
-                "(Displace, Blur, Saturation, Hue, Brightness, Alpha) so a combination is predictable."));
+            // explanation lives on the box tooltip, not on-screen prose; the six toggles are self-labelling
+            // and wrap to the pane rather than being hand-split into fixed rows.
             box.Add(WrapRow(
                 MatteChannelToggle(l, MatteChannel.Alpha, "Alpha"),
                 MatteChannelToggle(l, MatteChannel.Brightness, "Brightness"),
@@ -320,9 +318,8 @@ namespace Laubrary.Pyre.Editor
                 MatteChannelToggle(l, MatteChannel.Blur, "Blur"),
                 MatteChannelToggle(l, MatteChannel.Displace, "Displace")));
 
-            // Placement: the two compact controls (a 2-way radio and a toggle) share one row instead of
-            // taking a row each — vertical space is the scarce resource.
-            box.Add(Z.Divider("Applies to"));
+            // The two compact controls (a 2-way radio and a toggle) share one row instead of taking a row
+            // each — vertical space is the scarce resource.
             box.Add(WrapRow(
                 Z.Field("Reaches", "How far up the stack this matte applies.",
                     Z.MiniRadio((int)l.matteScope, MatteScopeLabels,
@@ -333,8 +330,6 @@ namespace Laubrary.Pyre.Editor
                 Z.Toggle("Invert", "Swap what the mask covers and what it reveals.", l.matteInvert,
                     v => Dial("Invert matte", () => l.matteInvert = v))));
 
-            // Amounts: Strength always, plus each ticked channel's own amount.
-            box.Add(Z.Divider("Amount"));
             box.Add(ValRow("Strength", "How strongly the matte acts. 0 = no effect, 1 = full. Animate it to " +
                 "fade a mask in, or to sweep its influence over the layer's life.", l.matteStrength, 0f, 1f, 1f));
             if ((l.matteChannel & MatteChannel.Blur) != 0)
