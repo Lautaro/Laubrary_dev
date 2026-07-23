@@ -45,6 +45,10 @@ namespace Laubrary.Mirage.Editor
     {
         const string ActiveViewGuidKey = "Laubrary.Mirage.ActiveViewGuid";
 
+        /// Width of the previewable list's name column — wide enough for a full asset name plus its
+        /// position readout, and the same on every row so the Ping/Remove buttons form real columns.
+        const float RowLabelWidth = 300f;
+
         [MenuItem("Laubrary/Mirage")]
         public static void Open() => GetWindow<MirageWindow>("Mirage");
 
@@ -202,25 +206,27 @@ namespace Laubrary.Mirage.Editor
             root.Add(scroll);
         }
 
+        // Every block is a Z.Section, which OWNS its body. A bare Z.Text(.., ZuiText.Section, ..) heading
+        // works out its fold extent from its following siblings, and this window's blocks don't have that
+        // shape: the "Previewables" heading sits inside a row (so it would fold that row's own siblings),
+        // and folding "View" swallowed everything down to "Entry", the whole previewable list included
+        // (confirmed live, 9 siblings hidden). A section can't get its own extent wrong.
         void BuildBody(VisualElement root, MirageView view)
         {
-            BuildViewRow(root, view);
-            BuildBackSplashSection(root, view);
+            var viewSection = Z.Section("View", "Settings that apply to this whole preview arrangement.");
+            BuildViewRow(viewSection, view);
+            BuildBackSplashSection(viewSection, view);
+            root.Add(viewSection);
+
             BuildPreviewableList(root, view);
 
             if (_selected != null && view.previewables.Contains(_selected))
-            {
-                root.Add(Z.VSpace());
-                root.Add(Z.Text("Entry", ZuiText.Section, "The selected previewable's own settings."));
                 BuildEntry(root, view, _selected);
-            }
         }
 
         // ── view-level row ──────────────────────────────────────────────────────────────────
         void BuildViewRow(VisualElement root, MirageView view)
         {
-            root.Add(Z.Text("View", ZuiText.Section, "Settings that apply to this whole preview arrangement."));
-
             const string ppuTip = "Every previewable is scaled so its own source PPU maps to this — the " +
                 "\"no mixels\" guarantee. A 16-PPU Zoe and a 64-PPU Pyre blast render at the same pixel size.";
             const string spriteTip = "Pick any Sprite in the project to add as a background previewable — " +
@@ -258,7 +264,6 @@ namespace Laubrary.Mirage.Editor
             var fold = Z.Foldout("Backsplash", tip, _backSplashExpanded, body);
             fold.RegisterValueChangedCallback(e => { if (e.target == fold) _backSplashExpanded = e.newValue; });
             root.Add(fold);
-            root.Add(Z.VSpace());
         }
 
         /// BackSplashGUI is a shared IMGUI viewport-drawing helper (colour swatch, sprite thumbnail, drag-pad,
@@ -312,13 +317,14 @@ namespace Laubrary.Mirage.Editor
 
         void BuildPreviewableList(VisualElement root, MirageView view)
         {
-            root.Add(Z.Row(
-                Z.Text($"Previewables ({view.previewables.Count})", ZuiText.Section,
-                    "Everything this view places into the preview scene."),
-                Z.Flexible(),
-                Z.HelpIcon("A MirageRig in the open scene shows previewables live and stays in sync with edits " +
-                    "here, in Edit mode or Play mode. Click-to-place/drag still needs the Mirage HUD in " +
-                    "the Game view — only the real preview camera shows the true pixel-perfect result.")));
+            // The count lives in the title, so the fold state needs an explicit key — the default
+            // (title + tooltip) would forget the fold every time an entry is added or removed.
+            var section = Z.Section($"Previewables ({view.previewables.Count})",
+                "Everything this view places into the preview scene. A MirageRig in the open scene shows " +
+                "them live and stays in sync with edits here, in Edit mode or Play mode. Click-to-place/drag " +
+                "still needs the Mirage HUD in the Game view — only the real preview camera shows the true " +
+                "pixel-perfect result.",
+                stateKey: "Mirage.Previewables");
 
             foreach (var entry in view.previewables.ToArray())
             {
@@ -327,21 +333,37 @@ namespace Laubrary.Mirage.Editor
                 row.AddToClassList("zui-row");
                 if (ReferenceEquals(_selected, entry)) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
 
+                // The label button carries an asset name plus a live position readout, so its natural width
+                // differs per row — which left Ping/Remove at a different x on every row, reading as three
+                // unrelated pairs of buttons instead of one list. Growing each label into the same bounded
+                // column instead lines the action buttons up without measuring text (a measure-after-layout
+                // pass is the one thing that can't be trusted on a freshly built tree — the panel's first
+                // scheduled tick can still run before styles resolve). Ellipsis, not overflow, is what a
+                // name too long for the column does.
                 var select = Z.Button(EntryLabel(entry),
                     "Select this previewable to edit it below (click it again to deselect).",
                     () => { _selected = ReferenceEquals(_selected, captured) ? null : captured; RebuildBody(); });
+                select.style.flexGrow = 1f;
+                select.style.flexShrink = 1f;
+                select.style.minWidth = 140f;
+                select.style.maxWidth = RowLabelWidth;
+                select.style.unityTextAlign = TextAnchor.MiddleLeft;
+                select.style.whiteSpace = WhiteSpace.NoWrap;
+                select.style.overflow = Overflow.Hidden;
+                select.style.textOverflow = TextOverflow.Ellipsis;
                 _rowButtons.Add((captured, select));
                 row.Add(select);
                 row.Add(Z.Button("Ping", "Flash this previewable in the Game view and select its live object.",
                     () => PingEntry(captured)).W(46f));
                 row.Add(Z.Button("Remove", "Delete this previewable from the view.",
                     () => { RemoveEntry(view, captured); RebuildBody(); }).W(70f));
-                row.Add(Z.Flexible());
-                root.Add(row);
+                section.Add(row);
             }
 
             if (view.previewables.Count == 0)
-                root.Add(Z.Text("No previewables yet — Add Previewable above.", ZuiText.Subtle));
+                section.Add(Z.Text("No previewables yet — Add Previewable above.", ZuiText.Subtle));
+
+            root.Add(section);
         }
 
         // Flashes the entry's LIVE rendered sprite directly in the Game View (MirageHud draws a pulsing
@@ -388,18 +410,19 @@ namespace Laubrary.Mirage.Editor
         // ── the selected entry ──────────────────────────────────────────────────────────────
         void BuildEntry(VisualElement root, MirageView view, PreviewableEntry entry)
         {
-            root.Add(BuildContentRow(view, entry));
-            root.Add(BuildPositionRow(view, entry));
+            var entrySection = Z.Section("Entry", "The selected previewable's own settings.");
+            entrySection.Add(BuildContentRow(view, entry));
+            entrySection.Add(BuildPositionRow(view, entry));
 
             const string scaleTip = "Author-chosen multiplier ON TOP OF the view's Display PPU normalization, not instead of it.";
-            root.Add(Z.Field("Scale", scaleTip, Z.Float(entry.scale, scaleTip,
+            entrySection.Add(Z.Field("Scale", scaleTip, Z.Float(entry.scale, scaleTip,
                 v => Dial("Edit Previewable", () => entry.scale = Mathf.Max(0.01f, v)), 60f)));
+            root.Add(entrySection);
 
             var zoe = entry.content as Zoe;
             if (zoe == null) return;
 
-            root.Add(Z.VSpace());
-            root.Add(Z.Text("Zoe options", ZuiText.Section, "Settings that only apply when this previewable is a Zoe."));
+            var zoeSection = Z.Section("Zoe options", "Settings that only apply when this previewable is a Zoe.");
 
             // Mirage never equips a weapon the Zoe doesn't already have — this only SELECTS which of the
             // Zoe's own zoe.weapons slots to preview firing (index 0 = "Zoe's own default"), the same rule
@@ -409,7 +432,7 @@ namespace Laubrary.Mirage.Editor
             var zoeWeapons = zoe.weapons ?? new List<WeaponDef>();
             if (zoeWeapons.Count == 0)
             {
-                root.Add(Z.Text("This Zoe has no weapons configured (add one to Zoe.weapons, not here).", ZuiText.Subtle));
+                zoeSection.Add(Z.Text("This Zoe has no weapons configured (add one to Zoe.weapons, not here).", ZuiText.Subtle));
             }
             else
             {
@@ -417,7 +440,7 @@ namespace Laubrary.Mirage.Editor
                 var options = new List<string>(zoeWeapons.Count + 1) { "(Zoe's default)" };
                 foreach (var w in zoeWeapons) options.Add(w != null ? w.name : "(missing)");
                 int current = entry.weapon != null ? zoeWeapons.IndexOf(entry.weapon) + 1 : 0;
-                root.Add(Z.Field("Weapon", weaponTip, Z.Dropdown(Mathf.Max(current, 0), options, weaponTip,
+                zoeSection.Add(Z.Field("Weapon", weaponTip, Z.Dropdown(Mathf.Max(current, 0), options, weaponTip,
                     i => Dial("Edit Previewable",
                         () => entry.weapon = i <= 0 ? null : zoeWeapons[Mathf.Clamp(i - 1, 0, zoeWeapons.Count - 1)]),
                     200f)));
@@ -429,21 +452,23 @@ namespace Laubrary.Mirage.Editor
                 ? reel.animations.Where(a => a != null && !string.IsNullOrEmpty(a.name)).Select(a => a.name).ToArray()
                 : System.Array.Empty<string>();
 
-            root.Add(Z.VSpace());
-            BuildTargetPractice(root, view, entry, zoe);
+            BuildTargetPractice(zoeSection, view, entry, zoe);
+            root.Add(zoeSection);
 
             if (!entry.targetPractice)
             {
                 entry.clips ??= new List<ClipStep>();
-                BuildClips(root, view, entry, reel, clipNames, zoeWeapons.Count > 0);
+                var clipSection = BuildClips(entry, reel, clipNames, zoeWeapons.Count > 0);
 
+                // Belongs with the clips, not after them: it only means anything once some step fires.
                 const string aimTip = "Stands in for Combatant.aimDirection, which real gameplay (player input / AI) " +
                     "would normally drive — Mirage has neither, so firing needs an explicit direction to preview with.";
                 var aimField = Z.Field("Fire direction", aimTip,
                     Z.Pad(entry.previewAimDirection, new Rect(-2f, -2f, 4f, 4f), aimTip,
                         v => Dial("Edit Previewable", () => entry.previewAimDirection = v), 60f));
                 aimField.SetEnabled(entry.clips.Exists(s => s != null && s.fireWeapon));
-                root.Add(aimField);
+                clipSection.Add(aimField);
+                root.Add(clipSection);
             }
 
             root.Add(Z.VSpace());
@@ -701,21 +726,19 @@ namespace Laubrary.Mirage.Editor
         // trigger, scoped to THAT step's own clip's painted MetaLayers — not one entry-wide layer, which
         // couldn't tell "fire during THIS step" from "fire during that other one" once more than one clip
         // could be playing (the actual bug report this replaced).
-        void BuildClips(VisualElement root, MirageView view, PreviewableEntry entry,
-            ReelVersion reel, string[] clipNames, bool zoeHasWeapons)
+        ZuiSection BuildClips(PreviewableEntry entry, ReelVersion reel, string[] clipNames, bool zoeHasWeapons)
         {
-            root.Add(Z.VSpace());
-            root.Add(Z.Text("Clips", ZuiText.Section, "Played in order, forever — a one-item list just loops that clip."));
+            var root = Z.Section("Clips", "Played in order, forever — a one-item list just loops that clip.");
 
             if (reel == null)
             {
                 root.Add(Z.Text("This Zoe's view isn't a Zoned Launimator view — no clips to preview.", ZuiText.Subtle));
-                return;
+                return root;
             }
             if (clipNames.Length == 0)
             {
                 root.Add(Z.Text("This Reel has no authored animations.", ZuiText.Subtle));
-                return;
+                return root;
             }
             if (!zoeHasWeapons)
                 root.Add(Z.Text("This Zoe has no weapons configured — Fire Weapon toggles below are disabled.", ZuiText.Subtle));
@@ -820,6 +843,7 @@ namespace Laubrary.Mirage.Editor
             }).W(56f);
             clear.SetEnabled(entry.clips.Count > 0);
             root.Add(Z.Row(add, clear, Z.Flexible()));
+            return root;
         }
 
         static void ApplyTrigger(ClipStep step, string picked)
