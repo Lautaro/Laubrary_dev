@@ -138,10 +138,11 @@ namespace Laubrary.Zui
             float split = Mathf.Round(t * r.width);
 
             var p = mgc.painter2D;
-            // Empty track first (the whole width), then the fill over the left part. The element's own
-            // border-radius + overflow:hidden (from USS) rounds the corners, so these stay plain rects.
+            // Empty track first (the whole width), then the fill over the left part as a HORIZONTAL gradient
+            // (dark at the left, lighter toward the fill edge). Darker overall than a flat accent so the label
+            // and value drawn on top stay readable. The element's border-radius + overflow:hidden round it.
             FillRect(p, 0f, 0f, r.width, r.height, TrackColor);
-            if (split > 0.5f) FillRect(p, 0f, 0f, split, r.height, FillColor);
+            if (split > 0.5f) FillGradientH(p, split, r.height, FillLeft, FillRight);
         }
 
         static void FillRect(Painter2D p, float x, float y, float w, float h, Color c)
@@ -156,9 +157,23 @@ namespace Laubrary.Zui
             p.Fill();
         }
 
-        // Theme colours. Kept as fields so a future pass can bind them to USS custom properties; the
-        // defaults match ZuiToolkit.uss's --zui-accent / --zui-bg-inset.
-        public Color FillColor = new Color(90f / 255f, 160f / 255f, 255f / 255f, 0.55f);
+        // Painter2D has no gradient fill, so the horizontal gradient is a run of ~2px vertical strips, each a
+        // solid colour lerped across the fill width. Cheap (a fill is < ~300px) and exact enough at this size.
+        static void FillGradientH(Painter2D p, float w, float h, Color left, Color right)
+        {
+            const float step = 2f;
+            for (float x = 0f; x < w; x += step)
+            {
+                float t = w > 1f ? Mathf.Clamp01((x + step * 0.5f) / w) : 0f;
+                float wSeg = Mathf.Min(step, w - x);
+                FillRect(p, x, 0f, wSeg, h, Color.Lerp(left, right, t));
+            }
+        }
+
+        // Theme colours — a dark base at the left brightening toward the fill edge. Fields so a future pass
+        // can bind them to USS custom properties.
+        public Color FillLeft = new Color(28f / 255f, 44f / 255f, 78f / 255f, 0.92f);
+        public Color FillRight = new Color(70f / 255f, 120f / 255f, 200f / 255f, 0.85f);
         public Color TrackColor = new Color(0f, 0f, 0f, 0.30f);
     }
 }
