@@ -235,6 +235,26 @@ namespace Laubrary.Pyre.Editor
                             "Scrolls the noise mask over time.", DirtySpec, RecordSpec));
                     }
                     break;
+                case KaleidoscopeModifier km:
+                    box.Add(Z.Field("Arms relate by", "How the arms relate to each other.",
+                        Z.EnumDropdown(km.mode,
+                            "Rotate = the same image turned (a pinwheel). Mirror = alternate arms reflected, so " +
+                            "neighbouring arms meet at a seam — true kaleidoscope symmetry. Vary = each arm gets " +
+                            "its own seeded turn, flip and scale, so they read as related but not identical.",
+                            v => { Dial("Kaleidoscope mode", () => km.mode = v); RebuildLeft(); }, 130f)));
+                    box.Add(PackedSlider("Arms", "How many arms radiate from the centre. 1 leaves the layer alone.",
+                        km.arms, 1f, 16f, v => km.arms = Mathf.RoundToInt(v), 150f));
+                    box.Add(ValRow("Arc °", "Total arc the arms span. 360 = evenly around the circle; less bunches " +
+                        "them into a fan. Animate it to sweep a fan open.", km.arcDegrees, 0f, 360f, 360f));
+                    box.Add(ValRow("Rotation °", "Turn the whole arrangement. Animate it to spin the kaleidoscope.",
+                        km.rotationDegrees, -360f, 360f, 0f));
+                    if (km.mode == KaleidoMode.Vary)
+                        box.Add(ValRow("Variation", "How much each arm may differ. 0 = identical to Rotate, " +
+                            "1 = its own turn, flip and scale.", km.variation, 0f, 1f, 0.5f));
+                    box.Add(Z.Toggle("Keep original", "Also keep the un-repeated image underneath the arms. " +
+                        "Usually off, since arm 0 already is the original.", km.keepOriginal,
+                        v => Dial("Keep original", () => km.keepOriginal = v)));
+                    break;
                 case BloomModifier bm:
                     box.Add(PackedSlider("Threshold", "Brightness above which pixels bloom.", bm.threshold, 0f, 1f, v => bm.threshold = v, 150f));
                     box.Add(PackedSlider("Radius (px)", "Bloom spread radius.", bm.radius, 0f, 16f, v => bm.radius = Mathf.RoundToInt(v), 150f));
@@ -631,6 +651,7 @@ namespace Laubrary.Pyre.Editor
             else Add("Alpha/Layer dissolve (follows this layer's own geometry warps)", () => new LayerDissolveModifier());
             Add("Alpha/Ordered dither", () => new OrderedDitherModifier());
             Add("Alpha/Alpha mask", () => new AlphaMaskModifier());
+            Add("Post/Kaleidoscope (mirrored arms)", () => new KaleidoscopeModifier());
             Add("Post/Bloom (glow)", () => new BloomModifier());
             Add("Post/Outline", () => new OutlineModifier());
             Add("Post/Edge smooth", () => new EdgeSmoothModifier());

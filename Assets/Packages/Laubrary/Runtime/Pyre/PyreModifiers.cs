@@ -3467,4 +3467,131 @@ namespace Laubrary.Pyre
                 }
         }
     }
+    /// How a Kaleidoscope's arms relate to each other.
+    public enum KaleidoMode
+    {
+        Rotate,   // every arm is the same image, turned — a pinwheel
+        Mirror,   // alternate arms are reflected — true kaleidoscope symmetry, seams meet
+        Vary,     // same image, but each arm gets its own seeded turn, flip and scale — organic, not symmetric
+    }
+
+    /// Kaleidoscope — repeat this layer into N arms around the centre.
+    ///
+    /// Deliberately a POST modifier, working on the layer's finished pixels, because that is the only place
+    /// that is universal: Pyre's existing `star`/`spreadCount` does radial repeat too, but it lives inside the
+    /// SCATTER path, so MetaBlob, Height balls and Fire never reach it. Operating on pixels means every shape
+    /// gets this, including ones not written yet.
+    ///
+    /// The honest limitation of that choice is Vary. A truly independent arm would mean re-generating the
+    /// layer with a different seed per arm, which no post modifier can do — it only ever sees one finished
+    /// image. So Vary gives each arm its own seeded rotation offset, mirror flip and scale instead. That reads
+    /// as "these arms are related but not identical", which is the intent, but it is NOT N independent
+    /// simulations and should not be described as such.
+    public class KaleidoscopeModifier : PostModifier
+    {
+        public override string DisplayName => "Kaleidoscope";
+
+        [Tooltip("How the arms relate. Rotate = the same image turned (a pinwheel). Mirror = alternate arms " +
+                 "reflected, so neighbouring arms meet at a seam (true kaleidoscope symmetry). Vary = each arm " +
+                 "gets its own seeded turn, flip and scale, so they read as related but not identical.")]
+        public KaleidoMode mode = KaleidoMode.Mirror;
+
+        [Min(1)]
+        [Tooltip("How many arms radiate from the centre. 1 leaves the layer untouched.")]
+        public int arms = 4;
+
+        [Tooltip("Total arc the arms span, in degrees. 360 = evenly around the full circle; less bunches them " +
+                 "into a fan. Animatable — sweep a fan open.")]
+        public ZUIValue arcDegrees = new ZUIValue(360f);
+
+        [Tooltip("Turn the whole arrangement. Animatable — spin the kaleidoscope.")]
+        public ZUIValue rotationDegrees = new ZUIValue(0f);
+
+        [Tooltip("Vary only: how much each arm may differ, 0 = identical to Rotate, 1 = strongly varied " +
+                 "(its own turn, flip and scale).")]
+        public ZUIValue variation = new ZUIValue(0.5f);
+
+        [Tooltip("Keep the ORIGINAL image as well as the arms. Off = the arms replace it, which is what you " +
+                 "want when arm 0 already is the original.")]
+        public bool keepOriginal = false;
+
+        float arc, rot, vary;
+
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        {
+            arc = e(arcDegrees, 0);
+            rot = e(rotationDegrees, 1);
+            vary = Mathf.Clamp01(e(variation, 2));
+        }
+
+        // Deterministic per-arm jitter: a pure function of (seed, arm), so scrubbing and baking agree.
+        static float Hash01(int s, int arm, int salt)
+        {
+            unchecked
+            {
+                uint h = (uint)(s * 374761393 + arm * 668265263 + salt * 2246822519);
+                h = (h ^ (h >> 13)) * 1274126177;
+                return ((h ^ (h >> 16)) & 0xFFFFFF) / (float)0xFFFFFF;
+            }
+        }
+
+        public override void Apply(Color32[] buf, int W, int H)
+        {
+            int n = Mathf.Max(1, arms);
+            if (n == 1) return;
+
+            var src = (Color32[])buf.Clone();
+            if (!keepOriginal)
+                for (int i = 0; i < buf.Length; i++) buf[i] = new Color32(0, 0, 0, 0);
+
+            float cx = W * 0.5f, cy = H * 0.5f;
+            // Arms span `arc`, so a 360 arc puts them evenly around the circle and a smaller one fans them.
+            float step = (Mathf.Abs(arc) < 0.001f ? 0f : arc / n) * Mathf.Deg2Rad;
+            float baseRot = rot * Mathf.Deg2Rad;
+
+            for (int arm = 0; arm < n; arm++)
+            {
+                float ang = baseRot + step * arm;
+                bool flip = mode == KaleidoMode.Mirror && (arm & 1) == 1;
+                float scale = 1f;
+
+                if (mode == KaleidoMode.Vary)
+                {
+                    // Each arm's own turn (up to half an arm-step either way, so arms stay in their sectors),
+                    // its own coin-flip mirror, and its own scale.
+                    ang += (Hash01(seed, arm, 1) - 0.5f) * step * vary;
+                    flip = Hash01(seed, arm, 2) < 0.5f * vary;
+                    scale = 1f + (Hash01(seed, arm, 3) - 0.5f) * 0.5f * vary;
+                }
+
+                // Sample the SOURCE by rotating each destination pixel backwards — a gather, so no destination
+                // pixel is ever left unwritten the way a scatter (rotate-and-splat) would leave holes.
+                float cos = Mathf.Cos(-ang), sin = Mathf.Sin(-ang);
+                float inv = scale > 0.001f ? 1f / scale : 1f;
+                for (int y = 0; y < H; y++)
+                    for (int x = 0; x < W; x++)
+                    {
+                        float dx = (x + 0.5f - cx) * inv, dy = (y + 0.5f - cy) * inv;
+                        float sx = dx * cos - dy * sin;
+                        float sy = dx * sin + dy * cos;
+                        if (flip) sx = -sx;
+                        int ix = Mathf.FloorToInt(sx + cx), iy = Mathf.FloorToInt(sy + cy);
+                        if (ix < 0 || iy < 0 || ix >= W || iy >= H) continue;
+                        var c = src[iy * W + ix];
+                        if (c.a == 0) continue;
+                        int di = y * W + x;
+                        var d = buf[di];
+                        // Source-over, so overlapping arms stack rather than the last one winning.
+                        float sa = c.a * (1f / 255f), da = d.a * (1f / 255f);
+                        float outA = sa + da * (1f - sa);
+                        if (outA <= 0.0001f) continue;
+                        buf[di] = new Color32(
+                            (byte)((c.r * sa + d.r * da * (1f - sa)) / outA),
+                            (byte)((c.g * sa + d.g * da * (1f - sa)) / outA),
+                            (byte)((c.b * sa + d.b * da * (1f - sa)) / outA),
+                            ToByte(outA));
+                    }
+            }
+        }
+    }
 }
