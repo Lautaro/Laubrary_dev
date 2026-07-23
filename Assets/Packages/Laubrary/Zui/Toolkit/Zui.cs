@@ -89,6 +89,16 @@ namespace Laubrary.Zui
             return box;
         }
 
+        /// Box with an explicit fold-state key — for repeated boxes that share a title (one per list row),
+        /// which would otherwise all fold together.
+        public static ZuiBox BoxKeyed(string title, string tooltip, string stateKey,
+            params VisualElement[] children)
+        {
+            var box = new ZuiBox(title, tooltip, stateKey);
+            foreach (var c in children) if (c != null) box.Add(c);
+            return box;
+        }
+
         public static VisualElement HSpace(float px = 8f)
         {
             var v = new VisualElement();

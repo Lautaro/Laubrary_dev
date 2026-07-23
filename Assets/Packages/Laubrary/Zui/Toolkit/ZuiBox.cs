@@ -30,7 +30,9 @@ namespace Laubrary.Zui
             set { if (_key != null) { s_open[_key] = value; Apply(); } }
         }
 
-        public ZuiBox(string title, string tooltip)
+        /// `stateKey` distinguishes boxes that share a title — several identical "Matte" boxes down a layer
+        /// list would otherwise fold and unfold together, since fold state is keyed by what the box says.
+        public ZuiBox(string title, string tooltip, string stateKey = null)
         {
             AddToClassList("zui-box");
 
@@ -39,7 +41,7 @@ namespace Laubrary.Zui
 
             if (!string.IsNullOrEmpty(title))
             {
-                _key = title + "" + (tooltip ?? string.Empty);
+                _key = stateKey ?? title + "" + (tooltip ?? string.Empty);
 
                 var titleRow = new VisualElement();
                 titleRow.AddToClassList("zui-box__titlerow");

@@ -48,6 +48,12 @@ namespace Laubrary.Pyre.Editor
             var layer = spec.layers[li];
             bool sel = li == layerSel;
 
+            // The row plus, when this layer is a matte, its settings folded underneath it — so a matte reads as
+            // a property of the layer in the STACK, which is where it acts, rather than as another dial buried
+            // in the selected-layer inspector. The wrapper (not the row) is what drags, or reordering would
+            // leave the accordion behind.
+            var wrap = new VisualElement();
+
             var row = new VisualElement();
             row.AddToClassList("zui-row");
             if (sel) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
@@ -55,7 +61,7 @@ namespace Laubrary.Pyre.Editor
             var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder this layer in the stack.");
             grip.style.unityFontStyleAndWeight = FontStyle.Bold;
             grip.style.width = 16f;
-            ZuiReorder.MakeGrip(grip, row, listHost, (from, to) =>
+            ZuiReorder.MakeGrip(grip, wrap, listHost, (from, to) =>
             {
                 Dial("Reorder layer", () =>
                 {
@@ -94,6 +100,10 @@ namespace Laubrary.Pyre.Editor
 
             if (!layer.enabled) row.Add(Z.Text("off", ZuiText.Small, "This layer is currently hidden."));
 
+            row.Add(Z.Toggle("Matte", "Don't draw this layer — use its brightness as a mask driving the layers " +
+                "above it. Its settings fold out underneath this row.", layer.role == LayerRole.Matte,
+                v => { Dial("Layer role", () => layer.role = v ? LayerRole.Matte : LayerRole.Draw); RebuildLeft(); }));
+
             row.Add(Z.Button("★", "Save a copy of this layer to the layer library.", () =>
             {
                 PyreLayerLibrary.Load().Add(layer, layer.name);
@@ -120,7 +130,9 @@ namespace Laubrary.Pyre.Editor
                 RebuildLeft();
             }).W(22f));
 
-            return row;
+            wrap.Add(row);
+            if (layer.role == LayerRole.Matte) wrap.Add(BuildMatteBox(layer, li));
+            return wrap;
         }
 
         void InsertLibraryLayer(Layer layer)
@@ -156,8 +168,6 @@ namespace Laubrary.Pyre.Editor
             root.Add(Z.MiniRadio((int)l.shape, ShapeLabels,
                 "The layer's shape family — decides which controls appear below.",
                 v => { Dial("Layer shape", () => l.shape = (LayerShape)v); RebuildLeft(); }, wrap: true));
-
-            BuildMatte(root, l);
 
             int fcMax = Mathf.Max(1, FrameCount - 1);
             root.Add(Z.Field("Life (frames)", "The frame window this layer exists in (start ↔ end frame of the bake).",
@@ -281,28 +291,20 @@ namespace Laubrary.Pyre.Editor
         }
 
         // ── shape preview (isolated single shape) ───────────────────────────────────────────
-        static readonly string[] RoleLabels = { "Draw", "Matte" };
         static readonly string[] MatteScopeLabels = { "Next layer", "All above" };
 
-        /// The matte block. A matte is a ROLE, not a shape or a fill — so it sits right under the shape picker
-        /// and applies whatever that shape happens to be. Everything below the role switch only appears in
-        /// Matte mode, because in Draw mode none of it means anything.
-        void BuildMatte(VisualElement root, Layer l)
+        /// The matte accordion, folded out under its own row in the layer LIST — a matte acts on the stack, so
+        /// it belongs where the stack is, not among the selected layer's shape dials. `Z.Box` is already
+        /// collapsible (click its title row), so the accordion is the container, not extra machinery.
+        /// stateKey is per-layer-index so two mattes don't share one fold state.
+        VisualElement BuildMatteBox(Layer l, int li)
         {
-            root.Add(Z.Field("Use as", "Draw = composite this layer normally. Matte = don't draw it; its " +
-                "brightness becomes a mask driving the layers above it.",
-                Z.MiniRadio((int)l.role, RoleLabels,
-                    "Draw = composite this layer normally. Matte = don't draw it; its brightness becomes a " +
-                    "mask driving the layers above it.",
-                    v => { Dial("Layer role", () => l.role = (LayerRole)v); RebuildLeft(); })));
-
-            if (l.role != LayerRole.Matte) return;
-
-            var box = Z.Box("Matte",
+            var box = Z.BoxKeyed("Matte", stateKey: $"matte:{li}", tooltip:
                 "This layer is not drawn. Its LUMINANCE times its own alpha becomes a 0–1 mask over the " +
                 "canvas, and that mask drives the layers above it. Because it's just a layer, every shape, " +
                 "fill and modifier Pyre already has can be used to author the mask — a sweeping disc, a " +
                 "growing ring, a churning ball cloud, a noise fill.");
+            box.style.marginLeft = 16f;   // indent under its row, so the list still reads as a list
 
             box.Add(Z.Field("Drives", "What the mask changes on the layers it covers.",
                 Z.EnumDropdown(l.matteChannel, MatteChannelHelp(l.matteChannel),
@@ -332,7 +334,7 @@ namespace Laubrary.Pyre.Editor
                 box.Add(ValRow("Hue shift °", "How far the hue rotates where the mask is full.",
                     l.matteHueDegrees, -180f, 180f, 60f));
 
-            root.Add(box);
+            return box;
         }
 
         static string MatteChannelHelp(MatteChannel c) => c switch
