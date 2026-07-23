@@ -46,14 +46,14 @@ namespace Laubrary.Launimator.Editor
                     float x0 = Mathf.Min(_dragStartTex.x, cur.x), y0 = Mathf.Min(_dragStartTex.y, cur.y);
                     float x1 = Mathf.Max(_dragStartTex.x, cur.x), y1 = Mathf.Max(_dragStartTex.y, cur.y);
                     _box = ClampBox(new Rect(x0, y0, x1 - x0, y1 - y0));
-                    e.Use(); Repaint(); return true;
+                    e.Use(); RefreshBoxDependentLabels(); Repaint(); return true;
 
                 case EventType.MouseUp:
                     if (e.button != 1 || !_autoDragging) break;
                     _autoDragging = false;
                     if (_box.width >= 1 && _box.height >= 1) ShowMarqueeAutoMenu();
                     else { _hasBox = false; _box = default; } // a plain right-click, no region — silently drop
-                    e.Use(); Repaint(); return true;
+                    e.Use(); DeferRefresh(); return true;
             }
             return false;
         }
@@ -88,7 +88,7 @@ namespace Laubrary.Launimator.Editor
         private void AutoAddSpritesFromBox(AutoAddMode mode, bool asNewAnimation, string newAnimName)
         {
             var px = GetPixels();
-            if (px == null) { _status = "Auto-add failed: texture not readable."; Repaint(); return; }
+            if (px == null) { SetStatus("Auto-add failed: texture not readable."); return; }
 
             // If no background key is set yet, try to auto-detect one so a no-alpha rip's background is handled
             // (otherwise the solid bg reads as content and the whole marquee detects as one giant sprite).
@@ -105,8 +105,7 @@ namespace Laubrary.Launimator.Editor
             List<Rect> cells = AutoScavenger.DetectCellsInBox(px, _texW, _texH, boxInt, s);
             if (cells == null || cells.Count == 0)
             {
-                _status = "No sprites detected in the marquee — adjust the box, the alpha threshold, or the background key.";
-                Repaint();
+                SetStatus("No sprites detected in the marquee — adjust the box, the alpha threshold, or the background key.");
                 return;
             }
             RecordUndo("Auto-add sprites");
@@ -169,7 +168,7 @@ namespace Laubrary.Launimator.Editor
             // The right-drag marquee is a transient gesture in Pick mode — clear it so the canvas stays clean.
             // (Grid keeps its box, matching the manual "Add Region" workflow.)
             if (_toolMode == ToolMode.Pick) { _hasBox = false; _box = default; }
-            Repaint();
+            Refresh();
         }
 
         /// <summary>A sensible default name for a brand-new animation (avoids clobbering an existing one).</summary>

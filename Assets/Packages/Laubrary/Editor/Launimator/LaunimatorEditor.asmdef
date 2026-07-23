@@ -5,8 +5,7 @@
         "com.Lautaro-Arino.Laubrary.Launimator",
         "Unity.2D.Sprite.Editor",
         "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
-        "ZUI.Editor",
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
         "com.Lautaro-Arino.Laubrary.Chunks.Editor",
         "com.Lautaro-Arino.Laubrary.Launimator.Zounds.Editor"
     ],

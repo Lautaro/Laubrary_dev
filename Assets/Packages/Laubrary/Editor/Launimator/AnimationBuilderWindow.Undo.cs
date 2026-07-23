@@ -77,7 +77,7 @@ namespace Laubrary.Launimator.Editor
             _previewHash = -1; ClearMaskCache(); ClearThumbCache();
             ClearSelection();
             _seqMultiSel.Clear(); _seqSelected = -1; _seqAnchor = -1; _animFrame = 0;
-            Repaint();
+            Refresh();
         }
 
         private void PushUndo(string label)
@@ -107,15 +107,7 @@ namespace Laubrary.Launimator.Editor
             _status = $"Redo: {label}";
         }
 
-        /// <summary>Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z). Skipped while editing a text field so its own text undo
-        /// keeps working. Call first in OnGUI.</summary>
-        private void HandleUndoKeys()
-        {
-            var e = Event.current;
-            if (e.type != EventType.KeyDown || !(e.control || e.command)) return;
-            if (EditorGUIUtility.editingTextField) return;
-            if (e.keyCode == KeyCode.Z && !e.shift) { PerformUndo(); e.Use(); }
-            else if (e.keyCode == KeyCode.Y || (e.keyCode == KeyCode.Z && e.shift)) { PerformRedo(); e.Use(); }
-        }
+        // Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) are dispatched from the window root's KeyDownEvent handler
+        // (OnRootKeyDown), which trickles down so a focused IMGUI island can't swallow them first.
     }
 }

@@ -2,8 +2,10 @@ using System.Collections.Generic;
 using System.Linq;
 using Laubrary.Launimator;
 using Laubrary.LaunimatorZounds.Editor;
+using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Laubrary.Launimator.Editor
 {
@@ -14,8 +16,17 @@ namespace Laubrary.Launimator.Editor
     /// sprites, preview it looping, nudge each sprite's registration, and save it as a named <b>animation</b>
     /// into a reel's editable draft (see <see cref="ReelRepo"/>). Two-column layout: left =
     /// sheet/grid/canvas, right = identified sprites (#4) + animation preview &amp; save (#5).
+    ///
+    /// UI TOOLKIT PORT (ZUI → UI Toolkit migration): every CONTROL surface is a Laubrary.Zui (Z.*) retained
+    /// control. Six deliberate IMGUI islands remain, all of them bespoke canvas painting or direct-manipulation
+    /// gizmos that no retained element expresses and that must not regress: the sheet canvas (marquee/handles/
+    /// pick/eyedropper/auto-marquee), the registration canvas (onion-skin + drag-to-place), the play box, the
+    /// meta paint editor (per-pixel painting with pan/zoom), the sprite-palette thumbnail grid and the sequence
+    /// strip (thumbnail grids with badges, multi-select and drag-reorder), and the zone bar. Retained-mode
+    /// discipline: <see cref="Refresh"/> rebuilds the control hosts after a structural change, <see cref="Dirty"/>
+    /// only repaints the islands, and per-frame playback repaints the play box instead of the whole window.
     /// </summary>
-    public partial class AnimationBuilderWindow : ZUIWindow
+    public partial class AnimationBuilderWindow : ZuiWindow
     {
         private const string Disclaimer =
             "Prototyping only. Sprites may derive from copyrighted rips and must not be shipped or redistributed.";
@@ -189,8 +200,18 @@ namespace Laubrary.Launimator.Editor
         private Rect _lastImageRect;
 
         private string _status;
-        private Vector2 _leftScroll, _rightScroll;
         private Vector2 _cellsScroll, _seqScroll;
+
+        // ── retained UI hosts + islands (UI Toolkit) ─────────────────────────
+        // Each host is cleared + rebuilt by Refresh(); each island only needs MarkDirtyRepaint().
+        private VisualElement _bannerHost, _topHost, _leftControlsHost, _paletteHost, _animHost;
+        private VisualElement _leftPane, _splitRow;
+        private Label _statusLabel;
+        private IMGUIContainer _canvasIM, _regCanvasIM, _paletteGridIM, _playIM, _seqStripIM, _zoneBarIM;
+        private IntegerField _boxLField, _boxTField, _boxWField, _boxHField;
+        private Button _addRegionButton, _playToggleButton, _addEventButton;
+        private Label _metaParamLabel;
+        private TextField _metaParamField;
 
         [MenuItem("Laubrary/Animation Builder")]
         public static void Open()
@@ -226,9 +247,10 @@ namespace Laubrary.Launimator.Editor
             w.TryApplyPending();
         }
 
-        protected override void OnZUIEnable() { _animLastStep = EditorApplication.timeSinceStartup; EditorApplication.update += AnimTick; }
-        private void OnDisable()
+        private void OnEnable() { _animLastStep = EditorApplication.timeSinceStartup; EditorApplication.update += AnimTick; }
+        protected override void OnDisable()
         {
+            base.OnDisable();
             EditorApplication.update -= AnimTick; DestroyDisplaySheet(); DestroyPreviewBake(); ClearThumbCache(); ClearMaskCache();
             if (_selXformTex != null) { Object.DestroyImmediate(_selXformTex); _selXformTex = null; }
         }
@@ -245,8 +267,8 @@ namespace Laubrary.Launimator.Editor
 
             if (_inDivider)
             {
-                if (now >= _dividerUntil) { _inDivider = false; RestartPreview(); Repaint(); }
-                else Repaint();
+                if (now >= _dividerUntil) { _inDivider = false; RestartPreview(); }
+                _playIM?.MarkDirtyRepaint();
                 return;
             }
 
@@ -254,7 +276,11 @@ namespace Laubrary.Launimator.Editor
             if (_previewPlayer.Anim != _previewDef || (!_previewPlayer.IsPlaying && !_inDivider)) RestartPreview();
             _previewPlayer.Tick(dt, 1f);
             _animFrame = _previewPlayer.Frame;
-            Repaint();
+            // Playback only moves the playhead — repaint the islands that show it, never the whole window.
+            RefreshFrameLabels();
+            _playIM?.MarkDirtyRepaint();
+            _seqStripIM?.MarkDirtyRepaint();
+            _zoneBarIM?.MarkDirtyRepaint();
         }
 
         // ── live in-memory bake feeding the shared player ────────────────────────
@@ -332,145 +358,239 @@ namespace Laubrary.Launimator.Editor
             }
         }
 
-        // ── compact fields ───────────────────────────────────────────────────
-        private const float CompactFieldWidth = 52f;
-        private static int CompactIntField(string label, int value, float labelW = 44f, float fieldW = CompactFieldWidth)
-            => CompactIntField(new GUIContent(label), value, labelW, fieldW);
-        private static int CompactIntField(GUIContent label, int value, float labelW = 44f, float fieldW = CompactFieldWidth)
+        // ── window shell ─────────────────────────────────────────────────────
+        /// A wrapping row — controls flow onto the next line instead of ever overflowing the pane.
+        private static VisualElement WrapRow(params VisualElement[] children)
         {
-            Rect r = GUILayoutUtility.GetRect(labelW + fieldW, EditorGUIUtility.singleLineHeight, GUILayout.Width(labelW + fieldW));
-            float prev = EditorGUIUtility.labelWidth; EditorGUIUtility.labelWidth = labelW;
-            int result = EditorGUI.IntField(r, label, value);
-            EditorGUIUtility.labelWidth = prev; return result;
-        }
-        private static float CompactFloatField(string label, float value, float labelW = 44f, float fieldW = CompactFieldWidth)
-        {
-            Rect r = GUILayoutUtility.GetRect(labelW + fieldW, EditorGUIUtility.singleLineHeight, GUILayout.Width(labelW + fieldW));
-            float prev = EditorGUIUtility.labelWidth; EditorGUIUtility.labelWidth = labelW;
-            float result = EditorGUI.FloatField(r, label, value);
-            EditorGUIUtility.labelWidth = prev; return result;
+            var row = Z.Row(children);
+            row.style.flexWrap = Wrap.Wrap;
+            return row;
         }
 
-        protected override void OnZUI()
+        protected override void OnBeforeRebuild()
         {
-            float prevLabelWidth = EditorGUIUtility.labelWidth;
-            EditorGUIUtility.labelWidth = 58f;
-            try
+            _bannerHost = _topHost = _leftControlsHost = _paletteHost = _animHost = null;
+            _leftPane = _splitRow = null;
+            _statusLabel = null;
+            _canvasIM = _regCanvasIM = _paletteGridIM = _playIM = _seqStripIM = _zoneBarIM = null;
+            _boxLField = _boxTField = _boxWField = _boxHField = null;
+            _addRegionButton = _playToggleButton = _addEventButton = null;
+            _metaParamLabel = null; _metaParamField = null;
+        }
+
+        /// The handful of labels/fields that name the CURRENT frame. Playback moves the playhead every tick,
+        /// so these are patched in place instead of rebuilding the panels that hold them.
+        private void RefreshFrameLabels()
+        {
+            int cur = _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : 0;
+            if (_addEventButton != null) _addEventButton.text = $"+ event @ frame {cur + 1}";
+
+            var layer = ActiveLayer();
+            if (_metaParamField == null || layer == null || cur >= layer.frames.Count) return;
+            if (_metaParamField.panel?.focusController?.focusedElement == _metaParamField) return;  // don't fight typing
+            if (_metaParamLabel != null) _metaParamLabel.text = $"F{cur + 1} param";
+            _metaParamField.SetValueWithoutNotify(layer.frames[cur].param ?? "");
+        }
+
+        protected override void BuildUI(VisualElement root)
+        {
+            root.style.flexGrow = 1f;
+            root.style.minHeight = 0f;
+
+            // Sprite keys (A/D + arrow nudge) and the window's own snapshot Undo are handled on the ROOT with
+            // TrickleDown so they win over a focused IMGUI island (the canvas would otherwise eat Left/Right).
+            // Rebuild() clears the root's CHILDREN but keeps the root itself, so unregister before
+            // registering or every rebuild would stack another handler.
+            root.focusable = true;
+            root.UnregisterCallback<KeyDownEvent>(OnRootKeyDown, TrickleDown.TrickleDown);
+            root.RegisterCallback<KeyDownEvent>(OnRootKeyDown, TrickleDown.TrickleDown);
+            root.UnregisterCallback<GeometryChangedEvent>(OnRootGeometryChanged);
+            root.RegisterCallback<GeometryChangedEvent>(OnRootGeometryChanged);
+
+            root.Add(Z.Help(Disclaimer, HelpBoxMessageType.Warning));
+
+            _bannerHost = new VisualElement();
+            BuildBindingBanner(_bannerHost);
+            root.Add(_bannerHost);
+
+            _topHost = new VisualElement();
+            BuildTopSection(_topHost);
+            root.Add(_topHost);
+
+            _statusLabel = Z.Text(_status ?? "", ZuiText.Subtle, "The last thing this window did, or why it couldn't.");
+            _statusLabel.style.whiteSpace = WhiteSpace.Normal;
+
+            if (_sheet == null) { root.Add(_statusLabel); return; }
+
+            _splitRow = new VisualElement();
+            _splitRow.style.flexDirection = FlexDirection.Row;
+            _splitRow.style.flexGrow = 1f;
+            _splitRow.style.minHeight = 0f;
+            root.Add(_splitRow);
+
+            if (!_leftCollapsed)
             {
-                // Undo/redo first so Ctrl+Z wins over any focused control's own handling.
-                HandleUndoKeys();
+                _leftPane = new VisualElement();
+                _leftPane.style.width = new Length(56f, LengthUnit.Percent);
+                _leftPane.style.minWidth = 360f;
+                _leftPane.style.flexShrink = 0f;
+                _leftPane.style.minHeight = 0f;
+                var leftScroll = new ScrollView(ScrollViewMode.Vertical);
+                leftScroll.style.flexGrow = 1f;
+                leftScroll.style.minHeight = 0f;
 
-                // Handle sprite keys (A/D + arrow nudge) FIRST — before any scroll view is drawn. A focused
-                // scroll view (the #3 canvas) consumes Left/Right arrows for horizontal scrolling, which was
-                // hijacking the nudge; consuming the KeyDown here wins because IMGUI dispatches in draw order.
-                HandleSpriteKeys();
+                _leftControlsHost = new VisualElement();
+                BuildRegionGridUI(_leftControlsHost);
+                leftScroll.contentContainer.Add(_leftControlsHost);
 
-                NoteBox(Disclaimer);
-                DrawBindingBanner();
-                DrawCollapseToggleRow();
-                DrawTopArea();
-                if (_sheet == null) { DrawStatus(); return; }
-
-                if (!_leftCollapsed) DrawModeBar();
-
-                // The two columns EXPAND to fill the space between the chrome above and the status below, so
-                // their own scrollbars cover the full content (a hardcoded height pushed the bottom — the Save
-                // button — past the window border, out of the scrollbar's reach).
-                using (new EditorGUILayout.HorizontalScope(GUILayout.ExpandHeight(true)))
+                _canvasIM = new IMGUIContainer(DrawCanvasGUI)
                 {
-                    if (!_leftCollapsed)
-                    {
-                        float leftW = Mathf.Max(360f, position.width * 0.56f);
-                        using (new EditorGUILayout.VerticalScope(GUILayout.Width(leftW)))
-                        {
-                            _leftScroll = EditorGUILayout.BeginScrollView(_leftScroll, GUILayout.ExpandHeight(true));
-                            DrawRegionGridUI();
-                            EditorGUILayout.Space();
-                            DrawCanvas(leftW);
-                            EditorGUILayout.EndScrollView();
-                        }
-                    }
-                    using (new EditorGUILayout.VerticalScope())
-                    {
-                        _rightScroll = EditorGUILayout.BeginScrollView(_rightScroll, GUILayout.ExpandHeight(true));
-                        DrawCellsPreview();
-                        EditorGUILayout.Space();
-                        DrawAnimationSection();
-                        EditorGUILayout.EndScrollView();
-                    }
-                }
-                DrawStatus();
+                    tooltip = "The sheet. Left-drag marquees (Grid/Box) or picks a sprite (Pick); right-drag auto-detects sprites inside the marquee."
+                };
+                _canvasIM.style.height = Mathf.Max(240f, position.height * 0.48f);
+                _canvasIM.style.flexShrink = 0f;
+                leftScroll.contentContainer.Add(_canvasIM);
+
+                _leftPane.Add(leftScroll);
+                _splitRow.Add(_leftPane);
             }
-            finally { EditorGUIUtility.labelWidth = prevLabelWidth; }
+
+            var rightPane = new VisualElement();
+            rightPane.style.flexGrow = 1f;
+            rightPane.style.minWidth = 0f;
+            rightPane.style.minHeight = 0f;
+            rightPane.style.marginLeft = 4f;
+            var rightScroll = new ScrollView(ScrollViewMode.Vertical);
+            rightScroll.style.flexGrow = 1f;
+            rightScroll.style.minHeight = 0f;
+
+            _paletteHost = new VisualElement();
+            BuildPaletteSection(_paletteHost);
+            rightScroll.contentContainer.Add(_paletteHost);
+
+            _animHost = new VisualElement();
+            BuildAnimationSection(_animHost);
+            rightScroll.contentContainer.Add(_animHost);
+
+            rightPane.Add(rightScroll);
+            _splitRow.Add(rightPane);
+
+            root.Add(_statusLabel);
         }
 
-        private void DrawBindingBanner()
+        /// Keep the canvas viewport proportional as the window resizes (it was position.height-derived).
+        private void OnRootGeometryChanged(GeometryChangedEvent _)
         {
-            if (_boundReel != null)
-                InfoBox($"Editing animation '{_animName}' for reel '{_boundReel.reelName}'. " +
-                    "Saving writes back to that reel's draft.");
-            else
-                InfoBox(_orphanAsset != null
+            if (_canvasIM != null) _canvasIM.style.height = Mathf.Max(240f, position.height * 0.48f);
+        }
+
+        /// Repaint the bespoke IMGUI islands — for edits that change what's DRAWN but not which controls exist.
+        private void Dirty()
+        {
+            if (_statusLabel != null) _statusLabel.text = _status ?? "";
+            _canvasIM?.MarkDirtyRepaint();
+            _regCanvasIM?.MarkDirtyRepaint();
+            _paletteGridIM?.MarkDirtyRepaint();
+            _playIM?.MarkDirtyRepaint();
+            _seqStripIM?.MarkDirtyRepaint();
+            _zoneBarIM?.MarkDirtyRepaint();
+        }
+
+        /// Structural change (selection, sequence, layers, modes…) → rebuild the control hosts in place.
+        /// Cheap at editor-window scale, and the one reliable way to keep retained controls truthful.
+        private void Refresh()
+        {
+            if (!this) return;   // a deferred refresh can outlive the window
+            if (_bannerHost == null) { Dirty(); return; }
+            // Gaining/losing a sheet changes the window's STRUCTURE (the two-column body only exists with
+            // one), so a host-level refresh can't express it — rebuild the whole tree instead.
+            if ((_sheet != null) != (_splitRow != null)) { Rebuild(); return; }
+            _bannerHost.Clear(); BuildBindingBanner(_bannerHost);
+            _topHost.Clear(); BuildTopSection(_topHost);
+            if (_leftControlsHost != null) { _leftControlsHost.Clear(); BuildRegionGridUI(_leftControlsHost); }
+            if (_paletteHost != null) { _paletteHost.Clear(); BuildPaletteSection(_paletteHost); }
+            if (_animHost != null) { _animHost.Clear(); BuildAnimationSection(_animHost); }
+            SetStatus(_status);
+            Dirty();
+        }
+
+        /// Show a one-line result/explanation without rebuilding anything.
+        private void SetStatus(string text)
+        {
+            _status = text;
+            if (_statusLabel != null) _statusLabel.text = _status ?? "";
+        }
+
+        private void BuildBindingBanner(VisualElement root)
+        {
+            root.Add(Z.Help(_boundReel != null
+                ? $"Editing animation '{_animName}' for reel '{_boundReel.reelName}'. Saving writes back to that reel's draft."
+                : _orphanAsset != null
                     ? $"Editing orphaned animation '{_animName}'. Include it into a reel from the Reel Browser."
-                    : "Authoring a new orphaned animation (not tied to a reel). Include it later from the Reel Browser.");
-        }
-
-        private void DrawStatus()
-        {
-            if (!string.IsNullOrEmpty(_status))
-                InfoBox(_status);
+                    : "Authoring a new orphaned animation (not tied to a reel). Include it later from the Reel Browser."));
         }
 
         // ── 1 · sheet ────────────────────────────────────────────────────────
-        private void DrawSheetSection()
+        private void BuildSheetSection(VisualElement root)
         {
-            using (new EditorGUILayout.VerticalScope())
+            Texture2D picked = _sheet;
+            var sheetField = Z.Object<Texture2D>(_sheet, "The sprite sheet to slice sprites out of.",
+                v => picked = v, 200f);
+
+            var recentButton = Z.Button("Recent ▾",
+                "Pick a sheet from Assets/SpriteSheets (downloaded or previously sliced). Entries are deletable.", null).W(76f);
+            recentButton.clicked += () =>
             {
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    GUILayout.Label("1 · Sheet", EditorStyles.boldLabel, GUILayout.Width(58));
-                    var picked = (Texture2D)EditorGUILayout.ObjectField(GUIContent.none, _sheet, typeof(Texture2D), false);
-                    if (Button("Load", ZUI.Style.Default, GUILayout.Width(48))) LoadSheet(picked);
-                    else if (picked != _sheet) _sheet = picked;
-                    bool openRecent = GUILayout.Button(new GUIContent("Recent ▾",
-                        "Pick a sheet from Assets/SpriteSheets (downloaded or previously sliced). Entries are deletable."),
-                        GUILayout.Width(76));
-                    Rect recentRect = GUILayoutUtility.GetLastRect();
-                    if (openRecent) PopupWindow.Show(recentRect, new RecentSheetsPopup(LoadSheet, _sheet));
-                    if (_sheet != null) GUILayout.Label($"{_texW}×{_texH}px", EditorStyles.miniLabel, GUILayout.Width(80));
-                    GUILayout.FlexibleSpace();
-                    using (new EditorGUI.DisabledScope(_sheet == null))
-                    {
-                        if (Button(new GUIContent("Save", "Write slicing state (regions, cells, pivots) to a JSON sidecar."), ZUI.Style.Default, GUILayout.Width(48)))
-                            SaveState();
-                        using (new EditorGUI.DisabledScope(!RegionSlicerPersistence.Exists(_sheetPath)))
-                        {
-                            if (Button(new GUIContent("Restore", "Reload slicing state from this sheet's sidecar."), ZUI.Style.Default, GUILayout.Width(60)))
-                                LoadStateFromSidecar(false);
-                            if (Button(new GUIContent("Clear", "Delete this sheet's saved slicing sidecar and empty the palette (#4). Your saved animations are not affected."), ZUI.Style.Default, GUILayout.Width(48)))
-                                ClearSavedSlicing();
-                        }
-                    }
-                }
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    GUILayout.Label(new GUIContent("URL", "Download an image straight into Assets/SpriteSheets and load it."), GUILayout.Width(58));
-                    _sheetUrl = EditorGUILayout.TextField(_sheetUrl);
-                    _downloadName = EditorGUILayout.TextField(new GUIContent(GUIContent.none) { tooltip = "Optional display name for the downloaded sheet." }, _downloadName, GUILayout.Width(120));
-                    using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(_sheetUrl)))
-                        if (Button(new GUIContent("Download", "Save the image to Assets/SpriteSheets and load it as the sheet."), ZUI.Style.Default, GUILayout.Width(80)))
-                            DownloadSheetFromUrl();
-                }
-                if (_sheet != null)
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        GUILayout.Label(new GUIContent("Name", "Friendly display name (identity stays the asset GUID — renaming is safe)."), GUILayout.Width(58));
-                        EditorGUI.BeginChangeCheck();
-                        _sheetDisplayName = EditorGUILayout.TextField(_sheetDisplayName, GUILayout.Width(220));
-                        if (EditorGUI.EndChangeCheck()) SheetRegistry.SetDisplayName(_sheet, _sheetDisplayName);
-                        GUILayout.FlexibleSpace();
-                    }
-            }
+                var wb = recentButton.worldBound;
+                UnityEditor.PopupWindow.Show(new Rect(wb.x, wb.y, wb.width, wb.height),
+                    new RecentSheetsPopup(tex => { LoadSheet(tex); DeferRefresh(); }, _sheet));
+            };
+
+            var saveButton = Z.Button("Save", "Write slicing state (regions, cells, pivots) to a JSON sidecar.",
+                () => { SaveState(); Refresh(); }).W(48f);
+            saveButton.SetEnabled(_sheet != null);
+            var restoreButton = Z.Button("Restore", "Reload slicing state from this sheet's sidecar.",
+                () => { LoadStateFromSidecar(false); Refresh(); }).W(60f);
+            var clearButton = Z.Button("Clear",
+                "Delete this sheet's saved slicing sidecar and empty the palette (#4). Your saved animations are not affected.",
+                () => { ClearSavedSlicing(); Refresh(); }).W(48f);
+            bool hasSidecar = _sheet != null && RegionSlicerPersistence.Exists(_sheetPath);
+            restoreButton.SetEnabled(hasSidecar);
+            clearButton.SetEnabled(hasSidecar);
+
+            root.Add(WrapRow(
+                Z.Text("1 · Sheet", ZuiText.Section, "The source image every sprite in this animation is cut from."),
+                sheetField,
+                Z.Button("Load", "Load the assigned sheet (re-reads its saved slicing state).",
+                    () => { LoadSheet(picked); Refresh(); }).W(48f),
+                recentButton,
+                _sheet != null
+                    ? Z.Text($"{_texW}×{_texH}px", ZuiText.Small, "The loaded sheet's pixel size.").W(80f)
+                    : null,
+                Z.Flexible(),
+                saveButton, restoreButton, clearButton));
+
+            var urlField = Z.TextInput(_sheetUrl, "Download an image straight into Assets/SpriteSheets and load it.",
+                v => _sheetUrl = v, 0f);
+            urlField.style.width = StyleKeyword.Auto;
+            urlField.style.flexGrow = 1f;
+            urlField.style.minWidth = 120f;
+            urlField.style.maxWidth = 520f;                        // wide (URLs are long) but never runaway-wide
+            urlField.AddToClassList("zui-audit-allow-stretch");   // a URL is arbitrarily long — the rulebook's exception
+            var downloadButton = Z.Button("Download", "Save the image to Assets/SpriteSheets and load it as the sheet.",
+                () => { DownloadSheetFromUrl(); Refresh(); }).W(80f);
+            downloadButton.SetEnabled(!string.IsNullOrWhiteSpace(_sheetUrl));
+            urlField.RegisterValueChangedCallback(e => downloadButton.SetEnabled(!string.IsNullOrWhiteSpace(e.newValue)));
+            root.Add(Z.Row(
+                Z.Text("URL", ZuiText.Body, "Download an image straight into Assets/SpriteSheets and load it.").W(40f),
+                urlField,
+                Z.TextInput(_downloadName, "Optional display name for the downloaded sheet.", v => _downloadName = v, 120f),
+                downloadButton));
+
+            if (_sheet != null)
+                root.Add(Z.Field("Name", "Friendly display name (identity stays the asset GUID — renaming is safe).",
+                    Z.TextInput(_sheetDisplayName, "Friendly display name (identity stays the asset GUID — renaming is safe).",
+                        v => { _sheetDisplayName = v; SheetRegistry.SetDisplayName(_sheet, v); }, 220f)));
         }
 
         private void DownloadSheetFromUrl()
@@ -480,175 +600,182 @@ namespace Laubrary.Launimator.Editor
             try { tex = SheetLibrary.DownloadImage(_sheetUrl, _downloadName, out error); }
             finally { EditorUtility.ClearProgressBar(); }
 
-            if (tex == null) { _status = error ?? "Download failed."; Repaint(); return; }
+            if (tex == null) { SetStatus(error ?? "Download failed."); return; }
             LoadSheet(tex);
             _sheetUrl = ""; _downloadName = "";
-            _status = $"Downloaded and loaded '{_sheetDisplayName}' into {SheetLibrary.Folder}.";
+            SetStatus($"Downloaded and loaded '{_sheetDisplayName}' into {SheetLibrary.Folder}.");
             EditorGUIUtility.PingObject(tex);
-            Repaint();
         }
 
-        private void DrawModeBar()
+        private static readonly string[] ToolModeLabels = { "Grid (uniform sheet)", "Box (one sprite)", "Pick (scattered sprites)" };
+        private static readonly string[] GridModeLabels = { "Columns/Rows", "Cell Size" };
+
+        private void BuildModeBar(VisualElement root)
         {
-            using (new EditorGUILayout.HorizontalScope(EditorStyles.helpBox))
-            {
-                GUILayout.Label("Mode", EditorStyles.boldLabel, GUILayout.Width(40));
-                int prevMode = (int)_toolMode;
-                int newModeIdx = MiniRadio(prevMode,
-                    new[] { "Grid (uniform sheet)", "Box (one sprite)", "Pick (scattered sprites)" },
-                    ZUI.Style.Default, true, GUILayout.Width(420));
-                if (newModeIdx != prevMode)
-                {
-                    _toolMode = (ToolMode)newModeIdx;
-                    if (_toolMode != ToolMode.Grid) { _hasBox = false; _box = default; }
-                    Repaint();
-                }
-                GUILayout.Space(10);
-                GUILayout.Label(
+            root.Add(WrapRow(
+                Z.Text("Mode", ZuiText.Section, "How sprites are identified on the sheet."),
+                Z.MiniRadio((int)_toolMode, ToolModeLabels,
+                    "Grid marquees a box and slices it into cols×rows; Box commits one marquee as one sprite; Pick flood-fills the clicked sprite.",
+                    v =>
+                    {
+                        _toolMode = (ToolMode)v;
+                        if (_toolMode != ToolMode.Grid) { _hasBox = false; _box = default; }
+                        Refresh();
+                    }),
+                Z.Text(
                     _toolMode == ToolMode.Grid ? "Marquee a box on the canvas, set its grid, Add Region."
                     : _toolMode == ToolMode.Box ? "Drag a box around one sprite — released, it's added instantly."
                     : "Click each sprite on the canvas to extract it.",
-                    EditorStyles.miniLabel);
-                GUILayout.FlexibleSpace();
-            }
+                    ZuiText.Subtle, "What the current mode does on the canvas.")));
         }
 
         // ── 2 · region grid UI (mode-gated) ──────────────────────────────────
-        private void DrawRegionGridUI()
+        private void BuildRegionGridUI(VisualElement root)
         {
-            Label("2 · Identify Sprites", ZUI.ZTextStyle.SectionHeader);
+            if (!_leftCollapsed) BuildModeBar(root);
+
+            root.Add(Z.Text("2 · Identify Sprites", ZuiText.Section,
+                "Settings that decide how the canvas marquee becomes sprite cells."));
 
             if (_toolMode == ToolMode.Grid)
             {
-                _mode = (RegionSlicer.GridMode)MiniRadio((int)_mode, new[] { "Columns/Rows", "Cell Size" });
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    if (_mode == RegionSlicer.GridMode.FixedColsRows)
-                    {
-                        _cols = Mathf.Max(1, CompactIntField("Cols", _cols));
-                        _rows = Mathf.Max(1, CompactIntField("Rows", _rows));
-                    }
-                    else
-                    {
-                        _cellW = Mathf.Max(1, CompactIntField("Cell W", _cellW));
-                        _cellH = Mathf.Max(1, CompactIntField("Cell H", _cellH));
-                    }
-                    GUILayout.Space(6);
-                    _spacing = Mathf.Max(0, CompactIntField(new GUIContent("Space", "Gap px BETWEEN cells."), _spacing, 44f));
-                    _padding = Mathf.Max(0, CompactIntField(new GUIContent("Pad", "Shrink px INSIDE each cell."), _padding, 32f));
-                    GUILayout.FlexibleSpace();
-                }
+                root.Add(Z.MiniRadio((int)_mode, GridModeLabels,
+                    "Split the marquee by a column/row count, or by a fixed cell size in pixels.",
+                    v => { _mode = (RegionSlicer.GridMode)v; Refresh(); }));
+
+                var gridRow = _mode == RegionSlicer.GridMode.FixedColsRows
+                    ? WrapRow(
+                        Z.Field("Cols", "How many columns the marquee is split into.",
+                            Z.Int(_cols, "How many columns the marquee is split into.",
+                                v => { _cols = Mathf.Max(1, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)),
+                        Z.Field("Rows", "How many rows the marquee is split into.",
+                            Z.Int(_rows, "How many rows the marquee is split into.",
+                                v => { _rows = Mathf.Max(1, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)))
+                    : WrapRow(
+                        Z.Field("Cell W", "Each cell's width in source pixels.",
+                            Z.Int(_cellW, "Each cell's width in source pixels.",
+                                v => { _cellW = Mathf.Max(1, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)),
+                        Z.Field("Cell H", "Each cell's height in source pixels.",
+                            Z.Int(_cellH, "Each cell's height in source pixels.",
+                                v => { _cellH = Mathf.Max(1, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)));
+                gridRow.Add(Z.Field("Space", "Gap px BETWEEN cells.",
+                    Z.Int(_spacing, "Gap px BETWEEN cells.",
+                        v => { _spacing = Mathf.Max(0, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)));
+                gridRow.Add(Z.Field("Pad", "Shrink px INSIDE each cell.",
+                    Z.Int(_padding, "Shrink px INSIDE each cell.",
+                        v => { _padding = Mathf.Max(0, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)));
+                root.Add(gridRow);
             }
 
             // Shared: ppu + pivot.
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                _ppu = CompactFloatField("PPU", _ppu, 30f);
-                GUILayout.Space(8);
-                GUILayout.Label("Pivot", GUILayout.Width(36));
-                _pivot = EnumPopup(_pivot, 110f);
-                if (_pivot == GridSlicer.PivotMode.Custom)
-                    _customPivot = EditorGUILayout.Vector2Field(GUIContent.none, _customPivot, GUILayout.Width(110));
-                GUILayout.FlexibleSpace();
-            }
+            var pivotRow = WrapRow(
+                Z.Field("PPU", "Pixels-per-unit stamped onto the sprites this sheet slices.",
+                    Z.Float(_ppu, "Pixels-per-unit stamped onto the sprites this sheet slices.",
+                        v => _ppu = Mathf.Max(0.01f, v), 52f)),
+                Z.Field("Pivot", "Default registration point applied to every newly-identified sprite.",
+                    Z.EnumDropdown(_pivot, "Default registration point applied to every newly-identified sprite.",
+                        v => { _pivot = v; Refresh(); }, 110f)));
+            if (_pivot == GridSlicer.PivotMode.Custom)
+                pivotRow.Add(Z.Vector2Field("Custom pivot", () => _customPivot, v => _customPivot = v, this,
+                    new ZuiValue2DControl.Options().WithRange(0f, 1f, 0f, 1f).WithPlotSize(64f),
+                    "Where the pivot sits inside each cell (0..1, y bottom-up).", Dirty));
+            root.Add(pivotRow);
 
             // Alpha threshold / trim (relevant to both: Pick uses the threshold; Grid can trim).
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                // ZUI-GAP: EditorGUILayout.ToggleLeft is a label-right checkbox; ZUI Toggle is a toggle-button (different widget) — kept raw.
-                if (_toolMode == ToolMode.Grid)
-                    _alphaTrim = EditorGUILayout.ToggleLeft(
-                        new GUIContent("Alpha-trim", "Snap each cell to the tight bbox of its non-transparent pixels."),
-                        _alphaTrim, GUILayout.Width(90));
-                _alphaThreshold = Mathf.Clamp(CompactIntField(
-                    new GUIContent("α >", "Alpha above this counts as content (0..255)."), _alphaThreshold, 26f), 0, 255);
-                GUILayout.FlexibleSpace();
-            }
+            var alphaRow = WrapRow();
+            if (_toolMode == ToolMode.Grid)
+                alphaRow.Add(Z.Toggle("Alpha-trim", "Snap each cell to the tight bbox of its non-transparent pixels.",
+                    _alphaTrim, v => _alphaTrim = v));
+            alphaRow.Add(Z.Field("α >", "Alpha above this counts as content (0..255).",
+                Z.Int(_alphaThreshold, "Alpha above this counts as content (0..255).",
+                    v => { _alphaThreshold = Mathf.Clamp(v, 0, 255); Dirty(); }, 52f)));
+            root.Add(alphaRow);
 
             // Background colour key: sheets with a solid-colour background (no alpha) — eyedrop it transparent.
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                // ZUI-GAP: ToggleLeft (checkbox) + ColorField are coupled to Begin/EndChangeCheck (keyChanged) — kept raw to preserve change detection.
-                EditorGUI.BeginChangeCheck();
-                _bgKeyEnabled = EditorGUILayout.ToggleLeft(
-                    new GUIContent("BG color", "Treat a solid background colour as transparent (sheets with no alpha)."),
-                    _bgKeyEnabled, GUILayout.Width(76));
-                using (new EditorGUI.DisabledScope(!_bgKeyEnabled))
-                {
-                    _bgKey = (Color32)EditorGUILayout.ColorField(GUIContent.none, _bgKey, GUILayout.Width(44));
-                    _bgTolerance = Mathf.Clamp(CompactIntField(
-                        new GUIContent("± tol", "Per-channel match tolerance (0..255)."), _bgTolerance, 30f), 0, 255);
-                }
-                bool keyChanged = EditorGUI.EndChangeCheck();
-
-                if (Button(new GUIContent(_pickingBgColor ? "Click sheet…" : "Pick ☉",
-                        "Eyedropper: click a background pixel on the canvas to set the colour."),
-                        ZUI.Style.Default, GUILayout.Width(_pickingBgColor ? 80 : 58)))
-                {
-                    _pickingBgColor = !_pickingBgColor;
-                    if (_pickingBgColor) _bgKeyEnabled = true;
-                }
-                GUILayout.FlexibleSpace();
-                if (keyChanged) { RebuildDisplaySheet(); SaveBgKeyForSheet(); }
-            }
+            void KeyChanged() { RebuildDisplaySheet(); SaveBgKeyForSheet(); Dirty(); }
+            var keyColor = Z.Color(_bgKey, "The colour treated as transparent.",
+                v => { _bgKey = (Color32)v; KeyChanged(); }, 60f, showAlpha: false);
+            var keyTol = Z.Int(_bgTolerance, "Per-channel match tolerance (0..255).",
+                v => { _bgTolerance = Mathf.Clamp(v, 0, 255); KeyChanged(); }, 52f);
+            keyColor.SetEnabled(_bgKeyEnabled);
+            keyTol.SetEnabled(_bgKeyEnabled);
+            root.Add(WrapRow(
+                Z.Toggle("BG color", "Treat a solid background colour as transparent (sheets with no alpha).",
+                    _bgKeyEnabled, v => { _bgKeyEnabled = v; KeyChanged(); Refresh(); }),
+                keyColor,
+                Z.Field("± tol", "Per-channel match tolerance (0..255).", keyTol),
+                Z.Button(_pickingBgColor ? "Click sheet…" : "Pick ☉",
+                    "Eyedropper: click a background pixel on the canvas to set the colour.",
+                    () => { _pickingBgColor = !_pickingBgColor; if (_pickingBgColor) _bgKeyEnabled = true; Refresh(); })));
 
             if (_toolMode == ToolMode.Grid)
             {
-                using (new EditorGUI.DisabledScope(!_hasBox))
+                void CommitBox()
                 {
-                    EditorGUI.BeginChangeCheck();
-                    int boxLeft = Mathf.RoundToInt(_box.x);
-                    int boxTop = Mathf.RoundToInt(_texH - _box.yMax);
-                    int boxW = Mathf.RoundToInt(_box.width);
-                    int boxH = Mathf.RoundToInt(_box.height);
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        GUILayout.Label("Box", EditorStyles.miniBoldLabel, GUILayout.Width(28));
-                        boxLeft = CompactIntField("L", boxLeft, 12f);
-                        boxTop = CompactIntField("T", boxTop, 12f);
-                        boxW = CompactIntField("W", boxW, 14f);
-                        boxH = CompactIntField("H", boxH, 14f);
-                        GUILayout.FlexibleSpace();
-                    }
-                    if (EditorGUI.EndChangeCheck())
-                    {
-                        boxW = Mathf.Max(1, boxW); boxH = Mathf.Max(1, boxH);
-                        _box = ClampBox(new Rect(boxLeft, _texH - boxTop - boxH, boxW, boxH));
-                        Repaint();
-                    }
+                    int l = _boxLField.value, t = _boxTField.value;
+                    int w = Mathf.Max(1, _boxWField.value), h = Mathf.Max(1, _boxHField.value);
+                    _box = ClampBox(new Rect(l, _texH - t - h, w, h));
+                    RefreshBoxDependentLabels();
+                    Dirty();
                 }
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    using (new EditorGUI.DisabledScope(!_hasBox))
-                    {
-                        if (Button("Clear Box", ZUI.Style.Default, GUILayout.Width(74))) { _hasBox = false; _box = default; Repaint(); }
-                        if (Button($"Add Region ({CurrentBoxCellCount()})", ZUI.Style.Default, GUILayout.Width(120))) AddRegion();
-                    }
-                    GUILayout.FlexibleSpace();
-                }
+                _boxLField = Z.Int(Mathf.RoundToInt(_box.x), "Marquee left edge, in source pixels.", _ => CommitBox(), 52f);
+                _boxTField = Z.Int(Mathf.RoundToInt(_texH - _box.yMax), "Marquee top edge, in source pixels (from the sheet's top).", _ => CommitBox(), 52f);
+                _boxWField = Z.Int(Mathf.RoundToInt(_box.width), "Marquee width, in source pixels.", _ => CommitBox(), 52f);
+                _boxHField = Z.Int(Mathf.RoundToInt(_box.height), "Marquee height, in source pixels.", _ => CommitBox(), 52f);
+
+                var boxRow = WrapRow(
+                    Z.Text("Box", ZuiText.Small, "The current marquee's exact rect — type to place it precisely."),
+                    Z.Field("L", "Marquee left edge, in source pixels.", _boxLField),
+                    Z.Field("T", "Marquee top edge, in source pixels (from the sheet's top).", _boxTField),
+                    Z.Field("W", "Marquee width, in source pixels.", _boxWField),
+                    Z.Field("H", "Marquee height, in source pixels.", _boxHField));
+                boxRow.SetEnabled(_hasBox);
+                root.Add(boxRow);
+
+                _addRegionButton = Z.Button($"Add Region ({CurrentBoxCellCount()})",
+                    "Commit the marquee's grid cells into the sprite palette (undoable).",
+                    () => { AddRegion(); Refresh(); }).W(120f);
+                var boxActions = WrapRow(
+                    Z.Button("Clear Box", "Drop the current marquee.",
+                        () => { _hasBox = false; _box = default; Refresh(); }).W(74f),
+                    _addRegionButton);
+                boxActions.SetEnabled(_hasBox);
+                root.Add(boxActions);
             }
 
             // Zoom row (shared).
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                GUILayout.Label("Zoom", GUILayout.Width(38));
-                _zoom = Slider(_zoom, 0.5f, 8f, "", ZUI.SliderStyle.Default, null, GUILayout.Width(150));
-                if (Button("Fit", ZUI.Style.Default, GUILayout.Width(40))) _zoomInitialized = false;
-                GUILayout.FlexibleSpace();
-            }
-        }
+            root.Add(WrapRow(
+                Z.Field("Zoom", "Canvas magnification (source pixels × zoom).",
+                    Z.Slider(_zoom, 0.5f, 8f, "Canvas magnification (source pixels × zoom).",
+                        v => { _zoom = v; Dirty(); }, 150f)),
+                Z.Button("Fit", "Re-fit the sheet to the canvas viewport.",
+                    () => { _zoomInitialized = false; Refresh(); }).W(40f)));
 
-        // ── 3 · canvas ───────────────────────────────────────────────────────
-        private void DrawCanvas(float colWidth)
-        {
-            Label(
+            root.Add(Z.Text(
                 _pickingBgColor ? "3 · Canvas — click a background pixel to set the transparent colour"
                 : _toolMode == ToolMode.Grid ? "3 · Canvas — drag to marquee; drag interior/edges to move/resize"
                 : _toolMode == ToolMode.Box ? "3 · Canvas — drag a box around one sprite (added on release)"
-                : "3 · Canvas — click a sprite to extract it", ZUI.ZTextStyle.SectionHeader);
+                : "3 · Canvas — click a sprite to extract it", ZuiText.Section,
+                "The sheet viewport below, and what a click/drag does in the current mode."));
+        }
 
-            float viewportH = Mathf.Max(240f, position.height * 0.48f);
-            Rect viewport = GUILayoutUtility.GetRect(10, viewportH, GUILayout.ExpandWidth(true), GUILayout.Height(viewportH));
+        /// The two labels/fields that mirror the live marquee — updated in place while dragging so the
+        /// retained controls never lag the canvas (and no rebuild steals focus mid-drag).
+        private void RefreshBoxDependentLabels()
+        {
+            _boxLField?.SetValueWithoutNotify(Mathf.RoundToInt(_box.x));
+            _boxTField?.SetValueWithoutNotify(Mathf.RoundToInt(_texH - _box.yMax));
+            _boxWField?.SetValueWithoutNotify(Mathf.RoundToInt(_box.width));
+            _boxHField?.SetValueWithoutNotify(Mathf.RoundToInt(_box.height));
+            if (_addRegionButton != null) _addRegionButton.text = $"Add Region ({CurrentBoxCellCount()})";
+        }
+
+        // ── 3 · canvas (IMGUI island: bespoke sheet painting + marquee/handle/pick gizmos) ────
+        private void DrawCanvasGUI()
+        {
+            if (_canvasIM == null || _sheet == null) return;
+            Rect viewport = new Rect(0f, 0f, _canvasIM.layout.width, _canvasIM.layout.height);
+            if (!(viewport.width > 10f) || !(viewport.height > 10f)) return;
 
             if (!_zoomInitialized && _texW > 0)
             {
@@ -723,7 +850,7 @@ namespace Laubrary.Launimator.Editor
                 {
                     Vector2 t = ContentToTex(mouse);
                     SampleBgColorAt(Mathf.FloorToInt(t.x), Mathf.FloorToInt(t.y));
-                    e.Use(); Repaint();
+                    e.Use(); DeferRefresh();
                 }
                 return;
             }
@@ -738,7 +865,7 @@ namespace Laubrary.Launimator.Editor
                 {
                     Vector2 t = ContentToTex(mouse);
                     PickSpriteAt(Mathf.FloorToInt(t.x), Mathf.FloorToInt(t.y));
-                    e.Use(); Repaint();
+                    e.Use(); DeferRefresh();
                 }
                 return;
             }
@@ -771,11 +898,12 @@ namespace Laubrary.Launimator.Editor
                         float x0 = Mathf.Min(_dragStartTex.x, cur.x), y0 = Mathf.Min(_dragStartTex.y, cur.y);
                         float x1 = Mathf.Max(_dragStartTex.x, cur.x), y1 = Mathf.Max(_dragStartTex.y, cur.y);
                         _box = ClampBox(new Rect(x0, y0, x1 - x0, y1 - y0));
-                        e.Use(); Repaint();
+                        e.Use(); RefreshBoxDependentLabels(); Repaint();
                     }
                     else if (_activeHandle != HandleKind.None)
                     {
-                        ApplyHandleDrag(SnapTex(ContentToTex(mouse))); e.Use(); Repaint();
+                        ApplyHandleDrag(SnapTex(ContentToTex(mouse)));
+                        e.Use(); RefreshBoxDependentLabels(); Repaint();
                     }
                     break;
 
@@ -788,9 +916,9 @@ namespace Laubrary.Launimator.Editor
                         // Box mode: release commits the marquee as ONE sprite, then clears for the next.
                         if (!grid && !tooSmall) AddSingleCellFromBox();
                         if (!grid || tooSmall) { _hasBox = false; _box = default; }
-                        e.Use(); Repaint();
+                        e.Use(); DeferRefresh();
                     }
-                    else if (_activeHandle != HandleKind.None) { _activeHandle = HandleKind.None; e.Use(); Repaint(); }
+                    else if (_activeHandle != HandleKind.None) { _activeHandle = HandleKind.None; e.Use(); DeferRefresh(); }
                     break;
             }
         }
@@ -870,124 +998,133 @@ namespace Laubrary.Launimator.Editor
         }
 
         // ── 4 · cells preview (identified sprites) ───────────────────────────
-        private void DrawCellsPreview()
+        private const string PaletteHelp =
+            "Click = select · Ctrl/Shift-click = multi-select · Double-click = add to sequence · Right-click = actions menu.\n\n" +
+            "Keys (with a sprite selected): A / D = previous / next sprite · arrow keys = nudge registration.\n\n" +
+            "Edit in Aseprite: bakes the selected sprite(s) into an owned .aseprite and opens Aseprite. (Set the app path under Tools ▸ Launimator.)";
+
+        private void BuildPaletteSection(VisualElement root)
         {
             int total = TotalCells();
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                Label($"4 · Sprite Palette ({total})", ZUI.ZTextStyle.SectionHeader, GUILayout.Width(170));
-                HelpButton("Click = select · Ctrl/Shift-click = multi-select · Double-click = add to sequence · Right-click = actions menu.\n\n" +
-                           "Keys (with a sprite selected): A / D = previous / next sprite · arrow keys = nudge registration.\n\n" +
-                           "Edit in Aseprite: bakes the selected sprite(s) into an owned .aseprite and opens Aseprite. (Set the app path under Tools ▸ Launimator.)");
-                GUILayout.FlexibleSpace();
-                using (new EditorGUI.DisabledScope(!HasSelectedCell()))
-                    if (Button(new GUIContent("Edit in Aseprite", "Export the selected sprite(s) to an owned .aseprite and open Aseprite to edit them."), ZUI.Style.Default, GUILayout.Width(112)))
-                        OpenSelectionInAseprite();
-                using (new EditorGUI.DisabledScope(string.IsNullOrEmpty(_editAsePath)))
-                    if (Button(new GUIContent("Sync edits", "Pull the edited .aseprite back into the palette (writes into an owned copy of the sheet)."), ZUI.Style.Default, GUILayout.Width(78)))
-                        SyncFromAseprite();
-                using (new EditorGUI.DisabledScope(total == 0))
-                    if (Button("Clear all", ZUI.Style.Default, GUILayout.Width(72))) ClearAllCells();
-            }
-            // (Key handling runs at the top of OnGUI so the #3 scroll view can't eat Left/Right first.)
+
+            var aseButton = Z.Button("Edit in Aseprite",
+                "Export the selected sprite(s) to an owned .aseprite and open Aseprite to edit them.",
+                () => { OpenSelectionInAseprite(); Refresh(); }).W(112f);
+            aseButton.SetEnabled(HasSelectedCell());
+            var syncButton = Z.Button("Sync edits",
+                "Pull the edited .aseprite back into the palette (writes into an owned copy of the sheet).",
+                () => { SyncFromAseprite(); Refresh(); }).W(78f);
+            syncButton.SetEnabled(!string.IsNullOrEmpty(_editAsePath));
+            var clearButton = Z.Button("Clear all", "Empty the sprite palette and the sequence (undoable).",
+                () => { ClearAllCells(); Refresh(); }).W(72f);
+            clearButton.SetEnabled(total > 0);
+
+            root.Add(WrapRow(
+                Z.Text($"4 · Sprite Palette ({total})", ZuiText.Section, PaletteHelp),
+                Z.HelpIcon(PaletteHelp),
+                Z.Flexible(),
+                aseButton, syncButton, clearButton));
 
             if (total == 0)
-            {
-                Rect ph = GUILayoutUtility.GetRect(10, 44, GUILayout.ExpandWidth(true), GUILayout.Height(44));
-                EditorGUI.DrawRect(ph, new Color(0.12f, 0.12f, 0.12f));
-                DrawRectOutline(ph, new Color(1f, 1f, 1f, 0.18f), 1f);
-                GUI.Label(ph, _toolMode == ToolMode.Grid ? "Marquee a box and Add Region." : "Click sprites on the canvas.",
-                    new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleCenter });
-            }
+                root.Add(Z.Text(_toolMode == ToolMode.Grid ? "Marquee a box and Add Region." : "Click sprites on the canvas.",
+                    ZuiText.Subtle, "Nothing identified yet."));
             else
             {
-                // Full-width sprite row — wraps to a new row only when it runs out of width.
-                const int cell = 56, pad = 4;
-                float avail = Mathf.Max(cell + pad, RightColumnWidth());
-                int perRow = Mathf.Max(1, Mathf.FloorToInt(avail / (cell + pad)));
-
-                _cellsScroll = EditorGUILayout.BeginScrollView(_cellsScroll, GUILayout.Height(132));
-                var flat = FlattenCells();
-                int i = 0;
-                while (i < flat.Count)
+                _paletteGridIM = new IMGUIContainer(DrawPaletteGridGUI)
                 {
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        for (int c = 0; c < perRow && i < flat.Count; c++, i++)
-                        {
-                            var cr = flat[i];
-                            Rect r = GUILayoutUtility.GetRect(cell, cell, GUILayout.Width(cell), GUILayout.Height(cell));
-                            EditorGUI.DrawRect(r, new Color(0.12f, 0.12f, 0.12f));
-                            DrawCellThumb(r, cr.region, cr.cell);
-
-                            bool isSel = IsCellSelected(cr.region, cr.cell);
-                            bool isPrimary = cr.region == _selRegion && cr.cell == _selCell;
-                            DrawRectOutline(r, isSel ? new Color(1f, 0.1f, 0.8f, 1f) : new Color(1f, 1f, 1f, 0.5f), isSel ? (isPrimary ? 2f : 1.5f) : 1f);
-
-                            string ord = SequenceOrdinalsFor(cr.region, cr.cell);
-                            if (ord != null)
-                            {
-                                var badge = new Rect(r.x, r.y, Mathf.Max(16, 8 + ord.Length * 7), 15);
-                                EditorGUI.DrawRect(badge, new Color(0.2f, 0.5f, 1f, 0.92f));
-                                GUI.Label(badge, ord, EditorStyles.whiteMiniLabel);
-                            }
-
-                            var ev = Event.current;
-                            if (ev.type == EventType.MouseDown && r.Contains(ev.mousePosition))
-                            {
-                                if (ev.button == 1)
-                                {
-                                    if (!isSel) SelectSingle(cr.region, cr.cell);
-                                    ShowSpriteContextMenu(cr);
-                                }
-                                else if (ev.button == 0)
-                                {
-                                    if (ev.clickCount == 2) AppendToSequence(cr.region, cr.cell);
-                                    else if (ev.control || ev.command) ToggleSelect(cr.region, cr.cell);
-                                    else if (ev.shift) RangeSelectTo(cr.region, cr.cell);
-                                    else SelectSingle(cr.region, cr.cell);
-                                }
-                                ev.Use(); Repaint();
-                            }
-                        }
-                    }
-                }
-                EditorGUILayout.EndScrollView();
+                    tooltip = PaletteHelp
+                };
+                _paletteGridIM.style.height = 132f;
+                _paletteGridIM.style.flexShrink = 0f;
+                root.Add(_paletteGridIM);
             }
 
             // Preview (registration canvas) on the LEFT, all its tools/controls on the RIGHT.
-            using (new EditorGUILayout.HorizontalScope())
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.flexWrap = Wrap.Wrap;
+            root.Add(row);
+
+            var previewCol = new VisualElement();
+            previewCol.style.width = 300f;
+            previewCol.style.flexShrink = 0f;
+            _regCanvasIM = new IMGUIContainer(DrawRegistrationCanvasGUI)
             {
-                float previewW = Mathf.Clamp(RightColumnWidth() * 0.44f, 220f, 420f);
-                using (new EditorGUILayout.VerticalScope(GUILayout.Width(previewW)))
+                tooltip = "Registration stage: drag the selected sprite to move its pivot relative to the green crosshair."
+            };
+            _regCanvasIM.style.height = 220f;
+            previewCol.Add(_regCanvasIM);
+            previewCol.Add(Z.Text(HasSelectedCell()
+                    ? (_fixedFrame ? "Drag to place the sprite in the box. Faint = other frames."
+                                   : "Drag to align the sprite. Faint = other frames.")
+                    : "Select a sprite above to place it.",
+                ZuiText.Subtle, "How to use the registration stage above."));
+            row.Add(previewCol);
+
+            var toolsCol = new VisualElement();
+            toolsCol.style.flexGrow = 1f;
+            toolsCol.style.minWidth = 240f;
+            toolsCol.style.marginLeft = 4f;
+            BuildRegistrationControls(toolsCol);
+            BuildSelectedCellControls(toolsCol);
+            row.Add(toolsCol);
+        }
+
+        /// The sprite palette grid — an IMGUI island: a thumbnail grid with sequence badges, multi-select and a
+        /// right-click actions menu. Bespoke canvas painting, exactly what the rulebook keeps raw.
+        private void DrawPaletteGridGUI()
+        {
+            if (_paletteGridIM == null) return;
+            Rect view = new Rect(0f, 0f, _paletteGridIM.layout.width, _paletteGridIM.layout.height);
+            if (!(view.width > 20f)) return;
+
+            const int cell = 56, pad = 4;
+            var flat = FlattenCells();
+            int perRow = Mathf.Max(1, Mathf.FloorToInt((view.width - 18f) / (cell + pad)));
+            int rows = Mathf.CeilToInt(flat.Count / (float)perRow);
+            Rect content = new Rect(0, 0, view.width - 18f, Mathf.Max(view.height, rows * (cell + pad)));
+
+            _cellsScroll = GUI.BeginScrollView(view, _cellsScroll, content);
+            for (int i = 0; i < flat.Count; i++)
+            {
+                var cr = flat[i];
+                Rect r = new Rect((i % perRow) * (cell + pad), (i / perRow) * (cell + pad), cell, cell);
+                EditorGUI.DrawRect(r, new Color(0.12f, 0.12f, 0.12f));
+                DrawCellThumb(r, cr.region, cr.cell);
+
+                bool isSel = IsCellSelected(cr.region, cr.cell);
+                bool isPrimary = cr.region == _selRegion && cr.cell == _selCell;
+                DrawRectOutline(r, isSel ? new Color(1f, 0.1f, 0.8f, 1f) : new Color(1f, 1f, 1f, 0.5f), isSel ? (isPrimary ? 2f : 1.5f) : 1f);
+
+                string ord = SequenceOrdinalsFor(cr.region, cr.cell);
+                if (ord != null)
                 {
-                    Rect canvas = GUILayoutUtility.GetRect(previewW, 220, GUILayout.Width(previewW), GUILayout.Height(220));
-                    DrawRegistrationCanvas(canvas);
-                    Label(HasSelectedCell()
-                        ? (_fixedFrame ? "Drag to place the sprite in the box. Faint = other frames."
-                                       : "Drag to align the sprite. Faint = other frames.")
-                        : "Select a sprite above to place it.");
+                    var badge = new Rect(r.x, r.y, Mathf.Max(16, 8 + ord.Length * 7), 15);
+                    EditorGUI.DrawRect(badge, new Color(0.2f, 0.5f, 1f, 0.92f));
+                    GUI.Label(badge, ord, EditorStyles.whiteMiniLabel);
                 }
-                using (new EditorGUILayout.VerticalScope())
+
+                var ev = Event.current;
+                if (ev.type == EventType.MouseDown && r.Contains(ev.mousePosition))
                 {
-                    DrawRegistrationControls();
-                    DrawSelectedCellControls();
+                    if (ev.button == 1)
+                    {
+                        if (!isSel) SelectSingle(cr.region, cr.cell);
+                        ShowSpriteContextMenu(cr);
+                    }
+                    else if (ev.button == 0)
+                    {
+                        if (ev.clickCount == 2) AppendToSequence(cr.region, cr.cell);
+                        else if (ev.control || ev.command) ToggleSelect(cr.region, cr.cell);
+                        else if (ev.shift) RangeSelectTo(cr.region, cr.cell);
+                        else SelectSingle(cr.region, cr.cell);
+                    }
+                    ev.Use();
+                    // Selection drives which controls exist (single vs multi labels, enabled state) → rebuild.
+                    DeferRefresh();
                 }
             }
-        }
-
-        /// <summary>Width available to the right (animation) column, used to lay sections out horizontally.</summary>
-        private float RightColumnWidth()
-        {
-            float leftW = _leftCollapsed ? 0f : Mathf.Max(360f, position.width * 0.56f);
-            return Mathf.Max(220f, position.width - leftW - 28f);
-        }
-
-        /// <summary>A small "?" button that pops up the given help text.</summary>
-        private void HelpButton(string text)
-        {
-            if (GUILayout.Button(new GUIContent("?", "Show help"), EditorStyles.miniButton, GUILayout.Width(22)))
-                PopupWindow.Show(GUILayoutUtility.GetLastRect(), new InfoPopup(text));
+            GUI.EndScrollView();
         }
 
         /// <summary>"Promote to editable": export the selected palette sprites' RAW pixels to an owned .aseprite
@@ -1120,81 +1257,75 @@ namespace Laubrary.Launimator.Editor
             ti.SaveAndReimport();
         }
 
-        private void DrawSelectedCellControls()
+        private void BuildSelectedCellControls(VisualElement root)
         {
             var sel = SelectedCells();
             if (sel.Count == 0)
             {
-                EditorGUILayout.LabelField("Select a sprite to nudge its registration (Ctrl/Shift-click for several).", EditorStyles.miniLabel);
+                root.Add(Z.Text("Select a sprite to nudge its registration (Ctrl/Shift-click for several).",
+                    ZuiText.Subtle, "Nothing is selected in the palette above."));
                 return;
             }
             bool multi = sel.Count > 1;
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                if (multi)
-                    EditorGUILayout.LabelField($"{sel.Count} selected", EditorStyles.miniBoldLabel, GUILayout.Width(86));
-                else
-                {
-                    Rect cell = _regions[_selRegion].cells[_selCell];
-                    EditorGUILayout.LabelField($"Sel {cell.width:0}×{cell.height:0}px", EditorStyles.miniBoldLabel, GUILayout.Width(86));
-                }
-                if (Button("←", ZUI.Style.Default, GUILayout.Width(24))) NudgeSelectedPivot(-1, 0);
-                if (Button("→", ZUI.Style.Default, GUILayout.Width(24))) NudgeSelectedPivot(1, 0);
-                if (Button("↓", ZUI.Style.Default, GUILayout.Width(24))) NudgeSelectedPivot(0, -1);
-                if (Button("↑", ZUI.Style.Default, GUILayout.Width(24))) NudgeSelectedPivot(0, 1);
-                if (Button(new GUIContent("Baseline", "Set pivot to content bottom-center (align feet)."), ZUI.Style.Default, GUILayout.Width(66)))
-                    BaselineSelected();
-                if (Button(new GUIContent("Head", "Set pivot to content top-center (align heads — handy for climbing/hanging)."), ZUI.Style.Default, GUILayout.Width(48)))
-                    TopCenterSelected();
-                GUILayout.FlexibleSpace();
-            }
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                if (Button(multi ? $"Add {sel.Count} → seq" : "Add → seq", ZUI.Style.Default, GUILayout.Width(96))) AddSelectedToSequence();
-                if (Button("Trim to content", ZUI.Style.Default, GUILayout.Width(110))) TrimSelected();
-                if (Button(new GUIContent(multi ? $"Duplicate ({sel.Count})" : "Duplicate", "Make an independent copy of the sprite(s) so you can flip/rotate/scale the copy without affecting the original a sequence frame uses."), ZUI.Style.Default, GUILayout.Width(100)))
-                    DuplicateSelectedSprites();
-                if (Button(multi ? $"Delete ({sel.Count})" : "Delete sprite", ZUI.Style.Default, GUILayout.Width(100))) DeleteSelectedCells();
-                GUILayout.FlexibleSpace();
-            }
+            string selLabel = multi
+                ? $"{sel.Count} selected"
+                : $"Sel {_regions[_selRegion].cells[_selCell].width:0}×{_regions[_selRegion].cells[_selCell].height:0}px";
+            root.Add(WrapRow(
+                Z.Text(selLabel, ZuiText.Small, "What the buttons on this row act on.").W(86f),
+                Z.Button("←", "Nudge the registration one source pixel left.", () => { NudgeSelectedPivot(-1, 0); Dirty(); }).W(24f),
+                Z.Button("→", "Nudge the registration one source pixel right.", () => { NudgeSelectedPivot(1, 0); Dirty(); }).W(24f),
+                Z.Button("↓", "Nudge the registration one source pixel down.", () => { NudgeSelectedPivot(0, -1); Dirty(); }).W(24f),
+                Z.Button("↑", "Nudge the registration one source pixel up.", () => { NudgeSelectedPivot(0, 1); Dirty(); }).W(24f),
+                Z.Button("Baseline", "Set pivot to content bottom-center (align feet).",
+                    () => { BaselineSelected(); Dirty(); }).W(66f),
+                Z.Button("Head", "Set pivot to content top-center (align heads — handy for climbing/hanging).",
+                    () => { TopCenterSelected(); Dirty(); }).W(48f)));
+
+            root.Add(WrapRow(
+                Z.Button(multi ? $"Add {sel.Count} → seq" : "Add → seq",
+                    "Append the selected sprite(s) to the animation sequence.",
+                    () => { AddSelectedToSequence(); Refresh(); }).W(96f),
+                Z.Button("Trim to content", "Shrink each selected cell to the tight bbox of its non-transparent pixels.",
+                    () => { TrimSelected(); Refresh(); }).W(110f),
+                Z.Button(multi ? $"Duplicate ({sel.Count})" : "Duplicate",
+                    "Make an independent copy of the sprite(s) so you can flip/rotate/scale the copy without affecting the original a sequence frame uses.",
+                    () => { DuplicateSelectedSprites(); Refresh(); }).W(100f),
+                Z.Button(multi ? $"Delete ({sel.Count})" : "Delete sprite",
+                    "Remove the selected sprite(s) from the palette (frames using them are dropped).",
+                    () => { DeleteSelectedCells(); Refresh(); }).W(100f)));
 
             // ── per-sprite EDIT (flip / rotate / squash-stretch) — baked into the frame ──────────────
             var prim = _regions[_selRegion].transforms.Count > _selCell ? _regions[_selRegion].transforms[_selCell] : CellTransform.Identity;
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                GUILayout.Label("Edit:", EditorStyles.miniBoldLabel, GUILayout.Width(30));
-                if (Button(new GUIContent("Flip H", "Mirror horizontally (lossless)."), ZUI.Style.Default, GUILayout.Width(48)))
-                    MutateSelectedTransforms(t => { t.flipX = !t.flipX; return t; });
-                if (Button(new GUIContent("Flip V", "Mirror vertically (lossless)."), ZUI.Style.Default, GUILayout.Width(48)))
-                    MutateSelectedTransforms(t => { t.flipY = !t.flipY; return t; });
-                if (Button(new GUIContent("⟲ 90", "Rotate 90° counter-clockwise (lossless)."), ZUI.Style.Default, GUILayout.Width(44)))
-                    MutateSelectedTransforms(t => { t.rot90 = ((t.rot90 + 1) % 4 + 4) % 4; return t; });
-                if (Button(new GUIContent("⟳ 90", "Rotate 90° clockwise (lossless)."), ZUI.Style.Default, GUILayout.Width(44)))
-                    MutateSelectedTransforms(t => { t.rot90 = ((t.rot90 - 1) % 4 + 4) % 4; return t; });
-                if (Button(new GUIContent("Reset", "Clear all edits on the selected sprite(s)."), ZUI.Style.Default, GUILayout.Width(48)))
-                    MutateSelectedTransforms(_ => CellTransform.Identity);
-                GUILayout.FlexibleSpace();
-            }
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                GUILayout.Label(new GUIContent("Rot°", "Arbitrary rotation (degrees, CCW). Resampled. Use −/+ to step, or type an exact angle."), GUILayout.Width(30));
-                if (Button(new GUIContent("−", "Rotate −5° (stepwise)."), ZUI.Style.Default, GUILayout.Width(20)))
-                    MutateSelectedTransforms(t => { t.angle -= RotStepDeg; return t; });
-                float ang = EditorGUILayout.FloatField(prim.angle, GUILayout.Width(40));
-                if (Button(new GUIContent("+", "Rotate +5° (stepwise)."), ZUI.Style.Default, GUILayout.Width(20)))
-                    MutateSelectedTransforms(t => { t.angle += RotStepDeg; return t; });
-                GUILayout.Label(new GUIContent("Scale X", "Squash/stretch horizontally (1 = none)."), GUILayout.Width(48));
-                float sxv = EditorGUILayout.FloatField(prim.SX, GUILayout.Width(40));
-                GUILayout.Label(new GUIContent("Y", "Squash/stretch vertically (1 = none)."), GUILayout.Width(12));
-                float syv = EditorGUILayout.FloatField(prim.SY, GUILayout.Width(40));
-                bool sm = Toggle(prim.smooth, new GUIContent("Smooth", "Bilinear sampling for rotate/scale (smooth but blurs); off = crisp nearest-neighbor."), ZUI.Style.Default, GUILayout.Width(60));
-                if (!Mathf.Approximately(ang, prim.angle)) MutateSelectedTransforms(t => { t.angle = ang; return t; });
-                if (!Mathf.Approximately(sxv, prim.SX)) MutateSelectedTransforms(t => { t.scaleX = Mathf.Max(0.01f, sxv); return t; });
-                if (!Mathf.Approximately(syv, prim.SY)) MutateSelectedTransforms(t => { t.scaleY = Mathf.Max(0.01f, syv); return t; });
-                if (sm != prim.smooth) MutateSelectedTransforms(t => { t.smooth = sm; return t; });
-                GUILayout.FlexibleSpace();
-            }
+            root.Add(WrapRow(
+                Z.Text("Edit", ZuiText.Small, "Lossless per-sprite edits, baked into the frame.").W(30f),
+                Z.Button("Flip H", "Mirror horizontally (lossless).",
+                    () => { MutateSelectedTransforms(t => { t.flipX = !t.flipX; return t; }); Dirty(); }).W(48f),
+                Z.Button("Flip V", "Mirror vertically (lossless).",
+                    () => { MutateSelectedTransforms(t => { t.flipY = !t.flipY; return t; }); Dirty(); }).W(48f),
+                Z.Button("<| 90", "Rotate 90° counter-clockwise (lossless).",
+                    () => { MutateSelectedTransforms(t => { t.rot90 = ((t.rot90 + 1) % 4 + 4) % 4; return t; }); Dirty(); }).W(48f),
+                Z.Button("|> 90", "Rotate 90° clockwise (lossless).",
+                    () => { MutateSelectedTransforms(t => { t.rot90 = ((t.rot90 - 1) % 4 + 4) % 4; return t; }); Dirty(); }).W(48f),
+                Z.Button("Reset", "Clear all edits on the selected sprite(s).",
+                    () => { MutateSelectedTransforms(_ => CellTransform.Identity); Refresh(); }).W(48f)));
+
+            root.Add(WrapRow(
+                Z.Text("Rot°", ZuiText.Small, "Arbitrary rotation (degrees, CCW). Resampled — use −/+ to step, or type an exact angle.").W(30f),
+                Z.Button("−", "Rotate −5° (stepwise).",
+                    () => { MutateSelectedTransforms(t => { t.angle -= RotStepDeg; return t; }); Refresh(); }).W(24f),
+                Z.Float(prim.angle, "Exact rotation angle in degrees (CCW).",
+                    v => { MutateSelectedTransforms(t => { t.angle = v; return t; }); Dirty(); }, 48f),
+                Z.Button("+", "Rotate +5° (stepwise).",
+                    () => { MutateSelectedTransforms(t => { t.angle += RotStepDeg; return t; }); Refresh(); }).W(24f),
+                Z.Field("Scale X", "Squash/stretch horizontally (1 = none).",
+                    Z.Float(prim.SX, "Squash/stretch horizontally (1 = none).",
+                        v => { MutateSelectedTransforms(t => { t.scaleX = Mathf.Max(0.01f, v); return t; }); Dirty(); }, 48f)),
+                Z.Field("Y", "Squash/stretch vertically (1 = none).",
+                    Z.Float(prim.SY, "Squash/stretch vertically (1 = none).",
+                        v => { MutateSelectedTransforms(t => { t.scaleY = Mathf.Max(0.01f, v); return t; }); Dirty(); }, 48f)),
+                Z.Toggle("Smooth", "Bilinear sampling for rotate/scale (smooth but blurs); off = crisp nearest-neighbor.",
+                    prim.smooth, v => { MutateSelectedTransforms(t => { t.smooth = v; return t; }); Dirty(); })));
         }
 
         // ── per-sprite transform edits (UI.4) ────────────────────────────────
@@ -1237,20 +1368,38 @@ namespace Laubrary.Launimator.Editor
         // A/D step the primary selection through the flattened sprite list; arrows nudge the registration one
         // source pixel (mirrors the ←→↓↑ buttons). Suppressed while a text field is being edited so typing in
         // the name/search fields isn't hijacked.
-        private void HandleSpriteKeys()
+        private void OnRootKeyDown(KeyDownEvent e)
         {
-            if (!HasSelectedCell() || EditorGUIUtility.editingTextField) return;
-            var e = Event.current;
-            if (e.type != EventType.KeyDown) return;
+            if (IsEditingText()) return;
+
+            // Undo/redo first so Ctrl+Z wins over any focused control's own handling.
+            if (e.ctrlKey || e.commandKey)
+            {
+                if (e.keyCode == KeyCode.Z && !e.shiftKey) { PerformUndo(); e.StopPropagation(); }
+                else if (e.keyCode == KeyCode.Y || (e.keyCode == KeyCode.Z && e.shiftKey)) { PerformRedo(); e.StopPropagation(); }
+                return;
+            }
+
+            if (!HasSelectedCell()) return;
             switch (e.keyCode)
             {
-                case KeyCode.A:          StepSelection(-1);        e.Use(); break;
-                case KeyCode.D:          StepSelection(1);         e.Use(); break;
-                case KeyCode.LeftArrow:  NudgeSelectedPivot(-1, 0); e.Use(); break;
-                case KeyCode.RightArrow: NudgeSelectedPivot(1, 0);  e.Use(); break;
-                case KeyCode.DownArrow:  NudgeSelectedPivot(0, -1); e.Use(); break;
-                case KeyCode.UpArrow:    NudgeSelectedPivot(0, 1);  e.Use(); break;
+                // A/D move the PRIMARY selection, which changes which controls exist → full refresh.
+                case KeyCode.A:          StepSelection(-1);         e.StopPropagation(); Refresh(); break;
+                case KeyCode.D:          StepSelection(1);          e.StopPropagation(); Refresh(); break;
+                // Arrows only move a pivot — nothing structural, so only the islands need repainting.
+                case KeyCode.LeftArrow:  NudgeSelectedPivot(-1, 0); e.StopPropagation(); Dirty(); break;
+                case KeyCode.RightArrow: NudgeSelectedPivot(1, 0);  e.StopPropagation(); Dirty(); break;
+                case KeyCode.DownArrow:  NudgeSelectedPivot(0, -1); e.StopPropagation(); Dirty(); break;
+                case KeyCode.UpArrow:    NudgeSelectedPivot(0, 1);  e.StopPropagation(); Dirty(); break;
             }
+        }
+
+        /// True while a text field owns focus — key nudges and the snapshot undo must not hijack typing.
+        private bool IsEditingText()
+        {
+            if (EditorGUIUtility.editingTextField) return true;
+            var f = rootVisualElement?.panel?.focusController?.focusedElement as VisualElement;
+            return f != null && (f is TextField || f.GetFirstAncestorOfType<TextField>() != null);
         }
 
         /// <summary>Move the primary selection <paramref name="delta"/> steps through the flattened sprite list
@@ -1426,21 +1575,21 @@ namespace Laubrary.Launimator.Editor
             var menu = new GenericMenu();
             if (multi)
             {
-                menu.AddItem(new GUIContent($"Add {sel.Count} to sequence"), false, AddSelectedToSequence);
+                menu.AddItem(new GUIContent($"Add {sel.Count} to sequence"), false, () => { AddSelectedToSequence(); Refresh(); });
                 menu.AddSeparator("");
-                menu.AddItem(new GUIContent("Trim selected to content"), false, TrimSelected);
-                menu.AddItem(new GUIContent("Baseline selected"), false, BaselineSelected);
+                menu.AddItem(new GUIContent("Trim selected to content"), false, () => { TrimSelected(); Refresh(); });
+                menu.AddItem(new GUIContent("Baseline selected"), false, () => { BaselineSelected(); Refresh(); });
                 menu.AddSeparator("");
-                menu.AddItem(new GUIContent($"Delete {sel.Count} sprites"), false, DeleteSelectedCells);
+                menu.AddItem(new GUIContent($"Delete {sel.Count} sprites"), false, () => { DeleteSelectedCells(); Refresh(); });
             }
             else
             {
-                menu.AddItem(new GUIContent("Add to sequence"), false, () => { AppendToSequence(cr.region, cr.cell); Repaint(); });
+                menu.AddItem(new GUIContent("Add to sequence"), false, () => { AppendToSequence(cr.region, cr.cell); Refresh(); });
                 menu.AddSeparator("");
-                menu.AddItem(new GUIContent("Trim to content"), false, () => { SelectSingle(cr.region, cr.cell); TrimSelected(); });
-                menu.AddItem(new GUIContent("Set baseline pivot"), false, () => { SelectSingle(cr.region, cr.cell); BaselineSelected(); });
+                menu.AddItem(new GUIContent("Trim to content"), false, () => { SelectSingle(cr.region, cr.cell); TrimSelected(); Refresh(); });
+                menu.AddItem(new GUIContent("Set baseline pivot"), false, () => { SelectSingle(cr.region, cr.cell); BaselineSelected(); Refresh(); });
                 menu.AddSeparator("");
-                menu.AddItem(new GUIContent("Delete sprite"), false, () => { SelectSingle(cr.region, cr.cell); DeleteSelectedCells(); });
+                menu.AddItem(new GUIContent("Delete sprite"), false, () => { SelectSingle(cr.region, cr.cell); DeleteSelectedCells(); Refresh(); });
             }
             menu.ShowAsContext();
         }
@@ -1453,63 +1602,74 @@ namespace Laubrary.Launimator.Editor
             var menu = new GenericMenu();
             if (selCount > 1)
             {
-                menu.AddItem(new GUIContent($"Reverse {selCount} selected frames"), false, ReverseSelectedFrames);
-                menu.AddItem(new GUIContent($"Duplicate {selCount} selected"), false, DuplicateSelectedFrames);
-                menu.AddItem(new GUIContent($"Remove {selCount} selected"), false, DeleteSelectedFrames);
+                menu.AddItem(new GUIContent($"Reverse {selCount} selected frames"), false, () => { ReverseSelectedFrames(); Refresh(); });
+                menu.AddItem(new GUIContent($"Duplicate {selCount} selected"), false, () => { DuplicateSelectedFrames(); Refresh(); });
+                menu.AddItem(new GUIContent($"Remove {selCount} selected"), false, () => { DeleteSelectedFrames(); Refresh(); });
             }
             else
             {
-                menu.AddItem(new GUIContent("Duplicate frame"), false, () => { RecordUndo("Duplicate frame"); _sequence.Insert(i + 1, _sequence[i]); SeqSelectSingle(i + 1); Repaint(); });
-                menu.AddItem(new GUIContent("Remove frame"), false, () => { RecordUndo("Remove frame"); _sequence.RemoveAt(i); _seqMultiSel.Clear(); if (_seqSelected >= _sequence.Count) _seqSelected = _sequence.Count - 1; if (_seqSelected >= 0) _seqMultiSel.Add(_seqSelected); Repaint(); });
+                menu.AddItem(new GUIContent("Duplicate frame"), false, () => { RecordUndo("Duplicate frame"); _sequence.Insert(i + 1, _sequence[i]); SeqSelectSingle(i + 1); Refresh(); });
+                menu.AddItem(new GUIContent("Remove frame"), false, () => { RecordUndo("Remove frame"); _sequence.RemoveAt(i); _seqMultiSel.Clear(); if (_seqSelected >= _sequence.Count) _seqSelected = _sequence.Count - 1; if (_seqSelected >= 0) _seqMultiSel.Add(_seqSelected); Refresh(); });
             }
             menu.AddSeparator("");
             if (SeqRefValid(cr))
-                menu.AddItem(new GUIContent("Edit source sprite (select in #4)"), false, () => { SelectSingle(cr.region, cr.cell); Repaint(); });
-            menu.AddItem(new GUIContent("Set as idle (loop gap)"), false, () => { _idleRef = cr; _loopDivider = LoopDivider.IdleSprite; Repaint(); });
+                menu.AddItem(new GUIContent("Edit source sprite (select in #4)"), false, () => { SelectSingle(cr.region, cr.cell); Refresh(); });
+            menu.AddItem(new GUIContent("Set as idle (loop gap)"), false, () => { _idleRef = cr; _loopDivider = LoopDivider.IdleSprite; Refresh(); });
             menu.ShowAsContext();
         }
 
         // ── registration: frame box + drag-to-place ──────────────────────────
         // Registration SETTINGS only (the canvas/preview is drawn separately, to its left). See DrawCellsPreview.
-        private void DrawRegistrationControls()
+        private static readonly string[] RegistrationModeLabels = { "Auto size", "Fixed box" };
+
+        private void BuildRegistrationControls(VisualElement root)
         {
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                Label("Registration", ZUI.ZTextStyle.SectionHeader, GUILayout.Width(86));
-                int prevReg = _fixedFrame ? 1 : 0;
-                int mode = MiniRadio(prevReg, new[] { "Auto size", "Fixed box" }, ZUI.Style.Default, true, GUILayout.Width(160));
-                if (mode != prevReg)
-                {
-                    bool wasFixed = _fixedFrame;
-                    _fixedFrame = mode == 1;
-                    // Switching INTO fixed mode: seed the box from the current auto layout so nothing jumps.
-                    if (_fixedFrame && !wasFixed) FitFrameBox();
-                }
-                GUILayout.FlexibleSpace();
-            }
+            root.Add(WrapRow(
+                Z.Text("Registration", ZuiText.Section,
+                    "How big each baked frame is, and where the shared pivot sits inside it."),
+                Z.MiniRadio(_fixedFrame ? 1 : 0, RegistrationModeLabels,
+                    "Auto size fits the frame box to the sequence; Fixed box pins an exact W×H every frame is placed in.",
+                    v =>
+                    {
+                        bool wasFixed = _fixedFrame;
+                        _fixedFrame = v == 1;
+                        // Switching INTO fixed mode: seed the box from the current auto layout so nothing jumps.
+                        if (_fixedFrame && !wasFixed) FitFrameBox();
+                        Refresh();
+                    })));
 
             if (_fixedFrame)
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    _frameW = Mathf.Max(1, CompactIntField("W", _frameW, 14f));
-                    _frameH = Mathf.Max(1, CompactIntField("H", _frameH, 14f));
-                    if (Button(new GUIContent("Fit", "Size the box to hold every frame at its current placement."), ZUI.Style.Default, GUILayout.Width(40)))
-                        FitFrameBox();
-                    GUILayout.FlexibleSpace();
-                }
+                root.Add(WrapRow(
+                    Z.Field("W", "Fixed frame width in source pixels.",
+                        Z.Int(_frameW, "Fixed frame width in source pixels.",
+                            v => { _frameW = Mathf.Max(1, v); Dirty(); }, 52f)),
+                    Z.Field("H", "Fixed frame height in source pixels.",
+                        Z.Int(_frameH, "Fixed frame height in source pixels.",
+                            v => { _frameH = Mathf.Max(1, v); Dirty(); }, 52f)),
+                    Z.Button("Fit", "Size the box to hold every frame at its current placement.",
+                        () => { FitFrameBox(); Refresh(); }).W(40f)));
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                GUILayout.Label(new GUIContent("Ghosts", "Onion-skin: faint copies of the neighbouring sequence frames, drawn behind the one you're aligning."), GUILayout.Width(46));
-                GUILayout.Label(new GUIContent("◀", "How many frames BEFORE the current one to ghost."), GUILayout.Width(12));
-                _ghostBefore = Mathf.Clamp(EditorGUILayout.IntField(_ghostBefore, GUILayout.Width(28)), 0, 99);
-                GUILayout.Label(new GUIContent("▶", "How many frames AFTER the current one to ghost."), GUILayout.Width(12));
-                _ghostAfter = Mathf.Clamp(EditorGUILayout.IntField(_ghostAfter, GUILayout.Width(28)), 0, 99);
-                GUILayout.Space(8);
-                GUILayout.Label(new GUIContent("Opacity", "Ghost transparency. Drag to 0 to hide ghosts."), GUILayout.Width(50));
-                _ghostOpacity = Slider(_ghostOpacity, 0f, 1f, "", ZUI.SliderStyle.Default, null, GUILayout.Width(90));
-                GUILayout.FlexibleSpace();
-            }
+            root.Add(WrapRow(
+                Z.Text("Ghosts", ZuiText.Small,
+                    "Onion-skin: faint copies of the neighbouring sequence frames, drawn behind the one you're aligning.").W(46f),
+                Z.Field("<", "How many frames BEFORE the current one to ghost.",
+                    Z.Int(_ghostBefore, "How many frames BEFORE the current one to ghost.",
+                        v => { _ghostBefore = Mathf.Clamp(v, 0, 99); Dirty(); }, 40f)),
+                Z.Field(">", "How many frames AFTER the current one to ghost.",
+                    Z.Int(_ghostAfter, "How many frames AFTER the current one to ghost.",
+                        v => { _ghostAfter = Mathf.Clamp(v, 0, 99); Dirty(); }, 40f)),
+                Z.Field("Opacity", "Ghost transparency. Drag to 0 to hide ghosts.",
+                    Z.Slider(_ghostOpacity, 0f, 1f, "Ghost transparency. Drag to 0 to hide ghosts.",
+                        v => { _ghostOpacity = v; Dirty(); }, 110f))));
+        }
+
+        /// The registration stage — an IMGUI island: onion-skinned frame painting plus a drag-to-place gizmo.
+        private void DrawRegistrationCanvasGUI()
+        {
+            if (_regCanvasIM == null) return;
+            var canvas = new Rect(0f, 0f, _regCanvasIM.layout.width, _regCanvasIM.layout.height);
+            if (!(canvas.width > 10f) || !(canvas.height > 10f)) return;
+            DrawRegistrationCanvas(canvas);
         }
 
         private void DrawRegistrationCanvas(Rect canvas)
@@ -1722,7 +1882,9 @@ namespace Laubrary.Launimator.Editor
         }
 
         // ── 5 · animation (sequence + preview + save) ────────────────────────
-        private void DrawAnimationSection()
+        private static readonly string[] LoopDividerLabels = { "None", "Pause", "Idle" };
+
+        private void BuildAnimationSection(VisualElement root)
         {
             // keep refs valid
             _sequence.RemoveAll(cr => !SeqRefValid(cr));
@@ -1731,73 +1893,119 @@ namespace Laubrary.Launimator.Editor
             _seqMultiSel.RemoveWhere(k => k < 0 || k >= _sequence.Count);
             SyncMetaFrames();
 
-            Label($"5 · Animation — sequence ({_sequence.Count})", ZUI.ZTextStyle.SectionHeader);
+            root.Add(Z.Text($"5 · Animation — sequence ({_sequence.Count})", ZuiText.Section,
+                "The ordered frames this animation plays, plus everything saved alongside them."));
 
             // Animation PREVIEW (doubles as the meta paint editor) on the LEFT, all tools on the RIGHT.
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                float previewW = Mathf.Clamp(RightColumnWidth() * 0.46f, 240f, 460f);
-                using (new EditorGUILayout.VerticalScope(GUILayout.Width(previewW)))
-                {
-                    Rect box = GUILayoutUtility.GetRect(previewW, 220, GUILayout.Width(previewW), GUILayout.Height(220));
-                    if (_metaEnabled) DrawMetaEditor(box); else DrawPlayBox(box);
-                }
-                using (new EditorGUILayout.VerticalScope())
-                {
-                    DrawAnimationTools();
-                    if (_metaEnabled) DrawMetaLayersPanel();
-                }
-            }
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.flexWrap = Wrap.Wrap;
+            root.Add(row);
 
-            DrawSequenceStrip();
-            DrawZoneTrack();
-            DrawEvents();
-            DrawSaveRow();
+            _playIM = new IMGUIContainer(DrawPlayAreaGUI)
+            {
+                tooltip = _metaEnabled
+                    ? "Meta paint editor: left-drag paints, right-drag erases, middle-drag pans."
+                    : "The live animation, played by the same AnimationPlayback the game uses."
+            };
+            _playIM.style.width = 320f;
+            _playIM.style.height = 220f;
+            _playIM.style.flexShrink = 0f;
+            row.Add(_playIM);
+
+            var toolsCol = new VisualElement();
+            toolsCol.style.flexGrow = 1f;
+            toolsCol.style.minWidth = 240f;
+            toolsCol.style.marginLeft = 4f;
+            BuildAnimationTools(toolsCol);
+            if (_metaEnabled) BuildMetaLayersPanel(toolsCol);
+            row.Add(toolsCol);
+
+            _seqStripIM = new IMGUIContainer(DrawSequenceStripGUI)
+            {
+                tooltip = "The sequence. Drag to reorder · Ctrl/Shift-click = multi-select · Right-click → menu."
+            };
+            _seqStripIM.style.height = 96f;
+            _seqStripIM.style.flexShrink = 0f;
+            root.Add(_seqStripIM);
+            root.Add(Z.Text("Drag to reorder · Ctrl/Shift-click = multi-select · Right-click → menu · (Reverse/Duplicate/Delete in the tools panel).",
+                ZuiText.Subtle, "How to work the sequence strip above."));
+
+            BuildZoneTrack(root);
+            BuildEvents(root);
+            BuildSaveRow(root);
         }
 
         // The tools to the RIGHT of the animation preview: play, fps, loop gap, frame ops, meta toggle.
-        private void DrawAnimationTools()
+        private void BuildAnimationTools(VisualElement root)
         {
-            using (new EditorGUILayout.HorizontalScope())
+            _playToggleButton = Z.Button(_animPlaying ? "❚❚" : "▶", "Play or pause the looping preview.", () =>
             {
-                _animPlaying = Toggle(_animPlaying, _animPlaying ? "❚❚" : "▶", ZUI.Style.Default, GUILayout.Width(36));
-                _animFps = Slider(_animFps, 1f, 30f, "FPS");
-            }
+                _animPlaying = !_animPlaying;
+                _playToggleButton.text = _animPlaying ? "❚❚" : "▶";
+                _playIM?.MarkDirtyRepaint();
+            }).W(36f);
+            root.Add(WrapRow(
+                _playToggleButton,
+                Z.Field("FPS", "Preview playback speed — also what the saved animation plays at.",
+                    Z.Slider(_animFps, 1f, 30f, "Preview playback speed — also what the saved animation plays at.",
+                        v => { _animFps = v; Dirty(); }, 170f))));
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                GUILayout.Label(new GUIContent("Loop gap", "A preview-only pause between loops. Never saved into the animation."), GUILayout.Width(58));
-                _loopDivider = (LoopDivider)MiniRadio((int)_loopDivider, new[] { "None", "Pause", "Idle" }, ZUI.Style.Default, true, GUILayout.Width(170));
-                if (_loopDivider != LoopDivider.None)
-                    _loopPause = CompactFloatField("s", Mathf.Max(0f, _loopPause), 12f);
-                GUILayout.FlexibleSpace();
-            }
+            var loopRow = WrapRow(
+                Z.Text("Loop gap", ZuiText.Small,
+                    "A preview-only pause between loops. Never saved into the animation.").W(58f),
+                Z.MiniRadio((int)_loopDivider, LoopDividerLabels,
+                    "None loops seamlessly; Pause holds an empty gap; Idle holds a chosen sprite during the gap.",
+                    v => { _loopDivider = (LoopDivider)v; Refresh(); }));
+            if (_loopDivider != LoopDivider.None)
+                loopRow.Add(Z.Field("s", "How long the loop gap lasts, in seconds.",
+                    Z.Float(Mathf.Max(0f, _loopPause), "How long the loop gap lasts, in seconds.",
+                        v => { _loopPause = Mathf.Max(0f, v); Dirty(); }, 52f)));
+            root.Add(loopRow);
+
             if (_loopDivider == LoopDivider.IdleSprite)
-                using (new EditorGUI.DisabledScope(!HasSelectedCell()))
-                    if (Button(new GUIContent("Set idle = selected sprite", SeqRefValid(_idleRef) ? "" : "Select a sprite (#4) first."), ZUI.Style.Default, GUILayout.Width(200)))
-                        _idleRef = new CellRef(_selRegion, _selCell);
-
-            using (new EditorGUILayout.HorizontalScope())
             {
-                int selCount = _seqMultiSel.Count;
-                using (new EditorGUI.DisabledScope(selCount < 2))
-                    if (Button(new GUIContent("Reverse", "Reverse the order of the selected frames."), ZUI.Style.Default, GUILayout.Width(74))) ReverseSelectedFrames();
-                using (new EditorGUI.DisabledScope(selCount == 0))
+                var idleButton = Z.Button("Set idle = selected sprite",
+                    "Use the sprite selected in the palette as the frame shown during the loop gap.",
+                    () => { _idleRef = new CellRef(_selRegion, _selCell); Refresh(); }).W(200f);
+                idleButton.SetEnabled(HasSelectedCell());
+                root.Add(idleButton);
+            }
+
+            int selCount = _seqMultiSel.Count;
+            var reverse = Z.Button("Reverse", "Reverse the order of the selected frames.",
+                () => { ReverseSelectedFrames(); Refresh(); }).W(74f);
+            reverse.SetEnabled(selCount >= 2);
+            var dupFrames = Z.Button(selCount > 1 ? $"Duplicate ({selCount})" : "Duplicate",
+                "Copy the selected frames in as a block just after the selection.",
+                () => { DuplicateSelectedFrames(); Refresh(); }).W(96f);
+            var delFrames = Z.Button(selCount > 1 ? $"Delete ({selCount})" : "Delete",
+                "Remove the selected frames from the sequence.",
+                () => { DeleteSelectedFrames(); Refresh(); }).W(86f);
+            dupFrames.SetEnabled(selCount > 0);
+            delFrames.SetEnabled(selCount > 0);
+            root.Add(WrapRow(reverse, dupFrames, delFrames));
+
+            root.Add(WrapRow(
+                Z.Toggle("Meta layers", "Gameplay overlays (hitbox/muzzle/trail) drawn over the sequence. Off keeps the UI clean.",
+                    _metaEnabled, v => { _metaEnabled = v; Refresh(); }),
+                Z.Flexible(),
+                Z.Button("Clear seq", "Empty the sequence (undoable).", () =>
                 {
-                    if (Button(selCount > 1 ? $"Duplicate ({selCount})" : "Duplicate", ZUI.Style.Default, GUILayout.Width(96))) DuplicateSelectedFrames();
-                    if (Button(selCount > 1 ? $"Delete ({selCount})" : "Delete", ZUI.Style.Default, GUILayout.Width(86))) DeleteSelectedFrames();
-                }
-                GUILayout.FlexibleSpace();
-            }
+                    RecordUndo("Clear sequence");
+                    _sequence.Clear(); _seqSelected = -1; _animFrame = 0;
+                    Refresh();
+                }).W(74f)));
+        }
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                _metaEnabled = Toggle(_metaEnabled, new GUIContent("Meta layers",
-                    "Gameplay overlays (hitbox/muzzle/trail) drawn over the sequence. Off keeps the UI clean."),
-                    ZUI.Style.Default, GUILayout.Width(90));
-                GUILayout.FlexibleSpace();
-                if (Button("Clear seq", ZUI.Style.Default, GUILayout.Width(74))) { RecordUndo("Clear sequence"); _sequence.Clear(); _seqSelected = -1; _animFrame = 0; }
-            }
+        /// The play box / meta paint editor — an IMGUI island either way (pivot-anchored atlas blits, and a
+        /// zoomable per-pixel paint surface with pan).
+        private void DrawPlayAreaGUI()
+        {
+            if (_playIM == null) return;
+            var box = new Rect(0f, 0f, _playIM.layout.width, _playIM.layout.height);
+            if (!(box.width > 10f) || !(box.height > 10f)) return;
+            if (_metaEnabled) DrawMetaEditor(box); else DrawPlayBox(box);
         }
 
         // ── Meta-layers: data sync + UI + paint editor ──────────────────────
@@ -1828,113 +2036,119 @@ namespace Laubrary.Launimator.Editor
             return false;
         }
 
-        private void DrawMetaLayersPanel()
+        private static readonly string[] BrushLabels = { "1×1", "1×2", "2×1", "2×2" };
+        private static readonly Vector2Int[] BrushSizes =
+            { new Vector2Int(1, 1), new Vector2Int(1, 2), new Vector2Int(2, 1), new Vector2Int(2, 2) };
+        private static readonly string[] PaintValueLabels =
+            { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" };
+
+        private void BuildMetaLayersPanel(VisualElement root)
         {
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                GUILayout.Label("Layers", EditorStyles.miniBoldLabel, GUILayout.Width(44));
-                if (Button(new GUIContent("+ Layer", "Add a meta-layer (e.g. hitbox, muzzle, trail)."), ZUI.Style.Default, GUILayout.Width(66)))
+            root.Add(WrapRow(
+                Z.Text("Layers", ZuiText.Small, "Gameplay overlay masks painted per frame.").W(44f),
+                Z.Button("+ Layer", "Add a meta-layer (e.g. hitbox, muzzle, trail).", () =>
                 {
                     RecordUndo("Add layer");
                     _metaLayers.Add(new MetaLayer { id = $"layer{_metaLayers.Count + 1}", color = MetaLayer.Palette[_metaLayers.Count % MetaLayer.Palette.Length] });
                     _activeLayer = _metaLayers.Count - 1; SyncMetaFrames();
-                }
-                GUILayout.FlexibleSpace();
-            }
+                    Refresh();
+                }).W(66f)));
+
             for (int i = 0; i < _metaLayers.Count; i++)
             {
+                int li = i;
                 var L = _metaLayers[i];
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    bool active = i == _activeLayer;
-                    if (Button(active ? "●" : "○", ZUI.Style.Default, GUILayout.Width(22))) _activeLayer = i;
-                    string nid = TextField(L.id, 108f);
-                    if (nid != L.id) { RecordUndo("Rename layer"); L.id = nid; }
+                var lrow = Z.Row();
 
-                    Rect swr = GUILayoutUtility.GetRect(28, 16, GUILayout.Width(28));
-                    var solid = new Color(L.color.r, L.color.g, L.color.b, 1f);
-                    EditorGUI.DrawRect(swr, solid); DrawRectOutline(swr, Color.black, 1f);
-                    if (GUI.Button(swr, GUIContent.none, GUIStyle.none))
+                lrow.Add(Z.Button(i == _activeLayer ? "●" : "○", "Make this the layer you're painting.",
+                    () => { _activeLayer = li; Refresh(); }).W(22f));
+                lrow.Add(Z.TextInput(L.id, "This layer's id — how the game looks the mask up.",
+                    v => { RecordUndo("Rename layer"); L.id = v; }, 108f));
+
+                var solid = new Color(L.color.r, L.color.g, L.color.b, 1f);
+                var swatch = Z.Button("", "Pick this layer's colour from the shared palette.", null).W(28f);
+                swatch.style.height = 16f;
+                swatch.style.backgroundColor = solid;
+                swatch.clicked += () =>
+                {
+                    var wb = swatch.worldBound;
+                    UnityEditor.PopupWindow.Show(new Rect(wb.x, wb.y, wb.width, wb.height), new ColorPalettePopup(solid, c =>
                     {
-                        int li = i;
-                        PopupWindow.Show(swr, new ColorPalettePopup(solid, c =>
-                        { RecordUndo("Layer colour"); var cc = c; cc.a = _metaLayers[li].color.a; _metaLayers[li].color = cc; ClearMaskCache(); }));
-                    }
-                    if (Button(new GUIContent("✕", "Remove this layer."), ZUI.Style.Default, GUILayout.Width(22)))
-                    { RecordUndo("Remove layer"); _metaLayers.RemoveAt(i); if (_activeLayer >= _metaLayers.Count) _activeLayer = _metaLayers.Count - 1; ClearMaskCache(); GUIUtility.ExitGUI(); }
-                    GUILayout.FlexibleSpace();
-                }
+                        RecordUndo("Layer colour");
+                        var cc = c; cc.a = _metaLayers[li].color.a; _metaLayers[li].color = cc;
+                        ClearMaskCache(); Refresh();
+                    }));
+                };
+                lrow.Add(swatch);
+
+                lrow.Add(Z.Button("X", "Remove this layer.", () =>
+                {
+                    RecordUndo("Remove layer");
+                    _metaLayers.RemoveAt(li);
+                    if (_activeLayer >= _metaLayers.Count) _activeLayer = _metaLayers.Count - 1;
+                    ClearMaskCache(); Refresh();
+                }).W(22f));
+                root.Add(lrow);
             }
+
             var layer = ActiveLayer();
             if (layer == null)
             {
-                EditorGUILayout.LabelField("No layers. \"+ Layer\" adds one.", EditorStyles.miniLabel);
+                root.Add(Z.Text("No layers. \"+ Layer\" adds one.", ZuiText.Subtle, "Add a meta-layer to start painting."));
                 return;
             }
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                GUILayout.Label(new GUIContent("Opacity", "Display transparency for this layer's mask."), GUILayout.Width(54));
-                float a = Slider(layer.color.a, 0.1f, 1f);
-                if (!Mathf.Approximately(a, layer.color.a)) { var c = layer.color; c.a = a; layer.color = c; ClearMaskCache(); }
-            }
+            root.Add(Z.Field("Opacity", "Display transparency for this layer's mask.",
+                Z.Slider(layer.color.a, 0.1f, 1f, "Display transparency for this layer's mask.",
+                    v => { var c = layer.color; c.a = v; layer.color = c; ClearMaskCache(); Dirty(); }, 130f)));
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                GUILayout.Label(new GUIContent("Brush", "Paint footprint."), GUILayout.Width(54));
-                BrushButton("1×1", 1, 1); BrushButton("1×2", 1, 2); BrushButton("2×1", 2, 1); BrushButton("2×2", 2, 2);
-                GUILayout.FlexibleSpace();
-            }
+            int brushIdx = System.Array.FindIndex(BrushSizes, b => b.x == _brushW && b.y == _brushH);
+            root.Add(WrapRow(
+                Z.Text("Brush", ZuiText.Small, "Paint footprint, in mask cells.").W(44f),
+                Z.MiniRadio(Mathf.Max(0, brushIdx), BrushLabels, "Paint footprint, in mask cells.",
+                    v => { _brushW = BrushSizes[v].x; _brushH = BrushSizes[v].y; })));
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                _metaShowValues = Toggle(_metaShowValues, new GUIContent("Values",
-                    "Per-pixel value 1–10 as a channel. Off = always paint value 5. Any value triggers a hit unless the consumer reads it."),
-                    ZUI.Style.Default, GUILayout.Width(58));
-                if (!_metaShowValues) _paintValue = 5;
-                GUILayout.FlexibleSpace();
-                if (Button(new GUIContent("Clear frame", "Erase this layer's mask on the current frame."), ZUI.Style.Default, GUILayout.Width(86)))
-                    ClearActiveFrame();
-            }
+            root.Add(WrapRow(
+                Z.Toggle("Values", "Per-pixel value 1–10 as a channel. Off = always paint value 5. Any value triggers a hit unless the consumer reads it.",
+                    _metaShowValues, v => { _metaShowValues = v; if (!v) _paintValue = 5; Refresh(); }),
+                Z.Flexible(),
+                Z.Button("Clear frame", "Erase this layer's mask on the current frame.",
+                    () => { ClearActiveFrame(); Dirty(); }).W(86f)));
+
             if (_metaShowValues)
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    GUILayout.Label(new GUIContent("Value", "1 = darkest … 5 = layer colour … 10 = brightest. Erase = right-click."), GUILayout.Width(40));
-                    for (int v = 1; v <= 10; v++)
-                    {
-                        var prev = GUI.backgroundColor;
-                        GUI.backgroundColor = _paintValue == v ? Color.white : new Color(0.5f, 0.5f, 0.5f);
-                        if (GUILayout.Button(v.ToString(), GUILayout.Width(20))) _paintValue = v;
-                        GUI.backgroundColor = prev;
-                    }
-                    GUILayout.FlexibleSpace();
-                }
+                root.Add(WrapRow(
+                    Z.Text("Value", ZuiText.Small, "1 = darkest … 5 = layer colour … 10 = brightest. Erase = right-click.").W(40f),
+                    Z.MiniRadio(Mathf.Clamp(_paintValue - 1, 0, 9), PaintValueLabels,
+                        "1 = darkest … 5 = layer colour … 10 = brightest. Erase = right-click.",
+                        v => _paintValue = v + 1)));
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                GUILayout.Label("Zoom", GUILayout.Width(54));
-                _metaZoom = Mathf.Round(Slider(_metaZoom, 2f, 24f, "", ZUI.SliderStyle.Default, null, GUILayout.Width(110)));
-                if (Button(new GUIContent("Center", "Recentre the paint view."), ZUI.Style.Default, GUILayout.Width(56))) _metaPan = Vector2.zero;
-                GUILayout.FlexibleSpace();
-            }
+            root.Add(WrapRow(
+                Z.Field("Zoom", "Paint-editor magnification (screen px per source px).",
+                    Z.Slider(_metaZoom, 2f, 24f, "Paint-editor magnification (screen px per source px).",
+                        v => { _metaZoom = Mathf.Round(v); Dirty(); }, 110f)),
+                Z.Button("Center", "Recentre the paint view.",
+                    () => { _metaPan = Vector2.zero; Dirty(); }).W(56f)));
 
             int f = _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : -1;
             if (f >= 0 && f < layer.frames.Count)
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    GUILayout.Label(new GUIContent($"F{f + 1} param", "Free-text parameter for this frame on the active layer."), GUILayout.Width(54));
-                    string np = TextField(layer.frames[f].param ?? "");
-                    if (np != (layer.frames[f].param ?? "")) { RecordUndo("Frame param"); layer.frames[f].param = np; }
-                }
-            Label("Left-drag = paint · right-drag = erase · middle-drag = pan.");
-        }
-
-        private void BrushButton(string label, int w, int h)
-        {
-            bool on = _brushW == w && _brushH == h;
-            var prev = GUI.backgroundColor; GUI.backgroundColor = on ? Color.white : new Color(0.5f, 0.5f, 0.5f);
-            if (GUILayout.Button(label, GUILayout.Width(34))) { _brushW = w; _brushH = h; }
-            GUI.backgroundColor = prev;
+            {
+                // The param always edits whatever frame is CURRENT (the playhead moves without a rebuild),
+                // so read the index at commit time, not at build time.
+                _metaParamField = Z.TextInput(layer.frames[f].param ?? "",
+                    "Free-text parameter for this frame on the active layer.",
+                    v =>
+                    {
+                        var L = ActiveLayer();
+                        int at = _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : -1;
+                        if (L == null || at < 0 || at >= L.frames.Count) return;
+                        RecordUndo("Frame param"); L.frames[at].param = v;
+                    }, 160f);
+                var wrap = Z.Field($"F{f + 1} param", "Free-text parameter for this frame on the active layer.", _metaParamField);
+                _metaParamLabel = wrap.Q<Label>(className: "zui-field__label");
+                root.Add(wrap);
+            }
+            root.Add(Z.Text("Left-drag = paint · right-drag = erase · middle-drag = pan.", ZuiText.Subtle,
+                "How to paint on the editor to the left."));
         }
 
         private void ClearActiveFrame()
@@ -2073,51 +2287,56 @@ namespace Laubrary.Launimator.Editor
         // Author per-frame EVENTS (metadata the game reacts to). "hit" is the canonical one — it lets a
         // consumer sync weapon damage / a projectile to the swing's contact frame via ReelPlayer.OnFrameEvent.
         // Frames are shown 1-based to match the sequence strip badges; stored 0-based.
-        private void DrawEvents()
+        private void BuildEvents(VisualElement root)
         {
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            const string eventsTip =
+                "Authored per-frame events the game reacts to (e.g. \"hit\" to sync weapon damage to the contact frame). Fired by ReelPlayer.OnFrameEvent.";
+            var box = Z.Box($"Frame events ({_events.Count})", eventsTip);
+
+            int cur = _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : 0;
+            _addEventButton = Z.Button($"+ event @ frame {cur + 1}",
+                "Add a named event on the frame shown in the preview, then rename it below (e.g. hit, footstep, Lift Off).",
+                () =>
+                {
+                    RecordUndo("Add event");
+                    int at = _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : 0;
+                    _events.Add(new FrameEvent { frame = at, name = "event" });
+                    Refresh();
+                }).W(150f);
+            _addEventButton.SetEnabled(_sequence.Count > 0);
+            box.Add(Z.Row(Z.Flexible(), _addEventButton));
+
+            int maxFrame = Mathf.Max(0, _sequence.Count - 1);
+            for (int e = 0; e < _events.Count; e++)
             {
-                int cur = _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : 0;
-                using (new EditorGUILayout.HorizontalScope())
+                int idx = e;
+                var ev = _events[e];
+                var evRow = WrapRow(
+                    Z.Field("frame", "Which sequence frame (1-based) this event fires on.",
+                        Z.Int(ev.frame + 1, "Which sequence frame (1-based) this event fires on.",
+                            v => { RecordUndo("Move event"); ev.frame = Mathf.Clamp(v, 1, maxFrame + 1) - 1; Dirty(); }, 52f)),
+                    Z.TextInput(ev.name, "The event's name — what the game listens for.",
+                        v => { RecordUndo("Rename event"); ev.name = v; }, 140f));
+
+                string zoundLabel = string.IsNullOrEmpty(ev.zoundName) ? "— zound —" : ev.zoundName;
+                var zoundButton = Z.Button(zoundLabel,
+                    "Zound auto-played when this event fires, via the Launimator.Zounds bridge. Click to pick.", null).W(90f);
+                zoundButton.clicked += () =>
                 {
-                    GUILayout.Label(new GUIContent($"Frame events ({_events.Count})",
-                        "Authored per-frame events the game reacts to (e.g. \"hit\" to sync weapon damage to the contact frame). Fired by ReelPlayer.OnFrameEvent."),
-                        EditorStyles.boldLabel);
-                    GUILayout.FlexibleSpace();
-                    using (new EditorGUI.DisabledScope(_sequence.Count == 0))
-                        if (Button(new GUIContent($"+ event @ frame {cur + 1}",
-                            "Add a named event on the frame shown in the preview, then rename it below (e.g. hit, footstep, Lift Off)."), ZUI.Style.Default, GUILayout.Width(150)))
-                        { RecordUndo("Add event"); _events.Add(new FrameEvent { frame = cur, name = "event" }); }
-                }
-
-                int maxFrame = Mathf.Max(0, _sequence.Count - 1);
-                int removeAt = -1;
-                for (int e = 0; e < _events.Count; e++)
-                {
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        GUILayout.Label("frame", GUILayout.Width(40));
-                        int newFrame = Mathf.Clamp(EditorGUILayout.IntField(_events[e].frame + 1, GUILayout.Width(42)), 1, maxFrame + 1) - 1;
-                        if (newFrame != _events[e].frame) { RecordUndo("Move event"); _events[e].frame = newFrame; }
-                        string newName = TextField(_events[e].name);
-                        if (newName != _events[e].name) { RecordUndo("Rename event"); _events[e].name = newName; }
-
-                        string zoundLabel = string.IsNullOrEmpty(_events[e].zoundName) ? "— zound —" : _events[e].zoundName;
-                        if (Button(new GUIContent(zoundLabel, "Zound auto-played when this event fires, via the Launimator.Zounds bridge. Click to pick."),
-                            ZUI.Style.Default, GUILayout.Width(90)))
-                        {
-                            int idx = e;
-                            ZoundPickerPopup.Show(Event.current.mousePosition, picked =>
-                            { RecordUndo("Set event zound"); _events[idx].zoundName = picked; });
-                        }
-
-                        if (Button("✕", ZUI.Style.Default, GUILayout.Width(22))) removeAt = e;
-                    }
-                }
-                if (removeAt >= 0) { RecordUndo("Remove event"); _events.RemoveAt(removeAt); }
-                if (_events.Count == 0)
-                    EditorGUILayout.LabelField("No events. Add one to tag a frame with a named signal the game reacts to — e.g. \"hit\", \"footstep\", \"Lift Off\" (fired via OnFrameEvent).", EditorStyles.miniLabel);
+                    var wb = zoundButton.worldBound;
+                    ZoundPickerPopup.Show(new Vector2(wb.x, wb.yMax), picked =>
+                    { RecordUndo("Set event zound"); _events[idx].zoundName = picked; Refresh(); });
+                };
+                evRow.Add(zoundButton);
+                evRow.Add(Z.Button("X", "Remove this event.",
+                    () => { RecordUndo("Remove event"); _events.RemoveAt(idx); Refresh(); }).W(22f));
+                box.Add(evRow);
             }
+
+            if (_events.Count == 0)
+                box.Add(Z.Text("No events. Add one to tag a frame with a named signal the game reacts to — e.g. \"hit\", \"footstep\", \"Lift Off\" (fired via OnFrameEvent).",
+                    ZuiText.Subtle, eventsTip));
+            root.Add(box);
         }
 
         private void DrawPlayBox(Rect box)
@@ -2162,48 +2381,43 @@ namespace Laubrary.Launimator.Editor
             DrawFrameRegistered(reg.cells[cr.cell], reg.pivots[cr.cell], cx, cy, scale, alpha);
         }
 
-        private void DrawSequenceStrip()
+        /// The sequence strip — an IMGUI island: a thumbnail grid with zone borders, playhead/selection
+        /// outlines, ordinal badges and drag-to-reorder.
+        private void DrawSequenceStripGUI()
         {
+            if (_seqStripIM == null) return;
+            Rect view = new Rect(0f, 0f, _seqStripIM.layout.width, _seqStripIM.layout.height);
+            if (!(view.width > 20f)) return;
+
             const int cell = 46, pad = 4;
-            // Use the ACTUAL width of the right column (full window when the sheet/canvas is collapsed, else the
-            // window minus the left column) so a wide window packs more frames per row.
-            float leftW = _leftCollapsed ? 0f : Mathf.Max(360f, position.width * 0.56f);
-            float avail = Mathf.Max(cell + pad, position.width - leftW - 34f);
-            int perRow = Mathf.Max(1, Mathf.FloorToInt(avail / (cell + pad)));
+            int perRow = Mathf.Max(1, Mathf.FloorToInt((view.width - 18f) / (cell + pad)));
+            int rows = Mathf.CeilToInt(_sequence.Count / (float)perRow);
+            Rect content = new Rect(0, 0, view.width - 18f, Mathf.Max(view.height, rows * (cell + pad)));
 
-            _seqScroll = EditorGUILayout.BeginScrollView(_seqScroll, GUILayout.Height(96));
-            int i = 0;
-            while (i < _sequence.Count)
+            _seqScroll = GUI.BeginScrollView(view, _seqScroll, content);
+            for (int i = 0; i < _sequence.Count; i++)
             {
-                using (new EditorGUILayout.HorizontalScope())
+                Rect r = new Rect((i % perRow) * (cell + pad), (i / perRow) * (cell + pad), cell, cell);
+                EditorGUI.DrawRect(r, new Color(0.12f, 0.12f, 0.12f));
+                DrawCellThumb(r, _sequence[i].region, _sequence[i].cell);
+                if (_metaEnabled && _activeLayer >= 0)
                 {
-                    for (int c = 0; c < perRow && i < _sequence.Count; c++, i++)
-                    {
-                        Rect r = GUILayoutUtility.GetRect(cell, cell, GUILayout.Width(cell), GUILayout.Height(cell));
-                        EditorGUI.DrawRect(r, new Color(0.12f, 0.12f, 0.12f));
-                        DrawCellThumb(r, _sequence[i].region, _sequence[i].cell);
-                        if (_metaEnabled && _activeLayer >= 0)
-                        {
-                            var mtex = MaskTexture(_activeLayer, i);
-                            if (mtex != null) GUI.DrawTexture(r, mtex, ScaleMode.ScaleToFit, true);
-                        }
-
-                        // Zone border: a thick outline in the frame's zone colour (drawn under the selection outline).
-                        if (TryFrameZone(i, out Color zcol)) DrawRectOutline(r, zcol, 3f);
-
-                        bool sel = IsSeqSelected(i), primary = i == _seqSelected, playing = i == _animFrame && !_inDivider;
-                        DrawRectOutline(r, sel ? new Color(1f, 0.85f, 0.1f, 1f) : playing ? new Color(0.2f, 1f, 0.5f, 0.9f) : new Color(1f, 1f, 1f, 0.4f), sel ? (primary ? 2.5f : 1.5f) : playing ? 2f : 1f);
-                        var badge = new Rect(r.x, r.y, 16, 14);
-                        EditorGUI.DrawRect(badge, new Color(0.2f, 0.5f, 1f, 0.92f));
-                        GUI.Label(badge, (i + 1).ToString(), EditorStyles.whiteMiniLabel);
-
-                        HandleSeqDrag(i, r);
-                    }
+                    var mtex = MaskTexture(_activeLayer, i);
+                    if (mtex != null) GUI.DrawTexture(r, mtex, ScaleMode.ScaleToFit, true);
                 }
-            }
-            EditorGUILayout.EndScrollView();
 
-            Label("Drag to reorder · Ctrl/Shift-click = multi-select · Right-click → menu · (Reverse/Duplicate/Delete in the tools panel).");
+                // Zone border: a thick outline in the frame's zone colour (drawn under the selection outline).
+                if (TryFrameZone(i, out Color zcol)) DrawRectOutline(r, zcol, 3f);
+
+                bool sel = IsSeqSelected(i), primary = i == _seqSelected, playing = i == _animFrame && !_inDivider;
+                DrawRectOutline(r, sel ? new Color(1f, 0.85f, 0.1f, 1f) : playing ? new Color(0.2f, 1f, 0.5f, 0.9f) : new Color(1f, 1f, 1f, 0.4f), sel ? (primary ? 2.5f : 1.5f) : playing ? 2f : 1f);
+                var badge = new Rect(r.x, r.y, 16, 14);
+                EditorGUI.DrawRect(badge, new Color(0.2f, 0.5f, 1f, 0.92f));
+                GUI.Label(badge, (i + 1).ToString(), EditorStyles.whiteMiniLabel);
+
+                HandleSeqDrag(i, r);
+            }
+            GUI.EndScrollView();
         }
 
         // ── sequence batch selection (mirrors the Sprite Palette's multi-select) ──────
@@ -2307,7 +2521,9 @@ namespace Laubrary.Launimator.Editor
                 else if (e.control || e.command) SeqToggle(i);   // add/remove this frame
                 else if (e.shift) SeqRangeTo(i);                 // extend from the anchor
                 else { SeqSelectSingle(i); _seqDragFrom = i; }   // plain click: single-select + arm drag
-                e.Use(); Repaint();
+                e.Use();
+                if (_playToggleButton != null) _playToggleButton.text = "▶";   // the click paused playback
+                DeferRefresh();
             }
             else if (e.type == EventType.MouseUp && _seqDragFrom >= 0 && r.Contains(e.mousePosition))
             {
@@ -2321,38 +2537,46 @@ namespace Laubrary.Launimator.Editor
                     { var mfm = L.frames[_seqDragFrom]; L.frames.RemoveAt(_seqDragFrom); L.frames.Insert(Mathf.Clamp(i, 0, L.frames.Count), mfm); }
                     SeqSelectSingle(i);
                 }
-                _seqDragFrom = -1; e.Use(); Repaint();
+                _seqDragFrom = -1; e.Use(); DeferRefresh();
             }
         }
 
-        private void DrawSaveRow()
+        /// Rebuild the control hosts AFTER the current IMGUI pass — an island must never destroy itself
+        /// while it is drawing.
+        private void DeferRefresh() => EditorApplication.delayCall += Refresh;
+
+        private void BuildSaveRow(VisualElement root)
         {
-            EditorGUILayout.Space();
+            root.Add(Z.VSpace());
             bool bound = _boundReel != null;
             bool newOrphan = !bound && _orphanAsset == null;
-            Label(bound
-                ? $"Save → reel '{_boundReel.reelName}'"
-                : (_orphanAsset != null ? "Save → orphaned animation" : "Save → new orphaned animation"),
-                ZUI.ZTextStyle.SectionHeader);
+            root.Add(Z.Text(bound
+                    ? $"Save → reel '{_boundReel.reelName}'"
+                    : (_orphanAsset != null ? "Save → orphaned animation" : "Save → new orphaned animation"),
+                ZuiText.Section, "Where the Save button below writes this animation."));
 
             // The name only needs editing when authoring a brand-new orphan. When editing an existing
             // animation (bound or an existing orphan) the target is fixed, so show it read-only.
             if (newOrphan)
-            {
-                string nm = TextField("Animation name", _animName);
-                if (nm != _animName) { RecordUndo("Rename animation"); _animName = nm; }
-            }
+                root.Add(Z.Field("Animation name", "The name this animation is saved under.",
+                    Z.TextInput(_animName, "The name this animation is saved under.",
+                        v => { RecordUndo("Rename animation"); _animName = v; }, 200f)));
             else
-                Label($"Animation name: {_animName}");
+                root.Add(Z.Text($"Animation name: {_animName}", ZuiText.Body,
+                    "The animation this window is bound to — fixed while editing an existing one."));
 
-            using (new EditorGUI.DisabledScope(_sequence.Count == 0))
-                if (Button(bound ? $"Save to '{_boundReel.reelName}'" : "Save orphaned animation", ZUI.Style.Default, GUILayout.Height(26)))
-                    DoSave();
+            var saveButton = Z.Button(bound ? $"Save to '{_boundReel.reelName}'" : "Save orphaned animation",
+                "Write this sequence (plus events, meta-layers and zones) to its save target.",
+                () => { DoSave(); Refresh(); }).W(260f).H(26f);
+            saveButton.SetEnabled(_sequence.Count > 0);
+            root.Add(saveButton);
 
             if (!bound)
-                Label("Orphaned animations are included into a reel from the Reel Browser.");
+                root.Add(Z.Text("Orphaned animations are included into a reel from the Reel Browser.",
+                    ZuiText.Subtle, "How an orphan later becomes part of a reel."));
 
-            if (Button("Open Reel Browser")) ReelBrowserWindow.Open();
+            root.Add(Z.Button("Open Reel Browser", "Open the Reel Browser window.",
+                () => ReelBrowserWindow.Open()).W(180f));
         }
 
         /// <summary>The recipe (per-frame source rect + pivot) for the current sequence. The source sheet is
@@ -2463,7 +2687,7 @@ namespace Laubrary.Launimator.Editor
             _status = _sequence.Count > 0
                 ? $"Loaded '{def.name}' ({_sequence.Count} frames) for editing."
                 : $"'{def.name}' is empty — load a sheet and build it.";
-            Repaint();
+            Refresh();
         }
 
         /// <summary>Match a recipe frame to an existing committed cell (by rect AND transform), else synthesize
@@ -2805,7 +3029,6 @@ namespace Laubrary.Launimator.Editor
             ClearSelection();
             if (_bgKeyEnabled) SaveBgKeyForSheet();
             _status = existed ? "Cleared this sheet's saved slicing (palette emptied)." : "No saved slicing to clear (palette emptied).";
-            Repaint();
         }
 
         /// <summary>Persist the background colour key to THIS sheet's sidecar — it's a property of the sheet, so
@@ -2850,7 +3073,6 @@ namespace Laubrary.Launimator.Editor
             if (s == null) { if (!silentIfMissing) _status = "Restore: " + (error ?? "no saved state."); return; }
             ApplyState(s);
             _status = $"Restored {_regions.Count} region(s), {TotalCells()} sprite(s).";
-            Repaint();
         }
 
         // ── background colour key ────────────────────────────────────────────

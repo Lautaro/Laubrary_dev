@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using Laubrary.Launimator;
+using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Laubrary.Launimator.Editor
 {
@@ -25,58 +27,80 @@ namespace Laubrary.Launimator.Editor
         };
         private static Color ZoneColor(int i) => ZonePalette[((i % ZonePalette.Length) + ZonePalette.Length) % ZonePalette.Length];
 
-        private void DrawZoneTrack()
+        private void BuildZoneTrack(VisualElement root)
         {
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                _zonesEnabled = Toggle(_zonesEnabled, new GUIContent("Zones",
-                    "Mark phased ranges (Start/Air/Fall/Land) on this strip for the runtime ZonedAnimationPlayer."),
-                    ZUI.Style.Default, GUILayout.Width(70));
-                if (_zonesEnabled)
-                    GUILayout.Label("phased strip — mark ranges, set PlayThrough / Loop", EditorStyles.miniLabel);
-                GUILayout.FlexibleSpace();
-            }
+            var head = WrapRow(Z.Toggle("Zones",
+                "Mark phased ranges (Start/Air/Fall/Land) on this strip for the runtime ZonedAnimationPlayer.",
+                _zonesEnabled, v => { _zonesEnabled = v; Refresh(); }));
+            if (_zonesEnabled)
+                head.Add(Z.Text("phased strip — mark ranges, set PlayThrough / Loop", ZuiText.Subtle,
+                    "What the zone track below is for."));
+            root.Add(head);
             if (!_zonesEnabled) return;
 
             ClampZones();
-            DrawZoneBar();
+
+            _zoneBarIM = new IMGUIContainer(DrawZoneBarGUI)
+            {
+                tooltip = "Every zone drawn across the sequence, with the playhead — a read-only overview."
+            };
+            _zoneBarIM.style.height = 26f;
+            _zoneBarIM.style.flexShrink = 0f;
+            root.Add(_zoneBarIM);
 
             for (int zi = 0; zi < _zones.Count; zi++)
             {
+                int index = zi;
                 var z = _zones[zi];
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    EditorGUI.DrawRect(GUILayoutUtility.GetRect(12, 16, GUILayout.Width(12), GUILayout.Height(16)), ZoneColor(zi));
-                    string zn = TextField(z.name, 90f);
-                    if (zn != z.name) { RecordUndo("Rename zone"); z.name = zn; }
-                    var zb = EnumPopup(z.behavior, 100f);
-                    if (zb != z.behavior) { RecordUndo("Zone behavior"); z.behavior = zb; }
-                    GUILayout.Label("frames", EditorStyles.miniLabel, GUILayout.Width(44));
-                    int zs = EditorGUILayout.IntField(z.startFrame, GUILayout.Width(38));
-                    if (zs != z.startFrame) { RecordUndo("Zone range"); z.startFrame = zs; }
-                    GUILayout.Label("–", GUILayout.Width(8));
-                    int ze = EditorGUILayout.IntField(z.endFrame, GUILayout.Width(38));
-                    if (ze != z.endFrame) { RecordUndo("Zone range"); z.endFrame = ze; }
-                    using (new EditorGUI.DisabledScope(_seqMultiSel.Count == 0))
-                        if (Button(new GUIContent("Set = selection", "Set this zone's range to the currently selected sequence frames."), ZUI.Style.Default, GUILayout.Width(108)))
-                        { RecordUndo("Zone range"); z.startFrame = _seqMultiSel.Min(); z.endFrame = _seqMultiSel.Max(); }
-                    if (Button(new GUIContent("✕", "Remove this zone."), ZUI.Style.Default, GUILayout.Width(22)))
-                    { RecordUndo("Remove zone"); _zones.RemoveAt(zi); GUIUtility.ExitGUI(); }
-                    GUILayout.FlexibleSpace();
-                }
+                var row = WrapRow();
+
+                var swatch = new VisualElement { tooltip = "This zone's colour on the bar and on each frame's border." };
+                swatch.style.width = 12f;
+                swatch.style.height = 16f;
+                swatch.style.flexShrink = 0f;
+                swatch.style.backgroundColor = ZoneColor(zi);
+                row.Add(swatch);
+
+                row.Add(Z.TextInput(z.name, "This zone's name — what the runtime player advances between.",
+                    v => { RecordUndo("Rename zone"); z.name = v; Dirty(); }, 90f));
+                row.Add(Z.EnumDropdown(z.behavior,
+                    "PlayThrough plays once and moves on; Loop holds here until the game advances.",
+                    v => { RecordUndo("Zone behavior"); z.behavior = v; Dirty(); }, 110f));
+                row.Add(Z.Field("frames", "First frame of this zone (0-based).",
+                    Z.Int(z.startFrame, "First frame of this zone (0-based).",
+                        v => { RecordUndo("Zone range"); z.startFrame = v; ClampZones(); Dirty(); }, 44f)));
+                row.Add(Z.Text("–", ZuiText.Small, "to").W(8f));
+                row.Add(Z.Int(z.endFrame, "Last frame of this zone (0-based, inclusive).",
+                    v => { RecordUndo("Zone range"); z.endFrame = v; ClampZones(); Dirty(); }, 44f));
+
+                var setSel = Z.Button("Set = selection", "Set this zone's range to the currently selected sequence frames.",
+                    () =>
+                    {
+                        RecordUndo("Zone range");
+                        z.startFrame = _seqMultiSel.Min(); z.endFrame = _seqMultiSel.Max();
+                        Refresh();
+                    }).W(108f);
+                setSel.SetEnabled(_seqMultiSel.Count > 0);
+                row.Add(setSel);
+                row.Add(Z.Button("X", "Remove this zone.",
+                    () => { RecordUndo("Remove zone"); _zones.RemoveAt(index); Refresh(); }).W(22f));
+                root.Add(row);
             }
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                if (Button("+ Zone", ZUI.Style.Default, GUILayout.Width(70))) { RecordUndo("Add zone"); AddZone(); }
-                Label("PlayThrough = play once → next zone.   Loop = loop here until the game Advances.");
-            }
+            root.Add(WrapRow(
+                Z.Button("+ Zone", "Add a zone covering the current selection (or the whole sequence).",
+                    () => { RecordUndo("Add zone"); AddZone(); Refresh(); }).W(70f),
+                Z.Text("PlayThrough = play once → next zone.   Loop = loop here until the game Advances.",
+                    ZuiText.Subtle, "What each zone behaviour means at runtime.")));
         }
 
-        private void DrawZoneBar()
+        /// The zone bar — an IMGUI island: a proportional coloured bar with labels and the playhead.
+        private void DrawZoneBarGUI()
         {
+            if (_zoneBarIM == null) return;
             int n = Mathf.Max(1, _sequence.Count);
-            Rect bar = GUILayoutUtility.GetRect(10, 26, GUILayout.ExpandWidth(true), GUILayout.Height(26));
+            Rect bar = new Rect(0f, 0f, _zoneBarIM.layout.width, _zoneBarIM.layout.height);
+            if (!(bar.width > 10f)) return;
             EditorGUI.DrawRect(bar, new Color(0.10f, 0.10f, 0.10f));
             for (int zi = 0; zi < _zones.Count; zi++)
             {

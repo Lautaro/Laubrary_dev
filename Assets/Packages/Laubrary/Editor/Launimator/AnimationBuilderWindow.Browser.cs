@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using Laubrary.Launimator;
+using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Laubrary.Launimator.Editor
 {
@@ -12,30 +14,23 @@ namespace Laubrary.Launimator.Editor
     /// draft animations, each with a quick Edit button that switches the builder to it. When editing a
     /// standalone orphan (or authoring one with orphans on disk), the right side lists all orphaned animations
     /// instead. Kept in its own partial so the core window file stays focused.
+    ///
+    /// UI TOOLKIT PORT: fully native. The hand-computed chip-wrapping budget is gone — a flex-wrap row does it.
     /// </summary>
     public partial class AnimationBuilderWindow
     {
-        private Vector2 _browserScroll;
         private bool _leftCollapsed; // hide the Sheet + canvas (identify-sprites) area for more room on #4/#5 + the list
 
-        /// <summary>A one-line toggle to collapse the sheet + canvas area (more room for the sprites/animation/list).</summary>
-        private void DrawCollapseToggleRow()
-        {
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                if (Button(_leftCollapsed
-                        ? "▶ Show sheet & canvas"
-                        : "◀ Hide sheet & canvas — more room for sprites, animation & the list",
-                        ZUI.Style.Default, GUILayout.Width(360)))
-                    _leftCollapsed = !_leftCollapsed;
-                GUILayout.FlexibleSpace();
-            }
-        }
-
-        /// <summary>The top row: Sheet section alone, or Sheet + a reel/orphan animation browser. When the
+        /// <summary>The collapse toggle, the Sheet section, and the reel/orphan animation quicklist. When the
         /// sheet/canvas is collapsed, the Sheet/canvas fold away and only the animation quicklist remains.</summary>
-        private void DrawTopArea()
+        private void BuildTopSection(VisualElement root)
         {
+            // Short label; the "why" lives in the tooltip (ui-layout-rules: a title names, it doesn't explain).
+            root.Add(Z.Row(Z.Button(
+                _leftCollapsed ? "▶ Show sheet & canvas" : "◀ Hide sheet & canvas",
+                "Fold the sheet/canvas half away so the sprite palette, the animation and the quicklist get the whole window.",
+                () => { _leftCollapsed = !_leftCollapsed; Rebuild(); }).W(220f)));
+
             bool charMode = _boundReel != null;
             List<AnimationAsset> orphans = charMode ? null : AnimationLibrary.Enumerate();
             bool showBrowser = charMode || _orphanAsset != null || (orphans != null && orphans.Count > 0);
@@ -43,89 +38,95 @@ namespace Laubrary.Launimator.Editor
             if (_leftCollapsed)
             {
                 // Sheet + canvas (UI.1/2/3) are fully folded away; show only the animation quicklist.
-                if (charMode) DrawReelAnimBrowser();
-                else if (showBrowser) DrawOrphanBrowser(orphans);
+                if (charMode) BuildReelAnimBrowser(root);
+                else if (showBrowser) BuildOrphanBrowser(root, orphans);
                 return;
             }
 
-            if (!showBrowser) { DrawSheetSection(); return; }
+            if (!showBrowser) { BuildSheetSection(root); return; }
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                float leftW = Mathf.Max(420f, position.width * 0.58f);
-                using (new EditorGUILayout.VerticalScope(GUILayout.Width(leftW)))
-                    DrawSheetSection();
-                using (new EditorGUILayout.VerticalScope())
-                {
-                    if (charMode) DrawReelAnimBrowser();
-                    else DrawOrphanBrowser(orphans);
-                }
-            }
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.flexWrap = Wrap.Wrap;
+
+            var left = new VisualElement();
+            left.style.flexGrow = 1f;
+            left.style.minWidth = 420f;
+            BuildSheetSection(left);
+            row.Add(left);
+
+            var right = new VisualElement();
+            right.style.flexGrow = 1f;
+            right.style.minWidth = 240f;
+            right.style.marginLeft = 4f;
+            if (charMode) BuildReelAnimBrowser(right);
+            else BuildOrphanBrowser(right, orphans);
+            row.Add(right);
+
+            root.Add(row);
         }
 
-        /// <summary>Lay out animations as wrapping horizontal "chips" (name buttons) to save vertical space —
+        /// <summary>Lay animations out as wrapping horizontal "chips" (name buttons) to save vertical space —
         /// screens are wider than tall. The current one is highlighted; clicking a chip switches to it.</summary>
-        private void DrawAnimChips(List<(string label, string tip, bool current)> items, Action<int> onClick)
+        private void BuildAnimChips(VisualElement root, List<(string label, string tip, bool current)> items, Action<int> onClick)
         {
-            if (items.Count == 0) { EditorGUILayout.LabelField("None yet.", EditorStyles.miniLabel); return; }
+            if (items.Count == 0)
+            {
+                root.Add(Z.Text("None yet.", ZuiText.Small, "No animations to switch between."));
+                return;
+            }
 
-            // Available width = this browser column: full window when collapsed, else the right part of the split.
-            float leftW = _leftCollapsed ? 0f : Mathf.Max(420f, position.width * 0.58f);
-            float avail = Mathf.Max(140f, position.width - leftW - 44f);
-            var style = EditorStyles.miniButton;
+            // flex-wrap replaces the old hand-computed per-row width budget.
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.maxHeight = 76f;
+            var wrap = scroll.contentContainer;
+            wrap.style.flexDirection = FlexDirection.Row;
+            wrap.style.flexWrap = Wrap.Wrap;
 
-            _browserScroll = EditorGUILayout.BeginScrollView(_browserScroll, GUILayout.Height(52));
-            float x = 0f; bool rowOpen = false;
             for (int i = 0; i < items.Count; i++)
             {
-                var c = new GUIContent(items[i].label, items[i].tip);
-                float w = Mathf.Clamp(style.CalcSize(c).x + 6f, 44f, 240f);
-                if (rowOpen && x + w + 3f > avail) { EditorGUILayout.EndHorizontal(); rowOpen = false; }
-                if (!rowOpen) { EditorGUILayout.BeginHorizontal(); rowOpen = true; x = 0f; }
-                var prev = GUI.backgroundColor;
-                if (items[i].current) GUI.backgroundColor = new Color(0.40f, 0.60f, 1f);
-                if (GUILayout.Button(c, style, GUILayout.Width(w), GUILayout.Height(20))) onClick(i);
-                GUI.backgroundColor = prev;
-                x += w + 3f;
+                int idx = i;
+                var b = Z.Button(items[i].label, items[i].tip, () => onClick(idx));
+                b.style.height = 20f;
+                b.style.maxWidth = 240f;
+                if (items[i].current) b.AddToClassList("zui-radio__on");
+                wrap.Add(b);
             }
-            if (rowOpen) EditorGUILayout.EndHorizontal();
-            EditorGUILayout.EndScrollView();
+            root.Add(scroll);
         }
 
-        private void DrawReelAnimBrowser()
+        private void BuildReelAnimBrowser(VisualElement root)
         {
             var draft = ReelRepo.EnsureDraft(_boundReel);
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            var box = Z.Box($"{_boundReel.reelName} — animations ({draft.animations.Count})",
+                "Every animation on this reel's draft — click one to switch the builder to it (unsaved edits are NOT auto-saved).");
+            var names = draft.animations.ConvertAll(a => a.name); // snapshot — switching rebuilds the draft
+            var items = new List<(string, string, bool)>();
+            foreach (var n in names)
             {
-                EditorGUILayout.LabelField($"▸ {_boundReel.reelName} — animations ({draft.animations.Count})", EditorStyles.miniBoldLabel);
-                var names = draft.animations.ConvertAll(a => a.name); // snapshot — switching rebuilds the draft
-                var items = new List<(string, string, bool)>();
-                foreach (var n in names)
-                {
-                    var d = ReelRepo.GetDraftAnimation(_boundReel, n);
-                    bool cur = NameEq(n, _boundAnimName);
-                    string tip = d != null ? $"{d.recipe?.Count ?? 0}f @ {d.fps:0}fps — click to edit" : "click to edit";
-                    items.Add(((cur ? "● " : "") + n, tip, cur));
-                }
-                DrawAnimChips(items, i => { SwitchToReelAnimation(names[i]); GUIUtility.ExitGUI(); });
+                var d = ReelRepo.GetDraftAnimation(_boundReel, n);
+                bool cur = NameEq(n, _boundAnimName);
+                string tip = d != null ? $"{d.recipe?.Count ?? 0}f @ {d.fps:0}fps — click to edit" : "click to edit";
+                items.Add(((cur ? "● " : "") + n, tip, cur));
             }
+            BuildAnimChips(box, items, i => SwitchToReelAnimation(names[i]));
+            root.Add(box);
         }
 
-        private void DrawOrphanBrowser(List<AnimationAsset> orphans)
+        private void BuildOrphanBrowser(VisualElement root, List<AnimationAsset> orphans)
         {
             var valid = new List<AnimationAsset>();
             foreach (var a in orphans) if (a != null && a.animation != null) valid.Add(a);
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            var box = Z.Box($"Orphaned animations ({valid.Count})",
+                "Standalone animations on disk — click one to switch the builder to it.");
+            var items = new List<(string, string, bool)>();
+            foreach (var a in valid)
             {
-                EditorGUILayout.LabelField($"▸ Orphaned animations ({valid.Count})", EditorStyles.miniBoldLabel);
-                var items = new List<(string, string, bool)>();
-                foreach (var a in valid)
-                {
-                    bool cur = _orphanAsset == a;
-                    items.Add(((cur ? "● " : "") + a.animation.name, $"{a.animation.recipe?.Count ?? 0}f — click to edit", cur));
-                }
-                DrawAnimChips(items, i => { SwitchToOrphan(valid[i]); GUIUtility.ExitGUI(); });
+                bool cur = _orphanAsset == a;
+                items.Add(((cur ? "● " : "") + a.animation.name, $"{a.animation.recipe?.Count ?? 0}f — click to edit", cur));
             }
+            BuildAnimChips(box, items, i => SwitchToOrphan(valid[i]));
+            root.Add(box);
         }
 
         /// <summary>Switch the builder to another animation of the bound reel (loads its saved state).
@@ -134,7 +135,7 @@ namespace Laubrary.Launimator.Editor
         {
             if (_boundReel == null) return;
             var def = ReelRepo.GetDraftAnimation(_boundReel, name);
-            if (def == null) { _status = $"'{name}' is no longer in the draft."; return; }
+            if (def == null) { SetStatus($"'{name}' is no longer in the draft."); return; }
             _boundAnimName = name;
             _orphanAsset = null;
             LoadAnimationIntoSequence(def);
