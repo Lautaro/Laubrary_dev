@@ -71,6 +71,14 @@ namespace Laubrary.Zui
             return col;
         }
 
+        /// A titled, COLLAPSIBLE section — the header itself is the toggle. Children added to the
+        /// returned element go inside the section body. Prefer this over a bare
+        /// `Z.Text(.., ZuiText.Section, ..)` heading whenever the heading names a block of controls:
+        /// a label can only sit beside its controls, a section owns them and can fold them away.
+        /// `stateKey` defaults to the title; pass one explicitly if two sections share a title.
+        public static ZuiSection Section(string title, string tooltip, string stateKey = null)
+            => new ZuiSection(title, tooltip, stateKey);
+
         /// A framed section. The tooltip (if any) renders as a "?" hover icon on the title's own
         /// row — never below the content it explains (ui-layout-rules: help sits on the header).
         public static VisualElement Box(string title, string tooltip, params VisualElement[] children)

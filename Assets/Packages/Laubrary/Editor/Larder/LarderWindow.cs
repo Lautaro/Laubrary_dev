@@ -103,86 +103,93 @@ namespace Laubrary.Larder.Editor
         // ── left: dials ──────────────────────────────────────────────────────────────────────
         void BuildDials(VisualElement root)
         {
-            root.Add(Z.Text("Identity", ZuiText.Section, "What this ware is and the seed every random detail derives from."));
-            root.Add(Z.Row(
+            // Each block is a collapsible Z.Section — its header is the toggle, so a long dial column
+            // can be folded down to whatever is being worked on.
+            var identity = Z.Section("Identity", "What this ware is and the seed every random detail derives from.");
+            identity.Add(Z.Row(
                 Z.Text($"Seed {spec.seed}", ZuiText.Body, "The seed every random detail of this ware derives from."),
                 Z.Button("Randomize seed", "Roll a new seed, keeping every other dial as-is.",
                     () => DialAndRebuild("Randomize seed", () => spec.seed = Random.Range(int.MinValue, int.MaxValue)))));
-            root.Add(Z.MiniRadio((int)spec.kind, KindLabels, "The kind of product — decides its proportions and default decoration.",
+            identity.Add(Z.MiniRadio((int)spec.kind, KindLabels, "The kind of product — decides its proportions and default decoration.",
                 v => DialAndRebuild("Ware kind", () => spec.kind = (WareKind)v)));
-            root.Add(Z.MiniRadio((int)spec.shape, ShapeLabels, "The silhouette's basic shape.",
+            identity.Add(Z.MiniRadio((int)spec.shape, ShapeLabels, "The silhouette's basic shape.",
                 v => Dial("Ware shape", () => spec.shape = (WareShape)v)));
+            root.Add(identity);
 
-            root.Add(Z.Text("Silhouette", ZuiText.Section, "The ware's proportions within its canvas."));
-            root.Add(Z.Field("Width", "Ware width as a fraction of the canvas.",
+            var silhouette = Z.Section("Silhouette", "The ware's proportions within its canvas.");
+            silhouette.Add(Z.Field("Width", "Ware width as a fraction of the canvas.",
                 Z.Slider(spec.widthRatio, 0.2f, 1f, "Ware width as a fraction of the canvas.",
                     v => Dial("Width", () => spec.widthRatio = v), 150f)));
-            root.Add(Z.Field("Height", "Ware height as a fraction of the canvas.",
+            silhouette.Add(Z.Field("Height", "Ware height as a fraction of the canvas.",
                 Z.Slider(spec.heightRatio, 0.2f, 1f, "Ware height as a fraction of the canvas.",
                     v => Dial("Height", () => spec.heightRatio = v), 150f)));
+            root.Add(silhouette);
 
-            root.Add(Z.Text("Body", ZuiText.Section, "How the ware's body is filled and coloured."));
-            root.Add(Z.MiniRadio((int)spec.fill, FillLabels, "How the body is shaded: flat, a gradient, a glow, or a drop shadow.",
+            var body = Z.Section("Body", "How the ware's body is filled and coloured.");
+            body.Add(Z.MiniRadio((int)spec.fill, FillLabels, "How the body is shaded: flat, a gradient, a glow, or a drop shadow.",
                 v => Dial("Fill mode", () => spec.fill = (FillMode)v)));
-            root.Add(Z.Toggle("Custom colours", "Pick every colour by hand instead of using one of the built-in palettes.",
+            body.Add(Z.Toggle("Custom colours", "Pick every colour by hand instead of using one of the built-in palettes.",
                 spec.useCustomColors, v => DialAndRebuild("Custom colours", () => spec.useCustomColors = v)));
             if (spec.useCustomColors)
             {
-                root.Add(ColorRow("Body", "The body's main colour.", () => spec.customBody, c => spec.customBody = c));
-                root.Add(ColorRow("Body dark", "Shaded side of the body.", () => spec.customBodyDark, c => spec.customBodyDark = c));
-                root.Add(ColorRow("Body light", "Lit side of the body.", () => spec.customBodyLight, c => spec.customBodyLight = c));
-                root.Add(ColorRow("Accent", "Trim and edge details.", () => spec.customAccent, c => spec.customAccent = c));
-                root.Add(ColorRow("Label", "The label patch's colour.", () => spec.customLabel, c => spec.customLabel = c));
-                root.Add(ColorRow("Ink", "Text/marking colour on the label.", () => spec.customInk, c => spec.customInk = c));
+                body.Add(ColorRow("Body", "The body's main colour.", () => spec.customBody, c => spec.customBody = c));
+                body.Add(ColorRow("Body dark", "Shaded side of the body.", () => spec.customBodyDark, c => spec.customBodyDark = c));
+                body.Add(ColorRow("Body light", "Lit side of the body.", () => spec.customBodyLight, c => spec.customBodyLight = c));
+                body.Add(ColorRow("Accent", "Trim and edge details.", () => spec.customAccent, c => spec.customAccent = c));
+                body.Add(ColorRow("Label", "The label patch's colour.", () => spec.customLabel, c => spec.customLabel = c));
+                body.Add(ColorRow("Ink", "Text/marking colour on the label.", () => spec.customInk, c => spec.customInk = c));
             }
             else
             {
-                root.Add(Z.Field("Palette", "Which built-in colour palette this ware uses.",
+                body.Add(Z.Field("Palette", "Which built-in colour palette this ware uses.",
                     Z.SliderInt(spec.paletteIndex, 0, WarePalettes.Count - 1, "Which built-in colour palette this ware uses.",
                         v => Dial("Palette", () => spec.paletteIndex = v), 150f)));
             }
+            root.Add(body);
 
-            root.Add(Z.Text("Decoration", ZuiText.Section, "Labels, corners, bands and spots painted onto the body."));
-            root.Add(Z.MiniRadio((int)spec.label, LabelLabels, "The label patch's placement.",
+            var deco = Z.Section("Decoration", "Labels, corners, bands and spots painted onto the body.");
+            deco.Add(Z.MiniRadio((int)spec.label, LabelLabels, "The label patch's placement.",
                 v => Dial("Label style", () => spec.label = (LabelStyle)v)));
-            root.Add(Z.Field("Label width", "How wide the label patch is across the body.",
+            deco.Add(Z.Field("Label width", "How wide the label patch is across the body.",
                 Z.Slider(spec.labelWidth, 0.2f, 1f, "How wide the label patch is across the body.",
                     v => Dial("Label width", () => spec.labelWidth = v), 150f)));
-            root.Add(Z.MiniRadio((int)spec.corner, CornerLabels, "How the ware's corners are cut or rounded.",
+            deco.Add(Z.MiniRadio((int)spec.corner, CornerLabels, "How the ware's corners are cut or rounded.",
                 v => Dial("Corner style", () => spec.corner = (CornerStyle)v)));
-            root.Add(Z.MiniRadio((int)spec.bands, BandLabels, "Direction of the decorative bands, if any.",
+            deco.Add(Z.MiniRadio((int)spec.bands, BandLabels, "Direction of the decorative bands, if any.",
                 v => Dial("Band mode", () => spec.bands = (BandMode)v)));
-            root.Add(Z.Field("Band count", "How many decorative bands are drawn.",
+            deco.Add(Z.Field("Band count", "How many decorative bands are drawn.",
                 Z.SliderInt(spec.bandCount, 1, 6, "How many decorative bands are drawn.",
                     v => Dial("Band count", () => spec.bandCount = v), 150f)));
-            root.Add(Z.MiniRadio((int)spec.spots, SpotLabels, "Spot decoration: none, one circle, or scattered spots.",
+            deco.Add(Z.MiniRadio((int)spec.spots, SpotLabels, "Spot decoration: none, one circle, or scattered spots.",
                 v => Dial("Spot mode", () => spec.spots = (SpotMode)v)));
-            root.Add(Z.Toggle("Lid strip", "Draw a lid/cap strip across the top.", spec.hasLid,
+            deco.Add(Z.Toggle("Lid strip", "Draw a lid/cap strip across the top.", spec.hasLid,
                 v => Dial("Lid strip", () => spec.hasLid = v)));
+            root.Add(deco);
 
-            root.Add(Z.Text("Output", ZuiText.Section, "Canvas size and what gets baked."));
-            root.Add(Z.Field("Resolution", "Canvas size in pixels for the baked sprite.",
+            var output = Z.Section("Output", "Canvas size and what gets baked.");
+            output.Add(Z.Field("Resolution", "Canvas size in pixels for the baked sprite.",
                 Z.SliderInt(spec.resolution, 24, 64, "Canvas size in pixels for the baked sprite.",
                     v => Dial("Resolution", () => spec.resolution = v), 150f)));
-            root.Add(Z.Field("Damage stages", "How many progressively-damaged versions get baked.",
+            output.Add(Z.Field("Damage stages", "How many progressively-damaged versions get baked.",
                 Z.SliderInt(spec.damageStages, 2, 4, "How many progressively-damaged versions get baked.",
                     v => Dial("Damage stages", () => spec.damageStages = v), 150f)));
-            root.Add(Z.Field("Pixels/unit", "Pixels-per-unit stamped onto the baked sprite.",
+            output.Add(Z.Field("Pixels/unit", "Pixels-per-unit stamped onto the baked sprite.",
                 Z.Slider(spec.pixelsPerUnit, 8f, 128f, "Pixels-per-unit stamped onto the baked sprite.",
                     v => Dial("Pixels per unit", () => spec.pixelsPerUnit = v), 150f)));
+            root.Add(output);
 
-            root.Add(Z.VSpace());
-            root.Add(Z.Text("Actions", ZuiText.Section, "Randomize this ware, or bake it to sprite assets."));
-            root.Add(Z.Button("Randomize whole Ware", "Roll every dial at once (undoable).", () =>
+            var actions = Z.Section("Actions", "Randomize this ware, or bake it to sprite assets.");
+            actions.Add(Z.Button("Randomize whole Ware", "Roll every dial at once (undoable).", () =>
                 DialAndRebuild("Randomize Ware",
                     () => spec.Randomize(new System.Random(Random.Range(int.MinValue, int.MaxValue))))));
-            root.Add(Z.Button("Bake this Ware", "Bake this ware's sprite + damage stages into the project.",
+            actions.Add(Z.Button("Bake this Ware", "Bake this ware's sprite + damage stages into the project.",
                 () => WareBaker.Bake(spec)));
-            root.Add(Z.Row(
+            actions.Add(Z.Row(
                 Z.Button("Bake variation grid", "Bake a grid of random variations of this ware.",
                     () => WareBaker.BakeVariationGrid(spec, gridCount)),
                 Z.Int(gridCount, "How many variations the grid bake produces.",
                     v => gridCount = Mathf.Clamp(v, 1, 64), 44f)));
+            root.Add(actions);
         }
 
         VisualElement ColorRow(string label, string tooltip, System.Func<Color> get, System.Action<Color> set)

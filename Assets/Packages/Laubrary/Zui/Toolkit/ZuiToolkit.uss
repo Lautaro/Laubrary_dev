@@ -7,6 +7,9 @@
     --zui-accent-soft: rgba(90, 160, 255, 0.35);
     --zui-line: rgba(128, 128, 128, 0.4);
     --zui-bg-inset: rgba(0, 0, 0, 0.18);
+    /* Sub-section fills — nesting depth is shown by tone rather than by stacking borders. */
+    --zui-sub-fill: rgba(0, 0, 0, 0.16);
+    --zui-sub-fill-2: rgba(0, 0, 0, 0.28);
     --zui-stage-bg: rgb(26, 26, 31);
     padding: 4px;
 }
@@ -41,6 +44,27 @@
     margin-bottom: 6px;
 }
 
+/* A box INSIDE a box is a sub-section: drop the frame and tint the background instead. Two nested
+   borders read as noise — the eye has to work out which frame owns which content, and a third level
+   is nearly unreadable. A darker fill groups just as clearly while staying quiet, and it nests
+   naturally: each level sits a little deeper than its parent. Depth is expressed by TONE, not by
+   accumulating outlines. */
+.zui-box .zui-box {
+    border-width: 0;
+    background-color: var(--zui-sub-fill);
+    padding: 5px;
+}
+
+.zui-box .zui-box .zui-box {
+    background-color: var(--zui-sub-fill-2);
+}
+
+/* A titled sub-section still needs its title to read as a heading, but one step quieter than a
+   top-level section title so the hierarchy stays legible. */
+.zui-box .zui-box > .zui-box__titlerow > .zui-box__title {
+    opacity: 0.85;
+}
+
 .zui-box__titlerow {
     flex-direction: row;
     align-items: center;
@@ -64,11 +88,67 @@
 
 /* Text ------------------------------------------------------------------- */
 
+/* Section headings read as the top of a block, so they get real size and real air ABOVE them —
+   the gap belongs before the heading, not after it, because that is what separates this block from
+   the previous one rather than pushing the heading away from what it names. */
 .zui-text--section {
     -unity-font-style: bold;
-    margin-top: 6px;
-    margin-bottom: 3px;
+    font-size: 13px;
+    margin-top: 12px;
+    margin-bottom: 4px;
     white-space: nowrap;
+}
+
+/* Collapsible sections (ZuiSection) ---------------------------------------- */
+
+.zui-section {
+    margin-top: 12px;
+    margin-bottom: 4px;
+}
+
+.zui-section__header {
+    flex-direction: row;
+    align-items: center;
+    padding-top: 2px;
+    padding-bottom: 3px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--zui-line);
+    margin-bottom: 4px;
+}
+
+.zui-section__header:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.zui-section__caret {
+    width: 14px;
+    opacity: 0.7;
+    -unity-text-align: middle-center;
+}
+
+.zui-section__title {
+    -unity-font-style: bold;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+/* A closed section keeps its heading but gives back the gap its body was using. */
+.zui-section--closed {
+    margin-bottom: 0;
+}
+
+.zui-section--closed .zui-section__header {
+    margin-bottom: 0;
+    opacity: 0.75;
+}
+
+/* A section nested inside a box is a sub-section: quieter, and no competing rule line. */
+.zui-box .zui-section {
+    margin-top: 6px;
+}
+
+.zui-box .zui-section__header {
+    border-bottom-width: 0;
 }
 
 .zui-text--small {
