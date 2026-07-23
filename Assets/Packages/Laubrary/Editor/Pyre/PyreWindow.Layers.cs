@@ -307,32 +307,36 @@ namespace Laubrary.Pyre.Editor
                 "growing ring, a churning ball cloud, a noise fill.");
             box.style.marginLeft = 16f;   // indent under its row, so the list still reads as a list
 
-            // Channels are a flag SET — tick any combination and they all act (spatial → colour → alpha).
-            box.Add(Z.Text("Drives — tick any combination", ZuiText.Small,
-                "Every ticked channel acts at once, in a fixed order (Displace, Blur, Saturation, Hue, " +
-                "Brightness, Alpha) so a combination is predictable."));
+            // Channels are a flag SET — tick any combination and they all act. The "tick any combination"
+            // explanation is a tooltip, not on-screen prose; the label itself stays short and literal, and
+            // the six toggles wrap to the pane rather than being hand-split into fixed rows.
+            box.Add(Z.Divider("Drives", "Tick any combination — every ticked channel acts, in a fixed order " +
+                "(Displace, Blur, Saturation, Hue, Brightness, Alpha) so a combination is predictable."));
             box.Add(WrapRow(
                 MatteChannelToggle(l, MatteChannel.Alpha, "Alpha"),
                 MatteChannelToggle(l, MatteChannel.Brightness, "Brightness"),
-                MatteChannelToggle(l, MatteChannel.Saturation, "Saturation")));
-            box.Add(WrapRow(
+                MatteChannelToggle(l, MatteChannel.Saturation, "Saturation"),
                 MatteChannelToggle(l, MatteChannel.Hue, "Hue"),
                 MatteChannelToggle(l, MatteChannel.Blur, "Blur"),
                 MatteChannelToggle(l, MatteChannel.Displace, "Displace")));
 
-            box.Add(Z.Field("Reaches", "How far up the stack this matte applies.",
-                Z.MiniRadio((int)l.matteScope, MatteScopeLabels,
-                    "Next layer = clip only the layer directly above. All above = every layer above this one, " +
-                    "until another matte replaces it.",
-                    v => Dial("Matte scope", () => l.matteScope = (MatteScope)v))));
+            // Placement: the two compact controls (a 2-way radio and a toggle) share one row instead of
+            // taking a row each — vertical space is the scarce resource.
+            box.Add(Z.Divider("Applies to"));
+            box.Add(WrapRow(
+                Z.Field("Reaches", "How far up the stack this matte applies.",
+                    Z.MiniRadio((int)l.matteScope, MatteScopeLabels,
+                        "Next layer = clip only the layer directly above. All above = every layer above this " +
+                        "one, until another matte replaces it.",
+                        v => Dial("Matte scope", () => l.matteScope = (MatteScope)v))),
+                Z.HSpace(),
+                Z.Toggle("Invert", "Swap what the mask covers and what it reveals.", l.matteInvert,
+                    v => Dial("Invert matte", () => l.matteInvert = v))));
 
-            box.Add(Z.Toggle("Invert", "Swap what the mask covers and what it reveals.", l.matteInvert,
-                v => Dial("Invert matte", () => l.matteInvert = v)));
-
+            // Amounts: Strength always, plus each ticked channel's own amount.
+            box.Add(Z.Divider("Amount"));
             box.Add(ValRow("Strength", "How strongly the matte acts. 0 = no effect, 1 = full. Animate it to " +
                 "fade a mask in, or to sweep its influence over the layer's life.", l.matteStrength, 0f, 1f, 1f));
-
-            // Each channel that has its own amount shows that amount only when it's ticked.
             if ((l.matteChannel & MatteChannel.Blur) != 0)
                 box.Add(ValRow("Softness (px)", "Blur radius where the mask is full. Each pixel blurs by its " +
                     "own mask value, so one matte can hold a core sharp while its surroundings melt.",

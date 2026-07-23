@@ -122,6 +122,24 @@ namespace Laubrary.Zui
             return v;
         }
 
+        /// A thin horizontal rule that divides one run of controls from the next INSIDE a section or box —
+        /// the lightweight grouping between a full sub-box (too heavy for a couple of rows) and nothing at
+        /// all (a long flat column with no visual structure). An optional label sits on the line, so a
+        /// divider can also name the group it introduces.
+        public static VisualElement Divider(string label = null, string tooltip = null)
+        {
+            var d = new VisualElement();
+            d.AddToClassList("zui-divider");
+            if (!string.IsNullOrEmpty(label))
+            {
+                d.AddToClassList("zui-divider--labelled");
+                var l = new Label(label) { tooltip = tooltip };
+                l.AddToClassList("zui-divider__label");
+                d.Add(l);
+            }
+            return d;
+        }
+
         // ── text ────────────────────────────────────────────────────────────────────
 
         public static Label Text(string text, ZuiText style = ZuiText.Body, string tooltip = null)

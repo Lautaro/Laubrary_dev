@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: New Pyre
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Pyre::Laubrary.Pyre.Pyre
   seed: 1234
-  frameCount: 16
+  frameCount: 30
   canvasSize: 64
   canvasHeight: 0
   pixelsPerUnit: 64
@@ -22,8 +22,8 @@ MonoBehaviour:
   layers:
   - name: Sparks
     enabled: 1
-    startFrame: 1
-    endFrame: 14
+    startFrame: 0
+    endFrame: 29
     shape: 7
     fireArms: 8
     fireArmMode: 0
@@ -41,7 +41,7 @@ MonoBehaviour:
       m_multiplierId: 
     fireEmitterWidth:
       m_mode: 0
-      m_static: 4
+      m_static: 13
       m_min: 0
       m_max: 1
       m_points: []
@@ -52,13 +52,25 @@ MonoBehaviour:
       m_cooldown: -1
       m_multiplierId: 
     fireEmitterInset:
-      m_mode: 0
-      m_static: 0
+      m_mode: 2
+      m_static: 8.1
       m_min: 0
       m_max: 1
-      m_points: []
+      m_points:
+      - time: 0
+        value: 11.05634
+        exponent: 1
+        editState: 0
+      - time: 0.5436
+        value: 3.169
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 0
+        exponent: 1
+        editState: 0
       m_yMin: 0
-      m_yMax: 1
+      m_yMax: 40
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
@@ -77,7 +89,7 @@ MonoBehaviour:
       m_multiplierId: 
     fireFuel:
       m_mode: 0
-      m_static: 0.75
+      m_static: 0.99
       m_min: 0
       m_max: 1
       m_points: []
@@ -89,7 +101,7 @@ MonoBehaviour:
       m_multiplierId: 
     firePulse:
       m_mode: 0
-      m_static: 0.18
+      m_static: 0.617
       m_min: 0
       m_max: 1
       m_points: []
@@ -113,7 +125,7 @@ MonoBehaviour:
       m_multiplierId: 
     fireBuoyancy:
       m_mode: 0
-      m_static: 4
+      m_static: 11.8
       m_min: 0
       m_max: 1
       m_points: []
@@ -246,8 +258,8 @@ MonoBehaviour:
     fireSteps: 3
     fireThreshold: 0.26
     fireContrast: 1.26
-    role: 0
-    matteChannel: 1
+    role: 1
+    matteChannel: 5
     matteScope: 1
     matteInvert: 0
     matteStrength:
@@ -1099,7 +1111,7 @@ MonoBehaviour:
     rid: -2
   previewZoom: 4
   previewFps: 12
-  previewSpeed: 1
+  previewSpeed: 2.1
   previewShowFrame: 1
   previewBackSplash:
     cameraColor: {r: 0.2830189, g: 0.25048652, b: 0.35686275, a: 1}
@@ -1112,7 +1124,7 @@ MonoBehaviour:
   previewSubjectAttachId: 
   previewLayerSel: 0
   previewScroll: {x: 0, y: 0}
-  previewFrame: 10
+  previewFrame: 27
   previewShapeOn: 0
   previewShapeGradientFill: 1
   previewShapeCrescent: 1

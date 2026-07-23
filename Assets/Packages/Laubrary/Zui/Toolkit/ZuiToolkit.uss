@@ -114,6 +114,35 @@
     margin-bottom: 0;
 }
 
+/* A within-section divider: a hairline with real air around it, so a long flat column reads as grouped
+   runs instead of one undifferentiated stack. Lighter than a nested box, stronger than bare whitespace. */
+.zui-divider {
+    height: 1px;
+    background-color: var(--zui-line);
+    margin-top: 7px;
+    margin-bottom: 6px;
+    flex-shrink: 0;
+}
+
+/* A labelled divider carries a small caption sitting on the line — names the group it introduces. */
+.zui-divider--labelled {
+    height: auto;
+    background-color: rgba(0, 0, 0, 0);
+    flex-direction: row;
+    align-items: center;
+    border-top-width: 1px;
+    border-top-color: var(--zui-line);
+    padding-top: 3px;
+    margin-top: 8px;
+}
+
+.zui-divider__label {
+    font-size: 10px;
+    -unity-font-style: bold;
+    opacity: 0.55;
+    margin-right: 6px;
+}
+
 .zui-row {
     flex-direction: row;
     align-items: center;
