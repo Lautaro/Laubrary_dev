@@ -349,6 +349,36 @@ namespace Laubrary.Pyre
         [Tooltip("Which primitive every shape in this layer draws.")]
         public LayerShape shape = LayerShape.Disc;
 
+        // ── matte ────────────────────────────────────────────────────────────────
+        // A matte layer isn't drawn: its LUMINANCE (times its own alpha) becomes a mask driving the layers
+        // above it. Deliberately a ROLE rather than a shape or a fill mode, because it is orthogonal to both —
+        // every shape Pyre has, with every fill and every modifier, works as a matte for free.
+        [Tooltip("Draw = composite this layer normally. Matte = don't draw it; use its brightness as a mask " +
+                 "driving the layers above it (see Channel).")]
+        public LayerRole role = LayerRole.Draw;
+
+        [Tooltip("What this matte drives on the layers it covers. Alpha is the classic luma matte; Displace " +
+                 "pushes pixels along the mask's own slope, which reads as refraction or heat haze.")]
+        public MatteChannel matteChannel = MatteChannel.Alpha;
+
+        [Tooltip("Next layer = clip only the layer directly above (a clipping mask). All above = affect every " +
+                 "layer above this one, until another matte replaces it.")]
+        public MatteScope matteScope = MatteScope.AllAbove;
+
+        [Tooltip("Swap what the mask covers and what it reveals.")]
+        public bool matteInvert = false;
+
+        [Tooltip("How strongly the matte acts. 0 = no effect at all, 1 = full. Animatable, so a mask can fade " +
+                 "in or sweep through over the layer's life.")]
+        public ZUIValue matteStrength = new ZUIValue(1f);
+
+        [Tooltip("Blur: softening radius in pixels where the mask is full. Displace: how far, in pixels, a " +
+                 "pixel is pushed along the mask's slope. Ignored by the other channels. Animatable.")]
+        public ZUIValue matteAmount = new ZUIValue(3f);
+
+        [Tooltip("Hue only: how far the hue rotates, in degrees, where the mask is full.")]
+        public ZUIValue matteHueDegrees = new ZUIValue(60f);
+
         // ── animatable per-shape values ──────────────────────────────────────────
         [Tooltip("How many shapes this layer scatters (rounded). Curve is sampled over blast progress.")]
         public ZUIValue count = new ZUIValue(6f);

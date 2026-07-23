@@ -229,10 +229,16 @@ namespace Laubrary.Zui
 
         /// A row of mutually-exclusive mini buttons (the MiniRadio pattern). Returns the row;
         /// selection state is kept in the buttons' classes.
-        public static VisualElement MiniRadio(int index, string[] options, string tooltip, Action<int> onChanged)
+        /// `wrap` lets a long option set fold onto a second line instead of running off the side of a narrow
+        /// pane. Off by default, because a wrapped radio loses its single-pill look and most sets are short;
+        /// turn it on for the ones that genuinely grow over time (Pyre's shape picker gains a shape now and
+        /// then, and each one pushed the row further past the edge).
+        public static VisualElement MiniRadio(int index, string[] options, string tooltip, Action<int> onChanged,
+            bool wrap = false)
         {
             var row = new VisualElement { tooltip = tooltip };
             row.AddToClassList("zui-radio");
+            if (wrap) row.AddToClassList("zui-radio--wrap");
             var buttons = new Button[options.Length];
             for (int i = 0; i < options.Length; i++)
             {

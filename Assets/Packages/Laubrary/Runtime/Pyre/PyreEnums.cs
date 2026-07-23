@@ -1,5 +1,38 @@
 namespace Laubrary.Pyre
 {
+    /// What a layer's rendered pixels are USED for. Orthogonal to its shape and its colour mode: any shape,
+    /// with any fill, can be either drawn or used as a matte — which is the whole point. Every bit of motion
+    /// Pyre can already author (a sweeping disc, a growing ring, a churning ball cloud, a noise fill, any
+    /// modifier stack) becomes available as a mask without one line of new shape code.
+    public enum LayerRole
+    {
+        Draw,    // normal: composite this layer onto the frame
+        Matte,   // don't composite it — read its LUMINANCE as a mask that drives the layers above it
+    }
+
+    /// What a Matte layer's mask drives on the layers it covers.
+    ///
+    /// Deliberately luminance-driven rather than requiring an authored black-to-white gradient: any existing
+    /// layer can be flipped to Matte and simply work, it stays readable in colour while you author it, and it
+    /// matches the standard meaning of a "luma matte". Mask = luminance × the layer's own alpha, so a shape's
+    /// silhouette counts as well as its brightness.
+    public enum MatteChannel
+    {
+        Alpha,       // classic luma matte: mask multiplies the covered layers' opacity
+        Brightness,  // darken toward black where the mask is low — a shadow//light pass
+        Saturation,  // drain toward greyscale where the mask is low (ash, smoke, heat-death)
+        Hue,         // rotate hue by the mask — heat shimmer, chemical burn, cold spots
+        Blur,        // soften where the mask is high, sharp where it's low
+        Displace,    // push pixels along the mask's own SLOPE — refraction, heat haze, shockwave lensing
+    }
+
+    /// How far up the stack a Matte layer reaches.
+    public enum MatteScope
+    {
+        NextLayer,   // clip only the next drawn layer above it (Photoshop's clipping-mask behaviour)
+        AllAbove,    // affect every layer above it, until another matte replaces it
+    }
+
     /// The primitive a Layer stamps. Kept deliberately small and chunky so bakes read as pixel art.
     public enum LayerShape
     {

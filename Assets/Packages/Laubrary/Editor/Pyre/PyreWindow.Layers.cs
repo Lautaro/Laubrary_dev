@@ -151,9 +151,13 @@ namespace Laubrary.Pyre.Editor
 
             BuildShapePreview(root, l);
 
+            // wrap: the shape set grows over time and had already run off the edge of the left pane,
+            // producing a horizontal scrollbar the layout rules forbid.
             root.Add(Z.MiniRadio((int)l.shape, ShapeLabels,
                 "The layer's shape family — decides which controls appear below.",
-                v => { Dial("Layer shape", () => l.shape = (LayerShape)v); RebuildLeft(); }));
+                v => { Dial("Layer shape", () => l.shape = (LayerShape)v); RebuildLeft(); }, wrap: true));
+
+            BuildMatte(root, l);
 
             int fcMax = Mathf.Max(1, FrameCount - 1);
             root.Add(Z.Field("Life (frames)", "The frame window this layer exists in (start ↔ end frame of the bake).",
@@ -277,6 +281,71 @@ namespace Laubrary.Pyre.Editor
         }
 
         // ── shape preview (isolated single shape) ───────────────────────────────────────────
+        static readonly string[] RoleLabels = { "Draw", "Matte" };
+        static readonly string[] MatteScopeLabels = { "Next layer", "All above" };
+
+        /// The matte block. A matte is a ROLE, not a shape or a fill — so it sits right under the shape picker
+        /// and applies whatever that shape happens to be. Everything below the role switch only appears in
+        /// Matte mode, because in Draw mode none of it means anything.
+        void BuildMatte(VisualElement root, Layer l)
+        {
+            root.Add(Z.Field("Use as", "Draw = composite this layer normally. Matte = don't draw it; its " +
+                "brightness becomes a mask driving the layers above it.",
+                Z.MiniRadio((int)l.role, RoleLabels,
+                    "Draw = composite this layer normally. Matte = don't draw it; its brightness becomes a " +
+                    "mask driving the layers above it.",
+                    v => { Dial("Layer role", () => l.role = (LayerRole)v); RebuildLeft(); })));
+
+            if (l.role != LayerRole.Matte) return;
+
+            var box = Z.Box("Matte",
+                "This layer is not drawn. Its LUMINANCE times its own alpha becomes a 0–1 mask over the " +
+                "canvas, and that mask drives the layers above it. Because it's just a layer, every shape, " +
+                "fill and modifier Pyre already has can be used to author the mask — a sweeping disc, a " +
+                "growing ring, a churning ball cloud, a noise fill.");
+
+            box.Add(Z.Field("Drives", "What the mask changes on the layers it covers.",
+                Z.EnumDropdown(l.matteChannel, MatteChannelHelp(l.matteChannel),
+                    v => { Dial("Matte channel", () => l.matteChannel = v); RebuildLeft(); }, 140f)));
+
+            box.Add(Z.Field("Reaches", "How far up the stack this matte applies.",
+                Z.MiniRadio((int)l.matteScope, MatteScopeLabels,
+                    "Next layer = clip only the layer directly above. All above = every layer above this one, " +
+                    "until another matte replaces it.",
+                    v => Dial("Matte scope", () => l.matteScope = (MatteScope)v))));
+
+            box.Add(Z.Toggle("Invert", "Swap what the mask covers and what it reveals.", l.matteInvert,
+                v => Dial("Invert matte", () => l.matteInvert = v)));
+
+            box.Add(ValRow("Strength", "How strongly the matte acts. 0 = no effect, 1 = full. Animate it to " +
+                "fade a mask in, or to sweep its influence over the layer's life.", l.matteStrength, 0f, 1f, 1f));
+
+            if (l.matteChannel == MatteChannel.Blur)
+                box.Add(ValRow("Softness (px)", "Blur radius where the mask is full. Each pixel blurs by its " +
+                    "own mask value, so one matte can hold a core sharp while its surroundings melt.",
+                    l.matteAmount, 0f, 12f, 3f));
+            else if (l.matteChannel == MatteChannel.Displace)
+                box.Add(ValRow("Push (px)", "How far a pixel is pushed along the mask's SLOPE. Flat areas of " +
+                    "the mask don't move at all — only its edges bend what's behind them, which is what makes " +
+                    "it read as refraction rather than as a smear.", l.matteAmount, 0f, 24f, 4f));
+            else if (l.matteChannel == MatteChannel.Hue)
+                box.Add(ValRow("Hue shift °", "How far the hue rotates where the mask is full.",
+                    l.matteHueDegrees, -180f, 180f, 60f));
+
+            root.Add(box);
+        }
+
+        static string MatteChannelHelp(MatteChannel c) => c switch
+        {
+            MatteChannel.Alpha => "Alpha — the classic luma matte: the mask multiplies the covered layers' opacity.",
+            MatteChannel.Brightness => "Brightness — darkens toward black where the mask is low. A light/shadow pass.",
+            MatteChannel.Saturation => "Saturation — drains toward greyscale where the mask is low. Ash, smoke, heat-death.",
+            MatteChannel.Hue => "Hue — rotates hue by the mask. Heat shimmer, chemical burn, cold spots.",
+            MatteChannel.Blur => "Blur — softens where the mask is high, stays sharp where it's low.",
+            MatteChannel.Displace => "Displace — pushes pixels along the mask's own slope, like refraction or heat haze.",
+            _ => "What the mask changes on the layers it covers.",
+        };
+
         void BuildShapePreview(VisualElement root, Layer l)
         {
             root.Add(Z.Toggle("Shape preview",
