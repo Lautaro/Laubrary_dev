@@ -12,7 +12,7 @@
     --zui-sub-fill-2: rgba(0, 0, 0, 0.28);
     /* Section headings: bright, with a slight cyan cast so a heading reads as structure at a glance
        and never gets mistaken for a field label. Tune the whole toolkit's heading colour here. */
-    --zui-section-title: rgb(186, 234, 243);
+    --zui-section-title: rgb(0, 255, 0);
     --zui-stage-bg: rgb(26, 26, 31);
     padding: 4px;
 }
@@ -74,9 +74,31 @@
     margin-bottom: 4px;
 }
 
+/* The title row is the box's fold toggle, so it has to answer to the pointer like one. */
+.zui-box__titlerow:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
 .zui-box__title {
     -unity-font-style: bold;
     white-space: nowrap;
+}
+
+/* Quieter than a section's caret — a box is already framed, so its title stays a sub-heading and
+   doesn't take the section colour. */
+.zui-box__caret {
+    width: 12px;
+    opacity: 0.5;
+    -unity-text-align: middle-center;
+}
+
+/* A closed box is just its title row: give back the padding its body was using. */
+.zui-box--closed {
+    padding-bottom: 2px;
+}
+
+.zui-box--closed > .zui-box__titlerow {
+    margin-bottom: 0;
 }
 
 .zui-row {
@@ -101,6 +123,11 @@
     margin-top: 12px;
     margin-bottom: 4px;
     white-space: nowrap;
+}
+
+/* The heading is the fold toggle, so it has to look like it answers to the pointer. */
+.zui-text--section:hover {
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* Collapsible sections (ZuiSection) ---------------------------------------- */

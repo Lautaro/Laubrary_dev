@@ -37,7 +37,9 @@ namespace Laubrary.Zui
 
         public ZuiSection(string title, string tooltip, string stateKey = null)
         {
-            _key = stateKey ?? title ?? "section";
+            // Title alone collides — "Gradient" heads three different blocks in Pyre — so the tooltip,
+            // which is what actually distinguishes them, is part of the key.
+            _key = stateKey ?? (title ?? "section") + "" + (tooltip ?? string.Empty);
             AddToClassList("zui-section");
 
             var header = new VisualElement();
@@ -62,12 +64,13 @@ namespace Laubrary.Zui
                 header.Add(help);
             }
 
-            header.RegisterCallback<PointerDownEvent>(e =>
-            {
-                if (e.button != 0) return;
-                IsOpen = !IsOpen;
-                e.StopPropagation();
-            });
+            // Toggle via a Clickable manipulator rather than a raw PointerDownEvent. A bare
+            // RegisterCallback<PointerDownEvent> did NOT fire reliably for the header inside a
+            // ScrollView (verified live: the fold state machinery worked when driven directly, but a
+            // real click never reached it). Clickable is what Button itself uses — it owns the
+            // pointer-down/up pair and the capture in between — so a header behaves exactly like the
+            // buttons beside it, which are known to work in these windows.
+            header.AddManipulator(new Clickable(() => IsOpen = !IsOpen));
             hierarchy.Add(header);
 
             _body = new VisualElement();

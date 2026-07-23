@@ -81,27 +81,10 @@ namespace Laubrary.Zui
 
         /// A framed section. The tooltip (if any) renders as a "?" hover icon on the title's own
         /// row — never below the content it explains (ui-layout-rules: help sits on the header).
-        public static VisualElement Box(string title, string tooltip, params VisualElement[] children)
+        /// A titled box folds when its title row is clicked (see ZuiBox).
+        public static ZuiBox Box(string title, string tooltip, params VisualElement[] children)
         {
-            var box = new VisualElement();
-            box.AddToClassList("zui-box");
-            if (!string.IsNullOrEmpty(title))
-            {
-                var titleRow = new VisualElement();
-                titleRow.AddToClassList("zui-box__titlerow");
-                var t = new Label(title);
-                t.AddToClassList("zui-box__title");
-                if (!string.IsNullOrEmpty(tooltip)) t.tooltip = tooltip;
-                titleRow.Add(t);
-                if (!string.IsNullOrEmpty(tooltip))
-                {
-                    var spacer = new VisualElement();
-                    spacer.style.flexGrow = 1f;
-                    titleRow.Add(spacer);
-                    titleRow.Add(HelpIcon(tooltip));
-                }
-                box.Add(titleRow);
-            }
+            var box = new ZuiBox(title, tooltip);
             foreach (var c in children) if (c != null) box.Add(c);
             return box;
         }
@@ -133,10 +116,14 @@ namespace Laubrary.Zui
 
         public static Label Text(string text, ZuiText style = ZuiText.Body, string tooltip = null)
         {
+            // A Section heading is a ZuiSectionLabel: still a Label to every call site, but clicking it
+            // folds the block it names (see ZuiSectionLabel). Every heading already written across the
+            // tools became collapsible through this one line.
+            if (style == ZuiText.Section) return new ZuiSectionLabel(text, tooltip);
+
             var l = new Label(text);
             switch (style)
             {
-                case ZuiText.Section: l.AddToClassList("zui-text--section"); break;
                 case ZuiText.Small: l.AddToClassList("zui-text--small"); break;
                 case ZuiText.Subtle: l.AddToClassList("zui-text--subtle"); break;
             }
