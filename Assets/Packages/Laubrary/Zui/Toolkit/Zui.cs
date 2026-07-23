@@ -184,11 +184,44 @@ namespace Laubrary.Zui
 
         // ── controls (tooltip is always a required parameter) ───────────────────────
 
+        /// Which look the DEFAULT-variant factories draw. `Vanilla` = Unity's own controls skinned with USS
+        /// (the migration default); `Custom` = the Painter2D-drawn old-ZUI look (MicroSlider fill-track,
+        /// button-toggles). Flip this once to roll every tool over; the explicit Z.MicroSlider / Z.ToggleButton
+        /// factories always draw the custom look regardless, and a plain Z.Slider always draws vanilla — this
+        /// only steers the wrappers that offer both (currently none but the door is open, per the roll-out plan).
+        public enum Variant { Vanilla, Custom }
+        public static Variant DefaultVariant = Variant.Vanilla;
+
         public static Button Button(string label, string tooltip, Action onClick)
         {
             var b = new Button(onClick) { text = label, tooltip = tooltip };
             return b;
         }
+
+        /// The old-ZUI MicroSlider: a filled track whose fill is the value, label+value inside, no thumb.
+        /// Half the height of a vanilla Slider and needs no separate value field.
+        public static ZuiMicroSlider MicroSlider(string label, float value, float min, float max,
+            string tooltip, Action<float> onChanged, float width = 150f, bool showValue = true,
+            float? defaultValue = null, int decimals = -1)
+        {
+            var s = new ZuiMicroSlider(label, value, min, max, tooltip, onChanged, showValue, defaultValue,
+                decimals: decimals);
+            s.style.width = width;
+            return s;
+        }
+
+        /// A button that latches on/off (the old-ZUI button toggle), instead of a checkbox with a tick.
+        public static ZuiToggleButton ToggleButton(string label, string tooltip, bool value, Action<bool> onChanged)
+            => new ZuiToggleButton(label, tooltip, value, onChanged);
+
+        /// A joined row of buttons, single-select (radio look, custom-drawn) — the themed twin of MiniRadio.
+        public static ZuiSegmented Segmented(int selected, string[] labels, string tooltip, Action<int> onChanged)
+            => ZuiSegmented.Radio(selected, labels, tooltip, onChanged);
+
+        /// A joined row of independently-latching segments — the right control for a flag set.
+        public static ZuiSegmented SegmentedMulti(Func<int, bool> isOn, string[] labels, string tooltip,
+            Action<int, bool> onToggled)
+            => ZuiSegmented.Multi(isOn, labels, tooltip, onToggled);
 
         public static Toggle Toggle(string label, string tooltip, bool value, Action<bool> onChanged)
         {

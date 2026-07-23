@@ -1,0 +1,164 @@
+// ZuiMicroSlider — the old IMGUI ZUI MicroSlider, rebuilt for UI Toolkit.
+//
+// A filled box whose FILL is the value: no thumb, the "handle" is just the edge between the filled and
+// empty parts of the track, and the label (and optional value) sit INSIDE the track. Click or drag
+// anywhere on it to set the value; double-click resets to the default if one was given. This is the
+// control that gave old ZUI windows their look, and it packs into far less height than Unity's own
+// Slider (which needs a separate thumb lane and usually a value field beside it).
+//
+// Drawn with Painter2D (the track rects) plus two child Labels (caption left, value right) that sit on
+// top of the generated mesh. Everything themeable is a USS custom property read off resolvedStyle, so
+// the whole toolkit's slider look tunes from ZuiToolkit.uss, not from numbers buried here.
+using System;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace Laubrary.Zui
+{
+    public class ZuiMicroSlider : VisualElement
+    {
+        float _value, _min, _max;
+        readonly float? _default;
+        readonly Action<float> _onChanged;
+        readonly Action _onBeforeMutate;
+        readonly Label _caption, _valueLabel;
+        readonly bool _showValue;
+        readonly int _decimals;
+        bool _dragging, _gestureOpen;
+
+        public float value
+        {
+            get => _value;
+            set { SetValue(value, notify: false); }
+        }
+
+        public ZuiMicroSlider(string label, float value, float min, float max, string tooltip,
+            Action<float> onChanged, bool showValue = true, float? defaultValue = null,
+            Action onBeforeMutate = null, int decimals = -1)
+        {
+            _min = min; _max = Mathf.Max(min + 1e-6f, max);
+            _value = Mathf.Clamp(value, _min, _max);
+            _onChanged = onChanged; _default = defaultValue; _showValue = showValue;
+            _onBeforeMutate = onBeforeMutate; _decimals = decimals;
+            this.tooltip = tooltip;
+
+            AddToClassList("zui-microslider");
+
+            _caption = new Label(label) { pickingMode = PickingMode.Ignore, tooltip = tooltip };
+            _caption.AddToClassList("zui-microslider__caption");
+            Add(_caption);
+
+            _valueLabel = new Label { pickingMode = PickingMode.Ignore };
+            _valueLabel.AddToClassList("zui-microslider__value");
+            _valueLabel.style.display = showValue ? DisplayStyle.Flex : DisplayStyle.None;
+            Add(_valueLabel);
+
+            UpdateValueLabel();
+            generateVisualContent += OnGenerate;
+            RegisterCallback<PointerDownEvent>(OnDown);
+            RegisterCallback<PointerMoveEvent>(OnMove);
+            RegisterCallback<PointerUpEvent>(OnUp);
+        }
+
+        float Round(float v) => _decimals >= 0 ? (float)Math.Round(v, _decimals)
+                                               : (float)Math.Round(v, 5);
+
+        void SetValue(float v, bool notify)
+        {
+            v = Round(Mathf.Clamp(v, _min, _max));
+            if (Mathf.Approximately(v, _value) && notify) return;
+            _value = v;
+            UpdateValueLabel();
+            MarkDirtyRepaint();
+            if (notify) _onChanged?.Invoke(_value);
+        }
+
+        void UpdateValueLabel()
+        {
+            if (!_showValue) return;
+            // Decimals scale to the range, matching the old MicroSlider's AutoFormat: a 0..1 dial wants
+            // more places than a 0..360 one.
+            float span = _max - _min;
+            string fmt = _decimals >= 0 ? "F" + _decimals : span <= 3f ? "0.##" : span <= 40f ? "0.#" : "0";
+            _valueLabel.text = _value.ToString(fmt);
+        }
+
+        float ValueFromX(float localX)
+        {
+            float w = Mathf.Max(1f, contentRect.width);
+            return Mathf.Lerp(_min, _max, Mathf.Clamp01(localX / w));
+        }
+
+        void OpenGesture()
+        {
+            if (_gestureOpen) return;
+            _gestureOpen = true;
+            _onBeforeMutate?.Invoke();   // fires once per drag, before the first mutation (the Undo contract)
+        }
+
+        void OnDown(PointerDownEvent e)
+        {
+            if (e.button != 0) return;
+            if (e.clickCount == 2 && _default.HasValue)
+            {
+                OpenGesture();
+                SetValue(_default.Value, notify: true);
+                _gestureOpen = false;
+                e.StopPropagation();
+                return;
+            }
+            _dragging = true;
+            this.CapturePointer(e.pointerId);
+            OpenGesture();
+            SetValue(ValueFromX(e.localPosition.x), notify: true);
+            e.StopPropagation();
+        }
+
+        void OnMove(PointerMoveEvent e)
+        {
+            if (!_dragging) return;
+            SetValue(ValueFromX(e.localPosition.x), notify: true);
+            e.StopPropagation();
+        }
+
+        void OnUp(PointerUpEvent e)
+        {
+            if (!_dragging) return;
+            _dragging = false;
+            _gestureOpen = false;
+            this.ReleasePointer(e.pointerId);
+            e.StopPropagation();
+        }
+
+        void OnGenerate(MeshGenerationContext mgc)
+        {
+            var r = contentRect;
+            if (r.width <= 1f || r.height <= 1f) return;
+            float t = Mathf.InverseLerp(_min, _max, _value);
+            float split = Mathf.Round(t * r.width);
+
+            var p = mgc.painter2D;
+            // Empty track first (the whole width), then the fill over the left part. The element's own
+            // border-radius + overflow:hidden (from USS) rounds the corners, so these stay plain rects.
+            FillRect(p, 0f, 0f, r.width, r.height, TrackColor);
+            if (split > 0.5f) FillRect(p, 0f, 0f, split, r.height, FillColor);
+        }
+
+        static void FillRect(Painter2D p, float x, float y, float w, float h, Color c)
+        {
+            p.fillColor = c;
+            p.BeginPath();
+            p.MoveTo(new Vector2(x, y));
+            p.LineTo(new Vector2(x + w, y));
+            p.LineTo(new Vector2(x + w, y + h));
+            p.LineTo(new Vector2(x, y + h));
+            p.ClosePath();
+            p.Fill();
+        }
+
+        // Theme colours. Kept as fields so a future pass can bind them to USS custom properties; the
+        // defaults match ZuiToolkit.uss's --zui-accent / --zui-bg-inset.
+        public Color FillColor = new Color(90f / 255f, 160f / 255f, 255f / 255f, 0.55f);
+        public Color TrackColor = new Color(0f, 0f, 0f, 0.30f);
+    }
+}

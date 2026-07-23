@@ -265,6 +265,104 @@
     color: var(--zui-accent);
 }
 
+/* Custom-drawn controls (the old IMGUI ZUI look, Painter2D) ---------------- */
+
+/* MicroSlider — a filled track whose fill IS the value; no thumb, label+value sit inside it. */
+.zui-microslider {
+    height: 18px;
+    min-width: 60px;
+    border-radius: 3px;
+    overflow: hidden;
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    border-width: 1px;
+    border-color: var(--zui-line);
+}
+
+.zui-microslider__caption {
+    position: absolute;
+    left: 6px;
+    font-size: 11px;
+    -unity-text-align: middle-left;
+}
+
+.zui-microslider__value {
+    position: absolute;
+    right: 6px;
+    font-size: 11px;
+    opacity: 0.85;
+    -unity-text-align: middle-right;
+}
+
+/* Button-style Toggle — a button that stays pressed when on, no checkmark. */
+.zui-togglebutton {
+    -unity-font-style: normal;
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    border-radius: 3px;
+    background-color: var(--zui-bg-inset);
+    border-width: 1px;
+    border-color: var(--zui-line);
+    flex-shrink: 0;
+}
+
+.zui-togglebutton:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.zui-togglebutton--on {
+    background-color: var(--zui-accent-soft);
+    border-color: var(--zui-accent);
+    -unity-font-style: bold;
+}
+
+/* Segmented control — a joined row of buttons; single-select (radio) or multi-select. */
+.zui-segmented {
+    flex-direction: row;
+    flex-shrink: 0;
+}
+
+.zui-segmented > .zui-segmented__seg {
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 0;
+    border-left-width: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    background-color: var(--zui-bg-inset);
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-right-width: 1px;
+    border-color: var(--zui-line);
+}
+
+.zui-segmented > .zui-segmented__seg.zui-segmented__first {
+    border-left-width: 1px;
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.zui-segmented > .zui-segmented__seg.zui-segmented__last {
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+.zui-segmented > .zui-segmented__seg.zui-segmented__on {
+    background-color: var(--zui-accent-soft);
+    -unity-font-style: bold;
+}
+
+.zui-segmented > .zui-segmented__seg:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.zui-segmented > .zui-segmented__seg.zui-segmented__on:hover {
+    background-color: var(--zui-accent-soft);
+}
+
 /* Controls --------------------------------------------------------------- */
 
 .zui-radio {
