@@ -71,6 +71,46 @@ namespace Laubrary.Zui
             return col;
         }
 
+        /// A masonry column layout: items are dealt round-robin into `n` equal-width columns, each an
+        /// INDEPENDENT vertical stack. This is the retained-mode answer to pairing controls in a Row —
+        /// a Row couples heights (a tall expanded envelope stretches its neighbour and shoves the next
+        /// row down), whereas each column here flows on its own, so a control never grows or moves
+        /// because the thing beside it expanded. Two consecutive items land in adjacent columns (left,
+        /// right, left, …), preserving the side-by-side pairing when heights match while decoupling it
+        /// when they don't. Each item is stretched to its column's full width and keeps its natural
+        /// height (any horizontal flexGrow it carried for Row-mode is cleared).
+        public static VisualElement Columns(int n, params VisualElement[] items)
+        {
+            if (n < 1) n = 1;
+            var root = new VisualElement();
+            root.style.flexDirection = FlexDirection.Row;
+            var cols = new VisualElement[n];
+            for (int i = 0; i < n; i++)
+            {
+                var col = new VisualElement();
+                col.style.flexDirection = FlexDirection.Column;
+                col.style.flexGrow = 1f;
+                col.style.flexShrink = 1f;
+                col.style.flexBasis = 0f;                 // equal width regardless of content
+                col.style.minWidth = 0f;                  // let it shrink; content wraps inside
+                if (i > 0) col.style.marginLeft = 6f;     // gutter between columns
+                cols[i] = col;
+                root.Add(col);
+            }
+            int placed = 0;
+            foreach (var it in items)
+            {
+                if (it == null) continue;
+                it.style.flexGrow = 0f;                   // in a column, flexGrow would grow HEIGHT
+                it.style.flexShrink = 0f;
+                it.style.alignSelf = Align.Stretch;       // fill the column width
+                it.style.marginBottom = 2f;
+                cols[placed % n].Add(it);
+                placed++;
+            }
+            return root;
+        }
+
         /// A titled, COLLAPSIBLE section — the header itself is the toggle. Children added to the
         /// returned element go inside the section body. Prefer this over a bare
         /// `Z.Text(.., ZuiText.Section, ..)` heading whenever the heading names a block of controls:

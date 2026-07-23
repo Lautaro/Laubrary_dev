@@ -1,3 +1,4 @@
+using System.Linq;
 using Laubrary.AssetKit.Editor;
 using Laubrary.BackSplash.Editor;
 using Laubrary.Zui;
@@ -391,11 +392,21 @@ namespace Laubrary.Pyre.Editor
         }
 
         // ── shared row/value helpers ────────────────────────────────────────────────────────
-        /// A wrapping row — controls flow onto the next line instead of ever overflowing the pane
-        /// (the retained-mode answer to the IMGUI horizontal-scrollbar smell).
+        /// Packs controls side by side. Two layouts, chosen by content:
+        ///  • If the row carries an animatable value control (ZuiValueControl / ZuiValue2DControl — the
+        ///    ones that can expand into a TALL envelope), it lays out as independent masonry COLUMNS
+        ///    (Z.Columns). A plain Row couples heights: expanding one control's envelope stretches its
+        ///    neighbour and shoves the next row down. Columns flow separately, so an expansion only
+        ///    grows its own column and never moves the control beside it.
+        ///  • Otherwise (toolbars of buttons, compact int/color field rows) it stays a flowing wrap row
+        ///    — the retained-mode answer to the IMGUI horizontal-scrollbar smell.
         static VisualElement WrapRow(params VisualElement[] children)
         {
-            var row = Z.Row(children);
+            var real = children.Where(c => c != null).ToArray();
+            bool hasExpandable = real.Any(c => c is ZuiValueControl || c is ZuiValue2DControl);
+            if (hasExpandable && real.Length >= 2)
+                return Z.Columns(2, real);
+            var row = Z.Row(real);
             row.style.flexWrap = Wrap.Wrap;
             return row;
         }
