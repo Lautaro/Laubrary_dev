@@ -93,7 +93,7 @@ namespace Laubrary.UIAudit.Tests
                 _displayPpu = ZUI.FloatField("Display PPU", _displayPpu, 70f, 1f);
                 ZUI.HorizontalSpace();
                 ZUI.Button(new GUIContent("Add Previewable",
-                    "Pick a Zoe/BlastSpec/Sprite to place — opens a thumbnail browser in the real tool."));
+                    "Pick a Zoe/Pyre/Sprite to place — opens a thumbnail browser in the real tool."));
                 GUILayout.FlexibleSpace();
             }
         }

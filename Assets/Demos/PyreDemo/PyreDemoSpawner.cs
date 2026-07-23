@@ -3,11 +3,11 @@ using Laubrary.Pyre;
 
 /// Demo driver: click anywhere to spawn a one-shot explosion at the mouse, and (optionally) auto-spawn a few on
 /// a timer to show variety. No baked assets needed — each blast renders its frames through BlastRenderer at
-/// runtime via BlastPlayer. Assign a BlastSpec in the inspector, or leave it empty to use a built example.
+/// runtime via BlastPlayer. Assign a Pyre in the inspector, or leave it empty to use a built example.
 public class PyreDemoSpawner : MonoBehaviour
 {
     [Tooltip("Explosion to spawn. If empty, a built-in example blast is created at runtime.")]
-    public BlastSpec spec;
+    public Pyre spec;
 
     [Tooltip("Playback speed of each spawned blast, in frames per second.")]
     public float fps = 24f;
@@ -19,13 +19,13 @@ public class PyreDemoSpawner : MonoBehaviour
     public float autoInterval = 1.2f;
 
     float timer;
-    BlastSpec runtimeSpec;
+    Pyre runtimeSpec;
 
-    BlastSpec ActiveSpec => spec != null ? spec : (runtimeSpec != null ? runtimeSpec : (runtimeSpec = BuildExample()));
+    Pyre ActiveSpec => spec != null ? spec : (runtimeSpec != null ? runtimeSpec : (runtimeSpec = BuildExample()));
 
-    static BlastSpec BuildExample()
+    static Pyre BuildExample()
     {
-        var s = ScriptableObject.CreateInstance<BlastSpec>();
+        var s = ScriptableObject.CreateInstance<Pyre>();
         s.AddExampleContent();
         return s;
     }

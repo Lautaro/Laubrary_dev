@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEngine;
 using Laubrary.Zoetrope;
 using Laubrary.Pyre;
+using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespace inside a Laubrary.* namespace
 
 namespace Laubrary.Mirage
 {
@@ -14,13 +15,13 @@ namespace Laubrary.Mirage
     /// is hard single-type-generic) — this is new, small, and deliberately not folded into AssetKit itself.
     /// Editor-only: Mirage never ships, so this is free to use AssetDatabase directly.
     ///
-    /// Deliberately Zoe + BlastSpec ONLY — both are real LauAsset-registered types (a bounded, intentional
+    /// Deliberately Zoe + Pyre ONLY — both are real LauAsset-registered types (a bounded, intentional
     /// set of assets someone actually authored), so browsing them via <c>AssetDatabase.FindAssets("t:...")</c>
     /// is cheap and the result list stays small. A background Sprite is NOT a LauAsset (no LauAssetEditors
     /// registration) and used to be included here via <c>AssetDatabase.FindAssets("t:Sprite")</c> — that
     /// matches every Sprite sub-asset of every imported texture in the ENTIRE project (every icon, every UI
     /// image, every character sheet), which is exactly the "1000+ assets" flood reported 2026-07-21. Sprite
-    /// stays reachable as a previewable (PreviewableEntry.content's own doc comment: "a Zoe, a BlastSpec, or
+    /// stays reachable as a previewable (PreviewableEntry.content's own doc comment: "a Zoe, a Pyre, or
     /// a Sprite") via a SEPARATE native <c>EditorGUIUtility.ShowObjectPicker&lt;Sprite&gt;</c> button in
     /// MirageWindow — Unity's own object picker already handles a project-wide type search at scale (search
     /// field, virtualization), so it's the right tool for "browse literally every Sprite," not this one.
@@ -36,13 +37,13 @@ namespace Laubrary.Mirage
         /// The concrete types this picker's default (LauAsset) browse spans — shared with MirageWindow's own
         /// "New ▾" scoping so that button offers exactly these two kinds, not every LauAssetEditors-registered
         /// type in the project (a `typeof(Object)` constraint would otherwise match ChunkSpec/WareSpec/etc. too).
-        public static readonly System.Type[] SupportedTypes = { typeof(Zoe), typeof(BlastSpec) };
+        public static readonly System.Type[] SupportedTypes = { typeof(Zoe), typeof(PyreAsset) };
 
         public static List<Item> FindAll()
         {
             var list = new List<Item>();
             AddType<Zoe>(list, "Zoe");
-            AddType<BlastSpec>(list, "Blast");
+            AddType<PyreAsset>(list, "Pyre");
             return list;
         }
 

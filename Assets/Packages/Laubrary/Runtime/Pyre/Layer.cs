@@ -14,7 +14,7 @@ namespace Laubrary.Pyre
         [Range(0.02f, 1f)] public float life = 0.8f;
 
         // Radius became an animatable ZUIValue (2026-07-23) so an orb can pulse/grow over its OWN
-        // life. Migration: `radius` is the legacy scalar every already-authored BlastSpec still
+        // life. Migration: `radius` is the legacy scalar every already-authored Pyre still
         // serializes; `radiusValue` only becomes authoritative once `radiusUpgraded` is set, which
         // Radius does lazily on first access (seeded from the legacy scalar, so nothing shifts
         // visually). Unity never leaves a [Serializable]-class field null after deserialization, so
@@ -447,10 +447,10 @@ namespace Laubrary.Pyre
         [SerializeReference]
         public List<PyreModifier> modifiers = new();
 
-        /// The one, always-last SIMULATION modifier for just THIS layer — mirrors BlastSpec.simulationModifier
+        /// The one, always-last SIMULATION modifier for just THIS layer — mirrors Pyre.simulationModifier
         /// exactly (its own dedicated single slot, not part of `modifiers` above), except scoped to this one
         /// layer's own isolated buffer instead of the whole composited frame. Lets a Pixel fluid (etc.) react to
-        /// only this layer's own pixels/shape, independent of a blast-wide one in BlastSpec.simulationModifier —
+        /// only this layer's own pixels/shape, independent of a blast-wide one in Pyre.simulationModifier —
         /// both can be used together (this one runs first, on this layer's own isolated buffer, before it
         /// composites onto the frame; the blast-wide one runs last of all, after every layer has composited).
         [SerializeReference]

@@ -34,7 +34,7 @@ namespace Laubrary.AssetKit.Editor
         // Type filter — separate from the tag filter above, same "▾ toggles a checklist row" shape and
         // placement (shares the header row, immediately left of Tags ▾). Only meaningful when the candidate
         // set spans more than one concrete type — the curated multi-type union pickers (e.g. Mirage's own
-        // Zoe+BlastSpec "Add Previewable" browser) are the case this exists for; a single-type-constrained
+        // Zoe+Pyre "Add Previewable" browser) are the case this exists for; a single-type-constrained
         // picker (the common case) has nothing to filter by type, so the control hides itself entirely.
         readonly HashSet<Type> _filterTypes = new HashSet<Type>();
         bool _showTypeFilter;
@@ -48,7 +48,7 @@ namespace Laubrary.AssetKit.Editor
                 onPick, current, onCreateNew, pickHint));
 
         /// For a curated, non-interface union of types that don't share one constraint (e.g. Mirage's
-        /// previewable picker: Zoe + BlastSpec + Sprite have nothing in common) — pass the pre-enumerated
+        /// previewable picker: Zoe + Pyre + Sprite have nothing in common) — pass the pre-enumerated
         /// candidates directly instead of a Type.
         ///
         /// onCreateNew, when given, adds a name field + "Save as new" row above the grid — turns this from a

@@ -6,7 +6,7 @@ using Laubrary.Pyre;
 namespace Laubrary.Pyre.Editor
 {
     /// An editor-only asset that stores reusable <see cref="Layer"/> presets so a layer can be lifted out of one
-    /// BlastSpec and dropped into another. One shared library per project — found by type, created on demand under
+    /// Pyre and dropped into another. One shared library per project — found by type, created on demand under
     /// <c>Assets/Pyre/</c> (host-project authoring space, never inside the package). Layers are stored as deep
     /// clones, so editing the source blast afterwards can't mutate the saved copy.
     public class PyreLayerLibrary : ScriptableObject
@@ -129,7 +129,7 @@ namespace Laubrary.Pyre.Editor
         {
             if (thumbs.TryGetValue(i, out var cached) && cached != null) return cached;
 
-            var tmp = ScriptableObject.CreateInstance<BlastSpec>();
+            var tmp = ScriptableObject.CreateInstance<Pyre>();
             tmp.seed = 7;
             tmp.frameCount = 9;
             tmp.canvasSize = 48;

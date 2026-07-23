@@ -18,8 +18,8 @@ public class ArenaEnemy : MonoBehaviour
     // ── assigned by the spawner ──────────────────────────────────────────────
     public int clicksToDestroy = 3;
     public Color tint = Color.white;
-    public List<BlastSpec> hitBlasts;
-    public List<BlastSpec> destroyBlasts;
+    public List<Pyre> hitBlasts;
+    public List<Pyre> destroyBlasts;
     public ChunkSpec debris;
 
     // respawn wiring: the choreo that moves us, and which dancer index we are
@@ -149,7 +149,7 @@ public class ArenaEnemy : MonoBehaviour
     // ── helpers ──────────────────────────────────────────────────────────────
 
     /// Spawn a one-shot Pyre explosion at a world position (self-renders on Awake, self-destroys on finish).
-    void SpawnBlast(BlastSpec s, Vector3 pos)
+    void SpawnBlast(Pyre s, Vector3 pos)
     {
         if (s == null) return;
         var go = new GameObject("Blast");
@@ -170,7 +170,7 @@ public class ArenaEnemy : MonoBehaviour
         return new Color32[] { c, c, c };
     }
 
-    static BlastSpec PickRandom(List<BlastSpec> list)
+    static Pyre PickRandom(List<Pyre> list)
     {
         if (list == null || list.Count == 0) return null;
         return list[Random.Range(0, list.Count)];   // UnityEngine.Random: runtime variety, not determinism

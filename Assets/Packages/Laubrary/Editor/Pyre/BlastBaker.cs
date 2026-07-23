@@ -6,7 +6,7 @@ using Laubrary.Pyre;
 
 namespace Laubrary.Pyre.Editor
 {
-    /// Bakes a BlastSpec into the SAME folder as the spec asset: a horizontal-ish sprite sheet PNG sliced into
+    /// Bakes a Pyre into the SAME folder as the spec asset: a horizontal-ish sprite sheet PNG sliced into
     /// per-frame sprites, plus an AnimationClip that cycles them. Renders through the shared BlastRenderer, so a
     /// bake is byte-identical to the editor preview and the runtime player. No dedicated Assets/Pyre/ folder —
     /// the outputs sit right next to the asset you baked (following the Laubrary flat-folder convention).
@@ -15,9 +15,9 @@ namespace Laubrary.Pyre.Editor
     /// (blast_1, blast_2, …) and every created path is logged.
     public static class BlastBaker
     {
-        public static void Bake(BlastSpec spec, int fps = 24)
+        public static void Bake(Pyre spec, int fps = 24)
         {
-            if (spec == null) { Debug.LogWarning("[Pyre] Bake skipped: no BlastSpec."); return; }
+            if (spec == null) { Debug.LogWarning("[Pyre] Bake skipped: no Pyre."); return; }
 
             // Bake beside the spec asset; fall back to "Assets" if the spec is unsaved.
             string specPath = AssetDatabase.GetAssetPath(spec);
@@ -29,7 +29,7 @@ namespace Laubrary.Pyre.Editor
             var sheet = BlastRenderer.RenderSheet(spec, out int cols, out int rows, 8);
 
             // 1) write the PNG (never clobbering an existing file)
-            string baseName = SanitizeName(spec.name.Length > 0 ? spec.name : "Blast");
+            string baseName = SanitizeName(spec.name.Length > 0 ? spec.name : "Pyre");
             string pngPath = UniquePath(dir, baseName, "png");
             File.WriteAllBytes(pngPath, sheet.EncodeToPNG());
             Object.DestroyImmediate(sheet);

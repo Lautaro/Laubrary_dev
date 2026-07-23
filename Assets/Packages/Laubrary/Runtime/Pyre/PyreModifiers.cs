@@ -886,7 +886,7 @@ namespace Laubrary.Pyre
             sharpness = Mathf.Max(0.05f, e(seamSharpness, 9));
         }
 
-        /// The blast's own Origin marker (BlastSpec.origin), in canvas pixels — set once per frame by BlastRenderer
+        /// The blast's own Origin marker (Pyre.origin), in canvas pixels — set once per frame by BlastRenderer
         /// (mirrors PinWarpModifier.SetFrame) so Rotation can pivot on the same point the preview's ✛ handle shows,
         /// instead of the canvas corner.
         internal void SetOrigin(Vector2 originPixels) => originPx = originPixels;
@@ -1249,7 +1249,7 @@ namespace Laubrary.Pyre
     /// BallisticShockwaveModifier, didn't read as convincing).
     ///
     /// To keep this from disturbing anything else in Pyre: it lives in its OWN single slot
-    /// (BlastSpec.simulationModifier), not the existing Geometry/Pixel/Post modifier LISTS — which trivially
+    /// (Pyre.simulationModifier), not the existing Geometry/Pixel/Post modifier LISTS — which trivially
     /// guarantees "only one" (it's a single nullable field, not a list) and "always applied last" (BlastRenderer
     /// calls it exactly once, at the very end of RenderFrame, after every other layer/global modifier has
     /// already fully composited) by construction. Every other modifier, every other asset, is completely
@@ -2070,7 +2070,7 @@ namespace Laubrary.Pyre
     /// velocity grid sim with a projectile tunnel, trailing shockwave rings, and an alternating vortex street).
     /// A second shockwave crossing an already-eroded patch genuinely digs it deeper here; a vortex's drift is a
     /// real integrated position, not re-derived from "how old is it" — the whole point of building
-    /// SimulationModifier above. This is the ONE modifier living in BlastSpec.simulationModifier rather than an
+    /// SimulationModifier above. This is the ONE modifier living in Pyre.simulationModifier rather than an
     /// ordinary modifier list (see SimulationModifier's own doc comment for why that's safe).
     ///
     /// Vortices can shed a smaller child of their own, mirroring the reference's stochastic branching — safe

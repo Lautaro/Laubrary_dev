@@ -92,7 +92,7 @@ namespace Laubrary.FrameworkTrial
                 GUILayout.Space(12f);
 
                 GUILayout.Button(new GUIContent("Add Previewable",
-                    "Pick a Zoe/BlastSpec/Sprite to place — opens a thumbnail browser in the real tool."),
+                    "Pick a Zoe/Pyre/Sprite to place — opens a thumbnail browser in the real tool."),
                     GUILayout.Width(130f));
 
                 GUILayout.FlexibleSpace();

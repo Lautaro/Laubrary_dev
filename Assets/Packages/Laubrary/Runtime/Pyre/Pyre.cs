@@ -7,8 +7,8 @@ namespace Laubrary.Pyre
     /// directional deform, and a flat back-to-front stack of Layers. BlastRenderer turns this into identical
     /// pixels in the editor preview, the asset baker and the runtime player, so what you tune is exactly what
     /// ships. Layers are drawn in list order (index 0 is behind the rest).
-    [CreateAssetMenu(menuName = "Laubrary/Pyre/Blast", fileName = "Blast")]
-    public class BlastSpec : ScriptableObject
+    [CreateAssetMenu(menuName = "Laubrary/Pyre", fileName = "Pyre")]
+    public class Pyre : ScriptableObject
     {
         [Tooltip("Seeds all per-shape randomness. Same seed = byte-identical frames on every render.")]
         public int seed = 1234;

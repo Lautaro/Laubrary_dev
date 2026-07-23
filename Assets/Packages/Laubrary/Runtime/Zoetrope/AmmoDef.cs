@@ -35,7 +35,7 @@ namespace Laubrary.Zoetrope
         public bool faceTravel = false;
 
         // IVisualPreview — a plain static crop of Visual's own first frame, no separate render path (same
-        // rule BlastSpecChunkAnimation/ReelAnimationChunkAdapter's own IVisualPreview implementations
+        // rule PyreChunkAnimation/ReelAnimationChunkAdapter's own IVisualPreview implementations
         // follow). Never animates: "Only its first frame is shown on the projectile today" above is real
         // runtime behaviour, not a preview shortcut, so an animated preview would misrepresent it.
         public Texture2D RenderPreviewTexture()

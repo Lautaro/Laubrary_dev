@@ -5,7 +5,7 @@ namespace Laubrary.Pyre
 {
     /// <summary>
     /// One shared pool of <see cref="BlastPlayer"/> holders for the whole session — pooling is about the
-    /// component SHAPE (a SpriteRenderer + BlastPlayer), not any particular <see cref="BlastSpec"/>, so every
+    /// component SHAPE (a SpriteRenderer + BlastPlayer), not any particular <see cref="Pyre"/>, so every
     /// blast effect in the game draws from this same pool and just gets reconfigured with a different spec
     /// per use.
     /// </summary>

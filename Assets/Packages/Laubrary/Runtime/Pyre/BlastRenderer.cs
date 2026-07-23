@@ -71,7 +71,7 @@ namespace Laubrary.Pyre
         // a buffer resample, it never clips the frame the way a post-pass on a non-square canvas would.
         const int GlobalPassOffset = 1000;
 
-        static ModStack BuildStack(Layer layer, BlastSpec spec, int li, float lp, float bp, int frameIndex)
+        static ModStack BuildStack(Layer layer, Pyre spec, int li, float lp, float bp, int frameIndex)
         {
             var geo = new System.Collections.Generic.List<GeoEntry>();
             var pix = new System.Collections.Generic.List<PixelModifier>();
@@ -87,7 +87,7 @@ namespace Laubrary.Pyre
             return new ModStack(arr, pix.ToArray(), edge.ToArray());
         }
 
-        static void CollectMods(System.Collections.Generic.List<PyreModifier> mods, BlastSpec spec, int layerId,
+        static void CollectMods(System.Collections.Generic.List<PyreModifier> mods, Pyre spec, int layerId,
                                 float progress, int frameIndex,
                                 System.Collections.Generic.List<GeoEntry> geo,
                                 System.Collections.Generic.List<PixelModifier> pix,
@@ -116,7 +116,7 @@ namespace Laubrary.Pyre
         // there is nothing to run or composite back. `life` is this layer's own life (lp), matching every other
         // layer-scoped animatable param — NOT the whole blast's progress (that's only meaningful for the GLOBAL
         // post pass at the bottom of RenderFrame, which is untouched by this).
-        static void FinishLayerPost(Color32[] buf, Color32[] layerTarget, bool hasPost, Layer layer, BlastSpec spec,
+        static void FinishLayerPost(Color32[] buf, Color32[] layerTarget, bool hasPost, Layer layer, Pyre spec,
                                     int li, float life, int frameIndex, int W, int H)
         {
             if (!hasPost) return;
@@ -135,7 +135,7 @@ namespace Laubrary.Pyre
                 }
             }
 
-            // This layer's own SIMULATION modifier (its own dedicated slot, separate from BlastSpec's
+            // This layer's own SIMULATION modifier (its own dedicated slot, separate from Pyre's
             // blast-wide one) — runs last within THIS layer's own isolated buffer, before it composites onto
             // the frame. See Layer.simulationModifier's own doc for how it composes with the global slot.
             if (layer.simulationModifier is SimulationModifier layerSim && layerSim.enabled)
@@ -200,7 +200,7 @@ namespace Laubrary.Pyre
         }
 
         // ── the frame → Color32[] core ─────────────────────────────────────────
-        public static Color32[] RenderFrame(BlastSpec spec, int frameIndex)
+        public static Color32[] RenderFrame(Pyre spec, int frameIndex)
         {
             int W = spec != null ? spec.Width : 1;
             int H = spec != null ? spec.Height : 1;
@@ -639,7 +639,7 @@ namespace Laubrary.Pyre
         // time. A dedicated, simplified path (not a count-1 call into the main loop) — reuses RasterShape/
         // RasterSprite and the modifier-stack machinery, but skips spawn timing, scatter placement and the
         // multi-instance loop entirely, none of which a single centred preview shape has any use for.
-        public static Color32[] RenderShapePreview(Layer layer, BlastSpec spec, int li, float t, int frameIndex, int W, int H,
+        public static Color32[] RenderShapePreview(Layer layer, Pyre spec, int li, float t, int frameIndex, int W, int H,
                                                     bool showGradientFill, bool showCrescent, bool showHollow, bool showSize,
                                                     bool showSpin, bool showAlpha, bool showModifiers)
         {
@@ -763,7 +763,7 @@ namespace Laubrary.Pyre
 
         // Same as BuildStack but LAYER modifiers only — no global modifiers — for the isolated shape preview,
         // which is dialing in this one layer's own look, not the whole composited blast's post pass.
-        static ModStack BuildLayerOnlyStack(Layer layer, BlastSpec spec, int li, float lp, int frameIndex)
+        static ModStack BuildLayerOnlyStack(Layer layer, Pyre spec, int li, float lp, int frameIndex)
         {
             var geo = new System.Collections.Generic.List<GeoEntry>();
             var pix = new System.Collections.Generic.List<PixelModifier>();
@@ -823,7 +823,7 @@ namespace Laubrary.Pyre
         // every arm, then the next bar out of every arm, … — so overlapping arms layer consistently instead of
         // each whole arm stacking over the previous one. Geometry + pixel modifiers apply to bars (in RasterBar).
         static void RenderBarsLayerStar(Color32[] buf, int W, int H, float cx, float cy,
-                                        Layer layer, int li, BlastSpec spec, float lp, int frameIndex, float framePhase,
+                                        Layer layer, int li, Pyre spec, float lp, int frameIndex, float framePhase,
                                         float baseA, float spreadDeg, int spread, ModStack stack)
         {
             Vector2 center = new Vector2(cx, cy);
@@ -1272,7 +1272,7 @@ namespace Laubrary.Pyre
         // in that list, plus the surface-noise field that group is deformed by.
         static void BuildHeightBalls(System.Collections.Generic.List<HeightBall> balls,
                                      System.Collections.Generic.List<HbGroupSlice> slices,
-                                     Layer layer, BlastSpec spec, int li, float lp, Vector2 center, float half, int hash)
+                                     Layer layer, Pyre spec, int li, float lp, Vector2 center, float half, int hash)
         {
             var groups = layer.HeightBallGroups;
             if (groups == null) return;
@@ -1321,7 +1321,7 @@ namespace Laubrary.Pyre
         //     Alpha curve rising from and falling back to 0 a genuine fade in and out, with no separate
         //     fade dials, and what lets a Spread curve blow a clump out into a ring as the wave ages.
         static void BuildHeightBallGroup(System.Collections.Generic.List<HeightBall> balls, HeightBallGroup g, int gs,
-                                         BlastSpec spec, int li, float lp, Vector2 center, float half, int hash,
+                                         Pyre spec, int li, float lp, Vector2 center, float half, int hash,
                                          float confineR, float fold)
         {
             const float Tau = Mathf.PI * 2f;
@@ -1401,7 +1401,7 @@ namespace Laubrary.Pyre
         }
 
         static void RenderHeightBalls(Color32[] buf, int W, int H, float cx, float cy, float framePhase,
-                                      Layer layer, BlastSpec spec, int li, float lp, float alpha, Vector2 originOff,
+                                      Layer layer, Pyre spec, int li, float lp, float alpha, Vector2 originOff,
                                       in ModStack stack, int frameIndex, int hash)
         {
             if (alpha <= 0.001f) return;
@@ -2074,7 +2074,7 @@ namespace Laubrary.Pyre
         }
 
         // ── texture helpers ────────────────────────────────────────────────────
-        public static Texture2D RenderFrameTexture(BlastSpec spec, int frameIndex)
+        public static Texture2D RenderFrameTexture(Pyre spec, int frameIndex)
         {
             int W = spec != null ? spec.Width : 1;
             int H = spec != null ? spec.Height : 1;
@@ -2091,7 +2091,7 @@ namespace Laubrary.Pyre
 
         /// Texture2D wrapper around RenderShapePreview, same pattern as RenderFrameTexture — for PyreWindow's
         /// isolated single-shape preview box.
-        public static Texture2D RenderShapePreviewTexture(Layer layer, BlastSpec spec, int li, float t, int frameIndex,
+        public static Texture2D RenderShapePreviewTexture(Layer layer, Pyre spec, int li, float t, int frameIndex,
                                                            int W, int H, bool showGradientFill, bool showCrescent,
                                                            bool showHollow, bool showSize, bool showSpin, bool showAlpha,
                                                            bool showModifiers)
@@ -2109,7 +2109,7 @@ namespace Laubrary.Pyre
         }
 
         /// Pack every frame into a grid sheet (cols left→right, rows top→bottom) for baking / preview.
-        public static Texture2D RenderSheet(BlastSpec spec, out int cols, out int rows, int maxCols = 8)
+        public static Texture2D RenderSheet(Pyre spec, out int cols, out int rows, int maxCols = 8)
         {
             int W = spec != null ? spec.Width : 1;
             int H = spec != null ? spec.Height : 1;

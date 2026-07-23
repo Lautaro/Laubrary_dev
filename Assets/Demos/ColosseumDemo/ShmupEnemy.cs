@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Laubrary.Combat2D;
 using Laubrary.Pyre;
+using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespace inside a Laubrary.* namespace
 using Laubrary.Chunks;
 using Laubrary.Choreographer;
 using ChunksFx = Laubrary.Chunks.Chunks;   // the static class is shadowed by the namespace inside a namespaced file
@@ -21,7 +22,7 @@ namespace Laubrary.Demos.ColosseumShmup
     public class ShmupEnemy : MonoBehaviour
     {
         public Color tint = Color.white;
-        public List<BlastSpec> deathBlasts;
+        public List<PyreAsset> deathBlasts;
         public ChunkSpec debris;
         public ProjectileWeapon weapon;
         public Transform playerTarget;
@@ -103,7 +104,7 @@ namespace Laubrary.Demos.ColosseumShmup
             if (col != null) col.enabled = true;
         }
 
-        void SpawnBlast(BlastSpec s, Vector3 pos)
+        void SpawnBlast(PyreAsset s, Vector3 pos)
         {
             if (s == null) return;
             var go = new GameObject("Blast");

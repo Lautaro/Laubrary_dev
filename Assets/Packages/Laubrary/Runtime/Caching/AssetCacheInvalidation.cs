@@ -36,7 +36,7 @@ namespace Laubrary.Caching
     public static class AssetCacheInvalidation
     {
         /// Fired whenever an editor tool detects that `asset` was edited. Subscribers should check the
-        /// asset's type/identity themselves (e.g. `if (asset is BlastSpec spec) ClearCache(spec);`) — this is
+        /// asset's type/identity themselves (e.g. `if (asset is Pyre spec) ClearCache(spec);`) — this is
         /// a single shared bus, not a per-type event.
         public static event Action<UnityEngine.Object> Invalidated;
 

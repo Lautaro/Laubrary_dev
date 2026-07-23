@@ -17,8 +17,8 @@ public class ArenaSpawner : MonoBehaviour
     public int enemyCount = 8;
     public float enemyScale = 0.7f;
     public int clicksPerEnemy = 3;
-    public List<BlastSpec> hitBlasts;
-    public List<BlastSpec> destroyBlasts;
+    public List<Pyre> hitBlasts;
+    public List<Pyre> destroyBlasts;
     public ChunkSpec debris;
     public List<Color> tints = new();
     public Camera cam;

@@ -98,7 +98,7 @@ namespace Laubrary.BackSplash
 
     /// <summary>
     /// A plain, non-asset copy of a BackSplash's fields — owned inline by a single consumer (MirageView,
-    /// BlastSpec) instead of holding a shared reference to a <see cref="BackSplash"/> asset. Editing these
+    /// Pyre) instead of holding a shared reference to a <see cref="BackSplash"/> asset. Editing these
     /// fields (via BackSplashGUI.DrawInline) only ever touches THIS instance, never a shared preset — fixes a
     /// real bug where recalling a shared BackSplash asset into a view and editing it there instantly changed
     /// that same asset for every other view/tool referencing it. Recall copies values IN from a picked preset

@@ -502,7 +502,7 @@ namespace Laubrary.Mirage.Editor
         /// The native counterpart of LauAssetField.Draw (an IMGUI-layout helper this window can no longer
         /// call): thumbnail swatch + name + Recall + New + Edit, composed from Z.* pieces. Kept as ONE helper
         /// so the Content row and the Choreography row can't drift apart — Content additionally gets a Sprite
-        /// object field, since a previewable's content is a Zoe/BlastSpec/Sprite union with no shared type
+        /// object field, since a previewable's content is a Zoe/Pyre/Sprite union with no shared type
         /// constraint a single browser could represent (see MirageAssetPicker's own doc comment).
         VisualElement BuildAssetRow(Object current, string nameTooltip,
             System.Action<Rect> showRecall, IList<System.Type> creatable,
@@ -604,7 +604,7 @@ namespace Laubrary.Mirage.Editor
             var spriteField = Z.Field("Sprite", spriteTip, Z.Object<Sprite>(entry.content as Sprite, spriteTip,
                 v => { if (v != null && !ReferenceEquals(v, entry.content)) SetContent(entry, v); }, 140f));
 
-            // Scoped to MirageAssetPicker.SupportedTypes (Zoe/BlastSpec), not a typeof(Object) constraint —
+            // Scoped to MirageAssetPicker.SupportedTypes (Zoe/Pyre), not a typeof(Object) constraint —
             // that used to match every LauAssetEditors-registered type in the project (ChunkSpec, WareSpec…).
             var creatable = System.Array.FindAll(MirageAssetPicker.SupportedTypes, LauAssetEditors.CanCreate);
 

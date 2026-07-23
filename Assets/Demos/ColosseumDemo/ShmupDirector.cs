@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Laubrary.Combat2D;
 using Laubrary.Pyre;
+using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespace inside a Laubrary.* namespace
 using Laubrary.Chunks;
 using Laubrary.Choreographer;
 
@@ -22,7 +23,7 @@ namespace Laubrary.Demos.ColosseumShmup
         public Faction enemyFaction;
         public Projectile playerBulletPrefab;
         public Projectile enemyBulletPrefab;
-        public List<BlastSpec> deathBlasts = new();
+        public List<PyreAsset> deathBlasts = new();
         public ChunkSpec debris;
         public Choreography choreo;
         public List<Color> tints = new();

@@ -11,7 +11,7 @@ namespace Laubrary.Mirage
 {
     /// <summary>
     /// A persisted preview arrangement — edited directly, no clone/discard (same workflow as Pyre's
-    /// BlastSpec: field writes ARE the save). A <see cref="MirageRig"/> realizes this into live GameObjects,
+    /// Pyre: field writes ARE the save). A <see cref="MirageRig"/> realizes this into live GameObjects,
     /// in Edit mode and at Play. Never write an entry here except through the "Add Previewable" flow
     /// (MirageWindow / MirageHud) — a Zoe's own muzzle/death VFX must stay a side effect of ITS entry,
     /// never its own entry.
@@ -78,7 +78,7 @@ namespace Laubrary.Mirage
     }
 
     /// <summary>
-    /// One placed previewable. <see cref="content"/>'s actual runtime type IS the kind — a Zoe, a BlastSpec,
+    /// One placed previewable. <see cref="content"/>'s actual runtime type IS the kind — a Zoe, a Pyre,
     /// or a Sprite (the background case) — deliberately no separate kind enum that could drift out of sync.
     /// </summary>
     [Serializable]
@@ -87,7 +87,7 @@ namespace Laubrary.Mirage
         [Tooltip("Stable id so a live GameObject can be matched back to this entry across re-realizes.")]
         public string id = Guid.NewGuid().ToString("N");
 
-        [Tooltip("A Zoe, a BlastSpec, or a Sprite (background). Kind is read from this object's type.")]
+        [Tooltip("A Zoe, a Pyre, or a Sprite (background). Kind is read from this object's type.")]
         public UnityEngine.Object content;
 
         public Vector2 position;

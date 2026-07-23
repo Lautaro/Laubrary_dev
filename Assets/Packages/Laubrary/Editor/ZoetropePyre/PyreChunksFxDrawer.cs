@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEngine;
 using Laubrary.ZoetropePyre;
 using Laubrary.Pyre;
+using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespace inside a Laubrary.* namespace
 using Laubrary.Pyre.Editor;
 
 namespace Laubrary.ZoetropePyre.Editor
@@ -36,7 +37,7 @@ namespace Laubrary.ZoetropePyre.Editor
             EditorGUI.PropertyField(r, sortProp);
             r.y += lineH + pad;
 
-            var blast = blastProp.objectReferenceValue as BlastSpec;
+            var blast = blastProp.objectReferenceValue as PyreAsset;
             using (new EditorGUI.DisabledScope(blast == null))
             {
                 if (GUI.Button(r, "Preview in Pyre"))

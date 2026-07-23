@@ -22,27 +22,27 @@ namespace Laubrary.Pyre.Editor
     ///   PyreWindow.Layers.cs    — layer list + selected-layer inspector
     ///   PyreWindow.Modifiers.cs — modifier stacks + per-modifier bodies
     ///   PyreWindow.Preview.cs   — the IMGUI viewport + transport + backdrop/subject panels
-    public partial class PyreWindow : ZuiAssetWindow<BlastSpec>
+    public partial class PyreWindow : ZuiAssetWindow<Pyre>
     {
         [MenuItem("Laubrary/Pyre")]
         public static void Open() => GetWindow<PyreWindow>("Pyre");
 
         /// Open the window focused directly on a specific blast — the entry point other tools (e.g. the
-        /// Zoetrope.Pyre editor bridge) use to jump straight into previewing/editing a referenced BlastSpec.
-        public static void OpenFor(BlastSpec spec)
+        /// Zoetrope.Pyre editor bridge) use to jump straight into previewing/editing a referenced Pyre.
+        public static void OpenFor(Pyre spec)
         {
             var w = GetWindow<PyreWindow>("Pyre");
             if (spec != null) w.SetAsset(spec);
         }
 
-        BlastSpec spec => Current;   // the base owns the current asset; alias for the dial/preview code
+        Pyre spec => Current;   // the base owns the current asset; alias for the dial/preview code
 
-        protected override string TypeLabel => "Blast";
+        protected override string TypeLabel => "Pyre";
         protected override string NewAssetName => "New Pyre";
         protected override string DefaultFolder => "Assets/Pyre";
         protected override void OnAssetChanged() { scrub = -1; DisposePreviewSubject(); }
-        protected override void InitializeNewAsset(BlastSpec item) => item.AddExampleContent();
-        protected override Texture2D RenderThumbnail(BlastSpec item)
+        protected override void InitializeNewAsset(Pyre item) => item.AddExampleContent();
+        protected override Texture2D RenderThumbnail(Pyre item)
         {
             int mid = Mathf.Clamp(item.frameCount / 2, 0, Mathf.Max(0, item.frameCount - 1));
             var tex = BlastRenderer.RenderFrameTexture(item, mid);
@@ -50,7 +50,7 @@ namespace Laubrary.Pyre.Editor
             return tex;
         }
         protected override bool AnimateThumbnails => true;
-        protected override void UpdateAnimatedThumbnail(BlastSpec item, Texture2D tex, double time)
+        protected override void UpdateAnimatedThumbnail(Pyre item, Texture2D tex, double time)
         {
             if (item == null || item.frameCount <= 1) return;
             float fps = Mathf.Max(1f, item.previewFps);
@@ -63,7 +63,7 @@ namespace Laubrary.Pyre.Editor
         [SerializeField] float leftWidth = 340f;
         [SerializeField] float previewHeight = 320f;
 
-        // ── per-asset proxies (live on the BlastSpec so switching assets restores its own setup) ─────
+        // ── per-asset proxies (live on the Pyre so switching assets restores its own setup) ─────
         float zoom { get => spec != null ? spec.previewZoom : 4f; set { if (spec != null) spec.previewZoom = value; } }
 
         bool showFrame { get => spec != null && spec.previewShowFrame; set { if (spec != null) spec.previewShowFrame = value; } }
@@ -225,7 +225,7 @@ namespace Laubrary.Pyre.Editor
         }
 
         /// onBeforeMutate hook for Z controls: record once per gesture.
-        void RecordSpec() { if (spec != null) Undo.RecordObject(spec, "Edit Pyre Blast"); }
+        void RecordSpec() { if (spec != null) Undo.RecordObject(spec, "Edit Pyre"); }
 
         /// onChanged hook for Z controls: dirty + refresh the preview.
         void DirtySpec()
@@ -246,7 +246,7 @@ namespace Laubrary.Pyre.Editor
             scrubSlider = null; frameLabel = null; playButton = null; stageNameLabel = null;
         }
 
-        protected override void BuildAsset(VisualElement root, BlastSpec asset)
+        protected override void BuildAsset(VisualElement root, Pyre asset)
         {
             ValidateArmedModifiers();
             root.style.flexGrow = 1f;
@@ -333,7 +333,7 @@ namespace Laubrary.Pyre.Editor
         // ── Blast settings ─────────────────────────────────────────────────────────────────
         void BuildBlastSettings(VisualElement root)
         {
-            root.Add(Z.Text("Blast", ZuiText.Section, "The blast's top-level canvas and timing settings."));
+            root.Add(Z.Text("Pyre", ZuiText.Section, "This Pyre's top-level canvas and timing settings."));
 
             if (AnyStarLayer())
                 root.Add(Z.Text($"Canvas {spec.Width}×{spec.Height}  (auto-fit for star)", ZuiText.Subtle,
@@ -424,7 +424,7 @@ namespace Laubrary.Pyre.Editor
         VisualElement PackedSlider(string label, string tooltip, float value, float lo, float hi,
             System.Action<float> set, float width = 110f)
             => Z.Field(label, tooltip, Z.Slider(value, lo, hi, tooltip,
-                v => Dial("Edit Pyre Blast", () => set(v)), width));
+                v => Dial("Edit Pyre", () => set(v)), width));
 
 
         // ── splitters ───────────────────────────────────────────────────────────────────────

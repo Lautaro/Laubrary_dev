@@ -98,7 +98,7 @@ namespace Laubrary.FrameworkTrial
 
             var addBtn = new Button(() => Debug.Log("[UIToolkit Trial] Add Previewable clicked")) { text = "Add Previewable" };
             addBtn.AddToClassList("w-130");
-            addBtn.tooltip = "Pick a Zoe/BlastSpec/Sprite to place — opens a thumbnail browser in the real tool.";
+            addBtn.tooltip = "Pick a Zoe/Pyre/Sprite to place — opens a thumbnail browser in the real tool.";
             row.Add(addBtn);
 
             box.Add(row);

@@ -5,14 +5,14 @@ using Laubrary.Caching;
 
 namespace Laubrary.Pyre
 {
-    /// Runtime player that shows a BlastSpec with no baked assets: it renders every frame to an in-memory Sprite
+    /// Runtime player that shows a Pyre with no baked assets: it renders every frame to an in-memory Sprite
     /// through the shared BlastRenderer (so it matches the editor preview and any bake) and cycles a SpriteRenderer
     /// through them. Frame arrays are cached per spec so repeated spawns are cheap.
     [RequireComponent(typeof(SpriteRenderer))]
     public class BlastPlayer : MonoBehaviour
     {
         [Tooltip("The explosion to play. If left empty, assign one before Play() or nothing happens.")]
-        public BlastSpec spec;
+        public Pyre spec;
 
         [Tooltip("Playback speed in frames per second.")]
         public float fps = 24f;
@@ -37,14 +37,14 @@ namespace Laubrary.Pyre
         static readonly Dictionary<int, Sprite[]> cache = new();
 
         // Opts into the general, engine-wide cache-invalidation bus (Laubrary.Caching): whenever ANY editor
-        // tool edits a BlastSpec asset (Pyre's own window, the plain Inspector, doesn't matter which), the
+        // tool edits a Pyre asset (Pyre's own window, the plain Inspector, doesn't matter which), the
         // Editor-side bridge detects it via Unity's own ObjectChangeEvents and calls Invalidate() — so this
         // cache drops automatically and the NEXT play re-renders with the edited data, including mid-Play-Mode
         // live tuning. First preference, not hard-wired: this is a plain opt-in subscription, not a
-        // requirement BlastSpec imposes on anything.
+        // requirement Pyre imposes on anything.
         static BlastPlayer()
         {
-            AssetCacheInvalidation.Invalidated += asset => { if (asset is BlastSpec spec) ClearCache(spec); };
+            AssetCacheInvalidation.Invalidated += asset => { if (asset is Pyre spec) ClearCache(spec); };
         }
 
         SpriteRenderer sr;
@@ -105,7 +105,7 @@ namespace Laubrary.Pyre
         }
 
         /// Build (or reuse) the per-frame Sprite array for a spec. Cached by instance id so the same spec renders once.
-        public static Sprite[] GetFrames(BlastSpec spec)
+        public static Sprite[] GetFrames(Pyre spec)
         {
             if (spec == null) return null;
             int key = spec.GetInstanceID();
@@ -126,7 +126,7 @@ namespace Laubrary.Pyre
         }
 
         /// Drop a spec's cached frames (call after editing a spec at runtime so the next Play() re-renders).
-        public static void ClearCache(BlastSpec spec)
+        public static void ClearCache(Pyre spec)
         {
             if (spec != null) cache.Remove(spec.GetInstanceID());
         }

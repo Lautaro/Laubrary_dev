@@ -83,7 +83,7 @@ namespace Laubrary.UIAudit.Tests
                 ZUI.HelpIcon("Pixels-per-unit used only for this preview's on-screen scale — doesn't affect any baked asset.");
                 ZUI.HorizontalSpace();
                 ZUI.Button(new GUIContent("Add Previewable",
-                    "Pick a Zoe/BlastSpec/Sprite to place — opens a thumbnail browser in the real tool."),
+                    "Pick a Zoe/Pyre/Sprite to place — opens a thumbnail browser in the real tool."),
                     ZUI.Style.Default, GUILayout.Width(130f));
                 GUILayout.FlexibleSpace();
             }
@@ -171,7 +171,7 @@ namespace Laubrary.UIAudit.Tests
         {
             ZUI.Label("Content", ZUI.ZTextStyle.Subtle);
             DrawMockAssetFieldRow(ref _entryContentName,
-                "The Zoe/BlastSpec/Sprite asset this previewable displays.");
+                "The Zoe/Pyre/Sprite asset this previewable displays.");
 
             // A world-space spatial position is a 2D-drag-target case, NOT a row-packing case — but it
             // can still share a row with an unrelated short scalar field (Scale) beside it.

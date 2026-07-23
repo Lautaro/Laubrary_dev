@@ -197,7 +197,7 @@ namespace Laubrary.Zoetrope.Editor
         }
 
         // A field on a [SerializeReference] value that's itself a reference to a LauAsset-registered
-        // ScriptableObject type (e.g. PyreChunksFx.blast : BlastSpec, PyreChunksFx.chunks : ChunkSpec) was
+        // ScriptableObject type (e.g. PyreChunksFx.blast : Pyre, PyreChunksFx.chunks : ChunkSpec) was
         // rendering as Unity's bare default ObjectField — no thumbnail, no Recall browser, no New/Edit
         // shortcuts, unlike every OTHER LauAsset-typed field in this codebase (real bug, caught by inspection:
         // "if those are fields for picking a certain LauAsset type then why are they object pickers?").
@@ -205,7 +205,7 @@ namespace Laubrary.Zoetrope.Editor
         // same core/bridge decoupling TryDrawClipPopup's "version" duck-typing already keeps), scoped to
         // actual ScriptableObject Object-reference fields only, so this stays generically useful rather than
         // hardcoded to PyreChunksFx specifically. LauAssetField.Draw's own "✎ Edit" button already opens the
-        // asset in its registered editor (PyreWindow for a BlastSpec, ChunkWindow for a ChunkSpec) — no
+        // asset in its registered editor (PyreWindow for a Pyre, ChunkWindow for a ChunkSpec) — no
         // separate "Preview in X" button needed, unlike the Rect-based drawer this replaced.
         static readonly Dictionary<Object, Texture2D> _assetRefThumbs = new Dictionary<Object, Texture2D>();
 

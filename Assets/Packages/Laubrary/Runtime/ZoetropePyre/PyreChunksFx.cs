@@ -1,6 +1,7 @@
 using UnityEngine;
 using Laubrary.Zoetrope;
 using Laubrary.Pyre;
+using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespace inside a Laubrary.* namespace
 using Laubrary.Chunks;
 using ChunksFx = Laubrary.Chunks.Chunks;   // the class is shadowed by the namespace inside a Laubrary.* namespace
 
@@ -16,7 +17,7 @@ namespace Laubrary.ZoetropePyre
     public class PyreChunksFx : ICombatFx
     {
         [Tooltip("Pyre explosion to play once at the point (optional).")]
-        public BlastSpec blast;
+        public PyreAsset blast;
         [Tooltip("Playback speed for the blast, frames per second.")]
         public float blastFps = 24f;
         [Tooltip("Chunks debris burst to throw at the point (optional). Uses the hit direction when given.")]

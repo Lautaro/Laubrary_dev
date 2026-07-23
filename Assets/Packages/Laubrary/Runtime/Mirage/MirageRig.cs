@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using Laubrary.Zoetrope;
 using Laubrary.Pyre;
+using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespace inside a Laubrary.* namespace
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -13,7 +14,7 @@ namespace Laubrary.Mirage
     /// The one component in the hierarchy. Owns NO UI — it only realizes a <see cref="MirageView"/> into
     /// live GameObjects and exposes Add/Remove/Reposition as the seam <c>MirageWindow</c>/<c>MirageHud</c>
     /// call into. Every write goes straight to the live <see cref="view"/> asset (same persistence model as
-    /// Pyre's BlastSpec — no clone, no discard on Stop). Runs in Edit mode too (<see cref="ExecuteAlways"/>)
+    /// Pyre's Pyre — no clone, no discard on Stop). Runs in Edit mode too (<see cref="ExecuteAlways"/>)
     /// so previewables show up and can be repositioned without pressing Play — realized GameObjects are
     /// <see cref="HideFlags.DontSave"/> so they never leak into the saved scene.
     /// </summary>
@@ -220,7 +221,7 @@ namespace Laubrary.Mirage
                     _pendingZoeScale.Add(entry.id);   // PPU not known until ps.Spawned exists — resolved in Update()
                     break;
                 }
-                case BlastSpec blast:
+                case PyreAsset blast:
                 {
                     // BlastPlayer.Awake() runs SYNCHRONOUSLY during AddComponent, before `spec` is assigned
                     // below — it sees spec==null and never builds frames or starts playing (the same

@@ -5,7 +5,7 @@ using Laubrary.PreviewKit.Editor;
 namespace Laubrary.Pyre.Editor
 {
     /// <summary>
-    /// Contract for an animated "preview subject" a <see cref="BlastSpec"/> can optionally reference (e.g. a
+    /// Contract for an animated "preview subject" a <see cref="Pyre"/> can optionally reference (e.g. a
     /// Zoetrope character playing a clip) so Pyre's own preview shows the blast in the context it'll actually
     /// play in, and can align the blast's render origin to a LIVE point on that subject (a muzzle, a blade
     /// tip) every frame. The subject renders through a <see cref="LiveScenePreview"/> — a REAL isolated scene
@@ -32,7 +32,7 @@ namespace Laubrary.Pyre.Editor
         /// at `worldPosition`, exactly as a real scene would place it.
         void SpawnInto(LiveScenePreview preview, Vector3 worldPosition);
 
-        /// The live attach point (named by whatever id the BlastSpec was configured with, e.g. "Muzzle"), in
+        /// The live attach point (named by whatever id the Pyre was configured with, e.g. "Muzzle"), in
         /// WORLD SPACE, reflecting wherever <see cref="SpawnInto"/> last placed the subject. Returns false if
         /// unavailable (no subject configured, or the point couldn't be resolved this frame) — the caller
         /// should fall back to the subject's own position.
@@ -40,13 +40,13 @@ namespace Laubrary.Pyre.Editor
     }
 
     /// <summary>
-    /// Resolves a BlastSpec's preview-subject fields (<c>previewSubjectAsset</c>/<c>previewSubjectClip</c>/
+    /// Resolves a Pyre's preview-subject fields (<c>previewSubjectAsset</c>/<c>previewSubjectClip</c>/
     /// <c>previewSubjectAttachId</c>) into a live <see cref="IPyrePreviewSubject"/>. Null until a bridge
     /// module registers a resolver — Pyre's preview simply skips the subject entirely when none is set.
     /// </summary>
     public static class PyrePreviewSubjectProvider
     {
-        public static Func<BlastSpec, IPyrePreviewSubject> Resolve;
+        public static Func<Pyre, IPyrePreviewSubject> Resolve;
 
         /// Optional: given a subject asset + clip name, returns the known attach-point ids available for
         /// that combination (e.g. a Zoe's MetaLayer names), or null if the bridge can't enumerate them (an

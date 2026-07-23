@@ -9,7 +9,7 @@ namespace Laubrary.PyreZoetrope.Editor
 {
     /// <summary>
     /// Registers the Launimator-backed <see cref="IPyrePreviewSubject"/> resolver with Pyre — the bridge that
-    /// lets a BlastSpec's "Subject asset" field (a plain Object, set in Pyre's own preview panel) hold a
+    /// lets a Pyre's "Subject asset" field (a plain Object, set in Pyre's own preview panel) hold a
     /// <see cref="ReelVersion"/>, so Pyre can play one of its clips live in its own preview with the blast's
     /// origin tracking a named MetaLayer point every frame. Neither Pyre core nor the generic panel that sets
     /// these fields knows Launimator exists — only this bridge does, matching the same pattern as
