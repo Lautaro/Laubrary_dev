@@ -179,7 +179,7 @@ namespace Laubrary.Pyre.Editor
                         l.startFrame = Mathf.RoundToInt(lo);
                         l.endFrame = Mathf.Clamp(Mathf.RoundToInt(hi), l.startFrame, fcMax);
                         DirtySpec();
-                    })));
+                    }, 130f, isInt: true)));
 
             l.colorOverLife ??= Layer.DefaultColor(l.shape);
             l.alpha ??= Layer.DefaultAlpha();
@@ -251,7 +251,7 @@ namespace Laubrary.Pyre.Editor
                         root.Add(Z.Box("Sparkle blobs", "Per-blob shape and lifetime.",
                             WrapRow(
                                 PackedVal("Radius (px)", "Each blob's radius in pixels.", l.sparkleBlobRadius, 0.5f, Mathf.Max(4f, half * 0.3f), 2f),
-                                PackedVal("Life (frames)", "Each blob's grow/hold/fade lifetime.", l.sparkleBlobLife, 1f, 30f, 8f),
+                                PackedVal("Life (frames)", "Each blob's grow/hold/fade lifetime.", l.sparkleBlobLife, 1f, 30f, 8f, isInt: true),
                                 PackedVal("Softness", "Softness of each blob's edge.", l.sparkleBlobSoftness, 0f, 1f, 0.6f))));
                     else
                         root.Add(ValRow("Sparkle seed", "Reseeds the twinkle pattern (Min-Max = a new roll per frame).", l.sparkleSeed, 0f, 1f));
@@ -487,7 +487,7 @@ namespace Laubrary.Pyre.Editor
             var box = Z.Box("Bars — forward-growing row",
                 "A self-contained directional mode — scatter/emission/deform controls don't apply; everything here is sampled once for the whole row/arm-set.");
             box.Add(WrapRow(
-                PackedVal("Bars per side", "How many bars on each side of the centre.", l.barCount, 0f, 40f, 7f, allowMinMax: false),
+                PackedVal("Bars per side", "How many bars on each side of the centre.", l.barCount, 0f, 40f, 7f, allowMinMax: false, isInt: true),
                 PackedVal("Width (px)", "Each bar's width in pixels.", l.barWidth, 1f, 12f, 3f, allowMinMax: false)));
             box.Add(WrapRow(
                 PackedVal("Spacing (×width)", "Gap between bars as a multiple of their width — 1 = touching.", l.barSpacing, 1f, 6f, 1.5f, allowMinMax: false),
@@ -515,9 +515,8 @@ namespace Laubrary.Pyre.Editor
             if (l.star)
             {
                 box.Add(WrapRow(
-                    Z.Field("Arms", "How many arms radiate from the centre.",
-                        Z.SliderInt(l.spreadCount, 1, 24, "How many arms radiate from the centre.",
-                            v => Dial("Arms", () => l.spreadCount = Mathf.Max(1, v)), 110f)),
+                    PackedSlider("Arms", "How many arms radiate from the centre.", l.spreadCount, 1f, 24f,
+                        v => l.spreadCount = Mathf.Max(1, Mathf.RoundToInt(v)), 110f, isInt: true),
                     PackedVal("Spread degrees", "Total angle the arms fan across.", l.spreadDegrees, 0f, 360f, 360f, allowMinMax: false)));
                 box.Add(Z.Text("Arms share the centre and radiate outward; canvas auto-fits.", ZuiText.Small,
                     "Star mode computes the canvas size from the arms."));
@@ -647,7 +646,7 @@ namespace Laubrary.Pyre.Editor
                 "bleed into each other, and Vary gives each arm its own seed rather than a reshuffled copy.");
             arms.Add(WrapRow(
                 PackedSlider("Arms", "How many flame arms radiate from the centre. 1 = a single directional flame.",
-                    l.fireArms, 1f, 12f, v => l.fireArms = Mathf.RoundToInt(v), 150f),
+                    l.fireArms, 1f, 12f, v => l.fireArms = Mathf.RoundToInt(v), 150f, isInt: true),
                 Z.Field("Mode", "Mirror = every arm emits identically. Vary = each arm gets its own seed.",
                     Z.EnumDropdown(l.fireArmMode,
                         "Mirror = every arm emits identically (symmetric). Vary = each arm gets its own seed, " +
@@ -706,11 +705,9 @@ namespace Laubrary.Pyre.Editor
             box.Add(WrapRow(
                 PackedVal("Reach", "How far the flame may go, as a fraction of the canvas half-size.", l.fireReach, 0.1f, 1f),
                 PackedVal("Edge cooling", "How hard the flame is cooled once past Reach.", l.fireEdgeCooling, 0f, 1f)));
-            box.Add(Z.Field("Steps / frame", "Simulation steps per frame. More = smoother, faster-evolving " +
+            box.Add(PackedSlider("Steps / frame", "Simulation steps per frame. More = smoother, faster-evolving " +
                 "motion for the same frame count; it doesn't change the flame's shape, only how far it gets " +
-                "each frame.",
-                Z.SliderInt(l.fireSteps, 1, 6, "Simulation steps per frame.",
-                    v => Dial("Fire steps", () => l.fireSteps = v), 130f)));
+                "each frame.", l.fireSteps, 1f, 6f, v => l.fireSteps = Mathf.RoundToInt(v), 130f, isInt: true));
             root.Add(box);
         }
 
@@ -741,7 +738,7 @@ namespace Laubrary.Pyre.Editor
             var burst = Z.Box("Burst (star mirror)", "Repeat the flame into radial wedges for an explosion.");
             burst.Add(WrapRow(
                 PackedSlider("Arms", "Radial wedges. 1 = a plain outward burst; more = a kaleidoscope explosion.",
-                    l.fireballArms, 1f, 12f, v => l.fireballArms = Mathf.RoundToInt(v), 150f),
+                    l.fireballArms, 1f, 12f, v => l.fireballArms = Mathf.RoundToInt(v), 150f, isInt: true),
                 Z.Toggle("Mirror", "Reflect alternate wedges so neighbours meet at a seam.", l.fireballMirror,
                     v => Dial("Fireball mirror", () => l.fireballMirror = v))));
             burst.Add(ValRow("Reach", "How far it may go, as a fraction of the canvas half — it never touches " +
@@ -892,12 +889,10 @@ namespace Laubrary.Pyre.Editor
             var waves = Z.Box("Waves — how many balls, and when they live",
                 "A group is nothing but its waves: every ball belongs to one, is born with it and dies with it. Waves times Balls per wave is the whole population — one single ball is Waves 1, Balls per wave 1.");
             waves.Add(WrapRow(
-                Z.Field("Waves", "How many waves this group fires across the layer's life, spaced so the last one still finishes. 1 = a single wave spanning the WHOLE layer life. Never 0 — a ball with no wave would have no life to animate over.",
-                    Z.SliderInt(g.waves, 1, HeightBallGroup.MaxWaves, "How many waves this group fires across the layer's life, spaced so the last one still finishes. 1 = a single wave spanning the WHOLE layer life. Never 0 — a ball with no wave would have no life to animate over.",
-                        v => Dial("Waves", () => g.waves = v), 110f)),
-                Z.Field("Balls per wave", "How many balls one wave places, around the group's centre. This is the group's ONLY ball count.",
-                    Z.SliderInt(g.waveBalls, 1, HeightBallGroup.MaxWaveBalls, "How many balls one wave places, around the group's centre. This is the group's ONLY ball count.",
-                        v => Dial("Balls per wave", () => g.waveBalls = v), 110f)),
+                PackedSlider("Waves", "How many waves this group fires across the layer's life, spaced so the last one still finishes. 1 = a single wave spanning the WHOLE layer life. Never 0 — a ball with no wave would have no life to animate over.",
+                    g.waves, 1f, HeightBallGroup.MaxWaves, v => g.waves = Mathf.RoundToInt(v), 110f, isInt: true),
+                PackedSlider("Balls per wave", "How many balls one wave places, around the group's centre. This is the group's ONLY ball count.",
+                    g.waveBalls, 1f, HeightBallGroup.MaxWaveBalls, v => g.waveBalls = Mathf.RoundToInt(v), 110f, isInt: true),
                 PackedSlider("Wave life", "How long one wave lasts, as a fraction of the layer's life — which is also how long each of its balls lives. Ignored when Waves is 1.", g.waveLife, 0.05f, 1f, v => g.waveLife = v),
                 PackedSlider("Symmetry", "1 = a wave's balls sit at perfectly even angles; lower scatters them for a lopsided, organic wave.", g.symmetry, 0f, 1f, v => g.symmetry = v)));
             if (g.waves == 1)
@@ -994,7 +989,7 @@ namespace Laubrary.Pyre.Editor
                     new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero)),
                 PackedVal("Warp", "Distorts the noise field into itself.", l.noiseWarp, 0f, 2f, 0.6f, allowMinMax: perShape)));
             root.Add(PackedSlider("Shading bands", "Quantizes the ramp into this many bands.", l.noiseBands, 1f, 8f,
-                v => l.noiseBands = Mathf.Max(1, Mathf.RoundToInt(v)), 150f));
+                v => l.noiseBands = Mathf.Max(1, Mathf.RoundToInt(v)), 150f, isInt: true));
             root.Add(PackedSlider("Band softness", "Softens the band boundaries.", l.noiseBandSoftness, 0f, 1f,
                 v => l.noiseBandSoftness = v, 150f));
         }

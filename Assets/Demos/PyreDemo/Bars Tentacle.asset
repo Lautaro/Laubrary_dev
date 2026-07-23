@@ -24,7 +24,7 @@ MonoBehaviour:
     enabled: 1
     startFrame: 0
     endFrame: 15
-    shape: 8
+    shape: 7
     fireIntensity:
       m_mode: 2
       m_static: 1
@@ -371,8 +371,16 @@ MonoBehaviour:
       m_static: 0.62679
       m_min: 0
       m_max: 1
-      m_points: []
-      m_yMin: 0
+      m_points:
+      - time: 0
+        value: 0.62679
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 0.62679
+        exponent: 1
+        editState: 0
+      m_yMin: 0.1
       m_yMax: 1
       m_duration: 4
       m_warmup: 0
@@ -1236,7 +1244,7 @@ MonoBehaviour:
   previewSubjectAttachId: 
   previewLayerSel: 0
   previewScroll: {x: 0, y: 0}
-  previewFrame: 13
+  previewFrame: 4
   previewShapeOn: 0
   previewShapeGradientFill: 1
   previewShapeCrescent: 1
@@ -1346,7 +1354,7 @@ MonoBehaviour:
           m_max: 1
           m_points:
           - time: 0
-            value: 0
+            value: 1
             exponent: 1
             editState: 0
           - time: 1

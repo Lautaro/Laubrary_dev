@@ -88,9 +88,13 @@ namespace Laubrary.Pyre.Editor
                 Dial(v ? "Enable modifier" : "Disable modifier", () => m.enabled = v);
                 RebuildLeft();
             }));
-            header.Add(Z.Text(m.DisplayName, ZuiText.Body, m.DisplayName + " modifier."));
+            // A single-value modifier puts its NAME inside the microslider (label-inside, the ZUI point)
+            // rather than as a separate label beside a value-only slider. When disabled (no slider) or
+            // multi-value (a body below), the name is the plain header text.
             if (single && m.enabled)
-                header.Add(PackedVal("", m.DisplayName + " amount.", singleVal, singleLo, singleHi, singleDef));
+                header.Add(PackedVal(m.DisplayName, m.DisplayName + " amount.", singleVal, singleLo, singleHi, singleDef));
+            else
+                header.Add(Z.Text(m.DisplayName, ZuiText.Body, m.DisplayName + " modifier."));
             header.Add(Z.Flexible());
             header.Add(Z.Button("Copy", "Copy this modifier's settings to the modifier clipboard.", () =>
             {
@@ -243,7 +247,7 @@ namespace Laubrary.Pyre.Editor
                             "its own seeded turn, flip and scale, so they read as related but not identical.",
                             v => { Dial("Kaleidoscope mode", () => km.mode = v); RebuildLeft(); }, 130f)));
                     box.Add(PackedSlider("Arms", "How many arms radiate from the centre. 1 leaves the layer alone.",
-                        km.arms, 1f, 16f, v => km.arms = Mathf.RoundToInt(v), 150f));
+                        km.arms, 1f, 16f, v => km.arms = Mathf.RoundToInt(v), 150f, isInt: true));
                     box.Add(ValRow("Arc °", "Total arc the arms span. 360 = evenly around the circle; less bunches " +
                         "them into a fan. Animate it to sweep a fan open.", km.arcDegrees, 0f, 360f, 360f));
                     box.Add(ValRow("Rotation °", "Turn the whole arrangement. Animate it to spin the kaleidoscope.",
@@ -257,7 +261,7 @@ namespace Laubrary.Pyre.Editor
                     break;
                 case BloomModifier bm:
                     box.Add(PackedSlider("Threshold", "Brightness above which pixels bloom.", bm.threshold, 0f, 1f, v => bm.threshold = v, 150f));
-                    box.Add(PackedSlider("Radius (px)", "Bloom spread radius.", bm.radius, 0f, 16f, v => bm.radius = Mathf.RoundToInt(v), 150f));
+                    box.Add(PackedSlider("Radius (px)", "Bloom spread radius.", bm.radius, 0f, 16f, v => bm.radius = Mathf.RoundToInt(v), 150f, isInt: true));
                     box.Add(ValRow("Intensity", "Bloom strength.", bm.intensity, 0f, 3f, 1.2f));
                     break;
                 case OutlineModifier om:
@@ -274,7 +278,7 @@ namespace Laubrary.Pyre.Editor
                     box.Add(PackedSlider("Outer curve", "Falloff curve of the outer fade.", om.outerSoftnessCurve, 0.2f, 5f, v => om.outerSoftnessCurve = v, 150f));
                     break;
                 case JaggModifier jm:
-                    box.Add(PackedSlider("Arms", "How many star arms.", jm.arms, 2f, 24f, v => jm.arms = Mathf.RoundToInt(v), 150f));
+                    box.Add(PackedSlider("Arms", "How many star arms.", jm.arms, 2f, 24f, v => jm.arms = Mathf.RoundToInt(v), 150f, isInt: true));
                     box.Add(ValRow("Strength", "How deep the jagging cuts.", jm.strength, 0f, 0.95f, 0.4f));
                     box.Add(ValRow("Twist", "Rotates the arms over life.", jm.twist, -180f, 180f, 0f));
                     break;
@@ -310,7 +314,7 @@ namespace Laubrary.Pyre.Editor
                     box.Add(PackedSlider("Edge alpha", "Alpha threshold that counts as the silhouette.", ds.alphaThreshold, 0.01f, 1f, v => ds.alphaThreshold = v, 150f));
                     break;
                 case PosterizeModifier pz:
-                    box.Add(PackedSlider("Levels", "How many colour levels remain.", pz.levels, 2f, 16f, v => pz.levels = Mathf.RoundToInt(v), 150f));
+                    box.Add(PackedSlider("Levels", "How many colour levels remain.", pz.levels, 2f, 16f, v => pz.levels = Mathf.RoundToInt(v), 150f, isInt: true));
                     box.Add(Z.Toggle("Affect alpha", "Also posterize the alpha channel.", pz.affectAlpha,
                         v => Dial("Affect alpha", () => pz.affectAlpha = v)));
                     break;
@@ -425,13 +429,13 @@ namespace Laubrary.Pyre.Editor
                     box.Add(ValRow("Display scale", "×scale on the displayed displacement.", pf.displayScale, 0f, 5f, 1f, allowMinMax: false));
                     break;
                 case SunburstModifier sb:
-                    box.Add(PackedSlider("Rays", "How many rays around the silhouette.", sb.rays, 2f, 32f, v => sb.rays = Mathf.RoundToInt(v), 150f));
+                    box.Add(PackedSlider("Rays", "How many rays around the silhouette.", sb.rays, 2f, 32f, v => sb.rays = Mathf.RoundToInt(v), 150f, isInt: true));
                     box.Add(ValRow("Strength", "How deep the rays cut.", sb.strength, 0f, 0.95f, 0.6f));
                     box.Add(PackedSlider("Sharpness", "Hardness of the ray edges.", sb.sharpness, 0.5f, 8f, v => sb.sharpness = v, 150f));
                     box.Add(ValRow("Rotation", "Rotates the ray pattern.", sb.rotation, -180f, 180f, 0f));
                     break;
                 case PulseRingsModifier pr:
-                    box.Add(PackedSlider("Rings", "How many concentric pulse rings.", pr.rings, 1f, 12f, v => pr.rings = Mathf.RoundToInt(v), 150f));
+                    box.Add(PackedSlider("Rings", "How many concentric pulse rings.", pr.rings, 1f, 12f, v => pr.rings = Mathf.RoundToInt(v), 150f, isInt: true));
                     box.Add(ValRow("Speed", "Ring travel speed (negative = inward).", pr.speed, -4f, 4f, 1f));
                     box.Add(ValRow("Strength (px)", "Ring displacement in pixels.", pr.strength, 0f, Mathf.Max(4f, half), 3f));
                     break;

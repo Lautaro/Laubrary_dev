@@ -45,6 +45,10 @@ namespace Laubrary.Zui
             // MicroSlider) instead of as a separate label to its left. MinMax/Curve modes always use an
             // external label — they aren't MicroSliders. Default true; set false to keep the label outside.
             public bool sliderLabelInside = true;
+            // Decimal places to show/snap to. -1 = float-noise cleanup only. 0 = INTEGER (a discrete value —
+            // arm count, frame count — that can't be fractional): the slider snaps to whole numbers and shows
+            // no decimals, and MinMax mode uses integer fields.
+            public int decimals = -1;
 
             public Options WithRange(float lo, float hi) { absMin = lo; absMax = hi; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
@@ -152,14 +156,14 @@ namespace Laubrary.Zui
                     bool inside = _opt.sliderLabelInside;
                     var slider = Z.MicroSlider(inside ? _label : "", _v.staticValue, _opt.absMin, _opt.absMax,
                         _tooltip, val => Mutate(() => _v.staticValue = val), _opt.controlWidth, showValue: true,
-                        defaultValue: _opt.staticDefault);
+                        defaultValue: _opt.staticDefault, decimals: _opt.decimals);
                     AddHeaderRow(inside ? null : _label, slider);
                     break;
                 }
                 case ZUIValue.Mode.MinMax:
                     AddHeaderRow(_label, Z.MinMax(_v.min, _v.max, _opt.absMin, _opt.absMax, _tooltip,
                         (lo, hi) => Mutate(() => { _v.min = lo; _v.max = hi; }),
-                        Mathf.Max(60f, _opt.controlWidth - 90f)));
+                        Mathf.Max(60f, _opt.controlWidth - 90f), _opt.decimals == 0));
                     break;
                 case ZUIValue.Mode.Curve:
                     BuildCurve();

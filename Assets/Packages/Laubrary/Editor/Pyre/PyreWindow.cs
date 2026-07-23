@@ -403,7 +403,7 @@ namespace Laubrary.Pyre.Editor
         /// One animatable-value row. Curve mode spans the layer's frame window with Y pinned to
         /// [lo, hi] (no timing/range rows) — not meaningful for a frame-baked blast.
         VisualElement ValRow(string label, string tooltip, ZUIValue v, float lo, float hi,
-            float? def = null, bool allowMinMax = true, float width = 170f)
+            float? def = null, bool allowMinMax = true, float width = 170f, bool isInt = false)
         {
             var o = new ZuiValueControl.Options
             {
@@ -416,14 +416,15 @@ namespace Laubrary.Pyre.Editor
                 staticDefault = def,
                 controlWidth = width,
                 grow = true,   // fill the row's spare horizontal space instead of leaving it empty
+                decimals = isInt ? 0 : -1,   // discrete values (counts) show no decimals
             };
             return Z.Value(label, v, o, tooltip, DirtySpec, RecordSpec);
         }
 
         /// Compact ValRow for packed (wrapping) rows.
         VisualElement PackedVal(string label, string tooltip, ZUIValue v, float lo, float hi,
-            float? def = null, bool allowMinMax = true)
-            => ValRow(label, tooltip, v, lo, hi, def, allowMinMax, 110f);
+            float? def = null, bool allowMinMax = true, bool isInt = false)
+            => ValRow(label, tooltip, v, lo, hi, def, allowMinMax, 110f, isInt);
 
         /// A synchronized XY pair for packed rows.
         VisualElement PackedVal2D(string label, string tooltip, ZUIValue x, ZUIValue y,
@@ -434,10 +435,10 @@ namespace Laubrary.Pyre.Editor
         /// A MicroSlider with the LABEL and value both inside the track — matching the animatable rows'
         /// Static look — and growing to fill the row's spare width.
         VisualElement PackedSlider(string label, string tooltip, float value, float lo, float hi,
-            System.Action<float> set, float width = 110f)
+            System.Action<float> set, float width = 110f, bool isInt = false)
         {
             var ms = Z.MicroSlider(label, value, lo, hi, tooltip,
-                v => Dial("Edit Pyre", () => set(v)), width, showValue: true);
+                v => Dial("Edit Pyre", () => set(v)), width, showValue: true, decimals: isInt ? 0 : -1);
             ms.style.flexGrow = 1f; ms.style.flexShrink = 1f; ms.style.maxWidth = width * 3.2f;
             return ms;
         }

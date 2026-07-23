@@ -462,27 +462,41 @@ namespace Laubrary.Zui
         /// A min/max range: numeric low field + MinMaxSlider + numeric high field, kept in sync
         /// (the SliderRange pattern). Rounded to 5 decimals like every slider.
         public static VisualElement MinMax(float low, float high, float min, float max, string tooltip,
-            Action<float, float> onChanged, float sliderWidth = 130f)
+            Action<float, float> onChanged, float sliderWidth = 130f, bool isInt = false)
         {
             var slider = new MinMaxSlider(low, high, min, max) { tooltip = tooltip };
             slider.style.width = sliderWidth;
-            var lowField = new FloatField { value = low, tooltip = tooltip };
-            lowField.style.width = 42f;
-            var highField = new FloatField { value = high, tooltip = tooltip };
-            highField.style.width = 42f;
+            // isInt: the flanking numeric fields are IntegerFields and both handle+field snap to whole
+            // numbers — for a discrete range (a frame window) that can never be fractional.
+            BaseField<int> lowFieldI = isInt ? new IntegerField { value = Mathf.RoundToInt(low), tooltip = tooltip } : null;
+            BaseField<int> highFieldI = isInt ? new IntegerField { value = Mathf.RoundToInt(high), tooltip = tooltip } : null;
+            var lowField = isInt ? null : new FloatField { value = low, tooltip = tooltip };
+            var highField = isInt ? null : new FloatField { value = high, tooltip = tooltip };
+            (isInt ? (VisualElement)lowFieldI : lowField).style.width = 42f;
+            (isInt ? (VisualElement)highFieldI : highField).style.width = 42f;
 
             void Commit(float lo, float hi, bool fromSlider)
             {
-                lo = (float)Math.Round(Mathf.Clamp(lo, min, max), 5);
-                hi = (float)Math.Round(Mathf.Clamp(hi, lo, max), 5);
-                if (fromSlider) { lowField.SetValueWithoutNotify(lo); highField.SetValueWithoutNotify(hi); }
+                lo = isInt ? Mathf.Round(lo) : (float)Math.Round(Mathf.Clamp(lo, min, max), 5);
+                hi = isInt ? Mathf.Round(hi) : (float)Math.Round(Mathf.Clamp(hi, lo, max), 5);
+                lo = Mathf.Clamp(lo, min, max); hi = Mathf.Clamp(hi, lo, max);
+                if (fromSlider)
+                {
+                    if (isInt) { lowFieldI.SetValueWithoutNotify(Mathf.RoundToInt(lo)); highFieldI.SetValueWithoutNotify(Mathf.RoundToInt(hi)); }
+                    else { lowField.SetValueWithoutNotify(lo); highField.SetValueWithoutNotify(hi); }
+                }
                 else slider.SetValueWithoutNotify(new Vector2(lo, hi));
                 onChanged?.Invoke(lo, hi);
             }
             slider.RegisterValueChangedCallback(e => Commit(e.newValue.x, e.newValue.y, true));
+            if (isInt)
+            {
+                lowFieldI.RegisterValueChangedCallback(e => Commit(e.newValue, slider.maxValue, false));
+                highFieldI.RegisterValueChangedCallback(e => Commit(slider.minValue, e.newValue, false));
+                return Row(lowFieldI, slider, highFieldI);
+            }
             lowField.RegisterValueChangedCallback(e => Commit(e.newValue, slider.maxValue, false));
             highField.RegisterValueChangedCallback(e => Commit(slider.minValue, e.newValue, false));
-
             return Row(lowField, slider, highField);
         }
 
