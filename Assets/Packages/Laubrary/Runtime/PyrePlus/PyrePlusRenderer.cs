@@ -196,7 +196,11 @@ namespace Laubrary.PyrePlus
                     var rng = new System.Random(Hash(seed, particleIndex, fieldId, 0));
                     return Mathf.Lerp(v.min, v.max, (float)rng.NextDouble());
                 }
-                case ZUIValue.Mode.Curve: return v.EvaluateRaw(Mathf.Clamp01(life));
+                case ZUIValue.Mode.Curve:
+                    // Points are authored in normalized [0..1]; sample directly (ignore duration/warmup/
+                    // cooldown — that's the runtime-seconds API, not our frame-baked timeline). EvaluateRaw
+                    // would divide life by duration (default 4s), sweeping only the curve's first quarter.
+                    return ZUIEnvelopeEvaluator.Evaluate(v.points, Mathf.Clamp01(life), v.yMax);
                 default: return v.staticValue;
             }
         }
