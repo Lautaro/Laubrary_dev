@@ -22,6 +22,10 @@ namespace Laubrary.Zui
     {
         public const float DefaultWidth = 150f;
 
+        /// How wide a PropertyField is allowed to get when the caller didn't say. Comfortably fits a list's
+        /// rows and its size field without letting either drift to the far side of a wide window.
+        public const float DefaultPropertyMaxWidth = 420f;
+
         /// The field's own [Tooltip], falling back to a plain description so no control is ever left bare.
         public static string TooltipOf(SerializedProperty prop, string fallback = null)
         {
@@ -117,7 +121,16 @@ namespace Laubrary.Zui
             // The label above already names the field, so the [Header] decorator would print that same word
             // a second time directly over it (real duplicate: Zoe's "Loadout" and "Cues").
             pf.AddToClassList("zui-no-decorators");
+            // A PropertyField's own children are built by Unity, not by Zui, so the stylesheet's
+            // flex-grow:0 guard on BaseFields never reaches the ListView a list property expands into: left
+            // alone it spans the whole window and parks its size field against the far right edge, metres
+            // from its label. Nothing catches that either — ZuiAudit exempts Foldouts from the over-width
+            // check, and a list PropertyField renders AS a Foldout. So bound it here, once, for every call
+            // site: an explicit width when the caller gave one, otherwise a cap that still lets a short
+            // field size to its content.
             if (width > 0f) pf.style.width = width;
+            else pf.style.maxWidth = DefaultPropertyMaxWidth;
+            pf.style.flexShrink = 0f;
             pf.Bind(prop.serializedObject);
             return pf;
         }

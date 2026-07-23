@@ -14,6 +14,7 @@
 // Row-packing waste, redundant titles, and explanatory labels stay a human's job — same as always.
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -34,22 +35,48 @@ namespace Laubrary.Zui
             typeof(Button), typeof(Toggle), typeof(TextField), typeof(FloatField), typeof(IntegerField),
             typeof(Slider), typeof(SliderInt), typeof(MinMaxSlider), typeof(DropdownField), typeof(EnumField),
             typeof(Foldout),
+            // A PropertyField is a control, not a container, even though a list/nested-class one CONTAINS a
+            // Foldout. It was invisible to every check here until the Chunks sprite list turned up spanning
+            // the whole window with a clean audit.
+            typeof(PropertyField),
         };
 
         const float OverWidthCap = 600f;
 
-        public static List<Finding> Audit(EditorWindow window)
+        public static List<Finding> Audit(EditorWindow window) => Audit(window, out _);
+
+        /// `foldedSkipped` counts subtrees this pass could not see because they were collapsed. Since every
+        /// section heading and box title became foldable, a window sitting with half its blocks closed can
+        /// return zero findings while most of it was never looked at — a clean result is only meaningful
+        /// when this is 0. Callers that want real coverage should expand first, or report the number.
+        public static List<Finding> Audit(EditorWindow window, out int foldedSkipped)
         {
             var findings = new List<Finding>();
             var root = window.rootVisualElement;
             float windowRight = root.worldBound.xMax + 1f;   // +1: float slop
-            Walk(root, root, windowRight, findings);
+            foldedSkipped = 0;
+            Walk(root, root, windowRight, findings, ref foldedSkipped);
             return findings;
         }
 
-        static void Walk(VisualElement ve, VisualElement root, float windowRight, List<Finding> findings)
+        /// Expand every ZuiSection / ZuiBox in a window so an audit can actually see it. Returns how many
+        /// it opened, so a caller can put them back if it cares.
+        public static int ExpandAll(EditorWindow window)
         {
-            if (ve.resolvedStyle.display == DisplayStyle.None) return;   // hidden branches don't count
+            int opened = 0;
+            foreach (var s in window.rootVisualElement.Query<ZuiSection>().ToList())
+                if (!s.IsOpen) { s.IsOpen = true; opened++; }
+            foreach (var b in window.rootVisualElement.Query<ZuiBox>().ToList())
+                if (!b.IsOpen) { b.IsOpen = true; opened++; }
+            foreach (var l in window.rootVisualElement.Query<ZuiSectionLabel>().ToList())
+                if (!l.IsOpen) { l.IsOpen = true; opened++; }
+            return opened;
+        }
+
+        static void Walk(VisualElement ve, VisualElement root, float windowRight, List<Finding> findings,
+            ref int foldedSkipped)
+        {
+            if (ve.resolvedStyle.display == DisplayStyle.None) { foldedSkipped++; return; }
 
             bool interactive = IsInteractive(ve);
             if (interactive)
@@ -63,8 +90,13 @@ namespace Laubrary.Zui
                     && !ve.ClassListContains("zui-audit-allow-stretch"))
                     findings.Add(New("stretch", ve, $"BaseField resolved flex-grow {ve.resolvedStyle.flexGrow:0.##}"));
 
+                // Foldouts are exempt as CONTAINERS — a foldout legitimately spans its content. But a
+                // PropertyField renders AS a Foldout whenever the property is a list or a nested class, and
+                // that is a control, not a container: unbounded, it stretches the whole window and strands
+                // its size field at the far edge (caught by eye in the Chunks sprite list, which this check
+                // had passed). So exempt a bare Foldout, never a PropertyField.
                 float w = ve.worldBound.width;
-                if (ve is not Foldout && w > OverWidthCap)
+                if ((ve is not Foldout || ve is PropertyField) && w > OverWidthCap)
                     findings.Add(New("over-width", ve, $"{w:0}px wide (cap {OverWidthCap})"));
             }
 
@@ -73,7 +105,7 @@ namespace Laubrary.Zui
                 findings.Add(New("off-screen", ve, $"right edge {ve.worldBound.xMax:0} past window {windowRight:0}"));
 
             foreach (var child in ve.Children())
-                Walk(child, root, windowRight, findings);
+                Walk(child, root, windowRight, findings, ref foldedSkipped);
         }
 
         static bool IsInteractive(VisualElement ve)

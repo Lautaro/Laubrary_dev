@@ -120,56 +120,15 @@ namespace Laubrary.Pyre.Editor
         }
 
         // ── backdrop options ────────────────────────────────────────────────
-        // The backdrop is a BackSplash copy now (camera colour + one zoomable image), not Pyre's old
-        // PreviewStage preset with its gradient mode and prop-sprite list. BackSplashGUI.DrawInline is the
-        // shared IMGUI editor for these fields; this window is retained-mode, so the same controls are built
-        // here as Z.* elements and only Recall/Save reuse BackSplashGUI's popups.
+        // One shared Zui control (BackSplashZui), used by Mirage too — this window used to hand-build its own
+        // copy of the same panel. Pyre's imagePos is added straight to a screen-space Rect in DrawBackdrop,
+        // so the pad's domain is PIXELS, which is BackSplashZui's default.
         void BuildBackdropOptions(VisualElement root)
         {
-            var box = Z.Box("Preview backdrop",
-                "Renders live every repaint, purely as a visual aid for authoring — it's never baked into any asset and has no effect on the baked sprite sheet or the runtime blast. A private copy: Recall copies values FROM a preset, Save writes them TO one; nothing stays linked to a shared asset.");
-
-            var bs = backSplash;
-            if (bs == null) { root.Add(box); return; }
-
-            var recallButton = Z.Button("Recall…", "Copy colour/image/position/zoom/tint FROM an existing preset — a one-time copy, not a live link.", null);
-            recallButton.clicked += () =>
-            {
-                var wb = recallButton.worldBound;
-                BackSplashGUI.ShowRecall(new Rect(wb.x, wb.y, wb.width, wb.height), bs, () => { DirtySpec(); RebuildPanels(); });
-            };
-            var saveButton = Z.Button("Save…", "Write this copy's current values TO a preset you pick (overwriting it) or a new one you name.", null);
-            saveButton.clicked += () =>
-            {
-                var wb = saveButton.worldBound;
-                BackSplashGUI.ShowSave(new Rect(wb.x, wb.y, wb.width, wb.height), bs);
-            };
-            box.Add(WrapRow(recallButton, saveButton));
-
-            box.Add(WrapRow(
-                Z.Field("Colour", "Solid background fill behind the image.",
-                    Z.Color(bs.cameraColor, "Solid background fill behind the image.",
-                        v => { bs.cameraColor = v; DirtySpec(); }, 90f)),
-                Z.Field("Image", "The backdrop image sprite.",
-                    Z.Object<Sprite>(bs.image, "The backdrop image sprite.",
-                        v => { bs.image = v; DirtySpec(); RebuildPanels(); }, 120f))));
-
-            if (bs.image != null)
-            {
-                box.Add(WrapRow(
-                    Z.Pad(bs.imagePos, new Rect(-Laubrary.BackSplash.BackSplash.MaxImageOffset, -Laubrary.BackSplash.BackSplash.MaxImageOffset,
-                                                 Laubrary.BackSplash.BackSplash.MaxImageOffset * 2f, Laubrary.BackSplash.BackSplash.MaxImageOffset * 2f),
-                        "Drag to offset the backdrop image within the viewport.",
-                        v => { bs.imagePos = Laubrary.BackSplash.BackSplash.ClampImagePos(v); DirtySpec(); }, 68f),
-                    Z.Column(
-                        Z.Field("Zoom", "How much of the backdrop image fills the viewport.",
-                            Z.Slider(bs.imageZoom, 0.1f, 16f, "How much of the backdrop image fills the viewport.",
-                                v => { bs.imageZoom = v; DirtySpec(); }, 110f)),
-                        Z.Field("Tint", "Multiplies the image's own colours.",
-                            Z.Color(bs.imageTint, "Multiplies the image's own colours.",
-                                v => { bs.imageTint = v; DirtySpec(); }, 90f)))));
-            }
-            root.Add(box);
+            root.Add(BackSplashZui.Build(backSplash, "Preview backdrop",
+                "Renders live every repaint, purely as a visual aid for authoring — it's never baked into any asset and has no effect on the baked sprite sheet or the runtime blast. A private copy: Recall copies values FROM a preset, Save writes them TO one; nothing stays linked to a shared asset.",
+                onChanged: DirtySpec,
+                onStructureChanged: () => { DirtySpec(); RebuildPanels(); }));
         }
 
         // ── preview subject options ─────────────────────────────────────────────────────────

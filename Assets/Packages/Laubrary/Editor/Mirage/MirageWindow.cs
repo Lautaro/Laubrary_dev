@@ -9,6 +9,7 @@ using Laubrary.Zoetrope;
 using Laubrary.ZoetropeLaunimator;
 using Laubrary.Launimator;
 using Laubrary.Choreographer;
+using Laubrary.BackSplash.Editor;
 using Laubrary.Zui;
 
 namespace Laubrary.Mirage.Editor
@@ -65,7 +66,6 @@ namespace Laubrary.Mirage.Editor
         protected override string DefaultFolder => "Assets/Mirage";
 
         PreviewableEntry _selected;
-        [SerializeField] bool _backSplashExpanded = true;
         [SerializeField] bool _choreographyExpanded = true;
 
         // Thumbnail cache shared by the Content and Choreography asset rows (LauAssetGridGUI owns the
@@ -251,43 +251,32 @@ namespace Laubrary.Mirage.Editor
                 Z.Flexible()));
         }
 
-        // ── backsplash (the deliberate IMGUI island) ────────────────────────────────────────
+        // ── backsplash ───────────────────────────────────────────────────────────
+        // Was an IMGUIContainer hosting BackSplashGUI.DrawInline, kept IMGUI only because Pyre called the
+        // same helper. Pyre no longer does — both now use ONE Zui control (BackSplashZui), so this window
+        // has no IMGUI island left at all.
         void BuildBackSplashSection(VisualElement root, MirageView view)
         {
             view.backSplash ??= new Laubrary.BackSplash.BackSplashSettings(); // guards assets saved before this field existed
+            BackdropDomainExtent(out float domainHalfW, out float domainHalfH);
 
             const string tip = "A private backdrop copy for THIS view: camera colour + one zoomable, " +
                 "positionable image. Recall copies values in from a shared preset; Save writes them out.";
-            var body = new IMGUIContainer(() => DrawBackSplashInline(Current)) { tooltip = tip };
-            body.style.minHeight = 96f;
 
-            var fold = Z.Foldout("Backsplash", tip, _backSplashExpanded, body);
-            fold.RegisterValueChangedCallback(e => { if (e.target == fold) _backSplashExpanded = e.newValue; });
-            root.Add(fold);
-        }
+            // Undo is recorded BEFORE the edit lands, not after: the control mutates the settings object in
+            // place, so a post-mutation record would snapshot the already-changed state. RecordObject creates
+            // no entry when nothing actually changed.
+            void Dirty()
+            {
+                Undo.RecordObject(view, "Edit Mirage backdrop");
+                EditorUtility.SetDirty(view);
+                Repaint();
+            }
 
-        /// BackSplashGUI is a shared IMGUI viewport-drawing helper (colour swatch, sprite thumbnail, drag-pad,
-        /// zoom/tint stack) that Pyre's own still-IMGUI window also calls — its public API is deliberately
-        /// unchanged, so it is hosted verbatim here rather than ported. Undo is recorded UNCONDITIONALLY
-        /// before the call, not after a change-check: DrawInline mutates the settings object in place as the
-        /// user drags, so a post-mutation record would snapshot the already-changed state (the same reasoning
-        /// the pre-port Clips list used). Undo.RecordObject creates no undo entry when nothing changed.
-        void DrawBackSplashInline(MirageView view)
-        {
-            if (view == null) return;
-            view.backSplash ??= new Laubrary.BackSplash.BackSplashSettings();
-            BackdropDomainExtent(out float domainHalfW, out float domainHalfH);
-
-            Undo.RecordObject(view, "Edit Mirage backdrop");
-            EditorGUI.BeginChangeCheck();
-            // An IMGUIContainer is NOT inside a ZUIWindow's OnZUI, so it gets no automatic ZUI sheet scope —
-            // BackSplashGUI's ZUI.Button/HelpIcon would otherwise render unskinned (measurably oversized).
-            // Scope it explicitly, exactly as zui.md prescribes for a PopupWindowContent/CustomEditor.
-            using (ZUI.UseSheet(ZUI.DefaultSheet))
-                Laubrary.BackSplash.Editor.BackSplashGUI.DrawInline(
-                    view.backSplash, domainHalfWidth: domainHalfW, domainHalfHeight: domainHalfH,
-                    onChanged: () => { EditorUtility.SetDirty(view); Repaint(); });
-            if (EditorGUI.EndChangeCheck()) EditorUtility.SetDirty(view);
+            root.Add(BackSplashZui.Build(view.backSplash, "Backsplash", tip,
+                onChanged: Dirty,
+                onStructureChanged: () => { Dirty(); RebuildBody(); },
+                domainHalfWidth: domainHalfW, domainHalfHeight: domainHalfH));
         }
 
         // The backdrop's imagePos is a real Transform.position read by MirageRig's orthographic previewCamera
