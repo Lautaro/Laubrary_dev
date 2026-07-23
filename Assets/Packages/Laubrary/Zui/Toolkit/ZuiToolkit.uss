@@ -158,6 +158,16 @@
     flex-shrink: 0;
 }
 
+/* Reorderable rows -------------------------------------------------------- */
+
+.zui-reorder__dragging {
+    background-color: var(--zui-accent-soft);
+}
+
+.zui-reorder__line {
+    background-color: var(--zui-accent);
+}
+
 /* Asset-window chrome ---------------------------------------------------- */
 
 .zui-cell {

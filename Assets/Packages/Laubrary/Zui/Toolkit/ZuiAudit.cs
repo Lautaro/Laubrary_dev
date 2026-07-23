@@ -57,7 +57,10 @@ namespace Laubrary.Zui
                 if (!HasTooltipInChain(ve))
                     findings.Add(New("tooltip-missing", ve, "no tooltip on the control or any ancestor"));
 
-                if (ve is not Foldout && ve.resolvedStyle.flexGrow > 0f && ve.ClassListContains("unity-base-field"))
+                // "zui-audit-allow-stretch" is the sanctioned opt-out for the rulebook's own exception:
+                // a name/path field that legitimately fills the space between fixed row-mates.
+                if (ve is not Foldout && ve.resolvedStyle.flexGrow > 0f && ve.ClassListContains("unity-base-field")
+                    && !ve.ClassListContains("zui-audit-allow-stretch"))
                     findings.Add(New("stretch", ve, $"BaseField resolved flex-grow {ve.resolvedStyle.flexGrow:0.##}"));
 
                 float w = ve.worldBound.width;

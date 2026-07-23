@@ -30,12 +30,16 @@ namespace Laubrary.Zui
             public bool hideCurveTiming = false;  // hide the Duration / Warmup / Loop row
             public bool hideCurveRange = false;   // hide the Value-Range row AND pin Y range to [absMin, absMax]
             public bool hideLiveReadout = false;
+            public float controlWidth = 170f;     // width of the slider/range/envelope body (packed-row support)
 
             public Options WithRange(float lo, float hi) { absMin = lo; absMax = hi; return this; }
             public Options WithMultipliers(params string[] ids) { multiplierIds = ids; return this; }
             public Options WithDefault(float value) { staticDefault = value; return this; }
             public Options WithoutCurveExtras() { hideCurveTiming = true; hideCurveRange = true; return this; }
             public Options WithoutLiveReadout() { hideLiveReadout = true; return this; }
+            public Options WithWidth(float w) { controlWidth = w; return this; }
+
+            public Options Clone() => (Options)MemberwiseClone();
         }
 
         // Curve fold state keyed by the ZUIValue instance so it survives window rebuilds (undo/redo
@@ -101,7 +105,7 @@ namespace Laubrary.Zui
                 case ZUIValue.Mode.Static:
                 {
                     var slider = Z.Slider(_v.staticValue, _opt.absMin, _opt.absMax, _tooltip,
-                        val => Mutate(() => _v.staticValue = val));
+                        val => Mutate(() => _v.staticValue = val), _opt.controlWidth);
                     if (_opt.staticDefault.HasValue)
                         slider.RegisterCallback<PointerDownEvent>(e =>
                         {
@@ -114,7 +118,8 @@ namespace Laubrary.Zui
                 }
                 case ZUIValue.Mode.MinMax:
                     _body.Add(Z.MinMax(_v.min, _v.max, _opt.absMin, _opt.absMax, _tooltip,
-                        (lo, hi) => Mutate(() => { _v.min = lo; _v.max = hi; })));
+                        (lo, hi) => Mutate(() => { _v.min = lo; _v.max = hi; }),
+                        Mathf.Max(60f, _opt.controlWidth - 90f)));
                     break;
                 case ZUIValue.Mode.Curve:
                     BuildCurveBody();
@@ -137,6 +142,7 @@ namespace Laubrary.Zui
             var header = new VisualElement();
             header.AddToClassList("zui-row");
             var thumb = new CurveThumb(_v) { tooltip = "Click to " + (expanded ? "collapse" : "expand") + " the curve editor." };
+            thumb.style.width = Mathf.Max(60f, _opt.controlWidth - 20f);
             thumb.RegisterCallback<PointerDownEvent>(ev =>
             {
                 if (ev.button != 0) return;

@@ -255,6 +255,67 @@ namespace Laubrary.Zui
             return row;
         }
 
+        /// Vertical variant of MiniRadio — a stacked column of mutually-exclusive buttons, for when
+        /// the radio sits beside a square control (a pad, a picker) and should match its height.
+        public static VisualElement MiniRadioVertical(int index, string[] options, string tooltip,
+            Action<int> onChanged, float width = 70f, float totalHeight = 0f)
+        {
+            var col = new VisualElement { tooltip = tooltip };
+            col.AddToClassList("zui-radio");
+            col.style.flexDirection = FlexDirection.Column;
+            col.style.width = width;
+            var buttons = new Button[options.Length];
+            for (int i = 0; i < options.Length; i++)
+            {
+                int idx = i;
+                buttons[i] = new Button(() =>
+                {
+                    for (int b = 0; b < buttons.Length; b++)
+                        buttons[b].EnableInClassList("zui-radio__on", b == idx);
+                    onChanged?.Invoke(idx);
+                })
+                { text = options[i], tooltip = tooltip };
+                buttons[i].EnableInClassList("zui-radio__on", i == index);
+                if (totalHeight > 0f) buttons[i].style.height = totalHeight / options.Length;
+                buttons[i].style.marginTop = 0f;
+                buttons[i].style.marginBottom = 0f;
+                col.Add(buttons[i]);
+            }
+            return col;
+        }
+
+        /// Label stacked ABOVE a compact slider — the SliderStacked pattern for tightly packed rows
+        /// where side-by-side label+slider would be too wide.
+        public static VisualElement Stacked(string label, string tooltip, float value, float min, float max,
+            Action<float> onChanged, float width, bool isInt = false)
+        {
+            var col = new VisualElement();
+            col.style.width = width;
+            col.style.flexShrink = 0f;
+            col.Add(Text(label, ZuiText.Small, tooltip));
+            if (isInt)
+            {
+                var s = new SliderInt(Mathf.RoundToInt(min), Mathf.RoundToInt(max))
+                { value = Mathf.RoundToInt(value), tooltip = tooltip };
+                s.style.width = width;
+                s.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
+                col.Add(s);
+            }
+            else
+            {
+                var s = new Slider(min, max) { value = value, tooltip = tooltip };
+                s.style.width = width;
+                s.RegisterValueChangedCallback(e =>
+                {
+                    float r = (float)Math.Round(e.newValue, 5);
+                    s.SetValueWithoutNotify(r);
+                    onChanged?.Invoke(r);
+                });
+                col.Add(s);
+            }
+            return col;
+        }
+
         /// One compact button that cycles through the options on each click — the CycleButton
         /// pattern, for when a MiniRadio row would be too wide for the space.
         public static Button CycleButton(int index, string[] options, string tooltip, Action<int> onChanged)
