@@ -8,6 +8,7 @@ public class ZuiZheetTestHud : MonoBehaviour
 {
     public ZUIStyleSheetAsset zheet;
     int _clicks;
+    int _proceduralClicks;
 
     void OnGUI()
     {
@@ -42,6 +43,16 @@ public class ZuiZheetTestHud : MonoBehaviour
         if (ZUISheet.Button(zheet, "SpriteButton", new Rect(760, 60, 220, 60), "Sprite Button")) _clicks++;
         var l = new GUIStyle(GUI.skin.label) { fontSize = 14 }; l.normal.textColor = Color.white;
         GUI.Label(new Rect(760, 128, 260, 24), "9-slice button clicks: " + _clicks, l);
+
+        // Procedural (non-9-slice) BUTTON — same ZUISheet.Button call, different style, no nineSliceNormal set.
+        if (ZUISheet.Button(zheet, "ProceduralButton", new Rect(760, 160, 220, 60), "Procedural Button")) _proceduralClicks++;
+        GUI.Label(new Rect(760, 228, 260, 24), "procedural button clicks: " + _proceduralClicks, l);
+
+        // Zui.Panel's sheet-aware overload — same "Framed" 9-slice box style, via the ZuiRuntime.Zui wrapper
+        // instead of calling ZUISheet.DrawBox directly (what every Card() above does).
+        var wrapperContent = ZuiRuntime.Zui.Panel(new Rect(760, 260, 220, 100), "Framed", zheet);
+        GUI.Label(new Rect(wrapperContent.x, wrapperContent.y, wrapperContent.width, 40),
+            "Zui.Panel(rect, styleName, sheet) — the new sheet-aware runtime overload", l);
 
         var title = new GUIStyle(GUI.skin.label) { fontSize = 20, fontStyle = FontStyle.Bold };
         title.normal.textColor = Color.white;

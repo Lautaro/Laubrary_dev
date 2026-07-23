@@ -25,6 +25,7 @@ namespace Laubrary.UIAudit
         {
             var cam = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
             float sw = ctx.ScreenWidth, sh = ctx.ScreenHeight, tol = ctx.Tolerance;
+            var proximityItems = new List<UIAuditGeometry.Item>();
 
             // ── Off-screen interactables (elements inside a ScrollRect are reachable by scrolling → skipped).
             foreach (var s in canvas.GetComponentsInChildren<Selectable>(ctx.IncludeInactive))
@@ -40,7 +41,11 @@ namespace Laubrary.UIAudit
                     bool fully = r.xMax < 0 || r.yMax < 0 || r.xMin > sw || r.yMin > sh;
                     Add(issues, UIIssueKind.OffScreen, rt, $"{(fully ? "fully" : "partly")} off-screen: rect {Fmt(r)} vs {sw:0}x{sh:0}");
                 }
+                // No per-element opt-out exists yet on the uGUI side (unlike ZuiDrawRecord.AllowOverlap) —
+                // every Selectable participates in the proximity check for now.
+                proximityItems.Add(new UIAuditGeometry.Item { Path = Path(rt), Rect = r, AllowOverlap = false });
             }
+            UIAuditGeometry.CheckProximity(proximityItems, Name, ctx, issues);
 
             // ── TMP text: tiny font + overflow/clip.
             foreach (var t in canvas.GetComponentsInChildren<TMP_Text>(ctx.IncludeInactive))

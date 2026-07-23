@@ -24,6 +24,7 @@ namespace ZuiRuntime
         public bool Wrap;
         public bool Interactive;     // buttons/toggles/sliders/menu items — relevant to off-screen
         public bool Clipped;         // drawn inside a scroll view — skip the off-screen check
+        public bool AllowOverlap;    // deliberate opt-out for Overlap/Crowded (e.g. a transparent hit-catcher)
     }
 
     public static class ZuiAudit

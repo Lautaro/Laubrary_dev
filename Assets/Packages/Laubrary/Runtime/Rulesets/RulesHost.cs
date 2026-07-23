@@ -28,6 +28,14 @@ namespace Laubrary.Rulesets
             for (int i = 0; i < Rules.Count; i++) Rules[i]?.HostLoad();
         }
 
+        // OnDisable nulls Active out (below); restore it here so a disable/enable cycle — or a mid-play
+        // domain reload, which fires OnDisable/OnEnable around the reload but not Awake again — doesn't
+        // leave the static accessor stuck null while this component keeps ticking normally.
+        void OnEnable()
+        {
+            Active = this;
+        }
+
         // Build the live rule list = CHOSEN ruleset + GLOBAL ruleset. Global rules (Resources/Rulesets/Global)
         // apply under every ruleset, EXCEPT that a single-instance type (AllowMultiple == false) the chosen
         // ruleset ENABLES overrides the global one — only one copy ever, the global is dropped. A merely-

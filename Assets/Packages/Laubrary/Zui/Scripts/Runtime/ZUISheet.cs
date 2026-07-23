@@ -21,6 +21,9 @@ public static class ZUISheet
         var def = sheet.FindBox(styleName);             // sets def.ownerSheet, falls back to Default
         if (def == null) return;
         def.DrawBackground(rect);
+#if UNITY_EDITOR
+        ZUIFlash.DrawOverlayIfNeeded(rect, def.name, ZUIFlashKind.Box, sheet);
+#endif
 
         var inner = new Rect(rect.x + 12, rect.y + 10, rect.width - 24, rect.height - 20);
         if (!string.IsNullOrEmpty(title))
@@ -38,16 +41,17 @@ public static class ZUISheet
     }
 
     /// <summary>
-    /// An interactive 9-slice (sprite) button from a Zheet: draws the state's frame + styled label and
-    /// returns true on click. Only works for button styles that use 9-slice (nineSliceNormal set) —
-    /// procedural buttons don't render at runtime yet. Hover/press pick the hover/active frames.
+    /// An interactive button from a Zheet: draws the state's visual (9-slice frame if the style has one
+    /// via nineSliceNormal, otherwise the same procedural fill/border/corner-radius/shadow/glow renderer
+    /// the editor toolkit uses) + styled label, and returns true on click. Hover/press pick the
+    /// hover/active visuals either way.
     /// </summary>
     public static bool Button(ZUIStyleSheetAsset sheet, string styleName, Rect rect, string label)
     {
         if (sheet == null) return false;
         ZUIStyleSheetAsset.Active = sheet;
         var def = sheet.FindButton(styleName);
-        if (def == null || !def.UsesNineSlice) return false;
+        if (def == null) return false;
 
         var e = Event.current;
         bool over = rect.Contains(e.mousePosition);
@@ -65,8 +69,20 @@ public static class ZUISheet
         bool pressed = GUIUtility.hotControl == id && over;
         var state = pressed ? ZUIButtonDrawState.Active : over ? ZUIButtonDrawState.Hover : ZUIButtonDrawState.Normal;
 
-        var frame = sheet.FindNineSlice(def.GetNineSliceId(state));
-        if (frame != null) frame.DrawFrame(rect);
+        if (def.UsesNineSlice)
+        {
+            var frame = sheet.FindNineSlice(def.GetNineSliceId(state));
+            if (frame != null) frame.DrawFrame(rect);
+        }
+        else
+        {
+            // Same call convention as the editor toolkit's own button drawing (see ZUIButton.cs) — nothing
+            // editor-only in DrawVisual/GetResolvedCornerRadius, so this was a wiring gap, not a capability one.
+            def.DrawVisual(rect, state, def.GetResolvedCornerRadius());
+        }
+#if UNITY_EDITOR
+        ZUIFlash.DrawOverlayIfNeeded(rect, def.name, ZUIFlashKind.Button, sheet);
+#endif
 
         var ls = TextStyle(def.text, sheet, TextAnchor.MiddleCenter, 15);
         GUI.Label(rect, label, ls);

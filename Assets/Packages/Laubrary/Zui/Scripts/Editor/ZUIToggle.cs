@@ -8,6 +8,8 @@
 
 using UnityEditor;
 using UnityEngine;
+using ZuiRuntime;
+using Laubrary.UIAudit;
 
 public static partial class ZUI
 {
@@ -300,6 +302,9 @@ public static partial class ZUI
             var drawIco = ResolveIcon(displayOn) as Texture2D;
             DrawButtonLabel(rect, content, def.GetLabelStyle(drawState, iconOnly), drawIco, ZIconPlacement.LeftOfLabel, def, def.GetText(drawState));
         }
+
+        if (Event.current.type == EventType.Repaint)
+            EditorZuiAudit.Record(new ZuiDrawRecord { Kind = "toggle", Rect = rect, Text = content.text, Interactive = true });
 
         return clicked ? !value : value;
     }

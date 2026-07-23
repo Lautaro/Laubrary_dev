@@ -56,12 +56,25 @@ namespace Laubrary.Chunks
 
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sortingOrder = sortingOrder;
+                bool sampled = false;
                 if (anim == null)
                 {
-                    sr.sprite = haveSprites
-                        ? spec.sprites[Random.Range(0, spec.sprites.Count)]
-                        : ChunkSprites.Random(spec.pixelsPerUnit);
+                    Sprite sampledSprite = spec.UsesSampledDebris
+                        ? SampledChunkSprites.Sample(spec.sampleSource, spec.samplePxMin, spec.samplePxMax, spec.pixelsPerUnit)
+                        : null;
+                    if (sampledSprite != null)
+                    {
+                        sr.sprite = sampledSprite;
+                        sampled = true;
+                    }
+                    else
+                    {
+                        sr.sprite = haveSprites
+                            ? spec.sprites[Random.Range(0, spec.sprites.Count)]
+                            : ChunkSprites.Random(spec.pixelsPerUnit);
+                    }
                 }
+                bool tumbling = sampled && spec.tumble;
 
                 Color baseColor = havePalette ? (Color)palette[Random.Range(0, palette.Count)] : Color.white;
 
@@ -71,11 +84,13 @@ namespace Laubrary.Chunks
                 Vector2 vel = new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * speed;
                 vel.y += spec.upwardBias;
 
-                float angular = Random.Range(spec.angularSpeedMin, spec.angularSpeedMax) * (Random.value < 0.5f ? -1f : 1f);
+                float angular = tumbling
+                    ? Random.Range(spec.tumbleSpeedMin, spec.tumbleSpeedMax) * (Random.value < 0.5f ? -1f : 1f)
+                    : Random.Range(spec.angularSpeedMin, spec.angularSpeedMax) * (Random.value < 0.5f ? -1f : 1f);
                 float life = Random.Range(spec.lifeMin, spec.lifeMax);
                 float size = Random.Range(spec.sizeMin, spec.sizeMax);
 
-                go.AddComponent<Chunk>().Init(spec, vel, angular, life, size, baseColor, anim);
+                go.AddComponent<Chunk>().Init(spec, vel, angular, life, size, baseColor, anim, tumbling);
             }
 
             // If we own the container, tear it down after the longest chunk could possibly live (plus slack).

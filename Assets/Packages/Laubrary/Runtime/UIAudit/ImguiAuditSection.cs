@@ -20,6 +20,7 @@ namespace Laubrary.UIAudit
             var draws = ZuiAudit.LastFrame;
             if (draws == null || draws.Count == 0) return;
             float sw = ctx.ScreenWidth, sh = ctx.ScreenHeight, tol = ctx.Tolerance;
+            var proximityItems = new List<UIAuditGeometry.Item>();
 
             foreach (var d in draws)
             {
@@ -50,7 +51,14 @@ namespace Laubrary.UIAudit
                         Add(issues, UIIssueKind.OffScreen, d, $"{(fully ? "fully" : "partly")} off-screen: rect {Fmt(r)} vs {sw:0}x{sh:0}");
                     }
                 }
+
+                // ── Overlap / Crowded: pairwise-checked below, scoped to interactive elements (see
+                //    UIAuditGeometry's header comment for why non-interactive draws are excluded).
+                if (d.Interactive && !d.Clipped && d.Rect.width > 0f && d.Rect.height > 0f)
+                    proximityItems.Add(new UIAuditGeometry.Item { Path = PathOf(d), Rect = d.Rect, AllowOverlap = d.AllowOverlap });
             }
+
+            UIAuditGeometry.CheckProximity(proximityItems, Name, ctx, issues);
         }
 
         void Add(List<UIIssue> issues, UIIssueKind kind, ZuiDrawRecord d, string detail)

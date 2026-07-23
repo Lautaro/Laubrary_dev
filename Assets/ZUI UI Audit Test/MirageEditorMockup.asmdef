@@ -1,0 +1,20 @@
+{
+    "name": "Laubrary.ZUIUIAuditTest.MirageMockup",
+    "rootNamespace": "Laubrary.UIAudit.Tests",
+    "references": [
+        "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.UIAudit.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

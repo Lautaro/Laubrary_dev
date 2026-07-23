@@ -1,0 +1,21 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Cartographer.Editor",
+    "rootNamespace": "Laubrary.Cartographer.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Cartographer",
+        "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
+        "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

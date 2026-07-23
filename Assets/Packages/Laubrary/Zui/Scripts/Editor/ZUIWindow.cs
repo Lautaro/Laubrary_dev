@@ -7,6 +7,7 @@
 
 using UnityEditor;
 using UnityEngine;
+using Laubrary.UIAudit;
 
 public abstract partial class ZUIWindow : EditorWindow
 {
@@ -86,6 +87,10 @@ public abstract partial class ZUIWindow : EditorWindow
         }
 
         if (hasScope) scope.Dispose();
+
+        // Publishes this pass's recorded draws (a no-op when EditorZuiAudit.Recording is off) so
+        // UIAudit's editor-window section can lint this window without needing Play mode.
+        EditorZuiAudit.EndRepaintPass();
     }
 
     protected virtual void OnZUIEnable() { }

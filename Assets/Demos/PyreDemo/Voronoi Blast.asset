@@ -259,12 +259,8 @@ MonoBehaviour:
         value: 1
         exponent: 1
         editState: 0
-      - time: 0.6850642
+      - time: 0.7983539
         value: 1
-        exponent: 1
-        editState: 0
-      - time: 0.82933915
-        value: 0.52991426
         exponent: 1
         editState: 0
       - time: 1
@@ -735,11 +731,15 @@ MonoBehaviour:
   previewBgImage: {fileID: 2800000, guid: 359ecb65b40565a429aa4b442ab113b6, type: 3}
   previewBgImageTint: {r: 1, g: 1, b: 1, a: 1}
   previewBgImageZoom: 0.567
+  previewBgImagePos: {x: 0, y: 0}
   previewShowFrame: 1
   previewStageBg: {fileID: 0}
+  previewSubjectAsset: {fileID: 0}
+  previewSubjectClip: 
+  previewSubjectAttachId: 
   previewLayerSel: 0
-  previewScroll: {x: 0, y: 0}
-  previewFrame: 0
+  previewScroll: {x: 0, y: 86.7688}
+  previewFrame: 3
   previewShapeOn: 1
   previewShapeGradientFill: 1
   previewShapeCrescent: 1
@@ -908,8 +908,12 @@ MonoBehaviour:
             value: 0.42877355
             exponent: 1
             editState: 0
+          - time: 0.6713373
+            value: 0.42582354
+            exponent: 1
+            editState: 0
           - time: 1
-            value: 0.42307693
+            value: 0.27492738
             exponent: 1
             editState: 0
           m_yMin: 0

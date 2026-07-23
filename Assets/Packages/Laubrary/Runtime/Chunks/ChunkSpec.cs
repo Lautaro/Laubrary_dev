@@ -85,6 +85,31 @@ namespace Laubrary.Chunks
         [Tooltip("When a chunk goes slow on the floor, settle it there (stop + rest until it fades) instead of despawning.")]
         public bool restOnFloor = true;
 
+        // ── Sampled pseudo-3D debris (optional) ──────────────────────────────────
+        [Header("Sampled pseudo-3D debris (optional)")]
+        [Tooltip("Instead of a flat procedural shape or a hand-authored sprite, cut small chunks directly " +
+                 "out of the exploding object's own sprite and tumble them with a squash+shade trick that " +
+                 "reads as a lit 3D fragment with no real 3D geometry. Leave null to use plain debris. " +
+                 "Loses to animationSource if that's also set. Source texture must have Read/Write Enabled.")]
+        public Sprite sampleSource;
+        [Tooltip("Smallest sampled chunk size, in source-texture pixels.")]
+        [Min(1)] public int samplePxMin = 5;
+        [Tooltip("Largest sampled chunk size, in source-texture pixels.")]
+        [Min(1)] public int samplePxMax = 20;
+        [Tooltip("Tumble sampled chunks (squash + shade) instead of a flat 2D spin — the pseudo-3D trick. " +
+                 "Only applies to chunks sourced from sampleSource.")]
+        public bool tumble = true;
+        [Tooltip("Slowest simulated tumble rate, degrees/sec.")]
+        public float tumbleSpeedMin = 180f;
+        [Tooltip("Fastest simulated tumble rate, degrees/sec.")]
+        public float tumbleSpeedMax = 720f;
+        [Range(0f, 1f)]
+        [Tooltip("How strong the light/dark swing is as a chunk turns. 0 = squash only, 1 = full swing.")]
+        public float tumbleShadeStrength = 0.6f;
+
+        /// True when a chunk should be sourced by sampling sampleSource rather than sprites/procedural.
+        public bool UsesSampledDebris => sampleSource != null;
+
         // ── Animated content (optional) ──────────────────────────────────────────
         [Header("Animated content (optional)")]
         [Tooltip("Optional animated content every chunk plays instead of a static/procedural sprite — an asset " +
@@ -113,6 +138,11 @@ namespace Laubrary.Chunks
             pixelsPerUnit = Mathf.Max(1f, pixelsPerUnit);
             bounciness = Mathf.Clamp01(bounciness);
             floorFriction = Mathf.Clamp01(floorFriction);
+            samplePxMin = Mathf.Max(1, samplePxMin);
+            samplePxMax = Mathf.Max(samplePxMin, samplePxMax);
+            tumbleSpeedMin = Mathf.Max(0f, tumbleSpeedMin);
+            tumbleSpeedMax = Mathf.Max(tumbleSpeedMin, tumbleSpeedMax);
+            tumbleShadeStrength = Mathf.Clamp01(tumbleShadeStrength);
             sizeOverLife ??= DefaultSizeCurve();
             alphaOverLife ??= DefaultAlphaCurve();
             colorOverLife ??= DefaultColorGradient();

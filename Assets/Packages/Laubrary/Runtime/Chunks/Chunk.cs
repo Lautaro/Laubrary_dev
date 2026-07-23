@@ -29,13 +29,17 @@ namespace Laubrary.Chunks
         Sprite[] animFrames;
         float animClock;
 
+        bool tumbling;          // pseudo-3D squash+shade mode instead of a flat 2D spin (sampled debris only)
+
         const float SettleSpeed = 0.4f;   // below this on the floor, a chunk rests/despawns
         const float FloorEps = 0.0001f;
 
         /// Configure a freshly created chunk. worldSize is the desired on-screen size in world units.
-        /// animation, if supplied, is cycled instead of the sprite the emitter assigned.
+        /// animation, if supplied, is cycled instead of the sprite the emitter assigned. tumble requests
+        /// the pseudo-3D squash+shade mode (see ChunkTumble) instead of a flat 2D spin/faceVelocity — the
+        /// emitter only ever passes true for a chunk it actually sourced via SampledChunkSprites.
         public void Init(ChunkSpec spec, Vector2 velocity, float angularVel, float life, float worldSize, Color baseColor,
-                         IChunkAnimation animation = null)
+                         IChunkAnimation animation = null, bool tumble = false)
         {
             this.spec = spec;
             this.velocity = velocity;
@@ -44,6 +48,7 @@ namespace Laubrary.Chunks
             this.baseColor = baseColor;
             this.life = 0f;
             this.settled = false;
+            this.tumbling = tumble;
 
             sr = GetComponent<SpriteRenderer>();
 
@@ -105,7 +110,13 @@ namespace Laubrary.Chunks
                 transform.position = pos;
 
                 // orientation
-                if (spec.faceVelocity)
+                if (tumbling)
+                {
+                    // Pseudo-3D squash+shade (applied in ApplyLook) replaces real 2D rotation entirely —
+                    // spinAngle here is reused purely as the tumble phase accumulator, in degrees.
+                    spinAngle += angularVel * dt;
+                }
+                else if (spec.faceVelocity)
                 {
                     if (velocity.sqrMagnitude > 0.0001f)
                     {
@@ -137,16 +148,26 @@ namespace Laubrary.Chunks
             if (life >= maxLife) Destroy(gameObject);
         }
 
-        // Size / colour / alpha at normalised life t (0→1).
+        // Size / colour / alpha at normalised life t (0→1). Tumbling chunks additionally squash their
+        // width and shade their colour per ChunkTumble, faking a lit 3D fragment turning in place.
         void ApplyLook(float t)
         {
             float sizeMul = spec.sizeOverLife != null ? spec.sizeOverLife.Evaluate(t) : 1f;
-            transform.localScale = Vector3.one * (baseScale * Mathf.Max(0f, sizeMul));
+            float scaleY = baseScale * Mathf.Max(0f, sizeMul);
+            float scaleX = scaleY;
+            float shade = 1f;
+            if (tumbling)
+            {
+                (float squashX, float tumbleShade) = ChunkTumble.Evaluate(spinAngle, spec.tumbleShadeStrength);
+                scaleX = scaleY * squashX;
+                shade = tumbleShade;
+            }
+            transform.localScale = new Vector3(scaleX, scaleY, 1f);
 
             if (sr == null) return;
             Color tint = spec.colorOverLife != null ? spec.colorOverLife.Evaluate(t) : Color.white;
             float alpha = spec.alphaOverLife != null ? spec.alphaOverLife.Evaluate(t) : 1f;
-            Color c = baseColor * tint;
+            Color c = baseColor * tint * shade;
             c.a = baseColor.a * tint.a * Mathf.Clamp01(alpha);
             sr.color = c;
         }

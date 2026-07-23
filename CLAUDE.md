@@ -81,8 +81,11 @@ Blocks/Form, spacing). Do NOT drop to raw `EditorGUILayout`/`GUILayout` for some
 ZUI control fits, that's a smell** — surface it and consider EXPANDING ZUI (add the control there so every tool
 gains it) rather than silently hand-rolling raw IMGUI in one window. Known current ZUI gaps (legitimate raw
 fallbacks today, and prime expansion candidates): a **text-input field**, an **object/asset picker**, a **color
-field**, an **enum popup/dropdown**, and a **scroll container**. Genuinely bespoke *canvas painting* (a 2D preview
-stage, a thumbnail grid) stays raw — that's not a missing control.
+field**, and an **enum popup/dropdown**. Genuinely bespoke *canvas painting* (a 2D preview stage, a thumbnail
+grid) stays raw — that's not a missing control. (Corrected 2026-07-21: a **scroll container** was listed here
+too, but `ZUI.ScrollView(ref scroll)`/`ZUI.ScrollScope` (`ZUIFields.cs`) already exists and is already used —
+e.g. `LaubraryAssetWindow`'s browser, `MirageWindow.DrawAsset`. Verify a claimed gap against the actual code
+before trusting this list — it drifts.)
 
 **Open packaging gap:** `Assets/ZUI/` currently lives OUTSIDE the package (`Assets/Packages/Laubrary/`), so a
 Laubrary editor that references `ZUI.Editor` compiles here but would NOT ship self-contained to a consumer

@@ -2793,7 +2793,7 @@ public class ZUIStyleEditorWindow : ZUIWindow
         using (new EditorGUI.DisabledScope(shape.fullyRound))
         {
             EditorGUI.BeginChangeCheck();
-            float sliderVal = ZUI.SliderStacked((float)shape.cornerRadius, 0, maxRadius, "Radius", "SmallSlider");
+            float sliderVal = ZUI.SliderStacked((float)shape.cornerRadius, 0, maxRadius, "Radius", "SmallSlider", isInt: true);
             if (EditorGUI.EndChangeCheck())
                 shape.cornerRadius = Mathf.RoundToInt(sliderVal);
         }

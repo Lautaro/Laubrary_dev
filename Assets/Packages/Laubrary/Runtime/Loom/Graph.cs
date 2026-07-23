@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Laubrary.Loom
 {
@@ -8,15 +9,17 @@ namespace Laubrary.Loom
     // runtime lifecycle (Enter/Tick/Exit) is generic over a per-tool context (TCtx), so Story hangs Rules/Presenter
     // off its context and Daemon hangs a behaviour-bridge/body off its own — same engine, different payload.
 
-    // A directed edge: leaving node `From` through output port `Port`, arrive at node `To`.
+    // A directed edge: leaving node `From` through output port `Port`, arrive at node `To`. Waypoints are purely
+    // cosmetic (editor reroute points for bending a wire around other nodes) — the runner never reads them.
     [System.Serializable]
     public struct Edge
     {
         public string From;
         public string Port;
         public string To;
+        public Vector2[] Waypoints;
 
-        public Edge(string from, string port, string to) { From = from; Port = port; To = to; }
+        public Edge(string from, string port, string to) { From = from; Port = port; To = to; Waypoints = null; }
     }
 
     // Sentinel port-return values the runner understands (any node lifecycle may return these).
@@ -32,6 +35,7 @@ namespace Laubrary.Loom
     {
         public string NodeId;
         public bool Parked;
+        public string ArrivedVia;   // the edge key ("from|port|to") walked to reach NodeId — null at the entry node
         public readonly Dictionary<string, object> Locals = new Dictionary<string, object>();
     }
 
@@ -70,5 +74,8 @@ namespace Laubrary.Loom
         bool IsCurrent(string nodeId);
         bool WasVisited(string nodeId);
         bool WasEdgeTraversed(string from, string port, string to);
+        bool IsCurrentEdge(string from, string port, string to);   // the ONE edge a bookmark arrived through, not just any edge into the current node
+        float SecondsSinceActive(string nodeId);                  // 0 while current; float.MaxValue if never visited
+        float SecondsSinceEdgeActive(string from, string port, string to);
     }
 }

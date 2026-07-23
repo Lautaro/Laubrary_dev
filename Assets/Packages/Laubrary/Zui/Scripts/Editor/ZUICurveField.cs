@@ -76,6 +76,9 @@ public static partial class ZUI
         }
         EditorGUIUtility.AddCursorRect(thumb, MouseCursor.Link);
         GUILayout.Label(expanded ? "▼" : "▶", EditorStyles.miniLabel, GUILayout.Width(14f));
+        if (GUILayout.Button(new GUIContent("★", "Load a saved shape, or save this one — built-in and project presets."),
+                              EditorStyles.miniButton, GUILayout.Width(22f), GUILayout.Height(18f)))
+            PopupWindow.Show(GUILayoutUtility.GetLastRect(), new ZUIEnvelopePresetPopup(points, yMin, yMax));
         GUILayout.EndHorizontal();
 
         if (expanded)

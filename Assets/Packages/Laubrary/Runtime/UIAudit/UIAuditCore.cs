@@ -12,7 +12,7 @@ namespace Laubrary.UIAudit
     // uGUI (Canvas/RectTransform) and IMGUI (ZuiRuntime-drawn OnGUI) ship today; UI Toolkit could be added
     // as another sibling section. UIAudit.Register(section) adds coverage.
 
-    public enum UIIssueKind { OffScreen, TextOverflow, TinyText, NeedsScrollView }
+    public enum UIIssueKind { OffScreen, TextOverflow, TinyText, NeedsScrollView, Overlap, Crowded, OverWidth }
 
     public class UIIssue
     {
@@ -27,8 +27,9 @@ namespace Laubrary.UIAudit
     public class UIAuditContext
     {
         public bool IncludeInactive;
-        public float TinyTextPx = 12f;   // effective font size below this is flagged
-        public float Tolerance = 2f;     // px slack before flagging overflow / off-screen
+        public float TinyTextPx = 12f;    // effective font size below this is flagged
+        public float Tolerance = 2f;      // px slack before flagging overflow / off-screen
+        public float MinControlGap = 2f;  // px gap below this between two adjacent interactive controls is "Crowded"
         public float ScreenWidth;
         public float ScreenHeight;
     }

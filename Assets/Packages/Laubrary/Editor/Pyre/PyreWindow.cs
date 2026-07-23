@@ -2740,7 +2740,9 @@ namespace Laubrary.Pyre.Editor
 
         void DrawBackdropOptions()
         {
-            using (Box("Preview backdrop"))
+            using (Box("Preview backdrop", tooltip:
+                "Renders live every repaint, purely as a visual aid for authoring — it's never baked into " +
+                "any asset and has no effect on the baked sprite sheet or the runtime blast."))
             {
                 // Save/Recall for the WHOLE background (this box's mode/colour/gradient/image AND the Test
                 // background sprites below — one recallable unit) live here now, not down in Test background,
@@ -2758,9 +2760,6 @@ namespace Laubrary.Pyre.Editor
                         { stageBg = b; stageSel = -1; if (b != null) stageSaveName = b.name; Repaint(); });
                     if (Button("★", ZUI.Style.Default, GUILayout.Width(24))) SaveBackdrop();
                     GUILayout.FlexibleSpace();
-                    ZUI.HelpIcon(
-                        "Renders live every repaint, purely as a visual aid for authoring — it's never baked into " +
-                        "any asset and has no effect on the baked sprite sheet or the runtime blast.");
                 }
 
                 // Mode as a vertical radio stack beside its own content, not a dropdown above it — built by
@@ -2884,13 +2883,12 @@ namespace Laubrary.Pyre.Editor
         void DrawPreviewSubjectOptions()
         {
             if (spec == null) return;
-            using (Box("Reel Preview"))
+            using (Box("Reel Preview", tooltip:
+                "Plays through the same real gameplay components the subject uses in-game (a real " +
+                "SpriteRenderer-driven player, rendered via LiveScenePreview) — nothing here is baked. " +
+                "These fields are preview-time wiring only; they aren't part of the runtime blast. " +
+                "Attach id targets a MetaLayer painted on the Reel's clip."))
             {
-                using (ZUI.HRow()) { GUILayout.FlexibleSpace(); ZUI.HelpIcon(
-                    "Plays through the same real gameplay components the subject uses in-game (a real " +
-                    "SpriteRenderer-driven player, rendered via LiveScenePreview) — nothing here is baked. " +
-                    "These fields are preview-time wiring only; they aren't part of the runtime blast. " +
-                    "Attach id targets a MetaLayer painted on the Reel's clip."); }
                 EditorGUI.BeginChangeCheck();
                 UnityEngine.Object asset; string clip, attachId;
 

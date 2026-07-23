@@ -18,6 +18,8 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using ZuiRuntime;
+using Laubrary.UIAudit;
 
 public static partial class ZUI
 {
@@ -112,10 +114,21 @@ public static partial class ZUI
     /// Two-row slider: Row 1 = label (left) + editable value field (right).
     /// Row 2 = track-only slider spanning full width. Returns the new value.
     /// </summary>
+    /// <param name="widthOverride">0 (default) = auto-size from label text + the style's own value-field width,
+    /// unchanged from before this parameter existed. &gt;0 = use this width instead for BOTH the value field's
+    /// column and the track below it — e.g. packing several SliderStacked fields into one row via a shared
+    /// caller-computed width, instead of each auto-sizing to a cramped, narrow default regardless of how much
+    /// row space is actually available.</param>
+    /// <param name="isInt">True shows/rounds the numeric field as a whole number — request this explicitly for
+    /// a genuinely integer field (a count, a pixel size). Previously GUESSED from whether min/max were both
+    /// whole numbers spanning &gt;=1 apart, which silently snapped any plain 0..1 FLOAT field (a fraction, a
+    /// normalized Birth/Radius) to just 0 or 1 too — the same shape as an int range, but not one.</param>
     public static float SliderStacked(float value, float min, float max,
                                        string label = "",
                                        string style = SliderStyle.Default,
                                        float? defaultValue = null,
+                                       float widthOverride = 0f,
+                                       bool isInt = false,
                                        params GUILayoutOption[] options)
     {
         var def = ActiveSheet?.FindSlider(style) ?? new ZUISliderDef();
@@ -126,7 +139,7 @@ public static partial class ZUI
         float labelW = 0f;
         if (!string.IsNullOrEmpty(label))
             labelW = EditorStyles.miniLabel.CalcSize(new GUIContent(label)).x + 4f;
-        float totalW = labelW + valueW;
+        float totalW = widthOverride > 0f ? widthOverride : (labelW + valueW);
 
         GUILayout.BeginVertical(GUILayout.Width(totalW));
 
@@ -136,7 +149,6 @@ public static partial class ZUI
             EditorGUI.LabelField(new Rect(row1Rect.x, row1Rect.y, labelW, labelH), label, EditorStyles.miniLabel);
         var fieldRect = new Rect(row1Rect.x + labelW, row1Rect.y, valueW, labelH);
         EditorGUI.BeginChangeCheck();
-        bool isInt = (max - min) >= 1f && Mathf.Approximately(min, Mathf.Round(min)) && Mathf.Approximately(max, Mathf.Round(max));
         if (isInt)
         {
             int iv = EditorGUI.IntField(fieldRect, Mathf.RoundToInt(value));
@@ -347,6 +359,9 @@ public static partial class ZUI
                 value = Mathf.Clamp(newVal, min, max);
         }
 
+        if (Event.current.type == EventType.Repaint)
+            EditorZuiAudit.Record(new ZuiDrawRecord { Kind = "slider", Rect = totalRect, Text = label, Interactive = true });
+
         return value;
     }
 
@@ -449,6 +464,9 @@ public static partial class ZUI
             CollectSliderDebugInfo(def, styleName, sliderRect, isRange: false);
 
         DrawFlashOverlayIfNeeded(sliderRect, styleName, 0, FlashDefType.Slider);
+
+        if (Event.current.type == EventType.Repaint)
+            EditorZuiAudit.Record(new ZuiDrawRecord { Kind = "slider-vertical", Rect = totalRect, Text = label, Interactive = true });
 
         return value;
     }
@@ -760,6 +778,9 @@ public static partial class ZUI
                 if (EditorGUI.EndChangeCheck()) maxVal = Mathf.Clamp(newMax, minVal, absMax);
             }
         }
+
+        if (Event.current.type == EventType.Repaint)
+            EditorZuiAudit.Record(new ZuiDrawRecord { Kind = "slider", Rect = totalRect, Text = label, Interactive = true });
     }
 
     // =========================================================================
@@ -1187,6 +1208,9 @@ public static partial class ZUI
             CollectSliderDebugInfo(def, styleName, trackRect, isRange: false);
 
         DrawFlashOverlayIfNeeded(trackRect, styleName, 0, FlashDefType.Slider);
+
+        if (Event.current.type == EventType.Repaint)
+            EditorZuiAudit.Record(new ZuiDrawRecord { Kind = "microslider", Rect = totalRect, Text = label, Interactive = true });
 
         return value;
     }

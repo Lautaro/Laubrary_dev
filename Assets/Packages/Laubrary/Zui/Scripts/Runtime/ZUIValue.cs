@@ -124,4 +124,43 @@ public class ZUIValue
             m_points.Add(new ZUIEnvelopePoint(1f, m_yMax));
         }
     }
+
+    // ── Copy/paste support (editor-invoked, kept here since it's plain data — no UnityEditor dependency) ──
+
+    const string ClipboardPrefix = "ZUIVALUE1:";
+
+    /// <summary>Serializes this value (mode + every mode's data) for the system clipboard.</summary>
+    public string ToClipboardString() => ClipboardPrefix + JsonUtility.ToJson(this);
+
+    /// <summary>Parses a string previously produced by <see cref="ToClipboardString"/>. False (and a null
+    /// <paramref name="value"/>) for anything else — including another Laubrary control's clipboard payload
+    /// (e.g. a ZUIValue2DControl pair) or unrelated clipboard text — so callers can gate a Paste menu item
+    /// without risking a garbage paste.</summary>
+    public static bool TryFromClipboardString(string s, out ZUIValue value)
+    {
+        if (string.IsNullOrEmpty(s) || !s.StartsWith(ClipboardPrefix)) { value = null; return false; }
+        try { value = JsonUtility.FromJson<ZUIValue>(s.Substring(ClipboardPrefix.Length)); return value != null; }
+        catch { value = null; return false; }
+    }
+
+    /// <summary>Overwrites every field from <paramref name="other"/> — used by Paste, and by anything that
+    /// needs to clone another ZUIValue's data onto an already-wired instance (replacing the reference itself
+    /// would break the caller's serialized field). Curve points are deep-copied, not aliased.</summary>
+    public void CopyFrom(ZUIValue other)
+    {
+        if (other == null) return;
+        m_mode = other.m_mode;
+        m_static = other.m_static;
+        m_min = other.m_min;
+        m_max = other.m_max;
+        m_points.Clear();
+        foreach (var p in other.m_points)
+            m_points.Add(new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
+        m_yMin = other.m_yMin;
+        m_yMax = other.m_yMax;
+        m_duration = other.m_duration;
+        m_warmup = other.m_warmup;
+        m_cooldown = other.m_cooldown;
+        m_multiplierId = other.m_multiplierId;
+    }
 }

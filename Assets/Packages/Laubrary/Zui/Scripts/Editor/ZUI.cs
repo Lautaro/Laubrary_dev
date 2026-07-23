@@ -388,6 +388,7 @@ public static partial class ZUI
         _flashSheet     = ActiveSheet;
         _flashEndTime   = EditorApplication.timeSinceStartup + ActiveFlashCount * ActiveFlashInterval;
         EnsureAnimUpdateRunning();
+        ForwardToRuntimeFlash(styleName, type, ActiveSheet);
     }
 
     public static void StartFlash(string styleName, FlashDefType type, ZUIStyleSheetAsset sheet)
@@ -397,6 +398,17 @@ public static partial class ZUI
         _flashSheet     = sheet;
         _flashEndTime   = EditorApplication.timeSinceStartup + ActiveFlashCount * ActiveFlashInterval;
         EnsureAnimUpdateRunning();
+        ForwardToRuntimeFlash(styleName, type, sheet);
+    }
+
+    // So a flash triggered here also highlights a Play-mode HUD rendered via ZUISheet.DrawBox/Button
+    // (see ZUIFlash.cs) — Slider/Text have no runtime rendering counterpart today, so those no-op.
+    static void ForwardToRuntimeFlash(string styleName, FlashDefType type, ZUIStyleSheetAsset sheet)
+    {
+        ZUIFlashKind? kind = type == FlashDefType.Button ? ZUIFlashKind.Button
+                           : type == FlashDefType.Box    ? ZUIFlashKind.Box
+                           : (ZUIFlashKind?)null;
+        if (kind.HasValue) ZUIFlash.Start(styleName, kind.Value, sheet, ActiveFlashInterval, ActiveFlashCount);
     }
 
     internal static void DrawFlashOverlayIfNeeded(Rect rect, string defName, int cornerRadius, FlashDefType type)
@@ -639,15 +651,22 @@ public static partial class ZUI
     // Looks up a ZUIBoxDef by name from the active sheet. Falls back to the
     // sheet's "Default" entry, then to SectionStyleRegistry's hardcoded default.
 
-    public static BoxScope Box(string title, string styleName = ZUIStyle.Default)
+    /// <summary>
+    /// <paramref name="tooltip"/> (optional): when set, draws a <see cref="HelpIcon"/> sharing the SAME row
+    /// as the title text (right-aligned via FlexibleSpace), not a row of its own below it — see
+    /// ui-layout-rules.md's "Labeling" section for why a hover icon explaining an area must live on that
+    /// area's own title row. Preserves the sheet-resolved title text style either way (unlike hand-rolling a
+    /// plain <c>GUILayout.Label</c> title alongside the icon at the call site).
+    /// </summary>
+    public static BoxScope Box(string title, string styleName = ZUIStyle.Default, string tooltip = null)
     {
         var sheet = ActiveSheet;
         if (sheet != null)
         {
             var def = sheet.FindBox(styleName);
-            if (def != null) { _pendingBoxStyle = styleName; _pendingBoxStyleSet = true; return new BoxScope(title, def); }
+            if (def != null) { _pendingBoxStyle = styleName; _pendingBoxStyleSet = true; return new BoxScope(title, def, tooltip); }
         }
-        return new BoxScope(title, SectionStyleRegistry.Default);
+        return new BoxScope(title, SectionStyleRegistry.Default, tooltip);
     }
 
     public static BoxScope Box() => Box(null, ZUIStyle.Default);
@@ -655,7 +674,8 @@ public static partial class ZUI
     // ===== Box API — ZUIBoxDef (named style def) ==============================
 
     public static BoxScope Box(ZUIBoxDef def)           => new BoxScope(null,  def);
-    public static BoxScope Box(string title, ZUIBoxDef def) => new BoxScope(title, def);
+    /// <inheritdoc cref="Box(string, string, string)"/>
+    public static BoxScope Box(string title, ZUIBoxDef def, string tooltip = null) => new BoxScope(title, def, tooltip);
 
     /// <inheritdoc cref="Box(string, string)"/>
     public static BoxScope BoxNamed(string styleName)
@@ -693,7 +713,7 @@ public static partial class ZUI
         public readonly GUIStyle ContentStyle;
         private readonly bool    _hasContext;
 
-        public BoxScope(string title, SectionStyle style)
+        public BoxScope(string title, SectionStyle style, string tooltip = null)
         {
             ContentStyle = null;
             _hasContext  = false;
@@ -701,14 +721,14 @@ public static partial class ZUI
 
             if (!string.IsNullOrEmpty(title))
             {
-                EditorGUILayout.LabelField(title, style.LabelStyle);
+                DrawTitleRow(title, style.LabelStyle, tooltip);
                 GUILayout.Space(2);
             }
         }
 
         // ZUIBoxDef path — DrawRect background, no texture
 
-        public BoxScope(string title, ZUIBoxDef def)
+        public BoxScope(string title, ZUIBoxDef def, string tooltip = null)
         {
             ContentStyle = def.GetContentStyle();
             _hasContext  = true;
@@ -720,8 +740,22 @@ public static partial class ZUI
             {
                 var ls = new GUIStyle(EditorStyles.boldLabel);
                 def.GetResolvedTitleText().Apply(ls, def.ownerSheet);
-                EditorGUILayout.LabelField(title, ls);
+                DrawTitleRow(title, ls, tooltip);
                 GUILayout.Space(2);
+            }
+        }
+
+        // Shared by both ctors: plain title label when there's no tooltip (unchanged layout — a single
+        // full-width LabelField, not a row), or title + a right-aligned HelpIcon sharing ONE row when there
+        // is. Never a separate row below the title for the icon — that's the anti-pattern this exists to fix.
+        static void DrawTitleRow(string title, GUIStyle labelStyle, string tooltip)
+        {
+            if (string.IsNullOrEmpty(tooltip)) { EditorGUILayout.LabelField(title, labelStyle); return; }
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField(title, labelStyle, GUILayout.ExpandWidth(false));
+                GUILayout.FlexibleSpace();
+                ZUI.HelpIcon(tooltip);
             }
         }
 

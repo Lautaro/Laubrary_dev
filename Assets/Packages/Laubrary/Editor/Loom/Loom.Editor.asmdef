@@ -2,7 +2,8 @@
     "name": "com.Lautaro-Arino.Laubrary.Loom.Editor",
     "rootNamespace": "Laubrary.Loom.Editor",
     "references": [
-        "com.Lautaro-Arino.Laubrary.Loom"
+        "com.Lautaro-Arino.Laubrary.Loom",
+        "com.Lautaro-Arino.Laubrary.GraphViewKit.Editor"
     ],
     "includePlatforms": [
         "Editor"

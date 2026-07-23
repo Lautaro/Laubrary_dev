@@ -32,6 +32,13 @@ public static class ZUIValueControl
         public bool hideCurveTiming;   // hide the Duration / Warmup / Loop row
         public bool hideCurveRange;    // hide the Value-Range row AND pin the curve's Y range to [absMin, absMax]
 
+        // The "live: X" readout below evaluates the value against Application.isPlaying ? Time.time :
+        // EditorApplication.timeSinceStartup — meaningful for a value genuinely driven by wall-clock/gameplay
+        // time (Zhowcase's demo fields), but meaningless noise for a host that evaluates the SAME ZUIValue
+        // against its own baked timeline instead (Pyre: frame/life-phase, nothing to do with real elapsed
+        // time) — there it reads as an arbitrary, unexplained number. Default false = show it (unchanged).
+        public bool hideLiveReadout;
+
         public static Options Default => new Options
         {
             allowStatic = true,
@@ -50,6 +57,9 @@ public static class ZUIValueControl
         /// <summary>Hide the curve's Duration/Warmup/Loop and Value-Range fields; the curve then spans the host's
         /// own time window and takes its Y range from [absMin, absMax].</summary>
         public Options WithoutCurveExtras() { hideCurveTiming = true; hideCurveRange = true; return this; }
+        /// <summary>Hide the "live: X" wall-clock readout — for hosts (like Pyre) that evaluate this same
+        /// ZUIValue against their own baked timeline, where a real-time readout is meaningless noise.</summary>
+        public Options WithoutLiveReadout() { hideLiveReadout = true; return this; }
     }
 
     // ── Per-value editor scaffolding (curve editor needs a persistent Def/Runtime/stateKey) ──
@@ -130,7 +140,7 @@ public static class ZUIValueControl
         GUILayout.EndHorizontal();
 
         // ── Live computed readout (only when the value actually varies) ───────
-        if (v.IsDynamic)
+        if (v.IsDynamic && !opts.hideLiveReadout)
         {
             float now = Application.isPlaying ? Time.time : (float)EditorApplication.timeSinceStartup;
             string readout;
@@ -183,6 +193,9 @@ public static class ZUIValueControl
             GUI.changed = true;
         }
         GUILayout.Label(expanded ? "▼" : "▶", EditorStyles.miniLabel, GUILayout.Width(14f));
+        if (GUILayout.Button(new GUIContent("★", "Load a saved shape, or save this one — built-in and project presets."),
+                              EditorStyles.miniButton, GUILayout.Width(22f), GUILayout.Height(18f)))
+            PopupWindow.Show(GUILayoutUtility.GetLastRect(), new ZUIEnvelopePresetPopup(v.points, v.yMin, v.yMax));
         GUILayout.EndHorizontal();
 
         if (!expanded) return;
@@ -288,6 +301,17 @@ public static class ZUIValueControl
                 menu.AddItem(new GUIContent("Multiplier/" + id), v.multiplierId == id, () => v.multiplierId = captured);
             }
         }
+
+        menu.AddSeparator("");
+        menu.AddItem(new GUIContent("Copy value"), false, () => EditorGUIUtility.systemCopyBuffer = v.ToClipboardString());
+        if (ZUIValue.TryFromClipboardString(EditorGUIUtility.systemCopyBuffer, out _))
+            menu.AddItem(new GUIContent("Paste value"), false, () =>
+            {
+                if (ZUIValue.TryFromClipboardString(EditorGUIUtility.systemCopyBuffer, out var parsed))
+                { v.CopyFrom(parsed); GUI.changed = true; }
+            });
+        else
+            menu.AddDisabledItem(new GUIContent("Paste value"));
 
         menu.ShowAsContext();
     }

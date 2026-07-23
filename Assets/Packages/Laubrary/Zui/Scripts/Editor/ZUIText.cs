@@ -3,6 +3,8 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using ZuiRuntime;
+using Laubrary.UIAudit;
 
 public static partial class ZUI
 {
@@ -276,6 +278,16 @@ public static partial class ZUI
         // Flash overlay — resolve the style name so the Style Editor's flash targets this label.
         string styleName = debugDef != null ? debugDef.name : debugStyle.ToString();
         DrawFlashOverlayIfNeeded(rect, styleName, 0, FlashDefType.Text);
+
+        if (Event.current.type == EventType.Repaint)
+        {
+            var size = style.CalcSize(content);
+            EditorZuiAudit.Record(new ZuiDrawRecord
+            {
+                Kind = "label", Rect = rect, Text = content.text, FontPx = style.fontSize,
+                NeededWidth = size.x, NeededHeight = size.y, Wrap = style.wordWrap,
+            });
+        }
     }
 
     // ── ZTextStyle enum ────────────────────────────────────────────────────────
@@ -287,6 +299,7 @@ public static partial class ZUI
         Header,
         Subheader,
         SectionHeader,
+        GroupTitle,
         Small,
         Subtle,
         Accent,
@@ -315,6 +328,11 @@ public static partial class ZUI
                 { ZTextStyle.Header,    Make(new Color(.95f, .95f, .95f, 1f), 14, FontStyle.Bold)   },
                 { ZTextStyle.Subheader, Make(new Color(.90f, .90f, .90f, 1f), 0,  FontStyle.Bold)   },
                 { ZTextStyle.SectionHeader, Make(new Color(.85f, .85f, .85f, 1f), 12, FontStyle.Bold) },
+                // For a label that titles a small in-body group of related controls (e.g. "Gradient" over
+                // Position/Zoom/Offset) — needs to read as more than a plain field label without competing
+                // with a whole SectionHeader ("Blast", "Modifiers"). Bigger/bolder than the ad hoc
+                // EditorStyles.miniBoldLabel these used before, one step down from SectionHeader.
+                { ZTextStyle.GroupTitle, Make(new Color(.85f, .85f, .85f, 1f), 11, FontStyle.Bold) },
                 { ZTextStyle.Small,     Make(new Color(.70f, .70f, .70f, 1f), 9,  FontStyle.Normal) },
                 { ZTextStyle.Subtle,    Make(new Color(.55f, .55f, .55f, 1f), 0,  FontStyle.Normal) },
                 { ZTextStyle.Accent,    Make(new Color(.70f, .88f, 1f,   1f), 0,  FontStyle.Normal) },

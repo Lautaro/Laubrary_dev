@@ -3,7 +3,8 @@ using Laubrary.Chunks;
 
 /// Demo driver for the Chunks tool. Left-click anywhere to throw a radial spark burst at the cursor; press the
 /// directional key to fire a wall-mounted burst that fans up-and-out and settles on the floor, so you can see the
-/// cone and floor bounce/rest. Everything is play-mode (chunks are moving physical objects). No shipped assets.
+/// cone and floor bounce/rest; press the sampled key to throw sampled pseudo-3D debris cut from a demo sprite's
+/// own pixels. Everything is play-mode (chunks are moving physical objects). No shipped assets.
 public class ChunksDemoSpawner : MonoBehaviour
 {
     [Tooltip("Radial 'pop' burst fired at the mouse on left-click.")]
@@ -12,6 +13,15 @@ public class ChunksDemoSpawner : MonoBehaviour
     public ChunkSpec directionalSpec;
     [Tooltip("Key that fires the directional burst.")]
     public KeyCode directionalKey = KeyCode.Space;
+
+    [Header("Sampled pseudo-3D debris")]
+    [Tooltip("Burst that samples small chunks out of a source sprite's own pixels and tumbles them " +
+             "(squash + shade) — see ChunkSpec.sampleSource/tumble.")]
+    public ChunkSpec sampledSpec;
+    [Tooltip("Shape sampled as the 'exploding object' — built at runtime via DemoSprites, no shipped art.")]
+    public DemoSprites.Shape sampledShape = DemoSprites.Shape.Circle;
+    [Tooltip("Key that fires the sampled-debris burst at the mouse position.")]
+    public KeyCode sampledKey = KeyCode.T;
     [Tooltip("Where the directional (wall-mounted) burst originates, in world space.")]
     public Vector2 wallOrigin = new Vector2(-8f, -2f);
     [Tooltip("Direction of the directional burst, degrees (0 = right, 90 = up).")]
@@ -40,6 +50,24 @@ public class ChunksDemoSpawner : MonoBehaviour
 
         if (directionalSpec != null && Input.GetKeyDown(directionalKey))
             Chunks.Burst(wallOrigin, directionalSpec, wallDirectionDeg);
+
+        if (sampledSpec != null && Input.GetKeyDown(sampledKey))
+        {
+            // DemoSprites builds its sprite at runtime (no shipped assets), so the source is assigned
+            // here rather than pre-serialized on the ChunkSpec asset.
+            sampledSpec.sampleSource = DemoSprites.Get(sampledShape);
+            Chunks.Burst(MouseWorld(), sampledSpec);
+        }
+    }
+
+    void OnGUI()
+    {
+        var s = new GUIStyle(GUI.skin.label) { fontSize = 14 };
+        s.normal.textColor = Color.white;
+        GUI.Label(new Rect(10, 10, 500, 80),
+            "Left-click: radial burst\n" +
+            directionalKey + ": directional wall burst\n" +
+            sampledKey + " (at mouse): sampled pseudo-3D debris tumble", s);
     }
 
     Vector2 MouseWorld()

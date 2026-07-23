@@ -7,6 +7,7 @@ using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Laubrary.Loom;
+using Laubrary.GraphViewKit;
 using GV = UnityEditor.Experimental.GraphView;
 using LEdge = Laubrary.Loom.Edge;
 
@@ -41,6 +42,20 @@ namespace Laubrary.Loom.Editor
             toolbar.Add(_header);
             toolbar.Add(new Button(() => { _view?.SaveToAsset(); AssetDatabase.SaveAssets(); }) { text = "Save" });
             toolbar.Add(new Button(() => _view?.FrameAll()) { text = "Frame All" });
+
+            var fadeLabel = new Label("Fade") { style = { alignSelf = Align.Center, marginLeft = 12, marginRight = 4, opacity = 0.8f } };
+            toolbar.Add(fadeLabel);
+            var fadeSlider = new Slider(0.1f, 5f) { value = EditorPrefs.GetFloat("Laubrary.Loom.FadeSeconds", 1.5f), style = { width = 100, alignSelf = Align.Center } };
+            var fadeValueLabel = new Label(fadeSlider.value.ToString("0.0") + "s") { style = { alignSelf = Align.Center, marginLeft = 4, marginRight = 8, opacity = 0.7f, minWidth = 30 } };
+            fadeSlider.RegisterValueChangedCallback(e =>
+            {
+                if (_view != null) _view.FadeSeconds = e.newValue;
+                EditorPrefs.SetFloat("Laubrary.Loom.FadeSeconds", e.newValue);
+                fadeValueLabel.text = e.newValue.ToString("0.0") + "s";
+            });
+            toolbar.Add(fadeSlider);
+            toolbar.Add(fadeValueLabel);
+
             toolbar.Add(new Label("  Add nodes: right-click the canvas.  Edit field values in-node or the Inspector.")
             { style = { alignSelf = Align.Center, opacity = 0.7f } });
             rootVisualElement.Add(toolbar);
@@ -48,9 +63,20 @@ namespace Laubrary.Loom.Editor
             _view = new LoomGraphView { style = { flexGrow = 1 } };
             rootVisualElement.Add(_view);
             if (_asset != null) Load(_asset);
+
+            Undo.undoRedoPerformed += OnUndoRedo;
         }
 
-        void OnDisable() { _view?.SaveToAsset(); if (_view != null) rootVisualElement.Remove(_view); }
+        void OnDisable()
+        {
+            Undo.undoRedoPerformed -= OnUndoRedo;
+            _view?.SaveToAsset(); if (_view != null) rootVisualElement.Remove(_view);
+        }
+
+        // Ctrl+Z reverts the asset's serialized Pages/Edges, but the GraphView's VisualElements are a separate
+        // in-memory tree that Unity's Undo system doesn't know to refresh — re-Populate so a reverted delete
+        // (or any other undone edit) actually reappears on the canvas.
+        void OnUndoRedo() { if (_asset != null) _view?.Populate(_asset); }
 
         void Load(IGraphAsset asset)
         {
@@ -64,6 +90,11 @@ namespace Laubrary.Loom.Editor
     public class LoomGraphView : GV.GraphView
     {
         IGraphAsset _asset;
+
+        // How long (seconds) a just-vacated node/edge takes to fade from the bright "current" glow down to its
+        // resting look, instead of switching off the instant the flow moves on. A toolbar slider in
+        // GraphWindowBase edits this live and persists it via EditorPrefs.
+        public float FadeSeconds = UnityEditor.EditorPrefs.GetFloat("Laubrary.Loom.FadeSeconds", 1.5f);
 
         public LoomGraphView()
         {
@@ -93,33 +124,90 @@ namespace Laubrary.Loom.Editor
             if (!Application.isPlaying) { if (_vizOn) { ClearViz(); _vizOn = false; } return; }
             _vizOn = true;
             var runners = FindRunners();
+
             foreach (var n in nodes.ToList().OfType<LoomNodeView>())
             {
-                bool cur = false, vis = false;
-                foreach (var r in runners) { if (r.IsCurrent(n.Node.Id)) { cur = true; break; } if (r.WasVisited(n.Node.Id)) vis = true; }
-                n.SetViz(cur ? 2 : vis ? 1 : 0);
+                bool cur = false, vis = false; float since = float.MaxValue;
+                foreach (var r in runners)
+                {
+                    if (r.IsCurrent(n.Node.Id)) cur = true;
+                    if (r.WasVisited(n.Node.Id)) vis = true;
+                    float s = r.SecondsSinceActive(n.Node.Id);
+                    if (s < since) since = s;
+                }
+                n.SetViz(cur, vis, since, FadeSeconds);
             }
-            foreach (var e in edges.ToList())
+
+            // A logical Story/Daemon edge may render as several segments (real → reroute → … → real) when it's
+            // been bent around other nodes. Resolve each segment back to its real endpoints so the WHOLE chain
+            // gets one consistent viz state, not just the segment that happens to touch a real node.
+            var allEdges = edges.ToList();
+            foreach (var e in allEdges)
             {
-                var o = e.output?.node as LoomNodeView;
-                var i = e.input?.node as LoomNodeView;
-                bool trav = o != null && i != null && runners.Any(r => r.WasEdgeTraversed(o.Node.Id, e.output.portName, i.Node.Id));
-                SetEdgeViz(e, trav);
+                var (fromId, port, toId) = ResolveLogicalEndpoints(e, allEdges);
+                if (fromId == null || toId == null) { SetEdgeViz(e, false, false, float.MaxValue, FadeSeconds); continue; }
+
+                bool cur = false, trav = false; float since = float.MaxValue;
+                foreach (var r in runners)
+                {
+                    // Exclusive: only the specific edge a bookmark actually walked lights up as "current" — NOT
+                    // every edge that happens to end at the active node (e.g. a loop's two incoming wires).
+                    if (r.IsCurrentEdge(fromId, port, toId)) cur = true;
+                    if (r.WasEdgeTraversed(fromId, port, toId)) trav = true;
+                    float s = r.SecondsSinceEdgeActive(fromId, port, toId);
+                    if (s < since) since = s;
+                }
+                SetEdgeViz(e, cur, trav, since, FadeSeconds);
             }
+        }
+
+        static (string from, string port, string to) ResolveLogicalEndpoints(GV.Edge seg, List<GV.Edge> all)
+        {
+            var back = seg;
+            for (int guard = 0; back.output?.node is UniversalRerouteNode rOut && guard < 64; guard++)
+            {
+                var incoming = rOut.OtherSlotPort(back.output);
+                var prev = all.FirstOrDefault(x => x.input == incoming);
+                if (prev == null) break;
+                back = prev;
+            }
+            var fromView = back.output?.node as LoomNodeView;
+            var portName = back.output?.portName;
+
+            var fwd = seg;
+            for (int guard = 0; fwd.input?.node is UniversalRerouteNode rIn && guard < 64; guard++)
+            {
+                var outgoing = rIn.OtherSlotPort(fwd.input);
+                var next = all.FirstOrDefault(x => x.output == outgoing);
+                if (next == null) break;
+                fwd = next;
+            }
+            var toView = fwd.input?.node as LoomNodeView;
+            return (fromView?.Node.Id, portName, toView?.Node.Id);
         }
 
         void ClearViz()
         {
-            foreach (var n in nodes.ToList().OfType<LoomNodeView>()) n.SetViz(0);
-            foreach (var e in edges.ToList()) SetEdgeViz(e, false);
+            foreach (var n in nodes.ToList().OfType<LoomNodeView>()) n.SetViz(false, false, float.MaxValue, FadeSeconds);
+            foreach (var e in edges.ToList()) SetEdgeViz(e, false, false, float.MaxValue, FadeSeconds);
         }
 
-        static void SetEdgeViz(GV.Edge e, bool traversed)
+        static readonly Color CurrentColor = new Color(1f, 0.85f, 0.15f);
+        static readonly Color TraversedColor = new Color(0.30f, 0.85f, 0.45f);
+        static readonly Color IdleColor = new Color(0.5f, 0.5f, 0.5f);
+
+        // Bright while the wire is THE path a bookmark just walked; once it stops being current, its glow eases
+        // back down to "traversed" (or idle, if never traversed) over `fadeSeconds` instead of switching off.
+        static void SetEdgeViz(GV.Edge e, bool isCurrent, bool wasTraversed, float secondsSinceActive, float fadeSeconds)
         {
             if (e?.edgeControl == null) return;
-            var col = traversed ? new Color(0.30f, 0.85f, 0.45f) : new Color(0.5f, 0.5f, 0.5f);
+            Color baseCol = wasTraversed ? TraversedColor : IdleColor;
+            float baseW = wasTraversed ? 4f : 2f;
+            float alpha = isCurrent ? 1f : (fadeSeconds > 0f ? Mathf.Clamp01(1f - secondsSinceActive / fadeSeconds) : 0f);
+            var col = Color.Lerp(baseCol, CurrentColor, alpha);
+            var w = Mathf.Lerp(baseW, 5f, alpha);
             e.edgeControl.inputColor = col; e.edgeControl.outputColor = col;
-            e.edgeControl.edgeWidth = traversed ? 4 : 2;
+            e.edgeControl.edgeWidth = Mathf.RoundToInt(w);
         }
 
         public void Populate(IGraphAsset asset)
@@ -143,7 +231,22 @@ namespace Laubrary.Loom.Editor
                     if (!map.TryGetValue(e.From, out var from) || !map.TryGetValue(e.To, out var to)) continue;
                     var op = from.OutPort(e.Port); var ip = to.InPort;
                     if (op == null || ip == null) continue;
-                    AddElement(op.ConnectTo(ip));
+
+                    GV.Port cur = op;
+                    if (e.Waypoints != null)
+                        foreach (var wp in e.Waypoints)
+                        {
+                            var reroute = new UniversalRerouteNode();
+                            reroute.SetPosition(new Rect(wp, UniversalRerouteNode.Size));
+                            AddElement(reroute);
+                            HookReroute(reroute);
+                            var seg = cur.ConnectTo(reroute.SlotAActivePort);
+                            AddElement(seg); AttachEdgeHandlers(seg);
+                            reroute.RefreshRole();
+                            cur = reroute.SlotBActivePort;
+                        }
+                    var last = cur.ConnectTo(ip);
+                    AddElement(last); AttachEdgeHandlers(last);
                 }
         }
 
@@ -157,7 +260,12 @@ namespace Laubrary.Loom.Editor
         public override List<GV.Port> GetCompatiblePorts(GV.Port startPort, GV.NodeAdapter adapter)
         {
             var list = new List<GV.Port>();
-            ports.ForEach(p => { if (startPort != p && startPort.node != p.node && startPort.direction != p.direction) list.Add(p); });
+            ports.ForEach(p =>
+            {
+                if (startPort == p || startPort.node == p.node || startPort.direction == p.direction) return;
+                if (p.style.display == DisplayStyle.None) return;   // a reroute's currently locked-out sub-port
+                list.Add(p);
+            });
             return list;
         }
 
@@ -174,13 +282,18 @@ namespace Laubrary.Loom.Editor
                 }
                 evt.menu.AppendSeparator();
                 if (selection.OfType<LoomNodeView>().FirstOrDefault() is LoomNodeView sel)
-                    evt.menu.AppendAction("Set as Entry", _ => { _asset.EntryId = sel.Node.Id; Dirty(); Populate(_asset); });
+                    evt.menu.AppendAction("Set as Entry", _ =>
+                    {
+                        if (_asset.AssetObject != null) Undo.RegisterCompleteObjectUndo(_asset.AssetObject, "Set Entry Node");
+                        _asset.EntryId = sel.Node.Id; Dirty(); Populate(_asset);
+                    });
             }
             base.BuildContextualMenu(evt);
         }
 
         void AddNode(Type type, Vector2 pos)
         {
+            if (_asset.AssetObject != null) Undo.RegisterCompleteObjectUndo(_asset.AssetObject, "Add Node");
             var node = _asset.AddNode(type, Guid.NewGuid().ToString("N"), pos);
             if (_asset.IsEntryNode(node) && string.IsNullOrEmpty(_asset.EntryId)) _asset.EntryId = node.Id;
             AddElement(CreateNode(node));
@@ -189,24 +302,137 @@ namespace Laubrary.Loom.Editor
 
         GV.GraphViewChange OnGraphChanged(GV.GraphViewChange change)
         {
+            // A user-drawn edge arrives here via edgesToCreate; make sure it's in the view and gets the same
+            // double-click-to-reroute handler as everything Populate() builds.
+            if (change.edgesToCreate != null)
+                foreach (var e in change.edgesToCreate)
+                {
+                    if (e.parent == null) AddElement(e);
+                    AttachEdgeHandlers(e);
+                }
+
+            // Deleting a reroute waypoint must not sever the logical connection it was bending — splice the real
+            // ports it sat between back together with a direct edge once Unity finishes tearing it down.
+            if (change.elementsToRemove != null)
+                foreach (var r in change.elementsToRemove.OfType<UniversalRerouteNode>().ToList())
+                    ReconnectAround(r);
+
+            // Any reroute's locked in/out role may need to react to a wire the user just dragged straight onto
+            // one of its slots (not just ones created via the double-click-insert flow below).
+            foreach (var r in nodes.ToList().OfType<UniversalRerouteNode>()) r.RefreshRole();
+
             EditorApplication.delayCall += () => { if (this != null && _asset != null) SaveToAsset(); };
             return change;
+        }
+
+        // Wires a freshly created reroute node's events back into this view: a slot's orientation flip rebuilds
+        // its ports and hands back a replacement edge to add, and any internal topology change (role lock,
+        // orientation flip) should persist like any other graph edit.
+        void HookReroute(UniversalRerouteNode r)
+        {
+            r.EdgeReplaced += edge => { AddElement(edge); AttachEdgeHandlers(edge); };
+            r.Changed += () => EditorApplication.delayCall += () => { if (this != null && _asset != null) SaveToAsset(); };
+        }
+
+        // Double-click a wire to drop a drag-able bend point on it (visual only — no graph logic). The standard
+        // technique node editors (Shader Graph, Blueprints) use so a back-edge in a loop can arc around other
+        // nodes instead of cutting a straight diagonal through the middle of the graph.
+        void InsertReroute(GV.Edge edge, Vector2 localPos)
+        {
+            var outputPort = edge.output; var inputPort = edge.input;
+            if (outputPort == null || inputPort == null) return;
+
+            RemoveElement(edge);
+            outputPort.Disconnect(edge); inputPort.Disconnect(edge);
+
+            var reroute = new UniversalRerouteNode();
+            reroute.SetPosition(new Rect(localPos - UniversalRerouteNode.Size / 2f, UniversalRerouteNode.Size));
+            AddElement(reroute);
+            HookReroute(reroute);
+
+            var seg1 = outputPort.ConnectTo(reroute.SlotAActivePort);
+            AddElement(seg1); AttachEdgeHandlers(seg1);
+            reroute.RefreshRole();
+
+            var seg2 = reroute.SlotBActivePort.ConnectTo(inputPort);
+            AddElement(seg2); AttachEdgeHandlers(seg2);
+
+            EditorApplication.delayCall += () => { if (this != null && _asset != null) SaveToAsset(); };
+        }
+
+        // NOTE: only handles a single reroute being removed at a time — deleting two chained waypoints in one
+        // multi-select still works per-node but won't re-merge across both in the same pass. Rare enough (you'd
+        // need several bends on one wire) not to be worth the extra bookkeeping right now.
+        void ReconnectAround(UniversalRerouteNode r)
+        {
+            var all = edges.ToList();
+            GV.Edge inEdge = null, outEdge = null;
+            foreach (var p in r.AllPorts)
+            {
+                if (!p.connected) continue;
+                var e = all.FirstOrDefault(x => x.input == p || x.output == p);
+                if (e == null) continue;
+                if (e.input == p) inEdge = e; else outEdge = e;
+            }
+            if (inEdge?.output == null || outEdge?.input == null) return;
+            var realOut = inEdge.output; var realIn = outEdge.input;
+            EditorApplication.delayCall += () =>
+            {
+                if (this == null) return;
+                var merged = realOut.ConnectTo(realIn);
+                AddElement(merged); AttachEdgeHandlers(merged);
+            };
+        }
+
+        void AttachEdgeHandlers(GV.Edge e)
+        {
+            e.RegisterCallback<MouseDownEvent>(evt =>
+            {
+                if (evt.clickCount == 2 && evt.button == 0)
+                {
+                    InsertReroute(e, contentViewContainer.WorldToLocal(evt.mousePosition));
+                    evt.StopPropagation();
+                }
+            });
         }
 
         public void SaveToAsset()
         {
             if (_asset == null) return;
+            // Register BEFORE mutating — this snapshots the asset's current (pre-edit) Pages/Edges as the Undo
+            // baseline. Covers every structural change (delete, reroute insert/remove, drag) since they all
+            // funnel through here via the delayCall in OnGraphChanged.
+            if (_asset.AssetObject != null) Undo.RegisterCompleteObjectUndo(_asset.AssetObject, "Edit Graph");
+
             var views = nodes.ToList().OfType<LoomNodeView>().ToList();
             foreach (var n in views) n.Node.GraphPos = n.GetPosition().position;
             _asset.RebuildNodes(views.Select(n => n.Node).ToList());
 
+            // Walk each chain forward from a real output port through any reroute waypoints to the real input
+            // port it ultimately reaches, collapsing it back into one logical edge (with the bend positions).
+            var allEdges = edges.ToList();
             var el = new List<LEdge>();
-            foreach (var e in edges.ToList())
+            foreach (var e in allEdges)
             {
-                var o = e.output?.node as LoomNodeView;
-                var i = e.input?.node as LoomNodeView;
-                if (o == null || i == null) continue;
-                el.Add(new LEdge(o.Node.Id, e.output.portName, i.Node.Id));
+                if (!(e.output?.node is LoomNodeView fromView)) continue;
+                var portName = e.output.portName;
+
+                var waypoints = new List<Vector2>();
+                var seg = e;
+                bool broken = false;
+                for (int guard = 0; seg.input?.node is UniversalRerouteNode reroute; guard++)
+                {
+                    if (guard >= 64) { broken = true; break; }
+                    waypoints.Add(reroute.GetPosition().position);
+                    var outgoing = reroute.OtherSlotPort(seg.input);
+                    var next = allEdges.FirstOrDefault(x => x.output == outgoing);
+                    if (next == null) { broken = true; break; }
+                    seg = next;
+                }
+                if (broken || !(seg.input?.node is LoomNodeView toView)) continue;
+
+                el.Add(new LEdge(fromView.Node.Id, portName, toView.Node.Id)
+                { Waypoints = waypoints.Count > 0 ? waypoints.ToArray() : null });
             }
             _asset.Edges = el;
             if (_asset.GetNodeUntyped(_asset.EntryId) == null) _asset.EntryId = _asset.ResolveEntry();
@@ -265,7 +491,15 @@ namespace Laubrary.Loom.Editor
             return mark + Node.DisplayTitle;
         }
 
-        void Dirty() { if (_asset?.AssetObject != null) EditorUtility.SetDirty(_asset.AssetObject); }
+        // Must be called BEFORE the field mutation it guards — RegisterCompleteObjectUndo snapshots whatever
+        // the asset currently looks like as the Undo baseline, so calling it after the value already changed
+        // would bake the NEW value in as "the thing to undo back to."
+        void Dirty()
+        {
+            if (_asset?.AssetObject == null) return;
+            Undo.RegisterCompleteObjectUndo(_asset.AssetObject, "Edit " + Node.DisplayTitle);
+            EditorUtility.SetDirty(_asset.AssetObject);
+        }
 
         // Reflection-driven in-node editors for the node's public fields (scalars / bool / enum / List<T> of
         // [Serializable] elements). Everything else points to the Inspector (SerializeReference etc.).
@@ -288,13 +522,13 @@ namespace Laubrary.Loom.Editor
                 bool multi = fi.GetCustomAttribute<TextAreaAttribute>() != null;
                 var f = new TextField(name) { value = (string)fi.GetValue(target) ?? "", multiline = multi };
                 f.labelElement.style.minWidth = 70;
-                f.RegisterValueChangedCallback(e => { fi.SetValue(target, e.newValue); if (name == "Title" && target == (object)Node) title = TitleText(); Dirty(); });
+                f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); if (name == "Title" && target == (object)Node) title = TitleText(); });
                 return f;
             }
-            if (t == typeof(int)) { var f = new IntegerField(name) { value = (int)fi.GetValue(target) }; f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { fi.SetValue(target, e.newValue); Dirty(); }); return f; }
-            if (t == typeof(float)) { var f = new FloatField(name) { value = (float)fi.GetValue(target) }; f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { fi.SetValue(target, e.newValue); Dirty(); }); return f; }
-            if (t == typeof(bool)) { var f = new Toggle(name) { value = (bool)fi.GetValue(target) }; f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { fi.SetValue(target, e.newValue); Dirty(); }); return f; }
-            if (t.IsEnum) { var f = new EnumField(name, (Enum)fi.GetValue(target)); f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { fi.SetValue(target, e.newValue); Dirty(); }); return f; }
+            if (t == typeof(int)) { var f = new IntegerField(name) { value = (int)fi.GetValue(target) }; f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); }); return f; }
+            if (t == typeof(float)) { var f = new FloatField(name) { value = (float)fi.GetValue(target) }; f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); }); return f; }
+            if (t == typeof(bool)) { var f = new Toggle(name) { value = (bool)fi.GetValue(target) }; f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); }); return f; }
+            if (t.IsEnum) { var f = new EnumField(name, (Enum)fi.GetValue(target)); f.labelElement.style.minWidth = 70; f.RegisterValueChangedCallback(e => { Dirty(); fi.SetValue(target, e.newValue); }); return f; }
             if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>)) return BuildList(fi, target);
             return new Label(name + ": (edit in Inspector)") { style = { opacity = 0.5f, fontSize = 10, marginTop = 2, whiteSpace = WhiteSpace.Normal } };
         }
@@ -312,8 +546,8 @@ namespace Laubrary.Loom.Editor
             f.labelElement.style.minWidth = 70;
             f.RegisterValueChangedCallback(e =>
             {
-                fi.SetValue(target, e.newValue);
                 Dirty();
+                fi.SetValue(target, e.newValue);
                 refresh?.Invoke();   // dependent dropdowns (e.g. a field list that depends on the chosen rule) rebuild
             });
             return f;
@@ -342,7 +576,7 @@ namespace Laubrary.Loom.Editor
                 box.Clear();
                 var head = new VisualElement { style = { flexDirection = FlexDirection.Row, marginBottom = 2 } };
                 head.Add(new Label(fi.Name) { style = { unityFontStyleAndWeight = FontStyle.Bold, fontSize = 11, flexGrow = 1 } });
-                head.Add(new Button(() => { EnsureList(fi, target).Add(NewElem(elemType)); Dirty(); rebuild(); }) { text = "+ Add" });
+                head.Add(new Button(() => { Dirty(); EnsureList(fi, target).Add(NewElem(elemType)); rebuild(); }) { text = "+ Add" });
                 box.Add(head);
                 var list = fi.GetValue(target) as System.Collections.IList;
                 if (list != null)
@@ -352,7 +586,7 @@ namespace Laubrary.Loom.Editor
                         var row = new VisualElement { style = { marginBottom = 3, paddingLeft = 3, paddingBottom = 2, borderLeftWidth = 1, borderLeftColor = new Color(1f, 1f, 1f, 0.1f) } };
                         var rowHead = new VisualElement { style = { flexDirection = FlexDirection.Row } };
                         rowHead.Add(new Label("#" + idx) { style = { flexGrow = 1, fontSize = 10, opacity = 0.6f } });
-                        rowHead.Add(new Button(() => { EnsureList(fi, target).RemoveAt(idx); Dirty(); rebuild(); }) { text = "✕" });
+                        rowHead.Add(new Button(() => { Dirty(); EnsureList(fi, target).RemoveAt(idx); rebuild(); }) { text = "✕" });
                         row.Add(rowHead);
                         if (item != null)
                             foreach (var efi in elemType.GetFields(BindingFlags.Public | BindingFlags.Instance))
@@ -379,15 +613,23 @@ namespace Laubrary.Loom.Editor
             return _outs.Values.FirstOrDefault();
         }
 
-        public void SetViz(int state)
+        static readonly Color VizCurrentColor = new Color(1f, 0.85f, 0.15f);
+        static readonly Color VizVisitedColor = new Color(0.30f, 0.80f, 0.45f);
+
+        // Bright while THIS node is current; once it stops being current, the border eases back down to
+        // "visited" (or off, if never visited) over `fadeSeconds` instead of switching off abruptly.
+        public void SetViz(bool isCurrent, bool wasVisited, float secondsSinceActive, float fadeSeconds)
         {
-            Color border; float w;
-            if (state == 2) { border = new Color(1f, 0.85f, 0.15f); w = 4f; }
-            else if (state == 1) { border = new Color(0.30f, 0.80f, 0.45f); w = 2f; }
-            else { border = Color.clear; w = 0f; }
+            Color baseCol = wasVisited ? VizVisitedColor : Color.clear;
+            float baseW = wasVisited ? 2f : 0f;
+            float alpha = isCurrent ? 1f : (fadeSeconds > 0f ? Mathf.Clamp01(1f - secondsSinceActive / fadeSeconds) : 0f);
+            var border = Color.Lerp(baseCol, VizCurrentColor, alpha);
+            var w = Mathf.Lerp(baseW, 4f, alpha);
             style.borderTopColor = border; style.borderBottomColor = border; style.borderLeftColor = border; style.borderRightColor = border;
             style.borderTopWidth = w; style.borderBottomWidth = w; style.borderLeftWidth = w; style.borderRightWidth = w;
-            titleContainer.style.backgroundColor = state == 2 ? new StyleColor(new Color(0.55f, 0.45f, 0.05f, 0.55f)) : new StyleColor(StyleKeyword.Null);
+            titleContainer.style.backgroundColor = alpha > 0.02f
+                ? new StyleColor(new Color(0.55f, 0.45f, 0.05f, 0.55f * alpha))
+                : new StyleColor(StyleKeyword.Null);
         }
     }
 }

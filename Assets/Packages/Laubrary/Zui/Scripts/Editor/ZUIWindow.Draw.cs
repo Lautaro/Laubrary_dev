@@ -209,8 +209,10 @@ public abstract partial class ZUIWindow
                                    string label = "",
                                    string style = ZUI.SliderStyle.Default,
                                    float? defaultValue = null,
+                                   float widthOverride = 0f,
+                                   bool isInt = false,
                                    params GUILayoutOption[] options)
-    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.SliderStacked(value, min, max, label, style, defaultValue, options); }
+    { using (ZUI.UseSheet(ResolvedSheet)) return ZUI.SliderStacked(value, min, max, label, style, defaultValue, widthOverride, isInt, options); }
 
     protected float SliderVertical(float value, float min, float max,
                                     string label = "",
@@ -382,10 +384,10 @@ public abstract partial class ZUIWindow
     // with the outer sheet scope via CombinedScope. Consumers use `using (Box(...)) { }` and
     // don't care about the concrete type.
 
-    protected IDisposable Box(string title, string styleName = ZUI.ZUIStyle.Default)
+    protected IDisposable Box(string title, string styleName = ZUI.ZUIStyle.Default, string tooltip = null)
     {
         var outer = ZUI.UseSheet(ResolvedSheet);
-        return new CombinedScope(ZUI.Box(title, styleName), outer);
+        return new CombinedScope(ZUI.Box(title, styleName, tooltip), outer);
     }
 
     protected IDisposable Box()
@@ -400,10 +402,10 @@ public abstract partial class ZUIWindow
         return new CombinedScope(ZUI.Box(def), outer);
     }
 
-    protected IDisposable Box(string title, ZUIBoxDef def)
+    protected IDisposable Box(string title, ZUIBoxDef def, string tooltip = null)
     {
         var outer = ZUI.UseSheet(ResolvedSheet);
-        return new CombinedScope(ZUI.Box(title, def), outer);
+        return new CombinedScope(ZUI.Box(title, def, tooltip), outer);
     }
 
     protected IDisposable BoxNamed(string styleName)

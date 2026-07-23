@@ -1,0 +1,140 @@
+/* MirageMockup_UIToolkit.uss — supporting stylesheet for MirageMockup_UIToolkit.cs.
+   Framework-trial deliverable: plain UI Toolkit USS, no IMGUI. */
+
+.root-pad {
+    padding: 6px;
+}
+
+/* Every BaseField-derived control (FloatField, Slider, DropdownField, Toggle, ColorField,
+   ObjectField...) defaults to flex-grow:1 inside a flex row, which is exactly the
+   "stretches to fill available space" bug the trial rules forbid. Force every field to only
+   ever be as wide as its own explicit style.width, never wider, never squeezed either. */
+.unity-base-field {
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+.section-box {
+    border-width: 1px;
+    border-color: rgba(128, 128, 128, 0.4);
+    border-radius: 3px;
+    padding: 6px;
+    margin-bottom: 6px;
+}
+
+.row {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 3px;
+}
+
+.row > * {
+    margin-right: 6px;
+}
+
+.field-wrap {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-right: 6px;
+}
+
+.field-label {
+    margin-right: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    -unity-text-align: middle-left;
+}
+
+.header-label {
+    -unity-font-style: bold;
+    font-size: 13px;
+    margin-bottom: 3px;
+    white-space: nowrap;
+}
+
+.subheader-label {
+    -unity-font-style: bold;
+    font-size: 11px;
+    margin-top: 4px;
+    margin-bottom: 3px;
+    white-space: nowrap;
+}
+
+.subtle-label {
+    font-size: 10px;
+    opacity: 0.65;
+    margin-bottom: 2px;
+    white-space: nowrap;
+}
+
+.hint-label {
+    font-size: 10px;
+    opacity: 0.55;
+    white-space: normal;
+    margin-bottom: 3px;
+}
+
+.name-label {
+    white-space: nowrap;
+    flex-shrink: 0;
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+}
+
+.asset-thumb {
+    background-color: rgba(128, 128, 128, 0.25);
+    border-width: 1px;
+    border-color: rgba(128, 128, 128, 0.5);
+    flex-shrink: 0;
+    margin-right: 6px;
+}
+
+.pad-box {
+    background-color: rgba(128, 128, 128, 0.15);
+    border-width: 1px;
+    border-color: rgba(128, 128, 128, 0.6);
+    flex-shrink: 0;
+}
+
+.pad-dot {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background-color: rgb(255, 170, 40);
+}
+
+.seq-row {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
+}
+
+.seq-row > * {
+    margin-right: 6px;
+}
+
+/* explicit width helpers — every field/button in this window sizes via one of these
+   instead of being left to stretch (rule 2). */
+.w-22  { width: 22px; }
+.w-40  { width: 40px; }
+.w-50  { width: 50px; }
+.w-60  { width: 60px; }
+.w-64  { width: 64px; }
+.w-70  { width: 70px; }
+.w-90  { width: 90px; }
+.w-100 { width: 100px; }
+.w-130 { width: 130px; }
+.w-140 { width: 140px; }
+.w-150 { width: 150px; }
+.w-170 { width: 170px; }
+.w-200 { width: 200px; }
+
+.h-20 { height: 20px; }
+.h-40 { height: 40px; }
+.h-60 { height: 60px; }
+.h-68 { height: 68px; }
+.h-80 { height: 80px; }

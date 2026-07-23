@@ -30,10 +30,31 @@ namespace Laubrary.Loom
         readonly HashSet<string> _visited = new HashSet<string>();
         readonly HashSet<string> _edges = new HashSet<string>();
         readonly HashSet<string> _current = new HashSet<string>();
+        // The ONE edge each live bookmark actually arrived through (not "any edge into this node") — lets the
+        // editor light up just the true path instead of every wire that happens to end at the current node.
+        readonly HashSet<string> _currentEdges = new HashSet<string>();
+        // Time.time of the last frame a node/edge was current — the editor uses "now minus this" to fade a
+        // just-vacated glow out smoothly instead of it just switching off.
+        readonly Dictionary<string, float> _lastActiveNode = new Dictionary<string, float>();
+        readonly Dictionary<string, float> _lastActiveEdge = new Dictionary<string, float>();
 
         public bool WasVisited(string nodeId) => nodeId != null && _visited.Contains(nodeId);
         public bool IsCurrent(string nodeId) => nodeId != null && _current.Contains(nodeId);
         public bool WasEdgeTraversed(string from, string port, string to) => _edges.Contains(EdgeKey(from, port, to));
+        public bool IsCurrentEdge(string from, string port, string to) => _currentEdges.Contains(EdgeKey(from, port, to));
+
+        public float SecondsSinceActive(string nodeId)
+        {
+            if (string.IsNullOrEmpty(nodeId) || !_lastActiveNode.TryGetValue(nodeId, out var t)) return float.MaxValue;
+            return Time.time - t;
+        }
+
+        public float SecondsSinceEdgeActive(string from, string port, string to)
+        {
+            if (!_lastActiveEdge.TryGetValue(EdgeKey(from, port, to), out var t)) return float.MaxValue;
+            return Time.time - t;
+        }
+
         static string EdgeKey(string from, string port, string to) => from + "|" + port + "|" + to;
 
         public bool AnyRunning => _plays.Count > 0;
@@ -69,9 +90,19 @@ namespace Laubrary.Loom
                 if (_plays[pi].Bookmarks.Count == 0) _plays.RemoveAt(pi);
             }
             _current.Clear();
+            _currentEdges.Clear();
+            float now = Time.time;
             foreach (var play in _plays)
                 foreach (var bm in play.Bookmarks)
+                {
                     _current.Add(bm.NodeId);
+                    _lastActiveNode[bm.NodeId] = now;
+                    if (bm.ArrivedVia != null)
+                    {
+                        _currentEdges.Add(bm.ArrivedVia);
+                        _lastActiveEdge[bm.ArrivedVia] = now;
+                    }
+                }
         }
 
         void StepPlay(Play play)
@@ -112,9 +143,11 @@ namespace Laubrary.Loom
                     {
                         var outs = new List<Edge>(play.Graph.OutEdges(bm.NodeId));
                         if (outs.Count == 0) { alive = false; break; }
-                        for (int k = 0; k < outs.Count; k++) _edges.Add(EdgeKey(bm.NodeId, outs[k].Port, outs[k].To));
+                        string forkFrom = bm.NodeId;
+                        for (int k = 0; k < outs.Count; k++) _edges.Add(EdgeKey(forkFrom, outs[k].Port, outs[k].To));
                         for (int k = 1; k < outs.Count; k++)
-                            play.Bookmarks.Add(new Bookmark { NodeId = outs[k].To, Parked = false });
+                            play.Bookmarks.Add(new Bookmark { NodeId = outs[k].To, Parked = false, ArrivedVia = EdgeKey(forkFrom, outs[k].Port, outs[k].To) });
+                        bm.ArrivedVia = EdgeKey(forkFrom, outs[0].Port, outs[0].To);
                         bm.NodeId = outs[0].To;
                         continue; // enter the (first) next node this frame
                     }
@@ -124,7 +157,9 @@ namespace Laubrary.Loom
                         if (e.Port == port) { next = e.To; break; }
                     if (next == null) { alive = false; break; } // no matching edge → end this bookmark
 
-                    _edges.Add(EdgeKey(bm.NodeId, port, next));
+                    string arrivedVia = EdgeKey(bm.NodeId, port, next);
+                    _edges.Add(arrivedVia);
+                    bm.ArrivedVia = arrivedVia;
                     bm.NodeId = next; // advance and continue (enter next node)
                 }
 
@@ -143,6 +178,9 @@ namespace Laubrary.Loom
             _disposables.Clear();
             _plays.Clear();
             _current.Clear();
+            _currentEdges.Clear();
+            _lastActiveNode.Clear();
+            _lastActiveEdge.Clear();
         }
     }
 }

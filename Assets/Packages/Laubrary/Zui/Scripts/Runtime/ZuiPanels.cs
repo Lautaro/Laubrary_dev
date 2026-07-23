@@ -54,6 +54,26 @@ namespace ZuiRuntime
             return new Rect(rect.x + p, rect.y + p, rect.width - 2f * p, rect.height - 2f * p);
         }
 
+        /// <summary>
+        /// Draws a SHEET-STYLED panel (9-slice background, if the style defines one) at an explicit rect,
+        /// clamped on-screen; returns the padded content rect. Additive to the flat-color <see cref="Panel(Rect,Color,float)"/>
+        /// above — leave <paramref name="sheet"/> null to use <see cref="DefaultSheet"/> (a Resources-loaded
+        /// runtime sheet, editable live via the Style Editor). If no sheet resolves (none assigned, no
+        /// shipped Resources asset), this draws nothing and returns the rect un-padded — a missing style
+        /// asset shouldn't throw in a build. <paramref name="padPts"/> defaults to the resolved sheet's own
+        /// <c>contentPadding</c> rather than a hardcoded number.
+        /// </summary>
+        public static Rect Panel(Rect rect, string styleName, ZUIStyleSheetAsset sheet = null, float? padPts = null)
+        {
+            rect = ClampToScreen(rect);
+            var resolvedSheet = sheet ?? DefaultSheet;
+            if (resolvedSheet == null) return rect;
+            ZUISheet.DrawBox(resolvedSheet, styleName, rect);
+            ZuiAudit.Record(new ZuiDrawRecord { Kind = "panel", Rect = rect });
+            float p = UIScale.S(padPts ?? resolvedSheet.contentPadding);
+            return new Rect(rect.x + p, rect.y + p, rect.width - 2f * p, rect.height - 2f * p);
+        }
+
         /// <summary>GUI.color scope: <c>using (Zui.Tint(color)) { ... }</c> — cannot leak.</summary>
         public static TintScope Tint(Color color) => new TintScope(color);
 

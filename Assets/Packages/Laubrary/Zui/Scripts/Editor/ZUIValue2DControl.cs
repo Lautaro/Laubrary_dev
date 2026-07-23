@@ -3,7 +3,9 @@
 // two separate sliders — dragging two independent 1D sliders to aim an XY position is exactly the ergonomics
 // problem this exists to fix.
 //
-// Static mode: one draggable point in an XY plot (+ numeric X/Y fields + a Reset-to-default button).
+// Static mode: one draggable point in an XY plot, plus a Reset-to-default button. Two independent value
+// displays are available around that dot — small "(x, y)" text beside it, and/or a compact numeric X/Y input
+// block — both code-defaulted via Options and user-overridable per control from the "⋯" right-click menu.
 // Curve mode ("animate over time"): several numbered points connected by lines, tracing a PATH through XY space.
 // Unlike the 1D envelope editor (x-axis = time, y-axis = value), here BOTH axes are spatial (X value / Y value);
 // time is not plotted at all — it's implicit in point ORDER, evenly divided across the overall lifetime as
@@ -26,28 +28,54 @@ public static class ZUIValue2DControl
         public Vector2? staticDefault;         // Reset-to target for Static mode; null = (0,0)
         public float plotSize;
 
+        // Static-mode value display (Curve mode is unaffected — its own numbered points are a different
+        // concern). Both are code-set DEFAULTS only — the user can override either one per-control via the
+        // "⋯" right-click menu, and that override wins for the rest of the session (see FoldState below).
+        public bool showValueText;         // small "(x, y)" text beside the dot
+        public bool showNumericInputs;     // a "label Y / input Y / label X / input X" numeric block
+
+        // Code-only (not exposed on the right-click menu, per explicit request — this is a layout call for
+        // whoever's building the window, not a per-user preference): when numeric inputs are shown, stack
+        // them ABOVE the plot instead of beside it. Default false = side by side (the natural fit, since the
+        // numeric block and the plot are both roughly square).
+        public bool stackInputsVertically;
+
         public static Options Default => new Options
         {
             xMin = -1f, xMax = 1f, yMin = -1f, yMax = 1f,
             staticDefault = null,
             plotSize = 140f,
+            showValueText = false,
+            showNumericInputs = true,   // matches this control's pre-existing always-on numeric fields
+            stackInputsVertically = false,
         };
 
         public Options WithRange(float xLo, float xHi, float yLo, float yHi)
         { xMin = xLo; xMax = xHi; yMin = yLo; yMax = yHi; return this; }
         public Options WithDefault(Vector2 v) { staticDefault = v; return this; }
         public Options WithPlotSize(float s) { plotSize = s; return this; }
+        /// <summary>Default (code-provided) visibility for the two Static-mode value displays. The user can
+        /// still flip either one per-control via the right-click menu; this only sets what a fresh control
+        /// starts as.</summary>
+        public Options WithValueDisplay(bool showText, bool showNumericInputs)
+        { this.showValueText = showText; this.showNumericInputs = showNumericInputs; return this; }
+        /// <summary>Stack the numeric-input block above the plot instead of beside it. Code-only — not a
+        /// user-facing menu toggle.</summary>
+        public Options WithVerticalStack(bool vertical = true) { stackInputsVertically = vertical; return this; }
     }
 
     static readonly Color PointColor = new Color(0.4f, 0.85f, 1f);
     static readonly Color LineColor = new Color(0.4f, 0.85f, 1f, 0.7f);
     const float HitRadius = 8f;
     const float SidePanelWidth = 108f;
+    const float NumericSquareWidth = 82f;
 
     // Folds to a one-line thumbnail by default (like the 1D envelope's curve thumbnail) — the full plotSize
     // plot is only worth the vertical space while you're actually aiming the point/path. Keyed by the X value
     // (x/y are always a matched pair from one Layer field, so X's identity is a stable key for the pair).
-    class FoldState { public bool expanded; }
+    // The two `?` overrides hold a per-control user choice from the right-click menu, once made — null means
+    // "no override yet, use whatever Options.showValueText/showNumericInputs the calling code set."
+    class FoldState { public bool expanded; public bool? showValueTextOverride; public bool? showNumericInputsOverride; }
     static readonly System.Collections.Generic.Dictionary<ZUIValue, FoldState> s_fold = new();
     static FoldState GetFold(ZUIValue x)
     {
@@ -82,34 +110,68 @@ public static class ZUIValue2DControl
             }
             GUILayout.Label("▶", EditorStyles.miniLabel, GUILayout.Width(14f));
             if (GUILayout.Button(new GUIContent("⋯", "Static point, or animate over time"), EditorStyles.miniButton, GUILayout.Width(24f), GUILayout.Height(18f)))
-                ShowMenu(x, y, opts);
+                ShowMenu(x, y, opts, fold);
             GUILayout.EndHorizontal();
             return;
         }
 
-        // Expanded: a side panel (label, fields, mode/collapse buttons) sits LEFT of the XY plot, both sharing
-        // the plot's own height — one horizontal box instead of a tall vertical stack.
+        // Expanded: a side panel (label, mode-specific info, mode/collapse buttons) sits LEFT of the value
+        // display, both sharing the plot's own height — one horizontal box instead of a tall vertical stack.
         bool isCurve = x.mode == ZUIValue.Mode.Curve;   // x/y modes are always kept identical by this control
+        bool showText = fold.showValueTextOverride ?? opts.showValueText;
+        bool showInputs = fold.showNumericInputsOverride ?? opts.showNumericInputs;
 
         GUILayout.BeginHorizontal();
 
         GUILayout.BeginVertical(GUILayout.Width(SidePanelWidth), GUILayout.Height(opts.plotSize));
         EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
         if (isCurve) DrawCurveSidePanel(x, y, opts);
-        else DrawStaticSidePanel(x, y, opts);
+        else DrawStaticUtilityPanel(x, y, opts);
         GUILayout.FlexibleSpace();
         GUILayout.BeginHorizontal();
         if (GUILayout.Button(new GUIContent("⋯", "Static point, or animate over time"), EditorStyles.miniButton, GUILayout.Height(18f)))
-            ShowMenu(x, y, opts);
+            ShowMenu(x, y, opts, fold);
         if (GUILayout.Button("▲", EditorStyles.miniButton, GUILayout.Width(22f), GUILayout.Height(18f)))
             fold.expanded = false;
         GUILayout.EndHorizontal();
         GUILayout.EndVertical();
 
-        if (isCurve) DrawCurvePlot(x, y, opts);
-        else DrawStaticPlot(x, y, opts);
+        // Static mode's optional numeric-input block: two roughly-square blocks (the inputs, the plot) that
+        // read well stacked either horizontally (default — side by side) or vertically (code opt-in), per
+        // ui-layout-rules.md's "an x/y pair is a 2D-control case" framing applied one level up — this is that
+        // same idea for the SUPPORTING numeric readout, not the drag target itself.
+        bool drawInputs = !isCurve && showInputs;
+        if (drawInputs && opts.stackInputsVertically)
+        {
+            GUILayout.BeginVertical();
+            DrawNumericSquare(x, y, opts);
+            DrawStaticPlot(x, y, opts, showText);
+            GUILayout.EndVertical();
+        }
+        else
+        {
+            if (drawInputs) DrawNumericSquare(x, y, opts);
+            if (isCurve) DrawCurvePlot(x, y, opts);
+            else DrawStaticPlot(x, y, opts, showText);
+        }
 
         GUILayout.EndHorizontal();
+    }
+
+    // The numeric-input block: "label Y / input Y / label X / input X" top to bottom, as a compact fixed-width
+    // column — naturally close to square, which is exactly why it stacks well beside the (also roughly square)
+    // plot. Static mode only; Curve mode's per-point values are edited on the plot itself.
+    static void DrawNumericSquare(ZUIValue x, ZUIValue y, Options opts)
+    {
+        // Content-height-only (no FlexibleSpace padding) so this block's height is unambiguous whether it's
+        // sitting beside the plot in a Height-bounded row, or stacked above it in an unbounded column.
+        GUILayout.BeginVertical(GUILayout.Width(NumericSquareWidth));
+        GUILayout.Label("Y", EditorStyles.miniLabel);
+        y.staticValue = EditorGUILayout.FloatField(y.staticValue, GUILayout.Width(NumericSquareWidth - 4f));
+        GUILayout.Space(4f);
+        GUILayout.Label("X", EditorStyles.miniLabel);
+        x.staticValue = EditorGUILayout.FloatField(x.staticValue, GUILayout.Width(NumericSquareWidth - 4f));
+        GUILayout.EndVertical();
     }
 
     // One-line collapsed preview: the same XY plot, shrunk down — a single dot for Static, a mini traced path
@@ -145,13 +207,10 @@ public static class ZUIValue2DControl
         }
     }
 
-    static void DrawStaticSidePanel(ZUIValue x, ZUIValue y, Options opts)
+    // Just the Reset button now — the X/Y numeric fields moved to DrawNumericSquare, shown independently per
+    // Options.showNumericInputs / the right-click override, rather than being permanently glued to this panel.
+    static void DrawStaticUtilityPanel(ZUIValue x, ZUIValue y, Options opts)
     {
-        float lw = EditorGUIUtility.labelWidth;
-        EditorGUIUtility.labelWidth = 16f;
-        x.staticValue = EditorGUILayout.FloatField("X", x.staticValue);
-        y.staticValue = EditorGUILayout.FloatField("Y", y.staticValue);
-        EditorGUIUtility.labelWidth = lw;
         if (GUILayout.Button("Reset"))
         {
             Vector2 d = opts.staticDefault ?? Vector2.zero;
@@ -160,7 +219,7 @@ public static class ZUIValue2DControl
         }
     }
 
-    static void DrawStaticPlot(ZUIValue x, ZUIValue y, Options opts)
+    static void DrawStaticPlot(ZUIValue x, ZUIValue y, Options opts, bool showValueText)
     {
         Rect plot = GUILayoutUtility.GetRect(opts.plotSize, opts.plotSize, GUILayout.Width(opts.plotSize), GUILayout.Height(opts.plotSize));
         DrawPlotFrame(plot, opts);
@@ -174,6 +233,10 @@ public static class ZUIValue2DControl
             GUI.changed = true;
         }
         DrawDot(screenPt, PointColor, 5f);
+
+        if (showValueText && Event.current.type == EventType.Repaint)
+            GUI.Label(new Rect(screenPt.x + 7f, screenPt.y - 7f, 90f, 14f),
+                $"({x.staticValue:0.##}, {y.staticValue:0.##})", EditorStyles.miniLabel);
     }
 
     static void DrawCurveSidePanel(ZUIValue x, ZUIValue y, Options opts)
@@ -295,7 +358,7 @@ public static class ZUIValue2DControl
         }
     }
 
-    static void ShowMenu(ZUIValue x, ZUIValue y, Options opts)
+    static void ShowMenu(ZUIValue x, ZUIValue y, Options opts, FoldState fold)
     {
         var menu = new GenericMenu();
         bool isCurve = x.mode == ZUIValue.Mode.Curve;
@@ -305,7 +368,43 @@ public static class ZUIValue2DControl
             x.mode = ZUIValue.Mode.Curve; y.mode = ZUIValue.Mode.Curve;
             EnsurePairedCurveDefaults(x, y, opts);
         });
+
+        // Per-control override of the code-set defaults (Options.showValueText/showNumericInputs) — sticks for
+        // the rest of the session once touched (FoldState, same lifetime as the expand/collapse state above).
+        menu.AddSeparator("");
+        bool showText = fold.showValueTextOverride ?? opts.showValueText;
+        bool showInputs = fold.showNumericInputsOverride ?? opts.showNumericInputs;
+        menu.AddItem(new GUIContent("Show value as text"), showText, () => fold.showValueTextOverride = !showText);
+        menu.AddItem(new GUIContent("Show value as numeric inputs"), showInputs, () => fold.showNumericInputsOverride = !showInputs);
+
+        menu.AddSeparator("");
+        menu.AddItem(new GUIContent("Copy value"), false, () => EditorGUIUtility.systemCopyBuffer = PairToClipboardString(x, y));
+        if (TryPairFromClipboardString(EditorGUIUtility.systemCopyBuffer, out _))
+            menu.AddItem(new GUIContent("Paste value"), false, () =>
+            {
+                if (TryPairFromClipboardString(EditorGUIUtility.systemCopyBuffer, out var pair))
+                { x.CopyFrom(pair.x); y.CopyFrom(pair.y); GUI.changed = true; }
+            });
+        else
+            menu.AddDisabledItem(new GUIContent("Paste value"));
+
         menu.ShowAsContext();
+    }
+
+    // Clipboard payload for the (x, y) PAIR — distinct prefix from ZUIValue.ToClipboardString's single-value
+    // one, so a single multicont's copied value can never be silently paste-accepted here (or vice versa).
+    [System.Serializable]
+    class ClipboardPair { public ZUIValue x = new ZUIValue(); public ZUIValue y = new ZUIValue(); }
+    const string PairClipboardPrefix = "ZUIVALUE2:";
+
+    static string PairToClipboardString(ZUIValue x, ZUIValue y)
+        => PairClipboardPrefix + JsonUtility.ToJson(new ClipboardPair { x = x, y = y });
+
+    static bool TryPairFromClipboardString(string s, out ClipboardPair pair)
+    {
+        if (string.IsNullOrEmpty(s) || !s.StartsWith(PairClipboardPrefix)) { pair = null; return false; }
+        try { pair = JsonUtility.FromJson<ClipboardPair>(s.Substring(PairClipboardPrefix.Length)); return pair != null; }
+        catch { pair = null; return false; }
     }
 
     // ── plot geometry ──────────────────────────────────────────────────────
