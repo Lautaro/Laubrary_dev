@@ -433,9 +433,12 @@ namespace Laubrary.Pyre
                  "in or sweep through over the layer's life.")]
         public ZUIValue matteStrength = new ZUIValue(1f);
 
-        [Tooltip("Blur: softening radius in pixels where the mask is full. Displace: how far, in pixels, a " +
-                 "pixel is pushed along the mask's slope. Ignored by the other channels. Animatable.")]
+        [Tooltip("Blur channel: softening radius in pixels where the mask is full. Animatable.")]
         public ZUIValue matteAmount = new ZUIValue(3f);
+
+        [Tooltip("Displace channel: how far, in pixels, a pixel is pushed along the mask's slope. Its own " +
+                 "field (not shared with Blur) so both can act at once. Animatable.")]
+        public ZUIValue matteDisplaceAmount = new ZUIValue(4f);
 
         [Tooltip("Hue only: how far the hue rotates, in degrees, where the mask is full.")]
         public ZUIValue matteHueDegrees = new ZUIValue(60f);

@@ -43,7 +43,7 @@ namespace Laubrary.Pyre
         const int F_HbDensity = 70, F_HbBaseHeat = 71, F_HbChurn = 72;
         const int F_HbWavePush = 75, F_HbLightAngle = 76;
         const int F_HbSpread = 77, F_HbGroupAlpha = 78, F_HbRotation = 79;
-        const int F_MatteStrength = 90, F_MatteAmount = 91, F_MatteHue = 92;
+        const int F_MatteStrength = 90, F_MatteAmount = 91, F_MatteHue = 92, F_MatteDisplace = 93;
         const int F_FireDir = 100, F_FireWidth = 101, F_FireInset = 102, F_FireHeat = 103, F_FireFuel = 104;
         const int F_FirePulse = 105, F_FireFlow = 106, F_FireBuoy = 107, F_FireCurl = 108, F_FireCurlScale = 109;
         const int F_FireFlicker = 110, F_FireDissip = 111, F_FireBurn = 112, F_FireReach = 113, F_FireEdgeCool = 114;
@@ -126,7 +126,7 @@ namespace Laubrary.Pyre
         {
             public float[] mask;
             public MatteChannel channel;
-            public float amount, hue;
+            public float blur, displace, hue;
             public bool oneShot;      // MatteScope.NextLayer — cleared after it has masked one drawn layer
         }
 
@@ -175,7 +175,8 @@ namespace Laubrary.Pyre
                 {
                     mask = BuildMatteMask(layerTarget, layer.matteInvert, strength),
                     channel = layer.matteChannel,
-                    amount = Eval(layer.matteAmount, life, spec.seed, li, frameIndex, F_MatteAmount),
+                    blur = Eval(layer.matteAmount, life, spec.seed, li, frameIndex, F_MatteAmount),
+                    displace = Eval(layer.matteDisplaceAmount, life, spec.seed, li, frameIndex, F_MatteDisplace),
                     hue = Eval(layer.matteHueDegrees, life, spec.seed, li, frameIndex, F_MatteHue),
                     oneShot = layer.matteScope == MatteScope.NextLayer,
                 };
@@ -186,7 +187,7 @@ namespace Laubrary.Pyre
             // intermediate one — and before it composites, so it never touches what is already on the frame.
             if (matte.mask != null)
             {
-                ApplyMatte(layerTarget, matte.mask, matte.channel, matte.amount, matte.hue, W, H);
+                ApplyMatte(layerTarget, matte.mask, matte.channel, matte.blur, matte.displace, matte.hue, W, H);
                 if (matte.oneShot) matte = default;   // NextLayer scope: spent on this one layer
             }
 
@@ -315,116 +316,127 @@ namespace Laubrary.Pyre
         static void RgbToHsv(float r, float g, float b, out float h, out float s, out float v)
             => Color.RGBToHSV(new Color(r, g, b), out h, out s, out v);
 
-        /// Apply a matte to one layer's isolated buffer, in place, just before it composites.
-        static void ApplyMatte(Color32[] target, float[] mask, MatteChannel channel, float amount,
-                               float hueDegrees, int W, int H)
+        /// Apply a matte to one layer's isolated buffer, in place, just before it composites. `channel` is a
+        /// FLAG SET — every enabled channel acts, in a fixed order: the spatial ones first (they move/soften
+        /// pixels), then colour, then alpha last (so a masked-away pixel isn't recoloured pointlessly). None
+        /// (an unset field on an old asset) falls back to Alpha, the original single-channel default.
+        static void ApplyMatte(Color32[] target, float[] mask, MatteChannel channel, float blurAmount,
+                               float displaceAmount, float hueDegrees, int W, int H)
         {
-            switch (channel)
+            if (channel == MatteChannel.None) channel = MatteChannel.Alpha;
+
+            if ((channel & MatteChannel.Displace) != 0) MatteDisplace(target, mask, displaceAmount, W, H);
+            if ((channel & MatteChannel.Blur) != 0) MatteBlur(target, mask, blurAmount, W, H);
+            if ((channel & MatteChannel.Saturation) != 0) MatteSaturation(target, mask);
+            if ((channel & MatteChannel.Hue) != 0) MatteHue(target, mask, hueDegrees);
+            if ((channel & MatteChannel.Brightness) != 0) MatteBrightness(target, mask);
+            if ((channel & MatteChannel.Alpha) != 0) MatteAlpha(target, mask);
+        }
+
+        static void MatteAlpha(Color32[] target, float[] mask)
+        {
+            for (int i = 0; i < target.Length; i++)
             {
-                case MatteChannel.Alpha:
-                    for (int i = 0; i < target.Length; i++)
-                    {
-                        var c = target[i];
-                        if (c.a == 0) continue;
-                        target[i] = new Color32(c.r, c.g, c.b, (byte)Mathf.RoundToInt(c.a * mask[i]));
-                    }
-                    return;
-
-                case MatteChannel.Brightness:
-                    for (int i = 0; i < target.Length; i++)
-                    {
-                        var c = target[i];
-                        if (c.a == 0) continue;
-                        float m = mask[i];
-                        target[i] = new Color32((byte)(c.r * m), (byte)(c.g * m), (byte)(c.b * m), c.a);
-                    }
-                    return;
-
-                case MatteChannel.Saturation:
-                    // Mask LOW drains to grey, so a matte reads as "this is where the colour has burned out".
-                    for (int i = 0; i < target.Length; i++)
-                    {
-                        var c = target[i];
-                        if (c.a == 0) continue;
-                        float y = Luma(c) * 255f;
-                        float m = mask[i];
-                        target[i] = new Color32(
-                            (byte)Mathf.Clamp(Mathf.Lerp(y, c.r, m), 0f, 255f),
-                            (byte)Mathf.Clamp(Mathf.Lerp(y, c.g, m), 0f, 255f),
-                            (byte)Mathf.Clamp(Mathf.Lerp(y, c.b, m), 0f, 255f), c.a);
-                    }
-                    return;
-
-                case MatteChannel.Hue:
-                    for (int i = 0; i < target.Length; i++)
-                    {
-                        var c = target[i];
-                        if (c.a == 0) continue;
-                        float m = mask[i];
-                        if (m <= 0.0001f) continue;
-                        RgbToHsv(c.r / 255f, c.g / 255f, c.b / 255f, out float h, out float s, out float v);
-                        h = Mathf.Repeat(h + (hueDegrees / 360f) * m, 1f);
-                        var rgb = Color.HSVToRGB(h, s, v);
-                        target[i] = new Color32((byte)(rgb.r * 255f), (byte)(rgb.g * 255f), (byte)(rgb.b * 255f), c.a);
-                    }
-                    return;
-
-                case MatteChannel.Blur:
-                {
-                    // Per-pixel variable radius, so one matte can hold a shape sharp while its surroundings
-                    // melt. Separable would be faster but is wrong here: the radius differs per pixel, so the
-                    // two passes wouldn't agree on a kernel. Canvases are small (Pyre is pixel art), and the
-                    // radius is clamped, so a direct box gather is affordable and exact.
-                    var src = (Color32[])target.Clone();
-                    int maxR = Mathf.Clamp(Mathf.CeilToInt(amount), 0, 12);
-                    if (maxR == 0) return;
-                    for (int y = 0; y < H; y++)
-                        for (int x = 0; x < W; x++)
-                        {
-                            int i = y * W + x;
-                            int r = Mathf.RoundToInt(amount * mask[i]);
-                            if (r <= 0) continue;
-                            float ar = 0f, ag = 0f, ab = 0f, aa = 0f, n = 0f;
-                            for (int dy = -r; dy <= r; dy++)
-                                for (int dx = -r; dx <= r; dx++)
-                                {
-                                    int sx = x + dx, sy = y + dy;
-                                    if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
-                                    var s2 = src[sy * W + sx];
-                                    float a = s2.a * (1f / 255f);
-                                    ar += s2.r * a; ag += s2.g * a; ab += s2.b * a; aa += a; n += 1f;
-                                }
-                            if (n <= 0f || aa <= 0.0001f) continue;
-                            target[i] = new Color32((byte)Mathf.Clamp(ar / aa, 0f, 255f),
-                                                    (byte)Mathf.Clamp(ag / aa, 0f, 255f),
-                                                    (byte)Mathf.Clamp(ab / aa, 0f, 255f),
-                                                    (byte)Mathf.Clamp(aa / n * 255f, 0f, 255f));
-                        }
-                    return;
-                }
-
-                case MatteChannel.Displace:
-                {
-                    // Push each pixel along the mask's own SLOPE (its gradient), not along the mask's value —
-                    // that is what makes it read as refraction: flat regions of the mask don't move at all,
-                    // and only its EDGES bend what's behind them, exactly like a lens.
-                    var src = (Color32[])target.Clone();
-                    for (int y = 0; y < H; y++)
-                        for (int x = 0; x < W; x++)
-                        {
-                            int i = y * W + x;
-                            int xm = Mathf.Max(0, x - 1), xp = Mathf.Min(W - 1, x + 1);
-                            int ym = Mathf.Max(0, y - 1), yp = Mathf.Min(H - 1, y + 1);
-                            float gx = mask[y * W + xp] - mask[y * W + xm];
-                            float gy = mask[yp * W + x] - mask[ym * W + x];
-                            if (gx == 0f && gy == 0f) continue;
-                            int sx = Mathf.Clamp(x + Mathf.RoundToInt(gx * amount), 0, W - 1);
-                            int sy = Mathf.Clamp(y + Mathf.RoundToInt(gy * amount), 0, H - 1);
-                            target[i] = src[sy * W + sx];
-                        }
-                    return;
-                }
+                var c = target[i];
+                if (c.a == 0) continue;
+                target[i] = new Color32(c.r, c.g, c.b, (byte)Mathf.RoundToInt(c.a * mask[i]));
             }
+        }
+
+        static void MatteBrightness(Color32[] target, float[] mask)
+        {
+            for (int i = 0; i < target.Length; i++)
+            {
+                var c = target[i];
+                if (c.a == 0) continue;
+                float m = mask[i];
+                target[i] = new Color32((byte)(c.r * m), (byte)(c.g * m), (byte)(c.b * m), c.a);
+            }
+        }
+
+        static void MatteSaturation(Color32[] target, float[] mask)
+        {
+            // Mask LOW drains to grey, so a matte reads as "this is where the colour has burned out".
+            for (int i = 0; i < target.Length; i++)
+            {
+                var c = target[i];
+                if (c.a == 0) continue;
+                float y = Luma(c) * 255f;
+                float m = mask[i];
+                target[i] = new Color32(
+                    (byte)Mathf.Clamp(Mathf.Lerp(y, c.r, m), 0f, 255f),
+                    (byte)Mathf.Clamp(Mathf.Lerp(y, c.g, m), 0f, 255f),
+                    (byte)Mathf.Clamp(Mathf.Lerp(y, c.b, m), 0f, 255f), c.a);
+            }
+        }
+
+        static void MatteHue(Color32[] target, float[] mask, float hueDegrees)
+        {
+            for (int i = 0; i < target.Length; i++)
+            {
+                var c = target[i];
+                if (c.a == 0) continue;
+                float m = mask[i];
+                if (m <= 0.0001f) continue;
+                RgbToHsv(c.r / 255f, c.g / 255f, c.b / 255f, out float h, out float s, out float v);
+                h = Mathf.Repeat(h + (hueDegrees / 360f) * m, 1f);
+                var rgb = Color.HSVToRGB(h, s, v);
+                target[i] = new Color32((byte)(rgb.r * 255f), (byte)(rgb.g * 255f), (byte)(rgb.b * 255f), c.a);
+            }
+        }
+
+        static void MatteBlur(Color32[] target, float[] mask, float amount, int W, int H)
+        {
+            // Per-pixel variable radius, so one matte can hold a shape sharp while its surroundings melt.
+            // Separable would be faster but is wrong here: the radius differs per pixel, so the two passes
+            // wouldn't agree on a kernel. Canvases are small (Pyre is pixel art), the radius is clamped, so a
+            // direct box gather is affordable and exact.
+            var src = (Color32[])target.Clone();
+            int maxR = Mathf.Clamp(Mathf.CeilToInt(amount), 0, 12);
+            if (maxR == 0) return;
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int i = y * W + x;
+                    int r = Mathf.RoundToInt(amount * mask[i]);
+                    if (r <= 0) continue;
+                    float ar = 0f, ag = 0f, ab = 0f, aa = 0f, n = 0f;
+                    for (int dy = -r; dy <= r; dy++)
+                        for (int dx = -r; dx <= r; dx++)
+                        {
+                            int sx = x + dx, sy = y + dy;
+                            if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+                            var s2 = src[sy * W + sx];
+                            float a = s2.a * (1f / 255f);
+                            ar += s2.r * a; ag += s2.g * a; ab += s2.b * a; aa += a; n += 1f;
+                        }
+                    if (n <= 0f || aa <= 0.0001f) continue;
+                    target[i] = new Color32((byte)Mathf.Clamp(ar / aa, 0f, 255f),
+                                            (byte)Mathf.Clamp(ag / aa, 0f, 255f),
+                                            (byte)Mathf.Clamp(ab / aa, 0f, 255f),
+                                            (byte)Mathf.Clamp(aa / n * 255f, 0f, 255f));
+                }
+        }
+
+        static void MatteDisplace(Color32[] target, float[] mask, float amount, int W, int H)
+        {
+            // Push each pixel along the mask's own SLOPE (its gradient), not along the mask's value — that is
+            // what makes it read as refraction: flat regions of the mask don't move at all, and only its
+            // EDGES bend what's behind them, exactly like a lens.
+            var src = (Color32[])target.Clone();
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int i = y * W + x;
+                    int xm = Mathf.Max(0, x - 1), xp = Mathf.Min(W - 1, x + 1);
+                    int ym = Mathf.Max(0, y - 1), yp = Mathf.Min(H - 1, y + 1);
+                    float gx = mask[y * W + xp] - mask[y * W + xm];
+                    float gy = mask[yp * W + x] - mask[ym * W + x];
+                    if (gx == 0f && gy == 0f) continue;
+                    int sx = Mathf.Clamp(x + Mathf.RoundToInt(gx * amount), 0, W - 1);
+                    int sy = Mathf.Clamp(y + Mathf.RoundToInt(gy * amount), 0, H - 1);
+                    target[i] = src[sy * W + sx];
+                }
         }
 
         static void SortGeoStable(System.Collections.Generic.List<GeoEntry> geo)

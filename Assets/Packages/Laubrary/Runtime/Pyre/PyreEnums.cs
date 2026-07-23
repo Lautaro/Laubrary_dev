@@ -10,20 +10,24 @@ namespace Laubrary.Pyre
         Matte,   // don't composite it — read its LUMINANCE as a mask that drives the layers above it
     }
 
-    /// What a Matte layer's mask drives on the layers it covers.
+    /// What a Matte layer's mask drives on the layers it covers. A FLAG set — any combination can act at
+    /// once (mask alpha AND hue AND brightness together), applied in a fixed order (spatial first, then
+    /// colour, then alpha) so a combination is deterministic regardless of which bits are set.
     ///
     /// Deliberately luminance-driven rather than requiring an authored black-to-white gradient: any existing
     /// layer can be flipped to Matte and simply work, it stays readable in colour while you author it, and it
     /// matches the standard meaning of a "luma matte". Mask = luminance × the layer's own alpha, so a shape's
     /// silhouette counts as well as its brightness.
+    [System.Flags]
     public enum MatteChannel
     {
-        Alpha,       // classic luma matte: mask multiplies the covered layers' opacity
-        Brightness,  // darken toward black where the mask is low — a shadow//light pass
-        Saturation,  // drain toward greyscale where the mask is low (ash, smoke, heat-death)
-        Hue,         // rotate hue by the mask — heat shimmer, chemical burn, cold spots
-        Blur,        // soften where the mask is high, sharp where it's low
-        Displace,    // push pixels along the mask's own SLOPE — refraction, heat haze, shockwave lensing
+        None       = 0,
+        Alpha      = 1 << 0,   // classic luma matte: mask multiplies the covered layers' opacity
+        Brightness = 1 << 1,   // darken toward black where the mask is low — a shadow/light pass
+        Saturation = 1 << 2,   // drain toward greyscale where the mask is low (ash, smoke, heat-death)
+        Hue        = 1 << 3,   // rotate hue by the mask — heat shimmer, chemical burn, cold spots
+        Blur       = 1 << 4,   // soften where the mask is high, sharp where it's low
+        Displace   = 1 << 5,   // push pixels along the mask's own SLOPE — refraction, heat haze, lensing
     }
 
     /// How far up the stack a Matte layer reaches.

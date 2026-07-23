@@ -307,9 +307,18 @@ namespace Laubrary.Pyre.Editor
                 "growing ring, a churning ball cloud, a noise fill.");
             box.style.marginLeft = 16f;   // indent under its row, so the list still reads as a list
 
-            box.Add(Z.Field("Drives", "What the mask changes on the layers it covers.",
-                Z.EnumDropdown(l.matteChannel, MatteChannelHelp(l.matteChannel),
-                    v => { Dial("Matte channel", () => l.matteChannel = v); RebuildLeft(); }, 140f)));
+            // Channels are a flag SET — tick any combination and they all act (spatial → colour → alpha).
+            box.Add(Z.Text("Drives — tick any combination", ZuiText.Small,
+                "Every ticked channel acts at once, in a fixed order (Displace, Blur, Saturation, Hue, " +
+                "Brightness, Alpha) so a combination is predictable."));
+            box.Add(WrapRow(
+                MatteChannelToggle(l, MatteChannel.Alpha, "Alpha"),
+                MatteChannelToggle(l, MatteChannel.Brightness, "Brightness"),
+                MatteChannelToggle(l, MatteChannel.Saturation, "Saturation")));
+            box.Add(WrapRow(
+                MatteChannelToggle(l, MatteChannel.Hue, "Hue"),
+                MatteChannelToggle(l, MatteChannel.Blur, "Blur"),
+                MatteChannelToggle(l, MatteChannel.Displace, "Displace")));
 
             box.Add(Z.Field("Reaches", "How far up the stack this matte applies.",
                 Z.MiniRadio((int)l.matteScope, MatteScopeLabels,
@@ -323,19 +332,32 @@ namespace Laubrary.Pyre.Editor
             box.Add(ValRow("Strength", "How strongly the matte acts. 0 = no effect, 1 = full. Animate it to " +
                 "fade a mask in, or to sweep its influence over the layer's life.", l.matteStrength, 0f, 1f, 1f));
 
-            if (l.matteChannel == MatteChannel.Blur)
+            // Each channel that has its own amount shows that amount only when it's ticked.
+            if ((l.matteChannel & MatteChannel.Blur) != 0)
                 box.Add(ValRow("Softness (px)", "Blur radius where the mask is full. Each pixel blurs by its " +
                     "own mask value, so one matte can hold a core sharp while its surroundings melt.",
                     l.matteAmount, 0f, 12f, 3f));
-            else if (l.matteChannel == MatteChannel.Displace)
+            if ((l.matteChannel & MatteChannel.Displace) != 0)
                 box.Add(ValRow("Push (px)", "How far a pixel is pushed along the mask's SLOPE. Flat areas of " +
                     "the mask don't move at all — only its edges bend what's behind them, which is what makes " +
-                    "it read as refraction rather than as a smear.", l.matteAmount, 0f, 24f, 4f));
-            else if (l.matteChannel == MatteChannel.Hue)
+                    "it read as refraction rather than as a smear.", l.matteDisplaceAmount, 0f, 24f, 4f));
+            if ((l.matteChannel & MatteChannel.Hue) != 0)
                 box.Add(ValRow("Hue shift °", "How far the hue rotates where the mask is full.",
                     l.matteHueDegrees, -180f, 180f, 60f));
 
             return box;
+        }
+
+        VisualElement MatteChannelToggle(Layer l, MatteChannel ch, string label)
+        {
+            return Z.Toggle(label, MatteChannelHelp(ch), (l.matteChannel & ch) != 0, on =>
+            {
+                Dial("Matte channel", () =>
+                {
+                    if (on) l.matteChannel |= ch; else l.matteChannel &= ~ch;
+                });
+                RebuildLeft();   // amount fields appear/disappear with their channel
+            });
         }
 
         static string MatteChannelHelp(MatteChannel c) => c switch
