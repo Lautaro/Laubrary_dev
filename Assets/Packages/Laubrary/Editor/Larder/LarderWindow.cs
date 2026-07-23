@@ -1,6 +1,8 @@
+using Laubrary.AssetKit.Editor;
+using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
-using Laubrary.AssetKit.Editor;
+using UnityEngine.UIElements;
 
 namespace Laubrary.Larder.Editor
 {
@@ -8,8 +10,12 @@ namespace Laubrary.Larder.Editor
     /// sprites. Left column = every WareSpec dial as ZUI controls; right column = a live pixel preview plus a row of
     /// all damage stages — all drawn by the exact WareGenerator the game uses, so the preview IS the product. Textures
     /// are rebuilt only when the spec changes and disposed on the way out so the editor never leaks them.
-    /// Asset browse + CRUD (New/Duplicate/Rename/Delete + empty-state library) come from LaubraryAssetWindow.
-    public class LarderWindow : LaubraryAssetWindow<WareSpec>
+    /// Asset browse + CRUD (New/Duplicate/Rename/Delete + empty-state library) come from ZuiAssetWindow.
+    ///
+    /// UI TOOLKIT PORT (ZUI → UI Toolkit migration): fully native — unlike Pyre, the preview needs no IMGUI island,
+    /// because it is only texture blits, which `Image` (ScaleToFit) does directly. Dials are Z.* controls, and every
+    /// one now records Undo (the IMGUI original only did so for "Randomize whole Ware").
+    public class LarderWindow : ZuiAssetWindow<WareSpec>
     {
         [MenuItem("Laubrary/Larder")]
         public static void Open() => GetWindow<LarderWindow>("Larder");
@@ -17,12 +23,15 @@ namespace Laubrary.Larder.Editor
         WareSpec spec => Current;         // the base owns the current asset; alias for the dial code below
 
         int gridCount = 6;
-        Vector2 leftScroll;
 
         // preview textures, owned by this window
         Texture2D intactTex;
         Texture2D[] stageTex;
-        bool dirty = true;
+
+        // live elements refreshed when the spec changes
+        VisualElement dialHost, stageStripHost;
+        Image stageImage;
+        Label captionLabel;
 
         static readonly string[] KindLabels = { "Book", "Can", "Box", "Crate", "Carton" };
         static readonly string[] ShapeLabels = { "Rect", "Rounded", "Round", "Sphere" };
@@ -36,154 +45,213 @@ namespace Laubrary.Larder.Editor
         protected override string NewAssetName => "Ware";
         protected override string DefaultFolder => "Assets/Larder";
 
-        protected override void OnZUIEnable() => dirty = true;
-        protected override void OnAssetChanged() => dirty = true;
+        protected override void OnAssetChanged() => RebuildPreview();
         protected override void OnDisable() { base.OnDisable(); DisposeTextures(); }
 
         // Browser thumbnails: the intact ware, rendered by the real generator.
         protected override Texture2D RenderThumbnail(WareSpec item) => MakeTex(item, 0);
 
-        protected override void DrawAsset(WareSpec asset)
+        // ── mutation helpers (the Undo contract every dial routes through) ───────────────────
+        void Dial(string undoLabel, System.Action apply)
         {
-            EditorGUILayout.BeginHorizontal();
-            DrawDials(GUILayout.Width(320));
-            DrawPreview();
-            EditorGUILayout.EndHorizontal();
-
-            if (dirty || intactTex == null) RebuildPreview();
+            Undo.RecordObject(spec, undoLabel);
+            apply();
+            EditorUtility.SetDirty(spec);
+            RebuildPreview();
         }
 
-        // A plain horizontal row (ZUI has no object-field wrapper, so mixed slots use EditorGUILayout).
-        static System.IDisposable ZUINullSafeRow()
+        /// Structural change (a mode switch that shows/hides dials) → rebuild the dial column too.
+        void DialAndRebuild(string undoLabel, System.Action apply)
         {
-            EditorGUILayout.BeginHorizontal();
-            return new EndHorizontal();
+            Dial(undoLabel, apply);
+            if (dialHost == null) return;
+            dialHost.Clear();
+            BuildDials(dialHost);
         }
 
-        class EndHorizontal : System.IDisposable { public void Dispose() => EditorGUILayout.EndHorizontal(); }
-
-        // ── left: dials ──────────────────────────────────────────────────────────────────────────────
-        void DrawDials(params GUILayoutOption[] opt)
+        protected override void OnBeforeRebuild()
         {
-            EditorGUILayout.BeginVertical(opt);
-            leftScroll = EditorGUILayout.BeginScrollView(leftScroll);
-            EditorGUI.BeginChangeCheck();
+            dialHost = null; stageStripHost = null; stageImage = null; captionLabel = null;
+        }
 
-            Section("Identity");
-            using (ZUINullSafeRow())
-            {
-                EditorGUILayout.LabelField($"Seed {spec.seed}", GUILayout.Width(150));
-                if (GUILayout.Button("Randomize seed")) spec.seed = Random.Range(int.MinValue, int.MaxValue);
-            }
-            spec.kind = (WareKind)MiniRadio((int)spec.kind, KindLabels);
-            spec.shape = (WareShape)MiniRadio((int)spec.shape, ShapeLabels);
+        protected override void BuildAsset(VisualElement root, WareSpec asset)
+        {
+            root.style.flexGrow = 1f;
 
-            Section("Silhouette");
-            spec.widthRatio = Slider(spec.widthRatio, 0.2f, 1f, "Width");
-            spec.heightRatio = Slider(spec.heightRatio, 0.2f, 1f, "Height");
+            var split = new VisualElement();
+            split.style.flexDirection = FlexDirection.Row;
+            split.style.flexGrow = 1f;
+            split.style.minHeight = 0f;
+            root.Add(split);
 
-            Section("Body");
-            spec.fill = (FillMode)MiniRadio((int)spec.fill, FillLabels);
-            spec.useCustomColors = Toggle(spec.useCustomColors, "Custom colours");
+            var left = new VisualElement();
+            left.style.width = 320f;
+            left.style.flexShrink = 0f;
+            left.style.minHeight = 0f;
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.flexGrow = 1f;
+            scroll.style.minHeight = 0f;
+            dialHost = scroll.contentContainer;
+            BuildDials(dialHost);
+            left.Add(scroll);
+            split.Add(left);
+
+            split.Add(BuildPreview());
+            RebuildPreview();
+        }
+
+        // ── left: dials ──────────────────────────────────────────────────────────────────────
+        void BuildDials(VisualElement root)
+        {
+            root.Add(Z.Text("Identity", ZuiText.Section, "What this ware is and the seed every random detail derives from."));
+            root.Add(Z.Row(
+                Z.Text($"Seed {spec.seed}", ZuiText.Body, "The seed every random detail of this ware derives from."),
+                Z.Button("Randomize seed", "Roll a new seed, keeping every other dial as-is.",
+                    () => DialAndRebuild("Randomize seed", () => spec.seed = Random.Range(int.MinValue, int.MaxValue)))));
+            root.Add(Z.MiniRadio((int)spec.kind, KindLabels, "The kind of product — decides its proportions and default decoration.",
+                v => DialAndRebuild("Ware kind", () => spec.kind = (WareKind)v)));
+            root.Add(Z.MiniRadio((int)spec.shape, ShapeLabels, "The silhouette's basic shape.",
+                v => Dial("Ware shape", () => spec.shape = (WareShape)v)));
+
+            root.Add(Z.Text("Silhouette", ZuiText.Section, "The ware's proportions within its canvas."));
+            root.Add(Z.Field("Width", "Ware width as a fraction of the canvas.",
+                Z.Slider(spec.widthRatio, 0.2f, 1f, "Ware width as a fraction of the canvas.",
+                    v => Dial("Width", () => spec.widthRatio = v), 150f)));
+            root.Add(Z.Field("Height", "Ware height as a fraction of the canvas.",
+                Z.Slider(spec.heightRatio, 0.2f, 1f, "Ware height as a fraction of the canvas.",
+                    v => Dial("Height", () => spec.heightRatio = v), 150f)));
+
+            root.Add(Z.Text("Body", ZuiText.Section, "How the ware's body is filled and coloured."));
+            root.Add(Z.MiniRadio((int)spec.fill, FillLabels, "How the body is shaded: flat, a gradient, a glow, or a drop shadow.",
+                v => Dial("Fill mode", () => spec.fill = (FillMode)v)));
+            root.Add(Z.Toggle("Custom colours", "Pick every colour by hand instead of using one of the built-in palettes.",
+                spec.useCustomColors, v => DialAndRebuild("Custom colours", () => spec.useCustomColors = v)));
             if (spec.useCustomColors)
             {
-                spec.customBody = ColorField("Body", spec.customBody);
-                spec.customBodyDark = ColorField("Body dark", spec.customBodyDark);
-                spec.customBodyLight = ColorField("Body light", spec.customBodyLight);
-                spec.customAccent = ColorField("Accent", spec.customAccent);
-                spec.customLabel = ColorField("Label", spec.customLabel);
-                spec.customInk = ColorField("Ink", spec.customInk);
+                root.Add(ColorRow("Body", "The body's main colour.", () => spec.customBody, c => spec.customBody = c));
+                root.Add(ColorRow("Body dark", "Shaded side of the body.", () => spec.customBodyDark, c => spec.customBodyDark = c));
+                root.Add(ColorRow("Body light", "Lit side of the body.", () => spec.customBodyLight, c => spec.customBodyLight = c));
+                root.Add(ColorRow("Accent", "Trim and edge details.", () => spec.customAccent, c => spec.customAccent = c));
+                root.Add(ColorRow("Label", "The label patch's colour.", () => spec.customLabel, c => spec.customLabel = c));
+                root.Add(ColorRow("Ink", "Text/marking colour on the label.", () => spec.customInk, c => spec.customInk = c));
             }
             else
             {
-                spec.paletteIndex = Mathf.RoundToInt(Slider(spec.paletteIndex, 0, WarePalettes.Count - 1, "Palette"));
+                root.Add(Z.Field("Palette", "Which built-in colour palette this ware uses.",
+                    Z.SliderInt(spec.paletteIndex, 0, WarePalettes.Count - 1, "Which built-in colour palette this ware uses.",
+                        v => Dial("Palette", () => spec.paletteIndex = v), 150f)));
             }
 
-            Section("Decoration");
-            spec.label = (LabelStyle)MiniRadio((int)spec.label, LabelLabels);
-            spec.labelWidth = Slider(spec.labelWidth, 0.2f, 1f, "Label width");
-            spec.corner = (CornerStyle)MiniRadio((int)spec.corner, CornerLabels);
-            spec.bands = (BandMode)MiniRadio((int)spec.bands, BandLabels);
-            spec.bandCount = Mathf.RoundToInt(Slider(spec.bandCount, 1, 6, "Band count"));
-            spec.spots = (SpotMode)MiniRadio((int)spec.spots, SpotLabels);
-            spec.hasLid = Toggle(spec.hasLid, "Lid strip");
+            root.Add(Z.Text("Decoration", ZuiText.Section, "Labels, corners, bands and spots painted onto the body."));
+            root.Add(Z.MiniRadio((int)spec.label, LabelLabels, "The label patch's placement.",
+                v => Dial("Label style", () => spec.label = (LabelStyle)v)));
+            root.Add(Z.Field("Label width", "How wide the label patch is across the body.",
+                Z.Slider(spec.labelWidth, 0.2f, 1f, "How wide the label patch is across the body.",
+                    v => Dial("Label width", () => spec.labelWidth = v), 150f)));
+            root.Add(Z.MiniRadio((int)spec.corner, CornerLabels, "How the ware's corners are cut or rounded.",
+                v => Dial("Corner style", () => spec.corner = (CornerStyle)v)));
+            root.Add(Z.MiniRadio((int)spec.bands, BandLabels, "Direction of the decorative bands, if any.",
+                v => Dial("Band mode", () => spec.bands = (BandMode)v)));
+            root.Add(Z.Field("Band count", "How many decorative bands are drawn.",
+                Z.SliderInt(spec.bandCount, 1, 6, "How many decorative bands are drawn.",
+                    v => Dial("Band count", () => spec.bandCount = v), 150f)));
+            root.Add(Z.MiniRadio((int)spec.spots, SpotLabels, "Spot decoration: none, one circle, or scattered spots.",
+                v => Dial("Spot mode", () => spec.spots = (SpotMode)v)));
+            root.Add(Z.Toggle("Lid strip", "Draw a lid/cap strip across the top.", spec.hasLid,
+                v => Dial("Lid strip", () => spec.hasLid = v)));
 
-            Section("Output");
-            spec.resolution = Mathf.RoundToInt(Slider(spec.resolution, 24, 64, "Resolution"));
-            spec.damageStages = Mathf.RoundToInt(Slider(spec.damageStages, 2, 4, "Damage stages"));
-            spec.pixelsPerUnit = Slider(spec.pixelsPerUnit, 8f, 128f, "Pixels/unit");
+            root.Add(Z.Text("Output", ZuiText.Section, "Canvas size and what gets baked."));
+            root.Add(Z.Field("Resolution", "Canvas size in pixels for the baked sprite.",
+                Z.SliderInt(spec.resolution, 24, 64, "Canvas size in pixels for the baked sprite.",
+                    v => Dial("Resolution", () => spec.resolution = v), 150f)));
+            root.Add(Z.Field("Damage stages", "How many progressively-damaged versions get baked.",
+                Z.SliderInt(spec.damageStages, 2, 4, "How many progressively-damaged versions get baked.",
+                    v => Dial("Damage stages", () => spec.damageStages = v), 150f)));
+            root.Add(Z.Field("Pixels/unit", "Pixels-per-unit stamped onto the baked sprite.",
+                Z.Slider(spec.pixelsPerUnit, 8f, 128f, "Pixels-per-unit stamped onto the baked sprite.",
+                    v => Dial("Pixels per unit", () => spec.pixelsPerUnit = v), 150f)));
 
-            if (EditorGUI.EndChangeCheck()) { EditorUtility.SetDirty(spec); dirty = true; }
-
-            VerticalSpace();
-            Section("Actions");
-            if (Button("Randomize whole Ware"))
-            {
-                Undo.RecordObject(spec, "Randomize Ware");
-                spec.Randomize(new System.Random(Random.Range(int.MinValue, int.MaxValue)));
-                EditorUtility.SetDirty(spec); dirty = true;
-            }
-            if (Button("Bake this Ware")) WareBaker.Bake(spec);
-            using (ZUINullSafeRow())
-            {
-                if (GUILayout.Button("Bake variation grid")) WareBaker.BakeVariationGrid(spec, gridCount);
-                gridCount = Mathf.Clamp(EditorGUILayout.IntField(gridCount, GUILayout.Width(44)), 1, 64);
-            }
-
-            EditorGUILayout.EndScrollView();
-            EditorGUILayout.EndVertical();
+            root.Add(Z.VSpace());
+            root.Add(Z.Text("Actions", ZuiText.Section, "Randomize this ware, or bake it to sprite assets."));
+            root.Add(Z.Button("Randomize whole Ware", "Roll every dial at once (undoable).", () =>
+                DialAndRebuild("Randomize Ware",
+                    () => spec.Randomize(new System.Random(Random.Range(int.MinValue, int.MaxValue))))));
+            root.Add(Z.Button("Bake this Ware", "Bake this ware's sprite + damage stages into the project.",
+                () => WareBaker.Bake(spec)));
+            root.Add(Z.Row(
+                Z.Button("Bake variation grid", "Bake a grid of random variations of this ware.",
+                    () => WareBaker.BakeVariationGrid(spec, gridCount)),
+                Z.Int(gridCount, "How many variations the grid bake produces.",
+                    v => gridCount = Mathf.Clamp(v, 1, 64), 44f)));
         }
 
-        void Section(string t) { VerticalSpace(); Label(t, ZUI.ZTextStyle.SectionHeader); }
+        VisualElement ColorRow(string label, string tooltip, System.Func<Color> get, System.Action<Color> set)
+            => Z.Field(label, tooltip, Z.Color(get(), tooltip, c => Dial(label, () => set(c)), 110f));
 
-        // ── right: preview ───────────────────────────────────────────────────────────────────────────
-        void DrawPreview()
+        // ── right: preview (native — Image does the ScaleToFit blit IMGUI was used for) ──────
+        VisualElement BuildPreview()
         {
-            EditorGUILayout.BeginVertical();
+            var right = new VisualElement();
+            right.style.flexGrow = 1f;
+            right.style.minWidth = 0f;
+            right.style.marginLeft = 4f;
 
-            Rect stage = GUILayoutUtility.GetRect(220, 260, GUILayout.ExpandWidth(true), GUILayout.Height(260));
-            EditorGUI.DrawRect(stage, new Color(0.10f, 0.10f, 0.12f));
-            if (intactTex != null)
-            {
-                var pad = new Rect(stage.x + 12, stage.y + 12, stage.width - 24, stage.height - 24);
-                GUI.DrawTexture(pad, intactTex, ScaleMode.ScaleToFit, true);
-            }
+            var stage = new VisualElement();
+            stage.style.height = 260f;
+            stage.style.backgroundColor = new Color(0.10f, 0.10f, 0.12f);
+            stage.style.paddingLeft = stage.style.paddingRight = 12f;
+            stage.style.paddingTop = stage.style.paddingBottom = 12f;
+            stage.tooltip = "The live ware, drawn by the same WareGenerator the game uses.";
+            stageImage = new Image { scaleMode = ScaleMode.ScaleToFit };
+            stageImage.style.flexGrow = 1f;
+            stage.Add(stageImage);
+            right.Add(stage);
 
-            Label("Damage stages", ZUI.ZTextStyle.Subtle);
-            Rect strip = GUILayoutUtility.GetRect(220, 96, GUILayout.ExpandWidth(true), GUILayout.Height(96));
-            EditorGUI.DrawRect(strip, new Color(0.08f, 0.08f, 0.10f));
-            if (stageTex != null && stageTex.Length > 0)
-            {
-                float cellW = strip.width / stageTex.Length;
-                for (int i = 0; i < stageTex.Length; i++)
-                {
-                    if (stageTex[i] == null) continue;
-                    var cell = new Rect(strip.x + i * cellW + 6, strip.y + 6, cellW - 12, strip.height - 20);
-                    GUI.DrawTexture(cell, stageTex[i], ScaleMode.ScaleToFit, true);
-                    GUI.Label(new Rect(strip.x + i * cellW, strip.yMax - 16, cellW, 16),
-                        i == 0 ? "intact" : "dmg " + i, EditorStyles.centeredGreyMiniLabel);
-                }
-            }
+            right.Add(Z.Text("Damage stages", ZuiText.Subtle,
+                "Every progressively-damaged version this ware bakes, left (intact) to right."));
+            stageStripHost = new VisualElement();
+            stageStripHost.style.flexDirection = FlexDirection.Row;
+            stageStripHost.style.height = 96f;
+            stageStripHost.style.backgroundColor = new Color(0.08f, 0.08f, 0.10f);
+            right.Add(stageStripHost);
 
-            if (spec != null)
-                Label($"{spec.kind} · seed {spec.seed} · {Mathf.RoundToInt(spec.resolution * spec.widthRatio)}×" +
-                      $"{Mathf.RoundToInt(spec.resolution * spec.heightRatio)} px", ZUI.ZTextStyle.Small);
-
-            EditorGUILayout.EndVertical();
+            captionLabel = Z.Text("", ZuiText.Small, "This ware's kind, seed and baked pixel size.");
+            right.Add(captionLabel);
+            return right;
         }
 
-        // ── preview texture lifecycle ─────────────────────────────────────────────────────────────────
+        // ── preview texture lifecycle ────────────────────────────────────────────────────────
         void RebuildPreview()
         {
             DisposeTextures();
-            if (spec == null) { dirty = false; return; }
+            if (spec == null || stageImage == null) return;
 
             intactTex = MakeTex(spec, 0);
+            stageImage.image = intactTex;
+
             int stages = Mathf.Clamp(spec.damageStages, 1, 4);
             stageTex = new Texture2D[stages];
-            for (int s = 0; s < stages; s++) stageTex[s] = MakeTex(spec, s);
-            dirty = false;
-            Repaint();
+            stageStripHost.Clear();
+            for (int s = 0; s < stages; s++)
+            {
+                stageTex[s] = MakeTex(spec, s);
+                var cell = new VisualElement();
+                cell.style.flexGrow = 1f;
+                cell.style.flexBasis = 0f;   // equal shares regardless of texture size
+                cell.style.paddingTop = cell.style.paddingLeft = cell.style.paddingRight = 6f;
+                cell.tooltip = s == 0 ? "The intact ware." : $"Damage stage {s}.";
+                var img = new Image { image = stageTex[s], scaleMode = ScaleMode.ScaleToFit };
+                img.style.flexGrow = 1f;
+                cell.Add(img);
+                var cap = Z.Text(s == 0 ? "intact" : "dmg " + s, ZuiText.Small,
+                    s == 0 ? "The intact ware." : $"Damage stage {s}.");
+                cap.style.unityTextAlign = TextAnchor.MiddleCenter;
+                cell.Add(cap);
+                stageStripHost.Add(cell);
+            }
+
+            captionLabel.text = $"{spec.kind} · seed {spec.seed} · " +
+                $"{Mathf.RoundToInt(spec.resolution * spec.widthRatio)}×{Mathf.RoundToInt(spec.resolution * spec.heightRatio)} px";
         }
 
         static Texture2D MakeTex(WareSpec spec, int stage)
@@ -202,6 +270,7 @@ namespace Laubrary.Larder.Editor
 
         void DisposeTextures()
         {
+            if (stageImage != null) stageImage.image = null;
             if (intactTex != null) { Object.DestroyImmediate(intactTex); intactTex = null; }
             if (stageTex != null)
             {

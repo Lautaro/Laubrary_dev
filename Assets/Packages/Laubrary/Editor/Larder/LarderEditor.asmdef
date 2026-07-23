@@ -4,8 +4,7 @@
     "references": [
         "com.Lautaro-Arino.Laubrary.Larder",
         "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
-        "ZUI.Editor",
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+        "com.Lautaro-Arino.Laubrary.Zui.Editor"
     ],
     "includePlatforms": [
         "Editor"
