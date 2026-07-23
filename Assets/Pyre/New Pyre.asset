@@ -21,7 +21,7 @@ MonoBehaviour:
   background: {r: 0, g: 0, b: 0, a: 0}
   layers:
   - name: Smoke Rosing
-    enabled: 0
+    enabled: 1
     startFrame: 3
     endFrame: 29
     shape: 0
@@ -1257,7 +1257,7 @@ MonoBehaviour:
   - name: Sparks
     enabled: 1
     startFrame: 0
-    endFrame: 29
+    endFrame: 19
     shape: 8
     fireIntensity:
       m_mode: 2
@@ -1598,32 +1598,44 @@ MonoBehaviour:
         value: 0
         exponent: 1
         editState: 0
-      - time: 0.08366
-        value: 0.54401
+      - time: 0.06187
+        value: 0.56162
         exponent: 1
         editState: 0
-      - time: 0.13268
-        value: 0.125
+      - time: 0.17082
+        value: 0.36091003
         exponent: 1
         editState: 0
-      - time: 0.16459
-        value: 0.90317
+      - time: 0.20117
+        value: 0.87852
         exponent: 1
         editState: 0
-      - time: 0.26187
-        value: 0.40669
+      - time: 0.30156
+        value: 0.28345
         exponent: 1
         editState: 0
-      - time: 0.27432
-        value: 0.96303
+      - time: 0.31479
+        value: 0.83979
         exponent: 1
         editState: 0
-      - time: 0.42607
-        value: 0.2588
+      - time: 0.40506
+        value: 0.02641
         exponent: 1
         editState: 0
-      - time: 0.79961
-        value: 0.69542
+      - time: 0.44553
+        value: 0.47359
+        exponent: 1
+        editState: 0
+      - time: 0.52568
+        value: 0
+        exponent: 1
+        editState: 0
+      - time: 0.60584
+        value: 0.20951
+        exponent: 1
+        editState: 0
+      - time: 0.7249
+        value: 0
         exponent: 1
         editState: 0
       - time: 1
@@ -1638,7 +1650,7 @@ MonoBehaviour:
       m_multiplierId: 
     fire2SourceRadius:
       m_mode: 0
-      m_static: 8.4
+      m_static: 3.3
       m_min: 0
       m_max: 1
       m_points: []
@@ -1650,7 +1662,7 @@ MonoBehaviour:
       m_multiplierId: 
     fire2Cooling:
       m_mode: 0
-      m_static: 0.018
+      m_static: 0.005
       m_min: 0
       m_max: 1
       m_points: []
@@ -1662,7 +1674,7 @@ MonoBehaviour:
       m_multiplierId: 
     fire2Spread:
       m_mode: 0
-      m_static: 0.53
+      m_static: 1.08
       m_min: 0
       m_max: 1
       m_points: []
@@ -1674,7 +1686,7 @@ MonoBehaviour:
       m_multiplierId: 
     fire2Reach:
       m_mode: 0
-      m_static: 0.991
+      m_static: 1
       m_min: 0
       m_max: 1
       m_points: []
@@ -1684,10 +1696,10 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    fire2Arms: 10
+    fire2Arms: 6
     fire2Mirror: 0
-    fire2Threshold: 0.2
-    fire2Contrast: 0.5
+    fire2Threshold: 0
+    fire2Contrast: 0.8
     role: 0
     matteChannel: 5
     matteScope: 1
@@ -1992,7 +2004,8 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_multiplierId: 
-    modifiers: []
+    modifiers:
+    - rid: 1452078264203870292
     simulationModifier:
       rid: -2
     outerSoftness:
@@ -2539,9 +2552,9 @@ MonoBehaviour:
   globalModifiers: []
   simulationModifier:
     rid: -2
-  previewZoom: 2
+  previewZoom: 3
   previewFps: 12
-  previewSpeed: 1
+  previewSpeed: 2
   previewShowFrame: 1
   previewBackSplash:
     cameraColor: {r: 0.2830189, g: 0.25048652, b: 0.35686275, a: 1}
@@ -2554,7 +2567,7 @@ MonoBehaviour:
   previewSubjectAttachId: 
   previewLayerSel: 1
   previewScroll: {x: 0, y: 0}
-  previewFrame: 22
+  previewFrame: 12
   previewShapeOn: 0
   previewShapeGradientFill: 1
   previewShapeCrescent: 1
@@ -2568,3 +2581,31 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
+    - rid: 1452078264203870292
+      type: {class: EdgeSmoothModifier, ns: Laubrary.Pyre, asm: com.Lautaro-Arino.Laubrary.Pyre}
+      data:
+        enabled: 1
+        radius:
+          m_mode: 0
+          m_static: 0.7
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_multiplierId: 
+        strength:
+          m_mode: 0
+          m_static: 0.455
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_multiplierId: 

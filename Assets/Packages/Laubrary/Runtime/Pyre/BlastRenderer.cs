@@ -48,7 +48,7 @@ namespace Laubrary.Pyre
         const int F_FirePulse = 105, F_FireFlow = 106, F_FireBuoy = 107, F_FireCurl = 108, F_FireCurlScale = 109;
         const int F_FireFlicker = 110, F_FireDissip = 111, F_FireBurn = 112, F_FireReach = 113, F_FireEdgeCool = 114;
         const int F_FireStretch = 115, F_FirePinch = 116, F_FireBreakup = 117, F_FireIntensity = 118;
-        const int F_Fire2Source = 120, F_Fire2Radius = 121, F_Fire2Cool = 122, F_Fire2Spread = 123, F_Fire2Reach = 124;
+        const int F_FireballSource = 120, F_FireballRadius = 121, F_FireballCool = 122, F_FireballSpread = 123, F_FireballReach = 124, F_FireballSharp = 125;
         const float DissolveBand = 0.22f;   // soft width of the bar-dissolve front
         const int GlobalLayerId = -1;   // stands in for "no layer" when hashing global modifiers
 
@@ -205,12 +205,12 @@ namespace Laubrary.Pyre
         // simulation from a reset up to N. That is the same discipline SimulationModifier uses, and for the
         // same reason — it is the only version that cannot show a frame built under stale dial values. One
         // sim instance is reused so the arrays aren't reallocated every frame; it is always Reset first.
-        static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Layer, Fire2Sim> _fire2Sims = new();
+        static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Layer, FireballSim> _fireballSims = new();
 
-        static void RenderFire2(Color32[] target, int W, int H, Layer layer, Pyre spec, int li,
+        static void RenderFireball(Color32[] target, int W, int H, Layer layer, Pyre spec, int li,
                                 int frameIndex, float layerAlpha)
         {
-            var sim = _fire2Sims.GetValue(layer, _ => new Fire2Sim());
+            var sim = _fireballSims.GetValue(layer, _ => new FireballSim());
             bool sizeChanged = sim.W != W || sim.H != H;
             sim.Allocate(W, H);
             int seed = ShapeSeed(spec.seed, li, 0);
@@ -219,30 +219,31 @@ namespace Laubrary.Pyre
             // Same forward-step / replay-on-jump discipline as Fire: cheap during playback, correct on scrub.
             if (!sizeChanged && sim.LastFrame >= layer.startFrame && last == sim.LastFrame + 1)
             {
-                StepFire2(sim, layer, spec, li, seed, last);
+                StepFireball(sim, layer, spec, li, seed, last);
                 sim.LastFrame = last;
             }
             else
             {
                 sim.Reset();
-                for (int f = layer.startFrame; f <= last; f++) { StepFire2(sim, layer, spec, li, seed, f); sim.LastFrame = f; }
+                for (int f = layer.startFrame; f <= last; f++) { StepFireball(sim, layer, spec, li, seed, f); sim.LastFrame = f; }
             }
-            sim.Render(target, layer.colorOverLife, layerAlpha, layer.fire2Threshold, layer.fire2Contrast);
+            sim.Render(target, layer.colorOverLife, layerAlpha, layer.fireballThreshold, layer.fireballContrast);
         }
 
-        static void StepFire2(Fire2Sim sim, Layer layer, Pyre spec, int li, int seed, int f)
+        static void StepFireball(FireballSim sim, Layer layer, Pyre spec, int li, int seed, int f)
         {
             float lp = Mathf.Clamp01((f - layer.startFrame) / (float)Mathf.Max(1, layer.endFrame - layer.startFrame));
             float E(ZUIValue v, int fid) => Eval(v, lp, spec.seed, li, f, fid);
-            var p = new Fire2Params
+            var p = new FireballParams
             {
-                sourceHeat = Mathf.Clamp01(E(layer.fire2Source, F_Fire2Source)),
-                sourceRadius = Mathf.Max(1f, E(layer.fire2SourceRadius, F_Fire2Radius)),
-                cooling = Mathf.Max(0.001f, E(layer.fire2Cooling, F_Fire2Cool)),
-                spread = Mathf.Max(0f, E(layer.fire2Spread, F_Fire2Spread)),
-                reach = Mathf.Clamp01(E(layer.fire2Reach, F_Fire2Reach)),
-                arms = Mathf.Max(1, layer.fire2Arms),
-                mirror = layer.fire2Mirror,
+                sourceHeat = Mathf.Clamp01(E(layer.fireballSource, F_FireballSource)),
+                sourceRadius = Mathf.Max(1f, E(layer.fireballSourceRadius, F_FireballRadius)),
+                cooling = Mathf.Max(0.001f, E(layer.fireballCooling, F_FireballCool)),
+                spread = Mathf.Max(0f, E(layer.fireballSpread, F_FireballSpread)),
+                reach = Mathf.Clamp01(E(layer.fireballReach, F_FireballReach)),
+                sharpness = Mathf.Max(0f, E(layer.fireballSharpness, F_FireballSharp)),
+                arms = Mathf.Max(1, layer.fireballArms),
+                mirror = layer.fireballMirror,
             };
             sim.Step(p, seed, lp, f);
         }
@@ -578,7 +579,7 @@ namespace Laubrary.Pyre
                 // already composited below with the flame's own — often low — alpha, punching a hole clear
                 // through to the background wherever the flame is dim. Its own transparent buffer + the
                 // FinishLayerPost Over pass composites it correctly instead.
-                bool hasLayerPost = hasLayerSim || layer.shape == LayerShape.Fire || layer.shape == LayerShape.Fire2
+                bool hasLayerPost = hasLayerSim || layer.shape == LayerShape.Fire || layer.shape == LayerShape.Fireball
                     || layer.role == LayerRole.Matte || matteState.mask != null ||
                     (layer.modifiers != null && layer.modifiers.Exists(m => m != null && m.enabled && m is PostModifier));
                 Color32[] layerTarget = hasLayerPost ? new Color32[W * H] : buf;
@@ -650,10 +651,10 @@ namespace Laubrary.Pyre
                     continue;
                 }
 
-                if (layer.shape == LayerShape.Fire2)
+                if (layer.shape == LayerShape.Fireball)
                 {
                     float fAlpha = Mathf.Clamp01(Eval(layer.alpha, lp, spec.seed, li, 0, F_Alpha));
-                    RenderFire2(layerTarget, W, H, layer, spec, li, frameIndex, fAlpha);
+                    RenderFireball(layerTarget, W, H, layer, spec, li, frameIndex, fAlpha);
                     FinishLayerPost(buf, layerTarget, hasLayerPost, layer, spec, li, lp, frameIndex, W, H, ref matteState);
                     continue;
                 }

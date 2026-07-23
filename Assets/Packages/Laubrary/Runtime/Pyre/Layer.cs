@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Laubrary.Pyre
 {
@@ -415,32 +416,46 @@ namespace Laubrary.Pyre
         [Tooltip("Fire: contrast on the gradient lookup. Below 1 pushes more of the flame toward the hot end.")]
         public float fireContrast = 0.85f;
 
-        // ── Fire2 (LayerShape.Fire2) — the cheap cellular flame ───────────────────
-        [Tooltip("Fire2: the burn's PROGRESS over the layer's life, as one envelope — how hot the centre " +
+        // ── Fireball (LayerShape.Fireball) — the cheap cellular flame ───────────────────
+        // FormerlySerializedAs on every field so a fireball authored while this shape was still called
+        // "Fire2" keeps its tuned values through the rename.
+        [FormerlySerializedAs("fire2Source")]
+        [Tooltip("Fireball: the burn's PROGRESS over the layer's life, as one envelope — how hot the centre " +
                  "injects. Shape this to ignite, hold and die. This is the single progress control.")]
-        public ZUIValue fire2Source = CurveVal(1f, 0f, 0f, 0.12f, 1f, 0.6f, 1f, 1f, 0f);
-        [Tooltip("Fire2: radius of the hot core at the centre, in pixels.")]
-        public ZUIValue fire2SourceRadius = new ZUIValue(4f);
-        [Tooltip("Fire2: how fast the flame cools as it travels outward — its reach. Low = long tongues, " +
-                 "high = a tight core.")]
-        public ZUIValue fire2Cooling = new ZUIValue(0.06f);
-        [Tooltip("Fire2: sideways waver of the tongues — how much they lick instead of being straight spokes.")]
-        public ZUIValue fire2Spread = new ZUIValue(0.5f);
-        [Tooltip("Fire2: how far the flame may reach, as a fraction of the canvas half-size. Past this it is " +
-                 "cut to nothing, so it never touches the frame edge.")]
-        public ZUIValue fire2Reach = new ZUIValue(0.9f);
-        [Min(1)]
-        [Tooltip("Fire2: radial wedges the flame is mirrored into. 1 = a plain outward burst; more give a " +
+        public ZUIValue fireballSource = CurveVal(1f, 0f, 0f, 0.12f, 1f, 0.6f, 1f, 1f, 0f);
+        [FormerlySerializedAs("fire2SourceRadius")]
+        [Tooltip("Fireball: radius of the hot core at the centre, in pixels.")]
+        public ZUIValue fireballSourceRadius = new ZUIValue(4f);
+        [FormerlySerializedAs("fire2Cooling")]
+        [Tooltip("Fireball: how fast the flame cools travelling outward — this sets arm LENGTH. Low = long " +
+                 "reaching tongues, high = a tight core. Pair a LOW value here with a high Sharpness for long " +
+                 "thin arms.")]
+        public ZUIValue fireballCooling = new ZUIValue(0.03f);
+        [FormerlySerializedAs("fire2Sharpness")]
+        [Tooltip("Fireball: how hard the arms taper — their THINNESS, set independently of length. High = " +
+                 "narrow pointed spokes, 0 = a round burst. Only matters with more than one arm.")]
+        public ZUIValue fireballSharpness = new ZUIValue(0.2f);
+        [FormerlySerializedAs("fire2Spread")]
+        [Tooltip("Fireball: sideways waver of the tongues — how much they lick instead of being straight spokes.")]
+        public ZUIValue fireballSpread = new ZUIValue(0.5f);
+        [FormerlySerializedAs("fire2Reach")]
+        [Tooltip("Fireball: how far the flame may reach, as a fraction of the canvas half-size. Past this it is " +
+                 "cut to nothing, so it never touches the frame edge. Raise it to give long arms room.")]
+        public ZUIValue fireballReach = new ZUIValue(0.95f);
+        [FormerlySerializedAs("fire2Arms"), Min(1)]
+        [Tooltip("Fireball: radial wedges the flame is mirrored into. 1 = a plain outward burst; more give a " +
                  "kaleidoscope explosion — the star-mirrored effect.")]
-        public int fire2Arms = 1;
-        [Tooltip("Fire2: Mirror = alternate wedges are reflected, so neighbours meet at a seam (true " +
+        public int fireballArms = 1;
+        [FormerlySerializedAs("fire2Mirror")]
+        [Tooltip("Fireball: Mirror = alternate wedges are reflected, so neighbours meet at a seam (true " +
                  "kaleidoscope). Off = each wedge is the same, just rotated.")]
-        public bool fire2Mirror = true;
-        [Range(0f, 0.9f)]
-        [Tooltip("Fire2: heat below this reads as empty.")]
-        public float fire2Threshold = 0.06f;
-        [Tooltip("Fire2: contrast on the gradient lookup.")]
-        public float fire2Contrast = 0.85f;
+        public bool fireballMirror = true;
+        [FormerlySerializedAs("fire2Threshold"), Range(0f, 0.9f)]
+        [Tooltip("Fireball: heat below this reads as empty.")]
+        public float fireballThreshold = 0.06f;
+        [FormerlySerializedAs("fire2Contrast")]
+        [Tooltip("Fireball: contrast on the gradient lookup.")]
+        public float fireballContrast = 0.85f;
 
         // ── matte ────────────────────────────────────────────────────────────────
         // A matte layer isn't drawn: its LUMINANCE (times its own alpha) becomes a mask driving the layers
@@ -945,7 +960,7 @@ namespace Laubrary.Pyre
                     l.endFrame = 23;
                     l.colorOverLife = SmokeToFireGradient();
                     break;
-                case LayerShape.Fire2:
+                case LayerShape.Fireball:
                     l.alpha = new ZUIValue(1f);
                     l.endFrame = 23;
                     l.colorOverLife = SmokeToFireGradient();

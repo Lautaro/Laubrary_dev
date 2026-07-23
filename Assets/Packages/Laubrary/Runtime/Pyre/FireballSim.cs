@@ -1,4 +1,4 @@
-// Fire2Sim — the cheap cellular flame, the "doom fire" family.
+// FireballSim — the cheap cellular flame, the "doom fire" family.
 //
 // The current Fire is a real fluid simulation: heat + fuel carried by a velocity field, buoyancy, curl
 // noise. Beautiful, but heavy, and it needs a full replay from frame 0 to reach any frame. This is the
@@ -15,18 +15,19 @@ using UnityEngine;
 
 namespace Laubrary.Pyre
 {
-    public struct Fire2Params
+    public struct FireballParams
     {
         public float sourceHeat;     // how hot the centre injects (0..1), already scaled by Intensity
         public float sourceRadius;   // radius of the hot core, in pixels
         public float cooling;        // how much each cell loses per step as it moves outward (the flame's reach)
         public float spread;         // sideways slip strength — how much the tongues waver
         public float reach;          // hard confinement radius as a fraction of the canvas half
+        public float sharpness;      // how hard off-axis cells cool — arm THINNESS, independent of length
         public int arms;             // radial wedges the flame is mirrored into (1 = a plain outward burst)
         public bool mirror;          // mirror alternate wedges (kaleidoscope) vs repeat them
     }
 
-    public class Fire2Sim
+    public class FireballSim
     {
         public const float EdgeClearance = 2f;
 
@@ -58,7 +59,7 @@ namespace Laubrary.Pyre
         }
 
         /// One cellular step. `t` only varies the per-cell random draws frame to frame so the fire flickers.
-        public void Step(in Fire2Params p, int seed, float t, int frameIndex)
+        public void Step(in FireballParams p, int seed, float t, int frameIndex)
         {
             float cx = (W - 1) * 0.5f, cy = (H - 1) * 0.5f;
             float half = Mathf.Min(W, H) * 0.5f;
@@ -110,11 +111,15 @@ namespace Laubrary.Pyre
                     float src = SampleNearest(sx, sy);
 
                     // Cool as it travels outward — a per-cell random draw makes the flame's edge wispy and
-                    // flickering rather than a smooth ramp. This is the whole look.
+                    // flickering rather than a smooth ramp. This is the whole look. `cooling` alone sets arm
+                    // LENGTH (low cooling = heat survives further out = long arms).
                     float cool = p.cooling * (0.6f + 0.8f * Hash01(seed + 7, i, tk));
-                    // Spokes: away from a wedge axis, cool hard, so the flame is a pointed arm along the axis
-                    // and a cold gap between arms — the star-mirrored explosion.
-                    if (arms > 1) cool *= 1f + 3.5f * axisDist * axisDist;
+                    // Spokes: off-axis cells cool EXTRA, so the flame is a pointed arm along each wedge axis
+                    // with cold gaps between. Crucially this term is ABSOLUTE (added, not multiplied into
+                    // `cool`) — otherwise thinness would scale with `cooling`, and you could never get long
+                    // AND thin: low cooling for length would also weaken the thinning into fat blobs. Kept
+                    // separate, low cooling gives the length and `sharpness` gives the thinness independently.
+                    if (arms > 1) cool += p.sharpness * axisDist * axisDist;
                     heatB[i] = Mathf.Max(0f, src - cool);
                 }
 

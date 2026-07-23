@@ -210,7 +210,7 @@ namespace Laubrary.Pyre.Editor
             }
 
             if (shape == LayerShape.Bars || shape == LayerShape.MetaBlob || shape == LayerShape.HeightBalls
-                || shape == LayerShape.Fire || shape == LayerShape.Fire2)
+                || shape == LayerShape.Fire || shape == LayerShape.Fireball)
                 root.Add(ValRow("Alpha", shape == LayerShape.Fire
                         ? "Opacity over the layer's life. Fire's fade is normally shaped by Intensity below, so " +
                           "this stays flat by default — lower it to make the whole flame more transparent."
@@ -221,7 +221,7 @@ namespace Laubrary.Pyre.Editor
             if (shape == LayerShape.MetaBlob) { BuildMetaBlobSection(root, l, half); BuildLayerModifierSections(root, l); return; }
             if (shape == LayerShape.HeightBalls) { BuildHeightBallsSection(root, l, half); BuildLayerModifierSections(root, l); return; }
             if (shape == LayerShape.Fire) { BuildFireSection(root, l); BuildLayerModifierSections(root, l); return; }
-            if (shape == LayerShape.Fire2) { BuildFire2Section(root, l); BuildLayerModifierSections(root, l); return; }
+            if (shape == LayerShape.Fireball) { BuildFireballSection(root, l); BuildLayerModifierSections(root, l); return; }
 
             BuildScatterSection(root, l, half);
 
@@ -717,43 +717,48 @@ namespace Laubrary.Pyre.Editor
             root.Add(box);
         }
 
-        /// Fire2 — the cheap cellular flame. Far fewer dials than Fire because there's no fluid field: a hot
+        /// Fireball — the cheap cellular flame. Far fewer dials than Fire because there's no fluid field: a hot
         /// centre, a cooling rate that sets the reach, a sideways waver, confinement, and the star-mirror
         /// arms that make it an explosive burst.
-        void BuildFire2Section(VisualElement root, Layer l)
+        void BuildFireballSection(VisualElement root, Layer l)
         {
             root.Add(Z.Help("A cheap cellular flame (the 'doom fire' family): each frame is the previous one " +
                 "cooled and drawn outward from a hot centre. Much lighter than Fire; mirror it into arms for " +
                 "a kaleidoscope explosion.", HelpBoxMessageType.Info));
 
             root.Add(ValRow("Intensity", "The burn's PROGRESS — how hot the centre injects over the layer's " +
-                "life. Shape this curve to ignite, hold and die.", l.fire2Source, 0f, 1f, 1f));
+                "life. Shape this curve to ignite, hold and die.", l.fireballSource, 0f, 1f, 1f));
 
-            var core = Z.Box("Flame", "The cellular fire's shape.");
+            var core = Z.Box("Flame", "The cellular fire's shape. Arm LENGTH and arm THINNESS are separate: " +
+                "low Cooling gives long arms, high Sharpness makes them thin — pair them for long thin spokes.");
             core.Add(WrapRow(
-                PackedVal("Core (px)", "Radius of the hot centre.", l.fire2SourceRadius, 1f, 20f),
-                PackedVal("Cooling", "How fast it cools travelling outward — its reach. Low = long tongues.", l.fire2Cooling, 0.005f, 0.25f)));
-            core.Add(ValRow("Waver", "Sideways lick of the tongues instead of straight spokes.", l.fire2Spread, 0f, 2f, 0.5f));
+                PackedVal("Core (px)", "Radius of the hot centre.", l.fireballSourceRadius, 1f, 20f),
+                PackedVal("Cooling", "Arm LENGTH — how fast it cools travelling outward. Low = long reaching " +
+                    "tongues, high = a tight core.", l.fireballCooling, 0.005f, 0.25f)));
+            core.Add(WrapRow(
+                PackedVal("Sharpness", "Arm THINNESS — how hard the arms taper, independent of length. High = " +
+                    "narrow pointed spokes. Only matters with more than one arm.", l.fireballSharpness, 0f, 0.6f),
+                PackedVal("Waver", "Sideways lick of the tongues instead of straight spokes.", l.fireballSpread, 0f, 2f)));
             root.Add(core);
 
             var burst = Z.Box("Burst (star mirror)", "Repeat the flame into radial wedges for an explosion.");
             burst.Add(WrapRow(
                 PackedSlider("Arms", "Radial wedges. 1 = a plain outward burst; more = a kaleidoscope explosion.",
-                    l.fire2Arms, 1f, 12f, v => l.fire2Arms = Mathf.RoundToInt(v), 150f),
-                Z.Toggle("Mirror", "Reflect alternate wedges so neighbours meet at a seam.", l.fire2Mirror,
-                    v => Dial("Fire2 mirror", () => l.fire2Mirror = v))));
+                    l.fireballArms, 1f, 12f, v => l.fireballArms = Mathf.RoundToInt(v), 150f),
+                Z.Toggle("Mirror", "Reflect alternate wedges so neighbours meet at a seam.", l.fireballMirror,
+                    v => Dial("Fireball mirror", () => l.fireballMirror = v))));
             burst.Add(ValRow("Reach", "How far it may go, as a fraction of the canvas half — it never touches " +
-                "the frame edge.", l.fire2Reach, 0.1f, 1f, 0.9f));
+                "the frame edge. Raise it to give long arms room.", l.fireballReach, 0.1f, 1f, 0.95f));
             root.Add(burst);
 
             var look = Z.Box("Look", "Threshold and contrast on the gradient.");
             look.Add(WrapRow(
                 Z.Field("Threshold", "Heat below this reads as empty.",
-                    Z.Slider(l.fire2Threshold, 0f, 0.9f, "Heat below this reads as empty.",
-                        v => Dial("Fire2 threshold", () => l.fire2Threshold = v), 130f)),
+                    Z.Slider(l.fireballThreshold, 0f, 0.9f, "Heat below this reads as empty.",
+                        v => Dial("Fireball threshold", () => l.fireballThreshold = v), 130f)),
                 Z.Field("Contrast", "Contrast on the gradient lookup.",
-                    Z.Slider(l.fire2Contrast, 0.1f, 3f, "Contrast on the gradient lookup.",
-                        v => Dial("Fire2 contrast", () => l.fire2Contrast = v), 130f))));
+                    Z.Slider(l.fireballContrast, 0.1f, 3f, "Contrast on the gradient lookup.",
+                        v => Dial("Fireball contrast", () => l.fireballContrast = v), 130f))));
             root.Add(look);
         }
 
