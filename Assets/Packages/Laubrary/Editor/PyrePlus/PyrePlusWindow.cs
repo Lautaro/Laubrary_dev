@@ -13,7 +13,9 @@ using UnityEngine.UIElements;
 
 namespace Laubrary.PyrePlus.Editor
 {
-    public class PyrePlusWindow : ZuiAssetWindow<PyrePlusSpec>
+    // Split across partials: PyrePlusWindow.cs = shell + left-pane dials; PyrePlusWindow.Preview.cs = the
+    // IMGUI preview island + the Swarm authoring overlay (shape outline, spawn dots, drag handles).
+    public partial class PyrePlusWindow : ZuiAssetWindow<PyrePlusSpec>
     {
         [MenuItem("Laubrary/Pyre Plus")]
         public static void Open() => GetWindow<PyrePlusWindow>("Pyre Plus");
@@ -287,25 +289,6 @@ namespace Laubrary.PyrePlus.Editor
             MarkDirty();
         }
 
-        void DrawPreview(PyrePlusSpec s)
-        {
-            var view = GUILayoutUtility.GetRect(10, 10, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-            if (Event.current.type != EventType.Repaint || s == null) return;
-            EditorGUI.DrawRect(view, new Color(0.1f, 0.1f, 0.12f));
-
-            int cur = Mathf.Clamp(frame, 0, Mathf.Max(0, s.frameCount - 1));
-            if (previewDirty || cur != lastRenderedFrame || previewTex == null)
-            {
-                if (previewTex != null) DestroyImmediate(previewTex);
-                previewTex = PyrePlusRenderer.RenderFrameTexture(s, cur);
-                lastRenderedFrame = cur;
-                previewDirty = false;
-            }
-            float zoom = Mathf.Max(1f, s.previewZoom);
-            float w = s.Width * zoom, h = s.Height * zoom;
-            var r = new Rect(view.center.x - w * 0.5f, view.center.y - h * 0.5f, w, h);
-            GUI.DrawTexture(r, previewTex, ScaleMode.StretchToFill, true);
-            GUI.Label(new Rect(view.x + 6, view.yMax - 20, 200, 18), $"frame {cur + 1}/{s.frameCount}", EditorStyles.whiteMiniLabel);
-        }
+        // DrawPreview + the Swarm authoring overlay live in PyrePlusWindow.Preview.cs.
     }
 }
