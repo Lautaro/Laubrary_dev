@@ -27,11 +27,11 @@ namespace Laubrary.PyrePlus
         const int FldPlacement = 3;  // Area disc sampling (u1/u2 random draw)            [T1]
         const int FldScale = 4;      // shapeScale — shape radius, spawn-time snapshot    [T1]
         const int FldProgress = 5;   // swarmProgress — Path position, spawn-time snapshot [T2]
-        const int FldOffsetX = 6;    // shapeOffsetX, spawn-time snapshot                 [T3]  (reserved)
-        const int FldOffsetY = 7;    // shapeOffsetY, spawn-time snapshot                 [T3]  (reserved)
-        const int FldRotation = 8;   // shapeRotation 2D, spawn-time snapshot             [T3]  (reserved)
-        const int FldPitch = 9;      // shapePitch, spawn-time snapshot                   [T3]  (reserved)
-        const int FldYaw = 10;       // shapeYaw, spawn-time snapshot                     [T3]  (reserved)
+        const int FldOffsetX = 6;    // shapeOffsetX, spawn-time snapshot                 [T3]
+        const int FldOffsetY = 7;    // shapeOffsetY, spawn-time snapshot                 [T3]
+        const int FldRotation = 8;   // shapeRotation 2D, spawn-time snapshot             [T3]
+        const int FldPitch = 9;      // shapePitch, spawn-time snapshot                   [T3]
+        const int FldYaw = 10;       // shapeYaw, spawn-time snapshot                     [T3]
         const int FldSpin = 11;      // per-particle 2D spin, particle's own life         [T7]  (reserved)
         const int FldPathX = 12;     // per-particle position-path X, own life            [T7]  (reserved)
         const int FldPathY = 13;     // per-particle position-path Y, own life            [T7]  (reserved)
@@ -45,6 +45,9 @@ namespace Laubrary.PyrePlus
         {
             public float spawnLife;   // this particle's spawn point on the blast timeline, [0..1]
             public Vector2 pos;       // absolute canvas-pixel position (origin = buffer's (0,0))
+            public float zNorm;       // pseudo-3D depth after the shape tilt, in [-1..1]: +1 nearest the viewer,
+                                      // -1 farthest, exactly 0 when untilted. Drives depth shading here (nearer =
+                                      // bigger + brighter); T5's overlay depth-codes each dot with it too.
         }
 
         public static Color32[] RenderFrame(PyrePlusSpec spec, int frameIndex)
@@ -85,7 +88,12 @@ namespace Laubrary.PyrePlus
                 // as the single particle evaluates them at `life`.
                 float own = (life - sp.spawnLife) / Mathf.Max(0.0001f, spec.swarmParticleLife);
                 if (own < 0f || own > 1f) continue;
-                DrawParticle(buf, W, H, sp.pos.x, sp.pos.y, own, spec, particleIndex: i);
+                // Depth shading from the spawn-time tilt: nearer parts (zNorm > 0) draw bigger and brighter, far
+                // parts smaller and dimmer. Both multipliers are exactly 1 at zNorm == 0, so an untilted swarm
+                // renders byte-identical to the pre-T3 output.
+                float sizeMul = Mathf.Clamp(1f + 0.35f * sp.zNorm, 0.5f, 1.6f);
+                float brightMul = Mathf.Clamp(1f + 0.30f * sp.zNorm, 0.55f, 1.45f);
+                DrawParticle(buf, W, H, sp.pos.x, sp.pos.y, own, spec, i, sizeMul, brightMul);
             }
         }
 
@@ -109,17 +117,81 @@ namespace Laubrary.PyrePlus
                 // Even spawn distribution across the window; particle 0 at 0. n ≥ 2 so (n-1) ≥ 1.
                 float spawnLife = window * i / (n - 1);
 
-                // The shape radius is a SPAWN-TIME SNAPSHOT: evaluate shapeScale at THIS particle's spawn life,
-                // NOT the current frame — so a Curve-mode shapeScale leaves a growing trail of placements rather
-                // than retroactively resizing already-placed particles (the same live-vs-snapshot split Pyre's
-                // scatter makes: ringExpand is live, spawnRadius/ringStartAngle are spawn-snapshot). T3 extends
-                // this exact principle to the whole transform (offset/rotation/pitch/yaw), all sampled here.
+                // SPAWN-TIME SNAPSHOT — the ENTIRE shape transform (radius, offset, rotation, pitch, yaw) is
+                // evaluated at THIS particle's spawn life, NOT the current frame, so an animated transform leaves a
+                // growing trail of placements rather than retroactively resizing/rotating/sliding already-placed
+                // particles (the same live-vs-snapshot split Pyre's scatter makes: ringExpand is live, but
+                // spawnRadius/ringStartAngle are spawn-snapshot). Radius first — both the local placement and the
+                // depth normalize below need it.
                 float r = Mathf.Max(0f, Eval(spec.shapeScale, spawnLife, spec.seed, i, FldScale));
                 float snap = spec.shapeScaleSnap;
                 if (snap > 0f) r = Mathf.Round(r / snap) * snap;
 
-                Vector2 pos = PlaceParticle(spec, i, spawnLife, cx, cy, r);
-                into.Add(new SpawnPoint { spawnLife = spawnLife, pos = pos });
+                // 1) Local placement (T2): a point on/inside the shape, radius already baked in. PlaceParticle
+                //    returns it in ABSOLUTE canvas pixels (centre baked in as cx/cy); we take the local offset
+                //    from that below only when a transform is actually active.
+                Vector2 baseAbs = PlaceParticle(spec, i, spawnLife, cx, cy, r);
+
+                // Shared shape transform, each field the same spawn-time snapshot as r above. Every step is an exact
+                // no-op at its default (rotation/pitch/yaw 0, offset 0), so a swarm with all transform fields at
+                // defaults short-circuits to the untransformed T2 position `baseAbs` — byte-identical to pre-T3.
+                float rot   = Eval(spec.shapeRotation, spawnLife, spec.seed, i, FldRotation);
+                float yaw   = Eval(spec.shapeYaw,      spawnLife, spec.seed, i, FldYaw);
+                float pitch = Eval(spec.shapePitch,    spawnLife, spec.seed, i, FldPitch);
+                float offX  = Eval(spec.shapeOffsetX,  spawnLife, spec.seed, i, FldOffsetX);
+                float offY  = Eval(spec.shapeOffsetY,  spawnLife, spec.seed, i, FldOffsetY);
+
+                Vector2 pos;
+                float zNorm;
+                if (rot == 0f && yaw == 0f && pitch == 0f && offX == 0f && offY == 0f)
+                {
+                    // Nothing to apply → keep the exact T2 pixel position (this is what guarantees the byte-
+                    // identical hash; re-deriving cx + (baseAbs - cx) would risk sub-ULP round-trip drift).
+                    pos = baseAbs;
+                    zNorm = 0f;
+                }
+                else
+                {
+                    // Work in shape-local coords relative to the centre; the radius is already inside baseAbs.
+                    float x = baseAbs.x - cx, y = baseAbs.y - cy, z = 0f;
+
+                    // 2) 2D rotation of the local point, counter-clockwise (y-up), degrees.
+                    if (rot != 0f)
+                    {
+                        float a = rot * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
+                        float nx = x * c - y * s;
+                        float ny = x * s + y * c;
+                        x = nx; y = ny;
+                    }
+
+                    // 3) Pseudo-3D tilt of (x, y, 0). YAW first — rotate about the vertical y axis in the (x,z)
+                    //    plane; z gains x·sin(yaw), so yaw 90° sends every point to x≈0 (shape → vertical line).
+                    if (yaw != 0f)
+                    {
+                        float a = yaw * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
+                        float nx = x * c - z * s;
+                        float nz = x * s + z * c;
+                        x = nx; z = nz;
+                    }
+                    //    THEN PITCH — rotate about the horizontal x axis in the (y,z) plane; z gains y·sin(pitch),
+                    //    so pitch 90° sends every point to y≈0 (shape → horizontal line).
+                    if (pitch != 0f)
+                    {
+                        float a = pitch * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
+                        float ny = y * c - z * s;
+                        float nz = y * s + z * c;
+                        y = ny; z = nz;
+                    }
+
+                    // 4) Depth normalize against the (snapped) radius: +1 nearest the viewer, -1 farthest, 0 flat.
+                    zNorm = Mathf.Clamp(z / Mathf.Max(1e-3f, r), -1f, 1f);
+                    // 5) Perspective feel: nearer parts spread outward slightly (persp == 1 exactly at zNorm 0).
+                    float persp = 1f + 0.25f * zNorm;
+                    // 6) Screen-space offset of the whole shape, applied last.
+                    pos = new Vector2(cx + offX + x * persp, cy + offY + y * persp);
+                }
+
+                into.Add(new SpawnPoint { spawnLife = spawnLife, pos = pos, zNorm = zNorm });
             }
         }
 
@@ -243,15 +315,27 @@ namespace Laubrary.PyrePlus
             return new Vector2(rr * Mathf.Cos(ang), rr * Mathf.Sin(ang));
         }
 
+        // sizeMul/brightMul default to 1 → the swarm-off single-particle call (and any untilted swarm particle,
+        // whose zNorm is 0) draws byte-identical to the pre-T3 path: radius unchanged, colour passed through raw.
         static void DrawParticle(Color32[] buf, int W, int H, float cx, float cy, float life,
-                                 PyrePlusSpec spec, int particleIndex)
+                                 PyrePlusSpec spec, int particleIndex, float sizeMul = 1f, float brightMul = 1f)
         {
             float radius = Mathf.Max(0f, Eval(spec.size, life, spec.seed, particleIndex, FldSize));
+            radius *= sizeMul;                    // depth size shading (exact no-op at sizeMul == 1)
             if (radius <= 0.01f) return;
             float alpha = Mathf.Clamp01(Eval(spec.alpha, life, spec.seed, particleIndex, FldAlpha));
             if (alpha <= 0.002f) return;
 
             Color col = spec.colorOverLife != null ? spec.colorOverLife.Evaluate(life) : Color.white;
+            // Depth brightness shading: scale RGB (alpha untouched) and clamp each channel to [0,1]. Guarded so
+            // brightMul == 1 passes the colour through byte-for-byte (the swarm-off and untilted-swarm paths).
+            float cr = col.r, cg = col.g, cb = col.b;
+            if (brightMul != 1f)
+            {
+                cr = Mathf.Clamp01(cr * brightMul);
+                cg = Mathf.Clamp01(cg * brightMul);
+                cb = Mathf.Clamp01(cb * brightMul);
+            }
             // Soft rim: alpha ramps from `soft`·radius out to the edge. 0 softness = a hard pixel disc.
             float soft = Mathf.Clamp01(spec.edgeSoftness);
             float inner = radius * (1f - soft);
@@ -270,7 +354,7 @@ namespace Laubrary.PyrePlus
                     float edge = d <= inner ? 1f : 1f - Mathf.InverseLerp(inner, radius, d);
                     float a = alpha * col.a * edge;
                     if (a <= 0.002f) continue;
-                    Over(buf, y * W + x, col.r, col.g, col.b, a);
+                    Over(buf, y * W + x, cr, cg, cb, a);
                 }
         }
 
