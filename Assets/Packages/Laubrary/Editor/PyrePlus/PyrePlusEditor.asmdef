@@ -1,0 +1,22 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.PyrePlus.Editor",
+    "rootNamespace": "Laubrary.PyrePlus.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.PyrePlus",
+        "com.Lautaro-Arino.Laubrary.Pyre",
+        "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
