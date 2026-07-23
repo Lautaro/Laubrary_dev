@@ -1,13 +1,14 @@
 using UnityEditor;
 using UnityEngine;
 using Laubrary.PreviewKit;
+using Laubrary.AssetKit.Editor;
 
 namespace Laubrary.Chunks.Editor
 {
     /// A CustomEditor (not a ZUIWindow — plain EditorGUILayout, per authoring.md's sheet-scoping rule) that
     /// augments ChunkSpec's default inspector with a live preview of its optional animationSource, plus a jump
     /// straight into that animation's own authoring tool (Pyre, the Animation Builder, ...) when one is
-    /// registered via ChunkAnimationEditors — Chunks itself never references those tools directly.
+    /// registered via LauAssetEditors — Chunks itself never references those tools directly.
     [CustomEditor(typeof(ChunkSpec))]
     public class ChunkSpecEditor : UnityEditor.Editor
     {
@@ -61,10 +62,10 @@ namespace Laubrary.Chunks.Editor
                 EditorGUILayout.HelpBox($"{source.GetType().Name} does not implement IVisualPreview — no preview available.", MessageType.Warning);
             }
 
-            if (ChunkAnimationEditors.CanOpen(source))
+            if (LauAssetEditors.CanOpen(source))
             {
                 if (GUILayout.Button($"Edit '{source.name}'…"))
-                    ChunkAnimationEditors.Open(source);
+                    LauAssetEditors.Open(source);
             }
         }
 

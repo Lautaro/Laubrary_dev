@@ -100,6 +100,13 @@ namespace Laubrary.Launimator
         {
             if (string.IsNullOrEmpty(clip) || !_byName.TryGetValue(clip, out var def)) return false;
             if (!_pb.Play(def, loop, 1f, onComplete, onHit, hitFrame)) return false;
+            // Defensive re-resolve, same as ZonedAnimationPlayer.PushSprite() already does — _sr is normally
+            // set in Awake(), but a caller building this component synchronously may call Play()
+            // synchronously right after AddComponent<ReelPlayer>(), before RequireComponent's dependency
+            // injection is guaranteed to have run relative to Awake(). Confirmed live: without this, a
+            // Build()-time Play() call succeeded (_pb.CurrentSprite non-null) but never reached the
+            // SpriteRenderer, leaving it spriteless.
+            if (_sr == null) _sr = GetComponent<SpriteRenderer>();
             if (_sr != null && _pb.CurrentSprite != null) _sr.sprite = _pb.CurrentSprite;
             return true;
         }

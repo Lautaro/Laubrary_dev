@@ -30,6 +30,10 @@ namespace Laubrary.ZoetropeLaunimator
             p.SetVersion(version);
             if (!string.IsNullOrEmpty(idleClip)) p.Play(idleClip);
 
+            host.AddComponent<CueRelay>();   // the ICueSink ZoeSpawner/EquipWeapon look for — RequireComponent
+                                              // is satisfied since the ZonedAnimationPlayer above already exists
+            host.AddComponent<AnimatedViewRelay>();   // the IAnimatedView HitReactionPlayer/TargetPracticeController look for
+
             var sprite = p.CurrentSprite;
             if (height > 0f && sprite != null)
             {

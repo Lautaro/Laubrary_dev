@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Laubrary.Caching;
@@ -24,6 +25,14 @@ namespace Laubrary.Pyre
 
         [Tooltip("Start playing automatically on Awake.")]
         public bool playOnAwake = true;
+
+        [Tooltip("Set by a pool owner. When true, a finished non-looping playback fires Finished instead of " +
+                 "destroying the GameObject — the pool decides its fate, not this component.")]
+        public bool pooled;
+
+        /// Fired once when a non-looping playback finishes, ONLY while pooled — the pool's own signal to
+        /// reclaim this instance. Never fires when destroyOnFinish already destroyed the object instead.
+        public event Action Finished;
 
         static readonly Dictionary<int, Sprite[]> cache = new();
 
@@ -53,7 +62,19 @@ namespace Laubrary.Pyre
         public void Play()
         {
             if (spec == null) return;
-            frames ??= GetFrames(spec);
+            // Awake() (which normally sets sr) isn't guaranteed to have run yet if a caller does
+            // AddComponent<BlastPlayer>() then configures + Play()s it in the same call — observed for real
+            // via Mirage's previewable realization, both during a domain-reload-triggered OnEnable pass and
+            // from a live view-switch. Resolve defensively rather than assume Awake already ran.
+            if (sr == null) sr = GetComponent<SpriteRenderer>();
+            // ALWAYS re-ask GetFrames here (not frames ??= ...) -- a pooled instance (PyreBlastPool) is
+            // reused across many Play()s, possibly for a different spec each time, or the SAME spec
+            // re-edited between shots. `??=` only refreshed `frames` the very FIRST time this instance ever
+            // played anything; every later Play() kept showing whatever was cached on THIS INSTANCE from
+            // its previous use, even though GetFrames' own STATIC cache had already been correctly
+            // invalidated by AssetCacheInvalidation. GetFrames itself is already cheap on a cache hit (one
+            // dictionary lookup) — there's no real cost to asking fresh every Play().
+            frames = GetFrames(spec);
             clock = 0f;
             playing = frames != null && frames.Length > 0;
             if (playing) sr.sprite = frames[0];
@@ -75,7 +96,8 @@ namespace Laubrary.Pyre
                 {
                     sr.sprite = frames[frames.Length - 1];
                     playing = false;
-                    if (destroyOnFinish) Destroy(gameObject);
+                    if (pooled) Finished?.Invoke();
+                    else if (destroyOnFinish) Destroy(gameObject);
                     return;
                 }
             }

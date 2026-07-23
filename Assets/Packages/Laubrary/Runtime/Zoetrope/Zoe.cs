@@ -7,7 +7,7 @@ namespace Laubrary.Zoetrope
     /// A composition "recipe" for one combat character (enemy / NPC / the player's target): its stats, its look, and
     /// the effects it plays when hit and when it dies. Look and effects are PLUGGABLE (<c>[SerializeReference]</c>),
     /// so this core asset depends on Combat2D ONLY — a project supplies concrete views (a sprite, a Launimator-driven
-    /// ReelView, a Lazor shape) and effects (a Pyre blast + Chunks debris) from whatever bridge modules it includes.
+    /// ZonedReelView, a Lazor shape) and effects (a Pyre blast + Chunks debris) from whatever bridge modules it includes.
     /// A small portable data asset; the runtime is assembled by <see cref="ZoeSpawner.SpawnCharacter"/>.
     [CreateAssetMenu(menuName = "Laubrary/Zoetrope/Zoe", fileName = "Zoe")]
     public class Zoe : ScriptableObject
@@ -22,23 +22,47 @@ namespace Laubrary.Zoetrope
         [Tooltip("Seconds of invulnerability after a hit (stops one shot dealing many hits). 0 = none.")]
         public float invulnerableAfterHit = 0f;
 
-        [Header("Look (pluggable — a sprite by default; a Reel / Lazor view via a bridge module; a composite " +
-                "multi-part body via the Zoetrope.Launimator bridge's CompositeReelView)")]
+        [Header("Look")]
+        [Tooltip("Pluggable — a sprite by default; a Reel / Lazor view via a bridge module; a composite " +
+                 "multi-part body via the Zoetrope.Launimator bridge's CompositeReelView.")]
         [SerializeReference] public ICharacterView view = new SpriteView();
 
-        [Header("Effects (pluggable — e.g. a Pyre blast + Chunks debris via the Zoetrope.Pyre bridge)")]
-        [Tooltip("Played at the hit point every time this character takes damage.")]
-        [SerializeReference] public ICombatFx hit;
-        [Tooltip("Played once at the killing-blow point when this character dies.")]
-        [SerializeReference] public ICombatFx death;
+        // hit/death used to be split across THREE disconnected areas: hit/death (VFX-only ICombatFx) and
+        // hitReaction (clip-name-only IHitReaction) — the same "which clip plays on Hurt" question authored in
+        // two different places that had to be kept in sync by hand. Unified: each reaction is one ReactionFx
+        // (clip + the FX list triggered off that same clip's own authored frame events/meta-layers), so there's
+        // exactly one place to author "what happens when this character gets hurt" (or dies).
+        [Header("Reactions")]
+        [Tooltip("What happens on a non-killing hit: the clip to play (via the view's IAnimatedView, if it " +
+                 "provides one) plus the FX list triggered off that clip's frame events/meta-layers. Real " +
+                 "character data, same as everything else on this asset — NOT a Mirage-only concept (Mirage's " +
+                 "Target Practice mode is a testing convenience that USES this, it doesn't own it).")]
+        public ReactionFx hit = new ReactionFx();
+        [Tooltip("What happens on the killing blow — same shape as Hit above.")]
+        public ReactionFx death = new ReactionFx();
 
-        [Header("AI (pluggable — a Daemon brain via the Zoetrope.Daemon bridge)")]
-        [Tooltip("Optional decision-making attached at spawn. The game supplies the agent body (movement/perception).")]
+        [Header("AI")]
+        [Tooltip("Optional decision-making attached at spawn. The game supplies the agent body " +
+                 "(movement/perception). Pluggable — a Daemon brain via the Zoetrope.Daemon bridge.")]
         [SerializeReference] public IBrainSpec brain;
 
-        [Header("Loadout (pluggable weapons + abilities the character can activate)")]
-        [Tooltip("Weapons + abilities; triggered by the brain (enemies) or input (player) via the LoadoutController.")]
+        [Header("Loadout")]
+        [Tooltip("Pluggable weapons + abilities the character can activate; triggered by the brain (enemies) " +
+                 "or input (player) via the LoadoutController.")]
         [SerializeReference] public List<IActivatable> loadout = new List<IActivatable>();
+
+        [Header("Weapons")]
+        [Tooltip("Switchable slots, separate from Loadout above (which stays unused today). One child slot " +
+                 "per weapon, only the active one enabled. Switch via the spawned character's WeaponSwitcher. " +
+                 "Empty = no weapon slots at all (today's single-EquipWeapon callers still work).")]
+        public List<WeaponDef> weapons = new List<WeaponDef>();
+        [Min(0)] public int defaultActiveWeapon = 0;
+
+        [Header("Cues")]
+        [Tooltip("This character's own always-on cues (footstep dust, a cast sparkle, ...) — an animation " +
+                 "MetaLayer triggers an effect at that point, via ICueSink, independent of whatever's equipped. " +
+                 "Only takes effect if the view provides an ICueSink (e.g. ZonedReelView).")]
+        public List<CueBinding> cues = new List<CueBinding>();
 
         // TODO(zounds): onHit / onDied Zound refs — embedded + registered if the Zounds engine is present.
     }

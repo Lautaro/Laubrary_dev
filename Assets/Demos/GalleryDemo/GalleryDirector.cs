@@ -84,9 +84,13 @@ namespace Laubrary.Demos.Gallery
             targetDef.faction = enemyFaction;
             targetDef.view = new SpriteView { sprite = DemoSprites.Get(DemoSprites.Shape.Diamond), scale = 1.3f };
             targetDef.invulnerableAfterHit = 0.03f;
-            targetDef.hit = new PyreChunksFx { blast = hitBlast };
-            targetDef.death = new PyreChunksFx { blast = deathBlast, chunks = deathDebris };
+            targetDef.hit = Reaction(new PyreChunksFx { blast = hitBlast });
+            targetDef.death = Reaction(new PyreChunksFx { blast = deathBlast, chunks = deathDebris });
         }
+
+        /// A hit/death reaction is no longer one ICombatFx — it is a clip plus a list of placed, triggered FX
+        /// entries. This gallery only wants the simplest case: one effect, immediately, at the hit position.
+        static ReactionFx Reaction(ICombatFx fx) => new ReactionFx { fx = { new FxEntry { fx = fx } } };
 
         void SpawnTarget()
         {

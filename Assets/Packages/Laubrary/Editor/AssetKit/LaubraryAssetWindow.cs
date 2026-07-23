@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
+using Laubrary.PreviewKit;
+using Object = UnityEngine.Object;
 
 namespace Laubrary.AssetKit.Editor
 {
@@ -26,8 +28,9 @@ namespace Laubrary.AssetKit.Editor
 
         // browser state
         List<T> _browse;
-        readonly Dictionary<T, Texture2D> _thumbs = new Dictionary<T, Texture2D>();
+        readonly Dictionary<Object, Texture2D> _thumbs = new Dictionary<Object, Texture2D>();
         Vector2 _browseScroll;
+        Vector2 _assetScroll;
 
         // ── override points ─────────────────────────────────────────────────────────────
         /// Draw the per-asset editor. Only called when an asset is selected (never null).
@@ -97,7 +100,14 @@ namespace Laubrary.AssetKit.Editor
 
             DrawToolbar();
             if (asset == null || browsing) DrawBrowser();
-            else DrawAsset(asset);
+            else
+            {
+                // The per-asset editor body had no scroll container at all — content taller than the window
+                // (routine for a Zoe with several expanded [SerializeReference] sections) just clipped with no
+                // way to reach it, no scrollbar shown. Same ScrollView wrapper the browser above already uses.
+                using (ScrollView(ref _assetScroll))
+                    DrawAsset(asset);
+            }
         }
 
         void OnProjectChanged() { RefreshBrowse(); Repaint(); }
@@ -111,7 +121,12 @@ namespace Laubrary.AssetKit.Editor
             double now = EditorApplication.timeSinceStartup;
             if (now - _lastThumbTick < ThumbAnimateInterval) return;
             _lastThumbTick = now;
-            foreach (var kv in _thumbs) if (kv.Value != null) UpdateAnimatedThumbnail(kv.Key, kv.Value, now);
+            foreach (var kv in _thumbs)
+            {
+                if (kv.Value == null) continue;
+                if (kv.Key is T typed) UpdateAnimatedThumbnail(typed, kv.Value, now);
+                if (kv.Key is IVisualPreview vp && vp.CanAnimatePreview) vp.UpdateAnimatedPreview(kv.Value, now);
+            }
             Repaint();
         }
 
@@ -148,6 +163,7 @@ namespace Laubrary.AssetKit.Editor
 
             if (creating) DrawCreateRow();
             if (renaming && !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset))) DrawRenameRow();
+            if (asset != null && !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset))) LauTagField.Draw(asset);
         }
 
         void DrawCreateRow()
@@ -205,6 +221,9 @@ namespace Laubrary.AssetKit.Editor
         }
 
         // ── browser ───────────────────────────────────────────────────────────────────
+        // Delegates to LauAssetGridGUI — the same grid renderer every "pick a LauAsset" popup uses, so this
+        // window's own browse panel and a Recall popup elsewhere look and behave identically, and both get
+        // IVisualPreview support for free (RenderThumbnail still takes priority when a subclass overrides it).
         void DrawBrowser()
         {
             if (_browse == null) RefreshBrowse();
@@ -221,71 +240,16 @@ namespace Laubrary.AssetKit.Editor
 
             using (ScrollView(ref _browseScroll))
             {
-                float cell = CellSize, thumb = ThumbSize;
-                int cols = Mathf.Max(1, Mathf.FloorToInt((position.width - 24f) / cell));
-                int i = 0;
-                while (i < _browse.Count)
+                LauAssetGridGUI.DrawGrid(position.width, _browse.ConvertAll(t => (Object)t), asset, (item, clickCount) =>
                 {
-                    using (ZUI.HRow())
-                    {
-                        for (int c = 0; c < cols && i < _browse.Count; c++, i++)
-                            if (_browse[i] != null) DrawCell(_browse[i], cell, thumb);
-                        GUILayout.FlexibleSpace();
-                    }
-                }
+                    bool open = clickCount == 2;
+                    SetAsset((T)item);
+                    if (open) browsing = false;
+                    Repaint();
+                }, _thumbs, item => RenderThumbnail((T)item), CellSize, ThumbSize);
             }
         }
 
-        void DrawCell(T item, float cell, float thumb)
-        {
-            EditorGUILayout.BeginVertical(GUILayout.Width(cell));
-            bool selected = ReferenceEquals(asset, item);
-
-            Rect tr = GUILayoutUtility.GetRect(thumb, thumb, GUILayout.Width(thumb), GUILayout.Height(thumb));
-            if (Event.current.type == EventType.Repaint)
-            {
-                EditorGUI.DrawRect(tr, selected ? new Color(0.35f, 0.55f, 0.95f, 0.35f) : new Color(0.11f, 0.12f, 0.15f));
-                var tex = Thumb(item);
-                if (tex != null)
-                {
-                    float sc = Mathf.Min((thumb - 6f) / Mathf.Max(1, tex.width), (thumb - 6f) / Mathf.Max(1, tex.height));
-                    float w = tex.width * sc, h = tex.height * sc;
-                    GUI.DrawTexture(new Rect(tr.x + (thumb - w) * 0.5f, tr.y + (thumb - h) * 0.5f, w, h), tex, ScaleMode.StretchToFill, true);
-                }
-                if (selected)
-                {
-                    var b = new Color(0.4f, 0.8f, 1f, 0.9f);
-                    EditorGUI.DrawRect(new Rect(tr.x, tr.y, tr.width, 1f), b);
-                    EditorGUI.DrawRect(new Rect(tr.x, tr.yMax - 1f, tr.width, 1f), b);
-                    EditorGUI.DrawRect(new Rect(tr.x, tr.y, 1f, tr.height), b);
-                    EditorGUI.DrawRect(new Rect(tr.xMax - 1f, tr.y, 1f, tr.height), b);
-                }
-            }
-            EditorGUIUtility.AddCursorRect(tr, MouseCursor.Link);
-            var e = Event.current;
-            if (e.type == EventType.MouseDown && e.button == 0 && tr.Contains(e.mousePosition))
-            {
-                bool open = e.clickCount == 2;
-                SetAsset(item);
-                if (open) browsing = false;
-                e.Use(); Repaint();
-            }
-            GUILayout.Label(new GUIContent(item.name, item.name), EditorStyles.miniLabel, GUILayout.Width(thumb));
-            EditorGUILayout.EndVertical();
-        }
-
-        Texture2D Thumb(T item)
-        {
-            if (_thumbs.TryGetValue(item, out var t) && t != null) return t;
-            var tex = RenderThumbnail(item);
-            if (tex != null) { _thumbs[item] = tex; return tex; }
-            return AssetPreview.GetAssetPreview(item);   // Unity-owned — never cached or destroyed here
-        }
-
-        void ClearThumbs()
-        {
-            foreach (var t in _thumbs.Values) if (t != null) DestroyImmediate(t);
-            _thumbs.Clear();
-        }
+        void ClearThumbs() => LauAssetGridGUI.ClearCache(_thumbs);
     }
 }

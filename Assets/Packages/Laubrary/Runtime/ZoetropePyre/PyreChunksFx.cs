@@ -29,20 +29,37 @@ namespace Laubrary.ZoetropePyre
         /// Spawn the blast + debris at a world point. directionDeg (NaN = omni) aims directional chunk bursts.
         public void Play(Vector2 worldPos, float directionDeg = float.NaN)
         {
-            if (blast != null)
-            {
-                var go = new GameObject("PyreBlast");
-                go.transform.position = new Vector3(worldPos.x, worldPos.y, 0f);
-                var bp = go.AddComponent<BlastPlayer>();   // RequireComponent adds the SpriteRenderer
-                var sr = go.GetComponent<SpriteRenderer>();
-                if (sr != null) sr.sortingOrder = sortingOrder;
-                bp.spec = blast;
-                bp.fps = blastFps > 0f ? blastFps : 24f;
-                bp.loop = false;
-                bp.destroyOnFinish = true;
-                bp.Play();   // spec was null at Awake (playOnAwake no-op), so kick it off now
-            }
+            SpawnBlast(worldPos);
             if (chunks != null) ChunksFx.Burst(worldPos, chunks, directionDeg);
+        }
+
+        /// Same as <see cref="Play"/>, but returns the blast's Transform for follow-tracking (see
+        /// <see cref="FxFollowTarget"/>). Chunks still burst once at the initial point regardless — a scatter
+        /// of independently-moving debris has no single Transform to hand back. Null if no blast is configured.
+        public Transform PlayFollowable(Vector2 worldPos, float directionDeg = float.NaN)
+        {
+            var bp = SpawnBlast(worldPos);
+            if (chunks != null) ChunksFx.Burst(worldPos, chunks, directionDeg);
+            return bp != null ? bp.transform : null;
+        }
+
+        BlastPlayer SpawnBlast(Vector2 worldPos)
+        {
+            if (blast == null) return null;
+
+            var bp = PyreBlastPool.Get();   // pooled: pooled=true already set by the pool's factory
+            bp.transform.position = new Vector3(worldPos.x, worldPos.y, 0f);
+            var sr = bp.GetComponent<SpriteRenderer>();
+            if (sr != null) sr.sortingOrder = sortingOrder;
+            bp.spec = blast;
+            bp.fps = blastFps > 0f ? blastFps : 24f;
+            bp.loop = false;
+
+            System.Action onFinished = null;
+            onFinished = () => { bp.Finished -= onFinished; PyreBlastPool.Release(bp); };
+            bp.Finished += onFinished;
+            bp.Play();
+            return bp;
         }
     }
 }

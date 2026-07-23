@@ -25,6 +25,10 @@ namespace Laubrary.Combat2D
         public Faction faction;
         public GameObject source;
 
+        /// Set by ProjectilePool.Get — non-null means this instance came from a pool and Expire() should
+        /// release it back instead of destroying it. Null means a plain Instantiate, unpooled (still supported).
+        [NonSerialized] public Projectile SourcePrefab;
+
         [Tooltip("How this projectile actually moves each frame (straight-line 2D by default). See " +
                  "IProjectileMotion for the full launch-mode taxonomy — DepthMotion for rail-shooter travel.")]
         [SerializeReference] public IProjectileMotion motion = new PlanarMotion();
@@ -109,7 +113,8 @@ namespace Laubrary.Combat2D
             if (spent) return;
             spent = true;
             Expired?.Invoke();
-            Destroy(gameObject);
+            if (SourcePrefab != null) ProjectilePool.Release(this);
+            else Destroy(gameObject);
         }
     }
 }

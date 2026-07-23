@@ -129,21 +129,16 @@ namespace Laubrary.Pyre
 
         // ── Editor preview settings (Pyre window) — cosmetic only, NEVER read by BlastRenderer / never baked.
         // Kept on the asset (not the window) so each blast remembers its own zoom/speed/backdrop regardless of
-        // the Pyre window's own open/close lifecycle. previewStageBg is typed as a plain Object rather than
-        // Laubrary.PreviewStage.PreviewBackground — that type is editor-only and Runtime code must never
-        // reference Editor code (see authoring.md §2) — PyreWindow casts it back to the real type.
+        // the Pyre window's own open/close lifecycle. previewBackSplash is a private, OWNED COPY of a
+        // BackSplash preset's fields rather than a reference to the preset asset — editing a shared backdrop
+        // asset from one tool used to silently change it for every other tool previewing against it.
+        // It replaced an older per-spec mode/solid/gradient/image block and a PreviewStage preset reference,
+        // both dropped when PreviewStage was superseded by BackSplash.
         [HideInInspector] public float previewZoom = 4f;
         [HideInInspector] public float previewFps = 12f;
         [HideInInspector] public float previewSpeed = 1f;
-        [HideInInspector] public PreviewBgMode previewBgMode = PreviewBgMode.Solid;
-        [HideInInspector] public Color previewBgSolid = new Color(0.08f, 0.08f, 0.10f);
-        [HideInInspector] public Gradient previewBgGradient;
-        [HideInInspector] public Texture2D previewBgImage;
-        [HideInInspector] public Color previewBgImageTint = Color.white;
-        [HideInInspector] public float previewBgImageZoom = 1f;
-        [HideInInspector] public Vector2 previewBgImagePos = Vector2.zero;
         [HideInInspector] public bool previewShowFrame = false;
-        [HideInInspector] public UnityEngine.Object previewStageBg;
+        [HideInInspector] public Laubrary.BackSplash.BackSplashSettings previewBackSplash = new Laubrary.BackSplash.BackSplashSettings();
         // An optional LIVE, animated preview subject (e.g. a Zoetrope character playing a clip) shown behind
         // the blast, with the blast's own render origin tracked to a named point on it each frame (a muzzle,
         // a blade tip) — for tuning a blast against the actual context it plays in, not just a static mock.

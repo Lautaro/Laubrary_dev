@@ -24,6 +24,14 @@ namespace Laubrary.Launimator.Editor
         [MenuItem("Laubrary/Sprite Catalog")]
         public static void Open() => GetWindow<SpriteCatalogWindow>("Sprite Catalog");
 
+        /// Same entry-point shape as PyreWindow.OpenFor/MirageWindow.OpenFor — lets a LauAssetField's Edit
+        /// button jump straight into this SpriteCatalog's own editor.
+        public static void OpenFor(SpriteCatalog c)
+        {
+            var w = GetWindow<SpriteCatalogWindow>("Sprite Catalog");
+            if (c != null) w.SetAsset(c);
+        }
+
         SpriteCatalog catalog => Current;   // the base owns the current asset; alias for the editor body
         int gridCols = 8, gridRows = 8;
 

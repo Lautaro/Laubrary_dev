@@ -22,7 +22,10 @@ namespace Laubrary.Combat2D
         [Range(0f, 180f)] public float spreadDeg = 0f;
         [Min(1)] public int projectilesPerShot = 1;
         public bool autoFire = false;
-        [Tooltip("Default fire direction when TryFire() is called with no direction.")]
+        [Tooltip("Fallback fire direction when there's no owner Combatant (or its aimDirection is zero) — " +
+                 "an ownerless/standalone weapon's only source of direction. When an owner IS present, " +
+                 "ResolvedAimDirection() prefers owner.aimDirection instead, since aim is a Combatant-level " +
+                 "concept (see Combatant.aimDirection's own doc) most weapons shouldn't own a second copy of.")]
         public Vector2 aimDirection = Vector2.up;
 
         float cooldown;
@@ -38,19 +41,58 @@ namespace Laubrary.Combat2D
         void Update()
         {
             if (cooldown > 0f) cooldown -= Time.deltaTime;
-            if (autoFire) TryFire(aimDirection);
+            if (autoFire) TryFire(ResolvedAimDirection());
         }
 
-        public bool TryFire() => TryFire(aimDirection);
+        public bool TryFire() => TryFire(ResolvedAimDirection());
+
+        /// The direction TryFire()/autoFire use when not given an explicit one. Prefers the owning
+        /// Combatant's own aimDirection (set by player input, AI, or a Mirage preview override — see
+        /// Combatant.aimDirection) when present and non-zero; falls back to this weapon's own aimDirection
+        /// field for an ownerless/standalone weapon.
+        Vector2 ResolvedAimDirection()
+        {
+            if (owner != null && owner.aimDirection.sqrMagnitude > 1e-6f) return owner.aimDirection;
+            return aimDirection.sqrMagnitude > 1e-6f ? aimDirection : Vector2.up;
+        }
+
+        /// Pulls from the shared per-prefab pool, parents under the shared ~Projectiles container (never the
+        /// shooter — a dying shooter or a deactivated weapon slot must not take its already-fired shots with
+        /// it), and names the instance for Hierarchy debuggability without coupling its lifetime to `owner`.
+        Projectile SpawnProjectile(Vector3 pos)
+        {
+            var p = ProjectilePool.Get(projectilePrefab);
+            p.transform.SetPositionAndRotation(pos, Quaternion.identity);
+            p.transform.SetParent(ProjectileContainer.Root, true);
+            p.gameObject.name = $"{projectilePrefab.name} ({(owner != null ? owner.name : gameObject.name)})";
+            if (!p.gameObject.activeSelf) p.gameObject.SetActive(true);   // allow inactive (runtime-built) templates
+            return p;
+        }
 
         /// Fire toward a direction if off cooldown. Returns true if a volley went out.
         public bool TryFire(Vector2 dir)
         {
             if (cooldown > 0f || projectilePrefab == null) return false;
             cooldown = 1f / Mathf.Max(0.01f, fireRate);
-
+            if (dir.sqrMagnitude < 1e-6f) dir = ResolvedAimDirection();
             Vector3 pos = muzzle != null ? muzzle.position : transform.position;
-            if (dir.sqrMagnitude < 1e-6f) dir = aimDirection.sqrMagnitude > 1e-6f ? aimDirection : Vector2.up;
+            return FireInternal(pos, dir);
+        }
+
+        /// Fire from an explicit spawn position instead of the cached `muzzle` transform — e.g. an
+        /// animation's live "Muzzle" MetaLayer point for THIS frame, which moves as the clip plays, unlike
+        /// `muzzle` (a Transform positioned once at equip time and never re-synced). Direction still resolves
+        /// the normal way (ResolvedAimDirection) — this overrides WHERE the shot originates, not WHICH WAY it
+        /// goes; aim is a Combatant-level concept independent of wherever the animation draws the muzzle.
+        public bool TryFireFrom(Vector3 originOverride)
+        {
+            if (cooldown > 0f || projectilePrefab == null) return false;
+            cooldown = 1f / Mathf.Max(0.01f, fireRate);
+            return FireInternal(originOverride, ResolvedAimDirection());
+        }
+
+        bool FireInternal(Vector3 pos, Vector2 dir)
+        {
             float baseA = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
 
             Faction fac = owner != null ? owner.faction : null;
@@ -64,8 +106,7 @@ namespace Laubrary.Combat2D
                 float a = (baseA + off) * Mathf.Deg2Rad;
                 Vector2 d = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
 
-                var p = Instantiate(projectilePrefab, pos, Quaternion.identity);
-                if (!p.gameObject.activeSelf) p.gameObject.SetActive(true);   // allow inactive (runtime-built) templates
+                var p = SpawnProjectile(pos);
                 p.damage = damage;
                 p.Launch(d, fac, src, projectileSpeed);
                 Fired?.Invoke(p);
@@ -96,8 +137,7 @@ namespace Laubrary.Combat2D
                                   : (spreadWorld > 0f ? UnityEngine.Random.Range(-spreadWorld, spreadWorld) : 0f);
                 Vector3 shotTarget = worldTarget + new Vector3(off, 0f, 0f);
 
-                var p = Instantiate(projectilePrefab, pos, Quaternion.identity);
-                if (!p.gameObject.activeSelf) p.gameObject.SetActive(true);
+                var p = SpawnProjectile(pos);
                 p.damage = damage;
                 p.Launch(shotTarget, fac, src, projectileSpeed);
                 Fired?.Invoke(p);

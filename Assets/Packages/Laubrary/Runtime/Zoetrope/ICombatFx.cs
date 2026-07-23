@@ -17,5 +17,11 @@ namespace Laubrary.Zoetrope
         /// Play the effect at <paramref name="worldPos"/>; <paramref name="directionDeg"/> aims directional effects
         /// (NaN = omni-directional).
         void Play(Vector2 worldPos, float directionDeg = float.NaN);
+
+        /// Same as <see cref="Play"/>, but returns the spawned instance's Transform so a caller can keep
+        /// repositioning it (see <see cref="FxFollowTarget"/>) — or null if this effect has nothing single,
+        /// ongoing to hand back (e.g. a chunk burst scatters into several independently-moving pieces; there's
+        /// no one Transform to follow).
+        Transform PlayFollowable(Vector2 worldPos, float directionDeg = float.NaN);
     }
 }

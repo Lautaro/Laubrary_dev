@@ -3,7 +3,10 @@
     "rootNamespace": "Laubrary.Zoetrope",
     "references": [
         "com.Lautaro-Arino.Laubrary.Combat2D",
-        "com.Lautaro-Arino.Laubrary.Chunks"
+        "com.Lautaro-Arino.Laubrary.Chunks",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.Zounds",
+        "com.Lautaro-Arino.Laubrary.PreviewKit"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

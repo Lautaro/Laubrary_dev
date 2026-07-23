@@ -455,7 +455,11 @@ namespace Laubrary.Launimator
         static bool TryComputeCentroid(MetaFrame mf, out float strength01, out double nx, out double ny)
         {
             strength01 = 0f; nx = 0; ny = 0;
-            if (mf == null || mf.cells == null || mf.w <= 0 || mf.h <= 0) return false;
+            // An unpainted frame's `cells` is null in memory, but Unity's serializer round-trips a null array
+            // to a zero-length one (never back to null) — so an unpainted frame authored this way comes back
+            // as cells.Length == 0, not null, and the old null-only guard let it through into the indexed loop
+            // below, throwing IndexOutOfRangeException on the very first cell.
+            if (mf == null || mf.cells == null || mf.cells.Length < mf.w * mf.h || mf.w <= 0 || mf.h <= 0) return false;
 
             double sx = 0, sy = 0, sw = 0; int peak = 0;
             for (int y = 0; y < mf.h; y++)
@@ -487,7 +491,7 @@ namespace Laubrary.Launimator
             {
                 if (layer == null || layer.frames == null || _i < 0 || _i >= layer.frames.Count) continue;
                 var mf = layer.frames[_i];
-                if (mf == null || mf.cells == null || mf.w <= 0 || mf.h <= 0) continue;
+                if (mf == null || mf.cells == null || mf.cells.Length < mf.w * mf.h || mf.w <= 0 || mf.h <= 0) continue;
 
                 Color baseC = layer.color; if (baseC.a <= 0f) baseC.a = 1f;
                 for (int y = 0; y < mf.h; y++)
@@ -576,20 +580,59 @@ namespace Laubrary.Launimator
                 if (L != null && string.Equals(L.id, layerId, StringComparison.OrdinalIgnoreCase)) { layer = L; break; }
             if (layer == null || layer.frames == null || _i < 0 || _i >= layer.frames.Count) return false;
             mf = layer.frames[_i];
-            if (mf == null || mf.cells == null || mf.w <= 0 || mf.h <= 0) { mf = null; return false; }
+            if (mf == null || mf.cells == null || mf.cells.Length < mf.w * mf.h || mf.w <= 0 || mf.h <= 0) { mf = null; return false; }
             return true;
         }
 
         /// <summary>mask cell coords (bottom-left origin) → world, honoring sprite px size, pivot, PPU, scale, flipX.</summary>
-        Vector3 MaskToWorld(Sprite spr, MetaFrame mf, float maskX, float maskY)
+        Vector3 MaskToWorld(Sprite spr, MetaFrame mf, float maskX, float maskY) =>
+            PixelToWorld(spr, mf.w, mf.h, maskX, maskY);
+
+        /// <summary>Shared "a point in some W×H grid over this sprite" → world conversion, honoring sprite px
+        /// size, pivot, PPU, scale, flipX. <paramref name="gridW"/>/<paramref name="gridH"/> let the SAME grid
+        /// be either a (possibly coarser) MetaLayer mask (<see cref="MaskToWorld"/>) or the sprite's own full
+        /// pixel resolution (<see cref="TryGetEventPoint"/>, where gridW/H == the sprite's actual pixel size,
+        /// so px/py are already in that space with no extra scaling).</summary>
+        Vector3 PixelToWorld(Sprite spr, int gridW, int gridH, float px, float py)
         {
-            float spx = maskX * (spr.rect.width / mf.w);
-            float spy = maskY * (spr.rect.height / mf.h);
+            float spx = px * (spr.rect.width / gridW);
+            float spy = py * (spr.rect.height / gridH);
             Vector2 pivotPx = spr.pivot;                       // px from the sprite rect's bottom-left
             float ppu = spr.pixelsPerUnit <= 0f ? 16f : spr.pixelsPerUnit;
             Vector3 local = new Vector3((spx - pivotPx.x) / ppu, (spy - pivotPx.y) / ppu, 0f);
             if (flipX) local.x = -local.x;                     // SpriteRenderer.flipX mirrors about the pivot
             return transform.TransformPoint(local);
+        }
+
+        /// <summary>
+        /// Looks up <paramref name="eventName"/>'s authored pixel position (if any) among the CURRENT frame's
+        /// events, converted to world space — the single-point analog of <see cref="TryGetMetaPoint"/>, for
+        /// FrameEvents authored via the Animation Builder's pixel tool rather than MetaLayer painting (a much
+        /// lighter "one pixel on one frame" signal, e.g. a muzzle/spawn point — MetaLayer stays the right tool
+        /// for anything needing multiple pixels or multiple frames, like hit detection). Call this from an
+        /// <see cref="OnFrameEvent"/> handler for <paramref name="eventName"/>, or any time after Play — it
+        /// re-reads the CURRENT frame's events each call rather than caching. Returns false if the event isn't
+        /// authored on the current frame, has no position set, or there's no current sprite.
+        /// </summary>
+        public bool TryGetEventPoint(string eventName, out Vector3 worldPos)
+        {
+            worldPos = transform.position;
+            var evs = _anim != null ? _anim.events : null;
+            if (evs == null) return false;
+            var spr = CurrentSprite;
+            if (spr == null) return false;
+
+            for (int k = 0; k < evs.Count; k++)
+            {
+                var ev = evs[k];
+                if (ev == null || ev.frame != _i || !ev.hasPosition) continue;
+                if (!string.Equals(ev.name, eventName, StringComparison.OrdinalIgnoreCase)) continue;
+                int gridW = Mathf.Max(1, Mathf.RoundToInt(spr.rect.width));
+                int gridH = Mathf.Max(1, Mathf.RoundToInt(spr.rect.height));
+                worldPos = PixelToWorld(spr, gridW, gridH, ev.position.x + 0.5f, ev.position.y + 0.5f);
+                return true;
+            }
+            return false;
         }
     }
 }

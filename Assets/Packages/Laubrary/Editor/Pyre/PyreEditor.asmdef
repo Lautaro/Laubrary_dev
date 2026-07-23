@@ -7,7 +7,8 @@
         "ZUI.Editor",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.Zui.Editor",
-        "com.Lautaro-Arino.Laubrary.PreviewStage.Editor",
+        "com.Lautaro-Arino.Laubrary.BackSplash",
+        "com.Lautaro-Arino.Laubrary.BackSplash.Editor",
         "com.Lautaro-Arino.Laubrary.Chunks.Editor",
         "com.Lautaro-Arino.Laubrary.PreviewKit.Editor"
     ],

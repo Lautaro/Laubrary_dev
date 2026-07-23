@@ -1,5 +1,5 @@
 using Laubrary.AssetKit.Editor;
-using Laubrary.PreviewStage;
+using Laubrary.BackSplash.Editor;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
@@ -15,8 +15,8 @@ namespace Laubrary.Pyre.Editor
     ///
     /// UI TOOLKIT PORT (ZUI → UI Toolkit migration): every control surface is Laubrary.Zui (Z.*) retained-mode
     /// controls. The ONE deliberate exception is the preview VIEWPORT, which stays IMGUI inside an
-    /// IMGUIContainer — it is genuinely bespoke canvas painting (frame-texture blits, PreviewStageGUI +
-    /// LiveScenePreview IMGUI helpers, six gizmo interaction layers) and porting it buys no control-surface
+    /// IMGUIContainer — it is genuinely bespoke canvas painting (frame-texture blits, the BackSplash
+    /// backdrop, LiveScenePreview, and the gizmo interaction layers) and porting it buys no control-surface
     /// benefit; behavior stays pixel-identical to the pre-migration window. Split across partials:
     ///   PyreWindow.cs           — shell, state, layout, blast settings, shared helpers
     ///   PyreWindow.Layers.cs    — layer list + selected-layer inspector
@@ -66,64 +66,22 @@ namespace Laubrary.Pyre.Editor
         // ── per-asset proxies (live on the BlastSpec so switching assets restores its own setup) ─────
         float zoom { get => spec != null ? spec.previewZoom : 4f; set { if (spec != null) spec.previewZoom = value; } }
 
-        static PreviewBgMode ToPyreMode(PreviewBackground.Mode m) => m switch
-        {
-            PreviewBackground.Mode.Gradient => PreviewBgMode.Gradient,
-            PreviewBackground.Mode.Image => PreviewBgMode.Image,
-            _ => PreviewBgMode.Solid,
-        };
-        static PreviewBackground.Mode ToStageMode(PreviewBgMode m) => m switch
-        {
-            PreviewBgMode.Gradient => PreviewBackground.Mode.Gradient,
-            PreviewBgMode.Image => PreviewBackground.Mode.Image,
-            _ => PreviewBackground.Mode.Solid,
-        };
-        PreviewBgMode bgMode
-        {
-            get => stageBg != null ? ToPyreMode(stageBg.mode) : (spec != null ? spec.previewBgMode : PreviewBgMode.Solid);
-            set { if (stageBg != null) stageBg.mode = ToStageMode(value); else if (spec != null) spec.previewBgMode = value; }
-        }
-        Color bgSolid
-        {
-            get => stageBg != null ? stageBg.solid : (spec != null ? spec.previewBgSolid : Color.black);
-            set { if (stageBg != null) stageBg.solid = value; else if (spec != null) spec.previewBgSolid = value; }
-        }
-        Gradient bgGradient
+        bool showFrame { get => spec != null && spec.previewShowFrame; set { if (spec != null) spec.previewShowFrame = value; } }
+
+        // The preview backdrop is a BackSplash — the shared recallable test backdrop (camera colour + one
+        // zoomable image), which replaced Pyre's own PreviewStage/PreviewBackground. What lives on the spec is
+        // a private, OWNED COPY of a preset's fields, never a reference to the preset asset: editing a shared
+        // asset in one tool used to silently change every other tool previewing against it. Recall copies
+        // values in, Save writes them out; nothing stays linked. Lazily created so specs saved before this
+        // field existed still work.
+        Laubrary.BackSplash.BackSplashSettings backSplash
         {
             get
             {
-                if (stageBg != null) return stageBg.gradient ??= DefaultBgGradient();
-                if (spec == null) return DefaultBgGradient();
-                return spec.previewBgGradient ??= DefaultBgGradient();
+                if (spec == null) return null;
+                spec.previewBackSplash ??= new Laubrary.BackSplash.BackSplashSettings();
+                return spec.previewBackSplash;
             }
-            set { if (stageBg != null) stageBg.gradient = value; else if (spec != null) spec.previewBgGradient = value; }
-        }
-        Texture2D bgImage
-        {
-            get => stageBg != null ? stageBg.image : (spec != null ? spec.previewBgImage : null);
-            set { if (stageBg != null) stageBg.image = value; else if (spec != null) spec.previewBgImage = value; }
-        }
-        Color bgImageTint
-        {
-            get => stageBg != null ? stageBg.imageTint : (spec != null ? spec.previewBgImageTint : Color.white);
-            set { if (stageBg != null) stageBg.imageTint = value; else if (spec != null) spec.previewBgImageTint = value; }
-        }
-        float bgImageZoom
-        {
-            get => stageBg != null ? stageBg.imageZoom : (spec != null ? spec.previewBgImageZoom : 1f);
-            set { if (stageBg != null) stageBg.imageZoom = value; else if (spec != null) spec.previewBgImageZoom = value; }
-        }
-        Vector2 bgImagePos
-        {
-            get => stageBg != null ? stageBg.imagePos : (spec != null ? spec.previewBgImagePos : Vector2.zero);
-            set { if (stageBg != null) stageBg.imagePos = value; else if (spec != null) spec.previewBgImagePos = value; }
-        }
-        bool showFrame { get => spec != null && spec.previewShowFrame; set { if (spec != null) spec.previewShowFrame = value; } }
-
-        PreviewBackground stageBg
-        {
-            get => spec != null ? spec.previewStageBg as PreviewBackground : null;
-            set { if (spec != null) spec.previewStageBg = value; }
         }
 
         int layerSel
@@ -141,12 +99,9 @@ namespace Laubrary.Pyre.Editor
         [SerializeField] float originMarkerAlpha = 0.95f;
         [SerializeField] Vector2 previewPan;
         [SerializeField] bool showMetaMarkers = true;
-        [SerializeField] string stageSaveName = "PreviewBg";
 
         Vector2 subjectAlignOffset;
         bool draggingOrigin, draggingPan;
-        int stageSel = -1;
-        bool draggingStage;
         bool placeMetaMode;
         int metaSel = -1;
         // Height-balls groups that are currently folded shut (by index). Transient chrome, not asset data.
@@ -207,7 +162,6 @@ namespace Laubrary.Pyre.Editor
         static readonly string[] BarDecayLabels = { "Contract", "Dissolve" };
         static readonly string[] ScatterModeLabels = { "Area", "Ring", "Rosing" };
         static readonly string[] RingOrderLabels = { "Sequential", "Random" };
-        static readonly string[] BgModeLabels = { "Solid", "Gradient", "Image" };
         static readonly string[] DissolveModeLabels = { "Erase", "Scatter" };
         static readonly string[] MaskShapeLabels = { "Disc out", "Disc in", "Swipe H", "Swipe V", "Wedge", "Noise" };
         static readonly string[] ColorModeLabels = { "Over life", "Fill", "Flow fill", "Noise fill" };
@@ -472,18 +426,6 @@ namespace Laubrary.Pyre.Editor
             => Z.Field(label, tooltip, Z.Slider(value, lo, hi, tooltip,
                 v => Dial("Edit Pyre Blast", () => set(v)), width));
 
-        static Gradient DefaultBgGradient()
-        {
-            var g = new Gradient();
-            g.SetKeys(
-                new[]
-                {
-                    new GradientColorKey(new Color(0.06f, 0.07f, 0.12f), 0f),
-                    new GradientColorKey(new Color(0.02f, 0.02f, 0.03f), 1f),
-                },
-                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
-            return g;
-        }
 
         // ── splitters ───────────────────────────────────────────────────────────────────────
         VisualElement BuildVerticalSplitter()

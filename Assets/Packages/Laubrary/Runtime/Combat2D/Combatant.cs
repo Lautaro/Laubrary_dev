@@ -14,6 +14,15 @@ namespace Laubrary.Combat2D
         [Tooltip("Optional label for logs / debug UI.")]
         public string label;
 
+        [Tooltip("Which way this fighter is currently aiming/shooting — a generic, view-agnostic signal any " +
+                 "ProjectileWeapon it owns fires along by default. Deliberately NOT read from any specific " +
+                 "visual system (sprite flip, animation clip, Lazor render) — whichever view this Combatant " +
+                 "has (if any) may optionally feed this as a convenience (e.g. a flipping 2D character keeping " +
+                 "it in sync with facing), but player input, AI, or a Mirage preview override are equally " +
+                 "valid sources. A character with no notion of \"facing\" at all (a turret, an omnidirectional " +
+                 "burst) just leaves this at whatever it was last set to.")]
+        public Vector2 aimDirection = Vector2.up;
+
         Health health;
         bool healthCached;
         IHitFilter hitFilter;

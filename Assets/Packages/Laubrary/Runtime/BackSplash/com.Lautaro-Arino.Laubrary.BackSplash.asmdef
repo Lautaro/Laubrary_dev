@@ -1,0 +1,16 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.BackSplash",
+    "rootNamespace": "Laubrary.BackSplash",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.PreviewKit"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

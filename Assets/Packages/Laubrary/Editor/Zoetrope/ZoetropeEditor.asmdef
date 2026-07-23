@@ -4,7 +4,11 @@
     "references": [
         "com.Lautaro-Arino.Laubrary.Zoetrope",
         "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
-        "com.Lautaro-Arino.Laubrary.Zui.Editor"
+        "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.Chunks",
+        "com.Lautaro-Arino.Laubrary.Launimator.Zounds.Editor",
+        "com.Lautaro-Arino.Laubrary.Combat2D"
     ],
     "includePlatforms": [
         "Editor"

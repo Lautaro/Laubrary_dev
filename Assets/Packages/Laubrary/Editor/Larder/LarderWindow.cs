@@ -20,6 +20,14 @@ namespace Laubrary.Larder.Editor
         [MenuItem("Laubrary/Larder")]
         public static void Open() => GetWindow<LarderWindow>("Larder");
 
+        /// Same entry-point shape as PyreWindow.OpenFor/MirageWindow.OpenFor — lets a LauAssetField's Edit
+        /// button jump straight into this WareSpec's own editor.
+        public static void OpenFor(WareSpec ware)
+        {
+            var w = GetWindow<LarderWindow>("Larder");
+            if (ware != null) w.SetAsset(ware);
+        }
+
         WareSpec spec => Current;         // the base owns the current asset; alias for the dial code below
 
         int gridCount = 6;

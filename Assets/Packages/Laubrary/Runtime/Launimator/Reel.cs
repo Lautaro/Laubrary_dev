@@ -87,6 +87,11 @@ namespace Laubrary.Launimator
         public string name = "hit";
         [Tooltip("Optional Zound (by name) auto-played when this event fires, via the Launimator.Zounds bridge. Empty = no sound.")]
         public string zoundName = "";
+        [Tooltip("Optional single pixel this event points at (e.g. a muzzle/spawn point), in the frame's own baked " +
+                 "sprite pixel space (bottom-left origin, 0,0 = bottom-left texel). Set via the Animation Builder's " +
+                 "pixel tool. hasPosition=false means unset/null.")]
+        public bool hasPosition;
+        public Vector2Int position;
     }
 
     /// <summary>

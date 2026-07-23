@@ -1,7 +1,9 @@
 {
     "name": "com.Lautaro-Arino.Laubrary.Combat2D",
     "rootNamespace": "Laubrary.Combat2D",
-    "references": [],
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Pooling"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

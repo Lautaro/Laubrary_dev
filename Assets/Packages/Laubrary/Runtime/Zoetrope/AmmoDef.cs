@@ -1,6 +1,7 @@
 using UnityEngine;
 using Laubrary.Chunks;
 using Laubrary.Combat2D;
+using Laubrary.PreviewKit;
 
 namespace Laubrary.Zoetrope
 {
@@ -9,9 +10,11 @@ namespace Laubrary.Zoetrope
     /// fire stats and picks which AmmoDef(s) it fires. The visual is an IChunkAnimation reference — the same
     /// unifier Chunks already uses for "any visual, thrown as a physics object" (a Pyre blast or a Reel
     /// animation both implement it), so ammo doesn't invent a third visual-asset kind. A spawner bridges this
-    /// onto a runtime Combat2D Projectile.
+    /// onto a runtime Combat2D Projectile. Implements IVisualPreview directly (crops Visual's own first
+    /// frame, the SAME frame the projectile itself actually shows — see Visual's own doc comment below) so
+    /// any LauAsset browser/picker (WeaponDef.ammoTypes' list, Mirage, ...) gets a real thumbnail for free.
     [CreateAssetMenu(menuName = "Laubrary/Zoetrope/Ammo", fileName = "Ammo")]
-    public class AmmoDef : ScriptableObject
+    public class AmmoDef : ScriptableObject, IVisualPreview
     {
         [Header("Identity")]
         public string displayName = "New Ammo";
@@ -20,6 +23,7 @@ namespace Laubrary.Zoetrope
         [Tooltip("A Pyre Blast Chunk Animation or a Reel Chunk Animation — anything implementing IChunkAnimation. " +
                  "Only its first frame is shown on the projectile today; per-projectile animation playback is a " +
                  "future add.")]
+        [RequireInterface(typeof(IChunkAnimation))]
         public Object visual;
         public IChunkAnimation Visual => visual as IChunkAnimation;
         public float scale = 1f;
@@ -29,6 +33,29 @@ namespace Laubrary.Zoetrope
         public float spinSpeed = 360f;
         [Tooltip("Face the sprite along its travel direction (bolts/arrows).")]
         public bool faceTravel = false;
+
+        // IVisualPreview — a plain static crop of Visual's own first frame, no separate render path (same
+        // rule BlastSpecChunkAnimation/ReelAnimationChunkAdapter's own IVisualPreview implementations
+        // follow). Never animates: "Only its first frame is shown on the projectile today" above is real
+        // runtime behaviour, not a preview shortcut, so an animated preview would misrepresent it.
+        public Texture2D RenderPreviewTexture()
+        {
+            var frames = Visual?.GetFrames();
+            if (frames == null || frames.Length == 0 || frames[0] == null || frames[0].texture == null) return null;
+            return CropSpriteTexture(frames[0]);
+        }
+        public bool CanAnimatePreview => false;
+        public float PreviewFps => 0f;
+        public void UpdateAnimatedPreview(Texture2D tex, double time) { }
+
+        static Texture2D CropSpriteTexture(Sprite s)
+        {
+            var r = s.textureRect;
+            var tex = new Texture2D((int)r.width, (int)r.height, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            tex.SetPixels(s.texture.GetPixels((int)r.x, (int)r.y, (int)r.width, (int)r.height));
+            tex.Apply();
+            return tex;
+        }
 
         [Header("Flight")]
         [Min(0.05f)] public float lifetime = 3f;

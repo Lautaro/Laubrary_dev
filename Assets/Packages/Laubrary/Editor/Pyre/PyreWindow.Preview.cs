@@ -2,7 +2,7 @@
 // bespoke canvas painting + six gizmo interaction layers, pixel-identical to the pre-port window),
 // the UI Toolkit transport, and the backdrop / test-background / preview-subject panels.
 // Part of the UI Toolkit port; see PyreWindow.cs.
-using Laubrary.PreviewStage;
+using Laubrary.BackSplash.Editor;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
@@ -60,7 +60,6 @@ namespace Laubrary.Pyre.Editor
         void BuildLowerPanels(VisualElement root)
         {
             BuildBackdropOptions(root);
-            BuildTestBackground(root);
             BuildPreviewSubjectOptions(root);
         }
 
@@ -120,163 +119,56 @@ namespace Laubrary.Pyre.Editor
             if (frameLabel != null) frameLabel.text = $"frame {cur + 1}/{FrameCount}";
         }
 
-        // ── backdrop options ────────────────────────────────────────────────────────────────
+        // ── backdrop options ────────────────────────────────────────────────
+        // The backdrop is a BackSplash copy now (camera colour + one zoomable image), not Pyre's old
+        // PreviewStage preset with its gradient mode and prop-sprite list. BackSplashGUI.DrawInline is the
+        // shared IMGUI editor for these fields; this window is retained-mode, so the same controls are built
+        // here as Z.* elements and only Recall/Save reuse BackSplashGUI's popups.
         void BuildBackdropOptions(VisualElement root)
         {
             var box = Z.Box("Preview backdrop",
-                "Renders live every repaint, purely as a visual aid for authoring — it's never baked into any asset and has no effect on the baked sprite sheet or the runtime blast.");
+                "Renders live every repaint, purely as a visual aid for authoring — it's never baked into any asset and has no effect on the baked sprite sheet or the runtime blast. A private copy: Recall copies values FROM a preset, Save writes them TO one; nothing stays linked to a shared asset.");
 
-            stageNameLabel = Z.Text(
-                stageBg != null ? (AssetDatabase.Contains(stageBg) ? stageBg.name : "· unsaved ·") : "· none ·",
-                ZuiText.Body, "The loaded backdrop preset (mode/colour/gradient/image AND the test-background sprites below).");
-            stageNameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            var recallButton = Z.Button("Recall…", "Load a saved backdrop preset (a live link — edits below change that asset).", null);
+            var bs = backSplash;
+            if (bs == null) { root.Add(box); return; }
+
+            var recallButton = Z.Button("Recall…", "Copy colour/image/position/zoom/tint FROM an existing preset — a one-time copy, not a live link.", null);
             recallButton.clicked += () =>
             {
                 var wb = recallButton.worldBound;
-                PreviewStageGUI.ShowRecall(new Rect(wb.x, wb.y, wb.width, wb.height), b =>
-                {
-                    stageBg = b; stageSel = -1;
-                    if (b != null) stageSaveName = b.name;
-                    RebuildPanels();
-                });
+                BackSplashGUI.ShowRecall(new Rect(wb.x, wb.y, wb.width, wb.height), bs, () => { DirtySpec(); RebuildPanels(); });
             };
-            box.Add(WrapRow(
-                stageNameLabel,
-                Z.TextInput(stageSaveName, "Name to save the backdrop preset under.", v => stageSaveName = v, 110f),
-                recallButton,
-                Z.Button("★", "Save the WHOLE background (mode/colour/gradient/image + sprites) under the typed name — creates the asset the first time, re-saves in place after.",
-                    () => { SaveBackdrop(); RebuildPanels(); }).W(24f)));
-
-            var modeRow = WrapRow(Z.MiniRadioVertical((int)bgMode, BgModeLabels,
-                "The backdrop's fill style: a solid colour, a vertical gradient, or an image.",
-                v => { bgMode = (PreviewBgMode)v; DirtySpec(); RebuildPanels(); }, 70f, 68f));
-
-            switch (bgMode)
+            var saveButton = Z.Button("Save…", "Write this copy's current values TO a preset you pick (overwriting it) or a new one you name.", null);
+            saveButton.clicked += () =>
             {
-                case PreviewBgMode.Solid:
-                    modeRow.Add(Z.Field("Colour", "Solid backdrop colour.",
-                        Z.Color(bgSolid, "Solid backdrop colour.", v => { bgSolid = v; DirtySpec(); }, 90f)));
-                    break;
-                case PreviewBgMode.Gradient:
-                {
-                    var gf = new UnityEditor.UIElements.GradientField { value = bgGradient, tooltip = "Vertical backdrop gradient (top → bottom)." };
-                    gf.style.width = 220f;
-                    gf.RegisterValueChangedCallback(e => { bgGradient = e.newValue; DirtySpec(); });
-                    modeRow.Add(gf);
-                    break;
-                }
-                case PreviewBgMode.Image:
-                    modeRow.Add(Z.Object<Texture2D>(bgImage, "The backdrop image.", v => { bgImage = v; DirtySpec(); }, 120f));
-                    modeRow.Add(Z.Pad(bgImagePos, new Rect(-200f, -200f, 400f, 400f),
+                var wb = saveButton.worldBound;
+                BackSplashGUI.ShowSave(new Rect(wb.x, wb.y, wb.width, wb.height), bs);
+            };
+            box.Add(WrapRow(recallButton, saveButton));
+
+            box.Add(WrapRow(
+                Z.Field("Colour", "Solid background fill behind the image.",
+                    Z.Color(bs.cameraColor, "Solid background fill behind the image.",
+                        v => { bs.cameraColor = v; DirtySpec(); }, 90f)),
+                Z.Field("Image", "The backdrop image sprite.",
+                    Z.Object<Sprite>(bs.image, "The backdrop image sprite.",
+                        v => { bs.image = v; DirtySpec(); RebuildPanels(); }, 120f))));
+
+            if (bs.image != null)
+            {
+                box.Add(WrapRow(
+                    Z.Pad(bs.imagePos, new Rect(-Laubrary.BackSplash.BackSplash.MaxImageOffset, -Laubrary.BackSplash.BackSplash.MaxImageOffset,
+                                                 Laubrary.BackSplash.BackSplash.MaxImageOffset * 2f, Laubrary.BackSplash.BackSplash.MaxImageOffset * 2f),
                         "Drag to offset the backdrop image within the viewport.",
-                        v => { bgImagePos = v; DirtySpec(); }, 68f));
-                    var col = Z.Column(
-                        Z.Field("Zoom", "How much of the backdrop image fills the viewport.",
-                            Z.Slider(bgImageZoom, 0.1f, 8f, "How much of the backdrop image fills the viewport.",
-                                v => { bgImageZoom = v; DirtySpec(); }, 110f)),
-                        Z.Field("Tint", "Multiplies the image's own colours.",
-                            Z.Color(bgImageTint, "Multiplies the image's own colours.",
-                                v => { bgImageTint = v; DirtySpec(); }, 90f)));
-                    modeRow.Add(col);
-                    break;
-            }
-            box.Add(modeRow);
-            root.Add(box);
-        }
-
-        void SaveBackdrop()
-        {
-            if (stageBg == null)
-            {
-                var seeded = ScriptableObject.CreateInstance<PreviewBackground>();
-                seeded.mode = ToStageMode(bgMode);
-                seeded.solid = bgSolid;
-                var srcGrad = bgGradient;
-                var clonedGrad = new Gradient();
-                if (srcGrad != null) { clonedGrad.SetKeys(srcGrad.colorKeys, srcGrad.alphaKeys); clonedGrad.mode = srcGrad.mode; }
-                seeded.gradient = clonedGrad;
-                seeded.image = bgImage; seeded.imageTint = bgImageTint;
-                seeded.imageZoom = bgImageZoom; seeded.imagePos = bgImagePos;
-                stageBg = seeded; stageSel = -1;
-            }
-            var bg = stageBg;
-            PreviewStageGUI.Save(ref bg, stageSaveName);
-            stageBg = bg;
-        }
-
-        // ── test background (sprites) ───────────────────────────────────────────────────────
-        void BuildTestBackground(VisualElement root)
-        {
-            var box = Z.Box("Test background (sprites)",
-                "Part of the same preset as \"Preview backdrop\" above — Recall/★ up there loads or saves these sprites too, not just the mode/colour/gradient/image.");
-
-            if (stageBg == null)
-            {
-                box.Add(Z.Text("Recall a backdrop above, or hit ★ to start one.", ZuiText.Subtle,
-                    "The sprites live on the backdrop preset asset."));
-                root.Add(box);
-                return;
-            }
-
-            box.Add(Z.Field("Fill (α0 = overlay)", "A colour filled behind/over the sprites — alpha 0 makes it a pure overlay.",
-                Z.Color(stageBg.fill, "A colour filled behind/over the sprites — alpha 0 makes it a pure overlay.",
-                    v => { stageBg.fill = v; EditorUtility.SetDirty(stageBg); previewContainer?.MarkDirtyRepaint(); }, 90f)));
-
-            for (int i = 0; i < stageBg.sprites.Count; i++)
-            {
-                int idx = i;
-                var s = stageBg.sprites[idx];
-                var sBox = Z.Box(null, null);
-                sBox.Add(WrapRow(
-                    Z.Button(stageSel == idx ? "●" : "○", "Select this sprite (also draggable in the preview).",
-                        () => { stageSel = idx; RebuildPanels(); }).W(24f),
-                    Z.Toggle("Front", "Draw this sprite IN FRONT of the blast frame instead of behind it.", s.front,
-                        v => { s.front = v; EditorUtility.SetDirty(stageBg); previewContainer?.MarkDirtyRepaint(); }),
-                    Z.Button("X", "Remove this sprite.", () =>
-                    {
-                        stageBg.sprites.RemoveAt(idx);
-                        stageSel = -1;
-                        EditorUtility.SetDirty(stageBg);
-                        RebuildPanels();
-                    }).W(22f)));
-                sBox.Add(WrapRow(
-                    Z.Object<Sprite>(s.sprite, "The prop sprite.", v =>
-                    {
-                        s.sprite = v;
-                        EditorUtility.SetDirty(stageBg);
-                        previewContainer?.MarkDirtyRepaint();
-                    }, 120f),
-                    // flipY:false — this position is ALREADY consumed with a screen-Y-down convention by
-                    // PreviewStageGUI's own direct viewport dragging; matching that beats the pad's default feel.
-                    Z.Pad(s.position, new Rect(-200f, -200f, 400f, 400f),
-                        "Drag to position the sprite (matches dragging it directly in the viewport).",
-                        v => { s.position = v; EditorUtility.SetDirty(stageBg); previewContainer?.MarkDirtyRepaint(); }, 68f, flipY: false),
+                        v => { bs.imagePos = Laubrary.BackSplash.BackSplash.ClampImagePos(v); DirtySpec(); }, 68f),
                     Z.Column(
-                        Z.Field("Scale", "×scale on the sprite.",
-                            Z.Slider(s.scale, 0.1f, 8f, "×scale on the sprite.",
-                                v => { s.scale = v; EditorUtility.SetDirty(stageBg); previewContainer?.MarkDirtyRepaint(); }, 110f)),
-                        Z.Field("Tint", "Multiplies the sprite's colours.",
-                            Z.Color(s.tint, "Multiplies the sprite's colours.",
-                                v => { s.tint = v; EditorUtility.SetDirty(stageBg); previewContainer?.MarkDirtyRepaint(); }, 90f)))));
-                box.Add(sBox);
+                        Z.Field("Zoom", "How much of the backdrop image fills the viewport.",
+                            Z.Slider(bs.imageZoom, 0.1f, 16f, "How much of the backdrop image fills the viewport.",
+                                v => { bs.imageZoom = v; DirtySpec(); }, 110f)),
+                        Z.Field("Tint", "Multiplies the image's own colours.",
+                            Z.Color(bs.imageTint, "Multiplies the image's own colours.",
+                                v => { bs.imageTint = v; DirtySpec(); }, 90f)))));
             }
-
-            box.Add(WrapRow(
-                Z.Button("+ Add sprite", "Add a prop sprite slot.", () =>
-                {
-                    stageBg.sprites.Add(new StageSprite());
-                    stageSel = stageBg.sprites.Count - 1;
-                    EditorUtility.SetDirty(stageBg);
-                    RebuildPanels();
-                }),
-                Z.Button("Clear", "Remove every prop sprite.", () =>
-                {
-                    stageBg.sprites.Clear();
-                    stageSel = -1;
-                    EditorUtility.SetDirty(stageBg);
-                    RebuildPanels();
-                })));
             root.Add(box);
         }
 
@@ -333,7 +225,6 @@ namespace Laubrary.Pyre.Editor
             if (Event.current.type == EventType.Repaint)
             {
                 DrawBackdrop(view);
-                if (stageBg != null) PreviewStageGUI.Draw(view, stageBg, zoom, false);
 
                 var subject = ResolvePreviewSubject();
                 subjectAlignOffset = Vector2.zero;
@@ -390,7 +281,6 @@ namespace Laubrary.Pyre.Editor
                         GUI.EndClip();
                     }
                 }
-                if (stageBg != null) PreviewStageGUI.Draw(view, stageBg, zoom, true);
             }
 
             // Interaction priority, identical to the pre-port window: smudge → pins → vortices → orbs →
@@ -404,8 +294,6 @@ namespace Laubrary.Pyre.Editor
             DrawPinMarkers(view);
             DrawCurlVortexMarkers(view);
             if (spec != null) DrawOriginHandle(view);
-            if (stageBg != null && PreviewStageGUI.Edit(view, stageBg, zoom, ref stageSel, ref draggingStage))
-                EditorUtility.SetDirty(stageBg);
 
             var pe = Event.current;
             if (pe.type == EventType.MouseDown && (pe.button == 0 || pe.button == 2) && view.Contains(pe.mousePosition))
@@ -419,39 +307,26 @@ namespace Laubrary.Pyre.Editor
 
         void DrawBackdrop(Rect view)
         {
-            switch (bgMode)
-            {
-                case PreviewBgMode.Solid:
-                    EditorGUI.DrawRect(view, bgSolid);
-                    break;
-                case PreviewBgMode.Gradient:
-                {
-                    var g = bgGradient ?? DefaultBgGradient();
-                    const int bands = 48;
-                    for (int i = 0; i < bands; i++)
-                    {
-                        float tt = i / (float)(bands - 1);
-                        var band = new Rect(view.x, view.y + view.height * i / bands, view.width, view.height / bands + 1f);
-                        EditorGUI.DrawRect(band, g.Evaluate(tt));
-                    }
-                    break;
-                }
-                case PreviewBgMode.Image:
-                    if (bgImage != null)
-                    {
-                        EditorGUI.DrawRect(view, bgSolid);
-                        var prevCol = GUI.color;
-                        GUI.color = bgImageTint;
-                        GUI.BeginClip(view);
-                        float w = view.width * bgImageZoom, h = view.height * bgImageZoom;
-                        var imgRect = new Rect((view.width - w) * 0.5f + bgImagePos.x, (view.height - h) * 0.5f - bgImagePos.y, w, h);
-                        GUI.DrawTexture(imgRect, bgImage, ScaleMode.ScaleToFit, false);
-                        GUI.EndClip();
-                        GUI.color = prevCol;
-                    }
-                    else EditorGUI.DrawRect(view, bgSolid);
-                    break;
-            }
+            var bs = backSplash;
+            if (bs == null) { EditorGUI.DrawRect(view, new Color(0.08f, 0.08f, 0.10f)); return; }
+
+            EditorGUI.DrawRect(view, bs.cameraColor);
+            if (bs.image == null || bs.image.texture == null) return;
+
+            // Draw the sprite's own rect out of its atlas page, not the whole texture — a BackSplash image is
+            // often one sprite in a packed sheet.
+            var tex = bs.image.texture;
+            var r = bs.image.textureRect;
+            var tc = new Rect(r.x / tex.width, r.y / tex.height, r.width / tex.width, r.height / tex.height);
+
+            var prevCol = GUI.color;
+            GUI.color = bs.imageTint;
+            GUI.BeginClip(view);
+            float w = view.width * bs.imageZoom, h = view.height * bs.imageZoom;
+            var imgRect = new Rect((view.width - w) * 0.5f + bs.imagePos.x, (view.height - h) * 0.5f - bs.imagePos.y, w, h);
+            GUI.DrawTextureWithTexCoords(imgRect, tex, tc, true);
+            GUI.EndClip();
+            GUI.color = prevCol;
         }
 
         void FitZoom()

@@ -27,8 +27,8 @@ namespace Laubrary.ZoetropeLaunimator
     /// <summary>
     /// An <see cref="ICharacterView"/> that IS a composite, multi-part body — independently-timed parts (e.g.
     /// legs running while a torso is mid-shot on a different clip), each with its own view. Assign it to a
-    /// <c>Zoe.view</c> in place of <see cref="ReelView"/>/<see cref="ZonedReelView"/> for a character that
-    /// needs more than one part; <see cref="ZoeSpawner.SpawnCharacter"/> needs no special-casing for this —
+    /// <c>Zoe.view</c> in place of <see cref="ZonedReelView"/> for a character that needs more than one part;
+    /// <see cref="ZoeSpawner.SpawnCharacter"/> needs no special-casing for this —
     /// composite-ness is purely a property of which view is plugged in, same as every other pluggable view.
     /// Adds a <see cref="CompositeZonedPlayer"/> to the host, so game code addresses parts via
     /// <c>host.GetComponent&lt;CompositeZonedPlayer&gt;().Part("Legs").Play("Run")</c>.

@@ -20,6 +20,14 @@ namespace Laubrary.Choreographer.Editor
         [MenuItem("Laubrary/Choreographer")]
         public static void Open() => GetWindow<ChoreographerWindow>("Choreographer");
 
+        /// Same entry-point shape as PyreWindow.OpenFor/MirageWindow.OpenFor — lets a LauAssetField's Edit
+        /// button (e.g. Mirage's entry Choreography field) jump straight into this Choreography's own editor.
+        public static void OpenFor(Choreography choreography)
+        {
+            var w = GetWindow<ChoreographerWindow>("Choreographer");
+            if (choreography != null) w.SetAsset(choreography);
+        }
+
         Choreography choreo => Current;   // the base owns the current asset; alias for the dial/stage code
         [SerializeField] List<Sprite> previewSprites = new();
 

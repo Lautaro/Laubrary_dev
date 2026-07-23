@@ -1,0 +1,24 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Mirage",
+    "rootNamespace": "Laubrary.Mirage",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Zoetrope",
+        "com.Lautaro-Arino.Laubrary.Choreographer",
+        "com.Lautaro-Arino.Laubrary.Combat2D",
+        "com.Lautaro-Arino.Laubrary.Launimator",
+        "com.Lautaro-Arino.Laubrary.Pyre",
+        "com.Lautaro-Arino.Laubrary.BackSplash",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.Caching",
+        "com.Lautaro-Arino.Laubrary.Zoetrope.Launimator"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

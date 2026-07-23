@@ -3,7 +3,10 @@
     "rootNamespace": "Laubrary.Chunks.Editor",
     "references": [
         "com.Lautaro-Arino.Laubrary.Chunks",
-        "com.Lautaro-Arino.Laubrary.PreviewKit"
+        "com.Lautaro-Arino.Laubrary.PreviewKit",
+        "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
+        "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
     ],
     "includePlatforms": [
         "Editor"

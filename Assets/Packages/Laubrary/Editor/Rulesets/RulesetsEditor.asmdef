@@ -3,6 +3,7 @@
     "rootNamespace": "Laubrary.Rulesets.Editor",
     "references": [
         "com.Lautaro-Arino.Laubrary.Rulesets",
+        "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
         "com.Lautaro-Arino.Laubrary.Zui.Editor"
     ],
     "includePlatforms": [

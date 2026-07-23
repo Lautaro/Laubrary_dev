@@ -11,11 +11,21 @@ namespace Laubrary.Launimator
     /// colour and each cell's value scales its alpha (0 transparent → 10 full), so authoring stays simple while
     /// values can still encode intensity/order. Purely additive — animations without layers are unaffected.
     /// </summary>
+    /// <summary>Shape (the original mechanism — a painted region, e.g. a hitbox mask) or Point (exactly one
+    /// painted cell per frame — a lighter "here's the one pixel that matters" marker, e.g. where a shockwave
+    /// should originate). Both read through the SAME runtime API (<c>TryGetMetaPoint</c> already computes a
+    /// value-weighted centroid, which for a single painted cell just IS that cell) — Point only changes how the
+    /// Animation Builder's paint tool behaves and which layers a "pick a point marker" UI offers.</summary>
+    public enum MetaLayerMode { Shape, Point }
+
     [System.Serializable]
     public class MetaLayer
     {
         [Tooltip("Layer identity the game looks up (e.g. \"hitbox\", \"muzzle\", \"trail\").")]
         public string id = "layer";
+
+        [Tooltip("Shape (painted region) or Point (one pixel per frame). See MetaLayerMode's own doc comment.")]
+        public MetaLayerMode mode = MetaLayerMode.Shape;
 
         [Tooltip("Display colour for this layer's mask. Monochrome — each cell's value 0–10 just scales alpha.")]
         public Color color = new Color(1f, 0.25f, 0.25f, 1f);

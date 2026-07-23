@@ -1,0 +1,29 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Mirage.Editor",
+    "rootNamespace": "Laubrary.Mirage.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Mirage",
+        "com.Lautaro-Arino.Laubrary.Zoetrope",
+        "com.Lautaro-Arino.Laubrary.Zoetrope.Launimator",
+        "com.Lautaro-Arino.Laubrary.Choreographer",
+        "com.Lautaro-Arino.Laubrary.Combat2D",
+        "com.Lautaro-Arino.Laubrary.Launimator",
+        "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
+        "com.Lautaro-Arino.Laubrary.BackSplash",
+        "com.Lautaro-Arino.Laubrary.BackSplash.Editor",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
+        "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

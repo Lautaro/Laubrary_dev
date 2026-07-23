@@ -107,6 +107,20 @@ namespace Laubrary.Chunks
         [Tooltip("How strong the light/dark swing is as a chunk turns. 0 = squash only, 1 = full swing.")]
         public float tumbleShadeStrength = 0.6f;
 
+        [Tooltip("Recolour sampled debris (see Sample source above) as it's cut. None = the source pixels, " +
+                 "unchanged. Whole = every opaque pixel. Edges only = just the rim (the cut boundary AND any " +
+                 "genuine alpha-silhouette edge) — a burned/glowing-edge look. Excluding edges = everywhere " +
+                 "EXCEPT the rim — a scorched interior with a clean, untinted edge.")]
+        public ChunkTintMode tintMode = ChunkTintMode.None;
+        [Tooltip("The tint colour (or sample a gradient's own colour externally and set this per-burst).")]
+        public Color tintColor = new Color(1f, 0.35f, 0.08f, 1f);
+        [Range(0f, 1f)]
+        [Tooltip("How strongly the tint blends onto the source pixel — 0 = no visible effect, 1 = fully replaced.")]
+        public float tintStrength = 0.6f;
+        [Min(1)]
+        [Tooltip("Edge modes only: how many pixels from the rim (cut boundary or alpha silhouette) count as 'edge'.")]
+        public int edgeThicknessPx = 1;
+
         /// True when a chunk should be sourced by sampling sampleSource rather than sprites/procedural.
         public bool UsesSampledDebris => sampleSource != null;
 
@@ -119,6 +133,32 @@ namespace Laubrary.Chunks
 
         /// animationSource cast to the interface Chunks actually needs, or null if unset/incompatible.
         public IChunkAnimation AnimationSource => animationSource as IChunkAnimation;
+
+        // ── Hit detection (optional, cheap) ───────────────────────────────────────
+        [Header("Hit detection (optional, cheap)")]
+        [Tooltip("Give each chunk a trigger CircleCollider2D + a Combat2D Hitbox while it's alive, so it can " +
+                 "damage hurtboxes it touches — a wall peppered by bullet debris, embers that also burn. Cheap " +
+                 "circle-APPROXIMATION only, not pixel-perfect (that would need Burst/Jobs, a bigger, separate " +
+                 "decision) — off by default since most debris is purely visual.")]
+        public bool useHitDetection = false;
+        [Tooltip("Damage dealt by a single chunk's hit (once per target, per chunk).")]
+        [Min(0f)] public float hitDamage = 5f;
+        [Range(0.1f, 3f)]
+        [Tooltip("Collider radius as a multiple of the chunk's own current world size (so it shrinks with it as size-over-life ramps down).")]
+        public float hitRadiusScale = 0.5f;
+
+        // ── Trail (optional) ──────────────────────────────────────────────────────
+        [Header("Trail (optional)")]
+        [Tooltip("Optional puff spawned at this chunk's own position on a timer while it's flying — an asset " +
+                 "implementing IChunkTrailSource (e.g. a Pyre Blast Trail Source, a fire→smoke blast). Leave " +
+                 "empty for no trail.")]
+        public Object trailSource;
+        [Min(0.01f)]
+        [Tooltip("Seconds between trail puffs.")]
+        public float trailInterval = 0.08f;
+
+        /// trailSource cast to the interface Chunks actually needs, or null if unset/incompatible.
+        public IChunkTrailSource TrailSource => trailSource as IChunkTrailSource;
 
         void OnValidate()
         {
@@ -143,6 +183,11 @@ namespace Laubrary.Chunks
             tumbleSpeedMin = Mathf.Max(0f, tumbleSpeedMin);
             tumbleSpeedMax = Mathf.Max(tumbleSpeedMin, tumbleSpeedMax);
             tumbleShadeStrength = Mathf.Clamp01(tumbleShadeStrength);
+            tintStrength = Mathf.Clamp01(tintStrength);
+            edgeThicknessPx = Mathf.Max(1, edgeThicknessPx);
+            hitDamage = Mathf.Max(0f, hitDamage);
+            hitRadiusScale = Mathf.Clamp(hitRadiusScale, 0.1f, 3f);
+            trailInterval = Mathf.Max(0.01f, trailInterval);
             sizeOverLife ??= DefaultSizeCurve();
             alphaOverLife ??= DefaultAlphaCurve();
             colorOverLife ??= DefaultColorGradient();
