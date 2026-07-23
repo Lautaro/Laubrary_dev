@@ -415,6 +415,33 @@ namespace Laubrary.Pyre
         [Tooltip("Fire: contrast on the gradient lookup. Below 1 pushes more of the flame toward the hot end.")]
         public float fireContrast = 0.85f;
 
+        // ── Fire2 (LayerShape.Fire2) — the cheap cellular flame ───────────────────
+        [Tooltip("Fire2: the burn's PROGRESS over the layer's life, as one envelope — how hot the centre " +
+                 "injects. Shape this to ignite, hold and die. This is the single progress control.")]
+        public ZUIValue fire2Source = CurveVal(1f, 0f, 0f, 0.12f, 1f, 0.6f, 1f, 1f, 0f);
+        [Tooltip("Fire2: radius of the hot core at the centre, in pixels.")]
+        public ZUIValue fire2SourceRadius = new ZUIValue(4f);
+        [Tooltip("Fire2: how fast the flame cools as it travels outward — its reach. Low = long tongues, " +
+                 "high = a tight core.")]
+        public ZUIValue fire2Cooling = new ZUIValue(0.06f);
+        [Tooltip("Fire2: sideways waver of the tongues — how much they lick instead of being straight spokes.")]
+        public ZUIValue fire2Spread = new ZUIValue(0.5f);
+        [Tooltip("Fire2: how far the flame may reach, as a fraction of the canvas half-size. Past this it is " +
+                 "cut to nothing, so it never touches the frame edge.")]
+        public ZUIValue fire2Reach = new ZUIValue(0.9f);
+        [Min(1)]
+        [Tooltip("Fire2: radial wedges the flame is mirrored into. 1 = a plain outward burst; more give a " +
+                 "kaleidoscope explosion — the star-mirrored effect.")]
+        public int fire2Arms = 1;
+        [Tooltip("Fire2: Mirror = alternate wedges are reflected, so neighbours meet at a seam (true " +
+                 "kaleidoscope). Off = each wedge is the same, just rotated.")]
+        public bool fire2Mirror = true;
+        [Range(0f, 0.9f)]
+        [Tooltip("Fire2: heat below this reads as empty.")]
+        public float fire2Threshold = 0.06f;
+        [Tooltip("Fire2: contrast on the gradient lookup.")]
+        public float fire2Contrast = 0.85f;
+
         // ── matte ────────────────────────────────────────────────────────────────
         // A matte layer isn't drawn: its LUMINANCE (times its own alpha) becomes a mask driving the layers
         // above it. Deliberately a ROLE rather than a shape or a fill mode, because it is orthogonal to both —
@@ -914,6 +941,11 @@ namespace Laubrary.Pyre
                     // The Intensity envelope shapes the whole burn, so alpha stays flat — otherwise the
                     // default fade-in-out alpha would double up with intensity's own fade. More frames than
                     // the 12 default, because a flame wants room to ignite, hold and die.
+                    l.alpha = new ZUIValue(1f);
+                    l.endFrame = 23;
+                    l.colorOverLife = SmokeToFireGradient();
+                    break;
+                case LayerShape.Fire2:
                     l.alpha = new ZUIValue(1f);
                     l.endFrame = 23;
                     l.colorOverLife = SmokeToFireGradient();

@@ -50,6 +50,8 @@ namespace Laubrary.Pyre
                         // shaded through ONE gradient (low = smoke, high = fire); energy waves climb that gradient
         Fire,           // a directional flame: a heat/fuel grid advected by buoyancy + curl noise, reached by
                         // REPLAY rather than closed-form evaluation (see FireSim), with N radial arms
+        Fire2,          // a cheaper cellular flame (doom-fire family): each frame is the previous one cooled
+                        // and drawn inward toward the source, star-mirrored for an explosive burst (see Fire2Sim)
     }
 
     /// How a shape's colour gradient is applied (solid shapes — Disc / Crescent / MetaBlob).
