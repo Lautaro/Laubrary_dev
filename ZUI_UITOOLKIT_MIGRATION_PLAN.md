@@ -1,6 +1,8 @@
 # ZUI → UI Toolkit migration — scope & design
 
-**Status as of 2026-07-23: decision made, this document is the handoff brief for whichever Claude session actually implements it. Nothing in this migration has been built yet — this is planning only.** If you're picking this up fresh, read this whole document before touching code; it front-loads the decisions and open questions so you don't have to re-derive them.
+**Status as of 2026-07-23 (later session): IMPLEMENTATION STARTED — phase 1 built and screenshot-verified on branch `feat/zui-uitoolkit`.** The §12 open questions are resolved (user-confirmed): pilot = **Choreographer**, styling = **§7 option (b), hand-authored USS + custom properties**, namespace = **`Laubrary.Zui`** (with static factory class `Z`, not `Zui` — namespace-shadowing gotcha). Built: `Zui/Toolkit/` (asmdef `com.Lautaro-Arino.Laubrary.Zui.Editor` — `Z` factories, `ZuiWindow`, `ZuiToolkit.uss`), `ZuiAssetWindow<T>` in AssetKit, and the full ChoreographerWindow port including a `Painter2D` stage. One plan correction: §6.2's "Choreographer is standalone" premise was wrong — it inherits `LaubraryAssetWindow<T>` like Larder, so the AssetKit base was ported as part of the pilot (which was the right call anyway; every later port reuses it). Old IMGUI ZUI untouched and working. Next per §11: more core controls as needed, envelope/2D-drag controls (§11.4), the tree-walker audit (§11.5), then tool-by-tool ports (§6.4). Current API doc: the laubrary skill's `references/zui.md`, "The UI Toolkit half" section.
+
+If you're picking this up fresh, read this whole document before touching code; it front-loads the decisions and open questions so you don't have to re-derive them.
 
 ## 1. Why this exists
 

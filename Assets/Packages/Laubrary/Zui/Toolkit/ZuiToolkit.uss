@@ -1,0 +1,172 @@
+/* ZuiToolkit.uss — the single shared stylesheet for the UI Toolkit half of ZUI (Laubrary.Zui).
+   Styling decision (2026-07-23, user-confirmed): hand-authored USS with custom properties as the
+   palette — no ZUIStyleSheetAsset/Zheet layer underneath. Tune the look here, once, for every tool. */
+
+.zui-root {
+    --zui-accent: rgb(90, 160, 255);
+    --zui-accent-soft: rgba(90, 160, 255, 0.35);
+    --zui-line: rgba(128, 128, 128, 0.4);
+    --zui-bg-inset: rgba(0, 0, 0, 0.18);
+    --zui-stage-bg: rgb(26, 26, 31);
+    padding: 4px;
+}
+
+/* NOTE: no flex-grow/height on .zui-root itself — it's applied to a window's rootVisualElement,
+   which Unity already sizes to the window's content area (window minus tab header). Forcing growth
+   there once made every window's content exactly one header-height too tall (measured 2026-07-23). */
+
+/* Every BaseField-derived control (FloatField, Slider, Toggle, ObjectField...) defaults to
+   flex-grow:1 inside a flex row — exactly the "stretches to fill whatever's left" behavior the
+   layout rules forbid. Controls are only ever as wide as their explicit width. */
+.zui-root .unity-base-field {
+    flex-grow: 0;
+    flex-shrink: 0;
+    margin-left: 0;
+}
+
+/* Built-in BaseField labels (Toggle etc.) reserve a ~150px fixed column by default — size them to
+   their own text instead, matching the Zui.Field wrap philosophy. */
+.zui-root .unity-base-field__label {
+    min-width: auto;
+    margin-right: 4px;
+}
+
+/* Containers ------------------------------------------------------------- */
+
+.zui-box {
+    border-width: 1px;
+    border-color: var(--zui-line);
+    border-radius: 3px;
+    padding: 6px;
+    margin-bottom: 6px;
+}
+
+.zui-box__titlerow {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.zui-box__title {
+    -unity-font-style: bold;
+    white-space: nowrap;
+}
+
+.zui-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.zui-row > * {
+    margin-right: 6px;
+}
+
+/* Text ------------------------------------------------------------------- */
+
+.zui-text--section {
+    -unity-font-style: bold;
+    margin-top: 6px;
+    margin-bottom: 3px;
+    white-space: nowrap;
+}
+
+.zui-text--small {
+    font-size: 10px;
+    opacity: 0.8;
+    white-space: nowrap;
+}
+
+.zui-text--subtle {
+    font-size: 10px;
+    opacity: 0.6;
+    white-space: normal;
+    margin-bottom: 3px;
+}
+
+.zui-help {
+    opacity: 0.55;
+    -unity-font-style: bold;
+    white-space: nowrap;
+}
+
+/* Field wrap (label + control pair — sidesteps BaseField's inconsistent built-in label widths) */
+
+.zui-field {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.zui-field__label {
+    margin-right: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    -unity-text-align: middle-left;
+}
+
+/* Controls --------------------------------------------------------------- */
+
+.zui-radio {
+    flex-direction: row;
+    flex-shrink: 0;
+}
+
+.zui-radio > .unity-button {
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 0;
+}
+
+/* Unity USS has no :first-child/:last-child — Z.MiniRadio sets these classes explicitly. */
+.zui-radio__first {
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.zui-radio__last {
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+.zui-radio__on {
+    background-color: var(--zui-accent-soft);
+    -unity-font-style: bold;
+}
+
+/* Asset-window chrome ---------------------------------------------------- */
+
+.zui-cell {
+    flex-shrink: 0;
+    margin-right: 4px;
+    margin-bottom: 4px;
+    align-items: center;
+}
+
+.zui-cell__thumb {
+    background-color: var(--zui-bg-inset);
+    justify-content: center;
+    align-items: center;
+}
+
+.zui-cell--selected .zui-cell__thumb {
+    background-color: var(--zui-accent-soft);
+    border-width: 1px;
+    border-color: var(--zui-accent);
+}
+
+.zui-cell__name {
+    font-size: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* Stage / canvas --------------------------------------------------------- */
+
+.zui-stage {
+    background-color: var(--zui-stage-bg);
+    flex-grow: 1;
+    min-width: 200px;
+    min-height: 200px;
+}
