@@ -134,6 +134,30 @@
     -unity-font-style: bold;
 }
 
+/* 2D pad + envelope ------------------------------------------------------ */
+
+.zui-pad {
+    background-color: var(--zui-bg-inset);
+    border-width: 1px;
+    border-color: var(--zui-line);
+    flex-shrink: 0;
+}
+
+.zui-pad__dot {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background-color: rgb(102, 217, 255);
+}
+
+.zui-envelope {
+    background-color: rgba(0, 0, 0, 0.35);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+}
+
 /* Asset-window chrome ---------------------------------------------------- */
 
 .zui-cell {

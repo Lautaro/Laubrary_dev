@@ -10,6 +10,7 @@
 //  • drag-computed numeric values are rounded to 5 decimals at the source so float noise never
 //    reaches a display.
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -252,6 +253,134 @@ namespace Laubrary.Zui
                 row.Add(buttons[i]);
             }
             return row;
+        }
+
+        /// One compact button that cycles through the options on each click — the CycleButton
+        /// pattern, for when a MiniRadio row would be too wide for the space.
+        public static Button CycleButton(int index, string[] options, string tooltip, Action<int> onChanged)
+        {
+            int current = Mathf.Clamp(index, 0, options.Length - 1);
+            Button b = null;
+            b = new Button(() =>
+            {
+                current = (current + 1) % options.Length;
+                b.text = options[current];
+                onChanged?.Invoke(current);
+            })
+            { text = options[current], tooltip = tooltip };
+            return b;
+        }
+
+        public static DropdownField Dropdown(int index, List<string> choices, string tooltip,
+            Action<int> onChanged, float width = 140f)
+        {
+            var d = new DropdownField(choices, Mathf.Clamp(index, 0, choices.Count - 1)) { tooltip = tooltip };
+            d.style.width = width;
+            d.RegisterValueChangedCallback(e => onChanged?.Invoke(choices.IndexOf(e.newValue)));
+            return d;
+        }
+
+        public static EnumField EnumDropdown<T>(T value, string tooltip, Action<T> onChanged,
+            float width = 140f) where T : Enum
+        {
+            var d = new EnumField(value) { tooltip = tooltip };
+            d.style.width = width;
+            d.RegisterValueChangedCallback(e => onChanged?.Invoke((T)e.newValue));
+            return d;
+        }
+
+        public static IntegerField Int(int value, string tooltip, Action<int> onChanged, float width = 60f)
+        {
+            var f = new IntegerField { value = value, tooltip = tooltip };
+            f.style.width = width;
+            f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
+            return f;
+        }
+
+        /// The control type IMGUI's tooltip audits kept catching bare — here the tooltip is required
+        /// like everywhere else.
+        public static ColorField Color(Color value, string tooltip, Action<Color> onChanged,
+            float width = 60f, bool showAlpha = true, bool hdr = false)
+        {
+            var f = new ColorField { value = value, tooltip = tooltip, showAlpha = showAlpha, hdr = hdr };
+            f.style.width = width;
+            f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
+            return f;
+        }
+
+        /// A min/max range: numeric low field + MinMaxSlider + numeric high field, kept in sync
+        /// (the SliderRange pattern). Rounded to 5 decimals like every slider.
+        public static VisualElement MinMax(float low, float high, float min, float max, string tooltip,
+            Action<float, float> onChanged, float sliderWidth = 130f)
+        {
+            var slider = new MinMaxSlider(low, high, min, max) { tooltip = tooltip };
+            slider.style.width = sliderWidth;
+            var lowField = new FloatField { value = low, tooltip = tooltip };
+            lowField.style.width = 42f;
+            var highField = new FloatField { value = high, tooltip = tooltip };
+            highField.style.width = 42f;
+
+            void Commit(float lo, float hi, bool fromSlider)
+            {
+                lo = (float)Math.Round(Mathf.Clamp(lo, min, max), 5);
+                hi = (float)Math.Round(Mathf.Clamp(hi, lo, max), 5);
+                if (fromSlider) { lowField.SetValueWithoutNotify(lo); highField.SetValueWithoutNotify(hi); }
+                else slider.SetValueWithoutNotify(new Vector2(lo, hi));
+                onChanged?.Invoke(lo, hi);
+            }
+            slider.RegisterValueChangedCallback(e => Commit(e.newValue.x, e.newValue.y, true));
+            lowField.RegisterValueChangedCallback(e => Commit(e.newValue, slider.maxValue, false));
+            highField.RegisterValueChangedCallback(e => Commit(slider.minValue, e.newValue, false));
+
+            return Row(lowField, slider, highField);
+        }
+
+        /// A collapsible framed section — the FoldoutBox pattern. The tooltip lands on the Foldout
+        /// AND its internal disclosure Toggle (which does not inherit it — a known UI Toolkit trap).
+        public static Foldout Foldout(string title, string tooltip, bool open, params VisualElement[] children)
+        {
+            var f = new Foldout { text = title, value = open, tooltip = tooltip };
+            f.AddToClassList("zui-box");
+            var disclosure = f.Q<Toggle>();
+            if (disclosure != null) disclosure.tooltip = tooltip;
+            foreach (var c in children) if (c != null) f.Add(c);
+            return f;
+        }
+
+        public static HelpBox Help(string text, HelpBoxMessageType type = HelpBoxMessageType.Info)
+            => new HelpBox(text, type);
+
+        /// Square drag-pad for a plain Vector2 (the PositionPad pattern — NOT for animatable values).
+        public static ZuiPad Pad(Vector2 value, Rect range, string tooltip, Action<Vector2> onChanged,
+            float size = 56f, bool flipY = true)
+        {
+            var pad = new ZuiPad(value, range, tooltip, size, flipY);
+            pad.OnChanged += v => onChanged?.Invoke(v);
+            return pad;
+        }
+
+        /// Labelled ZUIValue editor (Static / MinMax / Curve modes with the ⋯ config menu) — the
+        /// ValRow workhorse. Pass `onBeforeMutate` to record Undo on the owning asset.
+        public static ZuiValueControl Value(string label, ZUIValue v, ZuiValueControl.Options options,
+            string tooltip, Action onChanged, Action onBeforeMutate = null)
+        {
+            var c = new ZuiValueControl(label, v, options, tooltip);
+            if (onChanged != null) c.OnChanged += onChanged;
+            if (onBeforeMutate != null) c.OnBeforeMutate += onBeforeMutate;
+            return c;
+        }
+
+        /// DAW-style multi-point envelope editor over a caller-owned List&lt;ZUIEnvelopePoint&gt;
+        /// (the same runtime data ZUI.Envelope edits). Pass `onBeforeMutate` to record Undo on the
+        /// owning asset — it fires once per gesture, before the first mutation.
+        public static ZuiEnvelope Envelope(List<ZUIEnvelopePoint> points, ZuiEnvelopeOptions options,
+            string tooltip, Action onChanged, Action onBeforeMutate = null,
+            float width = 220f, float height = 80f)
+        {
+            var env = new ZuiEnvelope(points, options, tooltip, width, height);
+            if (onChanged != null) env.OnChanged += onChanged;
+            if (onBeforeMutate != null) env.OnBeforeMutate += onBeforeMutate;
+            return env;
         }
     }
 
