@@ -171,6 +171,13 @@ namespace Laubrary.Zui
             public bool showSidePanel = true;        // the label / Reset / ⋯ column left of the plot
             /// Extra content appended into the side panel under the label (e.g. Pyre's origin α slider).
             public Func<VisualElement> sidePanelExtra = null;
+            /// EditorPrefs suffix for the per-identity "2D pad vs Two sliders" presentation choice
+            /// (right-click menu). Null → the control's label is used. Two pads sharing a label share it.
+            public string prefKey = null;
+            /// Per-axis names used to label the Two-sliders presentation. Default "X"/"Y" compose
+            /// "&lt;label&gt; · X"; a real name (e.g. "Pitch") stands alone as that slider's own label.
+            public string xLabel = "X";
+            public string yLabel = "Y";
 
             public Options WithRange(float xLo, float xHi, float yLo, float yHi)
             { xMin = xLo; xMax = xHi; yMin = yLo; yMax = yHi; return this; }
@@ -182,6 +189,8 @@ namespace Laubrary.Zui
             public Options Expanded(bool on = true) { startExpanded = on; return this; }
             public Options WithoutSidePanel() { showSidePanel = false; return this; }
             public Options WithSidePanelExtra(Func<VisualElement> extra) { sidePanelExtra = extra; return this; }
+            public Options WithPrefKey(string key) { prefKey = key; return this; }
+            public Options WithAxisLabels(string x, string y) { xLabel = x; yLabel = y; return this; }
         }
 
         static readonly Color PointColor = new Color(0.4f, 0.85f, 1f);
@@ -206,6 +215,15 @@ namespace Laubrary.Zui
         readonly string _label;
         readonly string _tooltip;
 
+        // Presentation: false = the 2D pad (default), true = two stacked 1D value controls. Persisted per
+        // control identity in EditorPrefs; only offered when the source exposes the two ZUIValues.
+        bool _twoSliders;
+        // Set true on a right-click PointerDown as it enters the control, cleared as it bubbles back out
+        // un-stopped. If a child (the plot / an envelope) consumed the right-click for its own gesture
+        // (e.g. removing a point) it stopped propagation, so this stays true and the presentation menu is
+        // suppressed for that click — the child's gesture wins.
+        bool _suppressContextMenuOnce;
+
         public Action OnBeforeMutate;
         public Action OnChanged;
 
@@ -226,8 +244,26 @@ namespace Laubrary.Zui
 
             var fold = GetFold(_key);
             if (!fold.seeded) { fold.seeded = true; fold.expanded = _opt.startExpanded; }
+
+            // The Two-sliders presentation binds two 1D ZuiValueControls to the pair's X/Y ZUIValues, so it
+            // only exists for an animatable pair source (a plain Vector2 has no ZUIValues to bind). Gate the
+            // whole right-click menu on that, and restore the persisted choice.
+            if (_src is ZuiValuePairSource)
+            {
+                _twoSliders = EditorPrefs.GetBool(PrefsKey, false);
+                // Track whether a right-click was consumed by a child before the menu (MouseUp) is decided.
+                RegisterCallback<PointerDownEvent>(
+                    e => { if (e.button == 1) _suppressContextMenuOnce = true; }, TrickleDown.TrickleDown);
+                RegisterCallback<PointerDownEvent>(
+                    e => { if (e.button == 1) _suppressContextMenuOnce = false; });
+                // Composes with any other ContextualMenu contributions on this element or its ancestors.
+                this.AddManipulator(new ContextualMenuManipulator(PopulateContextMenu));
+            }
+
             Build();
         }
+
+        string PrefsKey => "ZuiValue2D." + (string.IsNullOrEmpty(_opt.prefKey) ? (_label ?? "") : _opt.prefKey);
 
         void Mutate(Action apply) { OnBeforeMutate?.Invoke(); apply(); OnChanged?.Invoke(); }
 
@@ -235,6 +271,7 @@ namespace Laubrary.Zui
         {
             Clear();
             var fold = GetFold(_key);
+            if (_twoSliders && _src is ZuiValuePairSource pair) { BuildTwoSliders(pair); return; }
             if (fold.expanded) BuildExpanded(fold); else BuildCollapsed(fold);
         }
 
@@ -458,6 +495,64 @@ namespace Laubrary.Zui
             }
 
             menu.ShowAsContext();
+        }
+
+        // ── alternate presentation: two stacked 1D controls over the same X/Y ZUIValues ─────────────
+        void BuildTwoSliders(ZuiValuePairSource pair)
+        {
+            var col = new VisualElement();
+            col.Add(BuildAxisControl(pair.X, AxisLabel(_opt.xLabel, "X"), _opt.xMin, _opt.xMax, _opt.staticDefault?.x));
+            col.Add(Z.VSpace(2f));
+            col.Add(BuildAxisControl(pair.Y, AxisLabel(_opt.yLabel, "Y"), _opt.yMin, _opt.yMax, _opt.staticDefault?.y));
+            Add(col);
+        }
+
+        ZuiValueControl BuildAxisControl(ZUIValue v, string label, float axisMin, float axisMax, float? axisDefault)
+        {
+            // Translate the pad's Options to the 1D control: per-axis RANGE, and hide the curve chrome the pad
+            // has no analog for (Dur/Warm/Loop + the Value-Range row) — WithoutCurveExtras also pins the
+            // curve's Y-range to [min,max], matching the pad's own PinRange. MinMax mode is disabled so an
+            // axis only ever holds a mode the pad understands (Static / Curve). Grow fills the pane like the
+            // rest of ZUI's 1D controls do.
+            var o = new ZuiValueControl.Options { allowMinMax = false };
+            o.WithRange(axisMin, axisMax);
+            o.WithoutCurveExtras();
+            o.WithGrow();
+            if (axisDefault.HasValue) o.WithDefault(axisDefault.Value);
+
+            var c = new ZuiValueControl(label, v, o, _tooltip);
+            c.OnBeforeMutate += () => OnBeforeMutate?.Invoke();
+            c.OnChanged += () => OnChanged?.Invoke();
+            return c;
+        }
+
+        // "Tilt" + default axis "X" → "Tilt · X"; a caller-supplied axis name ("Pitch") stands alone.
+        string AxisLabel(string axisName, string defaultAxis)
+        {
+            if (string.IsNullOrEmpty(axisName)) axisName = defaultAxis;
+            if (string.IsNullOrEmpty(_label)) return axisName;
+            return axisName == defaultAxis ? _label + " · " + axisName : axisName;
+        }
+
+        // ── right-click presentation menu (pad ↔ two sliders), composed onto the element ─────────────
+        void PopulateContextMenu(ContextualMenuPopulateEvent evt)
+        {
+            // A child (plot / envelope) already consumed this right-click for its own gesture — don't also
+            // pop the menu. We only skip OUR two items; anything other code appended still shows.
+            if (_suppressContextMenuOnce) { _suppressContextMenuOnce = false; return; }
+
+            evt.menu.AppendAction("2D pad", _ => SetTwoSliders(false),
+                _twoSliders ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Checked);
+            evt.menu.AppendAction("Two sliders", _ => SetTwoSliders(true),
+                _twoSliders ? DropdownMenuAction.Status.Checked : DropdownMenuAction.Status.Normal);
+        }
+
+        void SetTwoSliders(bool on)
+        {
+            if (_twoSliders == on) return;
+            _twoSliders = on;
+            EditorPrefs.SetBool(PrefsKey, on);
+            Build();
         }
 
         // ── the plot element (shared by thumbnail + full plot) ──────────────────────
