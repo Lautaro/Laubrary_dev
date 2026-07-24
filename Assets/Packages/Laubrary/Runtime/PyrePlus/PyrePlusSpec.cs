@@ -141,8 +141,16 @@ namespace Laubrary.PyrePlus
         // 4.7·R falloff range (the prototype's proportions) — distance is not exposed.
         public float gemLightYaw = -55f;                    // key-light azimuth (left/right), degrees
         public float gemLightPitch = 38f;                   // key-light elevation (above the horizon), degrees
-        [Range(0f, 1f)] public float gemAmbient = 0.05f;    // near-zero fill on unlit faces
-        [Range(0f, 2f)] public float gemSpecular = 0.9f;    // Blinn-Phong highlight strength
+        [Range(0f, 1f)] public float gemAmbient = 0.05f;    // non-directional base light on ALL faces (near-zero keeps it contrasty)
+        // DIFFUSE strength of the key light on facing surfaces (Lambert term): lit = gemAmbient + gemDiffuse·ndl·atten.
+        // Default 2.1 reproduces the pre-P5 hardcoded 2.1 byte-for-byte; drop it to 0 and only ambient + spec light the
+        // faces (the missing dial that let ambient=spec=0 still show bright diffuse-lit faces — the P5 fix).
+        [Range(0f, 3f)] public float gemDiffuse = 2.1f;
+        [Range(0f, 2f)] public float gemSpecular = 0.9f;    // Blinn-Phong highlight strength (the tight hotspot)
+        // SPECULAR exponent (Blinn-Phong power) = the highlight's TIGHTNESS: higher = a smaller, sharper hotspot.
+        // Default 48 reproduces the pre-P5 hardcoded pow(·,48) byte-for-byte; lower it to spread the highlight so it's
+        // actually visible (48 was so tight it rarely showed).
+        [Range(2f, 128f)] public float gemSpecPower = 48f;
         public ZuiFill gemSpecularFill = new ZuiFill(new Color(0.9f, 0.95f, 1f));   // Blinn-Phong highlight fill (Solid by default)
         // Light-catching hard edge lines along every visible facet boundary.
         [Range(0f, 3f)] public float gemLineWidth = 1f;     // edge-line width in screen pixels (0 = no lines)
@@ -395,6 +403,7 @@ namespace Laubrary.PyrePlus
                 angleDeg = f.angleDeg,
                 zoom = f.zoom,
                 center = f.center,
+                space = f.space,
                 // Texture group — Sprite stays a shared asset ref (like font/spriteImage), not per-layer data.
                 texture = f.texture,
                 textureSprite = f.textureSprite,

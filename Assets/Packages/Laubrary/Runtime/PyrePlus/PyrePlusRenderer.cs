@@ -1079,9 +1079,9 @@ namespace Laubrary.PyrePlus
                         float d = Mathf.Sqrt(dx * dx + dy * dy);
                         if (d > radius) continue;
                         float edge = d <= inner ? 1f : 1f - Mathf.InverseLerp(inner, radius, d);
-                        if (fillSpatial)   // spatial fill → this pixel's colour at its local (u,v); Solid/OverLife never enter here (byte-identical)
+                        if (fillSpatial)   // spatial fill → this pixel's colour at its local (u,v) or canvas-anchored (Fixed); Solid/OverLife never enter here (byte-identical)
                         {
-                            col = fill.Evaluate(life, dx / radius, dy / radius);
+                            col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H);
                             cr = col.r; cg = col.g; cb = col.b;
                             if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
                         }
@@ -1157,9 +1157,9 @@ namespace Laubrary.PyrePlus
                     float d = Mathf.Sqrt(dx * dx + dy * dy);
                     if (d > radius) continue;
                     float edge = d <= inner ? 1f : 1f - Mathf.InverseLerp(inner, radius, d);
-                    if (fillSpatial)   // spatial fill uses the (spun/warped) local offset (dx,dy)/radius; Solid/OverLife skip (byte-identical)
+                    if (fillSpatial)   // spatial fill uses the (spun/warped) local offset (dx,dy)/radius, or canvas-anchored (Fixed); Solid/OverLife skip (byte-identical)
                     {
-                        col = fill.Evaluate(life, dx / radius, dy / radius);
+                        col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H);
                         cr = col.r; cg = col.g; cb = col.b;
                         if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
                     }
@@ -1273,9 +1273,9 @@ namespace Laubrary.PyrePlus
                     else if (soft <= 0.001f) biteEdge = mdist >= biteRadius ? 1f : 0f; // hard bite edge
                     else biteEdge = Mathf.Clamp01((mdist - biteRadius) / (soft * radius));
                     if (biteEdge <= 0.001f) continue;
-                    if (fillSpatial)   // spatial fill → this lit pixel's colour at its local (u,v); constant fills skip (byte-identical)
+                    if (fillSpatial)   // spatial fill → this lit pixel's colour at its local (u,v) or canvas-anchored (Fixed); constant fills skip (byte-identical)
                     {
-                        col = fill.Evaluate(life, dx / radius, dy / radius);
+                        col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H);
                         cr = col.r; cg = col.g; cb = col.b;
                         if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
                     }
@@ -1413,9 +1413,9 @@ namespace Laubrary.PyrePlus
 
                     float rInner = bound * (1f - soft);                  // Disc rim idiom, radial: full alpha inside, feather to the boundary
                     float edge = d <= rInner ? 1f : 1f - Mathf.InverseLerp(rInner, bound, d);
-                    if (fillSpatial)   // spatial fill → this pixel's colour at its (spun/warped) local (u,v); constant fills skip
+                    if (fillSpatial)   // spatial fill → this pixel's colour at its (spun/warped) local (u,v) or canvas-anchored (Fixed); constant fills skip
                     {
-                        col = fill.Evaluate(life, dx / R, dy / R);
+                        col = EvalFill(fill, life, dx / R, dy / R, x, y, W, H);
                         cr = col.r; cg = col.g; cb = col.b;
                         if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
                     }
@@ -1500,9 +1500,9 @@ namespace Laubrary.PyrePlus
                     float twinkle = Hash01(spec.seed, particleIndex, FldSparkle, (cellIndex ^ frameSalt) + _layerSalt);
                     if (twinkle >= 0.5f) continue;                                       // candidate, but off this frame
                     float sr = cr, sg = cg, sb = cb, sa = baseAlpha;
-                    if (fillSpatial)   // spatial fill → this cell's colour + alpha at its local (u,v); constant fills skip (byte-identical)
+                    if (fillSpatial)   // spatial fill → this cell's colour + alpha at its local (u,v) or canvas-anchored (Fixed); constant fills skip (byte-identical)
                     {
-                        col = fill.Evaluate(life, dx / radius, dy / radius);
+                        col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H);
                         sr = col.r; sg = col.g; sb = col.b; sa = alpha * col.a;
                         if (brightMul != 1f) { sr = Mathf.Clamp01(sr * brightMul); sg = Mathf.Clamp01(sg * brightMul); sb = Mathf.Clamp01(sb * brightMul); }
                     }
@@ -1709,11 +1709,11 @@ namespace Laubrary.PyrePlus
                     float sideEdge = as_ <= sideInner ? 1f : 1f - Mathf.InverseLerp(sideInner, halfW, as_);
                     float tipEdge = f <= tipStart ? 1f : 1f - Mathf.InverseLerp(tipStart, len, f);
                     if (sideEdge <= 0.001f || tipEdge <= 0.001f) continue;
-                    if (fillSpatial)   // spatial fill → this pixel's (u,v); Solid/OverLife skip (constant, byte-identical)
+                    if (fillSpatial)   // spatial fill → this pixel's (u,v) or canvas-anchored (Fixed); Solid/OverLife skip (constant, byte-identical)
                     {
                         float u = halfW > 1e-4f ? s / halfW : 0f;
                         float v = 2f * f / len - 1f;
-                        col = fill.Evaluate(own, u, v);
+                        col = EvalFill(fill, own, u, v, x, y, W, H);
                         cr = col.r; cg = col.g; cb = col.b;
                         if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
                     }
@@ -1973,7 +1973,7 @@ namespace Laubrary.PyrePlus
                         bool face = k == 0;
                         bool border = borderBand > 0f && sd < 0.5f + borderBand;
                         ZuiFill fill = border ? layer.textBorder : layer.textFill;
-                        Color col = SampleTextColor(spec, layer, fill, charIndex, n, u, v, halfW, halfH, x0, span, lineMode, own);
+                        Color col = SampleTextColor(spec, layer, fill, charIndex, n, u, v, halfW, halfH, x0, span, lineMode, own, x, y, W, H);
                         if (!face)
                         {
                             // Extrusion side: fill (or border) × 0.45, then k-shaded darker with depth (prototype
@@ -2016,15 +2016,18 @@ namespace Laubrary.PyrePlus
         // line extent; `own` the particle's life clock (only used by a texture's Evaluate).
         static Color SampleTextColor(PyrePlusSpec spec, PyrePlusLayer layer, ZuiFill fill, int charIndex, int n,
                                      float u, float v, float halfW, float halfH, float x0, float span, bool lineMode,
-                                     float own)
+                                     float own, int px, int py, int W, int H)
         {
             if (fill == null) return Color.white;
-            // A texture replaces the fill entirely — stamp it across the glyph box (normalized -1..1).
+            // A texture replaces the fill entirely — stamp it across the glyph box (normalized -1..1). This is the
+            // ONLY spatial fill.Evaluate on the Text path (the gradient-sweep below reads fill.gradient with a
+            // textFillMode scope, not a spatial mode), so it's the only one that honours Fixed space: Stamped =
+            // glyph-local (byte-identical), Fixed = canvas-anchored via EvalFill.
             if (fill.texture != ZuiFill.TextureKind.None)
             {
                 float uN = halfW > 1e-4f ? u / halfW : 0f;
                 float vN = halfH > 1e-4f ? v / halfH : 0f;
-                return fill.Evaluate(own, uN, vN);
+                return EvalFill(fill, own, uN, vN, px, py, W, H);
             }
             // A Solid fill is one flat colour (with PerCharStep, every letter reads that same flat colour).
             if (fill.mode == ZuiFill.Mode.Solid) return fill.color;
@@ -2228,6 +2231,7 @@ namespace Laubrary.PyrePlus
             Color edgeGlowColor = edgeFill != null ? edgeFill.Evaluate(own, 0f, 0f) : Color.white; // halo/edge-glow tint
             float lineW = layer.gemLineWidth;
             float ambient = layer.gemAmbient, specStr = layer.gemSpecular;
+            float diffuse = layer.gemDiffuse, specPow = layer.gemSpecPower;   // P5: the DIFFUSE strength (was hardcoded 2.1) + specular exponent (was hardcoded 48)
 
             // The two glow strengths on the particle's own life (0..1). Halo radius / inner radius scale with R
             // (prototype constants 7 and 9 at R=30 → 0.24·R and 0.30·R), floored so tiny gems still glow.
@@ -2260,13 +2264,14 @@ namespace Laubrary.PyrePlus
                     float lx = x + 0.5f - cx, ly = y + 0.5f - cy;
                     Vector2 p = new Vector2(lx, ly);
 
-                    // Spatial fills: this pixel's particle-local point (lx/R, ly/R) in -1..1 space. Ignored by the
-                    // default Solid/OverLife fills, so these recomputes stay skipped and the raster is byte-identical.
+                    // Spatial fills: this pixel's particle-local point (lx/R, ly/R) in -1..1 space (Stamped), or the
+                    // canvas-anchored point (Fixed), via EvalFill per fill's own space. Ignored by the default Solid/
+                    // OverLife fills, so these recomputes stay skipped and the raster is byte-identical.
                     float u = lx / R, v = ly / R;
-                    if (lineSpatial) lineColor = lineFill.Evaluate(own, u, v);
-                    if (edgeSpatial) edgeGlowColor = edgeFill.Evaluate(own, u, v);
-                    if (innerSpatial) innerColor = innerFill.Evaluate(own, u, v);
-                    if (specSpatial) specColor = specFill.Evaluate(own, u, v);
+                    if (lineSpatial) lineColor = EvalFill(lineFill, own, u, v, x, y, W, H);
+                    if (edgeSpatial) edgeGlowColor = EvalFill(edgeFill, own, u, v, x, y, W, H);
+                    if (innerSpatial) innerColor = EvalFill(innerFill, own, u, v, x, y, W, H);
+                    if (specSpatial) specColor = EvalFill(specFill, own, u, v, x, y, W, H);
 
                     // Nearest visible edge distance — drives BOTH glows and the hard line test, inside and out.
                     float edist = float.MaxValue;
@@ -2285,7 +2290,7 @@ namespace Laubrary.PyrePlus
                         Vector3 L = toL / Mathf.Max(1e-4f, dist);
                         float atten = 1f / (1f + dist * dist / lrange2);
                         float ndl = Mathf.Max(0f, Vector3.Dot(visNrm[vi], L));
-                        float lit = ambient + 2.1f * ndl * atten;
+                        float lit = ambient + diffuse * ndl * atten;
                         if (edist <= lineW)
                         {
                             isLine = true;
@@ -2295,8 +2300,8 @@ namespace Laubrary.PyrePlus
                         else
                         {
                             Vector3 Hh = (L + viewDir).normalized;
-                            float sp = Mathf.Pow(Mathf.Max(0f, Vector3.Dot(visNrm[vi], Hh)), 48f);
-                            Color baseCol = matFill != null ? matFill.Evaluate(own, u, v) : Color.white;
+                            float sp = Mathf.Pow(Mathf.Max(0f, Vector3.Dot(visNrm[vi], Hh)), specPow);
+                            Color baseCol = matFill != null ? EvalFill(matFill, own, u, v, x, y, W, H) : Color.white;
                             float sAdd = specStr * sp * atten;
                             fr = baseCol.r * lit + specColor.r * sAdd;
                             fg = baseCol.g * lit + specColor.g * sAdd;
@@ -2430,6 +2435,7 @@ namespace Laubrary.PyrePlus
             Color edgeGlowColor = edgeFill != null ? edgeFill.Evaluate(own, 0f, 0f) : Color.white;
             float lineW = layer.gemLineWidth;
             float ambient = layer.gemAmbient, specStr = layer.gemSpecular;
+            float diffuse = layer.gemDiffuse, specPow = layer.gemSpecPower;   // P5: the DIFFUSE strength (was hardcoded 2.1) + specular exponent (was hardcoded 48)
 
             float edgeGlow = Mathf.Clamp01(Eval(layer.gemEdgeGlow, own, spec.seed, particleIndex, FldGemEdgeGlow));
             float innerGlow = Mathf.Clamp01(Eval(layer.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
@@ -2451,13 +2457,14 @@ namespace Laubrary.PyrePlus
                 for (int x = x0; x <= x1; x++)
                 {
                     float lx = x + 0.5f - cx, ly = y + 0.5f - cy;
-                    // Spatial fills at this pixel's particle-local point (lx/R, ly/R); constant fills skip (byte-identical).
+                    // Spatial fills at this pixel's particle-local point (lx/R, ly/R) — or canvas-anchored (Fixed),
+                    // per fill via EvalFill; constant fills skip (byte-identical).
                     float fu = lx / R, fv = ly / R;
-                    if (lineSpatial) lineColor = lineFill.Evaluate(own, fu, fv);
-                    if (edgeSpatial) edgeGlowColor = edgeFill.Evaluate(own, fu, fv);
-                    if (innerSpatial) innerColor = innerFill.Evaluate(own, fu, fv);
-                    if (specSpatial) specColor = specFill.Evaluate(own, fu, fv);
-                    if (matSpatial) baseCol = matFill.Evaluate(own, fu, fv);
+                    if (lineSpatial) lineColor = EvalFill(lineFill, own, fu, fv, x, y, W, H);
+                    if (edgeSpatial) edgeGlowColor = EvalFill(edgeFill, own, fu, fv, x, y, W, H);
+                    if (innerSpatial) innerColor = EvalFill(innerFill, own, fu, fv, x, y, W, H);
+                    if (specSpatial) specColor = EvalFill(specFill, own, fu, fv, x, y, W, H);
+                    if (matSpatial) baseCol = EvalFill(matFill, own, fu, fv, x, y, W, H);
                     float d = Mathf.Sqrt(lx * lx + ly * ly);
                     // The orb's ONLY edge is the silhouette rim; distance to it (both sides) drives lines + glows,
                     // exactly as DrawFacetSolid's `edist` (nearest face-edge distance) does.
@@ -2476,7 +2483,7 @@ namespace Laubrary.PyrePlus
                         Vector3 L = toL / Mathf.Max(1e-4f, dist);
                         float atten = 1f / (1f + dist * dist / lrange2);
                         float ndl = Mathf.Max(0f, Vector3.Dot(N, L));
-                        float lit = ambient + 2.1f * ndl * atten;
+                        float lit = ambient + diffuse * ndl * atten;
                         if (rimDist <= lineW)   // inside points at the rim draw the silhouette line, lit-scaled
                         {
                             isLine = true;
@@ -2486,7 +2493,7 @@ namespace Laubrary.PyrePlus
                         else
                         {
                             Vector3 Hh = (L + viewDir).normalized;
-                            float sp = Mathf.Pow(Mathf.Max(0f, Vector3.Dot(N, Hh)), 48f);
+                            float sp = Mathf.Pow(Mathf.Max(0f, Vector3.Dot(N, Hh)), specPow);
                             float sAdd = specStr * sp * atten;
                             fr = baseCol.r * lit + specColor.r * sAdd;
                             fg = baseCol.g * lit + specColor.g * sAdd;
@@ -2596,6 +2603,7 @@ namespace Laubrary.PyrePlus
             Color edgeGlowColor = edgeFill != null ? edgeFill.Evaluate(own, 0f, 0f) : Color.white;
             float lineW = layer.gemLineWidth;
             float ambient = layer.gemAmbient, specStr = layer.gemSpecular;
+            float diffuse = layer.gemDiffuse, specPow = layer.gemSpecPower;   // P5: the DIFFUSE strength (was hardcoded 2.1) + specular exponent (was hardcoded 48)
 
             float edgeGlow = Mathf.Clamp01(Eval(layer.gemEdgeGlow, own, spec.seed, particleIndex, FldGemEdgeGlow));
             float innerGlow = Mathf.Clamp01(Eval(layer.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
@@ -2619,13 +2627,14 @@ namespace Laubrary.PyrePlus
                 for (int x = x0; x <= x1; x++)
                 {
                     float lx = x + 0.5f - cx, ly = y + 0.5f - cy;
-                    // Spatial fills at this pixel's particle-local point (lx/R, ly/R); constant fills skip (byte-identical).
+                    // Spatial fills at this pixel's particle-local point (lx/R, ly/R) — or canvas-anchored (Fixed),
+                    // per fill via EvalFill; constant fills skip (byte-identical).
                     float fu = lx / R, fv = ly / R;
-                    if (lineSpatial) lineColor = lineFill.Evaluate(own, fu, fv);
-                    if (edgeSpatial) edgeGlowColor = edgeFill.Evaluate(own, fu, fv);
-                    if (innerSpatial) innerColor = innerFill.Evaluate(own, fu, fv);
-                    if (specSpatial) specColor = specFill.Evaluate(own, fu, fv);
-                    if (matSpatial) baseCol = matFill.Evaluate(own, fu, fv);
+                    if (lineSpatial) lineColor = EvalFill(lineFill, own, fu, fv, x, y, W, H);
+                    if (edgeSpatial) edgeGlowColor = EvalFill(edgeFill, own, fu, fv, x, y, W, H);
+                    if (innerSpatial) innerColor = EvalFill(innerFill, own, fu, fv, x, y, W, H);
+                    if (specSpatial) specColor = EvalFill(specFill, own, fu, fv, x, y, W, H);
+                    if (matSpatial) baseCol = EvalFill(matFill, own, fu, fv, x, y, W, H);
                     // Invert the forward map:  u = lx/cyw ;  v = (ly − u·syw·st)/ct.
                     float u = lx / cyw;
                     float v = (ly - u * sywst) / ct;
@@ -2660,7 +2669,7 @@ namespace Laubrary.PyrePlus
                         Vector3 L = toL / Mathf.Max(1e-4f, dist);
                         float atten = 1f / (1f + dist * dist / lrange2);
                         float ndl = Mathf.Max(0f, Vector3.Dot(N, L));
-                        float lit = ambient + 2.1f * ndl * atten;
+                        float lit = ambient + diffuse * ndl * atten;
                         if (rimDist <= lineW)   // BOTH rims draw the hard line (screen-distance, gradient-corrected)
                         {
                             isLine = true;
@@ -2670,7 +2679,7 @@ namespace Laubrary.PyrePlus
                         else
                         {
                             Vector3 Hh = (L + viewDir).normalized;
-                            float sp = Mathf.Pow(Mathf.Max(0f, Vector3.Dot(N, Hh)), 48f);
+                            float sp = Mathf.Pow(Mathf.Max(0f, Vector3.Dot(N, Hh)), specPow);
                             float sAdd = specStr * sp * atten;
                             fr = baseCol.r * lit + specColor.r * sAdd;
                             fg = baseCol.g * lit + specColor.g * sAdd;
@@ -2914,6 +2923,20 @@ namespace Laubrary.PyrePlus
         static bool IsSpatialFill(ZuiFill f) =>
             f != null && (f.texture != ZuiFill.TextureKind.None
                           || f.mode == ZuiFill.Mode.Linear || f.mode == ZuiFill.Mode.Radial);
+
+        /// Evaluate a SPATIAL fill/texture at a pixel, honouring its coordinate SPACE (P5-B). Stamped (the default)
+        /// feeds the caller's shape-LOCAL (lu,lv) — the pattern rotates / spins / travels WITH the shape — so this
+        /// branch calls the exact same fill.Evaluate(life, lu, lv) the pre-P5 code did (byte-identical for every
+        /// default fill, which is Stamped). Fixed feeds CANVAS-anchored coords instead: the pixel's absolute -1..1
+        /// position on the canvas (unrotated, unspun, untravelled), so the shape moves THROUGH a stationary pattern
+        /// (mask-like). Matches the background fill's own canvas (u,v): (px+0.5 − W/2)/(W/2) ≡ (px+0.5)/W·2 − 1.
+        /// `f` is always non-null here — every call site is gated by IsSpatialFill (or an explicit != null).
+        static Color EvalFill(ZuiFill f, float life, float lu, float lv, int px, int py, int W, int H)
+        {
+            if (f.space == ZuiFill.FillSpace.Fixed)
+                return f.Evaluate(life, (px + 0.5f - W * 0.5f) / (W * 0.5f), (py + 0.5f - H * 0.5f) / (H * 0.5f));
+            return f.Evaluate(life, lu, lv);
+        }
 
         /// True when a value is exactly Static 0 — the default state of the T7 opt-in travel-path fields. Gates
         /// their Evals so a default asset's particle centre (and thus its whole raster) stays byte-identical; a

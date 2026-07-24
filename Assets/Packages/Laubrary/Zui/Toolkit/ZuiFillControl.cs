@@ -111,12 +111,12 @@ namespace Laubrary.Zui
 
                 case ZuiFill.Mode.Linear:
                     AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
-                    ExtraRow(CenterPad(), ExtraAngle(), ExtraZoom());
+                    ExtraRow(CenterPad(), ExtraAngle(), ExtraZoom(), SpaceField());
                     break;
 
                 case ZuiFill.Mode.Radial:
                     AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
-                    ExtraRow(CenterPad(), ExtraZoom());
+                    ExtraRow(CenterPad(), ExtraZoom(), SpaceField());
                     break;
             }
         }
@@ -135,14 +135,15 @@ namespace Laubrary.Zui
                     var obj = Z.Object<Sprite>(_fill.textureSprite, sprTip,
                         v => Mutate(() => _fill.textureSprite = v), Mathf.Min(_opt.controlWidth, 150f));
                     AddHeaderRow(_label, obj);
-                    ExtraRow(TintColor("Tint", "Multiplies the sprite's colours (alpha too). White = the sprite's raw colours."));
+                    ExtraRow(TintColor("Tint", "Multiplies the sprite's colours (alpha too). White = the sprite's raw colours."),
+                        SpaceField());
                     break;
                 }
 
                 case ZuiFill.TextureKind.Noise:
                 {
                     AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
-                    ExtraRow(NoiseKindField(), ExtraZoom(), CenterPad());
+                    ExtraRow(NoiseKindField(), ExtraZoom(), CenterPad(), SpaceField());
                     break;
                 }
 
@@ -159,7 +160,8 @@ namespace Laubrary.Zui
                             v => _fill.gridLineWidth = Mathf.Clamp01(v)));
                     ExtraRow(
                         Toggle("Vert", "Draw the vertical lines.", _fill.gridVertical, v => _fill.gridVertical = v),
-                        Toggle("Horiz", "Draw the horizontal lines.", _fill.gridHorizontal, v => _fill.gridHorizontal = v));
+                        Toggle("Horiz", "Draw the horizontal lines.", _fill.gridHorizontal, v => _fill.gridHorizontal = v),
+                        SpaceField());
                     break;
                 }
 
@@ -173,7 +175,8 @@ namespace Laubrary.Zui
                         Scrub("Space", "Cell size in the fill's local units (the -1..1 box is 2 units across).",
                             _fill.dotSpacing, v => _fill.dotSpacing = Mathf.Max(1e-4f, v)),
                         Toggle("Stagger", "Offset alternate rows by half a cell (a brick / hex pattern).",
-                            _fill.dotStagger, v => _fill.dotStagger = v));
+                            _fill.dotStagger, v => _fill.dotStagger = v),
+                        SpaceField());
                     break;
                 }
             }
@@ -246,6 +249,23 @@ namespace Laubrary.Zui
                 + "All three map through the gradient.";
             var d = Z.EnumDropdown(_fill.noiseKind, tip, v => Mutate(() => _fill.noiseKind = v), 74f);
             return Z.Field("Kind", tip, d);
+        }
+
+        static readonly string[] SpaceLabels = { "Stamped", "Fixed" };
+
+        // The fill's coordinate SPACE (see ZuiFill.FillSpace) — shown only for the SPATIAL kinds (Linear / Radial
+        // gradients and every texture); a Solid / Over-life fill ignores (u,v), so it never appears there. Stamped
+        // (the default) locks the pattern to the SHAPE (it rotates / spins / travels WITH it); Fixed pins it to the
+        // CANVAS, so the shape moves THROUGH a stationary pattern (a mask / window). Labelled "Anchor", NOT "Space",
+        // to avoid colliding with the Grid/Dots cell-spacing scrub that is already captioned "Space".
+        VisualElement SpaceField()
+        {
+            const string tip = "Where the pattern is anchored. Stamped = it sticks to the shape and rotates / spins / "
+                + "travels WITH it (stamped on). Fixed = it's pinned to the canvas, so the shape slides THROUGH a "
+                + "stationary pattern (a mask/window). Only affects spatial gradients and textures.";
+            var seg = Z.Segmented((int)_fill.space, SpaceLabels, tip,
+                v => Mutate(() => _fill.space = (ZuiFill.FillSpace)v));
+            return Z.Field("Anchor", tip, seg);
         }
 
         // A colour field bound to _fill.color (the Solid swatch / Sprite tint / Grid+Dots ink). `caption` null =

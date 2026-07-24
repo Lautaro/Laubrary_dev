@@ -37,6 +37,15 @@ public class ZuiFill
     // ridges). Steps = floor(t·4)/3 (a 4-band posterization). All three then map through `gradient`.
     public enum NoiseKind { Value, Ridged, Steps }
 
+    // Where a SPATIAL fill (Linear / Radial) or a TEXTURE (sprite / noise / grid / dots) is ANCHORED — i.e. the
+    // coordinate space the CONSUMER feeds its (u,v) in. Stamped (the default) = the shape's OWN local coords, so
+    // the pattern rotates / spins / travels WITH the shape (stamped onto it). Fixed = canvas-anchored coords, so
+    // the shape moves THROUGH a stationary pattern that stays put on the canvas (mask-like — the shape becomes a
+    // window onto a fixed backdrop). This is plain paint DATA: ZuiFill never sees the coordinates, so the consumer
+    // decides what "local" vs "canvas" mean and passes the right (u,v). A non-spatial fill (Solid / OverLife)
+    // ignores it entirely (Evaluate never reads (u,v) in those modes).
+    public enum FillSpace { Stamped, Fixed }
+
     // ── fill ──────────────────────────────────────────────────────────────────────────
     public Mode mode = Mode.Solid;
     public Color color = Color.white;   // Solid — alpha-capable like every mode; also the Sprite tint / Grid+Dots ink
@@ -47,6 +56,10 @@ public class ZuiFill
     // THROUGH this point (the projection is of (uv − center)). Radial: the gradient's middle sits here, so it
     // drifts off-centre toward a border. Default (0,0) is an exact no-op reproducing v1's arithmetic byte-for-byte.
     public Vector2 center = Vector2.zero;
+    // Coordinate space for the spatial modes (Linear / Radial) AND every texture (see FillSpace). Default Stamped
+    // reproduces v1 exactly — the consumer feeds shape-local (u,v). Fixed asks the consumer to feed canvas-anchored
+    // (u,v) instead, so the pattern stays put while the shape moves through it. Solid / OverLife ignore it.
+    public FillSpace space = FillSpace.Stamped;
 
     // ── texture (replaces the fill when != None) ────────────────────────────────────────
     public TextureKind texture = TextureKind.None;

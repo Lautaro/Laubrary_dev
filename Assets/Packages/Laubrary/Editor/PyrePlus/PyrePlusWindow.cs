@@ -377,8 +377,13 @@ namespace Laubrary.PyrePlus.Editor
                 Z.Field("PPU", "Pixels per unit for the baked sprite.",
                     Z.Float(s.pixelsPerUnit, "Pixels per unit.", v => Dirty(() => s.pixelsPerUnit = Mathf.Max(1f, v)), 60f))));
             box.Add(WrapRow(
-                Z.Field("Frames", "How many frames the animation bakes to.",
-                    Z.SliderInt(s.frameCount, 1, 64, "Frame count.", v => Dirty(() => s.frameCount = v), 150f)),
+                // Frames is a label-inside int MicroSlider (NOT a thumbed SliderInt): a thumbed slider here read as a
+                // frame scrubber and the user kept grabbing it by mistake. The transport's frame SCRUBBER stays a
+                // thumbed Z.SliderInt on purpose (Pyre1 parity) — this "how many frames to bake" count does not.
+                Z.MicroSlider("Frames", s.frameCount, 1f, 64f,
+                    "How many frames the animation bakes to.",
+                    v => Dirty(() => s.frameCount = Mathf.Clamp(Mathf.RoundToInt(v), 1, 64)), 150f,
+                    showValue: true, decimals: 0),
                 Z.Field("Seed", "Random seed — every particle's randomness derives from it.",
                     Z.Int(s.seed, "Random seed.", v => Dirty(() => s.seed = v), 70f))));
             box.Add(BackgroundFillRow(s));
@@ -795,23 +800,41 @@ namespace Laubrary.PyrePlus.Editor
             box.ToggleGroup("Lines", "Lines");
             box.ToggleGroup("Glow", "Glow");
 
-            box.Add(Z.Divider("Light", "The single key light: where it sits and how the facets respond."));
-            box.Add(box.Toggleable(WrapRow(
-                Z.MicroSlider("Light yaw", s.gemLightYaw, -180f, 180f,
-                    "Direction the key light comes FROM, left/right, in degrees.",
-                    v => Dirty(() => s.gemLightYaw = v), 150f, showValue: true),
-                Z.MicroSlider("Light pitch", s.gemLightPitch, 0f, 85f,
-                    "Height of the key light above the horizon, in degrees.",
-                    v => Dirty(() => s.gemLightPitch = v), 150f, showValue: true)),
+            box.Add(Z.Divider("Light",
+                "The single KEY light and how the surfaces respond to it. The key light is DIRECTIONAL — aim it with "
+                + "the pad; Ambient is a separate non-directional base light. The edge Lines and the Glows have their "
+                + "OWN strengths and do NOT obey this light."));
+            // Light DIRECTION as one 2D pad (yaw × pitch) — a plain-Vector2 Z.Pad, so dragging aims the key light in
+            // one gesture instead of two separate 1D sliders. X = yaw (gemLightYaw, −180..180), Y = pitch
+            // (gemLightPitch, 0..85). Kept under the same "solid.light.angles" view key as the old angle sliders.
+            const string lightDirTip = "The key light is DIRECTIONAL — drag the pad to aim it. X = yaw (which side it "
+                + "comes FROM, left/right, −180..180°); Y = pitch (its height above the horizon, 0..85°). Only the lit "
+                + "faces and the specular hotspot follow it — the Lines and Glows have their own strengths and do NOT "
+                + "obey the light.";
+            box.Add(box.Toggleable(
+                Z.Field("Light dir", lightDirTip,
+                    Z.Pad(new Vector2(s.gemLightYaw, s.gemLightPitch), new Rect(-180f, 0f, 360f, 85f), lightDirTip,
+                        v => Dirty(() => { s.gemLightYaw = v.x; s.gemLightPitch = v.y; }), 56f)),
                 "solid.light.angles", "Angle", "Light"));
             box.Add(box.Toggleable(WrapRow(
                 Z.MicroSlider("Ambient", s.gemAmbient, 0f, 1f,
-                    "Fill light on faces turned away from the key — near zero keeps the solid contrasty.",
+                    "Non-directional BASE light on every face (it doesn't come from a direction). Near zero keeps the "
+                    + "solid contrasty; raise it to flatten the shading.",
                     v => Dirty(() => s.gemAmbient = v), 150f, showValue: true),
+                Z.MicroSlider("Diffuse", s.gemDiffuse, 0f, 3f,
+                    "The key light's DIFFUSE strength on the faces it hits (the Lambert term). 0 = only Ambient + "
+                    + "Specular light the faces; 2.1 is the default look. This is the dial that was missing — with it "
+                    + "at 0 and Ambient/Specular at 0 the faces finally go dark instead of staying diffuse-lit.",
+                    v => Dirty(() => s.gemDiffuse = v), 150f, showValue: true),
                 Z.MicroSlider("Specular", s.gemSpecular, 0f, 2f,
-                    "Strength of the Blinn-Phong highlight (the bright hot spot).",
+                    "Strength of the tight highlight (the bright hot spot) where the key light reflects — pair it with "
+                    + "Spec power for the hotspot's tightness.",
                     v => Dirty(() => s.gemSpecular = v), 150f, showValue: true),
-                SlotFill("Spec fill", "Fill for the Blinn-Phong highlight — Solid, or a gradient/spatial fill (alpha-capable).",
+                Z.MicroSlider("Spec power", s.gemSpecPower, 2f, 128f,
+                    "TIGHTNESS of the specular hotspot — higher = a smaller, sharper glint; lower spreads it into a "
+                    + "broad sheen. (The old fixed 48 was so tight the highlight rarely showed — lower it to see it.)",
+                    v => Dirty(() => s.gemSpecPower = v), 150f, showValue: true),
+                SlotFill("Spec fill", "Fill for the specular highlight — Solid, or a gradient/spatial fill (alpha-capable).",
                     s.gemSpecularFill)),
                 "solid.light.response", "Response", "Light"));
 
