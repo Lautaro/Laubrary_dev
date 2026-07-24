@@ -139,7 +139,7 @@ namespace Laubrary.PyrePlus.Editor
             RebuildShape();
         }
 
-        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite" };
+        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can" };
 
         void RebuildShape()
         {
@@ -149,26 +149,28 @@ namespace Laubrary.PyrePlus.Editor
 
             s.alpha ??= new ZUIValue(1f);
 
-            // FORM selector — Disc / Gem / Crescent / Sparkle / Sprite. A Dropdown, NOT a 5-wide Segmented row:
-            // five content-sized segments (ZuiSegmented is flex-shrink:0 and never wraps) would total ~330px and
-            // risk overflowing the 360px pane into a horizontal scrollbar (ui-layout-rules: "A horizontal
-            // scrollbar is a smell"); this also matches the Swarm section's own 5-6-item shape-kind Dropdown.
-            // Rebuild so the form-specific rows swap in/out.
+            // FORM selector — Disc / Gem / Crescent / Sparkle / Sprite / Box / Pyramid / Can. A Dropdown, NOT an
+            // 8-wide Segmented row: content-sized segments (ZuiSegmented is flex-shrink:0 and never wraps) would
+            // overflow the 360px pane into a horizontal scrollbar (ui-layout-rules: "A horizontal scrollbar is a
+            // smell"); this also matches the Swarm section's own shape-kind Dropdown. Rebuild so the form-specific
+            // rows swap in/out.
             shapeBody.Add(Z.Field("Form", "The particle's rendered form.",
                 Z.Dropdown((int)s.shapeForm, ShapeFormChoices,
                     "Disc = a flat soft disc. Gem = a true-3D lit crystal. Crescent = a disc with an offset bite. "
-                    + "Sparkle = twinkling lit cells. Sprite = a stamped image.",
+                    + "Sparkle = twinkling lit cells. Sprite = a stamped image. Box / Pyramid / Can = true-3D lit "
+                    + "solids sharing the Gem's facet lighting (tilt, light, edge lines, glows).",
                     v => { Dirty(() => s.shapeForm = (ShapeForm)v); RebuildShape(); }, 150f)));
 
             // Shared rows (all forms). For the Gem, Colour is its material tint and Size is its girdle radius;
             // for the Sprite, Colour is the optional tint. Size is the radius the form scales to in every case.
             shapeBody.Add(Z.Field("Colour",
-                "Colour over the particle's life (0 = birth, 1 = death). For the Gem form this is the crystal's "
-                + "material tint — a blue gradient reads as a sapphire.",
+                "Colour over the particle's life (0 = birth, 1 = death). For the 3D solid forms (Gem/Box/Pyramid/"
+                + "Can) this is the material tint — a blue gradient reads as a sapphire.",
                 GradientField("Colour", () => s.colorOverLife, g => Dirty(() => s.colorOverLife = g))));
             shapeBody.Add(Val("Alpha", "Opacity over the particle's own life (multiplies the final output alpha).", s.alpha, 0f, 1f));
             shapeBody.Add(Val("Size (px)",
-                "Radius in pixels over the particle's own life. For the Gem form this is its girdle radius.",
+                "Radius in pixels over the particle's own life. For the 3D solid forms it is the base size R that "
+                + "Aspect / Depth (or the Gem's Crown / Pavilion) scale from.",
                 s.size, 0f, 32f));
 
             // Form-specific rows. Edge softness applies to Disc (its rim) and Crescent (BOTH rims); Gem/Sparkle/
@@ -177,7 +179,10 @@ namespace Laubrary.PyrePlus.Editor
             switch (s.shapeForm)
             {
                 case ShapeForm.Gem:
-                    BuildGemBox(s);
+                case ShapeForm.Box:
+                case ShapeForm.Pyramid:
+                case ShapeForm.Can:
+                    BuildSolidBox(s);
                     break;
                 case ShapeForm.Disc:
                     shapeBody.Add(EdgeRow(s, "Soft rim (1) vs a hard pixel edge (0)."));
@@ -215,39 +220,66 @@ namespace Laubrary.PyrePlus.Editor
                 "Degrees the particle rotates over its own life. DISC / SPARKLE form: pixels spin IN PLACE (2D) — a "
                 + "plain disc or an even sparkle field is radially symmetric so it shows little (add a geometry/"
                 + "texture Modifier so the disc's spin reads). CRESCENT: rotates the whole crescent, on top of its "
-                + "own bite Angle. SPRITE: rotates the stamped image. GEM: the gem's 3D YAW about its vertical axis, "
-                + "turning the crystal so its facets sweep past the light. (The pseudo-3D tilt lives on the Swarm "
-                + "shape transform, not here.)",
+                + "own bite Angle. SPRITE: rotates the stamped image. GEM / BOX / PYRAMID / CAN (3D solids): the "
+                + "solid's 3D YAW about its vertical axis, turning it so its facets sweep past the light. (The "
+                + "pseudo-3D tilt lives on the Swarm shape transform, not here.)",
                 s.particleSpin, -720f, 720f));
         }
 
-        // The Gem form's controls — one framed box inside the Shape body, shown only when Form == Gem. Colour,
-        // Alpha and Size stay above (shared); this box adds the gem-specific geometry, lighting, lines and glows.
-        // All plain sliders are label-inside MicroSliders; the two glows are animatable ZUIValues (Val).
-        void BuildGemBox(PyrePlusSpec s)
+        // The 3D-solid controls — one framed box inside the Shape body, shown for Gem / Box / Pyramid / Can (all
+        // true-3D convex facet solids sharing one renderer). Colour, Alpha and Size stay above (shared); this box
+        // adds the per-form geometry then the SHARED tilt / lighting / lines / glows every 3D solid uses. Titled
+        // "Solid" (not "Gem") since it now serves four forms. All plain sliders are label-inside MicroSliders; the
+        // two glows are animatable ZUIValues (Val), each packed with its own colour; Specular packs with its colour.
+        void BuildSolidBox(PyrePlusSpec s)
         {
             s.gemTilt ??= new ZUIValue(18f);
             s.gemEdgeGlow ??= new ZUIValue(0.5f);     // defensive; the real anti-phase defaults come from the spec factories
             s.gemInnerGlow ??= new ZUIValue(0.5f);
 
-            var box = Z.Box("Gem", "A true-3D faceted crystal lit per-pixel, with light-catching hard edge lines "
-                + "and two staggered glows. Its material colour is the shared Colour above (a blue gradient = a "
-                + "sapphire); its radius is the shared Size.");
+            var box = Z.Box("Solid", "A true-3D convex facet solid lit per-pixel, with light-catching hard edge "
+                + "lines and two staggered glows. Its material colour is the shared Colour above (a blue gradient = "
+                + "a sapphire); its base size is the shared Size. Gem = an octahedral crystal; Box / Pyramid / Can = "
+                + "a cuboid / square pyramid / cylinder.");
 
-            box.Add(Z.MicroSlider("Sides", s.gemSides, 3f, 8f,
-                "Girdle vertex count — 4 is the classic octahedral gem; more sides make a rounder crystal.",
-                v => Dirty(() => s.gemSides = Mathf.Clamp(Mathf.RoundToInt(v), 3, 8)), 150f, showValue: true, decimals: 0));
+            // ── per-form geometry ──
+            if (s.shapeForm == ShapeForm.Gem)
+            {
+                box.Add(Z.MicroSlider("Sides", s.gemSides, 3f, 8f,
+                    "Girdle vertex count — 4 is the classic octahedral gem; more sides make a rounder crystal.",
+                    v => Dirty(() => s.gemSides = Mathf.Clamp(Mathf.RoundToInt(v), 3, 8)), 150f, showValue: true, decimals: 0));
 
-            box.Add(WrapRow(
-                Z.MicroSlider("Crown", s.gemCrown, 0.2f, 2.5f,
-                    "Crown height (the top point) as a fraction of the gem's radius.",
-                    v => Dirty(() => s.gemCrown = v), 150f, showValue: true),
-                Z.MicroSlider("Pavilion", s.gemPavilion, 0.2f, 2.5f,
-                    "Pavilion depth (the bottom point) as a fraction of the gem's radius.",
-                    v => Dirty(() => s.gemPavilion = v), 150f, showValue: true)));
+                box.Add(WrapRow(
+                    Z.MicroSlider("Crown", s.gemCrown, 0.2f, 2.5f,
+                        "Crown height (the top point) as a fraction of the gem's radius.",
+                        v => Dirty(() => s.gemCrown = v), 150f, showValue: true),
+                    Z.MicroSlider("Pavilion", s.gemPavilion, 0.2f, 2.5f,
+                        "Pavilion depth (the bottom point) as a fraction of the gem's radius.",
+                        v => Dirty(() => s.gemPavilion = v), 150f, showValue: true)));
+            }
+            else
+            {
+                // Box / Pyramid / Can — Aspect (height) always applies. Depth (front-to-back) applies to Box and
+                // Pyramid; the Can is a circular cross-section, so its Depth is meaningless — HIDDEN rather than
+                // shown-disabled (a dead control is clutter per the layout rules), leaving Aspect alone.
+                var geo = new List<VisualElement>
+                {
+                    Z.MicroSlider("Aspect", s.solidAspect, 0.3f, 3f,
+                        "Height as a fraction of width (1 = as tall as wide). Box height, Pyramid apex height, Can "
+                        + "height.",
+                        v => Dirty(() => s.solidAspect = v), 150f, showValue: true),
+                };
+                if (s.shapeForm != ShapeForm.Can)
+                    geo.Add(Z.MicroSlider("Depth", s.solidDepth, 0.2f, 2f,
+                        "Depth (front-to-back) as a fraction of width. Box: its third dimension; Pyramid: its base "
+                        + "front-to-back (1 = the square base).",
+                        v => Dirty(() => s.solidDepth = v), 150f, showValue: true));
+                box.Add(WrapRow(geo.ToArray()));
+            }
 
+            // ── shared: tilt / light / lines / glows (every 3D solid) ──
             box.Add(Val("Tilt °",
-                "World tilt about the horizontal axis, in degrees, over the particle's OWN life — tips the gem "
+                "World tilt about the horizontal axis, in degrees, over the particle's OWN life — tips the solid "
                 + "toward/away from the viewer so its facets catch the light differently.",
                 s.gemTilt, -1440f, 1440f));
 
@@ -261,11 +293,14 @@ namespace Laubrary.PyrePlus.Editor
                     v => Dirty(() => s.gemLightPitch = v), 150f, showValue: true)));
             box.Add(WrapRow(
                 Z.MicroSlider("Ambient", s.gemAmbient, 0f, 1f,
-                    "Fill light on faces turned away from the key — near zero keeps the gem contrasty.",
+                    "Fill light on faces turned away from the key — near zero keeps the solid contrasty.",
                     v => Dirty(() => s.gemAmbient = v), 150f, showValue: true),
                 Z.MicroSlider("Specular", s.gemSpecular, 0f, 2f,
                     "Strength of the Blinn-Phong highlight (the bright hot spot).",
-                    v => Dirty(() => s.gemSpecular = v), 150f, showValue: true)));
+                    v => Dirty(() => s.gemSpecular = v), 150f, showValue: true),
+                Z.Field("Spec colour", "Tint of the Blinn-Phong highlight.",
+                    Z.Color(s.gemSpecularColor, "Tint of the Blinn-Phong highlight.",
+                        c => Dirty(() => s.gemSpecularColor = c), 60f, showAlpha: false))));
 
             box.Add(Z.Divider("Lines", "The hard facet edge lines that catch the light."));
             box.Add(WrapRow(
@@ -276,17 +311,25 @@ namespace Laubrary.PyrePlus.Editor
                     Z.Color(s.gemLineColor, "Colour of the facet edge lines.",
                         c => Dirty(() => s.gemLineColor = c), 60f, showAlpha: false))));
 
-            box.Add(Z.Divider("Glow", "Two staggered glows, anti-phase by default."));
-            box.Add(Val("Edge glow",
-                "Strength (0-1) of the white halo around the edge lines, over the particle's OWN life; it spills "
-                + "OUTSIDE the gem's silhouette. Default: two anti-phase pulses (it peaks while the inner glow "
-                + "rests) — reshape freely.",
-                s.gemEdgeGlow, 0f, 1f));
-            box.Add(Val("Inner glow",
-                "Strength (0-1) of the emissive glow rising from the facet interiors, over the particle's OWN "
-                + "life; interior only. Default: two anti-phase pulses (it peaks while the edge glow rests) — "
-                + "reshape freely.",
-                s.gemInnerGlow, 0f, 1f));
+            box.Add(Z.Divider("Glow", "Two staggered glows, anti-phase by default — each with its own tint."));
+            box.Add(WrapRow(
+                Val("Edge glow",
+                    "Strength (0-1) of the halo around the edge lines, over the particle's OWN life; it spills "
+                    + "OUTSIDE the solid's silhouette. Default: two anti-phase pulses (it peaks while the inner glow "
+                    + "rests) — reshape freely.",
+                    s.gemEdgeGlow, 0f, 1f),
+                Z.Field("Edge colour", "Tint of the edge-line halo glow.",
+                    Z.Color(s.gemEdgeGlowColor, "Tint of the edge-line halo glow.",
+                        c => Dirty(() => s.gemEdgeGlowColor = c), 60f, showAlpha: false))));
+            box.Add(WrapRow(
+                Val("Inner glow",
+                    "Strength (0-1) of the emissive glow rising from the facet interiors, over the particle's OWN "
+                    + "life; interior only. Default: two anti-phase pulses (it peaks while the edge glow rests) — "
+                    + "reshape freely.",
+                    s.gemInnerGlow, 0f, 1f),
+                Z.Field("Inner colour", "Tint of the facet inner glow.",
+                    Z.Color(s.gemInnerGlowColor, "Tint of the facet inner glow.",
+                        c => Dirty(() => s.gemInnerGlowColor = c), 60f, showAlpha: false))));
 
             shapeBody.Add(box);
         }

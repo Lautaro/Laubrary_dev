@@ -516,12 +516,15 @@ namespace Laubrary.PyrePlus
                                  PyrePlusSpec spec, int particleIndex, in ModSet mods, float phase, int frameIndex,
                                  float sizeMul = 1f, float brightMul = 1f)
         {
-            // Gem FORM branches FIRST, before any Disc arithmetic below, so the Disc path stays textually
-            // untouched and its output byte-identical (the orchestrator hash-gates Disc). `life` here IS the
-            // particle's own life clock in both callers (blast life for the single particle, `own` for a swarm one).
-            if (spec.shapeForm == ShapeForm.Gem)
+            // The true-3D facet SOLIDS (Gem + Box/Pyramid/Can) branch FIRST, before any Disc arithmetic below, so
+            // the Disc path stays textually untouched and its output byte-identical (the orchestrator hash-gates
+            // Disc). All four share DrawFacetSolid — same rotation, lighting, edge lines and glows — differing only
+            // in their model verts / faces / which edges are lines. `life` here IS the particle's own life clock in
+            // both callers (blast life for the single particle, `own` for a swarm one).
+            if (spec.shapeForm == ShapeForm.Gem || spec.shapeForm == ShapeForm.Box ||
+                spec.shapeForm == ShapeForm.Pyramid || spec.shapeForm == ShapeForm.Can)
             {
-                DrawGem(buf, W, H, cx, cy, life, spec, particleIndex, mods, frameIndex, sizeMul, brightMul);
+                DrawFacetSolid(buf, W, H, cx, cy, life, spec, particleIndex, mods, frameIndex, sizeMul, brightMul);
                 return;
             }
 
@@ -970,20 +973,24 @@ namespace Laubrary.PyrePlus
             return (h & 0x00FFFFFFu) / 16777216f;   // top of the 24-bit mantissa → [0,1)
         }
 
-        // ── Gem form ─────────────────────────────────────────────────────────────────
-        // A true-3D faceted crystal, ported faithfully from the approved Diamond3DProbe and generalized to n
-        // girdle sides. Octahedral solid (crown fan + pavilion fan + n-gon girdle), convex ⇒ backface culling
-        // ONLY (no depth sort). Per-pixel realistic lighting: one point light (position derived from the gem's
-        // light angles), near-zero ambient, Blinn-Phong specular; hard 1px facet edge lines that catch the light;
-        // an edge-halo glow that spills OUTSIDE the silhouette and a facet inner glow, the two pulsing in
-        // anti-phase by default. Every pixel composites into the swarm buffer through Over (unlike the prototype's
-        // opaque background). Determinism unchanged: pure static math, every value funnelled through Eval/Hash.
+        // ── 3D facet solids (Gem / Box / Pyramid / Can) ──────────────────────────────
+        // ONE renderer for every true-3D convex facet solid, generalized out of the approved gem prototype
+        // (Diamond3DProbe). It differs per FORM only in (model verts, faces, which edges draw as lines) — supplied
+        // by the Build*Geometry helpers below; EVERYTHING else (rotation, backface cull, per-pixel point light +
+        // Blinn-Phong, hard edge lines, halo + inner glow, ApplyPix, Over) is shared and unchanged. Convex ⇒
+        // backface culling ONLY (no depth sort). Determinism unchanged: pure static math through Eval/Hash. Every
+        // pixel composites into the swarm buffer through Over.
+        //
+        // GEM BYTE-IDENTITY: BuildGemGeometry reproduces the prototype's model/faces verbatim and passes
+        // lineEdges == null (every edge is a line — the gem's original behaviour), so a Gem renders exactly as the
+        // old DrawGem did (the orchestrator hash-gates Gem). Box/Pyramid/Can supply their own verts/faces and an
+        // explicit line-edge set that excludes quad diagonals / barrel seams / cap spokes.
         //
         // Signature extends the design's listed one with `in ModSet mods, int frameIndex` because the design's own
-        // body mandates running the PixelModifiers per lit gem pixel (which need them). GEOMETRY modifiers are
-        // deliberately NOT applied to the gem in this slice — a 3D-consistent warp fold is its own problem; post
+        // body mandates running the PixelModifiers per lit pixel (which need them). GEOMETRY modifiers are
+        // deliberately NOT applied to the solids in this slice — a 3D-consistent warp fold is its own problem; post
         // modifiers still hit the finished buffer later in ApplyPost, unchanged.
-        static void DrawGem(Color32[] buf, int W, int H, float cx, float cy, float own,
+        static void DrawFacetSolid(Color32[] buf, int W, int H, float cx, float cy, float own,
                             PyrePlusSpec spec, int particleIndex, in ModSet mods, int frameIndex,
                             float sizeMul, float brightMul)
         {
@@ -1005,26 +1012,19 @@ namespace Laubrary.PyrePlus
                 cy += Eval(spec.particlePathY, own, spec.seed, particleIndex, FldPathY);
             }
 
-            int n = Mathf.Clamp(spec.gemSides, 3, 8);
-            float crownH = R * spec.gemCrown;
-            float pavD = R * spec.gemPavilion;
-
-            // Model: n girdle verts (index 0..n-1) at PI/2 + 2πk/n scaled R, crown apex (n) above, pavilion apex
-            // (n+1) below. y is up, +z toward the viewer after rotation.
-            var model = new Vector3[n + 2];
-            for (int k = 0; k < n; k++)
+            // Model (y up, +z toward the viewer after rotation), triangle faces, and the LINE-edge set — all three
+            // supplied per form. lineEdges == null means "every edge is a line" (Gem). See the Build*Geometry
+            // helpers at the bottom of the class.
+            Vector3[] model;
+            int[][] faces;
+            HashSet<int> lineEdges;
+            switch (spec.shapeForm)
             {
-                float a = Mathf.PI * 0.5f + 2f * Mathf.PI * k / n;
-                model[k] = new Vector3(R * Mathf.Cos(a), 0f, R * Mathf.Sin(a));
+                case ShapeForm.Box:     BuildBoxGeometry(spec, R, out model, out faces, out lineEdges); break;
+                case ShapeForm.Pyramid: BuildPyramidGeometry(spec, R, out model, out faces, out lineEdges); break;
+                case ShapeForm.Can:     BuildCanGeometry(spec, R, out model, out faces, out lineEdges); break;
+                default:                BuildGemGeometry(spec, R, out model, out faces, out lineEdges); break;
             }
-            model[n] = new Vector3(0f, crownH, 0f);
-            model[n + 1] = new Vector3(0f, -pavD, 0f);
-
-            // Faces (generalize the prototype's `& 3` → `% n`): n crown triangles apexT+girdle(i,i+1), then n
-            // pavilion triangles apexB+girdle(i+1,i). Outward winding is fixed per face by the centroid test below.
-            var faces = new int[2 * n][];
-            for (int i = 0; i < n; i++) faces[i] = new[] { n, i, (i + 1) % n };
-            for (int i = 0; i < n; i++) faces[n + i] = new[] { n + 1, (i + 1) % n, i };
 
             // Rotation: yaw about Y first (the gem's 3D yaw = particleSpin on its own life), then the world tilt
             // about X (gemTilt on its own life) — exactly the prototype's Rot, +z toward the viewer.
@@ -1037,22 +1037,23 @@ namespace Laubrary.PyrePlus
                 var q = new Vector3(p.x * cyw + p.z * syw, p.y, -p.x * syw + p.z * cyw);
                 return new Vector3(q.x, q.y * ct - q.z * st, q.y * st + q.z * ct);
             }
-            var verts = new Vector3[n + 2];
-            for (int k = 0; k < n + 2; k++) verts[k] = Rot(model[k]);
+            var verts = new Vector3[model.Length];
+            for (int k = 0; k < model.Length; k++) verts[k] = Rot(model[k]);
 
             // Visible faces: outward normal (flip vs centroid so the origin-inside-the-solid convention holds),
             // then backface cull n.z <= 0. Convex + culled ⇒ front faces tile the silhouette with no overlap.
-            var visA = new Vector2[2 * n];   // screen triangle (centered coords: vertex.xy)
-            var visB = new Vector2[2 * n];
-            var visC = new Vector2[2 * n];
-            var visP0 = new Vector3[2 * n];  // the three 3D verts, for the barycentric world point
-            var visP1 = new Vector3[2 * n];
-            var visP2 = new Vector3[2 * n];
-            var visNrm = new Vector3[2 * n];
+            var visA = new Vector2[faces.Length];   // screen triangle (centered coords: vertex.xy)
+            var visB = new Vector2[faces.Length];
+            var visC = new Vector2[faces.Length];
+            var visP0 = new Vector3[faces.Length];  // the three 3D verts, for the barycentric world point
+            var visP1 = new Vector3[faces.Length];
+            var visP2 = new Vector3[faces.Length];
+            var visNrm = new Vector3[faces.Length];
             int visCount = 0;
-            // Unique visible edges (screen segments) for the hard line pass, deduped by vertex pair.
-            var edgeA = new Vector2[3 * n];
-            var edgeB = new Vector2[3 * n];
+            // Unique visible LINE edges (screen segments) for the hard line pass, deduped by vertex pair. Sized to
+            // the loose upper bound of 3 edges per face; only the line edges are actually stored.
+            var edgeA = new Vector2[3 * faces.Length];
+            var edgeB = new Vector2[3 * faces.Length];
             int edgeCount = 0;
             var seenEdge = new HashSet<int>();
             for (int fi = 0; fi < faces.Length; fi++)
@@ -1075,6 +1076,11 @@ namespace Laubrary.PyrePlus
                     int i0 = f[e], i1 = f[(e + 1) % 3];
                     int key = i0 < i1 ? i0 * 64 + i1 : i1 * 64 + i0;
                     if (!seenEdge.Add(key)) continue;
+                    // lineEdges == null ⇒ every edge is a line (Gem's original behaviour, byte-identical). A non-
+                    // null set names the LINE edges only, so quad diagonals / barrel seams / cap spokes are skipped
+                    // — they neither draw a hard line nor seed the inner glow, which measures distance to this same
+                    // edge set (so faces glow from their real borders, not phantom internal diagonals).
+                    if (lineEdges != null && !lineEdges.Contains(key)) continue;
                     edgeA[edgeCount] = new Vector2(verts[i0].x, verts[i0].y);
                     edgeB[edgeCount] = new Vector2(verts[i1].x, verts[i1].y);
                     edgeCount++;
@@ -1089,9 +1095,14 @@ namespace Laubrary.PyrePlus
             Vector3 lightPos = new Vector3(lhoriz * Mathf.Sin(lyaw), ldist * Mathf.Sin(lpitch), lhoriz * Mathf.Cos(lyaw));
             float lrange = 4.7f * R, lrange2 = lrange * lrange;
             Vector3 viewDir = new Vector3(0f, 0f, 1f);
-            Color specColor = new Color(0.9f, 0.95f, 1f);   // cool specular tint (prototype)
-            Color innerColor = new Color(0.35f, 0.60f, 1f); // inner-glow tint (prototype)
-            Color lineColor = spec.gemLineColor;
+            // Colours are now authorable spec fields (Part A). Defaults equal the old renderer constants, so a
+            // default solid is byte-identical. NOTE: the halo (edge glow) tint used to reuse lineColor; it is split
+            // off into gemEdgeGlowColor here — byte-identical only while gemLineColor sits at its default (which the
+            // hash-gated probes do), since gemEdgeGlowColor's default equals gemLineColor's default.
+            Color specColor = spec.gemSpecularColor;     // Blinn-Phong highlight tint (was new Color(0.9f, 0.95f, 1f))
+            Color innerColor = spec.gemInnerGlowColor;   // inner-glow tint (was new Color(0.35f, 0.60f, 1f))
+            Color lineColor = spec.gemLineColor;         // hard edge-line colour
+            Color edgeGlowColor = spec.gemEdgeGlowColor; // halo/edge-glow tint (was lineColor)
             float lineW = spec.gemLineWidth;
             float ambient = spec.gemAmbient, specStr = spec.gemSpecular;
 
@@ -1105,7 +1116,7 @@ namespace Laubrary.PyrePlus
             // Raster bounds: the screen bounding box of the rotated verts (centered coords), EXPANDED by haloR so
             // the outside halo isn't clipped, then to absolute pixels around (cx, cy).
             float minX = float.MaxValue, maxX = -float.MaxValue, minY = float.MaxValue, maxY = -float.MaxValue;
-            for (int k = 0; k < n + 2; k++)
+            for (int k = 0; k < verts.Length; k++)
             {
                 if (verts[k].x < minX) minX = verts[k].x;
                 if (verts[k].x > maxX) maxX = verts[k].x;
@@ -1170,7 +1181,7 @@ namespace Laubrary.PyrePlus
                     if (hasFace)
                     {
                         // Add the halo (both) and the inner glow (facet interiors, non-line) to the face RGB.
-                        fr += lineColor.r * haloAmt; fg += lineColor.g * haloAmt; fb += lineColor.b * haloAmt;
+                        fr += edgeGlowColor.r * haloAmt; fg += edgeGlowColor.g * haloAmt; fb += edgeGlowColor.b * haloAmt;
                         if (!isLine)
                         {
                             float core = Mathf.Pow(Mathf.Clamp01(edist / innerR), 1.4f);
@@ -1196,7 +1207,7 @@ namespace Laubrary.PyrePlus
                         // soft glow when composited through Over.
                         float pa = Mathf.Clamp01(haloAmt) * alphaEnv;
                         if (pa <= 0.002f) continue;
-                        float rr = Mathf.Clamp01(lineColor.r * brightMul), gg = Mathf.Clamp01(lineColor.g * brightMul), bb = Mathf.Clamp01(lineColor.b * brightMul);
+                        float rr = Mathf.Clamp01(edgeGlowColor.r * brightMul), gg = Mathf.Clamp01(edgeGlowColor.g * brightMul), bb = Mathf.Clamp01(edgeGlowColor.b * brightMul);
                         if (mods.AnyPix)
                         {
                             Color pc = new Color(rr, gg, bb, 1f);
@@ -1207,6 +1218,156 @@ namespace Laubrary.PyrePlus
                         else Over(buf, y * W + x, rr, gg, bb, pa);
                     }
                 }
+        }
+
+        // ── facet-solid geometry (model verts + triangle faces + LINE-edge set), one Build per form ──────────
+        // Convention shared by all four: y up, +z toward the viewer; origin strictly INSIDE the convex solid so
+        // DrawFacetSolid's centroid test resolves each face's outward normal. `lineEdges` names the edges that draw
+        // as hard lines AND seed the inner glow; null = every edge is a line (Gem only). Edge keys use the same
+        // `min*64 + max` packing DrawFacetSolid dedupes with (valid while every vertex index < 64 — true here: Gem
+        // ≤ 10, Box 8, Pyramid 5, Can 34).
+        static int EdgeKey(int i, int j) => i < j ? i * 64 + j : j * 64 + i;
+
+        // Gem: n girdle verts + a crown apex + a pavilion apex, VERBATIM from the original DrawGem so a Gem stays
+        // byte-identical. lineEdges == null ⇒ every visible facet boundary is a line (the gem's original look).
+        static void BuildGemGeometry(PyrePlusSpec spec, float R, out Vector3[] model, out int[][] faces, out HashSet<int> lineEdges)
+        {
+            int n = Mathf.Clamp(spec.gemSides, 3, 8);
+            float crownH = R * spec.gemCrown;
+            float pavD = R * spec.gemPavilion;
+
+            // Model: n girdle verts (index 0..n-1) at PI/2 + 2πk/n scaled R, crown apex (n) above, pavilion apex
+            // (n+1) below. y is up, +z toward the viewer after rotation.
+            model = new Vector3[n + 2];
+            for (int k = 0; k < n; k++)
+            {
+                float a = Mathf.PI * 0.5f + 2f * Mathf.PI * k / n;
+                model[k] = new Vector3(R * Mathf.Cos(a), 0f, R * Mathf.Sin(a));
+            }
+            model[n] = new Vector3(0f, crownH, 0f);
+            model[n + 1] = new Vector3(0f, -pavD, 0f);
+
+            // Faces (generalize the prototype's `& 3` → `% n`): n crown triangles apexT+girdle(i,i+1), then n
+            // pavilion triangles apexB+girdle(i+1,i). Outward winding is fixed per face by the centroid test.
+            faces = new int[2 * n][];
+            for (int i = 0; i < n; i++) faces[i] = new[] { n, i, (i + 1) % n };
+            for (int i = 0; i < n; i++) faces[n + i] = new[] { n + 1, (i + 1) % n, i };
+            lineEdges = null;   // every edge is a line edge — the gem's original behaviour
+        }
+
+        // Box: a real cuboid — half-extents (R, R·solidAspect, R·solidDepth). 8 shared verts, 6 quads → 12 tris.
+        // The genuinely-shared vertices are what make the silhouette CLOSE (the Bakery oblique-box bug was two
+        // faces extruded in different directions that never met — impossible here since all faces index the same
+        // 8 corners). Each quad's splitting diagonal is NON-line, so the line set is exactly the 12 cube edges.
+        static void BuildBoxGeometry(PyrePlusSpec spec, float R, out Vector3[] model, out int[][] faces, out HashSet<int> lineEdges)
+        {
+            float hx = R, hy = R * spec.solidAspect, hz = R * spec.solidDepth;
+            model = new[]
+            {
+                new Vector3(-hx, -hy, -hz), // 0
+                new Vector3( hx, -hy, -hz), // 1
+                new Vector3( hx,  hy, -hz), // 2
+                new Vector3(-hx,  hy, -hz), // 3
+                new Vector3(-hx, -hy,  hz), // 4
+                new Vector3( hx, -hy,  hz), // 5
+                new Vector3( hx,  hy,  hz), // 6
+                new Vector3(-hx,  hy,  hz), // 7
+            };
+            // Each quad is a coplanar face loop (v0,v1,v2,v3); winding is fixed by DrawFacetSolid's centroid test.
+            int[][] quads =
+            {
+                new[] { 0, 1, 2, 3 }, // -Z back
+                new[] { 4, 5, 6, 7 }, // +Z front
+                new[] { 0, 1, 5, 4 }, // -Y bottom
+                new[] { 3, 2, 6, 7 }, // +Y top
+                new[] { 0, 3, 7, 4 }, // -X left
+                new[] { 1, 2, 6, 5 }, // +X right
+            };
+            faces = new int[12][];
+            lineEdges = new HashSet<int>();
+            for (int q = 0; q < quads.Length; q++)
+            {
+                int a = quads[q][0], b = quads[q][1], c = quads[q][2], d = quads[q][3];
+                faces[q * 2]     = new[] { a, b, c };
+                faces[q * 2 + 1] = new[] { a, c, d };
+                // the four perimeter edges are cube edges (lines); the (a,c) diagonal is the seam (non-line).
+                lineEdges.Add(EdgeKey(a, b));
+                lineEdges.Add(EdgeKey(b, c));
+                lineEdges.Add(EdgeKey(c, d));
+                lineEdges.Add(EdgeKey(d, a));
+            }
+        }
+
+        // Pyramid: apex at (0, +R·solidAspect, 0), a rectangular base of half-width R (x) × R·solidDepth (z) at
+        // y = -R·solidAspect·0.35. 4 side tris + a base quad split into 2 tris (its diagonal non-line). At the
+        // default solidDepth == 1 the base is the square half-width-R base the design specifies; a non-default
+        // Depth stretches it front-to-back so the shown Depth control is live. Line set = 4 apex spokes + 4 base
+        // perimeter edges.
+        static void BuildPyramidGeometry(PyrePlusSpec spec, float R, out Vector3[] model, out int[][] faces, out HashSet<int> lineEdges)
+        {
+            float apexY = R * spec.solidAspect;
+            float baseY = -R * spec.solidAspect * 0.35f;
+            float hz = R * spec.solidDepth;
+            model = new[]
+            {
+                new Vector3(0f, apexY, 0f), // 0 apex
+                new Vector3(-R, baseY, -hz), // 1
+                new Vector3( R, baseY, -hz), // 2
+                new Vector3( R, baseY,  hz), // 3
+                new Vector3(-R, baseY,  hz), // 4
+            };
+            faces = new[]
+            {
+                new[] { 0, 1, 2 }, // side
+                new[] { 0, 2, 3 }, // side
+                new[] { 0, 3, 4 }, // side
+                new[] { 0, 4, 1 }, // side
+                new[] { 1, 2, 3 }, // base tri 1
+                new[] { 1, 3, 4 }, // base tri 2 — diagonal (1,3) is the seam (non-line)
+            };
+            lineEdges = new HashSet<int>
+            {
+                EdgeKey(0, 1), EdgeKey(0, 2), EdgeKey(0, 3), EdgeKey(0, 4), // apex spokes
+                EdgeKey(1, 2), EdgeKey(2, 3), EdgeKey(3, 4), EdgeKey(4, 1), // base perimeter
+            };
+        }
+
+        // Can: a vertical cylinder approximated as a 16-sided prism — radius R, half-height R·solidAspect
+        // (solidDepth is unused; the cross-section is circular). 16 top-rim + 16 bottom-rim verts + 2 cap centres.
+        // Barrel = 16 quads → 32 tris; each cap = a 16-tri fan. LINE edges = the two cap rims ONLY; the barrel's
+        // vertical seams + quad diagonals + cap fan spokes are all non-line. Flat per-face barrel normals band into
+        // 16 strips — accepted retro banding for this slice.
+        static void BuildCanGeometry(PyrePlusSpec spec, float R, out Vector3[] model, out int[][] faces, out HashSet<int> lineEdges)
+        {
+            const int seg = 16;
+            float hy = R * spec.solidAspect;
+            model = new Vector3[seg * 2 + 2];
+            for (int k = 0; k < seg; k++)
+            {
+                float a = 2f * Mathf.PI * k / seg;
+                float vx = R * Mathf.Cos(a), vz = R * Mathf.Sin(a);
+                model[k] = new Vector3(vx, hy, vz);          // top rim 0..15
+                model[seg + k] = new Vector3(vx, -hy, vz);   // bottom rim 16..31
+            }
+            int topC = seg * 2;       // 32
+            int botC = seg * 2 + 1;   // 33
+            model[topC] = new Vector3(0f, hy, 0f);
+            model[botC] = new Vector3(0f, -hy, 0f);
+
+            var faceList = new List<int[]>(seg * 4);
+            lineEdges = new HashSet<int>();
+            for (int k = 0; k < seg; k++)
+            {
+                int k1 = (k + 1) % seg;
+                int t0 = k, t1 = k1, b0 = seg + k, b1 = seg + k1;
+                faceList.Add(new[] { t0, t1, b1 });   // barrel quad, tri 1
+                faceList.Add(new[] { t0, b1, b0 });   // barrel quad, tri 2 (diagonal + verticals non-line)
+                faceList.Add(new[] { topC, t0, t1 }); // top cap fan
+                faceList.Add(new[] { botC, b1, b0 }); // bottom cap fan
+                lineEdges.Add(EdgeKey(t0, t1));       // top rim (line)
+                lineEdges.Add(EdgeKey(b0, b1));       // bottom rim (line)
+            }
+            faces = faceList.ToArray();
         }
 
         // Barycentric point-in-triangle (orthographic: screen bary == plane bary). Weights out. Ported verbatim

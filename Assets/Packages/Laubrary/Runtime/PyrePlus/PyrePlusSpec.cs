@@ -21,13 +21,17 @@ namespace Laubrary.PyrePlus
     // The particle's rendered FORM. One implicit layer, so the whole swarm is one form. The STATELESS forms:
     //   Disc     — a flat soft disc (slice 1).
     //   Gem      — a true-3D lit faceted octahedral crystal (per-pixel point lighting, hard edge lines, two
-    //              staggered glows; see PyrePlusRenderer.DrawGem).
+    //              staggered glows; see PyrePlusRenderer.DrawFacetSolid).
     //   Crescent — a disc with a second offset disc masked out (its own bite size / facing / push-out).
     //   Sparkle  — random lit pixel-cells scattered inside the disc, twinkling deterministically per frame.
     //   Sprite   — a Sprite's pixels stamped, scaled/rotated to the particle, optionally tinted by the gradient.
-    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. (Fire/Fireball/HeightBalls
-    // are simulation-backed and deferred; they are NOT here.)
-    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite }
+    //   Box      — a true-3D lit cuboid (8 verts / 6 quads), the Gem's facet pipeline. Aspect = height, Depth = z.
+    //   Pyramid  — a true-3D lit square pyramid (apex + base), the Gem's facet pipeline. Aspect = apex height.
+    //   Can      — a true-3D lit 16-sided cylinder (barrel + two caps), the Gem's facet pipeline. Aspect = height.
+    // Box/Pyramid/Can share the Gem's shared 3D block (tilt, light, lines, glows) — see PyrePlusRenderer.DrawFacetSolid.
+    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. Orb/Ring come later. (Fire/
+    // Fireball/HeightBalls are simulation-backed and deferred; they are NOT here.)
+    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can }
 
     [CreateAssetMenu(menuName = "Laubrary/Pyre Plus", fileName = "PyrePlus")]
     public class PyrePlusSpec : ScriptableObject
@@ -62,14 +66,25 @@ namespace Laubrary.PyrePlus
         public float gemLightPitch = 38f;                   // key-light elevation (above the horizon), degrees
         [Range(0f, 1f)] public float gemAmbient = 0.05f;    // near-zero fill on unlit faces
         [Range(0f, 2f)] public float gemSpecular = 0.9f;    // Blinn-Phong highlight strength
+        public Color gemSpecularColor = new Color(0.9f, 0.95f, 1f);   // cool tint of the Blinn-Phong highlight (was a renderer constant)
         // Light-catching hard edge lines along every visible facet boundary.
         [Range(0f, 3f)] public float gemLineWidth = 1f;     // edge-line width in screen pixels (0 = no lines)
         public Color gemLineColor = new Color(1f, 0.98f, 0.90f);
-        // The two staggered glows — strength 0..1 over the particle's OWN life. EdgeGlow is a white halo around
-        // the edge lines that spills OUTSIDE the silhouette; InnerGlow is emissive light rising from the facet
-        // interiors. Their defaults pulse in ANTI-PHASE (see the factories).
+        // The two staggered glows — strength 0..1 over the particle's OWN life. EdgeGlow is a halo around the edge
+        // lines that spills OUTSIDE the silhouette; InnerGlow is emissive light rising from the facet interiors.
+        // Their defaults pulse in ANTI-PHASE (see the factories). Each has its OWN authorable tint: gemEdgeGlowColor
+        // (was the line colour, now split off — default equals gemLineColor's default so a default gem is unchanged)
+        // and gemInnerGlowColor (was a renderer constant).
         public ZUIValue gemEdgeGlow = DefaultEdgeGlow();
+        public Color gemEdgeGlowColor = new Color(1f, 0.98f, 0.90f);
         public ZUIValue gemInnerGlow = DefaultInnerGlow();
+        public Color gemInnerGlowColor = new Color(0.35f, 0.60f, 1f);
+
+        // ── shared 3D-solid form fields (Box / Pyramid / Can) — the true-3D convex facet solids that reuse the
+        //    Gem block above (tilt, light, lines, glows) but are NOT octahedral gems. Both are fractions of the
+        //    base size R (= evaluated `size` × sizeMul). Gem itself ignores these (it uses gemSides/Crown/Pavilion).
+        [Range(0.3f, 3f)] public float solidAspect = 1f;    // height / width — Box height, Pyramid apex height, Can height
+        [Range(0.2f, 2f)] public float solidDepth = 1f;     // depth / width — Box z-extent, Pyramid base z-extent (unused for Can)
 
         // ── Crescent form (shapeForm == Crescent) — a disc with a second offset disc masked out ────────────
         // A pixel is lit when it's inside the main disc but NOT inside the bite (mask) disc. The bite disc sits
@@ -102,7 +117,7 @@ namespace Laubrary.PyrePlus
         public ZUIValue particlePathY = new ZUIValue(0f);
         // The particle's own rotation over its own life, degrees. DISC form: its pixels rotating IN PLACE (2D —
         // the pseudo-3D tilt belongs to the swarm shape transform shapePitch/shapeYaw, not here). GEM form: the
-        // gem's 3D YAW about its vertical axis (see PyrePlusRenderer.DrawGem). Default Static 0 (a no-op).
+        // 3D solids' YAW about their vertical axis (see PyrePlusRenderer.DrawFacetSolid). Default Static 0 (a no-op).
         public ZUIValue particleSpin = new ZUIValue(0f);
         // Pure UI gate for the advanced controls above — cosmetic, NEVER read by the renderer (like previewZoom).
         [HideInInspector] public bool shapeAdvanced;
