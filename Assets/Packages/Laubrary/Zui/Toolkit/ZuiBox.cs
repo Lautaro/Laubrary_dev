@@ -9,18 +9,59 @@
 //
 // Fold state is static and keyed by title+tooltip so it survives the window rebuilds every dial edit
 // triggers — same reasoning as ZuiSection.
+//
+// ── Gear settings (the "titled container with gear-toggle settings" capability) ─────────────────────
+// A consumer can opt individual controls into a settings accordion that a ⚙ gear (right-aligned in the
+// title row) opens. Each opt-in control gets a checkbox in the accordion; turning it OFF hides the
+// control from the body (display:none), and the gear is where it comes back. Controls can be grouped
+// under a bold group toggle that flips all its members at once and shows the built-in "dash" tri-state
+// when the group is partly on. The gear appears ONLY when at least one control was made toggleable — a
+// box nobody calls Toggleable/ToggleGroup on is byte-for-byte the old plain box (no gear, no accordion,
+// no layout shift). All of this view-state (fold + gear-open + each control's on/off) persists across
+// window rebuilds via the SAME static-dictionary idiom the fold already uses, and is exposed for a
+// view-preset store through CaptureView/ApplyView. Keys are consumer-supplied and stable — never the
+// display label — so the state survives a relabel.
+using System;
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Laubrary.Zui
 {
     public class ZuiBox : VisualElement
     {
-        static readonly Dictionary<string, bool> s_open = new();
+        // All three survive the window rebuilds that undo/redo and structural edits trigger, because
+        // they are static and keyed by strings derived from the box's stable key — a new ZuiBox instance
+        // built for the same box looks its state right back up. Same idiom as s_open, extended.
+        static readonly Dictionary<string, bool> s_open = new();       // "<boxKey>"        → is-open   (default true)
+        static readonly Dictionary<string, bool> s_gearOpen = new();   // "<boxKey>/gear"   → gear-open (default false)
+        static readonly Dictionary<string, bool> s_controlOn = new();  // "<boxKey>/<ctl>"  → shown     (default true)
 
         readonly VisualElement _body;
         readonly Label _caret;
         readonly string _key;
+        readonly VisualElement _titleRow;   // null for an untitled box (nothing to host a gear)
+
+        // ── gear-settings registrations (populated by Toggleable / ToggleGroup) ──
+        sealed class ToggleEntry
+        {
+            public VisualElement control;
+            public string key;          // stable, consumer-supplied — NOT the label
+            public string label;
+            public string groupKey;     // may be null
+            public Toggle toggle;       // the checkbox in the accordion (rebuilt each RebuildGear; may be null)
+        }
+        readonly List<ToggleEntry> _toggleables = new();
+        readonly Dictionary<string, string> _groupLabels = new();   // groupKey → label (set by ToggleGroup)
+        readonly Dictionary<string, Toggle> _groupToggles = new();  // groupKey → its accordion toggle (rebuilt)
+
+        Label _gear;                    // the ⚙ glyph in the title row (created lazily)
+        VisualElement _settingsWrap;    // the accordion strip at the top of the body (rebuilt)
+        bool _gearRefreshScheduled;
+
+        /// Raised after any toggle/gear/fold change the USER makes (never on a programmatic ApplyView),
+        /// so a host window can persist the view immediately.
+        public event Action ViewChanged;
 
         public override VisualElement contentContainer => _body;
 
@@ -43,32 +84,32 @@ namespace Laubrary.Zui
             {
                 _key = stateKey ?? title + "" + (tooltip ?? string.Empty);
 
-                var titleRow = new VisualElement();
-                titleRow.AddToClassList("zui-box__titlerow");
-                if (!string.IsNullOrEmpty(tooltip)) titleRow.tooltip = tooltip;
+                _titleRow = new VisualElement();
+                _titleRow.AddToClassList("zui-box__titlerow");
+                if (!string.IsNullOrEmpty(tooltip)) _titleRow.tooltip = tooltip;
 
                 _caret = new Label("▾");
                 _caret.AddToClassList("zui-box__caret");
                 _caret.pickingMode = PickingMode.Ignore;
-                titleRow.Add(_caret);
+                _titleRow.Add(_caret);
 
                 var t = new Label(title) { pickingMode = PickingMode.Ignore };   // the row is the target
                 t.AddToClassList("zui-box__title");
                 if (!string.IsNullOrEmpty(tooltip)) t.tooltip = tooltip;
-                titleRow.Add(t);
+                _titleRow.Add(t);
 
                 if (!string.IsNullOrEmpty(tooltip))
                 {
                     var spacer = new VisualElement { pickingMode = PickingMode.Ignore };
                     spacer.style.flexGrow = 1f;
-                    titleRow.Add(spacer);
+                    _titleRow.Add(spacer);
                     var help = Z.HelpIcon(tooltip);
                     help.pickingMode = PickingMode.Ignore;
-                    titleRow.Add(help);
+                    _titleRow.Add(help);
                 }
 
-                titleRow.AddManipulator(new Clickable(() => IsOpen = !IsOpen));
-                hierarchy.Add(titleRow);
+                _titleRow.AddManipulator(new Clickable(() => { IsOpen = !IsOpen; ViewChanged?.Invoke(); }));
+                hierarchy.Add(_titleRow);
             }
 
             hierarchy.Add(_body);
@@ -82,6 +123,250 @@ namespace Laubrary.Zui
             _caret.text = open ? "▾" : "▸";
             _body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("zui-box--closed", !open);
+        }
+
+        // ── gear-settings public API ───────────────────────────────────────────────────────────────
+
+        /// Opt a control into the gear accordion. `key` must be stable (used to persist its shown/hidden
+        /// state — never keyed by the display label); `label` is what the accordion toggle shows.
+        /// `groupKey` groups it under a group toggle declared by ToggleGroup() — order-independent (the
+        /// control may be registered before or after its group is declared). Returns the control for
+        /// chaining: `box.Add(box.Toggleable(ctrl, "cooling", "Cooling", "burst"));`.
+        /// A control whose persisted state is OFF is hidden immediately here, so it never flashes visible
+        /// on the frame before the accordion is built.
+        public VisualElement Toggleable(VisualElement control, string key, string label, string groupKey = null)
+        {
+            if (control == null || string.IsNullOrEmpty(key)) return control;
+
+            var entry = _toggleables.Find(e => e.key == key);
+            if (entry == null)
+            {
+                entry = new ToggleEntry { key = key };
+                _toggleables.Add(entry);
+            }
+            entry.control = control;
+            entry.label = label;
+            entry.groupKey = groupKey;
+
+            // Apply the persisted shown/hidden state right now — no flash for a control the user hid.
+            control.style.display = ControlOn(key) ? DisplayStyle.Flex : DisplayStyle.None;
+
+            ScheduleGearRefresh();
+            return control;
+        }
+
+        /// Declare a group so its members get a single bold group toggle (with the dash tri-state) in the
+        /// gear. Order-independent with Toggleable — call it whenever is convenient while composing.
+        public void ToggleGroup(string groupKey, string label)
+        {
+            if (string.IsNullOrEmpty(groupKey)) return;
+            _groupLabels[groupKey] = label;
+            ScheduleGearRefresh();
+        }
+
+        /// View-state surface (for a view-preset store): fold + gear + every toggleable's shown/hidden.
+        /// Keys: "<boxKey>/fold" (true = open), "<boxKey>/gear" (true = accordion open), and
+        /// "<boxKey>/<controlKey>" (true = shown) for each toggleable control.
+        public void CaptureView(Dictionary<string, bool> into)
+        {
+            if (into == null || _key == null) return;   // an untitled box has no persistent identity
+            into[_key + "/fold"] = IsOpen;
+            if (HasGear) into[_key + "/gear"] = GearOpen;
+            foreach (var t in _toggleables) into[_key + "/" + t.key] = ControlOn(t.key);
+        }
+
+        /// Restore what CaptureView wrote. Programmatic — does NOT raise ViewChanged.
+        public void ApplyView(IReadOnlyDictionary<string, bool> from)
+        {
+            if (from == null || _key == null) return;
+            if (from.TryGetValue(_key + "/fold", out bool open)) IsOpen = open;
+            if (from.TryGetValue(_key + "/gear", out bool gear)) GearOpen = gear;
+            foreach (var t in _toggleables)
+                if (from.TryGetValue(_key + "/" + t.key, out bool on))
+                {
+                    SetControlOn(t, on);
+                    t.toggle?.SetValueWithoutNotify(on);
+                }
+            RefreshAllGroupToggles();
+        }
+
+        // ── gear-settings internals ──────────────────────────────────────────────────────────────────
+
+        bool HasGear => _titleRow != null && _toggleables.Count > 0;
+
+        bool GearOpen
+        {
+            get => _key != null && s_gearOpen.TryGetValue(_key + "/gear", out bool v) && v;   // default: closed
+            set { if (_key != null) { s_gearOpen[_key + "/gear"] = value; ApplyGear(); } }
+        }
+
+        bool ControlOn(string controlKey)
+            => _key == null || !s_controlOn.TryGetValue(_key + "/" + controlKey, out bool on) || on;   // default: shown
+
+        void SetControlOn(ToggleEntry t, bool on)
+        {
+            if (_key != null) s_controlOn[_key + "/" + t.key] = on;
+            if (t.control != null) t.control.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        // A single coalesced rebuild after composition: the consumer calls Toggleable/ToggleGroup while
+        // building the body, and one deferred pass reflects whatever was registered by first layout.
+        void ScheduleGearRefresh()
+        {
+            if (_gearRefreshScheduled) return;
+            _gearRefreshScheduled = true;
+            schedule.Execute(() => { _gearRefreshScheduled = false; RebuildGear(); });
+        }
+
+        void RebuildGear()
+        {
+            if (_titleRow == null) return;   // untitled: no header to host a gear
+
+            // Tear down the old accordion; it is rebuilt wholesale below.
+            if (_settingsWrap != null && _settingsWrap.parent != null) _settingsWrap.RemoveFromHierarchy();
+            _settingsWrap = null;
+
+            if (_toggleables.Count == 0)
+            {
+                if (_gear != null) { _gear.RemoveFromHierarchy(); _gear = null; }
+                return;
+            }
+
+            // The ⚙ glyph lives in the title row, right-aligned. It is its OWN pointer target (the caret,
+            // title and help are PickingMode.Ignore so clicks on them fold the box); a Clickable drives it
+            // and stops the pointer-down from reaching the title row's fold Clickable, so opening settings
+            // never also folds the box. The explicit StopPropagation guard makes that independent of
+            // Clickable's internal propagation behaviour.
+            if (_gear == null)
+            {
+                _gear = new Label("⚙") { tooltip = "Which controls are shown" };
+                _gear.AddToClassList("zui-togglebutton");   // palette-driven (accent-soft when on) — no new USS
+                _gear.style.marginLeft = StyleKeyword.Auto; // right-align in the header row
+                _gear.style.fontSize = 12f;
+                _gear.AddManipulator(new Clickable(() => { GearOpen = !GearOpen; ViewChanged?.Invoke(); }));
+                _gear.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+                _titleRow.Add(_gear);
+            }
+
+            _settingsWrap = BuildSettings();
+            _body.Insert(0, _settingsWrap);   // top of the body
+            ApplyGear();
+            RefreshAllGroupToggles();
+        }
+
+        // The framed strip listing group toggles (bold) and per-control toggles (indented under a group).
+        // Groups appear at the position of their first member, with every member clustered there; an
+        // ungrouped control (null groupKey, or a groupKey never declared via ToggleGroup) sits at the
+        // top level in its own registration order. Deterministic and order-preserving.
+        VisualElement BuildSettings()
+        {
+            _groupToggles.Clear();
+
+            var wrap = new VisualElement();
+            wrap.AddToClassList("zui-box");     // a nested .zui-box is a quiet sub-fill inset strip (palette-driven)
+            wrap.style.marginTop = 0;
+            wrap.style.marginBottom = 6;
+
+            var cap = new Label("Shown controls");
+            cap.AddToClassList("zui-text--small");
+            cap.style.marginBottom = 2;
+            wrap.Add(cap);
+
+            var emittedGroups = new HashSet<string>();
+            foreach (var t in _toggleables)
+            {
+                string g = DeclaredGroup(t.groupKey);
+                if (g != null)
+                {
+                    if (emittedGroups.Add(g))
+                    {
+                        wrap.Add(BuildGroupToggle(g));
+                        foreach (var m in _toggleables)
+                            if (m.groupKey == g) wrap.Add(BuildControlToggle(m, indent: 14f));
+                    }
+                    // else: already emitted alongside the group's first member
+                }
+                else
+                {
+                    wrap.Add(BuildControlToggle(t, indent: 0f));
+                }
+            }
+            return wrap;
+        }
+
+        string DeclaredGroup(string groupKey)
+            => !string.IsNullOrEmpty(groupKey) && _groupLabels.ContainsKey(groupKey) ? groupKey : null;
+
+        Toggle BuildControlToggle(ToggleEntry t, float indent)
+        {
+            var tog = new Toggle(t.label) { tooltip = "Show or hide " + (t.label ?? t.key) };
+            tog.SetValueWithoutNotify(ControlOn(t.key));
+            tog.style.marginLeft = indent;
+            tog.style.marginTop = 1f;
+            tog.style.marginBottom = 1f;
+            var self = t;
+            tog.RegisterValueChangedCallback(ev =>
+            {
+                SetControlOn(self, ev.newValue);
+                if (!string.IsNullOrEmpty(self.groupKey)) RefreshGroupToggle(self.groupKey);
+                ViewChanged?.Invoke();
+            });
+            t.toggle = tog;
+            return tog;
+        }
+
+        Toggle BuildGroupToggle(string groupKey)
+        {
+            string label = _groupLabels.TryGetValue(groupKey, out var l) && !string.IsNullOrEmpty(l) ? l : groupKey;
+            var tog = new Toggle(label) { tooltip = "Show or hide all " + label + " controls" };
+            var lbl = tog.Q<Label>();
+            if (lbl != null) lbl.style.unityFontStyleAndWeight = FontStyle.Bold;
+            tog.style.marginTop = 2f;
+            tog.style.marginBottom = 1f;
+            _groupToggles[groupKey] = tog;
+            ApplyGroupState(groupKey, tog);   // initial value + dash
+            tog.RegisterValueChangedCallback(ev =>
+            {
+                foreach (var m in _toggleables)
+                    if (m.groupKey == groupKey)
+                    {
+                        SetControlOn(m, ev.newValue);
+                        m.toggle?.SetValueWithoutNotify(ev.newValue);
+                    }
+                RefreshGroupToggle(groupKey);   // clears the dash now the members agree
+                ViewChanged?.Invoke();
+            });
+            return tog;
+        }
+
+        void RefreshGroupToggle(string groupKey)
+        {
+            if (_groupToggles.TryGetValue(groupKey, out var tog) && tog != null) ApplyGroupState(groupKey, tog);
+        }
+
+        void RefreshAllGroupToggles()
+        {
+            foreach (var kv in _groupToggles)
+                if (kv.Value != null) ApplyGroupState(kv.Key, kv.Value);
+        }
+
+        void ApplyGroupState(string groupKey, Toggle tog)
+        {
+            int total = 0, onCount = 0;
+            foreach (var m in _toggleables)
+                if (m.groupKey == groupKey) { total++; if (ControlOn(m.key)) onCount++; }
+            bool allOn = total > 0 && onCount == total;
+            bool noneOn = onCount == 0;
+            tog.showMixedValue = !(allOn || noneOn);   // the built-in dash for a partly-on group
+            tog.SetValueWithoutNotify(allOn);
+        }
+
+        void ApplyGear()
+        {
+            if (_settingsWrap != null)
+                _settingsWrap.style.display = GearOpen ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_gear != null)
+                _gear.EnableInClassList("zui-togglebutton--on", GearOpen);
         }
     }
 }
