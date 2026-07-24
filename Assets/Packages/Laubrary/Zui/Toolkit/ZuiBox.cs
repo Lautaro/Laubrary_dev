@@ -116,6 +116,7 @@ namespace Laubrary.Zui
             }
 
             hierarchy.Add(_body);
+            ZuiLabelAlign.Align(this);   // line up this box's field labels into one tidy column
             Apply();
         }
 

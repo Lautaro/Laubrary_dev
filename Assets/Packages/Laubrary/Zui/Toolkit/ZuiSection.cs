@@ -24,7 +24,6 @@ namespace Laubrary.Zui
         static readonly Dictionary<string, bool> s_open = new();
 
         readonly VisualElement _body;
-        readonly Label _caret;
         readonly string _key;
 
         // ── optional header checkbox (created lazily by SetHeaderToggle) ──
@@ -54,11 +53,9 @@ namespace Laubrary.Zui
             header.tooltip = tooltip;
             _header = header;
 
-            _caret = new Label("▾");
-            _caret.AddToClassList("zui-section__caret");
-            _caret.pickingMode = PickingMode.Ignore;
-            header.Add(_caret);
-
+            // No fold caret on section headers (user request): the bold coloured title + hover highlight
+            // already read as an interactive heading, and clicking the header still folds. A closed section
+            // dims its header (see the --closed rule) as the collapse cue instead of a chevron.
             var text = new Label(title) { tooltip = tooltip };
             text.AddToClassList("zui-section__title");
             text.pickingMode = PickingMode.Ignore;   // the whole header row is the hit target
@@ -86,13 +83,13 @@ namespace Laubrary.Zui
             _body.AddToClassList("zui-section__body");
             hierarchy.Add(_body);
 
+            ZuiLabelAlign.Align(this);   // line up this section's field labels into one tidy column
             Apply();
         }
 
         void Apply()
         {
             bool open = IsOpen;
-            _caret.text = open ? "▾" : "▸";
             _body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("zui-section--closed", !open);
         }

@@ -98,6 +98,7 @@ namespace Laubrary.Zui
             _v = v ?? throw new ArgumentNullException(nameof(v));
             _opt = options ?? new Options();
             _label = label;
+            AddToClassList("zui-value");   // row-level class → uniform bottom spacing (see ZuiToolkit.uss)
             _tooltip = tooltip;
             this.tooltip = tooltip;
 

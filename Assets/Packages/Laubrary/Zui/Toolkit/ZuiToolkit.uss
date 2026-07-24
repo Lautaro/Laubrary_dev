@@ -265,6 +265,25 @@
     color: var(--zui-accent);
 }
 
+/* Global row rhythm ------------------------------------------------------ */
+/* Every top-level row control gets uniform breathing room below it, so a column of controls reads as
+   distinct rows instead of a crammed stack. One value, applied to every tool's UI. Tune it here. */
+.zui-field,
+.zui-value,
+.zui-fill,
+.zui-microslider,
+.zui-hgroup,
+.zui-row {
+    margin-bottom: 4px;
+}
+
+/* Don't double up: a row nested INSIDE a value/fill control (its header→envelope gap) stays tight —
+   the whole control already owns the 4px below it. */
+.zui-value .zui-row,
+.zui-fill .zui-row {
+    margin-bottom: 1px;
+}
+
 /* Custom-drawn controls (the old IMGUI ZUI look, Painter2D) ---------------- */
 
 /* MicroSlider — a filled track whose fill IS the value; no thumb, label+value sit inside it. */

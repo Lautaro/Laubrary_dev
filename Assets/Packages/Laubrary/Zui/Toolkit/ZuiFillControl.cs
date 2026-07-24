@@ -49,6 +49,7 @@ namespace Laubrary.Zui
             _fill = fill ?? throw new ArgumentNullException(nameof(fill));
             _opt = options ?? new Options();
             _label = label;
+            AddToClassList("zui-fill");   // row-level class → uniform bottom spacing (see ZuiToolkit.uss)
             _tooltip = tooltip;
             this.tooltip = tooltip;
 
