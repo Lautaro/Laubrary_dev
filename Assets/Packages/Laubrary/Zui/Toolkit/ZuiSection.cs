@@ -12,6 +12,7 @@
 //
 // Fold state is static and keyed, so it survives the window rebuilds that undo/redo and structural
 // edits trigger — a section the user closed must stay closed.
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -25,6 +26,12 @@ namespace Laubrary.Zui
         readonly VisualElement _body;
         readonly Label _caret;
         readonly string _key;
+
+        // ── optional header checkbox (created lazily by SetHeaderToggle) ──
+        readonly VisualElement _header;   // the clickable header row, so the checkbox can be inserted into it
+        readonly Label _title;            // the title label, so the checkbox lands just to its LEFT
+        Toggle _headerToggle;
+        Action<bool> _headerToggleChanged;
 
         /// Children go into the body, not next to the header.
         public override VisualElement contentContainer => _body;
@@ -45,6 +52,7 @@ namespace Laubrary.Zui
             var header = new VisualElement();
             header.AddToClassList("zui-section__header");
             header.tooltip = tooltip;
+            _header = header;
 
             _caret = new Label("▾");
             _caret.AddToClassList("zui-section__caret");
@@ -55,6 +63,7 @@ namespace Laubrary.Zui
             text.AddToClassList("zui-section__title");
             text.pickingMode = PickingMode.Ignore;   // the whole header row is the hit target
             header.Add(text);
+            _title = text;
 
             if (!string.IsNullOrEmpty(tooltip))
             {
@@ -87,5 +96,50 @@ namespace Laubrary.Zui
             _body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("zui-section--closed", !open);
         }
+
+        // ── header checkbox ──────────────────────────────────────────────────────────────────────────
+
+        /// Give the section header a compact checkbox, sitting just LEFT of the title, bound to any bool.
+        /// This folds a "Swarm" heading + a separate "Swarm" enable toggle into one row: the title names
+        /// the block and the checkbox enables it. Clicking the checkbox toggles the value WITHOUT folding
+        /// the section — the pointer-down is stopped before it reaches the header's fold Clickable, exactly
+        /// the trick ZuiBox's gear uses; the title (and the rest of the header row) remains the fold zone.
+        /// The checkbox carries `tooltip`, so it is ZuiAudit-clean. Idempotent: calling it again just
+        /// rebinds and refreshes the existing checkbox. Sections that never call this render exactly as
+        /// before (no checkbox added).
+        public void SetHeaderToggle(bool value, string tooltip, Action<bool> onChanged)
+        {
+            _headerToggleChanged = onChanged;
+
+            if (_headerToggle == null)
+            {
+                _headerToggle = new Toggle { tooltip = tooltip };
+                _headerToggle.AddToClassList("zui-section__toggle");
+                // The header row is `align-items: center`, so vertical centring is handled; strip the
+                // Toggle's default margins to a tight, small footprint and leave a little air before the title.
+                _headerToggle.style.marginTop = 0f;
+                _headerToggle.style.marginBottom = 0f;
+                _headerToggle.style.marginLeft = 0f;
+                _headerToggle.style.marginRight = 4f;
+                // Do not let a click on the checkbox fold the section (see ZuiBox's gear StopPropagation).
+                _headerToggle.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+                _headerToggle.RegisterValueChangedCallback(e => _headerToggleChanged?.Invoke(e.newValue));
+
+                int idx = _header.IndexOf(_title);   // insert just to the LEFT of the title (after the caret)
+                if (idx < 0) idx = _header.childCount;
+                _header.Insert(idx, _headerToggle);
+            }
+            else if (!string.IsNullOrEmpty(tooltip))
+            {
+                _headerToggle.tooltip = tooltip;
+            }
+
+            _headerToggle.SetValueWithoutNotify(value);
+        }
+
+        /// Refresh the header checkbox's value from outside WITHOUT firing onChanged (e.g. after an undo or
+        /// an external state change). No-op if SetHeaderToggle was never called.
+        public void SetHeaderToggleWithoutNotify(bool value)
+            => _headerToggle?.SetValueWithoutNotify(value);
     }
 }

@@ -111,6 +111,17 @@ namespace Laubrary.Zui
             return root;
         }
 
+        /// A width-driven column flow: children stack vertically at `columnWidth`, and once the container
+        /// is `columnWidth × 2` (× 3, …) wide it splits the SINGLE stack into that many contiguous columns,
+        /// moving the tail of the stack into the next column (capped at 4). Unlike Z.Columns (round-robin
+        /// masonry), this keeps one ordered stack and cuts it by width, height-balancing the split. Children
+        /// added become flow units in order; use Z.HGroup to make a horizontal row travel as one unit.
+        public static ZuiColumnFlow ColumnFlow(float columnWidth) => new ZuiColumnFlow(columnWidth);
+
+        /// A horizontal row that a ColumnFlow treats as ONE flow unit — children lay out left-to-right (and
+        /// wrap if the column is narrow), and the whole group moves between columns together.
+        public static ZuiHGroup HGroup(params VisualElement[] kids) => new ZuiHGroup(kids);
+
         /// A titled, COLLAPSIBLE section — the header itself is the toggle. Children added to the
         /// returned element go inside the section body. Prefer this over a bare
         /// `Z.Text(.., ZuiText.Section, ..)` heading whenever the heading names a block of controls:
