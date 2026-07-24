@@ -91,6 +91,14 @@ namespace Laubrary.PyrePlus.Editor
             left.style.flexShrink = 0f;
             var dials = left.contentContainer;
 
+            // Saved-views bar rides at the very top of the dials pane. Its capture/apply aggregate every
+            // ZuiBox under this asset root (Canvas / Solid / Transform / Modifiers): a "view" is their fold,
+            // gear-open and shown-control state only, never an authored value. The query root is `root` (the
+            // BuildAsset host), not rootVisualElement — `split` is added to `root` below BEFORE RestoreLast
+            // runs, but the window has not yet parented `root` to its own rootVisualElement at this point.
+            var viewBar = BuildViewBar(root);
+            dials.Add(viewBar);
+
             BuildCanvas(dials, s);
             BuildShape(dials, s);
             BuildSwarm(dials, s);
@@ -107,11 +115,54 @@ namespace Laubrary.PyrePlus.Editor
             root.style.flexGrow = 1f;
             root.style.minHeight = 0f;
             root.Add(split);
+
+            // Whole tree is now under `root`; re-apply the view the user left this window in.
+            viewBar.RestoreLast();
+        }
+
+        // ── saved views (Z2 — the shared ZuiViewBar + committed ZuiViewStore) ──────────
+        const string ViewStorePath = "Assets/PyrePlus/PyrePlusViews.asset";
+        const string ViewPrefsKey = "PyrePlus.lastView";
+
+        // Build the views bar. Capture/apply aggregate every ZuiBox under `paneRoot` via CaptureView/
+        // ApplyView, so a view round-trips the Canvas / Solid / Transform / Modifiers boxes' fold + gear +
+        // shown-control state. The store asset is committed (shared); only the per-user "last view" pointer
+        // is in EditorPrefs. The bar never touches AssetDatabase — the host mints the asset (below).
+        ZuiViewBar BuildViewBar(VisualElement paneRoot)
+        {
+            Dictionary<string, bool> Capture()
+            {
+                var d = new Dictionary<string, bool>();
+                foreach (var b in paneRoot.Query<ZuiBox>().ToList()) b.CaptureView(d);
+                return d;
+            }
+            void Apply(IReadOnlyDictionary<string, bool> from)
+            {
+                foreach (var b in paneRoot.Query<ZuiBox>().ToList()) b.ApplyView(from);
+            }
+            return new ZuiViewBar(
+                () => AssetDatabase.LoadAssetAtPath<ZuiViewStore>(ViewStorePath),
+                CreateViewStore,
+                Capture,
+                Apply,
+                ViewPrefsKey);
+        }
+
+        // Mint the PyrePlus views asset — only ever called from the bar's Save-as when none exists yet.
+        // Undo-registered per the Laubrary Undo rule; creates the folder if missing.
+        ZuiViewStore CreateViewStore()
+        {
+            if (!AssetDatabase.IsValidFolder("Assets/PyrePlus"))
+                AssetDatabase.CreateFolder("Assets", "PyrePlus");
+            var store = ScriptableObject.CreateInstance<ZuiViewStore>();
+            AssetDatabase.CreateAsset(store, ViewStorePath);
+            Undo.RegisterCreatedObjectUndo(store, "Create Pyre Plus Views");
+            return store;
         }
 
         void BuildCanvas(VisualElement root, PyrePlusSpec s)
         {
-            var box = Z.Box("Canvas", "The output resolution, frame count, seed and backdrop.");
+            var box = Z.BoxKeyed("Canvas", "The output resolution, frame count, seed and backdrop.", "pyreplus.canvas");
             box.Add(WrapRow(
                 Z.Field("Size", "Square canvas size in pixels.",
                     Z.Int(s.canvasSize, "Square canvas size in pixels.", v => Dirty(() => s.canvasSize = Mathf.Max(1, v)), 60f)),
@@ -242,11 +293,13 @@ namespace Laubrary.PyrePlus.Editor
             s.gemEdgeGlow ??= new ZUIValue(0.5f);     // defensive; the real anti-phase defaults come from the spec factories
             s.gemInnerGlow ??= new ZUIValue(0.5f);
 
-            var box = Z.Box("Solid", "A true-3D form lit per-pixel by one key light, with light-catching hard edge "
+            // BoxKeyed: view presets persist under this stable key — retitling the box or rewording
+            // its tooltip must never orphan saved views.
+            var box = Z.BoxKeyed("Solid", "A true-3D form lit per-pixel by one key light, with light-catching hard edge "
                 + "lines and two staggered glows. Its material colour is the shared Colour above (a blue gradient = "
                 + "a sapphire); its base size is the shared Size. Gem = an octahedral crystal; Box / Pyramid / Can = "
                 + "a cuboid / square pyramid / cylinder; Orb = a sphere (no geometry rows — a ball needs none); "
-                + "Ring = a flat two-sided tilted annulus (a Saturn ring).");
+                + "Ring = a flat two-sided tilted annulus (a Saturn ring).", "pyreplus.solid");
 
             // ── per-form geometry ──
             if (s.shapeForm == ShapeForm.Gem)
@@ -300,15 +353,23 @@ namespace Laubrary.PyrePlus.Editor
                 + "this opens or closes the ellipse — 0° = face-on (a full circle), ±90° = edge-on (a sliver).",
                 s.gemTilt, -1440f, 1440f));
 
+            // Light / Lines / Glow rows opt into the box's ⚙ gear (Tilt above stays mandatory). Each group
+            // toggle flips its whole cluster at once; keys are STABLE "solid.*" strings (never a display
+            // label) so a saved view survives a relabel. A saved "view" round-trips these on/off states.
+            box.ToggleGroup("Light", "Light");
+            box.ToggleGroup("Lines", "Lines");
+            box.ToggleGroup("Glow", "Glow");
+
             box.Add(Z.Divider("Light", "The single key light: where it sits and how the facets respond."));
-            box.Add(WrapRow(
+            box.Add(box.Toggleable(WrapRow(
                 Z.MicroSlider("Light yaw", s.gemLightYaw, -180f, 180f,
                     "Direction the key light comes FROM, left/right, in degrees.",
                     v => Dirty(() => s.gemLightYaw = v), 150f, showValue: true),
                 Z.MicroSlider("Light pitch", s.gemLightPitch, 0f, 85f,
                     "Height of the key light above the horizon, in degrees.",
-                    v => Dirty(() => s.gemLightPitch = v), 150f, showValue: true)));
-            box.Add(WrapRow(
+                    v => Dirty(() => s.gemLightPitch = v), 150f, showValue: true)),
+                "solid.light.angles", "Angle", "Light"));
+            box.Add(box.Toggleable(WrapRow(
                 Z.MicroSlider("Ambient", s.gemAmbient, 0f, 1f,
                     "Fill light on faces turned away from the key — near zero keeps the solid contrasty.",
                     v => Dirty(() => s.gemAmbient = v), 150f, showValue: true),
@@ -317,19 +378,21 @@ namespace Laubrary.PyrePlus.Editor
                     v => Dirty(() => s.gemSpecular = v), 150f, showValue: true),
                 Z.Field("Spec colour", "Tint of the Blinn-Phong highlight.",
                     Z.Color(s.gemSpecularColor, "Tint of the Blinn-Phong highlight.",
-                        c => Dirty(() => s.gemSpecularColor = c), 60f, showAlpha: false))));
+                        c => Dirty(() => s.gemSpecularColor = c), 60f, showAlpha: false))),
+                "solid.light.response", "Response", "Light"));
 
             box.Add(Z.Divider("Lines", "The hard facet edge lines that catch the light."));
-            box.Add(WrapRow(
+            box.Add(box.Toggleable(WrapRow(
                 Z.MicroSlider("Line width", s.gemLineWidth, 0f, 3f,
                     "Width of the hard facet edge lines in pixels (0 = no lines). The lines catch the key light.",
                     v => Dirty(() => s.gemLineWidth = v), 150f, showValue: true),
                 Z.Field("Line colour", "Colour of the facet edge lines.",
                     Z.Color(s.gemLineColor, "Colour of the facet edge lines.",
-                        c => Dirty(() => s.gemLineColor = c), 60f, showAlpha: false))));
+                        c => Dirty(() => s.gemLineColor = c), 60f, showAlpha: false))),
+                "solid.lines", "Width & colour", "Lines"));
 
             box.Add(Z.Divider("Glow", "Two staggered glows, anti-phase by default — each with its own tint."));
-            box.Add(WrapRow(
+            box.Add(box.Toggleable(WrapRow(
                 Val("Edge glow",
                     "Strength (0-1) of the halo around the edge lines, over the particle's OWN life; it spills "
                     + "OUTSIDE the solid's silhouette. Default: two anti-phase pulses (it peaks while the inner glow "
@@ -337,8 +400,9 @@ namespace Laubrary.PyrePlus.Editor
                     s.gemEdgeGlow, 0f, 1f),
                 Z.Field("Edge colour", "Tint of the edge-line halo glow.",
                     Z.Color(s.gemEdgeGlowColor, "Tint of the edge-line halo glow.",
-                        c => Dirty(() => s.gemEdgeGlowColor = c), 60f, showAlpha: false))));
-            box.Add(WrapRow(
+                        c => Dirty(() => s.gemEdgeGlowColor = c), 60f, showAlpha: false))),
+                "solid.glow.edge", "Edge", "Glow"));
+            box.Add(box.Toggleable(WrapRow(
                 Val("Inner glow",
                     "Strength (0-1) of the emissive glow rising from the facet interiors, over the particle's OWN "
                     + "life; interior only. Default: two anti-phase pulses (it peaks while the edge glow rests) — "
@@ -346,7 +410,8 @@ namespace Laubrary.PyrePlus.Editor
                     s.gemInnerGlow, 0f, 1f),
                 Z.Field("Inner colour", "Tint of the facet inner glow.",
                     Z.Color(s.gemInnerGlowColor, "Tint of the facet inner glow.",
-                        c => Dirty(() => s.gemInnerGlowColor = c), 60f, showAlpha: false))));
+                        c => Dirty(() => s.gemInnerGlowColor = c), 60f, showAlpha: false))),
+                "solid.glow.inner", "Inner", "Glow"));
 
             shapeBody.Add(box);
         }
@@ -514,11 +579,12 @@ namespace Laubrary.PyrePlus.Editor
             }
 
             // Shared shape transform — every field a per-spawn snapshot (see the box tooltip).
-            var xform = Z.Box("Transform",
+            var xform = Z.BoxKeyed("Transform",
                 "Offset, size, rotation and pseudo-3D tilt of the whole shape. Every field is a per-spawn "
                 + "SNAPSHOT: each particle reads it at its OWN spawn moment and keeps that value for life. "
                 + "Animating a field therefore does NOT move particles already placed — it spreads a TRAIL of new "
-                + "spawns along the curve (rotate past 360, or travel past once-around, for several laps).");
+                + "spawns along the curve (rotate past 360, or travel past once-around, for several laps).",
+                "pyreplus.transform");
             xform.Add(Val2D("Offset",
                 "Shape-centre offset in canvas pixels — drag to move the whole shape off the origin. Animating it "
                 + "does NOT slide placed particles; each takes the offset at its own spawn moment, leaving a trail.",
