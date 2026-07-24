@@ -1,10 +1,12 @@
 // PyrePlusSpec — the asset behind the PyrePlus prototype (see PYREPLUS_DESIGN.md).
 //
 // PyrePlus is a PARALLEL rework of Pyre's shape system, kept entirely separate from the shipping
-// Pyre/BlastSpec/Layer/BlastRenderer so the real tool is never at risk. One implicit layer organized into
-// three conceptual sections — Shape, Swarm, Modifiers — instead of Pyre's one flat ~40-field Layer. The Shape
-// section (one particle) and the full Swarm data model are in place; the Swarm renderer is being built out
-// task by task (T1 = Area+Circle placement) and Modifiers reuse Pyre's PyreModifier directly.
+// Pyre/BlastSpec/Layer/BlastRenderer so the real tool is never at risk. R3 makes it MULTI-LAYER: the spec now
+// holds a LIST of PyrePlusLayer (index 0 = back, painted first), and every per-particle / form / swarm /
+// modifier field lives on the layer — only the canvas, timing, seed, background and preview state stay on the
+// spec. A single default layer renders byte-identical to the pre-R3 single-layer spec. Layers also carry Pyre's
+// matte-channel idea, SIMPLIFIED: a layer is either Drawn or writes its coverage into one of four numbered
+// mask channels, and a Draw layer can clip its own alpha by any channel an earlier layer wrote.
 using System.Collections.Generic;
 using Laubrary.Pyre;
 using TMPro;
@@ -66,15 +68,36 @@ namespace Laubrary.PyrePlus
     // line, so it degrades to PerCharStep). See PyrePlusRenderer's SampleTextColor.
     public enum TextFillMode { PerCharGradient, PerCharStep, TextGradient }
 
-    [CreateAssetMenu(menuName = "Laubrary/Pyre Plus", fileName = "PyrePlus")]
-    public class PyrePlusSpec : ScriptableObject
+    // A layer's ROLE in the stack. Draw = composite it onto the frame as normal. WriteMatte = do NOT composite
+    // it; instead write its per-pixel COVERAGE (the alpha it would draw, before colour) into one of four numbered
+    // mask channels, which the Draw layers above it can clip by. Simplified from vanilla Pyre's Draw/Matte — see
+    // PyrePlusRenderer's matte section for the full drift note.
+    public enum MatteRole { Draw, WriteMatte }
+
+    // How a WriteMatte layer's coverage combines with whatever is already in its channel (earlier WriteMatte
+    // layers can target the same channel). Max (the default) = the classic union of masks; Add = accumulate and
+    // clamp; Subtract = carve one mask out of another. The cheap mirror of vanilla Pyre's combinable mattes.
+    public enum MatteCombine { Max, Add, Subtract }
+
+    // ── one PyrePlus layer — everything per-particle / per-form / per-swarm / per-modifier, plus its matte role ──
+    // The spec holds a LIST of these (index 0 at the BACK). A single default layer's fields carry the pre-R3
+    // defaults verbatim, so a one-layer spec renders byte-identical to the old flat spec. The Default*() factories
+    // that seed the animatable defaults live here with the fields they initialise.
+    [System.Serializable]
+    public class PyrePlusLayer
     {
-        // ── canvas / timing (mirrors Pyre's own top-level fields) ─────────────────
-        [Min(1)] public int canvasSize = 64;
-        [Min(1)] public int frameCount = 16;
-        public int seed = 1234;
-        public Color background = new Color(0f, 0f, 0f, 0f);
-        public float pixelsPerUnit = 16f;
+        // ── list identity (R3) ─────────────────────────────────────────────────────
+        public bool enabled = true;      // hidden layers are skipped entirely by the renderer
+        public string name = "Layer";    // shown in the layer list; rename-in-place
+
+        // ── matte (R3) — Pyre's matte idea, simplified to numbered channels ─────────
+        // Draw = composite normally (the default; a Draw layer with clipByChannel < 0 is exactly a pre-R3 layer).
+        // WriteMatte = invisible; write this layer's coverage into channel `matteChannel` for the Draw layers above.
+        public MatteRole matteRole = MatteRole.Draw;
+        public int matteChannel = 0;               // 0..3 — which channel a WriteMatte layer writes into
+        public MatteCombine matteCombine = MatteCombine.Max;   // how it combines with what's already in that channel
+        public int clipByChannel = -1;             // Draw only: -1 = no clip; 0..3 = multiply this layer's alpha by that channel
+        public bool clipInvert = false;            // Draw + clip: use (1 - channel) instead of channel
 
         // ── Shape — the particle's own look (mandatory section) ────────────────────
         // Which FORM the particle renders as. Disc = the flat soft disc (slice 1). Gem = a true-3D lit crystal
@@ -268,15 +291,83 @@ namespace Laubrary.PyrePlus
         // ── Modifiers — reuses Pyre's own PyreModifier directly, zero reimplementation ──
         [SerializeReference] public List<PyreModifier> modifiers = new List<PyreModifier>();
 
-        // ── editor preview state (cosmetic; never affects the render) ──────────────
-        [HideInInspector] public float previewZoom = 4f;
-        [HideInInspector] public float previewFps = 12f;
-        [HideInInspector] public int previewFrame = 0;
-        [HideInInspector] public bool previewShowFrame = true;   // draw a thin canvas border in the preview (Frame toggle)
+        // ── deep copy (R3) — for the layer list's "Duplicate" ──────────────────────
+        // JsonUtility is NOT used: it silently drops the [SerializeReference] modifier stack (Unity JsonUtility has
+        // no SerializeReference support), so a JsonUtility round-trip would duplicate a layer with an EMPTY modifier
+        // list. Instead we mirror vanilla Pyre's proven Layer.Clone: MemberwiseClone the value fields, then deep-copy
+        // every reference field the copy must own independently (each ZUIValue via its CopyFrom, each ZuiFill /
+        // Gradient by hand) and clone the polymorphic modifiers via each modifier's own Clone(). Sprite/font stay
+        // shared refs (they are assets, not per-layer data).
+        public PyrePlusLayer Clone()
+        {
+            var l = (PyrePlusLayer)MemberwiseClone();
+            l.shapeFill = CloneFill(shapeFill);
+            l.alpha = CloneVal(alpha);
+            l.size = CloneVal(size);
+            l.gemTilt = CloneVal(gemTilt);
+            l.gemRoll = CloneVal(gemRoll);
+            l.gemSpecularFill = CloneFill(gemSpecularFill);
+            l.gemLineFill = CloneFill(gemLineFill);
+            l.gemEdgeGlow = CloneVal(gemEdgeGlow);
+            l.gemEdgeGlowFill = CloneFill(gemEdgeGlowFill);
+            l.gemInnerGlow = CloneVal(gemInnerGlow);
+            l.gemInnerGlowFill = CloneFill(gemInnerGlowFill);
+            l.textFillGradient = CloneGradient(textFillGradient);
+            l.textBorderGradient = CloneGradient(textBorderGradient);
+            l.crescentBite = CloneVal(crescentBite);
+            l.crescentAngle = CloneVal(crescentAngle);
+            l.sparkleDensity = CloneVal(sparkleDensity);
+            l.streakLength = CloneVal(streakLength);
+            l.streakWidth = CloneVal(streakWidth);
+            l.particlePathX = CloneVal(particlePathX);
+            l.particlePathY = CloneVal(particlePathY);
+            l.particleSpin = CloneVal(particleSpin);
+            l.swarmCustomX = CloneVal(swarmCustomX);
+            l.swarmCustomY = CloneVal(swarmCustomY);
+            l.swarmProgress = CloneVal(swarmProgress);
+            l.swarmSpawnTiming = CloneVal(swarmSpawnTiming);
+            l.swarmScaleByIndex = CloneVal(swarmScaleByIndex);
+            l.shapeOffsetX = CloneVal(shapeOffsetX);
+            l.shapeOffsetY = CloneVal(shapeOffsetY);
+            l.shapeScale = CloneVal(shapeScale);
+            l.shapeRotation = CloneVal(shapeRotation);
+            l.shapePitch = CloneVal(shapePitch);
+            l.shapeYaw = CloneVal(shapeYaw);
+            l.modifiers = modifiers == null ? new List<PyreModifier>() : modifiers.ConvertAll(m => m?.Clone());
+            return l;
+        }
 
-        public int Width => Mathf.Max(1, canvasSize);
-        public int Height => Mathf.Max(1, canvasSize);
+        static ZUIValue CloneVal(ZUIValue v)
+        {
+            if (v == null) return null;
+            var c = new ZUIValue();
+            c.CopyFrom(v);   // deep-copies mode + every mode's data, curve points included
+            return c;
+        }
 
+        static ZuiFill CloneFill(ZuiFill f)
+        {
+            if (f == null) return null;
+            return new ZuiFill
+            {
+                mode = f.mode,
+                color = f.color,
+                gradient = CloneGradient(f.gradient),
+                angleDeg = f.angleDeg,
+                zoom = f.zoom,
+            };
+        }
+
+        static Gradient CloneGradient(Gradient g)
+        {
+            if (g == null) return null;
+            var n = new Gradient();
+            n.SetKeys(g.colorKeys, g.alphaKeys);
+            n.mode = g.mode;
+            return n;
+        }
+
+        // ── the animatable-default factories (moved here with the fields they seed) ─
         static Gradient DefaultColor()
         {
             var g = new Gradient();
@@ -422,5 +513,30 @@ namespace Laubrary.PyrePlus
                 new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
             return g;
         }
+    }
+
+    [CreateAssetMenu(menuName = "Laubrary/Pyre Plus", fileName = "PyrePlus")]
+    public class PyrePlusSpec : ScriptableObject
+    {
+        // ── canvas / timing (mirrors Pyre's own top-level fields) ─────────────────
+        [Min(1)] public int canvasSize = 64;
+        [Min(1)] public int frameCount = 16;
+        public int seed = 1234;
+        public Color background = new Color(0f, 0f, 0f, 0f);
+        public float pixelsPerUnit = 16f;
+
+        // ── layers (R3) — paint order, index 0 at the BACK ─────────────────────────
+        // One default layer = exactly the pre-R3 single-layer spec, so a fresh asset renders byte-identical. Every
+        // per-particle / form / swarm / modifier field lives on the layer now; only canvas/timing/preview are here.
+        public List<PyrePlusLayer> layers = new List<PyrePlusLayer> { new PyrePlusLayer() };
+
+        // ── editor preview state (cosmetic; never affects the render) ──────────────
+        [HideInInspector] public float previewZoom = 4f;
+        [HideInInspector] public float previewFps = 12f;
+        [HideInInspector] public int previewFrame = 0;
+        [HideInInspector] public bool previewShowFrame = true;   // draw a thin canvas border in the preview (Frame toggle)
+
+        public int Width => Mathf.Max(1, canvasSize);
+        public int Height => Mathf.Max(1, canvasSize);
     }
 }

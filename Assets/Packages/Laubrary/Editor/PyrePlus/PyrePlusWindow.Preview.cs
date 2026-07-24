@@ -94,9 +94,10 @@ namespace Laubrary.PyrePlus.Editor
                     $"frame {cur + 1}/{s.frameCount}", EditorStyles.whiteMiniLabel);
             }
 
-            // The overlay draws + interacts on every event when the swarm is on; it never fights playback (it
-            // only paints over the already-blitted frame texture).
-            if (s.swarmEnabled) DrawSwarmOverlay(view, s, life);
+            // The overlay draws + interacts on every event when the SELECTED layer's swarm is on; it never fights
+            // playback (it only paints over the already-blitted frame texture). It authors that one layer's swarm.
+            var sel = SelLayer;
+            if (sel != null && sel.swarmEnabled) DrawSwarmOverlay(view, s, sel, life);
         }
 
         // The BackSplash backdrop behind the frame texture — a flat camera-colour fill plus one optional image,
@@ -131,31 +132,32 @@ namespace Laubrary.PyrePlus.Editor
         // along its authored transform curves — matching the user's feedback that Rotation should make the spawn
         // path rotate on screen. The spawn dots still come straight from ComputeSpawns (each particle's own
         // spawn-frame snapshot), so they keep marking real placements while the outline animates over them.
-        void DrawSwarmOverlay(Rect view, PyrePlusSpec s, float life)
+        void DrawSwarmOverlay(Rect view, PyrePlusSpec s, PyrePlusLayer sel, float life)
         {
             // The shape the CURRENT frame presents: the whole transform snapshotted at `life`. Mirrors the
             // renderer's per-particle transform (ComputeSpawns) so the outline/handle geometry reads the same
             // curves the dots do. For a Static transform field EvalField(·, life) == EvalField(·, 0) (a constant),
-            // so a Static offset's handle is unaffected and drag stays correct; only animated fields move.
+            // so a Static offset's handle is unaffected and drag stays correct; only animated fields move. Canvas
+            // dimensions come from the spec; every shape/swarm field comes from the SELECTED layer `sel`.
             float cx = s.Width * 0.5f, cy = s.Height * 0.5f;
             float half = Mathf.Max(1f, s.canvasSize * 0.5f);
-            float r = Mathf.Max(0f, EvalField(s.shapeScale, life));
-            if (s.shapeScaleSnap > 0f) r = Mathf.Round(r / s.shapeScaleSnap) * s.shapeScaleSnap;
-            float rot = EvalField(s.shapeRotation, life);
-            float yaw = EvalField(s.shapeYaw, life);
-            float pitch = EvalField(s.shapePitch, life);
-            Vector2 baseOff = new Vector2(EvalField(s.shapeOffsetX, life), EvalField(s.shapeOffsetY, life));
+            float r = Mathf.Max(0f, EvalField(sel.shapeScale, life));
+            if (sel.shapeScaleSnap > 0f) r = Mathf.Round(r / sel.shapeScaleSnap) * sel.shapeScaleSnap;
+            float rot = EvalField(sel.shapeRotation, life);
+            float yaw = EvalField(sel.shapeYaw, life);
+            float pitch = EvalField(sel.shapePitch, life);
+            Vector2 baseOff = new Vector2(EvalField(sel.shapeOffsetX, life), EvalField(sel.shapeOffsetY, life));
             // The position handle only drags when BOTH offset channels are plain Static numbers; an animated
             // (Curve/MinMax) offset has no single value a drag could set, so it draws hollow + inert.
-            bool offsetDraggable = s.shapeOffsetX.mode == ZUIValue.Mode.Static
-                                && s.shapeOffsetY.mode == ZUIValue.Mode.Static;
+            bool offsetDraggable = sel.shapeOffsetX.mode == ZUIValue.Mode.Static
+                                && sel.shapeOffsetY.mode == ZUIValue.Mode.Static;
 
             // Interaction (hit priority): the shape-position handle first (it sits at the centre), then the
             // Custom path points / click-to-add. Each Use()s the event it consumes, which turns e.type to Used
             // and short-circuits the later handlers — the same chaining Pyre's viewport relies on.
-            HandlePositionHandle(view, s, baseOff, offsetDraggable, cx, cy, half);
+            HandlePositionHandle(view, sel, baseOff, offsetDraggable, cx, cy, half);
             Vector2 drawOff = draggingShapeHandle ? shapeHandleDragOff : baseOff;
-            HandleCustomPoints(view, s, r, rot, yaw, pitch, drawOff, cx, cy, half);
+            HandleCustomPoints(view, sel, r, rot, yaw, pitch, drawOff, cx, cy, half);
 
             if (Event.current.type != EventType.Repaint) return;
 
@@ -164,16 +166,16 @@ namespace Laubrary.PyrePlus.Editor
 
             Handles.BeginGUI();
             var prevC = Handles.color;
-            DrawShapeOutline(s, r, rot, yaw, pitch, drawOff, cx, cy);
-            DrawSpawnDots(view, s, delta);
-            DrawCustomPoints(view, s, r, rot, yaw, pitch, drawOff, cx, cy);
+            DrawShapeOutline(sel, r, rot, yaw, pitch, drawOff, cx, cy);
+            DrawSpawnDots(view, s, sel, delta);
+            DrawCustomPoints(view, sel, r, rot, yaw, pitch, drawOff, cx, cy);
             DrawPositionHandle(view, drawOff, offsetDraggable, cx, cy);
             Handles.color = prevC;
             Handles.EndGUI();
         }
 
         // 1) The current authored shape outline, transformed exactly like the renderer transforms placements.
-        void DrawShapeOutline(PyrePlusSpec s, float r, float rot, float yaw, float pitch,
+        void DrawShapeOutline(PyrePlusLayer s, float r, float rot, float yaw, float pitch,
                               Vector2 off, float cx, float cy)
         {
             Handles.color = OutlineColor;
@@ -216,9 +218,9 @@ namespace Laubrary.PyrePlus.Editor
         }
 
         // 2) A dot at every particle's ACTUAL computed spawn point — the placement truth, not the outline.
-        void DrawSpawnDots(Rect view, PyrePlusSpec s, Vector2 delta)
+        void DrawSpawnDots(Rect view, PyrePlusSpec s, PyrePlusLayer sel, Vector2 delta)
         {
-            PyrePlusRenderer.ComputeSpawns(s, swarmSpawns);
+            PyrePlusRenderer.ComputeSpawns(s, sel, swarmSpawns);
             for (int i = 0; i < swarmSpawns.Count; i++)
             {
                 var sp = swarmSpawns[i];
@@ -235,7 +237,7 @@ namespace Laubrary.PyrePlus.Editor
         }
 
         // 4) The authored Custom-path control points (Path + Custom only), each a draggable marker.
-        void DrawCustomPoints(Rect view, PyrePlusSpec s, float r, float rot, float yaw, float pitch,
+        void DrawCustomPoints(Rect view, PyrePlusLayer s, float r, float rot, float yaw, float pitch,
                               Vector2 off, float cx, float cy)
         {
             if (s.swarmSpawnMode != SwarmSpawnMode.Path || s.swarmShapeKind != SwarmShapeKind.Custom) return;
@@ -276,7 +278,7 @@ namespace Laubrary.PyrePlus.Editor
         }
 
         // ── handlers ──────────────────────────────────────────────────────────────────
-        void HandlePositionHandle(Rect view, PyrePlusSpec s, Vector2 baseOff, bool draggable,
+        void HandlePositionHandle(Rect view, PyrePlusLayer s, Vector2 baseOff, bool draggable,
                                   float cx, float cy, float half)
         {
             var e = Event.current;
@@ -310,7 +312,7 @@ namespace Laubrary.PyrePlus.Editor
             }
         }
 
-        void HandleCustomPoints(Rect view, PyrePlusSpec s, float r, float rot, float yaw, float pitch,
+        void HandleCustomPoints(Rect view, PyrePlusLayer s, float r, float rot, float yaw, float pitch,
                                 Vector2 drawOff, float cx, float cy, float half)
         {
             if (s.swarmSpawnMode != SwarmSpawnMode.Path || s.swarmShapeKind != SwarmShapeKind.Custom) return;

@@ -8,7 +8,7 @@
 // (T2: Area = uniform-by-area point inside Circle/regular-polygon; Path = a point on the outline positioned by
 // swarmProgress, or the swarmCustomX/Y envelopes for a Custom polyline).
 //
-// T6 — Modifiers: reuses Pyre's own PyreModifier stack directly (spec.modifiers), applied exactly as
+// T6 — Modifiers: reuses Pyre's own PyreModifier stack directly (each layer's modifiers list), applied exactly as
 // BlastRenderer applies a layer's stack, adapted to PyrePlus's procedural discs. GeometryModifiers fold the
 // sample position per candidate pixel (bending each disc) BEFORE the distance/edge test; PixelModifiers recolour
 // or drop each lit pixel before it composites; PostModifiers run over the whole finished frame buffer in list
@@ -71,7 +71,7 @@ namespace Laubrary.PyrePlus
         //  SAME Gem ids — FldSize (radius/outer radius), FldAlpha, FldSpin (Orb: lighting-frame yaw / Ring: in-plane
         //  yaw), FldGemTilt, FldGemRoll (Orb: lighting-frame roll; Ring: geometrically inert), FldGemEdgeGlow,
         //  FldGemInnerGlow, FldPathX/Y — and add NO further ids: ringInner is a plain non-animatable float.)
-        // Modifiers (T6): each PyreModifier in spec.modifiers owns an 8-wide field-id BLOCK starting at
+        // Modifiers (T6): each PyreModifier in a layer's modifiers list owns an 8-wide field-id BLOCK starting at
         // FldModifier + listIndex*8, so a modifier's local field id (its Prepare's fid, 0..7) maps to
         // FldModifier + listIndex*8 + fid. Since every modifier has a distinct list index the blocks never
         // overlap, and starting at 16 they never collide with the single-field ids 1..15 above. Mirrors
@@ -98,6 +98,12 @@ namespace Laubrary.PyrePlus
                                       // (Streak forward, Disc/Sprite spin, Text/solid roll). 0 ⇒ no fold applied.
         }
 
+        // The current layer's decorrelation salt — its index in spec.layers. Folded into the d-slot of every
+        // seeded draw (Eval's Hash, the placement/sparkle/pHash draws) so two layers never share an RNG stream.
+        // Layer 0 → 0, so a single-default-layer spec is byte-identical to the pre-R3 renderer. Set before each
+        // layer renders; read synchronously by everything downstream (the same per-frame-static idiom as _textReady).
+        static int _layerSalt;
+
         public static Color32[] RenderFrame(PyrePlusSpec spec, int frameIndex)
         {
             int W = spec != null ? spec.Width : 1;
@@ -105,41 +111,151 @@ namespace Laubrary.PyrePlus
             var buf = new Color32[W * H];
             Color32 bg = spec != null ? (Color32)spec.background : Transparent;
             for (int i = 0; i < buf.Length; i++) buf[i] = bg;
-            if (spec == null) return buf;
+            if (spec == null || spec.layers == null) return buf;
 
             int frames = Mathf.Max(1, spec.frameCount);
             float life = frames > 1 ? frameIndex / (float)(frames - 1) : 0f;
-
-            // Build + Prepare the geometry/pixel modifier stack for THIS frame. Empty (list null/empty or every
-            // entry disabled/null) ⇒ ModSet.Empty ⇒ DrawParticle takes its byte-identical fast path and ApplyPost
-            // below is a no-op, so a no-modifier asset renders exactly as before T6 (orchestrator hash-checked).
-            ModSet mods = BuildMods(spec, life);
             // Per-frame wobble phase handed to every GeometryModifier.InverseWarp — matches BlastRenderer.framePhase
-            // (note the divide by `frames`, not frames-1, deliberately mirroring BlastRenderer).
+            // (note the divide by `frames`, not frames-1, deliberately mirroring BlastRenderer). One phase per frame,
+            // shared by every layer.
             float phase = frames > 1 ? (frameIndex / (float)frames) * Mathf.PI * 2f : 0f;
 
-            // Text form: bake + snapshot the SDF atlas for this frame's string/font ONCE per frame (see
-            // EnsureTextGlyphs). _textReady gates every Text draw below; when false (no readable font) each Text
-            // particle falls back to the Disc raster instead. Non-Text forms never read _textReady.
-            _textReady = spec.shapeForm == ShapeForm.Text && EnsureTextGlyphs(spec);
+            // Four shared matte channels (W*H each), zero-initialised, only allocated when some enabled layer
+            // actually uses them. A WriteMatte layer writes its coverage into channels[matteChannel]; a Draw layer
+            // with clipByChannel >= 0 multiplies its alpha by that channel just before compositing. Layers process
+            // in paint order (0 = back), so a Draw layer can only clip by a channel an EARLIER layer already wrote.
+            var layers = spec.layers;
+            bool anyMatte = false;
+            for (int li = 0; li < layers.Count; li++)
+            {
+                var l0 = layers[li];
+                if (l0 == null || !l0.enabled) continue;
+                if (l0.matteRole == MatteRole.WriteMatte || (l0.matteRole == MatteRole.Draw && l0.clipByChannel >= 0)) { anyMatte = true; break; }
+            }
+            float[][] channels = null;
+            if (anyMatte) { channels = new float[4][]; for (int c = 0; c < 4; c++) channels[c] = new float[W * H]; }
 
-            if (!spec.swarmEnabled)
+            // `bufDirty` guards the "first drawn layer renders straight into buf" path: the first Draw layer to
+            // composite paints (and posts) directly onto the bg-filled output, exactly as the pre-R3 single-layer
+            // renderer did — which is what keeps a one-layer spec byte-identical even with an opaque background +
+            // a post modifier. Every subsequent Draw layer (or any clip/matte/post-after-something layer) isolates
+            // into its own transparent scratch buffer and composites, so its post never re-touches what's below.
+            bool bufDirty = false;
+
+            for (int li = 0; li < layers.Count; li++)
+            {
+                var layer = layers[li];
+                if (layer == null || !layer.enabled) continue;
+                _layerSalt = li;
+
+                // Build + Prepare this layer's geometry/pixel modifier stack for THIS frame. Empty ⇒ ModSet.Empty ⇒
+                // DrawParticle's byte-identical fast path (and no per-layer post), so a no-modifier layer renders
+                // exactly as before T6 (orchestrator hash-checked for the single default layer, li == 0).
+                ModSet mods = BuildMods(layer.modifiers, spec.seed, life);
+                bool hasPost = HasEnabledPost(layer.modifiers);
+                // Text form: bake + snapshot the SDF atlas for THIS layer's string/font. _textReady gates every Text
+                // draw; when false (no readable font) each Text particle falls back to the Disc raster instead.
+                _textReady = layer.shapeForm == ShapeForm.Text && EnsureTextGlyphs(layer);
+
+                bool isMatte = layer.matteRole == MatteRole.WriteMatte;
+                bool hasClip = !isMatte && channels != null && layer.clipByChannel >= 0 && layer.clipByChannel < 4;
+
+                if (isMatte)
+                {
+                    // WriteMatte: render the layer into an isolated transparent scratch exactly as if drawn, run its
+                    // own post pass on that scratch, then read each pixel's ALPHA (the coverage it WOULD have drawn)
+                    // into its channel. Never composited — a matte layer is invisible.
+                    var scratch = new Color32[W * H];
+                    RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
+                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, life, frameIndex);
+                    if (channels != null) WriteMatteCoverage(channels[Mathf.Clamp(layer.matteChannel, 0, 3)], scratch, layer.matteCombine);
+                    continue;
+                }
+
+                // Draw layer. Render straight into `buf` — matching the pre-R3 path — only when no isolation is
+                // needed: no clip (which must multiply alpha before compositing) and it isn't a later layer whose
+                // post would re-process the layers already beneath it. hasPost && !bufDirty means it's the FIRST
+                // thing on the frame, so posting over buf == posting over (bg + this layer) == the old renderer.
+                bool needScratch = hasClip || (hasPost && bufDirty);
+                if (!needScratch)
+                {
+                    RenderLayer(buf, W, H, life, spec, layer, mods, phase, frameIndex);
+                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, buf, W, H, life, frameIndex);
+                }
+                else
+                {
+                    var scratch = new Color32[W * H];
+                    RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
+                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, life, frameIndex);
+                    float[] clip = hasClip ? channels[layer.clipByChannel] : null;
+                    CompositeLayer(buf, scratch, clip, layer.clipInvert);
+                }
+                bufDirty = true;
+            }
+            return buf;
+        }
+
+        // Dispatch one layer's particles into `target` (its own scratch or, for the first drawn layer, buf itself).
+        // The swarm-off / swarm-on / Text-line split of the pre-R3 RenderFrame, made layer-relative. _layerSalt and
+        // _textReady are already set for this layer by the caller.
+        static void RenderLayer(Color32[] target, int W, int H, float life, PyrePlusSpec spec, PyrePlusLayer layer,
+                                in ModSet mods, float phase, int frameIndex)
+        {
+            if (!layer.swarmEnabled)
             {
                 // Text + a usable font: the whole string is ONE centred line (each char its own particle), painted
                 // far→near for correct occlusion. Every other form — and Text with no font — draws the single
-                // centred particle exactly as before (Slice-1 path; now also warps).
-                if (spec.shapeForm == ShapeForm.Text && _textReady)
-                    RenderTextLine(buf, W, H, life, spec, mods, frameIndex);
+                // centred particle.
+                if (layer.shapeForm == ShapeForm.Text && _textReady)
+                    RenderTextLine(target, W, H, life, spec, layer, mods, frameIndex);
                 else
-                    DrawParticle(buf, W, H, W * 0.5f, H * 0.5f, life, spec, 0, mods, phase, frameIndex);
+                    DrawParticle(target, W, H, W * 0.5f, H * 0.5f, life, spec, layer, 0, mods, phase, frameIndex);
             }
             else
-                RenderSwarm(buf, W, H, life, spec, mods, phase, frameIndex);
+                RenderSwarm(target, W, H, life, spec, layer, mods, phase, frameIndex);
+        }
 
-            // Whole-frame post passes (Bloom / Outline / Kaleidoscope) after every particle has composited, in
-            // list order — exactly the stage BlastRenderer runs its global PostModifiers at.
-            ApplyPost(spec, buf, W, H, life, frameIndex);
-            return buf;
+        // True when a modifier list holds an enabled PostModifier — the layer then needs an isolated buffer so its
+        // post pass shapes only its own pixels (mirrors BlastRenderer's hasLayerPost test).
+        static bool HasEnabledPost(List<PyreModifier> list)
+        {
+            if (list == null) return false;
+            for (int i = 0; i < list.Count; i++) { var m = list[i]; if (m != null && m.enabled && m is PostModifier) return true; }
+            return false;
+        }
+
+        // Fold a WriteMatte layer's coverage (its per-pixel alpha) into a mask channel. Max = the union of masks
+        // (the default, the design's max-combine); Add/Subtract accumulate/carve and clamp to 0..1.
+        static void WriteMatteCoverage(float[] channel, Color32[] scratch, MatteCombine combine)
+        {
+            for (int i = 0; i < channel.Length; i++)
+            {
+                float cov = scratch[i].a * (1f / 255f);
+                switch (combine)
+                {
+                    case MatteCombine.Add:      channel[i] = Mathf.Clamp01(channel[i] + cov); break;
+                    case MatteCombine.Subtract: channel[i] = Mathf.Clamp01(channel[i] - cov); break;
+                    default:                    channel[i] = Mathf.Max(channel[i], cov); break;
+                }
+            }
+        }
+
+        // Composite an isolated Draw layer's scratch onto the frame, multiplying each pixel's alpha by its clip
+        // channel first (invert ⇒ 1 - channel). clip == null ⇒ a plain Over composite.
+        static void CompositeLayer(Color32[] buf, Color32[] scratch, float[] clip, bool invert)
+        {
+            for (int i = 0; i < buf.Length; i++)
+            {
+                var s = scratch[i];
+                float a = s.a * (1f / 255f);
+                if (clip != null)
+                {
+                    float k = invert ? 1f - clip[i] : clip[i];
+                    a *= Mathf.Clamp01(k);
+                }
+                if (a <= 0.0001f) continue;
+                Over(buf, i, s.r * (1f / 255f), s.g * (1f / 255f), s.b * (1f / 255f), a);
+            }
         }
 
         // ── modifiers (T6) ───────────────────────────────────────────────────────────
@@ -162,9 +278,8 @@ namespace Laubrary.PyrePlus
         // field-id block (see the registry). Returns ModSet.Empty when nothing applies, which is the byte-identical
         // gate. EdgeModifier / SimulationModifier have no apply stage in PyrePlus's disc raster, so they are
         // ignored here (and the editor's add-menu never offers them).
-        static ModSet BuildMods(PyrePlusSpec spec, float life)
+        static ModSet BuildMods(List<PyreModifier> list, int seed, float life)
         {
-            var list = spec.modifiers;
             if (list == null || list.Count == 0) return ModSet.Empty;
             List<GeometryModifier> geo = null;
             List<PixelModifier> pix = null;
@@ -174,7 +289,7 @@ namespace Laubrary.PyrePlus
                 if (m == null || !m.enabled) continue;
                 if (m is PostModifier) continue;
                 int idx = i;   // Prepare invokes the closure synchronously, but copy the loop var anyway for hygiene
-                m.Prepare((v, fid) => Eval(v, life, spec.seed, ModParticleIndex, FldModifier + idx * 8 + fid));
+                m.Prepare((v, fid) => Eval(v, life, seed, ModParticleIndex, FldModifier + idx * 8 + fid));
                 if (m is GeometryModifier gm) (geo ??= new List<GeometryModifier>()).Add(gm);
                 else if (m is PixelModifier pm) (pix ??= new List<PixelModifier>()).Add(pm);
             }
@@ -220,9 +335,8 @@ namespace Laubrary.PyrePlus
 
         // Whole-frame post passes after everything composites, in list order — the stage & keying of
         // BlastRenderer's global PostModifier loop.
-        static void ApplyPost(PyrePlusSpec spec, Color32[] buf, int W, int H, float life, int frameIndex)
+        static void ApplyLayerPost(List<PyreModifier> list, int seed, Color32[] buf, int W, int H, float life, int frameIndex)
         {
-            var list = spec.modifiers;
             if (list == null) return;
             for (int i = 0; i < list.Count; i++)
             {
@@ -230,9 +344,9 @@ namespace Laubrary.PyrePlus
                 if (m == null || !m.enabled) continue;
                 if (m is PostModifier post)
                 {
-                    SetPostContext(post, life, spec.seed, frameIndex);
+                    SetPostContext(post, life, seed, frameIndex);
                     int idx = i;
-                    m.Prepare((v, fid) => Eval(v, life, spec.seed, ModParticleIndex, FldModifier + idx * 8 + fid));
+                    m.Prepare((v, fid) => Eval(v, life, seed, ModParticleIndex, FldModifier + idx * 8 + fid));
                     post.Apply(buf, W, H);
                 }
             }
@@ -264,19 +378,19 @@ namespace Laubrary.PyrePlus
 
         // ── swarm ──────────────────────────────────────────────────────────────────
 
-        static void RenderSwarm(Color32[] buf, int W, int H, float life, PyrePlusSpec spec,
+        static void RenderSwarm(Color32[] buf, int W, int H, float life, PyrePlusSpec spec, PyrePlusLayer layer,
                                 in ModSet mods, float phase, int frameIndex)
         {
-            var spawns = new List<SpawnPoint>(Mathf.Max(2, spec.swarmCount));
-            ComputeSpawns(spec, spawns);
+            var spawns = new List<SpawnPoint>(Mathf.Max(2, layer.swarmCount));
+            ComputeSpawns(spec, layer, spawns);
 
             // Scale-by-index (S1): a per-particle size multiplier chosen by index. Static 1 (the default) is an
             // EXACT no-op — IsStaticOne gates it out so sizeMul is untouched and the swarm stays byte-identical.
-            bool scaleIdx = !IsStaticOne(spec.swarmScaleByIndex);
+            bool scaleIdx = !IsStaticOne(layer.swarmScaleByIndex);
             // Die-together (S1): every particle's shared death point on the blast timeline. Off ⇒ the per-particle
             // life below is the verbatim pre-S1 expression (byte-identical).
-            bool dieTogether = spec.swarmDieTogether;
-            float deathPoint = dieTogether ? Mathf.Min(1f, spec.swarmSpawnWindow + spec.swarmParticleLife) : 0f;
+            bool dieTogether = layer.swarmDieTogether;
+            float deathPoint = dieTogether ? Mathf.Min(1f, layer.swarmSpawnWindow + layer.swarmParticleLife) : 0f;
 
             for (int i = 0; i < spawns.Count; i++)
             {
@@ -288,7 +402,7 @@ namespace Laubrary.PyrePlus
                 // denominator when a particle spawns at/after the death point); off ⇒ the original per-particle form.
                 float own = dieTogether
                     ? (life - sp.spawnLife) / Mathf.Max(0.0001f, deathPoint - sp.spawnLife)
-                    : (life - sp.spawnLife) / Mathf.Max(0.0001f, spec.swarmParticleLife);
+                    : (life - sp.spawnLife) / Mathf.Max(0.0001f, layer.swarmParticleLife);
                 if (own < 0f || own > 1f) continue;
                 // Depth shading from the spawn-time tilt: nearer parts (zNorm > 0) draw bigger and brighter, far
                 // parts smaller and dimmer. Both multipliers are exactly 1 at zNorm == 0, so an untilted swarm
@@ -300,9 +414,9 @@ namespace Laubrary.PyrePlus
                     // Curve INPUT is the index fraction i/(n-1) (like spawn timing), NOT life — a per-particle
                     // shape, evaluated once. n>=1; a single-particle swarm (Text) uses input 0.
                     float t = spawns.Count > 1 ? i / (float)(spawns.Count - 1) : 0f;
-                    sizeMul *= Mathf.Max(0f, Eval(spec.swarmScaleByIndex, t, spec.seed, i, FldScaleByIndex));
+                    sizeMul *= Mathf.Max(0f, Eval(layer.swarmScaleByIndex, t, spec.seed, i, FldScaleByIndex));
                 }
-                DrawParticle(buf, W, H, sp.pos.x, sp.pos.y, own, spec, i, mods, phase, frameIndex,
+                DrawParticle(buf, W, H, sp.pos.x, sp.pos.y, own, spec, layer, i, mods, phase, frameIndex,
                              sizeMul, brightMul, sp.orientDeg);
             }
         }
@@ -311,22 +425,27 @@ namespace Laubrary.PyrePlus
         /// (absolute canvas-pixel coords). Pure and deterministic — RenderSwarm consumes it, and the preview
         /// overlay (T5) calls it directly to draw a dot at each particle's real spawn location. Fills `into`
         /// (cleared first); allocation-light beyond the list's own growth. Empty when the swarm is off.
-        public static void ComputeSpawns(PyrePlusSpec spec, List<SpawnPoint> into)
+        public static void ComputeSpawns(PyrePlusSpec spec, PyrePlusLayer layer, List<SpawnPoint> into)
         {
             if (into == null) return;
             into.Clear();
-            if (spec == null || !spec.swarmEnabled) return;
+            if (spec == null || layer == null || !layer.swarmEnabled) return;
+            // Set the layer's decorrelation salt from its list position, so a placement the preview overlay computes
+            // for the SELECTED layer keys the same RNG streams the render used for that layer (RenderFrame already
+            // set _layerSalt == li before calling this via RenderSwarm; the overlay call re-derives the same index).
+            int liSalt = spec.layers != null ? spec.layers.IndexOf(layer) : 0;
+            _layerSalt = liSalt < 0 ? 0 : liSalt;
 
             // Text overrides the swarm count: one particle per CHARACTER (min 1), so the swarm places exactly the
             // string's letters. An exact guarded branch — every other form keeps `Mathf.Max(2, swarmCount)` VERBATIM
             // so its spawn arithmetic is byte-identical (orchestrator hash-gated). Text may make n == 1 (one char),
             // which the (n-1) divisions below now special-case.
-            int n = spec.shapeForm == ShapeForm.Text
-                ? Mathf.Max(1, (spec.textString ?? "").Length)
-                : Mathf.Max(2, spec.swarmCount);
+            int n = layer.shapeForm == ShapeForm.Text
+                ? Mathf.Max(1, (layer.textString ?? "").Length)
+                : Mathf.Max(2, layer.swarmCount);
             float cx = spec.Width * 0.5f;
             float cy = spec.Height * 0.5f;
-            float window = Mathf.Clamp01(spec.swarmSpawnWindow);
+            float window = Mathf.Clamp01(layer.swarmSpawnWindow);
 
             for (int i = 0; i < n; i++)
             {
@@ -341,12 +460,12 @@ namespace Laubrary.PyrePlus
                 float spawnLife;
                 if (n <= 1)
                     spawnLife = 0f;   // single-char Text: one particle at timeline 0 (avoids the (n-1)==0 divisions)
-                else if (spec.swarmSpawnTiming == null || IsLinear01(spec.swarmSpawnTiming))
+                else if (layer.swarmSpawnTiming == null || IsLinear01(layer.swarmSpawnTiming))
                     spawnLife = window * i / (n - 1);
                 else
                 {
                     float frac = i / (float)(n - 1);
-                    float t = Mathf.Clamp01(Eval(spec.swarmSpawnTiming, frac, spec.seed, i, FldSpawnTiming));
+                    float t = Mathf.Clamp01(Eval(layer.swarmSpawnTiming, frac, spec.seed, i, FldSpawnTiming));
                     spawnLife = window * t;
                 }
 
@@ -356,8 +475,8 @@ namespace Laubrary.PyrePlus
                 // particles (the same live-vs-snapshot split Pyre's scatter makes: ringExpand is live, but
                 // spawnRadius/ringStartAngle are spawn-snapshot). Radius first — both the local placement and the
                 // depth normalize below need it.
-                float r = Mathf.Max(0f, Eval(spec.shapeScale, spawnLife, spec.seed, i, FldScale));
-                float snap = spec.shapeScaleSnap;
+                float r = Mathf.Max(0f, Eval(layer.shapeScale, spawnLife, spec.seed, i, FldScale));
+                float snap = layer.shapeScaleSnap;
                 if (snap > 0f) r = Mathf.Round(r / snap) * snap;
 
                 // Even-path spacing (B1): in Path mode with swarmEvenPath, ADD an even index fraction to this
@@ -365,22 +484,22 @@ namespace Laubrary.PyrePlus
                 // becomes the string's shared ride). Off / non-Path ⇒ progressAdd is exactly 0, and PlaceParticle
                 // skips the add, so placement is byte-identical to pre-S1.
                 float progressAdd = 0f;
-                if (spec.swarmEvenPath && spec.swarmSpawnMode == SwarmSpawnMode.Path && n > 1)
-                    progressAdd = (i / (float)(n - 1)) * Mathf.Clamp01(spec.swarmPathSpread);
+                if (layer.swarmEvenPath && layer.swarmSpawnMode == SwarmSpawnMode.Path && n > 1)
+                    progressAdd = (i / (float)(n - 1)) * Mathf.Clamp01(layer.swarmPathSpread);
 
                 // 1) Local placement (T2): a point on/inside the shape, radius already baked in. PlaceParticle
                 //    returns it in ABSOLUTE canvas pixels (centre baked in as cx/cy); we take the local offset
                 //    from that below only when a transform is actually active.
-                Vector2 baseAbs = PlaceParticle(spec, i, spawnLife, cx, cy, r, progressAdd);
+                Vector2 baseAbs = PlaceParticle(spec, layer, i, spawnLife, cx, cy, r, progressAdd);
 
                 // Shared shape transform, each field the same spawn-time snapshot as r above. Every step is an exact
                 // no-op at its default (rotation/pitch/yaw 0, offset 0), so a swarm with all transform fields at
                 // defaults short-circuits to the untransformed T2 position `baseAbs` — byte-identical to pre-T3.
-                float rot   = Eval(spec.shapeRotation, spawnLife, spec.seed, i, FldRotation);
-                float yaw   = Eval(spec.shapeYaw,      spawnLife, spec.seed, i, FldYaw);
-                float pitch = Eval(spec.shapePitch,    spawnLife, spec.seed, i, FldPitch);
-                float offX  = Eval(spec.shapeOffsetX,  spawnLife, spec.seed, i, FldOffsetX);
-                float offY  = Eval(spec.shapeOffsetY,  spawnLife, spec.seed, i, FldOffsetY);
+                float rot   = Eval(layer.shapeRotation, spawnLife, spec.seed, i, FldRotation);
+                float yaw   = Eval(layer.shapeYaw,      spawnLife, spec.seed, i, FldYaw);
+                float pitch = Eval(layer.shapePitch,    spawnLife, spec.seed, i, FldPitch);
+                float offX  = Eval(layer.shapeOffsetX,  spawnLife, spec.seed, i, FldOffsetX);
+                float offY  = Eval(layer.shapeOffsetY,  spawnLife, spec.seed, i, FldOffsetY);
 
                 Vector2 pos;
                 float zNorm;
@@ -441,15 +560,15 @@ namespace Laubrary.PyrePlus
                 // (zero-length) tangent, falls back to Outward. The angle is a target MATH angle; each form folds
                 // it into its own rotation (see DrawParticle).
                 float orientDeg = 0f;
-                if (spec.swarmOrient != SwarmOrient.None)
+                if (layer.swarmOrient != SwarmOrient.None)
                 {
                     float ctrX = cx + offX, ctrY = cy + offY;
-                    bool wantTangent = spec.swarmOrient == SwarmOrient.PathTangent
-                                       && spec.swarmSpawnMode == SwarmSpawnMode.Path;
+                    bool wantTangent = layer.swarmOrient == SwarmOrient.PathTangent
+                                       && layer.swarmSpawnMode == SwarmSpawnMode.Path;
                     bool got = false;
                     if (wantTangent)
                     {
-                        Vector2 tl = PathTangentLocal(spec, i, spawnLife, r, progressAdd);
+                        Vector2 tl = PathTangentLocal(spec, layer, i, spawnLife, r, progressAdd);
                         if (rot != 0f)
                         {
                             float a = rot * Mathf.Deg2Rad, cc = Mathf.Cos(a), ss = Mathf.Sin(a);
@@ -477,12 +596,12 @@ namespace Laubrary.PyrePlus
         ///   Path — a point ON the shape's outline, positioned by progress (see below).
         /// Geometry conventions: regular N-gon has vertex 0 at the TOP (angle +90°), vertices counter-clockwise;
         /// side count Triangle 3 / Square 4 / Pentagon 5 / Hexagon 6.
-        static Vector2 PlaceParticle(PyrePlusSpec spec, int i, float spawnLife, float cx, float cy, float r,
+        static Vector2 PlaceParticle(PyrePlusSpec spec, PyrePlusLayer layer, int i, float spawnLife, float cx, float cy, float r,
                                      float progressAdd = 0f)
         {
-            var kind = spec.swarmShapeKind;
+            var kind = layer.swarmShapeKind;
 
-            if (spec.swarmSpawnMode == SwarmSpawnMode.Area)
+            if (layer.swarmSpawnMode == SwarmSpawnMode.Area)
             {
                 // Custom is Path-only (the UI enforces it), so Area+Custom falls back to a disc — as does Circle.
                 if (kind == SwarmShapeKind.Circle || kind == SwarmShapeKind.Custom)
@@ -498,7 +617,7 @@ namespace Laubrary.PyrePlus
             // retroactively sliding already-placed particles. A MinMax swarmProgress falls out of Eval as a
             // per-particle random point along the path (no special-casing). Path mode uses NO disc randomness of
             // its own — the only randomness is whatever mode swarmProgress itself is in.
-            float pRaw = Eval(spec.swarmProgress, spawnLife, spec.seed, i, FldProgress);
+            float pRaw = Eval(layer.swarmProgress, spawnLife, spec.seed, i, FldProgress);
             if (progressAdd != 0f) pRaw += progressAdd;   // even-path (B1) offset; 0 ⇒ skipped ⇒ byte-identical
 
             if (kind == SwarmShapeKind.Custom)
@@ -507,8 +626,8 @@ namespace Laubrary.PyrePlus
                 // start, p>1 pins to the end. The two envelopes ARE the path: x(p), y(p) as canvas-pixel offsets
                 // from the centre, sampled at progress p. p=0 is the path's start, p=1 its end.
                 float pc = Mathf.Clamp01(pRaw);
-                float ox = Eval(spec.swarmCustomX, pc, spec.seed, i, FldCustomX);
-                float oy = Eval(spec.swarmCustomY, pc, spec.seed, i, FldCustomY);
+                float ox = Eval(layer.swarmCustomX, pc, spec.seed, i, FldCustomX);
+                float oy = Eval(layer.swarmCustomY, pc, spec.seed, i, FldCustomY);
                 return new Vector2(cx + ox, cy + oy);
             }
 
@@ -549,10 +668,10 @@ namespace Laubrary.PyrePlus
         ///   Circle — the CCW tangent of the parameterized circle at progress p.
         ///   N-gon  — the current side's direction (vertex k → k+1), by the same arc-length p·n parameterization.
         ///   Custom — a small central finite difference of the paired X/Y envelopes about the clamped progress.
-        static Vector2 PathTangentLocal(PyrePlusSpec spec, int i, float spawnLife, float r, float progressAdd)
+        static Vector2 PathTangentLocal(PyrePlusSpec spec, PyrePlusLayer layer, int i, float spawnLife, float r, float progressAdd)
         {
-            var kind = spec.swarmShapeKind;
-            float pRaw = Eval(spec.swarmProgress, spawnLife, spec.seed, i, FldProgress);
+            var kind = layer.swarmShapeKind;
+            float pRaw = Eval(layer.swarmProgress, spawnLife, spec.seed, i, FldProgress);
             if (progressAdd != 0f) pRaw += progressAdd;
 
             if (kind == SwarmShapeKind.Custom)
@@ -560,10 +679,10 @@ namespace Laubrary.PyrePlus
                 float pc = Mathf.Clamp01(pRaw);
                 const float dp = 0.01f;
                 float pa = Mathf.Clamp01(pc - dp), pb = Mathf.Clamp01(pc + dp);
-                float x0 = Eval(spec.swarmCustomX, pa, spec.seed, i, FldCustomX);
-                float x1 = Eval(spec.swarmCustomX, pb, spec.seed, i, FldCustomX);
-                float y0 = Eval(spec.swarmCustomY, pa, spec.seed, i, FldCustomY);
-                float y1 = Eval(spec.swarmCustomY, pb, spec.seed, i, FldCustomY);
+                float x0 = Eval(layer.swarmCustomX, pa, spec.seed, i, FldCustomX);
+                float x1 = Eval(layer.swarmCustomX, pb, spec.seed, i, FldCustomX);
+                float y0 = Eval(layer.swarmCustomY, pa, spec.seed, i, FldCustomY);
+                float y1 = Eval(layer.swarmCustomY, pb, spec.seed, i, FldCustomY);
                 return new Vector2(x1 - x0, y1 - y0);
             }
 
@@ -615,7 +734,7 @@ namespace Laubrary.PyrePlus
         /// standard sqrt barycentric trick. One rng, one stream ⇒ per-particle stable across frames.
         static Vector2 SamplePolygonArea(float cx, float cy, float r, int n, int seed, int particleIndex)
         {
-            var rng = new System.Random(Hash(seed, particleIndex, FldPlacement, 0));
+            var rng = new System.Random(Hash(seed, particleIndex, FldPlacement, _layerSalt));
             double u0 = rng.NextDouble();
             double u1 = rng.NextDouble();
             double u2 = rng.NextDouble();
@@ -638,7 +757,7 @@ namespace Laubrary.PyrePlus
         /// preview/bake/runtime.
         static Vector2 SampleDisc(float radius, int seed, int particleIndex)
         {
-            var rng = new System.Random(Hash(seed, particleIndex, FldPlacement, 0));
+            var rng = new System.Random(Hash(seed, particleIndex, FldPlacement, _layerSalt));
             float u1 = (float)rng.NextDouble();
             float u2 = (float)rng.NextDouble();
             float rr = radius * Mathf.Sqrt(u1);
@@ -654,7 +773,7 @@ namespace Laubrary.PyrePlus
         // rotation fold below is guarded to a no-op, keeping those paths byte-identical). It ADDS to whichever
         // rotation each form already has: Streak forward, Disc/Crescent/Sparkle/Sprite spin, Text/solid roll.
         static void DrawParticle(Color32[] buf, int W, int H, float cx, float cy, float life,
-                                 PyrePlusSpec spec, int particleIndex, in ModSet mods, float phase, int frameIndex,
+                                 PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex, in ModSet mods, float phase, int frameIndex,
                                  float sizeMul = 1f, float brightMul = 1f, float orientDeg = 0f)
         {
             // Text form: this particle renders ITS OWN character (index = particleIndex) as an extruded SDF glyph
@@ -662,23 +781,23 @@ namespace Laubrary.PyrePlus
             // swarm-OFF line is laid out separately by RenderTextLine. When no readable font exists (_textReady is
             // false) we fall THROUGH to the Disc raster below as the per-particle fallback — so travel/size/alpha
             // are left for the Disc code to evaluate and cx/cy stay untouched here in that case.
-            if (spec.shapeForm == ShapeForm.Text)
+            if (layer.shapeForm == ShapeForm.Text)
             {
                 if (_textReady)
                 {
-                    string ts = spec.textString ?? "";
+                    string ts = layer.textString ?? "";
                     if (ts.Length == 0) return;
                     char ch = ts[Mathf.Clamp(particleIndex, 0, ts.Length - 1)];
-                    float szc = Mathf.Max(0f, Eval(spec.size, life, spec.seed, particleIndex, FldSize)) * sizeMul;
+                    float szc = Mathf.Max(0f, Eval(layer.size, life, spec.seed, particleIndex, FldSize)) * sizeMul;
                     // Shared per-particle travel (T7) — same guard/keys as every other form (no-op at Static 0).
-                    if (!(IsStaticZero(spec.particlePathX) && IsStaticZero(spec.particlePathY)))
+                    if (!(IsStaticZero(layer.particlePathX) && IsStaticZero(layer.particlePathY)))
                     {
-                        cx += Eval(spec.particlePathX, life, spec.seed, particleIndex, FldPathX);
-                        cy += Eval(spec.particlePathY, life, spec.seed, particleIndex, FldPathY);
+                        cx += Eval(layer.particlePathX, life, spec.seed, particleIndex, FldPathX);
+                        cy += Eval(layer.particlePathY, life, spec.seed, particleIndex, FldPathY);
                     }
                     // Swarm mode has no line layout, so TextGradient degrades to PerCharStep (index fraction):
                     // pass lineMode=false, x0/span 0 (unused). orientDeg rolls each letter about Z to follow the path.
-                    DrawTextChar(buf, W, H, cx, cy, szc, life, spec, particleIndex, ch, particleIndex,
+                    DrawTextChar(buf, W, H, cx, cy, szc, life, spec, layer, particleIndex, ch, particleIndex,
                                  Mathf.Max(1, ts.Length), 0f, 0f, false, mods, frameIndex, brightMul, orientDeg);
                     return;
                 }
@@ -690,41 +809,41 @@ namespace Laubrary.PyrePlus
             // Disc). All four share DrawFacetSolid — same rotation, lighting, edge lines and glows — differing only
             // in their model verts / faces / which edges are lines. `life` here IS the particle's own life clock in
             // both callers (blast life for the single particle, `own` for a swarm one).
-            if (spec.shapeForm == ShapeForm.Gem || spec.shapeForm == ShapeForm.Box ||
-                spec.shapeForm == ShapeForm.Pyramid || spec.shapeForm == ShapeForm.Can)
+            if (layer.shapeForm == ShapeForm.Gem || layer.shapeForm == ShapeForm.Box ||
+                layer.shapeForm == ShapeForm.Pyramid || layer.shapeForm == ShapeForm.Can)
             {
-                DrawFacetSolid(buf, W, H, cx, cy, life, spec, particleIndex, mods, frameIndex, sizeMul, brightMul, orientDeg);
+                DrawFacetSolid(buf, W, H, cx, cy, life, spec, layer, particleIndex, mods, frameIndex, sizeMul, brightMul, orientDeg);
                 return;
             }
             // Orb + Ring — the ANALYTIC true-3D forms (a sphere and a flat annulus). They reuse the SAME per-pixel
             // point-light + Blinn-Phong lighting, hard edge lines and halo/inner glows as DrawFacetSolid, but drive
             // them from analytic geometry instead of facets (see DrawOrb / DrawRing). Branch before the Disc
             // arithmetic so the Disc path stays byte-identical, exactly like the facet-solid branch above.
-            if (spec.shapeForm == ShapeForm.Orb)
+            if (layer.shapeForm == ShapeForm.Orb)
             {
-                DrawOrb(buf, W, H, cx, cy, life, spec, particleIndex, mods, frameIndex, sizeMul, brightMul, orientDeg);
+                DrawOrb(buf, W, H, cx, cy, life, spec, layer, particleIndex, mods, frameIndex, sizeMul, brightMul, orientDeg);
                 return;
             }
-            if (spec.shapeForm == ShapeForm.Ring)
+            if (layer.shapeForm == ShapeForm.Ring)
             {
                 // Ring intentionally ignores orientDeg: its roll (gemRoll) is geometrically inert for the symmetric
                 // annulus (Turn + Tilt already shape its ellipse), and DrawRing applies no roll at all.
-                DrawRing(buf, W, H, cx, cy, life, spec, particleIndex, mods, frameIndex, sizeMul, brightMul);
+                DrawRing(buf, W, H, cx, cy, life, spec, layer, particleIndex, mods, frameIndex, sizeMul, brightMul);
                 return;
             }
             // Streak — a root-anchored comet-tail capsule with its OWN length/width envelopes (NOT `size`). Branch
             // before the Disc arithmetic so the Disc path stays byte-identical, like the solid/analytic forms above.
-            if (spec.shapeForm == ShapeForm.Streak)
+            if (layer.shapeForm == ShapeForm.Streak)
             {
-                DrawStreakBody(buf, W, H, cx, cy, life, spec, particleIndex, mods, phase, frameIndex,
+                DrawStreakBody(buf, W, H, cx, cy, life, spec, layer, particleIndex, mods, phase, frameIndex,
                                sizeMul, brightMul, orientDeg);
                 return;
             }
 
-            float radius = Mathf.Max(0f, Eval(spec.size, life, spec.seed, particleIndex, FldSize));
+            float radius = Mathf.Max(0f, Eval(layer.size, life, spec.seed, particleIndex, FldSize));
             radius *= sizeMul;                    // depth size shading (exact no-op at sizeMul == 1)
             if (radius <= 0.01f) return;
-            float alpha = Mathf.Clamp01(Eval(spec.alpha, life, spec.seed, particleIndex, FldAlpha));
+            float alpha = Mathf.Clamp01(Eval(layer.alpha, life, spec.seed, particleIndex, FldAlpha));
             if (alpha <= 0.002f) return;
 
             // Per-particle travel (T7): the particle's OWN path after birth — canvas-pixel offsets ADDED to its
@@ -733,17 +852,17 @@ namespace Laubrary.PyrePlus
             // raster and the modifier raster below, so the whole disc — bounds and warp context included — travels
             // as a unit. Guarded to an exact no-op when BOTH values are Static 0, keeping a default asset (and its
             // fast-path bounds/arith) byte-identical; a Curve/MinMax always evaluates.
-            if (!(IsStaticZero(spec.particlePathX) && IsStaticZero(spec.particlePathY)))
+            if (!(IsStaticZero(layer.particlePathX) && IsStaticZero(layer.particlePathY)))
             {
-                cx += Eval(spec.particlePathX, life, spec.seed, particleIndex, FldPathX);
-                cy += Eval(spec.particlePathY, life, spec.seed, particleIndex, FldPathY);
+                cx += Eval(layer.particlePathX, life, spec.seed, particleIndex, FldPathX);
+                cy += Eval(layer.particlePathY, life, spec.seed, particleIndex, FldPathY);
             }
 
             // Shape fill (Part A). Hoisted at the particle centre (0,0). For the default OverLife fill (and any
             // Solid fill) this is a constant the whole raster reuses — byte-identical to the old colorOverLife path
             // (OverLife evaluates as gradient.Evaluate(life), the exact old call). A SPATIAL fill (Linear/Radial/
             // Noise) instead recomputes per pixel at the pixel's local (dx/radius, dy/radius) inside each loop below.
-            var fill = spec.shapeFill;
+            var fill = layer.shapeFill;
             bool fillSpatial = IsSpatialFill(fill);
             Color col = fill != null ? fill.Evaluate(life, 0f, 0f) : Color.white;
             // Depth brightness shading: scale RGB (alpha untouched) and clamp each channel to [0,1]. Guarded so
@@ -756,7 +875,7 @@ namespace Laubrary.PyrePlus
                 cb = Mathf.Clamp01(cb * brightMul);
             }
             // Soft rim: alpha ramps from `soft`·radius out to the edge. 0 softness = a hard pixel disc.
-            float soft = Mathf.Clamp01(spec.edgeSoftness);
+            float soft = Mathf.Clamp01(layer.edgeSoftness);
             float inner = radius * (1f - soft);
 
             // ── other STATELESS forms (G2) — branch BEFORE the Disc raster so the Disc/Gem paths below stay
@@ -765,25 +884,25 @@ namespace Laubrary.PyrePlus
             //    already folded into cx/cy above, and spin + geometry warps folded per pixel exactly as Disc's
             //    modifier path does. Sprite alone can decline (null / non-readable texture) and fall THROUGH to
             //    the Disc raster as its fallback. ──
-            if (spec.shapeForm == ShapeForm.Crescent)
+            if (layer.shapeForm == ShapeForm.Crescent)
             {
                 DrawCrescentBody(buf, W, H, cx, cy, radius, alpha, col, cr, cg, cb, soft, inner,
-                                 spec, particleIndex, mods, phase, frameIndex, life, brightMul, orientDeg);
+                                 spec, layer, particleIndex, mods, phase, frameIndex, life, brightMul, orientDeg);
                 return;
             }
-            if (spec.shapeForm == ShapeForm.Sparkle)
+            if (layer.shapeForm == ShapeForm.Sparkle)
             {
                 DrawSparkleBody(buf, W, H, cx, cy, radius, alpha, col, cr, cg, cb,
-                                spec, particleIndex, mods, phase, frameIndex, life, brightMul, orientDeg);
+                                spec, layer, particleIndex, mods, phase, frameIndex, life, brightMul, orientDeg);
                 return;
             }
-            if (spec.shapeForm == ShapeForm.Sprite)
+            if (layer.shapeForm == ShapeForm.Sprite)
             {
                 // A null spriteImage, or a texture without Read/Write, can't be sampled — DrawSpriteBody returns
                 // false and we FALL THROUGH to the Disc raster below as the fallback (the UI's picker tooltip
                 // warns the texture must have Read/Write enabled).
                 if (DrawSpriteBody(buf, W, H, cx, cy, radius, alpha, col, brightMul,
-                                   spec, particleIndex, mods, phase, frameIndex, life, orientDeg))
+                                   spec, layer, particleIndex, mods, phase, frameIndex, life, orientDeg))
                     return;
             }
 
@@ -831,7 +950,7 @@ namespace Laubrary.PyrePlus
                 py0 = Mathf.Max(0, Mathf.FloorToInt(cy - radius));
                 py1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + radius));
             }
-            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);   // a stable per-particle seed for PixelInfo.hash (modifiers combine it with x/y)
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7 + _layerSalt);   // a stable per-particle seed for PixelInfo.hash (modifiers combine it with x/y)
 
             // Per-particle 2D spin (T7): rotate this particle's OWN pixels in place. Each sample's LOCAL offset
             // (from the particle centre) is rotated by −spin, composed BEFORE the geometry InverseWarp fold — so a
@@ -842,7 +961,7 @@ namespace Laubrary.PyrePlus
             // to the fold/test are the pre-T7 expressions verbatim, so a default asset stays byte-identical. Raster
             // bounds need NO change — rotation preserves the offset's length (a symmetric disc's extent is
             // unchanged) and an active geometry warp already forces the whole-canvas scan.
-            float spin = Eval(spec.particleSpin, life, spec.seed, particleIndex, FldSpin);
+            float spin = Eval(layer.particleSpin, life, spec.seed, particleIndex, FldSpin);
             if (orientDeg != 0f) spin += orientDeg;   // swarm facing (S1) adds to the 2D spin fold; 0 ⇒ byte-identical
             bool doSpin = spin != 0f;
             float spinCos = 1f, spinSin = 0f;
@@ -946,30 +1065,30 @@ namespace Laubrary.PyrePlus
         // (normalised to the main radius), generalised to a bite disc of its own size.
         static void DrawCrescentBody(Color32[] buf, int W, int H, float cx, float cy, float radius, float alpha,
                                      Color col, float cr, float cg, float cb, float soft, float inner,
-                                     PyrePlusSpec spec, int particleIndex, in ModSet mods, float phase,
+                                     PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex, in ModSet mods, float phase,
                                      int frameIndex, float life, float brightMul, float orientDeg = 0f)
         {
-            float bite = Mathf.Clamp01(Eval(spec.crescentBite, life, spec.seed, particleIndex, FldCrescentBite));
+            float bite = Mathf.Clamp01(Eval(layer.crescentBite, life, spec.seed, particleIndex, FldCrescentBite));
             float biteRadius = radius * bite;
-            float ang = Eval(spec.crescentAngle, life, spec.seed, particleIndex, FldCrescentAngle) * Mathf.Deg2Rad;
-            float off = Mathf.Clamp01(spec.crescentOffset) * radius;
+            float ang = Eval(layer.crescentAngle, life, spec.seed, particleIndex, FldCrescentAngle) * Mathf.Deg2Rad;
+            float off = Mathf.Clamp01(layer.crescentOffset) * radius;
             float bx = off * Mathf.Cos(ang), by = off * Mathf.Sin(ang);   // bite-disc centre, in the shape-local (dx,dy) frame
 
             // Shape fill: hoisted col/cr/cg/cb (passed in) is the constant for the default OverLife / any Solid fill;
             // a spatial fill recomputes per lit pixel at (dx/radius, dy/radius) below. fillSpatial false ⇒ byte-identical.
-            var fill = spec.shapeFill;
+            var fill = layer.shapeFill;
             bool fillSpatial = IsSpatialFill(fill);
 
             bool anyGeo = mods.AnyGeo;
             float ccx = W * 0.5f, ccy = H * 0.5f;
             Vector2 c = new Vector2(cx - ccx, cy - ccy);
             var ctx = new GeoCtx(ccx, ccy, c, radius);
-            float spin = Eval(spec.particleSpin, life, spec.seed, particleIndex, FldSpin);
+            float spin = Eval(layer.particleSpin, life, spec.seed, particleIndex, FldSpin);
             if (orientDeg != 0f) spin += orientDeg;   // swarm facing (S1); 0 ⇒ byte-identical
             bool doSpin = spin != 0f;
             float spinCos = 1f, spinSin = 0f;
             if (doSpin) { float sa = -spin * Mathf.Deg2Rad; spinCos = Mathf.Cos(sa); spinSin = Mathf.Sin(sa); }
-            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7 + _layerSalt);
 
             int px0, px1, py0, py1;
             if (anyGeo) { px0 = 0; py0 = 0; px1 = W - 1; py1 = H - 1; }
@@ -1027,19 +1146,19 @@ namespace Laubrary.PyrePlus
         // past the disc radius are never lit.
         static void DrawSparkleBody(Color32[] buf, int W, int H, float cx, float cy, float radius, float alpha,
                                     Color col, float cr, float cg, float cb,
-                                    PyrePlusSpec spec, int particleIndex, in ModSet mods, float phase,
+                                    PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex, in ModSet mods, float phase,
                                     int frameIndex, float life, float brightMul, float orientDeg = 0f)
         {
-            float density = Mathf.Clamp01(Eval(spec.sparkleDensity, life, spec.seed, particleIndex, FldSparkle));
+            float density = Mathf.Clamp01(Eval(layer.sparkleDensity, life, spec.seed, particleIndex, FldSparkle));
             if (density <= 0.001f) return;
             float baseAlpha = alpha * col.a;
             // Shape fill: the hoisted col/baseAlpha are the constant for the default OverLife / any Solid fill; a
             // spatial fill recomputes per lit cell below. The hoisted early-out is only valid for a constant fill
             // (a spatial fill's centre alpha may be ~0 while lit cells elsewhere aren't), so it's gated on !spatial.
-            var fill = spec.shapeFill;
+            var fill = layer.shapeFill;
             bool fillSpatial = IsSpatialFill(fill);
             if (!fillSpatial && baseAlpha <= 0.002f) return;
-            int cell = Mathf.Clamp(spec.sparkleSize, 1, 4);
+            int cell = Mathf.Clamp(layer.sparkleSize, 1, 4);
             int frames = Mathf.Max(1, spec.frameCount);
             // Own-life frame bucket → the twinkle clock. The +1 keeps it nonzero so a cell's twinkle key
             // (cellIndex ^ frameSalt) can never coincide with its presence key (cellIndex, frameSalt 0 would).
@@ -1049,12 +1168,12 @@ namespace Laubrary.PyrePlus
             float ccx = W * 0.5f, ccy = H * 0.5f;
             Vector2 c = new Vector2(cx - ccx, cy - ccy);
             var ctx = new GeoCtx(ccx, ccy, c, radius);
-            float spin = Eval(spec.particleSpin, life, spec.seed, particleIndex, FldSpin);
+            float spin = Eval(layer.particleSpin, life, spec.seed, particleIndex, FldSpin);
             if (orientDeg != 0f) spin += orientDeg;   // swarm facing (S1); 0 ⇒ byte-identical
             bool doSpin = spin != 0f;
             float spinCos = 1f, spinSin = 0f;
             if (doSpin) { float sa = -spin * Mathf.Deg2Rad; spinCos = Mathf.Cos(sa); spinSin = Mathf.Sin(sa); }
-            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7 + _layerSalt);
 
             int px0, px1, py0, py1;
             if (anyGeo) { px0 = 0; py0 = 0; px1 = W - 1; py1 = H - 1; }
@@ -1079,9 +1198,9 @@ namespace Laubrary.PyrePlus
                     // maps to a nonzero id — otherwise its presence draw would key (…, FldSparkle, 0), colliding
                     // with a MinMax sparkleDensity's own d=0 draw in this same field stream.
                     int cellIndex = ((gx * 73856093) ^ (gy * 19349663)) ^ unchecked((int)0x9E3779B9);
-                    float presence = Hash01(spec.seed, particleIndex, FldSparkle, cellIndex);
+                    float presence = Hash01(spec.seed, particleIndex, FldSparkle, cellIndex + _layerSalt);
                     if (presence >= density) continue;                                  // not a candidate cell
-                    float twinkle = Hash01(spec.seed, particleIndex, FldSparkle, cellIndex ^ frameSalt);
+                    float twinkle = Hash01(spec.seed, particleIndex, FldSparkle, (cellIndex ^ frameSalt) + _layerSalt);
                     if (twinkle >= 0.5f) continue;                                       // candidate, but off this frame
                     float sr = cr, sg = cg, sb = cb, sa = baseAlpha;
                     if (fillSpatial)   // spatial fill → this cell's colour + alpha at its local (u,v); constant fills skip (byte-identical)
@@ -1102,17 +1221,17 @@ namespace Laubrary.PyrePlus
                 }
         }
 
-        // Sprite: stamp spec.spriteImage's pixels, scaled so its larger dimension maps to 2·radius, centred on
+        // Sprite: stamp layer.spriteImage's pixels, scaled so its larger dimension maps to 2·radius, centred on
         // the particle, rotated by the shared spin and folded through the geometry warps (via ResolveSample —
         // spin-then-warp, the Disc order), point-sampled (nearest) from the sprite's rect within its texture.
         // Tinted by the gradient when spriteTint, then alpha envelope × brightMul, PixelModifiers, Over. Returns
         // false (→ Disc fallback) when the sprite/texture is null or not Read/Write-enabled (GetPixels32 throws,
         // caught once in TryGetTexturePixels). True once it has taken responsibility for the stamp.
         static bool DrawSpriteBody(Color32[] buf, int W, int H, float cx, float cy, float radius, float alpha,
-                                   Color col, float brightMul, PyrePlusSpec spec, int particleIndex,
+                                   Color col, float brightMul, PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex,
                                    in ModSet mods, float phase, int frameIndex, float life, float orientDeg = 0f)
         {
-            var sprite = spec.spriteImage;
+            var sprite = layer.spriteImage;
             if (sprite == null || sprite.texture == null) return false;
             if (!TryGetTexturePixels(sprite.texture, out var px)) return false;   // non-readable texture → fallback
 
@@ -1128,12 +1247,12 @@ namespace Laubrary.PyrePlus
             float ccx = W * 0.5f, ccy = H * 0.5f;
             Vector2 c = new Vector2(cx - ccx, cy - ccy);
             var ctx = new GeoCtx(ccx, ccy, c, radius);
-            float spin = Eval(spec.particleSpin, life, spec.seed, particleIndex, FldSpin);
+            float spin = Eval(layer.particleSpin, life, spec.seed, particleIndex, FldSpin);
             if (orientDeg != 0f) spin += orientDeg;   // swarm facing (S1); 0 ⇒ byte-identical
             bool doSpin = spin != 0f;
             float spinCos = 1f, spinSin = 0f;
             if (doSpin) { float sa = -spin * Mathf.Deg2Rad; spinCos = Mathf.Cos(sa); spinSin = Mathf.Sin(sa); }
-            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7 + _layerSalt);
 
             float box = radius * 1.5f;   // generous bbox to cover the rotated stamp (matches Pyre's RasterSprite)
             int px0, px1, py0, py1;
@@ -1146,7 +1265,7 @@ namespace Laubrary.PyrePlus
                 py1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + box));
             }
 
-            bool tint = spec.spriteTint;
+            bool tint = layer.spriteTint;
             float tr2 = tint ? col.r : 1f, tg2 = tint ? col.g : 1f, tb2 = tint ? col.b : 1f, ta2 = tint ? col.a : 1f;
             for (int y = py0; y <= py1; y++)
                 for (int x = px0; x <= px1; x++)
@@ -1223,38 +1342,38 @@ namespace Laubrary.PyrePlus
         //   orientDeg alone can't tell "no orient" from "Outward pointing +x" (both 0°), so the explicit `oriented`
         //   flag guards the up-default — unlike every other form, whose default rotation is genuinely 0.
         static void DrawStreakBody(Color32[] buf, int W, int H, float cx, float cy, float own,
-                                   PyrePlusSpec spec, int particleIndex, in ModSet mods, float phase,
+                                   PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex, in ModSet mods, float phase,
                                    int frameIndex, float sizeMul, float brightMul, float orientDeg)
         {
-            float len = Mathf.Max(0f, Eval(spec.streakLength, own, spec.seed, particleIndex, FldStreakLen)) * sizeMul;
+            float len = Mathf.Max(0f, Eval(layer.streakLength, own, spec.seed, particleIndex, FldStreakLen)) * sizeMul;
             if (len < 1f) return;
-            float w = Mathf.Max(0f, Eval(spec.streakWidth, own, spec.seed, particleIndex, FldStreakWidth)) * sizeMul;
+            float w = Mathf.Max(0f, Eval(layer.streakWidth, own, spec.seed, particleIndex, FldStreakWidth)) * sizeMul;
             if (w < 0.5f) return;
-            float alpha = Mathf.Clamp01(Eval(spec.alpha, own, spec.seed, particleIndex, FldAlpha));
+            float alpha = Mathf.Clamp01(Eval(layer.alpha, own, spec.seed, particleIndex, FldAlpha));
             if (alpha <= 0.002f) return;
 
             // Shared per-particle travel (T7) — moves the streak's ROOT, same guard/keys as every other form.
-            if (!(IsStaticZero(spec.particlePathX) && IsStaticZero(spec.particlePathY)))
+            if (!(IsStaticZero(layer.particlePathX) && IsStaticZero(layer.particlePathY)))
             {
-                cx += Eval(spec.particlePathX, own, spec.seed, particleIndex, FldPathX);
-                cy += Eval(spec.particlePathY, own, spec.seed, particleIndex, FldPathY);
+                cx += Eval(layer.particlePathX, own, spec.seed, particleIndex, FldPathX);
+                cy += Eval(layer.particlePathY, own, spec.seed, particleIndex, FldPathY);
             }
 
-            float spin = Eval(spec.particleSpin, own, spec.seed, particleIndex, FldSpin);
-            bool oriented = spec.swarmEnabled && spec.swarmOrient != SwarmOrient.None;
+            float spin = Eval(layer.particleSpin, own, spec.seed, particleIndex, FldSpin);
+            bool oriented = layer.swarmEnabled && layer.swarmOrient != SwarmOrient.None;
             float fwdDeg = (oriented ? orientDeg : 90f) + spin;
             float fr = fwdDeg * Mathf.Deg2Rad;
             float Fx = Mathf.Cos(fr), Fy = Mathf.Sin(fr);   // forward unit vector (screen, y-up)
             float Sx = -Fy, Sy = Fx;                        // side = forward rotated +90° CCW
 
             float halfW = w * 0.5f;
-            float back = Mathf.Clamp01(spec.streakBackFrac) * len;
-            float soft = Mathf.Clamp01(spec.edgeSoftness);
+            float back = Mathf.Clamp01(layer.streakBackFrac) * len;
+            float soft = Mathf.Clamp01(layer.edgeSoftness);
             float sideInner = halfW * (1f - soft);          // |s| ≤ sideInner is full alpha; feathers to 0 at halfW
-            float softTip = Mathf.Clamp01(spec.streakSoftTip);
+            float softTip = Mathf.Clamp01(layer.streakSoftTip);
             float tipStart = len * (1f - softTip);          // f ≤ tipStart is full alpha; feathers to 0 at f == len
 
-            var fill = spec.shapeFill;
+            var fill = layer.shapeFill;
             bool fillSpatial = IsSpatialFill(fill);
             Color col = fill != null ? fill.Evaluate(own, 0f, 0f) : Color.white;
             float cr = col.r, cg = col.g, cb = col.b;
@@ -1265,7 +1384,7 @@ namespace Laubrary.PyrePlus
             Vector2 c = new Vector2(cx - ccx, cy - ccy);
             float extent = Mathf.Max(len, back) + halfW + 2f;
             var ctx = new GeoCtx(ccx, ccy, c, extent);
-            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7 + _layerSalt);
 
             int px0, px1, py0, py1;
             if (anyGeo) { px0 = 0; py0 = 0; px1 = W - 1; py1 = H - 1; }
@@ -1332,12 +1451,12 @@ namespace Laubrary.PyrePlus
         static TMP_FontAsset _textAutoFont;   // cached auto-pick, so FindAssets isn't run every frame
 #endif
 
-        // Resolve the font (spec.textFont, else an auto-found readable one in the editor), bake every char of
-        // spec.textString into its atlas, and snapshot the atlas into the static fields above. Returns false — so
+        // Resolve the font (layer.textFont, else an auto-found readable one in the editor), bake every char of
+        // layer.textString into its atlas, and snapshot the atlas into the static fields above. Returns false — so
         // the caller falls back to Disc per particle — when no font with a readable atlas exists.
-        static bool EnsureTextGlyphs(PyrePlusSpec spec)
+        static bool EnsureTextGlyphs(PyrePlusLayer layer)
         {
-            TMP_FontAsset font = spec.textFont;
+            TMP_FontAsset font = layer.textFont;
 #if UNITY_EDITOR
             if (font == null)
             {
@@ -1350,7 +1469,7 @@ namespace Laubrary.PyrePlus
 #endif
             if (font == null || font.atlasTexture == null || !font.atlasTexture.isReadable) return false;
 
-            string need = spec.textString ?? "";
+            string need = layer.textString ?? "";
             bool needBake = font != _textFont || need != _textCachedChars || _textSdf == null;
             if (!needBake)
             {
@@ -1374,7 +1493,7 @@ namespace Laubrary.PyrePlus
 
 #if UNITY_EDITOR
         // The auto-pick: the first TMP_FontAsset in the project whose atlas is readable. Editor-only (AssetDatabase);
-        // at runtime a null spec.textFont means the Text form falls back to Disc.
+        // at runtime a null layer.textFont means the Text form falls back to Disc.
         static TMP_FontAsset FindReadableTextFont()
         {
             foreach (var g in UnityEditor.AssetDatabase.FindAssets("t:TMP_FontAsset"))
@@ -1390,13 +1509,13 @@ namespace Laubrary.PyrePlus
         // correctly overdraw farther ones under a yaw (fixes the prototype's crude painter-skip occlusion). Each
         // char is particle index i on its OWN size/alpha/spin/tilt draws, but all share the blast life (there's no
         // swarm timing here). Called only when _textReady.
-        static void RenderTextLine(Color32[] buf, int W, int H, float life, PyrePlusSpec spec,
+        static void RenderTextLine(Color32[] buf, int W, int H, float life, PyrePlusSpec spec, PyrePlusLayer layer,
                                    in ModSet mods, int frameIndex)
         {
-            string ts = spec.textString ?? "";
+            string ts = layer.textString ?? "";
             int n = ts.Length;
             if (n == 0) return;
-            float spacing = Mathf.Clamp(spec.textSpacing, 0.6f, 1.6f);
+            float spacing = Mathf.Clamp(layer.textSpacing, 0.6f, 1.6f);
 
             // Per-char layout: scale each glyph so its HEIGHT == its evaluated Size; advance by that glyph's own
             // scaled width plus a fixed tracking gap, all × Spacing (so a MinMax Size gives ragged letters that
@@ -1407,7 +1526,7 @@ namespace Laubrary.PyrePlus
             var adv = new float[n];
             for (int i = 0; i < n; i++)
             {
-                szA[i] = Mathf.Max(0f, Eval(spec.size, life, spec.seed, i, FldSize));
+                szA[i] = Mathf.Max(0f, Eval(layer.size, life, spec.seed, i, FldSize));
                 float track = szA[i] * 0.28f;
                 if (_textFont.characterLookupTable.TryGetValue(ts[i], out var tc) && tc.glyph.glyphRect.height > 0)
                 {
@@ -1433,8 +1552,8 @@ namespace Laubrary.PyrePlus
             // on the RIGHT letter's left — paint left→right; AX.z > 0 ⇒ paint right→left. A per-char MinMax yaw
             // isn't perfectly ordered by one direction, but occlusion between wildly different rotations is
             // ambiguous anyway — this is a display nicety. No yaw ⇒ letters don't overlap in depth, order is moot.
-            float yaw0 = Eval(spec.particleSpin, life, spec.seed, 0, FldSpin) * Mathf.Deg2Rad;
-            float axz = -Mathf.Sin(yaw0) * Mathf.Cos(Eval(spec.gemTilt, life, spec.seed, 0, FldGemTilt) * Mathf.Deg2Rad);
+            float yaw0 = Eval(layer.particleSpin, life, spec.seed, 0, FldSpin) * Mathf.Deg2Rad;
+            float axz = -Mathf.Sin(yaw0) * Mathf.Cos(Eval(layer.gemTilt, life, spec.seed, 0, FldGemTilt) * Mathf.Deg2Rad);
             var order = new int[n];
             for (int i = 0; i < n; i++) order[i] = i;
             float dir = axz > 0f ? -1f : 1f;
@@ -1443,7 +1562,7 @@ namespace Laubrary.PyrePlus
             for (int oi = 0; oi < n; oi++)
             {
                 int i = order[oi];
-                DrawTextChar(buf, W, H, cx + x0[i], cy, szA[i], life, spec, i, ts[i], i, n,
+                DrawTextChar(buf, W, H, cx + x0[i], cy, szA[i], life, spec, layer, i, ts[i], i, n,
                              x0[i], span, true, mods, frameIndex, 1f);
             }
         }
@@ -1457,7 +1576,7 @@ namespace Laubrary.PyrePlus
         // swarm particle) so it and the layout agree. lineMode/x0/span feed TextGradient; charIndex/n feed the
         // per-char step. brightMul is the swarm depth shade (1 in line mode).
         static void DrawTextChar(Color32[] buf, int W, int H, float cx, float cy, float sz, float own,
-                                 PyrePlusSpec spec, int particleIndex, char ch, int charIndex, int n,
+                                 PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex, char ch, int charIndex, int n,
                                  float x0, float span, bool lineMode, in ModSet mods, int frameIndex, float brightMul,
                                  float orientDeg = 0f)
         {
@@ -1467,7 +1586,7 @@ namespace Laubrary.PyrePlus
             float gw = gr.width, gh = gr.height;
             if (gw < 1f || gh < 1f) return;
 
-            float alphaEnv = Mathf.Clamp01(Eval(spec.alpha, own, spec.seed, particleIndex, FldAlpha));
+            float alphaEnv = Mathf.Clamp01(Eval(layer.alpha, own, spec.seed, particleIndex, FldAlpha));
             if (alphaEnv <= 0.002f) return;
 
             // Scale so the glyph HEIGHT == sz; halfW/halfH are the glyph box half-extents in screen px.
@@ -1476,16 +1595,16 @@ namespace Laubrary.PyrePlus
 
             // 3D extrusion: front face at +depth/2, back at -depth/2, walked in DepthSteps layers. !textSolid ⇒ a
             // single flat plane (depthSteps 0). Depth = a fraction of the char size, exactly like the prototype.
-            bool solid = spec.textSolid;
+            bool solid = layer.textSolid;
             const int DepthSteps = 8;
-            float depth = solid ? sz * Mathf.Clamp(spec.textDepth, 0.05f, 1f) : 0f;
+            float depth = solid ? sz * Mathf.Clamp(layer.textDepth, 0.05f, 1f) : 0f;
             int steps = solid ? DepthSteps : 0;
 
             // Per-char rotation about its own centre: yaw about Y (particleSpin) then tilt about X (gemTilt), +z
             // toward the viewer — the facet solids' / prototype's Rot exactly. The char centre is the pivot, so
             // model space is centred at the origin and translated to (cx, cy) in screen space.
-            float yaw = Eval(spec.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
-            float tilt = Eval(spec.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
+            float yaw = Eval(layer.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
+            float tilt = Eval(layer.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
             float cyw = Mathf.Cos(yaw), syw = Mathf.Sin(yaw);
             float ct = Mathf.Cos(tilt), st = Mathf.Sin(tilt);
             // Swarm facing (S1): a screen-plane Z-ROLL applied AFTER yaw+tilt so letters follow the path readably
@@ -1530,11 +1649,11 @@ namespace Laubrary.PyrePlus
             //   borderBand = (w / scGlyph) · (1/(2·pad)) = w / (2·pad·scGlyph).
             // This reproduces the prototype's hard-coded 0.10 at w≈1.5, pad≈9, scGlyph≈0.83 (0.10 ✓) — the factor 2
             // (absent from the design's shorthand "w/(pad·scale)") is that half-range-over-padding slope.
-            float borderBand = spec.textBorderWidth > 0f
-                ? spec.textBorderWidth / Mathf.Max(1e-3f, 2f * _textPad * scGlyph)
+            float borderBand = layer.textBorderWidth > 0f
+                ? layer.textBorderWidth / Mathf.Max(1e-3f, 2f * _textPad * scGlyph)
                 : 0f;
 
-            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7 + _layerSalt);
             float boxExtent = Mathf.Max(halfW, halfH);
 
             for (int y = py0; y <= py1; y++)
@@ -1556,8 +1675,8 @@ namespace Laubrary.PyrePlus
 
                         bool face = k == 0;
                         bool border = borderBand > 0f && sd < 0.5f + borderBand;
-                        Gradient grad = border ? spec.textBorderGradient : spec.textFillGradient;
-                        Color col = SampleTextColor(spec, grad, charIndex, n, u, v, halfW, halfH, x0, span, lineMode);
+                        Gradient grad = border ? layer.textBorderGradient : layer.textFillGradient;
+                        Color col = SampleTextColor(spec, layer, grad, charIndex, n, u, v, halfW, halfH, x0, span, lineMode);
                         if (!face)
                         {
                             // Extrusion side: fill (or border) × 0.45, then k-shaded darker with depth (prototype
@@ -1593,12 +1712,12 @@ namespace Laubrary.PyrePlus
         // there's no line, so it degrades to the per-char step (index fraction). Same call drives the border, just
         // with the border gradient. (u,v) is the surface point in the char's local px frame; x0 = the char centre
         // in text space; span = half the line extent.
-        static Color SampleTextColor(PyrePlusSpec spec, Gradient grad, int charIndex, int n,
+        static Color SampleTextColor(PyrePlusSpec spec, PyrePlusLayer layer, Gradient grad, int charIndex, int n,
                                      float u, float v, float halfW, float halfH, float x0, float span, bool lineMode)
         {
             if (grad == null) return Color.white;
             float t;
-            switch (spec.textFillMode)
+            switch (layer.textFillMode)
             {
                 case TextFillMode.PerCharStep:
                     t = n > 1 ? charIndex / (float)(n - 1) : 0f;
@@ -1606,7 +1725,7 @@ namespace Laubrary.PyrePlus
                 case TextFillMode.TextGradient:
                     if (lineMode)
                     {
-                        float ang = spec.textGradientAngle * Mathf.Deg2Rad;
+                        float ang = layer.textGradientAngle * Mathf.Deg2Rad;
                         float tx = x0 + u, ty = v;
                         float along = tx * Mathf.Cos(ang) + ty * Mathf.Sin(ang);   // 0° = left→right across the line
                         t = span > 1e-3f ? Mathf.InverseLerp(-span, span, along) : 0.5f;
@@ -1615,7 +1734,7 @@ namespace Laubrary.PyrePlus
                     break;
                 default:   // PerCharGradient
                 {
-                    float ang = spec.textGradientAngle * Mathf.Deg2Rad;
+                    float ang = layer.textGradientAngle * Mathf.Deg2Rad;
                     float sa = Mathf.Sin(ang), ca = Mathf.Cos(ang);
                     float along = u * sa + v * ca;                       // 0° = v (vertical bottom→top)
                     float ext = Mathf.Abs(halfW * sa) + Mathf.Abs(halfH * ca);   // box half-extent along the axis
@@ -1664,25 +1783,25 @@ namespace Laubrary.PyrePlus
         // deliberately NOT applied to the solids in this slice — a 3D-consistent warp fold is its own problem; post
         // modifiers still hit the finished buffer later in ApplyPost, unchanged.
         static void DrawFacetSolid(Color32[] buf, int W, int H, float cx, float cy, float own,
-                            PyrePlusSpec spec, int particleIndex, in ModSet mods, int frameIndex,
+                            PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex, in ModSet mods, int frameIndex,
                             float sizeMul, float brightMul, float orientDeg = 0f)
         {
             // R = the size envelope (exactly as Disc evaluates it) × the depth size multiplier. Skip sub-pixel gems.
-            float R = Mathf.Max(0f, Eval(spec.size, own, spec.seed, particleIndex, FldSize)) * sizeMul;
+            float R = Mathf.Max(0f, Eval(layer.size, own, spec.seed, particleIndex, FldSize)) * sizeMul;
             if (R < 1.5f) return;
 
             // Output alpha rides the particle's own alpha envelope (multiplies EVERY emitted gem pixel — body,
             // line and glow). Early-out on a fully-faded particle, respecting the same a<=0.002 skip as Disc.
-            float alphaEnv = Mathf.Clamp01(Eval(spec.alpha, own, spec.seed, particleIndex, FldAlpha));
+            float alphaEnv = Mathf.Clamp01(Eval(layer.alpha, own, spec.seed, particleIndex, FldAlpha));
             if (alphaEnv <= 0.002f) return;
 
             // Shared per-particle travel (T7): the gem follows the same own-life travel path a disc does. Guarded
             // to an exact no-op when both are Static 0 (a default gem is unaffected). Not in the design's listed
             // pipeline, but the field is shared spec data and a travelling gem is the correct behaviour.
-            if (!(IsStaticZero(spec.particlePathX) && IsStaticZero(spec.particlePathY)))
+            if (!(IsStaticZero(layer.particlePathX) && IsStaticZero(layer.particlePathY)))
             {
-                cx += Eval(spec.particlePathX, own, spec.seed, particleIndex, FldPathX);
-                cy += Eval(spec.particlePathY, own, spec.seed, particleIndex, FldPathY);
+                cx += Eval(layer.particlePathX, own, spec.seed, particleIndex, FldPathX);
+                cy += Eval(layer.particlePathY, own, spec.seed, particleIndex, FldPathY);
             }
 
             // Model (y up, +z toward the viewer after rotation), triangle faces, and the LINE-edge set — all three
@@ -1691,23 +1810,23 @@ namespace Laubrary.PyrePlus
             Vector3[] model;
             int[][] faces;
             HashSet<int> lineEdges;
-            switch (spec.shapeForm)
+            switch (layer.shapeForm)
             {
-                case ShapeForm.Box:     BuildBoxGeometry(spec, R, out model, out faces, out lineEdges); break;
-                case ShapeForm.Pyramid: BuildPyramidGeometry(spec, R, out model, out faces, out lineEdges); break;
-                case ShapeForm.Can:     BuildCanGeometry(spec, R, out model, out faces, out lineEdges); break;
-                default:                BuildGemGeometry(spec, R, out model, out faces, out lineEdges); break;
+                case ShapeForm.Box:     BuildBoxGeometry(layer, R, out model, out faces, out lineEdges); break;
+                case ShapeForm.Pyramid: BuildPyramidGeometry(layer, R, out model, out faces, out lineEdges); break;
+                case ShapeForm.Can:     BuildCanGeometry(layer, R, out model, out faces, out lineEdges); break;
+                default:                BuildGemGeometry(layer, R, out model, out faces, out lineEdges); break;
             }
 
             // Rotation (R2 full 3D): ROLL about Z in model space FIRST (Turn/Tilt come after), then yaw about Y
             // (the solid's 3D yaw = particleSpin/Turn on its own life), then the world tilt about X (gemTilt on its
             // own life) — the prototype's Rot with a roll prepended, +z toward the viewer. The roll block is guarded
             // on roll != 0f so a default solid (roll Static 0) is byte-identical to the pre-R2 Rot.
-            float yaw = Eval(spec.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
-            float tilt = Eval(spec.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
+            float yaw = Eval(layer.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
+            float tilt = Eval(layer.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
             // Swarm facing (S1) adds to the ROLL (per the design: "Solids: add to roll"). orientDeg 0 (swarm off /
             // orient None) ⇒ rollDeg is exactly the gemRoll Eval ⇒ byte-identical (doRoll gate unchanged).
-            float rollDeg = Eval(spec.gemRoll, own, spec.seed, particleIndex, FldGemRoll);
+            float rollDeg = Eval(layer.gemRoll, own, spec.seed, particleIndex, FldGemRoll);
             if (orientDeg != 0f) rollDeg += orientDeg;
             float roll = rollDeg * Mathf.Deg2Rad;
             float cyw = Mathf.Cos(yaw), syw = Mathf.Sin(yaw);
@@ -1773,7 +1892,7 @@ namespace Laubrary.PyrePlus
 
             // Light POSITION from the gem's light angles at distance 3.5·R (distance not exposed); the falloff
             // range is 4.7·R — both the prototype's proportions. Up-left-front for the default -55°/38° angles.
-            float lyaw = spec.gemLightYaw * Mathf.Deg2Rad, lpitch = spec.gemLightPitch * Mathf.Deg2Rad;
+            float lyaw = layer.gemLightYaw * Mathf.Deg2Rad, lpitch = layer.gemLightPitch * Mathf.Deg2Rad;
             float ldist = 3.5f * R, lhoriz = ldist * Mathf.Cos(lpitch);
             Vector3 lightPos = new Vector3(lhoriz * Mathf.Sin(lyaw), ldist * Mathf.Sin(lpitch), lhoriz * Mathf.Cos(lyaw));
             float lrange = 4.7f * R, lrange2 = lrange * lrange;
@@ -1784,22 +1903,22 @@ namespace Laubrary.PyrePlus
             // pixel's particle-local (lx/R, ly/R) below. NOTE: the halo (edge glow) tint used to reuse the line
             // colour; it is split into gemEdgeGlowFill — byte-identical while gemLineFill sits at its default, whose
             // colour equals gemEdgeGlowFill's default.
-            var specFill = spec.gemSpecularFill; bool specSpatial = IsSpatialFill(specFill);
-            var innerFill = spec.gemInnerGlowFill; bool innerSpatial = IsSpatialFill(innerFill);
-            var lineFill = spec.gemLineFill; bool lineSpatial = IsSpatialFill(lineFill);
-            var edgeFill = spec.gemEdgeGlowFill; bool edgeSpatial = IsSpatialFill(edgeFill);
-            var matFill = spec.shapeFill;   // material fill; baseCol is evaluated per pixel below (u,v ignored for Solid/OverLife → byte-identical)
+            var specFill = layer.gemSpecularFill; bool specSpatial = IsSpatialFill(specFill);
+            var innerFill = layer.gemInnerGlowFill; bool innerSpatial = IsSpatialFill(innerFill);
+            var lineFill = layer.gemLineFill; bool lineSpatial = IsSpatialFill(lineFill);
+            var edgeFill = layer.gemEdgeGlowFill; bool edgeSpatial = IsSpatialFill(edgeFill);
+            var matFill = layer.shapeFill;   // material fill; baseCol is evaluated per pixel below (u,v ignored for Solid/OverLife → byte-identical)
             Color specColor = specFill != null ? specFill.Evaluate(own, 0f, 0f) : Color.white;    // Blinn-Phong highlight tint
             Color innerColor = innerFill != null ? innerFill.Evaluate(own, 0f, 0f) : Color.white; // inner-glow tint
             Color lineColor = lineFill != null ? lineFill.Evaluate(own, 0f, 0f) : Color.white;    // hard edge-line colour
             Color edgeGlowColor = edgeFill != null ? edgeFill.Evaluate(own, 0f, 0f) : Color.white; // halo/edge-glow tint
-            float lineW = spec.gemLineWidth;
-            float ambient = spec.gemAmbient, specStr = spec.gemSpecular;
+            float lineW = layer.gemLineWidth;
+            float ambient = layer.gemAmbient, specStr = layer.gemSpecular;
 
             // The two glow strengths on the particle's own life (0..1). Halo radius / inner radius scale with R
             // (prototype constants 7 and 9 at R=30 → 0.24·R and 0.30·R), floored so tiny gems still glow.
-            float edgeGlow = Mathf.Clamp01(Eval(spec.gemEdgeGlow, own, spec.seed, particleIndex, FldGemEdgeGlow));
-            float innerGlow = Mathf.Clamp01(Eval(spec.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
+            float edgeGlow = Mathf.Clamp01(Eval(layer.gemEdgeGlow, own, spec.seed, particleIndex, FldGemEdgeGlow));
+            float innerGlow = Mathf.Clamp01(Eval(layer.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
             float haloR = Mathf.Max(2.5f, 0.24f * R);
             float innerR = Mathf.Max(3f, 0.30f * R);
 
@@ -1818,7 +1937,7 @@ namespace Laubrary.PyrePlus
             int y0 = Mathf.Max(0, Mathf.FloorToInt(cy + minY - haloR));
             int y1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + maxY + haloR));
 
-            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);   // stable per-particle seed for PixelInfo.hash
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7 + _layerSalt);   // stable per-particle seed for PixelInfo.hash
 
             for (int y = y0; y <= y1; y++)
                 for (int x = x0; x <= x1; x++)
@@ -1926,23 +2045,23 @@ namespace Laubrary.PyrePlus
         // shared, so the facet forms stay byte-identical): the only differences are (1) N is analytic instead of a
         // flat face normal, and (2) how spin/tilt are applied — see the lighting-frame rotation below.
         static void DrawOrb(Color32[] buf, int W, int H, float cx, float cy, float own,
-                            PyrePlusSpec spec, int particleIndex, in ModSet mods, int frameIndex,
+                            PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex, in ModSet mods, int frameIndex,
                             float sizeMul, float brightMul, float orientDeg = 0f)
         {
-            float R = Mathf.Max(0f, Eval(spec.size, own, spec.seed, particleIndex, FldSize)) * sizeMul;
+            float R = Mathf.Max(0f, Eval(layer.size, own, spec.seed, particleIndex, FldSize)) * sizeMul;
             if (R < 1.5f) return;
-            float alphaEnv = Mathf.Clamp01(Eval(spec.alpha, own, spec.seed, particleIndex, FldAlpha));
+            float alphaEnv = Mathf.Clamp01(Eval(layer.alpha, own, spec.seed, particleIndex, FldAlpha));
             if (alphaEnv <= 0.002f) return;
 
             // Shared per-particle travel (T7) — same guard as the facet/disc path (exact no-op at Static 0).
-            if (!(IsStaticZero(spec.particlePathX) && IsStaticZero(spec.particlePathY)))
+            if (!(IsStaticZero(layer.particlePathX) && IsStaticZero(layer.particlePathY)))
             {
-                cx += Eval(spec.particlePathX, own, spec.seed, particleIndex, FldPathX);
-                cy += Eval(spec.particlePathY, own, spec.seed, particleIndex, FldPathY);
+                cx += Eval(layer.particlePathX, own, spec.seed, particleIndex, FldPathX);
+                cy += Eval(layer.particlePathY, own, spec.seed, particleIndex, FldPathY);
             }
 
             // Light POSITION exactly as DrawFacetSolid builds it (screen space, distance 3.5·R, falloff 4.7·R).
-            float lyaw = spec.gemLightYaw * Mathf.Deg2Rad, lpitch = spec.gemLightPitch * Mathf.Deg2Rad;
+            float lyaw = layer.gemLightYaw * Mathf.Deg2Rad, lpitch = layer.gemLightPitch * Mathf.Deg2Rad;
             float ldist = 3.5f * R, lhoriz = ldist * Mathf.Cos(lpitch);
             Vector3 lightPos = new Vector3(lhoriz * Mathf.Sin(lyaw), ldist * Mathf.Sin(lpitch), lhoriz * Mathf.Cos(lyaw));
             float lrange = 4.7f * R, lrange2 = lrange * lrange;
@@ -1958,11 +2077,11 @@ namespace Laubrary.PyrePlus
             //    |Rot⁻¹·L − P| == |L − Rot·P| — same lit value, same specular, same attenuation. Rotating the light
             //    ONCE here is far cheaper than rotating N per pixel. Rot (the facet solids' own) is yaw-about-Y then
             //    tilt-about-X; its inverse is yaw(−) applied after tilt(−).
-            float yaw = Eval(spec.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
-            float tilt = Eval(spec.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
+            float yaw = Eval(layer.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
+            float tilt = Eval(layer.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
             // Swarm facing (S1) adds to the ROLL (the Orb rolls its lit hotspot around the ball). orientDeg 0
             // (swarm off / orient None) ⇒ rollDeg is exactly the gemRoll Eval ⇒ byte-identical.
-            float rollDeg = Eval(spec.gemRoll, own, spec.seed, particleIndex, FldGemRoll);
+            float rollDeg = Eval(layer.gemRoll, own, spec.seed, particleIndex, FldGemRoll);
             if (orientDeg != 0f) rollDeg += orientDeg;
             float roll = rollDeg * Mathf.Deg2Rad;
             float cyw = Mathf.Cos(yaw), syw = Mathf.Sin(yaw);
@@ -1986,20 +2105,20 @@ namespace Laubrary.PyrePlus
                 }
             }
 
-            var specFill = spec.gemSpecularFill; bool specSpatial = IsSpatialFill(specFill);
-            var innerFill = spec.gemInnerGlowFill; bool innerSpatial = IsSpatialFill(innerFill);
-            var lineFill = spec.gemLineFill; bool lineSpatial = IsSpatialFill(lineFill);
-            var edgeFill = spec.gemEdgeGlowFill; bool edgeSpatial = IsSpatialFill(edgeFill);
-            var matFill = spec.shapeFill; bool matSpatial = IsSpatialFill(matFill);
+            var specFill = layer.gemSpecularFill; bool specSpatial = IsSpatialFill(specFill);
+            var innerFill = layer.gemInnerGlowFill; bool innerSpatial = IsSpatialFill(innerFill);
+            var lineFill = layer.gemLineFill; bool lineSpatial = IsSpatialFill(lineFill);
+            var edgeFill = layer.gemEdgeGlowFill; bool edgeSpatial = IsSpatialFill(edgeFill);
+            var matFill = layer.shapeFill; bool matSpatial = IsSpatialFill(matFill);
             Color specColor = specFill != null ? specFill.Evaluate(own, 0f, 0f) : Color.white;
             Color innerColor = innerFill != null ? innerFill.Evaluate(own, 0f, 0f) : Color.white;
             Color lineColor = lineFill != null ? lineFill.Evaluate(own, 0f, 0f) : Color.white;
             Color edgeGlowColor = edgeFill != null ? edgeFill.Evaluate(own, 0f, 0f) : Color.white;
-            float lineW = spec.gemLineWidth;
-            float ambient = spec.gemAmbient, specStr = spec.gemSpecular;
+            float lineW = layer.gemLineWidth;
+            float ambient = layer.gemAmbient, specStr = layer.gemSpecular;
 
-            float edgeGlow = Mathf.Clamp01(Eval(spec.gemEdgeGlow, own, spec.seed, particleIndex, FldGemEdgeGlow));
-            float innerGlow = Mathf.Clamp01(Eval(spec.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
+            float edgeGlow = Mathf.Clamp01(Eval(layer.gemEdgeGlow, own, spec.seed, particleIndex, FldGemEdgeGlow));
+            float innerGlow = Mathf.Clamp01(Eval(layer.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
             float haloR = Mathf.Max(2.5f, 0.24f * R);
             float innerR = Mathf.Max(3f, 0.30f * R);
             // Hoisted material fill (default OverLife = gradient.Evaluate(own), byte-identical); a spatial material
@@ -2012,7 +2131,7 @@ namespace Laubrary.PyrePlus
             int x1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + extent));
             int y0 = Mathf.Max(0, Mathf.FloorToInt(cy - extent));
             int y1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + extent));
-            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7 + _layerSalt);
 
             for (int y = y0; y <= y1; y++)
                 for (int x = x0; x <= x1; x++)
@@ -2114,24 +2233,24 @@ namespace Laubrary.PyrePlus
         // (no backface cull): the plane normal is flipped to whichever side faces the viewer (N.z > 0). Lighting /
         // lines / glows mirror DrawFacetSolid, with the flat plane's CONSTANT normal and a per-pixel 3D plane point.
         static void DrawRing(Color32[] buf, int W, int H, float cx, float cy, float own,
-                             PyrePlusSpec spec, int particleIndex, in ModSet mods, int frameIndex,
+                             PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex, in ModSet mods, int frameIndex,
                              float sizeMul, float brightMul)
         {
-            float R = Mathf.Max(0f, Eval(spec.size, own, spec.seed, particleIndex, FldSize)) * sizeMul;
+            float R = Mathf.Max(0f, Eval(layer.size, own, spec.seed, particleIndex, FldSize)) * sizeMul;
             if (R < 1.5f) return;
-            float alphaEnv = Mathf.Clamp01(Eval(spec.alpha, own, spec.seed, particleIndex, FldAlpha));
+            float alphaEnv = Mathf.Clamp01(Eval(layer.alpha, own, spec.seed, particleIndex, FldAlpha));
             if (alphaEnv <= 0.002f) return;
-            float innerR = R * Mathf.Clamp(spec.ringInner, 0.1f, 0.92f);   // the hole radius
+            float innerR = R * Mathf.Clamp(layer.ringInner, 0.1f, 0.92f);   // the hole radius
 
-            if (!(IsStaticZero(spec.particlePathX) && IsStaticZero(spec.particlePathY)))
+            if (!(IsStaticZero(layer.particlePathX) && IsStaticZero(layer.particlePathY)))
             {
-                cx += Eval(spec.particlePathX, own, spec.seed, particleIndex, FldPathX);
-                cy += Eval(spec.particlePathY, own, spec.seed, particleIndex, FldPathY);
+                cx += Eval(layer.particlePathX, own, spec.seed, particleIndex, FldPathX);
+                cy += Eval(layer.particlePathY, own, spec.seed, particleIndex, FldPathY);
             }
 
             // Rotation: spin → yaw about Y (rolls the ellipse in-plane), gemTilt → tilt about X (opens/closes it).
-            float yaw = Eval(spec.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
-            float tilt = Eval(spec.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
+            float yaw = Eval(layer.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
+            float tilt = Eval(layer.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
             float cyw = Mathf.Cos(yaw), syw = Mathf.Sin(yaw);
             float ct = Mathf.Cos(tilt), st = Mathf.Sin(tilt);
             // Edge-on degeneracy: |cos tilt| ≈ 0 (the design's check) collapses the ellipse to an invisible sliver;
@@ -2146,26 +2265,26 @@ namespace Laubrary.PyrePlus
             Vector3 N = new Vector3(syw, -cyw * st, cyw * ct);
             if (N.z < 0f) N = -N;
 
-            float lyaw = spec.gemLightYaw * Mathf.Deg2Rad, lpitch = spec.gemLightPitch * Mathf.Deg2Rad;
+            float lyaw = layer.gemLightYaw * Mathf.Deg2Rad, lpitch = layer.gemLightPitch * Mathf.Deg2Rad;
             float ldist = 3.5f * R, lhoriz = ldist * Mathf.Cos(lpitch);
             Vector3 lightPos = new Vector3(lhoriz * Mathf.Sin(lyaw), ldist * Mathf.Sin(lpitch), lhoriz * Mathf.Cos(lyaw));
             float lrange = 4.7f * R, lrange2 = lrange * lrange;
             Vector3 viewDir = new Vector3(0f, 0f, 1f);
 
-            var specFill = spec.gemSpecularFill; bool specSpatial = IsSpatialFill(specFill);
-            var innerFill = spec.gemInnerGlowFill; bool innerSpatial = IsSpatialFill(innerFill);
-            var lineFill = spec.gemLineFill; bool lineSpatial = IsSpatialFill(lineFill);
-            var edgeFill = spec.gemEdgeGlowFill; bool edgeSpatial = IsSpatialFill(edgeFill);
-            var matFill = spec.shapeFill; bool matSpatial = IsSpatialFill(matFill);
+            var specFill = layer.gemSpecularFill; bool specSpatial = IsSpatialFill(specFill);
+            var innerFill = layer.gemInnerGlowFill; bool innerSpatial = IsSpatialFill(innerFill);
+            var lineFill = layer.gemLineFill; bool lineSpatial = IsSpatialFill(lineFill);
+            var edgeFill = layer.gemEdgeGlowFill; bool edgeSpatial = IsSpatialFill(edgeFill);
+            var matFill = layer.shapeFill; bool matSpatial = IsSpatialFill(matFill);
             Color specColor = specFill != null ? specFill.Evaluate(own, 0f, 0f) : Color.white;
             Color innerColor = innerFill != null ? innerFill.Evaluate(own, 0f, 0f) : Color.white;
             Color lineColor = lineFill != null ? lineFill.Evaluate(own, 0f, 0f) : Color.white;
             Color edgeGlowColor = edgeFill != null ? edgeFill.Evaluate(own, 0f, 0f) : Color.white;
-            float lineW = spec.gemLineWidth;
-            float ambient = spec.gemAmbient, specStr = spec.gemSpecular;
+            float lineW = layer.gemLineWidth;
+            float ambient = layer.gemAmbient, specStr = layer.gemSpecular;
 
-            float edgeGlow = Mathf.Clamp01(Eval(spec.gemEdgeGlow, own, spec.seed, particleIndex, FldGemEdgeGlow));
-            float innerGlow = Mathf.Clamp01(Eval(spec.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
+            float edgeGlow = Mathf.Clamp01(Eval(layer.gemEdgeGlow, own, spec.seed, particleIndex, FldGemEdgeGlow));
+            float innerGlow = Mathf.Clamp01(Eval(layer.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
             float haloR = Mathf.Max(2.5f, 0.24f * R);
             float innerGlowR = Mathf.Max(3f, 0.30f * R);   // inner-GLOW band radius (distinct from innerR, the hole)
             // Hoisted material fill (default OverLife = gradient.Evaluate(own), byte-identical); a spatial material
@@ -2179,7 +2298,7 @@ namespace Laubrary.PyrePlus
             int x1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + exHalf));
             int y0 = Mathf.Max(0, Mathf.FloorToInt(cy - eyHalf));
             int y1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + eyHalf));
-            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7 + _layerSalt);
             float invHole = 1f / Mathf.Max(0.001f, R - innerR);   // for crossFrac (0 at inner rim, 1 at outer)
 
             for (int y = y0; y <= y1; y++)
@@ -2298,11 +2417,11 @@ namespace Laubrary.PyrePlus
 
         // Gem: n girdle verts + a crown apex + a pavilion apex, VERBATIM from the original DrawGem so a Gem stays
         // byte-identical. lineEdges == null ⇒ every visible facet boundary is a line (the gem's original look).
-        static void BuildGemGeometry(PyrePlusSpec spec, float R, out Vector3[] model, out int[][] faces, out HashSet<int> lineEdges)
+        static void BuildGemGeometry(PyrePlusLayer layer, float R, out Vector3[] model, out int[][] faces, out HashSet<int> lineEdges)
         {
-            int n = Mathf.Clamp(spec.gemSides, 3, 8);
-            float crownH = R * spec.gemCrown;
-            float pavD = R * spec.gemPavilion;
+            int n = Mathf.Clamp(layer.gemSides, 3, 8);
+            float crownH = R * layer.gemCrown;
+            float pavD = R * layer.gemPavilion;
 
             // Model: n girdle verts (index 0..n-1) at PI/2 + 2πk/n scaled R, crown apex (n) above, pavilion apex
             // (n+1) below. y is up, +z toward the viewer after rotation.
@@ -2327,9 +2446,9 @@ namespace Laubrary.PyrePlus
         // The genuinely-shared vertices are what make the silhouette CLOSE (the Bakery oblique-box bug was two
         // faces extruded in different directions that never met — impossible here since all faces index the same
         // 8 corners). Each quad's splitting diagonal is NON-line, so the line set is exactly the 12 cube edges.
-        static void BuildBoxGeometry(PyrePlusSpec spec, float R, out Vector3[] model, out int[][] faces, out HashSet<int> lineEdges)
+        static void BuildBoxGeometry(PyrePlusLayer layer, float R, out Vector3[] model, out int[][] faces, out HashSet<int> lineEdges)
         {
-            float hx = R, hy = R * spec.solidAspect, hz = R * spec.solidDepth;
+            float hx = R, hy = R * layer.solidAspect, hz = R * layer.solidDepth;
             model = new[]
             {
                 new Vector3(-hx, -hy, -hz), // 0
@@ -2371,11 +2490,11 @@ namespace Laubrary.PyrePlus
         // default solidDepth == 1 the base is the square half-width-R base the design specifies; a non-default
         // Depth stretches it front-to-back so the shown Depth control is live. Line set = 4 apex spokes + 4 base
         // perimeter edges.
-        static void BuildPyramidGeometry(PyrePlusSpec spec, float R, out Vector3[] model, out int[][] faces, out HashSet<int> lineEdges)
+        static void BuildPyramidGeometry(PyrePlusLayer layer, float R, out Vector3[] model, out int[][] faces, out HashSet<int> lineEdges)
         {
-            float apexY = R * spec.solidAspect;
-            float baseY = -R * spec.solidAspect * 0.35f;
-            float hz = R * spec.solidDepth;
+            float apexY = R * layer.solidAspect;
+            float baseY = -R * layer.solidAspect * 0.35f;
+            float hz = R * layer.solidDepth;
             model = new[]
             {
                 new Vector3(0f, apexY, 0f), // 0 apex
@@ -2405,10 +2524,10 @@ namespace Laubrary.PyrePlus
         // Barrel = 16 quads → 32 tris; each cap = a 16-tri fan. LINE edges = the two cap rims ONLY; the barrel's
         // vertical seams + quad diagonals + cap fan spokes are all non-line. Flat per-face barrel normals band into
         // 16 strips — accepted retro banding for this slice.
-        static void BuildCanGeometry(PyrePlusSpec spec, float R, out Vector3[] model, out int[][] faces, out HashSet<int> lineEdges)
+        static void BuildCanGeometry(PyrePlusLayer layer, float R, out Vector3[] model, out int[][] faces, out HashSet<int> lineEdges)
         {
             const int seg = 16;
-            float hy = R * spec.solidAspect;
+            float hy = R * layer.solidAspect;
             model = new Vector3[seg * 2 + 2];
             for (int k = 0; k < seg; k++)
             {
@@ -2517,7 +2636,7 @@ namespace Laubrary.PyrePlus
                 case ZUIValue.Mode.Static: return v.staticValue;
                 case ZUIValue.Mode.MinMax:
                 {
-                    var rng = new System.Random(Hash(seed, particleIndex, fieldId, 0));
+                    var rng = new System.Random(Hash(seed, particleIndex, fieldId, _layerSalt));
                     return Mathf.Lerp(v.min, v.max, (float)rng.NextDouble());
                 }
                 case ZUIValue.Mode.Curve:

@@ -41,8 +41,8 @@ namespace Laubrary.PyrePlus.Editor
 
         void RebuildModifiers()
         {
-            var s = spec;
-            if (s == null || modifiersBody == null) return;
+            var s = SelLayer;   // the Modifiers section edits the SELECTED layer's own modifier stack
+            if (s == null || modifiersBody == null) { modifiersBody?.Clear(); return; }
             s.modifiers ??= new List<PyreModifier>();
             modifiersBody.Clear();
             var list = s.modifiers;

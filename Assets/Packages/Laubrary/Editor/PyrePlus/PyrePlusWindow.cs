@@ -58,6 +58,22 @@ namespace Laubrary.PyrePlus.Editor
         Laubrary.BackSplash.BackSplashSettings _backSplash;
         Laubrary.BackSplash.BackSplashSettings backSplash => _backSplash ??= new Laubrary.BackSplash.BackSplashSettings();
 
+        // ── layer selection (window state, never serialized on the spec) ─────────────
+        // Which layer the Shape / Swarm / Matte / Modifiers sections below edit. Defaults to the LAST layer on
+        // asset load; a click in the layer list re-points it. SelLayer clamps so a stale index is always safe.
+        int layerSel;
+        PyrePlusLayer SelLayer
+        {
+            get
+            {
+                if (spec == null || spec.layers == null || spec.layers.Count == 0) return null;
+                layerSel = Mathf.Clamp(layerSel, 0, spec.layers.Count - 1);
+                return spec.layers[layerSel];
+            }
+        }
+        VisualElement layerListHost;   // refilled by RebuildLayerList on any list change
+        VisualElement matteBody;       // refilled by RebuildMatte on selection / role change
+
         protected override void OnEnable()
         {
             base.OnEnable();
@@ -109,9 +125,14 @@ namespace Laubrary.PyrePlus.Editor
             var viewBar = BuildViewBar(root);
             dials.Add(viewBar);
 
+            // Default the selection to the LAST layer whenever the tree is (re)built for an asset.
+            if (s.layers != null) layerSel = Mathf.Max(0, s.layers.Count - 1);
+
+            BuildLayerList(dials);      // the compact layer stack — under the views bar, above Canvas
             BuildCanvas(dials, s);
             BuildShape(dials, s);
             BuildSwarm(dials, s);
+            BuildMatte(dials);          // the selected layer's matte role / channel / clip
             BuildModifiers(dials, s);   // PyrePlusWindow.Modifiers.cs
 
             // ── right: preview + transport + backdrop ────────────────────────────
@@ -236,6 +257,197 @@ namespace Laubrary.PyrePlus.Editor
             root.Add(box);
         }
 
+        // ── layer list (R3) ─────────────────────────────────────────────────────────
+        // A compact stack at the top of the left pane. One row per layer — reorder grip, enable toggle, select
+        // button, rename-in-place name field, per-row remove — plus an add / duplicate row. Selection drives which
+        // layer the Shape / Swarm / Matte / Modifiers sections below edit. Mirrors PyreWindow's layer-list chrome.
+        void BuildLayerList(VisualElement root)
+        {
+            var box = Z.BoxKeyed("Layers",
+                "The paint stack — earlier (higher) layers composite BEHIND later (lower) ones. Click a layer to "
+                + "edit its Shape / Swarm / Matte / Modifiers dials below; drag the grip to reorder.",
+                "pyreplus.layers");
+            layerListHost = new VisualElement();
+            box.Add(layerListHost);
+            RebuildLayerList();
+            box.Add(WrapRow(
+                Z.Button("+ Add layer", "Append a new default layer to the FRONT of the stack (undoable).", AddLayer),
+                Z.Button("Duplicate", "Duplicate the selected layer just in front of itself (undoable).", DuplicateSelectedLayer)));
+            root.Add(box);
+        }
+
+        void RebuildLayerList()
+        {
+            if (layerListHost == null || spec == null || spec.layers == null) return;
+            layerListHost.Clear();
+            for (int li = 0; li < spec.layers.Count; li++)
+                layerListHost.Add(BuildLayerRow(layerListHost, li));
+        }
+
+        VisualElement BuildLayerRow(VisualElement listHost, int li)
+        {
+            var layer = spec.layers[li];
+            bool sel = li == layerSel;
+
+            var row = new VisualElement();
+            row.AddToClassList("zui-row");
+            if (sel) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
+
+            var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder this layer in the paint stack.");
+            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
+            grip.style.width = 16f;
+            ZuiReorder.MakeGrip(grip, row, listHost, (from, to) =>
+            {
+                Dirty(() =>
+                {
+                    var l = spec.layers[from];
+                    spec.layers.RemoveAt(from);
+                    spec.layers.Insert(to, l);
+                });
+                layerSel = to;
+                RebuildAllForSelection();
+            });
+            row.Add(grip);
+
+            row.Add(Z.Toggle("", "Show or hide this layer in the render.", layer.enabled,
+                v => { Dirty(() => layer.enabled = v); RebuildLayerList(); }));
+
+            row.Add(Z.Button(sel ? "●" : "○", "Select this layer to edit it below.", () => SelectLayer(li)).W(24f));
+
+            var name = Z.TextInput(layer.name ?? "", "This layer's name — rename it right here.", v =>
+            {
+                Undo.RecordObject(spec, "Rename layer");
+                layer.name = v;
+                EditorUtility.SetDirty(spec);
+            }, 0f);
+            name.style.width = StyleKeyword.Auto;
+            name.style.flexGrow = 1f;
+            name.style.flexShrink = 1f;
+            name.style.minWidth = 50f;
+            name.AddToClassList("zui-audit-allow-stretch");   // the rulebook's name-field stretch exception
+            name.RegisterCallback<PointerDownEvent>(_ => { if (layerSel != li) SelectLayer(li); });
+            row.Add(name);
+
+            if (!layer.enabled) row.Add(Z.Text("off", ZuiText.Small, "This layer is currently hidden."));
+            else if (layer.matteRole == MatteRole.WriteMatte)
+                row.Add(Z.Text($"→{Mathf.Clamp(layer.matteChannel, 0, 3)}", ZuiText.Small,
+                    "A matte layer — invisible; writes its coverage into the shown mask channel."));
+
+            row.Add(Z.Button("✕", "Delete this layer (undoable).", () =>
+            {
+                if (spec.layers.Count <= 1) { ShowNotification(new GUIContent("A Pyre Plus asset needs at least one layer.")); return; }
+                Dirty(() => spec.layers.RemoveAt(li));
+                layerSel = Mathf.Clamp(layerSel, 0, spec.layers.Count - 1);
+                RebuildAllForSelection();
+            }).W(22f));
+            return row;
+        }
+
+        void AddLayer()
+        {
+            if (spec == null) return;
+            Dirty(() =>
+            {
+                spec.layers.Add(new PyrePlusLayer { name = $"Layer {spec.layers.Count + 1}" });
+                layerSel = spec.layers.Count - 1;
+            });
+            RebuildAllForSelection();
+        }
+
+        void DuplicateSelectedLayer()
+        {
+            var srcLayer = SelLayer;
+            if (srcLayer == null) return;
+            Dirty(() =>
+            {
+                var copy = srcLayer.Clone();
+                copy.name = (srcLayer.name ?? "Layer") + " copy";
+                int at = Mathf.Clamp(layerSel + 1, 0, spec.layers.Count);
+                spec.layers.Insert(at, copy);
+                layerSel = at;
+            });
+            RebuildAllForSelection();
+        }
+
+        void SelectLayer(int li)
+        {
+            layerSel = li;
+            RebuildAllForSelection();
+        }
+
+        // Re-point every selection-bound section at the (possibly new) SelLayer and refresh the list highlight.
+        void RebuildAllForSelection()
+        {
+            RebuildLayerList();
+            RebuildShape();
+            RebuildSwarm();
+            RebuildMatte();
+            RebuildModifiers();
+            MarkDirty();
+        }
+
+        // ── Matte (R3) — the selected layer's role in the stack ──────────────────────
+        static readonly string[] MatteRoleLabels = { "Draw", "Write matte" };
+        static readonly string[] MatteCombineLabels = { "Max", "Add", "Subtract" };
+        static readonly List<string> ClipChannelChoices = new List<string> { "None", "0", "1", "2", "3" };
+
+        void BuildMatte(VisualElement root)
+        {
+            var box = Z.BoxKeyed("Matte",
+                "Turns this layer into a stencil. A Write-matte layer is INVISIBLE — instead of drawing, it writes "
+                + "its coverage into one of four numbered mask channels. A Draw layer can then Clip its own opacity "
+                + "by any channel a layer BELOW it wrote, so an earlier shape can mask or cut into a later one.",
+                "pyreplus.matte");
+            matteBody = new VisualElement();
+            box.Add(matteBody);
+            root.Add(box);
+            RebuildMatte();
+        }
+
+        void RebuildMatte()
+        {
+            if (matteBody == null) return;
+            matteBody.Clear();
+            var sel = SelLayer;
+            if (sel == null) return;
+
+            matteBody.Add(Z.Field("Role",
+                "Draw = composite this layer onto the frame normally. Write matte = don't draw it; write its "
+                + "coverage into a mask channel for the Draw layers above to clip by.",
+                Z.Segmented((int)sel.matteRole, MatteRoleLabels,
+                    "Draw composites this layer. Write matte makes it invisible and stencils a channel instead.",
+                    v => { Dirty(() => sel.matteRole = (MatteRole)v); RebuildMatte(); RebuildLayerList(); })));
+
+            if (sel.matteRole == MatteRole.WriteMatte)
+            {
+                matteBody.Add(WrapRow(
+                    Z.MicroSlider("Channel", sel.matteChannel, 0f, 3f,
+                        "Which of the four mask channels (0–3) this layer's coverage writes into. A Draw layer above "
+                        + "picks the same number in its Clip-by to be stencilled by this layer.",
+                        v => Dirty(() => sel.matteChannel = Mathf.Clamp(Mathf.RoundToInt(v), 0, 3)), 150f,
+                        showValue: true, decimals: 0),
+                    Z.Field("Combine",
+                        "How this layer's coverage merges with anything an earlier matte layer already wrote into "
+                        + "the same channel. Max = union; Add = accumulate; Subtract = carve out.",
+                        Z.Segmented((int)sel.matteCombine, MatteCombineLabels,
+                            "Max = union of masks (default). Add = accumulate & clamp. Subtract = carve one mask out of another.",
+                            v => Dirty(() => sel.matteCombine = (MatteCombine)v)))));
+            }
+            else
+            {
+                matteBody.Add(WrapRow(
+                    Z.Field("Clip by",
+                        "Multiply THIS layer's opacity by a mask channel an EARLIER (lower) layer wrote — None = no "
+                        + "clipping. The layer then only shows where that channel is bright.",
+                        Z.Dropdown(Mathf.Clamp(sel.clipByChannel + 1, 0, 4), ClipChannelChoices,
+                            "None, or channel 0–3 written by a Write-matte layer below this one. This layer is clipped to it.",
+                            v => Dirty(() => sel.clipByChannel = v - 1), 100f)),
+                    Z.Toggle("Invert",
+                        "Clip by (1 − channel) instead — show where the mask is DARK, hide where it's bright.",
+                        sel.clipInvert, v => Dirty(() => sel.clipInvert = v))));
+            }
+        }
+
         // The Shape section is a stable header + a body container we clear/refill whenever the Advanced gate
         // flips — the same mechanism BuildSwarm uses for swarmBody/RebuildSwarm, so the opt-in Travel/Spin
         // controls appear/disappear without rebuilding the whole window.
@@ -255,8 +467,8 @@ namespace Laubrary.PyrePlus.Editor
 
         void RebuildShape()
         {
-            var s = spec;
-            if (s == null || shapeBody == null) return;
+            var s = SelLayer;   // every Shape control now edits the SELECTED layer's fields
+            if (s == null || shapeBody == null) { shapeBody?.Clear(); return; }
             shapeBody.Clear();
 
             s.alpha ??= new ZUIValue(1f);
@@ -336,7 +548,7 @@ namespace Laubrary.PyrePlus.Editor
                 s.shapeAdvanced, v => { Dirty(() => s.shapeAdvanced = v); RebuildShape(); }));
             if (!s.shapeAdvanced) return;
 
-            float half = Mathf.Max(1f, s.canvasSize * 0.5f);
+            float half = Mathf.Max(1f, spec.canvasSize * 0.5f);
             s.particlePathX ??= new ZUIValue(0f);
             s.particlePathY ??= new ZUIValue(0f);
             s.particleSpin ??= new ZUIValue(0f);
@@ -359,7 +571,7 @@ namespace Laubrary.PyrePlus.Editor
         // adds the per-form geometry then the SHARED tilt / lighting / lines / glows every 3D solid uses. Titled
         // "Solid" (not "Gem") since it now serves four forms. All plain sliders are label-inside MicroSliders; the
         // two glows are animatable ZUIValues (Val), each packed with its own colour; Specular packs with its colour.
-        void BuildSolidBox(PyrePlusSpec s)
+        void BuildSolidBox(PyrePlusLayer s)
         {
             s.particleSpin ??= new ZUIValue(0f);
             s.gemTilt ??= new ZUIValue(18f);
@@ -487,13 +699,13 @@ namespace Laubrary.PyrePlus.Editor
         // The Edge-softness slider — its own MicroSlider caption is the "Edge" label, so it isn't wrapped in a
         // Z.Field (that would print "Edge" twice). Shared by Disc (its single rim) and Crescent (both rims), each
         // passing its own tooltip.
-        ZuiMicroSlider EdgeRow(PyrePlusSpec s, string tooltip) =>
+        ZuiMicroSlider EdgeRow(PyrePlusLayer s, string tooltip) =>
             Z.MicroSlider("Edge", s.edgeSoftness, 0f, 1f, tooltip,
                 v => Dirty(() => s.edgeSoftness = v), 150f, showValue: true);
 
         // Crescent form rows — the shared Edge row (drives BOTH rims), then the bite: size + facing packed, and
         // the push-out offset.
-        void BuildCrescentRows(PyrePlusSpec s)
+        void BuildCrescentRows(PyrePlusLayer s)
         {
             s.crescentBite ??= new ZUIValue(0.55f);
             s.crescentAngle ??= new ZUIValue(0f);
@@ -517,7 +729,7 @@ namespace Laubrary.PyrePlus.Editor
         }
 
         // Sparkle form rows — no Edge row (sparkles are hard pixels). Density (animatable) + the pixel block size.
-        void BuildSparkleRows(PyrePlusSpec s)
+        void BuildSparkleRows(PyrePlusLayer s)
         {
             s.sparkleDensity ??= new ZUIValue(0.35f);
             shapeBody.Add(WrapRow(
@@ -532,7 +744,7 @@ namespace Laubrary.PyrePlus.Editor
         }
 
         // Sprite form rows — no Edge row. The stamped image picker + the tint toggle, packed.
-        void BuildSpriteRows(PyrePlusSpec s)
+        void BuildSpriteRows(PyrePlusLayer s)
         {
             shapeBody.Add(WrapRow(
                 Z.Field("Sprite",
@@ -551,7 +763,7 @@ namespace Laubrary.PyrePlus.Editor
         // Streak form rows — the streak's own Length (its scale driver, replacing the hidden shared Size), then
         // Width + Back + Tip packed, then the shared Edge row (which feathers the streak's two long SIDES). The
         // streak grows FORWARD from its root: default up, steered by the Swarm's Orient (and its own Advanced Spin).
-        void BuildStreakRows(PyrePlusSpec s)
+        void BuildStreakRows(PyrePlusLayer s)
         {
             s.streakLength ??= new ZUIValue(20f);   // defensive; the real shoot-out arc comes from the spec factory
             s.streakWidth ??= new ZUIValue(3f);
@@ -583,7 +795,7 @@ namespace Laubrary.PyrePlus.Editor
         // rebuilds the Shape body. Text takes its colour from the Fill / Border gradients here — the shared Colour
         // row above is hidden for it. Size (above) is the character height; Tilt is the shared gemTilt (default);
         // per-letter Spin lives in the Advanced section.
-        void BuildTextBox(PyrePlusSpec s)
+        void BuildTextBox(PyrePlusLayer s)
         {
             s.textFillGradient ??= new Gradient();
             s.textBorderGradient ??= new Gradient();
@@ -672,8 +884,8 @@ namespace Laubrary.PyrePlus.Editor
 
         void RebuildSwarm()
         {
-            var s = spec;
-            if (s == null || swarmBody == null) return;
+            var s = SelLayer;   // every Swarm control now edits the SELECTED layer's fields
+            if (s == null || swarmBody == null) { swarmBody?.Clear(); return; }
             swarmBody.Clear();
 
             // The single gate: off ⇒ exactly one centred particle (Shape alone); nothing else shown. For the Text
@@ -685,7 +897,7 @@ namespace Laubrary.PyrePlus.Editor
                 s.swarmEnabled, v => { Dirty(() => s.swarmEnabled = v); RebuildSwarm(); }));
             if (!s.swarmEnabled) return;
 
-            float half = Mathf.Max(1f, s.canvasSize * 0.5f);
+            float half = Mathf.Max(1f, spec.canvasSize * 0.5f);
 
             // Count + the two timing sliders (label + value INSIDE each MicroSlider), packed to reflow. Text hides
             // Count (the string length rules it) but keeps the spawn window + particle life.
@@ -890,7 +1102,7 @@ namespace Laubrary.PyrePlus.Editor
 
         // The Swarm Orient tooltip, composed for the CURRENT orient + mode (the swarm rebuilds on either change),
         // so it never lists branches the user isn't in.
-        static string SwarmOrientTooltip(PyrePlusSpec s)
+        static string SwarmOrientTooltip(PyrePlusLayer s)
         {
             const string common = "Turns each particle to face a direction as it's placed — the renderer folds it "
                 + "into the form's own rotation (Streak forward, Sprite/Disc spin, Text/solid roll). ";
