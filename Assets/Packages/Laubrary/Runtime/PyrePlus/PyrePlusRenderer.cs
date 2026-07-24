@@ -17,6 +17,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using Laubrary.Pyre;
+using TMPro;
 using UnityEngine;
 
 namespace Laubrary.PyrePlus
@@ -108,9 +109,21 @@ namespace Laubrary.PyrePlus
             // (note the divide by `frames`, not frames-1, deliberately mirroring BlastRenderer).
             float phase = frames > 1 ? (frameIndex / (float)frames) * Mathf.PI * 2f : 0f;
 
+            // Text form: bake + snapshot the SDF atlas for this frame's string/font ONCE per frame (see
+            // EnsureTextGlyphs). _textReady gates every Text draw below; when false (no readable font) each Text
+            // particle falls back to the Disc raster instead. Non-Text forms never read _textReady.
+            _textReady = spec.shapeForm == ShapeForm.Text && EnsureTextGlyphs(spec);
+
             if (!spec.swarmEnabled)
-                // Single particle, at the centre, on its own life = the blast life. (Slice-1 path; now also warps.)
-                DrawParticle(buf, W, H, W * 0.5f, H * 0.5f, life, spec, 0, mods, phase, frameIndex);
+            {
+                // Text + a usable font: the whole string is ONE centred line (each char its own particle), painted
+                // far→near for correct occlusion. Every other form — and Text with no font — draws the single
+                // centred particle exactly as before (Slice-1 path; now also warps).
+                if (spec.shapeForm == ShapeForm.Text && _textReady)
+                    RenderTextLine(buf, W, H, life, spec, mods, frameIndex);
+                else
+                    DrawParticle(buf, W, H, W * 0.5f, H * 0.5f, life, spec, 0, mods, phase, frameIndex);
+            }
             else
                 RenderSwarm(buf, W, H, life, spec, mods, phase, frameIndex);
 
@@ -275,7 +288,13 @@ namespace Laubrary.PyrePlus
             into.Clear();
             if (spec == null || !spec.swarmEnabled) return;
 
-            int n = Mathf.Max(2, spec.swarmCount);
+            // Text overrides the swarm count: one particle per CHARACTER (min 1), so the swarm places exactly the
+            // string's letters. An exact guarded branch — every other form keeps `Mathf.Max(2, swarmCount)` VERBATIM
+            // so its spawn arithmetic is byte-identical (orchestrator hash-gated). Text may make n == 1 (one char),
+            // which the (n-1) divisions below now special-case.
+            int n = spec.shapeForm == ShapeForm.Text
+                ? Mathf.Max(1, (spec.textString ?? "").Length)
+                : Mathf.Max(2, spec.swarmCount);
             float cx = spec.Width * 0.5f;
             float cy = spec.Height * 0.5f;
             float window = Mathf.Clamp01(spec.swarmSpawnWindow);
@@ -291,7 +310,9 @@ namespace Laubrary.PyrePlus
                 // in [0,1]; MinMax makes each particle's moment a per-particle random draw; Static s clusters them
                 // all at s. n ≥ 2 so (n-1) ≥ 1. particle 0 lands at spawnLife 0 in the linear case.
                 float spawnLife;
-                if (spec.swarmSpawnTiming == null || IsLinear01(spec.swarmSpawnTiming))
+                if (n <= 1)
+                    spawnLife = 0f;   // single-char Text: one particle at timeline 0 (avoids the (n-1)==0 divisions)
+                else if (spec.swarmSpawnTiming == null || IsLinear01(spec.swarmSpawnTiming))
                     spawnLife = window * i / (n - 1);
                 else
                 {
@@ -518,6 +539,34 @@ namespace Laubrary.PyrePlus
                                  PyrePlusSpec spec, int particleIndex, in ModSet mods, float phase, int frameIndex,
                                  float sizeMul = 1f, float brightMul = 1f)
         {
+            // Text form: this particle renders ITS OWN character (index = particleIndex) as an extruded SDF glyph
+            // at (cx, cy). This is the SWARM path (each swarm particle draws one letter at its swarm position); the
+            // swarm-OFF line is laid out separately by RenderTextLine. When no readable font exists (_textReady is
+            // false) we fall THROUGH to the Disc raster below as the per-particle fallback — so travel/size/alpha
+            // are left for the Disc code to evaluate and cx/cy stay untouched here in that case.
+            if (spec.shapeForm == ShapeForm.Text)
+            {
+                if (_textReady)
+                {
+                    string ts = spec.textString ?? "";
+                    if (ts.Length == 0) return;
+                    char ch = ts[Mathf.Clamp(particleIndex, 0, ts.Length - 1)];
+                    float szc = Mathf.Max(0f, Eval(spec.size, life, spec.seed, particleIndex, FldSize)) * sizeMul;
+                    // Shared per-particle travel (T7) — same guard/keys as every other form (no-op at Static 0).
+                    if (!(IsStaticZero(spec.particlePathX) && IsStaticZero(spec.particlePathY)))
+                    {
+                        cx += Eval(spec.particlePathX, life, spec.seed, particleIndex, FldPathX);
+                        cy += Eval(spec.particlePathY, life, spec.seed, particleIndex, FldPathY);
+                    }
+                    // Swarm mode has no line layout, so TextGradient degrades to PerCharStep (index fraction):
+                    // pass lineMode=false, x0/span 0 (unused).
+                    DrawTextChar(buf, W, H, cx, cy, szc, life, spec, particleIndex, ch, particleIndex,
+                                 Mathf.Max(1, ts.Length), 0f, 0f, false, mods, frameIndex, brightMul);
+                    return;
+                }
+                // else: no readable font → fall through to the Disc raster (the documented per-particle fallback).
+            }
+
             // The true-3D facet SOLIDS (Gem + Box/Pyramid/Can) branch FIRST, before any Disc arithmetic below, so
             // the Disc path stays textually untouched and its output byte-identical (the orchestrator hash-gates
             // Disc). All four share DrawFacetSolid — same rotation, lighting, edge lines and glows — differing only
@@ -987,6 +1036,328 @@ namespace Laubrary.PyrePlus
         {
             uint h = (uint)Hash(a, b, c, d);
             return (h & 0x00FFFFFFu) / 16777216f;   // top of the 24-bit mantissa → [0,1)
+        }
+
+        // ── Text form (Gem-family extruded SDF letters) ──────────────────────────────
+        // Per-font glyph-atlas snapshot: the raw SDF bytes + dims + padding, captured AFTER TryAddCharacters bakes
+        // every needed glyph. A Dynamic SDF font REGENERATES its atlas when characters are added, so a snapshot
+        // taken BEFORE the add would be stale — the real bug the prototype documents; hence snapshot-after. The
+        // glyph bitmap content is a render INPUT (the same purity argument as the Sprite pixel cache), so memoising
+        // it preserves same-inputs-same-output; it's re-baked/re-snapshotted when the font changes, the requested
+        // string changes, or a lookup misses (e.g. after a domain reload nulls these statics). _textReady, set once
+        // per frame in RenderFrame, is the gate every Text draw checks.
+        static TMP_FontAsset _textFont;
+        static byte[] _textSdf;
+        static int _textAw, _textAh, _textPad;
+        static string _textCachedChars = "";
+        static bool _textReady;
+#if UNITY_EDITOR
+        static TMP_FontAsset _textAutoFont;   // cached auto-pick, so FindAssets isn't run every frame
+#endif
+
+        // Resolve the font (spec.textFont, else an auto-found readable one in the editor), bake every char of
+        // spec.textString into its atlas, and snapshot the atlas into the static fields above. Returns false — so
+        // the caller falls back to Disc per particle — when no font with a readable atlas exists.
+        static bool EnsureTextGlyphs(PyrePlusSpec spec)
+        {
+            TMP_FontAsset font = spec.textFont;
+#if UNITY_EDITOR
+            if (font == null)
+            {
+                // Cache the auto-pick; re-find only if the cached one went invalid (a domain reload on an import
+                // clears the static anyway, so a newly-added font is picked up then).
+                if (_textAutoFont == null || _textAutoFont.atlasTexture == null || !_textAutoFont.atlasTexture.isReadable)
+                    _textAutoFont = FindReadableTextFont();
+                font = _textAutoFont;
+            }
+#endif
+            if (font == null || font.atlasTexture == null || !font.atlasTexture.isReadable) return false;
+
+            string need = spec.textString ?? "";
+            bool needBake = font != _textFont || need != _textCachedChars || _textSdf == null;
+            if (!needBake)
+            {
+                // A char present in the cached string set but somehow missing from the live lookup (font rebuilt,
+                // atlas cleared) forces a fresh bake + snapshot.
+                for (int i = 0; i < need.Length; i++)
+                    if (!font.characterLookupTable.ContainsKey(need[i])) { needBake = true; break; }
+            }
+            if (needBake)
+            {
+                if (!string.IsNullOrEmpty(need)) font.TryAddCharacters(need);   // bake FIRST (regenerates the atlas)
+                var atlas = font.atlasTexture;                                   // ...THEN snapshot the fresh atlas
+                if (atlas == null || !atlas.isReadable) return false;
+                _textAw = atlas.width; _textAh = atlas.height; _textPad = font.atlasPadding;
+                _textSdf = atlas.GetRawTextureData<byte>().ToArray();
+                _textFont = font;
+                _textCachedChars = need;
+            }
+            return true;
+        }
+
+#if UNITY_EDITOR
+        // The auto-pick: the first TMP_FontAsset in the project whose atlas is readable. Editor-only (AssetDatabase);
+        // at runtime a null spec.textFont means the Text form falls back to Disc.
+        static TMP_FontAsset FindReadableTextFont()
+        {
+            foreach (var g in UnityEditor.AssetDatabase.FindAssets("t:TMP_FontAsset"))
+            {
+                var f = UnityEditor.AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(UnityEditor.AssetDatabase.GUIDToAssetPath(g));
+                if (f != null && f.atlasTexture != null && f.atlasTexture.isReadable) return f;
+            }
+            return null;
+        }
+#endif
+
+        // Swarm-OFF line: lay the whole string out as one centred line and draw the letters far→near so nearer ones
+        // correctly overdraw farther ones under a yaw (fixes the prototype's crude painter-skip occlusion). Each
+        // char is particle index i on its OWN size/alpha/spin/tilt draws, but all share the blast life (there's no
+        // swarm timing here). Called only when _textReady.
+        static void RenderTextLine(Color32[] buf, int W, int H, float life, PyrePlusSpec spec,
+                                   in ModSet mods, int frameIndex)
+        {
+            string ts = spec.textString ?? "";
+            int n = ts.Length;
+            if (n == 0) return;
+            float spacing = Mathf.Clamp(spec.textSpacing, 0.6f, 1.6f);
+
+            // Per-char layout: scale each glyph so its HEIGHT == its evaluated Size; advance by that glyph's own
+            // scaled width plus a fixed tracking gap, all × Spacing (so a MinMax Size gives ragged letters that
+            // still lay out cleanly). x0[i] = the char centre in TEXT space (0-centred); span = half the line
+            // extent, used by the TextGradient fill. A missing glyph (space, unbaked) gets a blank monospace slot.
+            var szA = new float[n];
+            var glyphW = new float[n];
+            var adv = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                szA[i] = Mathf.Max(0f, Eval(spec.size, life, spec.seed, i, FldSize));
+                float track = szA[i] * 0.28f;
+                if (_textFont.characterLookupTable.TryGetValue(ts[i], out var tc) && tc.glyph.glyphRect.height > 0)
+                {
+                    var gr = tc.glyph.glyphRect;
+                    glyphW[i] = gr.width * (szA[i] / gr.height);
+                }
+                else glyphW[i] = szA[i] * 0.4f;   // blank slot
+                adv[i] = (glyphW[i] + track) * spacing;
+            }
+            float total = 0f;
+            for (int i = 0; i < n; i++) total += adv[i];
+            total -= szA[n - 1] * 0.28f * spacing;   // drop the trailing gap so the visual line centres
+            var x0 = new float[n];
+            float pen = -total * 0.5f;
+            for (int i = 0; i < n; i++) { x0[i] = pen + glyphW[i] * 0.5f; pen += adv[i]; }
+            float span = Mathf.Max(1f, total * 0.5f);
+
+            float cx = W * 0.5f, cy = H * 0.5f;
+
+            // Draw order: the letters share the same yaw sign (particleSpin at the blast life), so under a yaw one
+            // side of every letter comes toward the viewer and the other recedes. AX.z at the representative yaw
+            // tells us which: AX.z < 0 (yaw > 0) ⇒ each letter's +x edge recedes, so the near edge of the pair sits
+            // on the RIGHT letter's left — paint left→right; AX.z > 0 ⇒ paint right→left. A per-char MinMax yaw
+            // isn't perfectly ordered by one direction, but occlusion between wildly different rotations is
+            // ambiguous anyway — this is a display nicety. No yaw ⇒ letters don't overlap in depth, order is moot.
+            float yaw0 = Eval(spec.particleSpin, life, spec.seed, 0, FldSpin) * Mathf.Deg2Rad;
+            float axz = -Mathf.Sin(yaw0) * Mathf.Cos(Eval(spec.gemTilt, life, spec.seed, 0, FldGemTilt) * Mathf.Deg2Rad);
+            var order = new int[n];
+            for (int i = 0; i < n; i++) order[i] = i;
+            float dir = axz > 0f ? -1f : 1f;
+            System.Array.Sort(order, (a, b) => (x0[a] * dir).CompareTo(x0[b] * dir));
+
+            for (int oi = 0; oi < n; oi++)
+            {
+                int i = order[oi];
+                DrawTextChar(buf, W, H, cx + x0[i], cy, szA[i], life, spec, i, ts[i], i, n,
+                             x0[i], span, true, mods, frameIndex, 1f);
+            }
+        }
+
+        // One extruded SDF character, centred at (cx, cy), rotated by its OWN yaw (particleSpin) + tilt (gemTilt)
+        // about that centre. Per-pixel: walk depth layers front→back (layer 0 = the lit front face, deeper = darker
+        // extrusion side), first SDF hit wins; bilinear SDF sample, threshold 0.5; a border band just inside the
+        // edge; the fill / border colour comes from SampleTextColor. Geometry warps are intentionally skipped (the
+        // 3D-family convention — same as the facet solids); PixelModifiers still run per lit pixel and Post passes
+        // still hit the finished buffer. `sz` is the char HEIGHT in px, supplied by the caller (line layout or the
+        // swarm particle) so it and the layout agree. lineMode/x0/span feed TextGradient; charIndex/n feed the
+        // per-char step. brightMul is the swarm depth shade (1 in line mode).
+        static void DrawTextChar(Color32[] buf, int W, int H, float cx, float cy, float sz, float own,
+                                 PyrePlusSpec spec, int particleIndex, char ch, int charIndex, int n,
+                                 float x0, float span, bool lineMode, in ModSet mods, int frameIndex, float brightMul)
+        {
+            if (sz < 1.5f) return;
+            if (!_textFont.characterLookupTable.TryGetValue(ch, out var tchar)) return;   // unbaked glyph (e.g. space)
+            var gr = tchar.glyph.glyphRect;
+            float gw = gr.width, gh = gr.height;
+            if (gw < 1f || gh < 1f) return;
+
+            float alphaEnv = Mathf.Clamp01(Eval(spec.alpha, own, spec.seed, particleIndex, FldAlpha));
+            if (alphaEnv <= 0.002f) return;
+
+            // Scale so the glyph HEIGHT == sz; halfW/halfH are the glyph box half-extents in screen px.
+            float scGlyph = sz / gh;
+            float halfW = gw * scGlyph * 0.5f, halfH = gh * scGlyph * 0.5f;
+
+            // 3D extrusion: front face at +depth/2, back at -depth/2, walked in DepthSteps layers. !textSolid ⇒ a
+            // single flat plane (depthSteps 0). Depth = a fraction of the char size, exactly like the prototype.
+            bool solid = spec.textSolid;
+            const int DepthSteps = 8;
+            float depth = solid ? sz * Mathf.Clamp(spec.textDepth, 0.05f, 1f) : 0f;
+            int steps = solid ? DepthSteps : 0;
+
+            // Per-char rotation about its own centre: yaw about Y (particleSpin) then tilt about X (gemTilt), +z
+            // toward the viewer — the facet solids' / prototype's Rot exactly. The char centre is the pivot, so
+            // model space is centred at the origin and translated to (cx, cy) in screen space.
+            float yaw = Eval(spec.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
+            float tilt = Eval(spec.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
+            float cyw = Mathf.Cos(yaw), syw = Mathf.Sin(yaw);
+            float ct = Mathf.Cos(tilt), st = Mathf.Sin(tilt);
+            Vector3 Rot(Vector3 p)
+            {
+                var q = new Vector3(p.x * cyw + p.z * syw, p.y, -p.x * syw + p.z * cyw);
+                return new Vector3(q.x, q.y * ct - q.z * st, q.y * st + q.z * ct);
+            }
+            Vector3 AX = Rot(new Vector3(1, 0, 0)), AY = Rot(new Vector3(0, 1, 0)), AZ = Rot(new Vector3(0, 0, 1));
+            float axx = AX.x, axy = AX.y, ayx = AY.x, ayy = AY.y;
+            float det = axx * ayy - axy * ayx;
+            if (Mathf.Abs(det) < 1e-4f) return;   // face turned edge-on to the screen — nothing to raster
+            float inv = 1f / det;
+
+            // Raster bounds: project all 8 corners of the front+back box (centred coords), padded 2px.
+            float minX = float.MaxValue, maxX = -float.MaxValue, minY = float.MaxValue, maxY = -float.MaxValue;
+            for (int s = 0; s < 8; s++)
+            {
+                float uu = (s & 1) == 0 ? -halfW : halfW;
+                float vv = (s & 2) == 0 ? -halfH : halfH;
+                float zz = (s & 4) == 0 ? -depth * 0.5f : depth * 0.5f;
+                float pxc = AX.x * uu + AY.x * vv + AZ.x * zz;
+                float pyc = AX.y * uu + AY.y * vv + AZ.y * zz;
+                if (pxc < minX) minX = pxc; if (pxc > maxX) maxX = pxc;
+                if (pyc < minY) minY = pyc; if (pyc > maxY) maxY = pyc;
+            }
+            int px0 = Mathf.Max(0, Mathf.FloorToInt(cx + minX) - 2);
+            int px1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + maxX) + 2);
+            int py0 = Mathf.Max(0, Mathf.FloorToInt(cy + minY) - 2);
+            int py1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + maxY) + 2);
+
+            // Border band, converting the screen-px width to SDF VALUE units. TMP's normalized SDF rises ~0.5 (from
+            // the 0.5 contour to fully-inside 1.0) over ~atlasPadding atlas px, i.e. slope ≈ 1/(2·pad) per atlas px.
+            // A w-screen-px band is w/scGlyph atlas px deep (scGlyph = screen px per atlas px), so
+            //   borderBand = (w / scGlyph) · (1/(2·pad)) = w / (2·pad·scGlyph).
+            // This reproduces the prototype's hard-coded 0.10 at w≈1.5, pad≈9, scGlyph≈0.83 (0.10 ✓) — the factor 2
+            // (absent from the design's shorthand "w/(pad·scale)") is that half-range-over-padding slope.
+            float borderBand = spec.textBorderWidth > 0f
+                ? spec.textBorderWidth / Mathf.Max(1e-3f, 2f * _textPad * scGlyph)
+                : 0f;
+
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+            float boxExtent = Mathf.Max(halfW, halfH);
+
+            for (int y = py0; y <= py1; y++)
+                for (int x = px0; x <= px1; x++)
+                {
+                    float sxp = x + 0.5f - cx, syp = y + 0.5f - cy;
+                    for (int k = 0; k <= steps; k++)
+                    {
+                        float zoff = solid ? depth * 0.5f - (depth * k) / DepthSteps : 0f;
+                        // Solve C + AX·u + AY·v + AZ·zoff = (sxp, syp, *) in screen x/y (C == 0, centre at origin).
+                        float rx = sxp - AZ.x * zoff;
+                        float ry = syp - AZ.y * zoff;
+                        float u = (rx * ayy - ry * ayx) * inv;
+                        float v = (-rx * axy + ry * axx) * inv;
+                        if (u < -halfW || u > halfW || v < -halfH || v > halfH) continue;
+
+                        float sd = SampleTextSdf(gr, (u + halfW) / scGlyph, (v + halfH) / scGlyph);
+                        if (sd < 0.5f) continue;
+
+                        bool face = k == 0;
+                        bool border = borderBand > 0f && sd < 0.5f + borderBand;
+                        Gradient grad = border ? spec.textBorderGradient : spec.textFillGradient;
+                        Color col = SampleTextColor(spec, grad, charIndex, n, u, v, halfW, halfH, x0, span, lineMode);
+                        if (!face)
+                        {
+                            // Extrusion side: fill (or border) × 0.45, then k-shaded darker with depth (prototype
+                            // constants) so the sides read as receding.
+                            col *= 0.45f * Mathf.Lerp(1f, 0.55f, k / (float)DepthSteps);
+                        }
+
+                        float rr = Mathf.Clamp01(col.r), gg = Mathf.Clamp01(col.g), bb = Mathf.Clamp01(col.b);
+                        if (brightMul != 1f)
+                        {
+                            rr = Mathf.Clamp01(col.r * brightMul);
+                            gg = Mathf.Clamp01(col.g * brightMul);
+                            bb = Mathf.Clamp01(col.b * brightMul);
+                        }
+                        float pa = alphaEnv;
+                        if (mods.AnyPix)
+                        {
+                            Color pc = new Color(rr, gg, bb, 1f);
+                            float crossFrac = Mathf.Clamp01(Mathf.Sqrt(u * u + v * v) / Mathf.Max(0.001f, boxExtent));
+                            if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, x + 0.5f, y + 0.5f, frameIndex, crossFrac, own, pHash, W, H))
+                                break;   // dropped by a modifier — the front face occludes any deeper layer anyway
+                            Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                        }
+                        else Over(buf, y * W + x, rr, gg, bb, pa);
+                        break;   // first (front-most) depth hit wins: face vs side
+                    }
+                }
+        }
+
+        // The Text fill/border colour at a surface point. PerCharGradient: sampled across the char's own box along
+        // the angle-rotated axis (0 = vertical bottom→top). PerCharStep: one flat colour grad(i/(n-1)) by index.
+        // TextGradient: across the whole line's extent along the angle-rotated axis (0 = left→right); in SWARM mode
+        // there's no line, so it degrades to the per-char step (index fraction). Same call drives the border, just
+        // with the border gradient. (u,v) is the surface point in the char's local px frame; x0 = the char centre
+        // in text space; span = half the line extent.
+        static Color SampleTextColor(PyrePlusSpec spec, Gradient grad, int charIndex, int n,
+                                     float u, float v, float halfW, float halfH, float x0, float span, bool lineMode)
+        {
+            if (grad == null) return Color.white;
+            float t;
+            switch (spec.textFillMode)
+            {
+                case TextFillMode.PerCharStep:
+                    t = n > 1 ? charIndex / (float)(n - 1) : 0f;
+                    break;
+                case TextFillMode.TextGradient:
+                    if (lineMode)
+                    {
+                        float ang = spec.textGradientAngle * Mathf.Deg2Rad;
+                        float tx = x0 + u, ty = v;
+                        float along = tx * Mathf.Cos(ang) + ty * Mathf.Sin(ang);   // 0° = left→right across the line
+                        t = span > 1e-3f ? Mathf.InverseLerp(-span, span, along) : 0.5f;
+                    }
+                    else t = n > 1 ? charIndex / (float)(n - 1) : 0f;   // swarm: no line → per-char step
+                    break;
+                default:   // PerCharGradient
+                {
+                    float ang = spec.textGradientAngle * Mathf.Deg2Rad;
+                    float sa = Mathf.Sin(ang), ca = Mathf.Cos(ang);
+                    float along = u * sa + v * ca;                       // 0° = v (vertical bottom→top)
+                    float ext = Mathf.Abs(halfW * sa) + Mathf.Abs(halfH * ca);   // box half-extent along the axis
+                    t = ext > 1e-3f ? Mathf.InverseLerp(-ext, ext, along) : 0.5f;
+                    break;
+                }
+            }
+            return grad.Evaluate(Mathf.Clamp01(t));
+        }
+
+        // Bilinear SDF sample from the snapshot atlas; (gx,gy) in glyph-local pixels (0..gr.width, 0..gr.height),
+        // padding honoured so the border falloff just outside the tight rect is reachable. Ported verbatim from the
+        // approved Text prototype (SampleSdf/At), reading the static snapshot instead of instance fields.
+        static float SampleTextSdf(UnityEngine.TextCore.GlyphRect gr, float gx, float gy)
+        {
+            float ax = gr.x + gx, ay = gr.y + gy;
+            ax = Mathf.Clamp(ax, gr.x - _textPad + 1, gr.x + gr.width + _textPad - 2);
+            ay = Mathf.Clamp(ay, gr.y - _textPad + 1, gr.y + gr.height + _textPad - 2);
+            int ix = Mathf.FloorToInt(ax), iy = Mathf.FloorToInt(ay);
+            float fx = ax - ix, fy = ay - iy;
+            float s00 = AtText(ix, iy), s10 = AtText(ix + 1, iy), s01 = AtText(ix, iy + 1), s11 = AtText(ix + 1, iy + 1);
+            return Mathf.Lerp(Mathf.Lerp(s00, s10, fx), Mathf.Lerp(s01, s11, fx), fy);
+        }
+
+        static float AtText(int x, int y)
+        {
+            if (x < 0 || y < 0 || x >= _textAw || y >= _textAh) return 0f;
+            return _textSdf[y * _textAw + x] / 255f;
         }
 
         // ── 3D facet solids (Gem / Box / Pyramid / Can) ──────────────────────────────

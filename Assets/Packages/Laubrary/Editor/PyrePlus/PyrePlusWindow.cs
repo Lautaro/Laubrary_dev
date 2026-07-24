@@ -7,6 +7,7 @@
 using System.Collections.Generic;
 using Laubrary.AssetKit.Editor;
 using Laubrary.Zui;
+using TMPro;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -190,7 +191,8 @@ namespace Laubrary.PyrePlus.Editor
             RebuildShape();
         }
 
-        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can", "Orb", "Ring" };
+        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can", "Orb", "Ring", "Text" };
+        static readonly List<string> TextFillModeChoices = new List<string> { "Per-char gradient", "Per-char step", "Text gradient" };
 
         void RebuildShape()
         {
@@ -211,19 +213,24 @@ namespace Laubrary.PyrePlus.Editor
                     + "Sparkle = twinkling lit cells. Sprite = a stamped image. Box / Pyramid / Can = true-3D lit "
                     + "solids sharing the Gem's facet lighting (tilt, light, edge lines, glows). Orb = a lit "
                     + "sphere; Ring = a flat tilted annulus (a Saturn ring) — both reuse that same lighting "
-                    + "analytically.",
-                    v => { Dirty(() => s.shapeForm = (ShapeForm)v); RebuildShape(); }, 150f)));
+                    + "analytically. Text = a string as extruded SDF letters (one particle per character; the "
+                    + "particle count follows the string).",
+                    // Rebuild BOTH sections: Text swaps in its own Shape box AND hides the Swarm's Count field.
+                    v => { Dirty(() => s.shapeForm = (ShapeForm)v); RebuildShape(); RebuildSwarm(); }, 150f)));
 
-            // Shared rows (all forms). For the Gem, Colour is its material tint and Size is its girdle radius;
-            // for the Sprite, Colour is the optional tint. Size is the radius the form scales to in every case.
-            shapeBody.Add(Z.Field("Colour",
-                "Colour over the particle's life (0 = birth, 1 = death). For the 3D solid forms (Gem/Box/Pyramid/"
-                + "Can) this is the material tint — a blue gradient reads as a sapphire.",
-                GradientField("Colour", () => s.colorOverLife, g => Dirty(() => s.colorOverLife = g))));
+            // Shared rows. For the Gem, Colour is its material tint and Size is its girdle radius; for the Sprite,
+            // Colour is the optional tint. TEXT takes its colour from its own Fill / Border gradients instead, so
+            // the Colour row is hidden for it (the Text box's Fill row tooltip says so). Size is the scale driver
+            // for every form — Text reads it as the character HEIGHT.
+            if (s.shapeForm != ShapeForm.Text)
+                shapeBody.Add(Z.Field("Colour",
+                    "Colour over the particle's life (0 = birth, 1 = death). For the 3D solid forms (Gem/Box/Pyramid/"
+                    + "Can) this is the material tint — a blue gradient reads as a sapphire.",
+                    GradientField("Colour", () => s.colorOverLife, g => Dirty(() => s.colorOverLife = g))));
             shapeBody.Add(Val("Alpha", "Opacity over the particle's own life (multiplies the final output alpha).", s.alpha, 0f, 1f));
             shapeBody.Add(Val("Size (px)",
                 "Radius in pixels over the particle's own life. For the 3D solid forms it is the base size R that "
-                + "Aspect / Depth (or the Gem's Crown / Pavilion) scale from.",
+                + "Aspect / Depth (or the Gem's Crown / Pavilion) scale from. For Text it is the character HEIGHT.",
                 s.size, 0f, 32f));
 
             // Form-specific rows. Edge softness applies to Disc (its rim) and Crescent (BOTH rims); Gem/Sparkle/
@@ -250,6 +257,9 @@ namespace Laubrary.PyrePlus.Editor
                     break;
                 case ShapeForm.Sprite:
                     BuildSpriteRows(s);
+                    break;
+                case ShapeForm.Text:
+                    BuildTextBox(s);
                     break;
             }
 
@@ -278,7 +288,9 @@ namespace Laubrary.PyrePlus.Editor
                 + "own bite Angle. SPRITE: rotates the stamped image. GEM / BOX / PYRAMID / CAN (3D solids): the "
                 + "solid's 3D YAW about its vertical axis, turning it so its facets sweep past the light. ORB: rolls "
                 + "the lit hotspot left/right around the sphere (its silhouette never changes). RING: rolls the "
-                + "annulus in its own plane. (The pseudo-3D tilt lives on the Swarm shape transform, not here.)",
+                + "annulus in its own plane. TEXT: each letter yaws about its OWN centre (its 3D letter-box turns to "
+                + "face the light); paired with the letters' tilt for the extruded look. (The pseudo-3D tilt of a "
+                + "whole SWARM lives on the Swarm shape transform, not here.)",
                 s.particleSpin, -720f, 720f));
         }
 
@@ -480,6 +492,81 @@ namespace Laubrary.PyrePlus.Editor
                     s.spriteTint, v => Dirty(() => s.spriteTint = v))));
         }
 
+        // Text form box — the string, the SDF font, spacing, the fill (mode + angle + gradient), the border (width
+        // + gradient), and the 3D extrusion (Solid + Depth). Depth shows only when Solid, so the Solid toggle
+        // rebuilds the Shape body. Text takes its colour from the Fill / Border gradients here — the shared Colour
+        // row above is hidden for it. Size (above) is the character height; Tilt is the shared gemTilt (default);
+        // per-letter Spin lives in the Advanced section.
+        void BuildTextBox(PyrePlusSpec s)
+        {
+            s.textFillGradient ??= new Gradient();
+            s.textBorderGradient ??= new Gradient();
+
+            var box = Z.BoxKeyed("Text",
+                "Every character of the string is one particle, rendered from a TMP SDF font atlas: a spatial "
+                + "gradient fill, an optional border, and optional 3D extrusion. Needs a font with a READABLE "
+                + "atlas — leave the Font empty to auto-pick one. When the Swarm is off the letters lay out as one "
+                + "centred line; when it's on, each letter rides a swarm position.", "pyreplus.text");
+
+            box.Add(Z.Field("Text",
+                "The characters to render — one particle per character. The particle count follows the string "
+                + "length (the Swarm's Count is hidden for Text).",
+                Z.TextInput(s.textString ?? "", "The characters to render (one particle per character).",
+                    v => Dirty(() => s.textString = v), 200f)));
+
+            box.Add(Z.Field("Font",
+                "The TMP SDF font asset. Its atlas must be Read/Write-enabled (a Dynamic SDF font works). Leave "
+                + "empty to auto-pick the first readable font in the project; a missing/non-readable font falls back "
+                + "to a plain disc per character.",
+                Z.Object<TMP_FontAsset>(s.textFont,
+                    "SDF font — needs a readable atlas; leave empty to auto-pick.",
+                    v => Dirty(() => s.textFont = v), 200f)));
+
+            box.Add(Z.MicroSlider("Spacing", s.textSpacing, 0.6f, 1.6f,
+                "Letter advance multiplier for the centred line layout — below 1 tightens the letters, above 1 "
+                + "spreads them apart. (Only affects the swarm-off line; a swarm places letters by its own shape.)",
+                v => Dirty(() => s.textSpacing = v), 150f, showValue: true));
+
+            box.Add(WrapRow(
+                Z.Field("Fill",
+                    "How the fill gradient is applied. Per-char gradient = each letter contains the whole gradient. "
+                    + "Per-char step = each letter one flat colour along the gradient, by index. Text gradient = "
+                    + "one gradient swept across the whole line (degrades to per-char step when the Swarm is on — "
+                    + "there's no line to sweep). Text takes its colour from here, NOT the Colour gradient above.",
+                    Z.Dropdown((int)s.textFillMode, TextFillModeChoices,
+                        "Per-char gradient / per-char step / one gradient across the whole line.",
+                        v => Dirty(() => s.textFillMode = (TextFillMode)v), 130f)),
+                Z.MicroSlider("Angle", s.textGradientAngle, -180f, 180f,
+                    "Rotates the fill axis. 0 = vertical bottom→top for per-char gradient; 0 = left→right across "
+                    + "the line for text gradient. (Per-char step is index-based and ignores it.)",
+                    v => Dirty(() => s.textGradientAngle = v), 150f, showValue: true)));
+
+            box.Add(Z.Field("Fill grad",
+                "The spatial fill ramp — this is where Text's colour comes from (the Colour gradient above is "
+                + "unused for Text).",
+                GradientField("Fill", () => s.textFillGradient, g => Dirty(() => s.textFillGradient = g))));
+
+            box.Add(WrapRow(
+                Z.MicroSlider("Border px", s.textBorderWidth, 0f, 4f,
+                    "Letter outline width in screen pixels (0 = no border). Drawn as an SDF band just inside each "
+                    + "glyph edge, coloured from the Border gradient.",
+                    v => Dirty(() => s.textBorderWidth = v), 150f, showValue: true),
+                Z.Field("Border grad",
+                    "The border colour, sampled the same way as the fill. A single colour = a solid outline.",
+                    GradientField("Border", () => s.textBorderGradient, g => Dirty(() => s.textBorderGradient = g)))));
+
+            box.Add(Z.Toggle("Solid",
+                "Extrude each letter into a 3D box (a lit front face + darker extrusion sides). Off = a flat 2D "
+                + "letter plane.",
+                s.textSolid, v => { Dirty(() => s.textSolid = v); RebuildShape(); }));
+            if (s.textSolid)
+                box.Add(Z.MicroSlider("Depth", s.textDepth, 0.05f, 1f,
+                    "Extrusion depth as a fraction of the character size — how deep the 3D letter boxes are.",
+                    v => Dirty(() => s.textDepth = v), 150f, showValue: true));
+
+            shapeBody.Add(box);
+        }
+
         // ── Swarm ──────────────────────────────────────────────────────────────────
         // The section is a stable header + a body container we clear/refill on every toggle/mode/kind
         // change, so the conditional controls appear/disappear without rebuilding the whole window.
@@ -501,28 +588,34 @@ namespace Laubrary.PyrePlus.Editor
             if (s == null || swarmBody == null) return;
             swarmBody.Clear();
 
-            // The single gate: off ⇒ exactly one centred particle (Shape alone); nothing else shown.
+            // The single gate: off ⇒ exactly one centred particle (Shape alone); nothing else shown. For the Text
+            // form the count is the STRING LENGTH, so its Count field is hidden below.
             swarmBody.Add(Z.Toggle("Swarm",
-                "Off = one centred particle (the Shape section alone). On = Count particles placed in a shape.",
+                "Off = one centred particle (the Shape section alone; Text = one centred line). On = Count particles "
+                + "placed in a shape. For the Text form the particle count is the number of characters, so Count is "
+                + "hidden — each letter rides one swarm position.",
                 s.swarmEnabled, v => { Dirty(() => s.swarmEnabled = v); RebuildSwarm(); }));
             if (!s.swarmEnabled) return;
 
             float half = Mathf.Max(1f, s.canvasSize * 0.5f);
 
-            // Count + the two timing sliders (label + value INSIDE each MicroSlider), packed to reflow.
-            swarmBody.Add(WrapRow(
-                Z.Field("Count", "How many particles the swarm places (at least 2).",
+            // Count + the two timing sliders (label + value INSIDE each MicroSlider), packed to reflow. Text hides
+            // Count (the string length rules it) but keeps the spawn window + particle life.
+            var timingRow = new List<VisualElement>();
+            if (s.shapeForm != ShapeForm.Text)
+                timingRow.Add(Z.Field("Count", "How many particles the swarm places (at least 2).",
                     Z.Int(s.swarmCount, "How many particles the swarm places (at least 2).",
-                        v => Dirty(() => s.swarmCount = Mathf.Max(2, v)), 60f)),
-                Z.MicroSlider("Spawn window", s.swarmSpawnWindow, 0f, 1f,
-                    "The slice of the timeline during which new particles appear (0 = all at frame 1, "
-                    + "1 = spawning continues to the last frame). WHEN each one appears inside the window is set "
-                    + "by Spawn timing.",
-                    v => Dirty(() => s.swarmSpawnWindow = v), 150f, showValue: true),
-                Z.MicroSlider("Particle life", s.swarmParticleLife, 0.05f, 1f,
-                    "How long each particle lives, as a fraction of the timeline. Its colour/alpha/size envelopes "
-                    + "always play over ITS OWN life, not the timeline.",
-                    v => Dirty(() => s.swarmParticleLife = v), 150f, showValue: true)));
+                        v => Dirty(() => s.swarmCount = Mathf.Max(2, v)), 60f)));
+            timingRow.Add(Z.MicroSlider("Spawn window", s.swarmSpawnWindow, 0f, 1f,
+                "The slice of the timeline during which new particles appear (0 = all at frame 1, "
+                + "1 = spawning continues to the last frame). WHEN each one appears inside the window is set "
+                + "by Spawn timing.",
+                v => Dirty(() => s.swarmSpawnWindow = v), 150f, showValue: true));
+            timingRow.Add(Z.MicroSlider("Particle life", s.swarmParticleLife, 0.05f, 1f,
+                "How long each particle lives, as a fraction of the timeline. Its colour/alpha/size envelopes "
+                + "always play over ITS OWN life, not the timeline.",
+                v => Dirty(() => s.swarmParticleLife = v), 150f, showValue: true));
+            swarmBody.Add(WrapRow(timingRow.ToArray()));
 
             // WHEN each particle spawns inside the window — the particle-number → spawn-moment remap.
             swarmBody.Add(Val("Spawn timing",

@@ -7,6 +7,7 @@
 // task by task (T1 = Area+Circle placement) and Modifiers reuse Pyre's PyreModifier directly.
 using System.Collections.Generic;
 using Laubrary.Pyre;
+using TMPro;
 using UnityEngine;
 
 namespace Laubrary.PyrePlus
@@ -34,12 +35,24 @@ namespace Laubrary.PyrePlus
     //   Ring     — a flat two-sided tilted annulus (a Saturn ring), analytic. Outer radius = size, inner hole =
     //              size·ringInner; gemTilt opens/closes the ellipse (0° face-on, 90° edge-on) and particleSpin
     //              rolls it in-plane (see PyrePlusRenderer.DrawRing).
+    //   Text     — every character of a free string is one particle, drawn from a TMP SDF font atlas: a spatial
+    //              gradient fill, an optional border, and optional 3D extrusion (front face + darker sides). Swarm
+    //              OFF ⇒ the whole string lays out as one centred line; ON ⇒ each character rides a swarm position.
+    //              gemTilt tips the letters and particleSpin yaws each one about its own centre (see
+    //              PyrePlusRenderer.DrawTextChar / RenderTextLine). Text overrides the swarm particle COUNT to the
+    //              string length.
     // Box/Pyramid/Can share the Gem's shared 3D block (tilt, light, lines, glows) — see PyrePlusRenderer.DrawFacetSolid.
     // Orb/Ring reuse that SAME per-pixel lighting/lines/glows math analytically (point light + Blinn-Phong, halo +
     // inner glow, edge lines) but with sphere/annulus geometry instead of facets.
     // APPEND ONLY — the values are serialized as ints, so never reorder or insert. (Fire/Fireball/HeightBalls are
     // simulation-backed and deferred; they are NOT here.)
-    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring }
+    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text }
+
+    // How the Text form's spatial fill gradient is applied. PerCharGradient = every letter contains the WHOLE
+    // gradient (across its own box, along the rotated fill axis). PerCharStep = every letter is ONE flat colour,
+    // grad(i/(n-1)) by index. TextGradient = ONE gradient swept across the whole line's extent (swarm ON has no
+    // line, so it degrades to PerCharStep). See PyrePlusRenderer's SampleTextColor.
+    public enum TextFillMode { PerCharGradient, PerCharStep, TextGradient }
 
     [CreateAssetMenu(menuName = "Laubrary/Pyre Plus", fileName = "PyrePlus")]
     public class PyrePlusSpec : ScriptableObject
@@ -99,6 +112,33 @@ namespace Laubrary.PyrePlus
         // (0° face-on → 90° edge-on) and particleSpin rolls it in-plane; both reuse the shared lighting/lines/glows
         // above. Not animatable (a plain float) — the ring's animation lives in size/tilt/spin.
         [Range(0.1f, 0.92f)] public float ringInner = 0.55f;   // inner radius as a fraction of the outer radius
+
+        // ── Text form (shapeForm == Text) — a string rendered as extruded SDF letters ────────────────────────
+        // Every character is one particle. `size` is the character HEIGHT in pixels; each glyph is scaled so its
+        // height matches it. Text does NOT use colorOverLife — its colour is the SPATIAL fill below.
+        public string textString = "PYRE";
+        // The SDF font atlas. Null = the renderer auto-finds the first TMP_FontAsset with a READABLE atlas (an
+        // editor-only AssetDatabase lookup, cached); at runtime with nothing found the form falls back to a plain
+        // Disc per character. The atlas must be Read/Write-enabled (a Dynamic SDF font works).
+        public TMP_FontAsset textFont;
+        // Which fill mode paints the letters. (Text ignores colorOverLife entirely — see the enum.)
+        public TextFillMode textFillMode = TextFillMode.PerCharGradient;
+        // The SPATIAL fill ramp. NOT over the particle's life — sampled in SPACE across the char/line (unlike every
+        // other form, Text does not read colorOverLife). Deep-crimson→orange→gold by default (the Pyre ramp).
+        public Gradient textFillGradient = DefaultFireRamp();
+        // Rotates the fill axis. Convention: 0 = vertical bottom→top for PerCharGradient (PerCharStep is index-based
+        // and ignores it); for TextGradient 0 = left→right across the whole line.
+        [Range(-180f, 180f)] public float textGradientAngle = 0f;
+        // Letter outline, in SCREEN pixels (0 = no border). Drawn as an SDF band just inside each glyph edge,
+        // coloured from textBorderGradient sampled with the SAME fill mode + angle as the fill.
+        [Range(0f, 4f)] public float textBorderWidth = 1f;
+        // The border colour ramp — a single-colour gradient reads as a solid outline.
+        public Gradient textBorderGradient = DefaultWarmWhite();
+        // Advance multiplier for the centred line layout (swarm OFF): <1 tightens the letters, >1 spreads them.
+        [Range(0.6f, 1.6f)] public float textSpacing = 1f;
+        // 3D extrusion. Solid = extruded letter boxes (lit front face + darker sides); false = a flat 2D plane.
+        public bool textSolid = true;
+        [Range(0.05f, 1f)] public float textDepth = 0.35f;   // extrusion depth as a fraction of the char size
 
         // ── Crescent form (shapeForm == Crescent) — a disc with a second offset disc masked out ────────────
         // A pixel is lit when it's inside the main disc but NOT inside the bite (mask) disc. The bite disc sits
@@ -296,6 +336,36 @@ namespace Laubrary.PyrePlus
             v.points.Add(new ZUIEnvelopePoint(0.875f, 1f));
             v.points.Add(new ZUIEnvelopePoint(1f, 0.5f));
             return v;
+        }
+
+        static Gradient DefaultFireRamp()
+        {
+            // Deep crimson → orange → gold — the Pyre spatial fill ramp (matches the Text prototype's Grad()).
+            var g = new Gradient();
+            g.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(new Color(0.55f, 0.08f, 0.10f), 0f),
+                    new GradientColorKey(new Color(0.95f, 0.45f, 0.10f), 0.5f),
+                    new GradientColorKey(new Color(1f, 0.86f, 0.35f), 1f),
+                },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+            return g;
+        }
+
+        static Gradient DefaultWarmWhite()
+        {
+            // A single warm-white colour = a solid border (sampled the same way as the fill, but flat since both
+            // stops are the same colour).
+            var g = new Gradient();
+            g.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(new Color(1f, 0.97f, 0.88f), 0f),
+                    new GradientColorKey(new Color(1f, 0.97f, 0.88f), 1f),
+                },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+            return g;
         }
     }
 }

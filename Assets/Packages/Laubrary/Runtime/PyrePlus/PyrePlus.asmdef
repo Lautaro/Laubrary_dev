@@ -3,7 +3,8 @@
     "rootNamespace": "Laubrary.PyrePlus",
     "references": [
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
-        "com.Lautaro-Arino.Laubrary.Pyre"
+        "com.Lautaro-Arino.Laubrary.Pyre",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
