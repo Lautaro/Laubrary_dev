@@ -250,7 +250,37 @@ namespace Laubrary.PyrePlus.Editor
                     + "laid out — the frames aren't re-rendered.",
                     v => DirtyRepaintOnly(() => s.previewStripSize = Mathf.Clamp(v, 32f, 256f)), 150f,
                     showValue: true, decimals: 0));
+            // GIF export (G3): the button opens a Save dialog and writes an animated GIF; the packed scale field is
+            // its nearest-neighbour upscale. The scale is a cosmetic spec field — record Undo + SetDirty, no
+            // re-render (it doesn't touch the preview frames).
+            kids.Add(Z.Button("GIF…",
+                "Export the whole animation as an animated GIF — transparent background, loops forever, at the "
+                + "frame rate above. Opens a Save dialog for the file location.",
+                ExportGif));
+            kids.Add(Z.Field("Scale",
+                "Nearest-neighbour upscale applied to the exported GIF (1–8×). Bigger = a larger file with the "
+                + "same crisp pixels.",
+                Z.Int(s.previewGifScale, "Nearest-neighbour upscale for the exported GIF (1–8×).",
+                    v =>
+                    {
+                        if (spec == null) return;
+                        Undo.RecordObject(spec, "Edit Pyre Plus");
+                        s.previewGifScale = Mathf.Clamp(v, 1, 8);
+                        EditorUtility.SetDirty(spec);
+                    }, 44f)));
             transportHost.Add(WrapRow(kids.ToArray()));
+        }
+
+        // GIF export (G3): render every frame and write an animated GIF at the chosen nearest-neighbour scale. The
+        // path comes from a user Save dialog (cancel = empty path = no-op); RevealInFinder opens the result folder.
+        // No AssetDatabase work here — if the user saves inside Assets/ the orchestrator owns the import refresh.
+        void ExportGif()
+        {
+            if (spec == null) return;
+            string path = EditorUtility.SaveFilePanel("Export GIF", "", (spec.name ?? "PyrePlus") + ".gif", "gif");
+            if (string.IsNullOrEmpty(path)) return;
+            PyrePlusGif.Export(spec, path, Mathf.Clamp(spec.previewGifScale, 1, 8));
+            EditorUtility.RevealInFinder(path);
         }
 
         // The shared BackSplash backdrop panel (also used by Pyre / Mirage) — a cosmetic preview aid, never baked.
@@ -275,7 +305,7 @@ namespace Laubrary.PyrePlus.Editor
 
         void BuildCanvas(VisualElement root, PyrePlusSpec s)
         {
-            var box = Z.BoxKeyed("Canvas", "The output resolution, frame count, seed and backdrop.", "pyreplus.canvas");
+            var box = Z.BoxKeyed("Canvas", "The output resolution, frame count, seed and background.", "pyreplus.canvas");
             box.Add(WrapRow(
                 Z.Field("Size", "Square canvas size in pixels.",
                     Z.Int(s.canvasSize, "Square canvas size in pixels.", v => Dirty(() => s.canvasSize = Mathf.Max(1, v)), 60f)),
@@ -286,7 +316,27 @@ namespace Laubrary.PyrePlus.Editor
                     Z.SliderInt(s.frameCount, 1, 64, "Frame count.", v => Dirty(() => s.frameCount = v), 150f)),
                 Z.Field("Seed", "Random seed — every particle's randomness derives from it.",
                     Z.Int(s.seed, "Random seed.", v => Dirty(() => s.seed = v), 70f))));
+            box.Add(BackgroundFillRow(s));
             root.Add(box);
+        }
+
+        // The background clear, as a ZuiFill — Solid transparent by default (which bakes exactly as the old flat
+        // clear). Editing it in ANY way flips backgroundUseFill on, so the renderer switches from the flat
+        // `background` clear to evaluating this fill per pixel across the canvas (a gradient / noise / grid / dots /
+        // sprite backdrop). No separate "use fill" toggle: a Solid-transparent fill already reproduces the empty
+        // backdrop, so editing-turns-it-on is the whole control (ui-layout-rules: don't add a toggle you don't need).
+        ZuiFillControl BackgroundFillRow(PyrePlusSpec s)
+        {
+            s.backgroundFill ??= new ZuiFill(new Color(0f, 0f, 0f, 0f));
+            return Z.Fill("Background",
+                s.backgroundFill,
+                "The backdrop behind every layer. Default = a transparent clear (composites into a game scene). "
+                + "Editing it turns on the per-pixel background fill: make it a solid colour, a gradient, noise, a "
+                + "grid, dots, or a stamped sprite. Cosmetic backdrops for the PREVIEW only live in the backdrop "
+                + "panel below — this one IS baked into the frames.",
+                onChanged: () => { s.backgroundUseFill = true; if (spec != null) EditorUtility.SetDirty(spec); MarkDirty(); },
+                onBeforeMutate: () => { if (spec != null) Undo.RecordObject(spec, "Edit Pyre Plus"); },
+                new ZuiFillControl.Options().WithWidth(190f).WithGrow(2.2f));
         }
 
         // ── layer list (R3) ─────────────────────────────────────────────────────────
@@ -868,8 +918,8 @@ namespace Laubrary.PyrePlus.Editor
         // per-letter Spin lives in the Advanced section.
         void BuildTextBox(PyrePlusLayer s)
         {
-            s.textFillGradient ??= new Gradient();
-            s.textBorderGradient ??= new Gradient();
+            s.textFill ??= new ZuiFill();
+            s.textBorder ??= new ZuiFill();
 
             var box = Z.BoxKeyed("Text",
                 "Every character of the string is one particle, rendered from a TMP SDF font atlas: a spatial "
@@ -897,33 +947,34 @@ namespace Laubrary.PyrePlus.Editor
                 v => Dirty(() => s.textSpacing = v), 150f, showValue: true));
 
             box.Add(WrapRow(
-                Z.Field("Fill",
-                    "How the fill gradient is applied. Per-char gradient = each letter contains the whole gradient. "
-                    + "Per-char step = each letter one flat colour along the gradient, by index. Text gradient = "
-                    + "one gradient swept across the whole line (degrades to per-char step when the Swarm is on — "
-                    + "there's no line to sweep). Text takes its colour from here, NOT the Colour gradient above.",
+                Z.Field("Sweep",
+                    "How the Fill's gradient is swept across the letters. Per-char gradient = each letter contains "
+                    + "the whole gradient. Per-char step = each letter one flat colour along the gradient, by index. "
+                    + "Text gradient = one gradient swept across the whole line (degrades to per-char step when the "
+                    + "Swarm is on — there's no line to sweep). Text takes its colour from the Fill below, NOT the "
+                    + "Colour gradient above. (A Solid or textured Fill ignores this — see the Fill.)",
                     Z.Dropdown((int)s.textFillMode, TextFillModeChoices,
-                        "Per-char gradient / per-char step / one gradient across the whole line.",
+                        "How the Fill's gradient is swept: per-char gradient / per-char step / one gradient across the whole line.",
                         v => Dirty(() => s.textFillMode = (TextFillMode)v), 130f)),
                 Z.MicroSlider("Angle", s.textGradientAngle, -180f, 180f,
                     "Rotates the fill axis. 0 = vertical bottom→top for per-char gradient; 0 = left→right across "
                     + "the line for text gradient. (Per-char step is index-based and ignores it.)",
                     v => Dirty(() => s.textGradientAngle = v), 150f, showValue: true)));
 
-            box.Add(Z.Field("Fill grad",
-                "The spatial fill ramp — this is where Text's colour comes from (the Shape Fill is hidden for Text).",
-                Z.Gradient("The spatial fill ramp — this is where Text's colour comes from.",
-                    () => s.textFillGradient, g => Dirty(() => s.textFillGradient = g), 200f)));
+            box.Add(FillRow("Fill",
+                "The letter fill — a solid colour, a gradient (swept per the Sweep mode above), or a texture "
+                + "(sprite / noise / grid / dots) stamped across each letter. This is where Text's colour comes "
+                + "from; the Shape Fill above is hidden for Text.",
+                s.textFill, new ZuiFillControl.Options().WithWidth(190f).WithGrow(2.2f)));
 
-            box.Add(WrapRow(
-                Z.MicroSlider("Border px", s.textBorderWidth, 0f, 4f,
-                    "Letter outline width in screen pixels (0 = no border). Drawn as an SDF band just inside each "
-                    + "glyph edge, coloured from the Border gradient.",
-                    v => Dirty(() => s.textBorderWidth = v), 150f, showValue: true),
-                Z.Field("Border grad",
-                    "The border colour, sampled the same way as the fill. A single colour = a solid outline.",
-                    Z.Gradient("The border colour, sampled the same way as the fill.",
-                        () => s.textBorderGradient, g => Dirty(() => s.textBorderGradient = g), 200f))));
+            box.Add(Z.MicroSlider("Border px", s.textBorderWidth, 0f, 4f,
+                "Letter outline width in screen pixels (0 = no border). Drawn as an SDF band just inside each "
+                + "glyph edge, coloured from the Border fill below.",
+                v => Dirty(() => s.textBorderWidth = v), 150f, showValue: true));
+            box.Add(FillRow("Border",
+                "The letter outline fill, sampled the same way as the Fill (solid / gradient / texture). A single "
+                + "colour reads as a solid outline.",
+                s.textBorder, new ZuiFillControl.Options().WithWidth(190f).WithGrow(2.2f)));
 
             box.Add(Z.Toggle("Solid",
                 "Extrude each letter into a 3D box (a lit front face + darker extrusion sides). Off = a flat 2D "
@@ -943,6 +994,7 @@ namespace Laubrary.PyrePlus.Editor
         VisualElement swarmBody;
         static readonly string[] SwarmModeLabels = { "Area", "Path" };
         static readonly string[] SwarmOrientLabels = { "None", "Outward", "Tangent" };
+        static readonly string[] SwarmTimingLabels = { "Window", "Frames" };
 
         void BuildSwarm(VisualElement root, PyrePlusSpec s)
         {
@@ -970,31 +1022,56 @@ namespace Laubrary.PyrePlus.Editor
 
             float half = Mathf.Max(1f, spec.canvasSize * 0.5f);
 
-            // Count + the two timing sliders (label + value INSIDE each MicroSlider), packed to reflow. Text hides
-            // Count (the string length rules it) but keeps the spawn window + particle life.
-            var timingRow = new List<VisualElement>();
+            // Count + Particle life — both apply whichever Timing mode is chosen — packed to reflow. Text hides
+            // Count (the string length rules the particle count) but keeps Particle life.
+            var baseRow = new List<VisualElement>();
             if (s.shapeForm != ShapeForm.Text)
-                timingRow.Add(Z.Field("Count", "How many particles the swarm places (at least 2).",
+                baseRow.Add(Z.Field("Count", "How many particles the swarm places (at least 2).",
                     Z.Int(s.swarmCount, "How many particles the swarm places (at least 2).",
                         v => Dirty(() => s.swarmCount = Mathf.Max(2, v)), 60f)));
-            timingRow.Add(Z.MicroSlider("Spawn window", s.swarmSpawnWindow, 0f, 1f,
-                "The slice of the timeline during which new particles appear (0 = all at frame 1, "
-                + "1 = spawning continues to the last frame). WHEN each one appears inside the window is set "
-                + "by Spawn timing.",
-                v => Dirty(() => s.swarmSpawnWindow = v), 150f, showValue: true));
-            timingRow.Add(Z.MicroSlider("Particle life", s.swarmParticleLife, 0.05f, 1f,
+            baseRow.Add(Z.MicroSlider("Particle life", s.swarmParticleLife, 0.05f, 1f,
                 "How long each particle lives, as a fraction of the timeline. Its colour/alpha/size envelopes "
                 + "always play over ITS OWN life, not the timeline.",
                 v => Dirty(() => s.swarmParticleLife = v), 150f, showValue: true));
-            swarmBody.Add(WrapRow(timingRow.ToArray()));
+            swarmBody.Add(WrapRow(baseRow.ToArray()));
 
-            // WHEN each particle spawns inside the window — the particle-number → spawn-moment remap.
-            swarmBody.Add(Val("Spawn timing",
-                "Remaps WHEN each particle spawns inside the Spawn window. The X axis is WHICH particle "
-                + "(0 = the first spawned, 1 = the last); the value is WHEN it spawns (0 = the window's start, "
-                + "1 = its end). Linear = evenly spread (the default); ease it for a burst then a trickle; a flat "
-                + "Static value spawns them all together at that moment; MinMax gives every particle a random moment.",
-                s.swarmSpawnTiming, 0f, 1f));
+            // Timing mode (G3): Window spreads the spawns across a fraction of the timeline; Frames spawns the first
+            // particle on a chosen frame, then one more every N frames. Rebuild on change so the mode's own rows
+            // swap in; the composed tooltip re-reads the current mode (house rule: no if-lists in a tooltip).
+            swarmBody.Add(Z.Field("Timing", SwarmTimingTooltip(s),
+                Z.Segmented((int)s.swarmTiming, SwarmTimingLabels, SwarmTimingTooltip(s),
+                    v => { Dirty(() => s.swarmTiming = (SwarmTiming)v); RebuildSwarm(); })));
+
+            if (s.swarmTiming == SwarmTiming.Window)
+            {
+                swarmBody.Add(Z.MicroSlider("Spawn window", s.swarmSpawnWindow, 0f, 1f,
+                    "The slice of the timeline during which new particles appear (0 = all at frame 1, "
+                    + "1 = spawning continues to the last frame). WHEN each one appears inside the window is set "
+                    + "by Spawn timing.",
+                    v => Dirty(() => s.swarmSpawnWindow = v), 150f, showValue: true));
+
+                // WHEN each particle spawns inside the window — the particle-number → spawn-moment remap.
+                swarmBody.Add(Val("Spawn timing",
+                    "Remaps WHEN each particle spawns inside the Spawn window. The X axis is WHICH particle "
+                    + "(0 = the first spawned, 1 = the last); the value is WHEN it spawns (0 = the window's start, "
+                    + "1 = its end). Linear = evenly spread (the default); ease it for a burst then a trickle; a flat "
+                    + "Static value spawns them all together at that moment; MinMax gives every particle a random moment.",
+                    s.swarmSpawnTiming, 0f, 1f));
+            }
+            else
+            {
+                // FrameStep: first frame + step, both 0-based frame indexes (the transport readout shows frames
+                // 1-based). Packed to reflow; each clamps at 0 (its [Min(0)] spec attribute).
+                string firstTip = "The frame the FIRST particle spawns on. 0-based — frame 0 is the very first frame "
+                    + "(the transport readout shows it as \"frame 1\").";
+                string stepTip = "Frames between each following spawn (0-based step). 0 = every particle spawns "
+                    + "together on the First frame; 2 = one new particle every 2 frames until the Count is filled.";
+                swarmBody.Add(WrapRow(
+                    Z.Field("First frame", firstTip,
+                        Z.Int(s.swarmFirstFrame, firstTip, v => Dirty(() => s.swarmFirstFrame = Mathf.Max(0, v)), 60f)),
+                    Z.Field("Every N frames", stepTip,
+                        Z.Int(s.swarmFrameStep, stepTip, v => Dirty(() => s.swarmFrameStep = Mathf.Max(0, v)), 60f))));
+            }
 
             // Placement geometry: mode (Area vs Path) + the shape kind, packed together.
             string modeTip = "Area = particles fill the shape's interior; Path = particles ride along its outline.";
@@ -1170,6 +1247,19 @@ namespace Laubrary.PyrePlus.Editor
         static bool IsSolidForm(ShapeForm f) =>
             f == ShapeForm.Gem || f == ShapeForm.Box || f == ShapeForm.Pyramid ||
             f == ShapeForm.Can || f == ShapeForm.Orb || f == ShapeForm.Ring;
+
+        // The Swarm Timing tooltip, composed for the CURRENT mode (the swarm rebuilds on change), so it names only
+        // the mode the user is in (house rule: no if-lists in a tooltip).
+        static string SwarmTimingTooltip(PyrePlusLayer s)
+        {
+            const string common = "How the swarm's spawns are spread across the timeline. ";
+            if (s.swarmTiming == SwarmTiming.FrameStep)
+                return common + "Frames: the first particle spawns on First frame, then one more every N frames until "
+                     + "the Count is filled (N = 0 spawns them all on that one frame). Frame indexes are 0-based; the "
+                     + "transport readout shows frames 1-based.";
+            return common + "Window: spawns spread across a fraction of the timeline (Spawn window), with Spawn timing "
+                 + "remapping which particle lands when inside it.";
+        }
 
         // The Swarm Orient tooltip, composed for the CURRENT orient + mode (the swarm rebuilds on either change),
         // so it never lists branches the user isn't in.

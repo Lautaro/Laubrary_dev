@@ -1,11 +1,13 @@
-// ZuiFillControl — the UI Toolkit control that edits a ZuiFill: one labelled row whose compact face
-// changes with the fill's mode, and a "⋯" button opening the same style of mode menu ZuiValueControl
-// uses. Acts as a plain colour picker in Solid mode (alpha shown), and grows a gradient — plus a small
-// Angle or Zoom field — in the spatial modes.
+// ZuiFillControl — the UI Toolkit control that edits a ZuiFill: one labelled header row whose compact body
+// changes with the fill's ACTIVE thing, plus (for the richer kinds) a second row of secondary controls, and a
+// "⋯" button opening a two-section menu. The menu's top section picks a FILL (Solid / Over life / Linear /
+// Radial); a separator; the bottom section picks a TEXTURE (Sprite / Noise / Grid / Dots), which REPLACES the
+// fill entirely ("a texture is instead of a fill, not a kind of fill"). Acts as a plain colour picker in Solid
+// mode (alpha shown), grows a gradient + a centre pad + angle/zoom in the spatial modes, and swaps to a
+// texture's own face when a texture is chosen.
 //
-// Mirrors ZuiValueControl's conventions: an EXTERNAL label to the left (via FieldLabel) for every mode
-// (ZuiFill has no MicroSlider-style inside-label case), a right-aligned ⋯ MenuButton, a GenericMenu of
-// modes with the current one checked, and a full face rebuild on any mode switch. Operates on the SAME
+// Mirrors ZuiValueControl's conventions: an EXTERNAL label to the left (via FieldLabel), a right-aligned ⋯
+// MenuButton, a menu with the ACTIVE item checked, and a full face rebuild on any switch. Operates on the SAME
 // runtime ZuiFill the consumer owns; every edit fires OnBeforeMutate → apply → OnChanged (the Undo pair).
 using System;
 using UnityEditor;
@@ -39,7 +41,7 @@ namespace Laubrary.Zui
 
         /// Fires once per gesture before the first mutation — the Undo.RecordObject hook.
         public Action OnBeforeMutate;
-        /// Fires after every mutation (colour edits, gradient edits, angle/zoom drags, mode changes).
+        /// Fires after every mutation (colour edits, gradient edits, angle/zoom drags, mode / texture changes).
         public Action OnChanged;
 
         public ZuiFillControl(string label, ZuiFill fill, Options options, string tooltip)
@@ -67,7 +69,8 @@ namespace Laubrary.Zui
         void Mutate(Action apply) { OnBeforeMutate?.Invoke(); apply(); OnChanged?.Invoke(); }
 
         Button MenuButton() => Z.Button("⋯",
-            "Fill mode — solid colour, over-life, or a spatial gradient (linear / radial / noise).",
+            "Choose a FILL (solid colour, over-life, or a spatial gradient) or a TEXTURE (sprite / noise / grid / "
+            + "dots). A texture replaces the fill entirely — it's instead of a fill, not a kind of fill.",
             ShowMenu).W(24f);
 
         Label FieldLabel(string text)
@@ -78,17 +81,24 @@ namespace Laubrary.Zui
             return l;
         }
 
-        // ── full rebuild (on construction and every mode switch) ─────────────────────────────
+        // ── full rebuild (on construction and every fill / texture switch) ────────────────────
         void RebuildAll()
         {
             _content.Clear();
+
+            // A texture, when active, REPLACES the fill mode — its own face is drawn instead of the mode faces.
+            if (_fill.texture != ZuiFill.TextureKind.None)
+            {
+                RebuildTextureFace();
+                return;
+            }
 
             switch (_fill.mode)
             {
                 case ZuiFill.Mode.Solid:
                 {
-                    // Just a colour picker — alpha shown, filling the row. This IS the "acts as a plain
-                    // colour field when fill isn't selected" case.
+                    // Just a colour picker — alpha shown, filling the row. This IS the "acts as a plain colour
+                    // field when neither a fill nor a texture is selected" case (unchanged from v1).
                     var cf = Z.Color(_fill.color, _tooltip,
                         c => Mutate(() => _fill.color = c), _opt.controlWidth, showAlpha: true);
                     AddHeaderRow(_label, cf);
@@ -100,13 +110,72 @@ namespace Laubrary.Zui
                     break;
 
                 case ZuiFill.Mode.Linear:
-                    AddHeaderRow(_label, GradientPlus(ExtraAngle()));
+                    AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
+                    ExtraRow(CenterPad(), ExtraAngle(), ExtraZoom());
                     break;
 
                 case ZuiFill.Mode.Radial:
-                case ZuiFill.Mode.Noise:
-                    AddHeaderRow(_label, GradientPlus(ExtraZoom()));
+                    AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
+                    ExtraRow(CenterPad(), ExtraZoom());
                     break;
+            }
+        }
+
+        // The four texture faces. Each keeps the header row's [label][body][⋯] shape, then a compact second row
+        // (wrapping) of that texture's own params.
+        void RebuildTextureFace()
+        {
+            switch (_fill.texture)
+            {
+                case ZuiFill.TextureKind.Sprite:
+                {
+                    const string sprTip = "The sprite stamped across the fill's -1..1 box (point-sampled, honouring "
+                        + "its rect). Its texture must have Read/Write enabled to sample; otherwise the fill falls "
+                        + "back to the tint colour.";
+                    var obj = Z.Object<Sprite>(_fill.textureSprite, sprTip,
+                        v => Mutate(() => _fill.textureSprite = v), Mathf.Min(_opt.controlWidth, 150f));
+                    AddHeaderRow(_label, obj);
+                    ExtraRow(TintColor("Tint", "Multiplies the sprite's colours (alpha too). White = the sprite's raw colours."));
+                    break;
+                }
+
+                case ZuiFill.TextureKind.Noise:
+                {
+                    AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
+                    ExtraRow(NoiseKindField(), ExtraZoom(), CenterPad());
+                    break;
+                }
+
+                case ZuiFill.TextureKind.Grid:
+                {
+                    AddHeaderRow(_label, TintColor(null,
+                        "The grid line colour (alpha carries the mask — off-line pixels are transparent)."));
+                    ExtraRow(
+                        Scrub("Angle", "Rotation of the grid, in degrees.", _fill.gridAngle,
+                            v => _fill.gridAngle = v),
+                        Scrub("Space", "Cell size in the fill's local units (the -1..1 box is 2 units across).",
+                            _fill.gridSpacing, v => _fill.gridSpacing = Mathf.Max(1e-4f, v)),
+                        Scrub("Width", "Line thickness as a fraction of the spacing (0..1).", _fill.gridLineWidth,
+                            v => _fill.gridLineWidth = Mathf.Clamp01(v)));
+                    ExtraRow(
+                        Toggle("Vert", "Draw the vertical lines.", _fill.gridVertical, v => _fill.gridVertical = v),
+                        Toggle("Horiz", "Draw the horizontal lines.", _fill.gridHorizontal, v => _fill.gridHorizontal = v));
+                    break;
+                }
+
+                case ZuiFill.TextureKind.Dots:
+                {
+                    AddHeaderRow(_label, TintColor(null,
+                        "The dot colour (alpha carries the mask — the gaps between dots are transparent)."));
+                    ExtraRow(
+                        Scrub("Size", "Disc diameter as a fraction of the cell (0..1+).", _fill.dotSize,
+                            v => _fill.dotSize = Mathf.Max(0f, v)),
+                        Scrub("Space", "Cell size in the fill's local units (the -1..1 box is 2 units across).",
+                            _fill.dotSpacing, v => _fill.dotSpacing = Mathf.Max(1e-4f, v)),
+                        Toggle("Stagger", "Offset alternate rows by half a cell (a brick / hex pattern).",
+                            _fill.dotStagger, v => _fill.dotStagger = v));
+                    break;
+                }
             }
         }
 
@@ -123,17 +192,17 @@ namespace Laubrary.Zui
             _content.Add(row);
         }
 
-        // A gradient field paired with a small extra numeric (Angle or Zoom) on the same body row.
-        VisualElement GradientPlus(VisualElement extra)
+        // A compact, wrapping second row of secondary params (pad / angle / zoom / toggles). Grows nothing —
+        // each child sizes itself — and wraps to a further line on a narrow pane (ui-layout-rules: pack rows,
+        // but a control may grow a second row rather than overflow).
+        void ExtraRow(params VisualElement[] kids)
         {
-            var body = new VisualElement();
-            body.AddToClassList("zui-row");
-            // The gradient gives up the extra field's width; it grows to fill spare row space when grow is on.
-            var grad = BuildGradient(Mathf.Max(80f, _opt.controlWidth - 74f));
-            if (_opt.grow) { grad.style.flexGrow = 1f; grad.style.flexShrink = 1f; }
-            body.Add(grad);
-            body.Add(extra);
-            return body;
+            var row = new VisualElement();
+            row.AddToClassList("zui-row");
+            row.style.flexWrap = Wrap.Wrap;
+            row.style.alignItems = Align.FlexStart;
+            foreach (var k in kids) if (k != null) row.Add(k);
+            _content.Add(row);
         }
 
         GradientField BuildGradient(float width)
@@ -144,6 +213,17 @@ namespace Laubrary.Zui
                 () => _fill.gradient,
                 g => Mutate(() => _fill.gradient = g ?? ZuiFill.DefaultGradient()),
                 width);
+        }
+
+        // The gradient centre pad (Linear / Radial / Noise) — a plain Vector2 in -1..1 local space. flipY so
+        // dragging up raises the centre's v, matching the renderer's v-up sampling.
+        VisualElement CenterPad()
+        {
+            const string tip = "The gradient's centre in the shape's local space (-1..1). Linear: the fill axis "
+                + "passes through it. Radial: the gradient's middle sits here, drifting off-centre toward a border.";
+            var pad = Z.Pad(_fill.center, new Rect(-1f, -1f, 2f, 2f), tip,
+                v => Mutate(() => _fill.center = v), 44f);
+            return Z.Field("Ctr", tip, pad);
         }
 
         VisualElement ExtraAngle()
@@ -160,27 +240,79 @@ namespace Laubrary.Zui
             return Z.Field("Zoom", tip, f);
         }
 
-        // ── the ⋯ menu (mode only — ZuiFill carries no clipboard/multiplier surface) ──────────
+        VisualElement NoiseKindField()
+        {
+            const string tip = "Noise shape: Value (plain), Ridged (creased ridges), or Steps (4-band posterized). "
+                + "All three map through the gradient.";
+            var d = Z.EnumDropdown(_fill.noiseKind, tip, v => Mutate(() => _fill.noiseKind = v), 74f);
+            return Z.Field("Kind", tip, d);
+        }
+
+        // A colour field bound to _fill.color (the Solid swatch / Sprite tint / Grid+Dots ink). `caption` null =
+        // no leading label (the header FieldLabel already names the row).
+        VisualElement TintColor(string caption, string tip)
+        {
+            var cf = Z.Color(_fill.color, tip, c => Mutate(() => _fill.color = c),
+                caption == null ? _opt.controlWidth : 60f, showAlpha: true);
+            return caption == null ? (VisualElement)cf : Z.Field(caption, tip, cf);
+        }
+
+        // A compact scrub-float param wrapped with its own caption — the packed idiom the angle/zoom fields use.
+        VisualElement Scrub(string caption, string tip, float value, Action<float> set)
+        {
+            var f = Z.Float(value, tip, v => Mutate(() => set(v)), 42f);
+            return Z.Field(caption, tip, f);
+        }
+
+        VisualElement Toggle(string caption, string tip, bool value, Action<bool> set)
+            => Z.Toggle(caption, tip, value, v => Mutate(() => set(v)));
+
+        // ── the two-section ⋯ menu (Fill section, separator, Texture section — a texture replaces the fill) ──
         void ShowMenu()
         {
             var menu = new GenericMenu();
-            AddModeItem(menu, "Solid colour", ZuiFill.Mode.Solid);
-            AddModeItem(menu, "Over life", ZuiFill.Mode.OverLife);
-            AddModeItem(menu, "Linear gradient", ZuiFill.Mode.Linear);
-            AddModeItem(menu, "Radial gradient", ZuiFill.Mode.Radial);
-            AddModeItem(menu, "Noise", ZuiFill.Mode.Noise);
+            // Fill section — a fill item is active (checked) when NO texture is set and this is the current mode.
+            AddFillItem(menu, "Solid colour", ZuiFill.Mode.Solid);
+            AddFillItem(menu, "Over life", ZuiFill.Mode.OverLife);
+            AddFillItem(menu, "Linear gradient", ZuiFill.Mode.Linear);
+            AddFillItem(menu, "Radial gradient", ZuiFill.Mode.Radial);
+            menu.AddSeparator("");   // divides the Fill section (above) from the Texture section (below)
+            // Texture section — a texture REPLACES the fill; active when this kind is set (the mode is ignored).
+            AddTextureItem(menu, "Texture · Sprite", ZuiFill.TextureKind.Sprite);
+            AddTextureItem(menu, "Texture · Noise", ZuiFill.TextureKind.Noise);
+            AddTextureItem(menu, "Texture · Grid", ZuiFill.TextureKind.Grid);
+            AddTextureItem(menu, "Texture · Dots", ZuiFill.TextureKind.Dots);
             menu.ShowAsContext();
         }
 
-        void AddModeItem(GenericMenu menu, string label, ZuiFill.Mode mode)
-            => menu.AddItem(new GUIContent(label), _fill.mode == mode, () => SetMode(mode));
+        void AddFillItem(GenericMenu menu, string label, ZuiFill.Mode mode)
+            => menu.AddItem(new GUIContent(label),
+                _fill.texture == ZuiFill.TextureKind.None && _fill.mode == mode,
+                () => SetFill(mode));
 
-        void SetMode(ZuiFill.Mode mode)
+        void AddTextureItem(GenericMenu menu, string label, ZuiFill.TextureKind kind)
+            => menu.AddItem(new GUIContent(label), _fill.texture == kind, () => SetTexture(kind));
+
+        // Pick a FILL: clear any texture, set the mode, seed a gradient for the non-Solid modes.
+        void SetFill(ZuiFill.Mode mode)
         {
             Mutate(() =>
             {
+                _fill.texture = ZuiFill.TextureKind.None;
                 _fill.mode = mode;
                 if (mode != ZuiFill.Mode.Solid) _fill.EnsureGradient();   // seed so the field is never blank
+            });
+            RebuildAll();
+        }
+
+        // Pick a TEXTURE: set the kind (the mode is left as-is but ignored while a texture is active). Noise maps
+        // through the gradient, so seed one.
+        void SetTexture(ZuiFill.TextureKind kind)
+        {
+            Mutate(() =>
+            {
+                _fill.texture = kind;
+                if (kind == ZuiFill.TextureKind.Noise) _fill.EnsureGradient();
             });
             RebuildAll();
         }

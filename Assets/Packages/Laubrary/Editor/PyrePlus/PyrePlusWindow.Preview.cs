@@ -329,6 +329,12 @@ namespace Laubrary.PyrePlus.Editor
         void DrawSpawnDots(Rect view, PyrePlusSpec s, PyrePlusLayer sel, Vector2 delta)
         {
             PyrePlusRenderer.ComputeSpawns(s, sel, swarmSpawns);
+            // Each dot is annotated with the FRAME it spawns on (1-based, matching the transport's "frame N/M"
+            // readout). Clutter guard: past 40 dots the labels overlap into an unreadable smear, so only the dots
+            // draw. (frameCount clamped so a 1-frame spec still maps every dot to frame 1 without dividing by zero.)
+            int frameCount = Mathf.Max(1, s.frameCount);
+            bool showLabels = swarmSpawns.Count <= 40;
+            Color prevContent = GUI.contentColor;
             for (int i = 0; i < swarmSpawns.Count; i++)
             {
                 var sp = swarmSpawns[i];
@@ -341,7 +347,20 @@ namespace Laubrary.PyrePlus.Editor
                                           Mathf.Clamp01(SpawnDotColor.g * brightMul),
                                           Mathf.Clamp01(SpawnDotColor.b * brightMul), SpawnDotColor.a);
                 Handles.DrawSolidDisc(new Vector3(screen.x, screen.y, 0f), Vector3.forward, SpawnDotRadius * sizeMul);
+
+                if (!showLabels) continue;
+                // The frame this particle spawns on — the SAME life→frame rounding the transport uses, +1 for the
+                // 1-based display. Drawn a few px up-right of the dot; a 1px dark shadow copy is drawn first so the
+                // white mini-label stays readable over a bright backdrop image.
+                int spawnFrame = Mathf.RoundToInt(sp.spawnLife * (frameCount - 1)) + 1;
+                string txt = spawnFrame.ToString();
+                var labelRect = new Rect(screen.x + 4f, screen.y - 7f, 30f, 14f);
+                GUI.contentColor = new Color(0f, 0f, 0f, 0.9f);
+                GUI.Label(new Rect(labelRect.x + 1f, labelRect.y + 1f, labelRect.width, labelRect.height), txt, EditorStyles.whiteMiniLabel);
+                GUI.contentColor = Color.white;
+                GUI.Label(labelRect, txt, EditorStyles.whiteMiniLabel);
             }
+            GUI.contentColor = prevContent;
         }
 
         // 4) The authored Custom-path control points (Path + Custom only), each a draggable marker.

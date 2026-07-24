@@ -28,6 +28,12 @@ namespace Laubrary.PyrePlus
     // orientDeg + PyrePlusRenderer's per-form fold.
     public enum SwarmOrient { None, Outward, PathTangent }
 
+    // How the swarm distributes its spawns IN TIME. Window (the default) = the pre-existing behaviour: spread the
+    // N spawns across a fraction of the blast timeline (swarmSpawnWindow), remapped by swarmSpawnTiming. FrameStep =
+    // spawn the first particle at frame `swarmFirstFrame`, then one more every `swarmFrameStep` frames until the
+    // count is fulfilled (step 0 = all on that one frame). Default Window keeps a default swarm byte-identical.
+    public enum SwarmTiming { Window, FrameStep }
+
     // The particle's rendered FORM. One implicit layer, so the whole swarm is one form. The STATELESS forms:
     //   Disc     — a flat soft disc (slice 1).
     //   Gem      — a true-3D lit faceted octahedral crystal (per-pixel point lighting, hard edge lines, two
@@ -171,19 +177,26 @@ namespace Laubrary.PyrePlus
         // editor-only AssetDatabase lookup, cached); at runtime with nothing found the form falls back to a plain
         // Disc per character. The atlas must be Read/Write-enabled (a Dynamic SDF font works).
         public TMP_FontAsset textFont;
-        // Which fill mode paints the letters. (Text ignores shapeFill entirely — see the enum.)
+        // Which fill mode paints the letters. (Text ignores shapeFill entirely — see the enum.) This is the SCOPE
+        // over which the fill's gradient is swept; the fill's OWN mode (Solid/OverLife/Linear/Radial) is not read
+        // for text — the renderer reads the fill's gradient (or its colour when Solid, or its texture when a
+        // texture is set). See PyrePlusRenderer.SampleTextColor.
         public TextFillMode textFillMode = TextFillMode.PerCharGradient;
-        // The SPATIAL fill ramp. NOT over the particle's life — sampled in SPACE across the char/line (unlike every
-        // other form, Text does not read shapeFill). Deep-crimson→orange→gold by default (the Pyre ramp).
-        public Gradient textFillGradient = DefaultFireRamp();
+        // The letter fill, as a ZuiFill. NOT over the particle's life — the renderer sweeps the fill's GRADIENT in
+        // SPACE across the char/line per textFillMode (unlike every other form, Text does not read shapeFill).
+        // A Solid fill paints one flat colour; a TEXTURE (sprite/noise/grid/dots) stamps the letters directly.
+        // Default = an OverLife ZuiFill carrying the deep-crimson→orange→gold Pyre ramp, so the renderer reads the
+        // same fire gradient it read from the old textFillGradient — byte-identical.
+        public ZuiFill textFill = DefaultTextFill();
         // Rotates the fill axis. Convention: 0 = vertical bottom→top for PerCharGradient (PerCharStep is index-based
         // and ignores it); for TextGradient 0 = left→right across the whole line.
         [Range(-180f, 180f)] public float textGradientAngle = 0f;
         // Letter outline, in SCREEN pixels (0 = no border). Drawn as an SDF band just inside each glyph edge,
-        // coloured from textBorderGradient sampled with the SAME fill mode + angle as the fill.
+        // coloured from textBorder sampled with the SAME fill mode + angle as the fill.
         [Range(0f, 4f)] public float textBorderWidth = 1f;
-        // The border colour ramp — a single-colour gradient reads as a solid outline.
-        public Gradient textBorderGradient = DefaultWarmWhite();
+        // The border fill — a single-colour gradient reads as a solid outline; a texture stamps the outline band.
+        // Default = an OverLife ZuiFill carrying the warm-white ramp (byte-identical to the old textBorderGradient).
+        public ZuiFill textBorder = DefaultTextBorder();
         // Advance multiplier for the centred line layout (swarm OFF): <1 tightens the letters, >1 spreads them.
         [Range(0.6f, 1.6f)] public float textSpacing = 1f;
         // 3D extrusion. Solid = extruded letter boxes (lit front face + darker sides); false = a flat 2D plane.
@@ -275,6 +288,13 @@ namespace Laubrary.PyrePlus
         // a random moment; a flat Static value s = all particles spawn together at moment s. Default Curve,
         // linear (0,0)→(1,1) — the renderer's IsLinear01 fast path keeps a default swarm byte-identical.
         public ZUIValue swarmSpawnTiming = DefaultSpawnTiming();
+        // Frame-step spawn timing (G3): an alternative to the Window/timing pair above, chosen by swarmTiming.
+        // FrameStep places the first particle on frame swarmFirstFrame, then one more every swarmFrameStep frames
+        // (0-based frame indexes; the transport readout shows them 1-based). step 0 = all particles on swarmFirstFrame.
+        // Default Window ⇒ the Window arithmetic runs verbatim, so a default swarm is byte-identical.
+        public SwarmTiming swarmTiming = SwarmTiming.Window;
+        [Min(0)] public int swarmFirstFrame = 0;
+        [Min(0)] public int swarmFrameStep = 2;
         [Range(0.05f, 1f)] public float swarmParticleLife = 0.5f;       // each particle's own life duration as a fraction of the blast timeline
 
         // ── Swarm placement/lifetime concepts (S1) — all default to an exact no-op so a default swarm is byte-identical ──
@@ -328,8 +348,8 @@ namespace Laubrary.PyrePlus
             l.gemEdgeGlowFill = CloneFill(gemEdgeGlowFill);
             l.gemInnerGlow = CloneVal(gemInnerGlow);
             l.gemInnerGlowFill = CloneFill(gemInnerGlowFill);
-            l.textFillGradient = CloneGradient(textFillGradient);
-            l.textBorderGradient = CloneGradient(textBorderGradient);
+            l.textFill = CloneFill(textFill);
+            l.textBorder = CloneFill(textBorder);
             l.crescentBite = CloneVal(crescentBite);
             l.crescentAngle = CloneVal(crescentAngle);
             l.sparkleDensity = CloneVal(sparkleDensity);
@@ -374,6 +394,19 @@ namespace Laubrary.PyrePlus
                 gradient = CloneGradient(f.gradient),
                 angleDeg = f.angleDeg,
                 zoom = f.zoom,
+                center = f.center,
+                // Texture group — Sprite stays a shared asset ref (like font/spriteImage), not per-layer data.
+                texture = f.texture,
+                textureSprite = f.textureSprite,
+                noiseKind = f.noiseKind,
+                gridAngle = f.gridAngle,
+                gridSpacing = f.gridSpacing,
+                gridLineWidth = f.gridLineWidth,
+                gridVertical = f.gridVertical,
+                gridHorizontal = f.gridHorizontal,
+                dotSize = f.dotSize,
+                dotSpacing = f.dotSpacing,
+                dotStagger = f.dotStagger,
             };
         }
 
@@ -503,6 +536,21 @@ namespace Laubrary.PyrePlus
             return new ZUIValue(0.35f);
         }
 
+        static ZuiFill DefaultTextFill()
+        {
+            // The default letter fill: an OverLife ZuiFill carrying the fire ramp. The Text renderer reads a
+            // non-Solid fill's GRADIENT (the mode itself is irrelevant to text — see SampleTextColor), so this is
+            // byte-identical to the old `textFillGradient = DefaultFireRamp()` path.
+            return new ZuiFill { mode = ZuiFill.Mode.OverLife, gradient = DefaultFireRamp() };
+        }
+
+        static ZuiFill DefaultTextBorder()
+        {
+            // The default border fill: an OverLife ZuiFill carrying the warm-white ramp — byte-identical to the
+            // old `textBorderGradient = DefaultWarmWhite()` path (the renderer reads the gradient the same way).
+            return new ZuiFill { mode = ZuiFill.Mode.OverLife, gradient = DefaultWarmWhite() };
+        }
+
         static Gradient DefaultFireRamp()
         {
             // Deep crimson → orange → gold — the Pyre spatial fill ramp (matches the Text prototype's Grad()).
@@ -541,8 +589,17 @@ namespace Laubrary.PyrePlus
         [Min(1)] public int canvasSize = 64;
         [Min(1)] public int frameCount = 16;
         public int seed = 1234;
+        // The flat clear colour. KEPT as the serialized render-clear field for compatibility: when backgroundUseFill
+        // is false (the default) the renderer fills every pixel with this exactly as before (byte-identical).
         public Color background = new Color(0f, 0f, 0f, 0f);
         public float pixelsPerUnit = 16f;
+        // Background fill (F2): when backgroundUseFill is on, the renderer evaluates backgroundFill per pixel across
+        // the whole canvas (u,v in -1..1) as the backdrop instead of the flat `background` clear — a gradient,
+        // noise, grid, dots or a stamped sprite behind the layers. Default OFF + a Solid-transparent fill, so a
+        // default asset takes the old flat-clear path and stays byte-identical. The window flips backgroundUseFill
+        // true the moment the user edits backgroundFill.
+        public bool backgroundUseFill = false;
+        public ZuiFill backgroundFill = new ZuiFill(new Color(0f, 0f, 0f, 0f));
 
         // ── layers (R3) — paint order, index 0 at the BACK ─────────────────────────
         // One default layer = exactly the pre-R3 single-layer spec, so a fresh asset renders byte-identical. Every
@@ -552,6 +609,9 @@ namespace Laubrary.PyrePlus
         // ── editor preview state (cosmetic; never affects the render) ──────────────
         [HideInInspector] public float previewZoom = 4f;
         [HideInInspector] public float previewFps = 12f;
+        // GIF export upscale (G3) — nearest-neighbour integer scale for PyrePlusGif.Export. Cosmetic authoring
+        // state, never read by the renderer (like previewZoom); persisted so the last-used scale sticks per asset.
+        [HideInInspector] public int previewGifScale = 4;
         [HideInInspector] public int previewFrame = 0;
         [HideInInspector] public bool previewShowFrame = true;   // draw a thin canvas border in the preview (Frame toggle)
         // Filmstrip / contact-sheet preview (Part A): show EVERY frame as a grid of tiles instead of one zoomed

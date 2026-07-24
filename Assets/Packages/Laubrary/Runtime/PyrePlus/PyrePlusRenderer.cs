@@ -112,12 +112,34 @@ namespace Laubrary.PyrePlus
             int W = spec != null ? spec.Width : 1;
             int H = spec != null ? spec.Height : 1;
             var buf = new Color32[W * H];
-            Color32 bg = spec != null ? (Color32)spec.background : Transparent;
-            for (int i = 0; i < buf.Length; i++) buf[i] = bg;
-            if (spec == null || spec.layers == null) return buf;
 
-            int frames = Mathf.Max(1, spec.frameCount);
+            // `life`/`frames` are needed both for the background fill below and by the layer loop later; compute
+            // them once here (spec-null-safe — identical to the later value when spec != null).
+            int frames = Mathf.Max(1, spec != null ? spec.frameCount : 1);
             float life = frames > 1 ? frameIndex / (float)(frames - 1) : 0f;
+
+            // Background. EXACT GUARD: only when backgroundUseFill is on (and a fill exists) do we evaluate the
+            // ZuiFill per pixel across the canvas (u,v in -1..1); otherwise every pixel is the flat `background`
+            // clear exactly as before — the default asset (backgroundUseFill == false) is byte-identical.
+            if (spec != null && spec.backgroundUseFill && spec.backgroundFill != null)
+            {
+                for (int y = 0; y < H; y++)
+                {
+                    float v = H > 1 ? (y + 0.5f) / H * 2f - 1f : 0f;
+                    int rowBase = y * W;
+                    for (int x = 0; x < W; x++)
+                    {
+                        float u = W > 1 ? (x + 0.5f) / W * 2f - 1f : 0f;
+                        buf[rowBase + x] = (Color32)spec.backgroundFill.Evaluate(life, u, v);
+                    }
+                }
+            }
+            else
+            {
+                Color32 bg = spec != null ? (Color32)spec.background : Transparent;
+                for (int i = 0; i < buf.Length; i++) buf[i] = bg;
+            }
+            if (spec == null || spec.layers == null) return buf;
             // Per-frame wobble phase handed to every GeometryModifier.InverseWarp — matches BlastRenderer.framePhase
             // (note the divide by `frames`, not frames-1, deliberately mirroring BlastRenderer). One phase per frame,
             // shared by every layer.
@@ -449,6 +471,7 @@ namespace Laubrary.PyrePlus
             float cx = spec.Width * 0.5f;
             float cy = spec.Height * 0.5f;
             float window = Mathf.Clamp01(layer.swarmSpawnWindow);
+            int frames = spec.frameCount;   // FrameStep timing maps a particle's frame index onto the [0,1] life
 
             for (int i = 0; i < n; i++)
             {
@@ -461,7 +484,12 @@ namespace Laubrary.PyrePlus
                 // in [0,1]; MinMax makes each particle's moment a per-particle random draw; Static s clusters them
                 // all at s. n ≥ 2 so (n-1) ≥ 1. particle 0 lands at spawnLife 0 in the linear case.
                 float spawnLife;
-                if (n <= 1)
+                if (layer.swarmTiming == SwarmTiming.FrameStep)
+                    // FrameStep (G3): particle i spawns on frame (swarmFirstFrame + i·swarmFrameStep), mapped to the
+                    // [0,1] blast life. step 0 ⇒ every particle lands on swarmFirstFrame. Gated by the swarmTiming
+                    // enum, which defaults to Window, so a default swarm never enters this branch (byte-identical).
+                    spawnLife = Mathf.Clamp01((layer.swarmFirstFrame + i * layer.swarmFrameStep) / (float)Mathf.Max(1, frames - 1));
+                else if (n <= 1)
                     spawnLife = 0f;   // single-char Text: one particle at timeline 0 (avoids the (n-1)==0 divisions)
                 else if (layer.swarmSpawnTiming == null || IsLinear01(layer.swarmSpawnTiming))
                     spawnLife = window * i / (n - 1);
@@ -1823,8 +1851,8 @@ namespace Laubrary.PyrePlus
 
                         bool face = k == 0;
                         bool border = borderBand > 0f && sd < 0.5f + borderBand;
-                        Gradient grad = border ? layer.textBorderGradient : layer.textFillGradient;
-                        Color col = SampleTextColor(spec, layer, grad, charIndex, n, u, v, halfW, halfH, x0, span, lineMode);
+                        ZuiFill fill = border ? layer.textBorder : layer.textFill;
+                        Color col = SampleTextColor(spec, layer, fill, charIndex, n, u, v, halfW, halfH, x0, span, lineMode, own);
                         if (!face)
                         {
                             // Extrusion side: fill (or border) × 0.45, then k-shaded darker with depth (prototype
@@ -1854,16 +1882,33 @@ namespace Laubrary.PyrePlus
                 }
         }
 
-        // The Text fill/border colour at a surface point. PerCharGradient: sampled across the char's own box along
-        // the angle-rotated axis (0 = vertical bottom→top). PerCharStep: one flat colour grad(i/(n-1)) by index.
-        // TextGradient: across the whole line's extent along the angle-rotated axis (0 = left→right); in SWARM mode
-        // there's no line, so it degrades to the per-char step (index fraction). Same call drives the border, just
-        // with the border gradient. (u,v) is the surface point in the char's local px frame; x0 = the char centre
-        // in text space; span = half the line extent.
-        static Color SampleTextColor(PyrePlusSpec spec, PyrePlusLayer layer, Gradient grad, int charIndex, int n,
-                                     float u, float v, float halfW, float halfH, float x0, float span, bool lineMode)
+        // The Text fill/border colour at a surface point, from a ZuiFill. The renderer READS the fill three ways
+        // (the fill's OWN Mode is deliberately NOT used as text scope — textFillMode is the scope):
+        //   • a TEXTURE (texture != None) STAMPS the letters directly: sample fill.Evaluate(own, uN, vN) at the
+        //     glyph point normalized to -1..1 across its box — textured / grid-lined / sprite-stamped letters;
+        //   • a SOLID fill paints ONE flat colour (fill.color) — with PerCharStep that means every letter the same;
+        //   • otherwise the fill's GRADIENT is swept per textFillMode below (PerCharGradient across each char's box
+        //     along the angle axis, PerCharStep = grad(i/(n-1)) by index, TextGradient across the whole line).
+        // The default text fill (OverLife, fire ramp, texture None) hits the last branch with the SAME gradient the
+        // old textFillGradient carried, so default Text is byte-identical. (u,v) is the surface point in the char's
+        // local px frame; halfW/halfH its box half-extents; x0 = the char centre in text space; span = half the
+        // line extent; `own` the particle's life clock (only used by a texture's Evaluate).
+        static Color SampleTextColor(PyrePlusSpec spec, PyrePlusLayer layer, ZuiFill fill, int charIndex, int n,
+                                     float u, float v, float halfW, float halfH, float x0, float span, bool lineMode,
+                                     float own)
         {
-            if (grad == null) return Color.white;
+            if (fill == null) return Color.white;
+            // A texture replaces the fill entirely — stamp it across the glyph box (normalized -1..1).
+            if (fill.texture != ZuiFill.TextureKind.None)
+            {
+                float uN = halfW > 1e-4f ? u / halfW : 0f;
+                float vN = halfH > 1e-4f ? v / halfH : 0f;
+                return fill.Evaluate(own, uN, vN);
+            }
+            // A Solid fill is one flat colour (with PerCharStep, every letter reads that same flat colour).
+            if (fill.mode == ZuiFill.Mode.Solid) return fill.color;
+            Gradient grad = fill.gradient;
+            if (grad == null) return fill.color;
             float t;
             switch (layer.textFillMode)
             {
@@ -2740,12 +2785,14 @@ namespace Laubrary.PyrePlus
                 (byte)(Mathf.Clamp01(outA) * 255f));
         }
 
-        /// True when a fill VARIES with the pixel's local (u,v) — the spatial modes (Linear / Radial / Noise). The
-        /// Solid and OverLife modes ignore (u,v), so a fill in either can be evaluated ONCE and hoisted; only a
-        /// spatial fill needs per-pixel re-evaluation. Every default PyrePlus fill is Solid or OverLife, so this is
+        /// True when a fill VARIES with the pixel's local (u,v) — the spatial gradient modes (Linear / Radial) OR
+        /// any TEXTURE (sprite / noise / grid / dots all sample per (u,v)). The Solid and OverLife modes ignore
+        /// (u,v), so a fill in either can be evaluated ONCE and hoisted; only a spatial / textured fill needs
+        /// per-pixel re-evaluation. Every default PyrePlus fill is Solid or OverLife with texture None, so this is
         /// false for defaults and the per-pixel recompute paths below stay skipped — keeping defaults byte-identical.
         static bool IsSpatialFill(ZuiFill f) =>
-            f != null && (f.mode == ZuiFill.Mode.Linear || f.mode == ZuiFill.Mode.Radial || f.mode == ZuiFill.Mode.Noise);
+            f != null && (f.texture != ZuiFill.TextureKind.None
+                          || f.mode == ZuiFill.Mode.Linear || f.mode == ZuiFill.Mode.Radial);
 
         /// True when a value is exactly Static 0 — the default state of the T7 opt-in travel-path fields. Gates
         /// their Evals so a default asset's particle centre (and thus its whole raster) stays byte-identical; a
