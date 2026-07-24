@@ -54,6 +54,9 @@ namespace Laubrary.Zui
         readonly List<ToggleEntry> _toggleables = new();
         readonly Dictionary<string, string> _groupLabels = new();   // groupKey → label (set by ToggleGroup)
         readonly Dictionary<string, Toggle> _groupToggles = new();  // groupKey → its accordion toggle (rebuilt)
+        // groupKey → an optional consumer-supplied header (a divider/label introducing the group) that is
+        // hidden whenever EVERY member of the group is toggled off, and shown again when any turns back on.
+        readonly Dictionary<string, VisualElement> _groupHeaders = new();
 
         Label _gear;                    // the ⚙ glyph in the title row (created lazily)
         VisualElement _settingsWrap;    // the accordion strip at the top of the body (rebuilt)
@@ -157,10 +160,15 @@ namespace Laubrary.Zui
 
         /// Declare a group so its members get a single bold group toggle (with the dash tri-state) in the
         /// gear. Order-independent with Toggleable — call it whenever is convenient while composing.
-        public void ToggleGroup(string groupKey, string label)
+        /// Pass <paramref name="headerElement"/> (a divider/label the consumer placed above the group's
+        /// controls) to have the box hide it whenever EVERY member of the group is off, and reveal it again
+        /// when any turns back on — so an entirely-untoggled sub-section shows no dangling header.
+        public void ToggleGroup(string groupKey, string label, VisualElement headerElement = null)
         {
             if (string.IsNullOrEmpty(groupKey)) return;
             _groupLabels[groupKey] = label;
+            if (headerElement != null) _groupHeaders[groupKey] = headerElement;
+            ApplyGroupHeaderVisibility(groupKey);
             ScheduleGearRefresh();
         }
 
@@ -188,6 +196,7 @@ namespace Laubrary.Zui
                     t.toggle?.SetValueWithoutNotify(on);
                 }
             RefreshAllGroupToggles();
+            RefreshAllGroupHeaders();
         }
 
         // ── gear-settings internals ──────────────────────────────────────────────────────────────────
@@ -215,7 +224,9 @@ namespace Laubrary.Zui
         {
             if (_gearRefreshScheduled) return;
             _gearRefreshScheduled = true;
-            schedule.Execute(() => { _gearRefreshScheduled = false; RebuildGear(); });
+            // One deferred pass after composition reflects whatever Toggleable/ToggleGroup registered —
+            // including the final all-off/any-on state each group header should show.
+            schedule.Execute(() => { _gearRefreshScheduled = false; RebuildGear(); RefreshAllGroupHeaders(); });
         }
 
         void RebuildGear()
@@ -308,7 +319,11 @@ namespace Laubrary.Zui
             tog.RegisterValueChangedCallback(ev =>
             {
                 SetControlOn(self, ev.newValue);
-                if (!string.IsNullOrEmpty(self.groupKey)) RefreshGroupToggle(self.groupKey);
+                if (!string.IsNullOrEmpty(self.groupKey))
+                {
+                    RefreshGroupToggle(self.groupKey);
+                    ApplyGroupHeaderVisibility(self.groupKey);   // last member off → drop the header
+                }
                 ViewChanged?.Invoke();
             });
             t.toggle = tog;
@@ -334,6 +349,7 @@ namespace Laubrary.Zui
                         m.toggle?.SetValueWithoutNotify(ev.newValue);
                     }
                 RefreshGroupToggle(groupKey);   // clears the dash now the members agree
+                ApplyGroupHeaderVisibility(groupKey);   // whole group toggled at once → header follows
                 ViewChanged?.Invoke();
             });
             return tog;
@@ -348,6 +364,29 @@ namespace Laubrary.Zui
         {
             foreach (var kv in _groupToggles)
                 if (kv.Value != null) ApplyGroupState(kv.Key, kv.Value);
+        }
+
+        void RefreshAllGroupHeaders()
+        {
+            foreach (var kv in _groupHeaders)
+                ApplyGroupHeaderVisibility(kv.Key);
+        }
+
+        // Hide a group's registered header element when every member is off; show it when any is on.
+        // A group whose members haven't registered yet counts as "nothing to hide" and stays visible —
+        // the deferred RefreshAllGroupHeaders after composition settles it to the real state.
+        void ApplyGroupHeaderVisibility(string groupKey)
+        {
+            if (!_groupHeaders.TryGetValue(groupKey, out var header) || header == null) return;
+            bool anyMember = false, anyOn = false;
+            foreach (var m in _toggleables)
+                if (m.groupKey == groupKey)
+                {
+                    anyMember = true;
+                    if (ControlOn(m.key)) { anyOn = true; break; }
+                }
+            bool show = !anyMember || anyOn;
+            header.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         void ApplyGroupState(string groupKey, Toggle tog)

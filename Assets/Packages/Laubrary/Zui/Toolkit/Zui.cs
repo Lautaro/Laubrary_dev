@@ -501,6 +501,19 @@ namespace Laubrary.Zui
             return f;
         }
 
+        /// A tooltipped GradientField over a get/set pair — the form a control (ZuiFill) that swaps the
+        /// underlying Gradient instance behind the field wants, since `get` re-reads the live gradient on
+        /// each rebuild. Alpha is always shown (GradientField's alpha strip); HDR stays off (its default),
+        /// so this edits a plain 0..1 colour gradient.
+        public static GradientField Gradient(string tooltip, Func<Gradient> get, Action<Gradient> set,
+            float width = 200f)
+        {
+            var f = new GradientField { value = get != null ? get() : null, tooltip = tooltip };
+            f.style.width = width;
+            f.RegisterValueChangedCallback(e => set?.Invoke(e.newValue));
+            return f;
+        }
+
         /// A min/max range: numeric low field + MinMaxSlider + numeric high field, kept in sync
         /// (the SliderRange pattern). Rounded to 5 decimals like every slider.
         public static VisualElement MinMax(float low, float high, float min, float max, string tooltip,
@@ -578,6 +591,19 @@ namespace Laubrary.Zui
             string tooltip, Action onChanged, Action onBeforeMutate = null)
         {
             var c = new ZuiValueControl(label, v, options, tooltip);
+            if (onChanged != null) c.OnChanged += onChanged;
+            if (onBeforeMutate != null) c.OnBeforeMutate += onBeforeMutate;
+            return c;
+        }
+
+        /// A colour-or-fill editor (ZuiFill): a plain colour picker in Solid mode (alpha shown), or a
+        /// gradient-driven over-life / linear / radial / noise fill, switched via the ⋯ menu — the colour
+        /// analog of Z.Value. `onBeforeMutate` records Undo on the owning asset (every edit is
+        /// onBeforeMutate → apply → onChanged).
+        public static ZuiFillControl Fill(string label, ZuiFill fill, string tooltip, Action onChanged,
+            Action onBeforeMutate, ZuiFillControl.Options options = null)
+        {
+            var c = new ZuiFillControl(label, fill, options, tooltip);
             if (onChanged != null) c.OnChanged += onChanged;
             if (onBeforeMutate != null) c.OnBeforeMutate += onBeforeMutate;
             return c;
