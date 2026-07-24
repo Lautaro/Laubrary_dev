@@ -250,7 +250,7 @@ namespace Laubrary.PyrePlus.Editor
             RebuildShape();
         }
 
-        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can", "Orb", "Ring", "Text" };
+        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can", "Orb", "Ring", "Text", "Streak" };
         static readonly List<string> TextFillModeChoices = new List<string> { "Per-char gradient", "Per-char step", "Text gradient" };
 
         void RebuildShape()
@@ -274,7 +274,8 @@ namespace Laubrary.PyrePlus.Editor
                     + "solids sharing the Gem's facet lighting (tilt, light, edge lines, glows). Orb = a lit "
                     + "sphere; Ring = a flat tilted annulus (a Saturn ring) — both reuse that same lighting "
                     + "analytically. Text = a string as extruded SDF letters (one particle per character; the "
-                    + "particle count follows the string).",
+                    + "particle count follows the string). Streak = a root-anchored comet-tail capsule that grows "
+                    + "forward along its orientation (great with the Swarm's Orient).",
                     // Rebuild BOTH sections: Text swaps in its own Shape box AND hides the Swarm's Count field.
                     v => { Dirty(() => s.shapeForm = (ShapeForm)v); RebuildShape(); RebuildSwarm(); }, 150f)));
 
@@ -290,7 +291,10 @@ namespace Laubrary.PyrePlus.Editor
                 shapeBody.Add(FillRow("Fill", FillTooltip(s.shapeForm), s.shapeFill,
                     new ZuiFillControl.Options().WithWidth(190f).WithGrow(2.2f)));
             shapeBody.Add(Val("Alpha", "Opacity over the particle's own life (multiplies the final output alpha).", s.alpha, 0f, 1f));
-            shapeBody.Add(Val("Size (px)", SizeTooltip(s.shapeForm), s.size, 0f, 32f));
+            // Size drives every form's scale — except the Streak, which has its OWN Length/Width envelopes, so the
+            // shared Size row is hidden for it (a dead control would be clutter per the layout rules).
+            if (s.shapeForm != ShapeForm.Streak)
+                shapeBody.Add(Val("Size (px)", SizeTooltip(s.shapeForm), s.size, 0f, 32f));
 
             // Form-specific rows. Edge softness applies to Disc (its rim) and Crescent (BOTH rims); Gem/Sparkle/
             // Sprite don't use it, so it's hidden for them. (EdgeRow is a bare MicroSlider — its own caption is
@@ -319,6 +323,9 @@ namespace Laubrary.PyrePlus.Editor
                     break;
                 case ShapeForm.Text:
                     BuildTextBox(s);
+                    break;
+                case ShapeForm.Streak:
+                    BuildStreakRows(s);
                     break;
             }
 
@@ -541,6 +548,36 @@ namespace Laubrary.PyrePlus.Editor
                     s.spriteTint, v => Dirty(() => s.spriteTint = v))));
         }
 
+        // Streak form rows — the streak's own Length (its scale driver, replacing the hidden shared Size), then
+        // Width + Back + Tip packed, then the shared Edge row (which feathers the streak's two long SIDES). The
+        // streak grows FORWARD from its root: default up, steered by the Swarm's Orient (and its own Advanced Spin).
+        void BuildStreakRows(PyrePlusSpec s)
+        {
+            s.streakLength ??= new ZUIValue(20f);   // defensive; the real shoot-out arc comes from the spec factory
+            s.streakWidth ??= new ZUIValue(3f);
+
+            shapeBody.Add(Val("Length (px)",
+                "The streak's length forward (from its root) in pixels, over the particle's own life. Author a "
+                + "Curve to make it shoot out then ease shorter — the default comet-tail arc.",
+                s.streakLength, 0f, 48f));
+
+            shapeBody.Add(WrapRow(
+                Val("Width (px)", "The streak's thickness across, in pixels, over the particle's own life.",
+                    s.streakWidth, 0f, 16f),
+                Z.MicroSlider("Back", s.streakBackFrac, 0f, 1f,
+                    "How far the streak spills BEHIND its root, as a fraction of its length (0 = starts exactly at "
+                    + "the root; 1 = a full length behind it).",
+                    v => Dirty(() => s.streakBackFrac = v), 150f, showValue: true),
+                Z.MicroSlider("Tip", s.streakSoftTip, 0f, 1f,
+                    "Softness of the FORWARD tip — how much of the front end feathers out to transparent (0 = a "
+                    + "hard flat tip; 1 = the whole streak fades toward the front).",
+                    v => Dirty(() => s.streakSoftTip = v), 150f, showValue: true)));
+
+            shapeBody.Add(EdgeRow(s,
+                "Soft sides (1) vs hard pixel edges (0) — feathers the streak's two long SIDES (the forward tip is "
+                + "the Tip control above; the back end is a hard cut)."));
+        }
+
         // Text form box — the string, the SDF font, spacing, the fill (mode + angle + gradient), the border (width
         // + gradient), and the 3D extrusion (Solid + Depth). Depth shows only when Solid, so the Solid toggle
         // rebuilds the Shape body. Text takes its colour from the Fill / Border gradients here — the shared Colour
@@ -622,6 +659,7 @@ namespace Laubrary.PyrePlus.Editor
         // change, so the conditional controls appear/disappear without rebuilding the whole window.
         VisualElement swarmBody;
         static readonly string[] SwarmModeLabels = { "Area", "Path" };
+        static readonly string[] SwarmOrientLabels = { "None", "Outward", "Tangent" };
 
         void BuildSwarm(VisualElement root, PyrePlusSpec s)
         {
@@ -699,6 +737,12 @@ namespace Laubrary.PyrePlus.Editor
                     Z.Dropdown((int)s.swarmShapeKind, kindChoices, kindTip,
                         v => { Dirty(() => s.swarmShapeKind = (SwarmShapeKind)v); RebuildSwarm(); }, 120f))));
 
+            // Per-particle FACING as each is placed (S1). Rebuild on change so the composed tooltip re-reads the
+            // current mode (Tangent means something different in Area vs Path).
+            swarmBody.Add(Z.Field("Orient", SwarmOrientTooltip(s),
+                Z.Segmented((int)s.swarmOrient, SwarmOrientLabels, SwarmOrientTooltip(s),
+                    v => { Dirty(() => s.swarmOrient = (SwarmOrient)v); RebuildSwarm(); })));
+
             // Path-only: the progress envelope, sampled per-particle at its OWN spawn frame → a trail.
             if (s.swarmSpawnMode == SwarmSpawnMode.Path)
             {
@@ -719,7 +763,36 @@ namespace Laubrary.PyrePlus.Editor
                             .WithRange(-half, half, -half, half)
                             .WithDefault(Vector2.zero)
                             .Expanded()));
+
+                // Even-path spacing (B1): spread the string EVENLY along the outline by index; Spawn travel then
+                // rides the whole evenly-spaced string along the path together. Spread only matters when even, so
+                // it's hidden until then (toggling rebuilds this section).
+                var evenRow = new List<VisualElement>
+                {
+                    Z.Toggle("Even spacing",
+                        "Spread the particles EVENLY along the outline (by index) instead of each sampling Spawn "
+                        + "travel on its own. Spawn travel then rides the whole evenly-spaced string along the "
+                        + "path together — ideal for readable text or a comet chain on a path.",
+                        s.swarmEvenPath, v => { Dirty(() => s.swarmEvenPath = v); RebuildSwarm(); }),
+                };
+                if (s.swarmEvenPath)
+                    evenRow.Add(Z.MicroSlider("Spread", s.swarmPathSpread, 0f, 1f,
+                        "How much of the outline the evenly-spaced string covers (1 = the whole path start-to-end; "
+                        + "smaller packs the particles into a shorter arc).",
+                        v => Dirty(() => s.swarmPathSpread = v), 150f, showValue: true));
+                swarmBody.Add(WrapRow(evenRow.ToArray()));
             }
+
+            // Per-particle SIZE by index (S1) + shared DEATH point (S1).
+            swarmBody.Add(Val("Scale by index",
+                "Multiplies each particle's size by a factor read from its index (0 = first, 1 = last). Static 1 = "
+                + "every particle full size; a Curve tapers the swarm (ends-vs-middle, centre-vs-edge — author it "
+                + "freely, Bars-style); MinMax gives each particle a random size.",
+                s.swarmScaleByIndex, 0f, 3f));
+            swarmBody.Add(Z.Toggle("Die together",
+                "All particles fade out at the SAME timeline moment (spawn-window end + particle life) instead of "
+                + "each dying one particle-life after its own spawn — a burst that vanishes as one.",
+                s.swarmDieTogether, v => Dirty(() => s.swarmDieTogether = v)));
 
             // Shared shape transform — every field a per-spawn snapshot (see the box tooltip).
             var xform = Z.BoxKeyed("Transform",
@@ -815,6 +888,28 @@ namespace Laubrary.PyrePlus.Editor
             f == ShapeForm.Gem || f == ShapeForm.Box || f == ShapeForm.Pyramid ||
             f == ShapeForm.Can || f == ShapeForm.Orb || f == ShapeForm.Ring;
 
+        // The Swarm Orient tooltip, composed for the CURRENT orient + mode (the swarm rebuilds on either change),
+        // so it never lists branches the user isn't in.
+        static string SwarmOrientTooltip(PyrePlusSpec s)
+        {
+            const string common = "Turns each particle to face a direction as it's placed — the renderer folds it "
+                + "into the form's own rotation (Streak forward, Sprite/Disc spin, Text/solid roll). ";
+            switch (s.swarmOrient)
+            {
+                case SwarmOrient.Outward:
+                    return common + "Outward: each particle faces away from the shape centre (a Streak points "
+                         + "outward; letters/solids roll to match).";
+                case SwarmOrient.PathTangent:
+                    return common + (s.swarmSpawnMode == SwarmSpawnMode.Path
+                        ? "Tangent: each particle faces ALONG the outline it rides — readable text follows the "
+                          + "path and Streaks trail along it. Pair with Even spacing for a clean string."
+                        : "Tangent: only meaningful in Path mode; in Area it falls back to Outward.");
+                default:
+                    return common + "None: particles keep their own orientation (no turning). Outward faces them "
+                         + "away from the centre; Tangent (Path mode) faces them along the outline.";
+            }
+        }
+
         // ── per-form tooltip composers (rebuilt on every form change, so each branches to the CURRENT form) ──
         static string FillTooltip(ShapeForm f)
         {
@@ -851,6 +946,9 @@ namespace Laubrary.PyrePlus.Editor
                          + "symmetric, so add a geometry/texture Modifier for the spin to read.";
                 case ShapeForm.Sprite:
                     return "Degrees the stamped sprite rotates over its own life.";
+                case ShapeForm.Streak:
+                    return "Degrees the streak turns about its root over its own life — rotates its forward "
+                         + "direction, ADDED on top of any Swarm Orient facing.";
                 case ShapeForm.Text:
                     return "Degrees each letter yaws about its OWN centre over its life (its 3D letter-box turns to "
                          + "face the light); paired with the letters' tilt for the extruded look.";

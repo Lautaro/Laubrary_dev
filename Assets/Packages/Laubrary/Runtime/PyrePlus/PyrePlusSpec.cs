@@ -19,6 +19,13 @@ namespace Laubrary.PyrePlus
     // Custom is Path-only (enforced in the UI later); the renderer treats Area+Custom as a Circle fallback.
     public enum SwarmShapeKind { Circle, Triangle, Square, Pentagon, Hexagon, Custom }
 
+    // How the swarm ORIENTS each particle as it's placed — the per-particle facing the renderer folds into the
+    // form's own rotation (Streak forward, Disc/Sprite spin, Text/solid roll). None = no turning (every particle
+    // keeps its own orientation). Outward = face away from the shape centre. PathTangent = face along the outline
+    // it rides (readable text along a path); in Area mode PathTangent falls back to Outward. See ComputeSpawns'
+    // orientDeg + PyrePlusRenderer's per-form fold.
+    public enum SwarmOrient { None, Outward, PathTangent }
+
     // The particle's rendered FORM. One implicit layer, so the whole swarm is one form. The STATELESS forms:
     //   Disc     — a flat soft disc (slice 1).
     //   Gem      — a true-3D lit faceted octahedral crystal (per-pixel point lighting, hard edge lines, two
@@ -41,12 +48,17 @@ namespace Laubrary.PyrePlus
     //              gemTilt tips the letters and particleSpin yaws each one about its own centre (see
     //              PyrePlusRenderer.DrawTextChar / RenderTextLine). Text overrides the swarm particle COUNT to the
     //              string length.
+    //   Streak   — a ROOT-ANCHORED comet-tail capsule/rect: the particle position is the streak's root, and it
+    //              grows FORWARD along its orientation (default up/+y; the swarm Orient or its own spin steer it).
+    //              Its own streakLength/streakWidth envelopes drive it (NOT `size`); streakBackFrac spills it
+    //              behind the root; streakSoftTip feathers the forward tip; edgeSoftness feathers the two long
+    //              sides (see PyrePlusRenderer.DrawStreakBody).
     // Box/Pyramid/Can share the Gem's shared 3D block (tilt, light, lines, glows) — see PyrePlusRenderer.DrawFacetSolid.
     // Orb/Ring reuse that SAME per-pixel lighting/lines/glows math analytically (point light + Blinn-Phong, halo +
     // inner glow, edge lines) but with sphere/annulus geometry instead of facets.
     // APPEND ONLY — the values are serialized as ints, so never reorder or insert. (Fire/Fireball/HeightBalls are
     // simulation-backed and deferred; they are NOT here.)
-    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text }
+    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak }
 
     // How the Text form's spatial fill gradient is applied. PerCharGradient = every letter contains the WHOLE
     // gradient (across its own box, along the rotated fill axis). PerCharStep = every letter is ONE flat colour,
@@ -174,6 +186,16 @@ namespace Laubrary.PyrePlus
         public Sprite spriteImage;
         public bool spriteTint = true;
 
+        // ── Streak form (shapeForm == Streak) — a root-anchored comet-tail capsule ─────────────────────────
+        // The particle's position is the streak's ROOT; it grows FORWARD along its orientation (default up/+y,
+        // steered by the swarm Orient and its own spin). Its length/width are their OWN envelopes over the
+        // particle's own life (NOT the shared `size`, which is hidden in the UI for this form). Its colour is the
+        // shared shapeFill; a SPATIAL fill sweeps across the streak — see the (u,v) mapping in DrawStreakBody.
+        public ZUIValue streakLength = DefaultStreakLength();   // length forward, in px over own life (a shoot-out arc)
+        public ZUIValue streakWidth = new ZUIValue(3f);         // thickness across, in px over own life
+        [Range(0f, 1f)] public float streakBackFrac = 0.15f;    // how far the streak spills BEHIND the root, as a fraction of length
+        [Range(0f, 1f)] public float streakSoftTip = 0.5f;      // alpha feather over the last softTip·length of the FORWARD tip (sides reuse edgeSoftness)
+
         // ── opt-in Shape fields (T7) — the particle's OWN motion after birth, on its own life clock ────────
         // A per-particle travel path: canvas-pixel offsets ADDED to the particle's spawn position, evaluated on
         // its OWN life (0 = birth, 1 = death). Default Static 0 (a no-op — the renderer skips the Eval entirely
@@ -215,6 +237,24 @@ namespace Laubrary.PyrePlus
         // linear (0,0)→(1,1) — the renderer's IsLinear01 fast path keeps a default swarm byte-identical.
         public ZUIValue swarmSpawnTiming = DefaultSpawnTiming();
         [Range(0.05f, 1f)] public float swarmParticleLife = 0.5f;       // each particle's own life duration as a fraction of the blast timeline
+
+        // ── Swarm placement/lifetime concepts (S1) — all default to an exact no-op so a default swarm is byte-identical ──
+        // Per-particle FACING as each is placed (see the enum). None (default) = no turning; the renderer folds
+        // the resulting orientDeg into each form's own rotation. Off/None ⇒ orient is irrelevant.
+        public SwarmOrient swarmOrient = SwarmOrient.None;
+        // Per-particle SIZE multiplier chosen by index: Eval'd with i/(n-1) as the curve input (like spawn timing).
+        // Static 1 (default) = every particle full size (an exact no-op, IsStaticOne-gated). A Curve tapers the
+        // swarm centre-vs-edge (authored freely); MinMax gives per-particle random size jitter.
+        public ZUIValue swarmScaleByIndex = new ZUIValue(1f);
+        // Path mode: spread the particles EVENLY along the outline by index instead of each sampling swarmProgress
+        // independently. When on, particle i's progress = travelValue + (i/(n-1))·swarmPathSpread, where travelValue
+        // = swarmProgress at its spawn life — so Spawn travel rides the whole evenly-spaced string along the path.
+        // Off (default) = today's per-particle behaviour, byte-identical.
+        public bool swarmEvenPath = false;
+        [Range(0f, 1f)] public float swarmPathSpread = 1f;   // fraction of the outline the evenly-spaced string covers
+        // When on, every particle DIES at the same shared timeline point Min(1, spawnWindow + particleLife) instead
+        // of one particle-life after its own spawn — a burst that vanishes as one. Off (default) = byte-identical.
+        public bool swarmDieTogether = false;
 
         // Shared shape transform — ALL per-spawn-snapshot animatables. T1 renderer uses only shapeScale; the rest land in T3.
         public ZUIValue shapeOffsetX = new ZUIValue(0f);   // shape-centre offset X, canvas pixels
@@ -277,6 +317,18 @@ namespace Laubrary.PyrePlus
             v.points.Add(new ZUIEnvelopePoint(0f, 4f));
             v.points.Add(new ZUIEnvelopePoint(0.4f, 22f));
             v.points.Add(new ZUIEnvelopePoint(1f, 16f));
+            return v;
+        }
+
+        static ZUIValue DefaultStreakLength()
+        {
+            // Mirrors DefaultSize's shoot-out-then-shorten arc, in px over the particle's own life, yMax 28: grow
+            // fast to a peak, then settle a little shorter — a comet tail that lengthens as it's born and eases back.
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 28f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, 5f));
+            v.points.Add(new ZUIEnvelopePoint(0.4f, 26f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 18f));
             return v;
         }
 
