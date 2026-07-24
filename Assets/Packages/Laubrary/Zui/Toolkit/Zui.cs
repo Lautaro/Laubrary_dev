@@ -302,6 +302,7 @@ namespace Laubrary.Zui
             var f = new FloatField { value = value, tooltip = tooltip };
             f.style.width = width;
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
+            ZuiScrub.Attach(f);   // scrub-draggable, keyboard entry untouched
             return f;
         }
 
@@ -459,6 +460,7 @@ namespace Laubrary.Zui
             var f = new IntegerField { value = value, tooltip = tooltip };
             f.style.width = width;
             f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
+            ZuiScrub.Attach(f);   // scrub-draggable, keyboard entry untouched
             return f;
         }
 
@@ -531,10 +533,16 @@ namespace Laubrary.Zui
             slider.RegisterValueChangedCallback(e => Commit(e.newValue.x, e.newValue.y, true));
             if (isInt)
             {
+                // Scrub-draggable flanking fields (the range factory knows its bounds, so clamp to them —
+                // Commit still enforces lo≤hi on top).
+                ZuiScrub.Attach((IntegerField)lowFieldI, Mathf.RoundToInt(min), Mathf.RoundToInt(max));
+                ZuiScrub.Attach((IntegerField)highFieldI, Mathf.RoundToInt(min), Mathf.RoundToInt(max));
                 lowFieldI.RegisterValueChangedCallback(e => Commit(e.newValue, slider.maxValue, false));
                 highFieldI.RegisterValueChangedCallback(e => Commit(slider.minValue, e.newValue, false));
                 return Row(lowFieldI, slider, highFieldI);
             }
+            ZuiScrub.Attach(lowField, min, max);
+            ZuiScrub.Attach(highField, min, max);
             lowField.RegisterValueChangedCallback(e => Commit(e.newValue, slider.maxValue, false));
             highField.RegisterValueChangedCallback(e => Commit(slider.minValue, e.newValue, false));
             return Row(lowField, slider, highField);

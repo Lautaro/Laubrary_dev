@@ -348,6 +348,9 @@ namespace Laubrary.Zui
                 };
                 f.style.width = 52f;
                 f.style.marginBottom = 2f;
+                // Scrub-draggable like every other numeric entry; clamp the drag to the curve's own range
+                // (the onChanged clamp below still runs on top).
+                ZuiScrub.Attach(f, Mathf.Min(_v.yMin, _v.yMax), Mathf.Max(_v.yMin, _v.yMax));
                 f.RegisterValueChangedCallback(e => Mutate(() =>
                 {
                     _v.points[idx].value = Mathf.Clamp(e.newValue,
