@@ -48,7 +48,8 @@ namespace Laubrary.PyrePlus
         const int FldCustomX = 14;   // swarmCustomX — Custom Path X(progress), sampled at progress p [T2]
         const int FldCustomY = 15;   // swarmCustomY — Custom Path Y(progress), sampled at progress p [T2]
         // NEGATIVE-ID RULE for NEW single fields: ids 1..15 above are taken and 16+ belongs to the per-modifier
-        // 8-wide blocks (below), so any brand-new single-field id must be NEGATIVE (-2, -3, …). The value -1 is
+        // 8-wide blocks (below), so any brand-new single-field id must be NEGATIVE (-2 … -18 are spoken for; use
+        // -19 onward). The value -1 is
         // already spoken for by ModParticleIndex, but that is a *particleIndex* (the `b` slot of Hash), a
         // DIFFERENT argument slot from a field id (the `c` slot); a negative FIELD id can therefore never collide
         // with the -1 particle sentinel, nor with any positive field/modifier id. Real particles are 0..N-1, so a
@@ -67,6 +68,9 @@ namespace Laubrary.PyrePlus
         const int FldStarLen = -13;      // starLength — Star arm-tip reach (inner radius = R·(1−len)), own life     [V1]
         const int FldStarBase = -14;     // starBaseWidth — Star valley angular position within its sector, own life  [V1]
         const int FldStarSkew = -15;     // starSkew — Star valley swirl (pinwheel), own life                         [V1]
+        const int FldSwarmTurn = -16;    // swarmTurn — whole-cloud live yaw at the frame's life (frame-global)       [Issue2]
+        const int FldSwarmTilt = -17;    // swarmTilt — whole-cloud live pitch at the frame's life (frame-global)     [Issue2]
+        const int FldSwarmRoll = -18;    // swarmRoll — whole-cloud live roll at the frame's life (frame-global)      [Issue2]
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
         //  3D yaw (Turn), FldGemTilt for its tilt, FldGemRoll for its roll, and FldPathX/FldPathY for the shared
         //  travel offset — no other new ids. Crescent/Sparkle/Sprite likewise REUSE FldSize/FldAlpha (radius/alpha),
@@ -430,6 +434,20 @@ namespace Laubrary.PyrePlus
                 deathPoint = Mathf.Min(1f, maxSpawnLife + layer.swarmParticleLife);
             }
 
+            // Swarm live rotation (Issue 2B): a rigid whole-cloud rotation evaluated at the CURRENT frame's `life`
+            // (NOT a per-spawn snapshot like the spawner rotation), applied UNIFORMLY to every already-placed
+            // particle so the whole arrangement spins together as one solid group. It reuses the spawner's
+            // yaw/pitch/roll projection (ApplyShapeTransform) with turn = yaw, tilt = pitch, roll = Z, rotating
+            // each particle around the shape centre. Frame-global, so it Evals ONCE here with the modifier-scope
+            // sentinel index — a MinMax spin is ONE value for the whole cloud, not a per-particle draw. All-zero
+            // (the default) is an EXACT no-op: swarmRot stays false, positions are untouched, and the swarm renders
+            // byte-identical (Eval of a Static-0 ZUIValue returns exactly 0 with no RNG draw).
+            float cx = spec.Width * 0.5f, cy = spec.Height * 0.5f;
+            float sTurn = Eval(layer.swarmTurn, life, spec.seed, ModParticleIndex, FldSwarmTurn);
+            float sTilt = Eval(layer.swarmTilt, life, spec.seed, ModParticleIndex, FldSwarmTilt);
+            float sRoll = Eval(layer.swarmRoll, life, spec.seed, ModParticleIndex, FldSwarmRoll);
+            bool swarmRot = sTurn != 0f || sTilt != 0f || sRoll != 0f;
+
             for (int i = 0; i < spawns.Count; i++)
             {
                 var sp = spawns[i];
@@ -454,7 +472,15 @@ namespace Laubrary.PyrePlus
                     float t = spawns.Count > 1 ? i / (float)(spawns.Count - 1) : 0f;
                     sizeMul *= Mathf.Max(0f, Eval(layer.swarmScaleByIndex, t, spec.seed, i, FldScaleByIndex));
                 }
-                DrawParticle(buf, W, H, sp.pos.x, sp.pos.y, own, spec, layer, i, mods, phase, frameIndex,
+                // Rotate the whole cloud live (Issue 2B) — around the shape centre, at the frame's life. Normalize
+                // depth against THIS particle's radial distance so the sweep is uniform across the cloud (a particle
+                // twice as far turns through the same angle); offX/offY = 0 → the rotation adds no translation.
+                // swarmRot false ⇒ the exact spawn position, byte-identical.
+                Vector2 dp = sp.pos;
+                if (swarmRot)
+                    dp = ApplyShapeTransform(sp.pos, cx, cy, Vector2.Distance(sp.pos, new Vector2(cx, cy)),
+                                             sRoll, sTurn, sTilt, 0f, 0f, out _);
+                DrawParticle(buf, W, H, dp.x, dp.y, own, spec, layer, i, mods, phase, frameIndex,
                              sizeMul, brightMul, sp.orientDeg);
             }
         }
@@ -1637,13 +1663,15 @@ namespace Laubrary.PyrePlus
             return (h & 0x00FFFFFFu) / 16777216f;   // top of the 24-bit mantissa → [0,1)
         }
 
-        // ── Streak (S1): a root-anchored comet-tail capsule ──────────────────────────
-        // The particle position (cx,cy) is the streak's ROOT; it grows FORWARD along its orientation. Per pixel we
-        // resolve the sample (folding any geometry warp, exactly like the Disc path), take (f,s) = (forward, side)
-        // coords in the rotated streak frame, and light it when −back ≤ f ≤ len and |s| ≤ w/2. Sides feather over
-        // the outer `edgeSoftness` fraction of the half-width; the FORWARD tip feathers over the last `streakSoftTip`
-        // fraction of len (the back end is a hard cut). The shape fill maps (u,v) = (s/(w/2), 2·f/len − 1) — so a
-        // SPATIAL fill sweeps side-to-side in u and root(−1)→tip(+1) in v.
+        // ── Streak (S1): an anchor-biased comet-tail capsule (Issue 1) ───────────────
+        // The particle position (cx,cy) is an ANCHOR POINT on the streak set by streakAnchor: the streak reaches
+        // `behind` (= anchor·len) toward the tail and `ahead` (= (1−anchor)·len) toward the tip, with behind +
+        // ahead == len. Anchor 0.5 (the default) centres it, so growing Length extends the streak symmetrically
+        // rather than sliding it off the particle. Per pixel we resolve the sample (folding any geometry warp,
+        // exactly like the Disc path), take (f,s) = (forward, side) coords in the rotated streak frame, and light
+        // it when −behind ≤ f ≤ ahead and |s| ≤ w/2. Sides feather over the outer `edgeSoftness` fraction of the
+        // half-width; BOTH ends feather over the `streakSoftTip` fraction of their own length. The shape fill maps
+        // (u,v) = (s/(w/2), 2·(f+behind)/len − 1) — so a SPATIAL fill sweeps side-to-side in u and tail(−1)→tip(+1) in v.
         //   Forward: default up/+y; when the swarm ORIENTS this particle (oriented == swarm on && swarmOrient !=
         //   None), forward math-angle = orientDeg (the target direction) + own spin; otherwise 90° + spin (up).
         //   orientDeg alone can't tell "no orient" from "Outward pointing +x" (both 0°), so the explicit `oriented`
@@ -1674,11 +1702,22 @@ namespace Laubrary.PyrePlus
             float Sx = -Fy, Sy = Fx;                        // side = forward rotated +90° CCW
 
             float halfW = w * 0.5f;
-            float back = Mathf.Clamp01(layer.streakBackFrac) * len;
+            // Anchor bias (Issue 1): the particle sits at fraction `bias` from the TAIL, so the streak reaches
+            // `behind` toward the tail (f < 0) and `ahead` toward the tip (f > 0), with behind + ahead == len.
+            // bias 0.5 (the default) splits Length symmetrically, so growing Length extends the streak both ways
+            // instead of sliding it off the particle — the particle is a STABLE anchor point on the streak.
+            float bias = Mathf.Clamp01(layer.streakAnchor);
+            float behind = bias * len;
+            float ahead = (1f - bias) * len;
             float soft = Mathf.Clamp01(layer.edgeSoftness);
             float sideInner = halfW * (1f - soft);          // |s| ≤ sideInner is full alpha; feathers to 0 at halfW
             float softTip = Mathf.Clamp01(layer.streakSoftTip);
-            float tipStart = len * (1f - softTip);          // f ≤ tipStart is full alpha; feathers to 0 at f == len
+            // Feather BOTH ends by softTip (symmetric, so a centred streak reads as a light streak fading at each
+            // tip — a hard cut on one end would look lopsided now that the default anchor is centred). Each end
+            // feathers over softTip·(that end's own length): f full to aheadStart then → 0 at ahead; and the
+            // mirror at the behind end.
+            float aheadStart = ahead * (1f - softTip);
+            float behindStart = behind * (1f - softTip);
 
             var fill = layer.shapeFill;
             bool fillSpatial = IsSpatialFill(fill);
@@ -1689,7 +1728,7 @@ namespace Laubrary.PyrePlus
             bool anyGeo = mods.AnyGeo;
             float ccx = W * 0.5f, ccy = H * 0.5f;
             Vector2 c = new Vector2(cx - ccx, cy - ccy);
-            float extent = Mathf.Max(len, back) + halfW + 2f;
+            float extent = Mathf.Max(ahead, behind) + halfW + 2f;
             var ctx = new GeoCtx(ccx, ccy, c, extent);
             int pHash = Hash(spec.seed, particleIndex, FldModifier, 7 + _layerSalt);
 
@@ -1712,22 +1751,26 @@ namespace Laubrary.PyrePlus
                     ResolveSample(sx, sy, cx, cy, ccx, ccy, c, false, 1f, 0f, anyGeo, mods.geo, phase, ctx,
                                   out float dx, out float dy, out float wx, out float wy);
                     float f = dx * Fx + dy * Fy;
-                    if (f < -back || f > len) continue;
+                    if (f < -behind || f > ahead) continue;
                     float s = dx * Sx + dy * Sy;
                     float as_ = Mathf.Abs(s);
                     if (as_ > halfW) continue;
                     float sideEdge = as_ <= sideInner ? 1f : 1f - Mathf.InverseLerp(sideInner, halfW, as_);
-                    float tipEdge = f <= tipStart ? 1f : 1f - Mathf.InverseLerp(tipStart, len, f);
-                    if (sideEdge <= 0.001f || tipEdge <= 0.001f) continue;
+                    // End feather toward whichever end this pixel sits (ahead for f ≥ 0, behind for f < 0). InverseLerp
+                    // with equal bounds (softTip 0) returns 0 → a hard end, so softTip 0 keeps the streak's ends crisp.
+                    float endEdge = f >= 0f
+                        ? (f <= aheadStart ? 1f : 1f - Mathf.InverseLerp(aheadStart, ahead, f))
+                        : (-f <= behindStart ? 1f : 1f - Mathf.InverseLerp(behindStart, behind, -f));
+                    if (sideEdge <= 0.001f || endEdge <= 0.001f) continue;
                     if (fillSpatial)   // spatial fill → this pixel's (u,v) or canvas-anchored (Fixed); Solid/OverLife skip (constant, byte-identical)
                     {
                         float u = halfW > 1e-4f ? s / halfW : 0f;
-                        float v = 2f * f / len - 1f;
+                        float v = 2f * (f + behind) / len - 1f;   // f ∈ [-behind, ahead] → v ∈ [-1, 1] (len = behind + ahead)
                         col = EvalFill(fill, own, u, v, x, y, W, H);
                         cr = col.r; cg = col.g; cb = col.b;
                         if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
                     }
-                    float baseA = alpha * col.a * sideEdge * tipEdge;
+                    float baseA = alpha * col.a * sideEdge * endEdge;
                     if (baseA <= 0.002f) continue;
                     if (mods.AnyPix)
                     {

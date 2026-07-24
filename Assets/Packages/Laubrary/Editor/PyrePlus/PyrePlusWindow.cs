@@ -1017,8 +1017,9 @@ namespace Laubrary.PyrePlus.Editor
         }
 
         // Streak form rows — the streak's own Length (its scale driver, replacing the hidden shared Size), then
-        // Width + Back + Tip packed, then the shared Edge row (which feathers the streak's two long SIDES). The
-        // streak grows FORWARD from its root: default up, steered by the Swarm's Orient (and its own Advanced Spin).
+        // Width + Anchor + Tip packed, then the shared Edge row (which feathers the streak's two long SIDES). The
+        // particle is an anchor point ON the streak (Anchor 0 = tail, 0.5 = centred, 1 = tip); default orientation
+        // up, steered by the Swarm's Orient (and its own Advanced Spin).
         void BuildStreakRows(PyrePlusLayer s)
         {
             s.streakLength ??= new ZUIValue(20f);   // defensive; the real shoot-out arc comes from the spec factory
@@ -1032,18 +1033,19 @@ namespace Laubrary.PyrePlus.Editor
             shapeBody.Add(WrapRow(
                 Val("Width (px)", "The streak's thickness across, in pixels, over the particle's own life.",
                     s.streakWidth, 0f, spec.canvasSize / 4f),   // width max = a quarter-canvas (keeps the old 64→16 feel)
-                Z.MicroSlider("Back", s.streakBackFrac, 0f, 1f,
-                    "How far the streak spills BEHIND its root, as a fraction of its length (0 = starts exactly at "
-                    + "the root; 1 = a full length behind it).",
-                    v => Dirty(() => s.streakBackFrac = v), 150f, showValue: true),
+                Z.MicroSlider("Anchor", s.streakAnchor, 0f, 1f,
+                    "Where the particle sits ALONG the streak, from tail to tip: 0 = at the TAIL (the streak grows "
+                    + "forward), 0.5 = CENTRED (Length grows both ways, so it never slides off the particle), 1 = at "
+                    + "the TIP (grows backward).",
+                    v => Dirty(() => s.streakAnchor = v), 150f, showValue: true),
                 Z.MicroSlider("Tip", s.streakSoftTip, 0f, 1f,
-                    "Softness of the FORWARD tip — how much of the front end feathers out to transparent (0 = a "
-                    + "hard flat tip; 1 = the whole streak fades toward the front).",
+                    "End softness — how much of EACH end (forward and back) feathers out to transparent (0 = hard "
+                    + "flat ends; 1 = the streak fades from its centre to both tips).",
                     v => Dirty(() => s.streakSoftTip = v), 150f, showValue: true)));
 
             shapeBody.Add(EdgeRow(s,
-                "Soft sides (1) vs hard pixel edges (0) — feathers the streak's two long SIDES (the forward tip is "
-                + "the Tip control above; the back end is a hard cut)."));
+                "Soft sides (1) vs hard pixel edges (0) — feathers the streak's two long SIDES (both ends are "
+                + "feathered by the Tip control above)."));
         }
 
         // Star form rows — a filled star polygon. Arms (point count) packed with Skew (the arm swirl); then Length
@@ -1342,12 +1344,14 @@ namespace Laubrary.PyrePlus.Editor
                 + "each dying one particle-life after its own spawn — a burst that vanishes as one.",
                 s.swarmDieTogether, v => Dirty(() => s.swarmDieTogether = v)));
 
-            // Shared shape transform — every field a per-spawn snapshot (see the box tooltip).
+            // Shared shape transform — every field a per-spawn snapshot (see the box tooltip). This is the SPAWNER
+            // transform (where particles are PLACED); the separate Swarm spin box below rotates the placed cloud live.
             var xform = Z.BoxKeyed("Transform",
-                "Offset, size, rotation and pseudo-3D tilt of the whole shape. Every field is a per-spawn "
-                + "SNAPSHOT: each particle reads it at its OWN spawn moment and keeps that value for life. "
-                + "Animating a field therefore does NOT move particles already placed — it spreads a TRAIL of new "
-                + "spawns along the curve (rotate past 360, or travel past once-around, for several laps).",
+                "The SPAWNER transform — offset, size, rotation and pseudo-3D tilt of the shape particles spawn "
+                + "onto. Every field is a per-spawn SNAPSHOT: each particle reads it at its OWN spawn moment and "
+                + "keeps that value for life. Animating a field therefore does NOT move particles already placed — "
+                + "it spreads a TRAIL of new spawns along the curve (rotate past 360, or travel past once-around, "
+                + "for several laps). To spin the already-placed cloud live instead, use Swarm spin below.",
                 "pyreplus.transform");
             xform.Add(Val2D("Offset",
                 "Shape-centre offset in canvas pixels — drag to move the whole shape off the origin. Animating it "
@@ -1362,19 +1366,56 @@ namespace Laubrary.PyrePlus.Editor
                     "Round the evaluated scale to the nearest multiple of this, so placements land on "
                     + "fixed radii. 0 = off.",
                     v => Dirty(() => s.shapeScaleSnap = Mathf.Clamp(v, 0f, spec.canvasSize * 0.25f)), 150f, showValue: true)));
-            xform.Add(Val("Rotation °",
-                "Spin the whole shape in the canvas plane, in degrees. Animating this does NOT spin placed "
-                + "particles — each particle takes the value at its own spawn moment, so a rising curve spreads "
-                + "spawns around the shape (several laps if the curve goes past 360).",
+            // The spawner's rotation as the SAME three-axis Turn/Tilt/Roll stack the Solid box uses — one animatable
+            // Val per axis (rather than a yaw×pitch 2D pad), so it reads consistently AND, prefixed "Spawner", is
+            // unmistakable from the live Swarm spin box below. These are what the user pictured as "a stack of 3
+            // controls". Turn = yaw (shapeYaw), Tilt = pitch (shapePitch), Roll = the in-plane Z (shapeRotation);
+            // each is a per-spawn SNAPSHOT (animating spreads a placement trail, it does not live-spin the cloud).
+            xform.Add(Val("Spawner turn °",
+                "Yaw the whole spawn shape around the VERTICAL axis (turntable), in degrees. A per-spawn SNAPSHOT: "
+                + "each particle takes the value at its OWN spawn moment, so animating it does NOT re-turn placed "
+                + "particles — it SPREADS new spawns into a trail (several laps past 360). Rotates WHERE particles "
+                + "are placed (the spawner), not the placed cloud — for that, use Swarm spin below.",
+                s.shapeYaw, -1440f, 1440f));
+            xform.Add(Val("Spawner tilt °",
+                "Pitch the whole spawn shape around the HORIZONTAL axis (tip it toward/away), in degrees — pseudo-3D, "
+                + "so nearer parts spawn bigger and brighter. A per-spawn SNAPSHOT: each particle takes the tilt at "
+                + "its OWN spawn moment, spreading a trail rather than re-tilting placed particles.",
+                s.shapePitch, -1440f, 1440f));
+            xform.Add(Val("Spawner roll °",
+                "Roll the whole spawn shape in the canvas plane (about the axis pointing at you), in degrees. A "
+                + "per-spawn SNAPSHOT: each particle takes the value at its OWN spawn moment, so a rising curve "
+                + "spreads spawns around the shape (several laps past 360) rather than spinning placed particles.",
                 s.shapeRotation, -1440f, 1440f));
-            xform.Add(Val2D("Tilt °",
-                "Pseudo-3D tilt of the whole shape, in degrees: drag X to yaw (turn left/right), Y to pitch "
-                + "(tip up/down). Nearer parts of the tilted shape render bigger and brighter. Animating it does "
-                + "NOT re-tilt placed particles; each takes the tilt at its own spawn moment.",
-                s.shapeYaw, s.shapePitch,
-                new ZuiValue2DControl.Options().WithRange(-1440f, 1440f, -1440f, 1440f)
-                    .WithDefault(Vector2.zero).WithAxisLabels("Yaw", "Pitch")));
             swarmBody.Add(xform);
+
+            // Swarm spin (Issue 2B) — a SEPARATE box, the deliberate counterpart to the Spawner rotation above: a
+            // LIVE rigid rotation of the whole placed cloud, evaluated at the CURRENT frame (not a spawn snapshot),
+            // so animating an axis spins the entire swarm as one solid group with its arrangement preserved. Same
+            // three-axis Turn/Tilt/Roll stack, so the two rotations read as a matched pair. All default 0 (no spin).
+            s.swarmTurn ??= new ZUIValue(0f);
+            s.swarmTilt ??= new ZUIValue(0f);
+            s.swarmRoll ??= new ZUIValue(0f);
+            var spin = Z.BoxKeyed("Swarm spin",
+                "A LIVE rigid rotation of the whole placed swarm around the shape centre, evaluated at the CURRENT "
+                + "frame — every particle rotates together keeping the arrangement, so animating an axis spins the "
+                + "cloud as one solid group (a turning constellation). DISTINCT from the Spawner rotation in "
+                + "Transform above: that snapshots per spawn to SPREAD placements into a trail; this spins the "
+                + "already-placed cloud. All three default to 0 (no spin).",
+                "pyreplus.swarmspin");
+            spin.Add(Val("Swarm turn °",
+                "Yaw the whole placed cloud around the VERTICAL axis (turntable), live at the current frame — the "
+                + "swarm spins as one, arrangement preserved. Animate it for a rotating cloud.",
+                s.swarmTurn, -1440f, 1440f));
+            spin.Add(Val("Swarm tilt °",
+                "Pitch the whole placed cloud around the HORIZONTAL axis, live at the current frame — tips the cloud "
+                + "toward/away (pseudo-3D). Animate it to roll the swarm forward/back.",
+                s.swarmTilt, -1440f, 1440f));
+            spin.Add(Val("Swarm roll °",
+                "Roll the whole placed cloud in the screen plane (about the axis pointing at you), live at the "
+                + "current frame. Animate it to spin the swarm flat against the screen.",
+                s.swarmRoll, -1440f, 1440f));
+            swarmBody.Add(spin);
         }
 
         // ── helpers ──────────────────────────────────────────────────────────────

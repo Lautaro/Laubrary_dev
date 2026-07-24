@@ -56,11 +56,11 @@ namespace Laubrary.PyrePlus
     //              gemTilt tips the letters and particleSpin yaws each one about its own centre (see
     //              PyrePlusRenderer.DrawTextChar / RenderTextLine). Text overrides the swarm particle COUNT to the
     //              string length.
-    //   Streak   — a ROOT-ANCHORED comet-tail capsule/rect: the particle position is the streak's root, and it
-    //              grows FORWARD along its orientation (default up/+y; the swarm Orient or its own spin steer it).
-    //              Its own streakLength/streakWidth envelopes drive it (NOT `size`); streakBackFrac spills it
-    //              behind the root; streakSoftTip feathers the forward tip; edgeSoftness feathers the two long
-    //              sides (see PyrePlusRenderer.DrawStreakBody).
+    //   Streak   — an ANCHOR-BIASED comet-tail capsule/rect: the particle sits at streakAnchor along the streak
+    //              (0 = tail/grows forward, 0.5 = centred, 1 = tip/grows backward), oriented default up/+y (the
+    //              swarm Orient or its own spin steer it). Its own streakLength/streakWidth envelopes drive it
+    //              (NOT `size`); streakSoftTip feathers BOTH ends; edgeSoftness feathers the two long sides
+    //              (see PyrePlusRenderer.DrawStreakBody).
     //   Star     — a filled star POLYGON: N arms (starArms) with tips at radius R (= `size`·sizeMul) and inner
     //              (valley) vertices at radius R·(1−starLength); starBaseWidth sets each valley's angular position
     //              inside its sector (1 = the classical pentagram midpoint) and starSkew swirls the valleys into a
@@ -240,15 +240,19 @@ namespace Laubrary.PyrePlus
         public Sprite spriteImage;
         public bool spriteTint = true;
 
-        // ── Streak form (shapeForm == Streak) — a root-anchored comet-tail capsule ─────────────────────────
-        // The particle's position is the streak's ROOT; it grows FORWARD along its orientation (default up/+y,
-        // steered by the swarm Orient and its own spin). Its length/width are their OWN envelopes over the
-        // particle's own life (NOT the shared `size`, which is hidden in the UI for this form). Its colour is the
-        // shared shapeFill; a SPATIAL fill sweeps across the streak — see the (u,v) mapping in DrawStreakBody.
+        // ── Streak form (shapeForm == Streak) — an ANCHOR-BIASED comet-tail capsule ─────────────────────────
+        // The particle sits at fraction `streakAnchor` along the streak (0 = at the TAIL, grows forward; 0.5 =
+        // centred; 1 = at the TIP, grows backward), oriented default up/+y (steered by the swarm Orient and its own
+        // spin). Its length/width are their OWN envelopes over the particle's own life (NOT the shared `size`, which
+        // is hidden in the UI for this form). Its colour is the shared shapeFill; a SPATIAL fill sweeps across the
+        // streak — see the (u,v) mapping in DrawStreakBody.
         public ZUIValue streakLength = DefaultStreakLength();   // length forward, in px over own life (a shoot-out arc)
         public ZUIValue streakWidth = new ZUIValue(3f);         // thickness across, in px over own life
-        [Range(0f, 1f)] public float streakBackFrac = 0.15f;    // how far the streak spills BEHIND the root, as a fraction of length
-        [Range(0f, 1f)] public float streakSoftTip = 0.5f;      // alpha feather over the last softTip·length of the FORWARD tip (sides reuse edgeSoftness)
+        // Where the particle sits ALONG the streak, as a fraction from the TAIL (0) to the TIP (1). 0.5 (the
+        // default) centres it, so growing Length extends the streak SYMMETRICALLY and no longer slides it off the
+        // particle — the particle is a stable anchor point. 0 = tail (grows forward), 1 = tip (grows backward).
+        [Range(0f, 1f)] public float streakAnchor = 0.5f;
+        [Range(0f, 1f)] public float streakSoftTip = 0.5f;      // alpha feather over softTip·(each end's length) at BOTH ends (sides reuse edgeSoftness)
 
         // ── Star form (shapeForm == Star) — a filled star polygon ────────────────────────────────────────────
         // N points. Tips at radius R (= evaluated `size` × sizeMul); inner (valley) vertices at radius
@@ -339,6 +343,17 @@ namespace Laubrary.PyrePlus
         public ZUIValue shapePitch = new ZUIValue(0f);     // pseudo-3D tilt, degrees (T3)
         public ZUIValue shapeYaw = new ZUIValue(0f);       // pseudo-3D tilt, degrees (T3)
 
+        // ── Swarm live rotation (Issue 2) — a rigid whole-cloud spin, DISTINCT from the spawner rotation above.
+        // shapeRotation/shapePitch/shapeYaw are per-spawn SNAPSHOTs (each particle reads them at ITS spawn moment,
+        // so animating them SPREADS placements into a trail). These three instead are evaluated at the CURRENT
+        // frame's life and applied UNIFORMLY to every already-placed particle, rotating the whole cloud around the
+        // shape centre — so animating one spins the entire swarm as one solid group, arrangement preserved. All
+        // default Static 0, an EXACT no-op (the renderer skips the rotation math entirely), so an existing swarm
+        // renders byte-identical. Turn = yaw (vertical axis), Tilt = pitch (horizontal axis), Roll = Z (screen plane).
+        public ZUIValue swarmTurn = new ZUIValue(0f);      // whole-cloud yaw, degrees, at the current frame's life
+        public ZUIValue swarmTilt = new ZUIValue(0f);      // whole-cloud pitch, degrees, at the current frame's life
+        public ZUIValue swarmRoll = new ZUIValue(0f);      // whole-cloud roll (screen plane), degrees, at the current frame's life
+
         // ── Modifiers — reuses Pyre's own PyreModifier directly, zero reimplementation ──
         [SerializeReference] public List<PyreModifier> modifiers = new List<PyreModifier>();
 
@@ -387,6 +402,9 @@ namespace Laubrary.PyrePlus
             l.shapeRotation = CloneVal(shapeRotation);
             l.shapePitch = CloneVal(shapePitch);
             l.shapeYaw = CloneVal(shapeYaw);
+            l.swarmTurn = CloneVal(swarmTurn);
+            l.swarmTilt = CloneVal(swarmTilt);
+            l.swarmRoll = CloneVal(swarmRoll);
             l.modifiers = modifiers == null ? new List<PyreModifier>() : modifiers.ConvertAll(m => m?.Clone());
             return l;
         }
