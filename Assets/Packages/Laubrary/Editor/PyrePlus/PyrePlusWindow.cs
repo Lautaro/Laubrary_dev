@@ -50,6 +50,8 @@ namespace Laubrary.PyrePlus.Editor
         bool playing = true;
         int frame;
         Button playButton;
+        SliderInt scrubSlider;   // frame scrubber (transport parity with Pyre1); drives `frame`, follows playback
+        Label frameReadout;      // "frame N/M" readout beside Zoom/Speed, kept in sync with `frame`
         VisualElement backdropHost;
         // The preview backdrop is an editor-only BackSplash (camera colour + one image), held on the WINDOW — not
         // the runtime spec, since PyrePlus's runtime asmdef doesn't reference BackSplash. Lazily created; a cosmetic
@@ -86,7 +88,11 @@ namespace Laubrary.PyrePlus.Editor
             if (previewTex != null) { DestroyImmediate(previewTex); previewTex = null; }
             DestroyStripCache();
         }
-        protected override void OnAssetChanged() { frame = 0; previewDirty = true; DestroyStripCache(); }
+        protected override void OnAssetChanged()
+        {
+            frame = 0; previewDirty = true; DestroyStripCache();
+            layerSel = int.MaxValue;   // a NEW asset defaults to its last layer (BuildAsset clamps)
+        }
 
         void Tick()
         {
@@ -100,13 +106,15 @@ namespace Laubrary.PyrePlus.Editor
             // In Strip mode the frames themselves don't change as playback advances — only the highlighted tile
             // moves — so DON'T set previewDirty (that would needlessly re-render every tile); just repaint. In
             // single-frame mode previewDirty forces the new frame to render.
-            if (advanced) { if (!spec.previewStrip) previewDirty = true; preview?.MarkDirtyRepaint(); }
+            if (advanced) { if (!spec.previewStrip) previewDirty = true; preview?.MarkDirtyRepaint(); RefreshTransportReadout(); }
         }
 
         bool previewDirty = true;
         int lastRenderedFrame = -1;
 
-        void MarkDirty() { previewDirty = true; preview?.MarkDirtyRepaint(); }
+        // Any authored edit routes through here (Dirty → MarkDirty). Refreshing the transport readout alongside
+        // keeps the scrubber's range + value and the "frame N/M" label in sync when e.g. the frame count changes.
+        void MarkDirty() { previewDirty = true; preview?.MarkDirtyRepaint(); RefreshTransportReadout(); }
 
         protected override void BuildAsset(VisualElement root, PyrePlusSpec s)
         {
@@ -129,8 +137,10 @@ namespace Laubrary.PyrePlus.Editor
             var viewBar = BuildViewBar(root);
             dials.Add(viewBar);
 
-            // Default the selection to the LAST layer whenever the tree is (re)built for an asset.
-            if (s.layers != null) layerSel = Mathf.Max(0, s.layers.Count - 1);
+            // Selection is STICKY across rebuilds — only clamped to a valid index. (Defaulting to the
+            // last layer on every rebuild silently jumped the overlay/sections to another layer after
+            // any undo or structural edit; a fresh ASSET picks its last layer via OnAssetChanged.)
+            if (s.layers != null) layerSel = Mathf.Clamp(layerSel, 0, Mathf.Max(0, s.layers.Count - 1));
 
             BuildLayerList(dials);      // the compact layer stack — under the views bar, above Canvas
             BuildCanvas(dials, s);
@@ -269,6 +279,61 @@ namespace Laubrary.PyrePlus.Editor
                         EditorUtility.SetDirty(spec);
                     }, 44f)));
             transportHost.Add(WrapRow(kids.ToArray()));
+
+            // ── frame scrubber (transport parity with Pyre1's scrub field) ──────────────────────
+            // A 1-based int slider over the whole frame range that drives the transport `frame`. Dragging it PAUSES
+            // playback and holds that frame — mirroring PyreWindow's scrub (playing = false + reset the Play label).
+            // It works in filmstrip mode too: there it just moves the highlighted tile, and since clicking a tile
+            // also sets `frame` + calls RefreshTransportReadout, slider ↔ tile stay in sync. No previewDirty — the
+            // frame change alone re-renders the single-frame view (DrawPreview: cur != lastRenderedFrame).
+            int fcHigh = Mathf.Max(1, s.frameCount);
+            scrubSlider = Z.SliderInt(Mathf.Clamp(frame, 0, fcHigh - 1) + 1, 1, fcHigh,
+                "Scrub to an exact frame — dragging pauses playback and holds that frame (works in the filmstrip too).",
+                v =>
+                {
+                    frame = Mathf.Clamp(v - 1, 0, Mathf.Max(0, s.frameCount - 1));
+                    playing = false;
+                    if (playButton != null) playButton.text = "▶ Play";
+                    preview?.MarkDirtyRepaint();
+                    RefreshTransportReadout();
+                }, 200f);
+            transportHost.Add(Z.Field("Frame",
+                "Scrub to an exact frame — dragging pauses playback and holds that frame.", scrubSlider));
+
+            // ── zoom + speed + the frame readout, grouped exactly like PyreWindow's transport ───
+            // Zoom magnifies the single-frame view only (cosmetic layout, never re-renders the frames or the
+            // filmstrip → DirtyRepaintOnly), rounded to an integer like Pyre1. Speed drives the preview frame rate
+            // (previewFps) — an absolute fps rather than Pyre1's 0.1–3× multiplier, since previewFps IS PyrePlus's
+            // playback rate; it also sets the exported GIF's rate. The readout mirrors Pyre1's "frame N/M" label.
+            var zoomMs = Z.MicroSlider("Zoom", s.previewZoom, 1f, 16f,
+                "Magnification of the single-frame preview (canvas pixels × zoom). Does not affect the filmstrip or "
+                + "the baked frames.",
+                v => DirtyRepaintOnly(() => s.previewZoom = Mathf.Max(1f, Mathf.Round(v))), 150f,
+                showValue: true, decimals: 0);
+            var speedMs = Z.MicroSlider("Speed", s.previewFps, 1f, 30f,
+                "Preview playback rate in frames per second — how fast the loop plays (also the exported GIF's rate).",
+                v => DirtyRepaintOnly(() => s.previewFps = Mathf.Clamp(Mathf.Round(v), 1f, 30f)), 150f,
+                showValue: true, decimals: 0);
+            frameReadout = Z.Text("", ZuiText.Subtle, "The frame currently shown / the total frame count.");
+            transportHost.Add(WrapRow(zoomMs, speedMs, frameReadout));
+
+            RefreshTransportReadout();
+        }
+
+        // Keep the scrubber value + range and the "frame N/M" readout in sync with the transport `frame` and the
+        // current frame count. Called after every frame change (playback tick, a strip-tile click, a scrub drag)
+        // and at the end of RebuildTransport. Null-guarded so it's safe before the transport is built / rebuilt.
+        void RefreshTransportReadout()
+        {
+            if (spec == null) return;
+            int fc = Mathf.Max(1, spec.frameCount);
+            int cur = Mathf.Clamp(frame, 0, fc - 1);
+            if (scrubSlider != null)
+            {
+                scrubSlider.highValue = fc;
+                scrubSlider.SetValueWithoutNotify(cur + 1);
+            }
+            if (frameReadout != null) frameReadout.text = $"frame {cur + 1}/{fc}";
         }
 
         // GIF export (G3): render every frame and write an animated GIF at the chosen nearest-neighbour scale. The
@@ -1019,6 +1084,21 @@ namespace Laubrary.PyrePlus.Editor
                 + "hidden — each letter rides one swarm position.",
                 s.swarmEnabled, v => { Dirty(() => s.swarmEnabled = v); RebuildSwarm(); }));
             if (!s.swarmEnabled) return;
+
+            // Dual spawn-path visualisation (P4): two independent overlay toggles — the authored Shape (outline +
+            // drag handle + numbered spawn dots) and the objective spawner Trace (the canonical spine). Both are
+            // cosmetic preview aids on the SPEC (never baked; they never re-render the frames → DirtyRepaintOnly),
+            // and both may be on at once. Neither on = no overlay at all. (Spec-level, not per-layer: the overlay
+            // is a single global aid that follows whichever layer is selected.)
+            swarmBody.Add(WrapRow(
+                Z.Toggle("Show shape",
+                    "Draw the authored spawn shape — its outline, the drag handle and a numbered dot at every "
+                    + "particle's actual spawn point.",
+                    spec.previewShowShape, v => DirtyRepaintOnly(() => spec.previewShowShape = v)),
+                Z.Toggle("Show trace",
+                    "Draw the objective spawner trace — the canonical amber path the spawn point sweeps through "
+                    + "space over the whole timeline, under the spawn dots.",
+                    spec.previewShowTrace, v => DirtyRepaintOnly(() => spec.previewShowTrace = v))));
 
             float half = Mathf.Max(1f, spec.canvasSize * 0.5f);
 

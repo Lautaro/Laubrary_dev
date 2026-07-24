@@ -543,43 +543,10 @@ namespace Laubrary.PyrePlus
                 }
                 else
                 {
-                    // Work in shape-local coords relative to the centre; the radius is already inside baseAbs.
-                    float x = baseAbs.x - cx, y = baseAbs.y - cy, z = 0f;
-
-                    // 2) 2D rotation of the local point, counter-clockwise (y-up), degrees.
-                    if (rot != 0f)
-                    {
-                        float a = rot * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
-                        float nx = x * c - y * s;
-                        float ny = x * s + y * c;
-                        x = nx; y = ny;
-                    }
-
-                    // 3) Pseudo-3D tilt of (x, y, 0). YAW first — rotate about the vertical y axis in the (x,z)
-                    //    plane; z gains x·sin(yaw), so yaw 90° sends every point to x≈0 (shape → vertical line).
-                    if (yaw != 0f)
-                    {
-                        float a = yaw * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
-                        float nx = x * c - z * s;
-                        float nz = x * s + z * c;
-                        x = nx; z = nz;
-                    }
-                    //    THEN PITCH — rotate about the horizontal x axis in the (y,z) plane; z gains y·sin(pitch),
-                    //    so pitch 90° sends every point to y≈0 (shape → horizontal line).
-                    if (pitch != 0f)
-                    {
-                        float a = pitch * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
-                        float ny = y * c - z * s;
-                        float nz = y * s + z * c;
-                        y = ny; z = nz;
-                    }
-
-                    // 4) Depth normalize against the (snapped) radius: +1 nearest the viewer, -1 farthest, 0 flat.
-                    zNorm = Mathf.Clamp(z / Mathf.Max(1e-3f, r), -1f, 1f);
-                    // 5) Perspective feel: nearer parts spread outward slightly (persp == 1 exactly at zNorm 0).
-                    float persp = 1f + 0.25f * zNorm;
-                    // 6) Screen-space offset of the whole shape, applied last.
-                    pos = new Vector2(cx + offX + x * persp, cy + offY + y * persp);
+                    // The full transform pipeline (steps 2–6) is factored into ApplyShapeTransform so
+                    // ComputeSpawnTrace can reuse the IDENTICAL math. Byte-identical to the inline code it
+                    // replaced: the default all-zero case is the `if` branch above and never reaches here.
+                    pos = ApplyShapeTransform(baseAbs, cx, cy, r, rot, yaw, pitch, offX, offY, out zNorm);
                 }
 
                 // Per-particle facing (S1). Gated on swarmOrient != None, so a None swarm computes orientDeg 0 and
@@ -615,6 +582,160 @@ namespace Laubrary.PyrePlus
                 }
 
                 into.Add(new SpawnPoint { spawnLife = spawnLife, pos = pos, zNorm = zNorm, orientDeg = orientDeg });
+            }
+        }
+
+        /// The shared shape-transform math — ComputeSpawns' steps 2–6, factored out VERBATIM so ComputeSpawnTrace
+        /// reuses the exact same pipeline. Given an absolute placement `baseAbs` (the shape radius already baked in)
+        /// and the spawn-time-snapshot transform fields, it works in shape-local coords: 2D-rotates the point,
+        /// pseudo-3D tilts it (yaw about the vertical axis THEN pitch about the horizontal), depth-normalizes z
+        /// against `r`, applies the perspective spread, and re-offsets to screen space. `out zNorm` is the pseudo-3D
+        /// depth (+1 nearest, −1 farthest, 0 flat). Every branch is guarded by a `!= 0f` so a partial transform only
+        /// pays for the axes it uses. This changed no float operation relative to the inline code (byte-identical).
+        static Vector2 ApplyShapeTransform(Vector2 baseAbs, float cx, float cy, float r,
+                                           float rot, float yaw, float pitch, float offX, float offY, out float zNorm)
+        {
+            // Work in shape-local coords relative to the centre; the radius is already inside baseAbs.
+            float x = baseAbs.x - cx, y = baseAbs.y - cy, z = 0f;
+
+            // 2) 2D rotation of the local point, counter-clockwise (y-up), degrees.
+            if (rot != 0f)
+            {
+                float a = rot * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
+                float nx = x * c - y * s;
+                float ny = x * s + y * c;
+                x = nx; y = ny;
+            }
+
+            // 3) Pseudo-3D tilt of (x, y, 0). YAW first — rotate about the vertical y axis in the (x,z)
+            //    plane; z gains x·sin(yaw), so yaw 90° sends every point to x≈0 (shape → vertical line).
+            if (yaw != 0f)
+            {
+                float a = yaw * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
+                float nx = x * c - z * s;
+                float nz = x * s + z * c;
+                x = nx; z = nz;
+            }
+            //    THEN PITCH — rotate about the horizontal x axis in the (y,z) plane; z gains y·sin(pitch),
+            //    so pitch 90° sends every point to y≈0 (shape → horizontal line).
+            if (pitch != 0f)
+            {
+                float a = pitch * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
+                float ny = y * c - z * s;
+                float nz = y * s + z * c;
+                y = ny; z = nz;
+            }
+
+            // 4) Depth normalize against the (snapped) radius: +1 nearest the viewer, -1 farthest, 0 flat.
+            zNorm = Mathf.Clamp(z / Mathf.Max(1e-3f, r), -1f, 1f);
+            // 5) Perspective feel: nearer parts spread outward slightly (persp == 1 exactly at zNorm 0).
+            float persp = 1f + 0.25f * zNorm;
+            // 6) Screen-space offset of the whole shape, applied last.
+            return new Vector2(cx + offX + x * persp, cy + offY + y * persp);
+        }
+
+        /// Compute the CANONICAL, index-free spine of the swarm's spawn point across the whole timeline — the
+        /// objective path the spawn POSITION sweeps as spawn-life runs 0→1 (Part B's second visualisation, distinct
+        /// from the per-particle spawn dots). Fills `into` (cleared first) with `samples` absolute canvas-pixel
+        /// points, evenly spaced in t; the caller sizes `samples` (the overlay uses ≈4×frameCount clamped 64..512).
+        ///
+        /// It mirrors ComputeSpawns' position pipeline at each t — radius snapshot → placement → shared transform —
+        /// but is deliberately CANONICAL where ComputeSpawns is per-index/seeded:
+        ///   • every field evaluates through EvalCanonical (MinMax → its MIDPOINT), never a seeded per-particle draw;
+        ///   • NO per-index even-path offset (swarmEvenPath is ignored — the trace is the shared ride, not a string);
+        ///   • Area mode traces the transformed shape CENTRE (local 0,0), i.e. the pure offset trajectory, rather
+        ///     than a random interior point.
+        /// So on a plain Static/Curve transform the trace lands exactly on the real placements; with any MinMax or
+        /// per-index effect it is the SPINE the dots scatter around — the dots stay the actual placements. Pure and
+        /// deterministic (no random draw ⇒ no seed needed); empty when the swarm is off. Reuses ApplyShapeTransform,
+        /// SideCount and PolyVertex; the outline arithmetic mirrors PlaceParticle with canonical progress (that path
+        /// is left untouched so the real per-particle placement stays byte-identical).
+        public static void ComputeSpawnTrace(PyrePlusSpec spec, PyrePlusLayer layer, int samples, List<Vector2> into)
+        {
+            if (into == null) return;
+            into.Clear();
+            if (spec == null || layer == null || !layer.swarmEnabled) return;
+            samples = Mathf.Max(2, samples);
+
+            float cx = spec.Width * 0.5f;
+            float cy = spec.Height * 0.5f;
+            var kind = layer.swarmShapeKind;
+            bool path = layer.swarmSpawnMode == SwarmSpawnMode.Path;
+
+            for (int si = 0; si < samples; si++)
+            {
+                float t = si / (float)(samples - 1);   // spawn-life 0→1, evenly spaced
+
+                // Radius: the same spawn-time-snapshot radius, canonical at t, snapped exactly as ComputeSpawns.
+                float r = Mathf.Max(0f, EvalCanonical(layer.shapeScale, t));
+                float snap = layer.shapeScaleSnap;
+                if (snap > 0f) r = Mathf.Round(r / snap) * snap;
+
+                // Local placement, index-free. Area → the shape CENTRE (offset trajectory). Path → the outline
+                // point at the canonical progress; Custom clamps, closed shapes wrap (p − floor p) exactly as
+                // PlaceParticle. Uses EvalCanonical for progress/Custom (no seeded draw).
+                Vector2 baseAbs;
+                if (!path)
+                {
+                    baseAbs = new Vector2(cx, cy);
+                }
+                else
+                {
+                    float pRaw = EvalCanonical(layer.swarmProgress, t);
+                    if (kind == SwarmShapeKind.Custom)
+                    {
+                        float pc = Mathf.Clamp01(pRaw);
+                        baseAbs = new Vector2(cx + EvalCanonical(layer.swarmCustomX, pc),
+                                              cy + EvalCanonical(layer.swarmCustomY, pc));
+                    }
+                    else if (kind == SwarmShapeKind.Circle)
+                    {
+                        float p = pRaw - Mathf.Floor(pRaw);
+                        float ang = Mathf.PI / 2f + 2f * Mathf.PI * p;
+                        baseAbs = new Vector2(cx + r * Mathf.Cos(ang), cy + r * Mathf.Sin(ang));
+                    }
+                    else
+                    {
+                        int n = SideCount(kind);
+                        if (n < 3) baseAbs = new Vector2(cx, cy);
+                        else
+                        {
+                            float p = pRaw - Mathf.Floor(pRaw);
+                            float tt = p * n;
+                            int k = (int)tt;
+                            float frac = tt - k;
+                            if (k >= n) { k = n - 1; frac = 1f; }
+                            Vector2 a = PolyVertex(cx, cy, r, k, n);
+                            Vector2 b = PolyVertex(cx, cy, r, k + 1, n);
+                            baseAbs = Vector2.Lerp(a, b, frac);
+                        }
+                    }
+                }
+
+                // Shared shape transform (canonical snapshot at t) through the SAME pipeline the render uses.
+                float rot   = EvalCanonical(layer.shapeRotation, t);
+                float yaw   = EvalCanonical(layer.shapeYaw, t);
+                float pitch = EvalCanonical(layer.shapePitch, t);
+                float offX  = EvalCanonical(layer.shapeOffsetX, t);
+                float offY  = EvalCanonical(layer.shapeOffsetY, t);
+                Vector2 pos = ApplyShapeTransform(baseAbs, cx, cy, r, rot, yaw, pitch, offX, offY, out _);
+                into.Add(pos);
+            }
+        }
+
+        /// Canonical, INDEX-FREE evaluation of a transform/placement ZUIValue, for ComputeSpawnTrace only: Static →
+        /// the value, MinMax → the MIDPOINT (no seeded per-particle draw), Curve → the envelope at t. The runtime
+        /// twin of the editor overlay's EvalField, and it matches Eval's Static/Curve branches exactly — so on a
+        /// Static or Curve field the trace coincides with the real placements; only MinMax differs, by design.
+        static float EvalCanonical(ZUIValue v, float t)
+        {
+            if (v == null) return 0f;
+            switch (v.mode)
+            {
+                case ZUIValue.Mode.Static: return v.staticValue;
+                case ZUIValue.Mode.MinMax: return (v.min + v.max) * 0.5f;
+                case ZUIValue.Mode.Curve:  return ZUIEnvelopeEvaluator.Evaluate(v.points, Mathf.Clamp01(t), v.yMax);
+                default: return v.staticValue;
             }
         }
 

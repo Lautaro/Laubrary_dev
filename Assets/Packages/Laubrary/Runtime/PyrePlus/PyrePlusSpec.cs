@@ -618,6 +618,12 @@ namespace Laubrary.PyrePlus
         // frame. Purely cosmetic editor state — never read by the renderer, never baked.
         [HideInInspector] public bool previewStrip = false;
         [HideInInspector] public float previewStripSize = 96f;   // filmstrip tile size in px (32..256)
+        // Swarm overlay dual visualisation (P4) — which of the two spawn-path overlays draw. Cosmetic authoring
+        // state, never read by the renderer (like previewZoom). Show shape = the authored spawn shape + dots
+        // (today's overlay); Show trace = the objective spawner-trace spine (PyrePlusRenderer.ComputeSpawnTrace).
+        // Both may be on at once; neither on = no overlay at all.
+        [HideInInspector] public bool previewShowShape = true;
+        [HideInInspector] public bool previewShowTrace = false;
 
         public int Width => Mathf.Max(1, canvasSize);
         public int Height => Mathf.Max(1, canvasSize);

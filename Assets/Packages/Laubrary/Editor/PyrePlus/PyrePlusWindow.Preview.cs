@@ -29,6 +29,8 @@ namespace Laubrary.PyrePlus.Editor
         static readonly Color HandleColor = new Color(0.4f, 0.85f, 1f, 0.9f);        // draggable position square
         static readonly Color HandleHotColor = new Color(1f, 0.7f, 0.2f, 1f);        // while dragging
         static readonly Color HandleDisabled = new Color(0.6f, 0.6f, 0.6f, 0.5f);    // hollow (animated offset)
+        const float TraceWidth = 2f;                                                 // spawner-trace polyline width (px)
+        static readonly Color TraceColor = new Color(1f, 0.6f, 0.15f, 0.6f);         // warm amber spine, distinct from the cyan outline
 
         // The rect + zoom the current DrawPreview computed for the frame-texture blit. CanvasToScreen /
         // ScreenToCanvas are the SINGLE mapping used for every overlay draw and hit test, so a mapping fix is
@@ -55,6 +57,11 @@ namespace Laubrary.PyrePlus.Editor
 
         // Non-serialized interaction state (never persisted).
         readonly List<PyrePlusRenderer.SpawnPoint> swarmSpawns = new List<PyrePlusRenderer.SpawnPoint>();
+        // The spawner-trace spine (Part B) — canonical absolute canvas points, refilled every repaint exactly like
+        // swarmSpawns above (per-repaint, no dirty flag: at ≈4×frameCount samples clamped 64..512 the recompute is
+        // trivial). `traceScreen` is the reused screen-space run buffer for the polyline (broken at the view edge).
+        readonly List<Vector2> swarmTrace = new List<Vector2>();
+        readonly List<Vector3> traceScreen = new List<Vector3>();
         readonly List<Vector3> outlineScratch = new List<Vector3>();
         bool draggingShapeHandle;
         Vector2 shapeHandleDragOff;   // live (uncommitted) shape-centre offset while dragging the handle
@@ -151,7 +158,7 @@ namespace Laubrary.PyrePlus.Editor
                 for (int i = 0; i < n; i++)
                 {
                     var tr = new Rect(startX + (i % cols) * (tileW + gap), startY + (i / cols) * (tileH + gap), tileW, tileH);
-                    if (tr.Contains(e.mousePosition)) { frame = i; preview?.MarkDirtyRepaint(); e.Use(); break; }
+                    if (tr.Contains(e.mousePosition)) { frame = i; preview?.MarkDirtyRepaint(); RefreshTransportReadout(); e.Use(); break; }
                 }
             }
 
@@ -242,6 +249,16 @@ namespace Laubrary.PyrePlus.Editor
         // spawn-frame snapshot), so they keep marking real placements while the outline animates over them.
         void DrawSwarmOverlay(Rect view, PyrePlusSpec s, PyrePlusLayer sel, float life)
         {
+            // Two independent visualisations (Part B), each spec-gated:
+            //   Show shape  → the authored spawn shape: its outline, the drag handle, the Custom path points, AND
+            //                 the numbered spawn dots. This whole cluster is the only INTERACTIVE chrome.
+            //   Show trace  → the objective spawner-trace spine (a read-only amber polyline), plus the same dots.
+            // The spawn dots belong to BOTH (they mark the real placements), so they draw when EITHER is on. Neither
+            // on ⇒ nothing draws (handle included) and no interaction runs.
+            bool showShape = s.previewShowShape;
+            bool showTrace = s.previewShowTrace;
+            if (!showShape && !showTrace) return;
+
             // The shape the CURRENT frame presents: the whole transform snapshotted at `life`. Mirrors the
             // renderer's per-particle transform (ComputeSpawns) so the outline/handle geometry reads the same
             // curves the dots do. For a Static transform field EvalField(·, life) == EvalField(·, 0) (a constant),
@@ -262,24 +279,62 @@ namespace Laubrary.PyrePlus.Editor
 
             // Interaction (hit priority): the shape-position handle first (it sits at the centre), then the
             // Custom path points / click-to-add. Each Use()s the event it consumes, which turns e.type to Used
-            // and short-circuits the later handlers — the same chaining Pyre's viewport relies on.
-            HandlePositionHandle(view, sel, baseOff, offsetDraggable, cx, cy, half);
-            Vector2 drawOff = draggingShapeHandle ? shapeHandleDragOff : baseOff;
-            HandleCustomPoints(view, sel, r, rot, yaw, pitch, drawOff, cx, cy, half);
+            // and short-circuits the later handlers — the same chaining Pyre's viewport relies on. ONLY the shape
+            // chrome is interactive; when Show shape is off there is nothing to drag, so the handlers are skipped.
+            if (showShape)
+            {
+                HandlePositionHandle(view, sel, baseOff, offsetDraggable, cx, cy, half);
+                Vector2 drawOffI = draggingShapeHandle ? shapeHandleDragOff : baseOff;
+                HandleCustomPoints(view, sel, r, rot, yaw, pitch, drawOffI, cx, cy, half);
+            }
 
             if (Event.current.type != EventType.Repaint) return;
 
-            drawOff = draggingShapeHandle ? shapeHandleDragOff : baseOff;
+            Vector2 drawOff = draggingShapeHandle ? shapeHandleDragOff : baseOff;
             Vector2 delta = drawOff - baseOff;   // live-shifts the spawn dots while the handle is dragged
 
             Handles.BeginGUI();
             var prevC = Handles.color;
-            DrawShapeOutline(sel, r, rot, yaw, pitch, drawOff, cx, cy);
-            DrawSpawnDots(view, s, sel, delta);
-            DrawCustomPoints(view, sel, r, rot, yaw, pitch, drawOff, cx, cy);
-            DrawPositionHandle(view, drawOff, offsetDraggable, cx, cy);
+            // Trace first, so it reads as a spine UNDER the outline + dots.
+            if (showTrace) DrawSpawnTrace(view, s, sel);
+            if (showShape) DrawShapeOutline(sel, r, rot, yaw, pitch, drawOff, cx, cy);
+            DrawSpawnDots(view, s, sel, delta);   // the dots belong to both visualisations
+            if (showShape)
+            {
+                DrawCustomPoints(view, sel, r, rot, yaw, pitch, drawOff, cx, cy);
+                DrawPositionHandle(view, drawOff, offsetDraggable, cx, cy);
+            }
             Handles.color = prevC;
             Handles.EndGUI();
+        }
+
+        // The objective spawner-trace spine (Part B): the canonical, index-free path the spawn POINT sweeps over
+        // the whole timeline, from PyrePlusRenderer.ComputeSpawnTrace — a warm-amber semi-transparent polyline
+        // beneath the cyan outline and the spawn dots. With a MinMax / per-index effect the real dots scatter
+        // around this spine; with a plain Static/Curve transform they sit right on it. Recomputed every repaint
+        // into swarmTrace (just like DrawSpawnDots recomputes swarmSpawns). Absolute canvas points → CanvasToScreen;
+        // the polyline BREAKS wherever it leaves the view so a wrapped (progress > 1) or off-canvas span doesn't
+        // draw a stray chord across the viewport (the same view-gating DrawSpawnDots applies to each dot).
+        void DrawSpawnTrace(Rect view, PyrePlusSpec s, PyrePlusLayer sel)
+        {
+            int samples = Mathf.Clamp(s.frameCount * 4, 64, 512);
+            PyrePlusRenderer.ComputeSpawnTrace(s, sel, samples, swarmTrace);
+            if (swarmTrace.Count < 2) return;
+
+            Handles.color = TraceColor;
+            traceScreen.Clear();
+            for (int i = 0; i < swarmTrace.Count; i++)
+            {
+                Vector2 sc = CanvasToScreen(swarmTrace[i]);
+                if (view.Contains(sc))
+                    traceScreen.Add(new Vector3(sc.x, sc.y, 0f));
+                else
+                {
+                    if (traceScreen.Count >= 2) Handles.DrawAAPolyLine(TraceWidth, traceScreen.ToArray());
+                    traceScreen.Clear();
+                }
+            }
+            if (traceScreen.Count >= 2) Handles.DrawAAPolyLine(TraceWidth, traceScreen.ToArray());
         }
 
         // 1) The current authored shape outline, transformed exactly like the renderer transforms placements.
