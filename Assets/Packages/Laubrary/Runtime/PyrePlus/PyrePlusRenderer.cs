@@ -415,7 +415,20 @@ namespace Laubrary.PyrePlus
             // Die-together (S1): every particle's shared death point on the blast timeline. Off ⇒ the per-particle
             // life below is the verbatim pre-S1 expression (byte-identical).
             bool dieTogether = layer.swarmDieTogether;
-            float deathPoint = dieTogether ? Mathf.Min(1f, layer.swarmSpawnWindow + layer.swarmParticleLife) : 0f;
+            // The shared death point = the LAST particle's spawn moment + particleLife, clamped to 1. maxSpawnLife
+            // replaces the old swarmSpawnWindow term (now removed): for Window timing it's the canonical
+            // (MinMax→midpoint) spawn-timing envelope at frac 1 — 0.5 for the default (0,0)→(1,0.5), i.e. the old
+            // 0.5 window, so a default die-together swarm is unchanged — and for FrameStep it's the last particle's
+            // own frame mapped to [0,1]. Off ⇒ deathPoint 0 (unused).
+            float deathPoint = 0f;
+            if (dieTogether)
+            {
+                int lastIdx = Mathf.Max(0, spawns.Count - 1);
+                float maxSpawnLife = layer.swarmTiming == SwarmTiming.FrameStep
+                    ? Mathf.Clamp01((layer.swarmFirstFrame + lastIdx * layer.swarmFrameStep) / (float)Mathf.Max(1, spec.frameCount - 1))
+                    : Mathf.Clamp01(EvalCanonical(layer.swarmSpawnTiming, 1f));
+                deathPoint = Mathf.Min(1f, maxSpawnLife + layer.swarmParticleLife);
+            }
 
             for (int i = 0; i < spawns.Count; i++)
             {
@@ -470,19 +483,20 @@ namespace Laubrary.PyrePlus
                 : Mathf.Max(2, layer.swarmCount);
             float cx = spec.Width * 0.5f;
             float cy = spec.Height * 0.5f;
-            float window = Mathf.Clamp01(layer.swarmSpawnWindow);
             int frames = spec.frameCount;   // FrameStep timing maps a particle's frame index onto the [0,1] life
 
             for (int i = 0; i < n; i++)
             {
-                // Spawn moment inside the window, remapped by swarmSpawnTiming. IsLinear01 recognises the default
-                // (Curve, linear 0→1) — and a null field (legacy asset) is treated the same — and takes the EXACT
-                // fast path, computing spawnLife with the pre-timing arithmetic `window * i / (n-1)` VERBATIM, so a
-                // default/linear-timed swarm stays byte-identical (the orchestrator hash-checks this; re-associating
-                // the multiply as window*(i/(n-1)) would risk ULP drift for non-power-of-two windows). A non-linear
-                // curve instead remaps the even fraction `frac` (0 = first particle, 1 = last) to a spawn moment t
-                // in [0,1]; MinMax makes each particle's moment a per-particle random draw; Static s clusters them
-                // all at s. n ≥ 2 so (n-1) ≥ 1. particle 0 lands at spawnLife 0 in the linear case.
+                // Spawn moment on the blast timeline. The swarmSpawnTiming envelope is now the WHOLE mapping
+                // (swarmSpawnWindow is gone): particle number `frac` (0 = first, 1 = last) → spawn life directly.
+                // IsLinearTo recognises any two-point (0,0)→(1,K) curve (the default among them, K = 0.5) and takes
+                // the EXACT fast path `K * i / (n-1)` VERBATIM — the pre-removal arithmetic `window * i / (n-1)`
+                // with the endpoint K standing in for `window` (default endpoint 0.5 reproduces the old default
+                // window 0.5), so a default/linear-shaped timing stays byte-identical (the orchestrator hash-checks
+                // this; re-associating the multiply as K*(i/(n-1)) would risk ULP drift). Any other curve / MinMax /
+                // Static goes through Eval, whose result IS the spawn life now — no window multiply. The Clamp01 is
+                // a no-op for the default (0..0.5) so it does not perturb the byte-identical output. n ≥ 2 so
+                // (n-1) ≥ 1; particle 0 lands at spawnLife 0.
                 float spawnLife;
                 if (layer.swarmTiming == SwarmTiming.FrameStep)
                     // FrameStep (G3): particle i spawns on frame (swarmFirstFrame + i·swarmFrameStep), mapped to the
@@ -491,14 +505,10 @@ namespace Laubrary.PyrePlus
                     spawnLife = Mathf.Clamp01((layer.swarmFirstFrame + i * layer.swarmFrameStep) / (float)Mathf.Max(1, frames - 1));
                 else if (n <= 1)
                     spawnLife = 0f;   // single-char Text: one particle at timeline 0 (avoids the (n-1)==0 divisions)
-                else if (layer.swarmSpawnTiming == null || IsLinear01(layer.swarmSpawnTiming))
-                    spawnLife = window * i / (n - 1);
+                else if (IsLinearTo(layer.swarmSpawnTiming, out float k))
+                    spawnLife = Mathf.Clamp01(k * i / (n - 1));
                 else
-                {
-                    float frac = i / (float)(n - 1);
-                    float t = Mathf.Clamp01(Eval(layer.swarmSpawnTiming, frac, spec.seed, i, FldSpawnTiming));
-                    spawnLife = window * t;
-                }
+                    spawnLife = Mathf.Clamp01(Eval(layer.swarmSpawnTiming, i / (float)(n - 1), spec.seed, i, FldSpawnTiming));
 
                 // SPAWN-TIME SNAPSHOT — the ENTIRE shape transform (radius, offset, rotation, pitch, yaw) is
                 // evaluated at THIS particle's spawn life, NOT the current frame, so an animated transform leaves a
@@ -2949,19 +2959,22 @@ namespace Laubrary.PyrePlus
         /// be a ×1 no-op, NOT Eval(null)'s 0 which would collapse every particle).
         static bool IsStaticOne(ZUIValue v) => v == null || (v.mode == ZUIValue.Mode.Static && v.staticValue == 1f);
 
-        /// True when a value is EXACTLY the default linear identity — Curve mode, exactly two points, p0 == (0,0)
-        /// and p1 == (1,1). This is the fast-path gate for swarmSpawnTiming: when true the caller skips Eval and
-        /// uses the verbatim pre-timing spawn arithmetic, so a default (or explicitly linear) timing stays
-        /// byte-identical rather than round-tripping through Eval → EnvelopeEvaluator. Exponent is intentionally
-        /// NOT checked — the fast path returns the even fraction directly, so a segment bend on a 2-point (0,0)→
-        /// (1,1) curve is simply treated as the linear it visually approximates; the default factory makes
-        /// exponent 1 anyway. Any non-linear curve / MinMax / non-zero Static returns false and goes through Eval.
-        static bool IsLinear01(ZUIValue v)
+        /// True when swarmSpawnTiming is EXACTLY a two-point Curve from (0,0) to (1,K) — out `k` = that endpoint
+        /// value. This is the fast-path gate for the Window timing: when true the caller skips Eval and uses the
+        /// verbatim `K * i / (n-1)` arithmetic (the pre-removal `window * i / (n-1)` with K in window's place), so a
+        /// default/linear-shaped timing stays byte-identical rather than round-tripping through Eval →
+        /// EnvelopeEvaluator. The endpoint's segment exponent is intentionally NOT checked — the fast path returns
+        /// the scaled even fraction directly, treating a bent 2-point curve as the line it visually approximates
+        /// (the default factory's exponent is 1 anyway). Any non-two-point / non-(0,0)-start / MinMax / Static
+        /// value returns false (k = 0) and goes through Eval, whose result is the whole spawn-life mapping.
+        static bool IsLinearTo(ZUIValue v, out float k)
         {
+            k = 0f;
             if (v == null || v.mode != ZUIValue.Mode.Curve || v.points == null || v.points.Count != 2) return false;
             var p0 = v.points[0];
             var p1 = v.points[1];
-            return p0.time == 0f && p0.value == 0f && p1.time == 1f && p1.value == 1f;
+            if (p0.time == 0f && p0.value == 0f && p1.time == 1f) { k = p1.value; return true; }
+            return false;
         }
 
         /// Evaluate a ZUIValue for a given particle deterministically — Static reads the value, Curve reads

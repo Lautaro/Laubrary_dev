@@ -124,35 +124,60 @@ namespace Laubrary.PyrePlus.Editor
             split.style.minHeight = 0f;
 
             // ── left: dials ──────────────────────────────────────────────────────
+            // The pane is FLEXIBLE now (was a fixed width 360): one 360px column that grows to host up to four
+            // 360px columns (+ 6px gutters) as the window widens (see Z.ColumnFlow). flexBasis 0 is essential —
+            // without it the ScrollView takes its CONTENT width as its basis and the preview's content basis eats
+            // all the free space, freezing the pane at ~677px (never reaching the 720 two-column threshold). With
+            // basis 0 on BOTH panes the grow ratio (pane 1 : preview 1) governs, so widening the window widens the
+            // pane proportionally; minWidth pins the one-column floor, maxWidth the four-column ceiling.
             var left = new ScrollView(ScrollViewMode.Vertical);
-            left.style.width = 360f;
-            left.style.flexShrink = 0f;
+            left.style.minWidth = 360f;
+            left.style.maxWidth = 4f * 360f + 3f * 6f;   // four 360px columns + three 6px gutters (ZuiColumnFlow's cap)
+            left.style.flexGrow = 1f;
+            left.style.flexBasis = 0f;
+            left.style.flexShrink = 1f;
+            left.style.minHeight = 0f;
             var dials = left.contentContainer;
+            // The ScrollView's content container is content-sized by default; stretch it so the flow fills the pane
+            // width (otherwise the flow would size to its widest unit, never the pane, and never split).
+            dials.style.flexGrow = 1f;
+
+            // The whole dial stack is ONE width-driven column flow: a single 360px column that splits into 2–4
+            // contiguous columns as the pane widens. Each Build* below adds EXACTLY ONE top-level unit (a box or a
+            // section), in the order they read down column 1, then column 2, … The flow never reaches inside a
+            // unit, so the per-section rebuild helpers (RebuildShape/RebuildSwarm/…) keep working wherever their
+            // section lands — they mutate section BODIES, never the flow. Never call flow.Clear(); rebuild instead.
+            var flow = Z.ColumnFlow(360f);
+            dials.Add(flow);
 
             // Saved-views bar rides at the very top of the dials pane. Its capture/apply aggregate every
             // ZuiBox under this asset root (Canvas / Solid / Transform / Modifiers): a "view" is their fold,
             // gear-open and shown-control state only, never an authored value. The query root is `root` (the
             // BuildAsset host), not rootVisualElement — `split` is added to `root` below BEFORE RestoreLast
-            // runs, but the window has not yet parented `root` to its own rootVisualElement at this point.
+            // runs, but the window has not yet parented `root` to its own rootVisualElement at this point. The
+            // boxes still resolve through the flow's columns (Query walks the live tree), so the flow is transparent.
             var viewBar = BuildViewBar(root);
-            dials.Add(viewBar);
+            flow.Add(viewBar);
 
             // Selection is STICKY across rebuilds — only clamped to a valid index. (Defaulting to the
             // last layer on every rebuild silently jumped the overlay/sections to another layer after
             // any undo or structural edit; a fresh ASSET picks its last layer via OnAssetChanged.)
             if (s.layers != null) layerSel = Mathf.Clamp(layerSel, 0, Mathf.Max(0, s.layers.Count - 1));
 
-            BuildLayerList(dials);      // the compact layer stack — under the views bar, above Canvas
-            BuildCanvas(dials, s);
-            BuildShape(dials, s);
-            BuildSwarm(dials, s);
-            BuildMatte(dials);          // the selected layer's matte role / channel / clip
-            BuildModifiers(dials, s);   // PyrePlusWindow.Modifiers.cs
+            BuildLayerList(flow);      // the compact layer stack — under the views bar, above Canvas
+            BuildCanvas(flow, s);
+            BuildShape(flow, s);
+            BuildSwarm(flow, s);
+            BuildMatte(flow);          // the selected layer's matte role / channel / clip
+            BuildModifiers(flow, s);   // PyrePlusWindow.Modifiers.cs
 
             // ── right: preview + transport + backdrop ────────────────────────────
+            // flexBasis 0 + grow 1 = an EQUAL split with the dial pane (both basis 0), so at a wide window each
+            // gets half — enough for the pane to cross 720 and show two columns while the preview stays large.
             var rightPane = new VisualElement();
             rightPane.style.flexGrow = 1f;
-            rightPane.style.minWidth = 200f;
+            rightPane.style.flexBasis = 0f;
+            rightPane.style.minWidth = 360f;
             rightPane.style.minHeight = 0f;
 
             preview = new IMGUIContainer(() => DrawPreview(s));
@@ -277,7 +302,7 @@ namespace Laubrary.PyrePlus.Editor
                     s.previewGifScale = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8);
                     EditorUtility.SetDirty(spec);
                 }, 150f, showValue: true, decimals: 0));
-            transportHost.Add(WrapRow(kids.ToArray()));
+            transportHost.Add(Z.HGroup(kids.ToArray()));   // Play + Frame/Strip/Tile/GIF/Scale as one wrapping unit-row
 
             // ── frame scrubber (transport parity with Pyre1's scrub field) ──────────────────────
             // A 1-based int slider over the whole frame range that drives the transport `frame`. Dragging it PAUSES
@@ -372,8 +397,13 @@ namespace Laubrary.PyrePlus.Editor
             var box = Z.BoxKeyed("Canvas", "The output resolution, frame count, seed and background.", "pyreplus.canvas");
             box.Add(WrapRow(
                 Z.MicroSlider("Size", s.canvasSize, 16f, 256f,
-                    "Square canvas size in pixels.",
-                    v => Dirty(() => s.canvasSize = Mathf.Clamp(Mathf.RoundToInt(v), 16, 256)), 150f,
+                    "Square canvas size in pixels. Every pixel-ranged dial (Shape size, shape Scale, offsets, "
+                    + "Streak length…) scales its maximum off this, so changing it rebuilds the pane to refresh "
+                    + "those ranges.",
+                    // A full Rebuild() so every canvasSize-derived control range (Size / Scale / Streak / Snap /
+                    // offsets) re-reads the new canvas. NOTE: Rebuild() re-creates this slider, so a continuous
+                    // DRAG breaks after the first step — set the canvas size by click or repeated drags.
+                    v => { Dirty(() => s.canvasSize = Mathf.Clamp(Mathf.RoundToInt(v), 16, 256)); Rebuild(); }, 150f,
                     showValue: true, decimals: 0),
                 Z.MicroSlider("PPU", s.pixelsPerUnit, 1f, 64f,
                     "Pixels per unit for the baked sprite.",
@@ -593,9 +623,9 @@ namespace Laubrary.PyrePlus.Editor
                     Z.Field("Clip by",
                         "Multiply THIS layer's opacity by a mask channel an EARLIER (lower) layer wrote — None = no "
                         + "clipping. The layer then only shows where that channel is bright.",
-                        Z.Dropdown(Mathf.Clamp(sel.clipByChannel + 1, 0, 4), ClipChannelChoices,
+                        Z.MiniRadio(Mathf.Clamp(sel.clipByChannel + 1, 0, 4), ClipChannelChoices.ToArray(),
                             "None, or channel 0–3 written by a Write-matte layer below this one. This layer is clipped to it.",
-                            v => Dirty(() => sel.clipByChannel = v - 1), 100f)),
+                            v => Dirty(() => sel.clipByChannel = v - 1), wrap: true)),
                     Z.Toggle("Invert",
                         "Clip by (1 − channel) instead — show where the mask is DARK, hide where it's bright.",
                         sel.clipInvert, v => Dirty(() => sel.clipInvert = v))));
@@ -628,13 +658,12 @@ namespace Laubrary.PyrePlus.Editor
             s.alpha ??= new ZUIValue(1f);
             s.shapeFill ??= new ZuiFill();   // defensive; the real OverLife-fire default comes from the spec factory
 
-            // FORM selector — Disc / Gem / Crescent / Sparkle / Sprite / Box / Pyramid / Can. A Dropdown, NOT an
-            // 8-wide Segmented row: content-sized segments (ZuiSegmented is flex-shrink:0 and never wraps) would
-            // overflow the 360px pane into a horizontal scrollbar (ui-layout-rules: "A horizontal scrollbar is a
-            // smell"); this also matches the Swarm section's own shape-kind Dropdown. Rebuild so the form-specific
-            // rows swap in/out.
+            // FORM selector — a wrapped MiniRadio (was a Dropdown/context-menu): 13 short labels read as radio
+            // buttons folding across several lines. ZuiSegmented would overflow (flex-shrink:0, never wraps), but
+            // MiniRadio wrap:true reflows to the column width — and the column can now widen (ColumnFlow). Rebuild
+            // so the form-specific rows swap in/out.
             shapeBody.Add(Z.Field("Form", "The particle's rendered form.",
-                Z.Dropdown((int)s.shapeForm, ShapeFormChoices,
+                Z.MiniRadio((int)s.shapeForm, ShapeFormChoices.ToArray(),
                     "Disc = a flat soft disc. Gem = a true-3D lit crystal. Crescent = a disc with an offset bite. "
                     + "Sparkle = twinkling lit cells. Sprite = a stamped image. Box / Pyramid / Can = true-3D lit "
                     + "solids sharing the Gem's facet lighting (tilt, light, edge lines, glows). Orb = a lit "
@@ -644,7 +673,7 @@ namespace Laubrary.PyrePlus.Editor
                     + "forward along its orientation (great with the Swarm's Orient). Star = a filled star polygon "
                     + "(arms, reach, base width, swirl).",
                     // Rebuild BOTH sections: Text swaps in its own Shape box AND hides the Swarm's Count field.
-                    v => { Dirty(() => s.shapeForm = (ShapeForm)v); RebuildShape(); RebuildSwarm(); }, 150f)));
+                    v => { Dirty(() => s.shapeForm = (ShapeForm)v); RebuildShape(); RebuildSwarm(); }, wrap: true)));
 
             // Shared rows. For the Gem, Colour is its material tint and Size is its girdle radius; for the Sprite,
             // Colour is the optional tint. TEXT takes its colour from its own Fill / Border gradients instead, so
@@ -659,9 +688,11 @@ namespace Laubrary.PyrePlus.Editor
                     new ZuiFillControl.Options().WithWidth(190f).WithGrow(2.2f)));
             shapeBody.Add(Val("Alpha", "Opacity over the particle's own life (multiplies the final output alpha).", s.alpha, 0f, 1f));
             // Size drives every form's scale — except the Streak, which has its OWN Length/Width envelopes, so the
-            // shared Size row is hidden for it (a dead control would be clutter per the layout rules).
+            // shared Size row is hidden for it (a dead control would be clutter per the layout rules). Its max is
+            // the CANVAS size (not a fixed 32) so a big canvas can hold a big particle — the Canvas Size slider
+            // rebuilds the pane to refresh this.
             if (s.shapeForm != ShapeForm.Streak)
-                shapeBody.Add(Val("Size (px)", SizeTooltip(s.shapeForm), s.size, 0f, 32f));
+                shapeBody.Add(Val("Size (px)", SizeTooltip(s.shapeForm), s.size, 0f, spec.canvasSize));
 
             // Form-specific rows. Edge softness applies to Disc (its rim) and Crescent (BOTH rims); Gem/Sparkle/
             // Sprite don't use it, so it's hidden for them. (EdgeRow is a bare MicroSlider — its own caption is
@@ -744,11 +775,10 @@ namespace Laubrary.PyrePlus.Editor
             // ── per-form geometry ──
             if (s.shapeForm == ShapeForm.Gem)
             {
-                box.Add(Z.MicroSlider("Sides", s.gemSides, 3f, 8f,
-                    "Girdle vertex count — 4 is the classic octahedral gem; more sides make a rounder crystal.",
-                    v => Dirty(() => s.gemSides = Mathf.Clamp(Mathf.RoundToInt(v), 3, 8)), 150f, showValue: true, decimals: 0));
-
-                box.Add(WrapRow(
+                box.Add(Z.HGroup(
+                    Z.MicroSlider("Sides", s.gemSides, 3f, 8f,
+                        "Girdle vertex count — 4 is the classic octahedral gem; more sides make a rounder crystal.",
+                        v => Dirty(() => s.gemSides = Mathf.Clamp(Mathf.RoundToInt(v), 3, 8)), 150f, showValue: true, decimals: 0),
                     Z.MicroSlider("Crown", s.gemCrown, 0.2f, 2.5f,
                         "Crown height (the top point) as a fraction of the gem's radius.",
                         v => Dirty(() => s.gemCrown = v), 150f, showValue: true),
@@ -947,11 +977,11 @@ namespace Laubrary.PyrePlus.Editor
             shapeBody.Add(Val("Length (px)",
                 "The streak's length forward (from its root) in pixels, over the particle's own life. Author a "
                 + "Curve to make it shoot out then ease shorter — the default comet-tail arc.",
-                s.streakLength, 0f, 48f));
+                s.streakLength, 0f, spec.canvasSize));   // max = the canvas, so a big canvas gets a long streak
 
             shapeBody.Add(WrapRow(
                 Val("Width (px)", "The streak's thickness across, in pixels, over the particle's own life.",
-                    s.streakWidth, 0f, 16f),
+                    s.streakWidth, 0f, spec.canvasSize / 4f),   // width max = a quarter-canvas (keeps the old 64→16 feel)
                 Z.MicroSlider("Back", s.streakBackFrac, 0f, 1f,
                     "How far the streak spills BEHIND its root, as a fraction of its length (0 = starts exactly at "
                     + "the root; 1 = a full length behind it).",
@@ -975,7 +1005,7 @@ namespace Laubrary.PyrePlus.Editor
             s.starBaseWidth ??= new ZUIValue(1f);
             s.starSkew ??= new ZUIValue(0f);
 
-            shapeBody.Add(WrapRow(
+            shapeBody.Add(Z.HGroup(
                 Z.MicroSlider("Arms", s.starArms, 2f, 20f,
                     "How many points the star has (2–20). 5 = the classic five-pointed star; 6 = a Star of David.",
                     v => Dirty(() => s.starArms = Mathf.Clamp(Mathf.RoundToInt(v), 2, 20)), 150f,
@@ -986,7 +1016,7 @@ namespace Laubrary.PyrePlus.Editor
                     + "never crosses a tip.)",
                     s.starSkew, -60f, 60f)));
 
-            shapeBody.Add(WrapRow(
+            shapeBody.Add(Z.HGroup(
                 Val("Length",
                     "How far the arm tips reach out, 0..1, over the particle's own life — the inner (valley) radius "
                     + "is R·(1−length), so higher = longer, sharper arms (0.62 ≈ the classical pentagram).",
@@ -1036,20 +1066,21 @@ namespace Laubrary.PyrePlus.Editor
                 + "spreads them apart. (Only affects the swarm-off line; a swarm places letters by its own shape.)",
                 v => Dirty(() => s.textSpacing = v), 150f, showValue: true));
 
-            box.Add(WrapRow(
-                Z.Field("Sweep",
-                    "How the Fill's gradient is swept across the letters. Per-char gradient = each letter contains "
-                    + "the whole gradient. Per-char step = each letter one flat colour along the gradient, by index. "
-                    + "Text gradient = one gradient swept across the whole line (degrades to per-char step when the "
-                    + "Swarm is on — there's no line to sweep). Text takes its colour from the Fill below, NOT the "
-                    + "Colour gradient above. (A Solid or textured Fill ignores this — see the Fill.)",
-                    Z.Dropdown((int)s.textFillMode, TextFillModeChoices,
-                        "How the Fill's gradient is swept: per-char gradient / per-char step / one gradient across the whole line.",
-                        v => Dirty(() => s.textFillMode = (TextFillMode)v), 130f)),
-                Z.MicroSlider("Angle", s.textGradientAngle, -180f, 180f,
-                    "Rotates the fill axis. 0 = vertical bottom→top for per-char gradient; 0 = left→right across "
-                    + "the line for text gradient. (Per-char step is index-based and ignores it.)",
-                    v => Dirty(() => s.textGradientAngle = v), 150f, showValue: true)));
+            // Sweep is a wrapped MiniRadio (was a Dropdown/context-menu): three modes read as radio buttons that
+            // fold onto a second line in a narrow column. On its own row (the labels are long), with Angle below.
+            box.Add(Z.Field("Sweep",
+                "How the Fill's gradient is swept across the letters. Per-char gradient = each letter contains "
+                + "the whole gradient. Per-char step = each letter one flat colour along the gradient, by index. "
+                + "Text gradient = one gradient swept across the whole line (degrades to per-char step when the "
+                + "Swarm is on — there's no line to sweep). Text takes its colour from the Fill below, NOT the "
+                + "Colour gradient above. (A Solid or textured Fill ignores this — see the Fill.)",
+                Z.MiniRadio((int)s.textFillMode, TextFillModeChoices.ToArray(),
+                    "How the Fill's gradient is swept: per-char gradient / per-char step / one gradient across the whole line.",
+                    v => Dirty(() => s.textFillMode = (TextFillMode)v), wrap: true)));
+            box.Add(Z.MicroSlider("Angle", s.textGradientAngle, -180f, 180f,
+                "Rotates the fill axis. 0 = vertical bottom→top for per-char gradient; 0 = left→right across "
+                + "the line for text gradient. (Per-char step is index-based and ignores it.)",
+                v => Dirty(() => s.textGradientAngle = v), 150f, showValue: true));
 
             box.Add(FillRow("Fill",
                 "The letter fill — a solid colour, a gradient (swept per the Sweep mode above), or a texture "
@@ -1080,7 +1111,9 @@ namespace Laubrary.PyrePlus.Editor
 
         // ── Swarm ──────────────────────────────────────────────────────────────────
         // The section is a stable header + a body container we clear/refill on every toggle/mode/kind
-        // change, so the conditional controls appear/disappear without rebuilding the whole window.
+        // change, so the conditional controls appear/disappear without rebuilding the whole window. The section
+        // itself is held so RebuildSwarm can rebind its HEADER checkbox (the swarm enable) to the selected layer.
+        ZuiSection swarmSection;
         VisualElement swarmBody;
         static readonly string[] SwarmModeLabels = { "Area", "Path" };
         static readonly string[] SwarmOrientLabels = { "None", "Outward", "Tangent" };
@@ -1088,7 +1121,7 @@ namespace Laubrary.PyrePlus.Editor
 
         void BuildSwarm(VisualElement root, PyrePlusSpec s)
         {
-            var swarmSection = Z.Section("Swarm", "Place many particles in a shape instead of one centred particle.");
+            swarmSection = Z.Section("Swarm", "Place many particles in a shape instead of one centred particle.");
             swarmBody = new VisualElement();
             swarmSection.Add(swarmBody);
             root.Add(swarmSection);
@@ -1101,13 +1134,15 @@ namespace Laubrary.PyrePlus.Editor
             if (s == null || swarmBody == null) { swarmBody?.Clear(); return; }
             swarmBody.Clear();
 
-            // The single gate: off ⇒ exactly one centred particle (Shape alone); nothing else shown. For the Text
-            // form the count is the STRING LENGTH, so its Count field is hidden below.
-            swarmBody.Add(Z.Toggle("Swarm",
+            // The swarm enable is a HEADER checkbox on the section (swarm DATA, not view state — the view system
+            // only captures ZuiBoxes, and this sits on a ZuiSection), rebound to the SELECTED layer every rebuild.
+            // Off ⇒ exactly one centred particle (Shape alone); the body shows nothing. For the Text form the count
+            // is the STRING LENGTH, so its Count field is hidden below.
+            swarmSection?.SetHeaderToggle(s.swarmEnabled,
                 "Off = one centred particle (the Shape section alone; Text = one centred line). On = Count particles "
                 + "placed in a shape. For the Text form the particle count is the number of characters, so Count is "
                 + "hidden — each letter rides one swarm position.",
-                s.swarmEnabled, v => { Dirty(() => s.swarmEnabled = v); RebuildSwarm(); }));
+                v => { Dirty(() => s.swarmEnabled = v); RebuildSwarm(); });
             if (!s.swarmEnabled) return;
 
             // Dual spawn-path visualisation (P4): two independent overlay toggles — the authored Shape (outline +
@@ -1115,7 +1150,7 @@ namespace Laubrary.PyrePlus.Editor
             // cosmetic preview aids on the SPEC (never baked; they never re-render the frames → DirtyRepaintOnly),
             // and both may be on at once. Neither on = no overlay at all. (Spec-level, not per-layer: the overlay
             // is a single global aid that follows whichever layer is selected.)
-            swarmBody.Add(WrapRow(
+            swarmBody.Add(Z.HGroup(
                 Z.Toggle("Show shape",
                     "Draw the authored spawn shape — its outline, the drag handle and a numbered dot at every "
                     + "particle's actual spawn point.",
@@ -1139,7 +1174,7 @@ namespace Laubrary.PyrePlus.Editor
                 "How long each particle lives, as a fraction of the timeline. Its colour/alpha/size envelopes "
                 + "always play over ITS OWN life, not the timeline.",
                 v => Dirty(() => s.swarmParticleLife = v), 150f, showValue: true));
-            swarmBody.Add(WrapRow(baseRow.ToArray()));
+            swarmBody.Add(Z.HGroup(baseRow.ToArray()));
 
             // Timing mode (G3): Window spreads the spawns across a fraction of the timeline; Frames spawns the first
             // particle on a chosen frame, then one more every N frames. Rebuild on change so the mode's own rows
@@ -1150,18 +1185,14 @@ namespace Laubrary.PyrePlus.Editor
 
             if (s.swarmTiming == SwarmTiming.Window)
             {
-                swarmBody.Add(Z.MicroSlider("Spawn window", s.swarmSpawnWindow, 0f, 1f,
-                    "The slice of the timeline during which new particles appear (0 = all at frame 1, "
-                    + "1 = spawning continues to the last frame). WHEN each one appears inside the window is set "
-                    + "by Spawn timing.",
-                    v => Dirty(() => s.swarmSpawnWindow = v), 150f, showValue: true));
-
-                // WHEN each particle spawns inside the window — the particle-number → spawn-moment remap.
+                // Spawn timing IS the whole timing mapping now (the old Spawn window scale is gone — it was just a
+                // scale of this curve). X = WHICH particle, value = WHEN on the TIMELINE it spawns.
                 swarmBody.Add(Val("Spawn timing",
-                    "Remaps WHEN each particle spawns inside the Spawn window. The X axis is WHICH particle "
-                    + "(0 = the first spawned, 1 = the last); the value is WHEN it spawns (0 = the window's start, "
-                    + "1 = its end). Linear = evenly spread (the default); ease it for a burst then a trickle; a flat "
-                    + "Static value spawns them all together at that moment; MinMax gives every particle a random moment.",
+                    "Maps WHICH particle (X: 0 = the first spawned, 1 = the last) to WHEN it spawns on the "
+                    + "timeline (value: 0 = frame 1, 1 = the last frame). End the curve low to finish spawning "
+                    + "early — the default (0→0.5) spreads the spawns across the first half. Linear = evenly "
+                    + "spread; ease it for a burst then a trickle; a flat Static value spawns them all together "
+                    + "at that moment; MinMax gives every particle a random moment.",
                     s.swarmSpawnTiming, 0f, 1f));
             }
             else
@@ -1186,22 +1217,23 @@ namespace Laubrary.PyrePlus.Editor
             string kindTip = "The swarm's outline — a regular polygon by side count (Circle = ∞ sides)"
                 + (s.swarmSpawnMode == SwarmSpawnMode.Path ? ", or a hand-drawn Custom path." : ".");
 
-            swarmBody.Add(WrapRow(
-                Z.Field("Mode", modeTip,
-                    Z.Segmented((int)s.swarmSpawnMode, SwarmModeLabels, modeTip, v =>
+            swarmBody.Add(Z.Field("Mode", modeTip,
+                Z.Segmented((int)s.swarmSpawnMode, SwarmModeLabels, modeTip, v =>
+                {
+                    Dirty(() =>
                     {
-                        Dirty(() =>
-                        {
-                            s.swarmSpawnMode = (SwarmSpawnMode)v;
-                            // Custom has no meaning in Area — snap it back to Circle so data + renderer agree.
-                            if (s.swarmSpawnMode == SwarmSpawnMode.Area && s.swarmShapeKind == SwarmShapeKind.Custom)
-                                s.swarmShapeKind = SwarmShapeKind.Circle;
-                        });
-                        RebuildSwarm();
-                    })),
-                Z.Field("Shape", kindTip,
-                    Z.Dropdown((int)s.swarmShapeKind, kindChoices, kindTip,
-                        v => { Dirty(() => s.swarmShapeKind = (SwarmShapeKind)v); RebuildSwarm(); }, 120f))));
+                        s.swarmSpawnMode = (SwarmSpawnMode)v;
+                        // Custom has no meaning in Area — snap it back to Circle so data + renderer agree.
+                        if (s.swarmSpawnMode == SwarmSpawnMode.Area && s.swarmShapeKind == SwarmShapeKind.Custom)
+                            s.swarmShapeKind = SwarmShapeKind.Circle;
+                    });
+                    RebuildSwarm();
+                })));
+            // Shape kind is a wrapped MiniRadio (was a Dropdown/context-menu) — 5–6 short labels read as radio
+            // buttons folding onto a second line in a narrow column; on its own row since it's a multi-item control.
+            swarmBody.Add(Z.Field("Shape", kindTip,
+                Z.MiniRadio((int)s.swarmShapeKind, kindChoices.ToArray(), kindTip,
+                    v => { Dirty(() => s.swarmShapeKind = (SwarmShapeKind)v); RebuildSwarm(); }, wrap: true)));
 
             // Per-particle FACING as each is placed (S1). Rebuild on change so the composed tooltip re-reads the
             // current mode (Tangent means something different in Area vs Path).
@@ -1275,11 +1307,11 @@ namespace Laubrary.PyrePlus.Editor
             xform.Add(WrapRow(
                 Val("Scale (px)", "The shape's radius in canvas pixels. Animating this does NOT resize placed "
                     + "particles — each takes the radius at its own spawn moment, so a growing curve leaves a "
-                    + "trail of expanding rings.", s.shapeScale, 0f, 64f),
-                Z.MicroSlider("Snap", s.shapeScaleSnap, 0f, 32f,
+                    + "trail of expanding rings.", s.shapeScale, 0f, spec.canvasSize),   // max = canvas (was 64)
+                Z.MicroSlider("Snap", s.shapeScaleSnap, 0f, spec.canvasSize * 0.25f,
                     "Round the evaluated scale to the nearest multiple of this, so placements land on "
                     + "fixed radii. 0 = off.",
-                    v => Dirty(() => s.shapeScaleSnap = Mathf.Clamp(v, 0f, 32f)), 150f, showValue: true)));
+                    v => Dirty(() => s.shapeScaleSnap = Mathf.Clamp(v, 0f, spec.canvasSize * 0.25f)), 150f, showValue: true)));
             xform.Add(Val("Rotation °",
                 "Spin the whole shape in the canvas plane, in degrees. Animating this does NOT spin placed "
                 + "particles — each particle takes the value at its own spawn moment, so a rising curve spreads "

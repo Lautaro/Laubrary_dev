@@ -28,8 +28,8 @@ namespace Laubrary.PyrePlus
     // orientDeg + PyrePlusRenderer's per-form fold.
     public enum SwarmOrient { None, Outward, PathTangent }
 
-    // How the swarm distributes its spawns IN TIME. Window (the default) = the pre-existing behaviour: spread the
-    // N spawns across a fraction of the blast timeline (swarmSpawnWindow), remapped by swarmSpawnTiming. FrameStep =
+    // How the swarm distributes its spawns IN TIME. Window (the default) = the swarmSpawnTiming envelope maps each
+    // particle's number to its spawn moment on the blast timeline (it IS the whole mapping now). FrameStep =
     // spawn the first particle at frame `swarmFirstFrame`, then one more every `swarmFrameStep` frames until the
     // count is fulfilled (step 0 = all on that one frame). Default Window keeps a default swarm byte-identical.
     public enum SwarmTiming { Window, FrameStep }
@@ -289,12 +289,14 @@ namespace Laubrary.PyrePlus
         public ZUIValue swarmCustomX = DefaultCustomX();
         public ZUIValue swarmCustomY = DefaultCustomY();
         public ZUIValue swarmProgress = DefaultProgress();              // Path only: 0 = shape start, 1 = once around (wraps past 1 on closed shapes); sampled per-particle at its spawn frame
-        [Range(0f, 1f)] public float swarmSpawnWindow = 0.5f;           // fraction of the blast timeline the N spawns spread across (0 = all at frame 0)
-        // WHEN each particle spawns INSIDE the window: maps a particle's number (0 = first, 1 = last) to its
-        // spawn moment (0 = window start, 1 = window end). Linear (the default) = evenly spread, exactly the
-        // pre-timing behaviour; an eased curve = burst-then-trickle (or the reverse); MinMax = every particle at
-        // a random moment; a flat Static value s = all particles spawn together at moment s. Default Curve,
-        // linear (0,0)→(1,1) — the renderer's IsLinear01 fast path keeps a default swarm byte-identical.
+        // The swarm's spawn TIMING: maps a particle's number (0 = the first spawned, 1 = the last) to its spawn
+        // moment on the blast TIMELINE (0 = frame 0, 1 = the last frame). This envelope is the WHOLE mapping now —
+        // the old swarmSpawnWindow scale is gone (it was just a scale of this curve). End the curve low to finish
+        // spawning early: the default (0,0)→(1,0.5) spreads the N spawns across the first half of the timeline.
+        // Linear = evenly spread; an eased curve = burst-then-trickle (or the reverse); MinMax = every particle at
+        // a random moment; a flat Static value s = all particles spawn together at moment s. The renderer's two-
+        // point (0,0)→(1,K) fast path uses K·i/(n-1) verbatim (the old window·i/(n-1) with the endpoint K in
+        // window's place), so the default swarm stays byte-identical.
         public ZUIValue swarmSpawnTiming = DefaultSpawnTiming();
         // Frame-step spawn timing (G3): an alternative to the Window/timing pair above, chosen by swarmTiming.
         // FrameStep places the first particle on frame swarmFirstFrame, then one more every swarmFrameStep frames
@@ -497,13 +499,14 @@ namespace Laubrary.PyrePlus
 
         static ZUIValue DefaultSpawnTiming()
         {
-            // Linear identity (0,0)→(1,1): particle number maps straight to spawn moment, so the N spawns spread
-            // evenly across the window — identical to the pre-timing distribution. Same shape as DefaultProgress;
-            // the renderer detects this exact curve (IsLinear01) and short-circuits to the byte-identical fast path.
+            // (0,0)→(1,0.5): particle number maps to its spawn moment on the TIMELINE, finishing the swarm's
+            // spawns halfway through — the old default's window 0.5 × linear timing folded into one envelope now
+            // that swarmSpawnWindow is gone. The renderer's two-point (0,0)→(1,K) fast path reads K = 0.5 and
+            // computes 0.5·i/(n-1) verbatim, byte-identical to the old window·i/(n-1).
             var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
             v.points.Clear();
             v.points.Add(new ZUIEnvelopePoint(0f, 0f));
-            v.points.Add(new ZUIEnvelopePoint(1f, 1f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 0.5f));
             return v;
         }
 
