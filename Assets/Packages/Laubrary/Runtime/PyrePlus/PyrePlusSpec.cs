@@ -65,8 +65,14 @@ namespace Laubrary.PyrePlus
         // paired point onto both, and the renderer just evaluates both at progress p to get the path position.
         public ZUIValue swarmCustomX = DefaultCustomX();
         public ZUIValue swarmCustomY = DefaultCustomY();
-        public ZUIValue swarmProgress = DefaultProgress();              // Path only: 0 = shape start, 1 = once around; sampled per-particle at its spawn frame
+        public ZUIValue swarmProgress = DefaultProgress();              // Path only: 0 = shape start, 1 = once around (wraps past 1 on closed shapes); sampled per-particle at its spawn frame
         [Range(0f, 1f)] public float swarmSpawnWindow = 0.5f;           // fraction of the blast timeline the N spawns spread across (0 = all at frame 0)
+        // WHEN each particle spawns INSIDE the window: maps a particle's number (0 = first, 1 = last) to its
+        // spawn moment (0 = window start, 1 = window end). Linear (the default) = evenly spread, exactly the
+        // pre-timing behaviour; an eased curve = burst-then-trickle (or the reverse); MinMax = every particle at
+        // a random moment; a flat Static value s = all particles spawn together at moment s. Default Curve,
+        // linear (0,0)→(1,1) — the renderer's IsLinear01 fast path keeps a default swarm byte-identical.
+        public ZUIValue swarmSpawnTiming = DefaultSpawnTiming();
         [Range(0.05f, 1f)] public float swarmParticleLife = 0.5f;       // each particle's own life duration as a fraction of the blast timeline
 
         // Shared shape transform — ALL per-spawn-snapshot animatables. T1 renderer uses only shapeScale; the rest land in T3.
@@ -129,6 +135,18 @@ namespace Laubrary.PyrePlus
         {
             // Path mode: a linear 0→1 ramp — 0 = shape start, 1 = once around. An authored envelope can
             // ease/hold/rewind so spawns cluster or spread, each sampling it at its own spawn frame.
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, 0f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 1f));
+            return v;
+        }
+
+        static ZUIValue DefaultSpawnTiming()
+        {
+            // Linear identity (0,0)→(1,1): particle number maps straight to spawn moment, so the N spawns spread
+            // evenly across the window — identical to the pre-timing distribution. Same shape as DefaultProgress;
+            // the renderer detects this exact curve (IsLinear01) and short-circuits to the byte-identical fast path.
             var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
             v.points.Clear();
             v.points.Add(new ZUIEnvelopePoint(0f, 0f));

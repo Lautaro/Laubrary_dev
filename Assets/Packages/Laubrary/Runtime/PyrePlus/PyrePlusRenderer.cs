@@ -46,6 +46,13 @@ namespace Laubrary.PyrePlus
         const int FldPathY = 13;     // per-particle position-path Y, own life            [T7]
         const int FldCustomX = 14;   // swarmCustomX — Custom Path X(progress), sampled at progress p [T2]
         const int FldCustomY = 15;   // swarmCustomY — Custom Path Y(progress), sampled at progress p [T2]
+        // NEGATIVE-ID RULE for NEW single fields: ids 1..15 above are taken and 16+ belongs to the per-modifier
+        // 8-wide blocks (below), so any brand-new single-field id must be NEGATIVE (-2, -3, …). The value -1 is
+        // already spoken for by ModParticleIndex, but that is a *particleIndex* (the `b` slot of Hash), a
+        // DIFFERENT argument slot from a field id (the `c` slot); a negative FIELD id can therefore never collide
+        // with the -1 particle sentinel, nor with any positive field/modifier id. Real particles are 0..N-1, so a
+        // field keyed (particle i≥0, fid<0) shares no RNG stream with a modifier's (particle -1, fid≥16) draw.
+        const int FldSpawnTiming = -2;   // swarmSpawnTiming — remaps a particle's number → its spawn moment [F3]
         // Modifiers (T6): each PyreModifier in spec.modifiers owns an 8-wide field-id BLOCK starting at
         // FldModifier + listIndex*8, so a modifier's local field id (its Prepare's fid, 0..7) maps to
         // FldModifier + listIndex*8 + fid. Since every modifier has a distinct list index the blocks never
@@ -263,8 +270,23 @@ namespace Laubrary.PyrePlus
 
             for (int i = 0; i < n; i++)
             {
-                // Even spawn distribution across the window; particle 0 at 0. n ≥ 2 so (n-1) ≥ 1.
-                float spawnLife = window * i / (n - 1);
+                // Spawn moment inside the window, remapped by swarmSpawnTiming. IsLinear01 recognises the default
+                // (Curve, linear 0→1) — and a null field (legacy asset) is treated the same — and takes the EXACT
+                // fast path, computing spawnLife with the pre-timing arithmetic `window * i / (n-1)` VERBATIM, so a
+                // default/linear-timed swarm stays byte-identical (the orchestrator hash-checks this; re-associating
+                // the multiply as window*(i/(n-1)) would risk ULP drift for non-power-of-two windows). A non-linear
+                // curve instead remaps the even fraction `frac` (0 = first particle, 1 = last) to a spawn moment t
+                // in [0,1]; MinMax makes each particle's moment a per-particle random draw; Static s clusters them
+                // all at s. n ≥ 2 so (n-1) ≥ 1. particle 0 lands at spawnLife 0 in the linear case.
+                float spawnLife;
+                if (spec.swarmSpawnTiming == null || IsLinear01(spec.swarmSpawnTiming))
+                    spawnLife = window * i / (n - 1);
+                else
+                {
+                    float frac = i / (float)(n - 1);
+                    float t = Mathf.Clamp01(Eval(spec.swarmSpawnTiming, frac, spec.seed, i, FldSpawnTiming));
+                    spawnLife = window * t;
+                }
 
                 // SPAWN-TIME SNAPSHOT — the ENTIRE shape transform (radius, offset, rotation, pitch, yaw) is
                 // evaluated at THIS particle's spawn life, NOT the current frame, so an animated transform leaves a
@@ -373,16 +395,28 @@ namespace Laubrary.PyrePlus
             // retroactively sliding already-placed particles. A MinMax swarmProgress falls out of Eval as a
             // per-particle random point along the path (no special-casing). Path mode uses NO disc randomness of
             // its own — the only randomness is whatever mode swarmProgress itself is in.
-            float p = Mathf.Clamp01(Eval(spec.swarmProgress, spawnLife, spec.seed, i, FldProgress));
+            float pRaw = Eval(spec.swarmProgress, spawnLife, spec.seed, i, FldProgress);
 
             if (kind == SwarmShapeKind.Custom)
             {
-                // The two envelopes ARE the path: x(p), y(p) as canvas-pixel offsets from the centre, sampled at
-                // progress p. Open (not wrapped): p=0 is the path's start, p=1 its end.
-                float ox = Eval(spec.swarmCustomX, p, spec.seed, i, FldCustomX);
-                float oy = Eval(spec.swarmCustomY, p, spec.seed, i, FldCustomY);
+                // Custom is an OPEN polyline (it has two distinct ends), so progress CLAMPS — p<0 pins to the
+                // start, p>1 pins to the end. The two envelopes ARE the path: x(p), y(p) as canvas-pixel offsets
+                // from the centre, sampled at progress p. p=0 is the path's start, p=1 its end.
+                float pc = Mathf.Clamp01(pRaw);
+                float ox = Eval(spec.swarmCustomX, pc, spec.seed, i, FldCustomX);
+                float oy = Eval(spec.swarmCustomY, pc, spec.seed, i, FldCustomY);
                 return new Vector2(cx + ox, cy + oy);
             }
+
+            // Closed shapes (Circle + regular N-gons) WRAP instead of clamping, so the spawn point can run around
+            // the outline more than once: p above 1 means extra laps. The fractional part p - floor(p) keeps p in
+            // [0,1); it sends every integer to the path start (0) and folds negatives up too (floor(-0.3) = -1 →
+            // 0.7). BYTE-IDENTITY: for p in [0,1) floor(p) is exactly 0, so p is unchanged — identical to the old
+            // Clamp01(p); at p == 1 exactly wrap gives 0, the SAME position the old Clamp01(1)=1 produced (Circle:
+            // angle π/2, the top; N-gon: vertex 0, the top). So every progress value in [0,1] renders exactly as
+            // before (orchestrator hash-verified), and only progress OUTSIDE [0,1] — previously unreachable under
+            // Clamp01 — newly maps onto further laps.
+            float p = pRaw - Mathf.Floor(pRaw);
 
             if (kind == SwarmShapeKind.Circle)
             {
@@ -398,7 +432,7 @@ namespace Laubrary.PyrePlus
             float t = p * n;
             int k = (int)t;
             float frac = t - k;
-            if (k >= n) { k = n - 1; frac = 1f; }        // p == 1 exactly
+            if (k >= n) { k = n - 1; frac = 1f; }        // defensive: wrapped p is < 1 so t < n and this can't fire
             Vector2 a = PolyVertex(cx, cy, r, k, n);
             Vector2 b = PolyVertex(cx, cy, r, k + 1, n); // k+1 may equal n; trig is periodic → vertex 0
             return Vector2.Lerp(a, b, frac);
@@ -624,6 +658,21 @@ namespace Laubrary.PyrePlus
         /// their Evals so a default asset's particle centre (and thus its whole raster) stays byte-identical; a
         /// Curve or MinMax value always evaluates. A null value counts as zero (Eval(null) == 0 too).
         static bool IsStaticZero(ZUIValue v) => v == null || (v.mode == ZUIValue.Mode.Static && v.staticValue == 0f);
+
+        /// True when a value is EXACTLY the default linear identity — Curve mode, exactly two points, p0 == (0,0)
+        /// and p1 == (1,1). This is the fast-path gate for swarmSpawnTiming: when true the caller skips Eval and
+        /// uses the verbatim pre-timing spawn arithmetic, so a default (or explicitly linear) timing stays
+        /// byte-identical rather than round-tripping through Eval → EnvelopeEvaluator. Exponent is intentionally
+        /// NOT checked — the fast path returns the even fraction directly, so a segment bend on a 2-point (0,0)→
+        /// (1,1) curve is simply treated as the linear it visually approximates; the default factory makes
+        /// exponent 1 anyway. Any non-linear curve / MinMax / non-zero Static returns false and goes through Eval.
+        static bool IsLinear01(ZUIValue v)
+        {
+            if (v == null || v.mode != ZUIValue.Mode.Curve || v.points == null || v.points.Count != 2) return false;
+            var p0 = v.points[0];
+            var p1 = v.points[1];
+            return p0.time == 0f && p0.value == 0f && p1.time == 1f && p1.value == 1f;
+        }
 
         /// Evaluate a ZUIValue for a given particle deterministically — Static reads the value, Curve reads
         /// the envelope at the particle's life, MinMax draws once from a seeded RNG keyed by (seed, index,

@@ -63,10 +63,16 @@ namespace Laubrary.PyrePlus.Editor
             var rct = new Rect(view.center.x - w * 0.5f, view.center.y - h * 0.5f, w, h);
             swarmRect = rct; swarmZoom = zoom;   // feed the one mapping (used by drawing AND hit-testing below)
 
+            // The frame currently on screen, and its normalized life — computed with the SAME formula the renderer
+            // uses (frameIndex → life), so the overlay's outline/handle transform snapshots at the same life the
+            // dots' particles were spawned/evaluated against. Hoisted out of the Repaint block because the overlay
+            // interacts (and re-evaluates the transform) on every event, not only on repaint.
+            int cur = Mathf.Clamp(frame, 0, Mathf.Max(0, s.frameCount - 1));
+            float life = s.frameCount > 1 ? cur / (float)(s.frameCount - 1) : 0f;
+
             if (Event.current.type == EventType.Repaint)
             {
                 EditorGUI.DrawRect(view, new Color(0.1f, 0.1f, 0.12f));
-                int cur = Mathf.Clamp(frame, 0, Mathf.Max(0, s.frameCount - 1));
                 if (previewDirty || cur != lastRenderedFrame || previewTex == null)
                 {
                     if (previewTex != null) DestroyImmediate(previewTex);
@@ -81,22 +87,29 @@ namespace Laubrary.PyrePlus.Editor
 
             // The overlay draws + interacts on every event when the swarm is on; it never fights playback (it
             // only paints over the already-blitted frame texture).
-            if (s.swarmEnabled) DrawSwarmOverlay(view, s);
+            if (s.swarmEnabled) DrawSwarmOverlay(view, s, life);
         }
 
         // ── swarm authoring overlay ───────────────────────────────────────────────────
-        void DrawSwarmOverlay(Rect view, PyrePlusSpec s)
+        // `life` is the CURRENT preview frame's normalized life. The outline/handle transform is snapshotted at
+        // THIS life (not a fixed life 0), so as playback runs the drawn shape visibly rotates / grows / slides
+        // along its authored transform curves — matching the user's feedback that Rotation should make the spawn
+        // path rotate on screen. The spawn dots still come straight from ComputeSpawns (each particle's own
+        // spawn-frame snapshot), so they keep marking real placements while the outline animates over them.
+        void DrawSwarmOverlay(Rect view, PyrePlusSpec s, float life)
         {
-            // The shape a frame-0 particle sees: the whole transform snapshotted at life 0. Mirrors the
-            // renderer's per-particle transform (ComputeSpawns) so the outline/handle geometry matches the dots.
+            // The shape the CURRENT frame presents: the whole transform snapshotted at `life`. Mirrors the
+            // renderer's per-particle transform (ComputeSpawns) so the outline/handle geometry reads the same
+            // curves the dots do. For a Static transform field EvalField(·, life) == EvalField(·, 0) (a constant),
+            // so a Static offset's handle is unaffected and drag stays correct; only animated fields move.
             float cx = s.Width * 0.5f, cy = s.Height * 0.5f;
             float half = Mathf.Max(1f, s.canvasSize * 0.5f);
-            float r = Mathf.Max(0f, EvalField(s.shapeScale, 0f));
+            float r = Mathf.Max(0f, EvalField(s.shapeScale, life));
             if (s.shapeScaleSnap > 0f) r = Mathf.Round(r / s.shapeScaleSnap) * s.shapeScaleSnap;
-            float rot = EvalField(s.shapeRotation, 0f);
-            float yaw = EvalField(s.shapeYaw, 0f);
-            float pitch = EvalField(s.shapePitch, 0f);
-            Vector2 baseOff = new Vector2(EvalField(s.shapeOffsetX, 0f), EvalField(s.shapeOffsetY, 0f));
+            float rot = EvalField(s.shapeRotation, life);
+            float yaw = EvalField(s.shapeYaw, life);
+            float pitch = EvalField(s.shapePitch, life);
+            Vector2 baseOff = new Vector2(EvalField(s.shapeOffsetX, life), EvalField(s.shapeOffsetY, life));
             // The position handle only drags when BOTH offset channels are plain Static numbers; an animated
             // (Curve/MinMax) offset has no single value a drag could set, so it draws hollow + inert.
             bool offsetDraggable = s.shapeOffsetX.mode == ZUIValue.Mode.Static

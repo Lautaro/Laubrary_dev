@@ -214,11 +214,22 @@ namespace Laubrary.PyrePlus.Editor
                     Z.Int(s.swarmCount, "How many particles the swarm places (at least 2).",
                         v => Dirty(() => s.swarmCount = Mathf.Max(2, v)), 60f)),
                 Z.MicroSlider("Spawn window", s.swarmSpawnWindow, 0f, 1f,
-                    "Fraction of the timeline the spawns spread across (0 = all born on frame 0).",
+                    "The slice of the timeline during which new particles appear (0 = all at frame 1, "
+                    + "1 = spawning continues to the last frame). WHEN each one appears inside the window is set "
+                    + "by Spawn timing.",
                     v => Dirty(() => s.swarmSpawnWindow = v), 150f, showValue: true),
                 Z.MicroSlider("Particle life", s.swarmParticleLife, 0.05f, 1f,
-                    "Each particle's own life as a fraction of the timeline.",
+                    "How long each particle lives, as a fraction of the timeline. Its colour/alpha/size envelopes "
+                    + "always play over ITS OWN life, not the timeline.",
                     v => Dirty(() => s.swarmParticleLife = v), 150f, showValue: true)));
+
+            // WHEN each particle spawns inside the window — the particle-number → spawn-moment remap.
+            swarmBody.Add(Val("Spawn timing",
+                "Remaps WHEN each particle spawns inside the Spawn window. The X axis is WHICH particle "
+                + "(0 = the first spawned, 1 = the last); the value is WHEN it spawns (0 = the window's start, "
+                + "1 = its end). Linear = evenly spread (the default); ease it for a burst then a trickle; a flat "
+                + "Static value spawns them all together at that moment; MinMax gives every particle a random moment.",
+                s.swarmSpawnTiming, 0f, 1f));
 
             // Placement geometry: mode (Area vs Path) + the shape kind, packed together.
             string modeTip = "Area = particles fill the shape's interior; Path = particles ride along its outline.";
@@ -247,11 +258,11 @@ namespace Laubrary.PyrePlus.Editor
             // Path-only: the progress envelope, sampled per-particle at its OWN spawn frame → a trail.
             if (s.swarmSpawnMode == SwarmSpawnMode.Path)
             {
-                swarmBody.Add(Val("Progress",
-                    "Where along the outline each particle sits: 0 = shape start, 1 = once around. Each particle "
-                    + "samples this at ITS OWN spawn frame and keeps it for life, so an animated Progress leaves a "
-                    + "trail of placements around the shape rather than sliding the ones already placed.",
-                    s.swarmProgress, 0f, 1f));
+                swarmBody.Add(Val("Spawn travel",
+                    "Where the spawn point sits along the outline at each moment of the timeline (0 = start, "
+                    + "1 = once around; values above 1 = more laps on closed shapes). Each particle LOCKS its spot "
+                    + "at the moment it spawns — ease/hold/rewind this curve to cluster, stall or retrace the trail.",
+                    s.swarmProgress, 0f, 8f));
 
                 // Custom-only: the hand-drawn path — paired X/Y envelopes over progress, canvas-pixel offsets.
                 if (s.swarmShapeKind == SwarmShapeKind.Custom)
@@ -269,26 +280,35 @@ namespace Laubrary.PyrePlus.Editor
             // Shared shape transform — every field a per-spawn snapshot (see the box tooltip).
             var xform = Z.Box("Transform",
                 "Offset, size, rotation and pseudo-3D tilt of the whole shape. Every field is a per-spawn "
-                + "SNAPSHOT: each particle samples it at its own spawn frame, so animating leaves a trail "
-                + "instead of sliding particles already placed.");
+                + "SNAPSHOT: each particle reads it at its OWN spawn moment and keeps that value for life. "
+                + "Animating a field therefore does NOT move particles already placed — it spreads a TRAIL of new "
+                + "spawns along the curve (rotate past 360, or travel past once-around, for several laps).");
             xform.Add(Val2D("Offset",
-                "Shape-centre offset in canvas pixels — drag to move the whole shape off the origin.",
+                "Shape-centre offset in canvas pixels — drag to move the whole shape off the origin. Animating it "
+                + "does NOT slide placed particles; each takes the offset at its own spawn moment, leaving a trail.",
                 s.shapeOffsetX, s.shapeOffsetY,
                 new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero)));
             xform.Add(WrapRow(
-                Val("Scale (px)", "The shape's radius in canvas pixels.", s.shapeScale, 0f, 64f),
+                Val("Scale (px)", "The shape's radius in canvas pixels. Animating this does NOT resize placed "
+                    + "particles — each takes the radius at its own spawn moment, so a growing curve leaves a "
+                    + "trail of expanding rings.", s.shapeScale, 0f, 64f),
                 Z.Field("Snap", "Round the evaluated scale to the nearest multiple of this, so placements land on "
                     + "fixed radii. 0 = off.",
                     Z.Float(s.shapeScaleSnap,
                         "Round the evaluated scale to the nearest multiple of this (0 = off).",
                         v => Dirty(() => s.shapeScaleSnap = Mathf.Max(0f, v)), 50f))));
-            xform.Add(Val("Rotation °", "Spin the whole shape in the canvas plane, in degrees.",
-                s.shapeRotation, -360f, 360f));
+            xform.Add(Val("Rotation °",
+                "Spin the whole shape in the canvas plane, in degrees. Animating this does NOT spin placed "
+                + "particles — each particle takes the value at its own spawn moment, so a rising curve spreads "
+                + "spawns around the shape (several laps if the curve goes past 360).",
+                s.shapeRotation, -1440f, 1440f));
             xform.Add(Val2D("Tilt °",
                 "Pseudo-3D tilt of the whole shape, in degrees: drag X to yaw (turn left/right), Y to pitch "
-                + "(tip up/down). Nearer parts of the tilted shape render bigger and brighter.",
+                + "(tip up/down). Nearer parts of the tilted shape render bigger and brighter. Animating it does "
+                + "NOT re-tilt placed particles; each takes the tilt at its own spawn moment.",
                 s.shapeYaw, s.shapePitch,
-                new ZuiValue2DControl.Options().WithRange(-90f, 90f, -90f, 90f).WithDefault(Vector2.zero)));
+                new ZuiValue2DControl.Options().WithRange(-1440f, 1440f, -1440f, 1440f)
+                    .WithDefault(Vector2.zero).WithAxisLabels("Yaw", "Pitch")));
             swarmBody.Add(xform);
         }
 
