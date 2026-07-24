@@ -42,6 +42,11 @@ namespace Laubrary.PyrePlus.Editor
             tex.Apply();
         }
 
+        // Dial-pane width, draggable via the vertical splitter (mirrors Pyre1). Persists across domain
+        // reloads. The ColumnFlow reads this width, so dragging the divider wider adds columns.
+        [SerializeField] float leftPaneWidth = 360f;
+        ScrollView leftPane;
+
         // preview state
         IMGUIContainer preview;
         Texture2D previewTex;
@@ -124,18 +129,13 @@ namespace Laubrary.PyrePlus.Editor
             split.style.minHeight = 0f;
 
             // ── left: dials ──────────────────────────────────────────────────────
-            // The pane is FLEXIBLE now (was a fixed width 360): one 360px column that grows to host up to four
-            // 360px columns (+ 6px gutters) as the window widens (see Z.ColumnFlow). flexBasis 0 is essential —
-            // without it the ScrollView takes its CONTENT width as its basis and the preview's content basis eats
-            // all the free space, freezing the pane at ~677px (never reaching the 720 two-column threshold). With
-            // basis 0 on BOTH panes the grow ratio (pane 1 : preview 1) governs, so widening the window widens the
-            // pane proportionally; minWidth pins the one-column floor, maxWidth the four-column ceiling.
+            // A FIXED-width pane the user resizes by dragging the vertical splitter (mirrors Pyre1). The width
+            // (leftPaneWidth, persisted) drives the ColumnFlow: drag the divider past 720px and the dial stack
+            // splits into two columns, past 1080 into three, and so on (up to the maxWidth four-column cap).
             var left = new ScrollView(ScrollViewMode.Vertical);
-            left.style.minWidth = 360f;
-            left.style.maxWidth = 4f * 360f + 3f * 6f;   // four 360px columns + three 6px gutters (ZuiColumnFlow's cap)
-            left.style.flexGrow = 1f;
-            left.style.flexBasis = 0f;
-            left.style.flexShrink = 1f;
+            leftPane = left;
+            left.style.width = Mathf.Clamp(leftPaneWidth, 360f, 4f * 360f + 3f * 6f);
+            left.style.flexShrink = 0f;                  // fixed — the preview takes the remaining width
             left.style.minHeight = 0f;
             var dials = left.contentContainer;
             // The ScrollView's content container is content-sized by default; stretch it so the flow fills the pane
@@ -172,12 +172,10 @@ namespace Laubrary.PyrePlus.Editor
             BuildModifiers(flow, s);   // PyrePlusWindow.Modifiers.cs
 
             // ── right: preview + transport + backdrop ────────────────────────────
-            // flexBasis 0 + grow 1 = an EQUAL split with the dial pane (both basis 0), so at a wide window each
-            // gets half — enough for the pane to cross 720 and show two columns while the preview stays large.
+            // The dial pane is a fixed width; the preview takes whatever remains (flexGrow 1).
             var rightPane = new VisualElement();
             rightPane.style.flexGrow = 1f;
-            rightPane.style.flexBasis = 0f;
-            rightPane.style.minWidth = 360f;
+            rightPane.style.minWidth = 260f;
             rightPane.style.minHeight = 0f;
 
             preview = new IMGUIContainer(() => DrawPreview(s));
@@ -195,6 +193,7 @@ namespace Laubrary.PyrePlus.Editor
             rightPane.Add(chrome);
 
             split.Add(left);
+            split.Add(BuildVerticalSplitter());   // drag to resize the dial pane (and change its column count)
             split.Add(rightPane);
             root.style.flexGrow = 1f;
             root.style.minHeight = 0f;
@@ -202,6 +201,28 @@ namespace Laubrary.PyrePlus.Editor
 
             // Whole tree is now under `root`; re-apply the view the user left this window in.
             viewBar.RestoreLast();
+        }
+
+        // A 6px draggable divider between the dial pane and the preview (mirrors Pyre1's splitter). Dragging sets
+        // leftPaneWidth + the pane's fixed width live; the ColumnFlow reads that width, so a wider pane = more
+        // columns. Clamped between one column (360) and the four-column cap (or the window width, whichever is less).
+        VisualElement BuildVerticalSplitter()
+        {
+            var s = new VisualElement { tooltip = "Drag to resize the dial pane (wider = more control columns)." };
+            s.style.width = 6f;
+            s.style.flexShrink = 0f;
+            s.style.backgroundColor = new Color(0f, 0f, 0f, 0.25f);
+            s.RegisterCallback<PointerDownEvent>(e => { if (e.button == 0) { s.CapturePointer(e.pointerId); e.StopPropagation(); } });
+            s.RegisterCallback<PointerMoveEvent>(e =>
+            {
+                if (!s.HasPointerCapture(e.pointerId)) return;
+                float cap = Mathf.Min(4f * 360f + 3f * 6f, Mathf.Max(360f, position.width - 260f));
+                leftPaneWidth = Mathf.Clamp(leftPaneWidth + e.deltaPosition.x, 360f, cap);
+                if (leftPane != null) leftPane.style.width = leftPaneWidth;
+                e.StopPropagation();
+            });
+            s.RegisterCallback<PointerUpEvent>(e => { if (s.HasPointerCapture(e.pointerId)) s.ReleasePointer(e.pointerId); });
+            return s;
         }
 
         // ── saved views (Z2 — the shared ZuiViewBar + committed ZuiViewStore) ──────────
