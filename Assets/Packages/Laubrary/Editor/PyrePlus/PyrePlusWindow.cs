@@ -139,7 +139,7 @@ namespace Laubrary.PyrePlus.Editor
             RebuildShape();
         }
 
-        static readonly string[] ShapeFormLabels = { "Disc", "Gem" };
+        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite" };
 
         void RebuildShape()
         {
@@ -149,14 +149,19 @@ namespace Laubrary.PyrePlus.Editor
 
             s.alpha ??= new ZUIValue(1f);
 
-            // FORM selector — Disc (flat soft disc) vs Gem (true-3D lit crystal). Rebuild so the form-specific
-            // rows swap in/out (Edge softness for Disc; the whole Gem box for Gem).
+            // FORM selector — Disc / Gem / Crescent / Sparkle / Sprite. A Dropdown, NOT a 5-wide Segmented row:
+            // five content-sized segments (ZuiSegmented is flex-shrink:0 and never wraps) would total ~330px and
+            // risk overflowing the 360px pane into a horizontal scrollbar (ui-layout-rules: "A horizontal
+            // scrollbar is a smell"); this also matches the Swarm section's own 5-6-item shape-kind Dropdown.
+            // Rebuild so the form-specific rows swap in/out.
             shapeBody.Add(Z.Field("Form", "The particle's rendered form.",
-                Z.Segmented((int)s.shapeForm, ShapeFormLabels,
-                    "Disc = a flat soft disc. Gem = a true-3D lit faceted crystal.",
-                    v => { Dirty(() => s.shapeForm = (ShapeForm)v); RebuildShape(); })));
+                Z.Dropdown((int)s.shapeForm, ShapeFormChoices,
+                    "Disc = a flat soft disc. Gem = a true-3D lit crystal. Crescent = a disc with an offset bite. "
+                    + "Sparkle = twinkling lit cells. Sprite = a stamped image.",
+                    v => { Dirty(() => s.shapeForm = (ShapeForm)v); RebuildShape(); }, 150f)));
 
-            // Shared rows (both forms). For the Gem, Colour is its material tint and Size is its girdle radius.
+            // Shared rows (all forms). For the Gem, Colour is its material tint and Size is its girdle radius;
+            // for the Sprite, Colour is the optional tint. Size is the radius the form scales to in every case.
             shapeBody.Add(Z.Field("Colour",
                 "Colour over the particle's life (0 = birth, 1 = death). For the Gem form this is the crystal's "
                 + "material tint — a blue gradient reads as a sapphire.",
@@ -166,12 +171,27 @@ namespace Laubrary.PyrePlus.Editor
                 "Radius in pixels over the particle's own life. For the Gem form this is its girdle radius.",
                 s.size, 0f, 32f));
 
-            if (s.shapeForm == ShapeForm.Gem) BuildGemBox(s);
-            else
-                // Edge softness is meaningless for the hard-faceted gem — Disc only.
-                shapeBody.Add(Z.Field("Edge", "Soft rim (1) vs a hard pixel edge (0).",
-                    Z.MicroSlider("Edge", s.edgeSoftness, 0f, 1f, "Soft rim vs hard edge.",
-                        v => Dirty(() => s.edgeSoftness = v), 150f, showValue: true)));
+            // Form-specific rows. Edge softness applies to Disc (its rim) and Crescent (BOTH rims); Gem/Sparkle/
+            // Sprite don't use it, so it's hidden for them. (EdgeRow is a bare MicroSlider — its own caption is
+            // the "Edge" label, so no redundant Z.Field label wrapping it.)
+            switch (s.shapeForm)
+            {
+                case ShapeForm.Gem:
+                    BuildGemBox(s);
+                    break;
+                case ShapeForm.Disc:
+                    shapeBody.Add(EdgeRow(s, "Soft rim (1) vs a hard pixel edge (0)."));
+                    break;
+                case ShapeForm.Crescent:
+                    BuildCrescentRows(s);
+                    break;
+                case ShapeForm.Sparkle:
+                    BuildSparkleRows(s);
+                    break;
+                case ShapeForm.Sprite:
+                    BuildSpriteRows(s);
+                    break;
+            }
 
             // Advanced gate: the particle's OWN motion after birth (opt-in). Toggling rebuilds just this section.
             shapeBody.Add(Z.Toggle("Advanced",
@@ -192,10 +212,12 @@ namespace Laubrary.PyrePlus.Editor
                 s.particlePathX, s.particlePathY,
                 new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero)));
             shapeBody.Add(Val("Spin °",
-                "Degrees the particle rotates over its own life. DISC form: its pixels spin IN PLACE (2D) — needs "
-                + "visual structure to show (a plain disc is radially symmetric; add a geometry/texture Modifier so "
-                + "the spin reads; the pseudo-3D tilt lives on the Swarm shape transform). GEM form: the gem's 3D "
-                + "YAW about its vertical axis, turning the crystal so its facets sweep past the light.",
+                "Degrees the particle rotates over its own life. DISC / SPARKLE form: pixels spin IN PLACE (2D) — a "
+                + "plain disc or an even sparkle field is radially symmetric so it shows little (add a geometry/"
+                + "texture Modifier so the disc's spin reads). CRESCENT: rotates the whole crescent, on top of its "
+                + "own bite Angle. SPRITE: rotates the stamped image. GEM: the gem's 3D YAW about its vertical axis, "
+                + "turning the crystal so its facets sweep past the light. (The pseudo-3D tilt lives on the Swarm "
+                + "shape transform, not here.)",
                 s.particleSpin, -720f, 720f));
         }
 
@@ -267,6 +289,70 @@ namespace Laubrary.PyrePlus.Editor
                 s.gemInnerGlow, 0f, 1f));
 
             shapeBody.Add(box);
+        }
+
+        // The Edge-softness slider — its own MicroSlider caption is the "Edge" label, so it isn't wrapped in a
+        // Z.Field (that would print "Edge" twice). Shared by Disc (its single rim) and Crescent (both rims), each
+        // passing its own tooltip.
+        ZuiMicroSlider EdgeRow(PyrePlusSpec s, string tooltip) =>
+            Z.MicroSlider("Edge", s.edgeSoftness, 0f, 1f, tooltip,
+                v => Dirty(() => s.edgeSoftness = v), 150f, showValue: true);
+
+        // Crescent form rows — the shared Edge row (drives BOTH rims), then the bite: size + facing packed, and
+        // the push-out offset.
+        void BuildCrescentRows(PyrePlusSpec s)
+        {
+            s.crescentBite ??= new ZUIValue(0.55f);
+            s.crescentAngle ??= new ZUIValue(0f);
+
+            shapeBody.Add(EdgeRow(s,
+                "Soft rim (1) vs a hard pixel edge (0). For the Crescent it feathers BOTH rims — the outer disc "
+                + "edge and the bite edge."));
+            shapeBody.Add(WrapRow(
+                Val("Bite",
+                    "Size of the disc bitten out of the main disc, as a fraction of its radius (0 = no bite, a "
+                    + "full disc; 1 = a bite as wide as the disc), over the particle's own life.",
+                    s.crescentBite, 0f, 1f),
+                Val("Angle °",
+                    "Which way the bite faces, in degrees, over the particle's own life — swings the crescent's "
+                    + "opening around.",
+                    s.crescentAngle, -360f, 360f)));
+            shapeBody.Add(Z.MicroSlider("Offset", s.crescentOffset, 0f, 1f,
+                "How far the bite disc is pushed out from the centre, as a fraction of the radius. Larger = a "
+                + "thinner sliver of a crescent; 0 = the bite sits dead centre (a hole/ring).",
+                v => Dirty(() => s.crescentOffset = v), 150f, showValue: true));
+        }
+
+        // Sparkle form rows — no Edge row (sparkles are hard pixels). Density (animatable) + the pixel block size.
+        void BuildSparkleRows(PyrePlusSpec s)
+        {
+            s.sparkleDensity ??= new ZUIValue(0.35f);
+            shapeBody.Add(WrapRow(
+                Val("Density",
+                    "Fraction of the disc's cells that sparkle, 0..1, over the particle's own life — a rising "
+                    + "curve makes the sparkles ignite as it lives. Each lit cell also twinkles on/off per frame.",
+                    s.sparkleDensity, 0f, 1f),
+                Z.MicroSlider("Size px", s.sparkleSize, 1f, 4f,
+                    "Size of each lit sparkle block in pixels (1 = single pixels, up to 4).",
+                    v => Dirty(() => s.sparkleSize = Mathf.Clamp(Mathf.RoundToInt(v), 1, 4)), 150f,
+                    showValue: true, decimals: 0)));
+        }
+
+        // Sprite form rows — no Edge row. The stamped image picker + the tint toggle, packed.
+        void BuildSpriteRows(PyrePlusSpec s)
+        {
+            shapeBody.Add(WrapRow(
+                Z.Field("Sprite",
+                    "The image stamped at each particle. Its texture MUST have Read/Write enabled in its import "
+                    + "settings, or it can't be sampled and the particle falls back to a plain disc.",
+                    Z.Object<Sprite>(s.spriteImage,
+                        "The stamped image — its texture needs Read/Write enabled (import settings), else the "
+                        + "particle renders a disc fallback.",
+                        v => Dirty(() => s.spriteImage = v), 160f)),
+                Z.Toggle("Tint",
+                    "Multiply the sprite by the Colour gradient at the particle's own life. Off = the sprite's own "
+                    + "raw colours.",
+                    s.spriteTint, v => Dirty(() => s.spriteTint = v))));
         }
 
         // ── Swarm ──────────────────────────────────────────────────────────────────

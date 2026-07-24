@@ -56,8 +56,13 @@ namespace Laubrary.PyrePlus
         const int FldGemTilt = -3;       // gemTilt — Gem world tilt about X, particle's own life          [Gem]
         const int FldGemEdgeGlow = -4;   // gemEdgeGlow — Gem edge-halo pulse strength, particle's own life [Gem]
         const int FldGemInnerGlow = -5;  // gemInnerGlow — Gem facet inner-glow pulse strength, own life     [Gem]
+        const int FldCrescentBite = -6;  // crescentBite — Crescent mask-disc size, particle's own life      [G2]
+        const int FldCrescentAngle = -7; // crescentAngle — Crescent bite facing, particle's own life         [G2]
+        const int FldSparkle = -8;       // sparkleDensity Eval + the per-cell presence/twinkle Hash draws     [G2]
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
-        //  3D yaw, and FldPathX/FldPathY for the shared travel offset — no new ids for those.)
+        //  3D yaw, and FldPathX/FldPathY for the shared travel offset — no new ids for those. Crescent/Sparkle/
+        //  Sprite likewise REUSE FldSize/FldAlpha (radius/alpha), FldSpin (2D spin), FldPathX/Y (travel); Sprite
+        //  needs no new random-draw id at all.)
         // Modifiers (T6): each PyreModifier in spec.modifiers owns an 8-wide field-id BLOCK starting at
         // FldModifier + listIndex*8, so a modifier's local field id (its Prepare's fid, 0..7) maps to
         // FldModifier + listIndex*8 + fid. Since every modifier has a distinct list index the blocks never
@@ -552,6 +557,34 @@ namespace Laubrary.PyrePlus
             float soft = Mathf.Clamp01(spec.edgeSoftness);
             float inner = radius * (1f - soft);
 
+            // ── other STATELESS forms (G2) — branch BEFORE the Disc raster so the Disc/Gem paths below stay
+            //    textually untouched (both are hash-gated). Each shares the contract Disc uses: radius from
+            //    `size`·sizeMul, alpha envelope × gradient at own life, brightMul on RGB, the travel offset
+            //    already folded into cx/cy above, and spin + geometry warps folded per pixel exactly as Disc's
+            //    modifier path does. Sprite alone can decline (null / non-readable texture) and fall THROUGH to
+            //    the Disc raster as its fallback. ──
+            if (spec.shapeForm == ShapeForm.Crescent)
+            {
+                DrawCrescentBody(buf, W, H, cx, cy, radius, alpha, col, cr, cg, cb, soft, inner,
+                                 spec, particleIndex, mods, phase, frameIndex, life);
+                return;
+            }
+            if (spec.shapeForm == ShapeForm.Sparkle)
+            {
+                DrawSparkleBody(buf, W, H, cx, cy, radius, alpha, col, cr, cg, cb,
+                                spec, particleIndex, mods, phase, frameIndex, life);
+                return;
+            }
+            if (spec.shapeForm == ShapeForm.Sprite)
+            {
+                // A null spriteImage, or a texture without Read/Write, can't be sampled — DrawSpriteBody returns
+                // false and we FALL THROUGH to the Disc raster below as the fallback (the UI's picker tooltip
+                // warns the texture must have Read/Write enabled).
+                if (DrawSpriteBody(buf, W, H, cx, cy, radius, alpha, col, brightMul,
+                                   spec, particleIndex, mods, phase, frameIndex, life))
+                    return;
+            }
+
             // ── fast path: no modifiers → the exact pre-T6 raster, kept verbatim so the no-modifier hash is
             //    byte-identical (do NOT refactor this loop's arithmetic). ──
             if (!mods.Any)
@@ -652,6 +685,289 @@ namespace Laubrary.PyrePlus
                     }
                     else Over(buf, y * W + x, cr, cg, cb, baseA);
                 }
+        }
+
+        // ── other stateless forms (G2): Crescent / Sparkle / Sprite ────────────────────
+        // Resolve one candidate pixel's sample position, folding the particle's 2D spin (rotate the local
+        // offset by −spin about the particle centre) and then the geometry modifiers, in the SAME order and
+        // with the SAME arithmetic as DrawParticle's Disc modifier path — so a warped/spun/textured shape turns
+        // as a unit. `dx/dy` = offset from the particle centre (the shape-local test coord); `wx/wy` = the
+        // geometry-warped ABSOLUTE canvas position (for PixelInfo). When neither spin nor geo is active this is
+        // exactly (sx−cx, sy−cy) and (sx, sy), so a plain shape is undisturbed.
+        static void ResolveSample(float sx, float sy, float cx, float cy, float ccx, float ccy, Vector2 c,
+                                  bool doSpin, float spinCos, float spinSin, bool anyGeo,
+                                  GeometryModifier[] geo, float phase, in GeoCtx ctx,
+                                  out float dx, out float dy, out float wx, out float wy)
+        {
+            wx = sx; wy = sy;
+            if (anyGeo)
+            {
+                Vector2 geoIn;
+                if (doSpin)
+                {
+                    float lox = sx - cx, loy = sy - cy;   // local offset from the particle centre
+                    geoIn = new Vector2(c.x + (lox * spinCos - loy * spinSin),
+                                        c.y + (lox * spinSin + loy * spinCos));
+                }
+                else geoIn = new Vector2(sx - ccx, sy - ccy);
+                Vector2 off = ApplyGeo(geo, geoIn, phase, ctx);
+                wx = ccx + off.x; wy = ccy + off.y;
+                dx = off.x - c.x; dy = off.y - c.y;
+            }
+            else if (doSpin)
+            {
+                float lox = sx - cx, loy = sy - cy;
+                dx = lox * spinCos - loy * spinSin;
+                dy = lox * spinSin + loy * spinCos;
+            }
+            else { dx = sx - cx; dy = sy - cy; }
+        }
+
+        // Crescent: a disc with a second offset disc masked out. A pixel is lit when it's inside the main disc
+        // (d ≤ radius) AND outside the bite disc (mdist > biteRadius). The bite disc's centre sits crescentOffset·
+        // radius out in the crescentAngle direction; its radius is crescentBite·radius (both on the particle's own
+        // life). edgeSoftness feathers BOTH rims: the outer edge exactly as Disc does (via `inner`), the bite edge
+        // over a soft·radius band just OUTSIDE it — mirroring real Pyre's `(mnd−1)/innerSoft` bite feather
+        // (normalised to the main radius), generalised to a bite disc of its own size.
+        static void DrawCrescentBody(Color32[] buf, int W, int H, float cx, float cy, float radius, float alpha,
+                                     Color col, float cr, float cg, float cb, float soft, float inner,
+                                     PyrePlusSpec spec, int particleIndex, in ModSet mods, float phase,
+                                     int frameIndex, float life)
+        {
+            float bite = Mathf.Clamp01(Eval(spec.crescentBite, life, spec.seed, particleIndex, FldCrescentBite));
+            float biteRadius = radius * bite;
+            float ang = Eval(spec.crescentAngle, life, spec.seed, particleIndex, FldCrescentAngle) * Mathf.Deg2Rad;
+            float off = Mathf.Clamp01(spec.crescentOffset) * radius;
+            float bx = off * Mathf.Cos(ang), by = off * Mathf.Sin(ang);   // bite-disc centre, in the shape-local (dx,dy) frame
+
+            bool anyGeo = mods.AnyGeo;
+            float ccx = W * 0.5f, ccy = H * 0.5f;
+            Vector2 c = new Vector2(cx - ccx, cy - ccy);
+            var ctx = new GeoCtx(ccx, ccy, c, radius);
+            float spin = Eval(spec.particleSpin, life, spec.seed, particleIndex, FldSpin);
+            bool doSpin = spin != 0f;
+            float spinCos = 1f, spinSin = 0f;
+            if (doSpin) { float sa = -spin * Mathf.Deg2Rad; spinCos = Mathf.Cos(sa); spinSin = Mathf.Sin(sa); }
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+
+            int px0, px1, py0, py1;
+            if (anyGeo) { px0 = 0; py0 = 0; px1 = W - 1; py1 = H - 1; }
+            else
+            {
+                px0 = Mathf.Max(0, Mathf.FloorToInt(cx - radius));
+                px1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + radius));
+                py0 = Mathf.Max(0, Mathf.FloorToInt(cy - radius));
+                py1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + radius));
+            }
+
+            for (int y = py0; y <= py1; y++)
+                for (int x = px0; x <= px1; x++)
+                {
+                    float sx = x + 0.5f, sy = y + 0.5f;
+                    ResolveSample(sx, sy, cx, cy, ccx, ccy, c, doSpin, spinCos, spinSin, anyGeo, mods.geo, phase, ctx,
+                                  out float dx, out float dy, out float wx, out float wy);
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (d > radius) continue;
+                    float mdx = dx - bx, mdy = dy - by;
+                    float mdist = Mathf.Sqrt(mdx * mdx + mdy * mdy);
+                    float biteEdge;
+                    if (biteRadius < 0.5f) biteEdge = 1f;                              // no meaningful bite → plain disc
+                    else if (soft <= 0.001f) biteEdge = mdist >= biteRadius ? 1f : 0f; // hard bite edge
+                    else biteEdge = Mathf.Clamp01((mdist - biteRadius) / (soft * radius));
+                    if (biteEdge <= 0.001f) continue;
+                    float outerEdge = d <= inner ? 1f : 1f - Mathf.InverseLerp(inner, radius, d);
+                    float baseA = alpha * col.a * outerEdge * biteEdge;
+                    if (baseA <= 0.002f) continue;
+                    if (mods.AnyPix)
+                    {
+                        Color pc = new Color(cr, cg, cb, 1f);
+                        float pa = baseA;
+                        float crossFrac = Mathf.Clamp01(d / Mathf.Max(0.001f, radius));
+                        if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, wx, wy, frameIndex, crossFrac, life, pHash, W, H)) continue;
+                        Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                    }
+                    else Over(buf, y * W + x, cr, cg, cb, baseA);
+                }
+        }
+
+        // Sparkle: overlay a virtual grid of `sparkleSize`-px cells on the disc. A cell is LIT this frame iff its
+        // stable presence draw < density AND its per-frame twinkle draw passes — both from the Hash funnel, no
+        // state, so any frame renders standalone. Presence keys (seed, particleIndex, FldSparkle, cellIndex) so
+        // the same cells are the candidates every frame (stable identity); twinkle keys the frame bucket in too
+        // (cellIndex ^ frameSalt) so each candidate flickers on/off — the deterministic mirror of Pyre's
+        // stable-but-twinkling sparkles. frameSalt is the particle's OWN-life frame bucket, so a swarm particle's
+        // twinkle tracks its own clock. Lit cells are hard full-colour/alpha pixels — no edge falloff; pixels
+        // past the disc radius are never lit.
+        static void DrawSparkleBody(Color32[] buf, int W, int H, float cx, float cy, float radius, float alpha,
+                                    Color col, float cr, float cg, float cb,
+                                    PyrePlusSpec spec, int particleIndex, in ModSet mods, float phase,
+                                    int frameIndex, float life)
+        {
+            float density = Mathf.Clamp01(Eval(spec.sparkleDensity, life, spec.seed, particleIndex, FldSparkle));
+            if (density <= 0.001f) return;
+            float baseAlpha = alpha * col.a;
+            if (baseAlpha <= 0.002f) return;
+            int cell = Mathf.Clamp(spec.sparkleSize, 1, 4);
+            int frames = Mathf.Max(1, spec.frameCount);
+            // Own-life frame bucket → the twinkle clock. The +1 keeps it nonzero so a cell's twinkle key
+            // (cellIndex ^ frameSalt) can never coincide with its presence key (cellIndex, frameSalt 0 would).
+            int frameSalt = 1 + Mathf.FloorToInt(Mathf.Clamp01(life) * frames);
+
+            bool anyGeo = mods.AnyGeo;
+            float ccx = W * 0.5f, ccy = H * 0.5f;
+            Vector2 c = new Vector2(cx - ccx, cy - ccy);
+            var ctx = new GeoCtx(ccx, ccy, c, radius);
+            float spin = Eval(spec.particleSpin, life, spec.seed, particleIndex, FldSpin);
+            bool doSpin = spin != 0f;
+            float spinCos = 1f, spinSin = 0f;
+            if (doSpin) { float sa = -spin * Mathf.Deg2Rad; spinCos = Mathf.Cos(sa); spinSin = Mathf.Sin(sa); }
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+
+            int px0, px1, py0, py1;
+            if (anyGeo) { px0 = 0; py0 = 0; px1 = W - 1; py1 = H - 1; }
+            else
+            {
+                px0 = Mathf.Max(0, Mathf.FloorToInt(cx - radius));
+                px1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + radius));
+                py0 = Mathf.Max(0, Mathf.FloorToInt(cy - radius));
+                py1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + radius));
+            }
+
+            for (int y = py0; y <= py1; y++)
+                for (int x = px0; x <= px1; x++)
+                {
+                    float sx = x + 0.5f, sy = y + 0.5f;
+                    ResolveSample(sx, sy, cx, cy, ccx, ccy, c, doSpin, spinCos, spinSin, anyGeo, mods.geo, phase, ctx,
+                                  out float dx, out float dy, out float wx, out float wy);
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (d > radius) continue;
+                    int gx = Mathf.FloorToInt(dx / cell), gy = Mathf.FloorToInt(dy / cell);
+                    // Spatial-hash the cell to one int; XOR the golden-ratio constant so the origin cell (0,0)
+                    // maps to a nonzero id — otherwise its presence draw would key (…, FldSparkle, 0), colliding
+                    // with a MinMax sparkleDensity's own d=0 draw in this same field stream.
+                    int cellIndex = ((gx * 73856093) ^ (gy * 19349663)) ^ unchecked((int)0x9E3779B9);
+                    float presence = Hash01(spec.seed, particleIndex, FldSparkle, cellIndex);
+                    if (presence >= density) continue;                                  // not a candidate cell
+                    float twinkle = Hash01(spec.seed, particleIndex, FldSparkle, cellIndex ^ frameSalt);
+                    if (twinkle >= 0.5f) continue;                                       // candidate, but off this frame
+                    if (mods.AnyPix)
+                    {
+                        Color pc = new Color(cr, cg, cb, 1f);
+                        float pa = baseAlpha;
+                        float crossFrac = Mathf.Clamp01(d / Mathf.Max(0.001f, radius));
+                        if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, wx, wy, frameIndex, crossFrac, life, pHash, W, H)) continue;
+                        Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                    }
+                    else Over(buf, y * W + x, cr, cg, cb, baseAlpha);
+                }
+        }
+
+        // Sprite: stamp spec.spriteImage's pixels, scaled so its larger dimension maps to 2·radius, centred on
+        // the particle, rotated by the shared spin and folded through the geometry warps (via ResolveSample —
+        // spin-then-warp, the Disc order), point-sampled (nearest) from the sprite's rect within its texture.
+        // Tinted by the gradient when spriteTint, then alpha envelope × brightMul, PixelModifiers, Over. Returns
+        // false (→ Disc fallback) when the sprite/texture is null or not Read/Write-enabled (GetPixels32 throws,
+        // caught once in TryGetTexturePixels). True once it has taken responsibility for the stamp.
+        static bool DrawSpriteBody(Color32[] buf, int W, int H, float cx, float cy, float radius, float alpha,
+                                   Color col, float brightMul, PyrePlusSpec spec, int particleIndex,
+                                   in ModSet mods, float phase, int frameIndex, float life)
+        {
+            var sprite = spec.spriteImage;
+            if (sprite == null || sprite.texture == null) return false;
+            if (!TryGetTexturePixels(sprite.texture, out var px)) return false;   // non-readable texture → fallback
+
+            var tex = sprite.texture;
+            int texW = tex.width;
+            Rect tr = sprite.textureRect;
+            int rx = Mathf.FloorToInt(tr.x), ry = Mathf.FloorToInt(tr.y);
+            int rw = Mathf.Max(1, Mathf.FloorToInt(tr.width)), rh = Mathf.Max(1, Mathf.FloorToInt(tr.height));
+            float scale = (2f * radius) / Mathf.Max(rw, rh);
+            if (scale <= 1e-4f) return true;   // radius collapsed — nothing to stamp, but the sprite HAS handled it
+
+            bool anyGeo = mods.AnyGeo;
+            float ccx = W * 0.5f, ccy = H * 0.5f;
+            Vector2 c = new Vector2(cx - ccx, cy - ccy);
+            var ctx = new GeoCtx(ccx, ccy, c, radius);
+            float spin = Eval(spec.particleSpin, life, spec.seed, particleIndex, FldSpin);
+            bool doSpin = spin != 0f;
+            float spinCos = 1f, spinSin = 0f;
+            if (doSpin) { float sa = -spin * Mathf.Deg2Rad; spinCos = Mathf.Cos(sa); spinSin = Mathf.Sin(sa); }
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+
+            float box = radius * 1.5f;   // generous bbox to cover the rotated stamp (matches Pyre's RasterSprite)
+            int px0, px1, py0, py1;
+            if (anyGeo) { px0 = 0; py0 = 0; px1 = W - 1; py1 = H - 1; }
+            else
+            {
+                px0 = Mathf.Max(0, Mathf.FloorToInt(cx - box));
+                px1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + box));
+                py0 = Mathf.Max(0, Mathf.FloorToInt(cy - box));
+                py1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + box));
+            }
+
+            bool tint = spec.spriteTint;
+            float tr2 = tint ? col.r : 1f, tg2 = tint ? col.g : 1f, tb2 = tint ? col.b : 1f, ta2 = tint ? col.a : 1f;
+            for (int y = py0; y <= py1; y++)
+                for (int x = px0; x <= px1; x++)
+                {
+                    float sx = x + 0.5f, sy = y + 0.5f;
+                    ResolveSample(sx, sy, cx, cy, ccx, ccy, c, doSpin, spinCos, spinSin, anyGeo, mods.geo, phase, ctx,
+                                  out float dx, out float dy, out float wx, out float wy);
+                    int su = Mathf.FloorToInt(dx / scale + rw * 0.5f);
+                    int sv = Mathf.FloorToInt(dy / scale + rh * 0.5f);
+                    if (su < 0 || su >= rw || sv < 0 || sv >= rh) continue;
+                    Color32 sc = px[(ry + sv) * texW + (rx + su)];   // GetPixels32 is row-major, bottom-left origin
+                    if (sc.a == 0) continue;
+                    float outR = (sc.r / 255f) * tr2, outG = (sc.g / 255f) * tg2, outB = (sc.b / 255f) * tb2;
+                    if (brightMul != 1f)
+                    {
+                        outR = Mathf.Clamp01(outR * brightMul);
+                        outG = Mathf.Clamp01(outG * brightMul);
+                        outB = Mathf.Clamp01(outB * brightMul);
+                    }
+                    float outA = (sc.a / 255f) * alpha * ta2;
+                    if (outA <= 0.002f) continue;
+                    if (mods.AnyPix)
+                    {
+                        Color pc = new Color(outR, outG, outB, 1f);
+                        float pa = outA;
+                        float crossFrac = Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy) / Mathf.Max(0.001f, radius));
+                        if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, wx, wy, frameIndex, crossFrac, life, pHash, W, H)) continue;
+                        Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                    }
+                    else Over(buf, y * W + x, outR, outG, outB, outA);
+                }
+            return true;
+        }
+
+        // Full-texture pixel cache for the Sprite form, keyed by Texture2D. GetPixels32 needs the texture
+        // Read/Write-enabled; a non-readable texture throws → caught, the entry is cached as null so we don't
+        // retry every frame, and callers treat null as "not sampleable" (→ Disc fallback). Purity holds: the
+        // texture's CONTENT is itself an input, so memoising the read preserves same-inputs-same-output; a
+        // texture edited/reimported at author time would read stale until a domain reload clears the cache
+        // (mirrors real Pyre's own sprite cache, which exposes an explicit clear for exactly that).
+        static readonly System.Collections.Generic.Dictionary<Texture2D, Color32[]> _spritePixelCache =
+            new System.Collections.Generic.Dictionary<Texture2D, Color32[]>();
+
+        static bool TryGetTexturePixels(Texture2D tex, out Color32[] px)
+        {
+            px = null;
+            if (tex == null) return false;
+            if (_spritePixelCache.TryGetValue(tex, out px)) return px != null;
+            Color32[] got;
+            try { got = tex.GetPixels32(); }
+            catch { got = null; }
+            _spritePixelCache[tex] = got;
+            px = got;
+            return got != null;
+        }
+
+        // A deterministic [0,1) draw straight from the FNV Hash — same funnel as everything else, no per-pixel
+        // System.Random allocation (used for the Sparkle presence/twinkle draws, evaluated per candidate pixel).
+        static float Hash01(int a, int b, int c, int d)
+        {
+            uint h = (uint)Hash(a, b, c, d);
+            return (h & 0x00FFFFFFu) / 16777216f;   // top of the 24-bit mantissa → [0,1)
         }
 
         // ── Gem form ─────────────────────────────────────────────────────────────────

@@ -18,10 +18,16 @@ namespace Laubrary.PyrePlus
     // Custom is Path-only (enforced in the UI later); the renderer treats Area+Custom as a Circle fallback.
     public enum SwarmShapeKind { Circle, Triangle, Square, Pentagon, Hexagon, Custom }
 
-    // The particle's rendered FORM: a flat soft Disc (slice 1), or a true-3D lit faceted Gem — an octahedral
-    // crystal with realistic per-pixel point lighting, light-catching hard edge lines and two staggered glows
-    // (see PyrePlusRenderer.DrawGem). One implicit layer, so the whole swarm is one form or the other.
-    public enum ShapeForm { Disc, Gem }
+    // The particle's rendered FORM. One implicit layer, so the whole swarm is one form. The STATELESS forms:
+    //   Disc     — a flat soft disc (slice 1).
+    //   Gem      — a true-3D lit faceted octahedral crystal (per-pixel point lighting, hard edge lines, two
+    //              staggered glows; see PyrePlusRenderer.DrawGem).
+    //   Crescent — a disc with a second offset disc masked out (its own bite size / facing / push-out).
+    //   Sparkle  — random lit pixel-cells scattered inside the disc, twinkling deterministically per frame.
+    //   Sprite   — a Sprite's pixels stamped, scaled/rotated to the particle, optionally tinted by the gradient.
+    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. (Fire/Fireball/HeightBalls
+    // are simulation-backed and deferred; they are NOT here.)
+    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite }
 
     [CreateAssetMenu(menuName = "Laubrary/Pyre Plus", fileName = "PyrePlus")]
     public class PyrePlusSpec : ScriptableObject
@@ -64,6 +70,29 @@ namespace Laubrary.PyrePlus
         // interiors. Their defaults pulse in ANTI-PHASE (see the factories).
         public ZUIValue gemEdgeGlow = DefaultEdgeGlow();
         public ZUIValue gemInnerGlow = DefaultInnerGlow();
+
+        // ── Crescent form (shapeForm == Crescent) — a disc with a second offset disc masked out ────────────
+        // A pixel is lit when it's inside the main disc but NOT inside the bite (mask) disc. The bite disc sits
+        // `crescentOffset·radius` out in the `crescentAngle` direction and is `crescentBite·radius` across.
+        // Crescent REUSES `edgeSoftness` above for BOTH rims (the outer disc edge and the bite edge).
+        public ZUIValue crescentBite = new ZUIValue(0.55f);   // mask disc size vs the main disc, 0..1, over own life
+        public ZUIValue crescentAngle = new ZUIValue(0f);     // degrees — which way the bite faces, over own life
+        [Range(0f, 1f)] public float crescentOffset = 0.5f;   // how far the bite disc is pushed out, as a fraction of radius
+
+        // ── Sparkle form (shapeForm == Sparkle) — random lit cells scattered inside the disc ───────────────
+        // A virtual grid of `sparkleSize`-px cells overlays the disc; a cell lights this frame iff its stable
+        // per-cell presence draw < density AND its per-frame twinkle draw passes (both from the Hash funnel, no
+        // state — see PyrePlusRenderer.DrawSparkleBody). Lit cells are hard full-colour pixels, no edge falloff.
+        public ZUIValue sparkleDensity = new ZUIValue(0.35f);   // fraction of cells lit, 0..1, over own life
+        [Range(1, 4)] public int sparkleSize = 1;               // lit pixel block size
+
+        // ── Sprite form (shapeForm == Sprite) — stamp a Sprite's pixels ────────────────────────────────────
+        // The sprite is scaled so its larger dimension maps to 2·radius, centred on the particle, rotated by
+        // `particleSpin` (Sprite reuses the shared spin — no separate rotation field), point-sampled. Its
+        // texture must be Read/Write-enabled to sample; a null image or a non-readable texture renders the Disc
+        // fallback instead. `spriteTint` multiplies by colorOverLife (at own life); off = raw sprite colours.
+        public Sprite spriteImage;
+        public bool spriteTint = true;
 
         // ── opt-in Shape fields (T7) — the particle's OWN motion after birth, on its own life clock ────────
         // A per-particle travel path: canvas-pixel offsets ADDED to the particle's spawn position, evaluated on
