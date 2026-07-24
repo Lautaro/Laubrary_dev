@@ -485,6 +485,28 @@ namespace Laubrary.PyrePlus
             }
         }
 
+        /// FIX 3 — apply the layer's LIVE whole-cloud swarm spin (swarmTurn/Tilt/Roll evaluated at `life`) to an
+        /// already-placed particle position, EXACTLY as RenderSwarm applies it at draw time: a rigid rotation of the
+        /// point around the shape centre (rot = Roll, yaw = Turn, pitch = Tilt), depth-normalized against the point's
+        /// own radial distance so the sweep is uniform across the cloud. Public so the editor overlay's spawn dots
+        /// reflect the same live spin the render draws (the overlay is editor-only, so calling a renderer helper is
+        /// fine). Pure/deterministic — uses the SAME seeded per-frame Eval RenderSwarm uses (a MinMax spin is one
+        /// value for the whole cloud). ALL-ZERO spin ⇒ returns `pos` unchanged (the exact no-op guard RenderSwarm
+        /// uses), so a non-spinning swarm's overlay is byte-identical. NOT called by RenderFrame — the bake path is
+        /// untouched; this only DUPLICATES RenderSwarm's inline spin math rather than replacing it, to keep the bake
+        /// provably byte-identical.
+        public static Vector2 ApplySwarmSpin(PyrePlusSpec spec, PyrePlusLayer layer, Vector2 pos, float life)
+        {
+            if (spec == null || layer == null) return pos;
+            float sTurn = Eval(layer.swarmTurn, life, spec.seed, ModParticleIndex, FldSwarmTurn);
+            float sTilt = Eval(layer.swarmTilt, life, spec.seed, ModParticleIndex, FldSwarmTilt);
+            float sRoll = Eval(layer.swarmRoll, life, spec.seed, ModParticleIndex, FldSwarmRoll);
+            if (sTurn == 0f && sTilt == 0f && sRoll == 0f) return pos;
+            float cx = spec.Width * 0.5f, cy = spec.Height * 0.5f;
+            return ApplyShapeTransform(pos, cx, cy, Vector2.Distance(pos, new Vector2(cx, cy)),
+                                       sRoll, sTurn, sTilt, 0f, 0f, out _);
+        }
+
         /// Compute every swarm particle's spawn life (its point on the blast timeline) and spawn POSITION
         /// (absolute canvas-pixel coords). Pure and deterministic — RenderSwarm consumes it, and the preview
         /// overlay (T5) calls it directly to draw a dot at each particle's real spawn location. Fills `into`
@@ -755,6 +777,21 @@ namespace Laubrary.PyrePlus
                 float offX  = EvalCanonical(layer.shapeOffsetX, t);
                 float offY  = EvalCanonical(layer.shapeOffsetY, t);
                 Vector2 pos = ApplyShapeTransform(baseAbs, cx, cy, r, rot, yaw, pitch, offX, offY, out _);
+
+                // FIX 3 — the whole cloud spins LIVE (swarmTurn/Tilt/Roll). The trace is the objective path the
+                // spawn point sweeps over the timeline, so at sample t it must ALSO carry the swarm spin evaluated
+                // at t — the traced spine itself sweeps as the cloud turns. CANONICAL (EvalCanonical → MinMax
+                // midpoint, no seed), matching the rest of this method; a Static/Curve spin coincides exactly with
+                // the render's per-frame Eval. Reuses ApplyShapeTransform with rot = Roll, yaw = Turn, pitch = Tilt
+                // around the shape centre (the SAME mapping RenderSwarm / ApplySwarmSpin use), depth-normalized
+                // against the point's radial distance. ALL-ZERO spin is an EXACT no-op, so a non-spinning swarm's
+                // trace is unchanged.
+                float sTurn = EvalCanonical(layer.swarmTurn, t);
+                float sTilt = EvalCanonical(layer.swarmTilt, t);
+                float sRoll = EvalCanonical(layer.swarmRoll, t);
+                if (sTurn != 0f || sTilt != 0f || sRoll != 0f)
+                    pos = ApplyShapeTransform(pos, cx, cy, Vector2.Distance(pos, new Vector2(cx, cy)),
+                                              sRoll, sTurn, sTilt, 0f, 0f, out _);
                 into.Add(pos);
             }
         }
@@ -2260,12 +2297,14 @@ namespace Laubrary.PyrePlus
             }
             if (visCount == 0) return;
 
-            // Light POSITION from the gem's light angles at distance 3.5·R (distance not exposed); the falloff
-            // range is 4.7·R — both the prototype's proportions. Up-left-front for the default -55°/38° angles.
+            // Light POSITION from the gem's light angles at distance gemLightDistance·R; the falloff range is
+            // (gemLightDistance + 1.2)·R, so it tracks the distance (a far light still reaches the solid). At the
+            // default distance 3.5 this is exactly 3.5·R / 4.7·R (the prototype's proportions — 3.5 + 1.2 == 4.7 in
+            // float, byte-identical). Up-left-front for the default -55°/38° angles.
             float lyaw = layer.gemLightYaw * Mathf.Deg2Rad, lpitch = layer.gemLightPitch * Mathf.Deg2Rad;
-            float ldist = 3.5f * R, lhoriz = ldist * Mathf.Cos(lpitch);
+            float ldist = layer.gemLightDistance * R, lhoriz = ldist * Mathf.Cos(lpitch);
             Vector3 lightPos = new Vector3(lhoriz * Mathf.Sin(lyaw), ldist * Mathf.Sin(lpitch), lhoriz * Mathf.Cos(lyaw));
-            float lrange = 4.7f * R, lrange2 = lrange * lrange;
+            float lrange = (layer.gemLightDistance + 1.2f) * R, lrange2 = lrange * lrange;
             Vector3 viewDir = new Vector3(0f, 0f, 1f);
             // Colours are now authorable ZuiFills (Part A). Hoisted at (own, 0, 0): for the default Solid slots (and
             // an OverLife material) this is a constant the whole raster reuses, byte-identical to the old renderer
@@ -2432,11 +2471,12 @@ namespace Laubrary.PyrePlus
                 cy += Eval(layer.particlePathY, own, spec.seed, particleIndex, FldPathY);
             }
 
-            // Light POSITION exactly as DrawFacetSolid builds it (screen space, distance 3.5·R, falloff 4.7·R).
+            // Light POSITION exactly as DrawFacetSolid builds it (screen space, distance gemLightDistance·R, falloff
+            // (gemLightDistance + 1.2)·R; default 3.5 → 3.5·R / 4.7·R).
             float lyaw = layer.gemLightYaw * Mathf.Deg2Rad, lpitch = layer.gemLightPitch * Mathf.Deg2Rad;
-            float ldist = 3.5f * R, lhoriz = ldist * Mathf.Cos(lpitch);
+            float ldist = layer.gemLightDistance * R, lhoriz = ldist * Mathf.Cos(lpitch);
             Vector3 lightPos = new Vector3(lhoriz * Mathf.Sin(lyaw), ldist * Mathf.Sin(lpitch), lhoriz * Mathf.Cos(lyaw));
-            float lrange = 4.7f * R, lrange2 = lrange * lrange;
+            float lrange = (layer.gemLightDistance + 1.2f) * R, lrange2 = lrange * lrange;
             Vector3 viewDir = new Vector3(0f, 0f, 1f);
 
             // ── Orb spin/tilt = a LIGHTING-FRAME rotation, NOT a geometry rotation. A uniform sphere's silhouette
@@ -2640,9 +2680,9 @@ namespace Laubrary.PyrePlus
             if (N.z < 0f) N = -N;
 
             float lyaw = layer.gemLightYaw * Mathf.Deg2Rad, lpitch = layer.gemLightPitch * Mathf.Deg2Rad;
-            float ldist = 3.5f * R, lhoriz = ldist * Mathf.Cos(lpitch);
+            float ldist = layer.gemLightDistance * R, lhoriz = ldist * Mathf.Cos(lpitch);
             Vector3 lightPos = new Vector3(lhoriz * Mathf.Sin(lyaw), ldist * Mathf.Sin(lpitch), lhoriz * Mathf.Cos(lyaw));
-            float lrange = 4.7f * R, lrange2 = lrange * lrange;
+            float lrange = (layer.gemLightDistance + 1.2f) * R, lrange2 = lrange * lrange;
             Vector3 viewDir = new Vector3(0f, 0f, 1f);
 
             var specFill = layer.gemSpecularFill; bool specSpatial = IsSpatialFill(specFill);

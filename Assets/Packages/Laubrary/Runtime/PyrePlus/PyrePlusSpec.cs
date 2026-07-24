@@ -142,10 +142,17 @@ namespace Laubrary.PyrePlus
         // exact roll==0 guard keeps a default solid byte-identical). For the Orb it rolls the lit hotspot around
         // the ball; geometrically a no-op for the symmetric Ring (a flat ring rolled in its own plane is unchanged).
         public ZUIValue gemRoll = new ZUIValue(0f);
-        // Lighting. The light POSITION derives in the renderer from these two angles at distance 3.5·R with a
-        // 4.7·R falloff range (the prototype's proportions) — distance is not exposed.
+        // Lighting. The light POSITION derives in the renderer from these two angles at distance gemLightDistance·R
+        // (default 3.5) with a (gemLightDistance + 1.2)·R falloff range (so the falloff tracks the distance — a far
+        // light still reaches the solid). The 3.5 default reproduces the prototype's 3.5·R / 4.7·R proportions
+        // exactly (3.5 + 1.2 == 4.7 in float, so a default solid renders byte-identical).
         public float gemLightYaw = -55f;                    // key-light azimuth (left/right), degrees
-        public float gemLightPitch = 38f;                   // key-light elevation (above the horizon), degrees
+        public float gemLightPitch = 38f;                   // key-light elevation (above/below the horizon), degrees
+        // The key light's DISTANCE from the solid, as a multiple of the radius R — the light's real 3rd degree of
+        // freedom (position = the two angles above + this radius; a 3rd ROTATION would be meaningless for a point
+        // light). Closer = a tighter, brighter hotspot; farther = flatter, more even light. Default 3.5 reproduces
+        // the pre-existing hardcoded 3.5·R position + 4.7·R falloff byte-for-byte.
+        [Range(1.5f, 8f)] public float gemLightDistance = 3.5f;
         [Range(0f, 1f)] public float gemAmbient = 0.05f;    // non-directional base light on ALL faces (near-zero keeps it contrasty)
         // DIFFUSE strength of the key light on facing surfaces (Lambert term): lit = gemAmbient + gemDiffuse·ndl·atten.
         // Default 2.1 reproduces the pre-P5 hardcoded 2.1 byte-for-byte; drop it to 0 and only ambient + spec light the
@@ -473,6 +480,35 @@ namespace Laubrary.PyrePlus
             // The default shape fill: OverLife with the fire gradient above. OverLife evaluates as
             // gradient.Evaluate(life), so this is byte-identical to the old `colorOverLife.Evaluate(life)` path.
             return new ZuiFill { mode = ZuiFill.Mode.OverLife, gradient = DefaultColor() };
+        }
+
+        // FIX 1 support — is `f` the EXACT pristine default shape fill (the OverLife fire gradient a fresh layer
+        // ships with, untouched)? The window uses this to give a fresh 3D solid (Gem/Box/Pyramid/Can/Orb/Ring) a
+        // STEADY Solid material instead of this OverLife default, whose gold→dark-red life ramp darkens the whole
+        // lit gem over its life and READS as the light pulsing (which the light dials can't stop — it's the material
+        // colour). Detection is strict: mode must be OverLife, no texture may be set, and every gradient colour/alpha
+        // key must match DefaultColor()'s. ANY user edit (a mode change, a moved/added/removed key, a texture) makes
+        // it non-pristine, so a customised fill is NEVER converted — only the exact factory default is. Kept here,
+        // beside the factory it compares against, so the two can never drift.
+        public static bool IsPristineDefaultShapeFill(ZuiFill f)
+        {
+            if (f == null) return false;
+            if (f.mode != ZuiFill.Mode.OverLife) return false;
+            if (f.texture != ZuiFill.TextureKind.None) return false;   // a texture set ⇒ user-touched, leave it
+            return GradientsMatch(f.gradient, DefaultColor());
+        }
+
+        static bool GradientsMatch(Gradient a, Gradient b)
+        {
+            if (a == null || b == null) return false;
+            GradientColorKey[] ac = a.colorKeys, bc = b.colorKeys;
+            GradientAlphaKey[] aa = a.alphaKeys, ba = b.alphaKeys;
+            if (ac.Length != bc.Length || aa.Length != ba.Length) return false;
+            for (int i = 0; i < ac.Length; i++)
+                if (ac[i].color != bc[i].color || !Mathf.Approximately(ac[i].time, bc[i].time)) return false;
+            for (int i = 0; i < aa.Length; i++)
+                if (!Mathf.Approximately(aa[i].alpha, ba[i].alpha) || !Mathf.Approximately(aa[i].time, ba[i].time)) return false;
+            return true;
         }
 
         static ZUIValue DefaultAlpha()

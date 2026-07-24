@@ -96,6 +96,22 @@ namespace Laubrary.PyrePlus.Editor
         {
             frame = 0; previewDirty = true; DestroyStripCache();
             layerSel = int.MaxValue;   // a NEW asset defaults to its last layer (BuildAsset clamps)
+            NormalizeSolidDefaultFills();   // FIX 1 (initial build): once-per-load steady-fill migration for solids
+        }
+
+        // FIX 1 (initial build) — on asset LOAD only (never on undo or a plain rebuild, so it can't fight Undo),
+        // migrate any pre-existing 3D-solid layer that still carries the EXACT pristine OverLife fire default to a
+        // steady Solid material. Undo-safe (one Dirty), and only records/dirties when something actually converts,
+        // so selecting an already-steady asset stays clean. New assets start as Disc, so in practice this only ever
+        // touches legacy solid layers authored before this fix.
+        void NormalizeSolidDefaultFills()
+        {
+            if (spec == null || spec.layers == null) return;
+            bool need = false;
+            foreach (var l in spec.layers)
+                if (l != null && IsSolidForm(l.shapeForm) && PyrePlusLayer.IsPristineDefaultShapeFill(l.shapeFill)) { need = true; break; }
+            if (!need) return;
+            Dirty(() => { foreach (var l in spec.layers) SteadyDefaultFillForSolid(l); });
         }
 
         void Tick()
@@ -723,7 +739,10 @@ namespace Laubrary.PyrePlus.Editor
                     + "forward along its orientation (great with the Swarm's Orient). Star = a filled star polygon "
                     + "(arms, reach, base width, swirl).",
                     // Rebuild BOTH sections: Text swaps in its own Shape box AND hides the Swarm's Count field.
-                    v => { Dirty(() => s.shapeForm = (ShapeForm)v); RebuildShape(); RebuildSwarm(); }, wrap: true)));
+                    // FIX 1: switching TO a 3D solid gives a fresh/pristine OverLife-fire fill a STEADY Solid
+                    // material (inside the SAME Dirty block, so one Undo reverts both the form and the fill together
+                    // — never leaving an intermediate solid+OverLife state for an undo to land on and re-convert).
+                    v => { Dirty(() => { s.shapeForm = (ShapeForm)v; SteadyDefaultFillForSolid(s); }); RebuildShape(); RebuildSwarm(); }, wrap: true)));
 
             // Shared rows. For the Gem, Colour is its material tint and Size is its girdle radius; for the Sprite,
             // Colour is the optional tint. TEXT takes its colour from its own Fill / Border gradients instead, so
@@ -888,17 +907,24 @@ namespace Laubrary.PyrePlus.Editor
                 + "OWN strengths and do NOT obey this light."));
             // Light DIRECTION as one 2D pad (yaw × pitch) — a plain-Vector2 Z.Pad, so dragging aims the key light in
             // one gesture instead of two separate 1D sliders. X = yaw (gemLightYaw, −180..180), Y = pitch
-            // (gemLightPitch, 0..85). Kept under the same "solid.light.angles" view key as the old angle sliders.
+            // (gemLightPitch, −85..85 — widened from 0..85 so the light can come from below/behind, not just the
+            // front hemisphere). Kept under the same "solid.light.angles" view key as the old angle sliders.
             const string lightDirTip = "The key light is DIRECTIONAL — drag the pad to aim it. X = yaw (which side it "
-                + "comes FROM, left/right, −180..180°); Y = pitch (its height above the horizon, 0..85°). Only the lit "
-                + "faces and the specular hotspot follow it — the Lines and Glows have their own strengths and do NOT "
-                + "obey the light.";
+                + "comes FROM, left/right, −180..180°); Y = pitch (its height, −85..85° — negative brings it from "
+                + "below/behind). Only the lit faces and the specular hotspot follow it — the Lines and Glows have "
+                + "their own strengths and do NOT obey the light.";
             box.Add(box.Toggleable(
                 Z.Field("Light dir", lightDirTip,
-                    Z.Pad(new Vector2(s.gemLightYaw, s.gemLightPitch), new Rect(-180f, 0f, 360f, 85f), lightDirTip,
+                    Z.Pad(new Vector2(s.gemLightYaw, s.gemLightPitch), new Rect(-180f, -85f, 360f, 170f), lightDirTip,
                         v => Dirty(() => { s.gemLightYaw = v.x; s.gemLightPitch = v.y; }), 56f)),
                 "solid.light.angles", "Angle", "Light"));
             box.Add(box.Toggleable(WrapRow(
+                Z.MicroSlider("Distance", s.gemLightDistance, 1.5f, 8f,
+                    "How far the key light sits from the solid, as a multiple of its radius — the light's real 3rd "
+                    + "axis (the pad sets its two angles; this sets its distance). Closer = a tighter, brighter "
+                    + "hotspot; farther = flatter, more even light (the falloff tracks it, so a distant light still "
+                    + "reaches the solid).",
+                    v => Dirty(() => s.gemLightDistance = Mathf.Clamp(v, 1.5f, 8f)), 150f, showValue: true),
                 Z.MicroSlider("Ambient", s.gemAmbient, 0f, 1f,
                     "Non-directional BASE light on every face (it doesn't come from a direction). Near zero keeps the "
                     + "solid contrasty; raise it to flatten the shading.",
@@ -1468,6 +1494,24 @@ namespace Laubrary.PyrePlus.Editor
                 case ShapeForm.Ring:    return shared + "This form: a flat two-sided tilted annulus (a Saturn ring).";
                 default:                return shared;
             }
+        }
+
+        // FIX 1 — when a layer shows a 3D solid form (Gem/Box/Pyramid/Can/Orb/Ring) and its Fill is still the EXACT
+        // pristine OverLife fire default, swap that fill to a STEADY Solid material (the gradient's mid colour) so
+        // the lit solid reads as light-driven, not "pulsing": the OverLife gold→dark-red life ramp darkens the whole
+        // gem over its life, and the light dials can't counter it because it IS the material colour. Only the
+        // untouched factory default is converted (IsPristineDefaultShapeFill is strict); a user-customised fill is
+        // left exactly as-is, and Disc/Crescent/Sparkle/Sprite/Text/Streak/Star keep the OverLife fire default
+        // (right for soft particles). MUST be called inside a Dirty() block (records Undo). One-way — never converts
+        // a Solid back to OverLife. Returns true when it changed the fill.
+        static bool SteadyDefaultFillForSolid(PyrePlusLayer layer)
+        {
+            if (layer == null || !IsSolidForm(layer.shapeForm)) return false;
+            var f = layer.shapeFill;
+            if (!PyrePlusLayer.IsPristineDefaultShapeFill(f)) return false;
+            f.color = f.gradient.Evaluate(0.5f);   // a sensible mid material (the fire gradient's midpoint)
+            f.mode = ZuiFill.Mode.Solid;
+            return true;
         }
 
         // The 3D-solid forms — they share BuildSolidBox and its Turn/Tilt/Roll rotation trio (and hide the Advanced

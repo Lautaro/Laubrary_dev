@@ -298,7 +298,7 @@ namespace Laubrary.PyrePlus.Editor
             // Trace first, so it reads as a spine UNDER the outline + dots.
             if (showTrace) DrawSpawnTrace(view, s, sel);
             if (showShape) DrawShapeOutline(sel, r, rot, yaw, pitch, drawOff, cx, cy);
-            DrawSpawnDots(view, s, sel, delta);   // the dots belong to both visualisations
+            DrawSpawnDots(view, s, sel, delta, life);   // the dots belong to both visualisations (life → live swarm spin)
             if (showShape)
             {
                 DrawCustomPoints(view, sel, r, rot, yaw, pitch, drawOff, cx, cy);
@@ -380,8 +380,11 @@ namespace Laubrary.PyrePlus.Editor
             if (pts.Count >= 2) Handles.DrawAAPolyLine(1f, pts.ToArray());
         }
 
-        // 2) A dot at every particle's ACTUAL computed spawn point — the placement truth, not the outline.
-        void DrawSpawnDots(Rect view, PyrePlusSpec s, PyrePlusLayer sel, Vector2 delta)
+        // 2) A dot at every particle's ACTUAL computed spawn point — the placement truth, not the outline. `life`
+        //    is the current preview frame's normalized life: the render applies the LIVE whole-cloud swarm spin
+        //    (swarmTurn/Tilt/Roll at this life) to every placed particle, so each dot must carry that same spin to
+        //    keep marking the real rendered position when the swarm spins.
+        void DrawSpawnDots(Rect view, PyrePlusSpec s, PyrePlusLayer sel, Vector2 delta, float life)
         {
             PyrePlusRenderer.ComputeSpawns(s, sel, swarmSpawns);
             // Each dot is annotated with the FRAME it spawns on (1-based, matching the transport's "frame N/M"
@@ -393,7 +396,12 @@ namespace Laubrary.PyrePlus.Editor
             for (int i = 0; i < swarmSpawns.Count; i++)
             {
                 var sp = swarmSpawns[i];
-                Vector2 screen = CanvasToScreen(sp.pos + delta);
+                // FIX 3: spin the placement (plus the live handle-drag `delta`) by the whole-cloud swarm spin at the
+                // frame's life, EXACTLY as RenderSwarm does, via the shared renderer helper — so the dot lands on the
+                // particle's ACTUAL rendered position. All-zero spin ⇒ ApplySwarmSpin returns the point unchanged,
+                // so a non-spinning swarm's dots are byte-identical to before. Depth coding below still keys off
+                // sp.zNorm (the spawn-time tilt), which the render also discards the spin's z of — unchanged.
+                Vector2 screen = CanvasToScreen(PyrePlusRenderer.ApplySwarmSpin(s, sel, sp.pos + delta, life));
                 if (!view.Contains(screen)) continue;
                 // Depth-code loosely like the renderer's 0.35 / 0.30 factors: nearer (zNorm>0) = bigger, brighter.
                 float sizeMul = Mathf.Clamp(1f + 0.35f * sp.zNorm, 0.5f, 1.6f);
