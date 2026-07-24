@@ -36,6 +36,23 @@ namespace Laubrary.PyrePlus.Editor
         Rect swarmRect;
         float swarmZoom = 1f;
 
+        // ── filmstrip (contact-sheet) cache (Part A) ──────────────────────────────────
+        // One point-filtered Texture2D per frame, rendered ONCE and reused every repaint. Rebuilt only when dirty:
+        // the shared previewDirty flag (any authored edit routes through it) OR a frameCount/canvas change (tracked
+        // by the two shadow fields). Mirrors the single-frame previewTex lifecycle — created lazily, destroyed on
+        // disable / asset change (see PyrePlusWindow.OnDisable / OnAssetChanged) and before every rebuild.
+        Texture2D[] stripCache;
+        int stripCacheCanvas = -1;   // the canvasSize the cache was built for (frameCount is tracked by stripCache.Length)
+
+        void DestroyStripCache()
+        {
+            if (stripCache == null) return;
+            for (int i = 0; i < stripCache.Length; i++)
+                if (stripCache[i] != null) DestroyImmediate(stripCache[i]);
+            stripCache = null;
+            stripCacheCanvas = -1;
+        }
+
         // Non-serialized interaction state (never persisted).
         readonly List<PyrePlusRenderer.SpawnPoint> swarmSpawns = new List<PyrePlusRenderer.SpawnPoint>();
         readonly List<Vector3> outlineScratch = new List<Vector3>();
@@ -57,6 +74,9 @@ namespace Laubrary.PyrePlus.Editor
         {
             var view = GUILayoutUtility.GetRect(10, 10, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
             if (s == null) return;
+
+            // Filmstrip mode: the whole animation as a contact sheet instead of the single zoomed frame + overlay.
+            if (s.previewStrip) { DrawFilmstrip(view, s); return; }
 
             float zoom = Mathf.Max(1f, s.previewZoom);
             float w = s.Width * zoom, h = s.Height * zoom;
@@ -98,6 +118,94 @@ namespace Laubrary.PyrePlus.Editor
             // playback (it only paints over the already-blitted frame texture). It authors that one layer's swarm.
             var sel = SelLayer;
             if (sel != null && sel.swarmEnabled) DrawSwarmOverlay(view, s, sel, life);
+        }
+
+        // ── filmstrip / contact sheet (Part A) ────────────────────────────────────────
+        // Draws EVERY frame as a point-filtered tile of previewStripSize px (aspect = the canvas), laid
+        // left-to-right and WRAPPING to a new row when the next tile would overflow the view width. The block of
+        // rows is centred vertically; a block taller than the view just clips (no scrolling this round — the tile
+        // drawing runs inside a GUI.BeginClip(view)). The backdrop paints once behind the whole sheet; the Frame
+        // toggle outlines every tile; the current transport frame gets a bright highlight; clicking a tile jumps
+        // the transport to it. Tiles come from stripCache, rebuilt only when dirty (EnsureStripCache) — the loop
+        // never re-renders frames. The layout (cols/rows/tile rects) is computed the SAME way for the click hit
+        // test and the draw, so a click always lands on the tile under the cursor.
+        void DrawFilmstrip(Rect view, PyrePlusSpec s)
+        {
+            int n = Mathf.Max(1, s.frameCount);
+            float tileW = Mathf.Clamp(s.previewStripSize, 32f, 256f);
+            float tileH = tileW * s.Height / Mathf.Max(1, s.Width);   // aspect = canvas (square here → square tiles)
+            const float gap = 4f;
+            int cols = Mathf.Max(1, Mathf.FloorToInt((view.width + gap) / (tileW + gap)));
+            int rows = Mathf.CeilToInt(n / (float)cols);
+            int usedCols = Mathf.Min(n, cols);
+            float blockW = usedCols * tileW + (usedCols - 1) * gap;
+            float blockH = rows * tileH + (rows - 1) * gap;
+            float startX = view.x + (view.width - blockW) * 0.5f;
+            float startY = view.y + (view.height - blockH) * 0.5f;   // < view.y when the block overflows → top rows clip
+
+            // Click a tile → jump the transport there (playback pause state is left as-is). Absolute-rect hit test,
+            // gated to the visible view so clicks on clipped-away tiles don't register. Repaint only (no re-render).
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    var tr = new Rect(startX + (i % cols) * (tileW + gap), startY + (i / cols) * (tileH + gap), tileW, tileH);
+                    if (tr.Contains(e.mousePosition)) { frame = i; preview?.MarkDirtyRepaint(); e.Use(); break; }
+                }
+            }
+
+            if (Event.current.type != EventType.Repaint) return;
+
+            DrawBackdrop(view);            // one backdrop behind the whole sheet, exactly as the single-frame path
+            EnsureStripCache(s, n);        // (re)render the per-frame tiles only when dirty
+
+            var frameCol = new Color(1f, 1f, 1f, 0.55f);        // the Frame toggle's tile border
+            var hotCol = new Color(1f, 0.85f, 0.2f, 1f);        // the current transport frame's highlight
+            int curFrame = Mathf.Clamp(frame, 0, n - 1);
+
+            // Clip to the view so an overflowing block (or the tile edges) can't spill past the preview island.
+            // Inside the clip, coordinates are relative to view's top-left, so subtract view.x/view.y.
+            GUI.BeginClip(view);
+            for (int i = 0; i < n; i++)
+            {
+                var tr = new Rect(startX - view.x + (i % cols) * (tileW + gap),
+                                  startY - view.y + (i / cols) * (tileH + gap), tileW, tileH);
+                var tex = (stripCache != null && i < stripCache.Length) ? stripCache[i] : null;
+                if (tex != null) GUI.DrawTexture(tr, tex, ScaleMode.StretchToFill, true);
+                if (s.previewShowFrame) DrawRectOutline(tr, frameCol, 1f);
+                if (i == curFrame) DrawRectOutline(tr, hotCol, 2f);
+            }
+            GUI.EndClip();
+
+            GUI.Label(new Rect(view.x + 6, view.yMax - 20, 280, 18),
+                $"strip — {n} frames · frame {curFrame + 1}", EditorStyles.whiteMiniLabel);
+        }
+
+        // Rebuild the per-frame tile textures ONLY when the render inputs changed: the shared previewDirty flag, or
+        // a frameCount change (the array Length) / canvas-size change (the stripCacheCanvas shadow). Otherwise reused —
+        // the whole point of the cache. Consumes previewDirty (like the single-frame path); the Strip toggle
+        // re-dirties on a mode switch so the newly-active path always rebuilds. Destroys the old textures first.
+        void EnsureStripCache(PyrePlusSpec s, int n)
+        {
+            bool structural = stripCache == null || stripCache.Length != n || stripCacheCanvas != s.canvasSize;
+            if (!previewDirty && !structural) return;
+
+            DestroyStripCache();
+            stripCache = new Texture2D[n];
+            for (int i = 0; i < n; i++) stripCache[i] = PyrePlusRenderer.RenderFrameTexture(s, i);
+            stripCacheCanvas = s.canvasSize;
+            previewDirty = false;
+        }
+
+        // A 1-or-2-px rectangle outline via four EditorGUI.DrawRect edges (same idiom as the single-frame Frame
+        // border). `wd` is the edge thickness in px.
+        static void DrawRectOutline(Rect r, Color col, float wd)
+        {
+            EditorGUI.DrawRect(new Rect(r.x, r.y, r.width, wd), col);
+            EditorGUI.DrawRect(new Rect(r.x, r.yMax - wd, r.width, wd), col);
+            EditorGUI.DrawRect(new Rect(r.x, r.y, wd, r.height), col);
+            EditorGUI.DrawRect(new Rect(r.xMax - wd, r.y, wd, r.height), col);
         }
 
         // The BackSplash backdrop behind the frame texture — a flat camera-colour fill plus one optional image,

@@ -55,12 +55,17 @@ namespace Laubrary.PyrePlus
     //              Its own streakLength/streakWidth envelopes drive it (NOT `size`); streakBackFrac spills it
     //              behind the root; streakSoftTip feathers the forward tip; edgeSoftness feathers the two long
     //              sides (see PyrePlusRenderer.DrawStreakBody).
+    //   Star     — a filled star POLYGON: N arms (starArms) with tips at radius R (= `size`·sizeMul) and inner
+    //              (valley) vertices at radius R·(1−starLength); starBaseWidth sets each valley's angular position
+    //              inside its sector (1 = the classical pentagram midpoint) and starSkew swirls the valleys into a
+    //              pinwheel. A flat 2D form (shapeFill colours it, edgeSoftness feathers the rim). Star-shaped about
+    //              its centre, so the inside test is a per-ray boundary (see PyrePlusRenderer.DrawStarBody).
     // Box/Pyramid/Can share the Gem's shared 3D block (tilt, light, lines, glows) — see PyrePlusRenderer.DrawFacetSolid.
     // Orb/Ring reuse that SAME per-pixel lighting/lines/glows math analytically (point light + Blinn-Phong, halo +
     // inner glow, edge lines) but with sphere/annulus geometry instead of facets.
     // APPEND ONLY — the values are serialized as ints, so never reorder or insert. (Fire/Fireball/HeightBalls are
     // simulation-backed and deferred; they are NOT here.)
-    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak }
+    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak, Star }
 
     // How the Text form's spatial fill gradient is applied. PerCharGradient = every letter contains the WHOLE
     // gradient (across its own box, along the rotated fill axis). PerCharStep = every letter is ONE flat colour,
@@ -219,6 +224,17 @@ namespace Laubrary.PyrePlus
         [Range(0f, 1f)] public float streakBackFrac = 0.15f;    // how far the streak spills BEHIND the root, as a fraction of length
         [Range(0f, 1f)] public float streakSoftTip = 0.5f;      // alpha feather over the last softTip·length of the FORWARD tip (sides reuse edgeSoftness)
 
+        // ── Star form (shapeForm == Star) — a filled star polygon ────────────────────────────────────────────
+        // N points. Tips at radius R (= evaluated `size` × sizeMul); inner (valley) vertices at radius
+        // R·(1−starLength). A star polygon is star-shaped about its centre, so the renderer's inside test is a
+        // per-ray boundary (the ray-segment intersection with the one tip→valley / valley→tip edge spanning that
+        // ray's angular slot). Its colour is the shared shapeFill and edgeSoftness feathers the rim radially; the
+        // shared `size` row stays visible (= the tip radius). See PyrePlusRenderer.DrawStarBody.
+        [Range(2, 20)] public int starArms = 5;                 // point count 2..20 (5 = the classical five-pointed star)
+        public ZUIValue starLength = new ZUIValue(0.62f);       // arm reach 0..1 over own life; inner radius = R·(1−length). 0.62 ≈ the golden-ratio pentagram inner radius
+        public ZUIValue starBaseWidth = new ZUIValue(1f);       // valley angular position as a fraction of the half-sector, 0.1..1 over own life (1 = classical midpoint; smaller = thinner arm bases, wider valleys)
+        public ZUIValue starSkew = new ZUIValue(0f);            // valley swirl in degrees −60..60 over own life — rotates the valleys, pinwheel-twisting the arms (clamped so valleys never cross tips)
+
         // ── opt-in Shape fields (T7) — the particle's OWN motion after birth, on its own life clock ────────
         // A per-particle travel path: canvas-pixel offsets ADDED to the particle's spawn position, evaluated on
         // its OWN life (0 = birth, 1 = death). Default Static 0 (a no-op — the renderer skips the Eval entirely
@@ -319,6 +335,9 @@ namespace Laubrary.PyrePlus
             l.sparkleDensity = CloneVal(sparkleDensity);
             l.streakLength = CloneVal(streakLength);
             l.streakWidth = CloneVal(streakWidth);
+            l.starLength = CloneVal(starLength);
+            l.starBaseWidth = CloneVal(starBaseWidth);
+            l.starSkew = CloneVal(starSkew);
             l.particlePathX = CloneVal(particlePathX);
             l.particlePathY = CloneVal(particlePathY);
             l.particleSpin = CloneVal(particleSpin);
@@ -535,6 +554,10 @@ namespace Laubrary.PyrePlus
         [HideInInspector] public float previewFps = 12f;
         [HideInInspector] public int previewFrame = 0;
         [HideInInspector] public bool previewShowFrame = true;   // draw a thin canvas border in the preview (Frame toggle)
+        // Filmstrip / contact-sheet preview (Part A): show EVERY frame as a grid of tiles instead of one zoomed
+        // frame. Purely cosmetic editor state — never read by the renderer, never baked.
+        [HideInInspector] public bool previewStrip = false;
+        [HideInInspector] public float previewStripSize = 96f;   // filmstrip tile size in px (32..256)
 
         public int Width => Mathf.Max(1, canvasSize);
         public int Height => Mathf.Max(1, canvasSize);

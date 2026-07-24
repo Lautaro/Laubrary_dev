@@ -84,8 +84,9 @@ namespace Laubrary.PyrePlus.Editor
             base.OnDisable();
             EditorApplication.update -= Tick;
             if (previewTex != null) { DestroyImmediate(previewTex); previewTex = null; }
+            DestroyStripCache();
         }
-        protected override void OnAssetChanged() { frame = 0; previewDirty = true; }
+        protected override void OnAssetChanged() { frame = 0; previewDirty = true; DestroyStripCache(); }
 
         void Tick()
         {
@@ -96,7 +97,10 @@ namespace Laubrary.PyrePlus.Editor
             acc += dt * Mathf.Max(1f, spec.previewFps);
             bool advanced = false;
             while (acc >= 1f) { acc -= 1f; frame = (frame + 1) % Mathf.Max(1, spec.frameCount); advanced = true; }
-            if (advanced) { previewDirty = true; preview?.MarkDirtyRepaint(); }
+            // In Strip mode the frames themselves don't change as playback advances — only the highlighted tile
+            // moves — so DON'T set previewDirty (that would needlessly re-render every tile); just repaint. In
+            // single-frame mode previewDirty forces the new frame to render.
+            if (advanced) { if (!spec.previewStrip) previewDirty = true; preview?.MarkDirtyRepaint(); }
         }
 
         bool previewDirty = true;
@@ -205,20 +209,48 @@ namespace Laubrary.PyrePlus.Editor
             return store;
         }
 
-        // Preview transport: a Play/Pause button (flips its own label) + the Frame-border toggle. The minimal
-        // mirror of PyreWindow's transport row (scrub/zoom already live elsewhere in this prototype).
+        // Preview transport: a Play/Pause button (flips its own label) + the Frame-border toggle + the Strip
+        // (filmstrip / contact-sheet) toggle and, when Strip is on, a Tile-px size slider. Lives in a host that
+        // rebuilds on the Strip toggle so the Tile-px slider appears/disappears (the same show/hide idiom the
+        // Shape/Swarm sections use). The minimal mirror of PyreWindow's transport row.
+        VisualElement transportHost;
+
         void BuildTransport(VisualElement root, PyrePlusSpec s)
         {
+            transportHost = new VisualElement();
+            root.Add(transportHost);
+            RebuildTransport(s);
+        }
+
+        void RebuildTransport(PyrePlusSpec s)
+        {
+            if (transportHost == null) return;
+            transportHost.Clear();
             playButton = Z.Button(playing ? "❚❚ Pause" : "▶ Play", "Play or pause the looping preview.", () =>
             {
                 playing = !playing;
                 playButton.text = playing ? "❚❚ Pause" : "▶ Play";
             });
-            root.Add(WrapRow(
+            var kids = new List<VisualElement>
+            {
                 playButton,
                 Z.Toggle("Frame",
-                    "Draw a thin border around the canvas edge in the preview (cosmetic only — never baked).",
-                    s.previewShowFrame, v => Dirty(() => s.previewShowFrame = v))));
+                    "Draw a thin border around the canvas edge (cosmetic only — never baked). In Strip mode it "
+                    + "outlines every frame tile.",
+                    s.previewShowFrame, v => Dirty(() => s.previewShowFrame = v)),
+                Z.Toggle("Strip",
+                    "Show the whole animation as a contact sheet of every frame instead of one zoomed frame. Tiles "
+                    + "lay out left-to-right and wrap to more rows when they overflow the width; click a tile to "
+                    + "jump the transport to that frame. (No scrolling — a block taller than the view is clipped.)",
+                    s.previewStrip, v => { Dirty(() => s.previewStrip = v); RebuildTransport(s); }),
+            };
+            if (s.previewStrip)
+                kids.Add(Z.MicroSlider("Tile px", s.previewStripSize, 32f, 256f,
+                    "Size of each frame tile in the contact sheet, in pixels (32–256). Only changes how the strip is "
+                    + "laid out — the frames aren't re-rendered.",
+                    v => DirtyRepaintOnly(() => s.previewStripSize = Mathf.Clamp(v, 32f, 256f)), 150f,
+                    showValue: true, decimals: 0));
+            transportHost.Add(WrapRow(kids.ToArray()));
         }
 
         // The shared BackSplash backdrop panel (also used by Pyre / Mirage) — a cosmetic preview aid, never baked.
@@ -462,7 +494,7 @@ namespace Laubrary.PyrePlus.Editor
             RebuildShape();
         }
 
-        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can", "Orb", "Ring", "Text", "Streak" };
+        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can", "Orb", "Ring", "Text", "Streak", "Star" };
         static readonly List<string> TextFillModeChoices = new List<string> { "Per-char gradient", "Per-char step", "Text gradient" };
 
         void RebuildShape()
@@ -487,7 +519,8 @@ namespace Laubrary.PyrePlus.Editor
                     + "sphere; Ring = a flat tilted annulus (a Saturn ring) — both reuse that same lighting "
                     + "analytically. Text = a string as extruded SDF letters (one particle per character; the "
                     + "particle count follows the string). Streak = a root-anchored comet-tail capsule that grows "
-                    + "forward along its orientation (great with the Swarm's Orient).",
+                    + "forward along its orientation (great with the Swarm's Orient). Star = a filled star polygon "
+                    + "(arms, reach, base width, swirl).",
                     // Rebuild BOTH sections: Text swaps in its own Shape box AND hides the Swarm's Count field.
                     v => { Dirty(() => s.shapeForm = (ShapeForm)v); RebuildShape(); RebuildSwarm(); }, 150f)));
 
@@ -538,6 +571,9 @@ namespace Laubrary.PyrePlus.Editor
                     break;
                 case ShapeForm.Streak:
                     BuildStreakRows(s);
+                    break;
+                case ShapeForm.Star:
+                    BuildStarRows(s);
                     break;
             }
 
@@ -788,6 +824,41 @@ namespace Laubrary.PyrePlus.Editor
             shapeBody.Add(EdgeRow(s,
                 "Soft sides (1) vs hard pixel edges (0) — feathers the streak's two long SIDES (the forward tip is "
                 + "the Tip control above; the back end is a hard cut)."));
+        }
+
+        // Star form rows — a filled star polygon. Arms (point count) packed with Skew (the arm swirl); then Length
+        // (arm reach) packed with Base width (valley position); then the shared Edge row (the star's rim softness).
+        // The shared Size row above stays visible — it's the tip radius the arms reach to.
+        void BuildStarRows(PyrePlusLayer s)
+        {
+            s.starLength ??= new ZUIValue(0.62f);       // defensive; the real defaults come from the spec factories
+            s.starBaseWidth ??= new ZUIValue(1f);
+            s.starSkew ??= new ZUIValue(0f);
+
+            shapeBody.Add(WrapRow(
+                Z.MicroSlider("Arms", s.starArms, 2f, 20f,
+                    "How many points the star has (2–20). 5 = the classic five-pointed star; 6 = a Star of David.",
+                    v => Dirty(() => s.starArms = Mathf.Clamp(Mathf.RoundToInt(v), 2, 20)), 150f,
+                    showValue: true, decimals: 0),
+                Val("Skew °",
+                    "Swirls the arms by rotating the inner (valley) vertices, in degrees, over the particle's own "
+                    + "life — 0 = straight symmetric arms, ± twists them into a pinwheel. (Clamped so a valley "
+                    + "never crosses a tip.)",
+                    s.starSkew, -60f, 60f)));
+
+            shapeBody.Add(WrapRow(
+                Val("Length",
+                    "How far the arm tips reach out, 0..1, over the particle's own life — the inner (valley) radius "
+                    + "is R·(1−length), so higher = longer, sharper arms (0.62 ≈ the classical pentagram).",
+                    s.starLength, 0f, 1f),
+                Val("Base width",
+                    "Angular width of each arm's base, 0.1..1, over the particle's own life — 1 = the classical "
+                    + "midpoint valleys; smaller pulls the valleys toward the tips for thinner arm bases and wider "
+                    + "notches between them.",
+                    s.starBaseWidth, 0.1f, 1f)));
+
+            shapeBody.Add(EdgeRow(s,
+                "Soft rim (1) vs a hard pixel edge (0) — feathers the star's whole outline inward along each ray."));
         }
 
         // Text form box — the string, the SDF font, spacing, the fill (mode + angle + gradient), the border (width
@@ -1142,6 +1213,9 @@ namespace Laubrary.PyrePlus.Editor
                      + "Gem's Crown / Pavilion) scale from.";
             if (f == ShapeForm.Text)
                 return "The character HEIGHT in pixels over the particle's own life.";
+            if (f == ShapeForm.Star)
+                return "The star's TIP radius in pixels over the particle's own life — the arms reach out to it "
+                     + "(the valleys sit at Length inside).";
             return "Radius in pixels over the particle's own life.";
         }
 
@@ -1161,6 +1235,9 @@ namespace Laubrary.PyrePlus.Editor
                 case ShapeForm.Streak:
                     return "Degrees the streak turns about its root over its own life — rotates its forward "
                          + "direction, ADDED on top of any Swarm Orient facing.";
+                case ShapeForm.Star:
+                    return "Degrees the star spins in place over its own life — unlike a disc, a star isn't "
+                         + "radially symmetric, so its arms visibly turn.";
                 case ShapeForm.Text:
                     return "Degrees each letter yaws about its OWN centre over its life (its 3D letter-box turns to "
                          + "face the light); paired with the letters' tilt for the extruded look.";
@@ -1206,6 +1283,19 @@ namespace Laubrary.PyrePlus.Editor
             apply();
             EditorUtility.SetDirty(spec);
             MarkDirty();
+        }
+
+        // A cosmetic edit that only changes how the preview is LAID OUT / drawn (not the rendered frames): record
+        // Undo + SetDirty + repaint, but do NOT set previewDirty. Used by the filmstrip's Tile-px slider so dragging
+        // it re-lays-out the existing tile textures instead of re-rendering every frame (the strip cache is keyed
+        // to previewDirty + frameCount/canvas only — tile size is neither).
+        void DirtyRepaintOnly(System.Action apply)
+        {
+            if (spec == null) return;
+            Undo.RecordObject(spec, "Edit Pyre Plus");
+            apply();
+            EditorUtility.SetDirty(spec);
+            preview?.MarkDirtyRepaint();
         }
 
         // DrawPreview + the Swarm authoring overlay live in PyrePlusWindow.Preview.cs.

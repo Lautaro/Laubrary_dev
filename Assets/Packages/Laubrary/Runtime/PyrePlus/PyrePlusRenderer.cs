@@ -64,6 +64,9 @@ namespace Laubrary.PyrePlus
         const int FldStreakLen = -10;    // streakLength — Streak forward length, particle's own life              [S1]
         const int FldStreakWidth = -11;  // streakWidth — Streak cross width, particle's own life                  [S1]
         const int FldScaleByIndex = -12; // swarmScaleByIndex — per-particle size multiplier by index (input i/(n-1)) [S1]
+        const int FldStarLen = -13;      // starLength — Star arm-tip reach (inner radius = R·(1−len)), own life     [V1]
+        const int FldStarBase = -14;     // starBaseWidth — Star valley angular position within its sector, own life  [V1]
+        const int FldStarSkew = -15;     // starSkew — Star valley swirl (pinwheel), own life                         [V1]
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
         //  3D yaw (Turn), FldGemTilt for its tilt, FldGemRoll for its roll, and FldPathX/FldPathY for the shared
         //  travel offset — no other new ids. Crescent/Sparkle/Sprite likewise REUSE FldSize/FldAlpha (radius/alpha),
@@ -890,6 +893,12 @@ namespace Laubrary.PyrePlus
                                  spec, layer, particleIndex, mods, phase, frameIndex, life, brightMul, orientDeg);
                 return;
             }
+            if (layer.shapeForm == ShapeForm.Star)
+            {
+                DrawStarBody(buf, W, H, cx, cy, radius, alpha, col, cr, cg, cb, soft,
+                             spec, layer, particleIndex, mods, phase, frameIndex, life, brightMul, orientDeg);
+                return;
+            }
             if (layer.shapeForm == ShapeForm.Sparkle)
             {
                 DrawSparkleBody(buf, W, H, cx, cy, radius, alpha, col, cr, cg, cb,
@@ -1129,6 +1138,145 @@ namespace Laubrary.PyrePlus
                         Color pc = new Color(cr, cg, cb, 1f);
                         float pa = baseA;
                         float crossFrac = Mathf.Clamp01(d / Mathf.Max(0.001f, radius));
+                        if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, wx, wy, frameIndex, crossFrac, life, pHash, W, H)) continue;
+                        Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                    }
+                    else Over(buf, y * W + x, cr, cg, cb, baseA);
+                }
+        }
+
+        // Star (V1): a filled star POLYGON — a 3N-gon of N arms with tips at radius R (= the size envelope, passed
+        // in as `radius`) and TWO valley vertices per sector at radius r = R·(1−starLength). TWO valleys (not one)
+        // so baseWidth thins the arms SYMMETRICALLY: a single valley placed `off` FROM the tip is inherently
+        // asymmetric (close to tip k, far from tip k+1) and reads as a pinwheel skew — the defect this revision
+        // fixes. Per sector between tip k (angle aTip) and tip k+1 (aTip+sector): valleyA sits offA past tip k,
+        // valleyB sits offB before tip k+1 (i.e. at aTip+sector−offB), BOTH at r, joined by a flat base chord.
+        //   offA = clamp(halfSector·baseWidth + skew, 0.02·sector, 0.98·sector)
+        //   offB = clamp(halfSector·baseWidth − skew, 0.02·sector, 0.98·sector)
+        // so skew shifts BOTH valleys the SAME signed way (a true pinwheel — the arm rotates but keeps its width),
+        // while baseWidth narrows both toward their tips symmetrically. With these symmetric clamps offA+offB ≤
+        // sector ALWAYS (unclamped sum = sector·baseWidth ≤ sector; any clamp that raises one offset to 0.98·sector
+        // drives the other to 0.02·sector, capping the sum at sector), so the two valleys never CROSS — at worst
+        // they COINCIDE (offA+offB = sector), which is exactly the bw=1 default and the extreme-skew case; that
+        // collapses to a single midpoint valley (the classical two-segment star). DEFAULT BYTE-IDENTITY: at bw=1,
+        // skew=0, offA=offB=halfSector (unclamped) so vA=offA=halfSector and vB=sector−offB=sector−halfSector, and
+        // since sector==halfSector+halfSector exactly (fl(2a)==2·fl(a) for round-to-nearest) the exact-difference
+        // 2·halfSector−halfSector gives vB==halfSector==vA → coincide → the single-valley branch runs the SAME two
+        // segments (tip→valley at halfSector, valley→nextTip) with the SAME endpoints the pre-fix star used, so the
+        // classical star renders bit-for-bit unchanged; the flat base chord has zero length there and is unreachable.
+        //
+        // A star polygon is star-shaped about its centre, so the inside test is RADIAL: for each pixel's
+        // (spun/warped) local offset take θ = atan2(dy,dx), find the ONE boundary edge (tip→valleyA, the base chord
+        // valleyA→valleyB, or valleyB→next tip) whose angular slot contains θ, and intersect the ray with it. The
+        // boundary distance `bound` along the ray is the ray-segment cross-product solve  t = cross(E,P1)/cross(E,D)
+        // (E = P2−P1, D = the ray unit vector, cross(A,B) = Ax·By − Ay·Bx) — derived so that, θ already being between
+        // the two endpoint angles, t is the positive crossing distance. Lit iff d ≤ bound; edgeSoftness feathers the
+        // rim radially per ray (inner = bound·(1−soft)), the Disc rim idiom along the ray. Tips are at R (valleys at
+        // r < R), so the OUTER bound is R everywhere (the d > R early-out is exact). Spin + geometry warps fold
+        // through ResolveSample in the SAME order as the Disc modifier path; the shape fill maps (u,v) = (dx/R, dy/R).
+        static void DrawStarBody(Color32[] buf, int W, int H, float cx, float cy, float radius, float alpha,
+                                 Color col, float cr, float cg, float cb, float soft,
+                                 PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex, in ModSet mods, float phase,
+                                 int frameIndex, float life, float brightMul, float orientDeg = 0f)
+        {
+            float R = radius;
+            int N = Mathf.Clamp(layer.starArms, 2, 20);
+            float len = Mathf.Clamp01(Eval(layer.starLength, life, spec.seed, particleIndex, FldStarLen));
+            float rIn = Mathf.Max(0.5f, R * (1f - len));                              // valley radius, floored so it never collapses to a point
+            float baseW = Mathf.Clamp(Eval(layer.starBaseWidth, life, spec.seed, particleIndex, FldStarBase), 0.1f, 1f);
+            float skew = Eval(layer.starSkew, life, spec.seed, particleIndex, FldStarSkew) * Mathf.Deg2Rad;
+
+            float sector = 2f * Mathf.PI / N;        // angular span between adjacent tips
+            float halfSector = Mathf.PI / N;         // half of it — the classical (single-valley) midpoint
+            // TWO valleys per sector (see the header): valleyA offA past tip k, valleyB offB before tip k+1. skew
+            // shifts both the same signed way (pinwheel), baseW thins both toward their tips. Clamp both away from
+            // the tips (a degenerate zero-length edge / divide-by-zero) — symmetric so offA+offB ≤ sector always.
+            float lo = 0.02f * sector, hi = 0.98f * sector;
+            float offA = Mathf.Clamp(halfSector * baseW + skew, lo, hi);   // valleyA angle past tip k
+            float offB = Mathf.Clamp(halfSector * baseW - skew, lo, hi);   // valleyB angle before tip k+1
+            float vA = offA;                         // valleyA relative angle from the tip
+            float vB = sector - offB;                // valleyB relative angle from the tip
+            // Coincide/cross guard: offA+offB ≤ sector ⇒ vA ≤ vB ALWAYS, so this is true only when they meet exactly
+            // (the bw=1 default, or an extreme skew clamped to both rails). Then the star has a single midpoint
+            // valley — the classical two-segment shape — and at the default vA == halfSector, keeping it byte-identical.
+            bool coincide = vB <= vA;
+            const float TIP = Mathf.PI * 0.5f;       // tip 0 points UP (+90°), matching the polygon convention
+
+            var fill = layer.shapeFill;
+            bool fillSpatial = IsSpatialFill(fill);
+
+            bool anyGeo = mods.AnyGeo;
+            float ccx = W * 0.5f, ccy = H * 0.5f;
+            Vector2 c = new Vector2(cx - ccx, cy - ccy);
+            var ctx = new GeoCtx(ccx, ccy, c, radius);
+            float spin = Eval(layer.particleSpin, life, spec.seed, particleIndex, FldSpin);
+            if (orientDeg != 0f) spin += orientDeg;   // swarm facing (S1) folds into the 2D spin, exactly like Disc/Crescent
+            bool doSpin = spin != 0f;
+            float spinCos = 1f, spinSin = 0f;
+            if (doSpin) { float sa = -spin * Mathf.Deg2Rad; spinCos = Mathf.Cos(sa); spinSin = Mathf.Sin(sa); }
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7 + _layerSalt);
+
+            int px0, px1, py0, py1;
+            if (anyGeo) { px0 = 0; py0 = 0; px1 = W - 1; py1 = H - 1; }   // a warp can pull any pixel in → whole-canvas scan
+            else
+            {
+                px0 = Mathf.Max(0, Mathf.FloorToInt(cx - radius));       // tips reach exactly R, so an R box bounds the star
+                px1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + radius));
+                py0 = Mathf.Max(0, Mathf.FloorToInt(cy - radius));
+                py1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + radius));
+            }
+
+            for (int y = py0; y <= py1; y++)
+                for (int x = px0; x <= px1; x++)
+                {
+                    float sx = x + 0.5f, sy = y + 0.5f;
+                    ResolveSample(sx, sy, cx, cy, ccx, ccy, c, doSpin, spinCos, spinSin, anyGeo, mods.geo, phase, ctx,
+                                  out float dx, out float dy, out float wx, out float wy);
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (d > R) continue;                                 // beyond the tips — nothing is inside
+
+                    // Locate the angular slot: θ's arm sector, then which of that sector's THREE edges spans it.
+                    float th = Mathf.Atan2(dy, dx);
+                    float phi = th - TIP;
+                    float ph = phi - Mathf.Floor(phi / sector) * sector;  // [0, sector): angle past this arm's tip
+                    float aTip = th - ph;                                 // absolute angle of the tip starting this slot (= TIP + k·sector)
+                    float a1, r1, a2, r2;
+                    if (coincide)
+                    {
+                        // Single midpoint valley (bw=1 default / extreme skew) → the classical two-segment star.
+                        // vA == halfSector at the default, so this is byte-identical to the pre-fix star.
+                        if (ph < vA) { a1 = aTip;      r1 = R;   a2 = aTip + vA;     r2 = rIn; }   // tip → valley
+                        else         { a1 = aTip + vA; r1 = rIn; a2 = aTip + sector; r2 = R;   }   // valley → next tip
+                    }
+                    else if (ph < vA) { a1 = aTip;      r1 = R;   a2 = aTip + vA;     r2 = rIn; }  // tip → valleyA
+                    else if (ph < vB) { a1 = aTip + vA; r1 = rIn; a2 = aTip + vB;     r2 = rIn; }  // valleyA → valleyB (flat base chord)
+                    else              { a1 = aTip + vB; r1 = rIn; a2 = aTip + sector; r2 = R;   }  // valleyB → next tip
+
+                    // Ray-segment intersection distance along the ray at angle θ (see the method header).
+                    float Dx = Mathf.Cos(th), Dy = Mathf.Sin(th);
+                    float p1x = r1 * Mathf.Cos(a1), p1y = r1 * Mathf.Sin(a1);
+                    float p2x = r2 * Mathf.Cos(a2), p2y = r2 * Mathf.Sin(a2);
+                    float ex = p2x - p1x, ey = p2y - p1y;
+                    float denom = ex * Dy - ey * Dx;                      // cross(E, D)
+                    float bound = Mathf.Abs(denom) < 1e-6f ? R : (ex * p1y - ey * p1x) / denom;   // cross(E, P1) / cross(E, D)
+                    if (bound <= 0f) continue;                           // safety: degenerate ray
+                    if (d > bound) continue;                             // outside the star along this ray (a valley notch)
+
+                    float rInner = bound * (1f - soft);                  // Disc rim idiom, radial: full alpha inside, feather to the boundary
+                    float edge = d <= rInner ? 1f : 1f - Mathf.InverseLerp(rInner, bound, d);
+                    if (fillSpatial)   // spatial fill → this pixel's colour at its (spun/warped) local (u,v); constant fills skip
+                    {
+                        col = fill.Evaluate(life, dx / R, dy / R);
+                        cr = col.r; cg = col.g; cb = col.b;
+                        if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
+                    }
+                    float baseA = alpha * col.a * edge;
+                    if (baseA <= 0.002f) continue;
+                    if (mods.AnyPix)
+                    {
+                        Color pc = new Color(cr, cg, cb, 1f);
+                        float pa = baseA;
+                        float crossFrac = Mathf.Clamp01(d / Mathf.Max(0.001f, R));
                         if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, wx, wy, frameIndex, crossFrac, life, pHash, W, H)) continue;
                         Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
                     }
