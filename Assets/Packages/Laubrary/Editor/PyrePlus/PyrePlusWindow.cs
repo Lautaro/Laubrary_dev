@@ -78,8 +78,7 @@ namespace Laubrary.PyrePlus.Editor
                 return spec.layers[layerSel];
             }
         }
-        VisualElement layerListHost;   // refilled by RebuildLayerList on any list change
-        VisualElement matteBody;       // refilled by RebuildMatte on selection / role change
+        VisualElement layerListHost;   // refilled by RebuildLayerList on any list change (rows + any enabled per-layer matte box)
 
         protected override void OnEnable()
         {
@@ -168,8 +167,10 @@ namespace Laubrary.PyrePlus.Editor
             BuildCanvas(flow, s);
             BuildShape(flow, s);
             BuildSwarm(flow, s);
-            BuildMatte(flow);          // the selected layer's matte role / channel / clip
             BuildModifiers(flow, s);   // PyrePlusWindow.Modifiers.cs
+            // No standalone Matte section: matte is a property of a layer, authored per-row in the layer list
+            // above (BuildMatteBox, folded under each row) — mirroring Pyre1, where a matte reads as belonging
+            // to the layer in the STACK (where it acts) rather than as a dial in a separate section.
 
             // ── right: preview + transport + backdrop ────────────────────────────
             // The dial pane is a fixed width; the preview takes whatever remains (flexGrow 1).
@@ -464,13 +465,16 @@ namespace Laubrary.PyrePlus.Editor
 
         // ── layer list (R3) ─────────────────────────────────────────────────────────
         // A compact stack at the top of the left pane. One row per layer — reorder grip, enable toggle, select
-        // button, rename-in-place name field, per-row remove — plus an add / duplicate row. Selection drives which
-        // layer the Shape / Swarm / Matte / Modifiers sections below edit. Mirrors PyreWindow's layer-list chrome.
+        // button, rename-in-place name field, per-row remove — plus an add / duplicate row. Each row also carries
+        // its OWN Matte box, folded underneath it (BuildMatteBox), so a matte reads as a property of the layer in
+        // the stack. Selection drives which layer the Shape / Swarm / Modifiers sections below edit. Mirrors
+        // PyreWindow's layer-list chrome (row + folded matte box inside one drag wrap).
         void BuildLayerList(VisualElement root)
         {
             var box = Z.BoxKeyed("Layers",
                 "The paint stack — earlier (higher) layers composite BEHIND later (lower) ones. Click a layer to "
-                + "edit its Shape / Swarm / Matte / Modifiers dials below; drag the grip to reorder.",
+                + "edit its Shape / Swarm / Modifiers dials below; expand a row's Matte box to make it a stencil or "
+                + "clip it by another layer's mask; drag the grip to reorder.",
                 "pyreplus.layers");
             layerListHost = new VisualElement();
             box.Add(layerListHost);
@@ -494,6 +498,11 @@ namespace Laubrary.PyrePlus.Editor
             var layer = spec.layers[li];
             bool sel = li == layerSel;
 
+            // The row PLUS its own Matte box, folded underneath — so a matte reads as a property of this layer in
+            // the stack, which is where it acts (mirrors Pyre1). The WRAP (not the inner row) is the drag/reorder
+            // unit, or reordering would leave the folded matte box behind.
+            var wrap = new VisualElement();
+
             var row = new VisualElement();
             row.AddToClassList("zui-row");
             if (sel) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
@@ -501,7 +510,7 @@ namespace Laubrary.PyrePlus.Editor
             var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder this layer in the paint stack.");
             grip.style.unityFontStyleAndWeight = FontStyle.Bold;
             grip.style.width = 16f;
-            ZuiReorder.MakeGrip(grip, row, listHost, (from, to) =>
+            ZuiReorder.MakeGrip(grip, wrap, listHost, (from, to) =>
             {
                 Dirty(() =>
                 {
@@ -538,6 +547,23 @@ namespace Laubrary.PyrePlus.Editor
                 row.Add(Z.Text($"→{Mathf.Clamp(layer.matteChannel, 0, 3)}", ZuiText.Small,
                     "A matte layer — invisible; writes its coverage into the shown mask channel."));
 
+            // Matte toggle ICON (mirrors Pyre1's per-row Matte toggle) — sits just before the delete button. A
+            // glyph-swap button like the select button above (▦ mask-pattern = on, □ hollow = off), so it shows its
+            // own state and matches the other row icons' style/size (.W(24f)). Both glyphs are Geometric Shapes,
+            // the same block as the ●/○ select glyphs that already render. Turning it OFF also resets the layer to
+            // inert (Draw + no clip) so a previously-configured matte stops acting; the box appears/disappears via
+            // RebuildLayerList (same as a role change).
+            row.Add(Z.Button(layer.matteEnabled ? "▦" : "□",
+                "Toggle matte for this layer — write a mask channel, or clip this layer by one.", () =>
+            {
+                Dirty(() =>
+                {
+                    layer.matteEnabled = !layer.matteEnabled;
+                    if (!layer.matteEnabled) { layer.matteRole = MatteRole.Draw; layer.clipByChannel = -1; }
+                });
+                RebuildLayerList();
+            }).W(24f));
+
             row.Add(Z.Button("✕", "Delete this layer (undoable).", () =>
             {
                 if (spec.layers.Count <= 1) { ShowNotification(new GUIContent("A Pyre Plus asset needs at least one layer.")); return; }
@@ -545,7 +571,12 @@ namespace Laubrary.PyrePlus.Editor
                 layerSel = Mathf.Clamp(layerSel, 0, spec.layers.Count - 1);
                 RebuildAllForSelection();
             }).W(22f));
-            return row;
+
+            wrap.Add(row);
+            // The Matte box folds out ONLY when this layer has matte enabled (mirrors Pyre1, where the box shows
+            // only for a matte layer). The wrap still owns row + box as one drag/reorder unit.
+            if (layer.matteEnabled) wrap.Add(BuildMatteBox(layer, li));
+            return wrap;
         }
 
         void AddLayer()
@@ -581,76 +612,74 @@ namespace Laubrary.PyrePlus.Editor
         }
 
         // Re-point every selection-bound section at the (possibly new) SelLayer and refresh the list highlight.
+        // RebuildLayerList also rebuilds every row's folded Matte box, so no separate matte rebuild is needed.
         void RebuildAllForSelection()
         {
             RebuildLayerList();
             RebuildShape();
             RebuildSwarm();
-            RebuildMatte();
             RebuildModifiers();
             MarkDirty();
         }
 
-        // ── Matte (R3) — the selected layer's role in the stack ──────────────────────
+        // ── Matte (R3) — a property of each layer, folded under its row in the layer list ──────────────
         static readonly string[] MatteRoleLabels = { "Draw", "Write matte" };
         static readonly string[] MatteCombineLabels = { "Max", "Add", "Subtract" };
         static readonly List<string> ClipChannelChoices = new List<string> { "None", "0", "1", "2", "3" };
 
-        void BuildMatte(VisualElement root)
+        // This layer's own Matte box, folded under its row (built from BuildLayerRow into the row's drag wrap, only
+        // when layer.matteEnabled). Every control binds to the passed-in `layer` — THIS row's layer, never the
+        // selected one — so matte is authored per-row, independent of which layer is selected. The stateKey is
+        // per-layer-index so two mattes never share fold state; it opens by default when it appears (the user just
+        // enabled it, so they want to configure it). Mirrors Pyre1's BuildMatteBox: a matte belongs to the layer in
+        // the stack, shown only when that layer is a matte, not to a separate section.
+        VisualElement BuildMatteBox(PyrePlusLayer layer, int li)
         {
             var box = Z.BoxKeyed("Matte",
                 "Turns this layer into a stencil. A Write-matte layer is INVISIBLE — instead of drawing, it writes "
                 + "its coverage into one of four numbered mask channels. A Draw layer can then Clip its own opacity "
                 + "by any channel a layer BELOW it wrote, so an earlier shape can mask or cut into a later one.",
-                "pyreplus.matte");
-            matteBody = new VisualElement();
-            box.Add(matteBody);
-            root.Add(box);
-            RebuildMatte();
-        }
+                $"pyreplus.matte:{li}");
+            box.style.marginLeft = 16f;   // indent under its row, so the list still reads as a list
 
-        void RebuildMatte()
-        {
-            if (matteBody == null) return;
-            matteBody.Clear();
-            var sel = SelLayer;
-            if (sel == null) return;
-
-            matteBody.Add(Z.Field("Role",
+            box.Add(Z.Field("Role",
                 "Draw = composite this layer onto the frame normally. Write matte = don't draw it; write its "
                 + "coverage into a mask channel for the Draw layers above to clip by.",
-                Z.Segmented((int)sel.matteRole, MatteRoleLabels,
+                Z.Segmented((int)layer.matteRole, MatteRoleLabels,
                     "Draw composites this layer. Write matte makes it invisible and stencils a channel instead.",
-                    v => { Dirty(() => sel.matteRole = (MatteRole)v); RebuildMatte(); RebuildLayerList(); })));
+                    // Role swaps the box's controls (Channel/Combine ↔ Clip/Invert) AND the row's matte indicator,
+                    // so rebuild the whole list; the per-index fold key keeps this box's open/closed state across it.
+                    v => { Dirty(() => layer.matteRole = (MatteRole)v); RebuildLayerList(); })));
 
-            if (sel.matteRole == MatteRole.WriteMatte)
+            if (layer.matteRole == MatteRole.WriteMatte)
             {
-                matteBody.Add(WrapRow(
-                    Z.MicroSlider("Channel", sel.matteChannel, 0f, 3f,
+                box.Add(WrapRow(
+                    Z.MicroSlider("Channel", layer.matteChannel, 0f, 3f,
                         "Which of the four mask channels (0–3) this layer's coverage writes into. A Draw layer above "
                         + "picks the same number in its Clip-by to be stencilled by this layer.",
-                        v => Dirty(() => sel.matteChannel = Mathf.Clamp(Mathf.RoundToInt(v), 0, 3)), 150f,
+                        v => Dirty(() => layer.matteChannel = Mathf.Clamp(Mathf.RoundToInt(v), 0, 3)), 150f,
                         showValue: true, decimals: 0),
                     Z.Field("Combine",
                         "How this layer's coverage merges with anything an earlier matte layer already wrote into "
                         + "the same channel. Max = union; Add = accumulate; Subtract = carve out.",
-                        Z.Segmented((int)sel.matteCombine, MatteCombineLabels,
+                        Z.Segmented((int)layer.matteCombine, MatteCombineLabels,
                             "Max = union of masks (default). Add = accumulate & clamp. Subtract = carve one mask out of another.",
-                            v => Dirty(() => sel.matteCombine = (MatteCombine)v)))));
+                            v => Dirty(() => layer.matteCombine = (MatteCombine)v)))));
             }
             else
             {
-                matteBody.Add(WrapRow(
+                box.Add(WrapRow(
                     Z.Field("Clip by",
                         "Multiply THIS layer's opacity by a mask channel an EARLIER (lower) layer wrote — None = no "
                         + "clipping. The layer then only shows where that channel is bright.",
-                        Z.MiniRadio(Mathf.Clamp(sel.clipByChannel + 1, 0, 4), ClipChannelChoices.ToArray(),
+                        Z.MiniRadio(Mathf.Clamp(layer.clipByChannel + 1, 0, 4), ClipChannelChoices.ToArray(),
                             "None, or channel 0–3 written by a Write-matte layer below this one. This layer is clipped to it.",
-                            v => Dirty(() => sel.clipByChannel = v - 1), wrap: true)),
+                            v => Dirty(() => layer.clipByChannel = v - 1), wrap: true)),
                     Z.Toggle("Invert",
                         "Clip by (1 − channel) instead — show where the mask is DARK, hide where it's bright.",
-                        sel.clipInvert, v => Dirty(() => sel.clipInvert = v))));
+                        layer.clipInvert, v => Dirty(() => layer.clipInvert = v))));
             }
+            return box;
         }
 
         // The Shape section is a stable header + a body container we clear/refill whenever the Advanced gate

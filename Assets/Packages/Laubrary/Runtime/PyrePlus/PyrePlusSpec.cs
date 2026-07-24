@@ -102,6 +102,11 @@ namespace Laubrary.PyrePlus
         public string name = "Layer";    // shown in the layer list; rename-in-place
 
         // ── matte (R3) — Pyre's matte idea, simplified to numbered channels ─────────
+        // UI-gating only: whether this layer's Matte box is enabled/shown in the layer list (mirrors Pyre1's
+        // per-row Matte toggle). The RENDERER never reads it — turning it OFF also resets the layer to inert
+        // (matteRole=Draw, clipByChannel=-1) so a previously-configured matte stops acting. Value type, so
+        // MemberwiseClone in Clone() copies it for free.
+        [HideInInspector] public bool matteEnabled = false;
         // Draw = composite normally (the default; a Draw layer with clipByChannel < 0 is exactly a pre-R3 layer).
         // WriteMatte = invisible; write this layer's coverage into channel `matteChannel` for the Draw layers above.
         public MatteRole matteRole = MatteRole.Draw;
