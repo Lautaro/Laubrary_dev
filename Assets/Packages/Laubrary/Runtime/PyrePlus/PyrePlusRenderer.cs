@@ -62,7 +62,9 @@ namespace Laubrary.PyrePlus
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
         //  3D yaw, and FldPathX/FldPathY for the shared travel offset — no new ids for those. Crescent/Sparkle/
         //  Sprite likewise REUSE FldSize/FldAlpha (radius/alpha), FldSpin (2D spin), FldPathX/Y (travel); Sprite
-        //  needs no new random-draw id at all.)
+        //  needs no new random-draw id at all. Orb/Ring reuse the SAME Gem ids — FldSize (radius/outer radius),
+        //  FldAlpha, FldSpin (Orb: lighting-frame yaw / Ring: in-plane yaw), FldGemTilt, FldGemEdgeGlow,
+        //  FldGemInnerGlow, FldPathX/Y — and add NO new ids: ringInner is a plain non-animatable float.)
         // Modifiers (T6): each PyreModifier in spec.modifiers owns an 8-wide field-id BLOCK starting at
         // FldModifier + listIndex*8, so a modifier's local field id (its Prepare's fid, 0..7) maps to
         // FldModifier + listIndex*8 + fid. Since every modifier has a distinct list index the blocks never
@@ -525,6 +527,20 @@ namespace Laubrary.PyrePlus
                 spec.shapeForm == ShapeForm.Pyramid || spec.shapeForm == ShapeForm.Can)
             {
                 DrawFacetSolid(buf, W, H, cx, cy, life, spec, particleIndex, mods, frameIndex, sizeMul, brightMul);
+                return;
+            }
+            // Orb + Ring — the ANALYTIC true-3D forms (a sphere and a flat annulus). They reuse the SAME per-pixel
+            // point-light + Blinn-Phong lighting, hard edge lines and halo/inner glows as DrawFacetSolid, but drive
+            // them from analytic geometry instead of facets (see DrawOrb / DrawRing). Branch before the Disc
+            // arithmetic so the Disc path stays byte-identical, exactly like the facet-solid branch above.
+            if (spec.shapeForm == ShapeForm.Orb)
+            {
+                DrawOrb(buf, W, H, cx, cy, life, spec, particleIndex, mods, frameIndex, sizeMul, brightMul);
+                return;
+            }
+            if (spec.shapeForm == ShapeForm.Ring)
+            {
+                DrawRing(buf, W, H, cx, cy, life, spec, particleIndex, mods, frameIndex, sizeMul, brightMul);
                 return;
             }
 
@@ -1212,6 +1228,332 @@ namespace Laubrary.PyrePlus
                         {
                             Color pc = new Color(rr, gg, bb, 1f);
                             float crossFrac = Mathf.Clamp01(Mathf.Sqrt(lx * lx + ly * ly) / Mathf.Max(0.001f, R));
+                            if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, x + 0.5f, y + 0.5f, frameIndex, crossFrac, own, pHash, W, H)) continue;
+                            Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                        }
+                        else Over(buf, y * W + x, rr, gg, bb, pa);
+                    }
+                }
+        }
+
+        // ── Orb: a true lit sphere, analytic (no facets) ─────────────────────────────────────────────────────
+        // Silhouette = the plain circle d ≤ R, NEVER squashed by spin/tilt (a sphere looks identical from every
+        // angle). The per-pixel visible surface point is P = (dx, dy, +sqrt(R²−dx²−dy²)) in screen space (+z toward
+        // the viewer), normal N = P/R — so the smooth silhouette falloff comes out for free. The lighting formula,
+        // edge line, halo and inner glow are IDENTICAL to DrawFacetSolid's face path (mirrored here rather than
+        // shared, so the facet forms stay byte-identical): the only differences are (1) N is analytic instead of a
+        // flat face normal, and (2) how spin/tilt are applied — see the lighting-frame rotation below.
+        static void DrawOrb(Color32[] buf, int W, int H, float cx, float cy, float own,
+                            PyrePlusSpec spec, int particleIndex, in ModSet mods, int frameIndex,
+                            float sizeMul, float brightMul)
+        {
+            float R = Mathf.Max(0f, Eval(spec.size, own, spec.seed, particleIndex, FldSize)) * sizeMul;
+            if (R < 1.5f) return;
+            float alphaEnv = Mathf.Clamp01(Eval(spec.alpha, own, spec.seed, particleIndex, FldAlpha));
+            if (alphaEnv <= 0.002f) return;
+
+            // Shared per-particle travel (T7) — same guard as the facet/disc path (exact no-op at Static 0).
+            if (!(IsStaticZero(spec.particlePathX) && IsStaticZero(spec.particlePathY)))
+            {
+                cx += Eval(spec.particlePathX, own, spec.seed, particleIndex, FldPathX);
+                cy += Eval(spec.particlePathY, own, spec.seed, particleIndex, FldPathY);
+            }
+
+            // Light POSITION exactly as DrawFacetSolid builds it (screen space, distance 3.5·R, falloff 4.7·R).
+            float lyaw = spec.gemLightYaw * Mathf.Deg2Rad, lpitch = spec.gemLightPitch * Mathf.Deg2Rad;
+            float ldist = 3.5f * R, lhoriz = ldist * Mathf.Cos(lpitch);
+            Vector3 lightPos = new Vector3(lhoriz * Mathf.Sin(lyaw), ldist * Mathf.Sin(lpitch), lhoriz * Mathf.Cos(lyaw));
+            float lrange = 4.7f * R, lrange2 = lrange * lrange;
+            Vector3 viewDir = new Vector3(0f, 0f, 1f);
+
+            // ── Orb spin/tilt = a LIGHTING-FRAME rotation, NOT a geometry rotation. A uniform sphere's silhouette
+            //    AND its true screen-space normals (N = P/R) are both rotation-invariant, so a plain lit sphere
+            //    would show NOTHING as it spins. To roll the shading + specular hotspot around the ball (matching
+            //    the Bakery Orb, which spins in the sphere-local shading plane), we rotate the LIGHT by the INVERSE
+            //    of the sphere's rotation and keep shading with the true N = P/R (which preserves the correct rim
+            //    falloff). This is EXACTLY equivalent to rotating N (and P) FORWARD by the rotation with a fixed
+            //    light: a rotation preserves dot products and lengths, so N·(Rot⁻¹·L) == (Rot·N)·L and
+            //    |Rot⁻¹·L − P| == |L − Rot·P| — same lit value, same specular, same attenuation. Rotating the light
+            //    ONCE here is far cheaper than rotating N per pixel. Rot (the facet solids' own) is yaw-about-Y then
+            //    tilt-about-X; its inverse is yaw(−) applied after tilt(−).
+            float yaw = Eval(spec.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
+            float tilt = Eval(spec.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
+            float cyw = Mathf.Cos(yaw), syw = Mathf.Sin(yaw);
+            float ct = Mathf.Cos(tilt), st = Mathf.Sin(tilt);
+            {
+                // TiltX(−tilt): undo the tilt about X, then YawY(−yaw): undo the yaw about Y.
+                float ax = lightPos.x;
+                float ay = lightPos.y * ct + lightPos.z * st;
+                float az = -lightPos.y * st + lightPos.z * ct;
+                lightPos = new Vector3(ax * cyw - az * syw, ay, ax * syw + az * cyw);
+            }
+
+            Color specColor = spec.gemSpecularColor;
+            Color innerColor = spec.gemInnerGlowColor;
+            Color lineColor = spec.gemLineColor;
+            Color edgeGlowColor = spec.gemEdgeGlowColor;
+            float lineW = spec.gemLineWidth;
+            float ambient = spec.gemAmbient, specStr = spec.gemSpecular;
+
+            float edgeGlow = Mathf.Clamp01(Eval(spec.gemEdgeGlow, own, spec.seed, particleIndex, FldGemEdgeGlow));
+            float innerGlow = Mathf.Clamp01(Eval(spec.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
+            float haloR = Mathf.Max(2.5f, 0.24f * R);
+            float innerR = Mathf.Max(3f, 0.30f * R);
+            Color baseCol = spec.colorOverLife != null ? spec.colorOverLife.Evaluate(own) : Color.white;
+
+            // Raster bounds: the circle d ≤ R, expanded by haloR so the outside halo isn't clipped.
+            float extent = R + haloR;
+            int x0 = Mathf.Max(0, Mathf.FloorToInt(cx - extent));
+            int x1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + extent));
+            int y0 = Mathf.Max(0, Mathf.FloorToInt(cy - extent));
+            int y1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + extent));
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    float lx = x + 0.5f - cx, ly = y + 0.5f - cy;
+                    float d = Mathf.Sqrt(lx * lx + ly * ly);
+                    // The orb's ONLY edge is the silhouette rim; distance to it (both sides) drives lines + glows,
+                    // exactly as DrawFacetSolid's `edist` (nearest face-edge distance) does.
+                    float rimDist = Mathf.Abs(d - R);
+
+                    bool hasFace = d <= R;
+                    bool isLine = false;
+                    float fr = 0f, fg = 0f, fb = 0f;
+                    if (hasFace)
+                    {
+                        float z = Mathf.Sqrt(Mathf.Max(0f, R * R - d * d));   // toward-viewer bulge
+                        Vector3 P = new Vector3(lx, ly, z);
+                        Vector3 N = P / R;
+                        Vector3 toL = lightPos - P;
+                        float dist = toL.magnitude;
+                        Vector3 L = toL / Mathf.Max(1e-4f, dist);
+                        float atten = 1f / (1f + dist * dist / lrange2);
+                        float ndl = Mathf.Max(0f, Vector3.Dot(N, L));
+                        float lit = ambient + 2.1f * ndl * atten;
+                        if (rimDist <= lineW)   // inside points at the rim draw the silhouette line, lit-scaled
+                        {
+                            isLine = true;
+                            float k = Mathf.Clamp(0.25f + lit, 0f, 1.15f);
+                            fr = lineColor.r * k; fg = lineColor.g * k; fb = lineColor.b * k;
+                        }
+                        else
+                        {
+                            Vector3 Hh = (L + viewDir).normalized;
+                            float sp = Mathf.Pow(Mathf.Max(0f, Vector3.Dot(N, Hh)), 48f);
+                            float sAdd = specStr * sp * atten;
+                            fr = baseCol.r * lit + specColor.r * sAdd;
+                            fg = baseCol.g * lit + specColor.g * sAdd;
+                            fb = baseCol.b * lit + specColor.b * sAdd;
+                        }
+                    }
+
+                    float halo = Mathf.Pow(Mathf.Max(0f, 1f - rimDist / haloR), 2f);
+                    float haloAmt = 0.85f * edgeGlow * halo;
+
+                    if (hasFace)
+                    {
+                        fr += edgeGlowColor.r * haloAmt; fg += edgeGlowColor.g * haloAmt; fb += edgeGlowColor.b * haloAmt;
+                        if (!isLine)
+                        {
+                            // Inner glow rising from the interior: measured inward from the rim (R − d == rimDist
+                            // inside), so it's 0 at the silhouette and grows toward the centre — same shape as the
+                            // facet's `edist/innerR` core.
+                            float core = Mathf.Pow(Mathf.Clamp01(rimDist / innerR), 1.4f);
+                            float innerAmt = 0.75f * innerGlow * core;
+                            fr += innerColor.r * innerAmt; fg += innerColor.g * innerAmt; fb += innerColor.b * innerAmt;
+                        }
+                        float rr = Mathf.Clamp01(fr * brightMul), gg = Mathf.Clamp01(fg * brightMul), bb = Mathf.Clamp01(fb * brightMul);
+                        float pa = alphaEnv;
+                        if (mods.AnyPix)
+                        {
+                            Color pc = new Color(rr, gg, bb, 1f);
+                            float crossFrac = Mathf.Clamp01(d / Mathf.Max(0.001f, R));
+                            if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, x + 0.5f, y + 0.5f, frameIndex, crossFrac, own, pHash, W, H)) continue;
+                            Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                        }
+                        else Over(buf, y * W + x, rr, gg, bb, pa);
+                    }
+                    else
+                    {
+                        // Outside-halo fragment (past the silhouette) — same as DrawFacetSolid's else branch.
+                        float pa = Mathf.Clamp01(haloAmt) * alphaEnv;
+                        if (pa <= 0.002f) continue;
+                        float rr = Mathf.Clamp01(edgeGlowColor.r * brightMul), gg = Mathf.Clamp01(edgeGlowColor.g * brightMul), bb = Mathf.Clamp01(edgeGlowColor.b * brightMul);
+                        if (mods.AnyPix)
+                        {
+                            Color pc = new Color(rr, gg, bb, 1f);
+                            float crossFrac = Mathf.Clamp01(d / Mathf.Max(0.001f, R));
+                            if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, x + 0.5f, y + 0.5f, frameIndex, crossFrac, own, pHash, W, H)) continue;
+                            Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                        }
+                        else Over(buf, y * W + x, rr, gg, bb, pa);
+                    }
+                }
+        }
+
+        // ── Ring: a flat two-sided tilted annulus (a Saturn ring), analytic ──────────────────────────────────
+        // The ring lies in its own LOCAL XY plane (normal +Z) at radius ρ ∈ [innerR, R], transformed to screen by
+        // the facet solids' own Rot (yaw = particleSpin, tilt = gemTilt). Under that map, with spin 0, a screen
+        // pixel (lx, ly) comes from local (u, v) = (lx, ly/cos·tilt) — i.e. the ellipse is the circle compressed
+        // vertically by cos(tilt) — EXACTLY Bakery's RingWithTilt, which is why the edge-on degeneracy is |cos
+        // tilt| ≈ 0 (tilt → 90°). Spin adds an in-plane roll (a shear/rotation of the ellipse). It's TWO-SIDED
+        // (no backface cull): the plane normal is flipped to whichever side faces the viewer (N.z > 0). Lighting /
+        // lines / glows mirror DrawFacetSolid, with the flat plane's CONSTANT normal and a per-pixel 3D plane point.
+        static void DrawRing(Color32[] buf, int W, int H, float cx, float cy, float own,
+                             PyrePlusSpec spec, int particleIndex, in ModSet mods, int frameIndex,
+                             float sizeMul, float brightMul)
+        {
+            float R = Mathf.Max(0f, Eval(spec.size, own, spec.seed, particleIndex, FldSize)) * sizeMul;
+            if (R < 1.5f) return;
+            float alphaEnv = Mathf.Clamp01(Eval(spec.alpha, own, spec.seed, particleIndex, FldAlpha));
+            if (alphaEnv <= 0.002f) return;
+            float innerR = R * Mathf.Clamp(spec.ringInner, 0.1f, 0.92f);   // the hole radius
+
+            if (!(IsStaticZero(spec.particlePathX) && IsStaticZero(spec.particlePathY)))
+            {
+                cx += Eval(spec.particlePathX, own, spec.seed, particleIndex, FldPathX);
+                cy += Eval(spec.particlePathY, own, spec.seed, particleIndex, FldPathY);
+            }
+
+            // Rotation: spin → yaw about Y (rolls the ellipse in-plane), gemTilt → tilt about X (opens/closes it).
+            float yaw = Eval(spec.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
+            float tilt = Eval(spec.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
+            float cyw = Mathf.Cos(yaw), syw = Mathf.Sin(yaw);
+            float ct = Mathf.Cos(tilt), st = Mathf.Sin(tilt);
+            // Edge-on degeneracy: |cos tilt| ≈ 0 (the design's check) collapses the ellipse to an invisible sliver;
+            // |cos yaw| ≈ 0 does the same on the other axis AND would divide by zero in the inverse map below.
+            if (Mathf.Abs(ct) < 0.02f || Mathf.Abs(cyw) < 0.02f) return;
+
+            // Forward map, local (u,v,0) → screen:  lx = u·cyw ;  ly = u·(syw·st) + v·ct.  The screen-space plane
+            // normal is Rot(0,0,1) = (syw, −cyw·st, cyw·ct); pick the viewer-facing side (N.z > 0) — the ring is
+            // two-sided so we never cull it, we just shade whichever face points at the camera. N is CONSTANT (the
+            // plane is flat), so it's computed once here, not per pixel.
+            float sywst = syw * st;
+            Vector3 N = new Vector3(syw, -cyw * st, cyw * ct);
+            if (N.z < 0f) N = -N;
+
+            float lyaw = spec.gemLightYaw * Mathf.Deg2Rad, lpitch = spec.gemLightPitch * Mathf.Deg2Rad;
+            float ldist = 3.5f * R, lhoriz = ldist * Mathf.Cos(lpitch);
+            Vector3 lightPos = new Vector3(lhoriz * Mathf.Sin(lyaw), ldist * Mathf.Sin(lpitch), lhoriz * Mathf.Cos(lyaw));
+            float lrange = 4.7f * R, lrange2 = lrange * lrange;
+            Vector3 viewDir = new Vector3(0f, 0f, 1f);
+
+            Color specColor = spec.gemSpecularColor;
+            Color innerColor = spec.gemInnerGlowColor;
+            Color lineColor = spec.gemLineColor;
+            Color edgeGlowColor = spec.gemEdgeGlowColor;
+            float lineW = spec.gemLineWidth;
+            float ambient = spec.gemAmbient, specStr = spec.gemSpecular;
+
+            float edgeGlow = Mathf.Clamp01(Eval(spec.gemEdgeGlow, own, spec.seed, particleIndex, FldGemEdgeGlow));
+            float innerGlow = Mathf.Clamp01(Eval(spec.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
+            float haloR = Mathf.Max(2.5f, 0.24f * R);
+            float innerGlowR = Mathf.Max(3f, 0.30f * R);   // inner-GLOW band radius (distinct from innerR, the hole)
+            Color baseCol = spec.colorOverLife != null ? spec.colorOverLife.Evaluate(own) : Color.white;
+
+            // Screen bounds of the (sheared) outer ellipse + halo:  |lx| ≤ R·|cyw|,  |ly| ≤ R·(|syw·st| + |ct|).
+            float exHalf = R * Mathf.Abs(cyw) + haloR;
+            float eyHalf = R * (Mathf.Abs(sywst) + Mathf.Abs(ct)) + haloR;
+            int x0 = Mathf.Max(0, Mathf.FloorToInt(cx - exHalf));
+            int x1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + exHalf));
+            int y0 = Mathf.Max(0, Mathf.FloorToInt(cy - eyHalf));
+            int y1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + eyHalf));
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);
+            float invHole = 1f / Mathf.Max(0.001f, R - innerR);   // for crossFrac (0 at inner rim, 1 at outer)
+
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    float lx = x + 0.5f - cx, ly = y + 0.5f - cy;
+                    // Invert the forward map:  u = lx/cyw ;  v = (ly − u·syw·st)/ct.
+                    float u = lx / cyw;
+                    float v = (ly - u * sywst) / ct;
+                    float rho = Mathf.Sqrt(u * u + v * v);
+
+                    // Band SDF in ring-plane (local) units: < 0 inside the annulus, > 0 past either rim.
+                    float dBand = Mathf.Max(innerR - rho, rho - R);
+                    // Gradient-magnitude correction (the Bakery lesson: trueDist ≈ Δf/|∇f|). The tilt (and spin)
+                    // compress the ellipse in screen space, so a fixed ring-plane distance spans FEWER screen
+                    // pixels near the ellipse's flat sides than at its ends — an uncorrected local rim distance
+                    // would draw a rim line that visibly thins there. Dividing the local distance by |∇ρ| (the
+                    // local-to-screen contraction along the rim normal) restores a uniform SCREEN thickness all the
+                    // way around. |∇ρ| is derived from the inverse map's partials (∂u/∂lx=1/cyw, ∂v/∂lx=−syw·st/
+                    // (cyw·ct), ∂v/∂ly=1/ct); ∂ρ/∂lx = (u/cyw − v·syw·st/(cyw·ct))/ρ, ∂ρ/∂ly = v/(ct·ρ). Floored at
+                    // 0.2 like Bakery so a near-zero gradient can't blow the distance up.
+                    float drdx = rho > 1e-4f ? (u / cyw - v * sywst / (cyw * ct)) / rho : 0f;
+                    float drdy = rho > 1e-4f ? (v / ct) / rho : 0f;
+                    float gradMag = Mathf.Max(0.2f, Mathf.Sqrt(drdx * drdx + drdy * drdy));
+                    float rimDist = Mathf.Abs(dBand) / gradMag;   // screen-space distance to the NEAREST rim (both)
+
+                    bool hasFace = dBand <= 0f;
+                    bool isLine = false;
+                    float fr = 0f, fg = 0f, fb = 0f;
+                    if (hasFace)
+                    {
+                        // 3D point on the tilted plane at this pixel (orthographic: its screen x/y ARE lx/ly; z from
+                        // the forward map's P.z = v·st − u·syw·ct).
+                        float pz = v * st - u * syw * ct;
+                        Vector3 P = new Vector3(lx, ly, pz);
+                        Vector3 toL = lightPos - P;
+                        float dist = toL.magnitude;
+                        Vector3 L = toL / Mathf.Max(1e-4f, dist);
+                        float atten = 1f / (1f + dist * dist / lrange2);
+                        float ndl = Mathf.Max(0f, Vector3.Dot(N, L));
+                        float lit = ambient + 2.1f * ndl * atten;
+                        if (rimDist <= lineW)   // BOTH rims draw the hard line (screen-distance, gradient-corrected)
+                        {
+                            isLine = true;
+                            float k = Mathf.Clamp(0.25f + lit, 0f, 1.15f);
+                            fr = lineColor.r * k; fg = lineColor.g * k; fb = lineColor.b * k;
+                        }
+                        else
+                        {
+                            Vector3 Hh = (L + viewDir).normalized;
+                            float sp = Mathf.Pow(Mathf.Max(0f, Vector3.Dot(N, Hh)), 48f);
+                            float sAdd = specStr * sp * atten;
+                            fr = baseCol.r * lit + specColor.r * sAdd;
+                            fg = baseCol.g * lit + specColor.g * sAdd;
+                            fb = baseCol.b * lit + specColor.b * sAdd;
+                        }
+                    }
+
+                    float halo = Mathf.Pow(Mathf.Max(0f, 1f - rimDist / haloR), 2f);
+                    float haloAmt = 0.85f * edgeGlow * halo;
+
+                    if (hasFace)
+                    {
+                        fr += edgeGlowColor.r * haloAmt; fg += edgeGlowColor.g * haloAmt; fb += edgeGlowColor.b * haloAmt;
+                        if (!isLine)
+                        {
+                            // Inner glow spreads across the band inward from BOTH rims (rimDist is the nearest-rim
+                            // screen distance, so it's 0 at either rim and peaks at the band's middle).
+                            float core = Mathf.Pow(Mathf.Clamp01(rimDist / innerGlowR), 1.4f);
+                            float innerAmt = 0.75f * innerGlow * core;
+                            fr += innerColor.r * innerAmt; fg += innerColor.g * innerAmt; fb += innerColor.b * innerAmt;
+                        }
+                        float rr = Mathf.Clamp01(fr * brightMul), gg = Mathf.Clamp01(fg * brightMul), bb = Mathf.Clamp01(fb * brightMul);
+                        float pa = alphaEnv;
+                        if (mods.AnyPix)
+                        {
+                            Color pc = new Color(rr, gg, bb, 1f);
+                            float crossFrac = Mathf.Clamp01((rho - innerR) * invHole);
+                            if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, x + 0.5f, y + 0.5f, frameIndex, crossFrac, own, pHash, W, H)) continue;
+                            Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                        }
+                        else Over(buf, y * W + x, rr, gg, bb, pa);
+                    }
+                    else
+                    {
+                        // Outside-halo fragment — past the outer rim OR inside the hole (both are ring "edges").
+                        float pa = Mathf.Clamp01(haloAmt) * alphaEnv;
+                        if (pa <= 0.002f) continue;
+                        float rr = Mathf.Clamp01(edgeGlowColor.r * brightMul), gg = Mathf.Clamp01(edgeGlowColor.g * brightMul), bb = Mathf.Clamp01(edgeGlowColor.b * brightMul);
+                        if (mods.AnyPix)
+                        {
+                            Color pc = new Color(rr, gg, bb, 1f);
+                            float crossFrac = Mathf.Clamp01((rho - innerR) * invHole);
                             if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, x + 0.5f, y + 0.5f, frameIndex, crossFrac, own, pHash, W, H)) continue;
                             Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
                         }

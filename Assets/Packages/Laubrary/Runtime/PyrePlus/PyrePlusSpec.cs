@@ -28,10 +28,18 @@ namespace Laubrary.PyrePlus
     //   Box      — a true-3D lit cuboid (8 verts / 6 quads), the Gem's facet pipeline. Aspect = height, Depth = z.
     //   Pyramid  — a true-3D lit square pyramid (apex + base), the Gem's facet pipeline. Aspect = apex height.
     //   Can      — a true-3D lit 16-sided cylinder (barrel + two caps), the Gem's facet pipeline. Aspect = height.
+    //   Orb      — a true-3D lit SPHERE, analytic (no facets). Its silhouette is a plain circle that NEVER changes
+    //              under spin/tilt — the LIGHTING FRAME rotates instead, so the shading + specular hotspot roll
+    //              around the ball as it spins (see PyrePlusRenderer.DrawOrb).
+    //   Ring     — a flat two-sided tilted annulus (a Saturn ring), analytic. Outer radius = size, inner hole =
+    //              size·ringInner; gemTilt opens/closes the ellipse (0° face-on, 90° edge-on) and particleSpin
+    //              rolls it in-plane (see PyrePlusRenderer.DrawRing).
     // Box/Pyramid/Can share the Gem's shared 3D block (tilt, light, lines, glows) — see PyrePlusRenderer.DrawFacetSolid.
-    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. Orb/Ring come later. (Fire/
-    // Fireball/HeightBalls are simulation-backed and deferred; they are NOT here.)
-    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can }
+    // Orb/Ring reuse that SAME per-pixel lighting/lines/glows math analytically (point light + Blinn-Phong, halo +
+    // inner glow, edge lines) but with sphere/annulus geometry instead of facets.
+    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. (Fire/Fireball/HeightBalls are
+    // simulation-backed and deferred; they are NOT here.)
+    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring }
 
     [CreateAssetMenu(menuName = "Laubrary/Pyre Plus", fileName = "PyrePlus")]
     public class PyrePlusSpec : ScriptableObject
@@ -85,6 +93,12 @@ namespace Laubrary.PyrePlus
         //    base size R (= evaluated `size` × sizeMul). Gem itself ignores these (it uses gemSides/Crown/Pavilion).
         [Range(0.3f, 3f)] public float solidAspect = 1f;    // height / width — Box height, Pyramid apex height, Can height
         [Range(0.2f, 2f)] public float solidDepth = 1f;     // depth / width — Box z-extent, Pyramid base z-extent (unused for Can)
+
+        // ── Ring form (shapeForm == Ring) — a flat two-sided tilted annulus (a Saturn ring) ───────────────────
+        // Outer radius R = evaluated `size` × sizeMul; inner hole radius = R·ringInner. gemTilt tips the ring
+        // (0° face-on → 90° edge-on) and particleSpin rolls it in-plane; both reuse the shared lighting/lines/glows
+        // above. Not animatable (a plain float) — the ring's animation lives in size/tilt/spin.
+        [Range(0.1f, 0.92f)] public float ringInner = 0.55f;   // inner radius as a fraction of the outer radius
 
         // ── Crescent form (shapeForm == Crescent) — a disc with a second offset disc masked out ────────────
         // A pixel is lit when it's inside the main disc but NOT inside the bite (mask) disc. The bite disc sits

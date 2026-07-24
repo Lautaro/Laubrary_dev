@@ -139,7 +139,7 @@ namespace Laubrary.PyrePlus.Editor
             RebuildShape();
         }
 
-        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can" };
+        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can", "Orb", "Ring" };
 
         void RebuildShape()
         {
@@ -158,7 +158,9 @@ namespace Laubrary.PyrePlus.Editor
                 Z.Dropdown((int)s.shapeForm, ShapeFormChoices,
                     "Disc = a flat soft disc. Gem = a true-3D lit crystal. Crescent = a disc with an offset bite. "
                     + "Sparkle = twinkling lit cells. Sprite = a stamped image. Box / Pyramid / Can = true-3D lit "
-                    + "solids sharing the Gem's facet lighting (tilt, light, edge lines, glows).",
+                    + "solids sharing the Gem's facet lighting (tilt, light, edge lines, glows). Orb = a lit "
+                    + "sphere; Ring = a flat tilted annulus (a Saturn ring) — both reuse that same lighting "
+                    + "analytically.",
                     v => { Dirty(() => s.shapeForm = (ShapeForm)v); RebuildShape(); }, 150f)));
 
             // Shared rows (all forms). For the Gem, Colour is its material tint and Size is its girdle radius;
@@ -182,6 +184,8 @@ namespace Laubrary.PyrePlus.Editor
                 case ShapeForm.Box:
                 case ShapeForm.Pyramid:
                 case ShapeForm.Can:
+                case ShapeForm.Orb:
+                case ShapeForm.Ring:
                     BuildSolidBox(s);
                     break;
                 case ShapeForm.Disc:
@@ -221,8 +225,9 @@ namespace Laubrary.PyrePlus.Editor
                 + "plain disc or an even sparkle field is radially symmetric so it shows little (add a geometry/"
                 + "texture Modifier so the disc's spin reads). CRESCENT: rotates the whole crescent, on top of its "
                 + "own bite Angle. SPRITE: rotates the stamped image. GEM / BOX / PYRAMID / CAN (3D solids): the "
-                + "solid's 3D YAW about its vertical axis, turning it so its facets sweep past the light. (The "
-                + "pseudo-3D tilt lives on the Swarm shape transform, not here.)",
+                + "solid's 3D YAW about its vertical axis, turning it so its facets sweep past the light. ORB: rolls "
+                + "the lit hotspot left/right around the sphere (its silhouette never changes). RING: rolls the "
+                + "annulus in its own plane. (The pseudo-3D tilt lives on the Swarm shape transform, not here.)",
                 s.particleSpin, -720f, 720f));
         }
 
@@ -237,10 +242,11 @@ namespace Laubrary.PyrePlus.Editor
             s.gemEdgeGlow ??= new ZUIValue(0.5f);     // defensive; the real anti-phase defaults come from the spec factories
             s.gemInnerGlow ??= new ZUIValue(0.5f);
 
-            var box = Z.Box("Solid", "A true-3D convex facet solid lit per-pixel, with light-catching hard edge "
+            var box = Z.Box("Solid", "A true-3D form lit per-pixel by one key light, with light-catching hard edge "
                 + "lines and two staggered glows. Its material colour is the shared Colour above (a blue gradient = "
                 + "a sapphire); its base size is the shared Size. Gem = an octahedral crystal; Box / Pyramid / Can = "
-                + "a cuboid / square pyramid / cylinder.");
+                + "a cuboid / square pyramid / cylinder; Orb = a sphere (no geometry rows — a ball needs none); "
+                + "Ring = a flat two-sided tilted annulus (a Saturn ring).");
 
             // ── per-form geometry ──
             if (s.shapeForm == ShapeForm.Gem)
@@ -257,7 +263,7 @@ namespace Laubrary.PyrePlus.Editor
                         "Pavilion depth (the bottom point) as a fraction of the gem's radius.",
                         v => Dirty(() => s.gemPavilion = v), 150f, showValue: true)));
             }
-            else
+            else if (s.shapeForm == ShapeForm.Box || s.shapeForm == ShapeForm.Pyramid || s.shapeForm == ShapeForm.Can)
             {
                 // Box / Pyramid / Can — Aspect (height) always applies. Depth (front-to-back) applies to Box and
                 // Pyramid; the Can is a circular cross-section, so its Depth is meaningless — HIDDEN rather than
@@ -276,11 +282,22 @@ namespace Laubrary.PyrePlus.Editor
                         v => Dirty(() => s.solidDepth = v), 150f, showValue: true));
                 box.Add(WrapRow(geo.ToArray()));
             }
+            else if (s.shapeForm == ShapeForm.Ring)
+            {
+                // Ring — one geometry row: the hole radius. (Orb has NO geometry rows — a sphere needs none — so it
+                // falls straight through to the shared tilt / light / lines / glows below.)
+                box.Add(Z.MicroSlider("Inner", s.ringInner, 0.1f, 0.92f,
+                    "Inner radius as a fraction of the outer radius — the size of the ring's hole (0.1 = a nearly "
+                    + "solid disc, 0.92 = a thin hoop).",
+                    v => Dirty(() => s.ringInner = v), 150f, showValue: true));
+            }
 
             // ── shared: tilt / light / lines / glows (every 3D solid) ──
             box.Add(Val("Tilt °",
                 "World tilt about the horizontal axis, in degrees, over the particle's OWN life — tips the solid "
-                + "toward/away from the viewer so its facets catch the light differently.",
+                + "toward/away from the viewer so its facets catch the light differently. Orb: the sphere's "
+                + "silhouette never changes, so this instead rolls the lit hotspot up/down across the ball. Ring: "
+                + "this opens or closes the ellipse — 0° = face-on (a full circle), ±90° = edge-on (a sliver).",
                 s.gemTilt, -1440f, 1440f));
 
             box.Add(Z.Divider("Light", "The single key light: where it sits and how the facets respond."));
