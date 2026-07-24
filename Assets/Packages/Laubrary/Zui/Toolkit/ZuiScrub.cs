@@ -1,30 +1,31 @@
-// ZuiScrub — makes a bare numeric field (IntegerField / FloatField) scrub-draggable while keeping
-// full keyboard editing. Fixes the toolkit-wide complaint that "numeric inputs that are not sliders …
-// can only be typed, not click-dragged": a numeric entry that isn't a Slider had no drag affordance at
-// all (Unity's own drag lives on a field's LABEL, and these fields are built bare — the label is the
-// separate Zui.Field wrap, not the BaseField's built-in one).
+// ZuiScrub — makes a bare numeric field (IntegerField / FloatField) drag-adjustable while keeping full
+// keyboard editing, by scrubbing from a dedicated DRAG ZONE that has no text input to fight over pointer
+// capture.
 //
-// Mechanism (a custom Manipulator, NOT Unity's internal FieldMouseDragger<T> — that and its
-// IValueField<T> are internal in this Unity version, 6000.3):
-//  • A PLAIN CLICK (press+release with < DragThreshold px of horizontal travel) is left completely
-//    alone — the callbacks never capture or stop the event on press, so the text input focuses, places
-//    its caret, select-all-on-focus fires, and typing/Enter/Tab all behave exactly as before.
-//  • PRESS-THEN-DRAG (≥ DragThreshold px horizontal before release) turns into a scrub: the manipulator
-//    steals pointer capture from the text input (which cancels its own text-selection drag), blurs the
-//    field so no caret fights the drag, and moves the value continuously with horizontal motion.
-//  • Disambiguation is by horizontal travel only, watched from the press point — so a click that
-//    wobbles a pixel still counts as a click.
+// Why a zone, not an in-field "arm" (the previous design, now removed):
+//  On pointer-down a field's inner `unity-text-input` takes POINTER CAPTURE for text selection, and capture
+//  redirects EVERY subsequent PointerMove to the capturing element only. A field-level move handler therefore
+//  never sees the drag. The old scheme — arm on down, claim the drag on the move that crosses a 4px threshold,
+//  then steal capture — could not fire while the text input held capture, so the drag never engaged in
+//  practice (proven dead by a synthetic pointer test; it was the real cause of "inputs only accept keyboard").
+//  The fix is to scrub from an element that OWNS capture from the very first event:
+//   • Attach(field)          — overlays a slim, invisible GRIP on the field's LEFT edge (a fallback that makes
+//                              EVERY numeric field draggable, even one with no external label). The rest of the
+//                              field stays a normal click-to-edit text box.
+//   • AttachToLabel(zone, f) — turns an existing element (a Zui.Field label — Unity's own native drag idiom, a
+//                              field's label being where numeric drag has always lived) into the drag zone.
+//                              Zui.Field wires this automatically for the numeric fields it wraps.
 //
-// The callbacks are registered TrickleDown so the field pre-empts its own text-input child: on the move
-// that crosses the threshold, the field sees the event first, captures, and StopPropagation()s it before
-// the text input can treat it as a selection drag. All coordinates use e.position (panel space) — never
-// localPosition — because the event target switches from the text input to the field the instant capture
-// moves, and localPosition would jump with it.
+// Both drive the field through its normal `value` setter, so every RegisterValueChangedCallback the call site
+// wired (Undo hooks, dirtying, live preview) fires unchanged — the scrubber adds no parallel mutation path.
+// Keyboard entry in the field body is untouched (a zone covers only the label or the left grip, never the
+// editable area). Sensitivity + modifiers (Shift ×10, Alt ×0.1) are unchanged from the old design; float
+// writes round to 5 decimals to match the toolkit, while the running accumulator stays unrounded so slow
+// drags never lose sub-steps.
 //
-// Value writes go through the field's normal `value` setter, so every RegisterValueChangedCallback /
-// onChanged pipeline the call site already wired (Undo.RecordObject hooks, dirtying, live preview) fires
-// unchanged — the scrubber adds no parallel mutation path. Float writes are rounded to 5 decimals to
-// match the rest of the toolkit; the sub-pixel accumulator stays unrounded so slow drags don't stick.
+// A zone CAPTURES the pointer on down and StopPropagation()s it, so all moves route to it wherever the cursor
+// travels and a plain synthetic PointerDown/Move/Up on the zone drives it — no reliance on hover state or
+// panel-level capture subtleties. All coordinates use e.position (panel space).
 using System;
 using System.Reflection;
 using UnityEditor;
@@ -36,45 +37,96 @@ namespace Laubrary.Zui
 {
     public static class ZuiScrub
     {
-        /// Horizontal pixels of travel from the press point before a press becomes a scrub instead of a
-        /// click. Below this it is a plain click (focus + caret); at or above it, a drag.
-        public const float DragThreshold = 4f;
-
         // Int scrub speed: one whole unit per this many horizontal pixels (× the modifier).
         const float IntPixelsPerUnit = 3f;
 
-        /// Attach scrub-dragging to an IntegerField. `low`/`high`, when given, clamp the scrubbed value
-        /// (the field's own onChanged clamps still run on top — this just keeps the drag inside a range
-        /// the factory already knows). Keyboard entry is untouched.
+        // Width of the invisible left-edge grip strip the bare-field fallback overlays (px).
+        const float GripWidth = 6f;
+
+        // ── grip fallback: every bare Int/Float field gets a left-edge drag strip ─────────
+
+        /// Attach scrub-dragging to an IntegerField via a slim grip overlaid on its left edge. `low`/`high`,
+        /// when given, clamp the scrubbed value (the field's own onChanged clamps still run on top — this just
+        /// keeps the drag inside a range the factory already knows). Keyboard entry is untouched.
         public static void Attach(IntegerField field, int? low = null, int? high = null)
         {
             if (field == null) return;
-            double? lo = low.HasValue ? low.Value : (double?)null;
-            double? hi = high.HasValue ? high.Value : (double?)null;
-            field.AddManipulator(new ScrubManipulator(
-                read: () => field.value,
-                write: v => field.value = (int)Math.Round(v, MidpointRounding.AwayFromZero),
-                advance: AdvanceInt,
-                low: lo, high: hi));
-            ApplyCursor(field);
+            var grip = MakeGrip();
+            field.hierarchy.Add(grip);
+            AttachZone(grip, () => field.value,
+                v => field.value = (int)Math.Round(v, MidpointRounding.AwayFromZero),
+                AdvanceInt, ToD(low), ToD(high));
         }
 
-        /// Attach scrub-dragging to a FloatField. `low`/`high` clamp as in the int overload. The per-pixel
-        /// step is adaptive to the value's magnitude, so 0.05 scrubs finely and 500 scrubs coarsely.
+        /// Attach scrub-dragging to a FloatField via a left-edge grip. `low`/`high` clamp as in the int
+        /// overload. The per-pixel step is adaptive to the value's magnitude, so 0.05 scrubs finely and 500
+        /// scrubs coarsely.
         public static void Attach(FloatField field, float? low = null, float? high = null)
         {
             if (field == null) return;
-            double? lo = low.HasValue ? low.Value : (double?)null;
-            double? hi = high.HasValue ? high.Value : (double?)null;
-            field.AddManipulator(new ScrubManipulator(
-                read: () => field.value,
-                write: v => field.value = (float)Math.Round(v, 5),
-                advance: AdvanceFloat,
-                low: lo, high: hi));
-            ApplyCursor(field);
+            var grip = MakeGrip();
+            field.hierarchy.Add(grip);
+            AttachZone(grip, () => field.value,
+                v => field.value = (float)Math.Round(v, 5),
+                AdvanceFloat, ToD(low), ToD(high));
         }
 
-        // ── stepping strategies ──────────────────────────────────────────────────────
+        // ── label drag: an arbitrary zone (a Zui.Field label) scrubs the field ───────────
+
+        /// Make `dragZone` (typically a Zui.Field label) scrub an IntegerField — Unity's native "drag the
+        /// label" idiom. Same sensitivity/clamps as the grip fallback; both can coexist on one field.
+        public static void AttachToLabel(VisualElement dragZone, IntegerField field, int? low = null, int? high = null)
+        {
+            if (dragZone == null || field == null) return;
+            AttachZone(dragZone, () => field.value,
+                v => field.value = (int)Math.Round(v, MidpointRounding.AwayFromZero),
+                AdvanceInt, ToD(low), ToD(high));
+        }
+
+        /// Make `dragZone` scrub a FloatField.
+        public static void AttachToLabel(VisualElement dragZone, FloatField field, float? low = null, float? high = null)
+        {
+            if (dragZone == null || field == null) return;
+            AttachZone(dragZone, () => field.value,
+                v => field.value = (float)Math.Round(v, 5),
+                AdvanceFloat, ToD(low), ToD(high));
+        }
+
+        /// Convenience for Zui.Field: wire the label to whatever numeric field the wrapped control IS. Only
+        /// a DIRECT IntegerField/FloatField is wired — a control that merely CONTAINS one (a Slider / SliderInt
+        /// embeds its own numeric input field) is deliberately skipped, so a slider's own Zui.Field label never
+        /// becomes a rival scrub zone. Every bare-field case that wants label-drag (Seed, First frame, Every N
+        /// frames, ZuiReflect int/float bodies) is a direct Int/Float, so the direct check covers them all.
+        public static void AttachToLabel(VisualElement dragZone, VisualElement control)
+        {
+            if (dragZone == null || control == null) return;
+            if (control is IntegerField i) AttachToLabel(dragZone, i);
+            else if (control is FloatField f) AttachToLabel(dragZone, f);
+        }
+
+        // ── shared wiring ────────────────────────────────────────────────────────────────
+        static double? ToD<T>(T? v) where T : struct => v.HasValue ? Convert.ToDouble(v.Value) : (double?)null;
+
+        static void AttachZone(VisualElement zone, Func<double> read, Action<double> write,
+            Func<double, float, float, double> advance, double? low, double? high)
+        {
+            zone.AddManipulator(new ZoneScrubManipulator(read, write, advance, low, high));
+            ApplyCursor(zone);
+        }
+
+        static VisualElement MakeGrip()
+        {
+            var grip = new VisualElement { tooltip = "Drag to adjust." };
+            grip.style.position = Position.Absolute;
+            grip.style.left = 0f;
+            grip.style.top = 0f;
+            grip.style.bottom = 0f;
+            grip.style.width = GripWidth;
+            grip.pickingMode = PickingMode.Position;   // invisible but pickable — the drag affordance
+            return grip;
+        }
+
+        // ── stepping strategies (unchanged) ──────────────────────────────────────────────
         static double AdvanceInt(double v, float dxPixels, float modifier)
             => v + dxPixels * modifier / IntPixelsPerUnit;
 
@@ -87,22 +139,20 @@ namespace Laubrary.Zui
             return v + dxPixels * step * modifier;
         }
 
-        // ── the manipulator ───────────────────────────────────────────────────────────
-        class ScrubManipulator : Manipulator
+        // ── the zone manipulator: capture on down, scrub on move, release on up ──────────
+        class ZoneScrubManipulator : Manipulator
         {
             readonly Func<double> _read;
             readonly Action<double> _write;
             readonly Func<double, float, float, double> _advance;
             readonly double? _low, _high;
 
-            bool _armed;               // pointer is down on the field, watching for a drag
-            bool _dragging;            // the drag threshold has been crossed — now scrubbing
+            bool _dragging;
             int _pointer = -1;
-            float _startX;             // panel-space x at press (the click/drag disambiguation origin)
             float _lastX;             // panel-space x at the previous applied move
             double _value;            // unrounded running value so slow drags never lose sub-steps
 
-            public ScrubManipulator(Func<double> read, Action<double> write,
+            public ZoneScrubManipulator(Func<double> read, Action<double> write,
                 Func<double, float, float, double> advance, double? low, double? high)
             {
                 _read = read; _write = write; _advance = advance; _low = low; _high = high;
@@ -110,49 +160,36 @@ namespace Laubrary.Zui
 
             protected override void RegisterCallbacksOnTarget()
             {
-                // TrickleDown: the field must see the event before its text-input child so it can claim a
-                // drag before the input starts a text selection.
-                target.RegisterCallback<PointerDownEvent>(OnDown, TrickleDown.TrickleDown);
-                target.RegisterCallback<PointerMoveEvent>(OnMove, TrickleDown.TrickleDown);
-                target.RegisterCallback<PointerUpEvent>(OnUp, TrickleDown.TrickleDown);
+                target.RegisterCallback<PointerDownEvent>(OnDown);
+                target.RegisterCallback<PointerMoveEvent>(OnMove);
+                target.RegisterCallback<PointerUpEvent>(OnUp);
                 target.RegisterCallback<PointerCaptureOutEvent>(OnCaptureOut);
             }
 
             protected override void UnregisterCallbacksFromTarget()
             {
-                target.UnregisterCallback<PointerDownEvent>(OnDown, TrickleDown.TrickleDown);
-                target.UnregisterCallback<PointerMoveEvent>(OnMove, TrickleDown.TrickleDown);
-                target.UnregisterCallback<PointerUpEvent>(OnUp, TrickleDown.TrickleDown);
+                target.UnregisterCallback<PointerDownEvent>(OnDown);
+                target.UnregisterCallback<PointerMoveEvent>(OnMove);
+                target.UnregisterCallback<PointerUpEvent>(OnUp);
                 target.UnregisterCallback<PointerCaptureOutEvent>(OnCaptureOut);
             }
 
             void OnDown(PointerDownEvent e)
             {
                 if (e.button != 0) return;
-                // Arm only — do NOT capture or stop here, so a plain click still focuses the text input
-                // and drops a caret. The drag is claimed later, on the move that crosses the threshold.
-                _armed = true;
-                _dragging = false;
+                // Capture immediately: the zone owns the drag from the first event (no text input to lose
+                // capture to), so every following move reaches us wherever the cursor goes.
+                _dragging = true;
                 _pointer = e.pointerId;
-                _startX = e.position.x;
+                _value = _read();
+                _lastX = e.position.x;
+                target.CapturePointer(e.pointerId);
+                e.StopPropagation();
             }
 
             void OnMove(PointerMoveEvent e)
             {
-                if (!_armed || e.pointerId != _pointer) return;
-
-                if (!_dragging)
-                {
-                    if (Mathf.Abs(e.position.x - _startX) < DragThreshold) return;
-                    // Threshold crossed: become a scrub. Steal capture from the text input (cancels its
-                    // selection drag), blur so the caret stops fighting, and count the travel so far.
-                    _dragging = true;
-                    _value = _read();
-                    _lastX = _startX;
-                    target.CapturePointer(e.pointerId);
-                    BlurField();
-                }
-
+                if (!_dragging || e.pointerId != _pointer) return;
                 float dx = e.position.x - _lastX;
                 _lastX = e.position.x;
                 float modifier = e.shiftKey ? 10f : e.altKey ? 0.1f : 1f;
@@ -166,29 +203,17 @@ namespace Laubrary.Zui
             void OnUp(PointerUpEvent e)
             {
                 if (e.pointerId != _pointer) return;
-                if (_dragging)
-                {
-                    if (target.HasPointerCapture(e.pointerId)) target.ReleasePointer(e.pointerId);
-                    e.StopPropagation();   // a scrub is not a click — don't let the input re-focus on release
-                }
-                _armed = false;
+                if (_dragging && target.HasPointerCapture(e.pointerId)) target.ReleasePointer(e.pointerId);
                 _dragging = false;
                 _pointer = -1;
+                e.StopPropagation();
             }
 
             void OnCaptureOut(PointerCaptureOutEvent e)
             {
                 // Capture lost for any reason (panel change, another element grabbed it) — end cleanly.
-                _armed = false;
                 _dragging = false;
                 _pointer = -1;
-            }
-
-            void BlurField()
-            {
-                var focused = target.focusController?.focusedElement as VisualElement;
-                if (focused != null && (focused == target || target.Contains(focused)))
-                    focused.Blur();
             }
         }
 
@@ -196,19 +221,16 @@ namespace Laubrary.Zui
         // The system "slide-arrow" numeric-drag cursor lives behind Cursor.defaultCursorId, which is
         // internal — style.cursor's public surface only accepts a texture cursor, and this toolkit's one
         // stylesheet is off-limits here — so it is set via reflection, cached, and degrades to no special
-        // cursor if the internal member ever moves.
+        // cursor if the internal member ever moves. Applied to the drag ZONE only (the grip / the label), so
+        // the field's editable body keeps its own text I-beam.
         static bool s_cursorResolved;
         static StyleCursor s_slideCursor;
         static bool s_cursorOk;
 
-        static void ApplyCursor(VisualElement field)
+        static void ApplyCursor(VisualElement zone)
         {
-            if (!ResolveCursor()) return;
-            field.style.cursor = s_slideCursor;
-            // cursor is not an inherited USS property, so the text-input child needs it set too — it
-            // covers most of the field's visible area and would otherwise keep its own text I-beam.
-            var input = field.Q("unity-text-input");
-            if (input != null) input.style.cursor = s_slideCursor;
+            if (zone == null || !ResolveCursor()) return;
+            zone.style.cursor = s_slideCursor;
         }
 
         static bool ResolveCursor()

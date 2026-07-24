@@ -267,17 +267,16 @@ namespace Laubrary.PyrePlus.Editor
                 "Export the whole animation as an animated GIF — transparent background, loops forever, at the "
                 + "frame rate above. Opens a Save dialog for the file location.",
                 ExportGif));
-            kids.Add(Z.Field("Scale",
+            kids.Add(Z.MicroSlider("Scale", s.previewGifScale, 1f, 8f,
                 "Nearest-neighbour upscale applied to the exported GIF (1–8×). Bigger = a larger file with the "
                 + "same crisp pixels.",
-                Z.Int(s.previewGifScale, "Nearest-neighbour upscale for the exported GIF (1–8×).",
-                    v =>
-                    {
-                        if (spec == null) return;
-                        Undo.RecordObject(spec, "Edit Pyre Plus");
-                        s.previewGifScale = Mathf.Clamp(v, 1, 8);
-                        EditorUtility.SetDirty(spec);
-                    }, 44f)));
+                v =>
+                {
+                    if (spec == null) return;
+                    Undo.RecordObject(spec, "Edit Pyre Plus");
+                    s.previewGifScale = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8);
+                    EditorUtility.SetDirty(spec);
+                }, 150f, showValue: true, decimals: 0));
             transportHost.Add(WrapRow(kids.ToArray()));
 
             // ── frame scrubber (transport parity with Pyre1's scrub field) ──────────────────────
@@ -372,10 +371,13 @@ namespace Laubrary.PyrePlus.Editor
         {
             var box = Z.BoxKeyed("Canvas", "The output resolution, frame count, seed and background.", "pyreplus.canvas");
             box.Add(WrapRow(
-                Z.Field("Size", "Square canvas size in pixels.",
-                    Z.Int(s.canvasSize, "Square canvas size in pixels.", v => Dirty(() => s.canvasSize = Mathf.Max(1, v)), 60f)),
-                Z.Field("PPU", "Pixels per unit for the baked sprite.",
-                    Z.Float(s.pixelsPerUnit, "Pixels per unit.", v => Dirty(() => s.pixelsPerUnit = Mathf.Max(1f, v)), 60f))));
+                Z.MicroSlider("Size", s.canvasSize, 16f, 256f,
+                    "Square canvas size in pixels.",
+                    v => Dirty(() => s.canvasSize = Mathf.Clamp(Mathf.RoundToInt(v), 16, 256)), 150f,
+                    showValue: true, decimals: 0),
+                Z.MicroSlider("PPU", s.pixelsPerUnit, 1f, 64f,
+                    "Pixels per unit for the baked sprite.",
+                    v => Dirty(() => s.pixelsPerUnit = Mathf.Clamp(v, 1f, 64f)), 150f, showValue: true)));
             box.Add(WrapRow(
                 // Frames is a label-inside int MicroSlider (NOT a thumbed SliderInt): a thumbed slider here read as a
                 // frame scrubber and the user kept grabbing it by mistake. The transport's frame SCRUBBER stays a
@@ -1129,9 +1131,10 @@ namespace Laubrary.PyrePlus.Editor
             // Count (the string length rules the particle count) but keeps Particle life.
             var baseRow = new List<VisualElement>();
             if (s.shapeForm != ShapeForm.Text)
-                baseRow.Add(Z.Field("Count", "How many particles the swarm places (at least 2).",
-                    Z.Int(s.swarmCount, "How many particles the swarm places (at least 2).",
-                        v => Dirty(() => s.swarmCount = Mathf.Max(2, v)), 60f)));
+                baseRow.Add(Z.MicroSlider("Count", s.swarmCount, 2f, 200f,
+                    "How many particles the swarm places (at least 2).",
+                    v => Dirty(() => s.swarmCount = Mathf.Clamp(Mathf.RoundToInt(v), 2, 200)), 150f,
+                    showValue: true, decimals: 0));
             baseRow.Add(Z.MicroSlider("Particle life", s.swarmParticleLife, 0.05f, 1f,
                 "How long each particle lives, as a fraction of the timeline. Its colour/alpha/size envelopes "
                 + "always play over ITS OWN life, not the timeline.",
@@ -1273,11 +1276,10 @@ namespace Laubrary.PyrePlus.Editor
                 Val("Scale (px)", "The shape's radius in canvas pixels. Animating this does NOT resize placed "
                     + "particles — each takes the radius at its own spawn moment, so a growing curve leaves a "
                     + "trail of expanding rings.", s.shapeScale, 0f, 64f),
-                Z.Field("Snap", "Round the evaluated scale to the nearest multiple of this, so placements land on "
+                Z.MicroSlider("Snap", s.shapeScaleSnap, 0f, 32f,
+                    "Round the evaluated scale to the nearest multiple of this, so placements land on "
                     + "fixed radii. 0 = off.",
-                    Z.Float(s.shapeScaleSnap,
-                        "Round the evaluated scale to the nearest multiple of this (0 = off).",
-                        v => Dirty(() => s.shapeScaleSnap = Mathf.Max(0f, v)), 50f))));
+                    v => Dirty(() => s.shapeScaleSnap = Mathf.Clamp(v, 0f, 32f)), 150f, showValue: true)));
             xform.Add(Val("Rotation °",
                 "Spin the whole shape in the canvas plane, in degrees. Animating this does NOT spin placed "
                 + "particles — each particle takes the value at its own spawn moment, so a rising curve spreads "

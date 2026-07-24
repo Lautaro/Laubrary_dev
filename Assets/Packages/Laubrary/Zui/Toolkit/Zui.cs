@@ -209,6 +209,11 @@ namespace Laubrary.Zui
         }
 
         /// Label + control pair with the label sized to its own text (the FieldWrap pattern).
+        ///
+        /// When the wrapped control is a bare Int/Float field, the LABEL becomes a drag zone that scrubs it —
+        /// Unity's native "drag the label" idiom, and the fix for the in-field drag being eaten by the text
+        /// input's pointer capture (see ZuiScrub). Additive: keyboard entry, the field's own left-edge grip,
+        /// and non-numeric controls (a slider merely CONTAINING a numeric input is skipped) are all untouched.
         public static VisualElement Field(string label, string tooltip, VisualElement control)
         {
             var wrap = new VisualElement();
@@ -219,6 +224,7 @@ namespace Laubrary.Zui
             wrap.Add(l);
             if (string.IsNullOrEmpty(control.tooltip)) control.tooltip = tooltip;
             wrap.Add(control);
+            ZuiScrub.AttachToLabel(l, control);
             return wrap;
         }
 

@@ -78,9 +78,11 @@ namespace Laubrary.BackSplash.Editor
                         // so this only matters if a caller passes a domain wider than the backstop.
                         v => { settings.imagePos = BackSplash.ClampImagePos(v); Changed(); }, 68f),
                     Z.Column(
-                        Z.Field("Zoom", "How much of the backdrop image fills the viewport.",
-                            Z.Slider(settings.imageZoom, 0.1f, 16f, "How much of the backdrop image fills the viewport.",
-                                v => { settings.imageZoom = v; Changed(); }, 110f)),
+                        // Label-inside MicroSlider (no Z.Field wrap — it draws its own "Zoom" caption + value).
+                        // Same 0.1..16 range and 5-decimal rounding as the native Slider it replaced.
+                        Z.MicroSlider("Zoom", settings.imageZoom, 0.1f, 16f,
+                            "How much of the backdrop image fills the viewport.",
+                            v => { settings.imageZoom = v; Changed(); }, 150f, showValue: true),
                         Z.Field("Tint", "Multiplies the image's own colours.",
                             Z.Color(settings.imageTint, "Multiplies the image's own colours.",
                                 v => { settings.imageTint = v; Changed(); }, 90f)))));
