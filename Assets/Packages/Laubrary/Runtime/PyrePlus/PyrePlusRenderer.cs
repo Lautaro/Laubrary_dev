@@ -60,12 +60,14 @@ namespace Laubrary.PyrePlus
         const int FldCrescentBite = -6;  // crescentBite — Crescent mask-disc size, particle's own life      [G2]
         const int FldCrescentAngle = -7; // crescentAngle — Crescent bite facing, particle's own life         [G2]
         const int FldSparkle = -8;       // sparkleDensity Eval + the per-cell presence/twinkle Hash draws     [G2]
+        const int FldGemRoll = -9;       // gemRoll — solid ROLL about Z (model space, first), particle's own life [R2]
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
-        //  3D yaw, and FldPathX/FldPathY for the shared travel offset — no new ids for those. Crescent/Sparkle/
-        //  Sprite likewise REUSE FldSize/FldAlpha (radius/alpha), FldSpin (2D spin), FldPathX/Y (travel); Sprite
-        //  needs no new random-draw id at all. Orb/Ring reuse the SAME Gem ids — FldSize (radius/outer radius),
-        //  FldAlpha, FldSpin (Orb: lighting-frame yaw / Ring: in-plane yaw), FldGemTilt, FldGemEdgeGlow,
-        //  FldGemInnerGlow, FldPathX/Y — and add NO new ids: ringInner is a plain non-animatable float.)
+        //  3D yaw (Turn), FldGemTilt for its tilt, FldGemRoll for its roll, and FldPathX/FldPathY for the shared
+        //  travel offset — no other new ids. Crescent/Sparkle/Sprite likewise REUSE FldSize/FldAlpha (radius/alpha),
+        //  FldSpin (2D spin), FldPathX/Y (travel); Sprite needs no new random-draw id at all. Orb/Ring reuse the
+        //  SAME Gem ids — FldSize (radius/outer radius), FldAlpha, FldSpin (Orb: lighting-frame yaw / Ring: in-plane
+        //  yaw), FldGemTilt, FldGemRoll (Orb: lighting-frame roll; Ring: geometrically inert), FldGemEdgeGlow,
+        //  FldGemInnerGlow, FldPathX/Y — and add NO further ids: ringInner is a plain non-animatable float.)
         // Modifiers (T6): each PyreModifier in spec.modifiers owns an 8-wide field-id BLOCK starting at
         // FldModifier + listIndex*8, so a modifier's local field id (its Prepare's fid, 0..7) maps to
         // FldModifier + listIndex*8 + fid. Since every modifier has a distinct list index the blocks never
@@ -611,7 +613,13 @@ namespace Laubrary.PyrePlus
                 cy += Eval(spec.particlePathY, life, spec.seed, particleIndex, FldPathY);
             }
 
-            Color col = spec.colorOverLife != null ? spec.colorOverLife.Evaluate(life) : Color.white;
+            // Shape fill (Part A). Hoisted at the particle centre (0,0). For the default OverLife fill (and any
+            // Solid fill) this is a constant the whole raster reuses — byte-identical to the old colorOverLife path
+            // (OverLife evaluates as gradient.Evaluate(life), the exact old call). A SPATIAL fill (Linear/Radial/
+            // Noise) instead recomputes per pixel at the pixel's local (dx/radius, dy/radius) inside each loop below.
+            var fill = spec.shapeFill;
+            bool fillSpatial = IsSpatialFill(fill);
+            Color col = fill != null ? fill.Evaluate(life, 0f, 0f) : Color.white;
             // Depth brightness shading: scale RGB (alpha untouched) and clamp each channel to [0,1]. Guarded so
             // brightMul == 1 passes the colour through byte-for-byte (the swarm-off and untilted-swarm paths).
             float cr = col.r, cg = col.g, cb = col.b;
@@ -634,13 +642,13 @@ namespace Laubrary.PyrePlus
             if (spec.shapeForm == ShapeForm.Crescent)
             {
                 DrawCrescentBody(buf, W, H, cx, cy, radius, alpha, col, cr, cg, cb, soft, inner,
-                                 spec, particleIndex, mods, phase, frameIndex, life);
+                                 spec, particleIndex, mods, phase, frameIndex, life, brightMul);
                 return;
             }
             if (spec.shapeForm == ShapeForm.Sparkle)
             {
                 DrawSparkleBody(buf, W, H, cx, cy, radius, alpha, col, cr, cg, cb,
-                                spec, particleIndex, mods, phase, frameIndex, life);
+                                spec, particleIndex, mods, phase, frameIndex, life, brightMul);
                 return;
             }
             if (spec.shapeForm == ShapeForm.Sprite)
@@ -668,6 +676,12 @@ namespace Laubrary.PyrePlus
                         float d = Mathf.Sqrt(dx * dx + dy * dy);
                         if (d > radius) continue;
                         float edge = d <= inner ? 1f : 1f - Mathf.InverseLerp(inner, radius, d);
+                        if (fillSpatial)   // spatial fill → this pixel's colour at its local (u,v); Solid/OverLife never enter here (byte-identical)
+                        {
+                            col = fill.Evaluate(life, dx / radius, dy / radius);
+                            cr = col.r; cg = col.g; cb = col.b;
+                            if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
+                        }
                         float a = alpha * col.a * edge;
                         if (a <= 0.002f) continue;
                         Over(buf, y * W + x, cr, cg, cb, a);
@@ -739,6 +753,12 @@ namespace Laubrary.PyrePlus
                     float d = Mathf.Sqrt(dx * dx + dy * dy);
                     if (d > radius) continue;
                     float edge = d <= inner ? 1f : 1f - Mathf.InverseLerp(inner, radius, d);
+                    if (fillSpatial)   // spatial fill uses the (spun/warped) local offset (dx,dy)/radius; Solid/OverLife skip (byte-identical)
+                    {
+                        col = fill.Evaluate(life, dx / radius, dy / radius);
+                        cr = col.r; cg = col.g; cb = col.b;
+                        if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
+                    }
                     float baseA = alpha * col.a * edge;
                     if (baseA <= 0.002f) continue;
                     if (mods.AnyPix)
@@ -800,13 +820,18 @@ namespace Laubrary.PyrePlus
         static void DrawCrescentBody(Color32[] buf, int W, int H, float cx, float cy, float radius, float alpha,
                                      Color col, float cr, float cg, float cb, float soft, float inner,
                                      PyrePlusSpec spec, int particleIndex, in ModSet mods, float phase,
-                                     int frameIndex, float life)
+                                     int frameIndex, float life, float brightMul)
         {
             float bite = Mathf.Clamp01(Eval(spec.crescentBite, life, spec.seed, particleIndex, FldCrescentBite));
             float biteRadius = radius * bite;
             float ang = Eval(spec.crescentAngle, life, spec.seed, particleIndex, FldCrescentAngle) * Mathf.Deg2Rad;
             float off = Mathf.Clamp01(spec.crescentOffset) * radius;
             float bx = off * Mathf.Cos(ang), by = off * Mathf.Sin(ang);   // bite-disc centre, in the shape-local (dx,dy) frame
+
+            // Shape fill: hoisted col/cr/cg/cb (passed in) is the constant for the default OverLife / any Solid fill;
+            // a spatial fill recomputes per lit pixel at (dx/radius, dy/radius) below. fillSpatial false ⇒ byte-identical.
+            var fill = spec.shapeFill;
+            bool fillSpatial = IsSpatialFill(fill);
 
             bool anyGeo = mods.AnyGeo;
             float ccx = W * 0.5f, ccy = H * 0.5f;
@@ -843,6 +868,12 @@ namespace Laubrary.PyrePlus
                     else if (soft <= 0.001f) biteEdge = mdist >= biteRadius ? 1f : 0f; // hard bite edge
                     else biteEdge = Mathf.Clamp01((mdist - biteRadius) / (soft * radius));
                     if (biteEdge <= 0.001f) continue;
+                    if (fillSpatial)   // spatial fill → this lit pixel's colour at its local (u,v); constant fills skip (byte-identical)
+                    {
+                        col = fill.Evaluate(life, dx / radius, dy / radius);
+                        cr = col.r; cg = col.g; cb = col.b;
+                        if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
+                    }
                     float outerEdge = d <= inner ? 1f : 1f - Mathf.InverseLerp(inner, radius, d);
                     float baseA = alpha * col.a * outerEdge * biteEdge;
                     if (baseA <= 0.002f) continue;
@@ -869,12 +900,17 @@ namespace Laubrary.PyrePlus
         static void DrawSparkleBody(Color32[] buf, int W, int H, float cx, float cy, float radius, float alpha,
                                     Color col, float cr, float cg, float cb,
                                     PyrePlusSpec spec, int particleIndex, in ModSet mods, float phase,
-                                    int frameIndex, float life)
+                                    int frameIndex, float life, float brightMul)
         {
             float density = Mathf.Clamp01(Eval(spec.sparkleDensity, life, spec.seed, particleIndex, FldSparkle));
             if (density <= 0.001f) return;
             float baseAlpha = alpha * col.a;
-            if (baseAlpha <= 0.002f) return;
+            // Shape fill: the hoisted col/baseAlpha are the constant for the default OverLife / any Solid fill; a
+            // spatial fill recomputes per lit cell below. The hoisted early-out is only valid for a constant fill
+            // (a spatial fill's centre alpha may be ~0 while lit cells elsewhere aren't), so it's gated on !spatial.
+            var fill = spec.shapeFill;
+            bool fillSpatial = IsSpatialFill(fill);
+            if (!fillSpatial && baseAlpha <= 0.002f) return;
             int cell = Mathf.Clamp(spec.sparkleSize, 1, 4);
             int frames = Mathf.Max(1, spec.frameCount);
             // Own-life frame bucket → the twinkle clock. The +1 keeps it nonzero so a cell's twinkle key
@@ -918,15 +954,22 @@ namespace Laubrary.PyrePlus
                     if (presence >= density) continue;                                  // not a candidate cell
                     float twinkle = Hash01(spec.seed, particleIndex, FldSparkle, cellIndex ^ frameSalt);
                     if (twinkle >= 0.5f) continue;                                       // candidate, but off this frame
+                    float sr = cr, sg = cg, sb = cb, sa = baseAlpha;
+                    if (fillSpatial)   // spatial fill → this cell's colour + alpha at its local (u,v); constant fills skip (byte-identical)
+                    {
+                        col = fill.Evaluate(life, dx / radius, dy / radius);
+                        sr = col.r; sg = col.g; sb = col.b; sa = alpha * col.a;
+                        if (brightMul != 1f) { sr = Mathf.Clamp01(sr * brightMul); sg = Mathf.Clamp01(sg * brightMul); sb = Mathf.Clamp01(sb * brightMul); }
+                    }
                     if (mods.AnyPix)
                     {
-                        Color pc = new Color(cr, cg, cb, 1f);
-                        float pa = baseAlpha;
+                        Color pc = new Color(sr, sg, sb, 1f);
+                        float pa = sa;
                         float crossFrac = Mathf.Clamp01(d / Mathf.Max(0.001f, radius));
                         if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, wx, wy, frameIndex, crossFrac, life, pHash, W, H)) continue;
                         Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
                     }
-                    else Over(buf, y * W + x, cr, cg, cb, baseAlpha);
+                    else Over(buf, y * W + x, sr, sg, sb, sa);
                 }
         }
 
@@ -1413,14 +1456,20 @@ namespace Laubrary.PyrePlus
                 default:                BuildGemGeometry(spec, R, out model, out faces, out lineEdges); break;
             }
 
-            // Rotation: yaw about Y first (the gem's 3D yaw = particleSpin on its own life), then the world tilt
-            // about X (gemTilt on its own life) — exactly the prototype's Rot, +z toward the viewer.
+            // Rotation (R2 full 3D): ROLL about Z in model space FIRST (Turn/Tilt come after), then yaw about Y
+            // (the solid's 3D yaw = particleSpin/Turn on its own life), then the world tilt about X (gemTilt on its
+            // own life) — the prototype's Rot with a roll prepended, +z toward the viewer. The roll block is guarded
+            // on roll != 0f so a default solid (roll Static 0) is byte-identical to the pre-R2 Rot.
             float yaw = Eval(spec.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
             float tilt = Eval(spec.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
+            float roll = Eval(spec.gemRoll, own, spec.seed, particleIndex, FldGemRoll) * Mathf.Deg2Rad;
             float cyw = Mathf.Cos(yaw), syw = Mathf.Sin(yaw);
             float ct = Mathf.Cos(tilt), st = Mathf.Sin(tilt);
+            bool doRoll = roll != 0f;
+            float cro = Mathf.Cos(roll), sro = Mathf.Sin(roll);
             Vector3 Rot(Vector3 p)
             {
+                if (doRoll) { float rx = p.x * cro - p.y * sro, ry = p.x * sro + p.y * cro; p = new Vector3(rx, ry, p.z); }
                 var q = new Vector3(p.x * cyw + p.z * syw, p.y, -p.x * syw + p.z * cyw);
                 return new Vector3(q.x, q.y * ct - q.z * st, q.y * st + q.z * ct);
             }
@@ -1482,14 +1531,21 @@ namespace Laubrary.PyrePlus
             Vector3 lightPos = new Vector3(lhoriz * Mathf.Sin(lyaw), ldist * Mathf.Sin(lpitch), lhoriz * Mathf.Cos(lyaw));
             float lrange = 4.7f * R, lrange2 = lrange * lrange;
             Vector3 viewDir = new Vector3(0f, 0f, 1f);
-            // Colours are now authorable spec fields (Part A). Defaults equal the old renderer constants, so a
-            // default solid is byte-identical. NOTE: the halo (edge glow) tint used to reuse lineColor; it is split
-            // off into gemEdgeGlowColor here — byte-identical only while gemLineColor sits at its default (which the
-            // hash-gated probes do), since gemEdgeGlowColor's default equals gemLineColor's default.
-            Color specColor = spec.gemSpecularColor;     // Blinn-Phong highlight tint (was new Color(0.9f, 0.95f, 1f))
-            Color innerColor = spec.gemInnerGlowColor;   // inner-glow tint (was new Color(0.35f, 0.60f, 1f))
-            Color lineColor = spec.gemLineColor;         // hard edge-line colour
-            Color edgeGlowColor = spec.gemEdgeGlowColor; // halo/edge-glow tint (was lineColor)
+            // Colours are now authorable ZuiFills (Part A). Hoisted at (own, 0, 0): for the default Solid slots (and
+            // an OverLife material) this is a constant the whole raster reuses, byte-identical to the old renderer
+            // constants / colorOverLife path. A SPATIAL fill (Linear/Radial/Noise) recomputes per pixel at the
+            // pixel's particle-local (lx/R, ly/R) below. NOTE: the halo (edge glow) tint used to reuse the line
+            // colour; it is split into gemEdgeGlowFill — byte-identical while gemLineFill sits at its default, whose
+            // colour equals gemEdgeGlowFill's default.
+            var specFill = spec.gemSpecularFill; bool specSpatial = IsSpatialFill(specFill);
+            var innerFill = spec.gemInnerGlowFill; bool innerSpatial = IsSpatialFill(innerFill);
+            var lineFill = spec.gemLineFill; bool lineSpatial = IsSpatialFill(lineFill);
+            var edgeFill = spec.gemEdgeGlowFill; bool edgeSpatial = IsSpatialFill(edgeFill);
+            var matFill = spec.shapeFill;   // material fill; baseCol is evaluated per pixel below (u,v ignored for Solid/OverLife → byte-identical)
+            Color specColor = specFill != null ? specFill.Evaluate(own, 0f, 0f) : Color.white;    // Blinn-Phong highlight tint
+            Color innerColor = innerFill != null ? innerFill.Evaluate(own, 0f, 0f) : Color.white; // inner-glow tint
+            Color lineColor = lineFill != null ? lineFill.Evaluate(own, 0f, 0f) : Color.white;    // hard edge-line colour
+            Color edgeGlowColor = edgeFill != null ? edgeFill.Evaluate(own, 0f, 0f) : Color.white; // halo/edge-glow tint
             float lineW = spec.gemLineWidth;
             float ambient = spec.gemAmbient, specStr = spec.gemSpecular;
 
@@ -1524,6 +1580,14 @@ namespace Laubrary.PyrePlus
                     float lx = x + 0.5f - cx, ly = y + 0.5f - cy;
                     Vector2 p = new Vector2(lx, ly);
 
+                    // Spatial fills: this pixel's particle-local point (lx/R, ly/R) in -1..1 space. Ignored by the
+                    // default Solid/OverLife fills, so these recomputes stay skipped and the raster is byte-identical.
+                    float u = lx / R, v = ly / R;
+                    if (lineSpatial) lineColor = lineFill.Evaluate(own, u, v);
+                    if (edgeSpatial) edgeGlowColor = edgeFill.Evaluate(own, u, v);
+                    if (innerSpatial) innerColor = innerFill.Evaluate(own, u, v);
+                    if (specSpatial) specColor = specFill.Evaluate(own, u, v);
+
                     // Nearest visible edge distance — drives BOTH glows and the hard line test, inside and out.
                     float edist = float.MaxValue;
                     for (int e = 0; e < edgeCount; e++)
@@ -1552,7 +1616,7 @@ namespace Laubrary.PyrePlus
                         {
                             Vector3 Hh = (L + viewDir).normalized;
                             float sp = Mathf.Pow(Mathf.Max(0f, Vector3.Dot(visNrm[vi], Hh)), 48f);
-                            Color baseCol = spec.colorOverLife != null ? spec.colorOverLife.Evaluate(own) : Color.white;
+                            Color baseCol = matFill != null ? matFill.Evaluate(own, u, v) : Color.white;
                             float sAdd = specStr * sp * atten;
                             fr = baseCol.r * lit + specColor.r * sAdd;
                             fg = baseCol.g * lit + specColor.g * sAdd;
@@ -1649,20 +1713,37 @@ namespace Laubrary.PyrePlus
             //    tilt-about-X; its inverse is yaw(−) applied after tilt(−).
             float yaw = Eval(spec.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
             float tilt = Eval(spec.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
+            float roll = Eval(spec.gemRoll, own, spec.seed, particleIndex, FldGemRoll) * Mathf.Deg2Rad;
             float cyw = Mathf.Cos(yaw), syw = Mathf.Sin(yaw);
             float ct = Mathf.Cos(tilt), st = Mathf.Sin(tilt);
             {
-                // TiltX(−tilt): undo the tilt about X, then YawY(−yaw): undo the yaw about Y.
+                // Roll the LIGHT by the INVERSE of the sphere's rotation (R2). The forward model rotation is
+                // ROLL(Z)→YAW(Y)→TILT(X), so its inverse is TILT(−X)→YAW(−Y)→ROLL(−Z), applied to the light in
+                // that order. TiltX(−tilt): undo the tilt about X, then YawY(−yaw): undo the yaw about Y.
                 float ax = lightPos.x;
                 float ay = lightPos.y * ct + lightPos.z * st;
                 float az = -lightPos.y * st + lightPos.z * ct;
                 lightPos = new Vector3(ax * cyw - az * syw, ay, ax * syw + az * cyw);
+                // ROLL(−Z): undo the model-space roll last (guarded so roll==0 is byte-identical — the hotspot
+                // rolls around the ball's centre as roll animates).
+                if (roll != 0f)
+                {
+                    float cro = Mathf.Cos(roll), sro = Mathf.Sin(roll);
+                    float rx = lightPos.x * cro + lightPos.y * sro;
+                    float ry = -lightPos.x * sro + lightPos.y * cro;
+                    lightPos = new Vector3(rx, ry, lightPos.z);
+                }
             }
 
-            Color specColor = spec.gemSpecularColor;
-            Color innerColor = spec.gemInnerGlowColor;
-            Color lineColor = spec.gemLineColor;
-            Color edgeGlowColor = spec.gemEdgeGlowColor;
+            var specFill = spec.gemSpecularFill; bool specSpatial = IsSpatialFill(specFill);
+            var innerFill = spec.gemInnerGlowFill; bool innerSpatial = IsSpatialFill(innerFill);
+            var lineFill = spec.gemLineFill; bool lineSpatial = IsSpatialFill(lineFill);
+            var edgeFill = spec.gemEdgeGlowFill; bool edgeSpatial = IsSpatialFill(edgeFill);
+            var matFill = spec.shapeFill; bool matSpatial = IsSpatialFill(matFill);
+            Color specColor = specFill != null ? specFill.Evaluate(own, 0f, 0f) : Color.white;
+            Color innerColor = innerFill != null ? innerFill.Evaluate(own, 0f, 0f) : Color.white;
+            Color lineColor = lineFill != null ? lineFill.Evaluate(own, 0f, 0f) : Color.white;
+            Color edgeGlowColor = edgeFill != null ? edgeFill.Evaluate(own, 0f, 0f) : Color.white;
             float lineW = spec.gemLineWidth;
             float ambient = spec.gemAmbient, specStr = spec.gemSpecular;
 
@@ -1670,7 +1751,9 @@ namespace Laubrary.PyrePlus
             float innerGlow = Mathf.Clamp01(Eval(spec.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
             float haloR = Mathf.Max(2.5f, 0.24f * R);
             float innerR = Mathf.Max(3f, 0.30f * R);
-            Color baseCol = spec.colorOverLife != null ? spec.colorOverLife.Evaluate(own) : Color.white;
+            // Hoisted material fill (default OverLife = gradient.Evaluate(own), byte-identical); a spatial material
+            // recomputes per pixel at (lx/R, ly/R) below.
+            Color baseCol = matFill != null ? matFill.Evaluate(own, 0f, 0f) : Color.white;
 
             // Raster bounds: the circle d ≤ R, expanded by haloR so the outside halo isn't clipped.
             float extent = R + haloR;
@@ -1684,6 +1767,13 @@ namespace Laubrary.PyrePlus
                 for (int x = x0; x <= x1; x++)
                 {
                     float lx = x + 0.5f - cx, ly = y + 0.5f - cy;
+                    // Spatial fills at this pixel's particle-local point (lx/R, ly/R); constant fills skip (byte-identical).
+                    float fu = lx / R, fv = ly / R;
+                    if (lineSpatial) lineColor = lineFill.Evaluate(own, fu, fv);
+                    if (edgeSpatial) edgeGlowColor = edgeFill.Evaluate(own, fu, fv);
+                    if (innerSpatial) innerColor = innerFill.Evaluate(own, fu, fv);
+                    if (specSpatial) specColor = specFill.Evaluate(own, fu, fv);
+                    if (matSpatial) baseCol = matFill.Evaluate(own, fu, fv);
                     float d = Mathf.Sqrt(lx * lx + ly * ly);
                     // The orb's ONLY edge is the silhouette rim; distance to it (both sides) drives lines + glows,
                     // exactly as DrawFacetSolid's `edist` (nearest face-edge distance) does.
@@ -1811,10 +1901,15 @@ namespace Laubrary.PyrePlus
             float lrange = 4.7f * R, lrange2 = lrange * lrange;
             Vector3 viewDir = new Vector3(0f, 0f, 1f);
 
-            Color specColor = spec.gemSpecularColor;
-            Color innerColor = spec.gemInnerGlowColor;
-            Color lineColor = spec.gemLineColor;
-            Color edgeGlowColor = spec.gemEdgeGlowColor;
+            var specFill = spec.gemSpecularFill; bool specSpatial = IsSpatialFill(specFill);
+            var innerFill = spec.gemInnerGlowFill; bool innerSpatial = IsSpatialFill(innerFill);
+            var lineFill = spec.gemLineFill; bool lineSpatial = IsSpatialFill(lineFill);
+            var edgeFill = spec.gemEdgeGlowFill; bool edgeSpatial = IsSpatialFill(edgeFill);
+            var matFill = spec.shapeFill; bool matSpatial = IsSpatialFill(matFill);
+            Color specColor = specFill != null ? specFill.Evaluate(own, 0f, 0f) : Color.white;
+            Color innerColor = innerFill != null ? innerFill.Evaluate(own, 0f, 0f) : Color.white;
+            Color lineColor = lineFill != null ? lineFill.Evaluate(own, 0f, 0f) : Color.white;
+            Color edgeGlowColor = edgeFill != null ? edgeFill.Evaluate(own, 0f, 0f) : Color.white;
             float lineW = spec.gemLineWidth;
             float ambient = spec.gemAmbient, specStr = spec.gemSpecular;
 
@@ -1822,7 +1917,9 @@ namespace Laubrary.PyrePlus
             float innerGlow = Mathf.Clamp01(Eval(spec.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
             float haloR = Mathf.Max(2.5f, 0.24f * R);
             float innerGlowR = Mathf.Max(3f, 0.30f * R);   // inner-GLOW band radius (distinct from innerR, the hole)
-            Color baseCol = spec.colorOverLife != null ? spec.colorOverLife.Evaluate(own) : Color.white;
+            // Hoisted material fill (default OverLife = gradient.Evaluate(own), byte-identical); a spatial material
+            // recomputes per pixel at (lx/R, ly/R) below.
+            Color baseCol = matFill != null ? matFill.Evaluate(own, 0f, 0f) : Color.white;
 
             // Screen bounds of the (sheared) outer ellipse + halo:  |lx| ≤ R·|cyw|,  |ly| ≤ R·(|syw·st| + |ct|).
             float exHalf = R * Mathf.Abs(cyw) + haloR;
@@ -1838,6 +1935,13 @@ namespace Laubrary.PyrePlus
                 for (int x = x0; x <= x1; x++)
                 {
                     float lx = x + 0.5f - cx, ly = y + 0.5f - cy;
+                    // Spatial fills at this pixel's particle-local point (lx/R, ly/R); constant fills skip (byte-identical).
+                    float fu = lx / R, fv = ly / R;
+                    if (lineSpatial) lineColor = lineFill.Evaluate(own, fu, fv);
+                    if (edgeSpatial) edgeGlowColor = edgeFill.Evaluate(own, fu, fv);
+                    if (innerSpatial) innerColor = innerFill.Evaluate(own, fu, fv);
+                    if (specSpatial) specColor = specFill.Evaluate(own, fu, fv);
+                    if (matSpatial) baseCol = matFill.Evaluate(own, fu, fv);
                     // Invert the forward map:  u = lx/cyw ;  v = (ly − u·syw·st)/ct.
                     float u = lx / cyw;
                     float v = (ly - u * sywst) / ct;
@@ -2117,6 +2221,13 @@ namespace Laubrary.PyrePlus
                 (byte)(Mathf.Clamp01((b * a + dst.b * (1f / 255f) * da * (1f - a)) * inv) * 255f),
                 (byte)(Mathf.Clamp01(outA) * 255f));
         }
+
+        /// True when a fill VARIES with the pixel's local (u,v) — the spatial modes (Linear / Radial / Noise). The
+        /// Solid and OverLife modes ignore (u,v), so a fill in either can be evaluated ONCE and hoisted; only a
+        /// spatial fill needs per-pixel re-evaluation. Every default PyrePlus fill is Solid or OverLife, so this is
+        /// false for defaults and the per-pixel recompute paths below stay skipped — keeping defaults byte-identical.
+        static bool IsSpatialFill(ZuiFill f) =>
+            f != null && (f.mode == ZuiFill.Mode.Linear || f.mode == ZuiFill.Mode.Radial || f.mode == ZuiFill.Mode.Noise);
 
         /// True when a value is exactly Static 0 — the default state of the T7 opt-in travel-path fields. Gates
         /// their Evals so a default asset's particle centre (and thus its whole raster) stays byte-identical; a

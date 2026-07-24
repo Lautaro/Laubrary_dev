@@ -66,40 +66,50 @@ namespace Laubrary.PyrePlus
 
         // ── Shape — the particle's own look (mandatory section) ────────────────────
         // Which FORM the particle renders as. Disc = the flat soft disc (slice 1). Gem = a true-3D lit crystal
-        // (the Gem block below drives it); its material colour is colorOverLife, its radius is `size`.
+        // (the Gem block below drives it); its material colour is shapeFill, its radius is `size`.
         public ShapeForm shapeForm = ShapeForm.Disc;
-        public Gradient colorOverLife = DefaultColor();
+        // The particle's colour, as a ZuiFill: Solid (one flat colour), OverLife (a gradient over the particle's
+        // life — the default), or a SPATIAL fill (Linear / Radial / Noise, sampled across the particle by its
+        // normalized local point). Every mode is alpha-capable. Default = OverLife with the fire gradient, which
+        // renders byte-identical to the old colorOverLife path. Text ignores this (it has its own richer per-char
+        // fill system below).
+        public ZuiFill shapeFill = DefaultShapeFill();
         public ZUIValue alpha = DefaultAlpha();     // over the particle's OWN life (multiplies the final output alpha for BOTH forms)
         public ZUIValue size = DefaultSize();       // radius in pixels, over the particle's own life (Gem: the girdle radius)
         [Range(0f, 1f)] public float edgeSoftness = 0.4f;   // soft rim vs hard pixel edge (Disc form only)
 
         // ── Gem form (shapeForm == Gem) — a true-3D faceted crystal ────────────────
         // Octahedral by default (gemSides == 4): a square girdle with a crown point above and a longer pavilion
-        // point below, lit per-pixel. Base colour = colorOverLife at the particle's own life (a blue gradient =
+        // point below, lit per-pixel. Base colour = shapeFill at the particle's own life (a blue gradient =
         // a sapphire). The `size` envelope is the single scale driver — the girdle radius R = evaluated size.
         [Range(3, 8)] public int gemSides = 4;              // girdle vertex count (4 = the approved octahedron)
         public float gemCrown = 0.75f;                      // crown height as a fraction of R (the girdle radius)
         public float gemPavilion = 1.55f;                   // pavilion depth as a fraction of R
-        public ZUIValue gemTilt = new ZUIValue(18f);        // world tilt about X, degrees, over the particle's own life
+        public ZUIValue gemTilt = new ZUIValue(18f);        // TILT about X (lean top toward/away), degrees, over the particle's own life
+        // ROLL about Z in model space (rotate flat against the screen), degrees, over the particle's own life —
+        // applied FIRST, before the shared spin (Turn/yaw) and the tilt. Default Static 0 (a no-op — the renderer's
+        // exact roll==0 guard keeps a default solid byte-identical). For the Orb it rolls the lit hotspot around
+        // the ball; geometrically a no-op for the symmetric Ring (a flat ring rolled in its own plane is unchanged).
+        public ZUIValue gemRoll = new ZUIValue(0f);
         // Lighting. The light POSITION derives in the renderer from these two angles at distance 3.5·R with a
         // 4.7·R falloff range (the prototype's proportions) — distance is not exposed.
         public float gemLightYaw = -55f;                    // key-light azimuth (left/right), degrees
         public float gemLightPitch = 38f;                   // key-light elevation (above the horizon), degrees
         [Range(0f, 1f)] public float gemAmbient = 0.05f;    // near-zero fill on unlit faces
         [Range(0f, 2f)] public float gemSpecular = 0.9f;    // Blinn-Phong highlight strength
-        public Color gemSpecularColor = new Color(0.9f, 0.95f, 1f);   // cool tint of the Blinn-Phong highlight (was a renderer constant)
+        public ZuiFill gemSpecularFill = new ZuiFill(new Color(0.9f, 0.95f, 1f));   // Blinn-Phong highlight fill (Solid by default)
         // Light-catching hard edge lines along every visible facet boundary.
         [Range(0f, 3f)] public float gemLineWidth = 1f;     // edge-line width in screen pixels (0 = no lines)
-        public Color gemLineColor = new Color(1f, 0.98f, 0.90f);
+        public ZuiFill gemLineFill = new ZuiFill(new Color(1f, 0.98f, 0.90f));      // hard facet edge-line fill (Solid by default)
         // The two staggered glows — strength 0..1 over the particle's OWN life. EdgeGlow is a halo around the edge
         // lines that spills OUTSIDE the silhouette; InnerGlow is emissive light rising from the facet interiors.
-        // Their defaults pulse in ANTI-PHASE (see the factories). Each has its OWN authorable tint: gemEdgeGlowColor
-        // (was the line colour, now split off — default equals gemLineColor's default so a default gem is unchanged)
-        // and gemInnerGlowColor (was a renderer constant).
+        // Their defaults are STEADY (Static) so the light does NOT pulse out of the box — author a Curve on either
+        // to make it breathe over the particle's life. Each has its OWN authorable fill: gemEdgeGlowFill (default
+        // equals gemLineFill's default colour so a default solid is unchanged) and gemInnerGlowFill.
         public ZUIValue gemEdgeGlow = DefaultEdgeGlow();
-        public Color gemEdgeGlowColor = new Color(1f, 0.98f, 0.90f);
+        public ZuiFill gemEdgeGlowFill = new ZuiFill(new Color(1f, 0.98f, 0.90f));  // edge-halo glow fill (Solid by default)
         public ZUIValue gemInnerGlow = DefaultInnerGlow();
-        public Color gemInnerGlowColor = new Color(0.35f, 0.60f, 1f);
+        public ZuiFill gemInnerGlowFill = new ZuiFill(new Color(0.35f, 0.60f, 1f)); // facet inner-glow fill (Solid by default)
 
         // ── shared 3D-solid form fields (Box / Pyramid / Can) — the true-3D convex facet solids that reuse the
         //    Gem block above (tilt, light, lines, glows) but are NOT octahedral gems. Both are fractions of the
@@ -115,16 +125,16 @@ namespace Laubrary.PyrePlus
 
         // ── Text form (shapeForm == Text) — a string rendered as extruded SDF letters ────────────────────────
         // Every character is one particle. `size` is the character HEIGHT in pixels; each glyph is scaled so its
-        // height matches it. Text does NOT use colorOverLife — its colour is the SPATIAL fill below.
+        // height matches it. Text does NOT use shapeFill — its colour is the SPATIAL fill below.
         public string textString = "PYRE";
         // The SDF font atlas. Null = the renderer auto-finds the first TMP_FontAsset with a READABLE atlas (an
         // editor-only AssetDatabase lookup, cached); at runtime with nothing found the form falls back to a plain
         // Disc per character. The atlas must be Read/Write-enabled (a Dynamic SDF font works).
         public TMP_FontAsset textFont;
-        // Which fill mode paints the letters. (Text ignores colorOverLife entirely — see the enum.)
+        // Which fill mode paints the letters. (Text ignores shapeFill entirely — see the enum.)
         public TextFillMode textFillMode = TextFillMode.PerCharGradient;
         // The SPATIAL fill ramp. NOT over the particle's life — sampled in SPACE across the char/line (unlike every
-        // other form, Text does not read colorOverLife). Deep-crimson→orange→gold by default (the Pyre ramp).
+        // other form, Text does not read shapeFill). Deep-crimson→orange→gold by default (the Pyre ramp).
         public Gradient textFillGradient = DefaultFireRamp();
         // Rotates the fill axis. Convention: 0 = vertical bottom→top for PerCharGradient (PerCharStep is index-based
         // and ignores it); for TextGradient 0 = left→right across the whole line.
@@ -159,7 +169,8 @@ namespace Laubrary.PyrePlus
         // The sprite is scaled so its larger dimension maps to 2·radius, centred on the particle, rotated by
         // `particleSpin` (Sprite reuses the shared spin — no separate rotation field), point-sampled. Its
         // texture must be Read/Write-enabled to sample; a null image or a non-readable texture renders the Disc
-        // fallback instead. `spriteTint` multiplies by colorOverLife (at own life); off = raw sprite colours.
+        // fallback instead. `spriteTint` multiplies by shapeFill (sampled at the particle centre, own life); off =
+        // raw sprite colours.
         public Sprite spriteImage;
         public bool spriteTint = true;
 
@@ -221,6 +232,7 @@ namespace Laubrary.PyrePlus
         [HideInInspector] public float previewZoom = 4f;
         [HideInInspector] public float previewFps = 12f;
         [HideInInspector] public int previewFrame = 0;
+        [HideInInspector] public bool previewShowFrame = true;   // draw a thin canvas border in the preview (Frame toggle)
 
         public int Width => Mathf.Max(1, canvasSize);
         public int Height => Mathf.Max(1, canvasSize);
@@ -237,6 +249,13 @@ namespace Laubrary.PyrePlus
                 },
                 new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
             return g;
+        }
+
+        static ZuiFill DefaultShapeFill()
+        {
+            // The default shape fill: OverLife with the fire gradient above. OverLife evaluates as
+            // gradient.Evaluate(life), so this is byte-identical to the old `colorOverLife.Evaluate(life)` path.
+            return new ZuiFill { mode = ZuiFill.Mode.OverLife, gradient = DefaultColor() };
         }
 
         static ZUIValue DefaultAlpha()
@@ -310,32 +329,16 @@ namespace Laubrary.PyrePlus
 
         static ZUIValue DefaultEdgeGlow()
         {
-            // Two anti-phase pulses over the particle's life; reshape freely. The exact mirror of DefaultInnerGlow:
-            // this glow PEAKS where the inner glow RESTS and vice versa (the approved staggered double-pulse look).
-            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
-            v.points.Clear();
-            v.points.Add(new ZUIEnvelopePoint(0f, 0.5f));
-            v.points.Add(new ZUIEnvelopePoint(0.125f, 1f));
-            v.points.Add(new ZUIEnvelopePoint(0.375f, 0f));
-            v.points.Add(new ZUIEnvelopePoint(0.625f, 1f));
-            v.points.Add(new ZUIEnvelopePoint(0.875f, 0f));
-            v.points.Add(new ZUIEnvelopePoint(1f, 0.5f));
-            return v;
+            // Steady halo out of the box (Static 0.5) — the light does NOT pulse by default. Pulsing is deliberate
+            // authoring: switch this to a Curve to make the edge halo breathe over the particle's life.
+            return new ZUIValue(0.5f);
         }
 
         static ZUIValue DefaultInnerGlow()
         {
-            // Two anti-phase pulses over the particle's life; reshape freely. The exact mirror of DefaultEdgeGlow
-            // (peaks while the edge glow rests) — together they read as one crystal breathing between rim and core.
-            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
-            v.points.Clear();
-            v.points.Add(new ZUIEnvelopePoint(0f, 0.5f));
-            v.points.Add(new ZUIEnvelopePoint(0.125f, 0f));
-            v.points.Add(new ZUIEnvelopePoint(0.375f, 1f));
-            v.points.Add(new ZUIEnvelopePoint(0.625f, 0f));
-            v.points.Add(new ZUIEnvelopePoint(0.875f, 1f));
-            v.points.Add(new ZUIEnvelopePoint(1f, 0.5f));
-            return v;
+            // Steady inner glow out of the box (Static 0.35) — no pulse by default. Author a Curve to make it pulse
+            // over the particle's life.
+            return new ZUIValue(0.35f);
         }
 
         static Gradient DefaultFireRamp()

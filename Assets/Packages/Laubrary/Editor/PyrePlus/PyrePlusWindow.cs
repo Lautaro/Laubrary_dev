@@ -6,6 +6,7 @@
 // sections follow. Deliberately a separate menu item and asset type from real Pyre, which is untouched.
 using System.Collections.Generic;
 using Laubrary.AssetKit.Editor;
+using Laubrary.BackSplash.Editor;
 using Laubrary.Zui;
 using TMPro;
 using UnityEditor;
@@ -48,6 +49,14 @@ namespace Laubrary.PyrePlus.Editor
         float acc;
         bool playing = true;
         int frame;
+        Button playButton;
+        VisualElement backdropHost;
+        // The preview backdrop is an editor-only BackSplash (camera colour + one image), held on the WINDOW — not
+        // the runtime spec, since PyrePlus's runtime asmdef doesn't reference BackSplash. Lazily created; a cosmetic
+        // authoring aid, never baked. Mirrors how PyreWindow holds its BackSplash, but window-scoped rather than
+        // per-asset.
+        Laubrary.BackSplash.BackSplashSettings _backSplash;
+        Laubrary.BackSplash.BackSplashSettings backSplash => _backSplash ??= new Laubrary.BackSplash.BackSplashSettings();
 
         protected override void OnEnable()
         {
@@ -105,14 +114,28 @@ namespace Laubrary.PyrePlus.Editor
             BuildSwarm(dials, s);
             BuildModifiers(dials, s);   // PyrePlusWindow.Modifiers.cs
 
-            // ── right: preview ───────────────────────────────────────────────────
+            // ── right: preview + transport + backdrop ────────────────────────────
+            var rightPane = new VisualElement();
+            rightPane.style.flexGrow = 1f;
+            rightPane.style.minWidth = 200f;
+            rightPane.style.minHeight = 0f;
+
             preview = new IMGUIContainer(() => DrawPreview(s));
             preview.style.flexGrow = 1f;
             preview.style.minWidth = 200f;
+            preview.style.minHeight = 160f;
             preview.AddToClassList("zui-stage");
+            rightPane.Add(preview);
+
+            // Transport (Play/Pause + Frame border) and the shared BackSplash backdrop panel sit below the preview.
+            var chrome = new VisualElement();
+            chrome.style.flexShrink = 0f;
+            BuildTransport(chrome, s);
+            BuildBackdropPanel(chrome);
+            rightPane.Add(chrome);
 
             split.Add(left);
-            split.Add(preview);
+            split.Add(rightPane);
             root.style.flexGrow = 1f;
             root.style.minHeight = 0f;
             root.Add(split);
@@ -161,6 +184,42 @@ namespace Laubrary.PyrePlus.Editor
             return store;
         }
 
+        // Preview transport: a Play/Pause button (flips its own label) + the Frame-border toggle. The minimal
+        // mirror of PyreWindow's transport row (scrub/zoom already live elsewhere in this prototype).
+        void BuildTransport(VisualElement root, PyrePlusSpec s)
+        {
+            playButton = Z.Button(playing ? "❚❚ Pause" : "▶ Play", "Play or pause the looping preview.", () =>
+            {
+                playing = !playing;
+                playButton.text = playing ? "❚❚ Pause" : "▶ Play";
+            });
+            root.Add(WrapRow(
+                playButton,
+                Z.Toggle("Frame",
+                    "Draw a thin border around the canvas edge in the preview (cosmetic only — never baked).",
+                    s.previewShowFrame, v => Dirty(() => s.previewShowFrame = v))));
+        }
+
+        // The shared BackSplash backdrop panel (also used by Pyre / Mirage) — a cosmetic preview aid, never baked.
+        // onStructureChanged rebuilds it when the backdrop image is picked or cleared (it adds/removes controls).
+        void BuildBackdropPanel(VisualElement root)
+        {
+            backdropHost = new VisualElement();
+            root.Add(backdropHost);
+            FillBackdropPanel();
+        }
+
+        void FillBackdropPanel()
+        {
+            if (backdropHost == null) return;
+            backdropHost.Clear();
+            backdropHost.Add(BackSplashZui.Build(backSplash, "Preview backdrop",
+                "A cosmetic backdrop for the preview only — a solid colour plus one optional image. Never baked and "
+                + "has no effect on the render. A private copy: Recall copies values FROM a preset, Save writes them TO one.",
+                onChanged: () => preview?.MarkDirtyRepaint(),
+                onStructureChanged: () => { preview?.MarkDirtyRepaint(); FillBackdropPanel(); }));
+        }
+
         void BuildCanvas(VisualElement root, PyrePlusSpec s)
         {
             var box = Z.BoxKeyed("Canvas", "The output resolution, frame count, seed and backdrop.", "pyreplus.canvas");
@@ -201,6 +260,7 @@ namespace Laubrary.PyrePlus.Editor
             shapeBody.Clear();
 
             s.alpha ??= new ZUIValue(1f);
+            s.shapeFill ??= new ZuiFill();   // defensive; the real OverLife-fire default comes from the spec factory
 
             // FORM selector — Disc / Gem / Crescent / Sparkle / Sprite / Box / Pyramid / Can. A Dropdown, NOT an
             // 8-wide Segmented row: content-sized segments (ZuiSegmented is flex-shrink:0 and never wraps) would
@@ -222,16 +282,15 @@ namespace Laubrary.PyrePlus.Editor
             // Colour is the optional tint. TEXT takes its colour from its own Fill / Border gradients instead, so
             // the Colour row is hidden for it (the Text box's Fill row tooltip says so). Size is the scale driver
             // for every form — Text reads it as the character HEIGHT.
+            // Colour → a ZuiFill: Solid, Over life (a gradient, the default), or a spatial fill (linear/radial/
+            // noise); every mode is alpha-capable, switched via the ⋯ menu. Hidden for Text (its own per-char fill
+            // rules its colour). Z.Fill draws its own "Fill" label + the ⋯, so it isn't wrapped in a Z.Field; its
+            // tooltip is composed for the CURRENT form.
             if (s.shapeForm != ShapeForm.Text)
-                shapeBody.Add(Z.Field("Colour",
-                    "Colour over the particle's life (0 = birth, 1 = death). For the 3D solid forms (Gem/Box/Pyramid/"
-                    + "Can) this is the material tint — a blue gradient reads as a sapphire.",
-                    GradientField("Colour", () => s.colorOverLife, g => Dirty(() => s.colorOverLife = g))));
+                shapeBody.Add(FillRow("Fill", FillTooltip(s.shapeForm), s.shapeFill,
+                    new ZuiFillControl.Options().WithWidth(190f).WithGrow(2.2f)));
             shapeBody.Add(Val("Alpha", "Opacity over the particle's own life (multiplies the final output alpha).", s.alpha, 0f, 1f));
-            shapeBody.Add(Val("Size (px)",
-                "Radius in pixels over the particle's own life. For the 3D solid forms it is the base size R that "
-                + "Aspect / Depth (or the Gem's Crown / Pavilion) scale from. For Text it is the character HEIGHT.",
-                s.size, 0f, 32f));
+            shapeBody.Add(Val("Size (px)", SizeTooltip(s.shapeForm), s.size, 0f, 32f));
 
             // Form-specific rows. Edge softness applies to Disc (its rim) and Crescent (BOTH rims); Gem/Sparkle/
             // Sprite don't use it, so it's hidden for them. (EdgeRow is a bare MicroSlider — its own caption is
@@ -281,17 +340,11 @@ namespace Laubrary.PyrePlus.Editor
                 + "drift/arc as it lives; Static 0 = no travel.",
                 s.particlePathX, s.particlePathY,
                 new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero)));
-            shapeBody.Add(Val("Spin °",
-                "Degrees the particle rotates over its own life. DISC / SPARKLE form: pixels spin IN PLACE (2D) — a "
-                + "plain disc or an even sparkle field is radially symmetric so it shows little (add a geometry/"
-                + "texture Modifier so the disc's spin reads). CRESCENT: rotates the whole crescent, on top of its "
-                + "own bite Angle. SPRITE: rotates the stamped image. GEM / BOX / PYRAMID / CAN (3D solids): the "
-                + "solid's 3D YAW about its vertical axis, turning it so its facets sweep past the light. ORB: rolls "
-                + "the lit hotspot left/right around the sphere (its silhouette never changes). RING: rolls the "
-                + "annulus in its own plane. TEXT: each letter yaws about its OWN centre (its 3D letter-box turns to "
-                + "face the light); paired with the letters' tilt for the extruded look. (The pseudo-3D tilt of a "
-                + "whole SWARM lives on the Swarm shape transform, not here.)",
-                s.particleSpin, -720f, 720f));
+            // Spin is the particle's own-life in-place rotation. For the 3D solid forms it IS the "Turn °" control
+            // in the Solid box above (the same particleSpin field, shown once), so it's hidden here for them; 2D
+            // forms and Text keep it. Its tooltip is composed for the CURRENT form.
+            if (!IsSolidForm(s.shapeForm))
+                shapeBody.Add(Val("Spin °", SpinTooltip(s.shapeForm), s.particleSpin, -720f, 720f));
         }
 
         // The 3D-solid controls — one framed box inside the Shape body, shown for Gem / Box / Pyramid / Can (all
@@ -301,17 +354,15 @@ namespace Laubrary.PyrePlus.Editor
         // two glows are animatable ZUIValues (Val), each packed with its own colour; Specular packs with its colour.
         void BuildSolidBox(PyrePlusSpec s)
         {
+            s.particleSpin ??= new ZUIValue(0f);
             s.gemTilt ??= new ZUIValue(18f);
-            s.gemEdgeGlow ??= new ZUIValue(0.5f);     // defensive; the real anti-phase defaults come from the spec factories
-            s.gemInnerGlow ??= new ZUIValue(0.5f);
+            s.gemRoll ??= new ZUIValue(0f);
+            s.gemEdgeGlow ??= new ZUIValue(0.5f);     // defensive; the real steady defaults come from the spec factories
+            s.gemInnerGlow ??= new ZUIValue(0.35f);
 
             // BoxKeyed: view presets persist under this stable key — retitling the box or rewording
             // its tooltip must never orphan saved views.
-            var box = Z.BoxKeyed("Solid", "A true-3D form lit per-pixel by one key light, with light-catching hard edge "
-                + "lines and two staggered glows. Its material colour is the shared Colour above (a blue gradient = "
-                + "a sapphire); its base size is the shared Size. Gem = an octahedral crystal; Box / Pyramid / Can = "
-                + "a cuboid / square pyramid / cylinder; Orb = a sphere (no geometry rows — a ball needs none); "
-                + "Ring = a flat two-sided tilted annulus (a Saturn ring).", "pyreplus.solid");
+            var box = Z.BoxKeyed("Solid", SolidBoxTooltip(s.shapeForm), "pyreplus.solid");
 
             // ── per-form geometry ──
             if (s.shapeForm == ShapeForm.Gem)
@@ -357,15 +408,17 @@ namespace Laubrary.PyrePlus.Editor
                     v => Dirty(() => s.ringInner = v), 150f, showValue: true));
             }
 
-            // ── shared: tilt / light / lines / glows (every 3D solid) ──
-            box.Add(Val("Tilt °",
-                "World tilt about the horizontal axis, in degrees, over the particle's OWN life — tips the solid "
-                + "toward/away from the viewer so its facets catch the light differently. Orb: the sphere's "
-                + "silhouette never changes, so this instead rolls the lit hotspot up/down across the ball. Ring: "
-                + "this opens or closes the ellipse — 0° = face-on (a full circle), ±90° = edge-on (a sliver).",
-                s.gemTilt, -1440f, 1440f));
+            // ── shared: rotation trio / light / lines / glows (every 3D solid) ──
+            // Turn (yaw = the shared particleSpin), Tilt (gemTilt) and Roll (gemRoll) — the three rotation axes in
+            // plain words, each animatable over the particle's own life. Roll is geometrically inert for the
+            // symmetric Ring (Turn + Tilt already shape its ellipse), so it's hidden there. Tooltips are composed
+            // for the CURRENT form.
+            box.Add(Val("Turn °", TurnTooltip(s.shapeForm), s.particleSpin, -1440f, 1440f));
+            box.Add(Val("Tilt °", TiltTooltip(s.shapeForm), s.gemTilt, -1440f, 1440f));
+            if (s.shapeForm != ShapeForm.Ring)
+                box.Add(Val("Roll °", RollTooltip(s.shapeForm), s.gemRoll, -1440f, 1440f));
 
-            // Light / Lines / Glow rows opt into the box's ⚙ gear (Tilt above stays mandatory). Each group
+            // Light / Lines / Glow rows opt into the box's ⚙ gear (the Turn/Tilt/Roll trio above stays mandatory). Each group
             // toggle flips its whole cluster at once; keys are STABLE "solid.*" strings (never a display
             // label) so a saved view survives a relabel. A saved "view" round-trips these on/off states.
             box.ToggleGroup("Light", "Light");
@@ -388,9 +441,8 @@ namespace Laubrary.PyrePlus.Editor
                 Z.MicroSlider("Specular", s.gemSpecular, 0f, 2f,
                     "Strength of the Blinn-Phong highlight (the bright hot spot).",
                     v => Dirty(() => s.gemSpecular = v), 150f, showValue: true),
-                Z.Field("Spec colour", "Tint of the Blinn-Phong highlight.",
-                    Z.Color(s.gemSpecularColor, "Tint of the Blinn-Phong highlight.",
-                        c => Dirty(() => s.gemSpecularColor = c), 60f, showAlpha: false))),
+                SlotFill("Spec fill", "Fill for the Blinn-Phong highlight — Solid, or a gradient/spatial fill (alpha-capable).",
+                    s.gemSpecularFill)),
                 "solid.light.response", "Response", "Light"));
 
             box.Add(Z.Divider("Lines", "The hard facet edge lines that catch the light."));
@@ -398,31 +450,28 @@ namespace Laubrary.PyrePlus.Editor
                 Z.MicroSlider("Line width", s.gemLineWidth, 0f, 3f,
                     "Width of the hard facet edge lines in pixels (0 = no lines). The lines catch the key light.",
                     v => Dirty(() => s.gemLineWidth = v), 150f, showValue: true),
-                Z.Field("Line colour", "Colour of the facet edge lines.",
-                    Z.Color(s.gemLineColor, "Colour of the facet edge lines.",
-                        c => Dirty(() => s.gemLineColor = c), 60f, showAlpha: false))),
-                "solid.lines", "Width & colour", "Lines"));
+                SlotFill("Line fill", "Fill for the facet edge lines — Solid, or a gradient/spatial fill (alpha-capable).",
+                    s.gemLineFill)),
+                "solid.lines", "Width & fill", "Lines"));
 
-            box.Add(Z.Divider("Glow", "Two staggered glows, anti-phase by default — each with its own tint."));
+            box.Add(Z.Divider("Glow", "A rim halo and an interior glow — steady by default (author a Curve to pulse), each with its own fill."));
             box.Add(box.Toggleable(WrapRow(
                 Val("Edge glow",
                     "Strength (0-1) of the halo around the edge lines, over the particle's OWN life; it spills "
-                    + "OUTSIDE the solid's silhouette. Default: two anti-phase pulses (it peaks while the inner glow "
-                    + "rests) — reshape freely.",
+                    + "OUTSIDE the solid's silhouette. Static = a steady glow (the default); author a Curve to make "
+                    + "it pulse over the particle's life.",
                     s.gemEdgeGlow, 0f, 1f),
-                Z.Field("Edge colour", "Tint of the edge-line halo glow.",
-                    Z.Color(s.gemEdgeGlowColor, "Tint of the edge-line halo glow.",
-                        c => Dirty(() => s.gemEdgeGlowColor = c), 60f, showAlpha: false))),
+                SlotFill("Edge fill", "Fill for the edge-line halo glow — Solid, or a gradient/spatial fill (alpha-capable).",
+                    s.gemEdgeGlowFill)),
                 "solid.glow.edge", "Edge", "Glow"));
             box.Add(box.Toggleable(WrapRow(
                 Val("Inner glow",
                     "Strength (0-1) of the emissive glow rising from the facet interiors, over the particle's OWN "
-                    + "life; interior only. Default: two anti-phase pulses (it peaks while the edge glow rests) — "
-                    + "reshape freely.",
+                    + "life; interior only. Static = a steady glow (the default); author a Curve to make it pulse "
+                    + "over the particle's life.",
                     s.gemInnerGlow, 0f, 1f),
-                Z.Field("Inner colour", "Tint of the facet inner glow.",
-                    Z.Color(s.gemInnerGlowColor, "Tint of the facet inner glow.",
-                        c => Dirty(() => s.gemInnerGlowColor = c), 60f, showAlpha: false))),
+                SlotFill("Inner fill", "Fill for the facet inner glow — Solid, or a gradient/spatial fill (alpha-capable).",
+                    s.gemInnerGlowFill)),
                 "solid.glow.inner", "Inner", "Glow"));
 
             shapeBody.Add(box);
@@ -542,9 +591,9 @@ namespace Laubrary.PyrePlus.Editor
                     v => Dirty(() => s.textGradientAngle = v), 150f, showValue: true)));
 
             box.Add(Z.Field("Fill grad",
-                "The spatial fill ramp — this is where Text's colour comes from (the Colour gradient above is "
-                + "unused for Text).",
-                GradientField("Fill", () => s.textFillGradient, g => Dirty(() => s.textFillGradient = g))));
+                "The spatial fill ramp — this is where Text's colour comes from (the Shape Fill is hidden for Text).",
+                Z.Gradient("The spatial fill ramp — this is where Text's colour comes from.",
+                    () => s.textFillGradient, g => Dirty(() => s.textFillGradient = g), 200f)));
 
             box.Add(WrapRow(
                 Z.MicroSlider("Border px", s.textBorderWidth, 0f, 4f,
@@ -553,7 +602,8 @@ namespace Laubrary.PyrePlus.Editor
                     v => Dirty(() => s.textBorderWidth = v), 150f, showValue: true),
                 Z.Field("Border grad",
                     "The border colour, sampled the same way as the fill. A single colour = a solid outline.",
-                    GradientField("Border", () => s.textBorderGradient, g => Dirty(() => s.textBorderGradient = g)))));
+                    Z.Gradient("The border colour, sampled the same way as the fill.",
+                        () => s.textBorderGradient, g => Dirty(() => s.textBorderGradient = g), 200f))));
 
             box.Add(Z.Toggle("Solid",
                 "Extrude each letter into a 3D box (a lit front face + darker extrusion sides). Off = a flat 2D "
@@ -728,12 +778,115 @@ namespace Laubrary.PyrePlus.Editor
         VisualElement Val2D(string label, string tooltip, ZUIValue x, ZUIValue y, ZuiValue2DControl.Options o)
             => Z.Value2D(label, x, y, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
 
-        VisualElement GradientField(string label, System.Func<Gradient> get, System.Action<Gradient> set)
+        // A Z.Fill row (ZuiFill editor) wired to the same Undo/dirty/preview contract as Val: record the asset once
+        // per gesture (onBeforeMutate), then dirty + repaint (onChanged). The control mutates the ZuiFill instance
+        // directly, so there's no explicit setter.
+        ZuiFillControl FillRow(string label, string tooltip, ZuiFill fill, ZuiFillControl.Options opt = null)
+            => Z.Fill(label, fill, tooltip,
+                () => { if (spec != null) EditorUtility.SetDirty(spec); MarkDirty(); },
+                () => { if (spec != null) Undo.RecordObject(spec, "Edit Pyre Plus"); },
+                opt);
+
+        // Compact Z.Fill for the Solid box's slot fills (spec / line / edge / inner), packed beside their sliders.
+        ZuiFillControl SlotFill(string label, string tooltip, ZuiFill fill)
+            => FillRow(label, tooltip, fill, new ZuiFillControl.Options().WithWidth(96f));
+
+        // The Solid box tooltip, naming the CURRENT solid form (the box rebuilds on form change).
+        static string SolidBoxTooltip(ShapeForm f)
         {
-            var gf = new UnityEditor.UIElements.GradientField { value = get() ?? new Gradient(), tooltip = label };
-            gf.style.width = 200f;
-            gf.RegisterValueChangedCallback(e => set(e.newValue));
-            return gf;
+            const string shared = "A true-3D form lit per-pixel by one key light, with light-catching hard edge lines "
+                + "and two glows (a rim halo + an interior glow). Its material colour is the shared Fill above (a blue "
+                + "gradient = a sapphire); its base size is the shared Size. ";
+            switch (f)
+            {
+                case ShapeForm.Gem:     return shared + "This form: an octahedral crystal.";
+                case ShapeForm.Box:     return shared + "This form: a cuboid.";
+                case ShapeForm.Pyramid: return shared + "This form: a square pyramid.";
+                case ShapeForm.Can:     return shared + "This form: a cylinder.";
+                case ShapeForm.Orb:     return shared + "This form: a sphere (no geometry rows — a ball needs none).";
+                case ShapeForm.Ring:    return shared + "This form: a flat two-sided tilted annulus (a Saturn ring).";
+                default:                return shared;
+            }
+        }
+
+        // The 3D-solid forms — they share BuildSolidBox and its Turn/Tilt/Roll rotation trio (and hide the Advanced
+        // Spin row, since Turn IS that field). Disc / Crescent / Sparkle / Sprite / Text are NOT solid forms.
+        static bool IsSolidForm(ShapeForm f) =>
+            f == ShapeForm.Gem || f == ShapeForm.Box || f == ShapeForm.Pyramid ||
+            f == ShapeForm.Can || f == ShapeForm.Orb || f == ShapeForm.Ring;
+
+        // ── per-form tooltip composers (rebuilt on every form change, so each branches to the CURRENT form) ──
+        static string FillTooltip(ShapeForm f)
+        {
+            const string modes = " Solid = one flat colour; Over life = a gradient across the particle's life; "
+                + "Linear / Radial / Noise = a spatial fill across the shape. Every mode is alpha-capable (⋯ to switch).";
+            if (IsSolidForm(f))
+                return "The solid's material fill — a blue gradient reads as a sapphire." + modes;
+            if (f == ShapeForm.Sprite)
+                return "Tints the stamped sprite (multiplied over its colours), sampled at the particle centre only — "
+                     + "a spatial fill has no effect on a sprite tint. Turn Tint off for the sprite's raw colours." + modes;
+            return "The particle's colour (0 = birth, 1 = death)." + modes;
+        }
+
+        static string SizeTooltip(ShapeForm f)
+        {
+            if (IsSolidForm(f))
+                return "Radius in pixels over the particle's own life — the base size R that Aspect / Depth (or the "
+                     + "Gem's Crown / Pavilion) scale from.";
+            if (f == ShapeForm.Text)
+                return "The character HEIGHT in pixels over the particle's own life.";
+            return "Radius in pixels over the particle's own life.";
+        }
+
+        // Spin only shows for the 2D forms + Text (solids edit it as Turn), so this branches only those cases.
+        static string SpinTooltip(ShapeForm f)
+        {
+            switch (f)
+            {
+                case ShapeForm.Crescent:
+                    return "Degrees the crescent rotates over its own life — turns the whole crescent, on top of its "
+                         + "own bite Angle.";
+                case ShapeForm.Sparkle:
+                    return "Degrees the sparkle field rotates in place over its own life — an even field is radially "
+                         + "symmetric, so add a geometry/texture Modifier for the spin to read.";
+                case ShapeForm.Sprite:
+                    return "Degrees the stamped sprite rotates over its own life.";
+                case ShapeForm.Text:
+                    return "Degrees each letter yaws about its OWN centre over its life (its 3D letter-box turns to "
+                         + "face the light); paired with the letters' tilt for the extruded look.";
+                default:   // Disc
+                    return "Degrees the disc's pixels spin in place over its own life — a plain disc is radially "
+                         + "symmetric so it shows little (add a geometry/texture Modifier for the spin to read).";
+            }
+        }
+
+        static string TurnTooltip(ShapeForm f)
+        {
+            const string common = "Rotate around the VERTICAL axis, like a turntable (yaw), over the particle's own life. ";
+            if (f == ShapeForm.Orb)
+                return common + "For the Orb it rolls the lit hotspot left/right around the ball (the silhouette never changes).";
+            if (f == ShapeForm.Ring)
+                return common + "For the Ring it swings the ellipse — turning the ring edge-on along the horizontal axis.";
+            return common + "Sweeps the solid's facets past the light.";
+        }
+
+        static string TiltTooltip(ShapeForm f)
+        {
+            const string common = "Lean the top toward or away from you (about the HORIZONTAL axis), over the particle's own life. ";
+            if (f == ShapeForm.Orb)
+                return common + "For the Orb it rolls the lit hotspot up/down across the ball (the silhouette never changes).";
+            if (f == ShapeForm.Ring)
+                return common + "For the Ring it opens/closes the ellipse — 0° face-on (a full circle), ±90° edge-on (a sliver).";
+            return common + "Tips the solid so different facets catch the light.";
+        }
+
+        // Roll is hidden for the Ring (geometrically inert there), so this only ever branches Orb vs the facet solids.
+        static string RollTooltip(ShapeForm f)
+        {
+            const string common = "Rotate the solid flat against the screen (about the axis pointing at you), over the particle's own life. ";
+            if (f == ShapeForm.Orb)
+                return common + "For the Orb it rolls the lit hotspot around the centre of the ball.";
+            return common + "Spins the whole silhouette in the screen plane.";
         }
 
         void Dirty(System.Action apply)

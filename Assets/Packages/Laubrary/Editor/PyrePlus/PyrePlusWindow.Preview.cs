@@ -72,7 +72,7 @@ namespace Laubrary.PyrePlus.Editor
 
             if (Event.current.type == EventType.Repaint)
             {
-                EditorGUI.DrawRect(view, new Color(0.1f, 0.1f, 0.12f));
+                DrawBackdrop(view);
                 if (previewDirty || cur != lastRenderedFrame || previewTex == null)
                 {
                     if (previewTex != null) DestroyImmediate(previewTex);
@@ -81,6 +81,15 @@ namespace Laubrary.PyrePlus.Editor
                     previewDirty = false;
                 }
                 GUI.DrawTexture(rct, previewTex, ScaleMode.StretchToFill, true);
+                if (s.previewShowFrame)
+                {
+                    // A thin border around the canvas edge (cosmetic — never baked). Toggled by the transport's Frame.
+                    var frameCol = new Color(1f, 1f, 1f, 0.55f);
+                    EditorGUI.DrawRect(new Rect(rct.x, rct.y, rct.width, 1f), frameCol);
+                    EditorGUI.DrawRect(new Rect(rct.x, rct.yMax - 1f, rct.width, 1f), frameCol);
+                    EditorGUI.DrawRect(new Rect(rct.x, rct.y, 1f, rct.height), frameCol);
+                    EditorGUI.DrawRect(new Rect(rct.xMax - 1f, rct.y, 1f, rct.height), frameCol);
+                }
                 GUI.Label(new Rect(view.x + 6, view.yMax - 20, 200, 18),
                     $"frame {cur + 1}/{s.frameCount}", EditorStyles.whiteMiniLabel);
             }
@@ -88,6 +97,32 @@ namespace Laubrary.PyrePlus.Editor
             // The overlay draws + interacts on every event when the swarm is on; it never fights playback (it
             // only paints over the already-blitted frame texture).
             if (s.swarmEnabled) DrawSwarmOverlay(view, s, life);
+        }
+
+        // The BackSplash backdrop behind the frame texture — a flat camera-colour fill plus one optional image,
+        // drawn exactly like PyreWindow.DrawBackdrop (blit order: fill → image → the frame texture on top). backSplash
+        // is the window-held instance; null-safe with the old dark fill as a fallback.
+        void DrawBackdrop(Rect view)
+        {
+            var bs = backSplash;
+            if (bs == null) { EditorGUI.DrawRect(view, new Color(0.1f, 0.1f, 0.12f)); return; }
+
+            EditorGUI.DrawRect(view, bs.cameraColor);
+            if (bs.image == null || bs.image.texture == null) return;
+
+            // Draw the sprite's own sub-rect out of its (possibly atlas'd) source texture, not the whole page.
+            var tex = bs.image.texture;
+            var r = bs.image.textureRect;
+            var tc = new Rect(r.x / tex.width, r.y / tex.height, r.width / tex.width, r.height / tex.height);
+
+            var prevCol = GUI.color;
+            GUI.color = bs.imageTint;
+            GUI.BeginClip(view);
+            float w = view.width * bs.imageZoom, h = view.height * bs.imageZoom;
+            var imgRect = new Rect((view.width - w) * 0.5f + bs.imagePos.x, (view.height - h) * 0.5f - bs.imagePos.y, w, h);
+            GUI.DrawTextureWithTexCoords(imgRect, tex, tc, true);
+            GUI.EndClip();
+            GUI.color = prevCol;
         }
 
         // ── swarm authoring overlay ───────────────────────────────────────────────────
