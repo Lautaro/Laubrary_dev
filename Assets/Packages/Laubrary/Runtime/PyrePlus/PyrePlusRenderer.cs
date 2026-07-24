@@ -53,6 +53,11 @@ namespace Laubrary.PyrePlus
         // with the -1 particle sentinel, nor with any positive field/modifier id. Real particles are 0..N-1, so a
         // field keyed (particle i≥0, fid<0) shares no RNG stream with a modifier's (particle -1, fid≥16) draw.
         const int FldSpawnTiming = -2;   // swarmSpawnTiming — remaps a particle's number → its spawn moment [F3]
+        const int FldGemTilt = -3;       // gemTilt — Gem world tilt about X, particle's own life          [Gem]
+        const int FldGemEdgeGlow = -4;   // gemEdgeGlow — Gem edge-halo pulse strength, particle's own life [Gem]
+        const int FldGemInnerGlow = -5;  // gemInnerGlow — Gem facet inner-glow pulse strength, own life     [Gem]
+        // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
+        //  3D yaw, and FldPathX/FldPathY for the shared travel offset — no new ids for those.)
         // Modifiers (T6): each PyreModifier in spec.modifiers owns an 8-wide field-id BLOCK starting at
         // FldModifier + listIndex*8, so a modifier's local field id (its Prepare's fid, 0..7) maps to
         // FldModifier + listIndex*8 + fid. Since every modifier has a distinct list index the blocks never
@@ -506,6 +511,15 @@ namespace Laubrary.PyrePlus
                                  PyrePlusSpec spec, int particleIndex, in ModSet mods, float phase, int frameIndex,
                                  float sizeMul = 1f, float brightMul = 1f)
         {
+            // Gem FORM branches FIRST, before any Disc arithmetic below, so the Disc path stays textually
+            // untouched and its output byte-identical (the orchestrator hash-gates Disc). `life` here IS the
+            // particle's own life clock in both callers (blast life for the single particle, `own` for a swarm one).
+            if (spec.shapeForm == ShapeForm.Gem)
+            {
+                DrawGem(buf, W, H, cx, cy, life, spec, particleIndex, mods, frameIndex, sizeMul, brightMul);
+                return;
+            }
+
             float radius = Mathf.Max(0f, Eval(spec.size, life, spec.seed, particleIndex, FldSize));
             radius *= sizeMul;                    // depth size shading (exact no-op at sizeMul == 1)
             if (radius <= 0.01f) return;
@@ -638,6 +652,266 @@ namespace Laubrary.PyrePlus
                     }
                     else Over(buf, y * W + x, cr, cg, cb, baseA);
                 }
+        }
+
+        // ── Gem form ─────────────────────────────────────────────────────────────────
+        // A true-3D faceted crystal, ported faithfully from the approved Diamond3DProbe and generalized to n
+        // girdle sides. Octahedral solid (crown fan + pavilion fan + n-gon girdle), convex ⇒ backface culling
+        // ONLY (no depth sort). Per-pixel realistic lighting: one point light (position derived from the gem's
+        // light angles), near-zero ambient, Blinn-Phong specular; hard 1px facet edge lines that catch the light;
+        // an edge-halo glow that spills OUTSIDE the silhouette and a facet inner glow, the two pulsing in
+        // anti-phase by default. Every pixel composites into the swarm buffer through Over (unlike the prototype's
+        // opaque background). Determinism unchanged: pure static math, every value funnelled through Eval/Hash.
+        //
+        // Signature extends the design's listed one with `in ModSet mods, int frameIndex` because the design's own
+        // body mandates running the PixelModifiers per lit gem pixel (which need them). GEOMETRY modifiers are
+        // deliberately NOT applied to the gem in this slice — a 3D-consistent warp fold is its own problem; post
+        // modifiers still hit the finished buffer later in ApplyPost, unchanged.
+        static void DrawGem(Color32[] buf, int W, int H, float cx, float cy, float own,
+                            PyrePlusSpec spec, int particleIndex, in ModSet mods, int frameIndex,
+                            float sizeMul, float brightMul)
+        {
+            // R = the size envelope (exactly as Disc evaluates it) × the depth size multiplier. Skip sub-pixel gems.
+            float R = Mathf.Max(0f, Eval(spec.size, own, spec.seed, particleIndex, FldSize)) * sizeMul;
+            if (R < 1.5f) return;
+
+            // Output alpha rides the particle's own alpha envelope (multiplies EVERY emitted gem pixel — body,
+            // line and glow). Early-out on a fully-faded particle, respecting the same a<=0.002 skip as Disc.
+            float alphaEnv = Mathf.Clamp01(Eval(spec.alpha, own, spec.seed, particleIndex, FldAlpha));
+            if (alphaEnv <= 0.002f) return;
+
+            // Shared per-particle travel (T7): the gem follows the same own-life travel path a disc does. Guarded
+            // to an exact no-op when both are Static 0 (a default gem is unaffected). Not in the design's listed
+            // pipeline, but the field is shared spec data and a travelling gem is the correct behaviour.
+            if (!(IsStaticZero(spec.particlePathX) && IsStaticZero(spec.particlePathY)))
+            {
+                cx += Eval(spec.particlePathX, own, spec.seed, particleIndex, FldPathX);
+                cy += Eval(spec.particlePathY, own, spec.seed, particleIndex, FldPathY);
+            }
+
+            int n = Mathf.Clamp(spec.gemSides, 3, 8);
+            float crownH = R * spec.gemCrown;
+            float pavD = R * spec.gemPavilion;
+
+            // Model: n girdle verts (index 0..n-1) at PI/2 + 2πk/n scaled R, crown apex (n) above, pavilion apex
+            // (n+1) below. y is up, +z toward the viewer after rotation.
+            var model = new Vector3[n + 2];
+            for (int k = 0; k < n; k++)
+            {
+                float a = Mathf.PI * 0.5f + 2f * Mathf.PI * k / n;
+                model[k] = new Vector3(R * Mathf.Cos(a), 0f, R * Mathf.Sin(a));
+            }
+            model[n] = new Vector3(0f, crownH, 0f);
+            model[n + 1] = new Vector3(0f, -pavD, 0f);
+
+            // Faces (generalize the prototype's `& 3` → `% n`): n crown triangles apexT+girdle(i,i+1), then n
+            // pavilion triangles apexB+girdle(i+1,i). Outward winding is fixed per face by the centroid test below.
+            var faces = new int[2 * n][];
+            for (int i = 0; i < n; i++) faces[i] = new[] { n, i, (i + 1) % n };
+            for (int i = 0; i < n; i++) faces[n + i] = new[] { n + 1, (i + 1) % n, i };
+
+            // Rotation: yaw about Y first (the gem's 3D yaw = particleSpin on its own life), then the world tilt
+            // about X (gemTilt on its own life) — exactly the prototype's Rot, +z toward the viewer.
+            float yaw = Eval(spec.particleSpin, own, spec.seed, particleIndex, FldSpin) * Mathf.Deg2Rad;
+            float tilt = Eval(spec.gemTilt, own, spec.seed, particleIndex, FldGemTilt) * Mathf.Deg2Rad;
+            float cyw = Mathf.Cos(yaw), syw = Mathf.Sin(yaw);
+            float ct = Mathf.Cos(tilt), st = Mathf.Sin(tilt);
+            Vector3 Rot(Vector3 p)
+            {
+                var q = new Vector3(p.x * cyw + p.z * syw, p.y, -p.x * syw + p.z * cyw);
+                return new Vector3(q.x, q.y * ct - q.z * st, q.y * st + q.z * ct);
+            }
+            var verts = new Vector3[n + 2];
+            for (int k = 0; k < n + 2; k++) verts[k] = Rot(model[k]);
+
+            // Visible faces: outward normal (flip vs centroid so the origin-inside-the-solid convention holds),
+            // then backface cull n.z <= 0. Convex + culled ⇒ front faces tile the silhouette with no overlap.
+            var visA = new Vector2[2 * n];   // screen triangle (centered coords: vertex.xy)
+            var visB = new Vector2[2 * n];
+            var visC = new Vector2[2 * n];
+            var visP0 = new Vector3[2 * n];  // the three 3D verts, for the barycentric world point
+            var visP1 = new Vector3[2 * n];
+            var visP2 = new Vector3[2 * n];
+            var visNrm = new Vector3[2 * n];
+            int visCount = 0;
+            // Unique visible edges (screen segments) for the hard line pass, deduped by vertex pair.
+            var edgeA = new Vector2[3 * n];
+            var edgeB = new Vector2[3 * n];
+            int edgeCount = 0;
+            var seenEdge = new HashSet<int>();
+            for (int fi = 0; fi < faces.Length; fi++)
+            {
+                var f = faces[fi];
+                Vector3 p0 = verts[f[0]], p1 = verts[f[1]], p2 = verts[f[2]];
+                Vector3 nrm = Vector3.Cross(p1 - p0, p2 - p0);
+                Vector3 centroid = (p0 + p1 + p2) / 3f;
+                if (Vector3.Dot(nrm, centroid) < 0f) nrm = -nrm;   // force outward (origin is inside the solid)
+                if (nrm.z <= 0f) continue;                          // backface: not seen
+                nrm = nrm.normalized;
+                visA[visCount] = new Vector2(p0.x, p0.y);
+                visB[visCount] = new Vector2(p1.x, p1.y);
+                visC[visCount] = new Vector2(p2.x, p2.y);
+                visP0[visCount] = p0; visP1[visCount] = p1; visP2[visCount] = p2;
+                visNrm[visCount] = nrm;
+                visCount++;
+                for (int e = 0; e < 3; e++)
+                {
+                    int i0 = f[e], i1 = f[(e + 1) % 3];
+                    int key = i0 < i1 ? i0 * 64 + i1 : i1 * 64 + i0;
+                    if (!seenEdge.Add(key)) continue;
+                    edgeA[edgeCount] = new Vector2(verts[i0].x, verts[i0].y);
+                    edgeB[edgeCount] = new Vector2(verts[i1].x, verts[i1].y);
+                    edgeCount++;
+                }
+            }
+            if (visCount == 0) return;
+
+            // Light POSITION from the gem's light angles at distance 3.5·R (distance not exposed); the falloff
+            // range is 4.7·R — both the prototype's proportions. Up-left-front for the default -55°/38° angles.
+            float lyaw = spec.gemLightYaw * Mathf.Deg2Rad, lpitch = spec.gemLightPitch * Mathf.Deg2Rad;
+            float ldist = 3.5f * R, lhoriz = ldist * Mathf.Cos(lpitch);
+            Vector3 lightPos = new Vector3(lhoriz * Mathf.Sin(lyaw), ldist * Mathf.Sin(lpitch), lhoriz * Mathf.Cos(lyaw));
+            float lrange = 4.7f * R, lrange2 = lrange * lrange;
+            Vector3 viewDir = new Vector3(0f, 0f, 1f);
+            Color specColor = new Color(0.9f, 0.95f, 1f);   // cool specular tint (prototype)
+            Color innerColor = new Color(0.35f, 0.60f, 1f); // inner-glow tint (prototype)
+            Color lineColor = spec.gemLineColor;
+            float lineW = spec.gemLineWidth;
+            float ambient = spec.gemAmbient, specStr = spec.gemSpecular;
+
+            // The two glow strengths on the particle's own life (0..1). Halo radius / inner radius scale with R
+            // (prototype constants 7 and 9 at R=30 → 0.24·R and 0.30·R), floored so tiny gems still glow.
+            float edgeGlow = Mathf.Clamp01(Eval(spec.gemEdgeGlow, own, spec.seed, particleIndex, FldGemEdgeGlow));
+            float innerGlow = Mathf.Clamp01(Eval(spec.gemInnerGlow, own, spec.seed, particleIndex, FldGemInnerGlow));
+            float haloR = Mathf.Max(2.5f, 0.24f * R);
+            float innerR = Mathf.Max(3f, 0.30f * R);
+
+            // Raster bounds: the screen bounding box of the rotated verts (centered coords), EXPANDED by haloR so
+            // the outside halo isn't clipped, then to absolute pixels around (cx, cy).
+            float minX = float.MaxValue, maxX = -float.MaxValue, minY = float.MaxValue, maxY = -float.MaxValue;
+            for (int k = 0; k < n + 2; k++)
+            {
+                if (verts[k].x < minX) minX = verts[k].x;
+                if (verts[k].x > maxX) maxX = verts[k].x;
+                if (verts[k].y < minY) minY = verts[k].y;
+                if (verts[k].y > maxY) maxY = verts[k].y;
+            }
+            int x0 = Mathf.Max(0, Mathf.FloorToInt(cx + minX - haloR));
+            int x1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + maxX + haloR));
+            int y0 = Mathf.Max(0, Mathf.FloorToInt(cy + minY - haloR));
+            int y1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + maxY + haloR));
+
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7);   // stable per-particle seed for PixelInfo.hash
+
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                {
+                    // Centered pixel coords (relative to the gem centre) — the space the model verts live in.
+                    float lx = x + 0.5f - cx, ly = y + 0.5f - cy;
+                    Vector2 p = new Vector2(lx, ly);
+
+                    // Nearest visible edge distance — drives BOTH glows and the hard line test, inside and out.
+                    float edist = float.MaxValue;
+                    for (int e = 0; e < edgeCount; e++)
+                        edist = Mathf.Min(edist, DistSeg(p, edgeA[e], edgeB[e]));
+
+                    bool hasFace = false, isLine = false;
+                    float fr = 0f, fg = 0f, fb = 0f;   // face RGB before glows
+                    for (int vi = 0; vi < visCount; vi++)
+                    {
+                        if (!InTri(p, visA[vi], visB[vi], visC[vi], out float w0, out float w1, out float w2)) continue;
+                        hasFace = true;
+                        Vector3 P = visP0[vi] * w0 + visP1[vi] * w1 + visP2[vi] * w2;
+                        Vector3 toL = lightPos - P;
+                        float dist = toL.magnitude;
+                        Vector3 L = toL / Mathf.Max(1e-4f, dist);
+                        float atten = 1f / (1f + dist * dist / lrange2);
+                        float ndl = Mathf.Max(0f, Vector3.Dot(visNrm[vi], L));
+                        float lit = ambient + 2.1f * ndl * atten;
+                        if (edist <= lineW)
+                        {
+                            isLine = true;
+                            float k = Mathf.Clamp(0.25f + lit, 0f, 1.15f);   // edges catch the light: bright lit, dim shadowed
+                            fr = lineColor.r * k; fg = lineColor.g * k; fb = lineColor.b * k;
+                        }
+                        else
+                        {
+                            Vector3 Hh = (L + viewDir).normalized;
+                            float sp = Mathf.Pow(Mathf.Max(0f, Vector3.Dot(visNrm[vi], Hh)), 48f);
+                            Color baseCol = spec.colorOverLife != null ? spec.colorOverLife.Evaluate(own) : Color.white;
+                            float sAdd = specStr * sp * atten;
+                            fr = baseCol.r * lit + specColor.r * sAdd;
+                            fg = baseCol.g * lit + specColor.g * sAdd;
+                            fb = baseCol.b * lit + specColor.b * sAdd;
+                        }
+                        break;   // convex + culled: first hit wins
+                    }
+
+                    // Halo (glow level 1): a soft additive halo around every edge line, inside AND out.
+                    float halo = Mathf.Pow(Mathf.Max(0f, 1f - edist / haloR), 2f);
+                    float haloAmt = 0.85f * edgeGlow * halo;
+
+                    if (hasFace)
+                    {
+                        // Add the halo (both) and the inner glow (facet interiors, non-line) to the face RGB.
+                        fr += lineColor.r * haloAmt; fg += lineColor.g * haloAmt; fb += lineColor.b * haloAmt;
+                        if (!isLine)
+                        {
+                            float core = Mathf.Pow(Mathf.Clamp01(edist / innerR), 1.4f);
+                            float innerAmt = 0.75f * innerGlow * core;
+                            fr += innerColor.r * innerAmt; fg += innerColor.g * innerAmt; fb += innerColor.b * innerAmt;
+                        }
+                        // brightMul scales the lit RGB (depth shading), clamped per channel like Disc.
+                        float rr = Mathf.Clamp01(fr * brightMul), gg = Mathf.Clamp01(fg * brightMul), bb = Mathf.Clamp01(fb * brightMul);
+                        float pa = alphaEnv;
+                        if (mods.AnyPix)
+                        {
+                            Color pc = new Color(rr, gg, bb, 1f);
+                            float crossFrac = Mathf.Clamp01(Mathf.Sqrt(lx * lx + ly * ly) / Mathf.Max(0.001f, R));
+                            if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, x + 0.5f, y + 0.5f, frameIndex, crossFrac, own, pHash, W, H)) continue;
+                            Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                        }
+                        else Over(buf, y * W + x, rr, gg, bb, pa);
+                    }
+                    else
+                    {
+                        // Outside-halo glow fragment: a soft additive glow spilling past the silhouette. Its colour
+                        // is the halo tint; its ALPHA is the halo strength × the particle alpha, so it reads as a
+                        // soft glow when composited through Over.
+                        float pa = Mathf.Clamp01(haloAmt) * alphaEnv;
+                        if (pa <= 0.002f) continue;
+                        float rr = Mathf.Clamp01(lineColor.r * brightMul), gg = Mathf.Clamp01(lineColor.g * brightMul), bb = Mathf.Clamp01(lineColor.b * brightMul);
+                        if (mods.AnyPix)
+                        {
+                            Color pc = new Color(rr, gg, bb, 1f);
+                            float crossFrac = Mathf.Clamp01(Mathf.Sqrt(lx * lx + ly * ly) / Mathf.Max(0.001f, R));
+                            if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, x + 0.5f, y + 0.5f, frameIndex, crossFrac, own, pHash, W, H)) continue;
+                            Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                        }
+                        else Over(buf, y * W + x, rr, gg, bb, pa);
+                    }
+                }
+        }
+
+        // Barycentric point-in-triangle (orthographic: screen bary == plane bary). Weights out. Ported verbatim
+        // from the approved gem prototype.
+        static bool InTri(Vector2 p, Vector2 a, Vector2 b, Vector2 c, out float w0, out float w1, out float w2)
+        {
+            w0 = w1 = w2 = 0f;
+            float d = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+            if (Mathf.Abs(d) < 1e-6f) return false;
+            w0 = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / d;
+            w1 = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / d;
+            w2 = 1f - w0 - w1;
+            return w0 >= 0f && w1 >= 0f && w2 >= 0f;
+        }
+
+        // Distance from a point to a segment (screen space). Ported verbatim from the approved gem prototype.
+        static float DistSeg(Vector2 p, Vector2 a, Vector2 b)
+        {
+            Vector2 ab = b - a;
+            float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / Mathf.Max(1e-6f, ab.sqrMagnitude));
+            return (p - (a + ab * t)).magnitude;
         }
 
         static void Over(Color32[] buf, int i, float r, float g, float b, float a)

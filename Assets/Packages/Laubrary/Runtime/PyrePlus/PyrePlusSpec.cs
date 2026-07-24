@@ -18,6 +18,11 @@ namespace Laubrary.PyrePlus
     // Custom is Path-only (enforced in the UI later); the renderer treats Area+Custom as a Circle fallback.
     public enum SwarmShapeKind { Circle, Triangle, Square, Pentagon, Hexagon, Custom }
 
+    // The particle's rendered FORM: a flat soft Disc (slice 1), or a true-3D lit faceted Gem — an octahedral
+    // crystal with realistic per-pixel point lighting, light-catching hard edge lines and two staggered glows
+    // (see PyrePlusRenderer.DrawGem). One implicit layer, so the whole swarm is one form or the other.
+    public enum ShapeForm { Disc, Gem }
+
     [CreateAssetMenu(menuName = "Laubrary/Pyre Plus", fileName = "PyrePlus")]
     public class PyrePlusSpec : ScriptableObject
     {
@@ -29,10 +34,36 @@ namespace Laubrary.PyrePlus
         public float pixelsPerUnit = 16f;
 
         // ── Shape — the particle's own look (mandatory section) ────────────────────
+        // Which FORM the particle renders as. Disc = the flat soft disc (slice 1). Gem = a true-3D lit crystal
+        // (the Gem block below drives it); its material colour is colorOverLife, its radius is `size`.
+        public ShapeForm shapeForm = ShapeForm.Disc;
         public Gradient colorOverLife = DefaultColor();
-        public ZUIValue alpha = DefaultAlpha();     // over the particle's OWN life
-        public ZUIValue size = DefaultSize();       // radius in pixels, over the particle's own life
-        [Range(0f, 1f)] public float edgeSoftness = 0.4f;   // soft rim vs hard pixel edge
+        public ZUIValue alpha = DefaultAlpha();     // over the particle's OWN life (multiplies the final output alpha for BOTH forms)
+        public ZUIValue size = DefaultSize();       // radius in pixels, over the particle's own life (Gem: the girdle radius)
+        [Range(0f, 1f)] public float edgeSoftness = 0.4f;   // soft rim vs hard pixel edge (Disc form only)
+
+        // ── Gem form (shapeForm == Gem) — a true-3D faceted crystal ────────────────
+        // Octahedral by default (gemSides == 4): a square girdle with a crown point above and a longer pavilion
+        // point below, lit per-pixel. Base colour = colorOverLife at the particle's own life (a blue gradient =
+        // a sapphire). The `size` envelope is the single scale driver — the girdle radius R = evaluated size.
+        [Range(3, 8)] public int gemSides = 4;              // girdle vertex count (4 = the approved octahedron)
+        public float gemCrown = 0.75f;                      // crown height as a fraction of R (the girdle radius)
+        public float gemPavilion = 1.55f;                   // pavilion depth as a fraction of R
+        public ZUIValue gemTilt = new ZUIValue(18f);        // world tilt about X, degrees, over the particle's own life
+        // Lighting. The light POSITION derives in the renderer from these two angles at distance 3.5·R with a
+        // 4.7·R falloff range (the prototype's proportions) — distance is not exposed.
+        public float gemLightYaw = -55f;                    // key-light azimuth (left/right), degrees
+        public float gemLightPitch = 38f;                   // key-light elevation (above the horizon), degrees
+        [Range(0f, 1f)] public float gemAmbient = 0.05f;    // near-zero fill on unlit faces
+        [Range(0f, 2f)] public float gemSpecular = 0.9f;    // Blinn-Phong highlight strength
+        // Light-catching hard edge lines along every visible facet boundary.
+        [Range(0f, 3f)] public float gemLineWidth = 1f;     // edge-line width in screen pixels (0 = no lines)
+        public Color gemLineColor = new Color(1f, 0.98f, 0.90f);
+        // The two staggered glows — strength 0..1 over the particle's OWN life. EdgeGlow is a white halo around
+        // the edge lines that spills OUTSIDE the silhouette; InnerGlow is emissive light rising from the facet
+        // interiors. Their defaults pulse in ANTI-PHASE (see the factories).
+        public ZUIValue gemEdgeGlow = DefaultEdgeGlow();
+        public ZUIValue gemInnerGlow = DefaultInnerGlow();
 
         // ── opt-in Shape fields (T7) — the particle's OWN motion after birth, on its own life clock ────────
         // A per-particle travel path: canvas-pixel offsets ADDED to the particle's spawn position, evaluated on
@@ -40,8 +71,9 @@ namespace Laubrary.PyrePlus
         // when both are Static 0, so a default asset renders byte-identical).
         public ZUIValue particlePathX = new ZUIValue(0f);
         public ZUIValue particlePathY = new ZUIValue(0f);
-        // The particle's own pixels rotating IN PLACE over its own life, degrees. 2D only — the pseudo-3D tilt
-        // belongs to the swarm shape transform (shapePitch/shapeYaw), not here. Default Static 0 (a no-op).
+        // The particle's own rotation over its own life, degrees. DISC form: its pixels rotating IN PLACE (2D —
+        // the pseudo-3D tilt belongs to the swarm shape transform shapePitch/shapeYaw, not here). GEM form: the
+        // gem's 3D YAW about its vertical axis (see PyrePlusRenderer.DrawGem). Default Static 0 (a no-op).
         public ZUIValue particleSpin = new ZUIValue(0f);
         // Pure UI gate for the advanced controls above — cosmetic, NEVER read by the renderer (like previewZoom).
         [HideInInspector] public bool shapeAdvanced;
@@ -175,6 +207,36 @@ namespace Laubrary.PyrePlus
             v.points.Add(new ZUIEnvelopePoint(0f, -10f));
             v.points.Add(new ZUIEnvelopePoint(0.5f, 14f));
             v.points.Add(new ZUIEnvelopePoint(1f, -10f));
+            return v;
+        }
+
+        static ZUIValue DefaultEdgeGlow()
+        {
+            // Two anti-phase pulses over the particle's life; reshape freely. The exact mirror of DefaultInnerGlow:
+            // this glow PEAKS where the inner glow RESTS and vice versa (the approved staggered double-pulse look).
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, 0.5f));
+            v.points.Add(new ZUIEnvelopePoint(0.125f, 1f));
+            v.points.Add(new ZUIEnvelopePoint(0.375f, 0f));
+            v.points.Add(new ZUIEnvelopePoint(0.625f, 1f));
+            v.points.Add(new ZUIEnvelopePoint(0.875f, 0f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 0.5f));
+            return v;
+        }
+
+        static ZUIValue DefaultInnerGlow()
+        {
+            // Two anti-phase pulses over the particle's life; reshape freely. The exact mirror of DefaultEdgeGlow
+            // (peaks while the edge glow rests) — together they read as one crystal breathing between rim and core.
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, 0.5f));
+            v.points.Add(new ZUIEnvelopePoint(0.125f, 0f));
+            v.points.Add(new ZUIEnvelopePoint(0.375f, 1f));
+            v.points.Add(new ZUIEnvelopePoint(0.625f, 0f));
+            v.points.Add(new ZUIEnvelopePoint(0.875f, 1f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 0.5f));
             return v;
         }
     }
