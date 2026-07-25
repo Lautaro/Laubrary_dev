@@ -73,6 +73,9 @@ namespace Laubrary.PyrePlus
         const int FldSwarmRoll = -18;    // swarmRoll — whole-cloud live roll at the frame's life (frame-global)      [Issue2]
         // -19..-22 are RESERVED for the upcoming matte slice (FldMatteStrength/Blur/Displace/Hue) — do not reuse.
         const int FldSwarmScale = -23;   // swarmScale — whole-cloud live uniform radial scale at the frame's life (frame-global) [slice0]
+        const int FldFuseHash = -24;     // Fuse (Coalesce) field-pass — its per-LAYER hash for pixel-modifier / noise draws [slice1]
+        // (fuseThreshold/fuseShadeRange/fuseSoftness are plain floats, NOT Eval'd — they need no field id; -24 is the
+        //  one id the Fuse pass adds, a frame-global per-layer hash seed. Next new single field id: -25 onward.)
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
         //  3D yaw (Turn), FldGemTilt for its tilt, FldGemRoll for its roll, and FldPathX/FldPathY for the shared
         //  travel offset — no other new ids. Crescent/Sparkle/Sprite likewise REUSE FldSize/FldAlpha (radius/alpha),
@@ -457,6 +460,17 @@ namespace Laubrary.PyrePlus
             float sScale = Eval(layer.swarmScale, life, spec.seed, ModParticleIndex, FldSwarmScale);
             bool swarmScl = sScale != 1f;
 
+            // ── Coalesce = Fuse (slice 1) ────────────────────────────────────────────────────────────────
+            // When the layer coalesces by Fuse, the loop below does NOT Over-composite each particle; it COLLECTS
+            // every alive particle as a metaball circle (its own-life size + alpha, mirroring DrawParticle's first
+            // lines), then a single RenderPlusFusedField pass sums the field, thresholds it into one iso-surface and
+            // shades it — MetaBlob. Ramp (HeightBalls) is slice 2 and still falls through to the per-particle path.
+            // fieldParts is only allocated when fusing, so Off/Ramp are byte-identical to before. cx/cy above are the
+            // canvas centre — FieldParticle positions are stored centre-relative (the space RenderPlusFusedField
+            // samples in).
+            bool fuse = layer.coalesce == LayerCoalesce.Fuse;
+            List<FieldParticle> fieldParts = fuse ? new List<FieldParticle>(Mathf.Max(2, spawns.Count)) : null;
+
             for (int i = 0; i < spawns.Count; i++)
             {
                 var sp = spawns[i];
@@ -494,21 +508,110 @@ namespace Laubrary.PyrePlus
                 if (swarmScl)
                     dp = new Vector2(cx + (dp.x - cx) * sScale, cy + (dp.y - cy) * sScale);
 
-                // ── Coalesce seam (slice 0) ──────────────────────────────────────────────────────────────────
+                // ── Coalesce seam (slice 0 → Fuse filled in slice 1) ─────────────────────────────────────────
                 // Off (default) → per-particle Over-compositing (DrawParticle below), byte-identical to
-                // pre-Coalesce. Fuse/Ramp are the STATELESS field-pass modes (MetaBlob / HeightBalls): slices 1-2
-                // will, INSTEAD of DrawParticle, collect this particle into a field set and run ONE accumulation →
-                // threshold/ramp → shade AFTER the loop. Until then every mode falls through to DrawParticle, so
-                // the render is unchanged at any coalesce setting.
-                // TODO slice 1/2: field-pass here — if (layer.coalesce != LayerCoalesce.Off) collect a
-                //                 FieldParticle { dp, own, sizeMul, brightMul, sp.orientDeg } and `continue;` (the
-                //                 chosen field pass runs after the loop) instead of the per-particle DrawParticle.
+                // pre-Coalesce. Fuse COLLECTS this particle as a metaball circle instead of drawing it (the field
+                // pass runs after the loop). Ramp (HeightBalls) is slice 2 and still falls through to DrawParticle.
+                if (fuse)
+                {
+                    // Evaluate size + alpha at THIS particle's OWN life exactly as DrawParticle's Disc path does
+                    // (radius = size·sizeMul with the same >0.01 guard; alpha = the alpha envelope with the same
+                    // >0.002 guard) — the fuse weight IS that own-life alpha (= FusionCircle.weight in Pyre1). The
+                    // form is ignored: fuse always treats a particle as a circle (MetaBlob is a disc-metaball).
+                    float fr = Mathf.Max(0f, Eval(layer.size, own, spec.seed, i, FldSize)) * sizeMul;
+                    if (fr > 0.01f)
+                    {
+                        float fa = Mathf.Clamp01(Eval(layer.alpha, own, spec.seed, i, FldAlpha));
+                        if (fa > 0.002f) fieldParts.Add(new FieldParticle(dp.x - cx, dp.y - cy, fr, fa));
+                    }
+                    continue;   // no per-particle draw — the whole set is fused after the loop
+                }
                 DrawParticle(buf, W, H, dp.x, dp.y, own, spec, layer, i, mods, phase, frameIndex,
                              sizeMul, brightMul, sp.orientDeg);
             }
-            // TODO slice 1/2: field-pass here — if (layer.coalesce != LayerCoalesce.Off) run the collected field
-            //                 pass into `buf` (Fuse → RenderPlusFusedField, Ramp → RenderPlusRampField). NO field
-            //                 math in slice 0; this is purely the seam the next slices fill.
+            // Fuse (MetaBlob) field-pass: sum → threshold → gradient-shade the whole collected set into `buf`, on the
+            // layer's isolated scratch, BEFORE ApplyLayerPost (so Post modifiers still shape the fused result). Off/
+            // Ramp leave fieldParts null and skip this entirely, so they render exactly as before.
+            if (fuse)
+                RenderPlusFusedField(buf, W, H, life, spec, layer, mods, phase, frameIndex, fieldParts, cx, cy);
+        }
+
+        // ── Fuse (MetaBlob) field-pass (slice 1) ─────────────────────────────────────────────────────────────
+        // The STATELESS Coalesce == Fuse render mode. After RenderSwarm's loop collected every alive particle as a
+        // FieldParticle{pos, radius, weight}, this reads the WHOLE set as ONE scalar field and composites a single
+        // merged, gradient-shaded silhouette — a metaball union — instead of Over-compositing each particle. Ported
+        // near-verbatim from BlastRenderer.RenderFusedField (Runtime/Pyre/BlastRenderer.cs:1957), with the kernel
+        // sum + threshold/band/frac math pulled into the shared PyrePlusField substrate (so slice 2's Ramp and
+        // slice 4's matte heightmap reuse the same primitives). Per pixel:
+        //     field = Σ weight·(1−d²/r²)²                       (PyrePlusField.Sample)
+        //     threshold = max(0.02, fuseThreshold)
+        //     band      = clamp(fuseSoftness, 0.01, threshold)
+        //     discard where field ≤ threshold−band
+        //     alpha = clamp01((field−(threshold−band))/band) · fillColour.a   (ThresholdShade gives the AA band)
+        //     frac  = clamp01((field−threshold)/fuseShadeRange)               (0 = surface, 1 = core)
+        //     colour = shapeFill gradient at frac
+        // Geometry modifiers fold each sample point (bending the fused field), pixel modifiers recolour/drop each lit
+        // pixel — the same stack DrawParticle applies, matching RenderFusedField. Deterministic: reads only the
+        // seeded ComputeSpawns placements. (The "·layerAlpha" in the design resolves to the fill's own alpha here,
+        // exactly as RenderFusedField composites `a * fc.a`; PyrePlus has no separate whole-layer opacity field, and
+        // the per-particle alpha already fades the blob by shrinking each circle's field weight.)
+        static void RenderPlusFusedField(Color32[] buf, int W, int H, float life, PyrePlusSpec spec, PyrePlusLayer layer,
+                                         in ModSet mods, float phase, int frameIndex, List<FieldParticle> parts, float cx, float cy)
+        {
+            int n = parts.Count;
+            if (n == 0) return;
+
+            // Field bbox → GeoCtx (mirrors RenderFusedField): geometry warps fold around the fused shape's own
+            // centre/radius, not each particle's. Positions are already centre-relative.
+            float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+            for (int i = 0; i < n; i++)
+            {
+                var c = parts[i];
+                if (c.x - c.radius < minX) minX = c.x - c.radius;
+                if (c.x + c.radius > maxX) maxX = c.x + c.radius;
+                if (c.y - c.radius < minY) minY = c.y - c.radius;
+                if (c.y + c.radius > maxY) maxY = c.y + c.radius;
+            }
+            Vector2 fieldCenter = new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
+            float fieldRadius = 0.5f * Mathf.Max(maxX - minX, maxY - minY);
+            var ctx = new GeoCtx(cx, cy, fieldCenter, fieldRadius);
+
+            var fill = layer.shapeFill;
+            // A stable per-LAYER hash for the pixel modifiers / any noise (frame-global — the fuse pass has no single
+            // particle index). Its own field id (FldFuseHash) keeps it decorrelated from the per-particle streams.
+            int hash = Hash(spec.seed, ModParticleIndex, FldFuseHash, _layerSalt);
+            bool anyGeo = mods.AnyGeo, anyPix = mods.AnyPix;
+
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    Vector2 off = new Vector2((x + 0.5f) - cx, (y + 0.5f) - cy);
+                    if (anyGeo) off = ApplyGeo(mods.geo, off, phase, ctx);
+
+                    float field = PyrePlusField.Sample(parts, off.x, off.y);
+                    if (!PyrePlusField.ThresholdShade(field, layer.fuseThreshold, layer.fuseSoftness, layer.fuseShadeRange,
+                                                      out float a, out float frac))
+                        continue;
+
+                    // Shade by the shapeFill gradient at frac (surface → core). For OverLife/Solid this is the
+                    // gradient/colour at frac; a spatial fill degrades to its centre-line sample — acceptable, and
+                    // the common fuse fills are gradients. Depth brightness (brightMul) is intentionally not carried:
+                    // fuse merges silhouettes, colour comes from the field, not per-particle depth.
+                    Color col = fill != null ? fill.Evaluate(frac, 0f, 0f) : Color.white;
+                    float outA = a * col.a;
+                    if (outA <= 0.002f) continue;
+
+                    if (anyPix)
+                    {
+                        // RasterShape convention (matches DrawParticle's modifier path): colour carries RGB with
+                        // alpha 1, the real pixel alpha rides separately; both are handed to the pixel modifiers.
+                        Color pc = new Color(col.r, col.g, col.b, 1f);
+                        float pa = outA;
+                        if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, cx + off.x, cy + off.y, frameIndex, frac, life, hash, W, H)) continue;
+                        Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                    }
+                    else Over(buf, y * W + x, col.r, col.g, col.b, outA);
+                }
         }
 
         /// FIX 3 — apply the layer's LIVE whole-cloud swarm spin (swarmTurn/Tilt/Roll evaluated at `life`) to an

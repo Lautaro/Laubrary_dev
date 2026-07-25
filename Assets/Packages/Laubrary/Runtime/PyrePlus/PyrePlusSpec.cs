@@ -138,6 +138,18 @@ namespace Laubrary.PyrePlus
         // it for free (like matteRole). APPEND ONLY — serialized as an int.
         public LayerCoalesce coalesce = LayerCoalesce.Off;
 
+        // ── Fuse (Coalesce == Fuse) field-pass dials (slice 1) — MetaBlob's iso-surface controls ─────────
+        // Only read when coalesce == Fuse. The swarm's placed particles become metaball circles summed into ONE
+        // scalar field (Σ weight·(1−d²/r²)²); these three shape how that field turns back into pixels — the exact
+        // twins of Pyre1's metaThreshold/metaShadeRange/metaSoftness (defaults copied from Layer.cs so a fused blob
+        // reads the same). Plain floats (like their Pyre1 counterparts), so MemberwiseClone in Clone() copies them.
+        [Tooltip("Fuse: iso-threshold. Lower = the particles fuse more eagerly (fatter necks, one shape); higher = distinct lobes.")]
+        public float fuseThreshold = 0.6f;
+        [Tooltip("Fuse: how much field above the threshold spans the gradient (surface → core). Smaller = a punchier core.")]
+        public float fuseShadeRange = 1.5f;
+        [Tooltip("Fuse: edge softness — the alpha AA band across the iso-surface (capped at the threshold). 0.01 ≈ crisp.")]
+        public float fuseSoftness = 0.18f;
+
         // ── Shape — the particle's own look (mandatory section) ────────────────────
         // Which FORM the particle renders as. Disc = the flat soft disc (slice 1). Gem = a true-3D lit crystal
         // (the Gem block below drives it); its material colour is shapeFill, its radius is `size`.
@@ -445,7 +457,9 @@ namespace Laubrary.PyrePlus
             l.swarmTilt = CloneVal(swarmTilt);
             l.swarmRoll = CloneVal(swarmRoll);
             l.swarmScale = CloneVal(swarmScale);
-            // coalesce is a plain enum (value type) — MemberwiseClone above already copied it, like matteRole.
+            // coalesce is a plain enum (value type) — MemberwiseClone above already copied it, like matteRole; the
+            // three fuseThreshold/fuseShadeRange/fuseSoftness floats are value types too, so MemberwiseClone deep-
+            // copies them for free (nothing to clone by hand, like the other plain-float dials).
             l.modifiers = modifiers == null ? new List<PyreModifier>() : modifiers.ConvertAll(m => m?.Clone());
             return l;
         }

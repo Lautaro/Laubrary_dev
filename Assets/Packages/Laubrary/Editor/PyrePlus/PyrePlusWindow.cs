@@ -713,6 +713,8 @@ namespace Laubrary.PyrePlus.Editor
         }
 
         static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can", "Orb", "Ring", "Text", "Streak", "Star" };
+        // Coalesce render-mode selector (slice 1). Only Off / Fuse are exposed — Ramp (HeightBalls) arrives in slice 2.
+        static readonly string[] CoalesceChoices = { "Off", "Fuse" };
         static readonly List<string> TextFillModeChoices = new List<string> { "Per-char gradient", "Per-char step", "Text gradient" };
 
         void RebuildShape()
@@ -1450,6 +1452,44 @@ namespace Laubrary.PyrePlus.Editor
                 + "cloud. Default 1 (no scaling).",
                 s.swarmScale, 0f, 4f));
             swarmBody.Add(spin);
+
+            // ── Coalesce render mode (slice 1) — how the placed cloud turns into pixels. Off = draw + Over-composite
+            // each particle (every form). Fuse = MetaBlob: read the WHOLE cloud as one metaball field and composite
+            // a single gradient-shaded merged blob (overlapping particles melt together with necks) instead of
+            // separate particles. A wrapped MiniRadio (Off / Fuse); Ramp (HeightBalls) lands in slice 2. Rebuild on
+            // change so the Fuse box appears/disappears. Sits at the end since, like the Swarm spin/scale above, it
+            // reads the already-placed cloud as a whole.
+            string coalesceTip = "How the placed swarm turns into pixels. Off = each particle is drawn and "
+                + "Over-composited (every form). Fuse = MetaBlob: the whole cloud is read as ONE metaball field and "
+                + "composited as a single smooth, gradient-shaded blob — overlapping particles MELT together (necks "
+                + "between them) instead of staying separate discs. Best with the Disc form and an overlapping swarm.";
+            int coalesceSel = s.coalesce == LayerCoalesce.Fuse ? 1 : 0;
+            swarmBody.Add(Z.Field("Coalesce", coalesceTip,
+                Z.MiniRadio(coalesceSel, CoalesceChoices, coalesceTip,
+                    v => { Dirty(() => s.coalesce = v == 1 ? LayerCoalesce.Fuse : LayerCoalesce.Off); RebuildSwarm(); },
+                    wrap: true)));
+
+            if (s.coalesce == LayerCoalesce.Fuse)
+            {
+                var fuse = Z.BoxKeyed("Fuse",
+                    "MetaBlob field-pass: the placed particles become metaball circles summed into ONE field, then "
+                    + "thresholded and gradient-shaded (by the Shape's Fill) into a single merged blob. Threshold "
+                    + "sets how eagerly they fuse; Shade range maps the gradient surface→core; Softness is the edge AA.",
+                    "pyreplus.fuse");
+                fuse.Add(Z.MicroSlider("Threshold", s.fuseThreshold, 0.02f, 2f,
+                    "Iso-threshold. Lower = the particles fuse more eagerly (fatter necks, one shape); higher = "
+                    + "distinct lobes pull apart.",
+                    v => Dirty(() => s.fuseThreshold = v), 170f, showValue: true));
+                fuse.Add(Z.MicroSlider("Shade range", s.fuseShadeRange, 0.05f, 4f,
+                    "How much field above the threshold spans the Fill gradient (surface → core). Smaller = a "
+                    + "punchier, brighter core.",
+                    v => Dirty(() => s.fuseShadeRange = v), 170f, showValue: true));
+                fuse.Add(Z.MicroSlider("Softness", s.fuseSoftness, 0.01f, 1f,
+                    "Edge softness — the alpha AA band across the iso-surface (internally capped at the Threshold). "
+                    + "0.01 ≈ crisp.",
+                    v => Dirty(() => s.fuseSoftness = v), 170f, showValue: true));
+                swarmBody.Add(fuse);
+            }
         }
 
         // ── helpers ──────────────────────────────────────────────────────────────
