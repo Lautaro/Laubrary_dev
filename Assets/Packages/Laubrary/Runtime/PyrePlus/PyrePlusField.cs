@@ -38,6 +38,25 @@ namespace Laubrary.PyrePlus
         }
     }
 
+    // One particle contributed to the Ramp (HeightBalls) field-pass — the sibling of FieldParticle for slice 2's
+    // heavier three-field pass. Unlike Fuse, Ramp needs TWO extra per-particle scalars beyond radius: `density`
+    // (a ball's MASS/body) and `heat` (its height/ENERGY — how far up the smoke→fire ramp it sits), each an own-
+    // life envelope value; `alpha` is its own-life opacity (blended per pixel so a dying ball can't drag a solid
+    // one down). Position is CANVAS-CENTRE-RELATIVE, matching FieldParticle. RenderSwarm's collect-loop fills a
+    // List<RampParticle> when a layer coalesces by Ramp, then hands it to RenderPlusRampField.
+    internal struct RampParticle
+    {
+        public float x, y;              // centre-relative position, px
+        public float radius;            // dome influence radius, px
+        public float density, heat;     // per-particle field weights (mass, height/energy) at own life
+        public float alpha;             // own-life opacity (the coverage-blend weight)
+        public RampParticle(float x, float y, float radius, float density, float heat, float alpha)
+        {
+            this.x = x; this.y = y; this.radius = radius;
+            this.density = density; this.heat = heat; this.alpha = alpha;
+        }
+    }
+
     internal static class PyrePlusField
     {
         // Σ over the particle set of the compact polynomial metaball kernel: 1 at a particle's centre → 0 at its
@@ -102,6 +121,126 @@ namespace Laubrary.PyrePlus
             float range = Mathf.Max(0.001f, shadeRangeRaw);
             frac = Mathf.Clamp01((field - threshold) / range);            // 0 = surface, 1 = core
             return true;
+        }
+
+        // ── Ramp (HeightBalls) substrate (slice 2) — SmoothMax dome accumulate + slope-relief lighting ───────────
+        // Capability 3 in PYREPLUS_ADVANCED_DESIGN.md decomposes Pyre1's HeightBalls into a swarm + a heavier
+        // FIELD-PASS. Where Fuse SUMS a single-weight metaball kernel, Ramp fuses DOMES (s = √(1−q), 1 at a ball's
+        // centre → 0 at its rim) by a SMOOTH-MAX so neighbouring balls MELT into one lumpy mass rather than the
+        // taller simply winning, and it builds THREE such fields (density / heat / height). These primitives are the
+        // shared, geometry-agnostic pieces Ramp's RenderPlusRampField and slice 4's matte HEIGHTMAP both build on
+        // (so neither hand-rolls the melt math). Ported near-verbatim from BlastRenderer.RenderHeightBalls
+        // (Runtime/Pyre/BlastRenderer.cs:1763) — SmoothMax (:1543), the Pass-1 dome accumulation (:1844-1857) and
+        // the Pass-2 relief lighting (:1892-1913).
+
+        // Blends toward max(a,b) with a soft knee of width k — the "fusion" that melts neighbouring domes into one
+        // mass. k ≤ 0 ⇒ a hard Max. Verbatim from BlastRenderer.SmoothMax. General (no HeightBalls knowledge).
+        public static float SmoothMax(float a, float b, float k)
+        {
+            if (k <= 0.0001f) return Mathf.Max(a, b);
+            float h = Mathf.Clamp01(0.5f + 0.5f * (b - a) / k);
+            return Mathf.Lerp(a, b, h) + k * h * (1f - h);
+        }
+
+        // Accumulate ONE scalar field from a set of circular DOMES fused by SmoothMax. Each dome that covers a
+        // pixel contributes s·weight where s = √(1−q) is a soft dome (1 at centre → 0 at rim) and q = d²/r²,
+        // OPTIONALLY scaled per pixel by `rimInv2` (a shared surface-noise field that makes neighbouring domes
+        // bulge/pinch TOGETHER — the boiling-mass rim; null = plain circles). `field` is caller-owned length W*H,
+        // CLEARED to 0 and rebuilt in full; (cx,cy) is the canvas centre; positions are centre-relative; `knee` is
+        // the SmoothMax width. A pixel no dome reaches stays exactly 0 (SmoothMax is not the identity on two zeroes,
+        // so absent domes must never fold in — matched by only touching a pixel a dome actually covers). This is the
+        // general float[]-level "SmoothMax accumulate into a float[] field" Ramp's three fields and slice 4's matte
+        // heightmap share — no per-pixel geometry warp (matches Accumulate above), no colour, no modifier knowledge.
+        public static void AccumulateDomes(float[] field, int W, int H, List<FieldParticle> domes, float knee,
+                                           float cx, float cy, float[] rimInv2 = null)
+        {
+            int n = domes.Count;
+            for (int y = 0; y < H; y++)
+            {
+                float oy = (y + 0.5f) - cy;
+                int row = y * W;
+                for (int x = 0; x < W; x++)
+                {
+                    int idx = row + x;
+                    float ox = (x + 0.5f) - cx;
+                    float inv = rimInv2 != null ? rimInv2[idx] : 1f;
+                    float acc = 0f;
+                    for (int i = 0; i < n; i++)
+                    {
+                        var c = domes[i];
+                        if (c.weight <= 0f) continue;
+                        float r2 = c.radius * c.radius;
+                        if (r2 <= 0f) continue;
+                        float dx = ox - c.x, dy = oy - c.y;
+                        float q = (dx * dx + dy * dy) / r2 * inv;
+                        if (q >= 1f) continue;
+                        float s = Mathf.Sqrt(1f - q);          // soft dome: 1 at the centre → 0 at the rim
+                        acc = SmoothMax(acc, s * c.weight, knee);
+                    }
+                    field[idx] = acc;                          // 0 where no dome covers (acc never left 0)
+                }
+            }
+        }
+
+        // Relief lighting from a HEIGHT field's local slope: a normal built from finite differences, dotted (Lambert)
+        // with a light at `lightAngleDeg` in the screen plane (elevation baked as `lz`). Fills `light` (length W*H):
+        // pixels with height ≤ 0 get 0; elsewhere light = ambient + max(0, n·L)·gain. `relief` scales the slope so
+        // taller features catch more light. Verbatim from BlastRenderer.RenderHeightBalls Pass 2 (defaults are its
+        // exact 0.18 / 0.82 / 0.72 constants). General — any float[] height field can be lit by it.
+        public static void ReliefLight(float[] light, float[] height, int W, int H, float lightAngleDeg, float relief,
+                                       float ambient = 0.18f, float gain = 0.82f, float lz = 0.72f)
+        {
+            float ang = lightAngleDeg * Mathf.Deg2Rad;
+            float lx = Mathf.Cos(ang), ly = Mathf.Sin(ang);
+            float ll = Mathf.Sqrt(lx * lx + ly * ly + lz * lz);
+            lx /= ll; ly /= ll; float lzn = lz / ll;
+            float rel = Mathf.Max(0.01f, relief);
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int i = y * W + x;
+                    if (height[i] <= 0f) { light[i] = 0f; continue; }
+                    float hl = height[y * W + Mathf.Max(0, x - 1)], hr = height[y * W + Mathf.Min(W - 1, x + 1)];
+                    float hd = height[Mathf.Max(0, y - 1) * W + x], hu = height[Mathf.Min(H - 1, y + 1) * W + x];
+                    float nx = -(hr - hl) * rel, ny = -(hu - hd) * rel, nz = 1f;
+                    float nl = Mathf.Sqrt(nx * nx + ny * ny + nz * nz);
+                    light[i] = ambient + Mathf.Max(0f, (nx * lx + ny * ly + nz * lzn) / nl) * gain;
+                }
+        }
+
+        // A small deterministic value-noise, 0..1 — a bilinear (smoothstepped) hash lattice plus a second octave.
+        // Self-contained because Pyre's PyreNoise is `internal` and unreachable across the asmdef boundary; the
+        // shape mirrors PyreNoise.ValueNoise closely (a coherent roughness, not a bit-match). Ramp's surface-noise
+        // rim samples it; general enough for any coherent spatial roughness a field-pass wants. Seeded ⇒ a Coalesce
+        // layer bakes/scrubs identically.
+        public static float Noise01(float x, float y, int seed)
+        {
+            float a = ValueNoise(x, y, seed);
+            float b = ValueNoise(x * 2.13f, y * 2.13f, seed ^ 0x7F4A7C15);
+            return Mathf.Clamp01(a * 0.65f + b * 0.35f);
+        }
+
+        static float ValueNoise(float x, float y, int seed)
+        {
+            int x0 = Mathf.FloorToInt(x), y0 = Mathf.FloorToInt(y);
+            float tx = x - x0, ty = y - y0;
+            tx = tx * tx * (3f - 2f * tx); ty = ty * ty * (3f - 2f * ty);
+            float h00 = Hash01(seed, x0, y0), h10 = Hash01(seed, x0 + 1, y0);
+            float h01 = Hash01(seed, x0, y0 + 1), h11 = Hash01(seed, x0 + 1, y0 + 1);
+            return Mathf.Lerp(Mathf.Lerp(h00, h10, tx), Mathf.Lerp(h01, h11, tx), ty);
+        }
+
+        // FNV-1a over three ints → a stable 0..1 draw (the same funnel PyrePlusRenderer.Hash uses, mapped to a float).
+        static float Hash01(int a, int b, int c)
+        {
+            unchecked
+            {
+                uint h = 2166136261u;
+                h = (h ^ (uint)a) * 16777619u;
+                h = (h ^ (uint)b) * 16777619u;
+                h = (h ^ (uint)c) * 16777619u;
+                return (h & 0xFFFFFFu) / (float)0x1000000;
+            }
         }
     }
 }

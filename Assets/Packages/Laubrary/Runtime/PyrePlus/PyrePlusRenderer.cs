@@ -75,7 +75,13 @@ namespace Laubrary.PyrePlus
         const int FldSwarmScale = -23;   // swarmScale — whole-cloud live uniform radial scale at the frame's life (frame-global) [slice0]
         const int FldFuseHash = -24;     // Fuse (Coalesce) field-pass — its per-LAYER hash for pixel-modifier / noise draws [slice1]
         // (fuseThreshold/fuseShadeRange/fuseSoftness are plain floats, NOT Eval'd — they need no field id; -24 is the
-        //  one id the Fuse pass adds, a frame-global per-layer hash seed. Next new single field id: -25 onward.)
+        //  one id the Fuse pass adds, a frame-global per-layer hash seed.)
+        const int FldRampDensity = -25;  // density (mass) envelope — Ramp field-pass, particle's own life           [slice2]
+        const int FldRampHeat = -26;     // heat (height/energy) envelope — Ramp field-pass, particle's own life      [slice2]
+        const int FldRampHash = -27;     // Ramp field-pass per-LAYER hash — pixel-modifier draws + surface-noise seed [slice2]
+        // (the Ramp knobs rampFusion/rampCoverage/rampLighting/rampRelief/rampLightAngle/rampRimScale are plain
+        //  floats, NOT Eval'd — no field ids; the Ramp pass Eval's only density (-25) and heat (-26) per particle and
+        //  adds one frame-global per-layer hash (-27), the twin of Fuse's -24. Next new single field id: -28 onward.)
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
         //  3D yaw (Turn), FldGemTilt for its tilt, FldGemRoll for its roll, and FldPathX/FldPathY for the shared
         //  travel offset — no other new ids. Crescent/Sparkle/Sprite likewise REUSE FldSize/FldAlpha (radius/alpha),
@@ -460,16 +466,19 @@ namespace Laubrary.PyrePlus
             float sScale = Eval(layer.swarmScale, life, spec.seed, ModParticleIndex, FldSwarmScale);
             bool swarmScl = sScale != 1f;
 
-            // ── Coalesce = Fuse (slice 1) ────────────────────────────────────────────────────────────────
-            // When the layer coalesces by Fuse, the loop below does NOT Over-composite each particle; it COLLECTS
-            // every alive particle as a metaball circle (its own-life size + alpha, mirroring DrawParticle's first
-            // lines), then a single RenderPlusFusedField pass sums the field, thresholds it into one iso-surface and
-            // shades it — MetaBlob. Ramp (HeightBalls) is slice 2 and still falls through to the per-particle path.
-            // fieldParts is only allocated when fusing, so Off/Ramp are byte-identical to before. cx/cy above are the
-            // canvas centre — FieldParticle positions are stored centre-relative (the space RenderPlusFusedField
-            // samples in).
+            // ── Coalesce = Fuse (slice 1) / Ramp (slice 2) ───────────────────────────────────────────────
+            // When the layer coalesces, the loop below does NOT Over-composite each particle; it COLLECTS every alive
+            // particle (its own-life size + alpha, mirroring DrawParticle's first lines) into a field-particle set,
+            // then a single post-loop field-pass reads the WHOLE set. Fuse collects metaball circles → RenderPlus-
+            // FusedField (sum → threshold → shade one iso-surface, MetaBlob). Ramp additionally Eval's the two per-
+            // particle weights density/heat → RenderPlusRampField (three SmoothMax dome fields → relief light → one
+            // smoke→fire cloud, HeightBalls). Each list is only allocated for its own mode, so Off is byte-identical
+            // to before and Fuse is unchanged. cx/cy above are the canvas centre — collected positions are stored
+            // centre-relative (the space the field-passes sample in).
             bool fuse = layer.coalesce == LayerCoalesce.Fuse;
+            bool ramp = layer.coalesce == LayerCoalesce.Ramp;
             List<FieldParticle> fieldParts = fuse ? new List<FieldParticle>(Mathf.Max(2, spawns.Count)) : null;
+            List<RampParticle> rampParts = ramp ? new List<RampParticle>(Mathf.Max(2, spawns.Count)) : null;
 
             for (int i = 0; i < spawns.Count; i++)
             {
@@ -508,16 +517,15 @@ namespace Laubrary.PyrePlus
                 if (swarmScl)
                     dp = new Vector2(cx + (dp.x - cx) * sScale, cy + (dp.y - cy) * sScale);
 
-                // ── Coalesce seam (slice 0 → Fuse filled in slice 1) ─────────────────────────────────────────
+                // ── Coalesce seam (slice 0 → Fuse slice 1 → Ramp slice 2) ────────────────────────────────────
                 // Off (default) → per-particle Over-compositing (DrawParticle below), byte-identical to
-                // pre-Coalesce. Fuse COLLECTS this particle as a metaball circle instead of drawing it (the field
-                // pass runs after the loop). Ramp (HeightBalls) is slice 2 and still falls through to DrawParticle.
+                // pre-Coalesce. Fuse/Ramp COLLECT this particle instead of drawing it (the field pass runs after the
+                // loop). The form is ignored in both modes: a coalescing particle is always a circle/dome.
                 if (fuse)
                 {
                     // Evaluate size + alpha at THIS particle's OWN life exactly as DrawParticle's Disc path does
                     // (radius = size·sizeMul with the same >0.01 guard; alpha = the alpha envelope with the same
-                    // >0.002 guard) — the fuse weight IS that own-life alpha (= FusionCircle.weight in Pyre1). The
-                    // form is ignored: fuse always treats a particle as a circle (MetaBlob is a disc-metaball).
+                    // >0.002 guard) — the fuse weight IS that own-life alpha (= FusionCircle.weight in Pyre1).
                     float fr = Mathf.Max(0f, Eval(layer.size, own, spec.seed, i, FldSize)) * sizeMul;
                     if (fr > 0.01f)
                     {
@@ -526,14 +534,36 @@ namespace Laubrary.PyrePlus
                     }
                     continue;   // no per-particle draw — the whole set is fused after the loop
                 }
+                if (ramp)
+                {
+                    // Same radius (size·sizeMul) + alpha as Fuse, PLUS the two Ramp-only per-particle weights the
+                    // plain swarm doesn't carry: density (mass) and heat (height/energy), each an own-life envelope
+                    // Eval'd here beside size/alpha (their own field ids -25/-26). Guard mirrors Pyre1's AddHeightBall
+                    // (BlastRenderer.cs:1584): an invisible OR massless+heatless ball must not exist — it would still
+                    // drag the fused opacity of whatever it overlaps down toward nothing.
+                    float rr = Mathf.Max(0f, Eval(layer.size, own, spec.seed, i, FldSize)) * sizeMul;
+                    if (rr > 0.01f)
+                    {
+                        float ra = Mathf.Clamp01(Eval(layer.alpha, own, spec.seed, i, FldAlpha));
+                        float rd = Mathf.Max(0f, Eval(layer.density, own, spec.seed, i, FldRampDensity));
+                        float rh = Mathf.Max(0f, Eval(layer.heat, own, spec.seed, i, FldRampHeat));
+                        if (ra > 0.002f && (rd > 0.0005f || rh > 0.0005f))
+                            rampParts.Add(new RampParticle(dp.x - cx, dp.y - cy, rr, rd, rh, ra));
+                    }
+                    continue;   // no per-particle draw — the whole set is fused after the loop
+                }
                 DrawParticle(buf, W, H, dp.x, dp.y, own, spec, layer, i, mods, phase, frameIndex,
                              sizeMul, brightMul, sp.orientDeg);
             }
             // Fuse (MetaBlob) field-pass: sum → threshold → gradient-shade the whole collected set into `buf`, on the
-            // layer's isolated scratch, BEFORE ApplyLayerPost (so Post modifiers still shape the fused result). Off/
-            // Ramp leave fieldParts null and skip this entirely, so they render exactly as before.
+            // layer's isolated scratch, BEFORE ApplyLayerPost (so Post modifiers still shape the fused result). Off
+            // leaves fieldParts null and skips this entirely, so it renders exactly as before.
             if (fuse)
                 RenderPlusFusedField(buf, W, H, life, spec, layer, mods, phase, frameIndex, fieldParts, cx, cy);
+            // Ramp (HeightBalls) field-pass: three SmoothMax dome fields → relief light → one smoke→fire cloud, on the
+            // same isolated scratch, BEFORE ApplyLayerPost. Off/Fuse leave rampParts null and skip this.
+            else if (ramp)
+                RenderPlusRampField(buf, W, H, life, spec, layer, mods, phase, frameIndex, rampParts, cx, cy);
         }
 
         // ── Fuse (MetaBlob) field-pass (slice 1) ─────────────────────────────────────────────────────────────
@@ -611,6 +641,169 @@ namespace Laubrary.PyrePlus
                         Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
                     }
                     else Over(buf, y * W + x, col.r, col.g, col.b, outA);
+                }
+        }
+
+        // ── Ramp (HeightBalls) field-pass (slice 2) ──────────────────────────────────────────────────────────
+        // The STATELESS Coalesce == Ramp render mode — HeightBalls decomposed as swarm + a heavier field-pass.
+        // After RenderSwarm's loop collected every alive particle as a RampParticle{pos, radius, density, heat,
+        // alpha}, this fuses the WHOLE set into three shared scalar fields, lights the height field's relief, and
+        // shades one merged smoke→fire cloud — instead of Over-compositing each particle. Ported faithfully from
+        // BlastRenderer.RenderHeightBalls (Runtime/Pyre/BlastRenderer.cs:1763), with the SmoothMax dome-accumulate
+        // and slope-relief lighting pulled into the shared PyrePlusField substrate (so slice 4's matte heightmap
+        // reuses the same primitives). Three passes:
+        //   Pass 1  fuse density / heat / height via SmoothMax domes (s = √(1−q)); a shared surface-noise rim scales
+        //           each dome's q so neighbouring domes bulge/pinch together and read as one boiling mass (rampRimScale).
+        //   Pass 2  relief light = 0.18 + max(0, n·L)·0.82 from the height field's local slope (rampLighting/Relief/Angle).
+        //   Pass 3  value = clamp01(density+heat)·light → shapeFill gradient; opacity = clamp01(max(density,heat)·
+        //           coverage) · per-pixel blended particle alpha · fill alpha.
+        // Deterministic: reads only the seeded ComputeSpawns placements. DELIBERATE LOSSES vs Pyre1's HeightBalls,
+        // left OUT of scope for this decomposition (documented, not forced — see PYREPLUS_ADVANCED_DESIGN.md
+        // Capability 3): per-ball SQUASH ellipses (PyrePlus domes are circular), idle-boil CHURN, the hbFold
+        // confinement fold-under, and single-pass CROSS-GROUP fusion (a PyrePlus layer is ONE swarm population;
+        // several strata melting into one mass would need multi-sub-population support). Geometry modifiers do NOT
+        // warp the fused field in this slice (the shared accumulate is geometry-agnostic, matching PyrePlusField.
+        // Accumulate/AccumulateDomes); pixel modifiers still recolour/drop each lit pixel, and Post modifiers still
+        // shape the finished layer via ApplyLayerPost.
+        static void RenderPlusRampField(Color32[] buf, int W, int H, float life, PyrePlusSpec spec, PyrePlusLayer layer,
+                                        in ModSet mods, float phase, int frameIndex, List<RampParticle> parts, float cx, float cy)
+        {
+            int n = parts.Count;
+            if (n == 0) return;
+
+            // Per-channel melt knee, sized RELATIVE to the strongest ball in each channel (heat runs several times
+            // larger than mass, so one shared constant would melt mass but leave heat an almost-hard max) — mirrors
+            // RenderHeightBalls (:1791-1805), so the Fusion dial means the same regardless of how hot the cloud is set.
+            float fusion = Mathf.Max(0f, layer.rampFusion);
+            float maxD = 0f, maxHe = 0f, maxHi = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                var b = parts[i];
+                float hi = b.density * 2.65f + b.heat * 0.72f;
+                if (b.density > maxD) maxD = b.density;
+                if (b.heat > maxHe) maxHe = b.heat;
+                if (hi > maxHi) maxHi = hi;
+            }
+            float kD = fusion * maxD, kHe = fusion * maxHe, kHi = fusion * maxHi;
+
+            // Surface-noise rim (the boiling-mass deform): a per-pixel field SHARED by every dome and every channel,
+            // so neighbouring domes bulge/pinch TOGETHER (rimInv2 scales each dome's q) and the interior height gains
+            // matching roughness (heightRough) — exactly why the balls interlock into one mass instead of each
+            // wobbling on its own. Sampled ONCE per pixel here (not per dome, not per field). Drifts over the layer's
+            // life so the surface roils. rampRimScale ≤ 0 ⇒ null (plain circles), an exact no-op.
+            float rimAmp = Mathf.Clamp01(layer.rampRimScale);
+            float[] rimInv2 = null, heightRough = null;
+            if (rimAmp > 0.001f)
+            {
+                rimInv2 = new float[W * H];
+                heightRough = new float[W * H];
+                int nseed = Hash(spec.seed, ModParticleIndex, FldRampHash, _layerSalt);
+                const float zoom = 14f;                       // feature size in px (matches Pyre1's surfaceZoom default)
+                float driftX = life * 8f, driftY = life * -5f;  // roil over the layer's life (pure function of life)
+                for (int y = 0; y < H; y++)
+                    for (int x = 0; x < W; x++)
+                    {
+                        int i = y * W + x;
+                        float ox = (x + 0.5f) - cx, oy = (y + 0.5f) - cy;
+                        float surf = PyrePlusField.Noise01(ox / zoom + driftX, oy / zoom + driftY, nseed) * 2f - 1f;
+                        float rimScale = 1f + surf * rimAmp;
+                        rimInv2[i] = 1f / Mathf.Max(0.05f, rimScale * rimScale);
+                        heightRough[i] = 1f + surf * rimAmp * 0.55f;
+                    }
+            }
+
+            // Pass 1 — fuse the three fields via the shared SmoothMax dome accumulate. Height weights heat well above
+            // density (mass·2.65 + heat·0.72), so an energised ball stands TALLER and catches more relief light. The
+            // three dome lists share position/radius; only the per-dome weight differs (density / heat / combined).
+            var density = new float[W * H];
+            var heat = new float[W * H];
+            var height = new float[W * H];
+            var dParts = new List<FieldParticle>(n);
+            var heParts = new List<FieldParticle>(n);
+            var hiParts = new List<FieldParticle>(n);
+            for (int i = 0; i < n; i++)
+            {
+                var b = parts[i];
+                dParts.Add(new FieldParticle(b.x, b.y, b.radius, b.density));
+                heParts.Add(new FieldParticle(b.x, b.y, b.radius, b.heat));
+                hiParts.Add(new FieldParticle(b.x, b.y, b.radius, b.density * 2.65f + b.heat * 0.72f));
+            }
+            PyrePlusField.AccumulateDomes(density, W, H, dParts, kD, cx, cy, rimInv2);
+            PyrePlusField.AccumulateDomes(heat, W, H, heParts, kHe, cx, cy, rimInv2);
+            PyrePlusField.AccumulateDomes(height, W, H, hiParts, kHi, cx, cy, rimInv2);
+            // Interior roughness (height takes the noise directly where cloud is present) + clamp all three to 0..1.
+            for (int i = 0; i < W * H; i++)
+            {
+                if (heightRough != null && height[i] > 0f) height[i] *= heightRough[i];
+                density[i] = Mathf.Clamp01(density[i]);
+                heat[i] = Mathf.Clamp01(heat[i]);
+                height[i] = Mathf.Clamp01(height[i]);
+            }
+
+            // Opacity — per pixel, blend whichever balls reach it, weighted by coverage AND their own alpha, so a
+            // dying ball can't drag a solid one it overlaps down with it (every particle fades through its own alpha).
+            // Mirrors RenderHeightBalls' aWeight/aSum (:1858-1889) using the SAME shared rim deform as the fields.
+            var groupAlpha = new float[W * H];
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int idx = y * W + x;
+                    float ox = (x + 0.5f) - cx, oy = (y + 0.5f) - cy;
+                    float inv = rimInv2 != null ? rimInv2[idx] : 1f;
+                    float aWeight = 0f, aSum = 0f;
+                    for (int i = 0; i < n; i++)
+                    {
+                        var b = parts[i];
+                        float r2 = b.radius * b.radius;
+                        if (r2 <= 0f) continue;
+                        float dx = ox - b.x, dy = oy - b.y;
+                        float q = (dx * dx + dy * dy) / r2 * inv;
+                        if (q >= 1f) continue;
+                        float s = Mathf.Sqrt(1f - q);
+                        float w = s * (b.density + b.heat) * b.alpha;
+                        aWeight += w;
+                        aSum += w * b.alpha;
+                    }
+                    groupAlpha[idx] = aWeight > 1e-6f ? aSum / aWeight : 0f;
+                }
+
+            // Pass 2 — relief lighting from the height field's local slope (the shared substrate helper).
+            float[] light = null;
+            if (layer.rampLighting)
+            {
+                light = new float[W * H];
+                PyrePlusField.ReliefLight(light, height, W, H, layer.rampLightAngle, layer.rampRelief);
+            }
+
+            // Pass 3 — shade. Combined density+heat (lit) picks the gradient position; whichever field is stronger,
+            // scaled by coverage and the blended particle alpha, is the opacity. The lit range is deliberately wide
+            // (≈0.35×..1.5×) so the resting cloud, which sits low on the ramp, still shows its carved relief.
+            var fill = layer.shapeFill;
+            float coverage = Mathf.Max(0.1f, layer.rampCoverage);
+            int hash = Hash(spec.seed, ModParticleIndex, FldRampHash, _layerSalt);
+            bool anyPix = mods.AnyPix;
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int i = y * W + x;
+                    float occupied = Mathf.Max(density[i], heat[i]);
+                    if (occupied < 0.004f) continue;
+                    float value = Mathf.Clamp01(density[i] + heat[i]);
+                    if (light != null) value = Mathf.Clamp01(value * (0.35f + light[i] * 1.15f));
+                    Color col = fill != null ? fill.Evaluate(value, 0f, 0f) : Color.white;
+                    float outA = Mathf.Clamp01(occupied * coverage) * groupAlpha[i] * col.a;
+                    if (outA <= 0.003f) continue;
+
+                    if (anyPix)
+                    {
+                        // RasterShape convention (matches DrawParticle / the Fuse pass): colour carries RGB with
+                        // alpha 1, the real pixel alpha rides separately; both are handed to the pixel modifiers.
+                        Color pc = new Color(col.r, col.g, col.b, 1f);
+                        float pa = outA;
+                        if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, x + 0.5f, y + 0.5f, frameIndex, value, life, hash, W, H)) continue;
+                        Over(buf, i, pc.r, pc.g, pc.b, pa);
+                    }
+                    else Over(buf, i, col.r, col.g, col.b, outA);
                 }
         }
 

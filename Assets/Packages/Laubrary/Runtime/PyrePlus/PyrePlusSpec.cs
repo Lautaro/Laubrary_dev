@@ -96,12 +96,11 @@ namespace Laubrary.PyrePlus
 
     // A layer's RENDER MODE — how it turns its swarm into pixels (slice 0 seam). Off (the default) = PER-PARTICLE
     // Over-compositing: the swarm loop draws each particle and composites it (every form today). Fuse / Ramp are the
-    // two STATELESS FIELD-PASS modes filled by slices 1-2: after the swarm loop the WHOLE placed particle set is read
-    // as one field, accumulated → thresholded/ramped → shaded, and composited as a single merged silhouette instead
-    // of drawn per particle (Fuse = MetaBlob's metaball fuse; Ramp = HeightBalls' density/height relief). For now the
-    // renderer only carries the DISPATCH SEAM — Fuse/Ramp fall through to the per-particle path with no field math —
-    // so every setting renders exactly as today. See PyrePlusRenderer.RenderSwarm's Coalesce seam. APPEND ONLY —
-    // serialized as an int, so never reorder or insert.
+    // two STATELESS FIELD-PASS modes: after the swarm loop the WHOLE placed particle set is read as one field,
+    // accumulated → thresholded/ramped → shaded, and composited as a single merged silhouette instead of drawn per
+    // particle. Fuse = MetaBlob's metaball fuse (slice 1: RenderPlusFusedField); Ramp = HeightBalls' density/height
+    // relief (slice 2: RenderPlusRampField). Off stays byte-identical to pre-Coalesce. See PyrePlusRenderer.Render-
+    // Swarm's Coalesce seam. APPEND ONLY — serialized as an int, so never reorder or insert.
     public enum LayerCoalesce { Off, Fuse, Ramp }
 
     // ── one PyrePlus layer — everything per-particle / per-form / per-swarm / per-modifier, plus its matte role ──
@@ -129,12 +128,11 @@ namespace Laubrary.PyrePlus
         public int clipByChannel = -1;             // Draw only: -1 = no clip; 0..3 = multiply this layer's alpha by that channel
         public bool clipInvert = false;            // Draw + clip: use (1 - channel) instead of channel
 
-        // ── Coalesce render-mode SEAM (slice 0) — how this layer turns its swarm into pixels ────────────
+        // ── Coalesce render-mode — how this layer turns its swarm into pixels ────────────────────────────
         // Off (default) = per-particle Over-compositing, byte-identical to pre-Coalesce (every form today). Fuse/Ramp
-        // are the two STATELESS field-pass modes (MetaBlob / HeightBalls) that slices 1-2 will implement: read the
-        // whole swarm as a field and composite one merged silhouette instead of drawing each particle. SEAM ONLY for
-        // now — the renderer has the dispatch point but Fuse/Ramp still fall through to the per-particle path (no
-        // field math yet), so every setting renders exactly as today. Value type ⇒ Clone()'s MemberwiseClone copies
+        // are the two STATELESS field-pass modes: read the whole swarm as a field and composite one merged silhouette
+        // instead of drawing each particle. Fuse = MetaBlob (slice 1, the fuse* dials below); Ramp = HeightBalls
+        // (slice 2, the density/heat envelopes + ramp* knobs below). Value type ⇒ Clone()'s MemberwiseClone copies
         // it for free (like matteRole). APPEND ONLY — serialized as an int.
         public LayerCoalesce coalesce = LayerCoalesce.Off;
 
@@ -149,6 +147,33 @@ namespace Laubrary.PyrePlus
         public float fuseShadeRange = 1.5f;
         [Tooltip("Fuse: edge softness — the alpha AA band across the iso-surface (capped at the threshold). 0.01 ≈ crisp.")]
         public float fuseSoftness = 0.18f;
+
+        // ── Ramp (Coalesce == Ramp) field-pass dials (slice 2) — HeightBalls' density-relief controls ─────
+        // Only read when coalesce == Ramp. The swarm's placed particles become DOMES fused into three shared scalar
+        // fields (density / heat / height) by a SmoothMax, relief-lit from the height slope, and shaded through the
+        // Shape's Fill as one smoke→fire cloud (see PyrePlusRenderer.RenderPlusRampField). Two NEW per-particle
+        // envelopes carry the weights a plain swarm doesn't: `density` = a ball's MASS/body, `heat` = its
+        // height/ENERGY (how far up the fire ramp it sits, how tall it stands in the relief light) — both over the
+        // particle's OWN life, evaluated in the collect-loop beside size/alpha (field ids -25/-26). The rest are
+        // plain-float shaping knobs (like the fuse dials, so MemberwiseClone copies them). Defaults mirror Pyre1's
+        // HeightBalls layer + group (BlastRenderer/Layer.cs) so a Ramp swarm reads familiar. `density`/`heat` are
+        // ZUIValues, so Clone() deep-copies them.
+        [Tooltip("Ramp: a particle's MASS/body over its own life — gives the cloud volume that catches the relief light and nudges it up the ramp even with no heat. The density field's per-particle weight.")]
+        public ZUIValue density = DefaultRampDensity();
+        [Tooltip("Ramp: a particle's HEIGHT/energy over its own life — how far up the smoke→fire ramp it sits (low = cold smoke, high = fire) and how tall it stands in the relief light.")]
+        public ZUIValue heat = DefaultRampHeat();
+        [Tooltip("Ramp: fusion knee — how eagerly neighbouring domes MELT into one mass. 0 = a hard max (distinct orbs); higher = a smoother, heavier merged cloud.")]
+        public float rampFusion = 0.35f;
+        [Tooltip("Ramp: opacity gain — how much combined density+heat becomes alpha. Higher = a more solid, opaque cloud.")]
+        public float rampCoverage = 8f;
+        [Tooltip("Ramp: light the cloud's relief from the height field's local slope — carved highlights and shadow. Off = a flat gradient cloud.")]
+        public bool rampLighting = true;
+        [Tooltip("Ramp: relief strength — how steeply the height slope bends the surface normal. Higher = a more sharply carved, bumpier lit surface.")]
+        public float rampRelief = 3f;
+        [Tooltip("Ramp: the relief light's angle in degrees (screen plane) — which way the highlights fall across the cloud.")]
+        public float rampLightAngle = 135f;
+        [Tooltip("Ramp: surface-noise rim — deforms the shared cloud rim so neighbouring domes bulge/pinch together and read as ONE boiling mass instead of fused flat discs. 0 = a smooth rim.")]
+        public float rampRimScale = 0.35f;
 
         // ── Shape — the particle's own look (mandatory section) ────────────────────
         // Which FORM the particle renders as. Disc = the flat soft disc (slice 1). Gem = a true-3D lit crystal
@@ -457,9 +482,12 @@ namespace Laubrary.PyrePlus
             l.swarmTilt = CloneVal(swarmTilt);
             l.swarmRoll = CloneVal(swarmRoll);
             l.swarmScale = CloneVal(swarmScale);
+            l.density = CloneVal(density);
+            l.heat = CloneVal(heat);
             // coalesce is a plain enum (value type) — MemberwiseClone above already copied it, like matteRole; the
-            // three fuseThreshold/fuseShadeRange/fuseSoftness floats are value types too, so MemberwiseClone deep-
-            // copies them for free (nothing to clone by hand, like the other plain-float dials).
+            // three fuseThreshold/fuseShadeRange/fuseSoftness floats + the Ramp knobs (rampFusion/rampCoverage/
+            // rampLighting/rampRelief/rampLightAngle/rampRimScale) are value types too, so MemberwiseClone deep-copies
+            // them for free — only the density/heat ZUIValue envelopes above need an explicit deep copy.
             l.modifiers = modifiers == null ? new List<PyreModifier>() : modifiers.ConvertAll(m => m?.Clone());
             return l;
         }
@@ -578,6 +606,31 @@ namespace Laubrary.PyrePlus
             v.points.Add(new ZUIEnvelopePoint(0f, 4f));
             v.points.Add(new ZUIEnvelopePoint(0.4f, 22f));
             v.points.Add(new ZUIEnvelopePoint(1f, 16f));
+            return v;
+        }
+
+        static ZUIValue DefaultRampDensity()
+        {
+            // Body grows in fast then settles — mass over the particle's own life. Gives the cloud the volume that
+            // catches the relief light (mirrors the intent of HeightBallGroup.mass, animated instead of static).
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, 0.15f));
+            v.points.Add(new ZUIEnvelopePoint(0.35f, 0.9f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 0.5f));
+            return v;
+        }
+
+        static ZUIValue DefaultRampHeat()
+        {
+            // Born hot, cools to smoke — energy over the particle's own life. Young particles read as fire (top of
+            // the ramp), old ones as cool smoke (bottom): the smoke→fire spread across the cloud that, fused, makes
+            // it read as one boiling mass rather than uniform discs (mirrors HeightBallGroup.height's role).
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, 0.95f));
+            v.points.Add(new ZUIEnvelopePoint(0.5f, 0.55f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 0.12f));
             return v;
         }
 

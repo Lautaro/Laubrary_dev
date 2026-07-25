@@ -713,8 +713,9 @@ namespace Laubrary.PyrePlus.Editor
         }
 
         static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can", "Orb", "Ring", "Text", "Streak", "Star" };
-        // Coalesce render-mode selector (slice 1). Only Off / Fuse are exposed — Ramp (HeightBalls) arrives in slice 2.
-        static readonly string[] CoalesceChoices = { "Off", "Fuse" };
+        // Coalesce render-mode selector. Off / Fuse (slice 1, MetaBlob) / Ramp (slice 2, HeightBalls). Order matches
+        // the LayerCoalesce enum (Off=0, Fuse=1, Ramp=2), so the MiniRadio index casts straight to the enum.
+        static readonly string[] CoalesceChoices = { "Off", "Fuse", "Ramp" };
         static readonly List<string> TextFillModeChoices = new List<string> { "Per-char gradient", "Per-char step", "Text gradient" };
 
         void RebuildShape()
@@ -1453,20 +1454,21 @@ namespace Laubrary.PyrePlus.Editor
                 s.swarmScale, 0f, 4f));
             swarmBody.Add(spin);
 
-            // ── Coalesce render mode (slice 1) — how the placed cloud turns into pixels. Off = draw + Over-composite
-            // each particle (every form). Fuse = MetaBlob: read the WHOLE cloud as one metaball field and composite
-            // a single gradient-shaded merged blob (overlapping particles melt together with necks) instead of
-            // separate particles. A wrapped MiniRadio (Off / Fuse); Ramp (HeightBalls) lands in slice 2. Rebuild on
-            // change so the Fuse box appears/disappears. Sits at the end since, like the Swarm spin/scale above, it
-            // reads the already-placed cloud as a whole.
+            // ── Coalesce render mode — how the placed cloud turns into pixels. Off = draw + Over-composite each
+            // particle (every form). Fuse = MetaBlob: read the WHOLE cloud as one metaball field and composite a
+            // single gradient-shaded merged blob (overlapping particles melt with necks). Ramp = HeightBalls: fuse
+            // the cloud into density/height fields, relief-light the height slope and shade one smoke→fire cloud. A
+            // wrapped MiniRadio (Off / Fuse / Ramp), rebuilt on change so the Fuse/Ramp box appears/disappears. Sits
+            // at the end since, like the Swarm spin/scale above, it reads the already-placed cloud as a whole.
             string coalesceTip = "How the placed swarm turns into pixels. Off = each particle is drawn and "
                 + "Over-composited (every form). Fuse = MetaBlob: the whole cloud is read as ONE metaball field and "
                 + "composited as a single smooth, gradient-shaded blob — overlapping particles MELT together (necks "
-                + "between them) instead of staying separate discs. Best with the Disc form and an overlapping swarm.";
-            int coalesceSel = s.coalesce == LayerCoalesce.Fuse ? 1 : 0;
+                + "between them). Ramp = HeightBalls: the cloud fuses into density/height fields, relief-lit from the "
+                + "height slope and shaded as one carved smoke→fire mass. Both are best with an overlapping swarm.";
+            int coalesceSel = (int)s.coalesce;
             swarmBody.Add(Z.Field("Coalesce", coalesceTip,
                 Z.MiniRadio(coalesceSel, CoalesceChoices, coalesceTip,
-                    v => { Dirty(() => s.coalesce = v == 1 ? LayerCoalesce.Fuse : LayerCoalesce.Off); RebuildSwarm(); },
+                    v => { Dirty(() => s.coalesce = (LayerCoalesce)v); RebuildSwarm(); },
                     wrap: true)));
 
             if (s.coalesce == LayerCoalesce.Fuse)
@@ -1489,6 +1491,54 @@ namespace Laubrary.PyrePlus.Editor
                     + "0.01 ≈ crisp.",
                     v => Dirty(() => s.fuseSoftness = v), 170f, showValue: true));
                 swarmBody.Add(fuse);
+            }
+            else if (s.coalesce == LayerCoalesce.Ramp)
+            {
+                // Defensive: a hand-built layer might predate these fields. Fresh/duplicated layers always have them
+                // (field initialisers + Clone deep-copy), so this only guards the rare null path.
+                s.density ??= new ZUIValue(0.4f);
+                s.heat ??= new ZUIValue(0.6f);
+                var ramp = Z.BoxKeyed("Ramp",
+                    "HeightBalls field-pass: the placed particles become DOMES fused (by a soft max) into shared "
+                    + "density + height fields, relief-lit from the height slope and shaded (by the Shape's Fill) as "
+                    + "ONE carved smoke→fire cloud. Density/Heat are the per-particle weights; the knobs shape how the "
+                    + "domes fuse, the opacity, the relief lighting and the boiling rim.",
+                    "pyreplus.ramp");
+                ramp.Add(Val("Density",
+                    "Each particle's MASS/body over its own life — gives the cloud the volume that catches the relief "
+                    + "light and nudges it up the ramp even with no heat. The density field's per-particle weight.",
+                    s.density, 0f, 1f));
+                ramp.Add(Val("Heat",
+                    "Each particle's HEIGHT/energy over its own life — how far up the smoke→fire ramp it sits (low = "
+                    + "cold smoke, high = fire) and how tall it stands in the relief light.",
+                    s.heat, 0f, 1f));
+                ramp.Add(Z.MicroSlider("Fusion", s.rampFusion, 0f, 1f,
+                    "How eagerly neighbouring domes MELT into one mass. 0 = a hard max (distinct orbs); higher = a "
+                    + "smoother, heavier merged cloud.",
+                    v => Dirty(() => s.rampFusion = v), 170f, showValue: true));
+                ramp.Add(Z.MicroSlider("Coverage", s.rampCoverage, 0.1f, 24f,
+                    "Opacity gain — how much combined density+heat becomes alpha. Higher = a more solid, opaque cloud.",
+                    v => Dirty(() => s.rampCoverage = v), 170f, showValue: true));
+                ramp.Add(Z.Toggle("Relief lighting",
+                    "Light the cloud's relief from the height field's local slope — carved highlights and shadow. "
+                    + "Off = a flat gradient cloud.",
+                    s.rampLighting, v => { Dirty(() => s.rampLighting = v); RebuildSwarm(); }));
+                if (s.rampLighting)
+                {
+                    ramp.Add(Z.MicroSlider("Relief", s.rampRelief, 0.01f, 8f,
+                        "How steeply the height slope bends the surface normal. Higher = a more sharply carved, "
+                        + "bumpier lit surface.",
+                        v => Dirty(() => s.rampRelief = v), 170f, showValue: true));
+                    ramp.Add(Z.MicroSlider("Light angle", s.rampLightAngle, 0f, 360f,
+                        "The relief light's angle in degrees (screen plane) — which way the highlights fall across "
+                        + "the cloud.",
+                        v => Dirty(() => s.rampLightAngle = v), 170f, showValue: true));
+                }
+                ramp.Add(Z.MicroSlider("Rim boil", s.rampRimScale, 0f, 1f,
+                    "Surface-noise rim — deforms the shared cloud rim so neighbouring domes bulge/pinch together and "
+                    + "read as ONE boiling mass instead of fused flat discs. 0 = a smooth rim.",
+                    v => Dirty(() => s.rampRimScale = v), 170f, showValue: true));
+                swarmBody.Add(ramp);
             }
         }
 
