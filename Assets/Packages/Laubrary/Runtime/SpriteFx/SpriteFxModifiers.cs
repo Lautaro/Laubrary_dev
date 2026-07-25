@@ -570,6 +570,17 @@ namespace Laubrary.SpriteFx
     {
         /// Recolour / fade the pixel; return false to drop it entirely.
         public abstract bool ApplyPixel(ref Color col, ref float alpha, in PixelInfo info);
+
+        // ── Burst bridge (slice #46) ─────────────────────────────────────────────────────────────────────────
+        // A shaped modifier (Tint/Contrast/Brightness/Saturation/Posterize/OrderedDither/LayerDissolve/AlphaMask)
+        // overrides ResolveSfxOp to pack its already-Prepared floats into a blittable SfxOp, so the SAME per-pixel
+        // math runs in the Burst SfxStackJob without managed virtual dispatch. SpriteFxStack.Resolve calls this
+        // ONLY on shaped, enabled modifiers (see SpriteFxStack.IsShaped) — the default here is inert. A modifier
+        // whose op needs a per-pixel gradient LUT returns lutIndex == -2 (a request sentinel) and its gradient via
+        // SfxGradient; Resolve then assigns the real slice index and bakes it. The managed ApplyPixel path is
+        // untouched by all this (it still calls the identical kernels directly), so bakes stay byte-identical.
+        public virtual SfxOp ResolveSfxOp() => default;
+        public virtual Gradient SfxGradient() => null;
     }
 
     [Serializable]
@@ -587,16 +598,23 @@ namespace Laubrary.SpriteFx
         public override string DisplayName => "Tint";
         public override void Prepare(Func<ZUIValue, int, float> e) => amt = Mathf.Clamp01(e(crossAmount, 0));
 
+        TintP P() => new TintP { tr = tint.r, tg = tint.g, tb = tint.b, amt = amt,
+                                 hasCross = (amt > 0.001f && crossGradient != null) ? 1 : 0 };
+
         public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
         {
-            c = new Color(c.r * tint.r, c.g * tint.g, c.b * tint.b, c.a);
-            if (amt > 0.001f && crossGradient != null)
-            {
-                Color g = crossGradient.Evaluate(Mathf.Clamp01(p.crossFrac));
-                c = new Color(c.r * Mathf.Lerp(1f, g.r, amt), c.g * Mathf.Lerp(1f, g.g, amt), c.b * Mathf.Lerp(1f, g.b, amt), c.a);
-            }
-            return true;
+            var pp = P();
+            Color grad = default;
+            if (pp.hasCross != 0) grad = crossGradient.Evaluate(Mathf.Clamp01(p.crossFrac));
+            return SfxKernels.KTint(pp, grad, ref c, ref a);
         }
+
+        public override SfxOp ResolveSfxOp()
+        {
+            var pp = P();
+            return new SfxOp { kind = SfxKernel.Tint, tint = pp, lutIndex = pp.hasCross != 0 ? -2 : -1 };
+        }
+        public override Gradient SfxGradient() => crossGradient;
     }
 
     /// Contrast (1 = unchanged). Its own opt-in modifier.
@@ -610,11 +628,8 @@ namespace Laubrary.SpriteFx
         public override string DisplayName => "Contrast";
         public override void Prepare(Func<ZUIValue, int, float> e) => v = e(amount, 0);
         public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
-        {
-            c = new Color(Mathf.Clamp01((c.r - 0.5f) * v + 0.5f), Mathf.Clamp01((c.g - 0.5f) * v + 0.5f),
-                          Mathf.Clamp01((c.b - 0.5f) * v + 0.5f), c.a);
-            return true;
-        }
+            => SfxKernels.KContrast(new ScalarP { v = v }, ref c, ref a);
+        public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.Contrast, scalar = new ScalarP { v = v }, lutIndex = -1 };
     }
 
     /// Brightness (1 = unchanged). Its own opt-in modifier.
@@ -628,10 +643,8 @@ namespace Laubrary.SpriteFx
         public override string DisplayName => "Brightness";
         public override void Prepare(Func<ZUIValue, int, float> e) => v = e(amount, 0);
         public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
-        {
-            c = new Color(Mathf.Clamp01(c.r * v), Mathf.Clamp01(c.g * v), Mathf.Clamp01(c.b * v), c.a);
-            return true;
-        }
+            => SfxKernels.KBrightness(new ScalarP { v = v }, ref c, ref a);
+        public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.Brightness, scalar = new ScalarP { v = v }, lutIndex = -1 };
     }
 
     /// Saturation (1 = unchanged, 0 = greyscale). Its own opt-in modifier.
@@ -645,12 +658,8 @@ namespace Laubrary.SpriteFx
         public override string DisplayName => "Saturation";
         public override void Prepare(Func<ZUIValue, int, float> e) => v = e(amount, 0);
         public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
-        {
-            float lum = c.r * 0.299f + c.g * 0.587f + c.b * 0.114f;
-            c = new Color(Mathf.Clamp01(Mathf.Lerp(lum, c.r, v)), Mathf.Clamp01(Mathf.Lerp(lum, c.g, v)),
-                          Mathf.Clamp01(Mathf.Lerp(lum, c.b, v)), c.a);
-            return true;
-        }
+            => SfxKernels.KSaturation(new ScalarP { v = v }, ref c, ref a);
+        public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.Saturation, scalar = new ScalarP { v = v }, lutIndex = -1 };
     }
 
     /// Radial ray / starburst SILHOUETTE modulation — N alternating spokes that genuinely reach further out than
@@ -755,15 +764,10 @@ namespace Laubrary.SpriteFx
         public bool affectAlpha = false;
 
         public override string DisplayName => "Posterize";
+        PosterizeP P() => new PosterizeP { levels = levels, affectAlpha = affectAlpha ? 1 : 0 };
         public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
-        {
-            int n = Mathf.Max(2, levels);
-            float step = 1f / (n - 1);
-            c = new Color(Quantize(c.r, step), Quantize(c.g, step), Quantize(c.b, step), c.a);
-            if (affectAlpha) a = Quantize(a, step);
-            return true;
-        }
-        static float Quantize(float v, float step) => Mathf.Clamp01(Mathf.Round(Mathf.Clamp01(v) / step) * step);
+            => SfxKernels.KPosterize(P(), ref c, ref a);
+        public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.Posterize, poster = P(), lutIndex = -1 };
     }
 
     /// Converts smooth alpha (from Outer softness, a Bloom halo, a churned Turbulence edge, …) into a hard stipple
@@ -779,26 +783,15 @@ namespace Laubrary.SpriteFx
                  "(a classic retro stipple edge). Animatable — rise it as a shape settles into its final silhouette.")]
         public ZUIValue strength = new ZUIValue(1f);
 
-        static readonly float[] Bayer4x4 =
-        {
-            0f, 8f, 2f, 10f,
-            12f, 4f, 14f, 6f,
-            3f, 11f, 1f, 9f,
-            15f, 7f, 13f, 5f,
-        };
-
         float amt;
         public override string DisplayName => "Ordered dither";
         public override void Prepare(Func<ZUIValue, int, float> e) => amt = Mathf.Clamp01(e(strength, 0));
 
+        // The exact 4x4 Bayer ordered matrix lives in SfxKernels.Bayer4x4 (a Burst-legal switch) so the managed
+        // and Burst paths share one source; ApplyPixel below routes through the same kernel.
         public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
-        {
-            if (amt <= 0.001f) return true;
-            float threshold = (Bayer4x4[(p.y & 3) * 4 + (p.x & 3)] + 0.5f) / 16f;
-            float hard = a >= threshold ? 1f : 0f;
-            a = Mathf.Lerp(a, hard, amt);
-            return a > 0.003f;
-        }
+            => SfxKernels.KOrderedDither(new DitherP { amt = amt }, ref c, ref a, p);
+        public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.OrderedDither, dither = new DitherP { amt = amt }, lutIndex = -1 };
     }
 
     /// How VoronoiCrackModifier's crack tint reveals spatially as Spread progress rises — a fracture "actively
@@ -1132,21 +1125,10 @@ namespace Laubrary.SpriteFx
             smooth = Mathf.Clamp01(e(smoothness, 1));
         }
 
+        DissolveP P() => new DissolveP { amt = amt, smooth = smooth, mode = (int)mode };
         public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
-        {
-            if (amt <= 0.001f) return true;
-            int gx = Mathf.FloorToInt(p.wx), gy = Mathf.FloorToInt(p.wy);
-            float h = mode == DissolveMode.Scatter
-                ? Sfx.Hash01(unchecked(p.hash ^ (p.frame * 92821)), gx, gy)
-                : Sfx.Hash01(p.hash, gx, gy);
-            if (h >= amt) return true;
-            if (smooth <= 0.0001f) return false;
-            float fadeSpan = Mathf.Lerp(0.02f, 0.6f, smooth);
-            float pastCut = amt - h;
-            float keep = Mathf.Clamp01(1f - pastCut / fadeSpan);
-            a *= keep;
-            return a > 0.003f;
-        }
+            => SfxKernels.KLayerDissolve(P(), ref c, ref a, p);
+        public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.LayerDissolve, dissolve = P(), lutIndex = -1 };
     }
 
     /// A moving transparency mask: sweeps a soft-edged shape across the layer, multiplying alpha. A disc that
@@ -1192,49 +1174,14 @@ namespace Laubrary.SpriteFx
             driftY = e(noiseDriftY, 4);
         }
 
-        public override bool ApplyPixel(ref Color col, ref float a, in PixelInfo p)
+        MaskP P() => new MaskP
         {
-            float halfW = p.W * 0.5f, halfH = p.H * 0.5f;
-            float unit = Mathf.Max(1f, Mathf.Min(halfW, halfH));
-            float nx = ((p.x + 0.5f) - halfW) / unit - offsetX;
-            float ny = ((p.y + 0.5f) - halfH) / unit - offsetY;
-            if (rotRad != 0f)
-            {
-                float c = Mathf.Cos(-rotRad), s = Mathf.Sin(-rotRad);
-                float rx = nx * c - ny * s; ny = nx * s + ny * c; nx = rx;
-            }
-
-            if (shape == MaskShape.Wedge)
-            {
-                // Remove an angular slice of `prog`·360° (symmetric about +x; rotation aims the mouth). prog 0.25 =
-                // a pac-man, 0.5 = a half. Sharpness feathers the two cut edges.
-                float d = Mathf.Abs(Mathf.Atan2(ny, nx));            // 0 (+x) … π (−x)
-                float half = Mathf.Clamp01(prog) * Mathf.PI;        // half-angle of the removed wedge
-                float edge = Mathf.Max(0.0001f, (1f - sharpness) * 0.4f);
-                a *= Mathf.Clamp01((d - half) / edge);              // inside the wedge → 0 (removed)
-                return a > 0.003f;
-            }
-
-            float field;
-            switch (shape)
-            {
-                case MaskShape.SwipeH: field = (nx / siz) * 0.5f + 0.5f; break;   // 0..1 left→right
-                case MaskShape.SwipeV: field = (ny / siz) * 0.5f + 0.5f; break;   // 0..1 bottom→top
-                case MaskShape.Noise:                                            // an irregular field instead of a clean edge
-                    field = PyreNoise.Sample((nx + driftX) / siz, (ny + driftY) / siz, p.hash, noiseWarp);
-                    break;
-                default: field = Mathf.Sqrt(nx * nx + ny * ny) / siz; break;      // radial 0 = centre
-            }
-
-            float w = Mathf.Max(0.001f, (1f - sharpness) * 0.5f);
-            float threshold = shape == MaskShape.DiscIn ? (1f - prog) : prog;     // visible where field < threshold
-            // GLSL-style smoothstep(edge0, edge1, field) — Unity's Mathf.SmoothStep interpolates BETWEEN its args,
-            // which is a different thing. 0 inside the threshold → fully visible; 1 outside → masked.
-            float ss = Mathf.Clamp01((field - (threshold - w)) / (2f * w));
-            ss = ss * ss * (3f - 2f * ss);
-            a *= 1f - ss;
-            return a > 0.003f;
-        }
+            shape = (int)shape, prog = prog, siz = siz, rotRad = rotRad, driftX = driftX, driftY = driftY,
+            sharpness = sharpness, offsetX = offsetX, offsetY = offsetY, noiseWarp = noiseWarp
+        };
+        public override bool ApplyPixel(ref Color col, ref float a, in PixelInfo p)
+            => SfxKernels.KAlphaMask(P(), ref col, ref a, p);
+        public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.AlphaMask, mask = P(), lutIndex = -1 };
 
         static ZUIValue DefaultProgress() => Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);   // reveal over life
     }

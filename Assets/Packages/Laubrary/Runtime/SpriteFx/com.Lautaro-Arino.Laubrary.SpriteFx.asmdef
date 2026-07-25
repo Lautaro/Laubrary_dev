@@ -2,7 +2,10 @@
     "name": "com.Lautaro-Arino.Laubrary.SpriteFx",
     "rootNamespace": "Laubrary.SpriteFx",
     "references": [
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Mathematics"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
