@@ -17,9 +17,13 @@ namespace Laubrary.PyrePlus
     // How the swarm places its particles: uniformly inside the shape's area, or travelling along its outline.
     public enum SwarmSpawnMode { Area, Path }
 
-    // The swarm shape: a regular polygon by side count (Circle = ∞ sides), or a hand-authored polyline.
-    // Custom is Path-only (enforced in the UI later); the renderer treats Area+Custom as a Circle fallback.
-    public enum SwarmShapeKind { Circle, Triangle, Square, Pentagon, Hexagon, Custom }
+    // The swarm shape: a regular polygon by side count (Circle = ∞ sides), a hand-authored polyline, or a straight
+    // Line. Custom is Path-only (enforced in the UI later); the renderer treats Area+Custom as a Circle fallback.
+    // Line (slice 3 — Bars) places the particles evenly along a straight horizontal segment through the shape centre
+    // (endpoints at ±radius), independent of Area/Path (a Line is 1-D); the shared shape transform then rotates the
+    // whole row, so shapeRotation IS the row angle. A row of Streak particles on a Line = Pyre's Bars row.
+    // APPEND ONLY — serialized as an int, so never reorder or insert (Line was appended after Custom).
+    public enum SwarmShapeKind { Circle, Triangle, Square, Pentagon, Hexagon, Custom, Line }
 
     // How the swarm ORIENTS each particle as it's placed — the per-particle facing the renderer folds into the
     // form's own rotation (Streak forward, Disc/Sprite spin, Text/solid roll). None = no turning (every particle
@@ -320,6 +324,16 @@ namespace Laubrary.PyrePlus
         // particle — the particle is a stable anchor point. 0 = tail (grows forward), 1 = tip (grows backward).
         [Range(0f, 1f)] public float streakAnchor = 0.5f;
         [Range(0f, 1f)] public float streakSoftTip = 0.5f;      // alpha feather over softTip·(each end's length) at BOTH ends (sides reuse edgeSoftness)
+        // Bars taper (slice 3): when ON (and the form is Streak), the per-index size multiplier swarmScaleByIndex
+        // scales the streak's LENGTH only, NOT its width — equal-width bars of graduated length, the barTaper flame
+        // silhouette from Pyre's Bars. OFF (the default) = swarmScaleByIndex scales BOTH length and width (the plain
+        // sizeMul path), so an existing Streak swarm renders byte-identical. Value type ⇒ MemberwiseClone in Clone()
+        // copies it for free (like streakAnchor). Only read for the Streak form; inert for every other form.
+        // This is the barTaper half of Pyre's Bars mapping. NOTE — the OTHER Bars decay mode, BarDecay.Dissolve (a
+        // per-index alpha front advancing across the row over the LAYER's life), is deliberately NOT ported: a
+        // particle's own-life alpha can't express cross-index coordination. It's deferred to a future
+        // swarmAlphaByIndex-over-life ("dissolve front"); see PYREPLUS_ADVANCED_DESIGN.md "Capability 4".
+        public bool streakScaleLengthOnly = false;
 
         // ── Star form (shapeForm == Star) — a filled star polygon ────────────────────────────────────────────
         // N points. Tips at radius R (= evaluated `size` × sizeMul); inner (valley) vertices at radius

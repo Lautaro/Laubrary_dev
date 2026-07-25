@@ -497,12 +497,22 @@ namespace Laubrary.PyrePlus
                 // renders byte-identical to the pre-T3 output.
                 float sizeMul = Mathf.Clamp(1f + 0.35f * sp.zNorm, 0.5f, 1.6f);
                 float brightMul = Mathf.Clamp(1f + 0.30f * sp.zNorm, 0.55f, 1.45f);
+                // Length-only index taper (slice 3 — Bars barTaper): a separate LENGTH multiplier for the Streak form.
+                // Default 1 (an exact no-op passed to DrawStreakBody, where len·1 is bit-exact). When the layer opts
+                // into streakScaleLengthOnly AND the form is Streak, the per-index multiplier drives length ONLY (it
+                // goes here, NOT into sizeMul), so width stays on the plain sizeMul — equal-width bars of graduated
+                // length. Otherwise it folds into sizeMul exactly as before (both length and width), byte-identical.
+                float lenByIndex = 1f;
                 if (scaleIdx)
                 {
                     // Curve INPUT is the index fraction i/(n-1) (like spawn timing), NOT life — a per-particle
                     // shape, evaluated once. n>=1; a single-particle swarm (Text) uses input 0.
                     float t = spawns.Count > 1 ? i / (float)(spawns.Count - 1) : 0f;
-                    sizeMul *= Mathf.Max(0f, Eval(layer.swarmScaleByIndex, t, spec.seed, i, FldScaleByIndex));
+                    float idxScale = Mathf.Max(0f, Eval(layer.swarmScaleByIndex, t, spec.seed, i, FldScaleByIndex));
+                    if (layer.streakScaleLengthOnly && layer.shapeForm == ShapeForm.Streak)
+                        lenByIndex *= idxScale;   // LENGTH only — width unaffected (the barTaper silhouette)
+                    else
+                        sizeMul *= idxScale;      // BOTH length and width (the pre-slice-3 path, byte-identical)
                 }
                 // Rotate the whole cloud live (Issue 2B) — around the shape centre, at the frame's life. Normalize
                 // depth against THIS particle's radial distance so the sweep is uniform across the cloud (a particle
@@ -553,7 +563,7 @@ namespace Laubrary.PyrePlus
                     continue;   // no per-particle draw — the whole set is fused after the loop
                 }
                 DrawParticle(buf, W, H, dp.x, dp.y, own, spec, layer, i, mods, phase, frameIndex,
-                             sizeMul, brightMul, sp.orientDeg);
+                             sizeMul, brightMul, sp.orientDeg, lenByIndex);
             }
             // Fuse (MetaBlob) field-pass: sum → threshold → gradient-shade the whole collected set into `buf`, on the
             // layer's isolated scratch, BEFORE ApplyLayerPost (so Post modifiers still shape the fused result). Off
@@ -1170,6 +1180,23 @@ namespace Laubrary.PyrePlus
         {
             var kind = layer.swarmShapeKind;
 
+            // Line (slice 3 — Bars row): particle i sits at fraction f = i/(n-1) along a straight HORIZONTAL segment
+            // through the shape centre, endpoints at ±r (so it spans the same extent a Circle of radius r would).
+            // Independent of Area/Path — a Line is 1-D, so it ignores swarmSpawnMode/progress entirely. The default
+            // local axis is +x (horizontal), perpendicular to the Streak's default up/+y forward, so a row of Streaks
+            // on a Line reads as Pyre's row of upright bars; the shared shape transform (shapeRotation/pitch/yaw) then
+            // rotates the whole row, making shapeRotation the row angle. `n` mirrors ComputeSpawns' count (Text →
+            // string length, else Max(2, swarmCount)); n≤1 pins to the centre. Byte-identity: a brand-new enum value
+            // no existing spec can hold, so this branch never fires for old data.
+            if (kind == SwarmShapeKind.Line)
+            {
+                int nl = layer.shapeForm == ShapeForm.Text
+                    ? Mathf.Max(1, (layer.textString ?? "").Length)
+                    : Mathf.Max(2, layer.swarmCount);
+                float f = nl > 1 ? i / (float)(nl - 1) : 0f;   // 0 at the first particle … 1 at the last
+                return new Vector2(cx + (f * 2f - 1f) * r, cy);   // −r … +r along +x, through the centre
+            }
+
             if (layer.swarmSpawnMode == SwarmSpawnMode.Area)
             {
                 // Custom is Path-only (the UI enforces it), so Area+Custom falls back to a disc — as does Circle.
@@ -1341,9 +1368,12 @@ namespace Laubrary.PyrePlus
         // orientDeg (S1) is the swarm's per-particle facing (0 for the swarm-off / orient-None paths → every
         // rotation fold below is guarded to a no-op, keeping those paths byte-identical). It ADDS to whichever
         // rotation each form already has: Streak forward, Disc/Crescent/Sparkle/Sprite spin, Text/solid roll.
+        // lenByIndex (slice 3) is the STREAK-only length-only index multiplier (see RenderSwarm). It defaults to 1 —
+        // the swarm-off single-particle call and every non-Streak form leave it untouched, and DrawStreakBody's
+        // len·1 is bit-exact — so all those paths stay byte-identical.
         static void DrawParticle(Color32[] buf, int W, int H, float cx, float cy, float life,
                                  PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex, in ModSet mods, float phase, int frameIndex,
-                                 float sizeMul = 1f, float brightMul = 1f, float orientDeg = 0f)
+                                 float sizeMul = 1f, float brightMul = 1f, float orientDeg = 0f, float lenByIndex = 1f)
         {
             // Text form: this particle renders ITS OWN character (index = particleIndex) as an extruded SDF glyph
             // at (cx, cy). This is the SWARM path (each swarm particle draws one letter at its swarm position); the
@@ -1405,7 +1435,7 @@ namespace Laubrary.PyrePlus
             if (layer.shapeForm == ShapeForm.Streak)
             {
                 DrawStreakBody(buf, W, H, cx, cy, life, spec, layer, particleIndex, mods, phase, frameIndex,
-                               sizeMul, brightMul, orientDeg);
+                               sizeMul, brightMul, orientDeg, lenByIndex);
                 return;
             }
 
@@ -2057,11 +2087,14 @@ namespace Laubrary.PyrePlus
         //   None), forward math-angle = orientDeg (the target direction) + own spin; otherwise 90° + spin (up).
         //   orientDeg alone can't tell "no orient" from "Outward pointing +x" (both 0°), so the explicit `oriented`
         //   flag guards the up-default — unlike every other form, whose default rotation is genuinely 0.
+        // lenByIndex (slice 3, default 1) multiplies the LENGTH only — the Bars barTaper path where an index taper
+        // graduates length while width stays uniform. len·1 is bit-exact, so the default keeps the streak byte-
+        // identical; width always rides the plain sizeMul, never lenByIndex.
         static void DrawStreakBody(Color32[] buf, int W, int H, float cx, float cy, float own,
                                    PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex, in ModSet mods, float phase,
-                                   int frameIndex, float sizeMul, float brightMul, float orientDeg)
+                                   int frameIndex, float sizeMul, float brightMul, float orientDeg, float lenByIndex = 1f)
         {
-            float len = Mathf.Max(0f, Eval(layer.streakLength, own, spec.seed, particleIndex, FldStreakLen)) * sizeMul;
+            float len = Mathf.Max(0f, Eval(layer.streakLength, own, spec.seed, particleIndex, FldStreakLen)) * sizeMul * lenByIndex;
             if (len < 1f) return;
             float w = Mathf.Max(0f, Eval(layer.streakWidth, own, spec.seed, particleIndex, FldStreakWidth)) * sizeMul;
             if (w < 0.5f) return;

@@ -1075,6 +1075,15 @@ namespace Laubrary.PyrePlus.Editor
             shapeBody.Add(EdgeRow(s,
                 "Soft sides (1) vs hard pixel edges (0) — feathers the streak's two long SIDES (both ends are "
                 + "feathered by the Tip control above)."));
+
+            // Bars taper (slice 3): make the Swarm's per-index Scale drive LENGTH only, leaving width uniform — a row
+            // of equal-width bars of graduated length, Pyre's barTaper flame silhouette. Only meaningful with a Swarm
+            // whose Scale-by-index is a Curve/MinMax (Advanced Swarm); a no-op at the default (Scale-by-index = 1).
+            shapeBody.Add(Z.Toggle("Taper length only",
+                "With a Swarm, make the per-index Scale change the streak's LENGTH only, not its width — equal-width "
+                + "bars of graduated length (a flame/asterisk silhouette). Off = the index Scale changes both length "
+                + "and width together. Set the Swarm's Scale-by-index (Advanced) to a Curve or Min/Max to see it.",
+                s.streakScaleLengthOnly, v => Dirty(() => s.streakScaleLengthOnly = v)));
         }
 
         // Star form rows — a filled star polygon. Arms (point count) packed with Skew (the arm swirl); then Length
@@ -1293,10 +1302,17 @@ namespace Laubrary.PyrePlus.Editor
 
             // Placement geometry: mode (Area vs Path) + the shape kind, packed together.
             string modeTip = "Area = particles fill the shape's interior; Path = particles ride along its outline.";
+            // Labels + the matching enum values, kept in lockstep so the MiniRadio index maps by POSITION (not by a
+            // direct (SwarmShapeKind)index cast) — necessary because Custom is Path-only, so a raw cast would put Line
+            // at the wrong ordinal in Area mode. Line is always offered (a 1-D row, valid in both Area and Path).
             var kindChoices = new List<string> { "Circle", "Triangle", "Square", "Pentagon", "Hexagon" };
-            if (s.swarmSpawnMode == SwarmSpawnMode.Path) kindChoices.Add("Custom");   // Custom is Path-only
+            var kindValues = new List<SwarmShapeKind>
+                { SwarmShapeKind.Circle, SwarmShapeKind.Triangle, SwarmShapeKind.Square, SwarmShapeKind.Pentagon, SwarmShapeKind.Hexagon };
+            if (s.swarmSpawnMode == SwarmSpawnMode.Path) { kindChoices.Add("Custom"); kindValues.Add(SwarmShapeKind.Custom); }   // Custom is Path-only
+            kindChoices.Add("Line"); kindValues.Add(SwarmShapeKind.Line);   // Line: a straight row (Bars); both modes
             string kindTip = "The swarm's outline — a regular polygon by side count (Circle = ∞ sides)"
-                + (s.swarmSpawnMode == SwarmSpawnMode.Path ? ", or a hand-drawn Custom path." : ".");
+                + (s.swarmSpawnMode == SwarmSpawnMode.Path ? ", a hand-drawn Custom path" : "")
+                + ", or a straight Line (a row through the centre — a Streak row = Pyre's Bars).";
 
             swarmBody.Add(Z.Field("Mode", modeTip,
                 Z.Segmented((int)s.swarmSpawnMode, SwarmModeLabels, modeTip, v =>
@@ -1312,9 +1328,10 @@ namespace Laubrary.PyrePlus.Editor
                 })));
             // Shape kind is a wrapped MiniRadio (was a Dropdown/context-menu) — 5–6 short labels read as radio
             // buttons folding onto a second line in a narrow column; on its own row since it's a multi-item control.
+            int kindSel = Mathf.Max(0, kindValues.IndexOf(s.swarmShapeKind));
             swarmBody.Add(Z.Field("Shape", kindTip,
-                Z.MiniRadio((int)s.swarmShapeKind, kindChoices.ToArray(), kindTip,
-                    v => { Dirty(() => s.swarmShapeKind = (SwarmShapeKind)v); RebuildSwarm(); }, wrap: true)));
+                Z.MiniRadio(kindSel, kindChoices.ToArray(), kindTip,
+                    v => { Dirty(() => s.swarmShapeKind = kindValues[Mathf.Clamp(v, 0, kindValues.Count - 1)]); RebuildSwarm(); }, wrap: true)));
 
             // Per-particle FACING as each is placed (S1). Rebuild on change so the composed tooltip re-reads the
             // current mode (Tangent means something different in Area vs Path).
