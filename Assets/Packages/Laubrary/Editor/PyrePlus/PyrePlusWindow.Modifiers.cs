@@ -60,6 +60,100 @@ namespace Laubrary.PyrePlus.Editor
             modifiersBody.Add(WrapRow(
                 Z.Button("+ Add modifier", "Add a geometry, pixel or post modifier to the stack.",
                     () => ShowAddModifierMenu(list))));
+
+            // Simulation slot (slice 7): the layer's OWN stateful "always last" SimulationModifier — a SINGLE
+            // polymorphic slot separate from the modifier list above (it retains frame-to-frame state and replays on
+            // scrub, so it runs LAST within the layer, after every stateless modifier). Reuses the same reflection
+            // drawer + Undo/dirty wiring as a modifier block. Rebuilt inside RebuildModifiers so it re-points on layer
+            // selection with no extra wiring.
+            modifiersBody.Add(BuildSimSlot(s));
+        }
+
+        // The layer's single stateful simulation slot. Null ⇒ an "+ Add simulation" affordance; otherwise an
+        // enable/clear header plus the modifier's own reflected fields (drawn exactly like a modifier block).
+        VisualElement BuildSimSlot(PyrePlusLayer s)
+        {
+            var box = Z.Box("Simulation (always last)",
+                "A stateful simulation that runs LAST on this layer — after its modifiers, before any matte. It " +
+                "keeps state frame-to-frame and replays deterministically on scrub. One per layer.");
+            var sim = s.simulationModifier;
+            if (sim == null)
+            {
+                box.Add(WrapRow(Z.Button("+ Add simulation",
+                    "Attach a stateful simulation modifier (e.g. Pixel fluid) that advects and erodes this layer's " +
+                    "own pixels over the frames.",
+                    () => ShowAddSimMenu(s))));
+                return box;
+            }
+
+            var header = new VisualElement();
+            header.AddToClassList("zui-row");
+            header.Add(Z.Toggle("", "Enable or disable this simulation (disabled = the layer renders without it).",
+                sim.enabled, v =>
+            {
+                Dirty(() => sim.enabled = v);
+                RebuildModifiers();   // rebuild so the body appears / disappears
+            }));
+            header.Add(Z.Text(sim.DisplayName, ZuiText.Body, sim.DisplayName + " simulation."));
+            header.Add(Z.Flexible());
+            header.Add(Z.Button("X", "Remove this simulation from the layer (undoable).", () =>
+            {
+                Dirty(() => s.simulationModifier = null);
+                RebuildModifiers();
+            }).W(22f));
+            box.Add(header);
+
+            // Body: every editable field of the sim modifier, drawn generically by the shared reflection drawer —
+            // the SAME Undo/dirty/rebuild contract a modifier block uses (its ZUIValue params surface as their static
+            // value, the accepted prototype limitation). Only when enabled.
+            if (sim.enabled)
+                ZuiReflect.BuildFields(box, sim, ModifierDrawerOptions(sim));
+
+            return box;
+        }
+
+        void ShowAddSimMenu(PyrePlusLayer s)
+        {
+            var menu = new GenericMenu();
+            foreach (var e in AddableSims())
+            {
+                var type = e.type;
+                menu.AddItem(new GUIContent(e.label), false, () =>
+                {
+                    Dirty(() => s.simulationModifier = (SimulationModifier)Activator.CreateInstance(type));
+                    RebuildModifiers();
+                });
+            }
+            menu.ShowAsContext();
+        }
+
+        // Every concrete SimulationModifier PyrePlus can drive (a parameterless-constructible SimulationModifier
+        // subclass — today only PixelFluidModifier), discovered by reflection so the slot tracks Pyre's set with zero
+        // hand-maintained catalog. Cached — the scan runs once per domain (mirrors AddableModifiers).
+        static List<AddEntry> _addableSims;
+        static IEnumerable<AddEntry> AddableSims()
+        {
+            if (_addableSims != null) return _addableSims;
+            var found = new List<AddEntry>();
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                Type[] types;
+                try { types = asm.GetTypes(); }
+                catch { continue; }   // skip dynamic / partially-loaded assemblies
+                foreach (var t in types)
+                {
+                    if (t.IsAbstract || !typeof(SimulationModifier).IsAssignableFrom(t)) continue;
+                    if (t.GetConstructor(Type.EmptyTypes) == null) continue;
+                    string label;
+                    try { label = ((PyreModifier)Activator.CreateInstance(t)).DisplayName; }
+                    catch { label = null; }
+                    if (string.IsNullOrEmpty(label)) label = ObjectNames.NicifyVariableName(t.Name);
+                    found.Add(new AddEntry { type = t, group = "Simulation", label = label });
+                }
+            }
+            found.Sort((a, b) => string.CompareOrdinal(a.label, b.label));
+            _addableSims = found;
+            return _addableSims;
         }
 
         VisualElement BuildModifierBlock(VisualElement listHost, List<PyreModifier> list, int index)

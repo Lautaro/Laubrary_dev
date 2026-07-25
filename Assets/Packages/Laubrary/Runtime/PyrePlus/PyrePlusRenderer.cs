@@ -128,6 +128,14 @@ namespace Laubrary.PyrePlus
         const int F_FireballSource = 120, F_FireballRadius = 121, F_FireballCool = 122;
         const int F_FireballSpread = 123, F_FireballReach = 124, F_FireballSharp = 125;
 
+        // ── SimulationModifier slot field-id base (layer.simulationModifier, slice 7) ────────────────────────────
+        // The per-layer stateful sim modifier drives its OWN animatable ZUIValues through the shared Eval funnel, so it
+        // needs a field-id base clear of everything else. FAR above the layer's stateless modifier blocks (FldModifier
+        // + idx*8) and the Fire/Fireball 100..125 range, mirroring BlastRenderer's own 800*8 offset for its per-layer
+        // sim (Runtime/Pyre/BlastRenderer.cs:162 — 1000 + 800*8 + fid). 16 + 800*8 = 6416, so the sim modifier's fids
+        // 6416.. never share a MinMax RNG stream with a modifier block or a fire rate.
+        const int FldSimModifier = FldModifier + 800 * 8;
+
         /// One swarm particle's spawn data: where it lands on the blast timeline and its absolute canvas-pixel
         /// position. RenderFrame consumes this; the preview overlay (T5) calls ComputeSpawns to draw a dot at
         /// each particle's ACTUAL computed spawn location.
@@ -231,6 +239,11 @@ namespace Laubrary.PyrePlus
                 // exactly as before T6 (orchestrator hash-checked for the single default layer, li == 0).
                 ModSet mods = BuildMods(layer.modifiers, spec.seed, life);
                 bool hasPost = HasEnabledPost(layer.modifiers);
+                // Simulation slot (slice 7): the layer's own STATEFUL modifier. Like Fire/Fireball it retains state and
+                // must render into isolated scratch (its Render OVERWRITES/advects pixels — see ApplyLayerSim), so it
+                // forces needScratch for the Draw path and runs in the sim slot (after the stateless posts, before the
+                // matte). Default null ⇒ false ⇒ every existing spec byte-identical.
+                bool hasLayerSim = layer.simulationModifier != null && layer.simulationModifier.enabled;
                 // Text form: bake + snapshot the SDF atlas for THIS layer's string/font. _textReady gates every Text
                 // draw; when false (no readable font) each Text particle falls back to the Disc raster instead.
                 _textReady = layer.shapeForm == ShapeForm.Text && EnsureTextGlyphs(layer);
@@ -247,6 +260,7 @@ namespace Laubrary.PyrePlus
                     var scratch = new Color32[W * H];
                     RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
                     if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, life, frameIndex);
+                    if (hasLayerSim) ApplyLayerSim(layer.simulationModifier, spec.seed, scratch, W, H, frameIndex, frames);
                     if (channels != null) WriteMatteCoverage(channels[Mathf.Clamp(layer.matteChannel, 0, 3)], scratch, layer.matteCombine, layer.matteWriteLuma);
                     continue;
                 }
@@ -261,6 +275,7 @@ namespace Laubrary.PyrePlus
                     var scratch = new Color32[W * H];
                     RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
                     if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, life, frameIndex);
+                    if (hasLayerSim) ApplyLayerSim(layer.simulationModifier, spec.seed, scratch, W, H, frameIndex, frames);
                     float strength = Mathf.Clamp01(Eval(layer.matteStrength, life, spec.seed, ModParticleIndex, FldMatteStrength));
                     matteState.mask = BuildMatteMask(scratch, layer.matteInvert, strength);
                     matteState.flags = layer.matteFlags;
@@ -299,7 +314,7 @@ namespace Laubrary.PyrePlus
                 bool isFireball = layer.shapeForm == ShapeForm.Fireball;
 
                 bool matteActive = matteState.mask != null;
-                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire || isFireball;
+                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire || isFireball || hasLayerSim;
                 if (!needScratch)
                 {
                     if (isHeightConsumer) RenderHeightConsumer(buf, W, H, layer, heightField);
@@ -312,6 +327,11 @@ namespace Laubrary.PyrePlus
                     if (isHeightConsumer) RenderHeightConsumer(scratch, W, H, layer, heightField);
                     else RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
                     if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, life, frameIndex);
+                    // Simulation slot (slice 7): run the layer's stateful sim modifier HERE — after the stateless post
+                    // modifiers, before the matte apply — on the isolated scratch, the exact sim-slot position vanilla
+                    // Pyre uses per layer (Runtime/Pyre/BlastRenderer.cs:156-166). Forced into this scratch branch by
+                    // hasLayerSim ⇒ needScratch above (retained state + overwrite semantics), mirroring Fire/Fireball.
+                    if (hasLayerSim) ApplyLayerSim(layer.simulationModifier, spec.seed, scratch, W, H, frameIndex, frames);
                     // Impose the active luma matte on this finished-but-uncomposited layer (its six channels, in the
                     // fixed order), BEFORE the clip/composite so the mask shapes this layer's own pixels. oneShot
                     // (NextLayer scope) consumes the matte after this one Draw layer; AllAbove persists until another
@@ -1012,6 +1032,49 @@ namespace Laubrary.PyrePlus
             _postSetLife?.Invoke(post, new object[] { life });
             _postSetSeed?.Invoke(post, new object[] { seed });
             _postSetFrame?.Invoke(post, new object[] { frameIndex });
+        }
+
+        // ── per-layer simulation modifier (layer.simulationModifier, slice 7) ────────────────────────────────────
+        // Pyre's SimulationModifier is a STATEFUL PyreModifier that retains frame-to-frame state and REPLAYS itself
+        // internally: SetSeed sets its blast seed; EnsureFrame(frame, seedBuf, W, H, paramsForFrame) resets+replays
+        // 0→frame on any jump (or forward-steps by exactly one otherwise), calling Prepare(paramsForFrame(f)) before
+        // every Step so each replayed frame uses ITS OWN animated params; the public Render(scratch, W, H) then paints
+        // the current state (PixelFluidModifier advects/erodes the finished layer pixels via the persisted velocity
+        // field). This is driven EXACTLY as BlastRenderer drives its own per-layer sim (Runtime/Pyre/BlastRenderer.cs:
+        // 156-166), on the layer's isolated scratch. SetSeed + EnsureFrame are INTERNAL on Pyre's SimulationModifier,
+        // and PyrePlus is a SEPARATE assembly with no InternalsVisibleTo (and may not modify Pyre), so both are reached
+        // by reflection — the same idiom as SetPostContext — resolved once and NULL-GUARDED: if either can't be found
+        // the layer degrades to "sim not driven" (Render on a never-stepped instance is an exact no-op — its velocity
+        // array is null; see PixelFluidModifier.Render). EnsureFrame is called EVERY frame (it decides forward-step vs
+        // replay itself), so a cold scrub straight to frame N reproduces the sequential render's frame N.
+        static MethodInfo _simSetSeed, _simEnsureFrame;
+        static bool _simReflectResolved;
+        static void ApplyLayerSim(SimulationModifier sim, int seed, Color32[] scratch, int W, int H, int frameIndex, int frames)
+        {
+            if (sim == null) return;
+            if (!_simReflectResolved)
+            {
+                const BindingFlags F = BindingFlags.Instance | BindingFlags.NonPublic;
+                var t = typeof(SimulationModifier);
+                _simSetSeed = t.GetMethod("SetSeed", F);
+                _simEnsureFrame = t.GetMethod("EnsureFrame", F);
+                _simReflectResolved = true;
+            }
+            if (_simSetSeed == null || _simEnsureFrame == null) return;   // reflection failed → not driven
+            _simSetSeed.Invoke(sim, new object[] { seed });
+            // paramsForFrame(f): resolve THIS modifier's ZUIValues as frame f itself would — EnsureFrame calls it once
+            // per Step, INCLUDING for the frames it replays on a cold jump, so a replayed history uses each of its own
+            // frames' params (not whatever frameIndex resolves to). fp is frame f's life; the sim modifier's own fields
+            // Eval frame-global (ModParticleIndex) through the FldSimModifier block. Mirrors BlastRenderer's
+            // layerSimParamsForFrame closure. _layerSalt is still THIS layer's index here (the closure runs
+            // synchronously inside EnsureFrame within this call), so two sim layers never share an RNG stream.
+            System.Func<int, System.Func<ZUIValue, int, float>> paramsForFrame = f =>
+            {
+                float fp = frames > 1 ? f / (float)(frames - 1) : 0f;
+                return (v, fid) => Eval(v, fp, seed, ModParticleIndex, FldSimModifier + fid);
+            };
+            _simEnsureFrame.Invoke(sim, new object[] { frameIndex, scratch, W, H, paramsForFrame });
+            sim.Render(scratch, W, H);
         }
 
         // ── swarm ──────────────────────────────────────────────────────────────────

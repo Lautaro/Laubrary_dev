@@ -586,6 +586,16 @@ namespace Laubrary.PyrePlus
         // ── Modifiers — reuses Pyre's own PyreModifier directly, zero reimplementation ──
         [SerializeReference] public List<PyreModifier> modifiers = new List<PyreModifier>();
 
+        // ── Simulation modifier (slice 7) — the layer's own STATEFUL "always last" modifier slot ──────────────────
+        // A SimulationModifier (Pyre's own type, e.g. PixelFluidModifier) IS a PyreModifier, but unlike the stateless
+        // Geometry/Pixel/Post modifiers in `modifiers` above it RETAINS frame-to-frame state and REPLAYS internally on
+        // a scrub, so it lives in its OWN dedicated slot (mirroring vanilla Pyre's separate Layer.simulationModifier
+        // field — NOT part of the modifier list) and always runs LAST within the layer: the sim slot, after the layer's
+        // stateless post modifiers and before the matte apply. PyrePlusRenderer drives its INTERNAL EnsureFrame/SetSeed
+        // by reflection (a separate assembly, no InternalsVisibleTo). Default null ⇒ inert ⇒ every existing spec renders
+        // byte-identical. See PyrePlusRenderer.ApplyLayerSim.
+        [SerializeReference] public SimulationModifier simulationModifier;
+
         // ── deep copy (R3) — for the layer list's "Duplicate" ──────────────────────
         // JsonUtility is NOT used: it silently drops the [SerializeReference] modifier stack (Unity JsonUtility has
         // no SerializeReference support), so a JsonUtility round-trip would duplicate a layer with an EMPTY modifier
@@ -679,6 +689,11 @@ namespace Laubrary.PyrePlus
             // slice-4b matte-heightmap fields (matteWriteLuma bool, heightFromChannel int, heightRelief/heightLightAngle
             // floats) are all value types, so MemberwiseClone already copied them — no explicit deep-copy needed.
             l.modifiers = modifiers == null ? new List<PyreModifier>() : modifiers.ConvertAll(m => m?.Clone());
+            // Simulation modifier (slice 7): a stateful [SerializeReference] slot — MemberwiseClone shared the ref, so
+            // deep-copy via its own Clone() (which resets the copy's live sim grids/PRNG; see PixelFluidModifier.Clone)
+            // so a duplicated layer owns its own sim instance and never corrupts the original's running state. Null stays
+            // null (the default), keeping a plain layer's clone byte-identical.
+            l.simulationModifier = simulationModifier != null ? (SimulationModifier)simulationModifier.Clone() : null;
             return l;
         }
 
