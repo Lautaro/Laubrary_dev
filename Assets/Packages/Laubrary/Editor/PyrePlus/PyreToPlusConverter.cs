@@ -17,6 +17,7 @@
 //     convert to a Fuse / Ramp swarm that reproduces the LOOK, not the exact placements (warned).
 using System.Collections.Generic;
 using Laubrary.Pyre;
+using Laubrary.SpriteFx;
 using UnityEngine;
 // `Pyre` (the class) can't be named bare from here — the enclosing `Laubrary` namespace exposes the `Laubrary.Pyre`
 // NAMESPACE under that same name, which wins, so a bare `Pyre` reads as a namespace. Alias the class explicitly.

@@ -1,6 +1,7 @@
 // PyreWindow.Modifiers — the modifier stack UI (global + per-layer + the single simulation slot) and
 // every per-modifier body. Part of the UI Toolkit port; see PyreWindow.cs.
 using System.Collections.Generic;
+using Laubrary.SpriteFx;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;

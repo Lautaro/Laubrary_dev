@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Laubrary.Pyre;
+using Laubrary.SpriteFx;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;

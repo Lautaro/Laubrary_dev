@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
+using Laubrary.SpriteFx;
 
 namespace Laubrary.Pyre
 {

@@ -36,6 +36,7 @@
 // same coherent character but is not bit-identical to Pyre — hence "≈ Pyre's look", never a byte match to Pyre.
 using System.Collections.Generic;
 using Laubrary.Pyre;   // FireParams / FireArmMode (public) — the physics/shape dials this Step still consumes
+using Laubrary.SpriteFx;
 using UnityEngine;
 
 namespace Laubrary.PyrePlus

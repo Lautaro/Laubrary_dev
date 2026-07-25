@@ -1,11 +1,8 @@
 {
-    "name": "com.Lautaro-Arino.Laubrary.PyrePlus",
-    "rootNamespace": "Laubrary.PyrePlus",
+    "name": "com.Lautaro-Arino.Laubrary.SpriteFx",
+    "rootNamespace": "Laubrary.SpriteFx",
     "references": [
-        "com.Lautaro-Arino.Laubrary.SpriteFx",
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
-        "com.Lautaro-Arino.Laubrary.Pyre",
-        "Unity.TextMeshPro"
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

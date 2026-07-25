@@ -3,6 +3,7 @@
 // the UI Toolkit transport, and the backdrop / test-background / preview-subject panels.
 // Part of the UI Toolkit port; see PyreWindow.cs.
 using Laubrary.BackSplash.Editor;
+using Laubrary.SpriteFx;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;

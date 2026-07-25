@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Laubrary.SpriteFx;
 
 namespace Laubrary.Pyre
 {
@@ -2420,18 +2421,9 @@ namespace Laubrary.Pyre
 
         // Stable 0..1 hash of three ints — used for per-pixel sparkle / disintegrate / dissolve so results don't
         // depend on iteration order and never touch UnityEngine.Random. Internal so PixelModifiers can share it.
-        internal static float Hash01(int a, int b, int c)
-        {
-            unchecked
-            {
-                uint h = 2166136261u;
-                h = (h ^ (uint)a) * 16777619u;
-                h = (h ^ (uint)b) * 16777619u;
-                h = (h ^ (uint)c) * 16777619u;
-                h ^= h >> 13; h *= 0x5bd1e995u; h ^= h >> 15;
-                return (h & 0xFFFFFF) / (float)0x1000000;
-            }
-        }
+        // Forwards to the single canonical implementation in Laubrary.SpriteFx.Sfx (moved there when the stateless
+        // modifier family was elevated out of Pyre). A pure delegation — byte-identical to the former inline body.
+        internal static float Hash01(int a, int b, int c) => Laubrary.SpriteFx.Sfx.Hash01(a, b, c);
 
         // ── texture helpers ────────────────────────────────────────────────────
         public static Texture2D RenderFrameTexture(Pyre spec, int frameIndex)

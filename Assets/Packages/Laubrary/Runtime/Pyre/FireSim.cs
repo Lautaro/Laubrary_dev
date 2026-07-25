@@ -21,6 +21,7 @@
 // the arms are truly independent — which the Kaleidoscope post modifier cannot do, since it only ever sees
 // one finished image.
 using UnityEngine;
+using Laubrary.SpriteFx;
 
 namespace Laubrary.Pyre
 {

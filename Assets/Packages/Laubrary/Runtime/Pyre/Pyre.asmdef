@@ -2,6 +2,7 @@
     "name": "com.Lautaro-Arino.Laubrary.Pyre",
     "rootNamespace": "Laubrary.Pyre",
     "references": [
+        "com.Lautaro-Arino.Laubrary.SpriteFx",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.Chunks",
         "com.Lautaro-Arino.Laubrary.PreviewKit",

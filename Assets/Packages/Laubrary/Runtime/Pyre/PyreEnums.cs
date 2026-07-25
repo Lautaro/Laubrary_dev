@@ -54,16 +54,9 @@ namespace Laubrary.Pyre
                         // and drawn inward toward the source, star-mirrored for an explosive burst (see FireballSim)
     }
 
-    /// How a shape's colour gradient is applied (solid shapes — Disc / Crescent / MetaBlob).
-    public enum ColorMode
-    {
-        OverLife,     // one colour for the whole shape, sampled from the gradient at the shape's life 0→1
-        Fill,         // the gradient fills the shape spatially (centre → edge), constant over life
-        FlowingFill,  // a spatial fill whose gradient scrolls through its spectrum over the shape's life
-        NoiseFill     // the gradient is painted through a domain-warped noise field sampled inside the shape
-                      // (the layer's own noise zoom/rotation/drift/warp/bands params below), for a
-                      // cloudy/marbled interior instead of a clean radial fill
-    }
+    // ColorMode moved to Laubrary.SpriteFx (Sfx.cs) when the stateless modifier family was elevated out of Pyre;
+    // it is a rendering primitive shared by Pyre's shape fill and the SpriteFx modifiers. Serialized as an int,
+    // so the namespace move is byte-transparent to existing assets. See `using Laubrary.SpriteFx;` in BlastRenderer/Layer.
 
     /// How a Bars layer ends: contract back (size envelope shrinks) or hold + dissolve from the centre outward.
     public enum BarDecay

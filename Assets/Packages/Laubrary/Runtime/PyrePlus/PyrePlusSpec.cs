@@ -9,6 +9,7 @@
 // mask channels, and a Draw layer can clip its own alpha by any channel an earlier layer wrote.
 using System.Collections.Generic;
 using Laubrary.Pyre;
+using Laubrary.SpriteFx;
 using TMPro;
 using UnityEngine;
 

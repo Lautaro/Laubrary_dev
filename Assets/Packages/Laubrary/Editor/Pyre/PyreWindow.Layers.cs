@@ -1,6 +1,7 @@
 // PyreWindow.Layers — the layer list (reorder/enable/rename/dup/delete/library) and the selected
 // layer's inspector, including every per-shape section. Part of the UI Toolkit port; see PyreWindow.cs.
 using System.Collections.Generic;
+using Laubrary.SpriteFx;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;

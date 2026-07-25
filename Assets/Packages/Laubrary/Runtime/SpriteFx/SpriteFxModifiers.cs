@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Laubrary.Pyre
+namespace Laubrary.SpriteFx
 {
     /// The moving shape an Alpha-Mask modifier sweeps across the layer.
     public enum MaskShape
@@ -15,11 +15,11 @@ namespace Laubrary.Pyre
         Noise      // an irregular cloud silhouette carved by domain-warped noise instead of a clean geometric edge
     }
 
-    /// Shared deterministic noise, built entirely on <see cref="BlastRenderer.Hash01"/> (never UnityEngine.Random or
+    /// Shared deterministic noise, built entirely on <see cref="Sfx.Hash01"/> (never UnityEngine.Random or
     /// Mathf.PerlinNoise) so it stays bit-identical across the editor preview, the baker and the runtime player.
     /// Two octaves of bilinear value-noise, the second sampled through a domain WARPED by the first — this is what
     /// makes the field read as churning/rolling rather than a static smooth blob. `warp` (0 = none) sets how much.
-    internal static class PyreNoise
+    public static class PyreNoise
     {
         public static float Sample(float x, float y, int seed, float warp)
         {
@@ -54,10 +54,10 @@ namespace Laubrary.Pyre
             int x0 = Mathf.FloorToInt(x), y0 = Mathf.FloorToInt(y);
             float tx = x - x0, ty = y - y0;
             tx = tx * tx * (3f - 2f * tx); ty = ty * ty * (3f - 2f * ty);
-            float h00 = BlastRenderer.Hash01(seed, x0, y0);
-            float h10 = BlastRenderer.Hash01(seed, x0 + 1, y0);
-            float h01 = BlastRenderer.Hash01(seed, x0, y0 + 1);
-            float h11 = BlastRenderer.Hash01(seed, x0 + 1, y0 + 1);
+            float h00 = Sfx.Hash01(seed, x0, y0);
+            float h10 = Sfx.Hash01(seed, x0 + 1, y0);
+            float h01 = Sfx.Hash01(seed, x0, y0 + 1);
+            float h11 = Sfx.Hash01(seed, x0 + 1, y0 + 1);
             return Mathf.Lerp(Mathf.Lerp(h00, h10, tx), Mathf.Lerp(h01, h11, tx), ty);
         }
 
@@ -101,7 +101,7 @@ namespace Laubrary.Pyre
         // that corner to the sample point — the standard Perlin "gradient dotted with distance" term.
         static float DotGrad(int seed, int gx, int gy, float dx, float dy)
         {
-            float ang = BlastRenderer.Hash01(seed, gx, gy) * (Mathf.PI * 2f);
+            float ang = Sfx.Hash01(seed, gx, gy) * (Mathf.PI * 2f);
             return Mathf.Cos(ang) * dx + Mathf.Sin(ang) * dy;
         }
 
@@ -120,6 +120,7 @@ namespace Laubrary.Pyre
     /// GeometryModifier warps the pixel grid (skew/rotate/squash/wobble); PixelModifier recolours / masks / removes
     /// pixels (tint/dissolve/…). Animatable params are ZUIValues resolved once per frame via Prepare().
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public abstract class PyreModifier
     {
         public bool enabled = true;
@@ -139,8 +140,8 @@ namespace Laubrary.Pyre
             foreach (var f in GetType().GetFields())
             {
                 object v = f.GetValue(this);
-                if (v is ZUIValue zv) f.SetValue(m, Layer.CloneVal(zv));
-                else if (v is Gradient g) f.SetValue(m, Layer.CloneGradient(g));
+                if (v is ZUIValue zv) f.SetValue(m, Sfx.CloneVal(zv));
+                else if (v is Gradient g) f.SetValue(m, Sfx.CloneGradient(g));
                 else if (v is List<ZUIEnvelopePoint> pts)
                     f.SetValue(m, pts.ConvertAll(p => new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState)));
             }
@@ -163,6 +164,7 @@ namespace Laubrary.Pyre
         { this.hHalf = hHalf; this.vHalf = vHalf; this.center = center; this.radius = radius; }
     }
 
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public abstract class GeometryModifier : PyreModifier
     {
         /// Undo this modifier's warp on a pixel offset from the canvas centre. phase = a per-frame wobble phase.
@@ -174,6 +176,7 @@ namespace Laubrary.Pyre
     }
 
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class SkewModifier : GeometryModifier
     {
         [Tooltip("Horizontal shear based on height — leans the layer. Animatable.")]
@@ -197,6 +200,7 @@ namespace Laubrary.Pyre
     /// uniform zoom in/out — rather than needing to keep two sliders in sync by hand. All three values are
     /// MultiCont (ZUIValue), so any of them can be a flat constant, a random spread, or a full animation curve.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class ScaleModifier : GeometryModifier
     {
         [Tooltip("Which axis this scales. Vertical/Horizontal scale just that axis; Both scales both axes " +
@@ -231,6 +235,7 @@ namespace Laubrary.Pyre
     }
 
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class RotateModifier : GeometryModifier
     {
         [Tooltip("Rotation about the pivot, in degrees. Animatable.")]
@@ -254,6 +259,7 @@ namespace Laubrary.Pyre
     }
 
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class WobbleModifier : GeometryModifier
     {
         [Tooltip("Amplitude (px) of a vertical wobble that ripples the layer horizontally. Animatable.")]
@@ -278,6 +284,7 @@ namespace Laubrary.Pyre
     /// every GeometryModifier gets automatically) sweeps that pattern round-and-round or pulses it in and out
     /// over life for free, exactly like Wobble's own animation already does.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class SunburstWobbleModifier : GeometryModifier
     {
         [Tooltip("How far pixels are pushed radially (in/out) at each beam's peak, in pixels. Animatable.")]
@@ -314,6 +321,7 @@ namespace Laubrary.Pyre
     /// over life sends the ring(s) travelling outward (or inward) through whatever it's applied to, like a
     /// shockwave passing over a shape's own texture/shading.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class RingWaveModifier : GeometryModifier
     {
         [Tooltip("How far pixels are pushed along the radial direction, in pixels. Animatable.")]
@@ -344,7 +352,7 @@ namespace Laubrary.Pyre
             return off + dir * (wave * amp);
         }
 
-        static ZUIValue DefaultPhase() => Layer.CurveVal(3f, 0f, 0f, 1f, 3f);   // travels outward ~3 wavelengths over life
+        static ZUIValue DefaultPhase() => Sfx.CurveVal(3f, 0f, 0f, 1f, 3f);   // travels outward ~3 wavelengths over life
     }
 
     /// A single expanding shockwave from an arbitrary origin point, with an adjustable angular span: Arc = 360°
@@ -361,6 +369,7 @@ namespace Laubrary.Pyre
     /// that front has currently reached; the push is strongest right at Radius and fades over Band width on
     /// either side, so it reads as one blast sweeping outward through the shape, not a standing pattern.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class PointBlastModifier : GeometryModifier
     {
         [Tooltip("Where the blast originates, in pixels off the shape's own centre. Animatable.")]
@@ -456,6 +465,7 @@ namespace Laubrary.Pyre
     /// that falls from 1→~0 gives a flame; a narrow stem then a bump gives a mushroom cap; wide-narrow-wide an
     /// hourglass. Stack a couple of profiled layers (a wide "cap", a thin "stem") for real mushroom clouds.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class ProfileModifier : GeometryModifier
     {
         [Tooltip("Width multiplier vs height (0 = canvas bottom → 1 = top). Falling = flame/teardrop; a bump near " +
@@ -491,6 +501,7 @@ namespace Laubrary.Pyre
     /// up out of the surface. `bury` sinks the base below the line (0 = base sits on it, 0.5 = a half-buried dome for
     /// a ground burst). Pair with Profile for grounded mushrooms / candles / campfires. Applied before Profile.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class GroundModifier : GeometryModifier
     {
         [Tooltip("Direction the shape grows: 0 = up, 90 = right, 180 = down, −90 = left. The base sits on a surface " +
@@ -554,6 +565,7 @@ namespace Laubrary.Pyre
     }
 
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public abstract class PixelModifier : PyreModifier
     {
         /// Recolour / fade the pixel; return false to drop it entirely.
@@ -561,12 +573,13 @@ namespace Laubrary.Pyre
     }
 
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class TintModifier : PixelModifier
     {
         [Tooltip("Flat multiply tint over the whole layer.")]
         public Color tint = Color.white;
         [Tooltip("A gradient painted ACROSS each shape (centre→edge / bar back→tip) and multiplied in.")]
-        public Gradient crossGradient = Layer.WhiteGradient();
+        public Gradient crossGradient = Sfx.WhiteGradient();
         [Tooltip("How strongly the cross gradient applies (0 = off). Animatable.")]
         public ZUIValue crossAmount = new ZUIValue(1f);
 
@@ -588,6 +601,7 @@ namespace Laubrary.Pyre
 
     /// Contrast (1 = unchanged). Its own opt-in modifier.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class ContrastModifier : PixelModifier
     {
         [Tooltip("Contrast. 1 = unchanged, >1 harder, <1 flatter. Animatable.")]
@@ -605,6 +619,7 @@ namespace Laubrary.Pyre
 
     /// Brightness (1 = unchanged). Its own opt-in modifier.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class BrightnessModifier : PixelModifier
     {
         [Tooltip("Brightness multiplier. 1 = unchanged. Animatable.")]
@@ -621,6 +636,7 @@ namespace Laubrary.Pyre
 
     /// Saturation (1 = unchanged, 0 = greyscale). Its own opt-in modifier.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class SaturationModifier : PixelModifier
     {
         [Tooltip("Saturation. 1 = unchanged, 0 = greyscale, >1 more vivid. Animatable.")]
@@ -647,6 +663,7 @@ namespace Laubrary.Pyre
     /// spokes read (soft rounded points vs narrow hard-edged blades — Jagg only ever gives the soft/rounded look,
     /// this is the sharper sibling); `rotation` spins the whole pattern.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class SunburstModifier : GeometryModifier
     {
         [Range(2, 32)]
@@ -691,6 +708,7 @@ namespace Laubrary.Pyre
     /// old colour version's crossFrac) rather than a fixed pixel wavelength — so it keeps its own distinct
     /// authoring feel (rings scale with the shape as it grows/shrinks) instead of duplicating Ring wave outright.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class PulseRingsModifier : GeometryModifier
     {
         [Range(1, 12)]
@@ -727,6 +745,7 @@ namespace Laubrary.Pyre
     /// shader gradient. Levels is a plain int (not animatable) since a shifting band count reads as flickering, not
     /// motion — same reasoning as JaggModifier.arms.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class PosterizeModifier : PixelModifier
     {
         [Range(2, 16)]
@@ -753,6 +772,7 @@ namespace Laubrary.Pyre
     /// deliberately hand-drawn than DissolveModifier's random speckle. Purely a function of (x, y, alpha) — no seed
     /// needed, so it's trivially deterministic.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class OrderedDitherModifier : PixelModifier
     {
         [Tooltip("How much the ordered dither replaces the smooth alpha. 0 = untouched; 1 = fully hard-dithered " +
@@ -802,6 +822,7 @@ namespace Laubrary.Pyre
     /// field rides along with any earlier GeometryModifier (Wobble, Turbulence, Ground, ...) in the same stack
     /// instead of staying glued to the screen while the warped silhouette deforms underneath it.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class VoronoiCrackModifier : PixelModifier
     {
         [UnityEngine.Serialization.FormerlySerializedAs("cellSize")]
@@ -917,8 +938,8 @@ namespace Laubrary.Pyre
                 for (int ox = -1; ox <= 1; ox++)
                 {
                     int gx = cx + ox, gy = cy + oy;
-                    float jx = BlastRenderer.Hash01(hash, gx * 2, gy * 2);
-                    float jy = BlastRenderer.Hash01(hash, gx * 2 + 1, gy * 2 + 1);
+                    float jx = Sfx.Hash01(hash, gx * 2, gy * 2);
+                    float jy = Sfx.Hash01(hash, gx * 2 + 1, gy * 2 + 1);
                     float fx = gx + jx, fy = gy + jy;
                     float d = (fx - x) * (fx - x) + (fy - y) * (fy - y);
                     if (d < f1) { f2 = f1; f1 = d; bestCx = gx; bestCy = gy; }
@@ -928,7 +949,7 @@ namespace Laubrary.Pyre
 
             if (tintCells && cellShade > 0.001f)
             {
-                float shade = BlastRenderer.Hash01(unchecked(hash ^ 0x37A19E13), bestCx, bestCy);
+                float shade = Sfx.Hash01(unchecked(hash ^ 0x37A19E13), bestCx, bestCy);
                 float k = 1f + (shade - 0.5f) * 2f * cellShade;
                 c = new Color(Mathf.Clamp01(c.r * k), Mathf.Clamp01(c.g * k), Mathf.Clamp01(c.b * k), c.a);
             }
@@ -986,7 +1007,7 @@ namespace Laubrary.Pyre
             return t * t * (3f - 2f * t);
         }
 
-        static ZUIValue DefaultSpreadProgress() => Layer.CurveVal(1f, 0f, 0f, 1f, 1f);
+        static ZUIValue DefaultSpreadProgress() => Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);
 
         static Gradient Black()
         {
@@ -1000,6 +1021,7 @@ namespace Laubrary.Pyre
     /// A PostModifier (not a per-pixel PixelModifier) specifically so `smoothness` can see real NEIGHBOUR
     /// pixels — a per-pixel effect has no way to know whether the pixel next door is also being dissolved.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class DissolveModifier : PostModifier
     {
         [Tooltip("0 = nothing removed, 1 = everything gone. Animatable — the classic 'crumble away at the end' is " +
@@ -1035,8 +1057,8 @@ namespace Laubrary.Pyre
                 {
                     int idx = y * W + x;
                     float h = mode == DissolveMode.Scatter
-                        ? BlastRenderer.Hash01(unchecked(seed ^ (frame * 92821)), x, y)
-                        : BlastRenderer.Hash01(seed, x, y);
+                        ? Sfx.Hash01(unchecked(seed ^ (frame * 92821)), x, y)
+                        : Sfx.Hash01(seed, x, y);
                     if (h >= amt) { keep[idx] = 1f; continue; }
                     if (hard) { keep[idx] = 0f; continue; }
                     float pastCut = amt - h;   // 0 right at the moment it crosses; grows as Amount keeps rising
@@ -1071,7 +1093,7 @@ namespace Laubrary.Pyre
             }
         }
 
-        static ZUIValue DefaultAmount() => Layer.CurveVal(1f, 0f, 0f, 0.6f, 0f, 1f, 1f);
+        static ZUIValue DefaultAmount() => Sfx.CurveVal(1f, 0f, 0f, 0.6f, 0f, 1f, 1f);
     }
 
     /// Dissolve's shape-local sibling — for use in a LAYER's own modifier list (not the global list), where it
@@ -1088,11 +1110,12 @@ namespace Laubrary.Pyre
     /// space, full Smoothness) since there's no single shape/geometry stack to be "local" to across a whole
     /// composited frame; this one is offered only in a layer's own Add-modifier menu.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class LayerDissolveModifier : PixelModifier
     {
         [Tooltip("0 = nothing removed, 1 = everything gone. Animatable — the classic 'crumble away at the end' is " +
                  "this ramping 0→1 over the layer's life.")]
-        public ZUIValue amount = Layer.CurveVal(1f, 0f, 0f, 0.6f, 0f, 1f, 1f);
+        public ZUIValue amount = Sfx.CurveVal(1f, 0f, 0f, 0.6f, 0f, 1f, 1f);
         [Tooltip("Erase = stable random holes; Scatter = holes that reshuffle every frame (a boiling churn).")]
         public DissolveMode mode = DissolveMode.Erase;
         [Tooltip("0 = hard-edged holes (unchanged from before). Higher makes a pixel that just crossed the cut " +
@@ -1114,8 +1137,8 @@ namespace Laubrary.Pyre
             if (amt <= 0.001f) return true;
             int gx = Mathf.FloorToInt(p.wx), gy = Mathf.FloorToInt(p.wy);
             float h = mode == DissolveMode.Scatter
-                ? BlastRenderer.Hash01(unchecked(p.hash ^ (p.frame * 92821)), gx, gy)
-                : BlastRenderer.Hash01(p.hash, gx, gy);
+                ? Sfx.Hash01(unchecked(p.hash ^ (p.frame * 92821)), gx, gy)
+                : Sfx.Hash01(p.hash, gx, gy);
             if (h >= amt) return true;
             if (smooth <= 0.0001f) return false;
             float fadeSpan = Mathf.Lerp(0.02f, 0.6f, smooth);
@@ -1131,6 +1154,7 @@ namespace Laubrary.Pyre
     /// style). Animate `progress` (0→1) to drive the sweep; sharpness sets the edge hardness; size scales it;
     /// rotation + offset place it.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class AlphaMaskModifier : PixelModifier
     {
         public MaskShape shape = MaskShape.DiscOut;
@@ -1212,13 +1236,14 @@ namespace Laubrary.Pyre
             return a > 0.003f;
         }
 
-        static ZUIValue DefaultProgress() => Layer.CurveVal(1f, 0f, 0f, 1f, 1f);   // reveal over life
+        static ZUIValue DefaultProgress() => Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);   // reveal over life
     }
 
     // ── post: whole-frame passes run AFTER compositing (neighbourhood effects a per-pixel modifier can't do) ──────
     /// A modifier that processes the finished frame buffer in place. Lives in the blast's GLOBAL modifier list and
     /// runs once per frame after every layer composites (in list order). This is how bloom/outline — which read a
     /// pixel's NEIGHBOURS — are possible at all, since geometry/pixel modifiers only see one pixel at a time.
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public abstract class PostModifier : PyreModifier
     {
         public abstract void Apply(Color32[] buf, int W, int H);
@@ -1241,102 +1266,11 @@ namespace Laubrary.Pyre
         internal void SetFrameIndex(int f) => frame = f;
     }
 
-    /// A fundamentally different kind of modifier: genuinely ITERATIVE, unlike every other modifier in Pyre
-    /// (which recomputes each frame purely from that frame's own progress, with zero cross-frame state). This
-    /// one keeps real state — whatever a concrete subclass needs (a density/velocity grid, spawned emitter
-    /// lists, ...) — that carries from frame N to frame N+1, closely modelling a genuine simulation instead of
-    /// approximating one in closed form (the "third try" — two prior closed-form attempts, PiercingModifier and
-    /// BallisticShockwaveModifier, didn't read as convincing).
-    ///
-    /// To keep this from disturbing anything else in Pyre: it lives in its OWN single slot
-    /// (Pyre.simulationModifier), not the existing Geometry/Pixel/Post modifier LISTS — which trivially
-    /// guarantees "only one" (it's a single nullable field, not a list) and "always applied last" (BlastRenderer
-    /// calls it exactly once, at the very end of RenderFrame, after every other layer/global modifier has
-    /// already fully composited) by construction. Every other modifier, every other asset, is completely
-    /// unaffected whether this slot is empty or occupied.
-    ///
-    /// Correctness across NON-sequential access (the editor preview can scrub/jump to any frame; animated
-    /// browser thumbnails sample by wall-clock time and can skip frames or wrap) is handled by EnsureFrame
-    /// below: advancing exactly one Step() is only assumed for the frame RIGHT AFTER the one this instance's
-    /// state currently reflects; anything else (a jump, OR the same frame re-requested) does a full,
-    /// deterministic replay from frame 0, re-resolving each replayed frame's OWN parameters via
-    /// `paramsForFrame` (not just whatever the caller most recently resolved for the frame it actually asked
-    /// for — see EnsureFrame's own doc). The real bake (BlastRenderer.RenderSheet, the only code path that
-    /// produces the actual shipped sprite sheet) already calls RenderFrame in strict ascending order with
-    /// nothing else interleaved, so it always hits the cheap O(1)-per-frame path; only interactive scrubbing
-    /// pays the O(frame) replay cost.
-    ///
-    /// An earlier version of this class also had a cheap "same frame re-request" path (checkpoint-restore
-    /// instead of a full replay), reasoned as "for a slider dragged while the preview is paused". That was
-    /// wrong: dragging a slider changes this modifier's OWN parameters, and a checkpoint only undoes the LAST
-    /// Step — every earlier frame's contribution to accumulated state (an already-spawned emitter's own
-    /// strength/radius, baked in at spawn time; the velocity field's accumulated history) still reflected the
-    /// OLD value. One re-stepped frame barely moves cumulative state built from many frames under the old
-    /// value, so parameters that mostly matter cumulatively (PixelFluidModifier's vortex/wave/viscosity
-    /// sliders) looked almost inert while the preview was paused mid-clip, even though the underlying math was
-    /// fine (confirmed by isolating each subsystem directly). A full replay from 0 re-derives EVERY frame,
-    /// including every emitter's own spawn, under the CURRENT parameters — the only way to make an edited
-    /// slider correctly reflect across the whole accumulated history, not just its most recent frame.
-    public abstract class SimulationModifier : PyreModifier
-    {
-        // -1 means "never initialized" — deliberately distinct from "initialized, currently AT frame 0", so the
-        // very first EnsureFrame call (however it comes in) always takes the ResetState+replay branch below
-        // instead of mistaking cachedFrame+1==0 for "frame 0 is the cheap next-step of an existing state".
-        [NonSerialized] protected int cachedFrame = -1;
-        [NonSerialized] int cachedW = -1, cachedH = -1;
-        /// This blast's seed, set by BlastRenderer right before Prepare — mirrors PostModifier.life/SetLife.
-        /// Concrete subclasses needing their own deterministic randomness seed a custom PRNG from this rather
-        /// than UnityEngine.Random/System.Random.
-        [NonSerialized] protected int seed;
-        internal void SetSeed(int s) => seed = s;
-        protected static byte ToByte(float v) => (byte)(Mathf.Clamp01(v) * 255f + 0.5f);
-
-        /// Hard-reset all internal state, seeding it from `seedBuf` (the fully-composited buffer at the frame
-        /// this reset targets — normally frame 0). Called once before replaying Step() from scratch.
-        protected abstract void ResetState(Color32[] seedBuf, int W, int H);
-        /// Advance the simulation by exactly one frame, using this instance's OWN just-Prepare()d parameters.
-        protected abstract void Step(int frameIndex, Color32[] seedBuf, int W, int H);
-        /// Paint the CURRENT internal state into the frame buffer. Called on every request (cheap — no
-        /// simulation work here), always reflecting the latest state and parameters.
-        public abstract void Render(Color32[] buf, int W, int H);
-
-        /// `paramsForFrame(f)` resolves THIS modifier's animatable fields as frame f would have seen them — needed
-        /// because a replay-from-scratch (any jump, including the very first-ever call) re-Steps every frame from
-        /// 0 up to the target, and each of THOSE historical frames must use its OWN parameter values, not just
-        /// whatever the caller most recently resolved for the frame it actually asked for. Without this, a cold
-        /// scrub straight to frame 40 would replay frames 0..39 using frame 40's own (e.g.) Depth/Strength — wrong
-        /// for any animated field. BlastRenderer passes a small closure here instead of calling Prepare itself;
-        /// EnsureFrame calls Prepare(paramsForFrame(f)) immediately before every Step(f, ...), including the
-        /// cheap path, so by the time this returns the instance's fields always reflect frameIndex's own values.
-        internal void EnsureFrame(int frameIndex, Color32[] seedBuf, int W, int H, Func<int, Func<ZUIValue, int, float>> paramsForFrame)
-        {
-            if (frameIndex < 0) frameIndex = 0;
-            bool sizeChanged = W != cachedW || H != cachedH;
-            if (!sizeChanged && cachedFrame >= 0 && frameIndex == cachedFrame + 1)
-            {
-                Prepare(paramsForFrame(frameIndex));
-                Step(frameIndex, seedBuf, W, H);
-                cachedFrame = frameIndex;
-            }
-            else
-            {
-                ResetState(seedBuf, W, H);
-                cachedFrame = -1;
-                cachedW = W; cachedH = H;
-                for (int f = 0; f <= frameIndex; f++)
-                {
-                    Prepare(paramsForFrame(f));
-                    Step(f, seedBuf, W, H);
-                    cachedFrame = f;
-                }
-            }
-        }
-    }
-
     /// Bloom / glow: bright pixels bleed a soft halo outward (additive), and the halo lifts alpha so it glows into
     /// the transparent surround. Essential for energy weapons/blasts. `threshold` picks what's "bright", `radius` how
     /// far it spreads, `intensity` how strong (animatable — pulse the glow).
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class BloomModifier : PostModifier
     {
         [Range(0f, 1f)]
@@ -1426,6 +1360,7 @@ namespace Laubrary.Pyre
     /// shape fill already offers (see ColorMode), reused here rather than inventing a parallel scheme. `size` is
     /// the thickness (animatable — grow it out).
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class OutlineModifier : PostModifier
     {
         [Tooltip("Over life = one flat colour for the whole outline, sampled from the gradient at the blast's own " +
@@ -1598,6 +1533,7 @@ namespace Laubrary.Pyre
     /// outward from the canvas centre by default, or a flat direction), leaving GREEN in place — the classic
     /// energy/impact chromatic-fringe look. A whole-frame pass (it samples neighbouring pixels).
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class ChromaticAberrationModifier : PostModifier
     {
         [Tooltip("How far the red/blue channels split apart, in pixels. Animatable — punch it in on impact, settle out.")]
@@ -1682,6 +1618,7 @@ namespace Laubrary.Pyre
     /// snapshot of the frame taken before this modifier ran, so pixels the shot passes get their content pulled
     /// sideways out of the way — using the cloud's OWN pixels, not a synthetic stretch.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class CloudProjectileModifier : PostModifier
     {
         [Tooltip("Direction the projectile travels, in degrees (0 = along +X). Animatable.")]
@@ -1691,7 +1628,7 @@ namespace Laubrary.Pyre
         public ZUIValue offset = new ZUIValue(0f);
         [Tooltip("How far the projectile has travelled: 0 = hasn't entered yet (sitting at the canvas edge), " +
                  "1 = has travelled all the way across to the far edge. Animatable — default ramps 0→1 over life.")]
-        public ZUIValue depth = Layer.CurveVal(1f, 0f, 0f, 1f, 1f);
+        public ZUIValue depth = Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);
         [Tooltip("How far the push reaches perpendicular to the travel line, in pixels.")]
         public ZUIValue radius = new ZUIValue(10f);
         [Tooltip("Push strength before any cloud resistance is applied. Animatable.")]
@@ -1818,7 +1755,7 @@ namespace Laubrary.Pyre
     ///   `persistence ** (dt×60)` accumulation IS exactly this same exponential decay, just re-expressed in
     ///   closed form against elapsed age instead of iterated frame-by-frame.
     /// - Same idea for vortices, with their per-vortex jitter (position offset, drift, radius variance) drawn
-    ///   from BlastRenderer.Hash01 keyed on the vortex's own index — deterministic every time index k is asked
+    ///   from Sfx.Hash01 keyed on the vortex's own index — deterministic every time index k is asked
     ///   for, unlike the reference's real `random.uniform` calls, which Pyre's baked/scrubbable timeline can't
     ///   use (the same frame must always render identically).
     /// - The reference's stochastic child-vortex shedding (spawned via a per-frame random chance, an unbounded
@@ -1830,6 +1767,7 @@ namespace Laubrary.Pyre
     ///   separately-simulated field — the visible push at any pixel is the SUM of the projectile tunnel's own
     ///   push plus every currently-existing wave's and vortex's contribution, evaluated fresh each frame.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class BallisticShockwaveModifier : PostModifier
     {
         [Tooltip("Direction the projectile travels, in degrees (0 = along +X). Animatable.")]
@@ -1839,7 +1777,7 @@ namespace Laubrary.Pyre
         public ZUIValue offset = new ZUIValue(0f);
         [Tooltip("How far the projectile has travelled: 0 = hasn't entered yet (sitting at the canvas edge), " +
                  "1 = has travelled all the way across to the far edge. Animatable — default ramps 0→1 over life.")]
-        public ZUIValue depth = Layer.CurveVal(1f, 0f, 0f, 1f, 1f);
+        public ZUIValue depth = Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);
         [Tooltip("Radius of the projectile's own tunnel through the cloud, in pixels.")]
         public ZUIValue projectileRadius = new ZUIValue(3f);
         [Tooltip("How hard the tunnel pushes material forward and to the sides. Animatable.")]
@@ -2031,9 +1969,9 @@ namespace Laubrary.Pyre
                 float strength = vortexStr * Mathf.Exp(-vortexDecayV * age);
                 if (strength < 0.02f) continue;
 
-                float jitterA = BlastRenderer.Hash01(hashBase, j, 0);
-                float jitterB = BlastRenderer.Hash01(hashBase, j, 1);
-                float jitterC = BlastRenderer.Hash01(hashBase, j, 2);
+                float jitterA = Sfx.Hash01(hashBase, j, 0);
+                float jitterB = Sfx.Hash01(hashBase, j, 1);
+                float jitterC = Sfx.Hash01(hashBase, j, 2);
                 float vertOffset = spin * Mathf.Lerp(1f, 2.2f, jitterA);
                 float driftAlong = Mathf.Lerp(0.15f, 0.35f, jitterB) * age * 20f;
                 float driftPerp = spin * Mathf.Lerp(0.15f, 0.45f, jitterC) * age * 20f;
@@ -2064,416 +2002,6 @@ namespace Laubrary.Pyre
         }
     }
 
-    /// The genuinely-iterative sibling BallisticShockwaveModifier's closed-form trick couldn't deliver: this one
-    /// keeps REAL persisted state — a velocity displacement field and an alpha-erosion field, both sized to the
-    /// canvas — that carries frame to frame, modelled on a reference PixelFluidSimulation (a Python density/
-    /// velocity grid sim with a projectile tunnel, trailing shockwave rings, and an alternating vortex street).
-    /// A second shockwave crossing an already-eroded patch genuinely digs it deeper here; a vortex's drift is a
-    /// real integrated position, not re-derived from "how old is it" — the whole point of building
-    /// SimulationModifier above. This is the ONE modifier living in Pyre.simulationModifier rather than an
-    /// ordinary modifier list (see SimulationModifier's own doc comment for why that's safe).
-    ///
-    /// Vortices can shed a smaller child of their own, mirroring the reference's stochastic branching — safe
-    /// here (unlike in the closed-form siblings) because the randomness comes from FluidRandom, a tiny explicit
-    /// ulong-state PRNG reset alongside everything else in ResetState, so replaying from frame 0 reproduces the
-    /// exact same spawn sequence every time (System.Random carries hidden global state that wouldn't).
-    [Serializable]
-    public class PixelFluidModifier : SimulationModifier
-    {
-        [Tooltip("Direction the projectile travels, in degrees (0 = along +X). Animatable.")]
-        public ZUIValue angleDeg = new ZUIValue(0f);
-        [Tooltip("Slides the travel line sideways (perpendicular to its own direction), in pixels off the " +
-                 "canvas centre. Animatable.")]
-        public ZUIValue offset = new ZUIValue(0f);
-        [Tooltip("How far the projectile has travelled: 0 = hasn't entered yet, 1 = reached the far edge. " +
-                 "Animatable — default ramps 0→1 over life.")]
-        public ZUIValue depth = Layer.CurveVal(1f, 0f, 0f, 1f, 1f);
-        [Tooltip("Radius of the projectile's own tunnel through the cloud, in pixels.")]
-        public ZUIValue projectileRadius = new ZUIValue(3f);
-        [Tooltip("How hard the tunnel injects velocity (forward + sideways) into the persisted field, every " +
-                 "frame it's moving through. Animatable.")]
-        public ZUIValue projectileForce = new ZUIValue(10f);
-        [Tooltip("How much alpha the tunnel's own core erodes per frame it's passing through — erosion " +
-                 "PERSISTS and compounds (see Erosion healing below), it isn't re-derived fresh each frame. Animatable.")]
-        public ZUIValue erosionRate = new ZUIValue(0.35f);
-        [Tooltip("Fraction of accumulated erosion that heals back each frame — lower heals faster (a wake that " +
-                 "closes back up quickly); 1 = permanent scarring, never heals.")]
-        public ZUIValue erosionHealing = new ZUIValue(0.85f);
-
-        [Tooltip("How often a shockwave ring spawns, as a FRACTION of the whole travel.")]
-        public ZUIValue waveSpacing = new ZUIValue(0.06f);
-        [Tooltip("Each ring's push strength the moment it spawns, injected into the velocity field every frame " +
-                 "it's alive. Animatable.")]
-        public ZUIValue waveStrength = new ZUIValue(6f);
-        [Tooltip("How far a ring's own radius grows each frame, in pixels — a real per-frame accumulation, not " +
-                 "closed-form against age.")]
-        public ZUIValue waveExpansion = new ZUIValue(1.5f);
-        [Tooltip("Fraction of a ring's strength that survives each frame (persisted, multiplicative) — higher = " +
-                 "longer-lived rings.")]
-        public ZUIValue wavePersistence = new ZUIValue(0.9f);
-        [Tooltip("Thickness of the travelling pressure shell, in pixels.")]
-        public ZUIValue waveThickness = new ZUIValue(2.5f);
-
-        [Tooltip("How often a vortex spawns, as a FRACTION of the whole travel — alternates spin by index, the " +
-                 "same alternating \"vortex street\" a real bluff body sheds.")]
-        public ZUIValue vortexSpacing = new ZUIValue(0.05f);
-        [Tooltip("Each vortex's swirl strength the moment it spawns, injected into the velocity field every " +
-                 "frame it's alive. Animatable.")]
-        public ZUIValue vortexStrength = new ZUIValue(10f);
-        [Tooltip("Each vortex's core radius, in pixels.")]
-        public ZUIValue vortexRadius = new ZUIValue(8f);
-        [Tooltip("Fraction of a vortex's strength that survives each frame (persisted, multiplicative).")]
-        public ZUIValue vortexPersistence = new ZUIValue(0.94f);
-        [Tooltip("Per-frame drift speed of a vortex's own centre, in pixels/frame — a genuinely integrated " +
-                 "position (carried and accumulated frame to frame), not re-derived from its age.")]
-        public ZUIValue vortexDrift = new ZUIValue(0.6f);
-        [Range(0f, 0.5f)]
-        [Tooltip("Chance, each frame, that an existing vortex sheds a smaller child of its own — a real random " +
-                 "draw from this modifier's own snapshot-able PRNG (seeded from the blast's seed), scaled down " +
-                 "by the vortex's own remaining strength so young vortices shed more than fading ones.")]
-        public float childShedChance = 0.05f;
-
-        [Tooltip("Fraction of the velocity field that survives each frame (persisted, multiplicative drag).")]
-        public ZUIValue velocityDrag = new ZUIValue(0.85f);
-        [Tooltip("How much the velocity field blurs into its own neighbours each frame (0 = no diffusion, 1 = " +
-                 "fully smoothed) — a cheap viscosity.")]
-        public ZUIValue viscosity = new ZUIValue(0.25f);
-        [Tooltip("How strongly the persisted velocity field displaces pixels when rendered.")]
-        public ZUIValue displayScale = new ZUIValue(1f);
-
-        // Hard cap on concurrently-tracked waves/vortices — an internal quality/perf knob, not a creative param.
-        const int MaxEmitters = 40;
-        struct WaveState { public float along, radius, strength; }
-        struct VortexState { public Vector2 center, vel; public float radius, strength, spin, phase; }
-
-        // Explicit ulong state (not System.Random) so a full replay from frame 0 always draws the exact same
-        // sequence, regardless of how many times this instance has been replayed before.
-        struct FluidRandom
-        {
-            ulong state;
-            public FluidRandom(int seed) { state = unchecked((ulong)seed * 0x9E3779B97F4A7C15UL + 1UL); }
-            public float Next01()
-            {
-                state += 0x9E3779B97F4A7C15UL;
-                ulong z = state;
-                z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
-                z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
-                z ^= z >> 31;
-                return (float)((z >> 40) / (double)(1UL << 24));
-            }
-        }
-
-        Vector2[] velocity;
-        float[] erosion;
-        List<WaveState> waves = new List<WaveState>();
-        List<VortexState> vortices = new List<VortexState>();
-        FluidRandom rng;
-        Vector2 lastPos;
-        float lastAlong, lastWaveAlong, lastVortexAlong, nextVortexSpin;
-        int stateW, stateH;
-
-        float ang, offPx, depthV, projRad, projForce, erosionRateV, erosionHealV;
-        float waveSpacingF, waveStr, waveExp, wavePersist, waveThick;
-        float vortexSpacingF, vortexStr, vortexRad, vortexPersist, vortexDriftV;
-        float drag, visc, dispScale;
-
-        public override string DisplayName => "Pixel fluid";
-
-        public override void Prepare(Func<ZUIValue, int, float> e)
-        {
-            ang = e(angleDeg, 0) * Mathf.Deg2Rad;
-            offPx = e(offset, 1);
-            depthV = Mathf.Clamp01(e(depth, 2));
-            projRad = Mathf.Max(0.5f, e(projectileRadius, 3));
-            projForce = e(projectileForce, 4);
-            erosionRateV = Mathf.Clamp01(e(erosionRate, 5));
-            erosionHealV = Mathf.Clamp01(e(erosionHealing, 6));
-            waveSpacingF = Mathf.Max(0.005f, e(waveSpacing, 7));
-            waveStr = e(waveStrength, 8);
-            waveExp = e(waveExpansion, 9);
-            wavePersist = Mathf.Clamp01(e(wavePersistence, 10));
-            waveThick = Mathf.Max(0.5f, e(waveThickness, 11));
-            vortexSpacingF = Mathf.Max(0.005f, e(vortexSpacing, 12));
-            vortexStr = e(vortexStrength, 13);
-            vortexRad = Mathf.Max(0.5f, e(vortexRadius, 14));
-            vortexPersist = Mathf.Clamp01(e(vortexPersistence, 15));
-            vortexDriftV = e(vortexDrift, 16);
-            drag = Mathf.Clamp01(e(velocityDrag, 17));
-            visc = Mathf.Clamp01(e(viscosity, 18));
-            dispScale = e(displayScale, 19);
-        }
-
-        protected override void ResetState(Color32[] seedBuf, int W, int H)
-        {
-            stateW = W; stateH = H;
-            velocity = new Vector2[W * H];
-            erosion = new float[W * H];
-            waves.Clear();
-            vortices.Clear();
-            rng = new FluidRandom(seed);
-
-            float reach = ComputeCanvasReach(ang, W, H);
-            Vector2 canvasCenter = new Vector2(W * 0.5f, H * 0.5f);
-            Vector2 dir0 = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
-            Vector2 perp0 = new Vector2(-dir0.y, dir0.x);
-            lastAlong = -reach;
-            lastWaveAlong = -reach;
-            lastVortexAlong = -reach;
-            nextVortexSpin = 1f;
-            lastPos = canvasCenter + perp0 * offPx + dir0 * lastAlong;
-        }
-
-
-        protected override void Step(int frameIndex, Color32[] seedBuf, int W, int H)
-        {
-            Vector2 canvasCenter = new Vector2(W * 0.5f, H * 0.5f);
-            Vector2 dir = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
-            Vector2 perp = new Vector2(-dir.y, dir.x);
-            Vector2 pivot = canvasCenter + perp * offPx;
-            float reach = ComputeCanvasReach(ang, W, H);
-            float along = Mathf.Lerp(-reach, reach, depthV);
-            Vector2 posNow = pivot + dir * along;
-            float spacingPx = Mathf.Max(1f, 2f * reach);
-
-            InjectProjectile(pivot, dir, perp, lastPos, posNow, W, H);
-
-            if (along - lastWaveAlong >= waveSpacingF * spacingPx)
-            {
-                if (waves.Count >= MaxEmitters) waves.RemoveAt(0);
-                waves.Add(new WaveState { along = along, radius = 0.5f, strength = waveStr });
-                lastWaveAlong = along;
-            }
-            if (along - lastVortexAlong >= vortexSpacingF * spacingPx)
-            {
-                SpawnVortex(pivot, dir, perp, along, nextVortexSpin);
-                nextVortexSpin = -nextVortexSpin;
-                lastVortexAlong = along;
-            }
-
-            UpdateWaves(pivot, dir, W, H);
-            UpdateVortices(W, H);
-            DecayAndDiffuseField(W, H);
-
-            lastPos = posNow;
-            lastAlong = along;
-        }
-
-        void InjectProjectile(Vector2 pivot, Vector2 dir, Vector2 perp, Vector2 from, Vector2 to, int W, int H)
-        {
-            if (projForce == 0f && erosionRateV <= 0.0001f) return;
-            float startAlong = Vector2.Dot(from - pivot, dir);
-            float endAlong = Vector2.Dot(to - pivot, dir);
-            float lo = Mathf.Min(startAlong, endAlong), hi = Mathf.Max(startAlong, endAlong);
-
-            Vector2 loP = pivot + dir * lo, hiP = pivot + dir * hi;
-            int xlo = Mathf.Clamp(Mathf.FloorToInt(Mathf.Min(loP.x, hiP.x) - projRad), 0, W - 1);
-            int xhi = Mathf.Clamp(Mathf.CeilToInt(Mathf.Max(loP.x, hiP.x) + projRad), 0, W - 1);
-            int ylo = Mathf.Clamp(Mathf.FloorToInt(Mathf.Min(loP.y, hiP.y) - projRad), 0, H - 1);
-            int yhi = Mathf.Clamp(Mathf.CeilToInt(Mathf.Max(loP.y, hiP.y) + projRad), 0, H - 1);
-
-            for (int y = ylo; y <= yhi; y++)
-                for (int x = xlo; x <= xhi; x++)
-                {
-                    Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
-                    Vector2 d = p - pivot;
-                    float alongSigned = Vector2.Dot(d, dir);
-                    float nearestAlong = Mathf.Clamp(alongSigned, lo, hi);
-                    Vector2 toPixel = p - (pivot + dir * nearestAlong);
-                    float dist = toPixel.magnitude;
-                    if (dist >= projRad) continue;
-                    float falloff = 1f - dist / projRad;
-                    Vector2 sideDir = dist > 0.001f ? toPixel / dist : perp;
-                    int idx = y * W + x;
-                    velocity[idx] += dir * (projForce * falloff * 0.4f) + sideDir * (projForce * falloff);
-                    erosion[idx] = Mathf.Min(1f, erosion[idx] + erosionRateV * falloff);
-                }
-        }
-
-        void SpawnVortex(Vector2 pivot, Vector2 dir, Vector2 perp, float along, float spin)
-        {
-            if (vortices.Count >= MaxEmitters) vortices.RemoveAt(0);
-            Vector2 center = pivot + dir * along + perp * (spin * vortexRad * 0.6f);
-            vortices.Add(new VortexState
-            {
-                center = center,
-                vel = perp * (spin * vortexDriftV),
-                radius = vortexRad,
-                strength = vortexStr,
-                spin = spin,
-                phase = 0f
-            });
-        }
-
-        void UpdateWaves(Vector2 pivot, Vector2 dir, int W, int H)
-        {
-            for (int i = waves.Count - 1; i >= 0; i--)
-            {
-                var w = waves[i];
-                w.radius += waveExp;
-                w.strength *= wavePersist;
-                if (w.strength < 0.05f) { waves.RemoveAt(i); continue; }
-                waves[i] = w;
-            }
-            for (int i = 0; i < waves.Count; i++)
-            {
-                var w = waves[i];
-                Vector2 centerP = pivot + dir * w.along;
-                float reachR = w.radius + waveThick;
-                int xlo = Mathf.Clamp(Mathf.FloorToInt(centerP.x - reachR), 0, W - 1);
-                int xhi = Mathf.Clamp(Mathf.CeilToInt(centerP.x + reachR), 0, W - 1);
-                int ylo = Mathf.Clamp(Mathf.FloorToInt(centerP.y - reachR), 0, H - 1);
-                int yhi = Mathf.Clamp(Mathf.CeilToInt(centerP.y + reachR), 0, H - 1);
-                for (int y = ylo; y <= yhi; y++)
-                    for (int x = xlo; x <= xhi; x++)
-                    {
-                        Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
-                        Vector2 d = p - centerP;
-                        float dist = d.magnitude;
-                        if (dist < 0.001f) continue;
-                        float distToRing = Mathf.Abs(dist - w.radius);
-                        if (distToRing > waveThick) continue;
-                        float shell = 1f - distToRing / waveThick;
-                        int idx = y * W + x;
-                        velocity[idx] += (d / dist) * (w.strength * shell * 0.2f);
-                        erosion[idx] = Mathf.Min(1f, erosion[idx] + shell * w.strength * 0.01f);
-                    }
-            }
-        }
-
-        void UpdateVortices(int W, int H)
-        {
-            int existing = vortices.Count;
-            for (int i = existing - 1; i >= 0; i--)
-            {
-                var v = vortices[i];
-                v.center += v.vel;
-                v.strength *= vortexPersist;
-                v.phase += 0.3f;
-                if (v.strength < 0.05f) { vortices.RemoveAt(i); continue; }
-                vortices[i] = v;
-
-                float shedChance = childShedChance * Mathf.Clamp01(v.strength / Mathf.Max(0.01f, vortexStr));
-                if (shedChance > 0f && rng.Next01() < shedChance && vortices.Count < MaxEmitters)
-                {
-                    float childSpin = rng.Next01() < 0.5f ? v.spin : -v.spin;
-                    Vector2 jitter = new Vector2(rng.Next01() - 0.5f, rng.Next01() - 0.5f) * (vortexDriftV * 0.5f);
-                    vortices.Add(new VortexState
-                    {
-                        center = v.center,
-                        vel = v.vel + jitter,
-                        radius = v.radius * 0.55f,
-                        strength = v.strength * 0.5f,
-                        spin = childSpin,
-                        phase = v.phase
-                    });
-                }
-            }
-
-            for (int i = 0; i < vortices.Count; i++)
-            {
-                var v = vortices[i];
-                float reachV = v.radius * 1.5f;
-                int xlo = Mathf.Clamp(Mathf.FloorToInt(v.center.x - reachV), 0, W - 1);
-                int xhi = Mathf.Clamp(Mathf.CeilToInt(v.center.x + reachV), 0, W - 1);
-                int ylo = Mathf.Clamp(Mathf.FloorToInt(v.center.y - reachV), 0, H - 1);
-                int yhi = Mathf.Clamp(Mathf.CeilToInt(v.center.y + reachV), 0, H - 1);
-                for (int y = ylo; y <= yhi; y++)
-                    for (int x = xlo; x <= xhi; x++)
-                    {
-                        Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
-                        Vector2 d = p - v.center;
-                        float dist = d.magnitude;
-                        if (dist < 0.001f || dist > reachV) continue;
-                        float nd = dist / v.radius;
-                        float falloff = Mathf.Exp(-nd * nd * 1.6f);
-                        Vector2 normal = d / dist;
-                        Vector2 tangent = new Vector2(-normal.y, normal.x) * v.spin;
-                        int idx = y * W + x;
-                        velocity[idx] += tangent * (v.strength * falloff * 0.2f);
-                    }
-            }
-        }
-
-        void DecayAndDiffuseField(int W, int H)
-        {
-            int n = W * H;
-            if (visc > 0.001f)
-            {
-                var blurred = new Vector2[n];
-                for (int y = 0; y < H; y++)
-                    for (int x = 0; x < W; x++)
-                    {
-                        int idx = y * W + x;
-                        Vector2 sum = velocity[idx];
-                        int cnt = 1;
-                        if (x > 0) { sum += velocity[idx - 1]; cnt++; }
-                        if (x < W - 1) { sum += velocity[idx + 1]; cnt++; }
-                        if (y > 0) { sum += velocity[idx - W]; cnt++; }
-                        if (y < H - 1) { sum += velocity[idx + W]; cnt++; }
-                        blurred[idx] = Vector2.Lerp(velocity[idx], sum / cnt, visc);
-                    }
-                Array.Copy(blurred, velocity, n);
-            }
-            for (int i = 0; i < n; i++)
-            {
-                velocity[i] *= drag;
-                erosion[i] *= erosionHealV;
-            }
-        }
-
-        public override void Render(Color32[] buf, int W, int H)
-        {
-            if (velocity == null || velocity.Length != W * H) return;   // never stepped this size — leave untouched
-            var cloud = (Color32[])buf.Clone();
-            for (int y = 0; y < H; y++)
-                for (int x = 0; x < W; x++)
-                {
-                    int idx = y * W + x;
-                    Vector2 disp = velocity[idx] * dispScale;
-                    Vector2 sourcePos = new Vector2(x + 0.5f, y + 0.5f) - disp;
-                    Color32 sampled = SampleNearestLocal(cloud, W, H, sourcePos);
-                    float ero = erosion[idx];
-                    if (ero > 0.001f)
-                        sampled.a = ToByte(sampled.a * (1f / 255f) * (1f - ero));
-                    buf[idx] = sampled;
-                }
-        }
-
-        // Runtime simulation state (grids/lists/PRNG) is a live-running cache, not authored data — MemberwiseClone
-        // (the base Clone()'s first step) shares these list/array REFERENCES between original and copy, so
-        // without this override, mutating a "Dup"'d modifier's simulation would silently corrupt the original's
-        // too. Resetting to fresh/empty here (rather than deep-copying) is fine: cachedFrame = -1 forces the very
-        // next EnsureFrame call to rebuild everything from ResetState anyway.
-        public override PyreModifier Clone()
-        {
-            var m = (PixelFluidModifier)base.Clone();
-            m.velocity = null;
-            m.erosion = null;
-            m.waves = new List<WaveState>();
-            m.vortices = new List<VortexState>();
-            m.rng = default;
-            m.stateW = 0; m.stateH = 0;
-            m.cachedFrame = -1;
-            return m;
-        }
-
-        static float ComputeCanvasReach(float ang, int W, int H)
-        {
-            Vector2 dir = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
-            float hHalf = W * 0.5f, vHalf = H * 0.5f;
-            float rx = Mathf.Abs(dir.x) > 1e-4f ? hHalf / Mathf.Abs(dir.x) : float.MaxValue;
-            float ry = Mathf.Abs(dir.y) > 1e-4f ? vHalf / Mathf.Abs(dir.y) : float.MaxValue;
-            return Mathf.Min(rx, ry);
-        }
-
-        static Color32 SampleNearestLocal(Color32[] buf, int W, int H, Vector2 p)
-        {
-            int x = Mathf.Clamp(Mathf.FloorToInt(p.x), 0, W - 1);
-            int y = Mathf.Clamp(Mathf.FloorToInt(p.y), 0, H - 1);
-            return buf[y * W + x];
-        }
-    }
-
     /// A cheap, general "melt nearby shapes into one blob" effect: box-blur the whole (premultiplied) frame, then
     /// re-threshold alpha with a soft band so overlapping/nearby silhouettes' blurred halos cross the threshold
     /// together and read as fused, while an isolated shape mostly reconstitutes near its own edge. A pixel-space
@@ -2482,6 +2010,7 @@ namespace Laubrary.Pyre
     /// global modifier — several different layers melted together after they all composite. `colorBleed`
     /// separately controls how much colour blends across the fused seam, independent of the silhouette fusion.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class FuseModifier : PostModifier
     {
         [Tooltip("How far the fusing effect reaches, in pixels — bigger blends more distant shapes together. Animatable.")]
@@ -2582,6 +2111,7 @@ namespace Laubrary.Pyre
     /// →1 = spiky); `twist` aims the points. A radial coordinate scale about the shape centre — soft edges come from
     /// the shape's own Outer softness.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class JaggModifier : GeometryModifier
     {
         [Range(2, 24)] public int arms = 5;
@@ -2609,6 +2139,7 @@ namespace Laubrary.Pyre
     /// the gradient core, hole sizing. Unlike GeometryModifier (which warps the whole coordinate frame, so Wobble/
     /// Jagg/Turbulence also ripple the fill), this only nudges the hit-test radius per angle around the shape
     /// centre — so an asymmetric silhouette (torn, jagged, wavy) can sit over a perfectly clean interior gradient.
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public abstract class EdgeModifier : PyreModifier
     {
         /// Radius delta (px) added to the outer-boundary test at this angle (radians, in the shape's own —
@@ -2627,6 +2158,7 @@ namespace Laubrary.Pyre
     /// bumps at Jaggedness 0, a hard faceted/torn edge at Jaggedness 1. A jagged-but-smoothly-shaded look (think a
     /// scorched or torn disc) that JaggModifier can't give, since Jagg warps the fill along with the silhouette.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class EdgeWarpModifier : EdgeModifier
     {
         [Tooltip("How far the edge bulges in/out at each bump, in pixels. Animatable.")]
@@ -2678,6 +2210,7 @@ namespace Laubrary.Pyre
     /// Ground/Profile to roll an already-molded silhouette (a mushroom cloud's characteristic turning cap) — animate
     /// Rotation as a rising curve for an accelerating roll timed against the shape's own growth.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class TurbulenceModifier : GeometryModifier
     {
         [Tooltip("How far pixels are displaced by the noise field, in pixels. Animatable — rise it in as the shape matures.")]
@@ -2741,6 +2274,7 @@ namespace Laubrary.Pyre
     /// it (and on Curl/Noise fill/AlphaMask's Noise shape, all sharing the same PyreNoise.Sample) — so the two
     /// can be compared side by side instead.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class PerlinTurbulenceModifier : GeometryModifier
     {
         [Tooltip("How far pixels are displaced by the noise field, in pixels. Animatable — rise it in as the shape matures.")]
@@ -2801,6 +2335,7 @@ namespace Laubrary.Pyre
     /// pixel holds — the standard fix for the "black fringe" a naive straight-alpha blur produces) — colour
     /// stays exactly as rendered, so this reads as a softened edge, not an overall haze.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class EdgeSmoothModifier : PostModifier
     {
         [Tooltip("Blur radius, in pixels — how far the edge softening reaches. Animatable.")]
@@ -2911,17 +2446,17 @@ namespace Laubrary.Pyre
                  "hold, pulse, or reverse — independent of the blast's own life fraction. Used by the standalone " +
                  "Vortex field (progress) modifier; ignored by the regular Curl modifier, which uses Speed above " +
                  "instead. Default is a straight 0→1 ramp over life, matching Curl's own default (Speed 1).")]
-        public ZUIValue progress = Layer.CurveVal(1f, 0f, 0f, 1f, 1f);
+        public ZUIValue progress = Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);
         [Tooltip("Spin direction: on = clockwise, off = counter-clockwise.")]
         public bool clockwise = false;
 
         public VortexPoint Clone() => new VortexPoint
         {
             pos = pos,
-            radius = Layer.CloneVal(radius),
-            strength = Layer.CloneVal(strength),
-            speed = Layer.CloneVal(speed),
-            progress = Layer.CloneVal(progress),
+            radius = Sfx.CloneVal(radius),
+            strength = Sfx.CloneVal(strength),
+            speed = Sfx.CloneVal(speed),
+            progress = Sfx.CloneVal(progress),
             clockwise = clockwise,
         };
     }
@@ -2942,6 +2477,7 @@ namespace Laubrary.Pyre
     /// the alpha mask throughout — Curl only ever displaces WHERE texture is sampled from, never what's visible
     /// outside the shape's own silhouette (same as every other GeometryModifier).
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class CurlModifier : GeometryModifier, IVortexHost
     {
         [Tooltip("Ambient swirl displacement, in pixels — 0 = no ambient churn, just the vortices below (if any). Animatable.")]
@@ -3057,6 +2593,7 @@ namespace Laubrary.Pyre
     /// alone can't do cleanly, since Speed only ever scales a straight phase ramp). No ambient churn here — pair
     /// with CurlModifier's own ambient Strength/Zoom (set its own vortices' Strength to 0) if you want both.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class CurlProgressModifier : GeometryModifier, IVortexHost
     {
         [Tooltip("Discrete swirl centres — each spins everything within its own Radius around its own Pos, " +
@@ -3133,6 +2670,7 @@ namespace Laubrary.Pyre
     /// always tracks the SHAPE's own current radius (ctx.radius, including its own animated Size), so the
     /// bulge automatically stays sized to a growing/shrinking fireball with no separate radius to keep in sync.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class SphereModifier : GeometryModifier
     {
         [Tooltip("0 = no distortion (flat); 1 = the physically-correct sphere projection; beyond 1 exaggerates " +
@@ -3211,6 +2749,7 @@ namespace Laubrary.Pyre
     /// authored in canvas-centre pixels, the frame every shape rasterises in, so Smudge is type-agnostic — it smears
     /// Discs, Bars, MetaBlobs, sprites, whatever is under the stroke.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class SmudgeModifier : GeometryModifier
     {
         [Tooltip("The painted smear strokes. Paint each in the preview; they all grow in parallel driven by Grow.")]
@@ -3296,7 +2835,7 @@ namespace Laubrary.Pyre
             return m;
         }
 
-        static ZUIValue DefaultGrow() => Layer.CurveVal(1f, 0f, 0f, 1f, 1f);   // draw the smear out over life
+        static ZUIValue DefaultGrow() => Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);   // draw the smear out over life
     }
 
     /// One frame-indexed position sample for a PinWarp dot.
@@ -3380,6 +2919,7 @@ namespace Laubrary.Pyre
     /// for predictable results. Authored via the Pin warp box in the modifier's inspector (click the preview to
     /// add/select/drag pins) — see PyreWindow for the editor-side authoring tool.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class PinWarpModifier : GeometryModifier
     {
         [Tooltip("The pins. Add one via the Pin warp box below (click the preview), then scrub frames and drag " +
@@ -3425,6 +2965,7 @@ namespace Laubrary.Pyre
     /// Drop shadow: a darkened, offset copy of the shape composited BEHIND it — grounds an orb / gives depth. A
     /// whole-frame post pass (it reads the silhouette). `offset` in px, `color` (usually black w/ alpha) the shadow.
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class DropShadowModifier : PostModifier
     {
         [Tooltip("Shadow offset X in pixels (screen right).")]
@@ -3487,6 +3028,7 @@ namespace Laubrary.Pyre
     /// image. So Vary gives each arm its own seeded rotation offset, mirror flip and scale instead. That reads
     /// as "these arms are related but not identical", which is the intent, but it is NOT N independent
     /// simulations and should not be described as such.
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class KaleidoscopeModifier : PostModifier
     {
         public override string DisplayName => "Kaleidoscope";

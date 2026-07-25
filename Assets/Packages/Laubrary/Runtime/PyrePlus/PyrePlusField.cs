@@ -19,6 +19,7 @@
 // Coalesce layer bakes/scrubs/plays back identically (it reads only the seeded ComputeSpawns placements upstream).
 // Ported near-verbatim from BlastRenderer.RenderFusedField / RenderMetaBlob (Runtime/Pyre/BlastRenderer.cs:1957).
 using System.Collections.Generic;
+using Laubrary.SpriteFx;
 using UnityEngine;
 
 namespace Laubrary.PyrePlus
