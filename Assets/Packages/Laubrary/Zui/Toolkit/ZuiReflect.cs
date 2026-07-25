@@ -195,6 +195,13 @@ namespace Laubrary.Zui
             if (t == typeof(Color))
                 return Z.Field(nice, tip, Z.Color((Color)v, tip, nv => Set(nv), 110f));
 
+            if (t == typeof(Gradient))
+                // A Gradient (e.g. TintModifier.crossGradient) via Z.Gradient — Unity's own gradient editor, sized
+                // not stretched. Previously unrendered by this drawer, so a reflected effect/modifier with a gradient
+                // field showed every field EXCEPT the gradient; this closes that gap for every reflected tool
+                // (SpriteFx, PyrePlus, Chunks) at once.
+                return Z.Field(nice, tip, Z.Gradient((Gradient)v, tip, nv => Set(nv), opt.ControlWidth));
+
             if (t == typeof(Vector2))
                 return Vector2Row(nice, (Vector2)v, tip, nv => Set(nv));
 
