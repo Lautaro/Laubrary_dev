@@ -165,14 +165,23 @@ namespace Laubrary.Zui
             }
 
             if (t == typeof(float))
-                return Z.Field(nice, tip, range != null
-                    ? Z.Slider((float)v, range.min, range.max, tip, nv => Set(nv), opt.ControlWidth)
-                    : (VisualElement)Z.Float((float)v, tip, nv => Set(nv), 80f));
+                // Bounded (a [Range] attr = min/max in the call) → a MicroSlider, per the toolkit rule that a
+                // ranged scalar is a MicroSlider (label + value INSIDE the track), never a plain Slider + a
+                // separate numeric field. Unbounded → a scrub Float wrapped in a Z.Field for its external label.
+                // The MicroSlider carries its OWN caption, so it is NOT wrapped in a Z.Field (that prints twice).
+                return range != null
+                    ? (VisualElement)Z.MicroSlider(nice, (float)v, range.min, range.max, tip,
+                        nv => Set(nv), opt.ControlWidth, showValue: true)
+                    : Z.Field(nice, tip, Z.Float((float)v, tip, nv => Set(nv), 80f));
 
             if (t == typeof(int))
-                return Z.Field(nice, tip, range != null
-                    ? Z.SliderInt((int)v, (int)range.min, (int)range.max, tip, nv => Set(nv), opt.ControlWidth)
-                    : (VisualElement)Z.Int((int)v, tip, nv => Set(nv), 80f));
+                // Bounded int → a whole-number MicroSlider (decimals 0, rounded at the setter), matching how the
+                // hand-written windows render a bounded count (PyrePlus deliberately uses a MicroSlider, not a
+                // thumbed SliderInt, for a count). Unbounded → a scrub Int wrapped in a Z.Field for its label.
+                return range != null
+                    ? (VisualElement)Z.MicroSlider(nice, (int)v, range.min, range.max, tip,
+                        nv => Set(Mathf.RoundToInt(nv)), opt.ControlWidth, showValue: true, decimals: 0)
+                    : Z.Field(nice, tip, Z.Int((int)v, tip, nv => Set(nv), 80f));
 
             if (t == typeof(bool))
                 return Z.Toggle(nice, tip, (bool)v, nv => Set(nv));
@@ -208,9 +217,12 @@ namespace Laubrary.Zui
                     field.SetValue(owner, v);
                     opt.OnChanged?.Invoke();
                 }
-                return Z.Field(nice, tip, range != null
-                    ? Z.Slider(cur, range.min, range.max, tip, SetWrapped, opt.ControlWidth)
-                    : (VisualElement)Z.Float(cur, tip, SetWrapped, 80f));
+                // Same rule as the plain-float case: bounded → a MicroSlider (label + value inside the track),
+                // unbounded → a scrub Float wrapped for its external label.
+                return range != null
+                    ? (VisualElement)Z.MicroSlider(nice, cur, range.min, range.max, tip,
+                        SetWrapped, opt.ControlWidth, showValue: true)
+                    : Z.Field(nice, tip, Z.Float(cur, tip, SetWrapped, 80f));
             }
 
             if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>))
