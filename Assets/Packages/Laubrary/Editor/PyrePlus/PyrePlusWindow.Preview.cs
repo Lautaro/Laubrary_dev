@@ -401,7 +401,11 @@ namespace Laubrary.PyrePlus.Editor
                 // particle's ACTUAL rendered position. All-zero spin ⇒ ApplySwarmSpin returns the point unchanged,
                 // so a non-spinning swarm's dots are byte-identical to before. Depth coding below still keys off
                 // sp.zNorm (the spawn-time tilt), which the render also discards the spin's z of — unchanged.
-                Vector2 screen = CanvasToScreen(PyrePlusRenderer.ApplySwarmSpin(s, sel, sp.pos + delta, life));
+                // Slice 0: then apply the live whole-cloud SCALE, AFTER the spin (centre + scale·spin(offset)), via
+                // the sibling ApplySwarmScale helper — the SAME order + math RenderSwarm uses — so the dots stay ON
+                // the scaled particles. Scale 1 (the default) is an exact no-op, byte-identical to before.
+                Vector2 spun = PyrePlusRenderer.ApplySwarmSpin(s, sel, sp.pos + delta, life);
+                Vector2 screen = CanvasToScreen(PyrePlusRenderer.ApplySwarmScale(s, sel, spun, life));
                 if (!view.Contains(screen)) continue;
                 // Depth-code loosely like the renderer's 0.35 / 0.30 factors: nearer (zNorm>0) = bigger, brighter.
                 float sizeMul = Mathf.Clamp(1f + 0.35f * sp.zNorm, 0.5f, 1.6f);

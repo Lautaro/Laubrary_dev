@@ -1422,6 +1422,7 @@ namespace Laubrary.PyrePlus.Editor
             s.swarmTurn ??= new ZUIValue(0f);
             s.swarmTilt ??= new ZUIValue(0f);
             s.swarmRoll ??= new ZUIValue(0f);
+            s.swarmScale ??= new ZUIValue(1f);
             var spin = Z.BoxKeyed("Swarm spin",
                 "A LIVE rigid rotation of the whole placed swarm around the shape centre, evaluated at the CURRENT "
                 + "frame — every particle rotates together keeping the arrangement, so animating an axis spins the "
@@ -1441,6 +1442,13 @@ namespace Laubrary.PyrePlus.Editor
                 "Roll the whole placed cloud in the screen plane (about the axis pointing at you), live at the "
                 + "current frame. Animate it to spin the swarm flat against the screen.",
                 s.swarmRoll, -1440f, 1440f));
+            spin.Add(Val("Swarm scale",
+                "A LIVE uniform radial scale of the whole placed cloud about the shape centre, at the current frame "
+                + "— the sibling of the three spin axes above. 1 = identity (no change); animate it to make the swarm "
+                + "expand or contract as one group (a live breathing cloud). DISTINCT from the Spawner scale/radius in "
+                + "Transform above, which snapshots per spawn and leaves a trail; this resizes the already-placed "
+                + "cloud. Default 1 (no scaling).",
+                s.swarmScale, 0f, 4f));
             swarmBody.Add(spin);
         }
 
@@ -1457,6 +1465,8 @@ namespace Laubrary.PyrePlus.Editor
                 absMin = lo, absMax = hi,
                 hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true,
                 controlWidth = 170f, grow = true,
+                // Show where each bake frame lands on the curve (numbers thin out when frames are dense).
+                frameCount = spec != null ? spec.frameCount : 0,
             };
             return Z.Value(label, v, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
         }

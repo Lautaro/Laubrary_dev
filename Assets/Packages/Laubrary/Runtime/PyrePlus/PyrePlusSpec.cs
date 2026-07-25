@@ -69,8 +69,12 @@ namespace Laubrary.PyrePlus
     // Box/Pyramid/Can share the Gem's shared 3D block (tilt, light, lines, glows) — see PyrePlusRenderer.DrawFacetSolid.
     // Orb/Ring reuse that SAME per-pixel lighting/lines/glows math analytically (point light + Blinn-Phong, halo +
     // inner glow, edge lines) but with sphere/annulus geometry instead of facets.
-    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. (Fire/Fireball/HeightBalls are
-    // simulation-backed and deferred; they are NOT here.)
+    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. (Fire and Fireball are the only
+    // simulation-backed forms — they retain frame-to-frame grid state and need a replay harness — and are
+    // deferred; they are NOT here. HeightBalls is NOT a sim: it is CLOSED-FORM / stateless, proven at
+    // Runtime/Pyre/BlastRenderer.cs:1493-1496 — every ball's whole state at a frame is a pure function of
+    // (layer hash, group, ball index, layer life), nothing accumulates between frames — so it arrives as a
+    // stateless Coalesce (Ramp) field-pass mode alongside MetaBlob, never as a deferred sim form here.)
     public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak, Star }
 
     // How the Text form's spatial fill gradient is applied. PerCharGradient = every letter contains the WHOLE
@@ -89,6 +93,16 @@ namespace Laubrary.PyrePlus
     // layers can target the same channel). Max (the default) = the classic union of masks; Add = accumulate and
     // clamp; Subtract = carve one mask out of another. The cheap mirror of vanilla Pyre's combinable mattes.
     public enum MatteCombine { Max, Add, Subtract }
+
+    // A layer's RENDER MODE — how it turns its swarm into pixels (slice 0 seam). Off (the default) = PER-PARTICLE
+    // Over-compositing: the swarm loop draws each particle and composites it (every form today). Fuse / Ramp are the
+    // two STATELESS FIELD-PASS modes filled by slices 1-2: after the swarm loop the WHOLE placed particle set is read
+    // as one field, accumulated → thresholded/ramped → shaded, and composited as a single merged silhouette instead
+    // of drawn per particle (Fuse = MetaBlob's metaball fuse; Ramp = HeightBalls' density/height relief). For now the
+    // renderer only carries the DISPATCH SEAM — Fuse/Ramp fall through to the per-particle path with no field math —
+    // so every setting renders exactly as today. See PyrePlusRenderer.RenderSwarm's Coalesce seam. APPEND ONLY —
+    // serialized as an int, so never reorder or insert.
+    public enum LayerCoalesce { Off, Fuse, Ramp }
 
     // ── one PyrePlus layer — everything per-particle / per-form / per-swarm / per-modifier, plus its matte role ──
     // The spec holds a LIST of these (index 0 at the BACK). A single default layer's fields carry the pre-R3
@@ -114,6 +128,15 @@ namespace Laubrary.PyrePlus
         public MatteCombine matteCombine = MatteCombine.Max;   // how it combines with what's already in that channel
         public int clipByChannel = -1;             // Draw only: -1 = no clip; 0..3 = multiply this layer's alpha by that channel
         public bool clipInvert = false;            // Draw + clip: use (1 - channel) instead of channel
+
+        // ── Coalesce render-mode SEAM (slice 0) — how this layer turns its swarm into pixels ────────────
+        // Off (default) = per-particle Over-compositing, byte-identical to pre-Coalesce (every form today). Fuse/Ramp
+        // are the two STATELESS field-pass modes (MetaBlob / HeightBalls) that slices 1-2 will implement: read the
+        // whole swarm as a field and composite one merged silhouette instead of drawing each particle. SEAM ONLY for
+        // now — the renderer has the dispatch point but Fuse/Ramp still fall through to the per-particle path (no
+        // field math yet), so every setting renders exactly as today. Value type ⇒ Clone()'s MemberwiseClone copies
+        // it for free (like matteRole). APPEND ONLY — serialized as an int.
+        public LayerCoalesce coalesce = LayerCoalesce.Off;
 
         // ── Shape — the particle's own look (mandatory section) ────────────────────
         // Which FORM the particle renders as. Disc = the flat soft disc (slice 1). Gem = a true-3D lit crystal
@@ -361,6 +384,15 @@ namespace Laubrary.PyrePlus
         public ZUIValue swarmTilt = new ZUIValue(0f);      // whole-cloud pitch, degrees, at the current frame's life
         public ZUIValue swarmRoll = new ZUIValue(0f);      // whole-cloud roll (screen plane), degrees, at the current frame's life
 
+        // ── Swarm live SCALE (slice 0) — the exact sibling of swarmTurn/Tilt/Roll above, but a uniform RADIAL scale
+        // of the whole placed cloud about its centre, evaluated at the CURRENT frame's life and applied uniformly to
+        // every already-placed particle: final live pos = centre + scale·spin(offset). Static 1 (the default) is an
+        // EXACT no-op — the renderer's scale==1 guard skips the multiply entirely, so an existing swarm renders
+        // byte-identical. This is the LIVE expand/contract the per-spawn-snapshot shapeScale can't express (animating
+        // shapeScale leaves a trail of placements; this resizes the placed cloud as one group). It also homes
+        // MetaBlob's `metaExpand` when the Fuse field-pass lands (see PYREPLUS_ADVANCED_DESIGN.md).
+        public ZUIValue swarmScale = new ZUIValue(1f);     // whole-cloud uniform radial scale about centre, at the current frame's life
+
         // ── Modifiers — reuses Pyre's own PyreModifier directly, zero reimplementation ──
         [SerializeReference] public List<PyreModifier> modifiers = new List<PyreModifier>();
 
@@ -412,6 +444,8 @@ namespace Laubrary.PyrePlus
             l.swarmTurn = CloneVal(swarmTurn);
             l.swarmTilt = CloneVal(swarmTilt);
             l.swarmRoll = CloneVal(swarmRoll);
+            l.swarmScale = CloneVal(swarmScale);
+            // coalesce is a plain enum (value type) — MemberwiseClone above already copied it, like matteRole.
             l.modifiers = modifiers == null ? new List<PyreModifier>() : modifiers.ConvertAll(m => m?.Clone());
             return l;
         }

@@ -71,6 +71,8 @@ namespace Laubrary.PyrePlus
         const int FldSwarmTurn = -16;    // swarmTurn — whole-cloud live yaw at the frame's life (frame-global)       [Issue2]
         const int FldSwarmTilt = -17;    // swarmTilt — whole-cloud live pitch at the frame's life (frame-global)     [Issue2]
         const int FldSwarmRoll = -18;    // swarmRoll — whole-cloud live roll at the frame's life (frame-global)      [Issue2]
+        // -19..-22 are RESERVED for the upcoming matte slice (FldMatteStrength/Blur/Displace/Hue) — do not reuse.
+        const int FldSwarmScale = -23;   // swarmScale — whole-cloud live uniform radial scale at the frame's life (frame-global) [slice0]
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
         //  3D yaw (Turn), FldGemTilt for its tilt, FldGemRoll for its roll, and FldPathX/FldPathY for the shared
         //  travel offset — no other new ids. Crescent/Sparkle/Sprite likewise REUSE FldSize/FldAlpha (radius/alpha),
@@ -447,6 +449,13 @@ namespace Laubrary.PyrePlus
             float sTilt = Eval(layer.swarmTilt, life, spec.seed, ModParticleIndex, FldSwarmTilt);
             float sRoll = Eval(layer.swarmRoll, life, spec.seed, ModParticleIndex, FldSwarmRoll);
             bool swarmRot = sTurn != 0f || sTilt != 0f || sRoll != 0f;
+            // Swarm live SCALE (slice 0): the sibling of the spin above — a uniform RADIAL scale of the placed cloud
+            // about its centre, evaluated at the SAME frame-global life clock (the modifier-scope sentinel index; a
+            // MinMax scale is ONE value for the whole cloud). Applied AFTER the spin, at the same stage: final live
+            // position = centre + scale·spin(offset). Static 1 (the default) Evals to exactly 1 → swarmScl false →
+            // the multiply is skipped, so a default/existing swarm renders byte-identical.
+            float sScale = Eval(layer.swarmScale, life, spec.seed, ModParticleIndex, FldSwarmScale);
+            bool swarmScl = sScale != 1f;
 
             for (int i = 0; i < spawns.Count; i++)
             {
@@ -480,9 +489,26 @@ namespace Laubrary.PyrePlus
                 if (swarmRot)
                     dp = ApplyShapeTransform(sp.pos, cx, cy, Vector2.Distance(sp.pos, new Vector2(cx, cy)),
                                              sRoll, sTurn, sTilt, 0f, 0f, out _);
+                // Live whole-cloud radial scale (slice 0), applied AFTER the spin so the final position is
+                // centre + scale·spin(offset). swarmScl false (default scale 1) ⇒ dp untouched, byte-identical.
+                if (swarmScl)
+                    dp = new Vector2(cx + (dp.x - cx) * sScale, cy + (dp.y - cy) * sScale);
+
+                // ── Coalesce seam (slice 0) ──────────────────────────────────────────────────────────────────
+                // Off (default) → per-particle Over-compositing (DrawParticle below), byte-identical to
+                // pre-Coalesce. Fuse/Ramp are the STATELESS field-pass modes (MetaBlob / HeightBalls): slices 1-2
+                // will, INSTEAD of DrawParticle, collect this particle into a field set and run ONE accumulation →
+                // threshold/ramp → shade AFTER the loop. Until then every mode falls through to DrawParticle, so
+                // the render is unchanged at any coalesce setting.
+                // TODO slice 1/2: field-pass here — if (layer.coalesce != LayerCoalesce.Off) collect a
+                //                 FieldParticle { dp, own, sizeMul, brightMul, sp.orientDeg } and `continue;` (the
+                //                 chosen field pass runs after the loop) instead of the per-particle DrawParticle.
                 DrawParticle(buf, W, H, dp.x, dp.y, own, spec, layer, i, mods, phase, frameIndex,
                              sizeMul, brightMul, sp.orientDeg);
             }
+            // TODO slice 1/2: field-pass here — if (layer.coalesce != LayerCoalesce.Off) run the collected field
+            //                 pass into `buf` (Fuse → RenderPlusFusedField, Ramp → RenderPlusRampField). NO field
+            //                 math in slice 0; this is purely the seam the next slices fill.
         }
 
         /// FIX 3 — apply the layer's LIVE whole-cloud swarm spin (swarmTurn/Tilt/Roll evaluated at `life`) to an
@@ -505,6 +531,22 @@ namespace Laubrary.PyrePlus
             float cx = spec.Width * 0.5f, cy = spec.Height * 0.5f;
             return ApplyShapeTransform(pos, cx, cy, Vector2.Distance(pos, new Vector2(cx, cy)),
                                        sRoll, sTurn, sTilt, 0f, 0f, out _);
+        }
+
+        /// Slice 0 — apply the layer's LIVE whole-cloud swarm SCALE (swarmScale at `life`) to an already-placed
+        /// particle position, EXACTLY as RenderSwarm applies it at draw time: a uniform radial scale of the point
+        /// about the shape centre. The editor-overlay twin of the inline scale in RenderSwarm (sibling to
+        /// ApplySwarmSpin), so the spawn dots + trace track the rendered particles when the swarm scales. Call it
+        /// AFTER ApplySwarmSpin (final = centre + scale·spin(offset)). scale == 1 (the default) ⇒ returns `pos`
+        /// unchanged (the exact no-op guard RenderSwarm uses), so a non-scaling swarm's overlay is byte-identical.
+        /// NOT called by RenderFrame — the bake path is untouched; this only DUPLICATES RenderSwarm's inline scale.
+        public static Vector2 ApplySwarmScale(PyrePlusSpec spec, PyrePlusLayer layer, Vector2 pos, float life)
+        {
+            if (spec == null || layer == null) return pos;
+            float s = Eval(layer.swarmScale, life, spec.seed, ModParticleIndex, FldSwarmScale);
+            if (s == 1f) return pos;
+            float cx = spec.Width * 0.5f, cy = spec.Height * 0.5f;
+            return new Vector2(cx + (pos.x - cx) * s, cy + (pos.y - cy) * s);
         }
 
         /// Compute every swarm particle's spawn life (its point on the blast timeline) and spawn POSITION
@@ -792,6 +834,12 @@ namespace Laubrary.PyrePlus
                 if (sTurn != 0f || sTilt != 0f || sRoll != 0f)
                     pos = ApplyShapeTransform(pos, cx, cy, Vector2.Distance(pos, new Vector2(cx, cy)),
                                               sRoll, sTurn, sTilt, 0f, 0f, out _);
+                // Slice 0 — the trace also carries the LIVE whole-cloud scale, evaluated CANONICALLY at t (like the
+                // spin above) and applied AFTER it (centre + scale·spin(offset)), so the spine tracks the scaled
+                // cloud. Scale 1 (the default) is an EXACT no-op, so a non-scaling swarm's trace is unchanged.
+                float sScale = EvalCanonical(layer.swarmScale, t);
+                if (sScale != 1f)
+                    pos = new Vector2(cx + (pos.x - cx) * sScale, cy + (pos.y - cy) * sScale);
                 into.Add(pos);
             }
         }
