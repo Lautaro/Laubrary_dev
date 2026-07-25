@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using Laubrary.SpriteFx;
 
 namespace Laubrary.Chunks
 {
@@ -28,14 +30,21 @@ namespace Laubrary.Chunks
         const int MaxAttempts = 8;
         const float MinAcceptableAlphaCoverage = 0.35f;
 
+        // The life the modifier stack's animatable params resolve at. The pass is a ONE-TIME still bake at
+        // spawn (it styles the cut debris, it does not animate over the chunk's life), so it reads the spawn
+        // instant. (A per-frame animated pass over each chunk's life is possible but costly — deferred.)
+        const float SpawnLife = 0f;
+
         /// Cuts a random square sub-rect (minPx–maxPx wide, clamped to the sprite's own size) out of
         /// source's texture, biased toward opaque pixels so chunks aren't blank cut-outs of empty space.
         /// Returns null if source is null, its texture isn't readable, or every sampled attempt came back
         /// (almost) fully transparent. tintMode/tintColor/tintStrength/edgeThicknessPx optionally recolour
         /// the cut pixels before the sprite is built — see ChunkTintMode for what each mode covers.
+        /// modifiers, if any of them are shaped + enabled, run as a one-time SpriteFx pass baked into the cut
+        /// texture at spawn (see ApplyModifiers) — an empty/null/all-inert stack is skipped, byte-identically.
         public static Sprite Sample(Sprite source, int minPx, int maxPx, float pixelsPerUnit,
             ChunkTintMode tintMode = ChunkTintMode.None, Color tintColor = default, float tintStrength = 0f,
-            int edgeThicknessPx = 1)
+            int edgeThicknessPx = 1, IReadOnlyList<PixelModifier> modifiers = null)
         {
             if (source == null || source.texture == null) return null;
 
@@ -65,7 +74,7 @@ namespace Laubrary.Chunks
                 if (coverage >= MinAcceptableAlphaCoverage)
                 {
                     ApplyTint(pixels, size, tintMode, tintColor, tintStrength, edgeThicknessPx);
-                    return Build(pixels, size, pixelsPerUnit, source.name);
+                    return Build(pixels, size, pixelsPerUnit, source.name, modifiers);
                 }
 
                 if (coverage > bestCoverage) { bestCoverage = coverage; best = pixels; }
@@ -75,7 +84,7 @@ namespace Laubrary.Chunks
             // than a guaranteed-blank chunk, unless even that was essentially nothing.
             if (bestCoverage <= 0.02f) return null;
             ApplyTint(best, size, tintMode, tintColor, tintStrength, edgeThicknessPx);
-            return Build(best, size, pixelsPerUnit, source.name);
+            return Build(best, size, pixelsPerUnit, source.name, modifiers);
         }
 
         static float AlphaCoverage(Color[] pixels)
@@ -125,8 +134,11 @@ namespace Laubrary.Chunks
                 }
         }
 
-        static Sprite Build(Color[] pixels, int size, float pixelsPerUnit, string sourceName)
+        static Sprite Build(Color[] pixels, int size, float pixelsPerUnit, string sourceName,
+            IReadOnlyList<PixelModifier> modifiers = null)
         {
+            ApplyModifiers(pixels, size, modifiers);
+
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Point,
@@ -138,6 +150,39 @@ namespace Laubrary.Chunks
             var sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), Mathf.Max(1f, pixelsPerUnit));
             sprite.name = tex.name;
             return sprite;
+        }
+
+        // A ONE-TIME per-chunk SpriteFx pass baked into the cut pixels at spawn — styles the debris look
+        // (tint/posterise/dither/dissolve/…) cheaply, once, over this small texture. Runs the SAME shaped
+        // stack a SpriteFxFilter would, through SpriteFxFilter.Apply (which resolves the stack and dispatches
+        // to SpriteFxStack.RunInline for the inline path) — so what a Chunk bakes matches what that filter plays.
+        //
+        // The empty / no-op path is a hard SKIP (returns before touching the pixels or the RNG), so a spec
+        // with no modifiers — or only disabled / non-shaped ones — leaves the cut pixels byte-identical to a
+        // chunk built without this call at all. Only shaped, enabled PixelModifiers apply (RunInline runs the
+        // gather-free family: Tint/Contrast/Brightness/Saturation/Posterize/OrderedDither/LayerDissolve/
+        // AlphaMask); a VoronoiCrack or geometry/post modifier is silently a no-op here, matching SpriteFxFilter.
+        static void ApplyModifiers(Color[] pixels, int size, IReadOnlyList<PixelModifier> modifiers)
+        {
+            if (pixels == null || pixels.Length == 0 || modifiers == null || modifiers.Count == 0) return;
+
+            bool anyShaped = false;
+            for (int i = 0; i < modifiers.Count; i++)
+            {
+                var m = modifiers[i];
+                if (m != null && m.enabled && SpriteFxStack.IsShaped(m)) { anyShaped = true; break; }
+            }
+            if (!anyShaped) return;   // nothing the inline stack would apply — leave the pixels untouched
+
+            var px32 = new Color32[pixels.Length];
+            for (int i = 0; i < pixels.Length; i++) px32[i] = pixels[i];
+
+            // A per-chunk seed so hashing modifiers (LayerDissolve scatter/erase, AlphaMask noise, any MinMax
+            // param) give each cut fragment its own pattern instead of a uniform stamp.
+            int seed = Random.Range(int.MinValue, int.MaxValue);
+            SpriteFxFilter.Apply(px32, size, size, modifiers, 0, SpawnLife, seed, useBurst: false);
+
+            for (int i = 0; i < pixels.Length; i++) pixels[i] = px32[i];
         }
     }
 }

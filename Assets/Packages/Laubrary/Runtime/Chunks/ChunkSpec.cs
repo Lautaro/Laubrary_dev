@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Laubrary.SpriteFx;
 
 namespace Laubrary.Chunks
 {
@@ -120,6 +121,14 @@ namespace Laubrary.Chunks
         [Min(1)]
         [Tooltip("Edge modes only: how many pixels from the rim (cut boundary or alpha silhouette) count as 'edge'.")]
         public int edgeThicknessPx = 1;
+
+        [Tooltip("Optional SpriteFx pixel-modifier stack baked ONCE into each sampled chunk's texture at spawn, " +
+                 "in list order — a cheap way to style the cut debris (tint, posterise, dither, dissolve, and the " +
+                 "other shaped SpriteFx pixel modifiers). Empty = the raw sampled pixels, unchanged (byte-identical " +
+                 "to no stack). Only applies to SAMPLED debris (Sample source set); it does not touch procedural " +
+                 "pixel-squares, authored sprites or animated content. Resolved at life 0 (the spawn instant); it " +
+                 "is a one-time still pass, not animated over the chunk's life.")]
+        [SerializeReference] public List<PixelModifier> modifiers = new();
 
         /// True when a chunk should be sourced by sampling sampleSource rather than sprites/procedural.
         public bool UsesSampledDebris => sampleSource != null;

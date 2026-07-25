@@ -76,7 +76,7 @@ namespace Laubrary.Chunks
                 {
                     Sprite sampledSprite = spec.UsesSampledDebris
                         ? SampledChunkSprites.Sample(spec.sampleSource, spec.samplePxMin, spec.samplePxMax, spec.pixelsPerUnit,
-                            spec.tintMode, spec.tintColor, spec.tintStrength, spec.edgeThicknessPx)
+                            spec.tintMode, spec.tintColor, spec.tintStrength, spec.edgeThicknessPx, spec.modifiers)
                         : null;
                     if (sampledSprite != null)
                     {

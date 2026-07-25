@@ -4,7 +4,8 @@
     "references": [
         "com.Lautaro-Arino.Laubrary.Pooling",
         "com.Lautaro-Arino.Laubrary.PreviewKit",
-        "com.Lautaro-Arino.Laubrary.Combat2D"
+        "com.Lautaro-Arino.Laubrary.Combat2D",
+        "com.Lautaro-Arino.Laubrary.SpriteFx"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

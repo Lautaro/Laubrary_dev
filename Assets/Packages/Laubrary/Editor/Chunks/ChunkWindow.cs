@@ -19,7 +19,7 @@ namespace Laubrary.Chunks.Editor
     /// the top of its per-frame draw, which coalesced every edit of a session into one step. Two Z controls
     /// were added to the toolkit for this window's sake (Z.Curve, Z.Gradient); the sprite list stays a bound
     /// PropertyField, which is Unity's own list UI and not something ZUI should be reimplementing.
-    public class ChunkWindow : ZuiAssetWindow<ChunkSpec>
+    public partial class ChunkWindow : ZuiAssetWindow<ChunkSpec>
     {
         [MenuItem("Laubrary/Chunks")]
         public static void Open() => GetWindow<ChunkWindow>("Chunks");
@@ -260,6 +260,7 @@ namespace Laubrary.Chunks.Editor
                         c.edgeThicknessPx, v => c.edgeThicknessPx = Mathf.Max(1, v)));
             }
             s.Add(tint);
+            BuildModifiers(s, c);
             root.Add(s);
         }
 
