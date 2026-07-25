@@ -119,6 +119,15 @@ namespace Laubrary.PyrePlus
         const int F_FireFlicker = 110, F_FireDissip = 111, F_FireBurn = 112, F_FireReach = 113, F_FireEdgeCool = 114;
         const int F_FireStretch = 115, F_FirePinch = 116, F_FireBreakup = 117, F_FireIntensity = 118;
 
+        // ── Fireball form field ids (shapeForm == Fireball, slice 6b) — REUSE Pyre's own F_Fireball* block VERBATIM ──
+        // Pyre's exact fireball field ids (Runtime/Pyre/BlastRenderer.cs:51), reused so a converted Pyre fireball keeps
+        // identical decorrelation and this port reads 1:1 against Pyre's StepFireball. POSITIVE 120..125 — clear of
+        // Fire's 100..118, PyrePlus's 1..15 single-field ids, and its negative -2..-27 ids. (Same benign note as Fire:
+        // a modifier BLOCK at FldModifier + i*8 only reaches 120 at 13+ modifiers, and a field id only perturbs a
+        // MinMax draw — never a determinism break, proven by the replay gate: same seed+content+frame ⇒ same bytes.)
+        const int F_FireballSource = 120, F_FireballRadius = 121, F_FireballCool = 122;
+        const int F_FireballSpread = 123, F_FireballReach = 124, F_FireballSharp = 125;
+
         /// One swarm particle's spawn data: where it lands on the blast timeline and its absolute canvas-pixel
         /// position. RenderFrame consumes this; the preview overlay (T5) calls ComputeSpawns to draw a dot at
         /// each particle's ACTUAL computed spawn location.
@@ -284,9 +293,13 @@ namespace Laubrary.PyrePlus
                 // there. Forcing needScratch mirrors BlastRenderer's hasLayerPost isolation for Fire/Fireball. The
                 // fire render itself is dispatched inside RenderLayer (the scratch branch below calls RenderLayer).
                 bool isFire = layer.shapeForm == ShapeForm.Fire;
+                // Fireball (slice 6b) — the second stateful sim form; same isolation reason as Fire (FireballSim.Render
+                // OVERWRITES above-threshold pixels and never clears, so it must Over-composite from an isolated scratch,
+                // never render straight into the shared output). Dispatched inside RenderLayer's scratch branch below.
+                bool isFireball = layer.shapeForm == ShapeForm.Fireball;
 
                 bool matteActive = matteState.mask != null;
-                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire;
+                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire || isFireball;
                 if (!needScratch)
                 {
                     if (isHeightConsumer) RenderHeightConsumer(buf, W, H, layer, heightField);
@@ -330,6 +343,9 @@ namespace Laubrary.PyrePlus
             // it must never render straight into the shared output buffer. The per-layer sim seed reads _layerSalt
             // (set by the caller = this layer's index), so two Fire layers never share a sim.
             if (layer.shapeForm == ShapeForm.Fire) { RenderFireLayer(target, W, H, life, spec, layer, frameIndex); return; }
+            // Fireball (slice 6b) — the second stateful sim form; identical treatment to Fire (no swarm, isolated
+            // scratch, own replay harness). Dispatch and return before the swarm/DrawParticle path.
+            if (layer.shapeForm == ShapeForm.Fireball) { RenderFireballLayer(target, W, H, life, spec, layer, frameIndex); return; }
 
             if (!layer.swarmEnabled)
             {
@@ -488,6 +504,124 @@ namespace Laubrary.PyrePlus
                 h = MixV(h, L.fireCurlScale); h = MixV(h, L.fireFlicker); h = MixV(h, L.fireStretch);
                 h = MixV(h, L.firePinch); h = MixV(h, L.fireBreakup); h = MixV(h, L.fireDissipation);
                 h = MixV(h, L.fireBurn); h = MixV(h, L.fireReach); h = MixV(h, L.fireEdgeCooling);
+                h = MixV(h, L.alpha);                                            // the render-alpha envelope (layerAlpha)
+                h = MixG(h, L.shapeFill != null ? L.shapeFill.gradient : null);   // the ramp
+                return h;
+            }
+        }
+
+        // ── Fireball form: stateful cellular sim + replay harness (slice 6b) ──────────────────────────────────────
+        // The SECOND stateful PyrePlus form (mirrors the Fire harness above exactly). Fireball is Pyre's cheap
+        // "doom-fire" cellular flame: heat propagates OUTWARD from one central point, folded into `fireballArms`
+        // kaleidoscope wedges → a radial/star explosion. It retains a frame-to-frame heat grid, so frame N depends on
+        // frame N-1; it stays fully DETERMINISTIC by being reached via REPLAY from a fixed reset — the same discipline
+        // as Fire and Pyre1's RenderFireball (BlastRenderer.cs:210). We REUSE Pyre's public FireballSim/FireballParams
+        // directly (no re-port of the cellular physics); this is only the thin replay harness around them.
+        //
+        // The harness is DUPLICATED from Fire (not generalised): FireSim and FireballSim are unrelated types with
+        // different Step signatures — FireSim.Step takes (params, seed, t, dt) with fireSteps substeps, FireballSim.Step
+        // takes (params, seed, t, INTEGER frameIndex) with none — so a shared generic entry would buy nothing and the
+        // duplication keeps the proven Fire path byte-untouched.
+        //
+        // INVALIDATION is CONTENT-HASH based, identical to Fire: the hash folds every fireball input (all six rate
+        // envelopes + arms/mirror + threshold/contrast + the ramp gradient + the alpha envelope + seed + frameCount +
+        // W/H). ANY authoring edit flips it ⇒ a forced COLD replay from frame 0, so a forward-step never carries stale
+        // dial values into a later frame. Checkpoints are DEFERRED this slice, as for Fire (correctness first).
+        sealed class FireballSimEntry { public FireballSim sim; public int contentHash; public int lastFrame = -1; }
+        static readonly System.Runtime.CompilerServices.ConditionalWeakTable<PyrePlusLayer, FireballSimEntry> _fireballSims =
+            new System.Runtime.CompilerServices.ConditionalWeakTable<PyrePlusLayer, FireballSimEntry>();
+
+        static void RenderFireballLayer(Color32[] target, int W, int H, float life, PyrePlusSpec spec,
+                                        PyrePlusLayer layer, int frameIndex)
+        {
+            var entry = _fireballSims.GetValue(layer, _ => new FireballSimEntry { sim = new FireballSim() });
+            var sim = entry.sim;
+
+            // A per-(spec, layer) sim seed, exactly as Fire — _layerSalt is this layer's index (set by RenderFrame
+            // before the layer draws), so two Fireball layers (or the same layer at two list positions) get distinct,
+            // stable seeds.
+            int seed = Hash(spec != null ? spec.seed : 0, _layerSalt, 0, 0);
+            int hash = FireballContentHash(layer, spec, W, H, seed);
+
+            int frames = Mathf.Max(1, spec != null ? spec.frameCount : 1);
+            int last = Mathf.Clamp(frameIndex, 0, frames - 1);
+
+            bool sizeChanged = sim.W != W || sim.H != H;
+            sim.Allocate(W, H);
+
+            // Any size / param / gradient / seed / frameCount change, or an uninitialised sim ⇒ the cache is invalid.
+            bool invalid = sizeChanged || hash != entry.contentHash || entry.lastFrame < 0;
+            if (!invalid && last == entry.lastFrame + 1)
+            {
+                // WARM forward-step: exactly one frame past where the sim is (normal playback) — O(1).
+                StepFireball(sim, layer, spec, seed, last);
+                entry.lastFrame = last;
+            }
+            else if (!invalid && last == entry.lastFrame)
+            {
+                // Same frame re-asked with UNCHANGED content — the grid is already at `last`; just re-render below.
+            }
+            else
+            {
+                // COLD replay from frame 0 (a scrub, a backward step, a forward skip, or any invalidation). O(f).
+                sim.Reset();
+                for (int f = 0; f <= last; f++) StepFireball(sim, layer, spec, seed, f);
+                entry.lastFrame = last;
+            }
+            entry.contentHash = hash;
+
+            // Composite the current grid through the layer's own fill gradient (the smoke→fire ramp) at the layer's
+            // overall alpha over its life. Fireball ignores `size` — the reach radius bounds it, not a particle radius.
+            Gradient ramp = layer.shapeFill != null ? layer.shapeFill.gradient : null;
+            float alpha = Mathf.Clamp01(Eval(layer.alpha, life, spec != null ? spec.seed : 0, ModParticleIndex, FldAlpha));
+            sim.Render(target, ramp, alpha, layer.fireballThreshold, layer.fireballContrast);
+        }
+
+        // One frame's Fireball step, replayed identically every time frame f is reached. lp = the layer's life progress
+        // at f (startFrame folds to 0, endFrame = frameCount-1). Unlike Fire there are NO substeps — FireballSim.Step
+        // takes the INTEGER frame index `f` as its random key (Pyre passes the same, BlastRenderer.cs:248), so a cold
+        // scrub to a frame reproduces that frame's exact randomness. `lp` is only the per-cell flicker phase.
+        static void StepFireball(FireballSim sim, PyrePlusLayer layer, PyrePlusSpec spec, int seed, int f)
+        {
+            int frames = Mathf.Max(1, spec != null ? spec.frameCount : 1);
+            float lp = Mathf.Clamp01(f / (float)Mathf.Max(1, frames - 1));
+            var p = FireballParamsAt(layer, spec, lp);
+            sim.Step(p, seed, lp, f);
+        }
+
+        // Evaluate the Fireball dials at a life progress into a FireballParams — a faithful mirror of Pyre's StepFireball
+        // param build (BlastRenderer.cs:237), through PyrePlus's own Eval funnel (frame-global at ModParticleIndex).
+        static FireballParams FireballParamsAt(PyrePlusLayer layer, PyrePlusSpec spec, float lp)
+        {
+            int seed = spec != null ? spec.seed : 0;
+            float E(ZUIValue v, int fid) => Eval(v, lp, seed, ModParticleIndex, fid);
+            return new FireballParams
+            {
+                sourceHeat = Mathf.Clamp01(E(layer.fireballSource, F_FireballSource)),
+                sourceRadius = Mathf.Max(1f, E(layer.fireballSourceRadius, F_FireballRadius)),
+                cooling = Mathf.Max(0.001f, E(layer.fireballCooling, F_FireballCool)),
+                spread = Mathf.Max(0f, E(layer.fireballSpread, F_FireballSpread)),
+                reach = Mathf.Clamp01(E(layer.fireballReach, F_FireballReach)),
+                sharpness = Mathf.Max(0f, E(layer.fireballSharpness, F_FireballSharp)),
+                arms = Mathf.Max(1, layer.fireballArms),
+                mirror = layer.fireballMirror,
+            };
+        }
+
+        // A stable hash of every input that can change a Fireball layer's OUTPUT — the replay cache's invalidation key
+        // (mirrors FireContentHash). Folds the six rate envelopes, arms/mirror, threshold/contrast, the ramp gradient +
+        // the alpha envelope, and seed/frameCount/W/H. ANY authoring edit flips it, forcing a cold replay.
+        static int FireballContentHash(PyrePlusLayer L, PyrePlusSpec spec, int W, int H, int seed)
+        {
+            unchecked
+            {
+                int h = (int)2166136261u;
+                h = MixI(h, seed); h = MixI(h, W); h = MixI(h, H);
+                h = MixI(h, Mathf.Max(1, spec != null ? spec.frameCount : 1));
+                h = MixI(h, Mathf.Max(1, L.fireballArms)); h = MixI(h, L.fireballMirror ? 1 : 0);
+                h = MixI(h, L.fireballThreshold.GetHashCode()); h = MixI(h, L.fireballContrast.GetHashCode());
+                h = MixV(h, L.fireballSource); h = MixV(h, L.fireballSourceRadius); h = MixV(h, L.fireballCooling);
+                h = MixV(h, L.fireballSharpness); h = MixV(h, L.fireballSpread); h = MixV(h, L.fireballReach);
                 h = MixV(h, L.alpha);                                            // the render-alpha envelope (layerAlpha)
                 h = MixG(h, L.shapeFill != null ? L.shapeFill.gradient : null);   // the ramp
                 return h;

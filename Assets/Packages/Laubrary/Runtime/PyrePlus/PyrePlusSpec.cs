@@ -78,14 +78,18 @@ namespace Laubrary.PyrePlus
     //              (Laubrary.Pyre) with BUILT-IN fixed emitters (arms around the canvas centre); its ramp is the
     //              shapeFill gradient and its overall opacity the shared `alpha` envelope. It ignores `size` and the
     //              swarm. See PyrePlusRenderer.RenderFireLayer / _fireSims (the CWT + content-hash replay cache).
-    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. Fire (slice 6a) is the FIRST
-    // simulation-backed form here; Fireball (slice 6b) is the one remaining sim form still deferred — it retains
-    // frame-to-frame grid state and needs the same replay harness Fire now has, so it is NOT here yet. HeightBalls
-    // is NOT a sim: it is CLOSED-FORM / stateless, proven at Runtime/Pyre/BlastRenderer.cs:1493-1496 — every ball's
-    // whole state at a frame is a pure function of (layer hash, group, ball index, layer life), nothing accumulates
-    // between frames — so it arrives as a stateless Coalesce (Ramp) field-pass mode alongside MetaBlob, never as a
-    // deferred sim form here.
-    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak, Star, Fire }
+    //   Fireball — the SECOND stateful sim (slice 6b): the cheap "doom-fire" cellular flame. Heat blooms OUTWARD from
+    //              one central point, folded into `fireballArms` kaleidoscope wedges → a radial/star explosion. Like
+    //              Fire it retains a frame-to-frame heat grid reached by the SAME replay harness, NOT a closed form; it
+    //              REUSES Pyre's public FireballSim/FireballParams directly. SINGLE-SOURCE (one central emitter) — it
+    //              ignores `size` and the swarm. See PyrePlusRenderer.RenderFireballLayer / _fireballSims.
+    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. Fire (slice 6a) and Fireball (slice
+    // 6b) are the only two simulation-backed forms here — both retain frame-to-frame grid state and share the replay
+    // harness. HeightBalls is NOT a sim: it is CLOSED-FORM / stateless, proven at Runtime/Pyre/BlastRenderer.cs:1493-
+    // 1496 — every ball's whole state at a frame is a pure function of (layer hash, group, ball index, layer life),
+    // nothing accumulates between frames — so it arrives as a stateless Coalesce (Ramp) field-pass mode alongside
+    // MetaBlob, never as a deferred sim form here.
+    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak, Star, Fire, Fireball }
 
     // How the Text form's spatial fill gradient is applied. PerCharGradient = every letter contains the WHOLE
     // gradient (across its own box, along the rotated fill axis). PerCharStep = every letter is ONE flat colour,
@@ -461,6 +465,26 @@ namespace Laubrary.PyrePlus
         [Range(0f, 0.9f)] public float fireThreshold = 0.06f;     // heat below this reads as empty (raise for a crisper silhouette)
         public float fireContrast = 0.85f;                        // contrast on the gradient lookup (below 1 pushes more of the flame toward the hot end)
 
+        // ── Fireball form (shapeForm == Fireball) — a STATEFUL cellular SIMULATION (slice 6b) ──────────────────
+        // PyrePlus's SECOND sim-backed form (after Fire): the cheap "doom-fire" cellular flame — heat propagates
+        // OUTWARD from one central point, folded into `fireballArms` kaleidoscope wedges, so it reads as a radial/
+        // star explosion cooling at the rim. Like Fire it retains a frame-to-frame heat grid reached by the SAME
+        // replay harness (PyrePlusRenderer._fireballSims + RenderFireballLayer), NOT a per-frame closed form. It
+        // REUSES Pyre's own PUBLIC FireballSim/FireballParams directly (Laubrary.Pyre) — zero re-port of the cellular
+        // physics. These fields are the exact inputs Pyre's StepFireball reads (Runtime/Pyre/BlastRenderer.cs:233);
+        // the ZUIValue rates are envelopes over the LAYER's life. Fireball is SINGLE-SOURCE (one central emitter) — it
+        // ignores `size` and the swarm. Defaults mirror Pyre's Layer.cs Fireball block exactly.
+        public ZUIValue fireballSource = DefaultFireballSource();  // the burn's PROGRESS over life — how hot the centre injects
+        public ZUIValue fireballSourceRadius = new ZUIValue(4f);  // radius of the hot core at the centre, px
+        public ZUIValue fireballCooling = new ZUIValue(0.03f);    // how fast the flame cools travelling outward — arm LENGTH (low = long)
+        public ZUIValue fireballSharpness = new ZUIValue(0.2f);   // how hard the arms taper — arm THINNESS, independent of length
+        public ZUIValue fireballSpread = new ZUIValue(0.5f);      // sideways waver of the tongues — how much they lick
+        public ZUIValue fireballReach = new ZUIValue(0.95f);      // reach as a fraction of the canvas half-size — confinement (never touches the edge)
+        [Min(1)] public int fireballArms = 1;                     // radial wedges the flame is mirrored into (1 = a plain outward burst; more = kaleidoscope)
+        public bool fireballMirror = true;                        // Mirror = alternate wedges reflected (a seam); off = each wedge the same, rotated
+        [Range(0f, 0.9f)] public float fireballThreshold = 0.06f; // heat below this reads as empty (raise for a crisper silhouette)
+        public float fireballContrast = 0.85f;                    // contrast on the gradient lookup (below 1 pushes more toward the hot end)
+
         // ── opt-in Shape fields (T7) — the particle's OWN motion after birth, on its own life clock ────────
         // A per-particle travel path: canvas-pixel offsets ADDED to the particle's spawn position, evaluated on
         // its OWN life (0 = birth, 1 = death). Default Static 0 (a no-op — the renderer skips the Eval entirely
@@ -634,6 +658,14 @@ namespace Laubrary.PyrePlus
             l.fireBurn = CloneVal(fireBurn);
             l.fireReach = CloneVal(fireReach);
             l.fireEdgeCooling = CloneVal(fireEdgeCooling);
+            // Fireball (slice 6b): the six rate ZUIValues are deep-copied so the copy owns its own curve data;
+            // fireballArms/fireballMirror/fireballThreshold/fireballContrast are value types (MemberwiseClone copied).
+            l.fireballSource = CloneVal(fireballSource);
+            l.fireballSourceRadius = CloneVal(fireballSourceRadius);
+            l.fireballCooling = CloneVal(fireballCooling);
+            l.fireballSharpness = CloneVal(fireballSharpness);
+            l.fireballSpread = CloneVal(fireballSpread);
+            l.fireballReach = CloneVal(fireballReach);
             // Luma-matte (slice 4): matteFlags/matteScope/matteInvert are value types (MemberwiseClone copied them);
             // the four amount envelopes are ZUIValues, so deep-copy each so the copy owns its own curve data.
             l.matteStrength = CloneVal(matteStrength);
@@ -813,6 +845,19 @@ namespace Laubrary.PyrePlus
             v.points.Add(new ZUIEnvelopePoint(0f, 0f));
             v.points.Add(new ZUIEnvelopePoint(0.18f, 1f));
             v.points.Add(new ZUIEnvelopePoint(0.7f, 1f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 0f));
+            return v;
+        }
+
+        static ZUIValue DefaultFireballSource()
+        {
+            // Fireball's burn PROGRESS envelope over the layer's life — the exact shape of Pyre's fireballSource
+            // default (Layer.cs: CurveVal(1f, 0f,0f, 0.12f,1f, 0.6f,1f, 1f,0f)): a quick ignite, a hold, a fade to nothing.
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, 0f));
+            v.points.Add(new ZUIEnvelopePoint(0.12f, 1f));
+            v.points.Add(new ZUIEnvelopePoint(0.6f, 1f));
             v.points.Add(new ZUIEnvelopePoint(1f, 0f));
             return v;
         }
