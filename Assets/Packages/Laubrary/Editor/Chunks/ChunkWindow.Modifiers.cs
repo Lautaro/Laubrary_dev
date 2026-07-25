@@ -85,24 +85,37 @@ namespace Laubrary.Chunks.Editor
             });
             header.Add(grip);
 
-            header.Add(Z.Toggle("", "Enable or disable this modifier.", m.enabled, v =>
+            var enableToggle = Z.Toggle("", "Enable or disable this modifier.", m.enabled, v =>
             {
                 Dial("Toggle modifier", () => m.enabled = v);
                 RebuildModifiers();   // rebuild so the body appears / disappears
-            }));
+            });
+            header.Add(enableToggle);
             header.Add(Z.Text(m.DisplayName, ZuiText.Body, m.DisplayName + " modifier."));
             header.Add(Z.Flexible());
-            header.Add(Z.Button("X", "Remove this modifier (undoable).", () =>
+            var removeBtn = Z.Button("X", "Remove this modifier (undoable).", () =>
             {
                 int at = list.IndexOf(m);
                 if (at >= 0) { Dial("Remove modifier", () => list.RemoveAt(at)); RebuildModifiers(); }
-            }).W(22f));
+            }).W(22f);
+            header.Add(removeBtn);
             box.Add(header);
 
-            // Body: every editable field of THIS modifier, drawn generically by the toolkit's reflection drawer.
-            // Only when enabled (a disabled modifier is header-only, matching Pyre's own list).
+            // Body: every editable field of THIS modifier, drawn generically by the toolkit's reflection drawer,
+            // in its own container so the card can FOLD to just the header (task #52). Only when enabled (a
+            // disabled modifier is header-only, matching Pyre's own list — and has nothing to fold).
+            VisualElement body = null;
             if (m.enabled)
-                ZuiReflect.BuildFields(box, m, ModifierDrawerOptions(m));
+            {
+                body = new VisualElement();
+                ZuiReflect.BuildFields(body, m, ModifierDrawerOptions(m));
+                box.Add(body);
+            }
+
+            // Clicking the header folds the field body away, leaving the grip / enable / name / ✕ visible;
+            // fold state is kept PER MODIFIER INSTANCE so it survives this window's rebuilds (undo / reorder /
+            // spec selection). The grip already guards its own drag; the toggle / ✕ must not fold on click.
+            ZuiFoldCard.Wire(m, header, body, enableToggle, removeBtn);
 
             return box;
         }

@@ -244,8 +244,9 @@ namespace Laubrary.Chunks.Editor
                 "Recolours sampled debris as it's cut. Whole = every opaque pixel; Edges only = just the rim, for a " +
                 "burned/glowing edge; Excluding edges = a scorched interior with a clean edge.");
             tint.Add(Z.Field("Mode", "Which pixels of a cut chunk get recoloured.",
-                Z.EnumDropdown(c.tintMode, "Which pixels of a cut chunk get recoloured.",
-                    v => DialAndRebuild("Tint mode", () => c.tintMode = v), Wide)));
+                Z.MiniRadio((int)c.tintMode, new[] { "None", "Whole", "Edges only", "Excluding edges" },
+                    "Which pixels of a cut chunk get recoloured.",
+                    v => DialAndRebuild("Tint mode", () => c.tintMode = (ChunkTintMode)v), wrap: true)));
             if (c.tintMode != ChunkTintMode.None)
             {
                 tint.Add(Z.Field("Colour", "The colour blended onto the cut pixels.",

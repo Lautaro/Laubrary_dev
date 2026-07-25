@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.IO;
 using Laubrary.Zui;
 using UnityEditor;
-using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -27,21 +26,22 @@ namespace Laubrary.PyrePlus.Editor
                 + "reported after the conversion.",
                 "pyreplus.import");
 
-            // Raw UITK ObjectField — an asset picker is a known ZUI gap (a legitimate raw fallback today).
-            var picker = new ObjectField("Pyre asset")
-            {
-                objectType = typeof(Laubrary.Pyre.Pyre),
-                allowSceneObjects = false,
-                value = _importSrc,
-                tooltip = "The vanilla Pyre asset to import.",
-            };
-            picker.RegisterValueChangedCallback(e => _importSrc = e.newValue as Laubrary.Pyre.Pyre);
-            box.Add(picker);
+            // The Pyre asset picker — Z.Object wrapped in Z.Field, the idiomatic ZUI object-field pattern
+            // (the same wrapper the sibling Chunks window uses for its Sample-source Sprite field). Z.Object IS
+            // ZUI's object-field factory: an asset picker is NOT a ZUI gap. _importSrc is a transient window
+            // field (not spec state), so the callback just sets it — no Undo/Dirty.
+            const string pyreTip = "The vanilla Pyre asset to import.";
+            box.Add(Z.Field("Pyre asset", pyreTip,
+                Z.Object<Laubrary.Pyre.Pyre>(_importSrc, pyreTip,
+                    v => _importSrc = v, 200f)));
 
-            box.Add(Z.Button("Convert to Pyre Plus",
+            // WrapRow so the button sizes to its own content rather than stretching to the full box width — a
+            // bare Button added to a box column stretches on the cross axis (measured 340px), the same reason
+            // every other PyrePlus action button (+ Add layer / + Add modifier / + Add simulation) is wrapped.
+            box.Add(WrapRow(Z.Button("Convert to Pyre Plus",
                 "Convert the picked Pyre asset into a new Pyre Plus asset beside it (undoable). Shows a report of "
                 + "anything dropped or approximated.",
-                DoImport));
+                DoImport)));
             root.Add(box);
         }
 

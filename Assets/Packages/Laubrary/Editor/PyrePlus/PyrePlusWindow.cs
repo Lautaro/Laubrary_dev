@@ -670,9 +670,11 @@ namespace Laubrary.PyrePlus.Editor
 
             box.Add(Z.Field("Role",
                 "Draw = composite this layer onto the frame normally. Write matte = don't draw it; write its "
-                + "coverage into a mask channel for the Draw layers above to clip by.",
+                + "coverage into a mask channel for the Draw layers above to clip by. Luma matte = don't draw it; "
+                + "use its luminance × alpha as a mask that alters the layers above (opacity, brightness, hue…).",
                 Z.Segmented((int)layer.matteRole, MatteRoleLabels,
-                    "Draw composites this layer. Write matte makes it invisible and stencils a channel instead.",
+                    "Draw composites this layer. Write matte makes it invisible and stencils a channel instead. "
+                    + "Luma matte makes it invisible and masks the layers above by its luminance.",
                     // Role swaps the box's controls (Channel/Combine ↔ Clip/Invert) AND the row's matte indicator,
                     // so rebuild the whole list; the per-index fold key keeps this box's open/closed state across it.
                     v => { Dirty(() => layer.matteRole = (MatteRole)v); RebuildLayerList(); })));

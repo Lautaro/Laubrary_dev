@@ -244,12 +244,17 @@ namespace Laubrary.Zui
             return Z.Field("Zoom", tip, f);
         }
 
+        static readonly string[] NoiseKindLabels = { "Value", "Ridged", "Steps" };
+
         VisualElement NoiseKindField()
         {
             const string tip = "Noise shape: Value (plain), Ridged (creased ridges), or Steps (4-band posterized). "
                 + "All three map through the gradient.";
-            var d = Z.EnumDropdown(_fill.noiseKind, tip, v => Mutate(() => _fill.noiseKind = v), 74f);
-            return Z.Field("Kind", tip, d);
+            // Wrapped radio, not a native dropdown (ui-layout-rules: enum → radio/segmented) — and it matches the
+            // Segmented Anchor field packed beside it in the same noise row.
+            var seg = Z.Segmented((int)_fill.noiseKind, NoiseKindLabels, tip,
+                v => Mutate(() => _fill.noiseKind = (ZuiFill.NoiseKind)v));
+            return Z.Field("Kind", tip, seg);
         }
 
         static readonly string[] SpaceLabels = { "Stamped", "Fixed" };

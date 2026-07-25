@@ -74,9 +74,13 @@ namespace Laubrary.PyrePlus.Editor
         // enable/clear header plus the modifier's own reflected fields (drawn exactly like a modifier block).
         VisualElement BuildSimSlot(PyrePlusLayer s)
         {
-            var box = Z.Box("Simulation (always last)",
+            // BoxKeyed (not Z.Box): this box is captured by the saved-views bar like every other stable PyrePlus
+            // box, so it needs an explicit stable key — an unkeyed box falls back to keying its view-state by
+            // title+tooltip (ZuiBox.cs), which orphans saved views the moment the title/tooltip is reworded.
+            var box = Z.BoxKeyed("Simulation (always last)",
                 "A stateful simulation that runs LAST on this layer — after its modifiers, before any matte. It " +
-                "keeps state frame-to-frame and replays deterministically on scrub. One per layer.");
+                "keeps state frame-to-frame and replays deterministically on scrub. One per layer.",
+                "pyreplus.sim");
             var sim = s.simulationModifier;
             if (sim == null)
             {
@@ -89,26 +93,36 @@ namespace Laubrary.PyrePlus.Editor
 
             var header = new VisualElement();
             header.AddToClassList("zui-row");
-            header.Add(Z.Toggle("", "Enable or disable this simulation (disabled = the layer renders without it).",
+            var enableToggle = Z.Toggle("",
+                "Enable or disable this simulation (disabled = the layer renders without it).",
                 sim.enabled, v =>
             {
                 Dirty(() => sim.enabled = v);
                 RebuildModifiers();   // rebuild so the body appears / disappears
-            }));
+            });
+            header.Add(enableToggle);
             header.Add(Z.Text(sim.DisplayName, ZuiText.Body, sim.DisplayName + " simulation."));
             header.Add(Z.Flexible());
-            header.Add(Z.Button("X", "Remove this simulation from the layer (undoable).", () =>
+            var removeBtn = Z.Button("X", "Remove this simulation from the layer (undoable).", () =>
             {
                 Dirty(() => s.simulationModifier = null);
                 RebuildModifiers();
-            }).W(22f));
+            }).W(22f);
+            header.Add(removeBtn);
             box.Add(header);
 
             // Body: every editable field of the sim modifier, drawn generically by the shared reflection drawer —
             // the SAME Undo/dirty/rebuild contract a modifier block uses (its ZUIValue params surface as their static
-            // value, the accepted prototype limitation). Only when enabled.
+            // value, the accepted prototype limitation). In its own container so the sim card FOLDS to just its
+            // header (task #52), keyed by the sim instance. Only when enabled (a disabled sim has nothing to fold).
+            VisualElement body = null;
             if (sim.enabled)
-                ZuiReflect.BuildFields(box, sim, ModifierDrawerOptions(sim));
+            {
+                body = new VisualElement();
+                ZuiReflect.BuildFields(body, sim, ModifierDrawerOptions(sim));
+                box.Add(body);
+            }
+            ZuiFoldCard.Wire(sim, header, body, enableToggle, removeBtn);
 
             return box;
         }
@@ -180,24 +194,37 @@ namespace Laubrary.PyrePlus.Editor
             });
             header.Add(grip);
 
-            header.Add(Z.Toggle("", "Enable or disable this modifier.", m.enabled, v =>
+            var enableToggle = Z.Toggle("", "Enable or disable this modifier.", m.enabled, v =>
             {
                 Dirty(() => m.enabled = v);
                 RebuildModifiers();   // rebuild so the body appears / disappears
-            }));
+            });
+            header.Add(enableToggle);
             header.Add(Z.Text(m.DisplayName, ZuiText.Body, m.DisplayName + " modifier."));
             header.Add(Z.Flexible());
-            header.Add(Z.Button("X", "Remove this modifier (undoable).", () =>
+            var removeBtn = Z.Button("X", "Remove this modifier (undoable).", () =>
             {
                 int at = list.IndexOf(m);
                 if (at >= 0) { Dirty(() => list.RemoveAt(at)); RebuildModifiers(); }
-            }).W(22f));
+            }).W(22f);
+            header.Add(removeBtn);
             box.Add(header);
 
-            // Body: every editable field of THIS modifier, drawn generically by the toolkit's reflection drawer.
-            // Only when enabled (a disabled modifier is header-only, matching Pyre's own list).
+            // Body: every editable field of THIS modifier, drawn generically by the toolkit's reflection drawer,
+            // in its own container so the card can FOLD to just the header (task #52). Only when enabled (a
+            // disabled modifier is header-only, matching Pyre's own list — and has nothing to fold).
+            VisualElement body = null;
             if (m.enabled)
-                ZuiReflect.BuildFields(box, m, ModifierDrawerOptions(m));
+            {
+                body = new VisualElement();
+                ZuiReflect.BuildFields(body, m, ModifierDrawerOptions(m));
+                box.Add(body);
+            }
+
+            // Clicking the header folds the field body away, leaving the grip / enable / name / ✕ visible;
+            // fold state is kept PER MODIFIER INSTANCE so it survives this window's rebuilds (undo / reorder /
+            // layer selection). The grip already guards its own drag; the toggle / ✕ must not fold on click.
+            ZuiFoldCard.Wire(m, header, body, enableToggle, removeBtn);
 
             return box;
         }

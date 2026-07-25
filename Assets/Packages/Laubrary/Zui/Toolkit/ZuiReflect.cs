@@ -5,7 +5,9 @@
 //   • a typed object field whose type is only known at runtime — `ObjectField.objectType` is a plain
 //     property, so no compile-time generic parameter is needed (the IMGUI ZUI.ObjectField<T> could
 //     not express this, which is why those call sites stayed raw EditorGUILayout);
-//   • an enum field for a runtime Enum value — `new EnumField(value)` needs no generic either;
+//   • an enum for a runtime Enum value — rendered as WRAPPED MINI-RADIOS (and a [Flags] enum as a
+//     multi-select segmented row), per the toolkit rule that an enum is a radio/segmented, never a
+//     native EnumField dropdown — no compile-time generic needed for either;
 //   • boxed list rows / cards — plain `Z.Box`.
 //
 // Everything here still obeys the toolkit's rules: a tooltip on every control, explicit widths, and a
@@ -40,13 +42,35 @@ namespace Laubrary.Zui
             return f;
         }
 
-        /// An enum dropdown for a runtime `Enum` value (no compile-time generic needed).
-        public static EnumField EnumByValue(Enum value, string tooltip, Action<Enum> onChanged, float width = 150f)
+        /// A reflected enum as WRAPPED MINI-RADIOS — never a native EnumField dropdown (ui-layout-rules:
+        /// an enum is a radio/segmented). A [Flags] enum instead becomes a multi-select segmented row over
+        /// its single-bit members, so several flags can light at once. `onChanged` gets the new Enum value.
+        public static VisualElement EnumControl(Enum value, string tooltip, Action<Enum> onChanged)
         {
-            var f = new EnumField(value) { tooltip = tooltip };
-            f.style.width = width;
-            f.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
-            return f;
+            var t = value.GetType();
+            string[] names = Enum.GetNames(t);
+            Array values = Enum.GetValues(t);
+            var labels = new string[names.Length];
+            for (int i = 0; i < names.Length; i++) labels[i] = ObjectNames.NicifyVariableName(names[i]);
+
+            if (Attribute.IsDefined(t, typeof(FlagsAttribute)))
+            {
+                // Single-bit members only (skip 0 = "None" and any pre-combined masks); toggle bits on the value.
+                var bits = new List<long>();
+                var bitLabels = new List<string>();
+                for (int i = 0; i < values.Length; i++)
+                {
+                    long bv = Convert.ToInt64(values.GetValue(i));
+                    if (bv != 0 && (bv & (bv - 1)) == 0) { bits.Add(bv); bitLabels.Add(labels[i]); }
+                }
+                long cur = Convert.ToInt64(value);
+                return Z.SegmentedMulti(i => (cur & bits[i]) != 0, bitLabels.ToArray(), tooltip,
+                    (i, on) => { cur = on ? (cur | bits[i]) : (cur & ~bits[i]); onChanged?.Invoke((Enum)Enum.ToObject(t, cur)); });
+            }
+
+            int sel = 0;
+            for (int i = 0; i < values.Length; i++) if (values.GetValue(i).Equals(value)) { sel = i; break; }
+            return Z.MiniRadio(sel, labels, tooltip, i => onChanged?.Invoke((Enum)values.GetValue(i)), wrap: true);
         }
 
         /// A compact X/Y pair. Deliberately NOT the 2D pad: a reflected Vector2 is just as likely to be a
@@ -157,7 +181,7 @@ namespace Laubrary.Zui
                 return Z.Field(nice, tip, Z.TextInput((string)v ?? "", tip, nv => Set(nv), opt.ControlWidth));
 
             if (t.IsEnum)
-                return Z.Field(nice, tip, EnumByValue((Enum)v, tip, nv => Set(nv), opt.ControlWidth));
+                return Z.Field(nice, tip, EnumControl((Enum)v, tip, nv => Set(nv)));
 
             if (t == typeof(Color))
                 return Z.Field(nice, tip, Z.Color((Color)v, tip, nv => Set(nv), 110f));
@@ -262,7 +286,7 @@ namespace Laubrary.Zui
             if (typeof(UnityEngine.Object).IsAssignableFrom(elemType))
                 return ObjectByType(elemType, (UnityEngine.Object)list[idx], etip, nv => Set(nv), opt.ControlWidth);
             if (elemType.IsEnum)
-                return EnumByValue((Enum)list[idx], etip, nv => Set(nv), opt.ControlWidth);
+                return EnumControl((Enum)list[idx], etip, nv => Set(nv));
             if (elemType == typeof(float))
                 return Z.Float((float)list[idx], etip, nv => Set(nv), 80f);
             if (elemType == typeof(int))
