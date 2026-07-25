@@ -184,6 +184,7 @@ namespace Laubrary.PyrePlus.Editor
             BuildShape(flow, s);
             BuildSwarm(flow, s);
             BuildModifiers(flow, s);   // PyrePlusWindow.Modifiers.cs
+            BuildImport(flow);         // PyrePlusWindow.Import.cs — "Import from Pyre…" converter (slice 9)
             // No standalone Matte section: matte is a property of a layer, authored per-row in the layer list
             // above (BuildMatteBox, folded under each row) — mirroring Pyre1, where a matte reads as belonging
             // to the layer in the STACK (where it acts) rather than as a dial in a separate section.
