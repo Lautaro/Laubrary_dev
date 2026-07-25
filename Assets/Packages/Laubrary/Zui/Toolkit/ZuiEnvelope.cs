@@ -36,6 +36,13 @@ namespace Laubrary.Zui
         /// Draw each point's value as small text beside it.
         public bool showValueLabels = false;
         public Color curveColor = new Color(0.3f, 0.8f, 1f);
+        /// Vertical frame-boundary markers. When showFrameLines is on and frameCount > 1, draw a faint
+        /// vertical line at each animation frame's position across the envelope's life span, labelled with
+        /// the frame index — so an author can read exactly which frame a part of the curve lands on. The
+        /// LINES are drawn per-frame; the NUMBERS auto-thin (every Nth frame) when they'd otherwise overlap,
+        /// so a long animation doesn't become an unreadable smear of digits.
+        public bool showFrameLines = false;
+        public int frameCount = 0;
     }
 
     public class ZuiEnvelope : VisualElement
@@ -53,6 +60,9 @@ namespace Laubrary.Zui
         static readonly Color GridColor = new Color(0.5f, 0.5f, 0.5f, 0.18f);
         static readonly Color BoxFill = new Color(0.3f, 0.7f, 1f, 0.12f);
         static readonly Color BoxLine = new Color(0.4f, 0.8f, 1f, 0.9f);
+        static readonly Color FrameLineColor = new Color(0.55f, 0.6f, 0.72f, 0.15f);   // vertical per-frame markers
+        static readonly Color FrameEdgeColor = new Color(0.55f, 0.6f, 0.72f, 0.30f);   // first/last frame — bookends
+        static readonly Color FrameLabelColor = new Color(0.75f, 0.8f, 0.92f, 0.6f);   // the frame-index numbers
 
         readonly List<ZUIEnvelopePoint> _points;   // caller-owned; mutated in place
         readonly ZuiEnvelopeOptions _opt;
@@ -188,6 +198,8 @@ namespace Laubrary.Zui
                 }
             }
 
+            DrawFrameMarkers(mgc, painter, plot);
+
             if (_points.Count >= 1)
             {
                 painter.strokeColor = _opt.curveColor;
@@ -256,6 +268,38 @@ namespace Laubrary.Zui
                 painter.LineTo(new Vector2(box.x, box.yMax));
                 painter.ClosePath();
                 painter.Stroke();
+            }
+        }
+
+        // Vertical frame-boundary markers (opt-in via ZuiEnvelopeOptions.showFrameLines/frameCount). A line
+        // per frame at f/(frameCount-1) of the life span; numbers thinned to every labelStep frames so they
+        // never overlap on a long animation. x is value-independent (ToLocal derives it from time only).
+        void DrawFrameMarkers(MeshGenerationContext mgc, Painter2D painter, Rect plot)
+        {
+            if (!_opt.showFrameLines || _opt.frameCount < 2) return;
+            int fc = _opt.frameCount;
+            float pxPerFrame = plot.width / (fc - 1);
+            int labelStep = Mathf.Max(1, Mathf.CeilToInt(22f / Mathf.Max(1f, pxPerFrame)));
+
+            painter.lineWidth = 1f;
+            for (int f = 0; f < fc; f++)
+            {
+                float x = ToLocal(Mathf.Lerp(_opt.xMin, _opt.xMax, f / (float)(fc - 1)), _opt.yMin).x;
+                painter.strokeColor = (f == 0 || f == fc - 1) ? FrameEdgeColor : FrameLineColor;
+                painter.BeginPath();
+                painter.MoveTo(new Vector2(x, plot.y));
+                painter.LineTo(new Vector2(x, plot.yMax));
+                painter.Stroke();
+            }
+            // Numbers second so they sit above the lines; near the right edge they flip to the left of the
+            // line so the last one never clips out of the plot.
+            for (int f = 0; f < fc; f += labelStep)
+            {
+                float x = ToLocal(Mathf.Lerp(_opt.xMin, _opt.xMax, f / (float)(fc - 1)), _opt.yMin).x;
+                string txt = f.ToString();
+                float labelW = txt.Length * 5.5f + 3f;
+                float tx = x + labelW > plot.xMax ? x - labelW : x + 2f;
+                mgc.DrawText(txt, new Vector2(tx, plot.y + 1f), 9f, FrameLabelColor);
             }
         }
 

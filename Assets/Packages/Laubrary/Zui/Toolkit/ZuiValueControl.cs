@@ -49,6 +49,10 @@ namespace Laubrary.Zui
             // arm count, frame count — that can't be fractional): the slider snaps to whole numbers and shows
             // no decimals, and MinMax mode uses integer fields.
             public int decimals = -1;
+            // Draw vertical frame-boundary markers in the curve editor at each animation frame's position,
+            // labelled with the frame index (labels auto-thin when dense). 0 = off. Set it to the spec's frame
+            // count so an author can see exactly which frame each part of an over-life envelope lands on.
+            public int frameCount = 0;
 
             public Options WithRange(float lo, float hi) { absMin = lo; absMax = hi; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
@@ -57,6 +61,7 @@ namespace Laubrary.Zui
             public Options WithoutCurveExtras() { hideCurveTiming = true; hideCurveRange = true; return this; }
             public Options WithoutLiveReadout() { hideLiveReadout = true; return this; }
             public Options WithWidth(float w) { controlWidth = w; return this; }
+            public Options WithFrameLines(int frames) { frameCount = frames; return this; }
 
             public Options Clone() => (Options)MemberwiseClone();
         }
@@ -250,6 +255,8 @@ namespace Laubrary.Zui
                 yMin = _v.yMin, yMax = _v.yMax,
                 curveColor = new Color(0.4f, 0.85f, 1f),
                 showValueLabels = st.showValues,
+                showFrameLines = _opt.frameCount > 1,
+                frameCount = _opt.frameCount,
             };
             // Mockup layout: the envelope fills the available width (taller than the old 90px), with
             // the optional numeric-inputs COLUMN standing to its right.
