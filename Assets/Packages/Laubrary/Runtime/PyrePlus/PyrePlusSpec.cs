@@ -91,7 +91,37 @@ namespace Laubrary.PyrePlus
     // it; instead write its per-pixel COVERAGE (the alpha it would draw, before colour) into one of four numbered
     // mask channels, which the Draw layers above it can clip by. Simplified from vanilla Pyre's Draw/Matte — see
     // PyrePlusRenderer's matte section for the full drift note.
-    public enum MatteRole { Draw, WriteMatte }
+    // LumaMatte (slice 4) = a NEW, PARALLEL, opt-in role that ports Pyre1's full six-channel LUMINANCE matte
+    // (BlastRenderer's Draw/Matte): don't composite it; build a luminance×alpha MASK from its finished pixels and
+    // impose the matteFlags channels (Alpha/Brightness/Saturation/Hue/Blur/Displace) on the layers above, scoped by
+    // matteScope. It is ADDITIVE — the WriteMatte numbered-channel coverage-clip path above is untouched, so existing
+    // specs render byte-identical. APPEND ONLY — serialized as an int, so never reorder or insert (LumaMatte appended
+    // after WriteMatte: Draw=0, WriteMatte=1, LumaMatte=2).
+    public enum MatteRole { Draw, WriteMatte, LumaMatte }
+
+    // (slice 4 — LumaMatte) Which effects a LumaMatte layer's mask imposes on the layers above it. A [Flags] set —
+    // any combination acts at once, applied in a FIXED order (spatial first, then colour, then alpha) so a
+    // combination is deterministic regardless of which bits are set. Mirrors Pyre1's PyreEnums.MatteChannel exactly
+    // (same names + bit values); a NEW PyrePlus-local enum (distinct from the existing `matteChannel` int, which is
+    // the WriteMatte numbered channel and is left untouched). None ⇒ ApplyMatte falls back to Alpha (legacy guard).
+    [System.Flags]
+    public enum MatteChannel
+    {
+        None       = 0,
+        Alpha      = 1 << 0,   // classic luma matte: mask multiplies the covered layers' opacity
+        Brightness = 1 << 1,   // darken toward black where the mask is low — a shadow/light pass
+        Saturation = 1 << 2,   // drain toward greyscale where the mask is low (ash, smoke, heat-death)
+        Hue        = 1 << 3,   // rotate hue by the mask — heat shimmer, chemical burn, cold spots
+        Blur       = 1 << 4,   // soften where the mask is high, sharp where it's low
+        Displace   = 1 << 5,   // push pixels along the mask's own SLOPE — refraction, heat haze, lensing
+    }
+
+    // (slice 4 — LumaMatte) How far up the stack a LumaMatte layer reaches. Mirrors Pyre1's PyreEnums.MatteScope.
+    public enum MatteScope
+    {
+        NextLayer,   // clip only the next drawn layer above it (Photoshop's clipping-mask behaviour)
+        AllAbove,    // affect every layer above it, until another LumaMatte replaces it
+    }
 
     // How a WriteMatte layer's coverage combines with whatever is already in its channel (earlier WriteMatte
     // layers can target the same channel). Max (the default) = the classic union of masks; Add = accumulate and
@@ -131,6 +161,21 @@ namespace Laubrary.PyrePlus
         public MatteCombine matteCombine = MatteCombine.Max;   // how it combines with what's already in that channel
         public int clipByChannel = -1;             // Draw only: -1 = no clip; 0..3 = multiply this layer's alpha by that channel
         public bool clipInvert = false;            // Draw + clip: use (1 - channel) instead of channel
+
+        // ── Luma-matte (matteRole == LumaMatte, slice 4) — Pyre1's six-channel luminance matte, added PARALLEL ──
+        // All-NEW fields (no renames of the coverage-clip fields above, so no data migration): a LumaMatte layer is
+        // invisible; its finished pixels become a MASK = luminance × its own alpha, and the matteFlags channels are
+        // imposed on the layers above (scoped by matteScope). Ported verbatim from BlastRenderer's Draw/Matte model.
+        // The mask STRENGTH + the Blur/Displace/Hue amounts are ZUIValues over the matte layer's OWN life (deep-copied
+        // in Clone below); matteFlags/matteScope/matteInvert are value types (MemberwiseClone copies them). Read ONLY
+        // when matteRole == LumaMatte — inert for Draw/WriteMatte layers, so existing specs are byte-identical.
+        public MatteChannel matteFlags = MatteChannel.Alpha;   // which channels this matte imposes (default: classic alpha luma matte)
+        public MatteScope matteScope = MatteScope.NextLayer;   // NextLayer = the next drawn layer only; AllAbove = every layer above until replaced
+        public bool matteInvert = false;                       // mask = 1 - mask (impose where the matte is DARK)
+        public ZUIValue matteStrength = new ZUIValue(1f);      // master mask strength 0..1 over the matte layer's own life
+        public ZUIValue matteBlurAmount = new ZUIValue(3f);    // Blur channel: max radius (px) where the mask is full
+        public ZUIValue matteDisplaceAmount = new ZUIValue(4f);// Displace channel: how far (px) mask edges push pixels
+        public ZUIValue matteHueDegrees = new ZUIValue(60f);   // Hue channel: hue rotation (degrees) where the mask is full
 
         // ── Coalesce render-mode — how this layer turns its swarm into pixels ────────────────────────────
         // Off (default) = per-particle Over-compositing, byte-identical to pre-Coalesce (every form today). Fuse/Ramp
@@ -498,6 +543,12 @@ namespace Laubrary.PyrePlus
             l.swarmScale = CloneVal(swarmScale);
             l.density = CloneVal(density);
             l.heat = CloneVal(heat);
+            // Luma-matte (slice 4): matteFlags/matteScope/matteInvert are value types (MemberwiseClone copied them);
+            // the four amount envelopes are ZUIValues, so deep-copy each so the copy owns its own curve data.
+            l.matteStrength = CloneVal(matteStrength);
+            l.matteBlurAmount = CloneVal(matteBlurAmount);
+            l.matteDisplaceAmount = CloneVal(matteDisplaceAmount);
+            l.matteHueDegrees = CloneVal(matteHueDegrees);
             // coalesce is a plain enum (value type) — MemberwiseClone above already copied it, like matteRole; the
             // three fuseThreshold/fuseShadeRange/fuseSoftness floats + the Ramp knobs (rampFusion/rampCoverage/
             // rampLighting/rampRelief/rampLightAngle/rampRimScale) are value types too, so MemberwiseClone deep-copies

@@ -562,6 +562,9 @@ namespace Laubrary.PyrePlus.Editor
             else if (layer.matteRole == MatteRole.WriteMatte)
                 row.Add(Z.Text($"→{Mathf.Clamp(layer.matteChannel, 0, 3)}", ZuiText.Small,
                     "A matte layer — invisible; writes its coverage into the shown mask channel."));
+            else if (layer.matteRole == MatteRole.LumaMatte)
+                row.Add(Z.Text("◧", ZuiText.Small,
+                    "A luma-matte layer — invisible; masks the layers above it by its luminance × alpha."));
 
             // Matte toggle ICON (mirrors Pyre1's per-row Matte toggle) — sits just before the delete button. A
             // glyph-swap button like the select button above (▦ mask-pattern = on, □ hollow = off), so it shows its
@@ -639,8 +642,9 @@ namespace Laubrary.PyrePlus.Editor
         }
 
         // ── Matte (R3) — a property of each layer, folded under its row in the layer list ──────────────
-        static readonly string[] MatteRoleLabels = { "Draw", "Write matte" };
+        static readonly string[] MatteRoleLabels = { "Draw", "Write matte", "Luma matte" };
         static readonly string[] MatteCombineLabels = { "Max", "Add", "Subtract" };
+        static readonly string[] MatteScopeLabels = { "Next layer", "All above" };
         static readonly List<string> ClipChannelChoices = new List<string> { "None", "0", "1", "2", "3" };
 
         // This layer's own Matte box, folded under its row (built from BuildLayerRow into the row's drag wrap, only
@@ -682,6 +686,58 @@ namespace Laubrary.PyrePlus.Editor
                             "Max = union of masks (default). Add = accumulate & clamp. Subtract = carve one mask out of another.",
                             v => Dirty(() => layer.matteCombine = (MatteCombine)v)))));
             }
+            else if (layer.matteRole == MatteRole.LumaMatte)
+            {
+                // Defensive: a hand-built layer might predate these fields. Fresh/duplicated layers always have them
+                // (field initialisers + Clone deep-copy), so this only guards the rare null path.
+                layer.matteStrength ??= new ZUIValue(1f);
+                layer.matteBlurAmount ??= new ZUIValue(3f);
+                layer.matteDisplaceAmount ??= new ZUIValue(4f);
+                layer.matteHueDegrees ??= new ZUIValue(60f);
+
+                // Channel flags — a multi-toggle. Any combination acts at once, in the fixed order
+                // Displace → Blur → Saturation → Hue → Brightness → Alpha. Toggling a channel rebuilds the list so
+                // the matching amount field (Blur/Displace/Hue) appears/disappears.
+                box.Add(Z.Field("Channels",
+                    "Which effects this luma matte imposes on the layers above — any combination acts at once, in a "
+                    + "fixed order (Displace → Blur → Saturation → Hue → Brightness → Alpha). The mask = the matte "
+                    + "layer's LUMINANCE × its own alpha.",
+                    WrapRow(
+                        ChannelFlag(layer, MatteChannel.Alpha, "Alpha", "Multiply the covered layers' opacity by the mask (classic luma matte)."),
+                        ChannelFlag(layer, MatteChannel.Brightness, "Bright", "Darken toward black where the mask is low — a shadow/light pass."),
+                        ChannelFlag(layer, MatteChannel.Saturation, "Sat", "Drain toward grey where the mask is low — ash, smoke, heat-death."),
+                        ChannelFlag(layer, MatteChannel.Hue, "Hue", "Rotate hue by the mask — heat shimmer, chemical burn, cold spots."),
+                        ChannelFlag(layer, MatteChannel.Blur, "Blur", "Soften where the mask is high, sharp where it's low."),
+                        ChannelFlag(layer, MatteChannel.Displace, "Displace", "Push pixels along the mask's own slope — refraction, heat haze."))));
+
+                box.Add(WrapRow(
+                    Z.Field("Scope",
+                        "How far up the stack this matte reaches. Next layer = clip only the next drawn layer (a "
+                        + "clipping mask). All above = affect every layer above it, until another luma matte replaces it.",
+                        Z.MiniRadio((int)layer.matteScope, MatteScopeLabels,
+                            "Next layer = the next drawn layer only. All above = every layer above until another luma matte replaces it.",
+                            v => Dirty(() => layer.matteScope = (MatteScope)v), wrap: true)),
+                    Z.Toggle("Invert",
+                        "Invert the mask (1 − mask) — impose the effect where the matte is DARK/transparent instead of bright.",
+                        layer.matteInvert, v => Dirty(() => layer.matteInvert = v))));
+
+                box.Add(Val("Strength",
+                    "Master strength of the whole matte over the matte layer's OWN life — scales the mask 0 (no "
+                    + "effect) → 1 (full). Animate it to fade the matte in/out.",
+                    layer.matteStrength, 0f, 1f));
+                if ((layer.matteFlags & MatteChannel.Blur) != 0)
+                    box.Add(Val("Blur amount",
+                        "Max blur radius (px) where the mask is full — the per-pixel radius is amount × mask.",
+                        layer.matteBlurAmount, 0f, 12f));
+                if ((layer.matteFlags & MatteChannel.Displace) != 0)
+                    box.Add(Val("Displace amount",
+                        "How far (px) mask EDGES push the pixels behind them along the mask's slope.",
+                        layer.matteDisplaceAmount, 0f, 16f));
+                if ((layer.matteFlags & MatteChannel.Hue) != 0)
+                    box.Add(Val("Hue degrees",
+                        "Hue rotation (degrees) applied where the mask is full.",
+                        layer.matteHueDegrees, -180f, 180f));
+            }
             else
             {
                 box.Add(WrapRow(
@@ -697,6 +753,16 @@ namespace Laubrary.PyrePlus.Editor
             }
             return box;
         }
+
+        // One channel-flag toggle for the LumaMatte box: shows + sets a single MatteChannel bit on the layer, then
+        // rebuilds the list so the matching amount field (Blur/Displace/Hue) appears/disappears. Binds to the
+        // passed-in `layer` (this row's), like every other matte control (never the selected one).
+        VisualElement ChannelFlag(PyrePlusLayer layer, MatteChannel bit, string label, string tip)
+            => Z.Toggle(label, tip, (layer.matteFlags & bit) != 0, on =>
+            {
+                Dirty(() => layer.matteFlags = on ? (layer.matteFlags | bit) : (layer.matteFlags & ~bit));
+                RebuildLayerList();
+            });
 
         // The Shape section is a stable header + a body container we clear/refill whenever the Advanced gate
         // flips — the same mechanism BuildSwarm uses for swarmBody/RebuildSwarm, so the opt-in Travel/Spin

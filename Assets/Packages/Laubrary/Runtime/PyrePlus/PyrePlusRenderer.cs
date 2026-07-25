@@ -71,7 +71,13 @@ namespace Laubrary.PyrePlus
         const int FldSwarmTurn = -16;    // swarmTurn — whole-cloud live yaw at the frame's life (frame-global)       [Issue2]
         const int FldSwarmTilt = -17;    // swarmTilt — whole-cloud live pitch at the frame's life (frame-global)     [Issue2]
         const int FldSwarmRoll = -18;    // swarmRoll — whole-cloud live roll at the frame's life (frame-global)      [Issue2]
-        // -19..-22 are RESERVED for the upcoming matte slice (FldMatteStrength/Blur/Displace/Hue) — do not reuse.
+        // Luma-matte (slice 4) — the four amount envelopes a LumaMatte layer Eval's per frame over its OWN life,
+        // frame-global (the modifier-scope sentinel particle index). Reserved for exactly this since the registry
+        // note above (-19..-22). strength is Clamp01'd; blur/displace/hue feed ApplyMatte's channel math.
+        const int FldMatteStrength = -19; // matteStrength — LumaMatte master mask strength, matte layer's own life  [slice4]
+        const int FldMatteBlur = -20;     // matteBlurAmount — LumaMatte Blur channel max radius                     [slice4]
+        const int FldMatteDisplace = -21; // matteDisplaceAmount — LumaMatte Displace channel amount                 [slice4]
+        const int FldMatteHue = -22;      // matteHueDegrees — LumaMatte Hue channel rotation                        [slice4]
         const int FldSwarmScale = -23;   // swarmScale — whole-cloud live uniform radial scale at the frame's life (frame-global) [slice0]
         const int FldFuseHash = -24;     // Fuse (Coalesce) field-pass — its per-LAYER hash for pixel-modifier / noise draws [slice1]
         // (fuseThreshold/fuseShadeRange/fuseSoftness are plain floats, NOT Eval'd — they need no field id; -24 is the
@@ -182,6 +188,12 @@ namespace Laubrary.PyrePlus
             // into its own transparent scratch buffer and composites, so its post never re-touches what's below.
             bool bufDirty = false;
 
+            // Luma-matte (slice 4) carried BY-REF through the layer loop, PARALLEL to the numbered-channel path above.
+            // A LumaMatte-role layer builds this from its finished pixels (mask + flags + amounts + scope); each
+            // subsequent Draw layer runs ApplyMatte with it before compositing. mask == null ⇒ no matte active (the
+            // default for every existing spec, which has no LumaMatte layer ⇒ this stays inert and byte-identical).
+            var matteState = default(MatteState);
+
             for (int li = 0; li < layers.Count; li++)
             {
                 var layer = layers[li];
@@ -198,7 +210,8 @@ namespace Laubrary.PyrePlus
                 _textReady = layer.shapeForm == ShapeForm.Text && EnsureTextGlyphs(layer);
 
                 bool isMatte = layer.matteRole == MatteRole.WriteMatte;
-                bool hasClip = !isMatte && channels != null && layer.clipByChannel >= 0 && layer.clipByChannel < 4;
+                bool isLuma = layer.matteRole == MatteRole.LumaMatte;
+                bool hasClip = !isMatte && !isLuma && channels != null && layer.clipByChannel >= 0 && layer.clipByChannel < 4;
 
                 if (isMatte)
                 {
@@ -212,11 +225,35 @@ namespace Laubrary.PyrePlus
                     continue;
                 }
 
+                if (isLuma)
+                {
+                    // LumaMatte (slice 4): render + post into an isolated scratch exactly like WriteMatte, but instead
+                    // of writing a coverage channel, turn the finished pixels into a luminance×alpha MASK and ARM
+                    // matteState for the Draw layers above (a PUSH matte — the authoritative matte layer imposes its
+                    // channels on the passive layers on top). Never composited — a matte layer is invisible. The
+                    // strength/amounts Eval over THIS layer's own life, frame-global (the modifier-scope sentinel).
+                    var scratch = new Color32[W * H];
+                    RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
+                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, life, frameIndex);
+                    float strength = Mathf.Clamp01(Eval(layer.matteStrength, life, spec.seed, ModParticleIndex, FldMatteStrength));
+                    matteState.mask = BuildMatteMask(scratch, layer.matteInvert, strength);
+                    matteState.flags = layer.matteFlags;
+                    matteState.blurAmt = Eval(layer.matteBlurAmount, life, spec.seed, ModParticleIndex, FldMatteBlur);
+                    matteState.dispAmt = Eval(layer.matteDisplaceAmount, life, spec.seed, ModParticleIndex, FldMatteDisplace);
+                    matteState.hueDeg = Eval(layer.matteHueDegrees, life, spec.seed, ModParticleIndex, FldMatteHue);
+                    matteState.oneShot = layer.matteScope == MatteScope.NextLayer;
+                    continue;
+                }
+
                 // Draw layer. Render straight into `buf` — matching the pre-R3 path — only when no isolation is
-                // needed: no clip (which must multiply alpha before compositing) and it isn't a later layer whose
-                // post would re-process the layers already beneath it. hasPost && !bufDirty means it's the FIRST
-                // thing on the frame, so posting over buf == posting over (bg + this layer) == the old renderer.
-                bool needScratch = hasClip || (hasPost && bufDirty);
+                // needed: no clip (which must multiply alpha before compositing), no active luma matte (which
+                // rewrites this layer's own pixels before it composites), and it isn't a later layer whose post
+                // would re-process the layers already beneath it. hasPost && !bufDirty means it's the FIRST thing on
+                // the frame, so posting over buf == posting over (bg + this layer) == the old renderer. matteActive
+                // is always false for a spec with no LumaMatte layer, so needScratch reduces to the exact pre-slice-4
+                // expression and the fast path is byte-identical.
+                bool matteActive = matteState.mask != null;
+                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive;
                 if (!needScratch)
                 {
                     RenderLayer(buf, W, H, life, spec, layer, mods, phase, frameIndex);
@@ -227,6 +264,17 @@ namespace Laubrary.PyrePlus
                     var scratch = new Color32[W * H];
                     RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
                     if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, life, frameIndex);
+                    // Impose the active luma matte on this finished-but-uncomposited layer (its six channels, in the
+                    // fixed order), BEFORE the clip/composite so the mask shapes this layer's own pixels. oneShot
+                    // (NextLayer scope) consumes the matte after this one Draw layer; AllAbove persists until another
+                    // LumaMatte replaces it. Isolation is forced above (matteActive ⇒ needScratch), mirroring
+                    // BlastRenderer's per-layer scratch for a matte-affected layer.
+                    if (matteActive)
+                    {
+                        ApplyMatte(scratch, matteState.mask, matteState.flags, matteState.blurAmt,
+                                   matteState.dispAmt, matteState.hueDeg, W, H);
+                        if (matteState.oneShot) matteState = default;
+                    }
                     float[] clip = hasClip ? channels[layer.clipByChannel] : null;
                     CompositeLayer(buf, scratch, clip, layer.clipInvert);
                 }
@@ -296,6 +344,167 @@ namespace Laubrary.PyrePlus
                 if (a <= 0.0001f) continue;
                 Over(buf, i, s.r * (1f / 255f), s.g * (1f / 255f), s.b * (1f / 255f), a);
             }
+        }
+
+        // ── luma matte (slice 4) ───────────────────────────────────────────────────────────────────────────────
+        // Pyre1's six-channel luminance matte, ported VERBATIM from BlastRenderer (Runtime/Pyre/BlastRenderer.cs:
+        // 349-488). All are dependency-free Color32[]/float[] ops, so they cross the asmdef boundary cleanly. A
+        // LumaMatte-role layer's finished pixels become a MASK (luminance × the layer's own alpha, optionally
+        // inverted, × strength); each subsequent Draw layer runs ApplyMatte with that mask before it composites.
+        // This is a NEW, PARALLEL capability — the WriteMatte numbered-channel coverage-clip path is untouched.
+
+        // The active luma matte carried BY-REF through the layer loop. mask == null ⇒ no matte active.
+        struct MatteState
+        {
+            public float[] mask;        // luminance×alpha mask of the LumaMatte layer, sized W*H; null = inactive
+            public MatteChannel flags;  // which channels the matte imposes on the layers above
+            public float blurAmt;       // Blur channel amount (Eval'd matteBlurAmount)
+            public float dispAmt;       // Displace channel amount (Eval'd matteDisplaceAmount)
+            public float hueDeg;        // Hue channel rotation degrees (Eval'd matteHueDegrees)
+            public bool oneShot;        // NextLayer scope ⇒ cleared after one Draw layer; AllAbove ⇒ persists
+        }
+
+        /// Rec. 601 luma, matching how the eye weights the channels; a green flame reads brighter than a blue
+        /// one of the same numeric value, which is what you want when authoring a mask by eye.
+        static float Luma(Color32 c) => (0.299f * c.r + 0.587f * c.g + 0.114f * c.b) * (1f / 255f);
+
+        static float[] BuildMatteMask(Color32[] src, bool invert, float strength)
+        {
+            var mask = new float[src.Length];
+            for (int i = 0; i < src.Length; i++)
+            {
+                var c = src[i];
+                float m = Luma(c) * (c.a * (1f / 255f));
+                if (invert) m = 1f - m;
+                mask[i] = Mathf.Clamp01(m) * strength;
+            }
+            return mask;
+        }
+
+        static void RgbToHsv(float r, float g, float b, out float h, out float s, out float v)
+            => Color.RGBToHSV(new Color(r, g, b), out h, out s, out v);
+
+        /// Apply a matte to one layer's isolated buffer, in place, just before it composites. `channel` is a
+        /// FLAG SET — every enabled channel acts, in a fixed order: the spatial ones first (they move/soften
+        /// pixels), then colour, then alpha last (so a masked-away pixel isn't recoloured pointlessly). None
+        /// (an unset field on an old asset) falls back to Alpha, the original single-channel default.
+        static void ApplyMatte(Color32[] target, float[] mask, MatteChannel channel, float blurAmount,
+                               float displaceAmount, float hueDegrees, int W, int H)
+        {
+            if (channel == MatteChannel.None) channel = MatteChannel.Alpha;
+
+            if ((channel & MatteChannel.Displace) != 0) MatteDisplace(target, mask, displaceAmount, W, H);
+            if ((channel & MatteChannel.Blur) != 0) MatteBlur(target, mask, blurAmount, W, H);
+            if ((channel & MatteChannel.Saturation) != 0) MatteSaturation(target, mask);
+            if ((channel & MatteChannel.Hue) != 0) MatteHue(target, mask, hueDegrees);
+            if ((channel & MatteChannel.Brightness) != 0) MatteBrightness(target, mask);
+            if ((channel & MatteChannel.Alpha) != 0) MatteAlpha(target, mask);
+        }
+
+        static void MatteAlpha(Color32[] target, float[] mask)
+        {
+            for (int i = 0; i < target.Length; i++)
+            {
+                var c = target[i];
+                if (c.a == 0) continue;
+                target[i] = new Color32(c.r, c.g, c.b, (byte)Mathf.RoundToInt(c.a * mask[i]));
+            }
+        }
+
+        static void MatteBrightness(Color32[] target, float[] mask)
+        {
+            for (int i = 0; i < target.Length; i++)
+            {
+                var c = target[i];
+                if (c.a == 0) continue;
+                float m = mask[i];
+                target[i] = new Color32((byte)(c.r * m), (byte)(c.g * m), (byte)(c.b * m), c.a);
+            }
+        }
+
+        static void MatteSaturation(Color32[] target, float[] mask)
+        {
+            // Mask LOW drains to grey, so a matte reads as "this is where the colour has burned out".
+            for (int i = 0; i < target.Length; i++)
+            {
+                var c = target[i];
+                if (c.a == 0) continue;
+                float y = Luma(c) * 255f;
+                float m = mask[i];
+                target[i] = new Color32(
+                    (byte)Mathf.Clamp(Mathf.Lerp(y, c.r, m), 0f, 255f),
+                    (byte)Mathf.Clamp(Mathf.Lerp(y, c.g, m), 0f, 255f),
+                    (byte)Mathf.Clamp(Mathf.Lerp(y, c.b, m), 0f, 255f), c.a);
+            }
+        }
+
+        static void MatteHue(Color32[] target, float[] mask, float hueDegrees)
+        {
+            for (int i = 0; i < target.Length; i++)
+            {
+                var c = target[i];
+                if (c.a == 0) continue;
+                float m = mask[i];
+                if (m <= 0.0001f) continue;
+                RgbToHsv(c.r / 255f, c.g / 255f, c.b / 255f, out float h, out float s, out float v);
+                h = Mathf.Repeat(h + (hueDegrees / 360f) * m, 1f);
+                var rgb = Color.HSVToRGB(h, s, v);
+                target[i] = new Color32((byte)(rgb.r * 255f), (byte)(rgb.g * 255f), (byte)(rgb.b * 255f), c.a);
+            }
+        }
+
+        static void MatteBlur(Color32[] target, float[] mask, float amount, int W, int H)
+        {
+            // Per-pixel variable radius, so one matte can hold a shape sharp while its surroundings melt.
+            // Separable would be faster but is wrong here: the radius differs per pixel, so the two passes
+            // wouldn't agree on a kernel. Canvases are small (Pyre is pixel art), the radius is clamped, so a
+            // direct box gather is affordable and exact.
+            var src = (Color32[])target.Clone();
+            int maxR = Mathf.Clamp(Mathf.CeilToInt(amount), 0, 12);
+            if (maxR == 0) return;
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int i = y * W + x;
+                    int r = Mathf.RoundToInt(amount * mask[i]);
+                    if (r <= 0) continue;
+                    float ar = 0f, ag = 0f, ab = 0f, aa = 0f, n = 0f;
+                    for (int dy = -r; dy <= r; dy++)
+                        for (int dx = -r; dx <= r; dx++)
+                        {
+                            int sx = x + dx, sy = y + dy;
+                            if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+                            var s2 = src[sy * W + sx];
+                            float a = s2.a * (1f / 255f);
+                            ar += s2.r * a; ag += s2.g * a; ab += s2.b * a; aa += a; n += 1f;
+                        }
+                    if (n <= 0f || aa <= 0.0001f) continue;
+                    target[i] = new Color32((byte)Mathf.Clamp(ar / aa, 0f, 255f),
+                                            (byte)Mathf.Clamp(ag / aa, 0f, 255f),
+                                            (byte)Mathf.Clamp(ab / aa, 0f, 255f),
+                                            (byte)Mathf.Clamp(aa / n * 255f, 0f, 255f));
+                }
+        }
+
+        static void MatteDisplace(Color32[] target, float[] mask, float amount, int W, int H)
+        {
+            // Push each pixel along the mask's own SLOPE (its gradient), not along the mask's value — that is
+            // what makes it read as refraction: flat regions of the mask don't move at all, and only its
+            // EDGES bend what's behind them, exactly like a lens.
+            var src = (Color32[])target.Clone();
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int i = y * W + x;
+                    int xm = Mathf.Max(0, x - 1), xp = Mathf.Min(W - 1, x + 1);
+                    int ym = Mathf.Max(0, y - 1), yp = Mathf.Min(H - 1, y + 1);
+                    float gx = mask[y * W + xp] - mask[y * W + xm];
+                    float gy = mask[yp * W + x] - mask[ym * W + x];
+                    if (gx == 0f && gy == 0f) continue;
+                    int sx = Mathf.Clamp(x + Mathf.RoundToInt(gx * amount), 0, W - 1);
+                    int sy = Mathf.Clamp(y + Mathf.RoundToInt(gy * amount), 0, H - 1);
+                    target[i] = src[sy * W + sx];
+                }
         }
 
         // ── modifiers (T6) ───────────────────────────────────────────────────────────
