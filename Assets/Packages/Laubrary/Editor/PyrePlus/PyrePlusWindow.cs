@@ -1281,8 +1281,20 @@ namespace Laubrary.PyrePlus.Editor
                 "A stateful flame SIMULATION: heat is carried by a velocity field, so it's reached by REPLAYING the sim "
                 + "from frame 0 (scrubbing and baking stay exact). Every rate is an envelope over the layer's life, so "
                 + "you author the SHAPE of the burn — ignite, roar, die back — not a speed. Built-in emitters (arms "
-                + "around the centre); the Swarm doesn't apply. Colour is the Shape Fill above (smoke→fire ramp); "
-                + "overall opacity is the Shape Alpha.", "pyreplus.fire");
+                + "around the centre); the Swarm doesn't apply unless 'Swarm emitters' is on. Colour is the Shape "
+                + "Fill above (smoke→fire ramp); overall opacity is the Shape Alpha.", "pyreplus.fire");
+
+            // Swarm emitters (slice 8) — source the emitters from the Swarm instead of the built-in arms. Only acts
+            // when the Swarm is enabled; rebuild the Swarm section on change so it un-gates (or re-gates) accordingly.
+            box.Add(Z.Toggle("Swarm emitters",
+                "Source the flame's emitters from the SWARM instead of the built-in arms: each alive swarm particle "
+                + "becomes ONE heat/fuel injection at its own position (radius/heat/fuel = this box's Emitter width / "
+                + "Heat / Fuel envelopes at that particle's OWN life), all advecting and merging into ONE shared fire "
+                + "field. Only takes effect with the Swarm ENABLED (turn it on in the Swarm section below) — with the "
+                + "Swarm off, the built-in Arms emitters are used. Arms / Direction still shape the fluid field's "
+                + "buoyancy and confinement.",
+                s.fireSwarmEmitters,
+                v => { Dirty(() => s.fireSwarmEmitters = v); RebuildSwarm(); }));
 
             // Progress — the master burn envelope (scales the injected heat + fuel).
             box.Add(Val("Progress",
@@ -1557,14 +1569,16 @@ namespace Laubrary.PyrePlus.Editor
                 v => { Dirty(() => s.swarmEnabled = v); RebuildSwarm(); });
 
             // Fire and Fireball are whole-layer SIMULATIONS with their own source (Fire's built-in arm emitters,
-            // Fireball's single central point) — the swarm does not drive either. Show a note instead of the (inert)
-            // swarm controls, so a sim layer never presents dead placement dials.
-            if (s.shapeForm == ShapeForm.Fire || s.shapeForm == ShapeForm.Fireball)
+            // Fireball's single central point) — the swarm does not drive either, EXCEPT a Fire layer with 'Swarm
+            // emitters' on (slice 8), which DOES source its emitters from the swarm and so wants the real placement
+            // controls. Show a note instead of the (inert) swarm controls only when the swarm truly doesn't drive it.
+            bool fireSwarm = s.shapeForm == ShapeForm.Fire && s.fireSwarmEmitters;
+            if ((s.shapeForm == ShapeForm.Fire || s.shapeForm == ShapeForm.Fireball) && !fireSwarm)
             {
                 var note = new Label(s.shapeForm == ShapeForm.Fire
                     ? "Fire uses its own built-in emitters (arms around the centre) — the Swarm doesn't place it. "
-                      + "Swarm-driven fire emitters are a later slice. Use the Fire box's Arms / Direction to shape "
-                      + "the flame instead."
+                      + "Turn on 'Swarm emitters' in the Fire box to source them from the Swarm instead. Otherwise "
+                      + "use the Fire box's Arms / Direction to shape the flame."
                     : "Fireball is single-source — heat blooms from one central point, folded into kaleidoscope arms. "
                       + "The Swarm doesn't place it (Fireball stays single-source by design). Use the Fireball box's "
                       + "Arms / Cooling / Sharpness to shape the explosion instead.");
@@ -1573,6 +1587,19 @@ namespace Laubrary.PyrePlus.Editor
                 note.style.marginTop = 2; note.style.marginBottom = 2;
                 swarmBody.Add(note);
                 return;
+            }
+
+            // Fire + 'Swarm emitters' on: the placement controls below now drive the flame's emitters. A short note
+            // makes that explicit before the normal swarm dials.
+            if (fireSwarm)
+            {
+                var note = new Label("Swarm emitters ON — each alive swarm particle injects heat/fuel into ONE shared "
+                    + "fire field. Place them with the controls below; the Fire box's Emitter width / Heat / Fuel set "
+                    + "each source's size and strength, and Arms / Direction shape the field's buoyancy.");
+                note.style.whiteSpace = WhiteSpace.Normal;
+                note.style.opacity = 0.7f;
+                note.style.marginTop = 2; note.style.marginBottom = 2;
+                swarmBody.Add(note);
             }
 
             if (!s.swarmEnabled) return;

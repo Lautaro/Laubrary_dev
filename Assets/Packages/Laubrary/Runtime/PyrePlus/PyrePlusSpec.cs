@@ -464,6 +464,16 @@ namespace Laubrary.PyrePlus
         [Min(1)] public int fireSteps = 2;                        // simulation steps per frame (smoother/faster motion, same frame count)
         [Range(0f, 0.9f)] public float fireThreshold = 0.06f;     // heat below this reads as empty (raise for a crisper silhouette)
         public float fireContrast = 0.85f;                        // contrast on the gradient lookup (below 1 pushes more of the flame toward the hot end)
+        // Swarm-driven emitters (slice 8) — OPT-IN, default OFF. When ON *and* the layer's Swarm is enabled, Fire
+        // sources its emitters from the SWARM instead of the built-in arms around the centre: each alive swarm
+        // particle becomes ONE heat/fuel injection into a shared fire field (position = the particle position;
+        // radius/heat/fuel = this layer's Fire envelopes at that particle's OWN life; pulse phase = particle index).
+        // The heat then advects/merges through the SAME centre-based fluid physics (buoyancy/curl/confinement) into
+        // one connected flame — driven by a PyrePlus-LOCAL PlusFireSim (a faithful re-port of FireSim that takes
+        // caller-supplied emitters), on its own replay harness. OFF (the default) OR swarm off ⇒ the slice-6a
+        // built-in fixed-emitter FireSim path runs UNCHANGED (byte-identical). Value type ⇒ MemberwiseClone in
+        // Clone() copies it for free. See PyrePlusRenderer.RenderFireLayer / _plusFireSims.
+        public bool fireSwarmEmitters = false;
 
         // ── Fireball form (shapeForm == Fireball) — a STATEFUL cellular SIMULATION (slice 6b) ──────────────────
         // PyrePlus's SECOND sim-backed form (after Fire): the cheap "doom-fire" cellular flame — heat propagates

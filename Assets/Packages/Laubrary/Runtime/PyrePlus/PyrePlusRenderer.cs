@@ -414,6 +414,16 @@ namespace Laubrary.PyrePlus
         static void RenderFireLayer(Color32[] target, int W, int H, float life, PyrePlusSpec spec,
                                     PyrePlusLayer layer, int frameIndex)
         {
+            // Swarm-driven emitters (slice 8): when opted in AND the swarm is enabled, the flame sources its
+            // emitters from the SWARM (one heat/fuel injection per alive particle) via a PyrePlus-local PlusFireSim
+            // on its OWN replay harness — the fixed-emitter FireSim path below is left untouched. OFF or swarm off ⇒
+            // the slice-6a built-in fixed-emitter path runs verbatim (byte-identical).
+            if (layer.fireSwarmEmitters && layer.swarmEnabled)
+            {
+                RenderPlusFireLayer(target, W, H, life, spec, layer, frameIndex);
+                return;
+            }
+
             var entry = _fireSims.GetValue(layer, _ => new FireSimEntry { sim = new FireSim() });
             var sim = entry.sim;
 
@@ -526,6 +536,182 @@ namespace Laubrary.PyrePlus
                 h = MixV(h, L.fireBurn); h = MixV(h, L.fireReach); h = MixV(h, L.fireEdgeCooling);
                 h = MixV(h, L.alpha);                                            // the render-alpha envelope (layerAlpha)
                 h = MixG(h, L.shapeFill != null ? L.shapeFill.gradient : null);   // the ramp
+                return h;
+            }
+        }
+
+        // ── Swarm-driven Fire emitters: PlusFireSim + replay harness (slice 8) ────────────────────────────────────
+        // A PARALLEL Fire path, active only when layer.fireSwarmEmitters && layer.swarmEnabled. It mirrors the fixed-
+        // emitter Fire harness above EXACTLY (a per-layer sim kept across frames; content-hash invalidation; warm
+        // forward-step / same-frame re-render / cold replay-from-0), but drives a PyrePlus-LOCAL PlusFireSim whose
+        // Step takes a CALLER-SUPPLIED emitter list. Each frame's emitter list is (re)built deterministically from
+        // ComputeSpawns — one HeatEmitter per ALIVE swarm particle, positioned at the particle and carrying the Fire
+        // envelopes at that particle's OWN life — so a cold replay recomputes the identical emitters at each step and
+        // the sim scrubs/bakes identically. Its OWN CWT (a fresh PlusFireSim object never shares the FireSim entry),
+        // so toggling fireSwarmEmitters never disturbs the proven 6a path. Checkpoints deferred (correctness first),
+        // as for the fixed path.
+        sealed class PlusFireSimEntry { public PlusFireSim sim; public int contentHash; public int lastFrame = -1; }
+        static readonly System.Runtime.CompilerServices.ConditionalWeakTable<PyrePlusLayer, PlusFireSimEntry> _plusFireSims =
+            new System.Runtime.CompilerServices.ConditionalWeakTable<PyrePlusLayer, PlusFireSimEntry>();
+
+        // Per-step scratch (single-threaded editor/bake thread, same static-scratch idiom as _layerSalt). Reused so a
+        // cold replay doesn't allocate a fresh emitter/spawn list per frame.
+        static readonly List<HeatEmitter> _plusFireEmitters = new List<HeatEmitter>(64);
+        static readonly List<SpawnPoint> _plusFireSpawns = new List<SpawnPoint>(64);
+
+        static void RenderPlusFireLayer(Color32[] target, int W, int H, float life, PyrePlusSpec spec,
+                                        PyrePlusLayer layer, int frameIndex)
+        {
+            var entry = _plusFireSims.GetValue(layer, _ => new PlusFireSimEntry { sim = new PlusFireSim() });
+            var sim = entry.sim;
+
+            // A per-(spec, layer) sim seed, exactly as the fixed Fire path — _layerSalt is this layer's index (set by
+            // RenderFrame before the layer draws), so two swarm-Fire layers get distinct, stable seeds.
+            int seed = Hash(spec != null ? spec.seed : 0, _layerSalt, 0, 0);
+            int hash = PlusFireContentHash(layer, spec, W, H, seed);
+
+            int frames = Mathf.Max(1, spec != null ? spec.frameCount : 1);
+            int last = Mathf.Clamp(frameIndex, 0, frames - 1);
+
+            bool sizeChanged = sim.W != W || sim.H != H;
+            sim.Allocate(W, H);
+
+            bool invalid = sizeChanged || hash != entry.contentHash || entry.lastFrame < 0;
+            if (!invalid && last == entry.lastFrame + 1)
+            {
+                StepPlusFire(sim, layer, spec, seed, last, frames);   // WARM forward-step — O(1)
+                entry.lastFrame = last;
+            }
+            else if (!invalid && last == entry.lastFrame)
+            {
+                // Same frame re-asked with UNCHANGED content — the grid is already at `last`; just re-render below.
+            }
+            else
+            {
+                sim.Reset();                                          // COLD replay from frame 0 — O(f)
+                for (int f = 0; f <= last; f++) StepPlusFire(sim, layer, spec, seed, f, frames);
+                entry.lastFrame = last;
+            }
+            entry.contentHash = hash;
+
+            // Composite the grid through the layer's own fill gradient at its overall alpha over life (Fire ignores
+            // `size` — the reach radius bounds it). Identical output stage to the fixed path.
+            Gradient ramp = layer.shapeFill != null ? layer.shapeFill.gradient : null;
+            float alpha = Mathf.Clamp01(Eval(layer.alpha, life, spec != null ? spec.seed : 0, ModParticleIndex, FldAlpha));
+            sim.Render(target, ramp, alpha, layer.fireThreshold, layer.fireContrast);
+        }
+
+        // One frame's swarm-Fire step, replayed identically every time frame f is reached. lp = the layer's life at f;
+        // the physics dials come from FireParamsAt (byte-faithful to the fixed path — p.heat/p.fuel/emitterWidth are
+        // ignored by PlusFireSim, which reads each emitter's own heat/fuel/radius), and the emitter set is rebuilt
+        // from the swarm at f. fireSteps substeps split ONE frame of dt, with the same per-substep phase nudge.
+        static void StepPlusFire(PlusFireSim sim, PyrePlusLayer layer, PyrePlusSpec spec, int seed, int f, int frames)
+        {
+            float lp = Mathf.Clamp01(f / (float)Mathf.Max(1, frames - 1));
+            var p = FireParamsAt(layer, spec, lp);
+            BuildFireEmitters(spec, layer, seed, lp, frames, _plusFireEmitters);
+            int steps = Mathf.Max(1, layer.fireSteps);
+            for (int s = 0; s < steps; s++)
+                sim.Step(p, _plusFireEmitters, seed, lp + s / (float)steps * 0.01f, FireDt / steps);
+        }
+
+        // Build the emitter list for the swarm-Fire path at layer-life `lp`: one HeatEmitter per ALIVE swarm particle.
+        // Mirrors RenderSwarm's own-life / die-together / live whole-cloud rotation+scale so an emitter sits exactly
+        // where the particle would be drawn; each emitter's radius/heat/fuel are the Fire envelopes at that particle's
+        // OWN life (emitterWidth→radius, fireHeat×intensity→heat, fireFuel×intensity→fuel), and its pulse phaseSeed is
+        // the particle index folded with the sim seed (so each source breathes on its own phase, like FireSim's Vary
+        // arms). Pure/deterministic (only seeded ComputeSpawns placements + seeded envelope Evals), so replay is exact.
+        static void BuildFireEmitters(PyrePlusSpec spec, PyrePlusLayer layer, int seed, float lp, int frames,
+                                      List<HeatEmitter> into)
+        {
+            into.Clear();
+            if (spec == null || layer == null) return;
+            ComputeSpawns(spec, layer, _plusFireSpawns);   // frame-independent spawn positions + spawnLife
+            if (_plusFireSpawns.Count == 0) return;
+
+            float cx = spec.Width * 0.5f, cy = spec.Height * 0.5f;
+            // Live whole-cloud rotation + scale at THIS frame's life (mirrors RenderSwarm's swarmRot/swarmScl).
+            float sTurn = Eval(layer.swarmTurn, lp, spec.seed, ModParticleIndex, FldSwarmTurn);
+            float sTilt = Eval(layer.swarmTilt, lp, spec.seed, ModParticleIndex, FldSwarmTilt);
+            float sRoll = Eval(layer.swarmRoll, lp, spec.seed, ModParticleIndex, FldSwarmRoll);
+            bool swarmRot = sTurn != 0f || sTilt != 0f || sRoll != 0f;
+            float sScale = Eval(layer.swarmScale, lp, spec.seed, ModParticleIndex, FldSwarmScale);
+            bool swarmScl = sScale != 1f;
+
+            // Die-together shared death point (mirrors RenderSwarm).
+            bool dieTogether = layer.swarmDieTogether;
+            float deathPoint = 0f;
+            if (dieTogether)
+            {
+                int lastIdx = Mathf.Max(0, _plusFireSpawns.Count - 1);
+                float maxSpawnLife = layer.swarmTiming == SwarmTiming.FrameStep
+                    ? Mathf.Clamp01((layer.swarmFirstFrame + lastIdx * layer.swarmFrameStep) / (float)Mathf.Max(1, spec.frameCount - 1))
+                    : Mathf.Clamp01(EvalCanonical(layer.swarmSpawnTiming, 1f));
+                deathPoint = Mathf.Min(1f, maxSpawnLife + layer.swarmParticleLife);
+            }
+
+            for (int i = 0; i < _plusFireSpawns.Count; i++)
+            {
+                var sp = _plusFireSpawns[i];
+                float own = dieTogether
+                    ? (lp - sp.spawnLife) / Mathf.Max(0.0001f, deathPoint - sp.spawnLife)
+                    : (lp - sp.spawnLife) / Mathf.Max(0.0001f, layer.swarmParticleLife);
+                if (own < 0f || own > 1f) continue;   // not alive yet / already dead this frame
+
+                Vector2 dp = sp.pos;
+                if (swarmRot)
+                    dp = ApplyShapeTransform(sp.pos, cx, cy, Vector2.Distance(sp.pos, new Vector2(cx, cy)),
+                                             sRoll, sTurn, sTilt, 0f, 0f, out _);
+                if (swarmScl)
+                    dp = new Vector2(cx + (dp.x - cx) * sScale, cy + (dp.y - cy) * sScale);
+
+                float intensity = Mathf.Clamp01(Eval(layer.fireIntensity, own, spec.seed, i, F_FireIntensity));
+                float width = Mathf.Max(1f, Eval(layer.fireEmitterWidth, own, spec.seed, i, F_FireWidth));
+                float eHeat = Mathf.Clamp01(Eval(layer.fireHeat, own, spec.seed, i, F_FireHeat) * intensity);
+                float eFuel = Mathf.Clamp01(Eval(layer.fireFuel, own, spec.seed, i, F_FireFuel) * intensity);
+                into.Add(new HeatEmitter
+                {
+                    x = dp.x, y = dp.y,
+                    radius = Mathf.Max(0.5f, width * 0.5f),   // Pyre's emitterWidth is a full width → half = radius
+                    heat = eHeat, fuel = eFuel,
+                    phaseSeed = seed + i * 7919,              // per-particle pulse phase (FireSim's Vary idiom)
+                });
+            }
+        }
+
+        // The swarm-Fire replay cache's invalidation key. Everything FireContentHash folds (all fire params + arms/
+        // steps + threshold/contrast + ramp + alpha + seed/frames/W/H) PLUS the swarm placement config that shapes the
+        // emitter set (so editing the swarm forces a cold replay too). ANY authoring edit flips it ⇒ no stale forward-
+        // step. Uses only float-bit / enum-int folds (no string.GetHashCode) so it is stable across runs.
+        static int PlusFireContentHash(PyrePlusLayer L, PyrePlusSpec spec, int W, int H, int seed)
+        {
+            unchecked
+            {
+                int h = FireContentHash(L, spec, W, H, seed);
+                h = MixI(h, L.fireSwarmEmitters ? 1 : 0);
+                // ComputeSpawns inputs (placement) + own-life + live whole-cloud transform.
+                h = MixI(h, L.swarmEnabled ? 1 : 0);
+                h = MixI(h, L.swarmCount);
+                h = MixI(h, (int)L.swarmSpawnMode);
+                h = MixI(h, (int)L.swarmShapeKind);
+                h = MixI(h, (int)L.swarmTiming);
+                h = MixI(h, L.swarmFirstFrame);
+                h = MixI(h, L.swarmFrameStep);
+                h = MixI(h, L.swarmParticleLife.GetHashCode());
+                h = MixI(h, (int)L.swarmOrient);
+                h = MixI(h, L.swarmEvenPath ? 1 : 0);
+                h = MixI(h, L.swarmPathSpread.GetHashCode());
+                h = MixI(h, L.swarmDieTogether ? 1 : 0);
+                h = MixI(h, L.shapeScaleSnap.GetHashCode());
+                h = MixI(h, (int)L.shapeForm);
+                h = MixI(h, (L.textString ?? "").Length);   // Text overrides the swarm count with the string length
+                h = MixV(h, L.swarmCustomX); h = MixV(h, L.swarmCustomY);
+                h = MixV(h, L.swarmProgress); h = MixV(h, L.swarmSpawnTiming);
+                h = MixV(h, L.shapeScale); h = MixV(h, L.shapeRotation);
+                h = MixV(h, L.shapeYaw); h = MixV(h, L.shapePitch);
+                h = MixV(h, L.shapeOffsetX); h = MixV(h, L.shapeOffsetY);
+                h = MixV(h, L.swarmTurn); h = MixV(h, L.swarmTilt);
+                h = MixV(h, L.swarmRoll); h = MixV(h, L.swarmScale);
                 return h;
             }
         }
