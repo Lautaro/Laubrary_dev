@@ -73,13 +73,19 @@ namespace Laubrary.PyrePlus
     // Box/Pyramid/Can share the Gem's shared 3D block (tilt, light, lines, glows) — see PyrePlusRenderer.DrawFacetSolid.
     // Orb/Ring reuse that SAME per-pixel lighting/lines/glows math analytically (point light + Blinn-Phong, halo +
     // inner glow, edge lines) but with sphere/annulus geometry instead of facets.
-    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. (Fire and Fireball are the only
-    // simulation-backed forms — they retain frame-to-frame grid state and need a replay harness — and are
-    // deferred; they are NOT here. HeightBalls is NOT a sim: it is CLOSED-FORM / stateless, proven at
-    // Runtime/Pyre/BlastRenderer.cs:1493-1496 — every ball's whole state at a frame is a pure function of
-    // (layer hash, group, ball index, layer life), nothing accumulates between frames — so it arrives as a
-    // stateless Coalesce (Ramp) field-pass mode alongside MetaBlob, never as a deferred sim form here.)
-    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak, Star }
+    //   Fire     — a STATEFUL grid SIMULATION (slice 6a): retained frame-to-frame heat/fuel grids reached by a
+    //              REPLAY harness, NOT a per-frame closed form. It REUSES Pyre's public FireSim/FireParams directly
+    //              (Laubrary.Pyre) with BUILT-IN fixed emitters (arms around the canvas centre); its ramp is the
+    //              shapeFill gradient and its overall opacity the shared `alpha` envelope. It ignores `size` and the
+    //              swarm. See PyrePlusRenderer.RenderFireLayer / _fireSims (the CWT + content-hash replay cache).
+    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. Fire (slice 6a) is the FIRST
+    // simulation-backed form here; Fireball (slice 6b) is the one remaining sim form still deferred — it retains
+    // frame-to-frame grid state and needs the same replay harness Fire now has, so it is NOT here yet. HeightBalls
+    // is NOT a sim: it is CLOSED-FORM / stateless, proven at Runtime/Pyre/BlastRenderer.cs:1493-1496 — every ball's
+    // whole state at a frame is a pure function of (layer hash, group, ball index, layer life), nothing accumulates
+    // between frames — so it arrives as a stateless Coalesce (Ramp) field-pass mode alongside MetaBlob, never as a
+    // deferred sim form here.
+    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak, Star, Fire }
 
     // How the Text form's spatial fill gradient is applied. PerCharGradient = every letter contains the WHOLE
     // gradient (across its own box, along the rotated fill axis). PerCharStep = every letter is ONE flat colour,
@@ -419,6 +425,42 @@ namespace Laubrary.PyrePlus
         public ZUIValue starBaseWidth = new ZUIValue(1f);       // valley angular position as a fraction of the half-sector, 0.1..1 over own life (1 = classical midpoint; smaller = thinner arm bases, wider valleys)
         public ZUIValue starSkew = new ZUIValue(0f);            // valley swirl in degrees −60..60 over own life — rotates the valleys, pinwheel-twisting the arms (clamped so valleys never cross tips)
 
+        // ── Fire form (shapeForm == Fire) — a STATEFUL grid SIMULATION (slice 6a) ──────────────────────────────
+        // Fire is the FIRST sim-backed PyrePlus form: it retains frame-to-frame heat/fuel grids and is reached by a
+        // REPLAY harness (PyrePlusRenderer._fireSims + RenderFireLayer), NOT by a per-frame closed form. It REUSES
+        // Pyre's own PUBLIC FireSim/FireParams directly (Laubrary.Pyre) — zero re-port of the grid physics; PyrePlus
+        // writes only the thin replay harness around them. These fields are the exact inputs Pyre's FireParamsAt
+        // reads (Runtime/Pyre/BlastRenderer.cs:258); the ZUIValue rates are all envelopes over the LAYER's life (Fire
+        // has NO particles — the whole layer IS the sim), the defaults copied verbatim from Pyre's Layer.cs so a
+        // fresh Fire layer reads identically. Fire has BUILT-IN fixed emitters (arms around the canvas centre) — the
+        // swarm does NOT apply (swarm-driven emitters are a later slice); it ignores `size` (the reach radius bounds
+        // it, not a particle radius); its colour ramp is the shared shapeFill gradient and its overall opacity is the
+        // shared `alpha` envelope over the layer's life. The ZUIValue fields below are deep-copied in Clone().
+        public ZUIValue fireIntensity = DefaultFireIntensity();   // the burn's PROGRESS over life (0 = emitter off, 1 = full); scales the injected heat + fuel
+        [Min(1)] public int fireArms = 1;                         // flame arms radiating from centre (1 = a single directional flame)
+        public FireArmMode fireArmMode = FireArmMode.Mirror;      // Mirror = every arm emits identically (symmetric); Vary = each arm its own seed
+        public ZUIValue fireDirection = new ZUIValue(90f);        // which way arm 0 points, degrees (90 = up)
+        public ZUIValue fireEmitterWidth = new ZUIValue(9f);      // each arm emitter's width in px (the base of the flame)
+        public ZUIValue fireEmitterInset = new ZUIValue(0f);      // how far each emitter sits from centre, px
+        public ZUIValue fireHeat = new ZUIValue(0.95f);           // how hot the emitter injects
+        public ZUIValue fireFuel = new ZUIValue(0.75f);           // unburnt fuel injected (fuel→heat gives the flame a body, not just a glow)
+        public ZUIValue firePulse = new ZUIValue(0.18f);          // how much the emitter output breathes in and out
+        public ZUIValue fireFlow = new ZUIValue(1f);              // steady outward push away from centre (a jet)
+        public ZUIValue fireBuoyancy = new ZUIValue(4f);          // how strongly heat carries itself outward (a flame CLIMBS rather than just spreads)
+        public ZUIValue fireCurl = new ZUIValue(1.5f);            // swirl strength — curls the tongues instead of merely stretching them
+        public ZUIValue fireCurlScale = new ZUIValue(7f);         // swirl size (small = fine turbulence, large = slow broad rolls)
+        public ZUIValue fireFlicker = new ZUIValue(0.6f);         // sideways wobble of the tongues (how they lick and wave)
+        public ZUIValue fireStretch = new ZUIValue(3f);           // elongate the flame along its direction
+        public ZUIValue firePinch = new ZUIValue(0.6f);           // taper the sides into a pointed tongue (most of what makes it read as a flame)
+        public ZUIValue fireBreakup = new ZUIValue(0.4f);         // eat the edges into wisps instead of a smooth silhouette
+        public ZUIValue fireDissipation = new ZUIValue(0.35f);    // how fast heat fades (high = a short sharp flame)
+        public ZUIValue fireBurn = new ZUIValue(1.5f);            // how fast fuel converts into heat
+        public ZUIValue fireReach = new ZUIValue(0.8f);           // reach as a fraction of the canvas half-size — confinement (the flame can NEVER touch the frame edge)
+        public ZUIValue fireEdgeCooling = new ZUIValue(0.9f);     // how hard the flame is cooled once past the reach radius
+        [Min(1)] public int fireSteps = 2;                        // simulation steps per frame (smoother/faster motion, same frame count)
+        [Range(0f, 0.9f)] public float fireThreshold = 0.06f;     // heat below this reads as empty (raise for a crisper silhouette)
+        public float fireContrast = 0.85f;                        // contrast on the gradient lookup (below 1 pushes more of the flame toward the hot end)
+
         // ── opt-in Shape fields (T7) — the particle's OWN motion after birth, on its own life clock ────────
         // A per-particle travel path: canvas-pixel offsets ADDED to the particle's spawn position, evaluated on
         // its OWN life (0 = birth, 1 = death). Default Static 0 (a no-op — the renderer skips the Eval entirely
@@ -571,6 +613,27 @@ namespace Laubrary.PyrePlus
             l.swarmScale = CloneVal(swarmScale);
             l.density = CloneVal(density);
             l.heat = CloneVal(heat);
+            // Fire (slice 6a): fireIntensity + the 18 rate ZUIValues are deep-copied so the copy owns its own curve
+            // data; fireArms/fireArmMode/fireSteps/fireThreshold/fireContrast are value types (MemberwiseClone copied).
+            l.fireIntensity = CloneVal(fireIntensity);
+            l.fireDirection = CloneVal(fireDirection);
+            l.fireEmitterWidth = CloneVal(fireEmitterWidth);
+            l.fireEmitterInset = CloneVal(fireEmitterInset);
+            l.fireHeat = CloneVal(fireHeat);
+            l.fireFuel = CloneVal(fireFuel);
+            l.firePulse = CloneVal(firePulse);
+            l.fireFlow = CloneVal(fireFlow);
+            l.fireBuoyancy = CloneVal(fireBuoyancy);
+            l.fireCurl = CloneVal(fireCurl);
+            l.fireCurlScale = CloneVal(fireCurlScale);
+            l.fireFlicker = CloneVal(fireFlicker);
+            l.fireStretch = CloneVal(fireStretch);
+            l.firePinch = CloneVal(firePinch);
+            l.fireBreakup = CloneVal(fireBreakup);
+            l.fireDissipation = CloneVal(fireDissipation);
+            l.fireBurn = CloneVal(fireBurn);
+            l.fireReach = CloneVal(fireReach);
+            l.fireEdgeCooling = CloneVal(fireEdgeCooling);
             // Luma-matte (slice 4): matteFlags/matteScope/matteInvert are value types (MemberwiseClone copied them);
             // the four amount envelopes are ZUIValues, so deep-copy each so the copy owns its own curve data.
             l.matteStrength = CloneVal(matteStrength);
@@ -738,6 +801,19 @@ namespace Laubrary.PyrePlus
             v.points.Add(new ZUIEnvelopePoint(0f, 5f));
             v.points.Add(new ZUIEnvelopePoint(0.4f, 26f));
             v.points.Add(new ZUIEnvelopePoint(1f, 18f));
+            return v;
+        }
+
+        static ZUIValue DefaultFireIntensity()
+        {
+            // Fire's burn PROGRESS envelope over the layer's life: a quick ignite, a hold, then a fade to nothing —
+            // the exact shape of Pyre's fireIntensity default (Layer.cs: CurveVal(1f, 0f,0f, 0.18f,1f, 0.7f,1f, 1f,0f)).
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, 0f));
+            v.points.Add(new ZUIEnvelopePoint(0.18f, 1f));
+            v.points.Add(new ZUIEnvelopePoint(0.7f, 1f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 0f));
             return v;
         }
 

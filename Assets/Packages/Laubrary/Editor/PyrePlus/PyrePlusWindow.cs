@@ -820,7 +820,9 @@ namespace Laubrary.PyrePlus.Editor
             RebuildShape();
         }
 
-        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can", "Orb", "Ring", "Text", "Streak", "Star" };
+        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can", "Orb", "Ring", "Text", "Streak", "Star", "Fire" };
+        // Fire's two arm modes — Mirror (symmetric) / Vary (each arm its own seed). Order matches FireArmMode.
+        static readonly string[] FireArmModeChoices = { "Mirror", "Vary" };
         // Coalesce render-mode selector. Off / Fuse (slice 1, MetaBlob) / Ramp (slice 2, HeightBalls). Order matches
         // the LayerCoalesce enum (Off=0, Fuse=1, Ramp=2), so the MiniRadio index casts straight to the enum.
         static readonly string[] CoalesceChoices = { "Off", "Fuse", "Ramp" };
@@ -848,7 +850,8 @@ namespace Laubrary.PyrePlus.Editor
                     + "analytically. Text = a string as extruded SDF letters (one particle per character; the "
                     + "particle count follows the string). Streak = a root-anchored comet-tail capsule that grows "
                     + "forward along its orientation (great with the Swarm's Orient). Star = a filled star polygon "
-                    + "(arms, reach, base width, swirl).",
+                    + "(arms, reach, base width, swirl). Fire = a stateful flame SIMULATION with built-in emitters "
+                    + "(no swarm; every rate is an envelope over the layer's life).",
                     // Rebuild BOTH sections: Text swaps in its own Shape box AND hides the Swarm's Count field.
                     // FIX 1: switching TO a 3D solid gives a fresh/pristine OverLife-fire fill a STEADY Solid
                     // material (inside the SAME Dirty block, so one Undo reverts both the form and the fill together
@@ -871,7 +874,9 @@ namespace Laubrary.PyrePlus.Editor
             // shared Size row is hidden for it (a dead control would be clutter per the layout rules). Its max is
             // the CANVAS size (not a fixed 32) so a big canvas can hold a big particle — the Canvas Size slider
             // rebuilds the pane to refresh this.
-            if (s.shapeForm != ShapeForm.Streak)
+            // Streak has its own Length/Width; Fire is a whole-layer sim bounded by its Reach radius, not a particle
+            // radius — so both hide the shared Size row (a dead control is clutter per the layout rules).
+            if (s.shapeForm != ShapeForm.Streak && s.shapeForm != ShapeForm.Fire)
                 shapeBody.Add(Val("Size (px)", SizeTooltip(s.shapeForm), s.size, 0f, spec.canvasSize));
 
             // Form-specific rows. Edge softness applies to Disc (its rim) and Crescent (BOTH rims); Gem/Sparkle/
@@ -908,7 +913,14 @@ namespace Laubrary.PyrePlus.Editor
                 case ShapeForm.Star:
                     BuildStarRows(s);
                     break;
+                case ShapeForm.Fire:
+                    BuildFireBox(s);
+                    break;
             }
+
+            // Fire is a whole-layer simulation with no per-particle Travel/Spin — skip the Advanced section entirely
+            // (its controls would be dead for Fire). Its Fill (the ramp) and Alpha (overall opacity) rows above apply.
+            if (s.shapeForm == ShapeForm.Fire) return;
 
             // Advanced gate: the particle's OWN motion after birth (opt-in). Toggling rebuilds just this section.
             shapeBody.Add(Z.Toggle("Advanced",
@@ -1229,6 +1241,126 @@ namespace Laubrary.PyrePlus.Editor
                 "Soft rim (1) vs a hard pixel edge (0) — feathers the star's whole outline inward along each ray."));
         }
 
+        // Fire form box — the stateful flame SIMULATION (slice 6a). Every rate is an envelope over the LAYER's life
+        // (Fire has no particles — the whole layer IS the sim), grouped Emitter → Heat & fuel → Motion → Flame shape →
+        // Confinement → Output. Its colour ramp is the shared Shape Fill above (smoke→fire) and its overall opacity is
+        // the shared Shape Alpha; `size` and the Swarm don't apply (both hidden/noted). Reuses Pyre's own FireSim via
+        // the renderer's replay harness — the dials here map 1:1 onto Pyre's Fire fields.
+        void BuildFireBox(PyrePlusLayer s)
+        {
+            // Defensive nulls (the real defaults come from the spec factories).
+            s.fireIntensity ??= new ZUIValue(1f);
+            s.fireDirection ??= new ZUIValue(90f);
+            s.fireEmitterWidth ??= new ZUIValue(9f);
+            s.fireEmitterInset ??= new ZUIValue(0f);
+            s.fireHeat ??= new ZUIValue(0.95f);
+            s.fireFuel ??= new ZUIValue(0.75f);
+            s.firePulse ??= new ZUIValue(0.18f);
+            s.fireFlow ??= new ZUIValue(1f);
+            s.fireBuoyancy ??= new ZUIValue(4f);
+            s.fireCurl ??= new ZUIValue(1.5f);
+            s.fireCurlScale ??= new ZUIValue(7f);
+            s.fireFlicker ??= new ZUIValue(0.6f);
+            s.fireStretch ??= new ZUIValue(3f);
+            s.firePinch ??= new ZUIValue(0.6f);
+            s.fireBreakup ??= new ZUIValue(0.4f);
+            s.fireDissipation ??= new ZUIValue(0.35f);
+            s.fireBurn ??= new ZUIValue(1.5f);
+            s.fireReach ??= new ZUIValue(0.8f);
+            s.fireEdgeCooling ??= new ZUIValue(0.9f);
+
+            var box = Z.BoxKeyed("Fire",
+                "A stateful flame SIMULATION: heat is carried by a velocity field, so it's reached by REPLAYING the sim "
+                + "from frame 0 (scrubbing and baking stay exact). Every rate is an envelope over the layer's life, so "
+                + "you author the SHAPE of the burn — ignite, roar, die back — not a speed. Built-in emitters (arms "
+                + "around the centre); the Swarm doesn't apply. Colour is the Shape Fill above (smoke→fire ramp); "
+                + "overall opacity is the Shape Alpha.", "pyreplus.fire");
+
+            // Progress — the master burn envelope (scales the injected heat + fuel).
+            box.Add(Val("Progress",
+                "The burn's PROGRESS over the layer's life as ONE envelope: 0 = the emitter is off, 1 = full. This is "
+                + "how the fire ignites, holds and dies — shape this curve instead of setting a speed. It scales the "
+                + "injected heat and fuel, so the flame physically grows and shrinks with it.",
+                s.fireIntensity, 0f, 1f));
+
+            // ── Emitter ──
+            box.Add(Z.HGroup(
+                Z.MicroSlider("Arms", s.fireArms, 1f, 8f,
+                    "How many flame arms radiate from the centre. 1 = a single directional flame; Pinch opens the "
+                    + "cold gaps between arms, so a 3-arm fire is a 3-point star, not a filled triangle.",
+                    v => Dirty(() => s.fireArms = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8)), 150f, showValue: true, decimals: 0),
+                Z.Field("Mode",
+                    "Mirror = every arm emits identically (kaleidoscope symmetry). Vary = each arm gets its own seed, "
+                    + "so the flames genuinely differ while sharing these dials.",
+                    Z.Segmented((int)s.fireArmMode, FireArmModeChoices,
+                        "Mirror = arms identical; Vary = each arm its own seed.",
+                        v => Dirty(() => s.fireArmMode = (Laubrary.Pyre.FireArmMode)v)))));
+            box.Add(Val("Direction °",
+                "Which way arm 0 points, in degrees — 90 = up. (Arms are spaced evenly around the circle from here.)",
+                s.fireDirection, 0f, 360f));
+            box.Add(Z.HGroup(
+                Val("Emitter width (px)", "Width of each arm's emitter, in pixels — the base of the flame.",
+                    s.fireEmitterWidth, 1f, spec.canvasSize),
+                Val("Inset (px)", "How far each emitter sits out from the centre, in pixels.",
+                    s.fireEmitterInset, 0f, Mathf.Max(1f, spec.canvasSize * 0.5f))));
+
+            // ── Heat & fuel ──
+            box.Add(Z.HGroup(
+                Val("Heat", "How hot the emitter injects. Animate it to ignite, roar and die back (scaled by Progress).",
+                    s.fireHeat, 0f, 1f),
+                Val("Fuel", "How much unburnt fuel the emitter injects — fuel turns into heat as it burns, which is "
+                    + "what gives a flame a body rather than a glow (scaled by Progress).",
+                    s.fireFuel, 0f, 1f)));
+            box.Add(Z.HGroup(
+                Val("Burn", "How fast fuel converts into heat.", s.fireBurn, 0f, 4f),
+                Val("Dissipation", "How fast heat fades. High = a short sharp flame; low = long lingering tongues.",
+                    s.fireDissipation, 0f, 2f)));
+            box.Add(Val("Pulse", "How much the emitter's output breathes in and out — a seeded wobble on the base.",
+                s.firePulse, 0f, 2f));
+
+            // ── Motion ──
+            box.Add(Z.HGroup(
+                Val("Flow", "Steady outward push away from the centre — a jet.", s.fireFlow, 0f, 6f),
+                Val("Buoyancy", "How strongly HEAT carries itself outward — what makes a flame CLIMB rather than just "
+                    + "spread.", s.fireBuoyancy, 0f, 10f)));
+            box.Add(Z.HGroup(
+                Val("Curl", "Swirl strength — curls the tongues instead of merely stretching them.", s.fireCurl, 0f, 6f),
+                Val("Curl scale", "Size of the swirls — small = fine turbulence, large = slow broad rolls.",
+                    s.fireCurlScale, 2f, 24f)));
+            box.Add(Val("Flicker", "Sideways wobble of the tongues — how much they lick and wave.", s.fireFlicker, 0f, 4f));
+
+            // ── Flame shape ── (what makes it read as a FLAME, not an expanding blob)
+            box.Add(Z.HGroup(
+                Val("Stretch", "Elongate the flame along its direction — high = long licking tongues, 0 = squat.",
+                    s.fireStretch, 0f, 8f),
+                Val("Pinch", "Taper the sides into a pointed tongue — most of what makes it read as a flame, and (with "
+                    + "several arms) what opens the cold gaps between them.", s.firePinch, 0f, 3f)));
+            box.Add(Val("Breakup", "Eat the edges into wisps instead of a smooth silhouette.", s.fireBreakup, 0f, 3f));
+
+            // ── Confinement ── (the reason a hot setting stays usable — never touches the frame edge)
+            box.Add(Z.HGroup(
+                Val("Reach", "How far the flame may reach, as a fraction of the canvas half-size. Past this it's cooled "
+                    + "to nothing, so it can NEVER touch the frame edge however hard it's driven — raise it for more "
+                    + "room, not to make the fire bigger.", s.fireReach, 0f, 1f),
+                Val("Edge cooling", "How hard the flame is cooled once past the Reach radius.",
+                    s.fireEdgeCooling, 0f, 1f)));
+
+            // ── Output / sim ──
+            box.Add(Z.HGroup(
+                Z.MicroSlider("Steps", s.fireSteps, 1f, 8f,
+                    "Simulation steps per frame — more = smoother, faster-evolving motion for the same frame count "
+                    + "(it does not change the flame's shape, only how far it gets each frame).",
+                    v => Dirty(() => s.fireSteps = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8)), 150f, showValue: true, decimals: 0),
+                Z.MicroSlider("Threshold", s.fireThreshold, 0f, 0.9f,
+                    "Heat below this reads as empty — raise it to carve a crisper silhouette.",
+                    v => Dirty(() => s.fireThreshold = v), 150f, showValue: true)));
+            box.Add(Z.MicroSlider("Contrast", s.fireContrast, 0.05f, 2f,
+                "Contrast on the gradient lookup — below 1 pushes more of the flame toward the hot end of the ramp.",
+                v => Dirty(() => s.fireContrast = v), 150f, showValue: true));
+
+            shapeBody.Add(box);
+        }
+
         // Text form box — the string, the SDF font, spacing, the fill (mode + angle + gradient), the border (width
         // + gradient), and the 3D extrusion (Solid + Depth). Depth shows only when Solid, so the Solid toggle
         // rebuilds the Shape body. Text takes its colour from the Fill / Border gradients here — the shared Colour
@@ -1341,6 +1473,22 @@ namespace Laubrary.PyrePlus.Editor
                 + "placed in a shape. For the Text form the particle count is the number of characters, so Count is "
                 + "hidden — each letter rides one swarm position.",
                 v => { Dirty(() => s.swarmEnabled = v); RebuildSwarm(); });
+
+            // Fire is a whole-layer SIMULATION with its own BUILT-IN emitters (arms around the centre) — the swarm
+            // does not drive it (swarm-driven fire emitters are a later slice). Show a note instead of the (inert)
+            // swarm controls, so a Fire layer never presents dead placement dials.
+            if (s.shapeForm == ShapeForm.Fire)
+            {
+                var note = new Label("Fire uses its own built-in emitters (arms around the centre) — the Swarm "
+                    + "doesn't place it. Swarm-driven fire emitters are a later slice. Use the Fire box's Arms / "
+                    + "Direction to shape the flame instead.");
+                note.style.whiteSpace = WhiteSpace.Normal;
+                note.style.opacity = 0.7f;
+                note.style.marginTop = 2; note.style.marginBottom = 2;
+                swarmBody.Add(note);
+                return;
+            }
+
             if (!s.swarmEnabled) return;
 
             // Dual spawn-path visualisation (P4): two independent overlay toggles — the authored Shape (outline +
@@ -1790,6 +1938,10 @@ namespace Laubrary.PyrePlus.Editor
             if (f == ShapeForm.Sprite)
                 return "Tints the stamped sprite (multiplied over its colours), sampled at the particle centre only — "
                      + "a spatial fill has no effect on a sprite tint. Turn Tint off for the sprite's raw colours." + modes;
+            if (f == ShapeForm.Fire)
+                return "The flame's colour RAMP: the sim reads this fill's GRADIENT as one smoke→fire ramp (low end = "
+                     + "smoke, high end = fire), mapping each pixel's heat onto it — like Height balls. Prefer an Over "
+                     + "life gradient; a Solid fill leaves the flame white." + modes;
             return "The particle's colour (0 = birth, 1 = death)." + modes;
         }
 

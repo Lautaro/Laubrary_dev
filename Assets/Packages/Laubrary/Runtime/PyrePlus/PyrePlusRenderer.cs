@@ -106,6 +106,19 @@ namespace Laubrary.PyrePlus
         // BlastRenderer feeding its GlobalLayerId (-1) as the layer id for global modifiers.
         const int ModParticleIndex = -1;
 
+        // ── Fire form field ids (shapeForm == Fire, slice 6a) — REUSE Pyre's own F_Fire* block VERBATIM ──────────
+        // These are Pyre's exact fire field ids (Runtime/Pyre/BlastRenderer.cs:47-50), reused so a converted Pyre
+        // fire keeps identical decorrelation and the port reads 1:1 against Pyre's FireParamsAt. POSITIVE 100..118 —
+        // clear of PyrePlus's 1..15 single-field ids and its negative -2..-27 ids. (A layer's modifier BLOCK,
+        // FldModifier + i*8, only reaches 100 at 11+ modifiers; benign: fire rates Eval frame-global at
+        // ModParticleIndex exactly like modifier params, and a field id only perturbs a MinMax draw — which fire
+        // rates and modifier params rarely use — so at worst two never-both-MinMax fields share a stream. Never a
+        // determinism break: the replay gate proves same seed+content+frame ⇒ same bytes regardless.)
+        const int F_FireDir = 100, F_FireWidth = 101, F_FireInset = 102, F_FireHeat = 103, F_FireFuel = 104;
+        const int F_FirePulse = 105, F_FireFlow = 106, F_FireBuoy = 107, F_FireCurl = 108, F_FireCurlScale = 109;
+        const int F_FireFlicker = 110, F_FireDissip = 111, F_FireBurn = 112, F_FireReach = 113, F_FireEdgeCool = 114;
+        const int F_FireStretch = 115, F_FirePinch = 116, F_FireBreakup = 117, F_FireIntensity = 118;
+
         /// One swarm particle's spawn data: where it lands on the blast timeline and its absolute canvas-pixel
         /// position. RenderFrame consumes this; the preview overlay (T5) calls ComputeSpawns to draw a dot at
         /// each particle's ACTUAL computed spawn location.
@@ -265,8 +278,15 @@ namespace Laubrary.PyrePlus
                 bool isHeightConsumer = channels != null && layer.heightFromChannel >= 0 && layer.heightFromChannel < 4;
                 float[] heightField = isHeightConsumer ? channels[layer.heightFromChannel] : null;
 
+                // Fire (slice 6a) — a stateful sim form MUST render into isolated scratch: FireSim.Render OVERWRITES
+                // above-threshold pixels and leaves the rest untouched (it never clears), so painting it straight into
+                // the shared output would replace rather than Over-composite it and would carry whatever was already
+                // there. Forcing needScratch mirrors BlastRenderer's hasLayerPost isolation for Fire/Fireball. The
+                // fire render itself is dispatched inside RenderLayer (the scratch branch below calls RenderLayer).
+                bool isFire = layer.shapeForm == ShapeForm.Fire;
+
                 bool matteActive = matteState.mask != null;
-                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive;
+                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire;
                 if (!needScratch)
                 {
                     if (isHeightConsumer) RenderHeightConsumer(buf, W, H, layer, heightField);
@@ -304,6 +324,13 @@ namespace Laubrary.PyrePlus
         static void RenderLayer(Color32[] target, int W, int H, float life, PyrePlusSpec spec, PyrePlusLayer layer,
                                 in ModSet mods, float phase, int frameIndex)
         {
+            // Fire (slice 6a) — a STATEFUL sim form has NO particles/swarm, so it bypasses the swarm dispatch entirely
+            // and drives its own replay harness. The caller ALWAYS hands it an isolated scratch (needScratch is forced
+            // for Fire in RenderFrame) because FireSim.Render OVERWRITES above-threshold pixels and leaves the rest —
+            // it must never render straight into the shared output buffer. The per-layer sim seed reads _layerSalt
+            // (set by the caller = this layer's index), so two Fire layers never share a sim.
+            if (layer.shapeForm == ShapeForm.Fire) { RenderFireLayer(target, W, H, life, spec, layer, frameIndex); return; }
+
             if (!layer.swarmEnabled)
             {
                 // Text + a usable font: the whole string is ONE centred line (each char its own particle), painted
@@ -316,6 +343,195 @@ namespace Laubrary.PyrePlus
             }
             else
                 RenderSwarm(target, W, H, life, spec, layer, mods, phase, frameIndex);
+        }
+
+        // ── Fire form: stateful sim + replay harness (slice 6a) ──────────────────────────────────────────────────
+        // PyrePlus's renderer is otherwise pure-per-frame (every frame renders standalone). Fire is the ONE stateful
+        // form: heat is carried by a velocity field, so frame N depends on frame N-1. It stays fully DETERMINISTIC by
+        // being reached via REPLAY from a fixed reset — exactly the discipline Pyre1's RenderFire (BlastRenderer.cs:308)
+        // and SimulationModifier use. We REUSE Pyre's public FireSim/FireParams directly (no re-port of the grid
+        // physics); this is only the thin replay harness around them.
+        //
+        // One FireSim per layer, kept across frames so normal forward playback steps ONE frame instead of replaying the
+        // whole history every repaint (O(frames) not O(frames²) per shown frame). A ConditionalWeakTable keyed by layer
+        // IDENTITY means a deleted layer's sim is collected on its own and a cloned layer (a fresh object) gets its own
+        // entry — two specs holding equal layers still get separate sims.
+        //
+        // INVALIDATION is CONTENT-HASH based — stronger than Pyre1's implicit same-frame-re-request replay. The hash
+        // folds every input that can change the output (all fire params + arms/steps/armMode + threshold/contrast + the
+        // ramp gradient + the alpha envelope + seed + frameCount + W/H). ANY authoring edit changes the hash ⇒ a forced
+        // COLD replay from frame 0, so PyrePlus never forward-steps across a param change (no stale frame). Because the
+        // params are provably frozen WITHIN one hash, a same-frame re-request with an UNCHANGED hash needs no step at
+        // all — the grid is already at that frame; just re-render.
+        //
+        // CHECKPOINTS — replay only K→f instead of 0→f — are a valid further win the content-hash gate makes safe
+        // (params provably frozen), but are DEFERRED this slice: correctness (replay-from-0) first.
+        // TODO(slice 6+): snapshot sim state every K≈8–16 frames and replay only checkpoint→f, turning a cold scrub
+        //                 from O(f) into O(K).
+        sealed class FireSimEntry { public FireSim sim; public int contentHash; public int lastFrame = -1; }
+        static readonly System.Runtime.CompilerServices.ConditionalWeakTable<PyrePlusLayer, FireSimEntry> _fireSims =
+            new System.Runtime.CompilerServices.ConditionalWeakTable<PyrePlusLayer, FireSimEntry>();
+
+        // dt is ONE FRAME split across the substeps (mirrors Pyre's FireDt) — every velocity dial reads in px/frame.
+        const float FireDt = 1f;
+
+        static void RenderFireLayer(Color32[] target, int W, int H, float life, PyrePlusSpec spec,
+                                    PyrePlusLayer layer, int frameIndex)
+        {
+            var entry = _fireSims.GetValue(layer, _ => new FireSimEntry { sim = new FireSim() });
+            var sim = entry.sim;
+
+            // A per-(spec, layer) sim seed. _layerSalt is this layer's index (set by RenderFrame before the layer
+            // draws), so two Fire layers — and the same layer at two list positions — get distinct, stable seeds.
+            int seed = Hash(spec != null ? spec.seed : 0, _layerSalt, 0, 0);
+            int hash = FireContentHash(layer, spec, W, H, seed);
+
+            int frames = Mathf.Max(1, spec != null ? spec.frameCount : 1);
+            int last = Mathf.Clamp(frameIndex, 0, frames - 1);
+
+            bool sizeChanged = sim.W != W || sim.H != H;
+            sim.Allocate(W, H);
+
+            // Any size / param / gradient / seed / frameCount change, or an uninitialised sim ⇒ the cache is invalid.
+            bool invalid = sizeChanged || hash != entry.contentHash || entry.lastFrame < 0;
+            if (!invalid && last == entry.lastFrame + 1)
+            {
+                // WARM forward-step: exactly one frame past where the sim is (normal playback) — O(1).
+                StepFire(sim, layer, spec, seed, last);
+                entry.lastFrame = last;
+            }
+            else if (!invalid && last == entry.lastFrame)
+            {
+                // Same frame re-asked with UNCHANGED content — the grid is already at `last`; just re-render below.
+            }
+            else
+            {
+                // COLD replay from frame 0 (a scrub, a backward step, a forward skip, or any invalidation). O(f).
+                sim.Reset();
+                for (int f = 0; f <= last; f++) StepFire(sim, layer, spec, seed, f);
+                entry.lastFrame = last;
+            }
+            entry.contentHash = hash;
+
+            // Composite the current grid through the layer's own fill gradient (the smoke→fire ramp) at the layer's
+            // overall alpha over its life. Fire ignores `size` — the reach radius bounds it, not a particle radius.
+            Gradient ramp = layer.shapeFill != null ? layer.shapeFill.gradient : null;
+            float alpha = Mathf.Clamp01(Eval(layer.alpha, life, spec != null ? spec.seed : 0, ModParticleIndex, FldAlpha));
+            sim.Render(target, ramp, alpha, layer.fireThreshold, layer.fireContrast);
+        }
+
+        // One frame's Fire step, replayed identically every time frame f is reached. lp = the layer's life progress at
+        // f (startFrame is always 0 in PyrePlus, endFrame = frameCount-1), so this mirrors Pyre's StepFire exactly with
+        // startFrame folded to 0. fireSteps substeps split ONE frame of dt; the tiny per-substep phase nudge matches
+        // Pyre (BlastRenderer.cs:299) so the noise advances smoothly within a frame.
+        static void StepFire(FireSim sim, PyrePlusLayer layer, PyrePlusSpec spec, int seed, int f)
+        {
+            int frames = Mathf.Max(1, spec != null ? spec.frameCount : 1);
+            float lp = Mathf.Clamp01(f / (float)Mathf.Max(1, frames - 1));
+            var p = FireParamsAt(layer, spec, lp);
+            int steps = Mathf.Max(1, layer.fireSteps);
+            for (int s = 0; s < steps; s++)
+                sim.Step(p, seed, lp + s / (float)steps * 0.01f, FireDt / steps);
+        }
+
+        // Evaluate the Fire dials at a life progress into a FireParams — a faithful mirror of Pyre's FireParamsAt
+        // (BlastRenderer.cs:258), through PyrePlus's own Eval funnel (frame-global at ModParticleIndex). intensity
+        // scales the injected heat + fuel so a single envelope shapes ignite→roar→die.
+        static FireParams FireParamsAt(PyrePlusLayer layer, PyrePlusSpec spec, float lp)
+        {
+            int seed = spec != null ? spec.seed : 0;
+            float E(ZUIValue v, int fid) => Eval(v, lp, seed, ModParticleIndex, fid);
+            float intensity = Mathf.Clamp01(E(layer.fireIntensity, F_FireIntensity));
+            return new FireParams
+            {
+                arms = Mathf.Max(1, layer.fireArms),
+                armMode = layer.fireArmMode,
+                steps = Mathf.Max(1, layer.fireSteps),
+                directionDeg = E(layer.fireDirection, F_FireDir),
+                emitterWidth = Mathf.Max(1f, E(layer.fireEmitterWidth, F_FireWidth)),
+                emitterInset = E(layer.fireEmitterInset, F_FireInset),
+                heat = Mathf.Clamp01(E(layer.fireHeat, F_FireHeat) * intensity),
+                fuel = Mathf.Clamp01(E(layer.fireFuel, F_FireFuel) * intensity),
+                pulse = Mathf.Max(0f, E(layer.firePulse, F_FirePulse)),
+                flow = E(layer.fireFlow, F_FireFlow),
+                buoyancy = E(layer.fireBuoyancy, F_FireBuoy),
+                curl = Mathf.Max(0f, E(layer.fireCurl, F_FireCurl)),
+                curlScale = Mathf.Max(2f, E(layer.fireCurlScale, F_FireCurlScale)),
+                flicker = Mathf.Max(0f, E(layer.fireFlicker, F_FireFlicker)),
+                stretch = Mathf.Max(0f, E(layer.fireStretch, F_FireStretch)),
+                pinch = Mathf.Max(0f, E(layer.firePinch, F_FirePinch)),
+                breakup = Mathf.Max(0f, E(layer.fireBreakup, F_FireBreakup)),
+                dissipation = Mathf.Max(0f, E(layer.fireDissipation, F_FireDissip)),
+                burn = Mathf.Max(0f, E(layer.fireBurn, F_FireBurn)),
+                reach = Mathf.Clamp01(E(layer.fireReach, F_FireReach)),
+                edgeCooling = Mathf.Clamp01(E(layer.fireEdgeCooling, F_FireEdgeCool)),
+            };
+        }
+
+        // A stable hash of every input that can change a Fire layer's OUTPUT — the replay cache's invalidation key.
+        // Folds all fire params (each ZUIValue's full authored content), arms/armMode/steps, threshold/contrast, the
+        // ramp gradient + the alpha envelope (render inputs), and seed/frameCount/W/H. ANY authoring edit flips it,
+        // forcing a cold replay so a forward-step can never carry stale dial values into a later frame.
+        static int FireContentHash(PyrePlusLayer L, PyrePlusSpec spec, int W, int H, int seed)
+        {
+            unchecked
+            {
+                int h = (int)2166136261u;
+                h = MixI(h, seed); h = MixI(h, W); h = MixI(h, H);
+                h = MixI(h, Mathf.Max(1, spec != null ? spec.frameCount : 1));
+                h = MixI(h, Mathf.Max(1, L.fireArms)); h = MixI(h, (int)L.fireArmMode); h = MixI(h, Mathf.Max(1, L.fireSteps));
+                h = MixI(h, L.fireThreshold.GetHashCode()); h = MixI(h, L.fireContrast.GetHashCode());
+                h = MixV(h, L.fireIntensity);
+                h = MixV(h, L.fireDirection); h = MixV(h, L.fireEmitterWidth); h = MixV(h, L.fireEmitterInset);
+                h = MixV(h, L.fireHeat); h = MixV(h, L.fireFuel); h = MixV(h, L.firePulse);
+                h = MixV(h, L.fireFlow); h = MixV(h, L.fireBuoyancy); h = MixV(h, L.fireCurl);
+                h = MixV(h, L.fireCurlScale); h = MixV(h, L.fireFlicker); h = MixV(h, L.fireStretch);
+                h = MixV(h, L.firePinch); h = MixV(h, L.fireBreakup); h = MixV(h, L.fireDissipation);
+                h = MixV(h, L.fireBurn); h = MixV(h, L.fireReach); h = MixV(h, L.fireEdgeCooling);
+                h = MixV(h, L.alpha);                                            // the render-alpha envelope (layerAlpha)
+                h = MixG(h, L.shapeFill != null ? L.shapeFill.gradient : null);   // the ramp
+                return h;
+            }
+        }
+
+        static int MixI(int h, int x) { unchecked { return (h ^ x) * 16777619; } }
+
+        static int MixV(int h, ZUIValue v)
+        {
+            unchecked
+            {
+                if (v == null) return MixI(h, 0);
+                h = MixI(h, (int)v.mode);
+                h = MixI(h, v.staticValue.GetHashCode());
+                h = MixI(h, v.min.GetHashCode());
+                h = MixI(h, v.max.GetHashCode());
+                h = MixI(h, v.yMax.GetHashCode());
+                var pts = v.points;
+                h = MixI(h, pts != null ? pts.Count : 0);
+                if (pts != null)
+                    for (int i = 0; i < pts.Count; i++)
+                    {
+                        var p = pts[i];
+                        h = MixI(h, p.time.GetHashCode());
+                        h = MixI(h, p.value.GetHashCode());
+                        h = MixI(h, p.exponent.GetHashCode());
+                    }
+                return h;
+            }
+        }
+
+        static int MixG(int h, Gradient g)
+        {
+            unchecked
+            {
+                if (g == null) return MixI(h, 0);
+                var ck = g.colorKeys; var ak = g.alphaKeys;
+                h = MixI(h, ck.Length); h = MixI(h, ak.Length);
+                for (int i = 0; i < ck.Length; i++) { h = MixI(h, ck[i].color.GetHashCode()); h = MixI(h, ck[i].time.GetHashCode()); }
+                for (int i = 0; i < ak.Length; i++) { h = MixI(h, ak[i].alpha.GetHashCode()); h = MixI(h, ak[i].time.GetHashCode()); }
+                h = MixI(h, (int)g.mode);
+                return h;
+            }
         }
 
         // True when a modifier list holds an enabled PostModifier — the layer then needs an isolated buffer so its
