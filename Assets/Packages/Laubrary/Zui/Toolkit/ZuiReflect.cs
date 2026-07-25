@@ -243,7 +243,13 @@ namespace Laubrary.Zui
             bool isClass = elemType.IsClass && elemType != typeof(string)
                            && !typeof(UnityEngine.Object).IsAssignableFrom(elemType);
 
-            var box = Z.Box($"{nice}  ({list.Count})", tip + $" A list of {PrettyTypeName(elemType)}.");
+            // A STABLE view-capture key (owner type + field name), never the title. The title carries a LIVE
+            // element count, so a title-derived fallback key would DRIFT every time the list grows/shrinks —
+            // orphaning this box's captured fold/view state in any ZuiViewBar-carrying host (e.g. PyrePlus, whose
+            // bar captures every ZuiBox). BoxKeyed pins the key so the count stays visible in the title without
+            // moving the key. (An untitled per-item card below stays a bare, non-captured Z.Box.)
+            var box = Z.BoxKeyed($"{nice}  ({list.Count})", tip + $" A list of {PrettyTypeName(elemType)}.",
+                $"reflect.list.{owner.GetType().Name}.{field.Name}");
             for (int i = 0; i < list.Count; i++)
             {
                 int idx = i;
