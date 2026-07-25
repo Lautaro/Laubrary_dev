@@ -39,7 +39,13 @@ namespace Laubrary.SpriteFx
                  "populates this for the flash-on-hurt case.")]
         [SerializeReference] public List<PixelModifier> modifiers = new List<PixelModifier>();
 
-        [Tooltip("How long one Play() lasts, in seconds.")]
+        [Tooltip("Optional: source the stack, duration, envelope and seed from a shared SpriteFxSpec ASSET (a " +
+                 "reusable 'SpriteFx Stack') instead of the inline fields below. When assigned the asset WINS (the " +
+                 "inline modifiers/duration/envelope/seed are ignored), so one authored effect can be reused across " +
+                 "many entities and browsed/tagged.")]
+        public SpriteFxSpec stack;
+
+        [Tooltip("How long one Play() lasts, in seconds. Ignored when a Stack asset is assigned.")]
         [Min(0.001f)] public float duration = 0.15f;
 
         [Tooltip("Optional easing/remap of raw progress (0→1 over Duration) into the LIFE value fed to every " +
@@ -75,8 +81,8 @@ namespace Laubrary.SpriteFx
 
         void Awake() => _sr = GetComponent<SpriteRenderer>();
 
-        /// Trigger the filter for the serialized <see cref="duration"/>.
-        public void Play() => Play(duration);
+        /// Trigger the filter for the effective <see cref="duration"/> (the Stack asset's duration if one is assigned).
+        public void Play() => Play(EffectiveDuration);
 
         /// Trigger the filter for a specific duration (seconds). Re-triggering while active restarts the timeline.
         public void Play(float durationSeconds)
@@ -126,7 +132,7 @@ namespace Laubrary.SpriteFx
             float p = _dur > 0f ? Mathf.Clamp01(t / _dur) : 1f;
             float life = SampleEnvelope(p);
 
-            Apply(pixels, W, H, modifiers, _tickFrame, life, seed, ResolveUseBurst());
+            Apply(pixels, W, H, EffectiveModifiers, _tickFrame, life, EffectiveSeed, ResolveUseBurst());
             _tickFrame++;
 
             EnsureWork(src, W, H);
@@ -136,8 +142,14 @@ namespace Laubrary.SpriteFx
             _sr.sprite = _filteredSprite;
         }
 
+        // ── effective source (a Stack asset, when assigned, overrides every inline field) ─────────────────────────
+        List<PixelModifier> EffectiveModifiers => stack != null ? stack.modifiers : modifiers;
+        float EffectiveDuration => stack != null ? Mathf.Max(0.001f, stack.duration) : duration;
+        int EffectiveSeed => stack != null ? stack.seed : seed;
+
         float SampleEnvelope(float progress01)
         {
+            if (stack != null) return stack.SampleEnvelope(progress01);
             if (envelope == null || envelope.length == 0) return progress01;
             return envelope.Evaluate(progress01);
         }

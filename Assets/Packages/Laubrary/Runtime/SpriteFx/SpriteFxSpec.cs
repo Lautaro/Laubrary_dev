@@ -1,0 +1,54 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Laubrary.SpriteFx
+{
+    /// A persisted, reusable SpriteFx recipe — a "SpriteFx Stack": a stateless colour/mask stack (the gather-free
+    /// PixelModifier family) plus the timeline that plays it. Authored ONCE as an asset and referenced by any
+    /// <see cref="SpriteFxFilter"/> (or a future runtime player), so the same effect — a hurt flash, a dissolve, a
+    /// tint pulse — can be reused across many entities and browsed/tagged like every other Laubrary asset instead of
+    /// being hand-copied inline onto each component.
+    ///
+    /// (Named by Laubrary's asset convention — <c>ChunkSpec</c>, <c>PyrePlusSpec</c> — so it does not collide with
+    /// the static stack-runner <see cref="SpriteFxStack"/>; the user-facing name everywhere is "SpriteFx Stack".)
+    ///
+    /// The field set mirrors <see cref="SpriteFxFilter"/>'s own inline fields exactly, so a filter can source them
+    /// from an asset with NO behavioural change: the static <see cref="SpriteFxFilter.Apply"/> already takes an
+    /// <c>IReadOnlyList&lt;PixelModifier&gt;</c>, so an asset-sourced list drives the identical code path.
+    ///
+    /// Only the "shaped" gather-free pixel effects actually run at runtime (Brightness/Tint/Contrast/Saturation/
+    /// Posterize/OrderedDither/LayerDissolve/AlphaMask) — <see cref="SpriteFxStack.Resolve"/> skips anything else —
+    /// which is why the list is typed to <c>PixelModifier</c> rather than the whole PyreModifier family.
+    ///
+    /// Ships ZERO assets (the Laubrary rule): the package never contains a SpriteFx Stack asset; a host project
+    /// creates its own via Assets ▸ Create ▸ Laubrary ▸ SpriteFx ▸ Stack.
+    [CreateAssetMenu(fileName = "New SpriteFx Stack", menuName = "Laubrary/SpriteFx/Stack", order = 1)]
+    public class SpriteFxSpec : ScriptableObject
+    {
+        [Tooltip("The stateless colour/mask effects applied in order while the stack plays. Use the gather-free " +
+                 "pixel effects (Brightness/Tint/Contrast/Saturation/Posterize/OrderedDither/LayerDissolve/" +
+                 "AlphaMask); each effect's animatable values are resolved at the current life each frame.")]
+        [SerializeReference] public List<PixelModifier> modifiers = new List<PixelModifier>();
+
+        [Tooltip("How long one play-through lasts, in seconds.")]
+        [Min(0.001f)] public float duration = 0.15f;
+
+        [Tooltip("Optional easing/remap of raw progress (0->1 over Duration) into the LIFE value fed to every " +
+                 "effect's animatable curves. Identity by default (life = progress); a triangle (0->1->0) turns a " +
+                 "monotonic effect curve into a pulse, or an ease softens the ends.")]
+        public AnimationCurve envelope = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+
+        [Tooltip("Seed for any hashing effect (LayerDissolve scatter, AlphaMask noise). Irrelevant for a plain " +
+                 "Brightness/Tint flash.")]
+        public int seed = 12345;
+
+        /// Sample the life-remap envelope at a raw progress in [0,1] (identity if no curve). Mirrors
+        /// <see cref="SpriteFxFilter"/>'s own SampleEnvelope so an asset-driven filter and an inline one behave
+        /// identically.
+        public float SampleEnvelope(float progress01)
+        {
+            if (envelope == null || envelope.length == 0) return progress01;
+            return envelope.Evaluate(progress01);
+        }
+    }
+}
