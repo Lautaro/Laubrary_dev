@@ -162,6 +162,26 @@ namespace Laubrary.PyrePlus
         public int clipByChannel = -1;             // Draw only: -1 = no clip; 0..3 = multiply this layer's alpha by that channel
         public bool clipInvert = false;            // Draw + clip: use (1 - channel) instead of channel
 
+        // ── Matte heightmap (slice 4b) — the numbered-channel path EXTENDED into a fused scalar HEIGHTMAP ────────
+        // Two opt-in, default-OFF additions on top of the WriteMatte coverage-clip plumbing above, so several matte
+        // layers can contribute LUMINANCE into ONE channel (a fused scalar field) and a target Draw layer renders
+        // that field as a relief-lit surface (like HeightBalls, but fed by authored matte layers instead of a swarm):
+        //   • matteWriteLuma  — a WriteMatte layer deposits its LUMINANCE × alpha (not flat coverage-alpha) into
+        //                        matteChannel, combined by the same MatteCombine (Max = "wherever they intersect,
+        //                        fused"). Several such layers on one channel = one fused heightmap.
+        //   • heightFromChannel — a Draw layer, when ≥ 0, does NOT draw its shape; it renders channels[that] through
+        //                        this layer's shapeFill gradient, relief-lit by PyrePlusField.ReliefLight, Over-comp.
+        // Both default to their no-op (false / -1), so a layer that opts into neither renders byte-identical. All four
+        // are value types ⇒ Clone()'s MemberwiseClone copies them for free (no explicit deep-copy — see Clone below).
+        [Tooltip("Write matte: deposit this layer's LUMINANCE × alpha into its channel (a heightmap contribution) instead of flat coverage-alpha. Several such layers on one channel (Combine = Max) fuse into one heightmap for a Height-from Draw layer to render.")]
+        public bool matteWriteLuma = false;
+        [Tooltip("Draw: -1 = off (draw this layer's shape normally). 0..3 = don't draw the shape; render that fused matte channel as a relief-lit heightmap through this layer's Fill gradient (bright/lit where the source luminance piles up).")]
+        public int heightFromChannel = -1;
+        [Tooltip("Heightmap consumer: relief strength — how steeply the fused field's local slope bends the surface normal for carved highlights/shadow. 0 = a flat gradient-mapped field, no relief lighting.")]
+        public float heightRelief = 3f;
+        [Tooltip("Heightmap consumer: the relief light's angle in degrees (screen plane) — which way the highlights fall across the fused surface.")]
+        public float heightLightAngle = 135f;
+
         // ── Luma-matte (matteRole == LumaMatte, slice 4) — Pyre1's six-channel luminance matte, added PARALLEL ──
         // All-NEW fields (no renames of the coverage-clip fields above, so no data migration): a LumaMatte layer is
         // invisible; its finished pixels become a MASK = luminance × its own alpha, and the matteFlags channels are
@@ -552,7 +572,9 @@ namespace Laubrary.PyrePlus
             // coalesce is a plain enum (value type) — MemberwiseClone above already copied it, like matteRole; the
             // three fuseThreshold/fuseShadeRange/fuseSoftness floats + the Ramp knobs (rampFusion/rampCoverage/
             // rampLighting/rampRelief/rampLightAngle/rampRimScale) are value types too, so MemberwiseClone deep-copies
-            // them for free — only the density/heat ZUIValue envelopes above need an explicit deep copy.
+            // them for free — only the density/heat ZUIValue envelopes above need an explicit deep copy. Likewise the
+            // slice-4b matte-heightmap fields (matteWriteLuma bool, heightFromChannel int, heightRelief/heightLightAngle
+            // floats) are all value types, so MemberwiseClone already copied them — no explicit deep-copy needed.
             l.modifiers = modifiers == null ? new List<PyreModifier>() : modifiers.ConvertAll(m => m?.Clone());
             return l;
         }

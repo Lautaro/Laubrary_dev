@@ -176,7 +176,11 @@ namespace Laubrary.PyrePlus
             {
                 var l0 = layers[li];
                 if (l0 == null || !l0.enabled) continue;
-                if (l0.matteRole == MatteRole.WriteMatte || (l0.matteRole == MatteRole.Draw && l0.clipByChannel >= 0)) { anyMatte = true; break; }
+                // Channels are also needed when a Draw layer is a slice-4b HEIGHTMAP CONSUMER (heightFromChannel ≥ 0):
+                // it reads the fused channel a WriteMatte luminance layer below deposited. Default -1 ⇒ no change here.
+                if (l0.matteRole == MatteRole.WriteMatte
+                    || (l0.matteRole == MatteRole.Draw && l0.clipByChannel >= 0)
+                    || (l0.matteRole == MatteRole.Draw && l0.heightFromChannel >= 0)) { anyMatte = true; break; }
             }
             float[][] channels = null;
             if (anyMatte) { channels = new float[4][]; for (int c = 0; c < 4; c++) channels[c] = new float[W * H]; }
@@ -221,7 +225,7 @@ namespace Laubrary.PyrePlus
                     var scratch = new Color32[W * H];
                     RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
                     if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, life, frameIndex);
-                    if (channels != null) WriteMatteCoverage(channels[Mathf.Clamp(layer.matteChannel, 0, 3)], scratch, layer.matteCombine);
+                    if (channels != null) WriteMatteCoverage(channels[Mathf.Clamp(layer.matteChannel, 0, 3)], scratch, layer.matteCombine, layer.matteWriteLuma);
                     continue;
                 }
 
@@ -252,17 +256,27 @@ namespace Laubrary.PyrePlus
                 // the frame, so posting over buf == posting over (bg + this layer) == the old renderer. matteActive
                 // is always false for a spec with no LumaMatte layer, so needScratch reduces to the exact pre-slice-4
                 // expression and the fast path is byte-identical.
+                // Heightmap consumer (slice 4b): a Draw layer with heightFromChannel ≥ 0 does NOT draw its shape — it
+                // renders the FUSED scalar field in channels[heightFromChannel] (deposited by the WriteMatte luminance
+                // layers below) as a relief-lit heightmap through its own Fill. Everything else (post / clip / matte /
+                // composite / bufDirty) is the normal Draw path — only the shape-render call is swapped. Default -1 ⇒
+                // isHeightConsumer false ⇒ the normal RenderLayer, byte-identical.
+                bool isHeightConsumer = channels != null && layer.heightFromChannel >= 0 && layer.heightFromChannel < 4;
+                float[] heightField = isHeightConsumer ? channels[layer.heightFromChannel] : null;
+
                 bool matteActive = matteState.mask != null;
                 bool needScratch = hasClip || (hasPost && bufDirty) || matteActive;
                 if (!needScratch)
                 {
-                    RenderLayer(buf, W, H, life, spec, layer, mods, phase, frameIndex);
+                    if (isHeightConsumer) RenderHeightConsumer(buf, W, H, layer, heightField);
+                    else RenderLayer(buf, W, H, life, spec, layer, mods, phase, frameIndex);
                     if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, buf, W, H, life, frameIndex);
                 }
                 else
                 {
                     var scratch = new Color32[W * H];
-                    RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
+                    if (isHeightConsumer) RenderHeightConsumer(scratch, W, H, layer, heightField);
+                    else RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
                     if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, life, frameIndex);
                     // Impose the active luma matte on this finished-but-uncomposited layer (its six channels, in the
                     // fixed order), BEFORE the clip/composite so the mask shapes this layer's own pixels. oneShot
@@ -312,13 +326,16 @@ namespace Laubrary.PyrePlus
             return false;
         }
 
-        // Fold a WriteMatte layer's coverage (its per-pixel alpha) into a mask channel. Max = the union of masks
-        // (the default, the design's max-combine); Add/Subtract accumulate/carve and clamp to 0..1.
-        static void WriteMatteCoverage(float[] channel, Color32[] scratch, MatteCombine combine)
+        // Fold a WriteMatte layer's contribution into a mask channel. Max = the union of masks (the default, the
+        // design's max-combine); Add/Subtract accumulate/carve and clamp to 0..1. Each pixel contributes either its
+        // COVERAGE (its alpha — the classic numbered-channel path) or, when useLuma (slice 4b), its LUMINANCE × alpha
+        // — so several such layers on one channel fuse into ONE scalar HEIGHTMAP a Draw layer renders relief-lit.
+        // useLuma == false is byte-identical to the pre-slice-4b coverage-only path.
+        static void WriteMatteCoverage(float[] channel, Color32[] scratch, MatteCombine combine, bool useLuma)
         {
             for (int i = 0; i < channel.Length; i++)
             {
-                float cov = scratch[i].a * (1f / 255f);
+                float cov = useLuma ? Luma(scratch[i]) * (scratch[i].a * (1f / 255f)) : scratch[i].a * (1f / 255f);
                 switch (combine)
                 {
                     case MatteCombine.Add:      channel[i] = Mathf.Clamp01(channel[i] + cov); break;
@@ -1024,6 +1041,45 @@ namespace Laubrary.PyrePlus
                     }
                     else Over(buf, i, col.r, col.g, col.b, outA);
                 }
+        }
+
+        // ── matte heightmap consumer (slice 4b) ─────────────────────────────────────────────────────────────────
+        // The PULL twin of the Ramp field-pass (RenderPlusRampField above): instead of BUILDING a height field from a
+        // swarm of domes, it reads the ALREADY-FUSED scalar field in `field` — a matte channel the WriteMatte
+        // luminance layers below deposited into (several of them combined by Max/Add/Subtract into ONE heightmap) —
+        // relief-lights it from its own local slope (the SHARED PyrePlusField.ReliefLight substrate, the same helper
+        // Ramp's Pass 2 uses), shades the scalar through this layer's Fill gradient, and Over-composites ONE fused
+        // surface. So authored matte layers become a single lit heightmap (bright/lit where their luminance piles up),
+        // exactly the HeightBalls look but fed by mattes, not a swarm. Reads only the channel + two plain-float knobs
+        // (heightRelief / heightLightAngle) — no Eval, no per-particle state — so it bakes/scrubs identically. Draws
+        // NOTHING where the field is 0, so an unfed consumer (or an empty channel) is inert.
+        static void RenderHeightConsumer(Color32[] buf, int W, int H, PyrePlusLayer layer, float[] field)
+        {
+            if (field == null) return;
+            // Relief lighting from the fused field's own slope. heightRelief ≈ 0 ⇒ skip it (a flat gradient-mapped
+            // field, no carved highlights) — the same shared helper, and the same slope→normal→Lambert math, Ramp uses.
+            float[] light = null;
+            if (layer.heightRelief > 0.0001f)
+            {
+                light = new float[W * H];
+                PyrePlusField.ReliefLight(light, field, W, H, layer.heightLightAngle, layer.heightRelief);
+            }
+            var fill = layer.shapeFill;
+            for (int i = 0; i < field.Length; i++)
+            {
+                float h = field[i];
+                if (h <= 0.003f) continue;                 // no surface where nothing was deposited
+                // The LIT field value picks the gradient position (mirrors the Ramp pass's 0.35 + light·1.15 spread),
+                // so the same fused height reads brighter on lit slopes and darker in shadow — the relief you can see.
+                float value = h;
+                if (light != null) value = Mathf.Clamp01(value * (0.35f + light[i] * 1.15f));
+                Color col = fill != null ? fill.Evaluate(value, 0f, 0f) : Color.white;
+                // The field IS the surface: its raw (un-lit) value is the coverage, so the surface stays solid in
+                // shadow and fades only where the fused luminance itself fades (a soft rim). × the gradient's own alpha.
+                float outA = Mathf.Clamp01(h) * col.a;
+                if (outA <= 0.003f) continue;
+                Over(buf, i, col.r, col.g, col.b, outA);
+            }
         }
 
         /// FIX 3 — apply the layer's LIVE whole-cloud swarm spin (swarmTurn/Tilt/Roll evaluated at `life`) to an

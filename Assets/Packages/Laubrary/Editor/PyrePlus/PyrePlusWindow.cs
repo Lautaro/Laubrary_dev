@@ -565,6 +565,9 @@ namespace Laubrary.PyrePlus.Editor
             else if (layer.matteRole == MatteRole.LumaMatte)
                 row.Add(Z.Text("◧", ZuiText.Small,
                     "A luma-matte layer — invisible; masks the layers above it by its luminance × alpha."));
+            else if (layer.heightFromChannel >= 0)
+                row.Add(Z.Text($"▲{Mathf.Clamp(layer.heightFromChannel, 0, 3)}", ZuiText.Small,
+                    "A heightmap layer (slice 4b) — renders the fused matte channel as a relief-lit surface instead of drawing its shape."));
 
             // Matte toggle ICON (mirrors Pyre1's per-row Matte toggle) — sits just before the delete button. A
             // glyph-swap button like the select button above (▦ mask-pattern = on, □ hollow = off), so it shows its
@@ -578,7 +581,9 @@ namespace Laubrary.PyrePlus.Editor
                 Dirty(() =>
                 {
                     layer.matteEnabled = !layer.matteEnabled;
-                    if (!layer.matteEnabled) { layer.matteRole = MatteRole.Draw; layer.clipByChannel = -1; }
+                    // Disabling resets the layer fully inert: Draw, no clip, and no slice-4b heightmap consume — so a
+                    // previously-configured matte OR heightmap stops acting (the renderer ignores matteEnabled itself).
+                    if (!layer.matteEnabled) { layer.matteRole = MatteRole.Draw; layer.clipByChannel = -1; layer.heightFromChannel = -1; }
                 });
                 RebuildLayerList();
             }).W(24f));
@@ -685,6 +690,13 @@ namespace Laubrary.PyrePlus.Editor
                         Z.Segmented((int)layer.matteCombine, MatteCombineLabels,
                             "Max = union of masks (default). Add = accumulate & clamp. Subtract = carve one mask out of another.",
                             v => Dirty(() => layer.matteCombine = (MatteCombine)v)))));
+                // Slice 4b: write LUMINANCE × alpha instead of coverage-alpha, so several such layers on one channel
+                // (Combine = Max) fuse into a single HEIGHTMAP a Draw layer can render as a relief-lit surface.
+                box.Add(Z.Toggle("Write luminance (heightmap)",
+                    "Deposit this layer's LUMINANCE × alpha into the channel instead of flat coverage-alpha. Several "
+                    + "write-matte layers on one channel (Combine = Max) then fuse into a single HEIGHTMAP — set a Draw "
+                    + "layer above to Height-from that channel to render it as one relief-lit surface.",
+                    layer.matteWriteLuma, v => Dirty(() => layer.matteWriteLuma = v)));
             }
             else if (layer.matteRole == MatteRole.LumaMatte)
             {
@@ -750,6 +762,28 @@ namespace Laubrary.PyrePlus.Editor
                     Z.Toggle("Invert",
                         "Clip by (1 − channel) instead — show where the mask is DARK, hide where it's bright.",
                         layer.clipInvert, v => Dirty(() => layer.clipInvert = v))));
+
+                // Slice 4b — heightmap consumer: render a fused matte channel as a relief-lit surface INSTEAD of
+                // drawing the shape. None = off (draw normally). Picking a channel reveals the Relief + Light-angle
+                // knobs; the shape simply isn't drawn while a channel is selected. Rebuild the list on change so the
+                // knobs appear/disappear (like the LumaMatte channel flags do).
+                box.Add(WrapRow(
+                    Z.Field("Height from",
+                        "Render a fused matte channel as a relief-lit HEIGHTMAP through this layer's Fill gradient "
+                        + "INSTEAD of drawing its shape. None = draw the shape normally. 0–3 = the channel the "
+                        + "write-matte LUMINANCE layers below fused into (bright/lit where their luminance piles up).",
+                        Z.MiniRadio(Mathf.Clamp(layer.heightFromChannel + 1, 0, 4), ClipChannelChoices.ToArray(),
+                            "None, or channel 0–3 fused by the write-matte layers below. This layer becomes that heightmap surface instead of its shape.",
+                            v => { Dirty(() => layer.heightFromChannel = v - 1); RebuildLayerList(); }, wrap: true))));
+                if (layer.heightFromChannel >= 0)
+                    box.Add(WrapRow(
+                        Z.MicroSlider("Relief", layer.heightRelief, 0f, 8f,
+                            "How steeply the fused field's slope carves the surface into lit highlights and shadow. "
+                            + "0 = a flat gradient-mapped field with no relief lighting.",
+                            v => Dirty(() => layer.heightRelief = v), 150f, showValue: true),
+                        Z.MicroSlider("Light angle", layer.heightLightAngle, 0f, 360f,
+                            "Direction (degrees, screen plane) the relief light falls across the fused heightmap surface.",
+                            v => Dirty(() => layer.heightLightAngle = v), 150f, showValue: true)));
             }
             return box;
         }
