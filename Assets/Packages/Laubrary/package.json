@@ -1,6 +1,6 @@
 {
   "name": "com.lautaro.arino.laubrary",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "displayName": "Laubrary",
   "description": "Helpful utility library with various tools and systems for Unity development",
   "unity": "2020.1",
