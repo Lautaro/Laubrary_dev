@@ -204,8 +204,28 @@ namespace Laubrary.Zui
             if (typeof(UnityEngine.Object).IsAssignableFrom(t))
                 return Z.Field(nice, tip, ObjectByType(t, (UnityEngine.Object)v, tip, nv => Set(nv), opt.ControlWidth));
 
-            // A wrapper whose payload is a single float (e.g. ZUIValue.staticValue) — surfaced as a plain
-            // float so such tunables stay editable here, without this file knowing the wrapper's type.
+            // An animatable ZUIValue → the FULL Static / Min-Max / Curve control (Z.Value / ZuiValueControl), not
+            // just its static float. Toolkit rule (ui-layout-rules: "an animatable value → Z.Value, whose ⋯ menu
+            // switches Static / Min-Max / Curve"). ZUIValue is a Zui type, so this drawer names it directly (no
+            // duck-typing) — and every tool that reflects modifier/serialized fields (PyrePlus, Chunks, a SpriteFx
+            // stack) gains real curve authoring here at once, closing the old "static value only" limitation.
+            // Placed BEFORE the generic float-wrapper fallback below, which would otherwise catch a ZUIValue by its
+            // `staticValue` property and flatten it to one number. A [Range] on the field sets the bounds; without
+            // one the control's default range applies and the author can still switch modes via the ⋯ menu.
+            if (t == typeof(ZUIValue))
+            {
+                var zv = v as ZUIValue;
+                if (zv == null) { zv = new ZUIValue(); field.SetValue(owner, zv); }
+                var vopt = new ZuiValueControl.Options { controlWidth = opt.ControlWidth };
+                if (range != null) vopt.WithRange(range.min, range.max);
+                return Z.Value(nice, zv, vopt, tip,
+                    onChanged: () => opt.OnChanged?.Invoke(),
+                    onBeforeMutate: () => opt.OnBeforeChange?.Invoke());
+            }
+
+            // A NON-ZUIValue wrapper whose payload is a single float (a duck-typed `staticValue`, e.g. a Rulesets
+            // RuleParam) — surfaced as a plain float so such tunables stay editable without this file knowing the
+            // wrapper's type. (ZUIValue itself is handled above, with its full mode control.)
             var wrapperProp = opt.FloatWrapperProperty?.Invoke(t);
             if (wrapperProp != null && v != null)
             {
