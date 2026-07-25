@@ -192,6 +192,14 @@ namespace Laubrary.PyrePlus
         public MatteChannel matteFlags = MatteChannel.Alpha;   // which channels this matte imposes (default: classic alpha luma matte)
         public MatteScope matteScope = MatteScope.NextLayer;   // NextLayer = the next drawn layer only; AllAbove = every layer above until replaced
         public bool matteInvert = false;                       // mask = 1 - mask (impose where the matte is DARK)
+        // α-strength source (slice 5). When ON, the mask is modulated per COVERED pixel by that pixel's OWN alpha as
+        // (1 − α): fully opaque interior ⇒ no effect, soft / thin / anti-aliased EDGE pixels ⇒ full effect — an
+        // edge/soft-region mask derived from coverage (fresnel-like, but from alpha). Does NOT change how the mask is
+        // BUILT (still luminance × the matte layer's alpha); only how ApplyMatte applies it. The snapshot of each
+        // covered layer's alpha is taken ONCE at ApplyMatte entry (before any channel rewrites it). Default OFF ⇒ the
+        // effMask == mask no-op ⇒ byte-identical to the plain luma matte. The Alpha channel is deliberately excluded
+        // from this modulation (near-degenerate). Value type ⇒ MemberwiseClone in Clone() copies it for free.
+        public bool matteAlphaSource = false;
         public ZUIValue matteStrength = new ZUIValue(1f);      // master mask strength 0..1 over the matte layer's own life
         public ZUIValue matteBlurAmount = new ZUIValue(3f);    // Blur channel: max radius (px) where the mask is full
         public ZUIValue matteDisplaceAmount = new ZUIValue(4f);// Displace channel: how far (px) mask edges push pixels

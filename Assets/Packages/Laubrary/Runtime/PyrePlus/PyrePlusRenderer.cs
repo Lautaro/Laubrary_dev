@@ -246,6 +246,7 @@ namespace Laubrary.PyrePlus
                     matteState.dispAmt = Eval(layer.matteDisplaceAmount, life, spec.seed, ModParticleIndex, FldMatteDisplace);
                     matteState.hueDeg = Eval(layer.matteHueDegrees, life, spec.seed, ModParticleIndex, FldMatteHue);
                     matteState.oneShot = layer.matteScope == MatteScope.NextLayer;
+                    matteState.alphaSource = layer.matteAlphaSource;   // slice 5 — decided by the matte layer
                     continue;
                 }
 
@@ -286,7 +287,7 @@ namespace Laubrary.PyrePlus
                     if (matteActive)
                     {
                         ApplyMatte(scratch, matteState.mask, matteState.flags, matteState.blurAmt,
-                                   matteState.dispAmt, matteState.hueDeg, W, H);
+                                   matteState.dispAmt, matteState.hueDeg, matteState.alphaSource, W, H);
                         if (matteState.oneShot) matteState = default;
                     }
                     float[] clip = hasClip ? channels[layer.clipByChannel] : null;
@@ -379,6 +380,7 @@ namespace Laubrary.PyrePlus
             public float dispAmt;       // Displace channel amount (Eval'd matteDisplaceAmount)
             public float hueDeg;        // Hue channel rotation degrees (Eval'd matteHueDegrees)
             public bool oneShot;        // NextLayer scope ⇒ cleared after one Draw layer; AllAbove ⇒ persists
+            public bool alphaSource;    // slice 5: modulate the mask by the covered layer's own (1 − α) per pixel
         }
 
         /// Rec. 601 luma, matching how the eye weights the channels; a green flame reads brighter than a blue
@@ -405,17 +407,37 @@ namespace Laubrary.PyrePlus
         /// FLAG SET — every enabled channel acts, in a fixed order: the spatial ones first (they move/soften
         /// pixels), then colour, then alpha last (so a masked-away pixel isn't recoloured pointlessly). None
         /// (an unset field on an old asset) falls back to Alpha, the original single-channel default.
+        ///
+        /// α-strength source (slice 5): when `alphaSource` is on, the mask is modulated per COVERED pixel by that
+        /// pixel's own alpha as (1 − α) — opaque interior ⇒ no effect, soft/thin/edge pixels ⇒ full effect. The
+        /// snapshot `alpha0` is taken ONCE HERE, at entry, BEFORE any channel runs, because Blur/Displace rewrite
+        /// alpha mid-pipeline and all channels must read the same finished-coverage reference. `effMask` (the
+        /// modulated mask) is fed to the five non-Alpha channels; the Alpha channel is DELIBERATELY excluded from
+        /// the modulation (clipping alpha hardest where alpha is already lowest is near-degenerate) and always reads
+        /// the un-modulated `mask`. When `alphaSource` is off, `effMask` IS `mask` (same reference, no multiply) so
+        /// output is byte-identical to the plain luma matte.
         static void ApplyMatte(Color32[] target, float[] mask, MatteChannel channel, float blurAmount,
-                               float displaceAmount, float hueDegrees, int W, int H)
+                               float displaceAmount, float hueDegrees, bool alphaSource, int W, int H)
         {
             if (channel == MatteChannel.None) channel = MatteChannel.Alpha;
 
-            if ((channel & MatteChannel.Displace) != 0) MatteDisplace(target, mask, displaceAmount, W, H);
-            if ((channel & MatteChannel.Blur) != 0) MatteBlur(target, mask, blurAmount, W, H);
-            if ((channel & MatteChannel.Saturation) != 0) MatteSaturation(target, mask);
-            if ((channel & MatteChannel.Hue) != 0) MatteHue(target, mask, hueDegrees);
-            if ((channel & MatteChannel.Brightness) != 0) MatteBrightness(target, mask);
-            if ((channel & MatteChannel.Alpha) != 0) MatteAlpha(target, mask);
+            float[] effMask = mask;
+            if (alphaSource)
+            {
+                // Snapshot of each covered pixel's alpha, taken now (entry) — a pure function of the layer's own
+                // finished coverage, so fully deterministic. Multiply the mask by (1 − α) once; every channel below
+                // then reads this one fixed reference regardless of what Blur/Displace do to target.a afterwards.
+                effMask = new float[mask.Length];
+                for (int i = 0; i < mask.Length; i++)
+                    effMask[i] = mask[i] * (1f - target[i].a * (1f / 255f));
+            }
+
+            if ((channel & MatteChannel.Displace) != 0) MatteDisplace(target, effMask, displaceAmount, W, H);
+            if ((channel & MatteChannel.Blur) != 0) MatteBlur(target, effMask, blurAmount, W, H);
+            if ((channel & MatteChannel.Saturation) != 0) MatteSaturation(target, effMask);
+            if ((channel & MatteChannel.Hue) != 0) MatteHue(target, effMask, hueDegrees);
+            if ((channel & MatteChannel.Brightness) != 0) MatteBrightness(target, effMask);
+            if ((channel & MatteChannel.Alpha) != 0) MatteAlpha(target, mask);   // Alpha excluded from α-source: un-modulated mask
         }
 
         static void MatteAlpha(Color32[] target, float[] mask)

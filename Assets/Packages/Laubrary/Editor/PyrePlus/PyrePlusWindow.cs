@@ -733,6 +733,14 @@ namespace Laubrary.PyrePlus.Editor
                         "Invert the mask (1 − mask) — impose the effect where the matte is DARK/transparent instead of bright.",
                         layer.matteInvert, v => Dirty(() => layer.matteInvert = v))));
 
+                box.Add(Z.Toggle("Strength from edge (1−α)",
+                    "Drive the effect strength by the COVERED layer's OWN alpha as (1 − α): fully OPAQUE pixels get NO "
+                    + "effect, soft / thin / anti-aliased EDGE pixels get the FULL effect. Concentrates the matte on "
+                    + "feathered rims, wisps and dissolve fronts and leaves solid interiors untouched. The Alpha "
+                    + "channel is excluded from this (clipping opacity where opacity is already lowest is degenerate) — "
+                    + "pair it with Bright / Sat / Hue / Blur / Displace.",
+                    layer.matteAlphaSource, v => Dirty(() => layer.matteAlphaSource = v)));
+
                 box.Add(Val("Strength",
                     "Master strength of the whole matte over the matte layer's OWN life — scales the mask 0 (no "
                     + "effect) → 1 (full). Animate it to fade the matte in/out.",
