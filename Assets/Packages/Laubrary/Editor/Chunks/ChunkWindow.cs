@@ -113,9 +113,9 @@ namespace Laubrary.Chunks.Editor
                 Num2("Direction °", "Centre direction of the cone. 0 = right, 90 = up.", c.directionDeg,
                     v => c.directionDeg = v),
                 Z.HSpace(),
-                Z.Field("Spread °", "Cone half-angle around the direction. 0 = a tight jet, 180 = a full circle.",
-                    Z.Slider(c.spreadDeg, 0f, 180f, "Cone half-angle around the direction. 0 = a tight jet, 180 = a full circle.",
-                        v => Dial("Spread", () => c.spreadDeg = v), Wide))));
+                Z.MicroSlider("Spread °", c.spreadDeg, 0f, 180f,
+                    "Cone half-angle around the direction. 0 = a tight jet, 180 = a full circle.",
+                    v => Dial("Spread", () => c.spreadDeg = v), Wide, showValue: true)));
             s.Add(Num2("Upward Bias", "Extra initial upward velocity added to every chunk, so even a radial burst pops up.",
                 c.upwardBias, v => c.upwardBias = v));
             root.Add(s);
@@ -128,9 +128,9 @@ namespace Laubrary.Chunks.Editor
                 Num2("Gravity", "Downward acceleration. Higher = snappier arcs that fall fast.", c.gravity,
                     v => c.gravity = Mathf.Max(0f, v)),
                 Z.HSpace(),
-                Z.Field("Drag", "Air resistance. 0 = none, ~1 = noticeable, ~3 = soupy.",
-                    Z.Slider(c.drag, 0f, 5f, "Air resistance. 0 = none, ~1 = noticeable, ~3 = soupy.",
-                        v => Dial("Drag", () => c.drag = v), Wide))));
+                Z.MicroSlider("Drag", c.drag, 0f, 5f,
+                    "Air resistance. 0 = none, ~1 = noticeable, ~3 = soupy.",
+                    v => Dial("Drag", () => c.drag = v), Wide, showValue: true)));
             s.Add(Z.Row(
                 Num2("Spin Min", "Slowest spin, degrees per second.", c.angularSpeedMin,
                     v => c.angularSpeedMin = Mathf.Max(0f, v)),
@@ -193,12 +193,12 @@ namespace Laubrary.Chunks.Editor
                 s.Add(Z.Row(
                     Num2("Floor Y", "World height of the floor the chunks land on.", c.floorY, v => c.floorY = v),
                     Z.HSpace(),
-                    Z.Field("Bounciness", "How much speed survives a floor hit. 0 = dead stop, 1 = full bounce.",
-                        Z.Slider(c.bounciness, 0f, 1f, "How much speed survives a floor hit. 0 = dead stop, 1 = full bounce.",
-                            v => Dial("Bounciness", () => c.bounciness = v), Wide))));
-                s.Add(Z.Field("Friction", "Horizontal speed lost on each floor hit. 0 = frictionless slide, 1 = stops sliding at once.",
-                    Z.Slider(c.floorFriction, 0f, 1f, "Horizontal speed lost on each floor hit. 0 = frictionless slide, 1 = stops sliding at once.",
-                        v => Dial("Floor friction", () => c.floorFriction = v), Wide)));
+                    Z.MicroSlider("Bounciness", c.bounciness, 0f, 1f,
+                        "How much speed survives a floor hit. 0 = dead stop, 1 = full bounce.",
+                        v => Dial("Bounciness", () => c.bounciness = v), Wide, showValue: true)));
+                s.Add(Z.MicroSlider("Friction", c.floorFriction, 0f, 1f,
+                    "Horizontal speed lost on each floor hit. 0 = frictionless slide, 1 = stops sliding at once.",
+                    v => Dial("Floor friction", () => c.floorFriction = v), Wide, showValue: true));
                 s.Add(Z.Toggle("Rest On Floor", "Settle a slow chunk on the floor until it fades, instead of despawning it.",
                     c.restOnFloor, v => Dial("Rest on floor", () => c.restOnFloor = v)));
             }
@@ -234,10 +234,9 @@ namespace Laubrary.Chunks.Editor
                     Z.HSpace(),
                     Num2("Max", "Fastest simulated tumble rate, degrees per second.", c.tumbleSpeedMax,
                         v => c.tumbleSpeedMax = Mathf.Max(c.tumbleSpeedMin, v))));
-                s.Add(Z.Field("Shade Strength", "How strong the light/dark swing is as a chunk turns. 0 = squash only, 1 = full swing.",
-                    Z.Slider(c.tumbleShadeStrength, 0f, 1f,
-                        "How strong the light/dark swing is as a chunk turns. 0 = squash only, 1 = full swing.",
-                        v => Dial("Shade strength", () => c.tumbleShadeStrength = v), Wide)));
+                s.Add(Z.MicroSlider("Shade Strength", c.tumbleShadeStrength, 0f, 1f,
+                    "How strong the light/dark swing is as a chunk turns. 0 = squash only, 1 = full swing.",
+                    v => Dial("Shade strength", () => c.tumbleShadeStrength = v), Wide, showValue: true));
             }
 
             var tint = Z.Box("Tint",
@@ -252,10 +251,9 @@ namespace Laubrary.Chunks.Editor
                 tint.Add(Z.Field("Colour", "The colour blended onto the cut pixels.",
                     Z.Color(c.tintColor, "The colour blended onto the cut pixels.",
                         v => Dial("Tint colour", () => c.tintColor = v), 110f)));
-                tint.Add(Z.Field("Strength", "How strongly the tint blends onto the source pixel. 0 = invisible, 1 = fully replaced.",
-                    Z.Slider(c.tintStrength, 0f, 1f,
-                        "How strongly the tint blends onto the source pixel. 0 = invisible, 1 = fully replaced.",
-                        v => Dial("Tint strength", () => c.tintStrength = v), Wide)));
+                tint.Add(Z.MicroSlider("Strength", c.tintStrength, 0f, 1f,
+                    "How strongly the tint blends onto the source pixel. 0 = invisible, 1 = fully replaced.",
+                    v => Dial("Tint strength", () => c.tintStrength = v), Wide, showValue: true));
                 if (c.tintMode != ChunkTintMode.Whole)
                     tint.Add(Int2("Edge px", "How many pixels in from the rim count as 'edge'.",
                         c.edgeThicknessPx, v => c.edgeThicknessPx = Mathf.Max(1, v)));
@@ -289,10 +287,9 @@ namespace Laubrary.Chunks.Editor
                     Num2("Damage", "Damage a single chunk deals, once per target.", c.hitDamage,
                         v => c.hitDamage = Mathf.Max(0f, v)),
                     Z.HSpace(),
-                    Z.Field("Radius Scale", "Collider radius as a multiple of the chunk's own current size.",
-                        Z.Slider(c.hitRadiusScale, 0.1f, 3f,
-                            "Collider radius as a multiple of the chunk's own current size.",
-                            v => Dial("Hit radius scale", () => c.hitRadiusScale = v), Wide))));
+                    Z.MicroSlider("Radius Scale", c.hitRadiusScale, 0.1f, 3f,
+                        "Collider radius as a multiple of the chunk's own current size.",
+                        v => Dial("Hit radius scale", () => c.hitRadiusScale = v), Wide, showValue: true)));
             }
             root.Add(s);
         }
