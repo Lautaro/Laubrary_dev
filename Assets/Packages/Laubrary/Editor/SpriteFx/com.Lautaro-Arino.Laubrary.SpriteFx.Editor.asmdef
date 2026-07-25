@@ -1,0 +1,20 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.SpriteFx.Editor",
+    "rootNamespace": "Laubrary.SpriteFx.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.SpriteFx",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
