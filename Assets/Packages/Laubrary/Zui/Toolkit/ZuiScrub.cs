@@ -19,9 +19,11 @@
 // Both drive the field through its normal `value` setter, so every RegisterValueChangedCallback the call site
 // wired (Undo hooks, dirtying, live preview) fires unchanged — the scrubber adds no parallel mutation path.
 // Keyboard entry in the field body is untouched (a zone covers only the label or the left grip, never the
-// editable area). Sensitivity + modifiers (Shift ×10, Alt ×0.1) are unchanged from the old design; float
-// writes round to 5 decimals to match the toolkit, while the running accumulator stays unrounded so slow
-// drags never lose sub-steps.
+// editable area). Drag modifiers: Shift = GENTLE/fine (a small change per pixel, for dialling in precise
+// small values), Ctrl = coarse/fast — the project-wide convention, matching ZuiMicroSlider's Shift-fine drag.
+// (Changed 2026-07-26 from the old Shift ×10 / Alt ×0.1 so Shift means "gentle" everywhere.) Float writes
+// round to 5 decimals to match the toolkit, while the running accumulator stays unrounded so slow drags never
+// lose sub-steps.
 //
 // A zone CAPTURES the pointer on down and StopPropagation()s it, so all moves route to it wherever the cursor
 // travels and a plain synthetic PointerDown/Move/Up on the zone drives it — no reliance on hover state or
@@ -39,6 +41,12 @@ namespace Laubrary.Zui
     {
         // Int scrub speed: one whole unit per this many horizontal pixels (× the modifier).
         const float IntPixelsPerUnit = 3f;
+
+        // Drag modifiers. Shift = GENTLE/fine (a tenth of the normal value-per-pixel, for precise small
+        // values); Ctrl = coarse/fast (×10). Shift-means-gentle is the project-wide convention (see the
+        // file header), matching ZuiMicroSlider's Shift-fine drag.
+        const float FineModifier = 0.1f;
+        const float CoarseModifier = 10f;
 
         // Width of the invisible left-edge grip strip the bare-field fallback overlays (px).
         const float GripWidth = 6f;
@@ -116,7 +124,7 @@ namespace Laubrary.Zui
 
         static VisualElement MakeGrip()
         {
-            var grip = new VisualElement { tooltip = "Drag to adjust." };
+            var grip = new VisualElement { tooltip = "Drag to adjust. Hold Shift for fine (gentle) steps, Ctrl for coarse." };
             grip.style.position = Position.Absolute;
             grip.style.left = 0f;
             grip.style.top = 0f;
@@ -192,7 +200,7 @@ namespace Laubrary.Zui
                 if (!_dragging || e.pointerId != _pointer) return;
                 float dx = e.position.x - _lastX;
                 _lastX = e.position.x;
-                float modifier = e.shiftKey ? 10f : e.altKey ? 0.1f : 1f;
+                float modifier = e.shiftKey ? FineModifier : e.ctrlKey ? CoarseModifier : 1f;
                 _value = _advance(_value, dx, modifier);
                 if (_low.HasValue && _value < _low.Value) _value = _low.Value;
                 if (_high.HasValue && _value > _high.Value) _value = _high.Value;

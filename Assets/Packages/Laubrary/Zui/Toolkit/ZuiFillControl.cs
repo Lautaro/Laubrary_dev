@@ -38,6 +38,7 @@ namespace Laubrary.Zui
         readonly string _label;
         readonly string _tooltip;
         readonly VisualElement _content;
+        FillSwatch _swatch;   // live preview square, rebuilt per face; null for a plain Solid fill (no swatch)
 
         /// Fires once per gesture before the first mutation — the Undo.RecordObject hook.
         public Action OnBeforeMutate;
@@ -67,7 +68,17 @@ namespace Laubrary.Zui
             RebuildAll();
         }
 
-        void Mutate(Action apply) { OnBeforeMutate?.Invoke(); apply(); OnChanged?.Invoke(); }
+        void Mutate(Action apply)
+        {
+            OnBeforeMutate?.Invoke();
+            apply();
+            _swatch?.Refresh();   // keep the preview live while a colour / gradient / param is being tweaked
+            OnChanged?.Invoke();
+        }
+
+        // A swatch is worth showing for every spatial / gradient / texture fill — its pattern isn't visible
+        // anywhere else. A plain Solid fill is redundant (the colour field already shows it), so no swatch.
+        bool WantSwatch() => _fill.texture != ZuiFill.TextureKind.None || _fill.mode != ZuiFill.Mode.Solid;
 
         Button MenuButton() => Z.Button("⋯",
             "Choose a FILL (solid colour, over-life, or a spatial gradient) or a TEXTURE (sprite / noise / grid / "
@@ -86,6 +97,7 @@ namespace Laubrary.Zui
         void RebuildAll()
         {
             _content.Clear();
+            _swatch = null;   // the old one detached with _content.Clear() (it destroys its own texture then)
 
             // A texture, when active, REPLACES the fill mode — its own face is drawn instead of the mode faces.
             if (_fill.texture != ZuiFill.TextureKind.None)
@@ -188,6 +200,15 @@ namespace Laubrary.Zui
             var row = new VisualElement();
             row.AddToClassList("zui-row");
             row.style.alignItems = Align.FlexStart;
+            // A live preview square, left of the label, showing the FILL ITSELF (no shape) so the author sees
+            // the gradient / noise / texture / grid while tweaking it. Only for non-Solid fills (see WantSwatch).
+            if (WantSwatch())
+            {
+                _swatch = new FillSwatch(_fill, 44f,
+                    "Live preview of the fill's own pattern (no shape). "
+                    + "Over-life shows left→right over the particle's life; spatial modes show the -1..1 fill box.");
+                row.Add(_swatch);
+            }
             if (!string.IsNullOrEmpty(label)) row.Add(FieldLabel(label));
             if (_opt.grow) { body.style.flexGrow = 1f; body.style.flexShrink = 1f; }
             else body.style.flexShrink = 0f;
@@ -341,6 +362,68 @@ namespace Laubrary.Zui
                 if (kind == ZuiFill.TextureKind.Noise) _fill.EnsureGradient();
             });
             RebuildAll();
+        }
+
+        // ── live fill-preview swatch (editor-only) ────────────────────────────────────────────
+        // A small square that renders the fill's OWN pattern with no shape, by sampling ZuiFill.Evaluate the
+        // way the renderer does (u,v across the -1..1 box; life across x for the over-life gradient). Backed by
+        // a Texture2D it rebuilds on demand and destroys when it leaves the panel (so a rebuild never leaks).
+        sealed class FillSwatch : VisualElement
+        {
+            readonly ZuiFill _fill;
+            readonly int _px;
+            Texture2D _tex;
+            Color32[] _buf;
+
+            public FillSwatch(ZuiFill fill, float size, string tooltip)
+            {
+                _fill = fill;
+                _px = Mathf.Max(8, Mathf.RoundToInt(size));   // 1 texel per display px is plenty at this size
+                this.tooltip = tooltip;
+                style.width = size;
+                style.height = size;
+                style.flexShrink = 0f;
+                style.marginRight = 5f;
+                style.marginTop = 1f;
+                // A hairline border so the square's bounds read even when the fill is transparent at the edges.
+                var bc = new Color(0f, 0f, 0f, 0.4f);
+                style.borderTopWidth = style.borderBottomWidth = style.borderLeftWidth = style.borderRightWidth = 1f;
+                style.borderTopColor = style.borderBottomColor = style.borderLeftColor = style.borderRightColor = bc;
+                style.borderTopLeftRadius = style.borderTopRightRadius =
+                    style.borderBottomLeftRadius = style.borderBottomRightRadius = 2f;
+                RegisterCallback<DetachFromPanelEvent>(_ =>
+                {
+                    if (_tex != null) { UnityEngine.Object.DestroyImmediate(_tex); _tex = null; }
+                });
+                Refresh();
+            }
+
+            public void Refresh()
+            {
+                if (_tex == null)
+                {
+                    _tex = new Texture2D(_px, _px, TextureFormat.RGBA32, false)
+                    { filterMode = FilterMode.Point, hideFlags = HideFlags.HideAndDontSave };
+                    _buf = new Color32[_px * _px];
+                }
+                // Over-life is the one mode Evaluate reads via `life`, not (u,v): show it left→right over life.
+                bool overLife = _fill.texture == ZuiFill.TextureKind.None && _fill.mode == ZuiFill.Mode.OverLife;
+                for (int y = 0; y < _px; y++)
+                {
+                    // Texture2D row 0 is the BOTTOM; map it to v = -1 so up on screen is +v (the pads' flipY).
+                    float fy = _px == 1 ? 0f : y / (float)(_px - 1);
+                    float v = Mathf.Lerp(-1f, 1f, fy);
+                    for (int x = 0; x < _px; x++)
+                    {
+                        float fx = _px == 1 ? 0f : x / (float)(_px - 1);
+                        _buf[y * _px + x] = overLife ? _fill.Evaluate(fx, 0f, 0f)
+                                                     : _fill.Evaluate(0f, Mathf.Lerp(-1f, 1f, fx), v);
+                    }
+                }
+                _tex.SetPixels32(_buf);
+                _tex.Apply(false);
+                style.backgroundImage = Background.FromTexture2D(_tex);
+            }
         }
     }
 }

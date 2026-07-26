@@ -532,11 +532,15 @@ namespace Laubrary.Zui
         }
 
         /// A min/max range: numeric low field + MinMaxSlider + numeric high field, kept in sync
-        /// (the SliderRange pattern). Rounded to 5 decimals like every slider.
+        /// (the SliderRange pattern). Rounded to 5 decimals like every slider. Double-clicking the track
+        /// resets BOTH handles to <paramref name="lowDefault"/>/<paramref name="highDefault"/> when given,
+        /// else to the full <paramref name="min"/>/<paramref name="max"/> range.
         public static VisualElement MinMax(float low, float high, float min, float max, string tooltip,
-            Action<float, float> onChanged, float sliderWidth = 130f, bool isInt = false)
+            Action<float, float> onChanged, float sliderWidth = 130f, bool isInt = false,
+            float? lowDefault = null, float? highDefault = null)
         {
-            var slider = new MinMaxSlider(low, high, min, max) { tooltip = tooltip };
+            var slider = new MinMaxSlider(low, high, min, max)
+            { tooltip = tooltip + "  ·  Double-click to reset." };
             slider.style.width = sliderWidth;
             // isInt: the flanking numeric fields are IntegerFields and both handle+field snap to whole
             // numbers — for a discrete range (a frame window) that can never be fractional.
@@ -561,6 +565,28 @@ namespace Laubrary.Zui
                 onChanged?.Invoke(lo, hi);
             }
             slider.RegisterValueChangedCallback(e => Commit(e.newValue.x, e.newValue.y, true));
+
+            // Double-click the track resets both handles — to the given defaults, or the full range if none.
+            // Updates the slider AND both flanking fields, then fires onChanged (so the owner records Undo).
+            void ResetToDefault()
+            {
+                float rlo = lowDefault ?? min;
+                float rhi = highDefault ?? max;
+                rlo = isInt ? Mathf.Round(rlo) : (float)Math.Round(Mathf.Clamp(rlo, min, max), 5);
+                rhi = isInt ? Mathf.Round(rhi) : (float)Math.Round(Mathf.Clamp(rhi, rlo, max), 5);
+                rlo = Mathf.Clamp(rlo, min, max); rhi = Mathf.Clamp(rhi, rlo, max);
+                slider.SetValueWithoutNotify(new Vector2(rlo, rhi));
+                if (isInt) { lowFieldI.SetValueWithoutNotify(Mathf.RoundToInt(rlo)); highFieldI.SetValueWithoutNotify(Mathf.RoundToInt(rhi)); }
+                else { lowField.SetValueWithoutNotify(rlo); highField.SetValueWithoutNotify(rhi); }
+                onChanged?.Invoke(rlo, rhi);
+            }
+            // TrickleDown so this beats the slider's own drag manipulator; StopImmediatePropagation so the
+            // double-click doesn't also begin a drag.
+            slider.RegisterCallback<PointerDownEvent>(e =>
+            {
+                if (e.button == 0 && e.clickCount == 2) { ResetToDefault(); e.StopImmediatePropagation(); }
+            }, TrickleDown.TrickleDown);
+
             if (isInt)
             {
                 // Scrub-draggable flanking fields (the range factory knows its bounds, so clamp to them —

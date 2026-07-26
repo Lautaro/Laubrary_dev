@@ -2,9 +2,11 @@
 //
 // A filled box whose FILL is the value: no thumb, the "handle" is just the edge between the filled and
 // empty parts of the track, and the label (and optional value) sit INSIDE the track. Click or drag
-// anywhere on it to set the value; double-click resets to the default if one was given. This is the
-// control that gave old ZUI windows their look, and it packs into far less height than Unity's own
-// Slider (which needs a separate thumb lane and usually a value field beside it).
+// anywhere on it to set the value (absolute — the value jumps to where you press); hold SHIFT to drag
+// GENTLY (a small relative nudge per pixel, from the current value, no jump) for dialling in precise small
+// values; double-click resets to the default if one was given. This is the control that gave old ZUI
+// windows their look, and it packs into far less height than Unity's own Slider (which needs a separate
+// thumb lane and usually a value field beside it).
 //
 // Drawn with Painter2D (the track rects) plus two child Labels (caption left, value right) that sit on
 // top of the generated mesh. Everything themeable is a USS custom property read off resolvedStyle, so
@@ -25,6 +27,12 @@ namespace Laubrary.Zui
         readonly bool _showValue;
         readonly int _decimals;
         bool _dragging, _gestureOpen;
+        float _lastMoveX;   // local-space x of the previous applied move (for Shift fine/relative dragging)
+
+        // Shift fine-drag sensitivity: the value moves this fraction of the NORMAL value-per-pixel while Shift
+        // is held (so ~0.15× — a gentle nudge for setting precise small values). Matches ZuiScrub's Shift-fine
+        // convention (Shift = gentle everywhere).
+        const float FineFactor = 0.15f;
 
         public float value
         {
@@ -40,7 +48,10 @@ namespace Laubrary.Zui
             _value = Mathf.Clamp(value, _min, _max);
             _onChanged = onChanged; _default = defaultValue; _showValue = showValue;
             _onBeforeMutate = onBeforeMutate; _decimals = decimals;
-            this.tooltip = tooltip;
+            // Append the drag-modifier hint to the hover tooltip so the Shift-fine / double-click gestures are
+            // discoverable (the element itself is what receives the hover — the caption ignores picking).
+            this.tooltip = tooltip + "  ·  Drag to set; Shift = fine"
+                + (_default.HasValue ? "; double-click resets to default." : ".");
 
             AddToClassList("zui-microslider");
 
@@ -108,16 +119,28 @@ namespace Laubrary.Zui
                 return;
             }
             _dragging = true;
+            _lastMoveX = e.localPosition.x;
             this.CapturePointer(e.pointerId);
             OpenGesture();
-            SetValue(ValueFromX(e.localPosition.x), notify: true);
+            // Shift = gentle: start a relative fine drag from the CURRENT value (no jump to the press point);
+            // a normal press jumps the value to where you clicked (absolute).
+            if (!e.shiftKey) SetValue(ValueFromX(e.localPosition.x), notify: true);
             e.StopPropagation();
         }
 
         void OnMove(PointerMoveEvent e)
         {
             if (!_dragging) return;
-            SetValue(ValueFromX(e.localPosition.x), notify: true);
+            float x = e.localPosition.x;
+            if (e.shiftKey)
+            {
+                // Fine/relative: nudge by a fraction of the normal value-per-pixel, accumulated from the last x.
+                float span = _max - _min;
+                float w = Mathf.Max(1f, contentRect.width);
+                SetValue(_value + (x - _lastMoveX) / w * span * FineFactor, notify: true);
+            }
+            else SetValue(ValueFromX(x), notify: true);
+            _lastMoveX = x;
             e.StopPropagation();
         }
 
