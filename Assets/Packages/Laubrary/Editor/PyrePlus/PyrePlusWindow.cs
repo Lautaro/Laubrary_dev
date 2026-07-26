@@ -132,6 +132,11 @@ namespace Laubrary.PyrePlus.Editor
         bool previewDirty = true;
         int lastRenderedFrame = -1;
 
+        // Coalesced canvas-size range refresh (Bug 1). The Canvas Size slider's derived-range Rebuild is deferred
+        // to drag-commit and scheduled onto the next frame; this holds the pending item so rapid commits coalesce
+        // into one Rebuild instead of stacking several.
+        UnityEngine.UIElements.IVisualElementScheduledItem rangeRebuildPending;
+
         // Any authored edit routes through here (Dirty → MarkDirty). Refreshing the transport readout alongside
         // keeps the scrubber's range + value and the "frame N/M" label in sync when e.g. the frame count changes.
         void MarkDirty() { previewDirty = true; preview?.MarkDirtyRepaint(); RefreshTransportReadout(); }
@@ -434,16 +439,21 @@ namespace Laubrary.PyrePlus.Editor
         void BuildCanvas(VisualElement root, PyrePlusSpec s)
         {
             var box = Z.BoxKeyed("Canvas", "The output resolution, frame count, seed and background.", "pyreplus.canvas");
+            // Canvas Size drives the RANGES of every pixel-scaled control (Shape Size, Scale, offsets, Streak
+            // length, Travel…), so a change must refresh those ranges — but a full Rebuild() recreates THIS very
+            // slider, and doing it per drag-delta destroyed the pointer capture mid-gesture, aborting the drag after
+            // one step (Bug 1, 2026-07-26). So during the drag we only apply the value + repaint (Dirty); the
+            // range-refreshing Rebuild is deferred to drag-COMMIT (pointer up) and coalesced onto the next frame, so
+            // the tree is torn down AFTER the event finishes dispatching, never under the live gesture. The preview
+            // still updates live throughout the drag (Dirty repaints).
+            var sizeSlider = Z.MicroSlider("Size", s.canvasSize, 16f, 256f,
+                "Square canvas size in pixels. Every pixel-ranged dial (Shape size, shape Scale, offsets, "
+                + "Streak length…) scales its maximum off this, so releasing the drag refreshes those ranges.",
+                v => Dirty(() => s.canvasSize = Mathf.Clamp(Mathf.RoundToInt(v), 16, 256)), 150f,
+                showValue: true, decimals: 0);
+            sizeSlider.RegisterCallback<PointerUpEvent>(_ => ScheduleRangeRebuild());
             box.Add(WrapRow(
-                Z.MicroSlider("Size", s.canvasSize, 16f, 256f,
-                    "Square canvas size in pixels. Every pixel-ranged dial (Shape size, shape Scale, offsets, "
-                    + "Streak length…) scales its maximum off this, so changing it rebuilds the pane to refresh "
-                    + "those ranges.",
-                    // A full Rebuild() so every canvasSize-derived control range (Size / Scale / Streak / Snap /
-                    // offsets) re-reads the new canvas. NOTE: Rebuild() re-creates this slider, so a continuous
-                    // DRAG breaks after the first step — set the canvas size by click or repeated drags.
-                    v => { Dirty(() => s.canvasSize = Mathf.Clamp(Mathf.RoundToInt(v), 16, 256)); Rebuild(); }, 150f,
-                    showValue: true, decimals: 0),
+                sizeSlider,
                 Z.MicroSlider("PPU", s.pixelsPerUnit, 1f, 64f,
                     "Pixels per unit for the baked sprite.",
                     v => Dirty(() => s.pixelsPerUnit = Mathf.Clamp(v, 1f, 64f)), 150f, showValue: true)));
@@ -929,21 +939,29 @@ namespace Laubrary.PyrePlus.Editor
                     break;
             }
 
-            // Fire and Fireball are whole-layer simulations with no per-particle Travel/Spin — skip the Advanced section
-            // entirely (its controls would be dead). Their Fill (the ramp) and Alpha (overall opacity) rows above apply.
+            // Fire and Fireball are whole-layer simulations with no per-particle Spin/Travel — skip both the Spin
+            // control and the Advanced section (they would be dead). Their Fill (the ramp) and Alpha (overall
+            // opacity) rows above apply.
             if (s.shapeForm == ShapeForm.Fire || s.shapeForm == ShapeForm.Fireball) return;
 
-            // Advanced gate: the particle's OWN motion after birth (opt-in). Toggling rebuilds just this section.
+            // Spin — the particle's own-life in-place rotation. A NORMAL Shape control now (no longer buried behind
+            // the Advanced gate, Bug 3 2026-07-26): fill/spin must be discoverable. For the 3D solid forms Spin IS
+            // the Solid box's "Turn °" (the same particleSpin field, shown once), so it stays hidden here for them;
+            // 2D forms and Text show it. Its tooltip is composed for the CURRENT form.
+            s.particleSpin ??= new ZUIValue(0f);
+            if (!IsSolidForm(s.shapeForm))
+                shapeBody.Add(Val("Spin °", SpinTooltip(s.shapeForm), s.particleSpin, -720f, 720f));
+
+            // Advanced gate: the particle's OWN travel path after birth (opt-in — rarer than spin). Toggling
+            // rebuilds just this section.
             shapeBody.Add(Z.Toggle("Advanced",
-                "Per-particle motion on the particle's own life clock: a travel path added to its spawn position, "
-                + "and an in-place spin.",
+                "A per-particle travel path on the particle's own life clock, added to its spawn position.",
                 s.shapeAdvanced, v => { Dirty(() => s.shapeAdvanced = v); RebuildShape(); }));
             if (!s.shapeAdvanced) return;
 
             float half = Mathf.Max(1f, spec.canvasSize * 0.5f);
             s.particlePathX ??= new ZUIValue(0f);
             s.particlePathY ??= new ZUIValue(0f);
-            s.particleSpin ??= new ZUIValue(0f);
 
             shapeBody.Add(Val2D("Travel",
                 "The particle's own path after birth: canvas-pixel offsets ADDED to its spawn position, sampled on "
@@ -951,11 +969,6 @@ namespace Laubrary.PyrePlus.Editor
                 + "drift/arc as it lives; Static 0 = no travel.",
                 s.particlePathX, s.particlePathY,
                 new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero)));
-            // Spin is the particle's own-life in-place rotation. For the 3D solid forms it IS the "Turn °" control
-            // in the Solid box above (the same particleSpin field, shown once), so it's hidden here for them; 2D
-            // forms and Text keep it. Its tooltip is composed for the CURRENT form.
-            if (!IsSolidForm(s.shapeForm))
-                shapeBody.Add(Val("Spin °", SpinTooltip(s.shapeForm), s.particleSpin, -720f, 720f));
         }
 
         // The 3D-solid controls — one framed box inside the Shape body, shown for Gem / Box / Pyramid / Can (all
@@ -2155,6 +2168,17 @@ namespace Laubrary.PyrePlus.Editor
             apply();
             EditorUtility.SetDirty(spec);
             preview?.MarkDirtyRepaint();
+        }
+
+        // Deferred, coalesced Rebuild used only by the Canvas Size slider (Bug 1). Refreshing every
+        // canvasSize-derived control range needs a full Rebuild, but doing it per drag-delta recreated the slider
+        // and broke the drag. Scheduled off rootVisualElement (which SURVIVES Rebuild — Rebuild only replaces its
+        // children) with StartingIn(0) so it runs on the next frame, AFTER the pointer-up event has finished
+        // dispatching; coalesced (Pause the prior item) so rapid commits fire it once.
+        void ScheduleRangeRebuild()
+        {
+            rangeRebuildPending?.Pause();
+            rangeRebuildPending = rootVisualElement.schedule.Execute(Rebuild).StartingIn(0);
         }
 
         // DrawPreview + the Swarm authoring overlay live in PyrePlusWindow.Preview.cs.

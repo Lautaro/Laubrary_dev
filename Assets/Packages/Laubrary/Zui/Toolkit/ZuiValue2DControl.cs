@@ -474,10 +474,10 @@ namespace Laubrary.Zui
         {
             var fold = GetFold(_key);
             var menu = new GenericMenu();
+            bool isCurve = _src.IsCurve;   // curve/path has no single (x,y); the display-option items below are hidden for it
 
             if (_src.SupportsAnimation)
             {
-                bool isCurve = _src.IsCurve;
                 menu.AddItem(new GUIContent("Static (one point)"), !isCurve, () =>
                 {
                     Mutate(() => _src.SetCurve(false, _opt.staticDefault ?? Vector2.zero));
@@ -493,22 +493,27 @@ namespace Laubrary.Zui
                 menu.AddSeparator("");
             }
 
-            // Display options only affect the EXPANDED static view, so toggling one also expands —
-            // otherwise the menu item silently appears to do nothing (reported 2026-07-23).
-            bool showText = fold.showValueTextOverride ?? _opt.showValueText;
-            bool showInputs = fold.showNumericInputsOverride ?? _opt.showNumericInputs;
-            menu.AddItem(new GUIContent("Show value as text"), showText, () =>
+            // Display options ("as text" / "as numeric inputs") only affect the EXPANDED STATIC view — a curve/path
+            // has no single (x, y) to show, so BOTH are HIDDEN in curve mode, where toggling them did nothing and
+            // read as broken (2026-07-26 fix). In static mode toggling one also expands, otherwise the item silently
+            // appears to do nothing (reported 2026-07-23).
+            if (!isCurve)
             {
-                fold.showValueTextOverride = !showText;
-                fold.expanded = true;
-                Build();
-            });
-            menu.AddItem(new GUIContent("Show value as numeric inputs"), showInputs, () =>
-            {
-                fold.showNumericInputsOverride = !showInputs;
-                fold.expanded = true;
-                Build();
-            });
+                bool showText = fold.showValueTextOverride ?? _opt.showValueText;
+                bool showInputs = fold.showNumericInputsOverride ?? _opt.showNumericInputs;
+                menu.AddItem(new GUIContent("Show value as text"), showText, () =>
+                {
+                    fold.showValueTextOverride = !showText;
+                    fold.expanded = true;
+                    Build();
+                });
+                menu.AddItem(new GUIContent("Show value as numeric inputs"), showInputs, () =>
+                {
+                    fold.showNumericInputsOverride = !showInputs;
+                    fold.expanded = true;
+                    Build();
+                });
+            }
 
             menu.AddSeparator("");
             menu.AddItem(new GUIContent("Reset to default"), false, ResetToDefault);
