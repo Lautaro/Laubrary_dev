@@ -2211,38 +2211,42 @@ namespace Laubrary.PyrePlus
         }
 
         /// A uniform-by-AREA random point inside a regular `n`-gon (circumradius `r`, centre cx/cy). Fan-
-        /// triangulates the polygon into n congruent triangles sharing the centre; draws ONE System.Random keyed
-        /// exactly like SampleDisc — (seed, particleIndex, FldPlacement) — and takes three doubles from that one
-        /// stream: u0 picks the triangle (congruent ⇒ uniform by area), u1/u2 sample uniformly inside it via the
-        /// standard sqrt barycentric trick. One rng, one stream ⇒ per-particle stable across frames.
+        /// triangulates the polygon into n congruent triangles sharing the centre and draws THREE independent
+        /// well-avalanched uniforms (HashUniform with distinct salts): u0 picks the triangle (congruent ⇒ uniform by
+        /// area), u1/u2 sample uniformly inside it via the standard sqrt barycentric trick. Bug fix — the pre-fix
+        /// draw built ONE fresh System.Random keyed by the RAW (un-avalanched) Hash and took its first three
+        /// NextDouble()s; neighbouring particleIndex seeds produced near-identical first outputs, clustering the
+        /// samples into star/spoke rays. HashUniform's fmix32 finalizer decorrelates neighbours ⇒ true uniform-by-
+        /// area coverage. Still fully seeded/deterministic ⇒ per-particle stable across frames + preview/bake/runtime.
         static Vector2 SamplePolygonArea(float cx, float cy, float r, int n, int seed, int particleIndex)
         {
-            var rng = new System.Random(Hash(seed, particleIndex, FldPlacement, _layerSalt));
-            double u0 = rng.NextDouble();
-            double u1 = rng.NextDouble();
-            double u2 = rng.NextDouble();
+            float u0 = HashUniform(seed, particleIndex, FldPlacement, _layerSalt);
+            float u1 = HashUniform(seed, particleIndex, FldPlacement, _layerSalt ^ 0x68BC21EB);
+            float u2 = HashUniform(seed, particleIndex, FldPlacement, _layerSalt ^ 0x2545F491);
 
             int tri = Mathf.Clamp((int)(u0 * n), 0, n - 1);
             Vector2 A = PolyVertex(cx, cy, r, tri, n);       // rim vertices of the chosen fan triangle
             Vector2 B = PolyVertex(cx, cy, r, tri + 1, n);   // C = centre (cx, cy)
 
-            float s = Mathf.Sqrt((float)u1);
+            float s = Mathf.Sqrt(u1);
             float wC = 1f - s;                 // P = C·(1-s) + A·(s·(1-u2)) + B·(s·u2)
-            float wA = s * (1f - (float)u2);
-            float wB = s * (float)u2;
+            float wA = s * (1f - u2);
+            float wB = s * u2;
             return new Vector2(cx * wC + A.x * wA + B.x * wB,
                                cy * wC + A.y * wA + B.y * wB);
         }
 
         /// A uniformly-distributed random point inside a disc of the given radius — sqrt-distributed radius so
-        /// points spread evenly by AREA (not clumped at the centre), angle uniform. Seeded per
-        /// (seed, particleIndex, FldPlacement) so the draw is stable across frames and identical in
-        /// preview/bake/runtime.
+        /// points spread evenly by AREA (not clumped at the centre), angle uniform. Draws TWO independent well-
+        /// avalanched uniforms (HashUniform with distinct salts) keyed on (seed, particleIndex, FldPlacement) so the
+        /// draw is stable across frames and identical in preview/bake/runtime. Bug fix — the pre-fix draw built ONE
+        /// fresh System.Random from the RAW (un-avalanched) Hash and took its first two NextDouble()s; neighbouring
+        /// particleIndex seeds gave near-identical first outputs, so the angle draw clustered and the swarm read as
+        /// a star/spokes instead of a filled disc. HashUniform's fmix32 finalizer decorrelates neighbouring indices.
         static Vector2 SampleDisc(float radius, int seed, int particleIndex)
         {
-            var rng = new System.Random(Hash(seed, particleIndex, FldPlacement, _layerSalt));
-            float u1 = (float)rng.NextDouble();
-            float u2 = (float)rng.NextDouble();
+            float u1 = HashUniform(seed, particleIndex, FldPlacement, _layerSalt);
+            float u2 = HashUniform(seed, particleIndex, FldPlacement, _layerSalt ^ 0x68BC21EB);
             float rr = radius * Mathf.Sqrt(u1);
             float ang = u2 * 2f * Mathf.PI;
             return new Vector2(rr * Mathf.Cos(ang), rr * Mathf.Sin(ang));
@@ -2398,10 +2402,29 @@ namespace Laubrary.PyrePlus
                     return;
             }
 
-            // ── fast path: no modifiers → the exact pre-T6 raster, kept verbatim so the no-modifier hash is
-            //    byte-identical (do NOT refactor this loop's arithmetic). ──
+            // ── fast path: no modifiers → the pre-T6 raster, kept verbatim so the no-modifier hash is byte-
+            //    identical (do NOT refactor this loop's arithmetic). The ONE addition (T7 spin, below) is fully
+            //    guarded to a no-op for every solid fill and every Static-0 spin, so those stay byte-identical. ──
             if (!mods.Any)
             {
+                // Bug fix — a textured/spatial Disc must SPIN. A SOLID disc is radially symmetric so particleSpin is
+                // invisible and the pre-T7 raster is kept verbatim (byte-identical); a SPATIAL/TEXTURED fill (Dots,
+                // Linear, Radial, …) is NOT symmetric, so — like the modifier path (:~2456) — its local offset is
+                // rotated by −spin before the distance/edge/EvalFill so the pattern turns WITH the particle. Computed
+                // ONLY for a spatial fill, and rotation applied ONLY when spin != 0: a solid fill, and any Static-0
+                // spin, feed the pre-T7 (dx,dy) verbatim, so every default / solid / spin-0 disc hashes identically.
+                // orientDeg is intentionally NOT folded here (unlike the modifier path) so a spin=Static-0 swarm disc
+                // — oriented or not — is guaranteed byte-identical; per-particle spin is the reported bug this fixes.
+                // Bounds need no change: rotation preserves the offset length, so a symmetric disc's extent is intact.
+                float fSpin = 0f;
+                bool fDoSpin = false;
+                float fCos = 1f, fSin = 0f;
+                if (fillSpatial)
+                {
+                    fSpin = Eval(layer.particleSpin, life, spec.seed, particleIndex, FldSpin);
+                    fDoSpin = fSpin != 0f;
+                    if (fDoSpin) { float sa = -fSpin * Mathf.Deg2Rad; fCos = Mathf.Cos(sa); fSin = Mathf.Sin(sa); }
+                }
                 int x0 = Mathf.Max(0, Mathf.FloorToInt(cx - radius));
                 int x1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + radius));
                 int y0 = Mathf.Max(0, Mathf.FloorToInt(cy - radius));
@@ -2410,10 +2433,16 @@ namespace Laubrary.PyrePlus
                     for (int x = x0; x <= x1; x++)
                     {
                         float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+                        if (fDoSpin)   // rotate the local offset by −spin so a spatial/textured fill turns with the particle (guarded: solid fills & Static-0 spin skip this ⇒ byte-identical)
+                        {
+                            float rx = dx * fCos - dy * fSin;
+                            float ry = dx * fSin + dy * fCos;
+                            dx = rx; dy = ry;
+                        }
                         float d = Mathf.Sqrt(dx * dx + dy * dy);
                         if (d > radius) continue;
                         float edge = d <= inner ? 1f : 1f - Mathf.InverseLerp(inner, radius, d);
-                        if (fillSpatial)   // spatial fill → this pixel's colour at its local (u,v) or canvas-anchored (Fixed); Solid/OverLife never enter here (byte-identical)
+                        if (fillSpatial)   // spatial fill → this pixel's colour at its (spun) local (u,v) or canvas-anchored (Fixed); Solid/OverLife never enter here (byte-identical)
                         {
                             col = EvalFill(fill, life, dx / radius, dy / radius, x, y, W, H);
                             cr = col.r; cg = col.g; cb = col.b;
@@ -4357,6 +4386,29 @@ namespace Laubrary.PyrePlus
                 h = (h ^ (uint)c) * 16777619u;
                 h = (h ^ (uint)d) * 16777619u;
                 return (int)h;
+            }
+        }
+
+        /// A WELL-AVALANCHED uniform in [0,1) from the four integer keys — distinct from the weaker `Hash01` above,
+        /// which takes the low 24 bits of the raw FNV Hash with NO finalizer (fine for the per-pixel Sparkle draws it
+        /// serves, kept byte-identical). The Area placement samplers (SampleDisc / SamplePolygonArea) need STRONGER
+        /// decorrelation: the pre-fix code built one fresh System.Random keyed by the raw Hash and took its first two
+        /// or three NextDouble()s, but the raw Hash barely changes between neighbouring particleIndex values and
+        /// System.Random's first NextDouble() is a near-linear function of its seed, so consecutive particles drew
+        /// near-identical first uniforms → the disc/polygon "spokes" artifact. Running the raw key through Murmur3's
+        /// fmix32 finalizer fully avalanches it (one input-bit flip ⇒ ~half the output bits flip), so neighbouring
+        /// indices decorrelate and Area placement covers the shape uniformly by area. Deterministic + seeded (same
+        /// keys ⇒ same value). NOTE: deliberately does NOT change the global Hash or the weak Hash01, so every other
+        /// caller (Eval MinMax, per-particle/pixel hashes, Sparkle, Gem, …) is byte-identical.
+        static float HashUniform(int a, int b, int c, int d)
+        {
+            unchecked
+            {
+                uint h = (uint)Hash(a, b, c, d);
+                h ^= h >> 16; h *= 0x85ebca6bu;
+                h ^= h >> 13; h *= 0xc2b2ae35u;
+                h ^= h >> 16;
+                return (float)(h * (1.0 / 4294967296.0));   // [0,1)  (2^32 divisor)
             }
         }
 
