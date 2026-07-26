@@ -184,9 +184,9 @@ namespace Laubrary.PyrePlus.Editor
             // any undo or structural edit; a fresh ASSET picks its last layer via OnAssetChanged.)
             if (s.layers != null) layerSel = Mathf.Clamp(layerSel, 0, Mathf.Max(0, s.layers.Count - 1));
 
-            BuildLayerList(flow);      // the compact layer stack — under the views bar, above Canvas
+            BuildCanvas(flow, s);      // Canvas first — the output settings sit at the top of the dials
+            BuildLayerList(flow);      // the compact layer stack — under the views bar, below Canvas
             BuildGlobalModifiers(flow, s);   // task #56 — spec-wide modifiers applied to EVERY layer (right after Layers)
-            BuildCanvas(flow, s);
             BuildShape(flow, s);
             BuildSwarm(flow, s);
             BuildModifiers(flow, s);   // PyrePlusWindow.Modifiers.cs
@@ -439,7 +439,10 @@ namespace Laubrary.PyrePlus.Editor
 
         void BuildCanvas(VisualElement root, PyrePlusSpec s)
         {
-            var box = Z.BoxKeyed("Canvas", "The output resolution, frame count, seed and background.", "pyreplus.canvas");
+            // Green-header Section (matching Shape / Swarm / Modifiers) rather than a framed BoxKeyed, so the
+            // window's top-level sections read consistently. The stable key keeps the fold state from orphaning
+            // on a title/tooltip reword (ZuiSection persists fold per key, same idiom as the box did).
+            var box = Z.Section("Canvas", "The output resolution, frame count, seed and background.", "pyreplus.canvas");
             // Canvas Size drives the RANGES of every pixel-scaled control (Shape Size, Scale, offsets, Streak
             // length, Travel…), so a change must refresh those ranges — but a full Rebuild() recreates THIS very
             // slider, and doing it per drag-delta destroyed the pointer capture mid-gesture, aborting the drag after
@@ -499,7 +502,11 @@ namespace Laubrary.PyrePlus.Editor
         // PyreWindow's layer-list chrome (row + folded matte box inside one drag wrap).
         void BuildLayerList(VisualElement root)
         {
-            var box = Z.BoxKeyed("Layers",
+            // Green-header Section (matching Canvas / Shape / Swarm / Modifiers) rather than a framed BoxKeyed,
+            // so the top-level sections read consistently. The stable key keeps fold state from orphaning on a
+            // title/tooltip reword (ZuiSection persists fold per key). Per-row Matte boxes inside stay ZuiBoxes,
+            // so the saved-views bar still captures those.
+            var box = Z.Section("Layers",
                 "The paint stack — earlier (higher) layers composite BEHIND later (lower) ones. Click a layer to "
                 + "edit its Shape / Swarm / Modifiers dials below; expand a row's Matte box to make it a stencil or "
                 + "clip it by another layer's mask; drag the grip to reorder.",
@@ -602,6 +609,23 @@ namespace Laubrary.PyrePlus.Editor
                 });
                 RebuildLayerList();
             }).W(24f));
+
+            // Per-row Duplicate — sits right after the Matte toggle (mirrors Pyre1's per-row "Dup"). Deep-clones
+            // THIS row's layer via Clone(), inserts the copy just after it, and selects the copy. Undo-safe (one
+            // Dirty); the "+ Add / Duplicate" toolbar row below duplicates the SELECTED layer — this is the
+            // per-layer one the user asked for, by the matte toggle.
+            row.Add(Z.Button("Dup", "Duplicate this layer just after itself (undoable).", () =>
+            {
+                Dirty(() =>
+                {
+                    var copy = layer.Clone();
+                    copy.name = (layer.name ?? "Layer") + " copy";
+                    int at = Mathf.Clamp(li + 1, 0, spec.layers.Count);
+                    spec.layers.Insert(at, copy);
+                    layerSel = at;
+                });
+                RebuildAllForSelection();
+            }).W(40f));
 
             row.Add(Z.Button("✕", "Delete this layer (undoable).", () =>
             {
@@ -2162,6 +2186,8 @@ namespace Laubrary.PyrePlus.Editor
                 "A coloured rim around this shape's silhouette — the outermost Width px of the drawn alpha, in the "
                 + "Border fill (the 2D counterpart to the 3D solids' edge lines).",
                 "pyreplus.border");
+            // Collapsed, the box hides an active rim — mark it so folding away the border doesn't hide that it's on.
+            box.SetHeaderSuffix(() => s.borderEnabled ? " (on)" : "");
             box.Add(Z.Toggle("Enable",
                 "Draw the rim. Off = no border (the shape is unchanged, byte-identical to no border).",
                 s.borderEnabled, v => { Dirty(() => s.borderEnabled = v); RebuildShape(); }));

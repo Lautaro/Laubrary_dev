@@ -41,6 +41,9 @@ namespace Laubrary.Zui
         readonly Label _caret;
         readonly string _key;
         readonly VisualElement _titleRow;   // null for an untitled box (nothing to host a gear)
+        Label _title;                       // the title label (null for an untitled box) — updated for the collapsed suffix
+        string _titleText;                  // base title text, so a collapsed-only suffix can be appended/removed
+        Func<string> _headerSuffix;         // set by SetHeaderSuffix; defaults to none
 
         // ── gear-settings registrations (populated by Toggleable / ToggleGroup) ──
         sealed class ToggleEntry
@@ -100,6 +103,8 @@ namespace Laubrary.Zui
                 t.AddToClassList("zui-box__title");
                 if (!string.IsNullOrEmpty(tooltip)) t.tooltip = tooltip;
                 _titleRow.Add(t);
+                _title = t;
+                _titleText = title;
 
                 if (!string.IsNullOrEmpty(tooltip))
                 {
@@ -127,6 +132,21 @@ namespace Laubrary.Zui
             _caret.text = open ? "▾" : "▸";
             _body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("zui-box--closed", !open);
+            // A COLLAPSED box can hide active content (e.g. an enabled feature). Show the suffix its
+            // provider returns (e.g. " (on)") on the title while closed; drop it when open. No provider ⇒
+            // the title is exactly the base text (every box that never opts in is unchanged).
+            if (_title != null)
+                _title.text = _titleText + (open ? string.Empty : (_headerSuffix?.Invoke() ?? string.Empty));
+        }
+
+        /// Give the box header a suffix shown ONLY while the box is COLLAPSED — for surfacing
+        /// hidden-but-active content (e.g. "(on)" when a folded box holds an enabled feature). `provider`
+        /// returns the whole suffix string; return "" for none. DEFAULTS to no suffix (a box that never
+        /// calls this is unchanged). No-op on an untitled box (no title to write to).
+        public void SetHeaderSuffix(Func<string> provider)
+        {
+            _headerSuffix = provider;
+            Apply();
         }
 
         // ── gear-settings public API ───────────────────────────────────────────────────────────────

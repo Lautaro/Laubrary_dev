@@ -29,8 +29,12 @@ namespace Laubrary.Zui
         // ── optional header checkbox (created lazily by SetHeaderToggle) ──
         readonly VisualElement _header;   // the clickable header row, so the checkbox can be inserted into it
         readonly Label _title;            // the title label, so the checkbox lands just to its LEFT
+        readonly string _titleText;       // base title text, so a collapsed-only suffix can be appended/removed
         Toggle _headerToggle;
         Action<bool> _headerToggleChanged;
+
+        // ── optional collapsed-only header suffix (set by SetHeaderSuffix) ──
+        Func<string> _headerSuffix;
 
         /// Children go into the body, not next to the header.
         public override VisualElement contentContainer => _body;
@@ -61,6 +65,7 @@ namespace Laubrary.Zui
             text.pickingMode = PickingMode.Ignore;   // the whole header row is the hit target
             header.Add(text);
             _title = text;
+            _titleText = title ?? string.Empty;
 
             if (!string.IsNullOrEmpty(tooltip))
             {
@@ -92,7 +97,29 @@ namespace Laubrary.Zui
             bool open = IsOpen;
             _body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("zui-section--closed", !open);
+            // A COLLAPSED section can hide active content (e.g. enabled modifiers). Show the suffix its
+            // provider returns (a count like " (2)") on the header while closed; drop it again when open,
+            // where the content itself is visible. No provider ⇒ the title is exactly the base text.
+            if (_title != null)
+                _title.text = _titleText + (open ? string.Empty : (_headerSuffix?.Invoke() ?? string.Empty));
         }
+
+        // ── collapsed-only header suffix ──────────────────────────────────────────────────────────────
+
+        /// Give the header a suffix shown ONLY while the section is COLLAPSED — for surfacing
+        /// hidden-but-active content (e.g. "Modifiers (2)" when the folded body holds two enabled
+        /// modifiers). `provider` returns the whole suffix string (compose the parens yourself); return
+        /// "" for none. DEFAULTS to no suffix, so a section that never calls this renders exactly as
+        /// before. Call RefreshHeaderSuffix() to re-evaluate after the hidden count changes while the
+        /// section stays collapsed (e.g. the selection it reflects moved under it).
+        public void SetHeaderSuffix(Func<string> provider)
+        {
+            _headerSuffix = provider;
+            Apply();
+        }
+
+        /// Re-evaluate the header-suffix provider now. No-op when none was set.
+        public void RefreshHeaderSuffix() => Apply();
 
         // ── header checkbox ──────────────────────────────────────────────────────────────────────────
 

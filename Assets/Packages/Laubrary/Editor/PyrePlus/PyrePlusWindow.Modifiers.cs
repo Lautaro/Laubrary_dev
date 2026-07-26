@@ -27,6 +27,9 @@ namespace Laubrary.PyrePlus.Editor
         // Stable section header + a body cleared/refilled on every add / remove / reorder / enable — the same
         // rebuild granularity BuildSwarm uses, so a structural change repaints just this section.
         VisualElement modifiersBody;
+        // The section itself (persists across body refills) — held so its collapsed-count header suffix can be
+        // refreshed when the SELECTED layer (whose enabled-modifier count it shows) changes under a folded section.
+        ZuiSection modifiersSection;
 
         void BuildModifiers(VisualElement root, PyrePlusSpec s)
         {
@@ -34,10 +37,25 @@ namespace Laubrary.PyrePlus.Editor
                 "Opt-in effects, reusing Pyre's own modifier stack. Geometry modifiers bend each disc, pixel " +
                 "modifiers recolour or drop lit pixels, and post passes (Bloom / Outline / Kaleidoscope) run over " +
                 "the whole finished frame — all applied top-to-bottom in the order listed.");
+            modifiersSection = sec;
+            // Folded, this section hides its modifier stack. Surface the count of ENABLED modifiers (task #63) so a
+            // collapsed "Modifiers (2)" tells you two active effects are hidden below.
+            sec.SetHeaderSuffix(EnabledModifierSuffix);
             modifiersBody = new VisualElement();
             sec.Add(modifiersBody);
             root.Add(sec);
             RebuildModifiers();
+        }
+
+        // The " (N)" suffix the COLLAPSED Modifiers header shows — N = the SELECTED layer's ENABLED modifier count
+        // (0 ⇒ "", no suffix). Reads live so it stays correct across layer selection and enable/disable.
+        string EnabledModifierSuffix()
+        {
+            var s = SelLayer;
+            int n = 0;
+            if (s?.modifiers != null)
+                foreach (var m in s.modifiers) if (m != null && m.enabled) n++;
+            return n > 0 ? $" ({n})" : "";
         }
 
         void RebuildModifiers()
@@ -68,6 +86,10 @@ namespace Laubrary.PyrePlus.Editor
             // drawer + Undo/dirty wiring as a modifier block. Rebuilt inside RebuildModifiers so it re-points on layer
             // selection with no extra wiring.
             modifiersBody.Add(BuildSimSlot(s));
+
+            // Keep the collapsed-header count right when the section stays folded across a layer switch / an
+            // enable-toggle rebuild (the section instance persists; only its body is refilled here).
+            modifiersSection?.RefreshHeaderSuffix();
         }
 
         // ── spec-wide Global Modifiers (task #56) ────────────────────────────────────────────────────────────────
@@ -78,6 +100,7 @@ namespace Laubrary.PyrePlus.Editor
         // wide), so it is NOT re-pointed by RebuildAllForSelection — BuildAsset rebuilds it fresh on an asset change.
         // No simulation slot here: the blast-wide SimulationModifier is a deferred follow-up (see PyrePlusRenderer).
         VisualElement globalModifiersBody;
+        ZuiSection globalModifiersSection;   // persists across body refills — held so its collapsed count can refresh
 
         void BuildGlobalModifiers(VisualElement root, PyrePlusSpec s)
         {
@@ -86,10 +109,22 @@ namespace Laubrary.PyrePlus.Editor
                 "Pyre). Geometry warps wrap OUTERMOST — a global Rotate spins the whole animation as one — pixel " +
                 "effects run after each layer's own, and post passes run over the whole finished frame. Empty = no " +
                 "change; each layer renders exactly as its own Modifiers section dictates.");
+            globalModifiersSection = sec;
+            // Folded, this section hides the spec-wide stack — surface the count of ENABLED global modifiers (#63).
+            sec.SetHeaderSuffix(EnabledGlobalModifierSuffix);
             globalModifiersBody = new VisualElement();
             sec.Add(globalModifiersBody);
             root.Add(sec);
             RebuildGlobalModifiers();
+        }
+
+        // The " (N)" suffix the COLLAPSED Global Modifiers header shows — N = enabled spec-wide modifier count.
+        string EnabledGlobalModifierSuffix()
+        {
+            int n = 0;
+            if (spec?.globalModifiers != null)
+                foreach (var m in spec.globalModifiers) if (m != null && m.enabled) n++;
+            return n > 0 ? $" ({n})" : "";
         }
 
         void RebuildGlobalModifiers()
@@ -112,6 +147,8 @@ namespace Laubrary.PyrePlus.Editor
             globalModifiersBody.Add(WrapRow(
                 Z.Button("+ Add modifier", "Add a geometry, pixel or post modifier applied to every layer.",
                     () => ShowAddModifierMenu(list, RebuildGlobalModifiers))));
+
+            globalModifiersSection?.RefreshHeaderSuffix();   // keep the collapsed count right across body refills
         }
 
         // The layer's single stateful simulation slot. Null ⇒ an "+ Add simulation" affordance; otherwise an
@@ -125,6 +162,8 @@ namespace Laubrary.PyrePlus.Editor
                 "A stateful simulation that runs LAST on this layer — after its modifiers, before any matte. It " +
                 "keeps state frame-to-frame and replays deterministically on scrub. One per layer.",
                 "pyreplus.sim");
+            // Folded, the box hides an active simulation — mark it (task #63) so an enabled sim isn't invisible.
+            box.SetHeaderSuffix(() => (s.simulationModifier != null && s.simulationModifier.enabled) ? " (on)" : "");
             var sim = s.simulationModifier;
             if (sim == null)
             {
