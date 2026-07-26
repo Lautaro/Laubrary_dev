@@ -529,7 +529,7 @@ public class ZUITextureEditor : ZUIWindow
 
     void ImportIcon(string assetPath)
     {
-        var srcTex = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+        var srcTex = ZUIAssetLibrary.LoadIconTexture(assetPath);   // sentinel (embedded) OR real asset path
         if (srcTex == null) return;
 
         var rt = RenderTexture.GetTemporary(srcTex.width, srcTex.height, 0);
@@ -673,7 +673,6 @@ public class ZUIIconPickerPopup : PopupWindowContent
 
         _scroll = GUILayout.BeginScrollView(_scroll);
         string filterLower = _filter?.ToLower() ?? "";
-        string sysPath = ZUIAssetLibrary.k_SystemIconsPath.Replace('\\', '/').ToLower();
         int perRow = Mathf.Max(1, (int)(rect.width - 16f) / 50);
         int count = 0;
 
@@ -681,9 +680,9 @@ public class ZUIIconPickerPopup : PopupWindowContent
         foreach (var (name, path) in _icons)
         {
             if (!string.IsNullOrEmpty(filterLower) && !name.ToLower().Contains(filterLower)) continue;
-            if (_customOnly && path.Replace('\\', '/').ToLower().StartsWith(sysPath)) continue;
+            if (_customOnly && ZUIAssetLibrary.IsSystemIconPath(path)) continue;
 
-            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            var tex = ZUIAssetLibrary.LoadIconTexture(path);   // sentinel (embedded) OR real asset path
             if (tex == null) continue;
 
             GUILayout.BeginVertical(GUILayout.Width(46f));

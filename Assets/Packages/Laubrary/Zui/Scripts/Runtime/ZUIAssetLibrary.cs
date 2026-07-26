@@ -75,6 +75,25 @@ public static class ZUIAssetLibrary
     public static string k_SystemIconsPath => InstallPath + "/SystemAssets/Icons";
     public static string k_SystemFontsPath => InstallPath + "/SystemAssets/Fonts";
 
+    // ── Embedded system icons (loaded off disk, not through the AssetDatabase) ──
+    // The 1208 system icons live in a Unity-INVISIBLE folder (SystemAssets/Icons~ — the trailing
+    // ~ makes Unity ignore it), so they cost nothing to import and never pollute an asset picker.
+    // They're read straight off disk with File IO + ImageConversion instead of AssetDatabase.
+    // `k_SystemIconsPathAbs` is the ABSOLUTE disk path (File IO can't use a project-relative path).
+    // Prefer the hidden Icons~ folder once it exists; before the move it resolves to the plain
+    // Icons folder, so the loader works in both states (no broken intermediate).
+    public const string EmbeddedIconScheme = "zui://icons/";
+    public static string k_SystemIconsPathAbs
+    {
+        get
+        {
+            string baseRel = InstallPath + "/SystemAssets/Icons";
+            string hidden = Path.GetFullPath(baseRel + "~");
+            if (Directory.Exists(hidden)) return hidden;
+            return Path.GetFullPath(baseRel);
+        }
+    }
+
     // ZUI's internal default font (hardcoded fallback)
     static Font _zuiDefaultFont;
     public static Font ZUIDefaultFont
@@ -135,6 +154,14 @@ public static class ZUIAssetLibrary
         if (string.IsNullOrEmpty(name)) return null;
 
 #if UNITY_EDITOR
+        // Embedded system icon by sentinel pseudo-path (zui://icons/<file>.png) — checked ahead of
+        // the Assets/ branch so an alias authored with a sentinel resolves off disk, not via the DB.
+        if (name.StartsWith(EmbeddedIconScheme))
+        {
+            var embTex = LoadEmbeddedIcon(name);
+            if (embTex != null) return embTex;
+        }
+
         // Try as direct asset path
         if (name.StartsWith("Assets/"))
         {
@@ -142,8 +169,10 @@ public static class ZUIAssetLibrary
             if (tex != null) return tex;
         }
 
-        // System icons folder
-        var systemTex = FindTextureInFolder(k_SystemIconsPath, name);
+        // System icons — read off disk from the Unity-invisible Icons~ folder. LoadEmbeddedIcon
+        // reduces whatever it's given to a bare file name, so an OLD alias that stored the full
+        // Assets/.../Icons/foo.png path (now stale as an asset) still resolves by its "foo" basename.
+        var systemTex = LoadEmbeddedIcon(name);
         if (systemTex != null) return systemTex;
 
         // Custom data folder (root + Icons/ subfolder)
@@ -162,6 +191,93 @@ public static class ZUIAssetLibrary
         if (resTex != null) return resTex;
 
         return null;
+    }
+
+    // ── Embedded-icon loader ──────────────────────────────────────────────────
+    // The system icons are NOT AssetDatabase assets — they live in the Unity-invisible Icons~
+    // folder and are decoded off disk into transient textures held in a static name→texture
+    // cache. A domain reload clears the cache; it refills lazily, which is fine.
+
+    static readonly Dictionary<string, Texture2D> _embeddedIcons =
+        new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+    // lowercased basename → absolute .png path, built once per domain from the folder listing so
+    // lookups stay case-insensitive (the old FindTextureInFolder partial match was too).
+    static Dictionary<string, string> _iconFileIndex;
+
+    static Dictionary<string, string> IconFileIndex()
+    {
+        if (_iconFileIndex != null) return _iconFileIndex;
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            string dir = k_SystemIconsPathAbs;
+            if (Directory.Exists(dir))
+                foreach (var f in Directory.GetFiles(dir, "*.png"))
+                    map[Path.GetFileNameWithoutExtension(f)] = f;
+        }
+        catch { /* IO failure → empty index → icons resolve null, same as a missing folder */ }
+        _iconFileIndex = map;
+        return _iconFileIndex;
+    }
+
+    /// <summary>The bare, extension-less file name for any icon reference — a plain name ("edit"),
+    /// a file name ("edit.png"), a sentinel ("zui://icons/edit.png"), or a full (possibly stale)
+    /// "Assets/.../Icons/edit.png" asset path all reduce to "edit".</summary>
+    static string IconBaseName(string nameOrPath)
+    {
+        if (string.IsNullOrEmpty(nameOrPath)) return null;
+        string s = nameOrPath;
+        if (s.StartsWith(EmbeddedIconScheme)) s = s.Substring(EmbeddedIconScheme.Length);
+        return Path.GetFileNameWithoutExtension(s);
+    }
+
+    /// <summary>Decode a system icon off disk (from the invisible Icons~ folder) into a cached,
+    /// hidden Texture2D. Accepts any icon reference form (see <see cref="IconBaseName"/>). Returns
+    /// null (never throws) when the icon isn't found — callers fall through to the next resolver.</summary>
+    public static Texture2D LoadEmbeddedIcon(string nameOrPath)
+    {
+        string key = IconBaseName(nameOrPath);
+        if (string.IsNullOrEmpty(key)) return null;
+        if (_embeddedIcons.TryGetValue(key, out var cached) && cached != null) return cached;
+
+        if (!IconFileIndex().TryGetValue(key, out var file) || !File.Exists(file)) return null;
+        byte[] bytes;
+        try { bytes = File.ReadAllBytes(file); } catch { return null; }
+
+        var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+        if (!ImageConversion.LoadImage(tex, bytes)) { UnityEngine.Object.DestroyImmediate(tex); return null; }
+        tex.hideFlags = HideFlags.HideAndDontSave;   // transient — must not leak into a scene on save
+        tex.name = key;
+        _embeddedIcons[key] = tex;
+        return tex;
+    }
+
+    /// <summary>True when a path is an embedded system-icon sentinel (zui://icons/…). The clean
+    /// system-vs-custom discriminator for the Style/Texture editors, replacing the old folder-path
+    /// prefix comparison.</summary>
+    public static bool IsSystemIconPath(string path) =>
+        !string.IsNullOrEmpty(path) && path.StartsWith(EmbeddedIconScheme);
+
+    /// <summary>Load an icon texture from a path that may be an embedded sentinel (zui://icons/…) OR
+    /// a real asset path — the one choke-point every icon picker/editor uses so both kinds resolve.</summary>
+    public static Texture2D LoadIconTexture(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        if (path.StartsWith(EmbeddedIconScheme)) return LoadEmbeddedIcon(path);
+#if UNITY_EDITOR
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+#else
+        return null;
+#endif
+    }
+
+    /// <summary>Drop the embedded-icon caches so the next lookup re-reads the folder (call after the
+    /// Icons→Icons~ move, or any on-disk icon change, without waiting for a domain reload).</summary>
+    public static void ClearEmbeddedIconCache()
+    {
+        foreach (var t in _embeddedIcons.Values) if (t != null) UnityEngine.Object.DestroyImmediate(t);
+        _embeddedIcons.Clear();
+        _iconFileIndex = null;
     }
 
     // ── Font resolution ──────────────────────────────────────────────────────
@@ -235,7 +351,11 @@ public static class ZUIAssetLibrary
     public static List<(string name, string path)> GetAvailableIcons(string dataFolderOverride = null)
     {
         var result = new List<(string, string)>();
-        ScanFolder(k_SystemIconsPath, "t:Texture2D", result);
+        // System icons: enumerate the Unity-invisible Icons~ folder off disk, emitting sentinel
+        // paths (zui://icons/<file>.png). They are not AssetDatabase assets, so ScanFolder — and
+        // every Texture2D object picker — can't (and shouldn't) see them; this keeps them browsable.
+        foreach (var kv in IconFileIndex())
+            result.Add((kv.Key, EmbeddedIconScheme + Path.GetFileName(kv.Value)));
         string dataFolder = dataFolderOverride ?? ZUIStyleSheetAsset.Active?.dataFolderPath;
         if (!string.IsNullOrEmpty(dataFolder))
         {

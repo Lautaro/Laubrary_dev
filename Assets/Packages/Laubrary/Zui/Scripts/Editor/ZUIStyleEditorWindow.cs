@@ -4405,7 +4405,7 @@ public class ZUIStyleEditorWindow : ZUIWindow
             _iconCache = new Dictionary<string, Texture2D>(_icons.Count);
             foreach (var (name, path) in _icons)
             {
-                var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                var tex = ZUIAssetLibrary.LoadIconTexture(path);   // sentinel (embedded) OR real asset path
                 if (tex != null) _iconCache[path] = tex;
             }
         }
@@ -5085,20 +5085,19 @@ public class ZUIStyleEditorWindow : ZUIWindow
             _assetIconTexCache = new Dictionary<string, Texture2D>(_cachedIcons.Count);
             foreach (var (n, p) in _cachedIcons)
             {
-                var t = AssetDatabase.LoadAssetAtPath<Texture2D>(p);
+                var t = ZUIAssetLibrary.LoadIconTexture(p);   // sentinel (embedded) OR real asset path
                 if (t != null) _assetIconTexCache[p] = t;
             }
         }
 
         string filter = _assetSearchFilter?.ToLower() ?? "";
-        string systemPath = ZUIAssetLibrary.k_SystemIconsPath.Replace('\\', '/').ToLower();
         int iconCount = 0;
         int iconsPerRow = Mathf.Max(1, (int)(EditorGUIUtility.currentViewWidth - 20f) / 52);
         GUILayout.BeginHorizontal();
         foreach (var (name, path) in _cachedIcons)
         {
             if (!string.IsNullOrEmpty(filter) && !name.ToLower().Contains(filter)) continue;
-            if (_hideSystemIcons && path.Replace('\\', '/').ToLower().StartsWith(systemPath)) continue;
+            if (_hideSystemIcons && ZUIAssetLibrary.IsSystemIconPath(path)) continue;
 
             _assetIconTexCache.TryGetValue(path, out var tex);
             if (tex == null) continue;
@@ -5113,7 +5112,7 @@ public class ZUIStyleEditorWindow : ZUIWindow
             // Right-click: edit in texture editor
             if (Event.current.type == EventType.ContextClick && iconRect.Contains(Event.current.mousePosition))
             {
-                bool isSystem = path.Replace('\\', '/').ToLower().StartsWith(systemPath);
+                bool isSystem = ZUIAssetLibrary.IsSystemIconPath(path);
                 string capturedPath = path;
                 string capturedName = name;
                 var menu = new GenericMenu();
@@ -5133,11 +5132,12 @@ public class ZUIStyleEditorWindow : ZUIWindow
                         editor.LoadIconForEditing(capturedPath, false);
                     });
                 }
-                menu.AddItem(new GUIContent("Show in Project"), false, () =>
-                {
-                    var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(capturedPath);
-                    if (asset != null) EditorGUIUtility.PingObject(asset);
-                });
+                if (!isSystem)   // embedded system icons aren't project assets — nothing to ping
+                    menu.AddItem(new GUIContent("Show in Project"), false, () =>
+                    {
+                        var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(capturedPath);
+                        if (asset != null) EditorGUIUtility.PingObject(asset);
+                    });
                 menu.AddSeparator("");
                 menu.AddItem(new GUIContent($"Create alias for \"{capturedName}\""), false, () =>
                 {
@@ -5156,7 +5156,7 @@ public class ZUIStyleEditorWindow : ZUIWindow
         if (iconCount == 0)
         {
             string dataPath = _sheet?.dataFolderPath ?? "(none)";
-            EditorGUILayout.LabelField($"No icons found. System: {ZUIAssetLibrary.k_SystemIconsPath}  Data: {dataPath}", EditorStyles.wordWrappedMiniLabel);
+            EditorGUILayout.LabelField($"No icons found. System (embedded): {ZUIAssetLibrary.k_SystemIconsPathAbs}  Data: {dataPath}", EditorStyles.wordWrappedMiniLabel);
         }
         ZUI.VerticalSpace("V Section Rows");
 
@@ -5239,7 +5239,7 @@ public class ZUIStyleEditorWindow : ZUIWindow
                 if (!string.IsNullOrEmpty(displayName))
                 {
                     string normalized = displayName.Replace('\\', '/');
-                    if (normalized.Contains("/SystemAssets/"))
+                    if (ZUIAssetLibrary.IsSystemIconPath(normalized) || normalized.Contains("/SystemAssets/"))
                         displayName = "sys:" + System.IO.Path.GetFileNameWithoutExtension(normalized);
                     else if (normalized.Contains("/"))
                         displayName = System.IO.Path.GetFileNameWithoutExtension(normalized);

@@ -194,8 +194,10 @@ public static partial class ZUI
         var sheet = ScriptableObject.CreateInstance<ZUIStyleSheetAsset>();
         // Start with an empty sheet — styles are added by the user in the Style Editor.
 
-        // Editor icon aliases — map semantic names to Phosphor icons in SystemAssets
-        string sysIcons = ZUIAssetLibrary.k_SystemIconsPath;
+        // Editor icon aliases — map semantic names to Phosphor icons in SystemAssets. Targets are
+        // embedded-icon sentinels (zui://icons/foo.png), resolved off disk by ZUIAssetLibrary rather
+        // than through the AssetDatabase (the icons are no longer Unity assets).
+        string sysIcons = ZUIAssetLibrary.EmbeddedIconScheme.TrimEnd('/');
         sheet.iconAliases = new System.Collections.Generic.List<ZUIAssetAlias>
         {
             // Style list controls
