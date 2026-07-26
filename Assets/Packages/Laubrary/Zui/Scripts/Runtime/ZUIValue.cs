@@ -36,6 +36,12 @@ public class ZUIValue
     [SerializeField] float m_warmup = 0f;     // seconds before the curve starts (holds the curve's first value)
     [SerializeField] float m_cooldown = -1f;  // pause (s) after a playthrough before looping; -1 = never loop
 
+    // Corner smoothness for Curve mode: 0 = the authored per-segment bend (sharp corners at the points), up to
+    // 1 = a Catmull-Rom spline through the points (rounded corners). A CHEAP smooth-path control, not precision
+    // curve editing. No effect below 3 points (2 points are always a straight line). Default 0 keeps every
+    // existing curve byte-identical.
+    [SerializeField, Range(0f, 1f)] float m_smoothness = 0f;
+
     // External multiplier. When set and a resolver is registered, the evaluated
     // source value is multiplied by resolver(multiplierId). Lets a host's "global
     // values" scale any ZUIValue without ZUI referencing the game.
@@ -55,6 +61,7 @@ public class ZUIValue
     public float duration { get => m_duration; set => m_duration = Mathf.Max(0.0001f, value); }
     public float warmup { get => m_warmup; set => m_warmup = Mathf.Max(0f, value); }
     public float cooldown { get => m_cooldown; set => m_cooldown = value; }
+    public float smoothness { get => m_smoothness; set => m_smoothness = Mathf.Clamp01(value); }
     public string multiplierId { get => m_multiplierId; set => m_multiplierId = value; }
 
     public bool HasMultiplier => !string.IsNullOrEmpty(m_multiplierId);
@@ -111,7 +118,12 @@ public class ZUIValue
         }
 
         float norm = phase / dur; // points are authored in [0..1]
-        return ZUIEnvelopeEvaluator.Evaluate(m_points, norm, fallback);
+        float v = ZUIEnvelopeEvaluator.Evaluate(m_points, norm, fallback, m_smoothness);
+        // A smoothed (Catmull-Rom) curve can overshoot past the authored points; keep the value inside its
+        // declared range so a smoothed path can't leave the plot / a bounded value its range. Only when
+        // smoothed — the linear path (smoothness 0) already stays in range, so the byte-identical path is kept.
+        if (m_smoothness > 0f) v = Mathf.Clamp(v, Mathf.Min(m_yMin, m_yMax), Mathf.Max(m_yMin, m_yMax));
+        return v;
     }
 
     /// <summary>Seed a default 0→1 ramp so a freshly-switched Curve has something to show.</summary>
@@ -161,6 +173,7 @@ public class ZUIValue
         m_duration = other.m_duration;
         m_warmup = other.m_warmup;
         m_cooldown = other.m_cooldown;
+        m_smoothness = other.m_smoothness;
         m_multiplierId = other.m_multiplierId;
     }
 }
