@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Laubrary.SpriteFx;
 
 namespace Laubrary.Zoetrope
 {
@@ -55,8 +56,14 @@ namespace Laubrary.Zoetrope
                  "FX still fire normally (this is what keeps a plain SpriteView Zoe's hit VFX working).")]
         public string clip = "";
 
+        [Tooltip("Optional SpriteFx Stack played on the character's OWN sprite the instant this reaction fires — a " +
+                 "hurt/death flash, tint or dissolve that rides on top of the live animation (applied via a " +
+                 "SpriteFxFilter added to the body's SpriteRenderer). Leave empty for no body effect. Unlike the FX " +
+                 "list below (which SPAWNS effects at a point), this FILTERS the character's existing sprite in place.")]
+        public SpriteFxSpec bodyFx;
+
         public List<FxEntry> fx = new List<FxEntry>();
 
-        public bool IsEmpty => string.IsNullOrEmpty(clip) && (fx == null || fx.Count == 0);
+        public bool IsEmpty => string.IsNullOrEmpty(clip) && bodyFx == null && (fx == null || fx.Count == 0);
     }
 }

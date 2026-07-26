@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using Laubrary.Combat2D;
+using Laubrary.SpriteFx;
 
 namespace Laubrary.Zoetrope
 {
@@ -52,6 +53,7 @@ namespace Laubrary.Zoetrope
         {
             var r = def != null ? def.hit : null;
             if (r == null) return;
+            PlayBodyFx(r);
             FireImmediate(r, info);
             TryArmClip(r, info, () => { Disarm(); HurtFinished?.Invoke(); });
         }
@@ -59,7 +61,7 @@ namespace Laubrary.Zoetrope
         void OnDeath(DamageInfo info)
         {
             var r = def != null ? def.death : null;
-            if (r != null) FireImmediate(r, info);
+            if (r != null) { PlayBodyFx(r); FireImmediate(r, info); }
             if (r == null || !TryArmClip(r, info, () => { Disarm(); DeathFinished?.Invoke(); }))
                 DeathFinished?.Invoke();
         }
@@ -101,6 +103,21 @@ namespace Laubrary.Zoetrope
             foreach (var entry in r.fx)
                 if (entry != null && entry.trigger == FxTriggerType.Immediate)
                     Fire(entry, info);
+        }
+
+        // Play the reaction's body SpriteFx on the character's OWN sprite the instant the reaction fires — a hurt /
+        // death flash / tint / dissolve that rides on top of the live animation. Ensures a SpriteFxFilter on the
+        // body's SpriteRenderer (the same renderer TargetPosition placement uses) and points it at the reaction's
+        // Stack. Layering stays correct: Zoetrope depends DOWN on SpriteFx; SpriteFx never references Zoetrope.
+        void PlayBodyFx(ReactionFx r)
+        {
+            if (r == null || r.bodyFx == null) return;
+            var sr = GetComponentInChildren<SpriteRenderer>();
+            if (sr == null) return;
+            var filter = sr.GetComponent<SpriteFxFilter>();
+            if (filter == null) filter = sr.gameObject.AddComponent<SpriteFxFilter>();
+            filter.stack = r.bodyFx;
+            filter.Play();
         }
 
         // ── spawning ──────────────────────────────────────────────────────────
