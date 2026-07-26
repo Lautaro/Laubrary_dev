@@ -793,6 +793,12 @@ namespace Laubrary.PyrePlus
                 angleDeg = f.angleDeg,
                 zoom = f.zoom,
                 center = f.center,
+                // Animatable spatial companions (task #64) — deep-copy so a duplicated layer keeps its own authored
+                // zoom/centre curve. Null stays null; the clone's EnsureSpatialAnim re-seeds from the copied legacy
+                // scalars, so a fill that never touched the companions clones byte-identically either way.
+                zoomAnim = CloneVal(f.zoomAnim),
+                centerXAnim = CloneVal(f.centerXAnim),
+                centerYAnim = CloneVal(f.centerYAnim),
                 space = f.space,
                 // Texture group — Sprite stays a shared asset ref (like font/spriteImage), not per-layer data.
                 texture = f.texture,

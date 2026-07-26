@@ -21,7 +21,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
-public class ZuiFill
+public class ZuiFill : ISerializationCallbackReceiver
 {
     // The FILL modes — a flat colour, a gradient over life, or a SPATIAL gradient (linear / radial). Noise is
     // NOT a mode any more: it moved into the Texture group below (a texture, not a fill). Removing it is free —
@@ -51,11 +51,29 @@ public class ZuiFill
     public Color color = Color.white;   // Solid — alpha-capable like every mode; also the Sprite tint / Grid+Dots ink
     public Gradient gradient;           // every non-Solid mode + the Noise texture (alpha comes from the gradient)
     public float angleDeg = 0f;         // Linear: rotation of the fill axis, in degrees
-    [Min(0.05f)] public float zoom = 1f; // Linear (proj scale) + Radial + Noise: spatial scale (higher zooms in)
-    // Gradient centre in the shape's local -1..1 space (Linear + Radial + Noise). Linear: the fill axis passes
-    // THROUGH this point (the projection is of (uv − center)). Radial: the gradient's middle sits here, so it
-    // drifts off-centre toward a border. Default (0,0) is an exact no-op reproducing v1's arithmetic byte-for-byte.
+    // LEGACY spatial scale (Linear proj scale + Radial + Noise). KEPT as the serialized migration SOURCE: an old
+    // asset's authored zoom loads here, and OnAfterDeserialize seeds `zoomAnim` from it (see below). Evaluate never
+    // reads this directly any more — it reads the animatable companion, whose Static value == this exactly for a
+    // migrated fill (⇒ byte-identical). Renaming/removing it would DROP the old data, so it stays, same name/type.
+    [Min(0.05f)] public float zoom = 1f;
+    // LEGACY gradient centre in the shape's local -1..1 space (Linear + Radial + Noise + Grid + Dots). Same role as
+    // `zoom` above: the serialized migration source, seeded into centerXAnim/centerYAnim on load, then never read
+    // directly by Evaluate. Linear: the fill axis passes THROUGH this point (projection of (uv − center)). Radial:
+    // the gradient's middle sits here, drifting off-centre toward a border. Default (0,0) reproduces v1 byte-for-byte.
     public Vector2 center = Vector2.zero;
+
+    // ── animatable spatial companions (task #64) ────────────────────────────────────────
+    // zoom + centre, promoted to ZUIValue so an author can CURVE them over the fill's 0..1 life (like every other
+    // ZUIValue in the fill). These are the values Evaluate actually reads. SerializeReference so a NULL is a real
+    // "not yet migrated" sentinel Unity preserves (a plain [Serializable] field would deserialise to a non-null
+    // default, indistinguishable from an authored Static(1)); an OLD asset predating these fields loads them NULL,
+    // and OnAfterDeserialize SEEDS them as Static(legacy) ⇒ each evaluates to the exact legacy value ⇒ byte-identical.
+    // A brand-new fill defaults zoom=1 / centre=(0,0) ⇒ seeds Static(1) / Static(0). Should a companion ever null out
+    // (the SerializeReference-broken-assembly hazard), OnAfterDeserialize RE-SEEDS it from the durable legacy scalar,
+    // and Evaluate's EvalCompanion falls back to that scalar too — so a nulled companion still renders the legacy value.
+    [SerializeReference] public ZUIValue zoomAnim;
+    [SerializeReference] public ZUIValue centerXAnim;
+    [SerializeReference] public ZUIValue centerYAnim;
     // Coordinate space for the spatial modes (Linear / Radial) AND every texture (see FillSpace). Default Stamped
     // reproduces v1 exactly — the consumer feeds shape-local (u,v). Fixed asks the consumer to feed canvas-anchored
     // (u,v) instead, so the pattern stays put while the shape moves through it. Solid / OverLife ignore it.
@@ -94,7 +112,7 @@ public class ZuiFill
     /// </summary>
     public Color Evaluate(float life, float u, float v)
     {
-        if (texture != TextureKind.None) return EvaluateTexture(u, v);
+        if (texture != TextureKind.None) return EvaluateTexture(life, u, v);
 
         switch (mode)
         {
@@ -108,32 +126,40 @@ public class ZuiFill
             {
                 if (gradient == null) return color;
                 float rad = angleDeg * Mathf.Deg2Rad;
+                // The animatable companions, evaluated at THIS life. Static ⇒ the exact legacy value (byte-identical);
+                // Curve ⇒ animates over life. `z`/`cx`/`cy` sit exactly where v1 read `zoom`/`center.x`/`center.y`.
+                float z = EvalCompanion(zoomAnim, life, zoom);
+                float cx = EvalCompanion(centerXAnim, life, center.x);
+                float cy = EvalCompanion(centerYAnim, life, center.y);
                 // BYTE-IDENTITY GATE: at centre (0,0) & zoom 1 run v1's arithmetic verbatim. (The general form
                 // below is already bitwise-identical there — subtracting 0f and multiplying by 1f are exact IEEE
                 // identities — but the explicit guard removes all doubt for the orchestrator's hash check.)
-                if (center.x == 0f && center.y == 0f && zoom == 1f)
+                if (cx == 0f && cy == 0f && z == 1f)
                 {
                     float proj0 = u * Mathf.Cos(rad) + v * Mathf.Sin(rad);
                     return gradient.Evaluate(Mathf.Clamp01((proj0 + 1f) * 0.5f));
                 }
-                // The axis passes through `center`; zoom scales the projection before the [-1,1]→[0,1] remap.
-                float proj = (u - center.x) * Mathf.Cos(rad) + (v - center.y) * Mathf.Sin(rad);
-                float t = Mathf.Clamp01((proj * zoom + 1f) * 0.5f);
+                // The axis passes through the centre; zoom scales the projection before the [-1,1]→[0,1] remap.
+                float proj = (u - cx) * Mathf.Cos(rad) + (v - cy) * Mathf.Sin(rad);
+                float t = Mathf.Clamp01((proj * z + 1f) * 0.5f);
                 return gradient.Evaluate(t);
             }
 
             case Mode.Radial:
             {
                 if (gradient == null) return color;
+                float z = EvalCompanion(zoomAnim, life, zoom);
+                float cx = EvalCompanion(centerXAnim, life, center.x);
+                float cy = EvalCompanion(centerYAnim, life, center.y);
                 // BYTE-IDENTITY GATE: at centre (0,0) run v1's arithmetic verbatim (zoom already applied in v1).
-                if (center.x == 0f && center.y == 0f)
+                if (cx == 0f && cy == 0f)
                 {
-                    float r0 = Mathf.Sqrt(u * u + v * v) * Mathf.Max(0.05f, zoom);
+                    float r0 = Mathf.Sqrt(u * u + v * v) * Mathf.Max(0.05f, z);
                     return gradient.Evaluate(Mathf.Clamp01(r0));
                 }
-                // Distance is measured FROM `center`, so the gradient's middle drifts off-centre toward a border.
-                float du = u - center.x, dv = v - center.y;
-                float r = Mathf.Sqrt(du * du + dv * dv) * Mathf.Max(0.05f, zoom);
+                // Distance is measured FROM the centre, so the gradient's middle drifts off-centre toward a border.
+                float du = u - cx, dv = v - cy;
+                float r = Mathf.Sqrt(du * du + dv * dv) * Mathf.Max(0.05f, z);
                 return gradient.Evaluate(Mathf.Clamp01(r));
             }
 
@@ -143,14 +169,16 @@ public class ZuiFill
     }
 
     // ── texture dispatch (never recursive — a texture never samples a ZuiFill) ──────────────
-    Color EvaluateTexture(float u, float v)
+    // `life` threads through to the kinds that read the animatable centre/zoom companions (Noise reads both;
+    // Grid + Dots read centre). Sprite reads neither, so it ignores `life`.
+    Color EvaluateTexture(float life, float u, float v)
     {
         switch (texture)
         {
             case TextureKind.Sprite: return EvaluateSprite(u, v);
-            case TextureKind.Noise:  return EvaluateNoise(u, v);
-            case TextureKind.Grid:   return EvaluateGrid(u, v);
-            case TextureKind.Dots:   return EvaluateDots(u, v);
+            case TextureKind.Noise:  return EvaluateNoise(life, u, v);
+            case TextureKind.Grid:   return EvaluateGrid(life, u, v);
+            case TextureKind.Dots:   return EvaluateDots(life, u, v);
             default:                 return color;
         }
     }
@@ -186,11 +214,13 @@ public class ZuiFill
 
     // Noise: the FNV value noise (shaped by noiseKind) mapped through `gradient`. zoom + center move the sample
     // coords, exactly like v1's Noise mode did (which this texture replaces). Null gradient ⇒ fall back to color.
-    Color EvaluateNoise(float u, float v)
+    Color EvaluateNoise(float life, float u, float v)
     {
         if (gradient == null) return color;
-        float z = Mathf.Max(0.05f, zoom);
-        float n = ValueNoise2Octave((u - center.x) * z * 3f, (v - center.y) * z * 3f);
+        float z = Mathf.Max(0.05f, EvalCompanion(zoomAnim, life, zoom));
+        float cx = EvalCompanion(centerXAnim, life, center.x);
+        float cy = EvalCompanion(centerYAnim, life, center.y);
+        float n = ValueNoise2Octave((u - cx) * z * 3f, (v - cy) * z * 3f);
         switch (noiseKind)
         {
             case NoiseKind.Ridged: n = 1f - Mathf.Abs(2f * n - 1f); break;
@@ -207,11 +237,11 @@ public class ZuiFill
     //   Worked check (the case that used to render flat): spacing 0.3, lineWidth 0.18 → halfW 0.09,
     //   soft 0.1·0.09+0.02 = 0.029. At a CELL CENTRE the line distance d = 0.5, far past halfW+soft = 0.119, so
     //   Smoothstep01(0.09, 0.119, 0.5) = 1 → mask = 1−1 = 0 (a transparent gap). On a line d≈0 → mask ≈ 1.
-    Color EvaluateGrid(float u, float v)
+    Color EvaluateGrid(float life, float u, float v)
     {
         float rad = -gridAngle * Mathf.Deg2Rad;
         float cs = Mathf.Cos(rad), sn = Mathf.Sin(rad);
-        float du = u - center.x, dv = v - center.y;
+        float du = u - EvalCompanion(centerXAnim, life, center.x), dv = v - EvalCompanion(centerYAnim, life, center.y);
         float sp = Mathf.Max(0.02f, gridSpacing);
         float px = (du * cs - dv * sn) / sp;   // cell-space coords (1 unit = 1 cell)
         float py = (du * sn + dv * cs) / sp;
@@ -230,11 +260,11 @@ public class ZuiFill
     // rows shift x by half a cell on odd rows. Ink = color; the gaps are transparent, with an edge-smoothstep rim.
     //   Worked check: spacing 0.22, size 0.65 → r 0.325, soft 0.15·0.325+0.02 = 0.069. At a cell centre d = 0 →
     //   Smoothstep01(0.256, 0.325, 0) = 0 → mask = 1 (a dot); at a cell corner d = √0.5 ≈ 0.707 ≫ r → mask 0.
-    Color EvaluateDots(float u, float v)
+    Color EvaluateDots(float life, float u, float v)
     {
         float rad = -gridAngle * Mathf.Deg2Rad;
         float cs = Mathf.Cos(rad), sn = Mathf.Sin(rad);
-        float du = u - center.x, dv = v - center.y;
+        float du = u - EvalCompanion(centerXAnim, life, center.x), dv = v - EvalCompanion(centerYAnim, life, center.y);
         float sp = Mathf.Max(0.02f, dotSpacing);
         float px = (du * cs - dv * sn) / sp;   // cell-space coords
         float py = (du * sn + dv * cs) / sp;
@@ -274,6 +304,46 @@ public class ZuiFill
     public void EnsureGradient()
     {
         if (gradient == null) gradient = DefaultGradient();
+    }
+
+    // ── animatable spatial-companion migration (zoom / centre → ZUIValue) ────────────────
+    /// <summary>Seed the animatable zoom/centre companions from the legacy scalar fields when they are missing
+    /// (an old asset predating them deserialises the [SerializeReference] fields as NULL; an in-memory fill built
+    /// by an object initializer likewise has null companions). A Static seed reproduces the legacy value EXACTLY
+    /// ⇒ byte-identical. Idempotent and never overwrites an already-authored companion. Called from
+    /// OnAfterDeserialize (so a loaded/round-tripped fill is ready and persists its companions) and by the editor
+    /// control before it binds them; Evaluate does NOT depend on it — EvalCompanion falls back to the legacy scalar
+    /// when a companion is still null, so the render is correct even before seeding runs.</summary>
+    public void EnsureSpatialAnim()
+    {
+        if (zoomAnim == null)    zoomAnim    = new ZUIValue(zoom);
+        if (centerXAnim == null) centerXAnim = new ZUIValue(center.x);
+        if (centerYAnim == null) centerYAnim = new ZUIValue(center.y);
+    }
+
+    // ISerializationCallbackReceiver: seed the companions on load (the migration). No Unity API is touched here, so
+    // it is safe on Unity's deserialize thread. OnBeforeSerialize intentionally does nothing — the legacy scalars are
+    // the frozen migration SOURCE, never written back (a Curve companion can't collapse to a scalar without loss).
+    public void OnBeforeSerialize() { }
+    public void OnAfterDeserialize() => EnsureSpatialAnim();
+
+    /// <summary>Evaluate an animatable spatial companion (zoom / centre) over the 0..1 <paramref name="life"/> clock.
+    /// Mirrors PyrePlusRenderer.Eval's over-life convention (which this fill is sampled through): Static returns its
+    /// constant (⇒ a migrated fill is byte-identical), Curve samples its points DIRECTLY at clamped life (NOT via
+    /// duration/warmup — that is ZUIValue's runtime-seconds API, which would sweep only the curve's first quarter).
+    /// A null companion (not-yet-seeded in-memory fill) returns <paramref name="fallback"/> (the legacy scalar), so a
+    /// pristine fill renders the legacy value whether or not the companion has been seeded yet. MinMax has no per-pixel
+    /// seed here — a per-pixel random would shatter a spatial fill — so it holds its stable midpoint.</summary>
+    static float EvalCompanion(ZUIValue v, float life, float fallback)
+    {
+        if (v == null) return fallback;
+        switch (v.mode)
+        {
+            case ZUIValue.Mode.Static: return v.staticValue;
+            case ZUIValue.Mode.Curve:  return ZUIEnvelopeEvaluator.Evaluate(v.points, Mathf.Clamp01(life), v.yMax);
+            case ZUIValue.Mode.MinMax: return (v.min + v.max) * 0.5f;
+            default:                   return v.staticValue;
+        }
     }
 
     /// <summary>A flat white→white gradient (alpha 1). Switching into a gradient mode with this seeded means

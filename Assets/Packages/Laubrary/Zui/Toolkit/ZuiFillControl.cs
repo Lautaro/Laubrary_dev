@@ -98,6 +98,7 @@ namespace Laubrary.Zui
         {
             _content.Clear();
             _swatch = null;   // the old one detached with _content.Clear() (it destroys its own texture then)
+            _fill.EnsureSpatialAnim();   // seed the animatable zoom/centre companions from the legacy scalars if unset
 
             // A texture, when active, REPLACES the fill mode — its own face is drawn instead of the mode faces.
             if (_fill.texture != ZuiFill.TextureKind.None)
@@ -124,12 +125,16 @@ namespace Laubrary.Zui
 
                 case ZuiFill.Mode.Linear:
                     AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
-                    ExtraRow(CenterPad(), ExtraAngle(), ExtraZoom(), SpaceField());
+                    ExtraRow(ExtraAngle(), SpaceField());
+                    _content.Add(ZoomVal());
+                    _content.Add(CenterVal());
                     break;
 
                 case ZuiFill.Mode.Radial:
                     AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
-                    ExtraRow(CenterPad(), ExtraZoom(), SpaceField());
+                    ExtraRow(SpaceField());
+                    _content.Add(ZoomVal());
+                    _content.Add(CenterVal());
                     break;
             }
         }
@@ -156,7 +161,9 @@ namespace Laubrary.Zui
                 case ZuiFill.TextureKind.Noise:
                 {
                     AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
-                    ExtraRow(NoiseKindField(), ExtraZoom(), CenterPad(), SpaceField());
+                    ExtraRow(NoiseKindField(), SpaceField());
+                    _content.Add(ZoomVal());
+                    _content.Add(CenterVal());
                     break;
                 }
 
@@ -240,15 +247,18 @@ namespace Laubrary.Zui
                 width);
         }
 
-        // The gradient centre pad (Linear / Radial / Noise) — a plain Vector2 in -1..1 local space. flipY so
-        // dragging up raises the centre's v, matching the renderer's v-up sampling.
-        VisualElement CenterPad()
+        // The gradient centre (Linear / Radial / Noise) — an ANIMATABLE synced XY pair (ZUIValue centerXAnim /
+        // centerYAnim) in -1..1 local space, so an author can curve the centre over the fill's life. A Static pair
+        // reproduces the legacy `center` exactly (byte-identical). Same Undo/refresh wiring as every other edit.
+        VisualElement CenterVal()
         {
-            const string tip = "The gradient's centre in the shape's local space (-1..1). Linear: the fill axis "
-                + "passes through it. Radial: the gradient's middle sits here, drifting off-centre toward a border.";
-            var pad = Z.Pad(_fill.center, new Rect(-1f, -1f, 2f, 2f), tip,
-                v => Mutate(() => _fill.center = v), 44f);
-            return Z.Field("Ctr", tip, pad);
+            const string tip = "The gradient's centre in the shape's local space (-1..1), over the particle's life. "
+                + "Linear: the fill axis passes through it. Radial: the gradient's middle sits here, drifting "
+                + "off-centre toward a border. Static holds it; switch to a Curve (⋯) to animate the centre.";
+            var o = new ZuiValue2DControl.Options().WithRange(-1f, 1f, -1f, 1f).WithDefault(Vector2.zero);
+            return Z.Value2D("Ctr", _fill.centerXAnim, _fill.centerYAnim, o, tip,
+                () => { _swatch?.Refresh(); OnChanged?.Invoke(); },
+                () => OnBeforeMutate?.Invoke());
         }
 
         VisualElement ExtraAngle()
@@ -258,11 +268,21 @@ namespace Laubrary.Zui
             return Z.Field("Ang", tip, f);
         }
 
-        VisualElement ExtraZoom()
+        // Zoom (Linear proj scale / Radial / Noise) — an ANIMATABLE ZUIValue (zoomAnim), so an author can curve the
+        // spatial scale over the fill's life. A Static value reproduces the legacy `zoom` exactly (byte-identical).
+        VisualElement ZoomVal()
         {
-            const string tip = "Spatial scale of the fill — higher zooms the pattern in (min 0.05).";
-            var f = Z.Float(_fill.zoom, tip, v => Mutate(() => _fill.zoom = Mathf.Max(0.05f, v)), 42f);
-            return Z.Field("Zoom", tip, f);
+            const string tip = "Spatial scale of the fill over the particle's life — higher zooms the pattern in "
+                + "(min 0.05). Static holds it; switch to a Curve (⋯) to animate the zoom.";
+            var o = new ZuiValueControl.Options
+            {
+                absMin = 0.05f, absMax = 10f,
+                hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true,
+                controlWidth = _opt.controlWidth, grow = _opt.grow,
+            };
+            return Z.Value("Zoom", _fill.zoomAnim, o, tip,
+                () => { _swatch?.Refresh(); OnChanged?.Invoke(); },
+                () => OnBeforeMutate?.Invoke());
         }
 
         static readonly string[] NoiseKindLabels = { "Value", "Ridged", "Steps" };
