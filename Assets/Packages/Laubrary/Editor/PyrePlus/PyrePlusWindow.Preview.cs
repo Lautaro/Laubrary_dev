@@ -296,7 +296,7 @@ namespace Laubrary.PyrePlus.Editor
             Handles.BeginGUI();
             var prevC = Handles.color;
             // Trace first, so it reads as a spine UNDER the outline + dots.
-            if (showTrace) DrawSpawnTrace(view, s, sel);
+            if (showTrace) DrawSpawnTrace(view, s, sel, life);
             if (showShape) DrawShapeOutline(sel, r, rot, yaw, pitch, drawOff, cx, cy);
             DrawSpawnDots(view, s, sel, delta, life);   // the dots belong to both visualisations (life → live swarm spin)
             if (showShape)
@@ -315,17 +315,41 @@ namespace Laubrary.PyrePlus.Editor
         // into swarmTrace (just like DrawSpawnDots recomputes swarmSpawns). Absolute canvas points → CanvasToScreen;
         // the polyline BREAKS wherever it leaves the view so a wrapped (progress > 1) or off-canvas span doesn't
         // draw a stray chord across the viewport (the same view-gating DrawSpawnDots applies to each dot).
-        void DrawSpawnTrace(Rect view, PyrePlusSpec s, PyrePlusLayer sel)
+        void DrawSpawnTrace(Rect view, PyrePlusSpec s, PyrePlusLayer sel, float life)
         {
             int samples = Mathf.Clamp(s.frameCount * 4, 64, 512);
             PyrePlusRenderer.ComputeSpawnTrace(s, sel, samples, swarmTrace);
             if (swarmTrace.Count < 2) return;
 
+            // ComputeSpawnTrace bakes a PER-t swarmScale into each spine point (centre + s_t·spun-offset), but the
+            // RENDER and the spawn DOTS apply ONE live swarmScale at the current frame (ApplySwarmScale at `life`)
+            // to the whole placed cloud — so an animated swarmScale makes the spine diverge from what actually
+            // renders. Re-normalise every point to that single live scale, PREVIEW-SIDE only (the render path is
+            // untouched): strip the per-t factor s_t (the SAME canonical eval ComputeSpawnTrace used, via the
+            // preview's EvalField) to recover the pre-scale/post-spin point, then re-apply the live scale through
+            // ApplySwarmScale — the exact helper the dots use — so the spine now matches the dots and the bake.
+            // The intentional per-t SPIN sweep is preserved (it's baked into the offset and untouched). s_t≈0
+            // collapsed the point onto the centre (its offset is unrecoverable), so that sample is dropped as a
+            // polyline break — harmless: it's one of 64+ samples and only where the cloud is scale-0 (invisible).
+            float cx = s.Width * 0.5f, cy = s.Height * 0.5f;
+            Vector2 centre = new Vector2(cx, cy);
+            int count = swarmTrace.Count;
+
             Handles.color = TraceColor;
             traceScreen.Clear();
-            for (int i = 0; i < swarmTrace.Count; i++)
+            for (int i = 0; i < count; i++)
             {
-                Vector2 sc = CanvasToScreen(swarmTrace[i]);
+                float t = count > 1 ? i / (float)(count - 1) : 0f;
+                float sT = EvalField(sel.swarmScale, t);   // the per-t scale ComputeSpawnTrace applied (canonical)
+                if (Mathf.Abs(sT) <= 1e-4f)
+                {
+                    if (traceScreen.Count >= 2) Handles.DrawAAPolyLine(TraceWidth, traceScreen.ToArray());
+                    traceScreen.Clear();
+                    continue;
+                }
+                Vector2 unscaled = centre + (swarmTrace[i] - centre) / sT;                 // undo per-t scale
+                Vector2 live = PyrePlusRenderer.ApplySwarmScale(s, sel, unscaled, life);    // re-apply single live scale
+                Vector2 sc = CanvasToScreen(live);
                 if (view.Contains(sc))
                     traceScreen.Add(new Vector3(sc.x, sc.y, 0f));
                 else

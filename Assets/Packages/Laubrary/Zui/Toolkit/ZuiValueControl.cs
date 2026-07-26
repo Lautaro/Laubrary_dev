@@ -53,6 +53,15 @@ namespace Laubrary.Zui
             // labelled with the frame index (labels auto-thin when dense). 0 = off. Set it to the spec's frame
             // count so an author can see exactly which frame each part of an over-life envelope lands on.
             public int frameCount = 0;
+            // INDEX markers — the frame-marker mechanism reused for a curve whose X axis is a particle INDEX
+            // (not time), e.g. scale-by-index. > 1 draws vertical lines labelled 0,1,2,… by index (same line/
+            // label/thinning code as the frame markers) and SUPPRESSES the frame lines (an index-mapped curve
+            // never shows frames). 0 (default) = off, so every other control keeps its frame-marker behaviour.
+            public int indexMarkerCount = 0;
+            // Optional axis captions drawn on the envelope (X along the bottom, Y up the left). Null (default) =
+            // none, so every existing Val/curve is visually unchanged.
+            public string xAxisLabel = null;
+            public string yAxisLabel = null;
 
             public Options WithRange(float lo, float hi) { absMin = lo; absMax = hi; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
@@ -62,6 +71,8 @@ namespace Laubrary.Zui
             public Options WithoutLiveReadout() { hideLiveReadout = true; return this; }
             public Options WithWidth(float w) { controlWidth = w; return this; }
             public Options WithFrameLines(int frames) { frameCount = frames; return this; }
+            public Options WithIndexMarkers(int count) { indexMarkerCount = count; return this; }
+            public Options WithAxisLabels(string x, string y) { xAxisLabel = x; yAxisLabel = y; return this; }
 
             public Options Clone() => (Options)MemberwiseClone();
         }
@@ -249,14 +260,21 @@ namespace Laubrary.Zui
             header.Add(MenuButton());
             _content.Add(header);
 
+            // Index markers (a particle-index-mapped curve) take priority over frame lines: when indexMarkerCount
+            // is set the verticals are labelled by index and the frame lines are suppressed. Default (0) leaves
+            // the frame-marker behaviour exactly as before.
+            bool indexMode = _opt.indexMarkerCount > 1;
             var envOptions = new ZuiEnvelopeOptions
             {
                 xMin = 0f, xMax = 1f,
                 yMin = _v.yMin, yMax = _v.yMax,
                 curveColor = new Color(0.4f, 0.85f, 1f),
                 showValueLabels = st.showValues,
-                showFrameLines = _opt.frameCount > 1,
-                frameCount = _opt.frameCount,
+                showFrameLines = indexMode || _opt.frameCount > 1,
+                frameCount = indexMode ? _opt.indexMarkerCount : _opt.frameCount,
+                markerMode = indexMode ? ZuiEnvelopeOptions.MarkerMode.Index : ZuiEnvelopeOptions.MarkerMode.Frame,
+                xAxisLabel = _opt.xAxisLabel,
+                yAxisLabel = _opt.yAxisLabel,
             };
             // Mockup layout: the envelope fills the available width (taller than the old 90px), with
             // the optional numeric-inputs COLUMN standing to its right.

@@ -43,6 +43,18 @@ namespace Laubrary.Zui
         /// so a long animation doesn't become an unreadable smear of digits.
         public bool showFrameLines = false;
         public int frameCount = 0;
+        /// What the vertical markers MEAN. Frame (default) = animation-frame boundaries (0…frameCount-1) —
+        /// the task-#34 behaviour, unchanged. Index = particle-index positions (0…frameCount-1) for a curve
+        /// whose X axis is a particle INDEX rather than time (e.g. scale-by-index): the SAME line/label/
+        /// thinning code, just relabelled as indices; frame lines are never drawn in this mode (the count IS
+        /// the index count). Geometry is identical — evenly-spaced numbered verticals — so nothing about the
+        /// existing frame markers changes.
+        public enum MarkerMode { Frame, Index }
+        public MarkerMode markerMode = MarkerMode.Frame;
+        /// Optional axis labels drawn on the envelope: xAxisLabel along the bottom, yAxisLabel up the left.
+        /// Null (default) = none, so every existing curve is visually unchanged.
+        public string xAxisLabel = null;
+        public string yAxisLabel = null;
     }
 
     public class ZuiEnvelope : VisualElement
@@ -63,6 +75,7 @@ namespace Laubrary.Zui
         static readonly Color FrameLineColor = new Color(0.55f, 0.6f, 0.72f, 0.15f);   // vertical per-frame markers
         static readonly Color FrameEdgeColor = new Color(0.55f, 0.6f, 0.72f, 0.30f);   // first/last frame — bookends
         static readonly Color FrameLabelColor = new Color(0.75f, 0.8f, 0.92f, 0.6f);   // the frame-index numbers
+        static readonly Color AxisLabelColor = new Color(0.82f, 0.86f, 0.96f, 0.8f);   // optional X/Y axis captions
 
         readonly List<ZUIEnvelopePoint> _points;   // caller-owned; mutated in place
         readonly ZuiEnvelopeOptions _opt;
@@ -199,6 +212,7 @@ namespace Laubrary.Zui
             }
 
             DrawFrameMarkers(mgc, painter, plot);
+            DrawAxisLabels(mgc, plot);
 
             if (_points.Count >= 1)
             {
@@ -271,9 +285,12 @@ namespace Laubrary.Zui
             }
         }
 
-        // Vertical frame-boundary markers (opt-in via ZuiEnvelopeOptions.showFrameLines/frameCount). A line
-        // per frame at f/(frameCount-1) of the life span; numbers thinned to every labelStep frames so they
-        // never overlap on a long animation. x is value-independent (ToLocal derives it from time only).
+        // Vertical markers (opt-in via ZuiEnvelopeOptions.showFrameLines/frameCount). A line at each
+        // marker position i/(count-1) of the X span, numbered 0…count-1; numbers thinned to every labelStep
+        // so they never overlap when dense. x is value-independent (ToLocal derives it from time only). The
+        // SAME line/label/thinning code serves both markerMode.Frame (count = animation frames) and
+        // markerMode.Index (count = particle indices) — index-mapped curves reuse this verbatim, just
+        // relabelled by the axis caption; the integers 0,1,2,… read as frames or indices identically.
         void DrawFrameMarkers(MeshGenerationContext mgc, Painter2D painter, Rect plot)
         {
             if (!_opt.showFrameLines || _opt.frameCount < 2) return;
@@ -301,6 +318,21 @@ namespace Laubrary.Zui
                 float tx = x + labelW > plot.xMax ? x - labelW : x + 2f;
                 mgc.DrawText(txt, new Vector2(tx, plot.y + 1f), 9f, FrameLabelColor);
             }
+        }
+
+        // Optional axis captions (opt-in via ZuiEnvelopeOptions.xAxisLabel/yAxisLabel; null = none, so an
+        // ordinary curve draws nothing new). X sits bottom-centre, Y at the left edge vertically centred —
+        // both clear of the top-row marker numbers. Drawn as plain (unrotated) small text; a subtle colour so
+        // they caption without competing with the curve.
+        void DrawAxisLabels(MeshGenerationContext mgc, Rect plot)
+        {
+            if (!string.IsNullOrEmpty(_opt.xAxisLabel))
+            {
+                float w = _opt.xAxisLabel.Length * 5.5f;
+                mgc.DrawText(_opt.xAxisLabel, new Vector2(plot.center.x - w * 0.5f, plot.yMax - 11f), 9f, AxisLabelColor);
+            }
+            if (!string.IsNullOrEmpty(_opt.yAxisLabel))
+                mgc.DrawText(_opt.yAxisLabel, new Vector2(plot.x + 3f, plot.center.y - 6f), 9f, AxisLabelColor);
         }
 
         // ── hit testing ─────────────────────────────────────────────────────────────

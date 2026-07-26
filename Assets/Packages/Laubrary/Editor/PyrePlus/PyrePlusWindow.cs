@@ -1744,10 +1744,16 @@ namespace Laubrary.PyrePlus.Editor
                     v => { Dirty(() => s.swarmShapeKind = kindValues[Mathf.Clamp(v, 0, kindValues.Count - 1)]); RebuildSwarm(); }, wrap: true)));
 
             // Per-particle FACING as each is placed (S1). Rebuild on change so the composed tooltip re-reads the
-            // current mode (Tangent means something different in Area vs Path).
-            swarmBody.Add(Z.Field("Orient", SwarmOrientTooltip(s),
-                Z.Segmented((int)s.swarmOrient, SwarmOrientLabels, SwarmOrientTooltip(s),
-                    v => { Dirty(() => s.swarmOrient = (SwarmOrient)v); RebuildSwarm(); })));
+            // current mode (Tangent means something different in Area vs Path). GREY it out when the current
+            // form makes orient a SILENT no-op (Ring; a plain symmetric Disc) so an author isn't left wondering
+            // why nothing changes — the disabled tooltip explains why. Every form where it works stays live.
+            bool orientInert = SwarmOrientIsInert(s, spec);
+            string orientTip = orientInert ? SwarmOrientInertTooltip(s) : SwarmOrientTooltip(s);
+            var orientField = Z.Field("Orient", orientTip,
+                Z.Segmented((int)s.swarmOrient, SwarmOrientLabels, orientTip,
+                    v => { Dirty(() => s.swarmOrient = (SwarmOrient)v); RebuildSwarm(); }));
+            orientField.SetEnabled(!orientInert);
+            swarmBody.Add(orientField);
 
             // Path-only: the progress envelope, sampled per-particle at its OWN spawn frame → a trail.
             if (s.swarmSpawnMode == SwarmSpawnMode.Path)
@@ -1789,12 +1795,14 @@ namespace Laubrary.PyrePlus.Editor
                 swarmBody.Add(WrapRow(evenRow.ToArray()));
             }
 
-            // Per-particle SIZE by index (S1) + shared DEATH point (S1).
-            swarmBody.Add(Val("Scale by index",
+            // Per-particle SIZE by index (S1) + shared DEATH point (S1). The curve's X axis is the particle
+            // INDEX (not time), so it gets INDEX markers (one per particle, count = swarmCount) and Index/Scale
+            // axis captions instead of the frame lines every other Val shows.
+            swarmBody.Add(ValIndexed("Scale by index",
                 "Multiplies each particle's size by a factor read from its index (0 = first, 1 = last). Static 1 = "
                 + "every particle full size; a Curve tapers the swarm (ends-vs-middle, centre-vs-edge — author it "
                 + "freely, Bars-style); MinMax gives each particle a random size.",
-                s.swarmScaleByIndex, 0f, 3f));
+                s.swarmScaleByIndex, 0f, 3f, s.swarmCount, "Index", "Scale"));
             swarmBody.Add(Z.Toggle("Die together",
                 "All particles fade out at the SAME timeline moment (spawn-window end + particle life) instead of "
                 + "each dying one particle-life after its own spawn — a burst that vanishes as one.",
@@ -1988,6 +1996,25 @@ namespace Laubrary.PyrePlus.Editor
             return Z.Value(label, v, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
         }
 
+        // Val variant for an INDEX-mapped curve — X axis is a particle INDEX (0…last), not time. Swaps the
+        // frame-boundary markers for INDEX markers (vertical lines labelled 0,1,2,… by particle, reusing the
+        // frame-marker line/label/thinning code) and captions the envelope's axes, so a scale-by-index curve
+        // reads as "which particle → what scale". Frame lines are NOT drawn (frameCount left 0). Only the
+        // scale-by-index control uses this; every other Val stays exactly as-is.
+        VisualElement ValIndexed(string label, string tooltip, ZUIValue v, float lo, float hi,
+                                 int indexCount, string xAxisLabel, string yAxisLabel)
+        {
+            var o = new ZuiValueControl.Options
+            {
+                absMin = lo, absMax = hi,
+                hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true,
+                controlWidth = 170f, grow = true,
+                indexMarkerCount = Mathf.Max(0, indexCount),
+                xAxisLabel = xAxisLabel, yAxisLabel = yAxisLabel,
+            };
+            return Z.Value(label, v, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
+        }
+
         // 2D analog of Val — an animatable XY pair, same Undo-record + preview-dirty wiring.
         VisualElement Val2D(string label, string tooltip, ZUIValue x, ZUIValue y, ZuiValue2DControl.Options o)
             => Z.Value2D(label, x, y, o, tooltip, () => MarkDirty(), () => Undo.RecordObject(spec, "Edit Pyre Plus"));
@@ -2058,6 +2085,53 @@ namespace Laubrary.PyrePlus.Editor
                      + "transport readout shows frames 1-based.";
             return common + "Window: spawns spread across a fraction of the timeline (Spawn window), with Spawn timing "
                  + "remapping which particle lands when inside it.";
+        }
+
+        // Orient is a SILENT no-op for radially-symmetric placements, so the control is greyed for those forms:
+        //   • Ring — the renderer EXPLICITLY ignores orientDeg (DrawRing takes no roll; its Turn/Tilt already
+        //     shape the annulus), so per-particle facing does nothing.
+        //   • a plain Disc whose fill has NO angular component (Solid / Over life, no texture) AND no modifiers —
+        //     the no-modifier Disc raster never folds orientDeg, and a round uniformly-filled disc has no feature
+        //     to turn. A spatial fill (Linear/Radial/a texture) or any modifier makes orient live again, so those
+        //     stay ENABLED.
+        // NOT greyed: the Orb (its renderer rolls the lit hotspot by orientDeg — a real effect), the facet solids,
+        // Crescent/Sprite/Streak/Star/Text — all show orient, so they keep the control live.
+        static bool SwarmOrientIsInert(PyrePlusLayer s, PyrePlusSpec spec)
+        {
+            if (s == null) return false;
+            if (s.shapeForm == ShapeForm.Ring) return true;
+            if (s.shapeForm == ShapeForm.Disc)
+            {
+                bool hasMods = (s.modifiers != null && s.modifiers.Count > 0)
+                               || s.simulationModifier != null
+                               || (spec != null && spec.globalModifiers != null && spec.globalModifiers.Count > 0);
+                return !hasMods && FillIsAngularlySymmetric(s.shapeFill);
+            }
+            return false;
+        }
+
+        // A fill with no spatial/directional component: a flat colour or an over-life gradient, and no texture.
+        // Linear/Radial gradients and every texture (Sprite/Noise/Grid/Dots) vary across the shape, so rotating a
+        // particle turns them — orient is live for those; Solid/Over life look identical at any facing.
+        static bool FillIsAngularlySymmetric(ZuiFill fill)
+        {
+            if (fill == null) return true;
+            if (fill.texture != ZuiFill.TextureKind.None) return false;
+            return fill.mode == ZuiFill.Mode.Solid || fill.mode == ZuiFill.Mode.OverLife;
+        }
+
+        // The tooltip shown while Orient is greyed (inert), explaining WHY for the CURRENT form so a disabled
+        // control isn't a mystery — and pointing at what to change to make it live.
+        static string SwarmOrientInertTooltip(PyrePlusLayer s)
+        {
+            if (s != null && s.shapeForm == ShapeForm.Ring)
+                return "Orient has no visible effect on a Ring — it's radially symmetric, so the renderer ignores "
+                     + "per-particle facing (Turn/Tilt already shape the annulus). Switch to Crescent/Sprite/"
+                     + "Streak/Star/Text (or another non-symmetric form) to use it.";
+            return "Orient has no visible effect on a plain Disc with a symmetric fill (Solid or Over life, no "
+                 + "texture) and no modifiers — a round, uniformly-filled disc has no feature to turn. Give it a "
+                 + "spatial fill (Linear/Radial/a texture) or a modifier, or switch forms (Crescent/Sprite/Streak/"
+                 + "Star/Text), to use it.";
         }
 
         // The Swarm Orient tooltip, composed for the CURRENT orient + mode (the swarm rebuilds on either change),
