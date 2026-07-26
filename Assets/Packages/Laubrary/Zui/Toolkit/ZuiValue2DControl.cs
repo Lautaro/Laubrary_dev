@@ -35,6 +35,12 @@ namespace Laubrary.Zui
         /// Clipboard payload, or null when this source doesn't support copy/paste.
         public virtual string ToClipboard() => null;
         public virtual bool TryPaste(string s) => false;
+        /// Corner smoothness for a curve path (0 = sharp polyline, 1 = Catmull-Rom through the points). No-op for
+        /// non-animatable sources (a plain Vector2 has no curve).
+        public virtual float Smoothness { get => 0f; set { } }
+        /// Sample the (optionally smoothed) path at normalized u in [0,1] — the SAME evaluation the runtime traces,
+        /// so a drawn curve matches what plays. Non-curve sources return their static value.
+        public virtual Vector2 SamplePath(float u) => Static;
     }
 
     /// The animatable source: a matched pair of ZUIValues kept in lockstep (both Static or both Curve).
@@ -87,6 +93,24 @@ namespace Laubrary.Zui
         {
             _x.yMin = xMin; _x.yMax = xMax;
             _y.yMin = yMin; _y.yMax = yMax;
+        }
+
+        // Both axes share one smoothness so the pair stays a single 2D spline (Catmull-Rom is separable: per-axis
+        // smoothing with the SAME tension IS the 2D curve, since the points are evenly-timed 2D knots).
+        public override float Smoothness
+        {
+            get => _x.smoothness;
+            set { _x.smoothness = value; _y.smoothness = value; }
+        }
+
+        public override Vector2 SamplePath(float u)
+        {
+            float x = ZUIEnvelopeEvaluator.Evaluate(_x.points, u, _x.yMax, _x.smoothness);
+            float y = ZUIEnvelopeEvaluator.Evaluate(_y.points, u, _y.yMax, _y.smoothness);
+            // Mirror ZUIValue.EvaluateCurve's overshoot clamp so the drawn path matches the runtime one exactly.
+            if (_x.smoothness > 0f) x = Mathf.Clamp(x, Mathf.Min(_x.yMin, _x.yMax), Mathf.Max(_x.yMin, _x.yMax));
+            if (_y.smoothness > 0f) y = Mathf.Clamp(y, Mathf.Min(_y.yMin, _y.yMax), Mathf.Max(_y.yMin, _y.yMax));
+            return new Vector2(x, y);
         }
 
         // Point order IS time order — re-deriving `time` from index keeps points evenly spaced
@@ -319,6 +343,9 @@ namespace Laubrary.Zui
             bool showInputs = !isCurve && (fold.showNumericInputsOverride ?? _opt.showNumericInputs);
             if (isCurve) _src.PinRange(_opt.xMin, _opt.xMax, _opt.yMin, _opt.yMax);
 
+            // Assigned once the plot element exists (below); the side panel's smoothness slider repaints it live.
+            Plot2D plotForRepaint = null;
+
             var row = new VisualElement();
             row.AddToClassList("zui-row");
             row.style.alignItems = Align.FlexStart;
@@ -356,6 +383,13 @@ namespace Laubrary.Zui
                         ZuiText.Subtle, "Path editing hints.");
                     hint.style.whiteSpace = WhiteSpace.Normal;
                     side.Add(hint);
+                    // Corner smoothness: 0 = sharp straight segments, 1 = a smooth Catmull-Rom curve through the
+                    // points. Cheap smooth pathing, not precision editing; needs 3+ points to have a corner to round.
+                    side.Add(Z.MicroSlider("Smooth", _src.Smoothness, 0f, 1f,
+                        "Round the path's corners: 0 = sharp straight segments, 1 = a smooth curve through the " +
+                        "points. Needs at least 3 points (2 points are always a straight line).",
+                        v => { Mutate(() => _src.Smoothness = v); plotForRepaint?.MarkDirtyRepaint(); },
+                        SidePanelWidth - 8f, showValue: true));
                 }
                 side.Add(Z.Button("Reset", "Reset this value to its default.", ResetToDefault));
                 // No flexible spacer before these: the side panel stretches to whatever the numeric
@@ -370,6 +404,7 @@ namespace Laubrary.Zui
             var plot = new Plot2D(this, thumbnail: false) { tooltip = _tooltip };
             plot.style.width = _opt.plotSize;
             plot.style.height = _opt.plotSize;
+            plotForRepaint = plot;
 
             if (showInputs)
             {
@@ -627,8 +662,18 @@ namespace Laubrary.Zui
                         p.strokeColor = LineColor;
                         p.lineWidth = thumb ? 1f : 1.5f;
                         p.BeginPath();
-                        p.MoveTo(ToPlot(c._src.GetPoint(0)));
-                        for (int i = 1; i < n; i++) p.LineTo(ToPlot(c._src.GetPoint(i)));
+                        if (c._src.Smoothness > 0f && n >= 3)
+                        {
+                            // Sample the SAME evaluation the runtime traces so the drawn path matches what plays.
+                            int steps = Mathf.Clamp((n - 1) * 12, 24, 160);
+                            p.MoveTo(ToPlot(c._src.SamplePath(0f)));
+                            for (int s = 1; s <= steps; s++) p.LineTo(ToPlot(c._src.SamplePath(s / (float)steps)));
+                        }
+                        else
+                        {
+                            p.MoveTo(ToPlot(c._src.GetPoint(0)));
+                            for (int i = 1; i < n; i++) p.LineTo(ToPlot(c._src.GetPoint(i)));
+                        }
                         p.Stroke();
                     }
                     for (int i = 0; i < n; i++)
