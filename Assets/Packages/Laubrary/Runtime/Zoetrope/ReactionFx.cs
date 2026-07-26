@@ -65,5 +65,46 @@ namespace Laubrary.Zoetrope
         public List<FxEntry> fx = new List<FxEntry>();
 
         public bool IsEmpty => string.IsNullOrEmpty(clip) && bodyFx == null && (fx == null || fx.Count == 0);
+
+        /// <summary>
+        /// Convenience: a reaction whose whole content is one effect fired immediately. This is the direct
+        /// replacement for the pre-unification code that assigned a bare <see cref="ICombatFx"/> (a
+        /// PyreChunksFx, say) straight to <c>Zoe.hit</c>/<c>Zoe.death</c> — those fields are a ReactionFx now,
+        /// so the effect gets wrapped in a single Immediate <see cref="FxEntry"/> instead.
+        /// </summary>
+        /// <param name="effect">The effect to fire. Null yields an empty reaction.</param>
+        /// <param name="clip">Optional clip for the reaction to play alongside the effect.</param>
+        public static ReactionFx Immediate(ICombatFx effect, string clip = "")
+        {
+            var r = new ReactionFx { clip = clip };
+            if (effect != null)
+                r.fx.Add(new FxEntry { trigger = FxTriggerType.Immediate, fx = effect });
+            return r;
+        }
+
+        /// <summary>
+        /// Fire this reaction's <see cref="FxTriggerType.Immediate"/> effects at an explicit world point,
+        /// without a <see cref="ReactionFxPlayer"/> or a live animation driving it.
+        ///
+        /// This is the "just play the VFX here" entry point for callers that own their own death/hit moment
+        /// (a plain projectile impact, an enemy that despawns itself) rather than routing through a Zoe's
+        /// animated view. Because there is no clip and no view, only Immediate entries can fire —
+        /// FrameEvent-triggered entries need clip playback and are skipped — and every effect spawns at
+        /// <paramref name="worldPos"/>, since per-entry placement (meta-layer, follow) has no view to resolve
+        /// against. For full placement/FrameEvent behaviour, drive the reaction through ReactionFxPlayer.
+        /// </summary>
+        /// <param name="worldPos">Where to spawn the effects.</param>
+        /// <param name="directionDeg">Aim for directional effects, in degrees; NaN = omni-directional.</param>
+        public void Play(Vector2 worldPos, float directionDeg = float.NaN)
+        {
+            if (fx == null) return;
+            for (int i = 0; i < fx.Count; i++)
+            {
+                var entry = fx[i];
+                if (entry == null || entry.trigger != FxTriggerType.Immediate) continue;
+                if (entry.fx == null || entry.fx.IsEmpty) continue;
+                entry.fx.Play(worldPos, directionDeg);
+            }
+        }
     }
 }
