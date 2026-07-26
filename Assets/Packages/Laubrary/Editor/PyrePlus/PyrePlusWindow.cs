@@ -1145,26 +1145,29 @@ namespace Laubrary.PyrePlus.Editor
                 "The single KEY light and how the surfaces respond to it. The key light is DIRECTIONAL — aim it with "
                 + "the pad; Ambient is a separate non-directional base light. The edge Lines and the Glows have their "
                 + "OWN strengths and do NOT obey this light."));
-            // Light DIRECTION as one 2D pad (yaw × pitch) — a plain-Vector2 Z.Pad, so dragging aims the key light in
-            // one gesture instead of two separate 1D sliders. X = yaw (gemLightYaw, −180..180), Y = pitch
-            // (gemLightPitch, −85..85 — widened from 0..85 so the light can come from below/behind, not just the
-            // front hemisphere). Kept under the same "solid.light.angles" view key as the old angle sliders.
-            const string lightDirTip = "The key light is DIRECTIONAL — drag the pad to aim it. X = yaw (which side it "
-                + "comes FROM, left/right, −180..180°); Y = pitch (its height, −85..85° — negative brings it from "
-                + "below/behind). Only the lit faces and the specular hotspot follow it — the Lines and Glows have "
-                + "their own strengths and do NOT obey the light.";
+            // Light DIRECTION + distance as ONE reusable Z.Direction3D control (ZUI #67): a draggable LIT SPHERE
+            // gizmo (yaw × pitch) whose lit hotspot IS the readout, with numeric fallback fields, the distance as
+            // its 3rd axis, and a larger 3D preview on hover / pin. It replaces the flat Z.Pad + the separate
+            // Distance slider, editing the SAME gemLightYaw/Pitch/Distance fields (yaw −180..180, pitch −85..85,
+            // distance 1.5..8 — the control's option defaults), so every spec renders byte-identical. Wrapped in a
+            // Z.Frame so it reads as one titled unit. Kept under the same "solid.light.angles" view key as before.
+            const string lightDirTip = "The key light is DIRECTIONAL — aim it on the sphere. Yaw = which side it "
+                + "comes FROM (left/right, −180..180°); Pitch = its height (−85..85°, negative brings it from "
+                + "below/behind); Distance = how far off, in radii (closer = a tighter, brighter hotspot). Only the "
+                + "lit faces and the specular hotspot follow it — the Lines and Glows have their own strengths and "
+                + "do NOT obey the light. Hover (or pin) for a larger 3D preview.";
             box.Add(box.Toggleable(
-                Z.Field("Light dir", lightDirTip,
-                    Z.Pad(new Vector2(s.gemLightYaw, s.gemLightPitch), new Rect(-180f, -85f, 360f, 170f), lightDirTip,
-                        v => Dirty(() => { s.gemLightYaw = v.x; s.gemLightPitch = v.y; }), 56f)),
-                "solid.light.angles", "Angle", "Light"));
+                Z.Frame("Direction", lightDirTip,
+                    Z.Direction3D(s.gemLightYaw, s.gemLightPitch, s.gemLightDistance, lightDirTip,
+                        (yaw, pitch, dist) => Dirty(() =>
+                        {
+                            s.gemLightYaw = yaw;
+                            s.gemLightPitch = pitch;
+                            s.gemLightDistance = Mathf.Clamp(dist, 1.5f, 8f);
+                        }),
+                        new ZuiDirection3D.Options { showDistance = true })),
+                "solid.light.angles", "Direction", "Light"));
             box.Add(box.Toggleable(WrapRow(
-                Z.MicroSlider("Distance", s.gemLightDistance, 1.5f, 8f,
-                    "How far the key light sits from the solid, as a multiple of its radius — the light's real 3rd "
-                    + "axis (the pad sets its two angles; this sets its distance). Closer = a tighter, brighter "
-                    + "hotspot; farther = flatter, more even light (the falloff tracks it, so a distant light still "
-                    + "reaches the solid).",
-                    v => Dirty(() => s.gemLightDistance = Mathf.Clamp(v, 1.5f, 8f)), 150f, showValue: true),
                 Z.MicroSlider("Ambient", s.gemAmbient, 0f, 1f,
                     "Non-directional BASE light on every face (it doesn't come from a direction). Near zero keeps the "
                     + "solid contrasty; raise it to flatten the shading.",

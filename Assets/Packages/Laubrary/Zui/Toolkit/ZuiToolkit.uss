@@ -471,7 +471,30 @@
     margin-left: 5px;
 }
 
-/* 2D pad + envelope ------------------------------------------------------ */
+/* Titled non-folding frame (ZuiFrame) ------------------------------------ */
+/* A plain bordered container with a header — the "titled frame" primitive between a folding box and a bare
+   heading. Wraps ONE self-contained control (a 3D-orientation gizmo, a mini editor) as a single labelled unit
+   whose border always shows (it never folds away on an accidental header click). */
+.zui-frame {
+    border-width: 1px;
+    border-color: var(--zui-line);
+    border-radius: 3px;
+    padding: 6px;
+    margin-bottom: 6px;
+}
+
+.zui-frame__header {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.zui-frame__title {
+    -unity-font-style: bold;
+    white-space: nowrap;
+}
+
+/* 2D pad + envelope + 3D direction --------------------------------------- */
 
 .zui-pad {
     background-color: var(--zui-bg-inset);
@@ -486,6 +509,25 @@
     height: 6px;
     border-radius: 3px;
     background-color: rgb(102, 217, 255);
+}
+
+/* The 3D-direction control's draggable lit-sphere gizmo (and its preview twin) — a dark rounded inset the
+   shaded sphere texture sits inside, matching the 2D pad's framing. */
+.zui-dir3d {
+    flex-shrink: 0;
+}
+
+.zui-dir3d__gizmo {
+    background-color: var(--zui-bg-inset);
+    border-width: 1px;
+    border-color: var(--zui-line);
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.zui-dir3d__nums {
+    flex-direction: column;
+    flex-shrink: 0;
 }
 
 .zui-envelope {

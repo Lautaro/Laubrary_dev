@@ -150,6 +150,17 @@ namespace Laubrary.Zui
             return box;
         }
 
+        /// A titled, bordered container that does NOT fold — the plain "titled frame" primitive (ZuiBox folds
+        /// from its title, ZuiSection collapses; this always shows its border + header). For wrapping ONE
+        /// self-contained control (a 3D-orientation gizmo, a mini editor) so it reads as a single labelled unit.
+        /// The tooltip renders as a "?" on the title row.
+        public static ZuiFrame Frame(string title, string tooltip, params VisualElement[] children)
+        {
+            var frame = new ZuiFrame(title, tooltip);
+            foreach (var c in children) if (c != null) frame.Add(c);
+            return frame;
+        }
+
         public static VisualElement HSpace(float px = 8f)
         {
             var v = new VisualElement();
@@ -626,6 +637,22 @@ namespace Laubrary.Zui
             var pad = new ZuiPad(value, range, tooltip, size, flipY);
             pad.OnChanged += v => onChanged?.Invoke(v);
             return pad;
+        }
+
+        /// A "3D direction / orientation" control: a small draggable LIT SPHERE that sets a direction as yaw
+        /// (azimuth) + pitch (elevation), optionally with a distance, plus numeric fallback fields and a larger
+        /// 3D preview that opens on hover (a non-modal Z.Popover) or pins open. The lit hotspot on the sphere IS
+        /// the readout, so a direction reads as a real point on a ball, not two disconnected sliders. Reach for
+        /// this wherever a light/aim direction is authored (PyrePlus's Gem/solid key light is the reference use).
+        /// `onChanged` fires (yaw, pitch, distance) once per edit — wrap it in your Undo/Dirty helper. Distance
+        /// is passed even when Options.showDistance is false (ignore it there). Wrap it in Z.Frame(title, ..) for
+        /// a titled bordered unit.
+        public static ZuiDirection3D Direction3D(float yaw, float pitch, float distance, string tooltip,
+            Action<float, float, float> onChanged, ZuiDirection3D.Options options = null)
+        {
+            var c = new ZuiDirection3D(yaw, pitch, distance, options ?? new ZuiDirection3D.Options(), tooltip);
+            if (onChanged != null) c.OnChanged += onChanged;
+            return c;
         }
 
         /// Labelled ZUIValue editor (Static / MinMax / Curve modes with the ⋯ config menu) — the

@@ -39,6 +39,14 @@ namespace Laubrary.Zui
             public bool dismissOnOutsideClick = true;
             public bool dismissOnEsc = true;
             public Side preferredSide = Side.Below;
+            /// When false, the full-window scrim does NOT intercept pointer events (its pickingMode becomes
+            /// Ignore) and the popover no longer dismisses on an outside click or Esc — the panel simply
+            /// FLOATS above the tool without stealing its input, and the CALLER owns dismissal (e.g. closing
+            /// it on PointerLeave). This is what a non-modal overlay like a hover preview needs. Default true
+            /// (modal: the scrim catches outside clicks to dismiss — the original, unchanged behaviour). A
+            /// non-modal scrim ignoring picking does NOT stop its own child panel from being pickable (UITK
+            /// PickingMode.Ignore is per-element, not inherited), so a pinned interactive preview still works.
+            public bool modal = true;
             /// Raised once, after the popover is dismissed (outside click, Esc, or Close()).
             public Action onClosed;
         }
@@ -97,12 +105,22 @@ namespace Laubrary.Zui
             build?.Invoke(_panel);
             _scrim.Add(_panel);
 
-            if (_opt.dismissOnOutsideClick)
-                _scrim.RegisterCallback<PointerDownEvent>(OnScrimPointerDown);
-            if (_opt.dismissOnEsc)
+            // A non-modal scrim is a pure placement/overlay layer: it must let clicks fall through to the tool
+            // behind it (pickingMode Ignore) and never dismiss itself — the caller drives Close(). A modal scrim
+            // (the default) keeps the original outside-click / Esc dismissal.
+            if (!_opt.modal)
             {
-                _scrim.focusable = true;
-                _scrim.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
+                _scrim.pickingMode = PickingMode.Ignore;
+            }
+            else
+            {
+                if (_opt.dismissOnOutsideClick)
+                    _scrim.RegisterCallback<PointerDownEvent>(OnScrimPointerDown);
+                if (_opt.dismissOnEsc)
+                {
+                    _scrim.focusable = true;
+                    _scrim.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
+                }
             }
 
             _host.Add(_scrim);
@@ -111,7 +129,7 @@ namespace Laubrary.Zui
             // a sub-section folded open). The equality guard below stops the position-triggered relayout from
             // looping.
             _panel.RegisterCallback<GeometryChangedEvent>(_ => Place());
-            if (_opt.dismissOnEsc) _scrim.schedule.Execute(() => { if (!_closed) _scrim?.Focus(); });
+            if (_opt.modal && _opt.dismissOnEsc) _scrim.schedule.Execute(() => { if (!_closed) _scrim?.Focus(); });
         }
 
         void OnScrimPointerDown(PointerDownEvent e)

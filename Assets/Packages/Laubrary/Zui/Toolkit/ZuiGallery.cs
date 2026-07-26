@@ -25,6 +25,7 @@ namespace Laubrary.Zui
         int ival = 4;
         Color col = new Color(1f, 0.5f, 0.1f);
         Vector2 pad = new Vector2(0.2f, -0.1f);
+        float dirYaw = -55f, dirPitch = 38f, dirDist = 3.5f;
         float rangeLo = 0.3f, rangeHi = 0.7f;
         bool menuChecked, menuOverlay = true;
         int menuMode;
@@ -113,6 +114,17 @@ namespace Laubrary.Zui
             spatial.Add(Z.Field("Pad", "Drag the dot to set an X/Y offset.",
                 Z.Pad(pad, new Rect(-1f, -1f, 2f, 2f), "A 2D offset.",
                     v => { pad = v; Report($"Pad = ({v.x:0.##}, {v.y:0.##})"); }, 80f)));
+
+            // A 3D direction/orientation (yaw + pitch + distance) on a draggable lit sphere, wrapped in the
+            // titled Z.Frame primitive. Drag the sphere or type; hover it (or hit Pin) for a larger 3D preview.
+            spatial.Add(Z.Frame("Light direction",
+                "Z.Direction3D — a reusable yaw/pitch(/distance) control on a draggable LIT SPHERE, wrapped in " +
+                "the non-folding Z.Frame. The lit hotspot is the readout; hover or pin for a larger preview.",
+                Z.Direction3D(dirYaw, dirPitch, dirDist,
+                    "Aim a direction on the sphere — yaw (left/right), pitch (up/down), distance (in radii).",
+                    (y, p, d) => { dirYaw = y; dirPitch = p; dirDist = d;
+                                   Report($"Direction = yaw {y:0.#}° / pitch {p:0.#}° / dist {d:0.##}"); },
+                    new ZuiDirection3D.Options { showDistance = true })));
             body.Add(spatial);
 
             // ── popovers & menus ─────────────────────────────────────────────────────
