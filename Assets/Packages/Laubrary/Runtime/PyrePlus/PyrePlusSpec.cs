@@ -466,6 +466,32 @@ namespace Laubrary.PyrePlus
         // Value-type int ⇒ Clone()'s MemberwiseClone copies it for free (no explicit deep-copy — see Clone).
         [Range(3, 12)] public int polygonSides = 4;             // side count 3..12 (3 = triangle, 4 = square, 6 = hexagon)
 
+        // ── Border (task #60 / #65) — an optional coloured RIM on the flat 2D forms ─────────────────────────────
+        // The flat 2D forms (Disc / Crescent / Ring / Streak / Star / Polygon) get a first-class border, the 2D
+        // counterpart to the 3D solids' lit edge lines (and what a Disc used as a 2D ball wants for a rim). The
+        // renderer draws it as a per-layer SILHOUETTE-outline pass over the layer's FINISHED alpha (one general
+        // implementation for all six — no per-form boundary math): the outermost `borderWidth` px of the drawn
+        // silhouette are recoloured to `borderFill`, its own alpha × the shape's coverage so the rim inherits the
+        // shape's anti-aliased edge. NOT applied to the 3D solids (Gem/Box/Pyramid/Can/Orb — their own edge lines),
+        // Text (its own textBorder), or Sprite/Fire/Fireball/Sparkle — the renderer gates on the flat-2D form set
+        // (PyrePlusRenderer.IsFlat2DBorderForm). ALL DEFAULT OFF / no-op ⇒ byte-identical: borderEnabled false ⇒
+        // the renderer skips the whole pass, so an existing spec — and an OLDER asset predating these fields, which
+        // deserialises with the initializers below — renders unchanged. borderWidth (ZUIValue) + borderFill (ZuiFill)
+        // are deep-copied in Clone(); borderEnabled / borderOverMatte are value types (MemberwiseClone copies them).
+        [Tooltip("Draw a coloured rim around this shape's silhouette (the flat 2D forms only). Off = no border (byte-identical to no border).")]
+        public bool borderEnabled = false;
+        [Tooltip("Rim thickness in pixels, over the layer's life — the outermost N px of the shape's silhouette are recoloured to the Border fill.")]
+        public ZUIValue borderWidth = new ZUIValue(2f);
+        [Tooltip("The border's colour/fill — Solid, a gradient, or a spatial fill (alpha-capable), like the shape's own Fill.")]
+        public ZuiFill borderFill = DefaultBorderFill();
+        // Draw-over-matte (task #65): when ON, the shape's FILL feeds this layer's role (Write-matte coverage / Luma
+        // mask / a normal or clipped Draw) WITHOUT the border, and the BORDER is deferred and composited on TOP of the
+        // finished frame instead — so a shape's fill can BE a matte while its border still draws on top, with no
+        // separate outline-only layer needed (the clean fix for #65). OFF (default) = the border is part of the layer
+        // like normal (folded into its coverage/mask, composited/clipped with the fill).
+        [Tooltip("When this layer feeds a matte (Write/Luma) or is clipped: send only the FILL into the mask and draw the BORDER on top of the finished frame instead — so a shape's fill can BE the matte while its border still shows. Off = the border is part of the layer.")]
+        public bool borderOverMatte = false;
+
         // ── Fire form (shapeForm == Fire) — a STATEFUL grid SIMULATION (slice 6a) ──────────────────────────────
         // Fire is the FIRST sim-backed PyrePlus form: it retains frame-to-frame heat/fuel grids and is reached by a
         // REPLAY harness (PyrePlusRenderer._fireSims + RenderFireLayer), NOT by a per-frame closed form. It REUSES
@@ -674,6 +700,10 @@ namespace Laubrary.PyrePlus
             l.starLength = CloneVal(starLength);
             l.starBaseWidth = CloneVal(starBaseWidth);
             l.starSkew = CloneVal(starSkew);
+            // Border (task #60/#65): the width envelope + the fill are deep-copied so the copy owns its own data;
+            // borderEnabled / borderOverMatte are value-type bools already copied by MemberwiseClone above.
+            l.borderWidth = CloneVal(borderWidth);
+            l.borderFill = CloneFill(borderFill);
             l.particlePathX = CloneVal(particlePathX);
             l.particlePathY = CloneVal(particlePathY);
             l.particleSpin = CloneVal(particleSpin);
@@ -992,6 +1022,14 @@ namespace Laubrary.PyrePlus
             // non-Solid fill's GRADIENT (the mode itself is irrelevant to text — see SampleTextColor), so this is
             // byte-identical to the old `textFillGradient = DefaultFireRamp()` path.
             return new ZuiFill { mode = ZuiFill.Mode.OverLife, gradient = DefaultFireRamp() };
+        }
+
+        static ZuiFill DefaultBorderFill()
+        {
+            // The default border (task #60): a solid near-white rim — a clean, visible outline the moment Border is
+            // enabled. The user switches it to any colour / gradient / spatial fill via the fill's ⋯ menu. Never read
+            // unless borderEnabled is on, so it has no effect on a default (border-off) render.
+            return new ZuiFill(new Color(1f, 1f, 1f, 1f));
         }
 
         static ZuiFill DefaultTextBorder()

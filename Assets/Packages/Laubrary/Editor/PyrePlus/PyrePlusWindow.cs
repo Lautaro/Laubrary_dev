@@ -1001,6 +1001,12 @@ namespace Laubrary.PyrePlus.Editor
                     break;
             }
 
+            // First-class Border (task #60/#65) — the six flat 2D forms get an optional coloured rim. Shown ONLY for
+            // them (the 3D solids have their own edge lines, Text its own border, and Sprite/Fire/Fireball/Sparkle get
+            // none). Added AFTER the form-specific rows so it reads as part of the shape's look. Off = a single compact
+            // toggle; on = a Border box (Width / Fill / Draw-over-matte).
+            if (IsFlat2DBorderForm(s.shapeForm)) BuildBorderBox(s);
+
             // Fire and Fireball are whole-layer simulations with no per-particle Spin/Travel — skip both the Spin
             // control and the Advanced section (they would be dead). Their Fill (the ramp) and Alpha (overall
             // opacity) rows above apply.
@@ -2126,6 +2132,54 @@ namespace Laubrary.PyrePlus.Editor
         static bool IsSolidForm(ShapeForm f) =>
             f == ShapeForm.Gem || f == ShapeForm.Box || f == ShapeForm.Pyramid ||
             f == ShapeForm.Can || f == ShapeForm.Orb || f == ShapeForm.Ring;
+
+        // The flat 2D forms that get a first-class Border (task #60/#65) — mirrors PyrePlusRenderer.IsFlat2DBorderForm
+        // exactly (Ring counts as a flat 2D form here, unlike the 3D solids). The 3D solids, Text, and Sprite/Fire/
+        // Fireball/Sparkle are excluded, so the Border box never shows for them.
+        static bool IsFlat2DBorderForm(ShapeForm f) =>
+            f == ShapeForm.Disc || f == ShapeForm.Crescent || f == ShapeForm.Ring ||
+            f == ShapeForm.Streak || f == ShapeForm.Star || f == ShapeForm.Polygon;
+
+        // The Border sub-box (task #60/#65), shown only for the flat 2D forms. Off = a single compact toggle row (the
+        // common default, minimal footprint); on = a titled box with Width / Fill / Draw-over-matte. Toggling Enable
+        // rebuilds the Shape body so the box expands/collapses. Every edit is Undo-safe (Dirty / the Fill/Val contract).
+        void BuildBorderBox(PyrePlusLayer s)
+        {
+            s.borderWidth ??= new ZUIValue(2f);            // defensive; the real defaults come from the spec factories
+            s.borderFill ??= new ZuiFill(new Color(1f, 1f, 1f, 1f));
+
+            if (!s.borderEnabled)
+            {
+                shapeBody.Add(Z.Toggle("Border",
+                    "Add a coloured rim around this shape's silhouette (the outermost few px of the drawn alpha) — the "
+                    + "2D counterpart to the 3D solids' edge lines, and what a disc used as a ball wants for a rim. "
+                    + "Turn on to set its width, fill and draw-over-matte.",
+                    s.borderEnabled, v => { Dirty(() => s.borderEnabled = v); RebuildShape(); }));
+                return;
+            }
+
+            var box = Z.BoxKeyed("Border",
+                "A coloured rim around this shape's silhouette — the outermost Width px of the drawn alpha, in the "
+                + "Border fill (the 2D counterpart to the 3D solids' edge lines).",
+                "pyreplus.border");
+            box.Add(Z.Toggle("Enable",
+                "Draw the rim. Off = no border (the shape is unchanged, byte-identical to no border).",
+                s.borderEnabled, v => { Dirty(() => s.borderEnabled = v); RebuildShape(); }));
+            box.Add(Val("Width (px)",
+                "Rim thickness in pixels, over the layer's life — the outermost N px of the shape's silhouette are "
+                + "recoloured to the Border fill (the rim keeps the shape's anti-aliased edge).",
+                s.borderWidth, 0f, Mathf.Max(8f, spec.canvasSize / 4f)));
+            box.Add(FillRow("Fill",
+                "The rim's colour/fill — Solid, a gradient, or a spatial fill (alpha-capable), like the shape's own "
+                + "Fill. A spatial fill is mapped across the shape's bounding box.",
+                s.borderFill, new ZuiFillControl.Options().WithWidth(190f).WithGrow(2.2f)));
+            box.Add(Z.Toggle("Draw over matte",
+                "When this layer feeds a matte (Write / Luma) or is clipped: send only the FILL into the mask and draw "
+                + "the BORDER on top of the finished frame instead — so a shape's fill can BE the matte while its "
+                + "border still shows, with no separate outline-only layer. Off = the border is part of the layer.",
+                s.borderOverMatte, v => Dirty(() => s.borderOverMatte = v)));
+            shapeBody.Add(box);
+        }
 
         // The Swarm Timing tooltip, composed for the CURRENT mode (the swarm rebuilds on change), so it names only
         // the mode the user is in (house rule: no if-lists in a tooltip).

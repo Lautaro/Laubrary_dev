@@ -89,6 +89,7 @@ namespace Laubrary.PyrePlus
         // (the Ramp knobs rampFusion/rampCoverage/rampLighting/rampRelief/rampLightAngle/rampRimScale are plain
         //  floats, NOT Eval'd — no field ids; the Ramp pass Eval's only density (-25) and heat (-26) per particle and
         //  adds one frame-global per-layer hash (-27), the twin of Fuse's -24. Next new single field id: -28 onward.)
+        const int FldBorderWidth = -28;  // borderWidth — first-class border rim thickness (px), frame-global over the layer's life [task #60]. Next new single field id: -29 onward.
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
         //  3D yaw (Turn), FldGemTilt for its tilt, FldGemRoll for its roll, and FldPathX/FldPathY for the shared
         //  travel offset — no other new ids. Crescent/Sparkle/Sprite likewise REUSE FldSize/FldAlpha (radius/alpha),
@@ -234,11 +235,23 @@ namespace Laubrary.PyrePlus
             // default for every existing spec, which has no LumaMatte layer ⇒ this stays inert and byte-identical).
             var matteState = default(MatteState);
 
+            // First-class border draw-over-matte (task #65): borders of layers whose borderOverMatte is ON are NOT
+            // folded into their layer (their fill feeds the matte/clip/composite alone); the border is collected here
+            // and composited ON TOP of the whole finished stack below, in paint order. Lazily allocated ⇒ null for
+            // every spec with no over-matte border (all existing specs) ⇒ the end-of-loop composite is skipped ⇒
+            // byte-identical.
+            List<Color32[]> deferredBorders = null;
+
             for (int li = 0; li < layers.Count; li++)
             {
                 var layer = layers[li];
                 if (layer == null || !layer.enabled) continue;
                 _layerSalt = li;
+
+                // First-class border (task #60): only the six FLAT 2D forms, and only when enabled. Gated so every
+                // other form — and every border-off layer (the default) — takes the exact pre-border path below
+                // (hasBorder false ⇒ no border buffer built, needScratch unchanged, nothing deferred ⇒ byte-identical).
+                bool hasBorder = layer.borderEnabled && IsFlat2DBorderForm(layer.shapeForm);
 
                 // ── per-layer lifetime window (#55) — ported 1:1 from Pyre1 (BlastRenderer.cs:218/565) ──────────
                 // Resolve the window against the frame count: endFrame < 0 is the "last frame" SENTINEL ⇒ frames-1
@@ -293,9 +306,16 @@ namespace Laubrary.PyrePlus
                     // into its channel. Never composited — a matte layer is invisible.
                     var scratch = new Color32[W * H];
                     RenderLayer(scratch, W, H, layerLife, spec, layer, mods, phase, frameIndex);
+                    // Border (task #60/#65): built from the FILL silhouette (pre-post). borderOverMatte OFF folds the
+                    // rim into the coverage (part of the invisible matte); ON keeps the coverage fill-only and defers
+                    // the rim to draw on TOP of the finished frame — so this matte's own shape can stencil a channel
+                    // while its border stays visible (the #65 fix: no separate outline-only layer).
+                    Color32[] borderBuf = hasBorder ? BuildBorderBuffer(scratch, W, H, layerLife, spec, layer) : null;
+                    if (borderBuf != null && !layer.borderOverMatte) CompositeLayer(scratch, borderBuf, null, false);
                     if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, layerLife, frameIndex);
                     if (hasLayerSim) ApplyLayerSim(layer.simulationModifier, spec.seed, scratch, W, H, frameIndex, frames);
                     if (channels != null) { int wch = Mathf.Clamp(layer.matteChannel, 0, 3); WriteMatteCoverage(channels[wch], scratch, layer.matteCombine, layer.matteWriteLuma); channelWritten[wch] = true; }
+                    if (borderBuf != null && layer.borderOverMatte) (deferredBorders ??= new List<Color32[]>()).Add(borderBuf);
                     continue;
                 }
 
@@ -308,6 +328,10 @@ namespace Laubrary.PyrePlus
                     // strength/amounts Eval over THIS layer's own life, frame-global (the modifier-scope sentinel).
                     var scratch = new Color32[W * H];
                     RenderLayer(scratch, W, H, layerLife, spec, layer, mods, phase, frameIndex);
+                    // Border (task #60/#65): borderOverMatte OFF folds the rim into the luminance mask (part of the
+                    // invisible matte); ON builds the mask from the fill alone and defers the rim on top of the frame.
+                    Color32[] borderBuf = hasBorder ? BuildBorderBuffer(scratch, W, H, layerLife, spec, layer) : null;
+                    if (borderBuf != null && !layer.borderOverMatte) CompositeLayer(scratch, borderBuf, null, false);
                     if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, layerLife, frameIndex);
                     if (hasLayerSim) ApplyLayerSim(layer.simulationModifier, spec.seed, scratch, W, H, frameIndex, frames);
                     float strength = Mathf.Clamp01(Eval(layer.matteStrength, layerLife, spec.seed, ModParticleIndex, FldMatteStrength));
@@ -318,6 +342,7 @@ namespace Laubrary.PyrePlus
                     matteState.hueDeg = Eval(layer.matteHueDegrees, layerLife, spec.seed, ModParticleIndex, FldMatteHue);
                     matteState.oneShot = layer.matteScope == MatteScope.NextLayer;
                     matteState.alphaSource = layer.matteAlphaSource;   // slice 5 — decided by the matte layer
+                    if (borderBuf != null && layer.borderOverMatte) (deferredBorders ??= new List<Color32[]>()).Add(borderBuf);
                     continue;
                 }
 
@@ -348,7 +373,10 @@ namespace Laubrary.PyrePlus
                 bool isFireball = layer.shapeForm == ShapeForm.Fireball;
 
                 bool matteActive = matteState.mask != null;
-                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire || isFireball || hasLayerSim;
+                // hasBorder forces the isolated-scratch path so the border can read this layer's OWN fill alpha (the
+                // straight-into-buf fast path has no separate layer buffer to rim). Border OFF ⇒ hasBorder false ⇒
+                // needScratch is exactly the pre-border expression ⇒ the fast path is untouched and byte-identical.
+                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire || isFireball || hasLayerSim || hasBorder;
                 if (!needScratch)
                 {
                     if (isHeightConsumer) RenderHeightConsumer(buf, W, H, layer, heightField);
@@ -360,6 +388,11 @@ namespace Laubrary.PyrePlus
                     var scratch = new Color32[W * H];
                     if (isHeightConsumer) RenderHeightConsumer(scratch, W, H, layer, heightField);
                     else RenderLayer(scratch, W, H, layerLife, spec, layer, mods, phase, frameIndex);
+                    // Border (task #60/#65): built from the fill silhouette (pre-post). OFF folds the rim into the
+                    // layer (composited/clipped/matte'd with the fill like normal); ON composites the fill alone and
+                    // defers the rim on top of the finished frame (an always-on-top outline).
+                    Color32[] borderBuf = hasBorder ? BuildBorderBuffer(scratch, W, H, layerLife, spec, layer) : null;
+                    if (borderBuf != null && !layer.borderOverMatte) CompositeLayer(scratch, borderBuf, null, false);
                     if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, layerLife, frameIndex);
                     // Simulation slot (slice 7): run the layer's stateful sim modifier HERE — after the stateless post
                     // modifiers, before the matte apply — on the isolated scratch, the exact sim-slot position vanilla
@@ -379,9 +412,19 @@ namespace Laubrary.PyrePlus
                     }
                     float[] clip = hasClip ? channels[layer.clipByChannel] : null;
                     CompositeLayer(buf, scratch, clip, layer.clipInvert);
+                    if (borderBuf != null && layer.borderOverMatte) (deferredBorders ??= new List<Color32[]>()).Add(borderBuf);
                 }
                 bufDirty = true;
             }
+
+            // ── first-class border draw-over-matte (task #65) ────────────────────────────────────────────────────
+            // Composite the deferred over-matte borders ON TOP of the fully-composited stack, in paint order, BEFORE
+            // the global post passes (so post effects include the borders). Each buffer is a straight-colour rim whose
+            // alpha already carries band × the shape's coverage, so a plain Over draws it. null ⇒ no over-matte border
+            // anywhere ⇒ skipped ⇒ byte-identical to pre-border.
+            if (deferredBorders != null)
+                for (int i = 0; i < deferredBorders.Count; i++)
+                    CompositeLayer(buf, deferredBorders[i], null, false);
 
             // ── spec-wide GLOBAL post passes (task #56) ───────────────────────────────────────────────────────
             // Whole-frame post modifiers (Bloom / Outline / Kaleidoscope / …) from the spec's globalModifiers list,
@@ -977,6 +1020,113 @@ namespace Laubrary.PyrePlus
                 if (a <= 0.0001f) continue;
                 Over(buf, i, s.r * (1f / 255f), s.g * (1f / 255f), s.b * (1f / 255f), a);
             }
+        }
+
+        // ── first-class border (task #60 / #65) ──────────────────────────────────────────────────────────────────
+        // The six FLAT 2D forms get an optional coloured RIM. It is drawn as a per-layer SILHOUETTE-OUTLINE POST-PASS
+        // over the layer's finished alpha — ONE general implementation for all six, rather than threading a border
+        // band through each form's own boundary math (Disc's d-vs-radius, the Star/Polygon per-ray bound, the
+        // Crescent's two rims, the Streak capsule, the Ring annulus): the pass reads the rendered coverage and rims
+        // whatever silhouette the layer drew (a single shape, or the union of a whole swarm). Chosen because it (a)
+        // works identically on all six forms with no per-form edits, and (b) keeps the FILL and the BORDER as
+        // separate buffers, which is exactly what the draw-over-matte split (#65) needs — the fill can feed a matte
+        // while the border composites separately. Gated to the flat-2D set so the 3D solids (their own edge lines),
+        // Text (its own border) and Sprite/Fire/Fireball/Sparkle are never rimmed.
+        static bool IsFlat2DBorderForm(ShapeForm f) =>
+            f == ShapeForm.Disc || f == ShapeForm.Crescent || f == ShapeForm.Ring ||
+            f == ShapeForm.Streak || f == ShapeForm.Star || f == ShapeForm.Polygon;
+
+        // Inside-distance transform: for every pixel, its (approximate Euclidean) distance to the nearest FULLY-
+        // TRANSPARENT pixel (fill.a == 0). A two-pass chamfer (ortho 1, diagonal √2) — background pixels seed 0 and
+        // the distance grows inward, so an interior pixel's value is how far it sits from the silhouette edge. Cheap
+        // (two linear sweeps) and exact enough at these canvas sizes; the border band reads it directly.
+        static float[] BorderInsideDistance(Color32[] fill, int W, int H)
+        {
+            const float BIG = 1e9f, A = 1f, B = 1.41421356f;
+            var d = new float[W * H];
+            for (int i = 0; i < d.Length; i++) d[i] = fill[i].a == 0 ? 0f : BIG;
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    int i = y * W + x; float v = d[i];
+                    if (v == 0f) continue;
+                    if (x > 0) v = Mathf.Min(v, d[i - 1] + A);
+                    if (y > 0) v = Mathf.Min(v, d[i - W] + A);
+                    if (x > 0 && y > 0) v = Mathf.Min(v, d[i - W - 1] + B);
+                    if (x < W - 1 && y > 0) v = Mathf.Min(v, d[i - W + 1] + B);
+                    d[i] = v;
+                }
+            for (int y = H - 1; y >= 0; y--)
+                for (int x = W - 1; x >= 0; x--)
+                {
+                    int i = y * W + x; float v = d[i];
+                    if (v == 0f) continue;
+                    if (x < W - 1) v = Mathf.Min(v, d[i + 1] + A);
+                    if (y < H - 1) v = Mathf.Min(v, d[i + W] + A);
+                    if (x < W - 1 && y < H - 1) v = Mathf.Min(v, d[i + W + 1] + B);
+                    if (x > 0 && y < H - 1) v = Mathf.Min(v, d[i + W - 1] + B);
+                    d[i] = v;
+                }
+            return d;
+        }
+
+        // Build the border layer for a flat-2D form: a TRANSPARENT buffer whose only non-zero pixels are the outermost
+        // `borderWidth` px of the silhouette, painted in the border fill. The rim alpha = the fill's own alpha × a band
+        // weight (1 across the band, feathering to 0 one px past the width for a clean inner edge) × the shape's OWN
+        // coverage at that pixel — so the rim inherits the shape's anti-aliased edge instead of hard-cutting it, and
+        // never extends past the silhouette. Returns null when the border is a no-op (width ≤ 0, or the shape drew
+        // nothing). The caller Over-composites it onto the fill (border ON the layer) or defers it (borderOverMatte).
+        // `life` is the layer's own life clock. A spatial border fill is mapped across the silhouette's bounding box.
+        static Color32[] BuildBorderBuffer(Color32[] fill, int W, int H, float life, PyrePlusSpec spec, PyrePlusLayer layer)
+        {
+            float width = Eval(layer.borderWidth, life, spec.seed, ModParticleIndex, FldBorderWidth);
+            if (width <= 0.01f) return null;
+
+            var dist = BorderInsideDistance(fill, W, H);
+
+            var bfill = layer.borderFill;
+            bool spatial = IsSpatialFill(bfill);
+            Color flat = bfill != null ? bfill.Evaluate(life, 0f, 0f) : Color.white;
+
+            // Bounding box of the silhouette (only needed to map a spatial border fill's (u,v) across the shape).
+            int minX = W, minY = H, maxX = -1, maxY = -1;
+            if (spatial)
+            {
+                for (int y = 0; y < H; y++)
+                    for (int x = 0; x < W; x++)
+                        if (fill[y * W + x].a != 0)
+                        { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
+                if (maxX < minX) return null;   // no coverage at all
+            }
+            float invW = spatial && maxX > minX ? 2f / (maxX - minX) : 0f;
+            float invH = spatial && maxY > minY ? 2f / (maxY - minY) : 0f;
+
+            var outBuf = new Color32[W * H];   // transparent-cleared
+            bool any = false;
+            for (int i = 0; i < outBuf.Length; i++)
+            {
+                byte fa = fill[i].a;
+                if (fa == 0) continue;                          // outside the silhouette — never a rim pixel
+                float bw = Mathf.Clamp01(width + 1f - dist[i]); // 1 across the outer `width` px, feathering 1 px past it
+                if (bw <= 0f) continue;                          // deeper than the band — plain fill, no rim here
+                Color bc = flat;
+                if (spatial)
+                {
+                    int x = i % W, y = i / W;
+                    float u = (x - minX) * invW - 1f;
+                    float v = (y - minY) * invH - 1f;
+                    bc = EvalFill(bfill, life, u, v, x, y, W, H);
+                }
+                float a = bc.a * bw * (fa * (1f / 255f));        // rim = border alpha × band × the shape's own coverage
+                if (a <= 0.002f) continue;
+                outBuf[i] = new Color32(
+                    (byte)(Mathf.Clamp01(bc.r) * 255f),
+                    (byte)(Mathf.Clamp01(bc.g) * 255f),
+                    (byte)(Mathf.Clamp01(bc.b) * 255f),
+                    (byte)(Mathf.Clamp01(a) * 255f));
+                any = true;
+            }
+            return any ? outBuf : null;
         }
 
         // ── luma matte (slice 4) ───────────────────────────────────────────────────────────────────────────────
