@@ -837,7 +837,35 @@ namespace Laubrary.PyrePlus.Editor
             RebuildShape();
         }
 
-        static readonly List<string> ShapeFormChoices = new List<string> { "Disc", "Gem", "Crescent", "Sparkle", "Sprite", "Box", "Pyramid", "Can", "Orb", "Ring", "Text", "Streak", "Star", "Fire", "Fireball" };
+        // Form picker — DISPLAY-ONLY subgroups (#59 Part B). The ShapeForm enum, its order and serialization are
+        // UNCHANGED; this only clusters the buttons into labelled rows so the long flat list reads clearly. Each group
+        // is (label, ShapeForm) pairs; picking any button sets the same s.shapeForm it always did. 3D = the true-3D lit
+        // solids; 2D = the flat forms; Special = the standalone forms (Text / the two sims / Sparkle / Sprite). The five
+        // task-listed singletons share ONE "Special" row rather than five caption+single-button rows — a singleton
+        // would print its form name twice under its own caption, and one row is more compact (both per the layout rules).
+        static readonly (string label, ShapeForm form)[] Forms3D =
+        {
+            ("Gem", ShapeForm.Gem), ("Box", ShapeForm.Box), ("Pyramid", ShapeForm.Pyramid),
+            ("Can", ShapeForm.Can), ("Orb", ShapeForm.Orb),
+        };
+        static readonly (string label, ShapeForm form)[] Forms2D =
+        {
+            ("Disc", ShapeForm.Disc), ("Crescent", ShapeForm.Crescent), ("Ring", ShapeForm.Ring),
+            ("Streak", ShapeForm.Streak), ("Star", ShapeForm.Star), ("Polygon", ShapeForm.Polygon),
+        };
+        static readonly (string label, ShapeForm form)[] FormsSpecial =
+        {
+            ("Text", ShapeForm.Text), ("Fire", ShapeForm.Fire), ("Fireball", ShapeForm.Fireball),
+            ("Sparkle", ShapeForm.Sparkle), ("Sprite", ShapeForm.Sprite),
+        };
+        const string Forms3DTip = "True-3D lit solids sharing the Gem's facet lighting (tilt, light, edge lines, glows). "
+            + "Gem = a faceted crystal, Box = a cuboid, Pyramid = a square pyramid, Can = a cylinder, Orb = a sphere.";
+        const string Forms2DTip = "Flat 2D forms. Disc = a soft disc, Crescent = a disc with an offset bite, Ring = a "
+            + "tilted annulus (a Saturn ring), Streak = a comet-tail capsule, Star = a filled star polygon, Polygon = a "
+            + "filled regular convex N-gon (triangle / square / hexagon /… by a sides count).";
+        const string FormsSpecialTip = "Standalone forms. Text = a string as extruded SDF letters (one particle per "
+            + "character). Fire / Fireball = stateful flame simulations (built-in emitters, no swarm). Sparkle = "
+            + "twinkling lit cells. Sprite = a stamped image.";
         // Fireball's wedge mode — Mirror (alternate wedges reflected, a seam) / Repeat (each wedge the same, rotated).
         // Index 0 = Mirror (fireballMirror true), 1 = Repeat (false).
         static readonly string[] FireballMirrorChoices = { "Mirror", "Repeat" };
@@ -848,6 +876,27 @@ namespace Laubrary.PyrePlus.Editor
         static readonly string[] CoalesceChoices = { "Off", "Fuse", "Ramp" };
         static readonly List<string> TextFillModeChoices = new List<string> { "Per-char gradient", "Per-char step", "Text gradient" };
 
+        // Build one labelled form-picker subgroup row (#59 Part B). `sel` is -1 when the current form isn't in this
+        // group, so its MiniRadio shows NOTHING selected there; because every pick calls RebuildShape() (below), all
+        // three rows are rebuilt on each change and exactly ONE ever shows a highlight. Picking maps the in-group index
+        // straight to its ShapeForm; SteadyDefaultFillForSolid runs inside the SAME Dirty block so one Undo reverts both
+        // the form and any auto-steadied fill together (the pre-existing FIX 1 behaviour, preserved).
+        VisualElement FormPickerRow(PyrePlusLayer s, string caption, string tip, (string label, ShapeForm form)[] group)
+        {
+            int sel = -1;
+            var labels = new string[group.Length];
+            for (int i = 0; i < group.Length; i++)
+            {
+                labels[i] = group[i].label;
+                if (s.shapeForm == group[i].form) sel = i;
+            }
+            return Z.Field(caption, tip, Z.MiniRadio(sel, labels, tip, j =>
+            {
+                Dirty(() => { s.shapeForm = group[j].form; SteadyDefaultFillForSolid(s); });
+                RebuildShape(); RebuildSwarm();
+            }, wrap: true));
+        }
+
         void RebuildShape()
         {
             var s = SelLayer;   // every Shape control now edits the SELECTED layer's fields
@@ -857,28 +906,13 @@ namespace Laubrary.PyrePlus.Editor
             s.alpha ??= new ZUIValue(1f);
             s.shapeFill ??= new ZuiFill();   // defensive; the real OverLife-fire default comes from the spec factory
 
-            // FORM selector — a wrapped MiniRadio (was a Dropdown/context-menu): 13 short labels read as radio
-            // buttons folding across several lines. ZuiSegmented would overflow (flex-shrink:0, never wraps), but
-            // MiniRadio wrap:true reflows to the column width — and the column can now widen (ColumnFlow). Rebuild
-            // so the form-specific rows swap in/out.
-            shapeBody.Add(Z.Field("Form", "The particle's rendered form.",
-                Z.MiniRadio((int)s.shapeForm, ShapeFormChoices.ToArray(),
-                    "Disc = a flat soft disc. Gem = a true-3D lit crystal. Crescent = a disc with an offset bite. "
-                    + "Sparkle = twinkling lit cells. Sprite = a stamped image. Box / Pyramid / Can = true-3D lit "
-                    + "solids sharing the Gem's facet lighting (tilt, light, edge lines, glows). Orb = a lit "
-                    + "sphere; Ring = a flat tilted annulus (a Saturn ring) — both reuse that same lighting "
-                    + "analytically. Text = a string as extruded SDF letters (one particle per character; the "
-                    + "particle count follows the string). Streak = a root-anchored comet-tail capsule that grows "
-                    + "forward along its orientation (great with the Swarm's Orient). Star = a filled star polygon "
-                    + "(arms, reach, base width, swirl). Fire = a stateful flame SIMULATION with built-in emitters "
-                    + "(no swarm; every rate is an envelope over the layer's life). Fireball = a stateful cellular "
-                    + "explosion — heat blooms outward from one centre, folded into kaleidoscope arms (single-source, "
-                    + "no swarm).",
-                    // Rebuild BOTH sections: Text swaps in its own Shape box AND hides the Swarm's Count field.
-                    // FIX 1: switching TO a 3D solid gives a fresh/pristine OverLife-fire fill a STEADY Solid
-                    // material (inside the SAME Dirty block, so one Undo reverts both the form and the fill together
-                    // — never leaving an intermediate solid+OverLife state for an undo to land on and re-convert).
-                    v => { Dirty(() => { s.shapeForm = (ShapeForm)v; SteadyDefaultFillForSolid(s); }); RebuildShape(); RebuildSwarm(); }, wrap: true)));
+            // FORM selector — DISPLAY-ONLY labelled subgroups (#59 Part B): 3D solids / 2D flats / Special (Text, the
+            // two sims, Sparkle, Sprite). Each group is a wrapped MiniRadio; the ShapeForm enum is unchanged, so every
+            // button still sets the same s.shapeForm. Picking rebuilds BOTH sections (form-specific rows swap in; the
+            // Swarm's Count field updates for Text) — see FormPickerRow for the -1-deselects/one-highlight mechanics.
+            shapeBody.Add(FormPickerRow(s, "3D", Forms3DTip, Forms3D));
+            shapeBody.Add(FormPickerRow(s, "2D", Forms2DTip, Forms2D));
+            shapeBody.Add(FormPickerRow(s, "Special", FormsSpecialTip, FormsSpecial));
 
             // Lifetime window (#55) — the frame range this LAYER is alive, ported 1:1 from Pyre1's per-layer
             // "Life (frames)" row. A bounded int min/max pair over [0, frameCount-1] ⇒ ONE Z.MinMax(isInt) range
@@ -955,6 +989,9 @@ namespace Laubrary.PyrePlus.Editor
                     break;
                 case ShapeForm.Star:
                     BuildStarRows(s);
+                    break;
+                case ShapeForm.Polygon:
+                    BuildPolygonRows(s);
                     break;
                 case ShapeForm.Fire:
                     BuildFireBox(s);
@@ -1288,6 +1325,22 @@ namespace Laubrary.PyrePlus.Editor
 
             shapeBody.Add(EdgeRow(s,
                 "Soft rim (1) vs a hard pixel edge (0) — feathers the star's whole outline inward along each ray."));
+        }
+
+        // Polygon form rows — a flat filled regular convex N-gon (#59 Part A). Just the Sides count (3..12) + the
+        // shared Edge (rim softness) row; the shared Size row above stays visible (it's the circumradius the vertices
+        // reach to). Sides is a bounded int scalar ⇒ a MicroSlider (matching the Star's Arms row), never a bare field.
+        void BuildPolygonRows(PyrePlusLayer s)
+        {
+            shapeBody.Add(Z.MicroSlider("Sides", s.polygonSides, 3f, 12f,
+                "How many sides the polygon has (3–12): 3 = a triangle, 4 = a square, 5 = a pentagon, 6 = a hexagon,… "
+                + "An even count rests on a flat edge (a square sits flat, not a diamond); an odd count points a vertex "
+                + "up (an upright triangle/pentagon). Radius is set by Size (px), above.",
+                v => Dirty(() => s.polygonSides = Mathf.Clamp(Mathf.RoundToInt(v), 3, 12)), 150f,
+                showValue: true, decimals: 0));
+
+            shapeBody.Add(EdgeRow(s,
+                "Soft rim (1) vs a hard pixel edge (0) — feathers the polygon's whole outline inward along each ray."));
         }
 
         // Fire form box — the stateful flame SIMULATION (slice 6a). Every rate is an envelope over the LAYER's life
@@ -2185,8 +2238,11 @@ namespace Laubrary.PyrePlus.Editor
             if (f == ShapeForm.Text)
                 return "The character HEIGHT in pixels over the particle's own life.";
             if (f == ShapeForm.Star)
-                return "The star's TIP radius in pixels over the particle's own life — the arms reach out to it "
-                     + "(the valleys sit at Length inside).";
+                return "The star's TIP radius in absolute pixels over the particle's own life — the arms reach out to "
+                     + "it (the valleys sit at Length inside). It only reads as 'big' because the canvas is small.";
+            if (f == ShapeForm.Polygon)
+                return "The polygon's circumradius in absolute pixels over the particle's own life — every vertex "
+                     + "reaches out to it (the same pixel convention as every form).";
             return "Radius in pixels over the particle's own life.";
         }
 
@@ -2209,6 +2265,9 @@ namespace Laubrary.PyrePlus.Editor
                 case ShapeForm.Star:
                     return "Degrees the star spins in place over its own life — unlike a disc, a star isn't "
                          + "radially symmetric, so its arms visibly turn.";
+                case ShapeForm.Polygon:
+                    return "Degrees the polygon spins in place over its own life — unlike a disc, a regular polygon "
+                         + "isn't radially symmetric, so its corners visibly turn.";
                 case ShapeForm.Text:
                     return "Degrees each letter yaws about its OWN centre over its life (its 3D letter-box turns to "
                          + "face the light); paired with the letters' tilt for the extruded look.";

@@ -2499,6 +2499,12 @@ namespace Laubrary.PyrePlus
                              spec, layer, particleIndex, mods, phase, frameIndex, life, brightMul, orientDeg);
                 return;
             }
+            if (layer.shapeForm == ShapeForm.Polygon)
+            {
+                DrawPolygonBody(buf, W, H, cx, cy, radius, alpha, col, cr, cg, cb, soft,
+                                spec, layer, particleIndex, mods, phase, frameIndex, life, brightMul, orientDeg);
+                return;
+            }
             if (layer.shapeForm == ShapeForm.Sparkle)
             {
                 DrawSparkleBody(buf, W, H, cx, cy, radius, alpha, col, cr, cg, cb,
@@ -2886,6 +2892,104 @@ namespace Laubrary.PyrePlus
                     float bound = Mathf.Abs(denom) < 1e-6f ? R : (ex * p1y - ey * p1x) / denom;   // cross(E, P1) / cross(E, D)
                     if (bound <= 0f) continue;                           // safety: degenerate ray
                     if (d > bound) continue;                             // outside the star along this ray (a valley notch)
+
+                    float rInner = bound * (1f - soft);                  // Disc rim idiom, radial: full alpha inside, feather to the boundary
+                    float edge = d <= rInner ? 1f : 1f - Mathf.InverseLerp(rInner, bound, d);
+                    if (fillSpatial)   // spatial fill → this pixel's colour at its (spun/warped) local (u,v) or canvas-anchored (Fixed); constant fills skip
+                    {
+                        col = EvalFill(fill, life, dx / R, dy / R, x, y, W, H);
+                        cr = col.r; cg = col.g; cb = col.b;
+                        if (brightMul != 1f) { cr = Mathf.Clamp01(cr * brightMul); cg = Mathf.Clamp01(cg * brightMul); cb = Mathf.Clamp01(cb * brightMul); }
+                    }
+                    float baseA = alpha * col.a * edge;
+                    if (baseA <= 0.002f) continue;
+                    if (mods.AnyPix)
+                    {
+                        Color pc = new Color(cr, cg, cb, 1f);
+                        float pa = baseA;
+                        float crossFrac = Mathf.Clamp01(d / Mathf.Max(0.001f, R));
+                        if (!ApplyPix(mods.pix, ref pc, ref pa, x, y, wx, wy, frameIndex, crossFrac, life, pHash, W, H)) continue;
+                        Over(buf, y * W + x, pc.r, pc.g, pc.b, pa);
+                    }
+                    else Over(buf, y * W + x, cr, cg, cb, baseA);
+                }
+        }
+
+        // Polygon: a flat filled regular convex N-gon (polygonSides), the 2D counterpart to the 3D Box/Pyramid. Every
+        // vertex sits at the circumradius R (= `size`·sizeMul), so an R box bounds it exactly like the Star. It REUSES
+        // the Star's per-ray boundary idiom UNCHANGED — resolve each pixel's sample (spin + geometry warps folded in by
+        // ResolveSample, identically to Disc/Star), take θ = atan2, find the ONE tip→tip edge spanning θ's angular
+        // sector (no valleys, so a single edge per sector, both endpoints at R), and intersect the ray with it to get
+        // the boundary distance `bound`; a pixel is inside iff its distance d ≤ bound. edgeSoftness feathers the rim
+        // radially (the Disc rim idiom), shapeFill (constant or spatial) colours it, brightMul shades RGB, and the pix
+        // modifiers apply exactly as they do for the Star. A base rotation (half a sector for an even side count, 0 for
+        // odd) rests an even N-gon on a flat edge (a square sits flat, not a diamond) while keeping an odd N pointing a
+        // vertex up. Byte-identity: this is a NEW branch reached ONLY by the new Polygon form — no existing spec's
+        // Disc/Star/etc. path is touched.
+        static void DrawPolygonBody(Color32[] buf, int W, int H, float cx, float cy, float radius, float alpha,
+                                    Color col, float cr, float cg, float cb, float soft,
+                                    PyrePlusSpec spec, PyrePlusLayer layer, int particleIndex, in ModSet mods, float phase,
+                                    int frameIndex, float life, float brightMul, float orientDeg = 0f)
+        {
+            float R = radius;
+            int N = Mathf.Clamp(layer.polygonSides, 3, 12);
+            float sector = 2f * Mathf.PI / N;        // angular span between adjacent vertices
+            // Base orientation: an even N is turned half a sector so a flat EDGE (not a vertex) faces up/down — a
+            // square sits flat, a hexagon flat-top; an odd N keeps a vertex up, which already yields a flat bottom
+            // edge (an upright triangle / pentagon). This is a fixed geometric offset, independent of particleSpin.
+            float baseRot = (N % 2 == 0) ? sector * 0.5f : 0f;
+            const float UP = Mathf.PI * 0.5f;        // vertex 0 points UP (+90°), matching the Star's tip convention
+            float tip0 = UP + baseRot;               // absolute angle of vertex 0
+
+            var fill = layer.shapeFill;
+            bool fillSpatial = IsSpatialFill(fill);
+
+            bool anyGeo = mods.AnyGeo;
+            float ccx = W * 0.5f, ccy = H * 0.5f;
+            Vector2 c = new Vector2(cx - ccx, cy - ccy);
+            var ctx = new GeoCtx(ccx, ccy, c, radius);
+            float spin = Eval(layer.particleSpin, life, spec.seed, particleIndex, FldSpin);
+            if (orientDeg != 0f) spin += orientDeg;   // swarm facing (S1) folds into the 2D spin, exactly like Disc/Star
+            bool doSpin = spin != 0f;
+            float spinCos = 1f, spinSin = 0f;
+            if (doSpin) { float sa = -spin * Mathf.Deg2Rad; spinCos = Mathf.Cos(sa); spinSin = Mathf.Sin(sa); }
+            int pHash = Hash(spec.seed, particleIndex, FldModifier, 7 + _layerSalt);
+
+            int px0, px1, py0, py1;
+            if (anyGeo) { px0 = 0; py0 = 0; px1 = W - 1; py1 = H - 1; }   // a warp can pull any pixel in → whole-canvas scan
+            else
+            {
+                px0 = Mathf.Max(0, Mathf.FloorToInt(cx - radius));       // vertices reach exactly R, so an R box bounds it
+                px1 = Mathf.Min(W - 1, Mathf.CeilToInt(cx + radius));
+                py0 = Mathf.Max(0, Mathf.FloorToInt(cy - radius));
+                py1 = Mathf.Min(H - 1, Mathf.CeilToInt(cy + radius));
+            }
+
+            for (int y = py0; y <= py1; y++)
+                for (int x = px0; x <= px1; x++)
+                {
+                    float sx = x + 0.5f, sy = y + 0.5f;
+                    ResolveSample(sx, sy, cx, cy, ccx, ccy, c, doSpin, spinCos, spinSin, anyGeo, mods.geo, phase, ctx,
+                                  out float dx, out float dy, out float wx, out float wy);
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (d > R) continue;                                 // beyond the vertices — nothing is inside
+
+                    // The one edge spanning θ's sector: vertex k → vertex k+1, both at radius R.
+                    float th = Mathf.Atan2(dy, dx);
+                    float phi = th - tip0;
+                    float ph = phi - Mathf.Floor(phi / sector) * sector;  // [0, sector): angle past this sector's first vertex
+                    float aVert = th - ph;                                // absolute angle of that vertex
+                    float a1 = aVert, a2 = aVert + sector;                // the sector's two vertices
+
+                    // Ray-segment intersection distance along the ray at angle θ (both endpoints at radius R).
+                    float Dx = Mathf.Cos(th), Dy = Mathf.Sin(th);
+                    float p1x = R * Mathf.Cos(a1), p1y = R * Mathf.Sin(a1);
+                    float p2x = R * Mathf.Cos(a2), p2y = R * Mathf.Sin(a2);
+                    float ex = p2x - p1x, ey = p2y - p1y;
+                    float denom = ex * Dy - ey * Dx;                      // cross(E, D)
+                    float bound = Mathf.Abs(denom) < 1e-6f ? R : (ex * p1y - ey * p1x) / denom;   // cross(E, P1) / cross(E, D)
+                    if (bound <= 0f) continue;                           // safety: degenerate ray
+                    if (d > bound) continue;                             // outside the polygon along this ray
 
                     float rInner = bound * (1f - soft);                  // Disc rim idiom, radial: full alpha inside, feather to the boundary
                     float edge = d <= rInner ? 1f : 1f - Mathf.InverseLerp(rInner, bound, d);

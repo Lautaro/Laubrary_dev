@@ -84,13 +84,20 @@ namespace Laubrary.PyrePlus
     //              Fire it retains a frame-to-frame heat grid reached by the SAME replay harness, NOT a closed form; it
     //              REUSES Pyre's public FireballSim/FireballParams directly. SINGLE-SOURCE (one central emitter) — it
     //              ignores `size` and the swarm. See PyrePlusRenderer.RenderFireballLayer / _fireballSims.
+    //   Polygon  — a flat filled regular convex N-gon (polygonSides edges): triangle / square / pentagon / hexagon /…,
+    //              the 2D counterpart to the 3D Box/Pyramid. Every vertex sits at radius R (= `size`·sizeMul), so an R
+    //              box bounds it exactly like the Star; the inside test is the SAME per-ray boundary as the Star but
+    //              with ONE edge per angular sector (no valleys). A flat 2D form — shapeFill colours it, edgeSoftness
+    //              feathers the rim, particleSpin turns it, and it swarms/travels/modifies like every 2D form. An even
+    //              side count rests on a flat edge (a square sits flat, not as a diamond); an odd count points a vertex
+    //              up (an upright triangle/pentagon). See PyrePlusRenderer.DrawPolygonBody.
     // APPEND ONLY — the values are serialized as ints, so never reorder or insert. Fire (slice 6a) and Fireball (slice
     // 6b) are the only two simulation-backed forms here — both retain frame-to-frame grid state and share the replay
     // harness. HeightBalls is NOT a sim: it is CLOSED-FORM / stateless, proven at Runtime/Pyre/BlastRenderer.cs:1493-
     // 1496 — every ball's whole state at a frame is a pure function of (layer hash, group, ball index, layer life),
     // nothing accumulates between frames — so it arrives as a stateless Coalesce (Ramp) field-pass mode alongside
     // MetaBlob, never as a deferred sim form here.
-    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak, Star, Fire, Fireball }
+    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak, Star, Fire, Fireball, Polygon }
 
     // How the Text form's spatial fill gradient is applied. PerCharGradient = every letter contains the WHOLE
     // gradient (across its own box, along the rotated fill axis). PerCharStep = every letter is ONE flat colour,
@@ -448,6 +455,16 @@ namespace Laubrary.PyrePlus
         public ZUIValue starLength = new ZUIValue(0.62f);       // arm reach 0..1 over own life; inner radius = R·(1−length). 0.62 ≈ the golden-ratio pentagram inner radius
         public ZUIValue starBaseWidth = new ZUIValue(1f);       // valley angular position as a fraction of the half-sector, 0.1..1 over own life (1 = classical midpoint; smaller = thinner arm bases, wider valleys)
         public ZUIValue starSkew = new ZUIValue(0f);            // valley swirl in degrees −60..60 over own life — rotates the valleys, pinwheel-twisting the arms (clamped so valleys never cross tips)
+
+        // ── Polygon form (shapeForm == Polygon) — a flat filled regular convex N-gon ─────────────────────────────
+        // The 2D counterpart to the 3D Box/Pyramid: a regular convex polygon with `polygonSides` equal-length edges,
+        // circumradius R = evaluated `size` × sizeMul (every vertex sits at R, like the Star's tips). The renderer's
+        // inside test is the SAME per-ray boundary as the Star (one tip→tip edge spanning each angular sector, no
+        // valleys) — see PyrePlusRenderer.DrawPolygonBody — and it reuses the flat-2D fill + edgeSoftness (rim) +
+        // particleSpin machinery Disc/Star use. An even side count is rotated half a sector so it rests on a flat
+        // edge (a square sits flat, not a diamond); an odd count points a vertex up (an upright triangle/pentagon).
+        // Value-type int ⇒ Clone()'s MemberwiseClone copies it for free (no explicit deep-copy — see Clone).
+        [Range(3, 12)] public int polygonSides = 4;             // side count 3..12 (3 = triangle, 4 = square, 6 = hexagon)
 
         // ── Fire form (shapeForm == Fire) — a STATEFUL grid SIMULATION (slice 6a) ──────────────────────────────
         // Fire is the FIRST sim-backed PyrePlus form: it retains frame-to-frame heat/fuel grids and is reached by a
