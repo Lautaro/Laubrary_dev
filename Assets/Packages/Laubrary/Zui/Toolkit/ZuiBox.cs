@@ -79,7 +79,9 @@ namespace Laubrary.Zui
 
         /// `stateKey` distinguishes boxes that share a title — several identical "Matte" boxes down a layer
         /// list would otherwise fold and unfold together, since fold state is keyed by what the box says.
-        public ZuiBox(string title, string tooltip, string stateKey = null)
+        /// `icon` (optional, a ZUI icon name) draws a tinted glyph in the title row, between the fold caret and
+        /// the title, so a box reads apart at a glance. Off by default — a box that names no icon is unchanged.
+        public ZuiBox(string title, string tooltip, string stateKey = null, string icon = null)
         {
             AddToClassList("zui-box");
 
@@ -98,6 +100,15 @@ namespace Laubrary.Zui
                 _caret.AddToClassList("zui-box__caret");
                 _caret.pickingMode = PickingMode.Ignore;
                 _titleRow.Add(_caret);
+
+                // Optional leading icon (between the caret and the title). PickingMode is already Ignore from
+                // Z.Icon, so a click on it still reaches the title row's fold Clickable.
+                var iconEl = Z.Icon(icon, 13f);
+                if (iconEl != null)
+                {
+                    iconEl.AddToClassList("zui-box__icon");
+                    _titleRow.Add(iconEl);
+                }
 
                 var t = new Label(title) { pickingMode = PickingMode.Ignore };   // the row is the target
                 t.AddToClassList("zui-box__title");

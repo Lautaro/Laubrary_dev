@@ -36,7 +36,8 @@ namespace Laubrary.PyrePlus.Editor
             var sec = Z.Section("Modifiers",
                 "Opt-in effects, reusing Pyre's own modifier stack. Geometry modifiers bend each disc, pixel " +
                 "modifiers recolour or drop lit pixels, and post passes (Bloom / Outline / Kaleidoscope) run over " +
-                "the whole finished frame — all applied top-to-bottom in the order listed.");
+                "the whole finished frame — all applied top-to-bottom in the order listed.",
+                icon: "sliders-horizontal");
             modifiersSection = sec;
             // Folded, this section hides its modifier stack. Surface the count of ENABLED modifiers (task #63) so a
             // collapsed "Modifiers (2)" tells you two active effects are hidden below.
@@ -109,7 +110,8 @@ namespace Laubrary.PyrePlus.Editor
                 "Spec-wide modifiers applied to EVERY layer, on top of each layer's own stack (ported 1:1 from " +
                 "Pyre). Geometry warps wrap OUTERMOST — a global Rotate spins the whole animation as one — pixel " +
                 "effects run after each layer's own, and post passes run over the whole finished frame. Empty = no " +
-                "change; each layer renders exactly as its own Modifiers section dictates.");
+                "change; each layer renders exactly as its own Modifiers section dictates.",
+                icon: "globe");
             globalModifiersSection = sec;
             // Folded, this section hides the spec-wide stack — surface the count of ENABLED global modifiers (#63).
             sec.SetHeaderSuffix(EnabledGlobalModifierSuffix);

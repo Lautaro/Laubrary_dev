@@ -45,7 +45,7 @@ namespace Laubrary.Zui
             set { s_open[_key] = value; Apply(); }
         }
 
-        public ZuiSection(string title, string tooltip, string stateKey = null)
+        public ZuiSection(string title, string tooltip, string stateKey = null, string icon = null)
         {
             // Title alone collides — "Gradient" heads three different blocks in Pyre — so the tooltip,
             // which is what actually distinguishes them, is part of the key.
@@ -56,6 +56,16 @@ namespace Laubrary.Zui
             header.AddToClassList("zui-section__header");
             header.tooltip = tooltip;
             _header = header;
+
+            // Optional leading icon, tinted to the section-title colour so it reads as part of the heading.
+            // Added FIRST so it sits at the head of the row; an enable checkbox added later via
+            // SetHeaderToggle inserts just LEFT of the title (i.e. AFTER this icon), giving icon · ☑ · title.
+            var iconEl = Z.Icon(icon, 14f);
+            if (iconEl != null)
+            {
+                iconEl.AddToClassList("zui-section__icon");
+                header.Add(iconEl);
+            }
 
             // No fold caret on section headers (user request): the bold coloured title + hover highlight
             // already read as an interactive heading, and clicking the header still folds. A closed section

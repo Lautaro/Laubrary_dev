@@ -27,12 +27,15 @@ namespace Laubrary.BackSplash.Editor
         ///
         /// `domainHalfWidth/Height` bound the position pad in the CALLER's own unit space (see the file
         /// comment). Defaults to BackSplash.MaxImageOffset, which is the pixel-space answer Pyre wants.
+        /// `icon` (optional, a ZUI icon name) draws a header glyph beside the title — off by default, so
+        /// existing hosts (Mirage) render exactly as before.
         public static VisualElement Build(BackSplashSettings settings, string title, string tooltip,
             Action onChanged, Action onStructureChanged = null,
             float domainHalfWidth = BackSplash.MaxImageOffset,
-            float domainHalfHeight = BackSplash.MaxImageOffset)
+            float domainHalfHeight = BackSplash.MaxImageOffset,
+            string icon = null)
         {
-            var box = Z.Box(title, tooltip);
+            var box = string.IsNullOrEmpty(icon) ? Z.Box(title, tooltip) : Z.Box(title, tooltip, icon);
             if (settings == null) return box;
 
             onStructureChanged ??= onChanged;

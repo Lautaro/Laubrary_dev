@@ -36,6 +36,9 @@ namespace Laubrary.Zui
         static readonly string[] FlagLabels = { "Alpha", "Hue", "Blur", "Warp" };
         static readonly string[] CycleLabels = { "Once", "Loop", "Ping-pong" };
         static readonly string[] MenuModes = { "Off", "Draft", "Final" };
+        // Optional per-option icons (task #69) — one name per label; a null entry stays text-only.
+        static readonly string[] SegIcons = { "square", "circle", "star" };
+        static readonly string[] CycleIcons = { "play", "repeat", "arrows-left-right" };
 
         protected override void BuildUI(VisualElement root)
         {
@@ -53,7 +56,8 @@ namespace Laubrary.Zui
             // ── custom-drawn (old ZUI look) ──────────────────────────────────────────
             var custom = Z.Box("Custom-drawn (old ZUI look)",
                 "Painter2D controls that recreate the IMGUI ZUI aesthetic — a filled MicroSlider with no thumb, " +
-                "button-style toggles, and segmented single/multi selectors.");
+                "button-style toggles, and segmented single/multi selectors.",
+                "paint-brush");
 
             custom.Add(Z.Field("MicroSlider", "Fill IS the value; label + value sit inside; no thumb. Drag it, " +
                 "double-click to reset to 0.4.",
@@ -65,15 +69,20 @@ namespace Laubrary.Zui
                 Z.MicroSlider("Size", microBare, 0f, 64f, "Just the fill, label only.",
                     v => { microBare = v; Report($"MicroSlider(bare) = {v:0}"); }, 160f, showValue: false)));
 
+            // Toggle buttons carrying an optional leading icon (task #69) — the glyph reads at a glance in a
+            // row of feature flags, so you don't have to read every label.
             custom.Add(Z.Row(
                 Z.ToggleButton("Enabled", "A button that stays pressed when on — no checkmark.", tbut,
-                    v => { tbut = v; Report($"ToggleButton = {v}"); }),
-                Z.ToggleButton("Loop", "Another button toggle.", false, v => Report($"Loop = {v}")),
-                Z.ToggleButton("Mirror", "And another.", true, v => Report($"Mirror = {v}"))));
+                    v => { tbut = v; Report($"ToggleButton = {v}"); }, icon: "eye"),
+                Z.ToggleButton("Loop", "Another button toggle, with an icon.", false,
+                    v => Report($"Loop = {v}"), icon: "repeat"),
+                Z.ToggleButton("Mirror", "And another.", true,
+                    v => Report($"Mirror = {v}"), icon: "flip-horizontal")));
 
-            custom.Add(Z.Field("Segmented (radio)", "A joined button row, single-select — the themed twin of " +
-                "MiniRadio.",
-                Z.Segmented(seg, SegLabels, "Pick one.", i => { seg = i; Report($"Segmented = {SegLabels[i]}"); })));
+            custom.Add(Z.Field("Segmented (icons)", "A joined button row, single-select — each segment carries " +
+                "an optional icon (task #69), so the options read apart without leaning on the labels.",
+                Z.Segmented(seg, SegLabels, "Pick one.", i => { seg = i; Report($"Segmented = {SegLabels[i]}"); },
+                    icons: SegIcons)));
 
             custom.Add(Z.Field("Segmented (multi)", "Independently-latching segments — the right control for a " +
                 "flag set (e.g. Pyre's matte channels).",
@@ -83,7 +92,7 @@ namespace Laubrary.Zui
             body.Add(custom);
 
             // ── sliders & values ─────────────────────────────────────────────────────
-            var vals = Z.Box("Sliders & values", "Unity's controls, skinned.");
+            var vals = Z.Box("Sliders & values", "Unity's controls, skinned.", "sliders-horizontal");
             vals.Add(Z.Field("Slider", "Vanilla Slider with inline value field.",
                 Z.Slider(vSlider, 0f, 1f, "Standard slider.", v => { vSlider = v; Report($"Slider = {v:0.###}"); }, 170f)));
             vals.Add(Z.Field("MinMax", "A numeric-flanked range slider.",
@@ -96,21 +105,28 @@ namespace Laubrary.Zui
             body.Add(vals);
 
             // ── toggles, radios, pickers ─────────────────────────────────────────────
-            var pick = Z.Box("Toggles, radios & pickers", "The rest of the set.");
+            var pick = Z.Box("Toggles, radios & pickers", "The rest of the set.", "check-square");
             pick.Add(Z.Row(
                 Z.Toggle("Checkbox", "Vanilla checkbox toggle.", tog1, v => { tog1 = v; Report($"Toggle = {v}"); }),
                 Z.HSpace(),
                 Z.Toggle("Another", "A second checkbox.", tog2, v => { tog2 = v; Report($"Toggle2 = {v}"); })));
-            pick.Add(Z.Field("MiniRadio", "The USS-skinned segmented radio.",
+            pick.Add(Z.Field("MiniRadio", "The USS-skinned segmented radio (text only).",
                 Z.MiniRadio(seg, SegLabels, "Pick one.", i => { seg = i; Report($"MiniRadio = {SegLabels[i]}"); })));
-            pick.Add(Z.Field("CycleButton", "One button that cycles through options on click.",
-                Z.CycleButton(cycle, CycleLabels, "Click to cycle.", i => { cycle = i; Report($"Cycle = {CycleLabels[i]}"); })));
+            pick.Add(Z.Field("MiniRadio (icons)", "The same radio with an optional icon per option (task #69) — " +
+                "icon + label, so the choices differentiate at a glance.",
+                Z.MiniRadio(seg, SegLabels, "Pick one.", i => { seg = i; Report($"MiniRadio = {SegLabels[i]}"); },
+                    icons: SegIcons)));
+            pick.Add(Z.Field("CycleButton (icons)", "One button that cycles through options on click — its icon " +
+                "swaps with the option.",
+                Z.CycleButton(cycle, CycleLabels, "Click to cycle.", i => { cycle = i; Report($"Cycle = {CycleLabels[i]}"); },
+                    icons: CycleIcons)));
             pick.Add(Z.Field("Colour", "A colour field.",
                 Z.Color(col, "A colour.", v => { col = v; Report("Colour changed"); }, 90f)));
             body.Add(pick);
 
             // ── 2D & spatial ─────────────────────────────────────────────────────────
-            var spatial = Z.Box("2D & spatial", "For a spatial value, a 2D pad — never two separate 1D fields.");
+            var spatial = Z.Box("2D & spatial", "For a spatial value, a 2D pad — never two separate 1D fields.",
+                "crosshair-simple");
             spatial.Add(Z.Field("Pad", "Drag the dot to set an X/Y offset.",
                 Z.Pad(pad, new Rect(-1f, -1f, 2f, 2f), "A 2D offset.",
                     v => { pad = v; Report($"Pad = ({v.x:0.##}, {v.y:0.##})"); }, 80f)));
@@ -131,7 +147,8 @@ namespace Laubrary.Zui
             var pop = Z.Box("Popovers & menus",
                 "ZuiPopover is a floating ZUI card anchored to a control — it flips/clamps to stay on-screen " +
                 "and dismisses on an outside click or Esc. Z.Menu composes the GenericMenu stand-in over it: " +
-                "sections, icon items, checkmarks, separators, and persistent toggle / radio rows.");
+                "sections, icon items, checkmarks, separators, and persistent toggle / radio rows.",
+                "list");
 
             Button menuBtn = null;
             menuBtn = Z.Button("Open menu ▾", "Every ZuiMenu row type in one menu — icon items, a checkmark, a " +

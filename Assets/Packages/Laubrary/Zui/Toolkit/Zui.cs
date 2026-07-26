@@ -127,8 +127,11 @@ namespace Laubrary.Zui
         /// `Z.Text(.., ZuiText.Section, ..)` heading whenever the heading names a block of controls:
         /// a label can only sit beside its controls, a section owns them and can fold them away.
         /// `stateKey` defaults to the title; pass one explicitly if two sections share a title.
-        public static ZuiSection Section(string title, string tooltip, string stateKey = null)
-            => new ZuiSection(title, tooltip, stateKey);
+        /// `icon` (optional) is a ZUI icon name (e.g. "stack", "shapes") drawn as a tinted glyph before the
+        /// title, so sections read apart at a glance — off by default, so a section that names no icon is
+        /// unchanged.
+        public static ZuiSection Section(string title, string tooltip, string stateKey = null, string icon = null)
+            => new ZuiSection(title, tooltip, stateKey, icon);
 
         /// A framed section. The tooltip (if any) renders as a "?" hover icon on the title's own
         /// row — never below the content it explains (ui-layout-rules: help sits on the header).
@@ -136,6 +139,16 @@ namespace Laubrary.Zui
         public static ZuiBox Box(string title, string tooltip, params VisualElement[] children)
         {
             var box = new ZuiBox(title, tooltip);
+            foreach (var c in children) if (c != null) box.Add(c);
+            return box;
+        }
+
+        /// Box with a leading header ICON (a ZUI icon name, drawn as a tinted glyph before the title). The
+        /// `icon` argument distinguishes this overload from the plain one purely by type (string, not a
+        /// VisualElement child), so existing `Z.Box(title, tooltip, child…)` calls are untouched.
+        public static ZuiBox Box(string title, string tooltip, string icon, params VisualElement[] children)
+        {
+            var box = new ZuiBox(title, tooltip, null, icon);
             foreach (var c in children) if (c != null) box.Add(c);
             return box;
         }
@@ -150,6 +163,17 @@ namespace Laubrary.Zui
             return box;
         }
 
+        /// Keyed box with a leading header ICON. The `icon` string sits after `stateKey`, so
+        /// `Z.BoxKeyed(title, tooltip, key, child…)` (a VisualElement 4th arg) still binds the plain overload
+        /// and only a string 4th arg selects this one.
+        public static ZuiBox BoxKeyed(string title, string tooltip, string stateKey, string icon,
+            params VisualElement[] children)
+        {
+            var box = new ZuiBox(title, tooltip, stateKey, icon);
+            foreach (var c in children) if (c != null) box.Add(c);
+            return box;
+        }
+
         /// A titled, bordered container that does NOT fold — the plain "titled frame" primitive (ZuiBox folds
         /// from its title, ZuiSection collapses; this always shows its border + header). For wrapping ONE
         /// self-contained control (a 3D-orientation gizmo, a mini editor) so it reads as a single labelled unit.
@@ -157,6 +181,15 @@ namespace Laubrary.Zui
         public static ZuiFrame Frame(string title, string tooltip, params VisualElement[] children)
         {
             var frame = new ZuiFrame(title, tooltip);
+            foreach (var c in children) if (c != null) frame.Add(c);
+            return frame;
+        }
+
+        /// Frame with a leading header ICON. Same by-type overload split as Z.Box: a string 3rd arg selects
+        /// this, a VisualElement 3rd arg stays the plain overload.
+        public static ZuiFrame Frame(string title, string tooltip, string icon, params VisualElement[] children)
+        {
+            var frame = new ZuiFrame(title, tooltip, icon);
             foreach (var c in children) if (c != null) frame.Add(c);
             return frame;
         }
@@ -230,6 +263,26 @@ namespace Laubrary.Zui
             return l;
         }
 
+        /// A small monochrome ZUI icon: a Phosphor glyph resolved BY NAME via ZUIAssetLibrary.FindIcon
+        /// (pass a bare name like "palette", "eye", "cube", "stack"), drawn as a TINTABLE background image so
+        /// a USS class colours it from the sheet palette — a header icon takes the heading colour, a button
+        /// icon a neutral tint — rather than reading as a raw photo. Sized square to `size`. Returns NULL when
+        /// the name doesn't resolve, so a caller can `if (icon != null)` and never draw an empty box for a
+        /// typo'd name (the header/button factories all treat null as "no icon"). PickingMode is Ignore: an
+        /// icon is decoration on a clickable header/button, never its own hit target.
+        public static VisualElement Icon(string name, float size = 14f)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            var tex = ZUIAssetLibrary.FindIcon(name);
+            if (tex == null) return null;
+            var v = new VisualElement { pickingMode = PickingMode.Ignore };
+            v.AddToClassList("zui-icon");
+            v.style.backgroundImage = Background.FromTexture2D(tex);
+            v.style.width = size;
+            v.style.height = size;
+            return v;
+        }
+
         /// Label + control pair with the label sized to its own text (the FieldWrap pattern).
         ///
         /// When the wrapped control is a bare Int/Float field, the LABEL becomes a drag zone that scrubs it —
@@ -279,17 +332,22 @@ namespace Laubrary.Zui
         }
 
         /// A button that latches on/off (the old-ZUI button toggle), instead of a checkbox with a tick.
-        public static ZuiToggleButton ToggleButton(string label, string tooltip, bool value, Action<bool> onChanged)
-            => new ZuiToggleButton(label, tooltip, value, onChanged);
+        /// `icon` (optional, a ZUI icon name) draws a leading glyph before the label — off by default.
+        public static ZuiToggleButton ToggleButton(string label, string tooltip, bool value, Action<bool> onChanged,
+            string icon = null)
+            => new ZuiToggleButton(label, tooltip, value, onChanged, icon);
 
         /// A joined row of buttons, single-select (radio look, custom-drawn) — the themed twin of MiniRadio.
-        public static ZuiSegmented Segmented(int selected, string[] labels, string tooltip, Action<int> onChanged)
-            => ZuiSegmented.Radio(selected, labels, tooltip, onChanged);
+        /// `icons` (optional, one name per segment) draws a leading glyph in each — null entries stay text-only.
+        public static ZuiSegmented Segmented(int selected, string[] labels, string tooltip, Action<int> onChanged,
+            string[] icons = null)
+            => ZuiSegmented.Radio(selected, labels, tooltip, onChanged, icons);
 
         /// A joined row of independently-latching segments — the right control for a flag set.
+        /// `icons` (optional, one name per segment) draws a leading glyph in each.
         public static ZuiSegmented SegmentedMulti(Func<int, bool> isOn, string[] labels, string tooltip,
-            Action<int, bool> onToggled)
-            => ZuiSegmented.Multi(isOn, labels, tooltip, onToggled);
+            Action<int, bool> onToggled, string[] icons = null)
+            => ZuiSegmented.Multi(isOn, labels, tooltip, onToggled, icons);
 
         public static Toggle Toggle(string label, string tooltip, bool value, Action<bool> onChanged)
         {
@@ -357,14 +415,43 @@ namespace Laubrary.Zui
             return f;
         }
 
+        /// The name at index `i` of an optional icon array, or null (shorter-than-options arrays are fine).
+        internal static string IconAt(string[] icons, int i)
+            => icons != null && i >= 0 && i < icons.Length ? icons[i] : null;
+
+        /// Fill a button-family element (radio segment, cycle button, segmented, toggle button) with an
+        /// optional leading icon glyph + a label. With NO icon it just sets `.text` — byte-identical to the
+        /// old text-only path, so every text-only caller is unchanged. With an icon it clears the text and
+        /// lays out an icon child + a label child in a centred row (a Button's own `.text` and child elements
+        /// don't co-operate cleanly, so an icon button draws both as children). A null-resolving icon name
+        /// falls back to the plain text path, so a typo never leaves a blank button.
+        internal static void FillButton(Button b, string label, string icon)
+        {
+            b.Clear();
+            var ic = string.IsNullOrEmpty(icon) ? null : Icon(icon, 13f);
+            if (ic == null) { b.text = label ?? string.Empty; return; }
+            b.text = string.Empty;
+            b.AddToClassList("zui-btn--iconrow");
+            ic.AddToClassList("zui-btn__icon");
+            b.Add(ic);
+            if (!string.IsNullOrEmpty(label))
+            {
+                var l = new Label(label) { pickingMode = PickingMode.Ignore };
+                l.AddToClassList("zui-btn__label");
+                b.Add(l);
+            }
+        }
+
         /// A row of mutually-exclusive mini buttons (the MiniRadio pattern). Returns the row;
         /// selection state is kept in the buttons' classes.
         /// `wrap` lets a long option set fold onto a second line instead of running off the side of a narrow
         /// pane. Off by default, because a wrapped radio loses its single-pill look and most sets are short;
         /// turn it on for the ones that genuinely grow over time (Pyre's shape picker gains a shape now and
         /// then, and each one pushed the row further past the edge).
+        /// `icons` (optional, one ZUI icon name per option) draws a leading glyph in each button — null
+        /// entries (or a null array) stay text-only, so existing calls are unchanged.
         public static VisualElement MiniRadio(int index, string[] options, string tooltip, Action<int> onChanged,
-            bool wrap = false)
+            bool wrap = false, string[] icons = null)
         {
             var row = new VisualElement { tooltip = tooltip };
             row.AddToClassList("zui-radio");
@@ -379,7 +466,8 @@ namespace Laubrary.Zui
                         buttons[b].EnableInClassList("zui-radio__on", b == idx);
                     onChanged?.Invoke(idx);
                 })
-                { text = options[i], tooltip = tooltip };
+                { tooltip = tooltip };
+                FillButton(buttons[i], options[i], IconAt(icons, i));
                 buttons[i].EnableInClassList("zui-radio__on", i == index);
                 if (i == 0) buttons[i].AddToClassList("zui-radio__first");
                 if (i == options.Length - 1) buttons[i].AddToClassList("zui-radio__last");
@@ -391,7 +479,7 @@ namespace Laubrary.Zui
         /// Vertical variant of MiniRadio — a stacked column of mutually-exclusive buttons, for when
         /// the radio sits beside a square control (a pad, a picker) and should match its height.
         public static VisualElement MiniRadioVertical(int index, string[] options, string tooltip,
-            Action<int> onChanged, float width = 70f, float totalHeight = 0f)
+            Action<int> onChanged, float width = 70f, float totalHeight = 0f, string[] icons = null)
         {
             var col = new VisualElement { tooltip = tooltip };
             col.AddToClassList("zui-radio");
@@ -407,7 +495,8 @@ namespace Laubrary.Zui
                         buttons[b].EnableInClassList("zui-radio__on", b == idx);
                     onChanged?.Invoke(idx);
                 })
-                { text = options[i], tooltip = tooltip };
+                { tooltip = tooltip };
+                FillButton(buttons[i], options[i], IconAt(icons, i));
                 buttons[i].EnableInClassList("zui-radio__on", i == index);
                 if (totalHeight > 0f) buttons[i].style.height = totalHeight / options.Length;
                 buttons[i].style.marginTop = 0f;
@@ -451,17 +540,21 @@ namespace Laubrary.Zui
 
         /// One compact button that cycles through the options on each click — the CycleButton
         /// pattern, for when a MiniRadio row would be too wide for the space.
-        public static Button CycleButton(int index, string[] options, string tooltip, Action<int> onChanged)
+        /// `icons` (optional, one per option) draws the current option's glyph before its label — swapped as
+        /// the button cycles; a null array stays text-only (byte-identical to the old behaviour).
+        public static Button CycleButton(int index, string[] options, string tooltip, Action<int> onChanged,
+            string[] icons = null)
         {
             int current = Mathf.Clamp(index, 0, options.Length - 1);
             Button b = null;
             b = new Button(() =>
             {
                 current = (current + 1) % options.Length;
-                b.text = options[current];
+                FillButton(b, options[current], IconAt(icons, current));
                 onChanged?.Invoke(current);
             })
-            { text = options[current], tooltip = tooltip };
+            { tooltip = tooltip };
+            FillButton(b, options[current], IconAt(icons, current));
             return b;
         }
 

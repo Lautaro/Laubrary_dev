@@ -435,7 +435,8 @@ namespace Laubrary.PyrePlus.Editor
                 "A cosmetic backdrop for the preview only — a solid colour plus one optional image. Never baked and "
                 + "has no effect on the render. A private copy: Recall copies values FROM a preset, Save writes them TO one.",
                 onChanged: () => preview?.MarkDirtyRepaint(),
-                onStructureChanged: () => { preview?.MarkDirtyRepaint(); FillBackdropPanel(); }));
+                onStructureChanged: () => { preview?.MarkDirtyRepaint(); FillBackdropPanel(); },
+                icon: "eye"));
         }
 
         void BuildCanvas(VisualElement root, PyrePlusSpec s)
@@ -443,7 +444,8 @@ namespace Laubrary.PyrePlus.Editor
             // Green-header Section (matching Shape / Swarm / Modifiers) rather than a framed BoxKeyed, so the
             // window's top-level sections read consistently. The stable key keeps the fold state from orphaning
             // on a title/tooltip reword (ZuiSection persists fold per key, same idiom as the box did).
-            var box = Z.Section("Canvas", "The output resolution, frame count, seed and background.", "pyreplus.canvas");
+            var box = Z.Section("Canvas", "The output resolution, frame count, seed and background.", "pyreplus.canvas",
+                icon: "frame-corners");
             // Canvas Size drives the RANGES of every pixel-scaled control (Shape Size, Scale, offsets, Streak
             // length, Travel…), so a change must refresh those ranges — but a full Rebuild() recreates THIS very
             // slider, and doing it per drag-delta destroyed the pointer capture mid-gesture, aborting the drag after
@@ -511,7 +513,7 @@ namespace Laubrary.PyrePlus.Editor
                 "The paint stack — earlier (higher) layers composite BEHIND later (lower) ones. Click a layer to "
                 + "edit its Shape / Swarm / Modifiers dials below; expand a row's Matte box to make it a stencil or "
                 + "clip it by another layer's mask; drag the grip to reorder.",
-                "pyreplus.layers");
+                "pyreplus.layers", icon: "stack");
             layerListHost = new VisualElement();
             box.Add(layerListHost);
             RebuildLayerList();
@@ -704,7 +706,7 @@ namespace Laubrary.PyrePlus.Editor
                 "Turns this layer into a stencil. A Write-matte layer is INVISIBLE — instead of drawing, it writes "
                 + "its coverage into one of four numbered mask channels. A Draw layer can then Clip its own opacity "
                 + "by any channel a layer BELOW it wrote, so an earlier shape can mask or cut into a later one.",
-                $"pyreplus.matte:{li}");
+                $"pyreplus.matte:{li}", "mask-happy");
             box.style.marginLeft = 16f;   // indent under its row, so the list still reads as a list
 
             box.Add(Z.Field("Role",
@@ -855,7 +857,8 @@ namespace Laubrary.PyrePlus.Editor
 
         void BuildShape(VisualElement root, PyrePlusSpec s)
         {
-            var sec = Z.Section("Shape", "The particle's own look — colour, opacity and size over its life.");
+            var sec = Z.Section("Shape", "The particle's own look — colour, opacity and size over its life.",
+                icon: "shapes");
             shapeBody = new VisualElement();
             sec.Add(shapeBody);
             root.Add(sec);
@@ -1686,7 +1689,8 @@ namespace Laubrary.PyrePlus.Editor
 
         void BuildSwarm(VisualElement root, PyrePlusSpec s)
         {
-            swarmSection = Z.Section("Swarm", "Place many particles in a shape instead of one centred particle.");
+            swarmSection = Z.Section("Swarm", "Place many particles in a shape instead of one centred particle.",
+                icon: "circles-three-plus");
             swarmBody = new VisualElement();
             swarmSection.Add(swarmBody);
             root.Add(swarmSection);
@@ -2202,7 +2206,7 @@ namespace Laubrary.PyrePlus.Editor
             var box = Z.BoxKeyed("Border",
                 "A coloured rim around this shape's silhouette — the outermost Width px of the drawn alpha, in the "
                 + "Border fill (the 2D counterpart to the 3D solids' edge lines).",
-                "pyreplus.border");
+                "pyreplus.border", "bounding-box");
             // Collapsed, the box hides an active rim — mark it so folding away the border doesn't hide that it's on.
             box.SetHeaderSuffix(() => s.borderEnabled ? " (on)" : "");
             box.Add(Z.Toggle("Enable",

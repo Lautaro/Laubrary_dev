@@ -14,6 +14,10 @@
        and never gets mistaken for a field label. Tune the whole toolkit's heading colour here. */
     --zui-section-title: rgb(0, 255, 0);
     --zui-stage-bg: rgb(26, 26, 31);
+    /* Neutral tint for a header/button icon that sits beside DEFAULT-coloured text (a box title, a radio
+       label) — a soft near-white so the white glyph reads a touch quieter than the text, not brighter.
+       A SECTION icon instead takes --zui-section-title (the green heading colour). */
+    --zui-icon-neutral: rgba(220, 222, 228, 0.9);
     padding: 4px;
 }
 
@@ -243,6 +247,45 @@
     opacity: 0.55;
     -unity-font-style: bold;
     white-space: nowrap;
+}
+
+/* Icons (Z.Icon) -------------------------------------------------------------
+   A ZUI icon is a white monochrome Phosphor glyph drawn as a background image, so a palette colour can
+   TINT it (-unity-background-image-tint-color) to sit with whatever text it accompanies — a header icon
+   takes the heading colour, a button/label icon a neutral near-white. The context classes below carry the
+   tint; .zui-icon itself only stops the glyph from shrinking in a flex row. */
+.zui-icon {
+    flex-shrink: 0;
+}
+
+/* A section heading's icon: tinted to the section-title colour so glyph + title read as one heading. */
+.zui-section__icon {
+    margin-right: 5px;
+    -unity-background-image-tint-color: var(--zui-section-title);
+}
+
+/* A box/frame title's icon: default-text-coloured heading, so the glyph takes the neutral tint. */
+.zui-box__icon,
+.zui-frame__icon {
+    margin-right: 5px;
+    -unity-background-image-tint-color: var(--zui-icon-neutral);
+}
+
+/* A button-family icon (radio segment / segmented / cycle / toggle button). Neutral tint to sit with the
+   button label; the row layout makes the glyph + label share the button's centre. */
+.zui-btn--iconrow {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+.zui-btn__icon {
+    margin-right: 4px;
+    -unity-background-image-tint-color: var(--zui-icon-neutral);
+}
+
+.zui-btn__label {
+    -unity-text-align: middle-center;
 }
 
 /* Field wrap (label + control pair — sidesteps BaseField's inconsistent built-in label widths) */

@@ -20,7 +20,7 @@ namespace Laubrary.Zui
         /// Children go into the body, not next to the header.
         public override VisualElement contentContainer => _body;
 
-        public ZuiFrame(string title, string tooltip)
+        public ZuiFrame(string title, string tooltip, string icon = null)
         {
             AddToClassList("zui-frame");
 
@@ -29,6 +29,14 @@ namespace Laubrary.Zui
                 var header = new VisualElement();
                 header.AddToClassList("zui-frame__header");
                 if (!string.IsNullOrEmpty(tooltip)) header.tooltip = tooltip;
+
+                // Optional leading icon before the title (same neutral tint as a box icon).
+                var iconEl = Z.Icon(icon, 13f);
+                if (iconEl != null)
+                {
+                    iconEl.AddToClassList("zui-frame__icon");
+                    header.Add(iconEl);
+                }
 
                 var t = new Label(title);
                 t.AddToClassList("zui-frame__title");

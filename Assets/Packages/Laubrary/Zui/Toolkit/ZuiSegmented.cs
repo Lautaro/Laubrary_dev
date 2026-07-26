@@ -16,16 +16,19 @@ namespace Laubrary.Zui
         readonly Action<int, bool> _onMulti;
 
         /// Single-select (radio): `selected` is the lit index, `onChanged(index)` fires on a pick.
-        public static ZuiSegmented Radio(int selected, string[] labels, string tooltip, Action<int> onChanged)
-            => new ZuiSegmented(labels, tooltip, i => i == selected, onChanged, null);
+        /// `icons` (optional, one per segment) draws a leading glyph in each — null stays text-only.
+        public static ZuiSegmented Radio(int selected, string[] labels, string tooltip, Action<int> onChanged,
+            string[] icons = null)
+            => new ZuiSegmented(labels, tooltip, i => i == selected, onChanged, null, icons);
 
         /// Multi-select: `isOn(index)` says which segments are lit, `onToggled(index, on)` fires per tap.
+        /// `icons` (optional, one per segment) draws a leading glyph in each.
         public static ZuiSegmented Multi(Func<int, bool> isOn, string[] labels, string tooltip,
-            Action<int, bool> onToggled)
-            => new ZuiSegmented(labels, tooltip, isOn, null, onToggled);
+            Action<int, bool> onToggled, string[] icons = null)
+            => new ZuiSegmented(labels, tooltip, isOn, null, onToggled, icons);
 
         ZuiSegmented(string[] labels, string tooltip, Func<int, bool> isOn,
-            Action<int> onSingle, Action<int, bool> onMulti)
+            Action<int> onSingle, Action<int, bool> onMulti, string[] icons = null)
         {
             _multi = onMulti != null;
             _onSingle = onSingle; _onMulti = onMulti;
@@ -35,7 +38,8 @@ namespace Laubrary.Zui
             for (int i = 0; i < labels.Length; i++)
             {
                 int idx = i;
-                var b = new Button { text = labels[i], tooltip = tooltip };
+                var b = new Button { tooltip = tooltip };
+                Z.FillButton(b, labels[i], Z.IconAt(icons, i));   // no icon ⇒ just sets .text
                 b.AddToClassList("zui-segmented__seg");
                 if (i == 0) b.AddToClassList("zui-segmented__first");
                 if (i == labels.Length - 1) b.AddToClassList("zui-segmented__last");
