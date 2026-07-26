@@ -1039,6 +1039,17 @@ namespace Laubrary.PyrePlus
         // per-particle / form / swarm / modifier field lives on the layer now; only canvas/timing/preview are here.
         public List<PyrePlusLayer> layers = new List<PyrePlusLayer> { new PyrePlusLayer { matteEnabled = false } };
 
+        // ── spec-wide GLOBAL modifiers (task #56) — ported 1:1 from Pyre1's Pyre.globalModifiers ─────────────────
+        // Geometry warps + pixel effects + post passes applied to EVERY layer, exactly as Pyre1 does (Runtime/Pyre/
+        // Pyre.cs:118-120 + BlastRenderer.BuildStack / the trailing global post loop). Each layer's EFFECTIVE stack =
+        // its own modifiers with these WRAPPED around them in Pyre1's order: a global GEOMETRY warp is the OUTERMOST
+        // transform (a global Rotate spins the whole animation as one), a global PIXEL effect runs AFTER each layer's
+        // own pixel modifiers, and a global POST pass runs over the whole finished frame after everything composites.
+        // DEFAULT EMPTY ⇒ every layer's effective stack == layer.modifiers verbatim ⇒ byte-identical to pre-#56, and
+        // an OLDER asset predating this field deserialises with it ABSENT ⇒ the empty-list initializer applies (same
+        // byte-identical outcome). SerializeReference, matching the per-layer modifier list.
+        [SerializeReference] public List<PyreModifier> globalModifiers = new List<PyreModifier>();
+
         // ── editor preview state (cosmetic; never affects the render) ──────────────
         [HideInInspector] public float previewZoom = 4f;
         [HideInInspector] public float previewFps = 12f;

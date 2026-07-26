@@ -55,12 +55,12 @@ namespace Laubrary.PyrePlus.Editor
             for (int i = 0; i < list.Count; i++)
             {
                 if (list[i] == null) { int at = i; Dirty(() => list.RemoveAt(at)); RebuildModifiers(); return; }
-                listHost.Add(BuildModifierBlock(listHost, list, i));
+                listHost.Add(BuildModifierBlock(listHost, list, i, RebuildModifiers));
             }
 
             modifiersBody.Add(WrapRow(
                 Z.Button("+ Add modifier", "Add a geometry, pixel or post modifier to the stack.",
-                    () => ShowAddModifierMenu(list))));
+                    () => ShowAddModifierMenu(list, RebuildModifiers))));
 
             // Simulation slot (slice 7): the layer's OWN stateful "always last" SimulationModifier — a SINGLE
             // polymorphic slot separate from the modifier list above (it retains frame-to-frame state and replays on
@@ -68,6 +68,50 @@ namespace Laubrary.PyrePlus.Editor
             // drawer + Undo/dirty wiring as a modifier block. Rebuilt inside RebuildModifiers so it re-points on layer
             // selection with no extra wiring.
             modifiersBody.Add(BuildSimSlot(s));
+        }
+
+        // ── spec-wide Global Modifiers (task #56) ────────────────────────────────────────────────────────────────
+        // The SAME modifier-stack UI as the per-layer Modifiers section above (drag-reorder grip, enable, fold, the
+        // "+ Add modifier" reflection catalog, ZuiReflect bodies, Undo-safe), but editing the SPEC's globalModifiers
+        // list — which the renderer applies to EVERY layer (each layer's own stack, wrapped by these in Pyre1's
+        // order). Placed right after the Layers section (see PyrePlusWindow.BuildAsset). Not selection-bound (spec-
+        // wide), so it is NOT re-pointed by RebuildAllForSelection — BuildAsset rebuilds it fresh on an asset change.
+        // No simulation slot here: the blast-wide SimulationModifier is a deferred follow-up (see PyrePlusRenderer).
+        VisualElement globalModifiersBody;
+
+        void BuildGlobalModifiers(VisualElement root, PyrePlusSpec s)
+        {
+            var sec = Z.Section("Global Modifiers",
+                "Spec-wide modifiers applied to EVERY layer, on top of each layer's own stack (ported 1:1 from " +
+                "Pyre). Geometry warps wrap OUTERMOST — a global Rotate spins the whole animation as one — pixel " +
+                "effects run after each layer's own, and post passes run over the whole finished frame. Empty = no " +
+                "change; each layer renders exactly as its own Modifiers section dictates.");
+            globalModifiersBody = new VisualElement();
+            sec.Add(globalModifiersBody);
+            root.Add(sec);
+            RebuildGlobalModifiers();
+        }
+
+        void RebuildGlobalModifiers()
+        {
+            if (spec == null || globalModifiersBody == null) { globalModifiersBody?.Clear(); return; }
+            spec.globalModifiers ??= new List<PyreModifier>();
+            globalModifiersBody.Clear();
+            var list = spec.globalModifiers;
+
+            // A dedicated host for the rows so ZuiReorder's insertion line + index math only ever see modifier
+            // blocks, never the "+ Add" button below (mirrors the per-layer stack + PyreWindow's listHost split).
+            var listHost = new VisualElement();
+            globalModifiersBody.Add(listHost);
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] == null) { int at = i; Dirty(() => list.RemoveAt(at)); RebuildGlobalModifiers(); return; }
+                listHost.Add(BuildModifierBlock(listHost, list, i, RebuildGlobalModifiers));
+            }
+
+            globalModifiersBody.Add(WrapRow(
+                Z.Button("+ Add modifier", "Add a geometry, pixel or post modifier applied to every layer.",
+                    () => ShowAddModifierMenu(list, RebuildGlobalModifiers))));
         }
 
         // The layer's single stateful simulation slot. Null ⇒ an "+ Add simulation" affordance; otherwise an
@@ -119,7 +163,7 @@ namespace Laubrary.PyrePlus.Editor
             if (sim.enabled)
             {
                 body = new VisualElement();
-                ZuiReflect.BuildFields(body, sim, ModifierDrawerOptions(sim));
+                ZuiReflect.BuildFields(body, sim, ModifierDrawerOptions(sim, RebuildModifiers));
                 box.Add(body);
             }
             ZuiFoldCard.Wire(sim, header, body, enableToggle, removeBtn);
@@ -171,7 +215,10 @@ namespace Laubrary.PyrePlus.Editor
             return _addableSims;
         }
 
-        VisualElement BuildModifierBlock(VisualElement listHost, List<PyreModifier> list, int index)
+        // Build one modifier card. `rebuild` is the section rebuild to run on a structural edit (reorder / enable /
+        // remove / nested-list change) — RebuildModifiers for the per-layer stack, RebuildGlobalModifiers for the
+        // spec-wide Global Modifiers stack. Everything else is list-agnostic, so both stacks share this verbatim.
+        VisualElement BuildModifierBlock(VisualElement listHost, List<PyreModifier> list, int index, Action rebuild)
         {
             var m = list[index];
             var box = Z.Box(null, null);
@@ -190,14 +237,14 @@ namespace Laubrary.PyrePlus.Editor
                     list.RemoveAt(from);
                     list.Insert(to, mm);
                 });
-                RebuildModifiers();
+                rebuild();
             });
             header.Add(grip);
 
             var enableToggle = Z.Toggle("", "Enable or disable this modifier.", m.enabled, v =>
             {
                 Dirty(() => m.enabled = v);
-                RebuildModifiers();   // rebuild so the body appears / disappears
+                rebuild();   // rebuild so the body appears / disappears
             });
             header.Add(enableToggle);
             header.Add(Z.Text(m.DisplayName, ZuiText.Body, m.DisplayName + " modifier."));
@@ -205,7 +252,7 @@ namespace Laubrary.PyrePlus.Editor
             var removeBtn = Z.Button("X", "Remove this modifier (undoable).", () =>
             {
                 int at = list.IndexOf(m);
-                if (at >= 0) { Dirty(() => list.RemoveAt(at)); RebuildModifiers(); }
+                if (at >= 0) { Dirty(() => list.RemoveAt(at)); rebuild(); }
             }).W(22f);
             header.Add(removeBtn);
             box.Add(header);
@@ -217,7 +264,7 @@ namespace Laubrary.PyrePlus.Editor
             if (m.enabled)
             {
                 body = new VisualElement();
-                ZuiReflect.BuildFields(body, m, ModifierDrawerOptions(m));
+                ZuiReflect.BuildFields(body, m, ModifierDrawerOptions(m, rebuild));
                 box.Add(body);
             }
 
@@ -232,11 +279,11 @@ namespace Laubrary.PyrePlus.Editor
         // The reflection drawer's Undo / dirty / rebuild contract for a modifier's fields — the same wiring
         // Val/Val2D give the Shape/Swarm controls (record the asset before a mutation, mark it dirty + repaint
         // after), plus a rebuild when a nested list gains/loses an element.
-        ZuiReflect.Options ModifierDrawerOptions(PyreModifier m) => new ZuiReflect.Options
+        ZuiReflect.Options ModifierDrawerOptions(PyreModifier m, Action rebuild) => new ZuiReflect.Options
         {
             OnBeforeChange = () => { if (spec != null) Undo.RecordObject(spec, "Edit Pyre Plus modifier"); },
             OnChanged = () => { if (spec != null) EditorUtility.SetDirty(spec); MarkDirty(); },
-            OnStructureChanged = RebuildModifiers,
+            OnStructureChanged = rebuild,
             // The enable toggle lives in the header row, so hide the base `enabled` field the drawer would
             // otherwise surface.
             Skip = f => f.Name == "enabled",
@@ -256,7 +303,7 @@ namespace Laubrary.PyrePlus.Editor
             return (p != null && p.PropertyType == typeof(float) && p.CanRead && p.CanWrite) ? p : null;
         }
 
-        void ShowAddModifierMenu(List<PyreModifier> list)
+        void ShowAddModifierMenu(List<PyreModifier> list, Action rebuild)
         {
             var menu = new GenericMenu();
             foreach (var e in AddableModifiers())
@@ -265,7 +312,7 @@ namespace Laubrary.PyrePlus.Editor
                 menu.AddItem(new GUIContent($"{e.group}/{e.label}"), false, () =>
                 {
                     Dirty(() => list.Add((PyreModifier)Activator.CreateInstance(type)));
-                    RebuildModifiers();
+                    rebuild();
                 });
             }
             menu.ShowAsContext();

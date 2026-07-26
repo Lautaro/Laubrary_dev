@@ -251,10 +251,13 @@ namespace Laubrary.PyrePlus
                 if (frameIndex < winStart || frameIndex > winEnd) continue;   // out of window ⇒ inactive this frame
                 float layerLife = Mathf.Clamp01((frameIndex - winStart) / (float)Mathf.Max(1, winEnd - winStart));
 
-                // Build + Prepare this layer's geometry/pixel modifier stack for THIS frame. Empty ⇒ ModSet.Empty ⇒
-                // DrawParticle's byte-identical fast path (and no per-layer post), so a no-modifier layer renders
-                // exactly as before T6 (orchestrator hash-checked for the single default layer, li == 0).
-                ModSet mods = BuildMods(layer.modifiers, spec.seed, layerLife);
+                // Build + Prepare this layer's EFFECTIVE geometry/pixel modifier stack for THIS frame = its own
+                // modifiers wrapped by the spec-wide globalModifiers in Pyre1's order (global geometry OUTERMOST,
+                // global pixels AFTER the layer's own — see BuildMods/CollectMods). Layer mods Eval at layerLife,
+                // globals at the whole-timeline blast `life`, mirroring BlastRenderer's lp vs bp. Empty on BOTH ⇒
+                // ModSet.Empty ⇒ DrawParticle's byte-identical fast path; empty globals ⇒ this layer's stack is
+                // exactly its own modifiers (byte-identical to pre-#56).
+                ModSet mods = BuildMods(layer.modifiers, spec.globalModifiers, spec.seed, layerLife, life);
                 bool hasPost = HasEnabledPost(layer.modifiers);
                 // Simulation slot (slice 7): the layer's own STATEFUL modifier. Like Fire/Fireball it retains state and
                 // must render into isolated scratch (its Render OVERWRITES/advects pixels — see ApplyLayerSim), so it
@@ -371,6 +374,31 @@ namespace Laubrary.PyrePlus
                     CompositeLayer(buf, scratch, clip, layer.clipInvert);
                 }
                 bufDirty = true;
+            }
+
+            // ── spec-wide GLOBAL post passes (task #56) ───────────────────────────────────────────────────────
+            // Whole-frame post modifiers (Bloom / Outline / Kaleidoscope / …) from the spec's globalModifiers list,
+            // in list order, AFTER every layer has composited — the exact stage & keying of BlastRenderer's trailing
+            // global PostModifier loop (Runtime/Pyre/BlastRenderer.cs:958-971). Evaluated at the whole-timeline blast
+            // `life` (Pyre1's bp), layer-independent (GlobalLayerSalt pinned so a MinMax post param doesn't inherit
+            // the last layer's salt). Empty globalModifiers ⇒ this loop does nothing ⇒ byte-identical to pre-#56.
+            if (spec.globalModifiers != null)
+            {
+                int savedSalt = _layerSalt;
+                _layerSalt = GlobalLayerSalt;
+                for (int i = 0; i < spec.globalModifiers.Count; i++)
+                {
+                    var m = spec.globalModifiers[i];
+                    if (m == null || !m.enabled) continue;
+                    if (m is PostModifier post)
+                    {
+                        SetPostContext(post, life, spec.seed, frameIndex);
+                        int idx = i;
+                        m.Prepare((v, fid) => Eval(v, life, spec.seed, ModParticleIndex, FldModifier + (GlobalPostBase + idx) * 8 + fid));
+                        post.Apply(buf, W, H);
+                    }
+                }
+                _layerSalt = savedSalt;
             }
             return buf;
         }
@@ -1140,47 +1168,95 @@ namespace Laubrary.PyrePlus
             public static readonly ModSet Empty = new ModSet(System.Array.Empty<GeometryModifier>(), System.Array.Empty<PixelModifier>());
         }
 
-        // Collect + Prepare this frame's enabled Geometry/Pixel modifiers (Post ones are handled by ApplyPost).
-        // Each modifier's animatable params resolve through the SAME closure shape BlastRenderer builds — Eval
-        // keyed on the blast life, the seed, the modifier-scope particle sentinel, and this modifier's own 8-wide
-        // field-id block (see the registry). Returns ModSet.Empty when nothing applies, which is the byte-identical
-        // gate. EdgeModifier / SimulationModifier have no apply stage in PyrePlus's disc raster, so they are
-        // ignored here (and the editor's add-menu never offers them).
-        static ModSet BuildMods(List<PyreModifier> list, int seed, float life)
+        // ── spec-wide GLOBAL modifiers (task #56) — the constants that make globals wrap each layer in Pyre1's order.
+        // Global GEOMETRY warps get this added to their effective WarpPass so they sort ABOVE every layer modifier —
+        // a global warp is the OUTERMOST transform (ApplyGeo walks highest-pass first, so it applies first, wrapping
+        // each layer's own warps). Mirrors BlastRenderer.GlobalPassOffset (Runtime/Pyre/BlastRenderer.cs:79).
+        const int GlobalPassOffset = 1000;
+        // Global modifiers' field-id blocks start here (rebased onto FldModifier + n*8) so they never collide with a
+        // layer's 0-based blocks — mirrors BlastRenderer's baseId 500 for globals (BlastRenderer.cs:87).
+        const int GlobalModBase = 500;
+        // Global POST passes' field-id block base — mirrors BlastRenderer's 700 (BlastRenderer.cs:968).
+        const int GlobalPostBase = 700;
+        // Globals Eval layer-INDEPENDENTLY: a global modifier warps every layer identically. Mirrors BlastRenderer
+        // feeding GlobalLayerId (-1) instead of the real layer index — but in PyrePlus layer identity rides
+        // _layerSalt (Eval's d-slot), so we pin _layerSalt to this sentinel while PREPARING globals (Prepare snapshots
+        // its ZUIValues synchronously — each modifier caches e(...) immediately) so their MinMax draws don't vary per
+        // layer, then restore it. -1 also matches the WriteMatte/global convention already used for GlobalLayerId.
+        const int GlobalLayerSalt = -1;
+
+        // A geometry modifier paired with its EFFECTIVE warp pass (WarpPass + a passOffset). Global geo carry +Global-
+        // PassOffset so they sort above every layer geo. Mirrors BlastRenderer.GeoEntry.
+        struct GeoEntry { public GeometryModifier mod; public int pass; }
+
+        // Collect + Prepare one modifier list into the shared geo/pix buckets — the exact mirror of BlastRenderer.
+        // CollectMods. Called TWICE by BuildMods: once for the layer's own modifiers (progress = layerLife, salt =
+        // the current _layerSalt, baseId 0, passOffset 0) and once for the spec's globalModifiers (progress = the
+        // blast life, salt = GlobalLayerSalt, baseId GlobalModBase, passOffset GlobalPassOffset). geo entries carry
+        // the effective pass; pix are appended in list order (so layer pixels precede global pixels — the global
+        // pixel effect runs AFTER each layer's own, exactly as BlastRenderer collects them). PostModifiers are skipped
+        // (they run buffer-wide — per-layer in ApplyLayerPost, spec-wide in the trailing global post loop). Each
+        // modifier's animatable params resolve through the SAME closure shape BlastRenderer builds. EdgeModifier /
+        // SimulationModifier have no apply stage in PyrePlus's disc raster, so they are ignored here.
+        static void CollectMods(List<PyreModifier> list, int seed, float life, int salt, int baseId, int passOffset,
+                                List<GeoEntry> geo, List<PixelModifier> pix)
         {
-            if (list == null || list.Count == 0) return ModSet.Empty;
-            List<GeometryModifier> geo = null;
-            List<PixelModifier> pix = null;
+            if (list == null) return;
+            int savedSalt = _layerSalt;
+            _layerSalt = salt;   // Prepare's Eval closure reads _layerSalt synchronously (a modifier caches e(...) now)
             for (int i = 0; i < list.Count; i++)
             {
                 var m = list[i];
                 if (m == null || !m.enabled) continue;
                 if (m is PostModifier) continue;
-                int idx = i;   // Prepare invokes the closure synchronously, but copy the loop var anyway for hygiene
-                m.Prepare((v, fid) => Eval(v, life, seed, ModParticleIndex, FldModifier + idx * 8 + fid));
-                if (m is GeometryModifier gm) (geo ??= new List<GeometryModifier>()).Add(gm);
-                else if (m is PixelModifier pm) (pix ??= new List<PixelModifier>()).Add(pm);
+                int idx = i;
+                m.Prepare((v, fid) => Eval(v, life, seed, ModParticleIndex, FldModifier + (baseId + idx) * 8 + fid));
+                if (m is GeometryModifier gm) geo.Add(new GeoEntry { mod = gm, pass = gm.WarpPass + passOffset });
+                else if (m is PixelModifier pm) pix.Add(pm);
             }
-            if (geo == null && pix == null) return ModSet.Empty;
+            _layerSalt = savedSalt;
+        }
+
+        // Build the effective per-frame Geometry/Pixel stack for ONE layer: its own modifiers with the spec-wide
+        // globalModifiers WRAPPED around them in Pyre1's order (see CollectMods) — the exact mirror of BlastRenderer.
+        // BuildStack. globalList EMPTY ⇒ the layer's own mods produce the identical sorted geo array + pix order as
+        // before task #56 (globals only ever ADD entries with a pass ≥ GlobalPassOffset, and none are added when the
+        // list is empty), so a default spec is BYTE-IDENTICAL. Returns ModSet.Empty when nothing applies (the
+        // byte-identical fast path DrawParticle keys off).
+        static ModSet BuildMods(List<PyreModifier> layerList, List<PyreModifier> globalList, int seed,
+                                float layerLife, float blastLife)
+        {
+            bool noLayer = layerList == null || layerList.Count == 0;
+            bool noGlobal = globalList == null || globalList.Count == 0;
+            if (noLayer && noGlobal) return ModSet.Empty;
+
+            var geo = new List<GeoEntry>();
+            var pix = new List<PixelModifier>();
+            CollectMods(layerList, seed, layerLife, _layerSalt, 0, 0, geo, pix);
+            CollectMods(globalList, seed, blastLife, GlobalLayerSalt, GlobalModBase, GlobalPassOffset, geo, pix);
+            if (geo.Count == 0 && pix.Count == 0) return ModSet.Empty;
 
             GeometryModifier[] geoArr;
-            if (geo == null) geoArr = System.Array.Empty<GeometryModifier>();
+            if (geo.Count == 0) geoArr = System.Array.Empty<GeometryModifier>();
             else
             {
-                geoArr = geo.ToArray();
-                // Stable insertion sort ascending by WarpPass (mirrors BlastRenderer.SortGeoStable): a higher-pass
-                // warp reframes the shape first, so ApplyGeo (walking from the end) applies it OUTERMOST. Same-pass
-                // modifiers keep authoring order.
-                for (int a = 1; a < geoArr.Length; a++)
+                // Stable insertion sort ascending by EFFECTIVE pass (mirrors BlastRenderer.SortGeoStable): a higher-
+                // pass warp reframes the shape first, so ApplyGeo (walking from the end) applies it OUTERMOST. Global
+                // geo (pass ≥ GlobalPassOffset) therefore sort above — and are applied before — every layer geo.
+                // Same-pass modifiers keep authoring order (layer geo stay in their original relative order, which is
+                // why a globals-empty build reproduces the pre-#56 sort exactly).
+                for (int a = 1; a < geo.Count; a++)
                 {
-                    var e = geoArr[a];
-                    int p = e.WarpPass;
+                    var e = geo[a];
+                    int p = e.pass;
                     int b = a - 1;
-                    while (b >= 0 && geoArr[b].WarpPass > p) { geoArr[b + 1] = geoArr[b]; b--; }
-                    geoArr[b + 1] = e;
+                    while (b >= 0 && geo[b].pass > p) { geo[b + 1] = geo[b]; b--; }
+                    geo[b + 1] = e;
                 }
+                geoArr = new GeometryModifier[geo.Count];
+                for (int k = 0; k < geo.Count; k++) geoArr[k] = geo[k].mod;
             }
-            return new ModSet(geoArr, pix == null ? System.Array.Empty<PixelModifier>() : pix.ToArray());
+            return new ModSet(geoArr, pix.Count == 0 ? System.Array.Empty<PixelModifier>() : pix.ToArray());
         }
 
         // Undo the geometry modifiers on a pixel offset from the canvas centre (highest WarpPass first), in

@@ -185,6 +185,7 @@ namespace Laubrary.PyrePlus.Editor
             if (s.layers != null) layerSel = Mathf.Clamp(layerSel, 0, Mathf.Max(0, s.layers.Count - 1));
 
             BuildLayerList(flow);      // the compact layer stack — under the views bar, above Canvas
+            BuildGlobalModifiers(flow, s);   // task #56 — spec-wide modifiers applied to EVERY layer (right after Layers)
             BuildCanvas(flow, s);
             BuildShape(flow, s);
             BuildSwarm(flow, s);
