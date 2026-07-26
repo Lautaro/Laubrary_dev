@@ -103,6 +103,17 @@ namespace Laubrary.AssetKit.Editor
             if (creating) root.Add(BuildCreateRow());
             if (renaming && !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset))) root.Add(BuildRenameRow());
 
+            // Tags for the selected, saved asset — a single IMGUI island (LauTagField/LauTagPicker are IMGUI-only;
+            // there is no UITK tag control), placed once here in the base so EVERY ZuiAssetWindow subclass surfaces
+            // tags automatically — restoring the parity the IMGUI LaubraryAssetWindow base had (it drew LauTagField
+            // in its toolbar). Same LauTagLibrary GUID side-table, so assets tag/filter identically.
+            if (asset != null && !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset)))
+            {
+                var tagIsland = new IMGUIContainer(() => LauTagField.Draw(asset));
+                tagIsland.style.flexShrink = 0f;
+                root.Add(tagIsland);
+            }
+
             if (asset == null || browsing) root.Add(BuildBrowser());
             else
             {

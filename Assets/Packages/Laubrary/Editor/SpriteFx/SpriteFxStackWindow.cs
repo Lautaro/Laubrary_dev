@@ -87,25 +87,11 @@ namespace Laubrary.SpriteFx.Editor
             scroll.style.minHeight = 0f;
             var body = scroll.contentContainer;
 
-            BuildTags(body, spec);
             BuildStack(body, spec);
             BuildTimeline(body, spec);
             BuildPreview(body, spec);
 
             root.Add(scroll);
-        }
-
-        // Tag editing (assigned-tag chips + the Tags… picker). LauTagField is IMGUI-only and the UITK
-        // ZuiAssetWindow base — unlike the IMGUI LaubraryAssetWindow base — does NOT surface tags in its
-        // toolbar, so this window draws it as a small, width-capped IMGUI island. Same LauTagLibrary GUID
-        // side-table every other Laubrary asset window tags through, so a SpriteFx Stack browses/filters
-        // by tag identically. (If a UITK tag control lands, or ZuiAssetWindow gains a tag row, drop this.)
-        void BuildTags(VisualElement root, SpriteFxSpec spec)
-        {
-            var tags = new IMGUIContainer(() => LauTagField.Draw(spec));
-            tags.style.width = 360f;
-            tags.style.flexShrink = 0f;
-            root.Add(tags);
         }
 
         void BuildStack(VisualElement root, SpriteFxSpec spec)
