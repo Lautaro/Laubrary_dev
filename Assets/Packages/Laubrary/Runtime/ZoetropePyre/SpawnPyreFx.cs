@@ -15,8 +15,12 @@ namespace Laubrary.ZoetropePyre
     /// so Zoetrope core stays Pyre-free.
     /// </summary>
     [System.Serializable]
-    public class SpawnPyreFx : IEffect
+    public class SpawnPyreFx : IEffect, IEventParamUser
     {
+        /// Reads a POSITION (where to spawn the blast) and a SCALAR (how big) — never a direction (a blast is
+        /// omni). So the Zoe-event editor shows this effect a Position + Scalar picker, no Direction picker.
+        public EventParam UsedParams => EventParam.Position | EventParam.Scalar;
+
         [Tooltip("Pyre explosion to play once at the resolved position (optional).")]
         public PyreAsset blast;
         [Tooltip("Playback speed for the blast, frames per second.")]

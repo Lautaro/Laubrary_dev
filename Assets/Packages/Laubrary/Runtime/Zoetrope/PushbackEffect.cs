@@ -14,8 +14,12 @@ namespace Laubrary.Zoetrope
     /// to NaN), since there is then no axis to push along.
     /// </summary>
     [System.Serializable]
-    public class PushbackEffect : IEffect
+    public class PushbackEffect : IEffect, IEventParamUser
     {
+        /// Reads a DIRECTION (which way to shove) and a SCALAR (how hard) — never a position (it pushes the Zoe
+        /// itself, wherever it is). So the Zoe-event editor shows this effect a Direction + Scalar picker only.
+        public EventParam UsedParams => EventParam.Direction | EventParam.Scalar;
+
         [Tooltip("Base impulse magnitude (world units/sec added to the rigidbody's velocity) applied along the " +
                  "resolved direction, regardless of the scalar param.")]
         public float force = 5f;

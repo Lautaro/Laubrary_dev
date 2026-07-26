@@ -582,100 +582,266 @@ namespace Laubrary.Zoetrope.Editor
             string[] eventNames = GetEventNames(zoe.view, clipProp.stringValue);
             string[] pointLayerIds = GetPointLayerIds(zoe.view, clipProp.stringValue);
 
-            root.Add(Z.Text($"FX  ({fxListProp.arraySize})", ZuiText.Subtle,
-                "Every effect this reaction spawns, and when/where each one spawns."));
-            for (int i = 0; i < fxListProp.arraySize; i++)
-            {
-                int idx = i;
-                var box = Z.Box($"FX {idx + 1}", "One effect this reaction spawns: when it fires, where it lands, and what it is.");
-                BuildFxEntry(box, fxListProp.GetArrayElementAtIndex(idx), eventNames, pointLayerIds, zoe,
-                    () => { Commit(fxPath, p => p.DeleteArrayElementAtIndex(idx)); Rebuild(); });
-                root.Add(box);
-            }
+            root.Add(Z.Text($"Effects  ({fxListProp.arraySize})", ZuiText.Subtle,
+                "Every effect this reaction fires, in order — each picks which of the event's params it reads."));
 
-            root.Add(Z.Button("+ Add FX", "Append another FX entry to this reaction.", () =>
-            {
-                Commit(fxPath, p =>
-                {
-                    p.arraySize++;
-                    // Unity's array growth DUPLICATES the previous last element for a plain-class array
-                    // (unlike an Object-reference array, which inserts null) — reset explicitly so "+ Add FX"
-                    // starts clean instead of cloning whatever the last entry had configured.
-                    var e = p.GetArrayElementAtIndex(p.arraySize - 1);
-                    e.FindPropertyRelative("trigger").enumValueIndex = (int)FxTriggerType.Immediate;
-                    e.FindPropertyRelative("eventName").stringValue = "";
-                    e.FindPropertyRelative("placement").enumValueIndex = (int)FxPlacementType.HitPosition;
-                    e.FindPropertyRelative("metaLayerId").stringValue = "";
-                    e.FindPropertyRelative("follow").boolValue = false;
-                    e.FindPropertyRelative("fx").managedReferenceValue = null;
-                });
-                Rebuild();
-            }).W(AddButtonWidth));
+            // A dedicated host so the reorder insertion line + index math only ever see effect cards, never the
+            // Add button below (mirrors SpriteFxStackView's listHost split).
+            var listHost = new VisualElement();
+            root.Add(listHost);
+            for (int i = 0; i < fxListProp.arraySize; i++)
+                BuildFxEntry(listHost, fxListProp.GetArrayElementAtIndex(i), fxPath, i, eventNames, pointLayerIds, zoe);
+
+            // The Add-effect menu: a Z.Menu of icon rows listing every IEffect kind (grouped by module), so
+            // picking one appends an entry with that effect already assigned — nicer than adding a blank entry and
+            // hunting the type switcher. The per-card switcher below still lets you re-type an existing entry.
+            var addBtn = Z.Button("+ Add effect  ▾", "Pick an effect kind to add to this reaction.", null);
+            addBtn.style.width = AddButtonWidth;
+            addBtn.clicked += () => ShowAddEffectMenu(addBtn, fxPath);
+            root.Add(addBtn);
         }
 
-        void BuildFxEntry(VisualElement root, SerializedProperty entryProp, string[] eventNames,
-            string[] pointLayerIds, Zoe zoe, Action onRemove)
+        /// One effect entry, drawn as a FOLDING card (grip / kind-name / × in a header that stays visible when
+        /// collapsed, everything else in a body that folds away — the SpriteFx-stack feel). The body carries the
+        /// Trigger, then ONLY the param pickers this effect actually reads (Position / Direction / Scalar, keyed
+        /// off <see cref="IEventParamUser"/> so the UI never shows a Direction dropdown to a blast that ignores
+        /// it), then the effect's own SerializeReference body. <paramref name="index"/> is the entry's slot in the
+        /// fx array; <paramref name="listHost"/> is the reorder container (holds ONLY cards).
+        void BuildFxEntry(VisualElement listHost, SerializedProperty entryProp, string fxPath, int index,
+            string[] eventNames, string[] pointLayerIds, Zoe zoe)
         {
             var triggerProp = entryProp.FindPropertyRelative("trigger");
             var placementProp = entryProp.FindPropertyRelative("placement");
             var eventNameProp = entryProp.FindPropertyRelative("eventName");
             var metaLayerIdProp = entryProp.FindPropertyRelative("metaLayerId");
+            var directionProp = entryProp.FindPropertyRelative("direction");
+            var scalarProp = entryProp.FindPropertyRelative("scalar");
             var followProp = entryProp.FindPropertyRelative("follow");
+            var effectProp = entryProp.FindPropertyRelative("fx");
             string followPath = followProp.propertyPath;
 
-            const string triggerTip = "When this effect spawns: right away, or in sync with a named frame event as the clip plays.";
-            const string placementTip = "Where this effect spawns.";
-            root.Add(Z.Row(
-                EnumDropdown(triggerProp, "Trigger", triggerTip),
-                Z.HSpace(),
-                EnumDropdown(placementProp, "Placement", placementTip)));
+            object effect = effectProp.managedReferenceValue;
+            EventParam used = UsedParamsOf(effect);
+            var (kindLabel, _, kindIcon, _) = EffectMetaFor(effect);
 
+            var box = Z.Box(null, null);   // untitled per-item card — folded via ZuiFoldCard, header stays visible
+
+            // ── header: grip + (icon) + kind name + × ──
+            var header = new VisualElement();
+            header.AddToClassList("zui-row");
+
+            var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder — an effect's position IS its fire order.");
+            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
+            grip.style.width = 16f;
+            ZuiReorder.MakeGrip(grip, box, listHost, (from, to) =>
+            {
+                Commit(fxPath, p => p.MoveArrayElement(from, to));
+                Rebuild();
+            });
+            header.Add(grip);
+
+            var icon = Z.Icon(kindIcon);
+            if (icon != null) header.Add(icon);
+            header.Add(Z.Text(kindLabel, ZuiText.Body, kindLabel + " effect."));
+            header.Add(Z.Flexible());
+            var removeBtn = Z.Button("×", "Remove this effect (undoable).", () =>
+            {
+                Commit(fxPath, p => p.DeleteArrayElementAtIndex(index));
+                Rebuild();
+            }).W(22f);
+            header.Add(removeBtn);
+            box.Add(header);
+
+            // ── body: trigger, param pickers (only those the effect reads), then the effect's own fields ──
+            var body = new VisualElement();
+
+            const string triggerTip = "When this effect fires: right away, or in sync with a named frame event as the clip plays.";
             bool showEvent = (FxTriggerType)triggerProp.enumValueIndex == FxTriggerType.FrameEvent;
-            bool isMetaPoint = (FxPlacementType)placementProp.enumValueIndex == FxPlacementType.MetaPoint;
-            bool isHitPosition = (FxPlacementType)placementProp.enumValueIndex == FxPlacementType.HitPosition;
-            // A fixed world point — Follow has nothing to re-sample. Written straight through rather than via
-            // Commit: this is an automatic normalization mid-build, and Commit's So.Update() would invalidate
-            // the SerializedProperties this build pass is still walking.
-            if (isHitPosition && followProp.boolValue)
+            var triggerRow = Z.Row(EnumDropdown(triggerProp, "Trigger", triggerTip));
+            if (showEvent)
             {
-                followProp.boolValue = false;
-                So.ApplyModifiedPropertiesWithoutUndo();
+                triggerRow.Add(Z.HSpace());
+                triggerRow.Add(StringDropdown(eventNameProp, "Event", eventNames,
+                    "Which authored frame event on the clip fires this effect."));
             }
+            body.Add(triggerRow);
 
-            if (showEvent || isMetaPoint)
+            // Position picker (+ conditional Layer, + Follow) — only when the effect reads a position.
+            if ((used & EventParam.Position) != 0)
             {
-                var row = Z.Row();
-                if (showEvent)
-                    row.Add(StringDropdown(eventNameProp, "Event", eventNames,
-                        "Which authored frame event on the clip triggers this effect."));
+                bool isMetaPoint = (FxPlacementType)placementProp.enumValueIndex == FxPlacementType.MetaPoint;
+                bool isHitPosition = (FxPlacementType)placementProp.enumValueIndex == FxPlacementType.HitPosition;
+
+                const string posTip = "Which of the event's position params this effect spawns at — the hit point, " +
+                    "the Zoe's origin, its sprite centre, or a named meta-layer point.";
+                var posRow = Z.Row(EnumDropdown(placementProp, "Position", posTip));
                 if (isMetaPoint)
                 {
-                    if (showEvent) row.Add(Z.HSpace());
-                    row.Add(StringDropdown(metaLayerIdProp, "Layer", pointLayerIds,
+                    posRow.Add(Z.HSpace());
+                    posRow.Add(StringDropdown(metaLayerIdProp, "Layer", pointLayerIds,
                         "Which Point-mode meta-layer on the clip this effect spawns at."));
                 }
-                root.Add(row);
+                body.Add(posRow);
+
+                // A fixed world point — Follow has nothing to re-sample. Written straight through rather than via
+                // Commit: this is an automatic normalization mid-build, and Commit's So.Update() would invalidate
+                // the SerializedProperties this build pass is still walking.
+                if (isHitPosition && followProp.boolValue)
+                {
+                    followProp.boolValue = false;
+                    So.ApplyModifiedPropertiesWithoutUndo();
+                }
+                var follow = Z.Toggle("Follow",
+                    "Keep re-sampling the position every frame and move the effect with it, instead of spawning " +
+                    "once. Meaningless for the fixed Hit Position (disabled there).",
+                    followProp.boolValue, v => Commit(followPath, p => p.boolValue = v));
+                follow.SetEnabled(!isHitPosition);
+                body.Add(follow);
             }
 
-            var follow = Z.Toggle("Follow",
-                "Keep re-sampling Placement every frame and move the effect with it, instead of spawning once and letting it live on its own.",
-                followProp.boolValue, v => Commit(followPath, p => p.boolValue = v));
-            follow.SetEnabled(!isHitPosition);
-            root.Add(Z.Row(follow, Z.Flexible(),
-                Z.Button("Remove", "Remove this FX entry.", onRemove).W(70f)));
+            // Direction + Scalar pickers share one row (both short), each shown only when the effect reads it.
+            // rebuild:false — unlike Position/Trigger, neither gates a conditional row, so a rebuild would just
+            // churn the whole window (and lose scroll/focus) for nothing.
+            VisualElement paramRow = null;
+            if ((used & EventParam.Direction) != 0)
+                paramRow = Z.Row(EnumDropdown(directionProp, "Direction",
+                    "Which of the event's direction params aims this effect. Hit Direction = away from the " +
+                    "attacker; None fires omni-directionally.", rebuild: false));
+            if ((used & EventParam.Scalar) != 0)
+            {
+                var scalarPick = EnumDropdown(scalarProp, "Scalar",
+                    "Which of the event's scalar params sizes / strengthens this effect. Amount = the damage " +
+                    "dealt; None = zero.", rebuild: false);
+                if (paramRow == null) paramRow = Z.Row(scalarPick);
+                else { paramRow.Add(Z.HSpace()); paramRow.Add(scalarPick); }
+            }
+            if (paramRow != null) body.Add(paramRow);
 
-            BuildManagedRef(root, entryProp.FindPropertyRelative("fx"), "Effect", zoe);
+            // The effect itself: the SerializeReference type switcher + its own fields (kept — the shared drawer
+            // renders them, and the switcher lets you re-type this entry in place).
+            BuildManagedRef(body, effectProp, "Effect", zoe);
+            box.Add(body);
+
+            // Fold the whole card to its header, keyed per effect instance so the state survives window rebuilds
+            // (undo / reorder / re-type). The grip guards its own drag; the × must not fold on click.
+            ZuiFoldCard.Wire(effect, header, body, removeBtn);
+            listHost.Add(box);
         }
 
-        VisualElement EnumDropdown(SerializedProperty prop, string label, string tooltip)
+        VisualElement EnumDropdown(SerializedProperty prop, string label, string tooltip, bool rebuild = true)
         {
             var choices = new List<string>(prop.enumDisplayNames);
             string path = prop.propertyPath;
             return Z.Field(label, tooltip, Z.Dropdown(prop.enumValueIndex, choices, tooltip, i =>
             {
                 Commit(path, p => p.enumValueIndex = i);
-                Rebuild();   // both enums gate which of the rows below actually apply
+                if (rebuild) Rebuild();   // Position/Trigger gate which conditional rows below apply
             }, FitWidth(choices)));
+        }
+
+        // ── Zoe-event effect palette metadata (nice label / tooltip / icon / menu section per IEffect kind) ─────
+        // Keyed by TYPE NAME (a string), not the concrete Type, so this core editor stays decoupled from the
+        // bridge modules that own the Pyre/Chunks effect types (the Zoetrope editor asmdef deliberately does not
+        // reference ZoetropePyre). An unknown kind falls back to its nicified name under "More".
+        struct EffectMetaInfo { public string label, tooltip, icon, section; }
+
+        static readonly Dictionary<string, EffectMetaInfo> s_effectMeta = new Dictionary<string, EffectMetaInfo>
+        {
+            ["SpawnPyreFx"] = new EffectMetaInfo { label = "Spawn Pyre", icon = "flame", section = "Spawn VFX",
+                tooltip = "Play a Pyre blast at a position param, sized by a scalar param." },
+            ["SpawnChunkFx"] = new EffectMetaInfo { label = "Spawn Chunks", icon = "shapes", section = "Spawn VFX",
+                tooltip = "Throw a Chunks debris burst — aimed by a direction, sized by a scalar, colour-sampled from the Zoe's live reel." },
+            ["PyreChunksFx"] = new EffectMetaInfo { label = "Pyre + Chunks", icon = "bomb", section = "Spawn VFX",
+                tooltip = "The bundled blast + debris effect (the original combined VFX; still used by committed assets)." },
+            ["BodySpriteFxEffect"] = new EffectMetaInfo { label = "Body SpriteFx", icon = "sparkle", section = "On the Zoe",
+                tooltip = "Flash / tint / dissolve the Zoe's own sprite for a duration (a SpriteFx stack on the body renderer)." },
+            ["PushbackEffect"] = new EffectMetaInfo { label = "Pushback", icon = "arrow-fat-right", section = "On the Zoe",
+                tooltip = "Shove the Zoe along a direction param — knockback, strengthened by a scalar param." },
+            ["PlayReelEffect"] = new EffectMetaInfo { label = "Play Reel", icon = "film-reel", section = "On the Zoe",
+                tooltip = "Play a named clip on the Zoe's animated view." },
+        };
+
+        static readonly string[] s_sectionOrder = { "Spawn VFX", "On the Zoe", "More" };
+
+        static (string label, string tooltip, string icon, string section) EffectMetaFor(object effect)
+        {
+            if (effect == null) return ("(no effect)", "No effect chosen yet — pick a kind, or use Add effect below.", null, "");
+            if (s_effectMeta.TryGetValue(effect.GetType().Name, out var m)) return (m.label, m.tooltip, m.icon, m.section);
+            string nn = ObjectNames.NicifyVariableName(effect.GetType().Name);
+            return (nn, nn + " effect.", null, "More");
+        }
+
+        /// Which typed in-params an effect reads, so the editor shows exactly those pickers. An effect declaring
+        /// <see cref="IEventParamUser"/> is authoritative; a legacy <see cref="ICombatFx"/> (spawn-VFX-at-a-point)
+        /// that predates the interface defaults to Position + Direction so its placement authoring is unchanged;
+        /// anything else reads nothing (Play-Reel, Body-SpriteFx).
+        static EventParam UsedParamsOf(object effect)
+        {
+            if (effect == null) return EventParam.None;
+            if (effect is IEventParamUser u) return u.UsedParams;
+            if (effect is ICombatFx) return EventParam.Position | EventParam.Direction;
+            return EventParam.None;
+        }
+
+        // Every concrete IEffect kind the Add menu offers, discovered by reflection (so a new kind appears with no
+        // hand-maintained list) and ordered by section. Scanned once per domain and cached, like SpriteFxStackView.
+        static List<(Type type, EffectMetaInfo meta)> s_addableEffects;
+        static IEnumerable<(Type type, EffectMetaInfo meta)> AddableEffects()
+        {
+            if (s_addableEffects != null) return s_addableEffects;
+            var found = new List<(Type, EffectMetaInfo)>();
+            foreach (var t in TypeCache.GetTypesDerivedFrom<IEffect>())
+            {
+                if (t.IsAbstract || t.IsInterface || t.IsGenericTypeDefinition) continue;
+                if (t.GetConstructor(Type.EmptyTypes) == null) continue;
+                if (!s_effectMeta.TryGetValue(t.Name, out var m))
+                {
+                    string nn = ObjectNames.NicifyVariableName(t.Name);
+                    m = new EffectMetaInfo { label = nn, tooltip = nn + " effect.", icon = null, section = "More" };
+                }
+                found.Add((t, m));
+            }
+            found.Sort((a, b) =>
+            {
+                int sa = Array.IndexOf(s_sectionOrder, a.Item2.section); if (sa < 0) sa = int.MaxValue;
+                int sb = Array.IndexOf(s_sectionOrder, b.Item2.section); if (sb < 0) sb = int.MaxValue;
+                return sa != sb ? sa.CompareTo(sb) : string.CompareOrdinal(a.Item2.label, b.Item2.label);
+            });
+            s_addableEffects = found;
+            return s_addableEffects;
+        }
+
+        void ShowAddEffectMenu(VisualElement anchor, string fxPath)
+        {
+            var menu = Z.Menu(anchor).Width(240f);
+            string lastSection = null;
+            foreach (var (type, m) in AddableEffects())
+            {
+                if (m.section != lastSection) { menu.Section(m.section); lastSection = m.section; }
+                var t = type;
+                menu.Item(m.label, m.tooltip, () => AddEffect(fxPath, t), icon: m.icon);
+            }
+            menu.Show();
+        }
+
+        void AddEffect(string fxPath, Type type)
+        {
+            Commit(fxPath, p =>
+            {
+                p.arraySize++;
+                // Unity's array growth DUPLICATES the previous last element for a plain-class array — reset every
+                // field explicitly so a new entry starts clean, then assign the chosen concrete effect.
+                var e = p.GetArrayElementAtIndex(p.arraySize - 1);
+                e.FindPropertyRelative("trigger").enumValueIndex = (int)FxTriggerType.Immediate;
+                e.FindPropertyRelative("eventName").stringValue = "";
+                e.FindPropertyRelative("placement").enumValueIndex = (int)FxPlacementType.HitPosition;
+                e.FindPropertyRelative("metaLayerId").stringValue = "";
+                e.FindPropertyRelative("direction").enumValueIndex = (int)DirectionParam.HitDirection;
+                e.FindPropertyRelative("scalar").enumValueIndex = (int)ScalarParam.Amount;
+                e.FindPropertyRelative("follow").boolValue = false;
+                e.FindPropertyRelative("fx").managedReferenceValue = Activator.CreateInstance(type);
+            });
+            Rebuild();
         }
 
         VisualElement StringDropdown(SerializedProperty prop, string label, string[] options, string tooltip)

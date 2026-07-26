@@ -23,8 +23,12 @@ namespace Laubrary.ZoetropePyre
     /// committed <see cref="ChunkSpec"/> asset.
     /// </summary>
     [System.Serializable]
-    public class SpawnChunkFx : IEffect
+    public class SpawnChunkFx : IEffect, IEventParamUser
     {
+        /// Reads all three params: a POSITION (where the debris bursts), a DIRECTION (which way it's thrown) and a
+        /// SCALAR (how big the burst is). So the Zoe-event editor shows this effect Position + Direction + Scalar.
+        public EventParam UsedParams => EventParam.Position | EventParam.Direction | EventParam.Scalar;
+
         [Tooltip("Chunks debris burst to throw at the resolved position. Aimed by the event's direction param.")]
         public ChunkSpec chunks;
 
