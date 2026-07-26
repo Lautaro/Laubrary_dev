@@ -249,9 +249,16 @@ namespace Laubrary.PyrePlus
                 // draw; when false (no readable font) each Text particle falls back to the Disc raster instead.
                 _textReady = layer.shapeForm == ShapeForm.Text && EnsureTextGlyphs(layer);
 
-                bool isMatte = layer.matteRole == MatteRole.WriteMatte;
-                bool isLuma = layer.matteRole == MatteRole.LumaMatte;
-                bool hasClip = !isMatte && !isLuma && channels != null && layer.clipByChannel >= 0 && layer.clipByChannel < 4;
+                // #57 — the ENTIRE matte block (write/luma role, numbered-channel clip, slice-4b height consume) is
+                // gated on matteEnabled. When a layer's Matte is toggled OFF it acts as a plain Draw layer, so the
+                // window no longer has to WIPE matteRole/clipByChannel/heightFromChannel to make a matte stop acting —
+                // it just clears this flag and the data is PRESERVED for re-enabling. matteEnabled DEFAULTS TRUE (see
+                // PyrePlusSpec), so every pre-existing matte spec — including a field-absent old asset whose matte role
+                // predates this flag — stays enabled ⇒ byte-identical.
+                bool matteOn = layer.matteEnabled;
+                bool isMatte = matteOn && layer.matteRole == MatteRole.WriteMatte;
+                bool isLuma = matteOn && layer.matteRole == MatteRole.LumaMatte;
+                bool hasClip = matteOn && !isMatte && !isLuma && channels != null && layer.clipByChannel >= 0 && layer.clipByChannel < 4;
 
                 if (isMatte)
                 {
@@ -300,7 +307,7 @@ namespace Laubrary.PyrePlus
                 // layers below) as a relief-lit heightmap through its own Fill. Everything else (post / clip / matte /
                 // composite / bufDirty) is the normal Draw path — only the shape-render call is swapped. Default -1 ⇒
                 // isHeightConsumer false ⇒ the normal RenderLayer, byte-identical.
-                bool isHeightConsumer = channels != null && layer.heightFromChannel >= 0 && layer.heightFromChannel < 4;
+                bool isHeightConsumer = matteOn && channels != null && layer.heightFromChannel >= 0 && layer.heightFromChannel < 4;
                 float[] heightField = isHeightConsumer ? channels[layer.heightFromChannel] : null;
 
                 // Fire (slice 6a) — a stateful sim form MUST render into isolated scratch: FireSim.Render OVERWRITES

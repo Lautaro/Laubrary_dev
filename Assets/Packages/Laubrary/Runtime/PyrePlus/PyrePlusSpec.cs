@@ -160,11 +160,15 @@ namespace Laubrary.PyrePlus
         public string name = "Layer";    // shown in the layer list; rename-in-place
 
         // ── matte (R3) — Pyre's matte idea, simplified to numbered channels ─────────
-        // UI-gating only: whether this layer's Matte box is enabled/shown in the layer list (mirrors Pyre1's
-        // per-row Matte toggle). The RENDERER never reads it — turning it OFF also resets the layer to inert
-        // (matteRole=Draw, clipByChannel=-1) so a previously-configured matte stops acting. Value type, so
-        // MemberwiseClone in Clone() copies it for free.
-        [HideInInspector] public bool matteEnabled = false;
+        // The master gate for this layer's WHOLE matte block (role / clip / height). The RENDERER honours it (#57):
+        // matteRole/clipByChannel/heightFromChannel only act when this is true, so a layer with matteEnabled == false
+        // renders as a plain Draw layer and its matte sub-fields are PRESERVED (toggling the Matte box OFF no longer
+        // wipes them — re-enabling restores the full setup). Also drives whether the Matte box is shown in the layer
+        // list. DEFAULT TRUE and serialized: an OLDER asset that stored a matte role BEFORE this field existed
+        // deserialises with the field ABSENT ⇒ the initializer's `true` keeps its matte enabled (byte-identical), and
+        // a matte the new UI disables stores an explicit `false`. Fresh layers created in code set it false so a
+        // brand-new layer still hides its (empty) matte box. Value type, so MemberwiseClone in Clone() copies it.
+        [HideInInspector] public bool matteEnabled = true;
         // Draw = composite normally (the default; a Draw layer with clipByChannel < 0 is exactly a pre-R3 layer).
         // WriteMatte = invisible; write this layer's coverage into channel `matteChannel` for the Draw layers above.
         public MatteRole matteRole = MatteRole.Draw;
@@ -1018,7 +1022,7 @@ namespace Laubrary.PyrePlus
         // ── layers (R3) — paint order, index 0 at the BACK ─────────────────────────
         // One default layer = exactly the pre-R3 single-layer spec, so a fresh asset renders byte-identical. Every
         // per-particle / form / swarm / modifier field lives on the layer now; only canvas/timing/preview are here.
-        public List<PyrePlusLayer> layers = new List<PyrePlusLayer> { new PyrePlusLayer() };
+        public List<PyrePlusLayer> layers = new List<PyrePlusLayer> { new PyrePlusLayer { matteEnabled = false } };
 
         // ── editor preview state (cosmetic; never affects the render) ──────────────
         [HideInInspector] public float previewZoom = 4f;

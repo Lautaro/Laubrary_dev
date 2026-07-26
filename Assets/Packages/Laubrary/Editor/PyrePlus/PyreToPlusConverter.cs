@@ -73,7 +73,7 @@ namespace Laubrary.PyrePlus.Editor
                 }
             }
             // A PyrePlus spec must hold at least one layer.
-            if (dst.layers.Count == 0) { dst.layers.Add(new PyrePlusLayer()); warnings.Add("Source had no usable layers — emitted one empty default layer."); }
+            if (dst.layers.Count == 0) { dst.layers.Add(new PyrePlusLayer { matteEnabled = false }); warnings.Add("Source had no usable layers — emitted one empty default layer."); }
             return dst;
         }
 
@@ -123,6 +123,7 @@ namespace Laubrary.PyrePlus.Editor
                 size = CloneVal(src.size),
                 particleSpin = CloneVal(src.spinDegrees),
                 edgeSoftness = Mathf.Clamp01(Peak(src.outerSoftness)),
+                matteEnabled = false,   // #57 — a fresh layer hides its matte box; the matte block below sets it true for an actual matte
             };
 
             // Colour: ColorMode + colorOverLife → a ZuiFill.

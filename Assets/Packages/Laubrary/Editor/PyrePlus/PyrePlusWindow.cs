@@ -570,13 +570,15 @@ namespace Laubrary.PyrePlus.Editor
             row.Add(name);
 
             if (!layer.enabled) row.Add(Z.Text("off", ZuiText.Small, "This layer is currently hidden."));
-            else if (layer.matteRole == MatteRole.WriteMatte)
+            // #57 — the matte indicators are gated on matteEnabled to mirror the renderer: a disabled matte acts as a
+            // plain Draw layer (its role/clip/height are preserved but inert), so the row shows NO matte indicator.
+            else if (layer.matteEnabled && layer.matteRole == MatteRole.WriteMatte)
                 row.Add(Z.Text($"→{Mathf.Clamp(layer.matteChannel, 0, 3)}", ZuiText.Small,
                     "A matte layer — invisible; writes its coverage into the shown mask channel."));
-            else if (layer.matteRole == MatteRole.LumaMatte)
+            else if (layer.matteEnabled && layer.matteRole == MatteRole.LumaMatte)
                 row.Add(Z.Text("◧", ZuiText.Small,
                     "A luma-matte layer — invisible; masks the layers above it by its luminance × alpha."));
-            else if (layer.heightFromChannel >= 0)
+            else if (layer.matteEnabled && layer.heightFromChannel >= 0)
                 row.Add(Z.Text($"▲{Mathf.Clamp(layer.heightFromChannel, 0, 3)}", ZuiText.Small,
                     "A heightmap layer (slice 4b) — renders the fused matte channel as a relief-lit surface instead of drawing its shape."));
 
@@ -591,10 +593,11 @@ namespace Laubrary.PyrePlus.Editor
             {
                 Dirty(() =>
                 {
+                    // #57 — just flip the master gate. The renderer honours matteEnabled, so a disabled layer acts as a
+                    // plain Draw layer WITHOUT wiping matteRole / clipByChannel / heightFromChannel — the full matte
+                    // setup is PRESERVED and comes back on re-enable. The Matte box still hides while disabled (below),
+                    // and the row's matte indicator is gated on matteEnabled, so the row reads as a plain Draw layer.
                     layer.matteEnabled = !layer.matteEnabled;
-                    // Disabling resets the layer fully inert: Draw, no clip, and no slice-4b heightmap consume — so a
-                    // previously-configured matte OR heightmap stops acting (the renderer ignores matteEnabled itself).
-                    if (!layer.matteEnabled) { layer.matteRole = MatteRole.Draw; layer.clipByChannel = -1; layer.heightFromChannel = -1; }
                 });
                 RebuildLayerList();
             }).W(24f));
@@ -619,7 +622,7 @@ namespace Laubrary.PyrePlus.Editor
             if (spec == null) return;
             Dirty(() =>
             {
-                spec.layers.Add(new PyrePlusLayer { name = $"Layer {spec.layers.Count + 1}" });
+                spec.layers.Add(new PyrePlusLayer { name = $"Layer {spec.layers.Count + 1}", matteEnabled = false });
                 layerSel = spec.layers.Count - 1;
             });
             RebuildAllForSelection();
