@@ -32,16 +32,30 @@ namespace Laubrary.Zoetrope
         [Tooltip("FrameEvent name to match, when trigger == FrameEvent.")]
         public string eventName = "";
 
+        // The position PICKER — which of the event's position in-params this effect spawns at. Promoted from a
+        // fixed placement enum into the position picker; its four values are unchanged so existing data reads as
+        // before (see EventContext.TryResolvePosition).
         public FxPlacementType placement = FxPlacementType.HitPosition;
         [Tooltip("Point-mode MetaLayer id to sample, when placement == MetaPoint.")]
         public string metaLayerId = "";
+
+        [Tooltip("Which of the event's direction params aims this effect. HitDirection (default) reproduces the " +
+                 "old behaviour; None fires omni-directionally.")]
+        public DirectionParam direction = DirectionParam.HitDirection;
+
+        [Tooltip("Which of the event's scalar params this effect can size itself by (read by effect kinds that " +
+                 "use it; the spawn-VFX kind ignores it). Additive — no existing effect changes.")]
+        public ScalarParam scalar = ScalarParam.Amount;
 
         [Tooltip("Keep re-sampling Placement every frame and move the spawned effect with it, instead of " +
                  "spawning once and letting it live on its own. Meaningless for HitPosition (a fixed world " +
                  "point) — ignored there.")]
         public bool follow;
 
-        [SerializeReference] public ICombatFx fx;
+        // Widened from ICombatFx to the general IEffect (SAME field name, so the ~SerializeReference concrete
+        // refs — all PyreChunksFx — keep deserializing untouched). An ICombatFx IS an IEffect, so existing data
+        // fits; a future slice adds other IEffect kinds. `entry.fx.IsEmpty` still works (IEffect declares it).
+        [SerializeReference] public IEffect fx;
     }
 
     /// <summary>Replaces the old separate <c>Zoe.hit</c>/<c>Zoe.death</c> (VFX-only) + <c>Zoe.hitReaction</c>
@@ -98,12 +112,16 @@ namespace Laubrary.Zoetrope
         public void Play(Vector2 worldPos, float directionDeg = float.NaN)
         {
             if (fx == null) return;
+            var ctx = EventContext.ForPoint(worldPos, directionDeg);
             for (int i = 0; i < fx.Count; i++)
             {
                 var entry = fx[i];
                 if (entry == null || entry.trigger != FxTriggerType.Immediate) continue;
                 if (entry.fx == null || entry.fx.IsEmpty) continue;
-                entry.fx.Play(worldPos, directionDeg);
+                // A bare point-play has no live view to resolve placement against, so every effect fires at the
+                // supplied point — the context's Position is worldPos, so an ICombatFx spawns exactly where the
+                // old entry.fx.Play(worldPos, directionDeg) did.
+                entry.fx.Apply(ctx);
             }
         }
     }

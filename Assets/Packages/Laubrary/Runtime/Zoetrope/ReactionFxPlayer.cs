@@ -21,7 +21,7 @@ namespace Laubrary.Zoetrope
         IAnimatedView _view;
 
         ReactionFx _armed;
-        DamageInfo _armedInfo;
+        EventContext _armedCtx;
         Action<string, int> _armedHandler;
 
         /// Fires once when a triggered Hurt clip finishes playing. Never fires for a hit with no Hurt clip
@@ -53,26 +53,43 @@ namespace Laubrary.Zoetrope
         {
             var r = def != null ? def.hit : null;
             if (r == null) return;
+            var ctx = BuildContext(info);
             PlayBodyFx(r);
-            FireImmediate(r, info);
-            TryArmClip(r, info, () => { Disarm(); HurtFinished?.Invoke(); });
+            FireImmediate(r, ctx);
+            TryArmClip(r, ctx, () => { Disarm(); HurtFinished?.Invoke(); });
         }
 
         void OnDeath(DamageInfo info)
         {
             var r = def != null ? def.death : null;
-            if (r != null) { PlayBodyFx(r); FireImmediate(r, info); }
-            if (r == null || !TryArmClip(r, info, () => { Disarm(); DeathFinished?.Invoke(); }))
+            var ctx = BuildContext(info);
+            if (r != null) { PlayBodyFx(r); FireImmediate(r, ctx); }
+            if (r == null || !TryArmClip(r, ctx, () => { Disarm(); DeathFinished?.Invoke(); }))
                 DeathFinished?.Invoke();
         }
 
+        // Fill the typed EventContext from this damage event: the Zoe's live data (transform, health, the current
+        // reel frame's renderer, the animated view for meta-points) + the event's typed in-params (hit
+        // position/direction, amount). HitPosition bakes the old PointOf fallback (the Zoe's own position when the
+        // hit recorded no point), so placement resolution reproduces the pre-generalization spawn points exactly.
+        EventContext BuildContext(in DamageInfo info) => new EventContext
+        {
+            Transform = transform,
+            Health = _health,
+            Renderer = GetComponentInChildren<SpriteRenderer>(),
+            View = _view,
+            HitPosition = info.point != Vector2.zero ? info.point : (Vector2)transform.position,
+            HitDirection = info.direction,
+            Amount = info.amount,
+        };
+
         // ── clip + frame-event arming ────────────────────────────────────────
-        bool TryArmClip(ReactionFx r, DamageInfo info, Action onComplete)
+        bool TryArmClip(ReactionFx r, EventContext ctx, Action onComplete)
         {
             if (r == null || string.IsNullOrEmpty(r.clip) || _view == null) return false;
             Disarm();
             _armed = r;
-            _armedInfo = info;
+            _armedCtx = ctx;
             _armedHandler = HandleArmedFrameEvent;
             _view.OnFrameEvent += _armedHandler;
             _view.PlayClip(r.clip, loop: false, onComplete: onComplete);
@@ -90,19 +107,19 @@ namespace Laubrary.Zoetrope
         // whatever plays AFTER (e.g. Idle resuming) can never spuriously match, since Disarm already ran by then.
         void HandleArmedFrameEvent(string name, int frame)
         {
-            if (_armed?.fx == null) return;
+            if (_armed?.fx == null || _armedCtx == null) return;
             foreach (var entry in _armed.fx)
                 if (entry != null && entry.trigger == FxTriggerType.FrameEvent &&
                     string.Equals(entry.eventName, name, StringComparison.OrdinalIgnoreCase))
-                    Fire(entry, _armedInfo);
+                    Fire(entry, _armedCtx);
         }
 
-        void FireImmediate(ReactionFx r, DamageInfo info)
+        void FireImmediate(ReactionFx r, EventContext ctx)
         {
             if (r.fx == null) return;
             foreach (var entry in r.fx)
                 if (entry != null && entry.trigger == FxTriggerType.Immediate)
-                    Fire(entry, info);
+                    Fire(entry, ctx);
         }
 
         // Play the reaction's body SpriteFx on the character's OWN sprite the instant the reaction fires — a hurt /
@@ -121,49 +138,28 @@ namespace Laubrary.Zoetrope
         }
 
         // ── spawning ──────────────────────────────────────────────────────────
-        void Fire(FxEntry entry, DamageInfo info)
+        void Fire(FxEntry entry, EventContext ctx)
         {
             if (entry.fx == null || entry.fx.IsEmpty) return;
-            if (!TryResolvePlacement(entry, info, out var pos)) return;
-            float dir = DirOf(info);
+            if (!ctx.TryResolvePosition(entry.placement, entry.metaLayerId, out var pos)) return;
+
+            // Stamp the resolved params the effect reads. For an ICombatFx these are exactly the (pos, dir) the
+            // old entry.fx.Play(...) received, so the spawn point is byte-for-byte unchanged.
+            ctx.Position = pos;
+            ctx.DirectionDeg = ctx.ResolveDirectionDeg(entry.direction);
+            ctx.Scalar = ctx.ResolveScalar(entry.scalar);
 
             bool canFollow = entry.follow && entry.placement != FxPlacementType.HitPosition;
-            if (!canFollow) { entry.fx.Play(pos, dir); return; }
+            if (!canFollow) { entry.fx.Apply(ctx); return; }
 
-            var t = entry.fx.PlayFollowable(pos, dir);
+            // Follow re-homes a single spawned Transform each frame — an ICombatFx-only capability
+            // (PlayFollowable). A non-ICombatFx effect has no Transform to hand back, so it just applies once.
+            if (!(entry.fx is ICombatFx combat)) { entry.fx.Apply(ctx); return; }
+
+            var t = combat.PlayFollowable(pos, ctx.DirectionDeg);
             if (t == null) return;   // this effect has nothing single/ongoing to follow (see PlayFollowable's own doc comment)
             var follower = t.gameObject.AddComponent<FxFollowTarget>();
-            follower.Init(() => TryResolvePlacement(entry, info, out var p) ? (Vector3)p : t.position);
+            follower.Init(() => ctx.TryResolvePosition(entry.placement, entry.metaLayerId, out var p) ? (Vector3)p : t.position);
         }
-
-        bool TryResolvePlacement(FxEntry entry, DamageInfo info, out Vector2 pos)
-        {
-            switch (entry.placement)
-            {
-                case FxPlacementType.HitPosition:
-                    pos = PointOf(info);
-                    return true;
-                case FxPlacementType.TargetOrigin:
-                    pos = transform.position;
-                    return true;
-                case FxPlacementType.TargetPosition:
-                    var sr = GetComponentInChildren<SpriteRenderer>();
-                    pos = sr != null ? (Vector2)sr.bounds.center : (Vector2)transform.position;
-                    return true;
-                case FxPlacementType.MetaPoint:
-                    if (_view != null && _view.TryGetMetaPoint(entry.metaLayerId, out var w)) { pos = w; return true; }
-                    pos = default;
-                    return false;
-                default:
-                    pos = default;
-                    return false;
-            }
-        }
-
-        // Fall back to the character's own position when the hit didn't record a point.
-        Vector2 PointOf(in DamageInfo info) => info.point != Vector2.zero ? info.point : (Vector2)transform.position;
-
-        static float DirOf(in DamageInfo info) =>
-            info.direction.sqrMagnitude > 1e-6f ? Mathf.Atan2(info.direction.y, info.direction.x) * Mathf.Rad2Deg : float.NaN;
     }
 }
