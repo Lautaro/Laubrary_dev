@@ -214,7 +214,12 @@ namespace Laubrary.PyrePlus
                     || (l0.matteRole == MatteRole.Draw && l0.heightFromChannel >= 0)) { anyMatte = true; break; }
             }
             float[][] channels = null;
-            if (anyMatte) { channels = new float[4][]; for (int c = 0; c < 4; c++) channels[c] = new float[W * H]; }
+            // Per-channel "was WRITTEN this frame" flags (#58 Fix 3), parallel to `channels`. A channel starts
+            // UNWRITTEN; WriteMatteCoverage flips its flag. A Draw layer that clips by a channel NOTHING wrote must
+            // NOT be zeroed by that empty channel (the "luma matte only works at Clip-by = None" bug) — it skips the
+            // clip instead (see `hasClip`). A written-but-locally-zero channel still clips (that's real coverage).
+            bool[] channelWritten = null;
+            if (anyMatte) { channels = new float[4][]; channelWritten = new bool[4]; for (int c = 0; c < 4; c++) channels[c] = new float[W * H]; }
 
             // `bufDirty` guards the "first drawn layer renders straight into buf" path: the first Draw layer to
             // composite paints (and posts) directly onto the bg-filled output, exactly as the pre-R3 single-layer
@@ -277,7 +282,9 @@ namespace Laubrary.PyrePlus
                 bool matteOn = layer.matteEnabled;
                 bool isMatte = matteOn && layer.matteRole == MatteRole.WriteMatte;
                 bool isLuma = matteOn && layer.matteRole == MatteRole.LumaMatte;
-                bool hasClip = matteOn && !isMatte && !isLuma && channels != null && layer.clipByChannel >= 0 && layer.clipByChannel < 4;
+                // #58 Fix 3: only clip when the target channel was actually WRITTEN by an earlier layer. Clip-by an
+                // UNWRITTEN channel ⇒ hasClip false ⇒ clip == null ⇒ the layer composites normally (no all-zero blank).
+                bool hasClip = matteOn && !isMatte && !isLuma && channels != null && layer.clipByChannel >= 0 && layer.clipByChannel < 4 && channelWritten[layer.clipByChannel];
 
                 if (isMatte)
                 {
@@ -288,7 +295,7 @@ namespace Laubrary.PyrePlus
                     RenderLayer(scratch, W, H, layerLife, spec, layer, mods, phase, frameIndex);
                     if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, layerLife, frameIndex);
                     if (hasLayerSim) ApplyLayerSim(layer.simulationModifier, spec.seed, scratch, W, H, frameIndex, frames);
-                    if (channels != null) WriteMatteCoverage(channels[Mathf.Clamp(layer.matteChannel, 0, 3)], scratch, layer.matteCombine, layer.matteWriteLuma);
+                    if (channels != null) { int wch = Mathf.Clamp(layer.matteChannel, 0, 3); WriteMatteCoverage(channels[wch], scratch, layer.matteCombine, layer.matteWriteLuma); channelWritten[wch] = true; }
                     continue;
                 }
 
@@ -1790,11 +1797,18 @@ namespace Laubrary.PyrePlus
             {
                 float h = field[i];
                 if (h <= 0.003f) continue;                 // no surface where nothing was deposited
-                // The LIT field value picks the gradient position (mirrors the Ramp pass's 0.35 + light·1.15 spread),
-                // so the same fused height reads brighter on lit slopes and darker in shadow — the relief you can see.
-                float value = h;
-                if (light != null) value = Mathf.Clamp01(value * (0.35f + light[i] * 1.15f));
-                Color col = fill != null ? fill.Evaluate(value, 0f, 0f) : Color.white;
+                // Sample the Fill at the RAW fused height (its true position on the ramp), THEN SHADE the resulting
+                // colour by the relief-light term (#58 Fix 1). Shifting only the gradient LOOKUP position was invisible
+                // on a smooth heightmap — the ramp is smooth, so a smooth-slope lookup shift produced a plain fading
+                // gradient. Multiplying the OUTPUT brightness by 0.35 + light·1.15 (the same spread the Ramp pass uses,
+                // ~[0.56× shadow .. 1.5× highlight]) makes slopes facing the light visibly brighten and slopes facing
+                // away darken — real relief you can see. Over() clamps each channel, so a >1 highlight blows to white.
+                Color col = fill != null ? fill.Evaluate(h, 0f, 0f) : Color.white;
+                if (light != null)
+                {
+                    float shade = 0.35f + light[i] * 1.15f;
+                    col.r *= shade; col.g *= shade; col.b *= shade;
+                }
                 // The field IS the surface: its raw (un-lit) value is the coverage, so the surface stays solid in
                 // shadow and fades only where the fused luminance itself fades (a soft rim). × the gradient's own alpha.
                 float outA = Mathf.Clamp01(h) * col.a;
