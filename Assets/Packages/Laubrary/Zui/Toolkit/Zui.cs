@@ -695,6 +695,25 @@ namespace Laubrary.Zui
             if (onBeforeMutate != null) env.OnBeforeMutate += onBeforeMutate;
             return env;
         }
+
+        // ── popover / menu ───────────────────────────────────────────────────────────
+
+        /// A floating ZUI-styled card anchored to <paramref name="anchor"/>'s worldBound, added into the
+        /// window's overlay layer. It positions below the anchor (flipping above / clamping when it would
+        /// overflow the window), dismisses on an outside click or Esc, and hosts whatever
+        /// <paramref name="build"/> adds to its panel. Returns a handle whose Close() dismisses it. The
+        /// general primitive for a bespoke flyout (a hover preview, a settings panel); for a menu of
+        /// items reach for Z.Menu instead, which composes on top of this.
+        public static ZuiPopover Popover(VisualElement anchor, Action<VisualElement> build,
+            ZuiPopover.Options options = null)
+            => ZuiPopover.Show(anchor, build, options);
+
+        /// A ZUI-styled, richer stand-in for GenericMenu (a fluent builder over Z.Popover): section
+        /// headers, labelled items with an optional icon + checkmark, separators, and persistent toggle /
+        /// MiniRadio rows. `Z.Menu(anchor).Section(..).Item(..).Show()` — Show() opens it and returns the
+        /// ZuiPopover handle. See ZuiMenu for the row semantics (Item closes on click like GenericMenu;
+        /// Toggle/Radio stay open).
+        public static ZuiMenu Menu(VisualElement anchor) => new ZuiMenu(anchor);
     }
 
     public static class ZuiExtensions

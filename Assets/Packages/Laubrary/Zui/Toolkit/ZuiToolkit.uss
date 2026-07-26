@@ -541,3 +541,93 @@
     min-width: 200px;
     min-height: 200px;
 }
+
+/* Popover / menu (ZuiPopover + ZuiMenu) ---------------------------------- */
+
+/* The full-window transparent catcher a popover floats inside. It is deliberately un-styled (no
+   background): it exists only to receive the outside-click that dismisses the popover, while the panel
+   is its single opaque child. */
+.zui-popover__scrim {
+    /* inset:0 + position:absolute are set inline; nothing to paint here. */
+}
+
+/* The floating card. Opaque (it overlaps the tool's own chrome, so it must not be see-through) with a
+   border to lift it off the content behind it. UITK has no box-shadow, so the border does the lifting. */
+.zui-popover {
+    background-color: rgb(56, 56, 58);
+    border-width: 1px;
+    border-color: var(--zui-line);
+    border-radius: 4px;
+    padding: 4px;
+}
+
+.zui-menu {
+    min-width: 120px;
+}
+
+/* A menu row: a flat, full-width, hover-highlighting line (a Clickable manipulator drives it, matching
+   ZuiBox/ZuiSection's own clickable headers rather than a boxed Button). */
+.zui-menu__item {
+    flex-direction: row;
+    align-items: center;
+    padding-left: 4px;
+    padding-right: 10px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    border-radius: 3px;
+}
+
+.zui-menu__item:hover {
+    background-color: var(--zui-accent-soft);
+}
+
+.zui-menu__item--disabled {
+    opacity: 0.45;
+}
+
+/* A fixed check gutter so every label lines up whether or not the row carries a tick. */
+.zui-menu__check {
+    width: 14px;
+    flex-shrink: 0;
+    color: var(--zui-accent);
+    -unity-text-align: middle-center;
+}
+
+.zui-menu__icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 5px;
+    flex-shrink: 0;
+}
+
+.zui-menu__label {
+    white-space: nowrap;
+    -unity-text-align: middle-left;
+}
+
+/* A section heading inside a menu: the flat replacement for a GenericMenu submenu group. Quieter and
+   smaller than a top-level section title, with air above so runs read as grouped. */
+.zui-menu__section {
+    -unity-font-style: bold;
+    font-size: 10px;
+    color: var(--zui-section-title);
+    opacity: 0.9;
+    white-space: nowrap;
+    margin-top: 5px;
+    margin-bottom: 2px;
+    margin-left: 2px;
+}
+
+.zui-menu__sep {
+    height: 1px;
+    background-color: var(--zui-line);
+    margin-top: 3px;
+    margin-bottom: 3px;
+}
+
+.zui-menu__toggle,
+.zui-menu__radio {
+    padding-left: 4px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}

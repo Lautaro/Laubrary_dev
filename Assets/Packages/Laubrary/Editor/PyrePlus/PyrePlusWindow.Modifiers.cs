@@ -76,9 +76,10 @@ namespace Laubrary.PyrePlus.Editor
                 listHost.Add(BuildModifierBlock(listHost, list, i, RebuildModifiers));
             }
 
-            modifiersBody.Add(WrapRow(
-                Z.Button("+ Add modifier", "Add a geometry, pixel or post modifier to the stack.",
-                    () => ShowAddModifierMenu(list, RebuildModifiers))));
+            Button addModBtn = null;
+            addModBtn = Z.Button("+ Add modifier", "Add a geometry, pixel or post modifier to the stack.",
+                () => ShowAddModifierMenu(addModBtn, list, RebuildModifiers));
+            modifiersBody.Add(WrapRow(addModBtn));
 
             // Simulation slot (slice 7): the layer's OWN stateful "always last" SimulationModifier — a SINGLE
             // polymorphic slot separate from the modifier list above (it retains frame-to-frame state and replays on
@@ -144,9 +145,10 @@ namespace Laubrary.PyrePlus.Editor
                 listHost.Add(BuildModifierBlock(listHost, list, i, RebuildGlobalModifiers));
             }
 
-            globalModifiersBody.Add(WrapRow(
-                Z.Button("+ Add modifier", "Add a geometry, pixel or post modifier applied to every layer.",
-                    () => ShowAddModifierMenu(list, RebuildGlobalModifiers))));
+            Button addGlobalModBtn = null;
+            addGlobalModBtn = Z.Button("+ Add modifier", "Add a geometry, pixel or post modifier applied to every layer.",
+                () => ShowAddModifierMenu(addGlobalModBtn, list, RebuildGlobalModifiers));
+            globalModifiersBody.Add(WrapRow(addGlobalModBtn));
 
             globalModifiersSection?.RefreshHeaderSuffix();   // keep the collapsed count right across body refills
         }
@@ -342,19 +344,28 @@ namespace Laubrary.PyrePlus.Editor
             return (p != null && p.PropertyType == typeof(float) && p.CanRead && p.CanWrite) ? p : null;
         }
 
-        void ShowAddModifierMenu(List<PyreModifier> list, Action rebuild)
+        // The add-modifier catalog, as a ZUI menu anchored to the "+ Add modifier" button (task #68 — the
+        // GenericMenu stand-in). AddableModifiers() is sorted group-then-label, so the Geometry/Pixel/Post
+        // groups that GenericMenu drew as slash-nested submenus become flat, always-visible SECTION headings
+        // here — one fewer click and the whole catalog scannable at a glance. Behaviour is otherwise
+        // identical: each row adds one modifier (undoable) and rebuilds the stack; the menu dismisses on the
+        // pick, an outside click, or Esc.
+        void ShowAddModifierMenu(VisualElement anchor, List<PyreModifier> list, Action rebuild)
         {
-            var menu = new GenericMenu();
+            var menu = Z.Menu(anchor);
+            string lastGroup = null;
             foreach (var e in AddableModifiers())
             {
+                if (e.group != lastGroup) { menu.Section(e.group); lastGroup = e.group; }
                 var type = e.type;
-                menu.AddItem(new GUIContent($"{e.group}/{e.label}"), false, () =>
+                string label = e.label, group = e.group;
+                menu.Item(label, $"Add the {label} {group.ToLowerInvariant()} modifier to the stack.", () =>
                 {
                     Dirty(() => list.Add((PyreModifier)Activator.CreateInstance(type)));
                     rebuild();
                 });
             }
-            menu.ShowAsContext();
+            menu.Show();
         }
 
         // Every concrete PyreModifier PyrePlus can actually apply — a Geometry, Pixel or Post modifier with a

@@ -26,12 +26,15 @@ namespace Laubrary.Zui
         Color col = new Color(1f, 0.5f, 0.1f);
         Vector2 pad = new Vector2(0.2f, -0.1f);
         float rangeLo = 0.3f, rangeHi = 0.7f;
+        bool menuChecked, menuOverlay = true;
+        int menuMode;
 
         Label readout;
 
         static readonly string[] SegLabels = { "Area", "Ring", "Rosing" };
         static readonly string[] FlagLabels = { "Alpha", "Hue", "Blur", "Warp" };
         static readonly string[] CycleLabels = { "Once", "Loop", "Ping-pong" };
+        static readonly string[] MenuModes = { "Off", "Draft", "Final" };
 
         protected override void BuildUI(VisualElement root)
         {
@@ -111,6 +114,46 @@ namespace Laubrary.Zui
                 Z.Pad(pad, new Rect(-1f, -1f, 2f, 2f), "A 2D offset.",
                     v => { pad = v; Report($"Pad = ({v.x:0.##}, {v.y:0.##})"); }, 80f)));
             body.Add(spatial);
+
+            // ── popovers & menus ─────────────────────────────────────────────────────
+            var pop = Z.Box("Popovers & menus",
+                "ZuiPopover is a floating ZUI card anchored to a control — it flips/clamps to stay on-screen " +
+                "and dismisses on an outside click or Esc. Z.Menu composes the GenericMenu stand-in over it: " +
+                "sections, icon items, checkmarks, separators, and persistent toggle / radio rows.");
+
+            Button menuBtn = null;
+            menuBtn = Z.Button("Open menu ▾", "Every ZuiMenu row type in one menu — icon items, a checkmark, a " +
+                "disabled row, a separator, a persistent toggle and a radio group.",
+                () => Z.Menu(menuBtn)
+                    .Section("Actions")
+                    .IconItem("pencil", "Rename", "Rename this item.", () => Report("Menu → Rename"))
+                    .IconItem("copy", "Duplicate", "Duplicate this item.", () => Report("Menu → Duplicate"))
+                    .IconItem("trash", "Delete", "Delete this item.", () => Report("Menu → Delete"))
+                    .Separator()
+                    .Item("Snap to grid", "A one-shot checkmark item — closes on click, GenericMenu-style.",
+                        () => { menuChecked = !menuChecked; Report($"Menu → Snap = {menuChecked}"); }, @checked: menuChecked)
+                    .Item("Unavailable", "A disabled row greys out and ignores clicks.", null, enabled: false)
+                    .Section("Live settings")
+                    .Toggle("Show overlay", "A persistent toggle row — the menu stays open so several settings " +
+                        "can be flipped in one visit.", menuOverlay,
+                        v => { menuOverlay = v; Report($"Menu → Overlay = {v}"); })
+                    .Radio("Mode", MenuModes, menuMode, "A MiniRadio group living inside the menu.",
+                        i => { menuMode = i; Report($"Menu → Mode = {MenuModes[i]}"); })
+                    .Show());
+
+            Button flyBtn = null;
+            flyBtn = Z.Button("Flyout…", "A bespoke Z.Popover holding arbitrary ZUI controls — not a menu.",
+                () => Z.Popover(flyBtn, panel =>
+                {
+                    panel.Add(Z.Text("Quick settings", ZuiText.Section, "A flyout can hold any ZUI controls."));
+                    panel.Add(Z.Field("Opacity", "Preview opacity.",
+                        Z.Slider(0.8f, 0f, 1f, "Opacity.", v => Report($"Flyout → Opacity = {v:0.##}"), 150f)));
+                    panel.Add(Z.MicroSlider("Zoom", 0.5f, 0f, 1f, "Zoom the preview.",
+                        v => Report($"Flyout → Zoom = {v:0.##}"), 150f));
+                }, new ZuiPopover.Options { minWidth = 200f }));
+
+            pop.Add(Z.Row(menuBtn, flyBtn));
+            body.Add(pop);
 
             root.Add(scroll);
         }
