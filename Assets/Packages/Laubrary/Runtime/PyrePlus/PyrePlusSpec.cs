@@ -159,6 +159,21 @@ namespace Laubrary.PyrePlus
         public bool enabled = true;      // hidden layers are skipped entirely by the renderer
         public string name = "Layer";    // shown in the layer list; rename-in-place
 
+        // ── lifetime window (#55) — ported 1:1 from Pyre1's Layer.startFrame/endFrame ──────────────
+        // The frame range this layer is ALIVE. Its life is lerped 0..1 across [startFrame, endFrame]
+        // (clamped), EXACTLY like Pyre1 (BlastRenderer.cs:565); OUTSIDE that range the layer contributes
+        // nothing that frame (an inactive layer). DEFAULT = the FULL range, so every existing spec is
+        // byte-identical: startFrame 0 and endFrame -1, where -1 is the SENTINEL "the last frame",
+        // resolved to frameCount-1 at render time. The sentinel (rather than a hardcoded 15) is what keeps
+        // a spec byte-identical at ANY frameCount — a full-range window on a 24-frame spec must still end
+        // at frame 23, giving life = frame/(frameCount-1) verbatim. An OLDER asset written before these
+        // fields existed deserialises with them ABSENT ⇒ the initializers (0 / -1) apply ⇒ full range ⇒
+        // byte-identical. Both are value-type ints, so Clone()'s MemberwiseClone copies them for free.
+        [Tooltip("First frame this layer's shapes are alive. Its life is lerped 0..1 across [start, end]; before Start the layer contributes nothing.")]
+        public int startFrame = 0;
+        [Tooltip("Last frame this layer's shapes are alive (life reaches 1 here; after End the layer contributes nothing). -1 = the last frame — full range, the whole timeline, by default.")]
+        public int endFrame = -1;
+
         // ── matte (R3) — Pyre's matte idea, simplified to numbered channels ─────────
         // The master gate for this layer's WHOLE matte block (role / clip / height). The RENDERER honours it (#57):
         // matteRole/clipByChannel/heightFromChannel only act when this is true, so a layer with matteEnabled == false

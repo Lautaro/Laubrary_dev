@@ -235,10 +235,26 @@ namespace Laubrary.PyrePlus
                 if (layer == null || !layer.enabled) continue;
                 _layerSalt = li;
 
+                // ── per-layer lifetime window (#55) — ported 1:1 from Pyre1 (BlastRenderer.cs:218/565) ──────────
+                // Resolve the window against the frame count: endFrame < 0 is the "last frame" SENTINEL ⇒ frames-1
+                // (so a full-range window ends at frames-1 at ANY frameCount, never a hardcoded 15). A default layer
+                // (0 / -1) resolves to [0, frames-1]. OUTSIDE the window the layer is INACTIVE — it contributes
+                // nothing this frame (mirrors how Pyre1 blanks a layer outside its window). INSIDE, the layer's
+                // life is lerped 0..1 across [start, end] EXACTLY as Pyre1 does —
+                // Mathf.Clamp01((frame-start)/Max(1,end-start)) — which for the default full range is the old
+                // frame/(frames-1) VERBATIM (byte-identical), and which remaps the whole swarm's spawn/particle-life
+                // timing (all fraction-of-life over the layer clock) across the window for free. `life` above stays
+                // the spec-level clock for the background fill; `layerLife` is what every per-layer draw reads.
+                int winStart = Mathf.Clamp(layer.startFrame, 0, frames - 1);
+                int winEnd = layer.endFrame < 0 ? (frames - 1) : Mathf.Clamp(layer.endFrame, 0, frames - 1);
+                if (winEnd < winStart) winEnd = winStart;   // degenerate authoring collapses to a single live frame
+                if (frameIndex < winStart || frameIndex > winEnd) continue;   // out of window ⇒ inactive this frame
+                float layerLife = Mathf.Clamp01((frameIndex - winStart) / (float)Mathf.Max(1, winEnd - winStart));
+
                 // Build + Prepare this layer's geometry/pixel modifier stack for THIS frame. Empty ⇒ ModSet.Empty ⇒
                 // DrawParticle's byte-identical fast path (and no per-layer post), so a no-modifier layer renders
                 // exactly as before T6 (orchestrator hash-checked for the single default layer, li == 0).
-                ModSet mods = BuildMods(layer.modifiers, spec.seed, life);
+                ModSet mods = BuildMods(layer.modifiers, spec.seed, layerLife);
                 bool hasPost = HasEnabledPost(layer.modifiers);
                 // Simulation slot (slice 7): the layer's own STATEFUL modifier. Like Fire/Fireball it retains state and
                 // must render into isolated scratch (its Render OVERWRITES/advects pixels — see ApplyLayerSim), so it
@@ -266,8 +282,8 @@ namespace Laubrary.PyrePlus
                     // own post pass on that scratch, then read each pixel's ALPHA (the coverage it WOULD have drawn)
                     // into its channel. Never composited — a matte layer is invisible.
                     var scratch = new Color32[W * H];
-                    RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
-                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, life, frameIndex);
+                    RenderLayer(scratch, W, H, layerLife, spec, layer, mods, phase, frameIndex);
+                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, layerLife, frameIndex);
                     if (hasLayerSim) ApplyLayerSim(layer.simulationModifier, spec.seed, scratch, W, H, frameIndex, frames);
                     if (channels != null) WriteMatteCoverage(channels[Mathf.Clamp(layer.matteChannel, 0, 3)], scratch, layer.matteCombine, layer.matteWriteLuma);
                     continue;
@@ -281,15 +297,15 @@ namespace Laubrary.PyrePlus
                     // channels on the passive layers on top). Never composited — a matte layer is invisible. The
                     // strength/amounts Eval over THIS layer's own life, frame-global (the modifier-scope sentinel).
                     var scratch = new Color32[W * H];
-                    RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
-                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, life, frameIndex);
+                    RenderLayer(scratch, W, H, layerLife, spec, layer, mods, phase, frameIndex);
+                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, layerLife, frameIndex);
                     if (hasLayerSim) ApplyLayerSim(layer.simulationModifier, spec.seed, scratch, W, H, frameIndex, frames);
-                    float strength = Mathf.Clamp01(Eval(layer.matteStrength, life, spec.seed, ModParticleIndex, FldMatteStrength));
+                    float strength = Mathf.Clamp01(Eval(layer.matteStrength, layerLife, spec.seed, ModParticleIndex, FldMatteStrength));
                     matteState.mask = BuildMatteMask(scratch, layer.matteInvert, strength);
                     matteState.flags = layer.matteFlags;
-                    matteState.blurAmt = Eval(layer.matteBlurAmount, life, spec.seed, ModParticleIndex, FldMatteBlur);
-                    matteState.dispAmt = Eval(layer.matteDisplaceAmount, life, spec.seed, ModParticleIndex, FldMatteDisplace);
-                    matteState.hueDeg = Eval(layer.matteHueDegrees, life, spec.seed, ModParticleIndex, FldMatteHue);
+                    matteState.blurAmt = Eval(layer.matteBlurAmount, layerLife, spec.seed, ModParticleIndex, FldMatteBlur);
+                    matteState.dispAmt = Eval(layer.matteDisplaceAmount, layerLife, spec.seed, ModParticleIndex, FldMatteDisplace);
+                    matteState.hueDeg = Eval(layer.matteHueDegrees, layerLife, spec.seed, ModParticleIndex, FldMatteHue);
                     matteState.oneShot = layer.matteScope == MatteScope.NextLayer;
                     matteState.alphaSource = layer.matteAlphaSource;   // slice 5 — decided by the matte layer
                     continue;
@@ -326,15 +342,15 @@ namespace Laubrary.PyrePlus
                 if (!needScratch)
                 {
                     if (isHeightConsumer) RenderHeightConsumer(buf, W, H, layer, heightField);
-                    else RenderLayer(buf, W, H, life, spec, layer, mods, phase, frameIndex);
-                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, buf, W, H, life, frameIndex);
+                    else RenderLayer(buf, W, H, layerLife, spec, layer, mods, phase, frameIndex);
+                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, buf, W, H, layerLife, frameIndex);
                 }
                 else
                 {
                     var scratch = new Color32[W * H];
                     if (isHeightConsumer) RenderHeightConsumer(scratch, W, H, layer, heightField);
-                    else RenderLayer(scratch, W, H, life, spec, layer, mods, phase, frameIndex);
-                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, life, frameIndex);
+                    else RenderLayer(scratch, W, H, layerLife, spec, layer, mods, phase, frameIndex);
+                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, layerLife, frameIndex);
                     // Simulation slot (slice 7): run the layer's stateful sim modifier HERE — after the stateless post
                     // modifiers, before the matte apply — on the isolated scratch, the exact sim-slot position vanilla
                     // Pyre uses per layer (Runtime/Pyre/BlastRenderer.cs:156-166). Forced into this scratch branch by

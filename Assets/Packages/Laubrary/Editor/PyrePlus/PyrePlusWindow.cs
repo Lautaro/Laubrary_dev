@@ -879,6 +879,27 @@ namespace Laubrary.PyrePlus.Editor
                     // — never leaving an intermediate solid+OverLife state for an undo to land on and re-convert).
                     v => { Dirty(() => { s.shapeForm = (ShapeForm)v; SteadyDefaultFillForSolid(s); }); RebuildShape(); RebuildSwarm(); }, wrap: true)));
 
+            // Lifetime window (#55) — the frame range this LAYER is alive, ported 1:1 from Pyre1's per-layer
+            // "Life (frames)" row. A bounded int min/max pair over [0, frameCount-1] ⇒ ONE Z.MinMax(isInt) range
+            // (never two separate fields), per the layout rules. The layer's life sweeps 0→1 across [start, end];
+            // outside the window the layer draws nothing. endFrame's -1 sentinel ("the last frame") DISPLAYS as
+            // frameCount-1; dragging the high handle back to the far right restores -1 so a full-range window keeps
+            // auto-tracking the frame count (and stays byte-identical), while any inset stores a concrete end.
+            // fcMax is captured at rebuild time — the render-time clamp keeps it correct if frameCount changes since.
+            int fcMax = Mathf.Max(0, spec.frameCount - 1);
+            int winLo = Mathf.Clamp(s.startFrame, 0, fcMax);
+            int winHi = s.endFrame < 0 ? fcMax : Mathf.Clamp(s.endFrame, 0, fcMax);
+            const string framesTip = "The frame window this layer is alive. Its life is lerped 0→1 across [start, end]; before Start / after End the layer contributes nothing (blank). Full range = the whole timeline.";
+            shapeBody.Add(Z.Field("Life (frames)", framesTip,
+                Z.MinMax(winLo, winHi, 0f, fcMax, framesTip,
+                    (lo, hi) => Dirty(() =>
+                    {
+                        int a = Mathf.Clamp(Mathf.RoundToInt(lo), 0, fcMax);
+                        int b = Mathf.Clamp(Mathf.RoundToInt(hi), a, fcMax);
+                        s.startFrame = a;
+                        s.endFrame = b >= fcMax ? -1 : b;   // far-right restores the "last frame" sentinel (auto-tracks frameCount)
+                    }), 130f, isInt: true)));
+
             // Shared rows. For the Gem, Colour is its material tint and Size is its girdle radius; for the Sprite,
             // Colour is the optional tint. TEXT takes its colour from its own Fill / Border gradients instead, so
             // the Colour row is hidden for it (the Text box's Fill row tooltip says so). Size is the scale driver
