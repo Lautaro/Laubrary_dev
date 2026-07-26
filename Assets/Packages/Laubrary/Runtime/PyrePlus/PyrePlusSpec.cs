@@ -537,6 +537,19 @@ namespace Laubrary.PyrePlus
         // built-in fixed-emitter FireSim path runs UNCHANGED (byte-identical). Value type ⇒ MemberwiseClone in
         // Clone() copies it for free. See PyrePlusRenderer.RenderFireLayer / _plusFireSims.
         public bool fireSwarmEmitters = false;
+        // Off-centre emitter (task #61) — a POSITION OFFSET in canvas pixels for the BUILT-IN (non-swarm) flame. Pyre's
+        // FireSim always emits at the canvas centre + a radial inset (cx + dir·inset), so a single non-mirrored flame can
+        // only sit on a ray FROM the centre; this shifts the whole flame off-centre. The renderer simulates the flame
+        // EXACTLY as if centred (the byte-faithful FireSim path is untouched — buoyancy / arms / confinement stay
+        // relative to the flame's own frame), then TRANSLATES the finished grid by (x, y) integer px when compositing —
+        // so it reuses the proven sim path verbatim and only moves where the result LANDS. X = right, Y = up (matching
+        // Direction 90 = up). DEFAULT (0,0) is a HARD no-op: the renderer takes the exact centred sim.Render path, so a
+        // fixed-emitter Fire spec is byte-identical to before, and an older asset predating this field deserialises to
+        // (0,0). Value type ⇒ Clone()'s MemberwiseClone copies it for free. Applies ONLY to the built-in fixed-emitter
+        // path — the swarm-emitter path (fireSwarmEmitters) already places emitters at particle positions, and Fireball
+        // is single-source by design; both are unaffected.
+        [Tooltip("Shift the whole built-in flame off the canvas centre, in pixels (X right, Y up). The flame simulates as if centred, then moves — buoyancy, arms and confinement move with it. 0,0 = centred (the built-in behaviour).")]
+        public Vector2 fireEmitterOffset = Vector2.zero;
 
         // ── Fireball form (shapeForm == Fireball) — a STATEFUL cellular SIMULATION (slice 6b) ──────────────────
         // PyrePlus's SECOND sim-backed form (after Fire): the cheap "doom-fire" cellular flame — heat propagates

@@ -1322,11 +1322,13 @@ namespace Laubrary.SpriteFx
                  "this is the ring you actually see, so it wants to start at 1. Animatable — grow it outward.")]
         public ZUIValue size = new ZUIValue(1f);
         [Range(0.01f, 1f)]
-        [Tooltip("Sensitivity for WHERE the outline traces on a soft-edged shape (outer softness, a gradient " +
-                 "fill's own fade, a Crescent bite, anywhere alpha isn't a hard 0/1 step) — the alpha level a " +
-                 "pixel needs to count as \"shape\" rather than \"background.\" Raise it to trace further IN, " +
-                 "toward the shape's more solid core; lower it to trace further OUT, into the fade itself.")]
-        public float alphaThreshold = 0.3f;
+        [Tooltip("Coverage threshold: the alpha level a pixel needs to count as \"shape\" rather than \"background\" " +
+                 "when tracing the outline — it sets WHERE the outline sits on any soft/partial edge (outer " +
+                 "softness, a gradient fill's own fade, a low-opacity fill, a Crescent bite). Low (the default 0.08) " +
+                 "outlines even a faint, semi-transparent fill; raise it to trace further IN toward only the solid " +
+                 "core (so a low-opacity fill gets no outline). Tip: to outline a PyrePlus 2D shape's silhouette, its " +
+                 "own first-class shape Border is cleaner than this post-pass.")]
+        public float alphaThreshold = 0.08f;
 
         // Inner and Outer below are the two EDGES of one single outline ring (where it meets the shape, and
         // where it meets the background) — not two separate outlines. Same knobs on both sides: a softness

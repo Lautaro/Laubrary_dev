@@ -565,7 +565,43 @@ namespace Laubrary.PyrePlus
             // overall alpha over its life. Fire ignores `size` — the reach radius bounds it, not a particle radius.
             Gradient ramp = layer.shapeFill != null ? layer.shapeFill.gradient : null;
             float alpha = Mathf.Clamp01(Eval(layer.alpha, life, spec != null ? spec.seed : 0, ModParticleIndex, FldAlpha));
-            sim.Render(target, ramp, alpha, layer.fireThreshold, layer.fireContrast);
+            // Off-centre emitter (task #61): the offset only shifts WHERE the finished flame lands, never the sim — the
+            // grid was stepped centred (byte-faithful physics) and the offset does not touch it, so a changed offset
+            // needs NO cache invalidation (sim.Render runs every repaint regardless of the warm/cold/same-frame branch
+            // above). DEFAULT (0,0) takes the EXACT pre-change path — render straight into `target` — so it stays
+            // byte-identical; a non-zero offset renders into a scratch and blits it shifted by integer px (Y up).
+            int offX = Mathf.RoundToInt(layer.fireEmitterOffset.x);
+            int offY = Mathf.RoundToInt(layer.fireEmitterOffset.y);
+            if (offX == 0 && offY == 0)
+                sim.Render(target, ramp, alpha, layer.fireThreshold, layer.fireContrast);
+            else
+            {
+                var tmp = new Color32[W * H];
+                sim.Render(tmp, ramp, alpha, layer.fireThreshold, layer.fireContrast);
+                BlitOffset(tmp, target, W, H, offX, offY);
+            }
+        }
+
+        // Copy the lit pixels of `src` into `dst` shifted by (dx, dy) integer px (dy > 0 = higher grid y = UP). Only src
+        // pixels with alpha > 0 are copied, and only where they land in bounds; `dst` is a fresh (transparent) scratch,
+        // so this preserves FireSim.Render's "write the lit pixels, leave the rest" semantics — just at a translated
+        // position. Used by RenderFireLayer for a non-zero fireEmitterOffset (the offset == 0 case never calls this, so
+        // the default flame never pays for the extra buffer/copy).
+        static void BlitOffset(Color32[] src, Color32[] dst, int W, int H, int dx, int dy)
+        {
+            for (int y = 0; y < H; y++)
+            {
+                int ty = y + dy;
+                if (ty < 0 || ty >= H) continue;
+                int rowSrc = y * W, rowDst = ty * W;
+                for (int x = 0; x < W; x++)
+                {
+                    if (src[rowSrc + x].a == 0) continue;
+                    int tx = x + dx;
+                    if (tx < 0 || tx >= W) continue;
+                    dst[rowDst + tx] = src[rowSrc + x];
+                }
+            }
         }
 
         // One frame's Fire step, replayed identically every time frame f is reached. lp = the layer's life progress at

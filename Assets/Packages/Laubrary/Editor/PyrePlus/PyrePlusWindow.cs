@@ -337,9 +337,10 @@ namespace Laubrary.PyrePlus.Editor
                 "Export the whole animation as an animated GIF — transparent background, loops forever, at the "
                 + "frame rate above. Opens a Save dialog for the file location.",
                 ExportGif));
-            kids.Add(Z.MicroSlider("Scale", s.previewGifScale, 1f, 8f,
-                "Nearest-neighbour upscale applied to the exported GIF (1–8×). Bigger = a larger file with the "
-                + "same crisp pixels.",
+            kids.Add(Z.MicroSlider("GIF scale", s.previewGifScale, 1f, 8f,
+                "Nearest-neighbour upscale applied ONLY to the exported GIF (1–8×) — it does NOT change the live "
+                + "preview, only the pixel size of the saved .gif file. Bigger = a larger file with the same crisp "
+                + "pixels.",
                 v =>
                 {
                     if (spec == null) return;
@@ -347,7 +348,7 @@ namespace Laubrary.PyrePlus.Editor
                     s.previewGifScale = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8);
                     EditorUtility.SetDirty(spec);
                 }, 150f, showValue: true, decimals: 0));
-            transportHost.Add(Z.HGroup(kids.ToArray()));   // Play + Frame/Strip/Tile/GIF/Scale as one wrapping unit-row
+            transportHost.Add(Z.HGroup(kids.ToArray()));   // Play + Frame/Strip/Tile/GIF/GIF-scale as one wrapping unit-row
 
             // ── frame scrubber (transport parity with Pyre1's scrub field) ──────────────────────
             // A 1-based int slider over the whole frame range that drives the transport `frame`. Dragging it PAUSES
@@ -1447,6 +1448,19 @@ namespace Laubrary.PyrePlus.Editor
                     s.fireEmitterWidth, 1f, spec.canvasSize),
                 Val("Inset (px)", "How far each emitter sits out from the centre, in pixels.",
                     s.fireEmitterInset, 0f, Mathf.Max(1f, spec.canvasSize * 0.5f))));
+            // Off-centre emitter (task #61): shift the whole built-in flame off the canvas centre. A plain Vector2 in px
+            // (not animatable) → a Z.Pad, mirroring the Gem light-dir pad; the renderer translates the FINISHED flame,
+            // so the sim stays centred and byte-faithful (0,0 = the pre-change centred behaviour). Undo-safe via Dirty.
+            {
+                float offHalf = Mathf.Max(1f, spec.canvasSize * 0.5f);
+                const string offTip = "Shift the whole flame off the canvas centre, in pixels — X right, Y up. The flame "
+                    + "is simulated exactly as if centred (buoyancy, arms and confinement all move with it), then "
+                    + "translated to here. 0,0 = centred (the built-in behaviour). Places a flame that doesn't sit in the "
+                    + "middle. (Built-in arms path only — with 'Swarm emitters' on, place the sources with the Swarm.)";
+                box.Add(Z.Field("Emitter offset (px)", offTip,
+                    Z.Pad(s.fireEmitterOffset, new Rect(-offHalf, -offHalf, offHalf * 2f, offHalf * 2f), offTip,
+                        v => Dirty(() => s.fireEmitterOffset = v), 56f)));
+            }
 
             // ── Heat & fuel ──
             box.Add(Z.HGroup(
