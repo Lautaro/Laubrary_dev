@@ -1,7 +1,9 @@
 {
     "name": "com.Lautaro-Arino.Laubrary.Cartographer",
     "rootNamespace": "Laubrary.Cartographer",
-    "references": [],
+    "references": [
+        "com.Lautaro-Arino.Laubrary.PreviewKit"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

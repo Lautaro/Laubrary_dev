@@ -60,10 +60,11 @@ Cartographer ports that philosophy onto a 2D tile grid.
 - **Live preview is a first-class requirement for every authoring surface** (rule tiles, clumps, procgen
   dials) — same "preview == runtime" principle as Pyre and `BiomeEditorWindow`'s live rig. Changes to a rule/
   clump/recipe should be instantly visible in-editor, not require a bake-and-check step.
+- **Differently-sized level elements come from Clumps and the decoration layer, not from multiple grids** (decided 2026-07-27). A Unity `Grid` has one cell size, so a big object is either a multi-cell Clump (a whole building as one stamp) or a plain sprite on a decoration layer, which is not grid-bound at all and can be any size. Stacking several Grids at different cell sizes technically works but doubles the authoring surface for every layer — rejected unless a real need turns up.
 
 ## Open decisions (revisit before/while implementing)
 
-- Tag mechanism: plain strings vs. a tag-asset registry.
+- ~~Tag mechanism: plain strings vs. a tag-asset registry.~~ **Resolved 2026-07-27 → tag asset** (`ClumpTag`), per the lean already recorded here: discoverable in a picker, survives a rename, and can never silently become a typo. It carries a description and an editor colour but deliberately no behaviour — Phase 4's tag-to-collision wiring stays the consuming project's job.
 - Whether Clumps are authored as concrete tile references tied to one biome, or abstract "tile role" patterns
   resolved per-biome at use time (started simple/concrete for v1; abstract version is a possible v2 — lets a
   clump's SHAPE be reused across biomes with different sprites filled in, at the cost of an extra indirection
@@ -104,6 +105,15 @@ For side-scrolling levels specifically, captured before any implementation:
     a boss fight where the camera focuses on different ground installations that must be destroyed in a
     specific order).
 
+### What happens when a forced scroll catches the player (decided 2026-07-27)
+
+Four behaviours, all used in shipped games. This is a **per-Room setting on the scroll spec**, not a global one, because different rooms want different answers.
+
+- **Lock** *(default)* — the player simply cannot leave the visible area; they get pushed by the view boundary but nothing else happens. Most shmups, Contra. Safest default because it never kills anyone by surprise.
+- **Push** — the trailing screen edge shoves the player along, and they can be crushed against solid geometry. Mario 3 airships.
+- **Kill** — touching the trailing edge is fatal.
+- **Wait** — the scroll pauses until the player catches up. Honest option to have, but it stops being a forced scroll, so it belongs to a room that wants pacing pressure without failure.
+
 ## Functional clumps (special-function tiles)
 
 A clump needs to carry more than visuals:
@@ -141,6 +151,17 @@ tiles (which follow adjacency rules) each independently have several random vari
   instead of exact tile reference — makes "any tile in this family" checks first-class instead of requiring
   manual sibling-listing. Prioritize once the basic Biome/Clump/Generator loop works.
 
+## Hooks for scripted sequences ("Interlude") — 2026-07-27, design notes only
+
+A separate planned tool (working name **Interlude**) plays scripted in-engine sequences using the live game objects: a stage intro where the hero walks in and the level title flashes, a pickup where every enemy freezes while the hero flies up and releases a blast, a hand-off where the hero boards a plane and the game becomes a shmup. It is not part of Cartographer and should not be built into it — but it needs two things *from* a level, and those two things are Cartographer's job.
+
+**Keep the tools separate. Named spots are the entire connection.** Cartographer says "there is a point here called `landing-pad`". Interlude says "walk the hero to `landing-pad`". Neither needs to know how the other works, and neither gets a reference to the other's types.
+
+- **Named spots (anchors).** A Room, or a functional Clump inside it, can expose named points that gameplay code and sequences look up by string. Procgen must guarantee that a Room's declared spots exist; it stays free to choose tiles and dressing around them. This reuses the functional-clump prefab hook already planned above rather than adding a second mechanism — a spot is a clump slot that carries a name instead of a prefab.
+- **Reserved walkable areas.** A Room can mark a rectangle that generation must leave traversable, for sequences that need space to move rather than a single point. This is the honest fix for "will the hero's scripted walk be blocked in a procgen level" — better than switching collision off during a sequence, because collision-off still looks wrong the moment the hero walks through a wall the camera can see. Keep collision-off as an escape hatch for framings where the problem is never visible.
+
+Both are cheap to add to the Room/Clump schema now and expensive to retrofit later, so put the fields in when Phase 1 lands even though nothing consumes them yet.
+
 ## Phased task list
 
 ### Phase 0 — scaffolding
@@ -149,20 +170,34 @@ tiles (which follow adjacency rules) each independently have several random vari
 - [x] This doc.
 - [x] Moved into canonical Laubrary Dev from the Asteroid+ working copy (2026-07-16).
 
-### Phase 1 — core data model
-- [ ] `CartographerBiome` (ScriptableObject, `LaubraryAssetWindow<T>`-based CRUD window) — tileset refs, which
-  Clumps are valid in it, theming (tint, parallax/background refs).
-- [ ] `Clump` type — tile pattern (offsets + `TileBase` refs) + open-ended tags + optional functional hook
-  (prefab or weighted prefab alternatives).
-- [ ] Tag system (resolve the open decision above; implement).
-- [ ] Runtime `Level`/`Map` component: a `Grid` + named `Tilemap` layers (Terrain, Structures, ...).
-- [ ] `CartographerRoom` — a placed level section: references a Biome + an exit-condition spec (distance/time/
-  kill-count) + a scroll-behavior spec (autoscroll-repeat / locked-in-place / player-pushable-content-locked).
+### Phase 1 — core data model  ✅ landed 2026-07-27
+- [x] `CartographerBiome` (ScriptableObject) — tileset refs, which Clumps are valid in it, theming (tint,
+  background sprite). The `LaubraryAssetWindow<T>` CRUD window is Phase 2, where it is already listed.
+- [x] `Clump` type — `ClumpCell` list (offset + `TileBase` + target layer) + open-ended tags + weighted
+  `prefabChoices` + named `spots`.
+- [x] Tag system — resolved in favour of a `ClumpTag` **asset** (see Confirmed decisions).
+- [x] Runtime `CartographerLevel` component: a `Grid` + named `Tilemap` layers, the room list, `PlaceClump`,
+  and the named-spot registry.
+- [x] `CartographerRoom` — a placed level section: Biome + exit condition (`RoomExit`) + scroll behaviour
+  (`RoomScroll`) + `ScrollCatchUp` + `reservedAreas`. A `[Serializable]` class held inline on the level, not
+  an asset, so bespoke rooms never bloat the asset library.
+- [x] `Clump` and `CartographerBiome` implement `IVisualPreview` through one shared `CartographerPreview`
+  tile-to-pixels path. **Both verified drawing** (2026-07-27) against the demo assets below — clump 64×48,
+  biome 48×16, inspected by eye.
+- [x] `Laubrary/Cartographer/Build Demo Assets` menu command — generates its own placeholder tiles, an
+  `Untraversable` tag, a `Hut` clump and a `Settlement` biome into `Assets/Demos/CartographerDemo/`.
+  Never overwrites, so edits to the demo assets survive a re-run.
 
 ### Phase 2 — manual authoring
+- [x] **Clump Editor** (`Editor/Cartographer/ClumpWindow.cs`, menu `Laubrary/Cartographer/Clump Editor`) —
+  landed 2026-07-27. `ZuiAssetWindow<Clump>` + a Painter2D paint grid: palette (seeded from a Biome and from
+  the clump's own tiles), target-layer + paint/erase brush, grid sizing, tags and spots. Click/drag paints,
+  Alt or right-button erases. `ZuiAudit` 0 findings / foldedSkipped 0 at 1000×620.
 - [ ] **Scavenger port** — still living only in `D:\UNITY\Asteroid+\Packages\Laubrary\Editor\Scavenger` (see
   the Open decisions note above); NOT yet ported to this repo. Resolve the Launimator-overlap question before
-  porting, not after.
+  porting, not after. **Not a blocker for the Stamper** (decided 2026-07-27): Scavenger is sprite-sheet
+  DOWNLOADING and cherry-picking, whereas authoring and stamping only need tiles already in the project, which
+  a plain object field supplies. Resolve it when sprite sourcing is actually wanted, not before.
 - [ ] Clump Stamper tool — pick a Clump, click to place it onto a Tilemap, rotate/mirror. The actual new
   value Cartographer adds over vanilla Unity (Tile Palette only handles single tiles, not multi-tile stamps).
   Sprite sourcing (download a sheet, cherry-pick tiles out of it) should reuse Scavenger once it's ported,

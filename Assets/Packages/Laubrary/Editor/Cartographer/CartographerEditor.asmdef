@@ -5,6 +5,7 @@
         "com.Lautaro-Arino.Laubrary.Cartographer",
         "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
         "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime"
     ],
     "includePlatforms": [
