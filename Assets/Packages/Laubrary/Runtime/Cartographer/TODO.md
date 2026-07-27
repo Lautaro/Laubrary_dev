@@ -1,5 +1,25 @@
 # Cartographer — design notes & task list
 
+## Resume here (state as of 2026-07-27)
+
+**Phases 1–5 are done bar two items.** The tool authors clumps, edits biomes, scaffolds levels, manages layers, stamps (rotate / mirror / drag-repeat / line mode), records placements, builds collision (composite, one-way, slopes, tag-narrowed), runs Rooms with scroll + catch-up + camera modes, and generates levels from a seeded recipe. It has built a real side-scrolling level.
+
+**Everything is in ONE window:** `Laubrary ▸ Cartographer ▸ Clump Editor`. There are deliberately no other menu commands except `Build Demo Assets` — creation happens in the window, not in a submenu.
+
+**What is left, in the order to do it:**
+
+1. **Live generator preview** — regenerate + redraw on every dial change, the `TrackDesignerWindow` treatment. The Generate box's button is a manual stand-in. This is the only unfinished piece of a landed phase.
+2. **Scavenger sprite sourcing** — still unresolved (see Open decisions). ⚠️ Needs Lautaro's call, not a unilateral one: it means refactoring Launimator inside Asteroid+.
+3. **Phase 6's real biome** — needs actual pixel art, not code. The integration scene exists in OutBurner.
+4. **Colour-system compatibility** — `ZuiSwatchBinding` cannot drive a Tilemap (one material for the whole map). Per-tile solid colour wants a small `TilemapSwatchBinding` over `Tilemap.SetColor`; per-layer gradient/cycling wants the LUT shader on the `TilemapRenderer`. Neither is built.
+
+**Two things to know before touching the code:**
+
+- **`CartographerRuleTile` is conditionally compiled.** `RuleTile` ships in the OPTIONAL `com.unity.2d.tilemap.extras` package, so it is wrapped in `#if TILEMAP_EXTRAS_INSTALLED` with a versionDefine on the runtime asmdef (the pattern Zounds uses for Addressables). **Laubrary Dev does not have that package, so the type genuinely does not exist here — that is correct, not a bug.** OutBurner has 6.0.1. When verifying, check its base resolves as `RuleTile<>`, not merely that the type was found.
+- **`RoomDirector` is a tickable on purpose** — `Tick(dt, playerPos)` applied to its own state, `Update` only calls it. That is what lets every scroll / catch-up / camera behaviour be verified in EDIT mode by driving `Tick` directly: no play mode, no wall-clock waiting, exact numbers. It has already caught a real bug that way (`PlayerCaught` firing per tick instead of per crossing). Keep that shape.
+
+**Test content:** `Assets/Demos/CartographerDemo/` via the `Build Demo Assets` command — it generates its own placeholder tiles so it works in a bare project, and never overwrites, so tweaks survive a re-run. OutBurner additionally has `Assets/OutBurner/Cartographer/CartographerTest.unity`, a real level with 13 placements across 3 layers.
+
 > **2026-07-27 — brought back from OutBurner.** Phases 1, 2 and most of 4 were developed inside OutBurner's
 > embedded copy (the tool's first real consumer, so the ergonomics surfaced fast) and promoted here once the
 > authoring loop worked. This project is authoritative again; syncs no longer need `-Skip OutBurner`. The
