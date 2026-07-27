@@ -143,6 +143,23 @@ namespace Laubrary.Zui
                     new ZuiDirection3D.Options { showDistance = true })));
             body.Add(spatial);
 
+            // ── gradients ────────────────────────────────────────────────────────────
+            var gradBox = Z.Box("Gradients",
+                "ZuiGradient — a base gradient plus non-destructive transform knobs (reverse / hue / sat / " +
+                "brightness / contrast / quantise / cycle). The strip on top is a LIVE preview painted from " +
+                "ToLut(), the exact ramp the runtime + palette-cycle shader use, so it can never lie.",
+                "palette");
+            var demoGrad = new ZuiGradient();
+            var fg = new Gradient();
+            fg.SetKeys(
+                new[] { new GradientColorKey(new Color(0.6f, 0f, 0f), 0f), new GradientColorKey(new Color(1f, 0.5f, 0f), 0.5f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+            demoGrad.gradient = fg;
+            gradBox.Add(Z.Gradient(demoGrad,
+                "Dial the transforms — the preview strip up top always shows the true evaluated result.",
+                () => Report("Gradient changed")));
+            body.Add(gradBox);
+
             // ── popovers & menus ─────────────────────────────────────────────────────
             var pop = Z.Box("Popovers & menus",
                 "ZuiPopover is a floating ZUI card anchored to a control — it flips/clamps to stay on-screen " +

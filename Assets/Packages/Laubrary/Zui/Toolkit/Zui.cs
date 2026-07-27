@@ -635,6 +635,17 @@ namespace Laubrary.Zui
             return f;
         }
 
+        /// The richer ZuiGradient editor — a base Gradient plus non-destructive transform knobs (reverse /
+        /// hue / saturation / brightness / contrast / quantise / cycle), topped by a LIVE preview strip that
+        /// shows the TRUE evaluated ramp (painted from ZuiGradient.ToLut — the exact LUT the runtime/shader
+        /// uses, so the preview is never a lie). Mutates the passed ZuiGradient in place; onChanged fires after edits.
+        public static ZuiGradientControl Gradient(ZuiGradient value, string tooltip, Action onChanged)
+        {
+            var c = new ZuiGradientControl(value, tooltip);
+            if (onChanged != null) c.OnChanged += onChanged;
+            return c;
+        }
+
         /// A min/max range: numeric low field + MinMaxSlider + numeric high field, kept in sync
         /// (the SliderRange pattern). Rounded to 5 decimals like every slider. Double-clicking the track
         /// resets BOTH handles to <paramref name="lowDefault"/>/<paramref name="highDefault"/> when given,
