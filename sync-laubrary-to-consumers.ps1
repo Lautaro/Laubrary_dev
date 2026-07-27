@@ -61,8 +61,11 @@ foreach ($c in $targets) {
     $dst  = $c.Path
     Write-Host "=== $name ===" -ForegroundColor Green
 
-    $pkgParent = Split-Path -LiteralPath $dst -Parent          # ...\<Project>\Packages
-    $projRoot  = Split-Path -LiteralPath $pkgParent -Parent     # ...\<Project>
+    # GetDirectoryName, not Split-Path: in Windows PowerShell 5.1 `-LiteralPath` and `-Parent` sit in
+    # different parameter sets, so `Split-Path -LiteralPath x -Parent` fails outright. This is literal-safe
+    # and behaves the same on both PS editions.
+    $pkgParent = [System.IO.Path]::GetDirectoryName($dst)       # ...\<Project>\Packages
+    $projRoot  = [System.IO.Path]::GetDirectoryName($pkgParent) # ...\<Project>
 
     # Guard: the consumer must already be on the migrated in-package ZUI layout. A leftover
     # Assets\ZUI collides on 1200+ icon GUIDs and duplicates the ZUI.Editor asmdef name.
@@ -84,7 +87,7 @@ foreach ($c in $targets) {
     # Back up the current copy (if any), then wholesale-replace.
     if (Test-Path -LiteralPath $dst) {
         $bk = Join-Path $bkDir "$name\PACKAGE"
-        New-Item -ItemType Directory -Force -Path (Split-Path -LiteralPath $bk -Parent) | Out-Null
+        New-Item -ItemType Directory -Force -Path ([System.IO.Path]::GetDirectoryName($bk)) | Out-Null
         Copy-Item -LiteralPath $dst -Destination $bk -Recurse -Force
         Write-Host "  backed up -> $bk"
         Remove-Item -LiteralPath $dst -Recurse -Force
