@@ -14,6 +14,18 @@
 
     Tip: closing a consumer's Unity editor before syncing it avoids a big mid-session reimport,
     but it is not required - Unity re-ingests the package on next focus / AssetDatabase refresh.
+
+    WARNING - this REPLACES the consumer's package folder wholesale (it deletes the target, then
+    copies). So if you are developing a Laubrary tool INSIDE a consumer's embedded copy - the
+    "build it where it is actually used, promote it later" workflow - a sync will overwrite that
+    work. It is backed up to $BackupRoot first, so it is recoverable, but it is a bad surprise
+    mid-session.
+
+        While a tool is being developed in a consumer, skip that consumer:
+            .\sync-laubrary-to-consumers.ps1 -Skip OutBurner
+
+    Everyone else keeps getting updates; that one project's copy stays untouched until you
+    deliberately copy the tool's folders back into this dev host.
 #>
 param(
     [string[]]$Skip = @(),
