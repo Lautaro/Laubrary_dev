@@ -125,18 +125,25 @@ namespace Laubrary.Zui
                 }
 
                 case ZuiFill.Mode.OverLife:
-                    AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
+                    // Just the gradient (sampled over life) — no placement, so no divider: the header names it
+                    // and the collapsible gradient section sits directly beneath.
+                    AddHeaderRow(_label, null);
+                    _content.Add(GradientControl());
                     break;
 
                 case ZuiFill.Mode.Linear:
-                    AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
+                    AddHeaderRow(_label, null);
+                    _content.Add(GradientControl());
+                    _content.Add(Z.Divider("Placement", PlacementTip));
                     ExtraRow(ExtraAngle(), SpaceField());
                     _content.Add(ZoomVal());
                     _content.Add(CenterVal());
                     break;
 
                 case ZuiFill.Mode.Radial:
-                    AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
+                    AddHeaderRow(_label, null);
+                    _content.Add(GradientControl());
+                    _content.Add(Z.Divider("Placement", PlacementTip));
                     ExtraRow(SpaceField());
                     _content.Add(ZoomVal());
                     _content.Add(CenterVal());
@@ -165,7 +172,9 @@ namespace Laubrary.Zui
 
                 case ZuiFill.TextureKind.Noise:
                 {
-                    AddHeaderRow(_label, BuildGradient(_opt.controlWidth));
+                    AddHeaderRow(_label, null);
+                    _content.Add(GradientControl());
+                    _content.Add(Z.Divider("Pattern", "The noise shape, and how it's anchored / scaled / centred."));
                     ExtraRow(NoiseKindField(), SpaceField());
                     _content.Add(ZoomVal());
                     _content.Add(CenterVal());
@@ -222,9 +231,15 @@ namespace Laubrary.Zui
                 row.Add(_swatch);
             }
             if (!string.IsNullOrEmpty(label)) row.Add(FieldLabel(label));
-            if (_opt.grow) { body.style.flexGrow = 1f; body.style.flexShrink = 1f; }
-            else body.style.flexShrink = 0f;
-            row.Add(body);
+            if (body != null)
+            {
+                if (_opt.grow) { body.style.flexGrow = 1f; body.style.flexShrink = 1f; }
+                else body.style.flexShrink = 0f;
+                row.Add(body);
+            }
+            // No inline body → the gradient sits in its OWN section below (see RebuildAll's gradient modes); a
+            // flexible spacer keeps the ⋯ pinned to the right so the header still reads as [swatch][label][⋯].
+            else row.Add(Z.Flexible());
             row.Add(MenuButton());
             _content.Add(row);
         }
@@ -242,15 +257,25 @@ namespace Laubrary.Zui
             _content.Add(row);
         }
 
-        GradientField BuildGradient(float width)
+        // Caption for the divider that separates the gradient section from the fill's spatial-placement controls.
+        const string PlacementTip = "How the gradient is anchored, scaled and centred across the shape.";
+
+        // The gradient's own SECTION: the shared ZuiGradientControl — a live preview strip that stays visible
+        // even when its base gradient + transform knobs are collapsed (the envelope-style collapse-with-preview,
+        // implemented once in that control). This is the ONE gradient editor every fill mode reuses, replacing
+        // the old raw GradientField that could only edit the base ramp and left the ZuiGradient's transform knobs
+        // (reverse / hue / sat / brightness / contrast / quantise) unauthorable even though the runtime samples
+        // them (see ZuiFill.EvalGrad). It edits _fill.gradientAnim in place; a full rebuild (on undo / mode swap)
+        // reconstructs it against the live instance, so an Undo-restored / paste-swapped gradient shows up.
+        ZuiGradientControl GradientControl()
         {
             _fill.EnsureGradient();
-            _fill.EnsureGradientAnim();   // edit the ZuiGradient companion's BASE going forward (legacy stays frozen)
-            // get/set form re-reads the live gradient — the Undo-restored / paste-swapped instance shows up.
-            return Z.Gradient(_tooltip,
-                () => _fill.gradientAnim.gradient,
-                g => Mutate(() => _fill.gradientAnim.gradient = g ?? ZuiFill.DefaultGradient()),
-                width);
+            _fill.EnsureGradientAnim();   // edit the ZuiGradient companion going forward (legacy stays frozen)
+            return new ZuiGradientControl(_fill.gradientAnim, _tooltip)
+            {
+                OnBeforeMutate = () => OnBeforeMutate?.Invoke(),
+                OnChanged = () => { _swatch?.Refresh(); OnChanged?.Invoke(); },
+            };
         }
 
         // The gradient centre (Linear / Radial / Noise) — an ANIMATABLE synced XY pair (ZUIValue centerXAnim /
