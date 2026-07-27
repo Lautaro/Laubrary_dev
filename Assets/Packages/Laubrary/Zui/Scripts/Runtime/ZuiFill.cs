@@ -49,7 +49,15 @@ public class ZuiFill : ISerializationCallbackReceiver
     // ── fill ──────────────────────────────────────────────────────────────────────────
     public Mode mode = Mode.Solid;
     public Color color = Color.white;   // Solid — alpha-capable like every mode; also the Sprite tint / Grid+Dots ink
-    public Gradient gradient;           // every non-Solid mode + the Noise texture (alpha comes from the gradient)
+    public Gradient gradient;           // legacy base + frozen migration source (see gradientAnim)
+    // ── animatable gradient companion (ZuiGradient migration) ───────────────────────────────
+    // Wraps the legacy `gradient` above (now the frozen SOURCE + the BASE) with ZuiGradient's non-destructive
+    // transforms (reverse / hue / sat / brightness / contrast / quantise / cycle). [SerializeReference] so NULL =
+    // "not yet migrated" (an old asset loads it null; OnAfterDeserialize seeds { gradient = legacy }, all transforms
+    // default ⇒ ZuiGradient.Evaluate(t,0) == legacy.Evaluate(Clamp01(t)) ⇒ BYTE-IDENTICAL). A null companion (an
+    // in-memory fill not yet seeded) falls back to the legacy gradient in EvalGrad, so it renders identically either
+    // way. The editor edits gradientAnim.gradient going forward; the legacy scalar stays the frozen source.
+    [SerializeReference] public ZuiGradient gradientAnim;
     public float angleDeg = 0f;         // Linear: rotation of the fill axis, in degrees
     // LEGACY spatial scale (Linear proj scale + Radial + Noise). KEPT as the serialized migration SOURCE: an old
     // asset's authored zoom loads here, and OnAfterDeserialize seeds `zoomAnim` from it (see below). Evaluate never
@@ -120,11 +128,11 @@ public class ZuiFill : ISerializationCallbackReceiver
                 return color;
 
             case Mode.OverLife:
-                return gradient != null ? gradient.Evaluate(Mathf.Clamp01(life)) : color;
+                return HasGrad ? EvalGrad(Mathf.Clamp01(life)) : color;
 
             case Mode.Linear:
             {
-                if (gradient == null) return color;
+                if (!HasGrad) return color;
                 float rad = angleDeg * Mathf.Deg2Rad;
                 // The animatable companions, evaluated at THIS life. Static ⇒ the exact legacy value (byte-identical);
                 // Curve ⇒ animates over life. `z`/`cx`/`cy` sit exactly where v1 read `zoom`/`center.x`/`center.y`.
@@ -137,17 +145,17 @@ public class ZuiFill : ISerializationCallbackReceiver
                 if (cx == 0f && cy == 0f && z == 1f)
                 {
                     float proj0 = u * Mathf.Cos(rad) + v * Mathf.Sin(rad);
-                    return gradient.Evaluate(Mathf.Clamp01((proj0 + 1f) * 0.5f));
+                    return EvalGrad(Mathf.Clamp01((proj0 + 1f) * 0.5f));
                 }
                 // The axis passes through the centre; zoom scales the projection before the [-1,1]→[0,1] remap.
                 float proj = (u - cx) * Mathf.Cos(rad) + (v - cy) * Mathf.Sin(rad);
                 float t = Mathf.Clamp01((proj * z + 1f) * 0.5f);
-                return gradient.Evaluate(t);
+                return EvalGrad(t);
             }
 
             case Mode.Radial:
             {
-                if (gradient == null) return color;
+                if (!HasGrad) return color;
                 float z = EvalCompanion(zoomAnim, life, zoom);
                 float cx = EvalCompanion(centerXAnim, life, center.x);
                 float cy = EvalCompanion(centerYAnim, life, center.y);
@@ -155,18 +163,28 @@ public class ZuiFill : ISerializationCallbackReceiver
                 if (cx == 0f && cy == 0f)
                 {
                     float r0 = Mathf.Sqrt(u * u + v * v) * Mathf.Max(0.05f, z);
-                    return gradient.Evaluate(Mathf.Clamp01(r0));
+                    return EvalGrad(Mathf.Clamp01(r0));
                 }
                 // Distance is measured FROM the centre, so the gradient's middle drifts off-centre toward a border.
                 float du = u - cx, dv = v - cy;
                 float r = Mathf.Sqrt(du * du + dv * dv) * Mathf.Max(0.05f, z);
-                return gradient.Evaluate(Mathf.Clamp01(r));
+                return EvalGrad(Mathf.Clamp01(r));
             }
 
             default:
                 return color;
         }
     }
+
+    // ── gradient companion access (byte-identical to the pre-migration `gradient` path) ─────
+    /// <summary>True when there's a gradient to sample — the ZuiGradient companion's base if seeded, else the
+    /// legacy gradient (an in-memory fill whose companion hasn't been seeded yet).</summary>
+    bool HasGrad => (gradientAnim != null ? gradientAnim.gradient : gradient) != null;
+
+    /// <summary>Sample the effective gradient at <paramref name="t"/>: the ZuiGradient companion (transforms
+    /// applied, phase 0) if seeded, else the legacy gradient directly. At default transforms
+    /// ZuiGradient.Evaluate(t,0) == gradient.Evaluate(Clamp01(t)); every caller already clamps t ⇒ byte-identical.</summary>
+    Color EvalGrad(float t) => gradientAnim != null ? gradientAnim.Evaluate(t, 0f) : gradient.Evaluate(Mathf.Clamp01(t));
 
     // ── texture dispatch (never recursive — a texture never samples a ZuiFill) ──────────────
     // `life` threads through to the kinds that read the animatable centre/zoom companions (Noise reads both;
@@ -216,7 +234,7 @@ public class ZuiFill : ISerializationCallbackReceiver
     // coords, exactly like v1's Noise mode did (which this texture replaces). Null gradient ⇒ fall back to color.
     Color EvaluateNoise(float life, float u, float v)
     {
-        if (gradient == null) return color;
+        if (!HasGrad) return color;
         float z = Mathf.Max(0.05f, EvalCompanion(zoomAnim, life, zoom));
         float cx = EvalCompanion(centerXAnim, life, center.x);
         float cy = EvalCompanion(centerYAnim, life, center.y);
@@ -227,7 +245,7 @@ public class ZuiFill : ISerializationCallbackReceiver
             case NoiseKind.Steps:  n = Mathf.Floor(n * 4f) / 3f; break;
             // Value: n unchanged (byte-identical to v1's value noise).
         }
-        return gradient.Evaluate(Mathf.Clamp01(n));
+        return EvalGrad(Mathf.Clamp01(n));
     }
 
     // Grid: work in CELL SPACE — rotate (u,v)−center by −gridAngle, then divide by spacing so 1 unit = 1 cell.
@@ -321,11 +339,19 @@ public class ZuiFill : ISerializationCallbackReceiver
         if (centerYAnim == null) centerYAnim = new ZUIValue(center.y);
     }
 
+    /// <summary>Seed the ZuiGradient companion from the legacy gradient when missing (the migration). Default
+    /// transforms ⇒ byte-identical. Only seeds when there's a gradient to wrap (a Solid fill keeps it null).
+    /// Idempotent; never overwrites an authored companion.</summary>
+    public void EnsureGradientAnim()
+    {
+        if (gradientAnim == null && gradient != null) gradientAnim = new ZuiGradient { gradient = gradient };
+    }
+
     // ISerializationCallbackReceiver: seed the companions on load (the migration). No Unity API is touched here, so
     // it is safe on Unity's deserialize thread. OnBeforeSerialize intentionally does nothing — the legacy scalars are
     // the frozen migration SOURCE, never written back (a Curve companion can't collapse to a scalar without loss).
     public void OnBeforeSerialize() { }
-    public void OnAfterDeserialize() => EnsureSpatialAnim();
+    public void OnAfterDeserialize() { EnsureSpatialAnim(); EnsureGradientAnim(); }
 
     /// <summary>Evaluate an animatable spatial companion (zoom / centre) over the 0..1 <paramref name="life"/> clock.
     /// Mirrors PyrePlusRenderer.Eval's over-life convention (which this fill is sampled through): Static returns its

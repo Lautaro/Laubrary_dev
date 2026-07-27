@@ -245,10 +245,11 @@ namespace Laubrary.Zui
         GradientField BuildGradient(float width)
         {
             _fill.EnsureGradient();
+            _fill.EnsureGradientAnim();   // edit the ZuiGradient companion's BASE going forward (legacy stays frozen)
             // get/set form re-reads the live gradient — the Undo-restored / paste-swapped instance shows up.
             return Z.Gradient(_tooltip,
-                () => _fill.gradient,
-                g => Mutate(() => _fill.gradient = g ?? ZuiFill.DefaultGradient()),
+                () => _fill.gradientAnim.gradient,
+                g => Mutate(() => _fill.gradientAnim.gradient = g ?? ZuiFill.DefaultGradient()),
                 width);
         }
 
