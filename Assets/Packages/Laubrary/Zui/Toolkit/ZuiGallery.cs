@@ -127,20 +127,23 @@ namespace Laubrary.Zui
             // ── 2D & spatial ─────────────────────────────────────────────────────────
             var spatial = Z.Box("2D & spatial", "For a spatial value, a 2D pad — never two separate 1D fields.",
                 "crosshair-simple");
-            spatial.Add(Z.Field("Pad", "Drag the dot to set an X/Y offset.",
-                Z.Pad(pad, new Rect(-1f, -1f, 2f, 2f), "A 2D offset.",
-                    v => { pad = v; Report($"Pad = ({v.x:0.##}, {v.y:0.##})"); }, 80f)));
 
+            // The 2D pad (no label — it's self-evident) laid out HORIZONTALLY beside the light-direction control.
+            var padCtl = Z.Pad(pad, new Rect(-1f, -1f, 2f, 2f), "A 2D offset — drag the dot.",
+                v => { pad = v; Report($"Pad = ({v.x:0.##}, {v.y:0.##})"); }, 80f);
             // A 3D direction/orientation (yaw + pitch + distance) on a draggable lit sphere, wrapped in the
             // titled Z.Frame primitive. Drag the sphere or type; hover it (or hit Pin) for a larger 3D preview.
-            spatial.Add(Z.Frame("Light direction",
+            var lightFrame = Z.Frame("Light direction",
                 "Z.Direction3D — a reusable yaw/pitch(/distance) control on a draggable LIT SPHERE, wrapped in " +
                 "the non-folding Z.Frame. The lit hotspot is the readout; hover or pin for a larger preview.",
                 Z.Direction3D(dirYaw, dirPitch, dirDist,
                     "Aim a direction on the sphere — yaw (left/right), pitch (up/down), distance (in radii).",
                     (y, p, d) => { dirYaw = y; dirPitch = p; dirDist = d;
                                    Report($"Direction = yaw {y:0.#}° / pitch {p:0.#}° / dist {d:0.##}"); },
-                    new ZuiDirection3D.Options { showDistance = true })));
+                    new ZuiDirection3D.Options { showDistance = true }));
+            var spatialRow = Z.Row(padCtl, lightFrame);
+            spatialRow.style.alignItems = Align.FlexStart;   // top-align — don't stretch the small pad to the frame's height
+            spatial.Add(spatialRow);
             body.Add(spatial);
 
             // ── gradients ────────────────────────────────────────────────────────────
