@@ -154,14 +154,15 @@ namespace Laubrary.Pyre.Editor
             {
                 var options = PyrePreviewSubjectProvider.GetAttachPointOptions?.Invoke(spec.previewSubjectAsset, spec.previewSubjectClip);
                 if (options == null || options.Length == 0) return;
-                var menu = new GenericMenu();
+                var menu = Z.Menu(pickButton);
                 foreach (var opt in options)
                 {
                     string captured = opt;
-                    menu.AddItem(new GUIContent(captured), captured == spec.previewSubjectAttachId,
-                        () => { Dial("Change attach id", () => spec.previewSubjectAttachId = captured); RebuildPanels(); });
+                    menu.Item(captured, "Align the blast's origin to this MetaLayer.",
+                        () => { Dial("Change attach id", () => spec.previewSubjectAttachId = captured); RebuildPanels(); },
+                        @checked: captured == spec.previewSubjectAttachId);
                 }
-                menu.ShowAsContext();
+                menu.Show();
             };
             row.Add(pickButton);
             box.Add(row);

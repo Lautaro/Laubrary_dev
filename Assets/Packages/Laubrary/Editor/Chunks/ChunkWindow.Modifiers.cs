@@ -57,9 +57,11 @@ namespace Laubrary.Chunks.Editor
                 listHost.Add(BuildModifierBlock(listHost, list, i));
             }
 
-            _modifiersBody.Add(Z.Button("+ Add modifier",
-                "Add a shaped SpriteFx pixel modifier to the stack (tint, posterise, dither, dissolve, …).",
-                () => ShowAddModifierMenu(list)).W(130f));
+            var addBtn = Z.Button("+ Add modifier",
+                "Add a shaped SpriteFx pixel modifier to the stack (tint, posterise, dither, dissolve, …).", null);
+            addBtn.W(130f);
+            addBtn.clicked += () => ShowAddModifierMenu(addBtn, list);
+            _modifiersBody.Add(addBtn);
         }
 
         VisualElement BuildModifierBlock(VisualElement listHost, List<PixelModifier> list, int index)
@@ -144,19 +146,20 @@ namespace Laubrary.Chunks.Editor
             return (p != null && p.PropertyType == typeof(float) && p.CanRead && p.CanWrite) ? p : null;
         }
 
-        void ShowAddModifierMenu(List<PixelModifier> list)
+        void ShowAddModifierMenu(VisualElement anchor, List<PixelModifier> list)
         {
-            var menu = new GenericMenu();
+            var menu = Z.Menu(anchor);
             foreach (var e in AddableModifiers())
             {
                 var type = e.type;
-                menu.AddItem(new GUIContent(e.label), false, () =>
+                string label = e.label;
+                menu.Item(label, $"Add the {label} modifier to the stack.", () =>
                 {
                     Dial("Add modifier", () => list.Add((PixelModifier)Activator.CreateInstance(type)));
                     RebuildModifiers();
                 });
             }
-            menu.ShowAsContext();
+            menu.Show();
         }
 
         // Every concrete SHAPED PixelModifier a chunk's inline pass can actually apply — a parameterless-

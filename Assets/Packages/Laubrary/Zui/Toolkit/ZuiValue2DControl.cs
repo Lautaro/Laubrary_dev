@@ -299,9 +299,15 @@ namespace Laubrary.Zui
             if (fold.expanded) BuildExpanded(fold); else BuildCollapsed(fold);
         }
 
-        Button MenuButton() => Z.Button("⋯",
-            (_src.SupportsAnimation ? "Static point, or animate over time; " : "") +
-            "value display; reset" + (_src.ToClipboard() != null ? "; copy/paste." : "."), ShowMenu).W(24f);
+        Button MenuButton()
+        {
+            Button btn = null;
+            btn = Z.Button("⋯",
+                (_src.SupportsAnimation ? "Static point, or animate over time; " : "") +
+                "value display; reset" + (_src.ToClipboard() != null ? "; copy/paste." : "."),
+                () => ShowMenu(btn)).W(24f);
+            return btn;
+        }
 
         // ── collapsed: label · mini thumbnail · ⋯ ───────────────────────────────────
         void BuildCollapsed(FoldState fold)
@@ -469,72 +475,59 @@ namespace Laubrary.Zui
             return col;
         }
 
-        // ── the ⋯ menu ──────────────────────────────────────────────────────────────
-        void ShowMenu()
+        // ── the ⋯ menu, a ZUI popover anchored to the ⋯ button ──────────────────────
+        void ShowMenu(VisualElement anchor)
         {
             var fold = GetFold(_key);
-            var menu = new GenericMenu();
-            bool isCurve = _src.IsCurve;   // curve/path has no single (x,y); the display-option items below are hidden for it
+            var menu = Z.Menu(anchor);
+            bool isCurve = _src.IsCurve;   // curve/path has no single (x,y); the display-option toggles below are hidden for it
 
+            // Mode → one radio group (pick-one-then-close), only when the value can animate at all.
             if (_src.SupportsAnimation)
             {
-                menu.AddItem(new GUIContent("Static (one point)"), !isCurve, () =>
-                {
-                    Mutate(() => _src.SetCurve(false, _opt.staticDefault ?? Vector2.zero));
-                    fold.expanded = true;
-                    Build();
-                });
-                menu.AddItem(new GUIContent("Animate over time (a path)"), isCurve, () =>
-                {
-                    Mutate(() => _src.SetCurve(true, _opt.staticDefault ?? Vector2.zero));
-                    fold.expanded = true;
-                    Build();
-                });
-                menu.AddSeparator("");
+                menu.Radio(null, new[] { "Static (one point)", "Animate over time (a path)" }, isCurve ? 1 : 0,
+                    "Hold one static point, or trace a path of points over the particle's life.",
+                    i =>
+                    {
+                        Mutate(() => _src.SetCurve(i == 1, _opt.staticDefault ?? Vector2.zero));
+                        fold.expanded = true;
+                        Build();
+                    }, closeOnSelect: true);
+                menu.Separator();
             }
 
             // Display options ("as text" / "as numeric inputs") only affect the EXPANDED STATIC view — a curve/path
             // has no single (x, y) to show, so BOTH are HIDDEN in curve mode, where toggling them did nothing and
-            // read as broken (2026-07-26 fix). In static mode toggling one also expands, otherwise the item silently
-            // appears to do nothing (reported 2026-07-23).
+            // read as broken (2026-07-26 fix). They stay-open toggle rows now; flipping one also expands, otherwise
+            // it silently appears to do nothing (reported 2026-07-23).
             if (!isCurve)
             {
                 bool showText = fold.showValueTextOverride ?? _opt.showValueText;
                 bool showInputs = fold.showNumericInputsOverride ?? _opt.showNumericInputs;
-                menu.AddItem(new GUIContent("Show value as text"), showText, () =>
-                {
-                    fold.showValueTextOverride = !showText;
-                    fold.expanded = true;
-                    Build();
-                });
-                menu.AddItem(new GUIContent("Show value as numeric inputs"), showInputs, () =>
-                {
-                    fold.showNumericInputsOverride = !showInputs;
-                    fold.expanded = true;
-                    Build();
-                });
+                menu.Toggle("Show value as text", "Draw a small (x, y) label beside the dot.", showText,
+                    on => { fold.showValueTextOverride = on; fold.expanded = true; Build(); });
+                menu.Toggle("Show value as numeric inputs", "Show a compact numeric X/Y block beside the plot.",
+                    showInputs, on => { fold.showNumericInputsOverride = on; fold.expanded = true; Build(); });
             }
 
-            menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Reset to default"), false, ResetToDefault);
+            menu.Separator();
+            menu.Item("Reset to default", "Reset this value to its default.", ResetToDefault);
 
             string payload = _src.ToClipboard();
             if (payload != null)
             {
-                menu.AddSeparator("");
-                menu.AddItem(new GUIContent("Copy value"), false,
+                menu.Separator();
+                menu.Item("Copy value", "Copy this value to the clipboard.",
                     () => EditorGUIUtility.systemCopyBuffer = payload);
-                if (ZuiValuePairSource.CanPaste(EditorGUIUtility.systemCopyBuffer))
-                    menu.AddItem(new GUIContent("Paste value"), false, () =>
-                    {
-                        Mutate(() => _src.TryPaste(EditorGUIUtility.systemCopyBuffer));
-                        Build();
-                    });
-                else
-                    menu.AddDisabledItem(new GUIContent("Paste value"));
+                bool canPaste = ZuiValuePairSource.CanPaste(EditorGUIUtility.systemCopyBuffer);
+                menu.Item("Paste value", "Paste a copied value from the clipboard.",
+                    canPaste
+                        ? () => { Mutate(() => _src.TryPaste(EditorGUIUtility.systemCopyBuffer)); Build(); }
+                        : (Action)null,
+                    enabled: canPaste);
             }
 
-            menu.ShowAsContext();
+            menu.Show();
         }
 
         // ── alternate presentation: two stacked 1D controls over the same X/Y ZUIValues ─────────────

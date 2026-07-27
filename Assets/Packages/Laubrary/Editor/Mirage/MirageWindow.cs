@@ -553,11 +553,11 @@ namespace Laubrary.Mirage.Editor
             create.SetEnabled(creatable != null && creatable.Count > 0);
             create.clicked += () =>
             {
-                var menu = new GenericMenu();
+                var menu = Z.Menu(create);
                 foreach (var t in creatable)
                 {
                     var concrete = t;
-                    menu.AddItem(new GUIContent(concrete.Name), false, () =>
+                    menu.Item(concrete.Name, $"Create a new {concrete.Name} and assign it here.", () =>
                     {
                         var made = LauAssetEditors.Create(concrete, suggestedName, folder);
                         if (made == null) return;
@@ -565,8 +565,7 @@ namespace Laubrary.Mirage.Editor
                         if (LauAssetEditors.CanOpen(made)) LauAssetEditors.Open(made);
                     });
                 }
-                var wb = create.worldBound;
-                menu.DropDown(new Rect(wb.x, wb.yMax, wb.width, 0f));
+                menu.Show();
             };
             row.Add(create);
 
@@ -812,18 +811,17 @@ namespace Laubrary.Mirage.Editor
             var add = Z.Button("Add clip", "Append another clip to the end of the list.", null);
             add.clicked += () =>
             {
-                var menu = new GenericMenu();
+                var menu = Z.Menu(add);
                 foreach (var name in clipNames)
                 {
                     var captured = name;
-                    menu.AddItem(new GUIContent(captured), false, () =>
+                    menu.Item(captured, "Append this clip as a new step.", () =>
                     {
                         Dial("Add Clip Step", () => entry.clips.Add(new ClipStep { clip = captured }));
                         RebuildBody();
                     });
                 }
-                var wb = add.worldBound;
-                menu.DropDown(new Rect(wb.x, wb.yMax, wb.width, 0f));
+                menu.Show();
             };
             var clear = Z.Button("Clear", "Remove every clip step.", () =>
             {

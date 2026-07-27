@@ -171,10 +171,11 @@ namespace Laubrary.PyrePlus.Editor
             var sim = s.simulationModifier;
             if (sim == null)
             {
-                box.Add(WrapRow(Z.Button("+ Add simulation",
+                var addSimBtn = Z.Button("+ Add simulation",
                     "Attach a stateful simulation modifier (e.g. Pixel fluid) that advects and erodes this layer's " +
-                    "own pixels over the frames.",
-                    () => ShowAddSimMenu(s))));
+                    "own pixels over the frames.", null);
+                addSimBtn.clicked += () => ShowAddSimMenu(addSimBtn, s);
+                box.Add(WrapRow(addSimBtn));
                 return box;
             }
 
@@ -214,19 +215,20 @@ namespace Laubrary.PyrePlus.Editor
             return box;
         }
 
-        void ShowAddSimMenu(PyrePlusLayer s)
+        void ShowAddSimMenu(VisualElement anchor, PyrePlusLayer s)
         {
-            var menu = new GenericMenu();
+            var menu = Z.Menu(anchor);
             foreach (var e in AddableSims())
             {
                 var type = e.type;
-                menu.AddItem(new GUIContent(e.label), false, () =>
+                string label = e.label;
+                menu.Item(label, $"Attach the {label} simulation to this layer.", () =>
                 {
                     Dirty(() => s.simulationModifier = (SimulationModifier)Activator.CreateInstance(type));
                     RebuildModifiers();
                 });
             }
-            menu.ShowAsContext();
+            menu.Show();
         }
 
         // Every concrete SimulationModifier PyrePlus can drive (a parameterless-constructible SimulationModifier

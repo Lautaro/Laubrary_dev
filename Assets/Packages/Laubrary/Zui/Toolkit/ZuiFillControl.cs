@@ -80,10 +80,15 @@ namespace Laubrary.Zui
         // anywhere else. A plain Solid fill is redundant (the colour field already shows it), so no swatch.
         bool WantSwatch() => _fill.texture != ZuiFill.TextureKind.None || _fill.mode != ZuiFill.Mode.Solid;
 
-        Button MenuButton() => Z.Button("⋯",
-            "Choose a FILL (solid colour, over-life, or a spatial gradient) or a TEXTURE (sprite / noise / grid / "
-            + "dots). A texture replaces the fill entirely — it's instead of a fill, not a kind of fill.",
-            ShowMenu).W(24f);
+        Button MenuButton()
+        {
+            Button btn = null;
+            btn = Z.Button("⋯",
+                "Choose a FILL (solid colour, over-life, or a spatial gradient) or a TEXTURE (sprite / noise / grid / "
+                + "dots). A texture replaces the fill entirely — it's instead of a fill, not a kind of fill.",
+                () => ShowMenu(btn)).W(24f);
+            return btn;
+        }
 
         Label FieldLabel(string text)
         {
@@ -335,30 +340,33 @@ namespace Laubrary.Zui
             => Z.Toggle(caption, tip, value, v => Mutate(() => set(v)));
 
         // ── the two-section ⋯ menu (Fill section, separator, Texture section — a texture replaces the fill) ──
-        void ShowMenu()
+        // A ZUI popover anchored to the ⋯ button: the old flat GenericMenu's separator becomes two Section
+        // headings, and the "Texture · " label prefix drops (the "Texture" heading now names that group).
+        void ShowMenu(VisualElement anchor)
         {
-            var menu = new GenericMenu();
+            var menu = Z.Menu(anchor);
             // Fill section — a fill item is active (checked) when NO texture is set and this is the current mode.
-            AddFillItem(menu, "Solid colour", ZuiFill.Mode.Solid);
-            AddFillItem(menu, "Over life", ZuiFill.Mode.OverLife);
-            AddFillItem(menu, "Linear gradient", ZuiFill.Mode.Linear);
-            AddFillItem(menu, "Radial gradient", ZuiFill.Mode.Radial);
-            menu.AddSeparator("");   // divides the Fill section (above) from the Texture section (below)
+            menu.Section("Fill");
+            AddFillItem(menu, "Solid colour", "A single flat colour (alpha shown).", ZuiFill.Mode.Solid);
+            AddFillItem(menu, "Over life", "A gradient sampled left→right over the particle's life.", ZuiFill.Mode.OverLife);
+            AddFillItem(menu, "Linear gradient", "A gradient projected along an angled axis across the shape.", ZuiFill.Mode.Linear);
+            AddFillItem(menu, "Radial gradient", "A gradient radiating out from a centre point.", ZuiFill.Mode.Radial);
+            menu.Separator();   // divides the Fill section (above) from the Texture section (below)
             // Texture section — a texture REPLACES the fill; active when this kind is set (the mode is ignored).
-            AddTextureItem(menu, "Texture · Sprite", ZuiFill.TextureKind.Sprite);
-            AddTextureItem(menu, "Texture · Noise", ZuiFill.TextureKind.Noise);
-            AddTextureItem(menu, "Texture · Grid", ZuiFill.TextureKind.Grid);
-            AddTextureItem(menu, "Texture · Dots", ZuiFill.TextureKind.Dots);
-            menu.ShowAsContext();
+            menu.Section("Texture");
+            AddTextureItem(menu, "Sprite", "Stamp a sprite across the fill box.", ZuiFill.TextureKind.Sprite);
+            AddTextureItem(menu, "Noise", "A procedural noise pattern mapped through the gradient.", ZuiFill.TextureKind.Noise);
+            AddTextureItem(menu, "Grid", "A ruled grid of lines.", ZuiFill.TextureKind.Grid);
+            AddTextureItem(menu, "Dots", "A dot / halftone pattern.", ZuiFill.TextureKind.Dots);
+            menu.Show();
         }
 
-        void AddFillItem(GenericMenu menu, string label, ZuiFill.Mode mode)
-            => menu.AddItem(new GUIContent(label),
-                _fill.texture == ZuiFill.TextureKind.None && _fill.mode == mode,
-                () => SetFill(mode));
+        void AddFillItem(ZuiMenu menu, string label, string tooltip, ZuiFill.Mode mode)
+            => menu.Item(label, tooltip, () => SetFill(mode),
+                @checked: _fill.texture == ZuiFill.TextureKind.None && _fill.mode == mode);
 
-        void AddTextureItem(GenericMenu menu, string label, ZuiFill.TextureKind kind)
-            => menu.AddItem(new GUIContent(label), _fill.texture == kind, () => SetTexture(kind));
+        void AddTextureItem(ZuiMenu menu, string label, string tooltip, ZuiFill.TextureKind kind)
+            => menu.Item(label, tooltip, () => SetTexture(kind), @checked: _fill.texture == kind);
 
         // Pick a FILL: clear any texture, set the mode, seed a gradient for the non-Solid modes.
         void SetFill(ZuiFill.Mode mode)

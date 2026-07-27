@@ -66,14 +66,14 @@ namespace Laubrary.AssetKit.Editor
             makeNew.clicked += () =>
             {
                 if (creatable.Count == 1) { CreateAndAssign(creatable[0], suggestedName, folder, onPick); return; }
-                var menu = new GenericMenu();
+                var menu = Z.Menu(makeNew);
                 foreach (var t in creatable)
                 {
                     var concrete = t;
-                    menu.AddItem(new GUIContent(concrete.Name), false,
+                    menu.Item(concrete.Name, $"Create a new {concrete.Name} and assign it here.",
                         () => CreateAndAssign(concrete, suggestedName, folder, onPick));
                 }
-                menu.ShowAsContext();
+                menu.Show();
             };
             row.Add(makeNew);
 

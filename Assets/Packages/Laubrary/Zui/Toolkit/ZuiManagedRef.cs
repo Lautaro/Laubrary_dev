@@ -63,7 +63,7 @@ namespace Laubrary.Zui
                 : "None";
             var typeButton = new Button { text = typeLabel + " ▾", tooltip = $"Which kind this is ({typeLabel}). Click to switch it for another." };
             typeButton.AddToClassList("zui-mref__type");
-            typeButton.clicked += () => ShowTypeMenu(property);
+            typeButton.clicked += () => ShowTypeMenu(property, typeButton);
             header.Add(typeButton);
 
             // Clickable (not a raw PointerDownEvent) for the same reason ZuiSection uses it — a bare
@@ -92,24 +92,28 @@ namespace Laubrary.Zui
             _body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
-        void ShowTypeMenu(SerializedProperty property)
+        // A ZUI popover anchored to the type button — the same type set + Undo-safe assignment as the old
+        // GenericMenu, just ZUI-styled. Flat (the derived-type set carries no grouping metadata).
+        void ShowTypeMenu(SerializedProperty property, VisualElement anchor)
         {
             var fieldType = FieldTypeOf(property);
             if (fieldType == null) return;
 
-            var menu = new GenericMenu();
-            menu.AddItem(new GUIContent("None"), property.managedReferenceValue == null, () => Assign(null));
+            var menu = Z.Menu(anchor);
+            menu.Item("None", "Clear the reference (no type assigned).", () => Assign(null),
+                @checked: property.managedReferenceValue == null);
 
             foreach (var t in TypeCache.GetTypesDerivedFrom(fieldType))
             {
                 if (t.IsAbstract || t.IsInterface || t.IsGenericTypeDefinition) continue;
                 if (t.GetConstructor(Type.EmptyTypes) == null) continue;   // Activator needs a parameterless ctor
                 var concrete = t;
+                string niceName = ObjectNames.NicifyVariableName(concrete.Name);
                 bool isCurrent = property.managedReferenceValue?.GetType() == concrete;
-                menu.AddItem(new GUIContent(ObjectNames.NicifyVariableName(concrete.Name)), isCurrent,
-                    () => Assign(Activator.CreateInstance(concrete)));
+                menu.Item(niceName, $"Make this a {niceName}.",
+                    () => Assign(Activator.CreateInstance(concrete)), @checked: isCurrent);
             }
-            menu.ShowAsContext();
+            menu.Show();
         }
 
         void Assign(object value)

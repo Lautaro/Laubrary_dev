@@ -110,9 +110,9 @@ namespace Laubrary.SpriteFx.Editor
                     });
                 pasteBtn.SetEnabled(s_clipboard != null);
 
-                body.Add(WrapRow(
-                    Z.Button("+ Add SpriteFx", "Add a colour / mask effect to the stack.", () => ShowAddMenu()),
-                    pasteBtn));
+                var addBtn = Z.Button("+ Add SpriteFx", "Add a colour / mask effect to the stack.", null);
+                addBtn.clicked += () => ShowAddMenu(addBtn);
+                body.Add(WrapRow(addBtn, pasteBtn));
             }
 
             // One effect: a folding card whose header keeps grip / enable / name / Copy / × visible when collapsed,
@@ -195,19 +195,20 @@ namespace Laubrary.SpriteFx.Editor
                 TooltipFor = f => $"{ObjectNames.NicifyVariableName(f.Name)} — a {m.DisplayName} effect parameter.",
             };
 
-            void ShowAddMenu()
+            void ShowAddMenu(VisualElement anchor)
             {
-                var menu = new GenericMenu();
+                var menu = Z.Menu(anchor);
                 foreach (var e in Catalog())
                 {
                     var type = e.type;
-                    menu.AddItem(new GUIContent(e.label), false, () =>
+                    string label = e.label;
+                    menu.Item(label, $"Add the {label} effect to the stack.", () =>
                     {
                         Dirty(() => stack.Add((PixelModifier)Activator.CreateInstance(type)));
                         Structural();
                     });
                 }
-                menu.ShowAsContext();
+                menu.Show();
             }
 
             Rebuild();

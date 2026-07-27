@@ -142,10 +142,15 @@ namespace Laubrary.Zui
 
         void Mutate(Action apply) { OnBeforeMutate?.Invoke(); apply(); OnChanged?.Invoke(); }
 
-        Button MenuButton() => Z.Button("⋯", "Configure value — mode" +
-            (_opt.multiplierIds != null && _opt.multiplierIds.Length > 0 ? ", multiplier" : "") +
-            (_v.mode == ZUIValue.Mode.Curve ? ", value display" : "") +
-            ", copy/paste.", ShowMenu).W(24f);
+        Button MenuButton()
+        {
+            Button btn = null;
+            btn = Z.Button("⋯", "Configure value — mode" +
+                (_opt.multiplierIds != null && _opt.multiplierIds.Length > 0 ? ", multiplier" : "") +
+                (_v.mode == ZUIValue.Mode.Curve ? ", value display" : "") +
+                ", copy/paste.", () => ShowMenu(btn)).W(24f);
+            return btn;
+        }
 
         Label FieldLabel(string text)
         {
@@ -449,63 +454,74 @@ namespace Laubrary.Zui
             }
         }
 
-        // ── the ⋯ menu (mode / display / multiplier / copy-paste) ───────────────────
-        void ShowMenu()
+        // ── the ⋯ menu (mode / display / multiplier / copy-paste), a ZUI popover anchored to the ⋯ button ──
+        void ShowMenu(VisualElement anchor)
         {
-            var menu = new GenericMenu();
             bool hasMultiplier = _opt.multiplierIds != null && _opt.multiplierIds.Length > 0;
-            string modePrefix = hasMultiplier ? "Mode/" : "";
+            var menu = Z.Menu(anchor);
 
-            if (_opt.allowStatic)
-                menu.AddItem(new GUIContent(modePrefix + "Static"), _v.mode == ZUIValue.Mode.Static,
-                    () => SetMode(ZUIValue.Mode.Static));
-            if (_opt.allowMinMax)
-                menu.AddItem(new GUIContent(modePrefix + "Min-Max range"), _v.mode == ZUIValue.Mode.MinMax,
-                    () => SetMode(ZUIValue.Mode.MinMax));
-            if (_opt.allowCurve)
-                menu.AddItem(new GUIContent(modePrefix + "Curve over time"), _v.mode == ZUIValue.Mode.Curve,
-                    () => SetMode(ZUIValue.Mode.Curve));
+            // Mode → one radio group (pick-one-then-close). Only the allowed modes appear, same as the old
+            // conditional AddItem set; a "Mode" section heading stands in for the old "Mode/" submenu prefix,
+            // shown only when a multiplier section also exists (else the radio needs no heading of its own).
+            var modes = new System.Collections.Generic.List<ZUIValue.Mode>();
+            var modeLabels = new System.Collections.Generic.List<string>();
+            if (_opt.allowStatic) { modes.Add(ZUIValue.Mode.Static); modeLabels.Add("Static"); }
+            if (_opt.allowMinMax) { modes.Add(ZUIValue.Mode.MinMax); modeLabels.Add("Min-Max range"); }
+            if (_opt.allowCurve) { modes.Add(ZUIValue.Mode.Curve); modeLabels.Add("Curve over time"); }
+            int modeSel = modes.IndexOf(_v.mode);
+            if (hasMultiplier) menu.Section("Mode");
+            menu.Radio(null, modeLabels.ToArray(), modeSel,
+                "How this value is produced: a Static point, a random Min-Max range, or a Curve over time.",
+                i => SetMode(modes[i]), closeOnSelect: true);
 
+            // Curve-display options → persistent toggle rows (stay open so several can be flipped in one visit).
             if (_v.mode == ZUIValue.Mode.Curve)
             {
                 var st = GetState(_v);
-                menu.AddSeparator("");
-                menu.AddItem(new GUIContent("Show point values"), st.showValues,
-                    () => { st.showValues = !st.showValues; if (!st.expanded) st.expanded = true; RebuildAll(); });
-                menu.AddItem(new GUIContent("Show numeric inputs"), st.showInputs,
-                    () => { st.showInputs = !st.showInputs; if (!st.expanded) st.expanded = true; RebuildAll(); });
-                menu.AddItem(new GUIContent("Inputs for selected points only"), st.inputsSelectedOnly,
-                    () => { st.inputsSelectedOnly = !st.inputsSelectedOnly; if (!st.expanded) st.expanded = true; st.showInputs = true; RebuildAll(); });
+                menu.Separator();
+                menu.Toggle("Show point values", "Draw each point's value on the curve.", st.showValues,
+                    on => { st.showValues = on; if (!st.expanded) st.expanded = true; RebuildAll(); });
+                menu.Toggle("Show numeric inputs", "Show a column of numeric fields for the points beside the curve.",
+                    st.showInputs, on => { st.showInputs = on; if (!st.expanded) st.expanded = true; RebuildAll(); });
+                menu.Toggle("Inputs for selected points only",
+                    "Narrow the numeric-inputs column to just the points currently box-selected in the curve.",
+                    st.inputsSelectedOnly,
+                    on => { st.inputsSelectedOnly = on; if (!st.expanded) st.expanded = true; st.showInputs = true; RebuildAll(); });
             }
 
+            // Multiplier → its own labelled section + a radio ("(none)" + each id) that stays open as a live setting.
             if (hasMultiplier)
             {
-                menu.AddSeparator("");
-                menu.AddItem(new GUIContent("Multiplier/(none)"), !_v.HasMultiplier,
-                    () => Mutate(() => _v.multiplierId = ""));
-                foreach (var id in _opt.multiplierIds)
-                {
-                    string captured = id;
-                    menu.AddItem(new GUIContent("Multiplier/" + id), _v.multiplierId == id,
-                        () => Mutate(() => _v.multiplierId = captured));
-                }
+                menu.Separator();
+                menu.Section("Multiplier");
+                var multOptions = new string[_opt.multiplierIds.Length + 1];
+                multOptions[0] = "(none)";
+                for (int i = 0; i < _opt.multiplierIds.Length; i++) multOptions[i + 1] = _opt.multiplierIds[i];
+                int multSel = _v.HasMultiplier ? System.Array.IndexOf(_opt.multiplierIds, _v.multiplierId) + 1 : 0;
+                if (multSel < 0) multSel = 0;
+                menu.Radio(null, multOptions, multSel,
+                    "Scale this value live by a named multiplier from the host, or (none) for no scaling.",
+                    i => Mutate(() => _v.multiplierId = i == 0 ? "" : _opt.multiplierIds[i - 1]));
             }
 
-            menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Copy value"), false,
+            // Copy / paste — plain items that run then close, exactly as before.
+            menu.Separator();
+            menu.Item("Copy value", "Copy this value (mode + all mode data) to the clipboard.",
                 () => EditorGUIUtility.systemCopyBuffer = _v.ToClipboardString());
-            if (ZUIValue.TryFromClipboardString(EditorGUIUtility.systemCopyBuffer, out _))
-                menu.AddItem(new GUIContent("Paste value"), false, () =>
-                {
-                    if (ZUIValue.TryFromClipboardString(EditorGUIUtility.systemCopyBuffer, out var parsed))
-                        Mutate(() => _v.CopyFrom(parsed));
-                    RebuildAll();
-                    UpdateReadout();
-                });
-            else
-                menu.AddDisabledItem(new GUIContent("Paste value"));
+            bool canPaste = ZUIValue.TryFromClipboardString(EditorGUIUtility.systemCopyBuffer, out _);
+            menu.Item("Paste value", "Paste a copied value from the clipboard.",
+                canPaste
+                    ? () =>
+                    {
+                        if (ZUIValue.TryFromClipboardString(EditorGUIUtility.systemCopyBuffer, out var parsed))
+                            Mutate(() => _v.CopyFrom(parsed));
+                        RebuildAll();
+                        UpdateReadout();
+                    }
+                    : (Action)null,
+                enabled: canPaste);
 
-            menu.ShowAsContext();
+            menu.Show();
         }
 
         void SetMode(ZUIValue.Mode mode)

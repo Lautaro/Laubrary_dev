@@ -53,10 +53,9 @@ namespace Laubrary.Pyre.Editor
                     RebuildLeft();
                 });
             pasteButton.SetEnabled(modifierClipboard != null);
-            root.Add(WrapRow(
-                Z.Button("+ Add modifier", "Add a geometry/colour/alpha/post modifier to this stack.",
-                    () => ShowAddModifierMenu(list, isGlobal)),
-                pasteButton));
+            var addBtn = Z.Button("+ Add modifier", "Add a geometry/colour/alpha/post modifier to this stack.", null);
+            addBtn.clicked += () => ShowAddModifierMenu(addBtn, list, isGlobal);
+            root.Add(WrapRow(addBtn, pasteButton));
         }
 
         VisualElement BuildModifierBlock(VisualElement listHost, List<PyreModifier> list, int index, float half)
@@ -617,15 +616,25 @@ namespace Laubrary.Pyre.Editor
             return box;
         }
 
-        void ShowAddModifierMenu(List<PyreModifier> list, bool isGlobal)
+        void ShowAddModifierMenu(VisualElement anchor, List<PyreModifier> list, bool isGlobal)
         {
-            var menu = new GenericMenu();
-            void Add(string label, System.Func<PyreModifier> make) =>
-                menu.AddItem(new GUIContent(label), false, () =>
+            var menu = Z.Menu(anchor);
+            // The old menu nested items under "Group/Item" submenus; the ZUI popover is flat with a bold
+            // Section heading per group. Split each "Group/Label" path on its first '/' and emit a Section
+            // whenever the group changes (entries are already grouped by construction below).
+            string lastGroup = null;
+            void Add(string path, System.Func<PyreModifier> make)
+            {
+                int slash = path.IndexOf('/');
+                string group = slash >= 0 ? path.Substring(0, slash) : "";
+                string label = slash >= 0 ? path.Substring(slash + 1) : path;
+                if (group != lastGroup) { menu.Section(group); lastGroup = group; }
+                menu.Item(label, $"Add the {label} modifier to this stack.", () =>
                 {
                     Dial("Add modifier", () => list.Add(make()));
                     RebuildLeft();
                 });
+            }
             Add("Geometry/Skew", () => new SkewModifier());
             Add("Geometry/Rotate", () => new RotateModifier());
             Add("Geometry/Scale", () => new ScaleModifier());
@@ -665,7 +674,7 @@ namespace Laubrary.Pyre.Editor
             Add("Post/Fuse (blob melt)", () => new FuseModifier());
             Add("Post/Cloud projectile", () => new CloudProjectileModifier());
             Add("Post/Ballistic shockwave (rings + vortex street)", () => new BallisticShockwaveModifier());
-            menu.ShowAsContext();
+            menu.Show();
         }
     }
 }
