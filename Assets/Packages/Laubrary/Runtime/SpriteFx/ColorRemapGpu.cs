@@ -25,6 +25,7 @@ namespace Laubrary.SpriteFx
                  "authoring is identical. Only the first 8 regions are used (the shader's limit).")]
         [SerializeReference] public ColorRemapModifier remap = new ColorRemapModifier();
 
+        [Range(0f, 4f)]
         [Tooltip("Global cycle-speed multiplier applied on top of each cycling region's own cycleSpeed. Play mode " +
                  "advances the phase over time; edit mode holds it (no continuous repaint is forced).")]
         public float speed = 1f;

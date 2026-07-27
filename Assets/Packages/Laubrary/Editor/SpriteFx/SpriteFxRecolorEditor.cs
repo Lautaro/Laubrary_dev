@@ -18,6 +18,7 @@ namespace Laubrary.SpriteFx.Editor
         {
             var comp = (SpriteFxRecolor)target;
             var root = new VisualElement();
+            Z.Attach(root);   // ZUI stylesheet + zui-root class — an inspector is a root Zui doesn't own, so it must attach itself
 
             void Applied()
             {

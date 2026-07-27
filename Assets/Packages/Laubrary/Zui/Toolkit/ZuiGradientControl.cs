@@ -79,10 +79,9 @@ namespace Laubrary.Zui
             AddSlider(body, "Brightness", _g.brightness,   0f, 2f, "Multiply brightness across the ramp (1 = unchanged).",        v => _g.brightness = v);
             AddSlider(body, "Contrast",   _g.contrast,     0f, 2f, "Contrast around mid-grey (1 = unchanged).",                   v => _g.contrast = v);
 
-            var q = Z.SliderInt(_g.quantiseSteps, 0, 16, "Snap the ramp to N discrete bands (0 = smooth) — the gradient Posterize.",
-                                v => Mutate(() => _g.quantiseSteps = v), 200f);
-            q.label = "Quantise";
-            body.Add(q);
+            body.Add(Z.MicroSlider("Quantise", _g.quantiseSteps, 0, 16,
+                "Snap the ramp to N discrete bands (0 = smooth) — the gradient Posterize.",
+                v => Mutate(() => _g.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0));
 
             body.Add(Z.Toggle("Cycle", "This ramp wants to colour-cycle (a ZuiPaletteCycle driver advances the phase at runtime).",
                               _g.cycle, v => Mutate(() => _g.cycle = v)));
@@ -94,12 +93,10 @@ namespace Laubrary.Zui
             RegisterCallback<DetachFromPanelEvent>(_ => DisposeLut());
         }
 
+        // A bounded scalar → Z.MicroSlider (label + value INSIDE the track), per the ZUI layout rules — never a
+        // Z.Slider with an external value field (the pre-MicroSlider look).
         void AddSlider(VisualElement parent, string label, float value, float min, float max, string tip, Action<float> set)
-        {
-            var s = Z.Slider(value, min, max, tip, v => Mutate(() => set(v)), 200f);
-            s.label = label;
-            parent.Add(s);
-        }
+            => parent.Add(Z.MicroSlider(label, value, min, max, tip, v => Mutate(() => set(v))));
 
         void Mutate(Action apply)
         {

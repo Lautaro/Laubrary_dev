@@ -64,6 +64,7 @@ namespace Laubrary.SpriteFx
         [Tooltip("This region colour-cycles. On the static bake / managed path the gradient phase advances with the " +
                  "shape's own life; the live shader path (later) scrolls it by real time. No effect in Swatch mode.")]
         public bool cycle = false;
+        [Range(0f, 4f)]
         [Tooltip("Cycle speed (gradient phase units per unit of life/second) when Cycle is on.")]
         public float cycleSpeed = 0.5f;
 
