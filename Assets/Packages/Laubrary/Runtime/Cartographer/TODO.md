@@ -1,5 +1,10 @@
 # Cartographer — design notes & task list
 
+> **2026-07-27 — brought back from OutBurner.** Phases 1, 2 and most of 4 were developed inside OutBurner's
+> embedded copy (the tool's first real consumer, so the ergonomics surfaced fast) and promoted here once the
+> authoring loop worked. This project is authoritative again; syncs no longer need `-Skip OutBurner`. The
+> friction list further down is what building a real level with it actually taught.
+
 **Status (2026-07-16)**: design phase done, Phase 0 (scaffolding) landed. Moved into this canonical Laubrary
 repo from a working copy that had been developing inside Asteroid+'s embedded Laubrary package (started
 2026-07-11) — that copy also had the Scavenger half of Phase 2 landed; Scavenger has NOT been ported over yet
@@ -198,12 +203,39 @@ Both are cheap to add to the Room/Clump schema now and expensive to retrofit lat
   porting, not after. **Not a blocker for the Stamper** (decided 2026-07-27): Scavenger is sprite-sheet
   DOWNLOADING and cherry-picking, whereas authoring and stamping only need tiles already in the project, which
   a plain object field supplies. Resolve it when sprite sourcing is actually wanted, not before.
-- [ ] Clump Stamper tool — pick a Clump, click to place it onto a Tilemap, rotate/mirror. The actual new
-  value Cartographer adds over vanilla Unity (Tile Palette only handles single tiles, not multi-tile stamps).
-  Sprite sourcing (download a sheet, cherry-pick tiles out of it) should reuse Scavenger once it's ported,
+- [x] **Clump Stamper** (`Editor/Cartographer/ClumpWindow.Stamper.cs`) — landed 2026-07-27. A Level box in the
+  Clump Editor holds the target level, a stamp-mode toggle, rotation (0/90/180/270) and mirror-X. In the Scene
+  view it ghosts the transformed footprint at the hovered cell and stamps on click; Alt-click removes the
+  placement under the cursor. Goes through `CartographerLevel.PlaceClump`, the same call a generator will use.
+  **No menu command** — level creation is a button in the window, per the "no submenu commands, create in the
+  browser" rule.
+- [x] **Level scaffold** — the same Level box builds a Grid + Terrain/Structures tilemaps wired to a
+  `CartographerLevel`, in one undo step, and selects it.
+- [x] **Placement records** — `CartographerLevel.placements` remembers (clump, origin, rotation, mirror) for
+  every stamp, because a Tilemap only stores tiles and otherwise loses which clump painted what — taking the
+  clump's tags, prefab hook and any hope of rebuilding with it. `RebuildFromPlacements()` re-stamps the lot.
+  Verified: 3 stamps → 24 Terrain + 12 Structures tiles, and a rebuild reproduces exactly that with no
+  duplication.
+- [ ] Sprite sourcing (download a sheet, cherry-pick tiles out of it) should reuse Scavenger once it's ported,
   rather than rebuilding it a third time.
-- [ ] Biome CRUD window (AssetKit-based, live preview).
+- [x] **Biome editing** — landed 2026-07-27, but **inline in the Clump Editor, not its own window**: a Biome box
+  edits whichever biome the palette is drawing from (name, tint, terrain tiles, allowed clumps, plus a
+  "+ This clump" shortcut). A separate window would have needed its own menu entry, which the "no submenu
+  commands" rule rules out, and a biome is short enough that it reads better beside the palette it feeds.
 - [ ] `CartographerRuleTile` (category-based neighbor matching) — once the basics work.
+
+## Friction found by building a real level (2026-07-27)
+
+Built `Assets/OutBurner/Cartographer/CartographerTest.unity` with the tool — ground strip, 3 huts, 4 one-way platforms, 3 layers, colliders. It works, and it surfaced three things in priority order:
+
+0. **Line mode — added 2026-07-27.** Press, drag out a run, release to commit. Nothing is placed until release, so the span can be adjusted while the ghost previews the whole run; locked to the dominant axis, since a run of ground or a wall is the case and a free-angle line of square stamps is not. The ghost and the commit share one `LineOrigins`, so the preview cannot drift from what lands. Verified: a line from x=0 to x=47 with the 8-wide clump gives 6 origins (0/8/16/24/32/40), and a vertical run of a 1-tall clump over 5 cells gives 6.
+
+1. **~~Repeat-stamping is the bottleneck~~ — FIXED (drag-to-repeat).** Hold and drag and the same gesture keeps laying clumps. The rule is **overlap rejection**, not one-per-cell: a candidate is skipped if its footprint touches the previous stamp's, so a drag tiles clumps edge-to-edge in whatever direction you move, and a 1×1 clump still stamps every cell. Verified: dragging across 48 cells with the 8-wide strip yields exactly 6 placements at origins 0/8/16/24/32/40 and 48 tiles — the ground strip in one gesture instead of six clicks. A separate **line mode** (click, drag, release to fill a span) is still worth having, but is no longer urgent.
+2. **~~No layer management UI~~ — FIXED.** A Layers box on the Level box lists every layer with its name, `solid` and `oneWay` toggles and a remove button, plus the level's collision mode and "+ Add layer" (which creates the GameObject, Tilemap and renderer, undoable in one step). Removing a layer destroys its tilemap — undoable, and the tooltip says so.
+   - Follow-on found while looking at it, also fixed: the **Brush's** layer radio was derived from the clump's own cells, so a level with a `Platforms` layer did not offer it when authoring a NEW clump. `KnownLayers()` now unions the target level's layers, so the brush offers exactly what is actually paintable.
+3. **~~Silent cell drop on a layer-name mismatch~~ — FIXED.** A clump cell targeting a layer the level lacks was skipped with no message. Now warns, naming the clump, the missing layer, and the level's actual layers.
+
+Also noted, lower priority: a clump wider than the authoring grid needs the Grid sliders bumped first (works, just not obvious), and the demo Hut is symmetric so mirroring cannot be *seen* on it — mirroring is verified numerically (a mirrored stamp's spot resolved to x = 20 + (-1.5) + 0.5 = 19.0), not visually.
 
 ### Phase 3 — procgen
 - [ ] `LevelRecipe`/`GenParams` (seed + dials, mirroring `StageParams`).
@@ -212,10 +244,24 @@ Both are cheap to add to the Room/Clump schema now and expensive to retrofit lat
   `TrackDesignerWindow`.
 - [ ] Functional-clump resolution at generation time (weighted alternative picking via Randomizers).
 
-### Phase 4 — collision / gameplay-mode split
-- [ ] Top-down collision setup (`CompositeCollider2D`-based).
-- [ ] Side-scrolling collision setup (`PlatformEffector2D`, one-way platforms, slopes).
-- [ ] Gameplay-tag → collision/behavior wiring (project-side binding, mirroring Lazor's core/binding split).
+### Phase 4 — collision / gameplay-mode split  (mostly landed 2026-07-27)
+- [x] Top-down collision setup (`CompositeCollider2D`-based) — `CartographerLevel.BuildColliders()`, driven by
+  a `CollisionMode` on the level and a per-layer `solid` flag. Idempotent, so it works as a rebuild button
+  rather than a one-shot: clearing `solid` strips the components again.
+- [x] Side-scrolling one-way platforms — a per-layer `oneWay` flag adds a `PlatformEffector2D` and sets
+  `usedByEffector`, but only in SideScroll mode (in a top-down level "up" is not a direction you fall from, so
+  the effector is dropped rather than silently doing nothing).
+- [x] **Slopes** — a per-layer `colliderShape` (Square / Sprite outline). Sprite outline makes each tile collide
+  on its own shape, which is how a triangular tile becomes a walkable slope; no custom geometry needed, it is
+  the tile's own physics shape. Verified: 16/16 cells switch to sprite-outline collision.
+- [x] **Gameplay-tag → collision** — an optional `solidTag` on the level. Left empty, the whole solid layer
+  collides (the simple default). Set, only cells stamped from a clump carrying that tag collide, so decorative
+  clumps can share a solid layer without blocking. Resolved the open question in favour of **tags NARROWING a
+  solid layer, never widening a non-solid one** — a layer marked non-solid stays non-solid, so there is exactly
+  one place to look when something unexpectedly blocks. Applied per CELL (not per tile asset), because the same
+  Ground tile can be structural in one clump and dressing in another. Verified: Hut cells (tagged) collide,
+  Ground Strip cells (untagged) do not, 8 vs 8.
+- [ ] Project-side behaviour binding beyond collision (mirroring Lazor's core/binding split) — still open.
 
 ### Phase 5 — scroll & camera (side-scrolling)
 - [ ] Room exit-condition runtime (distance / time-with-spawns / kill-all) driving Room transitions.

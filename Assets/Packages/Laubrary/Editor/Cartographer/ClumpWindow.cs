@@ -16,7 +16,7 @@ namespace Laubrary.Cartographer.Editor
     /// Follows ChoreographerWindow's shape (the UI Toolkit pilot): ZuiAssetWindow for the asset toolbar and
     /// thumbnail browser, a Painter2D custom element for the stage, and one Dial() helper every data edit
     /// routes through so the whole window is undoable.
-    public class ClumpWindow : ZuiAssetWindow<Clump>
+    public partial class ClumpWindow : ZuiAssetWindow<Clump>
     {
         [MenuItem("Laubrary/Cartographer/Clump Editor")]
         public static void Open() => GetWindow<ClumpWindow>("Clump Editor");
@@ -45,7 +45,10 @@ namespace Laubrary.Cartographer.Editor
         int gridW = 8, gridH = 8;
 
         ClumpStage stage;
-        VisualElement paletteRow, layerRow, tagList, spotList;
+        VisualElement paletteRow, layerRow, tagList, spotList, levelBox, biomeBox;
+
+        protected override void OnEnable() { base.OnEnable(); OnEnableStamper(); }
+        protected override void OnDisable() { OnDisableStamper(); base.OnDisable(); }
 
         protected override Texture2D RenderThumbnail(Clump item) => item != null ? item.RenderPreviewTexture() : null;
 
@@ -115,7 +118,7 @@ namespace Laubrary.Cartographer.Editor
             var paletteBox = Z.Box("Palette", "The tiles this clump can be painted with. Pull a biome's tiles in, or add one directly.",
                 Z.Field("From biome", "Fills the palette with this biome's terrain tiles. The clump is not bound to the biome.",
                     Z.Object<CartographerBiome>(paletteSource, "Biome whose terrain tiles fill the palette.",
-                        v => { paletteSource = v; RebuildPalette(); }, 180f)),
+                        v => { paletteSource = v; RebuildPalette(); RebuildBiomeBox(); }, 180f)),
                 Z.Field("Add tile", "Adds a single tile to the palette without going through a biome.",
                     Z.Object<TileBase>(null, "Tile to add to the palette.", v =>
                     {
@@ -124,6 +127,10 @@ namespace Laubrary.Cartographer.Editor
                 paletteRow);
             root.Add(paletteBox);
             RebuildPalette();   // seeds from the biome (if any) plus whatever tiles this clump already uses
+
+            biomeBox = new VisualElement();
+            root.Add(Z.Box("Biome", "Edit the biome selected above — what may appear in it, and how it looks.", biomeBox));
+            RebuildBiomeBox();
 
             // Brush: which layer painted cells land on, and paint-vs-erase.
             layerRow = new VisualElement();
@@ -153,6 +160,10 @@ namespace Laubrary.Cartographer.Editor
                 Z.Button("+ Add spot", "Append a named point at the clump's origin.",
                     () => Dial("Add clump spot", () => clump.spots.Add(new ClumpSpot())))));
             RebuildSpots();
+
+            levelBox = new VisualElement();
+            root.Add(Z.Box("Level", "The level in the open scene this clump is stamped into.", levelBox));
+            RebuildLevelBox();
         }
 
         void RebuildPalette()
@@ -205,6 +216,77 @@ namespace Laubrary.Cartographer.Editor
                     "The palette is empty, so painting has nothing to place."));
         }
 
+        /// Inline editor for the biome picked in the Palette box. Deliberately NOT its own window: a second
+        /// window would need its own menu entry, and a biome is a short enough asset that it reads better beside
+        /// the palette it feeds than in a tool of its own.
+        void RebuildBiomeBox()
+        {
+            if (biomeBox == null) return;
+            biomeBox.Clear();
+
+            if (paletteSource == null)
+            {
+                biomeBox.Add(Z.Text("Pick a biome above to edit it.", ZuiText.Subtle,
+                    "The Biome box edits whichever biome the palette is drawing from."));
+                return;
+            }
+
+            var b = paletteSource;
+            void BiomeEdit(string label, System.Action apply)
+            {
+                Undo.RecordObject(b, label);
+                apply();
+                EditorUtility.SetDirty(b);
+            }
+
+            biomeBox.Add(Z.Field("Name", "Name shown in browsers and pickers.",
+                Z.TextInput(b.displayName, "Name shown in browsers and pickers.",
+                    v => BiomeEdit("Rename biome", () => b.displayName = v), 160f)));
+
+            biomeBox.Add(Z.Field("Tint", "Multiplied into this biome's tiles when the level is built.",
+                Z.Color(b.tint, "Biome tint.", v => BiomeEdit("Set biome tint", () => b.tint = v), 130f)));
+
+            // Terrain tiles — the pool generation fills ground and walls from.
+            var tileRows = new VisualElement();
+            for (int i = 0; i < b.terrainTiles.Count; i++)
+            {
+                int idx = i;
+                tileRows.Add(Z.Row(
+                    Z.Object<TileBase>(b.terrainTiles[idx], "A tile generation may use here.",
+                        v => BiomeEdit("Set biome tile", () => b.terrainTiles[idx] = v), 170f),
+                    Z.Button("×", "Remove this tile from the biome.",
+                        () => { BiomeEdit("Remove biome tile", () => b.terrainTiles.RemoveAt(idx)); RebuildBiomeBox(); }).W(24f)));
+            }
+            biomeBox.Add(Z.Box("Terrain tiles", "The tiles generation may use to fill ground and walls here.",
+                tileRows,
+                Z.Button("+ Add tile", "Append an empty tile slot.",
+                    () => { BiomeEdit("Add biome tile", () => b.terrainTiles.Add(null)); RebuildBiomeBox(); })));
+
+            // Allowed clumps — a clump not listed here is never placed, however the generator is tuned.
+            var clumpRows = new VisualElement();
+            for (int i = 0; i < b.clumps.Count; i++)
+            {
+                int idx = i;
+                clumpRows.Add(Z.Row(
+                    Z.Object<Clump>(b.clumps[idx], "A clump allowed to appear in this biome.",
+                        v => BiomeEdit("Set biome clump", () => b.clumps[idx] = v), 170f),
+                    Z.Button("×", "Remove this clump from the biome.",
+                        () => { BiomeEdit("Remove biome clump", () => b.clumps.RemoveAt(idx)); RebuildBiomeBox(); }).W(24f)));
+            }
+            biomeBox.Add(Z.Box("Clumps", "Only these clumps may be placed in this biome.",
+                clumpRows,
+                Z.Row(
+                    Z.Button("+ Add clump", "Append an empty clump slot.",
+                        () => { BiomeEdit("Add biome clump", () => b.clumps.Add(null)); RebuildBiomeBox(); }),
+                    Z.Button("+ This clump", "Add the clump currently open in this window.",
+                        () =>
+                        {
+                            if (clump == null || b.clumps.Contains(clump)) return;
+                            BiomeEdit("Add biome clump", () => b.clumps.Add(clump));
+                            RebuildBiomeBox();
+                        }))));
+        }
+
         void RebuildLayers()
         {
             if (layerRow == null) return;
@@ -222,13 +304,21 @@ namespace Laubrary.Cartographer.Editor
                 }, 150f)));
         }
 
-        /// The conventional two layers, plus any others this clump already writes to.
+        /// The conventional two layers, plus every layer the target level declares, plus any others this clump
+        /// already writes to. The level's layers matter: painting onto a layer the level does not have drops
+        /// those cells (with a warning), so the brush should offer exactly what is actually paintable.
         string[] KnownLayers()
         {
             var set = new List<string> { CartographerLevel.TerrainLayer, "Structures" };
+
+            if (level != null)
+                foreach (var l in level.layers)
+                    if (l != null && !string.IsNullOrEmpty(l.layerName) && !set.Contains(l.layerName)) set.Add(l.layerName);
+
             if (clump?.cells != null)
                 foreach (var c in clump.cells)
                     if (c != null && !string.IsNullOrEmpty(c.layer) && !set.Contains(c.layer)) set.Add(c.layer);
+
             if (!set.Contains(targetLayer)) set.Add(targetLayer);
             return set.ToArray();
         }
