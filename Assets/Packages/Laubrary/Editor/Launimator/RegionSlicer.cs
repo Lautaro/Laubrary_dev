@@ -182,6 +182,8 @@ namespace Laubrary.Launimator.Editor
             importer.spritePixelsPerUnit = ppu <= 0 ? 16f : ppu;
             importer.mipmapEnabled = false;
             importer.isReadable = true;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;   // else Unity's lossy default blurs/blocks pixel art
+            importer.npotScale = TextureImporterNPOTScale.None;
 
             // CRITICAL: force FULL-RECT sprite meshes. Unity defaults to Tight, which builds a per-frame polygon
             // hugging the content — and those meshes round independently, so frames drift ~1px against each other
