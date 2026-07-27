@@ -207,7 +207,8 @@ namespace Laubrary.SpriteFx
             _work = new Texture2D(W, H, TextureFormat.RGBA32, false)
             {
                 filterMode = src.texture != null ? src.texture.filterMode : FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.DontSave   // [ExecuteAlways] runs in edit mode — never serialise into a saved scene
             };
             _lastW = _lastH = -1;   // force a matching sprite rebuild
         }
@@ -226,6 +227,7 @@ namespace Laubrary.SpriteFx
             _filteredSprite = Sprite.Create(_work, new Rect(0, 0, W, H), pivotNorm, src.pixelsPerUnit, 0,
                                             SpriteMeshType.FullRect, src.border);
             _filteredSprite.name = src.name + " (Recolor)";
+            _filteredSprite.hideFlags = HideFlags.DontSave;
             _lastW = W; _lastH = H; _lastPpu = src.pixelsPerUnit; _lastPivotNorm = pivotNorm;
         }
 

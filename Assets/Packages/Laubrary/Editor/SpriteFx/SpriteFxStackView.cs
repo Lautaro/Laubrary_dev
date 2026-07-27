@@ -57,7 +57,10 @@ namespace Laubrary.SpriteFx.Editor
         /// titled/captured box is the host's concern — this control never wraps itself in one). Rebuildable in place:
         /// it owns a body element it clears/refills whenever the stack's structure changes.
         /// </summary>
-        public static VisualElement Build(List<PixelModifier> stack, Host host)
+        /// <paramref name="includeColorRemap"/>: a MANAGED host (e.g. SpriteFxRecolor) runs every PixelModifier via
+        /// ApplyPixel, not just the shaped Burst family — so it can also offer the non-shaped Colour remap effect in
+        /// the Add menu. The triggered op-path filter leaves this false (it would silently skip a non-shaped effect).
+        public static VisualElement Build(List<PixelModifier> stack, Host host, bool includeColorRemap = false)
         {
             host ??= new Host();
             var root = new VisualElement();
@@ -198,6 +201,16 @@ namespace Laubrary.SpriteFx.Editor
             void ShowAddMenu(VisualElement anchor)
             {
                 var menu = Z.Menu(anchor);
+                if (includeColorRemap)
+                {
+                    menu.Item("Colour remap",
+                        "Recolour source colours → swatches / luma gradients (managed host only).", () =>
+                    {
+                        Dirty(() => stack.Add(new ColorRemapModifier()));
+                        Structural();
+                    });
+                    menu.Separator();
+                }
                 foreach (var e in Catalog())
                 {
                     var type = e.type;

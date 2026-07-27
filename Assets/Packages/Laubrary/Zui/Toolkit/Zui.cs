@@ -646,6 +646,17 @@ namespace Laubrary.Zui
             return c;
         }
 
+        /// A ZuiSwatchRef picker — an inline colour OR a named swatch in a SwatchPalette (palette ObjectField +
+        /// swatch-name dropdown + inline colour + a live RESOLVED preview). Since ZuiSwatchRef is a struct, onChanged
+        /// delivers the NEW struct (the caller writes it back to its field).
+        public static ZuiSwatchControl Swatch(ZuiSwatchRef value, string tooltip, Action<ZuiSwatchRef> onChanged,
+            float width = 220f)
+        {
+            var c = new ZuiSwatchControl(value, tooltip, width);
+            if (onChanged != null) c.OnChanged += onChanged;
+            return c;
+        }
+
         /// A min/max range: numeric low field + MinMaxSlider + numeric high field, kept in sync
         /// (the SliderRange pattern). Rounded to 5 decimals like every slider. Double-clicking the track
         /// resets BOTH handles to <paramref name="lowDefault"/>/<paramref name="highDefault"/> when given,

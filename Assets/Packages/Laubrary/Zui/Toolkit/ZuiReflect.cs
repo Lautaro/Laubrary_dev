@@ -252,6 +252,27 @@ namespace Laubrary.Zui
                     : Z.Field(nice, tip, Z.Float(cur, tip, SetWrapped, 80f));
             }
 
+            // A ZuiGradient (the richer base-Gradient-plus-transform-knobs type, NOT Unity's Gradient handled above)
+            // → the ZuiGradientControl with its live TRUE-evaluated preview strip. Mutates in place, so wire the
+            // host's Undo/dirty hooks directly rather than through Set. Every reflected tool with a ZuiGradient
+            // field (a ColorRemap region, a future ZuiFill knob) gains the full editor here at once.
+            if (t == typeof(ZuiGradient))
+            {
+                var zg = v as ZuiGradient;
+                if (zg == null) { zg = new ZuiGradient(); field.SetValue(owner, zg); }
+                var gc = new ZuiGradientControl(zg, tip) { OnBeforeMutate = opt.OnBeforeChange, OnChanged = opt.OnChanged };
+                return Z.Field(nice, tip, gc);
+            }
+
+            // A ZuiSwatchRef (inline colour OR a named SwatchPalette swatch) → the Z.Swatch picker. It's a struct,
+            // so the control hands back a NEW value which Set writes to the field (Set already fires OnBeforeChange,
+            // so the control's own OnBeforeMutate is left unset to avoid double-recording).
+            if (t == typeof(ZuiSwatchRef))
+            {
+                var sc = new ZuiSwatchControl((ZuiSwatchRef)v, tip, opt.ControlWidth) { OnChanged = nv => Set(nv) };
+                return Z.Field(nice, tip, sc);
+            }
+
             if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>))
                 return BuildList(owner, field, nice, tip, opt);
 
