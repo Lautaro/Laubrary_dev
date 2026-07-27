@@ -132,6 +132,25 @@ namespace Laubrary.Rulesets
 
         public void Add(GameRule r) { if (r != null) Rules.Add(r); }
 
+        // Runtime inject: add a rule to the live list, load it, and let the next Reconcile activate it (if
+        // Active) — matches the boot lifecycle. For systems that add rules mid-run (e.g. a Story PlotTwist).
+        public void AddLive(GameRule r)
+        {
+            if (r == null) return;
+            Rules.Add(r);
+            r.HostLoad();
+            if (_started) Reconcile();
+        }
+
+        // Runtime remove: deactivate + unload + drop from the live list (the inverse of AddLive).
+        public void Remove(GameRule r)
+        {
+            if (r == null) return;
+            if (r.IsRunning) r.HostDeactivate();
+            r.HostUnload();
+            Rules.Remove(r);
+        }
+
         // Swap in a different ruleset at runtime: deactivate the current rules, clone the new set, and let
         // the next Reconcile activate them.
         public void LoadSet(RuleSet set)

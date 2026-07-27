@@ -14,6 +14,10 @@ namespace Laubrary.SimpleMenu
         private static bool isCreatingSubMenu = false;
         private const string DEFAULT_SETTINGS_FOLDER = "Assets/Samples/SimpleMenu UI";
 
+        // Fired whenever any menu button is clicked. Lets a consumer (e.g. a game's audio) react without this
+        // package depending on it. Static so a single subscription covers every menu.
+        public static event System.Action ButtonClicked;
+
         private static Dictionary<string, Type> s_MenuTypeCache = null;
         private static bool s_MenuTypeCacheInitialized = false;
 
@@ -398,7 +402,7 @@ namespace Laubrary.SimpleMenu
             Button button = buttonObj.GetComponent<Button>();
             if (button != null)
             {
-                button.onClick.AddListener(() => onClick?.Invoke());
+                button.onClick.AddListener(() => { ButtonClicked?.Invoke(); onClick?.Invoke(); });
                 ApplyControlTint(button.targetGraphic as Image);
             }
 
