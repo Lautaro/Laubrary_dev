@@ -2,7 +2,8 @@
     "name": "com.Lautaro-Arino.Laubrary.Cartographer",
     "rootNamespace": "Laubrary.Cartographer",
     "references": [
-        "com.Lautaro-Arino.Laubrary.PreviewKit"
+        "com.Lautaro-Arino.Laubrary.PreviewKit",
+        "Unity.2D.Tilemap.Extras"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -11,6 +12,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.2d.tilemap.extras",
+            "expression": "",
+            "define": "TILEMAP_EXTRAS_INSTALLED"
+        }
+    ],
     "noEngineReferences": false
 }

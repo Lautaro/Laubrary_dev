@@ -121,10 +121,12 @@ namespace Laubrary.Cartographer
                     break;
 
                 case RoomScroll.PlayerPushed:
-                    // The view only ever moves forward, and only as far as the player has pushed it.
-                    float ahead = Vector3.Dot(playerPos - ViewCenter, axis);
-                    float slack = Mathf.Max(0f, Mathf.Abs(Vector3.Dot(viewExtents, axis)));
-                    float push = ahead - slack;
+                    // The view only ever moves FORWARD, and only far enough to put the player where the room's
+                    // playerLead says they belong on screen. Never backward — you cannot un-scroll a level by
+                    // walking back, which is the whole point of a pushed scroll.
+                    float want = Vector3.Dot(playerPos, axis) - room.playerLead * TrailingSlack(axis);
+                    float have = Vector3.Dot(ViewCenter, axis);
+                    float push = want - have;
                     if (push > 0f) { ViewCenter += axis * push; RoomDistance += push; }
                     break;
 
@@ -139,6 +141,61 @@ namespace Laubrary.Cartographer
             if (IsRoomComplete(room)) Advance();
 
             return playerPos;
+        }
+
+        /// Where a camera should actually sit — the room's camera mode applied on top of the view centre.
+        /// Separate from `ViewCenter` on purpose: the director's view is what play is *about*, and a Rail or
+        /// Focus camera deliberately looks somewhere else without changing the scroll or the catch-up rules.
+        public Vector3 CameraPosition
+        {
+            get
+            {
+                var room = Room;
+                if (room == null) return ViewCenter;
+
+                switch (room.camera)
+                {
+                    case RoomCamera.Rail:
+                        // An un-authored rail keeps the ordinary view rather than teleporting to the origin.
+                        return room.railPath != null && room.railPath.Count > 0
+                            ? SampleRail(room, RoomProgress) : ViewCenter;
+                    case RoomCamera.Focus:
+                        return room.focusTarget != null ? room.focusTarget.position : ViewCenter;
+                    default:
+                        return ViewCenter;
+                }
+            }
+        }
+
+        /// How far through the current room play has got, 0..1. Distance- and time-based rooms answer from
+        /// their own measure; a ClearEnemies room has no meaningful fraction, so it reports 0.
+        public float RoomProgress
+        {
+            get
+            {
+                var room = Room;
+                if (room == null) return 0f;
+                switch (room.exit)
+                {
+                    case RoomExit.Distance:
+                        return room.exitDistance > 0f ? Mathf.Clamp01(RoomDistance / room.exitDistance) : 1f;
+                    case RoomExit.Time:
+                        return room.exitSeconds > 0f ? Mathf.Clamp01(RoomElapsed / room.exitSeconds) : 1f;
+                    default:
+                        return 0f;
+                }
+            }
+        }
+
+        /// Piecewise-linear sample of the room's rail at `t` (0..1). Callers guard the empty case.
+        static Vector3 SampleRail(CartographerRoom room, float t)
+        {
+            var path = room.railPath;
+            if (path.Count == 1) return path[0];
+
+            float span = Mathf.Clamp01(t) * (path.Count - 1);
+            int i = Mathf.Min(Mathf.FloorToInt(span), path.Count - 2);
+            return Vector2.Lerp(path[i], path[i + 1], span - i);
         }
 
         /// How far behind the view centre the player is allowed to be before the trailing edge acts.

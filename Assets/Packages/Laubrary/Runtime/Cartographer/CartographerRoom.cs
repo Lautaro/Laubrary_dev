@@ -41,6 +41,18 @@ namespace Laubrary.Cartographer
         Wait,
     }
 
+    /// Where the camera sits while a Room runs.
+    public enum RoomCamera
+    {
+        /// Follow the director's own view centre — what the scroll behaviour produces. The usual case.
+        Follow,
+        /// Ride an authored path instead, sampled by how far through the Room play has got. Independent of
+        /// where the player is, for a set-piece approach or a scripted sweep.
+        Rail,
+        /// Lock onto a target and stay there until the Room ends — a boss, or the installation you must destroy.
+        Focus,
+    }
+
     /// One placed section of a level: which Biome it draws from, when it ends, and how the view moves through it.
     ///
     /// Stored inline on the level rather than as its own asset. A Room is specific to the level it sits in, so
@@ -78,6 +90,22 @@ namespace Laubrary.Cartographer
 
         [Tooltip("What happens when an advancing view catches up with the player.")]
         public ScrollCatchUp catchUp = ScrollCatchUp.Lock;
+
+        [Tooltip("Where the player sits on screen along the scroll axis, from -1 (trailing edge, so almost the " +
+                 "whole view is what lies ahead) through 0 (centred) to +1 (leading edge, showing what is " +
+                 "behind). Used by player-pushed scroll.")]
+        [Range(-1f, 1f)] public float playerLead = -0.5f;
+
+        [Header("Camera")]
+        [Tooltip("Where the camera sits while this section runs.")]
+        public RoomCamera camera = RoomCamera.Follow;
+
+        [Tooltip("World-space points the camera rides, sampled by progress through the section. Used when " +
+                 "Camera is Rail.")]
+        public List<Vector2> railPath = new();
+
+        [Tooltip("What the camera locks onto. Used when Camera is Focus.")]
+        public Transform focusTarget;
 
         [Header("Reserved space")]
         [Tooltip("Areas, in grid cells, that generation must leave traversable. Scripted sequences that need " +

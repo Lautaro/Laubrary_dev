@@ -222,7 +222,15 @@ Both are cheap to add to the Room/Clump schema now and expensive to retrofit lat
   edits whichever biome the palette is drawing from (name, tint, terrain tiles, allowed clumps, plus a
   "+ This clump" shortcut). A separate window would have needed its own menu entry, which the "no submenu
   commands" rule rules out, and a biome is short enough that it reads better beside the palette it feeds.
-- [ ] `CartographerRuleTile` (category-based neighbor matching) — once the basics work.
+- [x] **`CartographerRuleTile`** (category-based neighbour matching) — landed 2026-07-27. Tiles carry a
+  `family` string; any two tiles sharing one satisfy each other's neighbour rules, so a roof interior, a roof
+  edge and three roof variants stop needing to list each other by hand. The ordinary "This"/"Not this" rule
+  buttons honour the family too, so an author who sets one gets family matching without learning new options.
+  ⚠️ **`RuleTile` lives in the OPTIONAL `com.unity.2d.tilemap.extras` package**, so the file is guarded by a
+  `TILEMAP_EXTRAS_INSTALLED` versionDefine (the same pattern Zounds uses for Addressables) — Cartographer never
+  forces that dependency on a consumer. Laubrary Dev does NOT have the package, so **this type compiles away to
+  nothing here** and is only live in projects that install it (OutBurner has 6.0.1). Verified in both: absent in
+  Laubrary Dev, present in OutBurner.
 
 ## Friction found by building a real level (2026-07-27)
 
@@ -237,7 +245,26 @@ Built `Assets/OutBurner/Cartographer/CartographerTest.unity` with the tool — g
 
 Also noted, lower priority: a clump wider than the authoring grid needs the Grid sliders bumped first (works, just not obvious), and the demo Hut is symmetric so mirroring cannot be *seen* on it — mirroring is verified numerically (a mirrored stamp's spot resolved to x = 20 + (-1.5) + 0.5 = 19.0), not visually.
 
-### Phase 3 — procgen
+### Phase 3 — procgen  (landed 2026-07-27)
+- [x] **`LevelRecipe`** (asset) — seed + dials describing a KIND of level: biome, width, ground clump and how
+  much the surface wanders, weighted scatter entries with per-100-cell density and height bands, and the rooms
+  to copy onto the level. An asset so several Sites can share "ruined street" without duplicating dials.
+- [x] **`LevelGenerator.Generate(recipe, seed, level)`** — deterministic from `System.Random(seed)`. It is a
+  COMPOSER, not a painter: every clump goes through `PlaceClump`, so a generated level carries the same
+  placement records, publishes the same named spots, and rebuilds the same way as a hand-built one. The biome
+  gates scatter — a clump it does not allow is never placed however the dials are set. A crowded scatter roll
+  is dropped rather than retried, because retrying skews density toward whatever fits.
+- [x] **Weighted prefab resolution at generation time** — the generator passes its own seeded picker into
+  `PlaceClump`, so a clump's prefab alternatives are chosen from the level seed. Regenerating a seed picks the
+  same variants.
+- [x] **Generate from the window** — a Generate box on the Level box (recipe, seed, Roll, Generate), building
+  colliders afterwards. **Verified by signature, not by counts:** hashing the actual placement list shows
+  1234 == 1234 and 1234 ≠ 9999 ≠ 1. Worth recording that the first attempt compared placement COUNTS and
+  wrongly looked like seeds did not matter — two different levels place the same number of clumps constantly.
+- [ ] Live preview that regenerates on every dial change (the `TrackDesignerWindow` treatment). The generate
+  button is a manual stand-in; a real dial-driven preview is the remaining piece.
+
+### Phase 3 — procgen (original notes)
 - [ ] `LevelRecipe`/`GenParams` (seed + dials, mirroring `StageParams`).
 - [ ] Generator: deterministic terrain fill + clump scatter (mirroring `BiomeDecor.Place`).
 - [ ] Live preview for the generator window — regenerate + redraw on dial change, same principle as
@@ -283,7 +310,16 @@ Also noted, lower priority: a clump wider than the authoring grid needs the Grid
 - **Testability note:** the whole director is `Tick(dt, playerPos)` applied to its own state, so all of the
   above is verified in EDIT mode by calling it directly — no play mode, no waiting, no flaky timing. Worth
   preserving if this grows.
-- [ ] Camera rail mode.
+- [x] **Camera modes** — a per-Room `RoomCamera`: **Follow** (the director's view centre, the usual case),
+  **Rail** (an authored `railPath` sampled by `RoomProgress`, independent of where the player is — for a
+  set-piece approach), **Focus** (locked to a target until the room ends — a boss, or the installation you
+  must destroy). Exposed as `RoomDirector.CameraPosition`, kept separate from `ViewCenter` so a Rail or Focus
+  camera can look elsewhere WITHOUT changing the scroll or the catch-up rules. An un-authored rail falls back
+  to the ordinary view rather than teleporting to the origin.
+- [x] **Player lock / "clock anchor"** — realised as a per-Room `playerLead` from -1 (trailing edge, so almost
+  the whole view is what lies ahead) through 0 (centred) to +1 (leading edge). Used by player-pushed scroll,
+  which previously hardcoded "player at the leading edge" and therefore showed you everything BEHIND you.
+  Default -0.5. A clock face was considered and rejected: along a single scroll axis it is one number, not two.
 - [ ] Camera free mode + "player lock" clock-position anchor (name TBD), reacting to movement direction.
 - [ ] Camera focus mode (lock onto a target point/sequence until released).
 

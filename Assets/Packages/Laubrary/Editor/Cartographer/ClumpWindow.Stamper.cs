@@ -82,6 +82,35 @@ namespace Laubrary.Cartographer.Editor
 
             BuildLayerList();
             BuildRoomList();
+            BuildGenerateBox();
+        }
+
+        [SerializeField] LevelRecipe recipe;
+        [SerializeField] int genSeed = 1234;
+
+        /// Generate the target level from a recipe. Same recipe + same seed always rebuilds the same level, so
+        /// a seed is a level's whole identity — worth having in reach while authoring, to check that a recipe
+        /// produces good levels across seeds rather than one lucky one.
+        void BuildGenerateBox()
+        {
+            levelBox.Add(Z.Box("Generate", "Fill this level procedurally from a recipe. Replaces its contents.",
+                Z.Field("Recipe", "Seed-and-dials description of a KIND of level.",
+                    Z.Object<LevelRecipe>(recipe, "Recipe to generate from.", v => { recipe = v; RebuildLevelBox(); }, 170f)),
+                Z.Row(
+                    Z.Field("Seed", "Same recipe and seed always produce the same level.",
+                        Z.Int(genSeed, "Generation seed.", v => genSeed = v, 80f)),
+                    Z.Button("Roll", "Pick a new random seed.",
+                        () => { genSeed = Random.Range(0, 1_000_000); RebuildLevelBox(); })),
+                Z.Button("Generate", "Discard this level's contents and rebuild it from the recipe and seed.",
+                    () =>
+                    {
+                        if (recipe == null || level == null) return;
+                        RecordLevelForUndo("Generate level");
+                        int n = LevelGenerator.Generate(recipe, genSeed, level);
+                        level.BuildColliders();
+                        AfterLevelChange();
+                        Debug.Log($"[Cartographer] Generated '{level.name}' from '{recipe.name}' seed {genSeed}: {n} clumps placed.", level);
+                    })));
         }
 
         /// The level's Rooms — the sections play moves through. Without this the Room schema is unreachable

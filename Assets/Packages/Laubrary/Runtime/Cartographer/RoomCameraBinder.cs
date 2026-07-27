@@ -33,7 +33,9 @@ namespace Laubrary.Cartographer
         {
             if (director == null) return;
 
-            var want = director.ViewCenter;
+            // CameraPosition, not ViewCenter: the room's camera mode (Rail / Focus) can deliberately look
+            // somewhere other than where play is happening.
+            var want = director.CameraPosition;
             want.z = depth;
 
             transform.position = follow <= 0f
