@@ -81,6 +81,70 @@ namespace Laubrary.Cartographer.Editor
                     () => { level.BuildColliders(); EditorUtility.SetDirty(level); })));
 
             BuildLayerList();
+            BuildRoomList();
+        }
+
+        /// The level's Rooms — the sections play moves through. Without this the Room schema is unreachable
+        /// data: you could design an exit condition and a scroll spec in code and never author one.
+        void BuildRoomList()
+        {
+            var rows = new VisualElement();
+
+            for (int i = 0; i < level.rooms.Count; i++)
+            {
+                int idx = i;
+                var r = level.rooms[idx];
+                if (r == null) continue;
+
+                var body = new VisualElement();
+
+                body.Add(Z.Row(
+                    Z.TextInput(r.roomName, "Name for this section, for your own reference.",
+                        v => LevelEdit("Rename room", () => r.roomName = v), 110f),
+                    Z.Object<CartographerBiome>(r.biome, "Which biome's tiles and clumps this section draws from.",
+                        v => LevelEdit("Set room biome", () => r.biome = v), 150f),
+                    Z.Button("×", "Remove this section.",
+                        () => { LevelEdit("Remove room", () => level.rooms.RemoveAt(idx)); RebuildLevelBox(); }).W(24f)));
+
+                body.Add(Z.Field("Ends on", "What finishes this section and moves play into the next.",
+                    Z.MiniRadio((int)r.exit, new[] { "Distance", "Time", "Clear enemies" },
+                        "Exit condition for this section.",
+                        v => { LevelEdit("Set room exit", () => r.exit = (RoomExit)v); RebuildLevelBox(); })));
+
+                if (r.exit == RoomExit.Distance)
+                    body.Add(Z.MicroSlider("Distance", r.exitDistance, 1f, 200f,
+                        "World units the view travels before this section ends.",
+                        v => LevelEdit("Set room distance", () => r.exitDistance = v), 150f));
+                else if (r.exit == RoomExit.Time)
+                    body.Add(Z.MicroSlider("Seconds", r.exitSeconds, 1f, 120f,
+                        "Seconds to survive before this section ends.",
+                        v => LevelEdit("Set room seconds", () => r.exitSeconds = v), 150f));
+
+                body.Add(Z.Field("Scroll", "How the view moves through this section.",
+                    Z.MiniRadio((int)r.scroll, new[] { "Auto", "Locked", "Player-pushed" },
+                        "Scroll behaviour, independent of the exit condition.",
+                        v => { LevelEdit("Set room scroll", () => r.scroll = (RoomScroll)v); RebuildLevelBox(); })));
+
+                if (r.scroll == RoomScroll.Auto)
+                    body.Add(Z.MicroSlider("Speed", r.scrollSpeed, 0f, 20f, "View speed in world units per second.",
+                        v => LevelEdit("Set scroll speed", () => r.scrollSpeed = v), 150f));
+
+                body.Add(Z.Field("Caught by edge", "What happens when an advancing view catches the player.",
+                    Z.MiniRadio((int)r.catchUp, new[] { "Lock", "Push", "Kill", "Wait" },
+                        "Trailing-edge behaviour for this section.",
+                        v => LevelEdit("Set catch-up", () => r.catchUp = (ScrollCatchUp)v), wrap: true)));
+
+                rows.Add(Z.Box($"{idx + 1}. {r.roomName}", "One section of this level.", body));
+            }
+
+            if (level.rooms.Count == 0)
+                rows.Add(Z.Text("No sections yet — the level is one continuous space.", ZuiText.Subtle,
+                    "Rooms are optional; a level with none just has no scroll direction of its own."));
+
+            levelBox.Add(Z.Box("Rooms", "The sections play moves through, in order.",
+                rows,
+                Z.Button("+ Add room", "Append a section after the last one.",
+                    () => { LevelEdit("Add room", () => level.rooms.Add(new CartographerRoom())); RebuildLevelBox(); })));
         }
 
         /// The level's drawing layers — add, rename, set solid/one-way, remove. Without this a level is stuck

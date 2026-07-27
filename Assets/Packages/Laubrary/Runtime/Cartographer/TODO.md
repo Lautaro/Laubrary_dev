@@ -263,9 +263,26 @@ Also noted, lower priority: a clump wider than the authoring grid needs the Grid
   Ground Strip cells (untagged) do not, 8 vs 8.
 - [ ] Project-side behaviour binding beyond collision (mirroring Lazor's core/binding split) — still open.
 
-### Phase 5 — scroll & camera (side-scrolling)
-- [ ] Room exit-condition runtime (distance / time-with-spawns / kill-all) driving Room transitions.
-- [ ] Scroll-behavior implementations: autoscroll-repeat, locked-in-place, player-pushable-content-locked.
+### Phase 5 — scroll & camera (side-scrolling)  (core landed 2026-07-27)
+- [x] **Room exit-condition runtime** — `RoomDirector` advances through `level.rooms`, evaluating Distance /
+  Time / ClearEnemies and raising `RoomStarted` / `LevelFinished`. ClearEnemies asks a `Func<bool> RoomCleared`
+  the GAME supplies, because Cartographer has no idea what an enemy is; left null it ends immediately rather
+  than hanging.
+- [x] **Scroll-behaviour implementations** — Auto (view advances at speed), Locked, PlayerPushed (the view only
+  ever moves forward, and only as far as the player has pushed it).
+- [x] **`ScrollCatchUp` runtime** — Lock/Push pin the player to the trailing edge, Wait gives the distance back
+  so the view never leaves anyone behind, Kill raises `PlayerCaught` **on the crossing** (latched — the first
+  test showed it firing once per tick while the player stayed behind, which would tell a game it died dozens
+  of times).
+- [x] **Rooms are authorable** — a Rooms box on the Level box adds sections and edits name / biome / exit
+  condition (with only the relevant parameter shown) / scroll / speed / catch-up. Before this the Room schema
+  was unreachable data.
+- [x] **`RoomCameraBinder`** — points a Camera at `RoomDirector.ViewCenter`, with optional smoothing. Kept a
+  separate component on purpose: the director decides where play is looking, which is equally useful to a
+  minimap, a cutscene, or a test with no camera at all.
+- **Testability note:** the whole director is `Tick(dt, playerPos)` applied to its own state, so all of the
+  above is verified in EDIT mode by calling it directly — no play mode, no waiting, no flaky timing. Worth
+  preserving if this grows.
 - [ ] Camera rail mode.
 - [ ] Camera free mode + "player lock" clock-position anchor (name TBD), reacting to movement direction.
 - [ ] Camera focus mode (lock onto a target point/sequence until released).
