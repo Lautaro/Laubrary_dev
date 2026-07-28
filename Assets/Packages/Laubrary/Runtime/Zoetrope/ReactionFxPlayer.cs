@@ -150,8 +150,7 @@ namespace Laubrary.Zoetrope
             ctx.DirectionDeg = ctx.ResolveDirectionDeg(entry.direction);
             ctx.Scalar = ctx.ResolveScalar(entry.scalar);
 
-            bool canFollow = entry.follow && entry.placement != FxPlacementType.HitPosition;
-            if (!canFollow) { entry.fx.Apply(ctx); return; }
+            if (!entry.follow) { entry.fx.Apply(ctx); return; }
 
             // Follow re-homes a single spawned Transform each frame — an ICombatFx-only capability
             // (PlayFollowable). A non-ICombatFx effect has no Transform to hand back, so it just applies once.
@@ -160,7 +159,21 @@ namespace Laubrary.Zoetrope
             var t = combat.PlayFollowable(pos, ctx.DirectionDeg);
             if (t == null) return;   // this effect has nothing single/ongoing to follow (see PlayFollowable's own doc comment)
             var follower = t.gameObject.AddComponent<FxFollowTarget>();
-            follower.Init(() => ctx.TryResolvePosition(entry.placement, entry.metaLayerId, out var p) ? (Vector3)p : t.position);
+
+            if (entry.placement == FxPlacementType.HitPosition && ctx.Transform != null)
+            {
+                // HitPosition + Follow STICKS the fixed hit point to the Zoe (task #4): capture where the hit landed
+                // in the Zoe's OWN space, then re-project it each frame so the effect rides along as the Zoe moves /
+                // turns, from the exact point the hit was detected. (TryResolvePosition can't — HitPosition is a fixed
+                // world point with nothing to re-sample, which is why Follow used to be disabled for it.)
+                var zoeT = ctx.Transform;
+                Vector3 localHit = zoeT.InverseTransformPoint(pos);
+                follower.Init(() => zoeT != null ? zoeT.TransformPoint(localHit) : t.position);
+            }
+            else
+            {
+                follower.Init(() => ctx.TryResolvePosition(entry.placement, entry.metaLayerId, out var p) ? (Vector3)p : t.position);
+            }
         }
     }
 }

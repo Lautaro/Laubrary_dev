@@ -10,6 +10,10 @@ namespace Laubrary.Zoetrope
         HitDirection,
         /// No direction — the effect fires omni-directionally.
         None,
+        /// The angle from the effect's spawn POSITION toward the Zoe's visual CENTRE — so an effect that lands on a
+        /// side angles inward (a glancing look). NaN when the spawn point IS the centre. (Appended last to keep the
+        /// existing serialized HitDirection=0 / None=1 values stable.)
+        CentreAngle,
     }
 
     /// <summary>Which of the event's scalar in-params an effect reads.</summary>
@@ -96,6 +100,12 @@ namespace Laubrary.Zoetrope
         public float ResolveDirectionDeg(DirectionParam param)
         {
             if (param == DirectionParam.None) return float.NaN;
+            if (param == DirectionParam.CentreAngle)
+            {
+                // Angle from the (already-stamped) spawn Position toward the Zoe's visual centre.
+                Vector2 toCentre = SpriteCenter - Position;
+                return toCentre.sqrMagnitude > 1e-6f ? Mathf.Atan2(toCentre.y, toCentre.x) * Mathf.Rad2Deg : float.NaN;
+            }
             return HitDirection.sqrMagnitude > 1e-6f
                 ? Mathf.Atan2(HitDirection.y, HitDirection.x) * Mathf.Rad2Deg
                 : float.NaN;

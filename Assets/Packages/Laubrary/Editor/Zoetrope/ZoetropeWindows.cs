@@ -687,7 +687,6 @@ namespace Laubrary.Zoetrope.Editor
             if ((used & EventParam.Position) != 0)
             {
                 bool isMetaPoint = (FxPlacementType)placementProp.enumValueIndex == FxPlacementType.MetaPoint;
-                bool isHitPosition = (FxPlacementType)placementProp.enumValueIndex == FxPlacementType.HitPosition;
 
                 const string posTip = "Which of the event's position params this effect spawns at — the hit point, " +
                     "the Zoe's origin, its sprite centre, or a named meta-layer point.";
@@ -700,19 +699,14 @@ namespace Laubrary.Zoetrope.Editor
                 }
                 body.Add(posRow);
 
-                // A fixed world point — Follow has nothing to re-sample. Written straight through rather than via
-                // Commit: this is an automatic normalization mid-build, and Commit's So.Update() would invalidate
-                // the SerializedProperties this build pass is still walking.
-                if (isHitPosition && followProp.boolValue)
-                {
-                    followProp.boolValue = false;
-                    So.ApplyModifiedPropertiesWithoutUndo();
-                }
+                // Follow is now available for EVERY position, including Hit Position (task #4): for the fixed hit
+                // point it STICKS to the Zoe (the hit point captured in the Zoe's space, riding along as it moves);
+                // for the other positions it re-samples that point each frame.
                 var follow = Z.Toggle("Follow",
-                    "Keep re-sampling the position every frame and move the effect with it, instead of spawning " +
-                    "once. Meaningless for the fixed Hit Position (disabled there).",
+                    "Keep the effect attached to the target instead of spawning once. Hit Position sticks the hit " +
+                    "point to the Zoe (it rides along, from where the hit landed); the other positions re-sample " +
+                    "every frame.",
                     followProp.boolValue, v => Commit(followPath, p => p.boolValue = v));
-                follow.SetEnabled(!isHitPosition);
                 body.Add(follow);
             }
 
