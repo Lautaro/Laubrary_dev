@@ -64,7 +64,7 @@ namespace Laubrary.Zui
             Adjust.Add(Z.MicroSlider("Quantise", _g.quantiseSteps, 0, 16,
                 "Snap the ramp to N discrete bands (0 = smooth) — the gradient Posterize. Not animatable (a shifting "
                 + "band count reads as flicker, not motion).",
-                v => Mutate(() => _g.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0));
+                v => Mutate(() => _g.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0, prefsKey: "grad.quantise"));
             Adjust.Add(Z.Row(
                 Z.Toggle("Cycle", "This ramp wants to colour-cycle (a ZuiPaletteCycle driver advances the phase at runtime).",
                     _g.cycle, v => Mutate(() => _g.cycle = v)),

@@ -12,6 +12,8 @@
 // top of the generated mesh. Everything themeable is a USS custom property read off resolvedStyle, so
 // the whole toolkit's slider look tunes from ZuiToolkit.uss, not from numbers buried here.
 using System;
+using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -24,7 +26,13 @@ namespace Laubrary.Zui
         readonly Action<float> _onChanged;
         readonly Action _onBeforeMutate;
         readonly Label _caption, _valueLabel;
-        readonly bool _showValue;
+        // Display prefs (#10): togglable via the right-click menu when a prefsKey is given, persisted in EditorPrefs.
+        // Without a key they're fixed at the ctor defaults (value label = showValue arg, numeric input off) and no
+        // menu is offered — a stateless slider can't remember a toggle across ZUI's element rebuilds.
+        readonly string _prefsKey;
+        FloatField _numField;
+        bool _showValueLabel;
+        bool _showNumInput;
         readonly int _decimals;
         bool _dragging, _gestureOpen;
         float _lastMoveX;   // local-space x of the previous applied move (for Shift fine/relative dragging)
@@ -42,16 +50,20 @@ namespace Laubrary.Zui
 
         public ZuiMicroSlider(string label, float value, float min, float max, string tooltip,
             Action<float> onChanged, bool showValue = true, float? defaultValue = null,
-            Action onBeforeMutate = null, int decimals = -1)
+            Action onBeforeMutate = null, int decimals = -1, string prefsKey = null)
         {
             _min = min; _max = Mathf.Max(min + 1e-6f, max);
             _value = Mathf.Clamp(value, _min, _max);
-            _onChanged = onChanged; _default = defaultValue; _showValue = showValue;
+            _onChanged = onChanged; _default = defaultValue;
             _onBeforeMutate = onBeforeMutate; _decimals = decimals;
+            _prefsKey = prefsKey;
+            _showValueLabel = HasPrefs ? EditorPrefs.GetBool(PrefKey("val"), showValue) : showValue;
+            _showNumInput   = HasPrefs && EditorPrefs.GetBool(PrefKey("num"), false);
             // Append the drag-modifier hint to the hover tooltip so the Shift-fine / double-click gestures are
             // discoverable (the element itself is what receives the hover — the caption ignores picking).
             this.tooltip = tooltip + "  ·  Drag to set; Shift = fine"
-                + (_default.HasValue ? "; double-click resets to default." : ".");
+                + (_default.HasValue ? "; double-click resets to default." : ".")
+                + (HasPrefs ? "  ·  Right-click for display options." : "");
 
             AddToClassList("zui-microslider");
 
@@ -61,10 +73,20 @@ namespace Laubrary.Zui
 
             _valueLabel = new Label { pickingMode = PickingMode.Ignore };
             _valueLabel.AddToClassList("zui-microslider__value");
-            _valueLabel.style.display = showValue ? DisplayStyle.Flex : DisplayStyle.None;
             Add(_valueLabel);
 
-            UpdateValueLabel();
+            // The optional numeric-input field (#10) sits over the right of the track; hidden unless toggled on.
+            // It swallows its own pointer-downs so typing/clicking it never starts a track drag.
+            _numField = new FloatField { isDelayed = true };
+            _numField.AddToClassList("zui-microslider__numfield");
+            _numField.style.position = Position.Absolute;
+            _numField.style.right = 2; _numField.style.top = 1; _numField.style.bottom = 1;
+            _numField.style.width = 46; _numField.style.marginLeft = 0; _numField.style.marginRight = 0;
+            _numField.RegisterCallback<PointerDownEvent>(ev => ev.StopPropagation());
+            _numField.RegisterValueChangedCallback(ev => { _onBeforeMutate?.Invoke(); SetValue(ev.newValue, notify: true); });
+            Add(_numField);
+
+            ApplyDisplay();
             generateVisualContent += OnGenerate;
             RegisterCallback<PointerDownEvent>(OnDown);
             RegisterCallback<PointerMoveEvent>(OnMove);
@@ -80,13 +102,39 @@ namespace Laubrary.Zui
             if (Mathf.Approximately(v, _value) && notify) return;
             _value = v;
             UpdateValueLabel();
+            if (_showNumInput) _numField.SetValueWithoutNotify(_value);
             MarkDirtyRepaint();
             if (notify) _onChanged?.Invoke(_value);
         }
 
+        bool HasPrefs => !string.IsNullOrEmpty(_prefsKey);
+        string PrefKey(string sub) => "zui.microslider." + _prefsKey + "." + sub;
+
+        // Apply the current display prefs: the numeric field replaces the in-track readout when both would show.
+        void ApplyDisplay()
+        {
+            bool showVal = _showValueLabel && !_showNumInput;
+            _valueLabel.style.display = showVal ? DisplayStyle.Flex : DisplayStyle.None;
+            _numField.style.display = _showNumInput ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_showNumInput) _numField.SetValueWithoutNotify(_value);
+            if (showVal) UpdateValueLabel();
+            MarkDirtyRepaint();
+        }
+
+        void ShowDisplayMenu()
+        {
+            var menu = Z.Menu(this);
+            menu.Toggle("Value in slider", "Show the value as text inside the slider track.", _showValueLabel,
+                on => { _showValueLabel = on; EditorPrefs.SetBool(PrefKey("val"), on); ApplyDisplay(); });
+            menu.Toggle("Numeric input", "Show an editable field to type an exact value (replaces the in-track readout).",
+                _showNumInput,
+                on => { _showNumInput = on; EditorPrefs.SetBool(PrefKey("num"), on); ApplyDisplay(); });
+            menu.Show();
+        }
+
         void UpdateValueLabel()
         {
-            if (!_showValue) return;
+            if (!_showValueLabel) return;
             // Decimals scale to the range, matching the old MicroSlider's AutoFormat: a 0..1 dial wants
             // more places than a 0..360 one.
             float span = _max - _min;
@@ -109,6 +157,12 @@ namespace Laubrary.Zui
 
         void OnDown(PointerDownEvent e)
         {
+            // Right-click opens the display-options menu (only meaningful — and persistable — when keyed).
+            if (e.button == 1)
+            {
+                if (HasPrefs) { ShowDisplayMenu(); e.StopPropagation(); }
+                return;
+            }
             if (e.button != 0) return;
             if (e.clickCount == 2 && _default.HasValue)
             {

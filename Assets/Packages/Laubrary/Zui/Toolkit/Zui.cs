@@ -323,10 +323,10 @@ namespace Laubrary.Zui
         /// Half the height of a vanilla Slider and needs no separate value field.
         public static ZuiMicroSlider MicroSlider(string label, float value, float min, float max,
             string tooltip, Action<float> onChanged, float width = 150f, bool showValue = true,
-            float? defaultValue = null, int decimals = -1)
+            float? defaultValue = null, int decimals = -1, string prefsKey = null)
         {
             var s = new ZuiMicroSlider(label, value, min, max, tooltip, onChanged, showValue, defaultValue,
-                decimals: decimals);
+                decimals: decimals, prefsKey: prefsKey);
             s.style.width = width;
             return s;
         }
