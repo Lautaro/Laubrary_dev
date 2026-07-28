@@ -83,15 +83,23 @@ namespace Laubrary.Zui
         public ZuiMenu IconItem(string icon, string label, string tooltip, Action onClick, bool enabled = true)
             => Item(label, tooltip, onClick, false, enabled, icon);
 
-        /// A persistent toggle row — stays open on click so several settings can be flipped in one visit
-        /// (a real Z.Toggle, checkbox and all). For a one-shot checkmark item that dismisses, use
+        /// A persistent toggle row — stays open on click so several settings can be flipped in one visit.
+        /// Renders as a ZUI button-toggle (Z.ToggleButton / ZuiToggleButton: the label latches visibly
+        /// pressed when on), NOT a native checkbox — a UITK Toggle's checkmark box reads as a bare OS
+        /// control inside a themed menu card. For a one-shot checkmark item that dismisses, use
         /// Item(..., checked: ...) instead.
         public ZuiMenu Toggle(string label, string tooltip, bool value, Action<bool> onChanged)
         {
             _rows.Add((menu, _) =>
             {
-                var row = Z.Toggle(label, tooltip, value, onChanged);
+                var row = Z.ToggleButton(label, tooltip, value, onChanged);
                 row.AddToClassList("zui-menu__toggle");
+                // A full-width menu row, read left like the item rows; never wrap the label — let a long
+                // one widen the menu instead (a menu is a content-sized floating card).
+                row.style.unityTextAlign = UnityEngine.TextAnchor.MiddleLeft;
+                row.style.whiteSpace = WhiteSpace.NoWrap;
+                row.style.marginTop = 1;
+                row.style.marginBottom = 1;
                 menu.Add(row);
             });
             return this;
@@ -104,11 +112,13 @@ namespace Laubrary.Zui
         {
             _rows.Add((menu, close) =>
             {
+                // wrap:false — a menu is a floating card that can be any width, so a long option set should
+                // WIDEN the menu, not fold onto a second line (the "menu forces new rows" complaint).
                 var radio = Z.MiniRadio(selected, options, tooltip, i =>
                 {
                     onChanged?.Invoke(i);
                     if (closeOnSelect) close?.Invoke();
-                }, wrap: true);
+                }, wrap: false);
                 VisualElement row = string.IsNullOrEmpty(label) ? radio : Z.Field(label, tooltip, radio);
                 row.AddToClassList("zui-menu__radio");
                 menu.Add(row);
@@ -131,6 +141,12 @@ namespace Laubrary.Zui
             var holder = new ZuiPopover[1];
             holder[0] = ZuiPopover.Show(_anchor, panel =>
             {
+                // Inner clicks must NEVER dismiss the menu — only a true OUTSIDE click (which lands on the
+                // popover's scrim, not on this panel) or an explicit Item / close-on-select pick closes it.
+                // A pointer-down on any control here bubbles up toward the scrim; stopping it at the panel
+                // guarantees a click on a toggle / radio / slider (or the menu's own padding) can't be taken
+                // for an outside click, so several settings can be adjusted in one visit.
+                panel.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
                 var menu = new VisualElement { name = "zui-menu" };
                 menu.AddToClassList("zui-menu");
                 Action close = () => holder[0]?.Close();
