@@ -53,18 +53,23 @@ namespace Laubrary.Zui
             // fold it and only the preview + base ramp remain.
             var adjust = Z.Box("Adjust",
                 "Non-destructive transforms applied on top of the base ramp. Hue / Saturation / Brightness / Contrast "
-                + "are animatable over the particle's life (Static / Min-Max / Curve via the ⋯ menu).");
-            adjust.Add(Z.Toggle("Reverse", "Sample the gradient backwards (1-t).", _g.reverse, v => Mutate(() => _g.reverse = v)));
+                + "/ Phase are animatable over the particle's life (Static / Min-Max / Curve via the ⋯ menu).");
             AddVal(adjust, "Hue",        _g.hueShiftAnim,   -1f, 1f, "Rotate the hue of the whole ramp (±1 = ±180°). Animatable over life.");
             AddVal(adjust, "Saturation", _g.saturationAnim,  0f, 2f, "Multiply saturation across the ramp (1 = unchanged). Animatable over life.");
             AddVal(adjust, "Brightness", _g.brightnessAnim,  0f, 2f, "Multiply brightness across the ramp (1 = unchanged). Animatable over life.");
             AddVal(adjust, "Contrast",   _g.contrastAnim,    0f, 2f, "Contrast around mid-grey (1 = unchanged). Animatable over life.");
+            AddVal(adjust, "Phase",      _g.phaseAnim,       0f, 1f, "Scroll the ramp along its length (0..1 = a full loop). Animate it over life "
+                                                                    + "(a rising Curve) to MOVE the gradient with no shader — the basic cycling.");
             adjust.Add(Z.MicroSlider("Quantise", _g.quantiseSteps, 0, 16,
                 "Snap the ramp to N discrete bands (0 = smooth) — the gradient Posterize. Not animatable (a shifting "
                 + "band count reads as flicker, not motion).",
                 v => Mutate(() => _g.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0));
-            adjust.Add(Z.Toggle("Cycle", "This ramp wants to colour-cycle (a ZuiPaletteCycle driver advances the phase at runtime).",
-                _g.cycle, v => Mutate(() => _g.cycle = v)));
+            // Two flags packed on one row (vertical space is the scarce resource).
+            adjust.Add(Z.Row(
+                Z.Toggle("Cycle", "This ramp wants to colour-cycle (a ZuiPaletteCycle driver advances the phase at runtime).",
+                    _g.cycle, v => Mutate(() => _g.cycle = v)),
+                Z.Toggle("Reverse", "Sample the gradient backwards (1-t).",
+                    _g.reverse, v => Mutate(() => _g.reverse = v))));
             Add(adjust);
 
             RefreshPreview();
@@ -75,7 +80,13 @@ namespace Laubrary.Zui
         // builds a ranged ZUIValue control (an Options with a range, then Z.Value). Edits re-bake the preview.
         void AddVal(VisualElement parent, string label, ZUIValue v, float min, float max, string tip)
         {
-            var o = new ZuiValueControl.Options { controlWidth = 150f };
+            // Hide the wall-clock timing (Dur/Warm/Loop) + Value-range rows — a gradient transform is sampled over
+            // the particle's 0..1 life, not seconds, and its range is fixed, so those envelope extras are noise here
+            // (mirrors Pyre's own Val()). The Y range is pinned to [min,max] by hideCurveRange.
+            var o = new ZuiValueControl.Options
+            {
+                controlWidth = 150f, hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true,
+            };
             o.WithRange(min, max);
             parent.Add(Z.Value(label, v, o, tip,
                 () => { RefreshPreview(); OnChanged?.Invoke(); },

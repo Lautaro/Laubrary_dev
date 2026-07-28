@@ -313,7 +313,7 @@ namespace Laubrary.Zui
                 + "Linear: the fill axis passes through it. Radial: the gradient's middle sits here, drifting "
                 + "off-centre toward a border. Static holds it; switch to a Curve (⋯) to animate the centre.";
             var o = new ZuiValue2DControl.Options().WithRange(-1f, 1f, -1f, 1f).WithDefault(Vector2.zero);
-            return Z.Value2D("Ctr", _fill.centerXAnim, _fill.centerYAnim, o, tip,
+            return Z.Value2D("Centre", _fill.centerXAnim, _fill.centerYAnim, o, tip,
                 () => { _swatch?.Refresh(); OnChanged?.Invoke(); },
                 () => OnBeforeMutate?.Invoke());
         }

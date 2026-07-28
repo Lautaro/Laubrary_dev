@@ -49,6 +49,10 @@ public class ZuiGradient : ISerializationCallbackReceiver
     [SerializeReference] public ZUIValue saturationAnim;
     [SerializeReference] public ZUIValue brightnessAnim;
     [SerializeReference] public ZUIValue contrastAnim;
+    // PHASE — a manual SCROLL of the ramp (0..1), animatable over life: the basic "move the gradient" control that
+    // works with no shader. 0 = no offset (byte-identical default). A rising Curve over life scrolls the ramp
+    // through once; the shader/cycle driver's own phase (Evaluate's `phase` arg) ADDS on top of this authored one.
+    [SerializeReference] public ZUIValue phaseAnim;
 
     // ── cycling (authored default cadence; a driver on the target turns time into phase) ──
     [Tooltip("This ramp wants to colour-cycle. A ZuiPaletteCycle driver advances the phase; Evaluate/ToLut take it as a parameter.")]
@@ -63,9 +67,11 @@ public class ZuiGradient : ISerializationCallbackReceiver
     public Color Evaluate(float t, float phase = 0f, float life = 0f)
     {
         float u = reverse ? 1f - t : t;
-        // Wrap only when cycling — a plain Evaluate(1) must stay at the ramp END, not wrap to the start
+        // The authored scroll (animatable over life) plus any external cycle phase the caller passed.
+        float ph = phase + EvalTransform(phaseAnim, life, 0f);
+        // Wrap only when offset — a plain Evaluate(1) must stay at the ramp END, not wrap to the start
         // (Mathf.Repeat(1,1)==0). The shader does its own frac(t+phase), so ToLut bakes the un-wrapped ramp.
-        u = phase != 0f ? Mathf.Repeat(u + phase, 1f) : Mathf.Clamp01(u);
+        u = ph != 0f ? Mathf.Repeat(u + ph, 1f) : Mathf.Clamp01(u);
         if (quantiseSteps > 0)
             u = Mathf.Floor(u * quantiseSteps) / Mathf.Max(1, quantiseSteps - 1);
         u = Mathf.Clamp01(u);
@@ -128,6 +134,7 @@ public class ZuiGradient : ISerializationCallbackReceiver
         if (saturationAnim == null) saturationAnim = new ZUIValue(saturation);
         if (brightnessAnim == null) brightnessAnim = new ZUIValue(brightness);
         if (contrastAnim == null)   contrastAnim   = new ZUIValue(contrast);
+        if (phaseAnim == null)      phaseAnim      = new ZUIValue(0f);   // no scroll by default
     }
 
     // ISerializationCallbackReceiver: seed the companions on load (the migration). No Unity API is touched here,
