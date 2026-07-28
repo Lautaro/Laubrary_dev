@@ -875,20 +875,20 @@ namespace Laubrary.PyrePlus.Editor
         // solids; 2D = the flat forms; Special = the standalone forms (Text / the two sims / Sparkle / Sprite). The five
         // task-listed singletons share ONE "Special" row rather than five caption+single-button rows — a singleton
         // would print its form name twice under its own caption, and one row is more compact (both per the layout rules).
-        static readonly (string label, ShapeForm form)[] Forms3D =
+        static readonly (string label, ShapeForm form, string icon)[] Forms3D =
         {
-            ("Gem", ShapeForm.Gem), ("Box", ShapeForm.Box), ("Pyramid", ShapeForm.Pyramid),
-            ("Can", ShapeForm.Can), ("Orb", ShapeForm.Orb),
+            ("Gem", ShapeForm.Gem, "diamond"), ("Box", ShapeForm.Box, "cube"), ("Pyramid", ShapeForm.Pyramid, "triangle"),
+            ("Can", ShapeForm.Can, "cylinder"), ("Orb", ShapeForm.Orb, "sphere"),
         };
-        static readonly (string label, ShapeForm form)[] Forms2D =
+        static readonly (string label, ShapeForm form, string icon)[] Forms2D =
         {
-            ("Disc", ShapeForm.Disc), ("Crescent", ShapeForm.Crescent), ("Ring", ShapeForm.Ring),
-            ("Streak", ShapeForm.Streak), ("Star", ShapeForm.Star), ("Polygon", ShapeForm.Polygon),
+            ("Disc", ShapeForm.Disc, "circle"), ("Crescent", ShapeForm.Crescent, "moon"), ("Ring", ShapeForm.Ring, "circle-dashed"),
+            ("Streak", ShapeForm.Streak, "lightning"), ("Star", ShapeForm.Star, "star"), ("Polygon", ShapeForm.Polygon, "polygon"),
         };
-        static readonly (string label, ShapeForm form)[] FormsSpecial =
+        static readonly (string label, ShapeForm form, string icon)[] FormsSpecial =
         {
-            ("Text", ShapeForm.Text), ("Fire", ShapeForm.Fire), ("Fireball", ShapeForm.Fireball),
-            ("Sparkle", ShapeForm.Sparkle), ("Sprite", ShapeForm.Sprite),
+            ("Text", ShapeForm.Text, "text-aa"), ("Fire", ShapeForm.Fire, "flame"), ("Fireball", ShapeForm.Fireball, "fire"),
+            ("Sparkle", ShapeForm.Sparkle, "sparkle"), ("Sprite", ShapeForm.Sprite, "image"),
         };
         const string Forms3DTip = "True-3D lit solids sharing the Gem's facet lighting (tilt, light, edge lines, glows). "
             + "Gem = a faceted crystal, Box = a cuboid, Pyramid = a square pyramid, Can = a cylinder, Orb = a sphere.";
@@ -914,28 +914,58 @@ namespace Laubrary.PyrePlus.Editor
         // straight to its ShapeForm; SteadyDefaultFillForSolid runs inside the SAME Dirty block so one Undo reverts both
         // the form and any auto-steadied fill together (the pre-existing FIX 1 behaviour, preserved).
         // The shape-FORM picker as a header context menu (opened by the "Shape" title's caret button or a right-click
-        // on the title). The 3D / 2D / Special groups become menu sections; the current form is checked. Picking one
-        // sets s.shapeForm exactly as the old radio rows did (same Dirty + SteadyDefaultFillForSolid + rebuild).
+        // on the title). The 3D / 2D / Special groups are stacked as three side-by-side COLUMNS, each form an
+        // icon + label row with the current one checked. Picking sets s.shapeForm exactly as the old radio rows did.
         void ShowShapeMenu(PyrePlusLayer s, VisualElement anchor)
         {
             if (s == null) return;
-            var menu = Z.Menu(anchor);
-            AddFormGroup(menu, s, "3D", Forms3DTip, Forms3D);
-            AddFormGroup(menu, s, "2D", Forms2DTip, Forms2D);
-            AddFormGroup(menu, s, "Special", FormsSpecialTip, FormsSpecial);
+            var menu = Z.Menu(anchor).Width(370f);
+            menu.Custom((body, close) =>
+            {
+                var row = new VisualElement();
+                row.style.flexDirection = FlexDirection.Row;
+                row.Add(FormColumn(s, "3D", Forms3DTip, Forms3D, close));
+                row.Add(FormColumn(s, "2D", Forms2DTip, Forms2D, close));
+                row.Add(FormColumn(s, "Special", FormsSpecialTip, FormsSpecial, close));
+                body.Add(row);
+            });
             menu.Show();
         }
 
-        void AddFormGroup(ZuiMenu menu, PyrePlusLayer s, string title, string tip, (string label, ShapeForm form)[] group)
+        VisualElement FormColumn(PyrePlusLayer s, string title, string tip,
+            (string label, ShapeForm form, string icon)[] group, System.Action close)
         {
-            menu.Section(title, tip);
-            foreach (var (label, form) in group)
+            var col = new VisualElement();
+            col.style.flexDirection = FlexDirection.Column;
+            col.style.marginRight = 12;
+            col.style.minWidth = 104;
+            var head = new Label(title) { tooltip = tip, pickingMode = PickingMode.Ignore };
+            head.AddToClassList("zui-menu__section");
+            col.Add(head);
+            foreach (var (label, form, icon) in group)
             {
                 var f = form;
-                menu.Item(label, null,
-                    () => { Dirty(() => { s.shapeForm = f; SteadyDefaultFillForSolid(s); }); RebuildShape(); RebuildSwarm(); },
-                    @checked: s.shapeForm == f);
+                var item = new VisualElement { tooltip = tip };
+                item.AddToClassList("zui-menu__item");
+                item.style.flexDirection = FlexDirection.Row;
+                item.style.alignItems = Align.Center;
+                var check = new Label(s.shapeForm == f ? "✓" : "") { pickingMode = PickingMode.Ignore };
+                check.AddToClassList("zui-menu__check");
+                item.Add(check);
+                var img = Z.Icon(icon, 14f);
+                if (img != null) { img.pickingMode = PickingMode.Ignore; img.style.marginRight = 5f; item.Add(img); }
+                var lbl = new Label(label) { pickingMode = PickingMode.Ignore };
+                lbl.AddToClassList("zui-menu__label");
+                item.Add(lbl);
+                item.AddManipulator(new Clickable(() =>
+                {
+                    Dirty(() => { s.shapeForm = f; SteadyDefaultFillForSolid(s); });
+                    RebuildShape(); RebuildSwarm();
+                    close?.Invoke();
+                }));
+                col.Add(item);
             }
+            return col;
         }
 
         void RebuildShape()
