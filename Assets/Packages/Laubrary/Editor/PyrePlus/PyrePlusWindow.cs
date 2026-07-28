@@ -859,6 +859,10 @@ namespace Laubrary.PyrePlus.Editor
         {
             var sec = Z.Section("Shape", "The particle's own look — colour, opacity and size over its life.",
                 icon: "shapes");
+            // The shape-FORM picker lives in a header context menu (the caret button, or a right-click on the title)
+            // instead of three in-body radio rows — reclaiming that vertical space.
+            sec.SetHeaderMenu("caret-down", "Choose the shape form (or right-click the title).",
+                anchor => ShowShapeMenu(SelLayer, anchor));
             shapeBody = new VisualElement();
             sec.Add(shapeBody);
             root.Add(sec);
@@ -909,20 +913,29 @@ namespace Laubrary.PyrePlus.Editor
         // three rows are rebuilt on each change and exactly ONE ever shows a highlight. Picking maps the in-group index
         // straight to its ShapeForm; SteadyDefaultFillForSolid runs inside the SAME Dirty block so one Undo reverts both
         // the form and any auto-steadied fill together (the pre-existing FIX 1 behaviour, preserved).
-        VisualElement FormPickerRow(PyrePlusLayer s, string caption, string tip, (string label, ShapeForm form)[] group)
+        // The shape-FORM picker as a header context menu (opened by the "Shape" title's caret button or a right-click
+        // on the title). The 3D / 2D / Special groups become menu sections; the current form is checked. Picking one
+        // sets s.shapeForm exactly as the old radio rows did (same Dirty + SteadyDefaultFillForSolid + rebuild).
+        void ShowShapeMenu(PyrePlusLayer s, VisualElement anchor)
         {
-            int sel = -1;
-            var labels = new string[group.Length];
-            for (int i = 0; i < group.Length; i++)
+            if (s == null) return;
+            var menu = Z.Menu(anchor);
+            AddFormGroup(menu, s, "3D", Forms3DTip, Forms3D);
+            AddFormGroup(menu, s, "2D", Forms2DTip, Forms2D);
+            AddFormGroup(menu, s, "Special", FormsSpecialTip, FormsSpecial);
+            menu.Show();
+        }
+
+        void AddFormGroup(ZuiMenu menu, PyrePlusLayer s, string title, string tip, (string label, ShapeForm form)[] group)
+        {
+            menu.Section(title, tip);
+            foreach (var (label, form) in group)
             {
-                labels[i] = group[i].label;
-                if (s.shapeForm == group[i].form) sel = i;
+                var f = form;
+                menu.Item(label, null,
+                    () => { Dirty(() => { s.shapeForm = f; SteadyDefaultFillForSolid(s); }); RebuildShape(); RebuildSwarm(); },
+                    @checked: s.shapeForm == f);
             }
-            return Z.Field(caption, tip, Z.MiniRadio(sel, labels, tip, j =>
-            {
-                Dirty(() => { s.shapeForm = group[j].form; SteadyDefaultFillForSolid(s); });
-                RebuildShape(); RebuildSwarm();
-            }, wrap: true));
         }
 
         void RebuildShape()
@@ -934,13 +947,8 @@ namespace Laubrary.PyrePlus.Editor
             s.alpha ??= new ZUIValue(1f);
             s.shapeFill ??= new ZuiFill();   // defensive; the real OverLife-fire default comes from the spec factory
 
-            // FORM selector — DISPLAY-ONLY labelled subgroups (#59 Part B): 3D solids / 2D flats / Special (Text, the
-            // two sims, Sparkle, Sprite). Each group is a wrapped MiniRadio; the ShapeForm enum is unchanged, so every
-            // button still sets the same s.shapeForm. Picking rebuilds BOTH sections (form-specific rows swap in; the
-            // Swarm's Count field updates for Text) — see FormPickerRow for the -1-deselects/one-highlight mechanics.
-            shapeBody.Add(FormPickerRow(s, "3D", Forms3DTip, Forms3D));
-            shapeBody.Add(FormPickerRow(s, "2D", Forms2DTip, Forms2D));
-            shapeBody.Add(FormPickerRow(s, "Special", FormsSpecialTip, FormsSpecial));
+            // FORM selector — now a header context menu (the "Shape" title's caret button / right-click), not in-body
+            // radio rows. See ShowShapeMenu; the ShapeForm enum + its 3D / 2D / Special grouping are unchanged.
 
             // Lifetime window (#55) — the frame range this LAYER is alive, ported 1:1 from Pyre1's per-layer
             // "Life (frames)" row. A bounded int min/max pair over [0, frameCount-1] ⇒ ONE Z.MinMax(isInt) range

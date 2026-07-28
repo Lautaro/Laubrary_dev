@@ -102,6 +102,32 @@ namespace Laubrary.Zui
             Apply();
         }
 
+        /// Give the header a picker MENU: a small icon button just after the title opens `open(anchor)`, and a
+        /// RIGHT-CLICK anywhere on the header opens the same menu. The section still folds on a normal left-click of
+        /// the header, but not when the button — or a right-click — is used. (Used for e.g. a shape-type picker that
+        /// replaces a block of in-body radio rows.)
+        public void SetHeaderMenu(string iconName, string tooltip, Action<VisualElement> open)
+        {
+            if (open == null) return;
+            var btn = new VisualElement { tooltip = tooltip };
+            btn.AddToClassList("zui-section__headerbtn");
+            btn.style.marginLeft = 6;
+            btn.style.width = 20; btn.style.height = 15;
+            btn.style.justifyContent = Justify.Center;
+            btn.style.alignItems = Align.Center;
+            btn.style.backgroundColor = new Color(1f, 1f, 1f, 0.07f);
+            btn.style.borderTopLeftRadius = btn.style.borderTopRightRadius =
+                btn.style.borderBottomLeftRadius = btn.style.borderBottomRightRadius = 3;
+            var img = Z.Icon(iconName, 12f);
+            if (img != null) { img.pickingMode = PickingMode.Ignore; btn.Add(img); }
+            btn.AddManipulator(new Clickable(() => open(btn)));
+            btn.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());   // a button click never folds the section
+            int idx = _header.IndexOf(_title);
+            _header.Insert(idx + 1, btn);
+            // Right-click anywhere on the header opens the same menu (anchored to the button).
+            _header.RegisterCallback<PointerDownEvent>(e => { if (e.button == 1) { open(btn); e.StopPropagation(); } });
+        }
+
         void Apply()
         {
             bool open = IsOpen;
