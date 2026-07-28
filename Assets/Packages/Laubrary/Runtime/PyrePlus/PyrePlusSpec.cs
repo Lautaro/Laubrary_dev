@@ -301,7 +301,12 @@ namespace Laubrary.PyrePlus
         public ZuiFill shapeFill = DefaultShapeFill();
         public ZUIValue alpha = DefaultAlpha();     // over the particle's OWN life (multiplies the final output alpha for BOTH forms)
         public ZUIValue size = DefaultSize();       // radius in pixels, over the particle's own life (Gem: the girdle radius)
-        [Range(0f, 1f)] public float edgeSoftness = 0.4f;   // soft rim vs hard pixel edge (Disc form only)
+        [Range(0f, 1f)] public float edgeSoftness = 0.4f;   // soft rim vs hard pixel edge — FROZEN legacy source (task #12)
+        // Edge softness, animatable over the particle's own life (Static / Min-Max / Curve). Migrated from the
+        // `edgeSoftness` float (#12): NULL on an un-migrated asset ⇒ the renderer reads the legacy float (byte-
+        // identical); the editor seeds it Static(edgeSoftness) the first time the Edge row is built, and Static
+        // still evaluates to the legacy value, so the 0x2D95… render gate holds either way.
+        [SerializeReference] public ZUIValue edgeSoftnessAnim;
 
         // ── Gem form (shapeForm == Gem) — a true-3D faceted crystal ────────────────
         // Octahedral by default (gemSides == 4): a square girdle with a crown point above and a longer pavilion
@@ -705,6 +710,7 @@ namespace Laubrary.PyrePlus
             l.gemInnerGlowFill = CloneFill(gemInnerGlowFill);
             l.textFill = CloneFill(textFill);
             l.textBorder = CloneFill(textBorder);
+            l.edgeSoftnessAnim = CloneVal(edgeSoftnessAnim);
             l.crescentBite = CloneVal(crescentBite);
             l.crescentAngle = CloneVal(crescentAngle);
             l.sparkleDensity = CloneVal(sparkleDensity);

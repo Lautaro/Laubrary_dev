@@ -89,7 +89,8 @@ namespace Laubrary.PyrePlus
         // (the Ramp knobs rampFusion/rampCoverage/rampLighting/rampRelief/rampLightAngle/rampRimScale are plain
         //  floats, NOT Eval'd — no field ids; the Ramp pass Eval's only density (-25) and heat (-26) per particle and
         //  adds one frame-global per-layer hash (-27), the twin of Fuse's -24. Next new single field id: -28 onward.)
-        const int FldBorderWidth = -28;  // borderWidth — first-class border rim thickness (px), frame-global over the layer's life [task #60]. Next new single field id: -29 onward.
+        const int FldBorderWidth = -28;  // borderWidth — first-class border rim thickness (px), frame-global over the layer's life [task #60].
+        const int FldEdgeSoftness = -29; // edgeSoftness — soft-rim fraction, animatable over the particle's own life [task #12]. Next new single field id: -30 onward.
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
         //  3D yaw (Turn), FldGemTilt for its tilt, FldGemRoll for its roll, and FldPathX/FldPathY for the shared
         //  travel offset — no other new ids. Crescent/Sparkle/Sprite likewise REUSE FldSize/FldAlpha (radius/alpha),
@@ -2663,8 +2664,10 @@ namespace Laubrary.PyrePlus
                 cg = Mathf.Clamp01(cg * brightMul);
                 cb = Mathf.Clamp01(cb * brightMul);
             }
-            // Soft rim: alpha ramps from `soft`·radius out to the edge. 0 softness = a hard pixel disc.
-            float soft = Mathf.Clamp01(layer.edgeSoftness);
+            // Soft rim: alpha ramps from `soft`·radius out to the edge. 0 softness = a hard pixel disc. Edge is now
+            // animatable over life (#12): a null companion falls back to the legacy float ⇒ byte-identical.
+            float soft = Mathf.Clamp01(layer.edgeSoftnessAnim != null
+                ? Eval(layer.edgeSoftnessAnim, life, spec.seed, particleIndex, FldEdgeSoftness) : layer.edgeSoftness);
             float inner = radius * (1f - soft);
 
             // ── other STATELESS forms (G2) — branch BEFORE the Disc raster so the Disc/Gem paths below stay
@@ -3442,7 +3445,8 @@ namespace Laubrary.PyrePlus
             float bias = Mathf.Clamp01(layer.streakAnchor);
             float behind = bias * len;
             float ahead = (1f - bias) * len;
-            float soft = Mathf.Clamp01(layer.edgeSoftness);
+            float soft = Mathf.Clamp01(layer.edgeSoftnessAnim != null
+                ? Eval(layer.edgeSoftnessAnim, own, spec.seed, particleIndex, FldEdgeSoftness) : layer.edgeSoftness);
             float sideInner = halfW * (1f - soft);          // |s| ≤ sideInner is full alpha; feathers to 0 at halfW
             float softTip = Mathf.Clamp01(layer.streakSoftTip);
             // Feather BOTH ends by softTip (symmetric, so a centred streak reads as a light streak fading at each

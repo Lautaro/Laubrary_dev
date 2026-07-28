@@ -1244,12 +1244,14 @@ namespace Laubrary.PyrePlus.Editor
             shapeBody.Add(glow);
         }
 
-        // The Edge-softness slider — its own MicroSlider caption is the "Edge" label, so it isn't wrapped in a
-        // Z.Field (that would print "Edge" twice). Shared by Disc (its single rim) and Crescent (both rims), each
-        // passing its own tooltip.
-        ZuiMicroSlider EdgeRow(PyrePlusLayer s, string tooltip) =>
-            Z.MicroSlider("Edge", s.edgeSoftness, 0f, 1f, tooltip,
-                v => Dirty(() => s.edgeSoftness = v), 150f, showValue: true);
+        // The Edge-softness control — now a MultiCont (Static / Min-Max / Curve over the particle's own life, #12),
+        // seeded Static(edgeSoftness) the first time it's built so an un-migrated asset stays byte-identical. Shared
+        // by Disc (its single rim), Crescent (both rims) and the other flat 2D forms, each passing its own tooltip.
+        VisualElement EdgeRow(PyrePlusLayer s, string tooltip)
+        {
+            s.edgeSoftnessAnim ??= new ZUIValue(s.edgeSoftness);
+            return Val("Edge", tooltip, s.edgeSoftnessAnim, 0f, 1f);
+        }
 
         // Crescent form rows — the shared Edge row (drives BOTH rims), then the bite: size + facing packed, and
         // the push-out offset.
