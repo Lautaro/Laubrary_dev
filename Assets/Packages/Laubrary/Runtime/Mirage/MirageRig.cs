@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 using Laubrary.Zoetrope;
+using Laubrary.Caching;
 using Laubrary.Pyre;
 using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespace inside a Laubrary.* namespace
 #if UNITY_EDITOR
@@ -33,6 +34,7 @@ namespace Laubrary.Mirage
 
         readonly Dictionary<string, GameObject> _live = new Dictionary<string, GameObject>();
         readonly HashSet<string> _pendingZoeScale = new HashSet<string>();
+        readonly HashSet<string> _pendingRealize = new HashSet<string>();
         GameObject _backdrop;
 
         const float SelfCaptureInterval = 2f;
@@ -40,6 +42,10 @@ namespace Laubrary.Mirage
 
         void OnEnable()
         {
+            // A previewed asset was edited → rebuild the live entries showing it (task #7). Mirrors MirageSubject's
+            // proven Zoe path but for the OTHER content types (a Pyre's bare BlastPlayer fetches its frames once and
+            // never re-fetches, so without this a Pyre edit only shows up on the next Play/Stop or view switch).
+            AssetCacheInvalidation.Invalidated += HandleAssetInvalidated;
 #if UNITY_EDITOR
             MirageActiveView.Changed += HandleActiveViewChanged;
             if (view == null)
@@ -58,10 +64,24 @@ namespace Laubrary.Mirage
 
         void OnDisable()
         {
+            AssetCacheInvalidation.Invalidated -= HandleAssetInvalidated;
 #if UNITY_EDITOR
             MirageActiveView.Changed -= HandleActiveViewChanged;
 #endif
             ClearLive();
+        }
+
+        // Only SETS pending ids — the destroy + re-realize is deferred to Update(). This callback fires reentrant to
+        // Unity's ObjectChangeEvents dispatch, where synchronous scene mutation (DestroyImmediate / AddComponent)
+        // trips the "Access version should be odd" assertion — the exact trap MirageSubject.HandleAssetInvalidated
+        // documents. Zoe entries are skipped: their own MirageSubject already destroy+respawns on invalidation, so
+        // rebuilding them here too would double-spawn.
+        void HandleAssetInvalidated(Object asset)
+        {
+            if (view == null || asset == null) return;
+            foreach (var entry in view.previewables)
+                if (entry != null && entry.content == asset && !(entry.content is Zoe))
+                    _pendingRealize.Add(entry.id);
         }
 
         void Update()
@@ -83,6 +103,22 @@ namespace Laubrary.Mirage
                 CaptureNow(view);
             }
 #endif
+
+            // Rebuild any entry whose content asset was just edited (deferred from HandleAssetInvalidated, task #7):
+            // destroy the stale live GameObject and re-realize it, so e.g. a Pyre blast reflects the edit INSTANTLY
+            // (a fresh BlastPlayer.Play() re-fetches from the now-invalidated cache) instead of only on the next
+            // Play/Stop or view switch. Done before the membership reconcile below so the fresh GO is already in
+            // _live and isn't seen as "new" and realized twice.
+            if (_pendingRealize.Count > 0)
+            {
+                foreach (var id in _pendingRealize)
+                {
+                    if (_live.TryGetValue(id, out var stale)) { DestroyGO(stale); _live.Remove(id); _pendingZoeScale.Remove(id); }
+                    var entry = FindEntry(id);
+                    if (entry != null) Realize(entry);
+                }
+                _pendingRealize.Clear();
+            }
 
             // Live children are a pure reflection of view.previewables — any writer (MirageWindow's
             // Add/Remove/Position, MirageHud's click/drag, Undo, a script) just edits the data; this
