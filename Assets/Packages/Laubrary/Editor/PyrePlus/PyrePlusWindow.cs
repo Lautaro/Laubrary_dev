@@ -1035,59 +1035,90 @@ namespace Laubrary.PyrePlus.Editor
             // toggle; on = a Border box (Width / Fill / Draw-over-matte).
             if (IsFlat2DBorderForm(s.shapeForm)) BuildBorderBox(s);
 
-            // Fire and Fireball are whole-layer simulations with no per-particle Spin/Travel — skip both the Spin
-            // control and the Advanced section (they would be dead). Their Fill (the ramp) and Alpha (overall
-            // opacity) rows above apply.
+            // Fire and Fireball are whole-layer simulations with no particles at all, so a Position section there
+            // would be dead — skip it. Their Fill (the ramp) and Alpha (overall opacity) rows above still apply.
             if (s.shapeForm == ShapeForm.Fire || s.shapeForm == ShapeForm.Fireball) return;
 
-            // Spin — the particle's own-life in-place rotation. A NORMAL Shape control now (no longer buried behind
-            // the Advanced gate, Bug 3 2026-07-26): fill/spin must be discoverable. For the 3D solid forms Spin IS
-            // the Solid box's "Turn °" (the same particleSpin field, shown once), so it stays hidden here for them;
-            // 2D forms and Text show it. Its tooltip is composed for the CURRENT form.
+            // Position (task #11) — one collapsible box grouping everything positional: the particle's rotation and
+            // its Offset from spawn. Present for every particle form. A collapsible box already provides show/hide,
+            // so there is no longer an "Advanced" toggle gating it (the old toggle only gated the UI — the renderer
+            // always keyed travel off particlePathX/Y being non-static-zero, never off the shapeAdvanced flag).
+            BuildPositionBox(s);
+        }
+
+        // The Position box (task #11) — the particle's orientation AND its Offset from the spawn position, grouped
+        // into ONE collapsible box shown for every particle form (only the whole-layer Fire/Fireball sims are
+        // excluded, above). Orientation is the 3D solids' Turn / Tilt / Roll trio (moved here out of the old Solid
+        // box), or a single in-plane Spin for the flat forms and Text — all the SAME particleSpin field, just
+        // labelled per form. Offset (formerly "Travel") is the per-particle path added to the spawn position; a
+        // static value is a constant offset that causes no motion, which is why "Travel" was the wrong name. There
+        // is deliberately no enable-toggle: a collapsible box already gives show/hide (ui-layout-rules — no extra
+        // toggle when a section can collapse), and the renderer applies the offset whenever particlePathX/Y are not
+        // static-zero, so always showing this is byte-identical to the old "Advanced" gate.
+        void BuildPositionBox(PyrePlusLayer s)
+        {
             s.particleSpin ??= new ZUIValue(0f);
-            if (!IsSolidForm(s.shapeForm))
-                shapeBody.Add(Val("Spin °", SpinTooltip(s.shapeForm), s.particleSpin, -720f, 720f));
-
-            // Advanced gate: the particle's OWN travel path after birth (opt-in — rarer than spin). Toggling
-            // rebuilds just this section.
-            shapeBody.Add(Z.Toggle("Advanced",
-                "A per-particle travel path on the particle's own life clock, added to its spawn position.",
-                s.shapeAdvanced, v => { Dirty(() => s.shapeAdvanced = v); RebuildShape(); }));
-            if (!s.shapeAdvanced) return;
-
-            float half = Mathf.Max(1f, spec.canvasSize * 0.5f);
             s.particlePathX ??= new ZUIValue(0f);
             s.particlePathY ??= new ZUIValue(0f);
 
-            shapeBody.Add(Val2D("Travel",
-                "The particle's own path after birth: canvas-pixel offsets ADDED to its spawn position, sampled on "
-                + "the particle's OWN life (0 = birth, 1 = death). Author it as a Curve to make the particle "
-                + "drift/arc as it lives; Static 0 = no travel.",
+            var box = Z.BoxKeyed("Position",
+                "Where the particle sits and how it is turned, over its own life: its rotation (Turn / Tilt / Roll "
+                + "for a 3D solid, Spin for a flat form) and its Offset from the position the swarm spawned it at. "
+                + "Every field defaults to no rotation and no offset, so a fresh shape sits exactly where it was "
+                + "placed.",
+                "pyreplus.position");
+
+            if (IsSolidForm(s.shapeForm))
+            {
+                s.gemTilt ??= new ZUIValue(18f);
+                s.gemRoll ??= new ZUIValue(0f);
+                // Turn (yaw = the shared particleSpin), Tilt (gemTilt) and Roll (gemRoll) — the three rotation axes
+                // in plain words, each animatable over the particle's own life. Roll is geometrically inert for the
+                // symmetric Ring (Turn + Tilt already shape its ellipse), so it's hidden there. Tooltips per form.
+                box.Add(Val("Turn °", TurnTooltip(s.shapeForm), s.particleSpin, -1440f, 1440f));
+                box.Add(Val("Tilt °", TiltTooltip(s.shapeForm), s.gemTilt, -1440f, 1440f));
+                if (s.shapeForm != ShapeForm.Ring)
+                    box.Add(Val("Roll °", RollTooltip(s.shapeForm), s.gemRoll, -1440f, 1440f));
+            }
+            else
+            {
+                // The flat 2D forms + Text edit particleSpin as a single in-plane Spin. (For a 3D solid the same
+                // field is shown once above as "Turn °", so it isn't repeated here.) Tooltip composed per form.
+                box.Add(Val("Spin °", SpinTooltip(s.shapeForm), s.particleSpin, -720f, 720f));
+            }
+
+            float half = Mathf.Max(1f, spec.canvasSize * 0.5f);
+            box.Add(Val2D("Offset",
+                "A per-particle positional OFFSET from the spawn position, in canvas pixels, sampled on the "
+                + "particle's OWN life (0 = birth, 1 = death). Static = a constant offset (Static 0 = it stays where "
+                + "it spawned); author a Curve to make the particle drift or arc as it lives.",
                 s.particlePathX, s.particlePathY,
                 new ZuiValue2DControl.Options().WithRange(-half, half, -half, half).WithDefault(Vector2.zero)));
+
+            shapeBody.Add(box);
         }
 
-        // The 3D-solid controls — one framed box inside the Shape body, shown for Gem / Box / Pyramid / Can (all
-        // true-3D convex facet solids sharing one renderer). Colour, Alpha and Size stay above (shared); this box
-        // adds the per-form geometry then the SHARED tilt / lighting / lines / glows every 3D solid uses. Titled
-        // "Solid" (not "Gem") since it now serves four forms. All plain sliders are label-inside MicroSliders; the
-        // two glows are animatable ZUIValues (Val), each packed with its own colour; Specular packs with its colour.
+        // The 3D-solid controls (task #13 restructure). What used to be ONE "Solid" box holding geometry + the
+        // rotation trio + Light/Lines/Glow sub-sections is now split: the "Solid" box keeps only the per-form
+        // GEOMETRY, while Light / Lines / Glow are their OWN sibling collapsible boxes (added straight into the Shape
+        // body beside Solid, not nested under it). The rotation trio (Turn/Tilt/Roll) moved out to the Position box
+        // (task #11). Shown for Gem / Box / Pyramid / Can / Orb / Ring. Colour, Alpha and Size stay above (shared).
+        // All plain sliders are label-inside MicroSliders; the two glows are animatable ZUIValues (Val), each packed
+        // with its own colour; Specular packs with its colour.
         void BuildSolidBox(PyrePlusLayer s)
         {
-            s.particleSpin ??= new ZUIValue(0f);
-            s.gemTilt ??= new ZUIValue(18f);
-            s.gemRoll ??= new ZUIValue(0f);
             s.gemEdgeGlow ??= new ZUIValue(0.5f);     // defensive; the real steady defaults come from the spec factories
             s.gemInnerGlow ??= new ZUIValue(0.35f);
 
-            // BoxKeyed: view presets persist under this stable key — retitling the box or rewording
-            // its tooltip must never orphan saved views.
-            var box = Z.BoxKeyed("Solid", SolidBoxTooltip(s.shapeForm), "pyreplus.solid");
+            // ── Solid box: the per-form GEOMETRY only. BoxKeyed: view presets persist under this stable key —
+            // retitling the box or rewording its tooltip must never orphan saved views. The Orb (a bare sphere) has
+            // no geometry, so its Solid box would be empty — skip it there rather than show an empty box.
+            var solid = Z.BoxKeyed("Solid", SolidBoxTooltip(s.shapeForm), "pyreplus.solid");
 
-            // ── per-form geometry ──
+            // ── per-form geometry (Orb has none, so its Solid box is never added) ──
             if (s.shapeForm == ShapeForm.Gem)
             {
-                box.Add(Z.HGroup(
+                solid.Add(Z.HGroup(
                     Z.MicroSlider("Sides", s.gemSides, 3f, 8f,
                         "Girdle vertex count — 4 is the classic octahedral gem; more sides make a rounder crystal.",
                         v => Dirty(() => s.gemSides = Mathf.Clamp(Mathf.RoundToInt(v), 3, 8)), 150f, showValue: true, decimals: 0),
@@ -1097,6 +1128,7 @@ namespace Laubrary.PyrePlus.Editor
                     Z.MicroSlider("Pavilion", s.gemPavilion, 0.2f, 2.5f,
                         "Pavilion depth (the bottom point) as a fraction of the gem's radius.",
                         v => Dirty(() => s.gemPavilion = v), 150f, showValue: true)));
+                shapeBody.Add(solid);
             }
             else if (s.shapeForm == ShapeForm.Box || s.shapeForm == ShapeForm.Pyramid || s.shapeForm == ShapeForm.Can)
             {
@@ -1115,62 +1147,49 @@ namespace Laubrary.PyrePlus.Editor
                         "Depth (front-to-back) as a fraction of width. Box: its third dimension; Pyramid: its base "
                         + "front-to-back (1 = the square base).",
                         v => Dirty(() => s.solidDepth = v), 150f, showValue: true));
-                box.Add(WrapRow(geo.ToArray()));
+                solid.Add(WrapRow(geo.ToArray()));
+                shapeBody.Add(solid);
             }
             else if (s.shapeForm == ShapeForm.Ring)
             {
-                // Ring — one geometry row: the hole radius. (Orb has NO geometry rows — a sphere needs none — so it
-                // falls straight through to the shared tilt / light / lines / glows below.)
-                box.Add(Z.MicroSlider("Inner", s.ringInner, 0.1f, 0.92f,
+                // Ring — one geometry row: the hole radius. (Orb has NO geometry rows — a sphere needs none — so its
+                // Solid box is skipped; it falls straight through to the Light / Lines / Glow boxes below.)
+                solid.Add(Z.MicroSlider("Inner", s.ringInner, 0.1f, 0.92f,
                     "Inner radius as a fraction of the outer radius — the size of the ring's hole (0.1 = a nearly "
                     + "solid disc, 0.92 = a thin hoop).",
                     v => Dirty(() => s.ringInner = v), 150f, showValue: true));
+                shapeBody.Add(solid);
             }
 
-            // ── shared: rotation trio / light / lines / glows (every 3D solid) ──
-            // Turn (yaw = the shared particleSpin), Tilt (gemTilt) and Roll (gemRoll) — the three rotation axes in
-            // plain words, each animatable over the particle's own life. Roll is geometrically inert for the
-            // symmetric Ring (Turn + Tilt already shape its ellipse), so it's hidden there. Tooltips are composed
-            // for the CURRENT form.
-            box.Add(Val("Turn °", TurnTooltip(s.shapeForm), s.particleSpin, -1440f, 1440f));
-            box.Add(Val("Tilt °", TiltTooltip(s.shapeForm), s.gemTilt, -1440f, 1440f));
-            if (s.shapeForm != ShapeForm.Ring)
-                box.Add(Val("Roll °", RollTooltip(s.shapeForm), s.gemRoll, -1440f, 1440f));
-
-            // Light / Lines / Glow rows opt into the box's ⚙ gear (the Turn/Tilt/Roll trio above stays mandatory). Each group
-            // toggle flips its whole cluster at once; keys are STABLE "solid.*" strings (never a display
-            // label) so a saved view survives a relabel. A saved "view" round-trips these on/off states.
-            box.ToggleGroup("Light", "Light");
-            box.ToggleGroup("Lines", "Lines");
-            box.ToggleGroup("Glow", "Glow");
-
-            box.Add(Z.Divider("Light",
-                "The single KEY light and how the surfaces respond to it. The key light is DIRECTIONAL — aim it with "
-                + "the pad; Ambient is a separate non-directional base light. The edge Lines and the Glows have their "
-                + "OWN strengths and do NOT obey this light."));
+            // ── Light — its own sibling collapsible box (task #13), no longer a divider-subsection of Solid. The
+            // rotation trio (Turn/Tilt/Roll) that used to sit here has moved to the Position box (task #11), and the
+            // old ⚙ gear + per-control ToggleGroups are gone: Light / Lines / Glow are now three separate collapsible
+            // boxes, so each box's own fold is its show/hide (a collapsible section already does that job).
+            var light = Z.BoxKeyed("Light",
+                "The single KEY light and how the surfaces respond to it. The key light is DIRECTIONAL — aim it on "
+                + "the sphere; Ambient is a separate non-directional base light. The edge Lines and the Glows have "
+                + "their OWN strengths and do NOT obey this light.",
+                "pyreplus.solid.light");
             // Light DIRECTION + distance as ONE reusable Z.Direction3D control (ZUI #67): a draggable LIT SPHERE
             // gizmo (yaw × pitch) whose lit hotspot IS the readout, with numeric fallback fields, the distance as
-            // its 3rd axis, and a larger 3D preview on hover / pin. It replaces the flat Z.Pad + the separate
-            // Distance slider, editing the SAME gemLightYaw/Pitch/Distance fields (yaw −180..180, pitch −85..85,
-            // distance 1.5..8 — the control's option defaults), so every spec renders byte-identical. Wrapped in a
-            // Z.Frame so it reads as one titled unit. Kept under the same "solid.light.angles" view key as before.
+            // its 3rd axis, and a larger 3D preview on hover / pin. It edits the SAME gemLightYaw/Pitch/Distance
+            // fields (yaw −180..180, pitch −85..85, distance 1.5..8 — the control's option defaults), so every spec
+            // renders byte-identical. Wrapped in a Z.Frame so it reads as one titled unit.
             const string lightDirTip = "The key light is DIRECTIONAL — aim it on the sphere. Yaw = which side it "
                 + "comes FROM (left/right, −180..180°); Pitch = its height (−85..85°, negative brings it from "
                 + "below/behind); Distance = how far off, in radii (closer = a tighter, brighter hotspot). Only the "
                 + "lit faces and the specular hotspot follow it — the Lines and Glows have their own strengths and "
                 + "do NOT obey the light. Hover (or pin) for a larger 3D preview.";
-            box.Add(box.Toggleable(
-                Z.Frame("Direction", lightDirTip,
-                    Z.Direction3D(s.gemLightYaw, s.gemLightPitch, s.gemLightDistance, lightDirTip,
-                        (yaw, pitch, dist) => Dirty(() =>
-                        {
-                            s.gemLightYaw = yaw;
-                            s.gemLightPitch = pitch;
-                            s.gemLightDistance = Mathf.Clamp(dist, 1.5f, 8f);
-                        }),
-                        new ZuiDirection3D.Options { showDistance = true })),
-                "solid.light.angles", "Direction", "Light"));
-            box.Add(box.Toggleable(WrapRow(
+            light.Add(Z.Frame("Direction", lightDirTip,
+                Z.Direction3D(s.gemLightYaw, s.gemLightPitch, s.gemLightDistance, lightDirTip,
+                    (yaw, pitch, dist) => Dirty(() =>
+                    {
+                        s.gemLightYaw = yaw;
+                        s.gemLightPitch = pitch;
+                        s.gemLightDistance = Mathf.Clamp(dist, 1.5f, 8f);
+                    }),
+                    new ZuiDirection3D.Options { showDistance = true })));
+            light.Add(WrapRow(
                 Z.MicroSlider("Ambient", s.gemAmbient, 0f, 1f,
                     "Non-directional BASE light on every face (it doesn't come from a direction). Near zero keeps the "
                     + "solid contrasty; raise it to flatten the shading.",
@@ -1189,39 +1208,40 @@ namespace Laubrary.PyrePlus.Editor
                     + "broad sheen. (The old fixed 48 was so tight the highlight rarely showed — lower it to see it.)",
                     v => Dirty(() => s.gemSpecPower = v), 150f, showValue: true),
                 SlotFill("Spec fill", "Fill for the specular highlight — Solid, or a gradient/spatial fill (alpha-capable).",
-                    s.gemSpecularFill)),
-                "solid.light.response", "Response", "Light"));
+                    s.gemSpecularFill)));
+            shapeBody.Add(light);
 
-            box.Add(Z.Divider("Lines", "The hard facet edge lines that catch the light."));
-            box.Add(box.Toggleable(WrapRow(
+            // ── Lines — its own sibling collapsible box (task #13). The hard facet edge lines.
+            var lines = Z.BoxKeyed("Lines", "The hard facet edge lines that catch the light.", "pyreplus.solid.lines");
+            lines.Add(WrapRow(
                 Z.MicroSlider("Line width", s.gemLineWidth, 0f, 3f,
                     "Width of the hard facet edge lines in pixels (0 = no lines). The lines catch the key light.",
                     v => Dirty(() => s.gemLineWidth = v), 150f, showValue: true),
                 SlotFill("Line fill", "Fill for the facet edge lines — Solid, or a gradient/spatial fill (alpha-capable).",
-                    s.gemLineFill)),
-                "solid.lines", "Width & fill", "Lines"));
+                    s.gemLineFill)));
+            shapeBody.Add(lines);
 
-            box.Add(Z.Divider("Glow", "A rim halo and an interior glow — steady by default (author a Curve to pulse), each with its own fill."));
-            box.Add(box.Toggleable(WrapRow(
+            // ── Glow — its own sibling collapsible box (task #13). A rim halo + an interior glow.
+            var glow = Z.BoxKeyed("Glow",
+                "A rim halo and an interior glow — steady by default (author a Curve to pulse), each with its own fill.",
+                "pyreplus.solid.glow");
+            glow.Add(WrapRow(
                 Val("Edge glow",
                     "Strength (0-1) of the halo around the edge lines, over the particle's OWN life; it spills "
                     + "OUTSIDE the solid's silhouette. Static = a steady glow (the default); author a Curve to make "
                     + "it pulse over the particle's life.",
                     s.gemEdgeGlow, 0f, 1f),
                 SlotFill("Edge fill", "Fill for the edge-line halo glow — Solid, or a gradient/spatial fill (alpha-capable).",
-                    s.gemEdgeGlowFill)),
-                "solid.glow.edge", "Edge", "Glow"));
-            box.Add(box.Toggleable(WrapRow(
+                    s.gemEdgeGlowFill)));
+            glow.Add(WrapRow(
                 Val("Inner glow",
                     "Strength (0-1) of the emissive glow rising from the facet interiors, over the particle's OWN "
                     + "life; interior only. Static = a steady glow (the default); author a Curve to make it pulse "
                     + "over the particle's life.",
                     s.gemInnerGlow, 0f, 1f),
                 SlotFill("Inner fill", "Fill for the facet inner glow — Solid, or a gradient/spatial fill (alpha-capable).",
-                    s.gemInnerGlowFill)),
-                "solid.glow.inner", "Inner", "Glow"));
-
-            shapeBody.Add(box);
+                    s.gemInnerGlowFill)));
+            shapeBody.Add(glow);
         }
 
         // The Edge-softness slider — its own MicroSlider caption is the "Edge" label, so it isn't wrapped in a
@@ -2172,8 +2192,9 @@ namespace Laubrary.PyrePlus.Editor
             return true;
         }
 
-        // The 3D-solid forms — they share BuildSolidBox and its Turn/Tilt/Roll rotation trio (and hide the Advanced
-        // Spin row, since Turn IS that field). Disc / Crescent / Sparkle / Sprite / Text are NOT solid forms.
+        // The 3D-solid forms — they share BuildSolidBox (Solid geometry + the Light / Lines / Glow sibling boxes) and
+        // edit particleSpin in the Position box as "Turn °" (Tilt/Roll join it there), so the flat forms' "Spin °"
+        // row is not shown for them. Disc / Crescent / Sparkle / Sprite / Text are NOT solid forms.
         static bool IsSolidForm(ShapeForm f) =>
             f == ShapeForm.Gem || f == ShapeForm.Box || f == ShapeForm.Pyramid ||
             f == ShapeForm.Can || f == ShapeForm.Orb || f == ShapeForm.Ring;
