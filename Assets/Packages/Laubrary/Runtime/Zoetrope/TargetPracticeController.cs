@@ -50,12 +50,34 @@ namespace Laubrary.Zoetrope
 
         void PlayIdle()
         {
+            SetBodyVisible(true);   // idle / respawn always re-shows the body (undoing a clip-less-death hide, #6)
             if (view == null) view = GetComponent<IAnimatedView>();
             if (view != null && !string.IsNullOrEmpty(idleClip))
                 view.PlayClip(idleClip, loop: true);
         }
 
-        void BeginRespawn() => StartCoroutine(RespawnAfterDelay());
+        void BeginRespawn()
+        {
+            // A death with NO death clip has nothing to animate — so show NOTHING while dead instead of leaving the
+            // body sitting on its last idle frame until respawn (task #6). PlayIdle re-shows it on revive. (A death
+            // that DOES play a clip keeps its final frame up, as before.)
+            if (DeathClipEmpty()) SetBodyVisible(false);
+            StartCoroutine(RespawnAfterDelay());
+        }
+
+        bool DeathClipEmpty()
+        {
+            var death = reaction != null && reaction.def != null ? reaction.def.death : null;
+            return death == null || string.IsNullOrEmpty(death.clip);
+        }
+
+        // Toggle the whole body's SpriteRenderers (a Zoned view is several) — "show nothing" without disabling this
+        // GameObject (which would kill the controller + its respawn coroutine).
+        void SetBodyVisible(bool on)
+        {
+            foreach (var sr in GetComponentsInChildren<SpriteRenderer>(true))
+                sr.enabled = on;
+        }
 
         IEnumerator RespawnAfterDelay()
         {
