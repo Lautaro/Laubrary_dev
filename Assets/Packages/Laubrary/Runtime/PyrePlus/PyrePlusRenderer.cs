@@ -90,7 +90,9 @@ namespace Laubrary.PyrePlus
         //  floats, NOT Eval'd — no field ids; the Ramp pass Eval's only density (-25) and heat (-26) per particle and
         //  adds one frame-global per-layer hash (-27), the twin of Fuse's -24. Next new single field id: -28 onward.)
         const int FldBorderWidth = -28;  // borderWidth — first-class border rim thickness (px), frame-global over the layer's life [task #60].
-        const int FldEdgeSoftness = -29; // edgeSoftness — soft-rim fraction, animatable over the particle's own life [task #12]. Next new single field id: -30 onward.
+        const int FldEdgeSoftness = -29; // edgeSoftness — soft-rim fraction, animatable over the particle's own life [task #12].
+        const int FldCrescentCenterX = -30; // crescentCenterXAnim — Crescent mask-disc centre X (radius units), own life [task #12]
+        const int FldCrescentCenterY = -31; // crescentCenterYAnim — Crescent mask-disc centre Y (radius units), own life [task #12]. Next new single field id: -32 onward.
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
         //  3D yaw (Turn), FldGemTilt for its tilt, FldGemRoll for its roll, and FldPathX/FldPathY for the shared
         //  travel offset — no other new ids. Crescent/Sparkle/Sprite likewise REUSE FldSize/FldAlpha (radius/alpha),
@@ -2899,9 +2901,21 @@ namespace Laubrary.PyrePlus
         {
             float bite = Mathf.Clamp01(Eval(layer.crescentBite, life, spec.seed, particleIndex, FldCrescentBite));
             float biteRadius = radius * bite;
-            float ang = Eval(layer.crescentAngle, life, spec.seed, particleIndex, FldCrescentAngle) * Mathf.Deg2Rad;
-            float off = Mathf.Clamp01(layer.crescentOffset) * radius;
-            float bx = off * Mathf.Cos(ang), by = off * Mathf.Sin(ang);   // bite-disc centre, in the shape-local (dx,dy) frame
+            // Bite-disc centre in the shape-local (dx,dy) frame. The 2D centre pad (#12 part 2) wins when set; else
+            // the legacy polar (crescentOffset, crescentAngle) — a null pair leaves this the ORIGINAL math verbatim,
+            // so an un-migrated asset is byte-identical.
+            float bx, by;
+            if (layer.crescentCenterXAnim != null && layer.crescentCenterYAnim != null)
+            {
+                bx = Eval(layer.crescentCenterXAnim, life, spec.seed, particleIndex, FldCrescentCenterX) * radius;
+                by = Eval(layer.crescentCenterYAnim, life, spec.seed, particleIndex, FldCrescentCenterY) * radius;
+            }
+            else
+            {
+                float ang = Eval(layer.crescentAngle, life, spec.seed, particleIndex, FldCrescentAngle) * Mathf.Deg2Rad;
+                float off = Mathf.Clamp01(layer.crescentOffset) * radius;
+                bx = off * Mathf.Cos(ang); by = off * Mathf.Sin(ang);
+            }
 
             // Shape fill: hoisted col/cr/cg/cb (passed in) is the constant for the default OverLife / any Solid fill;
             // a spatial fill recomputes per lit pixel at (dx/radius, dy/radius) below. fillSpatial false ⇒ byte-identical.

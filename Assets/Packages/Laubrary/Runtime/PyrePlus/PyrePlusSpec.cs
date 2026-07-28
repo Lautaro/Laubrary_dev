@@ -407,8 +407,15 @@ namespace Laubrary.PyrePlus
         // `crescentOffset·radius` out in the `crescentAngle` direction and is `crescentBite·radius` across.
         // Crescent REUSES `edgeSoftness` above for BOTH rims (the outer disc edge and the bite edge).
         public ZUIValue crescentBite = new ZUIValue(0.55f);   // mask disc size vs the main disc, 0..1, over own life
-        public ZUIValue crescentAngle = new ZUIValue(0f);     // degrees — which way the bite faces, over own life
-        [Range(0f, 1f)] public float crescentOffset = 0.5f;   // how far the bite disc is pushed out, as a fraction of radius
+        public ZUIValue crescentAngle = new ZUIValue(0f);     // degrees — which way the bite faces, over own life (LEGACY — see the centre pad)
+        [Range(0f, 1f)] public float crescentOffset = 0.5f;   // how far the bite disc is pushed out, fraction of radius (LEGACY — see the centre pad)
+        // Mask-disc CENTRE as an (x,y) pair in radius units (-1..1), animatable over own life — the 2D pad that
+        // replaces the polar Offset + Angle (#12 part 2). NULL on an un-migrated asset ⇒ the renderer uses the
+        // legacy polar (crescentOffset, crescentAngle), so existing assets are byte-identical. The pad seeds its
+        // DISPLAY from the polar values but only WRITES these on an explicit drag (a silent polar→cartesian seed is
+        // NOT byte-identical — (off·radius)·cos vs (off·cos)·radius differ by float-multiply order).
+        [SerializeReference] public ZUIValue crescentCenterXAnim;
+        [SerializeReference] public ZUIValue crescentCenterYAnim;
 
         // ── Sparkle form (shapeForm == Sparkle) — random lit cells scattered inside the disc ───────────────
         // A virtual grid of `sparkleSize`-px cells overlays the disc; a cell lights this frame iff its stable
@@ -713,6 +720,8 @@ namespace Laubrary.PyrePlus
             l.edgeSoftnessAnim = CloneVal(edgeSoftnessAnim);
             l.crescentBite = CloneVal(crescentBite);
             l.crescentAngle = CloneVal(crescentAngle);
+            l.crescentCenterXAnim = CloneVal(crescentCenterXAnim);
+            l.crescentCenterYAnim = CloneVal(crescentCenterYAnim);
             l.sparkleDensity = CloneVal(sparkleDensity);
             l.streakLength = CloneVal(streakLength);
             l.streakWidth = CloneVal(streakWidth);

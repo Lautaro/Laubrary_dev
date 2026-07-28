@@ -1253,8 +1253,8 @@ namespace Laubrary.PyrePlus.Editor
             return Val("Edge", tooltip, s.edgeSoftnessAnim, 0f, 1f);
         }
 
-        // Crescent form rows — the shared Edge row (drives BOTH rims), then the bite: size + facing packed, and
-        // the push-out offset.
+        // Crescent form rows — the shared Edge row (drives BOTH rims), the bite size, then the mask-disc CENTRE as a
+        // 2D pad (#12 part 2, replacing the old polar Offset + Angle).
         void BuildCrescentRows(PyrePlusLayer s)
         {
             s.crescentBite ??= new ZUIValue(0.55f);
@@ -1263,19 +1263,31 @@ namespace Laubrary.PyrePlus.Editor
             shapeBody.Add(EdgeRow(s,
                 "Soft rim (1) vs a hard pixel edge (0). For the Crescent it feathers BOTH rims — the outer disc "
                 + "edge and the bite edge."));
-            shapeBody.Add(WrapRow(
-                Val("Bite",
-                    "Size of the disc bitten out of the main disc, as a fraction of its radius (0 = no bite, a "
-                    + "full disc; 1 = a bite as wide as the disc), over the particle's own life.",
-                    s.crescentBite, 0f, 1f),
-                Val("Angle °",
-                    "Which way the bite faces, in degrees, over the particle's own life — swings the crescent's "
-                    + "opening around.",
-                    s.crescentAngle, -360f, 360f)));
-            shapeBody.Add(Z.MicroSlider("Offset", s.crescentOffset, 0f, 1f,
-                "How far the bite disc is pushed out from the centre, as a fraction of the radius. Larger = a "
-                + "thinner sliver of a crescent; 0 = the bite sits dead centre (a hole/ring).",
-                v => Dirty(() => s.crescentOffset = v), 150f, showValue: true));
+            shapeBody.Add(Val("Bite",
+                "Size of the disc bitten out of the main disc, as a fraction of its radius (0 = no bite, a "
+                + "full disc; 1 = a bite as wide as the disc), over the particle's own life.",
+                s.crescentBite, 0f, 1f));
+            shapeBody.Add(CrescentCenterPad(s));
+        }
+
+        // The mask-disc CENTRE as a 2D pad (#12 part 2), replacing the polar Offset + Angle. The pad is SEEDED for
+        // display from the legacy polar values, but only CONVERTS — writing crescentCenterX/YAnim — on an explicit
+        // drag, so an untouched crescent keeps rendering through the byte-identical polar path (a silent
+        // polar→cartesian seed is not byte-identical: (off·radius)·cos vs (off·cos)·radius differ by multiply order).
+        VisualElement CrescentCenterPad(PyrePlusLayer s)
+        {
+            bool live = s.crescentCenterXAnim != null && s.crescentCenterYAnim != null;
+            float angRad = (s.crescentAngle != null ? s.crescentAngle.staticValue : 0f) * Mathf.Deg2Rad;
+            float off = Mathf.Clamp01(s.crescentOffset);
+            var cx = live ? s.crescentCenterXAnim : new ZUIValue(off * Mathf.Cos(angRad));
+            var cy = live ? s.crescentCenterYAnim : new ZUIValue(off * Mathf.Sin(angRad));
+            var o = new ZuiValue2DControl.Options().WithRange(-1f, 1f, -1f, 1f).WithDefault(Vector2.zero);
+            return Z.Value2D("Mask", cx, cy, o,
+                "Where the bitten-out mask disc sits, as (x,y) in radius units from the drawn disc's centre (-1..1), "
+                + "over the particle's own life. (0,0) = the bite dead-centre (a hole/ring); push it out for a "
+                + "thinner sliver of a crescent. Replaces the old Offset + Angle.",
+                () => { if (s.crescentCenterXAnim == null) { s.crescentCenterXAnim = cx; s.crescentCenterYAnim = cy; } MarkDirty(); },
+                () => Undo.RecordObject(spec, "Edit Pyre Plus"));
         }
 
         // Sparkle form rows — no Edge row (sparkles are hard pixels). Density (animatable) + the pixel block size.
