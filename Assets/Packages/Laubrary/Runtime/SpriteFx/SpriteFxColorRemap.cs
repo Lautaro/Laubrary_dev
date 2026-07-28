@@ -105,7 +105,7 @@ namespace Laubrary.SpriteFx
                 ? Mathf.Clamp01((Luma(src) - lumaLow) / (lumaHigh - lumaLow))
                 : Luma(src);
             float phase = cycle ? Mathf.Repeat(life * cycleSpeed, 1f) : 0f;
-            return gradient != null ? gradient.Evaluate(t, phase) : src;
+            return gradient != null ? gradient.Evaluate(t, phase, life) : src;
         }
 
         public ColorRemapRegion Clone()

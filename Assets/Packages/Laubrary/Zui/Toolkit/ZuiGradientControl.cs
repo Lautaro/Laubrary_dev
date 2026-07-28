@@ -1,17 +1,11 @@
 // ZuiGradientControl — the UI Toolkit control that edits a ZuiGradient (base Gradient + transform knobs).
-// The top strip is a LIVE preview of the TRUE evaluated ramp: it is painted from ZuiGradient.ToLut(), the
-// exact same LUT the palette-cycle shader consumes, so what you see is byte-for-byte what runs. Any knob
-// change (or a base-gradient edit) re-bakes the strip, so reverse / hue / sat / brightness / contrast /
-// quantise all show their real result immediately. Editor-only (uses UnityEditor's GradientField).
-//
-// COLLAPSE-WITH-PREVIEW (the shared behaviour every gradient group reuses): the preview strip is the
-// always-visible fold HEADER — click it (or its caret) to collapse the base gradient + transform knobs to
-// JUST that strip, exactly the way a ZUI envelope collapses to its preview thumbnail. This lives ONCE here,
-// so every call site (Z.Gradient, ZuiReflect's ZuiGradient branch, ZuiFillControl's gradient modes) gains
-// it without duplicating the fold logic. The fold plumbing is delegated to ZuiFoldCard (the shared caret +
-// Clickable + per-instance persisted fold state) — the same primitive the modifier-card stacks fold with,
-// so the fold survives window rebuilds and never drifts. Collapse can be turned off per call (collapsible:
-// false) for a caller that wants the old flat, always-open layout.
+// Layout: an always-visible live PREVIEW strip (painted from ZuiGradient.ToLut(), the runtime-exact ramp), then
+// the base GradientField, then a collapsible "Adjust" sub-section holding the transforms. The four COLOUR
+// transforms (Hue / Saturation / Brightness / Contrast) are MultiCont (Z.Value / ZUIValue) — Static / Min-Max /
+// Curve over the particle's life, via the ⋯ menu — so they can animate; Reverse / Cycle are toggles and Quantise
+// is an int MicroSlider (a shifting band count reads as flicker, not motion). Folding the Adjust box away leaves
+// just [preview + base ramp] — the envelope-style "collapse but keep the preview" the whole control was built for.
+// Editor-only (uses UnityEditor's GradientField).
 
 using System;
 using UnityEditor.UIElements;
@@ -23,7 +17,7 @@ namespace Laubrary.Zui
     public class ZuiGradientControl : VisualElement
     {
         readonly ZuiGradient _g;
-        readonly Image _preview;   // painted from ToLut() — the runtime-exact ramp; the ALWAYS-VISIBLE fold header
+        readonly Image _preview;   // painted from ToLut() — the runtime-exact ramp; always visible
         Texture2D _lut;            // owned; re-baked on every change, destroyed on detach
 
         /// Fires once per gesture before the first mutation — the Undo.RecordObject hook.
@@ -31,12 +25,11 @@ namespace Laubrary.Zui
         /// Fires after every mutation.
         public Action OnChanged;
 
-        /// <param name="collapsible">When true (default) the transform knobs + base gradient fold away beneath
-        /// the always-visible preview strip (envelope-style), keyed per ZuiGradient instance so the fold sticks
-        /// across rebuilds. Pass false for the old flat, always-open layout.</param>
+        /// <param name="collapsible">Reserved (the transforms always live in the collapsible "Adjust" box now).</param>
         public ZuiGradientControl(ZuiGradient g, string tooltip = null, bool collapsible = true)
         {
             _g = g ?? throw new ArgumentNullException(nameof(g));
+            _g.EnsureTransformAnim();   // non-null ZUIValue companions to bind the MultiCont controls to
             AddToClassList("zui-gradient-control");
             style.flexDirection = FlexDirection.Column;
             if (!string.IsNullOrEmpty(tooltip)) this.tooltip = tooltip;
@@ -44,59 +37,50 @@ namespace Laubrary.Zui
             _preview = new Image
             {
                 scaleMode = ScaleMode.StretchToFill,
-                tooltip = "The gradient exactly as it evaluates at runtime — every transform applied."
-                    + (collapsible ? "  Click to expand / collapse its controls." : ""),
+                tooltip = "The gradient exactly as it evaluates at runtime — every transform applied (at life 0).",
             };
             _preview.style.height = 22;
-            _preview.style.flexGrow = 1f;      // fill the header row's width (beside the fold caret) when stretched
-            _preview.style.flexShrink = 1f;
-            // A width FLOOR so the strip stays a real, usable ramp even when COLLAPSED inside a shrink-to-fit
-            // parent (a Z.Field row): with the body's 200px controls hidden, nothing else would drive the width.
-            // In a stretching parent (the fill control) flexGrow still fills the full width beyond this floor.
-            _preview.style.minWidth = 120f;
-
-            // The always-visible fold HEADER carries the preview strip; the BODY (base gradient + knobs) folds
-            // away beneath it — mirroring how a ZUI envelope collapses to just its preview thumbnail. ZuiFoldCard
-            // prepends the caret and wires the Clickable (a raw PointerDownEvent never fires for a header inside
-            // a ScrollView — the same reason the box / section / card headers all use Clickable).
-            var header = new VisualElement();
-            header.AddToClassList("zui-row");
-            header.style.marginBottom = 4;
-            header.Add(_preview);
-            Add(header);
-
-            var body = new VisualElement();
-            body.style.flexDirection = FlexDirection.Column;
-            Add(body);
+            _preview.style.marginBottom = 4;
+            _preview.style.flexGrow = 1f;
+            _preview.style.minWidth = 120f;   // stays a usable ramp even in a shrink-to-fit parent
+            Add(_preview);
 
             var field = new GradientField { value = _g.gradient, tooltip = "Base gradient — the transforms below apply on top of it." };
             field.RegisterValueChangedCallback(e => Mutate(() => _g.gradient = e.newValue));
-            body.Add(field);
+            Add(field);
 
-            body.Add(Z.Toggle("Reverse", "Sample the gradient backwards (1-t).", _g.reverse, v => Mutate(() => _g.reverse = v)));
-            AddSlider(body, "Hue",        _g.hueShift,    -1f, 1f, "Rotate the hue of the whole ramp (±1 = ±180°).", v => _g.hueShift = v);
-            AddSlider(body, "Saturation", _g.saturation,   0f, 2f, "Multiply saturation across the ramp (1 = unchanged).",        v => _g.saturation = v);
-            AddSlider(body, "Brightness", _g.brightness,   0f, 2f, "Multiply brightness across the ramp (1 = unchanged).",        v => _g.brightness = v);
-            AddSlider(body, "Contrast",   _g.contrast,     0f, 2f, "Contrast around mid-grey (1 = unchanged).",                   v => _g.contrast = v);
-
-            body.Add(Z.MicroSlider("Quantise", _g.quantiseSteps, 0, 16,
-                "Snap the ramp to N discrete bands (0 = smooth) — the gradient Posterize.",
+            // The transforms, in their OWN collapsible sub-section (a folding titled box) so they don't sprawl —
+            // fold it and only the preview + base ramp remain.
+            var adjust = Z.Box("Adjust",
+                "Non-destructive transforms applied on top of the base ramp. Hue / Saturation / Brightness / Contrast "
+                + "are animatable over the particle's life (Static / Min-Max / Curve via the ⋯ menu).");
+            adjust.Add(Z.Toggle("Reverse", "Sample the gradient backwards (1-t).", _g.reverse, v => Mutate(() => _g.reverse = v)));
+            AddVal(adjust, "Hue",        _g.hueShiftAnim,   -1f, 1f, "Rotate the hue of the whole ramp (±1 = ±180°). Animatable over life.");
+            AddVal(adjust, "Saturation", _g.saturationAnim,  0f, 2f, "Multiply saturation across the ramp (1 = unchanged). Animatable over life.");
+            AddVal(adjust, "Brightness", _g.brightnessAnim,  0f, 2f, "Multiply brightness across the ramp (1 = unchanged). Animatable over life.");
+            AddVal(adjust, "Contrast",   _g.contrastAnim,    0f, 2f, "Contrast around mid-grey (1 = unchanged). Animatable over life.");
+            adjust.Add(Z.MicroSlider("Quantise", _g.quantiseSteps, 0, 16,
+                "Snap the ramp to N discrete bands (0 = smooth) — the gradient Posterize. Not animatable (a shifting "
+                + "band count reads as flicker, not motion).",
                 v => Mutate(() => _g.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0));
-
-            body.Add(Z.Toggle("Cycle", "This ramp wants to colour-cycle (a ZuiPaletteCycle driver advances the phase at runtime).",
-                              _g.cycle, v => Mutate(() => _g.cycle = v)));
-
-            // Fold the body under the preview strip, keyed to this ZuiGradient so the state survives rebuilds.
-            if (collapsible) ZuiFoldCard.Wire(_g, header, body);
+            adjust.Add(Z.Toggle("Cycle", "This ramp wants to colour-cycle (a ZuiPaletteCycle driver advances the phase at runtime).",
+                _g.cycle, v => Mutate(() => _g.cycle = v)));
+            Add(adjust);
 
             RefreshPreview();
             RegisterCallback<DetachFromPanelEvent>(_ => DisposeLut());
         }
 
-        // A bounded scalar → Z.MicroSlider (label + value INSIDE the track), per the ZUI layout rules — never a
-        // Z.Slider with an external value field (the pre-MicroSlider look).
-        void AddSlider(VisualElement parent, string label, float value, float min, float max, string tip, Action<float> set)
-            => parent.Add(Z.MicroSlider(label, value, min, max, tip, v => Mutate(() => set(v))));
+        // A colour transform as a MultiCont (Z.Value) — Static / Min-Max / Curve over life. Mirrors how ZuiReflect
+        // builds a ranged ZUIValue control (an Options with a range, then Z.Value). Edits re-bake the preview.
+        void AddVal(VisualElement parent, string label, ZUIValue v, float min, float max, string tip)
+        {
+            var o = new ZuiValueControl.Options { controlWidth = 150f };
+            o.WithRange(min, max);
+            parent.Add(Z.Value(label, v, o, tip,
+                () => { RefreshPreview(); OnChanged?.Invoke(); },
+                () => OnBeforeMutate?.Invoke()));
+        }
 
         void Mutate(Action apply)
         {

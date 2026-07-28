@@ -134,19 +134,17 @@ namespace Laubrary.Zui
                 case ZuiFill.Mode.Linear:
                     AddHeaderRow(_label, null);
                     _content.Add(GradientControl());
-                    _content.Add(Z.Divider("Placement", PlacementTip));
-                    ExtraRow(ExtraAngle(), SpaceField());
-                    _content.Add(ZoomVal());
-                    _content.Add(CenterVal());
+                    // The fill's spatial placement, in its OWN collapsible box — a bounded unit, so it never bleeds
+                    // into the shape's own dials (Alpha / Size / …) that a host stacks after this control.
+                    _content.Add(Z.Box("Placement", PlacementTip,
+                        MakeRow(ExtraAngle(), SpaceField()), ZoomVal(), CenterVal()));
                     break;
 
                 case ZuiFill.Mode.Radial:
                     AddHeaderRow(_label, null);
                     _content.Add(GradientControl());
-                    _content.Add(Z.Divider("Placement", PlacementTip));
-                    ExtraRow(SpaceField());
-                    _content.Add(ZoomVal());
-                    _content.Add(CenterVal());
+                    _content.Add(Z.Box("Placement", PlacementTip,
+                        MakeRow(SpaceField()), ZoomVal(), CenterVal()));
                     break;
             }
         }
@@ -174,10 +172,8 @@ namespace Laubrary.Zui
                 {
                     AddHeaderRow(_label, null);
                     _content.Add(GradientControl());
-                    _content.Add(Z.Divider("Pattern", "The noise shape, and how it's anchored / scaled / centred."));
-                    ExtraRow(NoiseKindField(), SpaceField());
-                    _content.Add(ZoomVal());
-                    _content.Add(CenterVal());
+                    _content.Add(Z.Box("Pattern", "The noise shape, and how it's anchored / scaled / centred.",
+                        MakeRow(NoiseKindField(), SpaceField()), ZoomVal(), CenterVal()));
                     break;
                 }
 
@@ -247,15 +243,17 @@ namespace Laubrary.Zui
         // A compact, wrapping second row of secondary params (pad / angle / zoom / toggles). Grows nothing —
         // each child sizes itself — and wraps to a further line on a narrow pane (ui-layout-rules: pack rows,
         // but a control may grow a second row rather than overflow).
-        void ExtraRow(params VisualElement[] kids)
+        VisualElement MakeRow(params VisualElement[] kids)
         {
             var row = new VisualElement();
             row.AddToClassList("zui-row");
             row.style.flexWrap = Wrap.Wrap;
             row.style.alignItems = Align.FlexStart;
             foreach (var k in kids) if (k != null) row.Add(k);
-            _content.Add(row);
+            return row;
         }
+
+        void ExtraRow(params VisualElement[] kids) => _content.Add(MakeRow(kids));
 
         // Caption for the divider that separates the gradient section from the fill's spatial-placement controls.
         const string PlacementTip = "How the gradient is anchored, scaled and centred across the shape.";
