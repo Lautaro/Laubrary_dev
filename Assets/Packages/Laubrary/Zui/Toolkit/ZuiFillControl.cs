@@ -125,31 +125,89 @@ namespace Laubrary.Zui
                 }
 
                 case ZuiFill.Mode.OverLife:
-                {
-                    var box = SectionBox();
-                    box.Add(GradientControl());
-                    _content.Add(box);
+                    _content.Add(GradientSection(null));
                     break;
-                }
 
                 case ZuiFill.Mode.Linear:
-                {
-                    var box = SectionBox();
-                    box.Add(GradientControl());
-                    box.Add(Z.Box("Placement", PlacementTip, MakeRow(ExtraAngle(), SpaceField()), ZoomVal(), CenterVal()));
-                    _content.Add(box);
+                    _content.Add(GradientSection(
+                        Z.Box("Placement", PlacementTip, MakeRow(ExtraAngle(), SpaceField()), ZoomVal(), CenterVal())));
                     break;
-                }
 
                 case ZuiFill.Mode.Radial:
-                {
-                    var box = SectionBox();
-                    box.Add(GradientControl());
-                    box.Add(Z.Box("Placement", PlacementTip, MakeRow(SpaceField()), ZoomVal(), CenterVal()));
-                    _content.Add(box);
+                    _content.Add(GradientSection(
+                        Z.Box("Placement", PlacementTip, MakeRow(SpaceField()), ZoomVal(), CenterVal())));
                     break;
-                }
             }
+        }
+
+        // A gradient fill as a bounded, COLLAPSIBLE section whose HEADER stays visible when folded (per the mockup):
+        //   header row : [square][Fill label][OBJECTIVE output strip][⋯]   — always visible
+        //   source row : the editable SOURCE ramp                          — always visible
+        //   body (fold): the "Adjust" transforms box + the Placement box   — hides when collapsed
+        // So the square + label + BOTH ramps (objective output + editable source) stay on screen even collapsed,
+        // and only the editing controls fold away. Uses the shared ZuiGradientEditor pieces + ZuiFoldCard (a fold
+        // that keeps a custom header, unlike ZuiBox's whole-body title-fold).
+        VisualElement GradientSection(VisualElement placement)
+        {
+            var ed = new ZuiGradientEditor(_fill.gradientAnim ?? SeedGradientAnim(), _tooltip)
+            {
+                OnBeforeMutate = () => OnBeforeMutate?.Invoke(),
+                OnChanged = () => { _swatch?.Refresh(); OnChanged?.Invoke(); },
+            };
+
+            var box = Z.Box(null, null);   // untitled bordered card — the section boundary; the header names it
+
+            // header = [tall square] [ column: (Fill label · OBJECTIVE output strip · ⋯)  /  SOURCE ramp ] — both
+            // ramps + the label sit beside the square and stay visible when the body folds.
+            var header = new VisualElement();
+            header.AddToClassList("zui-row");
+            header.style.alignItems = Align.FlexStart;
+            if (WantSwatch())
+            {
+                _swatch = new FillSwatch(_fill, 44f,
+                    "Live preview of the fill's own pattern (no shape). Over-life shows left→right over the "
+                    + "particle's life; spatial modes show the -1..1 fill box.");
+                header.Add(_swatch);
+            }
+            // Column beside the square: a [label · ⋯] row, then the OBJECTIVE output strip, then the editable SOURCE
+            // ramp. Both strips are direct children of the column, so they stretch full-width reliably (a strip in a
+            // ROW does not fill; the original preview worked precisely because it lived in a column).
+            var col = new VisualElement();
+            col.style.flexGrow = 1f;
+            col.style.flexDirection = FlexDirection.Column;
+            var labelRow = new VisualElement();
+            labelRow.AddToClassList("zui-row");
+            labelRow.style.alignItems = Align.Center;
+            labelRow.Add(FieldLabel(_label ?? "Fill"));
+            labelRow.Add(Z.Flexible());
+            var menu = MenuButton();
+            labelRow.Add(menu);
+            col.Add(labelRow);
+            ed.Output.style.marginTop = 2f;
+            col.Add(ed.Output);   // objective output preview (read-only)
+            ed.Source.style.marginTop = 2f;
+            col.Add(ed.Source);   // the editable SOURCE ramp
+            header.Add(col);
+            box.Add(header);
+
+            var body = new VisualElement();
+            body.Add(ed.Adjust);
+            if (placement != null) body.Add(placement);
+            box.Add(body);
+
+            // Fold the body (Adjust + Placement) from the header; the ⋯ menu and the editable source ramp must never
+            // fold. Keyed per-fill so it persists across rebuilds.
+            ZuiFoldCard.Wire(_fill, header, body, menu, ed.Source);
+            return box;
+        }
+
+        // A ZuiGradient companion is required for the editor; seed one from the legacy gradient if the migration
+        // hasn't run yet (mirrors ZuiFill.EnsureGradientAnim, which EvalGrad also falls back through).
+        ZuiGradient SeedGradientAnim()
+        {
+            _fill.EnsureGradient();
+            _fill.EnsureGradientAnim();
+            return _fill.gradientAnim;
         }
 
         // The whole fill/gradient as ONE titled bordered SECTION (named by the fill's label), so it is clear where it

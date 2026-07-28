@@ -55,6 +55,16 @@ namespace Laubrary.Zui
         /// Null (default) = none, so every existing curve is visually unchanged.
         public string xAxisLabel = null;
         public string yAxisLabel = null;
+        /// Optional Y-axis colour legend. Maps a Y-axis VALUE (anywhere in [yMin..yMax]) to the colour it
+        /// resolves to — e.g. a gradient / palette lookup the envelope is driving. When non-null the painter:
+        ///   • draws a thin VERTICAL colour-gradient strip in the left gutter, sampled top (yMax) → bottom
+        ///     (yMin) through yColorFor, so an author reads at a glance which colour each height maps to; and
+        ///   • TINTS every control-point handle with yColorFor(point.value) (a state-coloured ring keeps the
+        ///     hover / selected / locked feedback), so each point wears the very colour it will produce and
+        ///     lines up with the strip at its own height.
+        /// Colours are shown OPAQUE (hue is the signal, so a low-alpha colour still reads). Null (default) =
+        /// no strip, plain grey handles — every existing envelope is byte-for-byte unchanged.
+        public Func<float, Color> yColorFor = null;
     }
 
     public class ZuiEnvelope : VisualElement
@@ -211,6 +221,7 @@ namespace Laubrary.Zui
                 }
             }
 
+            DrawYColorStrip(painter, plot);
             DrawFrameMarkers(mgc, painter, plot);
             DrawAxisLabels(mgc, plot);
 
@@ -243,11 +254,35 @@ namespace Laubrary.Zui
                 bool locked = StateOf(i) == ZUIEnvelopeEditState.NotEditable;
                 bool hot = i == _hoverIndex || i == _dragIndex;
                 bool sel = _selected.Contains(i);
-                painter.fillColor = locked ? HandleLockedFill : sel ? SelectedFill : hot ? HandleHoverFill : HandleFill;
                 Vector2 pt = ToLocal(_points[i].time, _points[i].value);
-                painter.BeginPath();
-                painter.Arc(pt, locked ? HandleRadius * 0.7f : hot || sel ? HandleHoverRadius : HandleRadius, 0f, 360f);
-                painter.Fill();
+                float radius = locked ? HandleRadius * 0.7f : hot || sel ? HandleHoverRadius : HandleRadius;
+
+                if (_opt.yColorFor != null)
+                {
+                    // Tinted handle (opt-in): fill = the colour this point's value resolves to, drawn opaque so
+                    // the hue always reads; a state-coloured ring keeps the hover/selected/locked feedback and
+                    // gives a light-coloured dot contrast against the plot. The dot's colour equals the Y-strip's
+                    // colour at the same height, so a point visually "sits on" its own colour.
+                    Color c = _opt.yColorFor(_points[i].value);
+                    painter.fillColor = new Color(c.r, c.g, c.b, 1f);
+                    painter.BeginPath();
+                    painter.Arc(pt, radius, 0f, 360f);
+                    painter.Fill();
+
+                    painter.strokeColor = locked ? HandleLockedFill : sel ? SelectedFill
+                                        : hot ? HandleHoverFill : new Color(0f, 0f, 0f, 0.55f);
+                    painter.lineWidth = sel || hot ? 2f : 1.25f;
+                    painter.BeginPath();
+                    painter.Arc(pt, radius + 0.5f, 0f, 360f);
+                    painter.Stroke();
+                }
+                else
+                {
+                    painter.fillColor = locked ? HandleLockedFill : sel ? SelectedFill : hot ? HandleHoverFill : HandleFill;
+                    painter.BeginPath();
+                    painter.Arc(pt, radius, 0f, 360f);
+                    painter.Fill();
+                }
 
                 if (_opt.showValueLabels)
                 {
@@ -283,6 +318,47 @@ namespace Laubrary.Zui
                 painter.ClosePath();
                 painter.Stroke();
             }
+        }
+
+        // Optional Y-axis colour legend (opt-in via ZuiEnvelopeOptions.yColorFor; null = nothing drawn, so an
+        // ordinary envelope is byte-for-byte unchanged). A thin vertical strip in the LEFT PAD GUTTER — fully
+        // clear of the plot, so it never touches the grid, curve, points, frame markers or axis labels —
+        // sampled top (yMax) → bottom (yMin) through yColorFor. It aligns exactly with the plot's Y mapping,
+        // so it reads as a ruler of "which colour lives at which height", and each tinted point sits on its
+        // matching strip colour. Slices are drawn opaque (hue is the signal); a faint frame outlines the strip.
+        void DrawYColorStrip(Painter2D painter, Rect plot)
+        {
+            if (_opt.yColorFor == null) return;
+            var r = contentRect;
+            float x0 = r.x + 1f;
+            float x1 = Mathf.Max(x0 + 2f, plot.x - 1f);   // sits in the left gutter, clear of the plot area
+            int slices = Mathf.Clamp(Mathf.RoundToInt(plot.height / 2f), 8, 64);
+            for (int s = 0; s < slices; s++)
+            {
+                float f0 = s / (float)slices;
+                float f1 = (s + 1) / (float)slices;
+                float yTop = plot.y + plot.height * f0;
+                float yBot = plot.y + plot.height * f1;
+                float value = Mathf.Lerp(_opt.yMax, _opt.yMin, (f0 + f1) * 0.5f);   // top of strip = yMax
+                Color c = _opt.yColorFor(value);
+                painter.fillColor = new Color(c.r, c.g, c.b, 1f);
+                painter.BeginPath();
+                painter.MoveTo(new Vector2(x0, yTop));
+                painter.LineTo(new Vector2(x1, yTop));
+                painter.LineTo(new Vector2(x1, yBot));
+                painter.LineTo(new Vector2(x0, yBot));
+                painter.ClosePath();
+                painter.Fill();
+            }
+            painter.strokeColor = new Color(0f, 0f, 0f, 0.35f);
+            painter.lineWidth = 1f;
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(x0, plot.y));
+            painter.LineTo(new Vector2(x1, plot.y));
+            painter.LineTo(new Vector2(x1, plot.yMax));
+            painter.LineTo(new Vector2(x0, plot.yMax));
+            painter.ClosePath();
+            painter.Stroke();
         }
 
         // Vertical markers (opt-in via ZuiEnvelopeOptions.showFrameLines/frameCount). A line at each

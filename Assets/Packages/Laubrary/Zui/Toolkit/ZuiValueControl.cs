@@ -62,6 +62,12 @@ namespace Laubrary.Zui
             // none, so every existing Val/curve is visually unchanged.
             public string xAxisLabel = null;
             public string yAxisLabel = null;
+            // Optional Y-axis colour legend for the curve editor: maps a curve output VALUE to the colour it
+            // resolves to (a gradient / palette lookup the curve is driving). Non-null draws a vertical colour
+            // strip up the envelope's Y axis and tints each point's handle with its evaluated colour — so an
+            // author sees which colour each value produces. Null (default) = unchanged. The func receives values
+            // in the curve's own [yMin..yMax] range, so a caller must map from the same range its curve edits.
+            public Func<float, Color> yColorFor = null;
 
             public Options WithRange(float lo, float hi) { absMin = lo; absMax = hi; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
@@ -73,6 +79,7 @@ namespace Laubrary.Zui
             public Options WithFrameLines(int frames) { frameCount = frames; return this; }
             public Options WithIndexMarkers(int count) { indexMarkerCount = count; return this; }
             public Options WithAxisLabels(string x, string y) { xAxisLabel = x; yAxisLabel = y; return this; }
+            public Options WithYColor(Func<float, Color> map) { yColorFor = map; return this; }
 
             public Options Clone() => (Options)MemberwiseClone();
         }
@@ -280,6 +287,7 @@ namespace Laubrary.Zui
                 markerMode = indexMode ? ZuiEnvelopeOptions.MarkerMode.Index : ZuiEnvelopeOptions.MarkerMode.Frame,
                 xAxisLabel = _opt.xAxisLabel,
                 yAxisLabel = _opt.yAxisLabel,
+                yColorFor = _opt.yColorFor,
             };
             // Mockup layout: the envelope fills the available width (taller than the old 90px), with
             // the optional numeric-inputs COLUMN standing to its right.
