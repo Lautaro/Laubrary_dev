@@ -69,9 +69,11 @@ public class ZuiGradient : ISerializationCallbackReceiver
         float u = reverse ? 1f - t : t;
         // The authored scroll (animatable over life) plus any external cycle phase the caller passed.
         float ph = phase + EvalTransform(phaseAnim, life, 0f);
-        // Wrap only when offset — a plain Evaluate(1) must stay at the ramp END, not wrap to the start
-        // (Mathf.Repeat(1,1)==0). The shader does its own frac(t+phase), so ToLut bakes the un-wrapped ramp.
-        u = ph != 0f ? Mathf.Repeat(u + ph, 1f) : Mathf.Clamp01(u);
+        // With a scroll, MIRROR the ramp (append its reverse: 0→1→0) via PingPong so it loops SEAMLESSLY — the
+        // colour at the wrap matches instead of jumping from the end back to the start. No offset ⇒ Clamp01 (a
+        // plain Evaluate(1) must stay at the ramp END; PingPong/Repeat(1,1) would fold/wrap it to 0), so the
+        // default (ph==0) is byte-identical to the pre-phase path.
+        u = ph != 0f ? Mathf.PingPong(u + ph, 1f) : Mathf.Clamp01(u);
         if (quantiseSteps > 0)
             u = Mathf.Floor(u * quantiseSteps) / Mathf.Max(1, quantiseSteps - 1);
         u = Mathf.Clamp01(u);
