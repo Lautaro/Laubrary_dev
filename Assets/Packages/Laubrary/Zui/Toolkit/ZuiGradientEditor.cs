@@ -58,9 +58,11 @@ namespace Laubrary.Zui
             // envelope's vertical strip + tinted points read as "this phase lands on THIS colour". The whole-ramp
             // transforms (Hue/Sat/Brightness/Contrast) act on every stop at once, so a single "colour at value v" is
             // undefined for them — deliberately no strip there.
-            AddVal(Adjust, "Phase",      _g.phaseAnim,       0f, 1f, "Scroll the ramp along its length (0..1). It MIRRORS (0→1→0) so it loops "
-                                                                    + "seamlessly; animate it over life (a rising Curve) to MOVE the gradient with no shader.",
-                v => _g.gradient != null ? _g.gradient.Evaluate(Mathf.Clamp01(v)) : Color.clear);
+            AddVal(Adjust, "Phase",      _g.phaseAnim,       0f, 2f, "Scroll the ramp along its length, 0..2. 0→1 plays it FORWARD, 1→2 plays it "
+                                                                    + "back REVERSED, and 2 lands exactly where 0 did — so animating Phase over life (a rising Curve 0→2) "
+                                                                    + "scrolls the gradient in a SEAMLESS loop, no jump, no shader. The mirrored second half is what makes "
+                                                                    + "it smooth (the ramp mirrors instead of snapping from its end back to its start).",
+                v => _g.gradient != null ? _g.gradient.Evaluate(Mathf.PingPong(v, 1f)) : Color.clear);
             Adjust.Add(Z.MicroSlider("Quantise", _g.quantiseSteps, 0, 16,
                 "Snap the ramp to N discrete bands (0 = smooth) — the gradient Posterize. Not animatable (a shifting "
                 + "band count reads as flicker, not motion).",

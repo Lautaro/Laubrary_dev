@@ -56,9 +56,12 @@ namespace Laubrary.Zui
             _value = Mathf.Clamp(value, _min, _max);
             _onChanged = onChanged; _default = defaultValue;
             _onBeforeMutate = onBeforeMutate; _decimals = decimals;
-            _prefsKey = prefsKey;
-            _showValueLabel = HasPrefs ? EditorPrefs.GetBool(PrefKey("val"), showValue) : showValue;
-            _showNumInput   = HasPrefs && EditorPrefs.GetBool(PrefKey("num"), false);
+            // The display-options menu is now the DEFAULT for every ZUI MicroSlider — when no explicit prefsKey is
+            // given, the caption is the persistence key ("lbl:<label>"), so a slider remembers its toggles by name.
+            // An explicit prefsKey still wins (e.g. to disambiguate two same-named sliders).
+            _prefsKey = string.IsNullOrEmpty(prefsKey) ? "lbl:" + (label ?? "") : prefsKey;
+            _showValueLabel = EditorPrefs.GetBool(PrefKey("val"), showValue);
+            _showNumInput   = EditorPrefs.GetBool(PrefKey("num"), false);
             // Append the drag-modifier hint to the hover tooltip so the Shift-fine / double-click gestures are
             // discoverable (the element itself is what receives the hover — the caption ignores picking).
             this.tooltip = tooltip + "  ·  Drag to set; Shift = fine"
