@@ -125,34 +125,62 @@ namespace Laubrary.Zui
                 }
 
                 case ZuiFill.Mode.OverLife:
-                    // Just the gradient (sampled over life) — no placement, so no divider: the header names it
-                    // and the collapsible gradient section sits directly beneath.
-                    AddHeaderRow(_label, null);
-                    _content.Add(GradientControl());
+                {
+                    var box = SectionBox();
+                    box.Add(GradientControl());
+                    _content.Add(box);
                     break;
+                }
 
                 case ZuiFill.Mode.Linear:
-                    AddHeaderRow(_label, null);
-                    _content.Add(GradientControl());
-                    // The fill's spatial placement, in its OWN collapsible box — a bounded unit, so it never bleeds
-                    // into the shape's own dials (Alpha / Size / …) that a host stacks after this control.
-                    _content.Add(Z.Box("Placement", PlacementTip,
-                        MakeRow(ExtraAngle(), SpaceField()), ZoomVal(), CenterVal()));
+                {
+                    var box = SectionBox();
+                    box.Add(GradientControl());
+                    box.Add(Z.Box("Placement", PlacementTip, MakeRow(ExtraAngle(), SpaceField()), ZoomVal(), CenterVal()));
+                    _content.Add(box);
                     break;
+                }
 
                 case ZuiFill.Mode.Radial:
-                    AddHeaderRow(_label, null);
-                    _content.Add(GradientControl());
-                    _content.Add(Z.Box("Placement", PlacementTip,
-                        MakeRow(SpaceField()), ZoomVal(), CenterVal()));
+                {
+                    var box = SectionBox();
+                    box.Add(GradientControl());
+                    box.Add(Z.Box("Placement", PlacementTip, MakeRow(SpaceField()), ZoomVal(), CenterVal()));
+                    _content.Add(box);
                     break;
+                }
             }
         }
 
-        // The four texture faces. Each keeps the header row's [label][body][⋯] shape, then a compact second row
-        // (wrapping) of that texture's own params.
+        // The whole fill/gradient as ONE titled bordered SECTION (named by the fill's label), so it is clear where it
+        // starts and ends — a host stacking its own dials (Alpha / Size / …) after this control reads them as
+        // separate, not as more of the fill. The box's first row carries the live preview swatch + the ⋯ mode/texture
+        // menu; the mode content (the gradient with its "Adjust" transforms sub-box, and a "Placement" sub-box) fills
+        // the rest. Only for the multi-control modes — a Solid fill is one colour field and stays inline (unboxed).
+        ZuiBox SectionBox()
+        {
+            var box = Z.Box(string.IsNullOrEmpty(_label) ? "Fill" : _label, _tooltip);
+            var top = new VisualElement();
+            top.AddToClassList("zui-row");
+            top.style.alignItems = Align.FlexStart;
+            if (WantSwatch())
+            {
+                _swatch = new FillSwatch(_fill, 44f,
+                    "Live preview of the fill's own pattern (no shape). Over-life shows left→right over the "
+                    + "particle's life; spatial modes show the -1..1 fill box.");
+                top.Add(_swatch);
+            }
+            top.Add(Z.Flexible());
+            top.Add(MenuButton());
+            box.Add(top);
+            return box;
+        }
+
+        // The four texture faces — each in the SAME titled SectionBox as a gradient fill (a clearly-bounded unit),
+        // then that texture's own params inside it.
         void RebuildTextureFace()
         {
+            var box = SectionBox();
             switch (_fill.texture)
             {
                 case ZuiFill.TextureKind.Sprite:
@@ -162,54 +190,54 @@ namespace Laubrary.Zui
                         + "back to the tint colour.";
                     var obj = Z.Object<Sprite>(_fill.textureSprite, sprTip,
                         v => Mutate(() => _fill.textureSprite = v), Mathf.Min(_opt.controlWidth, 150f));
-                    AddHeaderRow(_label, obj);
-                    ExtraRow(TintColor("Tint", "Multiplies the sprite's colours (alpha too). White = the sprite's raw colours."),
-                        SpaceField());
+                    box.Add(Z.Field("Sprite", sprTip, obj));
+                    box.Add(MakeRow(TintColor("Tint", "Multiplies the sprite's colours (alpha too). White = the sprite's raw colours."),
+                        SpaceField()));
                     break;
                 }
 
                 case ZuiFill.TextureKind.Noise:
                 {
-                    AddHeaderRow(_label, null);
-                    _content.Add(GradientControl());
-                    _content.Add(Z.Box("Pattern", "The noise shape, and how it's anchored / scaled / centred.",
+                    box.Add(GradientControl());
+                    box.Add(Z.Box("Pattern", "The noise shape, and how it's anchored / scaled / centred.",
                         MakeRow(NoiseKindField(), SpaceField()), ZoomVal(), CenterVal()));
                     break;
                 }
 
                 case ZuiFill.TextureKind.Grid:
                 {
-                    AddHeaderRow(_label, TintColor(null,
-                        "The grid line colour (alpha carries the mask — off-line pixels are transparent)."));
-                    ExtraRow(
+                    box.Add(MakeRow(
+                        TintColor("Ink", "The grid line colour (alpha carries the mask — off-line pixels are transparent)."),
+                        SpaceField()));
+                    box.Add(MakeRow(
                         Scrub("Angle", "Rotation of the grid, in degrees.", _fill.gridAngle,
                             v => _fill.gridAngle = v),
                         Scrub("Space", "Cell size in the fill's local units (the -1..1 box is 2 units across).",
                             _fill.gridSpacing, v => _fill.gridSpacing = Mathf.Max(1e-4f, v)),
                         Scrub("Width", "Line thickness as a fraction of the spacing (0..1).", _fill.gridLineWidth,
-                            v => _fill.gridLineWidth = Mathf.Clamp01(v)));
-                    ExtraRow(
+                            v => _fill.gridLineWidth = Mathf.Clamp01(v))));
+                    box.Add(MakeRow(
                         Toggle("Vert", "Draw the vertical lines.", _fill.gridVertical, v => _fill.gridVertical = v),
-                        Toggle("Horiz", "Draw the horizontal lines.", _fill.gridHorizontal, v => _fill.gridHorizontal = v),
-                        SpaceField());
+                        Toggle("Horiz", "Draw the horizontal lines.", _fill.gridHorizontal, v => _fill.gridHorizontal = v)));
                     break;
                 }
 
                 case ZuiFill.TextureKind.Dots:
                 {
-                    AddHeaderRow(_label, TintColor(null,
-                        "The dot colour (alpha carries the mask — the gaps between dots are transparent)."));
-                    ExtraRow(
+                    box.Add(MakeRow(
+                        TintColor("Ink", "The dot colour (alpha carries the mask — the gaps between dots are transparent)."),
+                        SpaceField()));
+                    box.Add(MakeRow(
                         Scrub("Size", "Disc diameter as a fraction of the cell (0..1+).", _fill.dotSize,
                             v => _fill.dotSize = Mathf.Max(0f, v)),
                         Scrub("Space", "Cell size in the fill's local units (the -1..1 box is 2 units across).",
                             _fill.dotSpacing, v => _fill.dotSpacing = Mathf.Max(1e-4f, v)),
                         Toggle("Stagger", "Offset alternate rows by half a cell (a brick / hex pattern).",
-                            _fill.dotStagger, v => _fill.dotStagger = v),
-                        SpaceField());
+                            _fill.dotStagger, v => _fill.dotStagger = v)));
                     break;
                 }
             }
+            _content.Add(box);
         }
 
         void AddHeaderRow(string label, VisualElement body)
