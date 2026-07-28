@@ -517,14 +517,14 @@ namespace Laubrary.Zui
             if (payload != null)
             {
                 menu.Separator();
-                menu.Item("Copy value", "Copy this value to the clipboard.",
-                    () => EditorGUIUtility.systemCopyBuffer = payload);
                 bool canPaste = ZuiValuePairSource.CanPaste(EditorGUIUtility.systemCopyBuffer);
-                menu.Item("Paste value", "Paste a copied value from the clipboard.",
-                    canPaste
-                        ? () => { Mutate(() => _src.TryPaste(EditorGUIUtility.systemCopyBuffer)); Build(); }
-                        : (Action)null,
-                    enabled: canPaste);
+                menu.IconRow(
+                    ("copy", "Copy this value to the clipboard.",
+                        () => EditorGUIUtility.systemCopyBuffer = payload),
+                    ("clipboard-text", canPaste ? "Paste a copied value from the clipboard." : "Paste (clipboard has no value).",
+                        canPaste
+                            ? () => { Mutate(() => _src.TryPaste(EditorGUIUtility.systemCopyBuffer)); Build(); }
+                            : (Action)null));
             }
 
             menu.Show();

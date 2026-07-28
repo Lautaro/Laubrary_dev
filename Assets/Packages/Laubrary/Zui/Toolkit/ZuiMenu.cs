@@ -126,6 +126,44 @@ namespace Laubrary.Zui
             return this;
         }
 
+        /// A single row of compact, label-LESS icon buttons (e.g. Copy / Paste side by side). The icon says it
+        /// all, so no text — they stack horizontally and keep the row narrow. Each button runs its action then
+        /// closes the menu; an entry with a null action is greyed out (e.g. Paste with an empty clipboard).
+        public ZuiMenu IconRow(params (string icon, string tooltip, Action onClick)[] buttons)
+        {
+            _rows.Add((menu, close) =>
+            {
+                var row = new VisualElement();
+                row.AddToClassList("zui-menu__iconrow");
+                row.style.flexDirection = FlexDirection.Row;
+                row.style.marginTop = 2; row.style.marginBottom = 1;
+                foreach (var b in buttons)
+                {
+                    var btn = new VisualElement { tooltip = b.tooltip };
+                    btn.AddToClassList("zui-menu__item");   // reuse the item hover/greyed styling
+                    btn.style.flexDirection = FlexDirection.Row;
+                    btn.style.justifyContent = Justify.Center;
+                    btn.style.alignItems = Align.Center;
+                    btn.style.width = 36; btn.style.height = 22; btn.style.marginRight = 4;
+                    btn.style.borderTopLeftRadius = btn.style.borderTopRightRadius =
+                        btn.style.borderBottomLeftRadius = btn.style.borderBottomRightRadius = 3;
+                    var img = new Image { image = ZUIAssetLibrary.FindIcon(b.icon), scaleMode = UnityEngine.ScaleMode.ScaleToFit, pickingMode = PickingMode.Ignore };
+                    img.AddToClassList("zui-menu__icon");
+                    img.style.width = 15; img.style.height = 15; img.style.marginRight = 0;
+                    btn.Add(img);
+                    if (b.onClick != null)
+                    {
+                        var act = b.onClick;
+                        btn.AddManipulator(new Clickable(() => { act(); close?.Invoke(); }));
+                    }
+                    else { btn.AddToClassList("zui-menu__item--disabled"); btn.SetEnabled(false); }
+                    row.Add(btn);
+                }
+                menu.Add(row);
+            });
+            return this;
+        }
+
         /// Arbitrary content, for the rare case a caller needs an element the row helpers don't cover. The
         /// element is added into the menu body as-is; call `close` yourself if a click should dismiss.
         public ZuiMenu Custom(Action<VisualElement, Action> build)

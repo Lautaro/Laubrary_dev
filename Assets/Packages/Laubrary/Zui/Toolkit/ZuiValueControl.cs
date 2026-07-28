@@ -512,22 +512,22 @@ namespace Laubrary.Zui
                     i => Mutate(() => _v.multiplierId = i == 0 ? "" : _opt.multiplierIds[i - 1]));
             }
 
-            // Copy / paste — plain items that run then close, exactly as before.
+            // Copy / paste — compact icon buttons, side by side (no text needed).
             menu.Separator();
-            menu.Item("Copy value", "Copy this value (mode + all mode data) to the clipboard.",
-                () => EditorGUIUtility.systemCopyBuffer = _v.ToClipboardString());
             bool canPaste = ZUIValue.TryFromClipboardString(EditorGUIUtility.systemCopyBuffer, out _);
-            menu.Item("Paste value", "Paste a copied value from the clipboard.",
-                canPaste
-                    ? () =>
-                    {
-                        if (ZUIValue.TryFromClipboardString(EditorGUIUtility.systemCopyBuffer, out var parsed))
-                            Mutate(() => _v.CopyFrom(parsed));
-                        RebuildAll();
-                        UpdateReadout();
-                    }
-                    : (Action)null,
-                enabled: canPaste);
+            menu.IconRow(
+                ("copy", "Copy this value (mode + all mode data) to the clipboard.",
+                    () => EditorGUIUtility.systemCopyBuffer = _v.ToClipboardString()),
+                ("clipboard-text", canPaste ? "Paste a copied value from the clipboard." : "Paste (clipboard has no value).",
+                    canPaste
+                        ? () =>
+                        {
+                            if (ZUIValue.TryFromClipboardString(EditorGUIUtility.systemCopyBuffer, out var parsed))
+                                Mutate(() => _v.CopyFrom(parsed));
+                            RebuildAll();
+                            UpdateReadout();
+                        }
+                        : (Action)null));
 
             menu.Show();
         }
