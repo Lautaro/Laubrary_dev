@@ -17,9 +17,10 @@ namespace Laubrary.ZoetropePyre
     [System.Serializable]
     public class SpawnPyreFx : IEffect, IEventParamUser
     {
-        /// Reads a POSITION (where to spawn the blast) and a SCALAR (how big) — never a direction (a blast is
-        /// omni). So the Zoe-event editor shows this effect a Position + Scalar picker, no Direction picker.
-        public EventParam UsedParams => EventParam.Position | EventParam.Scalar;
+        /// Reads a POSITION (where to spawn the blast), a DIRECTION (which way to ANGLE it — so an asymmetric blast
+        /// can glance off a surface, and the Centre-Angle option can point it at the Zoe's middle) and a SCALAR (how
+        /// big). So the Zoe-event editor shows all three pickers. A symmetric blast simply looks the same rotated.
+        public EventParam UsedParams => EventParam.Position | EventParam.Direction | EventParam.Scalar;
 
         [Tooltip("Pyre explosion to play once at the resolved position (optional).")]
         public PyreAsset blast;
@@ -50,6 +51,9 @@ namespace Laubrary.ZoetropePyre
 
             var bp = PyreBlastPool.Get();   // pooled: pooled=true already set by the pool's factory
             bp.transform.position = new Vector3(ctx.Position.x, ctx.Position.y, 0f);
+            // Angle the blast by the resolved direction (task #12/#5): NaN (omni / None) leaves it upright.
+            bp.transform.rotation = float.IsNaN(ctx.DirectionDeg) ? Quaternion.identity
+                                                                  : Quaternion.Euler(0f, 0f, ctx.DirectionDeg);
             bp.transform.localScale = Vector3.one * scale;
             var sr = bp.GetComponent<SpriteRenderer>();
             if (sr != null) sr.sortingOrder = sortingOrder;
@@ -61,7 +65,8 @@ namespace Laubrary.ZoetropePyre
             onFinished = () =>
             {
                 bp.Finished -= onFinished;
-                bp.transform.localScale = Vector3.one;   // hand the pooled blast back at unit scale
+                bp.transform.localScale = Vector3.one;      // hand the pooled blast back at unit scale
+                bp.transform.rotation = Quaternion.identity; // …and unrotated
                 PyreBlastPool.Release(bp);
             };
             bp.Finished += onFinished;
