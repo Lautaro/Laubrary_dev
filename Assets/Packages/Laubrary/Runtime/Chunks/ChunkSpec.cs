@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Laubrary.SpriteFx;
+using Laubrary.PreviewKit;
 
 namespace Laubrary.Chunks
 {
@@ -10,7 +11,7 @@ namespace Laubrary.Chunks
     /// assets: if <see cref="sprites"/> is empty, chunks use a procedural pixel-square built at runtime, tinted by
     /// the SpriteRenderer's colour. Hand it to a <see cref="ChunkEmitter"/> or the static <c>Chunks.Burst</c> API.
     [CreateAssetMenu(menuName = "Laubrary/Chunks/Chunk Spec", fileName = "Chunks")]
-    public class ChunkSpec : ScriptableObject
+    public class ChunkSpec : ScriptableObject, IVisualPreview
     {
         // ── Emission ──────────────────────────────────────────────────────────────
         [Header("Emission")]
@@ -168,6 +169,37 @@ namespace Laubrary.Chunks
 
         /// trailSource cast to the interface Chunks actually needs, or null if unset/incompatible.
         public IChunkTrailSource TrailSource => trailSource as IChunkTrailSource;
+
+        // ── IVisualPreview: a thumbnail for LauAsset pickers / browsers. A ChunkSpec's look is best shown by its
+        //    animation SOURCE (a Pyre blast, a Reel) when it has one — delegate to that source's own preview; else a
+        //    representative debris sprite (the sample source, or the first sprite in the pool). Null ⇒ the caller
+        //    falls back to Unity's generic asset icon (a procedural-square spec has no authored art to show). ──
+        public Texture2D RenderPreviewTexture()
+        {
+            if (AnimationSource is IVisualPreview vp) return vp.RenderPreviewTexture();
+            var s = sampleSource != null ? sampleSource : (sprites != null && sprites.Count > 0 ? sprites[0] : null);
+            return SpriteToTexture(s);
+        }
+        public bool CanAnimatePreview => AnimationSource is IVisualPreview vp && vp.CanAnimatePreview;
+        public float PreviewFps => AnimationSource is IVisualPreview vp ? vp.PreviewFps : 12f;
+        public void UpdateAnimatedPreview(Texture2D tex, double time)
+        {
+            if (AnimationSource is IVisualPreview vp) vp.UpdateAnimatedPreview(tex, time);
+        }
+
+        // Crop a Sprite to a fresh Texture2D (its source texture must be Read/Write-enabled — otherwise null, and the
+        // caller falls back to the generic icon). Caller owns / destroys the result, per IVisualPreview.
+        static Texture2D SpriteToTexture(Sprite s)
+        {
+            if (s == null || s.texture == null || !s.texture.isReadable) return null;
+            var r = s.textureRect;
+            int w = Mathf.RoundToInt(r.width), h = Mathf.RoundToInt(r.height);
+            if (w <= 0 || h <= 0) return null;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            tex.SetPixels(s.texture.GetPixels(Mathf.RoundToInt(r.x), Mathf.RoundToInt(r.y), w, h));
+            tex.Apply();
+            return tex;
+        }
 
         void OnValidate()
         {

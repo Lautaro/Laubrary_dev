@@ -6,6 +6,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 using UnityEngine.UIElements;
+using Object = UnityEngine.Object;
 
 namespace Laubrary.Cartographer.Editor
 {
@@ -47,8 +48,12 @@ namespace Laubrary.Cartographer.Editor
         ClumpStage stage;
         VisualElement paletteRow, layerRow, tagList, spotList, levelBox, biomeBox;
 
+        // Thumbnail cache for the LauAsset picker rows (biome/clump/tag/recipe fields). Cleared on disable and
+        // when the edited asset changes — the same lifecycle every other LauAssetElement host uses.
+        readonly Dictionary<Object, Texture2D> _fieldThumbs = new();
+
         protected override void OnEnable() { base.OnEnable(); OnEnableStamper(); }
-        protected override void OnDisable() { OnDisableStamper(); base.OnDisable(); }
+        protected override void OnDisable() { OnDisableStamper(); base.OnDisable(); LauAssetGridGUI.ClearCache(_fieldThumbs); }
 
         protected override Texture2D RenderThumbnail(Clump item) => item != null ? item.RenderPreviewTexture() : null;
 
@@ -63,6 +68,7 @@ namespace Laubrary.Cartographer.Editor
             // this clump used them.
             brushIndex = 0;
             palette.Clear();
+            LauAssetGridGUI.ClearCache(_fieldThumbs);
         }
 
         // ── mutation helper — every data edit goes through here ───────────────
@@ -117,8 +123,10 @@ namespace Laubrary.Cartographer.Editor
             paletteRow = new VisualElement();
             var paletteBox = Z.Box("Palette", "The tiles this clump can be painted with. Pull a biome's tiles in, or add one directly.",
                 Z.Field("From biome", "Fills the palette with this biome's terrain tiles. The clump is not bound to the biome.",
-                    Z.Object<CartographerBiome>(paletteSource, "Biome whose terrain tiles fill the palette.",
-                        v => { paletteSource = v; RebuildPalette(); RebuildBiomeBox(); }, 180f)),
+                    LauAssetElement.Build(paletteSource,
+                        picked => { paletteSource = picked as CartographerBiome; RebuildPalette(); RebuildBiomeBox(); },
+                        typeof(CartographerBiome), _fieldThumbs, "Biome", "Assets/Cartographer/Biomes",
+                        "Biome whose terrain tiles fill the palette.")),
                 Z.Field("Add tile", "Adds a single tile to the palette without going through a biome.",
                     Z.Object<TileBase>(null, "Tile to add to the palette.", v =>
                     {
@@ -268,8 +276,10 @@ namespace Laubrary.Cartographer.Editor
             {
                 int idx = i;
                 clumpRows.Add(Z.Row(
-                    Z.Object<Clump>(b.clumps[idx], "A clump allowed to appear in this biome.",
-                        v => BiomeEdit("Set biome clump", () => b.clumps[idx] = v), 170f),
+                    LauAssetElement.Build(b.clumps[idx],
+                        picked => { BiomeEdit("Set biome clump", () => b.clumps[idx] = picked as Clump); RebuildBiomeBox(); },
+                        typeof(Clump), _fieldThumbs, "Clump", "Assets/Cartographer/Clumps",
+                        "A clump allowed to appear in this biome."),
                     Z.Button("×", "Remove this clump from the biome.",
                         () => { BiomeEdit("Remove biome clump", () => b.clumps.RemoveAt(idx)); RebuildBiomeBox(); }).W(24f)));
             }
@@ -331,8 +341,10 @@ namespace Laubrary.Cartographer.Editor
             {
                 int idx = i;
                 tagList.Add(Z.Row(
-                    Z.Object<ClumpTag>(clump.tags[i], "Gameplay label carried by this clump.",
-                        v => Dial("Set clump tag", () => clump.tags[idx] = v), 200f),
+                    LauAssetElement.Build(clump.tags[i],
+                        picked => { Dial("Set clump tag", () => clump.tags[idx] = picked as ClumpTag); RebuildTags(); },
+                        typeof(ClumpTag), _fieldThumbs, "Tag", "Assets/Cartographer/Tags",
+                        "Gameplay label carried by this clump."),
                     Z.Button("×", "Remove this tag.",
                         () => { Dial("Remove clump tag", () => clump.tags.RemoveAt(idx)); RebuildTags(); }).W(24f)));
             }

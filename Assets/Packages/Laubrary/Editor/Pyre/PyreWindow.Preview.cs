@@ -2,6 +2,8 @@
 // bespoke canvas painting + six gizmo interaction layers, pixel-identical to the pre-port window),
 // the UI Toolkit transport, and the backdrop / test-background / preview-subject panels.
 // Part of the UI Toolkit port; see PyreWindow.cs.
+using System.Collections.Generic;
+using Laubrary.AssetKit.Editor;
 using Laubrary.BackSplash.Editor;
 using Laubrary.SpriteFx;
 using Laubrary.Zui;
@@ -18,6 +20,12 @@ namespace Laubrary.Pyre.Editor
         Button playButton;
         Label stageNameLabel;
         VisualElement panelsHost;   // backdrop + test background + subject panels (rebuilt together)
+
+        // Thumbnail cache for the preview-subject LauAsset picker swatch. Cleared at the top of its only builder
+        // (BuildPreviewSubjectOptions), so it stays bounded to the one selected subject. This partial can't reach
+        // the window's teardown (OnDisable lives in PyreWindow.cs, which this task may not touch), so the swatch
+        // texture is released on the next panel rebuild / a domain reload rather than on window close.
+        readonly Dictionary<Object, Texture2D> _subjectThumbs = new Dictionary<Object, Texture2D>();
 
         VisualElement BuildRightPane()
         {
@@ -134,14 +142,21 @@ namespace Laubrary.Pyre.Editor
         // ── preview subject options ─────────────────────────────────────────────────────────
         void BuildPreviewSubjectOptions(VisualElement root)
         {
+            LauAssetGridGUI.ClearCache(_subjectThumbs);   // bounded to the one selected subject (see field note)
             if (spec == null) return;
             var box = Z.Box("Reel Preview",
                 "Plays through the same real gameplay components the subject uses in-game (a real SpriteRenderer-driven player, rendered via LiveScenePreview) — nothing here is baked. These fields are preview-time wiring only; they aren't part of the runtime blast. Attach id targets a MetaLayer painted on the Reel's clip.");
 
+            // The subject asset picker — the shared LauAsset picker+preview (thumbnail swatch + Recall…/New ▾/Edit ✎).
+            // constraint is UnityEngine.Object: the subject can be any bridge-resolvable asset, so Recall enumerates
+            // every IVisualPreview-able asset. Picking commits through the same Dial path as before, then rebuilds the
+            // panels so the swatch (and the "no bridge module" help below) reflect the new subject.
+            const string subjTip = "The subject asset a bridge module resolves (e.g. a Reel via Pyre.Launimator).";
             var row = WrapRow(
-                Z.Field("Asset", "The subject asset a bridge module resolves (e.g. a Reel via Pyre.Launimator).",
-                    Z.Object<Object>(spec.previewSubjectAsset, "The subject asset a bridge module resolves (e.g. a Reel via Pyre.Launimator).",
-                        v => Dial("Change preview subject", () => spec.previewSubjectAsset = v), 180f)),
+                Z.Field("Asset", subjTip,
+                    LauAssetElement.Build(spec.previewSubjectAsset,
+                        picked => { Dial("Change preview subject", () => spec.previewSubjectAsset = picked); RebuildPanels(); },
+                        typeof(UnityEngine.Object), _subjectThumbs, "Preview Subject", "Assets", subjTip)),
                 Z.Field("Clip", "Which of the subject's clips to play.",
                     Z.TextInput(spec.previewSubjectClip, "Which of the subject's clips to play.",
                         v => Dial("Change preview subject", () => spec.previewSubjectClip = v), 100f)),

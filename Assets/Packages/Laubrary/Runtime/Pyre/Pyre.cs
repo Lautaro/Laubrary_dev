@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Laubrary.SpriteFx;
+using Laubrary.PreviewKit;
 
 namespace Laubrary.Pyre
 {
@@ -9,7 +10,7 @@ namespace Laubrary.Pyre
     /// pixels in the editor preview, the asset baker and the runtime player, so what you tune is exactly what
     /// ships. Layers are drawn in list order (index 0 is behind the rest).
     [CreateAssetMenu(menuName = "Laubrary/Pyre", fileName = "Pyre")]
-    public class Pyre : ScriptableObject
+    public class Pyre : ScriptableObject, IVisualPreview
     {
         [Tooltip("Seeds all per-shape randomness. Same seed = byte-identical frames on every render.")]
         public int seed = 1234;
@@ -39,6 +40,24 @@ namespace Laubrary.Pyre
         /// when any Bars layer has Star on, the canvas auto-fits its arms so nothing clips.
         public int Width  { get { if (AnyStar) { ComputeStarBox(out int w, out _); return w; } return Mathf.Max(1, canvasSize); } }
         public int Height { get { if (AnyStar) { ComputeStarBox(out _, out int h); return h; } return canvasHeight > 0 ? canvasHeight : Mathf.Max(1, canvasSize); } }
+
+        // ── IVisualPreview: a real blast thumbnail for LauAsset pickers / browsers, via the SAME BlastRenderer the
+        //    Pyre tool's own preview uses (never a second render path) — so a picked Pyre shows itself, not a generic
+        //    asset icon. Mirrors PyreChunkAnimation's implementation, but on the raw Pyre. ──
+        public Texture2D RenderPreviewTexture()
+        {
+            int mid = Mathf.Clamp(frameCount / 2, 0, Mathf.Max(0, frameCount - 1));
+            return BlastRenderer.RenderFrameTexture(this, mid);
+        }
+        public bool CanAnimatePreview => frameCount > 1;
+        public float PreviewFps => 24f;
+        public void UpdateAnimatedPreview(Texture2D tex, double time)
+        {
+            if (frameCount <= 1 || tex == null) return;
+            int frame = Mathf.FloorToInt((float)(time * PreviewFps)) % frameCount;
+            tex.SetPixels32(BlastRenderer.RenderFrame(this, frame));
+            tex.Apply();
+        }
 
         bool AnyStar
         {

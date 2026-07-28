@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Laubrary.AssetKit.Editor;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
@@ -95,7 +96,10 @@ namespace Laubrary.Cartographer.Editor
         {
             levelBox.Add(Z.Box("Generate", "Fill this level procedurally from a recipe. Replaces its contents.",
                 Z.Field("Recipe", "Seed-and-dials description of a KIND of level.",
-                    Z.Object<LevelRecipe>(recipe, "Recipe to generate from.", v => { recipe = v; RebuildLevelBox(); }, 170f)),
+                    LauAssetElement.Build(recipe,
+                        picked => { recipe = picked as LevelRecipe; RebuildLevelBox(); },
+                        typeof(LevelRecipe), _fieldThumbs, "Recipe", "Assets/Cartographer/Recipes",
+                        "Recipe to generate from.")),
                 Z.Row(
                     Z.Field("Seed", "Same recipe and seed always produce the same level.",
                         Z.Int(genSeed, "Generation seed.", v => genSeed = v, 80f)),
@@ -130,8 +134,10 @@ namespace Laubrary.Cartographer.Editor
                 body.Add(Z.Row(
                     Z.TextInput(r.roomName, "Name for this section, for your own reference.",
                         v => LevelEdit("Rename room", () => r.roomName = v), 110f),
-                    Z.Object<CartographerBiome>(r.biome, "Which biome's tiles and clumps this section draws from.",
-                        v => LevelEdit("Set room biome", () => r.biome = v), 150f),
+                    LauAssetElement.Build(r.biome,
+                        picked => { LevelEdit("Set room biome", () => r.biome = picked as CartographerBiome); RebuildLevelBox(); },
+                        typeof(CartographerBiome), _fieldThumbs, "Biome", "Assets/Cartographer/Biomes",
+                        "Which biome's tiles and clumps this section draws from."),
                     Z.Button("×", "Remove this section.",
                         () => { LevelEdit("Remove room", () => level.rooms.RemoveAt(idx)); RebuildLevelBox(); }).W(24f)));
 
@@ -217,8 +223,10 @@ namespace Laubrary.Cartographer.Editor
                         i => LevelEdit("Set collision mode", () => level.collision = (CartographerLevel.CollisionMode)i))),
                 Z.Field("Solid tag", "Optional. Set it and only clumps carrying that tag collide, so decorative " +
                     "clumps can share a solid layer without blocking. Leave empty and the whole layer is solid.",
-                    Z.Object<ClumpTag>(level.solidTag, "Tag that decides which clumps collide.",
-                        v => LevelEdit("Set solid tag", () => level.solidTag = v), 150f)),
+                    LauAssetElement.Build(level.solidTag,
+                        picked => { LevelEdit("Set solid tag", () => level.solidTag = picked as ClumpTag); RebuildLevelBox(); },
+                        typeof(ClumpTag), _fieldThumbs, "Tag", "Assets/Cartographer/Tags",
+                        "Tag that decides which clumps collide.")),
                 Z.Button("+ Add layer", "Create a new tilemap layer on this level, in front of the others.",
                     AddLayer)));
         }

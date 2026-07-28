@@ -6,6 +6,7 @@
 // menu item — it lives in the window, so it can never clutter the Laubrary menu.
 using System.Collections.Generic;
 using System.IO;
+using Laubrary.AssetKit.Editor;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
@@ -18,6 +19,13 @@ namespace Laubrary.PyrePlus.Editor
         // The Pyre asset the "Convert" button reads. Held on the window (not serialized) — a transient picker.
         Laubrary.Pyre.Pyre _importSrc;
 
+        // Thumbnail cache for the import-source swatch. Cleared at the top of RebuildImportPicker (its only
+        // builder), so it stays bounded to the one selected source. This partial can't reach the window's
+        // teardown (OnDisable lives in PyrePlusWindow.cs, which this task may not touch), so the last swatch
+        // texture is released on the next rebuild / a domain reload rather than on window close.
+        readonly Dictionary<Object, Texture2D> _importThumbs = new Dictionary<Object, Texture2D>();
+        VisualElement _importPickerHost;   // the picker row; refilled by RebuildImportPicker when _importSrc changes
+
         void BuildImport(VisualElement root)
         {
             var box = Z.BoxKeyed("Import from Pyre",
@@ -26,14 +34,14 @@ namespace Laubrary.PyrePlus.Editor
                 + "reported after the conversion.",
                 "pyreplus.import");
 
-            // The Pyre asset picker — Z.Object wrapped in Z.Field, the idiomatic ZUI object-field pattern
-            // (the same wrapper the sibling Chunks window uses for its Sample-source Sprite field). Z.Object IS
-            // ZUI's object-field factory: an asset picker is NOT a ZUI gap. _importSrc is a transient window
-            // field (not spec state), so the callback just sets it — no Undo/Dirty.
-            const string pyreTip = "The vanilla Pyre asset to import.";
-            box.Add(Z.Field("Pyre asset", pyreTip,
-                Z.Object<Laubrary.Pyre.Pyre>(_importSrc, pyreTip,
-                    v => _importSrc = v, 200f)));
+            // The Pyre asset picker — the shared LauAsset picker+preview (thumbnail swatch + Recall…/New ▾/Edit ✎),
+            // the same row every other Laubrary asset field uses (mirrors Chunks' animation/trail sources). Once
+            // Pyre implements IVisualPreview the swatch shows a real blast thumbnail. Held in its own host so a pick
+            // can refill just this row (the swatch/name must reflect the new source). _importSrc is a transient
+            // window field (not spec state), so picking just sets it and rebuilds — no Undo/Dirty.
+            _importPickerHost = new VisualElement();
+            box.Add(_importPickerHost);
+            RebuildImportPicker();
 
             // WrapRow so the button sizes to its own content rather than stretching to the full box width — a
             // bare Button added to a box column stretches on the cross axis (measured 340px), the same reason
@@ -43,6 +51,20 @@ namespace Laubrary.PyrePlus.Editor
                 + "anything dropped or approximated.",
                 DoImport)));
             root.Add(box);
+        }
+
+        // Fills the import-source picker row; re-run on every pick so the swatch + name reflect the new source.
+        // Clears the swatch thumb cache first (bounded to the one selected source — no window-close teardown
+        // reaches this partial). Constraint is Pyre, so Recall/New ▾ offer only Pyre assets.
+        void RebuildImportPicker()
+        {
+            if (_importPickerHost == null) return;
+            LauAssetGridGUI.ClearCache(_importThumbs);
+            _importPickerHost.Clear();
+            const string pyreTip = "The vanilla Pyre asset to import.";
+            _importPickerHost.Add(LauAssetElement.Build(_importSrc,
+                picked => { _importSrc = picked as Laubrary.Pyre.Pyre; RebuildImportPicker(); },
+                typeof(Laubrary.Pyre.Pyre), _importThumbs, "Pyre", "Assets", pyreTip));
         }
 
         void DoImport()
