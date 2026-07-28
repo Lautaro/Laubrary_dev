@@ -674,7 +674,7 @@ namespace Laubrary.Zoetrope.Editor
 
             const string triggerTip = "When this effect fires: right away, or in sync with a named frame event as the clip plays.";
             bool showEvent = (FxTriggerType)triggerProp.enumValueIndex == FxTriggerType.FrameEvent;
-            var triggerRow = Z.Row(EnumDropdown(triggerProp, "Trigger", triggerTip));
+            var triggerRow = Z.Row(EnumPicker(triggerProp, "Trigger", triggerTip));
             if (showEvent)
             {
                 triggerRow.Add(Z.HSpace());
@@ -690,7 +690,7 @@ namespace Laubrary.Zoetrope.Editor
 
                 const string posTip = "Which of the event's position params this effect spawns at — the hit point, " +
                     "the Zoe's origin, its sprite centre, or a named meta-layer point.";
-                var posRow = Z.Row(EnumDropdown(placementProp, "Position", posTip));
+                var posRow = Z.Row(EnumPicker(placementProp, "Position", posTip));
                 if (isMetaPoint)
                 {
                     posRow.Add(Z.HSpace());
@@ -715,12 +715,12 @@ namespace Laubrary.Zoetrope.Editor
             // churn the whole window (and lose scroll/focus) for nothing.
             VisualElement paramRow = null;
             if ((used & EventParam.Direction) != 0)
-                paramRow = Z.Row(EnumDropdown(directionProp, "Direction",
+                paramRow = Z.Row(EnumPicker(directionProp, "Direction",
                     "Which of the event's direction params aims this effect. Hit Direction = away from the " +
                     "attacker; None fires omni-directionally.", rebuild: false));
             if ((used & EventParam.Scalar) != 0)
             {
-                var scalarPick = EnumDropdown(scalarProp, "Scalar",
+                var scalarPick = EnumPicker(scalarProp, "Scalar",
                     "Which of the event's scalar params sizes / strengthens this effect. Amount = the damage " +
                     "dealt; None = zero.", rebuild: false);
                 if (paramRow == null) paramRow = Z.Row(scalarPick);
@@ -742,15 +742,18 @@ namespace Laubrary.Zoetrope.Editor
             listHost.Add(box);
         }
 
-        VisualElement EnumDropdown(SerializedProperty prop, string label, string tooltip, bool rebuild = true)
+        // An enum picker — segmented for a short single-line set, a wrapping MiniRadio for a longer one. NEVER a
+        // dropdown (ui-layout-rules: enum → radios/segmented, a dropdown is only for dynamic authored-name lists,
+        // which is what StringDropdown below stays as).
+        VisualElement EnumPicker(SerializedProperty prop, string label, string tooltip, bool rebuild = true)
         {
-            var choices = new List<string>(prop.enumDisplayNames);
+            var choices = prop.enumDisplayNames;
             string path = prop.propertyPath;
-            return Z.Field(label, tooltip, Z.Dropdown(prop.enumValueIndex, choices, tooltip, i =>
-            {
-                Commit(path, p => p.enumValueIndex = i);
-                if (rebuild) Rebuild();   // Position/Trigger gate which conditional rows below apply
-            }, FitWidth(choices)));
+            void Pick(int i) { Commit(path, p => p.enumValueIndex = i); if (rebuild) Rebuild(); }   // Position/Trigger gate conditional rows
+            VisualElement control = choices.Length <= 3
+                ? Z.Segmented(prop.enumValueIndex, choices, tooltip, Pick)
+                : Z.MiniRadio(prop.enumValueIndex, choices, tooltip, Pick, wrap: true);
+            return Z.Field(label, tooltip, control);
         }
 
         // ── Zoe-event effect palette metadata (nice label / tooltip / icon / menu section per IEffect kind) ─────
