@@ -180,7 +180,7 @@ namespace Laubrary.Zoetrope.Editor
             if (mref.BoxedValue != null) BuildManagedRefChildren(mref, prop, mref.BoxedValue, topLevelAsset);
         }
 
-        void BuildManagedRefChildren(VisualElement host, SerializedProperty managedRefProperty,
+        protected void BuildManagedRefChildren(VisualElement host, SerializedProperty managedRefProperty,
             object boxedValue, object topLevelAsset)
         {
             // A concrete type with its own [CustomPropertyDrawer] is drawn BY that drawer (see this class's
@@ -640,6 +640,23 @@ namespace Laubrary.Zoetrope.Editor
             });
             header.Add(grip);
 
+            // Mute checkbox (task #8): uncheck to keep the effect + its settings but stop it firing. Stops its own
+            // pointer-down so a click mutes without folding the card, and dims the whole card when muted.
+            var enabledProp = entryProp.FindPropertyRelative("enabled");
+            string enabledPath = enabledProp.propertyPath;
+            var mute = new Toggle { tooltip = "Enabled — uncheck to MUTE this effect (kept in the list, but it never fires)." };
+            mute.AddToClassList("zui-section__toggle");
+            mute.style.marginRight = 4f;
+            mute.SetValueWithoutNotify(enabledProp.boolValue);
+            mute.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+            mute.RegisterValueChangedCallback(e =>
+            {
+                Commit(enabledPath, p => p.boolValue = e.newValue);
+                box.style.opacity = e.newValue ? 1f : 0.45f;
+            });
+            header.Add(mute);
+            box.style.opacity = enabledProp.boolValue ? 1f : 0.45f;
+
             var icon = Z.Icon(kindIcon);
             if (icon != null) header.Add(icon);
             header.Add(Z.Text(kindLabel, ZuiText.Body, kindLabel + " effect."));
@@ -717,9 +734,12 @@ namespace Laubrary.Zoetrope.Editor
             }
             if (paramRow != null) body.Add(paramRow);
 
-            // The effect itself: the SerializeReference type switcher + its own fields (kept — the shared drawer
-            // renders them, and the switcher lets you re-type this entry in place).
-            BuildManagedRef(body, effectProp, "Effect", zoe);
+            // The effect's own fields, drawn INLINE — no foldable "Effect" sub-section (task #2): the effect IS the
+            // whole card, its kind is already named in the header, so a nested "Effect" fold + type button was just
+            // redundant chrome. A concrete effect with no custom drawer (the Spawn-Pyre / Spawn-Chunk palette kinds)
+            // flows through TryBuildAssetRefField, so its Pyre/Chunk asset field renders as a LauAsset picker+preview
+            // rather than a plain ObjectField. (Re-type an entry by removing it and adding the kind you want.)
+            if (effect != null) BuildManagedRefChildren(body, effectProp, effect, zoe);
             box.Add(body);
 
             // Fold the whole card to its header, keyed per effect instance so the state survives window rebuilds
@@ -794,6 +814,10 @@ namespace Laubrary.Zoetrope.Editor
             {
                 if (t.IsAbstract || t.IsInterface || t.IsGenericTypeDefinition) continue;
                 if (t.GetConstructor(Type.EmptyTypes) == null) continue;
+                // The combined "Spawn Pyre Chunk" (PyreChunksFx) is retired from the palette (task #1): Spawn Pyre +
+                // Spawn Chunk stack, so the bundle is redundant. The TYPE stays (committed assets still deserialize
+                // it, and the per-card type switcher can still show it); it's just no longer offered in Add-effect.
+                if (t.Name == "PyreChunksFx") continue;
                 if (!s_effectMeta.TryGetValue(t.Name, out var m))
                 {
                     string nn = ObjectNames.NicifyVariableName(t.Name);

@@ -28,6 +28,10 @@ namespace Laubrary.Zoetrope
     [System.Serializable]
     public class FxEntry
     {
+        [Tooltip("Uncheck to MUTE this effect: it stays in the list (keeping all its settings) but never fires — " +
+                 "for quickly isolating which effect does what. Defaults on; existing entries stay enabled.")]
+        public bool enabled = true;
+
         public FxTriggerType trigger = FxTriggerType.Immediate;
         [Tooltip("FrameEvent name to match, when trigger == FrameEvent.")]
         public string eventName = "";
@@ -116,7 +120,7 @@ namespace Laubrary.Zoetrope
             for (int i = 0; i < fx.Count; i++)
             {
                 var entry = fx[i];
-                if (entry == null || entry.trigger != FxTriggerType.Immediate) continue;
+                if (entry == null || !entry.enabled || entry.trigger != FxTriggerType.Immediate) continue;
                 if (entry.fx == null || entry.fx.IsEmpty) continue;
                 // A bare point-play has no live view to resolve placement against, so every effect fires at the
                 // supplied point — the context's Position is worldPos, so an ICombatFx spawns exactly where the

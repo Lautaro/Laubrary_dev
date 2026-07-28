@@ -140,6 +140,7 @@ namespace Laubrary.Zoetrope
         // ── spawning ──────────────────────────────────────────────────────────
         void Fire(FxEntry entry, EventContext ctx)
         {
+            if (!entry.enabled) return;   // muted (task #8) — kept in the list but never fires
             if (entry.fx == null || entry.fx.IsEmpty) return;
             if (!ctx.TryResolvePosition(entry.placement, entry.metaLayerId, out var pos)) return;
 
