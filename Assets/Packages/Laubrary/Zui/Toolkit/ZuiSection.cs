@@ -29,6 +29,7 @@ namespace Laubrary.Zui
         // ── optional header checkbox (created lazily by SetHeaderToggle) ──
         readonly VisualElement _header;   // the clickable header row, so the checkbox can be inserted into it
         readonly Label _title;            // the title label, so the checkbox lands just to its LEFT
+        readonly Label _closedCaret;      // a ▸ shown ONLY while collapsed, so a folded section stays findable
         readonly string _titleText;       // base title text, so a collapsed-only suffix can be appended/removed
         Toggle _headerToggle;
         Action<bool> _headerToggleChanged;
@@ -56,6 +57,13 @@ namespace Laubrary.Zui
             header.AddToClassList("zui-section__header");
             header.tooltip = tooltip;
             _header = header;
+
+            // A collapsed-only ▸ affordance. Open sections stay caret-free (the bold title reads as the heading, per
+            // the earlier request), but a CLOSED section otherwise looks like it simply vanished — users folded one
+            // and couldn't find it to reopen. The caret appears only while closed, making "click to expand" obvious.
+            _closedCaret = new Label("▸") { pickingMode = PickingMode.Ignore };
+            _closedCaret.AddToClassList("zui-section__caret");
+            header.Add(_closedCaret);
 
             // Optional leading icon, tinted to the section-title colour so it reads as part of the heading.
             // Added FIRST so it sits at the head of the row; an enable checkbox added later via
@@ -133,6 +141,7 @@ namespace Laubrary.Zui
             bool open = IsOpen;
             _body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("zui-section--closed", !open);
+            if (_closedCaret != null) _closedCaret.style.display = open ? DisplayStyle.None : DisplayStyle.Flex;
             // A COLLAPSED section can hide active content (e.g. enabled modifiers). Show the suffix its
             // provider returns (a count like " (2)") on the header while closed; drop it again when open,
             // where the content itself is visible. No provider ⇒ the title is exactly the base text.
