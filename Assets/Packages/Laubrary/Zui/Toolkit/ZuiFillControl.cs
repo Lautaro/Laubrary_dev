@@ -130,7 +130,10 @@ namespace Laubrary.Zui
 
                 case ZuiFill.Mode.Linear:
                     _content.Add(GradientSection(
-                        Z.Box("Placement", PlacementTip, MakeRow(ExtraAngle(), SpaceField()), ZoomVal(), CenterVal())));
+                        Z.Box("Placement", PlacementTip,
+                            MakeRow(AngleSlider("Ang", "Rotation of the linear fill axis, in degrees.", _fill.angleDeg, v => _fill.angleDeg = v),
+                                    SpaceField()),
+                            ZoomVal(), CenterVal())));
                     break;
 
                 case ZuiFill.Mode.Radial:
@@ -276,9 +279,9 @@ namespace Laubrary.Zui
                     box.Add(MakeRow(
                         TintColor("Ink", "The grid line colour (alpha carries the mask — off-line pixels are transparent)."),
                         SpaceField()));
+                    box.Add(AngleSlider("Angle", "Rotation of the grid, in degrees.", _fill.gridAngle,
+                        v => _fill.gridAngle = v));
                     box.Add(MakeRow(
-                        Scrub("Angle", "Rotation of the grid, in degrees.", _fill.gridAngle,
-                            v => _fill.gridAngle = v),
                         Scrub("Space", "Cell size in the fill's local units (the -1..1 box is 2 units across).",
                             _fill.gridSpacing, v => _fill.gridSpacing = Mathf.Max(1e-4f, v)),
                         Scrub("Width", "Line thickness as a fraction of the spacing (0..1).", _fill.gridLineWidth,
@@ -385,12 +388,10 @@ namespace Laubrary.Zui
                 () => OnBeforeMutate?.Invoke());
         }
 
-        VisualElement ExtraAngle()
-        {
-            const string tip = "Rotation of the linear fill axis, in degrees.";
-            var f = Z.Float(_fill.angleDeg, tip, v => Mutate(() => _fill.angleDeg = v), 42f);
-            return Z.Field("Ang", tip, f);
-        }
+        // A rotation-angle MicroSlider (0..360°, whole degrees) — replaces the old scrub Z.Float per the UI guide
+        // (a bounded scalar belongs in the track, not a bare number field). Shared by the Linear axis + the Grid.
+        VisualElement AngleSlider(string caption, string tip, float value, Action<float> set)
+            => Z.MicroSlider(caption, value, 0f, 360f, tip, v => Mutate(() => set(v)), 150f, decimals: 0);
 
         // Zoom (Linear proj scale / Radial / Noise) — an ANIMATABLE ZUIValue (zoomAnim), so an author can curve the
         // spatial scale over the fill's life. A Static value reproduces the legacy `zoom` exactly (byte-identical).
