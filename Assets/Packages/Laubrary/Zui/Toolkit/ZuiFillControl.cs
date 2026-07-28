@@ -157,36 +157,45 @@ namespace Laubrary.Zui
 
             var box = Z.Box(null, null);   // untitled bordered card — the section boundary; the header names it
 
-            // header = [tall square] [ column: (Fill label · OBJECTIVE output strip · ⋯)  /  SOURCE ramp ] — both
-            // ramps + the label sit beside the square and stay visible when the body folds.
+            // Header, per the mockup:
+            //   row 1 : [tall square] [Fill label] [OBJECTIVE output strip →] [⋯]
+            //   row 2 :               [ editable SOURCE ramp → (full column width) ]
+            // The square spans both rows on the left; "Fill" + the objective ramp share the top row (the ⋯ pinned
+            // right); the editable source ramp fills the row beneath. All of it stays visible when the body folds,
+            // and NO fold caret is drawn (the header itself folds on click — per the #2 feedback).
             var header = new VisualElement();
             header.AddToClassList("zui-row");
-            header.style.alignItems = Align.FlexStart;
+            header.style.alignItems = Align.Stretch;   // let the square stretch to the two-row column height
             if (WantSwatch())
             {
-                _swatch = new FillSwatch(_fill, 44f,
+                _swatch = new FillSwatch(_fill, 46f,
                     "Live preview of the fill's own pattern (no shape). Over-life shows left→right over the "
                     + "particle's life; spatial modes show the -1..1 fill box.");
+                _swatch.style.height = StyleKeyword.Auto;   // stretch drives the height so it spans both ramp rows
+                _swatch.style.alignSelf = Align.Stretch;
                 header.Add(_swatch);
             }
-            // Column beside the square: a [label · ⋯] row, then the OBJECTIVE output strip, then the editable SOURCE
-            // ramp. Both strips are direct children of the column, so they stretch full-width reliably (a strip in a
-            // ROW does not fill; the original preview worked precisely because it lived in a column).
             var col = new VisualElement();
             col.style.flexGrow = 1f;
             col.style.flexDirection = FlexDirection.Column;
-            var labelRow = new VisualElement();
-            labelRow.AddToClassList("zui-row");
-            labelRow.style.alignItems = Align.Center;
-            labelRow.Add(FieldLabel(_label ?? "Fill"));
-            labelRow.Add(Z.Flexible());
+
+            // Row 1: label · objective output strip (grows) · ⋯
+            var row1 = new VisualElement();
+            row1.AddToClassList("zui-row");
+            row1.style.alignItems = Align.Center;
+            row1.Add(FieldLabel(_label ?? "Fill"));
+            ed.Output.style.flexGrow = 1f; ed.Output.style.flexShrink = 1f;
+            ed.Output.style.marginLeft = 6f; ed.Output.style.marginRight = 6f;
+            row1.Add(ed.Output);   // objective output preview (read-only)
             var menu = MenuButton();
-            labelRow.Add(menu);
-            col.Add(labelRow);
-            ed.Output.style.marginTop = 2f;
-            col.Add(ed.Output);   // objective output preview (read-only)
-            ed.Source.style.marginTop = 2f;
-            col.Add(ed.Source);   // the editable SOURCE ramp
+            row1.Add(menu);
+            col.Add(row1);
+
+            // Row 2: the editable SOURCE ramp, full column width.
+            ed.Source.style.flexGrow = 1f; ed.Source.style.flexShrink = 1f;
+            ed.Source.style.marginTop = 3f;
+            col.Add(ed.Source);
+
             header.Add(col);
             box.Add(header);
 
@@ -195,9 +204,9 @@ namespace Laubrary.Zui
             if (placement != null) body.Add(placement);
             box.Add(body);
 
-            // Fold the body (Adjust + Placement) from the header; the ⋯ menu and the editable source ramp must never
-            // fold. Keyed per-fill so it persists across rebuilds.
-            ZuiFoldCard.Wire(_fill, header, body, menu, ed.Source);
+            // Fold the body (Adjust + Placement) from the header — no caret (#2). The ⋯ menu and the editable source
+            // ramp must never fold. Keyed per-fill so it persists across rebuilds.
+            ZuiFoldCard.Wire(_fill, header, body, showCaret: false, menu, ed.Source);
             return box;
         }
 

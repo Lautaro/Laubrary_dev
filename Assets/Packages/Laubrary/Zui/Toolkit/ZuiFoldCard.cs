@@ -50,6 +50,12 @@ namespace Laubrary.Zui
         /// the card (the grip already guards itself; a Toggle / Button does not).
         public static void Wire(object foldKey, VisualElement header, VisualElement body,
             params VisualElement[] nonFolding)
+            => Wire(foldKey, header, body, true, nonFolding);
+
+        /// As above, but `showCaret:false` omits the prepended fold caret — the header still folds on click, it
+        /// just carries no ▾/▸ glyph (e.g. a fill card whose header is a preview strip, not a titled row).
+        public static void Wire(object foldKey, VisualElement header, VisualElement body, bool showCaret,
+            params VisualElement[] nonFolding)
         {
             if (header == null || body == null) return;   // nothing to fold
 
@@ -57,14 +63,18 @@ namespace Laubrary.Zui
                 foreach (var c in nonFolding)
                     c?.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
 
-            var caret = new Label(IsExpanded(foldKey) ? "▾" : "▸") { pickingMode = PickingMode.Ignore };
-            caret.AddToClassList("zui-box__caret");
-            header.Insert(0, caret);
+            Label caret = null;
+            if (showCaret)
+            {
+                caret = new Label(IsExpanded(foldKey) ? "▾" : "▸") { pickingMode = PickingMode.Ignore };
+                caret.AddToClassList("zui-box__caret");
+                header.Insert(0, caret);
+            }
 
             void Apply()
             {
                 bool open = IsExpanded(foldKey);
-                caret.text = open ? "▾" : "▸";
+                if (caret != null) caret.text = open ? "▾" : "▸";
                 body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
             }
             Apply();
