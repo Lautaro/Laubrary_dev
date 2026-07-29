@@ -62,7 +62,9 @@ namespace Laubrary.Zui
             schedule.Execute(Apply);
         }
 
-        bool Foldable => parent != null && parent.resolvedStyle.flexDirection != FlexDirection.Row;
+        // Uses the PHYSICAL parent (the element that actually holds this label), the same one Apply's fold loop
+        // walks — a heading physically sitting in a ROW is left alone (its siblings are the rest of the row).
+        bool Foldable => hierarchy.parent != null && hierarchy.parent.resolvedStyle.flexDirection != FlexDirection.Row;
 
         void Apply()
         {
@@ -80,12 +82,23 @@ namespace Laubrary.Zui
 
             if (_hidden.Count > 0) return;   // already folded — don't re-record hidden-as-previous
 
-            var p = parent;
+            // Iterate this label's PHYSICAL siblings (hierarchy.parent), NOT `parent`. When a section-label sits
+            // INSIDE a ZuiSection, `parent` is the section — its LOGICAL owner via contentContainer — but the label
+            // actually lives in the section's _body. So `parent.hierarchy` is [header, body] and does NOT contain the
+            // label: IndexOf returned -1, and the old loop (from index 0) hid the SECTION'S OWN header + body, making
+            // the whole section vanish with no header left to click (the Zoe editor's "Reactions" bug). hierarchy.parent
+            // is the element that physically holds the label, so its children ARE the label's real following siblings.
+            var p = hierarchy.parent;
+            if (p == null) return;
             int i = p.hierarchy.IndexOf(this);
+            if (i < 0) return;   // safety: label not among its parent's children → hide nothing, never guess
             for (int k = i + 1; k < p.hierarchy.childCount; k++)
             {
                 var el = p.hierarchy.ElementAt(k);
                 if (el is ZuiSectionLabel || el is ZuiSection) break;   // the next block starts here
+                // Never hide a section's own structural chrome, whatever the nesting — a folded label must only
+                // hide CONTENT, never the header/body that owns it.
+                if (el.ClassListContains("zui-section__header") || el.ClassListContains("zui-section__body")) continue;
                 _hidden.Add((el, el.style.display));
                 el.style.display = DisplayStyle.None;
             }
