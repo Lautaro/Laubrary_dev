@@ -39,6 +39,12 @@ namespace Laubrary.ZoetropeLaunimator
             return _player != null && _player.Play(clip, loop);
         }
 
+        public void Hide()
+        {
+            _pendingComplete = null;   // nothing is playing to complete
+            _player?.Hide();
+        }
+
         public bool TryGetMetaPoint(string layerId, out Vector2 worldPos)
         {
             worldPos = default;

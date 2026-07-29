@@ -59,9 +59,18 @@ namespace Laubrary.Zoetrope
         void BeginRespawn()
         {
             // A death with NO death clip has nothing to animate — so show NOTHING while dead instead of leaving the
-            // body sitting on its last idle frame until respawn (task #6). PlayIdle re-shows it on revive. (A death
-            // that DOES play a clip keeps its final frame up, as before.)
-            if (DeathClipEmpty()) SetBodyVisible(false);
+            // body sitting on its last idle frame until respawn (task #6), so it can be replaced by an explosion FX.
+            // PlayIdle re-shows it on revive. (A death that DOES play a clip keeps its final frame up, as before.)
+            if (DeathClipEmpty())
+            {
+                // Order matters: STOP the animation first. A Zoned view's player re-asserts its renderer's
+                // visibility every frame in PushSprite, so a bare SetBodyVisible(false) is undone next frame (the
+                // reported "it flashes back to the idle frame on death" bug). Hide() stops the player AND blanks it;
+                // SetBodyVisible(false) then also covers a plain SpriteView that has no IAnimatedView to hide.
+                if (view == null) view = GetComponent<IAnimatedView>();
+                view?.Hide();
+                SetBodyVisible(false);
+            }
             StartCoroutine(RespawnAfterDelay());
         }
 

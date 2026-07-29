@@ -17,6 +17,11 @@ namespace Laubrary.Zoetrope
         /// Returns false if the clip name is unknown to this view.
         bool PlayClip(string clip, bool loop, Action onComplete = null);
 
+        /// Stop playback and show NOTHING (blank the view) — the "no clip" state, so a clip-less death can be
+        /// replaced by an explosion FX instead of freezing on the last idle frame. A later <see cref="PlayClip"/>
+        /// re-shows it. (A plain SpriteView has no IAnimatedView, so its caller hides the SpriteRenderer directly.)
+        void Hide();
+
         /// Fires (eventName, frame) as playback enters a frame carrying an authored FrameEvent — lets core
         /// Zoetrope (<see cref="ReactionFxPlayer"/>) sync FX to a reaction clip's own authored frames without
         /// depending on any specific animation system.

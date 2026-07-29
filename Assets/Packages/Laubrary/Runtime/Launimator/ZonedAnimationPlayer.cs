@@ -200,6 +200,17 @@ namespace Laubrary.Launimator
 
         public void Stop() { _playing = false; _ending = false; }
 
+        /// <summary>Stop playback AND blank every managed renderer (base + layers) — "show no clip", so a
+        /// clip-less death can be replaced by an explosion. <see cref="Play"/>/<see cref="EnterAt"/> re-show it.
+        /// The Stop is essential: without it, the next <see cref="Tick"/> would call <c>PushSprite</c> and
+        /// re-enable the renderer, defeating the hide (the bug where a killed target flashed back to idle).</summary>
+        public void Hide()
+        {
+            Stop();
+            if (_sr != null) _sr.enabled = false;
+            foreach (var r in _layerRenderers) if (r != null) r.enabled = false;
+        }
+
         // ── stepping ─────────────────────────────────────────────────────────
         /// <summary>Advance playback. Called from Update; exposed so tests can step deterministically.</summary>
         public void Tick(float dt)
