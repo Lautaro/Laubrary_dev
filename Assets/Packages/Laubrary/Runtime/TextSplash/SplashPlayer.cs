@@ -76,9 +76,10 @@ namespace Laubrary.TextSplash
 
         // ── shared with the editor preview ────────────────────────────────────────────
 
-        /// Apply a spec's static LOOK (text / font / size / fill / border / alpha) to a TMP. `text` null = the
-        /// spec's own default. Movement + play-time alpha come from <see cref="Evaluate"/>, not here.
-        public static void ApplyLook(TextSplash spec, TextMeshProUGUI tmp, string text)
+        /// Apply a spec's static LOOK (text / font / size / fill / border / alpha) to any TMP text (the runtime's
+        /// UGUI text OR the editor preview's 3D text — both are <see cref="TMP_Text"/>). `text` null = the spec's own
+        /// default. Movement + play-time alpha come from <see cref="Evaluate"/>, not here.
+        public static void ApplyLook(TextSplash spec, TMP_Text tmp, string text)
         {
             if (spec == null || tmp == null) return;
             tmp.text = text ?? spec.text;
