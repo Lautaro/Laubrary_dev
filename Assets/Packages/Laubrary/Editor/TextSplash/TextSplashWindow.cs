@@ -26,6 +26,7 @@ namespace Laubrary.TextSplash.Editor
 
         static readonly string[] DirLabels = { "None", "Left", "Right", "Top", "Bottom" };
         static readonly string[] EaseLabels = { "Linear", "Smooth", "Ease out", "Ease in" };
+        static readonly string[] AxisLabels = { "X", "Y", "Z" };
 
         // ── preview ─────────────────────────────────────────────────────────────────
         [SerializeField] BackSplashSettings backSplash = new BackSplashSettings();
@@ -95,9 +96,15 @@ namespace Laubrary.TextSplash.Editor
             double now = EditorApplication.timeSinceStartup;
             _scrub += (float)(now - _lastTick);
             _lastTick = now;
-            if (_scrub >= Current.TotalDuration) _scrub = 0f;   // loop the preview
+            if (_scrub >= EffectiveDuration(Current)) _scrub = 0f;   // loop the preview
             Repaint();
         }
+
+        int LetterCount() => _tmp != null && _tmp.textInfo != null && _tmp.textInfo.characterCount > 0
+            ? _tmp.textInfo.characterCount : (Current?.text?.Length ?? 0);
+
+        /// Play length shown/looped: per-letter stagger extends it, so the transport covers the LAST letter's out.
+        float EffectiveDuration(TextSplash s) => s.perLetter ? s.SequenceDuration(LetterCount()) : s.TotalDuration;
 
         // ── build ───────────────────────────────────────────────────────────────────
         protected override void BuildAsset(VisualElement root, TextSplash s)
@@ -171,6 +178,24 @@ namespace Laubrary.TextSplash.Editor
             host.Add(Z.MicroSlider("Slide dist", s.slideDistance, 0.25f, 1.5f, "How far off-screen the slide reaches.",
                 v => Edit("Edit slide distance", () => s.slideDistance = v), 240f, prefsKey: "splash.dist"));
 
+            host.Add(Z.Text("Per-letter", ZuiText.Section, "Animate each letter independently."));
+            host.Add(Z.Toggle("Animate each letter", "Stagger + spin each letter instead of moving the whole line as one block.",
+                s.perLetter, v => Edit("Toggle per-letter", () => s.perLetter = v)));
+            host.Add(Z.MicroSlider("Stagger (s)", s.letterStagger, 0f, 0.3f, "Seconds between consecutive letters starting.",
+                v => Edit("Edit stagger", () => s.letterStagger = v), 240f, decimals: 3, prefsKey: "splash.stagger"));
+            host.Add(Z.MicroSlider("Spin °", s.spinDegrees, -360f, 360f, "Degrees each letter spins through as it flies in/out (0 = none).",
+                v => Edit("Edit spin", () => s.spinDegrees = v), 240f, decimals: 0, prefsKey: "splash.spin"));
+            host.Add(Z.Field("Spin axis", "Axis the letter spins about (X/Y foreshorten to a flip under the flat camera; Z = in-plane).",
+                Z.MiniRadio((int)s.spinAxis, AxisLabels, "Spin axis.", v => Edit("Edit spin axis", () => s.spinAxis = (SplashAxis)v))));
+
+            host.Add(Z.Text("Colour cycle", ZuiText.Section, "Scroll the FILL colour over time (the border is untouched)."));
+            host.Add(Z.Toggle("Cycle the fill colour", "Animate the fill face colour over time.",
+                s.cycleFill, v => Edit("Toggle cycle", () => s.cycleFill = v)));
+            host.Add(Z.MicroSlider("Speed", s.cycleSpeed, 0f, 4f, "Fill colour cycles per second.",
+                v => Edit("Edit cycle speed", () => s.cycleSpeed = v), 240f, prefsKey: "splash.cyc"));
+            host.Add(Z.MicroSlider("Per-letter", s.cyclePerLetter, 0f, 1f, "Cycle phase shift from one letter to the next (a travelling rainbow; per-letter mode only).",
+                v => Edit("Edit cycle per-letter", () => s.cyclePerLetter = v), 240f, prefsKey: "splash.cycpl"));
+
             host.Add(BackSplashZui.Build(backSplash, "Preview backdrop",
                 "The backdrop to audit the splash against (shared with Pyre / Mirage). Preview-only.", Repaint));
         }
@@ -180,9 +205,9 @@ namespace Laubrary.TextSplash.Editor
             var row = Z.Row(
                 Z.ToggleButton(_playing ? "⏸ Pause" : "▶ Play", "Play the whole in → hold → out (loops).",
                     _playing, v => { _playing = v; _scrub = 0f; _lastTick = EditorApplication.timeSinceStartup; Repaint(); }),
-                Z.MicroSlider("t", _scrub, 0f, Mathf.Max(0.01f, s.TotalDuration), "Scrub through the sequence.",
+                Z.MicroSlider("t", _scrub, 0f, Mathf.Max(0.01f, EffectiveDuration(s)), "Scrub through the sequence.",
                     v => { _scrub = v; _playing = false; Repaint(); }, 220f, decimals: 2),
-                Z.Text($"total {s.TotalDuration:0.00}s", ZuiText.Subtle, "Total play length."));
+                Z.Text($"total {EffectiveDuration(s):0.00}s", ZuiText.Subtle, "Total play length."));
             row.style.flexShrink = 0f;
             return row;
         }
@@ -207,13 +232,25 @@ namespace Laubrary.TextSplash.Editor
             // The splash: pose the world-space TMP at the scrub time, frame, and composite over the backdrop.
             if (_preview != null && _tmp != null && Current != null)
             {
-                // Evaluate in the same frame units (PrevW×PrevH world), then place at rest = anchor, offset = slide.
-                SplashPlayer.Evaluate(Current, _scrub, Current.holdDuration, PrevW, PrevH, out var off, out var a, out _);
                 float rx = (Current.anchor.x - 0.5f) * PrevW;
                 float ry = (Current.anchor.y - 0.5f) * PrevH;
-                _tmp.transform.position = new Vector3(rx + off.x, ry + off.y, 0f);
-                _tmp.alpha = a;
-                _tmp.ForceMeshUpdate();   // push animated alpha (and any look change) into the mesh this frame
+                if (Current.perLetter)
+                {
+                    // The line rests at its anchor; each letter carries its own motion, in LOCAL vertex units
+                    // (world ÷ the text's localScale) so the per-vertex offsets land at the right world distance.
+                    _tmp.transform.position = new Vector3(rx, ry, 0f);
+                    _tmp.alpha = 1f;
+                    SplashPlayer.ApplyPerLetter(Current, _tmp, _scrub, Current.holdDuration, PrevW / PrevScale, PrevH / PrevScale);
+                }
+                else
+                {
+                    // Evaluate in the same frame units (PrevW×PrevH world): rest = anchor, offset = slide.
+                    SplashPlayer.Evaluate(Current, _scrub, Current.holdDuration, PrevW, PrevH, out var off, out var a, out _);
+                    _tmp.transform.position = new Vector3(rx + off.x, ry + off.y, 0f);
+                    _tmp.alpha = a;
+                    if (Current.cycleFill) SplashPlayer.ApplyCycle(Current, _tmp, _scrub);
+                    _tmp.ForceMeshUpdate();   // push animated alpha (and any look/cycle change) into the mesh this frame
+                }
                 _preview.Frame(Vector3.zero, PrevH);
                 _preview.Draw(rect);
             }

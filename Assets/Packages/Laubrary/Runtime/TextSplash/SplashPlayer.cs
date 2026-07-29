@@ -62,10 +62,22 @@ namespace Laubrary.TextSplash
             var canvasRT = _tmp.canvas != null ? _tmp.canvas.transform as RectTransform : null;
             Vector2 cs = canvasRT != null ? canvasRT.rect.size : new Vector2(Screen.width, Screen.height);
 
-            Evaluate(_spec, _elapsed, _hold, cs.x, cs.y, out var pos, out var a, out bool done);
-            _tmp.rectTransform.anchoredPosition = pos;
-            _tmp.alpha = a;
-            if (done) Finish();
+            if (_spec.perLetter)
+            {
+                // The whole line stays at rest; every letter carries its own staggered slide/fade/spin.
+                _tmp.rectTransform.anchoredPosition = Vector2.zero;
+                _tmp.alpha = 1f;
+                ApplyPerLetter(_spec, _tmp, _elapsed, _hold, cs.x, cs.y);
+                if (_elapsed >= _spec.SequenceDuration(_tmp.textInfo.characterCount)) Finish();
+            }
+            else
+            {
+                Evaluate(_spec, _elapsed, _hold, cs.x, cs.y, out var pos, out var a, out bool done);
+                _tmp.rectTransform.anchoredPosition = pos;
+                _tmp.alpha = a;
+                if (_spec.cycleFill) ApplyCycle(_spec, _tmp, _elapsed);
+                if (done) Finish();
+            }
         }
 
         void Finish()
@@ -136,6 +148,91 @@ namespace Laubrary.TextSplash
             }
             else { done = true; alpha = 0f; }
         }
+
+        /// Per-letter pose: the same slide/fade as <see cref="Evaluate"/>, PLUS a spin angle (fully wound at the
+        /// transition extremes, 0 at rest). `elapsed` is the LETTER's local time (global − letterIndex·stagger),
+        /// `hold` its local hold.
+        public static void LetterAnim(TextSplash s, float elapsed, float hold, float w, float h,
+            out Vector2 pos, out float alpha, out float spinDeg, out bool done)
+        {
+            Evaluate(s, elapsed, hold, w, h, out pos, out alpha, out done);
+            float inD = s.slideInDuration, outD = s.slideOutDuration;
+            if (elapsed < 0f) spinDeg = s.spinDegrees;                       // not yet started → fully wound
+            else if (elapsed < inD)
+                spinDeg = s.spinDegrees * (1f - Ease(s.ease, inD > 0f ? elapsed / inD : 1f));
+            else if (elapsed < inD + hold) spinDeg = 0f;
+            else if (elapsed < inD + hold + outD)
+                spinDeg = s.spinDegrees * Ease(s.ease, outD > 0f ? (elapsed - inD - hold) / outD : 1f);
+            else spinDeg = s.spinDegrees;
+        }
+
+        /// Drive each character of `tmp` independently (staggered slide/fade + spin + optional colour cycle) at global
+        /// time `time`. `w,h` are the transition distances in the TMP's LOCAL vertex units (canvas px for a UGUI text;
+        /// world÷scale for a 3D preview text). Regenerates + rewrites the mesh, so call it every frame while playing.
+        public static void ApplyPerLetter(TextSplash s, TMP_Text tmp, float time, float hold, float w, float h)
+        {
+            if (tmp == null) return;
+            tmp.ForceMeshUpdate();
+            var info = tmp.textInfo;
+            int n = info.characterCount;
+            float stg = Mathf.Max(0f, s.letterStagger);
+            float localHold = Mathf.Max(0, n - 1) * stg + hold;
+            Vector3 axis = AxisVec(s.spinAxis);
+
+            for (int i = 0; i < n; i++)
+            {
+                var ci = info.characterInfo[i];
+                if (!ci.isVisible) continue;
+                int mi = ci.materialReferenceIndex;
+                int vi = ci.vertexIndex;
+                var verts = info.meshInfo[mi].vertices;
+                var cols = info.meshInfo[mi].colors32;
+
+                LetterAnim(s, time - i * stg, localHold, w, h, out var off, out float a, out float spin, out _);
+
+                Vector3 c = (verts[vi] + verts[vi + 2]) * 0.5f;             // char centre = (bottom-left + top-right)/2
+                Quaternion rot = Quaternion.AngleAxis(spin, axis);
+                Vector3 delta = new Vector3(off.x, off.y, 0f);
+                for (int k = 0; k < 4; k++)
+                    verts[vi + k] = c + rot * (verts[vi + k] - c) + delta;
+
+                byte alpha = (byte)Mathf.Clamp(Mathf.RoundToInt(a * 255f), 0, 255);
+                if (s.cycleFill && s.fill != null)
+                {
+                    Color32 c32 = s.fill.Evaluate(Frac(time * s.cycleSpeed - i * s.cyclePerLetter), 0f, 0f);
+                    c32.a = alpha;
+                    for (int k = 0; k < 4; k++) cols[vi + k] = c32;
+                }
+                else
+                {
+                    for (int k = 0; k < 4; k++) { var cc = cols[vi + k]; cc.a = alpha; cols[vi + k] = cc; }
+                }
+            }
+
+            tmp.UpdateVertexData(TMP_VertexDataUpdateFlags.Vertices | TMP_VertexDataUpdateFlags.Colors32);
+        }
+
+        /// Whole-line colour cycle: scroll the fill gradient's phase over time into a fresh top→bottom vertex gradient.
+        /// Face only — the TMP outline (border) is untouched. No-op on a solid or textured fill.
+        public static void ApplyCycle(TextSplash s, TMP_Text tmp, float time)
+        {
+            var fill = s.fill;
+            if (fill == null || fill.mode == ZuiFill.Mode.Solid || fill.texture != ZuiFill.TextureKind.None) return;
+            float p = Frac(time * s.cycleSpeed);
+            Color top = fill.Evaluate(p, 0f, 0f);
+            Color bot = fill.Evaluate(Frac(p + 0.5f), 0f, 0f);
+            tmp.enableVertexGradient = true;
+            tmp.colorGradient = new VertexGradient(top, top, bot, bot);
+        }
+
+        static Vector3 AxisVec(SplashAxis a) => a switch
+        {
+            SplashAxis.X => Vector3.right,
+            SplashAxis.Z => Vector3.forward,
+            _ => Vector3.up,
+        };
+
+        static float Frac(float x) => x - Mathf.Floor(x);
 
         static Vector2 DirOffset(SplashDir d, float w, float h) => d switch
         {

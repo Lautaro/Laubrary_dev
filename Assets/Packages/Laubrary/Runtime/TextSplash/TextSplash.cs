@@ -10,11 +10,14 @@ namespace Laubrary.TextSplash
     /// Easing applied to a slide/fade's 0..1 progress.
     public enum SplashEase { Linear, SmoothStep, EaseOut, EaseIn }
 
+    /// Axis a per-letter 3D spin rotates about.
+    public enum SplashAxis { X, Y, Z }
+
     /// <summary>
     /// A reusable "splash this text on screen" asset — everything needed to fly a line of text in, hold it, and fly
     /// it back out, authored once and played with one call. Carries DEFAULT text + durations, both overridable per
     /// call (<see cref="Show"/>). Slice 1: a single TMP line with a <see cref="ZuiFill"/> face, a border, alpha, size,
-    /// and slide/fade in→hold→out transitions. (Per-letter FX + fill colour-cycling are a later slice.)
+    /// and slide/fade in→hold→out transitions. Slice 3 adds per-letter stagger + 3D spin and fill colour-cycling.
     /// </summary>
     [CreateAssetMenu(menuName = "Laubrary/Text Splash", fileName = "TextSplash")]
     public class TextSplash : ScriptableObject, IVisualPreview
@@ -47,8 +50,30 @@ namespace Laubrary.TextSplash
         [Range(0.25f, 1.5f)] [Tooltip("How far off-screen the slide starts/ends, as a fraction of the screen.")]
         public float slideDistance = 1f;
 
-        /// Total play length (in + hold + out), seconds.
+        [Header("Per-letter (Slice 3)")]
+        [Tooltip("Animate each letter independently (staggered in/out + optional spin) instead of moving the whole line as one block.")]
+        public bool perLetter = false;
+        [Min(0f)] [Tooltip("Seconds between consecutive letters starting their transition.")]
+        public float letterStagger = 0.05f;
+        [Range(-360f, 360f)] [Tooltip("Degrees each letter spins THROUGH as it flies in / out (0 = no spin). Under the flat overlay camera it reads as a foreshortened flip.")]
+        public float spinDegrees = 0f;
+        public SplashAxis spinAxis = SplashAxis.Y;
+
+        [Header("Colour cycle (Slice 3)")]
+        [Tooltip("Scroll the FILL colour over time (the face only — the border is untouched). With per-letter on, the cycle travels across the letters.")]
+        public bool cycleFill = false;
+        [Range(0f, 4f)] [Tooltip("Fill colour cycles per second.")]
+        public float cycleSpeed = 0.5f;
+        [Range(0f, 1f)] [Tooltip("Per-letter phase offset — how much the cycle shifts from one letter to the next (a travelling rainbow). Per-letter mode only.")]
+        public float cyclePerLetter = 0.1f;
+
+        /// Total play length (in + hold + out), seconds — the whole-line (non per-letter) length.
         public float TotalDuration => slideInDuration + holdDuration + slideOutDuration;
+
+        /// Play length accounting for per-letter stagger: the last letter's out finishes 2·(n−1)·stagger later.
+        public float SequenceDuration(int letters) => perLetter
+            ? TotalDuration + 2f * Mathf.Max(0, letters - 1) * letterStagger
+            : TotalDuration;
 
         /// <summary>Splash this text on screen. Null args use the asset's own defaults; pass either to override just
         /// this play. Spawns a self-cleaning overlay, runs slide/fade in → hold → out, then despawns.</summary>
