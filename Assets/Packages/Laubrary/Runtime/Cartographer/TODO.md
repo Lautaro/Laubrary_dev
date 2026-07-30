@@ -16,7 +16,7 @@
 **Two things to know before touching the code:**
 
 - **`CartographerRuleTile` is conditionally compiled.** `RuleTile` ships in the OPTIONAL `com.unity.2d.tilemap.extras` package, so it is wrapped in `#if TILEMAP_EXTRAS_INSTALLED` with a versionDefine on the runtime asmdef (the pattern Zounds uses for Addressables). **Laubrary Dev does not have that package, so the type genuinely does not exist here — that is correct, not a bug.** OutBurner has 6.0.1. When verifying, check its base resolves as `RuleTile<>`, not merely that the type was found.
-- **`RoomDirector` is a tickable on purpose** — `Tick(dt, playerPos)` applied to its own state, `Update` only calls it. That is what lets every scroll / catch-up / camera behaviour be verified in EDIT mode by driving `Tick` directly: no play mode, no wall-clock waiting, exact numbers. It has already caught a real bug that way (`PlayerCaught` firing per tick instead of per crossing). Keep that shape.
+- **`Arena` is a tickable on purpose** — `Tick(dt, playerPos)` applied to its own state, `Update` only calls it. That is what lets every scroll / catch-up / camera behaviour be verified in EDIT mode by driving `Tick` directly: no play mode, no wall-clock waiting, exact numbers. It has already caught a real bug that way (`PlayerCaught` firing per tick instead of per crossing). Keep that shape.
 
 **Test content:** `Assets/Demos/CartographerDemo/` via the `Build Demo Assets` command — it generates its own placeholder tiles so it works in a bare project, and never overwrites, so tweaks survive a re-run. OutBurner additionally has `Assets/OutBurner/Cartographer/CartographerTest.unity`, a real level with 13 placements across 3 layers.
 
@@ -85,6 +85,7 @@ Cartographer ports that philosophy onto a 2D tile grid.
 - **Live preview is a first-class requirement for every authoring surface** (rule tiles, clumps, procgen
   dials) — same "preview == runtime" principle as Pyre and `BiomeEditorWindow`'s live rig. Changes to a rule/
   clump/recipe should be instantly visible in-editor, not require a bake-and-check step.
+- **`RoomDirector` is named `Arena`** (renamed 2026-07-30). An **Arena is where a scene's play happens** — whatever its size, shape or genre; a single walled room, a scrolling street, or a peaceful platforming stroll are all Arenas. **`Room` survives as the sub-unit**: an Arena *contains* Rooms, each with its own exit condition, scroll behaviour and camera mode. The division of labour the trio is built on: **Cartographer builds the space, the Arena decides how play moves through it, and the game supplies what play actually is.** `RoomCameraBinder` deliberately keeps its name — what it reads is the *Room's* camera mode; the Arena is only where it looks that up. Done while the rename was still free: nothing in Laubrary Dev or OutBurner referenced the type from a scene or prefab, so no `[MovedFrom]` shim was needed. The file kept its GUID (`f0c09249…`) via `git mv`.
 - **Differently-sized level elements come from Clumps and the decoration layer, not from multiple grids** (decided 2026-07-27). A Unity `Grid` has one cell size, so a big object is either a multi-cell Clump (a whole building as one stamp) or a plain sprite on a decoration layer, which is not grid-bound at all and can be any size. Stacking several Grids at different cell sizes technically works but doubles the authoring surface for every layer — rejected unless a real need turns up.
 
 ## Open decisions (revisit before/while implementing)
@@ -311,7 +312,7 @@ Also noted, lower priority: a clump wider than the authoring grid needs the Grid
 - [ ] Project-side behaviour binding beyond collision (mirroring Lazor's core/binding split) — still open.
 
 ### Phase 5 — scroll & camera (side-scrolling)  (core landed 2026-07-27)
-- [x] **Room exit-condition runtime** — `RoomDirector` advances through `level.rooms`, evaluating Distance /
+- [x] **Room exit-condition runtime** — `Arena` advances through `level.rooms`, evaluating Distance /
   Time / ClearEnemies and raising `RoomStarted` / `LevelFinished`. ClearEnemies asks a `Func<bool> RoomCleared`
   the GAME supplies, because Cartographer has no idea what an enemy is; left null it ends immediately rather
   than hanging.
@@ -324,7 +325,7 @@ Also noted, lower priority: a clump wider than the authoring grid needs the Grid
 - [x] **Rooms are authorable** — a Rooms box on the Level box adds sections and edits name / biome / exit
   condition (with only the relevant parameter shown) / scroll / speed / catch-up. Before this the Room schema
   was unreachable data.
-- [x] **`RoomCameraBinder`** — points a Camera at `RoomDirector.ViewCenter`, with optional smoothing. Kept a
+- [x] **`RoomCameraBinder`** — points a Camera at `Arena.ViewCenter`, with optional smoothing. Kept a
   separate component on purpose: the director decides where play is looking, which is equally useful to a
   minimap, a cutscene, or a test with no camera at all.
 - **Testability note:** the whole director is `Tick(dt, playerPos)` applied to its own state, so all of the
@@ -333,7 +334,7 @@ Also noted, lower priority: a clump wider than the authoring grid needs the Grid
 - [x] **Camera modes** — a per-Room `RoomCamera`: **Follow** (the director's view centre, the usual case),
   **Rail** (an authored `railPath` sampled by `RoomProgress`, independent of where the player is — for a
   set-piece approach), **Focus** (locked to a target until the room ends — a boss, or the installation you
-  must destroy). Exposed as `RoomDirector.CameraPosition`, kept separate from `ViewCenter` so a Rail or Focus
+  must destroy). Exposed as `Arena.CameraPosition`, kept separate from `ViewCenter` so a Rail or Focus
   camera can look elsewhere WITHOUT changing the scroll or the catch-up rules. An un-authored rail falls back
   to the ordinary view rather than teleporting to the origin.
 - [x] **Player lock / "clock anchor"** — realised as a per-Room `playerLead` from -1 (trailing edge, so almost

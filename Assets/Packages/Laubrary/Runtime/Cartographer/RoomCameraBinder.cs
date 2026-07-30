@@ -2,17 +2,18 @@ using UnityEngine;
 
 namespace Laubrary.Cartographer
 {
-    /// Points a Camera at whatever the RoomDirector says the view centre is.
+    /// Points a Camera at whatever the Arena says the view centre is.
     ///
-    /// Kept separate from the director on purpose: the director decides where play is looking, and that is
-    /// useful to a minimap, a cutscene or a test with no camera at all. This is the one small piece that says
-    /// "and a Camera should follow it", so a project wanting different camera behaviour replaces this file and
-    /// nothing else.
+    /// Kept separate from the Arena on purpose: the Arena decides where play is looking, and that is useful
+    /// to a minimap, a cutscene or a test with no camera at all. This is the one small piece that says "and a
+    /// Camera should follow it", so a project wanting different camera behaviour replaces this file and
+    /// nothing else. Named for the Room, not the Arena, because what it actually reads is the *Room's* camera
+    /// mode (Follow / Rail / Focus) — the Arena is only where it looks that up.
     [RequireComponent(typeof(Camera))]
     public class RoomCameraBinder : MonoBehaviour
     {
-        [Tooltip("The director whose view centre this camera follows. Found on the level in the scene if empty.")]
-        public RoomDirector director;
+        [Tooltip("The Arena whose view centre this camera follows. Found on the level in the scene if empty.")]
+        public Arena arena;
 
         [Tooltip("How fast the camera closes on the view centre, in units per second per unit of error. " +
                  "0 snaps exactly — right for a hard arcade scroll; a few units softens it.")]
@@ -26,16 +27,16 @@ namespace Laubrary.Cartographer
         void Awake()
         {
             cam = GetComponent<Camera>();
-            if (director == null) director = FindAnyObjectByType<RoomDirector>();
+            if (arena == null) arena = FindAnyObjectByType<Arena>();
         }
 
         void LateUpdate()
         {
-            if (director == null) return;
+            if (arena == null) return;
 
             // CameraPosition, not ViewCenter: the room's camera mode (Rail / Focus) can deliberately look
             // somewhere other than where play is happening.
-            var want = director.CameraPosition;
+            var want = arena.CameraPosition;
             want.z = depth;
 
             transform.position = follow <= 0f

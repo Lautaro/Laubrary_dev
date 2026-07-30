@@ -3,7 +3,13 @@ using UnityEngine;
 
 namespace Laubrary.Cartographer
 {
-    /// Drives play through a level's Rooms: advances the view, decides when a Room is done, and moves on.
+    /// An Arena is where a scene's play happens — whatever its size, shape or genre. A single walled room, a
+    /// scrolling stretch of street, a peaceful platforming stroll: if play takes place there, it is the Arena.
+    /// It drives play through the level's Rooms — advances the view, decides when a Room is done, moves on.
+    ///
+    /// An Arena *contains* Rooms; Room stays the sub-unit, carrying its own exit condition, scroll behaviour
+    /// and camera mode. The division of labour: Cartographer builds the space, the Arena decides how play
+    /// moves through it, and the game supplies what play actually *is*.
     ///
     /// The whole thing is a pure function of (dt, player position) applied to its own state, exposed as
     /// `Tick` so it can be driven from a test or a cutscene exactly as Update drives it. That is deliberate —
@@ -13,7 +19,7 @@ namespace Laubrary.Cartographer
     /// It owns no camera. `ViewCenter` is the answer; binding that to a Camera is the game's business (or
     /// `RoomCameraBinder`'s), so a Room can equally drive a cutscene, a minimap, or nothing at all.
     [RequireComponent(typeof(CartographerLevel))]
-    public class RoomDirector : MonoBehaviour
+    public class Arena : MonoBehaviour
     {
         [Tooltip("Half-width and half-height of the view, in world units. The catch-up rules measure against " +
                  "this, so it should match whatever the camera actually shows.")]
