@@ -757,8 +757,9 @@ namespace Laubrary.TextSplash.Editor
 
             // What the chosen mode is actually going to do with THIS asset — the bake it needs, or the feature it
             // is about to switch off. A mode that silently ignored a border or a size curve would look broken.
-            var rasterNote = Z.Text(RasterNote(s), ZuiText.Subtle, rasterTip);
-            rasterNote.Shown(!string.IsNullOrEmpty(RasterNote(s)));
+            string note = RasterNote(s);
+            var rasterNote = Z.Text(note, ZuiText.Subtle, rasterTip);
+            rasterNote.Shown(!string.IsNullOrEmpty(note));
 
             return Z.BoxKeyed("Pixelation", "Renders the splash through a low-res buffer so it comes out in real "
                 + "chunky pixels — and this preview rasterizes it the same way, so the grid, the palette lock, the "
@@ -1020,16 +1021,13 @@ namespace Laubrary.TextSplash.Editor
             return PixelTip(s, body);
         }
 
+        /// No "…this does nothing" branch, unlike the other conditional tips here: this control is HIDDEN unless
+        /// Coverage is selected, so a tooltip describing it as inert could never be read.
         string CoverageSamplesTip(TextSplash s)
-        {
-            var px = s != null ? s.pixelation : null;
-            string body = "How many samples across each cell get averaged — x4 means 4x4 = 16 samples per cell. "
+            => PixelTip(s, "How many samples across each cell get averaged — x4 means 4x4 = 16 samples per cell. "
                 + "More samples measure a cell's coverage more finely and cost that many more fragments to render. "
-                + "Only powers of two are offered because the reduction is a chain of exact halvings.";
-            if (px != null && px.rasterMode != SplashRasterMode.AreaAverage)
-                return PixelTip(s, body + " The Coverage mode is not selected, so this does nothing.");
-            return PixelTip(s, body);
-        }
+                + "Only powers of two are offered because the reduction is a chain of exact halvings, and a factor "
+                + "of 3 or 6 would break that into a resample with the very blur this mode exists to avoid.");
 
         /// <summary>What the chosen mode is about to do to THIS asset that the dials alone do not say — the bake it
         /// still needs, or the feature it is going to switch off. Empty when there is nothing to report, which is
