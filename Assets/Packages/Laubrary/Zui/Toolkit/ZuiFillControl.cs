@@ -28,7 +28,14 @@ namespace Laubrary.Zui
             public bool grow = false;
             public float maxWidthFactor = 3.2f;
 
+            // Show the Fit dial (Uniform / Stretch) on spatial fills. OFF by default and deliberately opt-in:
+            // `fit` only means something to a consumer that normalizes through ZuiFill.Normalize, and a dial that
+            // does nothing in the tool you are looking at is worse than no dial. Turn it on in a tool that
+            // honours it — TextSplash does.
+            public bool showFit = false;
+
             public Options WithWidth(float w) { controlWidth = w; return this; }
+            public Options WithFit() { showFit = true; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
             public Options Clone() => (Options)MemberwiseClone();
         }
@@ -132,12 +139,13 @@ namespace Laubrary.Zui
                         Z.Box("Placement", PlacementTip,
                             MakeRow(AngleSlider("Ang", "Rotation of the linear fill axis, in degrees.", _fill.angleDeg, v => _fill.angleDeg = v),
                                     SpaceField()),
-                            ZoomVal(), CenterVal())));
+                            FitField(), ZoomVal(), CenterVal())));
                     break;
 
                 case ZuiFill.Mode.Radial:
                     _content.Add(GradientSection(
-                        Z.Box("Placement", PlacementTip, MakeRow(SpaceField()), ZoomVal(), CenterVal())));
+                        Z.Box("Placement", PlacementTip, MakeRow(SpaceField()), FitField(),
+                              ZoomVal(), CenterVal())));
                     break;
             }
         }
@@ -431,6 +439,48 @@ namespace Laubrary.Zui
                 v => Mutate(() => _fill.space = (ZuiFill.FillSpace)v));
             return Z.Field("Anchor", tip, seg);
         }
+
+        /// <summary>The Fit dial: where the ramp's far end lands on a box that is not square. Returns an empty
+        /// element unless the hosting tool opted in — see <see cref="Options.showFit"/>.
+        ///
+        /// The tooltip states the CONSEQUENCE rather than the mechanism, because the mechanism (which half-extent
+        /// divides the coordinates) is not something an author should have to hold in their head to explain why
+        /// only a slice of their gradient is showing.</summary>
+        VisualElement FitField()
+        {
+            if (!_opt.showFit) return new VisualElement();
+
+            // Restated in place rather than by rebuilding: Mutate does not rebuild the control, so a tooltip
+            // captured once would go on describing the mode the author just switched AWAY from.
+            ZuiSegmented seg = null;
+            Label label = null;
+            VisualElement field = null;
+
+            void Restate()
+            {
+                string t = FitTip();
+                if (seg != null) seg.tooltip = t;
+                if (label != null) label.tooltip = t;
+                if (field != null) field.tooltip = t;
+            }
+
+            seg = Z.Segmented((int)_fill.fit, FitLabels, FitTip(),
+                v => { Mutate(() => _fill.fit = (ZuiFill.FillFit)v); Restate(); });
+            field = Z.Field("Fit", FitTip(), seg);
+            label = field.Q<Label>(className: "zui-field__label");
+            return field;
+        }
+
+        string FitTip() => _fill.fit == ZuiFill.FillFit.Stretch
+            ? "Fit: STRETCH — the ramp runs end to end along BOTH axes, so a gradient is fully used whichever way "
+            + "it points. A Radial fill becomes an ellipse fitted to the box. Right when the BOX is the subject, "
+            + "e.g. a wide line of text."
+            : "Fit: UNIFORM — one scale for both axes, so a Radial fill stays a true circle. The SHORT axis never "
+            + "reaches the end of the ramp: on a line 5.6x wider than it is tall, a vertical gradient shows only "
+            + "the middle 18% of your colours. Switch to Stretch if you authored a ramp and can only see part "
+            + "of it.";
+
+        static readonly string[] FitLabels = { "Uniform", "Stretch" };
 
         // A colour field bound to _fill.color (the Solid swatch / Sprite tint / Grid+Dots ink). `caption` null =
         // no leading label (the header FieldLabel already names the row).

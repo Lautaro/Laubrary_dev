@@ -46,6 +46,23 @@ public class ZuiFill : ISerializationCallbackReceiver
     // ignores it entirely (Evaluate never reads (u,v) in those modes).
     public enum FillSpace { Stamped, Fixed }
 
+    // How a SPATIAL fill's box is normalized into the -1..1 (u,v) Evaluate expects — i.e. WHERE the ramp's far
+    // end lands on a box that is not square. This is the answer to "why do I only ever see part of my gradient".
+    //
+    //   Uniform  ONE divisor for both axes: the box's LARGER half-extent. A Radial fill therefore stays a true
+    //            CIRCLE, and a Linear axis keeps its aspect. The cost is that the SHORT axis never reaches +-1,
+    //            so a ramp laid across it is only partly used — on a text line 5.6x wider than it is tall, a
+    //            vertical gradient shows the middle 18% of the ramp and nothing else.
+    //   Stretch  Each axis divided by its OWN half-extent, so both span exactly -1..1 and the ramp always runs
+    //            end to end whichever way it points. A Radial fill becomes an ELLIPSE fitted to the box, which
+    //            is usually what you want when the box is the subject (text) and rarely what you want when the
+    //            circle is the subject (a disc, a blast).
+    //
+    // Uniform is the default because it is what every existing asset already renders as. Like FillSpace this is
+    // plain paint DATA: ZuiFill never sees the box, so the CONSUMER normalizes — call Normalize below rather
+    // than dividing by hand, or the choice silently does nothing in that tool.
+    public enum FillFit { Uniform, Stretch }
+
     // ── fill ──────────────────────────────────────────────────────────────────────────
     public Mode mode = Mode.Solid;
     public Color color = Color.white;   // Solid — alpha-capable like every mode; also the Sprite tint / Grid+Dots ink
@@ -86,6 +103,29 @@ public class ZuiFill : ISerializationCallbackReceiver
     // reproduces v1 exactly — the consumer feeds shape-local (u,v). Fixed asks the consumer to feed canvas-anchored
     // (u,v) instead, so the pattern stays put while the shape moves through it. Solid / OverLife ignore it.
     public FillSpace space = FillSpace.Stamped;
+    // How a non-square box maps onto -1..1 (see FillFit). Uniform reproduces v1 exactly. Solid / OverLife ignore
+    // it, and so does any consumer whose sampling box is square (there is nothing to choose between).
+    public FillFit fit = FillFit.Uniform;
+
+    /// <summary>Normalize a point into the -1..1 (u,v) <see cref="Evaluate"/> expects, honouring <see cref="fit"/>.
+    ///
+    /// Every consumer of a spatial fill should call THIS rather than dividing by hand — the divisor IS the
+    /// setting, so a tool that rolls its own normalization silently ignores the dial. (That is exactly how the
+    /// codebase ended up with two conventions: TextSplash divided by the larger half-extent, PyrePlus's
+    /// background divided per axis, and neither was a choice anyone could see or make.)</summary>
+    /// <param name="p">The point, in the same units as <paramref name="half"/>.</param>
+    /// <param name="origin">The box's centre.</param>
+    /// <param name="half">The box's half-extents.</param>
+    public Vector2 Normalize(Vector2 p, Vector2 origin, Vector2 half)
+    {
+        Vector2 d = p - origin;
+        if (fit == FillFit.Stretch)
+            return new Vector2(d.x / Mathf.Max(0.0001f, half.x), d.y / Mathf.Max(0.0001f, half.y));
+
+        // One divisor for both axes keeps a Radial fill a circle instead of an ellipse stretched to the box.
+        float s = Mathf.Max(0.0001f, Mathf.Max(half.x, half.y));
+        return new Vector2(d.x / s, d.y / s);
+    }
 
     // ── texture (replaces the fill when != None) ────────────────────────────────────────
     public TextureKind texture = TextureKind.None;

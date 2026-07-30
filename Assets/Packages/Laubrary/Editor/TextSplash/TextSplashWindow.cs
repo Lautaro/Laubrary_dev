@@ -301,7 +301,7 @@ namespace Laubrary.TextSplash.Editor
                     "The face fill — a solid colour or a ZUI gradient (the same fill system Pyre uses).",
                     () => { EditorUtility.SetDirty(s); AfterEdit(); },
                     () => Undo.RecordObject(s, "Edit splash fill"),
-                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f }),
+                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true }),
                 ScalarRow("Alpha", s.alpha, 0f, 1f,
                     "Overall opacity. Animatable — curve it for a flicker or a slow bleed-out.")));
 
@@ -514,7 +514,7 @@ namespace Laubrary.TextSplash.Editor
                     "The border fill — solid or a ZUI gradient, exactly like the face fill.",
                     () => { EditorUtility.SetDirty(s); AfterEdit(); },
                     () => Undo.RecordObject(s, "Edit splash border fill"),
-                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f }),
+                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true }),
                 ScalarRow("Width", s.borderWidth, 0f, 0.5f,
                     "Border thickness as a FRACTION OF THE FONT SIZE — 0.02 is a hairline, 0.25 a fat cartoon "
                     + "outline. (Not TMP's old 0..1 outline units.) Animatable.", 2,
@@ -662,7 +662,7 @@ namespace Laubrary.TextSplash.Editor
                 Z.Fill("Sides", d.sideFill, sidesTip,
                     () => { EditorUtility.SetDirty(s); AfterEdit(); },
                     () => Undo.RecordObject(s, "Edit depth side fill"),
-                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f }),
+                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true }),
 
                 // Both grade the fill above rather than replacing it, so they live under its card.
                 Z.Row(

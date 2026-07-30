@@ -1298,14 +1298,18 @@ namespace Laubrary.TextSplash
             return peak;
         }
 
-        /// <summary>One vertex's colour from a SPATIAL fill. The point is normalized into the −1..1 (u,v) ZuiFill
-        /// expects using ONE divisor for BOTH axes — the box's larger half-extent — so a Radial fill stays a true
-        /// CIRCLE. Dividing x and y by their own half-extents would squash it into an ellipse stretched to fit the
-        /// box, which is exactly what "radial" must not look like.</summary>
+        /// <summary>One vertex's colour from a SPATIAL fill, normalized into the −1..1 (u,v) ZuiFill expects.
+        ///
+        /// WHICH divisor is the fill's own <see cref="ZuiFill.fit"/> choice, and it decides how much of a ramp a
+        /// non-square box ever shows: Uniform uses one divisor for both axes (the larger half-extent) so a Radial
+        /// fill stays a true CIRCLE, at the cost of the short axis never reaching ±1 — on a line 5.6× wider than
+        /// it is tall, a vertical gradient shows the middle 18% of the ramp. Stretch divides each axis by its own
+        /// half-extent so the ramp always runs end to end, at the cost of a Radial fill becoming an ellipse.
+        /// The arithmetic lives on ZuiFill so every consumer makes the same choice the same way.</summary>
         static Color32 SampleFill(ZuiFill fill, float life, Vector3 p, Vector2 origin, Vector2 half, float alpha)
         {
-            float d = Mathf.Max(0.0001f, Mathf.Max(half.x, half.y));
-            Color c = fill.Evaluate(life, (p.x - origin.x) / d, (p.y - origin.y) / d);
+            Vector2 uv = fill.Normalize(new Vector2(p.x, p.y), origin, half);
+            Color c = fill.Evaluate(life, uv.x, uv.y);
             c.a *= alpha;   // the fill's own alpha survives, scaled by the splash's opacity
             return c;
         }
