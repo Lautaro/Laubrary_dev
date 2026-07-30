@@ -302,6 +302,71 @@ namespace Laubrary.TextSplash
     }
 
     // ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+    /// <summary>How a glyph becomes CELLS. This is the one choice that decides whether a pixelated splash reads as
+    /// pixel art or as a low-resolution photograph of some text.
+    ///
+    /// MEASURED, over a cap-height sweep of "SPLASH!" (Diagnostics/TextSplash/SplashCoverageProof.cs), counting
+    /// 4-connected components (ideal 8, one per letter) and enclosed counters (ideal 2, from the P and the A).
+    /// Two findings matter, and the second is not the one this axis was expected to deliver:
+    ///
+    ///   CONNECTIVITY IS A SIZE PROBLEM, NOT A SAMPLING ONE. Below about 10 cells of cap height every mode that
+    ///     draws from an outline font shatters — at 6 cells, SDF gives 23 parts and 0 holes and area-averaging
+    ///     gives 20 and 1. Averaging does NOT rescue it, and at 7 cells it measured slightly WORSE (26 vs 23).
+    ///     The reason is worth knowing, because it is counter-intuitive: TMP's antialiasing at low resolution
+    ///     INFLATES a thin stroke, and that inaccuracy is what was carrying those strokes over the 50% threshold.
+    ///     A true coverage measurement is more correct and therefore less generous. The real fix for small text
+    ///     is <see cref="PixelFont"/>, whose strokes are a whole cell wide by construction, or a lower cutoff.
+    ///
+    ///   WHAT AVERAGING ACTUALLY BUYS IS COLOUR. At a 12-cell cap it cut part-covered cells from 485 to 392 and
+    ///     distinct colours from 183 to 149; at 16 cells, 622 to 498 and 206 to 178. That is the mush the palette
+    ///     lock and the cutoff exist to clean up, reduced at the source instead of repaired afterwards.
+    ///
+    /// So the three are not better-and-worse versions of one thing — they trade different properties, which is
+    /// why all three ship and are switchable per asset.</summary>
+    public enum SplashRasterMode
+    {
+        /// <summary>Rasterize TMP's signed distance field straight into the low-res buffer: one antialiased sample
+        /// per cell, then <see cref="SplashPixelation.alphaCutoff"/> decides on or off.
+        ///
+        /// Its weakness is colour, not structure: essentially every covered cell comes out partly transparent
+        /// (98% at a 12-cell cap) and a two-colour splash rasterizes into 183 distinct ones, which is the mush the
+        /// cutoff and the palette lock spend their time undoing.
+        ///
+        /// It remains the right choice for anything that SPINS or SCALES DOWN, and — because its antialiasing
+        /// inflates thin strokes — it is measurably no worse than area-averaging at holding small text together.
+        /// It is also what every splash authored before this choice existed already renders as.</summary>
+        Sdf = 0,
+
+        /// <summary>Render the splash oversampled and box-average each block of samples down to ONE cell, so a
+        /// cell's alpha is its TRUE area coverage rather than one point sample of a distance field.
+        ///
+        /// What that measurably buys is a CLEANER buffer, not intact letterforms: at a 12-cell cap it cut
+        /// part-covered cells from 485 to 392 and distinct colours from 183 to 149. Every cell it cleans up is one
+        /// the alpha cutoff and the palette lock no longer have to repair. It does NOT fix the shattering of small
+        /// text — see the note on <see cref="SplashRasterMode"/>, where measurement contradicted the expectation.
+        ///
+        /// Averaging is valid on the buffer exactly as it stands because TMP writes PREMULTIPLIED colour — C·a
+        /// averages linearly, which a straight colour would not.
+        ///
+        /// It costs <see cref="SplashPixelation.coverageSamples"/>² times the fragments of <see cref="Sdf"/> and
+        /// nothing else: the buffer that is read back, colour-crunched and presented is the same small one.</summary>
+        AreaAverage = 1,
+
+        /// <summary>Rasterize the FONT ITSELF at the cell size — a bitmap font asset baked at the sampling size the
+        /// splash actually renders at, grid-fitted by the hinter — so a glyph arrives already made of whole cells.
+        ///
+        /// This is the only one of the three that produces true 1-bit pixel art: zero partial cells and one
+        /// distinct colour, in every static condition tested including a half-cell slide. What breaks it is not
+        /// sharpness but the LETTERFORMS, and only under transforms the bake cannot anticipate — scaling DOWN
+        /// fills the counters in, and rotation shreds the glyphs (26 parts at 30°). Point atlas filtering is
+        /// mandatory; bilinear alone took it from 8 parts to 18.
+        ///
+        /// A hinted bake is per-size by construction, so this mode is honest only for a STATIC size — an animated
+        /// size scalar would need a re-bake every frame and is reported rather than silently approximated.</summary>
+        PixelFont = 2,
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────────────────────────────────────
     /// <summary>Render the splash through a low-resolution buffer so it comes out in CHUNKY PIXELS, and (optionally)
     /// run a SpriteFx modifier stack over that buffer. Off by default — it costs a render texture.</summary>
     [Serializable]
@@ -313,6 +378,30 @@ namespace Laubrary.TextSplash
 
         [Range(1, 32)] [Tooltip("Screen pixels per splash pixel. 1 = native (no pixelation), 8 = very chunky.")]
         public int pixelSize = 4;
+
+        [Tooltip("How a glyph becomes cells — the choice that decides whether this reads as pixel art or as a " +
+                 "low-resolution photo of some text. SDF point-samples the distance field once per cell and " +
+                 "shatters thin strokes; Coverage box-averages an oversampled render so a cell's alpha is its true " +
+                 "area; Pixel font rasterizes the font AT the cell size for true 1-bit output.")]
+        public SplashRasterMode rasterMode = SplashRasterMode.Sdf;
+
+        [Tooltip("How many samples across each cell the Coverage mode averages — 4 means 4×4 = 16 samples per " +
+                 "cell. It must be a power of two so the reduction is an exact chain of halvings (each bilinear " +
+                 "tap then sits precisely between four texels and averages them with no weighting error). More " +
+                 "samples measure coverage more finely and cost that many more fragments to render.")]
+        [Range(2, 8)] public int coverageSamples = 4;
+
+        [Tooltip("The committed bitmap font the Pixel font mode draws from, baked at the sampling size this splash " +
+                 "actually renders at. Maintained AUTOMATICALLY, like the border twin — the editor re-bakes it " +
+                 "whenever the font, the size or the pixel size moves it out of date.")]
+        public TMP_FontAsset bakedPixelFont;
+
+        // What the committed bitmap font above was baked FROM. A stale bake is worse than a missing one, because it
+        // looks like it worked — it would render at the wrong cap height and lose the grid fit that is the whole
+        // point of the mode.
+        [HideInInspector] public TMP_FontAsset bakedPixelSource;
+        [HideInInspector] public int bakedPixelSampling;
+        [HideInInspector] public int bakedPixelAtlas;
 
         [Range(0, 32)] [Tooltip("Quantize each colour channel to this many steps (0 = off). The pixel GRID alone " +
                  "does not make a gradient look like pixel art — the fill is still a smooth ramp, just sampled at " +
@@ -350,7 +439,7 @@ namespace Laubrary.TextSplash
         // so an older asset deserializes the new field as 0 and silently renders soft-edged mush no matter what the
         // declared default says. Migrate() uses this to tell the two apart exactly once.
         [HideInInspector] public int version;
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
 
         [Tooltip("Optional SpriteFx stack run over the low-res buffer every frame — the same Brightness / Tint / " +
                  "Contrast / Saturation / Posterize / OrderedDither / LayerDissolve / AlphaMask modifiers a sprite " +
@@ -370,13 +459,50 @@ namespace Laubrary.TextSplash
         /// the serialized data loads `false`, so every existing splash would keep rendering blended greys while the
         /// dial claimed to be on by default. A locked palette is what makes a pixelated splash read as pixel art at
         /// all, so ON is the right state to bring old assets up to; a deliberate OFF survives, because from v2 the
-        /// field is in the data and this never runs again.</summary>
+        /// field is in the data and this never runs again.
+        ///
+        /// v2 → v3: give `coverageSamples` its declared 4. Same trap a third time, and here a 0 would be actively
+        /// broken rather than merely off — it is a DIVISOR of the oversampled buffer's size. `rasterMode` needs no
+        /// seeding on purpose: its zero IS <see cref="SplashRasterMode.Sdf"/>, which is exactly what every splash
+        /// authored before the choice existed already renders as, so silence is the correct migration.</summary>
         public void Migrate()
         {
             if (version >= CurrentVersion) return;
             if (version < 1 && alphaCutoff <= 0f) alphaCutoff = 0.5f;
             if (version < 2) paletteLock = true;
+            if (version < 3 && coverageSamples < 2) coverageSamples = 4;
             version = CurrentVersion;
+        }
+
+        /// <summary>The oversample factor actually used, forced to a power of two. The reduction to the low buffer is
+        /// a chain of exact halvings — each bilinear tap landing precisely between four texels, which averages them
+        /// with no weighting error — and a factor of 3 or 5 or 6 would break that into a resample with the very
+        /// blur this mode exists to avoid. Rounded DOWN so the dial never costs more than it says.</summary>
+        public int CoverageFactor()
+        {
+            int s = Mathf.Clamp(coverageSamples, 2, 8);
+            return s >= 8 ? 8 : s >= 4 ? 4 : 2;
+        }
+
+        /// <summary>The sampling size a Pixel-font bake has to use for one font pixel to land on exactly one cell.
+        ///
+        /// The rig scales the splash canvas by 1/pixelSize precisely so a font size of F points renders F/pixelSize
+        /// BUFFER pixels per em. Baking the font at that same number therefore makes the glyph's own raster grid and
+        /// the buffer's cell grid the same grid — which is the entire mechanism of the mode. It is rounded, so a
+        /// size that is not a whole number of cells shifts very slightly to the nearest one; that is the honest cost
+        /// of a grid fit and the window reports it rather than hiding it.</summary>
+        public int PixelSampling(float fontSize)
+            => Mathf.Clamp(Mathf.RoundToInt(fontSize / Mathf.Max(1, Mathf.Clamp(pixelSize, 1, 32))), 4, 256);
+
+        /// <summary>Whether the committed bitmap font is missing or no longer matches what the asset now asks for.
+        /// Answers false unless the mode is actually selected, so a splash that never uses it is never asked to
+        /// carry a bake.</summary>
+        public bool NeedsPixelFontBake(TMP_FontAsset source, float fontSize)
+        {
+            if (!enabled || rasterMode != SplashRasterMode.PixelFont || source == null) return false;
+            if (bakedPixelFont == null) return true;
+            if (bakedPixelSource != source) return true;
+            return bakedPixelSampling != PixelSampling(fontSize);
         }
     }
 

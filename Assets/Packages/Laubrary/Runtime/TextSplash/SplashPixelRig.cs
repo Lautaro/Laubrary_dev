@@ -72,7 +72,7 @@ namespace Laubrary.TextSplash
             if (host == null || canvas == null || spec == null) return;
             var px = spec.pixelation;
             if (px == null || !px.enabled) return;
-            if (px.pixelSize <= 1 && !NeedsCpuStage(px)) return;
+            if (px.pixelSize <= 1 && !NeedsCpuStage(px) && !NeedsCoverage(px)) return;
 
             var rig = host.GetComponent<SplashPixelRig>();
             if (rig == null) rig = host.AddComponent<SplashPixelRig>();
@@ -87,6 +87,8 @@ namespace Laubrary.TextSplash
         Camera _cam;
         GameObject _camGO;
         RenderTexture _rt;
+        RenderTexture _hi;       // oversampled render target — only allocated while the Coverage mode is selected
+        int _coverage = 1;       // the factor `_hi` is currently sized by; 1 means there is no `_hi`
 
         GameObject _presenterGO;
         Canvas _presenterCanvas;
@@ -248,6 +250,8 @@ namespace Laubrary.TextSplash
             ApplyPresentMaterial();
             ApplyCanvasScale();
             Snap();
+            // Must precede the read-back: in Coverage mode it is what puts anything in the low buffer at all.
+            if (_hi != null) Reduce(_hi, _rt);
             RunCpuStage();
         }
 
@@ -278,7 +282,6 @@ namespace Laubrary.TextSplash
                     hideFlags = HideFlags.HideAndDontSave
                 };
                 _rt.Create();
-                _cam.targetTexture = _rt;
 
                 // Present at an EXACT integer multiple so every buffer pixel is the same size on screen. Corner-
                 // anchored (see BuildPresenter), so this ONE integer is the whole presentation: the rect spans
@@ -290,12 +293,122 @@ namespace Laubrary.TextSplash
                 if (_cpu != null) { SafeDestroy(_cpu); _cpu = null; }
             }
 
+            EnsureCoverageTarget();
+
             // Re-asserted rather than set once: a canvas unit that stops being a screen pixel turns the integer
             // size above into a fractional one, and nothing else in the rig would notice.
             if (_presenterCanvas != null && !Mathf.Approximately(_presenterCanvas.scaleFactor, 1f))
                 _presenterCanvas.scaleFactor = 1f;
 
             EnsureCpuTarget();
+        }
+
+        // ── coverage (area-average) ────────────────────────────────────────────────────────────────────────────
+        /// <summary>Whether the Coverage mode is asked for. Public for the same reason
+        /// <see cref="NeedsCpuStage"/> is: the editor preview has to answer this question identically or the mode
+        /// would show one thing in the window and play another.</summary>
+        public static bool NeedsCoverage(SplashPixelation px)
+            => px != null && px.enabled && px.rasterMode == SplashRasterMode.AreaAverage && px.CoverageFactor() > 1;
+
+        /// <summary>Point the camera at the buffer this mode wants it to render into: the oversampled one when
+        /// Coverage is selected, the low one otherwise. Both cases run through here so that switching the mode at
+        /// runtime re-targets the camera instead of leaving it rendering into a buffer nobody reads.
+        ///
+        /// The oversampled buffer filters BILINEAR — the opposite of everything else in this rig, and load-bearing:
+        /// the reduction below is a chain of exact halvings, and a halving bilinear tap sits precisely between four
+        /// texels and returns their unweighted mean. With point filtering it would return one of the four and the
+        /// whole mode would collapse back into the point-sampling it exists to replace.</summary>
+        void EnsureCoverageTarget()
+        {
+            int want = NeedsCoverage(_spec.pixelation) ? _spec.pixelation.CoverageFactor() : 1;
+
+            if (_hi != null && (_coverage != want || _hi.width != _lowW * want || _hi.height != _lowH * want))
+            {
+                if (_cam != null && _cam.targetTexture == _hi) _cam.targetTexture = null;
+                ReleaseCoverageTexture();
+            }
+
+            if (want > 1 && _hi == null)
+            {
+                _hi = new RenderTexture(_lowW * want, _lowH * want, 24, RenderTextureFormat.ARGB32)
+                {
+                    name = "[TextSplash] Coverage Buffer",
+                    filterMode = FilterMode.Bilinear,
+                    wrapMode = TextureWrapMode.Clamp,
+                    antiAliasing = 1,
+                    useMipMap = false,
+                    autoGenerateMips = false,
+                    hideFlags = HideFlags.HideAndDontSave
+                };
+                _hi.Create();
+            }
+            _coverage = want;
+
+            var target = _hi != null ? _hi : _rt;
+            if (_cam != null && _cam.targetTexture != target) _cam.targetTexture = target;
+        }
+
+        /// <summary>Box-average the oversampled buffer down into the low one, so each cell's alpha becomes its TRUE
+        /// area coverage instead of one point sample of a distance field.
+        ///
+        /// It halves repeatedly rather than blitting straight down to the target in one step, and that is the whole
+        /// correctness argument. A single blit from 8× to 1× samples the source FOUR times per destination pixel
+        /// (bilinear takes four taps) and therefore averages 4 of the 64 samples that pixel covers, discarding 60 —
+        /// a point-sample of a slightly blurrier image. Halving averages exactly 4 texels per step and feeds the
+        /// result into the next step, so after three steps every one of the 64 samples has contributed equally.
+        /// Powers of two are required for that (<see cref="SplashPixelation.CoverageFactor"/> enforces it): each
+        /// step's source has to divide by two exactly or the taps stop landing between texels.
+        ///
+        /// Averaging the buffer AS IT STANDS is valid because TMP writes PREMULTIPLIED colour. The mean of C·a and
+        /// the mean of a are each linear in coverage, so the pair that comes out is exactly the premultiplied
+        /// colour of the averaged cell — the contract the rest of the rig (Crisp, the palette lock, the presentation
+        /// blend) already relies on. Averaging a STRAIGHT colour would weight transparent texels as if they were
+        /// black and darken every edge.
+        ///
+        /// It reduces the buffer the camera rendered LAST frame, which is the same one-frame lag
+        /// <see cref="RunCpuStage"/> already documents and accepts — and it must run before that read-back, or the
+        /// CPU stage would read a low buffer nothing had written to this frame.
+        ///
+        /// A PURE STATIC for the same reason <see cref="ApplyCpuStage"/> is one: the editor preview reduces its own
+        /// oversampled render through this exact code rather than through a lookalike that would drift.</summary>
+        public static void Reduce(Texture src, RenderTexture dst)
+        {
+            if (src == null || dst == null) return;
+            int lw = dst.width, lh = dst.height;
+
+            var prev = RenderTexture.active;
+            Texture cur = src;
+            RenderTexture tmp = null;
+            bool stepped = false;
+
+            // Every step but the last goes into a temporary; the last writes the destination itself.
+            for (int w = src.width, h = src.height; w > lw || h > lh; )
+            {
+                w = Mathf.Max(lw, w >> 1);
+                h = Mathf.Max(lh, h >> 1);
+
+                RenderTexture step;
+                if (w == lw && h == lh) step = dst;
+                else
+                {
+                    step = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32);
+                    step.filterMode = FilterMode.Bilinear;
+                    step.wrapMode = TextureWrapMode.Clamp;
+                }
+
+                Graphics.Blit(cur, step);
+                if (tmp != null) RenderTexture.ReleaseTemporary(tmp);
+                tmp = step == dst ? null : step;
+                cur = step;
+                stepped = true;
+            }
+
+            // A source no larger than the destination has nothing to average, but leaving the destination holding a
+            // stale frame would be worse than copying — the caller asked for this content to arrive there.
+            if (!stepped) Graphics.Blit(cur, dst);
+
+            if (tmp != null) RenderTexture.ReleaseTemporary(tmp);
+            RenderTexture.active = prev;
         }
 
         void EnsureCpuTarget()
@@ -768,6 +881,7 @@ namespace Laubrary.TextSplash
 
             if (_cam != null) _cam.targetTexture = null;
             ReleaseRenderTexture();
+            ReleaseCoverageTexture();
             if (_cpu != null) { SafeDestroy(_cpu); _cpu = null; }
             if (_camGO != null) { SafeDestroy(_camGO); _camGO = null; _cam = null; }
             if (_presenterGO != null)
@@ -786,6 +900,16 @@ namespace Laubrary.TextSplash
             _rt.Release();
             SafeDestroy(_rt);
             _rt = null;
+        }
+
+        void ReleaseCoverageTexture()
+        {
+            if (_hi == null) return;
+            if (RenderTexture.active == _hi) RenderTexture.active = null;
+            _hi.Release();
+            SafeDestroy(_hi);
+            _hi = null;
+            _coverage = 1;
         }
 
         // ── helpers ────────────────────────────────────────────────────────────────────────────────────────────

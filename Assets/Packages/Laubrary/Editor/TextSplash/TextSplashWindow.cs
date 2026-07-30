@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor;
@@ -38,6 +39,9 @@ namespace Laubrary.TextSplash.Editor
         // The border atlas is a TEXTURE PAGE, so its useful sizes are the powers of two — an atlas of 1723 is
         // neither a size anyone wants nor one a slider could offer without inviting it.
         static readonly string[] AtlasLabels = { "256", "512", "1024", "2048", "4096" };
+        static readonly string[] RasterLabels = { "SDF", "Coverage", "Pixel font" };
+        static readonly string[] CoverageLabels = { "x2", "x4", "x8" };
+        static readonly int[] CoverageFactors = { 2, 4, 8 };
         static readonly int[] AtlasSizes = { 256, 512, 1024, 2048, 4096 };
 
         // The control column. Wider than the old 344 because the widest rows now genuinely need it: a scalar row is
@@ -63,6 +67,7 @@ namespace Laubrary.TextSplash.Editor
         // Read-back of the low-res pixelation buffer — allocated only while a CPU stage (colour steps / SpriteFx)
         // actually needs one, and freed with the preview.
         Texture2D _cpuBuffer;
+        RenderTexture _covBuffer;   // the Coverage mode's reduced buffer; null unless that mode is selected
         // The runtime's OWN premultiplied presentation material (Resources/SplashPremultipliedUI): the preview
         // composites its buffer through the same shader the pixel rig presents through — see Composite.
         Material _premulMat;
@@ -110,6 +115,7 @@ namespace Laubrary.TextSplash.Editor
         {
             DestroyTextObjects();
             if (_cpuBuffer != null) { DestroyImmediate(_cpuBuffer); _cpuBuffer = null; }
+            if (_covBuffer != null) { _covBuffer.Release(); DestroyImmediate(_covBuffer); _covBuffer = null; }
             if (_premulMat != null) { DestroyImmediate(_premulMat); _premulMat = null; }
             _premulResolved = false;
             _preview?.Dispose();
@@ -135,6 +141,10 @@ namespace Laubrary.TextSplash.Editor
         /// Ask for that rebuild, coalesced: an atlas bake is not free and a slider drag would otherwise demand one
         /// every frame, so the last edit of a gesture is the only one that pays.
         void RequestBorderRebake() => _rebakeAt = EditorApplication.timeSinceStartup + 0.25;
+
+        /// The Pixel-font mode's bake is keyed on the font, the size and the pixel size, so any of the three moving
+        /// invalidates it. Shares the border's debounce: both are "the preview's fonts are stale, settle first".
+        void RequestPixelFontBake() => _rebakeAt = EditorApplication.timeSinceStartup + 0.25;
 
         protected override void OnAssetChanged() => RebuildPreviewScene();
 
@@ -737,6 +747,19 @@ namespace Laubrary.TextSplash.Editor
             fixEdges = Z.Toggle("Fix edges", FixEdgesTip(s), px.fixEdgeAlpha,
                 v => Edit("Toggle pixel edge fix", () => px.fixEdgeAlpha = v));
 
+            string rasterTip = RasterTip(s);
+            string samplesTip = CoverageSamplesTip(s);
+
+            var samples = Z.Field("Samples", samplesTip,
+                Z.Segmented(CoverageIndex(px.coverageSamples), CoverageLabels, samplesTip,
+                    v => Edit("Edit coverage samples", () => px.coverageSamples = CoverageFactors[v])).W(150f));
+            samples.Shown(px.rasterMode == SplashRasterMode.AreaAverage);
+
+            // What the chosen mode is actually going to do with THIS asset — the bake it needs, or the feature it
+            // is about to switch off. A mode that silently ignored a border or a size curve would look broken.
+            var rasterNote = Z.Text(RasterNote(s), ZuiText.Subtle, rasterTip);
+            rasterNote.Shown(!string.IsNullOrEmpty(RasterNote(s)));
+
             return Z.BoxKeyed("Pixelation", "Renders the splash through a low-res buffer so it comes out in real "
                 + "chunky pixels — and this preview rasterizes it the same way, so the grid, the palette lock, the "
                 + "colour crunch and the SpriteFx stack all show up here.", "textsplash.pixelation",
@@ -756,11 +779,29 @@ namespace Laubrary.TextSplash.Editor
                     // continuous cutoff, it can afford to rebuild the column and reword that dial properly.
                     Z.Toggle("Palette lock", PaletteLockTip(s), px.paletteLock,
                         v => { Edit("Toggle palette lock", () => px.paletteLock = v); RebuildControls(); })),
+                // The mode decides what every dial below it is even working on, so it sits directly under the
+                // switches rather than at the bottom with the settings it governs.
+                Z.Row(
+                    Z.Field("Raster", rasterTip,
+                        Z.MiniRadio((int)px.rasterMode, RasterLabels, rasterTip,
+                            v =>
+                            {
+                                Edit("Edit raster mode", () => px.rasterMode = (SplashRasterMode)v);
+                                RequestPixelFontBake();
+                                RebuildControls();
+                            }).W(240f)),
+                    samples),
+                rasterNote,
                 Z.Row(
                     Z.MicroSlider("Pixel size", px.pixelSize, 1f, 32f, PixelTip(s,
                             "Screen pixels per splash pixel — 1 is native, 8 is very chunky. The preview "
                             + "rasterizes at the same ratio, so the chunk you see is the chunk you author."),
-                        v => Edit("Edit pixel size", () => px.pixelSize = Mathf.RoundToInt(v)),
+                        v =>
+                        {
+                            Edit("Edit pixel size", () => px.pixelSize = Mathf.RoundToInt(v));
+                            // The pixel font is baked at fontSize/pixelSize, so this dial moves the bake.
+                            RequestPixelFontBake();
+                        },
                         168f, decimals: 0, prefsKey: "splash.px.size"),
                     Z.MicroSlider("Colour steps", px.colorSteps, 0f, 32f, ColourStepsTip(s),
                         v => Edit("Edit colour steps", () => px.colorSteps = Mathf.RoundToInt(v)),
@@ -927,6 +968,102 @@ namespace Laubrary.TextSplash.Editor
         string AutoPaddingText(TextSplash s) => "auto = " + ResolvedPadding(s) + " px";
 
         int ResolvedPadding(TextSplash s) => s != null ? s.ResolveBorderPadding(SamplingPointSize(s)) : 45;
+
+        // ── raster mode ────────────────────────────────────────────────────────────────────────────────────────
+        /// The offered oversample nearest the authored one, so an asset carrying an off-list value still lights up
+        /// a segment instead of showing nothing selected.
+        static int CoverageIndex(int samples)
+        {
+            int best = 0;
+            for (int i = 1; i < CoverageFactors.Length; i++)
+                if (Mathf.Abs(CoverageFactors[i] - samples) < Mathf.Abs(CoverageFactors[best] - samples)) best = i;
+            return best;
+        }
+
+        /// The font the splash actually draws with — the asset's own, or TMP's default when it has none.
+        static TMP_FontAsset SourceFont(TextSplash s)
+            => s != null && s.font != null ? s.font : TMP_Settings.defaultFontAsset;
+
+        /// Whether the size scalar is a single fixed number. A Pixel-font bake is per-size by construction, so this
+        /// is the difference between a mode that is honest and one that is approximating every frame.
+        static bool SizeIsStatic(TextSplash s)
+            => s != null && s.size != null && s.size.value != null && s.size.value.mode == ZUIValue.Mode.Static;
+
+        static float StaticSize(TextSplash s) => s != null && s.size != null ? s.size.Evaluate(0f, 0) : 96f;
+
+        string RasterTip(TextSplash s)
+        {
+            var px = s != null ? s.pixelation : null;
+            if (px == null) return "How a glyph becomes cells.";
+
+            string body = px.rasterMode switch
+            {
+                SplashRasterMode.AreaAverage =>
+                    "COVERAGE — the splash is rendered oversampled and each block of samples is averaged down to "
+                    + "one cell, so a cell's alpha is its TRUE area coverage instead of one point sample. What "
+                    + "that buys, measured, is a CLEANER buffer: at a 12-cell cap it cuts part-covered cells from "
+                    + "485 to 392 and distinct colours from 183 to 149, so the cutoff and the palette lock have "
+                    + "less to repair. It does NOT rescue small text — see Pixel font for that.",
+                SplashRasterMode.PixelFont =>
+                    "PIXEL FONT — the font itself is rasterized at the cell size and grid-fitted, so a glyph "
+                    + "arrives already made of whole cells. The only mode that produces true 1-bit output: zero "
+                    + "part-covered cells and a single colour. It is exact for text that is held or slid at its "
+                    + "baked size, and it is the wrong choice for anything that rotates or scales down, which "
+                    + "shreds the letterforms.",
+                _ =>
+                    "SDF — TMP's distance field sampled once per cell, then the alpha cutoff decides on or off. "
+                    + "This is what every splash rendered before the choice existed. Its weakness is colour rather "
+                    + "than structure: about 98% of covered cells come out partly transparent and a two-colour "
+                    + "splash rasterizes into 183 distinct ones. Still the safest mode under rotation and heavy "
+                    + "scaling.",
+            };
+            return PixelTip(s, body);
+        }
+
+        string CoverageSamplesTip(TextSplash s)
+        {
+            var px = s != null ? s.pixelation : null;
+            string body = "How many samples across each cell get averaged — x4 means 4x4 = 16 samples per cell. "
+                + "More samples measure a cell's coverage more finely and cost that many more fragments to render. "
+                + "Only powers of two are offered because the reduction is a chain of exact halvings.";
+            if (px != null && px.rasterMode != SplashRasterMode.AreaAverage)
+                return PixelTip(s, body + " The Coverage mode is not selected, so this does nothing.");
+            return PixelTip(s, body);
+        }
+
+        /// <summary>What the chosen mode is about to do to THIS asset that the dials alone do not say — the bake it
+        /// still needs, or the feature it is going to switch off. Empty when there is nothing to report, which is
+        /// every case for the two modes that need no bake and disable nothing.</summary>
+        string RasterNote(TextSplash s)
+        {
+            var px = s != null ? s.pixelation : null;
+            if (px == null || !px.enabled) return string.Empty;
+
+            if (px.rasterMode == SplashRasterMode.AreaAverage)
+                return $"Rendering {px.CoverageFactor()}x oversampled, averaged down to the pixel grid — "
+                     + $"{px.CoverageFactor() * px.CoverageFactor()} samples per cell.";
+
+            if (px.rasterMode != SplashRasterMode.PixelFont) return string.Empty;
+
+            var src = SourceFont(s);
+            if (src == null) return "No font to bake from — assign one, or set TMP's default font asset.";
+
+            int sampling = px.PixelSampling(StaticSize(s));
+            var parts = new List<string> { $"Bitmap font baked at {sampling} px/em — about {sampling} cells tall." };
+
+            if (!SizeIsStatic(s))
+                parts.Add("The size scalar animates; a grid-fitted bake is per-size, so the size is held at its "
+                        + "first value here. Use Coverage if the size must move.");
+            if (s.WidestBorder() > 0f)
+                parts.Add("The border is an SDF dilation and cannot draw from a bitmap font, so it is off in this "
+                        + "mode.");
+            if (s.bevel != null && s.bevel.enabled)
+                parts.Add("Bevel needs a distance field and is off in this mode.");
+            if (px.NeedsPixelFontBake(src, StaticSize(s)))
+                parts.Add("Baking...");
+
+            return string.Join("  ", parts);
+        }
 
         /// The font's own sampling point size — the unit TMP measures its padding budget in. The preview's live
         /// face is asked first, since that is the font actually being drawn; 90 is TMP's own stock value.
@@ -1221,12 +1358,25 @@ namespace Laubrary.TextSplash.Editor
             // The 512 cap keeps the ask inside the range where that factor is constant, so the measurement below
             // can never chase its own tail.
             float over = Mathf.Clamp(_previewOversample, 1f, 8f);
+            // In Coverage mode the SCENE is rendered this many times larger and averaged back down, so the ask is
+            // multiplied by it here and divided out again by the reduction below. Everything after that point sees
+            // a buffer of exactly the same size the other modes produce.
+            int cov = SplashPixelRig.NeedsCoverage(px) ? px.CoverageFactor() : 1;
             var lowRect = new Rect(rect.x, rect.y,
                 Mathf.Clamp(fit.width / over, 1f, 512f),
                 Mathf.Clamp(fit.height / over, 1f, 512f));
 
-            var tex = _preview.Render(lowRect);
+            var tex = _preview.Render(cov > 1
+                ? new Rect(lowRect.x, lowRect.y, lowRect.width * cov, lowRect.height * cov)
+                : lowRect);
             if (tex == null) return;
+
+            if (cov > 1)
+            {
+                // Reduced through the RIG's own static, so the preview cannot average differently from what plays.
+                tex.filterMode = FilterMode.Bilinear;   // the reduction reads it; see SplashPixelRig.Reduce
+                tex = ReduceCoverage(tex, cov) ?? tex;
+            }
             tex.filterMode = FilterMode.Point;      // the whole point — nearest-neighbour on the way back up
             tex.wrapMode = TextureWrapMode.Clamp;
 
@@ -1285,6 +1435,35 @@ namespace Laubrary.TextSplash.Editor
                     hideFlags = HideFlags.HideAndDontSave,
                 };
             return _premulMat;
+        }
+
+        /// <summary>Box-average an oversampled preview render down to the buffer the other modes render directly,
+        /// through <see cref="SplashPixelRig.Reduce"/> — the runtime's own reduction, not a lookalike.
+        ///
+        /// The runtime's chain is exact because the rig sizes both ends itself. Here the preview utility decides the
+        /// size it hands back (it supersamples by the editor's DPI and truncates), so the last halving can land a
+        /// texel or two off an exact factor of two and resample very slightly rather than averaging exactly. That is
+        /// sub-texel on a preview and invisible; the shipped path is unaffected.</summary>
+        Texture ReduceCoverage(Texture src, int factor)
+        {
+            if (src == null || factor <= 1) return src;
+            int w = Mathf.Max(1, src.width / factor), h = Mathf.Max(1, src.height / factor);
+
+            if (_covBuffer == null || _covBuffer.width != w || _covBuffer.height != h)
+            {
+                if (_covBuffer != null) { _covBuffer.Release(); DestroyImmediate(_covBuffer); }
+                _covBuffer = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32)
+                {
+                    name = "[TextSplash] Preview Coverage",
+                    filterMode = FilterMode.Point,
+                    wrapMode = TextureWrapMode.Clamp,
+                    hideFlags = HideFlags.HideAndDontSave
+                };
+                _covBuffer.Create();
+            }
+
+            SplashPixelRig.Reduce(src, _covBuffer);
+            return _covBuffer;
         }
 
         /// <summary>Pull the low-res render back to the CPU and run the SAME stage the runtime rig runs — the SpriteFx
