@@ -23,8 +23,13 @@ namespace Laubrary.Combat2D
             if (attackerObj != null && tc.gameObject == attackerObj) return false;         // never hit your own owner
             if (!Faction.CanDamage(attackerFaction, tc.faction)) return false;             // teammate / ally → skip
 
-            // Pixel-perfect seam: if the target opts into a filter (a Zoe), it must confirm the sprites really touch.
-            if (tc.HitFilter != null && !tc.HitFilter.ConfirmHit(tc, attackerObj, point)) return false;
+            // Filter seam: every confirmer the target carries must agree. A filter is a VETO, so they compose —
+            // a pixel test ("did the sprites really touch") and a depth-band test ("are these even at the same
+            // distance") answer different questions and both can apply to one hit.
+            var filters = tc.HitFilters;
+            if (filters != null)
+                for (int i = 0; i < filters.Length; i++)
+                    if (filters[i] != null && !filters[i].ConfirmHit(tc, attackerObj, point)) return false;
 
             Vector2 dir = attackerObj != null
                 ? ((Vector2)(target.transform.position - attackerObj.transform.position)).normalized

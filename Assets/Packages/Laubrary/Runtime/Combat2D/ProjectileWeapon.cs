@@ -59,9 +59,20 @@ namespace Laubrary.Combat2D
         /// Pulls from the shared per-prefab pool, parents under the shared ~Projectiles container (never the
         /// shooter — a dying shooter or a deactivated weapon slot must not take its already-fired shots with
         /// it), and names the instance for Hierarchy debuggability without coupling its lifetime to `owner`.
+        /// Optional per-shot motion supplier, overriding whatever the ammo template carries. A FACTORY, not an
+        /// instance, because IProjectileMotion holds per-shot state (Init stores origin/direction/target) — one
+        /// shared instance would make every projectile in flight fight over the same fields.
+        ///
+        /// The point of it: a SCENE can decide how shots travel — a depth shooter wanting DepthMotion — without
+        /// duplicating the ammo asset per level type, which is what keeps a looted weapon carryable between
+        /// scenes. Set at runtime and re-read every shot, so flipping the mode mid-play takes effect at once
+        /// rather than only for projectiles pooled afterwards.
+        [System.NonSerialized] public System.Func<IProjectileMotion> motionFactory;
+
         Projectile SpawnProjectile(Vector3 pos)
         {
             var p = ProjectilePool.Get(projectilePrefab);
+            if (motionFactory != null) p.motion = motionFactory();
             p.transform.SetPositionAndRotation(pos, Quaternion.identity);
             p.transform.SetParent(ProjectileContainer.Root, true);
             p.gameObject.name = $"{projectilePrefab.name} ({(owner != null ? owner.name : gameObject.name)})";
