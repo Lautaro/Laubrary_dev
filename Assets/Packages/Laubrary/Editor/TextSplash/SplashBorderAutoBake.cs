@@ -200,7 +200,12 @@ namespace Laubrary.TextSplash.Editor
             var spec = AssetDatabase.LoadAssetAtPath<TextSplash>(path);
             if (spec == null) return;
 
-            if (!SplashBorderFontBaker.NeedsBake(spec, out TMP_FontAsset source)) return;
+            // Either bake being stale is reason enough to look; they share a back-off because they share a tick.
+            bool wantBorder = SplashBorderFontBaker.NeedsBake(spec, out TMP_FontAsset source);
+            bool wantPixel = SplashPixelFontBaker.NeedsBake(spec, out TMP_FontAsset pixelSource);
+            if (!wantBorder && !wantPixel) return;
+            if (source == null) source = pixelSource;
+            if (source == null) return;
 
             // A bake that cannot succeed must not be attempted again on the next notice, or the same splash would
             // rasterise, fail and warn on every save for the rest of the session. The memory is keyed by what the
@@ -228,7 +233,12 @@ namespace Laubrary.TextSplash.Editor
             string self = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(spec));
             int padding = spec.ResolveBorderPadding(source.faceInfo.pointSize);
 
-            return $"{self}|{face}|{padding}|{spec.borderAtlasSize}";
+            // The pixel bake's own inputs join the key, so changing the font size or the pixel size earns a fresh
+            // attempt after a failure exactly as changing the border's padding does.
+            int sampling = spec.pixelation != null
+                ? spec.pixelation.PixelSampling(SplashPixelFontBaker.SizeOf(spec)) : 0;
+
+            return $"{self}|{face}|{padding}|{spec.borderAtlasSize}|{sampling}";
         }
 
         // ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -245,10 +255,17 @@ namespace Laubrary.TextSplash.Editor
             s_Baking = true;
             try
             {
-                TMP_FontAsset saved = SplashBorderFontBaker.Bake(spec, null);
-                if (saved == null)
+                // Only what is actually stale is re-rasterised. Asking for a bake that is already current would cost
+                // hundreds of milliseconds to arrive at the file that is already there.
+                if (SplashBorderFontBaker.NeedsBake(spec, out _) && SplashBorderFontBaker.Bake(spec, null) == null)
                 {
-                    failure = "the bake itself failed, for the reason logged just above this line";
+                    failure = "the border bake itself failed, for the reason logged just above this line";
+                    return false;
+                }
+
+                if (SplashPixelFontBaker.NeedsBake(spec, out _) && SplashPixelFontBaker.Bake(spec, null) == null)
+                {
+                    failure = "the pixel-font bake itself failed, for the reason logged just above this line";
                     return false;
                 }
 
@@ -264,6 +281,13 @@ namespace Laubrary.TextSplash.Editor
                 {
                     failure = $"the font it produced still does not satisfy \"{spec.name}\" — it came back with less " +
                               "padding than the border asks for";
+                    return false;
+                }
+
+                if (SplashPixelFontBaker.NeedsBake(spec, out _))
+                {
+                    failure = $"the pixel font it produced still does not satisfy \"{spec.name}\" — it came back at a " +
+                              "different sampling size than the pixel grid asks for";
                     return false;
                 }
 
@@ -320,8 +344,11 @@ namespace Laubrary.TextSplash.Editor
                 if (spec == null) continue;
 
                 // A splash with no font at all resolves no face and needs no twin — an unfinished asset, not a broken
-                // one, and not this pass's business.
-                if (!SplashBorderFontBaker.NeedsBake(spec, out TMP_FontAsset source)) continue;
+                // one, and not this pass's business. The pixel font is guaranteed alongside the border because it
+                // cannot be produced in a player either, and for the same reason: TMP clears the source font file.
+                bool needsBorder = SplashBorderFontBaker.NeedsBake(spec, out TMP_FontAsset source);
+                if (!needsBorder && !SplashPixelFontBaker.NeedsBake(spec, out source)) continue;
+                if (source == null) continue;
 
                 if (SplashBorderAutoBake.TryBake(spec, out string failure)) { baked++; continue; }
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using UnityEngine.TextCore.LowLevel;
 using TMPro;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -190,7 +191,176 @@ namespace Laubrary.TextSplash
             ApplyHideFlags(baked, HideFlags.None);
             return baked;
         }
+
+        /// <summary>Bake the BITMAP font behind <see cref="SplashRasterMode.PixelFont"/>: the face rasterized at
+        /// the sampling size the splash actually renders at, grid-fitted by the hinter, so a glyph arrives already
+        /// made of whole cells instead of being sampled into them.
+        ///
+        /// Four things here are deliberate and each one is a trap the border bake does not have:
+        ///
+        ///   RASTER_HINTED, not SMOOTH. Hinting is what snaps the outline onto the pixel grid; without it the
+        ///     glyph is still rasterized at the right size but lands between cells. Measured, unhinted RASTER also
+        ///     scored 8 parts and 2 holes, so native-size rasterization is doing most of the work — what hinting
+        ///     specifically bought was a cap height that came out at the requested 12 px instead of 13 with a
+        ///     stray top row. Worth having, not worth overselling.
+        ///
+        ///   PADDING 1, not 0. TMP's own bitmap convention is zero padding, but `ShaderUtilities.GetPadding`
+        ///     returns `extraPadding + 1` for any material with no `_GradientScale` — which is every bitmap
+        ///     material — so TMP inflates each glyph quad by one texel regardless. At padding 0 that ring samples
+        ///     the NEIGHBOURING glyph in the atlas and every letter wears a sliver of the one packed beside it.
+        ///
+        ///   THE METRICS ARE NOT MIRRORED. The border twin copies the face's metrics because it has to lay out
+        ///     identically to it. Here the opposite is true: the grid-fitted metrics this bake produces ARE the
+        ///     product, and copying the face's un-fitted ones back over them would throw away the fit.
+        ///
+        ///   POINT filtering on the atlas, asserted rather than assumed. Measured, a bilinear atlas took the same
+        ///     glyphs from 8 parts to 18 and from 0 part-covered cells to 256 — comfortably the single most
+        ///     destructive thing that can happen to this mode.
+        ///
+        /// Returns null (having warned) when the face carries no reachable font file or the bake fails. The caller
+        /// owns the returned object: save it or destroy it.</summary>
+        internal static TMP_FontAsset BakePixelFontForAsset(TMP_FontAsset source, int sampling, out int atlasUsed)
+        {
+            atlasUsed = 0;
+            if (source == null) return null;
+
+            sampling = Mathf.Clamp(sampling, 4, 256);
+
+            Font font = ResolveSourceFont(source);
+            if (font == null) return null;                   // ResolveSourceFont warned already
+
+            source.ReadFontAssetDefinition();
+
+            int glyphs = source.characterTable != null ? source.characterTable.Count : 96;
+            atlasUsed = PixelAtlasSize(sampling, glyphs);
+
+            TMP_FontAsset baked = TMP_FontAsset.CreateFontAsset(
+                font, sampling, k_PixelPadding, GlyphRenderMode.RASTER_HINTED,
+                atlasUsed, atlasUsed, AtlasPopulationMode.Dynamic, true);
+
+            if (baked == null)
+            {
+                Debug.LogWarning($"[TextSplash] Could not bake a pixel font from \"{font.name}\" at {sampling} px/em " +
+                                 $"for \"{source.name}\". Font files need \"Include Font Data\" enabled in their " +
+                                 "import settings to be rasterised.", source);
+                return null;
+            }
+
+            baked.name = $"{source.name} (pixel {sampling})";
+
+            // NOT EstimateCapacity: that measures the SOURCE's glyph rects, and the source is a ~90 px/em SDF face
+            // while this bake is at ~12. Sizing the seed by the big face's cells made the capacity come out at a
+            // dozen glyphs, and because Seed takes the FIRST n characters of the table those dozen were all
+            // punctuation — the alphabet never entered the atlas, and "SPLASH!" baked as "!".
+            int seeded = Seed(source, baked, PixelCapacity(sampling, atlasUsed));
+            ConfigurePixelMaterial(baked);
+            PointFilterAtlases(baked);
+            baked.ReadFontAssetDefinition();
+            ApplyHideFlags(baked, HideFlags.None);
+
+            int pages = baked.atlasTextureCount;
+            Debug.Log($"[TextSplash] Baked pixel font \"{baked.name}\" from \"{source.name}\" — RASTER_HINTED at " +
+                      $"{sampling} px/em, padding {k_PixelPadding}, atlas {atlasUsed}×{atlasUsed}, {seeded} " +
+                      $"character(s) on {pages} page(s).", baked);
+
+            return baked;
+        }
 #endif
+
+        /// TMP inflates every bitmap glyph quad by one texel (see BakePixelFontForAsset), so the atlas has to
+        /// carry that texel or the inflation samples the next glyph along.
+        const int k_PixelPadding = 1;
+
+        /// <summary>A square atlas big enough for the whole seeded character set at this sampling size, rounded up
+        /// to a power of two. Derived rather than dialled: unlike the border's padding — which the author tunes and
+        /// which trades atlas area for border reach — there is exactly one right answer here, and a dial for it
+        /// would only be a way to get it wrong.</summary>
+        static int PixelAtlasSize(int sampling, int glyphCount)
+        {
+            // The 1.3 is headroom, and it is not decoration. The seed takes the first n characters of the face's
+            // table, so an atlas that holds MOST of the face silently drops the tail — and a page that is one
+            // power of two larger costs a quarter of a megabyte at Alpha8 while a missing letter is a hole in the
+            // splash. Erring large is the cheap direction.
+            float cell = PixelCell(sampling);
+            float area = Mathf.Max(1, glyphCount) * cell * cell / k_PackEfficiency * 1.3f;
+            int edge = Mathf.CeilToInt(Mathf.Sqrt(area));
+
+            int size = k_MinAtlas;
+            while (size < edge && size < k_MaxAtlas) size <<= 1;
+            return Mathf.Clamp(size, k_MinAtlas, k_MaxAtlas);
+        }
+
+        /// One glyph's footprint at this sampling size: the em box, the padding ring on both sides, and the one
+        /// texel of packing margin TMP leaves between neighbours.
+        static float PixelCell(int sampling) => sampling + 2f * k_PixelPadding + 1f;
+
+        /// <summary>How many glyphs a pixel atlas of this size actually holds, measured at the sampling size THIS
+        /// bake rasterises at rather than the source face's. Getting this from the source is what produced an
+        /// atlas containing nothing but punctuation.</summary>
+        static int PixelCapacity(int sampling, int atlasSize)
+        {
+            float cell = PixelCell(sampling);
+            float area = atlasSize * (float)atlasSize * k_PackEfficiency;
+            return Mathf.Max(1, Mathf.FloorToInt(area / (cell * cell)));
+        }
+
+        /// <summary>Point-filter every atlas page. This is the single most important line in the pixel path: with
+        /// bilinear filtering the same bake measured 18 components instead of 8 and 256 part-covered cells instead
+        /// of none, because the hardware blends between texels that the whole mode exists to keep separate. Applied
+        /// per PAGE because a spill onto a second page would otherwise arrive with TMP's default filtering.</summary>
+        static void PointFilterAtlases(TMP_FontAsset fa)
+        {
+            if (fa == null) return;
+            Texture2D[] pages = fa.atlasTextures;
+            if (pages == null) return;
+            for (int i = 0; i < pages.Length; i++)
+            {
+                if (pages[i] == null) continue;
+                pages[i].filterMode = FilterMode.Point;
+                pages[i].wrapMode = TextureWrapMode.Clamp;
+            }
+        }
+
+        /// <summary>Point the bitmap material at Laubrary's own premultiplied bitmap shader instead of TMP's.
+        ///
+        /// TMP builds a bitmap font asset's material from `TextMeshPro/Mobile/Bitmap`, which outputs STRAIGHT
+        /// colour under a `SrcAlpha OneMinusSrcAlpha` blend — so into the rig's transparent-black buffer it stores
+        /// alpha SQUARED, on a different scale from the RGB beside it and from every other pass in this tool. It
+        /// is also in no Resources folder and referenced by no shipped material, so it is stripped from a player
+        /// build and `Shader.Find` returns null there. The replacement fixes both at once by living in the
+        /// package's own Resources folder. Falling back to TMP's shader is deliberate: a splash that renders with
+        /// a squared edge is better than one that does not render.</summary>
+        static void ConfigurePixelMaterial(TMP_FontAsset baked)
+        {
+            Material mat = baked != null ? baked.material : null;
+            if (mat == null) return;
+
+            Shader premul = ResolveBitmapShader();
+            if (premul != null) mat.shader = premul;
+
+            mat.SetTexture(k_MainTex, baked.atlasTexture);
+            mat.SetFloat(k_TextureWidth, baked.atlasWidth);
+            mat.SetFloat(k_TextureHeight, baked.atlasHeight);
+        }
+
+        static Shader _bitmapShader;
+        static bool _bitmapResolved;
+
+        /// <summary>The premultiplied bitmap shader, resolved once per domain out of the package's OWN Resources
+        /// folder — the same keep-alive the presentation shader and the bevel preset material already rely on, and
+        /// for the same reason: a shader reachable only by `Shader.Find` is stripped from a player build.</summary>
+        internal static Shader ResolveBitmapShader()
+        {
+            if (_bitmapResolved) return _bitmapShader;
+            _bitmapResolved = true;
+            _bitmapShader = Resources.Load<Shader>("SplashBitmapPremultiplied")
+                            ?? Shader.Find("Hidden/Laubrary/TextSplash/BitmapPremultiplied");
+            if (_bitmapShader == null)
+                Debug.LogWarning("[TextSplash] The premultiplied bitmap shader could not be found, so a pixel-font " +
+                                 "splash falls back to TMP's own bitmap shader — which stores alpha squared, so " +
+                                 "part-covered cells composite wrong. Reimport Laubrary's TextSplash Resources folder.");
+            return _bitmapShader;
+        }
 
         // ──────────────────────────────────────────────────────────────────────────────────────────────────────
         // Baking

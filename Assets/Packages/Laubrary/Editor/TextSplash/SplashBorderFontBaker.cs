@@ -191,7 +191,10 @@ namespace Laubrary.TextSplash.Editor
         // Saving
         // ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
-        static TMP_FontAsset Save(TMP_FontAsset fresh, string path)
+        /// Shared with SplashPixelFontBaker: saving a generated TMP font asset into the project is the same job
+        /// whichever bake produced it. That this (and EnsureFolder/Sanitize below) still lives on the BORDER baker
+        /// is a known smell — the saving concern wants its own type once a third baker needs it.
+        internal static TMP_FontAsset Save(TMP_FontAsset fresh, string path)
         {
             string assetName = Path.GetFileNameWithoutExtension(path);
             TMP_FontAsset target = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(path);
@@ -390,7 +393,7 @@ namespace Laubrary.TextSplash.Editor
             return "Assets/TextSplash/" + k_SubFolder;
         }
 
-        static bool EnsureFolder(string folder)
+        internal static bool EnsureFolder(string folder)
         {
             if (string.IsNullOrEmpty(folder)) return false;
             if (AssetDatabase.IsValidFolder(folder)) return true;
@@ -414,7 +417,7 @@ namespace Laubrary.TextSplash.Editor
             return AssetDatabase.IsValidFolder(folder);
         }
 
-        static string Sanitize(string name)
+        internal static string Sanitize(string name)
         {
             if (string.IsNullOrEmpty(name)) return "Splash";
 

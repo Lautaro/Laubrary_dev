@@ -494,6 +494,13 @@ namespace Laubrary.TextSplash
         public int PixelSampling(float fontSize)
             => Mathf.Clamp(Mathf.RoundToInt(fontSize / Mathf.Max(1, Mathf.Clamp(pixelSize, 1, 32))), 4, 256);
 
+        /// <summary>Whether the Pixel-font mode is both SELECTED and has a bake to draw from — the question every
+        /// consumer actually has, asked in one place so the player, the preview and the feature gates cannot answer
+        /// it differently. Without a bake the mode has nothing to render and everything falls back to the ordinary
+        /// SDF face, which is the right degradation: a splash mid-bake still draws.</summary>
+        public bool PixelFontActive()
+            => enabled && rasterMode == SplashRasterMode.PixelFont && bakedPixelFont != null;
+
         /// <summary>Whether the committed bitmap font is missing or no longer matches what the asset now asks for.
         /// Answers false unless the mode is actually selected, so a splash that never uses it is never asked to
         /// carry a bake.</summary>

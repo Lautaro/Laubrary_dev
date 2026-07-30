@@ -501,6 +501,14 @@ namespace Laubrary.TextSplash
                 var padded = BorderFont(s, source);
                 if (padded != null && tmp.font != padded) tmp.font = padded;
             }
+            // The Pixel-font mode draws the FACE from a bitmap font baked at the sampling size this splash renders
+            // at, so one font pixel lands on one buffer cell. No size compensation is needed and none is applied:
+            // the bake is derived from fontSize/pixelSize precisely so that the authored size is already 1:1.
+            else if (s.pixelation != null && s.pixelation.PixelFontActive())
+            {
+                var pixelFont = s.pixelation.bakedPixelFont;
+                if (tmp.font != pixelFont) tmp.font = pixelFont;
+            }
             else if (s.font != null && tmp.font != s.font) tmp.font = s.font;
 
             // One shared point size lays the whole line out: a per-letter size would re-flow it (the letters would
@@ -1143,7 +1151,11 @@ namespace Laubrary.TextSplash
         static void ApplyBevel(TextSplash s, TMP_Text tmp, bool isBorderPass)
         {
             var b = s.bevel;
-            bool want = b != null && b.enabled && !isBorderPass;
+            // A bevel is per-pixel lighting computed from the DISTANCE FIELD's gradient, so it is meaningless on a
+            // bitmap face — and worse than meaningless: this method would assign the SDF shader and enable BEVEL_ON
+            // over a 1-bit atlas, which the shader would then read as distances and light from noise.
+            bool want = b != null && b.enabled && !isBorderPass
+                        && !(s.pixelation != null && s.pixelation.PixelFontActive());
 
             // `fontMaterial` re-derives TMP's padding and dirties the vertices on every call, so the common path
             // must not reach for an instance at all — only inspect the shared material and leave. And it un-sets the
@@ -1429,6 +1441,11 @@ namespace Laubrary.TextSplash
         /// and fat at the next, so the twin has to exist for the whole play.
         static bool DrawsBorder(TextSplash s)
         {
+            // The border is drawn by dilating the twin through its glyph's DISTANCE FIELD. A bitmap face has no
+            // distance field to dilate, so in Pixel-font mode there is no border to draw at all — and building the
+            // twin anyway would put a second, undilated copy of the text directly behind the face.
+            if (s.pixelation != null && s.pixelation.PixelFontActive()) return false;
+
             var v = s.borderWidth != null ? s.borderWidth.value : null;
             if (v == null) return false;
             return !(v.mode == ZUIValue.Mode.Static && v.staticValue <= 0f);
