@@ -63,6 +63,11 @@ namespace Laubrary.Combat2D
                  "light-gun sense — how forgiving the crosshair is.")]
         [Min(0f)] public float hitscanRadius = 0.35f;
 
+        [Tooltip("How many targets one hitscan shot may damage, nearest to the aim point first. 1 is the " +
+                 "light-gun default — a shot picks a target rather than mowing down everything under the " +
+                 "reticle. Raise it for a shotgun.")]
+        [Min(1)] public int hitscanMaxTargets = 1;
+
         /// Raised on every hitscan shot with the point fired at and how many targets it connected with, so a
         /// scene can put a muzzle flash on the gun and an impact at the crosshair. Nothing travels, so this
         /// event is the ONLY place a hitscan shot is visible.
@@ -93,9 +98,15 @@ namespace Laubrary.Combat2D
             Faction fac = owner != null ? owner.faction : null;
             GameObject src = owner != null ? owner.gameObject : gameObject;
 
-            int hits = 0;
+            // Nearest to the aim point first, so a capped shot damages what the player was actually pointing at
+            // rather than whichever collider the physics query happened to return first.
             var cols = Physics2D.OverlapCircleAll(worldTarget, hitscanRadius);
-            for (int i = 0; i < cols.Length; i++)
+            System.Array.Sort(cols, (a, b) =>
+                ((Vector2)a.transform.position - (Vector2)worldTarget).sqrMagnitude
+                .CompareTo(((Vector2)b.transform.position - (Vector2)worldTarget).sqrMagnitude));
+
+            int hits = 0;
+            for (int i = 0; i < cols.Length && hits < hitscanMaxTargets; i++)
             {
                 var hb = Combat.FindHurtbox(cols[i]);
                 if (hb == null) continue;
