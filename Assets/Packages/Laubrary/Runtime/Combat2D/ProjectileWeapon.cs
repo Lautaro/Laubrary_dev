@@ -59,6 +59,55 @@ namespace Laubrary.Combat2D
         /// Pulls from the shared per-prefab pool, parents under the shared ~Projectiles container (never the
         /// shooter — a dying shooter or a deactivated weapon slot must not take its already-fired shots with
         /// it), and names the instance for Hierarchy debuggability without coupling its lifetime to `owner`.
+        [Tooltip("Radius of the instant-hit probe used by TryHitscanAt. This is the weapon's accuracy in the " +
+                 "light-gun sense — how forgiving the crosshair is.")]
+        [Min(0f)] public float hitscanRadius = 0.35f;
+
+        /// Raised on every hitscan shot with the point fired at and how many targets it connected with, so a
+        /// scene can put a muzzle flash on the gun and an impact at the crosshair. Nothing travels, so this
+        /// event is the ONLY place a hitscan shot is visible.
+        public event System.Action<Vector3, int> HitscanFired;
+
+        // A stand-in for "the thing that struck", parked at the target point. Combat's filters reason about
+        // the striker's POSITION (a depth-band filter asks whether the shot and the target are at the same
+        // distance), and a hitscan has no bullet to point at — without this the weapon itself is the striker,
+        // which sits with the shooter and answers the question wrong.
+        Transform scanProxy;
+
+        /// Fire instantly AT a point: whatever is under it takes the damage and nothing travels. This is the
+        /// light-gun / Cabal model — you hit what the crosshair was on when you pulled the trigger, rather
+        /// than whatever a travelling bullet happened to brush past on the way there. Returns true if a shot
+        /// went out, whether or not it connected.
+        public bool TryHitscanAt(Vector3 worldTarget)
+        {
+            if (cooldown > 0f) return false;
+            cooldown = 1f / Mathf.Max(0.01f, fireRate);
+
+            if (scanProxy == null)
+            {
+                scanProxy = new GameObject($"{name} scan point").transform;
+                scanProxy.gameObject.hideFlags = HideFlags.HideAndDontSave;
+            }
+            scanProxy.position = worldTarget;
+
+            Faction fac = owner != null ? owner.faction : null;
+            GameObject src = owner != null ? owner.gameObject : gameObject;
+
+            int hits = 0;
+            var cols = Physics2D.OverlapCircleAll(worldTarget, hitscanRadius);
+            for (int i = 0; i < cols.Length; i++)
+            {
+                var hb = Combat.FindHurtbox(cols[i]);
+                if (hb == null) continue;
+                if (Combat.TryDamage(hb, fac, src, damage, worldTarget, out _, scanProxy.gameObject)) hits++;
+            }
+
+            HitscanFired?.Invoke(worldTarget, hits);
+            return true;
+        }
+
+        void OnDestroy() { if (scanProxy != null) Destroy(scanProxy.gameObject); }
+
         /// Optional per-shot motion supplier, overriding whatever the ammo template carries. A FACTORY, not an
         /// instance, because IProjectileMotion holds per-shot state (Init stores origin/direction/target) — one
         /// shared instance would make every projectile in flight fight over the same fields.
