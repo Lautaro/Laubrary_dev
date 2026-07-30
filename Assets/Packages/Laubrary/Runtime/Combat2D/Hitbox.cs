@@ -48,7 +48,7 @@ namespace Laubrary.Combat2D
             Vector2 point = other.ClosestPoint(transform.position);
             Faction af = owner != null ? owner.faction : null;
             GameObject ao = owner != null ? owner.gameObject : null;
-            if (Combat.TryDamage(hb, af, ao, damage, point, out var info))
+            if (Combat.TryDamage(hb, af, ao, damage, point, out var info, gameObject))
             {
                 if (oncePerTarget && h != null) struck.Add(h);
                 HitLanded?.Invoke(hb, info);

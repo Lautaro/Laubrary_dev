@@ -12,8 +12,13 @@ namespace Laubrary.Combat2D
 
         /// Run the full funnel against a hurtbox and, if everything passes, apply the damage. Returns true on a hit.
         /// attackerObj/attackerFaction describe the source (a weapon owner or a projectile); either may be null.
+        /// `striker` is the thing that physically made contact — the bullet, the swung hitbox — as opposed to
+        /// `attackerObj`, which is who OWNS the attack. They differ for any ranged weapon, and filters want the
+        /// striker: "am I at the same depth as the bullet" and "did the sprites really touch" are both
+        /// questions about the contact, not about the shooter standing across the room. Optional and defaulting
+        /// to attackerObj, so existing callers behave exactly as before.
         public static bool TryDamage(Hurtbox target, Faction attackerFaction, GameObject attackerObj,
-                                     float damage, Vector2 point, out DamageInfo info)
+                                     float damage, Vector2 point, out DamageInfo info, GameObject striker = null)
         {
             info = default;
             if (target == null) return false;
@@ -28,8 +33,11 @@ namespace Laubrary.Combat2D
             // distance") answer different questions and both can apply to one hit.
             var filters = tc.HitFilters;
             if (filters != null)
+            {
+                var contact = striker != null ? striker : attackerObj;
                 for (int i = 0; i < filters.Length; i++)
-                    if (filters[i] != null && !filters[i].ConfirmHit(tc, attackerObj, point)) return false;
+                    if (filters[i] != null && !filters[i].ConfirmHit(tc, contact, point)) return false;
+            }
 
             Vector2 dir = attackerObj != null
                 ? ((Vector2)(target.transform.position - attackerObj.transform.position)).normalized

@@ -102,7 +102,9 @@ namespace Laubrary.Combat2D
             if (hb == null) return;
 
             Vector2 point = other.ClosestPoint(transform.position);
-            if (!Combat.TryDamage(hb, faction, source, damage, point, out var info)) return;
+            // Pass the BULLET as the striker: filters ask about the contact, not about the shooter, who by now
+            // is somewhere across the room.
+            if (!Combat.TryDamage(hb, faction, source, damage, point, out var info, gameObject)) return;
 
             Hit?.Invoke(hb, info);
             if (hitsLeft-- <= 0) Expire();
