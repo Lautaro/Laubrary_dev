@@ -4,7 +4,9 @@
     "references": [
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.PreviewKit",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "com.Lautaro-Arino.Laubrary.SpriteFx"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -862,6 +862,55 @@ namespace Laubrary.Zui
             return env;
         }
 
+        // ── pixel-exact drawing (a bespoke IMGUI preview canvas) ─────────────────────
+
+        /// <summary>Plan a PIXEL-EXACT render for a preview canvas: how big a low-resolution buffer to render,
+        /// and how many whole device pixels each of its texels will occupy.
+        ///
+        /// Reach for this whenever a preview shows an image whose individual pixels are meant to READ as
+        /// pixels (pixel art, a palette strip, a low-res buffer blown up). IMGUI measures in GUI points and
+        /// the editor rasterizes in device pixels, so an image sized in whole POINTS is a fractional number
+        /// of device pixels on any display scaled above 100% — blocks come out alternately n and n+1 pixels
+        /// wide with a sliver of the neighbouring colour inside them. It is invisible at 100% scaling, which
+        /// is exactly why it ships. See ZuiPixel.cs for the full account.
+        ///
+        /// Two calls, not one, because a caller that renders its OWN buffer needs the size before it renders
+        /// and the destination rect only after: <c>Z.PixelFit(...)</c> → render at <c>fit.width × fit.height</c>
+        /// → <c>fit.Place(texture)</c> → <c>Z.DrawPixels(placement, texture)</c>.
+        /// <paramref name="pointsPerPixel"/> is the authored pixel size as the user dials it, in points.
+        /// <paramref name="container"/> is the IMGUIContainer the viewport rect is local to — where the island
+        /// sits inside the window is part of the mapping. Pass Vector2.zero instead from a plain
+        /// EditorWindow's OnGUI, whose IMGUI space is already panel space.</summary>
+        public static ZuiPixelFit PixelFit(Rect viewport, VisualElement container, float pointsPerPixel)
+            => ZuiPixel.Fit(viewport, container, pointsPerPixel);
+
+        /// <inheritdoc cref="PixelFit(Rect,VisualElement,float)"/>
+        public static ZuiPixelFit PixelFit(Rect viewport, Vector2 panelOrigin, float pointsPerPixel)
+            => ZuiPixel.Fit(viewport, panelOrigin, pointsPerPixel);
+
+        /// <summary>Draw a placed buffer with nearest-neighbour sampling, on whole device pixels. The second
+        /// half of <c>Z.PixelFit</c>; the placement comes from <c>fit.Place(texture)</c>, measured off the
+        /// texture that actually came back rather than the one that was asked for. Repaint-time only.
+        /// <paramref name="material"/> is optional — pass one for a buffer that needs a blend other than the
+        /// GUI's own, chiefly a PREMULTIPLIED buffer (anything a TMP/SDF shader rendered), which the default
+        /// blend darkens every soft rim of.</summary>
+        public static void DrawPixels(in ZuiPixelPlacement placement, Texture buffer, Material material = null)
+            => ZuiPixel.Draw(placement, buffer, material);
+
+        /// <summary>Draw an EXISTING pixel-art texture into a preview viewport, pixel-exact in one call:
+        /// centred, blown up by the largest whole number of device pixels it fits at, corner snapped onto a
+        /// device pixel so no block is ragged. The one-liner for a caller who is not rendering their own
+        /// buffer — if you are, use <c>Z.PixelFit</c> first, since the buffer size has to be known before the
+        /// render. Returns the placement, so the zoom is there to reason about or log.</summary>
+        public static ZuiPixelPlacement DrawPixels(Rect viewport, VisualElement container, Texture buffer,
+            Material material = null)
+            => ZuiPixel.Draw(viewport, container, buffer, material);
+
+        /// <inheritdoc cref="DrawPixels(Rect,VisualElement,Texture,Material)"/>
+        public static ZuiPixelPlacement DrawPixels(Rect viewport, Vector2 panelOrigin, Texture buffer,
+            Material material = null)
+            => ZuiPixel.Draw(viewport, panelOrigin, buffer, material);
+
         // ── popover / menu ───────────────────────────────────────────────────────────
 
         /// A floating ZUI-styled card anchored to <paramref name="anchor"/>'s worldBound, added into the
