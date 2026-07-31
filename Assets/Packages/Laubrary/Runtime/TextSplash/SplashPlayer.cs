@@ -682,26 +682,8 @@ namespace Laubrary.TextSplash
             // Character mapping stamps one texture across every glyph, so there is one bake to make. A narrow
             // letter therefore wears a slightly squeezed copy — visible only on a Radial fill, and a squeeze is a
             // far better answer than the flat colour this replaces.
-            bool perFragmentFill = false;
-            if (spatial)
-            {
-                Vector2 bakeHalf = lineHalf;
-                if (!fixedFill)
-                {
-                    Vector2 widest = Vector2.zero;
-                    for (int i = 0; i < n; i++)
-                    {
-                        var ci0 = info.characterInfo[i];
-                        if (!ci0.isVisible) continue;
-                        float qw = Mathf.Abs(ci0.topRight.x - ci0.bottomLeft.x) * 0.5f;
-                        float qh = Mathf.Abs(ci0.topRight.y - ci0.bottomLeft.y) * 0.5f;
-                        if (qw > widest.x) widest = new Vector2(qw, qh);
-                    }
-                    bakeHalf = widest;
-                }
-                perFragmentFill = ApplySpatialFill(s, tmp, fill, bakeHalf, lineLife);
-            }
-            else ClearSpatialFill(tmp);
+            bool perFragmentFill = spatial && ApplySpatialFill(s, tmp, fill, lineLife);
+            if (!spatial) ClearSpatialFill(tmp);
 
             // A side fill that is neither spatial nor read per letter is ONE colour for the whole pass, so the
             // brightness/saturation pass over it runs once here instead of on every vertex.
@@ -791,6 +773,23 @@ namespace Laubrary.TextSplash
                         byte ab = (byte)Mathf.Clamp(Mathf.RoundToInt(a * 255f), 0, 255);
                         var white = new Color32(255, 255, 255, ab);
                         cols[vi] = cols[vi + 1] = cols[vi + 2] = cols[vi + 3] = white;
+
+                        // uv2 is what the face texture is sampled by, and writing it HERE rather than letting
+                        // TMP generate it is what gives every glyph the right aspect: this puts each letter's
+                        // OWN box through Normalize, so a narrow letter gets a circle rather than the squeezed
+                        // copy TMP's one-texture-per-glyph mapping would stamp on it. Computed from the
+                        // UNTRANSFORMED corners, so the fill is stamped onto the letter and travels with it
+                        // through the spin and the slide instead of sliding underneath.
+                        var uvs2 = info.meshInfo[mi].uvs2;
+                        if (uvs2 != null && uvs2.Length > vi + 3)
+                        {
+                            Vector2 fo = fixedFill ? lineCentre : (Vector2)c;
+                            Vector2 fh = fixedFill ? lineHalf : QuadHalf(p0, p2);
+                            uvs2[vi]     = fill.NormalizeUV(p0, fo, fh);
+                            uvs2[vi + 1] = fill.NormalizeUV(p1, fo, fh);
+                            uvs2[vi + 2] = fill.NormalizeUV(p2, fo, fh);
+                            uvs2[vi + 3] = fill.NormalizeUV(p3, fo, fh);
+                        }
                     }
                     else
                     {
@@ -854,7 +853,11 @@ namespace Laubrary.TextSplash
                 }
             }
 
-            tmp.UpdateVertexData(TMP_VertexDataUpdateFlags.Vertices | TMP_VertexDataUpdateFlags.Colors32);
+            // Uv2 rides along whenever a spatial fill is in play — it is the coordinate the baked fill texture
+            // is sampled by, and a stale one would leave the gradient anchored to where the letters used to be.
+            var flags = TMP_VertexDataUpdateFlags.Vertices | TMP_VertexDataUpdateFlags.Colors32;
+            if (perFragmentFill) flags |= TMP_VertexDataUpdateFlags.Uv2;
+            tmp.UpdateVertexData(flags);
         }
 
         /// <summary>Create (or reuse) <paramref name="face"/>'s BORDER twin: a duplicate TMP drawn behind the face,
@@ -1322,10 +1325,9 @@ namespace Laubrary.TextSplash
         ///
         /// Returns false when the fill is not spatial, leaving the ordinary vertex-colour path alone — a Solid or
         /// Over-life fill is one flat colour at any instant and a texture for it would be pure cost.</summary>
-        static bool ApplySpatialFill(TextSplash s, TMP_Text tmp, ZuiFill fill, Vector2 half, float life)
+        static bool ApplySpatialFill(TextSplash s, TMP_Text tmp, ZuiFill fill, float life)
         {
             if (tmp == null || fill == null || !fill.IsSpatial()) { ClearSpatialFill(tmp); return false; }
-            if (half.x <= 0f || half.y <= 0f) return false;
 
             var mat = PassMaterial(tmp, out _);
             if (mat == null) return false;
@@ -1349,29 +1351,26 @@ namespace Laubrary.TextSplash
 
             // Re-baked only when something it depends on actually moved. An animated size/centre changes the hash
             // every frame and re-bakes; a static fill bakes once and then costs nothing.
-            int hash = FillHash(fill, half, life);
+            int hash = FillHash(fill, life);
             if (!_fillHash.TryGetValue(tmp, out int had) || had != hash)
             {
-                fill.BakeTo(tex, half, life);
+                fill.BakeTo(tex, life);
                 _fillHash[tmp] = hash;
             }
 
             mat.SetTexture(ID_FaceTex, tex);
             if (mat.HasProperty(ID_FaceTexST)) mat.SetVector(ID_FaceTexST, new Vector4(1f, 1f, 0f, 0f));
 
-            // Stamped = one complete fill per LETTER, Fixed = one across the LINE. TMP writes the uv2 the face
-            // texture is sampled by, so this IS the anchor switch.
-            var map = fill.space == ZuiFill.FillSpace.Stamped
-                ? TextureMappingOptions.Character
-                : TextureMappingOptions.Line;
-            if (tmp.horizontalMapping != map) tmp.horizontalMapping = map;
-            if (tmp.verticalMapping != map) tmp.verticalMapping = map;
-
+            // TMP's own horizontalMapping/verticalMapping is NOT used, and that is the point. Its Character
+            // option stamps one texture across every glyph, so a narrow letter wore a squeezed copy of a disc
+            // baked for a wider one. Writing uv2 per vertex instead (see ApplyMesh) puts each glyph's OWN box
+            // through Normalize, so every letter gets the right aspect from the same texture — still one
+            // material and one draw call, where a texture per glyph would have cost one of each per letter.
             return true;
         }
 
         /// The inputs a bake depends on — anything else changing cannot alter the texture.
-        static int FillHash(ZuiFill f, Vector2 half, float life)
+        static int FillHash(ZuiFill f, float life)
         {
             unchecked
             {
@@ -1383,7 +1382,6 @@ namespace Laubrary.TextSplash
                 h = h * 31 ^ f.zoom.GetHashCode();
                 h = h * 31 ^ (f.gradientAnim != null ? f.gradientAnim.GetHashCode() : 0);
                 h = h * 31 ^ (f.gradient != null ? f.gradient.GetHashCode() : 0);
-                h = h * 31 ^ half.GetHashCode();
                 h = h * 31 ^ Mathf.RoundToInt(life * 240f);   // enough to catch an animated fill, not float noise
                 return h;
             }
