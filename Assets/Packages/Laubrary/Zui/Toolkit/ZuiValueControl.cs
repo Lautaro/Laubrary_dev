@@ -569,14 +569,27 @@ namespace Laubrary.Zui
             {
                 var st = GetState(_v);
                 menu.Separator();
-                menu.Toggle("Show point values", "Draw each point's value on the curve.", st.showValues,
-                    on => { st.showValues = on; if (!st.expanded) st.expanded = true; RebuildAll(); });
-                menu.Toggle("Show numeric inputs", "Show a column of numeric fields for the points beside the curve.",
-                    st.showInputs, on => { st.showInputs = on; if (!st.expanded) st.expanded = true; RebuildAll(); });
-                menu.Toggle("Inputs for selected points only",
-                    "Narrow the numeric-inputs column to just the points currently box-selected in the curve.",
-                    st.inputsSelectedOnly,
-                    on => { st.inputsSelectedOnly = on; if (!st.expanded) st.expanded = true; st.showInputs = true; RebuildAll(); });
+                // The three curve-display toggles, stacked HORIZONTALLY on one row (short names), instead of three
+                // full-width stacked rows — a menu is a content-sized card, so a wide row just widens it.
+                menu.Custom((body, _) =>
+                {
+                    var row = new VisualElement();
+                    row.style.flexDirection = FlexDirection.Row;
+                    row.style.marginTop = 2f; row.style.marginBottom = 2f;
+                    VisualElement Tog(string label, string tip, bool on, Action<bool> ch)
+                    {
+                        var tg = Z.ToggleButton(label, tip, on, ch);
+                        tg.style.marginRight = 3f;
+                        return tg;
+                    }
+                    row.Add(Tog("Values", "Draw each point's value on the curve.",
+                        st.showValues, on => { st.showValues = on; if (!st.expanded) st.expanded = true; RebuildAll(); }));
+                    row.Add(Tog("Inputs", "Show a column of numeric fields for the points beside the curve.",
+                        st.showInputs, on => { st.showInputs = on; if (!st.expanded) st.expanded = true; RebuildAll(); }));
+                    row.Add(Tog("Inputs for selected", "Narrow the numeric-inputs column to just the box-selected points.",
+                        st.inputsSelectedOnly, on => { st.inputsSelectedOnly = on; if (!st.expanded) st.expanded = true; st.showInputs = true; RebuildAll(); }));
+                    body.Add(row);
+                });
 
                 // Envelope SHAPE tools — generators (write the points) + the visual shape picker. All operate on
                 // the point list, so they live under Envelope mode only. Each opens a popover anchored to the ⋯
