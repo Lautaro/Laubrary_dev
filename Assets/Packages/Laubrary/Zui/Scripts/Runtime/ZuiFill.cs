@@ -80,6 +80,12 @@ public class ZuiFill : ISerializationCallbackReceiver
     // asset's authored zoom loads here, and OnAfterDeserialize seeds `zoomAnim` from it (see below). Evaluate never
     // reads this directly any more — it reads the animatable companion, whose Static value == this exactly for a
     // migrated fill (⇒ byte-identical). Renaming/removing it would DROP the old data, so it stays, same name/type.
+    // NOTE THE SEMANTICS, which changed at fillVersion 1: this is now a SIZE (how far the pattern spreads), not a
+    // frequency. Bigger = a bigger gradient, which is what the dial always claimed and never did — the maths used
+    // to multiply by it, so raising "zoom" made the pattern SMALLER. Evaluate now takes its reciprocal (see
+    // SpatialFrequency) and a one-time migration inverted every stored value, so existing assets render
+    // identically. The FIELD NAME is deliberately unchanged: Unity matches serialized data by name, and renaming
+    // it would silently drop every authored value in every consumer project.
     [Min(0.05f)] public float zoom = 1f;
     // LEGACY gradient centre in the shape's local -1..1 space (Linear + Radial + Noise + Grid + Dots). Same role as
     // `zoom` above: the serialized migration source, seeded into centerXAnim/centerYAnim on load, then never read
@@ -176,7 +182,7 @@ public class ZuiFill : ISerializationCallbackReceiver
                 float rad = angleDeg * Mathf.Deg2Rad;
                 // The animatable companions, evaluated at THIS life. Static ⇒ the exact legacy value (byte-identical);
                 // Curve ⇒ animates over life. `z`/`cx`/`cy` sit exactly where v1 read `zoom`/`center.x`/`center.y`.
-                float z = EvalCompanion(zoomAnim, life, zoom);
+                float z = SpatialFrequency(life);   // reciprocal of the authored SIZE
                 float cx = EvalCompanion(centerXAnim, life, center.x);
                 float cy = EvalCompanion(centerYAnim, life, center.y);
                 // BYTE-IDENTITY GATE: at centre (0,0) & zoom 1 run v1's arithmetic verbatim. (The general form
@@ -196,18 +202,18 @@ public class ZuiFill : ISerializationCallbackReceiver
             case Mode.Radial:
             {
                 if (!HasGrad) return color;
-                float z = EvalCompanion(zoomAnim, life, zoom);
+                float z = SpatialFrequency(life);   // reciprocal of the authored SIZE
                 float cx = EvalCompanion(centerXAnim, life, center.x);
                 float cy = EvalCompanion(centerYAnim, life, center.y);
                 // BYTE-IDENTITY GATE: at centre (0,0) run v1's arithmetic verbatim (zoom already applied in v1).
                 if (cx == 0f && cy == 0f)
                 {
-                    float r0 = Mathf.Sqrt(u * u + v * v) * Mathf.Max(0.05f, z);
+                    float r0 = Mathf.Sqrt(u * u + v * v) * z;
                     return EvalGrad(Mathf.Clamp01(r0), life);
                 }
                 // Distance is measured FROM the centre, so the gradient's middle drifts off-centre toward a border.
                 float du = u - cx, dv = v - cy;
-                float r = Mathf.Sqrt(du * du + dv * dv) * Mathf.Max(0.05f, z);
+                float r = Mathf.Sqrt(du * du + dv * dv) * z;
                 return EvalGrad(Mathf.Clamp01(r), life);
             }
 
@@ -277,7 +283,7 @@ public class ZuiFill : ISerializationCallbackReceiver
     Color EvaluateNoise(float life, float u, float v)
     {
         if (!HasGrad) return color;
-        float z = Mathf.Max(0.05f, EvalCompanion(zoomAnim, life, zoom));
+        float z = SpatialFrequency(life);
         float cx = EvalCompanion(centerXAnim, life, center.x);
         float cy = EvalCompanion(centerYAnim, life, center.y);
         float n = ValueNoise2Octave((u - cx) * z * 3f, (v - cy) * z * 3f);
@@ -393,7 +399,71 @@ public class ZuiFill : ISerializationCallbackReceiver
     // it is safe on Unity's deserialize thread. OnBeforeSerialize intentionally does nothing — the legacy scalars are
     // the frozen migration SOURCE, never written back (a Curve companion can't collapse to a scalar without loss).
     public void OnBeforeSerialize() { }
-    public void OnAfterDeserialize() { EnsureSpatialAnim(); EnsureGradientAnim(); }
+
+    public void OnAfterDeserialize()
+    {
+        // BEFORE the companions are seeded: the seed copies the legacy scalar, so inverting afterwards would
+        // either miss the copy or invert it twice.
+        MigrateZoomToSize();
+        EnsureSpatialAnim();
+        EnsureGradientAnim();
+    }
+
+    public const int CurrentFillVersion = 1;
+
+    // Which generation of this fill's data is on disk. Initialized to CURRENT so a fill created in code is born
+    // up to date; an asset written before the field existed has no entry for it and deserializes as 0, which is
+    // exactly how the migration below tells "old data" from "new data". (Same mechanism as SplashPixelation's
+    // version — a C# initializer never reaches data already on disk, which is the whole point.)
+    [SerializeField, HideInInspector] int fillVersion = CurrentFillVersion;
+
+    /// <summary>v0 → v1: `zoom` stopped being a FREQUENCY and became a SIZE, so every stored value is inverted
+    /// once and the renderer takes the reciprocal. Net effect on an existing asset: nothing — it renders exactly
+    /// as before, and the dial finally moves the way its name says.
+    ///
+    /// A Curve companion is inverted key by key, which is exact AT the keys and approximate between them (the
+    /// reciprocal of a lerp is not the lerp of the reciprocals). That is the honest cost of the change and it is
+    /// reported, because a silently reshaped animation curve is worse than a warned one.</summary>
+    void MigrateZoomToSize()
+    {
+        if (fillVersion >= CurrentFillVersion) return;
+        fillVersion = CurrentFillVersion;
+
+        zoom = Invert(zoom);
+        if (zoomAnim == null) return;
+
+        switch (zoomAnim.mode)
+        {
+            case ZUIValue.Mode.Static:
+                zoomAnim.staticValue = Invert(zoomAnim.staticValue);
+                break;
+
+            case ZUIValue.Mode.MinMax:
+            {
+                // Inverting flips the ORDER, so the bounds swap to stay min <= max.
+                float lo = Invert(zoomAnim.max), hi = Invert(zoomAnim.min);
+                zoomAnim.min = lo; zoomAnim.max = hi;
+                break;
+            }
+
+            case ZUIValue.Mode.Curve:
+                if (zoomAnim.points != null)
+                    for (int i = 0; i < zoomAnim.points.Count; i++)
+                    {
+                        var p = zoomAnim.points[i];
+                        p.value = Invert(p.value);
+                        zoomAnim.points[i] = p;
+                    }
+                break;
+        }
+    }
+
+    static float Invert(float v) => 1f / Mathf.Max(0.0001f, v);
+
+    /// <summary>The reciprocal of the authored SIZE — what the projection/radius maths actually multiplies by.
+    /// One helper so the Linear, Radial and Noise paths cannot disagree about the conversion or the floor.</summary>
+    float SpatialFrequency(float life)
+        => 1f / Mathf.Max(0.05f, EvalCompanion(zoomAnim, life, zoom));
 
     /// <summary>Evaluate an animatable spatial companion (zoom / centre) over the 0..1 <paramref name="life"/> clock.
     /// Mirrors PyrePlusRenderer.Eval's over-life convention (which this fill is sampled through): Static returns its

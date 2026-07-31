@@ -301,7 +301,7 @@ namespace Laubrary.TextSplash.Editor
                     "The face fill — a solid colour or a ZUI gradient (the same fill system Pyre uses).",
                     () => { EditorUtility.SetDirty(s); AfterEdit(); },
                     () => Undo.RecordObject(s, "Edit splash fill"),
-                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true }),
+                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true, subjectHalf = SubjectHalf() }),
                 ScalarRow("Alpha", s.alpha, 0f, 1f,
                     "Overall opacity. Animatable — curve it for a flicker or a slow bleed-out.")));
 
@@ -514,7 +514,7 @@ namespace Laubrary.TextSplash.Editor
                     "The border fill — solid or a ZUI gradient, exactly like the face fill.",
                     () => { EditorUtility.SetDirty(s); AfterEdit(); },
                     () => Undo.RecordObject(s, "Edit splash border fill"),
-                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true }),
+                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true, subjectHalf = SubjectHalf() }),
                 ScalarRow("Width", s.borderWidth, 0f, 0.5f,
                     "Border thickness as a FRACTION OF THE FONT SIZE — 0.02 is a hairline, 0.25 a fat cartoon "
                     + "outline. (Not TMP's old 0..1 outline units.) Animatable.", 2,
@@ -662,7 +662,7 @@ namespace Laubrary.TextSplash.Editor
                 Z.Fill("Sides", d.sideFill, sidesTip,
                     () => { EditorUtility.SetDirty(s); AfterEdit(); },
                     () => Undo.RecordObject(s, "Edit depth side fill"),
-                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true }),
+                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true, subjectHalf = SubjectHalf() }),
 
                 // Both grade the fill above rather than replacing it, so they live under its card.
                 Z.Row(
@@ -969,6 +969,18 @@ namespace Laubrary.TextSplash.Editor
         string AutoPaddingText(TextSplash s) => "auto = " + ResolvedPadding(s) + " px";
 
         int ResolvedPadding(TextSplash s) => s != null ? s.ResolveBorderPadding(SamplingPointSize(s)) : 45;
+
+        /// <summary>The box a spatial fill is actually sampled over — the laid-out line's half-extents — handed to
+        /// the fill control so its swatch can outline the text inside the gradient's own -1..1 domain. Falls back
+        /// to a square when there is no live preview text yet, which reads as "no box named" and draws no outline
+        /// rather than a wrong one.</summary>
+        Vector2 SubjectHalf()
+        {
+            if (_tmp == null) return Vector2.zero;
+            Vector2 half = SplashPlayer.TextHalfExtents(_tmp);
+            return half.x > 0f && half.y > 0f ? half : Vector2.zero;
+        }
+
 
         // ── raster mode ────────────────────────────────────────────────────────────────────────────────────────
         /// The offered oversample nearest the authored one, so an asset carrying an off-list value still lights up

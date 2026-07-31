@@ -34,8 +34,16 @@ namespace Laubrary.Zui
             // honours it — TextSplash does.
             public bool showFit = false;
 
+            // The half-extents of the box the consumer will actually sample this fill over — a text line's box, a
+            // sprite's box. When set, the swatch draws that box as an OUTLINE on top of the fill's own -1..1
+            // domain, which is the one picture that makes `space`, `fit`, `zoom` and `centre` legible: you see the
+            // gradient's real size AND how much of it the subject actually covers. Zero (the default) means "the
+            // consumer did not say", and the swatch falls back to showing the domain alone as it always did.
+            public Vector2 subjectHalf = Vector2.zero;
+
             public Options WithWidth(float w) { controlWidth = w; return this; }
             public Options WithFit() { showFit = true; return this; }
+            public Options WithSubject(Vector2 half) { subjectHalf = half; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
             public Options Clone() => (Options)MemberwiseClone();
         }
@@ -178,9 +186,7 @@ namespace Laubrary.Zui
             header.style.alignItems = Align.Stretch;   // let the square stretch to the two-row column height
             if (WantSwatch())
             {
-                _swatch = new FillSwatch(_fill, 46f,
-                    "Live preview of the fill's own pattern (no shape). Over-life shows left→right over the "
-                    + "particle's life; spatial modes show the -1..1 fill box.");
+                _swatch = new FillSwatch(_fill, 46f, SwatchTip(), _opt.subjectHalf);
                 _swatch.style.height = StyleKeyword.Auto;   // stretch drives the height so it spans both ramp rows
                 _swatch.style.alignSelf = Align.Stretch;
                 header.Add(_swatch);
@@ -240,9 +246,7 @@ namespace Laubrary.Zui
             top.style.alignItems = Align.FlexStart;
             if (WantSwatch())
             {
-                _swatch = new FillSwatch(_fill, 44f,
-                    "Live preview of the fill's own pattern (no shape). Over-life shows left→right over the "
-                    + "particle's life; spatial modes show the -1..1 fill box.");
+                _swatch = new FillSwatch(_fill, 44f, SwatchTip(), _opt.subjectHalf);
                 top.Add(_swatch);
             }
             box.Add(top);
@@ -322,9 +326,7 @@ namespace Laubrary.Zui
             // the gradient / noise / texture / grid while tweaking it. Only for non-Solid fills (see WantSwatch).
             if (WantSwatch())
             {
-                _swatch = new FillSwatch(_fill, 44f,
-                    "Live preview of the fill's own pattern (no shape). "
-                    + "Over-life shows left→right over the particle's life; spatial modes show the -1..1 fill box.");
+                _swatch = new FillSwatch(_fill, 44f, SwatchTip(), _opt.subjectHalf);
                 row.Add(_swatch);
             }
             if (!string.IsNullOrEmpty(label)) row.Add(FieldLabel(label));
@@ -379,9 +381,11 @@ namespace Laubrary.Zui
         // reproduces the legacy `center` exactly (byte-identical). Same Undo/refresh wiring as every other edit.
         VisualElement CenterVal()
         {
-            const string tip = "The gradient's centre in the shape's local space (-1..1), over the particle's life. "
-                + "Linear: the fill axis passes through it. Radial: the gradient's middle sits here, drifting "
-                + "off-centre toward a border. Static holds it; switch to a Curve (⋯) to animate the centre.";
+            const string tip = "The gradient's centre, in the SUBJECT BOX's own -1..1 space — the box outlined on "
+                + "the swatch. Linear: the fill axis passes through it. Radial: the gradient's middle sits here. "
+                + "Under Uniform fit both axes are scaled by the box's LONGER side, so on a wide subject a small "
+                + "vertical offset moves a long way; Stretch makes one unit mean one half-box on each axis. "
+                + "Static holds it; switch to a Curve (⋯) to animate it over the fill's life.";
             var o = new ZuiValue2DControl.Options().WithRange(-1f, 1f, -1f, 1f).WithDefault(Vector2.zero);
             return Z.Value2D("Centre", _fill.centerXAnim, _fill.centerYAnim, o, tip,
                 () => { _swatch?.Refresh(); OnChanged?.Invoke(); },
@@ -397,15 +401,16 @@ namespace Laubrary.Zui
         // spatial scale over the fill's life. A Static value reproduces the legacy `zoom` exactly (byte-identical).
         VisualElement ZoomVal()
         {
-            const string tip = "Spatial scale of the fill over the particle's life — higher zooms the pattern in "
-                + "(min 0.05). Static holds it; switch to a Curve (⋯) to animate the zoom.";
+            const string tip = "How BIG the pattern is: higher spreads the gradient further, lower packs it "
+                + "tighter around the centre. 1 = the ramp spans the whole -1..1 fill box. Static holds it; "
+                + "switch to a Curve (⋯) to animate it over the fill's life.";
             var o = new ZuiValueControl.Options
             {
                 absMin = 0.05f, absMax = 10f,
                 hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true,
                 controlWidth = _opt.controlWidth, grow = _opt.grow,
             };
-            return Z.Value("Zoom", _fill.zoomAnim, o, tip,
+            return Z.Value("Size", _fill.zoomAnim, o, tip,
                 () => { _swatch?.Refresh(); OnChanged?.Invoke(); },
                 () => OnBeforeMutate?.Invoke());
         }
@@ -482,6 +487,23 @@ namespace Laubrary.Zui
 
         static readonly string[] FitLabels = { "Uniform", "Stretch" };
 
+        /// The swatch's tooltip. It has to explain the OUTLINE when there is one, because a rectangle drawn over
+        /// a gradient is meaningless until you know it is the subject's own box.
+        string SwatchTip()
+        {
+            bool spatial = _fill.texture != ZuiFill.TextureKind.None
+                           || (_fill.mode != ZuiFill.Mode.Solid && _fill.mode != ZuiFill.Mode.OverLife);
+            if (!spatial || _opt.subjectHalf.x <= 0f || _opt.subjectHalf.y <= 0f)
+                return "Live preview of the fill's own pattern (no shape). Over-life shows left→right over its "
+                     + "life; spatial modes show the -1..1 fill box.";
+
+            return "Live preview of the fill over its whole -1..1 box, with the OUTLINE showing where your subject "
+                 + "actually sits in it. A thin outline across the middle means most of the gradient falls outside "
+                 + "the text and you only see the slice inside the box — switch Fit to Stretch, or raise Size, "
+                 + "to bring the ramp into it.";
+        }
+
+
         // A colour field bound to _fill.color (the Solid swatch / Sprite tint / Grid+Dots ink). `caption` null =
         // no leading label (the header FieldLabel already names the row).
         VisualElement TintColor(string caption, string tip)
@@ -510,7 +532,7 @@ namespace Laubrary.Zui
             // Fill section — a fill item is active (checked) when NO texture is set and this is the current mode.
             menu.Section("Fill");
             AddFillItem(menu, "Solid colour", "A single flat colour (alpha shown).", ZuiFill.Mode.Solid);
-            AddFillItem(menu, "Over life", "A gradient sampled left→right over the particle's life.", ZuiFill.Mode.OverLife);
+            AddFillItem(menu, "Over life", "A gradient sampled left→right over the subject's life.", ZuiFill.Mode.OverLife);
             AddFillItem(menu, "Linear gradient", "A gradient projected along an angled axis across the shape.", ZuiFill.Mode.Linear);
             AddFillItem(menu, "Radial gradient", "A gradient radiating out from a centre point.", ZuiFill.Mode.Radial);
             menu.Separator();   // divides the Fill section (above) from the Texture section (below)
@@ -562,12 +584,14 @@ namespace Laubrary.Zui
         {
             readonly ZuiFill _fill;
             readonly int _px;
+            readonly Vector2 _subjectHalf;   // zero = the consumer named no box, so no outline is drawn
             Texture2D _tex;
             Color32[] _buf;
 
-            public FillSwatch(ZuiFill fill, float size, string tooltip)
+            public FillSwatch(ZuiFill fill, float size, string tooltip, Vector2 subjectHalf = default)
             {
                 _fill = fill;
+                _subjectHalf = subjectHalf;
                 _px = Mathf.Max(8, Mathf.RoundToInt(size));   // 1 texel per display px is plenty at this size
                 this.tooltip = tooltip;
                 style.width = size;
@@ -610,9 +634,46 @@ namespace Laubrary.Zui
                                                      : _fill.Evaluate(0f, Mathf.Lerp(-1f, 1f, fx), v);
                     }
                 }
+                if (!overLife) DrawSubjectBox();
+
                 _tex.SetPixels32(_buf);
                 _tex.Apply(false);
                 style.backgroundImage = Background.FromTexture2D(_tex);
+            }
+
+            /// <summary>Outline where the consumer's box lands inside the fill's own -1..1 domain.
+            ///
+            /// The corners come from <see cref="ZuiFill.Normalize"/> — the SAME call the renderer makes — so this
+            /// outline cannot drift from what actually gets painted, and it moves the instant `fit` changes:
+            /// Uniform on a wide box draws a thin wide rectangle across the middle of a big circle (which is
+            /// precisely why only a slice of the ramp ever shows), Stretch draws it filling the square.</summary>
+            void DrawSubjectBox()
+            {
+                if (_subjectHalf.x <= 0f || _subjectHalf.y <= 0f) return;
+
+                Vector2 corner = _fill.Normalize(_subjectHalf, Vector2.zero, _subjectHalf);
+                // The domain spans -1..1 across the swatch; convert the corner into texel coordinates.
+                int x0 = UvToPx(-corner.x), x1 = UvToPx(corner.x);
+                int y0 = UvToPx(-corner.y), y1 = UvToPx(corner.y);
+                if (x1 <= x0 || y1 <= y0) return;
+
+                // A box that fills the whole swatch (Stretch) would just re-draw the existing border, so it is
+                // skipped — the outline is only information when it differs from the frame.
+                if (x0 <= 0 && y0 <= 0 && x1 >= _px - 1 && y1 >= _px - 1) return;
+
+                for (int x = x0; x <= x1; x++) { Ink(x, y0); Ink(x, y1); }
+                for (int y = y0; y <= y1; y++) { Ink(x0, y); Ink(x1, y); }
+            }
+
+            int UvToPx(float t) => Mathf.Clamp(Mathf.RoundToInt((t + 1f) * 0.5f * (_px - 1)), 0, _px - 1);
+
+            /// A readable outline over an arbitrary fill: alternate light/dark by position so the line survives
+            /// whatever colour it crosses, instead of vanishing into a matching gradient stop.
+            void Ink(int x, int y)
+            {
+                if (x < 0 || y < 0 || x >= _px || y >= _px) return;
+                bool light = ((x + y) & 2) == 0;
+                _buf[y * _px + x] = light ? new Color32(255, 255, 255, 255) : new Color32(0, 0, 0, 255);
             }
         }
     }
