@@ -15,7 +15,7 @@ using UnityEngine;
 [Serializable]
 public class ZUIValue
 {
-    public enum Mode { Static, MinMax, Curve }
+    public enum Mode { Static, MinMax, Curve, Steps }
 
     [SerializeField] Mode m_mode = Mode.Static;
 
@@ -42,6 +42,10 @@ public class ZUIValue
     // existing curve byte-identical.
     [SerializeField, Range(0f, 1f)] float m_smoothness = 0f;
 
+    // Steps (a step sequencer): one value per equal-width section over [0..1], HELD across each section (no
+    // interpolation between them). Uses the same duration/warmup/cooldown timing + yMin/yMax range as Curve.
+    [SerializeField] List<float> m_steps = new List<float>();
+
     // External multiplier. When set and a resolver is registered, the evaluated
     // source value is multiplied by resolver(multiplierId). Lets a host's "global
     // values" scale any ZUIValue without ZUI referencing the game.
@@ -62,10 +66,11 @@ public class ZUIValue
     public float warmup { get => m_warmup; set => m_warmup = Mathf.Max(0f, value); }
     public float cooldown { get => m_cooldown; set => m_cooldown = value; }
     public float smoothness { get => m_smoothness; set => m_smoothness = Mathf.Clamp01(value); }
+    public List<float> steps => m_steps;
     public string multiplierId { get => m_multiplierId; set => m_multiplierId = value; }
 
     public bool HasMultiplier => !string.IsNullOrEmpty(m_multiplierId);
-    public bool IsDynamic => m_mode == Mode.Curve || m_mode == Mode.MinMax || HasMultiplier;
+    public bool IsDynamic => m_mode == Mode.Curve || m_mode == Mode.MinMax || m_mode == Mode.Steps || HasMultiplier;
 
     public ZUIValue() { }
     public ZUIValue(float staticValue) { m_static = staticValue; }
@@ -85,6 +90,7 @@ public class ZUIValue
             case Mode.Static: return m_static;
             case Mode.MinMax: return UnityEngine.Random.Range(m_min, m_max);
             case Mode.Curve:  return EvaluateCurve(time);
+            case Mode.Steps:  return EvaluateSteps(time);
             default:          return m_static;
         }
     }
@@ -137,6 +143,44 @@ public class ZUIValue
         }
     }
 
+    /// <summary>The HELD value at <paramref name="time"/>: the envelope is divided into <c>steps.Count</c> equal
+    /// sections and each section returns its own value, with no interpolation. Same warmup/duration/loop timing
+    /// as Curve.</summary>
+    float EvaluateSteps(float time)
+    {
+        int n = m_steps != null ? m_steps.Count : 0;
+        if (n == 0) return m_yMin;
+        if (time < m_warmup) return m_steps[0];
+        float local = time - m_warmup;
+
+        float dur = Mathf.Max(0.0001f, m_duration);
+        float phase;
+        if (m_cooldown < 0f) phase = Mathf.Min(local, dur);
+        else { float period = dur + m_cooldown; float t = local % period; phase = t <= dur ? t : dur; }
+
+        float norm = Mathf.Clamp01(phase / dur);
+        int idx = Mathf.Clamp(Mathf.FloorToInt(norm * n), 0, n - 1);
+        return m_steps[idx];
+    }
+
+    /// <summary>Seed a default flat run of sections so a freshly-switched Steps has something to edit.</summary>
+    public void EnsureStepsDefaults(int count = 8)
+    {
+        if (m_steps == null) m_steps = new List<float>();
+        if (m_steps.Count == 0)
+            for (int i = 0; i < Mathf.Max(2, count); i++) m_steps.Add(m_yMin);
+    }
+
+    /// <summary>Resize the step sections to <paramref name="count"/>, preserving existing values and seeding new
+    /// ones at the range's floor.</summary>
+    public void SetStepCount(int count)
+    {
+        if (m_steps == null) m_steps = new List<float>();
+        count = Mathf.Clamp(count, 2, 64);
+        while (m_steps.Count < count) m_steps.Add(m_yMin);
+        while (m_steps.Count > count) m_steps.RemoveAt(m_steps.Count - 1);
+    }
+
     // ── Copy/paste support (editor-invoked, kept here since it's plain data — no UnityEditor dependency) ──
 
     const string ClipboardPrefix = "ZUIVALUE1:";
@@ -174,6 +218,8 @@ public class ZUIValue
         m_warmup = other.m_warmup;
         m_cooldown = other.m_cooldown;
         m_smoothness = other.m_smoothness;
+        m_steps.Clear();
+        if (other.m_steps != null) m_steps.AddRange(other.m_steps);
         m_multiplierId = other.m_multiplierId;
     }
 }

@@ -2,7 +2,8 @@
     "name": "com.Lautaro-Arino.Laubrary.Zui.Editor",
     "rootNamespace": "Laubrary.Zui",
     "references": [
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "ZUI.Editor"
     ],
     "includePlatforms": [
         "Editor"

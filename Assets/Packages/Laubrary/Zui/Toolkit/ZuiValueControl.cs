@@ -28,6 +28,10 @@ namespace Laubrary.Zui
             public bool allowStatic = true;
             public bool allowMinMax = true;
             public bool allowCurve = true;
+            public bool allowSteps = true;   // Steps = a step-sequencer mode, a peer of the others
+            // Offer the "Cycles" envelope generator (a sawtooth for a value that WRAPS — a rotation angle, a
+            // hue). Off by default: it only makes sense where the field's value loops, so a field opts in.
+            public bool cyclic = false;
             public float absMin = 0f;
             public float absMax = 10f;
             public string[] multiplierIds = null;
@@ -71,6 +75,7 @@ namespace Laubrary.Zui
 
             public Options WithRange(float lo, float hi) { absMin = lo; absMax = hi; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
+            public Options WithCyclic() { cyclic = true; return this; }
             public Options WithMultipliers(params string[] ids) { multiplierIds = ids; return this; }
             public Options WithDefault(float value) { staticDefault = value; return this; }
             public Options WithoutCurveExtras() { hideCurveTiming = true; hideCurveRange = true; return this; }
@@ -197,6 +202,9 @@ namespace Laubrary.Zui
                 case ZUIValue.Mode.Curve:
                     BuildCurve();
                     break;
+                case ZUIValue.Mode.Steps:
+                    BuildSteps();
+                    break;
             }
         }
 
@@ -314,31 +322,7 @@ namespace Laubrary.Zui
             _content.Add(envRow);
             if (st.showInputs) RebuildInputsRow();
 
-            if (!_opt.hideCurveTiming)
-            {
-                var timing = new VisualElement();
-                timing.AddToClassList("zui-row");
-                timing.Add(Z.Field("Dur s", "Seconds one playthrough of the curve takes.",
-                    Z.Float(_v.duration, "Seconds one playthrough of the curve takes.",
-                        val => Mutate(() => _v.duration = val), 46f)));
-                timing.Add(Z.Field("Warm s", "Seconds before the curve starts (holds its first value).",
-                    Z.Float(_v.warmup, "Seconds before the curve starts (holds its first value).",
-                        val => Mutate(() => _v.warmup = val), 46f)));
-                bool loop = _v.cooldown >= 0f;
-                VisualElement coolField = null;
-                timing.Add(Z.Toggle("Loop", "Restart the curve after a cooldown pause instead of holding its final value.",
-                    loop, on =>
-                    {
-                        Mutate(() => _v.cooldown = on ? 0f : -1f);
-                        coolField?.Shown(on);
-                    }));
-                coolField = Z.Field("Cool s", "Pause after a playthrough before looping.",
-                    Z.Float(Mathf.Max(0f, _v.cooldown), "Pause after a playthrough before looping.",
-                        val => Mutate(() => _v.cooldown = Mathf.Max(0f, val)), 46f));
-                coolField.Shown(loop);
-                timing.Add(coolField);
-                _content.Add(timing);
-            }
+            if (!_opt.hideCurveTiming) AddTimingRow();
 
             if (!_opt.hideCurveRange)
             {
@@ -362,6 +346,92 @@ namespace Laubrary.Zui
                     }), 46f)));
                 _content.Add(range);
             }
+        }
+
+        // Shared timing row (Dur / Warm / Loop / Cool) — used by BOTH Envelope and Steps (same duration/warmup/
+        // cooldown fields).
+        void AddTimingRow()
+        {
+            var timing = new VisualElement();
+            timing.AddToClassList("zui-row");
+            timing.Add(Z.Field("Dur s", "Seconds one playthrough takes.",
+                Z.Float(_v.duration, "Seconds one playthrough takes.",
+                    val => Mutate(() => _v.duration = val), 46f)));
+            timing.Add(Z.Field("Warm s", "Seconds before it starts (holds its first value).",
+                Z.Float(_v.warmup, "Seconds before it starts (holds its first value).",
+                    val => Mutate(() => _v.warmup = val), 46f)));
+            bool loop = _v.cooldown >= 0f;
+            VisualElement coolField = null;
+            timing.Add(Z.Toggle("Loop", "Restart after a cooldown pause instead of holding the final value.",
+                loop, on =>
+                {
+                    Mutate(() => _v.cooldown = on ? 0f : -1f);
+                    coolField?.Shown(on);
+                }));
+            coolField = Z.Field("Cool s", "Pause after a playthrough before looping.",
+                Z.Float(Mathf.Max(0f, _v.cooldown), "Pause after a playthrough before looping.",
+                    val => Mutate(() => _v.cooldown = Mathf.Max(0f, val)), 46f));
+            coolField.Shown(loop);
+            timing.Add(coolField);
+            _content.Add(timing);
+        }
+
+        // ── steps mode (a step sequencer) ─────────────────────────────────────────────
+        void BuildSteps()
+        {
+            _v.EnsureStepsDefaults();
+            if (_opt.hideCurveRange)
+            {
+                _v.yMin = Mathf.Min(_opt.absMin, _opt.absMax);
+                _v.yMax = Mathf.Max(_opt.absMin, _opt.absMax);
+            }
+
+            var header = new VisualElement();
+            header.AddToClassList("zui-row");
+            header.Add(FieldLabel(_label ?? "Steps"));
+            header.Add(Z.Flexible());
+            header.Add(MenuButton());
+            _content.Add(header);
+
+            var seq = new ZuiStepSequencer(_v.steps, _v.yMin, _v.yMax);
+            seq.style.flexGrow = 1f;
+            seq.OnBeforeMutate += () => OnBeforeMutate?.Invoke();
+            seq.OnChanged += () => OnChanged?.Invoke();
+            _content.Add(seq);
+
+            _content.Add(Z.MicroSlider("Sections", _v.steps.Count, 2f, 32f,
+                "How many held sections divide the envelope.",
+                v => Mutate(() => { _v.SetStepCount(Mathf.RoundToInt(v)); seq.Refresh(); }), 200f, decimals: 0));
+
+            if (!_opt.hideCurveTiming) AddTimingRow();
+            if (!_opt.hideCurveRange) AddStepsRange(seq);
+        }
+
+        void AddStepsRange(ZuiStepSequencer seq)
+        {
+            var range = new VisualElement();
+            range.AddToClassList("zui-row");
+            range.Add(Z.Text("Value range", ZuiText.Small, "The steps' min/max output values."));
+            range.Add(Z.Field("min", "The minimum output value.",
+                Z.Float(_v.yMin, "The minimum output value.", val => Mutate(() =>
+                {
+                    _v.yMin = val;
+                    if (_v.yMax < _v.yMin) _v.yMax = _v.yMin;
+                    ClampStepsToRange(); seq.SetRange(_v.yMin, _v.yMax);
+                }), 46f)));
+            range.Add(Z.Field("max", "The maximum output value.",
+                Z.Float(_v.yMax, "The maximum output value.", val => Mutate(() =>
+                {
+                    _v.yMax = Mathf.Max(val, _v.yMin);
+                    ClampStepsToRange(); seq.SetRange(_v.yMin, _v.yMax);
+                }), 46f)));
+            _content.Add(range);
+        }
+
+        void ClampStepsToRange()
+        {
+            for (int i = 0; i < _v.steps.Count; i++)
+                _v.steps[i] = Mathf.Clamp(_v.steps[i], Mathf.Min(_v.yMin, _v.yMax), Mathf.Max(_v.yMin, _v.yMax));
         }
 
         // The per-point numeric inputs — a vertical COLUMN to the envelope's right (mockup), one
@@ -475,7 +545,8 @@ namespace Laubrary.Zui
             var modeLabels = new System.Collections.Generic.List<string>();
             if (_opt.allowStatic) { modes.Add(ZUIValue.Mode.Static); modeLabels.Add("Static"); }
             if (_opt.allowMinMax) { modes.Add(ZUIValue.Mode.MinMax); modeLabels.Add("Min-Max range"); }
-            if (_opt.allowCurve) { modes.Add(ZUIValue.Mode.Curve); modeLabels.Add("Curve over time"); }
+            if (_opt.allowCurve) { modes.Add(ZUIValue.Mode.Curve); modeLabels.Add("Envelope"); }
+            if (_opt.allowSteps) { modes.Add(ZUIValue.Mode.Steps); modeLabels.Add("Steps"); }
             int modeSel = modes.IndexOf(_v.mode);
             if (hasMultiplier) menu.Section("Mode");
             menu.Radio(null, modeLabels.ToArray(), modeSel,
@@ -495,6 +566,22 @@ namespace Laubrary.Zui
                     "Narrow the numeric-inputs column to just the points currently box-selected in the curve.",
                     st.inputsSelectedOnly,
                     on => { st.inputsSelectedOnly = on; if (!st.expanded) st.expanded = true; st.showInputs = true; RebuildAll(); });
+
+                // Envelope SHAPE tools — generators (write the points) + the visual shape picker. All operate on
+                // the point list, so they live under Envelope mode only. Each opens a popover anchored to the ⋯
+                // button once the menu closes; edits route through the Undo hook.
+                Action shapeApplied = () => { OnChanged?.Invoke(); RebuildAll(); UpdateReadout(); };
+                menu.Separator();
+                menu.Section("Shape");
+                menu.Item("Oscillation…", "Generate a wave between two values (start / end / reps / smoothness).",
+                    () => ZuiEnvelopeGenerators.OpenOscillation(anchor, _v, _opt.absMin, _opt.absMax,
+                        () => OnBeforeMutate?.Invoke(), shapeApplied));
+                if (_opt.cyclic)
+                    menu.Item("Cycles…", "Generate a sawtooth for a wrapping value (a rotation, a hue).",
+                        () => ZuiEnvelopeGenerators.OpenCycles(anchor, _v, _opt.absMin, _opt.absMax,
+                            () => OnBeforeMutate?.Invoke(), shapeApplied));
+                menu.Item("Recall shape…", "Pick a built-in or saved shape, or save the current one.",
+                    () => ZuiEnvelopePresetPopover.Open(anchor, _v, () => OnBeforeMutate?.Invoke(), shapeApplied));
             }
 
             // Multiplier → its own labelled section + a radio ("(none)" + each id) that stays open as a live setting.
@@ -549,6 +636,12 @@ namespace Laubrary.Zui
                     _v.points.Add(new ZUIEnvelopePoint(1f, start));
                 }
                 else if (mode == ZUIValue.Mode.Curve) _v.EnsureCurveDefaults();
+                else if (mode == ZUIValue.Mode.Steps)
+                {
+                    _v.yMin = Mathf.Min(_opt.absMin, _opt.absMax);
+                    _v.yMax = Mathf.Max(_opt.absMin, _opt.absMax);
+                    _v.EnsureStepsDefaults();
+                }
             });
             RebuildAll();
             UpdateReadout();
