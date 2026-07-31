@@ -94,7 +94,44 @@ namespace Laubrary.TextSplash.Editor
         protected override void OnEnable()
         {
             base.OnEnable();
+            LoadBackdropState();
             EditorApplication.update += Tick;
+        }
+
+        // The tool's own stable slug for the committed arrangement store — never the window title, which a
+        // retitle would change out from under every saved arrangement.
+        const string ToolId = "textsplash";
+
+        /// <summary>Restore the preview backdrop from the project's committed arrangement store, so it is the
+        /// same next session and the same for everyone on the project. It is GLOBAL to this tool rather than
+        /// per-splash: the thing worth restoring is "how I set this window up", not "how I last looked at one
+        /// asset". Every read falls back to the value already in the field, so a project with no store yet
+        /// behaves exactly as before.</summary>
+        void LoadBackdropState()
+        {
+            var t = ZuiToolStateProvider.For(ToolId);
+            if (t == null || backSplash == null) return;
+
+            backSplash.cameraColor = t.GetColor("backdrop.camera", backSplash.cameraColor);
+            // Only when the key EXISTS: an absent entry means "never saved", and treating that as "no image"
+            // would wipe a backdrop the window already had.
+            if (t.HasObject("backdrop.image")) backSplash.image = t.GetObject("backdrop.image") as Sprite;
+            backSplash.imageTint = t.GetColor("backdrop.tint", backSplash.imageTint);
+            backSplash.imageZoom = t.GetFloat("backdrop.zoom", backSplash.imageZoom);
+            backSplash.imagePos  = t.GetVector("backdrop.pos", backSplash.imagePos);
+        }
+
+        void SaveBackdropState()
+        {
+            var t = ZuiToolStateProvider.For(ToolId);
+            if (t == null || backSplash == null) return;
+
+            t.SetColor("backdrop.camera", backSplash.cameraColor);
+            t.SetObject("backdrop.image", backSplash.image);
+            t.SetColor("backdrop.tint", backSplash.imageTint);
+            t.SetFloat("backdrop.zoom", backSplash.imageZoom);
+            t.SetVector("backdrop.pos", backSplash.imagePos);
+            ZuiToolStateProvider.MarkDirty();   // debounced — safe on every drag frame
         }
 
         protected override void OnDisable()
@@ -269,8 +306,8 @@ namespace Laubrary.TextSplash.Editor
             _backdropHost.Add(BackSplashZui.Build(backSplash, "Preview backdrop",
                 "The backdrop to audit the splash against (shared with Pyre / Mirage). Preview-only — it is "
                 + "never part of what plays.",
-                onChanged: () => _previewView?.MarkDirtyRepaint(),
-                onStructureChanged: RebuildBackdropPanel));
+                onChanged: () => { SaveBackdropState(); _previewView?.MarkDirtyRepaint(); },
+                onStructureChanged: () => { SaveBackdropState(); RebuildBackdropPanel(); }));
             right.Add(_backdropHost);
 
             _previewView = new IMGUIContainer(DrawPreview);
@@ -1284,8 +1321,8 @@ namespace Laubrary.TextSplash.Editor
             _backdropHost.Add(BackSplashZui.Build(backSplash, "Preview backdrop",
                 "The backdrop to audit the splash against (shared with Pyre / Mirage). Preview-only — it is "
                 + "never part of what plays.",
-                onChanged: () => _previewView?.MarkDirtyRepaint(),
-                onStructureChanged: RebuildBackdropPanel));
+                onChanged: () => { SaveBackdropState(); _previewView?.MarkDirtyRepaint(); },
+                onStructureChanged: () => { SaveBackdropState(); RebuildBackdropPanel(); }));
             _previewView?.MarkDirtyRepaint();
             Repaint();
         }
