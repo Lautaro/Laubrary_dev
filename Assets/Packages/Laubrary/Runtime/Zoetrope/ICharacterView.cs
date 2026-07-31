@@ -15,12 +15,32 @@ namespace Laubrary.Zoetrope
         Vector2 Build(GameObject host);
     }
 
+    /// Optional capability: a view that can say what it LOOKS like without being spawned, so a browser, a
+    /// picker or a Zoe's own thumbnail can show it.
+    ///
+    /// Separate from ICharacterView on purpose, and optional on purpose. Core Zoetrope must not learn what a
+    /// Reel is — a view that cannot preview itself (or has not been given art yet) simply does not implement
+    /// this, and its consumers fall back to a blank. That keeps the pluggable-view rule intact: the concrete
+    /// view knows its own frames, the core only knows to ask.
+    public interface IPreviewableView
+    {
+        /// Frames worth showing, in order. One entry is a still; more can animate. Empty or null = nothing to
+        /// show, which is a legitimate answer for a view with no art assigned.
+        Sprite[] PreviewFrames();
+
+        /// Playback rate for those frames. 0 when the view has no meaningful animation speed.
+        float PreviewFps { get; }
+    }
+
     /// <summary>The default look: one static sprite. No dependency beyond UnityEngine, so it lives in core.</summary>
     [System.Serializable]
-    public class SpriteView : ICharacterView
+    public class SpriteView : ICharacterView, IPreviewableView
     {
         public Sprite sprite;
         [Min(0.01f)] public float scale = 1f;
+
+        public Sprite[] PreviewFrames() => sprite != null ? new[] { sprite } : System.Array.Empty<Sprite>();
+        public float PreviewFps => 0f;
 
         public Vector2 Build(GameObject host)
         {

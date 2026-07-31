@@ -14,7 +14,7 @@ namespace Laubrary.ZoetropeLaunimator
     /// <c>Zoe.view</c> in place of <see cref="ReelView"/> when a character's animation needs either.
     /// </summary>
     [System.Serializable]
-    public class ZonedReelView : ICharacterView
+    public class ZonedReelView : ICharacterView, IPreviewableView
     {
         [Tooltip("The reel version to render.")]
         public ReelVersion version;
@@ -23,6 +23,10 @@ namespace Laubrary.ZoetropeLaunimator
         public string idleClip = "";
         [Tooltip("Scale the reel so its resting frame is this many world units tall (0 = leave native size).")]
         public float height = 0f;
+
+        // ── IPreviewableView ── shared with ReelView, so the same character never previews two ways.
+        public Sprite[] PreviewFrames() => ReelPreview.Frames(version, idleClip);
+        public float PreviewFps => ReelPreview.Fps(version, idleClip);
 
         public Vector2 Build(GameObject host)
         {

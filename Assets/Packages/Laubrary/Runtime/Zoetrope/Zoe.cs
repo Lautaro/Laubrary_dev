@@ -10,7 +10,7 @@ namespace Laubrary.Zoetrope
     /// ZonedReelView, a Lazor shape) and effects (a Pyre blast + Chunks debris) from whatever bridge modules it includes.
     /// A small portable data asset; the runtime is assembled by <see cref="ZoeSpawner.SpawnCharacter"/>.
     [CreateAssetMenu(menuName = "Laubrary/Zoetrope/Zoe", fileName = "Zoe")]
-    public class Zoe : ScriptableObject
+    public class Zoe : ScriptableObject, Laubrary.PreviewKit.IVisualPreview
     {
         [Header("Identity")]
         public string displayName = "New Zoe";
@@ -65,5 +65,61 @@ namespace Laubrary.Zoetrope
         public List<CueBinding> cues = new List<CueBinding>();
 
         // TODO(zounds): onHit / onDied Zound refs — embedded + registered if the Zounds engine is present.
+
+        // ── IVisualPreview ──
+        // A Zoe browser with no thumbnails is unusable for its actual job: picking the right character out of
+        // a folder of them. The look lives in the pluggable view, so this asks the view — via the optional
+        // IPreviewableView — rather than learning what a Reel is. A view with no art, or one that cannot
+        // preview itself, yields null and the browser draws its blank.
+        //
+        // ANIMATED where it can be, because a walk cycle is most of what distinguishes one character sprite
+        // from another, and a single still of a shambler and a runner look identical.
+        Sprite[] PreviewSprites() => view is IPreviewableView p ? p.PreviewFrames() : System.Array.Empty<Sprite>();
+
+        public Texture2D RenderPreviewTexture()
+        {
+            var f = PreviewSprites();
+            return f.Length > 0 && f[0] != null ? CropSprite(f[0]) : null;
+        }
+
+        public bool CanAnimatePreview => PreviewSprites().Length > 1;
+
+        public float PreviewFps
+        {
+            get
+            {
+                float fps = view is IPreviewableView p ? p.PreviewFps : 0f;
+                return fps > 0f ? fps : 12f;
+            }
+        }
+
+        public void UpdateAnimatedPreview(Texture2D tex, double time)
+        {
+            var f = PreviewSprites();
+            if (tex == null || f.Length <= 1) return;
+
+            int i = Mathf.Abs((int)(time * PreviewFps)) % f.Length;
+            var s = f[i];
+            if (s == null || s.texture == null) return;
+
+            var r = s.textureRect;
+            // Baked reel frames are uniform, but a hand-assembled view need not be — skip a mismatched frame
+            // rather than throwing inside an editor repaint, where the exception would spam every frame.
+            if ((int)r.width != tex.width || (int)r.height != tex.height) return;
+
+            tex.SetPixels(s.texture.GetPixels((int)r.x, (int)r.y, (int)r.width, (int)r.height));
+            tex.Apply();
+        }
+
+        // Same crop AmmoDef does. If a third asset needs it, it belongs in PreviewKit as a shared helper.
+        static Texture2D CropSprite(Sprite s)
+        {
+            if (s.texture == null) return null;
+            var r = s.textureRect;
+            var tex = new Texture2D((int)r.width, (int)r.height, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            tex.SetPixels(s.texture.GetPixels((int)r.x, (int)r.y, (int)r.width, (int)r.height));
+            tex.Apply();
+            return tex;
+        }
     }
 }

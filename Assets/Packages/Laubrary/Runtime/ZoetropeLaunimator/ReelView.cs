@@ -11,7 +11,7 @@ namespace Laubrary.ZoetropeLaunimator
     /// in place of the default <c>SpriteView</c> to give an enemy real animation.
     /// </summary>
     [System.Serializable]
-    public class ReelView : ICharacterView
+    public class ReelView : ICharacterView, IPreviewableView
     {
         [Tooltip("The reel version to render.")]
         public ReelVersion version;
@@ -19,6 +19,12 @@ namespace Laubrary.ZoetropeLaunimator
         public string idleClip = "Idle";
         [Tooltip("Scale the reel so its resting frame is this many world units tall (0 = leave native size).")]
         public float height = 0f;
+
+        // ── IPreviewableView ── shared with ZonedReelView, so the same character never previews two ways.
+        // Note idleClip defaults to "Idle" here, and most reels have no clip by that name — the fallback to
+        // the first animation with frames is what makes these previewable at all.
+        public Sprite[] PreviewFrames() => ReelPreview.Frames(version, idleClip);
+        public float PreviewFps => ReelPreview.Fps(version, idleClip);
 
         public Vector2 Build(GameObject host)
         {
