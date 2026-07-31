@@ -128,7 +128,8 @@ namespace Laubrary.Zui
             _label = label;
             AddToClassList("zui-value");   // row-level class → uniform bottom spacing (see ZuiToolkit.uss)
             _tooltip = tooltip;
-            this.tooltip = tooltip;
+            // No ⋯ button — the config menu opens on right-click; hint it on the row tooltip so it's discoverable.
+            this.tooltip = string.IsNullOrEmpty(tooltip) ? "Right-click to configure." : tooltip + "  (right-click to configure)";
 
             if (_opt.grow)
             {
@@ -164,16 +165,6 @@ namespace Laubrary.Zui
         }
 
         void Mutate(Action apply) { OnBeforeMutate?.Invoke(); apply(); OnChanged?.Invoke(); }
-
-        Button MenuButton()
-        {
-            Button btn = null;
-            btn = Z.Button("⋯", "Configure value — mode" +
-                (_opt.multiplierIds != null && _opt.multiplierIds.Length > 0 ? ", multiplier" : "") +
-                (_v.mode == ZUIValue.Mode.Curve ? ", value display" : "") +
-                ", copy/paste.", () => ShowMenu(btn)).W(24f);
-            return btn;
-        }
 
         Label FieldLabel(string text)
         {
@@ -228,7 +219,6 @@ namespace Laubrary.Zui
             if (_opt.grow) { body.style.flexGrow = 1f; body.style.flexShrink = 1f; }
             else body.style.flexShrink = 0f;
             row.Add(body);
-            row.Add(MenuButton());
             _content.Add(row);
         }
 
@@ -243,8 +233,8 @@ namespace Laubrary.Zui
             }
             var st = GetState(_v);
 
-            // Header: the label IS the fold toggle (mockup: plain label, no caret — hover affordance
-            // via USS); ⋯ sits right next to it (expanded) or after the thumbnail (collapsed).
+            // Header: the label IS the fold toggle (mockup: plain label, no caret — hover affordance via USS).
+            // The config menu opens on RIGHT-CLICK (wired in the ctor), so there's no ⋯ button on the row.
             var header = new VisualElement();
             header.AddToClassList("zui-row");
 
@@ -283,12 +273,10 @@ namespace Laubrary.Zui
                     e.StopPropagation();
                 });
                 header.Add(thumb);
-                header.Add(MenuButton());
                 _content.Add(header);
                 return;
             }
 
-            header.Add(MenuButton());
             _content.Add(header);
 
             // Index markers (a particle-index-mapped curve) take priority over frame lines: when indexMarkerCount
@@ -400,8 +388,6 @@ namespace Laubrary.Zui
             var header = new VisualElement();
             header.AddToClassList("zui-row");
             header.Add(FieldLabel(_label ?? "Steps"));
-            header.Add(Z.Flexible());
-            header.Add(MenuButton());
             _content.Add(header);
 
             var seq = new ZuiStepSequencer(_v.steps, _v.yMin, _v.yMax);
