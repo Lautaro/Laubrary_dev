@@ -460,6 +460,15 @@ public class ZuiFill : ISerializationCallbackReceiver
 
     static float Invert(float v) => 1f / Mathf.Max(0.0001f, v);
 
+    /// <summary>Where the gradient's CENTRE actually sits, in the same -1..1 space Normalize produces, with the
+    /// animatable companions resolved at <paramref name="life"/>. Public so an editor preview can MARK it: the
+    /// centre dial is the placement control users misread most, because moving the gradient one way makes a fixed
+    /// subject appear to shift the other, and a marker showing where the centre landed is what tells the two
+    /// apart.</summary>
+    public Vector2 CenterAt(float life)
+        => new Vector2(EvalCompanion(centerXAnim, life, center.x),
+                       EvalCompanion(centerYAnim, life, center.y));
+
     /// <summary>The reciprocal of the authored SIZE — what the projection/radius maths actually multiplies by.
     /// One helper so the Linear, Radial and Noise paths cannot disagree about the conversion or the floor.</summary>
     float SpatialFrequency(float life)

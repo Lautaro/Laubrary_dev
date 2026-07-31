@@ -688,12 +688,40 @@ namespace Laubrary.Zui
                 int y0 = UvToPx(-corner.y), y1 = UvToPx(corner.y);
                 if (x1 <= x0 || y1 <= y0) return;
 
-                // A subject that fills the whole swatch already has the swatch's own hairline border as its
-                // outline, so drawing it again would say nothing twice.
-                if (x0 <= 0 && y0 <= 0 && x1 >= _px - 1 && y1 >= _px - 1) return;
+                // ALWAYS drawn, even when the subject covers the whole domain. Skipping it there was a mistake:
+                // under Stretch the box always coincides with the frame, so half the placement combinations drew
+                // no outline at all and read as "the preview is broken" rather than as "your subject covers the
+                // entire gradient" — which is a real and useful answer. Pulled one texel inside so it reads as a
+                // marker rather than merging into the swatch's own border.
+                if (x0 <= 0 && y0 <= 0 && x1 >= _px - 1 && y1 >= _px - 1)
+                {
+                    x0 = 1; y0 = 1; x1 = _px - 2; y1 = _px - 2;
+                }
 
                 if (shape == ZuiSubjectShape.Circle) StrokeEllipse(x0, y0, x1, y1);
                 else StrokeRect(x0, y0, x1, y1);
+
+                MarkCentre();
+            }
+
+            /// <summary>Mark where the gradient's CENTRE actually landed.
+            ///
+            /// This is the control users misread, and the reason is genuine rather than a naming slip: moving the
+            /// centre UP moves the gradient up, which makes a subject that stays put show the colours BELOW that
+            /// centre — so the subject appears to shift the opposite way to the dial. Both things are true at
+            /// once, and without a marker the only visible one is the confusing one.</summary>
+            void MarkCentre()
+            {
+                Vector2 c = _fill.CenterAt(0f);
+                int cx = UvToPx(c.x), cy = UvToPx(c.y);
+
+                // A small open cross, not a dot: it stays readable on top of whatever colour it lands on and
+                // cannot be mistaken for part of the gradient.
+                for (int d = 1; d <= 3; d++)
+                {
+                    Ink(cx - d, cy); Ink(cx + d, cy);
+                    Ink(cx, cy - d); Ink(cx, cy + d);
+                }
             }
 
             void StrokeRect(int x0, int y0, int x1, int y1)
