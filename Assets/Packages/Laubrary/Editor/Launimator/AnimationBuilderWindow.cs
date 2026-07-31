@@ -610,6 +610,9 @@ namespace Laubrary.Launimator.Editor
         private static readonly string[] ToolModeLabels = { "Grid (uniform sheet)", "Box (one sprite)", "Pick (scattered sprites)" };
         private static readonly string[] GridModeLabels = { "Columns/Rows", "Cell Size" };
 
+        // Short enough to sit on one segmented row beside PPU. Order matches GridSlicer.PivotMode.
+        private static readonly string[] PivotLabels = { "Center", "Bottom", "Top Left", "Custom" };
+
         private void BuildModeBar(VisualElement root)
         {
             root.Add(WrapRow(
@@ -639,12 +642,16 @@ namespace Laubrary.Launimator.Editor
 
             if (_toolMode == ToolMode.Grid)
             {
-                root.Add(Z.MiniRadio((int)_mode, GridModeLabels,
+                // Segmented, not MiniRadio: two single-line options is exactly what Segmented is for, and it
+                // sits INSIDE the grid row instead of claiming one of its own — the fields it switches between
+                // are right beside it, so the relationship reads without a separate line.
+                var modeSwitch = Z.Segmented((int)_mode, GridModeLabels,
                     "Split the marquee by a column/row count, or by a fixed cell size in pixels.",
-                    v => { _mode = (RegionSlicer.GridMode)v; Refresh(); }));
+                    v => { _mode = (RegionSlicer.GridMode)v; Refresh(); });
 
                 var gridRow = _mode == RegionSlicer.GridMode.FixedColsRows
                     ? WrapRow(
+                        modeSwitch,
                         Z.Field("Cols", "How many columns the marquee is split into.",
                             Z.Int(_cols, "How many columns the marquee is split into.",
                                 v => { _cols = Mathf.Max(1, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)),
@@ -652,6 +659,7 @@ namespace Laubrary.Launimator.Editor
                             Z.Int(_rows, "How many rows the marquee is split into.",
                                 v => { _rows = Mathf.Max(1, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)))
                     : WrapRow(
+                        modeSwitch,
                         Z.Field("Cell W", "Each cell's width in source pixels.",
                             Z.Int(_cellW, "Each cell's width in source pixels.",
                                 v => { _cellW = Mathf.Max(1, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)),
@@ -672,26 +680,22 @@ namespace Laubrary.Launimator.Editor
                 Z.Field("PPU", "Pixels-per-unit stamped onto the sprites this sheet slices.",
                     Z.Float(_ppu, "Pixels-per-unit stamped onto the sprites this sheet slices.",
                         v => _ppu = Mathf.Max(0.01f, v), 52f)),
+                // Segmented, not EnumDropdown — the layout rules name Z.EnumDropdown as THE enum anti-pattern
+                // (it returns a native EnumField). Four short labels fit one line, so this costs no height and
+                // shows every option at a glance instead of hiding three behind a click.
                 Z.Field("Pivot", "Default registration point applied to every newly-identified sprite.",
-                    Z.EnumDropdown(_pivot, "Default registration point applied to every newly-identified sprite.",
-                        v => { _pivot = v; Refresh(); }, 110f)));
+                    Z.Segmented((int)_pivot, PivotLabels,
+                        "Default registration point applied to every newly-identified sprite.",
+                        v => { _pivot = (GridSlicer.PivotMode)v; Refresh(); })));
             if (_pivot == GridSlicer.PivotMode.Custom)
                 pivotRow.Add(Z.Vector2Field("Custom pivot", () => _customPivot, v => _customPivot = v, this,
                     new ZuiValue2DControl.Options().WithRange(0f, 1f, 0f, 1f).WithPlotSize(64f),
                     "Where the pivot sits inside each cell (0..1, y bottom-up).", Dirty));
             root.Add(pivotRow);
 
-            // Alpha threshold / trim (relevant to both: Pick uses the threshold; Grid can trim).
-            var alphaRow = WrapRow();
-            if (_toolMode == ToolMode.Grid)
-                alphaRow.Add(Z.Toggle("Alpha-trim", "Snap each cell to the tight bbox of its non-transparent pixels.",
-                    _alphaTrim, v => _alphaTrim = v));
-            alphaRow.Add(Z.Field("α >", "Alpha above this counts as content (0..255).",
-                Z.Int(_alphaThreshold, "Alpha above this counts as content (0..255).",
-                    v => { _alphaThreshold = Mathf.Clamp(v, 0, 255); Dirty(); }, 52f)));
-            root.Add(alphaRow);
-
-            // Background colour key: sheets with a solid-colour background (no alpha) — eyedrop it transparent.
+            // ONE "what counts as content" row: alpha trimming, the alpha threshold, and the background-colour
+            // key are all the same question asked three ways, and they were three stacked rows. Wrapping means
+            // a narrow pane still breaks them sensibly instead of overflowing.
             void KeyChanged() { RebuildDisplaySheet(); SaveBgKeyForSheet(); Dirty(); }
             var keyColor = Z.Color(_bgKey, "The colour treated as transparent.",
                 v => { _bgKey = (Color32)v; KeyChanged(); }, 60f, showAlpha: false);
@@ -699,14 +703,22 @@ namespace Laubrary.Launimator.Editor
                 v => { _bgTolerance = Mathf.Clamp(v, 0, 255); KeyChanged(); }, 52f);
             keyColor.SetEnabled(_bgKeyEnabled);
             keyTol.SetEnabled(_bgKeyEnabled);
-            root.Add(WrapRow(
-                Z.Toggle("BG color", "Treat a solid background colour as transparent (sheets with no alpha).",
-                    _bgKeyEnabled, v => { _bgKeyEnabled = v; KeyChanged(); Refresh(); }),
-                keyColor,
-                Z.Field("± tol", "Per-channel match tolerance (0..255).", keyTol),
-                Z.Button(_pickingBgColor ? "Click sheet…" : "Pick ☉",
-                    "Eyedropper: click a background pixel on the canvas to set the colour.",
-                    () => { _pickingBgColor = !_pickingBgColor; if (_pickingBgColor) _bgKeyEnabled = true; Refresh(); })));
+
+            var contentRow = WrapRow();
+            if (_toolMode == ToolMode.Grid)
+                contentRow.Add(Z.Toggle("Alpha-trim", "Snap each cell to the tight bbox of its non-transparent pixels.",
+                    _alphaTrim, v => _alphaTrim = v));
+            contentRow.Add(Z.Field("α >", "Alpha above this counts as content (0..255).",
+                Z.Int(_alphaThreshold, "Alpha above this counts as content (0..255).",
+                    v => { _alphaThreshold = Mathf.Clamp(v, 0, 255); Dirty(); }, 52f)));
+            contentRow.Add(Z.Toggle("BG color", "Treat a solid background colour as transparent (sheets with no alpha).",
+                _bgKeyEnabled, v => { _bgKeyEnabled = v; KeyChanged(); Refresh(); }));
+            contentRow.Add(keyColor);
+            contentRow.Add(Z.Field("± tol", "Per-channel match tolerance (0..255).", keyTol));
+            contentRow.Add(Z.Button(_pickingBgColor ? "Click sheet…" : "Pick ☉",
+                "Eyedropper: click a background pixel on the canvas to set the colour.",
+                () => { _pickingBgColor = !_pickingBgColor; if (_pickingBgColor) _bgKeyEnabled = true; Refresh(); }));
+            root.Add(contentRow);
 
             if (_toolMode == ToolMode.Grid)
             {
@@ -723,24 +735,25 @@ namespace Laubrary.Launimator.Editor
                 _boxWField = Z.Int(Mathf.RoundToInt(_box.width), "Marquee width, in source pixels.", _ => CommitBox(), 52f);
                 _boxHField = Z.Int(Mathf.RoundToInt(_box.height), "Marquee height, in source pixels.", _ => CommitBox(), 52f);
 
+                _addRegionButton = Z.Button($"Add Region ({CurrentBoxCellCount()})",
+                    "Commit the marquee's grid cells into the sprite palette (undoable).",
+                    () => { AddRegion(); Refresh(); }).W(120f);
+
+                // The marquee's numbers and the two things you do to it, on ONE row — they were two, and the
+                // buttons act on exactly the rect the fields describe, so splitting them read as unrelated.
+                // Both halves share the same _hasBox gate, which is the giveaway that they are one control
+                // group. Four 52px fields plus two buttons fit a normal pane comfortably.
                 var boxRow = WrapRow(
                     Z.Text("Box", ZuiText.Small, "The current marquee's exact rect — type to place it precisely."),
                     Z.Field("L", "Marquee left edge, in source pixels.", _boxLField),
                     Z.Field("T", "Marquee top edge, in source pixels (from the sheet's top).", _boxTField),
                     Z.Field("W", "Marquee width, in source pixels.", _boxWField),
-                    Z.Field("H", "Marquee height, in source pixels.", _boxHField));
-                boxRow.SetEnabled(_hasBox);
-                root.Add(boxRow);
-
-                _addRegionButton = Z.Button($"Add Region ({CurrentBoxCellCount()})",
-                    "Commit the marquee's grid cells into the sprite palette (undoable).",
-                    () => { AddRegion(); Refresh(); }).W(120f);
-                var boxActions = WrapRow(
+                    Z.Field("H", "Marquee height, in source pixels.", _boxHField),
                     Z.Button("Clear Box", "Drop the current marquee.",
                         () => { _hasBox = false; _box = default; Refresh(); }).W(74f),
                     _addRegionButton);
-                boxActions.SetEnabled(_hasBox);
-                root.Add(boxActions);
+                boxRow.SetEnabled(_hasBox);
+                root.Add(boxRow);
             }
 
             // Zoom row (shared).
