@@ -80,7 +80,7 @@ namespace Laubrary.TextSplash.Editor
         float _previewOversample = 1f;
 
         // Rebuildable pieces (nulled in OnBeforeRebuild — the retained-mode contract).
-        VisualElement _controlsHost, _transportHost;
+        VisualElement _controlsHost, _transportHost, _backdropHost;
         IMGUIContainer _previewView;
         ZuiMicroSlider _scrubSlider;
         ZuiToggleButton _playButton;
@@ -107,7 +107,7 @@ namespace Laubrary.TextSplash.Editor
         protected override void OnBeforeRebuild()
         {
             base.OnBeforeRebuild();
-            _controlsHost = null; _transportHost = null; _previewView = null;
+            _controlsHost = null; _transportHost = null; _previewView = null; _backdropHost = null;
             _scrubSlider = null; _playButton = null; _autoPadding = null;
         }
 
@@ -260,6 +260,19 @@ namespace Laubrary.TextSplash.Editor
             _transportHost.style.flexShrink = 0f;
             _transportHost.Add(BuildTransport(s));
             right.Add(_transportHost);
+            // The backdrop belongs BESIDE the pixels it changes, not at the bottom of a 400px dial column a
+            // screen away — which is also what Pyre and PyrePlus already do. Rebuilding the tree (not just
+            // repainting) is required: picking an image ADDS the pad/zoom/tint row, and EditorWindow.Repaint
+            // does not rebuild a UITK tree, so those controls used to stay hidden until an unrelated edit.
+            _backdropHost = new VisualElement();
+            _backdropHost.style.flexShrink = 0f;
+            _backdropHost.Add(BackSplashZui.Build(backSplash, "Preview backdrop",
+                "The backdrop to audit the splash against (shared with Pyre / Mirage). Preview-only — it is "
+                + "never part of what plays.",
+                onChanged: () => _previewView?.MarkDirtyRepaint(),
+                onStructureChanged: RebuildBackdropPanel));
+            right.Add(_backdropHost);
+
             _previewView = new IMGUIContainer(DrawPreview);
             _previewView.style.flexGrow = 1f;
             right.Add(_previewView);
@@ -384,9 +397,6 @@ namespace Laubrary.TextSplash.Editor
             host.Add(BuildBevel(s));
             host.Add(BuildDepth(s));
             host.Add(BuildPixelation(s));
-
-            host.Add(BackSplashZui.Build(backSplash, "Preview backdrop",
-                "The backdrop to audit the splash against (shared with Pyre / Mirage). Preview-only.", Repaint));
         }
 
         /// ONE builder for both ends, so an entrance and an exit can never drift into different layouts.
@@ -1265,6 +1275,21 @@ namespace Laubrary.TextSplash.Editor
 
         /// The play length moves with almost every edit (durations, hold, stagger, letter count), so the transport
         /// is rebuilt after one rather than left showing a stale total and a wrongly-scaled scrub track.
+        /// Rebuild ONLY the backdrop panel. Picking or clearing an image changes which controls exist, and the
+        /// panel is a leaf — rebuilding the whole asset view would drop the preview's IMGUI state with it.
+        void RebuildBackdropPanel()
+        {
+            if (_backdropHost == null) return;
+            _backdropHost.Clear();
+            _backdropHost.Add(BackSplashZui.Build(backSplash, "Preview backdrop",
+                "The backdrop to audit the splash against (shared with Pyre / Mirage). Preview-only — it is "
+                + "never part of what plays.",
+                onChanged: () => _previewView?.MarkDirtyRepaint(),
+                onStructureChanged: RebuildBackdropPanel));
+            _previewView?.MarkDirtyRepaint();
+            Repaint();
+        }
+
         void RefreshTransport()
         {
             if (_transportHost == null || Current == null) return;
@@ -1277,18 +1302,9 @@ namespace Laubrary.TextSplash.Editor
             var rect = GUILayoutUtility.GetRect(10f, 10f, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
             if (Event.current.type != EventType.Repaint) return;
 
-            // Backdrop (BackSplash) — colour fill + optional image, exactly like Pyre's viewport.
-            EditorGUI.DrawRect(rect, backSplash != null ? backSplash.cameraColor : new Color(0.08f, 0.08f, 0.10f));
-            if (backSplash != null && backSplash.image != null && backSplash.image.texture != null)
-            {
-                var sp = backSplash.image;
-                var tr = sp.textureRect;
-                var tc = new Rect(tr.x / sp.texture.width, tr.y / sp.texture.height,
-                                  tr.width / sp.texture.width, tr.height / sp.texture.height);
-                var prev = GUI.color; GUI.color = backSplash.imageTint;
-                GUI.DrawTextureWithTexCoords(rect, sp.texture, tc, true);
-                GUI.color = prev;
-            }
+            // Backdrop, through the SHARED painter. This block used to be a third copy of Pyre's — one that
+            // silently dropped imageZoom and imagePos, so this window's Zoom slider and Position pad did nothing.
+            BackSplashPainter.Draw(rect, backSplash, new Color(0.08f, 0.08f, 0.10f));
 
             if (_preview == null || _tmp == null || Current == null) return;
 

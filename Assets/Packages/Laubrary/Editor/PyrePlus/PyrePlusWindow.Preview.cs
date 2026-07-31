@@ -7,6 +7,7 @@
 // non-serialized. See PYREPLUS_DESIGN.md → SLICE 2 "Preview authoring overlay".
 using System.Collections.Generic;
 using UnityEditor;
+using Laubrary.BackSplash.Editor;
 using UnityEngine;
 
 namespace Laubrary.PyrePlus.Editor
@@ -236,28 +237,9 @@ namespace Laubrary.PyrePlus.Editor
         // The BackSplash backdrop behind the frame texture — a flat camera-colour fill plus one optional image,
         // drawn exactly like PyreWindow.DrawBackdrop (blit order: fill → image → the frame texture on top). backSplash
         // is the window-held instance; null-safe with the old dark fill as a fallback.
+        // Shared painter — see BackSplashPainter; this used to be a byte-for-byte copy of Pyre's.
         void DrawBackdrop(Rect view)
-        {
-            var bs = backSplash;
-            if (bs == null) { EditorGUI.DrawRect(view, new Color(0.1f, 0.1f, 0.12f)); return; }
-
-            EditorGUI.DrawRect(view, bs.cameraColor);
-            if (bs.image == null || bs.image.texture == null) return;
-
-            // Draw the sprite's own sub-rect out of its (possibly atlas'd) source texture, not the whole page.
-            var tex = bs.image.texture;
-            var r = bs.image.textureRect;
-            var tc = new Rect(r.x / tex.width, r.y / tex.height, r.width / tex.width, r.height / tex.height);
-
-            var prevCol = GUI.color;
-            GUI.color = bs.imageTint;
-            GUI.BeginClip(view);
-            float w = view.width * bs.imageZoom, h = view.height * bs.imageZoom;
-            var imgRect = new Rect((view.width - w) * 0.5f + bs.imagePos.x, (view.height - h) * 0.5f - bs.imagePos.y, w, h);
-            GUI.DrawTextureWithTexCoords(imgRect, tex, tc, true);
-            GUI.EndClip();
-            GUI.color = prevCol;
-        }
+            => BackSplashPainter.Draw(view, backSplash, new Color(0.1f, 0.1f, 0.12f));
 
         // ── swarm authoring overlay ───────────────────────────────────────────────────
         // `life` is the CURRENT preview frame's normalized life. The outline/handle transform is snapshotted at

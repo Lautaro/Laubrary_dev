@@ -281,29 +281,10 @@ namespace Laubrary.Pyre.Editor
             }
         }
 
+        // The painter is shared (BackSplashPainter) so the three viewports that draw a backdrop cannot drift —
+        // which they already had: TextSplash's copy silently ignored imageZoom/imagePos.
         void DrawBackdrop(Rect view)
-        {
-            var bs = backSplash;
-            if (bs == null) { EditorGUI.DrawRect(view, new Color(0.08f, 0.08f, 0.10f)); return; }
-
-            EditorGUI.DrawRect(view, bs.cameraColor);
-            if (bs.image == null || bs.image.texture == null) return;
-
-            // Draw the sprite's own rect out of its atlas page, not the whole texture — a BackSplash image is
-            // often one sprite in a packed sheet.
-            var tex = bs.image.texture;
-            var r = bs.image.textureRect;
-            var tc = new Rect(r.x / tex.width, r.y / tex.height, r.width / tex.width, r.height / tex.height);
-
-            var prevCol = GUI.color;
-            GUI.color = bs.imageTint;
-            GUI.BeginClip(view);
-            float w = view.width * bs.imageZoom, h = view.height * bs.imageZoom;
-            var imgRect = new Rect((view.width - w) * 0.5f + bs.imagePos.x, (view.height - h) * 0.5f - bs.imagePos.y, w, h);
-            GUI.DrawTextureWithTexCoords(imgRect, tex, tc, true);
-            GUI.EndClip();
-            GUI.color = prevCol;
-        }
+            => BackSplashPainter.Draw(view, backSplash, new Color(0.08f, 0.08f, 0.10f));
 
         void FitZoom()
         {
