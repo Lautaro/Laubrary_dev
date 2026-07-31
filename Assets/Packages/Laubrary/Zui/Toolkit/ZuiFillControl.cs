@@ -17,6 +17,11 @@ using UnityEngine.UIElements;
 
 namespace Laubrary.Zui
 {
+    /// What SHAPE the consumer actually paints this fill onto, so the swatch outlines the right thing. A text
+    /// line is a Box; a blast, a disc or a radial burst is a Circle, and outlining a square around one would
+    /// misdescribe where the fill lands as badly as showing nothing.
+    public enum ZuiSubjectShape { Box, Circle }
+
     public class ZuiFillControl : VisualElement
     {
         /// Minimal layout options — mirrors the packed-row / grow surface of ZuiValueControl.Options.
@@ -41,9 +46,13 @@ namespace Laubrary.Zui
             // consumer did not say", and the swatch falls back to showing the domain alone as it always did.
             public Vector2 subjectHalf = Vector2.zero;
 
+            // Whether that box is the subject itself (a text line) or merely bounds it (a disc, a blast).
+            public ZuiSubjectShape subjectShape = ZuiSubjectShape.Box;
+
             public Options WithWidth(float w) { controlWidth = w; return this; }
             public Options WithFit() { showFit = true; return this; }
-            public Options WithSubject(Vector2 half) { subjectHalf = half; return this; }
+            public Options WithSubject(Vector2 half, ZuiSubjectShape shape = ZuiSubjectShape.Box)
+            { subjectHalf = half; subjectShape = shape; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
             public Options Clone() => (Options)MemberwiseClone();
         }
@@ -186,7 +195,7 @@ namespace Laubrary.Zui
             header.style.alignItems = Align.Stretch;   // let the square stretch to the two-row column height
             if (WantSwatch())
             {
-                _swatch = new FillSwatch(_fill, 46f, SwatchTip(), _opt.subjectHalf);
+                _swatch = new FillSwatch(_fill, 46f, SwatchTip(), _opt.subjectHalf, _opt.subjectShape);
                 _swatch.style.height = StyleKeyword.Auto;   // stretch drives the height so it spans both ramp rows
                 _swatch.style.alignSelf = Align.Stretch;
                 header.Add(_swatch);
@@ -246,7 +255,7 @@ namespace Laubrary.Zui
             top.style.alignItems = Align.FlexStart;
             if (WantSwatch())
             {
-                _swatch = new FillSwatch(_fill, 44f, SwatchTip(), _opt.subjectHalf);
+                _swatch = new FillSwatch(_fill, 44f, SwatchTip(), _opt.subjectHalf, _opt.subjectShape);
                 top.Add(_swatch);
             }
             box.Add(top);
@@ -326,7 +335,7 @@ namespace Laubrary.Zui
             // the gradient / noise / texture / grid while tweaking it. Only for non-Solid fills (see WantSwatch).
             if (WantSwatch())
             {
-                _swatch = new FillSwatch(_fill, 44f, SwatchTip(), _opt.subjectHalf);
+                _swatch = new FillSwatch(_fill, 44f, SwatchTip(), _opt.subjectHalf, _opt.subjectShape);
                 row.Add(_swatch);
             }
             if (!string.IsNullOrEmpty(label)) row.Add(FieldLabel(label));
@@ -585,13 +594,16 @@ namespace Laubrary.Zui
             readonly ZuiFill _fill;
             readonly int _px;
             readonly Vector2 _subjectHalf;   // zero = the consumer named no box, so no outline is drawn
+            readonly ZuiSubjectShape _subjectShape;
             Texture2D _tex;
             Color32[] _buf;
 
-            public FillSwatch(ZuiFill fill, float size, string tooltip, Vector2 subjectHalf = default)
+            public FillSwatch(ZuiFill fill, float size, string tooltip, Vector2 subjectHalf = default,
+                              ZuiSubjectShape subjectShape = ZuiSubjectShape.Box)
             {
                 _fill = fill;
                 _subjectHalf = subjectHalf;
+                _subjectShape = subjectShape;
                 _px = Mathf.Max(8, Mathf.RoundToInt(size));   // 1 texel per display px is plenty at this size
                 this.tooltip = tooltip;
                 style.width = size;
@@ -657,12 +669,36 @@ namespace Laubrary.Zui
                 int y0 = UvToPx(-corner.y), y1 = UvToPx(corner.y);
                 if (x1 <= x0 || y1 <= y0) return;
 
-                // A box that fills the whole swatch (Stretch) would just re-draw the existing border, so it is
-                // skipped — the outline is only information when it differs from the frame.
+                // A subject that fills the whole swatch already has the swatch's own hairline border as its
+                // outline, so drawing it again would say nothing twice.
                 if (x0 <= 0 && y0 <= 0 && x1 >= _px - 1 && y1 >= _px - 1) return;
 
+                if (_subjectShape == ZuiSubjectShape.Circle) StrokeEllipse(x0, y0, x1, y1);
+                else StrokeRect(x0, y0, x1, y1);
+            }
+
+            void StrokeRect(int x0, int y0, int x1, int y1)
+            {
                 for (int x = x0; x <= x1; x++) { Ink(x, y0); Ink(x, y1); }
                 for (int y = y0; y <= y1; y++) { Ink(x0, y); Ink(x1, y); }
+            }
+
+            /// The ellipse inscribed in the subject's bounds — a true circle when the subject is square and the
+            /// fit is Uniform, and squashed exactly as the fill itself is squashed otherwise, since both come
+            /// from the same normalized corner.
+            void StrokeEllipse(int x0, int y0, int x1, int y1)
+            {
+                float cx = (x0 + x1) * 0.5f, cy = (y0 + y1) * 0.5f;
+                float a = (x1 - x0) * 0.5f, b = (y1 - y0) * 0.5f;
+                if (a <= 0f || b <= 0f) return;
+
+                // Step by the larger semi-axis so the samples are never more than a texel apart on either side.
+                int steps = Mathf.Max(32, Mathf.CeilToInt(Mathf.Max(a, b) * 8f));
+                for (int i = 0; i < steps; i++)
+                {
+                    float t = i / (float)steps * Mathf.PI * 2f;
+                    Ink(Mathf.RoundToInt(cx + a * Mathf.Cos(t)), Mathf.RoundToInt(cy + b * Mathf.Sin(t)));
+                }
             }
 
             int UvToPx(float t) => Mathf.Clamp(Mathf.RoundToInt((t + 1f) * 0.5f * (_px - 1)), 0, _px - 1);
