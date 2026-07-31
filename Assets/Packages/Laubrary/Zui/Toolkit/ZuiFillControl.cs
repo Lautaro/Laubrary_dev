@@ -49,10 +49,20 @@ namespace Laubrary.Zui
             // Whether that box is the subject itself (a text line) or merely bounds it (a disc, a blast).
             public ZuiSubjectShape subjectShape = ZuiSubjectShape.Box;
 
+            // The box ONE REPETITION covers when `space` is Stamped — one glyph, one swarm particle — because a
+            // stamped fill is normalized against that unit, not against the whole subject. Without it the swatch
+            // would outline the whole line while the renderer was actually fitting the gradient onto each letter,
+            // which is precisely the question the picture exists to answer. Zero = the consumer has no smaller
+            // unit (its stamped and fixed boxes are the same thing), and the subject values above are used.
+            public Vector2 stampedHalf = Vector2.zero;
+            public ZuiSubjectShape stampedShape = ZuiSubjectShape.Box;
+
             public Options WithWidth(float w) { controlWidth = w; return this; }
             public Options WithFit() { showFit = true; return this; }
             public Options WithSubject(Vector2 half, ZuiSubjectShape shape = ZuiSubjectShape.Box)
             { subjectHalf = half; subjectShape = shape; return this; }
+            public Options WithStamped(Vector2 half, ZuiSubjectShape shape = ZuiSubjectShape.Box)
+            { stampedHalf = half; stampedShape = shape; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
             public Options Clone() => (Options)MemberwiseClone();
         }
@@ -195,7 +205,7 @@ namespace Laubrary.Zui
             header.style.alignItems = Align.Stretch;   // let the square stretch to the two-row column height
             if (WantSwatch())
             {
-                _swatch = new FillSwatch(_fill, 46f, SwatchTip(), _opt.subjectHalf, _opt.subjectShape);
+                _swatch = new FillSwatch(_fill, 46f, SwatchTip(), _opt);
                 _swatch.style.height = StyleKeyword.Auto;   // stretch drives the height so it spans both ramp rows
                 _swatch.style.alignSelf = Align.Stretch;
                 header.Add(_swatch);
@@ -255,7 +265,7 @@ namespace Laubrary.Zui
             top.style.alignItems = Align.FlexStart;
             if (WantSwatch())
             {
-                _swatch = new FillSwatch(_fill, 44f, SwatchTip(), _opt.subjectHalf, _opt.subjectShape);
+                _swatch = new FillSwatch(_fill, 44f, SwatchTip(), _opt);
                 top.Add(_swatch);
             }
             box.Add(top);
@@ -335,7 +345,7 @@ namespace Laubrary.Zui
             // the gradient / noise / texture / grid while tweaking it. Only for non-Solid fills (see WantSwatch).
             if (WantSwatch())
             {
-                _swatch = new FillSwatch(_fill, 44f, SwatchTip(), _opt.subjectHalf, _opt.subjectShape);
+                _swatch = new FillSwatch(_fill, 44f, SwatchTip(), _opt);
                 row.Add(_swatch);
             }
             if (!string.IsNullOrEmpty(label)) row.Add(FieldLabel(label));
@@ -502,14 +512,19 @@ namespace Laubrary.Zui
         {
             bool spatial = _fill.texture != ZuiFill.TextureKind.None
                            || (_fill.mode != ZuiFill.Mode.Solid && _fill.mode != ZuiFill.Mode.OverLife);
-            if (!spatial || _opt.subjectHalf.x <= 0f || _opt.subjectHalf.y <= 0f)
+            bool stamped = _fill.space == ZuiFill.FillSpace.Stamped
+                           && _opt.stampedHalf.x > 0f && _opt.stampedHalf.y > 0f;
+            Vector2 named = stamped ? _opt.stampedHalf : _opt.subjectHalf;
+            if (!spatial || named.x <= 0f || named.y <= 0f)
                 return "Live preview of the fill's own pattern (no shape). Over-life shows left→right over its "
                      + "life; spatial modes show the -1..1 fill box.";
 
-            return "Live preview of the fill over its whole -1..1 box, with the OUTLINE showing where your subject "
-                 + "actually sits in it. A thin outline across the middle means most of the gradient falls outside "
-                 + "the text and you only see the slice inside the box — switch Fit to Stretch, or raise Size, "
-                 + "to bring the ramp into it.";
+            return "Live preview of the fill over its whole -1..1 box, with the OUTLINE showing where "
+                 + (stamped ? "ONE REPETITION sits — Anchor is Stamped, so the gradient is fitted onto each "
+                            + "letter/particle separately, and the outline is one of them."
+                            : "your whole subject sits in it.")
+                 + " A thin outline across the middle means most of the gradient falls outside it and you only see "
+                 + "the slice inside — switch Fit to Stretch, or raise Size, to bring the ramp into it.";
         }
 
 
@@ -593,17 +608,14 @@ namespace Laubrary.Zui
         {
             readonly ZuiFill _fill;
             readonly int _px;
-            readonly Vector2 _subjectHalf;   // zero = the consumer named no box, so no outline is drawn
-            readonly ZuiSubjectShape _subjectShape;
+            readonly Options _opt;           // holds both the whole-subject and the stamped-unit boxes
             Texture2D _tex;
             Color32[] _buf;
 
-            public FillSwatch(ZuiFill fill, float size, string tooltip, Vector2 subjectHalf = default,
-                              ZuiSubjectShape subjectShape = ZuiSubjectShape.Box)
+            public FillSwatch(ZuiFill fill, float size, string tooltip, Options opt = null)
             {
                 _fill = fill;
-                _subjectHalf = subjectHalf;
-                _subjectShape = subjectShape;
+                _opt = opt ?? new Options();
                 _px = Mathf.Max(8, Mathf.RoundToInt(size));   // 1 texel per display px is plenty at this size
                 this.tooltip = tooltip;
                 style.width = size;
@@ -661,9 +673,16 @@ namespace Laubrary.Zui
             /// precisely why only a slice of the ramp ever shows), Stretch draws it filling the square.</summary>
             void DrawSubjectBox()
             {
-                if (_subjectHalf.x <= 0f || _subjectHalf.y <= 0f) return;
+                // WHICH box depends on the fill's own anchor, and it is read here rather than captured so that
+                // toggling Stamped/Fixed redraws immediately: Stamped normalizes against ONE repetition (a glyph,
+                // a particle), Fixed against the whole subject.
+                bool stamped = _fill.space == ZuiFill.FillSpace.Stamped
+                               && _opt.stampedHalf.x > 0f && _opt.stampedHalf.y > 0f;
+                Vector2 half = stamped ? _opt.stampedHalf : _opt.subjectHalf;
+                ZuiSubjectShape shape = stamped ? _opt.stampedShape : _opt.subjectShape;
+                if (half.x <= 0f || half.y <= 0f) return;
 
-                Vector2 corner = _fill.Normalize(_subjectHalf, Vector2.zero, _subjectHalf);
+                Vector2 corner = _fill.Normalize(half, Vector2.zero, half);
                 // The domain spans -1..1 across the swatch; convert the corner into texel coordinates.
                 int x0 = UvToPx(-corner.x), x1 = UvToPx(corner.x);
                 int y0 = UvToPx(-corner.y), y1 = UvToPx(corner.y);
@@ -673,7 +692,7 @@ namespace Laubrary.Zui
                 // outline, so drawing it again would say nothing twice.
                 if (x0 <= 0 && y0 <= 0 && x1 >= _px - 1 && y1 >= _px - 1) return;
 
-                if (_subjectShape == ZuiSubjectShape.Circle) StrokeEllipse(x0, y0, x1, y1);
+                if (shape == ZuiSubjectShape.Circle) StrokeEllipse(x0, y0, x1, y1);
                 else StrokeRect(x0, y0, x1, y1);
             }
 
