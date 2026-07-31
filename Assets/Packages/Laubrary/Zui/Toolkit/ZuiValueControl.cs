@@ -150,6 +150,17 @@ namespace Laubrary.Zui
 
             RebuildAll();
             UpdateReadout();
+
+            // RIGHT-CLICK anywhere on the control opens the same ⋯ config menu — the ⋯ button becomes a shortcut,
+            // not the only way in. Registered on the row itself in the BUBBLE phase, so a child that owns its own
+            // right-click (a MicroSlider's display-options menu) still wins on ITSELF (it stops the event before it
+            // reaches here); a right-click on the label / body / empty space bubbles up and opens this menu.
+            RegisterCallback<PointerDownEvent>(e =>
+            {
+                if (e.button != 1) return;
+                ShowMenu(this);
+                e.StopPropagation();
+            });
         }
 
         void Mutate(Action apply) { OnBeforeMutate?.Invoke(); apply(); OnChanged?.Invoke(); }
