@@ -590,19 +590,21 @@ namespace Laubrary.Zui
                     menu.Item("Cycles…", "Generate a sawtooth for a wrapping value (a rotation, a hue).",
                         () => ZuiEnvelopeGenerators.OpenCycles(anchor, _v, _opt.absMin, _opt.absMax,
                             () => OnBeforeMutate?.Invoke(), shapeApplied));
-                menu.Item("Recall shape…", "Pick a built-in or saved shape, or save the current one.",
-                    () => ZuiEnvelopePresetPopover.Open(anchor, _v, () => OnBeforeMutate?.Invoke(), shapeApplied));
+                // The recall grid is INLINE in the menu (not a "Recall shape…" button that opens yet another
+                // panel) — the thumbnails ARE the recall control, so clicking one applies it immediately.
+                menu.Custom((body, close) =>
+                    body.Add(ZuiShapeBrowser.BuildBrowser(_v, () => OnBeforeMutate?.Invoke(), shapeApplied, close)));
             }
 
-            // Steps SHAPE persistence — the same thumbnail picker, in its step-sequence flavour: recall a saved
-            // (or built-in) bar pattern, or ＋ Save the current one. Lives under Steps mode only.
+            // Steps SHAPE persistence — the same inline thumbnail picker, in its step-sequence flavour: click a
+            // built-in / saved bar pattern to apply it, or ＋ Save the current one. Lives under Steps mode only.
             if (_v.mode == ZUIValue.Mode.Steps)
             {
                 Action stepsApplied = () => { OnChanged?.Invoke(); RebuildAll(); UpdateReadout(); };
                 menu.Separator();
                 menu.Section("Shape");
-                menu.Item("Recall steps…", "Pick a built-in or saved step pattern, or save the current one.",
-                    () => ZuiEnvelopePresetPopover.Open(anchor, _v, () => OnBeforeMutate?.Invoke(), stepsApplied));
+                menu.Custom((body, close) =>
+                    body.Add(ZuiShapeBrowser.BuildBrowser(_v, () => OnBeforeMutate?.Invoke(), stepsApplied, close)));
             }
 
             // Multiplier → its own labelled section + a radio ("(none)" + each id) that stays open as a live setting.

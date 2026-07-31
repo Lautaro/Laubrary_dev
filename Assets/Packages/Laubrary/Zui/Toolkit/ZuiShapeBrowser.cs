@@ -1,10 +1,11 @@
-// ZuiEnvelopePresetPopover — the UI Toolkit shape picker for a Curve- OR Steps-mode ZUIValue. A thumbnail
-// browser: two filter toggles (Built-in / User), a "＋ Save" button, and a wrapping grid of shape thumbnails.
-// Shapes are identified by their THUMBNAIL, not a name (per user direction) — clicking a thumbnail remaps its
-// normalized [0,1] shape onto the field's yMin..yMax and writes it into the points/steps (through the caller's
-// Undo hook); saving stores the field's current (normalized) shape as a user shape (one click, no name prompt).
-// The picker adapts to the value's mode: in Envelope mode it browses/saves CURVE shapes (point lists); in Steps
-// mode it browses/saves STEP shapes (bar heights). Built on ZuiPopover, so it inherits ZuiToolkit.uss for free.
+// ZuiShapeBrowser — the inline shape / step picker for a Curve- or Steps-mode ZUIValue, embedded DIRECTLY in the
+// value's config menu (not a button that opens yet another panel): Built-in / User filter toggles, a one-click
+// ＋ Save, and a wrapping grid of shape thumbnails. Clicking a thumbnail APPLIES (recalls) that shape right away
+// and closes the menu — so the thumbnails ARE the recall control. Shapes are identified by their thumbnail, not
+// a name (per user direction). Built from ZUI controls, so it inherits ZuiToolkit.uss for free.
+//
+// It adapts to the value's mode: in Envelope mode it browses/saves CURVE shapes (point lists); in Steps mode it
+// browses/saves STEP shapes (bar heights). One shared preset library, told apart by which list a preset carries.
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -12,108 +13,106 @@ using UnityEngine.UIElements;
 
 namespace Laubrary.Zui
 {
-    static class ZuiEnvelopePresetPopover
+    static class ZuiShapeBrowser
     {
-        /// Open the picker anchored to <paramref name="anchor"/>, reading/writing <paramref name="value"/>'s shape
-        /// (points in Envelope mode, steps in Steps mode) and yMin/yMax. <paramref name="onBeforeMutate"/> is the
-        /// Undo.RecordObject hook (fired before a pick overwrites the shape); <paramref name="onApplied"/> refreshes
-        /// the host control after a pick.
-        public static void Open(VisualElement anchor, ZUIValue value, Action onBeforeMutate, Action onApplied)
+        /// Build the browser as an element to drop into a menu (or any container). Reads/writes
+        /// <paramref name="value"/>'s shape (points in Envelope mode, steps in Steps mode) and yMin/yMax.
+        /// <paramref name="onBeforeMutate"/> is the Undo.RecordObject hook (fired before a pick overwrites the
+        /// shape); <paramref name="onApplied"/> refreshes the host control after a pick; <paramref name="closeMenu"/>
+        /// dismisses the surrounding menu once a shape is applied (null = leave it open).
+        public static VisualElement BuildBrowser(ZUIValue value, Action onBeforeMutate, Action onApplied, Action closeMenu)
         {
-            if (anchor == null || value == null) return;
-            bool stepsMode = value.mode == ZUIValue.Mode.Steps;
+            bool stepsMode = value != null && value.mode == ZUIValue.Mode.Steps;
             // Read-only load — merely browsing must NOT create an empty library asset; only Save does.
             var lib = ZUIEnvelopePresetLibrary.Load(createIfMissing: false);
-            bool showBuiltin = true, showUser = true;   // both filters on by default each open
-            var holder = new ZuiPopover[1];
-            Action close = () => holder[0]?.Close();
+            bool showBuiltin = true, showUser = true;   // both filters on by default
 
-            holder[0] = ZuiPopover.Show(anchor, panel =>
+            var wrap = new VisualElement();
+            wrap.style.width = 236f;
+
+            var grid = new VisualElement();
+            grid.style.flexDirection = FlexDirection.Row;
+            grid.style.flexWrap = Wrap.Wrap;
+            grid.style.marginTop = 3f;
+
+            void Rebuild()
             {
-                panel.style.paddingLeft = panel.style.paddingRight = 6f;
-                panel.style.paddingTop = panel.style.paddingBottom = 6f;
-                panel.style.minWidth = 236f;
-                panel.style.maxWidth = 236f;
-
-                var grid = new VisualElement();
-                grid.style.flexDirection = FlexDirection.Row;
-                grid.style.flexWrap = Wrap.Wrap;
-
-                void Rebuild()
+                grid.Clear();
+                if (showBuiltin)
                 {
-                    grid.Clear();
-                    if (showBuiltin)
-                    {
-                        if (stepsMode)
-                            foreach (var s in BuiltInStepShapes())
-                            {
-                                var steps = s;
-                                grid.Add(Tile(new StepThumb(steps),
-                                    () => { ApplySteps(value, steps, onBeforeMutate, onApplied); close(); }, null));
-                            }
-                        else
-                            foreach (var p in ZUIEnvelopeBuiltInPresets.All)
-                            {
-                                var pts = p.points;
-                                grid.Add(Tile(new ShapeThumb(pts),
-                                    () => { Apply(value, pts, onBeforeMutate, onApplied); close(); }, null));
-                            }
-                    }
-                    if (showUser && lib != null)
-                        for (int i = 0; i < lib.presets.Count; i++)
+                    if (stepsMode)
+                        foreach (var s in BuiltInStepShapes())
                         {
-                            var preset = lib.presets[i];
-                            if (preset.isSteps != stepsMode) continue;   // only this mode's kind of saved shape
-                            int idx = i;
-                            if (stepsMode)
-                            {
-                                var steps = preset.steps;
-                                grid.Add(Tile(new StepThumb(steps),
-                                    () => { ApplySteps(value, steps, onBeforeMutate, onApplied); close(); },
-                                    () => { lib.RemoveAt(idx); Rebuild(); }));
-                            }
-                            else
-                            {
-                                var pts = preset.points;
-                                grid.Add(Tile(new ShapeThumb(pts),
-                                    () => { Apply(value, pts, onBeforeMutate, onApplied); close(); },
-                                    () => { lib.RemoveAt(idx); Rebuild(); }));
-                            }
+                            var steps = s;
+                            grid.Add(Tile(new StepThumb(steps),
+                                () => { ApplySteps(value, steps, onBeforeMutate, onApplied); closeMenu?.Invoke(); }, null));
                         }
-                    if (grid.childCount == 0)
-                        grid.Add(Z.Text(showUser && !showBuiltin ? "No saved shapes yet — hit ＋ Save." : "(nothing to show)",
-                            ZuiText.Subtle, "Toggle Built-in / User, or save a shape."));
+                    else
+                        foreach (var p in ZUIEnvelopeBuiltInPresets.All)
+                        {
+                            var pts = p.points;
+                            grid.Add(Tile(new ShapeThumb(pts),
+                                () => { Apply(value, pts, onBeforeMutate, onApplied); closeMenu?.Invoke(); }, null));
+                        }
                 }
+                if (showUser && lib != null)
+                    for (int i = 0; i < lib.presets.Count; i++)
+                    {
+                        var preset = lib.presets[i];
+                        if (preset.isSteps != stepsMode) continue;   // only this mode's kind of saved shape
+                        int idx = i;
+                        if (stepsMode)
+                        {
+                            var steps = preset.steps;
+                            grid.Add(Tile(new StepThumb(steps),
+                                () => { ApplySteps(value, steps, onBeforeMutate, onApplied); closeMenu?.Invoke(); },
+                                () => { lib.RemoveAt(idx); Rebuild(); }));
+                        }
+                        else
+                        {
+                            var pts = preset.points;
+                            grid.Add(Tile(new ShapeThumb(pts),
+                                () => { Apply(value, pts, onBeforeMutate, onApplied); closeMenu?.Invoke(); },
+                                () => { lib.RemoveAt(idx); Rebuild(); }));
+                        }
+                    }
+                if (grid.childCount == 0)
+                    grid.Add(Z.Text(showUser && !showBuiltin ? "No saved shapes yet — hit ＋ Save." : "(nothing to show)",
+                        ZuiText.Subtle, "Toggle Built-in / User, or save a shape."));
+            }
 
-                // ── filter toggles + save ──
-                var bar = new VisualElement();
-                bar.style.flexDirection = FlexDirection.Row;
-                bar.style.alignItems = Align.Center;
-                bar.style.marginBottom = 6f;
-                bar.Add(Z.ToggleButton("Built-in", "Show the shapes that ship with ZUI.", showBuiltin,
-                    on => { showBuiltin = on; Rebuild(); }));
-                bar.Add(Z.ToggleButton("User", "Show shapes you've saved in this project.", showUser,
-                    on => { showUser = on; Rebuild(); }));
-                bar.Add(Z.Flexible());
-                bar.Add(Z.Button("＋ Save",
-                    stepsMode ? "Save the current step sequence as a reusable user shape (identified by its thumbnail)."
-                              : "Save the current curve as a reusable user shape (identified by its thumbnail).", () =>
-                {
-                    if (lib == null) lib = ZUIEnvelopePresetLibrary.Load(createIfMissing: true);
-                    string id = Guid.NewGuid().ToString("N").Substring(0, 8);
-                    if (stepsMode) lib.AddSteps(id, NormalizedSteps(value));
-                    else lib.Add(id, Normalized(value));
-                    showUser = true;
-                    Rebuild();
-                }));
-                panel.Add(bar);
-
-                var scroll = new ScrollView(ScrollViewMode.Vertical);
-                scroll.style.maxHeight = 300f;
-                scroll.Add(grid);
-                panel.Add(scroll);
+            // ── filter toggles + save ──
+            var bar = new VisualElement();
+            bar.style.flexDirection = FlexDirection.Row;
+            bar.style.alignItems = Align.Center;
+            bar.Add(Z.ToggleButton("Built-in", "Show the shapes that ship with ZUI.", showBuiltin,
+                on => { showBuiltin = on; Rebuild(); }));
+            bar.Add(Z.ToggleButton("User", "Show shapes you've saved in this project.", showUser,
+                on => { showUser = on; Rebuild(); }));
+            bar.Add(Z.Flexible());
+            bar.Add(Z.Button("＋ Save",
+                stepsMode ? "Save the current step sequence as a reusable user shape (identified by its thumbnail)."
+                          : "Save the current curve as a reusable user shape (identified by its thumbnail).", () =>
+            {
+                if (lib == null) lib = ZUIEnvelopePresetLibrary.Load(createIfMissing: true);
+                string id = Guid.NewGuid().ToString("N").Substring(0, 8);
+                if (stepsMode) lib.AddSteps(id, NormalizedSteps(value));
+                else lib.Add(id, Normalized(value));
+                showUser = true;
                 Rebuild();
-            }, new ZuiPopover.Options { minWidth = 236f });
+            }));
+            wrap.Add(bar);
+
+            // Make the recall action unmistakable — the thumbnails ARE clickable to apply.
+            wrap.Add(Z.Text(stepsMode ? "Click a pattern to apply it." : "Click a shape to apply it.",
+                ZuiText.Subtle, "Applying overwrites the current shape (undoable). × removes a saved one."));
+
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.maxHeight = 168f;
+            scroll.Add(grid);
+            wrap.Add(scroll);
+            Rebuild();
+            return wrap;
         }
 
         // One shape as a clickable thumbnail tile; a user tile carries a small × to delete. No name text — the
