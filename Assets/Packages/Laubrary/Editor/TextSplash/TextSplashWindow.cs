@@ -351,7 +351,13 @@ namespace Laubrary.TextSplash.Editor
                     "The face fill — a solid colour or a ZUI gradient (the same fill system Pyre uses).",
                     () => { EditorUtility.SetDirty(s); AfterEdit(); },
                     () => Undo.RecordObject(s, "Edit splash fill"),
-                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true, subjectHalf = SubjectHalf(), stampedHalf = GlyphHalf() }),
+                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true, subjectHalf = SubjectHalf(), stampedHalf = GlyphHalf(),
+                        // FOUR vertex colours per glyph and the GPU interpolates between them - so a Stamped
+                        // fill gets 2x2 samples per letter and a Fixed one gets 2 per glyph across the line.
+                        // The swatch previews at that density so it cannot promise detail the mesh has no
+                        // vertices to carry.
+                        subjectSamples = new Vector2Int(Mathf.Max(2, LetterCount() * 2), 2),
+                        stampedSamples = new Vector2Int(2, 2) }),
                 ScalarRow("Alpha", s.alpha, 0f, 1f,
                     "Overall opacity. Animatable — curve it for a flicker or a slow bleed-out.")));
 
@@ -561,7 +567,13 @@ namespace Laubrary.TextSplash.Editor
                     "The border fill — solid or a ZUI gradient, exactly like the face fill.",
                     () => { EditorUtility.SetDirty(s); AfterEdit(); },
                     () => Undo.RecordObject(s, "Edit splash border fill"),
-                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true, subjectHalf = SubjectHalf(), stampedHalf = GlyphHalf() }),
+                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true, subjectHalf = SubjectHalf(), stampedHalf = GlyphHalf(),
+                        // FOUR vertex colours per glyph and the GPU interpolates between them - so a Stamped
+                        // fill gets 2x2 samples per letter and a Fixed one gets 2 per glyph across the line.
+                        // The swatch previews at that density so it cannot promise detail the mesh has no
+                        // vertices to carry.
+                        subjectSamples = new Vector2Int(Mathf.Max(2, LetterCount() * 2), 2),
+                        stampedSamples = new Vector2Int(2, 2) }),
                 ScalarRow("Width", s.borderWidth, 0f, 0.5f,
                     "Border thickness as a FRACTION OF THE FONT SIZE — 0.02 is a hairline, 0.25 a fat cartoon "
                     + "outline. (Not TMP's old 0..1 outline units.) Animatable.", 2,
@@ -709,7 +721,13 @@ namespace Laubrary.TextSplash.Editor
                 Z.Fill("Sides", d.sideFill, sidesTip,
                     () => { EditorUtility.SetDirty(s); AfterEdit(); },
                     () => Undo.RecordObject(s, "Edit depth side fill"),
-                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true, subjectHalf = SubjectHalf(), stampedHalf = GlyphHalf() }),
+                    new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true, subjectHalf = SubjectHalf(), stampedHalf = GlyphHalf(),
+                        // FOUR vertex colours per glyph and the GPU interpolates between them - so a Stamped
+                        // fill gets 2x2 samples per letter and a Fixed one gets 2 per glyph across the line.
+                        // The swatch previews at that density so it cannot promise detail the mesh has no
+                        // vertices to carry.
+                        subjectSamples = new Vector2Int(Mathf.Max(2, LetterCount() * 2), 2),
+                        stampedSamples = new Vector2Int(2, 2) }),
 
                 // Both grade the fill above rather than replacing it, so they live under its card.
                 Z.Row(

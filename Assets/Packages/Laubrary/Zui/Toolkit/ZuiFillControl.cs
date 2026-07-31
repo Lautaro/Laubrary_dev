@@ -57,12 +57,29 @@ namespace Laubrary.Zui
             public Vector2 stampedHalf = Vector2.zero;
             public ZuiSubjectShape stampedShape = ZuiSubjectShape.Box;
 
+            // How many INDEPENDENT samples of the fill the consumer's renderer actually takes across the
+            // subject, in x and y. This is the difference between a preview and a promise.
+            //
+            // TextSplash colours text by writing four VERTEX colours per glyph and letting the GPU interpolate
+            // between them, so a Stamped fill gets 2x2 samples per letter and nothing in between. A radial
+            // gradient normalized against that letter puts all four corners at the same radius (>= 1.3, so all
+            // four clamp to the ramp's last colour) and the letter renders FLAT - the disc lives entirely
+            // between the samples. A per-pixel swatch drew that disc anyway and promised something the renderer
+            // cannot deliver.
+            //
+            // Zero (the default) means "sampled continuously", i.e. per pixel, which is right for a consumer
+            // that evaluates the fill per fragment.
+            public Vector2Int subjectSamples = Vector2Int.zero;
+            public Vector2Int stampedSamples = Vector2Int.zero;
+
             public Options WithWidth(float w) { controlWidth = w; return this; }
             public Options WithFit() { showFit = true; return this; }
             public Options WithSubject(Vector2 half, ZuiSubjectShape shape = ZuiSubjectShape.Box)
             { subjectHalf = half; subjectShape = shape; return this; }
             public Options WithStamped(Vector2 half, ZuiSubjectShape shape = ZuiSubjectShape.Box)
             { stampedHalf = half; stampedShape = shape; return this; }
+            public Options WithSamples(Vector2Int subject, Vector2Int stamped)
+            { subjectSamples = subject; stampedSamples = stamped; return this; }
             public Options WithGrow(float maxFactor = 2.4f) { grow = true; maxWidthFactor = maxFactor; return this; }
             public Options Clone() => (Options)MemberwiseClone();
         }
@@ -658,7 +675,9 @@ namespace Laubrary.Zui
                 // renderer uses per vertex. So what the swatch shows IS what the fill does to the subject, in
                 // every space/fit combination, and the differences between those combinations become visible
                 // as differences in the picture rather than as geometry the user has to infer.
-                bool haveSubject = ResolveSubject(out Vector2 half, out ZuiSubjectShape shape);
+                bool haveSubject = ResolveSubject(out Vector2 half, out ZuiSubjectShape shape,
+                                                  out Vector2Int samples);
+                bool discrete = haveSubject && (samples.x >= 2 || samples.y >= 2);
 
                 for (int y = 0; y < _px; y++)
                 {
@@ -672,13 +691,10 @@ namespace Laubrary.Zui
 
                         Color c;
                         if (overLife) c = _fill.Evaluate(fx, 0f, 0f);
-                        else if (haveSubject)
-                        {
-                            // The subject's own local point, then the renderer's own normalization.
-                            Vector2 uv = _fill.Normalize(new Vector2(sx * half.x, sy * half.y),
-                                                         Vector2.zero, half);
-                            c = _fill.Evaluate(0f, uv.x, uv.y);
-                        }
+                        // Interpolated across the consumer's REAL sample grid when it declared one, so the
+                        // swatch shows what the renderer can actually draw rather than the ideal fill.
+                        else if (discrete) c = Sampled(fx, fy, half, samples);
+                        else if (haveSubject) c = At(sx, sy, half);
                         else c = _fill.Evaluate(0f, sx, sy);   // no subject named: the raw domain, as before
 
                         _buf[y * _px + x] = c;
@@ -701,13 +717,43 @@ namespace Laubrary.Zui
             /// <summary>Which box the fill is actually normalized against, read from the fill's own anchor at
             /// DRAW time so toggling Stamped/Fixed redraws immediately: Stamped fits the gradient onto ONE
             /// repetition (a glyph, a swarm particle), Fixed onto the whole subject.</summary>
-            bool ResolveSubject(out Vector2 half, out ZuiSubjectShape shape)
+            bool ResolveSubject(out Vector2 half, out ZuiSubjectShape shape, out Vector2Int samples)
             {
                 bool stamped = _fill.space == ZuiFill.FillSpace.Stamped
                                && _opt.stampedHalf.x > 0f && _opt.stampedHalf.y > 0f;
                 half = stamped ? _opt.stampedHalf : _opt.subjectHalf;
                 shape = stamped ? _opt.stampedShape : _opt.subjectShape;
+                samples = stamped ? _opt.stampedSamples : _opt.subjectSamples;
                 return half.x > 0f && half.y > 0f;
+            }
+
+            /// <summary>The fill at a point on the subject, in the subject's own -1..1 frame.</summary>
+            Color At(float sx, float sy, Vector2 half)
+            {
+                Vector2 uv = _fill.Normalize(new Vector2(sx * half.x, sy * half.y), Vector2.zero, half);
+                return _fill.Evaluate(0f, uv.x, uv.y);
+            }
+
+            /// <summary>The fill as the CONSUMER will actually see it: evaluated on its sample grid and
+            /// interpolated between, exactly as vertex colours are interpolated across a quad. With a 2x2 grid
+            /// this collapses a radial gradient to a flat bilinear wash — which is the truth, and is what stops
+            /// the swatch promising a disc that cannot be drawn.</summary>
+            Color Sampled(float fx, float fy, Vector2 half, Vector2Int grid)
+            {
+                int nx = Mathf.Max(2, grid.x), ny = Mathf.Max(2, grid.y);
+                float gx = fx * (nx - 1), gy = fy * (ny - 1);
+                int x0 = Mathf.Clamp(Mathf.FloorToInt(gx), 0, nx - 2);
+                int y0 = Mathf.Clamp(Mathf.FloorToInt(gy), 0, ny - 2);
+                float tx = gx - x0, ty = gy - y0;
+
+                float u0 = Mathf.Lerp(-1f, 1f, x0 / (float)(nx - 1));
+                float u1 = Mathf.Lerp(-1f, 1f, (x0 + 1) / (float)(nx - 1));
+                float v0 = Mathf.Lerp(-1f, 1f, y0 / (float)(ny - 1));
+                float v1 = Mathf.Lerp(-1f, 1f, (y0 + 1) / (float)(ny - 1));
+
+                Color c00 = At(u0, v0, half), c10 = At(u1, v0, half);
+                Color c01 = At(u0, v1, half), c11 = At(u1, v1, half);
+                return Color.Lerp(Color.Lerp(c00, c10, tx), Color.Lerp(c01, c11, tx), ty);
             }
 
             /// <summary>Mark where the gradient's CENTRE sits RELATIVE TO THE SUBJECT.
