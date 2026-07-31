@@ -408,6 +408,14 @@ namespace Laubrary.TextSplash
                  "low resolution. This is what bands it into flat steps, which is what actually reads as a palette.")]
         public int colorSteps = 6;
 
+        [Range(0, 9)] [Tooltip("How many lit and darkened versions of each of your colours the palette lock may " +
+                 "use. A bevel and depth's falloff are LIGHTING — they make colours that are in no fill, so a " +
+                 "palette built only from the fills has nothing to snap them to and flattens the shading away " +
+                 "entirely. Adding shades is what real limited-palette art does: the light becomes a few flat " +
+                 "bands of your own colours instead of a smooth ramp. 0 or 1 = no shades (shading is erased " +
+                 "while the lock is on). Only used when something actually shades.")]
+        public int shadeSteps = 5;
+
         [Tooltip("Snap every pixel to the nearest colour the splash actually USES — its face, border and side fills — " +
                  "instead of letting it be a blend. This is what makes it look like real pixel art. Alpha cutoff " +
                  "fixes the EDGE of the letters; this fixes their INSIDE: a low-res pixel that straddles the white " +
@@ -439,7 +447,7 @@ namespace Laubrary.TextSplash
         // so an older asset deserializes the new field as 0 and silently renders soft-edged mush no matter what the
         // declared default says. Migrate() uses this to tell the two apart exactly once.
         [HideInInspector] public int version;
-        public const int CurrentVersion = 3;
+        public const int CurrentVersion = 4;
 
         [Tooltip("Optional SpriteFx stack run over the low-res buffer every frame — the same Brightness / Tint / " +
                  "Contrast / Saturation / Posterize / OrderedDither / LayerDissolve / AlphaMask modifiers a sprite " +
@@ -471,6 +479,10 @@ namespace Laubrary.TextSplash
             if (version < 1 && alphaCutoff <= 0f) alphaCutoff = 0.5f;
             if (version < 2) paletteLock = true;
             if (version < 3 && coverageSamples < 2) coverageSamples = 4;
+            // v3 → v4: seed the shade ladder. Before it existed the palette lock ERASED every bevel and depth
+            // grade (a bevel's luminance spread measured 0.549 unlocked and 0.000 locked), so an asset that has
+            // both on has been rendering flat and wants the fix; one that shades nothing is unaffected either way.
+            if (version < 4 && shadeSteps <= 0) shadeSteps = 5;
             version = CurrentVersion;
         }
 
@@ -800,6 +812,84 @@ namespace Laubrary.TextSplash
             // which is worse than the blend it replaced. Same reasoning as gating the side fill on depth.
             if (WidestBorder() > 0f) AddFill(into, borderFill, rampSamples);
             if (depth != null && depth.enabled) AddFill(into, depth.sideFill, rampSamples);
+
+            // SHADING HAS TO BE A PALETTE COLOUR. A bevel is per-pixel lighting and depth's falloff is a grade;
+            // both produce colours that are in no fill, so a palette built only from the fills has nothing to
+            // snap them to and flattens them onto the flat face colour — measured, a bevel went from a 0.549
+            // luminance spread to exactly 0.000 the moment the lock came on. Adding lit and darkened variants of
+            // the author's own colours is what real limited-palette art does, and it turns the lock from
+            // something that erases shading into something that BANDS it.
+            //
+            // Only when something actually shades: a splash with no bevel and no depth would otherwise gain
+            // stray shades for its pixels to snap to, which is the same mistake as listing a border colour when
+            // no border is drawn.
+            int shades = ShadeSteps();
+            if (shades > 1) AddShades(into, shades);
+        }
+
+        /// <summary>How many lit/dark variants of each colour the palette should carry — 1 (or 0) meaning none.
+        /// Zero unless something is actually shading and the lock is on to be affected by it.</summary>
+        public int ShadeSteps()
+        {
+            var px = pixelation;
+            if (px == null || !px.enabled || !px.paletteLock) return 0;
+            bool shading = (bevel != null && bevel.enabled) || (depth != null && depth.enabled);
+            if (!shading) return 0;
+            return Mathf.Clamp(px.shadeSteps, 0, 9);
+        }
+
+        /// <summary>Expand each colour already in the palette into a short ramp of lit and darkened versions.
+        ///
+        /// The variants scale LUMINANCE and leave hue alone, because that is what a light does — and because the
+        /// snap itself matches on luma and chroma separately, so a luma ladder gives it somewhere to land
+        /// without dragging the colour off-hue.
+        ///
+        /// The result is CAPPED: the snap is a per-pixel search over the whole palette, so an unbounded product
+        /// of ramp samples and shades would multiply the cost of every frame. Past the cap the list is thinned
+        /// evenly rather than truncated, which keeps both ends of every ramp.</summary>
+        static void AddShades(List<Color32> into, int shades)
+        {
+            int baseCount = into.Count;
+            if (baseCount == 0) return;
+
+            // The ladder is weighted DOWNWARD, and per colour rather than by a fixed pair of multipliers,
+            // because the headroom is not symmetric: a bright face has almost nowhere to go up (a white pixel
+            // times anything over 1 is still white, so half a fixed ladder collapsed into duplicates and a
+            // measured bevel only recovered a 0.275 luminance spread), while a dark face has plenty. So the
+            // bright end is capped by what the colour can actually reach before clipping.
+            const float Darkest = 0.35f;
+
+            for (int i = 0; i < baseCount; i++)
+            {
+                Color32 c = into[i];
+                float peak = Mathf.Max(c.r, Mathf.Max(c.g, c.b)) / 255f;
+                // Room to brighten before the strongest channel clips, held to something sane either way.
+                float brightest = Mathf.Clamp(peak > 0.01f ? 1f / peak : 1f, 1.05f, 1.8f);
+
+                for (int k = 0; k < shades; k++)
+                {
+                    float t = shades == 1 ? 1f : k / (float)(shades - 1);
+                    float m = Mathf.Lerp(Darkest, brightest, t);
+                    if (Mathf.Abs(m - 1f) < 0.02f) continue;   // the unshaded colour is already in the list
+                    Push(into, new Color32(
+                        (byte)Mathf.Clamp(Mathf.RoundToInt(c.r * m), 0, 255),
+                        (byte)Mathf.Clamp(Mathf.RoundToInt(c.g * m), 0, 255),
+                        (byte)Mathf.Clamp(Mathf.RoundToInt(c.b * m), 0, 255),
+                        c.a));
+                }
+            }
+
+            Thin(into, 64);
+        }
+
+        /// Keep at most `cap` entries, dropping evenly across the list so no ramp loses only its top or bottom.
+        static void Thin(List<Color32> into, int cap)
+        {
+            if (into.Count <= cap) return;
+            var kept = new List<Color32>(cap);
+            for (int i = 0; i < cap; i++) kept.Add(into[Mathf.Min(into.Count - 1, i * into.Count / cap)]);
+            into.Clear();
+            into.AddRange(kept);
         }
 
         static void AddFill(List<Color32> into, ZuiFill f, int samples)

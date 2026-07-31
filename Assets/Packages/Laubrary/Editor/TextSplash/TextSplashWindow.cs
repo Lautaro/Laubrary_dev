@@ -872,6 +872,11 @@ namespace Laubrary.TextSplash.Editor
                         v => Edit("Edit colour steps", () => px.colorSteps = Mathf.RoundToInt(v)),
                         168f, decimals: 0, prefsKey: "splash.px.steps")),
                 Z.Row(
+                    Z.MicroSlider("Shades", px.shadeSteps, 0f, 9f, ShadesTip(s),
+                        v => Edit("Edit palette shades", () => px.shadeSteps = Mathf.RoundToInt(v)),
+                        168f, decimals: 0, prefsKey: "splash.px.shades")
+                        .Shown(px.paletteLock && Shades(s))),
+                Z.Row(
                     Z.MicroSlider("Alpha cutoff", px.alphaCutoff, 0f, 1f, PixelTip(s,
                             "Alpha threshold that makes the edges CRISP. TMP's SDF antialiases every edge, and at "
                             + "this resolution those half-transparent pixels are a whole visible pixel of mush — "
@@ -1088,6 +1093,23 @@ namespace Laubrary.TextSplash.Editor
             => s != null && s.size != null && s.size.value != null && s.size.value.mode == ZUIValue.Mode.Static;
 
         static float StaticSize(TextSplash s) => s != null && s.size != null ? s.size.Evaluate(0f, 0) : 96f;
+
+        /// Whether anything in this splash actually SHADES — the only case where palette shades do anything.
+        static bool Shades(TextSplash s)
+            => s != null && ((s.bevel != null && s.bevel.enabled) || (s.depth != null && s.depth.enabled));
+
+        string ShadesTip(TextSplash s)
+        {
+            string body = "How many lit and darkened versions of your own colours the palette lock may use. "
+                + "A bevel and depth's falloff are LIGHTING — they make colours that are in no fill, so a "
+                + "palette built only from the fills has nothing to snap them to and erases the shading "
+                + "completely (measured: a bevel's brightness range went from 0.55 to 0.00 the moment the lock "
+                + "came on). Shades turn that light into a few flat bands of your own colours, which is how "
+                + "limited-palette art shades anything. 0 or 1 = no shades, and the lock erases it again.";
+            return PixelTip(s, Shades(s)
+                ? body
+                : body + " Nothing in this splash is shading, so this does nothing right now.");
+        }
 
         string RasterTip(TextSplash s)
         {
