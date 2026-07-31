@@ -571,8 +571,10 @@ namespace Laubrary.TextSplash.Editor
                         // fill gets 2x2 samples per letter and a Fixed one gets 2 per glyph across the line.
                         // The swatch previews at that density so it cannot promise detail the mesh has no
                         // vertices to carry.
-                        subjectSamples = new Vector2Int(Mathf.Max(2, LetterCount() * 2), 2),
-                        stampedSamples = new Vector2Int(2, 2) }),
+                        // No sample limit: the BORDER pass takes the same per-fragment bake the face does
+                        // (ApplyMesh runs once per pass), so a 2x2 vertex grid here made the swatch UNDER-promise
+                        // — it washed a radial border flat while the render drew a proper disc.
+                        }),
                 ScalarRow("Width", s.borderWidth, 0f, 0.5f,
                     "Border thickness as a FRACTION OF THE FONT SIZE — 0.02 is a hairline, 0.25 a fat cartoon "
                     + "outline. (Not TMP's old 0..1 outline units.) Animatable.", 2,

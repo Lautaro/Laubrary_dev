@@ -1534,8 +1534,11 @@ namespace Laubrary.TextSplash
 
         /// Linear and Radial are SPATIAL: their colour depends on WHERE a vertex sits, which TMP's single
         /// top→bottom vertex gradient cannot express — they have to be sampled per vertex.
-        static bool IsSpatial(ZuiFill f) => f != null && f.texture == ZuiFill.TextureKind.None
-                                         && (f.mode == ZuiFill.Mode.Linear || f.mode == ZuiFill.Mode.Radial);
+        // DELEGATED, not restated. There were two of these — ZuiFill's counted a TEXTURE as spatial and this one
+        // excluded it — and ApplyMesh gated on this one, so every Sprite / Noise / Grid / Dots fill silently fell
+        // through to a flat tint while the editor's swatch rendered the pattern perfectly. Two predicates for one
+        // question is the same defect as a cache keyed on the wrong field: it cannot be reviewed, only discovered.
+        static bool IsSpatial(ZuiFill f) => f != null && f.IsSpatial();
 
         /// An over-life ramp: the one fill whose colour is driven by a 0..1 clock, so it is FLAT in space and moves
         /// in time — one sample paints the whole thing, and which clock feeds it is the only question.
