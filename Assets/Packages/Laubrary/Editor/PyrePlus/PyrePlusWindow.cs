@@ -1113,16 +1113,16 @@ namespace Laubrary.PyrePlus.Editor
                 // Turn (yaw = the shared particleSpin), Tilt (gemTilt) and Roll (gemRoll) — the three rotation axes
                 // in plain words, each animatable over the particle's own life. Roll is geometrically inert for the
                 // symmetric Ring (Turn + Tilt already shape its ellipse), so it's hidden there. Tooltips per form.
-                box.Add(Val("Turn °", TurnTooltip(s.shapeForm), s.particleSpin, -1440f, 1440f));
-                box.Add(Val("Tilt °", TiltTooltip(s.shapeForm), s.gemTilt, -1440f, 1440f));
+                box.Add(Val("Turn °", TurnTooltip(s.shapeForm), s.particleSpin, -1440f, 1440f, cyclic: true));
+                box.Add(Val("Tilt °", TiltTooltip(s.shapeForm), s.gemTilt, -1440f, 1440f, cyclic: true));
                 if (s.shapeForm != ShapeForm.Ring)
-                    box.Add(Val("Roll °", RollTooltip(s.shapeForm), s.gemRoll, -1440f, 1440f));
+                    box.Add(Val("Roll °", RollTooltip(s.shapeForm), s.gemRoll, -1440f, 1440f, cyclic: true));
             }
             else
             {
                 // The flat 2D forms + Text edit particleSpin as a single in-plane Spin. (For a 3D solid the same
                 // field is shown once above as "Turn °", so it isn't repeated here.) Tooltip composed per form.
-                box.Add(Val("Spin °", SpinTooltip(s.shapeForm), s.particleSpin, -720f, 720f));
+                box.Add(Val("Spin °", SpinTooltip(s.shapeForm), s.particleSpin, -720f, 720f, cyclic: true));
             }
 
             float half = Mathf.Max(1f, spec.canvasSize * 0.5f);
@@ -2047,15 +2047,15 @@ namespace Laubrary.PyrePlus.Editor
             spin.Add(Val("Swarm turn °",
                 "Yaw the whole placed cloud around the VERTICAL axis (turntable), live at the current frame — the "
                 + "swarm spins as one, arrangement preserved. Animate it for a rotating cloud.",
-                s.swarmTurn, -1440f, 1440f));
+                s.swarmTurn, -1440f, 1440f, cyclic: true));
             spin.Add(Val("Swarm tilt °",
                 "Pitch the whole placed cloud around the HORIZONTAL axis, live at the current frame — tips the cloud "
                 + "toward/away (pseudo-3D). Animate it to roll the swarm forward/back.",
-                s.swarmTilt, -1440f, 1440f));
+                s.swarmTilt, -1440f, 1440f, cyclic: true));
             spin.Add(Val("Swarm roll °",
                 "Roll the whole placed cloud in the screen plane (about the axis pointing at you), live at the "
                 + "current frame. Animate it to spin the swarm flat against the screen.",
-                s.swarmRoll, -1440f, 1440f));
+                s.swarmRoll, -1440f, 1440f, cyclic: true));
             spin.Add(Val("Swarm scale",
                 "A LIVE uniform radial scale of the whole placed cloud about the shape centre, at the current frame "
                 + "— the sibling of the three spin axes above. 1 = identity (no change); animate it to make the swarm "
@@ -2159,13 +2159,14 @@ namespace Laubrary.PyrePlus.Editor
             var r = Z.Row(kids); r.style.flexWrap = Wrap.Wrap; return r;
         }
 
-        VisualElement Val(string label, string tooltip, ZUIValue v, float lo, float hi)
+        VisualElement Val(string label, string tooltip, ZUIValue v, float lo, float hi, bool cyclic = false)
         {
             var o = new ZuiValueControl.Options
             {
                 absMin = lo, absMax = hi,
                 hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true,
                 controlWidth = 170f, grow = true,
+                cyclic = cyclic,   // a wrapping angle (rotation / spin) → offer the Cycles envelope generator
                 // Show where each bake frame lands on the curve (numbers thin out when frames are dense).
                 frameCount = spec != null ? spec.frameCount : 0,
             };
