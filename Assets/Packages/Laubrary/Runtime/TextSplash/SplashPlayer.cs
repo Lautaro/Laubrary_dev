@@ -1351,7 +1351,7 @@ namespace Laubrary.TextSplash
 
             // Re-baked only when something it depends on actually moved. An animated size/centre changes the hash
             // every frame and re-bakes; a static fill bakes once and then costs nothing.
-            int hash = FillHash(fill, life);
+            int hash = fill.ContentHash(life);
             if (!_fillHash.TryGetValue(tmp, out int had) || had != hash)
             {
                 fill.BakeTo(tex, life);
@@ -1369,23 +1369,9 @@ namespace Laubrary.TextSplash
             return true;
         }
 
-        /// The inputs a bake depends on — anything else changing cannot alter the texture.
-        static int FillHash(ZuiFill f, float life)
-        {
-            unchecked
-            {
-                int h = 17;
-                h = h * 31 ^ (int)f.mode;
-                h = h * 31 ^ (int)f.fit;
-                h = h * 31 ^ f.angleDeg.GetHashCode();
-                h = h * 31 ^ f.CenterAt(life).GetHashCode();
-                h = h * 31 ^ f.zoom.GetHashCode();
-                h = h * 31 ^ (f.gradientAnim != null ? f.gradientAnim.GetHashCode() : 0);
-                h = h * 31 ^ (f.gradient != null ? f.gradient.GetHashCode() : 0);
-                h = h * 31 ^ Mathf.RoundToInt(life * 240f);   // enough to catch an animated fill, not float noise
-                return h;
-            }
-        }
+        // Keyed on what the fill LOOKS LIKE, not on a list of its fields — ZuiFill.ContentHash explains why, and
+        // this is where the lesson was learned: the list read the legacy `zoom` while the renderer read the
+        // `zoomAnim` companion the Size dial edits, so Size changed the preview and never the output.
 
         /// Drop a pass's baked texture when it stops using one, so a splash that switches away from a spatial
         /// fill does not keep a texture alive for the rest of the session.

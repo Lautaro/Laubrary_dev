@@ -417,8 +417,12 @@ namespace Laubrary.Zui
         // reproduces the legacy `center` exactly (byte-identical). Same Undo/refresh wiring as every other edit.
         VisualElement CenterVal()
         {
-            const string tip = "The gradient's centre, in the SUBJECT BOX's own -1..1 space — the box outlined on "
-                + "the swatch. Linear: the fill axis passes through it. Radial: the gradient's middle sits here. "
+            string tip = "The gradient's centre, in the SUBJECT BOX's own -1..1 space. "
+                + (_fill.mode == ZuiFill.Mode.Linear
+                    ? "LINEAR only moves ALONG its axis, so only the component pointing that way does anything — "
+                      + "at 0 degrees the Y here is inert, at 90 the X is. Rotate the angle and the other one "
+                      + "wakes up. "
+                    : "Radial: the gradient's middle sits here. ")
                 + "Under Uniform fit both axes are scaled by the box's LONGER side, so on a wide subject a small "
                 + "vertical offset moves a long way; Stretch makes one unit mean one half-box on each axis. "
                 + "Static holds it; switch to a Curve (⋯) to animate it over the fill's life.";

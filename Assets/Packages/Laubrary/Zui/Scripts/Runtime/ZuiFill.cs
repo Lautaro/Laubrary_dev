@@ -492,6 +492,48 @@ public class ZuiFill : ISerializationCallbackReceiver
         tex.Apply(false, false);
     }
 
+    /// <summary>A hash of what this fill LOOKS LIKE at <paramref name="life"/> — for a consumer caching a bake of
+    /// it, to know when that cache is stale.
+    ///
+    /// It samples the fill rather than enumerating its fields, and that is the entire point. A hand-written
+    /// field hash is only ever as correct as its author's memory of which fields matter, and it fails SILENTLY
+    /// when it is wrong: the picture changes, the hash does not, and the cached texture goes stale while the
+    /// editor's own uncached preview updates — so the tool shows one thing and renders another. That exact bug
+    /// shipped here, hashing the legacy `zoom` scalar while the renderer evaluated the `zoomAnim` companion the
+    /// UI actually edits, so the Size dial moved the preview and not the output. Sampling cannot drift: anything
+    /// that changes the picture changes these samples, and anything that does not, correctly does not re-bake.
+    ///
+    /// The grid is deliberately coarse and deliberately NOT axis-aligned-symmetric — a symmetric set of points
+    /// on a radial fill would return identical colours and miss a centre offset.</summary>
+    public int ContentHash(float life)
+    {
+        unchecked
+        {
+            int h = 17;
+            h = h * 31 ^ (int)mode;
+            h = h * 31 ^ (int)fit;
+            h = h * 31 ^ (int)space;
+            h = h * 31 ^ (int)texture;
+
+            const int N = 5;
+            for (int y = 0; y < N; y++)
+            {
+                for (int x = 0; x < N; x++)
+                {
+                    // Offset off the centre lines so a symmetric fill still reveals an off-centre origin.
+                    float u = Mathf.Lerp(-0.97f, 0.93f, x / (float)(N - 1));
+                    float v = Mathf.Lerp(-0.91f, 0.99f, y / (float)(N - 1));
+                    Color c = Evaluate(life, u, v);
+                    h = h * 31 ^ Mathf.RoundToInt(c.r * 255f);
+                    h = h * 31 ^ Mathf.RoundToInt(c.g * 255f);
+                    h = h * 31 ^ Mathf.RoundToInt(c.b * 255f);
+                    h = h * 31 ^ Mathf.RoundToInt(c.a * 255f);
+                }
+            }
+            return h;
+        }
+    }
+
     /// <summary>The 0..1 texture coordinate for a point, for sampling a <see cref="BakeTo"/> texture. This is
     /// <see cref="Normalize"/> remapped from -1..1 into UV space, and it is where `fit`, the chosen box and the
     /// glyph's own aspect all land — which is why the baked texture needs to know none of them.</summary>
