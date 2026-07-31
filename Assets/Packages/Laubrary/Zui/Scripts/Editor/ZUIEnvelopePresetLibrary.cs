@@ -44,6 +44,16 @@ public class ZUIEnvelopePresetLibrary : ScriptableObject
         AssetDatabase.SaveAssets();
     }
 
+    /// Stores a step-sequence shape: a deep copy of the already-normalized [0,1] bar heights, under a name.
+    public void AddSteps(string presetName, List<float> normalizedSteps)
+    {
+        var preset = new ZUIEnvelopePreset { name = string.IsNullOrWhiteSpace(presetName) ? "(unnamed)" : presetName };
+        preset.steps.AddRange(normalizedSteps);
+        presets.Add(preset);
+        EditorUtility.SetDirty(this);
+        AssetDatabase.SaveAssets();
+    }
+
     public void RemoveAt(int i)
     {
         if (i < 0 || i >= presets.Count) return;

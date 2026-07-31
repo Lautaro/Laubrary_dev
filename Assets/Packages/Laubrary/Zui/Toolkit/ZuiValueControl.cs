@@ -594,6 +594,17 @@ namespace Laubrary.Zui
                     () => ZuiEnvelopePresetPopover.Open(anchor, _v, () => OnBeforeMutate?.Invoke(), shapeApplied));
             }
 
+            // Steps SHAPE persistence — the same thumbnail picker, in its step-sequence flavour: recall a saved
+            // (or built-in) bar pattern, or ＋ Save the current one. Lives under Steps mode only.
+            if (_v.mode == ZUIValue.Mode.Steps)
+            {
+                Action stepsApplied = () => { OnChanged?.Invoke(); RebuildAll(); UpdateReadout(); };
+                menu.Separator();
+                menu.Section("Shape");
+                menu.Item("Recall steps…", "Pick a built-in or saved step pattern, or save the current one.",
+                    () => ZuiEnvelopePresetPopover.Open(anchor, _v, () => OnBeforeMutate?.Invoke(), stepsApplied));
+            }
+
             // Multiplier → its own labelled section + a radio ("(none)" + each id) that stays open as a live setting.
             if (hasMultiplier)
             {

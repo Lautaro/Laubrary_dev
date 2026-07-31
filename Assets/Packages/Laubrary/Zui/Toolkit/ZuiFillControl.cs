@@ -52,7 +52,8 @@ namespace Laubrary.Zui
             _label = label;
             AddToClassList("zui-fill");   // row-level class → uniform bottom spacing (see ZuiToolkit.uss)
             _tooltip = tooltip;
-            this.tooltip = tooltip;
+            // No ⋯ button — the fill/texture menu opens on right-click; hint it on the row tooltip.
+            this.tooltip = string.IsNullOrEmpty(tooltip) ? "Right-click to choose a fill / texture." : tooltip + "  (right-click to choose fill / texture)";
 
             if (_opt.grow)
             {
@@ -66,6 +67,14 @@ namespace Laubrary.Zui
             Add(_content);
 
             RebuildAll();
+            // Right-click anywhere on the control opens the fill/texture menu (matches ZuiValueControl — no ⋯
+            // button). Bubble phase, so a child that owns its own right-click still wins on itself.
+            RegisterCallback<PointerDownEvent>(e =>
+            {
+                if (e.button != 1) return;
+                ShowMenu(this);
+                e.StopPropagation();
+            });
         }
 
         void Mutate(Action apply)
@@ -79,16 +88,6 @@ namespace Laubrary.Zui
         // A swatch is worth showing for every spatial / gradient / texture fill — its pattern isn't visible
         // anywhere else. A plain Solid fill is redundant (the colour field already shows it), so no swatch.
         bool WantSwatch() => _fill.texture != ZuiFill.TextureKind.None || _fill.mode != ZuiFill.Mode.Solid;
-
-        Button MenuButton()
-        {
-            Button btn = null;
-            btn = Z.Button("⋯",
-                "Choose a FILL (solid colour, over-life, or a spatial gradient) or a TEXTURE (sprite / noise / grid / "
-                + "dots). A texture replaces the fill entirely — it's instead of a fill, not a kind of fill.",
-                () => ShowMenu(btn)).W(24f);
-            return btn;
-        }
 
         Label FieldLabel(string text)
         {
@@ -182,7 +181,7 @@ namespace Laubrary.Zui
             col.style.flexGrow = 1f;
             col.style.flexDirection = FlexDirection.Column;
 
-            // Row 1: label · objective output strip (grows) · ⋯
+            // Row 1: label · objective output strip (grows)
             var row1 = new VisualElement();
             row1.AddToClassList("zui-row");
             row1.style.alignItems = Align.Center;
@@ -190,8 +189,6 @@ namespace Laubrary.Zui
             ed.Output.style.flexGrow = 1f; ed.Output.style.flexShrink = 1f;
             ed.Output.style.marginLeft = 6f; ed.Output.style.marginRight = 6f;
             row1.Add(ed.Output);   // objective output preview (read-only)
-            var menu = MenuButton();
-            row1.Add(menu);
             col.Add(row1);
 
             // Row 2: the editable SOURCE ramp, full column width.
@@ -207,9 +204,9 @@ namespace Laubrary.Zui
             if (placement != null) body.Add(placement);
             box.Add(body);
 
-            // Fold the body (Adjust + Placement) from the header — no caret (#2). The ⋯ menu and the editable source
-            // ramp must never fold. Keyed per-fill so it persists across rebuilds.
-            ZuiFoldCard.Wire(_fill, header, body, showCaret: false, menu, ed.Source);
+            // Fold the body (Adjust + Placement) from the header — no caret (#2). The editable source ramp must
+            // never fold (right-click the header opens the mode/texture menu). Keyed per-fill so it persists across rebuilds.
+            ZuiFoldCard.Wire(_fill, header, body, showCaret: false, ed.Source);
             return box;
         }
 
@@ -240,8 +237,6 @@ namespace Laubrary.Zui
                     + "particle's life; spatial modes show the -1..1 fill box.");
                 top.Add(_swatch);
             }
-            top.Add(Z.Flexible());
-            top.Add(MenuButton());
             box.Add(top);
             return box;
         }
@@ -331,10 +326,7 @@ namespace Laubrary.Zui
                 else body.style.flexShrink = 0f;
                 row.Add(body);
             }
-            // No inline body → the gradient sits in its OWN section below (see RebuildAll's gradient modes); a
-            // flexible spacer keeps the ⋯ pinned to the right so the header still reads as [swatch][label][⋯].
-            else row.Add(Z.Flexible());
-            row.Add(MenuButton());
+            // No inline body → the gradient sits in its OWN section below (see RebuildAll's gradient modes).
             _content.Add(row);
         }
 

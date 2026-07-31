@@ -128,6 +128,16 @@ namespace Laubrary.Zui
                 }
 
                 _titleRow.AddManipulator(new Clickable(() => { IsOpen = !IsOpen; ViewChanged?.Invoke(); }));
+                // RIGHT-CLICK the title row toggles the gear settings accordion (when the box has a gear) — a
+                // shortcut alongside the ⚙ (which stays, since a toggle needs its visible on/off state). Capture
+                // phase + StopPropagation so a right-click never also folds the box.
+                _titleRow.RegisterCallback<PointerDownEvent>(e =>
+                {
+                    if (e.button != 1 || !HasGear) return;
+                    GearOpen = !GearOpen;
+                    ViewChanged?.Invoke();
+                    e.StopPropagation();
+                }, TrickleDown.TrickleDown);
                 hierarchy.Add(_titleRow);
             }
 

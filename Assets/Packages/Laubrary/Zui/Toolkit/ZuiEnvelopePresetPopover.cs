@@ -1,9 +1,10 @@
-// ZuiEnvelopePresetPopover — the UI Toolkit shape picker for a Curve-mode ZUIValue. A thumbnail browser:
-// two filter toggles (Built-in / User), a "＋ Save current" button, and a wrapping grid of curve thumbnails.
+// ZuiEnvelopePresetPopover — the UI Toolkit shape picker for a Curve- OR Steps-mode ZUIValue. A thumbnail
+// browser: two filter toggles (Built-in / User), a "＋ Save" button, and a wrapping grid of shape thumbnails.
 // Shapes are identified by their THUMBNAIL, not a name (per user direction) — clicking a thumbnail remaps its
-// normalized [0,1] shape onto the field's yMin..yMax and writes it into the points (through the caller's Undo
-// hook); saving stores the field's current (normalized) points as a user shape (one click, no name prompt).
-// Built on ZuiPopover, so it inherits ZuiToolkit.uss for free (no Z.Attach, no separate OS window).
+// normalized [0,1] shape onto the field's yMin..yMax and writes it into the points/steps (through the caller's
+// Undo hook); saving stores the field's current (normalized) shape as a user shape (one click, no name prompt).
+// The picker adapts to the value's mode: in Envelope mode it browses/saves CURVE shapes (point lists); in Steps
+// mode it browses/saves STEP shapes (bar heights). Built on ZuiPopover, so it inherits ZuiToolkit.uss for free.
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -13,12 +14,14 @@ namespace Laubrary.Zui
 {
     static class ZuiEnvelopePresetPopover
     {
-        /// Open the picker anchored to <paramref name="anchor"/>, reading/writing <paramref name="value"/>'s points
-        /// and yMin/yMax. <paramref name="onBeforeMutate"/> is the Undo.RecordObject hook (fired before a pick
-        /// overwrites the points); <paramref name="onApplied"/> refreshes the host control after a pick.
+        /// Open the picker anchored to <paramref name="anchor"/>, reading/writing <paramref name="value"/>'s shape
+        /// (points in Envelope mode, steps in Steps mode) and yMin/yMax. <paramref name="onBeforeMutate"/> is the
+        /// Undo.RecordObject hook (fired before a pick overwrites the shape); <paramref name="onApplied"/> refreshes
+        /// the host control after a pick.
         public static void Open(VisualElement anchor, ZUIValue value, Action onBeforeMutate, Action onApplied)
         {
             if (anchor == null || value == null) return;
+            bool stepsMode = value.mode == ZUIValue.Mode.Steps;
             // Read-only load — merely browsing must NOT create an empty library asset; only Save does.
             var lib = ZUIEnvelopePresetLibrary.Load(createIfMissing: false);
             bool showBuiltin = true, showUser = true;   // both filters on by default each open
@@ -40,21 +43,45 @@ namespace Laubrary.Zui
                 {
                     grid.Clear();
                     if (showBuiltin)
-                        foreach (var p in ZUIEnvelopeBuiltInPresets.All)
-                        {
-                            var pts = p.points;
-                            grid.Add(Tile(pts, () => { Apply(value, pts, onBeforeMutate, onApplied); close(); }, null));
-                        }
+                    {
+                        if (stepsMode)
+                            foreach (var s in BuiltInStepShapes())
+                            {
+                                var steps = s;
+                                grid.Add(Tile(new StepThumb(steps),
+                                    () => { ApplySteps(value, steps, onBeforeMutate, onApplied); close(); }, null));
+                            }
+                        else
+                            foreach (var p in ZUIEnvelopeBuiltInPresets.All)
+                            {
+                                var pts = p.points;
+                                grid.Add(Tile(new ShapeThumb(pts),
+                                    () => { Apply(value, pts, onBeforeMutate, onApplied); close(); }, null));
+                            }
+                    }
                     if (showUser && lib != null)
                         for (int i = 0; i < lib.presets.Count; i++)
                         {
+                            var preset = lib.presets[i];
+                            if (preset.isSteps != stepsMode) continue;   // only this mode's kind of saved shape
                             int idx = i;
-                            var pts = lib.presets[i].points;
-                            grid.Add(Tile(pts, () => { Apply(value, pts, onBeforeMutate, onApplied); close(); },
-                                () => { lib.RemoveAt(idx); Rebuild(); }));
+                            if (stepsMode)
+                            {
+                                var steps = preset.steps;
+                                grid.Add(Tile(new StepThumb(steps),
+                                    () => { ApplySteps(value, steps, onBeforeMutate, onApplied); close(); },
+                                    () => { lib.RemoveAt(idx); Rebuild(); }));
+                            }
+                            else
+                            {
+                                var pts = preset.points;
+                                grid.Add(Tile(new ShapeThumb(pts),
+                                    () => { Apply(value, pts, onBeforeMutate, onApplied); close(); },
+                                    () => { lib.RemoveAt(idx); Rebuild(); }));
+                            }
                         }
                     if (grid.childCount == 0)
-                        grid.Add(Z.Text(showUser && !showBuiltin ? "No saved shapes yet — hit ＋ Save current." : "(nothing to show)",
+                        grid.Add(Z.Text(showUser && !showBuiltin ? "No saved shapes yet — hit ＋ Save." : "(nothing to show)",
                             ZuiText.Subtle, "Toggle Built-in / User, or save a shape."));
                 }
 
@@ -68,10 +95,14 @@ namespace Laubrary.Zui
                 bar.Add(Z.ToggleButton("User", "Show shapes you've saved in this project.", showUser,
                     on => { showUser = on; Rebuild(); }));
                 bar.Add(Z.Flexible());
-                bar.Add(Z.Button("＋ Save", "Save the current curve as a reusable user shape (identified by its thumbnail).", () =>
+                bar.Add(Z.Button("＋ Save",
+                    stepsMode ? "Save the current step sequence as a reusable user shape (identified by its thumbnail)."
+                              : "Save the current curve as a reusable user shape (identified by its thumbnail).", () =>
                 {
                     if (lib == null) lib = ZUIEnvelopePresetLibrary.Load(createIfMissing: true);
-                    lib.Add(Guid.NewGuid().ToString("N").Substring(0, 8), Normalized(value));
+                    string id = Guid.NewGuid().ToString("N").Substring(0, 8);
+                    if (stepsMode) lib.AddSteps(id, NormalizedSteps(value));
+                    else lib.Add(id, Normalized(value));
                     showUser = true;
                     Rebuild();
                 }));
@@ -87,14 +118,13 @@ namespace Laubrary.Zui
 
         // One shape as a clickable thumbnail tile; a user tile carries a small × to delete. No name text — the
         // thumbnail IS the identity.
-        static VisualElement Tile(List<ZUIEnvelopePoint> pts, Action onApply, Action onDelete)
+        static VisualElement Tile(VisualElement thumb, Action onApply, Action onDelete)
         {
             var tile = new VisualElement { tooltip = onDelete == null ? "Apply this shape." : "Apply this shape (× deletes it)." };
             tile.style.width = 52f; tile.style.height = 40f;
             tile.style.marginRight = 4f; tile.style.marginBottom = 4f;
             tile.style.position = Position.Relative;
 
-            var thumb = new ShapeThumb(pts);
             thumb.style.width = 52f; thumb.style.height = 40f;
             thumb.AddManipulator(new Clickable(onApply));
             tile.Add(thumb);
@@ -127,6 +157,19 @@ namespace Laubrary.Zui
             onApplied?.Invoke();
         }
 
+        // Overwrite the value's step sequence with a shape, remapped from normalized [0,1] onto yMin..yMax and
+        // sized to the preset's bar count.
+        static void ApplySteps(ZUIValue value, List<float> normalizedSteps, Action onBeforeMutate, Action onApplied)
+        {
+            if (normalizedSteps == null || normalizedSteps.Count == 0) return;
+            onBeforeMutate?.Invoke();
+            value.SetStepCount(normalizedSteps.Count);
+            int n = Mathf.Min(value.steps.Count, normalizedSteps.Count);
+            for (int i = 0; i < n; i++)
+                value.steps[i] = Mathf.Lerp(value.yMin, value.yMax, Mathf.Clamp01(normalizedSteps[i]));
+            onApplied?.Invoke();
+        }
+
         // Normalize the value's current points to [0,1] so a saved shape is range-independent.
         static List<ZUIEnvelopePoint> Normalized(ZUIValue value)
         {
@@ -137,6 +180,36 @@ namespace Laubrary.Zui
                     p.time, range > 0.0001f ? Mathf.InverseLerp(value.yMin, value.yMax, p.value) : 0f,
                     p.exponent, p.editState));
             return result;
+        }
+
+        // Normalize the value's current step heights to [0,1] so a saved step shape is range-independent.
+        static List<float> NormalizedSteps(ZUIValue value)
+        {
+            var result = new List<float>();
+            float range = value.yMax - value.yMin;
+            foreach (var v in value.steps)
+                result.Add(range > 0.0001f ? Mathf.InverseLerp(value.yMin, value.yMax, v) : 0f);
+            return result;
+        }
+
+        // A handful of ready-made step patterns (normalized [0,1], 8 bars each) so the Built-in filter is useful
+        // in Steps mode too. No names — the bar thumbnail is the identity.
+        static List<List<float>> BuiltInStepShapes()
+        {
+            const int N = 8;
+            var rise = new List<float>();
+            var fall = new List<float>();
+            var tri = new List<float>();
+            var alt = new List<float>();
+            for (int i = 0; i < N; i++)
+            {
+                float t = i / (float)(N - 1);
+                rise.Add(t);
+                fall.Add(1f - t);
+                tri.Add(1f - Mathf.Abs(t * 2f - 1f));   // 0 → 1 → 0 across the bars
+                alt.Add(i % 2 == 0 ? 0f : 1f);
+            }
+            return new List<List<float>> { rise, fall, tri, alt };
         }
 
         // A curve thumbnail painting a shape's normalized [0,1] points.
@@ -167,6 +240,43 @@ namespace Laubrary.Zui
                     if (s == 0) p2.MoveTo(pt); else p2.LineTo(pt);
                 }
                 p2.Stroke();
+            }
+        }
+
+        // A step thumbnail painting a shape's normalized [0,1] bar heights as filled columns.
+        sealed class StepThumb : VisualElement
+        {
+            readonly List<float> _steps;
+            public StepThumb(List<float> steps)
+            {
+                _steps = steps;
+                AddToClassList("zui-envelope");
+                style.flexShrink = 0f;
+                generateVisualContent += Paint;
+            }
+            void Paint(MeshGenerationContext mgc)
+            {
+                var r = contentRect;
+                if (!(r.width > 4f) || _steps == null || _steps.Count == 0) return;
+                var p2 = mgc.painter2D;
+                int n = _steps.Count;
+                float x0 = r.x + 2f, w = r.width - 4f, yMax = r.yMax - 2f, h = r.height - 4f;
+                float bw = w / n;
+                p2.fillColor = new Color(0.4f, 0.85f, 1f, 0.85f);
+                for (int i = 0; i < n; i++)
+                {
+                    float v = Mathf.Clamp01(_steps[i]);
+                    float bx = x0 + i * bw;
+                    float bh = v * h;
+                    if (bh < 1f) bh = 1f;   // a floor so a zero bar still reads as a bar
+                    p2.BeginPath();
+                    p2.MoveTo(new Vector2(bx + 0.5f, yMax));
+                    p2.LineTo(new Vector2(bx + 0.5f, yMax - bh));
+                    p2.LineTo(new Vector2(bx + bw - 0.5f, yMax - bh));
+                    p2.LineTo(new Vector2(bx + bw - 0.5f, yMax));
+                    p2.ClosePath();
+                    p2.Fill();
+                }
             }
         }
     }
