@@ -352,12 +352,11 @@ namespace Laubrary.TextSplash.Editor
                     () => { EditorUtility.SetDirty(s); AfterEdit(); },
                     () => Undo.RecordObject(s, "Edit splash fill"),
                     new ZuiFillControl.Options { controlWidth = 200f, grow = true, maxWidthFactor = 1.6f, showFit = true, subjectHalf = SubjectHalf(), stampedHalf = GlyphHalf(),
-                        // FOUR vertex colours per glyph and the GPU interpolates between them - so a Stamped
-                        // fill gets 2x2 samples per letter and a Fixed one gets 2 per glyph across the line.
-                        // The swatch previews at that density so it cannot promise detail the mesh has no
-                        // vertices to carry.
-                        subjectSamples = new Vector2Int(Mathf.Max(2, LetterCount() * 2), 2),
-                        stampedSamples = new Vector2Int(2, 2) }),
+                        // No sample-grid limit: a spatial fill is baked to a texture and sampled PER FRAGMENT
+                        // (SplashPlayer.ApplySpatialFill), so the swatch may preview continuously and still be
+                        // an honest prediction. It could not before - four vertex colours per glyph cannot carry
+                        // a radius, and the swatch had to be told so.
+                        }),
                 ScalarRow("Alpha", s.alpha, 0f, 1f,
                     "Overall opacity. Animatable — curve it for a flicker or a slow bleed-out.")));
 

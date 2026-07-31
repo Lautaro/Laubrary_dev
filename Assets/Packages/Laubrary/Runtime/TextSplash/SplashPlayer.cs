@@ -674,6 +674,35 @@ namespace Laubrary.TextSplash
             Vector2 offOut = SplashGeometry.SlideExtreme(outT, w, h, s.anchor, lineHalf);
             bool fixedFill = spatial && fill.space == ZuiFill.FillSpace.Fixed;
 
+            // PER-FRAGMENT spatial fills. Four vertex colours per glyph cannot express a radius — every corner of
+            // a glyph is the same distance from its centre, so a Radial fill used to collapse to one flat colour.
+            // Baked to a texture and stamped through TMP's own uv2 mapping it is simply correct, per pixel.
+            //
+            // Stamped bakes against a REPRESENTATIVE glyph (the widest) rather than each letter's own box: TMP's
+            // Character mapping stamps one texture across every glyph, so there is one bake to make. A narrow
+            // letter therefore wears a slightly squeezed copy — visible only on a Radial fill, and a squeeze is a
+            // far better answer than the flat colour this replaces.
+            bool perFragmentFill = false;
+            if (spatial)
+            {
+                Vector2 bakeHalf = lineHalf;
+                if (!fixedFill)
+                {
+                    Vector2 widest = Vector2.zero;
+                    for (int i = 0; i < n; i++)
+                    {
+                        var ci0 = info.characterInfo[i];
+                        if (!ci0.isVisible) continue;
+                        float qw = Mathf.Abs(ci0.topRight.x - ci0.bottomLeft.x) * 0.5f;
+                        float qh = Mathf.Abs(ci0.topRight.y - ci0.bottomLeft.y) * 0.5f;
+                        if (qw > widest.x) widest = new Vector2(qw, qh);
+                    }
+                    bakeHalf = widest;
+                }
+                perFragmentFill = ApplySpatialFill(s, tmp, fill, bakeHalf, lineLife);
+            }
+            else ClearSpatialFill(tmp);
+
             // A side fill that is neither spatial nor read per letter is ONE colour for the whole pass, so the
             // brightness/saturation pass over it runs once here instead of on every vertex.
             Color32 sideFlat = default;
@@ -754,12 +783,24 @@ namespace Laubrary.TextSplash
                     // Only 4 samples exist per glyph — its corners — so the GPU interpolates the gradient bilinearly
                     // across each quad. On display text (big glyphs, smooth ramps) that reads as a real gradient; it
                     // is NOT a per-pixel one, and a ramp with a hard colour stop inside a single glyph will smear.
-                    Vector2 origin = fixedFill ? lineCentre : (Vector2)c;
-                    Vector2 half = fixedFill ? lineHalf : QuadHalf(p0, p2);
-                    cols[vi]     = SampleFill(fill, lineLife, p0, origin, half, a);
-                    cols[vi + 1] = SampleFill(fill, lineLife, p1, origin, half, a);
-                    cols[vi + 2] = SampleFill(fill, lineLife, p2, origin, half, a);
-                    cols[vi + 3] = SampleFill(fill, lineLife, p3, origin, half, a);
+                    if (perFragmentFill)
+                    {
+                        // The TEXTURE carries the colour now, and `_FaceTex` MULTIPLIES the face colour — so the
+                        // vertices must be white or they would tint it. Alpha still rides the vertices, because
+                        // that is where the per-letter opacity and the SDF's coverage live.
+                        byte ab = (byte)Mathf.Clamp(Mathf.RoundToInt(a * 255f), 0, 255);
+                        var white = new Color32(255, 255, 255, ab);
+                        cols[vi] = cols[vi + 1] = cols[vi + 2] = cols[vi + 3] = white;
+                    }
+                    else
+                    {
+                        Vector2 origin = fixedFill ? lineCentre : (Vector2)c;
+                        Vector2 half = fixedFill ? lineHalf : QuadHalf(p0, p2);
+                        cols[vi]     = SampleFill(fill, lineLife, p0, origin, half, a);
+                        cols[vi + 1] = SampleFill(fill, lineLife, p1, origin, half, a);
+                        cols[vi + 2] = SampleFill(fill, lineLife, p2, origin, half, a);
+                        cols[vi + 3] = SampleFill(fill, lineLife, p3, origin, half, a);
+                    }
                 }
                 else if (perLetter)
                 {
@@ -1250,6 +1291,112 @@ namespace Laubrary.TextSplash
             // editor, flat in a build").
             _bevelShader = SplashBevelMaterial.GetShader();
             return _bevelShader;
+        }
+
+        // ── spatial fills, per FRAGMENT ───────────────────────────────────────────────
+        static readonly int ID_FaceTex = Shader.PropertyToID("_FaceTex");
+        static readonly int ID_FaceTexST = Shader.PropertyToID("_FaceTex_ST");
+
+        /// Baked fill textures, one per pass. Keyed by the TMP component because the face, the border twin and
+        /// every depth layer are separate passes wanting separate bakes.
+        static readonly Dictionary<TMP_Text, Texture2D> _fillTex = new Dictionary<TMP_Text, Texture2D>();
+        static readonly Dictionary<TMP_Text, int> _fillHash = new Dictionary<TMP_Text, int>();
+
+        const int FillTexSize = 128;
+
+        /// <summary>Paint a SPATIAL fill per FRAGMENT instead of per vertex.
+        ///
+        /// Why this exists: text colour comes from four vertex colours per glyph, interpolated by the GPU. That
+        /// cannot represent a radius — all four corners of a glyph sit at the same distance from its centre, so a
+        /// Radial fill collapsed to a single flat colour and no centre setting could put a disc on a letter. The
+        /// gradient lived entirely between the samples.
+        ///
+        /// The fix uses TMP's own machinery rather than a bespoke shader: the fill is baked to a texture and
+        /// assigned as `_FaceTex`, which `TextMeshPro/Distance Field` samples PER FRAGMENT by uv2 — and TMP
+        /// generates uv2 itself from `horizontalMapping`/`verticalMapping`, whose Character and Line options are
+        /// exactly this tool's Stamped and Fixed. So the anchor switch becomes TMP's mapping switch, and the fit
+        /// is baked into the texture (see ZuiFill.BakeTo).
+        ///
+        /// The shader must be the FULL Distance Field one: every Mobile variant strips `_FaceTex`, the same trap
+        /// the bevel already documents.
+        ///
+        /// Returns false when the fill is not spatial, leaving the ordinary vertex-colour path alone — a Solid or
+        /// Over-life fill is one flat colour at any instant and a texture for it would be pure cost.</summary>
+        static bool ApplySpatialFill(TextSplash s, TMP_Text tmp, ZuiFill fill, Vector2 half, float life)
+        {
+            if (tmp == null || fill == null || !fill.IsSpatial()) { ClearSpatialFill(tmp); return false; }
+            if (half.x <= 0f || half.y <= 0f) return false;
+
+            var mat = PassMaterial(tmp, out _);
+            if (mat == null) return false;
+
+            var shader = ResolveBevelShader();          // the full Distance Field shader, ships in the package
+            if (shader != null && mat.shader != shader) mat.shader = shader;
+            if (!mat.HasProperty(ID_FaceTex)) return false;
+
+            if (!_fillTex.TryGetValue(tmp, out var tex) || tex == null)
+            {
+                tex = new Texture2D(FillTexSize, FillTexSize, TextureFormat.RGBA32, false, false)
+                {
+                    name = "[TextSplash] Fill",
+                    wrapMode = TextureWrapMode.Clamp,
+                    filterMode = FilterMode.Bilinear,
+                    hideFlags = HideFlags.HideAndDontSave
+                };
+                _fillTex[tmp] = tex;
+                _fillHash[tmp] = 0;
+            }
+
+            // Re-baked only when something it depends on actually moved. An animated size/centre changes the hash
+            // every frame and re-bakes; a static fill bakes once and then costs nothing.
+            int hash = FillHash(fill, half, life);
+            if (!_fillHash.TryGetValue(tmp, out int had) || had != hash)
+            {
+                fill.BakeTo(tex, half, life);
+                _fillHash[tmp] = hash;
+            }
+
+            mat.SetTexture(ID_FaceTex, tex);
+            if (mat.HasProperty(ID_FaceTexST)) mat.SetVector(ID_FaceTexST, new Vector4(1f, 1f, 0f, 0f));
+
+            // Stamped = one complete fill per LETTER, Fixed = one across the LINE. TMP writes the uv2 the face
+            // texture is sampled by, so this IS the anchor switch.
+            var map = fill.space == ZuiFill.FillSpace.Stamped
+                ? TextureMappingOptions.Character
+                : TextureMappingOptions.Line;
+            if (tmp.horizontalMapping != map) tmp.horizontalMapping = map;
+            if (tmp.verticalMapping != map) tmp.verticalMapping = map;
+
+            return true;
+        }
+
+        /// The inputs a bake depends on — anything else changing cannot alter the texture.
+        static int FillHash(ZuiFill f, Vector2 half, float life)
+        {
+            unchecked
+            {
+                int h = 17;
+                h = h * 31 ^ (int)f.mode;
+                h = h * 31 ^ (int)f.fit;
+                h = h * 31 ^ f.angleDeg.GetHashCode();
+                h = h * 31 ^ f.CenterAt(life).GetHashCode();
+                h = h * 31 ^ f.zoom.GetHashCode();
+                h = h * 31 ^ (f.gradientAnim != null ? f.gradientAnim.GetHashCode() : 0);
+                h = h * 31 ^ (f.gradient != null ? f.gradient.GetHashCode() : 0);
+                h = h * 31 ^ half.GetHashCode();
+                h = h * 31 ^ Mathf.RoundToInt(life * 240f);   // enough to catch an animated fill, not float noise
+                return h;
+            }
+        }
+
+        /// Drop a pass's baked texture when it stops using one, so a splash that switches away from a spatial
+        /// fill does not keep a texture alive for the rest of the session.
+        static void ClearSpatialFill(TMP_Text tmp)
+        {
+            if (tmp == null) return;
+            if (_fillTex.TryGetValue(tmp, out var tex) && tex != null) DestroyObj(tex);
+            _fillTex.Remove(tmp);
+            _fillHash.Remove(tmp);
         }
 
         // ── helpers ───────────────────────────────────────────────────────────────────

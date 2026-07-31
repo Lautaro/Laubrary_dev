@@ -460,6 +460,46 @@ public class ZuiFill : ISerializationCallbackReceiver
 
     static float Invert(float v) => 1f / Mathf.Max(0.0001f, v);
 
+    /// <summary>Bake this fill, as it lands on a box of the given half-extents, into a texture.
+    ///
+    /// This is what turns a spatial fill from a per-VERTEX approximation into a per-FRAGMENT one. Text is
+    /// coloured by four vertex colours per glyph and the GPU interpolates between them, which cannot represent
+    /// a radius: all four corners of a glyph sit at the same distance from its centre, so a Radial fill
+    /// collapses to one flat colour. Baked to a texture and stamped across the glyph instead, every pixel gets
+    /// its own value and the gradient is simply correct.
+    ///
+    /// The FIT is baked in, because it is a property of how the box maps to the fill rather than of the
+    /// texture: the caller hands over the box it will stamp this across, and Normalize resolves the rest.
+    /// Row 0 is the BOTTOM, matching Unity's texture convention and the uv2 mapping TMP generates.</summary>
+    public void BakeTo(Texture2D tex, Vector2 half, float life = 0f)
+    {
+        if (tex == null) return;
+        int w = tex.width, h = tex.height;
+        var px = new Color32[w * h];
+
+        for (int y = 0; y < h; y++)
+        {
+            float fy = h == 1 ? 0.5f : (y + 0.5f) / h;
+            float sy = Mathf.Lerp(-1f, 1f, fy);
+            for (int x = 0; x < w; x++)
+            {
+                float fx = w == 1 ? 0.5f : (x + 0.5f) / w;
+                float sx = Mathf.Lerp(-1f, 1f, fx);
+                Vector2 uv = Normalize(new Vector2(sx * half.x, sy * half.y), Vector2.zero, half);
+                px[y * w + x] = Evaluate(life, uv.x, uv.y);
+            }
+        }
+
+        tex.SetPixels32(px);
+        tex.Apply(false, false);
+    }
+
+    /// <summary>Whether this fill VARIES over the box, and so wants baking to a texture rather than being
+    /// collapsed into vertex colours. Solid and Over-life are one flat colour at any instant and must NOT take
+    /// the texture path — a whole texture to say "red" would be pure cost.</summary>
+    public bool IsSpatial()
+        => texture != TextureKind.None || mode == Mode.Linear || mode == Mode.Radial;
+
     /// <summary>Where the gradient's CENTRE actually sits, in the same -1..1 space Normalize produces, with the
     /// animatable companions resolved at <paramref name="life"/>. Public so an editor preview can MARK it: the
     /// centre dial is the placement control users misread most, because moving the gradient one way makes a fixed
