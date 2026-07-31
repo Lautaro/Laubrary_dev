@@ -79,7 +79,7 @@ namespace Laubrary.Zoetrope
         public Texture2D RenderPreviewTexture()
         {
             var f = PreviewSprites();
-            return f.Length > 0 && f[0] != null ? CropSprite(f[0]) : null;
+            return f.Length > 0 ? Laubrary.PreviewKit.PreviewTex.CropSprite(f[0]) : null;
         }
 
         public bool CanAnimatePreview => PreviewSprites().Length > 1;
@@ -99,27 +99,9 @@ namespace Laubrary.Zoetrope
             if (tex == null || f.Length <= 1) return;
 
             int i = Mathf.Abs((int)(time * PreviewFps)) % f.Length;
-            var s = f[i];
-            if (s == null || s.texture == null) return;
-
-            var r = s.textureRect;
-            // Baked reel frames are uniform, but a hand-assembled view need not be — skip a mismatched frame
-            // rather than throwing inside an editor repaint, where the exception would spam every frame.
-            if ((int)r.width != tex.width || (int)r.height != tex.height) return;
-
-            tex.SetPixels(s.texture.GetPixels((int)r.x, (int)r.y, (int)r.width, (int)r.height));
-            tex.Apply();
-        }
-
-        // Same crop AmmoDef does. If a third asset needs it, it belongs in PreviewKit as a shared helper.
-        static Texture2D CropSprite(Sprite s)
-        {
-            if (s.texture == null) return null;
-            var r = s.textureRect;
-            var tex = new Texture2D((int)r.width, (int)r.height, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
-            tex.SetPixels(s.texture.GetPixels((int)r.x, (int)r.y, (int)r.width, (int)r.height));
-            tex.Apply();
-            return tex;
+            // BlitInto refuses a size mismatch rather than throwing — a caller mid-repaint wants a skipped
+            // frame, not an exception every frame.
+            Laubrary.PreviewKit.PreviewTex.BlitInto(tex, f[i]);
         }
     }
 }

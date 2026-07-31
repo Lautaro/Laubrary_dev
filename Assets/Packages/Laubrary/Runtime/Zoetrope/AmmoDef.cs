@@ -41,21 +41,15 @@ namespace Laubrary.Zoetrope
         public Texture2D RenderPreviewTexture()
         {
             var frames = Visual?.GetFrames();
-            if (frames == null || frames.Length == 0 || frames[0] == null || frames[0].texture == null) return null;
-            return CropSpriteTexture(frames[0]);
+            if (frames == null || frames.Length == 0) return null;
+            // Via PreviewTex, because the hand-rolled crop this used to do called GetPixels directly and threw
+            // on any sprite imported with Read/Write disabled — i.e. on most real art, while working fine on
+            // anything a tool generated itself.
+            return Laubrary.PreviewKit.PreviewTex.CropSprite(frames[0]);
         }
         public bool CanAnimatePreview => false;
         public float PreviewFps => 0f;
         public void UpdateAnimatedPreview(Texture2D tex, double time) { }
-
-        static Texture2D CropSpriteTexture(Sprite s)
-        {
-            var r = s.textureRect;
-            var tex = new Texture2D((int)r.width, (int)r.height, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
-            tex.SetPixels(s.texture.GetPixels((int)r.x, (int)r.y, (int)r.width, (int)r.height));
-            tex.Apply();
-            return tex;
-        }
 
         [Header("Flight")]
         [Min(0.05f)] public float lifetime = 3f;

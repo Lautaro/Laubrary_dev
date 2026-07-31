@@ -34,11 +34,38 @@ namespace Laubrary.ZoetropeLaunimator
     /// <c>host.GetComponent&lt;CompositeZonedPlayer&gt;().Part("Legs").Play("Run")</c>.
     /// </summary>
     [System.Serializable]
-    public class CompositeReelView : ICharacterView
+    public class CompositeReelView : ICharacterView, IPreviewableView
     {
         [Tooltip("One entry should have an empty parentPartName (the root part, positioned at the Zoe's own " +
                  "transform); every other entry names which part it attaches to.")]
         public List<ZoeBodyPart> parts = new List<ZoeBodyPart>();
+
+        // ── IPreviewableView ──
+        // A composite body is several views stacked at runtime, and a thumbnail cannot stack them without
+        // building the whole rig — the parts are positioned by live meta-layer attachment, not by fixed
+        // offsets. So it previews its ROOT part, which is the torso/body in every authored case and is what
+        // makes the character recognisable in a picker. A partial preview beats a blank card; the Zoe Preview
+        // window is where the assembled body is meant to be inspected.
+        ZoeBodyPart RootPart()
+        {
+            if (parts == null || parts.Count == 0) return null;
+            foreach (var p in parts)
+                if (p != null && string.IsNullOrEmpty(p.parentPartName) && p.view is IPreviewableView) return p;
+            foreach (var p in parts)
+                if (p != null && p.view is IPreviewableView) return p;
+            return null;
+        }
+
+        public Sprite[] PreviewFrames()
+        {
+            var root = RootPart();
+            return root != null ? ((IPreviewableView)root.view).PreviewFrames() : System.Array.Empty<Sprite>();
+        }
+
+        public float PreviewFps
+        {
+            get { var root = RootPart(); return root != null ? ((IPreviewableView)root.view).PreviewFps : 0f; }
+        }
 
         public Vector2 Build(GameObject host)
         {

@@ -306,8 +306,18 @@ namespace Laubrary.AssetKit.Editor
         Texture2D Thumb(T item)
         {
             if (_thumbs.TryGetValue(item, out var t) && t != null) return t;
+
+            // A subclass's own RenderThumbnail wins, then the asset's own IVisualPreview, then Unity's icon.
+            //
+            // The IVisualPreview step was missing here while LaubraryAssetWindow (the older browser base) had
+            // it, so every ZuiAssetWindow-based browser showed blank cards for assets that could perfectly
+            // well draw themselves — Zoe, WeaponDef and AmmoDef all implement the interface and all rendered
+            // nothing. Asking the asset is the whole point of the interface: it exists so ANY consumer can
+            // show a preview without a per-window override.
             var tex = RenderThumbnail(item);
+            if (tex == null && item is Laubrary.PreviewKit.IVisualPreview vis) tex = vis.RenderPreviewTexture();
             if (tex != null) { _thumbs[item] = tex; return tex; }
+
             return AssetPreview.GetAssetPreview(item);   // Unity-owned — never cached or destroyed here
         }
 
