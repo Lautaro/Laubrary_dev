@@ -646,77 +646,107 @@ namespace Laubrary.Zui
                 }
                 // Over-life is the one mode Evaluate reads via `life`, not (u,v): show it left→right over life.
                 bool overLife = _fill.texture == ZuiFill.TextureKind.None && _fill.mode == ZuiFill.Mode.OverLife;
+
+                // THE SWATCH PREVIEWS THE SUBJECT, NOT THE GRADIENT'S DOMAIN.
+                //
+                // It used to paint the raw -1..1 domain with the subject outlined inside it. That is a true
+                // picture of the gradient and a useless picture of the RESULT: under Uniform fit, a wide text
+                // line samples a band about a tenth of the domain tall, so the only part that predicted the
+                // output was an eight-pixel strip, and the swatch disagreed with the big preview at a glance.
+                //
+                // Now each texel is a point ON THE SUBJECT, pushed through the SAME ZuiFill.Normalize the
+                // renderer uses per vertex. So what the swatch shows IS what the fill does to the subject, in
+                // every space/fit combination, and the differences between those combinations become visible
+                // as differences in the picture rather than as geometry the user has to infer.
+                bool haveSubject = ResolveSubject(out Vector2 half, out ZuiSubjectShape shape);
+
                 for (int y = 0; y < _px; y++)
                 {
-                    // Texture2D row 0 is the BOTTOM; map it to v = -1 so up on screen is +v (the pads' flipY).
+                    // Texture2D row 0 is the BOTTOM; map it to -1 so up on screen is +y (the pads' flipY).
                     float fy = _px == 1 ? 0f : y / (float)(_px - 1);
-                    float v = Mathf.Lerp(-1f, 1f, fy);
+                    float sy = Mathf.Lerp(-1f, 1f, fy);
                     for (int x = 0; x < _px; x++)
                     {
                         float fx = _px == 1 ? 0f : x / (float)(_px - 1);
-                        _buf[y * _px + x] = overLife ? _fill.Evaluate(fx, 0f, 0f)
-                                                     : _fill.Evaluate(0f, Mathf.Lerp(-1f, 1f, fx), v);
+                        float sx = Mathf.Lerp(-1f, 1f, fx);
+
+                        Color c;
+                        if (overLife) c = _fill.Evaluate(fx, 0f, 0f);
+                        else if (haveSubject)
+                        {
+                            // The subject's own local point, then the renderer's own normalization.
+                            Vector2 uv = _fill.Normalize(new Vector2(sx * half.x, sy * half.y),
+                                                         Vector2.zero, half);
+                            c = _fill.Evaluate(0f, uv.x, uv.y);
+                        }
+                        else c = _fill.Evaluate(0f, sx, sy);   // no subject named: the raw domain, as before
+
+                        _buf[y * _px + x] = c;
                     }
                 }
-                if (!overLife) DrawSubjectBox();
+
+                if (!overLife && haveSubject)
+                {
+                    // The swatch's own bounds ARE the subject now, so a Box needs no outline. A Circle still
+                    // does — otherwise a disc-shaped subject would read as a square one.
+                    if (shape == ZuiSubjectShape.Circle) StrokeEllipse(0, 0, _px - 1, _px - 1);
+                    MarkCentre(half);
+                }
 
                 _tex.SetPixels32(_buf);
                 _tex.Apply(false);
                 style.backgroundImage = Background.FromTexture2D(_tex);
             }
 
-            /// <summary>Outline where the consumer's box lands inside the fill's own -1..1 domain.
-            ///
-            /// The corners come from <see cref="ZuiFill.Normalize"/> — the SAME call the renderer makes — so this
-            /// outline cannot drift from what actually gets painted, and it moves the instant `fit` changes:
-            /// Uniform on a wide box draws a thin wide rectangle across the middle of a big circle (which is
-            /// precisely why only a slice of the ramp ever shows), Stretch draws it filling the square.</summary>
-            void DrawSubjectBox()
+            /// <summary>Which box the fill is actually normalized against, read from the fill's own anchor at
+            /// DRAW time so toggling Stamped/Fixed redraws immediately: Stamped fits the gradient onto ONE
+            /// repetition (a glyph, a swarm particle), Fixed onto the whole subject.</summary>
+            bool ResolveSubject(out Vector2 half, out ZuiSubjectShape shape)
             {
-                // WHICH box depends on the fill's own anchor, and it is read here rather than captured so that
-                // toggling Stamped/Fixed redraws immediately: Stamped normalizes against ONE repetition (a glyph,
-                // a particle), Fixed against the whole subject.
                 bool stamped = _fill.space == ZuiFill.FillSpace.Stamped
                                && _opt.stampedHalf.x > 0f && _opt.stampedHalf.y > 0f;
-                Vector2 half = stamped ? _opt.stampedHalf : _opt.subjectHalf;
-                ZuiSubjectShape shape = stamped ? _opt.stampedShape : _opt.subjectShape;
-                if (half.x <= 0f || half.y <= 0f) return;
-
-                Vector2 corner = _fill.Normalize(half, Vector2.zero, half);
-                // The domain spans -1..1 across the swatch; convert the corner into texel coordinates.
-                int x0 = UvToPx(-corner.x), x1 = UvToPx(corner.x);
-                int y0 = UvToPx(-corner.y), y1 = UvToPx(corner.y);
-                if (x1 <= x0 || y1 <= y0) return;
-
-                // ALWAYS drawn, even when the subject covers the whole domain. Skipping it there was a mistake:
-                // under Stretch the box always coincides with the frame, so half the placement combinations drew
-                // no outline at all and read as "the preview is broken" rather than as "your subject covers the
-                // entire gradient" — which is a real and useful answer. Pulled one texel inside so it reads as a
-                // marker rather than merging into the swatch's own border.
-                if (x0 <= 0 && y0 <= 0 && x1 >= _px - 1 && y1 >= _px - 1)
-                {
-                    x0 = 1; y0 = 1; x1 = _px - 2; y1 = _px - 2;
-                }
-
-                if (shape == ZuiSubjectShape.Circle) StrokeEllipse(x0, y0, x1, y1);
-                else StrokeRect(x0, y0, x1, y1);
-
-                MarkCentre();
+                half = stamped ? _opt.stampedHalf : _opt.subjectHalf;
+                shape = stamped ? _opt.stampedShape : _opt.subjectShape;
+                return half.x > 0f && half.y > 0f;
             }
 
-            /// <summary>Mark where the gradient's CENTRE actually landed.
+            /// <summary>Mark where the gradient's CENTRE sits RELATIVE TO THE SUBJECT.
             ///
-            /// This is the control users misread, and the reason is genuine rather than a naming slip: moving the
-            /// centre UP moves the gradient up, which makes a subject that stays put show the colours BELOW that
-            /// centre — so the subject appears to shift the opposite way to the dial. Both things are true at
-            /// once, and without a marker the only visible one is the confusing one.</summary>
-            void MarkCentre()
+            /// This is the control that reads as reversed, and the marker is what resolves it: moving the centre
+            /// up moves the gradient up, so a subject that stays put shows the colours below that centre and
+            /// appears to shift the other way. Under Uniform fit the centre is also measured in units of the
+            /// box's LONGER side, so on a wide subject it leaves the subject entirely long before the dial
+            /// reaches 1 — in which case an EDGE TICK is drawn instead of a cross, pointing at where it went.
+            /// A centre that is off the subject and silently not drawn would be the worst of both.</summary>
+            void MarkCentre(Vector2 half)
             {
                 Vector2 c = _fill.CenterAt(0f);
-                int cx = UvToPx(c.x), cy = UvToPx(c.y);
 
-                // A small open cross, not a dot: it stays readable on top of whatever colour it lands on and
-                // cannot be mistaken for part of the gradient.
+                // Invert Normalize: where does that uv sit in the subject's own -1..1 frame?
+                Vector2 s;
+                if (_fill.fit == ZuiFill.FillFit.Stretch) s = c;
+                else
+                {
+                    float d = Mathf.Max(0.0001f, Mathf.Max(half.x, half.y));
+                    s = new Vector2(c.x * d / Mathf.Max(0.0001f, half.x),
+                                    c.y * d / Mathf.Max(0.0001f, half.y));
+                }
+
+                bool outside = Mathf.Abs(s.x) > 1f || Mathf.Abs(s.y) > 1f;
+                int cx = UvToPx(Mathf.Clamp(s.x, -1f, 1f));
+                int cy = UvToPx(Mathf.Clamp(s.y, -1f, 1f));
+
+                if (outside)
+                {
+                    // A short bar along the edge it left through — "the centre is out there".
+                    for (int d = -3; d <= 3; d++)
+                    {
+                        if (Mathf.Abs(s.y) > 1f) Ink(cx + d, cy);
+                        if (Mathf.Abs(s.x) > 1f) Ink(cx, cy + d);
+                    }
+                    return;
+                }
+
                 for (int d = 1; d <= 3; d++)
                 {
                     Ink(cx - d, cy); Ink(cx + d, cy);
@@ -724,22 +754,11 @@ namespace Laubrary.Zui
                 }
             }
 
-            void StrokeRect(int x0, int y0, int x1, int y1)
-            {
-                for (int x = x0; x <= x1; x++) { Ink(x, y0); Ink(x, y1); }
-                for (int y = y0; y <= y1; y++) { Ink(x0, y); Ink(x1, y); }
-            }
-
-            /// The ellipse inscribed in the subject's bounds — a true circle when the subject is square and the
-            /// fit is Uniform, and squashed exactly as the fill itself is squashed otherwise, since both come
-            /// from the same normalized corner.
             void StrokeEllipse(int x0, int y0, int x1, int y1)
             {
                 float cx = (x0 + x1) * 0.5f, cy = (y0 + y1) * 0.5f;
                 float a = (x1 - x0) * 0.5f, b = (y1 - y0) * 0.5f;
                 if (a <= 0f || b <= 0f) return;
-
-                // Step by the larger semi-axis so the samples are never more than a texel apart on either side.
                 int steps = Mathf.Max(32, Mathf.CeilToInt(Mathf.Max(a, b) * 8f));
                 for (int i = 0; i < steps; i++)
                 {
