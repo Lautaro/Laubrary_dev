@@ -24,6 +24,15 @@ namespace Laubrary.Zoetrope
             // a plain SpriteView Zoe has nothing to seed, and that's fine, not an error.
             if (def != null) go.GetComponent<ICueSink>()?.Seed(def.cues);
 
+            // Locomotion: only when the character actually authored a move clip AND the view can play clips.
+            // A SpriteView Zoe has no IAnimatedView, so this is silently skipped — nothing to animate, not an
+            // error, the same rule cues follow.
+            if (def != null && def.locomotion != null && def.locomotion.IsAuthored)
+            {
+                var animated = go.GetComponent<IAnimatedView>();
+                if (animated != null) go.AddComponent<LocomotionAnimator>().Bind(def.locomotion, animated);
+            }
+
             var health = go.AddComponent<Health>();
             var comb = go.AddComponent<Combatant>();
             if (def != null)
@@ -41,17 +50,40 @@ namespace Laubrary.Zoetrope
                 health.Revive();
             }
 
+            // Kinematic body: PushbackEffect (and anything else applying an impulse) needs one to push, and
+            // without it that effect no-ops with a warning. Kinematic because movement here is authored by
+            // movers writing transforms, not by physics — a dynamic body would fight them and fall.
+            var rb = go.AddComponent<Rigidbody2D>();
+            rb.bodyType = RigidbodyType2D.Kinematic;
+            rb.gravityScale = 0f;
+            rb.freezeRotation = true;
+
             var col = go.AddComponent<BoxCollider2D>();
             col.isTrigger = true;
             col.size = viewSize;
 
             go.AddComponent<Hurtbox>();   // owner auto-found on this GO
 
+            // Narrow-phase hit test. The collider above is the broad phase and is deliberately generous; this
+            // is what makes a hit land only where the character is actually drawn.
+            if (def != null && def.pixelPerfectHits) go.AddComponent<SpriteAlphaHitFilter>();
+
             // Hurt/death clip + FX, unconditionally added (a VFX-only Zoe with no clip already degrades
             // gracefully — see ReactionFxPlayer's own doc comment). NOT the same thing as Mirage's Target
             // Practice mode (a Mirage-only respawning-dummy convenience, added by MirageSubject instead, that
             // also relies on this same component's finished-events existing).
             go.AddComponent<ReactionFxPlayer>().def = def;
+
+            // AFTER ReactionFxPlayer, so ZoeState finds it and can wait on DeathFinished. This is the single
+            // "may I act" gate every mover, weapon and animator consults — without it each one decides for
+            // itself and they disagree, which is how corpses end up walking.
+            var state = go.AddComponent<ZoeState>();
+            if (def != null)
+            {
+                state.hitStun = def.hit != null ? def.hit.stunSeconds : 0f;
+                state.disposal = def.deathDisposal;
+                state.deathLinger = def.deathLinger;
+            }
 
             // Loadout: weapons + abilities the character can activate (trigger = brain for enemies / input for player).
             if (def != null && def.loadout != null && def.loadout.Count > 0)
@@ -122,6 +154,7 @@ namespace Laubrary.Zoetrope
             w.spreadDeg = def.spreadDeg;
             w.projectilesPerShot = def.projectilesPerShot;
             var ammo = def.ammoTypes != null && def.ammoTypes.Count > 0 ? def.ammoTypes[0] : null;
+            w.automatic = def.automatic;
             w.projectilePrefab = ammo != null
                 ? BuildProjectileTemplate(ammo, projectileBlockers, shooter.transform) : null;
 

@@ -10,30 +10,35 @@ using Object = UnityEngine.Object;
 
 namespace Laubrary.Cartographer.Editor
 {
-    /// Clump Editor: paint a Clump's cells on a grid instead of hand-typing offsets into a list.
-    /// Left = the palette, target layer, tags and spots; right = the paint grid, which draws the clump's real
+    /// THE CLUMP EDITOR — authors one Prop: paint its cells, tag it, name its spots, curate the biome that
+    /// offers it. The LEVEL editor is CartographerWindow; this window is its satellite, opened from the
+    /// Props box. (Historically this window WAS "Cartographer" and kept the level as a field inside a box —
+    /// the exact subject inversion the 2026-07-31 redesign exists to fix. Parts of it are still being
+    /// harvested: the stamper interaction is porting to the new window, and the legacy scene-level plumbing
+    /// here dies when CartographerLevel is retired.)
+    /// Left = the palette, target layer, tags and spots; right = the paint grid, which draws the prop's real
     /// tile sprites so what you paint is what the stamp will place.
     ///
     /// Follows ChoreographerWindow's shape (the UI Toolkit pilot): ZuiAssetWindow for the asset toolbar and
     /// thumbnail browser, a Painter2D custom element for the stage, and one Dial() helper every data edit
     /// routes through so the whole window is undoable.
-    public partial class ClumpWindow : ZuiAssetWindow<Clump>
+    public partial class PropWindow : ZuiAssetWindow<Prop>
     {
-        [MenuItem("Laubrary/Cartographer/Clump Editor")]
-        public static void Open() => GetWindow<ClumpWindow>("Clump Editor");
-
-        /// Jump straight into one clump's editor — the entry point a future Biome window's Edit button uses.
-        public static void OpenFor(Clump clump)
+        // No menu item on purpose: the tool's main entry is CartographerWindow (the LEVEL editor), and this
+        // window is reached from its Props box — the fix for the old "the level editor asks which prop you
+        // want" defect.
+        /// Jump straight into one prop's editor — the entry point the Cartographer window's Edit button uses.
+        public static void OpenFor(Prop prop)
         {
-            var w = GetWindow<ClumpWindow>("Clump Editor");
-            if (clump != null) w.SetAsset(clump);
+            var w = GetWindow<PropWindow>("Prop Editor");
+            if (prop != null) w.SetAsset(prop);
         }
 
-        Clump clump => Current;
+        Prop prop => Current;
 
-        protected override string TypeLabel => "Clump";
-        protected override string NewAssetName => "Clump";
-        protected override string DefaultFolder => "Assets/Cartographer/Clumps";
+        protected override string TypeLabel => "Prop";
+        protected override string NewAssetName => "Prop";
+        protected override string DefaultFolder => "Assets/Cartographer/Props";
 
         // palette + brush
         [SerializeField] CartographerBiome paletteSource;
@@ -45,27 +50,27 @@ namespace Laubrary.Cartographer.Editor
         // grid view
         int gridW = 8, gridH = 8;
 
-        ClumpStage stage;
+        PropStage stage;
         VisualElement paletteRow, layerRow, tagList, spotList, levelBox, biomeBox;
 
-        // Thumbnail cache for the LauAsset picker rows (biome/clump/tag/recipe fields). Cleared on disable and
+        // Thumbnail cache for the LauAsset picker rows (biome/prop/tag/recipe fields). Cleared on disable and
         // when the edited asset changes — the same lifecycle every other LauAssetElement host uses.
         readonly Dictionary<Object, Texture2D> _fieldThumbs = new();
 
         protected override void OnEnable() { base.OnEnable(); OnEnableStamper(); }
         protected override void OnDisable() { OnDisableStamper(); base.OnDisable(); LauAssetGridGUI.ClearCache(_fieldThumbs); }
 
-        protected override Texture2D RenderThumbnail(Clump item) => item != null ? item.RenderPreviewTexture() : null;
+        protected override Texture2D RenderThumbnail(Prop item) => item != null ? item.RenderPreviewTexture() : null;
 
-        protected override void InitializeNewAsset(Clump item)
+        protected override void InitializeNewAsset(Prop item)
         {
             item.displayName = item.name;
         }
 
         protected override void OnAssetChanged()
         {
-            // Re-seed rather than accumulate: a palette still holding the previous clump's tiles reads as if
-            // this clump used them.
+            // Re-seed rather than accumulate: a palette still holding the previous prop's tiles reads as if
+            // this prop used them.
             brushIndex = 0;
             palette.Clear();
             LauAssetGridGUI.ClearCache(_fieldThumbs);
@@ -75,14 +80,14 @@ namespace Laubrary.Cartographer.Editor
         /// Undoable, dirties the asset, repaints the grid and refreshes the browser thumbnail.
         void Dial(string undoLabel, System.Action apply)
         {
-            if (clump == null) return;
-            Undo.RecordObject(clump, undoLabel);
+            if (prop == null) return;
+            Undo.RecordObject(prop, undoLabel);
             apply();
-            EditorUtility.SetDirty(clump);
+            EditorUtility.SetDirty(prop);
             stage?.Refresh();
         }
 
-        protected override void BuildAsset(VisualElement root, Clump asset)
+        protected override void BuildAsset(VisualElement root, Prop asset)
         {
             root.style.flexGrow = 1f;
 
@@ -105,7 +110,7 @@ namespace Laubrary.Cartographer.Editor
             left.Add(scroll);
             split.Add(left);
 
-            stage = new ClumpStage(this);
+            stage = new PropStage(this);
             split.Add(stage);
             stage.Refresh();
         }
@@ -114,15 +119,15 @@ namespace Laubrary.Cartographer.Editor
         void BuildControls(VisualElement root)
         {
             root.Add(Z.Field("Name", "Name shown in browsers and pickers. Independent of the asset's file name.",
-                Z.TextInput(clump.displayName, "Name shown in browsers and pickers.",
-                    v => Dial("Rename clump", () => clump.displayName = v), 190f)));
+                Z.TextInput(prop.displayName, "Name shown in browsers and pickers.",
+                    v => Dial("Rename prop", () => prop.displayName = v), 190f)));
 
             root.Add(Z.VSpace());
 
             // Palette — tiles you can paint with, sourced from a biome or added one at a time.
             paletteRow = new VisualElement();
-            var paletteBox = Z.Box("Palette", "The tiles this clump can be painted with. Pull a biome's tiles in, or add one directly.",
-                Z.Field("From biome", "Fills the palette with this biome's terrain tiles. The clump is not bound to the biome.",
+            var paletteBox = Z.Box("Palette", "The tiles this prop can be painted with. Pull a biome's tiles in, or add one directly.",
+                Z.Field("From biome", "Fills the palette with this biome's terrain tiles. The prop is not bound to the biome.",
                     LauAssetElement.Build(paletteSource,
                         picked => { paletteSource = picked as CartographerBiome; RebuildPalette(); RebuildBiomeBox(); },
                         typeof(CartographerBiome), _fieldThumbs, "Biome", "Assets/Cartographer/Biomes",
@@ -134,7 +139,7 @@ namespace Laubrary.Cartographer.Editor
                     }, 180f)),
                 paletteRow);
             root.Add(paletteBox);
-            RebuildPalette();   // seeds from the biome (if any) plus whatever tiles this clump already uses
+            RebuildPalette();   // seeds from the biome (if any) plus whatever tiles this prop already uses
 
             biomeBox = new VisualElement();
             root.Add(Z.Box("Biome", "Edit the biome selected above — what may appear in it, and how it looks.", biomeBox));
@@ -156,21 +161,21 @@ namespace Laubrary.Cartographer.Editor
                     v => { gridH = Mathf.RoundToInt(v); stage?.Refresh(); }, 150f, decimals: 0)));
 
             tagList = new VisualElement();
-            root.Add(Z.Box("Tags", "Gameplay labels this clump carries. Cartographer stores them; the game decides what they mean.",
+            root.Add(Z.Box("Tags", "Gameplay labels this prop carries. Cartographer stores them; the game decides what they mean.",
                 tagList,
                 Z.Button("+ Add tag", "Append an empty tag slot.",
-                    () => Dial("Add clump tag", () => clump.tags.Add(null)))));
+                    () => Dial("Add prop tag", () => prop.tags.Add(null)))));
             RebuildTags();
 
             spotList = new VisualElement();
-            root.Add(Z.Box("Spots", "Named points this clump publishes to the level, for gameplay and scripted sequences to find by name.",
+            root.Add(Z.Box("Spots", "Named points this prop publishes to the level, for gameplay and scripted sequences to find by name.",
                 spotList,
-                Z.Button("+ Add spot", "Append a named point at the clump's origin.",
-                    () => Dial("Add clump spot", () => clump.spots.Add(new ClumpSpot())))));
+                Z.Button("+ Add spot", "Append a named point at the prop's origin.",
+                    () => Dial("Add prop spot", () => prop.spots.Add(new PropSpot())))));
             RebuildSpots();
 
             levelBox = new VisualElement();
-            root.Add(Z.Box("Level", "The level in the open scene this clump is stamped into.", levelBox));
+            root.Add(Z.Box("Level", "The level in the open scene this prop is stamped into.", levelBox));
             RebuildLevelBox();
         }
 
@@ -180,10 +185,10 @@ namespace Laubrary.Cartographer.Editor
                 foreach (var t in paletteSource.terrainTiles)
                     if (t != null && !palette.Contains(t)) palette.Add(t);
 
-            // Anything already used by the clump belongs in the palette too, so an existing asset is editable
+            // Anything already used by the prop belongs in the palette too, so an existing asset is editable
             // the moment it opens rather than needing its own tiles re-added by hand.
-            if (clump?.cells != null)
-                foreach (var c in clump.cells)
+            if (prop?.cells != null)
+                foreach (var c in prop.cells)
                     if (c?.tile != null && !palette.Contains(c.tile)) palette.Add(c.tile);
 
             if (paletteRow == null) return;
@@ -270,29 +275,29 @@ namespace Laubrary.Cartographer.Editor
                 Z.Button("+ Add tile", "Append an empty tile slot.",
                     () => { BiomeEdit("Add biome tile", () => b.terrainTiles.Add(null)); RebuildBiomeBox(); })));
 
-            // Allowed clumps — a clump not listed here is never placed, however the generator is tuned.
-            var clumpRows = new VisualElement();
-            for (int i = 0; i < b.clumps.Count; i++)
+            // Allowed props — a prop not listed here is never placed, however the generator is tuned.
+            var propRows = new VisualElement();
+            for (int i = 0; i < b.props.Count; i++)
             {
                 int idx = i;
-                clumpRows.Add(Z.Row(
-                    LauAssetElement.Build(b.clumps[idx],
-                        picked => { BiomeEdit("Set biome clump", () => b.clumps[idx] = picked as Clump); RebuildBiomeBox(); },
-                        typeof(Clump), _fieldThumbs, "Clump", "Assets/Cartographer/Clumps",
-                        "A clump allowed to appear in this biome."),
-                    Z.Button("×", "Remove this clump from the biome.",
-                        () => { BiomeEdit("Remove biome clump", () => b.clumps.RemoveAt(idx)); RebuildBiomeBox(); }).W(24f)));
+                propRows.Add(Z.Row(
+                    LauAssetElement.Build(b.props[idx],
+                        picked => { BiomeEdit("Set biome prop", () => b.props[idx] = picked as Prop); RebuildBiomeBox(); },
+                        typeof(Prop), _fieldThumbs, "Prop", "Assets/Cartographer/Props",
+                        "A prop allowed to appear in this biome."),
+                    Z.Button("×", "Remove this prop from the biome.",
+                        () => { BiomeEdit("Remove biome prop", () => b.props.RemoveAt(idx)); RebuildBiomeBox(); }).W(24f)));
             }
-            biomeBox.Add(Z.Box("Clumps", "Only these clumps may be placed in this biome.",
-                clumpRows,
+            biomeBox.Add(Z.Box("Props", "Only these props may be placed in this biome.",
+                propRows,
                 Z.Row(
-                    Z.Button("+ Add clump", "Append an empty clump slot.",
-                        () => { BiomeEdit("Add biome clump", () => b.clumps.Add(null)); RebuildBiomeBox(); }),
-                    Z.Button("+ This clump", "Add the clump currently open in this window.",
+                    Z.Button("+ Add prop", "Append an empty prop slot.",
+                        () => { BiomeEdit("Add biome prop", () => b.props.Add(null)); RebuildBiomeBox(); }),
+                    Z.Button("+ This prop", "Add the prop currently open in this window.",
                         () =>
                         {
-                            if (clump == null || b.clumps.Contains(clump)) return;
-                            BiomeEdit("Add biome clump", () => b.clumps.Add(clump));
+                            if (prop == null || b.props.Contains(prop)) return;
+                            BiomeEdit("Add biome prop", () => b.props.Add(prop));
                             RebuildBiomeBox();
                         }))));
         }
@@ -314,7 +319,7 @@ namespace Laubrary.Cartographer.Editor
                 }, 150f)));
         }
 
-        /// The conventional two layers, plus every layer the target level declares, plus any others this clump
+        /// The conventional two layers, plus every layer the target level declares, plus any others this prop
         /// already writes to. The level's layers matter: painting onto a layer the level does not have drops
         /// those cells (with a warning), so the brush should offer exactly what is actually paintable.
         string[] KnownLayers()
@@ -325,8 +330,8 @@ namespace Laubrary.Cartographer.Editor
                 foreach (var l in level.layers)
                     if (l != null && !string.IsNullOrEmpty(l.layerName) && !set.Contains(l.layerName)) set.Add(l.layerName);
 
-            if (clump?.cells != null)
-                foreach (var c in clump.cells)
+            if (prop?.cells != null)
+                foreach (var c in prop.cells)
                     if (c != null && !string.IsNullOrEmpty(c.layer) && !set.Contains(c.layer)) set.Add(c.layer);
 
             if (!set.Contains(targetLayer)) set.Add(targetLayer);
@@ -337,16 +342,16 @@ namespace Laubrary.Cartographer.Editor
         {
             if (tagList == null) return;
             tagList.Clear();
-            for (int i = 0; i < clump.tags.Count; i++)
+            for (int i = 0; i < prop.tags.Count; i++)
             {
                 int idx = i;
                 tagList.Add(Z.Row(
-                    LauAssetElement.Build(clump.tags[i],
-                        picked => { Dial("Set clump tag", () => clump.tags[idx] = picked as ClumpTag); RebuildTags(); },
-                        typeof(ClumpTag), _fieldThumbs, "Tag", "Assets/Cartographer/Tags",
-                        "Gameplay label carried by this clump."),
+                    LauAssetElement.Build(prop.tags[i],
+                        picked => { Dial("Set prop tag", () => prop.tags[idx] = picked as TileTag); RebuildTags(); },
+                        typeof(TileTag), _fieldThumbs, "Tag", "Assets/Cartographer/Tags",
+                        "Gameplay label carried by this prop."),
                     Z.Button("×", "Remove this tag.",
-                        () => { Dial("Remove clump tag", () => clump.tags.RemoveAt(idx)); RebuildTags(); }).W(24f)));
+                        () => { Dial("Remove prop tag", () => prop.tags.RemoveAt(idx)); RebuildTags(); }).W(24f)));
             }
         }
 
@@ -354,19 +359,19 @@ namespace Laubrary.Cartographer.Editor
         {
             if (spotList == null) return;
             spotList.Clear();
-            for (int i = 0; i < clump.spots.Count; i++)
+            for (int i = 0; i < prop.spots.Count; i++)
             {
                 int idx = i;
-                var s = clump.spots[idx];
+                var s = prop.spots[idx];
                 spotList.Add(Z.Row(
                     Z.TextInput(s.spotName, "The name a sequence or gameplay script looks this point up by.",
                         v => Dial("Rename spot", () => s.spotName = v), 110f),
-                    Z.Float(s.offset.x, "Offset from the clump origin, in cells, along X.",
+                    Z.Float(s.offset.x, "Offset from the prop origin, in cells, along X.",
                         v => { Dial("Move spot", () => s.offset.x = v); }, 46f),
-                    Z.Float(s.offset.y, "Offset from the clump origin, in cells, along Y.",
+                    Z.Float(s.offset.y, "Offset from the prop origin, in cells, along Y.",
                         v => { Dial("Move spot", () => s.offset.y = v); }, 46f),
                     Z.Button("×", "Remove this spot.",
-                        () => { Dial("Remove spot", () => clump.spots.RemoveAt(idx)); RebuildSpots(); }).W(24f)));
+                        () => { Dial("Remove spot", () => prop.spots.RemoveAt(idx)); RebuildSpots(); }).W(24f)));
             }
         }
 
@@ -375,13 +380,13 @@ namespace Laubrary.Cartographer.Editor
         /// layer twice replaces rather than stacking, which is what makes click-drag painting behave.
         internal void PaintCell(Vector2Int cell)
         {
-            if (clump == null) return;
+            if (prop == null) return;
 
-            int existing = clump.cells.FindIndex(c => c != null && c.offset == cell && c.layer == targetLayer);
+            int existing = prop.cells.FindIndex(c => c != null && c.offset == cell && c.layer == targetLayer);
 
             if (erasing)
             {
-                if (existing >= 0) Dial("Erase cell", () => clump.cells.RemoveAt(existing));
+                if (existing >= 0) Dial("Erase cell", () => prop.cells.RemoveAt(existing));
                 return;
             }
 
@@ -391,23 +396,23 @@ namespace Laubrary.Cartographer.Editor
 
             if (existing >= 0)
             {
-                if (clump.cells[existing].tile == tile) return;   // no-op: don't spam the undo stack while dragging
-                Dial("Paint cell", () => clump.cells[existing].tile = tile);
+                if (prop.cells[existing].tile == tile) return;   // no-op: don't spam the undo stack while dragging
+                Dial("Paint cell", () => prop.cells[existing].tile = tile);
             }
             else
             {
-                Dial("Paint cell", () => clump.cells.Add(new ClumpCell { offset = cell, tile = tile, layer = targetLayer }));
+                Dial("Paint cell", () => prop.cells.Add(new PropCell { offset = cell, tile = tile, layer = targetLayer }));
             }
         }
 
         internal int GridW => gridW;
         internal int GridH => gridH;
-        internal Clump CurrentClump => clump;
+        internal Prop CurrentProp => prop;
 
         // ── right: the paint grid (Painter2D + an Image pool for the tile sprites) ────────────
-        class ClumpStage : VisualElement
+        class PropStage : VisualElement
         {
-            readonly ClumpWindow w;
+            readonly PropWindow w;
             readonly List<Image> tilePool = new();
 
             // Painter2D content draws BENEATH an element's children, so the tile Images would bury anything the
@@ -419,7 +424,7 @@ namespace Laubrary.Cartographer.Editor
             bool painting;
             Vector2Int lastPainted = new(int.MinValue, int.MinValue);
 
-            public ClumpStage(ClumpWindow window)
+            public PropStage(PropWindow window)
             {
                 w = window;
                 AddToClassList("zui-stage");
@@ -473,10 +478,10 @@ namespace Laubrary.Cartographer.Editor
             /// stage uses for its sample sprites.
             void SyncTileImages()
             {
-                var c = w.CurrentClump;
+                var c = w.CurrentProp;
                 Layout();
 
-                var visible = new List<ClumpCell>();
+                var visible = new List<PropCell>();
                 if (c?.cells != null)
                     foreach (var cell in c.cells)
                         if (cell != null && cell.tile != null &&
@@ -519,7 +524,7 @@ namespace Laubrary.Cartographer.Editor
             {
                 Layout();
                 var p = ctx.painter2D;
-                var c = w.CurrentClump;
+                var c = w.CurrentProp;
 
                 // grid lines
                 p.strokeColor = new Color(1f, 1f, 1f, 0.12f);
@@ -543,7 +548,7 @@ namespace Laubrary.Cartographer.Editor
             {
                 Layout();
                 var p = ctx.painter2D;
-                var c = w.CurrentClump;
+                var c = w.CurrentProp;
 
                 // origin cell, so (0,0) is findable at any grid size
                 p.strokeColor = new Color(0.4f, 0.8f, 1f, 0.85f);

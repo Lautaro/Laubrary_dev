@@ -129,8 +129,9 @@ namespace Laubrary.Chunks.Editor
         ZuiReflect.Options ModifierDrawerOptions(PixelModifier m) => new ZuiReflect.Options
         {
             OnBeforeChange = () => { var c = Spec; if (c != null) Undo.RecordObject(c, "Edit chunk modifier"); },
-            OnChanged = () => { var c = Spec; if (c != null) EditorUtility.SetDirty(c); },
-            OnStructureChanged = RebuildModifiers,
+            // The slicing preview bakes this stack into its debris, so it refreshes with every modifier edit.
+            OnChanged = () => { var c = Spec; if (c != null) EditorUtility.SetDirty(c); RefreshChunkPreview(); },
+            OnStructureChanged = () => { RebuildModifiers(); RefreshChunkPreview(); },
             // The enable toggle lives in the header row, so hide the base `enabled` field the drawer would surface.
             Skip = f => f.Name == "enabled",
             FloatWrapperProperty = StaticValueProp,

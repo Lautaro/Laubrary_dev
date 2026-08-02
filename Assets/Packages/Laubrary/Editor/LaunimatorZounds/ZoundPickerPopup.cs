@@ -41,7 +41,10 @@ namespace Laubrary.LaunimatorZounds.Editor
                 position,
                 new List<string>(),
                 searchText,
-                newSearch => searchText = newSearch);
+                newSearch => searchText = newSearch,
+                // Right-click auditions without choosing. Picking a sound you have not heard is guessing,
+                // and the popup already carried an onRightClicked hook that nobody had passed.
+                userData => { if (userData is Zound z) ZoundEngine.PlayZound(z.name); });
         }
     }
 }

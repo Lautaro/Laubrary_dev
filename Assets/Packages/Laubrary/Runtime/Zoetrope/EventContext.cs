@@ -14,6 +14,10 @@ namespace Laubrary.Zoetrope
         /// side angles inward (a glancing look). NaN when the spawn point IS the centre. (Appended last to keep the
         /// existing serialized HitDirection=0 / None=1 values stable.)
         CentreAngle,
+        /// A fresh random angle each time the effect fires. For a knockback that should scatter rather than
+        /// read as a consistent shove — the difference between a crowd being pushed apart and a crowd being
+        /// pushed in formation. (Appended last to keep existing serialized values stable.)
+        Random,
     }
 
     /// <summary>Which of the event's scalar in-params an effect reads.</summary>
@@ -59,6 +63,12 @@ namespace Laubrary.Zoetrope
         public Vector2 HitDirection;
         /// The event's scalar magnitude (e.g. the damage amount).
         public float Amount;
+        /// Seconds the driving event has left at the moment the current effect fires — the armed reaction
+        /// clip's remaining play time, re-stamped by <see cref="ReactionFxPlayer"/> before every fire (full
+        /// length for Immediate entries, what's left for OnFrame ones). 0 when unknown: no clip, no animated
+        /// view, or a clip with no fixed end (a zoned strip) — timed playback bindings (a Body-SpriteFx card's
+        /// Loop / RunAtEnd / PingPong) then degrade to a single play.
+        public float EventSecondsRemaining;
 
         // ── resolved-for-the-current-effect (stamped from the effect's picked params just before Apply) ──
         /// The world position the current effect's picked position param resolved to.
@@ -100,6 +110,8 @@ namespace Laubrary.Zoetrope
         public float ResolveDirectionDeg(DirectionParam param)
         {
             if (param == DirectionParam.None) return float.NaN;
+            // Rolled per FIRING, not per effect, so two Zoes hit by the same shot scatter independently.
+            if (param == DirectionParam.Random) return UnityEngine.Random.Range(0f, 360f);
             if (param == DirectionParam.CentreAngle)
             {
                 // Angle from the (already-stamped) spawn Position toward the Zoe's visual centre.

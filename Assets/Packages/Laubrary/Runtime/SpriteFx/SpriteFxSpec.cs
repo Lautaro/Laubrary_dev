@@ -42,6 +42,14 @@ namespace Laubrary.SpriteFx
                  "Brightness/Tint flash.")]
         public int seed = 12345;
 
+        [Tooltip("Own clock: how many times per second this stack's time advances while it plays. 0 (default) = " +
+                 "continuous — the effect re-evaluates every rendered frame, riding whatever animation drives it. " +
+                 "Set a rate to step the effect on its own fixed grid instead, independent of the animation's " +
+                 "fps — a fast brightness flicker over a slow 4-fps reel, or a deliberately chunky retro fade. " +
+                 "Hashing effects re-roll per STEP (not per rendered frame), which is what makes a dither/dissolve " +
+                 "read as a flicker at this rate.")]
+        [Min(0f)] public float targetFps = 0f;
+
         /// Sample the life-remap envelope at a raw progress in [0,1] (identity if no curve). Mirrors
         /// <see cref="SpriteFxFilter"/>'s own SampleEnvelope so an asset-driven filter and an inline one behave
         /// identically.

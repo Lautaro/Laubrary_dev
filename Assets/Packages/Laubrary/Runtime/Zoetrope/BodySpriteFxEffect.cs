@@ -4,22 +4,60 @@ using Laubrary.SpriteFx;
 namespace Laubrary.Zoetrope
 {
     /// <summary>
+    /// How a Body-SpriteFx attachment plays its stack against the EVENT that fired it. This lives on the
+    /// ATTACHMENT (the Zoe event's effect entry), NOT the stack asset — same stack, different bindings: one
+    /// authored flicker can loop over a stun, play once on a hit, and fade a death out. The timed modes need
+    /// the event's duration (the reaction clip's length, via <see cref="IAnimatedView.GetClipSeconds"/>,
+    /// stamped into <see cref="EventContext.EventSecondsRemaining"/>); when it is unknown — no clip, a plain
+    /// SpriteView, or a zoned strip with no fixed end — each mode degrades to a single play.
+    /// </summary>
+    public enum FxPlaybackMode
+    {
+        /// One play-through of the stack's own duration — the original behaviour. Deliberately value 0 so
+        /// every PRE-EXISTING serialized entry (which never wrote this field) keeps doing exactly what it did;
+        /// the editor's Add-effect menu starts NEW cards on <see cref="Loop"/> (the design default).
+        Once = 0,
+        /// Repeat whole passes back-to-back for the event's remaining duration, ending WITH the event.
+        Loop = 1,
+        /// Start late so the play ENDS exactly as the event does — a fade-out. The window is
+        /// <see cref="BodySpriteFxEffect.fxSeconds"/> (0 = the stack's own duration); an event shorter than
+        /// the window compresses the play to fit, so the fade still lands on the event's end.
+        RunAtEnd = 2,
+        /// Once forward at the event's start, once BACKWARD timed to end with the event — flash in, mirror out.
+        PingPong = 3,
+    }
+
+    /// <summary>
     /// A Zoe-event effect that applies a <see cref="SpriteFxSpec"/> (a "SpriteFx Stack") to the Zoe's OWN body
-    /// renderer for the stack's duration — a hurt/death flash, tint or dissolve that RIDES the live animation via a
+    /// renderer — a hurt/death flash, tint or dissolve that RIDES the live animation via a
     /// <see cref="SpriteFxFilter"/> on the body's <see cref="SpriteRenderer"/>. This is the same behaviour as the
     /// top-level <see cref="ReactionFx.bodyFx"/> slot (KEPT and still fired by
     /// <see cref="ReactionFxPlayer.PlayBodyFx"/>; this effect is purely additive), now promoted to a first-class,
     /// list-orderable palette effect (ZOE_EVENTS_DESIGN.md step 3). Lives in Zoetrope CORE: Zoetrope depends DOWN
     /// on SpriteFx (a legal downward asmdef dependency — SpriteFx never references Zoetrope), the very edge
     /// <see cref="ReactionFxPlayer.PlayBodyFx"/> already uses.
+    ///
+    /// The <see cref="playback"/> binding decides how the stack plays against the event's timeline; the filter
+    /// primitives it drives (<see cref="SpriteFxFilter.PlayLooping"/> / <see cref="SpriteFxFilter.SchedulePlay"/>)
+    /// stay policy-free in SpriteFx, so the event-vocabulary lives here where the event is.
     /// </summary>
     [System.Serializable]
     public class BodySpriteFxEffect : IEffect
     {
-        [Tooltip("The SpriteFx Stack applied to the Zoe's own body sprite the instant this effect fires — a hurt/" +
+        [Tooltip("The SpriteFx Stack applied to the Zoe's own body sprite when this effect fires — a hurt/" +
                  "death flash, tint or dissolve riding on top of the live animation (via a SpriteFxFilter added to " +
                  "the body renderer). Empty = nothing.")]
         public SpriteFxSpec stack;
+
+        [Tooltip("How the stack plays against this event: Once = a single play-through; Loop = repeat for the " +
+                 "event's remaining duration; Run At End = start so it finishes exactly as the event ends (a " +
+                 "fade-out); Ping Pong = once forward now, once backward timed to the end. Timed modes degrade " +
+                 "to a single play when the event's duration is unknown (no clip, or a clip with no fixed end).")]
+        public FxPlaybackMode playback = FxPlaybackMode.Once;
+
+        [Tooltip("Run At End only: the fade-out window in seconds — the stack starts when the event has this " +
+                 "much time left. 0 = use the stack's own duration.")]
+        [Min(0f)] public float fxSeconds = 0f;
 
         public bool IsEmpty => stack == null;
 
@@ -31,7 +69,48 @@ namespace Laubrary.Zoetrope
             var filter = sr.GetComponent<SpriteFxFilter>();
             if (filter == null) filter = sr.gameObject.AddComponent<SpriteFxFilter>();
             filter.stack = stack;
-            filter.Play();
+
+            float passDur = Mathf.Max(0.001f, stack.duration);
+            float remaining = ctx.EventSecondsRemaining;   // 0 = unknown → every timed mode degrades to a single play
+
+            switch (playback)
+            {
+                default:
+                case FxPlaybackMode.Once:
+                    filter.Play();
+                    break;
+
+                case FxPlaybackMode.Loop:
+                    if (remaining > 0f) filter.PlayLooping(remaining);
+                    else filter.Play();   // unknown event length — degrade to a single play (see the mode's tooltip)
+                    break;
+
+                case FxPlaybackMode.RunAtEnd:
+                {
+                    if (remaining <= 0f) { filter.Play(); break; }   // unknown event length — degrade to Once
+                    float window = fxSeconds > 0f ? fxSeconds : passDur;
+                    if (remaining <= window)
+                    {
+                        // The event is already inside the window — compress the whole play into what's left,
+                        // so the fade still completes its curve exactly on the event's end.
+                        filter.Play(remaining);
+                    }
+                    else
+                    {
+                        filter.SchedulePlay(remaining - window, window);
+                    }
+                    break;
+                }
+
+                case FxPlaybackMode.PingPong:
+                    filter.Play(passDur);   // forward pass, now
+                    // The backward pass is timed to END with the event, but never starts before the forward
+                    // pass finishes; with no known event length it follows the forward pass immediately (a
+                    // there-and-back pulse).
+                    filter.SchedulePlay(remaining > 0f ? Mathf.Max(passDur, remaining - passDur) : passDur,
+                                        passDur, reversed: true);
+                    break;
+            }
         }
     }
 }

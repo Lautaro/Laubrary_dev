@@ -1,14 +1,17 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.Tilemaps;
 
 namespace Laubrary.Cartographer
 {
-    /// One named drawing layer of a level, bound to the Tilemap that renders it.
+    /// One named drawing layer of the LEGACY scene-bound level, bound to the Tilemap that renders it.
+    /// Superseded by LevelLayer on LevelAsset; alive only until the old CartographerLevel path is retired.
+    /// (Renaming the class is safe for scenes: a plain serializable class stores fields, not its name.)
     [System.Serializable]
-    public class LevelLayer
+    public class LegacyLevelLayer
     {
-        [Tooltip("Name clumps address this layer by, e.g. Terrain or Structures.")]
+        [Tooltip("Name props address this layer by, e.g. Terrain or Structures.")]
         public string layerName = CartographerLevel.TerrainLayer;
 
         [Tooltip("The Tilemap this layer draws into.")]
@@ -25,15 +28,15 @@ namespace Laubrary.Cartographer
         public Tile.ColliderType colliderShape = Tile.ColliderType.Grid;
     }
 
-    /// A clump as it was actually placed. A Tilemap only stores tiles, so once a clump is stamped the fact
-    /// that THOSE cells came from THAT clump is gone — and with it the clump's tags, its prefab hook, and any
+    /// A prop as it was actually placed. A Tilemap only stores tiles, so once a prop is stamped the fact
+    /// that THOSE cells came from THAT prop is gone — and with it the prop's tags, its prefab hook, and any
     /// hope of rebuilding or regenerating the level. Recording each placement keeps that knowledge.
     [System.Serializable]
     public class LevelPlacement
     {
-        public Clump clump;
+        [FormerlySerializedAs("clump")] public Prop prop;
 
-        [Tooltip("Cell the clump's own origin was stamped at.")]
+        [Tooltip("Cell the prop's own origin was stamped at.")]
         public Vector2Int origin;
 
         [Tooltip("Quarter-turns anticlockwise applied when it was stamped.")]
@@ -68,22 +71,22 @@ namespace Laubrary.Cartographer
         [Tooltip("Which collider setup Build Colliders applies to this level's solid layers.")]
         public CollisionMode collision = CollisionMode.SideScroll;
 
-        [Tooltip("Optional. When set, only cells stamped from a clump carrying this tag actually collide — so " +
-                 "decorative clumps can sit on a solid layer without blocking. Leave empty and the whole layer " +
+        [Tooltip("Optional. When set, only cells stamped from a prop carrying this tag actually collide — so " +
+                 "decorative props can sit on a solid layer without blocking. Leave empty and the whole layer " +
                  "is solid, which is the simpler default.")]
-        public ClumpTag solidTag;
+        public TileTag solidTag;
 
         [Header("Layers")]
         [Tooltip("The level's drawing layers, in back-to-front order.")]
-        public List<LevelLayer> layers = new();
+        public List<LegacyLevelLayer> layers = new();
 
         [Header("Rooms")]
         [Tooltip("The sections play moves through, in order.")]
         public List<CartographerRoom> rooms = new();
 
         [Header("Placements")]
-        [Tooltip("Every clump stamped into this level, in placement order. Kept so the level can be rebuilt, " +
-                 "and so a stamped clump's tags and prefab hook survive the trip into the Tilemap.")]
+        [Tooltip("Every prop stamped into this level, in placement order. Kept so the level can be rebuilt, " +
+                 "and so a stamped prop's tags and prefab hook survive the trip into the Tilemap.")]
         public List<LevelPlacement> placements = new();
 
         readonly Dictionary<string, Vector3> spots = new();
@@ -100,8 +103,8 @@ namespace Laubrary.Cartographer
             return null;
         }
 
-        /// Publish a named point at a world position. Placement code calls this for every spot on every clump it
-        /// stamps, so whoever wants "landing-pad" can find it without knowing which clump supplied it.
+        /// Publish a named point at a world position. Placement code calls this for every spot on every prop it
+        /// stamps, so whoever wants "landing-pad" can find it without knowing which prop supplied it.
         /// A repeated name overwrites the earlier one — last placement wins.
         public void RegisterSpot(string spotName, Vector3 worldPosition)
         {
@@ -123,46 +126,35 @@ namespace Laubrary.Cartographer
         /// Drop every published spot. Called before a level is rebuilt or regenerated.
         public void ClearSpots() => spots.Clear();
 
-        /// Transform a clump-local cell offset by `rotation` quarter-turns anticlockwise and an optional X
-        /// mirror. Mirroring is applied first so a mirrored-then-rotated stamp matches what the preview drew.
+        /// Kept for legacy callers; the canonical copy lives on Prop.
         public static Vector2Int TransformOffset(Vector2Int offset, int rotation, bool mirrorX)
-        {
-            if (mirrorX) offset.x = -offset.x;
-            int turns = ((rotation % 4) + 4) % 4;
-            for (int i = 0; i < turns; i++) offset = new Vector2Int(-offset.y, offset.x);
-            return offset;
-        }
+            => Prop.TransformOffset(offset, rotation, mirrorX);
 
         /// Same transform for a fractional (spot) offset.
         public static Vector2 TransformOffset(Vector2 offset, int rotation, bool mirrorX)
-        {
-            if (mirrorX) offset.x = -offset.x;
-            int turns = ((rotation % 4) + 4) % 4;
-            for (int i = 0; i < turns; i++) offset = new Vector2(-offset.y, offset.x);
-            return offset;
-        }
+            => Prop.TransformOffset(offset, rotation, mirrorX);
 
-        /// Stamp a clump's cells into this level's layers, publishing its spots, recording the placement, and
-        /// returning the prefab choice that was rolled (null when the clump spawns nothing). `pick` picks an
+        /// Stamp a prop's cells into this level's layers, publishing its spots, recording the placement, and
+        /// returning the prefab choice that was rolled (null when the prop spawns nothing). `pick` picks an
         /// index from a weight list, which is how a generator keeps placement deterministic from its own seed;
         /// pass null to take the first non-zero-weight entry.
-        public ClumpPrefabChoice PlaceClump(Clump clump, Vector2Int origin,
+        public PropPrefabChoice PlaceProp(Prop prop, Vector2Int origin,
             System.Func<IList<float>, int> pick = null, int rotation = 0, bool mirrorX = false, bool record = true)
         {
-            if (clump == null) return null;
+            if (prop == null) return null;
 
-            if (clump.cells != null)
+            if (prop.cells != null)
             {
-                foreach (var c in clump.cells)
+                foreach (var c in prop.cells)
                 {
                     if (c == null || c.tile == null) continue;
                     var wanted = string.IsNullOrEmpty(c.layer) ? TerrainLayer : c.layer;
                     var map = GetLayer(wanted);
                     if (map == null)
                     {
-                        // Layer names are free text on both sides, so a typo (or a clump authored for a level
+                        // Layer names are free text on both sides, so a typo (or a prop authored for a level
                         // that has more layers than this one) would otherwise drop cells with no trace at all.
-                        Debug.LogWarning($"[Cartographer] '{clump.name}' wants layer '{wanted}', which this level " +
+                        Debug.LogWarning($"[Cartographer] '{prop.name}' wants layer '{wanted}', which this level " +
                                          $"does not have — those cells were not placed. Level layers: " +
                                          $"{string.Join(", ", layers.ConvertAll(l => l != null ? l.layerName : "<null>"))}", this);
                         continue;
@@ -172,9 +164,9 @@ namespace Laubrary.Cartographer
                 }
             }
 
-            if (clump.spots != null)
+            if (prop.spots != null)
             {
-                foreach (var s in clump.spots)
+                foreach (var s in prop.spots)
                 {
                     if (s == null || string.IsNullOrEmpty(s.spotName)) continue;
 
@@ -188,13 +180,13 @@ namespace Laubrary.Cartographer
             }
 
             if (record)
-                placements.Add(new LevelPlacement { clump = clump, origin = origin, rotation = rotation, mirrorX = mirrorX });
+                placements.Add(new LevelPlacement { prop = prop, origin = origin, rotation = rotation, mirrorX = mirrorX });
 
-            return ChoosePrefab(clump, pick);
+            return ChoosePrefab(prop, pick);
         }
 
         /// Rebuild every layer's tiles and spots from the recorded placements — the inverse of "the Tilemap
-        /// forgot where its tiles came from". Used after an undo, a regeneration, or a clump edit.
+        /// forgot where its tiles came from". Used after an undo, a regeneration, or a prop edit.
         public void RebuildFromPlacements()
         {
             foreach (var l in layers) l?.tilemap?.ClearAllTiles();
@@ -204,8 +196,8 @@ namespace Laubrary.Cartographer
             placements.Clear();
             foreach (var p in recorded)
             {
-                if (p?.clump == null) continue;
-                PlaceClump(p.clump, p.origin, null, p.rotation, p.mirrorX);
+                if (p?.prop == null) continue;
+                PlaceProp(p.prop, p.origin, null, p.rotation, p.mirrorX);
             }
         }
 
@@ -261,11 +253,11 @@ namespace Laubrary.Cartographer
         }
 
         /// Set each cell's collider type on a solid layer: the layer's own shape everywhere, then None on cells
-        /// belonging to clumps that lack `solidTag`.
+        /// belonging to props that lack `solidTag`.
         ///
-        /// Per-CELL rather than per-tile-asset on purpose — the same Ground tile can be structural in one clump
+        /// Per-CELL rather than per-tile-asset on purpose — the same Ground tile can be structural in one prop
         /// and dressing in another, so the answer belongs to the placement, not to the tile.
-        void ApplyColliderShapes(LevelLayer layer)
+        void ApplyColliderShapes(LegacyLevelLayer layer)
         {
             var map = layer.tilemap;
             if (map == null) return;
@@ -281,8 +273,8 @@ namespace Laubrary.Cartographer
 
             foreach (var p in placements)
             {
-                if (p?.clump?.cells == null || p.clump.HasTag(solidTag)) continue;
-                foreach (var c in p.clump.cells)
+                if (p?.prop?.cells == null || p.prop.HasTag(solidTag)) continue;
+                foreach (var c in p.prop.cells)
                 {
                     if (c == null || c.tile == null) continue;
                     var wanted = string.IsNullOrEmpty(c.layer) ? TerrainLayer : c.layer;
@@ -305,9 +297,9 @@ namespace Laubrary.Cartographer
             Destroy(c);
         }
 
-        static ClumpPrefabChoice ChoosePrefab(Clump clump, System.Func<IList<float>, int> pick)
+        static PropPrefabChoice ChoosePrefab(Prop prop, System.Func<IList<float>, int> pick)
         {
-            var choices = clump.prefabChoices;
+            var choices = prop.prefabChoices;
             if (choices == null || choices.Count == 0) return null;
 
             var weights = new List<float>(choices.Count);

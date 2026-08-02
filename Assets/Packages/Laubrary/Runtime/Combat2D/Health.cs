@@ -77,6 +77,16 @@ namespace Laubrary.Combat2D
             onHealthChanged?.Invoke(Normalized);
         }
 
+        /// Grant i-frames for `seconds` right now, without a hit having landed. EXTENDS an existing window
+        /// rather than replacing it, so a shorter grant can never cut a longer one short — the sort of
+        /// ordering bug that only shows up under fire. Distinct from `invulnerableAfterHit`, which is a
+        /// permanent property of the character rather than something a moment does.
+        public void GrantInvulnerability(float seconds)
+        {
+            EnsureInit();
+            if (seconds > 0f) invulnTimer = Mathf.Max(invulnTimer, seconds);
+        }
+
         /// Instantly kill (fires Died, attributed to nothing).
         public void Kill()
         {

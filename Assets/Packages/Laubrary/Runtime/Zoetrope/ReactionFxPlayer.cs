@@ -22,7 +22,14 @@ namespace Laubrary.Zoetrope
 
         ReactionFx _armed;
         EventContext _armedCtx;
-        Action<string, int> _armedHandler;
+        Action<int> _armedFrameHandler;
+        // When the armed clip will finish (Time.time), so an OnFrame-fired effect knows how much event is left
+        // (a Body-SpriteFx card's Loop / RunAtEnd / PingPong bindings time themselves off that remainder).
+        float _armedEndTime;
+        bool _armedHasDuration;
+        // Which OnFrame entries have already fired for the armed clip, so one cannot fire twice on a loop
+        // and an unfired one can be flushed when the clip ends.
+        readonly System.Collections.Generic.HashSet<FxEntry> _firedThisClip = new();
 
         /// Fires once when a triggered Hurt clip finishes playing. Never fires for a hit with no Hurt clip
         /// configured (nothing was interrupted, so there's nothing to signal "finished").
@@ -54,18 +61,34 @@ namespace Laubrary.Zoetrope
             var r = def != null ? def.hit : null;
             if (r == null) return;
             var ctx = BuildContext(info);
+            ctx.EventSecondsRemaining = ClipSecondsOf(r);   // Immediate entries fire at the event's start — full length
             PlayBodyFx(r);
             FireImmediate(r, ctx);
-            TryArmClip(r, ctx, () => { Disarm(); HurtFinished?.Invoke(); });
+            TryArmClip(r, ctx, () => { FlushUnfiredFrameEntries(); Disarm(); HurtFinished?.Invoke(); });
         }
 
         void OnDeath(DamageInfo info)
         {
             var r = def != null ? def.death : null;
             var ctx = BuildContext(info);
-            if (r != null) { PlayBodyFx(r); FireImmediate(r, ctx); }
-            if (r == null || !TryArmClip(r, ctx, () => { Disarm(); DeathFinished?.Invoke(); }))
+            if (r != null)
+            {
+                ctx.EventSecondsRemaining = ClipSecondsOf(r);   // Immediate entries fire at the event's start — full length
+                PlayBodyFx(r);
+                FireImmediate(r, ctx);
+            }
+            if (r == null || !TryArmClip(r, ctx, () => { FlushUnfiredFrameEntries(); Disarm(); DeathFinished?.Invoke(); }))
                 DeathFinished?.Invoke();
+        }
+
+        /// The reaction clip's length in seconds, or 0 when unknown — no clip, no animated view, or a clip the
+        /// view cannot measure (a zoned strip with no fixed end). 0 makes every timed playback binding degrade
+        /// to a single play, per its own tooltip.
+        float ClipSecondsOf(ReactionFx r)
+        {
+            if (r == null || string.IsNullOrEmpty(r.clip) || _view == null) return 0f;
+            float s = _view.GetClipSeconds(r.clip);
+            return s > 0f ? s : 0f;
         }
 
         // Fill the typed EventContext from this damage event: the Zoe's live data (transform, health, the current
@@ -90,28 +113,57 @@ namespace Laubrary.Zoetrope
             Disarm();
             _armed = r;
             _armedCtx = ctx;
-            _armedHandler = HandleArmedFrameEvent;
-            _view.OnFrameEvent += _armedHandler;
+            float secs = ClipSecondsOf(r);
+            _armedHasDuration = secs > 0f;
+            _armedEndTime = Time.time + secs;
+            _armedFrameHandler = HandleArmedFrame;
+            _view.OnFrameEntered += _armedFrameHandler;
             _view.PlayClip(r.clip, loop: false, onComplete: onComplete);
             return true;
         }
 
         void Disarm()
         {
-            if (_armedHandler != null && _view != null) _view.OnFrameEvent -= _armedHandler;
+            if (_armedFrameHandler != null && _view != null) _view.OnFrameEntered -= _armedFrameHandler;
             _armed = null;
-            _armedHandler = null;
+            _armedFrameHandler = null;
+            _armedHasDuration = false;
+            _firedThisClip.Clear();
         }
 
-        // Only fires for the reaction currently armed (the clip actually playing) — a stray frame event from
-        // whatever plays AFTER (e.g. Idle resuming) can never spuriously match, since Disarm already ran by then.
-        void HandleArmedFrameEvent(string name, int frame)
+        // Only fires for the reaction currently armed (the clip actually playing) — a stray frame entry from
+        // whatever plays AFTER (e.g. Idle resuming) can never spuriously match, since Disarm already ran.
+        void HandleArmedFrame(int frame)
         {
             if (_armed?.fx == null || _armedCtx == null) return;
+            // Re-stamp how much event is left at THIS fire moment, so a timed binding fired mid-clip times
+            // itself off the remainder, not the whole clip.
+            _armedCtx.EventSecondsRemaining = _armedHasDuration ? Mathf.Max(0f, _armedEndTime - Time.time) : 0f;
             foreach (var entry in _armed.fx)
-                if (entry != null && entry.trigger == FxTriggerType.FrameEvent &&
-                    string.Equals(entry.eventName, name, StringComparison.OrdinalIgnoreCase))
-                    Fire(entry, _armedCtx);
+            {
+                // entry.frame is 1-based because that is how an animator counts frames; the reel is 0-based.
+                if (entry == null || entry.trigger != FxTriggerType.OnFrame) continue;
+                if (entry.frame - 1 != frame || _firedThisClip.Contains(entry)) continue;
+                _firedThisClip.Add(entry);
+                Fire(entry, _armedCtx);
+            }
+        }
+
+        /// Fire any OnFrame entry whose frame never came round — the clip is shorter than the number someone
+        /// typed, or it was cut short. Firing late beats an effect that silently does nothing, which is
+        /// indistinguishable from a broken one.
+        void FlushUnfiredFrameEntries()
+        {
+            if (_armed?.fx == null || _armedCtx == null) return;
+            // The clip is over (or was cut short) — whatever fires now has no event time left.
+            _armedCtx.EventSecondsRemaining = _armedHasDuration ? Mathf.Max(0f, _armedEndTime - Time.time) : 0f;
+            foreach (var entry in _armed.fx)
+            {
+                if (entry == null || entry.trigger != FxTriggerType.OnFrame) continue;
+                if (_firedThisClip.Contains(entry)) continue;
+                _firedThisClip.Add(entry);
+                Fire(entry, _armedCtx);
+            }
         }
 
         void FireImmediate(ReactionFx r, EventContext ctx)

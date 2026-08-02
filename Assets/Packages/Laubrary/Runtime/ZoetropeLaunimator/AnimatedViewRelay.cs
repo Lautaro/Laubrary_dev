@@ -20,17 +20,23 @@ namespace Laubrary.ZoetropeLaunimator
         /// Forwards ZonedAnimationPlayer.OnFrameEvent verbatim — see IAnimatedView's own doc comment.
         public event Action<string, int> OnFrameEvent;
 
+        /// Forwards ZonedAnimationPlayer.OnFrameEntered verbatim — every frame entry, annotated or not.
+        public event Action<int> OnFrameEntered;
+
+        /// The reel's own frame index, or -1 when there is no player to ask.
+        public int CurrentFrame => _player != null ? _player.CurrentFrame : -1;
+
         void Awake() => _player = GetComponent<ZonedAnimationPlayer>();
 
         void OnEnable()
         {
             if (_player == null) _player = GetComponent<ZonedAnimationPlayer>();
-            if (_player != null) { _player.OnComplete += HandleComplete; _player.OnFrameEvent += HandleFrameEvent; }
+            if (_player != null) { _player.OnComplete += HandleComplete; _player.OnFrameEvent += HandleFrameEvent; _player.OnFrameEntered += HandleFrameEntered; }
         }
 
         void OnDisable()
         {
-            if (_player != null) { _player.OnComplete -= HandleComplete; _player.OnFrameEvent -= HandleFrameEvent; }
+            if (_player != null) { _player.OnComplete -= HandleComplete; _player.OnFrameEvent -= HandleFrameEvent; _player.OnFrameEntered -= HandleFrameEntered; }
         }
 
         public bool PlayClip(string clip, bool loop, Action onComplete = null)
@@ -38,6 +44,10 @@ namespace Laubrary.ZoetropeLaunimator
             _pendingComplete = loop ? null : onComplete;
             return _player != null && _player.Play(clip, loop);
         }
+
+        /// Forwards ZonedAnimationPlayer.GetClipSeconds — frames / fps for a plain clip, 0 for an unknown name
+        /// or a zoned strip (whose end is not fixed). See IAnimatedView's own doc comment.
+        public float GetClipSeconds(string clip) => _player != null ? _player.GetClipSeconds(clip) : 0f;
 
         public void Hide()
         {
@@ -54,6 +64,7 @@ namespace Laubrary.ZoetropeLaunimator
         }
 
         void HandleFrameEvent(string name, int frame) => OnFrameEvent?.Invoke(name, frame);
+        void HandleFrameEntered(int frame) => OnFrameEntered?.Invoke(frame);
 
         void HandleComplete()
         {

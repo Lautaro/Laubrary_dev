@@ -70,6 +70,12 @@ namespace Laubrary.Launimator
         /// fires on purely by where they paint it.</summary>
         public event Action<string /*layerId*/, Vector3 /*worldPos*/> OnMetaLayerReached;
 
+        /// <summary>Fires once per frame-entry with the frame index (edge-triggered, same convention as
+        /// <see cref="OnFrameEvent"/>) — for EVERY frame, annotated or not. Authored frame events answer
+        /// "something named happens here"; this answers "which frame are we on", which is what lets a
+        /// consumer time to the animation without the animator having to author an event first.</summary>
+        public event Action<int> OnFrameEntered;
+
         public string CurrentClip => _anim != null ? _anim.name : null;
         public bool IsZoned => _zones != null;
         public bool IsPlaying => _playing;
@@ -200,6 +206,19 @@ namespace Laubrary.Launimator
 
         public void Stop() { _playing = false; _ending = false; }
 
+        /// <summary>Length of a named clip in seconds at this player's current <see cref="speedScale"/>, or 0
+        /// when it cannot be known: an unregistered name, no frames, a non-positive rate — or a ZONED strip,
+        /// whose zones can hold/loop indefinitely so it has no fixed length. Consumers (reaction effects timing
+        /// themselves to a clip) treat 0 as "unknown" and degrade to a single play.</summary>
+        public float GetClipSeconds(string clip)
+        {
+            if (string.IsNullOrEmpty(clip) || !_byName.TryGetValue(clip, out var def)) return 0f;
+            if (def.frames == null || def.frames.Count == 0) return 0f;
+            if (def.zonesEnabled && def.zones != null && def.zones.Count > 0) return 0f;
+            float fps = def.fps * speedScale;
+            return fps > 0f ? def.frames.Count / fps : 0f;
+        }
+
         /// <summary>Stop playback AND blank every managed renderer (base + layers) — "show no clip", so a
         /// clip-less death can be replaced by an explosion. <see cref="Play"/>/<see cref="EnterAt"/> re-show it.
         /// The Stop is essential: without it, the next <see cref="Tick"/> would call <c>PushSprite</c> and
@@ -313,6 +332,13 @@ namespace Laubrary.Launimator
         /// <summary>Invoke OnFrameEvent for any authored event on the current frame _i.</summary>
         void FireFrameEvents()
         {
+            // EVERY frame entry is announced, whether or not the animator authored an event on it. Authored
+            // events answer "something named happens here"; this answers the plainer question "which frame
+            // are we on", which a consumer timing to the animation needs even on frames nobody annotated.
+            // Fired first so a frame-number listener and an event listener see the same frame in the same
+            // order, and unconditionally — FireFrameEvents' own early-out below is about authored events.
+            OnFrameEntered?.Invoke(_i);
+
             var evs = _anim != null ? _anim.events : null;
             if (evs == null || OnFrameEvent == null) return;
             for (int k = 0; k < evs.Count; k++)

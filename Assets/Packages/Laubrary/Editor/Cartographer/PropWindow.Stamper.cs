@@ -8,14 +8,14 @@ using UnityEngine.UIElements;
 
 namespace Laubrary.Cartographer.Editor
 {
-    /// The Stamper half of the Clump Editor: create a level in the open scene, then click in the Scene view to
-    /// stamp the current clump into it.
+    /// The Stamper half of the Prop Editor: create a level in the open scene, then click in the Scene view to
+    /// stamp the current prop into it.
     ///
     /// This is the thing Cartographer adds over vanilla Unity — Tile Palette paints ONE tile at a time, with no
     /// notion of a multi-cell arrangement carrying tags, a spawn hook and named spots. Placement goes through
-    /// `CartographerLevel.PlaceClump`, the same call a generator will use, so hand-built and generated levels
+    /// `CartographerLevel.PlaceProp`, the same call a generator will use, so hand-built and generated levels
     /// stay one code path.
-    public partial class ClumpWindow
+    public partial class PropWindow
     {
         [SerializeField] CartographerLevel level;
 
@@ -58,25 +58,25 @@ namespace Laubrary.Cartographer.Editor
                 return;
             }
 
-            levelBox.Add(Z.Toggle("Stamp mode", "While on, clicking in the Scene view stamps the current clump. " +
-                "Hold Alt to erase the clump under the cursor.", stamping, v => { stamping = v; SceneView.RepaintAll(); }));
+            levelBox.Add(Z.ToggleButton("Stamp mode", "While on, clicking in the Scene view stamps the current prop. " +
+                "Hold Alt to erase the prop under the cursor.", stamping, v => { stamping = v; SceneView.RepaintAll(); }));
 
             levelBox.Add(Z.Field("Rotation", "Quarter-turns applied to the stamp, anticlockwise.",
                 Z.MiniRadio(stampRotation, new[] { "0°", "90°", "180°", "270°" },
                     "Quarter-turns applied to the stamp.", i => { stampRotation = i; SceneView.RepaintAll(); })));
 
-            levelBox.Add(Z.Toggle("Mirror X", "Flip the stamp horizontally before rotating it.",
+            levelBox.Add(Z.ToggleButton("Mirror X", "Flip the stamp horizontally before rotating it.",
                 stampMirrorX, v => { stampMirrorX = v; SceneView.RepaintAll(); }));
 
-            levelBox.Add(Z.Toggle("Line mode", "Press, drag out a straight run, release to commit it. Nothing is " +
+            levelBox.Add(Z.ToggleButton("Line mode", "Press, drag out a straight run, release to commit it. Nothing is " +
                 "placed until you let go, so the span can be adjusted first. Off: each drag stamps as it goes.",
                 lineMode, v => { lineMode = v; SceneView.RepaintAll(); }));
 
             levelBox.Add(Z.Text($"{level.placements.Count} placement(s)", ZuiText.Small,
-                "How many clumps have been stamped into this level."));
+                "How many props have been stamped into this level."));
 
             levelBox.Add(Z.Row(
-                Z.Button("Rebuild", "Clear and re-stamp every recorded placement — use after editing a clump.",
+                Z.Button("Rebuild", "Clear and re-stamp every recorded placement — use after editing a prop.",
                     () => { Undo.RegisterCompleteObjectUndo(level, "Rebuild level"); level.RebuildFromPlacements(); RebuildLevelBox(); }),
                 Z.Button("Build colliders", "Give every solid layer the colliders its collision mode calls for.",
                     () => { level.BuildColliders(); EditorUtility.SetDirty(level); })));
@@ -113,7 +113,7 @@ namespace Laubrary.Cartographer.Editor
                         int n = LevelGenerator.Generate(recipe, genSeed, level);
                         level.BuildColliders();
                         AfterLevelChange();
-                        Debug.Log($"[Cartographer] Generated '{level.name}' from '{recipe.name}' seed {genSeed}: {n} clumps placed.", level);
+                        Debug.Log($"[Cartographer] Generated '{level.name}' from '{recipe.name}' seed {genSeed}: {n} props placed.", level);
                     })));
         }
 
@@ -137,7 +137,7 @@ namespace Laubrary.Cartographer.Editor
                     LauAssetElement.Build(r.biome,
                         picked => { LevelEdit("Set room biome", () => r.biome = picked as CartographerBiome); RebuildLevelBox(); },
                         typeof(CartographerBiome), _fieldThumbs, "Biome", "Assets/Cartographer/Biomes",
-                        "Which biome's tiles and clumps this section draws from."),
+                        "Which biome's tiles and props this section draws from."),
                     Z.Button("×", "Remove this section.",
                         () => { LevelEdit("Remove room", () => level.rooms.RemoveAt(idx)); RebuildLevelBox(); }).W(24f)));
 
@@ -196,11 +196,11 @@ namespace Laubrary.Cartographer.Editor
                 if (l == null) continue;
 
                 rows.Add(Z.Row(
-                    Z.TextInput(l.layerName, "Name clumps address this layer by. Must match the layer a clump's cells target.",
+                    Z.TextInput(l.layerName, "Name props address this layer by. Must match the layer a prop's cells target.",
                         v => LevelEdit("Rename layer", () => l.layerName = v), 100f),
-                    Z.Toggle("Solid", "Give this layer colliders when Build colliders runs.",
+                    Z.ToggleButton("Solid", "Give this layer colliders when Build colliders runs.",
                         l.solid, v => { LevelEdit("Set layer solid", () => l.solid = v); RebuildLevelBox(); }),
-                    Z.Toggle("One-way", "Land on it from above, jump up through it. Side-scroll mode only.",
+                    Z.ToggleButton("One-way", "Land on it from above, jump up through it. Side-scroll mode only.",
                         l.oneWay, v => LevelEdit("Set layer one-way", () => l.oneWay = v)),
                     Z.Button("×", "Remove this layer and destroy its tilemap. Undoable.",
                         () => RemoveLayer(idx)).W(24f)));
@@ -221,12 +221,12 @@ namespace Laubrary.Cartographer.Editor
                     Z.MiniRadio((int)level.collision, new[] { "Top-down", "Side-scroll" },
                         "Collider setup for this level.",
                         i => LevelEdit("Set collision mode", () => level.collision = (CartographerLevel.CollisionMode)i))),
-                Z.Field("Solid tag", "Optional. Set it and only clumps carrying that tag collide, so decorative " +
-                    "clumps can share a solid layer without blocking. Leave empty and the whole layer is solid.",
+                Z.Field("Solid tag", "Optional. Set it and only props carrying that tag collide, so decorative " +
+                    "props can share a solid layer without blocking. Leave empty and the whole layer is solid.",
                     LauAssetElement.Build(level.solidTag,
-                        picked => { LevelEdit("Set solid tag", () => level.solidTag = picked as ClumpTag); RebuildLevelBox(); },
-                        typeof(ClumpTag), _fieldThumbs, "Tag", "Assets/Cartographer/Tags",
-                        "Tag that decides which clumps collide.")),
+                        picked => { LevelEdit("Set solid tag", () => level.solidTag = picked as TileTag); RebuildLevelBox(); },
+                        typeof(TileTag), _fieldThumbs, "Tag", "Assets/Cartographer/Tags",
+                        "Tag that decides which props collide.")),
                 Z.Button("+ Add layer", "Create a new tilemap layer on this level, in front of the others.",
                     AddLayer)));
         }
@@ -248,7 +248,7 @@ namespace Laubrary.Cartographer.Editor
             Undo.AddComponent<TilemapRenderer>(go).sortingOrder = level.layers.Count;
 
             Undo.RecordObject(level, "Add level layer");
-            level.layers.Add(new LevelLayer { layerName = go.name, tilemap = map });
+            level.layers.Add(new LegacyLevelLayer { layerName = go.name, tilemap = map });
             EditorUtility.SetDirty(level);
 
             Undo.SetCurrentGroupName("Add level layer");
@@ -299,7 +299,7 @@ namespace Laubrary.Cartographer.Editor
                 var rend = Undo.AddComponent<TilemapRenderer>(go);
                 rend.sortingOrder = order;
 
-                lvl.layers.Add(new LevelLayer { layerName = layerName, tilemap = map, solid = solid });
+                lvl.layers.Add(new LegacyLevelLayer { layerName = layerName, tilemap = map, solid = solid });
             }
 
             Undo.SetCurrentGroupName("Create Cartographer level");
@@ -314,7 +314,7 @@ namespace Laubrary.Cartographer.Editor
         // ── scene-view stamping ───────────────────────────────────────────────
         void OnSceneGUI(SceneView view)
         {
-            if (!stamping || level == null || CurrentClump == null) return;
+            if (!stamping || level == null || CurrentProp == null) return;
 
             var e = Event.current;
             int control = GUIUtility.GetControlID(FocusType.Passive);
@@ -339,8 +339,8 @@ namespace Laubrary.Cartographer.Editor
                     e.Use();
                     break;
 
-                // Drag-repeat: the same gesture keeps laying clumps as the cursor moves. Without this a run of
-                // flat ground costs one click per clump width, which was the tool's worst friction.
+                // Drag-repeat: the same gesture keeps laying props as the cursor moves. Without this a run of
+                // flat ground costs one click per prop width, which was the tool's worst friction.
                 // In line mode nothing is committed yet — the ghost shows the run and release commits it.
                 case EventType.MouseDrag when dragging && e.button == 0:
                     if (!lineMode) ApplyStamp(hoverCell);
@@ -357,7 +357,7 @@ namespace Laubrary.Cartographer.Editor
             }
         }
 
-        /// Stamp a straight run from `from` to `to`, spaced by the clump's own footprint so the run tiles
+        /// Stamp a straight run from `from` to `to`, spaced by the prop's own footprint so the run tiles
         /// edge-to-edge. Locked to the dominant axis: a run of ground or a wall is what this is for, and a
         /// free-angle line of square stamps is not a thing anyone wants.
         void CommitLine(Vector2Int from, Vector2Int to)
@@ -369,17 +369,17 @@ namespace Laubrary.Cartographer.Editor
             foreach (var origin in origins)
             {
                 if (dragErasing) EraseAt(origin);
-                else level.PlaceClump(CurrentClump, origin, null, stampRotation, stampMirrorX);
+                else level.PlaceProp(CurrentProp, origin, null, stampRotation, stampMirrorX);
             }
             AfterLevelChange();
         }
 
         /// Stamp (or erase) at `origin`, unless this drag already covered that ground.
         ///
-        /// The rule is overlap rejection, not "one per cell": dragging a 8x1 strip clump would otherwise lay a
+        /// The rule is overlap rejection, not "one per cell": dragging a 8x1 strip prop would otherwise lay a
         /// stamp every single cell and pile eight overlapping copies where one belongs. Skipping any candidate
-        /// whose footprint touches the previous one makes a drag tile clumps edge-to-edge in whatever direction
-        /// you move, and still stamps every cell for a 1x1 clump.
+        /// whose footprint touches the previous one makes a drag tile props edge-to-edge in whatever direction
+        /// you move, and still stamps every cell for a 1x1 prop.
         void ApplyStamp(Vector2Int origin)
         {
             if (dragErasing) { EraseAt(origin); return; }
@@ -392,10 +392,10 @@ namespace Laubrary.Cartographer.Editor
             haveLastFootprint = true;
         }
 
-        /// The cells the current clump would occupy if stamped at `origin`, with rotation/mirror applied.
+        /// The cells the current prop would occupy if stamped at `origin`, with rotation/mirror applied.
         RectInt FootprintAt(Vector2Int origin)
         {
-            var c = CurrentClump;
+            var c = CurrentProp;
             if (c?.cells == null || c.cells.Count == 0) return new RectInt(origin.x, origin.y, 1, 1);
 
             int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
@@ -437,7 +437,7 @@ namespace Laubrary.Cartographer.Editor
         void DrawGhost()
         {
             var g = level.Grid;
-            var c = CurrentClump;
+            var c = CurrentProp;
             if (g == null || c?.cells == null) return;
 
             var origins = new List<Vector2Int>();
@@ -490,13 +490,13 @@ namespace Laubrary.Cartographer.Editor
 
         void StampAt(Vector2Int origin)
         {
-            RecordLevelForUndo("Stamp clump");
-            level.PlaceClump(CurrentClump, origin, null, stampRotation, stampMirrorX);
+            RecordLevelForUndo("Stamp prop");
+            level.PlaceProp(CurrentProp, origin, null, stampRotation, stampMirrorX);
             AfterLevelChange();
         }
 
         /// Remove the most recent placement whose footprint covers `cell`, then rebuild. Rebuilding rather than
-        /// clearing that clump's cells directly is the honest way to do it: two overlapping stamps share cells,
+        /// clearing that prop's cells directly is the honest way to do it: two overlapping stamps share cells,
         /// so erasing one by its own footprint would punch holes in the other.
         void EraseAt(Vector2Int cell)
         {
@@ -504,8 +504,8 @@ namespace Laubrary.Cartographer.Editor
             for (int i = level.placements.Count - 1; i >= 0 && found < 0; i--)
             {
                 var p = level.placements[i];
-                if (p?.clump?.cells == null) continue;
-                foreach (var cd in p.clump.cells)
+                if (p?.prop?.cells == null) continue;
+                foreach (var cd in p.prop.cells)
                 {
                     if (cd == null) continue;
                     var o = CartographerLevel.TransformOffset(cd.offset, p.rotation, p.mirrorX);
@@ -514,7 +514,7 @@ namespace Laubrary.Cartographer.Editor
             }
             if (found < 0) return;
 
-            RecordLevelForUndo("Erase clump");
+            RecordLevelForUndo("Erase prop");
             level.placements.RemoveAt(found);
             level.RebuildFromPlacements();
             AfterLevelChange();

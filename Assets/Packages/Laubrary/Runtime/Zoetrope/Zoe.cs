@@ -32,6 +32,22 @@ namespace Laubrary.Zoetrope
         // two different places that had to be kept in sync by hand. Unified: each reaction is one ReactionFx
         // (clip + the FX list triggered off that same clip's own authored frame events/meta-layers), so there's
         // exactly one place to author "what happens when this character gets hurt" (or dies).
+        [Header("Death")]
+        [Tooltip("What happens to the body once it dies.")]
+        public DeathDisposal deathDisposal = DeathDisposal.WhenDeathClipEnds;
+        [Tooltip("Seconds the body lingers before vanishing. Used by After Delay, and as the fallback when " +
+                 "When Death Clip Ends has no death clip to wait for.")]
+        [Min(0f)] public float deathLinger = 1.5f;
+
+        [Tooltip("Confirm hits against the sprite's own alpha, so a shot that clips the collider's corner but " +
+                 "misses the drawing is a miss. Needs no authoring — every sprite already knows which of its " +
+                 "pixels are transparent.")]
+        public bool pixelPerfectHits = true;
+
+        [Header("Movement")]
+        [Tooltip("Which clips play just for moving. Character data — a body walks the same whatever it holds.")]
+        public Locomotion locomotion = new Locomotion();
+
         [Header("Reactions")]
         [Tooltip("What happens on a non-killing hit: the clip to play (via the view's IAnimatedView, if it " +
                  "provides one) plus the FX list triggered off that clip's frame events/meta-layers. Real " +

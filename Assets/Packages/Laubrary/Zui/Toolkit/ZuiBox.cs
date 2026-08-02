@@ -64,6 +64,35 @@ namespace Laubrary.Zui
         Label _gear;                    // the ⚙ glyph in the title row (created lazily)
         VisualElement _settingsWrap;    // the accordion strip at the top of the body (rebuilt)
         bool _gearRefreshScheduled;
+        VisualElement _help;            // the "?" glyph — header content inserts before it
+        VisualElement _headerContent;   // right-aligned controls hosted ON the title row (created lazily)
+
+        /// Host a control ON the title row, right-aligned before the "?" — view dials that govern the
+        /// box's content without costing a body row (a zoom, a display toggle). Clicks inside never fold
+        /// the box: the hosted strip swallows its own presses before the row's fold Clickable sees them.
+        public void AddHeaderContent(VisualElement e)
+        {
+            if (_titleRow == null || e == null) return;
+            if (_headerContent == null)
+            {
+                _headerContent = new VisualElement();
+                _headerContent.AddToClassList("zui-box__headercontent");
+                _headerContent.style.flexDirection = FlexDirection.Row;
+                _headerContent.style.alignItems = Align.Center;
+                _headerContent.RegisterCallback<PointerDownEvent>(ev => ev.StopPropagation());
+                if (_help != null)
+                    _titleRow.Insert(_titleRow.IndexOf(_help), _headerContent);
+                else
+                {
+                    // No tooltip means no spacer yet — add one so the content still right-aligns.
+                    var spacer = new VisualElement { pickingMode = PickingMode.Ignore };
+                    spacer.style.flexGrow = 1f;
+                    _titleRow.Add(spacer);
+                    _titleRow.Add(_headerContent);
+                }
+            }
+            _headerContent.Add(e);
+        }
 
         /// Raised after any toggle/gear/fold change the USER makes (never on a programmatic ApplyView),
         /// so a host window can persist the view immediately.
@@ -122,9 +151,9 @@ namespace Laubrary.Zui
                     var spacer = new VisualElement { pickingMode = PickingMode.Ignore };
                     spacer.style.flexGrow = 1f;
                     _titleRow.Add(spacer);
-                    var help = Z.HelpIcon(tooltip);
-                    help.pickingMode = PickingMode.Ignore;
-                    _titleRow.Add(help);
+                    _help = Z.HelpIcon(tooltip);
+                    _help.pickingMode = PickingMode.Ignore;
+                    _titleRow.Add(_help);
                 }
 
                 _titleRow.AddManipulator(new Clickable(() => { IsOpen = !IsOpen; ViewChanged?.Invoke(); }));
@@ -353,6 +382,7 @@ namespace Laubrary.Zui
         Toggle BuildControlToggle(ToggleEntry t, float indent)
         {
             var tog = new Toggle(t.label) { tooltip = "Show or hide " + (t.label ?? t.key) };
+            tog.AddToClassList("zui-audit-allow-toggle");   // gear-strip chrome, pending a gear restyle
             tog.SetValueWithoutNotify(ControlOn(t.key));
             tog.style.marginLeft = indent;
             tog.style.marginTop = 1f;
@@ -376,6 +406,7 @@ namespace Laubrary.Zui
         {
             string label = _groupLabels.TryGetValue(groupKey, out var l) && !string.IsNullOrEmpty(l) ? l : groupKey;
             var tog = new Toggle(label) { tooltip = "Show or hide all " + label + " controls" };
+            tog.AddToClassList("zui-audit-allow-toggle");   // gear-strip chrome, pending a gear restyle
             var lbl = tog.Q<Label>();
             if (lbl != null) lbl.style.unityFontStyleAndWeight = FontStyle.Bold;
             tog.style.marginTop = 2f;

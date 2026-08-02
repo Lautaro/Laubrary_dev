@@ -22,6 +22,10 @@ namespace Laubrary.Combat2D
         [Range(0f, 180f)] public float spreadDeg = 0f;
         [Min(1)] public int projectilesPerShot = 1;
         public bool autoFire = false;
+
+        [Tooltip("Held trigger keeps firing. The GAME reads this to decide whether to fire on press or while " +
+                 "held — the weapon itself never polls input, so this is a property, not a behaviour.")]
+        public bool automatic = false;
         [Tooltip("Fallback fire direction when there's no owner Combatant (or its aimDirection is zero) — " +
                  "an ownerless/standalone weapon's only source of direction. When an owner IS present, " +
                  "ResolvedAimDirection() prefers owner.aimDirection instead, since aim is a Combatant-level " +
@@ -61,11 +65,12 @@ namespace Laubrary.Combat2D
         /// it), and names the instance for Hierarchy debuggability without coupling its lifetime to `owner`.
         [Tooltip("Radius of the instant-hit probe used by TryHitscanAt. This is the weapon's accuracy in the " +
                  "light-gun sense — how forgiving the crosshair is.")]
-        [Min(0f)] public float hitscanRadius = 0.35f;
+        [Min(0f)] public float hitscanRadius = 0.3f;
 
         [Tooltip("How many targets one hitscan shot may damage, nearest to the aim point first. 1 is the " +
                  "light-gun default — a shot picks a target rather than mowing down everything under the " +
-                 "reticle. Raise it for a shotgun.")]
+                 "reticle. Raise it for a shotgun. NOTE this is the BROAD phase — a target carrying a " +
+                 "pixel-perfect filter still only takes the hit where it is actually drawn.")]
         [Min(1)] public int hitscanMaxTargets = 1;
 
         /// Raised on every hitscan shot with the point fired at and how many targets it connected with, so a

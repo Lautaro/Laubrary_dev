@@ -60,11 +60,37 @@ namespace Laubrary.Zui
             // Siblings do not exist yet while the panel is still being built, so the first Apply has
             // to wait for the build to finish. This is also what restores a fold after a rebuild.
             schedule.Execute(Apply);
+
+            // And again once layout has actually RESOLVED. Foldability depends on resolvedStyle.flexDirection,
+            // which is not known at schedule time — so a heading could draw a "▾" from a provisional reading
+            // and then refuse to fold when clicked, because the click re-checks against the real value. A
+            // caret that does not fold is precisely the "label lied" failure the layout rules forbid.
+            RegisterCallback<GeometryChangedEvent>(_ => Apply());
         }
 
-        // Uses the PHYSICAL parent (the element that actually holds this label), the same one Apply's fold loop
-        // walks — a heading physically sitting in a ROW is left alone (its siblings are the rest of the row).
-        bool Foldable => hierarchy.parent != null && hierarchy.parent.resolvedStyle.flexDirection != FlexDirection.Row;
+        // Where this heading's content lives, and where it starts — or null if it heads nothing foldable.
+        //
+        // Two shapes, because BOTH are legitimate and only one used to work:
+        //   • heading in a COLUMN  → its own following siblings are the block (the classic shape).
+        //   • heading in a ROW     → the row is a compact "title + a few controls" header, so the block is
+        //     what follows THE ROW. Folding the row's own siblings would hide the header's own controls,
+        //     which is why this case used to be skipped entirely — but skipping it left the space-efficient
+        //     header-in-a-row pattern unfoldable, which is the layout the rules actually ask for.
+        (VisualElement container, int index) FoldScope()
+        {
+            var p = hierarchy.parent;
+            if (p == null) return (null, -1);
+
+            if (p.resolvedStyle.flexDirection != FlexDirection.Row)
+                return (p, p.hierarchy.IndexOf(this));
+
+            var row = p;
+            var outer = row.hierarchy.parent;
+            if (outer == null || outer.resolvedStyle.flexDirection == FlexDirection.Row) return (null, -1);
+            return (outer, outer.hierarchy.IndexOf(row));
+        }
+
+        bool Foldable { get { var (c, i) = FoldScope(); return c != null && i >= 0; } }
 
         void Apply()
         {
@@ -82,16 +108,13 @@ namespace Laubrary.Zui
 
             if (_hidden.Count > 0) return;   // already folded — don't re-record hidden-as-previous
 
-            // Iterate this label's PHYSICAL siblings (hierarchy.parent), NOT `parent`. When a section-label sits
-            // INSIDE a ZuiSection, `parent` is the section — its LOGICAL owner via contentContainer — but the label
-            // actually lives in the section's _body. So `parent.hierarchy` is [header, body] and does NOT contain the
-            // label: IndexOf returned -1, and the old loop (from index 0) hid the SECTION'S OWN header + body, making
-            // the whole section vanish with no header left to click (the Zoe editor's "Reactions" bug). hierarchy.parent
-            // is the element that physically holds the label, so its children ARE the label's real following siblings.
-            var p = hierarchy.parent;
-            if (p == null) return;
-            int i = p.hierarchy.IndexOf(this);
-            if (i < 0) return;   // safety: label not among its parent's children → hide nothing, never guess
+            // FoldScope resolves against the PHYSICAL hierarchy, never `parent`. When a section-label sits INSIDE a
+            // ZuiSection, `parent` is the section — its LOGICAL owner via contentContainer — but the label actually
+            // lives in the section's _body. So `parent.hierarchy` is [header, body] and does NOT contain the label:
+            // IndexOf returned -1, and the old loop (from index 0) hid the SECTION'S OWN header + body, making the
+            // whole section vanish with no header left to click (the Zoe editor's "Reactions" bug).
+            var (p, i) = FoldScope();
+            if (p == null || i < 0) return;   // safety: nothing resolvable → hide nothing, never guess
             for (int k = i + 1; k < p.hierarchy.childCount; k++)
             {
                 var el = p.hierarchy.ElementAt(k);

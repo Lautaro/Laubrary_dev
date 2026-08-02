@@ -5,11 +5,11 @@ using UnityEngine.Tilemaps;
 
 namespace Laubrary.Cartographer
 {
-    /// One cell of a Clump: which tile, where, and on which named layer of the level it belongs.
+    /// One cell of a Prop: which tile, where, and on which named layer of the level it belongs.
     [System.Serializable]
-    public class ClumpCell
+    public class PropCell
     {
-        [Tooltip("Position within the clump, in grid cells, relative to the clump's own origin.")]
+        [Tooltip("Position within the prop, in grid cells, relative to the prop's own origin.")]
         public Vector2Int offset;
 
         [Tooltip("The tile drawn in this cell.")]
@@ -19,26 +19,26 @@ namespace Laubrary.Cartographer
         public string layer = CartographerLevel.TerrainLayer;
     }
 
-    /// A named point a Clump exposes to gameplay and to scripted sequences. A sequence asks for "landing-pad"
+    /// A named point a Prop exposes to gameplay and to scripted sequences. A sequence asks for "landing-pad"
     /// and gets a world position, without either side knowing anything about the other's types — this is the
     /// entire connection between a level and an Interlude, kept deliberately narrow.
     [System.Serializable]
-    public class ClumpSpot
+    public class PropSpot
     {
         [Tooltip("The name a sequence or gameplay script looks this point up by. Unique within a level.")]
         public string spotName = "spot";
 
-        [Tooltip("Position within the clump, in grid cells from the clump's origin. Fractions are allowed, so a " +
+        [Tooltip("Position within the prop, in grid cells from the prop's origin. Fractions are allowed, so a " +
                  "spot can sit mid-cell rather than snapping to a corner.")]
         public Vector2 offset;
     }
 
-    /// One of several prefabs a Clump may resolve to when it is placed. Procgen rolls the weights; a hand-placed
-    /// clump takes the first entry unless the author picks another.
+    /// One of several prefabs a Prop may resolve to when it is placed. Procgen rolls the weights; a hand-placed
+    /// prop takes the first entry unless the author picks another.
     [System.Serializable]
-    public class ClumpPrefabChoice
+    public class PropPrefabChoice
     {
-        [Tooltip("Spawned as a child of the level when this clump is placed. Leave empty for a purely visual clump.")]
+        [Tooltip("Spawned as a child of the level when this prop is placed. Leave empty for a purely visual prop.")]
         public GameObject prefab;
 
         [Tooltip("Relative likelihood of being chosen. Higher is more likely; 0 disables this entry.")]
@@ -47,35 +47,40 @@ namespace Laubrary.Cartographer
 
     /// A reusable multi-cell tile stamp — a building, a platform, a rock formation — plus whatever gameplay
     /// meaning it carries. This is the piece the Tile Palette cannot express: Unity paints one tile at a time,
-    /// a Clump places a whole arrangement with its tags, its spawn hook, and its named spots intact.
+    /// a Prop places a whole arrangement with its tags, its spawn hook, and its named spots intact.
     ///
-    /// Clumps double as "structures": a structure is simply a clump whose cells target the Structures layer, so
+    /// Props double as "structures": a structure is simply a prop whose cells target the Structures layer, so
     /// there is one concept here rather than two asset types that differ only by where they land.
-    [CreateAssetMenu(menuName = "Laubrary/Cartographer/Clump", fileName = "Clump")]
-    public class Clump : ScriptableObject, IVisualPreview
+    [CreateAssetMenu(menuName = "Laubrary/Cartographer/Prop", fileName = "Prop")]
+    public class Prop : ScriptableObject, IVisualPreview
     {
         [Header("Identity")]
         [Tooltip("Name shown in browsers and pickers.")]
-        public string displayName = "New Clump";
+        public string displayName = "New Prop";
 
         [Header("Cells")]
-        [Tooltip("The tiles this clump stamps, each at its own offset and on its own layer.")]
-        public List<ClumpCell> cells = new();
+        [Tooltip("The tiles this prop stamps, each at its own offset and on its own layer.")]
+        public List<PropCell> cells = new();
 
         [Header("Gameplay")]
-        [Tooltip("Labels this clump carries — traversability, hazards, and anything else the project wires up. " +
+        [Tooltip("Labels this prop carries — traversability, hazards, and anything else the project wires up. " +
                  "Cartographer stores them and never interprets them.")]
-        public List<ClumpTag> tags = new();
+        public List<TileTag> tags = new();
 
-        [Tooltip("Prefabs this clump may spawn when placed. Several entries means the choice is rolled from the " +
-                 "level's seed, which is how one clump becomes 'some enemy spawner from this set'.")]
-        public List<ClumpPrefabChoice> prefabChoices = new();
+        [Tooltip("Prefabs this prop may spawn when placed. Several entries means the choice is rolled from the " +
+                 "level's seed, which is how one prop becomes 'some enemy spawner from this set'.")]
+        public List<PropPrefabChoice> prefabChoices = new();
+
+        [Tooltip("Marks this prop as a procgen prop: inert in a normal build, it acts only when the procgen " +
+                 "pass runs — LevelProcgen.Run hands its prefab behaviours OnProcgen so they can mutate the " +
+                 "level data before it builds.")]
+        public bool procgen;
 
         [Header("Spots")]
-        [Tooltip("Named points this clump publishes to the level, for gameplay and scripted sequences to find.")]
-        public List<ClumpSpot> spots = new();
+        [Tooltip("Named points this prop publishes to the level, for gameplay and scripted sequences to find.")]
+        public List<PropSpot> spots = new();
 
-        /// Cell-space bounds covering every cell, or a single cell at the origin when the clump is empty.
+        /// Cell-space bounds covering every cell, or a single cell at the origin when the prop is empty.
         public RectInt CellBounds
         {
             get
@@ -95,15 +100,35 @@ namespace Laubrary.Cartographer
             }
         }
 
-        /// True if any of this clump's tags is `tag`.
-        public bool HasTag(ClumpTag tag)
+        /// True if any of this prop's tags is `tag`.
+        public bool HasTag(TileTag tag)
         {
             if (tag == null || tags == null) return false;
             for (int i = 0; i < tags.Count; i++) if (tags[i] == tag) return true;
             return false;
         }
 
-        // IVisualPreview — the clump's own cells drawn at their real offsets, through the shared tile-to-pixels
+        /// Transform a prop-local cell offset by `rotation` quarter-turns anticlockwise and an optional X
+        /// mirror. Mirroring is applied first so a mirrored-then-rotated stamp matches what the preview drew.
+        /// The canonical copy — placement, resolution and the stamper all call this one.
+        public static Vector2Int TransformOffset(Vector2Int offset, int rotation, bool mirrorX)
+        {
+            if (mirrorX) offset.x = -offset.x;
+            int turns = ((rotation % 4) + 4) % 4;
+            for (int i = 0; i < turns; i++) offset = new Vector2Int(-offset.y, offset.x);
+            return offset;
+        }
+
+        /// Same transform for a fractional (spot) offset.
+        public static Vector2 TransformOffset(Vector2 offset, int rotation, bool mirrorX)
+        {
+            if (mirrorX) offset.x = -offset.x;
+            int turns = ((rotation % 4) + 4) % 4;
+            for (int i = 0; i < turns; i++) offset = new Vector2(-offset.y, offset.x);
+            return offset;
+        }
+
+        // IVisualPreview — the prop's own cells drawn at their real offsets, through the shared tile-to-pixels
         // path the authoring windows will use. Static: a tile arrangement has nothing to animate.
         public Texture2D RenderPreviewTexture()
         {

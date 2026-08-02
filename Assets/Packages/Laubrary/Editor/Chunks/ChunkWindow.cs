@@ -47,9 +47,14 @@ namespace Laubrary.Chunks.Editor
         {
             base.OnDisable();
             LauAssetGridGUI.ClearCache(_visualThumbs);
+            DisposeChunkPreview();
         }
 
-        protected override void OnAssetChanged() => LauAssetGridGUI.ClearCache(_visualThumbs);
+        protected override void OnAssetChanged()
+        {
+            LauAssetGridGUI.ClearCache(_visualThumbs);
+            DisposeChunkPreview();   // the stage/debris textures belong to the previous spec's subject
+        }
 
         // ── mutation helpers (the Undo contract every dial routes through) ───────────────────
         void Dial(string undoLabel, System.Action apply)
@@ -59,6 +64,7 @@ namespace Laubrary.Chunks.Editor
             Undo.RecordObject(c, undoLabel);
             apply();
             EditorUtility.SetDirty(c);
+            RefreshChunkPreview();   // the slicing preview tracks every dial live (same cuts — seeded)
         }
 
         /// A change that shows/hides other dials → rebuild the panel too.
@@ -88,6 +94,7 @@ namespace Laubrary.Chunks.Editor
             BuildLifeAndLook(body, c);
             BuildFloor(body, c);
             BuildSampled(body, c);
+            BuildPreview(body, c);   // the preview-subject stage (ChunkWindow.Preview.cs) — right under the slicing it visualises
             BuildAnimatedContent(body, c);
             BuildHitDetection(body, c);
             BuildTrail(body, c);

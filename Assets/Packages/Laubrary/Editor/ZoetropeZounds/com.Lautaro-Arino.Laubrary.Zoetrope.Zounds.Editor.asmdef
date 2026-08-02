@@ -1,0 +1,20 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Zoetrope.Zounds.Editor",
+    "rootNamespace": "Laubrary.ZoetropeZounds.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Zoetrope",
+        "com.Lautaro-Arino.Laubrary.Zoetrope.Zounds",
+        "com.Lautaro-Arino.Laubrary.Zoetrope.Editor",
+        "com.Lautaro-Arino.Laubrary.Launimator.Zounds.Editor",
+        "com.Lautaro-Arino.Laubrary.Zounds"
+    ],
+    "includePlatforms": [ "Editor" ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

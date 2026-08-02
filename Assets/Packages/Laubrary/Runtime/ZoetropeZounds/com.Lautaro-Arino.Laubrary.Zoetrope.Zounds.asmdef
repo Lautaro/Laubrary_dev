@@ -1,0 +1,17 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Zoetrope.Zounds",
+    "rootNamespace": "Laubrary.ZoetropeZounds",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Zoetrope",
+        "com.Lautaro-Arino.Laubrary.Zounds"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

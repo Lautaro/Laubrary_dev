@@ -71,6 +71,31 @@ namespace Laubrary.Zui
             return col;
         }
 
+        /// The standard tool-window shape: controls on the LEFT, workspace/preview on the RIGHT, with a
+        /// user-draggable divider whose position persists per `stateKey` (EditorPrefs, machine-local view
+        /// state). Wraps UITK's TwoPaneSplitView; the left pane is the fixed one.
+        public static TwoPaneSplitView Split(string stateKey, float initialLeftWidth,
+            VisualElement left, VisualElement right)
+        {
+            string prefKey = "ZUI.Split." + stateKey;
+            float width = EditorPrefs.GetFloat(prefKey, initialLeftWidth);
+
+            var split = new TwoPaneSplitView(0, width, TwoPaneSplitViewOrientation.Horizontal);
+            split.style.flexGrow = 1f;
+            split.style.minHeight = 0f;
+            if (left != null) split.Add(left);
+            if (right != null) split.Add(right);
+
+            // Persist the divider wherever the user leaves it. The fixed pane's width IS the state.
+            left?.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                float w = left.resolvedStyle.width;
+                if (w > 1f && !Mathf.Approximately(w, EditorPrefs.GetFloat(prefKey, -1f)))
+                    EditorPrefs.SetFloat(prefKey, w);
+            });
+            return split;
+        }
+
         /// A masonry column layout: items are dealt round-robin into `n` equal-width columns, each an
         /// INDEPENDENT vertical stack. This is the retained-mode answer to pairing controls in a Row —
         /// a Row couples heights (a tall expanded envelope stretches its neighbour and shoves the next
@@ -349,12 +374,11 @@ namespace Laubrary.Zui
             Action<int, bool> onToggled, string[] icons = null)
             => ZuiSegmented.Multi(isOn, labels, tooltip, onToggled, icons);
 
-        public static Toggle Toggle(string label, string tooltip, bool value, Action<bool> onChanged)
-        {
-            var t = new Toggle(label) { value = value, tooltip = tooltip };
-            t.RegisterValueChangedCallback(e => onChanged?.Invoke(e.newValue));
-            return t;
-        }
+        /// ROUTED to the ZUI button-toggle (2026-08-02): the wrapper's whole point is that call sites keep
+        /// their shape while the resolved control obeys the rulebook — a bool never renders as an OS
+        /// checkbox on any surface. Every existing Z.Toggle call site healed at once by this one line.
+        public static ZuiToggleButton Toggle(string label, string tooltip, bool value, Action<bool> onChanged)
+            => new ZuiToggleButton(label, tooltip, value, onChanged);
 
         /// Slider with an inline numeric input (pass showInput:false for a bare track — for values
         /// whose exact number doesn't matter, e.g. a preview-only opacity). Values are rounded to 5

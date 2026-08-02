@@ -15,6 +15,11 @@ namespace Laubrary.Zoetrope
         public string displayName = "New Weapon";
 
         [Header("Fire")]
+        [Tooltip("Held trigger keeps firing (a machine gun). OFF = one shot per pull, however long you hold " +
+                 "(a pistol, a shotgun). Off by default: a weapon that empties itself because the player kept " +
+                 "the trigger down is a surprise, whereas having to hold for auto-fire never is.")]
+        public bool automatic = false;
+
         [Min(0.01f)] public float fireRate = 6f;          // shots per second
         [Min(0f)] public float damage = 10f;
         [Min(0f)] public float projectileSpeed = 12f;

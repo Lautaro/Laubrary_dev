@@ -183,6 +183,7 @@ namespace Laubrary.Zui
             if (_headerToggle == null)
             {
                 _headerToggle = new Toggle { tooltip = tooltip };
+                _headerToggle.AddToClassList("zui-audit-allow-toggle");   // fold header, not a checkbox setting
                 _headerToggle.AddToClassList("zui-section__toggle");
                 // The header row is `align-items: center`, so vertical centring is handled; strip the
                 // Toggle's default margins to a tight, small footprint and leave a little air before the title.

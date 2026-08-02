@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using Laubrary.PreviewKit;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.Tilemaps;
 
 namespace Laubrary.Cartographer
 {
-    /// A reusable set of tiles and clumps that belong together, plus how that set looks — the level-building
+    /// A reusable set of tiles and props that belong together, plus how that set looks — the level-building
     /// equivalent of OutBurner's RoadZoneDefinition, which is where this pattern came from.
     ///
     /// A Biome is authoring-side vocabulary, not a place: it says what MAY appear, never where. A Room is what
@@ -18,12 +19,17 @@ namespace Laubrary.Cartographer
         public string displayName = "New Biome";
 
         [Header("Tiles")]
-        [Tooltip("The tiles generation may use to fill ground and walls here.")]
+        [Tooltip("The palettes this biome offers. A level of this biome paints from these tilesets — the " +
+                 "window filters its palette by them, which is the whole point of the association.")]
+        public List<Tileset> tilesets = new();
+
+        [Tooltip("The tiles generation may use to fill ground and walls here. Legacy — the generator moves " +
+                 "onto tilesets when it is ported to LevelAsset.")]
         public List<TileBase> terrainTiles = new();
 
-        [Tooltip("The clumps allowed to appear in this biome. A clump not listed here is never placed, however " +
+        [Tooltip("The props allowed to appear in this biome. A prop not listed here is never placed, however " +
                  "the generator is tuned.")]
-        public List<Clump> clumps = new();
+        [FormerlySerializedAs("clumps")] public List<Prop> props = new();
 
         [Header("Look")]
         [Tooltip("Multiplied into this biome's tiles when the level is built, for cheap palette variation " +
@@ -33,16 +39,16 @@ namespace Laubrary.Cartographer
         [Tooltip("Backdrop shown behind the level in this biome. Optional.")]
         public Sprite background;
 
-        /// True if `clump` is allowed here.
-        public bool Allows(Clump clump)
+        /// True if `prop` is allowed here.
+        public bool Allows(Prop prop)
         {
-            if (clump == null || clumps == null) return false;
-            for (int i = 0; i < clumps.Count; i++) if (clumps[i] == clump) return true;
+            if (prop == null || props == null) return false;
+            for (int i = 0; i < props.Count; i++) if (props[i] == prop) return true;
             return false;
         }
 
         // IVisualPreview — a row of this biome's terrain tiles, tinted as the biome tints them, through the same
-        // tile-to-pixels path Clump previews use. Enough to tell two biomes apart at a glance in a browser.
+        // tile-to-pixels path Prop previews use. Enough to tell two biomes apart at a glance in a browser.
         public Texture2D RenderPreviewTexture()
         {
             if (terrainTiles == null || terrainTiles.Count == 0) return null;

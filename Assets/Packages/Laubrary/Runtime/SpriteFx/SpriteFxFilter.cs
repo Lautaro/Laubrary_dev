@@ -61,6 +61,12 @@ namespace Laubrary.SpriteFx
                  "plain Brightness/Tint flash.")]
         public int seed = 12345;
 
+        [Tooltip("Own clock: how many times per second the stack's time advances while it plays. 0 (default) = " +
+                 "continuous — re-evaluated every rendered frame, riding whatever animation drives it. Set a " +
+                 "rate to step the effect on its own fixed grid, independent of the animation's fps (a fast " +
+                 "flicker over a slow reel). Ignored when a Stack asset is assigned.")]
+        [Min(0f)] public float targetFps = 0f;
+
         // ── live state ─────────────────────────────────────────────────────────────────────────────────────────
         SpriteRenderer _sr;
         Sprite _sourceSprite;     // the live UN-filtered source (a Reel frame, or the static sprite) we ride on top of
@@ -70,6 +76,17 @@ namespace Laubrary.SpriteFx
         float _elapsed, _dur;
         int _tickFrame;
         bool _warnedUnreadable;
+
+        // playback-binding state (the Zoe-event attachment modes: loop-for-duration / run-at-end / ping-pong)
+        bool _reversed;           // evaluate the current pass back-to-front (life 1→0) — ping-pong's return pass
+        float _loopFor;           // > 0 ⇒ keep repeating whole passes until this many seconds have elapsed (Loop)
+        bool _hasPending;         // one scheduled pass (run-at-end / ping-pong's return) — counts down even while idle
+        float _pendingDelay, _pendingDur;
+        bool _pendingReversed;
+
+        // own-clock skip guard: the last applied step + the source it was applied to (targetFps > 0 only)
+        int _lastStep = -1;
+        Sprite _lastStepSrc;
 
         // cached geometry of the sprite _filteredSprite was built for, to know when to rebuild it
         Vector2 _lastPivotNorm;
@@ -84,34 +101,94 @@ namespace Laubrary.SpriteFx
         /// Trigger the filter for the effective <see cref="duration"/> (the Stack asset's duration if one is assigned).
         public void Play() => Play(EffectiveDuration);
 
-        /// Trigger the filter for a specific duration (seconds). Re-triggering while active restarts the timeline.
-        public void Play(float durationSeconds)
+        /// Trigger the filter for a specific duration (seconds). Re-triggering while active restarts the timeline
+        /// (and cancels any scheduled or looping playback).
+        public void Play(float durationSeconds) => StartPass(durationSeconds, reversed: false, loopFor: 0f, cancelPending: true);
+
+        /// Trigger and REPEAT whole passes back-to-back for <paramref name="totalSeconds"/> — the "loop for the
+        /// event's duration" binding. Each pass lasts the effective duration; the final pass is cut wherever the
+        /// total lands and the source sprite restores exactly then (the loop should end WITH its event, not
+        /// finish a tail nobody is watching).
+        public void PlayLooping(float totalSeconds)
+            => StartPass(EffectiveDuration, reversed: false, loopFor: Mathf.Max(0.001f, totalSeconds), cancelPending: true);
+
+        /// Schedule ONE pass to start <paramref name="delaySeconds"/> from now, playing for
+        /// <paramref name="durationSeconds"/>; <paramref name="reversed"/> runs it back-to-front (life 1→0) —
+        /// the fade-out half of ping-pong. Does NOT interrupt whatever is playing now (ping-pong's forward pass
+        /// keeps going); a later <see cref="Play()"/>/<see cref="PlayLooping"/> cancels the schedule, and only
+        /// one schedule is held at a time (the newest wins).
+        public void SchedulePlay(float delaySeconds, float durationSeconds, bool reversed = false)
         {
-            if (_sr == null) _sr = GetComponent<SpriteRenderer>();
-            _dur = Mathf.Max(0.001f, durationSeconds);
-            _elapsed = 0f;
-            _tickFrame = 0;
-            _playing = true;
-            // Capture the live source now so a static (non-animated) sprite restores correctly on finish, and apply
-            // the first frame immediately so there is no one-frame flash of the raw sprite.
-            _sourceSprite = _sr != null ? _sr.sprite : null;
-            Tick(0f);
+            _hasPending = true;
+            _pendingDelay = Mathf.Max(0f, delaySeconds);
+            _pendingDur = Mathf.Max(0.001f, durationSeconds);
+            _pendingReversed = reversed;
+            if (_pendingDelay <= 0f) ConsumePending();   // "start at the end" of an already-ended window = now
         }
 
-        /// Stop early and restore the source sprite.
+        /// Stop early, drop any scheduled pass, and restore the source sprite.
         public void Stop()
         {
+            _hasPending = false;
             if (!_playing) return;
             _playing = false;
             Restore();
         }
 
+        // The single start point every Play flavour routes through: one pass of `durationSeconds`, optionally
+        // reversed, optionally repeated until `loopFor` seconds have elapsed.
+        void StartPass(float durationSeconds, bool reversed, float loopFor, bool cancelPending)
+        {
+            if (_sr == null) _sr = GetComponent<SpriteRenderer>();
+            if (cancelPending) _hasPending = false;
+            _dur = Mathf.Max(0.001f, durationSeconds);
+            _elapsed = 0f;
+            _tickFrame = 0;
+            _reversed = reversed;
+            _loopFor = loopFor > 0f ? loopFor : 0f;
+            _lastStep = -1;
+            _lastStepSrc = null;
+            _playing = true;
+            // Capture the live source now so a static (non-animated) sprite restores correctly on finish, and apply
+            // the first frame immediately so there is no one-frame flash of the raw sprite. If the renderer is still
+            // showing OUR OWN filtered output (a retrigger, or ping-pong's back-to-back return pass), keep the
+            // previously captured source — capturing the filtered sprite as "source" would compound the effect onto
+            // its own output every frame.
+            Sprite cur = _sr != null ? _sr.sprite : null;
+            if (cur == null || !ReferenceEquals(cur, _filteredSprite)) _sourceSprite = cur;
+            Tick(0f);
+        }
+
         void Update()
         {
+            float dt = Time.deltaTime;
+
+            // A scheduled pass counts down even while nothing is playing (run-at-end waits out most of its event).
+            if (_hasPending)
+            {
+                _pendingDelay -= dt;
+                if (_pendingDelay <= 0f) { ConsumePending(); return; }   // fresh pass already ticked at 0
+            }
+
             if (!_playing) return;
-            _elapsed += Time.deltaTime;
-            if (_elapsed >= _dur) { Tick(_dur); _playing = false; Restore(); return; }
+            _elapsed += dt;
+            float total = _loopFor > 0f ? _loopFor : _dur;
+            if (_elapsed >= total)
+            {
+                // A single pass lands exactly on life 1 (the original behaviour); a timed loop just ends —
+                // restoring mid-pass IS the contract (it ends with its event).
+                if (_loopFor <= 0f) Tick(_dur);
+                _playing = false;
+                Restore();
+                return;
+            }
             Tick(_elapsed);
+        }
+
+        void ConsumePending()
+        {
+            _hasPending = false;
+            StartPass(_pendingDur, _pendingReversed, 0f, cancelPending: false);
         }
 
         void Tick(float t)
@@ -127,12 +204,42 @@ namespace Laubrary.SpriteFx
             Sprite src = _sourceSprite;
             if (src == null || src.texture == null) return;
 
+            // Pass-local time: a loop repeats whole passes back-to-back; a reversed pass runs back-to-front.
+            float tp = _loopFor > 0f ? Mathf.Repeat(t, _dur) : Mathf.Min(t, _dur);
+            if (_reversed) tp = _dur - tp;
+
+            float life;
+            int frame;
+            float fps = EffectiveTargetFps;
+            if (fps > 0f)
+            {
+                // OWN CLOCK: the stack's time advances on a fixed 1/fps step grid instead of every rendered
+                // frame, so the effect ticks at ITS rate independent of the animation it rides (a 12-step
+                // flicker over a 4-fps reel). The step index feeds the hashing modifiers — a dither/dissolve
+                // pattern re-rolls per STEP — and it is GLOBAL across loop passes so a looped flicker doesn't
+                // repeat in lockstep. An unchanged step over an unchanged source frame skips the pixel pass
+                // entirely (the own clock genuinely ticks slower, it isn't just quantised output).
+                int step = Mathf.FloorToInt(t * fps);
+                if (step == _lastStep && ReferenceEquals(src, _lastStepSrc) &&
+                    _filteredSprite != null && ReferenceEquals(_sr.sprite, _filteredSprite))
+                    return;
+                _lastStep = step;
+                _lastStepSrc = src;
+                float tq = Mathf.Floor(tp * fps) / fps;
+                float p = _dur > 0f ? Mathf.Clamp01(tq / _dur) : 1f;
+                life = SampleEnvelope(p);
+                frame = step;
+            }
+            else
+            {
+                float p = _dur > 0f ? Mathf.Clamp01(tp / _dur) : 1f;
+                life = SampleEnvelope(p);
+                frame = _tickFrame;
+            }
+
             if (!ReadSource(src, out Color32[] pixels, out int W, out int H)) return;
 
-            float p = _dur > 0f ? Mathf.Clamp01(t / _dur) : 1f;
-            float life = SampleEnvelope(p);
-
-            Apply(pixels, W, H, EffectiveModifiers, _tickFrame, life, EffectiveSeed, ResolveUseBurst());
+            Apply(pixels, W, H, EffectiveModifiers, frame, life, EffectiveSeed, ResolveUseBurst());
             _tickFrame++;
 
             EnsureWork(src, W, H);
@@ -146,6 +253,7 @@ namespace Laubrary.SpriteFx
         List<PixelModifier> EffectiveModifiers => stack != null ? stack.modifiers : modifiers;
         float EffectiveDuration => stack != null ? Mathf.Max(0.001f, stack.duration) : duration;
         int EffectiveSeed => stack != null ? stack.seed : seed;
+        float EffectiveTargetFps => stack != null ? Mathf.Max(0f, stack.targetFps) : Mathf.Max(0f, targetFps);
 
         float SampleEnvelope(float progress01)
         {
@@ -271,6 +379,7 @@ namespace Laubrary.SpriteFx
 
         void OnDisable()
         {
+            _hasPending = false;   // a disabled filter fires nothing later — a stale schedule must not survive
             if (_playing) { _playing = false; Restore(); }
         }
 

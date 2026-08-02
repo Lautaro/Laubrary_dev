@@ -91,7 +91,15 @@ namespace Laubrary.Combat2D
             if (age >= lifetime) Expire();
         }
 
-        void OnTriggerEnter2D(Collider2D other)
+        void OnTriggerEnter2D(Collider2D other) => TryHit(other);
+
+        // A hit VETOED at entry must not be final. A pixel-perfect filter often says no at the collider's
+        // edge — that is the sprite's transparent padding — while the bullet's centre is still travelling
+        // toward the opaque body; Enter fires exactly once, so without Stay the veto silently becomes
+        // "the bullet passes through". Keep asking while overlapped; the first accepted contact wins.
+        void OnTriggerStay2D(Collider2D other) => TryHit(other);
+
+        void TryHit(Collider2D other)
         {
             if (spent) return;
 

@@ -13,7 +13,7 @@ namespace Laubrary.Zui
 {
     public class ZuiGallery : ZuiWindow
     {
-        [MenuItem("Laubrary/ZUI Control Gallery")]
+        [MenuItem("Laubrary/ZUI/Control Gallery")]
         public static void Open() => GetWindow<ZuiGallery>("ZUI Gallery");
 
         // Live demo state.

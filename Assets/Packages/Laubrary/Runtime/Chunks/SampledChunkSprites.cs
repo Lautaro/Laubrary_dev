@@ -45,7 +45,19 @@ namespace Laubrary.Chunks
         public static Sprite Sample(Sprite source, int minPx, int maxPx, float pixelsPerUnit,
             ChunkTintMode tintMode = ChunkTintMode.None, Color tintColor = default, float tintStrength = 0f,
             int edgeThicknessPx = 1, IReadOnlyList<PixelModifier> modifiers = null)
+            => Sample(source, minPx, maxPx, pixelsPerUnit, out _, tintMode, tintColor, tintStrength,
+                      edgeThicknessPx, modifiers);
+
+        /// Same cut, but ALSO reports WHERE it came from: <paramref name="cutRect"/> is the chosen sub-rect in
+        /// the sprite's OWN pixel space (relative to its textureRect, bottom-left origin), or default when the
+        /// sample fails. This exists for the Chunk editor's preview-subject stage, which outlines the cuts on
+        /// the subject sprite — sharing this one routine keeps "where the preview says a slice comes from"
+        /// identical to where a runtime slice actually comes from (the one-shared-core rule).
+        public static Sprite Sample(Sprite source, int minPx, int maxPx, float pixelsPerUnit, out RectInt cutRect,
+            ChunkTintMode tintMode = ChunkTintMode.None, Color tintColor = default, float tintStrength = 0f,
+            int edgeThicknessPx = 1, IReadOnlyList<PixelModifier> modifiers = null)
         {
+            cutRect = default;
             if (source == null || source.texture == null) return null;
 
             var texRect = source.textureRect; // the sprite's own packed region within a possibly-shared atlas texture
@@ -59,6 +71,7 @@ namespace Laubrary.Chunks
 
             Color[] best = null;
             float bestCoverage = -1f;
+            int bestOx = 0, bestOy = 0;
 
             for (int attempt = 0; attempt < MaxAttempts; attempt++)
             {
@@ -73,16 +86,18 @@ namespace Laubrary.Chunks
                 float coverage = AlphaCoverage(pixels);
                 if (coverage >= MinAcceptableAlphaCoverage)
                 {
+                    cutRect = new RectInt(ox - texX, oy - texY, size, size);
                     ApplyTint(pixels, size, tintMode, tintColor, tintStrength, edgeThicknessPx);
                     return Build(pixels, size, pixelsPerUnit, source.name, modifiers);
                 }
 
-                if (coverage > bestCoverage) { bestCoverage = coverage; best = pixels; }
+                if (coverage > bestCoverage) { bestCoverage = coverage; best = pixels; bestOx = ox; bestOy = oy; }
             }
 
             // Every attempt landed on mostly-empty space — fall back to the best of the attempts rather
             // than a guaranteed-blank chunk, unless even that was essentially nothing.
             if (bestCoverage <= 0.02f) return null;
+            cutRect = new RectInt(bestOx - texX, bestOy - texY, size, size);
             ApplyTint(best, size, tintMode, tintColor, tintStrength, edgeThicknessPx);
             return Build(best, size, pixelsPerUnit, source.name, modifiers);
         }

@@ -24,7 +24,7 @@ namespace Laubrary.Zui
     {
         public class Finding
         {
-            public string check;      // tooltip-missing | off-screen | stretch | over-width
+            public string check;      // tooltip-missing | off-screen | stretch | over-width | native-toggle
             public string element;    // type + classes + name/text hint
             public string detail;
             public override string ToString() => $"[{check}] {element} — {detail}";
@@ -83,6 +83,14 @@ namespace Laubrary.Zui
             {
                 if (!HasTooltipInChain(ve))
                     findings.Add(New("tooltip-missing", ve, "no tooltip on the control or any ancestor"));
+
+                // Native checkbox: a bool is a Z.ToggleButton EVERYWHERE (rule upgraded 2026-08-02 from
+                // menus-only to all surfaces) — the UITK Toggle's checkmark box reads as a bare OS
+                // checkbox. A Foldout's internal Toggle is its fold header, not a checkbox; the
+                // "zui-audit-allow-toggle" class is the sanctioned opt-out for fold/chrome toggles.
+                if (ve is Toggle && ve.GetFirstAncestorOfType<Foldout>() == null
+                    && !ve.ClassListContains("zui-audit-allow-toggle"))
+                    findings.Add(New("native-toggle", ve, "checkbox Toggle — use Z.ToggleButton"));
 
                 // "zui-audit-allow-stretch" is the sanctioned opt-out for the rulebook's own exception:
                 // a name/path field that legitimately fills the space between fixed row-mates.

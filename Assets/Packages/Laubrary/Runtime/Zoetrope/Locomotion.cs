@@ -35,7 +35,16 @@ namespace Laubrary.Zoetrope
     {
         Locomotion clips;
         IAnimatedView view;
+        ZoeState _state;
         Vector3 lastPos;
+
+        // Resolved LAZILY, never cached at Bind time. ZoeSpawner attaches this animator while building the
+        // view and ZoeState much later (it has to come after ReactionFxPlayer, which it listens to), so a
+        // Bind-time GetComponent found NOTHING and the gate silently never applied — corpses walked, and the
+        // death clip was stomped by the walk cycle. The symptom was beautifully specific: death only survived
+        // if the character was ALREADY stunned, because a stopped character produces no moving/idle change,
+        // so locomotion had no reason to re-issue its clip over the top.
+        ZoeState State => _state != null ? _state : (_state = GetComponent<ZoeState>());
         bool moving, started;
         float suppressedUntil;
 
@@ -64,6 +73,12 @@ namespace Laubrary.Zoetrope
             lastPos = pos;
 
             if (Time.time < suppressedUntil) return;
+
+            // Never speak over a hurt or death reaction. Locomotion re-issuing its clip on the next
+            // moving/idle change is exactly why the hurt animation "never showed": ReactionFxPlayer started
+            // it and the walk cycle overwrote it a frame later. A stunned or dead character animates by
+            // whatever hit it, not by where it happens to be drifting.
+            if (State != null && !State.CanAct) { started = false; return; }
 
             bool nowMoving = speed > clips.moveThreshold;
             // Only on a CHANGE — re-issuing PlayClip every frame would restart the clip on frame 0 forever,

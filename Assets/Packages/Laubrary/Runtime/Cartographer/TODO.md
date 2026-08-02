@@ -1,5 +1,11 @@
 # Cartographer — design notes & task list
 
+> ## ⚠️ SUPERSEDED AS THE DESIGN OF RECORD — 2026-07-31
+>
+> **Read `CARTOGRAPHER_DESIGN.md` instead for what Cartographer IS and what to build.** A first-principles brief from the project owner redefined the tool as a **tile-based level editor** whose level is a **LauAsset**, with tilesets, layers-of-tilesets, interchangeable tile groups, animated tiles, free sprites, metadata and hybrid procgen. Several decisions recorded below are explicitly reversed there — most importantly "hand-authored levels are saved as real Tilemap-backed scenes/prefabs", which is no longer true.
+>
+> **This file is still worth reading for two things, and only these two:** the *gotchas* (the conditionally-compiled rule tile, the tickable-director testing shape, the GUID/asset traps) and the **"Friction found by building a real level"** section — both hard-won and still accurate. Treat the phase lists as history, not as a plan.
+
 ## Resume here (state as of 2026-07-27)
 
 **Phases 1–5 are done bar two items.** The tool authors clumps, edits biomes, scaffolds levels, manages layers, stamps (rotate / mirror / drag-repeat / line mode), records placements, builds collision (composite, one-way, slopes, tag-narrowed), runs Rooms with scroll + catch-up + camera modes, and generates levels from a seeded recipe. It has built a real side-scrolling level.

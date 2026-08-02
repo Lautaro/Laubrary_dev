@@ -4,6 +4,8 @@
     "references": [
         "com.Lautaro-Arino.Laubrary.Cartographer",
         "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
+        "com.Lautaro-Arino.Laubrary.PreviewKit",
+        "Unity.2D.Sprite.Editor",
         "ZUI.Editor",
         "com.Lautaro-Arino.Laubrary.Zui.Editor",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime"

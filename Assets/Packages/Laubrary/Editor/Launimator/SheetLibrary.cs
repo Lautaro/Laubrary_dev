@@ -126,6 +126,17 @@ namespace Laubrary.Launimator.Editor
             if (tex == null) { error = "The downloaded file did not import as a texture (not an image?)."; return null; }
 
             if (!string.IsNullOrWhiteSpace(displayName)) SheetRegistry.SetDisplayName(tex, displayName);
+
+            // Provenance: the sheet remembers the URL it came from, and its CONTENT hash — identity that
+            // survives the source being renamed or the URL going stale. Shared sidecar with the Tileset
+            // Builder (Laubrary.AssetKit.Editor.SheetProvenance).
+            Laubrary.AssetKit.Editor.SheetProvenance.Save(assetPath, new Laubrary.AssetKit.Editor.SheetSource
+            {
+                origin = url,
+                originalFileName = Path.GetFileName(assetPath),
+                md5 = Laubrary.AssetKit.Editor.SheetProvenance.Md5OfFile(ToSystemPath(assetPath)),
+                importedUtc = DateTime.UtcNow.ToString("o"),
+            });
             return tex;
         }
 

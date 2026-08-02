@@ -7,7 +7,20 @@ namespace Laubrary.Zoetrope
     /// <summary>When an FX entry spawns: right away at Placement (no animation needed), or in sync with a
     /// named FrameEvent as the reaction's <see cref="ReactionFx.clip"/> plays. A MetaLayer (Point or Shape)
     /// never fires anything itself — it's queryable data, only meaningful as a <see cref="FxPlacementType"/>.</summary>
-    public enum FxTriggerType { Immediate, FrameEvent }
+    /// When an effect in a reaction fires.
+    ///
+    /// There used to be a FrameEvent option that matched an AUTHORED frame event by name. It is gone: a reel
+    /// frame can already trigger things directly (that is what frame events are for, and what the
+    /// LaunimatorZounds bridge uses), so having reactions match them too was a second way to say the same
+    /// thing — and the expensive way, since it made every timed effect wait on someone authoring an event
+    /// first. Picking a frame NUMBER needs no authoring at all.
+    public enum FxTriggerType
+    {
+        /// The moment the reaction starts.
+        Immediate,
+        /// On a chosen frame of the reaction's own clip.
+        OnFrame,
+    }
 
     /// <summary>Where an FX entry spawns.</summary>
     public enum FxPlacementType
@@ -33,8 +46,11 @@ namespace Laubrary.Zoetrope
         public bool enabled = true;
 
         public FxTriggerType trigger = FxTriggerType.Immediate;
-        [Tooltip("FrameEvent name to match, when trigger == FrameEvent.")]
-        public string eventName = "";
+
+        [Tooltip("Which frame of the reaction's clip this fires on, when trigger is On Frame. 1 is the first " +
+                 "frame. Past the clip's last frame it fires on the last one rather than never — an effect " +
+                 "that silently does nothing because a clip got shorter is the worse failure.")]
+        [Min(1)] public int frame = 1;
 
         // The position PICKER — which of the event's position in-params this effect spawns at. Promoted from a
         // fixed placement enum into the position picker; its four values are unchanged so existing data reads as
@@ -73,6 +89,10 @@ namespace Laubrary.Zoetrope
                  "FrameEvent/MetaLayer names from for the FX list below. Empty = no clip — Immediate-trigger " +
                  "FX still fire normally (this is what keeps a plain SpriteView Zoe's hit VFX working).")]
         public string clip = "";
+
+        [Tooltip("Seconds the character is stunned when this reaction fires — it stops moving and acting, so " +
+                 "a hit visibly INTERRUPTS rather than being something it walks through. 0 = no stun.")]
+        [Min(0f)] public float stunSeconds = 0f;
 
         [Tooltip("Optional SpriteFx Stack played on the character's OWN sprite the instant this reaction fires — a " +
                  "hurt/death flash, tint or dissolve that rides on top of the live animation (applied via a " +

@@ -137,6 +137,14 @@ namespace Laubrary.SpriteFx.Editor
             s.Add(Z.Field("Seed", seedTip,
                 Z.Int(spec.seed, seedTip, v => Dial("SpriteFx seed", () => spec.seed = v), Num)));
 
+            const string fpsTip = "Own clock: how many times per second the stack's time advances while it " +
+                "plays. 0 = every rendered frame (continuous — the default). Set a rate to step the effect on " +
+                "its own fixed grid, independent of the animation it rides — a fast flicker over a slow reel, " +
+                "or a deliberately chunky retro fade. The preview below plays at the same rate.";
+            s.Add(Z.MicroSlider("Step rate (fps)", spec.targetFps, 0f, 60f, fpsTip,
+                v => Dial("SpriteFx step rate", () => spec.targetFps = Mathf.Max(0f, Mathf.Round(v))),
+                Wide, showValue: true, decimals: 0));
+
             root.Add(s);
         }
 
@@ -148,10 +156,10 @@ namespace Laubrary.SpriteFx.Editor
         {
             // Load the remembered sprite for THIS spec whenever the edited spec changes (incl. after a domain
             // reload, when _prevSpecGuid resets to null). On a plain rebuild (same spec) keep the current pick.
-            string guid = GuidOf(spec);
+            string guid = PreviewSpritePrefs.GuidOf(spec);
             if (_prevSpecGuid == null || _prevSpecGuid != guid)
             {
-                _previewSprite = LoadRememberedSprite(guid);
+                _previewSprite = PreviewSpritePrefs.Load(PrevSpritePrefKey, guid);
                 _prevSpecGuid = guid;
             }
 
@@ -226,7 +234,7 @@ namespace Laubrary.SpriteFx.Editor
         void OnPickSprite(Sprite s)
         {
             _previewSprite = s;
-            RememberSprite(_prevSpecGuid, s);
+            PreviewSpritePrefs.Remember(PrevSpritePrefKey, _prevSpecGuid, s);
             RenderPreview();
         }
 
@@ -333,6 +341,17 @@ namespace Laubrary.SpriteFx.Editor
                     for (int i = 0; i < block.Length; i++) px[i] = (Color32)block[i];
                 }
 
+                // Own clock (Step rate): quantise exactly as SpriteFxFilter.Tick does — time snaps to the
+                // 1/targetFps grid and the hashing frame becomes the step index — so scrub and Play both show
+                // the stepped evaluation the runtime plays (WYSIWYG).
+                if (spec.targetFps > 0f)
+                {
+                    float dur = Mathf.Max(0.001f, spec.duration);
+                    int step = Mathf.FloorToInt(Mathf.Clamp01(progress) * dur * spec.targetFps);
+                    progress = Mathf.Clamp01((step / spec.targetFps) / dur);
+                    frame = step;
+                }
+
                 float life = spec.SampleEnvelope(Mathf.Clamp01(progress));
                 // The SAME routine Tick uses at runtime — inline (useBurst:false) so the preview matches WYSIWYG.
                 SpriteFxFilter.Apply(px, W, H, spec.modifiers, frame, life, spec.seed, useBurst: false);
@@ -383,42 +402,9 @@ namespace Laubrary.SpriteFx.Editor
             if (_previewTex != null) { DestroyImmediate(_previewTex); _previewTex = null; }
         }
 
-        // ── preview-sprite persistence (EditorPrefs, keyed by the spec's GUID — never the asset) ───────────────
-        static string GuidOf(Object o)
-        {
-            if (o == null) return "";
-            return AssetDatabase.TryGetGUIDAndLocalFileIdentifier(o, out string g, out long _) ? g : "";
-        }
-
-        void RememberSprite(string specGuid, Sprite s)
-        {
-            if (string.IsNullOrEmpty(specGuid)) return;   // unsaved spec: nothing durable to key on
-            string key = PrevSpritePrefKey + specGuid;
-            if (s == null) { EditorPrefs.DeleteKey(key); return; }
-            if (AssetDatabase.TryGetGUIDAndLocalFileIdentifier(s, out string g, out long id))
-                EditorPrefs.SetString(key, g + ":" + id);
-        }
-
-        Sprite LoadRememberedSprite(string specGuid)
-        {
-            if (string.IsNullOrEmpty(specGuid)) return null;
-            string val = EditorPrefs.GetString(PrevSpritePrefKey + specGuid, "");
-            if (string.IsNullOrEmpty(val)) return null;
-            int c = val.IndexOf(':');
-            if (c <= 0) return null;
-            string g = val.Substring(0, c);
-            if (!long.TryParse(val.Substring(c + 1), out long id)) return null;
-            string path = AssetDatabase.GUIDToAssetPath(g);
-            if (string.IsNullOrEmpty(path)) return null;
-            // Match the exact sub-sprite by localId (a sheet holds many); fall back to the main sprite at the path.
-            if (AssetDatabase.LoadMainAssetAtPath(path) is Sprite main &&
-                AssetDatabase.TryGetGUIDAndLocalFileIdentifier(main, out _, out long mid) && mid == id)
-                return main;
-            foreach (var o in AssetDatabase.LoadAllAssetRepresentationsAtPath(path))
-                if (o is Sprite sp && AssetDatabase.TryGetGUIDAndLocalFileIdentifier(sp, out _, out long sid) && sid == id)
-                    return sp;
-            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
-        }
+        // Preview-sprite persistence lives in the shared PreviewSpritePrefs (AssetKit.Editor) — EditorPrefs keyed
+        // by the spec's GUID, never the asset. Extracted 2026-08-02 so ChunkWindow's preview subject shares the
+        // one canonical implementation; this window's key prefix is unchanged, so remembered sprites survive.
 
         // ── lifecycle ──────────────────────────────────────────────────────────────────────────────────────────
         protected override void OnAssetChanged()

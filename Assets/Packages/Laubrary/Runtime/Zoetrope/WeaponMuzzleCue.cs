@@ -28,6 +28,7 @@ namespace Laubrary.Zoetrope
         ICueSink _sink;
         System.Action<Projectile> _fallbackHandler;
         System.Action<Projectile> _audioHandler;
+        System.Action<Vector3, int> _hitscanAudio;
         bool _configured;
 
         /// Call this right after AddComponent — OnEnable already ran before the caller could set fields the
@@ -70,6 +71,10 @@ namespace Laubrary.Zoetrope
             if (weapon != null && !string.IsNullOrEmpty(def.fireZoundName))
             {
                 _audioHandler = _ => ZoundEngine.PlayZound(def.fireZoundName);
+                // A hitscan shot spawns no projectile, so ProjectileWeapon.Fired never raises for it and the
+                // weapon would be silent. HitscanFired is the same event for a shot that does not travel.
+                _hitscanAudio = (_, __) => ZoundEngine.PlayZound(def.fireZoundName);
+                weapon.HitscanFired += _hitscanAudio;
                 weapon.Fired += _audioHandler;
             }
         }
@@ -87,6 +92,7 @@ namespace Laubrary.Zoetrope
             {
                 weapon.Fired -= _audioHandler;
                 _audioHandler = null;
+                if (_hitscanAudio != null) { weapon.HitscanFired -= _hitscanAudio; _hitscanAudio = null; }
             }
         }
     }

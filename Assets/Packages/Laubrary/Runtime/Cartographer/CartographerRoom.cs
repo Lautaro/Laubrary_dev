@@ -65,7 +65,7 @@ namespace Laubrary.Cartographer
         [Tooltip("Name for this section, shown in the level's inspector and in authoring tools.")]
         public string roomName = "Room";
 
-        [Tooltip("Which biome's tiles and clumps this section is built from.")]
+        [Tooltip("Which biome's tiles and props this section is built from.")]
         public CartographerBiome biome;
 
         [Header("Exit")]

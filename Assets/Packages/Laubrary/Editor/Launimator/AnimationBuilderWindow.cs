@@ -613,10 +613,14 @@ namespace Laubrary.Launimator.Editor
         // Short enough to sit on one segmented row beside PPU. Order matches GridSlicer.PivotMode.
         private static readonly string[] PivotLabels = { "Center", "Bottom", "Top Left", "Custom" };
 
+        // NOT a section of its own. "Mode" was styled exactly like the numbered steps while sitting between 1
+        // and 2 without a number, so it read as a step that had lost its place in the sequence — and the three
+        // modes ARE how sprites get identified ("uniform sheet" / "one sprite" / "scattered sprites"), which is
+        // step 2's entire job. It is now step 2's first row: a plain label, no competing heading.
         private void BuildModeBar(VisualElement root)
         {
             root.Add(WrapRow(
-                Z.Text("Mode", ZuiText.Section, "How sprites are identified on the sheet."),
+                Z.Text("Mode", ZuiText.Small, "How sprites are identified on the sheet."),
                 Z.MiniRadio((int)_toolMode, ToolModeLabels,
                     "Grid marquees a box and slices it into cols×rows; Box commits one marquee as one sprite; Pick flood-fills the clicked sprite.",
                     v =>
@@ -635,10 +639,12 @@ namespace Laubrary.Launimator.Editor
         // ── 2 · region grid UI (mode-gated) ──────────────────────────────────
         private void BuildRegionGridUI(VisualElement root)
         {
-            if (!_leftCollapsed) BuildModeBar(root);
-
             root.Add(Z.Text("2 · Identify Sprites", ZuiText.Section,
-                "Settings that decide how the canvas marquee becomes sprite cells."));
+                "How the canvas marquee becomes sprite cells."));
+
+            // Mode goes INSIDE step 2 now, as its first row — it is the choice everything below depends on,
+            // and the rows that follow are mode-gated, so it belongs at the top of what it governs.
+            if (!_leftCollapsed) BuildModeBar(root);
 
             if (_toolMode == ToolMode.Grid)
             {

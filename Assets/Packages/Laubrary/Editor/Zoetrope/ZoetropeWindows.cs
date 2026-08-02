@@ -51,6 +51,11 @@ namespace Laubrary.Zoetrope.Editor
 
         protected SerializedObject So { get; private set; }
 
+        // Survives the rebuilds every dial edit triggers — see BuildAsset.
+        Vector2 _scrollOffset;
+        bool _restoringScroll;
+        ScrollView _scroll;
+
         // Thumbnails for every LauAsset-typed field this window draws — owned here, cleared on the way out.
         protected readonly Dictionary<Object, Texture2D> FieldThumbs = new Dictionary<Object, Texture2D>();
 
@@ -65,6 +70,20 @@ namespace Laubrary.Zoetrope.Editor
             scroll.style.minHeight = 0f;
             BuildBody(scroll.contentContainer, asset);
             root.Add(scroll);
+
+            // Keep the scroll position across rebuilds. Picking a trigger or a placement rebuilds the whole
+            // body (those choices gate conditional rows), and a fresh ScrollView starts at the top — so every
+            // click threw the user back to the top of a long asset, which reads as the window resetting
+            // itself. Restored after layout, because scrollOffset cannot be set before the content has a size.
+            _scroll = scroll;
+            scroll.verticalScroller.valueChanged += _ => { if (!_restoringScroll) _scrollOffset = scroll.scrollOffset; };
+            var wanted = _scrollOffset;
+            scroll.schedule.Execute(() =>
+            {
+                _restoringScroll = true;
+                scroll.scrollOffset = wanted;
+                _restoringScroll = false;
+            });
         }
 
         protected override void OnDisable()
@@ -196,9 +215,87 @@ namespace Laubrary.Zoetrope.Editor
             {
                 enter = false;
                 if (TryBuildClipDropdown(host, child, boxedValue, topLevelAsset)) continue;
+                if (TryBuildZoundPicker(host, child)) continue;
+                if (TryBuildPlaybackMode(host, child, boxedValue)) continue;
                 if (TryBuildAssetRefField(host, child, boxedValue)) continue;
                 host.Add(ZuiSerialized.Field(child.Copy(), width: ScalarFieldWidth));
             }
+        }
+
+        // An enum picker — segmented for a short single-line set, a wrapping MiniRadio for a longer one. NEVER a
+        // dropdown (ui-layout-rules: enum → radios/segmented, a dropdown is only for dynamic authored-name lists,
+        // which is what ZoeWindow's StringDropdown stays as). Lives on the base so both the hand-built effect
+        // cards (ZoeWindow) and the generic managed-ref child drawer above can use it.
+        protected VisualElement EnumPicker(SerializedProperty prop, string label, string tooltip, bool rebuild = true)
+        {
+            var choices = prop.enumDisplayNames;
+            string path = prop.propertyPath;
+            void Pick(int i) { Commit(path, p => p.enumValueIndex = i); if (rebuild) Rebuild(); }   // Position/Trigger gate conditional rows
+            VisualElement control = choices.Length <= 3
+                ? Z.Segmented(prop.enumValueIndex, choices, tooltip, Pick)
+                : Z.MiniRadio(prop.enumValueIndex, choices, tooltip, Pick, wrap: true);
+            // A null label means the OPTIONS already say what the control is — "Trigger [Immediate|On Frame]"
+            // and "Direction [Hit Direction|None]" both print the same word twice, and a label that repeats
+            // its own values is the redundant-title case the layout rules call out. The tooltip still carries
+            // the explanation, which is where an explanation belongs.
+            return string.IsNullOrEmpty(label) ? control : Z.Field(label, tooltip, control);
+        }
+
+        // ── playback-binding pair (FxPlaybackMode `playback` + float `fxSeconds`, e.g. Body SpriteFx) ────────
+        // The mode draws as a radio (enum → radios, never a dropdown) with a tooltip composed for the CURRENT
+        // choice, and the Run-At-End window field rides beside it — ALWAYS in the row so picking a mode never
+        // reflows the card, with `visibility` doing the showing (Hidden keeps its layout space, per the
+        // stable-layout rule). Matched by field TYPE, not owner type, so any future effect carrying a playback
+        // binding gets the same treatment for free.
+        bool TryBuildPlaybackMode(VisualElement host, SerializedProperty child, object boxedValue)
+        {
+            if (child.propertyType != SerializedPropertyType.Enum) return false;
+            var field = boxedValue.GetType().GetField(child.name, BindingFlags.Public | BindingFlags.Instance);
+            if (field == null || field.FieldType != typeof(FxPlaybackMode)) return false;
+
+            var mode = (FxPlaybackMode)child.enumValueIndex;
+
+            // Composed per-mode: the shared "what the options mean" base plus the CURRENT mode's fine print
+            // (each degrade note only shows while its mode is the one selected).
+            const string baseTip = "How the stack plays against this event. Once = a single play-through of the " +
+                "stack's own duration. Loop = repeat for the event's remaining duration. Run At End = start late " +
+                "so it finishes exactly as the event ends (a fade-out). Ping Pong = once forward now, once " +
+                "backward timed to the end.";
+            string modeTip = baseTip + (mode switch
+            {
+                FxPlaybackMode.Loop => " Currently Loop: with no known event duration (no clip, or a clip " +
+                    "with no fixed end) it degrades to a single play.",
+                FxPlaybackMode.RunAtEnd => " Currently Run At End: the window is Fx Seconds (0 = the stack's " +
+                    "own duration); an event shorter than the window compresses the play to fit, and with no " +
+                    "known event duration it degrades to a single immediate play.",
+                FxPlaybackMode.PingPong => " Currently Ping Pong: with no known event duration the backward " +
+                    "pass follows the forward one immediately (a there-and-back pulse).",
+                _ => " Currently Once: the original single play.",
+            });
+
+            // Peek the paired fxSeconds (declared immediately after `playback` on the effect).
+            SerializedProperty fxSecondsProp = null;
+            var peek = child.Copy();
+            if (peek.NextVisible(false) && peek.name == "fxSeconds") fxSecondsProp = peek.Copy();
+
+            var row = Z.Row(EnumPicker(child.Copy(), "Playback", modeTip));   // Commit + Rebuild (recomposes tooltips/visibility)
+            if (fxSecondsProp != null)
+            {
+                string secTip = mode == FxPlaybackMode.RunAtEnd
+                    ? "The fade-out window in seconds — the stack starts when the event has this much time " +
+                      "left, so the play ends exactly with the event. 0 = use the stack's own duration."
+                    : "Run At End only — pick that playback mode to use this window. (Kept in place so the " +
+                      "row never reflows.)";
+                var fxField = NumField("Fx Seconds", fxSecondsProp.propertyPath, fxSecondsProp.floatValue, secTip,
+                    v => Mathf.Max(0f, v));
+                // Reserved, not removed: Hidden keeps the layout space, so switching modes never shifts the card.
+                fxField.style.visibility = mode == FxPlaybackMode.RunAtEnd ? Visibility.Visible : Visibility.Hidden;
+                row.Add(Z.HSpace());
+                row.Add(fxField);
+                child.NextVisible(false);   // consume fxSeconds — it is drawn here, beside its mode
+            }
+            host.Add(row);
+            return true;
         }
 
         /// The one deliberate IMGUI island in this window: a foreign module's Rect-based PropertyDrawer,
@@ -235,6 +332,48 @@ namespace Laubrary.Zoetrope.Editor
         // Zoetrope concern, decoupled from whichever bridge module supplies the concrete view type.
 
         static readonly string[] ClipFieldNames = { "idleClip", "clip", "hurtClip", "deathClip" };
+
+        // ── Zound picker ────────────────────────────────────────────────────────────────────
+        // A field named `zoundName` is picking a Zound out of the project's library, never free text — a
+        // misspelt name fails silently at runtime, which is the same trap the clip fields above exist to
+        // close. Resolved through ZoundPickerHook so Zoetrope never references Zounds; with no bridge
+        // registered the field degrades to a plain text box rather than disappearing.
+        bool TryBuildZoundPicker(VisualElement host, SerializedProperty child)
+        {
+            if (child.propertyType != SerializedPropertyType.String || child.name != "zoundName") return false;
+            if (!ZoundPickerHook.Available) return false;
+
+            var prop = child.Copy();
+            string Current() => string.IsNullOrEmpty(prop.stringValue) ? "(none)" : prop.stringValue;
+
+            var button = Z.Button(Current(),
+                "Click to pick a Zound. Right-click to hear the current one.", null).W(190f);
+            button.clicked += () =>
+                ZoundPickerHook.Show(GUIUtility.GUIToScreenPoint(Event.current != null ? Event.current.mousePosition : Vector2.zero),
+                    picked =>
+                    {
+                        // ApplyModifiedProperties (not ...WithoutUndo) so the pick is undoable — this is a
+                        // data edit on the asset, and every other field here routes through Undo.
+                        prop.stringValue = picked;
+                        prop.serializedObject.ApplyModifiedProperties();
+                        button.text = Current();
+                        ZoundPickerHook.Preview?.Invoke(picked);   // hear what you just chose, immediately
+                    });
+
+            // Right-click auditions it. A sound field you cannot hear from is a name you have to trust, and
+            // the whole reason these are picked rather than typed is that trusting a name does not work.
+            button.RegisterCallback<PointerDownEvent>(e =>
+            {
+                if (e.button != 1 || string.IsNullOrEmpty(prop.stringValue)) return;
+                ZoundPickerHook.Preview?.Invoke(prop.stringValue);
+                e.StopPropagation();
+            });
+
+            // No label: the effect card's own header already says "Zound", and repeating it beside the
+            // picker says the same word twice — the mockup's shape, and the layout rules' redundant-title rule.
+            host.Add(button);
+            return true;
+        }
 
         bool TryBuildClipDropdown(VisualElement host, SerializedProperty child, object boxedValue, object topLevelAsset)
         {
@@ -579,7 +718,7 @@ namespace Laubrary.Zoetrope.Editor
                     v => Commit(clipPath, p => p.stringValue = v), 200f)));
             }
 
-            string[] eventNames = GetEventNames(zoe.view, clipProp.stringValue);
+            int clipFrames = GetFrameCount(zoe.view, clipProp.stringValue);
             string[] pointLayerIds = GetPointLayerIds(zoe.view, clipProp.stringValue);
 
             root.Add(Z.Text($"Effects  ({fxListProp.arraySize})", ZuiText.Subtle,
@@ -590,7 +729,7 @@ namespace Laubrary.Zoetrope.Editor
             var listHost = new VisualElement();
             root.Add(listHost);
             for (int i = 0; i < fxListProp.arraySize; i++)
-                BuildFxEntry(listHost, fxListProp.GetArrayElementAtIndex(i), fxPath, i, eventNames, pointLayerIds, zoe);
+                BuildFxEntry(listHost, fxListProp.GetArrayElementAtIndex(i), fxPath, i, clipFrames, pointLayerIds, zoe);
 
             // The Add-effect menu: a Z.Menu of icon rows listing every IEffect kind (grouped by module), so
             // picking one appends an entry with that effect already assigned — nicer than adding a blank entry and
@@ -608,11 +747,11 @@ namespace Laubrary.Zoetrope.Editor
         /// it), then the effect's own SerializeReference body. <paramref name="index"/> is the entry's slot in the
         /// fx array; <paramref name="listHost"/> is the reorder container (holds ONLY cards).
         void BuildFxEntry(VisualElement listHost, SerializedProperty entryProp, string fxPath, int index,
-            string[] eventNames, string[] pointLayerIds, Zoe zoe)
+            int clipFrames, string[] pointLayerIds, Zoe zoe)
         {
             var triggerProp = entryProp.FindPropertyRelative("trigger");
             var placementProp = entryProp.FindPropertyRelative("placement");
-            var eventNameProp = entryProp.FindPropertyRelative("eventName");
+            var frameProp = entryProp.FindPropertyRelative("frame");
             var metaLayerIdProp = entryProp.FindPropertyRelative("metaLayerId");
             var directionProp = entryProp.FindPropertyRelative("direction");
             var scalarProp = entryProp.FindPropertyRelative("scalar");
@@ -660,7 +799,8 @@ namespace Laubrary.Zoetrope.Editor
             var icon = Z.Icon(kindIcon);
             if (icon != null) header.Add(icon);
             header.Add(Z.Text(kindLabel, ZuiText.Body, kindLabel + " effect."));
-            header.Add(Z.Flexible());
+            var headerGap = Z.Flexible();
+            header.Add(headerGap);
             var removeBtn = Z.Button("×", "Remove this effect (undoable).", () =>
             {
                 Commit(fxPath, p => p.DeleteArrayElementAtIndex(index));
@@ -672,17 +812,52 @@ namespace Laubrary.Zoetrope.Editor
             // ── body: trigger, param pickers (only those the effect reads), then the effect's own fields ──
             var body = new VisualElement();
 
-            const string triggerTip = "When this effect fires: right away, or in sync with a named frame event as the clip plays.";
-            bool showEvent = (FxTriggerType)triggerProp.enumValueIndex == FxTriggerType.FrameEvent;
-            var triggerRow = Z.Row(EnumPicker(triggerProp, "Trigger", triggerTip));
-            if (showEvent)
-            {
-                triggerRow.Add(Z.HSpace());
-                triggerRow.Add(StringDropdown(eventNameProp, "Event", eventNames,
-                    "Which authored frame event on the clip fires this effect."));
-            }
-            body.Add(triggerRow);
+            // "Compact" = nothing to lay out but a trigger and (maybe) one field. Counted from the effect's own
+            // serialized fields rather than a hard-coded list of types, so a new one-field effect gets the
+            // tight treatment automatically.
+            bool compact = used == 0 && CountOwnFields(effectProp) <= 1;
 
+            // ONE wrapping row for every when/where/how picker. They were four stacked rows (trigger,
+            // position, a lone Follow toggle, direction+scalar) in a card that is already tall before the
+            // effect's own fields are drawn — and vertical space is the scarce resource here, per the layout
+            // rules' first pre-flight check. Wrapping means a narrow pane still breaks them sensibly.
+            var picks = Z.Row();
+            picks.style.flexWrap = Wrap.Wrap;
+            // On the header it must shrink, never grow, or it claims the whole line and pushes the type name
+            // down. In the body it is free to use the width it has.
+            picks.style.flexGrow = 0f;
+            picks.style.flexShrink = 1f;
+            picks.style.minWidth = 0f;
+
+            // In the non-compact layout each GROUP gets its own row: when it fires / where it spawns / how it
+            // is aimed and sized. One idea per line reads; a single ragged wrap does not.
+            // `picks` is the HEADER strip: the trigger (and its frame slider) for every effect, plus a compact
+            // effect's single field. Everything richer gets its own body row via Group().
+            VisualElement Group()
+            {
+                var r = Z.Row();
+                r.style.flexWrap = Wrap.Wrap;
+                body.Add(r);
+                return r;
+            }
+
+            const string triggerTip = "When this effect fires: the moment the reaction starts, or on a chosen frame of its clip.";
+            var triggerRow = picks;
+            triggerRow.Add(EnumPicker(triggerProp, null, triggerTip));
+            if ((FxTriggerType)triggerProp.enumValueIndex == FxTriggerType.OnFrame)
+            {
+                // Bounded by the clip's real length, so the choice is always a frame that exists. Falls back
+                // to a generous cap only when the clip cannot be resolved — better an unbounded number than a
+                // slider that refuses the frame someone actually wants.
+                int max = Mathf.Max(1, clipFrames == 0 ? 32 : clipFrames);
+                triggerRow.Add(Z.HSpace());
+                triggerRow.Add(Z.MicroSlider($"Frame (of {Mathf.Max(1, clipFrames)})",
+                    Mathf.Clamp(frameProp.intValue, 1, max), 1f, max,
+                    "Which frame of this reaction's clip the effect fires on. 1 is the first frame.",
+                    v => Commit(fxPath, p => p.GetArrayElementAtIndex(index)
+                                              .FindPropertyRelative("frame").intValue = Mathf.RoundToInt(v)),
+                    decimals: 0));
+            }
             // Position picker (+ conditional Layer, + Follow) — only when the effect reads a position.
             if ((used & EventParam.Position) != 0)
             {
@@ -690,15 +865,14 @@ namespace Laubrary.Zoetrope.Editor
 
                 const string posTip = "Which of the event's position params this effect spawns at — the hit point, " +
                     "the Zoe's origin, its sprite centre, or a named meta-layer point.";
-                var posRow = Z.Row(EnumPicker(placementProp, "Position", posTip));
+                var posRow = Group();
+                posRow.Add(EnumPicker(placementProp, "At", posTip));
                 if (isMetaPoint)
                 {
                     posRow.Add(Z.HSpace());
                     posRow.Add(StringDropdown(metaLayerIdProp, "Layer", pointLayerIds,
                         "Which Point-mode meta-layer on the clip this effect spawns at."));
                 }
-                body.Add(posRow);
-
                 // Follow is now available for EVERY position, including Hit Position (task #4): for the fixed hit
                 // point it STICKS to the Zoe (the hit point captured in the Zoe's space, riding along as it moves);
                 // for the other positions it re-samples that point each frame.
@@ -707,7 +881,8 @@ namespace Laubrary.Zoetrope.Editor
                     "point to the Zoe (it rides along, from where the hit landed); the other positions re-sample " +
                     "every frame.",
                     followProp.boolValue, v => Commit(followPath, p => p.boolValue = v));
-                body.Add(follow);
+                posRow.Add(Z.HSpace());
+                posRow.Add(follow);
             }
 
             // Direction + Scalar pickers share one row (both short), each shown only when the effect reads it.
@@ -715,25 +890,46 @@ namespace Laubrary.Zoetrope.Editor
             // churn the whole window (and lose scroll/focus) for nothing.
             VisualElement paramRow = null;
             if ((used & EventParam.Direction) != 0)
-                paramRow = Z.Row(EnumPicker(directionProp, "Direction",
+            {
+                paramRow = Group();
+                paramRow.Add(EnumPicker(directionProp, "Aim",
                     "Which of the event's direction params aims this effect. Hit Direction = away from the " +
                     "attacker; None fires omni-directionally.", rebuild: false));
+            }
             if ((used & EventParam.Scalar) != 0)
             {
                 var scalarPick = EnumPicker(scalarProp, "Scalar",
                     "Which of the event's scalar params sizes / strengthens this effect. Amount = the damage " +
                     "dealt; None = zero.", rebuild: false);
-                if (paramRow == null) paramRow = Z.Row(scalarPick);
-                else { paramRow.Add(Z.HSpace()); paramRow.Add(scalarPick); }
+                if (paramRow == null) paramRow = Group(); else paramRow.Add(Z.HSpace());
+                paramRow.Add(scalarPick);
             }
-            if (paramRow != null) body.Add(paramRow);
+            // The trigger rides the HEADER for EVERY effect — it is two short segments, every effect has one,
+            // and beside the name is where the Zound card already put it. A compact effect's single field goes
+            // there too, which is what makes Zound one line.
+            //
+            // Everything richer (At / Aim / Scalar / multi-field effects) gets a body row per GROUP instead.
+            // Cramming Spawn Chunks' four picker sets and five fields into one wrapping row gave ragged lines,
+            // labels floating far from the controls they name, and a × orphaned on a line of its own — the
+            // header never wraps now, which is what had pushed it down.
+            header.Insert(header.IndexOf(headerGap), picks);
 
             // The effect's own fields, drawn INLINE — no foldable "Effect" sub-section (task #2): the effect IS the
             // whole card, its kind is already named in the header, so a nested "Effect" fold + type button was just
             // redundant chrome. A concrete effect with no custom drawer (the Spawn-Pyre / Spawn-Chunk palette kinds)
             // flows through TryBuildAssetRefField, so its Pyre/Chunk asset field renders as a LauAsset picker+preview
             // rather than a plain ObjectField. (Re-type an entry by removing it and adding the kind you want.)
-            if (effect != null) BuildManagedRefChildren(body, effectProp, effect, zoe);
+            if (effect != null)
+            {
+                // A one-field effect puts that field on the header beside its trigger — Zound in a single
+                // line, which is the shape to copy. Anything with more fields gets its own row, because five
+                // fields wrapped in behind a name and a trigger is the ragged mess this replaced.
+                BuildManagedRefChildren(compact ? picks : Group(), effectProp, effect, zoe);
+            }
+
+            // No body at all for an effect whose fields all fit the header (Zound, Invulnerable) — an empty
+            // container still costs padding, and a card with nothing under its header should look like it.
+            if (body.childCount == 0) body.style.display = DisplayStyle.None;
             box.Add(body);
 
             // Fold the whole card to its header, keyed per effect instance so the state survives window rebuilds
@@ -742,19 +938,8 @@ namespace Laubrary.Zoetrope.Editor
             listHost.Add(box);
         }
 
-        // An enum picker — segmented for a short single-line set, a wrapping MiniRadio for a longer one. NEVER a
-        // dropdown (ui-layout-rules: enum → radios/segmented, a dropdown is only for dynamic authored-name lists,
-        // which is what StringDropdown below stays as).
-        VisualElement EnumPicker(SerializedProperty prop, string label, string tooltip, bool rebuild = true)
-        {
-            var choices = prop.enumDisplayNames;
-            string path = prop.propertyPath;
-            void Pick(int i) { Commit(path, p => p.enumValueIndex = i); if (rebuild) Rebuild(); }   // Position/Trigger gate conditional rows
-            VisualElement control = choices.Length <= 3
-                ? Z.Segmented(prop.enumValueIndex, choices, tooltip, Pick)
-                : Z.MiniRadio(prop.enumValueIndex, choices, tooltip, Pick, wrap: true);
-            return Z.Field(label, tooltip, control);
-        }
+        // EnumPicker moved to ZoetropeDefWindow (the base) 2026-08-02, so the base's generic managed-ref child
+        // drawer (TryBuildPlaybackMode) can use it too. It still draws exactly here, unchanged.
 
         // ── Zoe-event effect palette metadata (nice label / tooltip / icon / menu section per IEffect kind) ─────
         // Keyed by TYPE NAME (a string), not the concrete Type, so this core editor stays decoupled from the
@@ -771,9 +956,14 @@ namespace Laubrary.Zoetrope.Editor
             ["PyreChunksFx"] = new EffectMetaInfo { label = "Pyre + Chunks", icon = "bomb", section = "Spawn VFX",
                 tooltip = "The bundled blast + debris effect (the original combined VFX; still used by committed assets)." },
             ["BodySpriteFxEffect"] = new EffectMetaInfo { label = "Body SpriteFx", icon = "sparkle", section = "On the Zoe",
-                tooltip = "Flash / tint / dissolve the Zoe's own sprite for a duration (a SpriteFx stack on the body renderer)." },
+                tooltip = "Flash / tint / dissolve the Zoe's own sprite (a SpriteFx stack on the body renderer) — " +
+                          "played once, looped for the event, run at its end, or ping-ponged." },
+            ["PlayZoundEffect"] = new EffectMetaInfo { label = "Zound", icon = "speaker-high", section = "On the Zoe",
+                tooltip = "Play a Zound. Right-click the picker to hear the current one." },
+            ["InvulnerableEffect"] = new EffectMetaInfo { label = "Invulnerable", icon = "shield", section = "On the Zoe",
+                tooltip = "Grant the Zoe i-frames for a moment — a hit that buys recovery, or a death that stops the corpse being shot apart." },
             ["PushbackEffect"] = new EffectMetaInfo { label = "Pushback", icon = "arrow-fat-right", section = "On the Zoe",
-                tooltip = "Shove the Zoe along a direction param — knockback, strengthened by a scalar param." },
+                tooltip = "Knock the Zoe a set DISTANCE over a set DURATION along a direction param." },
             ["PlayReelEffect"] = new EffectMetaInfo { label = "Play Reel", icon = "film-reel", section = "On the Zoe",
                 tooltip = "Play a named clip on the Zoe's animated view." },
         };
@@ -852,17 +1042,52 @@ namespace Laubrary.Zoetrope.Editor
                 p.arraySize++;
                 // Unity's array growth DUPLICATES the previous last element for a plain-class array — reset every
                 // field explicitly so a new entry starts clean, then assign the chosen concrete effect.
+                //
+                // Via Field(), not FindPropertyRelative directly: a renamed field makes that return NULL and the
+                // assignment then throws a bare NullReferenceException naming only a line number. That is exactly
+                // how this broke when FxEntry.eventName became `frame` — the card UI was updated and this reset
+                // was not. Now a stale name says which name, once, and the rest of the entry still initialises.
                 var e = p.GetArrayElementAtIndex(p.arraySize - 1);
-                e.FindPropertyRelative("trigger").enumValueIndex = (int)FxTriggerType.Immediate;
-                e.FindPropertyRelative("eventName").stringValue = "";
-                e.FindPropertyRelative("placement").enumValueIndex = (int)FxPlacementType.HitPosition;
-                e.FindPropertyRelative("metaLayerId").stringValue = "";
-                e.FindPropertyRelative("direction").enumValueIndex = (int)DirectionParam.HitDirection;
-                e.FindPropertyRelative("scalar").enumValueIndex = (int)ScalarParam.Amount;
-                e.FindPropertyRelative("follow").boolValue = false;
-                e.FindPropertyRelative("fx").managedReferenceValue = Activator.CreateInstance(type);
+                var trigger = Field(e, "trigger"); if (trigger != null) trigger.enumValueIndex = (int)FxTriggerType.Immediate;
+                var frame = Field(e, "frame"); if (frame != null) frame.intValue = 1;
+                var placement = Field(e, "placement"); if (placement != null) placement.enumValueIndex = (int)FxPlacementType.HitPosition;
+                var layer = Field(e, "metaLayerId"); if (layer != null) layer.stringValue = "";
+                var dir = Field(e, "direction"); if (dir != null) dir.enumValueIndex = (int)DirectionParam.HitDirection;
+                var scalar = Field(e, "scalar"); if (scalar != null) scalar.enumValueIndex = (int)ScalarParam.Amount;
+                var follow = Field(e, "follow"); if (follow != null) follow.boolValue = false;
+                var enabled = Field(e, "enabled"); if (enabled != null) enabled.boolValue = true;
+                var inst = Activator.CreateInstance(type);
+                // NEW Body-SpriteFx cards start on Loop (the design default: "loop for the event's duration").
+                // Set at the creation site — never via the class's field initializer — so pre-existing serialized
+                // entries, which never wrote a playback field, keep deserializing to Once (enum 0) and behave
+                // exactly as before.
+                if (inst is BodySpriteFxEffect bodyFx) bodyFx.playback = FxPlaybackMode.Loop;
+                var fx = Field(e, "fx"); if (fx != null) fx.managedReferenceValue = inst;
             });
             Rebuild();
+        }
+
+        /// How many serialized fields the concrete effect itself declares — what decides whether it can live
+        /// on one line. Counted rather than hard-coded per type, so a new one-field effect gets the tight
+        /// treatment without anyone remembering to add it to a list.
+        static int CountOwnFields(SerializedProperty managedRef)
+        {
+            if (managedRef == null) return 0;
+            int n = 0;
+            var end = managedRef.GetEndProperty();
+            var child = managedRef.Copy();
+            bool enter = true;
+            while (child.NextVisible(enter) && !SerializedProperty.EqualContents(child, end)) { enter = false; n++; }
+            return n;
+        }
+
+        /// A relative property, or null WITH a named warning. Silent nulls from a renamed field are how a
+        /// reset like AddEffect's turns into an unexplained NullReferenceException.
+        static SerializedProperty Field(SerializedProperty owner, string name)
+        {
+            var p = owner.FindPropertyRelative(name);
+            if (p == null) Debug.LogWarning($"[Zoetrope] FxEntry has no field '{name}' — it was probably renamed. Skipping it.");
+            return p;
         }
 
         VisualElement StringDropdown(SerializedProperty prop, string label, string[] options, string tooltip)
@@ -895,6 +1120,15 @@ namespace Laubrary.Zoetrope.Editor
 
         /// Every authored FrameEvent name (de-duplicated) on the named clip — reflection duck-typing, same
         /// shape as GetClipNameOptions, so this stays decoupled from Launimator.
+        /// How many frames the named clip has, or 0 if it cannot be resolved. Bounds the On Frame picker so
+        /// an author picks a frame that EXISTS instead of typing a number into the dark.
+        static int GetFrameCount(object view, string clipName)
+        {
+            var anim = FindAnimationByName(view, clipName);
+            var frames = anim != null ? GetFieldValue(anim, "frames") as System.Collections.ICollection : null;
+            return frames?.Count ?? 0;
+        }
+
         static string[] GetEventNames(object view, string clipName)
         {
             var anim = FindAnimationByName(view, clipName);

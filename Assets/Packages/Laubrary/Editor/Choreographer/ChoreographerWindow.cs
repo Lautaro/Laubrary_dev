@@ -335,7 +335,7 @@ namespace Laubrary.Choreographer.Editor
                     v => { spriteSize = v; RepaintStage(); }));
             spriteListHost = new VisualElement();
 
-            Toggle Tg(string label, string tooltip, bool value, System.Action<bool> set) =>
+            ZuiToggleButton Tg(string label, string tooltip, bool value, System.Action<bool> set) =>
                 Z.Toggle(label, tooltip, value, v => { set(v); RepaintStage(); }).W(142f);
 
             root.Add(Z.Row(

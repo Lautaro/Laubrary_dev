@@ -20,6 +20,10 @@ namespace Laubrary.Zui
             set { _value = value; EnableInClassList("zui-togglebutton--on", _value); }
         }
 
+        /// API parity with UITK's Toggle, so callers that held the old native control keep compiling —
+        /// the value setter never invokes the callback anyway.
+        public void SetValueWithoutNotify(bool newValue) => value = newValue;
+
         public ZuiToggleButton(string label, string tooltip, bool value, Action<bool> onChanged, string icon = null)
         {
             this.tooltip = tooltip;

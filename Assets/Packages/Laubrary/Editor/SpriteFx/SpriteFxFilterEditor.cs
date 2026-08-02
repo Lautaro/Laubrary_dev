@@ -142,6 +142,13 @@ namespace Laubrary.SpriteFx.Editor
                 "for a plain Brightness / Tint flash.";
             _body.Add(Z.Field("Seed", seedTip,
                 Z.Int(filter.seed, seedTip, v => Dial("SpriteFx seed", () => filter.seed = v), Num)));
+
+            const string fpsTip = "Own clock: how many times per second the stack's time advances while it plays. " +
+                "0 = every rendered frame (continuous — the default). Set a rate to step the effect on its own " +
+                "fixed grid, independent of the animation it rides — a fast flicker over a slow reel.";
+            _body.Add(Z.MicroSlider("Step rate (fps)", filter.targetFps, 0f, 60f, fpsTip,
+                v => Dial("SpriteFx step rate", () => filter.targetFps = Mathf.Max(0f, Mathf.Round(v))),
+                Wide, showValue: true, decimals: 0));
         }
 
         // A Stack asset IS assigned → it overrides every inline field, so hide the inline editor and say so.

@@ -405,7 +405,7 @@ namespace Laubrary.Pyre.Editor
             shapeView.tooltip = "The isolated shape, animated on the main transport's own timeline.";
             shapeView.schedule.Execute(() => shapeView.MarkDirtyRepaint()).Every(66);
 
-            Toggle Tg(string label, string tooltip, bool value, System.Action<bool> set) =>
+            ZuiToggleButton Tg(string label, string tooltip, bool value, System.Action<bool> set) =>
                 Z.Toggle(label, tooltip, value, v => Dial("Shape preview", () => set(v))).W(120f);
 
             var toggles = Z.Column(
