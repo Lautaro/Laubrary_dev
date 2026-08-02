@@ -162,6 +162,18 @@ namespace Laubrary.Zui
                 ShowMenu(this);
                 e.StopPropagation();
             });
+            // …EXCEPT in Static mode, where that child-first rule was a ONE-WAY TRAPDOOR: the Static face is one
+            // MicroSlider spanning the whole row, so its own display-options menu swallowed EVERY right-click and
+            // the mode menu became unreachable — switch a value to Static and there was no way back to Envelope
+            // (confirmed live: every Static row across Swarm/Fill read as a plain slider). In Static mode the
+            // config menu is the essential one, so claim the right-click ahead of the child (TrickleDown); the
+            // other modes keep child-first behaviour (envelope point menus etc.).
+            RegisterCallback<PointerDownEvent>(e =>
+            {
+                if (e.button != 1 || _v.mode != ZUIValue.Mode.Static) return;
+                ShowMenu(this);
+                e.StopPropagation();
+            }, TrickleDown.TrickleDown);
         }
 
         void Mutate(Action apply) { OnBeforeMutate?.Invoke(); apply(); OnChanged?.Invoke(); }
@@ -287,6 +299,11 @@ namespace Laubrary.Zui
             {
                 xMin = 0f, xMax = 1f,
                 yMin = _v.yMin, yMax = _v.yMax,
+                // Allow deleting all the way down to ONE point — a lone point evaluates to a flat/constant
+                // line (ZUIEnvelopeEvaluator returns points[0].value for Count==1), so dragging it up/down is
+                // a horizontal line == the same output as a Static value. Double-click empty space adds points
+                // back. (Default is 2; this editor opts into 1.)
+                minPoints = 1,
                 curveColor = new Color(0.4f, 0.85f, 1f),
                 showValueLabels = st.showValues,
                 showFrameLines = indexMode || _opt.frameCount > 1,
