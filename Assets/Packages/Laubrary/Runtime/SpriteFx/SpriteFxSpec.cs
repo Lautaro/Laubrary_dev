@@ -37,7 +37,30 @@ namespace Laubrary.SpriteFx
         [Tooltip("Optional easing/remap of raw progress (0->1 over Duration) into the LIFE value fed to every " +
                  "effect's animatable curves. Identity by default (life = progress); a triangle (0->1->0) turns a " +
                  "monotonic effect curve into a pulse, or an ease softens the ends.")]
+        [HideInInspector, System.Obsolete("Authoring moved to envelopePoints; kept so old assets keep their shape.")]
         public AnimationCurve envelope = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+
+        [Tooltip("Optional easing/remap of raw progress (0->1 over Duration) into the LIFE value fed to every " +
+                 "effect's animatable curves. Identity by default (life = progress); a triangle (0->1->0) turns a " +
+                 "monotonic effect curve into a pulse, or an ease softens the ends.")]
+        public List<ZUIEnvelopePoint> envelopePoints = new List<ZUIEnvelopePoint>();
+
+        /// The envelope as POINTS, upgraded on first use from the frozen AnimationCurve below.
+        ///
+        /// The curve was drawn by a native Unity CurveField, which is the one control ZUI has a standing rule
+        /// against — a ZUI window must not open a foreign editor for its own data. ZuiEnvelope edits points,
+        /// so the data moved to points. The legacy field keeps its name and its value and is never written
+        /// again: an asset authored before this migration is sampled into points the first time it is asked
+        /// for, so nothing loses its shape and nothing needs a re-author pass.
+        public List<ZUIEnvelopePoint> Envelope
+        {
+            get
+            {
+                if (envelopePoints == null) envelopePoints = new List<ZUIEnvelopePoint>();
+                if (envelopePoints.Count == 0) SpriteFxEnvelopeMigration.Seed(envelopePoints, envelope);
+                return envelopePoints;
+            }
+        }
 
         [Tooltip("Seed for any hashing effect (LayerDissolve scatter, AlphaMask noise). Irrelevant for a plain " +
                  "Brightness/Tint flash.")]
@@ -56,8 +79,9 @@ namespace Laubrary.SpriteFx
         /// identically.
         public float SampleEnvelope(float progress01)
         {
-            if (envelope == null || envelope.length == 0) return progress01;
-            return envelope.Evaluate(progress01);
+            var pts = Envelope;
+            return pts.Count == 0 ? progress01
+                                  : ZUIEnvelopeEvaluator.Evaluate(pts, Mathf.Clamp01(progress01), 1f);
         }
     }
 }

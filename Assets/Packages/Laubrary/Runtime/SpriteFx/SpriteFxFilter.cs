@@ -51,7 +51,22 @@ namespace Laubrary.SpriteFx
         [Tooltip("Optional easing/remap of raw progress (0→1 over Duration) into the LIFE value fed to every " +
                  "modifier's animatable curves. Identity by default (life = progress); make it a triangle " +
                  "(0→1→0) to turn a monotonic modifier curve into a pulse, or an ease to soften the ends.")]
+        [HideInInspector]
         public AnimationCurve envelope = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+
+        [Tooltip("Optional easing/remap of raw progress into the LIFE value fed to every effect.")]
+        public List<ZUIEnvelopePoint> envelopePoints = new List<ZUIEnvelopePoint>();
+
+        /// Points, upgraded once from the frozen curve — see SpriteFxSpec.Envelope for why the data moved.
+        public List<ZUIEnvelopePoint> Envelope
+        {
+            get
+            {
+                if (envelopePoints == null) envelopePoints = new List<ZUIEnvelopePoint>();
+                if (envelopePoints.Count == 0) SpriteFxEnvelopeMigration.Seed(envelopePoints, envelope);
+                return envelopePoints;
+            }
+        }
 
         [Tooltip("Inline (managed) vs Burst-job dispatch. Use project setting reads the SpriteFxSettings asset; " +
                  "Force inline / Force burst override it on this component (handy for profiling or verification).")]
@@ -273,8 +288,9 @@ namespace Laubrary.SpriteFx
         float SampleEnvelope(float progress01)
         {
             if (stack != null) return stack.SampleEnvelope(progress01);
-            if (envelope == null || envelope.length == 0) return progress01;
-            return envelope.Evaluate(progress01);
+            var pts = Envelope;
+            return pts.Count == 0 ? progress01
+                                  : ZUIEnvelopeEvaluator.Evaluate(pts, Mathf.Clamp01(progress01), 1f);
         }
 
         bool ResolveUseBurst() => dispatch switch

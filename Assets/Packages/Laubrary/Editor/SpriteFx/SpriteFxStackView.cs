@@ -49,7 +49,12 @@ namespace Laubrary.SpriteFx.Editor
             /// that re-invokes <see cref="Build"/> here is safe (fold/curve state is keyed per instance and survives).
             public Action Rebuild;
             /// Width for the reflected value controls inside each effect body (MicroSliders / Z.Value rows).
-            public float ControlWidth = 150f;
+            // 150 is the MicroSlider norm and is TOO NARROW for a ZUIValue row: that control also has to
+            // reserve a value field and the ... config button, which is the ONLY way to reach Curve /
+            // Steps / Min-Max / Oscillation. Squeezed to 150 the switch has nowhere to go and every
+            // animatable parameter reads as a plain static number -- the UI guide's own 170-200 figure
+            // for a Value row exists for exactly this.
+            public float ControlWidth = 190f;
         }
 
         /// <summary>

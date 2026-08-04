@@ -136,7 +136,10 @@ namespace Laubrary.SpriteFx.Editor
                 "fed to every effect's curves. Identity by default; a triangle (0→1→0) turns a monotonic effect into " +
                 "a pulse, an ease softens the ends.";
             _body.Add(Z.Field("Life remap", envTip,
-                Z.Curve(filter.envelope, envTip, v => Dial("SpriteFx envelope", () => filter.envelope = v))));
+                // ZuiEnvelope, not Z.Curve: that wrapper returns a raw Unity CurveField, which is a
+                // native control in a ZUI window and opens Unity's own curve editor for our data.
+                Z.Envelope(filter.Envelope, new ZuiEnvelopeOptions { yMin = 0f, yMax = 1f, anchorsLocked = true },
+                    envTip, () => Dial("SpriteFx envelope", () => { }), null, 220f, 80f)));
 
             const string seedTip = "Seed for any hashing effect (LayerDissolve scatter, AlphaMask noise). Irrelevant " +
                 "for a plain Brightness / Tint flash.";
