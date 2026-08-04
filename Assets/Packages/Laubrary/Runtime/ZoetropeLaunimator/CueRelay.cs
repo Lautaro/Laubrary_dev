@@ -78,19 +78,39 @@ namespace Laubrary.ZoetropeLaunimator
         static bool Matches(CueBinding b, string eventName) =>
             b != null && !string.IsNullOrEmpty(b.eventName) && string.Equals(b.eventName, eventName, StringComparison.OrdinalIgnoreCase);
 
-        static void TryFireLayer(CueBinding b, string layerId, Vector3 worldPos)
+        // Instance methods, not static: firing may now RAISE A NAMED REACTION on this character, which needs
+        // the ReactionFxPlayer sitting beside us. Resolved lazily because the relay and the player are added
+        // in an order this component does not control.
+        ReactionFxPlayer _reactions;
+        ReactionFxPlayer Reactions =>
+            _reactions != null ? _reactions : _reactions = GetComponent<ReactionFxPlayer>();
+
+        /// Do whatever the binding says: spawn its FX, raise its named event, or both. Both halves are
+        /// optional -- a cue that only raises an event is the whole point of raiseEvent, and an fx-only guard
+        /// would silently skip it.
+        void Fire(CueBinding b, Vector3 worldPos)
         {
-            if (b == null || b.fx == null || b.fx.IsEmpty) return;
-            if (!string.IsNullOrEmpty(b.eventName)) return;   // event-driven bindings never fire off a layer
-            if (!string.Equals(b.layerId, layerId, StringComparison.OrdinalIgnoreCase)) return;
-            b.fx.Play(worldPos);
+            if (b.fx != null && !b.fx.IsEmpty) b.fx.Play(worldPos);
+            if (string.IsNullOrEmpty(b.raiseEvent)) return;
+            var r = Reactions;
+            if (r == null || !r.Raise(b.raiseEvent))
+                Debug.LogWarning($"[Cue] Frame cue tried to raise '{b.raiseEvent}' but this character " +
+                                 $"declares no such event.", this);
         }
 
-        static void TryFireEvent(CueBinding b, string eventName, Vector3 worldPos)
+        void TryFireLayer(CueBinding b, string layerId, Vector3 worldPos)
         {
-            if (b == null || b.fx == null || b.fx.IsEmpty) return;
+            if (b == null || !b.IsActionable) return;
+            if (!string.IsNullOrEmpty(b.eventName)) return;   // event-driven bindings never fire off a layer
+            if (!string.Equals(b.layerId, layerId, StringComparison.OrdinalIgnoreCase)) return;
+            Fire(b, worldPos);
+        }
+
+        void TryFireEvent(CueBinding b, string eventName, Vector3 worldPos)
+        {
+            if (b == null || !b.IsActionable) return;
             if (!Matches(b, eventName)) return;
-            b.fx.Play(worldPos);
+            Fire(b, worldPos);
         }
     }
 }

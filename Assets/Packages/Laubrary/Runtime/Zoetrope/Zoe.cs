@@ -57,6 +57,36 @@ namespace Laubrary.Zoetrope
         [Tooltip("What happens on the killing blow — same shape as Hit above.")]
         public ReactionFx death = new ReactionFx();
 
+        [Header("Custom events")]
+        [Tooltip("Reactions this character can play beyond hit and death — a teleport, a spawn, a taunt, a "+
+                 "special attack. Each is raised BY NAME from gameplay code or an animation frame cue, and "+
+                 "carries the same clip/body-FX/effect list the fixed reactions do.")]
+        public List<NamedReaction> events = new List<NamedReaction>();
+
+        /// The reaction registered under `id`, or null. Case-sensitive and exact: a near-miss must fail
+        /// visibly rather than quietly play the wrong animation.
+        public ReactionFx EventNamed(string id)
+        {
+            if (string.IsNullOrEmpty(id) || events == null) return null;
+            for (int i = 0; i < events.Count; i++)
+                if (events[i] != null && events[i].id == id) return events[i].reaction;
+            return null;
+        }
+
+        /// Every declared event id, for a PICKER. The ids are typed once, here, where the event is declared;
+        /// everywhere else — a frame cue, an effect list, a gameplay call — chooses from this list rather
+        /// than accepting free text. A free-text key that only fails at runtime is a bug generator, and this
+        /// project already has one on its books (Zoe Preview's clip field).
+        public IEnumerable<string> EventIds
+        {
+            get
+            {
+                if (events == null) yield break;
+                foreach (var e in events)
+                    if (e != null && !string.IsNullOrEmpty(e.id)) yield return e.id;
+            }
+        }
+
         [Header("AI")]
         [Tooltip("Optional decision-making attached at spawn. The game supplies the agent body " +
                  "(movement/perception). Pluggable — a Daemon brain via the Zoetrope.Daemon bridge.")]

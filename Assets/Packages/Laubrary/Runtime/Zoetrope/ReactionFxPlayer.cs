@@ -67,6 +67,37 @@ namespace Laubrary.Zoetrope
             TryArmClip(r, ctx, () => { FlushUnfiredFrameEntries(); Disarm(); HurtFinished?.Invoke(); });
         }
 
+        /// Play a custom named reaction — the teleport/spawn/taunt surface. Returns whether anything played,
+        /// so a caller can tell "no such event" from "played nothing visible" instead of guessing.
+        ///
+        /// Runs the SAME sequence OnHit and OnDeath run (context, body FX, immediate entries, then arm the
+        /// clip), because a custom event that took a different path would drift from the fixed ones the first
+        /// time either was touched — and the whole point of naming them is that they are the same kind of
+        /// thing.
+        ///
+        /// ⚠️ A custom event has NO ATTACKER. HitDirection and Amount are zero and HitPosition falls back to
+        /// the character's own position, so an effect that scales by Amount will scale by nothing here. That is
+        /// the honest answer rather than an invented one; pass a DamageInfo yourself if the event really does
+        /// carry a direction or a magnitude.
+        public bool Raise(string id) => Raise(id, default);
+
+        public bool Raise(string id, DamageInfo info)
+        {
+            var r = def != null ? def.EventNamed(id) : null;
+            if (r == null) return false;
+
+            var ctx = BuildContext(info);
+            ctx.EventSecondsRemaining = ClipSecondsOf(r);
+            PlayBodyFx(r);
+            FireImmediate(r, ctx);
+            // Not Disarm()-ing on failure: a reaction with no clip still fired its Immediate entries above,
+            // which is a legitimate custom event (a pure body flash with no animation of its own).
+            TryArmClip(r, ctx, () => { FlushUnfiredFrameEntries(); Disarm(); EventFinished?.Invoke(id); });
+            return true;
+        }
+
+        /// Raised when a custom event finishes its clip, with the id that finished.
+        public event Action<string> EventFinished;
         void OnDeath(DamageInfo info)
         {
             var r = def != null ? def.death : null;

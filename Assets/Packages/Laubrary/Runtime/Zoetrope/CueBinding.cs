@@ -19,5 +19,14 @@ namespace Laubrary.Zoetrope
                  "this cue at its point instead. Takes priority over layerId when non-empty.")]
         public string eventName = "";
         [SerializeReference] public ICombatFx fx;
+
+        [Tooltip("Raise this named Zoe event when the cue fires, instead of (or as well as) spawning the FX "+
+                 "above. This is how an animation frame triggers a full reaction — a teleport's flash, a "+
+                 "spawn puff — including a SpriteFx on the body, which the ICombatFx slot alone cannot express.")]
+        public string raiseEvent = "";
+
+        /// True when this binding would do SOMETHING if it fired. Both halves are optional, so a binding that
+        /// only raises an event is valid and must not be skipped by an fx-only guard.
+        public bool IsActionable => (fx != null && !fx.IsEmpty) || !string.IsNullOrEmpty(raiseEvent);
     }
 }
