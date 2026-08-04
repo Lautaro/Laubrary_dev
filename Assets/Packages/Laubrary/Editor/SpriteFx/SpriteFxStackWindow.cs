@@ -439,10 +439,18 @@ namespace Laubrary.SpriteFx.Editor
             if (_previewHeld)
             {
                 _previewPause -= dt;
-                if (_previewPause > 0f) return;
-                _previewHeld = false;
-                _playProgress = 0f;
-                _previewFrame = 0;
+                // Deliberately falls through to the render below rather than returning. What is held is the
+                // stack's END STATE — life 1, fully filtered — and it has to be REPAINTED each tick, not just
+                // left on screen from the last one: anything that rebuilds the panel mid-hold (an edit, an
+                // undo, the window regaining focus) re-creates the image element and repaints it at the SCRUB
+                // position, which is life 0. The pause would then show the unprocessed sprite for a third of a
+                // second and read as the effect switching itself off before looping.
+                if (_previewPause <= 0f)
+                {
+                    _previewHeld = false;
+                    _playProgress = 0f;
+                    _previewFrame = 0;
+                }
             }
             else
             {

@@ -239,7 +239,30 @@ namespace Laubrary.Zui
             if (_opt.grow) { body.style.flexGrow = 1f; body.style.flexShrink = 1f; }
             else body.style.flexShrink = 0f;
             row.Add(body);
+            row.Add(ConfigButton());
             _content.Add(row);
+        }
+
+        /// The "⋯" that opens the mode/multiplier menu — the ONLY route to Envelope, Steps, Min-Max and
+        /// Oscillation.
+        ///
+        /// The envelope modes have always drawn one; Static and Min-Max did not, and those are the modes a
+        /// value STARTS in. So an animatable parameter presented itself as a plain slider with nothing on
+        /// screen suggesting otherwise: the menu was reachable, by right-clicking a control that gives no hint
+        /// it has a context menu. A whole tool then reads as "these parameters cannot be animated" — which is
+        /// exactly how it was read, and the affordance being absent is why no amount of the feature working
+        /// made any difference.
+        VisualElement ConfigButton()
+        {
+            var b = Z.Button("⋯", "Change how this value is produced — a Static point, a random Min-Max " +
+                                  "range, an Envelope over the playthrough, held Steps, or an Oscillation.",
+                null);
+            b.AddToClassList("zui-value__config");
+            b.style.flexShrink = 0f;
+            b.style.width = 20f;
+            b.style.marginLeft = 2f;
+            b.clicked += () => ShowMenu(b);
+            return b;
         }
 
         // ── curve mode ──────────────────────────────────────────────────────────────
@@ -293,10 +316,12 @@ namespace Laubrary.Zui
                     e.StopPropagation();
                 });
                 header.Add(thumb);
+                header.Add(ConfigButton());
                 _content.Add(header);
                 return;
             }
 
+            header.Add(ConfigButton());
             _content.Add(header);
 
             // Index markers (a particle-index-mapped curve) take priority over frame lines: when indexMarkerCount
@@ -408,6 +433,8 @@ namespace Laubrary.Zui
             var header = new VisualElement();
             header.AddToClassList("zui-row");
             header.Add(FieldLabel(_label ?? "Steps"));
+            header.Add(Z.Flexible());
+            header.Add(ConfigButton());
             _content.Add(header);
 
             var seq = new ZuiStepSequencer(_v.steps, _v.yMin, _v.yMax);
@@ -498,9 +525,11 @@ namespace Laubrary.Zui
                     e.StopPropagation();
                 });
                 header.Add(mini);
+                header.Add(ConfigButton());
                 _content.Add(header);
                 return;
             }
+            header.Add(ConfigButton());
             _content.Add(header);
 
             var preview = new OscThumb(_v)

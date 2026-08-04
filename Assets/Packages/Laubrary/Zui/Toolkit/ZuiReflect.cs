@@ -210,6 +210,38 @@ namespace Laubrary.Zui
             return last.Length <= 2 ? fallback : last;
         }
 
+        /// "Replacements" → "Replacement". Only the trivial plural; anything irregular keeps its own name,
+        /// which reads no worse than the list label did.
+        static string Singular(string plural)
+            => !string.IsNullOrEmpty(plural) && plural.Length > 1 && plural.EndsWith("s")
+                ? plural.Substring(0, plural.Length - 1) : plural;
+
+        /// Build an object's fields as a FLOWING row — short controls sit beside each other, and a control
+        /// that draws a curve or a plot takes a line of its own. The shared implementation of the
+        /// space-economy rule, so a nested list element and a top-level effect card lay out the same way.
+        public static void FlowFields(VisualElement host, object owner, Options opt)
+        {
+            var flow = new VisualElement();
+            flow.style.flexDirection = FlexDirection.Row;
+            flow.style.flexWrap = Wrap.Wrap;
+            flow.style.alignItems = Align.FlexStart;
+            BuildFields(flow, owner, opt);
+            foreach (var child in flow.Children())
+                if (IsWideControl(child)) child.style.flexBasis = new StyleLength(Length.Percent(100f));
+            host.Add(flow);
+        }
+
+        /// A control that earns a whole line: one drawing a curve or a plot rather than sitting on a row like
+        /// a slider. An animatable value counts only in its ENVELOPE modes — in Static or Min-Max it is one
+        /// slider row and must flow like anything else.
+        public static bool IsWideControl(VisualElement e)
+        {
+            var val = e as ZuiValueControl ?? e.Q<ZuiValueControl>();
+            if (val != null) return val.IsCurveShaped;
+            return e is ZuiValue2DControl || e is ZuiGradientControl ||
+                   e.Q<ZuiValue2DControl>() != null || e.Q<ZuiGradientControl>() != null;
+        }
+
         static ZUIPair2DAttribute PairAttributeOf(FieldInfo f)
             => (ZUIPair2DAttribute)Attribute.GetCustomAttribute(f, typeof(ZUIPair2DAttribute));
 
@@ -242,6 +274,23 @@ namespace Laubrary.Zui
                 // redraw the card — otherwise the dials it just made relevant stay hidden until something
                 // unrelated happens to rebuild, which reads as the switch not working.
                 if (IsGate(owner.GetType(), field.Name)) opt.OnStructureChanged?.Invoke();
+            }
+
+            // A hue in degrees gets a colour swatch beside its slider: pick a colour, the field takes its hue.
+            // Typing "25" for orange is a conversion the author has to do in their head with nothing on screen
+            // to check it against.
+            if (t == typeof(float) && Attribute.IsDefined(field, typeof(ZUIHueAttribute)))
+            {
+                float hue = (float)v;
+                var slider = Z.MicroSlider(nice, hue, range?.min ?? 0f, range?.max ?? 360f, tip,
+                    nv => Set(nv), opt.ControlWidth, showValue: true);
+                var swatch = Z.Color(Color.HSVToRGB(Mathf.Repeat(hue, 360f) / 360f, 1f, 1f),
+                    tip + " Pick a colour to set this hue from it.",
+                    c => { Color.RGBToHSV(c, out float h, out _, out _); Set(h * 360f); }, 44f);
+                swatch.style.flexShrink = 0f;
+                var row = Z.Row(slider, swatch);
+                row.style.flexShrink = 0f;
+                return row;
             }
 
             if (t == typeof(float))
@@ -422,10 +471,13 @@ namespace Laubrary.Zui
             {
                 int idx = i;
                 var card = Z.Box(null, null);
+                // Named, not indexed. "[0]" tells the reader nothing they cannot already see from the order,
+                // and it names the ARRAY rather than the thing — this is the first replacement, not element
+                // zero of anything the author thinks about.
                 card.Add(Z.Row(
-                    Z.Text($"[{idx}]", ZuiText.Small, $"Element {idx} of {nice}."),
+                    Z.Text($"{Singular(nice)} {idx + 1}", ZuiText.Small, $"{Singular(nice)} {idx + 1} of {nice}."),
                     Z.Flexible(),
-                    Z.Button("×", $"Remove element {idx} from {nice}.", () =>
+                    Z.Button("×", $"Remove {Singular(nice).ToLowerInvariant()} {idx + 1} from {nice}.", () =>
                     {
                         opt.OnBeforeChange?.Invoke();
                         list.RemoveAt(idx);
@@ -437,7 +489,10 @@ namespace Laubrary.Zui
                 {
                     var elem = list[idx];
                     if (elem == null) { elem = Activator.CreateInstance(elemType); list[idx] = elem; }
-                    BuildFields(card, elem, opt);
+                    // FLOWED, not stacked. A nested element's fields used to run straight down a narrow
+                    // column with the whole width beside them empty — nine sliders tall for one hue
+                    // replacement, so two replacements filled the window and you could not see them together.
+                    FlowFields(card, elem, opt);
                 }
                 else
                 {
@@ -447,7 +502,10 @@ namespace Laubrary.Zui
                 box.Add(card);
             }
 
-            box.Add(Z.Button("+ Add " + elemType.Name, $"Append a new {PrettyTypeName(elemType)} to {nice}.", () =>
+            // Labelled from the FIELD, not the C# type: "+ Add replacement", never "+ Add HueReplacement".
+            // A type name on a button is an implementation detail leaking onto the surface.
+            box.Add(Z.Button("+ Add " + Singular(nice).ToLowerInvariant(),
+                $"Append another {Singular(nice).ToLowerInvariant()} to {nice}.", () =>
             {
                 opt.OnBeforeChange?.Invoke();
                 list.Add(isClass || elemType.IsValueType

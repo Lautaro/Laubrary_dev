@@ -1471,8 +1471,9 @@ namespace Laubrary.SpriteFx
     [Serializable]
     public class HueReplacement
     {
+        [ZUIHue]
         [Tooltip("The hue this replacement looks for, in degrees around the colour wheel (0 red, 120 green, " +
-                 "240 blue).")]
+                 "240 blue). Pick it off the swatch rather than guessing the number.")]
         [Range(0f, 360f)] public float targetHue = 0f;
 
         [Tooltip("How far either side of that hue still counts as a match, in degrees. Small only catches an " +
@@ -1488,7 +1489,9 @@ namespace Laubrary.SpriteFx
                  "the new colour with the original. Animatable — fade a recolour in over the effect's life.")]
         [Range(0f, 1f)] public ZUIValue amount = new ZUIValue(1f);
 
-        [Tooltip("The hue matched pixels are moved to, in degrees around the colour wheel.")]
+        [ZUIHue]
+        [Tooltip("The hue matched pixels are moved to, in degrees around the colour wheel. Pick the colour " +
+                 "you want them to become.")]
         [Range(0f, 360f)] public float replacementHue = 200f;
 
         [Tooltip("How much of the source's own hue variation survives: 0 flattens the whole band onto one flat " +
