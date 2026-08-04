@@ -50,8 +50,7 @@ namespace Laubrary.SpriteFx.Editor
         // EditorPrefs keyed by the spec's GUID — none of it touches the asset. None of these are [SerializeField]:
         // a domain reload should reset playback and re-load the remembered sprite from prefs, not carry live state.
         Sprite _previewSprite;              // the chosen input sprite (preview subject)
-        SpriteFxPreviewSubject _subject;    // auto-resolved subject (the Zoe event this stack is used by)
-        bool _subjectResolved;              // resolved once per spec; null is a real answer worth caching
+        SpriteFxPreviewSubject _subject;    // the Zoe event this stack is used by — re-resolved every rebuild
         Label _subjectLine;                 // permanently reserved line naming what is being previewed
         string _prevSpecGuid;               // which spec's remembered sprite is currently loaded into _previewSprite
         Texture2D _previewTex;              // pooled output texture we paint the filtered pixels into (Point-filtered)
@@ -114,8 +113,14 @@ namespace Laubrary.SpriteFx.Editor
         }
 
         // ── who owns the timebase ───────────────────────────────────────────────────────────────────────────
-        /// The host event this stack is used by, resolved once per spec. Null is a real answer (a stack that
-        /// nothing uses yet, or one being authored standalone) and is cached as one.
+        /// Which event uses this stack — resolved FRESH on every rebuild, never cached past one.
+        ///
+        /// The answer lives in project data edited somewhere else entirely: you wire the stack onto a Zoe
+        /// event in the Zoe window and come back here. A remembered answer goes stale the moment that
+        /// happens, and a remembered MISS is the worst of them — this window sat insisting the stack was on
+        /// no event at all while the event pointed straight at it, and nothing short of a domain reload
+        /// changed its mind. Resolving per rebuild costs one asset scan on a structural edit, which is
+        /// cheaper than being wrong.
         void EnsureSubject(SpriteFxSpec spec)
         {
             // Load the remembered override sprite for THIS spec whenever the edited spec changes (incl. after
@@ -125,14 +130,27 @@ namespace Laubrary.SpriteFx.Editor
             {
                 _previewSprite = PreviewSpritePrefs.Load(PrevSpritePrefKey, guid);
                 _prevSpecGuid = guid;
-                // A different stack is used by a different character — the cached subject is about the old
-                // one, and a stale answer here means previewing the wrong creature without any sign of it.
-                InvalidateSubject();
             }
-            if (_subjectResolved) return;
             _subject = SpriteFxPreviewSubjects.Resolve(spec);
-            _subjectResolved = true;
         }
+
+        /// Coming back to this window is exactly when the answer is most likely to have just changed — the
+        /// trip out was to go and hang this stack on an event. Rebuild only when it actually differs, so
+        /// merely clicking the window never throws away scroll position or a fold.
+        void OnFocus()
+        {
+            var spec = Spec;
+            if (spec == null) return;
+            var fresh = SpriteFxPreviewSubjects.Resolve(spec);
+            if (Describes(fresh) == Describes(_subject)) return;
+            _subject = fresh;
+            Rebuild();
+        }
+
+        /// Everything about a subject this window's layout depends on, as one comparable string — a change in
+        /// any of it means the panel has to be rebuilt, and a change in nothing else should not.
+        static string Describes(SpriteFxPreviewSubject s)
+            => s == null ? "" : $"{s.Label}|{s.Seconds}|{s.Fps}|{(s.Frames == null ? 0 : s.Frames.Length)}";
 
         /// True while this stack is being edited as part of an event that already fixed its length — the
         /// state in which this window stops owning duration, playback rate and the preview image.
@@ -451,14 +469,10 @@ namespace Laubrary.SpriteFx.Editor
         /// resolver went to the trouble of reporting was never read at all.
         Sprite SubjectFrame(float progress)
         {
-            if (!_subjectResolved)
-            {
-                _subject = SpriteFxPreviewSubjects.Resolve(Spec);
-                _subjectResolved = true;
-            }
             if (_subject == null || !_subject.HasFrames) return null;
             var f = _subject.Frames;
             if (f.Length == 1) return f[0];
+
 
             float p = Mathf.Clamp01(progress);
             // Without a rate there is no time-based answer, so fall back to spreading the frames evenly across
@@ -468,9 +482,6 @@ namespace Laubrary.SpriteFx.Editor
                 : Mathf.FloorToInt(p * f.Length);
             return f[((i % f.Length) + f.Length) % f.Length];
         }
-
-        /// Drop the cached subject — the spec changed, so who uses it may have too.
-        void InvalidateSubject() { _subject = null; _subjectResolved = false; }
 
         void UpdateSubjectLine()
         {
