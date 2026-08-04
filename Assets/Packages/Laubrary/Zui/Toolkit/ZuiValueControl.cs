@@ -137,6 +137,12 @@ namespace Laubrary.Zui
             _v != null && (_v.mode == ZUIValue.Mode.Curve || _v.mode == ZUIValue.Mode.Steps ||
                            _v.mode == ZUIValue.Mode.Oscillation);
 
+        /// Fires when the MODE changes (Static ⇄ Envelope ⇄ Steps ⇄ …). A host laying these out in a flowing
+        /// row needs it: how much room this control deserves depends on its mode, and a mode switch rebuilds
+        /// only the control itself, so nothing else would ever revisit that decision. Without it, switching a
+        /// value to Envelope leaves the new curve squeezed into the slider-sized slot it used to occupy.
+        public Action ModeChanged;
+
         /// Fires once per gesture before the first mutation — the Undo.RecordObject hook.
         public Action OnBeforeMutate;
         /// Fires after every mutation (slider drags, curve edits, mode/multiplier changes, paste).
@@ -877,6 +883,7 @@ namespace Laubrary.Zui
             });
             RebuildAll();
             UpdateReadout();
+            ModeChanged?.Invoke();
         }
 
         // ── live oscillation preview: the two bounds as faint rails, the resolved wave on top ────────

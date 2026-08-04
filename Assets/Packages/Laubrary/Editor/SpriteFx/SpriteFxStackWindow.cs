@@ -173,7 +173,16 @@ namespace Laubrary.SpriteFx.Editor
                 // Fires once per gesture, before the first mutation.
                 OnBeforeChange = () => { var sp = Spec; if (sp != null) Undo.RecordObject(sp, "Edit SpriteFx Stack"); },
                 // Fires after every value edit — mark the asset dirty (retained controls repaint themselves).
-                OnChanged = () => { var sp = Spec; if (sp != null) EditorUtility.SetDirty(sp); },
+                // Repaint the stage on EVERY value change, not just on a structural one. With playback stopped
+                // and Life parked somewhere, the whole point is to watch that frame respond as you drag — and
+                // it was only marking the asset dirty, so the picture stayed at whatever it was before the
+                // edit and tuning was done blind.
+                OnChanged = () =>
+                {
+                    var sp = Spec;
+                    if (sp != null) EditorUtility.SetDirty(sp);
+                    if (!_previewPlaying) RenderPreview();
+                },
                 // A structural change (add / remove / reorder / enable): the control already rebuilt its own
                 // rows in place; re-run the whole panel so anything downstream stays in sync (safe — the
                 // control's fold/curve state is keyed per effect instance and survives the rebuild).

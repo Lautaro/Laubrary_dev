@@ -286,14 +286,24 @@ namespace Laubrary.SpriteFx
         [Tooltip("Amplitude (px) of a vertical wobble that ripples the layer horizontally. Animatable.")]
         public ZUIValue amplitude = new ZUIValue(3f);
         [Range(0f, 8f)]
-        [Tooltip("How many wobble ripples run up the canvas. Animatable.")]
+        [Tooltip("How many wobble ripples run up the canvas at once — the SHAPE of the distortion, not its " +
+                 "motion. Animatable.")]
         public ZUIValue frequency = new ZUIValue(1f);
-        float amp, freq;
+
+        [Range(0f, 8f)]
+        [Tooltip("How fast the ripples TRAVEL: full turns of the wave across one play-through. Amplitude and " +
+                 "Frequency set how the distortion looks; this is the only thing that makes it move. 0 holds a " +
+                 "single frozen pose, 1 is one full cycle, higher ripples faster.")]
+        public ZUIValue speed = new ZUIValue(1f);
+
+        float amp, freq, spd;
         public override string DisplayName => "Wobble";
-        public override void Prepare(Func<ZUIValue, int, float> e) { amp = e(amplitude, 0); freq = e(frequency, 1); }
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        { amp = e(amplitude, 0); freq = e(frequency, 1); spd = e(speed, 2); }
         public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
         {
-            if (amp != 0f) off.x -= amp * Mathf.Sin(off.y * freq * 0.1f + phase);
+            // Default speed 1 leaves this exactly `+ phase`, so every baked Pyre asset is byte-identical.
+            if (amp != 0f) off.x -= amp * Mathf.Sin(off.y * freq * 0.1f + phase * spd);
             return off;
         }
     }
@@ -319,13 +329,19 @@ namespace Laubrary.SpriteFx
         [Tooltip("Rotates the beam pattern, in degrees — spin the sunburst in place. Animatable.")]
         public ZUIValue rotation = new ZUIValue(0f);
 
-        float amp, freq, rotRad;
+        [Range(0f, 8f)]
+        [Tooltip("How fast the beams PULSE: full turns of the wave across one play-through. Amplitude and " +
+                 "Frequency set how the beams look; this is what makes them move. 0 holds one frozen pose.")]
+        public ZUIValue speed = new ZUIValue(1f);
+
+        float amp, freq, rotRad, spd;
         public override string DisplayName => "Sunburst wobble";
         public override void Prepare(Func<ZUIValue, int, float> e)
         {
             amp = e(amplitude, 0);
             freq = e(frequency, 1);
             rotRad = e(rotation, 2) * Mathf.Deg2Rad;
+            spd = e(speed, 3);
         }
 
         public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
@@ -336,7 +352,8 @@ namespace Laubrary.SpriteFx
             if (dist < 0.0001f) return off;
             Vector2 dir = d / dist;
             float ang = Mathf.Atan2(d.y, d.x) + rotRad;
-            float wobble = amp * Mathf.Sin(ang * freq + phase);
+            // Default speed 1 leaves this exactly `+ phase` — every baked Pyre asset stays byte-identical.
+            float wobble = amp * Mathf.Sin(ang * freq + phase * spd);
             return off + dir * wobble;
         }
     }
@@ -1490,19 +1507,52 @@ namespace Laubrary.SpriteFx
     [Serializable]
     public class ColorTintModifier : PixelModifier
     {
-        [Tooltip("The colour the sprite is washed toward. Unlike the multiply Tint effect this can brighten, and " +
-                 "can push a pixel to a hue it does not already contain.")]
-        public Color color = Color.white;
+        // Frozen legacy colour — never renamed or retyped, so an authored asset keeps the colour it had. The
+        // gradient below is what the editor shows and what Prepare reads.
+        [HideInInspector] public Color color = Color.white;
+        [HideInInspector] public bool colorUpgraded;
+
+        [Tooltip("The colour the sprite is washed toward, ACROSS the play-through — read left to right, so the " +
+                 "left end is the colour at the start and the right end the colour at the end. Unlike the " +
+                 "multiply Tint effect this can brighten, and can push a pixel to a hue it does not already " +
+                 "contain. A single flat colour still works: leave both ends the same.")]
+        public ZuiGradient colorOverLife = new ZuiGradient();
+
+        /// The gradient, seeded once from the frozen flat colour so an asset authored before this reads as
+        /// the constant it always was rather than jumping to a default ramp.
+        public ZuiGradient ColorOverLife
+        {
+            get
+            {
+                if (!colorUpgraded)
+                {
+                    colorOverLife = new ZuiGradient();
+                    var g = new Gradient();
+                    g.SetKeys(new[] { new GradientColorKey(color, 0f), new GradientColorKey(color, 1f) },
+                              new[] { new GradientAlphaKey(color.a, 0f), new GradientAlphaKey(color.a, 1f) });
+                    colorOverLife.gradient = g;
+                    colorUpgraded = true;
+                }
+                return colorOverLife;
+            }
+        }
 
         [Tooltip("How far each pixel travels toward the colour: 0 leaves it untouched, 1 replaces it outright. " +
                  "Animatable — spike it for a hit flash, then ramp it back down to bleed the glow out.")]
         [Range(0f, 1f)] public ZUIValue amount = new ZUIValue(1f);
 
         float amt;
+        Color tint = Color.white;
         public override string DisplayName => "Colour tint";
-        public override void Prepare(Func<ZUIValue, int, float> e) => amt = Mathf.Clamp01(e(amount, 0));
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        {
+            amt = Mathf.Clamp01(e(amount, 0));
+            // Sampled at the stack's own life, so the wash TRAVELS through the ramp as the event plays —
+            // white-hot into red into black over a hit, rather than one colour held throughout.
+            tint = ColorOverLife.Evaluate(ColorReplaceModifier.LifeOfEval(e));
+        }
 
-        ColorTintP P() => new ColorTintP { r = color.r, g = color.g, b = color.b, amt = amt };
+        ColorTintP P() => new ColorTintP { r = tint.r, g = tint.g, b = tint.b, amt = amt };
         public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
             => SfxKernels.KColorTint(P(), ref c, ref a);
         public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.ColorTint, ctint = P(), lutIndex = -1 };
@@ -1580,7 +1630,23 @@ namespace Laubrary.SpriteFx
         [Range(0f, 2f)] public ZUIValue saturationValue = new ZUIValue(1f);
         public ZUIValue Saturation { get { if (!saturationUpgraded) { saturationValue = new ZUIValue(saturation); saturationUpgraded = true; } return saturationValue; } }
 
+        [Tooltip("AUTHORING AID: pulse the pixels this replacement actually catches — through white, then " +
+                 "through black, over and over — so the area it affects is unmistakable. A soft band rim " +
+                 "pulses softly too, which is the part that is otherwise impossible to judge by eye. Turn it " +
+                 "off before shipping: it changes what the effect draws.")]
+        public bool highlight = false;
+
+        [ZUIShowIf("highlight", "True")]
+        [Tooltip("How strongly the pulse overrides the real colours. 1 drives matched pixels all the way to " +
+                 "white and black; lower keeps more of the actual result visible underneath.")]
+        [Range(0f, 1f)] public float highlightAmount = 1f;
+
+        [ZUIShowIf("highlight", "True")]
+        [Tooltip("How many full white-then-black pulses run across one play-through.")]
+        [Range(0.25f, 8f)] public float highlightSpeed = 2f;
+
         // This frame's resolved values, filled by ColorReplaceModifier.Prepare.
+        [System.NonSerialized] public float resolvedHlMix, resolvedHlTarget;
         [System.NonSerialized] public float resolvedAmount, resolvedTargetHue, resolvedTargetRange,
                                           resolvedTargetSmoothing, resolvedReplacementHue,
                                           resolvedReplacementSmoothing, resolvedBrightness, resolvedSaturation;
@@ -1617,7 +1683,35 @@ namespace Laubrary.SpriteFx
                 r.resolvedReplacementSmoothing = Mathf.Clamp01(e(r.ReplacementSmoothing, s + 5));
                 r.resolvedBrightness = e(r.Brightness, s + 6);
                 r.resolvedSaturation = e(r.Saturation, s + 7);
+                ResolveHighlight(r, LifeOf(e));
             }
+        }
+
+        /// The stack's current life, recovered through the evaluator itself.
+        ///
+        /// Prepare is handed an evaluator, not a life — every parameter asks it for a value and never needs to
+        /// know where on the timeline it is. The highlight does: its pulse is a function of time, not of any
+        /// authored dial. A plain 0→1 ramp evaluated by that same evaluator returns exactly the life it was
+        /// built with, which gets the number without widening the Prepare contract for one diagnostic.
+        static readonly ZUIValue s_lifeProbe = Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);
+        static float LifeOf(Func<ZUIValue, int, float> e) => Mathf.Clamp01(e(s_lifeProbe, 0));
+
+        /// The same trick, shared: any effect whose output depends on WHERE it is on the timeline rather than
+        /// on an authored dial needs the life, and Prepare is only handed an evaluator.
+        public static float LifeOfEval(Func<ZUIValue, int, float> e) => LifeOf(e);
+
+        /// Where in the white → black cycle the highlight currently is. Four quarters: fade up to white, back
+        /// down, up to black, back down. Resolved once per frame because it is the same for every pixel.
+        static void ResolveHighlight(HueReplacement r, float life)
+        {
+            if (!r.highlight || r.highlightAmount <= 0f) { r.resolvedHlMix = 0f; return; }
+            float t = Mathf.Repeat(life * Mathf.Max(0.01f, r.highlightSpeed), 1f);
+            float mix;
+            if (t < 0.25f) { mix = t / 0.25f; r.resolvedHlTarget = 1f; }
+            else if (t < 0.5f) { mix = 1f - (t - 0.25f) / 0.25f; r.resolvedHlTarget = 1f; }
+            else if (t < 0.75f) { mix = (t - 0.5f) / 0.25f; r.resolvedHlTarget = 0f; }
+            else { mix = 1f - (t - 0.75f) / 0.25f; r.resolvedHlTarget = 0f; }
+            r.resolvedHlMix = mix * Mathf.Clamp01(r.highlightAmount);
         }
 
         ReplaceP P(HueReplacement r) => new ReplaceP
@@ -1630,6 +1724,8 @@ namespace Laubrary.SpriteFx
             sat = r.resolvedSaturation,
             outHue = r.resolvedReplacementHue,
             spread = r.resolvedReplacementSmoothing,
+            hlMix = r.resolvedHlMix,
+            hlTarget = r.resolvedHlTarget,
         };
 
         public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
@@ -1690,6 +1786,9 @@ namespace Laubrary.SpriteFx
                         saturation = r.saturation,
                         saturationUpgraded = r.saturationUpgraded,
                         saturationValue = Sfx.CloneVal(r.saturationValue),
+                        highlight = r.highlight,
+                        highlightAmount = r.highlightAmount,
+                        highlightSpeed = r.highlightSpeed,
                     });
                 }
             return m;

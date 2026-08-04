@@ -54,7 +54,10 @@ namespace Laubrary.SpriteFx
     /// The colour a pixel is washed TOWARD (as opposed to Tint's multiply), and how far it travels.
     public struct ColorTintP { public float r, g, b, amt; }
     /// One hue-band replacement: match a hue band, then rewrite its hue / saturation / brightness.
-    public struct ReplaceP { public float hue, range, smooth, amt, bri, sat, outHue, spread; }
+    // hlMix/hlTarget drive the authoring HIGHLIGHT: matched pixels pulse toward white and then black, so the
+    // area a hue band actually catches is unmistakable. Both are resolved once per frame (the cycle is uniform
+    // across the picture), so the kernel only has to blend.
+    public struct ReplaceP { public float hue, range, smooth, amt, bri, sat, outHue, spread, hlMix, hlTarget; }
 
     /// One resolved modifier in a stack — a tag plus every kernel's params inline (only the tagged one is read).
     /// Fully unmanaged so it lives in a NativeArray and crosses into Burst. `lutIndex` selects this op's 256-entry
@@ -310,6 +313,17 @@ namespace Laubrary.SpriteFx
             v = Mathf.Clamp01(v * Mathf.Lerp(1f, pp.bri, w));
             HsvToRgb(h, s, v, out float r2, out float g2, out float b2);
             c = new Color(r2, g2, b2, c.a);
+
+            // Authoring highlight: pulse ONLY the pixels this band actually matched, weighted by how strongly
+            // it matched them — so a soft band rim reads as a soft edge on the highlight too, which is the
+            // part that is otherwise impossible to judge.
+            if (pp.hlMix > 0.001f)
+            {
+                float k = Mathf.Clamp01(w * pp.hlMix);
+                c = new Color(Mathf.Lerp(c.r, pp.hlTarget, k),
+                              Mathf.Lerp(c.g, pp.hlTarget, k),
+                              Mathf.Lerp(c.b, pp.hlTarget, k), c.a);
+            }
             return true;
         }
 
@@ -577,7 +591,7 @@ namespace Laubrary.SpriteFx
                 {
                     case GeometryModifier g:
                         m.Prepare(eval);
-                        RunWarp(px, W, H, g, frame);
+                        RunWarp(px, W, H, g, life);
                         break;
 
                     case PostModifier post:
@@ -608,14 +622,19 @@ namespace Laubrary.SpriteFx
         ///
         /// Anything mapping from outside the buffer reads as transparent, so a warp that pulls the picture
         /// inward leaves clean empty space rather than smearing its edge pixels outward.
-        static void RunWarp(Color32[] px, int W, int H, GeometryModifier g, int frame)
+        static void RunWarp(Color32[] px, int W, int H, GeometryModifier g, float life)
         {
             var src = (Color32[])px.Clone();
             float hHalf = W * 0.5f, vHalf = H * 0.5f;
             var ctx = new GeoCtx(hHalf, vHalf, new Vector2(hHalf, vHalf), Mathf.Min(hHalf, vHalf));
-            // The per-frame wobble phase these warps expect; frame-driven so a wobble actually wobbles as
-            // the effect plays instead of holding one pose.
-            float phase = frame * 0.1f;
+            // The oscillation phase these warps ride, one full turn across the play-through — the same
+            // convention Pyre's renderer uses (frameIndex / frameCount × 2π), so an effect authored against
+            // one behaves the same on the other.
+            //
+            // It is derived from LIFE, not from a render-frame counter. A counter would tie the motion to
+            // whatever rate the editor happened to be repainting at, and — worse — scrubbing back to the
+            // same life would show a different pose every time, which makes an effect impossible to judge.
+            float phase = life * Mathf.PI * 2f;
 
             for (int y = 0, i = 0; y < H; y++)
             {

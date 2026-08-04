@@ -226,8 +226,27 @@ namespace Laubrary.Zui
             flow.style.flexWrap = Wrap.Wrap;
             flow.style.alignItems = Align.FlexStart;
             BuildFields(flow, owner, opt);
+
+            void ApplyWidths()
+            {
+                foreach (var child in flow.Children())
+                    child.style.flexBasis = IsWideControl(child)
+                        ? new StyleLength(Length.Percent(100f))
+                        : new StyleLength(StyleKeyword.Auto);
+            }
+            ApplyWidths();
+
+            // Re-decide when a value CHANGES MODE. How much room a control deserves depends on its mode, and
+            // a mode switch rebuilds only that control — so a value switched to Envelope kept the
+            // slider-sized slot it had, leaving four envelopes crushed side by side and undraggable. The
+            // widths are re-applied rather than the card rebuilt, so the switch costs nothing and does not
+            // throw away scroll position.
             foreach (var child in flow.Children())
-                if (IsWideControl(child)) child.style.flexBasis = new StyleLength(Length.Percent(100f));
+            {
+                var val = child as ZuiValueControl ?? child.Q<ZuiValueControl>();
+                if (val != null) val.ModeChanged += ApplyWidths;
+            }
+
             host.Add(flow);
         }
 
@@ -285,8 +304,10 @@ namespace Laubrary.Zui
                 var slider = Z.MicroSlider(nice, hue, range?.min ?? 0f, range?.max ?? 360f, tip,
                     nv => Set(nv), opt.ControlWidth, showValue: true);
                 var swatch = Z.Color(Color.HSVToRGB(Mathf.Repeat(hue, 360f) / 360f, 1f, 1f),
-                    tip + " Pick a colour to set this hue from it.",
-                    c => { Color.RGBToHSV(c, out float h, out _, out _); Set(h * 360f); }, 44f);
+                    tip + "  •  Click the swatch to choose a colour, or use the EYEDROPPER beside it to " +
+                    "sample one from anywhere on screen — including the sprite in the preview above. Only " +
+                    "the hue is taken.",
+                    c => { Color.RGBToHSV(c, out float h, out _, out _); Set(h * 360f); }, 60f);
                 swatch.style.flexShrink = 0f;
                 var row = Z.Row(slider, swatch);
                 row.style.flexShrink = 0f;

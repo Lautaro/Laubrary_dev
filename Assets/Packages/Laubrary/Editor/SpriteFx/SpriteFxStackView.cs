@@ -250,22 +250,41 @@ namespace Laubrary.SpriteFx.Editor
 
             void ShowAddMenu(VisualElement anchor)
             {
+                // The three categories sit SIDE BY SIDE, not stacked. Forty-two effects in one column is
+                // taller than the screen, so the bottom of the list simply could not be reached — and a menu
+                // is a content-sized floating card, so spending width to buy height costs nothing.
                 var menu = Z.Menu(anchor);
-                string section = null;
-                foreach (var e in Catalog())
+                menu.Custom((body, close) =>
                 {
-                    // Grouped by what the effect DOES to the picture, not by its C# base class — "Colour &
-                    // mask" / "Warp" / "Whole frame" is the distinction an author is choosing between, and
-                    // it also happens to be the one that decides how the runtime dispatches it.
-                    if (e.section != section) { menu.Section(e.section); section = e.section; }
-                    var type = e.type;
-                    string label = e.label;
-                    menu.Item(label, e.tooltip, () =>
+                    var columns = new VisualElement();
+                    columns.style.flexDirection = FlexDirection.Row;
+                    columns.style.alignItems = Align.FlexStart;
+
+                    string section = null;
+                    VisualElement col = null;
+                    foreach (var e in Catalog())
                     {
-                        Dirty(() => stack.Add((PyreModifier)Activator.CreateInstance(type)));
-                        Structural();
-                    });
-                }
+                        if (e.section != section)
+                        {
+                            section = e.section;
+                            col = new VisualElement();
+                            col.style.marginRight = 10f;
+                            col.style.minWidth = 150f;
+                            col.Add(Z.Text(section, ZuiText.Section, $"Effects that {section.ToLowerInvariant()}."));
+                            columns.Add(col);
+                        }
+                        var type = e.type;
+                        var row = Z.Button(e.label, e.tooltip, () =>
+                        {
+                            Dirty(() => stack.Add((PyreModifier)Activator.CreateInstance(type)));
+                            close();
+                            Structural();
+                        });
+                        row.AddToClassList("zui-menu__item");
+                        col.Add(row);
+                    }
+                    body.Add(columns);
+                });
                 menu.Show();
             }
 
