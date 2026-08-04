@@ -66,22 +66,27 @@ namespace Laubrary.SpriteFx
                  "Brightness/Tint flash.")]
         public int seed = 12345;
 
-        [Tooltip("Own clock: how many times per second this stack's time advances while it plays. 0 (default) = " +
-                 "continuous — the effect re-evaluates every rendered frame, riding whatever animation drives it. " +
-                 "Set a rate to step the effect on its own fixed grid instead, independent of the animation's " +
-                 "fps — a fast brightness flicker over a slow 4-fps reel, or a deliberately chunky retro fade. " +
-                 "Hashing effects re-roll per STEP (not per rendered frame), which is what makes a dither/dissolve " +
-                 "read as a flicker at this rate.")]
-        [Min(0f)] public float targetFps = 0f;
+        /// A stack no longer keeps a clock of its own. This quantised the effect onto a fixed grid measured in
+        /// absolute SECONDS, so the same stack came out with seven steps on a 0.7 s event and twenty on a 2 s
+        /// one — the shape changed with the host's duration, which is the one thing a stack is not supposed to
+        /// do. Kept serialized so authored assets load unchanged; never read.
+        [HideInInspector, System.Obsolete("The host owns the timebase; a stack is a shape over normalized life.")]
+        public float targetFps = 0f;
 
-        /// Sample the life-remap envelope at a raw progress in [0,1] (identity if no curve). Mirrors
-        /// <see cref="SpriteFxFilter"/>'s own SampleEnvelope so an asset-driven filter and an inline one behave
-        /// identically.
-        public float SampleEnvelope(float progress01)
-        {
-            var pts = Envelope;
-            return pts.Count == 0 ? progress01
-                                  : ZUIEnvelopeEvaluator.Evaluate(pts, Mathf.Clamp01(progress01), 1f);
-        }
+        /// Life IS progress. Nothing sits between the host's clock and the effects any more.
+        ///
+        /// There used to be a stack-wide "life remap" envelope here, and it was a trapdoor. Every effect's
+        /// animation is sampled at the value this returns, so a remap that went flat pinned LIFE to a
+        /// constant and every authored envelope in the stack silently collapsed to one value — the tool then
+        /// looks exactly like a tool whose animation does not work, with the real cause three sections away
+        /// and nothing pointing at it. That is what happened: an asset here sat at a flat 0.95, so every
+        /// parameter returned its value at 0.95 forever. Worse, the control pinned its own end anchors, so it
+        /// could not be dragged back to identity by hand.
+        ///
+        /// It also had no job left. Every parameter already carries its own envelope over the same 0→1, which
+        /// is the whole model; a second global warp on top was a third opinion about time in a system where
+        /// the HOST owns time and a stack owns only shape. The field stays serialized so no authored asset
+        /// errors on load, and is simply never read again.
+        public float SampleEnvelope(float progress01) => Mathf.Clamp01(progress01);
     }
 }

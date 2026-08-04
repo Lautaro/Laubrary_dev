@@ -210,32 +210,16 @@ namespace Laubrary.SpriteFx.Editor
                     v => Dial("SpriteFx duration", () => spec.duration = Mathf.Max(0.001f, v)), Wide, showValue: true));
             }
 
-            const string envTip = "Optional easing / remap of raw progress (0→1 over Duration) into the LIFE " +
-                "value fed to every effect's curves. Identity by default; a triangle (0→1→0) turns a " +
-                "monotonic effect into a pulse, an ease softens the ends.";
-            s.Add(Z.Field("Life remap", envTip,
-                // ZuiEnvelope, not Z.Curve: that wrapper returns a raw Unity CurveField, which is a
-                // native control in a ZUI window and opens Unity's own curve editor for our data.
-                Z.Envelope(spec.Envelope, new ZuiEnvelopeOptions { yMin = 0f, yMax = 1f, anchorsLocked = true },
-                    envTip, () => Dial("SpriteFx envelope", () => { }), null, 220f, 80f)));
+            // The stack-wide "Life remap" envelope and the "Step rate" own-clock are GONE — see
+            // SpriteFxSpec.SampleEnvelope. Life is progress, and the only clock is the host's. The remap in
+            // particular was a trapdoor: it sat between the host and every effect, so a flattened one pinned
+            // life to a constant and silently collapsed every authored envelope in the stack to a single
+            // value, which reads as "animation does not work" with nothing pointing at the cause.
 
             const string seedTip = "Seed for any hashing effect (LayerDissolve scatter, AlphaMask noise). " +
                 "Irrelevant for a plain Brightness / Tint flash.";
             s.Add(Z.Field("Seed", seedTip,
                 Z.Int(spec.seed, seedTip, v => Dial("SpriteFx seed", () => spec.seed = v), Num)));
-
-            // Deliberately still a dial when hosted, unlike Duration: this is the EFFECT's own re-evaluation
-            // grid, not the visual's frame rate. Riding a 4-fps reel with a 12-step flicker is the whole point
-            // of it, so the host cannot own it — but the tooltip has to keep the two rates apart by name.
-            string fpsTip = "Own clock: how many times per second THIS EFFECT's time advances while it plays. " +
-                "0 = every rendered frame (continuous — the default). Set a rate to step the effect on its own " +
-                "fixed grid, independent of the animation it rides — a fast flicker over a slow reel, or a " +
-                "deliberately chunky retro fade. Not the same thing as the visual's frame rate" +
-                (Hosted ? $", which is {_subject.Fps:0.#} fps and comes from the event." : ".") +
-                " The preview above steps at this rate too.";
-            s.Add(Z.MicroSlider("Step rate (fps)", spec.targetFps, 0f, 60f, fpsTip,
-                v => Dial("SpriteFx step rate", () => spec.targetFps = Mathf.Max(0f, Mathf.Round(v))),
-                Wide, showValue: true, decimals: 0));
 
             root.Add(s);
         }
@@ -565,26 +549,15 @@ namespace Laubrary.SpriteFx.Editor
                 W = readable.width; H = readable.height;
                 Object.DestroyImmediate(readable);
 
-                // A reversed pass flips the pass-local clock BEFORE the envelope and the own-clock quantisation,
-                // exactly as SpriteFxFilter.Tick does — the hashing frame keeps following the forward clock, so
-                // the preview reproduces the runtime's (deliberate) non-mirroring grain too.
+                // A reversed pass flips the pass-local clock, exactly as SpriteFxFilter.Tick does — the hashing
+                // frame keeps following the forward clock, so the preview reproduces the runtime's
+                // (deliberate) non-mirroring grain too.
                 float raw = Mathf.Clamp01(progress);
                 progress = _previewReversed ? 1f - raw : raw;
 
-                // Own clock (Step rate): quantise exactly as SpriteFxFilter.Tick does — time snaps to the
-                // 1/targetFps grid and the hashing frame becomes the step index — so scrub and Play both show
-                // the stepped evaluation the runtime plays (WYSIWYG).
-                if (spec.targetFps > 0f)
-                {
-                    // Over the HOST's length where there is one — a step grid is a rate in SECONDS, so it can
-                    // only be quantised against the seconds the play-through actually takes.
-                    float dur = Mathf.Max(0.001f, PreviewSeconds(spec));
-                    frame = Mathf.FloorToInt(raw * dur * spec.targetFps);
-                    int step = Mathf.FloorToInt(progress * dur * spec.targetFps);
-                    progress = Mathf.Clamp01((step / spec.targetFps) / dur);
-                }
-
-                float life = spec.SampleEnvelope(Mathf.Clamp01(progress));
+                // Life IS progress — nothing sits in between. The stack-wide remap that used to is gone, for
+                // the reason in SpriteFxSpec.SampleEnvelope.
+                float life = Mathf.Clamp01(progress);
                 // The SAME routine Tick uses at runtime — inline (useBurst:false) so the preview matches WYSIWYG.
                 SpriteFxFilter.Apply(px, W, H, spec.modifiers, frame, life, spec.seed, useBurst: false);
 

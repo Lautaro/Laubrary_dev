@@ -1,14 +1,18 @@
 // ZuiValueControl — UI Toolkit counterpart of the IMGUI ZUIValueControl: one labelled row editing
 // a ZUIValue, whose body switches between a static Slider, a min↔max range, or the full envelope
-// curve editor (with Duration/Warmup/Loop and Value-Range fields). A "⋯" button opens the same
-// mode / multiplier / copy-paste menu. Operates on the SAME runtime ZUIValue data the IMGUI
-// control edits — nothing about assets or play-mode evaluation changes.
+// curve editor. Operates on the SAME runtime ZUIValue data the IMGUI control edits — nothing about
+// assets or play-mode evaluation changes.
+//
+// RIGHT-CLICK is the single way into the mode / multiplier / copy-paste menu, on every mode and
+// anywhere on the control. There is deliberately no "⋯" button: one gesture, learned once, works on
+// every value in every tool, instead of a button that has to be found, placed and kept from
+// crowding a packed row. The only elements that keep their own right-click are real editing
+// surfaces — an envelope removes a point, a step sequencer clears a step.
 //
 // Curve-mode layout (2026-07-23, per user direction): the LABEL is the fold toggle ("▶/▼ Label" —
-// click it to expand/collapse). Collapsed = label · live thumbnail · ⋯. Expanded = label · ⋯ on
-// one row, the full envelope below (NO thumbnail), then the optional per-point numeric inputs row,
-// then the timing/range rows. The ⋯ menu gains "Show point values" / "Show numeric inputs" /
-// "Inputs for selected points only".
+// click it to expand/collapse). Collapsed = label · live thumbnail. Expanded = label, the full
+// envelope below (NO thumbnail), then the optional per-point numeric inputs row. The menu gains
+// "Show point values" / "Show numeric inputs" / "Inputs for selected points only".
 //
 // Not yet ported from the IMGUI version (tracked in CHANGELOG/zui.md): the "★" envelope-preset
 // popup (ZUIEnvelopePresetPopup is IMGUI and lives in ZUI.Editor).
@@ -169,16 +173,25 @@ namespace Laubrary.Zui
             RebuildAll();
             UpdateReadout();
 
-            // RIGHT-CLICK anywhere on the control opens the same ⋯ config menu — the ⋯ button becomes a shortcut,
-            // not the only way in. Registered on the row itself in the BUBBLE phase, so a child that owns its own
-            // right-click (a MicroSlider's display-options menu) still wins on ITSELF (it stops the event before it
-            // reaches here); a right-click on the label / body / empty space bubbles up and opens this menu.
+            // RIGHT-CLICK ANYWHERE on the control opens the mode menu. This is the ONE route — there is no
+            // button — so it has to work on every mode's body, not just on the label or the empty space
+            // beside it. A user who right-clicks the slider they are looking at must get the menu; being
+            // told to aim at the label instead is the same failure as having no affordance at all.
+            //
+            // TrickleDown, so it beats children that own their own right-click: a MicroSlider's display-options
+            // menu, a Min-Max slider's manipulators. Those swallowed the event in BUBBLE phase, which is
+            // exactly how a value switched to Static or Min-Max became a value that could never go back.
+            //
+            // The one exception is a real EDITING surface, where right-click already means something: an
+            // envelope removes a point, a step sequencer clears a step. Those keep their gesture — the menu
+            // is still one right-click away on the header or the margin around them.
             RegisterCallback<PointerDownEvent>(e =>
             {
                 if (e.button != 1) return;
+                if (OwnsRightClick(e.target as VisualElement)) return;
                 ShowMenu(this);
-                e.StopPropagation();
-            });
+                e.StopImmediatePropagation();
+            }, TrickleDown.TrickleDown);
         }
 
         void Mutate(Action apply) { OnBeforeMutate?.Invoke(); apply(); OnChanged?.Invoke(); }
@@ -239,30 +252,20 @@ namespace Laubrary.Zui
             if (_opt.grow) { body.style.flexGrow = 1f; body.style.flexShrink = 1f; }
             else body.style.flexShrink = 0f;
             row.Add(body);
-            row.Add(ConfigButton());
             _content.Add(row);
         }
 
-        /// The "⋯" that opens the mode/multiplier menu — the ONLY route to Envelope, Steps, Min-Max and
-        /// Oscillation.
-        ///
-        /// The envelope modes have always drawn one; Static and Min-Max did not, and those are the modes a
-        /// value STARTS in. So an animatable parameter presented itself as a plain slider with nothing on
-        /// screen suggesting otherwise: the menu was reachable, by right-clicking a control that gives no hint
-        /// it has a context menu. A whole tool then reads as "these parameters cannot be animated" — which is
-        /// exactly how it was read, and the affordance being absent is why no amount of the feature working
-        /// made any difference.
-        VisualElement ConfigButton()
+        /// True when the clicked element is an editing surface whose own right-click gesture must survive —
+        /// an envelope (right-click removes a point) or a step sequencer. Everything else hands its
+        /// right-click to the mode menu.
+        static bool OwnsRightClick(VisualElement target)
         {
-            var b = Z.Button("⋯", "Change how this value is produced — a Static point, a random Min-Max " +
-                                  "range, an Envelope over the playthrough, held Steps, or an Oscillation.",
-                null);
-            b.AddToClassList("zui-value__config");
-            b.style.flexShrink = 0f;
-            b.style.width = 20f;
-            b.style.marginLeft = 2f;
-            b.clicked += () => ShowMenu(b);
-            return b;
+            for (var e = target; e != null; e = e.parent)
+            {
+                if (e is ZuiEnvelope || e is ZuiStepSequencer) return true;
+                if (e is ZuiValueControl) return false;   // reached our own root — nothing claimed it
+            }
+            return false;
         }
 
         // ── curve mode ──────────────────────────────────────────────────────────────
@@ -316,12 +319,10 @@ namespace Laubrary.Zui
                     e.StopPropagation();
                 });
                 header.Add(thumb);
-                header.Add(ConfigButton());
                 _content.Add(header);
                 return;
             }
 
-            header.Add(ConfigButton());
             _content.Add(header);
 
             // Index markers (a particle-index-mapped curve) take priority over frame lines: when indexMarkerCount
@@ -433,8 +434,6 @@ namespace Laubrary.Zui
             var header = new VisualElement();
             header.AddToClassList("zui-row");
             header.Add(FieldLabel(_label ?? "Steps"));
-            header.Add(Z.Flexible());
-            header.Add(ConfigButton());
             _content.Add(header);
 
             var seq = new ZuiStepSequencer(_v.steps, _v.yMin, _v.yMax);
@@ -525,11 +524,9 @@ namespace Laubrary.Zui
                     e.StopPropagation();
                 });
                 header.Add(mini);
-                header.Add(ConfigButton());
                 _content.Add(header);
                 return;
             }
-            header.Add(ConfigButton());
             _content.Add(header);
 
             var preview = new OscThumb(_v)

@@ -132,26 +132,14 @@ namespace Laubrary.SpriteFx.Editor
             _body.Add(Z.MicroSlider("Duration (s)", filter.duration, 0.02f, 2f, durTip,
                 v => Dial("SpriteFx duration", () => filter.duration = Mathf.Max(0.001f, v)), Wide));
 
-            const string envTip = "Optional easing / remap of raw progress (0→1 over Duration) into the LIFE value " +
-                "fed to every effect's curves. Identity by default; a triangle (0→1→0) turns a monotonic effect into " +
-                "a pulse, an ease softens the ends.";
-            _body.Add(Z.Field("Life remap", envTip,
-                // ZuiEnvelope, not Z.Curve: that wrapper returns a raw Unity CurveField, which is a
-                // native control in a ZUI window and opens Unity's own curve editor for our data.
-                Z.Envelope(filter.Envelope, new ZuiEnvelopeOptions { yMin = 0f, yMax = 1f, anchorsLocked = true },
-                    envTip, () => Dial("SpriteFx envelope", () => { }), null, 220f, 80f)));
+            // No "Life remap" and no "Step rate" — life is progress and the only clock is the host's. See
+            // SpriteFxSpec.SampleEnvelope: a stack-wide remap sat between the host and every effect, so a
+            // flattened one pinned life to a constant and silently killed every authored envelope at once.
 
             const string seedTip = "Seed for any hashing effect (LayerDissolve scatter, AlphaMask noise). Irrelevant " +
                 "for a plain Brightness / Tint flash.";
             _body.Add(Z.Field("Seed", seedTip,
                 Z.Int(filter.seed, seedTip, v => Dial("SpriteFx seed", () => filter.seed = v), Num)));
-
-            const string fpsTip = "Own clock: how many times per second the stack's time advances while it plays. " +
-                "0 = every rendered frame (continuous — the default). Set a rate to step the effect on its own " +
-                "fixed grid, independent of the animation it rides — a fast flicker over a slow reel.";
-            _body.Add(Z.MicroSlider("Step rate (fps)", filter.targetFps, 0f, 60f, fpsTip,
-                v => Dial("SpriteFx step rate", () => filter.targetFps = Mathf.Max(0f, Mathf.Round(v))),
-                Wide, showValue: true, decimals: 0));
         }
 
         // A Stack asset IS assigned → it overrides every inline field, so hide the inline editor and say so.

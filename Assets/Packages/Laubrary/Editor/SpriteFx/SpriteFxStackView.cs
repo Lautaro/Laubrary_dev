@@ -220,7 +220,21 @@ namespace Laubrary.SpriteFx.Editor
                 // Loop is a wall-clock schedule those evaluators never consult, so the row did nothing here
                 // at all: three dials offering a second timebase, inside the one window whose whole premise
                 // is that the event above owns time. Hidden, which is what this option exists for.
-                ConfigureValue = (f, o) => { o.allowOscillation = true; o.hideCurveTiming = true; },
+                // Both of the envelope editor's meta rows are meaningless here and are hidden.
+                //
+                // Duration / Warmup / Loop is a WALL-CLOCK schedule, and LifeEval samples every mode through
+                // the *AtNorm evaluators — the value is read at the stack's life, a position handed down by
+                // whatever plays it. Three dials the runtime never consults, offering a second timebase.
+                //
+                // Value-Range lets the curve's Y run outside the field's own [Range], which the kernels clamp
+                // to anyway — so it can only ever author a value that gets thrown away. Pinning it to the
+                // declared range is what hideCurveRange does.
+                ConfigureValue = (f, o) =>
+                {
+                    o.allowOscillation = true;
+                    o.hideCurveTiming = true;
+                    o.hideCurveRange = true;
+                },
             };
 
             void ShowAddMenu(VisualElement anchor)

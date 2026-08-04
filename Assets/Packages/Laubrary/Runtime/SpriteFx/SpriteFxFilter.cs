@@ -283,15 +283,13 @@ namespace Laubrary.SpriteFx
         List<PixelModifier> EffectiveModifiers => stack != null ? stack.modifiers : modifiers;
         float EffectiveDuration => stack != null ? Mathf.Max(0.001f, stack.duration) : duration;
         int EffectiveSeed => stack != null ? stack.seed : seed;
-        float EffectiveTargetFps => stack != null ? Mathf.Max(0f, stack.targetFps) : Mathf.Max(0f, targetFps);
 
-        float SampleEnvelope(float progress01)
-        {
-            if (stack != null) return stack.SampleEnvelope(progress01);
-            var pts = Envelope;
-            return pts.Count == 0 ? progress01
-                                  : ZUIEnvelopeEvaluator.Evaluate(pts, Mathf.Clamp01(progress01), 1f);
-        }
+        // A stack owns no clock of its own — see SpriteFxSpec.targetFps for why the own-clock grid went.
+        float EffectiveTargetFps => 0f;
+
+        // Life IS progress. See SpriteFxSpec.SampleEnvelope for why the stack-wide remap went: it could pin
+        // life to a constant and silently flatten every authored envelope in the stack at once.
+        float SampleEnvelope(float progress01) => Mathf.Clamp01(progress01);
 
         bool ResolveUseBurst() => dispatch switch
         {
