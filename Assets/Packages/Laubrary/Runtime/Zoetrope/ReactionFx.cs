@@ -78,6 +78,23 @@ namespace Laubrary.Zoetrope
         [SerializeReference] public IEffect fx;
     }
 
+    /// <summary>How long a reaction lasts — the event's OWN timebase, which everything riding it is measured
+    /// against (a Body SpriteFx stack, a timed playback binding, an effect that has to end with the event).
+    ///
+    /// The event owns this, not the effects hanging off it: a SpriteFx stack is a shape over normalized life
+    /// with no opinion about seconds, so something above it has to say how long that 0→1 takes. The character
+    /// and the moment are what know.</summary>
+    public enum EventDurationMode
+    {
+        /// Play the clip <see cref="ReactionFx.loops"/> times. One loop (the default) is a plain single
+        /// play-through, which is what every reaction authored before this field existed does — deliberately
+        /// value 0 so those keep behaving identically.
+        ClipLoops = 0,
+        /// An explicit length in seconds, independent of any clip. The only mode that can give a duration to a
+        /// character whose visual is a STATIC sprite, since a still has no length of its own.
+        FixedSeconds = 1,
+    }
+
     /// <summary>Replaces the old separate <c>Zoe.hit</c>/<c>Zoe.death</c> (VFX-only) + <c>Zoe.hitReaction</c>
     /// (clip-only) split: one reaction owns BOTH which clip plays AND the FX triggered off that same clip's
     /// authored events/meta-layers, so there's exactly one place to author "what happens when this character
@@ -89,6 +106,19 @@ namespace Laubrary.Zoetrope
                  "FrameEvent/MetaLayer names from for the FX list below. Empty = no clip — Immediate-trigger " +
                  "FX still fire normally (this is what keeps a plain SpriteView Zoe's hit VFX working).")]
         public string clip = "";
+
+        [Tooltip("How long this event lasts. Clip loops = the clip played this many times. Fixed seconds = an " +
+                 "explicit length, and the only mode a character whose visual is a static sprite can use, since " +
+                 "a still has no length of its own. Everything riding the event is timed off the answer.")]
+        public EventDurationMode durationMode = EventDurationMode.ClipLoops;
+
+        [Tooltip("How many times the clip plays. Each pass runs the whole clip; an On-Frame effect still fires " +
+                 "ONCE per event, on the first pass that reaches its frame, not once per loop.")]
+        [Min(1)] public int loops = 1;
+
+        [Tooltip("The event's length in seconds, when Fixed seconds is the duration mode. With a clip, the clip " +
+                 "repeats to fill it; with a static sprite, this is the only thing that gives the event a length.")]
+        [Min(0f)] public float seconds = 0f;
 
         [Tooltip("Seconds the character is stunned when this reaction fires — it stops moving and acting, so " +
                  "a hit visibly INTERRUPTS rather than being something it walks through. 0 = no stun.")]
@@ -103,6 +133,24 @@ namespace Laubrary.Zoetrope
         public List<FxEntry> fx = new List<FxEntry>();
 
         public bool IsEmpty => string.IsNullOrEmpty(clip) && bodyFx == null && (fx == null || fx.Count == 0);
+
+        /// Loop count, floored at one. A reaction authored before <see cref="loops"/> existed deserializes it
+        /// as 0, which must read as the single play-through it has always been — not as "never plays".
+        public int Loops => Mathf.Max(1, loops);
+
+        /// <summary>How long this event lasts, in seconds, given how long its clip is
+        /// (<paramref name="clipSeconds"/>; 0 when there is no clip, no animated view, or a clip with no fixed
+        /// end). Returns 0 for "unknown", which is what makes every timed playback binding degrade to a single
+        /// play instead of inventing a length.
+        ///
+        /// This is the ONE place the event's timebase is decided, so the runtime player, the authoring window
+        /// and the SpriteFx preview cannot drift into three different answers about how long the same event
+        /// takes.</summary>
+        public float DurationSeconds(float clipSeconds)
+        {
+            if (durationMode == EventDurationMode.FixedSeconds) return Mathf.Max(0f, seconds);
+            return clipSeconds > 0f ? clipSeconds * Loops : 0f;
+        }
 
         /// <summary>
         /// Convenience: a reaction whose whole content is one effect fired immediately. This is the direct

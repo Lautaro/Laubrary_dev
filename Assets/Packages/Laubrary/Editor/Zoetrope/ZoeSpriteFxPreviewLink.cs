@@ -46,12 +46,15 @@ namespace Laubrary.Zoetrope.Editor
                 foreach (var (reaction, name) in Reactions(zoe))
                 {
                     if (reaction == null || !UsesStack(reaction, spec)) continue;
-                    var frames = Frames(zoe, reaction.clip, out float fps);
-                    if (frames == null || frames.Length == 0) continue;
+                    // The event's visual AND its timebase come from one resolver, shared with the Zoe window,
+                    // so the length shown while authoring and the length previewed here cannot disagree.
+                    var visual = ZoeEventVisual.Of(zoe, reaction);
+                    if (!visual.HasFrames) continue;
                     return new SpriteFxPreviewSubject
                     {
-                        Frames = frames,
-                        Fps = fps,
+                        Frames = visual.Frames,
+                        Fps = visual.Fps,
+                        Seconds = visual.EventSeconds,
                         Label = string.IsNullOrEmpty(reaction.clip)
                             ? $"{zoe.name} — {name}"
                             : $"{zoe.name} — {name} ({reaction.clip})",
@@ -88,23 +91,5 @@ namespace Laubrary.Zoetrope.Editor
             return false;
         }
 
-        /// The view's frames for that clip. A clip-aware view gives the event's own animation; a plain
-        /// SpriteView has one picture and no clips, and correctly yields that — "whatever it is configured
-        /// for" covers both without the caller branching on view type.
-        static Sprite[] Frames(Zoe zoe, string clip, out float fps)
-        {
-            fps = 0f;
-            if (zoe.view is IClipPreviewableView byClip)
-            {
-                fps = byClip.PreviewFpsOf(clip);
-                return byClip.PreviewFrames(clip);
-            }
-            if (zoe.view is IPreviewableView plain)
-            {
-                fps = plain.PreviewFps;
-                return plain.PreviewFrames();
-            }
-            return System.Array.Empty<Sprite>();
-        }
     }
 }

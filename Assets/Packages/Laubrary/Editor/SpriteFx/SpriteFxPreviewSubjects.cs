@@ -4,18 +4,29 @@ using UnityEngine;
 
 namespace Laubrary.SpriteFx.Editor
 {
-    /// What a SpriteFx stack is being previewed ON: some frames, a rate, and a label saying where they came
-    /// from. Deliberately just sprites — SpriteFx filters pixels and has no interest in what produced them.
+    /// What a SpriteFx stack is being previewed ON, and on whose CLOCK: some frames, the rate they play at,
+    /// how long the host event runs, and a label saying where all of it came from. Deliberately just sprites
+    /// and numbers — SpriteFx filters pixels and has no interest in what produced them.
+    ///
+    /// The clock matters as much as the pictures. A stack is a shape over normalized life with no opinion
+    /// about seconds, so whoever hosts it owns the timebase; a subject that carried only frames left the
+    /// window free to invent a duration of its own, and it did — previewing at the stack's fallback length
+    /// while the game played it over the whole death animation.
     public sealed class SpriteFxPreviewSubject
     {
         /// Frames in order. One is a still; more animate.
         public Sprite[] Frames = Array.Empty<Sprite>();
-        /// Playback rate. 0 or less means "a still" and the preview will not advance.
+        /// Playback rate for those frames. 0 or less means "a still" and the preview will not advance them.
         public float Fps;
+        /// How long the HOST's event lasts, in seconds — the length one play-through of the stack must fill.
+        /// 0 when the host has no fixed length, and only then may the window fall back to the stack's own.
+        public float Seconds;
         /// Human-readable provenance, shown in the window: "Doom Imp — death". Never a type name.
         public string Label = "";
 
         public bool HasFrames => Frames != null && Frames.Length > 0;
+        /// True when the host has stated a length, and so owns the timebase the preview must run on.
+        public bool OwnsTimebase => Seconds > 0f;
     }
 
     /// The seam that lets the stack window preview against a Zoe's own animation WITHOUT SpriteFx ever

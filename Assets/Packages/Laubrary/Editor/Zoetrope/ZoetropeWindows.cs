@@ -722,22 +722,24 @@ namespace Laubrary.Zoetrope.Editor
 
             const string clipTip = "The animation this reaction plays, and the clip whose frame events / meta-layers the FX below fire off.";
             var clipOptions = zoe.view != null ? GetClipNameOptions(zoe.view) : null;
+            VisualElement clipField;
             if (clipOptions != null && clipOptions.Length > 0)
             {
                 var shown = new[] { "(none)" }.Concat(clipOptions).ToList();
                 int current = shown.IndexOf(string.IsNullOrEmpty(clipProp.stringValue) ? "(none)" : clipProp.stringValue);
-                root.Add(Z.Field("Clip", clipTip, Z.Dropdown(Mathf.Max(current, 0), shown, clipTip, i =>
+                clipField = Z.Field("Clip", clipTip, Z.Dropdown(Mathf.Max(current, 0), shown, clipTip, i =>
                 {
                     string picked = shown[Mathf.Clamp(i, 0, shown.Count - 1)];
                     Commit(clipPath, p => p.stringValue = picked == "(none)" ? "" : picked);
                     Rebuild();   // the FX rows' Event/Layer options are sourced from this clip
-                }, 200f)));
+                }, 200f));
             }
             else
             {
-                root.Add(Z.Field("Clip", clipTip, Z.TextInput(clipProp.stringValue ?? "", clipTip,
-                    v => Commit(clipPath, p => p.stringValue = v), 200f)));
+                clipField = Z.Field("Clip", clipTip, Z.TextInput(clipProp.stringValue ?? "", clipTip,
+                    v => Commit(clipPath, p => p.stringValue = v), 200f));
             }
+            BuildEventDuration(root, reactionProp, clipField, zoe);
 
             int clipFrames = GetFrameCount(zoe.view, clipProp.stringValue);
             string[] pointLayerIds = GetPointLayerIds(zoe.view, clipProp.stringValue);
@@ -759,6 +761,112 @@ namespace Laubrary.Zoetrope.Editor
             addBtn.style.width = AddButtonWidth;
             addBtn.clicked += () => ShowAddEffectMenu(addBtn, fxPath);
             root.Add(addBtn);
+        }
+
+        /// The event's own TIMEBASE, authored beside the clip that supplies it: how long this reaction lasts,
+        /// and a line stating what that actually resolves to in seconds.
+        ///
+        /// It is here rather than on the effects because the event owns it. A SpriteFx stack is a shape over
+        /// normalized life with no opinion about seconds; a Pyre burst timed to the end of the event needs to
+        /// know where the end is. Something above them has to say, and the character and the moment are what
+        /// know. The resolved line matters as much as the dials: an author who cannot see that "3 loops" came
+        /// out as 0.6 s has no way to tell a mis-set duration from a mis-authored effect.
+        void BuildEventDuration(VisualElement root, SerializedProperty reactionProp, VisualElement clipField, Zoe zoe)
+        {
+            var modeProp = reactionProp.FindPropertyRelative("durationMode");
+            var loopsProp = reactionProp.FindPropertyRelative("loops");
+            var secondsProp = reactionProp.FindPropertyRelative("seconds");
+            if (modeProp == null || loopsProp == null || secondsProp == null) { root.Add(clipField); return; }
+
+            var mode = (EventDurationMode)modeProp.enumValueIndex;
+            bool fixedSeconds = mode == EventDurationMode.FixedSeconds;
+
+            const string modeTip = "How long this event lasts — the timebase everything riding it is measured " +
+                "against. Clip loops = the clip played N times. Fixed seconds = an explicit length, which is the " +
+                "only mode that can give a length to a character whose visual is a still.";
+            const string loopsTip = "How many times the clip plays. An On-Frame effect still fires ONCE per " +
+                "event, on the first pass that reaches its frame — not once per loop.";
+            const string secsTip = "The event's length in seconds. With a clip, the clip repeats to fill it; " +
+                "with a static sprite, this is the only thing that gives the event a length.";
+
+            // Clip and its duration share one wrapping row: three short controls, and vertical space is the
+            // scarce resource in a card that already stacks an effect list under it.
+            var row = Z.Row();
+            row.style.flexWrap = Wrap.Wrap;
+            row.Add(clipField);
+            row.Add(Z.HSpace());
+            row.Add(EnumPicker(modeProp, "Lasts", modeTip));
+            row.Add(Z.HSpace());
+
+            // Both numerics stay in the row at all times with `visibility` doing the showing — switching mode
+            // must not reflow the card under the cursor (the stable-workspace rule).
+            var loopsField = IntFieldClamped("Loops", loopsProp.propertyPath, Mathf.Max(1, loopsProp.intValue),
+                loopsTip, v => Mathf.Max(1, v));
+            loopsField.style.visibility = fixedSeconds ? Visibility.Hidden : Visibility.Visible;
+            var secondsField = NumField("Seconds", secondsProp.propertyPath, secondsProp.floatValue,
+                secsTip, v => Mathf.Max(0f, v));
+            secondsField.style.visibility = fixedSeconds ? Visibility.Visible : Visibility.Hidden;
+            // Absolutely positioned over each other would be cleverer and more fragile; two reserved slots keep
+            // the row's geometry identical in both modes, which is the property that matters.
+            row.Add(loopsField);
+            row.Add(secondsField);
+            root.Add(row);
+
+            root.Add(EventDurationLine(zoe, reactionProp));
+        }
+
+        /// A permanently-reserved single line saying what the duration dials resolve to — fixed height and
+        /// non-wrapping, so its TEXT changes between states and its geometry never does.
+        VisualElement EventDurationLine(Zoe zoe, SerializedProperty reactionProp)
+        {
+            var reaction = ReactionOf(zoe, reactionProp);
+            var visual = ZoeEventVisual.Of(zoe, reaction);
+            string clip = reaction != null ? reaction.clip : "";
+            string named = string.IsNullOrEmpty(clip) ? "this character's visual" : $"\"{clip}\"";
+
+            string text;
+            if (reaction == null)
+                text = "";
+            else if (reaction.durationMode == EventDurationMode.FixedSeconds)
+                text = visual.EventSeconds > 0f
+                    ? $"Lasts {visual.EventSeconds:0.###} s — fixed, independent of any clip."
+                    : "No length set — every effect timed to this event falls back to a single play.";
+            else if (visual.ClipSeconds > 0f)
+                text = reaction.Loops > 1
+                    ? $"Lasts {visual.EventSeconds:0.###} s — {reaction.Loops} loops of {named} " +
+                      $"({visual.ClipSeconds:0.###} s at {visual.Fps:0.#} fps)."
+                    : $"Lasts {visual.EventSeconds:0.###} s — one play of {named} at {visual.Fps:0.#} fps.";
+            else
+                text = "Length unknown — this visual is a still, so switch to Fixed seconds to give the event one.";
+
+            var line = Z.Text(text, ZuiText.Subtle,
+                "What the duration above actually comes out as, from this character's own visual. Everything " +
+                "riding the event — a Body SpriteFx stack, a timed playback binding — is measured against it.");
+            line.style.height = 14f;
+            line.style.whiteSpace = WhiteSpace.NoWrap;
+            line.style.overflow = Overflow.Hidden;
+            return line;
+        }
+
+        /// The live ReactionFx behind a serialized reaction property — Hit, Death, or one of the custom
+        /// events. Read-only use: the duration line needs the real object to ask it for its own resolved
+        /// length, which is the same method the runtime player calls.
+        static ReactionFx ReactionOf(Zoe zoe, SerializedProperty reactionProp)
+        {
+            if (zoe == null || reactionProp == null) return null;
+            string path = reactionProp.propertyPath;
+            if (path == "hit") return zoe.hit;
+            if (path == "death") return zoe.death;
+            if (zoe.events == null || !path.StartsWith("events.Array.data[")) return null;
+            int i = IndexInPath(path);
+            return i >= 0 && i < zoe.events.Count ? zoe.events[i]?.reaction : null;
+        }
+
+        static int IndexInPath(string path)
+        {
+            int open = path.IndexOf('[');
+            int close = path.IndexOf(']', open + 1);
+            return open >= 0 && close > open && int.TryParse(path.Substring(open + 1, close - open - 1), out int i) ? i : -1;
         }
 
         // ── custom events (Zoe.events) ──────────────────────────────────────────────────────

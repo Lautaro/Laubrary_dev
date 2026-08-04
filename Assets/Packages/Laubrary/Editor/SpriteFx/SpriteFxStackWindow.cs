@@ -59,6 +59,8 @@ namespace Laubrary.SpriteFx.Editor
         float _playProgress;                // transient progress while Play animates (does not overwrite the scrub)
         int _previewFrame;                  // frame counter advanced across play ticks (for hashing effects)
         bool _previewPlaying;
+        bool _previewHeld;                  // resting on the last frame between loops
+        float _previewPause;                // seconds left of that rest
         bool _previewReversed;              // preview the stack against a reversed clock (the OnceReversed binding)
         bool _updateHooked;                 // guards the EditorApplication.update subscription
         double _lastTickTime;
@@ -86,6 +88,20 @@ namespace Laubrary.SpriteFx.Editor
         {
             root.style.flexGrow = 1f;
             root.style.minHeight = 0f;
+
+            // Who hosts this stack is resolved BEFORE anything is drawn, because the answer decides what this
+            // window is even allowed to own: on a Zoe event the duration and the visual are the event's, and
+            // the Timeline section below must render them as facts rather than as dials.
+            EnsureSubject(spec);
+
+            // The preview is PINNED above the scroller, not inside it. It is the thing being judged, so
+            // scrolling a stack of a dozen effects must never take it off screen — which is exactly what
+            // happened while all three sections shared one ScrollView.
+            var pinned = new VisualElement();
+            pinned.style.flexShrink = 0f;
+            BuildPreview(pinned, spec);
+            root.Add(pinned);
+
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.style.flexGrow = 1f;
             scroll.style.minHeight = 0f;
@@ -93,10 +109,40 @@ namespace Laubrary.SpriteFx.Editor
 
             BuildStack(body, spec);
             BuildTimeline(body, spec);
-            BuildPreview(body, spec);
 
             root.Add(scroll);
         }
+
+        // ── who owns the timebase ───────────────────────────────────────────────────────────────────────────
+        /// The host event this stack is used by, resolved once per spec. Null is a real answer (a stack that
+        /// nothing uses yet, or one being authored standalone) and is cached as one.
+        void EnsureSubject(SpriteFxSpec spec)
+        {
+            // Load the remembered override sprite for THIS spec whenever the edited spec changes (incl. after
+            // a domain reload, when _prevSpecGuid resets to null). On a plain rebuild (same spec) keep the pick.
+            string guid = PreviewSpritePrefs.GuidOf(spec);
+            if (_prevSpecGuid != guid)
+            {
+                _previewSprite = PreviewSpritePrefs.Load(PrevSpritePrefKey, guid);
+                _prevSpecGuid = guid;
+                // A different stack is used by a different character — the cached subject is about the old
+                // one, and a stale answer here means previewing the wrong creature without any sign of it.
+                InvalidateSubject();
+            }
+            if (_subjectResolved) return;
+            _subject = SpriteFxPreviewSubjects.Resolve(spec);
+            _subjectResolved = true;
+        }
+
+        /// True while this stack is being edited as part of an event that already fixed its length — the
+        /// state in which this window stops owning duration, playback rate and the preview image.
+        bool Hosted => _subject != null && _subject.OwnsTimebase;
+
+        /// How long ONE play-through of the stack runs in the preview: the host event's length when there is
+        /// a host, and only otherwise the stack's own fallback duration. This is the same precedence the
+        /// runtime uses, which is what makes the preview honest.
+        float PreviewSeconds(SpriteFxSpec spec)
+            => Hosted ? _subject.Seconds : Mathf.Max(0.001f, spec != null ? spec.duration : 0.15f);
 
         void BuildStack(VisualElement root, SpriteFxSpec spec)
         {
@@ -126,9 +172,25 @@ namespace Laubrary.SpriteFx.Editor
                 "How long one play-through lasts and how raw progress is remapped into the life value fed to " +
                 "every effect's curves.");
 
-            const string durTip = "How long one play-through lasts, in seconds.";
-            s.Add(Z.MicroSlider("Duration (s)", spec.duration, 0.02f, 2f, durTip,
-                v => Dial("SpriteFx duration", () => spec.duration = Mathf.Max(0.001f, v)), Wide, showValue: true));
+            // WHO OWNS THE LENGTH. A stack is a shape over normalized life, not a schedule — its parameters
+            // run 0→1 and mean nothing in seconds — so whatever plays it says how long that 0→1 takes. When
+            // this stack is on a Zoe event, the event already answered, and offering a Duration dial here
+            // would be offering a number the runtime ignores.
+            if (Hosted)
+            {
+                string hostedTip = $"Set by the event using this stack ({_subject.Label}), not here. A stack is a " +
+                    "shape over its play-through, so the event it rides owns how long that takes — re-time the " +
+                    "animation and this effect re-times with it.";
+                s.Add(Z.Field("Duration", hostedTip,
+                    Z.Text($"{_subject.Seconds:0.###} s — from {_subject.Label}", ZuiText.Body, hostedTip)));
+            }
+            else
+            {
+                const string durTip = "How long one play-through lasts, in seconds. Used only when nothing else " +
+                    "says: put this stack on a Zoe event and that event's length wins instead.";
+                s.Add(Z.MicroSlider("Duration (s)", spec.duration, 0.02f, 2f, durTip,
+                    v => Dial("SpriteFx duration", () => spec.duration = Mathf.Max(0.001f, v)), Wide, showValue: true));
+            }
 
             const string envTip = "Optional easing / remap of raw progress (0→1 over Duration) into the LIFE " +
                 "value fed to every effect's curves. Identity by default; a triangle (0→1→0) turns a " +
@@ -144,10 +206,15 @@ namespace Laubrary.SpriteFx.Editor
             s.Add(Z.Field("Seed", seedTip,
                 Z.Int(spec.seed, seedTip, v => Dial("SpriteFx seed", () => spec.seed = v), Num)));
 
-            const string fpsTip = "Own clock: how many times per second the stack's time advances while it " +
-                "plays. 0 = every rendered frame (continuous — the default). Set a rate to step the effect on " +
-                "its own fixed grid, independent of the animation it rides — a fast flicker over a slow reel, " +
-                "or a deliberately chunky retro fade. The preview below plays at the same rate.";
+            // Deliberately still a dial when hosted, unlike Duration: this is the EFFECT's own re-evaluation
+            // grid, not the visual's frame rate. Riding a 4-fps reel with a 12-step flicker is the whole point
+            // of it, so the host cannot own it — but the tooltip has to keep the two rates apart by name.
+            string fpsTip = "Own clock: how many times per second THIS EFFECT's time advances while it plays. " +
+                "0 = every rendered frame (continuous — the default). Set a rate to step the effect on its own " +
+                "fixed grid, independent of the animation it rides — a fast flicker over a slow reel, or a " +
+                "deliberately chunky retro fade. Not the same thing as the visual's frame rate" +
+                (Hosted ? $", which is {_subject.Fps:0.#} fps and comes from the event." : ".") +
+                " The preview above steps at this rate too.";
             s.Add(Z.MicroSlider("Step rate (fps)", spec.targetFps, 0f, 60f, fpsTip,
                 v => Dial("SpriteFx step rate", () => spec.targetFps = Mathf.Max(0f, Mathf.Round(v))),
                 Wide, showValue: true, decimals: 0));
@@ -161,36 +228,27 @@ namespace Laubrary.SpriteFx.Editor
         // what plays. The input sprite is PREVIEW-ONLY (never stored on the asset) — see the field block above.
         void BuildPreview(VisualElement root, SpriteFxSpec spec)
         {
-            // Load the remembered sprite for THIS spec whenever the edited spec changes (incl. after a domain
-            // reload, when _prevSpecGuid resets to null). On a plain rebuild (same spec) keep the current pick.
-            string guid = PreviewSpritePrefs.GuidOf(spec);
-            if (_prevSpecGuid == null || _prevSpecGuid != guid)
+            var s = Z.Section("Preview",
+                "The stack applied to the visual it will actually play on — scrub the timeline or press Play.");
+
+            // 1) Input-sprite picker — ONLY when nothing else supplies a visual. On a Zoe event the event's own
+            // clip IS the input, so a picker here would be a control whose value the preview ignores: the
+            // subject already wins over it, and a dial that does nothing reads as a broken one.
+            if (!Hosted)
             {
-                _previewSprite = PreviewSpritePrefs.Load(PrevSpritePrefKey, guid);
-                _prevSpecGuid = guid;
-                // A different stack is used by a different character — the cached subject is about the old
-                // one, and a stale answer here means previewing the wrong creature without any sign of it.
-                InvalidateSubject();
+                const string spriteTip = "Preview the stack on THIS sprite. Used when the stack is not on a Zoe " +
+                    "event, or that event resolves no frames. Preview-only, never part of the SpriteFx Stack " +
+                    "asset — it is remembered per-asset just for authoring.";
+                s.Add(Z.Field("Preview on", spriteTip,
+                    Z.Object<Sprite>(_previewSprite, spriteTip, OnPickSprite, 200f)));
             }
 
-            var s = Z.Section("Preview",
-                "Apply the whole stack to a sample sprite and see it live — scrub the timeline or press Play. " +
-                "The input sprite is preview-only and is NOT saved into this asset.");
-
-            // 1) Input-sprite picker (preview subject). Z.Object is the sanctioned raw island for asset picking.
-            const string spriteTip = "Preview on THIS sprite instead of the character's clip. Only used when the " +
-                "stack is not on a Zoe event, or that event resolves no frames. Preview-only, never part of the " +
-                "SpriteFx Stack asset — it is remembered per-asset just for authoring. Its texture must be " +
-                "Read/Write enabled to be filtered.";
-            s.Add(Z.Field("Override sprite", spriteTip,
-                Z.Object<Sprite>(_previewSprite, spriteTip, OnPickSprite, 200f)));
-
-            // Says what the stage is actually showing. A PERMANENTLY reserved single line whose text
-            // changes — never one that appears and disappears, which would shove the preview down the
-            // moment a subject resolved and move the thing being looked at.
+            // Says what the stage is actually showing, and on whose clock. A PERMANENTLY reserved single line
+            // whose text changes — never one that appears and disappears, which would shove the preview down
+            // the moment a subject resolved and move the thing being looked at.
             _subjectLine = Z.Text("", ZuiText.Subtle,
-                "Where the preview frames come from. With no input sprite picked, the stack previews on the " +
-                "character whose event uses it.");
+                "Where the preview frames come from and how long the play-through runs. A stack used by a Zoe " +
+                "event previews on that event's own visual, over that event's own length.");
             _subjectLine.style.height = 14f;
             _subjectLine.style.whiteSpace = WhiteSpace.NoWrap;
             _subjectLine.style.overflow = Overflow.Hidden;
@@ -232,9 +290,21 @@ namespace Laubrary.SpriteFx.Editor
             _lifeSlider = Z.MicroSlider("Life", _previewProgress, 0f, 1f, lifeTip, OnScrub, Wide, showValue: true);
 
             _playButton = Z.Button(_previewPlaying ? "Stop" : "Play",
-                "Play the stack over the timeline (loops, raw progress 0→1 over Duration). Stop returns to the " +
-                "scrub position.", TogglePlay);
+                Hosted
+                    ? $"Play the stack over the event's own length ({_subject.Seconds:0.###} s), on the event's " +
+                      "own visual, then start over. Stop returns to the scrub position."
+                    : "Play the stack over its Duration, then start over. Stop returns to the scrub position.",
+                TogglePlay);
             _playButton.style.width = 60f;
+
+            // How long the loop rests on the last frame before starting over. Preview-only and deliberately
+            // NOT on the asset: it is how you want to WATCH the effect, not part of the effect. A real, stable
+            // range, so a slider rather than a number — and one shared across stacks, since it is a viewing
+            // habit rather than a property of any one of them.
+            const string pauseTip = "How long the preview rests on the last frame before looping back to the " +
+                "start — room to actually see where the effect ended. Preview-only: never saved into the stack.";
+            var pauseSlider = Z.MicroSlider("Restart after", RestartPause, 0f, 2f, pauseTip,
+                v => { RestartPause = v; }, Wide, showValue: true);
 
             // Preview-only: the same stack against a reversed clock — what an attachment set to Once Reversed
             // shows. Nothing about the asset changes; this is how you check that one stack covers both
@@ -245,11 +315,22 @@ namespace Laubrary.SpriteFx.Editor
                 "counts forward, so a reversed dissolve un-dissolves through a different grain.",
                 _previewReversed, on => { _previewReversed = on; RenderPreview(); });
 
-            s.Add(Z.Row(_lifeSlider, _playButton, reverseToggle));
+            var transport = Z.Row(_lifeSlider, _playButton, reverseToggle, Z.HSpace(), pauseSlider);
+            transport.style.flexWrap = Wrap.Wrap;
+            s.Add(transport);
 
             root.Add(s);
 
             RenderPreview();   // paint the current scrub state now
+        }
+
+        // The loop's rest on the last frame, in seconds. A viewing preference, so it lives in EditorPrefs and
+        // never touches a SpriteFx Stack asset.
+        const string RestartPausePrefKey = "Laubrary.SpriteFx.Preview.RestartPause";
+        static float RestartPause
+        {
+            get => EditorPrefs.GetFloat(RestartPausePrefKey, 0.35f);
+            set => EditorPrefs.SetFloat(RestartPausePrefKey, Mathf.Clamp(value, 0f, 2f));
         }
 
         static void StageBorder(VisualElement v)
@@ -286,6 +367,8 @@ namespace Laubrary.SpriteFx.Editor
         {
             if (Spec == null) return;
             _previewPlaying = true;
+            _previewHeld = false;
+            _previewPause = 0f;
             _playProgress = 0f;
             _previewFrame = 0;
             _lastTickTime = EditorApplication.timeSinceStartup;
@@ -325,9 +408,28 @@ namespace Laubrary.SpriteFx.Editor
             _lastTickTime = now;
             if (dt < 0f) dt = 0f;
 
-            float dur = Mathf.Max(0.001f, spec.duration);
-            _playProgress = Mathf.Repeat(_playProgress + dt / dur, 1f);   // loop 0→1
-            _previewFrame++;
+            // Rest on the last frame before looping back, so the end state is actually visible instead of
+            // being wiped a frame after it arrives. Nothing moves while held — not the effect, not the frame.
+            if (_previewHeld)
+            {
+                _previewPause -= dt;
+                if (_previewPause > 0f) return;
+                _previewHeld = false;
+                _playProgress = 0f;
+                _previewFrame = 0;
+            }
+            else
+            {
+                // The HOST's length, not the stack's: a flash on a death event plays over the death event.
+                float dur = Mathf.Max(0.001f, PreviewSeconds(spec));
+                _playProgress += dt / dur;
+                _previewFrame++;
+                if (_playProgress >= 1f)
+                {
+                    if (RestartPause > 0f) { _playProgress = 1f; _previewHeld = true; _previewPause = RestartPause; }
+                    else { _playProgress = Mathf.Repeat(_playProgress, 1f); _previewFrame = 0; }
+                }
+            }
 
             if (_lifeSlider != null) _lifeSlider.value = _playProgress;   // slider setter is notify:false (no loop)
             RenderPreviewAt(_playProgress, _previewFrame);
@@ -341,7 +443,13 @@ namespace Laubrary.SpriteFx.Editor
         /// Progress drives the frame, so scrubbing the stack's timeline walks the character's animation
         /// underneath it. That is the point: a death flash has to be judged against the death animation, not
         /// against one arbitrary still of it.
-        Sprite SubjectFrame(float progress, int frame)
+        ///
+        /// The frame comes from ELAPSED TIME at the visual's OWN rate — progress through the event gives
+        /// seconds, seconds at the subject's fps give a frame — so a three-loop event walks its clip three
+        /// times and a 4-fps reel reads as a 4-fps reel. It used to index by the editor's tick counter, which
+        /// made the character animate at whatever rate the editor happened to be repainting at; the fps the
+        /// resolver went to the trouble of reporting was never read at all.
+        Sprite SubjectFrame(float progress)
         {
             if (!_subjectResolved)
             {
@@ -351,7 +459,13 @@ namespace Laubrary.SpriteFx.Editor
             if (_subject == null || !_subject.HasFrames) return null;
             var f = _subject.Frames;
             if (f.Length == 1) return f[0];
-            int i = frame > 0 ? frame : Mathf.FloorToInt(Mathf.Clamp01(progress) * f.Length);
+
+            float p = Mathf.Clamp01(progress);
+            // Without a rate there is no time-based answer, so fall back to spreading the frames evenly across
+            // the play-through — still an animation, just not one claiming a rate it does not have.
+            int i = _subject.Fps > 0f
+                ? Mathf.FloorToInt(p * PreviewSeconds(Spec) * _subject.Fps)
+                : Mathf.FloorToInt(p * f.Length);
             return f[((i % f.Length) + f.Length) % f.Length];
         }
 
@@ -361,15 +475,25 @@ namespace Laubrary.SpriteFx.Editor
         void UpdateSubjectLine()
         {
             if (_subjectLine == null) return;
-            string t = _subject != null && _subject.HasFrames
-                ? $"Previewing on {_subject.Label}   ({_subject.Frames.Length} frames)"
-                : _previewSprite != null
-                    ? "Previewing on the override sprite."
-                    : "No subject — use this stack on a Zoe event, or pick an override sprite.";
+            string t;
+            if (_subject != null && _subject.HasFrames)
+            {
+                // Both halves of what the event fixed: what it looks like AND how long it takes. The length is
+                // the half that used to be invisible, and it is the one that made the preview disagree with
+                // the game without ever saying so.
+                string rate = _subject.Fps > 0f ? $" at {_subject.Fps:0.#} fps" : " (a still)";
+                t = _subject.OwnsTimebase
+                    ? $"{_subject.Label} — {_subject.Frames.Length} frames{rate}, over {_subject.Seconds:0.###} s."
+                    : $"{_subject.Label} — {_subject.Frames.Length} frames{rate}; the event states no length, so " +
+                      "this stack's own Duration is used.";
+            }
+            else t = _previewSprite != null
+                    ? "A picked sprite — this stack is not on any Zoe event yet."
+                    : "Nothing to preview on — use this stack on a Zoe event, or pick a sprite.";
             if (_subjectLine.text != t) _subjectLine.text = t;
         }
 
-        void RenderPreview() => RenderPreviewAt(_previewProgress, 0);   // static scrub → fixed frame 0
+        void RenderPreview() => RenderPreviewAt(_previewProgress, 0);   // static scrub → fixed hashing frame
 
         void RenderPreviewAt(float progress, int frame)
         {
@@ -383,7 +507,7 @@ namespace Laubrary.SpriteFx.Editor
             // remembered per-spec in EditorPrefs, so a stale choice from another session silently beat the
             // event's own clip forever. The requirement was "the input IS the clip", so the clip is the input
             // and the picker is an explicit OVERRIDE that only applies when there is nothing better.
-            Sprite spr = SubjectFrame(progress, frame) ?? _previewSprite;
+            Sprite spr = SubjectFrame(progress) ?? _previewSprite;
             if (spr == null)
             {
                 ShowHint("Pick a sprite to preview — or add this stack to a Zoe event and it will preview on " +
@@ -425,7 +549,9 @@ namespace Laubrary.SpriteFx.Editor
                 // the stepped evaluation the runtime plays (WYSIWYG).
                 if (spec.targetFps > 0f)
                 {
-                    float dur = Mathf.Max(0.001f, spec.duration);
+                    // Over the HOST's length where there is one — a step grid is a rate in SECONDS, so it can
+                    // only be quantised against the seconds the play-through actually takes.
+                    float dur = Mathf.Max(0.001f, PreviewSeconds(spec));
                     frame = Mathf.FloorToInt(raw * dur * spec.targetFps);
                     int step = Mathf.FloorToInt(progress * dur * spec.targetFps);
                     progress = Mathf.Clamp01((step / spec.targetFps) / dur);

@@ -61,8 +61,9 @@ namespace Laubrary.Zoetrope
             var r = def != null ? def.hit : null;
             if (r == null) return;
             var ctx = BuildContext(info);
-            ctx.EventSecondsRemaining = ClipSecondsOf(r);   // Immediate entries fire at the event's start — full length
-            PlayBodyFx(r);
+            float secs = EventSecondsOf(r);
+            ctx.EventSecondsRemaining = secs;   // Immediate entries fire at the event's start — full length
+            PlayBodyFx(r, secs);
             FireImmediate(r, ctx);
             TryArmClip(r, ctx, () => { FlushUnfiredFrameEntries(); Disarm(); HurtFinished?.Invoke(); });
         }
@@ -87,8 +88,9 @@ namespace Laubrary.Zoetrope
             if (r == null) return false;
 
             var ctx = BuildContext(info);
-            ctx.EventSecondsRemaining = ClipSecondsOf(r);
-            PlayBodyFx(r);
+            float secs = EventSecondsOf(r);
+            ctx.EventSecondsRemaining = secs;
+            PlayBodyFx(r, secs);
             FireImmediate(r, ctx);
             // Not Disarm()-ing on failure: a reaction with no clip still fired its Immediate entries above,
             // which is a legitimate custom event (a pure body flash with no animation of its own).
@@ -104,8 +106,9 @@ namespace Laubrary.Zoetrope
             var ctx = BuildContext(info);
             if (r != null)
             {
-                ctx.EventSecondsRemaining = ClipSecondsOf(r);   // Immediate entries fire at the event's start — full length
-                PlayBodyFx(r);
+                float secs = EventSecondsOf(r);
+                ctx.EventSecondsRemaining = secs;   // Immediate entries fire at the event's start — full length
+                PlayBodyFx(r, secs);
                 FireImmediate(r, ctx);
             }
             if (r == null || !TryArmClip(r, ctx, () => { FlushUnfiredFrameEntries(); Disarm(); DeathFinished?.Invoke(); }))
@@ -113,14 +116,22 @@ namespace Laubrary.Zoetrope
         }
 
         /// The reaction clip's length in seconds, or 0 when unknown — no clip, no animated view, or a clip the
-        /// view cannot measure (a zoned strip with no fixed end). 0 makes every timed playback binding degrade
-        /// to a single play, per its own tooltip.
+        /// view cannot measure (a zoned strip with no fixed end).
         float ClipSecondsOf(ReactionFx r)
         {
             if (r == null || string.IsNullOrEmpty(r.clip) || _view == null) return 0f;
             float s = _view.GetClipSeconds(r.clip);
             return s > 0f ? s : 0f;
         }
+
+        /// How long the EVENT lasts — the clip's length put through the reaction's own duration model (N loops,
+        /// or an explicit number of seconds). 0 when unknown, which makes every timed playback binding degrade
+        /// to a single play, per its own tooltip.
+        ///
+        /// Everything riding the event is measured against this, never against a stack's own duration: a flash
+        /// tied to a death animation should last exactly as long as the death animation, and re-timing the
+        /// animation should re-time the flash with it.
+        float EventSecondsOf(ReactionFx r) => r == null ? 0f : r.DurationSeconds(ClipSecondsOf(r));
 
         // Fill the typed EventContext from this damage event: the Zoe's live data (transform, health, the current
         // reel frame's renderer, the animated view for meta-points) + the event's typed in-params (hit
@@ -144,13 +155,31 @@ namespace Laubrary.Zoetrope
             Disarm();
             _armed = r;
             _armedCtx = ctx;
-            float secs = ClipSecondsOf(r);
-            _armedHasDuration = secs > 0f;
-            _armedEndTime = Time.time + secs;
+            float clipSecs = ClipSecondsOf(r);
+            float eventSecs = r.DurationSeconds(clipSecs);
+            _armedHasDuration = eventSecs > 0f;
+            _armedEndTime = Time.time + eventSecs;
             _armedFrameHandler = HandleArmedFrame;
             _view.OnFrameEntered += _armedFrameHandler;
-            _view.PlayClip(r.clip, loop: false, onComplete: onComplete);
+            PlayPass(r, clipSecs, onComplete);
             return true;
+        }
+
+        /// Play the clip once, and again for as long as the EVENT still has room for a whole pass — how a
+        /// multi-loop event, or a fixed-seconds event longer than its clip, actually gets its length.
+        ///
+        /// Re-play is gated on at least HALF a clip remaining, so an event whose length is not a whole number
+        /// of clips ends on a clean pass instead of a visible stutter of a few frames. A clip the view cannot
+        /// measure has no remainder to reason about and simply plays once, as it always did.
+        void PlayPass(ReactionFx r, float clipSecs, Action onComplete)
+        {
+            _view.PlayClip(r.clip, loop: false, onComplete: () =>
+            {
+                bool roomForAnother = ReferenceEquals(_armed, r) && _armedHasDuration && clipSecs > 0f &&
+                                      _armedEndTime - Time.time > clipSecs * 0.5f;
+                if (roomForAnother) PlayPass(r, clipSecs, onComplete);
+                else onComplete?.Invoke();
+            });
         }
 
         void Disarm()
@@ -209,7 +238,11 @@ namespace Laubrary.Zoetrope
         // death flash / tint / dissolve that rides on top of the live animation. Ensures a SpriteFxFilter on the
         // body's SpriteRenderer (the same renderer TargetPosition placement uses) and points it at the reaction's
         // Stack. Layering stays correct: Zoetrope depends DOWN on SpriteFx; SpriteFx never references Zoetrope.
-        void PlayBodyFx(ReactionFx r)
+        //
+        // Runs over the EVENT's length, exactly like the Body-SpriteFx effect card does. This slot used to call
+        // a bare Play(), which fell through to the stack's own fallback duration — so the same stack lasted one
+        // length on an effect card and another here, and lengthening the animation left this one finishing early.
+        void PlayBodyFx(ReactionFx r, float eventSeconds)
         {
             if (r == null || r.bodyFx == null) return;
             var sr = GetComponentInChildren<SpriteRenderer>();
@@ -217,7 +250,8 @@ namespace Laubrary.Zoetrope
             var filter = sr.GetComponent<SpriteFxFilter>();
             if (filter == null) filter = sr.gameObject.AddComponent<SpriteFxFilter>();
             filter.stack = r.bodyFx;
-            filter.Play();
+            if (eventSeconds > 0f) filter.Play(eventSeconds);
+            else filter.Play();   // unknown event length — the stack's own duration is the honest last resort
         }
 
         // ── spawning ──────────────────────────────────────────────────────────
