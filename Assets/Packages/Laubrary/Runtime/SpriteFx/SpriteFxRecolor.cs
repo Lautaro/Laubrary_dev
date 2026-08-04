@@ -27,7 +27,7 @@ namespace Laubrary.SpriteFx
     {
         [Tooltip("The managed recolour stack applied every frame, in order — typically a single Colour remap effect, " +
                  "but any PixelModifier works. Ignored when a Stack asset is assigned below.")]
-        [SerializeReference] public List<PixelModifier> modifiers = new List<PixelModifier>();
+        [SerializeReference] public List<PyreModifier> modifiers = new List<PyreModifier>();
 
         [Tooltip("Optional: source the stack from a shared SpriteFxSpec ASSET instead of the inline list above. When " +
                  "assigned the asset WINS, so one authored recolour can be reused across many sprites.")]
@@ -60,7 +60,27 @@ namespace Laubrary.SpriteFx
         float _lastPpu;
         int _lastW = -1, _lastH = -1;
 
-        List<PixelModifier> Mods => stack != null ? stack.modifiers : modifiers;
+        // A recolour runs the managed per-pixel path only, so it takes just the PIXEL effects out of a stack
+        // that may now also hold warps and whole-frame passes — those need the full RunStack dispatch, which
+        // this component deliberately does not do.
+        static readonly List<PixelModifier> s_pixelOnly = new List<PixelModifier>();
+        List<PixelModifier> Mods
+        {
+            get
+            {
+                s_pixelOnly.Clear();
+                if (stack != null)
+                {
+                    // A shared stack may now hold warps and whole-frame passes too; take only what this
+                    // component's per-pixel path can actually run.
+                    if (stack.modifiers != null)
+                        foreach (var m in stack.modifiers) if (m is PixelModifier pm) s_pixelOnly.Add(pm);
+                }
+                else if (modifiers != null)
+                    foreach (var m in modifiers) if (m is PixelModifier pm) s_pixelOnly.Add(pm);
+                return s_pixelOnly;
+            }
+        }
         int EffectiveSeed => stack != null ? stack.seed : seed;
 
         void OnEnable() { _sr = GetComponent<SpriteRenderer>(); Refresh(); }

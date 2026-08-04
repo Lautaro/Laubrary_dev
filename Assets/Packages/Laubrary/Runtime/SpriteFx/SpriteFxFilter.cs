@@ -37,7 +37,7 @@ namespace Laubrary.SpriteFx
                  "because these effects clamp and so do not commute. Only the gather-free pixel family runs " +
                  "here; each effect's animatable values are resolved at the current life every frame. " +
                  "SpriteFxHurtFlash populates this for the flash-on-hurt case.")]
-        [SerializeReference] public List<PixelModifier> modifiers = new List<PixelModifier>();
+        [SerializeReference] public List<PyreModifier> modifiers = new List<PyreModifier>();
 
         [Tooltip("Optional: source the stack, duration, envelope and seed from a shared SpriteFxSpec ASSET (a " +
                  "reusable 'SpriteFx Stack') instead of the inline fields below. When assigned the asset WINS (the " +
@@ -280,7 +280,7 @@ namespace Laubrary.SpriteFx
         }
 
         // ── effective source (a Stack asset, when assigned, overrides every inline field) ─────────────────────────
-        List<PixelModifier> EffectiveModifiers => stack != null ? stack.modifiers : modifiers;
+        List<PyreModifier> EffectiveModifiers => stack != null ? stack.modifiers : modifiers;
         float EffectiveDuration => stack != null ? Mathf.Max(0.001f, stack.duration) : duration;
         int EffectiveSeed => stack != null ? stack.seed : seed;
 
@@ -310,35 +310,9 @@ namespace Laubrary.SpriteFx
         /// is the single code path <see cref="Tick"/> uses each frame; the verification harness calls it directly so
         /// "what a probe tests" == "what plays". `mods` may contain any PixelModifiers — non-shaped/disabled ones
         /// are skipped by <see cref="SpriteFxStack.Resolve"/> (a runtime filter only handles the gather-free family).
-        public static void Apply(Color32[] pixels, int W, int H, IReadOnlyList<PixelModifier> mods,
+        public static void Apply(Color32[] pixels, int W, int H, IReadOnlyList<PyreModifier> mods,
                                  int frame, float life, int seed, bool useBurst)
-        {
-            if (pixels == null || pixels.Length == 0) return;
-
-            var eval = SpriteFxStack.LifeEval(life, seed);
-            SpriteFxStack.Resolve(mods, eval, Allocator.TempJob, out var ops, out var luts);
-            try
-            {
-                if (ops.Length == 0) return;   // nothing shaped/enabled — leave the buffer untouched
-                if (useBurst)
-                {
-                    var native = new NativeArray<Color32>(pixels.Length, Allocator.TempJob);
-                    native.CopyFrom(pixels);
-                    SpriteFxStack.Schedule(native, ops, luts, W, H, frame, life, seed).Complete();
-                    native.CopyTo(pixels);
-                    native.Dispose();
-                }
-                else
-                {
-                    SpriteFxStack.RunInline(pixels, ops, luts, W, H, frame, life, seed);
-                }
-            }
-            finally
-            {
-                if (ops.IsCreated) ops.Dispose();
-                if (luts.IsCreated) luts.Dispose();
-            }
-        }
+            => SpriteFxStack.RunStack(pixels, W, H, mods, frame, life, seed, useBurst);
 
         // ── source read (R/W required) ───────────────────────────────────────────────────────────────────────────
         bool ReadSource(Sprite s, out Color32[] px, out int W, out int H)

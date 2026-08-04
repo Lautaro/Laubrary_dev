@@ -49,9 +49,9 @@ namespace Laubrary.SpriteFx
             _filter.Play(Mathf.Max(0.01f, duration));
         }
 
-        List<PixelModifier> BuildStack()
+        List<PyreModifier> BuildStack()
         {
-            var stack = new List<PixelModifier>(2);
+            var stack = new List<PyreModifier>(2);
 
             // A brightness value that curves 1 → peak → 1 across life, i.e. the pulse. yMax = peak bounds the curve.
             var brightness = new BrightnessModifier

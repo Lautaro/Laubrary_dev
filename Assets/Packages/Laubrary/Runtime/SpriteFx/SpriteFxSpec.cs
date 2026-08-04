@@ -25,11 +25,11 @@ namespace Laubrary.SpriteFx
     [CreateAssetMenu(fileName = "New SpriteFx Stack", menuName = "Laubrary/SpriteFx/Stack", order = 1)]
     public class SpriteFxSpec : ScriptableObject
     {
-        [Tooltip("The stateless colour/mask effects applied in order while the stack plays — order matters, " +
-                 "because these effects clamp and so do not commute. Only the gather-free pixel family runs " +
-                 "here (the Add menu offers exactly that set); each effect's animatable values are resolved at " +
-                 "the current life every frame.")]
-        [SerializeReference] public List<PixelModifier> modifiers = new List<PixelModifier>();
+        [Tooltip("The effects applied in order while the stack plays — order matters, because they clamp and " +
+                 "warp and so do not commute. Colour/mask effects recolour pixels in place, geometry effects " +
+                 "warp the picture, and whole-frame effects (outline, bloom, drop shadow) read a pixel's " +
+                 "neighbours. Each effect's animatable values are resolved at the current life every frame.")]
+        [SerializeReference] public List<PyreModifier> modifiers = new List<PyreModifier>();
 
         [Tooltip("FALLBACK length, used only when nothing else says how long this stack should take. A stack is a SHAPE over normalized life (0->1), not a schedule, so its host owns the timebase: a Zoe event with a clip runs the stack over that clip's length, an event without one uses the effect's own FX Seconds, and this value applies only when a stack is played from neither. Re-timing an animation therefore re-times the effect riding it, instead of the effect finishing early.")]
         [Min(0.001f)] public float duration = 0.15f;

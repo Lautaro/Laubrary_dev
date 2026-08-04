@@ -516,6 +516,139 @@ namespace Laubrary.SpriteFx
             for (int i = 0; i < gradients.Count; i++) SpriteFxLut.Bake(gradients[i], luts, i);
         }
 
+        /// <summary>
+        /// Run a WHOLE authored stack over a managed buffer — every effect family, in the order the author
+        /// listed them.
+        ///
+        /// SpriteFx used to run only the eleven gather-free pixel effects, because those are the ones the
+        /// Burst job can express: one work item owns one pixel and may not touch another. That left the
+        /// rest of the family — every geometry warp, and every whole-frame pass like outline, bloom and drop
+        /// shadow — unreachable from a sprite, which is most of what people actually want an effect to do.
+        ///
+        /// The dispatch keeps the fast path where it applies. Consecutive SHAPED effects are batched into
+        /// one resolved op list and go through Burst exactly as before; anything else flushes the batch and
+        /// runs its own pass. So a plain colour stack costs precisely what it did, and the authored order is
+        /// preserved either way — which matters, because these effects do not commute.
+        /// </summary>
+        public static void RunStack(Color32[] px, int W, int H, IReadOnlyList<PyreModifier> mods,
+                                    int frame, float life, int seed, bool useBurst)
+        {
+            if (px == null || px.Length == 0 || mods == null) return;
+            var eval = LifeEval(life, seed);
+
+            var batch = new List<PyreModifier>();
+            void Flush()
+            {
+                if (batch.Count == 0) return;
+                Resolve(batch, eval, Allocator.TempJob, out var ops, out var luts);
+                try
+                {
+                    if (ops.Length > 0)
+                    {
+                        if (useBurst)
+                        {
+                            var native = new NativeArray<Color32>(px.Length, Allocator.TempJob);
+                            native.CopyFrom(px);
+                            Schedule(native, ops, luts, W, H, frame, life, seed).Complete();
+                            native.CopyTo(px);
+                            native.Dispose();
+                        }
+                        else RunInline(px, ops, luts, W, H, frame, life, seed);
+                    }
+                }
+                finally
+                {
+                    if (ops.IsCreated) ops.Dispose();
+                    if (luts.IsCreated) luts.Dispose();
+                }
+                batch.Clear();
+            }
+
+            for (int i = 0; i < mods.Count; i++)
+            {
+                var m = mods[i];
+                if (m == null || !m.enabled) continue;
+
+                if (IsShaped(m)) { batch.Add(m); continue; }
+
+                Flush();   // everything below must see the pixels the batch produced
+
+                switch (m)
+                {
+                    case GeometryModifier g:
+                        m.Prepare(eval);
+                        RunWarp(px, W, H, g, frame);
+                        break;
+
+                    case PostModifier post:
+                        // The three hooks Pyre's renderer sets before every post pass — without them a post
+                        // that reads life or hashes per pixel (Dissolve) sees zero and produces nothing.
+                        post.SetLife(life);
+                        post.SetSeed(seed);
+                        post.SetFrameIndex(frame);
+                        m.Prepare(eval);
+                        post.Apply(px, W, H);
+                        break;
+
+                    case PixelModifier pm:
+                        // A pixel effect the Burst family does not cover (Voronoi crack, Colour remap): same
+                        // per-pixel contract, run on the managed path.
+                        m.Prepare(eval);
+                        RunManagedPixel(px, W, H, pm, frame, life, seed);
+                        break;
+                }
+            }
+            Flush();
+        }
+
+        /// A geometry effect as a RESAMPLE. Its contract is an INVERSE map — "where did this pixel come
+        /// from" — which is exactly what a destination-driven resample needs: for every output pixel, ask
+        /// where it came from and fetch that. Sampling is point, not bilinear, because this is pixel art and
+        /// a smoothed warp would turn crisp pixels into mush.
+        ///
+        /// Anything mapping from outside the buffer reads as transparent, so a warp that pulls the picture
+        /// inward leaves clean empty space rather than smearing its edge pixels outward.
+        static void RunWarp(Color32[] px, int W, int H, GeometryModifier g, int frame)
+        {
+            var src = (Color32[])px.Clone();
+            float hHalf = W * 0.5f, vHalf = H * 0.5f;
+            var ctx = new GeoCtx(hHalf, vHalf, new Vector2(hHalf, vHalf), Mathf.Min(hHalf, vHalf));
+            // The per-frame wobble phase these warps expect; frame-driven so a wobble actually wobbles as
+            // the effect plays instead of holding one pose.
+            float phase = frame * 0.1f;
+
+            for (int y = 0, i = 0; y < H; y++)
+            {
+                for (int x = 0; x < W; x++, i++)
+                {
+                    var off = new Vector2(x + 0.5f - hHalf, y + 0.5f - vHalf);
+                    var s = g.InverseWarp(off, phase, ctx);
+                    int sx = Mathf.FloorToInt(s.x + hHalf);
+                    int sy = Mathf.FloorToInt(s.y + vHalf);
+                    px[i] = (sx < 0 || sx >= W || sy < 0 || sy >= H) ? default : src[sy * W + sx];
+                }
+            }
+        }
+
+        /// One non-shaped pixel effect over the buffer, through its own ApplyPixel. Mirrors the PixelInfo the
+        /// Burst path builds (MakePixel) so a modifier behaves the same whichever path it lands on.
+        static void RunManagedPixel(Color32[] px, int W, int H, PixelModifier m, int frame, float life, int seed)
+        {
+            for (int y = 0, i = 0; y < H; y++)
+            {
+                for (int x = 0; x < W; x++, i++)
+                {
+                    Color32 s = px[i];
+                    Color c = new Color(s.r / 255f, s.g / 255f, s.b / 255f, s.a / 255f);
+                    float a = c.a;
+                    var info = SfxKernels.MakePixel(x, y, W, H, frame, life, seed);
+                    bool keep = m.ApplyPixel(ref c, ref a, info);
+                    c.a = keep ? a : 0f;
+                    px[i] = (Color32)c;
+                }
+            }
+        }
+
         /// Run the resolved stack over a managed Color32[] using the identical per-pixel routine the Burst job runs.
         public static void RunInline(Color32[] pixels, NativeArray<SfxOp> ops, NativeArray<Color32> luts,
                                      int W, int H, int frame, float life, int seed)

@@ -1,7 +1,7 @@
 // SpriteFxStackView — a REUSABLE, host-agnostic editor control that draws a SpriteFx effect stack, so Pyre / Zoe /
 // Chunks / a dedicated SpriteFx window can all embed the SAME stack UI without each re-implementing it.
 //
-// It edits a plain List<PixelModifier> (the exact type SpriteFxSpec.modifiers and SpriteFxFilter.modifiers both
+// It edits a plain List<PyreModifier> (the exact type SpriteFxSpec.modifiers and SpriteFxFilter.modifiers both
 // carry), so ONE call site drives an authored "SpriteFx Stack" asset AND an inline filter list with zero adapter.
 //
 // Modelled on PyrePlusWindow.Modifiers' generic stack loop (ZuiReorder drag-reorder grip, a folding per-effect
@@ -15,10 +15,13 @@
 // are [SerializeReference]'d in committed demo assets, so renaming them would null authored data. "SpriteFx" is a
 // surface skin only.
 //
-// The Add menu offers ONLY the "shaped" gather-free pixel family that SpriteFxStack actually applies at runtime —
-// discovered by reflection (every parameterless-constructible PixelModifier subclass) and gated by the authoritative
-// SpriteFxStack.IsShaped, so geometry / post / edge mods and non-shaped pixel mods (VoronoiCrack, Dissolve) never
-// appear. The catalog is scanned once per domain and cached, like PyrePlus's AddableModifiers.
+// The Add menu offers the WHOLE modifier family — colour/mask, geometry warps, and the whole-frame passes that read
+// a pixel's neighbours (outline, bloom, drop shadow) — discovered by reflection and grouped by what each does to the
+// picture. It used to offer only the eleven "shaped" gather-free pixel effects, because those are the ones the Burst
+// job can express; everything else was unreachable from a sprite, which was most of what an effect is usually FOR.
+// SpriteFxStack.RunStack dispatches each family and keeps the Burst fast path for runs of shaped ones. Edge modifiers
+// stay out: they deform a shape's outline mid-rasterisation, and a sprite arrives as finished pixels.
+// The catalog is scanned once per domain and cached, like PyrePlus's AddableModifiers.
 using System;
 using System.Collections.Generic;
 using Laubrary.SpriteFx;
@@ -62,10 +65,9 @@ namespace Laubrary.SpriteFx.Editor
         /// titled/captured box is the host's concern — this control never wraps itself in one). Rebuildable in place:
         /// it owns a body element it clears/refills whenever the stack's structure changes.
         /// </summary>
-        /// <paramref name="includeColorRemap"/>: a MANAGED host (e.g. SpriteFxRecolor) runs every PixelModifier via
-        /// ApplyPixel, not just the shaped Burst family — so it can also offer the non-shaped Colour remap effect in
-        /// the Add menu. The triggered op-path filter leaves this false (it would silently skip a non-shaped effect).
-        public static VisualElement Build(List<PixelModifier> stack, Host host, bool includeColorRemap = false)
+        /// The Add menu offers every effect family; there is no longer a host flag for "may I also show the
+        /// non-shaped colour ones", because the runtime dispatches all of them.
+        public static VisualElement Build(List<PyreModifier> stack, Host host)
         {
             host ??= new Host();
             var root = new VisualElement();
@@ -113,7 +115,7 @@ namespace Laubrary.SpriteFx.Editor
                     () =>
                     {
                         if (s_clipboard == null) return;
-                        Dirty(() => stack.Add((PixelModifier)s_clipboard.Clone()));
+                        Dirty(() => stack.Add(s_clipboard.Clone()));
                         Structural();
                     });
                 pasteBtn.SetEnabled(s_clipboard != null);
@@ -160,7 +162,7 @@ namespace Laubrary.SpriteFx.Editor
 
                 var copyBtn = Z.Button("Copy", "Copy this effect's settings to the clipboard.", () =>
                 {
-                    s_clipboard = (PixelModifier)m.Clone();
+                    s_clipboard = m.Clone();
                     Rebuild();   // refresh the Paste button's label / enabled state (no data change → not Structural)
                 }).W(46f);
                 header.Add(copyBtn);
@@ -193,14 +195,17 @@ namespace Laubrary.SpriteFx.Editor
 
                 // Fold state is kept PER EFFECT INSTANCE (ZuiFoldCard's weak table) so it survives this control's
                 // rebuilds (undo / reorder / re-embed). The grip guards its own drag; toggle / Copy / × must not fold.
-                ZuiFoldCard.Wire(m, header, bodyEl, enableToggle, copyBtn, removeBtn);
+                //
+                // No caret: the header still folds on click, it just does not spend a column on a glyph saying
+                // so. Whether a card is open is already obvious from whether its fields are showing.
+                ZuiFoldCard.Wire(m, header, bodyEl, showCaret: false, enableToggle, copyBtn, removeBtn);
                 return box;
             }
 
             // The reflection drawer's Undo / dirty / rebuild contract for one effect's fields. A ZUIValue param gets
             // the FULL Static / Min-Max / Curve control automatically (ZuiReflect's ZUIValue branch, since slice 2) —
             // no FloatWrapperProperty needed. OnStructureChanged handles a nested list gaining/losing an element.
-            ZuiReflect.Options DrawerOptions(PixelModifier m) => new ZuiReflect.Options
+            ZuiReflect.Options DrawerOptions(PyreModifier m) => new ZuiReflect.Options
             {
                 OnBeforeChange = host.OnBeforeChange,
                 OnChanged = host.OnChanged,
@@ -246,23 +251,18 @@ namespace Laubrary.SpriteFx.Editor
             void ShowAddMenu(VisualElement anchor)
             {
                 var menu = Z.Menu(anchor);
-                if (includeColorRemap)
-                {
-                    menu.Item("Colour remap",
-                        "Recolour source colours → swatches / luma gradients (managed host only).", () =>
-                    {
-                        Dirty(() => stack.Add(new ColorRemapModifier()));
-                        Structural();
-                    });
-                    menu.Separator();
-                }
+                string section = null;
                 foreach (var e in Catalog())
                 {
+                    // Grouped by what the effect DOES to the picture, not by its C# base class — "Colour &
+                    // mask" / "Warp" / "Whole frame" is the distinction an author is choosing between, and
+                    // it also happens to be the one that decides how the runtime dispatches it.
+                    if (e.section != section) { menu.Section(e.section); section = e.section; }
                     var type = e.type;
                     string label = e.label;
-                    menu.Item(label, $"Add the {label} effect to the stack.", () =>
+                    menu.Item(label, e.tooltip, () =>
                     {
-                        Dirty(() => stack.Add((PixelModifier)Activator.CreateInstance(type)));
+                        Dirty(() => stack.Add((PyreModifier)Activator.CreateInstance(type)));
                         Structural();
                     });
                 }
@@ -276,7 +276,7 @@ namespace Laubrary.SpriteFx.Editor
         // Single in-memory clipboard (last-copied wins) — static so it survives closing/reopening a host window
         // within the session, like a real clipboard. A deep Clone() on copy AND on paste keeps every pasted effect
         // independent of the source and of each other.
-        static PixelModifier s_clipboard;
+        static PyreModifier s_clipboard;
 
         static VisualElement WrapRow(params VisualElement[] kids)
         {
@@ -285,11 +285,14 @@ namespace Laubrary.SpriteFx.Editor
             return r;
         }
 
-        // Every SpriteFx effect the Add menu offers: a parameterless-constructible PixelModifier subclass that
-        // SpriteFxStack.IsShaped accepts (the gather-free family the runtime filter actually applies) — discovered by
-        // reflection so the menu tracks the runtime's shaped set with zero hand-maintained list. Cached: scanned once
-        // per domain (mirrors PyrePlus's AddableModifiers).
-        struct AddEntry { public Type type; public string label; }
+        // Every effect the Add menu offers — the WHOLE modifier family, not just the eleven the Burst job can
+        // express. Discovered by reflection, so a new effect appears here the moment it exists, and grouped by
+        // how the runtime has to run it (see SpriteFxStack.RunStack).
+        //
+        // Edge modifiers are the one deliberate exclusion: they deform a SHAPE's outline while it is being
+        // rasterised, and a sprite arrives as finished pixels with no shape to deform. Offering one would be
+        // offering a control that cannot do anything.
+        struct AddEntry { public Type type; public string label, section, tooltip; public int order; }
         static List<AddEntry> s_catalog;
         static IEnumerable<AddEntry> Catalog()
         {
@@ -302,18 +305,44 @@ namespace Laubrary.SpriteFx.Editor
                 catch { continue; }   // skip dynamic / partially-loaded assemblies
                 foreach (var t in types)
                 {
-                    if (t.IsAbstract || !typeof(PixelModifier).IsAssignableFrom(t)) continue;
+                    if (t.IsAbstract || !typeof(PyreModifier).IsAssignableFrom(t)) continue;
+                    if (typeof(EdgeModifier).IsAssignableFrom(t)) continue;
                     if (t.GetConstructor(Type.EmptyTypes) == null) continue;
-                    PixelModifier inst;
-                    try { inst = (PixelModifier)Activator.CreateInstance(t); }
+                    PyreModifier inst;
+                    try { inst = (PyreModifier)Activator.CreateInstance(t); }
                     catch { continue; }
-                    if (!SpriteFxStack.IsShaped(inst)) continue;   // ONLY the family the runtime stack applies
+
+                    string section, tooltip;
+                    int order;
+                    if (inst is GeometryModifier)
+                    {
+                        section = "Warp the picture"; order = 1;
+                        tooltip = "Moves pixels around — the sprite itself is bent, twisted or displaced. " +
+                                  "Anything warped in from outside the frame arrives transparent.";
+                    }
+                    else if (inst is PostModifier)
+                    {
+                        section = "Whole frame"; order = 2;
+                        tooltip = "Reads each pixel's NEIGHBOURS, so it can do what a per-pixel effect cannot — " +
+                                  "outlines, glows, shadows. Runs over the whole picture at once.";
+                    }
+                    else
+                    {
+                        section = "Colour & mask"; order = 0;
+                        tooltip = "Recolours or masks each pixel where it already is, without moving anything.";
+                    }
+
                     string label = inst.DisplayName;
                     if (string.IsNullOrEmpty(label)) label = ObjectNames.NicifyVariableName(t.Name);
-                    found.Add(new AddEntry { type = t, label = label });
+                    found.Add(new AddEntry
+                    {
+                        type = t, label = label, section = section, order = order,
+                        tooltip = $"{label} — {tooltip}",
+                    });
                 }
             }
-            found.Sort((a, b) => string.CompareOrdinal(a.label, b.label));
+            found.Sort((a, b) => a.order != b.order ? a.order.CompareTo(b.order)
+                                                   : string.CompareOrdinal(a.label, b.label));
             s_catalog = found;
             return s_catalog;
         }

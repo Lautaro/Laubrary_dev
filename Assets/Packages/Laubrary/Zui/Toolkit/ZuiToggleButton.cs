@@ -13,11 +13,22 @@ namespace Laubrary.Zui
     {
         bool _value;
         readonly Action<bool> _onChanged;
+        // An empty toggle — no label, no icon — is standing in for a checkbox: a mute, an enable, a row's
+        // tick. With nothing drawn in it, "on" and "off" differ only by a background tint, which is easy to
+        // misread and impossible to read at all on a card that is already tinted for being muted. So an
+        // empty one carries a MARK when it is on. A toggle that has a label or an icon says what it is
+        // already and keeps saying it in both states.
+        readonly bool _markWhenOn;
 
         public bool value
         {
             get => _value;
-            set { _value = value; EnableInClassList("zui-togglebutton--on", _value); }
+            set
+            {
+                _value = value;
+                EnableInClassList("zui-togglebutton--on", _value);
+                if (_markWhenOn) text = _value ? "✔" : "";
+            }
         }
 
         /// API parity with UITK's Toggle, so callers that held the old native control keep compiling —
@@ -28,9 +39,11 @@ namespace Laubrary.Zui
         {
             this.tooltip = tooltip;
             _onChanged = onChanged;
+            _markWhenOn = string.IsNullOrEmpty(label) && string.IsNullOrEmpty(icon);
             AddToClassList("zui-togglebutton");
+            if (_markWhenOn) AddToClassList("zui-togglebutton--mark");
             Z.FillButton(this, label, icon);   // no icon ⇒ just sets .text, unchanged from before
-            this.value = value;
+            this.value = value;   // AFTER FillButton, so an empty toggle's mark wins over the blank label
             clicked += () => { this.value = !_value; _onChanged?.Invoke(_value); };
         }
     }

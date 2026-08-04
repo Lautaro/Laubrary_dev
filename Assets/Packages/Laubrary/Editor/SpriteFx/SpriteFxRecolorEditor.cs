@@ -44,7 +44,7 @@ namespace Laubrary.SpriteFx.Editor
                 Rebuild = Applied,
                 ControlWidth = 150f,
             };
-            box.Add(SpriteFxStackView.Build(comp.modifiers, host, includeColorRemap: true));
+            box.Add(SpriteFxStackView.Build(comp.modifiers, host));
             root.Add(box);
             return root;
         }
