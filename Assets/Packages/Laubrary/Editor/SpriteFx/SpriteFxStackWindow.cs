@@ -175,10 +175,11 @@ namespace Laubrary.SpriteFx.Editor
                 "The input sprite is preview-only and is NOT saved into this asset.");
 
             // 1) Input-sprite picker (preview subject). Z.Object is the sanctioned raw island for asset picking.
-            const string spriteTip = "The sprite the stack is applied to for this preview only. Not part of the " +
+            const string spriteTip = "Preview on THIS sprite instead of the character's clip. Only used when the " +
+                "stack is not on a Zoe event, or that event resolves no frames. Preview-only, never part of the " +
                 "SpriteFx Stack asset — it is remembered per-asset just for authoring. Its texture must be " +
                 "Read/Write enabled to be filtered.";
-            s.Add(Z.Field("Input sprite", spriteTip,
+            s.Add(Z.Field("Override sprite", spriteTip,
                 Z.Object<Sprite>(_previewSprite, spriteTip, OnPickSprite, 200f)));
 
             // Says what the stage is actually showing. A PERMANENTLY reserved single line whose text
@@ -357,11 +358,11 @@ namespace Laubrary.SpriteFx.Editor
         void UpdateSubjectLine()
         {
             if (_subjectLine == null) return;
-            string t = _previewSprite != null
-                ? "Previewing on the picked sprite."
-                : _subject != null && _subject.HasFrames
-                    ? $"Previewing on {_subject.Label}   ({_subject.Frames.Length} frames)"
-                    : "No subject — pick a sprite, or use this stack on a Zoe event.";
+            string t = _subject != null && _subject.HasFrames
+                ? $"Previewing on {_subject.Label}   ({_subject.Frames.Length} frames)"
+                : _previewSprite != null
+                    ? "Previewing on the override sprite."
+                    : "No subject — use this stack on a Zoe event, or pick an override sprite.";
             if (_subjectLine.text != t) _subjectLine.text = t;
         }
 
@@ -374,21 +375,20 @@ namespace Laubrary.SpriteFx.Editor
             var spec = Spec;
             if (spec == null) { ShowHint("No SpriteFx Stack selected."); return; }
 
-            Sprite spr = _previewSprite ?? SubjectFrame(progress, frame);
+            // THE SUBJECT WINS. It used to be the fallback -- `_previewSprite ?? SubjectFrame(...)` -- which
+            // made the whole feature unreachable for anyone who had ever picked a sprite by hand: the pick is
+            // remembered per-spec in EditorPrefs, so a stale choice from another session silently beat the
+            // event's own clip forever. The requirement was "the input IS the clip", so the clip is the input
+            // and the picker is an explicit OVERRIDE that only applies when there is nothing better.
+            Sprite spr = SubjectFrame(progress, frame) ?? _previewSprite;
             if (spr == null)
             {
-                ShowHint(_subject == null
-                    ? "Pick a sprite to preview — or add this stack to a Zoe event and it will preview on that character."
-                    : "That character's clip has no frames to preview.");
+                ShowHint("Pick a sprite to preview — or add this stack to a Zoe event and it will preview on " +
+                         "that character's own clip.");
                 return;
             }
             Texture2D tex = spr.texture;
             if (tex == null) { ShowHint("This sprite has no texture."); return; }
-            if (!tex.isReadable)
-            {
-                ShowHint("Enable Read/Write on this sprite's import settings to preview.");
-                return;
-            }
 
             Rect tr = spr.textureRect;
             int x = Mathf.RoundToInt(tr.x), y = Mathf.RoundToInt(tr.y);
@@ -397,18 +397,19 @@ namespace Laubrary.SpriteFx.Editor
 
             try
             {
-                // Mirror SpriteFxFilter.ReadSource: whole-texture fast path (exact Color32), else an atlased sub-rect.
+                // Read through PreviewKit rather than GetPixels. GetPixels THROWS on a sprite whose importer
+                // has Read/Write off, which is most pixel art in a real project -- this window used to detect
+                // that and refuse with "Enable Read/Write on this sprite's import settings", telling the
+                // author to go and change an IMPORT setting to look at an effect. PreviewTex blits through a
+                // temporary RenderTexture and reads anything the GPU can sample, readable or not; it is the
+                // same path the asset browsers already use for thumbnails, and the reason that gotcha is
+                // written down. Requiring an import change to preview was never an acceptable answer.
                 Color32[] px;
-                if (x == 0 && y == 0 && W == tex.width && H == tex.height)
-                {
-                    px = tex.GetPixels32();
-                }
-                else
-                {
-                    Color[] block = tex.GetPixels(x, y, W, H);
-                    px = new Color32[block.Length];
-                    for (int i = 0; i < block.Length; i++) px[i] = (Color32)block[i];
-                }
+                var readable = Laubrary.PreviewKit.PreviewTex.CropSprite(spr);
+                if (readable == null) { ShowHint("This sprite's pixels could not be read."); return; }
+                px = readable.GetPixels32();
+                W = readable.width; H = readable.height;
+                Object.DestroyImmediate(readable);
 
                 // A reversed pass flips the pass-local clock BEFORE the envelope and the own-clock quantisation,
                 // exactly as SpriteFxFilter.Tick does — the hashing frame keeps following the forward clock, so
