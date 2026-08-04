@@ -1,10 +1,7 @@
 {
-    "name": "com.Lautaro-Arino.Laubrary.Fov",
-    "rootNamespace": "Laubrary.Fov",
-    "references": [
-        "GUID:4711bc440c10bfa4b80ef491f3c3cb69",
-        "Unity.Mathematics"
-    ],
+    "name": "com.Lautaro-Arino.Laubrary.Cabinets",
+    "rootNamespace": "Laubrary.Cabinets",
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

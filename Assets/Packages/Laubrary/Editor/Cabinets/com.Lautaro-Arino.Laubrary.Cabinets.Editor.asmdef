@@ -1,0 +1,21 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Cabinets.Editor",
+    "rootNamespace": "Laubrary.Cabinets.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Cabinets",
+        "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
