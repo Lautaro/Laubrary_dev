@@ -33,10 +33,10 @@ namespace Laubrary.SpriteFx
     [AddComponentMenu("Laubrary/SpriteFx/Sprite Fx Filter")]
     public class SpriteFxFilter : MonoBehaviour
     {
-        [Tooltip("The stateless colour/mask stack applied while the filter plays, in order. Use the shaped pixel " +
-                 "modifiers (Brightness/Tint/Contrast/Saturation/Posterize/OrderedDither/LayerDissolve/AlphaMask); " +
-                 "each modifier's animatable values are resolved at the current life each frame. SpriteFxHurtFlash " +
-                 "populates this for the flash-on-hurt case.")]
+        [Tooltip("The stateless colour/mask stack applied while the filter plays, in order — order matters, " +
+                 "because these effects clamp and so do not commute. Only the gather-free pixel family runs " +
+                 "here; each effect's animatable values are resolved at the current life every frame. " +
+                 "SpriteFxHurtFlash populates this for the flash-on-hurt case.")]
         [SerializeReference] public List<PixelModifier> modifiers = new List<PixelModifier>();
 
         [Tooltip("Optional: source the stack, duration, envelope and seed from a shared SpriteFxSpec ASSET (a " +
@@ -104,6 +104,21 @@ namespace Laubrary.SpriteFx
         /// Trigger the filter for a specific duration (seconds). Re-triggering while active restarts the timeline
         /// (and cancels any scheduled or looping playback).
         public void Play(float durationSeconds) => StartPass(durationSeconds, reversed: false, loopFor: 0f, cancelPending: true);
+
+        /// Trigger ONE pass that runs back-to-front (life 1→0) — the SAME authored stack played against a
+        /// reversed clock, so a "materialise" stack also dematerialises with no second asset and no mirrored
+        /// copy of anything. Only the CLOCK reverses: the effect order is untouched, because these effects do
+        /// not commute (brightness-then-contrast is a different picture from contrast-then-brightness), so
+        /// reversing the list would produce a different effect rather than a mirrored one.
+        ///
+        /// Two things deliberately do NOT mirror: the hashing frame counter keeps counting forward, so a
+        /// reversed dissolve un-dissolves but not through the identical grain; and the sprite underneath keeps
+        /// animating forwards, so a character dematerialises while still moving instead of moonwalking.
+        public void PlayReversed() => PlayReversed(EffectiveDuration);
+
+        /// <inheritdoc cref="PlayReversed()"/>
+        public void PlayReversed(float durationSeconds)
+            => StartPass(durationSeconds, reversed: true, loopFor: 0f, cancelPending: true);
 
         /// Trigger and REPEAT whole passes back-to-back for <paramref name="totalSeconds"/> — the "loop for the
         /// event's duration" binding. Each pass lasts the effective duration; the final pass is cut wherever the

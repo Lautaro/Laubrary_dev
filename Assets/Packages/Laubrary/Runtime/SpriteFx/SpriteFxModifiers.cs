@@ -5,6 +5,7 @@ using UnityEngine;
 namespace Laubrary.SpriteFx
 {
     /// The moving shape an Alpha-Mask modifier sweeps across the layer.
+    /// APPEND-ONLY: serialized as an int on every authored mask, so an existing shape must never change index.
     public enum MaskShape
     {
         DiscOut,   // a disc that reveals from the centre outward as progress rises (grow from within)
@@ -12,7 +13,10 @@ namespace Laubrary.SpriteFx
         SwipeH,    // a horizontal wipe (left → right), like a scene transition
         SwipeV,    // a vertical wipe (bottom → top)
         Wedge,     // a pac-man pie slice removed by angle: progress 0 = none, 0.25 = a quarter bite, 0.5 = half
-        Noise      // an irregular cloud silhouette carved by domain-warped noise instead of a clean geometric edge
+        Noise,     // an irregular cloud silhouette carved by domain-warped noise instead of a clean geometric edge
+        Triangle,  // an apex-up triangle growing from the centre
+        Square,    // an edge-on square growing from the centre
+        Crescent   // a disc with a second disc bitten out of it — a moon
     }
 
     /// Shared deterministic noise, built entirely on <see cref="Sfx.Hash01"/> (never UnityEngine.Random or
@@ -633,6 +637,12 @@ namespace Laubrary.SpriteFx
         // untouched by all this (it still calls the identical kernels directly), so bakes stay byte-identical.
         public virtual SfxOp ResolveSfxOp() => default;
         public virtual Gradient SfxGradient() => null;
+
+        // A modifier that is really a LIST of independent per-pixel steps (Colour replace's hue swaps) resolves
+        // to several ops instead of one, so its steps stay ordinary members of the stack rather than needing a
+        // variable-length payload inside the fixed-size blittable op. Everything else stays at one.
+        public virtual int SfxOpCount => 1;
+        public virtual SfxOp ResolveSfxOp(int index) => ResolveSfxOp();
     }
 
     [Serializable]
@@ -1222,6 +1232,9 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class AlphaMaskModifier : PixelModifier
     {
+        [Tooltip("The form the mask sweeps: a disc opening outward or closing inward, a horizontal or vertical " +
+                 "scene-transition swipe, a pac-man wedge eaten by angle, an irregular noise cloud, or a " +
+                 "triangle / square / crescent growing from the centre.")]
         public MaskShape shape = MaskShape.DiscOut;
         [Range(0f, 1f)]
         [Tooltip("0→1 sweep position. A rising envelope reveals the layer; a falling one hides it. Animatable.")]
@@ -1260,6 +1273,13 @@ namespace Laubrary.SpriteFx
         [Tooltip("Noise shape only: extra Y drift added to the noise sample position, in half-canvas units. Animatable.")]
         public ZUIValue noiseDriftY = new ZUIValue(0f);
 
+        [Tooltip("Crescent shape only: how far the bitten-out disc sits from the centre. Low = the bite swallows " +
+                 "almost everything (a thin sliver); high = it barely clips the edge (an almost-full moon).")]
+        [Range(0f, 2f)] public float crescentBite = 0.9f;
+        [Tooltip("Crescent shape only: the bitten-out disc's own radius. Bigger takes a deeper bite, leaving a " +
+                 "thinner, more curved sliver.")]
+        [Range(0.1f, 2f)] public float crescentThickness = 1f;
+
         float prog, siz, rotRad, driftX, driftY, offX, offY, sharp;
         public override string DisplayName => "Alpha mask";
         public override void Prepare(Func<ZUIValue, int, float> e)
@@ -1277,13 +1297,282 @@ namespace Laubrary.SpriteFx
         MaskP P() => new MaskP
         {
             shape = (int)shape, prog = prog, siz = siz, rotRad = rotRad, driftX = driftX, driftY = driftY,
-            sharpness = sharp, offsetX = offX, offsetY = offY, noiseWarp = noiseWarp
+            sharpness = sharp, offsetX = offX, offsetY = offY, noiseWarp = noiseWarp,
+            strength = 1f, fadeMode = SfxKernels.FadeEdge, fadeAngleRad = 0f,
+            biteX = crescentBite, biteR = crescentThickness
         };
         public override bool ApplyPixel(ref Color col, ref float a, in PixelInfo p)
             => SfxKernels.KAlphaMask(P(), ref col, ref a, p);
         public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.AlphaMask, mask = P(), lutIndex = -1 };
 
         static ZUIValue DefaultProgress() => Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);   // reveal over life
+    }
+
+    /// The shape a Wipe reveals through. Its own enum rather than the whole <see cref="MaskShape"/> set, because
+    /// a wipe is authored as "reveal through a form" — the swipes and the pac-man wedge belong to Alpha mask's
+    /// scene-transition vocabulary, not this one.
+    public enum WipeShape { Triangle, Square, Disc, Crescent }
+
+    /// How a Wipe's boundary reads.
+    public enum WipeEdge
+    {
+        Soft,        // the shape's own edge fades outward, evenly all the way round
+        Solid,       // a hard cut exactly on the boundary — no gradient at all
+        Directional  // a hard boundary, but the reveal itself fades along an authored angle across the shape
+    }
+
+    /// A shape REVEAL: a growing masked form that uncovers the sprite, either hard-edged or faded — faded evenly
+    /// outward, or along any direction you choose. Everything that places or sizes it animates, and so does how
+    /// strongly it masks, so a wipe can be brought in and taken back out without its edge popping.
+    ///
+    /// Deliberately the SAME machinery as <see cref="AlphaMaskModifier"/> — it packs into the same blittable
+    /// <see cref="MaskP"/> and runs the same <see cref="SfxKernels.KAlphaMask"/> kernel — so the two never drift
+    /// apart and the new shapes are available to both. What differs is the authoring surface, not the maths.
+    [Serializable]
+    public class WipeModifier : PixelModifier
+    {
+        [Tooltip("The form the reveal grows as: an apex-up triangle, an edge-on square, a disc, or a moon. " +
+                 "Rotation turns it from there.")]
+        public WipeShape shape = WipeShape.Disc;
+
+        [Tooltip("The sweep: 0 hides everything, 1 reveals the whole sprite. Animatable — a rising envelope " +
+                 "wipes in, a falling one wipes back out.")]
+        [Range(0f, 1f)] public ZUIValue progress = Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);
+
+        [Tooltip("How large the shape is at full sweep, in half-canvas units — 1 just spans the sprite's shorter " +
+                 "half. Animatable.")]
+        [Range(0.05f, 4f)] public ZUIValue size = new ZUIValue(1f);
+
+        [Tooltip("Where the shape's centre sits horizontally, in half-canvas units: -1 is the left edge, " +
+                 "+1 the right. Animatable — slide the reveal across the sprite.")]
+        [Range(-1.5f, 1.5f)] public ZUIValue offsetX = new ZUIValue(0f);
+
+        [Tooltip("Where the shape's centre sits vertically, in half-canvas units: -1 is the bottom edge, " +
+                 "+1 the top. Animatable.")]
+        [Range(-1.5f, 1.5f)] public ZUIValue offsetY = new ZUIValue(0f);
+
+        [Tooltip("Turns the shape, in degrees. Animatable — spin a triangle or a crescent as it opens.")]
+        [Range(-180f, 180f)] public ZUIValue rotation = new ZUIValue(0f);
+
+        [Tooltip("How much of the sprite the mask actually takes away: 1 removes it outright, 0.5 only halves it, " +
+                 "0 leaves the sprite whole. Animatable — ease it up and down so the wipe's edge never pops in.")]
+        [Range(0f, 1f)] public ZUIValue strength = new ZUIValue(1f);
+
+        [Tooltip("Soft = the boundary blurs outward evenly; Solid = a hard cut with no gradient; Directional = a " +
+                 "hard boundary with the reveal itself fading along the angle below.")]
+        public WipeEdge edge = WipeEdge.Soft;
+
+        [Tooltip("Soft edge only: how wide the blur is. 0 is nearly a hard cut, 1 a very wide gradient.")]
+        [Range(0f, 1f)] public float feather = 0.4f;
+
+        [Tooltip("Directional edge only: the compass direction the fade runs along, in degrees. 0 fades away to " +
+                 "the right, 90 upward. Animatable — sweep the fade around while the shape holds still.")]
+        [Range(0f, 360f)] public ZUIValue fadeAngle = new ZUIValue(0f);
+
+        [Tooltip("Crescent shape only: how far the bitten-out disc sits from the centre. Low = the bite swallows " +
+                 "almost everything (a thin sliver); high = it barely clips the edge (an almost-full moon).")]
+        [Range(0f, 2f)] public float crescentBite = 0.9f;
+
+        [Tooltip("Crescent shape only: the bitten-out disc's own radius. Bigger takes a deeper bite, leaving a " +
+                 "thinner, more curved sliver.")]
+        [Range(0.1f, 2f)] public float crescentThickness = 1f;
+
+        float prog, siz, rotRad, offX, offY, strengthV, fadeRad;
+        public override string DisplayName => "Wipe";
+
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        {
+            prog = Mathf.Clamp01(e(progress, 0));
+            siz = Mathf.Max(0.01f, e(size, 1));
+            rotRad = e(rotation, 2) * Mathf.Deg2Rad;
+            offX = e(offsetX, 3);
+            offY = e(offsetY, 4);
+            strengthV = Mathf.Clamp01(e(strength, 5));
+            fadeRad = e(fadeAngle, 6) * Mathf.Deg2Rad;
+        }
+
+        static int ShapeId(WipeShape s)
+        {
+            switch (s)
+            {
+                case WipeShape.Triangle: return SfxKernels.MaskTriangle;
+                case WipeShape.Square: return SfxKernels.MaskSquare;
+                case WipeShape.Crescent: return SfxKernels.MaskCrescent;
+                default: return SfxKernels.MaskDiscOut;
+            }
+        }
+
+        static int FadeId(WipeEdge e)
+        {
+            switch (e)
+            {
+                case WipeEdge.Solid: return SfxKernels.FadeSolid;
+                case WipeEdge.Directional: return SfxKernels.FadeDirectional;
+                default: return SfxKernels.FadeEdge;
+            }
+        }
+
+        MaskP P() => new MaskP
+        {
+            shape = ShapeId(shape),
+            prog = prog, siz = siz, rotRad = rotRad,
+            sharpness = 1f - Mathf.Clamp01(feather),   // the shared kernel speaks in edge HARDNESS
+            offsetX = offX, offsetY = offY,
+            strength = strengthV,
+            fadeMode = FadeId(edge), fadeAngleRad = fadeRad,
+            biteX = crescentBite, biteR = crescentThickness
+        };
+
+        public override bool ApplyPixel(ref Color col, ref float a, in PixelInfo p)
+            => SfxKernels.KAlphaMask(P(), ref col, ref a, p);
+        public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.AlphaMask, mask = P(), lutIndex = -1 };
+    }
+
+    /// Wash every pixel TOWARD a colour. The plain Tint effect can only MULTIPLY, which can subtract colour but
+    /// never add it — a red flash multiplied onto a green enemy turns it black, and onto an already-red one is
+    /// invisible. This is the verb that actually paints: at amount 1 every pixel IS the colour, at 0 nothing
+    /// changes, and everything between is the wash. Alpha is left alone, so a silhouette keeps its shape.
+    [Serializable]
+    public class ColorTintModifier : PixelModifier
+    {
+        [Tooltip("The colour the sprite is washed toward. Unlike the multiply Tint effect this can brighten, and " +
+                 "can push a pixel to a hue it does not already contain.")]
+        public Color color = Color.white;
+
+        [Tooltip("How far each pixel travels toward the colour: 0 leaves it untouched, 1 replaces it outright. " +
+                 "Animatable — spike it for a hit flash, then ramp it back down to bleed the glow out.")]
+        [Range(0f, 1f)] public ZUIValue amount = new ZUIValue(1f);
+
+        float amt;
+        public override string DisplayName => "Colour tint";
+        public override void Prepare(Func<ZUIValue, int, float> e) => amt = Mathf.Clamp01(e(amount, 0));
+
+        ColorTintP P() => new ColorTintP { r = color.r, g = color.g, b = color.b, amt = amt };
+        public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
+            => SfxKernels.KColorTint(P(), ref c, ref a);
+        public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.ColorTint, ctint = P(), lutIndex = -1 };
+    }
+
+    /// One band of the hue wheel and what to turn it into. Several of these live in a single
+    /// <see cref="ColorReplaceModifier"/>, applied in list order, so a whole palette can be re-skinned in one
+    /// effect — swap the armour to red AND the cloak to gold without stacking two effects.
+    [Serializable]
+    public class HueReplacement
+    {
+        [Tooltip("The hue this replacement looks for, in degrees around the colour wheel (0 red, 120 green, " +
+                 "240 blue).")]
+        [Range(0f, 360f)] public float targetHue = 0f;
+
+        [Tooltip("How far either side of that hue still counts as a match, in degrees. Small only catches an " +
+                 "exact shade; 180 catches every colour there is.")]
+        [Range(1f, 180f)] public float targetRange = 30f;
+
+        [Tooltip("How softly the match dies out at the band's rim: 0 stops dead at the edge (a visible seam " +
+                 "where neighbouring hues are untouched), 1 fades the whole band so it blends into what is " +
+                 "around it.")]
+        [Range(0f, 1f)] public float targetSmoothing = 0.5f;
+
+        [Tooltip("Scales this whole replacement: 0 disables it, 1 applies it fully, and anything between blends " +
+                 "the new colour with the original. Animatable — fade a recolour in over the effect's life.")]
+        [Range(0f, 1f)] public ZUIValue amount = new ZUIValue(1f);
+
+        [Tooltip("The hue matched pixels are moved to, in degrees around the colour wheel.")]
+        [Range(0f, 360f)] public float replacementHue = 200f;
+
+        [Tooltip("How much of the source's own hue variation survives: 0 flattens the whole band onto one flat " +
+                 "hue, 1 keeps every pixel's offset so shading and highlights read as before.")]
+        [Range(0f, 1f)] public float replacementSmoothing = 1f;
+
+        [Tooltip("Multiplies the brightness of matched pixels. 1 leaves it alone, below darkens, above lifts.")]
+        [Range(0f, 2f)] public float brightness = 1f;
+
+        [Tooltip("Multiplies the colourfulness of matched pixels. 1 leaves it alone, 0 makes them grey, above " +
+                 "pushes them more vivid.")]
+        [Range(0f, 2f)] public float saturation = 1f;
+
+        [System.NonSerialized] public float resolvedAmount;   // this frame's `amount`, filled by Prepare
+    }
+
+    /// Re-skin a sprite by HUE: match one or more bands of the colour wheel and rewrite each to a new hue,
+    /// brightness and saturation. Several replacements live in one effect and run in order, so a full palette
+    /// swap is a single card rather than a stack of them. It keys on colour, never on position, so it follows an
+    /// animated reel with no per-frame masks.
+    [Serializable]
+    public class ColorReplaceModifier : PixelModifier
+    {
+        [Tooltip("The hue bands this effect rewrites, applied in order. Add one per colour you want to swap.")]
+        public List<HueReplacement> replacements = new List<HueReplacement> { new HueReplacement() };
+
+        public override string DisplayName => "Colour replace";
+
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        {
+            if (replacements == null) return;
+            for (int i = 0; i < replacements.Count; i++)
+            {
+                var r = replacements[i];
+                if (r == null) continue;
+                r.resolvedAmount = Mathf.Clamp01(e(r.amount, i));   // one salt per entry keeps their randomness apart
+            }
+        }
+
+        ReplaceP P(HueReplacement r) => new ReplaceP
+        {
+            hue = r.targetHue,
+            range = Mathf.Max(0.01f, r.targetRange),
+            smooth = r.targetSmoothing,
+            amt = r.resolvedAmount,
+            bri = r.brightness,
+            sat = r.saturation,
+            outHue = r.replacementHue,
+            spread = r.replacementSmoothing,
+        };
+
+        public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
+        {
+            if (replacements == null) return true;
+            for (int i = 0; i < replacements.Count; i++)
+            {
+                var r = replacements[i];
+                if (r == null) continue;
+                SfxKernels.KColorReplace(P(r), ref c, ref a);
+            }
+            return true;
+        }
+
+        public override int SfxOpCount => replacements != null ? replacements.Count : 0;
+        public override SfxOp ResolveSfxOp(int index)
+        {
+            var r = replacements[index];
+            return r == null
+                ? new SfxOp { kind = SfxKernel.ColorReplace, replace = default, lutIndex = -1 }
+                : new SfxOp { kind = SfxKernel.ColorReplace, replace = P(r), lutIndex = -1 };
+        }
+
+        // The base Clone only deep-copies ZUIValue / Gradient / point-list FIELDS, so without this every copy
+        // would share one replacement list and editing the copy would edit the original.
+        public override PyreModifier Clone()
+        {
+            var m = (ColorReplaceModifier)base.Clone();
+            m.replacements = new List<HueReplacement>();
+            if (replacements != null)
+                foreach (var r in replacements)
+                {
+                    if (r == null) { m.replacements.Add(null); continue; }
+                    m.replacements.Add(new HueReplacement
+                    {
+                        targetHue = r.targetHue,
+                        targetRange = r.targetRange,
+                        targetSmoothing = r.targetSmoothing,
+                        amount = Sfx.CloneVal(r.amount),
+                        replacementHue = r.replacementHue,
+                        replacementSmoothing = r.replacementSmoothing,
+                        brightness = r.brightness,
+                        saturation = r.saturation,
+                    });
+                }
+            return m;
+        }
     }
 
     // ── post: whole-frame passes run AFTER compositing (neighbourhood effects a per-pixel modifier can't do) ──────

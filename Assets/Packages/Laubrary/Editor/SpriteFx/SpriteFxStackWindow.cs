@@ -56,6 +56,7 @@ namespace Laubrary.SpriteFx.Editor
         float _playProgress;                // transient progress while Play animates (does not overwrite the scrub)
         int _previewFrame;                  // frame counter advanced across play ticks (for hashing effects)
         bool _previewPlaying;
+        bool _previewReversed;              // preview the stack against a reversed clock (the OnceReversed binding)
         bool _updateHooked;                 // guards the EditorApplication.update subscription
         double _lastTickTime;
 
@@ -214,7 +215,16 @@ namespace Laubrary.SpriteFx.Editor
                 "scrub position.", TogglePlay);
             _playButton.style.width = 60f;
 
-            s.Add(Z.Row(_lifeSlider, _playButton));
+            // Preview-only: the same stack against a reversed clock — what an attachment set to Once Reversed
+            // shows. Nothing about the asset changes; this is how you check that one stack covers both
+            // directions before hanging it on a departure event.
+            var reverseToggle = Z.ToggleButton("Reverse",
+                "Run the preview backwards (life 1→0), exactly as the Once Reversed playback binding does — so " +
+                "one authored stack can be checked as both an arrival and a departure. The hashing grain still " +
+                "counts forward, so a reversed dissolve un-dissolves through a different grain.",
+                _previewReversed, on => { _previewReversed = on; RenderPreview(); });
+
+            s.Add(Z.Row(_lifeSlider, _playButton, reverseToggle));
 
             root.Add(s);
 
@@ -341,15 +351,21 @@ namespace Laubrary.SpriteFx.Editor
                     for (int i = 0; i < block.Length; i++) px[i] = (Color32)block[i];
                 }
 
+                // A reversed pass flips the pass-local clock BEFORE the envelope and the own-clock quantisation,
+                // exactly as SpriteFxFilter.Tick does — the hashing frame keeps following the forward clock, so
+                // the preview reproduces the runtime's (deliberate) non-mirroring grain too.
+                float raw = Mathf.Clamp01(progress);
+                progress = _previewReversed ? 1f - raw : raw;
+
                 // Own clock (Step rate): quantise exactly as SpriteFxFilter.Tick does — time snaps to the
                 // 1/targetFps grid and the hashing frame becomes the step index — so scrub and Play both show
                 // the stepped evaluation the runtime plays (WYSIWYG).
                 if (spec.targetFps > 0f)
                 {
                     float dur = Mathf.Max(0.001f, spec.duration);
-                    int step = Mathf.FloorToInt(Mathf.Clamp01(progress) * dur * spec.targetFps);
+                    frame = Mathf.FloorToInt(raw * dur * spec.targetFps);
+                    int step = Mathf.FloorToInt(progress * dur * spec.targetFps);
                     progress = Mathf.Clamp01((step / spec.targetFps) / dur);
-                    frame = step;
                 }
 
                 float life = spec.SampleEnvelope(Mathf.Clamp01(progress));

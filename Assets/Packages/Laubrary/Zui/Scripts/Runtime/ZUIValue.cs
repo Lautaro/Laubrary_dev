@@ -1,7 +1,8 @@
 // ZUIValue.cs
 // A configurable numeric value: a single static number, a random min↔max range,
-// or an animation curve sampled over time (with a warmup that holds the curve's first value,
-// and a cooldown pause before looping). An optional named external multiplier
+// an animation curve sampled over time (with a warmup that holds the curve's first value,
+// and a cooldown pause before looping), a held step sequence, or an oscillation — a sine
+// carrier swinging between two envelopes at an animatable rate. An optional named external multiplier
 // (resolved by the host game, e.g. a "global value") scales the result — ZUI
 // itself never needs to know what the id means.
 //
@@ -15,7 +16,8 @@ using UnityEngine;
 [Serializable]
 public class ZUIValue
 {
-    public enum Mode { Static, MinMax, Curve, Steps }
+    // APPEND-ONLY: serialized as an int, so an existing asset's mode must never shift index.
+    public enum Mode { Static, MinMax, Curve, Steps, Oscillation }
 
     [SerializeField] Mode m_mode = Mode.Static;
 
@@ -46,6 +48,21 @@ public class ZUIValue
     // interpolation between them). Uses the same duration/warmup/cooldown timing + yMin/yMax range as Curve.
     [SerializeField] List<float> m_steps = new List<float>();
 
+    // Oscillation: a FIXED sine carrier travelling between two ENVELOPES, at a rate that is itself an envelope.
+    // The carrier is deliberately not editable — the authored part is the band it swings inside (which can open,
+    // close, tilt or collapse over the playthrough) and how fast it swings. Three real envelopes, sampled by the
+    // same evaluator and authored in the same editor as Curve mode's, sharing its yMin/yMax range and smoothness.
+    //
+    // Why the bounds are POINT LISTS and not nested ZUIValues: a ZUIValue field inside ZUIValue would be inlined
+    // by value by Unity's serializer and recurse forever (the "serialization depth limit exceeded" wall), and the
+    // [SerializeReference] escape from that is not open here either — ToClipboardString/TryFromClipboardString
+    // round-trip through JsonUtility, which does not serialize managed references at all, so copy/paste would
+    // silently drop every nested bound.
+    [SerializeField] List<ZUIEnvelopePoint> m_oscMin = new List<ZUIEnvelopePoint>();
+    [SerializeField] List<ZUIEnvelopePoint> m_oscMax = new List<ZUIEnvelopePoint>();
+    [SerializeField] List<ZUIEnvelopePoint> m_oscRate = new List<ZUIEnvelopePoint>();
+    [SerializeField] float m_oscRateMax = 8f;   // ceiling of the rate envelope's own Y axis (cycles/playthrough)
+
     // External multiplier. When set and a resolver is registered, the evaluated
     // source value is multiplied by resolver(multiplierId). Lets a host's "global
     // values" scale any ZUIValue without ZUI referencing the game.
@@ -67,10 +84,15 @@ public class ZUIValue
     public float cooldown { get => m_cooldown; set => m_cooldown = value; }
     public float smoothness { get => m_smoothness; set => m_smoothness = Mathf.Clamp01(value); }
     public List<float> steps => m_steps;
+    public List<ZUIEnvelopePoint> oscMin => m_oscMin;
+    public List<ZUIEnvelopePoint> oscMax => m_oscMax;
+    public List<ZUIEnvelopePoint> oscRate => m_oscRate;
+    public float oscRateMax { get => m_oscRateMax; set => m_oscRateMax = Mathf.Max(0.1f, value); }
     public string multiplierId { get => m_multiplierId; set => m_multiplierId = value; }
 
     public bool HasMultiplier => !string.IsNullOrEmpty(m_multiplierId);
-    public bool IsDynamic => m_mode == Mode.Curve || m_mode == Mode.MinMax || m_mode == Mode.Steps || HasMultiplier;
+    public bool IsDynamic => m_mode == Mode.Curve || m_mode == Mode.MinMax || m_mode == Mode.Steps
+                          || m_mode == Mode.Oscillation || HasMultiplier;
 
     public ZUIValue() { }
     public ZUIValue(float staticValue) { m_static = staticValue; }
@@ -91,6 +113,7 @@ public class ZUIValue
             case Mode.MinMax: return UnityEngine.Random.Range(m_min, m_max);
             case Mode.Curve:  return EvaluateCurve(time);
             case Mode.Steps:  return EvaluateSteps(time);
+            case Mode.Oscillation: return EvaluateOscillationAtNorm(PhaseNorm01(time));
             default:          return m_static;
         }
     }
@@ -101,13 +124,13 @@ public class ZUIValue
     /// <summary>Convenience: evaluate at the current play-time.</summary>
     public float EvaluateNow() => Evaluate(Application.isPlaying ? Time.time : 0f);
 
-    float EvaluateCurve(float time)
+    /// <summary>Where <paramref name="time"/> lands inside ONE playthrough, as [0..1]: warmup holds 0, a
+    /// non-looping value holds 1 after its duration, a looping one wraps and holds 1 through the cooldown gap.
+    /// The single place the timed modes agree on their clock.</summary>
+    float PhaseNorm01(float time)
     {
-        float fallback = m_yMax;
-        // During warmup, hold the curve's first value (norm 0) — that's what the curve reads at its start.
-        if (time < m_warmup) return ZUIEnvelopeEvaluator.Evaluate(m_points, 0f, fallback);
+        if (time < m_warmup) return 0f;
         float local = time - m_warmup;
-
         float dur = Mathf.Max(0.0001f, m_duration);
         float phase;
         if (m_cooldown < 0f)
@@ -122,9 +145,17 @@ public class ZUIValue
             // During the cooldown gap, hold the end value.
             phase = t <= dur ? t : dur;
         }
+        return Mathf.Clamp01(phase / dur);   // points are authored in [0..1]
+    }
 
-        float norm = phase / dur; // points are authored in [0..1]
-        float v = ZUIEnvelopeEvaluator.Evaluate(m_points, norm, fallback, m_smoothness);
+    float EvaluateCurve(float time) => EvaluateCurveAtNorm(PhaseNorm01(time));
+
+    /// <summary>The curve's value at a NORMALIZED position through one playthrough. Exposed for hosts that own
+    /// their own clock and hand this value a progress rather than a wall time (a SpriteFx stack's `life`), so
+    /// they get the smoothness-aware sampling instead of re-deriving a partial one.</summary>
+    public float EvaluateCurveAtNorm(float norm01)
+    {
+        float v = ZUIEnvelopeEvaluator.Evaluate(m_points, Mathf.Clamp01(norm01), m_yMax, m_smoothness);
         // A smoothed (Catmull-Rom) curve can overshoot past the authored points; keep the value inside its
         // declared range so a smoothed path can't leave the plot / a bounded value its range. Only when
         // smoothed — the linear path (smoothness 0) already stays in range, so the byte-identical path is kept.
@@ -146,21 +177,70 @@ public class ZUIValue
     /// <summary>The HELD value at <paramref name="time"/>: the envelope is divided into <c>steps.Count</c> equal
     /// sections and each section returns its own value, with no interpolation. Same warmup/duration/loop timing
     /// as Curve.</summary>
-    float EvaluateSteps(float time)
+    float EvaluateSteps(float time) => EvaluateStepsAtNorm(PhaseNorm01(time));
+
+    /// <summary>The held step value at a NORMALIZED position through one playthrough — the Steps twin of
+    /// <see cref="EvaluateCurveAtNorm"/>, for a host driving this value off its own progress.</summary>
+    public float EvaluateStepsAtNorm(float norm01)
     {
         int n = m_steps != null ? m_steps.Count : 0;
         if (n == 0) return m_yMin;
-        if (time < m_warmup) return m_steps[0];
-        float local = time - m_warmup;
-
-        float dur = Mathf.Max(0.0001f, m_duration);
-        float phase;
-        if (m_cooldown < 0f) phase = Mathf.Min(local, dur);
-        else { float period = dur + m_cooldown; float t = local % period; phase = t <= dur ? t : dur; }
-
-        float norm = Mathf.Clamp01(phase / dur);
-        int idx = Mathf.Clamp(Mathf.FloorToInt(norm * n), 0, n - 1);
+        int idx = Mathf.Clamp(Mathf.FloorToInt(Mathf.Clamp01(norm01) * n), 0, n - 1);
         return m_steps[idx];
+    }
+
+    /// <summary>The oscillation's value at a NORMALIZED position through one playthrough: a sine carrier
+    /// travelling between the Floor and Ceiling envelopes, starting AT the floor, at the rate the Rate envelope
+    /// asks for. The carrier is fixed by design — what an author shapes is the band and the rate.</summary>
+    public float EvaluateOscillationAtNorm(float norm01)
+    {
+        float t = Mathf.Clamp01(norm01);
+        float lo = ZUIEnvelopeEvaluator.Evaluate(m_oscMin, t, m_yMin, m_smoothness);
+        float hi = ZUIEnvelopeEvaluator.Evaluate(m_oscMax, t, m_yMax, m_smoothness);
+        float s = 0.5f - 0.5f * Mathf.Cos(OscCycles(t) * (Mathf.PI * 2f));
+        return Mathf.Lerp(lo, hi, s);
+    }
+
+    /// Cycles completed by <paramref name="norm01"/> — the trapezoid INTEGRAL of the rate envelope, not
+    /// rate × time. Integrating is what lets the rate itself be animated: speeding up adds cycles faster
+    /// instead of yanking the carrier's phase to a new position every time the rate changes.
+    float OscCycles(float norm01)
+    {
+        if (m_oscRate == null || m_oscRate.Count == 0) return norm01;   // nothing authored = one cycle
+        const int Steps = 32;
+        float total = 0f;
+        float prev = ZUIEnvelopeEvaluator.Evaluate(m_oscRate, 0f, 1f, m_smoothness);
+        for (int i = 1; i <= Steps; i++)
+        {
+            float cur = ZUIEnvelopeEvaluator.Evaluate(m_oscRate, norm01 * i / Steps, 1f, m_smoothness);
+            total += (prev + cur) * 0.5f;
+            prev = cur;
+        }
+        return total * (norm01 / Steps);
+    }
+
+    /// <summary>Seed a flat band and a steady rate so a freshly-switched Oscillation shows a real wave.</summary>
+    public void EnsureOscillationDefaults()
+    {
+        if (m_oscMin == null) m_oscMin = new List<ZUIEnvelopePoint>();
+        if (m_oscMax == null) m_oscMax = new List<ZUIEnvelopePoint>();
+        if (m_oscRate == null) m_oscRate = new List<ZUIEnvelopePoint>();
+        if (m_oscMin.Count == 0)
+        {
+            m_oscMin.Add(new ZUIEnvelopePoint(0f, m_yMin));
+            m_oscMin.Add(new ZUIEnvelopePoint(1f, m_yMin));
+        }
+        if (m_oscMax.Count == 0)
+        {
+            m_oscMax.Add(new ZUIEnvelopePoint(0f, m_yMax));
+            m_oscMax.Add(new ZUIEnvelopePoint(1f, m_yMax));
+        }
+        if (m_oscRate.Count == 0)
+        {
+            float r = Mathf.Clamp(3f, 0f, Mathf.Max(0.1f, m_oscRateMax));
+            m_oscRate.Add(new ZUIEnvelopePoint(0f, r));
+            m_oscRate.Add(new ZUIEnvelopePoint(1f, r));
+        }
     }
 
     /// <summary>Seed a default flat run of sections so a freshly-switched Steps has something to edit.</summary>
@@ -220,6 +300,20 @@ public class ZUIValue
         m_smoothness = other.m_smoothness;
         m_steps.Clear();
         if (other.m_steps != null) m_steps.AddRange(other.m_steps);
+        if (m_oscMin == null) m_oscMin = new List<ZUIEnvelopePoint>();
+        if (m_oscMax == null) m_oscMax = new List<ZUIEnvelopePoint>();
+        if (m_oscRate == null) m_oscRate = new List<ZUIEnvelopePoint>();
+        CopyPoints(other.m_oscMin, m_oscMin);
+        CopyPoints(other.m_oscMax, m_oscMax);
+        CopyPoints(other.m_oscRate, m_oscRate);
+        m_oscRateMax = other.m_oscRateMax;
         m_multiplierId = other.m_multiplierId;
+    }
+
+    static void CopyPoints(List<ZUIEnvelopePoint> src, List<ZUIEnvelopePoint> dst)
+    {
+        dst.Clear();
+        if (src == null) return;
+        foreach (var p in src) dst.Add(new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
     }
 }

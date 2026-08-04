@@ -16,18 +16,19 @@ namespace Laubrary.SpriteFx
     /// from an asset with NO behavioural change: the static <see cref="SpriteFxFilter.Apply"/> already takes an
     /// <c>IReadOnlyList&lt;PixelModifier&gt;</c>, so an asset-sourced list drives the identical code path.
     ///
-    /// Only the "shaped" gather-free pixel effects actually run at runtime (Brightness/Tint/Contrast/Saturation/
-    /// Posterize/OrderedDither/LayerDissolve/AlphaMask) — <see cref="SpriteFxStack.Resolve"/> skips anything else —
-    /// which is why the list is typed to <c>PixelModifier</c> rather than the whole PyreModifier family.
+    /// Only the "shaped" gather-free pixel effects actually run at runtime — <see cref="SpriteFxStack.IsShaped"/>
+    /// is the authoritative set and <see cref="SpriteFxStack.Resolve"/> skips anything else — which is why the
+    /// list is typed to <c>PixelModifier</c> rather than the whole PyreModifier family.
     ///
     /// Ships ZERO assets (the Laubrary rule): the package never contains a SpriteFx Stack asset; a host project
     /// creates its own via Assets ▸ Create ▸ Laubrary ▸ SpriteFx ▸ Stack.
     [CreateAssetMenu(fileName = "New SpriteFx Stack", menuName = "Laubrary/SpriteFx/Stack", order = 1)]
     public class SpriteFxSpec : ScriptableObject
     {
-        [Tooltip("The stateless colour/mask effects applied in order while the stack plays. Use the gather-free " +
-                 "pixel effects (Brightness/Tint/Contrast/Saturation/Posterize/OrderedDither/LayerDissolve/" +
-                 "AlphaMask); each effect's animatable values are resolved at the current life each frame.")]
+        [Tooltip("The stateless colour/mask effects applied in order while the stack plays — order matters, " +
+                 "because these effects clamp and so do not commute. Only the gather-free pixel family runs " +
+                 "here (the Add menu offers exactly that set); each effect's animatable values are resolved at " +
+                 "the current life every frame.")]
         [SerializeReference] public List<PixelModifier> modifiers = new List<PixelModifier>();
 
         [Tooltip("How long one play-through lasts, in seconds.")]

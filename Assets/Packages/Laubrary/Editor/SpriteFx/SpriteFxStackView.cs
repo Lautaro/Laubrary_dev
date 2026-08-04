@@ -195,7 +195,14 @@ namespace Laubrary.SpriteFx.Editor
                 OnStructureChanged = Structural,
                 Skip = f => f.Name == "enabled",
                 ControlWidth = host.ControlWidth,
-                TooltipFor = f => $"{ObjectNames.NicifyVariableName(f.Name)} — a {m.DisplayName} effect parameter.",
+                // A field that documents itself keeps ITS description — a generated "X — a Y effect parameter"
+                // only restates the label, which is the one thing a tooltip must not do. The generated line
+                // stays as the fallback for anything undocumented, since it at least names the owning effect.
+                TooltipFor = f => ZuiReflect.TooltipAttributeOf(f)
+                                  ?? $"{ObjectNames.NicifyVariableName(f.Name)} — a {m.DisplayName} effect parameter.",
+                // A SpriteFx stack resolves EVERY ZUIValue mode through SpriteFxStack.LifeEval, oscillation
+                // included, so this is a host that may offer it.
+                ConfigureValue = (f, o) => o.allowOscillation = true,
             };
 
             void ShowAddMenu(VisualElement anchor)

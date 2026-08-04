@@ -25,6 +25,11 @@ namespace Laubrary.Zoetrope
         RunAtEnd = 2,
         /// Once forward at the event's start, once BACKWARD timed to end with the event — flash in, mirror out.
         PingPong = 3,
+        /// One play-through run BACKWARD (life 1→0). The same stack that materialises a character therefore
+        /// dematerialises it, from a second card on the departure event — no mirrored copy of the recipe, and
+        /// no reversal of the effect ORDER (which would change the effect, not mirror it). The hashing grain
+        /// and the sprite underneath keep running forwards; see <see cref="SpriteFxFilter.PlayReversed()"/>.
+        OnceReversed = 4,
     }
 
     /// <summary>
@@ -51,8 +56,10 @@ namespace Laubrary.Zoetrope
 
         [Tooltip("How the stack plays against this event: Once = a single play-through; Loop = repeat for the " +
                  "event's remaining duration; Run At End = start so it finishes exactly as the event ends (a " +
-                 "fade-out); Ping Pong = once forward now, once backward timed to the end. Timed modes degrade " +
-                 "to a single play when the event's duration is unknown (no clip, or a clip with no fixed end).")]
+                 "fade-out); Ping Pong = once forward now, once backward timed to the end; Once Reversed = a " +
+                 "single play-through run backwards, so one authored stack covers both an arrival and a " +
+                 "departure. Timed modes degrade to a single play when the event's duration is unknown (no " +
+                 "clip, or a clip with no fixed end).")]
         public FxPlaybackMode playback = FxPlaybackMode.Once;
 
         [Tooltip("Run At End only: the fade-out window in seconds — the stack starts when the event has this " +
@@ -101,6 +108,10 @@ namespace Laubrary.Zoetrope
                     }
                     break;
                 }
+
+                case FxPlaybackMode.OnceReversed:
+                    filter.PlayReversed();
+                    break;
 
                 case FxPlaybackMode.PingPong:
                     filter.Play(passDur);   // forward pass, now

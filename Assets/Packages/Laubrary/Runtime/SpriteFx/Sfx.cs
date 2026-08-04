@@ -42,6 +42,9 @@ namespace Laubrary.SpriteFx
             return g;
         }
 
+        /// A deep copy of an animatable value. Delegates to ZUIValue's own CopyFrom so a clone carries EVERY
+        /// mode's data — a hand-listed field set silently drops whatever a later mode adds (this one used to
+        /// lose curve smoothness and the whole step sequence).
         public static ZUIValue CloneVal(ZUIValue s)
         {
             if (s == null) return new ZUIValue();

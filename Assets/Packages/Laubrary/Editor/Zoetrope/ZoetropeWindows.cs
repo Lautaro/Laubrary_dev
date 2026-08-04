@@ -260,7 +260,7 @@ namespace Laubrary.Zoetrope.Editor
             const string baseTip = "How the stack plays against this event. Once = a single play-through of the " +
                 "stack's own duration. Loop = repeat for the event's remaining duration. Run At End = start late " +
                 "so it finishes exactly as the event ends (a fade-out). Ping Pong = once forward now, once " +
-                "backward timed to the end.";
+                "backward timed to the end. Once Reversed = a single play-through run backwards.";
             string modeTip = baseTip + (mode switch
             {
                 FxPlaybackMode.Loop => " Currently Loop: with no known event duration (no clip, or a clip " +
@@ -270,6 +270,9 @@ namespace Laubrary.Zoetrope.Editor
                     "known event duration it degrades to a single immediate play.",
                 FxPlaybackMode.PingPong => " Currently Ping Pong: with no known event duration the backward " +
                     "pass follows the forward one immediately (a there-and-back pulse).",
+                FxPlaybackMode.OnceReversed => " Currently Once Reversed: the stack's clock runs 1→0, so the " +
+                    "same asset that materialises this character dematerialises it. Only the clock reverses — " +
+                    "the hashing grain and the animation underneath keep running forwards.",
                 _ => " Currently Once: the original single play.",
             });
 

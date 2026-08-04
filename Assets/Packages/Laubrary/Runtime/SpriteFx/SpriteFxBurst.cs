@@ -29,9 +29,11 @@ namespace Laubrary.SpriteFx
     // PostModifiers (Bloom/Outline/Dissolve/… read neighbours).
 
     /// Which shaped kernel an <see cref="SfxOp"/> runs. Byte-tagged for a compact blittable stack.
+    /// APPEND-ONLY (a byte tag packed into a resolved op) — never reorder.
     public enum SfxKernel : byte
     {
-        Tint, Contrast, Brightness, Saturation, Posterize, OrderedDither, LayerDissolve, AlphaMask
+        Tint, Contrast, Brightness, Saturation, Posterize, OrderedDither, LayerDissolve, AlphaMask,
+        ColorTint, ColorReplace
     }
 
     // ── blittable param structs (resolved once per frame from a modifier's Prepared float fields) ────────────────
@@ -44,7 +46,15 @@ namespace Laubrary.SpriteFx
     {
         public int shape;                                                       // MaskShape as int
         public float prog, siz, rotRad, driftX, driftY, sharpness, offsetX, offsetY, noiseWarp;
+        public float strength;                                                  // how much alpha the mask removes
+        public int fadeMode;                                                    // 0=Edge 1=Solid 2=Directional
+        public float fadeAngleRad;                                              // Directional only: the fade's axis
+        public float biteX, biteR;                                              // Crescent only: the bite disc
     }
+    /// The colour a pixel is washed TOWARD (as opposed to Tint's multiply), and how far it travels.
+    public struct ColorTintP { public float r, g, b, amt; }
+    /// One hue-band replacement: match a hue band, then rewrite its hue / saturation / brightness.
+    public struct ReplaceP { public float hue, range, smooth, amt, bri, sat, outHue, spread; }
 
     /// One resolved modifier in a stack — a tag plus every kernel's params inline (only the tagged one is read).
     /// Fully unmanaged so it lives in a NativeArray and crosses into Burst. `lutIndex` selects this op's 256-entry
@@ -59,6 +69,8 @@ namespace Laubrary.SpriteFx
         public DitherP dither;
         public DissolveP dissolve;
         public MaskP mask;
+        public ColorTintP ctint;
+        public ReplaceP replace;
     }
 
     /// The shared kernels + the per-pixel builder + the stack runner. Every method is Burst-legal (pure math, no
@@ -68,6 +80,8 @@ namespace Laubrary.SpriteFx
     {
         // Enum int values, mirrored so the kernels never depend on managed enum boxing.
         public const int MaskDiscOut = 0, MaskDiscIn = 1, MaskSwipeH = 2, MaskSwipeV = 3, MaskWedge = 4, MaskNoise = 5;
+        public const int MaskTriangle = 6, MaskSquare = 7, MaskCrescent = 8;
+        public const int FadeEdge = 0, FadeSolid = 1, FadeDirectional = 2;
         public const int DissolveScatter = 1;
 
         public static byte ToByte(float v) => (byte)(Mathf.Clamp01(v) * 255f + 0.5f);
@@ -180,12 +194,17 @@ namespace Laubrary.SpriteFx
                 float rx = nx * c - ny * s; ny = nx * s + ny * c; nx = rx;
             }
 
+            // How much of the mask's verdict actually lands. 1 = the mask fully removes what it covers (the
+            // Alpha-mask effect's only behaviour); below 1 the mask only thins those pixels, so it can be
+            // animated in and out without the shape's edge popping.
+            float strength = Mathf.Clamp01(pp.strength);
+
             if (pp.shape == MaskWedge)
             {
                 float d = Mathf.Abs(Mathf.Atan2(ny, nx));
                 float half = Mathf.Clamp01(pp.prog) * Mathf.PI;
                 float edge = Mathf.Max(0.0001f, (1f - pp.sharpness) * 0.4f);
-                a *= Mathf.Clamp01((d - half) / edge);
+                a *= Mathf.Lerp(1f, Mathf.Clamp01((d - half) / edge), strength);
                 return a > 0.003f;
             }
 
@@ -197,15 +216,141 @@ namespace Laubrary.SpriteFx
                 case MaskNoise:
                     field = PyreNoise.Sample((nx + pp.driftX) / pp.siz, (ny + pp.driftY) / pp.siz, p.hash, pp.noiseWarp);
                     break;
+                // A triangle sits apex-up and a square edge-on, the orientations a wipe is authored against;
+                // `rotation` turns them from there.
+                case MaskTriangle: field = PolyField(nx / pp.siz, ny / pp.siz, 3, Mathf.PI / 6f); break;
+                case MaskSquare: field = PolyField(nx / pp.siz, ny / pp.siz, 4, 0f); break;
+                case MaskCrescent: field = CrescentField(nx / pp.siz, ny / pp.siz, pp.biteX, pp.biteR); break;
                 default: field = Mathf.Sqrt(nx * nx + ny * ny) / pp.siz; break;
             }
 
-            float w = Mathf.Max(0.001f, (1f - pp.sharpness) * 0.5f);
             float threshold = pp.shape == MaskDiscIn ? (1f - pp.prog) : pp.prog;
-            float ss = Mathf.Clamp01((field - (threshold - w)) / (2f * w));
-            ss = ss * ss * (3f - 2f * ss);
-            a *= 1f - ss;
+            float ss;
+            if (pp.fadeMode == FadeSolid)
+            {
+                ss = field >= threshold ? 1f : 0f;
+            }
+            else if (pp.fadeMode == FadeDirectional)
+            {
+                // A hard shape cut, then a linear ramp ACROSS the shape along the chosen axis — so the reveal
+                // is solid at one side and gone at the other, in whatever direction is authored.
+                float u = nx * Mathf.Cos(pp.fadeAngleRad) + ny * Mathf.Sin(pp.fadeAngleRad);
+                float g = Mathf.Clamp01(u / (2f * pp.siz) + 0.5f);
+                ss = Mathf.Max(field >= threshold ? 1f : 0f, g);
+            }
+            else
+            {
+                float w = Mathf.Max(0.001f, (1f - pp.sharpness) * 0.5f);
+                ss = Mathf.Clamp01((field - (threshold - w)) / (2f * w));
+                ss = ss * ss * (3f - 2f * ss);
+            }
+            a *= 1f - ss * strength;
             return a > 0.003f;
+        }
+
+        /// Distance field for a regular N-gon of circumradius 1 (exactly 1 on the boundary), by folding the
+        /// sample into one wedge. `baseRot` orients it. N=3 → triangle, N=4 → square; the disc is the limit and
+        /// stays its own case.
+        static float PolyField(float x, float y, int sides, float baseRot)
+        {
+            float r = Mathf.Sqrt(x * x + y * y);
+            if (r <= 0.00001f) return 0f;
+            float seg = (Mathf.PI * 2f) / sides;
+            float ang = Mathf.Atan2(y, x) - baseRot;
+            float a2 = ang - seg * Mathf.Floor(ang / seg + 0.5f);
+            return r * Mathf.Cos(a2) / Mathf.Cos(seg * 0.5f);
+        }
+
+        /// A unit disc with a second disc bitten out of it, offset along +x. `biteX` is how far the bite sits
+        /// from the centre (0 swallows the whole disc), `biteR` its radius (thicker bite = thinner crescent).
+        static float CrescentField(float x, float y, float biteX, float biteR)
+        {
+            float d1 = Mathf.Sqrt(x * x + y * y);
+            float dx = x - biteX;
+            float d2 = Mathf.Sqrt(dx * dx + y * y) / Mathf.Max(0.01f, biteR);
+            return Mathf.Max(d1, 2f - d2);   // inside the disc AND outside the bite
+        }
+
+        /// Blend the pixel TOWARD a colour. Tint can only multiply, so it can never brighten and never push a
+        /// pixel to a hue it does not already contain; this is the "wash it toward red" verb.
+        public static bool KColorTint(in ColorTintP pp, ref Color c, ref float a)
+        {
+            float t = Mathf.Clamp01(pp.amt);
+            if (t <= 0.001f) return true;
+            c = new Color(Mathf.Lerp(c.r, pp.r, t), Mathf.Lerp(c.g, pp.g, t), Mathf.Lerp(c.b, pp.b, t), c.a);
+            return true;
+        }
+
+        /// Rewrite one band of the hue wheel: match hues within `range` of `hue` (softened by `smooth`), then
+        /// move them toward `outHue` and scale their saturation / brightness, all weighted by `amt`.
+        public static bool KColorReplace(in ReplaceP pp, ref Color c, ref float a)
+        {
+            float amt = Mathf.Clamp01(pp.amt);
+            if (amt <= 0.001f) return true;
+            RgbToHsv(c.r, c.g, c.b, out float h, out float s, out float v);
+
+            float range = Mathf.Max(0.01f, pp.range);
+            float d = Wrap(h * 360f - pp.hue + 180f, 360f) - 180f;   // signed shortest hue distance
+            float ad = Mathf.Abs(d);
+            if (ad >= range) return true;
+
+            // `smooth` eats inward from the band's rim: 0 = a hard band edge, 1 = the match fades across the
+            // whole band, so a recolour blends into neighbouring hues instead of showing a posterised seam.
+            float band = Mathf.Clamp01(pp.smooth) * range;
+            float w = band <= 0.0001f ? 1f : Mathf.Clamp01((range - ad) / band);
+            w = w * w * (3f - 2f * w) * amt;
+            if (w <= 0.001f) return true;
+
+            // `spread` keeps each pixel's offset within the band (1) or collapses the whole band onto one flat
+            // hue (0) — the replacement hue's own smoothness.
+            float nh = Wrap(pp.outHue + pp.spread * d, 360f) / 360f;
+            float hd = Wrap(nh - h + 0.5f, 1f) - 0.5f;   // travel the short way round the wheel
+            h = Wrap(h + hd * w, 1f);
+            s = Mathf.Clamp01(s * Mathf.Lerp(1f, pp.sat, w));
+            v = Mathf.Clamp01(v * Mathf.Lerp(1f, pp.bri, w));
+            HsvToRgb(h, s, v, out float r2, out float g2, out float b2);
+            c = new Color(r2, g2, b2, c.a);
+            return true;
+        }
+
+        /// Positive modulo, written out rather than via Mathf.Repeat so the whole kernel tree stays plainly
+        /// Burst-shaped arithmetic.
+        static float Wrap(float v, float m) => v - Mathf.Floor(v / m) * m;
+
+        // Burst-legal HSV conversions (UnityEngine.Color's own helpers are managed statics). Hue is 0..1.
+        public static void RgbToHsv(float r, float g, float b, out float h, out float s, out float v)
+        {
+            float max = Mathf.Max(r, Mathf.Max(g, b));
+            float min = Mathf.Min(r, Mathf.Min(g, b));
+            v = max;
+            float d = max - min;
+            s = max <= 0.00001f ? 0f : d / max;
+            if (d <= 0.00001f) { h = 0f; return; }
+            if (max == r) h = (g - b) / d;
+            else if (max == g) h = 2f + (b - r) / d;
+            else h = 4f + (r - g) / d;
+            h /= 6f;
+            if (h < 0f) h += 1f;
+        }
+
+        public static void HsvToRgb(float h, float s, float v, out float r, out float g, out float b)
+        {
+            float hh = Wrap(h, 1f) * 6f;
+            int i = (int)hh;
+            if (i > 5) i = 5;
+            float f = hh - i;
+            float p = v * (1f - s);
+            float q = v * (1f - s * f);
+            float t = v * (1f - s * (1f - f));
+            switch (i)
+            {
+                case 0: r = v; g = t; b = p; break;
+                case 1: r = q; g = v; b = p; break;
+                case 2: r = p; g = v; b = t; break;
+                case 3: r = p; g = q; b = v; break;
+                case 4: r = t; g = p; b = v; break;
+                default: r = v; g = p; b = q; break;
+            }
         }
 
         // ── stack dispatch (enum tag, no virtual dispatch) — shared by the job and RunInline ─────────────────────
@@ -229,6 +374,8 @@ namespace Laubrary.SpriteFx
                 case SfxKernel.OrderedDither: return KOrderedDither(op.dither, ref c, ref a, p);
                 case SfxKernel.LayerDissolve: return KLayerDissolve(op.dissolve, ref c, ref a, p);
                 case SfxKernel.AlphaMask: return KAlphaMask(op.mask, ref c, ref a, p);
+                case SfxKernel.ColorTint: return KColorTint(op.ctint, ref c, ref a);
+                case SfxKernel.ColorReplace: return KColorReplace(op.replace, ref c, ref a);
                 default: return true;
             }
         }
@@ -299,7 +446,8 @@ namespace Laubrary.SpriteFx
         /// True for the pixel modifiers this slice Burst-shaped.
         public static bool IsShaped(PyreModifier m) =>
             m is TintModifier || m is ContrastModifier || m is BrightnessModifier || m is SaturationModifier ||
-            m is PosterizeModifier || m is OrderedDitherModifier || m is LayerDissolveModifier || m is AlphaMaskModifier;
+            m is PosterizeModifier || m is OrderedDitherModifier || m is LayerDissolveModifier || m is AlphaMaskModifier ||
+            m is ColorTintModifier || m is ColorReplaceModifier || m is WipeModifier;
 
         /// A life/seed eval mirroring BlastRenderer.Eval (Static / MinMax / Curve), so a resolved op reflects the
         /// same animated value the managed path would at this frame. `fieldSalt` keeps a modifier's per-field
@@ -317,8 +465,12 @@ namespace Laubrary.SpriteFx
                         var rng = new System.Random(unchecked(seed * 73856093 ^ (fieldSalt + fid) * 19349663));
                         return Mathf.Lerp(v.min, v.max, (float)rng.NextDouble());
                     }
-                    case ZUIValue.Mode.Curve:
-                        return ZUIEnvelopeEvaluator.Evaluate(v.points, Mathf.Clamp01(life), v.yMax);
+                    // Every envelope-shaped mode samples through the value's OWN normalized evaluators, so a
+                    // stack sees exactly what the control draws — including the curve's corner smoothness, which
+                    // a local ZUIEnvelopeEvaluator call silently drops.
+                    case ZUIValue.Mode.Curve: return v.EvaluateCurveAtNorm(life);
+                    case ZUIValue.Mode.Steps: return v.EvaluateStepsAtNorm(life);
+                    case ZUIValue.Mode.Oscillation: return v.EvaluateOscillationAtNorm(life);
                     default: return v.staticValue;
                 }
             };
@@ -339,13 +491,20 @@ namespace Laubrary.SpriteFx
                     var m = mods[i];
                     if (m == null || !m.enabled || !IsShaped(m)) continue;
                     m.Prepare(eval);
-                    var op = ((PixelModifier)m).ResolveSfxOp();
-                    if (op.lutIndex == -2)   // sentinel: this op wants a gradient LUT slot
+                    // Most effects are ONE op; a few (Colour replace, which holds a whole list of hue swaps)
+                    // expand into several, applied in their authored order right where the effect sits.
+                    var pm = (PixelModifier)m;
+                    int opCount = pm.SfxOpCount;
+                    for (int k = 0; k < opCount; k++)
                     {
-                        op.lutIndex = gradients.Count;
-                        gradients.Add(((PixelModifier)m).SfxGradient());
+                        var op = pm.ResolveSfxOp(k);
+                        if (op.lutIndex == -2)   // sentinel: this op wants a gradient LUT slot
+                        {
+                            op.lutIndex = gradients.Count;
+                            gradients.Add(pm.SfxGradient());
+                        }
+                        list.Add(op);
                     }
-                    list.Add(op);
                 }
             }
 

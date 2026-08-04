@@ -157,7 +157,9 @@ namespace Laubrary.Zui
         {
             opt ??= new Options();
             string nice = ObjectNames.NicifyVariableName(field.Name);
-            string tip = opt.TooltipFor?.Invoke(field)
+            // A field's own [Tooltip] is the AUTHORED description of what it does — always better than a
+            // generated sentence that only restates the label, so it outranks the fallback.
+            string tip = opt.TooltipFor?.Invoke(field) ?? TooltipAttributeOf(field)
                          ?? $"{nice} — a {PrettyTypeName(field.FieldType)} value on {owner.GetType().Name}.";
             object v = field.GetValue(owner);
             var range = (RangeAttribute)Attribute.GetCustomAttribute(field, typeof(RangeAttribute));
@@ -381,6 +383,13 @@ namespace Laubrary.Zui
                     Z.Float(cur.y, etip + " (Y)", nv => Set(new Vector2(((Vector2)list[idx]).x, nv)), 70f));
             }
             return null;
+        }
+
+        /// The field's authored [Tooltip] text, or null when it has none.
+        public static string TooltipAttributeOf(FieldInfo field)
+        {
+            var a = (TooltipAttribute)Attribute.GetCustomAttribute(field, typeof(TooltipAttribute));
+            return string.IsNullOrEmpty(a?.tooltip) ? null : a.tooltip;
         }
 
         static string PrettyTypeName(Type t)

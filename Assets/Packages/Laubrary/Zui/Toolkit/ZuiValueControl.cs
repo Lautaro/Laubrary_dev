@@ -29,6 +29,10 @@ namespace Laubrary.Zui
             public bool allowMinMax = true;
             public bool allowCurve = true;
             public bool allowSteps = true;   // Steps = a step-sequencer mode, a peer of the others
+            // Oscillation = a sine between two envelopes. OPT-IN, unlike its peers: a host whose own evaluator
+            // does not understand the mode would silently flatten it to the static value, which is worse than
+            // not offering it. A host that CAN evaluate it turns it on (SpriteFx does).
+            public bool allowOscillation = false;
             // Offer the "Cycles" envelope generator (a sawtooth for a value that WRAPS — a rotation angle, a
             // hue). Off by default: it only makes sense where the field's value loops, so a field opts in.
             public bool cyclic = false;
@@ -97,6 +101,7 @@ namespace Laubrary.Zui
             public bool showValues;
             public bool showInputs;
             public bool inputsSelectedOnly;
+            public int oscEdit;   // Oscillation mode: which of Floor / Ceiling / Rate the editor is bound to
         }
         static readonly Dictionary<ZUIValue, CurveUiState> s_state = new();
         static CurveUiState GetState(ZUIValue v)
@@ -162,18 +167,6 @@ namespace Laubrary.Zui
                 ShowMenu(this);
                 e.StopPropagation();
             });
-            // …EXCEPT in Static mode, where that child-first rule was a ONE-WAY TRAPDOOR: the Static face is one
-            // MicroSlider spanning the whole row, so its own display-options menu swallowed EVERY right-click and
-            // the mode menu became unreachable — switch a value to Static and there was no way back to Envelope
-            // (confirmed live: every Static row across Swarm/Fill read as a plain slider). In Static mode the
-            // config menu is the essential one, so claim the right-click ahead of the child (TrickleDown); the
-            // other modes keep child-first behaviour (envelope point menus etc.).
-            RegisterCallback<PointerDownEvent>(e =>
-            {
-                if (e.button != 1 || _v.mode != ZUIValue.Mode.Static) return;
-                ShowMenu(this);
-                e.StopPropagation();
-            }, TrickleDown.TrickleDown);
         }
 
         void Mutate(Action apply) { OnBeforeMutate?.Invoke(); apply(); OnChanged?.Invoke(); }
@@ -218,6 +211,9 @@ namespace Laubrary.Zui
                     break;
                 case ZUIValue.Mode.Steps:
                     BuildSteps();
+                    break;
+                case ZUIValue.Mode.Oscillation:
+                    BuildOscillation();
                     break;
             }
         }
@@ -299,11 +295,6 @@ namespace Laubrary.Zui
             {
                 xMin = 0f, xMax = 1f,
                 yMin = _v.yMin, yMax = _v.yMax,
-                // Allow deleting all the way down to ONE point — a lone point evaluates to a flat/constant
-                // line (ZUIEnvelopeEvaluator returns points[0].value for Count==1), so dragging it up/down is
-                // a horizontal line == the same output as a Static value. Double-click empty space adds points
-                // back. (Default is 2; this editor opts into 1.)
-                minPoints = 1,
                 curveColor = new Color(0.4f, 0.85f, 1f),
                 showValueLabels = st.showValues,
                 showFrameLines = indexMode || _opt.frameCount > 1,
@@ -442,6 +433,161 @@ namespace Laubrary.Zui
             _content.Add(range);
         }
 
+        // ── oscillation mode (a sine carrier between two envelopes) ───────────────────
+        // The carrier is fixed — the three things an author shapes are the FLOOR the wave dips to, the CEILING
+        // it peaks at, and the RATE it swings at, each a full envelope over the same playthrough. One envelope
+        // editor is shown at a time (picked by a segmented switch) with the resolved wave always visible above
+        // it, rather than three stacked editors: vertical space is the scarce resource and the thing an author
+        // is actually judging is the RESULT, not three curves side by side.
+        void BuildOscillation()
+        {
+            if (_opt.hideCurveRange)
+            {
+                _v.yMin = Mathf.Min(_opt.absMin, _opt.absMax);
+                _v.yMax = Mathf.Max(_opt.absMin, _opt.absMax);
+            }
+            _v.EnsureOscillationDefaults();
+            var st = GetState(_v);
+
+            var header = new VisualElement();
+            header.AddToClassList("zui-row");
+            var foldLabel = new Label(_label ?? "Oscillation")
+            {
+                tooltip = (_tooltip + " ").TrimStart() + "Click to " +
+                          (st.expanded ? "collapse" : "expand") + " the oscillation editor.",
+            };
+            foldLabel.AddToClassList("zui-field__label");
+            foldLabel.AddToClassList("zui-fold-label");
+            foldLabel.style.marginTop = 3f;
+            foldLabel.RegisterCallback<PointerDownEvent>(e =>
+            {
+                if (e.button != 0) return;
+                st.expanded = !st.expanded;
+                RebuildAll();
+                e.StopPropagation();
+            });
+            header.Add(foldLabel);
+
+            if (!st.expanded)
+            {
+                var mini = new OscThumb(_v) { tooltip = "The resolved wave. Click to expand the oscillation editor." };
+                mini.style.width = Mathf.Max(60f, _opt.controlWidth - 20f);
+                mini.style.height = 18f;
+                if (_opt.grow)
+                {
+                    mini.style.flexGrow = 1f; mini.style.flexShrink = 1f;
+                    mini.style.maxWidth = _opt.controlWidth * Mathf.Max(1f, _opt.maxWidthFactor);
+                }
+                mini.RegisterCallback<PointerDownEvent>(e =>
+                {
+                    if (e.button != 0) return;
+                    st.expanded = true;
+                    RebuildAll();
+                    e.StopPropagation();
+                });
+                header.Add(mini);
+                _content.Add(header);
+                return;
+            }
+            _content.Add(header);
+
+            var preview = new OscThumb(_v)
+            {
+                tooltip = "The wave this value actually produces: the sine carrier travelling between the Floor " +
+                          "and Ceiling envelopes at the Rate envelope's speed. Updates as you drag.",
+            };
+            preview.style.height = 48f;
+            preview.style.flexGrow = 1f;
+            _content.Add(preview);
+
+            int edit = Mathf.Clamp(st.oscEdit, 0, 2);
+            _content.Add(Z.Segmented(edit, new[] { "Floor", "Ceiling", "Rate" },
+                "Which of the wave's three envelopes the editor below edits: the value it dips to at every " +
+                "trough, the value it peaks at, or how many full swings it makes across one playthrough.",
+                i => { st.oscEdit = i; RebuildAll(); }));
+
+            var pts = edit == 0 ? _v.oscMin : edit == 1 ? _v.oscMax : _v.oscRate;
+            bool rate = edit == 2;
+            var envOptions = new ZuiEnvelopeOptions
+            {
+                xMin = 0f, xMax = 1f,
+                yMin = rate ? 0f : Mathf.Min(_v.yMin, _v.yMax),
+                yMax = rate ? Mathf.Max(0.1f, _v.oscRateMax) : Mathf.Max(_v.yMin, _v.yMax),
+                curveColor = rate ? new Color(1f, 0.76f, 0.35f) : new Color(0.4f, 0.85f, 1f),
+                showFrameLines = _opt.frameCount > 1,
+                frameCount = _opt.frameCount,
+                xAxisLabel = _opt.xAxisLabel,
+                yAxisLabel = rate ? "cycles" : _opt.yAxisLabel,
+            };
+            string envTip = rate
+                ? "How many full swings the wave makes per playthrough, over the playthrough. A rising rate " +
+                  "accelerates the wobble; the phase is integrated, so changing the rate never jumps the wave."
+                : (edit == 0
+                    ? "The value the wave dips to at every trough, over the playthrough."
+                    : "The value the wave peaks at, over the playthrough.");
+            _env = new ZuiEnvelope(pts, envOptions, envTip, 200f, 120f);
+            _env.style.width = StyleKeyword.Auto;
+            _env.style.flexGrow = 1f;
+            _env.style.flexShrink = 1f;
+            _env.OnBeforeMutate += () => OnBeforeMutate?.Invoke();
+            _env.OnChanged += () => { OnChanged?.Invoke(); preview.MarkDirtyRepaint(); };
+            _content.Add(_env);
+
+            if (rate)
+                _content.Add(Z.MicroSlider("Fastest", _v.oscRateMax, 1f, 32f,
+                    "Ceiling of the Rate editor above — the most swings per playthrough it can be dragged to. " +
+                    "Raise it for a buzz, lower it for fine control over a slow sway.",
+                    v => Mutate(() =>
+                    {
+                        _v.oscRateMax = v;
+                        envOptions.yMax = Mathf.Max(0.1f, _v.oscRateMax);
+                        ClampPoints(_v.oscRate, envOptions.yMin, envOptions.yMax);
+                        _env?.Refresh();
+                        preview.MarkDirtyRepaint();
+                    }), _opt.controlWidth, decimals: 0));
+
+            if (!_opt.hideCurveTiming) AddTimingRow();
+            if (!_opt.hideCurveRange) AddOscRange(preview, envOptions, rate);
+        }
+
+        // The band's own output range — shared by the Floor and Ceiling envelopes, so widening it widens both.
+        void AddOscRange(OscThumb preview, ZuiEnvelopeOptions envOptions, bool editingRate)
+        {
+            var range = new VisualElement();
+            range.AddToClassList("zui-row");
+            range.Add(Z.Text("Value range", ZuiText.Small, "The lowest and highest values the wave may reach."));
+            range.Add(Z.Field("min", "The lowest value the wave may reach.",
+                Z.Float(_v.yMin, "The lowest value the wave may reach.", val => Mutate(() =>
+                {
+                    _v.yMin = val;
+                    if (_v.yMax < _v.yMin) _v.yMax = _v.yMin;
+                    ApplyOscRange(preview, envOptions, editingRate);
+                }), 46f)));
+            range.Add(Z.Field("max", "The highest value the wave may reach.",
+                Z.Float(_v.yMax, "The highest value the wave may reach.", val => Mutate(() =>
+                {
+                    _v.yMax = Mathf.Max(val, _v.yMin);
+                    ApplyOscRange(preview, envOptions, editingRate);
+                }), 46f)));
+            _content.Add(range);
+        }
+
+        void ApplyOscRange(OscThumb preview, ZuiEnvelopeOptions envOptions, bool editingRate)
+        {
+            float lo = Mathf.Min(_v.yMin, _v.yMax), hi = Mathf.Max(_v.yMin, _v.yMax);
+            ClampPoints(_v.oscMin, lo, hi);
+            ClampPoints(_v.oscMax, lo, hi);
+            if (!editingRate) { envOptions.yMin = lo; envOptions.yMax = hi; }
+            _env?.Refresh();
+            preview.MarkDirtyRepaint();
+        }
+
+        static void ClampPoints(List<ZUIEnvelopePoint> pts, float lo, float hi)
+        {
+            if (pts == null) return;
+            for (int i = 0; i < pts.Count; i++) pts[i].value = Mathf.Clamp(pts[i].value, lo, hi);
+        }
+
         void ClampStepsToRange()
         {
             for (int i = 0; i < _v.steps.Count; i++)
@@ -561,10 +707,12 @@ namespace Laubrary.Zui
             if (_opt.allowMinMax) { modes.Add(ZUIValue.Mode.MinMax); modeLabels.Add("Min-Max range"); }
             if (_opt.allowCurve) { modes.Add(ZUIValue.Mode.Curve); modeLabels.Add("Envelope"); }
             if (_opt.allowSteps) { modes.Add(ZUIValue.Mode.Steps); modeLabels.Add("Steps"); }
+            if (_opt.allowOscillation) { modes.Add(ZUIValue.Mode.Oscillation); modeLabels.Add("Oscillation"); }
             int modeSel = modes.IndexOf(_v.mode);
             if (hasMultiplier) menu.Section("Mode");
             menu.Radio(null, modeLabels.ToArray(), modeSel,
-                "How this value is produced: a Static point, a random Min-Max range, or a Curve over time.",
+                "How this value is produced: a Static point, a random Min-Max range, an Envelope over time, " +
+                "held Steps, or an Oscillation — a sine swinging between two envelopes at an animatable rate.",
                 i => SetMode(modes[i]), closeOnSelect: true);
 
             // Curve-display options → persistent toggle rows (stay open so several can be flipped in one visit).
@@ -682,9 +830,74 @@ namespace Laubrary.Zui
                     _v.yMax = Mathf.Max(_opt.absMin, _opt.absMax);
                     _v.EnsureStepsDefaults();
                 }
+                else if (mode == ZUIValue.Mode.Oscillation)
+                {
+                    _v.yMin = Mathf.Min(_opt.absMin, _opt.absMax);
+                    _v.yMax = Mathf.Max(_opt.absMin, _opt.absMax);
+                    _v.EnsureOscillationDefaults();
+                }
             });
             RebuildAll();
             UpdateReadout();
+        }
+
+        // ── live oscillation preview: the two bounds as faint rails, the resolved wave on top ────────
+        class OscThumb : VisualElement
+        {
+            readonly ZUIValue _v;
+
+            public OscThumb(ZUIValue v)
+            {
+                _v = v;
+                AddToClassList("zui-envelope");
+                style.height = 48f;
+                generateVisualContent += Paint;
+            }
+
+            void Paint(MeshGenerationContext mgc)
+            {
+                var r = contentRect;
+                if (!(r.width > 4f)) return;
+                float lo = Mathf.Min(_v.yMin, _v.yMax), hi = Mathf.Max(_v.yMin, _v.yMax);
+                if (hi - lo < 1e-4f) hi = lo + 1f;
+                var painter = mgc.painter2D;
+
+                // The band's rails first, dim — they are context for the wave, not the subject.
+                Rail(painter, r, lo, hi, _v.oscMin, new Color(0.45f, 0.55f, 0.65f, 0.55f));
+                Rail(painter, r, lo, hi, _v.oscMax, new Color(0.45f, 0.55f, 0.65f, 0.55f));
+
+                painter.strokeColor = new Color(0.4f, 0.85f, 1f);
+                painter.lineWidth = 1.3f;
+                painter.BeginPath();
+                // Dense enough that a fast carrier reads as a wave rather than as aliased noise.
+                int samples = Mathf.Clamp(Mathf.RoundToInt(r.width * 2f), 96, 512);
+                for (int s = 0; s <= samples; s++)
+                {
+                    float t = s / (float)samples;
+                    float ty = Mathf.Clamp01(Mathf.InverseLerp(lo, hi, _v.EvaluateOscillationAtNorm(t)));
+                    var p = new Vector2(r.x + 2f + t * (r.width - 4f), r.yMax - 2f - ty * (r.height - 4f));
+                    if (s == 0) painter.MoveTo(p); else painter.LineTo(p);
+                }
+                painter.Stroke();
+            }
+
+            static void Rail(Painter2D painter, Rect r, float lo, float hi,
+                             List<ZUIEnvelopePoint> pts, Color color)
+            {
+                if (pts == null || pts.Count == 0) return;
+                painter.strokeColor = color;
+                painter.lineWidth = 1f;
+                painter.BeginPath();
+                const int Samples = 48;
+                for (int s = 0; s <= Samples; s++)
+                {
+                    float t = s / (float)Samples;
+                    float ty = Mathf.Clamp01(Mathf.InverseLerp(lo, hi, ZUIEnvelopeEvaluator.Evaluate(pts, t, hi)));
+                    var p = new Vector2(r.x + 2f + t * (r.width - 4f), r.yMax - 2f - ty * (r.height - 4f));
+                    if (s == 0) painter.MoveTo(p); else painter.LineTo(p);
+                }
+                painter.Stroke();
+            }
         }
 
         // ── tiny live curve thumbnail (the folded-state header) ─────────────────────
