@@ -1252,7 +1252,9 @@ namespace Laubrary.SpriteFx
         [Tooltip("Mask rotation in degrees (rotates the wipe direction / disc axis). Animatable.")]
         public ZUIValue rotation = new ZUIValue(0f);
         [HideInInspector] public float offsetX = 0f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
-        [Tooltip("Mask centre offset X, in half-canvas units (-1..1).")]
+        [ZUIPair2D("offsetYValue", "Centre offset")]
+        [Tooltip("Where the mask's centre sits, in half-canvas units: (-1,-1) is the bottom-left corner, " +
+                 "(+1,+1) the top-right, (0,0) the middle.")]
         [Range(-1f, 1f)] public ZUIValue offsetXValue = new ZUIValue(0f);
         [HideInInspector] public bool offsetXUpgraded;
         public ZUIValue OffsetX { get { if (!offsetXUpgraded) { offsetXValue = new ZUIValue(offsetX); offsetXUpgraded = true; } return offsetXValue; } }
@@ -1262,21 +1264,26 @@ namespace Laubrary.SpriteFx
         [HideInInspector] public bool offsetYUpgraded;
         public ZUIValue OffsetY { get { if (!offsetYUpgraded) { offsetYValue = new ZUIValue(offsetY); offsetYUpgraded = true; } return offsetYValue; } }
 
-        [Tooltip("Noise shape only: domain-warp strength — how much the noise field bends on itself. 0 = plain " +
-                 "smooth noise (a blobby cloud); higher = more churned, organic eddies.")]
+        [ZUIShowIf("shape", "Noise")]
+        [Tooltip("Domain-warp strength — how much the noise field bends on itself. 0 = plain smooth noise " +
+                 "(a blobby cloud); higher = more churned, organic eddies.")]
         [Range(0f, 2f)] public float noiseWarp = 0.6f;
+        [ZUIShowIf("shape", "Noise")]
+        [ZUIPair2D("noiseDriftY", "Noise drift")]
         [Range(-64f, 64f)]
-        [Tooltip("Noise shape only: extra X drift added to the noise sample position over the mask's progress, in " +
-                 "half-canvas units. Animate it for a cloud that visibly rolls/billows sideways as it reveals.")]
+        [Tooltip("Extra drift added to the noise sample position over the mask's progress, in half-canvas " +
+                 "units. Animate it for a cloud that visibly rolls or billows as it reveals.")]
         public ZUIValue noiseDriftX = new ZUIValue(0f);
         [Range(-64f, 64f)]
-        [Tooltip("Noise shape only: extra Y drift added to the noise sample position, in half-canvas units. Animatable.")]
+        [Tooltip("Extra Y drift added to the noise sample position, in half-canvas units. Animatable.")]
         public ZUIValue noiseDriftY = new ZUIValue(0f);
 
-        [Tooltip("Crescent shape only: how far the bitten-out disc sits from the centre. Low = the bite swallows " +
-                 "almost everything (a thin sliver); high = it barely clips the edge (an almost-full moon).")]
+        [ZUIShowIf("shape", "Crescent")]
+        [Tooltip("How far the bitten-out disc sits from the centre. Low = the bite swallows almost " +
+                 "everything (a thin sliver); high = it barely clips the edge (an almost-full moon).")]
         [Range(0f, 2f)] public float crescentBite = 0.9f;
-        [Tooltip("Crescent shape only: the bitten-out disc's own radius. Bigger takes a deeper bite, leaving a " +
+        [ZUIShowIf("shape", "Crescent")]
+        [Tooltip("The bitten-out disc's own radius. Bigger takes a deeper bite, leaving a " +
                  "thinner, more curved sliver.")]
         [Range(0.1f, 2f)] public float crescentThickness = 1f;
 
@@ -1343,8 +1350,9 @@ namespace Laubrary.SpriteFx
                  "half. Animatable.")]
         [Range(0.05f, 4f)] public ZUIValue size = new ZUIValue(1f);
 
-        [Tooltip("Where the shape's centre sits horizontally, in half-canvas units: -1 is the left edge, " +
-                 "+1 the right. Animatable — slide the reveal across the sprite.")]
+        [ZUIPair2D("offsetY", "Offset")]
+        [Tooltip("Where the shape's centre sits, in half-canvas units: (-1,-1) is the bottom-left corner, " +
+                 "(+1,+1) the top-right, (0,0) the middle. Animatable — slide the reveal across the sprite.")]
         [Range(-1.5f, 1.5f)] public ZUIValue offsetX = new ZUIValue(0f);
 
         [Tooltip("Where the shape's centre sits vertically, in half-canvas units: -1 is the bottom edge, " +
@@ -1362,19 +1370,23 @@ namespace Laubrary.SpriteFx
                  "hard boundary with the reveal itself fading along the angle below.")]
         public WipeEdge edge = WipeEdge.Soft;
 
-        [Tooltip("Soft edge only: how wide the blur is. 0 is nearly a hard cut, 1 a very wide gradient.")]
+        [ZUIShowIf("edge", "Soft")]
+        [Tooltip("How wide the blur is. 0 is nearly a hard cut, 1 a very wide gradient.")]
         [Range(0f, 1f)] public float feather = 0.4f;
 
-        [Tooltip("Directional edge only: the compass direction the fade runs along, in degrees. 0 fades away to " +
-                 "the right, 90 upward. Animatable — sweep the fade around while the shape holds still.")]
+        [ZUIShowIf("edge", "Directional")]
+        [Tooltip("The compass direction the fade runs along, in degrees. 0 fades away to the right, 90 " +
+                 "upward. Animatable — sweep the fade around while the shape holds still.")]
         [Range(0f, 360f)] public ZUIValue fadeAngle = new ZUIValue(0f);
 
-        [Tooltip("Crescent shape only: how far the bitten-out disc sits from the centre. Low = the bite swallows " +
-                 "almost everything (a thin sliver); high = it barely clips the edge (an almost-full moon).")]
+        [ZUIShowIf("shape", "Crescent")]
+        [Tooltip("How far the bitten-out disc sits from the centre. Low = the bite swallows almost " +
+                 "everything (a thin sliver); high = it barely clips the edge (an almost-full moon).")]
         [Range(0f, 2f)] public float crescentBite = 0.9f;
 
-        [Tooltip("Crescent shape only: the bitten-out disc's own radius. Bigger takes a deeper bite, leaving a " +
-                 "thinner, more curved sliver.")]
+        [ZUIShowIf("shape", "Crescent")]
+        [Tooltip("The bitten-out disc's own radius. Bigger takes a deeper bite, leaving a thinner, more " +
+                 "curved sliver.")]
         [Range(0.1f, 2f)] public float crescentThickness = 1f;
 
         float prog, siz, rotRad, offX, offY, strengthV, fadeRad;

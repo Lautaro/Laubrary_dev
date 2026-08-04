@@ -144,12 +144,80 @@ namespace Laubrary.Zui
         public static void BuildFields(VisualElement root, object owner, Options opt)
         {
             if (owner == null) return;
-            foreach (var f in FieldsOf(owner.GetType()))
+            var fields = FieldsOf(owner.GetType());
+
+            // A [ZUIPair2D] X field swallows its Y partner into one 2D control, so the partner must not also
+            // be drawn on its own further down the card. Collected first, because the Y field can be declared
+            // before the X one and a single forward pass would already have drawn it.
+            HashSet<string> consumed = null;
+            foreach (var f in fields)
             {
+                var pair = PairAttributeOf(f);
+                if (pair == null) continue;
+                if (FindField(fields, pair.YField) == null) continue;   // bad name → both draw normally
+                (consumed ??= new HashSet<string>()).Add(pair.YField);
+            }
+
+            foreach (var f in fields)
+            {
+                if (consumed != null && consumed.Contains(f.Name)) continue;
+                if (!VisibleNow(owner, f, fields)) continue;
                 if (opt?.Skip != null && opt.Skip(f)) continue;
                 var ve = BuildField(owner, f, opt);
                 if (ve != null) root.Add(ve);
             }
+        }
+
+        /// Whether a [ZUIShowIf] field applies to the owner's CURRENT state. Fails OPEN — an attribute
+        /// naming a field that no longer exists shows the control rather than silently deleting it from the
+        /// UI, because a stale dial is a visible problem and a missing one is not.
+        static bool VisibleNow(object owner, FieldInfo f, FieldInfo[] all)
+        {
+            var show = (ZUIShowIfAttribute)Attribute.GetCustomAttribute(f, typeof(ZUIShowIfAttribute));
+            if (show == null) return true;
+            var gate = FindField(all, show.Field);
+            if (gate == null) return true;
+            string cur = gate.GetValue(owner)?.ToString();
+            foreach (var v in show.Values)
+                if (string.Equals(v, cur, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        /// Field names that some [ZUIShowIf] on this type reads — the ones whose edit has to redraw the card.
+        static readonly Dictionary<Type, HashSet<string>> s_gateCache = new();
+        static bool IsGate(Type t, string fieldName)
+        {
+            if (!s_gateCache.TryGetValue(t, out var gates))
+            {
+                gates = new HashSet<string>();
+                foreach (var f in FieldsOf(t))
+                {
+                    var show = (ZUIShowIfAttribute)Attribute.GetCustomAttribute(f, typeof(ZUIShowIfAttribute));
+                    if (show != null && !string.IsNullOrEmpty(show.Field)) gates.Add(show.Field);
+                }
+                s_gateCache[t] = gates;
+            }
+            return gates.Contains(fieldName);
+        }
+
+        /// The per-axis name for a paired field: the trailing "X"/"Y" of "Offset X" carries no information
+        /// once the control is labelled "Offset", but a real axis name ("Pitch") is worth keeping.
+        static string AxisLabel(string nicified, string fallback)
+        {
+            if (string.IsNullOrEmpty(nicified)) return fallback;
+            int sp = nicified.LastIndexOf(' ');
+            string last = sp >= 0 ? nicified.Substring(sp + 1) : nicified;
+            return last.Length <= 2 ? fallback : last;
+        }
+
+        static ZUIPair2DAttribute PairAttributeOf(FieldInfo f)
+            => (ZUIPair2DAttribute)Attribute.GetCustomAttribute(f, typeof(ZUIPair2DAttribute));
+
+        static FieldInfo FindField(FieldInfo[] fields, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            foreach (var f in fields) if (f.Name == name) return f;
+            return null;
         }
 
         /// Build one control for `field` on `owner`, or null when the type isn't renderable.
@@ -170,6 +238,10 @@ namespace Laubrary.Zui
                 opt.OnBeforeChange?.Invoke();
                 field.SetValue(owner, nv);
                 opt.OnChanged?.Invoke();
+                // A field some [ZUIShowIf] reads decides which other fields apply, so editing it has to
+                // redraw the card — otherwise the dials it just made relevant stay hidden until something
+                // unrelated happens to rebuild, which reads as the switch not working.
+                if (IsGate(owner.GetType(), field.Name)) opt.OnStructureChanged?.Invoke();
             }
 
             if (t == typeof(float))
@@ -231,6 +303,39 @@ namespace Laubrary.Zui
             {
                 var zv = v as ZUIValue;
                 if (zv == null) { zv = new ZUIValue(); field.SetValue(owner, zv); }
+
+                // Two halves of one spatial value → ONE 2D control. Aiming an offset by dragging two
+                // independent sliders and checking the preview to see where it went is the exact ergonomics
+                // the layout rules single out; the pad puts the value where the eye already is. Each axis
+                // keeps its OWN [Range], so a control spanning -1.5..1.5 horizontally and 0..2 vertically
+                // stays honest about both.
+                var pair = PairAttributeOf(field);
+                if (pair != null)
+                {
+                    var yField = FindField(FieldsOf(owner.GetType()), pair.YField);
+                    if (yField != null && yField.FieldType == typeof(ZUIValue))
+                    {
+                        var yv = yField.GetValue(owner) as ZUIValue;
+                        if (yv == null) { yv = new ZUIValue(); yField.SetValue(owner, yv); }
+                        var yRange = (RangeAttribute)Attribute.GetCustomAttribute(yField, typeof(RangeAttribute));
+                        var popt = new ZuiValue2DControl.Options
+                        {
+                            xMin = range?.min ?? -1f, xMax = range?.max ?? 1f,
+                            yMin = yRange?.min ?? -1f, yMax = yRange?.max ?? 1f,
+                            xLabel = AxisLabel(nice, "X"),
+                            yLabel = AxisLabel(ObjectNames.NicifyVariableName(yField.Name), "Y"),
+                            // Two pads on one card (an offset and a drift) must not share the pad-vs-sliders
+                            // preference, so the key names the owning type and the pair.
+                            prefKey = $"{owner.GetType().Name}.{field.Name}",
+                        };
+                        string pairLabel = pair.Label ?? nice;
+                        string pairTip = opt.TooltipFor?.Invoke(field) ?? TooltipAttributeOf(field) ?? tip;
+                        return Z.Value2D(pairLabel, zv, yv, popt, pairTip,
+                            onChanged: () => opt.OnChanged?.Invoke(),
+                            onBeforeMutate: () => opt.OnBeforeChange?.Invoke());
+                    }
+                }
+
                 var vopt = new ZuiValueControl.Options { controlWidth = opt.ControlWidth };
                 if (range != null) vopt.WithRange(range.min, range.max);
                 opt.ConfigureValue?.Invoke(field, vopt);
