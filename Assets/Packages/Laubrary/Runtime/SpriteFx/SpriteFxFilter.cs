@@ -14,7 +14,7 @@ namespace Laubrary.SpriteFx
 
     /// A RUNTIME sprite filter: applies a stateless colour/mask modifier stack (the #45/#46 SpriteFx family) to a
     /// live SpriteRenderer over a triggered timeline — the "brightness flash on hurt" use case. It is stateless per
-    /// frame: every tick it RE-READS the renderer's CURRENT sprite pixels, so it rides on top of a live Reel/Animator
+    /// frame: every tick it RE-READS the renderer's CURRENT sprite pixels, so it rides on top of a live Lauminary/Animator
     /// animation (the underlying frame keeps advancing underneath the flash), resolves the stack's animatable params
     /// at the current progress, applies them (inline OR Burst per the project toggle) into a pooled Texture2D, and
     /// swaps the filtered result onto the renderer. When the timeline ends it restores the original sprite.
@@ -79,12 +79,12 @@ namespace Laubrary.SpriteFx
         [Tooltip("Own clock: how many times per second the stack's time advances while it plays. 0 (default) = " +
                  "continuous — re-evaluated every rendered frame, riding whatever animation drives it. Set a " +
                  "rate to step the effect on its own fixed grid, independent of the animation's fps (a fast " +
-                 "flicker over a slow reel). Ignored when a Stack asset is assigned.")]
+                 "flicker over a slow lauminary). Ignored when a Stack asset is assigned.")]
         [Min(0f)] public float targetFps = 0f;
 
         // ── live state ─────────────────────────────────────────────────────────────────────────────────────────
         SpriteRenderer _sr;
-        Sprite _sourceSprite;     // the live UN-filtered source (a Reel frame, or the static sprite) we ride on top of
+        Sprite _sourceSprite;     // the live UN-filtered source (a Lauminary frame, or the static sprite) we ride on top of
         Sprite _filteredSprite;   // the sprite we swap in — references _work (pooled)
         Texture2D _work;          // pooled working texture, resized only when the source geometry changes
         bool _playing;
@@ -226,7 +226,7 @@ namespace Laubrary.SpriteFx
             if (_sr == null) return;
 
             // Ride on top of a live animation: whatever sprite is on the renderer right now that ISN'T our own
-            // filtered sprite is the fresh source frame (a Reel/Animator wrote it this frame). If the renderer still
+            // filtered sprite is the fresh source frame (a Lauminary/Animator wrote it this frame). If the renderer still
             // shows our filtered sprite, the underlying source didn't change — reuse the last one (handles a held
             // frame / paused animation without double-filtering our own output).
             Sprite cur = _sr.sprite;
@@ -245,7 +245,7 @@ namespace Laubrary.SpriteFx
             {
                 // OWN CLOCK: the stack's time advances on a fixed 1/fps step grid instead of every rendered
                 // frame, so the effect ticks at ITS rate independent of the animation it rides (a 12-step
-                // flicker over a 4-fps reel). The step index feeds the hashing modifiers — a dither/dissolve
+                // flicker over a 4-fps lauminary). The step index feeds the hashing modifiers — a dither/dissolve
                 // pattern re-rolls per STEP — and it is GLOBAL across loop passes so a looped flicker doesn't
                 // repeat in lockstep. An unchanged step over an unchanged source frame skips the pixel pass
                 // entirely (the own clock genuinely ticks slower, it isn't just quantised output).
@@ -300,7 +300,7 @@ namespace Laubrary.SpriteFx
 
         void Restore()
         {
-            // Only restore if WE are still the one on the renderer — never stomp a frame a Reel/Animator advanced to.
+            // Only restore if WE are still the one on the renderer — never stomp a frame a Lauminary/Animator advanced to.
             if (_sr != null && _sourceSprite != null && ReferenceEquals(_sr.sprite, _filteredSprite))
                 _sr.sprite = _sourceSprite;
         }

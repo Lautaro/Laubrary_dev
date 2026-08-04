@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Laubrary.Launimator.Editor
 {
     /// <summary>
-    /// Classical-CV sprite detection for the Animation Builder's "auto add sprites from marquee" (right-click a
+    /// Classical-CV sprite detection for the Laumination Builder's "auto add sprites from marquee" (right-click a
     /// marquee → Add/Replace Sprites). Projection-profile segmentation bounded to a box: no LLM, no network, no
     /// writes to the sheet. (The old standalone whole-sheet "Auto-Scavenge" grouping window was a dead end and
     /// was removed; only this marquee helper remains.)

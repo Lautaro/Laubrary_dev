@@ -4,7 +4,7 @@ namespace Laubrary.SpriteFx
 {
     /// Neutral, dependency-free primitives shared by the stateless SpriteFx modifiers (and forwarded to by Pyre so
     /// there is a single canonical copy). Extracted verbatim from Pyre's BlastRenderer/Layer when the stateless
-    /// modifier family was elevated out of the Pyre assembly, so Reels/Chunks can reuse them without depending on
+    /// modifier family was elevated out of the Pyre assembly, so Lauminaries/Chunks can reuse them without depending on
     /// Pyre. Hash01 is byte-frozen — every baked/loaded asset depends on its exact output; do not alter it.
     public static class Sfx
     {

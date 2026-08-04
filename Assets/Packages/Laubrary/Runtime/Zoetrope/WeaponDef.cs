@@ -40,13 +40,13 @@ namespace Laubrary.Zoetrope
                  "shooter has no ICueSink (e.g. a plain SpriteView).")]
         public string muzzleLayerId = "Muzzle";
         [Tooltip("Alternative to muzzleLayerId — the name of a FrameEvent (with an authored pixel position, " +
-                 "set via the Animation Builder's pixel tool) that triggers the muzzle effect at its point " +
+                 "set via the Laumination Builder's pixel tool) that triggers the muzzle effect at its point " +
                  "instead. Takes priority over muzzleLayerId when set. Prefer this for a simple one-point-per-" +
                  "frame muzzle/spawn signal — MetaLayer painting is still the right tool for anything needing " +
                  "MULTIPLE pixels or MULTIPLE frames (e.g. hit detection).")]
         public string muzzleEventName = "";
         [Tooltip("Muzzle offset from the shooter, along its aim (x = forward, y = up). Only used by the " +
-                 "no-ICueSink fallback above — a ZonedReelView shooter's muzzle position comes from the " +
+                 "no-ICueSink fallback above — a ZonedLauminaryView shooter's muzzle position comes from the " +
                  "MetaLayer/FrameEvent itself, not this offset.")]
         public Vector2 muzzleOffset = new Vector2(0.5f, 0f);
 

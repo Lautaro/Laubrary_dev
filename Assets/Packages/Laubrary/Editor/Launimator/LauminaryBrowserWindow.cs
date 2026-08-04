@@ -9,23 +9,23 @@ using UnityEngine.UIElements;
 namespace Laubrary.Launimator.Editor
 {
     /// <summary>
-    /// The reel browser. Lists every reel under <see cref="ReelRepo.Root"/>, lets you pick a
+    /// The lauminary browser. Lists every lauminary under <see cref="LauminaryRepo.Root"/>, lets you pick a
     /// version (the editable <c>draft</c> or an immutable snapshot <c>v1..vN</c>), browse and preview that
-    /// version's animations, and manage reel lifecycle (New / Duplicate / Rename / Delete) plus commit
+    /// version's animations, and manage lauminary lifecycle (New / Duplicate / Rename / Delete) plus commit
     /// the draft into a new immutable version. This is the workflow's starting point: create or pick a
-    /// reel, add a named animation, then <b>Edit</b> it in the Animation Builder (which saves back here).
-    /// It also lists standalone "orphaned" animations and can include them into a reel's draft.
+    /// lauminary, add a named animation, then <b>Edit</b> it in the Laumination Builder (which saves back here).
+    /// It also lists standalone "orphaned" animations and can include them into a lauminary's draft.
     ///
-    /// UI TOOLKIT PORT: every control is a Z.* control; the reel list and the animation rows are retained
+    /// UI TOOLKIT PORT: every control is a Z.* control; the lauminary list and the animation rows are retained
     /// elements rebuilt whenever their data changes. The playback PREVIEW stays an IMGUIContainer — it draws
     /// baked atlas frames through <see cref="FramePreview"/> (pivot-anchored sub-rect blits), the one shared
     /// frame visualiser this tool must not fork.
     /// </summary>
-    public class ReelBrowserWindow : ZuiWindow
+    public class LauminaryBrowserWindow : ZuiWindow
     {
-        private List<Reel> _reels = new List<Reel>();
+        private List<Lauminary> _lauminaries = new List<Lauminary>();
         private List<AnimationAsset> _orphans = new List<AnimationAsset>();
-        private Reel _selected;
+        private Lauminary _selected;
         private int _versionSel;            // 0 = draft, else committed version number
         private int _animSel = -1;
 
@@ -39,13 +39,13 @@ namespace Laubrary.Launimator.Editor
         private int _renamingOrphan = -1;    // index of the orphaned animation being inline-renamed, else -1
         private string _orphanRenameBuffer = "";
         private bool _showingOrphans;        // the "Orphaned" pseudo-entry is selected (detail shows orphans)
-        private Reel _lastReel;       // last real reel selected (default include target)
-        private Reel _orphanIncludeTarget; // reel a row's → includes into, while browsing orphans
+        private Lauminary _lastLauminary;       // last real lauminary selected (default include target)
+        private Lauminary _orphanIncludeTarget; // lauminary a row's → includes into, while browsing orphans
 
-        // preview — driven by the shared AnimationPlayback (the ONE player), same as the game & Animation Builder
+        // preview — driven by the shared AnimationPlayback (the ONE player), same as the game & Laumination Builder
         private bool _playing = true;
         private double _lastStep;
-        private AnimationDef _previewing;
+        private Laumination _previewing;
         private readonly AnimationPlayback _pb = new AnimationPlayback();
         private Texture2D _orphanPreviewTex; // owned in-memory atlas for the previewed orphan (orphans aren't baked)
 
@@ -55,10 +55,10 @@ namespace Laubrary.Launimator.Editor
         private Label _previewLabel;
         private Button _playButton;
 
-        [MenuItem("Laubrary/Reel Browser")]
+        [MenuItem("Laubrary/Lauminary Browser")]
         public static void Open()
         {
-            var w = GetWindow<ReelBrowserWindow>("Reel Browser");
+            var w = GetWindow<LauminaryBrowserWindow>("Lauminary Browser");
             w.minSize = new Vector2(640, 520);
             w.Refresh();
             w.Show();
@@ -68,11 +68,11 @@ namespace Laubrary.Launimator.Editor
         protected override void OnDisable() { base.OnDisable(); EditorApplication.update -= Tick; DestroyOrphanPreview(); }
         private void OnFocus() { Refresh(); if (rootVisualElement.childCount > 0) Rebuild(); }
 
-        /// <summary>Re-read reels from disk and repaint. Called by the Animation Builder after a save so
+        /// <summary>Re-read lauminaries from disk and repaint. Called by the Laumination Builder after a save so
         /// this browser reflects the new/updated animation immediately.</summary>
         public void ExternalRefresh()
         {
-            // A save in the Animation Builder rebuilds the draft and REPLACES the AnimationDef instances, so the
+            // A save in the Laumination Builder rebuilds the draft and REPLACES the Laumination instances, so the
             // preview's cached reference goes stale. Re-bind it by name to the freshly rebuilt animation.
             string previewedName = _previewing != null ? _previewing.name : null;
             Refresh();
@@ -84,7 +84,7 @@ namespace Laubrary.Launimator.Editor
         {
             _previewing = null;
             if (_selected == null) { _animSel = -1; return; }
-            var version = ReelRepo.LoadVersion(_selected, _versionSel);
+            var version = LauminaryRepo.LoadVersion(_selected, _versionSel);
             if (version == null || version.animations.Count == 0) { _animSel = -1; return; }
             int idx = name != null
                 ? version.animations.FindIndex(a => string.Equals(a.name, name, System.StringComparison.OrdinalIgnoreCase))
@@ -107,26 +107,26 @@ namespace Laubrary.Launimator.Editor
 
         private void Refresh()
         {
-            _reels = ReelRepo.EnumerateReels();
+            _lauminaries = LauminaryRepo.EnumerateLauminaries();
             _orphans = AnimationLibrary.Enumerate();
-            if (_selected != null && !_reels.Contains(_selected)) _selected = null;
+            if (_selected != null && !_lauminaries.Contains(_selected)) _selected = null;
         }
 
-        /// <summary>Select a reel, jump to its latest version, and auto-play its first animation.</summary>
-        private void SelectReel(Reel c)
+        /// <summary>Select a lauminary, jump to its latest version, and auto-play its first animation.</summary>
+        private void SelectLauminary(Lauminary c)
         {
             _showingOrphans = false;
             DestroyOrphanPreview();
             _selected = c;
-            if (c != null) _lastReel = c;
-            _renameBuffer = c != null ? c.reelName : "";
+            if (c != null) _lastLauminary = c;
+            _renameBuffer = c != null ? c.lauminaryName : "";
             _versionSel = c != null && c.latestVersion > 0 ? c.latestVersion : 0;
             AutoPlayFirstAnimation();
             Rebuild();
         }
 
         /// <summary>Select the "Orphaned" pseudo-entry: the detail panel lists all orphaned animations using the
-        /// same row UI as a reel's animations.</summary>
+        /// same row UI as a lauminary's animations.</summary>
         private void SelectOrphaned()
         {
             _showingOrphans = true;
@@ -134,10 +134,10 @@ namespace Laubrary.Launimator.Editor
             _renamingAnim = -1; _renamingOrphan = -1;
             _animSel = -1; _previewing = null;
             DestroyOrphanPreview();
-            if (_orphanIncludeTarget == null || !_reels.Contains(_orphanIncludeTarget))
-                _orphanIncludeTarget = _lastReel != null && _reels.Contains(_lastReel)
-                    ? _lastReel
-                    : (_reels.Count > 0 ? _reels[0] : null);
+            if (_orphanIncludeTarget == null || !_lauminaries.Contains(_orphanIncludeTarget))
+                _orphanIncludeTarget = _lastLauminary != null && _lauminaries.Contains(_lastLauminary)
+                    ? _lastLauminary
+                    : (_lauminaries.Count > 0 ? _lauminaries[0] : null);
             Rebuild();
         }
 
@@ -146,7 +146,7 @@ namespace Laubrary.Launimator.Editor
             _renamingAnim = -1;
             _animSel = -1; _previewing = null;
             if (_selected == null) return;
-            var version = ReelRepo.LoadVersion(_selected, _versionSel);
+            var version = LauminaryRepo.LoadVersion(_selected, _versionSel);
             if (version != null && version.animations.Count > 0)
             {
                 _animSel = 0;
@@ -165,17 +165,17 @@ namespace Laubrary.Launimator.Editor
             root.style.flexGrow = 1f;
             root.style.minHeight = 0f;
 
-            var nameField = Z.TextInput(_newName, "Name for a brand-new reel.", v => _newName = v, 140f);
+            var nameField = Z.TextInput(_newName, "Name for a brand-new lauminary.", v => _newName = v, 140f);
             root.Add(Z.Row(
-                Z.Button("Refresh", "Re-scan the project for reels and orphaned animations.",
+                Z.Button("Refresh", "Re-scan the project for lauminaries and orphaned animations.",
                     () => { Refresh(); Rebuild(); }).W(64f),
                 Z.Flexible(),
                 nameField,
-                Z.Button("New reel", "Create a reel with the typed name and select it.", () =>
+                Z.Button("New lauminary", "Create a lauminary with the typed name and select it.", () =>
                 {
-                    var created = ReelRepo.CreateReel(_newName);
+                    var created = LauminaryRepo.CreateLauminary(_newName);
                     Refresh();
-                    SelectReel(created);
+                    SelectLauminary(created);
                 }).W(100f)));
 
             var split = new VisualElement();
@@ -189,7 +189,7 @@ namespace Laubrary.Launimator.Editor
             left.style.flexShrink = 0f;
             left.style.minHeight = 0f;
             _listHost = left;
-            BuildReelList(left);
+            BuildLauminaryList(left);
             split.Add(left);
 
             var right = new VisualElement();
@@ -201,67 +201,67 @@ namespace Laubrary.Launimator.Editor
             scroll.style.flexGrow = 1f;
             scroll.style.minHeight = 0f;
             _detailHost = scroll.contentContainer;
-            BuildReelDetail(_detailHost);
+            BuildLauminaryDetail(_detailHost);
             right.Add(scroll);
             split.Add(right);
         }
 
-        // ── left: reel list + lifecycle ─────────────────────────────────
-        private void BuildReelList(VisualElement root)
+        // ── left: lauminary list + lifecycle ─────────────────────────────────
+        private void BuildLauminaryList(VisualElement root)
         {
-            root.Add(Z.Text("Reels", ZuiText.Section, "Every reel found under the Launimator reel root."));
+            root.Add(Z.Text("Lauminaries", ZuiText.Section, "Every lauminary found under the Launimator lauminary root."));
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.style.height = 170f;
             root.Add(scroll);
             var list = scroll.contentContainer;
 
-            if (_reels.Count == 0)
-                list.Add(Z.Text("None yet. Click 'New reel', or author an animation in the Animation Builder.",
-                    ZuiText.Subtle, "No reels exist yet."));
+            if (_lauminaries.Count == 0)
+                list.Add(Z.Text("None yet. Click 'New lauminary', or author an animation in the Laumination Builder.",
+                    ZuiText.Subtle, "No lauminaries exist yet."));
 
             // "Orphaned" pseudo-entry — selecting it lists all orphaned animations in the detail panel,
-            // using the same row UI as reel animations (so there's one browser, not two).
+            // using the same row UI as lauminary animations (so there's one browser, not two).
             var orphanRow = Z.Button($"Orphaned   ({_orphans.Count})",
-                "Standalone animations that aren't part of any reel yet.", SelectOrphaned);
+                "Standalone animations that aren't part of any lauminary yet.", SelectOrphaned);
             if (_showingOrphans) orphanRow.AddToClassList("zui-radio__on");
             list.Add(orphanRow);
 
-            foreach (var c in _reels)
+            foreach (var c in _lauminaries)
             {
-                var reel = c;
-                var b = Z.Button($"{c.reelName}   (latest v{c.latestVersion})",
-                    "Select this reel to browse its versions and animations.", () => SelectReel(reel));
+                var lauminary = c;
+                var b = Z.Button($"{c.lauminaryName}   (latest v{c.latestVersion})",
+                    "Select this lauminary to browse its versions and animations.", () => SelectLauminary(lauminary));
                 if (!_showingOrphans && c == _selected) b.AddToClassList("zui-radio__on");
                 list.Add(b);
             }
 
-            var dup = Z.Button("Duplicate", "Create a copy of the selected reel (draft only).", () =>
+            var dup = Z.Button("Duplicate", "Create a copy of the selected lauminary (draft only).", () =>
             {
-                var d = ReelRepo.Duplicate(_selected, _selected.reelName + " Copy");
+                var d = LauminaryRepo.Duplicate(_selected, _selected.lauminaryName + " Copy");
                 Refresh(); _selected = d; _versionSel = 0; _animSel = -1; Rebuild();
             });
             dup.SetEnabled(_selected != null);
             root.Add(dup);
 
-            var renameField = Z.TextInput(_renameBuffer, "New name for the selected reel.", v => _renameBuffer = v, 170f);
-            var renameButton = Z.Button("Rename", "Rename the selected reel.", () =>
+            var renameField = Z.TextInput(_renameBuffer, "New name for the selected lauminary.", v => _renameBuffer = v, 170f);
+            var renameButton = Z.Button("Rename", "Rename the selected lauminary.", () =>
             {
                 if (_selected == null) return;
-                ReelRepo.Rename(_selected, _renameBuffer); Refresh(); Rebuild();
+                LauminaryRepo.Rename(_selected, _renameBuffer); Refresh(); Rebuild();
             }).W(64f);
             var renameRow = Z.Row(renameField, renameButton);
             renameRow.SetEnabled(_selected != null);
             root.Add(renameRow);
 
-            var del = Z.Button("Delete…", "Delete the selected reel and every one of its versions (asks first).", () =>
+            var del = Z.Button("Delete…", "Delete the selected lauminary and every one of its versions (asks first).", () =>
             {
                 if (_selected == null) return;
-                if (EditorUtility.DisplayDialog("Delete reel",
-                    $"Delete '{_selected.reelName}' and ALL its versions (draft + v1..v{_selected.latestVersion})?\n\n" +
+                if (EditorUtility.DisplayDialog("Delete lauminary",
+                    $"Delete '{_selected.lauminaryName}' and ALL its versions (draft + v1..v{_selected.latestVersion})?\n\n" +
                     "This cannot be undone.", "Delete", "Cancel"))
                 {
-                    ReelRepo.Delete(_selected);
+                    LauminaryRepo.Delete(_selected);
                     _selected = null; _animSel = -1; _previewing = null; Refresh(); Rebuild();
                 }
             });
@@ -269,16 +269,16 @@ namespace Laubrary.Launimator.Editor
             root.Add(del);
         }
 
-        private void IncludeOrphanInto(AnimationAsset o, Reel c)
+        private void IncludeOrphanInto(AnimationAsset o, Lauminary c)
         {
             if (o == null || c == null) return;
-            ReelRepo.SaveAnimationToDraft(c, ReelRepo.CopyAnimation(o.animation));
+            LauminaryRepo.SaveAnimationToDraft(c, LauminaryRepo.CopyAnimation(o.animation));
             Refresh();
             Rebuild();
         }
 
         /// <summary>Preview an orphaned animation: orphans store only a recipe (not baked frames), so bake the
-        /// recipe IN MEMORY (same path as reels/the game) into a throwaway def the shared player can run.
+        /// recipe IN MEMORY (same path as lauminaries/the game) into a throwaway def the shared player can run.
         /// The owned atlas texture is freed when the next one is selected or the window closes.</summary>
         private void SelectOrphanForPreview(int i, AnimationAsset o)
         {
@@ -295,13 +295,13 @@ namespace Laubrary.Launimator.Editor
                 {
                     _orphanPreviewTex = atlas;
                     // A throwaway def carrying just what the player/preview reads — never saved, never mutates the asset.
-                    _previewing = new AnimationDef { name = def.name, fps = def.fps, frames = frames };
+                    _previewing = new Laumination { name = def.name, fps = def.fps, frames = frames };
                     Rebuild();
                     return;
                 }
             }
             // Empty recipe or bake failure: select it but there's nothing to play.
-            _previewing = new AnimationDef { name = def.name, fps = def.fps };
+            _previewing = new Laumination { name = def.name, fps = def.fps };
             Rebuild();
         }
 
@@ -323,30 +323,30 @@ namespace Laubrary.Launimator.Editor
             Rebuild();
         }
 
-        // Standalone animations not in any reel — shown in the SAME detail panel as a reel's animations.
-        // Author one with "New animation", Edit opens it in the Animation Builder, → includes it into a reel.
+        // Standalone animations not in any lauminary — shown in the SAME detail panel as a lauminary's animations.
+        // Author one with "New animation", Edit opens it in the Laumination Builder, → includes it into a lauminary.
         private void BuildOrphanDetail(VisualElement root)
         {
             root.Add(Z.Text("Orphaned animations", ZuiText.Section,
-                "Standalone animations not yet part of any reel."));
+                "Standalone animations not yet part of any lauminary."));
 
             root.Add(Z.Row(
                 Z.TextInput(_newOrphanName, "Name for a brand-new standalone animation.", v => _newOrphanName = v, 200f),
-                Z.Button("New animation", "Author a standalone animation and open it in the Animation Builder.", () =>
+                Z.Button("New animation", "Author a standalone animation and open it in the Laumination Builder.", () =>
                 {
                     var a = AnimationLibrary.Create(_newOrphanName);
                     Refresh();
-                    AnimationBuilderWindow.OpenForOrphan(a);
+                    LauminationBuilderWindow.OpenForOrphan(a);
                     Rebuild();
                 }).W(110f)));
 
-            if (_reels.Count > 0)
+            if (_lauminaries.Count > 0)
             {
-                int ti = Mathf.Max(0, _reels.IndexOf(_orphanIncludeTarget));
-                root.Add(Z.Field("Include into", "Which reel's draft the → button on each row includes that animation into.",
-                    Z.Dropdown(ti, _reels.Select(c => c.reelName).ToList(),
-                        "Which reel's draft the → button on each row includes that animation into.",
-                        v => { _orphanIncludeTarget = _reels[Mathf.Clamp(v, 0, _reels.Count - 1)]; }, 160f)));
+                int ti = Mathf.Max(0, _lauminaries.IndexOf(_orphanIncludeTarget));
+                root.Add(Z.Field("Include into", "Which lauminary's draft the → button on each row includes that animation into.",
+                    Z.Dropdown(ti, _lauminaries.Select(c => c.lauminaryName).ToList(),
+                        "Which lauminary's draft the → button on each row includes that animation into.",
+                        v => { _orphanIncludeTarget = _lauminaries[Mathf.Clamp(v, 0, _lauminaries.Count - 1)]; }, 160f)));
             }
 
             root.Add(Z.Text($"Animations ({_orphans.Count})", ZuiText.Section, "Every orphaned animation in the project."));
@@ -398,13 +398,13 @@ namespace Laubrary.Launimator.Editor
             row.Add(fpsField);
             row.Add(Z.Text("fps", ZuiText.Small, "Frames per second.").W(22f));
 
-            row.Add(Z.Button("Edit", "Open this orphaned animation in the Animation Builder.",
-                () => AnimationBuilderWindow.OpenForOrphan(o)).W(44f));
+            row.Add(Z.Button("Edit", "Open this orphaned animation in the Laumination Builder.",
+                () => LauminationBuilderWindow.OpenForOrphan(o)).W(44f));
             row.Add(Z.Button("Rename", "Rename this orphaned animation.",
                 () => { _renamingOrphan = index; _orphanRenameBuffer = def.name; Rebuild(); }).W(60f));
 
             var include = Z.Button("→",
-                _orphanIncludeTarget != null ? $"Include into '{_orphanIncludeTarget.reelName}' draft" : "No reel to include into",
+                _orphanIncludeTarget != null ? $"Include into '{_orphanIncludeTarget.lauminaryName}' draft" : "No lauminary to include into",
                 () => IncludeOrphanInto(o, _orphanIncludeTarget)).W(24f);
             include.SetEnabled(_orphanIncludeTarget != null);
             row.Add(include);
@@ -427,15 +427,15 @@ namespace Laubrary.Launimator.Editor
             // in place. That's real, unrecoverable-in-practice data loss (Undo only survives until the next
             // edit), so guard it the same way the rest of the toolset confirms before an edit Undo can't
             // reliably cover.
-            bool exists = ReelRepo.EnsureDraft(_selected).animations.Exists(
+            bool exists = LauminaryRepo.EnsureDraft(_selected).animations.Exists(
                 a => a != null && string.Equals(a.name, _newAnimName, System.StringComparison.OrdinalIgnoreCase));
             if (exists && !EditorUtility.DisplayDialog("Overwrite animation?",
-                    $"'{_newAnimName}' already exists on this reel's draft. Creating a new (empty) animation with " +
+                    $"'{_newAnimName}' already exists on this lauminary's draft. Creating a new (empty) animation with " +
                     "the same name will replace it — its frames and meta-layers will be gone.",
                     "Overwrite", "Cancel"))
                 return;
 
-            ReelRepo.SaveAnimationToDraft(_selected, new AnimationDef { name = _newAnimName });
+            LauminaryRepo.SaveAnimationToDraft(_selected, new Laumination { name = _newAnimName });
             _versionSel = 0;
             _newAnimName = ""; // clear so a follow-up click can't silently repeat the same collision
             Refresh();
@@ -443,24 +443,24 @@ namespace Laubrary.Launimator.Editor
         }
 
         // ── right: versions + animations + preview ───────────────────────────
-        private void BuildReelDetail(VisualElement root)
+        private void BuildLauminaryDetail(VisualElement root)
         {
             if (_showingOrphans) { BuildOrphanDetail(root); return; }
 
             if (_selected == null)
             {
-                root.Add(Z.Help("Select a reel or 'Orphaned', or create one. Animations are authored in the Animation Builder."));
-                root.Add(Z.Button("Open Animation Builder", "Open the Animation Builder window.",
-                    () => AnimationBuilderWindow.Open()).W(180f));
+                root.Add(Z.Help("Select a lauminary or 'Orphaned', or create one. Animations are authored in the Laumination Builder."));
+                root.Add(Z.Button("Open Laumination Builder", "Open the Laumination Builder window.",
+                    () => LauminationBuilderWindow.Open()).W(180f));
                 return;
             }
 
-            root.Add(Z.Text(_selected.reelName, ZuiText.Section, "The selected reel."));
-            root.Add(Z.Text($"id {_selected.reelId}", ZuiText.Small, "This reel's stable identity — safe across renames."));
+            root.Add(Z.Text(_selected.lauminaryName, ZuiText.Section, "The selected lauminary."));
+            root.Add(Z.Text($"id {_selected.lauminaryId}", ZuiText.Small, "This lauminary's stable identity — safe across renames."));
 
             // version selector
             var options = new List<string> { "draft" };
-            var committed = ReelRepo.ListCommittedVersions(_selected);
+            var committed = LauminaryRepo.ListCommittedVersions(_selected);
             options.AddRange(committed.Select(n => "v" + n));
             int curIdx = _versionSel == 0 ? 0 : committed.IndexOf(_versionSel) + 1;
             if (curIdx < 0) curIdx = 0;
@@ -469,14 +469,14 @@ namespace Laubrary.Launimator.Editor
                 "Snapshot the draft into a new immutable version.", TryCommit).W(180f);
             commitButton.SetEnabled(_versionSel == 0);
             root.Add(Z.Row(
-                Z.Field("Version", "Which version of this reel to browse — the editable draft, or a committed snapshot.",
+                Z.Field("Version", "Which version of this lauminary to browse — the editable draft, or a committed snapshot.",
                     Z.Dropdown(curIdx, options,
-                        "Which version of this reel to browse — the editable draft, or a committed snapshot.",
+                        "Which version of this lauminary to browse — the editable draft, or a committed snapshot.",
                         v => { _versionSel = v == 0 ? 0 : committed[v - 1]; AutoPlayFirstAnimation(); Rebuild(); }, 120f)),
                 Z.Flexible(),
                 commitButton));
 
-            var version = ReelRepo.LoadVersion(_selected, _versionSel);
+            var version = LauminaryRepo.LoadVersion(_selected, _versionSel);
             if (version == null) { root.Add(Z.Help("Version not found.", HelpBoxMessageType.Warning)); return; }
             bool isDraft = _versionSel == 0;
 
@@ -491,7 +491,7 @@ namespace Laubrary.Launimator.Editor
 
             if (isDraft)
                 root.Add(Z.Row(
-                    Z.TextInput(_newAnimName, "Name for a new (empty) animation on this reel's draft.",
+                    Z.TextInput(_newAnimName, "Name for a new (empty) animation on this lauminary's draft.",
                         v => _newAnimName = v, 200f),
                     Z.Button("New animation", "Add an empty animation with this name to the draft.",
                         CreateEmptyAnimation).W(110f)));
@@ -502,7 +502,7 @@ namespace Laubrary.Launimator.Editor
             BuildPreview(root);
         }
 
-        private VisualElement BuildAnimRow(int i, AnimationDef def, bool isDraft)
+        private VisualElement BuildAnimRow(int i, Laumination def, bool isDraft)
         {
             var row = Z.Row();
             if (i == _animSel) row.style.backgroundColor = new Color(0.35f, 0.55f, 0.95f, 0.18f);
@@ -523,7 +523,7 @@ namespace Laubrary.Launimator.Editor
             if (isDraft)
             {
                 // Commit-on-blur/Enter matters here: the draft is rebuilt on commit, so a per-keystroke
-                // commit would re-write the reel on every character.
+                // commit would re-write the lauminary on every character.
                 var fpsField = Z.Float(def.fps, "Playback speed in frames per second.", null, 42f);
                 fpsField.isDelayed = true;
                 fpsField.RegisterValueChangedCallback(e => SetAnimFps(def, e.newValue));
@@ -534,7 +534,7 @@ namespace Laubrary.Launimator.Editor
                 row.Add(Z.Text($"@ {def.fps:0}fps", ZuiText.Small, "This committed animation's playback speed.").W(64f));
 
             row.Add(Z.Flexible());
-            row.Add(Z.Button("Edit", "Open this animation in the Animation Builder.",
+            row.Add(Z.Button("Edit", "Open this animation in the Laumination Builder.",
                 () => EditAnimation(def, isDraft)).W(44f));
             if (isDraft)
             {
@@ -581,34 +581,34 @@ namespace Laubrary.Launimator.Editor
             }
         }
 
-        private void EditAnimation(AnimationDef def, bool isDraft)
+        private void EditAnimation(Laumination def, bool isDraft)
         {
             if (!isDraft)
             {
                 // Editing targets the draft: copy this committed animation's recipe into the draft first.
-                ReelRepo.SaveAnimationToDraft(_selected, ReelRepo.CopyAnimation(def));
+                LauminaryRepo.SaveAnimationToDraft(_selected, LauminaryRepo.CopyAnimation(def));
                 _versionSel = 0;
                 Refresh();
             }
-            AnimationBuilderWindow.OpenForEdit(_selected, def.name);
+            LauminationBuilderWindow.OpenForEdit(_selected, def.name);
             Rebuild();
         }
 
-        private void SetAnimFps(AnimationDef def, float fps)
+        private void SetAnimFps(Laumination def, float fps)
         {
-            try { ReelRepo.SetDraftAnimationFps(_selected, def.name, fps); Refresh(); RebindPreview(def.name); }
+            try { LauminaryRepo.SetDraftAnimationFps(_selected, def.name, fps); Refresh(); RebindPreview(def.name); }
             catch (System.Exception ex) { EditorUtility.DisplayDialog("Set FPS failed", ex.Message, "OK"); }
             Rebuild();
         }
 
         // ── draft animation CRUD ─────────────────────────────────────────────
-        private void CommitRename(AnimationDef def)
+        private void CommitRename(Laumination def)
         {
             string newName = (_animRenameBuffer ?? "").Trim();
             _renamingAnim = -1;
             if (!string.IsNullOrEmpty(newName) && !string.Equals(newName, def.name, System.StringComparison.OrdinalIgnoreCase))
             {
-                try { ReelRepo.RenameDraftAnimation(_selected, def.name, newName); Refresh(); RebindPreview(newName); }
+                try { LauminaryRepo.RenameDraftAnimation(_selected, def.name, newName); Refresh(); RebindPreview(newName); }
                 catch (System.Exception ex) { EditorUtility.DisplayDialog("Rename failed", ex.Message, "OK"); }
             }
             Rebuild();
@@ -626,19 +626,19 @@ namespace Laubrary.Launimator.Editor
             Rebuild();
         }
 
-        private void DuplicateAnim(AnimationDef def)
+        private void DuplicateAnim(Laumination def)
         {
-            string created = ReelRepo.DuplicateDraftAnimation(_selected, def.name);
+            string created = LauminaryRepo.DuplicateDraftAnimation(_selected, def.name);
             if (created != null) { Refresh(); RebindPreview(created); }
             Rebuild();
         }
 
-        private void DeleteAnim(AnimationDef def)
+        private void DeleteAnim(Laumination def)
         {
             if (!EditorUtility.DisplayDialog("Delete animation",
                     $"Delete '{def.name}' from the draft? This can't be undone.", "Delete", "Cancel"))
                 return;
-            ReelRepo.RemoveAnimationFromDraft(_selected, def.name);
+            LauminaryRepo.RemoveAnimationFromDraft(_selected, def.name);
             _animSel = -1; _previewing = null;
             Refresh(); RebindPreview(null);
             Rebuild();
@@ -648,7 +648,7 @@ namespace Laubrary.Launimator.Editor
         {
             try
             {
-                int n = ReelRepo.CommitNewVersion(_selected);
+                int n = LauminaryRepo.CommitNewVersion(_selected);
                 Refresh();
                 _versionSel = n; // jump to the freshly committed version
             }

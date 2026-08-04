@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Laubrary.Launimator.Editor
 {
     /// <summary>
-    /// JSON-sidecar persistence for the <see cref="AnimationBuilderWindow"/>. The window's whole working
+    /// JSON-sidecar persistence for the <see cref="LauminationBuilderWindow"/>. The window's whole working
     /// state (committed regions + their per-cell rects &amp; pivots, the Animate &amp; Align sequence,
     /// and every grid/alpha/pivot setting) is mirrored into a flat, serializable DTO and written next
     /// to the SOURCE TEXTURE as <c>&lt;textureAssetPath&gt;.regionslicer.json</c>. Reload the sheet and
@@ -19,7 +19,7 @@ namespace Laubrary.Launimator.Editor
     /// DTO uses plain float quartets/pairs rather than Unity's Rect/Vector2 so the JSON is compact,
     /// stable, and engine-version-proof.
     ///
-    /// The window owns the mapping to/from its private runtime fields (see AnimationBuilderWindow's
+    /// The window owns the mapping to/from its private runtime fields (see LauminationBuilderWindow's
     /// BuildState/ApplyState); this class is the pure on-disk format + read/write + index-drift guard.
     /// </summary>
     internal static class RegionSlicerPersistence

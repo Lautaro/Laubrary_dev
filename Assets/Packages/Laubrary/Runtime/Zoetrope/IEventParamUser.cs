@@ -4,7 +4,7 @@ namespace Laubrary.Zoetrope
 {
     /// <summary>
     /// Which of a Zoe event's typed in-params an <see cref="IEffect"/> reads. The Zoe-event editor shows ONLY the
-    /// param pickers an effect declares here, so the authoring UI stays clean: a Play-Reel effect (reads none)
+    /// param pickers an effect declares here, so the authoring UI stays clean: a Play-Lauminary effect (reads none)
     /// shows no pickers, a Pushback shows Direction + Scalar, a Spawn-Pyre shows Position + Scalar, a Spawn-Chunk
     /// all three. Flags, so an effect can read any combination.
     /// </summary>

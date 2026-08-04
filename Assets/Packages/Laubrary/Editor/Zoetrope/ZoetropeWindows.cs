@@ -29,8 +29,8 @@ namespace Laubrary.Zoetrope.Editor
     ///    than an IMGUI island, so the thumbnail + Recall/New ▾/Edit ✎ row survives intact;
     ///  • scalar fields go through <see cref="ZuiSerialized"/>, which caps their width — the IMGUI original had
     ///    to hand-cap every one of them for exactly the same reason;
-    ///  • a concrete type carrying its own <c>[CustomPropertyDrawer]</c> (ZonedReelViewDrawer's "Open in
-    ///    Animation Builder", PyreChunksFxDrawer's "Preview in Pyre") is drawn by that drawer inside an
+    ///  • a concrete type carrying its own <c>[CustomPropertyDrawer]</c> (ZonedLauminaryViewDrawer's "Open in
+    ///    Laumination Builder", PyreChunksFxDrawer's "Preview in Pyre") is drawn by that drawer inside an
     ///    <see cref="IMGUIContainer"/>. Those drawers belong to other modules and are Rect-based IMGUI by
     ///    definition — hosting them is the only way not to regress them, and it is the same direct-invoke call
     ///    the IMGUI version already used (deliberately bypassing PropertyField, whose [Header] decorator pass
@@ -187,7 +187,7 @@ namespace Laubrary.Zoetrope.Editor
         /// A pluggable field: the type-switching header, then whatever fields the chosen concrete type has.
         /// <paramref name="topLevelAsset"/> (optional) is the OWNING asset — passed through to the clip
         /// dropdown as a fallback clip-name source for a boxed value with no "version" field of its own
-        /// (e.g. a hit reaction, whose clips are authored on the same Reel the character's view plays).
+        /// (e.g. a hit reaction, whose clips are authored on the same Lauminary the character's view plays).
         protected void BuildManagedRef(VisualElement root, SerializedProperty prop, string title,
             object topLevelAsset = null)
         {
@@ -330,7 +330,7 @@ namespace Laubrary.Zoetrope.Editor
 
         // ── clip-name dropdowns ─────────────────────────────────────────────────────────────
         // A field named idleClip/clip/hurtClip/deathClip on a pluggable value is really picking one name out
-        // of a Reel version's animation list, not free text. Resolved purely by REFLECTION over the boxed
+        // of a Lauminary version's animation list, not free text. Resolved purely by REFLECTION over the boxed
         // value (no compile-time reference to Launimator/ZoetropeLaunimator types), so this stays a core-
         // Zoetrope concern, decoupled from whichever bridge module supplies the concrete view type.
 
@@ -589,7 +589,7 @@ namespace Laubrary.Zoetrope.Editor
         }
 
         /// Duck-types "an object with a `version` field pointing at something with an `animations` field whose
-        /// elements each have a `name`" — the ReelView/ZonedReelView + ReelVersion + AnimationDef shape,
+        /// elements each have a `name`" — the LauminaryView/ZonedLauminaryView + LauminaryVersion + Laumination shape,
         /// without naming any of those types. Returns null (not an empty array) when the shape isn't there at
         /// all, so a caller can tell "no clip picker makes sense here" from "picker applies, no clips yet."
         protected static string[] GetClipNameOptions(object owner)
@@ -677,7 +677,7 @@ namespace Laubrary.Zoetrope.Editor
                 "Team this character belongs to (drives who can hurt it). None = an unaligned hazard.");
             root.Add(stats);
 
-            var look = Z.Section("Look", "How this character is drawn — a plain sprite, a Reel-driven animation, a composite body.");
+            var look = Z.Section("Look", "How this character is drawn — a plain sprite, a Lauminary-driven animation, a composite body.");
             BuildManagedRef(look, So.FindProperty("view"), "View", zoe);
             root.Add(look);
 
@@ -1543,7 +1543,7 @@ namespace Laubrary.Zoetrope.Editor
             ["SpawnPyreFx"] = new EffectMetaInfo { label = "Spawn Pyre", icon = "flame", section = "Spawn VFX",
                 tooltip = "Play a Pyre blast at a position param, sized by a scalar param." },
             ["SpawnChunkFx"] = new EffectMetaInfo { label = "Spawn Chunks", icon = "shapes", section = "Spawn VFX",
-                tooltip = "Throw a Chunks debris burst — aimed by a direction, sized by a scalar, colour-sampled from the Zoe's live reel." },
+                tooltip = "Throw a Chunks debris burst — aimed by a direction, sized by a scalar, colour-sampled from the Zoe's live lauminary." },
             ["PyreChunksFx"] = new EffectMetaInfo { label = "Pyre + Chunks", icon = "bomb", section = "Spawn VFX",
                 tooltip = "The bundled blast + debris effect (the original combined VFX; still used by committed assets)." },
             ["BodySpriteFxEffect"] = new EffectMetaInfo { label = "Body SpriteFx", icon = "sparkle", section = "On the Zoe",
@@ -1555,7 +1555,7 @@ namespace Laubrary.Zoetrope.Editor
                 tooltip = "Grant the Zoe i-frames for a moment — a hit that buys recovery, or a death that stops the corpse being shot apart." },
             ["PushbackEffect"] = new EffectMetaInfo { label = "Pushback", icon = "arrow-fat-right", section = "On the Zoe",
                 tooltip = "Knock the Zoe a set DISTANCE over a set DURATION along a direction param." },
-            ["PlayReelEffect"] = new EffectMetaInfo { label = "Play Reel", icon = "film-reel", section = "On the Zoe",
+            ["PlayLauminationEffect"] = new EffectMetaInfo { label = "Play Lauminary", icon = "film-lauminary", section = "On the Zoe",
                 tooltip = "Play a named clip on the Zoe's animated view." },
         };
 
@@ -1572,7 +1572,7 @@ namespace Laubrary.Zoetrope.Editor
         /// Which typed in-params an effect reads, so the editor shows exactly those pickers. An effect declaring
         /// <see cref="IEventParamUser"/> is authoritative; a legacy <see cref="ICombatFx"/> (spawn-VFX-at-a-point)
         /// that predates the interface defaults to Position + Direction so its placement authoring is unchanged;
-        /// anything else reads nothing (Play-Reel, Body-SpriteFx).
+        /// anything else reads nothing (Play-Lauminary, Body-SpriteFx).
         static EventParam UsedParamsOf(object effect)
         {
             if (effect == null) return EventParam.None;
@@ -1866,7 +1866,7 @@ namespace Laubrary.Zoetrope.Editor
             root.Add(identity);
 
             var visual = Z.Section("Visual", "What the projectile looks like in flight.");
-            const string visualTip = "A Pyre blast or a Reel animation — anything a chunk can play. Only its first frame shows on the projectile today.";
+            const string visualTip = "A Pyre blast or a Lauminary animation — anything a chunk can play. Only its first frame shows on the projectile today.";
             visual.Add(LauAssetElement.Build(a.visual,
                 picked => { Commit("visual", p => p.objectReferenceValue = picked); Rebuild(); },
                 typeof(IChunkAnimation), FieldThumbs,

@@ -9,7 +9,7 @@ namespace Laubrary.Launimator.Editor
 {
     /// <summary>
     /// Per-animation Aseprite round-trip (ASEPRITE_PLAN.md → Self-containment, Phase 2). Promotes one
-    /// <see cref="AnimationDef"/> to an editable <c>.aseprite</c> living in the version's own <c>Source/</c>
+    /// <see cref="Laumination"/> to an editable <c>.aseprite</c> living in the version's own <c>Source/</c>
     /// folder, and syncs the user's edits back into an owned source PNG the recipe points at.
     ///
     /// Design choices for this first cut (kept deliberately simple + low-risk):
@@ -27,9 +27,9 @@ namespace Laubrary.Launimator.Editor
         /// <summary>
         /// Build a <c>Source/&lt;anim&gt;.aseprite</c> from the animation's composed uniform frames (one Aseprite
         /// frame per animation frame, single "art" layer), record it on the def, and open it in Aseprite. The
-        /// caller persists the def (e.g. via <see cref="ReelRepo.SaveAnimationToDraft"/>).
+        /// caller persists the def (e.g. via <see cref="LauminaryRepo.SaveAnimationToDraft"/>).
         /// </summary>
-        public static bool Promote(AnimationDef def, string versionFolder, out string status)
+        public static bool Promote(Laumination def, string versionFolder, out string status)
         {
             if (def == null || def.recipe == null || def.recipe.Count == 0)
             { status = "Nothing to promote — the animation has no frames."; return false; }
@@ -52,9 +52,9 @@ namespace Laubrary.Launimator.Editor
                 doc.pixels[f] = new[] { canvas };
             }
 
-            string folder = ReelSources.SourceFolder(versionFolder);
-            ReelBuilder.EnsureFolder(folder);
-            string path = $"{folder}/{ReelBuilder.Sanitize(def.name)}.aseprite";
+            string folder = LauminarySources.SourceFolder(versionFolder);
+            LauminaryBuilder.EnsureFolder(folder);
+            string path = $"{folder}/{LauminaryBuilder.Sanitize(def.name)}.aseprite";
             File.WriteAllBytes(ToSystemPath(path), AsepriteIO.Write(doc));
             AssetDatabase.ImportAsset(path);
 
@@ -72,9 +72,9 @@ namespace Laubrary.Launimator.Editor
         /// <summary>
         /// Read the edited <c>.aseprite</c> back, composite each frame, write an owned <c>Source/&lt;anim&gt;_src.png</c>,
         /// and rewrite the recipe to point at it as a fixed-frame box (the Aseprite canvas). Preserves events,
-        /// meta-layers, zones, fps. The caller persists + rebuilds (via <see cref="ReelRepo.SaveAnimationToDraft"/>).
+        /// meta-layers, zones, fps. The caller persists + rebuilds (via <see cref="LauminaryRepo.SaveAnimationToDraft"/>).
         /// </summary>
-        public static bool Sync(AnimationDef def, string versionFolder, out string status)
+        public static bool Sync(Laumination def, string versionFolder, out string status)
         {
             if (def == null || string.IsNullOrEmpty(def.asepriteSourcePath) || !File.Exists(ToSystemPath(def.asepriteSourcePath)))
             { status = "No .aseprite source for this animation — use 'Edit in Aseprite' first."; return false; }
@@ -96,9 +96,9 @@ namespace Laubrary.Launimator.Editor
                         strip[y * stripW + (f * W + x)] = comp[y * W + x];
             }
 
-            string folder = ReelSources.SourceFolder(versionFolder);
-            ReelBuilder.EnsureFolder(folder);
-            string ownedPath = $"{folder}/{ReelBuilder.Sanitize(def.name)}_src.png";
+            string folder = LauminarySources.SourceFolder(versionFolder);
+            LauminaryBuilder.EnsureFolder(folder);
+            string ownedPath = $"{folder}/{LauminaryBuilder.Sanitize(def.name)}_src.png";
             WritePng(strip, stripW, H, ownedPath);
             AssetDatabase.ImportAsset(ownedPath, ImportAssetOptions.ForceSynchronousImport);
             ConfigureSource(ownedPath);

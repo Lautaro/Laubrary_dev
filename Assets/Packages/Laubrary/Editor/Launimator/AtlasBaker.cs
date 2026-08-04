@@ -100,7 +100,7 @@ namespace Laubrary.Launimator.Editor
         /// (<paramref name="pivotOffset"/>). The bake places content at this offset, ROUNDED to whole source
         /// pixels, from the shared anchor — so any preview that wants to match the bake must round the same way.
         /// A live preview that positions in screen space without this whole-source-pixel snap shows sub-pixel
-        /// misalignment the baked atlas never has, which is exactly why the editor and the Reel Browser
+        /// misalignment the baked atlas never has, which is exactly why the editor and the Lauminary Browser
         /// preview disagreed. <paramref name="px"/> may be null (unreadable source) — then no trim happens.
         /// </summary>
         public static void FrameRegistration(

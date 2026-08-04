@@ -8,7 +8,7 @@ namespace Laubrary.ZoetropePyre
 {
     /// <summary>
     /// An <see cref="IEffect"/> that throws a Chunks debris burst at the event's resolved position, aimed by the
-    /// resolved direction, SIZED by the resolved scalar param, and COLOUR-SAMPLED from the Zoe's CURRENT reel
+    /// resolved direction, SIZED by the resolved scalar param, and COLOUR-SAMPLED from the Zoe's CURRENT lauminary
     /// sprite — the Spawn-Chunk entry of the Zoe-event effect palette (ZOE_EVENTS_DESIGN.md step 3). It is the
     /// Chunks-only counterpart of the bundled <see cref="PyreChunksFx"/> (which STAYS), promoted to a first-class
     /// palette effect. Two new capabilities over the fixed PyreChunksFx debris:
@@ -32,11 +32,11 @@ namespace Laubrary.ZoetropePyre
         [Tooltip("Chunks debris burst to throw at the resolved position. Aimed by the event's direction param.")]
         public ChunkSpec chunks;
 
-        [Tooltip("Sample the Zoe's CURRENT reel sprite for the debris' base colours, so the shrapnel flies off in " +
+        [Tooltip("Sample the Zoe's CURRENT lauminary sprite for the debris' base colours, so the shrapnel flies off in " +
                  "the enemy's own on-screen colours (read live from the event context's renderer each fire, never " +
                  "authored). Off = the spec's own colours (a white base).")]
-        public bool sampleReelColours = true;
-        [Tooltip("How many colours to sample from the live sprite when 'Sample reel colours' is on.")]
+        public bool sampleLauminaryColours = true;
+        [Tooltip("How many colours to sample from the live sprite when 'Sample lauminary colours' is on.")]
         [Min(1)] public int sampleCount = 6;
 
         [Tooltip("Base uniform scale applied to the whole burst when the scalar param contributes nothing. " +
@@ -58,7 +58,7 @@ namespace Laubrary.ZoetropePyre
         {
             if (chunks == null) return;
 
-            List<Color32> palette = sampleReelColours ? SampleRenderer(ctx.Renderer, sampleCount) : null;
+            List<Color32> palette = sampleLauminaryColours ? SampleRenderer(ctx.Renderer, sampleCount) : null;
             var container = ChunksFx.Burst(ctx.Position, chunks, palette, ctx.DirectionDeg);
 
             if (container != null)
@@ -71,7 +71,7 @@ namespace Laubrary.ZoetropePyre
 
         static bool _warnedUnreadable;
 
-        /// Grab up to <paramref name="count"/> opaque colours from the renderer's CURRENT sprite (its live reel
+        /// Grab up to <paramref name="count"/> opaque colours from the renderer's CURRENT sprite (its live lauminary
         /// frame), pre-multiplied by the renderer's tint so the debris matches what's on screen. Returns null when
         /// there is nothing sampleable (no renderer/sprite, or an unreadable texture) — the burst then falls back
         /// to the spec's own colours. Deterministic stride sampling, so the same frame yields the same palette.

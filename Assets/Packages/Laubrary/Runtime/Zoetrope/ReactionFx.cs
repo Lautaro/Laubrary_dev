@@ -9,7 +9,7 @@ namespace Laubrary.Zoetrope
     /// never fires anything itself — it's queryable data, only meaningful as a <see cref="FxPlacementType"/>.</summary>
     /// When an effect in a reaction fires.
     ///
-    /// There used to be a FrameEvent option that matched an AUTHORED frame event by name. It is gone: a reel
+    /// There used to be a FrameEvent option that matched an AUTHORED frame event by name. It is gone: a lauminary
     /// frame can already trigger things directly (that is what frame events are for, and what the
     /// LaunimatorZounds bridge uses), so having reactions match them too was a second way to say the same
     /// thing — and the expensive way, since it made every timed effect wait on someone authoring an event
@@ -29,7 +29,7 @@ namespace Laubrary.Zoetrope
         HitPosition,
         /// The character's current sprite bounds centre (a visual mid-point, distinct from its registration anchor).
         TargetPosition,
-        /// The character's transform.position (the registration anchor — "the crosshair in the Animation Builder").
+        /// The character's transform.position (the registration anchor — "the crosshair in the Laumination Builder").
         TargetOrigin,
         /// A named Point-mode MetaLayer's current pixel (see <see cref="FxEntry.metaLayerId"/>).
         MetaPoint,

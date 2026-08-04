@@ -32,7 +32,7 @@ namespace Laubrary.Zoetrope
     /// <summary>
     /// The typed in-params of a Zoe event, filled by the trigger (<see cref="ReactionFxPlayer"/> from a
     /// <see cref="Combat2D.DamageInfo"/> on Hit/Death) and read by every <see cref="IEffect"/> the event fires.
-    /// It holds the target Zoe's live data — its <see cref="Transform"/>, <see cref="Health"/>, the current reel
+    /// It holds the target Zoe's live data — its <see cref="Transform"/>, <see cref="Health"/>, the current lauminary
     /// frame's <see cref="Renderer"/> (for colour-sampling / bounds-centre placement) and its animated
     /// <see cref="View"/> (for named meta-layer points) — plus the raw event params (hit position/direction,
     /// amount). This is a FIXED per-event schema (Hit carries hitPosition + hitDirection + amount), per the
@@ -51,7 +51,7 @@ namespace Laubrary.Zoetrope
         public Transform Transform;
         /// The Zoe's Health. May be null.
         public Health Health;
-        /// The Zoe's live body renderer — the CURRENT reel frame — for colour-sampling and bounds-centre placement.
+        /// The Zoe's live body renderer — the CURRENT lauminary frame — for colour-sampling and bounds-centre placement.
         public SpriteRenderer Renderer;
         /// The Zoe's animated view, for sampling named meta-layer points. Null for a plain SpriteView Zoe.
         public IAnimatedView View;

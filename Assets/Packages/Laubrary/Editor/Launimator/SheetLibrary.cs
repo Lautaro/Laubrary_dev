@@ -10,7 +10,7 @@ namespace Laubrary.Launimator.Editor
 {
     /// <summary>
     /// The canonical home for source sprite sheets (<c>Assets/SpriteSheets</c>) plus the helpers the
-    /// Animation Builder uses to pick one fast. Sheets are reused across many animations, so this exposes
+    /// Laumination Builder uses to pick one fast. Sheets are reused across many animations, so this exposes
     /// (a) the sheets ALREADY used to extract sprites — detected by the presence of a RegionSlicer sidecar
     /// (see <see cref="RegionSlicerPersistence"/>), most-recently-used first — and (b) a one-shot download
     /// of a new sheet straight from a URL into the folder. UI-free; the window owns presentation.
@@ -58,7 +58,7 @@ namespace Laubrary.Launimator.Editor
         }
 
         /// <summary>Delete a sheet from the library: its image asset, its slicing sidecar, and its display-name
-        /// entry. Already-baked reel atlases are unaffected; only RE-editing an animation would need the
+        /// entry. Already-baked lauminary atlases are unaffected; only RE-editing an animation would need the
         /// sheet back. Returns false (with <paramref name="error"/>) if the asset could not be removed.</summary>
         public static bool DeleteSheet(Texture2D tex, out string error)
         {
@@ -110,8 +110,8 @@ namespace Laubrary.Launimator.Editor
             catch (Exception e) { error = "Download failed: " + e.Message; return null; }
             if (data == null || data.Length == 0) { error = "Download was empty."; return null; }
 
-            ReelBuilder.EnsureFolder(Folder);
-            string baseName = !string.IsNullOrWhiteSpace(displayName) ? ReelBuilder.Sanitize(displayName) : DeriveBaseName(url);
+            LauminaryBuilder.EnsureFolder(Folder);
+            string baseName = !string.IsNullOrWhiteSpace(displayName) ? LauminaryBuilder.Sanitize(displayName) : DeriveBaseName(url);
             string assetPath = AssetDatabase.GenerateUniqueAssetPath($"{Folder}/{baseName}.{ResolveExtension(url, data)}");
             try
             {
@@ -145,7 +145,7 @@ namespace Laubrary.Launimator.Editor
             string name = null;
             try { name = Path.GetFileNameWithoutExtension(new Uri(url).LocalPath); } catch { /* fall through */ }
             if (string.IsNullOrWhiteSpace(name)) name = "downloaded_sheet";
-            return ReelBuilder.Sanitize(name);
+            return LauminaryBuilder.Sanitize(name);
         }
 
         private static string ResolveExtension(string url, byte[] data)

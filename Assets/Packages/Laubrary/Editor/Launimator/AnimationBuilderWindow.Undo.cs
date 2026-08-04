@@ -10,7 +10,7 @@ namespace Laubrary.Launimator.Editor
     // meta-layers, zones, events, settings) — none of it UnityEngine.Objects — so Unity's Undo can't track it.
     // RecordUndo("…") is called BEFORE each mutation throughout the window; it snapshots the whole authoring
     // state. Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) walk the stacks.
-    public partial class AnimationBuilderWindow
+    public partial class LauminationBuilderWindow
     {
         private class Snapshot
         {

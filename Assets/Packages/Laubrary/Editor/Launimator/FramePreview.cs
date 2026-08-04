@@ -7,7 +7,7 @@ namespace Laubrary.Launimator.Editor
     /// The ONE way to render a baked animation frame in an editor window. It is the IMGUI equivalent of the
     /// in-game SpriteRenderer: it draws a baked sprite anchored by the sprite's OWN baked pivot at a scale
     /// shared across the clip. Because baked frames are uniform-size with one shared pivot, there is no
-    /// size/registration "wobble". Both the Reel Browser and the Animation Builder draw through here, so
+    /// size/registration "wobble". Both the Lauminary Browser and the Laumination Builder draw through here, so
     /// their previews are identical to each other and to what the game shows. Do not add a second frame
     /// drawer — extend this one.
     /// </summary>

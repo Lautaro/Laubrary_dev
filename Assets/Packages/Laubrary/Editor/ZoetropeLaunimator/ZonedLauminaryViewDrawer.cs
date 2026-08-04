@@ -8,17 +8,17 @@ using Laubrary.Launimator.Editor;
 namespace Laubrary.ZoetropeLaunimator.Editor
 {
     /// <summary>
-    /// Adds an "Open in Animation Builder" button to a <see cref="ZonedReelView"/>'s inspector — the missing
+    /// Adds an "Open in Laumination Builder" button to a <see cref="ZonedLauminaryView"/>'s inspector — the missing
     /// editor half of the runtime Launimator bridge. Without this, a Zoetrope recipe's <c>version</c> field is
-    /// just a bare object reference: selecting it lands on ReelVersion's default (useless) inspector, since
-    /// ReelVersion has no custom editor of its own and no back-reference to the Reel that owns it. This drawer
-    /// resolves the owning Reel by folder convention (every version lives under its Reel's own folder — see
-    /// <see cref="ReelRepo"/>) and opens it directly in the Animation Builder. (Originally built for the now-
-    /// retired plain <c>ReelView</c>, which had identical version/idleClip/height fields — retargeted here
-    /// rather than duplicated once <c>ReelView</c> was folded into this one.)
+    /// just a bare object reference: selecting it lands on LauminaryVersion's default (useless) inspector, since
+    /// LauminaryVersion has no custom editor of its own and no back-reference to the Lauminary that owns it. This drawer
+    /// resolves the owning Lauminary by folder convention (every version lives under its Lauminary's own folder — see
+    /// <see cref="LauminaryRepo"/>) and opens it directly in the Laumination Builder. (Originally built for the now-
+    /// retired plain <c>LauminaryView</c>, which had identical version/idleClip/height fields — retargeted here
+    /// rather than duplicated once <c>LauminaryView</c> was folded into this one.)
     /// </summary>
-    [CustomPropertyDrawer(typeof(ZonedReelView))]
-    public class ZonedReelViewDrawer : PropertyDrawer
+    [CustomPropertyDrawer(typeof(ZonedLauminaryView))]
+    public class ZonedLauminaryViewDrawer : PropertyDrawer
     {
         const int FieldCount = 2; // version, then idleClip+height+button all sharing one row
 
@@ -27,7 +27,7 @@ namespace Laubrary.ZoetropeLaunimator.Editor
         // ZoetropeWindows.cs's generic per-child walk (that's the whole reason this class exists — see its own
         // doc comment), so DrawScalarField's width cap there never reaches Height/Idle Clip here; needed its
         // own fix. Version is left full-width — an asset name is a legitimate width exception. Idle Clip,
-        // Height and the "Open in Animation Builder" button all share one row per user request — three short
+        // Height and the "Open in Laumination Builder" button all share one row per user request — three short
         // related controls that don't need three rows. Clip/Height widths are sized via ZUI.FitWidth against
         // their own widest possible text (not a guessed fixed constant) so neither the label nor the value
         // ever clips, whatever clip names or height happen to be authored.
@@ -47,11 +47,11 @@ namespace Laubrary.ZoetropeLaunimator.Editor
             EditorGUI.PropertyField(r, versionProp);
             r.y += lineH + pad;
 
-            // Idle Clip is the exact same "pick a name out of this Reel version's animation list" case
+            // Idle Clip is the exact same "pick a name out of this Lauminary version's animation list" case
             // TryDrawClipPopup (ZoetropeWindows.cs) handles elsewhere — free text here was a real
             // inconsistency: the identical concept (Zoe.hitReaction's hurtClip/deathClip) gets a validated
             // dropdown, this one didn't, purely because this drawer bypasses that generic walk.
-            var version = versionProp.objectReferenceValue as ReelVersion;
+            var version = versionProp.objectReferenceValue as LauminaryVersion;
             string[] names = version != null && version.animations != null
                 ? version.animations.Where(a => !string.IsNullOrEmpty(a.name)).Select(a => a.name).ToArray()
                 : System.Array.Empty<string>();
@@ -87,14 +87,14 @@ namespace Laubrary.ZoetropeLaunimator.Editor
 
             using (new EditorGUI.DisabledScope(version == null))
             {
-                if (GUI.Button(buttonRect, "Open in Animation Builder"))
+                if (GUI.Button(buttonRect, "Open in Laumination Builder"))
                 {
-                    var reel = FindOwningReel(version);
-                    if (reel != null)
-                        AnimationBuilderWindow.OpenForEdit(reel, idleClipProp.stringValue);
+                    var lauminary = FindOwningLauminary(version);
+                    if (lauminary != null)
+                        LauminationBuilderWindow.OpenForEdit(lauminary, idleClipProp.stringValue);
                     else
-                        Debug.LogWarning($"ZonedReelViewDrawer: couldn't find the Reel owning '{AssetDatabase.GetAssetPath(version)}' " +
-                                          $"(expected it somewhere under {ReelRepo.Root}).");
+                        Debug.LogWarning($"ZonedLauminaryViewDrawer: couldn't find the Lauminary owning '{AssetDatabase.GetAssetPath(version)}' " +
+                                          $"(expected it somewhere under {LauminaryRepo.Root}).");
                 }
             }
         }
@@ -121,17 +121,17 @@ namespace Laubrary.ZoetropeLaunimator.Editor
             return best ?? "";
         }
 
-        static Reel FindOwningReel(ReelVersion version)
+        static Lauminary FindOwningLauminary(LauminaryVersion version)
         {
             if (version == null) return null;
             string versionPath = AssetDatabase.GetAssetPath(version);
             if (string.IsNullOrEmpty(versionPath)) return null;
-            foreach (var reel in ReelRepo.EnumerateReels())
+            foreach (var lauminary in LauminaryRepo.EnumerateLauminaries())
             {
-                string folder = ReelRepo.FolderOf(reel);
+                string folder = LauminaryRepo.FolderOf(lauminary);
                 if (!string.IsNullOrEmpty(folder) &&
                     versionPath.StartsWith(folder + "/", System.StringComparison.OrdinalIgnoreCase))
-                    return reel;
+                    return lauminary;
             }
             return null;
         }

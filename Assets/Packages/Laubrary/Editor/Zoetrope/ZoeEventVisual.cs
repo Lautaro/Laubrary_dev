@@ -13,7 +13,7 @@ namespace Laubrary.Zoetrope.Editor
     /// of bug this type exists to close.
     ///
     /// The visual is whatever the character's own view is configured for, which covers both realistic cases
-    /// without either caller branching: a clip-aware view (a Launimator reel) yields the event's named clip,
+    /// without either caller branching: a clip-aware view (a Launimator lauminary) yields the event's named clip,
     /// and a plain sprite view yields its one picture. A still has no length of its own, so an event drawn on
     /// one can only get a duration from the reaction's Fixed-seconds mode — and reports 0, meaning "unknown",
     /// rather than inventing one.

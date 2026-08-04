@@ -5,7 +5,7 @@ namespace Laubrary.Zoetrope
     /// <see cref="EventContext"/> the trigger fills — the target Zoe's live data plus the resolved
     /// position / direction / scalar its picked params came out to — and does its thing. This is the general
     /// form of <see cref="ICombatFx"/> (which STAYS as the "spawn VFX at a world point" effect kind, now simply
-    /// recognised as one <c>IEffect</c>). Other kinds (SpriteFx, Pushback, Play-Reel, …) plug in the same way
+    /// recognised as one <c>IEffect</c>). Other kinds (SpriteFx, Pushback, Play-Lauminary, …) plug in the same way
     /// (<c>[SerializeReference]</c>), each shipping in the bridge module that owns its tool, so core Zoetrope
     /// stays free of any specific presentation module. Assigned via <c>[SerializeReference]</c> on the reaction
     /// data, exactly as <see cref="ICombatFx"/> is today.

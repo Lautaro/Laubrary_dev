@@ -9,7 +9,7 @@ using UnityEngine;
 namespace Laubrary.Launimator.Editor
 {
     /// <summary>
-    /// Turns an Aseprite document into a runtime <see cref="ReelVersion"/> the existing player consumes:
+    /// Turns an Aseprite document into a runtime <see cref="LauminaryVersion"/> the existing player consumes:
     /// - layer name `meta:foo`  → an invisible collision/point shape (binary mask `foo`).
     /// - layer name `hybrid:foo` → rendered AND a mask `foo` (its visible pixels ARE the hitbox).
     /// - any other layer        → a plain visible sprite layer.
@@ -18,7 +18,7 @@ namespace Laubrary.Launimator.Editor
     /// into a composite per frame (for collision mask mapping + fallback). meta + hybrid layers become binary
     /// <see cref="MetaLayer"/> masks. Each Aseprite TAG becomes its own animation.
     /// </summary>
-    public static class AsepriteReelImport
+    public static class AsepriteLauminaryImport
     {
         enum Kind { Sprite, Meta, Hybrid }
 
@@ -31,7 +31,7 @@ namespace Laubrary.Launimator.Editor
 
         static readonly Color[] MaskColors = { new Color(1f, 0.3f, 0.3f), new Color(0.4f, 0.8f, 1f), new Color(0.4f, 0.9f, 0.45f), new Color(1f, 0.82f, 0.28f) };
 
-        public static ReelVersion Build(AseDoc doc, string outFolder, string charName, float ppu, Vector2 pivot, bool layered = true)
+        public static LauminaryVersion Build(AseDoc doc, string outFolder, string charName, float ppu, Vector2 pivot, bool layered = true)
         {
             Directory.CreateDirectory(Path.GetFullPath(outFolder));
             var kinds = doc.layers.Select(l => Classify(l.name)).ToList();
@@ -94,7 +94,7 @@ namespace Laubrary.Launimator.Editor
             }
 
             // ── one animation per tag (else one over all frames) ──
-            var ver = ScriptableObject.CreateInstance<ReelVersion>();
+            var ver = ScriptableObject.CreateInstance<LauminaryVersion>();
             ver.versionNumber = 0; ver.createdUtc = "";
             var ranges = doc.tags.Count > 0
                 ? doc.tags.Select(t => (t.name, t.from, Mathf.Clamp(t.to, t.from, F - 1))).ToList()
@@ -107,9 +107,9 @@ namespace Laubrary.Launimator.Editor
             return ver;
         }
 
-        static AnimationDef MakeAnim(string name, List<Sprite> frames, List<SpriteLayer> layers, List<MetaLayer> meta, int from, int to)
+        static Laumination MakeAnim(string name, List<Sprite> frames, List<SpriteLayer> layers, List<MetaLayer> meta, int from, int to)
         {
-            var def = new AnimationDef { name = name, fps = 10f };
+            var def = new Laumination { name = name, fps = 10f };
             for (int f = from; f <= to; f++) def.frames.Add(frames[f]);
             foreach (var L in layers)
             {

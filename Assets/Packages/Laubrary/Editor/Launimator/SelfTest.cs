@@ -12,8 +12,8 @@ namespace Laubrary.Launimator.Editor
     /// <summary>
     /// Headless verification of Track A's core asset-generation path. Synthesises an
     /// N-frame strip of distinct coloured shapes (self-contained — no external art),
-    /// slices it via the regular-grid slicer, then runs the exact "Save → Reel"
-    /// path and asserts the Reel, clip, prefab, and AnimatorController exist and the
+    /// slices it via the regular-grid slicer, then runs the exact "Save → Lauminary"
+    /// path and asserts the Lauminary, clip, prefab, and AnimatorController exist and the
     /// clip carries the expected sprite keyframes.
     ///
     /// Run headlessly:
@@ -32,7 +32,7 @@ namespace Laubrary.Launimator.Editor
             int exitCode;
             try
             {
-                bool ok = BuildSampleReel(out string report);
+                bool ok = BuildSampleLauminary(out string report);
                 Debug.Log(report);
                 if (ok)
                 {
@@ -56,10 +56,10 @@ namespace Laubrary.Launimator.Editor
         }
 
         /// <summary>
-        /// Builds a sample reel end-to-end and asserts the results. Returns true on
+        /// Builds a sample lauminary end-to-end and asserts the results. Returns true on
         /// PASS; fills <paramref name="report"/> with a human-readable breakdown.
         /// </summary>
-        public static bool BuildSampleReel(out string report)
+        public static bool BuildSampleLauminary(out string report)
         {
             var log = new System.Text.StringBuilder();
             log.AppendLine("── Launimator SelfTest ──");
@@ -67,11 +67,11 @@ namespace Laubrary.Launimator.Editor
             // Clean any prior run so the test is deterministic.
             if (AssetDatabase.IsValidFolder(TestFolder))
                 AssetDatabase.DeleteAsset(TestFolder);
-            foreach (var prior in ReelRepo.EnumerateReels().Where(c => c.reelName == CharName).ToList())
-                ReelRepo.Delete(prior);
+            foreach (var prior in LauminaryRepo.EnumerateLauminaries().Where(c => c.lauminaryName == CharName).ToList())
+                LauminaryRepo.Delete(prior);
             AssetDatabase.Refresh();
 
-            ReelBuilder.EnsureFolder(TestFolder);
+            LauminaryBuilder.EnsureFolder(TestFolder);
 
             // 1) Synthesise a horizontal strip of FrameCount distinct coloured shapes.
             string sheetPath = $"{TestFolder}/_synthetic_strip.png";
@@ -93,8 +93,8 @@ namespace Laubrary.Launimator.Editor
             if (sprites.Count != FrameCount)
                 return Fail(log, out report, $"Expected {FrameCount} sliced sprites, got {sprites.Count}.");
 
-            // 3) Create a reel and save a 'Walk' animation (recipe of source rects) into its draft.
-            var reel = ReelRepo.CreateReel(CharName, Cell);
+            // 3) Create a lauminary and save a 'Walk' animation (recipe of source rects) into its draft.
+            var lauminary = LauminaryRepo.CreateLauminary(CharName, Cell);
             string sheetGuid = AssetDatabase.AssetPathToGUID(sheetPath);
             var recipe = sprites.Select(s => new FrameRef
             {
@@ -102,26 +102,26 @@ namespace Laubrary.Launimator.Editor
                 cell = s.rect,
                 pivot = new UnityEngine.Vector2(0.5f, 0.5f)
             }).ToList();
-            var def = new AnimationDef { name = "Walk", fps = 12f, recipe = recipe, sourceTextureGuid = sheetGuid };
-            ReelRepo.SaveAnimationToDraft(reel, def);
-            string safeChar = ReelBuilder.Sanitize(CharName);
+            var def = new Laumination { name = "Walk", fps = 12f, recipe = recipe, sourceTextureGuid = sheetGuid };
+            LauminaryRepo.SaveAnimationToDraft(lauminary, def);
+            string safeChar = LauminaryBuilder.Sanitize(CharName);
 
             // 4) Assert the DRAFT generated assets exist and are wired.
-            string draftFolder = ReelRepo.DraftFolder(reel);
+            string draftFolder = LauminaryRepo.DraftFolder(lauminary);
             if (!AssertVersionAssets(draftFolder, safeChar, "Walk", log, out report, out var draftClip)) return false;
             log.AppendLine("Draft built Walk clip + prefab + controller, looping, wired. ✓");
 
             // 5) Commit a new immutable version; assert ITS assets are independent of the draft.
-            int v = ReelRepo.CommitNewVersion(reel);
+            int v = LauminaryRepo.CommitNewVersion(lauminary);
             if (v != 1) return Fail(log, out report, $"Expected first commit to be v1, got v{v}.");
-            if (reel.latestVersion != 1) return Fail(log, out report, "latestVersion not bumped to 1.");
-            string vFolder = ReelRepo.VersionFolder(reel, 1);
+            if (lauminary.latestVersion != 1) return Fail(log, out report, "latestVersion not bumped to 1.");
+            string vFolder = LauminaryRepo.VersionFolder(lauminary, 1);
             if (!AssertVersionAssets(vFolder, safeChar, "Walk", log, out report, out var vClip)) return false;
             if (vClip == draftClip) return Fail(log, out report, "v1 clip is the SAME asset as the draft clip (snapshot not independent).");
             log.AppendLine("Committed v1 with its own independent clip + prefab + controller. ✓");
 
             // 6) Reload v1's version asset; assert its animation references the v1 clip + all frames.
-            var vVersion = ReelRepo.LoadVersion(reel, 1);
+            var vVersion = LauminaryRepo.LoadVersion(lauminary, 1);
             if (vVersion == null || vVersion.animations.Count != 1)
                 return Fail(log, out report, "v1 version.asset missing or wrong animation count.");
             if (vVersion.animations[0].clip != vClip)
@@ -222,7 +222,7 @@ namespace Laubrary.Launimator.Editor
             if (AssetDatabase.IsValidFolder(RegionTestFolder))
                 AssetDatabase.DeleteAsset(RegionTestFolder);
             AssetDatabase.Refresh();
-            ReelBuilder.EnsureFolder(RegionTestFolder);
+            LauminaryBuilder.EnsureFolder(RegionTestFolder);
 
             // Synthesise a 64×64 sheet (content is irrelevant to rect geometry).
             int texW = 64, texH = 64;
@@ -324,7 +324,7 @@ namespace Laubrary.Launimator.Editor
             if (AssetDatabase.IsValidFolder(PivotTestFolder))
                 AssetDatabase.DeleteAsset(PivotTestFolder);
             AssetDatabase.Refresh();
-            ReelBuilder.EnsureFolder(PivotTestFolder);
+            LauminaryBuilder.EnsureFolder(PivotTestFolder);
 
             int texW = 32, texH = 32;
             string sheetPath = $"{PivotTestFolder}/_pivot_sheet.png";
@@ -599,7 +599,7 @@ namespace Laubrary.Launimator.Editor
             if (AssetDatabase.IsValidFolder(PersistTestFolder))
                 AssetDatabase.DeleteAsset(PersistTestFolder);
             AssetDatabase.Refresh();
-            ReelBuilder.EnsureFolder(PersistTestFolder);
+            LauminaryBuilder.EnsureFolder(PersistTestFolder);
 
             int texW = 64, texH = 64;
             string sheetPath = $"{PersistTestFolder}/_persist_sheet.png";

@@ -189,7 +189,7 @@ namespace Laubrary.Launimator.Editor
             // hugging the content — and those meshes round independently, so frames drift ~1px against each other
             // when swapped (the classic sprite-swap "wobble"). FullRect makes every frame a plain quad registered
             // purely by its pivot, matching AtlasBaker.BakeInMemory's Sprite.Create(FullRect) exactly — so the
-            // baked asset (what the GAME and Reel Browser play) is identical to the in-memory preview.
+            // baked asset (what the GAME and Lauminary Browser play) is identical to the in-memory preview.
             var texSettings = new TextureImporterSettings();
             importer.ReadTextureSettings(texSettings);
             texSettings.spriteMeshType = SpriteMeshType.FullRect;
@@ -202,7 +202,7 @@ namespace Laubrary.Launimator.Editor
             var provider = factory.GetSpriteEditorDataProviderFromObject(importer);
             provider.InitSpriteEditorDataProvider();
 
-            // Preserve sprite IDs across re-slices: a sprite's GUID is what AnimationDef.frames reference, so
+            // Preserve sprite IDs across re-slices: a sprite's GUID is what Laumination.frames reference, so
             // re-slicing this sheet to edit an animation must REUSE the prior GUID for a rect whose name
             // matches — otherwise every existing animation's frames dangle. Read the current name→GUID map and
             // reuse it; only mint new GUIDs for genuinely new names.

@@ -15,7 +15,7 @@ namespace Laubrary.Launimator
     /// <summary>
     /// A named, contiguous frame range inside ONE animation strip — the "zone" that turns a single clip into a
     /// phased move (a Jump's Start/Air/Fall/Land). Frame indices are inclusive, into the animation's baked
-    /// <see cref="AnimationDef.frames"/> sequence. Behaviour ({PlayThrough, Hold}) is what the runtime acts on;
+    /// <see cref="Laumination.frames"/> sequence. Behaviour ({PlayThrough, Hold}) is what the runtime acts on;
     /// the name is for humans + EnterAt(name).
     /// </summary>
     [Serializable]

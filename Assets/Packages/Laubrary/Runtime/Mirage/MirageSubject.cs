@@ -76,7 +76,7 @@ namespace Laubrary.Mirage
 
         // Mirage's whole reason to exist is that authoring changes show up WITHOUT a restart -- see the
         // standing protocol in Laubrary.Caching.AssetCacheInvalidation's own doc comment. A Zoe's view fields
-        // (e.g. ZonedReelView.height) and an equipped WeaponDef's fields are only ever copied onto the spawned
+        // (e.g. ZonedLauminaryView.height) and an equipped WeaponDef's fields are only ever copied onto the spawned
         // GameObject ONCE, at Spawn() time -- editing them afterward left the live preview stale until the
         // whole MirageView was reloaded (reported: changed Floating Disc's height, had to reload to see it).
         // Doing a full destroy+respawn on any relevant edit is deliberately blunt rather than trying to patch
@@ -192,7 +192,7 @@ namespace Laubrary.Mirage
             // Idle is always the Zoe's own view.idleClip -- no separate Mirage-authored field (removed after
             // review: redundant with data the Zoe already has, and Target Practice is meant for the simple
             // "just wire up a hit reaction" case, not another place to author animation choices).
-            var zonedView = zoe != null ? zoe.view as ZonedReelView : null;
+            var zonedView = zoe != null ? zoe.view as ZonedLauminaryView : null;
             tpc.idleClip = zonedView != null ? zonedView.idleClip : "";
             tpc.respawnDelay = respawnDelay;
         }

@@ -2,29 +2,29 @@ using UnityEngine;
 using Laubrary.Combat2D;
 using Laubrary.Launimator;
 
-namespace Laubrary.ReelCombat
+namespace Laubrary.LauminaryCombat
 {
     /// <summary>
     /// The Launimator ⇄ Colosseum pixel-perfect bridge. Drop this on a Combatant that renders through a
     /// <see cref="ZonedAnimationPlayer"/> and Colosseum will run its cheap checks (distance + collider overlap +
-    /// faction) first, then defer to the Reel's authored meta-layer for the final per-pixel word: a hit only lands
+    /// faction) first, then defer to the Lauminary's authored meta-layer for the final per-pixel word: a hit only lands
     /// if the contact point falls on a painted cell of the <see cref="hurtLayer"/> at the CURRENT frame. This is
     /// the <see cref="IHitFilter"/> seam <see cref="Combat.TryDamage"/> honours no matter what dealt the hit
     /// (hitbox, projectile). Neither Colosseum nor Launimator depends on the other — this tiny module bridges them.
     /// </summary>
-    [AddComponentMenu("Laubrary/ReelCombat/Reel Hit Filter")]
-    public class ReelHitFilter : MonoBehaviour, IHitFilter
+    [AddComponentMenu("Laubrary/LauminaryCombat/Lauminary Hit Filter")]
+    public class LauminaryHitFilter : MonoBehaviour, IHitFilter
     {
-        [Tooltip("The Reel whose painted silhouette gates incoming hits. Auto-resolved from this object (or its " +
+        [Tooltip("The Lauminary whose painted silhouette gates incoming hits. Auto-resolved from this object (or its " +
                  "children) if left empty.")]
         public ZonedAnimationPlayer body;
 
-        [Tooltip("Meta-layer id on the Reel that represents the vulnerable region (the painted mask a hit must land " +
-                 "on). Authored per Reel in Launimator. If blank the filter can't test and falls back to " +
+        [Tooltip("Meta-layer id on the Lauminary that represents the vulnerable region (the painted mask a hit must land " +
+                 "on). Authored per Lauminary in Launimator. If blank the filter can't test and falls back to " +
                  "acceptWhenUnresolved.")]
         public string hurtLayer = "body";
 
-        [Tooltip("Optional: if the attacker is ITSELF a Reel, test this meta-layer on it against the hurt layer with a " +
+        [Tooltip("Optional: if the attacker is ITSELF a Lauminary, test this meta-layer on it against the hurt layer with a " +
                  "full mask-vs-mask overlap (more accurate than a single contact point). Blank = always use the " +
                  "point test.")]
         public string attackLayer = "";
@@ -48,7 +48,7 @@ namespace Laubrary.ReelCombat
             EnsureBody();
             if (body == null || string.IsNullOrEmpty(hurtLayer)) return acceptWhenUnresolved;
 
-            // Best case: the attacker is also a Reel → confirm the two painted masks actually overlap.
+            // Best case: the attacker is also a Lauminary → confirm the two painted masks actually overlap.
             if (!string.IsNullOrEmpty(attackLayer) && attacker != null)
             {
                 var atk = attacker.GetComponentInChildren<ZonedAnimationPlayer>();

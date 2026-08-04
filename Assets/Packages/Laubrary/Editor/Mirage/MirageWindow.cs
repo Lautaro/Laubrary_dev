@@ -435,10 +435,10 @@ namespace Laubrary.Mirage.Editor
                     200f)));
             }
 
-            var zonedView = zoe.view as ZonedReelView;
-            var reel = zonedView != null ? zonedView.version : null;
-            string[] clipNames = reel != null && reel.animations != null
-                ? reel.animations.Where(a => a != null && !string.IsNullOrEmpty(a.name)).Select(a => a.name).ToArray()
+            var zonedView = zoe.view as ZonedLauminaryView;
+            var lauminary = zonedView != null ? zonedView.version : null;
+            string[] clipNames = lauminary != null && lauminary.animations != null
+                ? lauminary.animations.Where(a => a != null && !string.IsNullOrEmpty(a.name)).Select(a => a.name).ToArray()
                 : System.Array.Empty<string>();
 
             BuildTargetPractice(zoeSection, view, entry, zoe);
@@ -447,7 +447,7 @@ namespace Laubrary.Mirage.Editor
             if (!entry.targetPractice)
             {
                 entry.clips ??= new List<ClipStep>();
-                var clipSection = BuildClips(entry, reel, clipNames, zoeWeapons.Count > 0);
+                var clipSection = BuildClips(entry, lauminary, clipNames, zoeWeapons.Count > 0);
 
                 // Belongs with the clips, not after them: it only means anything once some step fires.
                 const string aimTip = "Stands in for Combatant.aimDirection, which real gameplay (player input / AI) " +
@@ -714,18 +714,18 @@ namespace Laubrary.Mirage.Editor
         // trigger, scoped to THAT step's own clip's painted MetaLayers — not one entry-wide layer, which
         // couldn't tell "fire during THIS step" from "fire during that other one" once more than one clip
         // could be playing (the actual bug report this replaced).
-        ZuiSection BuildClips(PreviewableEntry entry, ReelVersion reel, string[] clipNames, bool zoeHasWeapons)
+        ZuiSection BuildClips(PreviewableEntry entry, LauminaryVersion lauminary, string[] clipNames, bool zoeHasWeapons)
         {
             var root = Z.Section("Clips", "Played in order, forever — a one-item list just loops that clip.");
 
-            if (reel == null)
+            if (lauminary == null)
             {
                 root.Add(Z.Text("This Zoe's view isn't a Zoned Launimator view — no clips to preview.", ZuiText.Subtle));
                 return root;
             }
             if (clipNames.Length == 0)
             {
-                root.Add(Z.Text("This Reel has no authored animations.", ZuiText.Subtle));
+                root.Add(Z.Text("This Lauminary has no authored animations.", ZuiText.Subtle));
                 return root;
             }
             if (!zoeHasWeapons)
@@ -737,8 +737,8 @@ namespace Laubrary.Mirage.Editor
                 if (step == null) continue;
                 int index = i;
 
-                var stepAnim = reel.animations != null
-                    ? reel.animations.FirstOrDefault(a => a != null && string.Equals(a.name, step.clip, System.StringComparison.OrdinalIgnoreCase))
+                var stepAnim = lauminary.animations != null
+                    ? lauminary.animations.FirstOrDefault(a => a != null && string.Equals(a.name, step.clip, System.StringComparison.OrdinalIgnoreCase))
                     : null;
                 string[] stepLayerIds = stepAnim != null && stepAnim.metaLayers != null
                     ? stepAnim.metaLayers.Where(l => l != null && !string.IsNullOrEmpty(l.id))

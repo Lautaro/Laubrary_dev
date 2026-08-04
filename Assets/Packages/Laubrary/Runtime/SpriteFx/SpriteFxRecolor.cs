@@ -11,7 +11,7 @@ namespace Laubrary.SpriteFx
     /// This is the delivery host for the #77 <see cref="ColorRemapModifier"/> — the "SpriteFx CPU filter" row of the
     /// colour design's delivery table. Unlike <see cref="SpriteFxFilter"/> (which is TRIGGERED and runs the Burst/op
     /// path — <see cref="SpriteFxStack.IsShaped"/> modifiers only, so it skips ColorRemap), this is ALWAYS-ON and
-    /// MANAGED, so it runs the non-shaped colour family. It rides a live Reel / Animator animation the same way
+    /// MANAGED, so it runs the non-shaped colour family. It rides a live Lauminary / Animator animation the same way
     /// SpriteFxFilter does: whatever sprite is on the renderer that isn't OUR own output is treated as the fresh
     /// source frame, so the recolour follows the animation automatically. It restores the original sprite when
     /// disabled or destroyed.
@@ -50,7 +50,7 @@ namespace Laubrary.SpriteFx
 
         // ── live state ───────────────────────────────────────────────────────────────────────────────────────────
         SpriteRenderer _sr;
-        Sprite _sourceSprite;     // the live UN-recoloured source (a Reel frame, or the static sprite) we ride on
+        Sprite _sourceSprite;     // the live UN-recoloured source (a Lauminary frame, or the static sprite) we ride on
         Sprite _filteredSprite;   // the sprite we swap in — references _work (pooled)
         Texture2D _work;          // pooled working texture, resized only when the source geometry changes
         int _frame;
@@ -179,7 +179,7 @@ namespace Laubrary.SpriteFx
 
         void Restore()
         {
-            // Only restore if WE are still the one on the renderer — never stomp a frame a Reel/Animator advanced to.
+            // Only restore if WE are still the one on the renderer — never stomp a frame a Lauminary/Animator advanced to.
             if (_sr != null && _sourceSprite != null && ReferenceEquals(_sr.sprite, _filteredSprite))
                 _sr.sprite = _sourceSprite;
         }

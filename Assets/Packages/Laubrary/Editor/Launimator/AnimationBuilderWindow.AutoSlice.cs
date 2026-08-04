@@ -6,14 +6,14 @@ using UnityEngine;
 namespace Laubrary.Launimator.Editor
 {
     /// <summary>
-    /// Optional, self-contained "auto-slice from marquee" feature for the Animation Builder. Marquee a part of
+    /// Optional, self-contained "auto-slice from marquee" feature for the Laumination Builder. Marquee a part of
     /// the sheet (Grid mode's persistent box) and right-click it to auto-detect every sprite inside the box via
     /// projection profiles (<see cref="AutoScavenger.DetectCellsInBox"/>) — using the SAME alpha threshold and
     /// background-colour key already set on the window, so transparency matches the rest of the tool. The
     /// detection only ADDS cells to the existing region/sequence stores; the human then adjusts them normally.
     /// Kept in a partial file so the core window is untouched apart from the right-click hook.
     /// </summary>
-    public partial class AnimationBuilderWindow
+    public partial class LauminationBuilderWindow
     {
         private const string AutoLabel = "auto";
         private bool _autoDragging;
@@ -175,8 +175,8 @@ namespace Laubrary.Launimator.Editor
         private string SuggestNewAnimName()
         {
             var taken = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
-            if (_boundReel != null)
-                foreach (var a in ReelRepo.EnsureDraft(_boundReel).animations) taken.Add(a.name);
+            if (_boundLauminary != null)
+                foreach (var a in LauminaryRepo.EnsureDraft(_boundLauminary).animations) taken.Add(a.name);
             string baseName = "anim";
             if (!taken.Contains(baseName)) return baseName;
             for (int i = 2; i < 999; i++) if (!taken.Contains($"{baseName}_{i}")) return $"{baseName}_{i}";
@@ -196,8 +196,8 @@ namespace Laubrary.Launimator.Editor
             _zonesEnabled = false; _zones.Clear();
             _metaEnabled = false; _metaLayers = new List<MetaLayer>(); _activeLayer = -1; ClearMaskCache();
             if (!string.IsNullOrWhiteSpace(name)) _animName = name.Trim();
-            _boundAnimName = null;                       // bound reel kept; save adds a new entry
-            if (_boundReel == null) _orphanAsset = null; // orphan mode: save creates a new orphan
+            _boundAnimName = null;                       // bound lauminary kept; save adds a new entry
+            if (_boundLauminary == null) _orphanAsset = null; // orphan mode: save creates a new orphan
         }
     }
 

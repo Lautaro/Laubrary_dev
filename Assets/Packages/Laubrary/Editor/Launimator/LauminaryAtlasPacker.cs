@@ -7,16 +7,16 @@ using UnityEngine;
 namespace Laubrary.Launimator.Editor
 {
     /// <summary>
-    /// Packs a reel version's per-animation baked frames into ONE shared, readable atlas containing only
-    /// the unique frames the reel actually uses (identical frames — same pixels, size and pivot — are
+    /// Packs a lauminary version's per-animation baked frames into ONE shared, readable atlas containing only
+    /// the unique frames the lauminary actually uses (identical frames — same pixels, size and pivot — are
     /// stored once and referenced by every animation that needs them). Run after <see cref="AtlasBaker"/> has
     /// produced each animation's frames: this reads those frames' pixels, dedups, shelf-packs them, and
-    /// repoints every <see cref="AnimationDef.frames"/> at the packed sprites. The result is a single texture
+    /// repoints every <see cref="Laumination.frames"/> at the packed sprites. The result is a single texture
     /// per version — fewer draw-call switches when a sprite-swap player flips frames, smaller on disk, and one
     /// place for pixel-reading consumers (e.g. procedural destruction) to sample. The atlas is import-flagged
     /// readable so those consumers can call GetPixels.
     /// </summary>
-    public static class ReelAtlasPacker
+    public static class LauminaryAtlasPacker
     {
         private const int Padding = 1;          // transparent gutter between cells
         private const int MaxRowWidth = 2048;   // wrap to a new shelf past this width
@@ -28,7 +28,7 @@ namespace Laubrary.Launimator.Editor
         /// populated by <see cref="AtlasBaker"/>.
         /// </summary>
         public static Texture2D Pack(
-            List<AnimationDef> animations, string atlasAssetPath, float ppu, out string error)
+            List<Laumination> animations, string atlasAssetPath, float ppu, out string error)
         {
             error = null;
 
@@ -36,7 +36,7 @@ namespace Laubrary.Launimator.Editor
             var unique = new List<Cell>();
             var bySignature = new Dictionary<string, int>();          // signature -> index into 'unique'
             var srcCache = new Dictionary<Texture2D, Color32[]>();    // whole-texture pixel cache
-            var frameToCell = new Dictionary<(AnimationDef, int), int>();
+            var frameToCell = new Dictionary<(Laumination, int), int>();
 
             foreach (var def in animations)
             {

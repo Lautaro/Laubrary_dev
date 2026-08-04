@@ -17,7 +17,7 @@ namespace Laubrary.Cartographer.Editor
     /// project exactly the twenty tiles plucked from it. Cells already plucked are tinted (tracked by the
     /// sheet's content hash), so across a big pack you always see what is still uncurated.
     ///
-    /// The shape is borrowed from Launimator's Animation Builder, whose own history settled the design
+    /// The shape is borrowed from Launimator's Laumination Builder, whose own history settled the design
     /// question: whole-sheet auto-grouping was tried and removed as a dead end; what survived is a human
     /// AIMING a marquee and the machine doing the mechanical half inside it.
     public class TilesetBuilderWindow : ZuiAssetWindow<Tileset>
@@ -2692,7 +2692,7 @@ namespace Laubrary.Cartographer.Editor
 
                 // RIGHT-drag = marquee. The left button is for selecting and for dragging a selection OUT
                 // (onto the tileset grid), so it cannot double as the marquee — a click on a tile would be
-                // ambiguous. Same right-drag convention as the Animation Builder's auto-marquee.
+                // ambiguous. Same right-drag convention as the Laumination Builder's auto-marquee.
                 if (e.button == 1)
                 {
                     if (!onCell) return;

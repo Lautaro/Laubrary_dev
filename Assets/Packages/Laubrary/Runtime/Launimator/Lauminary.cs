@@ -5,28 +5,28 @@ using UnityEngine.Serialization;
 namespace Laubrary.Launimator
 {
     /// <summary>
-    /// A reusable, versioned reel: the portable artifact other projects consume. A reel is a
-    /// folder identified by a stable <see cref="reelId"/> (independent of any Unity asset GUID, so it
+    /// A reusable, versioned lauminary: the portable artifact other projects consume. A lauminary is a
+    /// folder identified by a stable <see cref="lauminaryId"/> (independent of any Unity asset GUID, so it
     /// survives being copied between projects). It owns one editable <c>draft</c> version plus a series of
     /// immutable snapshots <c>v1, v2, …</c>. This root asset carries only identity and bookkeeping; the
-    /// animations themselves live on each version's <see cref="ReelVersion"/>.
+    /// animations themselves live on each version's <see cref="LauminaryVersion"/>.
     /// </summary>
-    public class Reel : ScriptableObject
+    public class Lauminary : ScriptableObject
     {
-        [FormerlySerializedAs("zoeId")]
-        [Tooltip("Stable identity, set once at creation. Lets different projects reuse this reel safely. " +
+        [FormerlySerializedAs("zoeId"), FormerlySerializedAs("reelId")]
+        [Tooltip("Stable identity, set once at creation. Lets different projects reuse this lauminary safely. " +
                  "NOT the Unity asset GUID.")]
-        public string reelId;
+        public string lauminaryId;
 
-        [FormerlySerializedAs("zoeName")]
+        [FormerlySerializedAs("zoeName"), FormerlySerializedAs("reelName")]
         [Tooltip("Display name. Drives the folder name only at creation; renaming updates this field and the " +
                  "asset file names, but the folder is frozen.")]
-        public string reelName = "NewReel";
+        public string lauminaryName = "NewLauminary";
 
         [Tooltip("Highest committed version number (0 means only a draft exists so far).")]
         public int latestVersion;
 
-        [Tooltip("Pixels-per-unit used when slicing/baking this reel's sprites.")]
+        [Tooltip("Pixels-per-unit used when slicing/baking this lauminary's sprites.")]
         public float pixelsPerUnit = 16f;
     }
 
@@ -44,7 +44,7 @@ namespace Laubrary.Launimator
         public Vector2 pivot = new Vector2(0.5f, 0f);
 
         [Tooltip("Per-frame sprite edit (flip / rotate / squash-stretch), baked into the frame at registration " +
-                 "time. Identity by default — only set by the Animation Builder's UI.4 tools.")]
+                 "time. Identity by default — only set by the Laumination Builder's UI.4 tools.")]
         public CellTransform transform = CellTransform.Identity;
     }
 
@@ -75,7 +75,7 @@ namespace Laubrary.Launimator
     /// <summary>
     /// An authored event on a specific frame of an animation — the metadata the consuming game reacts to.
     /// Canonical use is "hit" (sync a weapon's damage / projectile to the swing's contact frame), but it's
-    /// a free-form name so projects can add "footstep", "sfx", "spawn", etc. <see cref="ReelPlayer"/>
+    /// a free-form name so projects can add "footstep", "sfx", "spawn", etc. <see cref="LauminaryPlayer"/>
     /// fires <c>OnFrameEvent(name, frame)</c> when playback ENTERS the frame (once per play-through / loop).
     /// </summary>
     [System.Serializable]
@@ -88,7 +88,7 @@ namespace Laubrary.Launimator
         [Tooltip("Optional Zound (by name) auto-played when this event fires, via the Launimator.Zounds bridge. Empty = no sound.")]
         public string zoundName = "";
         [Tooltip("Optional single pixel this event points at (e.g. a muzzle/spawn point), in the frame's own baked " +
-                 "sprite pixel space (bottom-left origin, 0,0 = bottom-left texel). Set via the Animation Builder's " +
+                 "sprite pixel space (bottom-left origin, 0,0 = bottom-left texel). Set via the Laumination Builder's " +
                  "pixel tool. hasPosition=false means unset/null.")]
         public bool hasPosition;
         public Vector2Int position;
@@ -97,8 +97,8 @@ namespace Laubrary.Launimator
     /// <summary>
     /// One composable VISIBLE sprite layer of an animation (e.g. body, or a swappable weapon), aligned 1:1 with
     /// the animation's frames. When an animation has sprite layers, the player renders them stacked (a child
-    /// SpriteRenderer each, in list order) instead of the flat <see cref="AnimationDef.frames"/>, and they can be
-    /// toggled at runtime (weapon swap). <see cref="AnimationDef.frames"/> is still kept as the flat composite
+    /// SpriteRenderer each, in list order) instead of the flat <see cref="Laumination.frames"/>, and they can be
+    /// toggled at runtime (weapon swap). <see cref="Laumination.frames"/> is still kept as the flat composite
     /// (used for collision mask mapping + as the fallback when there are no layers).
     /// </summary>
     [System.Serializable]
@@ -112,11 +112,11 @@ namespace Laubrary.Launimator
     /// A single named animation. <see cref="recipe"/> is the editable source-of-truth (per-frame source
     /// rects + registration). On build it is baked into a self-contained, uniform-size <see cref="atlas"/>
     /// texture whose sliced <see cref="frames"/> register exactly — so animations never share (and can never
-    /// corrupt) each other's sprites, and the reel no longer depends on the original rip sheet to PLAY
+    /// corrupt) each other's sprites, and the lauminary no longer depends on the original rip sheet to PLAY
     /// (only to re-edit). <see cref="clip"/> is the generated looping AnimationClip over <see cref="frames"/>.
     /// </summary>
     [System.Serializable]
-    public class AnimationDef
+    public class Laumination
     {
         public string name = "Idle";
         public float fps = 12f;
@@ -125,7 +125,7 @@ namespace Laubrary.Launimator
         public List<FrameRef> recipe = new List<FrameRef>();
 
         [Tooltip("Authored per-frame events (e.g. the \"hit\" frame for attack→damage sync). Survive baking; " +
-                 "ReelPlayer fires OnFrameEvent(name, frame) as playback enters each frame.")]
+                 "LauminaryPlayer fires OnFrameEvent(name, frame) as playback enters each frame.")]
         public List<FrameEvent> events = new List<FrameEvent>();
 
         [Tooltip("Source sheet uses a solid background COLOR (no alpha) — bake it out to real transparency.")]

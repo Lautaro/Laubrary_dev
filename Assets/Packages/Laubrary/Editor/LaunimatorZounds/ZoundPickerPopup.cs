@@ -9,7 +9,7 @@ namespace Laubrary.LaunimatorZounds.Editor
 {
     /// <summary>
     /// Thin wrapper over Zounds' own <see cref="GenericMenuPopup"/> for picking a single Zound by name from the
-    /// Animation Builder's frame-event rows — reuses the existing search/select popup rather than building a
+    /// Laumination Builder's frame-event rows — reuses the existing search/select popup rather than building a
     /// new picker, matching <c>CompositeZoundEditorWindow</c>'s own usage of it. Known UX quirk accepted as-is:
     /// the popup is built for multi-select-then-confirm, so picking one item is "click it, then click the
     /// bottom confirm button" rather than a single click.

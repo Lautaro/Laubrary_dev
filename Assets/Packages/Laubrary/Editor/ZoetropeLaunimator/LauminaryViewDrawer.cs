@@ -7,15 +7,15 @@ using Laubrary.Launimator.Editor;
 namespace Laubrary.ZoetropeLaunimator.Editor
 {
     /// <summary>
-    /// Adds an "Open in Animation Builder" button to a <see cref="ReelView"/>'s inspector — the missing editor
+    /// Adds an "Open in Laumination Builder" button to a <see cref="LauminaryView"/>'s inspector — the missing editor
     /// half of the runtime Launimator bridge. Without this, a Zoetrope recipe's <c>version</c> field is just a
-    /// bare object reference: selecting it lands on ReelVersion's default (useless) inspector, since ReelVersion
-    /// has no custom editor of its own and no back-reference to the Reel that owns it. This drawer resolves the
-    /// owning Reel by folder convention (every version lives under its Reel's own folder — see
-    /// <see cref="ReelRepo"/>) and opens it directly in the Animation Builder.
+    /// bare object reference: selecting it lands on LauminaryVersion's default (useless) inspector, since LauminaryVersion
+    /// has no custom editor of its own and no back-reference to the Lauminary that owns it. This drawer resolves the
+    /// owning Lauminary by folder convention (every version lives under its Lauminary's own folder — see
+    /// <see cref="LauminaryRepo"/>) and opens it directly in the Laumination Builder.
     /// </summary>
-    [CustomPropertyDrawer(typeof(ReelView))]
-    public class ReelViewDrawer : PropertyDrawer
+    [CustomPropertyDrawer(typeof(LauminaryView))]
+    public class LauminaryViewDrawer : PropertyDrawer
     {
         const int FieldCount = 4; // version, idleClip, height, the button
 
@@ -36,17 +36,17 @@ namespace Laubrary.ZoetropeLaunimator.Editor
             EditorGUI.PropertyField(r, heightProp);
             r.y += lineH + pad;
 
-            var version = versionProp.objectReferenceValue as ReelVersion;
+            var version = versionProp.objectReferenceValue as LauminaryVersion;
             using (new EditorGUI.DisabledScope(version == null))
             {
-                if (GUI.Button(r, "Open in Animation Builder"))
+                if (GUI.Button(r, "Open in Laumination Builder"))
                 {
-                    var reel = FindOwningReel(version);
-                    if (reel != null)
-                        AnimationBuilderWindow.OpenForEdit(reel, idleClipProp.stringValue);
+                    var lauminary = FindOwningLauminary(version);
+                    if (lauminary != null)
+                        LauminationBuilderWindow.OpenForEdit(lauminary, idleClipProp.stringValue);
                     else
-                        Debug.LogWarning($"ReelViewDrawer: couldn't find the Reel owning '{AssetDatabase.GetAssetPath(version)}' " +
-                                          $"(expected it somewhere under {ReelRepo.Root}).");
+                        Debug.LogWarning($"LauminaryViewDrawer: couldn't find the Lauminary owning '{AssetDatabase.GetAssetPath(version)}' " +
+                                          $"(expected it somewhere under {LauminaryRepo.Root}).");
                 }
             }
         }
@@ -58,17 +58,17 @@ namespace Laubrary.ZoetropeLaunimator.Editor
             return (lineH + pad) * FieldCount;
         }
 
-        static Reel FindOwningReel(ReelVersion version)
+        static Lauminary FindOwningLauminary(LauminaryVersion version)
         {
             if (version == null) return null;
             string versionPath = AssetDatabase.GetAssetPath(version);
             if (string.IsNullOrEmpty(versionPath)) return null;
-            foreach (var reel in ReelRepo.EnumerateReels())
+            foreach (var lauminary in LauminaryRepo.EnumerateLauminaries())
             {
-                string folder = ReelRepo.FolderOf(reel);
+                string folder = LauminaryRepo.FolderOf(lauminary);
                 if (!string.IsNullOrEmpty(folder) &&
                     versionPath.StartsWith(folder + "/", System.StringComparison.OrdinalIgnoreCase))
-                    return reel;
+                    return lauminary;
             }
             return null;
         }

@@ -34,7 +34,7 @@ namespace Laubrary.Zoetrope
         /// Fires once per frame-entry with the frame index, for EVERY frame — annotated or not. The plain
         /// counterpart to <see cref="OnFrameEvent"/>: that one says "something named happens here", this one
         /// says "we are on frame N", which is what a reaction timing itself to the animation needs when the
-        /// animator has not authored an event to hang off. 0-based, matching the reel's own indexing.
+        /// animator has not authored an event to hang off. 0-based, matching the lauminary's own indexing.
         event Action<int> OnFrameEntered;
         /// The frame showing right now, or -1 if nothing is playing.
         int CurrentFrame { get; }

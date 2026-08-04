@@ -16,7 +16,7 @@ namespace Laubrary.ZoetropeLaunimator
     /// for muzzle alignment, not a second one. Game code addresses parts by name:
     /// <c>zoe.Part("Legs").Play("Run"); zoe.Part("Torso").Play("Shot");</c> Lives in this bridge (not core
     /// Zoetrope) because it directly touches Launimator's <see cref="ZonedAnimationPlayer"/> — same reason
-    /// <see cref="ZonedReelView"/> lives here instead of in core.
+    /// <see cref="ZonedLauminaryView"/> lives here instead of in core.
     /// </summary>
     public class CompositeZonedPlayer : MonoBehaviour
     {

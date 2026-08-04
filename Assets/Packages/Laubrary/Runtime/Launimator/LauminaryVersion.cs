@@ -4,19 +4,19 @@ using UnityEngine;
 namespace Laubrary.Launimator
 {
     /// <summary>
-    /// One version of a reel — either the editable <c>draft</c> (<see cref="versionNumber"/> 0) or an
+    /// One version of a lauminary — either the editable <c>draft</c> (<see cref="versionNumber"/> 0) or an
     /// immutable committed snapshot (1, 2, …). Holds the ordered animations and the game-ready generated
     /// assets (prefab + controller) for that version.
     ///
     /// IMPORTANT: this type MUST live in its own file (filename == class name). Unity only mints a MonoScript
-    /// for the class matching the file name; when ReelVersion shared Reel.cs it had no MonoScript,
+    /// for the class matching the file name; when LauminaryVersion shared Lauminary.cs it had no MonoScript,
     /// so its assets serialized with <c>m_Script {fileID: 0}</c> (type resolved only via m_EditorClassIdentifier).
-    /// Such script-less ScriptableObjects (a) are invisible to <c>FindAssets("t:ReelVersion")</c>, (b) become
+    /// Such script-less ScriptableObjects (a) are invisible to <c>FindAssets("t:LauminaryVersion")</c>, (b) become
     /// UNLOADABLE if their asset file is renamed, and (c) LOSE their serialized data (recipes!) when a dirty
     /// instance survives a domain reload. Keeping it here gives every version asset a real m_Script and avoids all
-    /// three. (See ReelRepo for the historical workarounds.)
+    /// three. (See LauminaryRepo for the historical workarounds.)
     /// </summary>
-    public class ReelVersion : ScriptableObject, Laubrary.PreviewKit.IVisualPreview
+    public class LauminaryVersion : ScriptableObject, Laubrary.PreviewKit.IVisualPreview
     {
         [Tooltip("0 = the editable draft; 1, 2, … = immutable committed snapshots.")]
         public int versionNumber;
@@ -24,8 +24,8 @@ namespace Laubrary.Launimator
         [Tooltip("UTC timestamp (round-trip 'o' format) this version was created/last rebuilt.")]
         public string createdUtc;
 
-        [Tooltip("The animations that make up this reel version, in display/build order.")]
-        public List<AnimationDef> animations = new List<AnimationDef>();
+        [Tooltip("The animations that make up this lauminary version, in display/build order.")]
+        public List<Laumination> animations = new List<Laumination>();
 
         [Tooltip("Generated SpriteRenderer + Animator prefab for this version.")]
         public GameObject prefab;
@@ -34,15 +34,15 @@ namespace Laubrary.Launimator
         public RuntimeAnimatorController controller;
 
         // ── IVisualPreview ──
-        // Required, not optional: authoring.md §10 is "never show a visual asset by name alone", and a reel is
+        // Required, not optional: authoring.md §10 is "never show a visual asset by name alone", and a lauminary is
         // about as visual as an asset gets. Without this, every field that picks one — a Zoe's view, a
-        // composite body part — could only show the text "SomeZoe_draft (Reel Version)", which tells an author
+        // composite body part — could only show the text "SomeZoe_draft (Lauminary Version)", which tells an author
         // nothing about which of five near-identical sheets they just chose.
         //
-        /// The animation a preview should show: the first one with frames. Reels have no notion of a
+        /// The animation a preview should show: the first one with frames. Lauminaries have no notion of a
         /// "default" clip — that is the CONSUMER's choice (a view's idleClip) — so this deliberately picks
         /// the first rather than guessing at a name that may not exist.
-        public AnimationDef PreviewAnimation()
+        public Laumination PreviewAnimation()
         {
             if (animations == null) return null;
             foreach (var a in animations)

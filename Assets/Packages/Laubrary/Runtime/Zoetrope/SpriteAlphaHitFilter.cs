@@ -11,7 +11,7 @@ namespace Laubrary.Zoetrope
     /// "pixel perfect" means to a player. Colliders stay the BROAD phase (cheap, physics-accelerated) and
     /// this is the narrow one — the same two-phase shape every pixel-perfect 2D game uses.
     ///
-    /// Distinct from ReelHitFilter, which tests a painted meta-layer and so answers "did it hit the HURT
+    /// Distinct from LauminaryHitFilter, which tests a painted meta-layer and so answers "did it hit the HURT
     /// region" — a different, finer question that needs authoring. This needs none: every sprite already
     /// knows which of its pixels are transparent.
     ///
@@ -34,7 +34,7 @@ namespace Laubrary.Zoetrope
         // Alpha, per sprite, read ONCE. Sprite textures are imported non-readable by default so GetPixels
         // throws on them — the same trap that broke asset thumbnails — so this goes through PreviewKit's
         // blit-based crop, which reads anything the GPU can sample. Static because two Doom Imps share the
-        // same reel frames and should share the work.
+        // same lauminary frames and should share the work.
         static readonly Dictionary<int, byte[]> s_alpha = new();
         static readonly Dictionary<int, Vector2Int> s_size = new();
 

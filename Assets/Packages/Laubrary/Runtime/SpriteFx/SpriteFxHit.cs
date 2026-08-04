@@ -10,8 +10,8 @@ namespace Laubrary.SpriteFx
     //
     // An ADDITIVE, OPT-IN utility: test MANY candidate mask-vs-mask overlaps at once, on Burst, verified equivalent
     // to a managed reference. It does NOT replace the live combat flow — the immediate per-hit path
-    // (Combat.TryDamage → Hitbox → ReelHitFilter.ConfirmHit → ZonedAnimationPlayer.PixelOverlaps, in
-    // Runtime/Combat2D + Runtime/ReelCombat + Runtime/Launimator) is already cheap: coarse MetaLayer cells gated by
+    // (Combat.TryDamage → Hitbox → LauminaryHitFilter.ConfirmHit → ZonedAnimationPlayer.PixelOverlaps, in
+    // Runtime/Combat2D + Runtime/LauminaryCombat + Runtime/Launimator) is already cheap: coarse MetaLayer cells gated by
     // the Physics2D collider broad-phase. That path stays exactly as-is.
     //
     // Burst pays off only at HIGH candidate-pair counts or FULL-RESOLUTION alpha masks, where the immediate

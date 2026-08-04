@@ -20,7 +20,7 @@ namespace Laubrary.Zoetrope
             Vector2 viewSize = Vector2.one;
             if (def != null && def.view != null) viewSize = def.view.Build(go);
 
-            // Cues: only takes effect if the view provided an ICueSink (e.g. ZonedReelView's CueRelay) —
+            // Cues: only takes effect if the view provided an ICueSink (e.g. ZonedLauminaryView's CueRelay) —
             // a plain SpriteView Zoe has nothing to seed, and that's fine, not an error.
             if (def != null) go.GetComponent<ICueSink>()?.Seed(def.cues);
 

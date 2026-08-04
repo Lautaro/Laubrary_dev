@@ -10,11 +10,11 @@ using UnityEngine.UIElements;
 namespace Laubrary.Launimator.Editor
 {
     /// <summary>
-    /// The Animation Builder. Load a sprite sheet, identify its sprites in one of two explicit modes
+    /// The Laumination Builder. Load a sprite sheet, identify its sprites in one of two explicit modes
     /// — <b>Grid</b> (uniform sheets: marquee a box, give it cols×rows) or <b>Pick</b> (scattered sprites:
     /// click each one, it's flood-filled to a tight bbox) — then build an ordered <b>sequence</b> from those
     /// sprites, preview it looping, nudge each sprite's registration, and save it as a named <b>animation</b>
-    /// into a reel's editable draft (see <see cref="ReelRepo"/>). Two-column layout: left =
+    /// into a lauminary's editable draft (see <see cref="LauminaryRepo"/>). Two-column layout: left =
     /// sheet/grid/canvas, right = identified sprites (#4) + animation preview &amp; save (#5).
     ///
     /// UI TOOLKIT PORT (ZUI → UI Toolkit migration): every CONTROL surface is a Laubrary.Zui (Z.*) retained
@@ -26,7 +26,7 @@ namespace Laubrary.Launimator.Editor
     /// discipline: <see cref="Refresh"/> rebuilds the control hosts after a structural change, <see cref="Dirty"/>
     /// only repaints the islands, and per-frame playback repaints the play box instead of the whole window.
     /// </summary>
-    public partial class AnimationBuilderWindow : ZuiWindow
+    public partial class LauminationBuilderWindow : ZuiWindow
     {
         private const string Disclaimer =
             "Prototyping only. Sprites may derive from copyrighted rips and must not be shipped or redistributed.";
@@ -141,12 +141,12 @@ namespace Laubrary.Launimator.Editor
         private const float RotStepDeg = 5f; // increment for the stepwise rotation −/+ buttons
 
         // The PLAY preview runs the shared AnimationPlayback over a LIVE in-memory bake of the current
-        // sequence — i.e. the exact same player and the exact same baked frames the game and Reel Browser
+        // sequence — i.e. the exact same player and the exact same baked frames the game and Lauminary Browser
         // use, so the looping preview cannot wobble or differ from the shipped result. (The registration
         // CANVAS below is a separate authoring surface — it deliberately shows raw cells so pivots can be
         // edited; that is NOT playback and is correctly not routed through the player.)
         private readonly AnimationPlayback _previewPlayer = new AnimationPlayback();
-        private AnimationDef _previewDef;        // wraps the live-baked frames for the player
+        private Laumination _previewDef;        // wraps the live-baked frames for the player
         private List<Sprite> _previewFrames;
         private Texture2D _previewTex;           // owned; destroyed on rebake/disable
         private int _previewHash = -1;           // re-bake only when the sequence/pivots/key/box change
@@ -179,17 +179,17 @@ namespace Laubrary.Launimator.Editor
         private readonly Dictionary<long, MaskEntry> _maskCache = new Dictionary<long, MaskEntry>();
 
         // ── Save target ──────────────────────────────────────────────────────
-        // Bound mode: opened from the Reel Browser — save writes back to that reel's draft
-        // animation. Orphan mode (no bound reel): save writes a standalone orphaned AnimationAsset that
-        // can later be included into a reel from the Reel Browser.
+        // Bound mode: opened from the Lauminary Browser — save writes back to that lauminary's draft
+        // animation. Orphan mode (no bound lauminary): save writes a standalone orphaned AnimationAsset that
+        // can later be included into a lauminary from the Lauminary Browser.
         private string _animName = "Idle";
         private List<FrameEvent> _events = new List<FrameEvent>(); // authored per-frame events (e.g. "hit")
-        private Reel _boundReel;
+        private Lauminary _boundLauminary;
         private string _boundAnimName;
         private AnimationAsset _orphanAsset;   // the orphan being edited (null = a fresh orphan)
 
         // ── Pending open request (applied after Show) ────────────────────────
-        private Reel _pendingEditReel;
+        private Lauminary _pendingEditLauminary;
         private string _pendingEditAnim;
         private AnimationAsset _pendingOrphan;
 
@@ -213,36 +213,36 @@ namespace Laubrary.Launimator.Editor
         private Label _metaParamLabel;
         private TextField _metaParamField;
 
-        [MenuItem("Laubrary/Animation Builder")]
+        [MenuItem("Laubrary/Laumination Builder")]
         public static void Open()
         {
-            var w = GetWindow<AnimationBuilderWindow>("Animation Builder");
+            var w = GetWindow<LauminationBuilderWindow>("Laumination Builder");
             w.minSize = new Vector2(900, 640);
             w.Show();
         }
 
-        /// <summary>Open the Animation Builder bound to a reel's draft animation (called by the Reel
-        /// Builder). Saving writes back to that reel.</summary>
-        public static void OpenForEdit(Reel reel, string animName)
+        /// <summary>Open the Laumination Builder bound to a lauminary's draft animation (called by the Lauminary
+        /// Builder). Saving writes back to that lauminary.</summary>
+        public static void OpenForEdit(Lauminary lauminary, string animName)
         {
-            var w = GetWindow<AnimationBuilderWindow>("Animation Builder");
+            var w = GetWindow<LauminationBuilderWindow>("Laumination Builder");
             w.minSize = new Vector2(900, 640);
             w.Show();
-            w._pendingEditReel = reel;
+            w._pendingEditLauminary = lauminary;
             w._pendingEditAnim = animName;
             w._pendingOrphan = null;
             w.TryApplyPending();
         }
 
-        /// <summary>Open the Animation Builder editing a standalone orphaned animation (called by the Reel
+        /// <summary>Open the Laumination Builder editing a standalone orphaned animation (called by the Lauminary
         /// Builder's library). Saving updates that orphan.</summary>
         public static void OpenForOrphan(AnimationAsset orphan)
         {
-            var w = GetWindow<AnimationBuilderWindow>("Animation Builder");
+            var w = GetWindow<LauminationBuilderWindow>("Laumination Builder");
             w.minSize = new Vector2(900, 640);
             w.Show();
             w._pendingOrphan = orphan;
-            w._pendingEditReel = null;
+            w._pendingEditLauminary = null;
             w._pendingEditAnim = null;
             w.TryApplyPending();
         }
@@ -306,7 +306,7 @@ namespace Laubrary.Launimator.Editor
 
             _previewTex = tex;
             _previewFrames = frames;
-            _previewDef = new AnimationDef { name = "__preview", fps = Mathf.Max(1f, _animFps), frames = frames, events = _events };
+            _previewDef = new Laumination { name = "__preview", fps = Mathf.Max(1f, _animFps), frames = frames, events = _events };
             RestartPreview();
         }
 
@@ -523,11 +523,11 @@ namespace Laubrary.Launimator.Editor
 
         private void BuildBindingBanner(VisualElement root)
         {
-            root.Add(Z.Help(_boundReel != null
-                ? $"Editing animation '{_animName}' for reel '{_boundReel.reelName}'. Saving writes back to that reel's draft."
+            root.Add(Z.Help(_boundLauminary != null
+                ? $"Editing animation '{_animName}' for lauminary '{_boundLauminary.lauminaryName}'. Saving writes back to that lauminary's draft."
                 : _orphanAsset != null
-                    ? $"Editing orphaned animation '{_animName}'. Include it into a reel from the Reel Browser."
-                    : "Authoring a new orphaned animation (not tied to a reel). Include it later from the Reel Browser."));
+                    ? $"Editing orphaned animation '{_animName}'. Include it into a lauminary from the Lauminary Browser."
+                    : "Authoring a new orphaned animation (not tied to a lauminary). Include it later from the Lauminary Browser."));
         }
 
         // ── 1 · sheet ────────────────────────────────────────────────────────
@@ -1819,7 +1819,7 @@ namespace Laubrary.Launimator.Editor
         /// <summary>The ONE frame visualiser for this window (registration canvas, onion-skin, AND playback).
         /// It registers a frame by the EXACT math <see cref="AtlasBaker"/> bakes with — trim to content, snap
         /// the pivot→content offset to whole SOURCE pixels — so what you align here is pixel-identical to the
-        /// baked atlas the Reel Browser previews. Previously this positioned in screen space without the
+        /// baked atlas the Lauminary Browser previews. Previously this positioned in screen space without the
         /// source-pixel snap, so the editor showed a sub-pixel drift the bake didn't have (un-nudge-able).</summary>
         private void DrawFrameRegistered(Rect cell, Vector2 pivot, float cx, float cy, float scale, float alpha)
         {
@@ -2304,12 +2304,12 @@ namespace Laubrary.Launimator.Editor
         }
 
         // Author per-frame EVENTS (metadata the game reacts to). "hit" is the canonical one — it lets a
-        // consumer sync weapon damage / a projectile to the swing's contact frame via ReelPlayer.OnFrameEvent.
+        // consumer sync weapon damage / a projectile to the swing's contact frame via LauminaryPlayer.OnFrameEvent.
         // Frames are shown 1-based to match the sequence strip badges; stored 0-based.
         private void BuildEvents(VisualElement root)
         {
             const string eventsTip =
-                "Authored per-frame events the game reacts to (e.g. \"hit\" to sync weapon damage to the contact frame). Fired by ReelPlayer.OnFrameEvent.";
+                "Authored per-frame events the game reacts to (e.g. \"hit\" to sync weapon damage to the contact frame). Fired by LauminaryPlayer.OnFrameEvent.";
             var box = Z.Box($"Frame events ({_events.Count})", eventsTip);
 
             int cur = _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : 0;
@@ -2567,10 +2567,10 @@ namespace Laubrary.Launimator.Editor
         private void BuildSaveRow(VisualElement root)
         {
             root.Add(Z.VSpace());
-            bool bound = _boundReel != null;
+            bool bound = _boundLauminary != null;
             bool newOrphan = !bound && _orphanAsset == null;
             root.Add(Z.Text(bound
-                    ? $"Save → reel '{_boundReel.reelName}'"
+                    ? $"Save → lauminary '{_boundLauminary.lauminaryName}'"
                     : (_orphanAsset != null ? "Save → orphaned animation" : "Save → new orphaned animation"),
                 ZuiText.Section, "Where the Save button below writes this animation."));
 
@@ -2584,22 +2584,22 @@ namespace Laubrary.Launimator.Editor
                 root.Add(Z.Text($"Animation name: {_animName}", ZuiText.Body,
                     "The animation this window is bound to — fixed while editing an existing one."));
 
-            var saveButton = Z.Button(bound ? $"Save to '{_boundReel.reelName}'" : "Save orphaned animation",
+            var saveButton = Z.Button(bound ? $"Save to '{_boundLauminary.lauminaryName}'" : "Save orphaned animation",
                 "Write this sequence (plus events, meta-layers and zones) to its save target.",
                 () => { DoSave(); Refresh(); }).W(260f).H(26f);
             saveButton.SetEnabled(_sequence.Count > 0);
             root.Add(saveButton);
 
             if (!bound)
-                root.Add(Z.Text("Orphaned animations are included into a reel from the Reel Browser.",
-                    ZuiText.Subtle, "How an orphan later becomes part of a reel."));
+                root.Add(Z.Text("Orphaned animations are included into a lauminary from the Lauminary Browser.",
+                    ZuiText.Subtle, "How an orphan later becomes part of a lauminary."));
 
-            root.Add(Z.Button("Open Reel Browser", "Open the Reel Browser window.",
-                () => ReelBrowserWindow.Open()).W(180f));
+            root.Add(Z.Button("Open Lauminary Browser", "Open the Lauminary Browser window.",
+                () => LauminaryBrowserWindow.Open()).W(180f));
         }
 
         /// <summary>The recipe (per-frame source rect + pivot) for the current sequence. The source sheet is
-        /// NOT modified — the reel/orphan bakes its own atlas from this (see AtlasBaker).</summary>
+        /// NOT modified — the lauminary/orphan bakes its own atlas from this (see AtlasBaker).</summary>
         private List<FrameRef> BuildRecipe()
         {
             string guid = AssetDatabase.AssetPathToGUID(_sheetPath);
@@ -2617,7 +2617,7 @@ namespace Laubrary.Launimator.Editor
             if (string.IsNullOrWhiteSpace(_animName)) { _status = "Name the animation first."; return; }
             if (_sequence.Count == 0) { _status = "Sequence is empty — add sprites first."; return; }
 
-            var def = new AnimationDef
+            var def = new Laumination
             {
                 name = _animName, fps = _animFps, recipe = BuildRecipe(),
                 events = new List<FrameEvent>(_events),
@@ -2629,28 +2629,28 @@ namespace Laubrary.Launimator.Editor
             };
             try
             {
-                if (_boundReel != null)
+                if (_boundLauminary != null)
                 {
                     // Renaming a bound animation: drop the old entry so we don't leave a stale copy.
                     if (!string.IsNullOrEmpty(_boundAnimName) &&
                         !string.Equals(_boundAnimName, _animName, System.StringComparison.OrdinalIgnoreCase))
-                        ReelRepo.RemoveAnimationFromDraft(_boundReel, _boundAnimName);
-                    ReelRepo.SaveAnimationToDraft(_boundReel, def);
+                        LauminaryRepo.RemoveAnimationFromDraft(_boundLauminary, _boundAnimName);
+                    LauminaryRepo.SaveAnimationToDraft(_boundLauminary, def);
                     _boundAnimName = _animName;
-                    _status = $"Saved '{_animName}' ({def.recipe.Count} frames) to '{_boundReel.reelName}'.";
-                    EditorGUIUtility.PingObject(_boundReel);
+                    _status = $"Saved '{_animName}' ({def.recipe.Count} frames) to '{_boundLauminary.lauminaryName}'.";
+                    EditorGUIUtility.PingObject(_boundLauminary);
                 }
                 else
                 {
                     _orphanAsset = AnimationLibrary.Save(def, _orphanAsset);
-                    _status = $"Saved orphaned animation '{_animName}' ({def.recipe.Count} frames). Include it from the Reel Browser.";
+                    _status = $"Saved orphaned animation '{_animName}' ({def.recipe.Count} frames). Include it from the Lauminary Browser.";
                     EditorGUIUtility.PingObject(_orphanAsset);
                 }
                 // NOTE: deliberately do NOT write the sheet's slicing sidecar here. An animation's frames live
-                // on its AnimationDef (and restore via the recipe on Edit); writing them into the SHEET metadata
+                // on its Laumination (and restore via the recipe on Edit); writing them into the SHEET metadata
                 // conflated the two and accumulated every animation's sprites into the sheet (the #4-pollution
                 // bug). The sidecar is now written only by the explicit "Save" slicing button.
-                foreach (var w in Resources.FindObjectsOfTypeAll<ReelBrowserWindow>())
+                foreach (var w in Resources.FindObjectsOfTypeAll<LauminaryBrowserWindow>())
                     w.ExternalRefresh();
             }
             catch (System.Exception ex)
@@ -2661,7 +2661,7 @@ namespace Laubrary.Launimator.Editor
 
         /// <summary>Rebuild the sequence (and committed cells) from an animation's recipe, for editing. Handles
         /// an empty recipe (a freshly-created animation) by just clearing and keeping the name/fps.</summary>
-        private void LoadAnimationIntoSequence(AnimationDef def)
+        private void LoadAnimationIntoSequence(Laumination def)
         {
             _animName = def.name;
             _animFps = def.fps <= 0f ? 12f : def.fps;
@@ -2758,12 +2758,12 @@ namespace Laubrary.Launimator.Editor
 
         private void TryApplyPending()
         {
-            if (_pendingEditReel != null && !string.IsNullOrEmpty(_pendingEditAnim))
+            if (_pendingEditLauminary != null && !string.IsNullOrEmpty(_pendingEditAnim))
             {
-                var def = ReelRepo.GetDraftAnimation(_pendingEditReel, _pendingEditAnim);
+                var def = LauminaryRepo.GetDraftAnimation(_pendingEditLauminary, _pendingEditAnim);
                 if (def != null)
                 {
-                    _boundReel = _pendingEditReel;
+                    _boundLauminary = _pendingEditLauminary;
                     _boundAnimName = _pendingEditAnim;
                     _orphanAsset = null;
                     LoadAnimationIntoSequence(def);
@@ -2772,10 +2772,10 @@ namespace Laubrary.Launimator.Editor
             else if (_pendingOrphan != null)
             {
                 _orphanAsset = _pendingOrphan;
-                _boundReel = null; _boundAnimName = null;
+                _boundLauminary = null; _boundAnimName = null;
                 LoadAnimationIntoSequence(_pendingOrphan.animation);
             }
-            _pendingEditReel = null; _pendingEditAnim = null; _pendingOrphan = null;
+            _pendingEditLauminary = null; _pendingEditAnim = null; _pendingOrphan = null;
         }
 
         // ── cell store helpers ───────────────────────────────────────────────
@@ -2966,7 +2966,7 @@ namespace Laubrary.Launimator.Editor
             }
         }
 
-        // ── persistence (slicing state only; animations live on the reel) ─
+        // ── persistence (slicing state only; animations live on the lauminary) ─
         private RegionSlicerPersistence.StateDto BuildState()
         {
             var s = new RegionSlicerPersistence.StateDto
@@ -3032,7 +3032,7 @@ namespace Laubrary.Launimator.Editor
         }
 
         /// <summary>Wipe this sheet's saved slicing sidecar and empty the palette (#4). Saved animations are
-        /// untouched — their frames live on the AnimationDef recipe, not the sheet metadata. Use it to clean a
+        /// untouched — their frames live on the Laumination recipe, not the sheet metadata. Use it to clean a
         /// sheet whose sidecar got polluted before the animation-save/sidecar coupling was removed.</summary>
         private void ClearSavedSlicing()
         {
@@ -3235,7 +3235,7 @@ namespace Laubrary.Launimator.Editor
             EditorGUI.DrawRect(new Rect(r.xMax - t, r.yMin, t, r.height), color);
         }
 
-        // ── Undo: RecordUndo() throughout; the snapshot stack lives in AnimationBuilderWindow.Undo.cs ──
+        // ── Undo: RecordUndo() throughout; the snapshot stack lives in LauminationBuilderWindow.Undo.cs ──
         private void RecordUndo(string label) => PushUndo(label);
 
         /// <summary>A pop-up that shows help/instruction text (moved out of the always-on UI).</summary>

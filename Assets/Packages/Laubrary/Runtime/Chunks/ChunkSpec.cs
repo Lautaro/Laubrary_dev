@@ -171,7 +171,7 @@ namespace Laubrary.Chunks
         public IChunkTrailSource TrailSource => trailSource as IChunkTrailSource;
 
         // ── IVisualPreview: a thumbnail for LauAsset pickers / browsers. A ChunkSpec's look is best shown by its
-        //    animation SOURCE (a Pyre blast, a Reel) when it has one — delegate to that source's own preview; else a
+        //    animation SOURCE (a Pyre blast, a Lauminary) when it has one — delegate to that source's own preview; else a
         //    representative debris sprite (the sample source, or the first sprite in the pool). Null ⇒ the caller
         //    falls back to Unity's generic asset icon (a procedural-square spec has no authored art to show). ──
         public Texture2D RenderPreviewTexture()

@@ -134,7 +134,7 @@ namespace Laubrary.Zoetrope
         float EventSecondsOf(ReactionFx r) => r == null ? 0f : r.DurationSeconds(ClipSecondsOf(r));
 
         // Fill the typed EventContext from this damage event: the Zoe's live data (transform, health, the current
-        // reel frame's renderer, the animated view for meta-points) + the event's typed in-params (hit
+        // lauminary frame's renderer, the animated view for meta-points) + the event's typed in-params (hit
         // position/direction, amount). HitPosition bakes the old PointOf fallback (the Zoe's own position when the
         // hit recorded no point), so placement resolution reproduces the pre-generalization spawn points exactly.
         EventContext BuildContext(in DamageInfo info) => new EventContext
@@ -201,7 +201,7 @@ namespace Laubrary.Zoetrope
             _armedCtx.EventSecondsRemaining = _armedHasDuration ? Mathf.Max(0f, _armedEndTime - Time.time) : 0f;
             foreach (var entry in _armed.fx)
             {
-                // entry.frame is 1-based because that is how an animator counts frames; the reel is 0-based.
+                // entry.frame is 1-based because that is how an animator counts frames; the lauminary is 0-based.
                 if (entry == null || entry.trigger != FxTriggerType.OnFrame) continue;
                 if (entry.frame - 1 != frame || _firedThisClip.Contains(entry)) continue;
                 _firedThisClip.Add(entry);

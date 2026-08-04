@@ -6,7 +6,7 @@ namespace Laubrary.SpriteFx
     /// A thin demonstration of <see cref="SpriteFxFilter"/>: a brief brightness (+ optional tint) PULSE, the classic
     /// "sprite flashes on hit". Call <see cref="Flash()"/> and it configures the sibling filter's stack to a pulse
     /// and triggers it — the sprite ramps toward the flash colour and back over <see cref="flashDuration"/>, riding
-    /// on top of whatever Reel/Animator frame is playing.
+    /// on top of whatever Lauminary/Animator frame is playing.
     ///
     /// HOOK: this is DELIBERATELY not auto-wired to any damage event. The SpriteFx runtime module sits below
     /// Zoetrope/combat in the dependency graph, so it must not reference them — coupling the low-level filter to a

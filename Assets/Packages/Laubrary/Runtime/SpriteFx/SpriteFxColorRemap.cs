@@ -17,9 +17,9 @@ namespace Laubrary.SpriteFx
     }
 
     /// One source-colour → target mapping inside a <see cref="ColorRemapModifier"/>. Keys on COLOUR (a hue cluster,
-    /// or a grey's value), never on pixel POSITION — so it follows an animated Reel automatically with no per-frame
+    /// or a grey's value), never on pixel POSITION — so it follows an animated Lauminary automatically with no per-frame
     /// masks (the decisive advantage over a painted-mask remap). See ZUI_COLOR_DESIGN.md → "Recolouring existing
-    /// sprites / Reels", Form A.
+    /// sprites / Lauminaries", Form A.
     [Serializable]
     public class ColorRemapRegion
     {
@@ -128,12 +128,12 @@ namespace Laubrary.SpriteFx
         }
     }
 
-    /// Recolours an EXISTING sprite / Reel by remapping its source colours (Form A of the recolour design). Each
+    /// Recolours an EXISTING sprite / Lauminary by remapping its source colours (Form A of the recolour design). Each
     /// <see cref="ColorRemapRegion"/> grabs a colour cluster — a hue (all its shades) or a grey range — and maps it
     /// to a flat swatch or a luma-indexed gradient. Because it keys on colour, not position, it rides an animation
     /// with no per-frame masks: the same table recolours every frame automatically.
     ///
-    /// This is the STATIC-recolour path — a plain managed <see cref="PixelModifier"/> the Pyre baker / a Reel bake
+    /// This is the STATIC-recolour path — a plain managed <see cref="PixelModifier"/> the Pyre baker / a Lauminary bake
     /// runs per pixel. It is deliberately NOT in <c>SpriteFxStack.IsShaped</c>, so the runtime Burst/op filter
     /// (SpriteFxFilter) simply skips it for now; a shaped op that bakes the region table into a remap LUT (for live,
     /// cycling recolour on the GPU) is the #78-adjacent follow-up. Non-destructive of the silhouette: it replaces

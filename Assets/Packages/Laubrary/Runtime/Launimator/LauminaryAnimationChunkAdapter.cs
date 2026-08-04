@@ -5,21 +5,21 @@ using Laubrary.PreviewKit;
 
 namespace Laubrary.Launimator
 {
-    /// Adapts one named animation of a ReelVersion so Chunks can spawn instances of it. Picked by name (not a
-    /// direct AnimationDef reference) so it keeps working across rebakes/re-versioning of the reel. Implements
-    /// IVisualPreview by cropping the animation's own baked frames out of its atlas — the same frames ReelPlayer
+    /// Adapts one named animation of a LauminaryVersion so Chunks can spawn instances of it. Picked by name (not a
+    /// direct Laumination reference) so it keeps working across rebakes/re-versioning of the lauminary. Implements
+    /// IVisualPreview by cropping the animation's own baked frames out of its atlas — the same frames LauminaryPlayer
     /// shows in play mode, no separate render path.
-    [CreateAssetMenu(menuName = "Laubrary/Launimator/Reel Chunk Animation", fileName = "ReelChunkAnim")]
-    public class ReelAnimationChunkAdapter : ScriptableObject, IChunkAnimation, IVisualPreview
+    [CreateAssetMenu(menuName = "Laubrary/Launimator/Lauminary Chunk Animation", fileName = "LauminaryChunkAnim")]
+    public class LauminaryAnimationChunkAdapter : ScriptableObject, IChunkAnimation, IVisualPreview
     {
-        [Tooltip("The reel version to pull the animation from.")]
-        public ReelVersion version;
+        [Tooltip("The lauminary version to pull the animation from.")]
+        public LauminaryVersion version;
         [Tooltip("Name of the animation within that version to play on each chunk (case-insensitive).")]
         public string animationName;
         [Tooltip("Loop the animation for the chunk's whole lifetime, or play once and freeze on the last frame.")]
         public bool loop = false;
 
-        AnimationDef Find()
+        Laumination Find()
         {
             if (version == null || version.animations == null || string.IsNullOrEmpty(animationName)) return null;
             foreach (var a in version.animations)

@@ -1,6 +1,6 @@
 {
-    "name": "com.Lautaro-Arino.Laubrary.ReelCombat",
-    "rootNamespace": "Laubrary.ReelCombat",
+    "name": "com.Lautaro-Arino.Laubrary.LauminaryCombat",
+    "rootNamespace": "Laubrary.LauminaryCombat",
     "references": [
         "com.Lautaro-Arino.Laubrary.Combat2D",
         "com.Lautaro-Arino.Laubrary.Launimator"

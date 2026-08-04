@@ -9,7 +9,7 @@ namespace Laubrary.ZoetropeLaunimator
     /// The <see cref="IAnimatedView"/> a Zoned Launimator view provides — wraps <see cref="ZonedAnimationPlayer"/>
     /// so core Zoetrope (<see cref="HitReactionPlayer"/>, <see cref="TargetPracticeController"/>) can drive
     /// named-clip playback without referencing Launimator directly, same split as <see cref="CueRelay"/> does
-    /// for <c>ICueSink</c>. Added by <see cref="ZonedReelView.Build"/> alongside the player it wraps.
+    /// for <c>ICueSink</c>. Added by <see cref="ZonedLauminaryView.Build"/> alongside the player it wraps.
     /// </summary>
     [RequireComponent(typeof(ZonedAnimationPlayer))]
     public class AnimatedViewRelay : MonoBehaviour, IAnimatedView
@@ -23,7 +23,7 @@ namespace Laubrary.ZoetropeLaunimator
         /// Forwards ZonedAnimationPlayer.OnFrameEntered verbatim — every frame entry, annotated or not.
         public event Action<int> OnFrameEntered;
 
-        /// The reel's own frame index, or -1 when there is no player to ask.
+        /// The lauminary's own frame index, or -1 when there is no player to ask.
         public int CurrentFrame => _player != null ? _player.CurrentFrame : -1;
 
         void Awake() => _player = GetComponent<ZonedAnimationPlayer>();

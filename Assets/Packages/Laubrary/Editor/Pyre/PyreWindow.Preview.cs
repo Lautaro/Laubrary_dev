@@ -144,14 +144,14 @@ namespace Laubrary.Pyre.Editor
         {
             LauAssetGridGUI.ClearCache(_subjectThumbs);   // bounded to the one selected subject (see field note)
             if (spec == null) return;
-            var box = Z.Box("Reel Preview",
-                "Plays through the same real gameplay components the subject uses in-game (a real SpriteRenderer-driven player, rendered via LiveScenePreview) — nothing here is baked. These fields are preview-time wiring only; they aren't part of the runtime blast. Attach id targets a MetaLayer painted on the Reel's clip.");
+            var box = Z.Box("Lauminary Preview",
+                "Plays through the same real gameplay components the subject uses in-game (a real SpriteRenderer-driven player, rendered via LiveScenePreview) — nothing here is baked. These fields are preview-time wiring only; they aren't part of the runtime blast. Attach id targets a MetaLayer painted on the Lauminary's clip.");
 
             // The subject asset picker — the shared LauAsset picker+preview (thumbnail swatch + Recall…/New ▾/Edit ✎).
             // constraint is UnityEngine.Object: the subject can be any bridge-resolvable asset, so Recall enumerates
             // every IVisualPreview-able asset. Picking commits through the same Dial path as before, then rebuilds the
             // panels so the swatch (and the "no bridge module" help below) reflect the new subject.
-            const string subjTip = "The subject asset a bridge module resolves (e.g. a Reel via Pyre.Launimator).";
+            const string subjTip = "The subject asset a bridge module resolves (e.g. a Lauminary via Pyre.Launimator).";
             var row = WrapRow(
                 Z.Field("Asset", subjTip,
                     LauAssetElement.Build(spec.previewSubjectAsset,

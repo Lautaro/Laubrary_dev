@@ -8,10 +8,10 @@ using UnityEngine;
 namespace Laubrary.Launimator.Editor
 {
     /// <summary>
-    /// Makes a reel version SELF-CONTAINED: the moment a sprite cell is used in an animation, its pixels are
+    /// Makes a lauminary version SELF-CONTAINED: the moment a sprite cell is used in an animation, its pixels are
     /// extracted into a project-owned source texture INSIDE the version's own <c>Source/</c> folder, and the
     /// recipe is re-pointed at that owned source. After that the original rip sheet is a re-discovery convenience
-    /// only — delete it and the reel still edits, re-bakes, commits, and travels with its folder.
+    /// only — delete it and the lauminary still edits, re-bakes, commits, and travels with its folder.
     ///
     /// This is "detach-on-use" (ASEPRITE_PLAN.md → Self-containment, Option B, Phase 1). It is the PNG baseline:
     /// no schema change, no new bake path — the rewritten recipe still feeds <see cref="AtlasBaker"/> unchanged.
@@ -22,12 +22,12 @@ namespace Laubrary.Launimator.Editor
     /// simply re-packed; if NOTHING is external, the pass is a no-op. The same machinery re-owns a committed
     /// snapshot from the draft's source (the draft's <c>Source/</c> is "external" to <c>vN/</c>).
     /// </summary>
-    public static class ReelSources
+    public static class LauminarySources
     {
         /// <summary>The owned source texture for a version, holding every cell its animations use.</summary>
         public static string SourceFolder(string versionFolder) => $"{versionFolder}/Source";
-        public static string SourcePath(string versionFolder, string reelName)
-            => $"{SourceFolder(versionFolder)}/{ReelBuilder.Sanitize(reelName)}_src.png";
+        public static string SourcePath(string versionFolder, string lauminaryName)
+            => $"{SourceFolder(versionFolder)}/{LauminaryBuilder.Sanitize(lauminaryName)}_src.png";
 
         /// <summary>
         /// Re-own every animation frame whose pixels live outside this version's <c>Source/</c> folder. Returns the
@@ -35,7 +35,7 @@ namespace Laubrary.Launimator.Editor
         /// mode (used on commit) an unreadable source throws; otherwise unreadable frames are left external and a
         /// warning is logged.
         /// </summary>
-        public static int Detach(ReelVersion version, string versionFolder, string reelName, bool strict = false)
+        public static int Detach(LauminaryVersion version, string versionFolder, string lauminaryName, bool strict = false)
         {
             if (version == null || version.animations == null) return 0;
             string srcFolder = SourceFolder(versionFolder);
@@ -75,7 +75,7 @@ namespace Laubrary.Launimator.Editor
                     {
                         if (strict)
                             throw new System.InvalidOperationException(
-                                $"Cannot make '{reelName}' self-contained: animation '{def.name}' frame {fi} " +
+                                $"Cannot make '{lauminaryName}' self-contained: animation '{def.name}' frame {fi} " +
                                 $"sources texture {fr.sourceTextureGuid}, which is unreadable/missing.");
                         Debug.LogWarning($"Launimator: detach skipped '{def.name}' frame {fi} — source {fr.sourceTextureGuid} unreadable.");
                         continue; // leave it external; nothing we can do
@@ -117,8 +117,8 @@ namespace Laubrary.Launimator.Editor
             }
 
             // ── Pass C: write the owned source texture and resolve its GUID ──
-            ReelBuilder.EnsureFolder(srcFolder);
-            string ownedPath = SourcePath(versionFolder, reelName);
+            LauminaryBuilder.EnsureFolder(srcFolder);
+            string ownedPath = SourcePath(versionFolder, lauminaryName);
             WritePng(canvas, ownedW, ownedH, ownedPath);
             AssetDatabase.ImportAsset(ownedPath, ImportAssetOptions.ForceSynchronousImport);
             ConfigureSource(ownedPath);

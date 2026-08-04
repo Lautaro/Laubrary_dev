@@ -7,7 +7,7 @@ namespace Laubrary.Launimator.Editor
 {
     /// Registers Open + Create for SpriteChunkAnimation — Open re-opens the wrapped sprite's source PNG in
     /// Aseprite for further editing; Create draws a brand new one from scratch. Same starter-PNG pattern as
-    /// Animation Builder's own "New (Aseprite)" button (AsepriteLauncher, Point/Uncompressed/PPU16 import).
+    /// Laumination Builder's own "New (Aseprite)" button (AsepriteLauncher, Point/Uncompressed/PPU16 import).
     [InitializeOnLoad]
     static class SpriteChunkAnimationEditorLink
     {

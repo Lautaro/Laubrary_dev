@@ -36,7 +36,7 @@ namespace Laubrary.Combat2D
 
         /// Every hit confirmer on this object. EVERY one must agree before a hit lands — a filter is a veto, so
         /// they compose rather than compete. That matters because a filter answers a different question each
-        /// time and more than one can be true at once: ReelHitFilter asks "did the sprites really touch", a
+        /// time and more than one can be true at once: LauminaryHitFilter asks "did the sprites really touch", a
         /// depth-band filter asks "are these two even at the same distance" (Combat2D collides on XY, so two
         /// things at different depths share a collider position). Before this was a list, whichever component
         /// happened to be found first silently won and the other never ran.

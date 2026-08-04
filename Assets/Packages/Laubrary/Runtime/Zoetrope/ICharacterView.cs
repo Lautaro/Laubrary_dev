@@ -5,7 +5,7 @@ namespace Laubrary.Zoetrope
     /// <summary>
     /// A pluggable look for a character: builds the visual onto the spawned GameObject and reports its bounds (used
     /// to size the hurtbox). Concrete implementations are <c>[Serializable]</c> and carry their own data.
-    /// <see cref="SpriteView"/> is the dependency-free default that ships in core; richer views (a Launimator Reel, a
+    /// <see cref="SpriteView"/> is the dependency-free default that ships in core; richer views (a Launimator Lauminary, a
     /// Lazor vector shape) come from OPTIONAL bridge modules so Zoetrope core stays Combat2D-only. Assigned via
     /// <c>[SerializeReference]</c> on <see cref="Zoe"/>.
     /// </summary>
@@ -19,7 +19,7 @@ namespace Laubrary.Zoetrope
     /// picker or a Zoe's own thumbnail can show it.
     ///
     /// Separate from ICharacterView on purpose, and optional on purpose. Core Zoetrope must not learn what a
-    /// Reel is — a view that cannot preview itself (or has not been given art yet) simply does not implement
+    /// Lauminary is — a view that cannot preview itself (or has not been given art yet) simply does not implement
     /// this, and its consumers fall back to a blank. That keeps the pluggable-view rule intact: the concrete
     /// view knows its own frames, the core only knows to ask.
     public interface IPreviewableView

@@ -277,7 +277,7 @@ namespace Laubrary.Chunks.Editor
             s.Add(LauAssetElement.Build(c.animationSource,
                 picked => DialAndRebuild("Animation source", () => c.animationSource = picked),
                 typeof(IChunkAnimation), _visualThumbs, c.name, "Assets/Chunks/AnimationSources",
-                "The animation every chunk plays — a Pyre blast, a Reel animation, anything a chunk can play."));
+                "The animation every chunk plays — a Pyre blast, a Lauminary animation, anything a chunk can play."));
             root.Add(s);
         }
 

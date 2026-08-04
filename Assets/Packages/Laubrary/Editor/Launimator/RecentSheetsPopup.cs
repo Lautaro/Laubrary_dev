@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Laubrary.Launimator.Editor
 {
     /// <summary>
-    /// The "Recent ▾" quick-menu for the Animation Builder: a popup listing every sheet under
+    /// The "Recent ▾" quick-menu for the Laumination Builder: a popup listing every sheet under
     /// <see cref="SheetLibrary.Folder"/> (downloaded or previously sliced). Clicking a row loads that sheet;
     /// the <b>x</b> deletes it (image + slicing sidecar + display name) after a confirm. Used sheets are
     /// tagged and sorted first.
@@ -64,7 +64,7 @@ namespace Laubrary.Launimator.Editor
                     {
                         if (EditorUtility.DisplayDialog("Delete sheet",
                             $"Delete '{entry.displayName}' from {SheetLibrary.Folder}?\n\n" +
-                            "Removes the image and its slicing data. Reels already baked from it keep working; " +
+                            "Removes the image and its slicing data. Lauminaries already baked from it keep working; " +
                             "re-editing one of their animations would need the sheet again.", "Delete", "Cancel"))
                         {
                             if (!SheetLibrary.DeleteSheet(entry.tex, out string err))

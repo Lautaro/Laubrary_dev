@@ -5,21 +5,21 @@ using UnityEngine;
 namespace Laubrary.Launimator
 {
     /// <summary>
-    /// Lightweight, data-driven sprite-animation player for a <see cref="ReelVersion"/>. Plays an
+    /// Lightweight, data-driven sprite-animation player for a <see cref="LauminaryVersion"/>. Plays an
     /// animation by NAME by swapping <see cref="SpriteRenderer.sprite"/> each frame — no Unity Animator /
-    /// AnimatorController. This is the blessed runtime way to consume a reel when you want precise
+    /// AnimatorController. This is the blessed runtime way to consume a lauminary when you want precise
     /// per-frame control (event frames, completion callbacks) and raw access to the current frame's sprite
     /// (e.g. to read its texture for procedural effects).
     ///
     /// It deliberately mirrors the frame model the editor bake uses (one sprite per frame, advanced at the
     /// animation's fps); the baked AnimationClips/AnimatorController/prefab remain available for projects
-    /// that prefer driving the reel through Unity's Animator instead.
+    /// that prefer driving the lauminary through Unity's Animator instead.
     /// </summary>
     [RequireComponent(typeof(SpriteRenderer))]
-    public class ReelPlayer : MonoBehaviour
+    public class LauminaryPlayer : MonoBehaviour
     {
-        [Tooltip("The reel version whose animations this plays. May be set in the Inspector or via SetVersion().")]
-        public ReelVersion version;
+        [Tooltip("The lauminary version whose animations this plays. May be set in the Inspector or via SetVersion().")]
+        public LauminaryVersion version;
 
         public bool playOnStart = true;
 
@@ -33,7 +33,7 @@ namespace Laubrary.Launimator
         public float speedScale = 1f;
 
         SpriteRenderer _sr;
-        readonly Dictionary<string, AnimationDef> _byName = new Dictionary<string, AnimationDef>(StringComparer.OrdinalIgnoreCase);
+        readonly Dictionary<string, Laumination> _byName = new Dictionary<string, Laumination>(StringComparer.OrdinalIgnoreCase);
 
         // All playback timing/looping/event logic lives in the shared AnimationPlayback — the ONE player used
         // by the game AND the editor previews. This component only indexes the version, drives the core from
@@ -42,12 +42,12 @@ namespace Laubrary.Launimator
 
         /// <summary>Fires (eventName, frameIndex) when playback ENTERS a frame carrying an authored
         /// <see cref="FrameEvent"/> (once per play-through / loop). Subscribe once, e.g. to fire weapon
-        /// damage on the "hit" frame — the metadata is authored in the Animation Builder, not per Play call.</summary>
+        /// damage on the "hit" frame — the metadata is authored in the Laumination Builder, not per Play call.</summary>
         public event Action<string, int> OnFrameEvent;
 
         public string CurrentClip => _pb.CurrentClip;
         public bool IsPlaying => _pb.IsPlaying;
-        public AnimationDef CurrentAnim => _pb.Anim;
+        public Laumination CurrentAnim => _pb.Anim;
         public int CurrentFrame => _pb.Frame;
         public bool HasFrames => _pb.HasFrames;
 
@@ -67,7 +67,7 @@ namespace Laubrary.Launimator
                 Play(string.IsNullOrEmpty(startClip) ? FirstClipName() : startClip);
         }
 
-        public void SetVersion(ReelVersion v)
+        public void SetVersion(LauminaryVersion v)
         {
             version = v;
             Reindex();
@@ -91,7 +91,7 @@ namespace Laubrary.Launimator
         }
 
         /// <summary>
-        /// Play an animation by name. <paramref name="loop"/> defaults to true (AnimationDef carries no loop
+        /// Play an animation by name. <paramref name="loop"/> defaults to true (Laumination carries no loop
         /// flag yet — pass false for one-shots like deaths/attacks). <paramref name="onHit"/> fires once when
         /// the clip reaches local frame <paramref name="hitFrame"/> (attack→damage sync). Returns false if the
         /// name is unknown. Calling with the already-playing looping clip is a no-op so callers may poll it.
@@ -102,7 +102,7 @@ namespace Laubrary.Launimator
             if (!_pb.Play(def, loop, 1f, onComplete, onHit, hitFrame)) return false;
             // Defensive re-resolve, same as ZonedAnimationPlayer.PushSprite() already does — _sr is normally
             // set in Awake(), but a caller building this component synchronously may call Play()
-            // synchronously right after AddComponent<ReelPlayer>(), before RequireComponent's dependency
+            // synchronously right after AddComponent<LauminaryPlayer>(), before RequireComponent's dependency
             // injection is guaranteed to have run relative to Awake(). Confirmed live: without this, a
             // Build()-time Play() call succeeded (_pb.CurrentSprite non-null) but never reached the
             // SpriteRenderer, leaving it spriteless.
@@ -114,8 +114,8 @@ namespace Laubrary.Launimator
         public void Stop() => _pb.Stop();
 
         // ── consumer ergonomics: height-fit + duration-fit ──────────────────────────
-        // These make a scavenged reel (varying per-frame sizes, baked feet pivots) a clean drop-in:
-        // the baked pivot keeps the feet planted automatically, FitToHeight sizes any reel to a target,
+        // These make a scavenged lauminary (varying per-frame sizes, baked feet pivots) a clean drop-in:
+        // the baked pivot keeps the feet planted automatically, FitToHeight sizes any lauminary to a target,
         // and PlayToFit guarantees a one-shot completes within a gameplay window whatever its frame count.
 
         /// <summary>The resting sprite (start clip's first frame, else the first clip's) — the reference used for
@@ -136,7 +136,7 @@ namespace Laubrary.Launimator
         /// <summary>World-space height (units) of the resting frame at scale 1 (Sprite.bounds already honours PPU).</summary>
         public float NativeHeight { get { var s = RestingSprite; return s != null ? s.bounds.size.y : 1f; } }
 
-        /// <summary>Scale the whole reel so its resting frame is <paramref name="worldUnits"/> tall. Scales
+        /// <summary>Scale the whole lauminary so its resting frame is <paramref name="worldUnits"/> tall. Scales
         /// about the transform origin — with feet-registered pivots that keeps the feet planted — and other frames
         /// scale proportionally (a frame where he reaches up genuinely renders taller). Replaces magic-constant scaling.</summary>
         public void FitToHeight(float worldUnits)

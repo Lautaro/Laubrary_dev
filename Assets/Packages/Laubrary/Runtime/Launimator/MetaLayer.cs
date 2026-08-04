@@ -15,7 +15,7 @@ namespace Laubrary.Launimator
     /// painted cell per frame — a lighter "here's the one pixel that matters" marker, e.g. where a shockwave
     /// should originate). Both read through the SAME runtime API (<c>TryGetMetaPoint</c> already computes a
     /// value-weighted centroid, which for a single painted cell just IS that cell) — Point only changes how the
-    /// Animation Builder's paint tool behaves and which layers a "pick a point marker" UI offers.</summary>
+    /// Laumination Builder's paint tool behaves and which layers a "pick a point marker" UI offers.</summary>
     public enum MetaLayerMode { Shape, Point }
 
     [System.Serializable]

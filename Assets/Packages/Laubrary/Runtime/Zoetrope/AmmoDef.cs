@@ -8,7 +8,7 @@ namespace Laubrary.Zoetrope
     /// A composition recipe for what a projectile IS: its visual, flight, and impact — the ammo half of a shot.
     /// Combat2D's Projectile is the spine (movement / faction / damage / collision); a WeaponDef supplies the
     /// fire stats and picks which AmmoDef(s) it fires. The visual is an IChunkAnimation reference — the same
-    /// unifier Chunks already uses for "any visual, thrown as a physics object" (a Pyre blast or a Reel
+    /// unifier Chunks already uses for "any visual, thrown as a physics object" (a Pyre blast or a Lauminary
     /// animation both implement it), so ammo doesn't invent a third visual-asset kind. A spawner bridges this
     /// onto a runtime Combat2D Projectile. Implements IVisualPreview directly (crops Visual's own first
     /// frame, the SAME frame the projectile itself actually shows — see Visual's own doc comment below) so
@@ -20,7 +20,7 @@ namespace Laubrary.Zoetrope
         public string displayName = "New Ammo";
 
         [Header("Visual")]
-        [Tooltip("A Pyre Blast Chunk Animation or a Reel Chunk Animation — anything implementing IChunkAnimation. " +
+        [Tooltip("A Pyre Blast Chunk Animation or a Lauminary Chunk Animation — anything implementing IChunkAnimation. " +
                  "Only its first frame is shown on the projectile today; per-projectile animation playback is a " +
                  "future add.")]
         [RequireInterface(typeof(IChunkAnimation))]
@@ -35,7 +35,7 @@ namespace Laubrary.Zoetrope
         public bool faceTravel = false;
 
         // IVisualPreview — a plain static crop of Visual's own first frame, no separate render path (same
-        // rule PyreChunkAnimation/ReelAnimationChunkAdapter's own IVisualPreview implementations
+        // rule PyreChunkAnimation/LauminaryAnimationChunkAdapter's own IVisualPreview implementations
         // follow). Never animates: "Only its first frame is shown on the projectile today" above is real
         // runtime behaviour, not a preview shortcut, so an animated preview would misrepresent it.
         public Texture2D RenderPreviewTexture()

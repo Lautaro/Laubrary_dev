@@ -11,10 +11,10 @@ namespace Laubrary.Launimator.Editor
     /// <summary>
     /// Authoring side of the zoned-animation feature (ANIMATION_CONTROLLER.md). Adds a "Zones" meta-track under
     /// the sequence: mark contiguous frame ranges (Start/Air/Fall/Land…) and set each PlayThrough or Hold. Stored
-    /// on the AnimationDef and walked at runtime by ZonedAnimationPlayer. Kept in a partial so the core window
+    /// on the Laumination and walked at runtime by ZonedAnimationPlayer. Kept in a partial so the core window
     /// file only gains a draw call + save/load of the two fields.
     /// </summary>
-    public partial class AnimationBuilderWindow
+    public partial class LauminationBuilderWindow
     {
         private bool _zonesEnabled;
         private readonly List<AnimZone> _zones = new List<AnimZone>();
@@ -154,7 +154,7 @@ namespace Laubrary.Launimator.Editor
         private List<AnimZone> ZonesForSave() =>
             _zones.Select(z => new AnimZone { name = z.name, startFrame = z.startFrame, endFrame = z.endFrame, behavior = z.behavior }).ToList();
 
-        private void LoadZonesFrom(AnimationDef def)
+        private void LoadZonesFrom(Laumination def)
         {
             _zonesEnabled = def != null && def.zonesEnabled;
             _zones.Clear();

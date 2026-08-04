@@ -5,17 +5,17 @@ namespace Laubrary.Launimator
 {
     /// <summary>
     /// THE animation player for Launimator — the single source of truth for "what frame is showing now".
-    /// It owns all playback timing/looping/event logic over an <see cref="AnimationDef"/>'s baked
-    /// <see cref="AnimationDef.frames"/>, and is deliberately free of any rendering surface: it does NOT
+    /// It owns all playback timing/looping/event logic over an <see cref="Laumination"/>'s baked
+    /// <see cref="Laumination.frames"/>, and is deliberately free of any rendering surface: it does NOT
     /// touch a SpriteRenderer or do any drawing. Consumers read <see cref="CurrentSprite"/> and present it
-    /// however they must — the runtime <see cref="ReelPlayer"/> pushes it to a SpriteRenderer; the
+    /// however they must — the runtime <see cref="LauminaryPlayer"/> pushes it to a SpriteRenderer; the
     /// editor previews blit it in IMGUI. Because every surface advances through this one class, the editor
     /// previews and the in-game playback can never drift (which is exactly the bug that having three
     /// hand-rolled play loops produced).
     /// </summary>
     public class AnimationPlayback
     {
-        AnimationDef _anim;
+        Laumination _anim;
         int _i;
         float _t;
         bool _loop, _playing;
@@ -28,7 +28,7 @@ namespace Laubrary.Launimator
         /// <see cref="FrameEvent"/> (once per play-through / loop).</summary>
         public event Action<string, int> OnFrameEvent;
 
-        public AnimationDef Anim => _anim;
+        public Laumination Anim => _anim;
         public string CurrentClip => _anim != null ? _anim.name : null;
         public bool IsPlaying => _playing;
         public int Frame => _i;
@@ -40,7 +40,7 @@ namespace Laubrary.Launimator
         /// Returns false if there is nothing to play. <paramref name="onHit"/> fires once when playback
         /// reaches local frame <paramref name="hitFrame"/>; <paramref name="onComplete"/> fires when a
         /// non-looping clip finishes. <paramref name="speed"/> is the per-clip multiplier (1 = authored).</summary>
-        public bool Play(AnimationDef def, bool loop = true, float speed = 1f,
+        public bool Play(Laumination def, bool loop = true, float speed = 1f,
             Action onComplete = null, Action onHit = null, int hitFrame = -1)
         {
             if (def == null || def.frames == null || def.frames.Count == 0) return false;

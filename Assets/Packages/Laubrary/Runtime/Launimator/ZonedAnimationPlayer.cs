@@ -5,11 +5,11 @@ using UnityEngine;
 namespace Laubrary.Launimator
 {
     /// <summary>
-    /// The "spine" from ANIMATION_CONTROLLER.md: plays a reel's animations by name and, when an animation
+    /// The "spine" from ANIMATION_CONTROLLER.md: plays a lauminary's animations by name and, when an animation
     /// is a zoned strip, walks its zones as a phased move. The owning game logic ("the brain") issues a tiny
     /// verb set — Play / EnterAt / Advance / EndIn — and can override at any time by just calling Play again.
     ///
-    /// It deliberately does its OWN frame stepping (over <see cref="AnimationDef.frames"/>) rather than going
+    /// It deliberately does its OWN frame stepping (over <see cref="Laumination.frames"/>) rather than going
     /// through <see cref="AnimationPlayback"/>, because zones need sub-range looping (Hold) and retimed
     /// straight-to-end playback (EndIn) that the whole-clip player doesn't model. A plain (non-zoned) animation
     /// just loops, exactly like a normal clip.
@@ -17,8 +17,8 @@ namespace Laubrary.Launimator
     [RequireComponent(typeof(SpriteRenderer))]
     public class ZonedAnimationPlayer : MonoBehaviour
     {
-        [Tooltip("The reel version whose animations this plays.")]
-        public ReelVersion version;
+        [Tooltip("The lauminary version whose animations this plays.")]
+        public LauminaryVersion version;
 
         [Tooltip("Mirror horizontally (facing). Applied to the SpriteRenderer each frame.")]
         public bool flipX;
@@ -31,14 +31,14 @@ namespace Laubrary.Launimator
         public float maxFps = 24f;
 
         SpriteRenderer _sr;
-        readonly Dictionary<string, AnimationDef> _byName = new Dictionary<string, AnimationDef>(StringComparer.OrdinalIgnoreCase);
+        readonly Dictionary<string, Laumination> _byName = new Dictionary<string, Laumination>(StringComparer.OrdinalIgnoreCase);
 
         // Composable visible sprite layers (body + swappable weapons): one child SpriteRenderer each, stacked.
         readonly List<SpriteRenderer> _layerRenderers = new List<SpriteRenderer>();
-        AnimationDef _layerBuiltFor;
+        Laumination _layerBuiltFor;
         readonly HashSet<string> _hiddenLayers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        AnimationDef _anim;
+        Laumination _anim;
         List<AnimZone> _zones;     // sanitized copy when the current anim is zoned, else null
         int _zoneIdx = -1;
         int _i;                    // current frame index into _anim.frames
@@ -59,7 +59,7 @@ namespace Laubrary.Launimator
 
         /// <summary>Fires (eventName, frame) when playback ENTERS a frame carrying an authored FrameEvent
         /// (e.g. "Lift Off"). The brain uses these to time gameplay to the animation — author them in the
-        /// Animation Builder's "Frame events" section.</summary>
+        /// Laumination Builder's "Frame events" section.</summary>
         public event Action<string, int> OnFrameEvent;
 
         /// <summary>Fires once per frame-entry (edge-triggered — same convention as <see cref="OnFrameEvent"/>)
@@ -92,7 +92,7 @@ namespace Laubrary.Launimator
         void Awake() { _sr = GetComponent<SpriteRenderer>(); Reindex(); }
         void Update() => Tick(Time.deltaTime);
 
-        public void SetVersion(ReelVersion v) { version = v; Reindex(); Stop(); }
+        public void SetVersion(LauminaryVersion v) { version = v; Reindex(); Stop(); }
 
         void Reindex()
         {
@@ -421,7 +421,7 @@ namespace Laubrary.Launimator
             (IReadOnlyList<SpriteLayer>)_anim?.spriteLayers ?? Array.Empty<SpriteLayer>();
 
         /// <summary>Clamp/sort a strip's zones into a safe working copy (never mutates the asset).</summary>
-        List<AnimZone> Sanitize(AnimationDef def)
+        List<AnimZone> Sanitize(Laumination def)
         {
             int last = def.frames.Count - 1;
             var list = new List<AnimZone>();
@@ -437,7 +437,7 @@ namespace Laubrary.Launimator
             return list;
         }
 
-        // ── consumer ergonomics (feet-planted height fit, mirrors ReelPlayer) ──
+        // ── consumer ergonomics (feet-planted height fit, mirrors LauminaryPlayer) ──
         public Sprite RestingSprite
         {
             get
@@ -644,7 +644,7 @@ namespace Laubrary.Launimator
         /// <summary>
         /// Looks up <paramref name="eventName"/>'s authored pixel position (if any) among the CURRENT frame's
         /// events, converted to world space — the single-point analog of <see cref="TryGetMetaPoint"/>, for
-        /// FrameEvents authored via the Animation Builder's pixel tool rather than MetaLayer painting (a much
+        /// FrameEvents authored via the Laumination Builder's pixel tool rather than MetaLayer painting (a much
         /// lighter "one pixel on one frame" signal, e.g. a muzzle/spawn point — MetaLayer stays the right tool
         /// for anything needing multiple pixels or multiple frames, like hit detection). Call this from an
         /// <see cref="OnFrameEvent"/> handler for <paramref name="eventName"/>, or any time after Play — it

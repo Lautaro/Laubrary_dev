@@ -7,7 +7,7 @@ namespace Laubrary.Zoetrope
     /// A composition "recipe" for one combat character (enemy / NPC / the player's target): its stats, its look, and
     /// the effects it plays when hit and when it dies. Look and effects are PLUGGABLE (<c>[SerializeReference]</c>),
     /// so this core asset depends on Combat2D ONLY — a project supplies concrete views (a sprite, a Launimator-driven
-    /// ZonedReelView, a Lazor shape) and effects (a Pyre blast + Chunks debris) from whatever bridge modules it includes.
+    /// ZonedLauminaryView, a Lazor shape) and effects (a Pyre blast + Chunks debris) from whatever bridge modules it includes.
     /// A small portable data asset; the runtime is assembled by <see cref="ZoeSpawner.SpawnCharacter"/>.
     [CreateAssetMenu(menuName = "Laubrary/Zoetrope/Zoe", fileName = "Zoe")]
     public class Zoe : ScriptableObject, Laubrary.PreviewKit.IVisualPreview
@@ -23,8 +23,8 @@ namespace Laubrary.Zoetrope
         public float invulnerableAfterHit = 0f;
 
         [Header("Look")]
-        [Tooltip("Pluggable — a sprite by default; a Reel / Lazor view via a bridge module; a composite " +
-                 "multi-part body via the Zoetrope.Launimator bridge's CompositeReelView.")]
+        [Tooltip("Pluggable — a sprite by default; a Lauminary / Lazor view via a bridge module; a composite " +
+                 "multi-part body via the Zoetrope.Launimator bridge's CompositeLauminaryView.")]
         [SerializeReference] public ICharacterView view = new SpriteView();
 
         // hit/death used to be split across THREE disconnected areas: hit/death (VFX-only ICombatFx) and
@@ -107,7 +107,7 @@ namespace Laubrary.Zoetrope
         [Header("Cues")]
         [Tooltip("This character's own always-on cues (footstep dust, a cast sparkle, ...) — an animation " +
                  "MetaLayer triggers an effect at that point, via ICueSink, independent of whatever's equipped. " +
-                 "Only takes effect if the view provides an ICueSink (e.g. ZonedReelView).")]
+                 "Only takes effect if the view provides an ICueSink (e.g. ZonedLauminaryView).")]
         public List<CueBinding> cues = new List<CueBinding>();
 
         // TODO(zounds): onHit / onDied Zound refs — embedded + registered if the Zounds engine is present.
@@ -115,7 +115,7 @@ namespace Laubrary.Zoetrope
         // ── IVisualPreview ──
         // A Zoe browser with no thumbnails is unusable for its actual job: picking the right character out of
         // a folder of them. The look lives in the pluggable view, so this asks the view — via the optional
-        // IPreviewableView — rather than learning what a Reel is. A view with no art, or one that cannot
+        // IPreviewableView — rather than learning what a Lauminary is. A view with no art, or one that cannot
         // preview itself, yields null and the browser draws its blank.
         //
         // ANIMATED where it can be, because a walk cycle is most of what distinguishes one character sprite

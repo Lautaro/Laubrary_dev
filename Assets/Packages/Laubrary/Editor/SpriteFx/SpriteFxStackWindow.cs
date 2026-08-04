@@ -473,7 +473,7 @@ namespace Laubrary.SpriteFx.Editor
         ///
         /// The frame comes from ELAPSED TIME at the visual's OWN rate — progress through the event gives
         /// seconds, seconds at the subject's fps give a frame — so a three-loop event walks its clip three
-        /// times and a 4-fps reel reads as a 4-fps reel. It used to index by the editor's tick counter, which
+        /// times and a 4-fps lauminary reads as a 4-fps lauminary. It used to index by the editor's tick counter, which
         /// made the character animate at whatever rate the editor happened to be repainting at; the fps the
         /// resolver went to the trouble of reporting was never read at all.
         Sprite SubjectFrame(float progress)

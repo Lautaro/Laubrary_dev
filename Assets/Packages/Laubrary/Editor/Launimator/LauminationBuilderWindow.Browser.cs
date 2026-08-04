@@ -9,19 +9,19 @@ using UnityEngine.UIElements;
 namespace Laubrary.Launimator.Editor
 {
     /// <summary>
-    /// Top-area "Reel Animation browser" for the Animation Builder. When bound to a reel, the top of
-    /// the window splits: left = the existing Sheet section (UI.1), right = a compact list of that reel's
+    /// Top-area "Lauminary Animation browser" for the Laumination Builder. When bound to a lauminary, the top of
+    /// the window splits: left = the existing Sheet section (UI.1), right = a compact list of that lauminary's
     /// draft animations, each with a quick Edit button that switches the builder to it. When editing a
     /// standalone orphan (or authoring one with orphans on disk), the right side lists all orphaned animations
     /// instead. Kept in its own partial so the core window file stays focused.
     ///
     /// UI TOOLKIT PORT: fully native. The hand-computed chip-wrapping budget is gone — a flex-wrap row does it.
     /// </summary>
-    public partial class AnimationBuilderWindow
+    public partial class LauminationBuilderWindow
     {
         private bool _leftCollapsed; // hide the Sheet + canvas (identify-sprites) area for more room on #4/#5 + the list
 
-        /// <summary>The collapse toggle, the Sheet section, and the reel/orphan animation quicklist. When the
+        /// <summary>The collapse toggle, the Sheet section, and the lauminary/orphan animation quicklist. When the
         /// sheet/canvas is collapsed, the Sheet/canvas fold away and only the animation quicklist remains.</summary>
         private void BuildTopSection(VisualElement root)
         {
@@ -31,14 +31,14 @@ namespace Laubrary.Launimator.Editor
                 "Fold the sheet/canvas half away so the sprite palette, the animation and the quicklist get the whole window.",
                 () => { _leftCollapsed = !_leftCollapsed; Rebuild(); }).W(220f)));
 
-            bool charMode = _boundReel != null;
+            bool charMode = _boundLauminary != null;
             List<AnimationAsset> orphans = charMode ? null : AnimationLibrary.Enumerate();
             bool showBrowser = charMode || _orphanAsset != null || (orphans != null && orphans.Count > 0);
 
             if (_leftCollapsed)
             {
                 // Sheet + canvas (UI.1/2/3) are fully folded away; show only the animation quicklist.
-                if (charMode) BuildReelAnimBrowser(root);
+                if (charMode) BuildLauminaryAnimBrowser(root);
                 else if (showBrowser) BuildOrphanBrowser(root, orphans);
                 return;
             }
@@ -59,7 +59,7 @@ namespace Laubrary.Launimator.Editor
             right.style.flexGrow = 1f;
             right.style.minWidth = 240f;
             right.style.marginLeft = 4f;
-            if (charMode) BuildReelAnimBrowser(right);
+            if (charMode) BuildLauminaryAnimBrowser(right);
             else BuildOrphanBrowser(right, orphans);
             row.Add(right);
 
@@ -95,21 +95,21 @@ namespace Laubrary.Launimator.Editor
             root.Add(scroll);
         }
 
-        private void BuildReelAnimBrowser(VisualElement root)
+        private void BuildLauminaryAnimBrowser(VisualElement root)
         {
-            var draft = ReelRepo.EnsureDraft(_boundReel);
-            var box = Z.Box($"{_boundReel.reelName} — animations ({draft.animations.Count})",
-                "Every animation on this reel's draft — click one to switch the builder to it (unsaved edits are NOT auto-saved).");
+            var draft = LauminaryRepo.EnsureDraft(_boundLauminary);
+            var box = Z.Box($"{_boundLauminary.lauminaryName} — animations ({draft.animations.Count})",
+                "Every animation on this lauminary's draft — click one to switch the builder to it (unsaved edits are NOT auto-saved).");
             var names = draft.animations.ConvertAll(a => a.name); // snapshot — switching rebuilds the draft
             var items = new List<(string, string, bool)>();
             foreach (var n in names)
             {
-                var d = ReelRepo.GetDraftAnimation(_boundReel, n);
+                var d = LauminaryRepo.GetDraftAnimation(_boundLauminary, n);
                 bool cur = NameEq(n, _boundAnimName);
                 string tip = d != null ? $"{d.recipe?.Count ?? 0}f @ {d.fps:0}fps — click to edit" : "click to edit";
                 items.Add(((cur ? "● " : "") + n, tip, cur));
             }
-            BuildAnimChips(box, items, i => SwitchToReelAnimation(names[i]));
+            BuildAnimChips(box, items, i => SwitchToLauminaryAnimation(names[i]));
             root.Add(box);
         }
 
@@ -129,12 +129,12 @@ namespace Laubrary.Launimator.Editor
             root.Add(box);
         }
 
-        /// <summary>Switch the builder to another animation of the bound reel (loads its saved state).
+        /// <summary>Switch the builder to another animation of the bound lauminary (loads its saved state).
         /// Does NOT auto-save the current animation — use Save first if you have unsaved edits.</summary>
-        private void SwitchToReelAnimation(string name)
+        private void SwitchToLauminaryAnimation(string name)
         {
-            if (_boundReel == null) return;
-            var def = ReelRepo.GetDraftAnimation(_boundReel, name);
+            if (_boundLauminary == null) return;
+            var def = LauminaryRepo.GetDraftAnimation(_boundLauminary, name);
             if (def == null) { SetStatus($"'{name}' is no longer in the draft."); return; }
             _boundAnimName = name;
             _orphanAsset = null;
@@ -145,7 +145,7 @@ namespace Laubrary.Launimator.Editor
         {
             if (a == null || a.animation == null) return;
             _orphanAsset = a;
-            _boundReel = null; _boundAnimName = null;
+            _boundLauminary = null; _boundAnimName = null;
             LoadAnimationIntoSequence(a.animation);
         }
 

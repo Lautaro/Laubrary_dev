@@ -9,29 +9,29 @@ using UnityEngine;
 namespace Laubrary.Launimator.Editor
 {
     /// <summary>
-    /// The deterministic, UI-free core that turns a <see cref="ReelVersion"/>'s animations into
+    /// The deterministic, UI-free core that turns a <see cref="LauminaryVersion"/>'s animations into
     /// game-ready Unity assets: one looping AnimationClip per animation, an AnimatorController with a
     /// state per clip, and a SpriteRenderer+Animator prefab — all written into the version's own folder.
     /// Both draft saves and version commits regenerate through here, so a committed snapshot's intra-folder
-    /// references (controller→clips, prefab→controller) are correct by construction. <see cref="ReelRepo"/>
+    /// references (controller→clips, prefab→controller) are correct by construction. <see cref="LauminaryRepo"/>
     /// owns the folder/version layout and calls this; the self-test exercises the same path.
     /// </summary>
-    public static class ReelBuilder
+    public static class LauminaryBuilder
     {
-        public const string RootFolder = "Assets/Launimator/Reels";
+        public const string RootFolder = "Assets/Launimator/Lauminaries";
 
         /// <summary>
         /// (Re)generate all game-ready assets for <paramref name="version"/> into <paramref name="targetFolder"/>:
         /// per animation, a self-contained uniform-size <c>Atlases/&lt;anim&gt;.png</c> baked from its recipe
         /// (see <see cref="AtlasBaker"/>) and a looping <c>Clips/&lt;anim&gt;.anim</c> over the baked frames;
-        /// then a <c>&lt;reel&gt;.controller</c> (one state per animation, first = default) and a
-        /// <c>&lt;reel&gt;.prefab</c>. Assigns the generated refs and marks the version dirty. The caller
+        /// then a <c>&lt;lauminary&gt;.controller</c> (one state per animation, first = default) and a
+        /// <c>&lt;lauminary&gt;.prefab</c>. Assigns the generated refs and marks the version dirty. The caller
         /// is responsible for Save/Refresh batching.
         /// </summary>
-        public static void BuildVersionAssets(ReelVersion version, string targetFolder, string reelName, float ppu)
+        public static void BuildVersionAssets(LauminaryVersion version, string targetFolder, string lauminaryName, float ppu)
         {
             if (version == null) throw new System.ArgumentNullException(nameof(version));
-            string safeChar = Sanitize(string.IsNullOrWhiteSpace(reelName) ? "Reel" : reelName);
+            string safeChar = Sanitize(string.IsNullOrWhiteSpace(lauminaryName) ? "Lauminary" : lauminaryName);
 
             EnsureFolder(targetFolder);
             string clipsFolder = $"{targetFolder}/Clips";
@@ -43,8 +43,8 @@ namespace Laubrary.Launimator.Editor
 
             // Phase 1: bake each animation's self-contained uniform atlas (registration + trimming) and
             // resolve its baked frames. These per-animation atlases are temporary scaffolding — the packer
-            // folds their frames into one shared reel atlas below.
-            var baked = new List<AnimationDef>();
+            // folds their frames into one shared lauminary atlas below.
+            var baked = new List<Laumination>();
             var perAnimAtlasPaths = new HashSet<string>();
             foreach (var def in version.animations)
             {
@@ -72,11 +72,11 @@ namespace Laubrary.Launimator.Editor
                 baked.Add(def);
             }
 
-            // Phase 2: pack all baked frames into ONE shared, readable, deduped reel atlas and repoint
+            // Phase 2: pack all baked frames into ONE shared, readable, deduped lauminary atlas and repoint
             // every animation's frames at it. On failure, keep the per-animation atlases (graceful fallback).
             var keepAtlasPaths = new HashSet<string>(perAnimAtlasPaths);
             string packedPath = $"{targetFolder}/{safeChar}.png";
-            var packed = ReelAtlasPacker.Pack(baked, packedPath, bakePpu, out string packErr);
+            var packed = LauminaryAtlasPacker.Pack(baked, packedPath, bakePpu, out string packErr);
             if (packed != null)
             {
                 keepAtlasPaths.Clear(); // per-animation atlases are now redundant
@@ -154,7 +154,7 @@ namespace Laubrary.Launimator.Editor
             return clip;
         }
 
-        private static AnimatorController BuildController(ReelVersion version, string targetFolder, string safeChar)
+        private static AnimatorController BuildController(LauminaryVersion version, string targetFolder, string safeChar)
         {
             string controllerPath = $"{targetFolder}/{safeChar}.controller";
 
@@ -177,7 +177,7 @@ namespace Laubrary.Launimator.Editor
             return controller;
         }
 
-        private static GameObject BuildPrefab(ReelVersion version, string targetFolder, string safeChar, AnimatorController controller)
+        private static GameObject BuildPrefab(LauminaryVersion version, string targetFolder, string safeChar, AnimatorController controller)
         {
             string prefabPath = $"{targetFolder}/{safeChar}.prefab";
 

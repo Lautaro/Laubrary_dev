@@ -6,7 +6,7 @@ namespace Laubrary.Launimator
     /// <summary>
     /// A named, organised set of sprites sliced from one source sheet — Launimator's answer to "construct a sprite
     /// sheet and name every sprite", for sprites that don't need to animate. It is a plain runtime asset: the game
-    /// looks a sprite up by name (<see cref="Get"/>), and the editor tools (and the Animation Builder) can pick
+    /// looks a sprite up by name (<see cref="Get"/>), and the editor tools (and the Laumination Builder) can pick
     /// sprites FROM it, so one catalog doubles as a shareable sprite source. The sprites are real sub-assets of the
     /// source sheet (sliced via the same registration pipeline as animations), so this catalog carries only names +
     /// references.

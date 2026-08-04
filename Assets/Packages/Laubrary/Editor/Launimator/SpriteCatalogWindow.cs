@@ -11,7 +11,7 @@ namespace Laubrary.Launimator.Editor
     /// <summary>
     /// Editor for a <see cref="SpriteCatalog"/>: pick a source sheet, auto-grid (or hand-place) cells, name every
     /// sprite, and slice — reusing the same registration pipeline (<see cref="RegionSlicer"/>) as animations, so the
-    /// resulting named sprites are usable directly by the game and pickable from the Animation Builder. The stage
+    /// resulting named sprites are usable directly by the game and pickable from the Laumination Builder. The stage
     /// shows the sheet with every cell outlined and labelled. Asset browse + CRUD come from ZuiAssetWindow.
     ///
     /// UI TOOLKIT PORT: every control is a Z.* control; each entry row's thumbnail is a native <c>Image</c> (it was

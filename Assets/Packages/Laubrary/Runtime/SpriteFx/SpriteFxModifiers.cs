@@ -1655,7 +1655,7 @@ namespace Laubrary.SpriteFx
     /// Re-skin a sprite by HUE: match one or more bands of the colour wheel and rewrite each to a new hue,
     /// brightness and saturation. Several replacements live in one effect and run in order, so a full palette
     /// swap is a single card rather than a stack of them. It keys on colour, never on position, so it follows an
-    /// animated reel with no per-frame masks.
+    /// animated lauminary with no per-frame masks.
     [Serializable]
     public class ColorReplaceModifier : PixelModifier
     {
