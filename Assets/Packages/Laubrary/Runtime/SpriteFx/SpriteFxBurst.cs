@@ -93,10 +93,24 @@ namespace Laubrary.SpriteFx
         /// crossFrac (Sqrt is IEEE-exact so it is bit-identical Burst==Mono), a hashed per-pixel seed, wx/wy at
         /// pixel centres. Both the job and RunInline build it here so their PixelInfo is identical by construction.
         public static PixelInfo MakePixel(int x, int y, int W, int H, int frame, float life, int seed)
+            => MakePixel(x, y, W, H, W, H, 0, 0, frame, life, seed);
+
+        /// As above, but for a buffer PADDED beyond the source picture (the overflow path).
+        ///
+        /// The coordinate frame every shaped effect normalizes against — crossFrac, and KAlphaMask's nx/ny —
+        /// is derived from the picture's centre and half-size. Deriving that from the BUFFER instead would
+        /// silently re-centre and rescale every authored Alpha mask, Wipe and Tint cross-gradient the moment a
+        /// margin appeared, including in baked Pyre assets. So the buffer supplies the INDEXING and the
+        /// source rect supplies the MEANING: subtract the pad to get back into picture space.
+        ///
+        /// With no padding (padX/padY 0, srcW/srcH == W/H) this is arithmetically identical to what it always
+        /// was, which is what keeps the byte-identity contract intact.
+        public static PixelInfo MakePixel(int x, int y, int W, int H, int srcW, int srcH,
+                                          int padX, int padY, int frame, float life, int seed)
         {
             float wx = x + 0.5f, wy = y + 0.5f;
-            float halfW = W * 0.5f, halfH = H * 0.5f;
-            float dx = wx - halfW, dy = wy - halfH;
+            float halfW = srcW * 0.5f, halfH = srcH * 0.5f;
+            float dx = (wx - padX) - halfW, dy = (wy - padY) - halfH;
             float unit = Mathf.Max(1f, Mathf.Min(halfW, halfH));
             float crossFrac = Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy) / unit);
             int hash = unchecked((int)(Sfx.Hash01(seed, x, y) * 2147483647f));
@@ -406,10 +420,11 @@ namespace Laubrary.SpriteFx
         /// Burst job and RunInline call — so the two paths are byte-identical by construction (only the codegen
         /// differs).
         public static void RunPixel(int i, in NativeArray<SfxOp> ops, in NativeArray<Color32> luts,
-                                    ref NativeArray<Color32> pixels, int W, int H, int frame, float life, int seed)
+                                    ref NativeArray<Color32> pixels, int W, int H,
+                                    int srcW, int srcH, int padX, int padY, int frame, float life, int seed)
         {
             int x = i % W, y = i / W;
-            PixelInfo p = MakePixel(x, y, W, H, frame, life, seed);
+            PixelInfo p = MakePixel(x, y, W, H, srcW, srcH, padX, padY, frame, life, seed);
             Color32 src = pixels[i];
             Color c = new Color(src.r / 255f, src.g / 255f, src.b / 255f, src.a / 255f);
             float a = src.a / 255f;
@@ -432,9 +447,13 @@ namespace Laubrary.SpriteFx
         [ReadOnly] public NativeArray<Color32> luts;
         public NativeArray<Color32> pixels;
         public int W, H, frame, seed;
+        // The SOURCE picture inside the (possibly padded) buffer — see SfxKernels.MakePixel for why the two
+        // frames must stay separate.
+        public int srcW, srcH, padX, padY;
         public float life;
 
-        public void Execute(int i) => SfxKernels.RunPixel(i, ops, luts, ref pixels, W, H, frame, life, seed);
+        public void Execute(int i)
+            => SfxKernels.RunPixel(i, ops, luts, ref pixels, W, H, srcW, srcH, padX, padY, frame, life, seed);
     }
 
     /// Main-thread helper: bake a Gradient into 256 Color32 entries of a shared LUT array (or a fresh one).
@@ -462,6 +481,29 @@ namespace Laubrary.SpriteFx
             m is TintModifier || m is ContrastModifier || m is BrightnessModifier || m is SaturationModifier ||
             m is PosterizeModifier || m is OrderedDitherModifier || m is LayerDissolveModifier || m is AlphaMaskModifier ||
             m is ColorTintModifier || m is ColorReplaceModifier || m is WipeModifier;
+
+        /// <summary>
+        /// How far outside the source picture this whole stack can draw, in pixels.
+        ///
+        /// SUMMED along the chain, not maxed: an outline draws a ring past the silhouette and a bloom after it
+        /// blurs THAT ring further out again, so the reaches compound. Maxing would clip the second one.
+        /// A stack of pure colour effects returns 0, and a host that sees 0 does no extra work at all.
+        /// </summary>
+        public static int OutwardReach(IReadOnlyList<PyreModifier> mods)
+        {
+            if (mods == null) return 0;
+            int reach = 0;
+            for (int i = 0; i < mods.Count; i++)
+            {
+                var m = mods[i];
+                if (m == null || !m.enabled) continue;
+                reach += Mathf.Max(0, m.OutwardReachPx());
+            }
+            // One pixel of slack. PeakValue reports the max of a curve's authored POINTS and does not account
+            // for smoothing overshoot, so an eased extent can transiently exceed what it promised — and a
+            // margin one pixel short shows as a cut edge, which is the exact failure this is here to prevent.
+            return reach > 0 ? reach + 1 : 0;
+        }
 
         /// A life/seed eval mirroring BlastRenderer.Eval (Static / MinMax / Curve), so a resolved op reflects the
         /// same animated value the managed path would at this frame. `fieldSalt` keeps a modifier's per-field
@@ -546,6 +588,14 @@ namespace Laubrary.SpriteFx
         /// </summary>
         public static void RunStack(Color32[] px, int W, int H, IReadOnlyList<PyreModifier> mods,
                                     int frame, float life, int seed, bool useBurst)
+            => RunStack(px, W, H, W, H, 0, 0, mods, frame, life, seed, useBurst);
+
+        /// <inheritdoc cref="RunStack(Color32[], int, int, IReadOnlyList{PyreModifier}, int, float, int, bool)"/>
+        /// The padded overload used by the overflow path: the buffer is W×H, but the PICTURE inside it is
+        /// srcW×srcH at (padX, padY). Effects still normalize against the picture — see SfxKernels.MakePixel.
+        public static void RunStack(Color32[] px, int W, int H, int srcW, int srcH, int padX, int padY,
+                                    IReadOnlyList<PyreModifier> mods,
+                                    int frame, float life, int seed, bool useBurst)
         {
             if (px == null || px.Length == 0 || mods == null) return;
             var eval = LifeEval(life, seed);
@@ -563,11 +613,11 @@ namespace Laubrary.SpriteFx
                         {
                             var native = new NativeArray<Color32>(px.Length, Allocator.TempJob);
                             native.CopyFrom(px);
-                            Schedule(native, ops, luts, W, H, frame, life, seed).Complete();
+                            Schedule(native, ops, luts, W, H, srcW, srcH, padX, padY, frame, life, seed).Complete();
                             native.CopyTo(px);
                             native.Dispose();
                         }
-                        else RunInline(px, ops, luts, W, H, frame, life, seed);
+                        else RunInline(px, ops, luts, W, H, srcW, srcH, padX, padY, frame, life, seed);
                     }
                 }
                 finally
@@ -608,7 +658,7 @@ namespace Laubrary.SpriteFx
                         // A pixel effect the Burst family does not cover (Voronoi crack, Colour remap): same
                         // per-pixel contract, run on the managed path.
                         m.Prepare(eval);
-                        RunManagedPixel(px, W, H, pm, frame, life, seed);
+                        RunManagedPixel(px, W, H, srcW, srcH, padX, padY, pm, frame, life, seed);
                         break;
                 }
             }
@@ -651,7 +701,8 @@ namespace Laubrary.SpriteFx
 
         /// One non-shaped pixel effect over the buffer, through its own ApplyPixel. Mirrors the PixelInfo the
         /// Burst path builds (MakePixel) so a modifier behaves the same whichever path it lands on.
-        static void RunManagedPixel(Color32[] px, int W, int H, PixelModifier m, int frame, float life, int seed)
+        static void RunManagedPixel(Color32[] px, int W, int H, int srcW, int srcH, int padX, int padY,
+                                    PixelModifier m, int frame, float life, int seed)
         {
             for (int y = 0, i = 0; y < H; y++)
             {
@@ -660,7 +711,7 @@ namespace Laubrary.SpriteFx
                     Color32 s = px[i];
                     Color c = new Color(s.r / 255f, s.g / 255f, s.b / 255f, s.a / 255f);
                     float a = c.a;
-                    var info = SfxKernels.MakePixel(x, y, W, H, frame, life, seed);
+                    var info = SfxKernels.MakePixel(x, y, W, H, srcW, srcH, padX, padY, frame, life, seed);
                     bool keep = m.ApplyPixel(ref c, ref a, info);
                     c.a = keep ? a : 0f;
                     px[i] = (Color32)c;
@@ -671,11 +722,18 @@ namespace Laubrary.SpriteFx
         /// Run the resolved stack over a managed Color32[] using the identical per-pixel routine the Burst job runs.
         public static void RunInline(Color32[] pixels, NativeArray<SfxOp> ops, NativeArray<Color32> luts,
                                      int W, int H, int frame, float life, int seed)
+            => RunInline(pixels, ops, luts, W, H, W, H, 0, 0, frame, life, seed);
+
+        /// <inheritdoc cref="RunInline(Color32[], NativeArray{SfxOp}, NativeArray{Color32}, int, int, int, float, int)"/>
+        /// The padded overload: the buffer is W×H but the PICTURE is srcW×srcH sitting at (padX, padY).
+        public static void RunInline(Color32[] pixels, NativeArray<SfxOp> ops, NativeArray<Color32> luts,
+                                     int W, int H, int srcW, int srcH, int padX, int padY,
+                                     int frame, float life, int seed)
         {
             var native = new NativeArray<Color32>(pixels.Length, Allocator.Temp);
             native.CopyFrom(pixels);
             for (int i = 0; i < native.Length; i++)
-                SfxKernels.RunPixel(i, ops, luts, ref native, W, H, frame, life, seed);
+                SfxKernels.RunPixel(i, ops, luts, ref native, W, H, srcW, srcH, padX, padY, frame, life, seed);
             native.CopyTo(pixels);
             native.Dispose();
         }
@@ -683,11 +741,18 @@ namespace Laubrary.SpriteFx
         /// Schedule the Burst job over a NativeArray<Color32>. Caller owns/disposes ops, luts and pixels.
         public static JobHandle Schedule(NativeArray<Color32> pixels, NativeArray<SfxOp> ops, NativeArray<Color32> luts,
                                          int W, int H, int frame, float life, int seed, int batch = 64, JobHandle deps = default)
+            => Schedule(pixels, ops, luts, W, H, W, H, 0, 0, frame, life, seed, batch, deps);
+
+        /// <inheritdoc cref="Schedule(NativeArray{Color32}, NativeArray{SfxOp}, NativeArray{Color32}, int, int, int, float, int, int, JobHandle)"/>
+        public static JobHandle Schedule(NativeArray<Color32> pixels, NativeArray<SfxOp> ops, NativeArray<Color32> luts,
+                                         int W, int H, int srcW, int srcH, int padX, int padY,
+                                         int frame, float life, int seed, int batch = 64, JobHandle deps = default)
         {
             var job = new SfxStackJob
             {
                 ops = ops, luts = luts, pixels = pixels,
-                W = W, H = H, frame = frame, seed = seed, life = life
+                W = W, H = H, srcW = srcW, srcH = srcH, padX = padX, padY = padY,
+                frame = frame, seed = seed, life = life
             };
             return job.Schedule(pixels.Length, Mathf.Max(1, batch), deps);
         }

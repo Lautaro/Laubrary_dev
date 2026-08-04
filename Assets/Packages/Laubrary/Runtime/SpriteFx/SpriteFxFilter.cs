@@ -269,14 +269,169 @@ namespace Laubrary.SpriteFx
 
             if (!ReadSource(src, out Color32[] pixels, out int W, out int H)) return;
 
-            Apply(pixels, W, H, EffectiveModifiers, frame, life, EffectiveSeed, ResolveUseBurst());
+            int pad = EffectiveReach;
+            if (pad <= 0)
+            {
+                // The common case: nothing in the stack draws outside the picture, so there is no second
+                // buffer, no companion, and not one byte of extra work.
+                SpriteFxStack.RunStack(pixels, W, H, EffectiveModifiers, frame, life, EffectiveSeed, ResolveUseBurst());
+                _tickFrame++;
+                WriteToRenderer(src, pixels, W, H);
+                return;
+            }
+
+            // OVERFLOW PATH. Render into a buffer with a transparent margin, then SPLIT it: the picture's own
+            // rect goes back to the character (identical geometry, so its bounds/collider/hit-test are
+            // untouched), and everything outside goes to a companion renderer. Nothing is discarded — the
+            // pixels an outline or a glow puts past the silhouette simply live on a different object.
+            int pw = W + pad * 2, ph = H + pad * 2;
+            EnsurePadBuffer(pw * ph);
+            System.Array.Clear(_padded, 0, _padded.Length);
+            for (int y = 0; y < H; y++)
+                System.Array.Copy(pixels, y * W, _padded, (y + pad) * pw + pad, W);
+
+            // The picture stays srcW×srcH at (pad,pad), so every effect still normalizes against the SPRITE
+            // and not against the margin — otherwise every authored mask would shift the moment one appeared.
+            SpriteFxStack.RunStack(_padded, pw, ph, W, H, pad, pad,
+                                   EffectiveModifiers, frame, life, EffectiveSeed, ResolveUseBurst());
             _tickFrame++;
 
+            // Centre back to the character, unchanged in size.
+            for (int y = 0; y < H; y++)
+                System.Array.Copy(_padded, (y + pad) * pw + pad, pixels, y * W, W);
+            WriteToRenderer(src, pixels, W, H);
+
+            // The margin — the same buffer with the character's own rect punched out, so the two never
+            // double-draw the middle and the companion carries ONLY what fell outside.
+            for (int y = 0; y < H; y++)
+                System.Array.Clear(_padded, (y + pad) * pw + pad, W);
+            WriteOverflow(src, _padded, pw, ph, pad);
+        }
+
+        // Paint the filtered picture onto the character's own renderer, at exactly its original geometry.
+        void WriteToRenderer(Sprite src, Color32[] pixels, int W, int H)
+        {
             EnsureWork(src, W, H);
             _work.SetPixels32(pixels);
             _work.Apply(false);
             EnsureFilteredSprite(src, W, H);
             _sr.sprite = _filteredSprite;
+        }
+
+        // ── the overflow companion ────────────────────────────────────────────────────────────────────────────
+        // An outline, a glow, a drop shadow all draw OUTSIDE the silhouette, and a tightly-cropped sprite has
+        // no room for that. Padding the character's own sprite would be the obvious fix and is the wrong one:
+        // its rect, pivot and bounds are read by colliders (ZoeSpawner sizes one from sprite.bounds) and by
+        // hit-testing (SpriteAlphaHitFilter), so the silhouette would start catching shots on its own glow.
+        //
+        // So the character is left exactly as it is and the overflow goes on a companion renderer — a child
+        // object holding only the pixels that fell outside. It carries no collider and nothing reads it, so it
+        // cannot change how the character behaves; it is pure decoration, created only when a stack actually
+        // reaches outward and destroyed the moment the effect stops.
+        [Tooltip("Sorting-order offset for the overflow layer relative to the character. Negative (the default) " +
+                 "puts glows, shadows and outlines BEHIND it; positive brings them in front.")]
+        public int overflowSortingOffset = -1;
+
+        Color32[] _padded;
+        GameObject _overflowGo;
+        SpriteRenderer _overflowSr;
+        Texture2D _overflowTex;
+        Sprite _overflowSprite;
+        int _overflowW = -1, _overflowH = -1;
+        Vector2 _overflowPivot;
+        float _overflowPpu;
+
+        int _reach = -1;                 // cached; -1 = not yet computed for the current stack
+        object _reachStackKey;           // what the cache was computed for
+
+        /// How far this stack draws past the picture, computed ONCE per stack rather than per frame.
+        ///
+        /// It has to be a play-through PEAK (an animated outline width would otherwise size the buffer from
+        /// frame one and clip its own growth), and a peak is invariant — so recomputing it every tick would
+        /// only ever churn a Texture2D and a Sprite for an answer that never changed.
+        int EffectiveReach
+        {
+            get
+            {
+                object key = stack != null ? (object)stack : modifiers;
+                if (_reach < 0 || !ReferenceEquals(key, _reachStackKey))
+                {
+                    _reach = SpriteFxStack.OutwardReach(EffectiveModifiers);
+                    _reachStackKey = key;
+                }
+                return _reach;
+            }
+        }
+
+        /// Drop the cached reach — call after changing the stack at runtime.
+        public void InvalidateReach() => _reach = -1;
+
+        void EnsurePadBuffer(int len)
+        {
+            if (_padded == null || _padded.Length < len) _padded = new Color32[len];
+        }
+
+        void WriteOverflow(Sprite src, Color32[] px, int W, int H, int pad)
+        {
+            if (_overflowGo == null)
+            {
+                _overflowGo = new GameObject(name + " (SpriteFx overflow)");
+                _overflowGo.transform.SetParent(transform, worldPositionStays: false);
+                _overflowGo.transform.localPosition = Vector3.zero;
+                _overflowGo.transform.localRotation = Quaternion.identity;
+                _overflowGo.transform.localScale = Vector3.one;
+                _overflowGo.hideFlags = HideFlags.HideAndDontSave;   // never authored, never saved into a scene
+                _overflowSr = _overflowGo.AddComponent<SpriteRenderer>();
+            }
+
+            // Follow the character's own sorting so the overflow travels with it through any layer change.
+            _overflowSr.sortingLayerID = _sr.sortingLayerID;
+            _overflowSr.sortingOrder = _sr.sortingOrder + overflowSortingOffset;
+            _overflowSr.color = _sr.color;
+            _overflowSr.enabled = true;
+
+            if (_overflowTex == null || _overflowTex.width != W || _overflowTex.height != H)
+            {
+                if (_overflowTex != null) SafeDestroy(_overflowTex);
+                _overflowTex = new Texture2D(W, H, TextureFormat.RGBA32, false)
+                {
+                    filterMode = src.texture != null ? src.texture.filterMode : FilterMode.Point,
+                    wrapMode = TextureWrapMode.Clamp,
+                };
+                _overflowW = _overflowH = -1;   // force the sprite to rebuild against the new texture
+            }
+            _overflowTex.SetPixels32(px);
+            _overflowTex.Apply(false);
+
+            // The pivot shifts by exactly the margin, so the bigger picture still lines up pixel-for-pixel
+            // with the character underneath it: artwork pixel (i,j) sits at (i+pad, j+pad) and the pivot moves
+            // with it, which is what makes this alignment exact rather than approximately right.
+            Vector2 srcPivotPx = src.pivot;
+            var pivotNorm = new Vector2((srcPivotPx.x + pad) / W, (srcPivotPx.y + pad) / H);
+            if (_overflowSprite == null || _overflowW != W || _overflowH != H ||
+                _overflowPivot != pivotNorm || _overflowPpu != src.pixelsPerUnit)
+            {
+                if (_overflowSprite != null) SafeDestroy(_overflowSprite);
+                _overflowSprite = Sprite.Create(_overflowTex, new Rect(0, 0, W, H), pivotNorm,
+                                                src.pixelsPerUnit, 0, SpriteMeshType.FullRect);
+                _overflowSprite.name = src.name + " (SpriteFx overflow)";
+                _overflowW = W; _overflowH = H; _overflowPivot = pivotNorm; _overflowPpu = src.pixelsPerUnit;
+            }
+            _overflowSr.sprite = _overflowSprite;
+        }
+
+        void HideOverflow()
+        {
+            if (_overflowSr != null) { _overflowSr.sprite = null; _overflowSr.enabled = false; }
+        }
+
+        void DestroyOverflow()
+        {
+            HideOverflow();
+            if (_overflowSprite != null) { SafeDestroy(_overflowSprite); _overflowSprite = null; }
+            if (_overflowTex != null) { SafeDestroy(_overflowTex); _overflowTex = null; }
+            if (_overflowGo != null) { SafeDestroy(_overflowGo); _overflowGo = null; _overflowSr = null; }
+            _overflowW = _overflowH = -1;
         }
 
         // ── effective source (a Stack asset, when assigned, overrides every inline field) ─────────────────────────
@@ -303,6 +458,9 @@ namespace Laubrary.SpriteFx
             // Only restore if WE are still the one on the renderer — never stomp a frame a Lauminary/Animator advanced to.
             if (_sr != null && _sourceSprite != null && ReferenceEquals(_sr.sprite, _filteredSprite))
                 _sr.sprite = _sourceSprite;
+            // The overflow is only ever valid for a frame the effect drew. Leaving it up would strand a glow
+            // around a character that has stopped glowing.
+            HideOverflow();
         }
 
         // ── core apply — the SAME routine Tick and the edit-mode verification both call ──────────────────────────
@@ -390,6 +548,7 @@ namespace Laubrary.SpriteFx
         {
             if (_work != null) SafeDestroy(_work);
             if (_filteredSprite != null) SafeDestroy(_filteredSprite);
+            DestroyOverflow();
         }
 
         static void SafeDestroy(Object o)

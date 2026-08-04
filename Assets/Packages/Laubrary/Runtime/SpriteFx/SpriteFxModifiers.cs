@@ -136,6 +136,21 @@ namespace Laubrary.SpriteFx
         /// Label shown in the editor's modifier list.
         public abstract string DisplayName { get; }
 
+        /// <summary>
+        /// How far OUTSIDE the source picture this effect can put pixels, in pixels. 0 (the default, and the
+        /// truth for every colour/mask effect) means it only ever recolours where something already is.
+        ///
+        /// An outline, a glow, a drop shadow all draw beyond the silhouette, and on a tightly-cropped sprite
+        /// there is nowhere for that to go — the effect runs and is invisible. This is what a host asks to
+        /// find out how much room to give it.
+        ///
+        /// It must be the PEAK over the whole play-through, not the value right now: an extent that animates
+        /// would otherwise size the buffer from whatever it happened to be on frame one and clip its own
+        /// growth. <see cref="ZUIValue.PeakValue"/> exists for exactly this. Round UP — a margin one pixel
+        /// short shows a cut edge, and a pixel too many costs nothing but a transparent row.
+        /// </summary>
+        public virtual int OutwardReachPx() => 0;
+
         /// Deep copy (for the editor's layer/modifier "Dup"). MemberwiseClone copies value fields; ZUIValue and
         /// Gradient reference fields are cloned so tweaking a copy never bleeds into the original.
         public virtual PyreModifier Clone()
@@ -1829,6 +1844,8 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class BloomModifier : PostModifier
     {
+        // The blur is a box of `radius`, so light bleeds exactly that far past whatever was lit.
+        public override int OutwardReachPx() => Mathf.Max(0, radius);
         [HideInInspector] public float threshold = 0.6f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0f, 1f)]
         [Tooltip("Brightness a pixel must exceed to bloom.")]
@@ -1927,6 +1944,10 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class OutlineModifier : PostModifier
     {
+        // The ring is drawn at `size` and feathered outward by `outerSoftness`, so together they are exactly
+        // how far past the silhouette this reaches — the same figure Apply already computes as its search radius.
+        public override int OutwardReachPx()
+            => Mathf.CeilToInt(size.PeakValue() + OuterSoftness.PeakValue());
         [Tooltip("Over life = one flat colour for the whole outline, sampled from the gradient at the blast's own " +
                  "life 0→1. Fill = the gradient is read across the outline's thickness (0 = inner edge, 1 = outer).")]
         public ColorMode mode = ColorMode.Fill;
@@ -2124,6 +2145,8 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class ChromaticAberrationModifier : PostModifier
     {
+        // Channels are displaced by up to `amount` in opposite directions, so the outermost lands at amount.
+        public override int OutwardReachPx() => Mathf.CeilToInt(amount.PeakValue());
         [Range(0f, 8f)]
         [Tooltip("How far the red/blue channels split apart, in pixels. Animatable — punch it in on impact, settle out.")]
         public ZUIValue amount = new ZUIValue(1.5f);
@@ -3626,6 +3649,9 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class DropShadowModifier : PostModifier
     {
+        // The shadow is a straight offset copy; the furthest it goes is the larger axis.
+        public override int OutwardReachPx()
+            => Mathf.CeilToInt(Mathf.Max(Mathf.Abs(offsetX), Mathf.Abs(offsetY)));
         [Tooltip("Shadow offset X in pixels (screen right).")]
         public float offsetX = 3f;
         [Tooltip("Shadow offset Y in pixels (screen DOWN is negative).")]

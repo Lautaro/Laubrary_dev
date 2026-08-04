@@ -567,6 +567,30 @@ namespace Laubrary.SpriteFx.Editor
                 // Life IS progress — nothing sits in between. The stack-wide remap that used to is gone, for
                 // the reason in SpriteFxSpec.SampleEnvelope.
                 float life = Mathf.Clamp01(progress);
+
+                // SHOW THE OVERFLOW. An outline or a glow draws past the silhouette, and on a tight sprite
+                // that lands outside the frame — at runtime it goes to a companion renderer, but here the
+                // stage is our own canvas with no Sprite semantics at all, so it can simply be drawn bigger.
+                // Seeing it is the whole point: how much is spilling is invisible otherwise, and it is exactly
+                // what decides whether an effect reads or gets cut in half.
+                int pad = SpriteFxStack.OutwardReach(spec.modifiers);
+                if (pad > 0)
+                {
+                    int pw = W + pad * 2, ph = H + pad * 2;
+                    var padded = new Color32[pw * ph];
+                    for (int row = 0; row < H; row++)
+                        System.Array.Copy(px, row * W, padded, (row + pad) * pw + pad, W);
+                    SpriteFxStack.RunStack(padded, pw, ph, W, H, pad, pad,
+                                           spec.modifiers, frame, life, spec.seed, useBurst: false);
+                    MarkSourceFrame(padded, pw, ph, pad, W, H);
+                    EnsurePreviewTex(pw, ph);
+                    _previewTex.SetPixels32(padded);
+                    _previewTex.Apply(false);
+                    _previewImage.image = _previewTex;
+                    _previewImage.MarkDirtyRepaint();
+                    ShowImage();
+                    return;
+                }
                 // The SAME routine Tick uses at runtime — inline (useBurst:false) so the preview matches WYSIWYG.
                 SpriteFxFilter.Apply(px, W, H, spec.modifiers, frame, life, spec.seed, useBurst: false);
 
@@ -582,6 +606,22 @@ namespace Laubrary.SpriteFx.Editor
                 ShowHint("Could not read this sprite's pixels to preview.");
                 Debug.LogWarning($"[SpriteFxStackWindow] Preview render failed: {e.Message}", spec);
             }
+        }
+
+        /// Draw a faint dotted outline where the SPRITE's real frame ends, so what is inside the character and
+        /// what has spilled past it are told apart at a glance. Composited over the result rather than under
+        /// it, and only on otherwise-empty pixels, so it can never hide the effect it is measuring.
+        static void MarkSourceFrame(Color32[] px, int pw, int ph, int pad, int W, int H)
+        {
+            var mark = new Color32(255, 255, 255, 90);
+            void Dot(int x, int y)
+            {
+                if (x < 0 || x >= pw || y < 0 || y >= ph) return;
+                int i = y * pw + x;
+                if (px[i].a < 24) px[i] = mark;   // never paint over the effect itself
+            }
+            for (int x = pad; x < pad + W; x += 2) { Dot(x, pad - 1); Dot(x, pad + H); }
+            for (int y = pad; y < pad + H; y += 2) { Dot(pad - 1, y); Dot(pad + W, y); }
         }
 
         void ShowHint(string msg)
