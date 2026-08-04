@@ -116,16 +116,7 @@ namespace Laubrary.Pyre
         static float MaxOf(ZUIValue v)
         {
             if (v == null) return 0f;
-            switch (v.mode)
-            {
-                case ZUIValue.Mode.Static: return v.staticValue;
-                case ZUIValue.Mode.MinMax: return Mathf.Max(v.min, v.max);
-                case ZUIValue.Mode.Curve:
-                    float m = 0f;
-                    if (v.points != null) foreach (var p in v.points) m = Mathf.Max(m, p.value);
-                    return m;
-                default: return v.staticValue;
-            }
+            return v.PeakValue();   // one canonical peak — Steps used to fall through and size as flat
         }
 
         [Tooltip("Colour the canvas is cleared to before compositing. Usually fully transparent.")]

@@ -192,6 +192,44 @@ public class ZUIValue
     /// <summary>The oscillation's value at a NORMALIZED position through one playthrough: a sine carrier
     /// travelling between the Floor and Ceiling envelopes, starting AT the floor, at the rate the Rate envelope
     /// asks for. The carrier is fixed by design — what an author shapes is the band and the rate.</summary>
+    /// The highest value this can produce over a playthrough — what a host needs to SIZE something for:
+    /// a buffer, a bounding box, an allocation. Getting it too low clips the result.
+    ///
+    /// Existed as three hand-copied switches across Pyre, and every copy fell through to the static value
+    /// for Steps, so an authored step sequence was sized as though it were flat. One implementation here
+    /// means the next mode added cannot silently under-report in three places.
+    ///
+    /// ⚠️ Curve deliberately keeps its long-standing convention — the max of the raw authored point
+    /// VALUES, not the evaluated output, and not accounting for smoothing overshoot. It is arguably wrong,
+    /// but every existing Pyre asset was authored and baked against it, so changing it here would resize
+    /// blasts that people already tuned. Steps and Oscillation follow the same convention for consistency.
+    public float PeakValue()
+    {
+        switch (m_mode)
+        {
+            case Mode.Static: return m_static;
+            case Mode.MinMax: return Mathf.Max(m_min, m_max);
+            case Mode.Curve:  return PeakOfPoints(m_points, m_static);
+            case Mode.Steps:
+            {
+                if (m_steps == null || m_steps.Count == 0) return m_static;
+                float m = float.MinValue;
+                foreach (var v in m_steps) if (v > m) m = v;
+                return m;
+            }
+            // The carrier never exceeds its CEILING envelope, so the ceiling is the peak.
+            case Mode.Oscillation: return PeakOfPoints(m_oscMax, m_static);
+            default: return m_static;
+        }
+    }
+
+    static float PeakOfPoints(List<ZUIEnvelopePoint> pts, float fallback)
+    {
+        if (pts == null || pts.Count == 0) return fallback;
+        float m = 0f;
+        foreach (var p in pts) if (p.value > m) m = p.value;
+        return m;
+    }
     public float EvaluateOscillationAtNorm(float norm01)
     {
         float t = Mathf.Clamp01(norm01);

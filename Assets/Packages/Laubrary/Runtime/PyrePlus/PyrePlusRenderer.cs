@@ -2451,7 +2451,13 @@ namespace Laubrary.PyrePlus
             {
                 case ZUIValue.Mode.Static: return v.staticValue;
                 case ZUIValue.Mode.MinMax: return (v.min + v.max) * 0.5f;
-                case ZUIValue.Mode.Curve:  return ZUIEnvelopeEvaluator.Evaluate(v.points, Mathf.Clamp01(t), v.yMax);
+                // Every envelope-shaped mode goes through the value's OWN normalized evaluators, so the
+                // canonical trace matches what the control draws. Steps had no case here at all and fell to
+                // the static value, so a Steps-authored field traced flat while the real placements stepped;
+                // and the old raw ZUIEnvelopeEvaluator call for Curve silently dropped corner smoothness.
+                case ZUIValue.Mode.Curve: return v.EvaluateCurveAtNorm(Mathf.Clamp01(t));
+                case ZUIValue.Mode.Steps: return v.EvaluateStepsAtNorm(Mathf.Clamp01(t));
+                case ZUIValue.Mode.Oscillation: return v.EvaluateOscillationAtNorm(Mathf.Clamp01(t));
                 default: return v.staticValue;
             }
         }

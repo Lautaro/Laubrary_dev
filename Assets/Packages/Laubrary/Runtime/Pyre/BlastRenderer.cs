@@ -1108,18 +1108,7 @@ namespace Laubrary.Pyre
         static float PeakValue(ZUIValue v)
         {
             if (v == null) return 0f;
-            switch (v.mode)
-            {
-                case ZUIValue.Mode.Static: return v.staticValue;
-                case ZUIValue.Mode.MinMax: return Mathf.Max(v.min, v.max);
-                case ZUIValue.Mode.Curve:
-                {
-                    float m = 0f;
-                    if (v.points != null) foreach (var p in v.points) if (p.value > m) m = p.value;
-                    return m;
-                }
-                default: return v.staticValue;
-            }
+            return v.PeakValue();   // one canonical peak — Steps used to fall through and size as flat
         }
 
         // Same as BuildStack but LAYER modifiers only — no global modifiers — for the isolated shape preview,

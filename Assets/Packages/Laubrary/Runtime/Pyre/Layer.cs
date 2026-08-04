@@ -298,15 +298,7 @@ namespace Laubrary.Pyre
         static float PeakOf(ZUIValue v)
         {
             if (v == null) return 0f;
-            switch (v.mode)
-            {
-                case ZUIValue.Mode.MinMax: return Mathf.Max(v.min, v.max);
-                case ZUIValue.Mode.Curve:
-                    float peak = 0f;
-                    foreach (var p in v.points) if (p.value > peak) peak = p.value;
-                    return peak;
-                default: return v.staticValue;
-            }
+            return v.PeakValue();   // one canonical peak — Steps used to fall through and size as flat
         }
 
         public HeightBallGroup Clone()
