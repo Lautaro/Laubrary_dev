@@ -229,11 +229,17 @@ namespace Laubrary.SpriteFx.Editor
                 // Value-Range lets the curve's Y run outside the field's own [Range], which the kernels clamp
                 // to anyway — so it can only ever author a value that gets thrown away. Pinning it to the
                 // declared range is what hideCurveRange does.
+                //
+                // The "live:" readout goes too. It evaluates the value against a WALL CLOCK, and a stack has
+                // no wall clock — its life is a position handed down by whatever plays it. So the number
+                // ticked away on a timeline unrelated to anything the author is looking at, next to a preview
+                // showing the real one.
                 ConfigureValue = (f, o) =>
                 {
                     o.allowOscillation = true;
                     o.hideCurveTiming = true;
                     o.hideCurveRange = true;
+                    o.hideLiveReadout = true;
                 },
             };
 

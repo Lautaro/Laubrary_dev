@@ -831,14 +831,25 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class PosterizeModifier : PixelModifier
     {
-        [Range(2, 16)]
-        [Tooltip("Number of discrete shades per colour channel. Lower = chunkier, more hand-painted bands.")]
-        public int levels = 5;
+        [HideInInspector] public int levels = 5;
+        [HideInInspector] public bool levelsUpgraded;
+        [Range(2f, 16f)]
+        [Tooltip("Number of discrete shades per colour channel. Lower = chunkier, more hand-painted bands. " +
+                 "Animatable — collapse the shading down to a couple of bands over the event and the sprite " +
+                 "posterises itself as it goes.")]
+        public ZUIValue levelsValue = new ZUIValue(5f);
+        public ZUIValue Levels { get { if (!levelsUpgraded) { levelsValue = new ZUIValue(levels); levelsUpgraded = true; } return levelsValue; } }
+
         [Tooltip("Also quantize alpha into the same number of steps (hard transparency bands instead of a smooth fade).")]
         public bool affectAlpha = false;
 
+        int lv = 5;
         public override string DisplayName => "Posterize";
-        PosterizeP P() => new PosterizeP { levels = levels, affectAlpha = affectAlpha ? 1 : 0 };
+        // Rounded at resolve, not authored as an int: the count is discrete but the CURVE through it is not,
+        // so an envelope sweeping 16 → 2 steps down through the whole band range instead of jumping.
+        public override void Prepare(Func<ZUIValue, int, float> e)
+            => lv = Mathf.Clamp(Mathf.RoundToInt(e(Levels, 0)), 2, 16);
+        PosterizeP P() => new PosterizeP { levels = lv, affectAlpha = affectAlpha ? 1 : 0 };
         public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
             => SfxKernels.KPosterize(P(), ref c, ref a);
         public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.Posterize, poster = P(), lutIndex = -1 };
@@ -1264,10 +1275,14 @@ namespace Laubrary.SpriteFx
         [HideInInspector] public bool offsetYUpgraded;
         public ZUIValue OffsetY { get { if (!offsetYUpgraded) { offsetYValue = new ZUIValue(offsetY); offsetYUpgraded = true; } return offsetYValue; } }
 
+        [HideInInspector] public float noiseWarp = 0.6f;
+        [HideInInspector] public bool noiseWarpUpgraded;
         [ZUIShowIf("shape", "Noise")]
         [Tooltip("Domain-warp strength — how much the noise field bends on itself. 0 = plain smooth noise " +
-                 "(a blobby cloud); higher = more churned, organic eddies.")]
-        [Range(0f, 2f)] public float noiseWarp = 0.6f;
+                 "(a blobby cloud); higher = more churned, organic eddies. Animatable — ramp the churn up " +
+                 "as the mask closes.")]
+        [Range(0f, 2f)] public ZUIValue noiseWarpValue = new ZUIValue(0.6f);
+        public ZUIValue NoiseWarp { get { if (!noiseWarpUpgraded) { noiseWarpValue = new ZUIValue(noiseWarp); noiseWarpUpgraded = true; } return noiseWarpValue; } }
         [ZUIShowIf("shape", "Noise")]
         [ZUIPair2D("noiseDriftY", "Noise drift")]
         [Range(-64f, 64f)]
@@ -1278,16 +1293,24 @@ namespace Laubrary.SpriteFx
         [Tooltip("Extra Y drift added to the noise sample position, in half-canvas units. Animatable.")]
         public ZUIValue noiseDriftY = new ZUIValue(0f);
 
+        [HideInInspector] public float crescentBite = 0.9f;
+        [HideInInspector] public bool crescentBiteUpgraded;
         [ZUIShowIf("shape", "Crescent")]
         [Tooltip("How far the bitten-out disc sits from the centre. Low = the bite swallows almost " +
-                 "everything (a thin sliver); high = it barely clips the edge (an almost-full moon).")]
-        [Range(0f, 2f)] public float crescentBite = 0.9f;
-        [ZUIShowIf("shape", "Crescent")]
-        [Tooltip("The bitten-out disc's own radius. Bigger takes a deeper bite, leaving a " +
-                 "thinner, more curved sliver.")]
-        [Range(0.1f, 2f)] public float crescentThickness = 1f;
+                 "everything (a thin sliver); high = it barely clips the edge (an almost-full moon). " +
+                 "Animatable.")]
+        [Range(0f, 2f)] public ZUIValue crescentBiteValue = new ZUIValue(0.9f);
+        public ZUIValue CrescentBite { get { if (!crescentBiteUpgraded) { crescentBiteValue = new ZUIValue(crescentBite); crescentBiteUpgraded = true; } return crescentBiteValue; } }
 
-        float prog, siz, rotRad, driftX, driftY, offX, offY, sharp;
+        [HideInInspector] public float crescentThickness = 1f;
+        [HideInInspector] public bool crescentThicknessUpgraded;
+        [ZUIShowIf("shape", "Crescent")]
+        [Tooltip("The bitten-out disc's own radius. Bigger takes a deeper bite, leaving a thinner, more " +
+                 "curved sliver. Animatable.")]
+        [Range(0.1f, 2f)] public ZUIValue crescentThicknessValue = new ZUIValue(1f);
+        public ZUIValue CrescentThickness { get { if (!crescentThicknessUpgraded) { crescentThicknessValue = new ZUIValue(crescentThickness); crescentThicknessUpgraded = true; } return crescentThicknessValue; } }
+
+        float prog, siz, rotRad, driftX, driftY, offX, offY, sharp, warpV, biteV, thickV;
         public override string DisplayName => "Alpha mask";
         public override void Prepare(Func<ZUIValue, int, float> e)
         {
@@ -1299,14 +1322,17 @@ namespace Laubrary.SpriteFx
             offX = Mathf.Clamp(e(OffsetX, 5), -1f, 1f);
             offY = Mathf.Clamp(e(OffsetY, 6), -1f, 1f);
             sharp = Mathf.Clamp01(e(Sharpness, 7));
+            warpV = e(NoiseWarp, 8);
+            biteV = e(CrescentBite, 9);
+            thickV = e(CrescentThickness, 10);
         }
 
         MaskP P() => new MaskP
         {
             shape = (int)shape, prog = prog, siz = siz, rotRad = rotRad, driftX = driftX, driftY = driftY,
-            sharpness = sharp, offsetX = offX, offsetY = offY, noiseWarp = noiseWarp,
+            sharpness = sharp, offsetX = offX, offsetY = offY, noiseWarp = warpV,
             strength = 1f, fadeMode = SfxKernels.FadeEdge, fadeAngleRad = 0f,
-            biteX = crescentBite, biteR = crescentThickness
+            biteX = biteV, biteR = thickV
         };
         public override bool ApplyPixel(ref Color col, ref float a, in PixelInfo p)
             => SfxKernels.KAlphaMask(P(), ref col, ref a, p);
@@ -1370,26 +1396,40 @@ namespace Laubrary.SpriteFx
                  "hard boundary with the reveal itself fading along the angle below.")]
         public WipeEdge edge = WipeEdge.Soft;
 
+        // Frozen legacy source — never renamed/retyped, so an authored asset keeps its value; the ZUIValue
+        // companion below is what the editor shows and what Prepare reads. Same upgrade-on-first-use pattern
+        // as AlphaMask's sharpness.
+        [HideInInspector] public float feather = 0.4f;
+        [HideInInspector] public bool featherUpgraded;
         [ZUIShowIf("edge", "Soft")]
-        [Tooltip("How wide the blur is. 0 is nearly a hard cut, 1 a very wide gradient.")]
-        [Range(0f, 1f)] public float feather = 0.4f;
+        [Tooltip("How wide the blur is. 0 is nearly a hard cut, 1 a very wide gradient. Animatable — harden " +
+                 "the edge as the wipe lands.")]
+        [Range(0f, 1f)] public ZUIValue featherValue = new ZUIValue(0.4f);
+        public ZUIValue Feather { get { if (!featherUpgraded) { featherValue = new ZUIValue(feather); featherUpgraded = true; } return featherValue; } }
 
         [ZUIShowIf("edge", "Directional")]
         [Tooltip("The compass direction the fade runs along, in degrees. 0 fades away to the right, 90 " +
                  "upward. Animatable — sweep the fade around while the shape holds still.")]
         [Range(0f, 360f)] public ZUIValue fadeAngle = new ZUIValue(0f);
 
+        [HideInInspector] public float crescentBite = 0.9f;
+        [HideInInspector] public bool crescentBiteUpgraded;
         [ZUIShowIf("shape", "Crescent")]
         [Tooltip("How far the bitten-out disc sits from the centre. Low = the bite swallows almost " +
-                 "everything (a thin sliver); high = it barely clips the edge (an almost-full moon).")]
-        [Range(0f, 2f)] public float crescentBite = 0.9f;
+                 "everything (a thin sliver); high = it barely clips the edge (an almost-full moon). " +
+                 "Animatable — open the moon as the wipe runs.")]
+        [Range(0f, 2f)] public ZUIValue crescentBiteValue = new ZUIValue(0.9f);
+        public ZUIValue CrescentBite { get { if (!crescentBiteUpgraded) { crescentBiteValue = new ZUIValue(crescentBite); crescentBiteUpgraded = true; } return crescentBiteValue; } }
 
+        [HideInInspector] public float crescentThickness = 1f;
+        [HideInInspector] public bool crescentThicknessUpgraded;
         [ZUIShowIf("shape", "Crescent")]
         [Tooltip("The bitten-out disc's own radius. Bigger takes a deeper bite, leaving a thinner, more " +
-                 "curved sliver.")]
-        [Range(0.1f, 2f)] public float crescentThickness = 1f;
+                 "curved sliver. Animatable.")]
+        [Range(0.1f, 2f)] public ZUIValue crescentThicknessValue = new ZUIValue(1f);
+        public ZUIValue CrescentThickness { get { if (!crescentThicknessUpgraded) { crescentThicknessValue = new ZUIValue(crescentThickness); crescentThicknessUpgraded = true; } return crescentThicknessValue; } }
 
-        float prog, siz, rotRad, offX, offY, strengthV, fadeRad;
+        float prog, siz, rotRad, offX, offY, strengthV, fadeRad, featherV, biteV, thickV;
         public override string DisplayName => "Wipe";
 
         public override void Prepare(Func<ZUIValue, int, float> e)
@@ -1401,6 +1441,9 @@ namespace Laubrary.SpriteFx
             offY = e(offsetY, 4);
             strengthV = Mathf.Clamp01(e(strength, 5));
             fadeRad = e(fadeAngle, 6) * Mathf.Deg2Rad;
+            featherV = Mathf.Clamp01(e(Feather, 7));
+            biteV = e(CrescentBite, 8);
+            thickV = e(CrescentThickness, 9);
         }
 
         static int ShapeId(WipeShape s)
@@ -1428,11 +1471,11 @@ namespace Laubrary.SpriteFx
         {
             shape = ShapeId(shape),
             prog = prog, siz = siz, rotRad = rotRad,
-            sharpness = 1f - Mathf.Clamp01(feather),   // the shared kernel speaks in edge HARDNESS
+            sharpness = 1f - featherV,   // the shared kernel speaks in edge HARDNESS
             offsetX = offX, offsetY = offY,
             strength = strengthV,
             fadeMode = FadeId(edge), fadeAngleRad = fadeRad,
-            biteX = crescentBite, biteR = crescentThickness
+            biteX = biteV, biteR = thickV
         };
 
         public override bool ApplyPixel(ref Color col, ref float a, in PixelInfo p)
@@ -1471,41 +1514,76 @@ namespace Laubrary.SpriteFx
     [Serializable]
     public class HueReplacement
     {
+        // Every dial here animates. A recolour that can only hold still is a palette swap; one that can move
+        // is a character turning to stone, a power-up washing through, a hue drifting as a shield charges —
+        // and that is the whole point of a stack whose values are shapes over the event's life.
+        //
+        // Each keeps a frozen legacy float under its old name so authored assets load unchanged, with the
+        // ZUIValue companion beside it and an upgrade-on-first-use property, exactly as Alpha mask's
+        // sharpness has always done.
+        [HideInInspector] public float targetHue = 0f;
+        [HideInInspector] public bool targetHueUpgraded;
         [ZUIHue]
         [Tooltip("The hue this replacement looks for, in degrees around the colour wheel (0 red, 120 green, " +
-                 "240 blue). Pick it off the swatch rather than guessing the number.")]
-        [Range(0f, 360f)] public float targetHue = 0f;
+                 "240 blue). Pick it off the swatch rather than guessing the number. Animatable — sweep the " +
+                 "band around the wheel to catch different parts of the sprite over the event.")]
+        [Range(0f, 360f)] public ZUIValue targetHueValue = new ZUIValue(0f);
+        public ZUIValue TargetHue { get { if (!targetHueUpgraded) { targetHueValue = new ZUIValue(targetHue); targetHueUpgraded = true; } return targetHueValue; } }
 
+        [HideInInspector] public float targetRange = 30f;
+        [HideInInspector] public bool targetRangeUpgraded;
         [Tooltip("How far either side of that hue still counts as a match, in degrees. Small only catches an " +
-                 "exact shade; 180 catches every colour there is.")]
-        [Range(1f, 180f)] public float targetRange = 30f;
+                 "exact shade; 180 catches every colour there is. Animatable — widen the band to swallow the " +
+                 "whole sprite.")]
+        [Range(1f, 180f)] public ZUIValue targetRangeValue = new ZUIValue(30f);
+        public ZUIValue TargetRange { get { if (!targetRangeUpgraded) { targetRangeValue = new ZUIValue(targetRange); targetRangeUpgraded = true; } return targetRangeValue; } }
 
+        [HideInInspector] public float targetSmoothing = 0.5f;
+        [HideInInspector] public bool targetSmoothingUpgraded;
         [Tooltip("How softly the match dies out at the band's rim: 0 stops dead at the edge (a visible seam " +
                  "where neighbouring hues are untouched), 1 fades the whole band so it blends into what is " +
-                 "around it.")]
-        [Range(0f, 1f)] public float targetSmoothing = 0.5f;
+                 "around it. Animatable.")]
+        [Range(0f, 1f)] public ZUIValue targetSmoothingValue = new ZUIValue(0.5f);
+        public ZUIValue TargetSmoothing { get { if (!targetSmoothingUpgraded) { targetSmoothingValue = new ZUIValue(targetSmoothing); targetSmoothingUpgraded = true; } return targetSmoothingValue; } }
 
         [Tooltip("Scales this whole replacement: 0 disables it, 1 applies it fully, and anything between blends " +
                  "the new colour with the original. Animatable — fade a recolour in over the effect's life.")]
         [Range(0f, 1f)] public ZUIValue amount = new ZUIValue(1f);
 
+        [HideInInspector] public float replacementHue = 200f;
+        [HideInInspector] public bool replacementHueUpgraded;
         [ZUIHue]
         [Tooltip("The hue matched pixels are moved to, in degrees around the colour wheel. Pick the colour " +
-                 "you want them to become.")]
-        [Range(0f, 360f)] public float replacementHue = 200f;
+                 "you want them to become. Animatable — cycle it for a shifting, iridescent recolour.")]
+        [Range(0f, 360f)] public ZUIValue replacementHueValue = new ZUIValue(200f);
+        public ZUIValue ReplacementHue { get { if (!replacementHueUpgraded) { replacementHueValue = new ZUIValue(replacementHue); replacementHueUpgraded = true; } return replacementHueValue; } }
 
+        [HideInInspector] public float replacementSmoothing = 1f;
+        [HideInInspector] public bool replacementSmoothingUpgraded;
         [Tooltip("How much of the source's own hue variation survives: 0 flattens the whole band onto one flat " +
-                 "hue, 1 keeps every pixel's offset so shading and highlights read as before.")]
-        [Range(0f, 1f)] public float replacementSmoothing = 1f;
+                 "hue, 1 keeps every pixel's offset so shading and highlights read as before. Animatable — " +
+                 "collapse the shading to flat colour as something petrifies.")]
+        [Range(0f, 1f)] public ZUIValue replacementSmoothingValue = new ZUIValue(1f);
+        public ZUIValue ReplacementSmoothing { get { if (!replacementSmoothingUpgraded) { replacementSmoothingValue = new ZUIValue(replacementSmoothing); replacementSmoothingUpgraded = true; } return replacementSmoothingValue; } }
 
-        [Tooltip("Multiplies the brightness of matched pixels. 1 leaves it alone, below darkens, above lifts.")]
-        [Range(0f, 2f)] public float brightness = 1f;
+        [HideInInspector] public float brightness = 1f;
+        [HideInInspector] public bool brightnessUpgraded;
+        [Tooltip("Multiplies the brightness of matched pixels. 1 leaves it alone, below darkens, above lifts. " +
+                 "Animatable — flare the matched colour up and back down on a hit.")]
+        [Range(0f, 2f)] public ZUIValue brightnessValue = new ZUIValue(1f);
+        public ZUIValue Brightness { get { if (!brightnessUpgraded) { brightnessValue = new ZUIValue(brightness); brightnessUpgraded = true; } return brightnessValue; } }
 
+        [HideInInspector] public float saturation = 1f;
+        [HideInInspector] public bool saturationUpgraded;
         [Tooltip("Multiplies the colourfulness of matched pixels. 1 leaves it alone, 0 makes them grey, above " +
-                 "pushes them more vivid.")]
-        [Range(0f, 2f)] public float saturation = 1f;
+                 "pushes them more vivid. Animatable — drain to grey as a character dies.")]
+        [Range(0f, 2f)] public ZUIValue saturationValue = new ZUIValue(1f);
+        public ZUIValue Saturation { get { if (!saturationUpgraded) { saturationValue = new ZUIValue(saturation); saturationUpgraded = true; } return saturationValue; } }
 
-        [System.NonSerialized] public float resolvedAmount;   // this frame's `amount`, filled by Prepare
+        // This frame's resolved values, filled by ColorReplaceModifier.Prepare.
+        [System.NonSerialized] public float resolvedAmount, resolvedTargetHue, resolvedTargetRange,
+                                          resolvedTargetSmoothing, resolvedReplacementHue,
+                                          resolvedReplacementSmoothing, resolvedBrightness, resolvedSaturation;
     }
 
     /// Re-skin a sprite by HUE: match one or more bands of the colour wheel and rewrite each to a new hue,
@@ -1527,20 +1605,31 @@ namespace Laubrary.SpriteFx
             {
                 var r = replacements[i];
                 if (r == null) continue;
-                r.resolvedAmount = Mathf.Clamp01(e(r.amount, i));   // one salt per entry keeps their randomness apart
+                // A distinct salt PER ENTRY AND PER FIELD, so two replacements' Min-Max randomness stays
+                // independent and so does each dial's within one — sharing a salt would make a band's hue and
+                // its width roll the same number.
+                int s = i * 16;
+                r.resolvedAmount = Mathf.Clamp01(e(r.amount, s));
+                r.resolvedTargetHue = e(r.TargetHue, s + 1);
+                r.resolvedTargetRange = Mathf.Max(0.01f, e(r.TargetRange, s + 2));
+                r.resolvedTargetSmoothing = Mathf.Clamp01(e(r.TargetSmoothing, s + 3));
+                r.resolvedReplacementHue = e(r.ReplacementHue, s + 4);
+                r.resolvedReplacementSmoothing = Mathf.Clamp01(e(r.ReplacementSmoothing, s + 5));
+                r.resolvedBrightness = e(r.Brightness, s + 6);
+                r.resolvedSaturation = e(r.Saturation, s + 7);
             }
         }
 
         ReplaceP P(HueReplacement r) => new ReplaceP
         {
-            hue = r.targetHue,
-            range = Mathf.Max(0.01f, r.targetRange),
-            smooth = r.targetSmoothing,
+            hue = r.resolvedTargetHue,
+            range = r.resolvedTargetRange,
+            smooth = r.resolvedTargetSmoothing,
             amt = r.resolvedAmount,
-            bri = r.brightness,
-            sat = r.saturation,
-            outHue = r.replacementHue,
-            spread = r.replacementSmoothing,
+            bri = r.resolvedBrightness,
+            sat = r.resolvedSaturation,
+            outHue = r.resolvedReplacementHue,
+            spread = r.resolvedReplacementSmoothing,
         };
 
         public override bool ApplyPixel(ref Color c, ref float a, in PixelInfo p)
@@ -1574,16 +1663,33 @@ namespace Laubrary.SpriteFx
                 foreach (var r in replacements)
                 {
                     if (r == null) { m.replacements.Add(null); continue; }
+                    // Clone the UPGRADE FLAGS with the values: copying the animatable companions while
+                    // leaving the flags false would make the copy re-seed itself from the frozen legacy
+                    // floats on first use and silently throw away every curve that was just copied.
                     m.replacements.Add(new HueReplacement
                     {
                         targetHue = r.targetHue,
+                        targetHueUpgraded = r.targetHueUpgraded,
+                        targetHueValue = Sfx.CloneVal(r.targetHueValue),
                         targetRange = r.targetRange,
+                        targetRangeUpgraded = r.targetRangeUpgraded,
+                        targetRangeValue = Sfx.CloneVal(r.targetRangeValue),
                         targetSmoothing = r.targetSmoothing,
+                        targetSmoothingUpgraded = r.targetSmoothingUpgraded,
+                        targetSmoothingValue = Sfx.CloneVal(r.targetSmoothingValue),
                         amount = Sfx.CloneVal(r.amount),
                         replacementHue = r.replacementHue,
+                        replacementHueUpgraded = r.replacementHueUpgraded,
+                        replacementHueValue = Sfx.CloneVal(r.replacementHueValue),
                         replacementSmoothing = r.replacementSmoothing,
+                        replacementSmoothingUpgraded = r.replacementSmoothingUpgraded,
+                        replacementSmoothingValue = Sfx.CloneVal(r.replacementSmoothingValue),
                         brightness = r.brightness,
+                        brightnessUpgraded = r.brightnessUpgraded,
+                        brightnessValue = Sfx.CloneVal(r.brightnessValue),
                         saturation = r.saturation,
+                        saturationUpgraded = r.saturationUpgraded,
+                        saturationValue = Sfx.CloneVal(r.saturationValue),
                     });
                 }
             return m;
