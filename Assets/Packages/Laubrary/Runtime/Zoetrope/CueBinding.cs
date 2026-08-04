@@ -22,7 +22,10 @@ namespace Laubrary.Zoetrope
 
         [Tooltip("Raise this named Zoe event when the cue fires, instead of (or as well as) spawning the FX "+
                  "above. This is how an animation frame triggers a full reaction — a teleport's flash, a "+
-                 "spawn puff — including a SpriteFx on the body, which the ICombatFx slot alone cannot express.")]
+                 "spawn puff — including a SpriteFx on the body, which the ICombatFx slot alone cannot express. "+
+                 "Must match an id the owning Zoe declares under Custom events; the Zoe window picks it from "+
+                 "that list rather than accepting free text, because a name that only fails at runtime is a "+
+                 "bug you find in play mode.")]
         public string raiseEvent = "";
 
         /// True when this binding would do SOMETHING if it fired. Both halves are optional, so a binding that

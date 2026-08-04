@@ -641,11 +641,24 @@ namespace Laubrary.Zoetrope.Editor
             if (zoe != null) w.SetAsset(zoe);
         }
 
+        // Live validation badges (duplicate / empty event ids, a cue raising an id nobody declares) re-read the
+        // asset and repaint their own text. Registered as the body is built, cleared before it is rebuilt, and
+        // re-run whenever an id is typed — so a rename shows its consequences on the OTHER cards immediately,
+        // without a rebuild yanking the text field out from under the caret.
+        readonly List<Action> _validators = new List<Action>();
+
+        // Which event card should take keyboard focus once the window has rebuilt (set by "+ New event", so a
+        // freshly created event is named by typing rather than by hunting for its field).
+        int _focusEventIndex = -1;
+
+        void RunValidators() { for (int i = 0; i < _validators.Count; i++) _validators[i]?.Invoke(); }
+
         // Hand-curated rather than the base's generic loop: maxHealth/invulnerableAfterHit are two short
         // related Stats fields (measured 480px wide each under the generic loop) that read far better sharing
         // one row, and the base has no notion that they belong together.
         protected override void BuildBody(VisualElement root, Zoe zoe)
         {
+            _validators.Clear();
             var identity = Z.Section("Identity", "What this character is called in-game.");
             identity.Add(Z.Field("Display Name", "The name shown to the player.",
                 Z.TextInput(zoe.displayName, "The name shown to the player.",
@@ -668,11 +681,15 @@ namespace Laubrary.Zoetrope.Editor
             BuildManagedRef(look, So.FindProperty("view"), "View", zoe);
             root.Add(look);
 
-            var reactions = Z.Section("Reactions", "What plays when this character is hurt, and when it dies.");
+            var reactions = Z.Section("Reactions",
+                "What plays when this character is hurt, when it dies, and on any custom event it declares.");
             reactions.Add(Z.Text("Hit", ZuiText.Section, "What happens on a non-killing hit."));
             BuildReactionFx(reactions, So.FindProperty("hit"), zoe);
             reactions.Add(Z.Text("Death", ZuiText.Section, "What happens on the killing blow."));
             BuildReactionFx(reactions, So.FindProperty("death"), zoe);
+            // Custom events live INSIDE Reactions, under Hit and Death, because they are the same kind of
+            // thing — same ReactionFx, same editor — and only differ in being raised by a name you choose.
+            BuildCustomEvents(reactions, zoe);
             root.Add(reactions);
 
             var ai = Z.Section("AI", "Optional decision-making attached at spawn.");
@@ -688,8 +705,9 @@ namespace Laubrary.Zoetrope.Editor
             weapons.Add(IntFieldClamped("Default Active Weapon", "defaultActiveWeapon", zoe.defaultActiveWeapon,
                 "Which weapon slot is enabled when this character spawns.", v => Mathf.Max(0, v)));
 
-            root.Add(ZuiSerialized.Property(So.FindProperty("cues"), "Cues",
-                "Always-on effects this character plays off its own animation, whatever it has equipped."));
+            BuildCues(root, zoe);
+
+            RunValidators();   // first paint of every warning badge, from the data as it stands right now
         }
 
         /// One ReactionFx (Hit or Death): the clip dropdown (sourced from the Zoe's own view, same reflection
@@ -741,6 +759,463 @@ namespace Laubrary.Zoetrope.Editor
             addBtn.style.width = AddButtonWidth;
             addBtn.clicked += () => ShowAddEffectMenu(addBtn, fxPath);
             root.Add(addBtn);
+        }
+
+        // ── custom events (Zoe.events) ──────────────────────────────────────────────────────
+        // A named reaction is a ReactionFx under an id you choose, so it is authored by the SAME
+        // BuildReactionFx surface Hit and Death use — only the identity row differs, because that id is the
+        // whole contract between this asset and everything that raises it.
+
+        const string EventsTip = "Reactions this character can play beyond Hit and Death — a teleport, a spawn, " +
+            "a taunt, a special attack. Each is raised BY NAME (from gameplay code, or from a frame cue's Raise " +
+            "picker under Cues) and carries the same clip and effect list the fixed reactions do.";
+
+        const string EventIdTip = "The name this reaction is raised by. It is typed ONCE, here; everywhere else " +
+            "picks it from a list. Case-sensitive, and it must be unique — two events sharing an id means only " +
+            "the first can ever play. Renaming it does NOT update whatever already raises it: a frame cue " +
+            "pointing at the old name shows up as undeclared under Cues, and a gameplay call raising it does " +
+            "nothing.";
+
+        void BuildCustomEvents(VisualElement root, Zoe zoe)
+        {
+            var eventsProp = So.FindProperty("events");
+            if (eventsProp == null) return;
+            string listPath = eventsProp.propertyPath;
+
+            root.Add(Z.Text($"Custom events  ({eventsProp.arraySize})", ZuiText.Section, EventsTip));
+
+            // The empty state is a screen of its own: a character with no custom events must still say what
+            // this block is for and offer the one move that gets out of it.
+            if (eventsProp.arraySize == 0)
+                root.Add(Z.Text("None declared — this character plays only Hit and Death.", ZuiText.Subtle, EventsTip));
+
+            // Cards only, so the reorder insertion line and its index maths never see the Add button.
+            var listHost = new VisualElement();
+            root.Add(listHost);
+            for (int i = 0; i < eventsProp.arraySize; i++)
+                BuildEventCard(listHost, eventsProp.GetArrayElementAtIndex(i), listPath, i, zoe);
+
+            root.Add(Z.Button("+ New event",
+                "Declare another named reaction on this character, and start naming it.",
+                () => AddEvent(listPath, zoe)).W(AddButtonWidth));
+        }
+
+        /// One named event: a header carrying its id (the identity, editable in place) and a body that is the
+        /// ordinary reaction editor — deliberately the same one Hit and Death get, since a custom event is not
+        /// a different kind of thing.
+        void BuildEventCard(VisualElement listHost, SerializedProperty entryProp, string listPath, int index, Zoe zoe)
+        {
+            var idProp = entryProp.FindPropertyRelative("id");
+            var reactionProp = entryProp.FindPropertyRelative("reaction");
+            if (idProp == null || reactionProp == null) return;
+            string idPath = idProp.propertyPath;
+            string idAtBuild = idProp.stringValue ?? "";
+
+            // Fold state keyed by the NamedReaction INSTANCE, so it survives the rebuilds every edit triggers
+            // and never drifts between cards when the list is reordered (the ZuiFoldCard contract).
+            object foldKey = zoe.events != null && index < zoe.events.Count ? (object)zoe.events[index] : null;
+
+            var box = Z.Box(null, null);
+            var header = new VisualElement();
+            header.AddToClassList("zui-row");
+
+            var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder. Order is presentation only — an event is raised by name.");
+            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
+            grip.style.width = 16f;
+            ZuiReorder.MakeGrip(grip, box, listHost, (from, to) =>
+            {
+                Commit(listPath, p => p.MoveArrayElement(from, to));
+                Rebuild();
+            });
+            header.Add(grip);
+
+            var idField = Z.TextInput(idAtBuild, EventIdTip, v =>
+            {
+                Commit(idPath, p => p.stringValue = v);
+                RunValidators();   // the duplicate warning is a property of the WHOLE list, not of this card
+            }, 150f);
+            header.Add(Z.Field("Id", EventIdTip, idField));
+
+            // A rename has to reach the Cues pickers (they list the declared ids), but rebuilding per keystroke
+            // would tear the field out from under the caret — so it waits until the field is left.
+            idField.RegisterCallback<FocusOutEvent>(_ =>
+            {
+                string now = zoe.events != null && index < zoe.events.Count && zoe.events[index] != null
+                    ? zoe.events[index].id ?? "" : idAtBuild;
+                if (now == idAtBuild) return;
+                rootVisualElement.schedule.Execute(Rebuild);
+            });
+
+            var badge = WarningBadge();
+            header.Add(badge);
+            _validators.Add(() =>
+            {
+                var (text, tip) = EventIdIssue(zoe, index);
+                badge.text = text;
+                badge.tooltip = string.IsNullOrEmpty(text) ? EventIdTip : tip;
+            });
+
+            header.Add(Z.Flexible());
+            var removeBtn = Z.Button("×",
+                "Remove this event (undoable). Anything raising it by name stops working.", () =>
+                {
+                    Commit(listPath, p => p.DeleteArrayElementAtIndex(index));
+                    Rebuild();
+                }).W(22f);
+            header.Add(removeBtn);
+            box.Add(header);
+
+            var body = new VisualElement();
+            BuildReactionFx(body, reactionProp, zoe);
+            box.Add(body);
+
+            ZuiFoldCard.Wire(foldKey, header, body, idField, removeBtn);
+            listHost.Add(box);
+
+            if (index == _focusEventIndex)
+            {
+                _focusEventIndex = -1;
+                idField.schedule.Execute(() => idField.Focus());
+            }
+        }
+
+        /// What is wrong with the id at `index`, as a short badge plus the explanation behind it. Empty text
+        /// means it is fine. Surfaced at AUTHOR time because both failures are silent at runtime: an empty id
+        /// is skipped by Zoe.EventIds, and EventNamed returns the FIRST match for a duplicate.
+        static (string text, string tooltip) EventIdIssue(Zoe zoe, int index)
+        {
+            var list = zoe?.events;
+            if (list == null || index < 0 || index >= list.Count || list[index] == null) return ("", "");
+
+            string id = list[index].id ?? "";
+            if (string.IsNullOrWhiteSpace(id))
+                return ("! needs an id", "This event has no name, so nothing can raise it and it never appears in " +
+                                        "a picker. Type a name to make it playable.");
+
+            for (int i = 0; i < index; i++)
+                if (list[i] != null && list[i].id == id)
+                    return ("! duplicate — never plays",
+                        $"An earlier event is already called \"{id}\", and raising that name always plays THAT " +
+                        "one. This event can never run until it is renamed.");
+
+            for (int i = index + 1; i < list.Count; i++)
+                if (list[i] != null && list[i].id == id)
+                    return ("! duplicate id",
+                        $"Another event below is also called \"{id}\". Raising the name plays this one and the " +
+                        "other never runs. Ids must be unique.");
+
+            return ("", "");
+        }
+
+        void AddEvent(string listPath, Zoe zoe)
+        {
+            string id = UniqueEventId(zoe);
+            int added = -1;
+            Commit(listPath, p =>
+            {
+                p.arraySize++;
+                added = p.arraySize - 1;
+                // Unity grows a plain-class array by DUPLICATING the previous last element, so a new event
+                // would otherwise arrive carrying the last one's clip and its whole effect list under a new
+                // name. Reset every field explicitly, the same way AddEffect does.
+                var e = p.GetArrayElementAtIndex(added);
+                var idProp = e.FindPropertyRelative("id"); if (idProp != null) idProp.stringValue = id;
+                var r = e.FindPropertyRelative("reaction");
+                if (r != null)
+                {
+                    var clip = r.FindPropertyRelative("clip"); if (clip != null) clip.stringValue = "";
+                    var stun = r.FindPropertyRelative("stunSeconds"); if (stun != null) stun.floatValue = 0f;
+                    var bodyFx = r.FindPropertyRelative("bodyFx"); if (bodyFx != null) bodyFx.objectReferenceValue = null;
+                    var fx = r.FindPropertyRelative("fx"); if (fx != null) fx.ClearArray();
+                }
+            });
+            _focusEventIndex = added;
+            Rebuild();
+        }
+
+        /// A starting id no other event on this character already uses — a new event is valid the moment it
+        /// exists, so the first thing an author sees is a working card rather than an error to clear.
+        static string UniqueEventId(Zoe zoe)
+        {
+            var taken = new HashSet<string>();
+            if (zoe?.events != null)
+                foreach (var e in zoe.events)
+                    if (e?.id != null) taken.Add(e.id);
+
+            if (!taken.Contains("event")) return "event";
+            for (int n = 2; n < 1000; n++)
+            {
+                string candidate = "event " + n;
+                if (!taken.Contains(candidate)) return candidate;
+            }
+            return "event " + System.Guid.NewGuid().ToString("N").Substring(0, 6);
+        }
+
+        // ── cues (Zoe.cues) ─────────────────────────────────────────────────────────────────
+        // Hand-built rather than a PropertyField list, so the three strings on a CueBinding stop being free
+        // text: the trigger names come from the clips the view actually has, and Raise comes from this Zoe's
+        // own declared event ids (Zoe.EventIds — the API that exists for exactly this).
+
+        const string NoneOption = "(none)";
+        const string UnknownSuffix = "  (not authored)";
+        const string UndeclaredSuffix = "  (undeclared)";
+
+        const string CuesTip = "Always-on effects this character plays off its OWN animation, whatever it has " +
+            "equipped — a footstep puff, a cast sparkle — and the frames that raise its custom events.";
+
+        const string CueRaiseTip = "Which of this character's custom events the cue raises when it fires: the " +
+            "WHOLE reaction (its clip, its body SpriteFx, its effect list), which the Effect slot below cannot " +
+            "express on its own. The list is this Zoe's own Custom events, so a name that only fails at runtime " +
+            "cannot be typed here.";
+
+        void BuildCues(VisualElement root, Zoe zoe)
+        {
+            var cuesProp = So.FindProperty("cues");
+            if (cuesProp == null) return;
+            string listPath = cuesProp.propertyPath;
+
+            var section = Z.Section($"Cues  ({cuesProp.arraySize})", CuesTip, "Zoe.cues");
+            root.Add(section);
+
+            if (cuesProp.arraySize == 0)
+                section.Add(Z.Text("None yet — this character's animation triggers nothing by itself.",
+                    ZuiText.Subtle, CuesTip));
+
+            // A cue is not bound to one clip — it fires off whatever is playing — so its pickers offer the
+            // whole vocabulary the view has authored, across every clip.
+            var eventNames = AllFrameEventNames(zoe.view);
+            var layerIds = AllPointLayerIds(zoe.view);
+
+            var listHost = new VisualElement();
+            section.Add(listHost);
+            for (int i = 0; i < cuesProp.arraySize; i++)
+                BuildCueCard(listHost, cuesProp.GetArrayElementAtIndex(i), listPath, i, zoe, eventNames, layerIds);
+
+            section.Add(Z.Button("+ New cue", "Add another animation-triggered cue to this character.",
+                () => AddCue(listPath)).W(AddButtonWidth));
+        }
+
+        void BuildCueCard(VisualElement listHost, SerializedProperty entryProp, string listPath, int index,
+            Zoe zoe, string[] eventNames, string[] layerIds)
+        {
+            var layerProp = entryProp.FindPropertyRelative("layerId");
+            var eventProp = entryProp.FindPropertyRelative("eventName");
+            var raiseProp = entryProp.FindPropertyRelative("raiseEvent");
+            var fxProp = entryProp.FindPropertyRelative("fx");
+            if (layerProp == null || eventProp == null || raiseProp == null) return;
+
+            var binding = zoe.cues != null && index < zoe.cues.Count ? zoe.cues[index] : null;
+
+            var box = Z.Box(null, null);
+            var header = new VisualElement();
+            header.AddToClassList("zui-row");
+
+            var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder. Order is presentation only — cues fire off the animation.");
+            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
+            grip.style.width = 16f;
+            ZuiReorder.MakeGrip(grip, box, listHost, (from, to) =>
+            {
+                Commit(listPath, p => p.MoveArrayElement(from, to));
+                Rebuild();
+            });
+            header.Add(grip);
+            header.Add(Z.Text(CueTitle(binding), ZuiText.Body,
+                "What fires this cue, and what it does — the same two choices as the body below."));
+
+            header.Add(Z.Flexible());
+            var removeBtn = Z.Button("×", "Remove this cue (undoable).", () =>
+            {
+                Commit(listPath, p => p.DeleteArrayElementAtIndex(index));
+                Rebuild();
+            }).W(22f);
+            header.Add(removeBtn);
+            box.Add(header);
+
+            var body = new VisualElement();
+            body.Add(Z.Row(
+                NameDropdown(eventProp, "On Event", eventNames,
+                    "A single authored pixel on a single frame that fires this cue, at that pixel's position. " +
+                    "Takes priority over On Layer when both are set.",
+                    "(no frame events authored)", UnknownSuffix),
+                Z.HSpace(),
+                NameDropdown(layerProp, "On Layer", layerIds,
+                    "A Point-mode meta-layer that fires this cue as the animation reaches it. Ignored while " +
+                    "On Event is set.",
+                    "(no point layers authored)", UnknownSuffix)));
+            body.Add(BuildRaisePicker(raiseProp, zoe));
+            if (fxProp != null) BuildManagedRef(body, fxProp, "Effect", zoe);
+            box.Add(body);
+
+            ZuiFoldCard.Wire(binding, header, body, removeBtn);
+            listHost.Add(box);
+        }
+
+        /// A folded cue still has to say what it is: what fires it, then what it does.
+        static string CueTitle(CueBinding b)
+        {
+            if (b == null) return "(cue)";
+            string when = !string.IsNullOrEmpty(b.eventName) ? $"On event  {b.eventName}"
+                        : !string.IsNullOrEmpty(b.layerId) ? $"On layer  {b.layerId}"
+                        : "(no trigger)";
+            string what = !string.IsNullOrEmpty(b.raiseEvent) ? $"raise  {b.raiseEvent}"
+                        : b.fx != null ? ObjectNames.NicifyVariableName(b.fx.GetType().Name)
+                        : "(does nothing)";
+            return $"{when}  →  {what}";
+        }
+
+        /// The raise-event PICKER: this Zoe's own declared event ids, never free text. A value the Zoe no
+        /// longer declares (someone renamed the event) is offered back, flagged — resetting it silently would
+        /// destroy the only evidence that the link broke.
+        VisualElement BuildRaisePicker(SerializedProperty prop, Zoe zoe)
+        {
+            string path = prop.propertyPath;
+            string current = prop.stringValue ?? "";
+            var declared = DeclaredEventIds(zoe);
+
+            var row = Z.Row();
+            if (declared.Count == 0 && string.IsNullOrEmpty(current))
+            {
+                row.Add(Z.Field("Raise", CueRaiseTip + " This character declares none yet — add one under " +
+                    "Reactions ▸ Custom events.",
+                    Z.Text("(no custom events declared)", ZuiText.Subtle,
+                        CueRaiseTip + " This character declares none yet — add one under Reactions ▸ Custom events.")));
+                return row;
+            }
+
+            var shown = new List<string> { NoneOption };
+            shown.AddRange(declared);
+            int index = 0;
+            if (!string.IsNullOrEmpty(current))
+            {
+                index = shown.IndexOf(current);
+                if (index < 0) { shown.Add(current + UndeclaredSuffix); index = shown.Count - 1; }
+            }
+
+            row.Add(Z.Field("Raise", CueRaiseTip, Z.Dropdown(index, shown, CueRaiseTip, i =>
+            {
+                Commit(path, p => p.stringValue = StripOption(shown, i, UndeclaredSuffix));
+                Rebuild();   // the card's own header names what it raises
+            }, FitWidth(shown))));
+
+            var badge = WarningBadge();
+            row.Add(badge);
+            _validators.Add(() =>
+            {
+                var live = So?.FindProperty(path);
+                string v = live != null ? live.stringValue ?? "" : current;
+                bool broken = !string.IsNullOrEmpty(v) && !DeclaredEventIds(zoe).Contains(v);
+                badge.text = broken ? "! no such event" : "";
+                badge.tooltip = broken
+                    ? $"This cue raises \"{v}\", which this character does not declare — at runtime it logs a " +
+                      "warning and plays nothing. Declare an event with that id under Custom events, or pick a " +
+                      "declared one."
+                    : CueRaiseTip;
+            });
+            return row;
+        }
+
+        void AddCue(string listPath)
+        {
+            Commit(listPath, p =>
+            {
+                p.arraySize++;
+                // Same duplicate-the-last-element growth as AddEvent/AddEffect — reset it to a blank cue.
+                var e = p.GetArrayElementAtIndex(p.arraySize - 1);
+                var layer = e.FindPropertyRelative("layerId"); if (layer != null) layer.stringValue = "";
+                var ev = e.FindPropertyRelative("eventName"); if (ev != null) ev.stringValue = "";
+                var raise = e.FindPropertyRelative("raiseEvent"); if (raise != null) raise.stringValue = "";
+                var fx = e.FindPropertyRelative("fx"); if (fx != null) fx.managedReferenceValue = null;
+            });
+            Rebuild();
+        }
+
+        // ── shared picker / validation plumbing ─────────────────────────────────────────────
+
+        /// Every id this Zoe declares, de-duplicated, straight from the model's own picker feed.
+        static List<string> DeclaredEventIds(Zoe zoe)
+        {
+            var ids = new List<string>();
+            if (zoe == null) return ids;
+            foreach (var id in zoe.EventIds)
+                if (!string.IsNullOrWhiteSpace(id) && !ids.Contains(id)) ids.Add(id);
+            return ids;
+        }
+
+        /// A dropdown over an authored-name vocabulary that may legitimately be empty, and that must never
+        /// silently drop a value it doesn't recognise — an unknown current value is offered back with a
+        /// suffix, so a renamed source reads as a broken reference instead of quietly snapping to option one.
+        VisualElement NameDropdown(SerializedProperty prop, string label, IList<string> options, string tooltip,
+            string emptyMessage, string unknownSuffix)
+        {
+            string current = prop.stringValue ?? "";
+            if ((options == null || options.Count == 0) && string.IsNullOrEmpty(current))
+                return Z.Field(label, tooltip, Z.Text(emptyMessage, ZuiText.Subtle, tooltip));
+
+            var shown = new List<string> { NoneOption };
+            if (options != null)
+                foreach (var o in options)
+                    if (!string.IsNullOrEmpty(o) && !shown.Contains(o)) shown.Add(o);
+
+            int index = 0;
+            if (!string.IsNullOrEmpty(current))
+            {
+                index = shown.IndexOf(current);
+                if (index < 0) { shown.Add(current + unknownSuffix); index = shown.Count - 1; }
+            }
+
+            string path = prop.propertyPath;
+            return Z.Field(label, tooltip, Z.Dropdown(index, shown, tooltip, i =>
+            {
+                Commit(path, p => p.stringValue = StripOption(shown, i, unknownSuffix));
+                Rebuild();
+            }, FitWidth(shown)));
+        }
+
+        /// The real string behind a picked option row: "(none)" is the empty value, and a flagged unknown
+        /// carries its suffix for display only.
+        static string StripOption(List<string> shown, int i, string suffix)
+        {
+            string picked = shown[Mathf.Clamp(i, 0, shown.Count - 1)];
+            if (picked == NoneOption) return "";
+            return picked.EndsWith(suffix) ? picked.Substring(0, picked.Length - suffix.Length) : picked;
+        }
+
+        // Amber, and always PRESENT (its text is what changes, never its existence) so a warning appearing
+        // never reflows the card out from under the pointer — the stable-workspace rule.
+        static readonly UnityEngine.Color WarningColor = new UnityEngine.Color(1f, 0.72f, 0.25f);
+
+        static Label WarningBadge()
+        {
+            var l = Z.Text("", ZuiText.Small);
+            l.style.color = WarningColor;
+            l.style.unityFontStyleAndWeight = FontStyle.Bold;
+            l.style.marginLeft = 6f;
+            l.style.flexShrink = 0f;
+            return l;
+        }
+
+        /// Every Point-mode meta-layer id authored on ANY clip of the view, de-duplicated.
+        static string[] AllPointLayerIds(object view)
+        {
+            var clips = GetClipNameOptions(view);
+            if (clips == null) return Array.Empty<string>();
+            var ids = new List<string>();
+            foreach (var clip in clips)
+                foreach (var id in GetPointLayerIds(view, clip))
+                    if (!ids.Contains(id)) ids.Add(id);
+            return ids.ToArray();
+        }
+
+        /// Every FrameEvent name authored on ANY clip of the view, de-duplicated.
+        static string[] AllFrameEventNames(object view)
+        {
+            var clips = GetClipNameOptions(view);
+            if (clips == null) return Array.Empty<string>();
+            var names = new List<string>();
+            foreach (var clip in clips)
+                foreach (var n in GetEventNames(view, clip))
+                    if (!names.Contains(n)) names.Add(n);
+            return names.ToArray();
         }
 
         /// One effect entry, drawn as a FOLDING card (grip / kind-name / × in a header that stays visible when
