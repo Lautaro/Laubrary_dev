@@ -298,8 +298,6 @@ namespace Laubrary.SpriteFx.Editor
             _previewHint.style.maxWidth = PreviewBox - 20f;
             _previewStage.Add(_previewHint);
 
-            s.Add(_previewStage);
-            s.Add(Z.VSpace(4f));
 
             // 3) + 4) Transport row: the Life scrub slider and Play/Stop, packed together (vertical space is scarce).
             const string lifeTip = "Scrub position: raw progress 0→1 through the timeline. The stack is evaluated " +
@@ -333,9 +331,19 @@ namespace Laubrary.SpriteFx.Editor
                 "counts forward, so a reversed dissolve un-dissolves through a different grain.",
                 _previewReversed, on => { _previewReversed = on; RenderPreview(); });
 
-            var transport = Z.Row(_lifeSlider, _playButton, reverseToggle, Z.HSpace(), pauseSlider);
-            transport.style.flexWrap = Wrap.Wrap;
-            s.Add(transport);
+            // The transport sits BESIDE the stage, not under it. The stage is a fixed 200pt square in a pane
+            // that is realistically three times that wide, so a row underneath spent height to leave a large
+            // empty rectangle to its right — and height is the scarce resource in a window whose whole point
+            // is that the stack below stays reachable. Wraps back to stacked if the pane ever is that narrow.
+            var controls = Z.Column(_lifeSlider, Z.VSpace(2f), Z.Row(_playButton, reverseToggle),
+                                    Z.VSpace(2f), pauseSlider);
+            controls.style.flexShrink = 1f;
+            controls.style.minWidth = 0f;
+
+            var stageRow = Z.Row(_previewStage, Z.HSpace(), controls);
+            stageRow.style.flexWrap = Wrap.Wrap;
+            stageRow.style.alignItems = Align.FlexStart;
+            s.Add(stageRow);
 
             root.Add(s);
 

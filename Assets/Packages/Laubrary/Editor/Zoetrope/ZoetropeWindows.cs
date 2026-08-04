@@ -836,8 +836,10 @@ namespace Laubrary.Zoetrope.Editor
                     ? $"Lasts {visual.EventSeconds:0.###} s — {reaction.Loops} loops of {named} " +
                       $"({visual.ClipSeconds:0.###} s at {visual.Fps:0.#} fps)."
                     : $"Lasts {visual.EventSeconds:0.###} s — one play of {named} at {visual.Fps:0.#} fps.";
+            else if (string.IsNullOrEmpty(clip))
+                text = "No clip — pick one above, or switch to Fixed seconds to give this event a length.";
             else
-                text = "Length unknown — this visual is a still, so switch to Fixed seconds to give the event one.";
+                text = $"Length unknown — {named} has no measurable end, so switch to Fixed seconds.";
 
             var line = Z.Text(text, ZuiText.Subtle,
                 "What the duration above actually comes out as, from this character's own visual. Everything " +

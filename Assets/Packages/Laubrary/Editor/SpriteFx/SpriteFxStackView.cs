@@ -179,8 +179,20 @@ namespace Laubrary.SpriteFx.Editor
                 VisualElement bodyEl = null;
                 if (m.enabled)
                 {
+                    // The effect's SHORT fields FLOW rather than stacking. Each one used to claim a full row,
+                    // so a card with five short sliders was five rows tall in a pane wide enough for three of
+                    // them side by side — the space-economy rule's exact case.
+                    //
+                    // A WIDE control still takes its own line, per the same rule's other half. Left to pure
+                    // wrapping, an animatable value's curve thumbnail got dragged up beside a shape radio and
+                    // its label ended up stranded halfway across the card, naming nothing near it.
                     bodyEl = new VisualElement();
+                    bodyEl.style.flexDirection = FlexDirection.Row;
+                    bodyEl.style.flexWrap = Wrap.Wrap;
+                    bodyEl.style.alignItems = Align.FlexStart;
                     ZuiReflect.BuildFields(bodyEl, m, DrawerOptions(m));
+                    foreach (var child in bodyEl.Children())
+                        if (IsWide(child)) child.style.flexBasis = new StyleLength(Length.Percent(100f));
                     box.Add(bodyEl);
                 }
 
@@ -238,6 +250,21 @@ namespace Laubrary.SpriteFx.Editor
 
             Rebuild();
             return root;
+        }
+
+        /// Controls that earn a whole line of the flow: the ones drawing a curve or a plot rather than
+        /// sitting on one row like a slider. Matched by what the control IS and what MODE it is in, not by
+        /// field name, so a new effect is laid out correctly without this being revisited.
+        ///
+        /// An animatable value is only wide in its envelope modes. In Static or Min-Max it is one slider row
+        /// and must flow like any other — treating the whole type as wide put Size, Rotation and Strength on
+        /// three separate lines of a pane with room for all three.
+        static bool IsWide(VisualElement e)
+        {
+            var val = e as ZuiValueControl ?? e.Q<ZuiValueControl>();
+            if (val != null) return val.IsCurveShaped;
+            return e is ZuiValue2DControl || e is ZuiGradientControl ||
+                   e.Q<ZuiValue2DControl>() != null || e.Q<ZuiGradientControl>() != null;
         }
 
         // Single in-memory clipboard (last-copied wins) — static so it survives closing/reopening a host window

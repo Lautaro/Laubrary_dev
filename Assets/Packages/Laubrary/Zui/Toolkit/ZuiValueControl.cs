@@ -121,6 +121,18 @@ namespace Laubrary.Zui
         VisualElement _inputsHost;
         readonly List<(int index, FloatField field)> _inputFields = new();
 
+        /// The value being edited. Read-only access for a host laying the control out: how much room it
+        /// needs depends on its MODE — Static and Min-Max are one slider row, while the envelope modes draw a
+        /// curve and open to a full-width editor — and a host packing controls into a flowing row has no
+        /// other way to tell those apart.
+        public ZUIValue Value => _v;
+
+        /// True when this control draws a CURVE rather than a single row, so a host packing a flow knows it
+        /// earns a line of its own instead of being squeezed beside a radio with its label left stranded.
+        public bool IsCurveShaped =>
+            _v != null && (_v.mode == ZUIValue.Mode.Curve || _v.mode == ZUIValue.Mode.Steps ||
+                           _v.mode == ZUIValue.Mode.Oscillation);
+
         /// Fires once per gesture before the first mutation — the Undo.RecordObject hook.
         public Action OnBeforeMutate;
         /// Fires after every mutation (slider drags, curve edits, mode/multiplier changes, paste).

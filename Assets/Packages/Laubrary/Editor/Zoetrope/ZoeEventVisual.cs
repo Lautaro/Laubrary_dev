@@ -53,7 +53,13 @@ namespace Laubrary.Zoetrope.Editor
                 v.Fps = plain.PreviewFps;
             }
 
-            if (v.Fps > 0f && v.Frames.Length > 0) v.ClipSeconds = v.Frames.Length / v.Fps;
+            // A length ONLY when the reaction actually names a clip. A clip-aware view answers an empty clip
+            // name with its default frames — the right call for a PICTURE, since showing the idle pose beats
+            // showing nothing — but those frames are not an event's duration: the runtime plays no clip at
+            // all here and reports 0. Measuring them anyway is how the authoring window came to promise
+            // "lasts 0.667 s" for an event the player treats as having no length.
+            bool named = reaction != null && !string.IsNullOrEmpty(reaction.clip);
+            if (named && v.Fps > 0f && v.Frames.Length > 0) v.ClipSeconds = v.Frames.Length / v.Fps;
             v.EventSeconds = reaction != null ? reaction.DurationSeconds(v.ClipSeconds) : 0f;
             return v;
         }
