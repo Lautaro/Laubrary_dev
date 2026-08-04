@@ -77,14 +77,28 @@ namespace Laubrary.Zoetrope
             if (filter == null) filter = sr.gameObject.AddComponent<SpriteFxFilter>();
             filter.stack = stack;
 
-            float passDur = Mathf.Max(0.001f, stack.duration);
             float remaining = ctx.EventSecondsRemaining;   // 0 = unknown → every timed mode degrades to a single play
+
+            // WHO OWNS THE TIMEBASE. A stack is a SHAPE over normalized life, not a schedule — the same
+            // reason it never references a visual. Its parameters run 0→1 and mean nothing in seconds, so
+            // the host says how long that 0→1 takes:
+            //
+            //   1. the event's CLIP, when it has one — a flash tied to a death animation should last exactly
+            //      as long as the death animation, and re-timing the clip should re-time the flash with it;
+            //   2. else fxSeconds on this effect — a static sprite has no length, so the event states one;
+            //   3. else the stack's own duration, as a last-resort default for a stack played from nowhere.
+            //
+            // The stack used to win outright, which made every effect a fixed 0.15s regardless of what it
+            // was riding: authoring a slower death animation silently left the flash finishing early.
+            float passDur = remaining > 0f ? remaining
+                          : fxSeconds > 0f ? fxSeconds
+                          : Mathf.Max(0.001f, stack.duration);
 
             switch (playback)
             {
                 default:
                 case FxPlaybackMode.Once:
-                    filter.Play();
+                    filter.Play(passDur);   // the host's timebase, not the stack's
                     break;
 
                 case FxPlaybackMode.Loop:
@@ -110,7 +124,7 @@ namespace Laubrary.Zoetrope
                 }
 
                 case FxPlaybackMode.OnceReversed:
-                    filter.PlayReversed();
+                    filter.PlayReversed(passDur);
                     break;
 
                 case FxPlaybackMode.PingPong:

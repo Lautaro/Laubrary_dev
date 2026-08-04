@@ -31,7 +31,7 @@ namespace Laubrary.SpriteFx
                  "the current life every frame.")]
         [SerializeReference] public List<PixelModifier> modifiers = new List<PixelModifier>();
 
-        [Tooltip("How long one play-through lasts, in seconds.")]
+        [Tooltip("FALLBACK length, used only when nothing else says how long this stack should take. A stack is a SHAPE over normalized life (0->1), not a schedule, so its host owns the timebase: a Zoe event with a clip runs the stack over that clip's length, an event without one uses the effect's own FX Seconds, and this value applies only when a stack is played from neither. Re-timing an animation therefore re-times the effect riding it, instead of the effect finishing early.")]
         [Min(0.001f)] public float duration = 0.15f;
 
         [Tooltip("Optional easing/remap of raw progress (0->1 over Duration) into the LIFE value fed to every " +
