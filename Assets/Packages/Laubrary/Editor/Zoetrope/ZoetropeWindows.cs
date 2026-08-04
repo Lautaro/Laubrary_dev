@@ -1371,16 +1371,19 @@ namespace Laubrary.Zoetrope.Editor
             // pointer-down so a click mutes without folding the card, and dims the whole card when muted.
             var enabledProp = entryProp.FindPropertyRelative("enabled");
             string enabledPath = enabledProp.propertyPath;
-            var mute = new Toggle { tooltip = "Enabled — uncheck to MUTE this effect (kept in the list, but it never fires)." };
-            mute.AddToClassList("zui-section__toggle");
+            // Muting is a SETTING, not fold chrome, so it is the ZUI button-toggle like every other setting —
+            // the SpriteFx stack card beside it already draws its enable this way. It used to be a raw UITK
+            // Toggle wearing the section-header class for styling, which renders as a bare OS checkbox and is
+            // what ZuiAudit flags as native-toggle.
+            var mute = Z.Toggle("", "Enabled — uncheck to MUTE this effect (kept in the list, but it never fires).",
+                enabledProp.boolValue, v =>
+                {
+                    Commit(enabledPath, p => p.boolValue = v);
+                    box.style.opacity = v ? 1f : 0.45f;
+                });
             mute.style.marginRight = 4f;
-            mute.SetValueWithoutNotify(enabledProp.boolValue);
+            // The header folds the card on click; muting must not also fold it.
             mute.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
-            mute.RegisterValueChangedCallback(e =>
-            {
-                Commit(enabledPath, p => p.boolValue = e.newValue);
-                box.style.opacity = e.newValue ? 1f : 0.45f;
-            });
             header.Add(mute);
             box.style.opacity = enabledProp.boolValue ? 1f : 0.45f;
 
@@ -1522,7 +1525,7 @@ namespace Laubrary.Zoetrope.Editor
 
             // Fold the whole card to its header, keyed per effect instance so the state survives window rebuilds
             // (undo / reorder / re-type). The grip guards its own drag; the × must not fold on click.
-            ZuiFoldCard.Wire(effect, header, body, removeBtn);
+            ZuiFoldCard.Wire(effect, header, body, mute, removeBtn);
             listHost.Add(box);
         }
 
