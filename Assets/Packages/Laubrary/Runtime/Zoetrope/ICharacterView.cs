@@ -32,6 +32,25 @@ namespace Laubrary.Zoetrope
         float PreviewFps { get; }
     }
 
+    /// A view that can preview a NAMED clip, not just its default frames.
+    ///
+    /// Separate from IPreviewableView on purpose, and gated structurally rather than by a bool: a plain
+    /// SpriteView has one picture and no notion of a clip, so asking it for "the death clip" is meaningless.
+    /// A caller tests for this interface and gets a compile-checked answer about what the view can actually
+    /// do, instead of calling a method that silently returns the wrong frames.
+    ///
+    /// The consumer that needs it: previewing a Zoe EVENT's own visual, where the event names the clip.
+    public interface IClipPreviewableView
+    {
+        /// Frames of `clip`, in order. An unknown or empty clip name falls back to the view's default
+        /// frames rather than returning nothing — a preview that goes blank because a clip was renamed is
+        /// less useful than one showing the idle pose.
+        Sprite[] PreviewFrames(string clip);
+
+        /// Playback rate for that clip.
+        float PreviewFpsOf(string clip);
+    }
+
     /// <summary>The default look: one static sprite. No dependency beyond UnityEngine, so it lives in core.</summary>
     [System.Serializable]
     public class SpriteView : ICharacterView, IPreviewableView

@@ -14,7 +14,7 @@ namespace Laubrary.ZoetropeLaunimator
     /// <c>Zoe.view</c> in place of <see cref="ReelView"/> when a character's animation needs either.
     /// </summary>
     [System.Serializable]
-    public class ZonedReelView : ICharacterView, IPreviewableView
+    public class ZonedReelView : ICharacterView, IPreviewableView, IClipPreviewableView
     {
         [Tooltip("The reel version to render.")]
         public ReelVersion version;
@@ -27,6 +27,22 @@ namespace Laubrary.ZoetropeLaunimator
         // ── IPreviewableView ── shared with ReelView, so the same character never previews two ways.
         public Sprite[] PreviewFrames() => ReelPreview.Frames(version, idleClip);
         public float PreviewFps => ReelPreview.Fps(version, idleClip);
+
+        // Clip-aware preview: an empty or unknown clip falls back to the idle frames, so a renamed clip
+        // degrades to "shows the wrong animation" rather than "shows nothing".
+        public Sprite[] PreviewFrames(string clip)
+        {
+            if (string.IsNullOrEmpty(clip)) return PreviewFrames();
+            var f = ReelPreview.Frames(version, clip);
+            return f != null && f.Length > 0 ? f : PreviewFrames();
+        }
+
+        public float PreviewFpsOf(string clip)
+        {
+            if (string.IsNullOrEmpty(clip)) return PreviewFps;
+            float fps = ReelPreview.Fps(version, clip);
+            return fps > 0f ? fps : PreviewFps;
+        }
 
         public Vector2 Build(GameObject host)
         {

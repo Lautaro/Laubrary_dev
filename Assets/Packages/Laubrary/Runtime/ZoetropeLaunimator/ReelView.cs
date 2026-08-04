@@ -11,7 +11,7 @@ namespace Laubrary.ZoetropeLaunimator
     /// in place of the default <c>SpriteView</c> to give an enemy real animation.
     /// </summary>
     [System.Serializable]
-    public class ReelView : ICharacterView, IPreviewableView
+    public class ReelView : ICharacterView, IPreviewableView, IClipPreviewableView
     {
         [Tooltip("The reel version to render.")]
         public ReelVersion version;
@@ -25,6 +25,22 @@ namespace Laubrary.ZoetropeLaunimator
         // the first animation with frames is what makes these previewable at all.
         public Sprite[] PreviewFrames() => ReelPreview.Frames(version, idleClip);
         public float PreviewFps => ReelPreview.Fps(version, idleClip);
+
+        // Clip-aware preview: an empty or unknown clip falls back to the idle frames, so a renamed clip
+        // degrades to "shows the wrong animation" rather than "shows nothing".
+        public Sprite[] PreviewFrames(string clip)
+        {
+            if (string.IsNullOrEmpty(clip)) return PreviewFrames();
+            var f = ReelPreview.Frames(version, clip);
+            return f != null && f.Length > 0 ? f : PreviewFrames();
+        }
+
+        public float PreviewFpsOf(string clip)
+        {
+            if (string.IsNullOrEmpty(clip)) return PreviewFps;
+            float fps = ReelPreview.Fps(version, clip);
+            return fps > 0f ? fps : PreviewFps;
+        }
 
         public Vector2 Build(GameObject host)
         {

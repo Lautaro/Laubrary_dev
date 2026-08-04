@@ -50,6 +50,9 @@ namespace Laubrary.SpriteFx.Editor
         // EditorPrefs keyed by the spec's GUID — none of it touches the asset. None of these are [SerializeField]:
         // a domain reload should reset playback and re-load the remembered sprite from prefs, not carry live state.
         Sprite _previewSprite;              // the chosen input sprite (preview subject)
+        SpriteFxPreviewSubject _subject;    // auto-resolved subject (the Zoe event this stack is used by)
+        bool _subjectResolved;              // resolved once per spec; null is a real answer worth caching
+        Label _subjectLine;                 // permanently reserved line naming what is being previewed
         string _prevSpecGuid;               // which spec's remembered sprite is currently loaded into _previewSprite
         Texture2D _previewTex;              // pooled output texture we paint the filtered pixels into (Point-filtered)
         float _previewProgress;             // the resting scrub position (raw progress 0→1)
@@ -162,6 +165,9 @@ namespace Laubrary.SpriteFx.Editor
             {
                 _previewSprite = PreviewSpritePrefs.Load(PrevSpritePrefKey, guid);
                 _prevSpecGuid = guid;
+                // A different stack is used by a different character — the cached subject is about the old
+                // one, and a stale answer here means previewing the wrong creature without any sign of it.
+                InvalidateSubject();
             }
 
             var s = Z.Section("Preview",
@@ -174,6 +180,17 @@ namespace Laubrary.SpriteFx.Editor
                 "Read/Write enabled to be filtered.";
             s.Add(Z.Field("Input sprite", spriteTip,
                 Z.Object<Sprite>(_previewSprite, spriteTip, OnPickSprite, 200f)));
+
+            // Says what the stage is actually showing. A PERMANENTLY reserved single line whose text
+            // changes — never one that appears and disappears, which would shove the preview down the
+            // moment a subject resolved and move the thing being looked at.
+            _subjectLine = Z.Text("", ZuiText.Subtle,
+                "Where the preview frames come from. With no input sprite picked, the stack previews on the " +
+                "character whose event uses it.");
+            _subjectLine.style.height = 14f;
+            _subjectLine.style.whiteSpace = WhiteSpace.NoWrap;
+            _subjectLine.style.overflow = Overflow.Hidden;
+            s.Add(_subjectLine);
 
             s.Add(Z.VSpace(4f));
 
@@ -313,16 +330,58 @@ namespace Laubrary.SpriteFx.Editor
         }
 
         // ── render ───────────────────────────────────────────────────────────────────────────────────────────
+        /// The frame to filter when no sprite has been picked by hand: the character whose Zoe event uses
+        /// this stack. Resolved through SpriteFxPreviewSubjects, so this window still knows nothing about
+        /// Zoes — see that class for why the dependency has to run this way.
+        ///
+        /// Progress drives the frame, so scrubbing the stack's timeline walks the character's animation
+        /// underneath it. That is the point: a death flash has to be judged against the death animation, not
+        /// against one arbitrary still of it.
+        Sprite SubjectFrame(float progress, int frame)
+        {
+            if (!_subjectResolved)
+            {
+                _subject = SpriteFxPreviewSubjects.Resolve(Spec);
+                _subjectResolved = true;
+            }
+            if (_subject == null || !_subject.HasFrames) return null;
+            var f = _subject.Frames;
+            if (f.Length == 1) return f[0];
+            int i = frame > 0 ? frame : Mathf.FloorToInt(Mathf.Clamp01(progress) * f.Length);
+            return f[((i % f.Length) + f.Length) % f.Length];
+        }
+
+        /// Drop the cached subject — the spec changed, so who uses it may have too.
+        void InvalidateSubject() { _subject = null; _subjectResolved = false; }
+
+        void UpdateSubjectLine()
+        {
+            if (_subjectLine == null) return;
+            string t = _previewSprite != null
+                ? "Previewing on the picked sprite."
+                : _subject != null && _subject.HasFrames
+                    ? $"Previewing on {_subject.Label}   ({_subject.Frames.Length} frames)"
+                    : "No subject — pick a sprite, or use this stack on a Zoe event.";
+            if (_subjectLine.text != t) _subjectLine.text = t;
+        }
+
         void RenderPreview() => RenderPreviewAt(_previewProgress, 0);   // static scrub → fixed frame 0
 
         void RenderPreviewAt(float progress, int frame)
         {
             if (_previewImage == null || _previewHint == null) return;   // not built yet
+            UpdateSubjectLine();
             var spec = Spec;
             if (spec == null) { ShowHint("No SpriteFx Stack selected."); return; }
 
-            Sprite spr = _previewSprite;
-            if (spr == null) { ShowHint("Pick a sprite to preview."); return; }
+            Sprite spr = _previewSprite ?? SubjectFrame(progress, frame);
+            if (spr == null)
+            {
+                ShowHint(_subject == null
+                    ? "Pick a sprite to preview — or add this stack to a Zoe event and it will preview on that character."
+                    : "That character's clip has no frames to preview.");
+                return;
+            }
             Texture2D tex = spr.texture;
             if (tex == null) { ShowHint("This sprite has no texture."); return; }
             if (!tex.isReadable)

@@ -9,7 +9,11 @@
         "com.Lautaro-Arino.Laubrary.Chunks",
         "com.Lautaro-Arino.Laubrary.Launimator.Zounds.Editor",
         "com.Lautaro-Arino.Laubrary.Combat2D",
-        "com.Lautaro-Arino.Laubrary.Zui.Editor"
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
+        "com.Lautaro-Arino.Laubrary.SpriteFx",
+        "com.Lautaro-Arino.Laubrary.SpriteFx.Editor",
+        "com.Lautaro-Arino.Laubrary.Launimator",
+        "com.Lautaro-Arino.Laubrary.ZoetropeLaunimator"
     ],
     "includePlatforms": [
         "Editor"
@@ -22,4 +26,4 @@
     "defineConstraints": [],
     "versionDefines": [],
     "noEngineReferences": false
-}
+}
