@@ -109,6 +109,12 @@ namespace Laubrary.Zui
             /// to edit, or null. Lets a host expose such wrappers as plain floats without this file
             /// referencing the wrapper's type.
             public Func<Type, PropertyInfo> FloatWrapperProperty;
+            /// Per-field customisation of a reflected ZUIValue's control options, called AFTER the [Range]
+            /// bounds are applied. The hook a host needs to disable modes that are wrong in its context —
+            /// e.g. a baked-renderer modifier param evaluates Min-Max to ONE frame-invariant constant, so its
+            /// host hides that mode (allowMinMax = false) and the meaningless runtime Duration/Warmup/Loop
+            /// row (hideCurveTiming = true) instead of offering controls that do nothing.
+            public Action<FieldInfo, ZuiValueControl.Options> ConfigureValue;
             public float ControlWidth = 150f;
         }
 
@@ -225,7 +231,14 @@ namespace Laubrary.Zui
                 if (zv == null) { zv = new ZUIValue(); field.SetValue(owner, zv); }
                 var vopt = new ZuiValueControl.Options { controlWidth = opt.ControlWidth };
                 if (range != null) vopt.WithRange(range.min, range.max);
-                return Z.Value(nice, zv, vopt, tip,
+                opt.ConfigureValue?.Invoke(field, vopt);
+                // A float→ZUIValue migration companion is conventionally named `<legacy>Value` (the frozen
+                // legacy float keeps the plain name) — strip the suffix so the label reads as the PARAM
+                // ("Bury", not "Bury Value"). Only when something is left; a field literally named `value`
+                // keeps its label.
+                string label = nice;
+                if (label.EndsWith(" Value") && label.Length > 6) label = label.Substring(0, label.Length - 6);
+                return Z.Value(label, zv, vopt, tip,
                     onChanged: () => opt.OnChanged?.Invoke(),
                     onBeforeMutate: () => opt.OnBeforeChange?.Invoke());
             }
@@ -359,6 +372,14 @@ namespace Laubrary.Zui
                 return Z.Int((int)list[idx], etip, nv => Set(nv), 80f);
             if (elemType == typeof(string))
                 return Z.TextInput((string)(list[idx] ?? ""), etip, nv => Set(nv), opt.ControlWidth);
+            if (elemType == typeof(Vector2))
+            {
+                // Without this branch a List<Vector2> (e.g. a Smudge stroke's points) rendered as EMPTY cards.
+                var cur = (Vector2)list[idx];
+                return Z.Row(
+                    Z.Float(cur.x, etip + " (X)", nv => Set(new Vector2(nv, ((Vector2)list[idx]).y)), 70f),
+                    Z.Float(cur.y, etip + " (Y)", nv => Set(new Vector2(((Vector2)list[idx]).x, nv)), 70f));
+            }
             return null;
         }
 

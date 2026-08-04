@@ -179,6 +179,7 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class SkewModifier : GeometryModifier
     {
+        [Range(-2f, 2f)]
         [Tooltip("Horizontal shear based on height — leans the layer. Animatable.")]
         public ZUIValue amount = new ZUIValue(0.4f);
         float a;
@@ -206,10 +207,13 @@ namespace Laubrary.SpriteFx
         [Tooltip("Which axis this scales. Vertical/Horizontal scale just that axis; Both scales both axes " +
                  "together from the single Both value (a uniform zoom) instead of needing two synced sliders.")]
         public ScaleAxis axis = ScaleAxis.Both;
+        [Range(0f, 3f)]
         [Tooltip("Vertical scale about the centre. 1 = none, <1 shorter, 0 = collapsed to a hairline, >1 taller. Animatable.")]
         public ZUIValue vertical = new ZUIValue(1f);
+        [Range(0f, 3f)]
         [Tooltip("Horizontal scale about the centre. 1 = none, <1 narrower, 0 = collapsed to a hairline, >1 wider. Animatable.")]
         public ZUIValue horizontal = new ZUIValue(1f);
+        [Range(0f, 3f)]
         [Tooltip("Uniform scale applied to both axes at once (used when Axis = Both). 1 = none, 0 = collapsed to a point. Animatable.")]
         public ZUIValue both = new ZUIValue(1f);
 
@@ -238,21 +242,33 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class RotateModifier : GeometryModifier
     {
+        [Range(-180f, 180f)]
         [Tooltip("Rotation about the pivot, in degrees. Animatable.")]
         public ZUIValue degrees = new ZUIValue(0f);
+        [HideInInspector] public float pivotX;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Tooltip("Pivot X in normalized canvas coords: -1 = left edge, 0 = centre, +1 = right edge.")]
-        [Range(-1f, 1f)] public float pivotX;
+        [Range(-1f, 1f)] public ZUIValue pivotXValue = new ZUIValue(0f);
+        [HideInInspector] public bool pivotXUpgraded;
+        public ZUIValue PivotX { get { if (!pivotXUpgraded) { pivotXValue = new ZUIValue(pivotX); pivotXUpgraded = true; } return pivotXValue; } }
+        [HideInInspector] public float pivotY;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Tooltip("Pivot Y in normalized canvas coords: -1 = bottom edge, 0 = centre, +1 = top edge.")]
-        [Range(-1f, 1f)] public float pivotY;
-        float rad;
+        [Range(-1f, 1f)] public ZUIValue pivotYValue = new ZUIValue(0f);
+        [HideInInspector] public bool pivotYUpgraded;
+        public ZUIValue PivotY { get { if (!pivotYUpgraded) { pivotYValue = new ZUIValue(pivotY); pivotYUpgraded = true; } return pivotYValue; } }
+        float rad, pvX, pvY;
         public override string DisplayName => "Rotate";
-        public override void Prepare(Func<ZUIValue, int, float> e) => rad = -e(degrees, 0) * Mathf.Deg2Rad;   // inverse
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        {
+            rad = -e(degrees, 0) * Mathf.Deg2Rad;   // inverse
+            pvX = Mathf.Clamp(e(PivotX, 1), -1f, 1f);
+            pvY = Mathf.Clamp(e(PivotY, 2), -1f, 1f);
+        }
         public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
         {
             if (rad == 0f) return off;
             float c = Mathf.Cos(rad), s = Mathf.Sin(rad);
             // Rotate about the pivot (default 0,0 = canvas centre): translate to pivot, rotate, translate back.
-            Vector2 p = new Vector2(pivotX * ctx.hHalf, pivotY * ctx.vHalf);
+            Vector2 p = new Vector2(pvX * ctx.hHalf, pvY * ctx.vHalf);
             Vector2 d = off - p;
             return p + new Vector2(d.x * c - d.y * s, d.x * s + d.y * c);
         }
@@ -262,8 +278,10 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class WobbleModifier : GeometryModifier
     {
+        [Range(0f, 32f)]
         [Tooltip("Amplitude (px) of a vertical wobble that ripples the layer horizontally. Animatable.")]
         public ZUIValue amplitude = new ZUIValue(3f);
+        [Range(0f, 8f)]
         [Tooltip("How many wobble ripples run up the canvas. Animatable.")]
         public ZUIValue frequency = new ZUIValue(1f);
         float amp, freq;
@@ -287,10 +305,13 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class SunburstWobbleModifier : GeometryModifier
     {
+        [Range(0f, 32f)]
         [Tooltip("How far pixels are pushed radially (in/out) at each beam's peak, in pixels. Animatable.")]
         public ZUIValue amplitude = new ZUIValue(3f);
+        [Range(1f, 24f)]
         [Tooltip("How many wobbly \"sunbeams\" run around the shape's circumference. Animatable.")]
         public ZUIValue frequency = new ZUIValue(6f);
+        [Range(-180f, 180f)]
         [Tooltip("Rotates the beam pattern, in degrees — spin the sunburst in place. Animatable.")]
         public ZUIValue rotation = new ZUIValue(0f);
 
@@ -324,10 +345,13 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class RingWaveModifier : GeometryModifier
     {
+        [Range(0f, 32f)]
         [Tooltip("How far pixels are pushed along the radial direction, in pixels. Animatable.")]
         public ZUIValue amplitude = new ZUIValue(3f);
+        [Range(1f, 32f)]
         [Tooltip("Ring spacing — distance in pixels between successive wave crests. Animatable.")]
         public ZUIValue wavelength = new ZUIValue(10f);
+        [Range(-6f, 6f)]
         [Tooltip("Phase position (in wavelengths). Animate this over life — a rising curve sends the ring(s) " +
                  "travelling outward from the centre.")]
         public ZUIValue phase = DefaultPhase();
@@ -372,35 +396,45 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class PointBlastModifier : GeometryModifier
     {
+        [Range(-32f, 32f)]
         [Tooltip("Where the blast originates, in pixels off the shape's own centre. Animatable.")]
         public ZUIValue originX = new ZUIValue(0f);
+        [Range(-32f, 32f)]
         [Tooltip("Where the blast originates, in pixels off the shape's own centre (vertical). Animatable.")]
         public ZUIValue originY = new ZUIValue(0f);
+        [Range(-180f, 180f)]
         [Tooltip("Direction the blast points (the wedge/rod's own centre line), in degrees. Irrelevant at Arc " +
                  "360 (a full circular blast has no single direction). Animatable.")]
         public ZUIValue angleDeg = new ZUIValue(0f);
+        [HideInInspector] public float arcDegrees = 360f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0f, 360f)]
         [Tooltip("Angular span. 360 = a full circular explosion in every direction at once. Smaller = a wedge/" +
                  "cone narrowing toward Angle, widening with distance from the origin. 0 = a straight, constant-" +
                  "width ROD along Angle instead of a vanishing sliver — a directional punch-through, like a " +
                  "bullet's exit force.")]
-        public float arcDegrees = 360f;
+        public ZUIValue arcDegreesValue = new ZUIValue(360f);
+        [HideInInspector] public bool arcDegreesUpgraded;
+        public ZUIValue ArcDegrees { get { if (!arcDegreesUpgraded) { arcDegreesValue = new ZUIValue(arcDegrees); arcDegreesUpgraded = true; } return arcDegreesValue; } }
+        [Range(0f, 1f)]
         [Tooltip("Softens the wedge/rod's own angular edges, as a fraction of its half-width — 0 = a hard cutoff, " +
                  "higher = a more gradual fade at the sides. Has no visible effect at Arc 360 (a full circle has " +
                  "no side edges).")]
         public ZUIValue arcSoftness = new ZUIValue(0.2f);
+        [Range(0f, 32f)]
         [Tooltip("How far the blast FRONT has currently travelled from the origin, in pixels — this is the " +
                  "blast's own timeline. Animate it rising over life (the default) so the shockwave visibly " +
                  "expands outward through the shape.")]
         public ZUIValue radius = new ZUIValue(0f);
+        [Range(1f, 16f)]
         [Tooltip("Thickness of the travelling shockwave band, in pixels — how far ahead of/behind the current " +
                  "Radius the push still reaches. In Arc 0 (line) mode this IS the rod's own constant width.")]
         public ZUIValue bandWidth = new ZUIValue(12f);
+        [Range(-20f, 20f)]
         [Tooltip("Push strength — how far pixels shove outward (away from the origin) at the shockwave's own " +
                  "peak. Negative pulls inward instead. Animatable.")]
         public ZUIValue strength = new ZUIValue(6f);
 
-        float ang, arcSoft, radiusV, band, amt;
+        float ang, arcSoft, radiusV, band, amt, arcDeg;
         Vector2 originPx;
         public override string DisplayName => "Blast";
         public override void Prepare(Func<ZUIValue, int, float> e)
@@ -411,6 +445,9 @@ namespace Laubrary.SpriteFx
             radiusV = Mathf.Max(0f, e(radius, 4));
             band = Mathf.Max(0.5f, e(bandWidth, 5));
             amt = e(strength, 6);
+            // fid 7 fills this modifier's last slot of the nominal 8-wide per-modifier block — benign: the fid
+            // only seeds a param's Min-Max RNG stream.
+            arcDeg = Mathf.Clamp(e(ArcDegrees, 7), 0f, 360f);
         }
 
         public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
@@ -422,7 +459,7 @@ namespace Laubrary.SpriteFx
             if (r < 0.001f) return off;
             Vector2 dir = d / r;
 
-            float halfArc = arcDegrees * 0.5f * Mathf.Deg2Rad;
+            float halfArc = arcDeg * 0.5f * Mathf.Deg2Rad;
             // The floor that turns Arc's own 0-limit into a constant-width ROD instead of a vanishing sliver —
             // see the class doc for the derivation. At Arc 360, halfArc is already Pi, so this floor can never
             // matter (nothing exceeds Pi radians from the centre line either way).
@@ -438,7 +475,7 @@ namespace Laubrary.SpriteFx
             // at 360°) and the softness math below reads that as "right at the edge", fading it to zero even
             // though nothing should ever taper on a full circle (confirmed: every other sampled direction was
             // unaffected, only the exact-180°-opposite point silently zeroed).
-            bool fullCircle = arcDegrees >= 359.99f;
+            bool fullCircle = arcDeg >= 359.99f;
             float angFalloff = 1f;
             if (!fullCircle && arcSoft > 0.001f)
             {
@@ -471,6 +508,7 @@ namespace Laubrary.SpriteFx
         [Tooltip("Width multiplier vs height (0 = canvas bottom → 1 = top). Falling = flame/teardrop; a bump near " +
                  "the top = a mushroom cap; wide-narrow-wide = an hourglass.")]
         public List<ZUIEnvelopePoint> widthByHeight = DefaultProfile();
+        [Range(0f, 1f)]
         [Tooltip("Blend the profile in (0 = off, 1 = full). Animatable — grow a disc into the profile over life.")]
         public ZUIValue strength = new ZUIValue(1f);
 
@@ -504,21 +542,35 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class GroundModifier : GeometryModifier
     {
+        [Range(-180f, 180f)]
         [Tooltip("Direction the shape grows: 0 = up, 90 = right, 180 = down, −90 = left. The base sits on a surface " +
                  "line perpendicular to this, and the plume shoots out along it. Animatable — sweep it over life.")]
         public ZUIValue angle = new ZUIValue(0f);
+        [HideInInspector] public float surface = -1f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Tooltip("Where the base sits along the grow direction: −1 = the canvas edge behind it, 0 = centre, +1 = far edge.")]
-        [Range(-1f, 1f)] public float surface = -1f;
+        [Range(-1f, 1f)] public ZUIValue surfaceValue = new ZUIValue(-1f);
+        [HideInInspector] public bool surfaceUpgraded;
+        public ZUIValue Surface { get { if (!surfaceUpgraded) { surfaceValue = new ZUIValue(surface); surfaceUpgraded = true; } return surfaceValue; } }
+        [Range(0f, 4f)]
         [Tooltip("Height multiplier along the grow direction, about the base. 1 = as tall as wide; animate 0→N to " +
                  "shoot out. Animatable.")]
         public ZUIValue stretch = new ZUIValue(1f);
+        [HideInInspector] public float bury;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Tooltip("Sink the base behind the surface: 0 = base on the line, 0.5 = centre on the line (a dome).")]
-        [Range(0f, 1f)] public float bury;
+        [Range(0f, 1f)] public ZUIValue buryValue = new ZUIValue(0f);
+        [HideInInspector] public bool buryUpgraded;
+        public ZUIValue Bury { get { if (!buryUpgraded) { buryValue = new ZUIValue(bury); buryUpgraded = true; } return buryValue; } }
 
-        float k, deg;
+        float k, deg, surfV, buryV;
         public override int WarpPass => 10;   // reframe the shape onto the surface before Profile measures its height
         public override string DisplayName => "Ground";
-        public override void Prepare(Func<ZUIValue, int, float> e) { k = Mathf.Max(0.05f, e(stretch, 0)); deg = e(angle, 1); }
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        {
+            k = Mathf.Max(0.05f, e(stretch, 0));
+            deg = e(angle, 1);
+            surfV = Mathf.Clamp(e(Surface, 2), -1f, 1f);
+            buryV = Mathf.Clamp01(e(Bury, 3));
+        }
         public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
         {
             if (ctx.radius <= 0.001f) return off;   // no disc extent to ground (e.g. Bars)
@@ -533,7 +585,7 @@ namespace Laubrary.SpriteFx
             float reach = Mathf.Min(rx, ry);
 
             float r = ctx.radius;
-            float baseAlong = surface * reach - bury * 2f * r * k;
+            float baseAlong = surfV * reach - buryV * 2f * r * k;
             float cw = Vector2.Dot(ctx.center, perp);   // shape's across offset — positionX/Y slide it along the surface
 
             // Decompose the pixel into along-grow / across, then rebuild it in the shape's canonical up-growing frame
@@ -591,6 +643,7 @@ namespace Laubrary.SpriteFx
         public Color tint = Color.white;
         [Tooltip("A gradient painted ACROSS each shape (centre→edge / bar back→tip) and multiplied in.")]
         public Gradient crossGradient = Sfx.WhiteGradient();
+        [Range(0f, 1f)]
         [Tooltip("How strongly the cross gradient applies (0 = off). Animatable.")]
         public ZUIValue crossAmount = new ZUIValue(1f);
 
@@ -622,6 +675,7 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class ContrastModifier : PixelModifier
     {
+        [Range(0f, 2f)]
         [Tooltip("Contrast. 1 = unchanged, >1 harder, <1 flatter. Animatable.")]
         public ZUIValue amount = new ZUIValue(1f);
         float v;
@@ -637,6 +691,7 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class BrightnessModifier : PixelModifier
     {
+        [Range(0f, 2f)]
         [Tooltip("Brightness multiplier. 1 = unchanged. Animatable.")]
         public ZUIValue amount = new ZUIValue(1f);
         float v;
@@ -652,6 +707,7 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class SaturationModifier : PixelModifier
     {
+        [Range(0f, 2f)]
         [Tooltip("Saturation. 1 = unchanged, 0 = greyscale, >1 more vivid. Animatable.")]
         public ZUIValue amount = new ZUIValue(1f);
         float v;
@@ -678,21 +734,27 @@ namespace Laubrary.SpriteFx
         [Range(2, 32)]
         [Tooltip("Number of rays radiating from the shape's own centre.")]
         public int rays = 8;
+        [Range(0f, 0.95f)]
         [Tooltip("How far the rays reach out (and the gaps pull in) — 0 = a plain circle. Animatable — pulse a " +
                  "charge-up.")]
         public ZUIValue strength = new ZUIValue(0.6f);
+        [HideInInspector] public float sharpness = 2f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0.5f, 8f)]
         [Tooltip("Ray crispness: 1 = soft, rounded points (like Jagg); higher = narrower, harder-edged blades.")]
-        public float sharpness = 2f;
+        public ZUIValue sharpnessValue = new ZUIValue(2f);
+        [HideInInspector] public bool sharpnessUpgraded;
+        public ZUIValue Sharpness { get { if (!sharpnessUpgraded) { sharpnessValue = new ZUIValue(sharpness); sharpnessUpgraded = true; } return sharpnessValue; } }
+        [Range(-180f, 180f)]
         [Tooltip("Rotates the whole ray pattern, in degrees. Animatable — spin the burst.")]
         public ZUIValue rotation = new ZUIValue(0f);
 
-        float amt, rotRad;
+        float amt, rotRad, shp;
         public override string DisplayName => "Sunburst";
         public override void Prepare(Func<ZUIValue, int, float> e)
         {
             amt = Mathf.Clamp(e(strength, 0), 0f, 0.95f);
             rotRad = e(rotation, 1) * Mathf.Deg2Rad;
+            shp = Mathf.Clamp(e(Sharpness, 2), 0.5f, 8f);
         }
 
         public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
@@ -704,7 +766,7 @@ namespace Laubrary.SpriteFx
             // ray line and bottoms out (=0) exactly midway between two rays. Remapped 0..1 -> -1..1 so a ray line
             // pushes OUT (scale > 1, d/scale shrinks -> samples closer in -> the shape reaches further there) and
             // a gap pulls IN (scale < 1, d/scale grows -> samples from beyond the shape's own edge).
-            float wave = Mathf.Pow(Mathf.Abs(Mathf.Cos(ang * rays * 0.5f)), Mathf.Max(0.5f, sharpness));
+            float wave = Mathf.Pow(Mathf.Abs(Mathf.Cos(ang * rays * 0.5f)), Mathf.Max(0.5f, shp));
             float scale = 1f + amt * (wave * 2f - 1f);
             return ctx.center + d / Mathf.Max(0.05f, scale);
         }
@@ -723,8 +785,10 @@ namespace Laubrary.SpriteFx
         [Range(1, 12)]
         [Tooltip("Number of ring cycles across the shape's own radius.")]
         public int rings = 4;
+        [Range(-4f, 4f)]
         [Tooltip("How fast the rings travel outward over the shape's life (cycles per full life). Animatable.")]
         public ZUIValue speed = new ZUIValue(1f);
+        [Range(0f, 32f)]
         [Tooltip("How far pixels are pushed along the radial direction, in pixels. Animatable — pulse it in/out.")]
         public ZUIValue strength = new ZUIValue(3f);
 
@@ -779,6 +843,7 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class OrderedDitherModifier : PixelModifier
     {
+        [Range(0f, 1f)]
         [Tooltip("How much the ordered dither replaces the smooth alpha. 0 = untouched; 1 = fully hard-dithered " +
                  "(a classic retro stipple edge). Animatable — rise it as a shape settles into its final silhouette.")]
         public ZUIValue strength = new ZUIValue(1f);
@@ -819,29 +884,36 @@ namespace Laubrary.SpriteFx
     public class VoronoiCrackModifier : PixelModifier
     {
         [UnityEngine.Serialization.FormerlySerializedAs("cellSize")]
+        [Range(1f, 32f)]
         [Tooltip("Zoom of the cell grid, in pixels — bigger = fewer, larger facets/cracks (zoomed in); smaller = a " +
                  "finer, busier web (zoomed out). Same role as Noise fill's own Zoom, just over a cellular field " +
                  "instead of a smooth one. Animatable.")]
         public ZUIValue zoom = new ZUIValue(10f);
+        [Range(-720f, 720f)]
         [Tooltip("Rotates the cell grid about the blast's own Origin marker, in degrees. Animatable — spin the " +
                  "whole crack pattern.")]
         public ZUIValue rotation = new ZUIValue(0f);
+        [Range(-32f, 32f)]
         [Tooltip("Drifts the cell grid horizontally (along the grid's OWN, possibly-rotated axis), in pixels — " +
                  "the pattern visibly slides sideways. Animatable.")]
         public ZUIValue driftX = new ZUIValue(0f);
+        [Range(-32f, 32f)]
         [Tooltip("Drifts the cell grid vertically (along the grid's own axis). Animatable.")]
         public ZUIValue driftY = new ZUIValue(0f);
+        [Range(-8f, 8f)]
         [Tooltip("A sub-seed folded into the cell jitter, in whole-number STEPS (0.7 and 1.4 both land on step 1) " +
                  "— so a slowly-animated Curve jumps between a handful of distinct patterns over life instead of " +
                  "reshuffling into unrelated noise every frame. Static (default) freezes the pattern in place; " +
                  "Min-Max re-rolls a fresh step every frame for a boiling/crackling reshuffle (sparkleSeed's " +
                  "cellular twin). This does NOT pan the pattern smoothly — use Drift X/Y for that.")]
         public ZUIValue seedOffset = new ZUIValue(0f);
+        [Range(0.01f, 3f)]
         [Tooltip("How much space the cracks eat vs. the cells' own untouched interiors — low leaves wide open " +
                  "cell faces with thin seams; high thickens the seams until the cell interiors shrink to nothing " +
                  "and the whole field reads as crack. Animatable — widen the cracks over life for a spreading-" +
                  "fracture look, or eat cells away entirely as the shape dies.")]
         public ZUIValue crackWidth = new ZUIValue(0.15f);
+        [Range(0.1f, 8f)]
         [Tooltip("How hard the seam's own edge is — separate from Crack width (which sets HOW WIDE the tinted " +
                  "band is, but always fades linearly across it, the same at any width). 1 = that plain linear " +
                  "fade (default, unchanged from before this field existed). Push it up for a crisp, clean seam " +
@@ -857,11 +929,13 @@ namespace Laubrary.SpriteFx
         [Tooltip("Colour tinted into the crack lines (dark for shattered stone/crystal; bright for electric arcs). " +
                  "Read per Mode above — a flat two-stop gradient behaves like the old single flat tint colour.")]
         public Gradient crackTint = Black();
+        [Range(0f, 1f)]
         [Tooltip("How strongly the crack tint applies (0 = off). Animatable — flicker or fade the cracks over life.")]
         public ZUIValue strength = new ZUIValue(1f);
         [Tooltip("Also tint each CELL's interior with a random per-cell shade (a faceted/stained-glass look) " +
                  "instead of leaving interiors untouched.")]
         public bool tintCells = false;
+        [Range(0f, 1f)]
         [Tooltip("How strongly the per-cell interior shading applies (only used when Tint cells is on). " +
                  "Animatable — the per-cell shade PATTERN stays fixed (same hash), only how much of it shows " +
                  "ramps, so this animates smoothly rather than flickering.")]
@@ -872,15 +946,19 @@ namespace Laubrary.SpriteFx
                  "centre AND the edge simultaneously, meeting in the middle last. Uniform (default) = the " +
                  "original, unconditional behaviour — every seam alike regardless of position.")]
         public CrackSpreadMode spreadMode = CrackSpreadMode.Uniform;
+        [Range(0f, 1f)]
         [Tooltip("0→1 spread position (ignored while Spread mode is Uniform). Animatable — a rising envelope " +
                  "reads as the fracture actively spreading outward/inward/both over the shape's life.")]
         public ZUIValue spreadProgress = DefaultSpreadProgress();
+        [HideInInspector] public float spreadSoftness = 0.2f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0f, 1f)]
         [Tooltip("Softness of the spreading reveal's own leading edge — 0 = a hard cutoff between lit and unlit " +
                  "cracks, higher blends more gradually across the front.")]
-        public float spreadSoftness = 0.2f;
+        public ZUIValue spreadSoftnessValue = new ZUIValue(0.2f);
+        [HideInInspector] public bool spreadSoftnessUpgraded;
+        public ZUIValue SpreadSoftness { get { if (!spreadSoftnessUpgraded) { spreadSoftnessValue = new ZUIValue(spreadSoftness); spreadSoftnessUpgraded = true; } return spreadSoftnessValue; } }
 
-        float size, amt, rotRad, driftXv, driftYv, width, cellShade, spreadProg, sharpness;
+        float size, amt, rotRad, driftXv, driftYv, width, cellShade, spreadProg, sharpness, spreadSoft;
         int seedStep;
         Vector2 originPx;
         public override string DisplayName => "Voronoi crack";
@@ -898,6 +976,9 @@ namespace Laubrary.SpriteFx
             width = Mathf.Clamp(e(crackWidth, 6), 0.01f, 3f);
             cellShade = Mathf.Clamp01(e(cellShadeStrength, 7));
             sharpness = Mathf.Max(0.05f, e(seamSharpness, 9));
+            // fid 10 extends past the nominal 8-wide per-modifier block (this modifier already occupies 0-9) —
+            // benign: the fid only seeds a param's Min-Max RNG stream.
+            spreadSoft = Mathf.Clamp01(e(SpreadSoftness, 10));
         }
 
         /// The blast's own Origin marker (Pyre.origin), in canvas pixels — set once per frame by BlastRenderer
@@ -973,7 +1054,7 @@ namespace Laubrary.SpriteFx
         // inside the not-yet-revealed zone — a smoothstepped gate, same shape as AlphaMaskModifier's own edge.
         float SpreadMask(float crossFrac)
         {
-            float w = Mathf.Max(0.001f, spreadSoftness);
+            float w = Mathf.Max(0.001f, spreadSoft);
             switch (spreadMode)
             {
                 case CrackSpreadMode.CenterOut:
@@ -1017,6 +1098,7 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class DissolveModifier : PostModifier
     {
+        [Range(0f, 1f)]
         [Tooltip("0 = nothing removed, 1 = everything gone. Animatable — the classic 'crumble away at the end' is " +
                  "this ramping 0→1 over the layer's life.")]
         public ZUIValue amount = DefaultAmount();
@@ -1027,7 +1109,7 @@ namespace Laubrary.SpriteFx
                  "Amount keeps rising past its own threshold; and a still-solid pixel next to an already-hollowed " +
                  "one bleeds some of its own alpha toward it, so growing holes spread/soften into their neighbours " +
                  "instead of popping in as hard single-pixel speckle.")]
-        public ZUIValue smoothness = new ZUIValue(0f);
+        [Range(0f, 1f)] public ZUIValue smoothness = new ZUIValue(0f);
 
         float amt, smooth;
         public override string DisplayName => "Dissolve";
@@ -1106,6 +1188,7 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class LayerDissolveModifier : PixelModifier
     {
+        [Range(0f, 1f)]
         [Tooltip("0 = nothing removed, 1 = everything gone. Animatable — the classic 'crumble away at the end' is " +
                  "this ramping 0→1 over the layer's life.")]
         public ZUIValue amount = Sfx.CurveVal(1f, 0f, 0f, 0.6f, 0f, 1f, 1f);
@@ -1115,7 +1198,7 @@ namespace Laubrary.SpriteFx
                  "fade out over several SUBSEQUENT frames as Amount keeps rising past its own threshold, instead " +
                  "of vanishing outright. (No neighbour-bleed half like Dissolve's own Smoothness — this is a " +
                  "per-pixel modifier with no access to neighbouring pixels.)")]
-        public ZUIValue smoothness = new ZUIValue(0f);
+        [Range(0f, 1f)] public ZUIValue smoothness = new ZUIValue(0f);
 
         float amt, smooth;
         public override string DisplayName => "Layer dissolve";
@@ -1140,30 +1223,44 @@ namespace Laubrary.SpriteFx
     public class AlphaMaskModifier : PixelModifier
     {
         public MaskShape shape = MaskShape.DiscOut;
+        [Range(0f, 1f)]
         [Tooltip("0→1 sweep position. A rising envelope reveals the layer; a falling one hides it. Animatable.")]
         public ZUIValue progress = DefaultProgress();
+        [HideInInspector] public float sharpness = 0.6f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0f, 1f)]
         [Tooltip("Edge hardness: 1 = a crisp cut, 0 = a wide soft gradient.")]
-        public float sharpness = 0.6f;
+        public ZUIValue sharpnessValue = new ZUIValue(0.6f);
+        [HideInInspector] public bool sharpnessUpgraded;
+        public ZUIValue Sharpness { get { if (!sharpnessUpgraded) { sharpnessValue = new ZUIValue(sharpness); sharpnessUpgraded = true; } return sharpnessValue; } }
+        [Range(0.1f, 4f)]
         [Tooltip("Mask scale. 1 = spans the half-canvas. Animatable.")]
         public ZUIValue size = new ZUIValue(1f);
+        [Range(-180f, 180f)]
         [Tooltip("Mask rotation in degrees (rotates the wipe direction / disc axis). Animatable.")]
         public ZUIValue rotation = new ZUIValue(0f);
+        [HideInInspector] public float offsetX = 0f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Tooltip("Mask centre offset X, in half-canvas units (-1..1).")]
-        public float offsetX = 0f;
+        [Range(-1f, 1f)] public ZUIValue offsetXValue = new ZUIValue(0f);
+        [HideInInspector] public bool offsetXUpgraded;
+        public ZUIValue OffsetX { get { if (!offsetXUpgraded) { offsetXValue = new ZUIValue(offsetX); offsetXUpgraded = true; } return offsetXValue; } }
+        [HideInInspector] public float offsetY = 0f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Tooltip("Mask centre offset Y, in half-canvas units (-1..1).")]
-        public float offsetY = 0f;
+        [Range(-1f, 1f)] public ZUIValue offsetYValue = new ZUIValue(0f);
+        [HideInInspector] public bool offsetYUpgraded;
+        public ZUIValue OffsetY { get { if (!offsetYUpgraded) { offsetYValue = new ZUIValue(offsetY); offsetYUpgraded = true; } return offsetYValue; } }
 
         [Tooltip("Noise shape only: domain-warp strength — how much the noise field bends on itself. 0 = plain " +
                  "smooth noise (a blobby cloud); higher = more churned, organic eddies.")]
         [Range(0f, 2f)] public float noiseWarp = 0.6f;
+        [Range(-64f, 64f)]
         [Tooltip("Noise shape only: extra X drift added to the noise sample position over the mask's progress, in " +
                  "half-canvas units. Animate it for a cloud that visibly rolls/billows sideways as it reveals.")]
         public ZUIValue noiseDriftX = new ZUIValue(0f);
+        [Range(-64f, 64f)]
         [Tooltip("Noise shape only: extra Y drift added to the noise sample position, in half-canvas units. Animatable.")]
         public ZUIValue noiseDriftY = new ZUIValue(0f);
 
-        float prog, siz, rotRad, driftX, driftY;
+        float prog, siz, rotRad, driftX, driftY, offX, offY, sharp;
         public override string DisplayName => "Alpha mask";
         public override void Prepare(Func<ZUIValue, int, float> e)
         {
@@ -1172,12 +1269,15 @@ namespace Laubrary.SpriteFx
             rotRad = e(rotation, 2) * Mathf.Deg2Rad;
             driftX = e(noiseDriftX, 3);
             driftY = e(noiseDriftY, 4);
+            offX = Mathf.Clamp(e(OffsetX, 5), -1f, 1f);
+            offY = Mathf.Clamp(e(OffsetY, 6), -1f, 1f);
+            sharp = Mathf.Clamp01(e(Sharpness, 7));
         }
 
         MaskP P() => new MaskP
         {
             shape = (int)shape, prog = prog, siz = siz, rotRad = rotRad, driftX = driftX, driftY = driftY,
-            sharpness = sharpness, offsetX = offsetX, offsetY = offsetY, noiseWarp = noiseWarp
+            sharpness = sharp, offsetX = offX, offsetY = offY, noiseWarp = noiseWarp
         };
         public override bool ApplyPixel(ref Color col, ref float a, in PixelInfo p)
             => SfxKernels.KAlphaMask(P(), ref col, ref a, p);
@@ -1220,31 +1320,39 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class BloomModifier : PostModifier
     {
+        [HideInInspector] public float threshold = 0.6f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0f, 1f)]
         [Tooltip("Brightness a pixel must exceed to bloom.")]
-        public float threshold = 0.6f;
+        public ZUIValue thresholdValue = new ZUIValue(0.6f);
+        [HideInInspector] public bool thresholdUpgraded;
+        public ZUIValue Threshold { get { if (!thresholdUpgraded) { thresholdValue = new ZUIValue(threshold); thresholdUpgraded = true; } return thresholdValue; } }
         [Range(0, 16)]
         [Tooltip("How far the glow spreads, in pixels.")]
-        public int radius = 4;
+        public int radius = 4;   // stays a plain int — a perf knob (blur cost scales with it), not a creative dial
+        [Range(0f, 3f)]
         [Tooltip("Glow strength, added back additively. Animatable — pulse the glow.")]
         public ZUIValue intensity = new ZUIValue(1.2f);
 
-        float inten;
+        float inten, thr;
         public override string DisplayName => "Bloom (glow)";
-        public override void Prepare(Func<ZUIValue, int, float> e) => inten = Mathf.Max(0f, e(intensity, 0));
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        {
+            inten = Mathf.Max(0f, e(intensity, 0));
+            thr = Mathf.Clamp01(e(Threshold, 1));
+        }
 
         public override void Apply(Color32[] buf, int W, int H)
         {
             if (inten <= 0.001f || radius < 1) return;
             int n = W * H;
             var br = new float[n * 3];
-            float denom = Mathf.Max(0.001f, 1f - threshold);
+            float denom = Mathf.Max(0.001f, 1f - thr);
             for (int i = 0; i < n; i++)
             {
                 var c = buf[i];
                 float a = c.a * (1f / 255f);
                 float lum = (c.r + c.g + c.b) * (1f / (3f * 255f)) * a;
-                float k = (lum - threshold) / denom;
+                float k = (lum - thr) / denom;
                 if (k <= 0f) continue;
                 k = Mathf.Clamp01(k);
                 br[i * 3] = c.r * (1f / 255f) * k;
@@ -1317,10 +1425,12 @@ namespace Laubrary.SpriteFx
                  "flat = a sharp one-colour outline, a gradient fades/recolours/bands outward. Over life mode " +
                  "samples the whole gradient once, at the blast's own life.")]
         public Gradient color = White();
+        [Range(0f, 12f)]
         [Tooltip("Outline thickness in pixels, measured OUTWARD from the shape's edge — 0 is only meaningful " +
                  "together with Inner softness (a pure inward glow with no outward ring at all); otherwise " +
                  "this is the ring you actually see, so it wants to start at 1. Animatable — grow it outward.")]
         public ZUIValue size = new ZUIValue(1f);
+        [HideInInspector] public float alphaThreshold = 0.08f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0.01f, 1f)]
         [Tooltip("Coverage threshold: the alpha level a pixel needs to count as \"shape\" rather than \"background\" " +
                  "when tracing the outline — it sets WHERE the outline sits on any soft/partial edge (outer " +
@@ -1328,48 +1438,68 @@ namespace Laubrary.SpriteFx
                  "outlines even a faint, semi-transparent fill; raise it to trace further IN toward only the solid " +
                  "core (so a low-opacity fill gets no outline). Tip: to outline a PyrePlus 2D shape's silhouette, its " +
                  "own first-class shape Border is cleaner than this post-pass.")]
-        public float alphaThreshold = 0.08f;
+        public ZUIValue alphaThresholdValue = new ZUIValue(0.08f);
+        [HideInInspector] public bool alphaThresholdUpgraded;
+        public ZUIValue AlphaThreshold { get { if (!alphaThresholdUpgraded) { alphaThresholdValue = new ZUIValue(alphaThreshold); alphaThresholdUpgraded = true; } return alphaThresholdValue; } }
 
         // Inner and Outer below are the two EDGES of one single outline ring (where it meets the shape, and
         // where it meets the background) — not two separate outlines. Same knobs on both sides: a softness
         // (how many px the fade spans) and a curve (how that fade is shaped), applied symmetrically.
+        [HideInInspector] public float innerSoftness = 0f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0f, 16f)]
         [Tooltip("Spills the outline INWARD, into the shape's own silhouette, over this many pixels — 0 = the " +
                  "outline stays entirely outside the shape (the default, crisp look). Higher values blend the " +
                  "outline colour over the shape's own pixels near the boundary, fading from full strength right " +
                  "at the edge down to the shape's own colour this many pixels deep — an inset glow, not a gap.")]
-        public float innerSoftness = 0f;
+        public ZUIValue innerSoftnessValue = new ZUIValue(0f);
+        [HideInInspector] public bool innerSoftnessUpgraded;
+        public ZUIValue InnerSoftness { get { if (!innerSoftnessUpgraded) { innerSoftnessValue = new ZUIValue(innerSoftness); innerSoftnessUpgraded = true; } return innerSoftnessValue; } }
+        [HideInInspector] public float innerSoftnessCurve = 1f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0.2f, 5f)]
         [Tooltip("Shapes the Inner softness falloff curve — 1 = linear (the default). Higher holds full " +
                  "strength longer near the boundary then drops off sharply right at the tail (reads as a " +
                  "tighter, more contained inset glow); lower drops off quickly then lingers faintly deeper in. " +
                  "Has no effect while Inner softness is 0.")]
-        public float innerSoftnessCurve = 1f;
+        public ZUIValue innerSoftnessCurveValue = new ZUIValue(1f);
+        [HideInInspector] public bool innerSoftnessCurveUpgraded;
+        public ZUIValue InnerSoftnessCurve { get { if (!innerSoftnessCurveUpgraded) { innerSoftnessCurveValue = new ZUIValue(innerSoftnessCurve); innerSoftnessCurveUpgraded = true; } return innerSoftnessCurveValue; } }
+        [HideInInspector] public float outerSoftness = 0f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0f, 16f)]
         [Tooltip("Fades the outline's OWN alpha near its OUTER edge (furthest from the shape) — 0 = a hard " +
                  "cutoff exactly at Size (the default), higher fades it out gradually, extending the visible " +
                  "falloff a bit PAST Size.")]
-        public float outerSoftness = 0f;
+        public ZUIValue outerSoftnessValue = new ZUIValue(0f);
+        [HideInInspector] public bool outerSoftnessUpgraded;
+        public ZUIValue OuterSoftness { get { if (!outerSoftnessUpgraded) { outerSoftnessValue = new ZUIValue(outerSoftness); outerSoftnessUpgraded = true; } return outerSoftnessValue; } }
+        [HideInInspector] public float outerSoftnessCurve = 1f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0.2f, 5f)]
         [Tooltip("Shapes the Outer softness falloff curve — 1 = linear (the default). Higher stays near full " +
                  "strength longer then drops off sharply right at the tail (a tighter, more \"smoothed\" edge to " +
                  "the glow instead of a straight ramp); lower drops off quickly then lingers faintly for longer. " +
                  "Has no effect while Outer softness is 0.")]
-        public float outerSoftnessCurve = 1f;
+        public ZUIValue outerSoftnessCurveValue = new ZUIValue(1f);
+        [HideInInspector] public bool outerSoftnessCurveUpgraded;
+        public ZUIValue OuterSoftnessCurve { get { if (!outerSoftnessCurveUpgraded) { outerSoftnessCurveValue = new ZUIValue(outerSoftnessCurve); outerSoftnessCurveUpgraded = true; } return outerSoftnessCurveValue; } }
 
         int sz;
+        float thrV, innerSoftV, innerCurveV, outerSoftV, outerCurveV;
         Color overLifeColor;
         public override string DisplayName => "Outline";
         public override void Prepare(Func<ZUIValue, int, float> e)
         {
             sz = Mathf.Clamp(Mathf.RoundToInt(e(size, 0)), 0, 32);
+            innerSoftV = Mathf.Clamp(e(InnerSoftness, 1), 0f, 16f);
+            outerSoftV = Mathf.Clamp(e(OuterSoftness, 2), 0f, 16f);
+            innerCurveV = Mathf.Clamp(e(InnerSoftnessCurve, 3), 0.2f, 5f);
+            outerCurveV = Mathf.Clamp(e(OuterSoftnessCurve, 4), 0.2f, 5f);
+            thrV = Mathf.Clamp(e(AlphaThreshold, 5), 0.01f, 1f);
             if (mode == ColorMode.OverLife && color != null) overLifeColor = color.Evaluate(Mathf.Clamp01(life));
         }
 
         public override void Apply(Color32[] buf, int W, int H)
         {
-            if ((sz < 1 && innerSoftness < 0.001f) || color == null) return;
-            byte at = (byte)(alphaThreshold * 255f);
+            if ((sz < 1 && innerSoftV < 0.001f) || color == null) return;
+            byte at = (byte)(thrV * 255f);
             var src = (Color32[])buf.Clone();
             int R = sz;
 
@@ -1379,7 +1509,7 @@ namespace Laubrary.SpriteFx
                 // The outward fade can read a bit past the nominal thickness, so the neighbour search has to
                 // reach that far too — otherwise pixels in the fade band beyond R would never find a shape
                 // pixel to measure distance from and'd just be skipped.
-                int searchOut = Mathf.CeilToInt(R + outerSoftness);
+                int searchOut = Mathf.CeilToInt(R + outerSoftV);
                 for (int y = 0; y < H; y++)
                     for (int x = 0; x < W; x++)
                     {
@@ -1399,13 +1529,13 @@ namespace Laubrary.SpriteFx
                             }
                         }
                         float d = Mathf.Sqrt(best2);
-                        if (d > R + outerSoftness) continue;   // beyond the thickness (+ its outward fade)
+                        if (d > R + outerSoftV) continue;   // beyond the thickness (+ its outward fade)
 
                         float fadeA = 1f;
-                        if (outerSoftness > 0.001f)
+                        if (outerSoftV > 0.001f)
                         {
-                            float lin = Mathf.Clamp01((R + outerSoftness - d) / outerSoftness);
-                            fadeA = Mathf.Pow(lin, outerSoftnessCurve);
+                            float lin = Mathf.Clamp01((R + outerSoftV - d) / outerSoftV);
+                            fadeA = Mathf.Pow(lin, outerCurveV);
                         }
                         if (fadeA <= 0.003f) continue;
 
@@ -1424,9 +1554,9 @@ namespace Laubrary.SpriteFx
             // blended OVER their own colour (an inset glow) — full strength right at the edge, fading back to
             // the shape's own colour deeper in. A separate pass over the SAME src snapshot (not the ring pass's
             // partial results above) so the two never interfere with each other's distance search.
-            if (innerSoftness > 0.001f)
+            if (innerSoftV > 0.001f)
             {
-                int searchIn = Mathf.CeilToInt(innerSoftness);
+                int searchIn = Mathf.CeilToInt(innerSoftV);
                 Color edgeColor = mode == ColorMode.OverLife ? overLifeColor : color.Evaluate(0f);
                 for (int y = 0; y < H; y++)
                     for (int x = 0; x < W; x++)
@@ -1448,10 +1578,10 @@ namespace Laubrary.SpriteFx
                         }
                         if (best2 == int.MaxValue) continue;   // no background within reach — deep interior, untouched
                         float d = Mathf.Sqrt(best2);
-                        if (d > innerSoftness) continue;
+                        if (d > innerSoftV) continue;
 
-                        float lin = Mathf.Clamp01(1f - d / innerSoftness);   // full AT the boundary, fading inward
-                        float fadeA = Mathf.Pow(lin, innerSoftnessCurve);
+                        float lin = Mathf.Clamp01(1f - d / innerSoftV);   // full AT the boundary, fading inward
+                        float fadeA = Mathf.Pow(lin, innerCurveV);
                         float outA = Mathf.Clamp01(edgeColor.a * fadeA);
                         if (outA <= 0.003f) continue;
 
@@ -1485,14 +1615,17 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class ChromaticAberrationModifier : PostModifier
     {
+        [Range(0f, 8f)]
         [Tooltip("How far the red/blue channels split apart, in pixels. Animatable — punch it in on impact, settle out.")]
         public ZUIValue amount = new ZUIValue(1.5f);
+        [Range(0f, 1f)]
         [Tooltip("How much of the fringed result blends over the original image (0 = untouched, 1 = full effect). " +
                  "Animatable — fade the aberration in/out independently of Amount (the split distance itself).")]
         public ZUIValue alpha = new ZUIValue(1f);
         [Tooltip("Radial = split outward from the canvas centre (stronger toward the edges); off = a flat, " +
                  "uniform split along Angle.")]
         public bool radial = true;
+        [Range(-180f, 180f)]
         [Tooltip("Used when Radial is off: split direction, in degrees. Animatable — sweep the split direction.")]
         public ZUIValue angleDeg = new ZUIValue(0f);
 
@@ -1570,18 +1703,24 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class CloudProjectileModifier : PostModifier
     {
+        [Range(-180f, 180f)]
         [Tooltip("Direction the projectile travels, in degrees (0 = along +X). Animatable.")]
         public ZUIValue angleDeg = new ZUIValue(0f);
+        [Range(-32f, 32f)]
         [Tooltip("Slides the travel line sideways (perpendicular to its own direction), in pixels off the " +
                  "canvas centre. Animatable.")]
         public ZUIValue offset = new ZUIValue(0f);
+        [Range(0f, 1f)]
         [Tooltip("How far the projectile has travelled: 0 = hasn't entered yet (sitting at the canvas edge), " +
                  "1 = has travelled all the way across to the far edge. Animatable — default ramps 0→1 over life.")]
         public ZUIValue depth = Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);
+        [Range(1f, 32f)]
         [Tooltip("How far the push reaches perpendicular to the travel line, in pixels.")]
         public ZUIValue radius = new ZUIValue(10f);
+        [Range(-20f, 20f)]
         [Tooltip("Push strength before any cloud resistance is applied. Animatable.")]
         public ZUIValue strength = new ZUIValue(6f);
+        [Range(0f, 5f)]
         [Tooltip("How strongly the cloud's own density (its rendered alpha) resists the shot. 0 = no resistance " +
                  "at all — full strength the whole way through, like moving through a vacuum. Higher = force " +
                  "drops off faster the more (and denser) cloud the shot has already torn through, so it arrives " +
@@ -1719,44 +1858,60 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class BallisticShockwaveModifier : PostModifier
     {
+        [Range(-180f, 180f)]
         [Tooltip("Direction the projectile travels, in degrees (0 = along +X). Animatable.")]
         public ZUIValue angleDeg = new ZUIValue(0f);
+        [Range(-32f, 32f)]
         [Tooltip("Slides the travel line sideways (perpendicular to its own direction), in pixels off the " +
                  "canvas centre. Animatable.")]
         public ZUIValue offset = new ZUIValue(0f);
+        [Range(0f, 1f)]
         [Tooltip("How far the projectile has travelled: 0 = hasn't entered yet (sitting at the canvas edge), " +
                  "1 = has travelled all the way across to the far edge. Animatable — default ramps 0→1 over life.")]
         public ZUIValue depth = Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);
+        [Range(0.5f, 10f)]
         [Tooltip("Radius of the projectile's own tunnel through the cloud, in pixels.")]
         public ZUIValue projectileRadius = new ZUIValue(3f);
+        [Range(-20f, 20f)]
         [Tooltip("How hard the tunnel pushes material forward and to the sides. Animatable.")]
         public ZUIValue projectileForce = new ZUIValue(6f);
+        [Range(0f, 1f)]
         [Tooltip("How much the tunnel's own core erases alpha outright (0 = pure push, nothing erased; 1 = a " +
                  "clean, fully-cleared core), on top of the push. Animatable.")]
         public ZUIValue erosion = new ZUIValue(0.75f);
 
+        [Range(0.01f, 0.5f)]
         [Tooltip("How often a shockwave ring spawns, as a FRACTION of the whole travel (0.06 ≈ 16 rings across " +
                  "the full path). Smaller = more, denser trailing rings.")]
         public ZUIValue waveSpacing = new ZUIValue(0.06f);
+        [Range(-20f, 20f)]
         [Tooltip("Each ring's push strength the moment it spawns. Animatable.")]
         public ZUIValue waveStrength = new ZUIValue(5f);
+        [Range(0f, 32f)]
         [Tooltip("How far a ring's own radius grows over a full remaining traversal, in pixels. Animatable.")]
         public ZUIValue waveExpansion = new ZUIValue(30f);
+        [Range(0f, 20f)]
         [Tooltip("How fast a ring's push fades as it ages (higher = shorter-lived rings). Animatable.")]
         public ZUIValue waveDecay = new ZUIValue(6f);
+        [Range(0.5f, 8f)]
         [Tooltip("Thickness of the travelling pressure shell, in pixels — how far either side of a ring's own " +
                  "current radius the push still reaches.")]
         public ZUIValue waveThickness = new ZUIValue(2.5f);
 
+        [Range(0.01f, 0.5f)]
         [Tooltip("How often a vortex spawns, as a FRACTION of the whole travel — alternates spin direction by " +
                  "index, the same alternating-eddy \"vortex street\" a real bluff body sheds.")]
         public ZUIValue vortexSpacing = new ZUIValue(0.05f);
+        [Range(-20f, 20f)]
         [Tooltip("Each vortex's swirl strength the moment it spawns. Animatable.")]
         public ZUIValue vortexStrength = new ZUIValue(8f);
+        [Range(0.5f, 16f)]
         [Tooltip("Each vortex's core radius, in pixels (jittered per-vortex). Animatable.")]
         public ZUIValue vortexRadius = new ZUIValue(8f);
+        [Range(0f, 20f)]
         [Tooltip("How fast a vortex's swirl fades as it ages (higher = shorter-lived vortices). Animatable.")]
         public ZUIValue vortexDecay = new ZUIValue(5f);
+        [Range(0f, 5f)]
         [Tooltip("Strength of each vortex's radial \"breathing\" pulse (in + out), on top of its tangential " +
                  "swirl — 0 = a clean, geometric spiral; higher = a less regular, pulsing one. Animatable.")]
         public ZUIValue vortexPulse = new ZUIValue(1f);
@@ -1962,14 +2117,18 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class FuseModifier : PostModifier
     {
+        [Range(0f, 16f)]
         [Tooltip("How far the fusing effect reaches, in pixels — bigger blends more distant shapes together. Animatable.")]
         public ZUIValue radius = new ZUIValue(4f);
+        [Range(0f, 1f)]
         [Tooltip("Alpha level pixels must reach (after blurring) to stay solid — lower fuses more eagerly (thicker " +
                  "bridges between shapes); higher keeps shapes more separate (fuses only where they nearly touch). " +
                  "Animatable — rise it over life to pull fused shapes back apart.")]
         public ZUIValue threshold = new ZUIValue(0.5f);
+        [Range(0.02f, 1f)]
         [Tooltip("Softness of the re-solidified edge — low is closer to a hard cutoff, high a wide soft gradient. Animatable.")]
         public ZUIValue softness = new ZUIValue(0.3f);
+        [Range(0f, 1f)]
         [Tooltip("How much colour blends across the fused seam. 0 = each pixel keeps its own colour (only the " +
                  "silhouette fuses); 1 = colour is fully blurred too (a smooth blended melt). Animatable.")]
         public ZUIValue colorBleed = new ZUIValue(0.4f);
@@ -2064,8 +2223,10 @@ namespace Laubrary.SpriteFx
     public class JaggModifier : GeometryModifier
     {
         [Range(2, 24)] public int arms = 5;
+        [Range(0f, 0.95f)]
         [Tooltip("Arm length / valley depth (0 = circle, →1 = spiky star). Animatable.")]
         public ZUIValue strength = new ZUIValue(0.4f);
+        [Range(-180f, 180f)]
         [Tooltip("Rotate the star, in degrees. Animatable — spin the points.")]
         public ZUIValue twist = new ZUIValue(0f);
 
@@ -2110,16 +2271,21 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class EdgeWarpModifier : EdgeModifier
     {
+        [Range(0f, 10f)]
         [Tooltip("How far the edge bulges in/out at each bump, in pixels. Animatable.")]
         public ZUIValue amplitude = new ZUIValue(2f);
+        [Range(1f, 24f)]
         [Tooltip("Roughly how many bumps run around the shape's rim. Animatable.")]
         public ZUIValue frequency = new ZUIValue(6f);
+        [Range(0f, 1f)]
         [Tooltip("0 = a smooth, rounded, wavy edge. 1 = a hard, faceted, torn/jagged edge. Animatable — roughen up " +
                  "a silhouette over life.")]
         public ZUIValue jaggedness = new ZUIValue(0.5f);
+        [Range(0f, 2f)]
         [Tooltip("Domain-warp strength on the underlying noise — higher makes the bump spacing less regular, more " +
                  "organic. Animatable.")]
         public ZUIValue warp = new ZUIValue(0.4f);
+        [Range(0f, 8f)]
         [Tooltip("Feathers the warped boundary with its own soft alpha fade (0 = a hard cutoff, higher = a wider " +
                  "soft edge) — unlike the layer's own Outer softness, this fade correctly tracks the moved, " +
                  "jagged/wavy boundary rather than the shape's original circle. Animatable.")]
@@ -2162,18 +2328,24 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class TurbulenceModifier : GeometryModifier
     {
+        [Range(0f, 32f)]
         [Tooltip("How far pixels are displaced by the noise field, in pixels. Animatable — rise it in as the shape matures.")]
         public ZUIValue amplitude = new ZUIValue(4f);
+        [Range(1f, 64f)]
         [Tooltip("Noise frequency — bigger = larger, slower-looking eddies; smaller = fine, busy churn. Animatable.")]
         public ZUIValue zoom = new ZUIValue(24f);
+        [Range(-720f, 720f)]
         [Tooltip("Rotates the noise field's own sampling domain, in degrees — this is what makes the churn visibly " +
                  "SPIN in place (a mushroom cloud's roll). Animatable — a rising curve = an accelerating roll.")]
         public ZUIValue rotation = new ZUIValue(0f);
+        [Range(-32f, 32f)]
         [Tooltip("Scrolls the noise field horizontally over life, in pixels — the pattern itself drifts rather " +
                  "than the displacement just sitting still. Animatable.")]
         public ZUIValue offsetX = new ZUIValue(0f);
+        [Range(-32f, 32f)]
         [Tooltip("Scrolls the noise field vertically over life, in pixels. Animatable.")]
         public ZUIValue offsetY = new ZUIValue(0f);
+        [Range(0f, 2f)]
         [Tooltip("Domain-warp strength — how much the noise bends on itself (0 = plain smooth noise, higher = " +
                  "more churned/organic eddies). Animatable — e.g. ramp it up for a churn that gets more organic " +
                  "over life. Pushed high enough, the noise field can fold over itself and carve sharp notches " +
@@ -2226,18 +2398,24 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class PerlinTurbulenceModifier : GeometryModifier
     {
+        [Range(0f, 32f)]
         [Tooltip("How far pixels are displaced by the noise field, in pixels. Animatable — rise it in as the shape matures.")]
         public ZUIValue amplitude = new ZUIValue(4f);
+        [Range(1f, 64f)]
         [Tooltip("Noise frequency — bigger = larger, slower-looking eddies; smaller = fine, busy churn. Animatable.")]
         public ZUIValue zoom = new ZUIValue(24f);
+        [Range(-720f, 720f)]
         [Tooltip("Rotates the noise field's own sampling domain, in degrees — this is what makes the churn visibly " +
                  "SPIN in place (a mushroom cloud's roll). Animatable — a rising curve = an accelerating roll.")]
         public ZUIValue rotation = new ZUIValue(0f);
+        [Range(-32f, 32f)]
         [Tooltip("Scrolls the noise field horizontally over life, in pixels — the pattern itself drifts rather " +
                  "than the displacement just sitting still. Animatable.")]
         public ZUIValue offsetX = new ZUIValue(0f);
+        [Range(-32f, 32f)]
         [Tooltip("Scrolls the noise field vertically over life, in pixels. Animatable.")]
         public ZUIValue offsetY = new ZUIValue(0f);
+        [Range(0f, 2f)]
         [Tooltip("Domain-warp strength — how much the noise bends on itself (0 = plain smooth noise, higher = " +
                  "more churned/organic eddies). Animatable. Pushed high enough, the noise field can fold over " +
                  "itself and carve sharp notches into an otherwise smooth edge — pair with an Edge smooth " +
@@ -2287,8 +2465,10 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class EdgeSmoothModifier : PostModifier
     {
+        [Range(0f, 16f)]
         [Tooltip("Blur radius, in pixels — how far the edge softening reaches. Animatable.")]
         public ZUIValue radius = new ZUIValue(2f);
+        [Range(0f, 1f)]
         [Tooltip("How much of the blur blends back in — 0 = untouched (edges stay exactly as jagged as rendered), " +
                  "1 = fully softened. Animatable.")]
         public ZUIValue strength = new ZUIValue(1f);
@@ -2378,18 +2558,22 @@ namespace Laubrary.SpriteFx
     public class VortexPoint
     {
         public Vector2 pos;
+        [Range(2f, 32f)]
         [Tooltip("Zone of influence, in pixels — the swirl fades smoothly to nothing at this distance from the " +
                  "vortex's own centre. Animatable — e.g. grow the zone of influence over life.")]
         public ZUIValue radius = new ZUIValue(24f);
+        [Range(0f, 50f)]
         [Tooltip("Swirl strength, in degrees — how far a pixel at the vortex's own centre rotates per full blast " +
                  "loop at Speed 1. Sweet spot is roughly 15-40 — below ~15 barely reads, above ~40 tends to over- " +
                  "rotate/tear rather than read as a tighter whirlpool. Animatable.")]
         public ZUIValue strength = new ZUIValue(25f);
+        [Range(-4f, 4f)]
         [Tooltip("How fast this vortex's rotation accumulates over the blast's loop, relative to Strength's " +
                  "per-loop baseline — 2 = twice as fast (overshoots Strength and keeps going), 0 = no rotation " +
                  "at all (effectively disables this vortex without removing it). Animatable. Used by the regular " +
                  "Curl modifier; ignored by Vortex field (progress), which uses Progress below instead.")]
         public ZUIValue speed = new ZUIValue(1f);
+        [Range(0f, 1f)]
         [Tooltip("Direct control over how far this vortex has rotated — 0 = no rotation, 1 = full Strength " +
                  "applied, beyond 1 over-rotates past it, negative reverses direction. Curve it to ease in, " +
                  "hold, pulse, or reverse — independent of the blast's own life fraction. Used by the standalone " +
@@ -2429,16 +2613,22 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class CurlModifier : GeometryModifier, IVortexHost
     {
+        [Range(0f, 24f)]
         [Tooltip("Ambient swirl displacement, in pixels — 0 = no ambient churn, just the vortices below (if any). Animatable.")]
         public ZUIValue strength = new ZUIValue(4f);
+        [Range(1f, 32f)]
         [Tooltip("Ambient swirl noise frequency — bigger = larger, slower-looking eddies; smaller = fine, busy churn. Animatable.")]
         public ZUIValue zoom = new ZUIValue(24f);
+        [Range(-4f, 4f)]
         [Tooltip("How fast the ambient swirl's own flow field evolves over the blast's loop — 0 = a static " +
                  "(non-animated) bend. Animatable.")]
         public ZUIValue speed = new ZUIValue(1f);
+        [HideInInspector] public float warp = 0.6f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0f, 2f)]
         [Tooltip("Domain-warp strength on the underlying noise (0 = smooth eddies, higher = more churned/organic).")]
-        public float warp = 0.6f;
+        public ZUIValue warpValue = new ZUIValue(0.6f);
+        [HideInInspector] public bool warpUpgraded;
+        public ZUIValue Warp { get { if (!warpUpgraded) { warpValue = new ZUIValue(warp); warpUpgraded = true; } return warpValue; } }
 
         [Tooltip("Discrete swirl centres, layered on top of the ambient swirl above — each spins everything " +
                  "within its own Radius around its own Pos. Add one via the box below (click the preview), " +
@@ -2453,13 +2643,16 @@ namespace Laubrary.SpriteFx
         struct ResolvedVortex { public Vector2 pos; public float radius, strength, speed; public bool clockwise; }
         readonly List<ResolvedVortex> resolved = new List<ResolvedVortex>();
 
-        float amt, zm, spd;
+        float amt, zm, spd, wrp;
         public override string DisplayName => "Curl (swirl)";
         public override void Prepare(Func<ZUIValue, int, float> e)
         {
             amt = e(strength, 0);
             zm = Mathf.Max(1f, e(zoom, 1));
             spd = e(speed, 2);
+            // fid 3 overlaps the vortex-shared ids 3-7 below — benign: the fid only seeds a param's Min-Max RNG
+            // stream, and this modifier's own 8-wide block (0-7) is fully occupied either way.
+            wrp = Mathf.Clamp(e(Warp, 3), 0f, 2f);
 
             resolved.Clear();
             if (vortices == null) return;
@@ -2499,7 +2692,7 @@ namespace Laubrary.SpriteFx
                 // different scattered shapes churn with different, still-deterministic flow fields instead of
                 // an identical repeated swirl.
                 int seed = unchecked((Mathf.RoundToInt(ctx.center.x * 8f) * 92821) ^ (Mathf.RoundToInt(ctx.center.y * 8f) * 68111));
-                Vector2 curl = PyreNoise.Curl(nx, ny, seed, warp);
+                Vector2 curl = PyreNoise.Curl(nx, ny, seed, wrp);
                 result += curl * amt;
             }
 
@@ -2622,16 +2815,20 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class SphereModifier : GeometryModifier
     {
+        [Range(-5f, 5f)]
         [Tooltip("0 = no distortion (flat); 1 = the physically-correct sphere projection; beyond 1 exaggerates " +
                  "past it for a more extreme fisheye. Negative is a genuine MIRROR of the positive side (a true " +
                  "concave dimple, not just a smaller/bigger shape) — -1 is exactly as strong/characterful as +1, " +
                  "just pushed the other way. Animatable — e.g. ease the depth in as the shape matures.")]
         public ZUIValue strength = new ZUIValue(1f);
+        [Range(-32f, 32f)]
         [Tooltip("Offsets the lens's own centre from the shape's centre, in pixels — so the fisheye/dimple " +
                  "doesn't have to sit dead-centre. Animatable.")]
         public ZUIValue originX = new ZUIValue(0f);
+        [Range(-32f, 32f)]
         [Tooltip("Offsets the lens's own centre vertically, in pixels. Animatable.")]
         public ZUIValue originY = new ZUIValue(0f);
+        [Range(0f, 32f)]
         [Tooltip("The lens's own radius, in pixels — how far the effect reaches before fading back to identity " +
                  "at its own edge. 0 (default) = auto, matching the shape's own current radius (ctx.radius) — " +
                  "same as before this field existed. A smaller radius makes a tight fisheye bubble that doesn't " +
@@ -2703,10 +2900,13 @@ namespace Laubrary.SpriteFx
     {
         [Tooltip("The painted smear strokes. Paint each in the preview; they all grow in parallel driven by Grow.")]
         public List<SmudgeStroke> strokes = new List<SmudgeStroke>();
+        [Range(1f, 32f)]
         [Tooltip("Brush radius — half the smear WIDTH, in pixels. Pixels this far from a stroke are dragged. Animatable.")]
         public ZUIValue size = new ZUIValue(12f);
+        [Range(0f, 32f)]
         [Tooltip("How far paint is dragged ALONG a stroke, in pixels. Animatable.")]
         public ZUIValue strength = new ZUIValue(12f);
+        [Range(0f, 1f)]
         [Tooltip("How far the smear has grown along each stroke, 0..1 (a front advancing from each stroke's start). " +
                  "Animate 0→1 (the default) so the smear draws itself out over life. All strokes grow in parallel.")]
         public ZUIValue grow = DefaultGrow();
@@ -2977,6 +3177,7 @@ namespace Laubrary.SpriteFx
     /// image. So Vary gives each arm its own seeded rotation offset, mirror flip and scale instead. That reads
     /// as "these arms are related but not identical", which is the intent, but it is NOT N independent
     /// simulations and should not be described as such.
+    [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class KaleidoscopeModifier : PostModifier
     {
@@ -2991,13 +3192,16 @@ namespace Laubrary.SpriteFx
         [Tooltip("How many arms radiate from the centre. 1 leaves the layer untouched.")]
         public int arms = 4;
 
+        [Range(0f, 360f)]
         [Tooltip("Total arc the arms span, in degrees. 360 = evenly around the full circle; less bunches them " +
                  "into a fan. Animatable — sweep a fan open.")]
         public ZUIValue arcDegrees = new ZUIValue(360f);
 
+        [Range(-360f, 360f)]
         [Tooltip("Turn the whole arrangement. Animatable — spin the kaleidoscope.")]
         public ZUIValue rotationDegrees = new ZUIValue(0f);
 
+        [Range(0f, 1f)]
         [Tooltip("Vary only: how much each arm may differ, 0 = identical to Rotate, 1 = strongly varied " +
                  "(its own turn, flip and scale).")]
         public ZUIValue variation = new ZUIValue(0.5f);

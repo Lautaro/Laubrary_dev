@@ -23,7 +23,32 @@ namespace Laubrary.PyrePlus.Editor
         const int AlphaCutoff = 128;   // alpha >= this is opaque; below it maps to the transparent index
         const int MaxColors = 255;     // palette colours; leaves index MaxColors free for the transparent slot
 
-        public static void Export(PyrePlusSpec spec, string path, int scale)
+        // GIF transparency is ONE BIT — a pixel is either fully opaque or fully transparent; the format has no
+        // partial alpha at all. A single flat cutoff therefore SLICES every soft edge into a hard silhouette,
+        // which is glaring on a feathered explosion (soft rims, smoke shells, frame fades) even though the
+        // rendered frames themselves are perfectly smooth. Ordered (Bayer 4×4) dithering trades that hard cut
+        // for a stipple: a pixel at alpha a is kept with probability ≈ a/255, patterned rather than random, so a
+        // gradient reads as a dissolve instead of a cliff. The threshold is looked up in SOURCE-pixel space, so
+        // the stipple stays at the art's own resolution and an upscaled export keeps whole, solid pixels.
+        static readonly byte[] Bayer4 =
+        {
+             0,  8,  2, 10,
+            12,  4, 14,  6,
+             3, 11,  1,  9,
+            15,  7, 13,  5,
+        };
+
+        static bool IsOpaque(byte a, int bx, int by, bool dither)
+        {
+            if (!dither) return a >= AlphaCutoff;
+            // 8..248, so alpha 0 is never kept and alpha 255 always is.
+            int threshold = Bayer4[(by & 3) * 4 + (bx & 3)] * 16 + 8;
+            return a >= threshold;
+        }
+
+        public static void Export(PyrePlusSpec spec, string path, int scale) => Export(spec, path, scale, false);
+
+        public static void Export(PyrePlusSpec spec, string path, int scale, bool ditherAlpha)
         {
             if (spec == null || string.IsNullOrEmpty(path)) return;
             scale = Mathf.Clamp(scale, 1, 8);
@@ -39,7 +64,7 @@ namespace Laubrary.PyrePlus.Editor
 
             // 2) Global palette — median-cut over the union of every frame's opaque pixels; colorToIndex maps each
             //    unique opaque colour straight to its box (palette) index (each colour lives in exactly one box).
-            var palette = BuildPalette(frames, out var colorToIndex);
+            var palette = BuildPalette(frames, W, ditherAlpha, out var colorToIndex);
             int paletteCount = palette.Count;                       // 1..255
             int transparentIndex = paletteCount;                    // the slot right after the colours
             int gctBits = Mathf.Max(1, CeilLog2(paletteCount + 1)); // enough entries for the colours + transparent
@@ -58,7 +83,7 @@ namespace Laubrary.PyrePlus.Editor
                 var indices = new byte[outW * outH];
                 for (int f = 0; f < frameCount; f++)
                 {
-                    BuildIndices(frames[f], W, H, scale, outW, outH, colorToIndex, transparentIndex, indices);
+                    BuildIndices(frames[f], W, H, scale, outW, outH, colorToIndex, transparentIndex, indices, ditherAlpha);
                     WriteGraphicControl(ms, delay, transparentIndex);
                     WriteImageDescriptor(ms, outW, outH);
                     WriteImageData(ms, indices, minCodeSize);
@@ -73,7 +98,8 @@ namespace Laubrary.PyrePlus.Editor
         // Fill `indices` (top-down, upscaled) for one frame. The renderer's buffer is y-up (row 0 = bottom) and
         // GUI blits its highest row at the top of the preview, so GIF top row oy=0 = buffer row H-1 (the flip).
         static void BuildIndices(Color32[] buf, int W, int H, int scale, int outW, int outH,
-                                 Dictionary<int, int> colorToIndex, int transparentIndex, byte[] indices)
+                                 Dictionary<int, int> colorToIndex, int transparentIndex, byte[] indices,
+                                 bool ditherAlpha)
         {
             for (int oy = 0; oy < outH; oy++)
             {
@@ -83,8 +109,11 @@ namespace Laubrary.PyrePlus.Editor
                 int outRow = oy * outW;
                 for (int ox = 0; ox < outW; ox++)
                 {
-                    var c = buf[bufRow + ox / scale];
-                    if (c.a >= AlphaCutoff)
+                    int bx = ox / scale;
+                    var c = buf[bufRow + bx];
+                    // Keyed on the BUFFER coords (bx, by) — the same ones BuildPalette uses — so the palette pass
+                    // and the encode pass agree on exactly which pixels end up opaque.
+                    if (IsOpaque(c.a, bx, by, ditherAlpha))
                     {
                         int key = (c.r << 16) | (c.g << 8) | c.b;
                         indices[outRow + ox] = colorToIndex.TryGetValue(key, out int pi) ? (byte)pi : (byte)0;
@@ -102,9 +131,12 @@ namespace Laubrary.PyrePlus.Editor
             public Box(int s, int e) { start = s; end = e; }
         }
 
-        static List<Color32> BuildPalette(Color32[][] frames, out Dictionary<int, int> colorToIndex)
+        static List<Color32> BuildPalette(Color32[][] frames, int W, bool ditherAlpha,
+                                          out Dictionary<int, int> colorToIndex)
         {
-            // Histogram: packed RGB key → count, over every frame's opaque pixels in scan order.
+            // Histogram: packed RGB key → count, over every frame's opaque pixels in scan order. It MUST use the
+            // same opacity test the encode pass does — with dithering on, edge pixels the flat cutoff would have
+            // dropped now survive, and a colour missing from the palette would encode as index 0 (a wrong colour).
             var hist = new Dictionary<int, int>();
             for (int f = 0; f < frames.Length; f++)
             {
@@ -112,7 +144,7 @@ namespace Laubrary.PyrePlus.Editor
                 for (int i = 0; i < buf.Length; i++)
                 {
                     var c = buf[i];
-                    if (c.a < AlphaCutoff) continue;
+                    if (!IsOpaque(c.a, i % W, i / W, ditherAlpha)) continue;
                     int key = (c.r << 16) | (c.g << 8) | c.b;
                     hist.TryGetValue(key, out int n);
                     hist[key] = n + 1;

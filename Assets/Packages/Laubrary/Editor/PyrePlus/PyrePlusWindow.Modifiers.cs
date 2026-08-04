@@ -7,9 +7,10 @@
 // Why the generic drawer instead of literally reusing Pyre's bodies: Pyre's PyreWindow.BuildModBody is a ~350-
 // line switch, and several of its cases are wired into Pyre's preview-overlay authoring state (pin/vortex/stroke
 // editing lives in PyreWindow.Preview.cs). Those aren't reusable across the assembly boundary (they're private,
-// and PyrePlus has no such overlay), which is exactly why the design points at a shared drawer. The trade-off is
-// that a modifier's animatable ZUIValue params render as their STATIC value only (not a full Static/MinMax/Curve
-// control) — an accepted prototype limitation ("don't fight the shared drawer" in the design brief).
+// and PyrePlus has no such overlay), which is exactly why the design points at a shared drawer. ZuiReflect
+// renders every ZUIValue param as the FULL MultiCont control (the old static-only limitation is closed);
+// bounds come from each param's own [Range], and ModifierDrawerOptions.ConfigureValue turns off the modes
+// that are meaningless for a baked modifier param (see its comment).
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -200,9 +201,9 @@ namespace Laubrary.PyrePlus.Editor
             box.Add(header);
 
             // Body: every editable field of the sim modifier, drawn generically by the shared reflection drawer —
-            // the SAME Undo/dirty/rebuild contract a modifier block uses (its ZUIValue params surface as their static
-            // value, the accepted prototype limitation). In its own container so the sim card FOLDS to just its
-            // header (task #52), keyed by the sim instance. Only when enabled (a disabled sim has nothing to fold).
+            // the SAME Undo/dirty/rebuild contract a modifier block uses (ZUIValue params get the full MultiCont
+            // control). In its own container so the sim card FOLDS to just its header (task #52), keyed by the
+            // sim instance. Only when enabled (a disabled sim has nothing to fold).
             VisualElement body = null;
             if (sim.enabled)
             {
@@ -332,21 +333,14 @@ namespace Laubrary.PyrePlus.Editor
             // The enable toggle lives in the header row, so hide the base `enabled` field the drawer would
             // otherwise surface.
             Skip = f => f.Name == "enabled",
-            // Surface a ZUIValue-style param as its plain static value (keeps the drawer type-agnostic). This is
-            // the sole place a modifier's animatable params render — as a static float, not a full
-            // Static/MinMax/Curve control (the accepted prototype limitation noted in the file header).
-            FloatWrapperProperty = StaticValueProp,
+            // A modifier param Evals frame-global (ModParticleIndex, no frame in the hash), so Min-Max resolves
+            // to ONE constant for the whole animation — hide the mode instead of offering a control that does
+            // nothing useful (Pyre1's hand-written rows pass allowMinMax:false for the same reason). The
+            // Duration/Warmup/Loop row is the runtime-seconds API, meaningless on the frame-baked timeline —
+            // hidden too. Steps stays: both renderers' Eval now hold-step it across the timeline like Curve.
+            ConfigureValue = (f, vopt) => { vopt.allowMinMax = false; vopt.hideCurveTiming = true; },
             TooltipFor = f => $"{ObjectNames.NicifyVariableName(f.Name)} — a {m.DisplayName} parameter.",
         };
-
-        // The public `float staticValue { get; set; }` of a ZUIValue-like wrapper, or null. Mirrors Rulesets'
-        // RuleParams.StaticValueProp (the reference FloatWrapperProperty wiring) without depending on Rulesets.
-        static PropertyInfo StaticValueProp(Type t)
-        {
-            if (t == null || t.IsPrimitive || t == typeof(string) || t.IsEnum) return null;
-            var p = t.GetProperty("staticValue", BindingFlags.Public | BindingFlags.Instance);
-            return (p != null && p.PropertyType == typeof(float) && p.CanRead && p.CanWrite) ? p : null;
-        }
 
         // The add-modifier catalog, as a ZUI menu anchored to the "+ Add modifier" button (task #68 — the
         // GenericMenu stand-in). AddableModifiers() is sorted group-then-label, so the Geometry/Pixel/Post

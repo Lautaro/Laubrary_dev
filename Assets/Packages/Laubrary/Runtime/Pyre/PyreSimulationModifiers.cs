@@ -113,64 +113,87 @@ namespace Laubrary.Pyre
     [Serializable]
     public class PixelFluidModifier : SimulationModifier
     {
+        [Range(-180f, 180f)]
         [Tooltip("Direction the projectile travels, in degrees (0 = along +X). Animatable.")]
         public ZUIValue angleDeg = new ZUIValue(0f);
+        [Range(-32f, 32f)]
         [Tooltip("Slides the travel line sideways (perpendicular to its own direction), in pixels off the " +
                  "canvas centre. Animatable.")]
         public ZUIValue offset = new ZUIValue(0f);
+        [Range(0f, 1f)]
         [Tooltip("How far the projectile has travelled: 0 = hasn't entered yet, 1 = reached the far edge. " +
                  "Animatable — default ramps 0→1 over life.")]
         public ZUIValue depth = Layer.CurveVal(1f, 0f, 0f, 1f, 1f);
+        [Range(0.5f, 10f)]
         [Tooltip("Radius of the projectile's own tunnel through the cloud, in pixels.")]
         public ZUIValue projectileRadius = new ZUIValue(3f);
+        [Range(-20f, 20f)]
         [Tooltip("How hard the tunnel injects velocity (forward + sideways) into the persisted field, every " +
                  "frame it's moving through. Animatable.")]
         public ZUIValue projectileForce = new ZUIValue(10f);
+        [Range(0f, 1f)]
         [Tooltip("How much alpha the tunnel's own core erodes per frame it's passing through — erosion " +
                  "PERSISTS and compounds (see Erosion healing below), it isn't re-derived fresh each frame. Animatable.")]
         public ZUIValue erosionRate = new ZUIValue(0.35f);
+        [Range(0f, 1f)]
         [Tooltip("Fraction of accumulated erosion that heals back each frame — lower heals faster (a wake that " +
                  "closes back up quickly); 1 = permanent scarring, never heals.")]
         public ZUIValue erosionHealing = new ZUIValue(0.85f);
 
+        [Range(0.01f, 0.5f)]
         [Tooltip("How often a shockwave ring spawns, as a FRACTION of the whole travel.")]
         public ZUIValue waveSpacing = new ZUIValue(0.06f);
+        [Range(-20f, 20f)]
         [Tooltip("Each ring's push strength the moment it spawns, injected into the velocity field every frame " +
                  "it's alive. Animatable.")]
         public ZUIValue waveStrength = new ZUIValue(6f);
+        [Range(0f, 4f)]
         [Tooltip("How far a ring's own radius grows each frame, in pixels — a real per-frame accumulation, not " +
                  "closed-form against age.")]
         public ZUIValue waveExpansion = new ZUIValue(1.5f);
+        [Range(0f, 1f)]
         [Tooltip("Fraction of a ring's strength that survives each frame (persisted, multiplicative) — higher = " +
                  "longer-lived rings.")]
         public ZUIValue wavePersistence = new ZUIValue(0.9f);
+        [Range(0.5f, 8f)]
         [Tooltip("Thickness of the travelling pressure shell, in pixels.")]
         public ZUIValue waveThickness = new ZUIValue(2.5f);
 
+        [Range(0.01f, 0.5f)]
         [Tooltip("How often a vortex spawns, as a FRACTION of the whole travel — alternates spin by index, the " +
                  "same alternating \"vortex street\" a real bluff body sheds.")]
         public ZUIValue vortexSpacing = new ZUIValue(0.05f);
+        [Range(-20f, 20f)]
         [Tooltip("Each vortex's swirl strength the moment it spawns, injected into the velocity field every " +
                  "frame it's alive. Animatable.")]
         public ZUIValue vortexStrength = new ZUIValue(10f);
+        [Range(0.5f, 16f)]
         [Tooltip("Each vortex's core radius, in pixels.")]
         public ZUIValue vortexRadius = new ZUIValue(8f);
+        [Range(0f, 1f)]
         [Tooltip("Fraction of a vortex's strength that survives each frame (persisted, multiplicative).")]
         public ZUIValue vortexPersistence = new ZUIValue(0.94f);
+        [Range(-5f, 5f)]
         [Tooltip("Per-frame drift speed of a vortex's own centre, in pixels/frame — a genuinely integrated " +
                  "position (carried and accumulated frame to frame), not re-derived from its age.")]
         public ZUIValue vortexDrift = new ZUIValue(0.6f);
+        [HideInInspector] public float childShedChance = 0.05f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0f, 0.5f)]
         [Tooltip("Chance, each frame, that an existing vortex sheds a smaller child of its own — a real random " +
                  "draw from this modifier's own snapshot-able PRNG (seeded from the blast's seed), scaled down " +
                  "by the vortex's own remaining strength so young vortices shed more than fading ones.")]
-        public float childShedChance = 0.05f;
+        public ZUIValue childShedChanceValue = new ZUIValue(0.05f);
+        [HideInInspector] public bool childShedChanceUpgraded;
+        public ZUIValue ChildShedChance { get { if (!childShedChanceUpgraded) { childShedChanceValue = new ZUIValue(childShedChance); childShedChanceUpgraded = true; } return childShedChanceValue; } }
 
+        [Range(0f, 1f)]
         [Tooltip("Fraction of the velocity field that survives each frame (persisted, multiplicative drag).")]
         public ZUIValue velocityDrag = new ZUIValue(0.85f);
+        [Range(0f, 1f)]
         [Tooltip("How much the velocity field blurs into its own neighbours each frame (0 = no diffusion, 1 = " +
                  "fully smoothed) — a cheap viscosity.")]
         public ZUIValue viscosity = new ZUIValue(0.25f);
+        [Range(0f, 5f)]
         [Tooltip("How strongly the persisted velocity field displaces pixels when rendered.")]
         public ZUIValue displayScale = new ZUIValue(1f);
 
@@ -207,7 +230,7 @@ namespace Laubrary.Pyre
 
         float ang, offPx, depthV, projRad, projForce, erosionRateV, erosionHealV;
         float waveSpacingF, waveStr, waveExp, wavePersist, waveThick;
-        float vortexSpacingF, vortexStr, vortexRad, vortexPersist, vortexDriftV;
+        float vortexSpacingF, vortexStr, vortexRad, vortexPersist, vortexDriftV, shedChanceV;
         float drag, visc, dispScale;
 
         public override string DisplayName => "Pixel fluid";
@@ -234,6 +257,9 @@ namespace Laubrary.Pyre
             drag = Mathf.Clamp01(e(velocityDrag, 17));
             visc = Mathf.Clamp01(e(viscosity, 18));
             dispScale = e(displayScale, 19);
+            // fid 20 extends this modifier's existing 0-19 run — benign: the fid only seeds a param's Min-Max
+            // RNG stream.
+            shedChanceV = Mathf.Clamp(e(ChildShedChance, 20), 0f, 0.5f);
         }
 
         protected override void ResetState(Color32[] seedBuf, int W, int H)
@@ -385,7 +411,7 @@ namespace Laubrary.Pyre
                 if (v.strength < 0.05f) { vortices.RemoveAt(i); continue; }
                 vortices[i] = v;
 
-                float shedChance = childShedChance * Mathf.Clamp01(v.strength / Mathf.Max(0.01f, vortexStr));
+                float shedChance = shedChanceV * Mathf.Clamp01(v.strength / Mathf.Max(0.01f, vortexStr));
                 if (shedChance > 0f && rng.Next01() < shedChance && vortices.Count < MaxEmitters)
                 {
                     float childSpin = rng.Next01() < 0.5f ? v.spin : -v.spin;

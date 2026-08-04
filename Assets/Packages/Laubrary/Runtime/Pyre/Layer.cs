@@ -1062,13 +1062,8 @@ namespace Laubrary.Pyre
         internal static ZUIValue CloneVal(ZUIValue s)
         {
             if (s == null) return new ZUIValue();
-            var v = new ZUIValue(s.staticValue)
-            {
-                mode = s.mode, min = s.min, max = s.max, yMin = s.yMin, yMax = s.yMax,
-                duration = s.duration, warmup = s.warmup, cooldown = s.cooldown, multiplierId = s.multiplierId,
-            };
-            v.points.Clear();
-            foreach (var p in s.points) v.points.Add(new ZUIEnvelopePoint(p.time, p.value, p.exponent, p.editState));
+            var v = new ZUIValue();
+            v.CopyFrom(s);   // deep-copies mode + every mode's data (curve points, smoothness, steps included)
             return v;
         }
 

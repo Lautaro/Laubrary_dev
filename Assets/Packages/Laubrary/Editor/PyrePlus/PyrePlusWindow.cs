@@ -65,17 +65,29 @@ namespace Laubrary.PyrePlus.Editor
         Laubrary.BackSplash.BackSplashSettings _backSplash;
         Laubrary.BackSplash.BackSplashSettings backSplash => _backSplash ??= new Laubrary.BackSplash.BackSplashSettings();
 
-        // ── layer selection (window state, never serialized on the spec) ─────────────
-        // Which layer the Shape / Swarm / Matte / Modifiers sections below edit. Defaults to the LAST layer on
-        // asset load; a click in the layer list re-points it. SelLayer clamps so a stale index is always safe.
-        int layerSel;
+        // ── layer selection — PERSISTED ON THE ASSET (Pyre parity: Pyre.previewLayerSel) ─────────────
+        // Which layer the Shape / Swarm / Matte / Modifiers sections below edit. It lives on the SPEC, not the
+        // window, so reopening the window or coming back to an asset lands on the layer you were working on
+        // instead of resetting. SelLayer clamps, so a stale index (a deleted layer) is always safe. Cosmetic:
+        // the setter marks the asset dirty but never repaints the render.
+        int layerSel
+        {
+            get => spec != null ? spec.previewLayerSel : 0;
+            set
+            {
+                if (spec == null || spec.previewLayerSel == value) return;
+                spec.previewLayerSel = value;
+                EditorUtility.SetDirty(spec);
+            }
+        }
         PyrePlusLayer SelLayer
         {
             get
             {
                 if (spec == null || spec.layers == null || spec.layers.Count == 0) return null;
-                layerSel = Mathf.Clamp(layerSel, 0, spec.layers.Count - 1);
-                return spec.layers[layerSel];
+                int clamped = Mathf.Clamp(spec.previewLayerSel, 0, spec.layers.Count - 1);
+                if (clamped != spec.previewLayerSel) spec.previewLayerSel = clamped;
+                return spec.layers[clamped];
             }
         }
         VisualElement layerListHost;   // refilled by RebuildLayerList on any list change (rows + any enabled per-layer matte box)
@@ -348,6 +360,19 @@ namespace Laubrary.PyrePlus.Editor
                     s.previewGifScale = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8);
                     EditorUtility.SetDirty(spec);
                 }, 150f, showValue: true, decimals: 0));
+            kids.Add(Z.Toggle("GIF dither",
+                "GIF transparency is one bit — every pixel is either fully opaque or fully invisible, so a soft "
+                + "edge has to be kept or dropped. On (recommended) stipples the partly-transparent band so soft "
+                + "rims, smoke and fades still read as fading; off cuts them at 50% opacity, which turns a "
+                + "feathered edge into a hard silhouette. Export only — the live preview is unaffected.",
+                s.previewGifDither,
+                v =>
+                {
+                    if (spec == null) return;
+                    Undo.RecordObject(spec, "Edit Pyre Plus");
+                    s.previewGifDither = v;
+                    EditorUtility.SetDirty(spec);
+                }));
             transportHost.Add(Z.HGroup(kids.ToArray()));   // Play + Frame/Strip/Tile/GIF/GIF-scale as one wrapping unit-row
 
             // ── frame scrubber (transport parity with Pyre1's scrub field) ──────────────────────
@@ -414,7 +439,7 @@ namespace Laubrary.PyrePlus.Editor
             if (spec == null) return;
             string path = EditorUtility.SaveFilePanel("Export GIF", "", (spec.name ?? "PyrePlus") + ".gif", "gif");
             if (string.IsNullOrEmpty(path)) return;
-            PyrePlusGif.Export(spec, path, Mathf.Clamp(spec.previewGifScale, 1, 8));
+            PyrePlusGif.Export(spec, path, Mathf.Clamp(spec.previewGifScale, 1, 8), spec.previewGifDither);
             EditorUtility.RevealInFinder(path);
         }
 
@@ -888,6 +913,7 @@ namespace Laubrary.PyrePlus.Editor
         static readonly (string label, ShapeForm form, string icon)[] FormsSpecial =
         {
             ("Text", ShapeForm.Text, "text-aa"), ("Fire", ShapeForm.Fire, "flame"), ("Fireball", ShapeForm.Fireball, "fire"),
+            ("Inferno", ShapeForm.Inferno, "bomb"),
             ("Sparkle", ShapeForm.Sparkle, "sparkle"), ("Sprite", ShapeForm.Sprite, "image"),
         };
         const string Forms3DTip = "True-3D lit solids sharing the Gem's facet lighting (tilt, light, edge lines, glows). "
@@ -896,8 +922,9 @@ namespace Laubrary.PyrePlus.Editor
             + "tilted annulus (a Saturn ring), Streak = a comet-tail capsule, Star = a filled star polygon, Polygon = a "
             + "filled regular convex N-gon (triangle / square / hexagon /… by a sides count).";
         const string FormsSpecialTip = "Standalone forms. Text = a string as extruded SDF letters (one particle per "
-            + "character). Fire / Fireball = stateful flame simulations (built-in emitters, no swarm). Sparkle = "
-            + "twinkling lit cells. Sprite = a stamped image.";
+            + "character). Fire / Fireball = stateful flame simulations (built-in emitters, no swarm). Inferno = a "
+            + "volumetric fireball explosion — the Swarm detonates one blast per particle (off = one centred blast); "
+            + "stateless, so scrubbing is exact. Sparkle = twinkling lit cells. Sprite = a stamped image.";
         // Fireball's wedge mode — Mirror (alternate wedges reflected, a seam) / Repeat (each wedge the same, rotated).
         // Index 0 = Mirror (fireballMirror true), 1 = Repeat (false).
         static readonly string[] FireballMirrorChoices = { "Mirror", "Repeat" };
@@ -1019,7 +1046,9 @@ namespace Laubrary.PyrePlus.Editor
             // rebuilds the pane to refresh this.
             // Streak has its own Length/Width; Fire and Fireball are whole-layer sims bounded by their Reach radius,
             // not a particle radius — so all three hide the shared Size row (a dead control is clutter per the rules).
-            if (s.shapeForm != ShapeForm.Streak && s.shapeForm != ShapeForm.Fire && s.shapeForm != ShapeForm.Fireball)
+            // Inferno sizes by its own Blast size (a fraction of the safe zone), so it hides Size too.
+            if (s.shapeForm != ShapeForm.Streak && s.shapeForm != ShapeForm.Fire && s.shapeForm != ShapeForm.Fireball
+                && s.shapeForm != ShapeForm.Inferno)
                 shapeBody.Add(Val("Size (px)", SizeTooltip(s.shapeForm), s.size, 0f, spec.canvasSize));
 
             // Form-specific rows. Edge softness applies to Disc (its rim) and Crescent (BOTH rims); Gem/Sparkle/
@@ -1065,6 +1094,9 @@ namespace Laubrary.PyrePlus.Editor
                 case ShapeForm.Fireball:
                     BuildFireballBox(s);
                     break;
+                case ShapeForm.Inferno:
+                    BuildInfernoBox(s);
+                    break;
             }
 
             // First-class Border (task #60/#65) — the six flat 2D forms get an optional coloured rim. Shown ONLY for
@@ -1073,9 +1105,9 @@ namespace Laubrary.PyrePlus.Editor
             // toggle; on = a Border box (Width / Fill / Draw-over-matte).
             if (IsFlat2DBorderForm(s.shapeForm)) BuildBorderBox(s);
 
-            // Fire and Fireball are whole-layer simulations with no particles at all, so a Position section there
-            // would be dead — skip it. Their Fill (the ramp) and Alpha (overall opacity) rows above still apply.
-            if (s.shapeForm == ShapeForm.Fire || s.shapeForm == ShapeForm.Fireball) return;
+            // Fire, Fireball and Inferno are whole-layer forms with no particles at all, so a Position section
+            // there would be dead — skip it. Their Fill (the ramp) and Alpha (overall opacity) rows still apply.
+            if (s.shapeForm == ShapeForm.Fire || s.shapeForm == ShapeForm.Fireball || s.shapeForm == ShapeForm.Inferno) return;
 
             // Position (task #11) — one collapsible box grouping everything positional: the particle's rotation and
             // its Offset from spawn. Present for every particle form. A collapsible box already provides show/hide,
@@ -1457,6 +1489,256 @@ namespace Laubrary.PyrePlus.Editor
         // Confinement → Output. Its colour ramp is the shared Shape Fill above (smoke→fire) and its overall opacity is
         // the shared Shape Alpha; `size` and the Swarm don't apply (both hidden/noted). Reuses Pyre's own FireSim via
         // the renderer's replay harness — the dials here map 1:1 onto Pyre's Fire fields.
+        // Inferno form box — the STATELESS volumetric fireball explosion (closed-form; see PlusInferno.cs). Every
+        // frame is a pure function of (dials, life, seed) — no replay harness — so the transport scrub IS the
+        // explosion's progress control. Grouped Pattern → Blast → Cloud → Motion → Fire & smoke → Light; its colour
+        // ramp is the shared Shape Fill above (LEFT end = white-hot core) and its overall opacity the shared Shape
+        // Alpha; `size` and the Swarm don't apply (the Pattern places the blasts). All dials are plain bounded
+        // scalars (the prototype's model — time behaviour is baked into the form itself), so every row is a
+        // MicroSlider, packed 2–3 per row per the layout rules.
+        void BuildInfernoBox(PyrePlusLayer s)
+        {
+            // Defensive nulls for the animatable envelopes (real defaults come from the field initializers).
+            s.infernoProgress ??= new ZUIValue(1f);
+            s.infernoBlastSize ??= new ZUIValue(0.82f);
+            s.infernoFlash ??= new ZUIValue(0.72f);
+            s.infernoClumpSpread ??= new ZUIValue(0.52f);
+            s.infernoBillow ??= new ZUIValue(0.72f);
+            s.infernoJagged ??= new ZUIValue(0.53f);
+            s.infernoCohesion ??= new ZUIValue(0.78f);
+            s.infernoHollow ??= new ZUIValue(0f);
+            s.infernoHollowRim ??= new ZUIValue(0.5f);
+            s.infernoOuterRim ??= new ZUIValue(0f);
+            s.infernoCoreDensity ??= new ZUIValue(0.5f);
+            s.infernoChurn ??= new ZUIValue(0.68f);
+            s.infernoRotation ??= new ZUIValue(0.22f);
+            s.infernoFire ??= new ZUIValue(0.79f);
+            s.infernoCoreGlow ??= new ZUIValue(0.4f);
+            s.infernoSmoke ??= new ZUIValue(0.66f);
+            s.infernoSmokeSpread ??= new ZUIValue(0.45f);
+            s.infernoDarkness ??= new ZUIValue(0.64f);
+            s.infernoBody ??= new ZUIValue(0.75f);
+            s.infernoEdgeSoftness ??= new ZUIValue(0.3f);
+
+            var box = Z.BoxKeyed("Inferno",
+                "A volumetric fireball explosion: contained blasts built from big billowing lobes, a torn "
+                + "silhouette, an ignition flash, embers, a smouldering afterglow and pseudo-3D lighting. "
+                + "Closed-form (not a sim), so any frame is exact — which is what lets the Progress envelope "
+                + "remap the whole timeline. The SWARM places the blasts: off = one centred blast, on = one "
+                + "blast per swarm particle. Colour comes only from the Shape Fill (left end = white-hot); "
+                + "most dials are envelopes over the layer's life like every other form.", "pyreplus.inferno");
+
+            // A bounded scalar dial → one MicroSlider (label + value inside the track), Dirty-wrapped.
+            VisualElement MS(string label, float value, float min, float max, string tip,
+                             System.Action<float> set, int decimals = -1)
+                => Z.MicroSlider(label, value, min, max, tip, v => Dirty(() => set(v)), 150f,
+                                 showValue: true, decimals: decimals);
+
+            // Progress — the explosion's CLOCK, remapping the layer's life onto internal time. Identity (the
+            // default straight line) = real time; bend it to snap in and hold at full bloom, slow the smoky
+            // tail, or freeze a pose (a Static value).
+            box.Add(Val("Progress",
+                "The explosion's progress over the layer's life — a TIME REMAP as one envelope. The default "
+                + "straight line plays in real time; bend it to snap in and hold at full bloom, slow the smoky "
+                + "tail, or play sections at different speeds. A Static value freezes the explosion at that moment "
+                + "as a pose.",
+                s.infernoProgress, 0f, 1f));
+
+            // ── Multi-blast dials — the SWARM ignites the blasts (one per particle), so these show only with
+            // the Swarm on; off = one centred blast and they'd be dead controls. How to get many blasts lives
+            // in the box/section TOOLTIPS (never an on-screen instruction label — UI-Guide "tooltip, not title").
+            if (s.swarmEnabled)
+            {
+                box.Add(Z.HGroup(
+                    MS("Mutation", s.infernoMutation, 0f, 1f,
+                        "Per-blast variation of size, torque, heat and jaggedness — 0 makes every blast a twin.",
+                        v => s.infernoMutation = v),
+                    MS("Heat stacking", s.infernoAccumulation, 0f, 1f,
+                        "How strongly overlapping blasts ADD heat instead of replacing one another — what "
+                        + "makes overlapping blasts glow hotter than either alone.",
+                        v => s.infernoAccumulation = v)));
+                box.Add(Z.HGroup(
+                    MS("Character drift", s.infernoBalanceDrift, -1f, 1f,
+                        "Slides each blast's fire-vs-smoke character across the sequence: negative = the first "
+                        + "blasts burn fierier and later ones turn sootier, positive = the reverse. 0 = every "
+                        + "blast takes the Fire and Smoke dials as-is.",
+                        v => s.infernoBalanceDrift = v),
+                    MS("Character jitter", s.infernoBalanceJitter, 0f, 1f,
+                        "Randomises each blast's fire-vs-smoke character — some fierier, some sootier, no order.",
+                        v => s.infernoBalanceJitter = v)));
+            }
+
+            // ── Blast — the detonation's envelope ──
+            box.Add(Z.HGroup(
+                Val("Blast size",
+                    "Final occupied radius inside the safe zone, over the layer's life.",
+                    s.infernoBlastSize, 0.05f, 1f),
+                Val("Flash",
+                    "White-hot ignition flash and central punch at each blast's birth, over the layer's life. "
+                    + "Tinted from the Fill's hot end.",
+                    s.infernoFlash, 0f, 1f)));
+            box.Add(Z.HGroup(
+                MS("Bang speed", s.infernoBangSpeed, 0.2f, 1f,
+                    "How abruptly the first expansion happens — 1 is a violent snap (frames, not a bloom).",
+                    v => s.infernoBangSpeed = v),
+                MS("Punch", s.infernoPunch, 0f, 1f,
+                    "DRAMA, opt-in: the bang overshoots its radius and settles back, ignition spikes the heat "
+                    + "white-hot, and the flash blows out bigger. 0 = the calm prototype look.",
+                    v => s.infernoPunch = v)));
+            box.Add(Z.HGroup(
+                MS("Flash reach", s.infernoFlashReach, 0f, 1f,
+                    "How FAR the flash reaches out from the blast centre — its size, set independently of how "
+                    + "bright it is.",
+                    v => s.infernoFlashReach = v),
+                MS("Flash softness", s.infernoFlashSoft, 0f, 1f,
+                    "How gradually the flash's alpha fades out into the cloud: 0 = a tight core with a crisp "
+                    + "edge, 1 = a broad soft glow. (WHEN it fades is the Flash envelope's job.)",
+                    v => s.infernoFlashSoft = v)));
+            box.Add(MS("Recoil", s.infernoRecoil, 0f, 1f,
+                "Pulls the outer shape back in after the blast.",
+                v => s.infernoRecoil = v));
+
+            // ── Containment — the blast's own rim softness vs the canvas-border guard (two different jobs) ──
+            box.Add(Val("Edge softness",
+                "How far the cloud's own rim fades out, in absolute canvas terms — so the fade looks the same "
+                + "whether the blast is tiny or huge. Low reads as a hard-edged solid; raise it for gas.",
+                s.infernoEdgeSoftness, 0f, 1f));
+            box.Add(Z.HGroup(
+                MS("Safe margin", s.infernoMargin, 0f, 0.25f,
+                    "Minimum empty border around the effect, as a fraction of the canvas — nothing is drawn "
+                    + "past it, so the effect can never touch the frame edge.",
+                    v => s.infernoMargin = v),
+                MS("Frame fade", s.infernoFrameFade, 0f, 1f,
+                    "How wide the fade-to-nothing is as the cloud nears the Safe margin — anything close to the "
+                    + "border dissolves instead of being cut. The band grows inward, so the frame edge itself is "
+                    + "always fully transparent.",
+                    v => s.infernoFrameFade = v)));
+
+            // ── Cloud shape ──
+            box.Add(Z.HGroup(
+                MS("Clumps", s.infernoClumps, 1f, 9f,
+                    "Large coherent lobes, merged into one cloud.",
+                    v => s.infernoClumps = Mathf.Clamp(Mathf.RoundToInt(v), 1, 9), decimals: 0),
+                Val("Clump spread",
+                    "Separates the hot lobes without breaking cohesion, over the layer's life.",
+                    s.infernoClumpSpread, 0f, 1f)));
+            box.Add(Z.HGroup(
+                Val("Billow",
+                    "Strength of the rolling, 3D-looking cloud pockets, over the layer's life — what keeps the "
+                    + "cloud from reading as a flat slab. The usable range now runs well past the old ceiling.",
+                    s.infernoBillow, 0f, 1f),
+                Val("Jagged",
+                    "Breaks the perfect circle into torn explosive lobes, over the layer's life.",
+                    s.infernoJagged, 0f, 1f)));
+            box.Add(Z.HGroup(
+                Val("Core density",
+                    "Keeps the MIDDLE of the cloud thick over the layer's life. The cavity and noise detail bite "
+                    + "hardest where the cloud is thickest, which thins (or holes) the centre without this.",
+                    s.infernoCoreDensity, 0f, 1f),
+                Val("Cohesion",
+                    "Higher keeps all clumps visibly connected as one mass, over the layer's life — fall to a "
+                    + "low value late and the cloud visibly blows apart into fragments.",
+                    s.infernoCohesion, 0f, 1f)));
+            box.Add(Z.HGroup(
+                Val("Hollow",
+                    "Carves the cloud's core out into a cavity over the layer's life, leaving a burning shell — "
+                    + "0 = solid, high = a ring/torus of fire. Animate it to make the cloud bloom open into a ring.",
+                    s.infernoHollow, 0f, 1f),
+                Val("Hollow rim",
+                    "Heat concentrated on the cavity's INNER boundary over the layer's life, so the shell "
+                    + "visibly burns. Only acts once Hollow is raised.",
+                    s.infernoHollowRim, 0f, 1f)));
+            box.Add(Val("Outer rim",
+                "Heat concentrated on the cloud's OUTER rim over the layer's life — a burning surface instead "
+                + "of an evenly lit disc. Animate it to have the shell ignite and cool.",
+                s.infernoOuterRim, 0f, 1f));
+
+            // ── Churn & motion ──
+            box.Add(Z.HGroup(
+                Val("Churn",
+                    "Rolling internal displacement, over the layer's life.",
+                    s.infernoChurn, 0f, 1f),
+                Val("Rotation",
+                    "Rotational torque, either way (−1..1), over the layer's life; 0 = none.",
+                    s.infernoRotation, -1f, 1f, cyclic: true)));
+            box.Add(MS("Pulse", s.infernoPulse, 0f, 1f,
+                "A secondary compression wave that breathes the SAME blast in and out after the bang — it does "
+                + "not add a second explosion (use more swarm particles for that).",
+                v => s.infernoPulse = v));
+
+            // ── Fire ── (its own box: how much of the cloud burns, and how that heat behaves)
+            var fireBox = Z.BoxKeyed("Fire",
+                "How much of the cloud BURNS and how that fire behaves. Fire sets the amount, Heat pockets vary "
+                + "it inside the cloud, Cooling turns it to smoke over each blast's life, and Core glow is a "
+                + "separate inner glow that survives the cooling.", "pyreplus.inferno.fire");
+            fireBox.Add(Val("Fire",
+                "How much of the cloud is FLAME, over the layer's life: 0 = no fire at all (pure smoke); "
+                + "1 = fire fills most of the dense regions.",
+                s.infernoFire, 0f, 1f));
+            fireBox.Add(Z.HGroup(
+                MS("Heat pockets", s.infernoHeatPockets, 0f, 1f,
+                    "Varies the heat WITHIN the fire — internal boiling regions. (Clumps shape the cloud's mass; "
+                    + "this only changes how hot each part of it burns.)",
+                    v => s.infernoHeatPockets = v),
+                MS("Cooling", s.infernoCooling, 0f, 1f,
+                    "How quickly flame turns into dark smoke over each blast's own life — the fire→smoke rate.",
+                    v => s.infernoCooling = v)));
+            fireBox.Add(Val("Core glow",
+                "An inner glow at the cloud's core over the layer's life, added after Cooling so it survives it "
+                + "— the smoulder left inside the smoke. Its timing is entirely this envelope's: flat glows "
+                + "throughout, a curve swells and dies exactly when you draw it.",
+                s.infernoCoreGlow, 0f, 1f));
+            box.Add(fireBox);
+
+            // ── Smoke ── (its own box: how much soot, how dark, how far it reaches, how long it stays)
+            var smokeBox = Z.BoxKeyed("Smoke",
+                "How much SOOT there is and how it reads. Smoke sets the amount, Spread pushes it out past the "
+                + "flame to frame it, Darkness colours it, Linger holds it to the end, and Body decides how "
+                + "solid the whole cloud looks.", "pyreplus.inferno.smoke");
+            smokeBox.Add(Z.HGroup(
+                Val("Smoke",
+                    "How much SOOT there is, over the layer's life — the one dial for the amount of smoke.",
+                    s.infernoSmoke, 0f, 1f),
+                Val("Spread",
+                    "How far the soot reaches BEYOND the fire, over the layer's life — the shell of smoke that "
+                    + "frames the flame and feathers into the background instead of stopping at its silhouette.",
+                    s.infernoSmokeSpread, 0f, 1f)));
+            smokeBox.Add(Z.HGroup(
+                Val("Darkness",
+                    "Heavier, darker soot over the layer's life. SMOKE ONLY — burning pixels take the Fill "
+                    + "ramp's colour outright, so this never tints the flame.",
+                    s.infernoDarkness, 0f, 1f),
+                MS("Linger", s.infernoLinger, 0f, 1f,
+                    "How long the smoke STAYS: 0 = fades out over the last frames; 1 = persists to the very end "
+                    + "of the timeline. The shared Alpha envelope above also fades the tail by default — flatten "
+                    + "it for smoke that holds to the last frame.",
+                    v => s.infernoLinger = v)));
+            smokeBox.Add(Val("Body",
+                "How OPAQUE the thick of the cloud reads, over the layer's life: 0 = ghostly gas, 1 = dense "
+                + "fire and smoke read as solid matter. Affects flame and soot alike.",
+                s.infernoBody, 0f, 1f));
+            box.Add(smokeBox);
+
+            // ── Finish ──
+            box.Add(Z.HGroup(
+                MS("Die out", s.infernoDieOut, 0f, 1f,
+                    "Dissolves the whole effect to nothing over the final fraction of the timeline, so it ends "
+                    + "on its own instead of running until the last frame cuts it off. 0 = no forced ending.",
+                    v => s.infernoDieOut = v),
+                MS("Embers", s.infernoEmbers, 0f, 1f,
+                    "Short contained sparks that arc out and fade before the border.",
+                    v => s.infernoEmbers = v)));
+            box.Add(Z.HGroup(
+                MS("Lighting", s.infernoLighting, 0f, 1f,
+                    "Pseudo-3D shading from the cloud's own density — carves lit billows and shadowed pockets.",
+                    v => s.infernoLighting = v),
+                MS("Contrast", s.infernoContrast, 0f, 1f,
+                    "Separates hot cavities from dark billows on the heat ramp.",
+                    v => s.infernoContrast = v)));
+
+            shapeBody.Add(box);
+        }
+
         void BuildFireBox(PyrePlusLayer s)
         {
             // Defensive nulls (the real defaults come from the spec factories).
@@ -1782,8 +2064,18 @@ namespace Laubrary.PyrePlus.Editor
             swarmSection?.SetHeaderToggle(s.swarmEnabled,
                 "Off = one centred particle (the Shape section alone; Text = one centred line). On = Count particles "
                 + "placed in a shape. For the Text form the particle count is the number of characters, so Count is "
-                + "hidden — each letter rides one swarm position.",
-                v => { Dirty(() => s.swarmEnabled = v); RebuildSwarm(); });
+                + "hidden — each letter rides one swarm position. For Inferno each particle IS one blast.",
+                v =>
+                {
+                    Dirty(() => s.swarmEnabled = v);
+                    RebuildSwarm();
+                    // Inferno's Shape box swaps its multi-blast rows on this toggle (the swarm ignites the blasts).
+                    if (s.shapeForm == ShapeForm.Inferno) RebuildShape();
+                });
+
+            // Inferno: the swarm IS the blast placement — one blast per particle (off = one centred blast). The
+            // section shows its normal controls; what it drives is said by the header toggle's TOOLTIP (an
+            // on-screen instruction label here was a UI-Guide violation — "tooltip, not title").
 
             // Fire and Fireball are whole-layer SIMULATIONS with their own source (Fire's built-in arm emitters,
             // Fireball's single central point) — the swarm does not drive either, EXCEPT a Fire layer with 'Swarm
@@ -2402,6 +2694,11 @@ namespace Laubrary.PyrePlus.Editor
                 return "The fireball's colour RAMP: the cellular sim reads this fill's GRADIENT as one smoke→fire ramp "
                      + "(low end = cool rim, high end = hot core), mapping each pixel's heat onto it. Prefer an Over "
                      + "life gradient; a Solid fill leaves the flame white." + modes;
+            if (f == ShapeForm.Inferno)
+                return "The explosion's HEAT ramp: Inferno reads this fill's GRADIENT with the LEFT end as the "
+                     + "white-hot core and the RIGHT end as the coolest flame (the default fire fill is already in "
+                     + "that order). Smoke grey is NOT from this ramp — the Darkness dial makes it. Prefer an Over "
+                     + "life gradient; a Solid fill gives a single-colour flame." + modes;
             return "The particle's colour (0 = birth, 1 = death)." + modes;
         }
 

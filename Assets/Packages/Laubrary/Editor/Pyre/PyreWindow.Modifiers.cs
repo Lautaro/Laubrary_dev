@@ -172,10 +172,10 @@ namespace Laubrary.Pyre.Editor
                     break;
                 case RotateModifier r:
                     box.Add(ValRow("Degrees", "Rotation in degrees (animatable).", r.degrees, -180f, 180f, 0f));
-                    box.Add(Z.Field("Pivot", "The point the rotation turns around (plain value — not animatable).",
-                        Z.Pad(new Vector2(r.pivotX, r.pivotY), new Rect(-1f, -1f, 2f, 2f),
-                            "Drag to set the rotation pivot.",
-                            v => Dial("Rotate pivot", () => { r.pivotX = v.x; r.pivotY = v.y; }))));
+                    // Was a raw Z.Pad over two plain floats; the pivot is now an animatable companion pair, so the
+                    // ZUIValue 2D control (same pad ergonomics, plus Static/Min-Max/Curve) replaces it.
+                    box.Add(Z.Value2D("Pivot", r.PivotX, r.PivotY, Range2D(-1f, 1f),
+                        "The point the rotation turns around.", DirtySpec, RecordSpec));
                     break;
                 case WobbleModifier w:
                     box.Add(ValRow("Amplitude", "Wobble displacement in pixels.", w.amplitude, 0f, Mathf.Max(4f, half), 0f));
@@ -196,9 +196,9 @@ namespace Laubrary.Pyre.Editor
                     break;
                 case GroundModifier g:
                     box.Add(ValRow("Grow angle", "Direction the shape grows from the surface.", g.angle, -180f, 180f, 0f));
-                    box.Add(PackedSlider("Surface", "Where the ground surface sits (-1 bottom … 1 top).", g.surface, -1f, 1f, v => g.surface = v, 150f));
+                    box.Add(ValRow("Surface", "Where the ground surface sits (-1 bottom … 1 top).", g.Surface, -1f, 1f, -1f));
                     box.Add(ValRow("Stretch (height)", "Vertical stretch away from the surface.", g.stretch, 0f, 4f, 1f));
-                    box.Add(PackedSlider("Bury base", "How much of the base hides below the surface.", g.bury, 0f, 1f, v => g.bury = v, 150f));
+                    box.Add(ValRow("Bury base", "How much of the base hides below the surface.", g.Bury, 0f, 1f, 0f));
                     break;
                 case TintModifier t:
                     box.Add(Z.Field("Tint", "Multiplies every pixel's colour.",
@@ -225,13 +225,13 @@ namespace Laubrary.Pyre.Editor
                     box.Add(Z.MiniRadio((int)am.shape, MaskShapeLabels, "The mask's shape/wipe pattern.",
                         v => { Dial("Mask shape", () => am.shape = (MaskShape)v); RebuildLeft(); }));
                     box.Add(ValRow("Progress", "How far the mask has progressed (0 hidden … 1 fully shown).", am.progress, 0f, 1f, 1f));
-                    box.Add(PackedSlider("Sharpness", "Hardness of the mask's edge.", am.sharpness, 0f, 1f, v => am.sharpness = v, 150f));
+                    box.Add(ValRow("Sharpness", "Hardness of the mask's edge.", am.Sharpness, 0f, 1f, 0.6f));
                     box.Add(ValRow("Size", "×scale on the mask's footprint.", am.size, 0.1f, 4f, 1f));
                     box.Add(ValRow("Rotation", "Rotates the mask.", am.rotation, -180f, 180f, 0f));
-                    box.Add(Z.Field("Offset", "Moves the mask off-centre (plain value — not animatable).",
-                        Z.Pad(new Vector2(am.offsetX, am.offsetY), new Rect(-1f, -1f, 2f, 2f),
-                            "Drag to offset the mask.",
-                            v => Dial("Mask offset", () => { am.offsetX = v.x; am.offsetY = v.y; }))));
+                    // Was a raw Z.Pad over two plain floats; the offset is now an animatable companion pair, so the
+                    // ZUIValue 2D control (same pad ergonomics, plus Static/Min-Max/Curve) replaces it.
+                    box.Add(Z.Value2D("Offset", am.OffsetX, am.OffsetY, Range2D(-1f, 1f),
+                        "Moves the mask off-centre.", DirtySpec, RecordSpec));
                     if (am.shape == MaskShape.Noise)
                     {
                         box.Add(PackedSlider("Noise warp", "Distorts the noise mask into itself.", am.noiseWarp, 0f, 2f, v => am.noiseWarp = v, 150f));
@@ -260,7 +260,7 @@ namespace Laubrary.Pyre.Editor
                         v => Dial("Keep original", () => km.keepOriginal = v)));
                     break;
                 case BloomModifier bm:
-                    box.Add(PackedSlider("Threshold", "Brightness above which pixels bloom.", bm.threshold, 0f, 1f, v => bm.threshold = v, 150f));
+                    box.Add(ValRow("Threshold", "Brightness above which pixels bloom.", bm.Threshold, 0f, 1f, 0.6f));
                     box.Add(PackedSlider("Radius (px)", "Bloom spread radius.", bm.radius, 0f, 16f, v => bm.radius = Mathf.RoundToInt(v), 150f, isInt: true));
                     box.Add(ValRow("Intensity", "Bloom strength.", bm.intensity, 0f, 3f, 1.2f));
                     break;
@@ -271,11 +271,11 @@ namespace Laubrary.Pyre.Editor
                     box.Add(GradientRow(om.mode == ColorMode.OverLife ? "Colour (over life)" : "Colour (in→out)",
                         "The outline's colour ramp.", () => om.color, v => om.color = v));
                     box.Add(ValRow("Size (px)", "Outline thickness in pixels.", om.size, 0f, 12f, 1f));
-                    box.Add(PackedSlider("Edge sensitivity", "Alpha threshold that counts as an edge.", om.alphaThreshold, 0.01f, 1f, v => om.alphaThreshold = v, 150f));
-                    box.Add(PackedSlider("Inner softness (px)", "Fade distance inside the edge.", om.innerSoftness, 0f, 16f, v => om.innerSoftness = v, 150f));
-                    box.Add(PackedSlider("Inner curve", "Falloff curve of the inner fade.", om.innerSoftnessCurve, 0.2f, 5f, v => om.innerSoftnessCurve = v, 150f));
-                    box.Add(PackedSlider("Outer softness (px)", "Fade distance outside the edge.", om.outerSoftness, 0f, 16f, v => om.outerSoftness = v, 150f));
-                    box.Add(PackedSlider("Outer curve", "Falloff curve of the outer fade.", om.outerSoftnessCurve, 0.2f, 5f, v => om.outerSoftnessCurve = v, 150f));
+                    box.Add(ValRow("Edge sensitivity", "Alpha threshold that counts as an edge.", om.AlphaThreshold, 0.01f, 1f, 0.08f));
+                    box.Add(ValRow("Inner softness (px)", "Fade distance inside the edge.", om.InnerSoftness, 0f, 16f, 0f));
+                    box.Add(ValRow("Inner curve", "Falloff curve of the inner fade.", om.InnerSoftnessCurve, 0.2f, 5f, 1f));
+                    box.Add(ValRow("Outer softness (px)", "Fade distance outside the edge.", om.OuterSoftness, 0f, 16f, 0f));
+                    box.Add(ValRow("Outer curve", "Falloff curve of the outer fade.", om.OuterSoftnessCurve, 0.2f, 5f, 1f));
                     break;
                 case JaggModifier jm:
                     box.Add(PackedSlider("Arms", "How many star arms.", jm.arms, 2f, 24f, v => jm.arms = Mathf.RoundToInt(v), 150f, isInt: true));
@@ -347,7 +347,7 @@ namespace Laubrary.Pyre.Editor
                     box.Add(WrapRow(
                         PackedVal2D("Origin", "Where the blast pushes from.", bl.originX, bl.originY, Range2D(-half, half)),
                         PackedVal("Angle", "Direction of a line/arc blast.", bl.angleDeg, -180f, 180f, 0f, allowMinMax: false)));
-                    box.Add(PackedSlider("Arc (360=disc, 0=line)", "The blast's angular coverage.", bl.arcDegrees, 0f, 360f, v => bl.arcDegrees = v, 150f));
+                    box.Add(ValRow("Arc (360=disc, 0=line)", "The blast's angular coverage.", bl.ArcDegrees, 0f, 360f, 360f, allowMinMax: false));
                     box.Add(WrapRow(
                         PackedVal("Arc softness", "Softens the arc's angular edges.", bl.arcSoftness, 0f, 1f, 0.2f, allowMinMax: false),
                         PackedVal("Band width (px)", "Thickness of the pushing band.", bl.bandWidth, 1f, Mathf.Max(8f, half * 0.5f), 12f, allowMinMax: false)));
@@ -421,7 +421,7 @@ namespace Laubrary.Pyre.Editor
                         PackedVal("Persistence", "How much of each vortex survives per frame.", pf.vortexPersistence, 0f, 1f, 0.94f, allowMinMax: false)));
                     box.Add(WrapRow(
                         PackedVal("Drift (px/f)", "Vortex downstream drift per frame.", pf.vortexDrift, -5f, 5f, 0.6f, allowMinMax: false),
-                        PackedSlider("Child shed", "Chance a vortex sheds a child per frame.", pf.childShedChance, 0f, 0.5f, v => pf.childShedChance = v)));
+                        PackedVal("Child shed", "Chance a vortex sheds a child per frame.", pf.ChildShedChance, 0f, 0.5f, 0.05f, allowMinMax: false)));
                     box.Add(Z.Text("Fluid", ZuiText.Section, "The velocity field itself."));
                     box.Add(WrapRow(
                         PackedVal("Drag", "Velocity damping per frame.", pf.velocityDrag, 0f, 1f, 0.85f, allowMinMax: false),
@@ -431,7 +431,7 @@ namespace Laubrary.Pyre.Editor
                 case SunburstModifier sb:
                     box.Add(PackedSlider("Rays", "How many rays around the silhouette.", sb.rays, 2f, 32f, v => sb.rays = Mathf.RoundToInt(v), 150f, isInt: true));
                     box.Add(ValRow("Strength", "How deep the rays cut.", sb.strength, 0f, 0.95f, 0.6f));
-                    box.Add(PackedSlider("Sharpness", "Hardness of the ray edges.", sb.sharpness, 0.5f, 8f, v => sb.sharpness = v, 150f));
+                    box.Add(ValRow("Sharpness", "Hardness of the ray edges.", sb.Sharpness, 0.5f, 8f, 2f));
                     box.Add(ValRow("Rotation", "Rotates the ray pattern.", sb.rotation, -180f, 180f, 0f));
                     break;
                 case PulseRingsModifier pr:
@@ -463,7 +463,7 @@ namespace Laubrary.Pyre.Editor
                     if (vc.spreadMode != CrackSpreadMode.Uniform)
                     {
                         box.Add(ValRow("Spread", "How far the cracks have spread.", vc.spreadProgress, 0f, 1f, 1f));
-                        box.Add(PackedSlider("Spread softness", "Softens the spreading front.", vc.spreadSoftness, 0f, 1f, v => vc.spreadSoftness = v, 150f));
+                        box.Add(ValRow("Spread softness", "Softens the spreading front.", vc.SpreadSoftness, 0f, 1f, 0.2f));
                     }
                     break;
                 case ChromaticAberrationModifier ca:
@@ -561,7 +561,7 @@ namespace Laubrary.Pyre.Editor
                 PackedVal("Strength", "Swirl displacement strength.", cu.strength, 0f, 24f, 4f, allowMinMax: false),
                 PackedVal("Zoom", "Swirl feature size.", cu.zoom, 1f, Mathf.Max(8f, half), 24f, allowMinMax: false),
                 PackedVal("Speed", "Swirl animation speed.", cu.speed, -4f, 4f, 1f, allowMinMax: false),
-                PackedSlider("Warp", "Distorts the swirl field into itself.", cu.warp, 0f, 2f, v => cu.warp = v)));
+                PackedVal("Warp", "Distorts the swirl field into itself.", cu.Warp, 0f, 2f, 0.6f, allowMinMax: false)));
             parent.Add(ambient);
             parent.Add(BuildVortexList(cu, "Curl — vortices (click the preview to add / drag to move)", half, progressNotSpeed: false));
         }

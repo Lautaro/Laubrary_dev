@@ -2354,6 +2354,16 @@ namespace Laubrary.Pyre
                     // Points are authored in normalized [0..1]; sample directly (ignore duration/warmup/cooldown —
                     // those are for the runtime-seconds use case, not our frame-baked timeline).
                     return ZUIEnvelopeEvaluator.Evaluate(v.points, Mathf.Clamp01(curveProgress), v.yMax);
+                case ZUIValue.Mode.Steps:
+                {
+                    // Steps mapped onto the frame-baked timeline exactly like Curve: progress divides into
+                    // steps.Count equal HELD sections (timing fields ignored). Previously fell to `default`
+                    // and silently rendered an authored Steps pattern as its flat static value.
+                    var steps = v.steps;
+                    int n = steps != null ? steps.Count : 0;
+                    if (n == 0) return v.staticValue;
+                    return steps[Mathf.Clamp(Mathf.FloorToInt(Mathf.Clamp01(curveProgress) * n), 0, n - 1)];
+                }
                 default:
                     return v.staticValue;
             }
