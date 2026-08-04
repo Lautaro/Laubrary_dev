@@ -61,14 +61,22 @@ namespace Laubrary.Zoetrope.Editor
             return null;
         }
 
-        /// Every named reaction on a Zoe. One place to extend when custom named events land, so the preview
-        /// picks them up without this file being revisited.
+        /// Every reaction on a Zoe: the two fixed ones, then every CUSTOM named event.
+        ///
+        /// The custom events were the whole point and were missed on the first pass — this method carried a
+        /// comment promising to be extended when named events landed, they landed, and nobody came back. A
+        /// stack hung on a custom event resolved to no subject at all, so the preview stayed empty for
+        /// exactly the case a teleport needs. Yielding the list here means the next event kind is covered by
+        /// construction rather than by remembering.
         static IEnumerable<(ReactionFx, string)> Reactions(Zoe zoe)
         {
             yield return (zoe.hit, "hit");
             yield return (zoe.death, "death");
+            if (zoe.events == null) yield break;
+            foreach (var e in zoe.events)
+                if (e != null && e.reaction != null)
+                    yield return (e.reaction, string.IsNullOrEmpty(e.id) ? "event" : e.id);
         }
-
         /// Both places a reaction can carry a stack: the body filter, and any BodySpriteFxEffect in its FX
         /// list. Missing the second would make the feature work for one authoring route and not the other.
         static bool UsesStack(ReactionFx reaction, SpriteFxSpec spec)
