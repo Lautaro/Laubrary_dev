@@ -69,7 +69,8 @@ namespace Laubrary.SpriteFx.Editor
         Label _previewHint;
         ZuiMicroSlider _lifeSlider;
         Button _playButton;
-        VisualElement _previewStage;
+        VisualElement _previewStage;   // fixed reserved area — keeps the panel from jumping
+        VisualElement _frameBox;   // drawn at the SPRITE's size; its border marks the sprite's own boundary
 
         const string PrevSpritePrefKey = "Laubrary.SpriteFx.Preview.Sprite.";
 
@@ -267,23 +268,35 @@ namespace Laubrary.SpriteFx.Editor
 
             s.Add(Z.VSpace(4f));
 
-            // 2) The preview stage — a bespoke pixel-art canvas island (sanctioned raw painting). Fixed square box,
-            // Point-filtered texture scaled to fit; a hint Label swaps in when there is nothing to render.
+            // 2) The preview stage — a bespoke pixel-art canvas island (sanctioned raw painting).
+            //
+            // TWO elements, and the split is the whole point. The STAGE is a fixed reserved area so the panel
+            // never jumps when a stack gains or loses a margin. The FRAME inside it is drawn at exactly the
+            // sprite's size and carries the border, so the border IS the sprite's own boundary — no overlay
+            // needed, and the render underneath stays pixel-for-pixel what the game will draw.
+            //
+            // The image is positioned ABSOLUTELY within the frame. In a flex container an oversized child
+            // just gets shrunk back to fit, which is what made a padded buffer squash the character again;
+            // absolute placement lets it hang outside the border, which is exactly where the overflow goes.
             _previewStage = new VisualElement();
             _previewStage.style.width = PreviewBox;
             _previewStage.style.height = PreviewBox;
             _previewStage.style.flexShrink = 0f;
             _previewStage.style.alignItems = Align.Center;
             _previewStage.style.justifyContent = Justify.Center;
-            _previewStage.style.backgroundColor = new Color(0.11f, 0.11f, 0.12f, 1f);
-            StageBorder(_previewStage);
-            _previewStage.tooltip = "The input sprite with the current stack applied at the scrub position, scaled " +
-                "up point-filtered (nearest-neighbour) so pixels stay crisp.";
+            _previewStage.tooltip = "The sprite with the current stack applied at the scrub position, scaled up " +
+                "point-filtered (nearest-neighbour) so pixels stay crisp. The border marks the SPRITE's own " +
+                "frame — anything an effect draws beyond it spills outside, exactly as it does in game.";
 
-            _previewImage = new UnityEngine.UIElements.Image { scaleMode = ScaleMode.ScaleToFit };
-            _previewImage.style.width = PreviewBox - 4f;
-            _previewImage.style.height = PreviewBox - 4f;
-            _previewStage.Add(_previewImage);
+            _frameBox = new VisualElement();
+            _frameBox.style.flexShrink = 0f;
+            _frameBox.style.backgroundColor = new Color(0.11f, 0.11f, 0.12f, 1f);
+            StageBorder(_frameBox);
+            _previewStage.Add(_frameBox);
+
+            _previewImage = new UnityEngine.UIElements.Image { scaleMode = ScaleMode.StretchToFill };
+            _previewImage.style.position = Position.Absolute;
+            _frameBox.Add(_previewImage);
 
             _previewHint = new Label { pickingMode = PickingMode.Ignore };
             _previewHint.style.whiteSpace = WhiteSpace.Normal;
@@ -328,14 +341,8 @@ namespace Laubrary.SpriteFx.Editor
             // that is realistically three times that wide, so a row underneath spent height to leave a large
             // empty rectangle to its right — and height is the scarce resource in a window whose whole point
             // is that the stack below stays reachable. Wraps back to stacked if the pane ever is that narrow.
-            var frameEdgeToggle = Z.ToggleButton("Frame",
-                "Mark where the SPRITE's own frame ends, so you can see how far an effect is spilling past it. " +
-                "Off by default — the runtime draws no such line, and the stage's job is to show what the game " +
-                "will show.",
-                ShowFrameEdge, on => { ShowFrameEdge = on; RenderPreview(); });
-
             var controls = Z.Column(_lifeSlider, Z.VSpace(2f), Z.Row(_playButton, reverseToggle),
-                                    Z.VSpace(2f), pauseSlider, Z.VSpace(2f), frameEdgeToggle);
+                                    Z.VSpace(2f), pauseSlider);
             controls.style.flexShrink = 1f;
             controls.style.minWidth = 0f;
 
@@ -351,17 +358,6 @@ namespace Laubrary.SpriteFx.Editor
 
         // The loop's rest on the last frame, in seconds. A viewing preference, so it lives in EditorPrefs and
         // never touches a SpriteFx Stack asset.
-        // Whether to draw the marker showing where the sprite's own frame ends. OFF by default: the stage's
-        // job is to show what the game will show, and an overlay the runtime does not draw is a difference
-        // between the two. Kept one click away because knowing how far an effect is spilling is genuinely
-        // useful while authoring one.
-        const string ShowFrameEdgePrefKey = "Laubrary.SpriteFx.Preview.ShowFrameEdge";
-        static bool ShowFrameEdge
-        {
-            get => EditorPrefs.GetBool(ShowFrameEdgePrefKey, false);
-            set => EditorPrefs.SetBool(ShowFrameEdgePrefKey, value);
-        }
-
         const string RestartPausePrefKey = "Laubrary.SpriteFx.Preview.RestartPause";
         static float RestartPause
         {
@@ -599,7 +595,6 @@ namespace Laubrary.SpriteFx.Editor
                         System.Array.Copy(px, row * W, padded, (row + pad) * pw + pad, W);
                     SpriteFxStack.RunStack(padded, pw, ph, W, H, pad, pad,
                                            spec.modifiers, frame, life, spec.seed, useBurst: false);
-                    if (ShowFrameEdge) MarkSourceFrame(padded, pw, ph, pad, W, H);
                     EnsurePreviewTex(pw, ph);
                     _previewTex.SetPixels32(padded);
                     _previewTex.Apply(false);
@@ -625,25 +620,7 @@ namespace Laubrary.SpriteFx.Editor
                 ShowHint("Could not read this sprite's pixels to preview.");
                 Debug.LogWarning($"[SpriteFxStackWindow] Preview render failed: {e.Message}", spec);
             }
-        }
-
-        /// Draw a faint dotted outline where the SPRITE's real frame ends, so what is inside the character and
-        /// what has spilled past it are told apart at a glance. Composited over the result rather than under
-        /// it, and only on otherwise-empty pixels, so it can never hide the effect it is measuring.
-        static void MarkSourceFrame(Color32[] px, int pw, int ph, int pad, int W, int H)
-        {
-            var mark = new Color32(255, 255, 255, 90);
-            void Dot(int x, int y)
-            {
-                if (x < 0 || x >= pw || y < 0 || y >= ph) return;
-                int i = y * pw + x;
-                if (px[i].a < 24) px[i] = mark;   // never paint over the effect itself
-            }
-            for (int x = pad; x < pad + W; x += 2) { Dot(x, pad - 1); Dot(x, pad + H); }
-            for (int y = pad; y < pad + H; y += 2) { Dot(pad - 1, y); Dot(pad + W, y); }
-        }
-
-        void ShowHint(string msg)
+        }        void ShowHint(string msg)
         {
             _previewHint.text = msg;
             _previewHint.Shown(true);
@@ -669,13 +646,26 @@ namespace Laubrary.SpriteFx.Editor
             if (texW > 0 && srcW > 0 && srcH > 0)
             {
                 float s = fit / Mathf.Max(srcW, srcH);   // screen px per source px — identical with or without a margin
+
+                // The FRAME is the sprite. It does not change size when a stack gains a margin, so nothing in
+                // the panel moves and the character never rescales — the jarring part of the old behaviour.
+                _frameBox.style.width = srcW * s;
+                _frameBox.style.height = srcH * s;
+
+                // The IMAGE is the whole buffer, centred on the frame and hanging outside it by the margin.
                 _previewImage.style.width = texW * s;
                 _previewImage.style.height = texH * s;
+                _previewImage.style.left = -(texW - srcW) * 0.5f * s;
+                _previewImage.style.top = -(texH - srcH) * 0.5f * s;
             }
             else
             {
+                _frameBox.style.width = fit;
+                _frameBox.style.height = fit;
                 _previewImage.style.width = fit;
                 _previewImage.style.height = fit;
+                _previewImage.style.left = 0f;
+                _previewImage.style.top = 0f;
             }
             _previewHint.Shown(false);
             _previewImage.Shown(true);
@@ -723,6 +713,7 @@ namespace Laubrary.SpriteFx.Editor
             _lifeSlider = null;
             _playButton = null;
             _previewStage = null;
+            _frameBox = null;
         }
 
         protected override void OnDisable()
