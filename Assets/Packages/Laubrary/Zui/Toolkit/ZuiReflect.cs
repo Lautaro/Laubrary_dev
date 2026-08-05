@@ -408,6 +408,9 @@ namespace Laubrary.Zui
 
                 var vopt = new ZuiValueControl.Options { controlWidth = opt.ControlWidth };
                 if (range != null) vopt.WithRange(range.min, range.max);
+                // A value the effect rounds to a whole number must be AUTHORED in whole numbers, or the
+                // slider spends half its first unit doing nothing and then jumps a full step at once.
+                if (Attribute.IsDefined(field, typeof(ZUIWholeNumberAttribute))) vopt.decimals = 0;
                 opt.ConfigureValue?.Invoke(field, vopt);
                 // A float→ZUIValue migration companion is conventionally named `<legacy>Value` (the frozen
                 // legacy float keeps the plain name) — strip the suffix so the label reads as the PARAM

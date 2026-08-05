@@ -869,7 +869,7 @@ namespace Laubrary.SpriteFx
         [Tooltip("Number of discrete shades per colour channel. Lower = chunkier, more hand-painted bands. " +
                  "Animatable — collapse the shading down to a couple of bands over the event and the sprite " +
                  "posterises itself as it goes.")]
-        public ZUIValue levelsValue = new ZUIValue(5f);
+        [ZUIWholeNumber] public ZUIValue levelsValue = new ZUIValue(5f);
         public ZUIValue Levels { get { if (!levelsUpgraded) { levelsValue = new ZUIValue(levels); levelsUpgraded = true; } return levelsValue; } }
 
         [Tooltip("Also quantize alpha into the same number of steps (hard transparency bands instead of a smooth fade).")]
@@ -959,7 +959,7 @@ namespace Laubrary.SpriteFx
                  "reshuffling into unrelated noise every frame. Static (default) freezes the pattern in place; " +
                  "Min-Max re-rolls a fresh step every frame for a boiling/crackling reshuffle (sparkleSeed's " +
                  "cellular twin). This does NOT pan the pattern smoothly — use Drift X/Y for that.")]
-        public ZUIValue seedOffset = new ZUIValue(0f);
+        [ZUIWholeNumber] public ZUIValue seedOffset = new ZUIValue(0f);
         [Range(0.01f, 3f)]
         [Tooltip("How much space the cracks eat vs. the cells' own untouched interiors — low leaves wide open " +
                  "cell faces with thin seams; high thickens the seams until the cell interiors shrink to nothing " +
@@ -1955,10 +1955,12 @@ namespace Laubrary.SpriteFx
                  "flat = a sharp one-colour outline, a gradient fades/recolours/bands outward. Over life mode " +
                  "samples the whole gradient once, at the blast's own life.")]
         public Gradient color = White();
+        [ZUIWholeNumber]
         [Range(0f, 12f)]
-        [Tooltip("Outline thickness in pixels, measured OUTWARD from the shape's edge — 0 is only meaningful " +
-                 "together with Inner softness (a pure inward glow with no outward ring at all); otherwise " +
-                 "this is the ring you actually see, so it wants to start at 1. Animatable — grow it outward.")]
+        [Tooltip("Outline thickness in PIXELS, measured outward from the shape's edge — whole pixels only, " +
+                 "because that is what the outline actually draws. 0 is only meaningful together with Inner " +
+                 "softness (a pure inward glow with no outward ring at all); otherwise this is the ring you " +
+                 "actually see, so it wants to start at 1. Animatable — grow it outward.")]
         public ZUIValue size = new ZUIValue(1f);
         [HideInInspector] public float alphaThreshold = 0.08f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0.01f, 1f)]
@@ -2651,7 +2653,7 @@ namespace Laubrary.SpriteFx
     {
         [Range(0f, 16f)]
         [Tooltip("How far the fusing effect reaches, in pixels — bigger blends more distant shapes together. Animatable.")]
-        public ZUIValue radius = new ZUIValue(4f);
+        [ZUIWholeNumber] public ZUIValue radius = new ZUIValue(4f);
         [Range(0f, 1f)]
         [Tooltip("Alpha level pixels must reach (after blurring) to stay solid — lower fuses more eagerly (thicker " +
                  "bridges between shapes); higher keeps shapes more separate (fuses only where they nearly touch). " +
@@ -2999,7 +3001,7 @@ namespace Laubrary.SpriteFx
     {
         [Range(0f, 16f)]
         [Tooltip("Blur radius, in pixels — how far the edge softening reaches. Animatable.")]
-        public ZUIValue radius = new ZUIValue(2f);
+        [ZUIWholeNumber] public ZUIValue radius = new ZUIValue(2f);
         [Range(0f, 1f)]
         [Tooltip("How much of the blur blends back in — 0 = untouched (edges stay exactly as jagged as rendered), " +
                  "1 = fully softened. Animatable.")]
