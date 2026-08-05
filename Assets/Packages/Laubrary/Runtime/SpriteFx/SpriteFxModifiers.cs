@@ -1944,10 +1944,10 @@ namespace Laubrary.SpriteFx
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class OutlineModifier : PostModifier
     {
-        // The ring is drawn at `size` and feathered outward by `outerSoftness`, so together they are exactly
-        // how far past the silhouette this reaches — the same figure Apply already computes as its search radius.
+        // The ring reaches `size` outward, feathered by `outerSoftness`, plus the one partial pixel the
+        // sub-pixel coverage puts beyond that — the same figure Apply uses for its own neighbour search.
         public override int OutwardReachPx()
-            => Mathf.CeilToInt(size.PeakValue() + OuterSoftness.PeakValue());
+            => Mathf.CeilToInt(size.PeakValue() + OuterSoftness.PeakValue()) + 1;
         [Tooltip("Over life = one flat colour for the whole outline, sampled from the gradient at the blast's own " +
                  "life 0→1. Fill = the gradient is read across the outline's thickness (0 = inner edge, 1 = outer).")]
         public ColorMode mode = ColorMode.Fill;
@@ -1955,12 +1955,11 @@ namespace Laubrary.SpriteFx
                  "flat = a sharp one-colour outline, a gradient fades/recolours/bands outward. Over life mode " +
                  "samples the whole gradient once, at the blast's own life.")]
         public Gradient color = White();
-        [ZUIWholeNumber]
         [Range(0f, 12f)]
-        [Tooltip("Outline thickness in PIXELS, measured outward from the shape's edge — whole pixels only, " +
-                 "because that is what the outline actually draws. 0 is only meaningful together with Inner " +
-                 "softness (a pure inward glow with no outward ring at all); otherwise this is the ring you " +
-                 "actually see, so it wants to start at 1. Animatable — grow it outward.")]
+        [Tooltip("Outline thickness in pixels, measured outward from the shape's edge. FRACTIONAL: 0.5 draws " +
+                 "the first ring at half strength, so growing this animates as a smooth thickening rather " +
+                 "than snapping a whole pixel into existence at a time. 0 = no outward ring at all (only " +
+                 "meaningful together with Inner softness). Animatable — grow it outward over the event.")]
         public ZUIValue size = new ZUIValue(1f);
         [HideInInspector] public float alphaThreshold = 0.08f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0.01f, 1f)]
@@ -2013,13 +2012,16 @@ namespace Laubrary.SpriteFx
         [HideInInspector] public bool outerSoftnessCurveUpgraded;
         public ZUIValue OuterSoftnessCurve { get { if (!outerSoftnessCurveUpgraded) { outerSoftnessCurveValue = new ZUIValue(outerSoftnessCurve); outerSoftnessCurveUpgraded = true; } return outerSoftnessCurveValue; } }
 
-        int sz;
+        float szF;
         float thrV, innerSoftV, innerCurveV, outerSoftV, outerCurveV;
         Color overLifeColor;
         public override string DisplayName => "Outline";
         public override void Prepare(Func<ZUIValue, int, float> e)
         {
-            sz = Mathf.Clamp(Mathf.RoundToInt(e(size, 0)), 0, 32);
+            // FRACTIONAL, not rounded. The thickness is what an author animates, and rounding it made every
+            // step a whole pixel appearing at once — at pixel-art zoom that reads as a violent jump, and
+            // there was no way to ease an outline in at all.
+            szF = Mathf.Clamp(e(size, 0), 0f, 32f);
             innerSoftV = Mathf.Clamp(e(InnerSoftness, 1), 0f, 16f);
             outerSoftV = Mathf.Clamp(e(OuterSoftness, 2), 0f, 16f);
             innerCurveV = Mathf.Clamp(e(InnerSoftnessCurve, 3), 0.2f, 5f);
@@ -2030,18 +2032,19 @@ namespace Laubrary.SpriteFx
 
         public override void Apply(Color32[] buf, int W, int H)
         {
-            if ((sz < 1 && innerSoftV < 0.001f) || color == null) return;
+            if ((szF < 0.001f && innerSoftV < 0.001f) || color == null) return;
             byte at = (byte)(thrV * 255f);
             var src = (Color32[])buf.Clone();
-            int R = sz;
+            float R = szF;
 
             // ── outward ring: transparent pixels near the shape, within Size (+ its own outward fade) ──────
-            if (sz >= 1)
+            if (szF > 0.001f)
             {
-                // The outward fade can read a bit past the nominal thickness, so the neighbour search has to
-                // reach that far too — otherwise pixels in the fade band beyond R would never find a shape
-                // pixel to measure distance from and'd just be skipped.
-                int searchOut = Mathf.CeilToInt(R + outerSoftV);
+                // One pixel PAST the nominal thickness, because the outermost ring is drawn partially: a
+                // pixel at distance d carries coverage (R − d + 1), so it starts appearing as soon as R
+                // passes d − 1. Without that extra row the partial band would be searched for and never
+                // found. The outward fade extends the reach further again.
+                int searchOut = Mathf.CeilToInt(R + outerSoftV) + 1;
                 for (int y = 0; y < H; y++)
                     for (int x = 0; x < W; x++)
                     {
@@ -2061,7 +2064,16 @@ namespace Laubrary.SpriteFx
                             }
                         }
                         float d = Mathf.Sqrt(best2);
-                        if (d > R + outerSoftV) continue;   // beyond the thickness (+ its outward fade)
+                        if (d > R + outerSoftV + 1f) continue;   // past the thickness, its fade, and the partial ring
+
+                        // SUB-PIXEL COVERAGE. The nearest background pixel sits one whole pixel from the
+                        // shape, so a hard "d <= R" test can only ever turn a ring fully on or fully off —
+                        // which is why growing the outline used to jump. Coverage instead ramps across the
+                        // last pixel: at d = 1, R = 0 gives nothing, R = 0.5 gives half, R = 1 gives all of
+                        // it. Every fractional step of Size is now a visible change, so the thickness can be
+                        // eased, pulsed or animated like any other value.
+                        float cover = Mathf.Clamp01(R - d + 1f);
+                        if (cover <= 0.003f) continue;
 
                         float fadeA = 1f;
                         if (outerSoftV > 0.001f)
@@ -2075,10 +2087,10 @@ namespace Laubrary.SpriteFx
                         if (mode == ColorMode.OverLife) oc = overLifeColor;
                         else
                         {
-                            float frac = R > 1 ? Mathf.Clamp01((Mathf.Min(d, R) - 1f) / (R - 1f)) : 0f;   // 0 inner edge → 1 outer
+                            float frac = R > 1f ? Mathf.Clamp01((Mathf.Min(d, R) - 1f) / (R - 1f)) : 0f;   // 0 inner edge → 1 outer
                             oc = color.Evaluate(frac);
                         }
-                        buf[idx] = new Color32(ToByte(oc.r), ToByte(oc.g), ToByte(oc.b), ToByte(oc.a * fadeA));
+                        buf[idx] = new Color32(ToByte(oc.r), ToByte(oc.g), ToByte(oc.b), ToByte(oc.a * fadeA * cover));
                     }
             }
 
