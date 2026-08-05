@@ -380,7 +380,11 @@ namespace Laubrary.SpriteFx
                 _overflowGo.transform.localPosition = Vector3.zero;
                 _overflowGo.transform.localRotation = Quaternion.identity;
                 _overflowGo.transform.localScale = Vector3.one;
-                _overflowGo.hideFlags = HideFlags.HideAndDontSave;   // never authored, never saved into a scene
+                // DontSave, not HideAndDontSave: it must never persist into a saved scene, but it SHOULD be
+                // visible in the Hierarchy — it is the only way to see that the overflow layer exists, is
+                // parented correctly and is being torn down. Same choice MirageRig makes for its realized
+                // previewables, and for the same reason.
+                _overflowGo.hideFlags = HideFlags.DontSave;
                 _overflowSr = _overflowGo.AddComponent<SpriteRenderer>();
             }
 
