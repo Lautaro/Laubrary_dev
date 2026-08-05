@@ -366,9 +366,14 @@ namespace Laubrary.SpriteFx
         /// Drop the cached reach — call after changing the stack at runtime.
         public void InvalidateReach() => _reach = -1;
 
+        // EXACTLY len, never "at least len". Texture2D.SetPixels32 demands an array the exact size of the
+        // texture, so a grow-only buffer throws the moment a frame with a different rect comes through and
+        // the oversized one gets handed to it — which is every tick from then on, not a one-off.
+        // Lauminary frames are uniform within a clip, so this reallocates only when the geometry genuinely
+        // changes, and that already forces a texture and sprite rebuild anyway.
         void EnsurePadBuffer(int len)
         {
-            if (_padded == null || _padded.Length < len) _padded = new Color32[len];
+            if (_padded == null || _padded.Length != len) _padded = new Color32[len];
         }
 
         void WriteOverflow(Sprite src, Color32[] px, int W, int H, int pad)

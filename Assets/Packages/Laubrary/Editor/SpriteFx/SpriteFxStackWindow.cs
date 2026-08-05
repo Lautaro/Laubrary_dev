@@ -328,8 +328,14 @@ namespace Laubrary.SpriteFx.Editor
             // that is realistically three times that wide, so a row underneath spent height to leave a large
             // empty rectangle to its right — and height is the scarce resource in a window whose whole point
             // is that the stack below stays reachable. Wraps back to stacked if the pane ever is that narrow.
+            var frameEdgeToggle = Z.ToggleButton("Frame",
+                "Mark where the SPRITE's own frame ends, so you can see how far an effect is spilling past it. " +
+                "Off by default — the runtime draws no such line, and the stage's job is to show what the game " +
+                "will show.",
+                ShowFrameEdge, on => { ShowFrameEdge = on; RenderPreview(); });
+
             var controls = Z.Column(_lifeSlider, Z.VSpace(2f), Z.Row(_playButton, reverseToggle),
-                                    Z.VSpace(2f), pauseSlider);
+                                    Z.VSpace(2f), pauseSlider, Z.VSpace(2f), frameEdgeToggle);
             controls.style.flexShrink = 1f;
             controls.style.minWidth = 0f;
 
@@ -345,6 +351,17 @@ namespace Laubrary.SpriteFx.Editor
 
         // The loop's rest on the last frame, in seconds. A viewing preference, so it lives in EditorPrefs and
         // never touches a SpriteFx Stack asset.
+        // Whether to draw the marker showing where the sprite's own frame ends. OFF by default: the stage's
+        // job is to show what the game will show, and an overlay the runtime does not draw is a difference
+        // between the two. Kept one click away because knowing how far an effect is spilling is genuinely
+        // useful while authoring one.
+        const string ShowFrameEdgePrefKey = "Laubrary.SpriteFx.Preview.ShowFrameEdge";
+        static bool ShowFrameEdge
+        {
+            get => EditorPrefs.GetBool(ShowFrameEdgePrefKey, false);
+            set => EditorPrefs.SetBool(ShowFrameEdgePrefKey, value);
+        }
+
         const string RestartPausePrefKey = "Laubrary.SpriteFx.Preview.RestartPause";
         static float RestartPause
         {
@@ -582,13 +599,15 @@ namespace Laubrary.SpriteFx.Editor
                         System.Array.Copy(px, row * W, padded, (row + pad) * pw + pad, W);
                     SpriteFxStack.RunStack(padded, pw, ph, W, H, pad, pad,
                                            spec.modifiers, frame, life, spec.seed, useBurst: false);
-                    MarkSourceFrame(padded, pw, ph, pad, W, H);
+                    if (ShowFrameEdge) MarkSourceFrame(padded, pw, ph, pad, W, H);
                     EnsurePreviewTex(pw, ph);
                     _previewTex.SetPixels32(padded);
                     _previewTex.Apply(false);
                     _previewImage.image = _previewTex;
                     _previewImage.MarkDirtyRepaint();
-                    ShowImage();
+                    // Scale from the SOURCE frame, so the character is the same size on screen whether or not
+                    // the stack needs a margin, and the overflow spills past the stage instead of shrinking it.
+                    ShowImage(pw, ph, W, H);
                     return;
                 }
                 // The SAME routine Tick uses at runtime — inline (useBurst:false) so the preview matches WYSIWYG.
@@ -599,7 +618,7 @@ namespace Laubrary.SpriteFx.Editor
                 _previewTex.Apply(false);
                 _previewImage.image = _previewTex;
                 _previewImage.MarkDirtyRepaint();
-                ShowImage();
+                ShowImage(W, H, W, H);   // same scale rule as the padded branch, so the two are comparable
             }
             catch (System.Exception e)
             {
@@ -631,8 +650,33 @@ namespace Laubrary.SpriteFx.Editor
             _previewImage.Shown(false);
         }
 
-        void ShowImage()
+        void ShowImage() => ShowImage(0, 0, 0, 0);
+
+        /// Show the stage at a scale fixed by the SPRITE, never by the buffer.
+        ///
+        /// The image element used to be a fixed square with ScaleToFit, which is right until an effect needs
+        /// a margin — then the padded buffer is what gets fitted, and the character shrinks to make room for
+        /// its own glow. That is the preview inventing a difference from the game, and a preview that does
+        /// not match the runtime is worse than none: every judgement made in it is about a picture that will
+        /// never exist.
+        ///
+        /// So the scale comes from the source frame and the element is sized to whatever the buffer needs at
+        /// that scale. The sprite therefore occupies exactly the same pixels it always did, and the overflow
+        /// simply extends past the stage — which is fine, and is the honest picture.
+        void ShowImage(int texW, int texH, int srcW, int srcH)
         {
+            float fit = PreviewBox - 4f;
+            if (texW > 0 && srcW > 0 && srcH > 0)
+            {
+                float s = fit / Mathf.Max(srcW, srcH);   // screen px per source px — identical with or without a margin
+                _previewImage.style.width = texW * s;
+                _previewImage.style.height = texH * s;
+            }
+            else
+            {
+                _previewImage.style.width = fit;
+                _previewImage.style.height = fit;
+            }
             _previewHint.Shown(false);
             _previewImage.Shown(true);
         }
