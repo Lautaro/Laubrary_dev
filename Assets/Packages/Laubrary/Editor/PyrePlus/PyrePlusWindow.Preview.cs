@@ -77,10 +77,28 @@ namespace Laubrary.PyrePlus.Editor
         Vector2 ScreenToCanvas(Vector2 gui)
             => new Vector2((gui.x - swarmRect.x) / swarmZoom, (swarmRect.yMax - gui.y) / swarmZoom);
 
+        // The last IMGUI rect DrawPreview computed for the frame blit, refreshed on every Repaint. The backdrop
+        // panel's auto-fit hook (fired when the user picks a new image, BEFORE the preview repaints at the new
+        // size) reads this to compute a sensible fit-zoom instead of guessing.
+        Rect lastPreviewView;
+
         void DrawPreview(PyrePlusSpec s)
         {
             var view = GUILayoutUtility.GetRect(10, 10, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
             if (s == null) return;
+            if (Event.current.type == EventType.Repaint) lastPreviewView = view;
+
+            // CherryFraming's blank-during-delay sentinel (frame == -1, see PyrePlusWindow.CherryAdvanceOneBeat):
+            // just the backdrop, no frame texture, no overlay — the preview holds visually empty for the gap.
+            if (s.cherryEnabled && frame < 0)
+            {
+                if (Event.current.type == EventType.Repaint)
+                {
+                    DrawBackdrop(view);
+                    GUI.Label(new Rect(view.x + 6, view.yMax - 20, 200, 18), "…", EditorStyles.whiteMiniLabel);
+                }
+                return;
+            }
 
             // Filmstrip mode: the whole animation as a contact sheet instead of the single zoomed frame + overlay.
             if (s.previewStrip) { DrawFilmstrip(view, s); return; }

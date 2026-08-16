@@ -348,6 +348,18 @@ namespace Laubrary.PyrePlus.Editor
         // here — one fewer click and the whole catalog scannable at a glance. Behaviour is otherwise
         // identical: each row adds one modifier (undoable) and rebuilds the stack; the menu dismisses on the
         // pick, an outside click, or Esc.
+        // Kept fully functional (still renders if an asset already has one authored, or if hand-authored in
+        // Pyre1's own live-canvas preview overlay) but the generic Add-menu offers none of them a real way to
+        // author their data — click-place/drag-keyframe/paint-stroke input only exists in PyreWindow.Preview.cs,
+        // never wired into this reflection-driven picker. Duplicated in SpriteFxStackView.cs's own add-menu.
+        static readonly Dictionary<Type, string> DisabledInPicker = new Dictionary<Type, string>
+        {
+            { typeof(PinWarpModifier), "Needs click-to-place pins in Pyre1's own preview canvas — not authorable here." },
+            { typeof(SmudgeModifier), "Needs drag-to-paint strokes in Pyre1's own preview canvas — not authorable here." },
+            { typeof(CurlModifier), "Needs click-to-place vortices in Pyre1's own preview canvas — not authorable here." },
+            { typeof(CurlProgressModifier), "Needs click-to-place vortices in Pyre1's own preview canvas — not authorable here." },
+        };
+
         void ShowAddModifierMenu(VisualElement anchor, List<PyreModifier> list, Action rebuild)
         {
             var menu = Z.Menu(anchor);
@@ -357,11 +369,12 @@ namespace Laubrary.PyrePlus.Editor
                 if (e.group != lastGroup) { menu.Section(e.group); lastGroup = e.group; }
                 var type = e.type;
                 string label = e.label, group = e.group;
-                menu.Item(label, $"Add the {label} {group.ToLowerInvariant()} modifier to the stack.", () =>
+                bool blocked = DisabledInPicker.TryGetValue(type, out var reason);
+                menu.Item(label, blocked ? reason : $"Add the {label} {group.ToLowerInvariant()} modifier to the stack.", () =>
                 {
                     Dirty(() => list.Add((PyreModifier)Activator.CreateInstance(type)));
                     rebuild();
-                });
+                }, enabled: !blocked);
             }
             menu.Show();
         }

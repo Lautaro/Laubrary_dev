@@ -5,6 +5,7 @@
         "com.Lautaro-Arino.Laubrary.SpriteFx",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.Pyre",
+        "com.Lautaro-Arino.Laubrary.BackSplash",
         "Unity.TextMeshPro"
     ],
     "includePlatforms": [],

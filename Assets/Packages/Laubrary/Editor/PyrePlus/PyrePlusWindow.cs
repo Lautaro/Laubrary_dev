@@ -58,12 +58,24 @@ namespace Laubrary.PyrePlus.Editor
         SliderInt scrubSlider;   // frame scrubber (transport parity with Pyre1); drives `frame`, follows playback
         Label frameReadout;      // "frame N/M" readout beside Zoom/Speed, kept in sync with `frame`
         VisualElement backdropHost;
-        // The preview backdrop is an editor-only BackSplash (camera colour + one image), held on the WINDOW — not
-        // the runtime spec, since PyrePlus's runtime asmdef doesn't reference BackSplash. Lazily created; a cosmetic
-        // authoring aid, never baked. Mirrors how PyreWindow holds its BackSplash, but window-scoped rather than
-        // per-asset.
-        Laubrary.BackSplash.BackSplashSettings _backSplash;
-        Laubrary.BackSplash.BackSplashSettings backSplash => _backSplash ??= new Laubrary.BackSplash.BackSplashSettings();
+        // The preview backdrop is an editor-only BackSplash (camera colour + one image), persisted PER ASSET on
+        // spec.previewBackSplash (mirrors PyreWindow's own `backSplash` property) so it survives closing/reopening
+        // the window instead of resetting every time.
+        Laubrary.BackSplash.BackSplashSettings backSplash
+        {
+            get
+            {
+                if (spec == null) return null;
+                spec.previewBackSplash ??= new Laubrary.BackSplash.BackSplashSettings();
+                return spec.previewBackSplash;
+            }
+        }
+
+        // Draggable resize bar on the preview's bottom edge — how tall the preview island is, in px, persisted
+        // across domain reloads. Clamped so the preview can't be dragged away entirely or past a sane ceiling.
+        [SerializeField] float previewHeight = 320f;
+        const float PreviewHeightMin = 140f;
+        const float PreviewHeightMax = 900f;
 
         // ── layer selection — PERSISTED ON THE ASSET (Pyre parity: Pyre.previewLayerSel) ─────────────
         // Which layer the Shape / Swarm / Matte / Modifiers sections below edit. It lives on the SPEC, not the
@@ -103,12 +115,14 @@ namespace Laubrary.PyrePlus.Editor
             EditorApplication.update -= Tick;
             if (previewTex != null) { DestroyImmediate(previewTex); previewTex = null; }
             DestroyStripCache();
+            DestroyCherryStripCache();
         }
         protected override void OnAssetChanged()
         {
-            frame = 0; previewDirty = true; DestroyStripCache();
+            frame = 0; previewDirty = true; DestroyStripCache(); DestroyCherryStripCache();
             layerSel = int.MaxValue;   // a NEW asset defaults to its last layer (BuildAsset clamps)
             NormalizeSolidDefaultFills();   // FIX 1 (initial build): once-per-load steady-fill migration for solids
+            ResetCherryPlayback();
         }
 
         // FIX 1 (initial build) — on asset LOAD only (never on undo or a plain rebuild, so it can't fight Undo),
@@ -134,11 +148,89 @@ namespace Laubrary.PyrePlus.Editor
             lastTime = now;
             acc += dt * Mathf.Max(1f, spec.previewFps);
             bool advanced = false;
-            while (acc >= 1f) { acc -= 1f; frame = (frame + 1) % Mathf.Max(1, spec.frameCount); advanced = true; }
+            while (acc >= 1f)
+            {
+                acc -= 1f;
+                advanced = true;
+                if (spec.cherryEnabled) CherryAdvanceOneBeat();
+                else frame = (frame + 1) % Mathf.Max(1, spec.frameCount);
+            }
             // In Strip mode the frames themselves don't change as playback advances — only the highlighted tile
             // moves — so DON'T set previewDirty (that would needlessly re-render every tile); just repaint. In
             // single-frame mode previewDirty forces the new frame to render.
             if (advanced) { if (!spec.previewStrip) previewDirty = true; preview?.MarkDirtyRepaint(); RefreshTransportReadout(); }
+        }
+
+        // ── CherryFraming playback (editor preview only — see PyrePlusWindow.CherryFraming.cs) ────────────
+        // `frame` doubles as the resolved source frame CherryFraming plays; -1 is the BLANK sentinel (Preview.cs
+        // reads it before clamping) used during the between-loop Delay. One "beat" = one tick of previewFps —
+        // CherryAdvanceOneBeat is called once per beat from Tick above.
+        int cherrySlot;             // index into spec.cherryFrames currently showing
+        float cherryBeatsLeft;      // beats remaining before the current slot advances
+        bool cherryDelayActive;     // true while blank between loop iterations (previewDelay > 0)
+        float cherryDelayBeatsLeft;
+
+        // Re-enter CherryFraming playback from slot 0 (or go blank if there are no slots). Call after ANY edit to
+        // cherryFrames/cherryEnabled/previewDelay/frameCount so playback never holds a stale resolved frame or a
+        // beat count computed against a slot that no longer exists.
+        void ResetCherryPlayback()
+        {
+            cherrySlot = 0;
+            cherryDelayActive = false;
+            cherryDelayBeatsLeft = 0f;
+            acc = 0f;
+            if (spec != null && spec.cherryEnabled && spec.cherryFrames != null && spec.cherryFrames.Count > 0)
+                EnterCherrySlot(spec.cherryFrames[0]);
+            else if (spec != null)
+                frame = Mathf.Clamp(frame, 0, Mathf.Max(0, spec.frameCount - 1));
+            previewDirty = true;
+            preview?.MarkDirtyRepaint();
+            RefreshTransportReadout();
+        }
+
+        // One beat tick of CherryFraming playback: hold the current slot's resolved source frame for its resolved
+        // length (in beats), then advance to the next slot. After the LAST slot, if previewDelay > 0 the preview
+        // goes BLANK (frame = -1) for that long before looping back to slot 0; otherwise it loops immediately.
+        void CherryAdvanceOneBeat()
+        {
+            var frames = spec.cherryFrames;
+            if (frames == null || frames.Count == 0) { frame = -1; return; }
+
+            if (cherryDelayActive)
+            {
+                cherryDelayBeatsLeft -= 1f;
+                if (cherryDelayBeatsLeft > 0f) { frame = -1; return; }
+                cherryDelayActive = false;
+                cherrySlot = 0;
+                EnterCherrySlot(frames[0]);
+                return;
+            }
+
+            cherryBeatsLeft -= 1f;
+            if (cherryBeatsLeft > 0f) return;   // still holding the current slot's frame
+
+            cherrySlot++;
+            if (cherrySlot >= frames.Count)
+            {
+                if (spec.previewDelay > 0f)
+                {
+                    cherryDelayActive = true;
+                    cherryDelayBeatsLeft = Mathf.Max(1f, spec.previewDelay * Mathf.Max(1f, spec.previewFps));
+                    frame = -1;
+                    return;
+                }
+                cherrySlot = 0;
+            }
+            EnterCherrySlot(frames[cherrySlot]);
+        }
+
+        void EnterCherrySlot(CherryFrame slot)
+        {
+            frame = Mathf.Clamp(slot.PickSourceFrame(), 0, Mathf.Max(0, spec.frameCount - 1));
+            cherryBeatsLeft = slot.ResolveLength();
+            // A preview-only Zound cue fires once per loop when this slot's index matches previewZoundFrame.
+            // Playback isn't wired up yet — see CHANGELOG / handover for the open item — the field just records
+            // WHICH slot the user wants it on so the UI has somewhere to store the choice.
         }
 
         bool previewDirty = true;
@@ -215,11 +307,13 @@ namespace Laubrary.PyrePlus.Editor
             rightPane.style.minHeight = 0f;
 
             preview = new IMGUIContainer(() => DrawPreview(s));
-            preview.style.flexGrow = 1f;
+            preview.style.height = Mathf.Clamp(previewHeight, PreviewHeightMin, PreviewHeightMax);
+            preview.style.flexGrow = 0f;
+            preview.style.flexShrink = 0f;
             preview.style.minWidth = 200f;
-            preview.style.minHeight = 160f;
             preview.AddToClassList("zui-stage");
             rightPane.Add(preview);
+            rightPane.Add(BuildPreviewResizeBar());
 
             // Transport (Play/Pause + Frame border) and the shared BackSplash backdrop panel sit below the preview.
             var chrome = new VisualElement();
@@ -227,6 +321,10 @@ namespace Laubrary.PyrePlus.Editor
             BuildTransport(chrome, s);
             BuildBackdropPanel(chrome);
             rightPane.Add(chrome);
+
+            // CherryFraming (lower-right) — cherry-pick a sub-sequence of this spec's own baked frames. Grows to
+            // fill whatever's left below the transport/backdrop chrome; scrolls internally when it overflows.
+            BuildCherryPanel(rightPane, s);
 
             split.Add(left);
             split.Add(BuildVerticalSplitter());   // drag to resize the dial pane (and change its column count)
@@ -259,6 +357,27 @@ namespace Laubrary.PyrePlus.Editor
             });
             s.RegisterCallback<PointerUpEvent>(e => { if (s.HasPointerCapture(e.pointerId)) s.ReleasePointer(e.pointerId); });
             return s;
+        }
+
+        // A 6px draggable divider on the preview's BOTTOM edge — how tall the preview island is. UITK's `cursor`
+        // style doesn't accept MouseCursor in this Unity version, so there's no cursor hint; the tooltip is the
+        // only affordance.
+        VisualElement BuildPreviewResizeBar()
+        {
+            var bar = new VisualElement { tooltip = "Drag to resize the preview vertically." };
+            bar.style.height = 6f;
+            bar.style.flexShrink = 0f;
+            bar.style.backgroundColor = new Color(0f, 0f, 0f, 0.25f);
+            bar.RegisterCallback<PointerDownEvent>(e => { if (e.button == 0) { bar.CapturePointer(e.pointerId); e.StopPropagation(); } });
+            bar.RegisterCallback<PointerMoveEvent>(e =>
+            {
+                if (!bar.HasPointerCapture(e.pointerId)) return;
+                previewHeight = Mathf.Clamp(previewHeight + e.deltaPosition.y, PreviewHeightMin, PreviewHeightMax);
+                if (preview != null) preview.style.height = previewHeight;
+                e.StopPropagation();
+            });
+            bar.RegisterCallback<PointerUpEvent>(e => { if (bar.HasPointerCapture(e.pointerId)) bar.ReleasePointer(e.pointerId); });
+            return bar;
         }
 
         // ── saved views (Z2 — the shared ZuiViewBar + committed ZuiViewStore) ──────────
@@ -410,7 +529,14 @@ namespace Laubrary.PyrePlus.Editor
                 v => DirtyRepaintOnly(() => s.previewFps = Mathf.Clamp(Mathf.Round(v), 1f, 30f)), 150f,
                 showValue: true, decimals: 0);
             frameReadout = Z.Text("", ZuiText.Subtle, "The frame currently shown / the total frame count.");
-            transportHost.Add(WrapRow(zoomMs, speedMs, frameReadout));
+            // Delay lives HERE (a transport concern — how long the preview holds blank between loop iterations),
+            // not inside the CherryFraming list below, and it applies regardless of whether CherryFraming is on:
+            // a plain preview loop pauses blank for this long before restarting from frame 0 too.
+            var delayMs = Z.MicroSlider("Delay", s.previewDelay, 0f, 5f,
+                "Seconds the preview holds BLANK between loop iterations before restarting. 0 = no gap.",
+                v => Dirty(() => { s.previewDelay = Mathf.Clamp(v, 0f, 5f); ResetCherryPlayback(); }), 150f,
+                showValue: true, decimals: 2);
+            transportHost.Add(WrapRow(zoomMs, speedMs, delayMs, frameReadout));
 
             RefreshTransportReadout();
         }
@@ -458,10 +584,11 @@ namespace Laubrary.PyrePlus.Editor
             backdropHost.Clear();
             backdropHost.Add(BackSplashZui.Build(backSplash, "Preview backdrop",
                 "A cosmetic backdrop for the preview only — a solid colour plus one optional image. Never baked and "
-                + "has no effect on the render. A private copy: Recall copies values FROM a preset, Save writes them TO one.",
+                + "has no effect on the render. Persisted per asset (spec.previewBackSplash) — closing and reopening "
+                + "this window keeps it.",
                 onChanged: () => preview?.MarkDirtyRepaint(),
                 onStructureChanged: () => { preview?.MarkDirtyRepaint(); FillBackdropPanel(); },
-                icon: "eye"));
+                icon: "eye", owner: spec));
         }
 
         void BuildCanvas(VisualElement root, PyrePlusSpec s)

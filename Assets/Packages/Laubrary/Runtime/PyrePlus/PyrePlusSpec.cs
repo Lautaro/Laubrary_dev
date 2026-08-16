@@ -1270,6 +1270,22 @@ namespace Laubrary.PyrePlus
         [HideInInspector] public bool previewShowShape = true;
         [HideInInspector] public bool previewShowTrace = false;
 
+        // ── CherryFraming — cherry-pick frames from this spec's own baked frames into a sub-sequence ──────────
+        // See Editor/PyrePlus/PyrePlusWindow.CherryFraming.cs. Everything here defaults to a no-op / empty so an
+        // asset saved before CherryFraming existed deserialises byte-identical (rendering is untouched — this is
+        // PREVIEW-ONLY authoring state plus the CherryFrame list itself, never read by PyrePlusRenderer).
+        [HideInInspector] public bool cherryEnabled = false;
+        public List<CherryFrame> cherryFrames = new List<CherryFrame>();
+        [HideInInspector] public float previewCherryStripSize = 96f;   // cherry-grid tile size in px (32..256), independent of the filmstrip's previewStripSize
+        [HideInInspector] public float previewDelay = 0f;              // seconds of blank preview between cherry-loop iterations (0 = no gap)
+        [HideInInspector] public int previewZoundFrame = -1;           // cherry slot index a preview-only Zound fires on each loop; -1 = never
+        [HideInInspector] public string previewZoundName;              // name of the Zound to fire at previewZoundFrame (preview-only, never baked)
+        // The preview backdrop is an editor-only BackSplash (camera colour + one image), persisted PER ASSET so it
+        // survives closing/reopening the window (mirrors Pyre1's own Pyre.previewBackSplash). Lazily allocated —
+        // an asset saved before this field existed has no `previewBackSplash:` block in its YAML (the field is
+        // [HideInInspector], so that's invisible in the Inspector too) until the user first touches the backdrop.
+        [HideInInspector] public Laubrary.BackSplash.BackSplashSettings previewBackSplash;
+
         public int Width => Mathf.Max(1, canvasSize);
         public int Height => Mathf.Max(1, canvasSize);
     }
