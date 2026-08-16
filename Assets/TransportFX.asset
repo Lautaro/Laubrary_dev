@@ -1,0 +1,1484 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00f25238ac06be849aa68b89b68e6e74, type: 3}
+  m_Name: TransportFX
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.SpriteFx::Laubrary.SpriteFx.SpriteFxSpec
+  modifiers:
+  - rid: 4538841274340081834
+  - rid: 4538841274340081836
+  - rid: 4538841274340081842
+  - rid: 1702917368769675887
+  - rid: 4538841274340081851
+  - rid: 4538841274340082554
+  - rid: 4538841274340081841
+  - rid: 4538841274340081837
+  auxMap:
+    enabled: 0
+    scope: 0
+    generator: 0
+    edgeThreshold: 0.18
+    distanceRadius: 8
+    hueCenter: 200
+    hueWidth: 45
+    gain:
+      m_mode: 0
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    bias:
+      m_mode: 0
+      m_static: 0
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    power:
+      m_mode: 0
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    threshold:
+      m_mode: 0
+      m_static: 0
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    blur: 0
+    invertMap: 0
+    respectAlpha: 1
+    strength:
+      m_mode: 0
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    previewHeatmap: 0
+  duration: 2
+  envelope:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0.002357483
+      value: 0.94984055
+      inSlope: 0.0033072322
+      outSlope: 0.0033072322
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0.16159803
+    - serializedVersion: 3
+      time: 0.9836426
+      value: 0.95176697
+      inSlope: 0.00871054
+      outSlope: 0.00871054
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.19999997
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  envelopePoints:
+  - time: 0
+    value: 0.94984055
+    exponent: 1
+    editState: 0
+  - time: 0.18858
+    value: 0.93624
+    exponent: 1
+    editState: 0
+  - time: 0.375
+    value: 0.95017254
+    exponent: 1
+    editState: 0
+  - time: 0.5
+    value: 0.9501407
+    exponent: 1
+    editState: 0
+  - time: 0.625
+    value: 0.9502004
+    exponent: 1
+    editState: 0
+  - time: 0.75
+    value: 0.9504501
+    exponent: 1
+    editState: 0
+  - time: 0.875
+    value: 0.95098835
+    exponent: 1
+    editState: 0
+  - time: 1
+    value: 0.95176697
+    exponent: 1
+    editState: 0
+  seed: 12345
+  targetFps: 25
+  references:
+    version: 2
+    RefIds:
+    - rid: 1702917368769675887
+      type: {class: WipeModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
+      data:
+        enabled: 0
+        auxMapOptOut: 0
+        shape: 3
+        progress:
+          m_mode: 2
+          m_static: 1
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 0
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 1
+            exponent: 1
+            editState: 0
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        size:
+          m_mode: 2
+          m_static: 1.15405
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 0.5051
+            exponent: 1
+            editState: 0
+          - time: 0.98333
+            value: 1.28785
+            exponent: 1
+            editState: 0
+          m_yMin: 0.1
+          m_yMax: 4
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        offsetX:
+          m_mode: 0
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        offsetY:
+          m_mode: 0
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        rotation:
+          m_mode: 2
+          m_static: 1.07788
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: -180
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 180
+            exponent: 1
+            editState: 0
+          m_yMin: -180
+          m_yMax: 180
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        strength:
+          m_mode: 0
+          m_static: 1
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        edge: 0
+        feather: 0.4
+        featherUpgraded: 1
+        featherValue:
+          m_mode: 0
+          m_static: 0.93114
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        fadeAngle:
+          m_mode: 0
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        crescentBite: 0.9
+        crescentBiteUpgraded: 1
+        crescentBiteValue:
+          m_mode: 0
+          m_static: 0.84431
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        crescentThickness: 1
+        crescentThicknessUpgraded: 1
+        crescentThicknessValue:
+          m_mode: 2
+          m_static: 0.9045
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 1.20053
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 0.1
+            exponent: 1
+            editState: 0
+          m_yMin: 0.1
+          m_yMax: 2
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        noiseWarp:
+          m_mode: 0
+          m_static: 0.6
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        noiseDriftX:
+          m_mode: 0
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        noiseDriftY:
+          m_mode: 0
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+    - rid: 4538841274340081834
+      type: {class: ContrastModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
+      data:
+        enabled: 1
+        auxMapOptOut: 0
+        amount:
+          m_mode: 2
+          m_static: 1
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 0
+            exponent: 1
+            editState: 0
+          - time: 0.74573
+            value: 0.28521
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 1.2007
+            exponent: 1
+            editState: 0
+          m_yMin: 0
+          m_yMax: 2
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+    - rid: 4538841274340081836
+      type: {class: BrightnessModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
+      data:
+        enabled: 1
+        auxMapOptOut: 0
+        amount:
+          m_mode: 2
+          m_static: 1
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 0
+            exponent: 1
+            editState: 0
+          - time: 0.40132
+            value: 1.86268
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 1
+            exponent: 1
+            editState: 0
+          m_yMin: 0
+          m_yMax: 2
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+    - rid: 4538841274340081837
+      type: {class: WipeModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
+      data:
+        enabled: 1
+        auxMapOptOut: 0
+        shape: 0
+        progress:
+          m_mode: 2
+          m_static: 1
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 0
+            exponent: 1
+            editState: 0
+          - time: 0.24308
+            value: 0.67782
+            exponent: 1
+            editState: 0
+          - time: 0.73945
+            value: 0.4243
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 1
+            exponent: 1
+            editState: 0
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        size:
+          m_mode: 0
+          m_static: 2.09596
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        offsetX:
+          m_mode: 0
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        offsetY:
+          m_mode: 0
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        rotation:
+          m_mode: 2
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: -180
+            exponent: 1
+            editState: 0
+          - time: 0.29667
+            value: 180
+            exponent: 1
+            editState: 0
+          - time: 0.30018002
+            value: -167.95772
+            exponent: 1
+            editState: 0
+          - time: 0.98729
+            value: 180
+            exponent: 1
+            editState: 0
+          - time: 0.98729
+            value: 174.29578
+            exponent: 1
+            editState: 0
+          m_yMin: -180
+          m_yMax: 180
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        strength:
+          m_mode: 2
+          m_static: 1
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 1
+            exponent: 1
+            editState: 0
+          - time: 0.69018
+            value: 1
+            exponent: 1
+            editState: 0
+          - time: 0.82866
+            value: 1
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 1
+            exponent: 1
+            editState: 0
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        edge: 0
+        feather: 0.4
+        featherUpgraded: 1
+        featherValue:
+          m_mode: 2
+          m_static: 0.03593
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 0.03593
+            exponent: 1
+            editState: 0
+          - time: 0.26834
+            value: 0.76584
+            exponent: 1
+            editState: 0
+          - time: 0.79105
+            value: 1
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 1
+            exponent: 1
+            editState: 0
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        fadeAngle:
+          m_mode: 0
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        crescentBite: 0.9
+        crescentBiteUpgraded: 1
+        crescentBiteValue:
+          m_mode: 0
+          m_static: 0.9
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        crescentThickness: 1
+        crescentThicknessUpgraded: 1
+        crescentThicknessValue:
+          m_mode: 0
+          m_static: 1
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        noiseWarp:
+          m_mode: 0
+          m_static: 0.6
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        noiseDriftX:
+          m_mode: 0
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        noiseDriftY:
+          m_mode: 0
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+    - rid: 4538841274340081841
+      type: {class: SphereModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
+      data:
+        enabled: 1
+        auxMapOptOut: 0
+        strength:
+          m_mode: 2
+          m_static: -3.38323
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 5
+            exponent: 1
+            editState: 0
+          - time: 0.18476
+            value: 1.00352
+            exponent: 1
+            editState: 0
+          - time: 0.36724
+            value: -5
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 0.08803
+            exponent: 1
+            editState: 0
+          m_yMin: -5
+          m_yMax: 5
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        originX:
+          m_mode: 0
+          m_static: -16.47904
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        originY:
+          m_mode: 0
+          m_static: -21.07784
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        radius:
+          m_mode: 2
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 3.32396
+            exponent: 1
+            editState: 0
+          - time: 0.18691
+            value: 32
+            exponent: 1
+            editState: 0
+          - time: 0.26914978
+            value: 14.25353
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 0
+            exponent: 1
+            editState: 0
+          m_yMin: 0
+          m_yMax: 32
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+    - rid: 4538841274340081842
+      type: {class: ColorTintModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
+      data:
+        enabled: 1
+        auxMapOptOut: 0
+        color: {r: 0.9411765, g: 0, b: 0.9164922, a: 1}
+        colorUpgraded: 1
+        colorOverLife:
+          gradient:
+            serializedVersion: 2
+            key0: {r: 0, g: 0.8871305, b: 1, a: 1}
+            key1: {r: 0.739446, g: 0.05259478, b: 1, a: 1}
+            key2: {r: 0.5325551, g: 1, b: 0, a: 0}
+            key3: {r: 1, g: 0, b: 0.45925522, a: 0}
+            key4: {r: 0.20071113, g: 0.9075164, b: 0.99744314, a: 0}
+            key5: {r: 0.172549, g: 0.3039747, b: 0.99607843, a: 0}
+            key6: {r: 0.172549, g: 0.3039747, b: 0.99607843, a: 0}
+            key7: {r: 0.172549, g: 0.3039747, b: 0.99607843, a: 0}
+            ctime0: 0
+            ctime1: 11608
+            ctime2: 22316
+            ctime3: 37308
+            ctime4: 51700
+            ctime5: 61038
+            ctime6: 65535
+            ctime7: 65535
+            atime0: 0
+            atime1: 65535
+            atime2: 0
+            atime3: 0
+            atime4: 0
+            atime5: 0
+            atime6: 0
+            atime7: 0
+            m_Mode: 0
+            m_ColorSpace: 0
+            m_NumColorKeys: 7
+            m_NumAlphaKeys: 2
+          reverse: 0
+          quantiseSteps: 0
+          hueShift: 0
+          saturation: 1
+          brightness: 1
+          contrast: 1
+          hueShiftAnim:
+            rid: 4538841274340082605
+          saturationAnim:
+            rid: 4538841274340082606
+          brightnessAnim:
+            rid: 4538841274340082607
+          contrastAnim:
+            rid: 4538841274340082608
+          phaseAnim:
+            rid: 4538841274340082609
+          cycle: 0
+          cycleSpeed: 0.5
+        amount:
+          m_mode: 2
+          m_static: 1
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 1
+            exponent: 1
+            editState: 0
+          - time: 0.45243
+            value: 0.86796
+            exponent: 1
+            editState: 0
+          - time: 0.58734
+            value: 0.27993
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 0
+            exponent: 1
+            editState: 0
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+    - rid: 4538841274340081851
+      type: {class: ColorReplaceModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
+      data:
+        enabled: 0
+        auxMapOptOut: 0
+        replacements:
+        - targetHue: 0
+          targetHueUpgraded: 1
+          targetHueValue:
+            m_mode: 0
+            m_static: 240.35927
+            m_min: 0
+            m_max: 1
+            m_points: []
+            m_yMin: 0
+            m_yMax: 1
+            m_duration: 4
+            m_warmup: 0
+            m_cooldown: -1
+            m_smoothness: 0
+            m_steps: []
+            m_oscMin: []
+            m_oscMax: []
+            m_oscRate: []
+            m_oscRateMax: 8
+            m_multiplierId: 
+          targetRange: 30
+          targetRangeUpgraded: 1
+          targetRangeValue:
+            m_mode: 0
+            m_static: 25.18919
+            m_min: 0
+            m_max: 1
+            m_points: []
+            m_yMin: 0
+            m_yMax: 1
+            m_duration: 4
+            m_warmup: 0
+            m_cooldown: -1
+            m_smoothness: 0
+            m_steps: []
+            m_oscMin: []
+            m_oscMax: []
+            m_oscRate: []
+            m_oscRateMax: 8
+            m_multiplierId: 
+          targetSmoothing: 0.5
+          targetSmoothingUpgraded: 1
+          targetSmoothingValue:
+            m_mode: 0
+            m_static: 0.57784
+            m_min: 0
+            m_max: 1
+            m_points: []
+            m_yMin: 0
+            m_yMax: 1
+            m_duration: 4
+            m_warmup: 0
+            m_cooldown: -1
+            m_smoothness: 0
+            m_steps: []
+            m_oscMin: []
+            m_oscMax: []
+            m_oscRate: []
+            m_oscRateMax: 8
+            m_multiplierId: 
+          amount:
+            m_mode: 0
+            m_static: 1
+            m_min: 0
+            m_max: 1
+            m_points: []
+            m_yMin: 0
+            m_yMax: 1
+            m_duration: 4
+            m_warmup: 0
+            m_cooldown: -1
+            m_smoothness: 0
+            m_steps: []
+            m_oscMin: []
+            m_oscMax: []
+            m_oscRate: []
+            m_oscRateMax: 8
+            m_multiplierId: 
+          replacementHue: 200
+          replacementHueUpgraded: 1
+          replacementHueValue:
+            m_mode: 4
+            m_static: 194.01196
+            m_min: 0
+            m_max: 1
+            m_points: []
+            m_yMin: 0
+            m_yMax: 360
+            m_duration: 4
+            m_warmup: 0
+            m_cooldown: -1
+            m_smoothness: 0
+            m_steps: []
+            m_oscMin:
+            - time: 0
+              value: 167.88472
+              exponent: 1
+              editState: 0
+            - time: 0.99909
+              value: 154.03862
+              exponent: 1
+              editState: 0
+            m_oscMax:
+            - time: 0.02047
+              value: 212.88467
+              exponent: 1
+              editState: 0
+            - time: 0.99982
+              value: 223.26912
+              exponent: 1
+              editState: 0
+            m_oscRate:
+            - time: 0.00054
+              value: 8
+              exponent: 1
+              editState: 0
+            - time: 0.50108
+              value: 8
+              exponent: 1
+              editState: 0
+            - time: 1
+              value: 8
+              exponent: 1
+              editState: 0
+            m_oscRateMax: 8
+            m_multiplierId: 
+          replacementSmoothing: 1
+          replacementSmoothingUpgraded: 1
+          replacementSmoothingValue:
+            m_mode: 0
+            m_static: 0
+            m_min: 0
+            m_max: 1
+            m_points: []
+            m_yMin: 0
+            m_yMax: 1
+            m_duration: 4
+            m_warmup: 0
+            m_cooldown: -1
+            m_smoothness: 0
+            m_steps: []
+            m_oscMin: []
+            m_oscMax: []
+            m_oscRate: []
+            m_oscRateMax: 8
+            m_multiplierId: 
+          brightness: 1
+          brightnessUpgraded: 1
+          brightnessValue:
+            m_mode: 0
+            m_static: 0.65868
+            m_min: 0
+            m_max: 1
+            m_points: []
+            m_yMin: 0
+            m_yMax: 1
+            m_duration: 4
+            m_warmup: 0
+            m_cooldown: -1
+            m_smoothness: 0
+            m_steps: []
+            m_oscMin: []
+            m_oscMax: []
+            m_oscRate: []
+            m_oscRateMax: 8
+            m_multiplierId: 
+          saturation: 1
+          saturationUpgraded: 1
+          saturationValue:
+            m_mode: 0
+            m_static: 0.82036
+            m_min: 0
+            m_max: 1
+            m_points: []
+            m_yMin: 0
+            m_yMax: 1
+            m_duration: 4
+            m_warmup: 0
+            m_cooldown: -1
+            m_smoothness: 0
+            m_steps: []
+            m_oscMin: []
+            m_oscMax: []
+            m_oscRate: []
+            m_oscRateMax: 8
+            m_multiplierId: 
+          highlight: 0
+          highlightAmount: 1
+          highlightSpeed: 2
+    - rid: 4538841274340082554
+      type: {class: KaleidoscopeModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
+      data:
+        enabled: 0
+        auxMapOptOut: 0
+        mode: 0
+        arms: 6
+        arcDegrees:
+          m_mode: 2
+          m_static: 142.70268
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 360
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 0
+            exponent: 1
+            editState: 0
+          m_yMin: 0
+          m_yMax: 360
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        rotationDegrees:
+          m_mode: 2
+          m_static: -62.51489
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: -360
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 360
+            exponent: 1
+            editState: 0
+          m_yMin: -360
+          m_yMax: 360
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        variation:
+          m_mode: 0
+          m_static: 0.61562
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        keepOriginal: 0
+    - rid: 4538841274340082605
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points:
+        - time: 0
+          value: -0.50352
+          exponent: 1
+          editState: 0
+        - time: 0.32393
+          value: 0.23591
+          exponent: 1
+          editState: 0
+        - time: 0.6644
+          value: -0.63028
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0
+          exponent: 1
+          editState: 0
+        m_yMin: -1
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4538841274340082606
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1.81982
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4538841274340082607
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4538841274340082608
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 4538841274340082609
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 2
+        m_static: 1.01502
+        m_min: 0
+        m_max: 1
+        m_points:
+        - time: 0
+          value: 0
+          exponent: 1
+          editState: 0
+        - time: 0.1
+          value: 1.83408
+          exponent: 1
+          editState: 0
+        - time: 0.2
+          value: 0
+          exponent: 1
+          editState: 0
+        - time: 0.3
+          value: 1.83408
+          exponent: 1
+          editState: 0
+        - time: 0.4
+          value: 0
+          exponent: 1
+          editState: 0
+        - time: 0.5
+          value: 1.83408
+          exponent: 1
+          editState: 0
+        - time: 0.6
+          value: 0
+          exponent: 1
+          editState: 0
+        - time: 0.7
+          value: 1.83408
+          exponent: 1
+          editState: 0
+        - time: 0.8
+          value: 0
+          exponent: 1
+          editState: 0
+        - time: 0.9
+          value: 1.83408
+          exponent: 1
+          editState: 0
+        - time: 1
+          value: 0
+          exponent: 1
+          editState: 0
+        m_yMin: 0
+        m_yMax: 2
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0.76233
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 

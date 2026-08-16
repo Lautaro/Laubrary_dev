@@ -33,7 +33,8 @@
         "com.Lautaro-Arino.Laubrary.Zoetrope.Pyre",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.Loom",
-        "com.Lautaro-Arino.Laubrary.Daemon"
+        "com.Lautaro-Arino.Laubrary.Daemon",
+        "com.Lautaro-Arino.Laubrary.ZoeCharacter"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

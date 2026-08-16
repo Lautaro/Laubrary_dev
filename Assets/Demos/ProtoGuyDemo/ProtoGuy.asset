@@ -1,0 +1,164 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0413ec766917e0b4bb054a79ec22ed07, type: 3}
+  m_Name: ProtoGuy
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Zoetrope::Laubrary.Zoetrope.Zoe
+  displayName: ProtoGuy
+  maxHealth: 100
+  faction: {fileID: 0}
+  invulnerableAfterHit: 0
+  view:
+    rid: 1702917371834400849
+  deathDisposal: 1
+  deathLinger: 1.5
+  pixelPerfectHits: 0
+  locomotion:
+    idleClip: 
+    moveClip: 
+    moveThreshold: 0.15
+  motionPose:
+    channel: 0
+    moveThreshold: 0.15
+    fixedAngleDeg: 0
+    rules: []
+  hit:
+    id: Hit
+    trigger:
+      rid: 1702917382465650769
+    clip: 
+    durationMode: 0
+    loops: 1
+    seconds: 0
+    stunSeconds: 0
+    invulnerableSeconds: 0
+    endsCharacter: 0
+    disposal: 1
+    linger: 1.5
+    bodyFx: {fileID: 0}
+    fx: []
+  death:
+    id: Death
+    trigger:
+      rid: 1702917382465650770
+    clip: 
+    durationMode: 0
+    loops: 1
+    seconds: 0
+    stunSeconds: 0
+    invulnerableSeconds: 0
+    endsCharacter: 1
+    disposal: 1
+    linger: 1.5
+    bodyFx: {fileID: 0}
+    fx: []
+  events: []
+  zoeEvents:
+  - id: Hit
+    trigger:
+      rid: 1702917382465650769
+    clip: 
+    durationMode: 0
+    loops: 1
+    seconds: 0
+    stunSeconds: 0
+    invulnerableSeconds: 0
+    endsCharacter: 0
+    disposal: 1
+    linger: 1.5
+    bodyFx: {fileID: 0}
+    fx: []
+  - id: Death
+    trigger:
+      rid: 1702917382465650770
+    clip: 
+    durationMode: 0
+    loops: 1
+    seconds: 0
+    stunSeconds: 0
+    invulnerableSeconds: 0
+    endsCharacter: 1
+    disposal: 1
+    linger: 1.5
+    bodyFx: {fileID: 0}
+    fx: []
+  eventsUpgraded: 1
+  brain:
+    rid: -2
+  loadout: []
+  weapons:
+  - {fileID: 11400000, guid: 30aaf3dc11627dd4f8b668e2944b0f3d, type: 2}
+  defaultActiveWeapon: 0
+  cues: []
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 1702917371834400849
+      type: {class: CompositeLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
+      data:
+        parts:
+        - name: Legs
+          view:
+            rid: 1702917371834400850
+          parentPartName: 
+          attachMetaLayerId: 
+          motionPose:
+            channel: 0
+            moveThreshold: 0.15
+            fixedAngleDeg: 0
+            rules:
+            - condition: 2
+              setName: LegsIdle16
+              overrideChannel: 1
+              channel: 1
+            - condition: 1
+              setName: LegsWalk3
+              overrideChannel: 0
+              channel: 0
+        - name: Upper
+          view:
+            rid: 1702917371834400851
+          parentPartName: Legs
+          attachMetaLayerId: 
+          motionPose:
+            channel: 1
+            moveThreshold: 0.15
+            fixedAngleDeg: 0
+            rules:
+            - condition: 0
+              setName: UpperAim16
+              overrideChannel: 0
+              channel: 0
+    - rid: 1702917371834400850
+      type: {class: ZonedLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
+      data:
+        version: {fileID: 11400000, guid: de368f474719db142a480875b0f983d8, type: 2}
+        idleClip: LegsIdle_N
+        height: 0
+    - rid: 1702917371834400851
+      type: {class: ZonedLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
+      data:
+        version: {fileID: 11400000, guid: ac102d54aca8c9e428fb6e4a0f73c6a5, type: 2}
+        idleClip: Upper_N
+        height: 0
+    - rid: 1702917382465650769
+      type: {class: OnDamagedTrigger, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
+      data:
+        damageType: {fileID: 0}
+        minAmount: 0
+        requireCrit: 0
+    - rid: 1702917382465650770
+      type: {class: OnDiedTrigger, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
+      data:
+        damageType: {fileID: 0}
+        requireCrit: 0

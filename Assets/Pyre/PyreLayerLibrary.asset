@@ -11276,9 +11276,10 @@ MonoBehaviour:
         pivotX: -0.047618985
         pivotY: -0.19047761
     - rid: 1452078007603691708
-      type: {class: PerlinTurbulenceModifier, ns: Laubrary.Pyre, asm: com.Lautaro-Arino.Laubrary.Pyre}
+      type: {class: TurbulenceModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
       data:
         enabled: 1
+        noise: 1
         amplitude:
           m_mode: 2
           m_static: 18.86069
