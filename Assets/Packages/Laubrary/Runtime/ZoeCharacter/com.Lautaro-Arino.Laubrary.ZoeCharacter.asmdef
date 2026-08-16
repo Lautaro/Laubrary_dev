@@ -1,0 +1,17 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.ZoeCharacter",
+    "rootNamespace": "Laubrary.ZoeCharacter",
+    "references": [
+        "Unity.InputSystem",
+        "com.Lautaro-Arino.Laubrary.Combat2D"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
