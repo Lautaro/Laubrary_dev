@@ -4,8 +4,11 @@ using UnityEngine;
 
 namespace Laubrary.SpriteFx
 {
-    /// The moving shape an Alpha-Mask modifier sweeps across the layer.
-    /// APPEND-ONLY: serialized as an int on every authored mask, so an existing shape must never change index.
+    /// Documents the shared <see cref="SfxKernels.KAlphaMask"/> kernel's shape space — every value
+    /// <see cref="MaskP.shape"/> can carry as an int (<see cref="WipeModifier"/> maps its own, smaller
+    /// <see cref="WipeShape"/> onto this same set). No modifier serializes this enum directly any more —
+    /// the standalone AlphaMaskModifier it originally belonged to was retired 2026-08-15, folded into Wipe.
+    /// APPEND-ONLY regardless: its ordinals are the kernel's own int contract.
     public enum MaskShape
     {
         DiscOut,   // a disc that reveals from the centre outward as progress rises (grow from within)
@@ -72,9 +75,10 @@ namespace Laubrary.SpriteFx
         // (dotted with the offset to each corner) — the classic fix, since a pure direction field has no bias
         // toward a bump centred exactly on a lattice point. Paired with a QUINTIC fade (not cubic smoothstep)
         // for continuous second derivatives, same as Ken Perlin's own "improved noise". Exposed only through
-        // PerlinTurbulenceModifier (a separate, opt-in modifier) rather than swapping Sample() in place, since
-        // every existing Turbulence/Curl/Noise-fill/AlphaMask-noise asset is built on Sample()'s own shape —
-        // changing it under them would silently reshape everything already saved.
+        // TurbulenceModifier's Gradient noise mode (a per-instance dial, not a whole separate class since
+        // 2026-08-15) rather than swapping Sample() in place, since every existing Curl/Noise-fill/Wipe-noise
+        // asset is built on Sample()'s own shape — changing it under them would silently reshape everything
+        // already saved.
         public static float SampleGradient(float x, float y, int seed, float warp)
         {
             if (warp > 0.001f)
@@ -763,12 +767,13 @@ namespace Laubrary.SpriteFx
     /// Radial ray / starburst SILHOUETTE modulation — N alternating spokes that genuinely reach further out than
     /// the shape's own radius, with the gaps between them pulled in — a proper star, not a tint. Was originally a
     /// PixelModifier that only brightened/darkened alternating wedges (a "dark pattern overlaid", not real spokes
-    /// — reported). Reuses JaggModifier's exact mechanism (a radial coordinate scale about the shape centre: >1 at
+    /// — reported). The mechanism is a radial coordinate scale about the shape centre: >1 at
     /// a ray shrinks the SAMPLE offset, so the shape reaches further out there; <1 between rays grows it, pulling
-    /// the silhouette in) — the ray positions/sharpness math is unchanged from the old colour version, just now
+    /// the silhouette in — the ray positions/sharpness math is unchanged from the old colour version, just now
     /// driving `d/scale` instead of a colour multiplier. `rays` sets the spoke count; `sharpness` how crisp the
-    /// spokes read (soft rounded points vs narrow hard-edged blades — Jagg only ever gives the soft/rounded look,
-    /// this is the sharper sibling); `rotation` spins the whole pattern.
+    /// spokes read (soft rounded points at the dial's low end, narrower hard-edged blades higher up — this is
+    /// the only modifier in the family now, having absorbed the retired JaggModifier's soft/rounded-star look);
+    /// `rotation` spins the whole pattern.
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class SunburstModifier : GeometryModifier
@@ -782,7 +787,7 @@ namespace Laubrary.SpriteFx
         public ZUIValue strength = new ZUIValue(0.6f);
         [HideInInspector] public float sharpness = 2f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
         [Range(0.5f, 8f)]
-        [Tooltip("Ray crispness: 1 = soft, rounded points (like Jagg); higher = narrower, harder-edged blades.")]
+        [Tooltip("Ray crispness: 1 = soft, rounded points; higher = narrower, harder-edged blades.")]
         public ZUIValue sharpnessValue = new ZUIValue(2f);
         [HideInInspector] public bool sharpnessUpgraded;
         public ZUIValue Sharpness { get { if (!sharpnessUpgraded) { sharpnessValue = new ZUIValue(sharpness); sharpnessUpgraded = true; } return sharpnessValue; } }
@@ -858,7 +863,7 @@ namespace Laubrary.SpriteFx
     /// Quantizes colour (and optionally alpha) into a fixed number of discrete steps per channel — the single
     /// biggest lever for making a soft procedural gradient read as hand-painted banded shading instead of a smooth
     /// shader gradient. Levels is a plain int (not animatable) since a shifting band count reads as flickering, not
-    /// motion — same reasoning as JaggModifier.arms.
+    /// motion — same reasoning as Sunburst's ray count.
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class PosterizeModifier : PixelModifier
@@ -1267,116 +1272,13 @@ namespace Laubrary.SpriteFx
         public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.LayerDissolve, dissolve = P(), lutIndex = -1 };
     }
 
-    /// A moving transparency mask: sweeps a soft-edged shape across the layer, multiplying alpha. A disc that
-    /// reveals from the centre out or eats inward from the edges, or a horizontal / vertical wipe (scene-transition
-    /// style). Animate `progress` (0→1) to drive the sweep; sharpness sets the edge hardness; size scales it;
-    /// rotation + offset place it.
-    [Serializable]
-    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
-    public class AlphaMaskModifier : PixelModifier
-    {
-        [Tooltip("The form the mask sweeps: a disc opening outward or closing inward, a horizontal or vertical " +
-                 "scene-transition swipe, a pac-man wedge eaten by angle, an irregular noise cloud, or a " +
-                 "triangle / square / crescent growing from the centre.")]
-        public MaskShape shape = MaskShape.DiscOut;
-        [Range(0f, 1f)]
-        [Tooltip("0→1 sweep position. A rising envelope reveals the layer; a falling one hides it. Animatable.")]
-        public ZUIValue progress = DefaultProgress();
-        [HideInInspector] public float sharpness = 0.6f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
-        [Range(0f, 1f)]
-        [Tooltip("Edge hardness: 1 = a crisp cut, 0 = a wide soft gradient.")]
-        public ZUIValue sharpnessValue = new ZUIValue(0.6f);
-        [HideInInspector] public bool sharpnessUpgraded;
-        public ZUIValue Sharpness { get { if (!sharpnessUpgraded) { sharpnessValue = new ZUIValue(sharpness); sharpnessUpgraded = true; } return sharpnessValue; } }
-        [Range(0.1f, 4f)]
-        [Tooltip("Mask scale. 1 = spans the half-canvas. Animatable.")]
-        public ZUIValue size = new ZUIValue(1f);
-        [Range(-180f, 180f)]
-        [Tooltip("Mask rotation in degrees (rotates the wipe direction / disc axis). Animatable.")]
-        public ZUIValue rotation = new ZUIValue(0f);
-        [HideInInspector] public float offsetX = 0f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
-        [ZUIPair2D("offsetYValue", "Centre offset")]
-        [Tooltip("Where the mask's centre sits, in half-canvas units: (-1,-1) is the bottom-left corner, " +
-                 "(+1,+1) the top-right, (0,0) the middle.")]
-        [Range(-1f, 1f)] public ZUIValue offsetXValue = new ZUIValue(0f);
-        [HideInInspector] public bool offsetXUpgraded;
-        public ZUIValue OffsetX { get { if (!offsetXUpgraded) { offsetXValue = new ZUIValue(offsetX); offsetXUpgraded = true; } return offsetXValue; } }
-        [HideInInspector] public float offsetY = 0f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
-        [Tooltip("Mask centre offset Y, in half-canvas units (-1..1).")]
-        [Range(-1f, 1f)] public ZUIValue offsetYValue = new ZUIValue(0f);
-        [HideInInspector] public bool offsetYUpgraded;
-        public ZUIValue OffsetY { get { if (!offsetYUpgraded) { offsetYValue = new ZUIValue(offsetY); offsetYUpgraded = true; } return offsetYValue; } }
-
-        [HideInInspector] public float noiseWarp = 0.6f;
-        [HideInInspector] public bool noiseWarpUpgraded;
-        [ZUIShowIf("shape", "Noise")]
-        [Tooltip("Domain-warp strength — how much the noise field bends on itself. 0 = plain smooth noise " +
-                 "(a blobby cloud); higher = more churned, organic eddies. Animatable — ramp the churn up " +
-                 "as the mask closes.")]
-        [Range(0f, 2f)] public ZUIValue noiseWarpValue = new ZUIValue(0.6f);
-        public ZUIValue NoiseWarp { get { if (!noiseWarpUpgraded) { noiseWarpValue = new ZUIValue(noiseWarp); noiseWarpUpgraded = true; } return noiseWarpValue; } }
-        [ZUIShowIf("shape", "Noise")]
-        [ZUIPair2D("noiseDriftY", "Noise drift")]
-        [Range(-64f, 64f)]
-        [Tooltip("Extra drift added to the noise sample position over the mask's progress, in half-canvas " +
-                 "units. Animate it for a cloud that visibly rolls or billows as it reveals.")]
-        public ZUIValue noiseDriftX = new ZUIValue(0f);
-        [Range(-64f, 64f)]
-        [Tooltip("Extra Y drift added to the noise sample position, in half-canvas units. Animatable.")]
-        public ZUIValue noiseDriftY = new ZUIValue(0f);
-
-        [HideInInspector] public float crescentBite = 0.9f;
-        [HideInInspector] public bool crescentBiteUpgraded;
-        [ZUIShowIf("shape", "Crescent")]
-        [Tooltip("How far the bitten-out disc sits from the centre. Low = the bite swallows almost " +
-                 "everything (a thin sliver); high = it barely clips the edge (an almost-full moon). " +
-                 "Animatable.")]
-        [Range(0f, 2f)] public ZUIValue crescentBiteValue = new ZUIValue(0.9f);
-        public ZUIValue CrescentBite { get { if (!crescentBiteUpgraded) { crescentBiteValue = new ZUIValue(crescentBite); crescentBiteUpgraded = true; } return crescentBiteValue; } }
-
-        [HideInInspector] public float crescentThickness = 1f;
-        [HideInInspector] public bool crescentThicknessUpgraded;
-        [ZUIShowIf("shape", "Crescent")]
-        [Tooltip("The bitten-out disc's own radius. Bigger takes a deeper bite, leaving a thinner, more " +
-                 "curved sliver. Animatable.")]
-        [Range(0.1f, 2f)] public ZUIValue crescentThicknessValue = new ZUIValue(1f);
-        public ZUIValue CrescentThickness { get { if (!crescentThicknessUpgraded) { crescentThicknessValue = new ZUIValue(crescentThickness); crescentThicknessUpgraded = true; } return crescentThicknessValue; } }
-
-        float prog, siz, rotRad, driftX, driftY, offX, offY, sharp, warpV, biteV, thickV;
-        public override string DisplayName => "Alpha mask";
-        public override void Prepare(Func<ZUIValue, int, float> e)
-        {
-            prog = Mathf.Clamp01(e(progress, 0));
-            siz = Mathf.Max(0.01f, e(size, 1));
-            rotRad = e(rotation, 2) * Mathf.Deg2Rad;
-            driftX = e(noiseDriftX, 3);
-            driftY = e(noiseDriftY, 4);
-            offX = Mathf.Clamp(e(OffsetX, 5), -1f, 1f);
-            offY = Mathf.Clamp(e(OffsetY, 6), -1f, 1f);
-            sharp = Mathf.Clamp01(e(Sharpness, 7));
-            warpV = e(NoiseWarp, 8);
-            biteV = e(CrescentBite, 9);
-            thickV = e(CrescentThickness, 10);
-        }
-
-        MaskP P() => new MaskP
-        {
-            shape = (int)shape, prog = prog, siz = siz, rotRad = rotRad, driftX = driftX, driftY = driftY,
-            sharpness = sharp, offsetX = offX, offsetY = offY, noiseWarp = warpV,
-            strength = 1f, fadeMode = SfxKernels.FadeEdge, fadeAngleRad = 0f,
-            biteX = biteV, biteR = thickV
-        };
-        public override bool ApplyPixel(ref Color col, ref float a, in PixelInfo p)
-            => SfxKernels.KAlphaMask(P(), ref col, ref a, p);
-        public override SfxOp ResolveSfxOp() => new SfxOp { kind = SfxKernel.AlphaMask, mask = P(), lutIndex = -1 };
-
-        static ZUIValue DefaultProgress() => Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);   // reveal over life
-    }
-
     /// The shape a Wipe reveals through. Its own enum rather than the whole <see cref="MaskShape"/> set, because
     /// a wipe is authored as "reveal through a form" — the swipes and the pac-man wedge belong to Alpha mask's
     /// scene-transition vocabulary, not this one.
-    public enum WipeShape { Triangle, Square, Disc, Crescent }
+    /// The original 4 keep their ordinals for back-compat with authored assets; the 5 appended afterward
+    /// (2026-08-15 fusion with <see cref="AlphaMaskModifier"/>) bring the rest of the shared kernel's shape
+    /// vocabulary — scene-transition swipes, an inward-eating disc, a pac-man wedge, and an irregular noise cloud.
+    public enum WipeShape { Triangle, Square, Disc, Crescent, DiscIn, SwipeH, SwipeV, Wedge, Noise }
 
     /// How a Wipe's boundary reads.
     public enum WipeEdge
@@ -1461,7 +1363,22 @@ namespace Laubrary.SpriteFx
         [Range(0.1f, 2f)] public ZUIValue crescentThicknessValue = new ZUIValue(1f);
         public ZUIValue CrescentThickness { get { if (!crescentThicknessUpgraded) { crescentThicknessValue = new ZUIValue(crescentThickness); crescentThicknessUpgraded = true; } return crescentThicknessValue; } }
 
-        float prog, siz, rotRad, offX, offY, strengthV, fadeRad, featherV, biteV, thickV;
+        [ZUIShowIf("shape", "Noise")]
+        [Tooltip("Domain-warp strength — how much the noise field bends on itself. 0 = plain smooth noise " +
+                 "(a blobby cloud); higher = more churned, organic eddies. Animatable — ramp the churn up " +
+                 "as the wipe closes.")]
+        [Range(0f, 2f)] public ZUIValue noiseWarp = new ZUIValue(0.6f);
+        [ZUIShowIf("shape", "Noise")]
+        [ZUIPair2D("noiseDriftY", "Noise drift")]
+        [Range(-64f, 64f)]
+        [Tooltip("Extra drift added to the noise sample position over the wipe's progress, in half-canvas " +
+                 "units. Animate it for a cloud that visibly rolls or billows as it reveals.")]
+        public ZUIValue noiseDriftX = new ZUIValue(0f);
+        [Range(-64f, 64f)]
+        [Tooltip("Extra Y drift added to the noise sample position, in half-canvas units. Animatable.")]
+        public ZUIValue noiseDriftY = new ZUIValue(0f);
+
+        float prog, siz, rotRad, offX, offY, strengthV, fadeRad, featherV, biteV, thickV, warpV, driftX, driftY;
         public override string DisplayName => "Wipe";
 
         public override void Prepare(Func<ZUIValue, int, float> e)
@@ -1476,6 +1393,9 @@ namespace Laubrary.SpriteFx
             featherV = Mathf.Clamp01(e(Feather, 7));
             biteV = e(CrescentBite, 8);
             thickV = e(CrescentThickness, 9);
+            warpV = e(noiseWarp, 10);
+            driftX = e(noiseDriftX, 11);
+            driftY = e(noiseDriftY, 12);
         }
 
         static int ShapeId(WipeShape s)
@@ -1485,6 +1405,11 @@ namespace Laubrary.SpriteFx
                 case WipeShape.Triangle: return SfxKernels.MaskTriangle;
                 case WipeShape.Square: return SfxKernels.MaskSquare;
                 case WipeShape.Crescent: return SfxKernels.MaskCrescent;
+                case WipeShape.DiscIn: return SfxKernels.MaskDiscIn;
+                case WipeShape.SwipeH: return SfxKernels.MaskSwipeH;
+                case WipeShape.SwipeV: return SfxKernels.MaskSwipeV;
+                case WipeShape.Wedge: return SfxKernels.MaskWedge;
+                case WipeShape.Noise: return SfxKernels.MaskNoise;
                 default: return SfxKernels.MaskDiscOut;
             }
         }
@@ -1503,8 +1428,10 @@ namespace Laubrary.SpriteFx
         {
             shape = ShapeId(shape),
             prog = prog, siz = siz, rotRad = rotRad,
+            driftX = driftX, driftY = driftY,
             sharpness = 1f - featherV,   // the shared kernel speaks in edge HARDNESS
             offsetX = offX, offsetY = offY,
+            noiseWarp = warpV,
             strength = strengthV,
             fadeMode = FadeId(edge), fadeAngleRad = fadeRad,
             biteX = biteV, biteR = thickV
@@ -2225,156 +2152,9 @@ namespace Laubrary.SpriteFx
         }
     }
 
-    /// A projectile tunnelling through the ALREADY-RENDERED frame as if it were a cloud of some density — the
-    /// pixel data itself (alpha) IS the cloud, not a separately-authored field, so a dense (opaque) region
-    /// genuinely resists the shot more than empty (transparent) space. Necessarily a whole-frame Post effect,
-    /// not a per-shape GeometryModifier: only a Post pass sees the FINISHED pixels to read density from at all
-    /// (a GeometryModifier's InverseWarp runs BEFORE its own shape's pixel is even sampled, so it has nothing
-    /// real to read density from yet).
-    ///
-    /// Each frame, marches the projectile's travel line from the canvas edge (Depth 0) to its current tip
-    /// (Depth 1 = the far edge) in fixed steps, sampling the cloud's own alpha along the centreline and
-    /// integrating it into a running "how much medium has this shot already punched through" total — the
-    /// remaining push force decays with that integral (Beer-Lambert-style absorption: exp(-integratedDensity ×
-    /// Density)), so a shot that's already torn through a lot of dense cloud arrives at any given point with
-    /// less force left than one that had a clear run. This is a single-frame SPATIAL integral (along the
-    /// CURRENT frame's own line), not carried over between frames — Pyre bakes every frame independently.
-    /// Density = 0 disables the resistance entirely (uniform full-strength push along the whole path, same as
-    /// a shot moving through a vacuum).
-    ///
-    /// The actual push is a resample (like Sphere/the old rod modifiers' inverse-remap), reading from a
-    /// snapshot of the frame taken before this modifier ran, so pixels the shot passes get their content pulled
-    /// sideways out of the way — using the cloud's OWN pixels, not a synthetic stretch.
-    [Serializable]
-    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
-    public class CloudProjectileModifier : PostModifier
-    {
-        [Range(-180f, 180f)]
-        [Tooltip("Direction the projectile travels, in degrees (0 = along +X). Animatable.")]
-        public ZUIValue angleDeg = new ZUIValue(0f);
-        [Range(-32f, 32f)]
-        [Tooltip("Slides the travel line sideways (perpendicular to its own direction), in pixels off the " +
-                 "canvas centre. Animatable.")]
-        public ZUIValue offset = new ZUIValue(0f);
-        [Range(0f, 1f)]
-        [Tooltip("How far the projectile has travelled: 0 = hasn't entered yet (sitting at the canvas edge), " +
-                 "1 = has travelled all the way across to the far edge. Animatable — default ramps 0→1 over life.")]
-        public ZUIValue depth = Sfx.CurveVal(1f, 0f, 0f, 1f, 1f);
-        [Range(1f, 32f)]
-        [Tooltip("How far the push reaches perpendicular to the travel line, in pixels.")]
-        public ZUIValue radius = new ZUIValue(10f);
-        [Range(-20f, 20f)]
-        [Tooltip("Push strength before any cloud resistance is applied. Animatable.")]
-        public ZUIValue strength = new ZUIValue(6f);
-        [Range(0f, 5f)]
-        [Tooltip("How strongly the cloud's own density (its rendered alpha) resists the shot. 0 = no resistance " +
-                 "at all — full strength the whole way through, like moving through a vacuum. Higher = force " +
-                 "drops off faster the more (and denser) cloud the shot has already torn through, so it arrives " +
-                 "at the far side with less punch than it started with. Animatable.")]
-        public ZUIValue density = new ZUIValue(1f);
-
-        const int Steps = 64;
-        readonly float[] forceProfile = new float[Steps];
-
-        float ang, offPx, depthV, rad, amt, densityScale;
-        public override string DisplayName => "Cloud projectile";
-        public override void Prepare(Func<ZUIValue, int, float> e)
-        {
-            ang = e(angleDeg, 0) * Mathf.Deg2Rad;
-            offPx = e(offset, 1);
-            depthV = Mathf.Clamp01(e(depth, 2));
-            rad = Mathf.Max(0.5f, e(radius, 3));
-            amt = e(strength, 4);
-            densityScale = Mathf.Max(0f, e(density, 5));
-        }
-
-        public override void Apply(Color32[] buf, int W, int H)
-        {
-            if (Mathf.Abs(amt) < 0.001f) return;
-            var cloud = (Color32[])buf.Clone();
-
-            Vector2 canvasCenter = new Vector2(W * 0.5f, H * 0.5f);
-            Vector2 dir = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
-            Vector2 perp = new Vector2(-dir.y, dir.x);
-            Vector2 pivot = canvasCenter + perp * offPx;
-
-            float reach = ComputeCanvasReach(ang, W, H);
-            float startAlong = -reach;
-            float tipAlong = Mathf.Lerp(startAlong, reach, depthV);
-
-            // Precompute the "remaining force" profile along the centreline from Start to the current tip,
-            // integrating the cloud's own alpha (density) as an absorption term (Beer-Lambert-style decay).
-            float span = tipAlong - startAlong;
-            float dsStep = span / Mathf.Max(1, Steps - 1);
-            float integrated = 0f;
-            for (int k = 0; k < Steps; k++)
-            {
-                float s = startAlong + k * dsStep;
-                Vector2 p = pivot + dir * s;
-                float localDensity = SampleAlpha(cloud, W, H, p);
-                integrated += localDensity * Mathf.Abs(dsStep) * 0.02f * densityScale;
-                forceProfile[k] = amt * Mathf.Exp(-integrated);
-            }
-
-            var result = new Color32[W * H];
-            for (int y = 0; y < H; y++)
-                for (int x = 0; x < W; x++)
-                {
-                    int idx = y * W + x;
-                    Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
-                    Vector2 d = p - pivot;
-                    float alongSigned = Vector2.Dot(d, dir);
-                    float perpSigned = Vector2.Dot(d, perp);
-                    float absPerp = Mathf.Abs(perpSigned);
-
-                    if (absPerp >= rad || alongSigned < startAlong || alongSigned > tipAlong)
-                    {
-                        result[idx] = cloud[idx];
-                        continue;
-                    }
-
-                    float tIdx = Mathf.Abs(dsStep) > 0.0001f ? (alongSigned - startAlong) / dsStep : 0f;
-                    int k0 = Mathf.Clamp(Mathf.FloorToInt(tIdx), 0, Steps - 1);
-                    int k1 = Mathf.Clamp(k0 + 1, 0, Steps - 1);
-                    float frac = Mathf.Clamp01(tIdx - k0);
-                    float localForce = Mathf.Lerp(forceProfile[k0], forceProfile[k1], frac);
-
-                    float t = absPerp / rad;
-                    float rSample = t * t * rad;
-                    float rFinal = Mathf.LerpUnclamped(absPerp, rSample, localForce);
-                    float sign = perpSigned >= 0f ? 1f : -1f;
-                    Vector2 alongComp = d - perp * perpSigned;
-                    Vector2 sourcePos = pivot + alongComp + perp * (sign * rFinal);
-                    result[idx] = SampleNearest(cloud, W, H, sourcePos);
-                }
-            Array.Copy(result, buf, result.Length);
-        }
-
-        static float ComputeCanvasReach(float ang, int W, int H)
-        {
-            Vector2 dir = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
-            float hHalf = W * 0.5f, vHalf = H * 0.5f;
-            float rx = Mathf.Abs(dir.x) > 1e-4f ? hHalf / Mathf.Abs(dir.x) : float.MaxValue;
-            float ry = Mathf.Abs(dir.y) > 1e-4f ? vHalf / Mathf.Abs(dir.y) : float.MaxValue;
-            return Mathf.Min(rx, ry);
-        }
-
-        static float SampleAlpha(Color32[] buf, int W, int H, Vector2 p)
-        {
-            int x = Mathf.Clamp(Mathf.FloorToInt(p.x), 0, W - 1);
-            int y = Mathf.Clamp(Mathf.FloorToInt(p.y), 0, H - 1);
-            return buf[y * W + x].a * (1f / 255f);
-        }
-
-        static Color32 SampleNearest(Color32[] buf, int W, int H, Vector2 p)
-        {
-            int x = Mathf.Clamp(Mathf.FloorToInt(p.x), 0, W - 1);
-            int y = Mathf.Clamp(Mathf.FloorToInt(p.y), 0, H - 1);
-            return buf[y * W + x];
-        }
-    }
-
-    /// A richer sibling to CloudProjectileModifier, modelled on a reference pixel-fluid simulation (projectile
+    /// A richer sibling to what used to be CloudProjectileModifier (retired 2026-08-15 — zero real asset usage,
+    /// same category of effect as BallisticShockwave with its waves zeroed), modelled on a reference pixel-fluid
+    /// simulation (projectile
     /// tunnel + trailing shockwave rings + an alternating vortex street, advecting a density field through a
     /// velocity field). That reference is a genuine iterative simulation — each frame's density/velocity depend
     /// on the PREVIOUS frame's — which doesn't fit Pyre's bake-any-frame-independently model directly. The trick
@@ -2760,35 +2540,6 @@ namespace Laubrary.SpriteFx
         }
     }
 
-    /// Jagg: pushes a circle out into an N-armed star by modulating its radius with the angle. `arms` = how many
-    /// points; `strength` = how far the arms stick out AND how deep the valleys between them bite in (0 = circle,
-    /// →1 = spiky); `twist` aims the points. A radial coordinate scale about the shape centre — soft edges come from
-    /// the shape's own Outer softness.
-    [Serializable]
-    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
-    public class JaggModifier : GeometryModifier
-    {
-        [Range(2, 24)] public int arms = 5;
-        [Range(0f, 0.95f)]
-        [Tooltip("Arm length / valley depth (0 = circle, →1 = spiky star). Animatable.")]
-        public ZUIValue strength = new ZUIValue(0.4f);
-        [Range(-180f, 180f)]
-        [Tooltip("Rotate the star, in degrees. Animatable — spin the points.")]
-        public ZUIValue twist = new ZUIValue(0f);
-
-        float s, tw;
-        public override string DisplayName => "Jagg (star)";
-        public override void Prepare(Func<ZUIValue, int, float> e) { s = Mathf.Clamp(e(strength, 0), 0f, 0.95f); tw = e(twist, 1) * Mathf.Deg2Rad; }
-        public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
-        {
-            if (s <= 0.001f) return off;
-            Vector2 d = off - ctx.center;
-            float ang = Mathf.Atan2(d.y, d.x) - tw;
-            float scale = 1f + s * Mathf.Cos(arms * ang);   // >1 at arms (pull the sample in → shape reaches out)
-            return ctx.center + d / Mathf.Max(0.05f, scale);
-        }
-    }
-
     // ── edge: perturbs ONLY the outer silhouette test, never the fill/gradient sampling ─────────────────────
     /// A modifier that roughens a shape's OUTER boundary (Disc / Crescent / SparkleField, in RasterShape) without
     /// touching anything downstream that reads the shape's true geometry — colour fill (Fill/Flow fill/Noise fill),
@@ -2812,7 +2563,8 @@ namespace Laubrary.SpriteFx
 
     /// Warps a shape's rim with a domain-warped noise pattern sampled around its circumference — smooth rounded
     /// bumps at Jaggedness 0, a hard faceted/torn edge at Jaggedness 1. A jagged-but-smoothly-shaded look (think a
-    /// scorched or torn disc) that JaggModifier can't give, since Jagg warps the fill along with the silhouette.
+    /// scorched or torn disc) that a whole-frame GeometryModifier warp can't give, since that warps the fill along
+    /// with the silhouette.
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class EdgeWarpModifier : EdgeModifier
@@ -2863,6 +2615,9 @@ namespace Laubrary.SpriteFx
         public override float EdgeSoftness(float angleRad, int hash, in GeoCtx ctx) => soft;
     }
 
+    /// Which noise sampler <see cref="TurbulenceModifier"/> churns with.
+    public enum TurbulenceNoise { Value, Gradient }
+
     /// Domain-warped noise displacement — the churn/roll engine. Displaces the sampled coordinate by a 2D noise
     /// field whose own sampling domain can SPIN (Rotation) and DRIFT (Offset X/Y) over life, so whatever it's
     /// applied to visibly roils and turns rather than sitting on a static dent. Zoom sets the noise frequency
@@ -2870,10 +2625,21 @@ namespace Laubrary.SpriteFx
     /// a spatial fill (Fill / Flow fill) to churn the colour bands themselves (a churning fireball), or after
     /// Ground/Profile to roll an already-molded silhouette (a mushroom cloud's characteristic turning cap) — animate
     /// Rotation as a rising curve for an accelerating roll timed against the shape's own growth.
+    ///
+    /// Merged 2026-08-15 with what used to be the separate PerlinTurbulenceModifier — the two had identical
+    /// fields and near-identical math, differing only in which noise sampler they called
+    /// (<see cref="PyreNoise.Sample"/> bilinear VALUE noise vs <see cref="PyreNoise.SampleGradient"/> genuine
+    /// gradient noise — interpolated random direction vectors plus a quintic fade). Value noise's hills sit
+    /// visibly centred ON each lattice point, which is what gives it a faintly blobby/grid-aligned look at low
+    /// octave counts; gradient noise doesn't have that bias and reads as sharper and more organic at the same
+    /// frequency. Now a single dial (<see cref="noise"/>) rather than a whole second modifier class.
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
     public class TurbulenceModifier : GeometryModifier
     {
+        [Tooltip("Which noise sampler drives the churn. Value = bilinear noise, faintly blobby/grid-aligned at " +
+                 "low frequency. Gradient = true gradient noise, sharper and more organic at the same frequency.")]
+        public TurbulenceNoise noise = TurbulenceNoise.Value;
         [Range(0f, 32f)]
         [Tooltip("How far pixels are displaced by the noise field, in pixels. Animatable — rise it in as the shape matures.")]
         public ZUIValue amplitude = new ZUIValue(4f);
@@ -2924,85 +2690,26 @@ namespace Laubrary.SpriteFx
             // Per-shape-stable seed derived from the shape's own centre, so different scattered shapes churn with
             // different (but still deterministic) noise fields instead of an identical repeated dent.
             int seed = unchecked((Mathf.RoundToInt(ctx.center.x * 8f) * 92821) ^ (Mathf.RoundToInt(ctx.center.y * 8f) * 68111));
-            float n1 = PyreNoise.Sample(nx, ny, seed, wrp) * 2f - 1f;
-            float n2 = PyreNoise.Sample(nx + 31.7f, ny - 17.3f, seed ^ 0x1234567, wrp) * 2f - 1f;
-            off.x += n1 * amp;
-            off.y += n2 * amp;
-            return off;
-        }
-    }
-
-    /// A twin of TurbulenceModifier using genuine 2D GRADIENT noise (PyreNoise.SampleGradient — interpolated
-    /// random direction vectors, not raw values, plus a quintic fade) instead of TurbulenceModifier's bilinear
-    /// VALUE noise. Value noise's hills sit visibly centred ON each lattice point, which is what gives it a
-    /// faintly blobby/grid-aligned look at low octave counts; gradient noise doesn't have that bias and reads
-    /// as sharper and more organic at the same frequency. Kept as a SEPARATE, opt-in modifier rather than
-    /// swapping Turbulence's own sampler in place — that would silently reshape every asset already built on
-    /// it (and on Curl/Noise fill/AlphaMask's Noise shape, all sharing the same PyreNoise.Sample) — so the two
-    /// can be compared side by side instead.
-    [Serializable]
-    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Laubrary.Pyre", "com.Lautaro-Arino.Laubrary.Pyre", null)]
-    public class PerlinTurbulenceModifier : GeometryModifier
-    {
-        [Range(0f, 32f)]
-        [Tooltip("How far pixels are displaced by the noise field, in pixels. Animatable — rise it in as the shape matures.")]
-        public ZUIValue amplitude = new ZUIValue(4f);
-        [Range(1f, 64f)]
-        [Tooltip("Noise frequency — bigger = larger, slower-looking eddies; smaller = fine, busy churn. Animatable.")]
-        public ZUIValue zoom = new ZUIValue(24f);
-        [Range(-720f, 720f)]
-        [Tooltip("Rotates the noise field's own sampling domain, in degrees — this is what makes the churn visibly " +
-                 "SPIN in place (a mushroom cloud's roll). Animatable — a rising curve = an accelerating roll.")]
-        public ZUIValue rotation = new ZUIValue(0f);
-        [Range(-32f, 32f)]
-        [Tooltip("Scrolls the noise field horizontally over life, in pixels — the pattern itself drifts rather " +
-                 "than the displacement just sitting still. Animatable.")]
-        public ZUIValue offsetX = new ZUIValue(0f);
-        [Range(-32f, 32f)]
-        [Tooltip("Scrolls the noise field vertically over life, in pixels. Animatable.")]
-        public ZUIValue offsetY = new ZUIValue(0f);
-        [Range(0f, 2f)]
-        [Tooltip("Domain-warp strength — how much the noise bends on itself (0 = plain smooth noise, higher = " +
-                 "more churned/organic eddies). Animatable. Pushed high enough, the noise field can fold over " +
-                 "itself and carve sharp notches into an otherwise smooth edge — pair with an Edge smooth " +
-                 "modifier if that reads as too jagged.")]
-        public ZUIValue warp = new ZUIValue(0.6f);
-
-        float amp, zm, rotRad, offX, offY, wrp;
-        public override string DisplayName => "Perlin turbulence";
-        public override void Prepare(Func<ZUIValue, int, float> e)
-        {
-            amp = e(amplitude, 0);
-            zm = Mathf.Max(1f, e(zoom, 1));
-            rotRad = e(rotation, 2) * Mathf.Deg2Rad;
-            offX = e(offsetX, 3);
-            offY = e(offsetY, 4);
-            wrp = Mathf.Clamp(e(warp, 5), 0f, 2f);
-        }
-
-        public override Vector2 InverseWarp(Vector2 off, float phase, in GeoCtx ctx)
-        {
-            if (Mathf.Abs(amp) < 0.01f) return off;
-            Vector2 d = off - ctx.center;
-            if (rotRad != 0f)
+            float n1, n2;
+            if (noise == TurbulenceNoise.Gradient)
             {
-                float c = Mathf.Cos(rotRad), s = Mathf.Sin(rotRad);
-                d = new Vector2(d.x * c - d.y * s, d.x * s + d.y * c);
+                n1 = PyreNoise.SampleGradient(nx, ny, seed, wrp) * 2f - 1f;
+                n2 = PyreNoise.SampleGradient(nx + 31.7f, ny - 17.3f, seed ^ 0x1234567, wrp) * 2f - 1f;
             }
-            float nx = (d.x + offX) / zm;
-            float ny = (d.y + offY) / zm;
-            int seed = unchecked((Mathf.RoundToInt(ctx.center.x * 8f) * 92821) ^ (Mathf.RoundToInt(ctx.center.y * 8f) * 68111));
-            float n1 = PyreNoise.SampleGradient(nx, ny, seed, wrp) * 2f - 1f;
-            float n2 = PyreNoise.SampleGradient(nx + 31.7f, ny - 17.3f, seed ^ 0x1234567, wrp) * 2f - 1f;
+            else
+            {
+                n1 = PyreNoise.Sample(nx, ny, seed, wrp) * 2f - 1f;
+                n2 = PyreNoise.Sample(nx + 31.7f, ny - 17.3f, seed ^ 0x1234567, wrp) * 2f - 1f;
+            }
             off.x += n1 * amp;
             off.y += n2 * amp;
             return off;
         }
     }
 
-    /// Softens jagged/torn silhouette edges — e.g. from Turbulence/Perlin turbulence's own Warp folded high
+    /// Softens jagged/torn silhouette edges — e.g. from Turbulence's own Warp folded high
     /// enough to carve sharp notches into what should be a smooth edge. A standalone modifier rather than
-    /// baked into Turbulence itself, since ANY jagged-edge source (Jagg, EdgeWarp, a wild Wobble) can use the
+    /// baked into Turbulence itself, since ANY jagged-edge source (EdgeWarp, a wild Wobble) can use the
     /// same cleanup, and most of the time nothing needs it at all. Blurs ONLY alpha (a two-pass box blur, done
     /// in PREMULTIPLIED space so a rising edge doesn't blend in the arbitrary/garbage colour a fully-transparent
     /// pixel holds — the standard fix for the "black fringe" a naive straight-alpha blur produces) — colour
@@ -3665,26 +3372,54 @@ namespace Laubrary.SpriteFx
     {
         // The shadow is a straight offset copy; the furthest it goes is the larger axis.
         public override int OutwardReachPx()
-            => Mathf.CeilToInt(Mathf.Max(Mathf.Abs(offsetX), Mathf.Abs(offsetY)));
-        [Tooltip("Shadow offset X in pixels (screen right).")]
-        public float offsetX = 3f;
-        [Tooltip("Shadow offset Y in pixels (screen DOWN is negative).")]
-        public float offsetY = -3f;
-        [Tooltip("Shadow colour (alpha = opacity). Animatable opacity via… (flat for now).")]
-        public Color color = new Color(0f, 0f, 0f, 0.5f);
-        [Range(0.01f, 1f)]
-        [Tooltip("Alpha above which a pixel casts a shadow.")]
-        public float alphaThreshold = 0.2f;
+            => Mathf.CeilToInt(Mathf.Max(Mathf.Abs(OffsetX.PeakValue()), Mathf.Abs(OffsetY.PeakValue())));
 
+        [HideInInspector] public float offsetX = 3f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
+        [Range(-16f, 16f)]
+        [Tooltip("Shadow offset X in pixels (screen right). Animatable.")]
+        public ZUIValue offsetXValue = new ZUIValue(3f);
+        [HideInInspector] public bool offsetXUpgraded;
+        public ZUIValue OffsetX { get { if (!offsetXUpgraded) { offsetXValue = new ZUIValue(offsetX); offsetXUpgraded = true; } return offsetXValue; } }
+
+        [HideInInspector] public float offsetY = -3f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
+        [Range(-16f, 16f)]
+        [Tooltip("Shadow offset Y in pixels (screen DOWN is negative). Animatable.")]
+        public ZUIValue offsetYValue = new ZUIValue(-3f);
+        [HideInInspector] public bool offsetYUpgraded;
+        public ZUIValue OffsetY { get { if (!offsetYUpgraded) { offsetYValue = new ZUIValue(offsetY); offsetYUpgraded = true; } return offsetYValue; } }
+
+        [Tooltip("Shadow colour. Its own alpha sets the shadow's BASE strength; Opacity below multiplies on top " +
+                 "of that, so the colour can stay fixed while opacity animates.")]
+        public Color color = new Color(0f, 0f, 0f, 0.5f);
+        [Range(0f, 1f)]
+        [Tooltip("Multiplies the shadow colour's own alpha. 0 = invisible, 1 = the colour's alpha unchanged. " +
+                 "Animatable — fade the shadow in/out independent of the colour itself.")]
+        public ZUIValue opacity = new ZUIValue(1f);
+
+        [HideInInspector] public float alphaThreshold = 0.2f;   // FROZEN legacy source (task: modifier MultiCont overhaul) — never rename/retype
+        [Range(0.01f, 1f)]
+        [Tooltip("Alpha above which a pixel casts a shadow. Animatable.")]
+        public ZUIValue alphaThresholdValue = new ZUIValue(0.2f);
+        [HideInInspector] public bool alphaThresholdUpgraded;
+        public ZUIValue AlphaThreshold { get { if (!alphaThresholdUpgraded) { alphaThresholdValue = new ZUIValue(alphaThreshold); alphaThresholdUpgraded = true; } return alphaThresholdValue; } }
+
+        float offX, offY, opacityV, thresholdV;
         public override string DisplayName => "Drop shadow";
-        public override void Prepare(Func<ZUIValue, int, float> e) { }
+        public override void Prepare(Func<ZUIValue, int, float> e)
+        {
+            offX = e(OffsetX, 0);
+            offY = e(OffsetY, 1);
+            opacityV = Mathf.Clamp01(e(opacity, 2));
+            thresholdV = Mathf.Clamp(e(AlphaThreshold, 3), 0.01f, 1f);
+        }
 
         public override void Apply(Color32[] buf, int W, int H)
         {
-            if (color.a <= 0.001f) return;
-            int dx = Mathf.RoundToInt(offsetX), dy = Mathf.RoundToInt(offsetY);
+            float shadowAlpha = color.a * opacityV;
+            if (shadowAlpha <= 0.001f) return;
+            int dx = Mathf.RoundToInt(offX), dy = Mathf.RoundToInt(offY);
             if (dx == 0 && dy == 0) return;
-            byte at = (byte)(alphaThreshold * 255f);
+            byte at = (byte)(thresholdV * 255f);
             var src = (Color32[])buf.Clone();
             for (int y = 0; y < H; y++)
                 for (int x = 0; x < W; x++)
@@ -3696,7 +3431,7 @@ namespace Laubrary.SpriteFx
                     int idx = y * W + x;
                     Color32 top = src[idx];
                     float ta = top.a * (1f / 255f);
-                    float sa = color.a * (src[sy * W + sx].a * (1f / 255f));   // shadow follows the caster's alpha
+                    float sa = shadowAlpha * (src[sy * W + sx].a * (1f / 255f));   // shadow follows the caster's alpha
                     float outA = ta + sa * (1f - ta);
                     if (outA <= 0.001f) continue;
                     float r = (top.r * (1f / 255f) * ta + color.r * sa * (1f - ta)) / outA;

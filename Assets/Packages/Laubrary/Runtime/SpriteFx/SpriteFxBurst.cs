@@ -479,7 +479,7 @@ namespace Laubrary.SpriteFx
         /// True for the pixel modifiers this slice Burst-shaped.
         public static bool IsShaped(PyreModifier m) =>
             m is TintModifier || m is ContrastModifier || m is BrightnessModifier || m is SaturationModifier ||
-            m is PosterizeModifier || m is OrderedDitherModifier || m is LayerDissolveModifier || m is AlphaMaskModifier ||
+            m is PosterizeModifier || m is OrderedDitherModifier || m is LayerDissolveModifier ||
             m is ColorTintModifier || m is ColorReplaceModifier || m is WipeModifier;
 
         /// <summary>

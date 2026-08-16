@@ -250,6 +250,7 @@ namespace Laubrary.SpriteFx.Editor
 
             void ShowAddMenu(VisualElement anchor)
             {
+                var disabled = DisabledInPicker;
                 // The three categories sit SIDE BY SIDE, not stacked. Forty-two effects in one column is
                 // taller than the screen, so the bottom of the list simply could not be reached — and a menu
                 // is a content-sized floating card, so spending width to buy height costs nothing.
@@ -274,13 +275,15 @@ namespace Laubrary.SpriteFx.Editor
                             columns.Add(col);
                         }
                         var type = e.type;
-                        var row = Z.Button(e.label, e.tooltip, () =>
+                        bool blocked = disabled.TryGetValue(type, out var reason);
+                        var row = Z.Button(e.label, blocked ? reason : e.tooltip, () =>
                         {
                             Dirty(() => stack.Add((PyreModifier)Activator.CreateInstance(type)));
                             close();
                             Structural();
                         });
                         row.AddToClassList("zui-menu__item");
+                        row.SetEnabled(!blocked);
                         col.Add(row);
                     }
                     body.Add(columns);
@@ -311,6 +314,18 @@ namespace Laubrary.SpriteFx.Editor
         // Edge modifiers are the one deliberate exclusion: they deform a SHAPE's outline while it is being
         // rasterised, and a sprite arrives as finished pixels with no shape to deform. Offering one would be
         // offering a control that cannot do anything.
+        // Kept fully functional (still renders if an asset already has one authored, or if hand-authored in
+        // Pyre1's own live-canvas preview overlay) but the generic Add-menu offers none of them a real way to
+        // author their data — click-place/drag-keyframe/paint-stroke input only exists in PyreWindow.Preview.cs,
+        // never wired into this reflection-driven picker. Duplicated in PyreWindow.Modifiers.cs's own add-menu.
+        static readonly Dictionary<Type, string> DisabledInPicker = new Dictionary<Type, string>
+        {
+            { typeof(PinWarpModifier), "Needs click-to-place pins in Pyre1's own preview canvas — not authorable here." },
+            { typeof(SmudgeModifier), "Needs drag-to-paint strokes in Pyre1's own preview canvas — not authorable here." },
+            { typeof(CurlModifier), "Needs click-to-place vortices in Pyre1's own preview canvas — not authorable here." },
+            { typeof(CurlProgressModifier), "Needs click-to-place vortices in Pyre1's own preview canvas — not authorable here." },
+        };
+
         struct AddEntry { public Type type; public string label, section, tooltip; public int order; }
         static List<AddEntry> s_catalog;
         static IEnumerable<AddEntry> Catalog()
