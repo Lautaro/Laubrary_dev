@@ -42,5 +42,19 @@ namespace Laubrary.Zoetrope
         /// Sample a Point (or Shape) MetaLayer's current painted position, in world space. Returns false if the
         /// layer has nothing painted on the current frame, or this view has no meta-layer data at all.
         bool TryGetMetaPoint(string layerId, out Vector2 worldPos);
+
+        /// Like <see cref="TryGetMetaPoint"/>, but falls back to the nearest painted frame (either direction)
+        /// when the current frame has nothing — an unpainted frame costs accuracy, not a hard failure. Returns
+        /// false only when the layer has no painted data on ANY frame, or this view has no meta-layer data.
+        bool TryGetMetaPointNearest(string layerId, out Vector2 worldPos);
+
+        /// Sample a Vector-mode MetaLayer's current authored origin + direction, in world space. worldLength is
+        /// only meaningful when the layer opted into authored length; otherwise it's always 1. Returns false if
+        /// the layer has nothing authored on the current frame, or this view has no meta-layer data at all.
+        bool TryGetMetaVector(string layerId, out Vector2 worldOrigin, out Vector2 worldDirection, out float worldLength);
+
+        /// Vector analog of <see cref="TryGetMetaPointNearest"/> — falls back to the nearest authored frame
+        /// (either direction) when the current frame has nothing.
+        bool TryGetMetaVectorNearest(string layerId, out Vector2 worldOrigin, out Vector2 worldDirection, out float worldLength);
     }
 }

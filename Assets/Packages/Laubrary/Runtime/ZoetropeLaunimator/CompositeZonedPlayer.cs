@@ -47,6 +47,11 @@ namespace Laubrary.ZoetropeLaunimator
                 var partSize = part.view != null ? part.view.Build(go) : Vector2.one;
                 size = Vector2.Max(size, partSize);
                 _byName[part.name] = new PartEntry { go = go, def = part };
+
+                // Each part's own directional animator, if authored — see ZoeBodyPart.motionPose. Reads
+                // MotionState off the root via GetComponentInParent (MotionPoseAnimator itself does that
+                // lookup), so this works with no extra wiring beyond attaching it here.
+                go.GetComponent<IMotionPoseHost>()?.BindMotionPose(go, part.motionPose);
             }
 
             foreach (var entry in _byName.Values)

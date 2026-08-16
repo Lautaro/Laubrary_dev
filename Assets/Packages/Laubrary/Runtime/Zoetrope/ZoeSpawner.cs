@@ -24,10 +24,21 @@ namespace Laubrary.Zoetrope
             // a plain SpriteView Zoe has nothing to seed, and that's fine, not an error.
             if (def != null) go.GetComponent<ICueSink>()?.Seed(def.cues);
 
-            // Locomotion: only when the character actually authored a move clip AND the view can play clips.
-            // A SpriteView Zoe has no IAnimatedView, so this is silently skipped — nothing to animate, not an
+            // MotionState: character-wide measured motion (velocity/heading/aim/speed), read by every
+            // directional pose animator on this character or its composite parts. Cheap, no side effects
+            // beyond measuring — always attached so every reader agrees on one answer, same as before any
+            // locomotion/motionPose is even authored.
+            go.AddComponent<MotionStateSource>();
+
+            // MotionPose (directional) is preferred over the old fixed Locomotion ONLY when actually authored,
+            // so an existing Zoe with no MotionPose is completely unaffected. A SpriteView Zoe implements
+            // neither IAnimatedView nor IMotionPoseHost, so both silently no-op — nothing to animate, not an
             // error, the same rule cues follow.
-            if (def != null && def.locomotion != null && def.locomotion.IsAuthored)
+            if (def != null && def.motionPose != null && def.motionPose.IsAuthored)
+            {
+                go.GetComponent<IMotionPoseHost>()?.BindMotionPose(go, def.motionPose);
+            }
+            else if (def != null && def.locomotion != null && def.locomotion.IsAuthored)
             {
                 var animated = go.GetComponent<IAnimatedView>();
                 if (animated != null) go.AddComponent<LocomotionAnimator>().Bind(def.locomotion, animated);
@@ -57,6 +68,11 @@ namespace Laubrary.Zoetrope
             rb.bodyType = RigidbodyType2D.Kinematic;
             rb.gravityScale = 0f;
             rb.freezeRotation = true;
+            // Without this, a MovePosition-driven kinematic body only actually moves transform.position on
+            // physics ticks (fixedDeltaTime, e.g. 50Hz) while everything else samples it every RENDERED frame
+            // (which can run much faster) — MotionStateSource's per-frame velocity sample then flickers
+            // between the real speed and 0 on the frames physics didn't tick, thrashing walk/idle clips.
+            rb.interpolation = RigidbodyInterpolation2D.Interpolate;
 
             var col = go.AddComponent<BoxCollider2D>();
             col.isTrigger = true;

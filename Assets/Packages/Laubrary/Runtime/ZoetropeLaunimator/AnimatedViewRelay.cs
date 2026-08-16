@@ -12,10 +12,29 @@ namespace Laubrary.ZoetropeLaunimator
     /// for <c>ICueSink</c>. Added by <see cref="ZonedLauminaryView.Build"/> alongside the player it wraps.
     /// </summary>
     [RequireComponent(typeof(ZonedAnimationPlayer))]
-    public class AnimatedViewRelay : MonoBehaviour, IAnimatedView
+    public class AnimatedViewRelay : MonoBehaviour, IAnimatedView, IFlippableView, IMotionPoseHost
     {
         ZonedAnimationPlayer _player;
         Action _pendingComplete;
+
+        public bool FlipX
+        {
+            get => _player != null && _player.flipX;
+            set { if (_player != null) _player.flipX = value; }
+        }
+
+        // IMotionPoseHost: attach + Bind a directional pose animator on this same GameObject (the arbiter is
+        // per-GameObject/per-part, matching MotionPoseAnimator's own doc comment). No-op if the pose is
+        // unauthored — an authored-but-empty MotionPose degrades to "nothing to animate", not an error, same
+        // rule every other optional-capability host in this codebase follows.
+        public void BindMotionPose(GameObject go, MotionPose pose)
+        {
+            if (pose == null || !pose.IsAuthored) return;
+            if (_player == null) _player = GetComponent<ZonedAnimationPlayer>();
+            if (go.GetComponent<AnimationArbiter>() == null) go.AddComponent<AnimationArbiter>();
+            var animator = go.GetComponent<MotionPoseAnimator>() ?? go.AddComponent<MotionPoseAnimator>();
+            animator.Bind(pose, _player != null ? _player.version : null, this);
+        }
 
         /// Forwards ZonedAnimationPlayer.OnFrameEvent verbatim — see IAnimatedView's own doc comment.
         public event Action<string, int> OnFrameEvent;
@@ -58,8 +77,36 @@ namespace Laubrary.ZoetropeLaunimator
         public bool TryGetMetaPoint(string layerId, out Vector2 worldPos)
         {
             worldPos = default;
+            if (_player == null) _player = GetComponent<ZonedAnimationPlayer>();
             if (_player == null || !_player.TryGetMetaPoint(layerId, out var w, out _)) return false;
             worldPos = w;
+            return true;
+        }
+
+        public bool TryGetMetaPointNearest(string layerId, out Vector2 worldPos)
+        {
+            worldPos = default;
+            if (_player == null) _player = GetComponent<ZonedAnimationPlayer>();
+            if (_player == null || !_player.TryGetMetaPointNearest(layerId, out var w, out _)) return false;
+            worldPos = w;
+            return true;
+        }
+
+        public bool TryGetMetaVector(string layerId, out Vector2 worldOrigin, out Vector2 worldDirection, out float worldLength)
+        {
+            worldOrigin = default; worldDirection = Vector2.up; worldLength = 0f;
+            if (_player == null) _player = GetComponent<ZonedAnimationPlayer>();
+            if (_player == null || !_player.TryGetMetaVector(layerId, out var o, out worldDirection, out worldLength)) return false;
+            worldOrigin = o;
+            return true;
+        }
+
+        public bool TryGetMetaVectorNearest(string layerId, out Vector2 worldOrigin, out Vector2 worldDirection, out float worldLength)
+        {
+            worldOrigin = default; worldDirection = Vector2.up; worldLength = 0f;
+            if (_player == null) _player = GetComponent<ZonedAnimationPlayer>();
+            if (_player == null || !_player.TryGetMetaVectorNearest(layerId, out var o, out worldDirection, out worldLength)) return false;
+            worldOrigin = o;
             return true;
         }
 

@@ -27,6 +27,11 @@ namespace Laubrary.Launimator
         [Tooltip("The animations that make up this lauminary version, in display/build order.")]
         public List<Laumination> animations = new List<Laumination>();
 
+        [Tooltip("Named direction-resolving sets over this version's animations (e.g. a 16-way walk cycle), " +
+                 "referenced by name from a MotionPose rule — see MotionPoseResolver. Additive; empty by " +
+                 "default, so existing assets are unaffected until authored.")]
+        public List<LauminationSet> sets = new List<LauminationSet>();
+
         [Tooltip("Generated SpriteRenderer + Animator prefab for this version.")]
         public GameObject prefab;
 

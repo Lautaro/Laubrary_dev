@@ -33,6 +33,11 @@ namespace Laubrary.Zoetrope
     [RequireComponent(typeof(Transform))]
     public class LocomotionAnimator : MonoBehaviour
     {
+        // Steady-state claim priority for the AnimationArbiter (see Runtime/Zoetrope/AnimationArbiter.cs) —
+        // reactions (ZoeEventPlayer) claim at 100 and preempt this. MotionPoseAnimator, the directional
+        // replacement for this class, claims at the same priority so a reaction preempts either equally.
+        public const float Priority = 0f;
+
         Locomotion clips;
         IAnimatedView view;
         ZoeState _state;

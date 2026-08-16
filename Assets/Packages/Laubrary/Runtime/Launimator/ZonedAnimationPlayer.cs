@@ -514,6 +514,114 @@ namespace Laubrary.Launimator
         }
 
         /// <summary>
+        /// Like <see cref="TryGetMetaPoint"/>, but falls back to the NEAREST frame (searching outward from the
+        /// current one, either direction) that actually has painted data, instead of failing outright when the
+        /// current frame is unpainted. Lets a consumer treat "authored on most frames, missed one" as a small
+        /// accuracy cost rather than a hard failure — e.g. a muzzle tracker that would otherwise silently stop
+        /// firing on an unpainted frame. Returns false only when the layer has NO painted data on ANY frame.
+        /// </summary>
+        public bool TryGetMetaPointNearest(string layerId, out Vector3 worldPos, out float strength01)
+        {
+            if (TryGetMetaPoint(layerId, out worldPos, out strength01)) return true;
+
+            worldPos = transform.position; strength01 = 0f;
+            var spr = CurrentSprite;
+            if (spr == null || _anim == null || _anim.metaLayers == null) return false;
+
+            MetaLayer layer = null;
+            foreach (var L in _anim.metaLayers)
+                if (L != null && string.Equals(L.id, layerId, StringComparison.OrdinalIgnoreCase)) { layer = L; break; }
+            if (layer == null || layer.frames == null || layer.frames.Count == 0) return false;
+
+            int n = layer.frames.Count;
+            for (int d = 1; d < n; d++)
+            {
+                int lo = _i - d, hi = _i + d;
+                if (lo >= 0 && lo < n && TryComputeCentroid(layer.frames[lo], out strength01, out double lnx, out double lny))
+                { worldPos = MaskToWorld(spr, layer.frames[lo], (float)lnx, (float)lny); return true; }
+                if (hi >= 0 && hi < n && TryComputeCentroid(layer.frames[hi], out strength01, out double hnx, out double hny))
+                { worldPos = MaskToWorld(spr, layer.frames[hi], (float)hnx, (float)hny); return true; }
+            }
+            strength01 = 0f;
+            return false;
+        }
+
+        /// <summary>
+        /// Sample a Vector-mode meta-layer at the CURRENT frame: outputs the authored origin in WORLD space, the
+        /// authored direction rotated/flipped into WORLD space (still a unit-ish vector, not re-normalized here),
+        /// and the authored length (only meaningful when the layer's <see cref="MetaLayer.vectorAllowLength"/> is
+        /// true — otherwise always 1). Returns false if the layer isn't Vector mode, has nothing authored on the
+        /// current frame, or there's no current sprite. The vector analog of <see cref="TryGetMetaPoint"/>.
+        /// </summary>
+        public bool TryGetMetaVector(string layerId, out Vector3 worldOrigin, out Vector2 worldDirection, out float length)
+        {
+            worldOrigin = transform.position; worldDirection = Vector2.up; length = 0f;
+            var spr = CurrentSprite;
+            if (spr == null || _anim == null || _anim.metaLayers == null) return false;
+
+            MetaLayer layer = null;
+            foreach (var L in _anim.metaLayers)
+                if (L != null && string.Equals(L.id, layerId, StringComparison.OrdinalIgnoreCase)) { layer = L; break; }
+            if (layer == null || layer.vectorFrames == null || _i < 0 || _i >= layer.vectorFrames.Count) return false;
+
+            var vf = layer.vectorFrames[_i];
+            if (vf == null || !vf.authored) return false;
+            worldOrigin = PixelToWorld(spr, 1, 1, vf.origin.x, vf.origin.y);
+            worldDirection = DirectionToWorld(vf.direction);
+            length = layer.vectorAllowLength ? vf.length : 1f;
+            return true;
+        }
+
+        /// <summary>Vector-mode analog of <see cref="TryGetMetaPointNearest"/> — falls back to the nearest frame
+        /// (either direction) that has an authored vector when the current frame doesn't.</summary>
+        public bool TryGetMetaVectorNearest(string layerId, out Vector3 worldOrigin, out Vector2 worldDirection, out float length)
+        {
+            if (TryGetMetaVector(layerId, out worldOrigin, out worldDirection, out length)) return true;
+
+            worldOrigin = transform.position; worldDirection = Vector2.up; length = 0f;
+            var spr = CurrentSprite;
+            if (spr == null || _anim == null || _anim.metaLayers == null) return false;
+
+            MetaLayer layer = null;
+            foreach (var L in _anim.metaLayers)
+                if (L != null && string.Equals(L.id, layerId, StringComparison.OrdinalIgnoreCase)) { layer = L; break; }
+            if (layer == null || layer.vectorFrames == null || layer.vectorFrames.Count == 0) return false;
+
+            int n = layer.vectorFrames.Count;
+            for (int d = 1; d < n; d++)
+            {
+                int lo = _i - d, hi = _i + d;
+                if (lo >= 0 && lo < n && layer.vectorFrames[lo] != null && layer.vectorFrames[lo].authored)
+                {
+                    var vf = layer.vectorFrames[lo];
+                    worldOrigin = PixelToWorld(spr, 1, 1, vf.origin.x, vf.origin.y);
+                    worldDirection = DirectionToWorld(vf.direction);
+                    length = layer.vectorAllowLength ? vf.length : 1f;
+                    return true;
+                }
+                if (hi >= 0 && hi < n && layer.vectorFrames[hi] != null && layer.vectorFrames[hi].authored)
+                {
+                    var vf = layer.vectorFrames[hi];
+                    worldOrigin = PixelToWorld(spr, 1, 1, vf.origin.x, vf.origin.y);
+                    worldDirection = DirectionToWorld(vf.direction);
+                    length = layer.vectorAllowLength ? vf.length : 1f;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Rotate/flip a LOCAL-space direction (Vector.up-relative, matching a MetaLayer's authored
+        /// convention) into WORLD space — same flipX handling <see cref="PixelToWorld"/> applies to positions,
+        /// but no pivot/PPU translation since a direction has no origin of its own.</summary>
+        Vector3 DirectionToWorld(Vector2 localDir)
+        {
+            Vector3 d = new Vector3(localDir.x, localDir.y, 0f);
+            if (flipX) d.x = -d.x;
+            return transform.TransformDirection(d).normalized;
+        }
+
+        /// <summary>
         /// Fill <paramref name="buffer"/> with every painted meta-cell at the CURRENT frame, across ALL meta-layers,
         /// as world-space quads tinted by the layer colour and faded by cell value. Pure debug-visualisation helper
         /// (clears the buffer first). Returns the number of cells written.

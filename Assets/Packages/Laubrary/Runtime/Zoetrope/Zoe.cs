@@ -48,6 +48,12 @@ namespace Laubrary.Zoetrope
         [Tooltip("Which clips play just for moving. Character data — a body walks the same whatever it holds.")]
         public Locomotion locomotion = new Locomotion();
 
+        [Tooltip("Directional replacement for Locomotion above — an ordered condition→LauminationSet rule list " +
+                 "resolved against MotionState (heading/aim/speed), instead of a fixed idle/move pair. " +
+                 "Additive and unauthored by default (no rules = IsAuthored false): ZoeSpawner prefers this over " +
+                 "Locomotion ONLY when authored, so an existing Zoe with no MotionPose is unaffected.")]
+        public MotionPose motionPose = new MotionPose();
+
         [Header("Reactions")]
         [Tooltip("What happens on a non-killing hit: the clip to play (via the view's IAnimatedView, if it " +
                  "provides one) plus the FX list triggered off that clip's frame events/meta-layers. Real " +

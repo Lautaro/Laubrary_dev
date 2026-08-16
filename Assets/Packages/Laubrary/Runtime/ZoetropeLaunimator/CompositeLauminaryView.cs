@@ -22,6 +22,11 @@ namespace Laubrary.ZoetropeLaunimator
                  "frame that id has painted data (e.g. \"Hip\"). Empty = stay at the parent's origin (a static, " +
                  "non-animated attach).")]
         public string attachMetaLayerId = "";
+
+        [Tooltip("This part's own directional pose — a torso can read Aim while legs read Heading, " +
+                 "independently, because each part gets its own MotionPoseAnimator all reading the SAME " +
+                 "character-wide MotionState off the root. Additive and unauthored by default.")]
+        public MotionPose motionPose = new MotionPose();
     }
 
     /// <summary>

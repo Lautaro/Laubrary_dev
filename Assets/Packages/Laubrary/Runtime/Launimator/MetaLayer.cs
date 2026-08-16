@@ -15,8 +15,14 @@ namespace Laubrary.Launimator
     /// painted cell per frame — a lighter "here's the one pixel that matters" marker, e.g. where a shockwave
     /// should originate). Both read through the SAME runtime API (<c>TryGetMetaPoint</c> already computes a
     /// value-weighted centroid, which for a single painted cell just IS that cell) — Point only changes how the
-    /// Laumination Builder's paint tool behaves and which layers a "pick a point marker" UI offers.</summary>
-    public enum MetaLayerMode { Shape, Point }
+    /// Laumination Builder's paint tool behaves and which layers a "pick a point marker" UI offers.
+    /// <para>Vector is a third, separate kind of per-frame data — an origin + direction (+ optional length),
+    /// stored in <see cref="MetaLayer.vectorFrames"/> rather than the pixel-mask <see cref="MetaLayer.frames"/>
+    /// Shape/Point use, and read via <c>ZonedAnimationPlayer.TryGetMetaVector</c>/<c>TryGetMetaVectorNearest</c>
+    /// instead of <c>TryGetMetaPoint</c>. Domain-agnostic like Point — Launimator has no idea what a "muzzle" or
+    /// "swing" is; a consumer (e.g. the weapon system) assigns that meaning by looking up a named layer.</para>
+    /// </summary>
+    public enum MetaLayerMode { Shape, Point, Vector }
 
     [System.Serializable]
     public class MetaLayer
@@ -30,8 +36,14 @@ namespace Laubrary.Launimator
         [Tooltip("Display colour for this layer's mask. Monochrome — each cell's value 0–10 just scales alpha.")]
         public Color color = new Color(1f, 0.25f, 0.25f, 1f);
 
-        [Tooltip("One entry per animation frame, in sequence order.")]
+        [Tooltip("One entry per animation frame, in sequence order. Shape/Point pixel-mask data — unused in Vector mode.")]
         public List<MetaFrame> frames = new List<MetaFrame>();
+
+        [Tooltip("One entry per animation frame, in sequence order. Vector mode's origin/direction data — unused in Shape/Point mode.")]
+        public List<VectorMetaFrame> vectorFrames = new List<VectorMetaFrame>();
+
+        [Tooltip("Vector mode only: does this layer's authored length mean anything, or should consumers treat every vector as normalized (length 1)?")]
+        public bool vectorAllowLength = false;
 
         /// <summary>Display colour for a cell value (0 = fully transparent). Value 5 = the layer colour; values
         /// ramp the BRIGHTNESS so they read apart visually — 1 = almost black, 5 = the layer colour, 10 = almost
@@ -56,6 +68,25 @@ namespace Laubrary.Launimator
             new Color(1f,   0.82f, 0.28f, 1f),  // amber
             new Color(0.85f, 0.45f, 1f,   1f),  // violet
         };
+    }
+
+    /// <summary>One animation frame's data for a Vector-mode layer: an origin point + a direction (+ optional
+    /// length, meaningful only when the owning <see cref="MetaLayer.vectorAllowLength"/> is true). <see
+    /// cref="origin"/> is normalized 0..1 across the sprite's own rect (bottom-left origin) — the same UV
+    /// convention a mask's normalized cell coords use, just without a grid. <see cref="direction"/> is LOCAL
+    /// space (0,1) = up, matching Cookbook2D's own angle convention, before flipX/world transform is applied.
+    /// <see cref="authored"/> mirrors Point mode's "nothing painted this frame" — false means the runtime
+    /// sampler skips this frame the same way an empty <see cref="MetaFrame"/> does.</summary>
+    [System.Serializable]
+    public class VectorMetaFrame
+    {
+        public bool authored;
+        public Vector2 origin = new Vector2(0.5f, 0.5f);
+        public Vector2 direction = Vector2.up;
+        public float length = 1f;
+
+        public VectorMetaFrame Clone()
+            => new VectorMetaFrame { authored = authored, origin = origin, direction = direction, length = length };
     }
 
     /// <summary>One animation frame's meta data for a layer: a free-text parameter plus a value grid (0–10,
