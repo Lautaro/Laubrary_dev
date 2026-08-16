@@ -36,6 +36,11 @@ namespace Laubrary.AssetKit.Editor
 
         public static bool CanCreate(Type concreteType) => concreteType != null && creators.ContainsKey(concreteType);
 
+        /// Does this concrete type have EITHER an opener or a creator registered — i.e. is it a LauAsset type
+        /// at all, regardless of which of the two actions it supports.
+        public static bool HasRegistration(Type concreteType)
+            => concreteType != null && (openers.ContainsKey(concreteType) || creators.ContainsKey(concreteType));
+
         public static Object Create(Type concreteType, string suggestedName, string folder)
             => concreteType != null && creators.TryGetValue(concreteType, out var fn) ? fn(suggestedName, folder) : null;
 

@@ -3,6 +3,7 @@
     "rootNamespace": "Laubrary.Zui",
     "references": [
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.Cookbook",
         "ZUI.Editor"
     ],
     "includePlatforms": [

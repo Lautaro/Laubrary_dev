@@ -136,7 +136,8 @@ namespace Laubrary.Pyre.Editor
             root.Add(BackSplashZui.Build(backSplash, "Preview backdrop",
                 "Renders live every repaint, purely as a visual aid for authoring — it's never baked into any asset and has no effect on the baked sprite sheet or the runtime blast. A private copy: Recall copies values FROM a preset, Save writes them TO one; nothing stays linked to a shared asset.",
                 onChanged: DirtySpec,
-                onStructureChanged: () => { DirtySpec(); RebuildPanels(); }));
+                onStructureChanged: () => { DirtySpec(); RebuildPanels(); },
+                owner: spec));
         }
 
         // ── preview subject options ─────────────────────────────────────────────────────────

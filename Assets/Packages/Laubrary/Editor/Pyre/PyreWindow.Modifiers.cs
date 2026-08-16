@@ -221,22 +221,32 @@ namespace Laubrary.Pyre.Editor
                         v => Dial("Dissolve mode", () => ld.mode = (DissolveMode)v)));
                     box.Add(ValRow("Smoothness", "Softens the dissolve pattern.", ld.smoothness, 0f, 1f, 0f));
                     break;
-                case AlphaMaskModifier am:
-                    box.Add(Z.MiniRadio((int)am.shape, MaskShapeLabels, "The mask's shape/wipe pattern.",
-                        v => { Dial("Mask shape", () => am.shape = (MaskShape)v); RebuildLeft(); }));
-                    box.Add(ValRow("Progress", "How far the mask has progressed (0 hidden … 1 fully shown).", am.progress, 0f, 1f, 1f));
-                    box.Add(ValRow("Sharpness", "Hardness of the mask's edge.", am.Sharpness, 0f, 1f, 0.6f));
-                    box.Add(ValRow("Size", "×scale on the mask's footprint.", am.size, 0.1f, 4f, 1f));
-                    box.Add(ValRow("Rotation", "Rotates the mask.", am.rotation, -180f, 180f, 0f));
-                    // Was a raw Z.Pad over two plain floats; the offset is now an animatable companion pair, so the
-                    // ZUIValue 2D control (same pad ergonomics, plus Static/Min-Max/Curve) replaces it.
-                    box.Add(Z.Value2D("Offset", am.OffsetX, am.OffsetY, Range2D(-1f, 1f),
-                        "Moves the mask off-centre.", DirtySpec, RecordSpec));
-                    if (am.shape == MaskShape.Noise)
+                case WipeModifier w:
+                    box.Add(Z.MiniRadio((int)w.shape, WipeShapeLabels, "The form the reveal grows as.",
+                        v => { Dial("Wipe shape", () => w.shape = (WipeShape)v); RebuildLeft(); }));
+                    box.Add(ValRow("Progress", "The sweep: 0 hides everything, 1 reveals the whole sprite.", w.progress, 0f, 1f, 1f));
+                    box.Add(ValRow("Size", "×scale on the shape's footprint.", w.size, 0.05f, 4f, 1f));
+                    box.Add(ValRow("Rotation", "Rotates the shape.", w.rotation, -180f, 180f, 0f));
+                    box.Add(Z.Value2D("Offset", w.offsetX, w.offsetY, Range2D(-1.5f, 1.5f),
+                        "Moves the shape off-centre.", DirtySpec, RecordSpec));
+                    box.Add(ValRow("Strength", "How much of the sprite the mask actually takes away.", w.strength, 0f, 1f, 1f));
+                    box.Add(Z.MiniRadio((int)w.edge, WipeEdgeLabels, "Soft blurs the boundary; Solid cuts hard; " +
+                        "Directional fades the reveal along an angle.",
+                        v => { Dial("Wipe edge", () => w.edge = (WipeEdge)v); RebuildLeft(); }));
+                    if (w.edge == WipeEdge.Soft)
+                        box.Add(ValRow("Feather", "How wide the edge blur is.", w.Feather, 0f, 1f, 0.4f));
+                    if (w.edge == WipeEdge.Directional)
+                        box.Add(ValRow("Fade angle", "Compass direction the reveal fades along.", w.fadeAngle, 0f, 360f, 0f));
+                    if (w.shape == WipeShape.Crescent)
                     {
-                        box.Add(PackedSlider("Noise warp", "Distorts the noise mask into itself.", am.noiseWarp, 0f, 2f, v => am.noiseWarp = v, 150f));
-                        box.Add(Z.Value2D("Noise drift", am.noiseDriftX, am.noiseDriftY, Range2D(-64f, 64f),
-                            "Scrolls the noise mask over time.", DirtySpec, RecordSpec));
+                        box.Add(ValRow("Crescent bite", "How far the bitten-out disc sits from the centre.", w.CrescentBite, 0f, 2f, 0.9f));
+                        box.Add(ValRow("Crescent thickness", "The bitten-out disc's own radius.", w.CrescentThickness, 0.1f, 2f, 1f));
+                    }
+                    if (w.shape == WipeShape.Noise)
+                    {
+                        box.Add(ValRow("Noise warp", "Domain-warp strength — how much the noise field bends on itself.", w.noiseWarp, 0f, 2f, 0.6f));
+                        box.Add(Z.Value2D("Noise drift", w.noiseDriftX, w.noiseDriftY, Range2D(-64f, 64f),
+                            "Extra drift added to the noise sample position over the wipe's progress.", DirtySpec, RecordSpec));
                     }
                     break;
                 case KaleidoscopeModifier km:
@@ -270,17 +280,34 @@ namespace Laubrary.Pyre.Editor
                     om.color ??= new Gradient();
                     box.Add(GradientRow(om.mode == ColorMode.OverLife ? "Colour (over life)" : "Colour (in→out)",
                         "The outline's colour ramp.", () => om.color, v => om.color = v));
-                    box.Add(ValRow("Size (px)", "Outline thickness in pixels.", om.size, 0f, 12f, 1f));
-                    box.Add(ValRow("Edge sensitivity", "Alpha threshold that counts as an edge.", om.AlphaThreshold, 0.01f, 1f, 0.08f));
-                    box.Add(ValRow("Inner softness (px)", "Fade distance inside the edge.", om.InnerSoftness, 0f, 16f, 0f));
-                    box.Add(ValRow("Inner curve", "Falloff curve of the inner fade.", om.InnerSoftnessCurve, 0.2f, 5f, 1f));
-                    box.Add(ValRow("Outer softness (px)", "Fade distance outside the edge.", om.OuterSoftness, 0f, 16f, 0f));
-                    box.Add(ValRow("Outer curve", "Falloff curve of the outer fade.", om.OuterSoftnessCurve, 0.2f, 5f, 1f));
-                    break;
-                case JaggModifier jm:
-                    box.Add(PackedSlider("Arms", "How many star arms.", jm.arms, 2f, 24f, v => jm.arms = Mathf.RoundToInt(v), 150f, isInt: true));
-                    box.Add(ValRow("Strength", "How deep the jagging cuts.", jm.strength, 0f, 0.95f, 0.4f));
-                    box.Add(ValRow("Twist", "Rotates the arms over life.", jm.twist, -180f, 180f, 0f));
+                    // Grouped by what the dials MEAN — the whole outline, then its inward edge, then its
+                    // outward edge — rather than packed to fill rows.
+                    // A prior recovery pass (AgentHQ T-0012) looked for an "opacity"/"innerSize" pair this
+                    // comment used to reference and found no trace of either ever existing: zero git history
+                    // (git log -S over this whole file), and the 2026-08-01 modifier-overhaul session that
+                    // touched Outline documented adding InnerSoftness/OuterSoftness/AlphaThreshold specifically
+                    // — no opacity, no innerSize. Outline's own alpha already comes from its colour gradient
+                    // (Fill/Over-life), so there's no known spec for what a separate opacity dial would even do.
+                    // Leaving as an open question rather than inventing fields with no history behind them.
+                    box.Add(
+                        PackedVal("Size (px)", "Solid thickness drawn OUTWARD from the shape's edge. Fractional: " +
+                            "0.5 draws the first ring at half strength, so it thickens smoothly.", om.size, 0f, 12f, 1f));
+                    box.Add(WrapRow(
+                        PackedVal("Inner softness (px)", "Feathers the inward spill deeper past Inner size. Only " +
+                            "ever adds fade further in — it never dims what Inner size earned.", om.InnerSoftness, 0f, 16f, 0f),
+                        PackedVal("Inner curve", "Shapes the inner feather: 1 is linear, higher holds strength " +
+                            "then drops sharply, lower drops fast then lingers.", om.InnerSoftnessCurve, 0.2f, 5f, 1f)));
+                    box.Add(WrapRow(
+                        PackedVal("Outer softness (px)", "Smudges the ring further OUTWARD past Size. Only ever " +
+                            "adds coverage outward — it never dims or erases the ring Size earned.", om.OuterSoftness, 0f, 16f, 0f),
+                        PackedVal("Outer curve", "Shapes the outer feather: 1 is linear, higher holds strength " +
+                            "then drops sharply, lower drops fast then lingers.", om.OuterSoftnessCurve, 0.2f, 5f, 1f)));
+                    // Last, and alone: on a hard-edged sprite it changes nothing at any setting — it only
+                    // decides where the trace sits on a genuinely soft edge.
+                    box.Add(ValRow("Edge sensitivity", "The alpha a pixel needs to count as shape rather than " +
+                        "background — it decides where the outline sits on a soft or semi-transparent edge. On a " +
+                        "hard-edged sprite it changes nothing at any setting.",
+                        om.AlphaThreshold, 0.01f, 1f, 0.08f));
                     break;
                 case SmudgeModifier sm:
                     box.Add(ValRow("Brush size (px)", "Stroke brush radius.", sm.size, 1f, half, 12f));
@@ -305,13 +332,13 @@ namespace Laubrary.Pyre.Editor
                     box.Add(Z.Text($"{sm.strokes.Count} stroke(s)", ZuiText.Small, "How many strokes are recorded."));
                     break;
                 case DropShadowModifier ds:
-                    box.Add(Z.Field("Offset", "Shadow offset in pixels (plain value — not animatable).",
-                        Z.Pad(new Vector2(ds.offsetX, ds.offsetY), new Rect(-16f, -16f, 32f, 32f),
-                            "Drag to offset the shadow.",
-                            v => Dial("Shadow offset", () => { ds.offsetX = v.x; ds.offsetY = v.y; }))));
-                    box.Add(Z.Field("Shadow colour", "The shadow's colour.",
+                    box.Add(Z.Value2D("Offset", ds.OffsetX, ds.OffsetY, Range2D(-16f, 16f),
+                        "Shadow offset in pixels (screen right/up).", DirtySpec, RecordSpec));
+                    box.Add(Z.Field("Shadow colour", "The shadow's colour. Its own alpha sets the base strength; " +
+                        "Opacity below multiplies on top of that.",
                         Z.Color(ds.color, "The shadow's colour.", v => Dial("Shadow colour", () => ds.color = v))));
-                    box.Add(PackedSlider("Edge alpha", "Alpha threshold that counts as the silhouette.", ds.alphaThreshold, 0.01f, 1f, v => ds.alphaThreshold = v, 150f));
+                    box.Add(ValRow("Opacity", "Multiplies the shadow colour's own alpha. Animatable.", ds.opacity, 0f, 1f, 1f));
+                    box.Add(ValRow("Edge alpha", "Alpha threshold that counts as the silhouette.", ds.AlphaThreshold, 0.01f, 1f, 0.2f));
                     break;
                 case PosterizeModifier pz:
                     box.Add(PackedSlider("Levels", "How many colour levels remain.", pz.levels, 2f, 16f, v => pz.levels = Mathf.RoundToInt(v), 150f, isInt: true));
@@ -319,20 +346,16 @@ namespace Laubrary.Pyre.Editor
                         v => Dial("Affect alpha", () => pz.affectAlpha = v)));
                     break;
                 case TurbulenceModifier tb:
+                    box.Add(Z.MiniRadio((int)tb.noise, TurbulenceNoiseLabels, "Value = bilinear noise, faintly " +
+                        "blobby/grid-aligned at low frequency. Gradient = true gradient noise, sharper and more " +
+                        "organic at the same frequency.",
+                        v => Dial("Turbulence noise", () => tb.noise = (TurbulenceNoise)v)));
                     box.Add(ValRow("Amplitude", "Churn displacement in pixels.", tb.amplitude, 0f, Mathf.Max(4f, half), 4f));
                     box.Add(ValRow("Zoom", "Churn feature size.", tb.zoom, 1f, Mathf.Max(8f, half * 2f), 24f));
                     box.Add(ValRow("Rotation", "Rotates the churn field.", tb.rotation, -720f, 720f, 0f));
                     box.Add(Z.Value2D("Offset", tb.offsetX, tb.offsetY, Range2D(-half, half),
                         "Scrolls the churn field.", DirtySpec, RecordSpec));
                     box.Add(ValRow("Warp", "Distorts the churn field into itself.", tb.warp, 0f, 2f, 0.6f));
-                    break;
-                case PerlinTurbulenceModifier pt:
-                    box.Add(ValRow("Amplitude", "Churn displacement in pixels.", pt.amplitude, 0f, Mathf.Max(4f, half), 4f));
-                    box.Add(ValRow("Zoom", "Churn feature size.", pt.zoom, 1f, Mathf.Max(8f, half * 2f), 24f));
-                    box.Add(ValRow("Rotation", "Rotates the churn field.", pt.rotation, -720f, 720f, 0f));
-                    box.Add(Z.Value2D("Offset", pt.offsetX, pt.offsetY, Range2D(-half, half),
-                        "Scrolls the churn field.", DirtySpec, RecordSpec));
-                    box.Add(ValRow("Warp", "Distorts the churn field into itself.", pt.warp, 0f, 2f, 0.6f));
                     break;
                 case EdgeSmoothModifier es:
                     box.Add(ValRow("Radius (px)", "Smoothing kernel radius.", es.radius, 0f, 16f, 2f, allowMinMax: false));
@@ -354,16 +377,6 @@ namespace Laubrary.Pyre.Editor
                     box.Add(WrapRow(
                         PackedVal("Radius (px)", "How far the band has travelled.", bl.radius, 0f, Mathf.Max(4f, half), 0f, allowMinMax: false),
                         PackedVal("Strength", "Push strength (negative pulls).", bl.strength, -20f, 20f, 6f, allowMinMax: false)));
-                    break;
-                case CloudProjectileModifier cpj:
-                    box.Add(WrapRow(
-                        PackedVal("Angle", "The projectile's travel direction.", cpj.angleDeg, -180f, 180f, 0f, allowMinMax: false),
-                        PackedVal("Offset (px)", "Sideways offset of the flight path.", cpj.offset, -half, half, 0f, allowMinMax: false)));
-                    box.Add(ValRow("Depth", "How far through the cloud the projectile has flown.", cpj.depth, 0f, 1f, allowMinMax: false));
-                    box.Add(WrapRow(
-                        PackedVal("Radius (px)", "The projectile's push radius.", cpj.radius, 1f, Mathf.Max(4f, half), 10f, allowMinMax: false),
-                        PackedVal("Strength", "Push strength along the tunnel.", cpj.strength, -20f, 20f, 6f, allowMinMax: false)));
-                    box.Add(ValRow("Density", "How much cloud resists the push.", cpj.density, 0f, 5f, 1f, allowMinMax: false));
                     break;
                 case BallisticShockwaveModifier bs:
                     box.Add(Z.Text("Projectile", ZuiText.Section, "The projectile that punches through."));
@@ -642,11 +655,9 @@ namespace Laubrary.Pyre.Editor
             Add("Geometry/Sunburst wobble", () => new SunburstWobbleModifier());
             Add("Geometry/Profile (mold shape)", () => new ProfileModifier());
             Add("Geometry/Ground (grow from surface)", () => new GroundModifier());
-            Add("Geometry/Jagg (star)", () => new JaggModifier());
             Add("Geometry/Edge warp (jagged, wavy silhouette only)", () => new EdgeWarpModifier());
             Add("Geometry/Smudge", () => new SmudgeModifier());
             Add("Geometry/Turbulence (churn)", () => new TurbulenceModifier());
-            Add("Geometry/Perlin turbulence (sharper churn)", () => new PerlinTurbulenceModifier());
             Add("Geometry/Curl (swirl)", () => new CurlModifier());
             Add("Geometry/Vortex field (progress)", () => new CurlProgressModifier());
             Add("Geometry/Sphere (fake depth)", () => new SphereModifier());
@@ -664,7 +675,7 @@ namespace Laubrary.Pyre.Editor
             if (isGlobal) Add("Alpha/Dissolve", () => new DissolveModifier());
             else Add("Alpha/Layer dissolve (follows this layer's own geometry warps)", () => new LayerDissolveModifier());
             Add("Alpha/Ordered dither", () => new OrderedDitherModifier());
-            Add("Alpha/Alpha mask", () => new AlphaMaskModifier());
+            Add("Alpha/Wipe (mask reveal)", () => new WipeModifier());
             Add("Post/Kaleidoscope (mirrored arms)", () => new KaleidoscopeModifier());
             Add("Post/Bloom (glow)", () => new BloomModifier());
             Add("Post/Outline", () => new OutlineModifier());
@@ -672,7 +683,6 @@ namespace Laubrary.Pyre.Editor
             Add("Post/Drop shadow", () => new DropShadowModifier());
             Add("Post/Chromatic aberration", () => new ChromaticAberrationModifier());
             Add("Post/Fuse (blob melt)", () => new FuseModifier());
-            Add("Post/Cloud projectile", () => new CloudProjectileModifier());
             Add("Post/Ballistic shockwave (rings + vortex street)", () => new BallisticShockwaveModifier());
             menu.Show();
         }

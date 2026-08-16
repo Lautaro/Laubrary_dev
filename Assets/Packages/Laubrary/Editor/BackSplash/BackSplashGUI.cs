@@ -30,14 +30,21 @@ namespace Laubrary.BackSplash.Editor
         /// the picked preset's values into `settings`. Shared by every consumer so the picker and the
         /// copy semantics exist once. `onChanged` fires after the
         /// copy actually happens, which is a later event than the click that opened the popup.
-        public static void ShowRecall(Rect anchor, BackSplashSettings settings, Action onChanged = null)
+        ///
+        /// `owner` is the UnityEngine.Object `settings` actually lives on — when supplied, the copy is
+        /// wrapped in `Undo.RecordObject`/`EditorUtility.SetDirty` here, so a Recall dirties (and can be
+        /// undone on) the right asset without every caller having to remember to do it.
+        public static void ShowRecall(Rect anchor, BackSplashSettings settings, Action onChanged = null,
+            UnityEngine.Object owner = null, string editName = "BackSplash")
         {
             if (settings == null) return;
             Laubrary.AssetKit.Editor.LauAssetPicker.Show(anchor, typeof(BackSplash), picked =>
             {
                 var src = (BackSplash)picked;
                 if (src == null) return;
+                if (owner != null) Undo.RecordObject(owner, $"Recall {editName}");
                 settings.CopyFrom(src);
+                if (owner != null) EditorUtility.SetDirty(owner);
                 onChanged?.Invoke();
             }, null);
         }

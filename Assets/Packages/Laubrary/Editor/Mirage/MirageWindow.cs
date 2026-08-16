@@ -263,20 +263,12 @@ namespace Laubrary.Mirage.Editor
             const string tip = "A private backdrop copy for THIS view: camera colour + one zoomable, " +
                 "positionable image. Recall copies values in from a shared preset; Save writes them out.";
 
-            // Undo is recorded BEFORE the edit lands, not after: the control mutates the settings object in
-            // place, so a post-mutation record would snapshot the already-changed state. RecordObject creates
-            // no entry when nothing actually changed.
-            void Dirty()
-            {
-                Undo.RecordObject(view, "Edit Mirage backdrop");
-                EditorUtility.SetDirty(view);
-                Repaint();
-            }
-
+            // Undo + SetDirty now happen INSIDE BackSplashZui.Build itself (owner: view) — every consumer gets
+            // the same recorded-before-mutation guarantee for free instead of reimplementing it per host.
             root.Add(BackSplashZui.Build(view.backSplash, "Backsplash", tip,
-                onChanged: Dirty,
-                onStructureChanged: () => { Dirty(); RebuildBody(); },
-                domainHalfWidth: domainHalfW, domainHalfHeight: domainHalfH));
+                onChanged: Repaint,
+                onStructureChanged: () => { Repaint(); RebuildBody(); },
+                domainHalfWidth: domainHalfW, domainHalfHeight: domainHalfH, owner: view));
         }
 
         // The backdrop's imagePos is a real Transform.position read by MirageRig's orthographic previewCamera

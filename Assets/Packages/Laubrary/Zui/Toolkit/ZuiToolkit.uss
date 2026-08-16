@@ -197,13 +197,6 @@
     background-color: rgba(255, 255, 255, 0.05);
 }
 
-.zui-section__caret {
-    width: 14px;
-    color: var(--zui-section-title);
-    opacity: 0.75;
-    -unity-text-align: middle-center;
-}
-
 .zui-section__title {
     -unity-font-style: bold;
     font-size: 13px;

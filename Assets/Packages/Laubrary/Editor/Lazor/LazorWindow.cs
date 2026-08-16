@@ -21,7 +21,7 @@ namespace Laubrary.Lazor.Editor
         [MenuItem("Laubrary/Lazor/Lazor")]
         public static void Open() => GetWindow<LazorWindow>("Lazor");
 
-        /// Same entry-point shape as PyreWindow.OpenFor/MirageWindow.OpenFor — lets a LauAssetField's Edit
+        /// Same entry-point shape as PyreWindow.OpenFor/MirageWindow.OpenFor — lets a reference chip's "Open in its editor" card item
         /// button jump straight into this LazorShape's own editor.
         public static void OpenFor(LazorShape s)
         {

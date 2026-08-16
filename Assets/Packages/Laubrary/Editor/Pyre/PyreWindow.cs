@@ -165,11 +165,13 @@ namespace Laubrary.Pyre.Editor
         static readonly string[] ScatterModeLabels = { "Area", "Ring", "Rosing" };
         static readonly string[] RingOrderLabels = { "Sequential", "Random" };
         static readonly string[] DissolveModeLabels = { "Erase", "Scatter" };
-        static readonly string[] MaskShapeLabels = { "Disc out", "Disc in", "Swipe H", "Swipe V", "Wedge", "Noise" };
         static readonly string[] ColorModeLabels = { "Over life", "Fill", "Flow fill", "Noise fill" };
         static readonly string[] OverLifeFillLabels = { "Over life", "Fill" };
         static readonly string[] ScaleAxisLabels = { "Vertical", "Horizontal", "Both" };
         static readonly string[] CrackSpreadModeLabels = { "Uniform", "Centre out", "Edge in", "Both" };
+        static readonly string[] TurbulenceNoiseLabels = { "Value", "Gradient" };
+        static readonly string[] WipeShapeLabels = { "Triangle", "Square", "Disc", "Crescent", "Disc in", "Swipe H", "Swipe V", "Wedge", "Noise" };
+        static readonly string[] WipeEdgeLabels = { "Soft", "Solid", "Directional" };
 
         // ── lifecycle ───────────────────────────────────────────────────────────────────────
         protected override void OnEnable()

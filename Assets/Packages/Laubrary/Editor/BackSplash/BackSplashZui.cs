@@ -12,6 +12,7 @@
 // before the pad was touched. So the caller supplies the domain; the control never guesses it.
 using System;
 using Laubrary.Zui;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -21,9 +22,19 @@ namespace Laubrary.BackSplash.Editor
     {
         /// A framed backdrop panel over a caller-owned BackSplashSettings.
         ///
-        /// `onChanged` fires after any edit — dirty the owning asset and repaint there. `onStructureChanged`
-        /// fires when a change adds or removes controls (picking or clearing the image), so a retained-mode
-        /// host can rebuild; it falls back to `onChanged` when not supplied.
+        /// `owner` is the UnityEngine.Object that ACTUALLY holds `settings` (a spec/view ScriptableObject
+        /// asset, or null for a window-scoped, non-persisted copy like TextSplash's audition backdrop). When
+        /// supplied, every edit here — including Recall — is wrapped in `Undo.RecordObject(owner, ...)` +
+        /// `EditorUtility.SetDirty(owner)` BY THIS CONTROL, not by the caller. This used to be the caller's
+        /// job, and two of the three hosts (Pyre, PyrePlus) never did it: every OTHER dial in those windows
+        /// records undo, but the backdrop didn't, so a later Ctrl+Z elsewhere in the same session snapshotted
+        /// and silently reverted the backdrop right along with whatever the user actually meant to undo —
+        /// which reads as "the backsplash doesn't stick." Centralizing it here means every consumer gets the
+        /// fix for free and a future one can't reintroduce the gap by forgetting the boilerplate.
+        ///
+        /// `onChanged` fires after any edit, owner-dirtying already done — repaint the preview there.
+        /// `onStructureChanged` fires when a change adds or removes controls (picking or clearing the
+        /// image), so a retained-mode host can rebuild; it falls back to `onChanged` when not supplied.
         ///
         /// `domainHalfWidth/Height` bound the position pad in the CALLER's own unit space (see the file
         /// comment). Defaults to BackSplash.MaxImageOffset, which is the pixel-space answer Pyre wants.
@@ -33,14 +44,23 @@ namespace Laubrary.BackSplash.Editor
             Action onChanged, Action onStructureChanged = null,
             float domainHalfWidth = BackSplash.MaxImageOffset,
             float domainHalfHeight = BackSplash.MaxImageOffset,
-            string icon = null)
+            string icon = null, UnityEngine.Object owner = null)
         {
             var box = string.IsNullOrEmpty(icon) ? Z.Box(title, tooltip) : Z.Box(title, tooltip, icon);
             if (settings == null) return box;
 
             onStructureChanged ??= onChanged;
-            void Changed() => onChanged?.Invoke();
-            void Restructured() => onStructureChanged?.Invoke();
+            // Undo recorded BEFORE `apply` mutates `settings` — RecordObject's snapshot has to be the
+            // PRE-edit state, or undoing this very edit would restore the state it just landed.
+            void Edit(Action apply, Action after)
+            {
+                if (owner != null) Undo.RecordObject(owner, $"Edit {title}");
+                apply();
+                if (owner != null) EditorUtility.SetDirty(owner);
+                after?.Invoke();
+            }
+            void Changed(Action apply) => Edit(apply, onChanged);
+            void Restructured(Action apply) => Edit(apply, onStructureChanged);
 
             var recall = Z.Button("Recall…",
                 "Copy colour/image/position/zoom/tint FROM an existing preset — a one-time copy, not a live link.", null);
@@ -48,8 +68,11 @@ namespace Laubrary.BackSplash.Editor
             {
                 var wb = recall.worldBound;
                 // Recall lands on a LATER event than the click that opened the popup, so the host cannot
-                // catch it with a change-check around this call — it has to be told.
-                BackSplashGUI.ShowRecall(new Rect(wb.x, wb.y, wb.width, wb.height), settings, Restructured);
+                // catch it with a change-check around this call — it has to be told. The undo snapshot has
+                // to be taken inside that same later callback, immediately before CopyFrom, so ShowRecall
+                // takes `owner` itself rather than this method pre-recording too early.
+                BackSplashGUI.ShowRecall(new Rect(wb.x, wb.y, wb.width, wb.height), settings,
+                    onStructureChanged, owner, title);
             };
 
             var save = Z.Button("Save…",
@@ -65,10 +88,16 @@ namespace Laubrary.BackSplash.Editor
             box.Add(Z.Row(
                 Z.Field("Colour", "Solid background fill behind the image.",
                     Z.Color(settings.cameraColor, "Solid background fill behind the image.",
-                        v => { settings.cameraColor = v; Changed(); }, 90f)),
+                        v => Changed(() => settings.cameraColor = v), 90f)),
                 Z.Field("Image", "The backdrop image sprite.",
                     Z.Object<Sprite>(settings.image, "The backdrop image sprite.",
-                        v => { settings.image = v; Restructured(); }, 120f))));
+                        v => Restructured(() =>
+                        {
+                            settings.image = v;
+                            // A fresh image starts at the default view — an old zoom/offset tuned for the
+                            // PREVIOUS image's aspect ratio just as often shows nothing recognisable at all.
+                            if (v != null) { settings.imageZoom = 1f; settings.imagePos = Vector2.zero; }
+                        }), 120f))));
 
             // Position/zoom/tint describe an image; with no image they'd be dials over nothing.
             if (settings.image != null)
@@ -79,16 +108,16 @@ namespace Laubrary.BackSplash.Editor
                         "Drag to offset the backdrop image.",
                         // ClampImagePos is the much larger hard backstop; the domain above is always tighter,
                         // so this only matters if a caller passes a domain wider than the backstop.
-                        v => { settings.imagePos = BackSplash.ClampImagePos(v); Changed(); }, 68f),
+                        v => Changed(() => settings.imagePos = BackSplash.ClampImagePos(v)), 68f),
                     Z.Column(
                         // Label-inside MicroSlider (no Z.Field wrap — it draws its own "Zoom" caption + value).
                         // Same 0.1..16 range and 5-decimal rounding as the native Slider it replaced.
                         Z.MicroSlider("Zoom", settings.imageZoom, 0.1f, 16f,
                             "How much of the backdrop image fills the viewport.",
-                            v => { settings.imageZoom = v; Changed(); }, 150f, showValue: true),
+                            v => Changed(() => settings.imageZoom = v), 150f, showValue: true),
                         Z.Field("Tint", "Multiplies the image's own colours.",
                             Z.Color(settings.imageTint, "Multiplies the image's own colours.",
-                                v => { settings.imageTint = v; Changed(); }, 90f)))));
+                                v => Changed(() => settings.imageTint = v), 90f)))));
             }
             return box;
         }
