@@ -29,11 +29,13 @@ namespace Laubrary.PyrePlus.Editor
         {
             if (util != null) return;
             util = new PreviewRenderUtility();
-            util.cameraFieldOfView = 30f;
+            util.cameraFieldOfView = 40f;
             util.camera.farClipPlane = 100f;
             util.camera.nearClipPlane = 0.05f;
-            util.camera.transform.position = new Vector3(0f, 0.6f, -3.2f);
-            util.camera.transform.LookAt(Vector3.zero);
+            // Pulled back/raised from the original (0, 0.6, -3.2) framing, which clipped tall fire/explosion
+            // prefabs that rise well above the origin — most VFX packs (Vefects included) pivot at the base.
+            util.camera.transform.position = new Vector3(0f, 1.4f, -6.5f);
+            util.camera.transform.LookAt(new Vector3(0f, 1f, 0f));
             util.lights[0].intensity = 1.1f;
             util.lights[0].transform.rotation = Quaternion.Euler(40f, -30f, 0f);
             util.lights[1].intensity = 0.4f;
@@ -111,7 +113,15 @@ namespace Laubrary.PyrePlus.Editor
             }
             // Point-filtered downsample: Blit from the full-res render into the small grid RT. Reading `full`
             // back requires it be a RenderTexture (which EndPreview's result is), so this is a straight GPU blit.
+            // MUST restore RenderTexture.active afterward: Graphics.Blit leaves the small pixelRT active, and this
+            // whole method runs inside an IMGUI Repaint callback (PyrePlusWindow.Preview.cs's DrawPlayback3DPreview)
+            // — under URP, leaving the wrong RT active here corrupted every GUILayout call drawn AFTER the preview
+            // in the same pass (the transport row / backdrop controls silently stopped rendering; confirmed live,
+            // this was NOT a false alarm). Save/restore is the standard safe pattern for a Blit issued outside a
+            // camera's own render callback.
+            var prevActive = RenderTexture.active;
             Graphics.Blit(full, pixelRT);
+            RenderTexture.active = prevActive;
             return pixelRT;
         }
 
