@@ -115,7 +115,11 @@ namespace Laubrary.PyrePlus
         const int FldInfernoOuterRim = -51;  // infernoOuterRim — outer-rim heat, layer life
         const int FldInfernoCoreDensity = -52; // infernoCoreDensity — centre thickness, layer life
         const int FldInfernoSmokeSpread = -53; // infernoSmokeSpread — soot reach beyond the fire, layer life
-        const int FldInfernoEdgeSoft = -54;  // infernoEdgeSoftness — the blast's own rim softness, layer life. Next new single field id: -55 onward.
+        const int FldInfernoEdgeSoft = -54;  // infernoEdgeSoftness — the blast's own rim softness, layer life.
+        const int FldForkProgress = -55;     // forkProgress — ForkBlast's time remap onto the blast's own clock, layer life
+        const int FldForkReach = -56;        // forkReach — ForkBlast puff travel distance fraction, layer life
+        const int FldForkFlash = -57;        // forkFlash — ForkBlast ignition flash strength, layer life
+        const int FldForkHash = -58;         // ForkBlast's pixel-modifier hash stream (whole-layer, like FldInfernoHash). Next new single field id: -59 onward.
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
         //  3D yaw (Turn), FldGemTilt for its tilt, FldGemRoll for its roll, and FldPathX/FldPathY for the shared
         //  travel offset — no other new ids. Crescent/Sparkle/Sprite likewise REUSE FldSize/FldAlpha (radius/alpha),
@@ -400,12 +404,15 @@ namespace Laubrary.PyrePlus
                 // Inferno — STATELESS (closed-form, no replay harness), but its base field pass SETS pixels (it owns
                 // the whole silhouette, like the sims' Render), so it needs the same isolated-scratch treatment.
                 bool isInferno = layer.shapeForm == ShapeForm.Inferno;
+                // ForkBlast — same reasoning as Inferno: closed-form, but its field pass SETS pixels over the whole
+                // silhouette, so it needs an isolated scratch too.
+                bool isForkBlast = layer.shapeForm == ShapeForm.ForkBlast;
 
                 bool matteActive = matteState.mask != null;
                 // hasBorder forces the isolated-scratch path so the border can read this layer's OWN fill alpha (the
                 // straight-into-buf fast path has no separate layer buffer to rim). Border OFF ⇒ hasBorder false ⇒
                 // needScratch is exactly the pre-border expression ⇒ the fast path is untouched and byte-identical.
-                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire || isFireball || isInferno || hasLayerSim || hasBorder;
+                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire || isFireball || isInferno || isForkBlast || hasLayerSim || hasBorder;
                 if (!needScratch)
                 {
                     if (isHeightConsumer) RenderHeightConsumer(buf, W, H, layer, heightField);
@@ -572,6 +579,59 @@ namespace Laubrary.PyrePlus
                 PlusInferno.Render(target, W, H, layer, infSeed, layer.shapeFill, infAlpha, anim, origins, infMods);
                 return;
             }
+
+            // ForkBlast — a whole-layer swarm-of-puffs detonation (see PlusForkBlast.cs). Same swarm-native
+            // placement convention as Inferno (swarm off ⇒ one centred blast; swarm on ⇒ one blast per spawn) and
+            // the same Eval funnel for its three animatable dials. Isolated scratch is forced above (its field
+            // pass SETS pixels).
+            if (layer.shapeForm == ShapeForm.ForkBlast)
+            {
+                int sd = spec != null ? spec.seed : 0;
+                int fbSeed = Hash(sd, _layerSalt, 1, 7);
+                float fbAlpha = Mathf.Clamp01(Eval(layer.alpha, life, sd, ModParticleIndex, FldAlpha));
+                var anim = new PlusForkBlast.Anim
+                {
+                    progress = Mathf.Clamp01(Eval(layer.forkProgress, life, sd, ModParticleIndex, FldForkProgress)),
+                    reach = Eval(layer.forkReach, life, sd, ModParticleIndex, FldForkReach),
+                    flash = Eval(layer.forkFlash, life, sd, ModParticleIndex, FldForkFlash),
+                };
+                PlusForkBlast.SwarmOrigin[] fbOrigins = null;
+                if (layer.swarmEnabled)
+                {
+                    ComputeSpawns(spec, layer, _plusFireSpawns);
+                    fbOrigins = new PlusForkBlast.SwarmOrigin[_plusFireSpawns.Count];
+                    for (int i = 0; i < _plusFireSpawns.Count; i++)
+                    {
+                        var sp = _plusFireSpawns[i];
+                        Vector2 wp = ApplySwarmScale(spec, layer, ApplySwarmSpin(spec, layer, sp.pos, life), life);
+                        fbOrigins[i] = new PlusForkBlast.SwarmOrigin
+                        {
+                            x = wp.x / Mathf.Max(1, W) * 2f - 1f,
+                            y = wp.y / Mathf.Max(1, H) * 2f - 1f,
+                            start = Mathf.Clamp(sp.spawnLife, 0f, 0.85f),
+                        };
+                    }
+                }
+                var fbMods = new PlusForkBlast.Mods
+                {
+                    pix = mods.AnyPix ? mods.pix : null,
+                    phase = phase,
+                    frameIndex = frameIndex,
+                    life = life,
+                    pixHash = Hash(sd, ModParticleIndex, FldForkHash, _layerSalt),
+                };
+                PlusForkBlast.Render(target, W, H, layer, fbSeed, layer.shapeFill, fbAlpha, anim, fbOrigins, fbMods);
+                return;
+            }
+
+            // Playback3D — PROOF-OF-CONCEPT form, EDITOR-PREVIEW ONLY. There is deliberately no runtime bake here
+            // yet: its whole live-3D/pixelated preview lives in PyrePlusPlayback3DPreview (a PreviewRenderUtility
+            // scene driving the assigned prefab's ParticleSystem(s)), which this pure per-frame pixel renderer has
+            // no access to (no Unity scene/camera at bake time, and no defined mapping from a 3D particle sim to
+            // this canvas yet). A spec using this form renders NOTHING here (this layer contributes no pixels) —
+            // honestly incomplete rather than faking a placeholder shape. Extending this to an actual bake (e.g.
+            // rendering the prefab to an offscreen camera per frame and compositing that) is future work.
+            if (layer.shapeForm == ShapeForm.Playback3D) return;
 
             if (!layer.swarmEnabled)
             {

@@ -108,7 +108,17 @@ namespace Laubrary.PyrePlus
     // nothing accumulates between frames — so it arrives as a stateless Coalesce (Ramp) field-pass mode alongside
     // MetaBlob, never as a deferred sim form here. Inferno (above) is closed-form for the same reason — proven by the
     // prototype it ports, whose renderFrame(params, frameIndex) carries no state between frames.
-    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak, Star, Fire, Fireball, Polygon, Inferno }
+    //   Playback3D — a PROOF-OF-CONCEPT form whose source is a real 3D animation (typically a ParticleSystem-based
+    //              fire/explosion prefab) instead of a procedural closed-form/sim shape. UNLIKE every other form,
+    //              it has NO runtime bake path yet (see PyrePlusRenderer's Playback3D case) — its whole point is
+    //              the EDITOR experience: PyrePlusWindow.Playback3DPreview drives the assigned prefab's
+    //              ParticleSystem(s) live in a PreviewRenderUtility scene (speed/scale/tint applied to the main
+    //              module, scrubbed via Simulate) and can downsample that render to a small pixel grid so the
+    //              user can gauge how a baked pixel-art version might read. It ignores `size` and the swarm.
+    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. Playback3D was appended last
+    // (after ForkBlast) for exactly that reason, even though it reads oddly out of the earlier alphabetical-ish
+    // grouping above.
+    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak, Star, Fire, Fireball, Polygon, Inferno, ForkBlast, Playback3D }
 
     // How the Text form's spatial fill gradient is applied. PerCharGradient = every letter contains the WHOLE
     // gradient (across its own box, along the rotated fill axis). PerCharStep = every letter is ONE flat colour,
@@ -666,6 +676,106 @@ namespace Laubrary.PyrePlus
             return v;
         }
 
+        // ── ForkBlast form (shapeForm == ForkBlast) — a directional/radial DETONATION built from many small
+        // burning puffs (a field of soft blob particles, union-accumulated into one heat field then shaded once),
+        // ported from a Kiln agent's "agent3_fork_explosive" generator (docs/pyreplus_briefing.md's porting
+        // checklist). Distinct from Inferno: Inferno is a closed-form volumetric density/metaball field with no
+        // discrete particles; ForkBlast is a swarm of hundreds of tiny anisotropic soft puffs thrown outward from
+        // a source and drag/entrainment-shaped, which is what gives it its gritty, particulate "fragments of fire"
+        // read instead of Inferno's smooth cloud. Whole-layer and closed-form (no sim, no accumulated state): a
+        // puff's position/size/amplitude at any moment is a pure function of (its slot index, the blast's own
+        // local clock, the dials below) — see PlusForkBlast.cs. PLACEMENT IS THE SWARM'S JOB, exactly like
+        // Inferno: swarm off ⇒ one centred detonation; swarm on ⇒ every swarm particle's spawn position + spawn
+        // moment ignites its own blast. Colour comes only from the shared shapeFill, sampled at (1 − heat) so the
+        // fill's LEFT end is the white-hot core (same convention as Inferno); the fill's OWN alpha ramp doubles as
+        // the "alpha ceiling" the Python original computed per gradient stop.
+        //
+        // The three dials below are ZUIValue envelopes over the layer's own life (evaluated once per frame, the
+        // PyrePlus way); everything else is a structural per-blast constant (mirrors the Python `JetSpec` — none
+        // of ITS fields were envelopes either, they were per-draw tuning constants).
+        public ZUIValue forkProgress = DefaultForkProgress();     // time remap onto the blast's own internal clock (identity = real time)
+        public ZUIValue forkReach = new ZUIValue(0.85f);          // how far the fastest puffs travel, as a fraction of the canvas half-extent, over life
+        public ZUIValue forkFlash = new ZUIValue(0.7f);           // white-hot ignition flash strength at each blast's birth, over life
+
+        [Range(0f, 180f)] public float forkSpread = 180f;         // half-angle of the emission arc, degrees. 180 = a full circle (a radial blast)
+        [Range(-180f, 180f)] public float forkAim = 0f;           // the arc's centre direction, degrees — only visible when Spread < 180
+        [Range(0.3f, 3f)] public float forkBias = 1.05f;          // angle-distribution power; 1 = uniform across the arc (the source's own "never bias a full circle" rule)
+        [Range(20, 500)] public int forkPuffCount = 220;          // puffs per blast
+        [Range(0.3f, 6f)] public float forkDrag = 2.2f;           // >0 decelerates a puff; higher stalls it sooner
+        [Range(0f, 0.3f)] public float forkGrowth = 0.09f;        // radius gained per px travelled (entrainment)
+        [Range(0f, 1.2f)] public float forkSwell = 0.4f;          // radius gained per unit age — fills a fireball's stalled centre
+        [Range(0f, 4f)] public float forkElong = 2f;              // extra length/width at birth; decays as the puff slows
+        [Range(0.02f, 0.9f)] public float forkRoundAt = 0.3f;     // the age by which a puff is round again
+        [Range(0f, 0.4f)] public float forkBuoy = 0.05f;          // upward rise late in a puff's life
+        [Range(1f, 6f)] public float forkBlastSkew = 2.4f;        // >1 piles puff births at the front of the span — the hard attack, ragged tail
+        [Range(0.01f, 0.6f)] public float forkBlastSpan = 0.14f;  // birth times spread over this much of the blast's own clock
+        [Range(0f, 1f)] public float forkVelSpread = 0.7f;        // 0 = one shell of gas; >0 fills the middle so the blast doesn't hollow into a smoke ring
+        [Range(0.1f, 1.2f)] public float forkPuffLife = 0.55f;    // how long a puff burns, as a fraction of the blast's own clock
+        [Range(0.3f, 4f)] public float forkJitter = 0.55f;        // per-puff variation in speed/size/amplitude/life
+        [Range(0f, 3f)] public float forkCool = 1.6f;             // amplitude falloff exponent over a puff's life
+        [Range(0f, 3f)] public float forkHold = 1.7f;             // >0 holds a puff's amplitude up and drops it late instead of fading from birth (generation 5's "how it dies")
+        [Range(0f, 1f)] public float forkShrink = 0.8f;           // 0..1 of its radius a puff loses by the end of its life — dies by shrinking, not fading
+        [Range(0f, 0.95f)] public float forkShrinkAt = 0.5f;      // the age the contraction starts at
+        [Range(0f, 1f)] public float forkLeadDie = 0.42f;         // the fastest (outermost) gas dies first, so the silhouette closes inward as it collapses
+        [Range(0.2f, 1.5f)] public float forkOpaq = 0.55f;        // exponent on the fill's own alpha ceiling; below 1 pushes the body solid, leaves the coolest rim alone
+        [Range(0f, 0.6f)] public float forkSoot = 0.3f;           // tint gained by end of a puff's life — darkens/desaturates it toward soot
+        [Range(0, 40)] public int forkGobCount = 0;               // lumps of burning mass shed off the blast in its opening phase, then dissipate. Optional — 0 = none
+        [Range(0.3f, 1.5f)] public float forkGobReach = 0.85f;    // a gob's travel, as a fraction of Reach
+        [Range(0f, 3f)] public float forkGobSwell = 1.6f;         // a gob DISSIPATES — it balloons as it goes out (opposite of the body, which shrinks and stays solid)
+        [Range(0.5f, 3f)] public float forkGobLifeMul = 1.3f;     // a gob's life, as a multiple of Puff life
+        [Range(0f, 3f)] public float forkGobAmp = 1.2f;           // gob brightness multiplier
+        [Range(0.05f, 1f)] public float forkGobEarly = 0.45f;     // gobs are born inside this fraction of the blast span — the opening phase
+        [Range(1f, 10f)] public float forkPuffSizePx = 2.6f;      // puff radius at the source, px
+        [Range(1f, 10f)] public float forkGobSizePx = 4.5f;       // gob radius, px — mass, not a spark; several times a puff's own size
+        [Range(0f, 20f)] public float forkWarpAmount = 3f;        // turbulence displacement, px — an approximation of the source's per-pixel polar domain warp (see PlusForkBlast.cs header)
+        [Range(0f, 0.6f)] public float forkLo = 0.22f;            // heat-field value at the silhouette's outer edge
+        // A FIXED forkHi is fragile: the Python original fitted `hi` per draw against measured field statistics
+        // and it ranged 5x (3.157 to 15.116) across ten draws, because the field's actual range depends on puff
+        // count/amplitude/overlap/blast count — every one of which is itself a dial. Ship forkHi as a raw ceiling
+        // and the first person who changes forkPuffCount (or almost any other dial) gets a flat, washed-out blob
+        // that never reaches its own hot core, or the opposite (a two-pixel white speck in a sea of rim colour).
+        // Confirmed empirically: the shipped defaults themselves render this way with forkAutoExposure off.
+        [Tooltip("Auto-fit the heat ceiling each frame to the field's own measured peak, instead of a fixed forkHi. On by default — this is what makes the body actually reach its hot core across any dial combination.")]
+        public bool forkAutoExposure = true;
+        [Range(0.2f, 2f)] public float forkExposureMult = 0.85f;  // forkAutoExposure ceiling = measured peak density * this
+        [Range(0.3f, 3f)] public float forkHi = 1.2f;             // MANUAL heat-field value the fill ramp tops out at — only used when forkAutoExposure is off
+        [Range(0.3f, 2f)] public float forkCurve = 1f;            // bends where the ramp is spent along the field; below 1 = hotter/brighter
+        [Range(0.1f, 3f)] public float forkSoft = 0.6f;           // edge falloff width, in heat-field units
+
+        // ForkBlast's Progress default mirrors Inferno's: the IDENTITY curve, so an untouched Progress plays the
+        // detonation in real time; reshape it to hold at full bloom or freeze a pose (a Static value).
+        static ZUIValue DefaultForkProgress()
+        {
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, 0f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 1f));
+            return v;
+        }
+
+        // ── Playback3D form (shapeForm == Playback3D) — a PROOF-OF-CONCEPT 3D-animation source ──────────────────
+        // Whole-layer, like Fire/Fireball/Inferno/ForkBlast: there is no swarm/particle placement, just one
+        // assigned prefab whose ParticleSystem(s) the editor preview drives directly. NOT baked at runtime yet —
+        // PyrePlusRenderer's Playback3D case is a documented stub (a flat placeholder colour), so a spec using
+        // this form does NOT yet render correctly outside the editor preview. See PyrePlusPlayback3DPreview.cs
+        // for the PreviewRenderUtility scene that actually plays/scrubs it and the pixelated-preview downsample.
+        [Tooltip("The 3D content to preview/play — a prefab carrying one or more ParticleSystem components (e.g. a fire/explosion burst). Only its ParticleSystem(s) are driven; other components are inert here.")]
+        public GameObject playbackPrefab;
+        [Tooltip("Multiplies the prefab's ParticleSystem main-module simulation speed. 1 = authored speed.")]
+        [Range(0.05f, 4f)] public float playbackSpeed = 1f;
+        [Tooltip("Uniform scale applied to the instantiated prefab in the preview (also scales the particle systems' start size).")]
+        [Range(0.05f, 5f)] public float playbackScale = 1f;
+        [Tooltip("Tint multiplied into the ParticleSystem main module's start colour. White = the prefab's authored colour untouched.")]
+        public Color playbackTint = Color.white;
+        [Tooltip("Where in the loop the preview scrubs to (0 = the moment it starts emitting, 1 = one full Loop duration later). Static preview position — dragging the transport elsewhere re-simulates from 0 up to this point.")]
+        [Range(0f, 1f)] public float playbackScrub01 = 0f;
+        [Tooltip("How long (seconds) one preview loop is — the scrub range Playback Scrub 0..1 maps across, and the length Play loops over.")]
+        [Range(0.1f, 10f)] public float playbackLoopDuration = 2f;
+        [Tooltip("Preview only: downsample the 3D render to a small pixel grid (point-filtered) so you can gauge how a baked pixel-art version would read. Does not affect the runtime (unbaked) form.")]
+        public bool playbackPixelated = false;
+        [Tooltip("Pixel grid resolution (per side) the downsampled preview renders at when Pixelated is on.")]
+        [Range(8, 128)] public int playbackPixelGrid = 32;
+
         // ── opt-in Shape fields (T7) — the particle's OWN motion after birth, on its own life clock ────────
         // A per-particle travel path: canvas-pixel offsets ADDED to the particle's spawn position, evaluated on
         // its OWN life (0 = birth, 1 = death). Default Static 0 (a no-op — the renderer skips the Eval entirely
@@ -821,6 +931,10 @@ namespace Laubrary.PyrePlus
             l.infernoDarkness = CloneVal(infernoDarkness);
             l.infernoBody = CloneVal(infernoBody);
             l.infernoEdgeSoftness = CloneVal(infernoEdgeSoftness);
+            // ForkBlast's three animatable envelopes (its many structural dials are value types — MemberwiseClone).
+            l.forkProgress = CloneVal(forkProgress);
+            l.forkReach = CloneVal(forkReach);
+            l.forkFlash = CloneVal(forkFlash);
             l.edgeSoftnessAnim = CloneVal(edgeSoftnessAnim);
             l.crescentBite = CloneVal(crescentBite);
             l.crescentAngle = CloneVal(crescentAngle);

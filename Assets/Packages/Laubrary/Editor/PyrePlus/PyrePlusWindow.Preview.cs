@@ -101,6 +101,19 @@ namespace Laubrary.PyrePlus.Editor
                 return;
             }
 
+            // Playback 3D (PROOF OF CONCEPT) — when the SELECTED layer is this form, the preview island shows the
+            // live PreviewRenderUtility 3D render (or its pixelated downsample) INSTEAD of the normal composited
+            // 2D canvas: this form has no bake path into that canvas at all yet (see PyrePlusRenderer's stub), so
+            // compositing it with the other layers would be a lie about what's actually happening. Filmstrip mode
+            // isn't meaningful for a live 3D sim either (there's no discrete authored frame to tile), so it's
+            // skipped for this form too — the 3D preview always shows the single live view.
+            var selForPlayback = SelLayer;
+            if (selForPlayback != null && selForPlayback.shapeForm == ShapeForm.Playback3D)
+            {
+                DrawPlayback3DPreview(view, selForPlayback);
+                return;
+            }
+
             // Filmstrip mode: the whole animation as a contact sheet instead of the single zoomed frame + overlay.
             if (s.previewStrip) { DrawFilmstrip(view, s); return; }
 
@@ -144,6 +157,42 @@ namespace Laubrary.PyrePlus.Editor
             // playback (it only paints over the already-blitted frame texture). It authors that one layer's swarm.
             var sel = SelLayer;
             if (sel != null && sel.swarmEnabled) DrawSwarmOverlay(view, s, sel, life);
+        }
+
+        // ── Playback 3D preview (PROOF OF CONCEPT) ──────────────────────────────────────
+        // Renders the assigned prefab's live ParticleSystem(s) via PyrePlusPlayback3DPreview into the SAME view
+        // rect the normal canvas preview uses, backdrop first (so it reads consistently with every other shape),
+        // then either the raw 3D frame or (Pixelated preview on) the point-filtered downsampled grid, scaled to
+        // fill the view with point sampling so the pixelation is legible rather than blurred back out.
+        void DrawPlayback3DPreview(Rect view, PyrePlusLayer sel)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            DrawBackdrop(view);
+            if (sel.playbackPrefab == null)
+            {
+                GUI.Label(new Rect(view.x + 6, view.yMax - 20, 320, 18),
+                    "Playback 3D — assign a Prefab to preview.", EditorStyles.whiteMiniLabel);
+                return;
+            }
+
+            playback3DPreview ??= new PyrePlusPlayback3DPreview();
+            var tex = playback3DPreview.Render(sel, view, sel.playbackPixelated, sel.playbackPixelGrid);
+            if (tex == null) return;
+
+            var filterModeScope = tex.filterMode;   // remember so we can restore it (shared RT reused elsewhere)
+            if (sel.playbackPixelated) tex.filterMode = FilterMode.Point;
+            GUI.DrawTexture(view, tex, ScaleMode.ScaleToFit, true);
+            tex.filterMode = filterModeScope;
+
+            GUI.Label(new Rect(view.x + 6, view.yMax - 20, 320, 18),
+                sel.playbackPixelated
+                    ? $"Playback 3D (POC) — pixelated {sel.playbackPixelGrid}×{sel.playbackPixelGrid}"
+                    : "Playback 3D (POC) — live 3D",
+                EditorStyles.whiteMiniLabel);
+
+            // The live sim advances only when the transport is playing, exactly like every other form's frame
+            // stepping — Tick() already calls preview?.MarkDirtyRepaint() on each advanced beat, so no extra
+            // scheduling is needed here; a static Scrub position (paused) simply re-simulates to the same result.
         }
 
         // ── filmstrip / contact sheet (Part A) ────────────────────────────────────────

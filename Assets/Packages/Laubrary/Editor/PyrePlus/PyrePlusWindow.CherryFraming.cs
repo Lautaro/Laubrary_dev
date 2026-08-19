@@ -76,14 +76,22 @@ namespace Laubrary.PyrePlus.Editor
             if (cherryPanelHost == null || s == null) return;
             cherryPanelHost.Clear();
 
-            var section = Z.Section("CherryFraming",
+            var section = Z.Section("Cherry Framing",
                 "Cherry-pick frames from this spec's own baked animation into a sub-sequence. While the header "
                 + "checkbox is on, the preview plays the cherry sequence below instead of the plain baked animation.",
                 "pyreplus.cherry");
             section.SetHeaderToggle(s.cherryEnabled,
                 "Play the cherry sequence in the preview instead of the plain baked animation.",
-                v => { Dirty(() => s.cherryEnabled = v); ResetCherryPlayback(); });
+                v => { Dirty(() => s.cherryEnabled = v); ResetCherryPlayback(); RebuildCherryPanel(s); });
             cherryPanelHost.Add(section);
+
+            // While cherry framing is off, the whole grid UI is pointless — don't even build it.
+            if (!s.cherryEnabled)
+            {
+                cherrySourceGridHost = null;
+                cherrySlotGridHost = null;
+                return;
+            }
 
             var sourceBox = Z.BoxKeyed("Source frames",
                 "This spec's own baked frames. Click to select (Shift = range, Ctrl/Cmd = toggle); double-click a "

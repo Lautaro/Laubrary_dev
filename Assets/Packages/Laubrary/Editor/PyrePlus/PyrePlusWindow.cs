@@ -116,7 +116,14 @@ namespace Laubrary.PyrePlus.Editor
             if (previewTex != null) { DestroyImmediate(previewTex); previewTex = null; }
             DestroyStripCache();
             DestroyCherryStripCache();
+            playback3DPreview?.Dispose(); playback3DPreview = null;
         }
+
+        // Playback 3D (PROOF OF CONCEPT) — the PreviewRenderUtility-backed live preview, lazily created (see
+        // PyrePlusPlayback3DPreview.cs). Disposed above on OnDisable; RefreshPlayback3DPreview just re-dirties the
+        // preview repaint (the class itself re-simulates on every Render call, so there's no cache to invalidate).
+        PyrePlusPlayback3DPreview playback3DPreview;
+        void RefreshPlayback3DPreview() { preview?.MarkDirtyRepaint(); }
         protected override void OnAssetChanged()
         {
             frame = 0; previewDirty = true; DestroyStripCache(); DestroyCherryStripCache();
@@ -616,14 +623,19 @@ namespace Laubrary.PyrePlus.Editor
                 Z.MicroSlider("PPU", s.pixelsPerUnit, 1f, 64f,
                     "Pixels per unit for the baked sprite.",
                     v => Dirty(() => s.pixelsPerUnit = Mathf.Clamp(v, 1f, 64f)), 150f, showValue: true)));
+            // Frames is a label-inside int MicroSlider (NOT a thumbed SliderInt): a thumbed slider here read as a
+            // frame scrubber and the user kept grabbing it by mistake. The transport's frame SCRUBBER stays a
+            // thumbed Z.SliderInt on purpose (Pyre1 parity) — this "how many frames to bake" count does not.
+            // Per-shape "Life (frames)" ranges capture fcMax off frameCount at rebuild time (same reason Canvas
+            // Size's controls do, see sizeSlider above), so committing a Frames change needs the same deferred,
+            // coalesced Rebuild-on-pointer-up as Bug 1 — without it those ranges silently keep their stale max.
+            var framesSlider = Z.MicroSlider("Frames", s.frameCount, 1f, 64f,
+                "How many frames the animation bakes to.",
+                v => Dirty(() => s.frameCount = Mathf.Clamp(Mathf.RoundToInt(v), 1, 64)), 150f,
+                showValue: true, decimals: 0);
+            framesSlider.RegisterCallback<PointerUpEvent>(_ => ScheduleRangeRebuild());
             box.Add(WrapRow(
-                // Frames is a label-inside int MicroSlider (NOT a thumbed SliderInt): a thumbed slider here read as a
-                // frame scrubber and the user kept grabbing it by mistake. The transport's frame SCRUBBER stays a
-                // thumbed Z.SliderInt on purpose (Pyre1 parity) — this "how many frames to bake" count does not.
-                Z.MicroSlider("Frames", s.frameCount, 1f, 64f,
-                    "How many frames the animation bakes to.",
-                    v => Dirty(() => s.frameCount = Mathf.Clamp(Mathf.RoundToInt(v), 1, 64)), 150f,
-                    showValue: true, decimals: 0),
+                framesSlider,
                 Z.Field("Seed", "Random seed — every particle's randomness derives from it.",
                     Z.Int(s.seed, "Random seed.", v => Dirty(() => s.seed = v), 70f))));
             box.Add(BackgroundFillRow(s));
@@ -1041,7 +1053,9 @@ namespace Laubrary.PyrePlus.Editor
         {
             ("Text", ShapeForm.Text, "text-aa"), ("Fire", ShapeForm.Fire, "flame"), ("Fireball", ShapeForm.Fireball, "fire"),
             ("Inferno", ShapeForm.Inferno, "bomb"),
+            ("Fork Blast", ShapeForm.ForkBlast, "meteor"),
             ("Sparkle", ShapeForm.Sparkle, "sparkle"), ("Sprite", ShapeForm.Sprite, "image"),
+            ("Playback 3D", ShapeForm.Playback3D, "play"),
         };
         const string Forms3DTip = "True-3D lit solids sharing the Gem's facet lighting (tilt, light, edge lines, glows). "
             + "Gem = a faceted crystal, Box = a cuboid, Pyramid = a square pyramid, Can = a cylinder, Orb = a sphere.";
@@ -1051,7 +1065,11 @@ namespace Laubrary.PyrePlus.Editor
         const string FormsSpecialTip = "Standalone forms. Text = a string as extruded SDF letters (one particle per "
             + "character). Fire / Fireball = stateful flame simulations (built-in emitters, no swarm). Inferno = a "
             + "volumetric fireball explosion — the Swarm detonates one blast per particle (off = one centred blast); "
-            + "stateless, so scrubbing is exact. Sparkle = twinkling lit cells. Sprite = a stamped image.";
+            + "stateless, so scrubbing is exact. Fork Blast = a radial detonation built from hundreds of small "
+            + "burning puffs (a gritty, particulate blast rather than Inferno's smooth cloud) — same Swarm-places-"
+            + "the-blasts convention. Sparkle = twinkling lit cells. Sprite = a stamped image. Playback 3D "
+            + "(PROOF OF CONCEPT) = a real 3D animation prefab (a ParticleSystem burst) played/scrubbed live in "
+            + "the preview, with an optional pixelated downsample — NOT baked at runtime yet.";
         // Fireball's wedge mode — Mirror (alternate wedges reflected, a seam) / Repeat (each wedge the same, rotated).
         // Index 0 = Mirror (fireballMirror true), 1 = Repeat (false).
         static readonly string[] FireballMirrorChoices = { "Mirror", "Repeat" };
@@ -1175,7 +1193,7 @@ namespace Laubrary.PyrePlus.Editor
             // not a particle radius — so all three hide the shared Size row (a dead control is clutter per the rules).
             // Inferno sizes by its own Blast size (a fraction of the safe zone), so it hides Size too.
             if (s.shapeForm != ShapeForm.Streak && s.shapeForm != ShapeForm.Fire && s.shapeForm != ShapeForm.Fireball
-                && s.shapeForm != ShapeForm.Inferno)
+                && s.shapeForm != ShapeForm.Inferno && s.shapeForm != ShapeForm.ForkBlast && s.shapeForm != ShapeForm.Playback3D)
                 shapeBody.Add(Val("Size (px)", SizeTooltip(s.shapeForm), s.size, 0f, spec.canvasSize));
 
             // Form-specific rows. Edge softness applies to Disc (its rim) and Crescent (BOTH rims); Gem/Sparkle/
@@ -1224,6 +1242,12 @@ namespace Laubrary.PyrePlus.Editor
                 case ShapeForm.Inferno:
                     BuildInfernoBox(s);
                     break;
+                case ShapeForm.ForkBlast:
+                    BuildForkBlastBox(s);
+                    break;
+                case ShapeForm.Playback3D:
+                    BuildPlaybackBox(s);
+                    break;
             }
 
             // First-class Border (task #60/#65) — the six flat 2D forms get an optional coloured rim. Shown ONLY for
@@ -1232,9 +1256,10 @@ namespace Laubrary.PyrePlus.Editor
             // toggle; on = a Border box (Width / Fill / Draw-over-matte).
             if (IsFlat2DBorderForm(s.shapeForm)) BuildBorderBox(s);
 
-            // Fire, Fireball and Inferno are whole-layer forms with no particles at all, so a Position section
-            // there would be dead — skip it. Their Fill (the ramp) and Alpha (overall opacity) rows still apply.
-            if (s.shapeForm == ShapeForm.Fire || s.shapeForm == ShapeForm.Fireball || s.shapeForm == ShapeForm.Inferno) return;
+            // Fire, Fireball, Inferno and Fork Blast are whole-layer forms with no particles at all, so a Position
+            // section there would be dead — skip it. Their Fill (the ramp) and Alpha (overall opacity) rows still apply.
+            if (s.shapeForm == ShapeForm.Fire || s.shapeForm == ShapeForm.Fireball || s.shapeForm == ShapeForm.Inferno
+                || s.shapeForm == ShapeForm.ForkBlast || s.shapeForm == ShapeForm.Playback3D) return;
 
             // Position (task #11) — one collapsible box grouping everything positional: the particle's rotation and
             // its Offset from spawn. Present for every particle form. A collapsible box already provides show/hide,
@@ -1862,6 +1887,276 @@ namespace Laubrary.PyrePlus.Editor
                 MS("Contrast", s.infernoContrast, 0f, 1f,
                     "Separates hot cavities from dark billows on the heat ramp.",
                     v => s.infernoContrast = v)));
+
+            shapeBody.Add(box);
+        }
+
+        // Playback 3D form box (PROOF OF CONCEPT) — configures a real 3D animation prefab (typically a
+        // ParticleSystem fire/explosion burst) that the preview island plays/scrubs live via
+        // PyrePlusPlayback3DPreview (see that file), instead of the normal composited 2D canvas. There is no
+        // runtime bake for this form yet (PyrePlusRenderer's Playback3D case is a documented stub) — everything
+        // here only drives the EDITOR preview. The prefab is picked via an object-reference field (never typed by
+        // name, per the "never type a reference string" rule); its ParticleSystem(s) are driven directly by
+        // Speed/Scale/Tint through PreviewRenderUtility, no reflection needed (ParticleSystem.MainModule exposes
+        // all of them).
+        void BuildPlaybackBox(PyrePlusLayer s)
+        {
+            var box = Z.BoxKeyed("Playback 3D (POC)",
+                "PROOF OF CONCEPT: plays a real 3D animation prefab (a ParticleSystem-based burst, e.g. fire or "
+                + "an explosion) live in the preview instead of a procedural shape. Speed/Scale/Tint drive the "
+                + "prefab's ParticleSystem main module directly. There is no runtime bake for this form yet — it "
+                + "is editor-preview only.", "pyreplus.playback3d");
+
+            box.Add(Z.Field("Prefab",
+                "The 3D content to preview — a prefab carrying one or more ParticleSystem components. Only its "
+                + "ParticleSystem(s) are driven; other components are inert in this preview.",
+                Z.Object<GameObject>(s.playbackPrefab, "Pick a prefab with a ParticleSystem (a fire/explosion "
+                    + "burst works best).", v => { Dirty(() => s.playbackPrefab = v); RefreshPlayback3DPreview(); }, 190f)));
+
+            box.Add(Z.HGroup(
+                Z.MicroSlider("Speed", s.playbackSpeed, 0.05f, 4f,
+                    "Multiplies the prefab's ParticleSystem simulation speed. 1 = authored speed.",
+                    v => Dirty(() => s.playbackSpeed = v), 150f, showValue: true),
+                Z.MicroSlider("Scale", s.playbackScale, 0.05f, 5f,
+                    "Uniform scale applied to the instantiated prefab (also scales each ParticleSystem's start size).",
+                    v => Dirty(() => s.playbackScale = v), 150f, showValue: true)));
+
+            box.Add(Z.Field("Tint",
+                "Multiplied into the ParticleSystem main module's start colour. White = the prefab's authored colour untouched.",
+                Z.Color(s.playbackTint, "Tint colour multiplied into the particle system's start colour.",
+                    v => Dirty(() => s.playbackTint = v), 130f)));
+
+            box.Add(Z.HGroup(
+                Z.MicroSlider("Scrub", s.playbackScrub01, 0f, 1f,
+                    "Where in the loop the preview scrubs to (0 = the moment it starts emitting, 1 = one full "
+                    + "Loop duration later). Re-simulates from 0 up to this point every time it changes.",
+                    v => Dirty(() => s.playbackScrub01 = v), 150f, showValue: true),
+                Z.MicroSlider("Loop (s)", s.playbackLoopDuration, 0.1f, 10f,
+                    "How long (seconds) one preview loop is — the range Scrub maps across, and the length Play loops over.",
+                    v => Dirty(() => s.playbackLoopDuration = v), 150f, showValue: true, decimals: 2)));
+
+            box.Add(Z.HGroup(
+                Z.Toggle("Pixelated preview", "Switch the preview from the live 3D render to a downsampled, "
+                    + "point-filtered pixel grid — a rough gauge of how a baked pixel-art version might read. "
+                    + "Preview only; does not affect the (unbaked) runtime form.",
+                    s.playbackPixelated, v => Dirty(() => s.playbackPixelated = v)),
+                Z.Field("Pixel grid", "Pixel grid resolution (per side) the downsampled preview renders at when "
+                    + "Pixelated preview is on.",
+                    Z.Int(s.playbackPixelGrid, "Pixel grid resolution (per side) the downsampled preview renders "
+                        + "at when Pixelated preview is on.",
+                        v => Dirty(() => s.playbackPixelGrid = Mathf.Clamp(v, 8, 128)), 60f))));
+
+            shapeBody.Add(box);
+        }
+
+        void BuildForkBlastBox(PyrePlusLayer s)
+        {
+            // Defensive nulls for the animatable envelopes (real defaults come from the field initializers).
+            s.forkProgress ??= new ZUIValue(1f);
+            s.forkReach ??= new ZUIValue(0.85f);
+            s.forkFlash ??= new ZUIValue(0.7f);
+
+            var box = Z.BoxKeyed("Fork Blast",
+                "A radial detonation built from hundreds of small burning puffs thrown outward and shaped by "
+                + "drag/entrainment — a gritty, particulate blast rather than Inferno's smooth volumetric cloud. "
+                + "Closed-form (not a sim), so any frame is exact. The SWARM places the blasts: off = one centred "
+                + "detonation, on = one blast per swarm particle. Colour comes only from the Shape Fill (left end "
+                + "= white-hot); its own alpha ramp doubles as the body's opacity ceiling.", "pyreplus.forkblast");
+
+            VisualElement MS(string label, float value, float min, float max, string tip,
+                             System.Action<float> set, int decimals = -1)
+                => Z.MicroSlider(label, value, min, max, tip, v => Dirty(() => set(v)), 150f,
+                                 showValue: true, decimals: decimals);
+
+            box.Add(Val("Progress",
+                "The blast's progress over the layer's life — a TIME REMAP as one envelope. The default straight "
+                + "line plays in real time; bend it to snap in and hold, slow the tail, or freeze a pose (a Static "
+                + "value).",
+                s.forkProgress, 0f, 1f));
+            box.Add(Z.HGroup(
+                Val("Reach", "How far the fastest puffs travel, as a fraction of the canvas half-extent, over life.",
+                    s.forkReach, 0.1f, 1.5f),
+                Val("Flash", "White-hot ignition flash at each blast's birth, over life. Tinted from the Fill's "
+                    + "hot end.", s.forkFlash, 0f, 1f)));
+
+            if (s.swarmEnabled)
+                box.Add(Z.Text(
+                    "Multiple blasts: the Swarm places them (Count / shape / spawn-timing) — one blast per particle.",
+                    ZuiText.Small));
+
+            // ── Emission shape ──
+            box.Add(Z.HGroup(
+                MS("Spread", s.forkSpread, 0f, 180f,
+                    "Half-angle of the emission arc, degrees. 180 = a full circle (a true radial blast).",
+                    v => s.forkSpread = v, decimals: 0),
+                MS("Aim", s.forkAim, -180f, 180f,
+                    "The arc's centre direction, degrees. Only visible when Spread is below 180 (a full circle "
+                    + "has no facing).",
+                    v => s.forkAim = v, decimals: 0)));
+            box.Add(Z.HGroup(
+                MS("Bias", s.forkBias, 0.3f, 3f,
+                    "Angle-distribution power across the arc. 1 = uniform coverage — keep this near 1 on a full "
+                    + "circle, or the puffs pile back into a beam.",
+                    v => s.forkBias = v),
+                MS("Puffs", s.forkPuffCount, 20f, 500f,
+                    "Puffs per blast.",
+                    v => s.forkPuffCount = Mathf.RoundToInt(v), decimals: 0)));
+
+            // ── Puff physics — travel, growth, shape ──
+            box.Add(Z.HGroup(
+                MS("Drag", s.forkDrag, 0.3f, 6f,
+                    "Higher decelerates a puff sooner, so it stalls closer to the source.",
+                    v => s.forkDrag = v),
+                MS("Buoyancy", s.forkBuoy, 0f, 0.4f,
+                    "Upward rise late in a puff's life.",
+                    v => s.forkBuoy = v)));
+            box.Add(Z.HGroup(
+                MS("Growth", s.forkGrowth, 0f, 0.3f,
+                    "Radius gained per pixel travelled (entrainment) — a puff fattens as it slows.",
+                    v => s.forkGrowth = v),
+                MS("Swell", s.forkSwell, 0f, 1.2f,
+                    "Radius gained per unit AGE rather than distance — fills a stalled centre so the fireball "
+                    + "doesn't hollow into a smoke ring.",
+                    v => s.forkSwell = v)));
+            box.Add(Z.HGroup(
+                MS("Elongation", s.forkElong, 0f, 4f,
+                    "Extra length/width at birth, along the puff's own travel direction; decays as it slows.",
+                    v => s.forkElong = v),
+                MS("Round at", s.forkRoundAt, 0.02f, 0.9f,
+                    "The age by which a puff has stopped stretching and is round again.",
+                    v => s.forkRoundAt = v)));
+            box.Add(Z.HGroup(
+                MS("Jitter", s.forkJitter, 0.3f, 4f,
+                    "Per-puff variation in speed / size / amplitude / life.",
+                    v => s.forkJitter = v),
+                MS("Fill (volume)", s.forkVelSpread, 0f, 1f,
+                    "0 = every puff leaves at one speed, which reads as a hollow expanding SHELL. Above 0 spreads "
+                    + "the speeds so the middle fills in with slow-travelling gas instead of hollowing into a "
+                    + "smoke ring.",
+                    v => s.forkVelSpread = v)));
+
+            // ── Detonation clock ──
+            box.Add(Z.HGroup(
+                MS("Birth skew", s.forkBlastSkew, 1f, 6f,
+                    "Above 1 piles puff births at the FRONT of the birth span — a hard attack with a ragged "
+                    + "tail, which is what makes this read as a detonation rather than a steady jet.",
+                    v => s.forkBlastSkew = v),
+                MS("Birth span", s.forkBlastSpan, 0.01f, 0.6f,
+                    "How much of the blast's own clock the puff births are spread over.",
+                    v => s.forkBlastSpan = v)));
+            box.Add(Z.HGroup(
+                MS("Puff life", s.forkPuffLife, 0.1f, 1.2f,
+                    "How long a puff burns, as a fraction of the blast's own clock.",
+                    v => s.forkPuffLife = v),
+                MS("Cool", s.forkCool, 0f, 3f,
+                    "Amplitude falloff exponent over a puff's life.",
+                    v => s.forkCool = v)));
+
+            // ── How it dies (generation 5's whole point) ──
+            box.Add(Z.Text(
+                "How it dies — hold the amplitude up, then contract rather than fade, closing inward from the "
+                + "fastest (outer) gas first.", ZuiText.Small));
+            box.Add(Z.HGroup(
+                MS("Hold", s.forkHold, 0f, 3f,
+                    "Above 0 holds a puff's amplitude up and drops it LATE instead of dimming from birth — the "
+                    + "delay that keeps the body solid long enough for Shrink to be the thing you see.",
+                    v => s.forkHold = v),
+                MS("Opacity", s.forkOpaq, 0.2f, 1.5f,
+                    "Exponent on the Fill's own alpha ceiling. Below 1 pushes the body toward solid while doing "
+                    + "least at the coolest, already-thin rim — so the body opens up without trading away the "
+                    + "edge falloff.",
+                    v => s.forkOpaq = v)));
+            box.Add(Z.HGroup(
+                MS("Shrink", s.forkShrink, 0f, 1f,
+                    "How much of its radius a puff loses by the end of its life — dies by getting SMALLER, not "
+                    + "more transparent. The kernel's peak is its amplitude, so a shrinking puff stays exactly as "
+                    + "bright at its centre.",
+                    v => s.forkShrink = v),
+                MS("Shrink at", s.forkShrinkAt, 0f, 0.95f,
+                    "The age the contraction starts at.",
+                    v => s.forkShrinkAt = v)));
+            box.Add(MS("Lead die", s.forkLeadDie, 0f, 1f,
+                "The fastest (outermost) gas dies first, so the silhouette closes INWARD as it collapses — "
+                + "shrinking every puff by the same amount alone leaves the outer shell in place and merely "
+                + "makes it smaller (a widening necklace of lumps, not a collapse).",
+                v => s.forkLeadDie = v));
+
+            // ── Shedding burning mass ──
+            box.Add(Z.HGroup(
+                MS("Gobs", s.forkGobCount, 0f, 40f,
+                    "Lumps of burning mass shed off the blast in its OPENING phase, that then dissipate — "
+                    + "optional, 0 = none. Opposite death to the body: it balloons and thins as it goes, which "
+                    + "is what makes it read as having come off something.",
+                    v => s.forkGobCount = Mathf.RoundToInt(v), decimals: 0),
+                MS("Gob size (px)", s.forkGobSizePx, 1f, 10f,
+                    "A gob's radius — mass, not a spark; several times a puff's own size.",
+                    v => s.forkGobSizePx = v)));
+            if (s.forkGobCount > 0)
+            {
+                box.Add(Z.HGroup(
+                    MS("Gob reach", s.forkGobReach, 0.3f, 1.5f,
+                        "A gob's travel, as a fraction of Reach.",
+                        v => s.forkGobReach = v),
+                    MS("Gob swell", s.forkGobSwell, 0f, 3f,
+                        "A gob DISSIPATES — it balloons as it goes out, the opposite of the body, which shrinks "
+                        + "and stays solid.",
+                        v => s.forkGobSwell = v)));
+                box.Add(Z.HGroup(
+                    MS("Gob life", s.forkGobLifeMul, 0.5f, 3f,
+                        "A gob's life, as a multiple of Puff life.",
+                        v => s.forkGobLifeMul = v),
+                    MS("Gob amount", s.forkGobAmp, 0f, 3f,
+                        "Gob brightness.",
+                        v => s.forkGobAmp = v)));
+                box.Add(MS("Gob timing", s.forkGobEarly, 0.05f, 1f,
+                    "Gobs are born inside this fraction of the birth span — the opening phase. A gob that leaves "
+                    + "late just reads as a second, smaller explosion.",
+                    v => s.forkGobEarly = v));
+            }
+
+            // ── Look — puff size at the source, turbulence, and the heat-field-to-pixel mapping ──
+            box.Add(Z.HGroup(
+                MS("Puff size (px)", s.forkPuffSizePx, 1f, 10f,
+                    "A puff's radius at the source.",
+                    v => s.forkPuffSizePx = v),
+                MS("Turbulence (px)", s.forkWarpAmount, 0f, 20f,
+                    "A per-puff wobble that breaks up the disc into licks — an approximation of true domain-warp "
+                    + "turbulence.",
+                    v => s.forkWarpAmount = v)));
+            box.Add(Z.HGroup(
+                MS("Soot", s.forkSoot, 0f, 0.6f,
+                    "Tint gained by the end of a puff's life, darkening/desaturating it — a third route to "
+                    + "transparency-reading if pushed too high; keep it modest.",
+                    v => s.forkSoot = v),
+                MS("Edge softness", s.forkSoft, 0.1f, 3f,
+                    "Width of the falloff at the silhouette's edge, in heat-field units.",
+                    v => s.forkSoft = v)));
+            box.Add(Z.Toggle("Auto exposure",
+                "Fit the heat ceiling to this frame's own measured peak instead of a fixed Field high. On by "
+                + "default — leaving it off means Field high has to be re-fitted by hand any time puff count, "
+                + "amplitude, blast count, or almost any other dial changes, or the blast reads as a flat, "
+                + "washed-out silhouette (ceiling too high) or a blown-out core (ceiling too low).",
+                s.forkAutoExposure, v => Dirty(() => s.forkAutoExposure = v)));
+            if (s.forkAutoExposure)
+                box.Add(MS("Exposure", s.forkExposureMult, 0.2f, 2f,
+                    "Multiplier on the measured peak of this frame's heat field. Lower = brighter/hotter overall "
+                    + "(clips more of the field to the ramp's hot end); higher = dimmer, more rim.",
+                    v => s.forkExposureMult = v));
+            box.Add(Z.HGroup(
+                MS("Field low", s.forkLo, 0f, 0.6f,
+                    "Heat-field value at the silhouette's outer edge — everything below this is fully transparent.",
+                    v => s.forkLo = v),
+                MS("Field high", s.forkHi, 0.3f, 3f,
+                    s.forkAutoExposure
+                        ? "MANUAL heat ceiling — only used when Auto exposure (above) is off."
+                        : "Heat-field value at which the Fill ramp tops out (hottest). Puff count/amplitude/overlap "
+                          + "shift the field's real range, so this and Field low are the two dials that keep the "
+                          + "blast from reading as all-rim or all-core.",
+                    v => s.forkHi = v)));
+            box.Add(MS("Curve", s.forkCurve, 0.3f, 2f,
+                "Bends where the ramp is spent along the heat field. Below 1 = hotter/brighter overall, above 1 "
+                + "= mostly cool envelope with a tight hot spine.",
+                v => s.forkCurve = v));
 
             shapeBody.Add(box);
         }
