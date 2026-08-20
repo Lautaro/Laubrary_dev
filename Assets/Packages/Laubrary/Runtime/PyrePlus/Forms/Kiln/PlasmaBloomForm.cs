@@ -103,6 +103,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             + "layer Fill. Auto fit places and sizes the blast so nothing visible leaves the canvas. SWARM: off = "
             + "one auto-placed bloom; on = one bloom per swarm particle at that particle's position and life.";
 
+        /// Colour comes from Hue A / Hue B below, never the layer Fill (the palette is part of the Kiln algorithm).
+        public override bool UsesFill => false;
+
         public enum Mode { Bloom, Plume }
         public enum LobeMode { Cos, Noise }
 

@@ -1172,14 +1172,17 @@ namespace Laubrary.PyrePlus.Editor
                         s.endFrame = b >= fcMax ? -1 : b;   // far-right restores the "last frame" sentinel (auto-tracks frameCount)
                     }), 130f, isInt: true)));
 
-            // Plug-in form (PlusForm): the layer's look is the form object. It shares the Fill (its colour source) and
-            // Alpha (overall opacity) rows with every other form, then its own reflection-drawn card; a whole-layer
+            // Plug-in form (PlusForm): the layer's look is the form object. It shares the Fill (its colour source, unless
+            // the form carries its own ramps) and Alpha (overall opacity) rows with every other form, then its own
+            // reflection-drawn card; a whole-layer
             // form has no particle to size or position, so Size / Position / Border do not apply.
             if (s.form != null)
             {
-                shapeBody.Add(FillRow("Fill",
-                    $"The {s.form.DisplayName} form's colour source. {s.form.Description}", s.shapeFill,
-                    new ZuiFillControl.Options().WithWidth(190f).WithGrow(2.2f)));
+                // A form with its own ramps (UsesFill == false) gets no Fill row: a dead control is worse than none.
+                if (s.form.UsesFill)
+                    shapeBody.Add(FillRow("Fill",
+                        $"The {s.form.DisplayName} form's colour source. {s.form.Description}", s.shapeFill,
+                        new ZuiFillControl.Options().WithWidth(190f).WithGrow(2.2f)));
                 shapeBody.Add(Val("Alpha", "Overall opacity over the layer's life (multiplies the form's output alpha).", s.alpha, 0f, 1f));
                 BuildFormCard(s);
                 return;

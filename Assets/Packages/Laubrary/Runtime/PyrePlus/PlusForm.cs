@@ -178,6 +178,11 @@ namespace Laubrary.PyrePlus
 
         public virtual PlusFormKind Kind => PlusFormKind.WholeLayer;
 
+        /// Whether the layer's Shape Fill is this form's colour source. A form that carries its own ramps (a port
+        /// whose palette is part of the algorithm) returns false and the editor hides the Fill row instead of
+        /// showing a control that does nothing — the same rule that hides the Colour row for Text.
+        public virtual bool UsesFill => true;
+
         /// Resolve this frame's animatable dials to plain floats (store them on the instance for Render). Called
         /// once per frame before Render, on the main thread, never concurrently.
         public virtual void Prepare(in PlusFormPrepareCtx ctx) { }
