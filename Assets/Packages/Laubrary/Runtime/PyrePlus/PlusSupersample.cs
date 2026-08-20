@@ -63,5 +63,34 @@ namespace Laubrary.PyrePlus
                                                     (byte)Mathf.Clamp(Mathf.RoundToInt(a255), 0, 255));
                 }
         }
+
+        /// Box-filter FLOAT planes down by k with ONE quantisation at the end: `pr/pg/pb` are premultiplied colour
+        /// (0..1 × alpha), `pa` straight alpha (0..1), all W2×H2. The Color32 overload above rounds every supersample
+        /// to a byte first, which drops a sample whose alpha is under 0.5/255 before it can add up with its
+        /// neighbours — measurable on a field made of faint specks (Plasma Bloom `ashfall`: silhouette IoU 0.854
+        /// byte-first vs the source's float-first path). `flipY` reads the planes top row first (y-down sources).
+        public static void Downsample(float[] pr, float[] pg, float[] pb, float[] pa, int W2, int H2, int k,
+                                      Color32[] target, int W, int H, bool flipY = false)
+        {
+            float inv = 1f / (k * k);
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    float sr = 0f, sg = 0f, sb = 0f, sa = 0f;
+                    int y0 = (flipY ? H - 1 - y : y) * k, x0 = x * k;
+                    for (int sy = 0; sy < k; sy++)
+                    {
+                        int row = (y0 + sy) * W2 + x0;
+                        for (int sx = 0; sx < k; sx++) { int i = row + sx; sr += pr[i]; sg += pg[i]; sb += pb[i]; sa += pa[i]; }
+                    }
+                    float ad = sa * inv;
+                    if (ad <= 1e-4f) { target[y * W + x] = new Color32(0, 0, 0, 0); continue; }
+                    float ip = inv / ad;   // un-premultiply the block average
+                    target[y * W + x] = new Color32((byte)Mathf.Clamp((int)(sr * ip * 255f + 0.5f), 0, 255),
+                                                    (byte)Mathf.Clamp((int)(sg * ip * 255f + 0.5f), 0, 255),
+                                                    (byte)Mathf.Clamp((int)(sb * ip * 255f + 0.5f), 0, 255),
+                                                    (byte)Mathf.Clamp((int)(ad * 255f + 0.5f), 0, 255));
+                }
+        }
     }
 }

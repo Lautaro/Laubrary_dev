@@ -315,5 +315,35 @@ namespace Laubrary.PyrePlus
             }
         };
         public const float EmberSootLo = 0.28f, EmberSootHi = 0.92f;
+
+        // ── Kiln Energy Explosion / agent3_fork gen 5 (plasma.RAMPS, contract ramp.json: 6 stops each, sRGB lerp,
+        // no per-stop alpha — that agent's alpha is a separate smoothstep on the field). Every one runs DEEP →
+        // SATURATED → WHITE: the hottest part of a plasma is white whatever is burning, the hue shows in the skirts.
+        static PlusRamp Plasma6(byte[,] c, float[] pos)
+        {
+            var r = new PlusRamp { space = PlusRampSpace.Srgb };
+            for (int i = 0; i < 6; i++) r.stops.Add(new PlusRampStop(pos[i], c[i, 0], c[i, 1], c[i, 2], 1f));
+            return r;
+        }
+        static readonly float[] PlasmaPosA = { 0f, 0.22f, 0.45f, 0.68f, 0.86f, 1f };
+        public static PlusRamp PlasmaIon() => Plasma6(new byte[,] { { 26, 6, 54 }, { 86, 20, 140 }, { 186, 52, 214 }, { 255, 122, 226 }, { 255, 202, 246 }, { 255, 255, 255 } }, PlasmaPosA);
+        public static PlusRamp PlasmaCryo() => Plasma6(new byte[,] { { 4, 18, 52 }, { 12, 72, 152 }, { 28, 160, 232 }, { 120, 232, 255 }, { 208, 250, 255 }, { 255, 255, 255 } }, PlasmaPosA);
+        public static PlusRamp PlasmaVolt() => Plasma6(new byte[,] { { 14, 10, 60 }, { 48, 44, 190 }, { 96, 130, 255 }, { 170, 200, 255 }, { 228, 234, 255 }, { 255, 255, 255 } }, new[] { 0f, 0.24f, 0.50f, 0.72f, 0.90f, 1f });
+        public static PlusRamp PlasmaToxin() => Plasma6(new byte[,] { { 4, 32, 24 }, { 16, 96, 54 }, { 64, 190, 86 }, { 158, 244, 120 }, { 228, 255, 202 }, { 255, 255, 255 } }, new[] { 0f, 0.22f, 0.46f, 0.70f, 0.88f, 1f });
+        /// Crimson → magenta → white: the warm end of the set, deliberately with no orange step (orange reads as FIRE).
+        public static PlusRamp PlasmaFlare() => Plasma6(new byte[,] { { 40, 2, 40 }, { 140, 14, 110 }, { 236, 52, 150 }, { 255, 130, 190 }, { 255, 214, 238 }, { 255, 255, 255 } }, new[] { 0f, 0.22f, 0.46f, 0.68f, 0.88f, 1f });
+        /// The plasma palette by its Kiln name ("ion", "cryo", "volt", "toxin", "flare"); null for an unknown name.
+        public static PlusRamp Plasma(string name)
+        {
+            switch ((name ?? "").Trim().ToLowerInvariant())
+            {
+                case "ion": return PlasmaIon();
+                case "cryo": return PlasmaCryo();
+                case "volt": return PlasmaVolt();
+                case "toxin": return PlasmaToxin();
+                case "flare": return PlasmaFlare();
+                default: return null;
+            }
+        }
     }
 }
