@@ -342,7 +342,13 @@ namespace Laubrary.Zui
                 return Z.Field(nice, tip, Z.TextInput((string)v ?? "", tip, nv => Set(nv), opt.ControlWidth));
 
             if (t.IsEnum)
-                return Z.Field(nice, tip, EnumControl((Enum)v, tip, nv => Set(nv)));
+            {
+                // The field row itself must be allowed to shrink to the pane, or the wrapped radio inside it never sees a
+                // narrower container and a five-option set runs off the pane edge (T-0047's Variant row did).
+                var enumRow = Z.Field(nice, tip, EnumControl((Enum)v, tip, nv => Set(nv)));
+                enumRow.style.flexShrink = 1;
+                return enumRow;
+            }
 
             if (t == typeof(Color))
                 return Z.Field(nice, tip, Z.Color((Color)v, tip, nv => Set(nv), 110f));
