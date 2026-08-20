@@ -13,6 +13,10 @@ namespace Laubrary.PyrePlus.Forms.Kiln
     [PlusFormInfo("Inferno", group: "Explosions", icon: "bomb")]
     public sealed class InfernoForm : PlusForm
     {
+        /// Inferno inverse-warps every sample point itself (PlusInferno's field loop), so containment follows the warp;
+        /// the renderer's generic post-render pass must therefore NOT warp it again.
+        public override bool HandlesGeometry => true;
+
         public override string DisplayName => "Inferno";
         public override string Description =>
             "A volumetric fireball explosion: contained blasts built from big billowing lobes, a torn silhouette, an "

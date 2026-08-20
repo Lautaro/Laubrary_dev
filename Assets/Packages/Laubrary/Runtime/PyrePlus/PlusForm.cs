@@ -183,6 +183,12 @@ namespace Laubrary.PyrePlus
         /// showing a control that does nothing — the same rule that hides the Colour row for Text.
         public virtual bool UsesFill => true;
 
+        /// Forms get the layer's GEOMETRY modifiers for free: after Render, the renderer inverse-warps the finished
+        /// buffer (and any published parity planes) through ctx.geo — see PlusFormWarp for the exact conventions.
+        /// Override to true ONLY if you apply ctx.geo per sample yourself (Inferno does, so its containment follows
+        /// the warp); a form that returns true and ignores ctx.geo simply gets no geometry modifiers.
+        public virtual bool HandlesGeometry => false;
+
         /// Resolve this frame's animatable dials to plain floats (store them on the instance for Render). Called
         /// once per frame before Render, on the main thread, never concurrently.
         public virtual void Prepare(in PlusFormPrepareCtx ctx) { }

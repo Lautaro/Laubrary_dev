@@ -576,8 +576,20 @@ namespace Laubrary.PyrePlus
                                       mods.AnyGeo ? mods.geo : null, mods.AnyPix ? mods.pix : null, phase, frameIndex,
                                       frames, (v, fid, atLife) => Eval(v, atLife, sd, ModParticleIndex, fid));
             form.Render(ctx, target);
+            // Generic geometry pass (T-0058): a form that does not warp per sample gets the layer's geometry
+            // modifiers applied to its finished buffer. Skipped entirely with no geometry modifiers, so the default
+            // path is the untouched code above. The same integer map warps the published parity planes below.
+            int[] warpMap = mods.AnyGeo && !form.HandlesGeometry ? PlusFormWarp.BuildMap(W, H, mods.geo, phase) : null;
+            if (warpMap != null) PlusFormWarp.Apply(target, warpMap);
             // Parity-harness hook: only while a dump has installed a sink (null in normal operation).
-            if (PlusFormDebug.FieldSink != null && form is IPlusFieldPublisher pub) pub.PublishFields(PlusFormDebug.FieldSink);
+            if (PlusFormDebug.FieldSink != null && form is IPlusFieldPublisher pub)
+            {
+                var sink = PlusFormDebug.FieldSink;
+                if (warpMap != null)
+                    pub.PublishFields((name, plane) => sink(name, plane != null && plane.Length == warpMap.Length ? PlusFormWarp.Apply(plane, warpMap) : plane));
+                else
+                    pub.PublishFields(sink);
+            }
         }
 
         // ── Fire form: stateful sim + replay harness (slice 6a) ──────────────────────────────────────────────────
