@@ -114,6 +114,7 @@ namespace Laubrary.PyrePlus.Editor
             base.OnDisable();
             EditorApplication.update -= Tick;
             DestroyFrameCache();
+            DisposeAllFills();   // joins any worker still mid-frame so the spec clones can be destroyed before the domain goes
             DestroyCherryStripCache();
             playback3DPreview?.Dispose(); playback3DPreview = null;
         }

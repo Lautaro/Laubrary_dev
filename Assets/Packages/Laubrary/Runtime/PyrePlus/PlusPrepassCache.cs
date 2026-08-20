@@ -12,33 +12,47 @@
 // object on every frame. The identity key means a duplicated layer (a fresh form object) gets its own entry and a
 // deleted layer's entry is collected with it. Deterministic by construction: `build` may only read the ctx and the
 // form's fields (the same rule as Render), so a cold editor and a warm one produce identical values.
+//
+// Thread-safe: frames of one clip render concurrently, each worker on its own clone of the form (PlusFrameFill).
+// Identity is `form.PrepassIdentity`, so a render clone shares its origin's entry; an entry holds an immutable
+// (key, value) snapshot swapped atomically, and a miss builds under the entry's lock — N workers missing the same
+// key at once build it ONCE and the rest wait for that result instead of each solving the pre-pass again.
 using System;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace Laubrary.PyrePlus
 {
     public sealed class PlusPrepassCache<T> where T : class
     {
-        sealed class Entry { public int key; public T value; }
+        sealed class Snapshot { public readonly int key; public readonly T value; public Snapshot(int k, T v) { key = k; value = v; } }
+        sealed class Entry { public volatile Snapshot snap; }
         readonly ConditionalWeakTable<PlusForm, Entry> _entries = new ConditionalWeakTable<PlusForm, Entry>();
+        int _hits, _misses;
 
-        public int Hits { get; private set; }
-        public int Misses { get; private set; }
+        public int Hits => _hits;
+        public int Misses => _misses;
 
         /// The cached value for (form, ctx, extraHash), building it with `build` on a miss.
         public T Get(in PlusFormCtx ctx, PlusForm form, Func<T> build, int extraHash = 0)
         {
             int key = KeyOf(ctx, form, extraHash);
-            var e = _entries.GetOrCreateValue(form);
-            if (e.value != null && e.key == key) { Hits++; return e.value; }
-            Misses++;
-            e.value = build();
-            e.key = key;
-            return e.value;
+            var e = _entries.GetOrCreateValue(form.PrepassIdentity);
+            var s = e.snap;
+            if (s != null && s.key == key) { Interlocked.Increment(ref _hits); return s.value; }
+            lock (e)
+            {
+                s = e.snap;   // another thread may have built it while we waited
+                if (s != null && s.key == key) { Interlocked.Increment(ref _hits); return s.value; }
+                Interlocked.Increment(ref _misses);
+                var v = build();
+                e.snap = new Snapshot(key, v);
+                return v;
+            }
         }
 
         /// Drop the entry for one form (the next Get rebuilds).
-        public void Invalidate(PlusForm form) => _entries.Remove(form);
+        public void Invalidate(PlusForm form) => _entries.Remove(form.PrepassIdentity);
 
         /// The hash Get keys by — exposed so a form can key its own structures the same way.
         public static int KeyOf(in PlusFormCtx ctx, PlusForm form, int extraHash = 0)

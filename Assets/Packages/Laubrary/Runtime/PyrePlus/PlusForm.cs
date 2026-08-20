@@ -11,6 +11,12 @@
 //
 // Determinism contract (PYREPLUS_DESIGN.md): Render must be a pure function of (ctx, this form's fields). Use
 // ctx.seed / ctx.layerSalt / PyrePlusRenderer.Hash for every random draw — never UnityEngine.Random, never Time.
+//
+// Threading contract: frames of one clip render concurrently (PlusFrameFill), each worker thread on its OWN deep
+// clone of the spec — so per-instance scratch (planes, buffers, Prepare'd dials) is fine and needs no locking, but
+// a form must never keep mutable STATIC state (use [ThreadStatic] if a static scratch is really wanted) and must
+// never touch a UnityEngine.Object (Texture2D, Sprite, TMP, AssetDatabase) from Render/Prepare. Shared pre-passes go
+// through PlusPrepassCache, which is thread-safe and shared between a form and its render clones.
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -190,8 +196,22 @@ namespace Laubrary.PyrePlus
         public virtual bool HandlesGeometry => false;
 
         /// Resolve this frame's animatable dials to plain floats (store them on the instance for Render). Called
-        /// once per frame before Render, on the main thread, never concurrently.
+        /// once per frame before Render. Never concurrently on the SAME instance — a parallel fill gives every
+        /// worker thread its own clone, so instance fields are safe to use as scratch.
         public virtual void Prepare(in PlusFormPrepareCtx ctx) { }
+
+        // The form whose PlusPrepassCache entries this instance shares — null for an authored form (itself). A render
+        // clone made for a worker thread is linked to the form it was cloned from, so the fit / clip-stats pre-pass
+        // the first frame computed is reused by every worker instead of being solved once per clone. Deliberately
+        // NOT set by Clone(): a duplicated layer is a new authored form with its own layerSalt and its own entry.
+        [NonSerialized] PlusForm _prepassOrigin;
+
+        /// The identity PlusPrepassCache keys by: the origin form for a render clone, this form otherwise.
+        public PlusForm PrepassIdentity => _prepassOrigin ?? this;
+
+        /// Link this instance (a render clone) to the form whose pre-pass results it should share. Follows the
+        /// origin's own link, so a clone of a clone still lands on the authored form.
+        public void SharePrepassWith(PlusForm origin) => _prepassOrigin = origin != null && origin != this ? origin.PrepassIdentity : null;
 
         /// Paint one frame into `target` (W*H Color32, row 0 = bottom). The renderer always hands a whole-layer form
         /// an isolated transparent scratch, so a form may SET pixels over its whole silhouette; compositing, clip,

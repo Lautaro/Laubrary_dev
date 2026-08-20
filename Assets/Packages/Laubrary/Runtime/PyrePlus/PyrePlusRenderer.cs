@@ -168,7 +168,48 @@ namespace Laubrary.PyrePlus
         // seeded draw (Eval's Hash, the placement/sparkle/pHash draws) so two layers never share an RNG stream.
         // Layer 0 → 0, so a single-default-layer spec is byte-identical to the pre-R3 renderer. Set before each
         // layer renders; read synchronously by everything downstream (the same per-frame-static idiom as _textReady).
-        static int _layerSalt;
+        // Thread-static: frames of one clip render concurrently on worker threads (PlusFrameFill), each thread
+        // walking its own layer loop — a plain static would let one thread's layer index leak into another's draws.
+        [System.ThreadStatic] static int _layerSalt;
+
+        /// Whether every frame of `spec` can render on a worker thread (PlusFrameFill). The per-frame path is pure
+        /// managed math except for a handful of layer kinds that either replay state frame-to-frame (Fire / Fireball /
+        /// a simulation modifier — their harnesses are keyed by layer and step N-1 → N) or read Unity objects that
+        /// are main-thread-only (Text's TMP atlas + AssetDatabase auto-pick, Sprite's GetPixels32, a Fill sampling a
+        /// Sprite texture, Playback3D's preview scene). Any such layer makes the whole spec serial; `reason` names
+        /// the first offender. The parity dump's FieldSink is a process-wide static, so it forces serial too.
+        public static bool IsParallelSafe(PyrePlusSpec spec, out string reason)
+        {
+            reason = null;
+            if (spec == null || spec.layers == null) return true;
+            if (PlusFormDebug.FieldSink != null) { reason = "parity field sink installed"; return false; }
+            if (spec.backgroundUseFill && FillReadsTexture(spec.backgroundFill)) { reason = "background fill samples a sprite"; return false; }
+            for (int i = 0; i < spec.layers.Count; i++)
+            {
+                var l = spec.layers[i];
+                if (l == null || !l.enabled) continue;
+                // shapeForm is checked even when a plug-in form is set: the loop bakes the Text atlas on shapeForm
+                // alone, before the form dispatch.
+                switch (l.shapeForm)
+                {
+                    case ShapeForm.Text: reason = $"layer {i}: Text"; return false;
+                    case ShapeForm.Playback3D: reason = $"layer {i}: Playback3D"; return false;
+                }
+                if (l.form == null)
+                    switch (l.shapeForm)
+                    {
+                        case ShapeForm.Fire: reason = $"layer {i}: Fire (stateful sim)"; return false;
+                        case ShapeForm.Fireball: reason = $"layer {i}: Fireball (stateful sim)"; return false;
+                        case ShapeForm.Sprite: reason = $"layer {i}: Sprite (texture read)"; return false;
+                    }
+                if (l.simulationModifier != null && l.simulationModifier.enabled) { reason = $"layer {i}: simulation modifier (stateful)"; return false; }
+                if (FillReadsTexture(l.shapeFill)) { reason = $"layer {i}: shape fill samples a sprite"; return false; }
+                if (l.borderEnabled && FillReadsTexture(l.borderFill)) { reason = $"layer {i}: border fill samples a sprite"; return false; }
+            }
+            return true;
+        }
+
+        static bool FillReadsTexture(ZuiFill f) => f != null && f.texture == ZuiFill.TextureKind.Sprite;
 
         public static Color32[] RenderFrame(PyrePlusSpec spec, int frameIndex)
         {
@@ -801,10 +842,13 @@ namespace Laubrary.PyrePlus
         static readonly System.Runtime.CompilerServices.ConditionalWeakTable<PyrePlusLayer, PlusFireSimEntry> _plusFireSims =
             new System.Runtime.CompilerServices.ConditionalWeakTable<PyrePlusLayer, PlusFireSimEntry>();
 
-        // Per-step scratch (single-threaded editor/bake thread, same static-scratch idiom as _layerSalt). Reused so a
-        // cold replay doesn't allocate a fresh emitter/spawn list per frame.
-        static readonly List<HeatEmitter> _plusFireEmitters = new List<HeatEmitter>(64);
-        static readonly List<SpawnPoint> _plusFireSpawns = new List<SpawnPoint>(64);
+        // Per-step scratch, one list per thread (the same thread-static idiom as _layerSalt): ComputeSpawns fills it
+        // for every swarm-on layer, so two frames rendering concurrently must never share it. Reused across frames
+        // on a thread so a cold replay doesn't allocate a fresh emitter/spawn list per frame.
+        [System.ThreadStatic] static List<HeatEmitter> _plusFireEmittersTls;
+        [System.ThreadStatic] static List<SpawnPoint> _plusFireSpawnsTls;
+        static List<HeatEmitter> _plusFireEmitters => _plusFireEmittersTls ??= new List<HeatEmitter>(64);
+        static List<SpawnPoint> _plusFireSpawns => _plusFireSpawnsTls ??= new List<SpawnPoint>(64);
 
         static void RenderPlusFireLayer(Color32[] target, int W, int H, float life, PyrePlusSpec spec,
                                         PyrePlusLayer layer, int frameIndex)
@@ -1605,7 +1649,7 @@ namespace Laubrary.PyrePlus
         // post passes deterministic and correct (e.g. Dissolve's per-frame Scatter churn, Kaleidoscope's Vary
         // seeding) exactly as they render inside Pyre.
         static MethodInfo _postSetLife, _postSetSeed, _postSetFrame;
-        static bool _postReflectResolved;
+        static volatile bool _postReflectResolved;   // volatile: worker threads may resolve concurrently (idempotent)
         static void SetPostContext(PostModifier post, float life, int seed, int frameIndex)
         {
             if (!_postReflectResolved)
@@ -1636,7 +1680,7 @@ namespace Laubrary.PyrePlus
         // array is null; see PixelFluidModifier.Render). EnsureFrame is called EVERY frame (it decides forward-step vs
         // replay itself), so a cold scrub straight to frame N reproduces the sequential render's frame N.
         static MethodInfo _simSetSeed, _simEnsureFrame;
-        static bool _simReflectResolved;
+        static volatile bool _simReflectResolved;
         static void ApplyLayerSim(SimulationModifier sim, int seed, Color32[] scratch, int W, int H, int frameIndex, int frames)
         {
             if (sim == null) return;
@@ -3659,7 +3703,10 @@ namespace Laubrary.PyrePlus
         static byte[] _textSdf;
         static int _textAw, _textAh, _textPad;
         static string _textCachedChars = "";
-        static bool _textReady;
+        // Thread-static like _layerSalt: written for EVERY layer of the loop (false for non-Text layers), so a worker
+        // thread must not clear it under the main thread. The atlas snapshot above stays main-thread-only (TMP +
+        // AssetDatabase) — a spec with a Text layer is not parallel-safe (see IsParallelSafe).
+        [System.ThreadStatic] static bool _textReady;
 #if UNITY_EDITOR
         static TMP_FontAsset _textAutoFont;   // cached auto-pick, so FindAssets isn't run every frame
 #endif
