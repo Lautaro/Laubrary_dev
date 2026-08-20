@@ -49,7 +49,6 @@ namespace Laubrary.PyrePlus.Editor
 
         // preview state
         IMGUIContainer preview;
-        Texture2D previewTex;
         double lastTime;
         float acc;
         bool playing = true;
@@ -57,6 +56,7 @@ namespace Laubrary.PyrePlus.Editor
         Button playButton;
         SliderInt scrubSlider;   // frame scrubber (transport parity with Pyre1); drives `frame`, follows playback
         Label frameReadout;      // "frame N/M" readout beside Zoom/Speed, kept in sync with `frame`
+        Label fillReadout;       // "rendering n/N" while the frame cache fills (PyrePlusWindow.FrameCache.cs); hidden when complete
         VisualElement backdropHost;
         // The preview backdrop is an editor-only BackSplash (camera colour + one image), persisted PER ASSET on
         // spec.previewBackSplash (mirrors PyreWindow's own `backSplash` property) so it survives closing/reopening
@@ -113,8 +113,7 @@ namespace Laubrary.PyrePlus.Editor
         {
             base.OnDisable();
             EditorApplication.update -= Tick;
-            if (previewTex != null) { DestroyImmediate(previewTex); previewTex = null; }
-            DestroyStripCache();
+            DestroyFrameCache();
             DestroyCherryStripCache();
             playback3DPreview?.Dispose(); playback3DPreview = null;
         }
@@ -126,7 +125,7 @@ namespace Laubrary.PyrePlus.Editor
         void RefreshPlayback3DPreview() { preview?.MarkDirtyRepaint(); }
         protected override void OnAssetChanged()
         {
-            frame = 0; previewDirty = true; DestroyStripCache(); DestroyCherryStripCache();
+            frame = 0; previewDirty = true; DestroyFrameCache(); DestroyCherryStripCache();
             layerSel = int.MaxValue;   // a NEW asset defaults to its last layer (BuildAsset clamps)
             NormalizeSolidDefaultFills();   // FIX 1 (initial build): once-per-load steady-fill migration for solids
             ResetCherryPlayback();
@@ -149,7 +148,9 @@ namespace Laubrary.PyrePlus.Editor
 
         void Tick()
         {
-            if (!playing || spec == null) return;
+            if (spec == null) return;
+            FillFrameCacheTick();   // background render of frames the cache is missing — runs paused or playing
+            if (!playing) return;
             double now = EditorApplication.timeSinceStartup;
             float dt = Mathf.Clamp((float)(now - lastTime), 0f, 0.1f);
             lastTime = now;
@@ -157,15 +158,32 @@ namespace Laubrary.PyrePlus.Editor
             bool advanced = false;
             while (acc >= 1f)
             {
+                // Playback only steps onto frames the cache already holds. While the fill is still working, the
+                // transport waits at the render front (acc held at one beat, so it moves the moment the frame
+                // lands) instead of stalling the whole editor on a synchronous render — the preview itself never
+                // renders during playback. CherryFraming's beat state is rolled back when its pick isn't ready,
+                // so that code path stays exactly as written.
+                if (spec.cherryEnabled)
+                {
+                    var saved = (frame, cherrySlot, cherryBeatsLeft, cherryDelayActive, cherryDelayBeatsLeft);
+                    CherryAdvanceOneBeat();
+                    if (frame >= 0 && !IsFrameReady(frame))
+                    {
+                        (frame, cherrySlot, cherryBeatsLeft, cherryDelayActive, cherryDelayBeatsLeft) = saved;
+                        acc = 1f;
+                        break;
+                    }
+                }
+                else
+                {
+                    int next = (frame + 1) % Mathf.Max(1, spec.frameCount);
+                    if (!IsFrameReady(next)) { acc = 1f; break; }
+                    frame = next;
+                }
                 acc -= 1f;
                 advanced = true;
-                if (spec.cherryEnabled) CherryAdvanceOneBeat();
-                else frame = (frame + 1) % Mathf.Max(1, spec.frameCount);
             }
-            // In Strip mode the frames themselves don't change as playback advances — only the highlighted tile
-            // moves — so DON'T set previewDirty (that would needlessly re-render every tile); just repaint. In
-            // single-frame mode previewDirty forces the new frame to render.
-            if (advanced) { if (!spec.previewStrip) previewDirty = true; preview?.MarkDirtyRepaint(); RefreshTransportReadout(); }
+            if (advanced) { preview?.MarkDirtyRepaint(); RefreshTransportReadout(); }
         }
 
         // ── CherryFraming playback (editor preview only — see PyrePlusWindow.CherryFraming.cs) ────────────
@@ -190,8 +208,7 @@ namespace Laubrary.PyrePlus.Editor
                 EnterCherrySlot(spec.cherryFrames[0]);
             else if (spec != null)
                 frame = Mathf.Clamp(frame, 0, Mathf.Max(0, spec.frameCount - 1));
-            previewDirty = true;
-            preview?.MarkDirtyRepaint();
+            preview?.MarkDirtyRepaint();   // a playback reset picks a different cached frame; it renders nothing new
             RefreshTransportReadout();
         }
 
@@ -240,8 +257,17 @@ namespace Laubrary.PyrePlus.Editor
             // WHICH slot the user wants it on so the UI has somewhere to store the choice.
         }
 
+        // Set by every authored edit (MarkDirty) and consumed by the frame cache (EnsureFrameCache), which then
+        // forgets every frame and refills from the one on screen.
         bool previewDirty = true;
-        int lastRenderedFrame = -1;
+
+        // Undo/redo and asset switches rebuild the whole window through ZuiWindow.Rebuild, which bypasses Dirty —
+        // so the cache is invalidated here, otherwise the preview would keep showing the pre-undo frames.
+        protected override void OnBeforeRebuild()
+        {
+            base.OnBeforeRebuild();
+            previewDirty = true;
+        }
 
         // Coalesced canvas-size range refresh (Bug 1). The Canvas Size slider's derived-range Rebuild is deferred
         // to drag-commit and scheduled onto the next frame; this holds the pending item so rapid commits coalesce
@@ -455,12 +481,12 @@ namespace Laubrary.PyrePlus.Editor
                 Z.Toggle("Frame",
                     "Draw a thin border around the canvas edge (cosmetic only — never baked). In Strip mode it "
                     + "outlines every frame tile.",
-                    s.previewShowFrame, v => Dirty(() => s.previewShowFrame = v)),
+                    s.previewShowFrame, v => DirtyRepaintOnly(() => s.previewShowFrame = v)),
                 Z.Toggle("Strip",
                     "Show the whole animation as a contact sheet of every frame instead of one zoomed frame. Tiles "
                     + "lay out left-to-right and wrap to more rows when they overflow the width; click a tile to "
                     + "jump the transport to that frame. (No scrolling — a block taller than the view is clipped.)",
-                    s.previewStrip, v => { Dirty(() => s.previewStrip = v); RebuildTransport(s); }),
+                    s.previewStrip, v => { DirtyRepaintOnly(() => s.previewStrip = v); RebuildTransport(s); }),
             };
             if (s.previewStrip)
                 kids.Add(Z.MicroSlider("Tile px", s.previewStripSize, 32f, 256f,
@@ -536,16 +562,21 @@ namespace Laubrary.PyrePlus.Editor
                 v => DirtyRepaintOnly(() => s.previewFps = Mathf.Clamp(Mathf.Round(v), 1f, 30f)), 150f,
                 showValue: true, decimals: 0);
             frameReadout = Z.Text("", ZuiText.Subtle, "The frame currently shown / the total frame count.");
+            // Reserved-width and hidden (not removed) when idle, so its appearance never reflows the row.
+            fillReadout = Z.Text("", ZuiText.Subtle, "");
+            fillReadout.style.width = 110f;
+            fillReadout.style.visibility = Visibility.Hidden;
             // Delay lives HERE (a transport concern — how long the preview holds blank between loop iterations),
             // not inside the CherryFraming list below, and it applies regardless of whether CherryFraming is on:
             // a plain preview loop pauses blank for this long before restarting from frame 0 too.
             var delayMs = Z.MicroSlider("Delay", s.previewDelay, 0f, 5f,
                 "Seconds the preview holds BLANK between loop iterations before restarting. 0 = no gap.",
-                v => Dirty(() => { s.previewDelay = Mathf.Clamp(v, 0f, 5f); ResetCherryPlayback(); }), 150f,
+                v => DirtyRepaintOnly(() => { s.previewDelay = Mathf.Clamp(v, 0f, 5f); ResetCherryPlayback(); }), 150f,
                 showValue: true, decimals: 2);
-            transportHost.Add(WrapRow(zoomMs, speedMs, delayMs, frameReadout));
+            transportHost.Add(WrapRow(zoomMs, speedMs, delayMs, frameReadout, fillReadout));
 
             RefreshTransportReadout();
+            RefreshFillReadout();
         }
 
         // Keep the scrubber value + range and the "frame N/M" readout in sync with the transport `frame` and the
@@ -2768,10 +2799,10 @@ namespace Laubrary.PyrePlus.Editor
             MarkDirty();
         }
 
-        // A cosmetic edit that only changes how the preview is LAID OUT / drawn (not the rendered frames): record
-        // Undo + SetDirty + repaint, but do NOT set previewDirty. Used by the filmstrip's Tile-px slider so dragging
-        // it re-lays-out the existing tile textures instead of re-rendering every frame (the strip cache is keyed
-        // to previewDirty + frameCount/canvas only — tile size is neither).
+        // An edit that changes how the preview is LAID OUT / PLAYED (not the rendered frames): record Undo +
+        // SetDirty + repaint, but do NOT set previewDirty, so the frame cache survives. Used by the filmstrip's
+        // Tile-px slider, zoom, speed, the loop delay and every CherryFraming sequence edit — none of them is a
+        // render input, and invalidating the cache for them would re-render the whole clip for nothing.
         void DirtyRepaintOnly(System.Action apply)
         {
             if (spec == null) return;

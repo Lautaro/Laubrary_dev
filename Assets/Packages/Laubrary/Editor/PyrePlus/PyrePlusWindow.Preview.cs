@@ -39,23 +39,6 @@ namespace Laubrary.PyrePlus.Editor
         Rect swarmRect;
         float swarmZoom = 1f;
 
-        // ── filmstrip (contact-sheet) cache (Part A) ──────────────────────────────────
-        // One point-filtered Texture2D per frame, rendered ONCE and reused every repaint. Rebuilt only when dirty:
-        // the shared previewDirty flag (any authored edit routes through it) OR a frameCount/canvas change (tracked
-        // by the two shadow fields). Mirrors the single-frame previewTex lifecycle — created lazily, destroyed on
-        // disable / asset change (see PyrePlusWindow.OnDisable / OnAssetChanged) and before every rebuild.
-        Texture2D[] stripCache;
-        int stripCacheCanvas = -1;   // the canvasSize the cache was built for (frameCount is tracked by stripCache.Length)
-
-        void DestroyStripCache()
-        {
-            if (stripCache == null) return;
-            for (int i = 0; i < stripCache.Length; i++)
-                if (stripCache[i] != null) DestroyImmediate(stripCache[i]);
-            stripCache = null;
-            stripCacheCanvas = -1;
-        }
-
         // Non-serialized interaction state (never persisted).
         readonly List<PyrePlusRenderer.SpawnPoint> swarmSpawns = new List<PyrePlusRenderer.SpawnPoint>();
         // The spawner-trace spine (Part B) — canonical absolute canvas points, refilled every repaint exactly like
@@ -132,14 +115,9 @@ namespace Laubrary.PyrePlus.Editor
             if (Event.current.type == EventType.Repaint)
             {
                 DrawBackdrop(view);
-                if (previewDirty || cur != lastRenderedFrame || previewTex == null)
-                {
-                    if (previewTex != null) DestroyImmediate(previewTex);
-                    previewTex = PyrePlusRenderer.RenderFrameTexture(s, cur);
-                    lastRenderedFrame = cur;
-                    previewDirty = false;
-                }
-                GUI.DrawTexture(rct, previewTex, ScaleMode.StretchToFill, true);
+                // The shared frame cache (PyrePlusWindow.FrameCache.cs): a cache hit costs nothing, a miss renders
+                // just this frame now — playback only ever lands on cached frames, so a miss here is a scrub or an edit.
+                GUI.DrawTexture(rct, CachedFrame(s, cur), ScaleMode.StretchToFill, true);
                 if (s.previewShowFrame)
                 {
                     // A thin border around the canvas edge (cosmetic — never baked). Toggled by the transport's Frame.
@@ -219,9 +197,10 @@ namespace Laubrary.PyrePlus.Editor
         // rows is centred vertically; a block taller than the view just clips (no scrolling this round — the tile
         // drawing runs inside a GUI.BeginClip(view)). The backdrop paints once behind the whole sheet; the Frame
         // toggle outlines every tile; the current transport frame gets a bright highlight; clicking a tile jumps
-        // the transport to it. Tiles come from stripCache, rebuilt only when dirty (EnsureStripCache) — the loop
-        // never re-renders frames. The layout (cols/rows/tile rects) is computed the SAME way for the click hit
-        // test and the draw, so a click always lands on the tile under the cursor.
+        // the transport to it. Tiles come from the shared frame cache — the loop never renders: a frame the
+        // background fill hasn't reached yet is simply an empty tile until it lands (the fill repaints as it goes).
+        // The layout (cols/rows/tile rects) is computed the SAME way for the click hit test and the draw, so a
+        // click always lands on the tile under the cursor.
         void DrawFilmstrip(Rect view, PyrePlusSpec s)
         {
             int n = Mathf.Max(1, s.frameCount);
@@ -251,7 +230,7 @@ namespace Laubrary.PyrePlus.Editor
             if (Event.current.type != EventType.Repaint) return;
 
             DrawBackdrop(view);            // one backdrop behind the whole sheet, exactly as the single-frame path
-            EnsureStripCache(s, n);        // (re)render the per-frame tiles only when dirty
+            EnsureFrameCache(s);           // consume a pending invalidation so the tiles below read the right state
 
             var frameCol = new Color(1f, 1f, 1f, 0.55f);        // the Frame toggle's tile border
             var hotCol = new Color(1f, 0.85f, 0.2f, 1f);        // the current transport frame's highlight
@@ -264,8 +243,7 @@ namespace Laubrary.PyrePlus.Editor
             {
                 var tr = new Rect(startX - view.x + (i % cols) * (tileW + gap),
                                   startY - view.y + (i / cols) * (tileH + gap), tileW, tileH);
-                var tex = (stripCache != null && i < stripCache.Length) ? stripCache[i] : null;
-                if (tex != null) GUI.DrawTexture(tr, tex, ScaleMode.StretchToFill, true);
+                if (IsFrameReady(i)) GUI.DrawTexture(tr, frameCache[i], ScaleMode.StretchToFill, true);
                 if (s.previewShowFrame) DrawRectOutline(tr, frameCol, 1f);
                 if (i == curFrame) DrawRectOutline(tr, hotCol, 2f);
             }
@@ -273,22 +251,6 @@ namespace Laubrary.PyrePlus.Editor
 
             GUI.Label(new Rect(view.x + 6, view.yMax - 20, 280, 18),
                 $"strip — {n} frames · frame {curFrame + 1}", EditorStyles.whiteMiniLabel);
-        }
-
-        // Rebuild the per-frame tile textures ONLY when the render inputs changed: the shared previewDirty flag, or
-        // a frameCount change (the array Length) / canvas-size change (the stripCacheCanvas shadow). Otherwise reused —
-        // the whole point of the cache. Consumes previewDirty (like the single-frame path); the Strip toggle
-        // re-dirties on a mode switch so the newly-active path always rebuilds. Destroys the old textures first.
-        void EnsureStripCache(PyrePlusSpec s, int n)
-        {
-            bool structural = stripCache == null || stripCache.Length != n || stripCacheCanvas != s.canvasSize;
-            if (!previewDirty && !structural) return;
-
-            DestroyStripCache();
-            stripCache = new Texture2D[n];
-            for (int i = 0; i < n; i++) stripCache[i] = PyrePlusRenderer.RenderFrameTexture(s, i);
-            stripCacheCanvas = s.canvasSize;
-            previewDirty = false;
         }
 
         // A 1-or-2-px rectangle outline via four EditorGUI.DrawRect edges (same idiom as the single-frame Frame

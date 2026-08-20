@@ -29,8 +29,10 @@ namespace Laubrary.PyrePlus.Editor
 {
     public partial class PyrePlusWindow
     {
-        // ── cherry source-grid thumbnail cache — independent of stripCache (the filmstrip's), so turning Strip
-        // off doesn't blank this panel and vice versa. Rebuilt only when frameCount/canvasSize actually change.
+        // ── cherry source-grid thumbnail cache — independent of the preview's frame cache (its textures are
+        // bound to UITK tiles as backgroundImage, so they must outlive every preview refill). Rebuilt only when
+        // frameCount/canvasSize actually change. Every edit in this panel is a SEQUENCE edit (which frames play,
+        // for how long) — never a render input — so they go through DirtyRepaintOnly and leave the frame cache alone.
         Texture2D[] cherryStripCache;
         int cherryStripCacheCanvas = -1;
 
@@ -82,7 +84,7 @@ namespace Laubrary.PyrePlus.Editor
                 "pyreplus.cherry");
             section.SetHeaderToggle(s.cherryEnabled,
                 "Play the cherry sequence in the preview instead of the plain baked animation.",
-                v => { Dirty(() => s.cherryEnabled = v); ResetCherryPlayback(); RebuildCherryPanel(s); });
+                v => { DirtyRepaintOnly(() => s.cherryEnabled = v); ResetCherryPlayback(); RebuildCherryPanel(s); });
             cherryPanelHost.Add(section);
 
             // While cherry framing is off, the whole grid UI is pointless — don't even build it.
@@ -211,7 +213,7 @@ namespace Laubrary.PyrePlus.Editor
         void AddSourceFrameToCherry(PyrePlusSpec s, int sourceIndex)
         {
             int at = -1;
-            Dirty(() =>
+            DirtyRepaintOnly(() =>
             {
                 s.cherryFrames.Add(new CherryFrame { sourceIndex = sourceIndex });
                 at = s.cherryFrames.Count - 1;
@@ -225,7 +227,7 @@ namespace Laubrary.PyrePlus.Editor
         {
             if (sourceSelected.Count == 0) return;
             var ordered = sourceSelected.OrderBy(x => x).ToList();
-            Dirty(() => { foreach (var idx in ordered) s.cherryFrames.Add(new CherryFrame { sourceIndex = idx }); });
+            DirtyRepaintOnly(() => { foreach (var idx in ordered) s.cherryFrames.Add(new CherryFrame { sourceIndex = idx }); });
             ResetCherryPlayback();
             RebuildCherrySlotGrid(s);
         }
@@ -321,7 +323,7 @@ namespace Laubrary.PyrePlus.Editor
         {
             if (block == null || block.Count == 0) return;
             int firstNew = 0;
-            Dirty(() =>
+            DirtyRepaintOnly(() =>
             {
                 firstNew = ZuiThumbGrid.MoveBlock(s.cherryFrames, block, targetIndex);
                 cherrySelected.Clear();
@@ -359,29 +361,29 @@ namespace Laubrary.PyrePlus.Editor
                 if (!multi)
                     panel.Add(Z.MicroSlider("Source frame", first.sourceIndex, 0f, Mathf.Max(0, s.frameCount - 1),
                         "Which baked frame this slot plays (when MultiFrame is off).",
-                        v => Dirty(() => s.cherryFrames[i].sourceIndex = Mathf.Clamp(Mathf.RoundToInt(v), 0, Mathf.Max(0, s.frameCount - 1))),
+                        v => DirtyRepaintOnly(() => s.cherryFrames[i].sourceIndex = Mathf.Clamp(Mathf.RoundToInt(v), 0, Mathf.Max(0, s.frameCount - 1))),
                         180f, showValue: true, decimals: 0));
 
                 panel.Add(Z.Toggle("Variable length",
                     "Randomise how many beats this slot holds each time it plays, between Min and Max below.",
                     first.useMinMaxLength,
-                    v => Dirty(() => { foreach (var idx in indices) s.cherryFrames[idx].useMinMaxLength = v; })));
+                    v => DirtyRepaintOnly(() => { foreach (var idx in indices) s.cherryFrames[idx].useMinMaxLength = v; })));
 
                 panel.Add(Z.MicroSlider("Length ×", first.lengthMultiplier, 0.25f, 8f,
                     "Fixed beats this slot holds. 1 = normal. Ignored when Variable length is on.",
-                    v => Dirty(() => { foreach (var idx in indices) s.cherryFrames[idx].lengthMultiplier = v; }),
+                    v => DirtyRepaintOnly(() => { foreach (var idx in indices) s.cherryFrames[idx].lengthMultiplier = v; }),
                     180f, showValue: true));
 
                 panel.Add(WrapRow(
                     Z.MicroSlider("Min", first.minLengthMultiplier, 0.25f, 8f, "Variable-length lower bound.",
-                        v => Dirty(() => { foreach (var idx in indices) s.cherryFrames[idx].minLengthMultiplier = v; }), 100f, showValue: true),
+                        v => DirtyRepaintOnly(() => { foreach (var idx in indices) s.cherryFrames[idx].minLengthMultiplier = v; }), 100f, showValue: true),
                     Z.MicroSlider("Max", first.maxLengthMultiplier, 0.25f, 8f, "Variable-length upper bound.",
-                        v => Dirty(() => { foreach (var idx in indices) s.cherryFrames[idx].maxLengthMultiplier = v; }), 100f, showValue: true)));
+                        v => DirtyRepaintOnly(() => { foreach (var idx in indices) s.cherryFrames[idx].maxLengthMultiplier = v; }), 100f, showValue: true)));
 
                 panel.Add(Z.Toggle("MultiFrame",
                     "Pick a random source frame from this slot's own list, each time it plays, instead of a fixed source frame.",
                     first.multiFrame,
-                    v => Dirty(() => { foreach (var idx in indices) s.cherryFrames[idx].multiFrame = v; })));
+                    v => DirtyRepaintOnly(() => { foreach (var idx in indices) s.cherryFrames[idx].multiFrame = v; })));
 
                 panel.Add(WrapRow(
                     Z.Button("Duplicate", "Duplicate the selected slot(s) right after themselves.",
@@ -403,7 +405,7 @@ namespace Laubrary.PyrePlus.Editor
         {
             if (indices == null || indices.Count == 0) return;
             var sorted = indices.OrderByDescending(x => x).ToList();
-            Dirty(() => { foreach (var idx in sorted) if (idx >= 0 && idx < s.cherryFrames.Count) s.cherryFrames.RemoveAt(idx); });
+            DirtyRepaintOnly(() => { foreach (var idx in sorted) if (idx >= 0 && idx < s.cherryFrames.Count) s.cherryFrames.RemoveAt(idx); });
             cherrySelected.Clear(); cherryPrimary = -1; cherryAnchor = -1;
             ResetCherryPlayback();
             RebuildCherrySlotGrid(s);
@@ -414,7 +416,7 @@ namespace Laubrary.PyrePlus.Editor
             if (indices == null || indices.Count == 0) return;
             var sorted = indices.OrderBy(x => x).ToList();
             int insertAt = sorted[sorted.Count - 1] + 1;
-            Dirty(() =>
+            DirtyRepaintOnly(() =>
             {
                 var copies = new List<CherryFrame>();
                 foreach (var idx in sorted)
