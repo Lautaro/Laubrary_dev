@@ -180,13 +180,31 @@ namespace Laubrary.PyrePlus.Editor
             if (tex == null) return;
 
             var filterModeScope = tex.filterMode;   // remember so we can restore it (shared RT reused elsewhere)
-            if (sel.playbackPixelated) tex.filterMode = FilterMode.Point;
-            GUI.DrawTexture(view, tex, ScaleMode.ScaleToFit, true);
+            if (sel.playbackPixelated)
+            {
+                tex.filterMode = FilterMode.Point;
+                // Draw the pixel grid at a WHOLE-NUMBER scale, centred. ScaleToFit picks a fractional scale, and a
+                // point-filtered texture drawn at (say) 7.6x gives some cells 7 screen pixels and some 8 — the grid
+                // visibly wobbles and stops reading as a pixel-art canvas. Falls back to ScaleToFit if the grid is
+                // somehow larger than the island (scale < 1).
+                float scale = Mathf.Floor(Mathf.Min(view.width / tex.width, view.height / tex.height));
+                if (scale >= 1f)
+                {
+                    float dw = tex.width * scale, dh = tex.height * scale;
+                    GUI.DrawTexture(new Rect(Mathf.Round(view.center.x - dw * 0.5f),
+                                             Mathf.Round(view.center.y - dh * 0.5f), dw, dh),
+                                    tex, ScaleMode.StretchToFill, true);
+                }
+                else GUI.DrawTexture(view, tex, ScaleMode.ScaleToFit, true);
+            }
+            else GUI.DrawTexture(view, tex, ScaleMode.ScaleToFit, true);
             tex.filterMode = filterModeScope;
 
             GUI.Label(new Rect(view.x + 6, view.yMax - 20, 320, 18),
                 sel.playbackPixelated
-                    ? $"Playback 3D (POC) — pixelated {sel.playbackPixelGrid}×{sel.playbackPixelGrid}"
+                    // The ACTUAL grid, not grid×grid: only the long edge is the requested size, the short edge
+                    // follows the preview's aspect. Printing a square here would contradict what is on screen.
+                    ? $"Playback 3D (POC) — pixelated {playback3DPreview.LastPixelWidth}×{playback3DPreview.LastPixelHeight}"
                     : "Playback 3D (POC) — live 3D",
                 EditorStyles.whiteMiniLabel);
 

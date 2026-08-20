@@ -1921,10 +1921,24 @@ namespace Laubrary.PyrePlus.Editor
                     "Uniform scale applied to the instantiated prefab (also scales each ParticleSystem's start size).",
                     v => Dirty(() => s.playbackScale = v), 150f, showValue: true)));
 
-            box.Add(Z.Field("Tint",
-                "Multiplied into the ParticleSystem main module's start colour. White = the prefab's authored colour untouched.",
-                Z.Color(s.playbackTint, "Tint colour multiplied into the particle system's start colour.",
-                    v => Dirty(() => s.playbackTint = v), 130f)));
+            box.Add(Z.MicroSlider("Zoom", s.playbackZoom, 0.25f, 4f,
+                "Preview framing. The camera automatically frames the dense body of the effect (a full-extent fit "
+                + "would shrink the fire to a dot to fit the smoke column and stray sparks); this zooms in above 1 "
+                + "or pulls back below 1 from that fit — pull back to bring a tall smoke plume into frame.",
+                v => { Dirty(() => s.playbackZoom = v); RefreshPlayback3DPreview(); }, 150f, showValue: true));
+
+            box.Add(Z.HGroup(
+                Z.Field("Tint",
+                    "Multiplied into the finished, graded image. White leaves the prefab's own authored colours "
+                    + "completely untouched — it is deliberately NOT written into the particle systems themselves, "
+                    + "which would flatten the pack's per-particle colour gradients.",
+                    Z.Color(s.playbackTint, "Tint colour multiplied into the finished preview image.",
+                        v => { Dirty(() => s.playbackTint = v); RefreshPlayback3DPreview(); }, 130f)),
+                Z.MicroSlider("Glow", s.playbackGlow, 0f, 3f,
+                    "Strength of the bloom/glow pass. VFX packs author fire far brighter than white and ship a "
+                    + "Bloom volume with their demo scene — without a glow pass the same particles read as flat, "
+                    + "clipped colour. 1 matches the pack's own demo-scene setting; 0 turns the glow off.",
+                    v => { Dirty(() => s.playbackGlow = v); RefreshPlayback3DPreview(); }, 150f, showValue: true)));
 
             box.Add(Z.HGroup(
                 Z.MicroSlider("Scrub", s.playbackScrub01, 0f, 1f,
@@ -1940,11 +1954,16 @@ namespace Laubrary.PyrePlus.Editor
                     + "point-filtered pixel grid — a rough gauge of how a baked pixel-art version might read. "
                     + "Preview only; does not affect the (unbaked) runtime form.",
                     s.playbackPixelated, v => Dirty(() => s.playbackPixelated = v)),
-                Z.Field("Pixel grid", "Pixel grid resolution (per side) the downsampled preview renders at when "
-                    + "Pixelated preview is on.",
-                    Z.Int(s.playbackPixelGrid, "Pixel grid resolution (per side) the downsampled preview renders "
-                        + "at when Pixelated preview is on.",
-                        v => Dirty(() => s.playbackPixelGrid = Mathf.Clamp(v, 8, 128)), 60f))));
+                Z.Field("Pixel grid", "Pixel grid resolution along the preview's LONG edge. The short edge follows "
+                    + "the preview's aspect, so the effect keeps its proportions instead of being squashed.",
+                    Z.Int(s.playbackPixelGrid, "Pixel grid resolution along the preview's long edge when "
+                        + "Pixelated preview is on.",
+                        v => { Dirty(() => s.playbackPixelGrid = Mathf.Clamp(v, 8, 128)); RefreshPlayback3DPreview(); }, 60f)),
+                Z.Field("Colours", "Colour levels per channel in the pixelated preview. 0 = off — a straight "
+                    + "shrink, which reads as a small photo rather than pixel art. Lower values band the fire into "
+                    + "flat, authored-looking colour steps.",
+                    Z.Int(s.playbackPixelLevels, "Colour levels per channel (0 = off).",
+                        v => { Dirty(() => s.playbackPixelLevels = Mathf.Clamp(v, 0, 32)); RefreshPlayback3DPreview(); }, 60f))));
 
             shapeBody.Add(box);
         }

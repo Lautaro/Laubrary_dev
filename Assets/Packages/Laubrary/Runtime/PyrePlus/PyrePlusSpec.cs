@@ -765,16 +765,22 @@ namespace Laubrary.PyrePlus
         [Range(0.05f, 4f)] public float playbackSpeed = 1f;
         [Tooltip("Uniform scale applied to the instantiated prefab in the preview (also scales the particle systems' start size).")]
         [Range(0.05f, 5f)] public float playbackScale = 1f;
-        [Tooltip("Tint multiplied into the ParticleSystem main module's start colour. White = the prefab's authored colour untouched.")]
+        [Tooltip("Tint multiplied into the FINAL graded image. White = the prefab's authored colours untouched. (Deliberately not written into the particle systems' start colour, which would flatten the pack's authored per-particle gradients.)")]
         public Color playbackTint = Color.white;
+        [Tooltip("Preview framing. The camera auto-frames the dense body of the effect; this zooms in (>1) or pulls back (<1) from that automatic fit — e.g. pull back to bring a tall smoke column into frame.")]
+        [Range(0.25f, 4f)] public float playbackZoom = 1f;
+        [Tooltip("Strength of the preview's bloom/glow pass. VFX packs author their fire far brighter than white and ship a Bloom volume with their demo scene; this reproduces it, because without a glow the same particles read as flat clipped colour. 1 = the strength the Vefects pack's own demo scene uses. 0 = no glow.")]
+        [Range(0f, 3f)] public float playbackGlow = 1f;
         [Tooltip("Where in the loop the preview scrubs to (0 = the moment it starts emitting, 1 = one full Loop duration later). Static preview position — dragging the transport elsewhere re-simulates from 0 up to this point.")]
         [Range(0f, 1f)] public float playbackScrub01 = 0f;
         [Tooltip("How long (seconds) one preview loop is — the scrub range Playback Scrub 0..1 maps across, and the length Play loops over.")]
         [Range(0.1f, 10f)] public float playbackLoopDuration = 2f;
         [Tooltip("Preview only: downsample the 3D render to a small pixel grid (point-filtered) so you can gauge how a baked pixel-art version would read. Does not affect the runtime (unbaked) form.")]
         public bool playbackPixelated = false;
-        [Tooltip("Pixel grid resolution (per side) the downsampled preview renders at when Pixelated is on.")]
+        [Tooltip("Pixel grid resolution (long edge) the downsampled preview renders at when Pixelated is on. The short edge follows the preview's aspect, so the effect is never squashed.")]
         [Range(8, 128)] public int playbackPixelGrid = 32;
+        [Tooltip("Colour levels per channel in the pixelated preview (posterisation). 0 = off (a straight shrink, which reads as a small photo rather than pixel art). Low values give authored-looking colour bands.")]
+        [Range(0, 32)] public int playbackPixelLevels = 0;
 
         // ── opt-in Shape fields (T7) — the particle's OWN motion after birth, on its own life clock ────────
         // A per-particle travel path: canvas-pixel offsets ADDED to the particle's spawn position, evaluated on
