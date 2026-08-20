@@ -55,13 +55,29 @@ namespace Laubrary.PyrePlus
     // Buffer convention: row 0 = BOTTOM (y-up), like the rest of PyrePlusRenderer. Puff angles are plain math
     // angles (0 = +x/right, 90° = +y/up), which is why buoyancy simply ADDS to the y coordinate here (the source,
     // working in a y-DOWN numpy array, had to SUBTRACT for the same visual effect).
-    internal static class PlusForkBlast
+    public static class PlusForkBlast
     {
         const float TAU = Mathf.PI * 2f;
 
         // The three animatable dials, pre-evaluated by the caller through the renderer's Eval funnel at the
         // layer's life (ids FldFork*).
         public struct Anim { public float progress, reach, flash; }
+
+        // The structural per-blast constants (the Python JetSpec's tuning constants — none were envelopes there
+        // either), handed in by the caller already authored. Names match the dials' meaning, not any owner's field.
+        public struct Params
+        {
+            public float spread, aim, bias;            // emission arc: half-angle (deg), centre direction (deg), angle-distribution power
+            public int puffCount;
+            public float drag, growth, swell, elong, roundAt, buoy;
+            public float blastSkew, blastSpan, velSpread, puffLife, jitter, cool;
+            public float hold, shrink, shrinkAt, leadDie, opaq, soot;
+            public int gobCount;
+            public float gobReach, gobSwell, gobLifeMul, gobAmp, gobEarly;
+            public float puffSizePx, gobSizePx, warpAmount;
+            public float lo, hi, curve, soft, exposureMult;
+            public bool autoExposure;
+        }
 
         // One swarm-authored blast origin — identical shape/contract to PlusInferno.SwarmOrigin.
         public struct SwarmOrigin { public float x, y, start; }
@@ -185,7 +201,7 @@ namespace Laubrary.PyrePlus
         // Smoothstep-in over a short window `k` — a puff grows into existence instead of popping on.
         static float FadeIn(float s, float k) => Smoothstep01(s / Mathf.Max(k, 1e-4f));
 
-        public static void Render(Color32[] target, int W, int H, PyrePlusLayer l, int seed,
+        public static void Render(Color32[] target, int W, int H, in Params l, int seed,
                                    ZuiFill fill, float layerAlpha, in Anim anim, SwarmOrigin[] origins, in Mods mods)
         {
             if (W < 2 || H < 2 || layerAlpha <= 0f) return;
@@ -194,12 +210,12 @@ namespace Laubrary.PyrePlus
             float refPx = Mathf.Min(W, H) * 0.5f;
             float progress = Mathf.Clamp01(anim.progress);
             float reachFrac = Mathf.Max(0.01f, anim.reach);
-            float spreadRad = l.forkSpread * Mathf.Deg2Rad;
-            float aimRad = l.forkSpread >= 179.9f ? 0f : l.forkAim * Mathf.Deg2Rad;
-            bool fullCircle = l.forkSpread >= 179.9f;
-            float kd = Mathf.Max(l.forkDrag, 1e-3f);
+            float spreadRad = l.spread * Mathf.Deg2Rad;
+            float aimRad = l.spread >= 179.9f ? 0f : l.aim * Mathf.Deg2Rad;
+            bool fullCircle = l.spread >= 179.9f;
+            float kd = Mathf.Max(l.drag, 1e-3f);
             float denom = 1f - Mathf.Exp(-kd);
-            int n = Mathf.Max(1, l.forkPuffCount);
+            int n = Mathf.Max(1, l.puffCount);
             // Puffs are split evenly across a multi-blast swarm rather than replicated per event — otherwise a
             // 12-particle swarm would draw 12x the puff count and cost, without reading any denser (mirrors
             // Inferno's own clump-count reduction for multi-blast swarms).
@@ -227,78 +243,78 @@ namespace Laubrary.PyrePlus
                     float u = ((i + 0.5f) / puffsPerEvent) * 2f - 1f
                             + (float)(rng.NextDouble() - 0.5) * (2f / puffsPerEvent);
                     u = Mathf.Clamp(u, -1f, 1f);
-                    float da = Mathf.Sign(u) * Mathf.Pow(Mathf.Abs(u), l.forkBias) * spreadRad;
+                    float da = Mathf.Sign(u) * Mathf.Pow(Mathf.Abs(u), l.bias) * spreadRad;
 
-                    float j = l.forkJitter;
+                    float j = l.jitter;
                     float vs = 1f + j * (float)(rng.NextDouble() * 0.84 - 0.42);
                     float rs = 1f + j * (float)(rng.NextDouble() * 0.84 - 0.34);
                     float ampMul = 1f + j * (float)(rng.NextDouble() * 0.60 - 0.30);
                     float lifeMul = 1f + j * (float)(rng.NextDouble() * 0.50 - 0.25);
-                    if (l.forkVelSpread > 0f)
-                        vs *= 1f - l.forkVelSpread * Mathf.Pow((float)rng.NextDouble(), 1.4f);
+                    if (l.velSpread > 0f)
+                        vs *= 1f - l.velSpread * Mathf.Pow((float)rng.NextDouble(), 1.4f);
                     float birthU = (float)rng.NextDouble();
-                    float birthFrac = Mathf.Pow(birthU, l.forkBlastSkew);
+                    float birthFrac = Mathf.Pow(birthU, l.blastSkew);
                     // `lead` needs a stable rank over the WHOLE puff set (0 = slowest, 1 = fastest), which a
                     // single running draw can't give without a second pass — approximate the rank directly from
                     // `vs`'s own distribution shape instead of sorting: vs is drawn from a symmetric jitter times
                     // an optional velSpread thinning, so its rank correlates tightly with its raw value; a plain
                     // clamped linear remap over the jitter range is visually indistinguishable from an exact sort
                     // here and avoids an O(n log n) pass per event per frame.
-                    float lead = Mathf.Clamp01((vs - (1f - j * 0.42f - l.forkVelSpread)) / Mathf.Max(2f * j + l.forkVelSpread, 1e-3f));
+                    float lead = Mathf.Clamp01((vs - (1f - j * 0.42f - l.velSpread)) / Mathf.Max(2f * j + l.velSpread, 1e-3f));
 
-                    float birth = l.forkBlastSpan * birthFrac;
-                    float puffLife = l.forkPuffLife * lifeMul;
-                    if (l.forkLeadDie > 0f)
-                        puffLife *= 1f - l.forkLeadDie * Mathf.Pow(lead, 1.4f);
+                    float birth = l.blastSpan * birthFrac;
+                    float puffLife = l.puffLife * lifeMul;
+                    if (l.leadDie > 0f)
+                        puffLife *= 1f - l.leadDie * Mathf.Pow(lead, 1.4f);
                     float s = (local - birth) / Mathf.Max(puffLife, 1e-3f);
                     if (s < 0f || s >= 1f) continue;
 
                     float theta = aimRad + da;
                     float d = reachPx * vs * (1f - Mathf.Exp(-kd * s)) / denom;
                     float wx = evCx + d * Mathf.Cos(theta);
-                    float wy = evCy + d * Mathf.Sin(theta) + l.forkBuoy * refPx * Mathf.Pow(s, 2.4f);
+                    float wy = evCy + d * Mathf.Sin(theta) + l.buoy * refPx * Mathf.Pow(s, 2.4f);
 
-                    if (l.forkWarpAmount > 0f)
+                    if (l.warpAmount > 0f)
                     {
-                        float wob = Wobble(i, s, ev.seed) * l.forkWarpAmount;
+                        float wob = Wobble(i, s, ev.seed) * l.warpAmount;
                         wx += wob * Mathf.Cos(theta + Mathf.PI * 0.5f);
                         wy += wob * Mathf.Sin(theta + Mathf.PI * 0.5f);
                     }
 
-                    float r = l.forkPuffSizePx * rs + l.forkGrowth * d + l.forkSwell * reachPx * s;
-                    if (l.forkShrink > 0f)
+                    float r = l.puffSizePx * rs + l.growth * d + l.swell * reachPx * s;
+                    if (l.shrink > 0f)
                     {
-                        float su = Mathf.Clamp01((s - l.forkShrinkAt) / Mathf.Max(1f - l.forkShrinkAt, 1e-3f));
-                        float k = l.forkShrink * Mathf.Pow(lead, 1.4f) * Smoothstep01(su);
+                        float su = Mathf.Clamp01((s - l.shrinkAt) / Mathf.Max(1f - l.shrinkAt, 1e-3f));
+                        float k = l.shrink * Mathf.Pow(lead, 1.4f) * Smoothstep01(su);
                         r *= 1f - k;
                     }
-                    float aspect = 1f + l.forkElong * Mathf.Exp(-s / Mathf.Max(l.forkRoundAt, 0.02f));
+                    float aspect = 1f + l.elong * Mathf.Exp(-s / Mathf.Max(l.roundAt, 0.02f));
 
-                    float decay = l.forkHold > 0f
-                        ? Mathf.Clamp01(1f - Mathf.Pow(s, 1f + l.forkHold))
+                    float decay = l.hold > 0f
+                        ? Mathf.Clamp01(1f - Mathf.Pow(s, 1f + l.hold))
                         : Mathf.Clamp01(1f - s);
-                    float amp = 1.15f * ampMul * FadeIn(s, 0.06f) * Mathf.Pow(decay, Mathf.Max(l.forkCool, 0.01f));
+                    float amp = 1.15f * ampMul * FadeIn(s, 0.06f) * Mathf.Pow(decay, Mathf.Max(l.cool, 0.01f));
                     if (amp <= 0.0005f) continue;
-                    float tint = Mathf.Clamp01(l.forkSoot * s);
+                    float tint = Mathf.Clamp01(l.soot * s);
 
                     Blob(density, soot, W, H, wx, wy, r * aspect, r, theta, amp, tint);
                 }
 
                 // ── gobs: burning mass shed in the opening phase, that dissipates rather than shrinks ──────────
-                if (l.forkGobCount > 0)
+                if (l.gobCount > 0)
                 {
                     var grng = new System.Random(ev.seed + 90001);
-                    float gobReachPx = l.forkGobReach * ev.scale * refPx;
-                    float gobLife = l.forkPuffLife * l.forkGobLifeMul;
-                    for (int i = 0; i < l.forkGobCount; i++)
+                    float gobReachPx = l.gobReach * ev.scale * refPx;
+                    float gobLife = l.puffLife * l.gobLifeMul;
+                    for (int i = 0; i < l.gobCount; i++)
                     {
-                        float uu = ((i + 0.5f) / l.forkGobCount) * 2f - 1f
-                                 + (float)(grng.NextDouble() - 0.5) * (2f / l.forkGobCount);
+                        float uu = ((i + 0.5f) / l.gobCount) * 2f - 1f
+                                 + (float)(grng.NextDouble() - 0.5) * (2f / l.gobCount);
                         uu = Mathf.Clamp(uu, -1f, 1f);
-                        float da = Mathf.Sign(uu) * Mathf.Pow(Mathf.Abs(uu), l.forkBias) * spreadRad;
+                        float da = Mathf.Sign(uu) * Mathf.Pow(Mathf.Abs(uu), l.bias) * spreadRad;
                         float vs = 0.42f + 0.83f * (float)grng.NextDouble();
                         float rs = 0.62f + 0.93f * (float)grng.NextDouble();
-                        float born = Mathf.Pow((float)grng.NextDouble(), 1.7f) * l.forkGobEarly * l.forkBlastSpan;
+                        float born = Mathf.Pow((float)grng.NextDouble(), 1.7f) * l.gobEarly * l.blastSpan;
 
                         float s = (local - born) / Mathf.Max(gobLife, 1e-3f);
                         if (s < 0f || s >= 1f) continue;
@@ -306,12 +322,12 @@ namespace Laubrary.PyrePlus
                         float theta = aimRad + da;
                         float d = gobReachPx * vs * (1f - Mathf.Exp(-kd * s)) / denom;
                         float wx = evCx + d * Mathf.Cos(theta);
-                        float wy = evCy + d * Mathf.Sin(theta) + l.forkBuoy * refPx * 0.55f * Mathf.Pow(s, 2.4f);
-                        float r = l.forkGobSizePx * rs * (1f + l.forkGobSwell * s);
+                        float wy = evCy + d * Mathf.Sin(theta) + l.buoy * refPx * 0.55f * Mathf.Pow(s, 2.4f);
+                        float r = l.gobSizePx * rs * (1f + l.gobSwell * s);
                         float aspect = 1f + 1.30f * Mathf.Exp(-s / 0.34f);
-                        float amp = l.forkGobAmp * FadeIn(s, 0.07f) * Mathf.Pow(1f - s, 2f);
+                        float amp = l.gobAmp * FadeIn(s, 0.07f) * Mathf.Pow(1f - s, 2f);
                         if (amp <= 0.0005f) continue;
-                        float tint = Mathf.Clamp01(l.forkSoot * s * 1.15f);
+                        float tint = Mathf.Clamp01(l.soot * s * 1.15f);
                         Blob(density, soot, W, H, wx, wy, r * aspect, r, theta, amp, tint);
                     }
                 }
@@ -320,24 +336,24 @@ namespace Laubrary.PyrePlus
             // ── shading pass: heat field -> straight-alpha pixels, through the shape's own Fill ramp ──────────
             const float SootR = 0.16f, SootG = 0.15f, SootB = 0.14f;
             bool anyPix = mods.pix != null && mods.pix.Length > 0;
-            float lo = l.forkLo;
+            float lo = l.lo;
             // Auto-exposure: fit the ceiling to what THIS frame's field actually produced, instead of trusting a
             // fixed forkHi to happen to match whatever forkPuffCount/amp/blast-count the layer is currently set
             // to (see the field's doc comment in PyrePlusSpec.cs — a mismatched fixed ceiling either washes the
             // whole body out to a flat mid-tone or blows the core to a two-pixel speck, and it is not obvious
             // from the dial values alone which failure a given combination will hit).
             float hi;
-            if (l.forkAutoExposure)
+            if (l.autoExposure)
             {
                 float peak = 0f;
                 for (int i = 0; i < count; i++) if (density[i] > peak) peak = density[i];
-                hi = Mathf.Max(peak * Mathf.Max(l.forkExposureMult, 0.05f), lo + 1e-3f);
+                hi = Mathf.Max(peak * Mathf.Max(l.exposureMult, 0.05f), lo + 1e-3f);
             }
             else
             {
-                hi = l.forkHi;
+                hi = l.hi;
             }
-            float hiSpan = Mathf.Max(hi - lo, 1e-4f), soft = Mathf.Max(l.forkSoft, 1e-4f);
+            float hiSpan = Mathf.Max(hi - lo, 1e-4f), soft = Mathf.Max(l.soft, 1e-4f);
             for (int py = 0; py < H; py++)
             {
                 int row = py * W;
@@ -348,7 +364,7 @@ namespace Laubrary.PyrePlus
                     if (hv <= lo) continue;
 
                     float t = Mathf.Clamp01((hv - lo) / hiSpan);
-                    if (!Mathf.Approximately(l.forkCurve, 1f)) t = Mathf.Pow(t, l.forkCurve);
+                    if (!Mathf.Approximately(l.curve, 1f)) t = Mathf.Pow(t, l.curve);
 
                     Color baseColor = fill != null ? fill.Evaluate(1f - t, 0.5f, 0.5f) : Color.white;
                     float tintAmt = Mathf.Clamp01(soot[idx] / Mathf.Max(hv, 1e-6f));
@@ -364,7 +380,7 @@ namespace Laubrary.PyrePlus
 
                     float edge = Smoothstep01((hv - lo) / soft);
                     float aceil = baseColor.a;
-                    if (!Mathf.Approximately(l.forkOpaq, 1f)) aceil = Mathf.Pow(Mathf.Clamp01(aceil), l.forkOpaq);
+                    if (!Mathf.Approximately(l.opaq, 1f)) aceil = Mathf.Pow(Mathf.Clamp01(aceil), l.opaq);
                     float alpha = Mathf.Clamp01(edge * aceil) * layerAlpha;
                     if (alpha <= 0f) continue;
 
@@ -405,7 +421,7 @@ namespace Laubrary.PyrePlus
                     if (flashAmp <= 0.004f) continue;
                     float evCx = nozzleX + ev.cx * (W * 0.5f);
                     float evCy = nozzleY + ev.cy * (H * 0.5f);
-                    float flashR0 = (2.5f + l.forkPuffSizePx * 2.2f) * ev.scale * (1f + 1.6f * fs);
+                    float flashR0 = (2.5f + l.puffSizePx * 2.2f) * ev.scale * (1f + 1.6f * fs);
                     int x0 = Mathf.Max(0, Mathf.FloorToInt(evCx - flashR0 * 2.4f));
                     int x1 = Mathf.Min(W - 1, Mathf.CeilToInt(evCx + flashR0 * 2.4f));
                     int y0 = Mathf.Max(0, Mathf.FloorToInt(evCy - flashR0 * 2.4f));

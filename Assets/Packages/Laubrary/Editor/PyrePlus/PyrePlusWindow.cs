@@ -1091,7 +1091,7 @@ namespace Laubrary.PyrePlus.Editor
         void ShowShapeMenu(PyrePlusLayer s, VisualElement anchor)
         {
             if (s == null) return;
-            var menu = Z.Menu(anchor).Width(370f);
+            var menu = Z.Menu(anchor).Width(490f);
             menu.Custom((body, close) =>
             {
                 var row = new VisualElement();
@@ -1099,6 +1099,8 @@ namespace Laubrary.PyrePlus.Editor
                 row.Add(FormColumn(s, "3D", Forms3DTip, Forms3D, close));
                 row.Add(FormColumn(s, "2D", Forms2DTip, Forms2D, close));
                 row.Add(FormColumn(s, "Special", FormsSpecialTip, FormsSpecial, close));
+                // Plug-in forms (PlusForm) — discovered by assembly scan, one column per group (see .Forms.cs).
+                AddFormColumns(row, s, close);
                 body.Add(row);
             });
             menu.Show();
@@ -1121,7 +1123,8 @@ namespace Laubrary.PyrePlus.Editor
                 item.AddToClassList("zui-menu__item");
                 item.style.flexDirection = FlexDirection.Row;
                 item.style.alignItems = Align.Center;
-                var check = new Label(s.shapeForm == f ? "✓" : "") { pickingMode = PickingMode.Ignore };
+                // A plug-in form, when set, overrides the enum — so the enum columns show no check while one is active.
+                var check = new Label(s.form == null && s.shapeForm == f ? "✓" : "") { pickingMode = PickingMode.Ignore };
                 check.AddToClassList("zui-menu__check");
                 item.Add(check);
                 var img = Z.Icon(icon, 14f);
@@ -1131,7 +1134,7 @@ namespace Laubrary.PyrePlus.Editor
                 item.Add(lbl);
                 item.AddManipulator(new Clickable(() =>
                 {
-                    Dirty(() => { s.shapeForm = f; SteadyDefaultFillForSolid(s); });
+                    Dirty(() => { s.form = null; s.shapeForm = f; SteadyDefaultFillForSolid(s); });
                     RebuildShape(); RebuildSwarm();
                     close?.Invoke();
                 }));
@@ -1172,6 +1175,19 @@ namespace Laubrary.PyrePlus.Editor
                         s.startFrame = a;
                         s.endFrame = b >= fcMax ? -1 : b;   // far-right restores the "last frame" sentinel (auto-tracks frameCount)
                     }), 130f, isInt: true)));
+
+            // Plug-in form (PlusForm): the layer's look is the form object. It shares the Fill (its colour source) and
+            // Alpha (overall opacity) rows with every other form, then its own reflection-drawn card; a whole-layer
+            // form has no particle to size or position, so Size / Position / Border do not apply.
+            if (s.form != null)
+            {
+                shapeBody.Add(FillRow("Fill",
+                    $"The {s.form.DisplayName} form's colour source. {s.form.Description}", s.shapeFill,
+                    new ZuiFillControl.Options().WithWidth(190f).WithGrow(2.2f)));
+                shapeBody.Add(Val("Alpha", "Overall opacity over the layer's life (multiplies the form's output alpha).", s.alpha, 0f, 1f));
+                BuildFormCard(s);
+                return;
+            }
 
             // Shared rows. For the Gem, Colour is its material tint and Size is its girdle radius; for the Sprite,
             // Colour is the optional tint. TEXT takes its colour from its own Fill / Border gradients instead, so
@@ -2510,8 +2526,9 @@ namespace Laubrary.PyrePlus.Editor
                 {
                     Dirty(() => s.swarmEnabled = v);
                     RebuildSwarm();
-                    // Inferno's Shape box swaps its multi-blast rows on this toggle (the swarm ignites the blasts).
-                    if (s.shapeForm == ShapeForm.Inferno) RebuildShape();
+                    // Inferno's Shape box swaps its multi-blast rows on this toggle (the swarm ignites the blasts);
+                    // a plug-in form's card hides/shows its [PlusSwarmOnly] dials the same way.
+                    if (s.shapeForm == ShapeForm.Inferno || s.form != null) RebuildShape();
                 });
 
             // Inferno: the swarm IS the blast placement — one blast per particle (off = one centred blast). The

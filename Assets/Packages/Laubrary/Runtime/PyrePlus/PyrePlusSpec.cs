@@ -314,6 +314,12 @@ namespace Laubrary.PyrePlus
         // Which FORM the particle renders as. Disc = the flat soft disc (slice 1). Gem = a true-3D lit crystal
         // (the Gem block below drives it); its material colour is shapeFill, its radius is `size`.
         public ShapeForm shapeForm = ShapeForm.Disc;
+        // ── plug-in form (PlusForm.cs) ─────────────────────────────────────────────────────────────────────
+        // When set, THIS object is the layer's shape and `shapeForm` is ignored: the renderer dispatches to it once
+        // at the top of RenderLayer and the editor draws its fields by reflection. Null (the default, and every
+        // pre-existing asset) ⇒ the built-in ShapeForm path, byte-identical. Polymorphic ([SerializeReference]) so
+        // a form is just a subclass — in this assembly or in a family asmdef the core never references.
+        [SerializeReference] public PlusForm form;
         // The particle's colour, as a ZuiFill: Solid (one flat colour), OverLife (a gradient over the particle's
         // life — the default), or a SPATIAL fill (Linear / Radial / Noise, sampled across the particle by its
         // normalized local point). Every mode is alpha-capable. Default = OverLife with the fire gradient, which
@@ -1018,6 +1024,9 @@ namespace Laubrary.PyrePlus
             // slice-4b matte-heightmap fields (matteWriteLuma bool, heightFromChannel int, heightRelief/heightLightAngle
             // floats) are all value types, so MemberwiseClone already copied them — no explicit deep-copy needed.
             l.modifiers = modifiers == null ? new List<PyreModifier>() : modifiers.ConvertAll(m => m?.Clone());
+            // Plug-in form: a [SerializeReference] object MemberwiseClone would ALIAS between the two layers (and
+            // Unity would then serialize it once, shared) — deep-copy through the form's own reflection Clone.
+            l.form = form?.Clone();
             // Simulation modifier (slice 7): a stateful [SerializeReference] slot — MemberwiseClone shared the ref, so
             // deep-copy via its own Clone() (which resets the copy's live sim grids/PRNG; see PixelFluidModifier.Clone)
             // so a duplicated layer owns its own sim instance and never corrupts the original's running state. Null stays
@@ -1034,7 +1043,7 @@ namespace Laubrary.PyrePlus
             return c;
         }
 
-        static ZuiFill CloneFill(ZuiFill f)
+        public static ZuiFill CloneFill(ZuiFill f)
         {
             if (f == null) return null;
             return new ZuiFill

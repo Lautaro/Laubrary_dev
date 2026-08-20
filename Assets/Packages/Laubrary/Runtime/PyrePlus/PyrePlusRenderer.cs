@@ -120,6 +120,13 @@ namespace Laubrary.PyrePlus
         const int FldForkReach = -56;        // forkReach — ForkBlast puff travel distance fraction, layer life
         const int FldForkFlash = -57;        // forkFlash — ForkBlast ignition flash strength, layer life
         const int FldForkHash = -58;         // ForkBlast's pixel-modifier hash stream (whole-layer, like FldInfernoHash). Next new single field id: -59 onward.
+        // ── plug-in form dials (PlusForm) — an AUTO-DERIVED block, never hand-registered ───────────────────────
+        // A form's Prepare gets Eval(value, slot) and slot s maps to FldForm - s (-1000, -1001, …, counting DOWN). The
+        // block sits far below every hand-registered negative single id (-2..-58) and, being negative, can never meet
+        // the positive modifier blocks (16 + idx*8), the Fire/Fireball 100..125 ids or the sim slot at 6416. One
+        // layer has exactly one form, so two forms never share a block; a form's dials are decorrelated from each
+        // other by slot exactly as a modifier's are by fid. Public: PlusFormPrepareCtx does the slot arithmetic.
+        public const int FldForm = -1000;
         // (Gem also REUSES existing ids: FldSize for its radius R, FldAlpha for its output alpha, FldSpin for its
         //  3D yaw (Turn), FldGemTilt for its tilt, FldGemRoll for its roll, and FldPathX/FldPathY for the shared
         //  travel offset — no other new ids. Crescent/Sparkle/Sprite likewise REUSE FldSize/FldAlpha (radius/alpha),
@@ -136,7 +143,7 @@ namespace Laubrary.PyrePlus
         // Modifier params are frame-global (not per-particle), so their Eval uses this sentinel particle index —
         // real particles are 0..N-1, so -1 never shares a Min-Max RNG stream with a particle draw. Mirrors
         // BlastRenderer feeding its GlobalLayerId (-1) as the layer id for global modifiers.
-        const int ModParticleIndex = -1;
+        public const int ModParticleIndex = -1;
 
         // ── Fire form field ids (shapeForm == Fire, slice 6a) — REUSE Pyre's own F_Fire* block VERBATIM ──────────
         // These are Pyre's exact fire field ids (Runtime/Pyre/BlastRenderer.cs:47-50), reused so a converted Pyre
@@ -281,7 +288,9 @@ namespace Laubrary.PyrePlus
                 // First-class border (task #60): only the six FLAT 2D forms, and only when enabled. Gated so every
                 // other form — and every border-off layer (the default) — takes the exact pre-border path below
                 // (hasBorder false ⇒ no border buffer built, needScratch unchanged, nothing deferred ⇒ byte-identical).
-                bool hasBorder = layer.borderEnabled && IsFlat2DBorderForm(layer.shapeForm);
+                // A plug-in form owns its whole look (shapeForm is ignored while `form` is set), so the border rim —
+                // a feature of the six flat enum forms — does not apply to it.
+                bool hasBorder = layer.form == null && layer.borderEnabled && IsFlat2DBorderForm(layer.shapeForm);
 
                 // ── per-layer lifetime window (#55) — ported 1:1 from Pyre1 (BlastRenderer.cs:218/565) ──────────
                 // Resolve the window against the frame count: endFrame < 0 is the "last frame" SENTINEL ⇒ frames-1
@@ -412,7 +421,10 @@ namespace Laubrary.PyrePlus
                 // hasBorder forces the isolated-scratch path so the border can read this layer's OWN fill alpha (the
                 // straight-into-buf fast path has no separate layer buffer to rim). Border OFF ⇒ hasBorder false ⇒
                 // needScratch is exactly the pre-border expression ⇒ the fast path is untouched and byte-identical.
-                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire || isFireball || isInferno || isForkBlast || hasLayerSim || hasBorder;
+                // A plug-in form is treated like the whole-layer forms: it may SET pixels over its silhouette, so it
+                // always paints into an isolated scratch that is then Over-composited.
+                bool isForm = layer.form != null;
+                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire || isFireball || isInferno || isForkBlast || isForm || hasLayerSim || hasBorder;
                 if (!needScratch)
                 {
                     if (isHeightConsumer) RenderHeightConsumer(buf, W, H, layer, heightField);
@@ -495,6 +507,15 @@ namespace Laubrary.PyrePlus
         static void RenderLayer(Color32[] target, int W, int H, float life, PyrePlusSpec spec, PyrePlusLayer layer,
                                 in ModSet mods, float phase, int frameIndex)
         {
+            // Plug-in form (PlusForm.cs) — the ONE dispatch for every form that is not a built-in enum case. The
+            // renderer's only jobs here are the things every form shares: resolve the dials through the Eval funnel
+            // (Prepare), hand over the layer's fill/alpha/modifiers and — swarm on — the full per-particle instance
+            // list the particle forms compute, then let the form paint the isolated scratch the caller forced.
+            if (layer.form != null)
+            {
+                RenderFormLayer(target, W, H, life, spec, layer, mods, phase, frameIndex);
+                return;
+            }
             // Fire (slice 6a) — a STATEFUL sim form has NO particles/swarm, so it bypasses the swarm dispatch entirely
             // and drives its own replay harness. The caller ALWAYS hands it an isolated scratch (needScratch is forced
             // for Fire in RenderFrame) because FireSim.Render OVERWRITES above-threshold pixels and leaves the rest —
@@ -576,7 +597,18 @@ namespace Laubrary.PyrePlus
                     life = life,
                     pixHash = Hash(sd, ModParticleIndex, FldInfernoHash, _layerSalt),
                 };
-                PlusInferno.Render(target, W, H, layer, infSeed, layer.shapeFill, infAlpha, anim, origins, infMods);
+                var infStruct = new PlusInferno.Structural
+                {
+                    mutation = layer.infernoMutation, accumulation = layer.infernoAccumulation,
+                    balanceDrift = layer.infernoBalanceDrift, balanceJitter = layer.infernoBalanceJitter,
+                    bangSpeed = layer.infernoBangSpeed, punch = layer.infernoPunch, recoil = layer.infernoRecoil,
+                    flashReach = layer.infernoFlashReach, flashSoft = layer.infernoFlashSoft, clumps = layer.infernoClumps,
+                    pulse = layer.infernoPulse, heatPockets = layer.infernoHeatPockets, cooling = layer.infernoCooling,
+                    linger = layer.infernoLinger, dieOut = layer.infernoDieOut, embers = layer.infernoEmbers,
+                    lighting = layer.infernoLighting, contrast = layer.infernoContrast, margin = layer.infernoMargin,
+                    frameFade = layer.infernoFrameFade,
+                };
+                PlusInferno.Render(target, W, H, infStruct, infSeed, layer.shapeFill, infAlpha, anim, origins, infMods);
                 return;
             }
 
@@ -620,7 +652,20 @@ namespace Laubrary.PyrePlus
                     life = life,
                     pixHash = Hash(sd, ModParticleIndex, FldForkHash, _layerSalt),
                 };
-                PlusForkBlast.Render(target, W, H, layer, fbSeed, layer.shapeFill, fbAlpha, anim, fbOrigins, fbMods);
+                var fbParams = new PlusForkBlast.Params
+                {
+                    spread = layer.forkSpread, aim = layer.forkAim, bias = layer.forkBias, puffCount = layer.forkPuffCount,
+                    drag = layer.forkDrag, growth = layer.forkGrowth, swell = layer.forkSwell, elong = layer.forkElong,
+                    roundAt = layer.forkRoundAt, buoy = layer.forkBuoy, blastSkew = layer.forkBlastSkew, blastSpan = layer.forkBlastSpan,
+                    velSpread = layer.forkVelSpread, puffLife = layer.forkPuffLife, jitter = layer.forkJitter, cool = layer.forkCool,
+                    hold = layer.forkHold, shrink = layer.forkShrink, shrinkAt = layer.forkShrinkAt, leadDie = layer.forkLeadDie,
+                    opaq = layer.forkOpaq, soot = layer.forkSoot, gobCount = layer.forkGobCount, gobReach = layer.forkGobReach,
+                    gobSwell = layer.forkGobSwell, gobLifeMul = layer.forkGobLifeMul, gobAmp = layer.forkGobAmp, gobEarly = layer.forkGobEarly,
+                    puffSizePx = layer.forkPuffSizePx, gobSizePx = layer.forkGobSizePx, warpAmount = layer.forkWarpAmount,
+                    lo = layer.forkLo, hi = layer.forkHi, curve = layer.forkCurve, soft = layer.forkSoft,
+                    exposureMult = layer.forkExposureMult, autoExposure = layer.forkAutoExposure,
+                };
+                PlusForkBlast.Render(target, W, H, fbParams, fbSeed, layer.shapeFill, fbAlpha, anim, fbOrigins, fbMods);
                 return;
             }
 
@@ -645,6 +690,59 @@ namespace Laubrary.PyrePlus
             }
             else
                 RenderSwarm(target, W, H, life, spec, layer, mods, phase, frameIndex);
+        }
+
+        static void RenderFormLayer(Color32[] target, int W, int H, float life, PyrePlusSpec spec, PyrePlusLayer layer,
+                                    in ModSet mods, float phase, int frameIndex)
+        {
+            int sd = spec != null ? spec.seed : 0;
+            int salt = _layerSalt;
+            var form = layer.form;
+            form.Prepare(new PlusFormPrepareCtx(life, sd, salt, (v, fid) => Eval(v, life, sd, ModParticleIndex, fid)));
+            float alpha = Mathf.Clamp01(Eval(layer.alpha, life, sd, ModParticleIndex, FldAlpha));
+
+            // Swarm hand-off: every spawn as RenderSwarm would see it this frame — position with the LIVE whole-cloud
+            // spin then scale applied (final = centre + scale·spin(offset)), own life (die-together honoured), depth
+            // multipliers. All instances are passed, alive or not; the form decides what an unborn/dead one means.
+            PlusSwarmInstance[] swarm = null;
+            if (layer.swarmEnabled)
+            {
+                ComputeSpawns(spec, layer, _plusFireSpawns);
+                bool dieTogether = layer.swarmDieTogether;
+                float deathPoint = 0f;
+                if (dieTogether)
+                {
+                    // The same shared death point RenderSwarm derives (see its comment there).
+                    int lastIdx = Mathf.Max(0, _plusFireSpawns.Count - 1);
+                    float maxSpawnLife = layer.swarmTiming == SwarmTiming.FrameStep
+                        ? Mathf.Clamp01((layer.swarmFirstFrame + lastIdx * layer.swarmFrameStep) / (float)Mathf.Max(1, spec.frameCount - 1))
+                        : Mathf.Clamp01(EvalCanonical(layer.swarmSpawnTiming, 1f));
+                    deathPoint = Mathf.Min(1f, maxSpawnLife + layer.swarmParticleLife);
+                }
+                swarm = new PlusSwarmInstance[_plusFireSpawns.Count];
+                for (int i = 0; i < _plusFireSpawns.Count; i++)
+                {
+                    var sp = _plusFireSpawns[i];
+                    Vector2 wp = ApplySwarmScale(spec, layer, ApplySwarmSpin(spec, layer, sp.pos, life), life);
+                    swarm[i] = new PlusSwarmInstance
+                    {
+                        x = wp.x, y = wp.y,
+                        own = dieTogether
+                            ? (life - sp.spawnLife) / Mathf.Max(0.0001f, deathPoint - sp.spawnLife)
+                            : (life - sp.spawnLife) / Mathf.Max(0.0001f, layer.swarmParticleLife),
+                        spawnLife = sp.spawnLife,
+                        index = i,
+                        orientDeg = sp.orientDeg,
+                        zNorm = sp.zNorm,
+                        sizeMul = Mathf.Clamp(1f + 0.35f * sp.zNorm, 0.5f, 1.6f),
+                        brightMul = Mathf.Clamp(1f + 0.30f * sp.zNorm, 0.55f, 1.45f),
+                    };
+                }
+            }
+
+            var ctx = new PlusFormCtx(W, H, life, sd, salt, layer.shapeFill, alpha, swarm,
+                                      mods.AnyGeo ? mods.geo : null, mods.AnyPix ? mods.pix : null, phase, frameIndex);
+            form.Render(ctx, target);
         }
 
         // ── Fire form: stateful sim + replay harness (slice 6a) ──────────────────────────────────────────────────
@@ -4975,7 +5073,9 @@ namespace Laubrary.PyrePlus
             }
         }
 
-        static int Hash(int a, int b, int c, int d)
+        /// The renderer's one seeded hash — public so a PlusForm derives every random draw from the same function
+        /// (and a migrated form can reproduce the exact seed stream of the enum case it replaced).
+        public static int Hash(int a, int b, int c, int d)
         {
             unchecked
             {

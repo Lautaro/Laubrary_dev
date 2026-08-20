@@ -54,7 +54,7 @@ namespace Laubrary.PyrePlus
     // y-up NDC so Lift raises the cloud and the pseudo-normal light falls from visually above. The base field
     // pass SETS pixels (it owns the whole silhouette), so the caller MUST hand this an isolated transparent
     // scratch — needScratch is forced for Inferno in RenderFrame, mirroring Fire/Fireball.
-    internal static class PlusInferno
+    public static class PlusInferno
     {
         const float TAU = Mathf.PI * 2f;
 
@@ -88,6 +88,18 @@ namespace Laubrary.PyrePlus
             public int pixHash;      // whole-layer pixel-modifier hash stream (FldInfernoHash)
         }
 
+        // The plain (non-animatable) structural dials, handed in by the caller already authored — the per-blast
+        // character, the event-time shapes (bang / recoil / pulse) and the finish/containment knobs. Clamped into
+        // the algorithm's own ranges in ReadParams.
+        public struct Structural
+        {
+            public float mutation, accumulation, balanceDrift, balanceJitter;
+            public float bangSpeed, punch, recoil, flashReach, flashSoft;
+            public int clumps;
+            public float pulse, heatPockets, cooling, linger, dieOut;
+            public float embers, lighting, contrast, margin, frameFade;
+        }
+
         // ── the layer's Inferno dials, snapshotted once per frame ────────────────────────────────────────────
         struct P
         {
@@ -102,22 +114,22 @@ namespace Laubrary.PyrePlus
             public float hollowEdge;   // derived: the cavity edge in r/occupiedRadius units
         }
 
-        static P ReadParams(PyrePlusLayer l, in Anim a)
+        static P ReadParams(in Structural l, in Anim a)
         {
             var p = new P
             {
-                mutation = Mathf.Clamp01(l.infernoMutation),
-                accumulation = Mathf.Clamp01(l.infernoAccumulation),
-                charDrift = Mathf.Clamp(l.infernoBalanceDrift, -1f, 1f),
-                charJitter = Mathf.Clamp01(l.infernoBalanceJitter),
+                mutation = Mathf.Clamp01(l.mutation),
+                accumulation = Mathf.Clamp01(l.accumulation),
+                charDrift = Mathf.Clamp(l.balanceDrift, -1f, 1f),
+                charJitter = Mathf.Clamp01(l.balanceJitter),
                 blastSize = Mathf.Clamp(a.blastSize, 0.05f, 1f),
-                bangSpeed = Mathf.Clamp(l.infernoBangSpeed, 0.2f, 1f),
-                punch = Mathf.Clamp01(l.infernoPunch),
+                bangSpeed = Mathf.Clamp(l.bangSpeed, 0.2f, 1f),
+                punch = Mathf.Clamp01(l.punch),
                 flash = Mathf.Clamp01(a.flash),
-                recoil = Mathf.Clamp01(l.infernoRecoil),
-                flashReach = Mathf.Clamp01(l.infernoFlashReach),
-                flashSoft = Mathf.Clamp01(l.infernoFlashSoft),
-                clumps = Mathf.Clamp(l.infernoClumps, 1, 9),
+                recoil = Mathf.Clamp01(l.recoil),
+                flashReach = Mathf.Clamp01(l.flashReach),
+                flashSoft = Mathf.Clamp01(l.flashSoft),
+                clumps = Mathf.Clamp(l.clumps, 1, 9),
                 clumpSpread = Mathf.Clamp01(a.clumpSpread),
                 // Billow's authored 0..1 maps to 0..1.5 internally: the old ceiling (a flat, rock-like cloud
                 // below it) now sits around 0.67 on the slider, leaving real headroom above it.
@@ -130,23 +142,23 @@ namespace Laubrary.PyrePlus
                 coreDensity = Mathf.Clamp01(a.coreDensity),
                 churn = Mathf.Clamp01(a.churn),
                 rotation = Mathf.Clamp(a.rotation, -1f, 1f),
-                pulse = Mathf.Clamp01(l.infernoPulse),
+                pulse = Mathf.Clamp01(l.pulse),
                 fire = Mathf.Clamp01(a.fire),
-                heatPockets = Mathf.Clamp01(l.infernoHeatPockets),
-                cooling = Mathf.Clamp01(l.infernoCooling),
+                heatPockets = Mathf.Clamp01(l.heatPockets),
+                cooling = Mathf.Clamp01(l.cooling),
                 smoke = Mathf.Clamp01(a.smoke),
                 smokeSpread = Mathf.Clamp01(a.smokeSpread),
-                linger = Mathf.Clamp01(l.infernoLinger),
-                dieOut = Mathf.Clamp01(l.infernoDieOut),
+                linger = Mathf.Clamp01(l.linger),
+                dieOut = Mathf.Clamp01(l.dieOut),
                 coreGlow = Mathf.Clamp01(a.coreGlow),
                 darkness = Mathf.Clamp01(a.darkness),
                 body = Mathf.Clamp01(a.body),
-                embers = Mathf.Clamp01(l.infernoEmbers),
-                lighting = Mathf.Clamp01(l.infernoLighting),
-                contrast = Mathf.Clamp01(l.infernoContrast),
-                margin = Mathf.Clamp(l.infernoMargin, 0f, 0.25f),
+                embers = Mathf.Clamp01(l.embers),
+                lighting = Mathf.Clamp01(l.lighting),
+                contrast = Mathf.Clamp01(l.contrast),
+                margin = Mathf.Clamp(l.margin, 0f, 0.25f),
                 edgeSoft = Mathf.Clamp01(a.edgeSoft),
-                frameFade = Mathf.Clamp01(l.infernoFrameFade),
+                frameFade = Mathf.Clamp01(l.frameFade),
             };
             p.hollowEdge = p.hollow * 0.78f;
             return p;
@@ -507,11 +519,11 @@ namespace Laubrary.PyrePlus
         }
 
         // ── the frame render — pure f(params, progress, seed); `target` MUST be an isolated transparent scratch ──
-        public static void Render(Color32[] target, int W, int H, PyrePlusLayer layer, int seed,
+        public static void Render(Color32[] target, int W, int H, in Structural structural, int seed,
                                   ZuiFill fill, float layerAlpha, in Anim anim, SwarmOrigin[] origins, in Mods mods)
         {
             if (W < 2 || H < 2 || layerAlpha <= 0f) return;
-            P p = ReadParams(layer, anim);
+            P p = ReadParams(structural, anim);
 
             var events = MakeEvents(p, seed, origins);
             if (events.Count == 0) return;

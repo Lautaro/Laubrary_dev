@@ -1,0 +1,18 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.PyrePlus.Forms.Kiln",
+    "rootNamespace": "Laubrary.PyrePlus.Forms.Kiln",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.PyrePlus",
+        "com.Lautaro-Arino.Laubrary.SpriteFx",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
