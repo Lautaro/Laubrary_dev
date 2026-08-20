@@ -74,6 +74,34 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             if (a > A[i]) A[i] = a;
         }
 
+        // ── the skip test: a deposit that cannot raise either plane is never computed ──
+        // Because `Put` is a pure maximum, a pixel whose energy and alpha are already at or above anything this
+        // stroke could give it is a no-op, and the output is bit-for-bit the same whether the stroke's exp / pow
+        // ran there or not. Both bounds come from monotone tables sampled BELOW the true argument (a lower x gives
+        // a higher falloff, a higher index gives a higher gamma curve) and widened by a few ULPs, so they stay upper
+        // bounds even if the C runtime's exp / pow are not perfectly monotone at the last bit. Overlap is the
+        // common case — a channel's core lies inside its own sheath, a tree's branches cross, a swarm stacks
+        // bursts — so most covered pixels end here, after a square root and two table reads.
+        const int FalloffN = 4096; const float FalloffXMax = 64f, FalloffScale = FalloffN / FalloffXMax;
+        const float BoundSlack = 1.00001f;
+        static readonly float[] FalloffUpper = BuildFalloffUpper();
+        static float[] BuildFalloffUpper()
+        {
+            var t = new float[FalloffN + 1];
+            for (int j = 0; j <= FalloffN; j++) t[j] = (float)Math.Exp(-Math.Pow(j / FalloffScale, 1.7)) * BoundSlack;
+            return t;
+        }
+        const int GammaN = 1024;
+        float[] _gammaUpper; float _gammaUpperFor = float.NaN;
+        float[] GammaUpper()
+        {
+            if (_gammaUpperFor == agamma) return _gammaUpper;
+            _gammaUpper ??= new float[GammaN + 1];
+            for (int j = 0; j <= GammaN; j++) _gammaUpper[j] = Mathf.Pow(j / (float)GammaN, agamma) * BoundSlack;
+            _gammaUpperFor = agamma;
+            return _gammaUpper;
+        }
+
         /// `_seg`: e = amp · exp(−(d / width)^1.7) over the segment's padded bbox (source units in, pixels inside).
         public void Seg(double sx0, double sy0, double sx1, double sy1, double widthSrc, double amp, double opa)
         {
@@ -87,6 +115,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             float L2 = dx * dx + dy * dy;
             float invW = 1f / (float)Math.Max(width, 1e-3), fa = (float)amp, fo = (float)opa;
             bool point = L2 < 1e-9f;
+            float[] falloff = FalloffUpper, gamma = GammaUpper();
+            float invAref = 1f / aref;
+            float[] E = this.E, A = this.A;
             for (int y = ys; y < ye; y++)
             {
                 float Y = y;
@@ -100,8 +131,20 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                         if (t < 0f) t = 0f; else if (t > 1f) t = 1f;
                         d = Hypot(X - (x0 + t * dx), Y - (y0 + t * dy));
                     }
+                    float xw = d * invW;
+                    int i = y * S + x;
+                    int fj = (int)(xw * FalloffScale); if (fj > FalloffN) fj = FalloffN;
+                    float eUpper = fa * falloff[fj];
+                    if (eUpper <= E[i])
+                    {
+                        float au = eUpper * invAref; if (au > 1f) au = 1f;
+                        int gj = (int)(au * GammaN) + 1; if (gj > GammaN) gj = GammaN;
+                        if (gamma[gj] * fo <= A[i]) continue;
+                    }
+                    // `d * invW` stays inline here: Mono promotes the unrounded product to double, and rounding it
+                    // through a float local first moves the last bit of a few pixels (Crown's hash changes).
                     float e = fa * (float)Math.Exp(-Math.Pow(d * invW, 1.7));
-                    Put(y * S + x, e, fo);
+                    Put(i, e, fo);
                 }
             }
         }
@@ -145,8 +188,13 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             const float tauF = 6.2831855f;
             float fo = (float)opa;
             double invSoft = 1.0 / Math.Max(soft, 1e-3), invHole = 1.0 / Math.Max(holeSoft, 1e-3);
-            for (int y = 0; y < S; y++)
-                for (int x = 0; x < S; x++)
+            // Outside the profile's largest radius u ≥ 1, so the soft edge clamps e to exactly 0 and nothing is
+            // deposited — the scan can stop at that radius (plus a pixel for the rounding of d) and be the same.
+            double rMax = rs; if (profile != null) { rMax = 0; for (int i = 0; i < n; i++) rMax = Math.Max(rMax, rs * profile[i]); }
+            int xs = Math.Max(0, (int)Math.Floor(pcx - rMax) - 1), xe = Math.Min(S, (int)Math.Ceiling(pcx + rMax) + 2);
+            int ys = Math.Max(0, (int)Math.Floor(pcy - rMax) - 1), ye = Math.Min(S, (int)Math.Ceiling(pcy + rMax) + 2);
+            for (int y = ys; y < ye; y++)
+                for (int x = xs; x < xe; x++)
                 {
                     float fx = x - pcx, fy = y - pcy;
                     float ang = Mathf.Atan2(fy, fx) % tauF; if (ang < 0f) ang += tauF;
