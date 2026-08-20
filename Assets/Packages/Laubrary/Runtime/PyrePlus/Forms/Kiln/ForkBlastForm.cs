@@ -11,7 +11,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 {
     [Serializable]
     [PlusFormInfo("Fork Blast", group: "Explosions", icon: "meteor")]
-    public sealed class ForkBlastForm : PlusForm
+    public sealed class ForkBlastForm : PlusForm, IPlusFieldPublisher
     {
         public override string DisplayName => "Fork Blast";
         public override string Description =>
@@ -130,6 +130,15 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         const int FldProgress = -55, FldReach = -56, FldFlash = -57, FldPixHash = -58;
 
         [NonSerialized] PlusForkBlast.Anim _anim;
+        // The last frame's pre-shade planes, captured ONLY while the parity harness has a sink installed.
+        [NonSerialized] float[] _dumpH, _dumpT;
+
+        void IPlusFieldPublisher.PublishFields(Action<string, float[]> sink)
+        {
+            if (_dumpH != null) sink("H", _dumpH);
+            if (_dumpT != null) sink("T", _dumpT);
+            _dumpH = _dumpT = null;
+        }
 
         public override void Prepare(in PlusFormPrepareCtx ctx)
         {
@@ -174,7 +183,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 pixHash = PyrePlusRenderer.Hash(ctx.seed, PyrePlusRenderer.ModParticleIndex, FldPixHash, ctx.layerSalt),
             };
             int seed = PyrePlusRenderer.Hash(ctx.seed, ctx.layerSalt, 1, 7);
-            PlusForkBlast.Render(target, ctx.W, ctx.H, p, seed, ctx.fill, ctx.alpha, _anim, origins, mods);
+            Action<string, float[]> capture = PlusFormDebug.FieldSink == null ? null
+                : (name, plane) => { if (name == "H") _dumpH = plane; else if (name == "T") _dumpT = plane; };
+            PlusForkBlast.Render(target, ctx.W, ctx.H, p, seed, ctx.fill, ctx.alpha, _anim, origins, mods, capture);
         }
     }
 }

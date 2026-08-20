@@ -542,11 +542,19 @@ namespace Laubrary.PyrePlus
                         : Mathf.Clamp01(EvalCanonical(layer.swarmSpawnTiming, 1f));
                     deathPoint = Mathf.Min(1f, maxSpawnLife + layer.swarmParticleLife);
                 }
+                // Scale-by-index folds into sizeMul exactly as RenderSwarm does (Static 1 = exact no-op).
+                bool scaleIdx = !IsStaticOne(layer.swarmScaleByIndex);
                 swarm = new PlusSwarmInstance[_plusFireSpawns.Count];
                 for (int i = 0; i < _plusFireSpawns.Count; i++)
                 {
                     var sp = _plusFireSpawns[i];
                     Vector2 wp = ApplySwarmScale(spec, layer, ApplySwarmSpin(spec, layer, sp.pos, life), life);
+                    float sizeMul = Mathf.Clamp(1f + 0.35f * sp.zNorm, 0.5f, 1.6f);
+                    if (scaleIdx)
+                    {
+                        float t = _plusFireSpawns.Count > 1 ? i / (float)(_plusFireSpawns.Count - 1) : 0f;
+                        sizeMul *= Mathf.Max(0f, Eval(layer.swarmScaleByIndex, t, sd, i, FldScaleByIndex));
+                    }
                     swarm[i] = new PlusSwarmInstance
                     {
                         x = wp.x, y = wp.y,
@@ -557,15 +565,19 @@ namespace Laubrary.PyrePlus
                         index = i,
                         orientDeg = sp.orientDeg,
                         zNorm = sp.zNorm,
-                        sizeMul = Mathf.Clamp(1f + 0.35f * sp.zNorm, 0.5f, 1.6f),
+                        sizeMul = sizeMul,
                         brightMul = Mathf.Clamp(1f + 0.30f * sp.zNorm, 0.55f, 1.45f),
                     };
                 }
             }
 
+            int frames = spec != null ? Mathf.Max(1, spec.frameCount) : 1;
             var ctx = new PlusFormCtx(W, H, life, sd, salt, layer.shapeFill, alpha, swarm,
-                                      mods.AnyGeo ? mods.geo : null, mods.AnyPix ? mods.pix : null, phase, frameIndex);
+                                      mods.AnyGeo ? mods.geo : null, mods.AnyPix ? mods.pix : null, phase, frameIndex,
+                                      frames, (v, fid, atLife) => Eval(v, atLife, sd, ModParticleIndex, fid));
             form.Render(ctx, target);
+            // Parity-harness hook: only while a dump has installed a sink (null in normal operation).
+            if (PlusFormDebug.FieldSink != null && form is IPlusFieldPublisher pub) pub.PublishFields(PlusFormDebug.FieldSink);
         }
 
         // ── Fire form: stateful sim + replay harness (slice 6a) ──────────────────────────────────────────────────

@@ -271,6 +271,8 @@ namespace Laubrary.Zui
             return null;
         }
 
+        [ThreadStatic] static int _nestDepth;   // recursion guard for nested plain-class fields
+
         /// Build one control for `field` on `owner`, or null when the type isn't renderable.
         public static VisualElement BuildField(object owner, FieldInfo field, Options opt)
         {
@@ -468,6 +470,21 @@ namespace Laubrary.Zui
 
             if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>))
                 return BuildList(owner, field, nice, tip, opt);
+
+            // A nested plain [Serializable] settings object (a PyrePlus PlusRamp, a future grouped-options class):
+            // a titled box flowing ITS fields, keyed stably by owner type + field name like a list. Null-valued
+            // fields get a fresh instance so the box is never empty. Depth-guarded so a self-referential type
+            // cannot recurse forever (a real-world nesting is one or two levels).
+            if (t.IsClass && !typeof(UnityEngine.Object).IsAssignableFrom(t) && t.IsSerializable && !t.IsAbstract
+                && t.GetConstructor(Type.EmptyTypes) != null && _nestDepth < 3)
+            {
+                if (v == null) { v = Activator.CreateInstance(t); field.SetValue(owner, v); }
+                var box = Z.BoxKeyed(nice, tip, $"reflect.nested.{owner.GetType().Name}.{field.Name}");
+                _nestDepth++;
+                try { FlowFields(box, v, opt); }
+                finally { _nestDepth--; }
+                return box;
+            }
 
             return null;   // not a type this renderer knows how to show
         }

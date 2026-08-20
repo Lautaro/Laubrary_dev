@@ -28,7 +28,7 @@ namespace Laubrary.PyrePlus
     // matching the space the field-pass samples in (off = (x+0.5−cx, y+0.5−cy)); radius is the metaball influence
     // radius in px; weight is the particle's own-life alpha (its contribution to the field, = FusionCircle.weight in
     // Pyre1). RenderSwarm's collect-loop fills a List<FieldParticle> when a layer coalesces, then hands it to a pass.
-    internal struct FieldParticle
+    public struct FieldParticle
     {
         public float x, y;     // centre-relative position, px
         public float radius;   // metaball influence radius, px
@@ -45,7 +45,7 @@ namespace Laubrary.PyrePlus
     // life envelope value; `alpha` is its own-life opacity (blended per pixel so a dying ball can't drag a solid
     // one down). Position is CANVAS-CENTRE-RELATIVE, matching FieldParticle. RenderSwarm's collect-loop fills a
     // List<RampParticle> when a layer coalesces by Ramp, then hands it to RenderPlusRampField.
-    internal struct RampParticle
+    public struct RampParticle
     {
         public float x, y;              // centre-relative position, px
         public float radius;            // dome influence radius, px
@@ -58,7 +58,7 @@ namespace Laubrary.PyrePlus
         }
     }
 
-    internal static class PyrePlusField
+    public static class PyrePlusField
     {
         // Σ over the particle set of the compact polynomial metaball kernel: 1 at a particle's centre → 0 at its
         // radius (k = 1−d²/r², squared for a smooth C¹ falloff). `sx,sy` is the (centre-relative) sample point — the

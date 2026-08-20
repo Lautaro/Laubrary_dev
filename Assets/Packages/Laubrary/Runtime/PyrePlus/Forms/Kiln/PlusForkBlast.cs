@@ -202,7 +202,8 @@ namespace Laubrary.PyrePlus
         static float FadeIn(float s, float k) => Smoothstep01(s / Mathf.Max(k, 1e-4f));
 
         public static void Render(Color32[] target, int W, int H, in Params l, int seed,
-                                   ZuiFill fill, float layerAlpha, in Anim anim, SwarmOrigin[] origins, in Mods mods)
+                                   ZuiFill fill, float layerAlpha, in Anim anim, SwarmOrigin[] origins, in Mods mods,
+                                   System.Action<string, float[]> publish = null)
         {
             if (W < 2 || H < 2 || layerAlpha <= 0f) return;
 
@@ -332,6 +333,9 @@ namespace Laubrary.PyrePlus
                     }
                 }
             }
+
+            // Pre-shade planes for the parity harness (contract names: H = heat/density, T = soot). Null normally.
+            if (publish != null) { publish("H", density); publish("T", soot); }
 
             // ── shading pass: heat field -> straight-alpha pixels, through the shape's own Fill ramp ──────────
             const float SootR = 0.16f, SootG = 0.15f, SootB = 0.14f;

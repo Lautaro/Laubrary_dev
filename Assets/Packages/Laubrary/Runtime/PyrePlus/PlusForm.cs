@@ -100,15 +100,71 @@ namespace Laubrary.PyrePlus
         public readonly PixelModifier[] pix;         // the layer's enabled pixel modifiers, already Prepare'd (null = none)
         public readonly float phase;                 // the renderer's per-frame wobble phase (modifier convention)
         public readonly int frameIndex;
+        public readonly int frameCount;              // the clip's frame count (life = frameIndex/(frameCount-1))
+        readonly Func<ZUIValue, int, float, float> evalAtLife;   // (value, fieldId, life) through the renderer's funnel
 
         public PlusFormCtx(int w, int h, float life, int seed, int layerSalt, ZuiFill fill, float alpha,
                            PlusSwarmInstance[] swarm, GeometryModifier[] geo, PixelModifier[] pix,
-                           float phase, int frameIndex)
+                           float phase, int frameIndex, int frameCount = 1, Func<ZUIValue, int, float, float> evalAtLife = null)
         {
             W = w; H = h; this.life = life; this.seed = seed; this.layerSalt = layerSalt; this.fill = fill;
             this.alpha = alpha; this.swarm = swarm; this.geo = geo; this.pix = pix; this.phase = phase;
-            this.frameIndex = frameIndex;
+            this.frameIndex = frameIndex; this.frameCount = Math.Max(1, frameCount); this.evalAtLife = evalAtLife;
         }
+
+        /// The layer life of frame `i` — the same mapping the renderer uses for `life`.
+        public float LifeOfFrame(int i) => frameCount > 1 ? i / (float)(frameCount - 1) : 0f;
+
+        /// A Prepare context for an ARBITRARY life — what a clip-level pass (PlusClipStats) needs to re-resolve the
+        /// form's dials at other frames. Call `form.Prepare(ctx.PrepareCtxAt(ctx.life))` afterwards to restore this
+        /// frame's values (Prepare stores them on the instance). Null evalAtLife (a hand-built ctx) falls back to
+        /// the dial's static value.
+        public PlusFormPrepareCtx PrepareCtxAt(float atLife)
+        {
+            var f = evalAtLife;
+            int sd = seed, salt = layerSalt;
+            Func<ZUIValue, int, float> eval = f != null
+                ? (v, fid) => f(v, fid, atLife)
+                : (v, fid) => v != null ? v.staticValue : 0f;
+            return new PlusFormPrepareCtx(atLife, sd, salt, eval);
+        }
+
+        /// A copy of this ctx at another canvas size (swarm positions scaled along) — PlusSupersample builds the
+        /// k× ctx with it.
+        public PlusFormCtx WithSize(int w, int h)
+        {
+            PlusSwarmInstance[] sw = null;
+            if (swarm != null)
+            {
+                float kx = w / (float)Math.Max(1, W), ky = h / (float)Math.Max(1, H);
+                sw = new PlusSwarmInstance[swarm.Length];
+                for (int i = 0; i < sw.Length; i++) { sw[i] = swarm[i]; sw[i].x *= kx; sw[i].y *= ky; }
+            }
+            return new PlusFormCtx(w, h, life, seed, layerSalt, fill, alpha, sw, geo, pix, phase, frameIndex, frameCount, evalAtLife);
+        }
+    }
+
+    /// Optional: a form that can hand its pre-shade float planes to a debug sink (the parity harness dumps them as
+    /// `fields/NNNN_<name>.npy`). Called right after Render, and ONLY while a sink is installed — the normal render
+    /// path never calls it. Use the contract's names: "H" (density/heat), "T" (secondary, e.g. soot), "ramp_t".
+    public interface IPlusFieldPublisher
+    {
+        void PublishFields(Action<string, float[]> sink);
+    }
+
+    /// Optional: a form whose colour does not come straight from the layer Fill answers the harness's ramp probe
+    /// itself. `t` is in the CONTRACT's convention: 0 = cold outer edge, 1 = hottest core. Return sRGB + alpha.
+    public interface IPlusRampProbe
+    {
+        Color ProbeRamp(float t);
+    }
+
+    /// Debug hooks the renderer consults. `FieldSink` is null in normal operation; the parity harness installs one
+    /// for the duration of a dump. Keeping it a static is what lets RenderFormLayer stay byte-identical when unused:
+    /// one null check after Render, nothing else.
+    public static class PlusFormDebug
+    {
+        public static Action<string, float[]> FieldSink;
     }
 
     [Serializable]
@@ -167,9 +223,31 @@ namespace Laubrary.PyrePlus
                     foreach (var e in list) copy.Add(e == null ? null : DeepCopyValue(e));
                     return copy;
                 }
-                default: return v;   // value types, strings, UnityEngine.Object refs (assets are shared, not per-layer data)
+                default:
+                    // A plain [Serializable] class the form owns (a PlusRamp, a stop, any future nested settings
+                    // object) is copied field by field so a duplicate never aliases it; everything else (value
+                    // types, UnityEngine.Object refs — assets are shared, not per-layer data) is returned as-is.
+                    if (IsPlainSerializableClass(v.GetType()))
+                    {
+                        var copy = Activator.CreateInstance(v.GetType());
+                        foreach (var f in v.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                        {
+                            if (f.IsNotSerialized) continue;
+                            object fv = f.GetValue(v);
+                            f.SetValue(copy, fv == null ? null : DeepCopyValue(fv));
+                        }
+                        return copy;
+                    }
+                    return v;
             }
         }
+
+        /// A non-Unity reference type marked [Serializable] with a parameterless constructor — the shape of every
+        /// nested settings object a form may own.
+        public static bool IsPlainSerializableClass(Type t) =>
+            t.IsClass && t != typeof(string) && !typeof(UnityEngine.Object).IsAssignableFrom(t)
+            && !typeof(Delegate).IsAssignableFrom(t) && t.IsSerializable && !t.IsArray
+            && t.GetConstructor(Type.EmptyTypes) != null;
 
         /// A stable hash of every serialized dial, for stateful forms' replay-harness invalidation (any authoring
         /// edit changes it). Reflects over the same fields Clone copies, so it cannot go stale when a field is added.
@@ -226,7 +304,20 @@ namespace Laubrary.PyrePlus
                     case bool b: return Mix(h, b ? 1 : 0);
                     case Enum e: return Mix(h, Convert.ToInt32(e));
                     case int i: return Mix(h, i);
-                    default: return Mix(h, v.GetHashCode());
+                    case Color c: h = MixF(h, c.r); h = MixF(h, c.g); h = MixF(h, c.b); return MixF(h, c.a);
+                    default:
+                        if (IsPlainSerializableClass(v.GetType()))
+                        {
+                            // Nested settings object: hash its content, never its reference (a clone must hash equal).
+                            foreach (var f in v.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                            {
+                                if (f.IsNotSerialized) continue;
+                                h = Mix(h, f.Name.GetHashCode());
+                                h = MixValue(h, f.GetValue(v));
+                            }
+                            return h;
+                        }
+                        return Mix(h, v.GetHashCode());
                 }
             }
         }
