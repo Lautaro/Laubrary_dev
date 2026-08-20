@@ -149,7 +149,11 @@ namespace Laubrary.PyrePlus.Editor
 
         void Tick()
         {
-            if (spec == null) return;
+            // `this == null`: EditorApplication.update runs a snapshot of its invocation list, so when the window is
+            // closed from INSIDE another update callback (a tool command, an asset event) this tick still fires once
+            // after OnDisable unsubscribed it — on a destroyed window whose cache is gone, which would otherwise
+            // allocate a fresh cache and a fill nobody will ever dispose.
+            if (this == null || spec == null) return;
             FillFrameCacheTick();   // background render of frames the cache is missing — runs paused or playing
             if (!playing) return;
             double now = EditorApplication.timeSinceStartup;

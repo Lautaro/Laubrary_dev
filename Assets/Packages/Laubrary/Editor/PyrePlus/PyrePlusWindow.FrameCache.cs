@@ -19,6 +19,11 @@ namespace Laubrary.PyrePlus.Editor
         // decides whether a SECOND frame starts in the same tick, so cheap specs fill in a few ticks while heavy ones
         // yield to the editor between every frame.
         const double FillBudgetMs = 12.0;
+        // Below this much remaining serial work a fill stays on the main thread: spinning up the worker threads and
+        // their spec clones costs a few ms and their first results only land on the NEXT tick, so a spec the serial
+        // loop finishes in a handful of ticks gains nothing (measured: a 48 px × 6-frame Inferno, 19 ms of rendering,
+        // took 87 ms wall through 5 workers; a 64 px Disc clip is 2 ms).
+        const double ParallelWorthMs = 100.0;
 
         // One RGBA32 point-filtered texture per frame, allocated once per (frameCount, canvasSize) and reused
         // across edits — an edit clears the ready flags and re-renders INTO the same textures, so a dial drag
@@ -194,27 +199,28 @@ namespace Laubrary.PyrePlus.Editor
                 // Drain what the workers finished since the last tick. Uploads are cheap (a 128 px RGBA32 is ~64 KB),
                 // so everything pending goes in this tick; a frame the main thread rendered meanwhile (a cherry
                 // pick, a scrub) is simply skipped. A worker that threw leaves null pixels — that frame renders
-                // serially below, once, with the error surfaced in the console.
-                while (parallelFill.TryTake(out var r))
+                // serially below, once, with the error surfaced in the console. (Local: storing the last frame
+                // completes the fill and retires the field mid-loop.)
+                var fill = parallelFill;
+                while (fill.TryTake(out var r))
                 {
                     if (r.pixels == null)
                     {
-                        if (parallelFill.FirstError != null) Debug.LogException(parallelFill.FirstError);
+                        if (fill.FirstError != null) Debug.LogException(fill.FirstError);
                         continue;
                     }
                     if (r.frameIndex >= 0 && r.frameIndex < n && !frameReady[r.frameIndex]) { StoreFrame(r.frameIndex, r.pixels, r.renderMs); landed = true; }
                 }
                 // Workers all gone but frames still missing (a worker threw): finish serially.
-                if (parallelFill != null && parallelFill.WorkersIdle && FillInProgress && !parallelFill.IsCancelled) { RetireParallelFill(); fillIsSerial = true; fillSerialReason = "a worker thread failed"; }
+                if (parallelFill == fill && fill.WorkersIdle && FillInProgress) { RetireParallelFill(); fillIsSerial = true; fillSerialReason = "a worker thread failed"; }
             }
             else if (!fillIsSerial && retiredFills.Count == 0)
             {
                 // Nothing running and no cancelled fill still winding down (a dial drag retires one per edit; starting
                 // another while the old workers are mid-frame would only oversubscribe the cores). Decide the path
-                // once per fill: the parallel-safety predicate, then the cost — a spec whose remaining frames would
-                // fit in a couple of ticks serially is not worth spinning up threads and spec clones for.
+                // once per fill: the parallel-safety predicate, then the cost (ParallelWorthMs).
                 if (!PyrePlusRenderer.IsParallelSafe(spec, out var why)) { fillIsSerial = true; fillSerialReason = why; }
-                else if (fillProbeMs >= 0 && fillProbeMs * (n - frameReadyCount) < 2.0 * FillBudgetMs) { fillIsSerial = true; fillSerialReason = "cheap spec"; }
+                else if (fillProbeMs >= 0 && fillProbeMs * (n - frameReadyCount) < ParallelWorthMs) { fillIsSerial = true; fillSerialReason = "cheap spec"; }
                 else
                 {
                     var order = new List<int>(n);
