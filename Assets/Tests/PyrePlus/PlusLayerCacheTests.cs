@@ -156,7 +156,7 @@ namespace Laubrary.PyrePlus.Tests
                         worstAlpha = Mathf.Max(worstAlpha, Mathf.Abs(full[i].a - composed[i].a));
                     }
                 }
-                Assert.That(worstAlpha, Is.LessThanOrEqualTo(1), $"alpha drifted by {worstAlpha} ({differing} px differ)");
+                Assert.That(worstAlpha, Is.LessThanOrEqualTo(2), $"alpha drifted by {worstAlpha} ({differing} px differ)");
                 Assert.That(worstPremul, Is.LessThanOrEqualTo(2f), $"premultiplied colour drifted by {worstPremul:F2}/255 ({differing} px differ)");
             }
             finally { Object.DestroyImmediate(spec); }

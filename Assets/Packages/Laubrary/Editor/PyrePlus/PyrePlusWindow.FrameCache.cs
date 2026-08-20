@@ -79,9 +79,11 @@ namespace Laubrary.PyrePlus.Editor
         // A job's identity on the fill's queue.
         readonly struct JobTag
         {
-            public readonly bool compose; public readonly int frame, layer, generation; public readonly ulong key, variant;
-            public JobTag(bool compose, int frame, int layer, int generation, ulong key, ulong variant)
-            { this.compose = compose; this.frame = frame; this.layer = layer; this.generation = generation; this.key = key; this.variant = variant; }
+            public readonly bool compose; public readonly int frame, frames, layer, generation; public readonly ulong key, variant;
+            // `frames` is the frame count of the spec the job rendered for: a retired fill's render may land after
+            // an asset switch, and its buffer is still valid — under its own key, sized for its own spec.
+            public JobTag(bool compose, int frame, int frames, int layer, int generation, ulong key, ulong variant)
+            { this.compose = compose; this.frame = frame; this.frames = frames; this.layer = layer; this.generation = generation; this.key = key; this.variant = variant; }
         }
 
         bool FillInProgress => frameCache != null && frameReadyCount < frameCache.Length;
@@ -266,12 +268,10 @@ namespace Laubrary.PyrePlus.Editor
         {
             var tag = (JobTag)r.tag;
             if (!(r.payload is LayerFrameResult lf) || lf.pixels == null) return;
-            if (layerStore == null || frameCache == null) return;
-            int n = frameCache.Length;
-            if (tag.frame < 0 || tag.frame >= n) return;
-            layerStore.Put(tag.key, n, tag.frame, tag.variant, lf.pixels, lf.border);
+            if (layerStore == null || tag.frame < 0 || tag.frame >= tag.frames) return;
+            layerStore.Put(tag.key, tag.frames, tag.frame, tag.variant, lf.pixels, lf.border);
             cacheRenderCount++;
-            if (tag.layer < layerKeys.Length && layerKeys[tag.layer] == tag.key && variants[tag.frame][tag.layer] == tag.variant
+            if (frameCache != null && tag.frames == frameCache.Length && tag.layer < layerKeys.Length && layerKeys[tag.layer] == tag.key && variants[tag.frame][tag.layer] == tag.variant
                 && plans[tag.frame][tag.layer].active && !layerDone[tag.frame][tag.layer])
             {
                 layerDone[tag.frame][tag.layer] = true;
@@ -289,7 +289,7 @@ namespace Laubrary.PyrePlus.Editor
             var payload = RenderJob(f, li)(spec);
             double ms = (EditorApplication.timeSinceStartup - t0) * 1000.0;
             fillProbeMs = ms;
-            Absorb(new PlusLayerFill.Result(new JobTag(false, f, li, fillGeneration, layerKeys[li], variants[f][li]), payload, ms), fromWorker: false);
+            Absorb(new PlusLayerFill.Result(new JobTag(false, f, frameCache.Length, li, fillGeneration, layerKeys[li], variants[f][li]), payload, ms), fromWorker: false);
         }
 
         // Composite one frame on the main thread (every layer present) and upload it.
@@ -338,7 +338,7 @@ namespace Laubrary.PyrePlus.Editor
                 if (!composeQueued[f])
                 {
                     composeQueued[f] = true;
-                    parallelFill.Enqueue(new JobTag(true, f, -1, fillGeneration, 0, 0), ComposeJob(f), urgent: true);
+                    parallelFill.Enqueue(new JobTag(true, f, frameCache.Length, -1, fillGeneration, 0, 0), ComposeJob(f), urgent: true);
                 }
                 return;
             }
@@ -347,7 +347,7 @@ namespace Laubrary.PyrePlus.Editor
                 if (pf[li].active && !layerDone[f][li] && !layerQueued[f][li] && DepsReady(f, li))
                 {
                     layerQueued[f][li] = true;
-                    parallelFill.Enqueue(new JobTag(false, f, li, fillGeneration, layerKeys[li], variants[f][li]), RenderJob(f, li));
+                    parallelFill.Enqueue(new JobTag(false, f, frameCache.Length, li, fillGeneration, layerKeys[li], variants[f][li]), RenderJob(f, li));
                 }
         }
 

@@ -52,7 +52,7 @@ namespace Laubrary.PyrePlus
                     var m = spec.globalModifiers[i];
                     if (m == null || m is PostModifier) continue;
                     Mix(ref h, i);
-                    MixValue(ref h, m, 0);
+                    MixValue(ref h, m, null, 0);
                 }
             return h;
         }
@@ -63,8 +63,8 @@ namespace Laubrary.PyrePlus
             ulong h = Offset;
             if (spec == null) return h;
             Mix(ref h, spec.backgroundUseFill ? 1 : 0);
-            if (spec.backgroundUseFill) MixValue(ref h, spec.backgroundFill, 0);
-            else MixValue(ref h, spec.background, 0);
+            if (spec.backgroundUseFill) MixValue(ref h, spec.backgroundFill, null, 0);
+            else MixValue(ref h, spec.background, null, 0);
             return h;
         }
 
@@ -80,7 +80,7 @@ namespace Laubrary.PyrePlus
             {
                 if (f.Name == "enabled" || f.Name == "name" || f.Name == "shapeAdvanced") continue;
                 MixString(ref h, f.Name);
-                MixValue(ref h, f.GetValue(layer), 0);
+                MixValue(ref h, f.GetValue(layer), f, 0);
             }
             return h;
         }
@@ -139,9 +139,44 @@ namespace Laubrary.PyrePlus
             }
         }
 
-        static void MixValue(ref ulong h, object v, int depth)
+        // A null in a field Unity rewrites on serialization hashes as what Unity writes: an empty string, an empty
+        // list, "no object" for a Unity reference (a deserialized null is a fake-null object, a fresh one a real
+        // null — both hash 0), and for a plain [Serializable] class a DEFAULT INSTANCE (Unity cannot store a null
+        // there; it constructs one). A [SerializeReference] null stays null through Unity's own serialization — what
+        // fills those in is the OWNER's ISerializationCallbackReceiver (ZuiFill seeds its animatable companions on
+        // every load), which is why MixValue runs that callback before walking an object: the key then reads the
+        // state every load, undo snapshot and Instantiate produces, so a layer built in memory (a new or duplicated
+        // layer, a test spec) keys exactly like the asset it becomes. The callbacks are idempotent by Unity's
+        // contract (they run on every deserialization) and touch no Unity API. One residue remains: a Gradient /
+        // AnimationCurve field that is null in memory (a Solid fill made by `new ZuiFill(color)`) is materialised by
+        // Unity on the first serialization and the owner's callback then seeds from it — not reproducible here
+        // without re-implementing the owner, so a brand-new layer re-keys ONCE at its first undo or reload (one
+        // extra render of that layer). Assets loaded from disk are past that point from the start.
+        static readonly Dictionary<Type, object> _defaults = new Dictionary<Type, object>();
+        static object NullAsSerialized(FieldInfo f)
         {
-            if (v == null) { Mix(ref h, 0x7f); return; }
+            if (f == null) return null;
+            var t = f.FieldType;
+            if (t == typeof(string)) return "";
+            if (typeof(UnityEngine.Object).IsAssignableFrom(t) || typeof(Delegate).IsAssignableFrom(t)) return null;
+            if (t.IsArray || typeof(IList).IsAssignableFrom(t)) return Array.Empty<object>();
+            if (f.IsDefined(typeof(SerializeReference), true)) return null;
+            if (!t.IsClass || t.IsAbstract || !t.IsSerializable || t.GetConstructor(Type.EmptyTypes) == null) return null;
+            lock (_defaults)
+            {
+                if (!_defaults.TryGetValue(t, out var d)) { try { d = Activator.CreateInstance(t); } catch { d = null; } _defaults[t] = d; }
+                return d;
+            }
+        }
+
+        static void MixValue(ref ulong h, object v, FieldInfo field, int depth)
+        {
+            if (v == null) v = NullAsSerialized(field);
+            if (v == null)
+            {
+                if (field != null && typeof(UnityEngine.Object).IsAssignableFrom(field.FieldType)) { Mix(ref h, 0); return; }
+                Mix(ref h, 0x7f); return;
+            }
             if (depth > MaxDepth) { Mix(ref h, 0x7e); return; }
             switch (v)
             {
@@ -155,7 +190,7 @@ namespace Laubrary.PyrePlus
                 case string s: MixString(ref h, s); return;
                 case PlusForm form: Mix(ref h, form.ContentHash()); MixString(ref h, form.GetType().FullName); return;
                 case Gradient g:
-                    foreach (var k in g.colorKeys) { MixValue(ref h, k.color, depth + 1); Mix(ref h, k.time); }
+                    foreach (var k in g.colorKeys) { MixValue(ref h, k.color, null, depth + 1); Mix(ref h, k.time); }
                     foreach (var k in g.alphaKeys) { Mix(ref h, k.alpha); Mix(ref h, k.time); }
                     Mix(ref h, (int)g.mode);
                     return;
@@ -171,18 +206,19 @@ namespace Laubrary.PyrePlus
                 case UnityEngine.Object uo: Mix(ref h, uo ? uo.GetInstanceID() : 0); return;
                 case IList list:
                     Mix(ref h, list.Count);
-                    foreach (var e in list) MixValue(ref h, e, depth + 1);
+                    foreach (var e in list) MixValue(ref h, e, null, depth + 1);
                     return;
             }
             var t = v.GetType();
             if (t.IsPrimitive) { Mix(ref h, v.GetHashCode()); return; }
+            if (v is ISerializationCallbackReceiver r) r.OnAfterDeserialize();
             // A plain [Serializable] class/struct (ZUIValue, ZuiFill, a modifier, a nested settings object, a
             // point struct): its content, never its reference — a clone must hash equal, an edited field must not.
             MixString(ref h, t.FullName);
             foreach (var f in SerializedFields(t))
             {
                 MixString(ref h, f.Name);
-                MixValue(ref h, f.GetValue(v), depth + 1);
+                MixValue(ref h, f.GetValue(v), f, depth + 1);
             }
         }
     }
