@@ -26,6 +26,9 @@ namespace Laubrary.PyrePlus.Editor
             var found = new List<FormEntry>();
             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
             {
+                // Test fixtures (Laubrary.PyrePlus.Tests and the like) declare throwaway forms; they must never
+                // reach the user's picker.
+                if (asm.GetName().Name.EndsWith(".Tests", StringComparison.Ordinal)) continue;
                 Type[] types;
                 try { types = asm.GetTypes(); }
                 catch { continue; }
