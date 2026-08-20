@@ -148,9 +148,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Branch generations under the trunk (source 3).")] [Range(0, 5)] public int depth = 3;
             [Tooltip("Midpoint-displacement roughness (source 0.20).")] [Range(0f, 0.6f)] public float rough = 0.20f;
             [Tooltip("Midpoint-displacement levels: 2^detail segments per path (source 5).")] [Range(2, 7)] public int detail = 5;
-            [Tooltip("A branch's length as a share of the distance left to the parent's tip (source 0.48).")] [Range(0.1f, 1f)] public float bScale = 0.48f;
-            [Tooltip("Widest branch angle off the parent, radians (source 1.1).")] [Range(0.3f, 1.6f)] public float bSpread = 1.1f;
-            [Tooltip("Energy and width a generation keeps relative to its parent (source 0.62).")] [Range(0.2f, 1f)] public float bAmp = 0.62f;
+            [Tooltip("A branch's length as a share of the distance left to the parent's tip (source 0.48).")] [Range(0.1f, 1f)] public float branchScale = 0.48f;
+            [Tooltip("Widest branch angle off the parent, radians (source 1.1).")] [Range(0.3f, 1.6f)] public float branchSpread = 1.1f;
+            [Tooltip("Energy and width a generation keeps relative to its parent (source 0.62).")] [Range(0.2f, 1f)] public float branchAmp = 0.62f;
             [Tooltip("Share of trunks that are ghosts (source 0.45 — with five arms the arms ARE the silhouette, so no deep ghosts here).")] [Range(0f, 1f)] public float ghostP = 0.45f;
             [Tooltip("Faintest ghost trunk opacity (source 0.24).")] [Range(0f, 1f)] public float ghostLo = 0.24f;
             [Tooltip("Most opaque ghost trunk opacity (source 0.50).")] [Range(0f, 1f)] public float ghostHi = 0.50f;
@@ -286,8 +286,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Jet branch generations (source 3).")] [Range(0, 5)] public int depth = 3;
             [Tooltip("Fewest branches per jet path (source 2).")] [Range(0, 6)] public int branchMin = 2;
             [Tooltip("Most branches per jet path (source 3).")] [Range(0, 6)] public int branchMax = 3;
-            [Tooltip("Jet branch length share (source 0.42).")] [Range(0.1f, 1f)] public float bScale = 0.42f;
-            [Tooltip("Widest jet branch angle, radians (source 0.75).")] [Range(0.3f, 1.6f)] public float bSpread = 0.75f;
+            [Tooltip("Jet branch length share (source 0.42).")] [Range(0.1f, 1f)] public float branchScale = 0.42f;
+            [Tooltip("Widest jet branch angle, radians (source 0.75).")] [Range(0.3f, 1.6f)] public float branchSpread = 0.75f;
             [Tooltip("Ring squash: its radius along the axis as a share of its radius across (source 0.40).")] [Range(0.1f, 1f)] public float axisRatio = 0.40f;
             [Tooltip("Sideways scatter of a jet's tip, px σ (source 3.0).")] [Range(0f, 12f)] public float jetSpread = 3.0f;
             [Tooltip("Opacity of the lens at the start (source 0.66, falling to 0.04).")] [Range(0f, 1f)] public float lensOpa = 0.66f;
@@ -310,9 +310,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Branch generations (source 4 — capillary density is the point).")] [Range(0, 5)] public int depth = 4;
             [Tooltip("Fewest branches per path (source 2).")] [Range(0, 6)] public int branchMin = 2;
             [Tooltip("Most branches per path (source 3).")] [Range(0, 6)] public int branchMax = 3;
-            [Tooltip("Branch length share (source 0.44).")] [Range(0.1f, 1f)] public float bScale = 0.44f;
-            [Tooltip("Widest branch angle, radians (source 1.25).")] [Range(0.3f, 1.6f)] public float bSpread = 1.25f;
-            [Tooltip("Energy and width a generation keeps (source 0.72 — the trunk is barely thicker than its twigs).")] [Range(0.2f, 1f)] public float bAmp = 0.72f;
+            [Tooltip("Branch length share (source 0.44).")] [Range(0.1f, 1f)] public float branchScale = 0.44f;
+            [Tooltip("Widest branch angle, radians (source 1.25).")] [Range(0.3f, 1.6f)] public float branchSpread = 1.25f;
+            [Tooltip("Energy and width a generation keeps (source 0.72 — the trunk is barely thicker than its twigs).")] [Range(0.2f, 1f)] public float branchAmp = 0.72f;
             [Tooltip("When the transparency front starts growing from the centre (source 0.34).")] [Range(0f, 1f)] public float hollowStart = 0.34f;
             [Tooltip("Sparks at the advancing tips at the start (source 20, halving by the end).")] [Range(0, 60)] public int sparks = 20;
             [Tooltip("How much the whole web fades evenly over the back half, outside the hole (source 0.72).")] [Range(0f, 1f)] public float fadeAmt = 0.72f;

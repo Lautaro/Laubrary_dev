@@ -615,7 +615,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     var tip = Polar(CX, CY, L, a);
                     double r0 = 2.0 + 26.0 * Math.Pow(Ramp(t, 0.45, 1.0), 1.5);
                     var root = Polar(CX, CY, r0, a);
-                    var segs = Tree(rng, root, tip, c.detail, c.rough, c.depth, c.branchMin, c.branchMax, c.bScale, c.bSpread, c.bAmp);
+                    var segs = Tree(rng, root, tip, c.detail, c.rough, c.depth, c.branchMin, c.branchMax, c.branchScale, c.branchSpread, c.branchAmp);
                     double u = Ramp(t, blow[k], 1.0) * 1.20 - 0.12;   // THE BLOW-OUT: a see-through gap travels root → tip
                     foreach (var sg in segs)
                     {
@@ -967,7 +967,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 {
                     double x0 = 0.0, y0 = sgn * (3.0 + 5.0 * t);
                     double x1 = rng.Gauss(0, c.jetSpread), y1 = sgn * jl * rr[b];
-                    var segs = Tree(rng, Xf(x0, y0), Xf(x1, y1), 5, c.rough, c.depth, c.branchMin, c.branchMax, c.bScale, c.bSpread);
+                    var segs = Tree(rng, Xf(x0, y0), Xf(x1, y1), 5, c.rough, c.depth, c.branchMin, c.branchMax, c.branchScale, c.branchSpread);
                     DrawTreeCh(f, segs, (1.2 - 0.4 * t) * F.widthK, (3.6 - 1.3 * t) * F.widthK, 1.35 * Cool(t, c.coolStart, 1.2) * F.ampK, 0.5, 0.31, go * (0.92 + 0.08 * b), rng, 0.35, 0.45);
                 }
             double rgrow = Ramp(t, 0.16, 1.0);   // the RING, arriving late and outliving the jets
@@ -1008,7 +1008,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             for (int k = 0; k < roots; k++)
             {
                 var tip = Polar(CX, CY, front * rr[k], ra[k]);
-                var segs = Tree(rng, new ArcPt(CX, CY), tip, c.detail, c.rough, c.depth, c.branchMin, c.branchMax, c.bScale, c.bSpread, c.bAmp);
+                var segs = Tree(rng, new ArcPt(CX, CY), tip, c.detail, c.rough, c.depth, c.branchMin, c.branchMax, c.branchScale, c.branchSpread, c.branchAmp);
                 foreach (var sg in segs)
                 {
                     double kk = 0.5 + 0.5 * sg.w;
