@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: New Pyre Plus
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.PyrePlus::Laubrary.PyrePlus.PyrePlusSpec
   canvasSize: 64
-  frameCount: 16
+  frameCount: 32
   seed: 1234
   previewLayerSel: 0
   background: {r: 0, g: 0, b: 0, a: 0}
@@ -239,6 +239,8 @@ MonoBehaviour:
     rampLightAngle: 135
     rampRimScale: 0.35
     shapeForm: 18
+    form:
+      rid: -2
     shapeFill:
       mode: 1
       color: {r: 1, g: 1, b: 1, a: 1}
@@ -2033,17 +2035,17 @@ MonoBehaviour:
     forkHi: 1.2
     forkCurve: 1
     forkSoft: 0.6
-    playbackPrefab: {fileID: 1255053967005034563, guid: 7e8d30e7be9957c43862563919b4cbcf, type: 3}
-    playbackSpeed: 1.05524
-    playbackScale: 1.01622
+    playbackPrefab: {fileID: 8829451551789304542, guid: 244b1cc8940bd0844a05812855fbe45d, type: 3}
+    playbackSpeed: 0.32201
+    playbackScale: 1.00135
     playbackTint: {r: 1, g: 1, b: 1, a: 1}
-    playbackZoom: 1
-    playbackGlow: 1
+    playbackZoom: 0.86752
+    playbackGlow: 0.16168
     playbackScrub01: 0.11677
-    playbackLoopDuration: 2
+    playbackLoopDuration: 5.72
     playbackPixelated: 1
     playbackPixelGrid: 128
-    playbackPixelLevels: 0
+    playbackPixelLevels: 7
     particlePathX:
       m_mode: 0
       m_static: 0
@@ -2100,9 +2102,9 @@ MonoBehaviour:
       m_multiplierId: 
     shapeAdvanced: 0
     swarmEnabled: 0
-    swarmCount: 8
+    swarmCount: 3
     swarmSpawnMode: 0
-    swarmShapeKind: 0
+    swarmShapeKind: 1
     swarmCustomX:
       m_mode: 2
       m_static: 1
@@ -2218,7 +2220,7 @@ MonoBehaviour:
     swarmTiming: 0
     swarmFirstFrame: 0
     swarmFrameStep: 2
-    swarmParticleLife: 0.5
+    swarmParticleLife: 0.58919
     swarmOrient: 0
     swarmScaleByIndex:
       m_mode: 0
@@ -2243,7 +2245,7 @@ MonoBehaviour:
     swarmDieTogether: 0
     shapeOffsetX:
       m_mode: 0
-      m_static: 0
+      m_static: -0.92605
       m_min: 0
       m_max: 1
       m_points: []
@@ -2261,7 +2263,7 @@ MonoBehaviour:
       m_multiplierId: 
     shapeOffsetY:
       m_mode: 0
-      m_static: 0
+      m_static: 0.1029
       m_min: 0
       m_max: 1
       m_points: []
@@ -2279,7 +2281,7 @@ MonoBehaviour:
       m_multiplierId: 
     shapeScale:
       m_mode: 0
-      m_static: 20
+      m_static: 21.56712
       m_min: 0
       m_max: 1
       m_points: []
@@ -2406,7 +2408,7 @@ MonoBehaviour:
       m_multiplierId: 
     swarmScale:
       m_mode: 0
-      m_static: 1
+      m_static: 0.95759
       m_min: 0
       m_max: 1
       m_points: []
@@ -2443,10 +2445,10 @@ MonoBehaviour:
   previewZoundFrame: -1
   previewZoundName: 
   previewBackSplash:
-    cameraColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
-    image: {fileID: 0}
-    imageTint: {r: 1, g: 1, b: 1, a: 1}
-    imageZoom: 1
+    cameraColor: {r: 0.2830189, g: 0.25048652, b: 0.35686275, a: 1}
+    image: {fileID: 21300000, guid: 41e1cf439b424d74eb08aa7f9c3d61d3, type: 3}
+    imageTint: {r: 0.66876304, g: 0.66876304, b: 0.66876304, a: 1}
+    imageZoom: 1.05496
     imagePos: {x: 0, y: 0}
   references:
     version: 2
@@ -2518,18 +2520,18 @@ MonoBehaviour:
       data:
         gradient:
           serializedVersion: 2
-          key0: {r: 1, g: 0.95, b: 0.7, a: 1}
-          key1: {r: 1, g: 0.5, b: 0.1, a: 1}
+          key0: {r: 0, g: 0.8871305, b: 1, a: 1}
+          key1: {r: 0.98742133, g: 0.98742133, b: 0.98742133, a: 1}
           key2: {r: 0.5, g: 0.1, b: 0.05, a: 0}
-          key3: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0.5, g: 0.1, b: 0.05, a: 0}
           key4: {r: 0, g: 0, b: 0, a: 0}
           key5: {r: 0, g: 0, b: 0, a: 0}
           key6: {r: 0, g: 0, b: 0, a: 0}
           key7: {r: 0, g: 0, b: 0, a: 0}
           ctime0: 0
-          ctime1: 32768
+          ctime1: 65535
           ctime2: 65535
-          ctime3: 0
+          ctime3: 65535
           ctime4: 0
           ctime5: 0
           ctime6: 0
@@ -2543,8 +2545,8 @@ MonoBehaviour:
           atime6: 0
           atime7: 0
           m_Mode: 0
-          m_ColorSpace: -1
-          m_NumColorKeys: 3
+          m_ColorSpace: 0
+          m_NumColorKeys: 2
           m_NumAlphaKeys: 2
         reverse: 0
         quantiseSteps: 0

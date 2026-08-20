@@ -64,6 +64,7 @@ MonoBehaviour:
     centerYAnim:
       rid: 1702917394744216281
     space: 0
+    fit: 0
     texture: 0
     textureSprite: {fileID: 0}
     noiseKind: 0
@@ -75,6 +76,7 @@ MonoBehaviour:
     dotSize: 0.5
     dotSpacing: 0.35
     dotStagger: 1
+    fillVersion: 1
   layers:
   - enabled: 1
     name: Layer
@@ -237,6 +239,8 @@ MonoBehaviour:
     rampLightAngle: 135
     rampRimScale: 0.35
     shapeForm: 17
+    form:
+      rid: 1702917479399163401
     shapeFill:
       mode: 1
       color: {r: 1, g: 1, b: 1, a: 1}
@@ -282,6 +286,7 @@ MonoBehaviour:
       centerYAnim:
         rid: 1702917394744216285
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -293,6 +298,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     alpha:
       m_mode: 2
       m_static: 1
@@ -447,6 +453,7 @@ MonoBehaviour:
       centerYAnim:
         rid: 1702917404191098631
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -458,6 +465,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     gemLineWidth: 1
     gemLineFill:
       mode: 0
@@ -504,6 +512,7 @@ MonoBehaviour:
       centerYAnim:
         rid: 1702917404191098635
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -515,6 +524,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     gemEdgeGlow:
       m_mode: 0
       m_static: 0.5
@@ -578,6 +588,7 @@ MonoBehaviour:
       centerYAnim:
         rid: 1702917404191098639
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -589,6 +600,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     gemInnerGlow:
       m_mode: 0
       m_static: 0.35
@@ -652,6 +664,7 @@ MonoBehaviour:
       centerYAnim:
         rid: 1702917404191098643
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -663,6 +676,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     solidAspect: 1
     solidDepth: 1
     ringInner: 0.55
@@ -714,6 +728,7 @@ MonoBehaviour:
       centerYAnim:
         rid: 1702917404191098647
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -725,6 +740,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     textGradientAngle: 0
     textBorderWidth: 1
     textBorder:
@@ -772,6 +788,7 @@ MonoBehaviour:
       centerYAnim:
         rid: 1702917404191098651
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -783,6 +800,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     textSpacing: 1
     textSolid: 1
     textDepth: 0.35
@@ -1019,6 +1037,7 @@ MonoBehaviour:
       centerYAnim:
         rid: 1702917404191098655
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -1030,6 +1049,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     borderOverMatte: 0
     fireIntensity:
       m_mode: 2
@@ -2019,6 +2039,17 @@ MonoBehaviour:
     forkHi: 1.84054
     forkCurve: 0.69701
     forkSoft: 0.17838
+    playbackPrefab: {fileID: 0}
+    playbackSpeed: 1
+    playbackScale: 1
+    playbackTint: {r: 1, g: 1, b: 1, a: 1}
+    playbackZoom: 1
+    playbackGlow: 1
+    playbackScrub01: 0
+    playbackLoopDuration: 2
+    playbackPixelated: 0
+    playbackPixelGrid: 32
+    playbackPixelLevels: 0
     particlePathX:
       m_mode: 0
       m_static: 0
@@ -4391,3 +4422,113 @@ MonoBehaviour:
         m_oscRate: []
         m_oscRateMax: 8
         m_multiplierId: 
+    - rid: 1702917479399163401
+      type: {class: ForkBlastForm, ns: Laubrary.PyrePlus.Forms.Kiln, asm: com.Lautaro-Arino.Laubrary.PyrePlus.Forms.Kiln}
+      data:
+        progress:
+          m_mode: 2
+          m_static: 1
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0
+            value: 0
+            exponent: 1
+            editState: 0
+          - time: 0.25035
+            value: 0.2412
+            exponent: 1
+            editState: 0
+          - time: 0.77221
+            value: 0.74472
+            exponent: 1
+            editState: 0
+          - time: 1
+            value: 1
+            exponent: 1
+            editState: 0
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        reach:
+          m_mode: 0
+          m_static: 0.12929
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        flash:
+          m_mode: 0
+          m_static: 0.51186
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        spread: 122
+        aim: 1
+        bias: 1.73084
+        puffs: 20
+        drag: 1.18743
+        buoyancy: 0
+        growth: 0.0988
+        swell: 0.82523
+        elongation: 0.67066
+        roundAt: 0.13628
+        jitter: 3.13593
+        fillVolume: 0.09309
+        birthSkew: 5.13174
+        birthSpan: 0.38739
+        puffLife: 0.63683
+        cool: 1.57658
+        hold: 1.7
+        opacity: 0.55
+        shrink: 0.2006
+        shrinkAt: 0.79309
+        leadDie: 0.42
+        gobs: 0
+        gobSizePx: 4.89189
+        gobReach: 0.3
+        gobSwell: 0.63063
+        gobLife: 2.07186
+        gobAmount: 0.64865
+        gobTiming: 0.45389
+        puffSizePx: 2.26647
+        turbulencePx: 6.42643
+        soot: 0.37904
+        edgeSoftness: 0.17838
+        autoExposure: 1
+        exposure: 0.95449
+        fieldLow: 0.36108
+        fieldHigh: 1.84054
+        curve: 0.69701

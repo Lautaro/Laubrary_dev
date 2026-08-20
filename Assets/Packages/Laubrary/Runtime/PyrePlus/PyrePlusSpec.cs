@@ -91,23 +91,12 @@ namespace Laubrary.PyrePlus
     //              feathers the rim, particleSpin turns it, and it swarms/travels/modifies like every 2D form. An even
     //              side count rests on a flat edge (a square sits flat, not as a diamond); an odd count points a vertex
     //              up (an upright triangle/pentagon). See PyrePlusRenderer.DrawPolygonBody.
-    //   Inferno  — a STATELESS volumetric fireball EXPLOSION (closed-form, ported from the "fireball lab"
-    //              prototype): a per-pixel density/heat/smoke field of contained blasts with metaball clump
-    //              lobes, noise-torn silhouette, ignition flash, embers, a smouldering afterglow and
-    //              pseudo-normal 3D lighting. THE SWARM PLACES THE BLASTS — off = one centred blast, on = one
-    //              blast per particle (spawn position + spawn moment), so the swarm's shapes/paths/timing author
-    //              every arrangement. Unlike Fire/Fireball it is NOT a sim — every frame is a pure function of
-    //              (dials, life, seed), so it needs no replay harness and scrubbing is exact; its Progress
-    //              envelope remaps the whole timeline. Heat samples the shapeFill at (1 − heat) (left end =
-    //              white-hot core); smoke grey comes from its own Darkness dial. It ignores `size`. See
-    //              PlusInferno.cs.
     // APPEND ONLY — the values are serialized as ints, so never reorder or insert. Fire (slice 6a) and Fireball (slice
     // 6b) are the only two simulation-backed forms here — both retain frame-to-frame grid state and share the replay
     // harness. HeightBalls is NOT a sim: it is CLOSED-FORM / stateless, proven at Runtime/Pyre/BlastRenderer.cs:1493-
     // 1496 — every ball's whole state at a frame is a pure function of (layer hash, group, ball index, layer life),
     // nothing accumulates between frames — so it arrives as a stateless Coalesce (Ramp) field-pass mode alongside
-    // MetaBlob, never as a deferred sim form here. Inferno (above) is closed-form for the same reason — proven by the
-    // prototype it ports, whose renderFrame(params, frameIndex) carries no state between frames.
+    // MetaBlob, never as a deferred sim form here.
     //   Playback3D — a PROOF-OF-CONCEPT form whose source is a real 3D animation (typically a ParticleSystem-based
     //              fire/explosion prefab) instead of a procedural closed-form/sim shape. UNLIKE every other form,
     //              it has NO runtime bake path yet (see PyrePlusRenderer's Playback3D case) — its whole point is
@@ -115,10 +104,18 @@ namespace Laubrary.PyrePlus
     //              ParticleSystem(s) live in a PreviewRenderUtility scene (speed/scale/tint applied to the main
     //              module, scrubbed via Simulate) and can downsample that render to a small pixel grid so the
     //              user can gauge how a baked pixel-art version might read. It ignores `size` and the swarm.
-    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. Playback3D was appended last
-    // (after ForkBlast) for exactly that reason, even though it reads oddly out of the earlier alphabetical-ish
-    // grouping above.
-    public enum ShapeForm { Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak, Star, Fire, Fireball, Polygon, Inferno, ForkBlast, Playback3D }
+    // APPEND ONLY — the values are serialized as ints, so never reorder or insert. Playback3D was appended last for
+    // exactly that reason, even though it reads oddly out of the earlier alphabetical-ish grouping above.
+    // Inferno and ForkBlast are RETIRED slots: both live on as PlusForm plug-ins (Runtime/PyrePlus/Forms/Kiln) held
+    // in PyrePlusLayer.form; the values stay so the ints of every other case keep meaning what they mean. A layer
+    // still carrying one of them (and no form) draws as a Disc.
+    public enum ShapeForm
+    {
+        Disc, Gem, Crescent, Sparkle, Sprite, Box, Pyramid, Can, Orb, Ring, Text, Streak, Star, Fire, Fireball, Polygon,
+        [System.Obsolete("Migrated to PlusForm (Forms/Kiln/InfernoForm) — a retired enum slot.")] Inferno,
+        [System.Obsolete("Migrated to PlusForm (Forms/Kiln/ForkBlastForm) — a retired enum slot.")] ForkBlast,
+        Playback3D,
+    }
 
     // How the Text form's spatial fill gradient is applied. PerCharGradient = every letter contains the WHOLE
     // gradient (across its own box, along the rotated fill axis). PerCharStep = every letter is ONE flat colour,
@@ -610,157 +607,8 @@ namespace Laubrary.PyrePlus
         [Range(0f, 0.9f)] public float fireballThreshold = 0.06f; // heat below this reads as empty (raise for a crisper silhouette)
         public float fireballContrast = 0.85f;                    // contrast on the gradient lookup (below 1 pushes more toward the hot end)
 
-        // ── Inferno form (shapeForm == Inferno) — a STATELESS volumetric fireball explosion ─────────────────────
-        // The closed-form port of the "fireball lab" prototype (see PlusInferno.cs's header for the full design):
-        // contained blasts rendered as a per-pixel density/heat/smoke field with metaball clump lobes, a
-        // noise-torn silhouette, ignition flash, embers, a late AFTERGLOW core and pseudo-normal lighting. NOT a
-        // sim — every frame is a pure function of (these dials, life, seed), so there is no replay harness and no
-        // cache to invalidate. That purity is what makes infernoProgress possible: the envelope REMAPS the
-        // layer's life onto the explosion's internal time, so a curve holds/slows/freezes the whole detonation
-        // and any frame is still exact. PLACEMENT IS THE SWARM'S JOB — swarm OFF ⇒ one centred blast; swarm ON ⇒
-        // every swarm particle's spawn position + spawn moment ignites one blast, so Count / Circle / Polygon /
-        // Path / Custom shapes / the spawn-timing envelope author every arrangement natively (a ring of blasts =
-        // a circle path; waves = one tight cluster staggered by spawn timing). Most dials are ZUIValue ENVELOPES
-        // over the layer's life (evaluated once per frame — the PyrePlus way), deep-copied in Clone(); the truly
-        // structural dials (per-blast mutation/character, event-time shapes like bang/recoil/pulse) stay plain.
-        // Colour comes ONLY from the shared shapeFill (evaluated through the fill's mode + Adjust, at 1 − heat:
-        // LEFT end = the white-hot core; the flash glow is tinted from the ramp's hot end too); smoke grey comes
-        // from infernoDarkness and touches nothing burning. It ignores `size` (Blast size is a fraction of the
-        // safe zone).
-        [Range(0f, 1f)] public float infernoMutation = 0.4f;      // per-blast variation of size, torque, heat and jaggedness (multi-blast swarms)
-        [Range(0f, 1f)] public float infernoAccumulation = 0.48f; // how strongly overlapping blasts ADD heat instead of replacing it
-        [Range(-1f, 1f)] public float infernoBalanceDrift = 0f;   // slides each blast's fire↔smoke balance across the sequence (− = fiery→smoky)
-        [Range(0f, 1f)] public float infernoBalanceJitter = 0f;   // random per-blast fire↔smoke balance variation (some fiery, some sooty)
-        public ZUIValue infernoProgress = DefaultInfernoProgress();  // the explosion's PROGRESS over the layer's life — a time remap (linear = real time; reshape to hold/slow/freeze)
-        public ZUIValue infernoBlastSize = new ZUIValue(0.82f);   // final occupied radius as a fraction of the safe zone, over life
-        [Range(0.2f, 1f)] public float infernoBangSpeed = 0.82f;  // how abruptly the first expansion happens (1 = a violent snap)
-        [Range(0f, 1f)] public float infernoPunch = 0f;           // opt-in DRAMA: radius overshoot at the bang, an ignition heat spike, a bigger flash
-        public ZUIValue infernoFlash = new ZUIValue(0.72f);       // white-hot ignition flash and central punch, over life
-        [Range(0f, 1f)] public float infernoRecoil = 0.42f;       // pulls the outer shape back in after the blast
-        [Range(1, 9)] public int infernoClumps = 5;               // large coherent lobes merged into one cloud
-        public ZUIValue infernoClumpSpread = new ZUIValue(0.52f); // separates the hot lobes without breaking cohesion, over life
-        public ZUIValue infernoBillow = new ZUIValue(0.72f);      // strength of the rolling, 3D-looking cloud pockets, over life
-        public ZUIValue infernoJagged = new ZUIValue(0.53f);      // breaks the perfect circle into torn explosive lobes, over life
-        public ZUIValue infernoCohesion = new ZUIValue(0.78f);    // higher keeps all clumps visibly connected, over life (fall low to blow the cloud apart late)
-        public ZUIValue infernoHollow = new ZUIValue(0f);         // radial cavity over life: carves the core out, leaving a burning shell (animate to bloom into a ring)
-        public ZUIValue infernoHollowRim = new ZUIValue(0.5f);    // heat on the cavity's INNER boundary, over life (needs Hollow > 0)
-        public ZUIValue infernoOuterRim = new ZUIValue(0f);       // heat on the cloud's OUTER rim, over life — a burning surface rather than a lit disc
-        public ZUIValue infernoCoreDensity = new ZUIValue(0.5f);  // keeps the MIDDLE thick over life (the cavity/noise bites hollow the centre without it)
-        public ZUIValue infernoChurn = new ZUIValue(0.68f);       // rolling internal displacement, over life
-        public ZUIValue infernoRotation = new ZUIValue(0.22f);    // rotational torque (−1..1), over life; 0 = none
-        [Range(0f, 1f)] public float infernoPulse = 0.46f;        // secondary inward/outward compression wave of the SAME blast (not a second blast)
-        // ── Fire ── (how much of the cloud burns, and how it cools)
-        public ZUIValue infernoFire = new ZUIValue(0.79f);        // fire coverage over life: 0 = no flame; 1 = fire occupies most dense regions
-        [Range(0f, 1f)] public float infernoHeatPockets = 0.67f;  // internal boiling regions WITHIN the fire (Clumps shape the cloud's MASS; this only varies its heat)
-        [Range(0f, 1f)] public float infernoCooling = 0.54f;      // how quickly flame turns into dark smoke over each blast's life
-        public ZUIValue infernoCoreGlow = new ZUIValue(0.4f);     // inner-core glow over life, added after cooling — fully envelope-timed (no baked-in ramp)
-        // ── Smoke ── (how much soot, how dark, how long it stays, how far past the fire it reaches)
-        public ZUIValue infernoSmoke = new ZUIValue(0.66f);       // THE soot amount over life — the one dial that sets how much smoke there is
-        public ZUIValue infernoSmokeSpread = new ZUIValue(0.45f); // how far the soot reaches BEYOND the fire body, over life — the shell that frames the flame
-        [Range(0f, 1f)] public float infernoLinger = 0.5f;        // how long the smoke STAYS: 0 = fades out by the last frame; 1 = persists to the end
-        public ZUIValue infernoDarkness = new ZUIValue(0.64f);    // higher = heavier, darker soot, over life (smoke ONLY — flame colour is the Fill ramp's alone)
-        public ZUIValue infernoBody = new ZUIValue(0.75f);        // how OPAQUE the thick of the cloud reads, over life: 0 = gauzy gas, 1 = dense matter
-        [Range(0f, 1f)] public float infernoEmbers = 0.38f;       // short contained sparks that fade before the border
-        [Range(0f, 1f)] public float infernoLighting = 0.76f;     // pseudo-normal shading strength from cloud density
-        [Range(0f, 1f)] public float infernoContrast = 0.61f;     // separates hot cavities from dark billows
-        [Range(0f, 1f)] public float infernoDieOut = 0f;          // dissolve EVERYTHING to nothing over the final fraction of the timeline (0 = runs until the last frame cuts it)
-        [Range(0f, 0.25f)] public float infernoMargin = 0.08f;    // minimum empty border, as a fraction of the canvas (confinement)
-        [Range(0f, 1f)] public float infernoFrameFade = 0.35f;    // width of the fade that takes anything nearing the Safe margin to full transparency (the frame edge is ALWAYS 100% transparent)
-        public ZUIValue infernoEdgeSoftness = new ZUIValue(0.3f); // the BLAST's own rim softness over life, in absolute canvas terms — independent of how big the blast is
-        [Range(0f, 1f)] public float infernoFlashReach = 0.4f;    // how FAR the ignition flash reaches, independent of how bright it is
-        [Range(0f, 1f)] public float infernoFlashSoft = 0.45f;    // how softly the flash's alpha fades out into the cloud (its TIMING is the Flash envelope's job)
-
-        // Inferno's Progress default: the IDENTITY curve (0,0)→(1,1) — internal time == the layer's life, so an
-        // untouched Progress behaves exactly like no remap at all. Reshape it to hold at full bloom, snap in and
-        // linger, or freeze partway (a Static value = a frozen explosion posed at that moment).
-        static ZUIValue DefaultInfernoProgress()
-        {
-            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
-            v.points.Clear();
-            v.points.Add(new ZUIEnvelopePoint(0f, 0f));
-            v.points.Add(new ZUIEnvelopePoint(1f, 1f));
-            return v;
-        }
-
-        // ── ForkBlast form (shapeForm == ForkBlast) — a directional/radial DETONATION built from many small
-        // burning puffs (a field of soft blob particles, union-accumulated into one heat field then shaded once),
-        // ported from a Kiln agent's "agent3_fork_explosive" generator (docs/pyreplus_briefing.md's porting
-        // checklist). Distinct from Inferno: Inferno is a closed-form volumetric density/metaball field with no
-        // discrete particles; ForkBlast is a swarm of hundreds of tiny anisotropic soft puffs thrown outward from
-        // a source and drag/entrainment-shaped, which is what gives it its gritty, particulate "fragments of fire"
-        // read instead of Inferno's smooth cloud. Whole-layer and closed-form (no sim, no accumulated state): a
-        // puff's position/size/amplitude at any moment is a pure function of (its slot index, the blast's own
-        // local clock, the dials below) — see PlusForkBlast.cs. PLACEMENT IS THE SWARM'S JOB, exactly like
-        // Inferno: swarm off ⇒ one centred detonation; swarm on ⇒ every swarm particle's spawn position + spawn
-        // moment ignites its own blast. Colour comes only from the shared shapeFill, sampled at (1 − heat) so the
-        // fill's LEFT end is the white-hot core (same convention as Inferno); the fill's OWN alpha ramp doubles as
-        // the "alpha ceiling" the Python original computed per gradient stop.
-        //
-        // The three dials below are ZUIValue envelopes over the layer's own life (evaluated once per frame, the
-        // PyrePlus way); everything else is a structural per-blast constant (mirrors the Python `JetSpec` — none
-        // of ITS fields were envelopes either, they were per-draw tuning constants).
-        public ZUIValue forkProgress = DefaultForkProgress();     // time remap onto the blast's own internal clock (identity = real time)
-        public ZUIValue forkReach = new ZUIValue(0.85f);          // how far the fastest puffs travel, as a fraction of the canvas half-extent, over life
-        public ZUIValue forkFlash = new ZUIValue(0.7f);           // white-hot ignition flash strength at each blast's birth, over life
-
-        [Range(0f, 180f)] public float forkSpread = 180f;         // half-angle of the emission arc, degrees. 180 = a full circle (a radial blast)
-        [Range(-180f, 180f)] public float forkAim = 0f;           // the arc's centre direction, degrees — only visible when Spread < 180
-        [Range(0.3f, 3f)] public float forkBias = 1.05f;          // angle-distribution power; 1 = uniform across the arc (the source's own "never bias a full circle" rule)
-        [Range(20, 500)] public int forkPuffCount = 220;          // puffs per blast
-        [Range(0.3f, 6f)] public float forkDrag = 2.2f;           // >0 decelerates a puff; higher stalls it sooner
-        [Range(0f, 0.3f)] public float forkGrowth = 0.09f;        // radius gained per px travelled (entrainment)
-        [Range(0f, 1.2f)] public float forkSwell = 0.4f;          // radius gained per unit age — fills a fireball's stalled centre
-        [Range(0f, 4f)] public float forkElong = 2f;              // extra length/width at birth; decays as the puff slows
-        [Range(0.02f, 0.9f)] public float forkRoundAt = 0.3f;     // the age by which a puff is round again
-        [Range(0f, 0.4f)] public float forkBuoy = 0.05f;          // upward rise late in a puff's life
-        [Range(1f, 6f)] public float forkBlastSkew = 2.4f;        // >1 piles puff births at the front of the span — the hard attack, ragged tail
-        [Range(0.01f, 0.6f)] public float forkBlastSpan = 0.14f;  // birth times spread over this much of the blast's own clock
-        [Range(0f, 1f)] public float forkVelSpread = 0.7f;        // 0 = one shell of gas; >0 fills the middle so the blast doesn't hollow into a smoke ring
-        [Range(0.1f, 1.2f)] public float forkPuffLife = 0.55f;    // how long a puff burns, as a fraction of the blast's own clock
-        [Range(0.3f, 4f)] public float forkJitter = 0.55f;        // per-puff variation in speed/size/amplitude/life
-        [Range(0f, 3f)] public float forkCool = 1.6f;             // amplitude falloff exponent over a puff's life
-        [Range(0f, 3f)] public float forkHold = 1.7f;             // >0 holds a puff's amplitude up and drops it late instead of fading from birth (generation 5's "how it dies")
-        [Range(0f, 1f)] public float forkShrink = 0.8f;           // 0..1 of its radius a puff loses by the end of its life — dies by shrinking, not fading
-        [Range(0f, 0.95f)] public float forkShrinkAt = 0.5f;      // the age the contraction starts at
-        [Range(0f, 1f)] public float forkLeadDie = 0.42f;         // the fastest (outermost) gas dies first, so the silhouette closes inward as it collapses
-        [Range(0.2f, 1.5f)] public float forkOpaq = 0.55f;        // exponent on the fill's own alpha ceiling; below 1 pushes the body solid, leaves the coolest rim alone
-        [Range(0f, 0.6f)] public float forkSoot = 0.3f;           // tint gained by end of a puff's life — darkens/desaturates it toward soot
-        [Range(0, 40)] public int forkGobCount = 0;               // lumps of burning mass shed off the blast in its opening phase, then dissipate. Optional — 0 = none
-        [Range(0.3f, 1.5f)] public float forkGobReach = 0.85f;    // a gob's travel, as a fraction of Reach
-        [Range(0f, 3f)] public float forkGobSwell = 1.6f;         // a gob DISSIPATES — it balloons as it goes out (opposite of the body, which shrinks and stays solid)
-        [Range(0.5f, 3f)] public float forkGobLifeMul = 1.3f;     // a gob's life, as a multiple of Puff life
-        [Range(0f, 3f)] public float forkGobAmp = 1.2f;           // gob brightness multiplier
-        [Range(0.05f, 1f)] public float forkGobEarly = 0.45f;     // gobs are born inside this fraction of the blast span — the opening phase
-        [Range(1f, 10f)] public float forkPuffSizePx = 2.6f;      // puff radius at the source, px
-        [Range(1f, 10f)] public float forkGobSizePx = 4.5f;       // gob radius, px — mass, not a spark; several times a puff's own size
-        [Range(0f, 20f)] public float forkWarpAmount = 3f;        // turbulence displacement, px — an approximation of the source's per-pixel polar domain warp (see PlusForkBlast.cs header)
-        [Range(0f, 0.6f)] public float forkLo = 0.22f;            // heat-field value at the silhouette's outer edge
-        // A FIXED forkHi is fragile: the Python original fitted `hi` per draw against measured field statistics
-        // and it ranged 5x (3.157 to 15.116) across ten draws, because the field's actual range depends on puff
-        // count/amplitude/overlap/blast count — every one of which is itself a dial. Ship forkHi as a raw ceiling
-        // and the first person who changes forkPuffCount (or almost any other dial) gets a flat, washed-out blob
-        // that never reaches its own hot core, or the opposite (a two-pixel white speck in a sea of rim colour).
-        // Confirmed empirically: the shipped defaults themselves render this way with forkAutoExposure off.
-        [Tooltip("Auto-fit the heat ceiling each frame to the field's own measured peak, instead of a fixed forkHi. On by default — this is what makes the body actually reach its hot core across any dial combination.")]
-        public bool forkAutoExposure = true;
-        [Range(0.2f, 2f)] public float forkExposureMult = 0.85f;  // forkAutoExposure ceiling = measured peak density * this
-        [Range(0.3f, 3f)] public float forkHi = 1.2f;             // MANUAL heat-field value the fill ramp tops out at — only used when forkAutoExposure is off
-        [Range(0.3f, 2f)] public float forkCurve = 1f;            // bends where the ramp is spent along the field; below 1 = hotter/brighter
-        [Range(0.1f, 3f)] public float forkSoft = 0.6f;           // edge falloff width, in heat-field units
-
-        // ForkBlast's Progress default mirrors Inferno's: the IDENTITY curve, so an untouched Progress plays the
-        // detonation in real time; reshape it to hold at full bloom or freeze a pose (a Static value).
-        static ZUIValue DefaultForkProgress()
-        {
-            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
-            v.points.Clear();
-            v.points.Add(new ZUIEnvelopePoint(0f, 0f));
-            v.points.Add(new ZUIEnvelopePoint(1f, 1f));
-            return v;
-        }
-
         // ── Playback3D form (shapeForm == Playback3D) — a PROOF-OF-CONCEPT 3D-animation source ──────────────────
-        // Whole-layer, like Fire/Fireball/Inferno/ForkBlast: there is no swarm/particle placement, just one
+        // Whole-layer, like Fire/Fireball: there is no swarm/particle placement, just one
         // assigned prefab whose ParticleSystem(s) the editor preview drives directly. NOT baked at runtime yet —
         // PyrePlusRenderer's Playback3D case is a documented stub (a flat placeholder colour), so a spec using
         // this form does NOT yet render correctly outside the editor preview. See PyrePlusPlayback3DPreview.cs
@@ -922,31 +770,6 @@ namespace Laubrary.PyrePlus
             l.gemInnerGlowFill = CloneFill(gemInnerGlowFill);
             l.textFill = CloneFill(textFill);
             l.textBorder = CloneFill(textBorder);
-            // Inferno's animatable envelopes (the structural inferno* dials are value types — MemberwiseClone).
-            l.infernoProgress = CloneVal(infernoProgress);
-            l.infernoBlastSize = CloneVal(infernoBlastSize);
-            l.infernoFlash = CloneVal(infernoFlash);
-            l.infernoClumpSpread = CloneVal(infernoClumpSpread);
-            l.infernoBillow = CloneVal(infernoBillow);
-            l.infernoJagged = CloneVal(infernoJagged);
-            l.infernoCohesion = CloneVal(infernoCohesion);
-            l.infernoHollow = CloneVal(infernoHollow);
-            l.infernoHollowRim = CloneVal(infernoHollowRim);
-            l.infernoOuterRim = CloneVal(infernoOuterRim);
-            l.infernoCoreDensity = CloneVal(infernoCoreDensity);
-            l.infernoChurn = CloneVal(infernoChurn);
-            l.infernoRotation = CloneVal(infernoRotation);
-            l.infernoFire = CloneVal(infernoFire);
-            l.infernoCoreGlow = CloneVal(infernoCoreGlow);
-            l.infernoSmoke = CloneVal(infernoSmoke);
-            l.infernoSmokeSpread = CloneVal(infernoSmokeSpread);
-            l.infernoDarkness = CloneVal(infernoDarkness);
-            l.infernoBody = CloneVal(infernoBody);
-            l.infernoEdgeSoftness = CloneVal(infernoEdgeSoftness);
-            // ForkBlast's three animatable envelopes (its many structural dials are value types — MemberwiseClone).
-            l.forkProgress = CloneVal(forkProgress);
-            l.forkReach = CloneVal(forkReach);
-            l.forkFlash = CloneVal(forkFlash);
             l.edgeSoftnessAnim = CloneVal(edgeSoftnessAnim);
             l.crescentBite = CloneVal(crescentBite);
             l.crescentAngle = CloneVal(crescentAngle);

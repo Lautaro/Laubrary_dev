@@ -93,33 +93,6 @@ namespace Laubrary.PyrePlus
         const int FldEdgeSoftness = -29; // edgeSoftness — soft-rim fraction, animatable over the particle's own life [task #12].
         const int FldCrescentCenterX = -30; // crescentCenterXAnim — Crescent mask-disc centre X (radius units), own life [task #12]
         const int FldCrescentCenterY = -31; // crescentCenterYAnim — Crescent mask-disc centre Y (radius units), own life [task #12]
-        const int FldInfernoProgress = -32;  // infernoProgress — the explosion's time-remap envelope, layer life
-        const int FldInfernoBlastSize = -33; // infernoBlastSize — occupied-radius fraction of the safe zone, layer life
-        const int FldInfernoFlash = -34;     // infernoFlash — ignition-flash strength, layer life
-        const int FldInfernoChurn = -35;     // infernoChurn — internal churn, layer life
-        const int FldInfernoRotation = -36;  // infernoRotation — rotational torque (−1..1), layer life
-        const int FldInfernoLift = -37;      // infernoLift — smoke rise, layer life
-        const int FldInfernoFire = -38;      // infernoFire — fire coverage, layer life
-        const int FldInfernoBalance = -39;   // infernoBalance — fire↔smoke balance (−1..1), layer life
-        const int FldInfernoSmoke = -40;     // infernoSmoke — soot opacity, layer life
-        const int FldInfernoHollow = -41;    // infernoHollow — radial cavity fraction, layer life
-        const int FldInfernoHash = -42;      // Inferno's pixel-modifier hash stream (whole-layer, like FldFuseHash)
-        const int FldInfernoCoreGlow = -43;  // infernoCoreGlow — inner-core glow, layer life
-        const int FldInfernoBillow = -44;    // infernoBillow — rolling cloud pockets, layer life
-        const int FldInfernoJagged = -45;    // infernoJagged — torn silhouette, layer life
-        const int FldInfernoCohesion = -46;  // infernoCohesion — clump connectedness, layer life
-        const int FldInfernoClumpSpread = -47; // infernoClumpSpread — lobe separation, layer life
-        const int FldInfernoDarkness = -48;  // infernoDarkness — soot darkness, layer life
-        const int FldInfernoBody = -49;      // infernoBody — dense-pixel opacity, layer life
-        const int FldInfernoHollowRim = -50; // infernoHollowRim — inner-cavity rim heat, layer life
-        const int FldInfernoOuterRim = -51;  // infernoOuterRim — outer-rim heat, layer life
-        const int FldInfernoCoreDensity = -52; // infernoCoreDensity — centre thickness, layer life
-        const int FldInfernoSmokeSpread = -53; // infernoSmokeSpread — soot reach beyond the fire, layer life
-        const int FldInfernoEdgeSoft = -54;  // infernoEdgeSoftness — the blast's own rim softness, layer life.
-        const int FldForkProgress = -55;     // forkProgress — ForkBlast's time remap onto the blast's own clock, layer life
-        const int FldForkReach = -56;        // forkReach — ForkBlast puff travel distance fraction, layer life
-        const int FldForkFlash = -57;        // forkFlash — ForkBlast ignition flash strength, layer life
-        const int FldForkHash = -58;         // ForkBlast's pixel-modifier hash stream (whole-layer, like FldInfernoHash). Next new single field id: -59 onward.
         // ── plug-in form dials (PlusForm) — an AUTO-DERIVED block, never hand-registered ───────────────────────
         // A form's Prepare gets Eval(value, slot) and slot s maps to FldForm - s (-1000, -1001, …, counting DOWN). The
         // block sits far below every hand-registered negative single id (-2..-58) and, being negative, can never meet
@@ -410,12 +383,6 @@ namespace Laubrary.PyrePlus
                 // OVERWRITES above-threshold pixels and never clears, so it must Over-composite from an isolated scratch,
                 // never render straight into the shared output). Dispatched inside RenderLayer's scratch branch below.
                 bool isFireball = layer.shapeForm == ShapeForm.Fireball;
-                // Inferno — STATELESS (closed-form, no replay harness), but its base field pass SETS pixels (it owns
-                // the whole silhouette, like the sims' Render), so it needs the same isolated-scratch treatment.
-                bool isInferno = layer.shapeForm == ShapeForm.Inferno;
-                // ForkBlast — same reasoning as Inferno: closed-form, but its field pass SETS pixels over the whole
-                // silhouette, so it needs an isolated scratch too.
-                bool isForkBlast = layer.shapeForm == ShapeForm.ForkBlast;
 
                 bool matteActive = matteState.mask != null;
                 // hasBorder forces the isolated-scratch path so the border can read this layer's OWN fill alpha (the
@@ -424,7 +391,7 @@ namespace Laubrary.PyrePlus
                 // A plug-in form is treated like the whole-layer forms: it may SET pixels over its silhouette, so it
                 // always paints into an isolated scratch that is then Over-composited.
                 bool isForm = layer.form != null;
-                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire || isFireball || isInferno || isForkBlast || isForm || hasLayerSim || hasBorder;
+                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire || isFireball || isForm || hasLayerSim || hasBorder;
                 if (!needScratch)
                 {
                     if (isHeightConsumer) RenderHeightConsumer(buf, W, H, layer, heightField);
@@ -525,150 +492,6 @@ namespace Laubrary.PyrePlus
             // Fireball (slice 6b) — the second stateful sim form; identical treatment to Fire (no swarm, isolated
             // scratch, own replay harness). Dispatch and return before the swarm/DrawParticle path.
             if (layer.shapeForm == ShapeForm.Fireball) { RenderFireballLayer(target, W, H, life, spec, layer, frameIndex); return; }
-            // Inferno — the STATELESS volumetric fireball explosion (closed-form, no particles; its own Pattern
-            // places the sub-blasts, or — Pattern = Swarm — the layer's swarm does, via the same deterministic
-            // ComputeSpawns the swarm-Fire emitters use). Isolated scratch is forced in RenderFrame (its field
-            // pass SETS pixels). The animatable dials are evaluated HERE through the standard Eval funnel (their
-            // own negative field ids, layer life), so they behave like every other PyrePlus envelope; the
-            // Progress envelope REMAPS life onto the explosion's internal time — purity makes any remap exact.
-            // Seed convention mirrors Fire's, so two Inferno layers never correlate.
-            if (layer.shapeForm == ShapeForm.Inferno)
-            {
-                int sd = spec != null ? spec.seed : 0;
-                int infSeed = Hash(sd, _layerSalt, 0, 0);
-                float infAlpha = Mathf.Clamp01(Eval(layer.alpha, life, sd, ModParticleIndex, FldAlpha));
-                var anim = new PlusInferno.Anim
-                {
-                    progress = Mathf.Clamp01(Eval(layer.infernoProgress, life, sd, ModParticleIndex, FldInfernoProgress)),
-                    blastSize = Eval(layer.infernoBlastSize, life, sd, ModParticleIndex, FldInfernoBlastSize),
-                    flash = Eval(layer.infernoFlash, life, sd, ModParticleIndex, FldInfernoFlash),
-                    churn = Eval(layer.infernoChurn, life, sd, ModParticleIndex, FldInfernoChurn),
-                    rotation = Eval(layer.infernoRotation, life, sd, ModParticleIndex, FldInfernoRotation),
-                    fire = Eval(layer.infernoFire, life, sd, ModParticleIndex, FldInfernoFire),
-                    smoke = Eval(layer.infernoSmoke, life, sd, ModParticleIndex, FldInfernoSmoke),
-                    hollow = Eval(layer.infernoHollow, life, sd, ModParticleIndex, FldInfernoHollow),
-                    coreGlow = Eval(layer.infernoCoreGlow, life, sd, ModParticleIndex, FldInfernoCoreGlow),
-                    billow = Eval(layer.infernoBillow, life, sd, ModParticleIndex, FldInfernoBillow),
-                    jagged = Eval(layer.infernoJagged, life, sd, ModParticleIndex, FldInfernoJagged),
-                    cohesion = Eval(layer.infernoCohesion, life, sd, ModParticleIndex, FldInfernoCohesion),
-                    clumpSpread = Eval(layer.infernoClumpSpread, life, sd, ModParticleIndex, FldInfernoClumpSpread),
-                    darkness = Eval(layer.infernoDarkness, life, sd, ModParticleIndex, FldInfernoDarkness),
-                    body = Eval(layer.infernoBody, life, sd, ModParticleIndex, FldInfernoBody),
-                    hollowRim = Eval(layer.infernoHollowRim, life, sd, ModParticleIndex, FldInfernoHollowRim),
-                    outerRim = Eval(layer.infernoOuterRim, life, sd, ModParticleIndex, FldInfernoOuterRim),
-                    coreDensity = Eval(layer.infernoCoreDensity, life, sd, ModParticleIndex, FldInfernoCoreDensity),
-                    smokeSpread = Eval(layer.infernoSmokeSpread, life, sd, ModParticleIndex, FldInfernoSmokeSpread),
-                    edgeSoft = Eval(layer.infernoEdgeSoftness, life, sd, ModParticleIndex, FldInfernoEdgeSoft),
-                };
-                // PLACEMENT IS THE SWARM'S JOB: swarm ON ⇒ every spawn (position + spawn moment) ignites one
-                // blast; swarm OFF ⇒ origins null ⇒ one centred blast. No separate pattern machinery — the
-                // swarm's Count/shape/path/spawn-timing author every arrangement natively.
-                PlusInferno.SwarmOrigin[] origins = null;
-                if (layer.swarmEnabled)
-                {
-                    ComputeSpawns(spec, layer, _plusFireSpawns);
-                    origins = new PlusInferno.SwarmOrigin[_plusFireSpawns.Count];
-                    for (int i = 0; i < _plusFireSpawns.Count; i++)
-                    {
-                        var sp = _plusFireSpawns[i];
-                        // The LIVE whole-cloud transform must be applied here, exactly as RenderSwarm does for
-                        // every particle form (and BuildFireEmitters for swarm-Fire): spin FIRST, then the
-                        // uniform radial scale — final = centre + scale·spin(offset). Without it, raising the
-                        // swarm's live Scale moved the preview's spawn dots (they call these same two helpers)
-                        // while the blasts stayed put, and a spinning cloud didn't carry its blasts round.
-                        Vector2 wp = ApplySwarmScale(spec, layer, ApplySwarmSpin(spec, layer, sp.pos, life), life);
-                        origins[i] = new PlusInferno.SwarmOrigin
-                        {
-                            x = wp.x / Mathf.Max(1, W) * 2f - 1f,
-                            y = wp.y / Mathf.Max(1, H) * 2f - 1f,
-                            start = Mathf.Clamp(sp.spawnLife, 0f, 0.85f),
-                        };
-                    }
-                }
-                // Geometry + pixel modifiers thread through (BuildMods already Prepare'd them this frame): geometry
-                // inverse-warps the FIELD sample per pixel (the Fuse-pass precedent), pixel modifiers recolour/drop
-                // each lit pixel. Post modifiers need nothing here — ApplyLayerPost already runs on the scratch.
-                var infMods = new PlusInferno.Mods
-                {
-                    geo = mods.AnyGeo ? mods.geo : null,
-                    pix = mods.AnyPix ? mods.pix : null,
-                    phase = phase,
-                    frameIndex = frameIndex,
-                    life = life,
-                    pixHash = Hash(sd, ModParticleIndex, FldInfernoHash, _layerSalt),
-                };
-                var infStruct = new PlusInferno.Structural
-                {
-                    mutation = layer.infernoMutation, accumulation = layer.infernoAccumulation,
-                    balanceDrift = layer.infernoBalanceDrift, balanceJitter = layer.infernoBalanceJitter,
-                    bangSpeed = layer.infernoBangSpeed, punch = layer.infernoPunch, recoil = layer.infernoRecoil,
-                    flashReach = layer.infernoFlashReach, flashSoft = layer.infernoFlashSoft, clumps = layer.infernoClumps,
-                    pulse = layer.infernoPulse, heatPockets = layer.infernoHeatPockets, cooling = layer.infernoCooling,
-                    linger = layer.infernoLinger, dieOut = layer.infernoDieOut, embers = layer.infernoEmbers,
-                    lighting = layer.infernoLighting, contrast = layer.infernoContrast, margin = layer.infernoMargin,
-                    frameFade = layer.infernoFrameFade,
-                };
-                PlusInferno.Render(target, W, H, infStruct, infSeed, layer.shapeFill, infAlpha, anim, origins, infMods);
-                return;
-            }
-
-            // ForkBlast — a whole-layer swarm-of-puffs detonation (see PlusForkBlast.cs). Same swarm-native
-            // placement convention as Inferno (swarm off ⇒ one centred blast; swarm on ⇒ one blast per spawn) and
-            // the same Eval funnel for its three animatable dials. Isolated scratch is forced above (its field
-            // pass SETS pixels).
-            if (layer.shapeForm == ShapeForm.ForkBlast)
-            {
-                int sd = spec != null ? spec.seed : 0;
-                int fbSeed = Hash(sd, _layerSalt, 1, 7);
-                float fbAlpha = Mathf.Clamp01(Eval(layer.alpha, life, sd, ModParticleIndex, FldAlpha));
-                var anim = new PlusForkBlast.Anim
-                {
-                    progress = Mathf.Clamp01(Eval(layer.forkProgress, life, sd, ModParticleIndex, FldForkProgress)),
-                    reach = Eval(layer.forkReach, life, sd, ModParticleIndex, FldForkReach),
-                    flash = Eval(layer.forkFlash, life, sd, ModParticleIndex, FldForkFlash),
-                };
-                PlusForkBlast.SwarmOrigin[] fbOrigins = null;
-                if (layer.swarmEnabled)
-                {
-                    ComputeSpawns(spec, layer, _plusFireSpawns);
-                    fbOrigins = new PlusForkBlast.SwarmOrigin[_plusFireSpawns.Count];
-                    for (int i = 0; i < _plusFireSpawns.Count; i++)
-                    {
-                        var sp = _plusFireSpawns[i];
-                        Vector2 wp = ApplySwarmScale(spec, layer, ApplySwarmSpin(spec, layer, sp.pos, life), life);
-                        fbOrigins[i] = new PlusForkBlast.SwarmOrigin
-                        {
-                            x = wp.x / Mathf.Max(1, W) * 2f - 1f,
-                            y = wp.y / Mathf.Max(1, H) * 2f - 1f,
-                            start = Mathf.Clamp(sp.spawnLife, 0f, 0.85f),
-                        };
-                    }
-                }
-                var fbMods = new PlusForkBlast.Mods
-                {
-                    pix = mods.AnyPix ? mods.pix : null,
-                    phase = phase,
-                    frameIndex = frameIndex,
-                    life = life,
-                    pixHash = Hash(sd, ModParticleIndex, FldForkHash, _layerSalt),
-                };
-                var fbParams = new PlusForkBlast.Params
-                {
-                    spread = layer.forkSpread, aim = layer.forkAim, bias = layer.forkBias, puffCount = layer.forkPuffCount,
-                    drag = layer.forkDrag, growth = layer.forkGrowth, swell = layer.forkSwell, elong = layer.forkElong,
-                    roundAt = layer.forkRoundAt, buoy = layer.forkBuoy, blastSkew = layer.forkBlastSkew, blastSpan = layer.forkBlastSpan,
-                    velSpread = layer.forkVelSpread, puffLife = layer.forkPuffLife, jitter = layer.forkJitter, cool = layer.forkCool,
-                    hold = layer.forkHold, shrink = layer.forkShrink, shrinkAt = layer.forkShrinkAt, leadDie = layer.forkLeadDie,
-                    opaq = layer.forkOpaq, soot = layer.forkSoot, gobCount = layer.forkGobCount, gobReach = layer.forkGobReach,
-                    gobSwell = layer.forkGobSwell, gobLifeMul = layer.forkGobLifeMul, gobAmp = layer.forkGobAmp, gobEarly = layer.forkGobEarly,
-                    puffSizePx = layer.forkPuffSizePx, gobSizePx = layer.forkGobSizePx, warpAmount = layer.forkWarpAmount,
-                    lo = layer.forkLo, hi = layer.forkHi, curve = layer.forkCurve, soft = layer.forkSoft,
-                    exposureMult = layer.forkExposureMult, autoExposure = layer.forkAutoExposure,
-                };
-                PlusForkBlast.Render(target, W, H, fbParams, fbSeed, layer.shapeFill, fbAlpha, anim, fbOrigins, fbMods);
-                return;
-            }
-
             // Playback3D — PROOF-OF-CONCEPT form, EDITOR-PREVIEW ONLY. There is deliberately no runtime bake here
             // yet: its whole live-3D/pixelated preview lives in PyrePlusPlayback3DPreview (a PreviewRenderUtility
             // scene driving the assigned prefab's ParticleSystem(s)), which this pure per-frame pixel renderer has

@@ -22,8 +22,8 @@ namespace Laubrary.PyrePlus
     //     AFTERGLOW adds late residual core heat (added AFTER the hot-life chain so cooling can't kill it):
     //     the low heat values sample the ramp's dark end — the dark red-orange glow smouldering in the smoke
     //     after a punchy blast.
-    //   • ENVELOPES — the animatable dials arrive pre-evaluated in an Anim snapshot (the caller runs them
-    //     through the renderer's Eval funnel at the layer's life, ids FldInferno*), so Blast size / Fire /
+    //   • ENVELOPES — the animatable dials arrive pre-evaluated in an Anim snapshot (InfernoForm.Prepare runs
+    //     them through the renderer's Eval funnel at the layer's life), so Blast size / Fire /
     //     Balance / Smoke / Churn / Rotation / Lift / Hollow / Flash are ZUIValue envelopes like every other
     //     PyrePlus form — and PROGRESS is the crown piece: it REMAPS life onto the explosion's internal time
     //     (identity curve = real time; reshape to hold at full bloom, slow the tail, or freeze a pose), which
@@ -53,13 +53,13 @@ namespace Laubrary.PyrePlus
     // Buffer convention: row 0 = BOTTOM (y-up) like the rest of PyrePlusRenderer; all internal math runs in
     // y-up NDC so Lift raises the cloud and the pseudo-normal light falls from visually above. The base field
     // pass SETS pixels (it owns the whole silhouette), so the caller MUST hand this an isolated transparent
-    // scratch — needScratch is forced for Inferno in RenderFrame, mirroring Fire/Fireball.
-    public static class PlusInferno
+    // scratch — which the renderer always does for a PlusForm layer.
+    internal static class PlusInferno
     {
         const float TAU = Mathf.PI * 2f;
 
-        // The animatable dials, pre-evaluated by the caller through the renderer's Eval funnel at the layer's
-        // life (ids FldInferno*) — one snapshot per frame, so an envelope/MinMax/Steps value behaves exactly like
+        // The animatable dials, pre-evaluated by InfernoForm.Prepare through the renderer's Eval funnel at the
+        // layer's life — one snapshot per frame, so an envelope/MinMax/Steps value behaves exactly like
         // it does on every other PyrePlus form. `progress` is the time remap: the explosion's internal t.
         public struct Anim
         {
@@ -68,8 +68,8 @@ namespace Laubrary.PyrePlus
             public float hollowRim, outerRim, coreDensity, smokeSpread, edgeSoft;
         }
 
-        // One swarm-authored blast origin (Pattern = Swarm): position in y-up NDC + its spawn moment on the
-        // timeline. Built by the caller from ComputeSpawns, so placement is exactly the swarm's own.
+        // One swarm-authored blast origin: position in y-up NDC + its spawn moment on the timeline. Built by
+        // InfernoForm from the renderer's swarm instances, so placement is exactly the swarm's own.
         public struct SwarmOrigin { public float x, y, start; }
 
         // The layer's ALREADY-PREPARED geometry/pixel modifiers (BuildMods ran Prepare this frame): geometry
@@ -85,7 +85,7 @@ namespace Laubrary.PyrePlus
             public float phase;      // the renderer's per-frame wobble phase (modifier convention)
             public int frameIndex;
             public float life;       // the LAYER's life (modifier convention — not the remapped internal t)
-            public int pixHash;      // whole-layer pixel-modifier hash stream (FldInfernoHash)
+            public int pixHash;      // whole-layer pixel-modifier hash stream
         }
 
         // The plain (non-animatable) structural dials, handed in by the caller already authored — the per-blast

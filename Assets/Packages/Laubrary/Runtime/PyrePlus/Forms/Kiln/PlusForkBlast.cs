@@ -39,7 +39,7 @@ namespace Laubrary.PyrePlus
     //     • Rings (`_rings`), burning fragments with trails (`_chunks`), sparks (`_sparks`), the non-gob "shed"
     //       stream (puffs that detach and tumble, distinct from gobs), and the disc-breaking trio swirl/spin/lobes.
     //       None of these are structural to "how a blast dies" (generation 5's actual ask) — they are generation
-    //       3/4 texture. Could each become its own ShapeForm feature or a shared modifier later; out of scope here.
+    //       3/4 texture. Could each become its own PlusForm or a shared modifier later; out of scope here.
     //     • The per-pixel POLAR domain warp (`_warp_out`, noise sampled in polar coordinates around the source so
     //       turbulence scrolls outward in every direction). Approximated instead by a small per-puff tangential
     //       wobble (see `Wobble` below) driven by a cheap deterministic hash-noise — visually similar (breaks up
@@ -55,12 +55,12 @@ namespace Laubrary.PyrePlus
     // Buffer convention: row 0 = BOTTOM (y-up), like the rest of PyrePlusRenderer. Puff angles are plain math
     // angles (0 = +x/right, 90° = +y/up), which is why buoyancy simply ADDS to the y coordinate here (the source,
     // working in a y-DOWN numpy array, had to SUBTRACT for the same visual effect).
-    public static class PlusForkBlast
+    internal static class PlusForkBlast
     {
         const float TAU = Mathf.PI * 2f;
 
-        // The three animatable dials, pre-evaluated by the caller through the renderer's Eval funnel at the
-        // layer's life (ids FldFork*).
+        // The three animatable dials, pre-evaluated by ForkBlastForm.Prepare through the renderer's Eval funnel
+        // at the layer's life.
         public struct Anim { public float progress, reach, flash; }
 
         // The structural per-blast constants (the Python JetSpec's tuning constants — none were envelopes there

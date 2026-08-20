@@ -124,11 +124,13 @@ namespace Laubrary.PyrePlus.Editor
             Skip = f => !s.swarmEnabled && Attribute.IsDefined(f, typeof(PlusSwarmOnlyAttribute)),
             // A whole-layer form's dials Eval frame-global, so Min-Max would resolve to one constant for the whole
             // animation — hidden, like the modifier cards; the runtime Duration/Warmup/Loop row is meaningless on the
-            // frame-baked timeline — hidden too. Frame markers on the curve, like the hand-written Val rows.
+            // frame-baked timeline — hidden too. Frame markers on the curve, like the hand-written Val rows. The
+            // value controls keep the SAME fixed width as the plain sliders (no grow) so a card of mixed dials flows
+            // as one even grid — a grown value claims a whole line and leaves the next dial's row half empty.
             ConfigureValue = (f, vopt) =>
             {
                 vopt.allowMinMax = false; vopt.hideCurveTiming = true; vopt.hideCurveRange = true; vopt.hideLiveReadout = true;
-                vopt.grow = true; vopt.controlWidth = 170f;
+                vopt.controlWidth = 150f;
                 vopt.frameCount = spec != null ? spec.frameCount : 0;
             },
             ControlWidth = 150f,
