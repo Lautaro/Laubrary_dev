@@ -398,7 +398,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 field.ox = S * 0.5; field.oy = S * 0.5; field.s = sBase;
             }
 
-            // bloom once over the whole frame (the source blooms per frame after every stroke of that frame)
+            // every collected stroke lands now; then bloom once over the whole frame (the source blooms per frame
+            // after every stroke of that frame)
+            field.Flush();
             field.Bloom(bloomRadius * sBase, bloomStrength, bloomStrength * bloomAlpha, _sA, _sB);
 
             // colorize: band by energy threshold, alpha = A (truncated to a byte like astype(uint8)), absent under the floor

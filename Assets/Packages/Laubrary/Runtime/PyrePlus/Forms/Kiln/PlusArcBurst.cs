@@ -20,7 +20,9 @@
 //     bolts, anchor stream and per-frame stream seeded exactly as the source seeds them).
 //   APPROXIMATED — float32 arithmetic: the source runs the stroke maths in numpy float32 and the blob / interp maths
 //     in float64; this port does the same split but its box blur accumulates in double where numpy's cumsum is
-//     float32 (pixel-level ±1 differences, never structural). `radial` (unused by generation 4) is not ported.
+//     float32, and the stroke / blob deposits run in a Burst kernel (ArcRaster) whose exp / pow differ from the C
+//     runtime's by a last bit (pixel-level ±1 differences, never structural). `radial` (unused by generation 4) is
+//     not ported.
 //   DROPPED — the export (sprite sheet, WebP, contact/checker sheets) and the partial-alpha census print.
 //
 // Units: the draws are written in the source's 128 px frame (centre 64, 64); ArcField maps that frame onto the
@@ -59,47 +61,38 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         public ArcField(int size, float[] e, float[] a) { S = size; E = e; A = a; }
 
-        public void Clear() { Array.Clear(E, 0, E.Length); Array.Clear(A, 0, A.Length); }
+        public void Clear() { Array.Clear(E, 0, E.Length); Array.Clear(A, 0, A.Length); _nSeg = 0; _nBlob = 0; _nProf = 0; }
 
         double PX(double x) => (x - 64.0) * s + ox;
         double PY(double y) => (y - 64.0) * s + oy;
 
-        // ── deposition (maximum compositing into both planes) ──
-        void Put(int i, float e, float opa)
-        {
-            if (e > E[i]) E[i] = e;
-            float a = e / aref; if (a > 1f) a = 1f; else if (a < 0f) a = 0f;
-            a = Mathf.Pow(a, agamma);
-            if (opa != 1f) a *= opa;
-            if (a > A[i]) A[i] = a;
-        }
+        // ── deposition: collected, then rasterised by ArcRaster with maximum compositing into both planes ──
+        // Every `Seg` / `Blob` appends a record; `Flush` hands the batch to the Burst kernel. Because `Put` is a pure
+        // maximum the deposits commute, so the only places the order matters are the full-plane passes below
+        // (`Bloom`, `FadeAngular`, `Hollow`, `ScaleAlpha`) — each flushes first, and the form flushes at the end.
+        // The buffers are per-thread and grow-only: a form renders one frame per thread (T-0060) and a Lichten
+        // frame is ~37k records, which would otherwise be 1.6 MB of garbage per frame.
+        [ThreadStatic] static ArcSegRec[] _segs; [ThreadStatic] static int _nSeg;
+        [ThreadStatic] static ArcBlobRec[] _blobs; [ThreadStatic] static int _nBlob;
+        [ThreadStatic] static double[] _profiles; [ThreadStatic] static int _nProf;
+        [ThreadStatic] static float[] _gammaUpper; [ThreadStatic] static float _gammaUpperFor;
 
-        // ── the skip test: a deposit that cannot raise either plane is never computed ──
-        // Because `Put` is a pure maximum, a pixel whose energy and alpha are already at or above anything this
-        // stroke could give it is a no-op, and the output is bit-for-bit the same whether the stroke's exp / pow
-        // ran there or not. Both bounds come from monotone tables sampled BELOW the true argument (a lower x gives
-        // a higher falloff, a higher index gives a higher gamma curve) and widened by a few ULPs, so they stay upper
-        // bounds even if the C runtime's exp / pow are not perfectly monotone at the last bit. Overlap is the
-        // common case — a channel's core lies inside its own sheath, a tree's branches cross, a swarm stacks
-        // bursts — so most covered pixels end here, after a square root and two table reads.
-        const int FalloffN = 4096; const float FalloffXMax = 64f, FalloffScale = FalloffN / FalloffXMax;
-        const float BoundSlack = 1.00001f;
-        static readonly float[] FalloffUpper = BuildFalloffUpper();
-        static float[] BuildFalloffUpper()
+        static void Grow<T>(ref T[] arr, int need) { if (arr == null) arr = new T[Math.Max(need, 1024)]; else if (arr.Length < need) Array.Resize(ref arr, Math.Max(need, arr.Length * 2)); }
+
+        /// Rasterise everything collected so far into E / A. Cheap when nothing is pending.
+        public unsafe void Flush()
         {
-            var t = new float[FalloffN + 1];
-            for (int j = 0; j <= FalloffN; j++) t[j] = (float)Math.Exp(-Math.Pow(j / FalloffScale, 1.7)) * BoundSlack;
-            return t;
-        }
-        const int GammaN = 1024;
-        float[] _gammaUpper; float _gammaUpperFor = float.NaN;
-        float[] GammaUpper()
-        {
-            if (_gammaUpperFor == agamma) return _gammaUpper;
-            _gammaUpper ??= new float[GammaN + 1];
-            for (int j = 0; j <= GammaN; j++) _gammaUpper[j] = Mathf.Pow(j / (float)GammaN, agamma) * BoundSlack;
-            _gammaUpperFor = agamma;
-            return _gammaUpper;
+            if (_nSeg == 0 && _nBlob == 0) return;
+            ArcRaster.CheckEnabled();
+            if (_gammaUpper == null) { _gammaUpper = new float[ArcRaster.GammaN + 1]; _gammaUpperFor = float.NaN; }
+            if (_gammaUpperFor != agamma) { ArcRaster.BuildGammaUpper(_gammaUpper, agamma); _gammaUpperFor = agamma; }
+            Grow(ref _segs, 1); Grow(ref _blobs, 1); Grow(ref _profiles, 1);
+            fixed (float* e = E, a = A, falloff = ArcRaster.FalloffUpper, gamma = _gammaUpper)
+            fixed (ArcSegRec* segs = _segs)
+            fixed (ArcBlobRec* blobs = _blobs)
+            fixed (double* prof = _profiles)
+                ArcRaster.Run(e, a, S, aref, agamma, segs, _nSeg, blobs, _nBlob, prof, falloff, gamma);
+            _nSeg = 0; _nBlob = 0; _nProf = 0;
         }
 
         /// `_seg`: e = amp · exp(−(d / width)^1.7) over the segment's padded bbox (source units in, pixels inside).
@@ -111,44 +104,14 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             int xs = Math.Max(0, (int)(Math.Min(x0, x1) - pad)), xe = Math.Min(S, (int)(Math.Max(x0, x1) + pad) + 1);
             int ys = Math.Max(0, (int)(Math.Min(y0, y1) - pad)), ye = Math.Min(S, (int)(Math.Max(y0, y1) + pad) + 1);
             if (xs >= xe || ys >= ye) return;
-            float dx = x1 - x0, dy = y1 - y0;
-            float L2 = dx * dx + dy * dy;
-            float invW = 1f / (float)Math.Max(width, 1e-3), fa = (float)amp, fo = (float)opa;
-            bool point = L2 < 1e-9f;
-            float[] falloff = FalloffUpper, gamma = GammaUpper();
-            float invAref = 1f / aref;
-            float[] E = this.E, A = this.A;
-            for (int y = ys; y < ye; y++)
+            Grow(ref _segs, _nSeg + 1);
+            _segs[_nSeg++] = new ArcSegRec
             {
-                float Y = y;
-                for (int x = xs; x < xe; x++)
-                {
-                    float X = x, d;
-                    if (point) d = Hypot(X - x0, Y - y0);
-                    else
-                    {
-                        float t = ((X - x0) * dx + (Y - y0) * dy) / L2;
-                        if (t < 0f) t = 0f; else if (t > 1f) t = 1f;
-                        d = Hypot(X - (x0 + t * dx), Y - (y0 + t * dy));
-                    }
-                    float xw = d * invW;
-                    int i = y * S + x;
-                    int fj = (int)(xw * FalloffScale); if (fj > FalloffN) fj = FalloffN;
-                    float eUpper = fa * falloff[fj];
-                    if (eUpper <= E[i])
-                    {
-                        float au = eUpper * invAref; if (au > 1f) au = 1f;
-                        int gj = (int)(au * GammaN) + 1; if (gj > GammaN) gj = GammaN;
-                        if (gamma[gj] * fo <= A[i]) continue;
-                    }
-                    // `d * invW` stays inline here: Mono promotes the unrounded product to double, and rounding it
-                    // through a float local first moves the last bit of a few pixels (Crown's hash changes).
-                    float e = fa * (float)Math.Exp(-Math.Pow(d * invW, 1.7));
-                    Put(i, e, fo);
-                }
-            }
+                x0 = x0, y0 = y0, x1 = x1, y1 = y1,
+                invW = 1f / (float)Math.Max(width, 1e-3), amp = (float)amp, opa = (float)opa,
+                xs = xs, xe = xe, ys = ys, ye = ye,
+            };
         }
-
         static float Hypot(float a, float b) => (float)Math.Sqrt((double)a * a + (double)b * b);
 
         /// `polyline`: taper shrinks width toward the far end, fade shrinks amplitude; `opaVec` = one opacity per
@@ -179,51 +142,40 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         public void Dot(double x, double y, double r, double amp, double opa = 1.0) => Seg(x, y, x, y, r, amp, opa);
 
         /// `blob`: a filled irregular body of light, soft-edged, optionally hollow. `profile` is a periodic radius
-        /// table (64 entries unless given), interpolated round the angle like np.interp(period = τ).
+        /// table (64 entries unless given), interpolated round the angle like np.interp(period = τ). Outside the
+        /// profile's largest radius u ≥ 1 and the soft edge clamps e to exactly 0, so the record's bbox stops there.
         public void Blob(double cx, double cy, double r, double amp, double[] profile, double soft, double edge, double inner, double holeSoft, double opa)
         {
             int n = profile?.Length ?? 64;
             float pcx = (float)PX(cx), pcy = (float)PY(cy);
             double rs = r * s, step = (2.0 * Math.PI) / n;
-            const float tauF = 6.2831855f;
-            float fo = (float)opa;
-            double invSoft = 1.0 / Math.Max(soft, 1e-3), invHole = 1.0 / Math.Max(holeSoft, 1e-3);
-            // Outside the profile's largest radius u ≥ 1, so the soft edge clamps e to exactly 0 and nothing is
-            // deposited — the scan can stop at that radius (plus a pixel for the rounding of d) and be the same.
             double rMax = rs; if (profile != null) { rMax = 0; for (int i = 0; i < n; i++) rMax = Math.Max(rMax, rs * profile[i]); }
             int xs = Math.Max(0, (int)Math.Floor(pcx - rMax) - 1), xe = Math.Min(S, (int)Math.Ceiling(pcx + rMax) + 2);
             int ys = Math.Max(0, (int)Math.Floor(pcy - rMax) - 1), ye = Math.Min(S, (int)Math.Ceiling(pcy + rMax) + 2);
-            for (int y = ys; y < ye; y++)
-                for (int x = xs; x < xe; x++)
-                {
-                    float fx = x - pcx, fy = y - pcy;
-                    float ang = Mathf.Atan2(fy, fx) % tauF; if (ang < 0f) ang += tauF;
-                    double R;
-                    if (profile == null) R = rs;
-                    else
-                    {
-                        double q = ang / step; int i0 = (int)Math.Floor(q); double fr = q - i0;
-                        if (i0 >= n) { i0 = n - 1; fr = (ang - i0 * step) / step; }
-                        int i1 = i0 + 1 >= n ? 0 : i0 + 1;
-                        R = rs * (profile[i0] + (profile[i1] - profile[i0]) * fr);
-                    }
-                    float d = Hypot(fx, fy);
-                    double u = d / Math.Max(R, 1e-3);
-                    double e = (1.0 - u) * invSoft; if (e < 0) e = 0; else if (e > 1) e = 1;
-                    e = amp * Math.Pow(e, edge);
-                    if (inner > 0.0)
-                    {
-                        double h = (u - inner) * invHole; if (h < 0) h = 0; else if (h > 1) h = 1;
-                        e *= h;
-                    }
-                    if (e > 0) Put(y * S + x, (float)e, fo);
-                }
+            if (xs >= xe || ys >= ye) return;
+            int profOff = 0, profN = 0;
+            if (profile != null)
+            {
+                Grow(ref _profiles, _nProf + n);
+                Array.Copy(profile, 0, _profiles, _nProf, n);
+                profOff = _nProf; profN = n; _nProf += n;
+            }
+            Grow(ref _blobs, _nBlob + 1);
+            _blobs[_nBlob++] = new ArcBlobRec
+            {
+                pcx = pcx, pcy = pcy, opa = (float)opa,
+                rs = rs, step = step, amp = amp,
+                invSoft = 1.0 / Math.Max(soft, 1e-3), edge = edge, inner = inner, invHole = 1.0 / Math.Max(holeSoft, 1e-3),
+                profOff = profOff, profN = profN,
+                xs = xs, xe = xe, ys = ys, ye = ye,
+            };
         }
 
         // ── post ──
         /// `bloom`: E += blur(E, r)·strength, A += blur(A, round(0.8 r))·aStrength — both from the pre-bloom planes.
         public void Bloom(double radiusPx, double strength, double aStrength, float[] scratchA, float[] scratchB)
         {
+            Flush();
             if (radiusPx <= 0 || strength <= 0) return;
             int r = (int)Math.Round(radiusPx, MidpointRounding.ToEven);
             int ra = Math.Max(1, (int)Math.Round(radiusPx * 0.8, MidpointRounding.ToEven));
@@ -269,6 +221,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         /// `fade_angular`: scale ALPHA by angle about (cx, cy) — a transparent sector of half-width `width` rad.
         public void FadeAngular(double cx, double cy, double a0, double width, double depth, double soft)
         {
+            Flush();
             float pcx = (float)PX(cx), pcy = (float)PY(cy);
             for (int y = 0; y < S; y++)
                 for (int x = 0; x < S; x++)
@@ -285,6 +238,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         /// `hollow`: cut a hole in BOTH planes (radius r0, ramp `soft`, source units).
         public void Hollow(double cx, double cy, double r0, double soft)
         {
+            Flush();
             float pcx = (float)PX(cx), pcy = (float)PY(cy);
             double rp = r0 * s, sp = Math.Max(soft * s, 1e-3);
             for (int y = 0; y < S; y++)
@@ -296,7 +250,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 }
         }
 
-        public void ScaleAlpha(double k) { float f = (float)k; for (int i = 0; i < A.Length; i++) A[i] *= f; }
+        public void ScaleAlpha(double k) { Flush(); float f = (float)k; for (int i = 0; i < A.Length; i++) A[i] *= f; }
     }
 
     public static class PlusArcBurst

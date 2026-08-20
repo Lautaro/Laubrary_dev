@@ -4,11 +4,14 @@
     "references": [
         "com.Lautaro-Arino.Laubrary.PyrePlus",
         "com.Lautaro-Arino.Laubrary.SpriteFx",
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Mathematics"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": false,
+    "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
