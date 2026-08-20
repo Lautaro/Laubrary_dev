@@ -23,7 +23,7 @@ using UnityEngine;
 
 namespace Laubrary.PyrePlus
 {
-    public static class PyrePlusRenderer
+    public static partial class PyrePlusRenderer
     {
         static readonly Color32 Transparent = new Color32(0, 0, 0, 0);
 
@@ -213,300 +213,26 @@ namespace Laubrary.PyrePlus
 
         public static Color32[] RenderFrame(PyrePlusSpec spec, int frameIndex)
         {
-            int W = spec != null ? spec.Width : 1;
-            int H = spec != null ? spec.Height : 1;
-            var buf = new Color32[W * H];
-
-            // `life`/`frames` are needed both for the background fill below and by the layer loop later; compute
-            // them once here (spec-null-safe — identical to the later value when spec != null).
-            int frames = Mathf.Max(1, spec != null ? spec.frameCount : 1);
-            float life = frames > 1 ? frameIndex / (float)(frames - 1) : 0f;
-
-            // Background. EXACT GUARD: only when backgroundUseFill is on (and a fill exists) do we evaluate the
-            // ZuiFill per pixel across the canvas (u,v in -1..1); otherwise every pixel is the flat `background`
-            // clear exactly as before — the default asset (backgroundUseFill == false) is byte-identical.
-            if (spec != null && spec.backgroundUseFill && spec.backgroundFill != null)
+            // One code path for the bake and the per-layer preview cache (PyrePlusRenderer.Layers.cs): plan the
+            // frame, render each active layer through the one layer body, fold it into the frame, finish. A
+            // fast-path Draw layer paints straight into the frame buffer (the pre-R3 single-layer renderer, which
+            // is what keeps a one-layer spec byte-identical even with an opaque background + a post modifier); every
+            // other layer renders into its own transparent buffer and is composited.
+            var fc = new FrameComposer(spec, frameIndex, inputsAreScratch: true);
+            if (spec == null || spec.layers == null) return fc.buf;
+            var plans = PlanFrame(spec, frameIndex);
+            int W = spec.Width, H = spec.Height;
+            for (int li = 0; li < plans.Length; li++)
             {
-                for (int y = 0; y < H; y++)
-                {
-                    float v = H > 1 ? (y + 0.5f) / H * 2f - 1f : 0f;
-                    int rowBase = y * W;
-                    for (int x = 0; x < W; x++)
-                    {
-                        float u = W > 1 ? (x + 0.5f) / W * 2f - 1f : 0f;
-                        buf[rowBase + x] = (Color32)spec.backgroundFill.Evaluate(life, u, v);
-                    }
-                }
+                ref var p = ref plans[li];
+                if (!p.active) continue;
+                float[] heightField = p.isHeightConsumer ? fc.Channel(spec.layers[li].heightFromChannel) : null;
+                if (p.fastPath) { RenderLayerBody(fc.buf, spec, li, frameIndex, p, heightField); continue; }
+                var scratch = new Color32[W * H];
+                var border = RenderLayerBody(scratch, spec, li, frameIndex, p, heightField);
+                fc.Apply(li, p, scratch, border);
             }
-            else
-            {
-                Color32 bg = spec != null ? (Color32)spec.background : Transparent;
-                for (int i = 0; i < buf.Length; i++) buf[i] = bg;
-            }
-            if (spec == null || spec.layers == null) return buf;
-            // Per-frame wobble phase handed to every GeometryModifier.InverseWarp — matches BlastRenderer.framePhase
-            // (note the divide by `frames`, not frames-1, deliberately mirroring BlastRenderer). One phase per frame,
-            // shared by every layer.
-            float phase = frames > 1 ? (frameIndex / (float)frames) * Mathf.PI * 2f : 0f;
-
-            // Four shared matte channels (W*H each), zero-initialised, only allocated when some enabled layer
-            // actually uses them. A WriteMatte layer writes its coverage into channels[matteChannel]; a Draw layer
-            // with clipByChannel >= 0 multiplies its alpha by that channel just before compositing. Layers process
-            // in paint order (0 = back), so a Draw layer can only clip by a channel an EARLIER layer already wrote.
-            var layers = spec.layers;
-            bool anyMatte = false;
-            for (int li = 0; li < layers.Count; li++)
-            {
-                var l0 = layers[li];
-                if (l0 == null || !l0.enabled) continue;
-                // Channels are also needed when a Draw layer is a slice-4b HEIGHTMAP CONSUMER (heightFromChannel ≥ 0):
-                // it reads the fused channel a WriteMatte luminance layer below deposited. Default -1 ⇒ no change here.
-                if (l0.matteRole == MatteRole.WriteMatte
-                    || (l0.matteRole == MatteRole.Draw && l0.clipByChannel >= 0)
-                    || (l0.matteRole == MatteRole.Draw && l0.heightFromChannel >= 0)) { anyMatte = true; break; }
-            }
-            float[][] channels = null;
-            // Per-channel "was WRITTEN this frame" flags (#58 Fix 3), parallel to `channels`. A channel starts
-            // UNWRITTEN; WriteMatteCoverage flips its flag. A Draw layer that clips by a channel NOTHING wrote must
-            // NOT be zeroed by that empty channel (the "luma matte only works at Clip-by = None" bug) — it skips the
-            // clip instead (see `hasClip`). A written-but-locally-zero channel still clips (that's real coverage).
-            bool[] channelWritten = null;
-            if (anyMatte) { channels = new float[4][]; channelWritten = new bool[4]; for (int c = 0; c < 4; c++) channels[c] = new float[W * H]; }
-
-            // `bufDirty` guards the "first drawn layer renders straight into buf" path: the first Draw layer to
-            // composite paints (and posts) directly onto the bg-filled output, exactly as the pre-R3 single-layer
-            // renderer did — which is what keeps a one-layer spec byte-identical even with an opaque background +
-            // a post modifier. Every subsequent Draw layer (or any clip/matte/post-after-something layer) isolates
-            // into its own transparent scratch buffer and composites, so its post never re-touches what's below.
-            bool bufDirty = false;
-
-            // Luma-matte (slice 4) carried BY-REF through the layer loop, PARALLEL to the numbered-channel path above.
-            // A LumaMatte-role layer builds this from its finished pixels (mask + flags + amounts + scope); each
-            // subsequent Draw layer runs ApplyMatte with it before compositing. mask == null ⇒ no matte active (the
-            // default for every existing spec, which has no LumaMatte layer ⇒ this stays inert and byte-identical).
-            var matteState = default(MatteState);
-
-            // First-class border draw-over-matte (task #65): borders of layers whose borderOverMatte is ON are NOT
-            // folded into their layer (their fill feeds the matte/clip/composite alone); the border is collected here
-            // and composited ON TOP of the whole finished stack below, in paint order. Lazily allocated ⇒ null for
-            // every spec with no over-matte border (all existing specs) ⇒ the end-of-loop composite is skipped ⇒
-            // byte-identical.
-            List<Color32[]> deferredBorders = null;
-
-            for (int li = 0; li < layers.Count; li++)
-            {
-                var layer = layers[li];
-                if (layer == null || !layer.enabled) continue;
-                _layerSalt = li;
-
-                // First-class border (task #60): only the six FLAT 2D forms, and only when enabled. Gated so every
-                // other form — and every border-off layer (the default) — takes the exact pre-border path below
-                // (hasBorder false ⇒ no border buffer built, needScratch unchanged, nothing deferred ⇒ byte-identical).
-                // A plug-in form owns its whole look (shapeForm is ignored while `form` is set), so the border rim —
-                // a feature of the six flat enum forms — does not apply to it.
-                bool hasBorder = layer.form == null && layer.borderEnabled && IsFlat2DBorderForm(layer.shapeForm);
-
-                // ── per-layer lifetime window (#55) — ported 1:1 from Pyre1 (BlastRenderer.cs:218/565) ──────────
-                // Resolve the window against the frame count: endFrame < 0 is the "last frame" SENTINEL ⇒ frames-1
-                // (so a full-range window ends at frames-1 at ANY frameCount, never a hardcoded 15). A default layer
-                // (0 / -1) resolves to [0, frames-1]. OUTSIDE the window the layer is INACTIVE — it contributes
-                // nothing this frame (mirrors how Pyre1 blanks a layer outside its window). INSIDE, the layer's
-                // life is lerped 0..1 across [start, end] EXACTLY as Pyre1 does —
-                // Mathf.Clamp01((frame-start)/Max(1,end-start)) — which for the default full range is the old
-                // frame/(frames-1) VERBATIM (byte-identical), and which remaps the whole swarm's spawn/particle-life
-                // timing (all fraction-of-life over the layer clock) across the window for free. `life` above stays
-                // the spec-level clock for the background fill; `layerLife` is what every per-layer draw reads.
-                int winStart = Mathf.Clamp(layer.startFrame, 0, frames - 1);
-                int winEnd = layer.endFrame < 0 ? (frames - 1) : Mathf.Clamp(layer.endFrame, 0, frames - 1);
-                if (winEnd < winStart) winEnd = winStart;   // degenerate authoring collapses to a single live frame
-                if (frameIndex < winStart || frameIndex > winEnd) continue;   // out of window ⇒ inactive this frame
-                float layerLife = Mathf.Clamp01((frameIndex - winStart) / (float)Mathf.Max(1, winEnd - winStart));
-
-                // Build + Prepare this layer's EFFECTIVE geometry/pixel modifier stack for THIS frame = its own
-                // modifiers wrapped by the spec-wide globalModifiers in Pyre1's order (global geometry OUTERMOST,
-                // global pixels AFTER the layer's own — see BuildMods/CollectMods). Layer mods Eval at layerLife,
-                // globals at the whole-timeline blast `life`, mirroring BlastRenderer's lp vs bp. Empty on BOTH ⇒
-                // ModSet.Empty ⇒ DrawParticle's byte-identical fast path; empty globals ⇒ this layer's stack is
-                // exactly its own modifiers (byte-identical to pre-#56).
-                ModSet mods = BuildMods(layer.modifiers, spec.globalModifiers, spec.seed, layerLife, life);
-                bool hasPost = HasEnabledPost(layer.modifiers);
-                // Simulation slot (slice 7): the layer's own STATEFUL modifier. Like Fire/Fireball it retains state and
-                // must render into isolated scratch (its Render OVERWRITES/advects pixels — see ApplyLayerSim), so it
-                // forces needScratch for the Draw path and runs in the sim slot (after the stateless posts, before the
-                // matte). Default null ⇒ false ⇒ every existing spec byte-identical.
-                bool hasLayerSim = layer.simulationModifier != null && layer.simulationModifier.enabled;
-                // Text form: bake + snapshot the SDF atlas for THIS layer's string/font. _textReady gates every Text
-                // draw; when false (no readable font) each Text particle falls back to the Disc raster instead.
-                _textReady = layer.shapeForm == ShapeForm.Text && EnsureTextGlyphs(layer);
-
-                // #57 — the ENTIRE matte block (write/luma role, numbered-channel clip, slice-4b height consume) is
-                // gated on matteEnabled. When a layer's Matte is toggled OFF it acts as a plain Draw layer, so the
-                // window no longer has to WIPE matteRole/clipByChannel/heightFromChannel to make a matte stop acting —
-                // it just clears this flag and the data is PRESERVED for re-enabling. matteEnabled DEFAULTS TRUE (see
-                // PyrePlusSpec), so every pre-existing matte spec — including a field-absent old asset whose matte role
-                // predates this flag — stays enabled ⇒ byte-identical.
-                bool matteOn = layer.matteEnabled;
-                bool isMatte = matteOn && layer.matteRole == MatteRole.WriteMatte;
-                bool isLuma = matteOn && layer.matteRole == MatteRole.LumaMatte;
-                // #58 Fix 3: only clip when the target channel was actually WRITTEN by an earlier layer. Clip-by an
-                // UNWRITTEN channel ⇒ hasClip false ⇒ clip == null ⇒ the layer composites normally (no all-zero blank).
-                bool hasClip = matteOn && !isMatte && !isLuma && channels != null && layer.clipByChannel >= 0 && layer.clipByChannel < 4 && channelWritten[layer.clipByChannel];
-
-                if (isMatte)
-                {
-                    // WriteMatte: render the layer into an isolated transparent scratch exactly as if drawn, run its
-                    // own post pass on that scratch, then read each pixel's ALPHA (the coverage it WOULD have drawn)
-                    // into its channel. Never composited — a matte layer is invisible.
-                    var scratch = new Color32[W * H];
-                    RenderLayer(scratch, W, H, layerLife, spec, layer, mods, phase, frameIndex);
-                    // Border (task #60/#65): built from the FILL silhouette (pre-post). borderOverMatte OFF folds the
-                    // rim into the coverage (part of the invisible matte); ON keeps the coverage fill-only and defers
-                    // the rim to draw on TOP of the finished frame — so this matte's own shape can stencil a channel
-                    // while its border stays visible (the #65 fix: no separate outline-only layer).
-                    Color32[] borderBuf = hasBorder ? BuildBorderBuffer(scratch, W, H, layerLife, spec, layer) : null;
-                    if (borderBuf != null && !layer.borderOverMatte) CompositeLayer(scratch, borderBuf, null, false);
-                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, layerLife, frameIndex);
-                    if (hasLayerSim) ApplyLayerSim(layer.simulationModifier, spec.seed, scratch, W, H, frameIndex, frames);
-                    if (channels != null) { int wch = Mathf.Clamp(layer.matteChannel, 0, 3); WriteMatteCoverage(channels[wch], scratch, layer.matteCombine, layer.matteWriteLuma); channelWritten[wch] = true; }
-                    if (borderBuf != null && layer.borderOverMatte) (deferredBorders ??= new List<Color32[]>()).Add(borderBuf);
-                    continue;
-                }
-
-                if (isLuma)
-                {
-                    // LumaMatte (slice 4): render + post into an isolated scratch exactly like WriteMatte, but instead
-                    // of writing a coverage channel, turn the finished pixels into a luminance×alpha MASK and ARM
-                    // matteState for the Draw layers above (a PUSH matte — the authoritative matte layer imposes its
-                    // channels on the passive layers on top). Never composited — a matte layer is invisible. The
-                    // strength/amounts Eval over THIS layer's own life, frame-global (the modifier-scope sentinel).
-                    var scratch = new Color32[W * H];
-                    RenderLayer(scratch, W, H, layerLife, spec, layer, mods, phase, frameIndex);
-                    // Border (task #60/#65): borderOverMatte OFF folds the rim into the luminance mask (part of the
-                    // invisible matte); ON builds the mask from the fill alone and defers the rim on top of the frame.
-                    Color32[] borderBuf = hasBorder ? BuildBorderBuffer(scratch, W, H, layerLife, spec, layer) : null;
-                    if (borderBuf != null && !layer.borderOverMatte) CompositeLayer(scratch, borderBuf, null, false);
-                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, layerLife, frameIndex);
-                    if (hasLayerSim) ApplyLayerSim(layer.simulationModifier, spec.seed, scratch, W, H, frameIndex, frames);
-                    float strength = Mathf.Clamp01(Eval(layer.matteStrength, layerLife, spec.seed, ModParticleIndex, FldMatteStrength));
-                    matteState.mask = BuildMatteMask(scratch, layer.matteInvert, strength);
-                    matteState.flags = layer.matteFlags;
-                    matteState.blurAmt = Eval(layer.matteBlurAmount, layerLife, spec.seed, ModParticleIndex, FldMatteBlur);
-                    matteState.dispAmt = Eval(layer.matteDisplaceAmount, layerLife, spec.seed, ModParticleIndex, FldMatteDisplace);
-                    matteState.hueDeg = Eval(layer.matteHueDegrees, layerLife, spec.seed, ModParticleIndex, FldMatteHue);
-                    matteState.oneShot = layer.matteScope == MatteScope.NextLayer;
-                    matteState.alphaSource = layer.matteAlphaSource;   // slice 5 — decided by the matte layer
-                    if (borderBuf != null && layer.borderOverMatte) (deferredBorders ??= new List<Color32[]>()).Add(borderBuf);
-                    continue;
-                }
-
-                // Draw layer. Render straight into `buf` — matching the pre-R3 path — only when no isolation is
-                // needed: no clip (which must multiply alpha before compositing), no active luma matte (which
-                // rewrites this layer's own pixels before it composites), and it isn't a later layer whose post
-                // would re-process the layers already beneath it. hasPost && !bufDirty means it's the FIRST thing on
-                // the frame, so posting over buf == posting over (bg + this layer) == the old renderer. matteActive
-                // is always false for a spec with no LumaMatte layer, so needScratch reduces to the exact pre-slice-4
-                // expression and the fast path is byte-identical.
-                // Heightmap consumer (slice 4b): a Draw layer with heightFromChannel ≥ 0 does NOT draw its shape — it
-                // renders the FUSED scalar field in channels[heightFromChannel] (deposited by the WriteMatte luminance
-                // layers below) as a relief-lit heightmap through its own Fill. Everything else (post / clip / matte /
-                // composite / bufDirty) is the normal Draw path — only the shape-render call is swapped. Default -1 ⇒
-                // isHeightConsumer false ⇒ the normal RenderLayer, byte-identical.
-                bool isHeightConsumer = matteOn && channels != null && layer.heightFromChannel >= 0 && layer.heightFromChannel < 4;
-                float[] heightField = isHeightConsumer ? channels[layer.heightFromChannel] : null;
-
-                // Fire (slice 6a) — a stateful sim form MUST render into isolated scratch: FireSim.Render OVERWRITES
-                // above-threshold pixels and leaves the rest untouched (it never clears), so painting it straight into
-                // the shared output would replace rather than Over-composite it and would carry whatever was already
-                // there. Forcing needScratch mirrors BlastRenderer's hasLayerPost isolation for Fire/Fireball. The
-                // fire render itself is dispatched inside RenderLayer (the scratch branch below calls RenderLayer).
-                bool isFire = layer.shapeForm == ShapeForm.Fire;
-                // Fireball (slice 6b) — the second stateful sim form; same isolation reason as Fire (FireballSim.Render
-                // OVERWRITES above-threshold pixels and never clears, so it must Over-composite from an isolated scratch,
-                // never render straight into the shared output). Dispatched inside RenderLayer's scratch branch below.
-                bool isFireball = layer.shapeForm == ShapeForm.Fireball;
-
-                bool matteActive = matteState.mask != null;
-                // hasBorder forces the isolated-scratch path so the border can read this layer's OWN fill alpha (the
-                // straight-into-buf fast path has no separate layer buffer to rim). Border OFF ⇒ hasBorder false ⇒
-                // needScratch is exactly the pre-border expression ⇒ the fast path is untouched and byte-identical.
-                // A plug-in form is treated like the whole-layer forms: it may SET pixels over its silhouette, so it
-                // always paints into an isolated scratch that is then Over-composited.
-                bool isForm = layer.form != null;
-                bool needScratch = hasClip || (hasPost && bufDirty) || matteActive || isFire || isFireball || isForm || hasLayerSim || hasBorder;
-                if (!needScratch)
-                {
-                    if (isHeightConsumer) RenderHeightConsumer(buf, W, H, layer, heightField);
-                    else RenderLayer(buf, W, H, layerLife, spec, layer, mods, phase, frameIndex);
-                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, buf, W, H, layerLife, frameIndex);
-                }
-                else
-                {
-                    var scratch = new Color32[W * H];
-                    if (isHeightConsumer) RenderHeightConsumer(scratch, W, H, layer, heightField);
-                    else RenderLayer(scratch, W, H, layerLife, spec, layer, mods, phase, frameIndex);
-                    // Border (task #60/#65): built from the fill silhouette (pre-post). OFF folds the rim into the
-                    // layer (composited/clipped/matte'd with the fill like normal); ON composites the fill alone and
-                    // defers the rim on top of the finished frame (an always-on-top outline).
-                    Color32[] borderBuf = hasBorder ? BuildBorderBuffer(scratch, W, H, layerLife, spec, layer) : null;
-                    if (borderBuf != null && !layer.borderOverMatte) CompositeLayer(scratch, borderBuf, null, false);
-                    if (hasPost) ApplyLayerPost(layer.modifiers, spec.seed, scratch, W, H, layerLife, frameIndex);
-                    // Simulation slot (slice 7): run the layer's stateful sim modifier HERE — after the stateless post
-                    // modifiers, before the matte apply — on the isolated scratch, the exact sim-slot position vanilla
-                    // Pyre uses per layer (Runtime/Pyre/BlastRenderer.cs:156-166). Forced into this scratch branch by
-                    // hasLayerSim ⇒ needScratch above (retained state + overwrite semantics), mirroring Fire/Fireball.
-                    if (hasLayerSim) ApplyLayerSim(layer.simulationModifier, spec.seed, scratch, W, H, frameIndex, frames);
-                    // Impose the active luma matte on this finished-but-uncomposited layer (its six channels, in the
-                    // fixed order), BEFORE the clip/composite so the mask shapes this layer's own pixels. oneShot
-                    // (NextLayer scope) consumes the matte after this one Draw layer; AllAbove persists until another
-                    // LumaMatte replaces it. Isolation is forced above (matteActive ⇒ needScratch), mirroring
-                    // BlastRenderer's per-layer scratch for a matte-affected layer.
-                    if (matteActive)
-                    {
-                        ApplyMatte(scratch, matteState.mask, matteState.flags, matteState.blurAmt,
-                                   matteState.dispAmt, matteState.hueDeg, matteState.alphaSource, W, H);
-                        if (matteState.oneShot) matteState = default;
-                    }
-                    float[] clip = hasClip ? channels[layer.clipByChannel] : null;
-                    CompositeLayer(buf, scratch, clip, layer.clipInvert);
-                    if (borderBuf != null && layer.borderOverMatte) (deferredBorders ??= new List<Color32[]>()).Add(borderBuf);
-                }
-                bufDirty = true;
-            }
-
-            // ── first-class border draw-over-matte (task #65) ────────────────────────────────────────────────────
-            // Composite the deferred over-matte borders ON TOP of the fully-composited stack, in paint order, BEFORE
-            // the global post passes (so post effects include the borders). Each buffer is a straight-colour rim whose
-            // alpha already carries band × the shape's coverage, so a plain Over draws it. null ⇒ no over-matte border
-            // anywhere ⇒ skipped ⇒ byte-identical to pre-border.
-            if (deferredBorders != null)
-                for (int i = 0; i < deferredBorders.Count; i++)
-                    CompositeLayer(buf, deferredBorders[i], null, false);
-
-            // ── spec-wide GLOBAL post passes (task #56) ───────────────────────────────────────────────────────
-            // Whole-frame post modifiers (Bloom / Outline / Kaleidoscope / …) from the spec's globalModifiers list,
-            // in list order, AFTER every layer has composited — the exact stage & keying of BlastRenderer's trailing
-            // global PostModifier loop (Runtime/Pyre/BlastRenderer.cs:958-971). Evaluated at the whole-timeline blast
-            // `life` (Pyre1's bp), layer-independent (GlobalLayerSalt pinned so a MinMax post param doesn't inherit
-            // the last layer's salt). Empty globalModifiers ⇒ this loop does nothing ⇒ byte-identical to pre-#56.
-            if (spec.globalModifiers != null)
-            {
-                int savedSalt = _layerSalt;
-                _layerSalt = GlobalLayerSalt;
-                for (int i = 0; i < spec.globalModifiers.Count; i++)
-                {
-                    var m = spec.globalModifiers[i];
-                    if (m == null || !m.enabled) continue;
-                    if (m is PostModifier post)
-                    {
-                        SetPostContext(post, life, spec.seed, frameIndex);
-                        int idx = i;
-                        m.Prepare((v, fid) => Eval(v, life, spec.seed, ModParticleIndex, FldModifier + (GlobalPostBase + idx) * 8 + fid));
-                        post.Apply(buf, W, H);
-                    }
-                }
-                _layerSalt = savedSalt;
-            }
-            return buf;
+            return fc.Finish();
         }
 
         // Dispatch one layer's particles into `target` (its own scratch or, for the first drawn layer, buf itself).

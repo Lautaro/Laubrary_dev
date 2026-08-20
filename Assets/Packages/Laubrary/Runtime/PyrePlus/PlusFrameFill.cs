@@ -83,7 +83,7 @@ namespace Laubrary.PyrePlus
         /// A deep copy of the spec for one worker, with every plug-in form linked to its origin so the pre-pass caches
         /// are shared (not re-solved per worker). Instantiate goes through serialization, which is what makes the
         /// copy complete by construction — any render input a future field adds is copied without this code knowing.
-        static PyrePlusSpec CloneForWorker(PyrePlusSpec spec)
+        public static PyrePlusSpec CloneForWorker(PyrePlusSpec spec)
         {
             var c = UnityEngine.Object.Instantiate(spec);
             c.hideFlags = HideFlags.HideAndDontSave;
