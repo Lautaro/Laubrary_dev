@@ -23,6 +23,9 @@ namespace Laubrary.Zoetrope
         public ProjectileWeapon weapon;
         [Tooltip("Fallback muzzle position source when there's no ICueSink. Falls back to this transform if unset.")]
         public Transform muzzle;
+        /// Which MetaLayer/FrameEvent to register with the ICueSink — the equipping Zoe's OWN choice
+        /// (ZoeWeaponSlot.muzzleLayerId/muzzleEventName), not anything stored on def. See Configure's own doc.
+        string _muzzleLayerId, _muzzleEventName;
 
         readonly string _key = System.Guid.NewGuid().ToString("N");
         ICueSink _sink;
@@ -32,12 +35,17 @@ namespace Laubrary.Zoetrope
         bool _configured;
 
         /// Call this right after AddComponent — OnEnable already ran before the caller could set fields the
-        /// normal way, so this both sets them AND performs the initial registration immediately.
-        public void Configure(WeaponDef def, ProjectileWeapon weapon, Transform muzzle)
+        /// normal way, so this both sets them AND performs the initial registration immediately. muzzleLayerId/
+        /// muzzleEventName come from the EQUIPPING ZOE's ZoeWeaponSlot, not from def — a WeaponDef itself
+        /// carries no character-specific wiring, so the same weapon stays equippable by any character.
+        public void Configure(WeaponDef def, ProjectileWeapon weapon, Transform muzzle,
+                               string muzzleLayerId = "", string muzzleEventName = "")
         {
             this.def = def;
             this.weapon = weapon;
             this.muzzle = muzzle;
+            _muzzleLayerId = muzzleLayerId;
+            _muzzleEventName = muzzleEventName;
             _configured = true;
             if (isActiveAndEnabled) RegisterNow();
         }
@@ -58,7 +66,7 @@ namespace Laubrary.Zoetrope
                 _sink = GetComponentInParent<ICueSink>();
                 if (_sink != null)
                 {
-                    _sink.Register(_key, def.muzzleLayerId, def.muzzle, def.muzzleEventName);
+                    _sink.Register(_key, _muzzleLayerId, def.muzzle, _muzzleEventName);
                 }
                 else if (weapon != null)
                 {

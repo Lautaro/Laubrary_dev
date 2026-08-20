@@ -17,6 +17,16 @@ Unity editor, so before using any Coplay tool you MUST point the bridge at this 
 If `Application.dataPath` points elsewhere, `check_compile_errors` will look clean despite new code and
 reflection won't find new types — re-run steps 1–3. `set_unity_project_root` is per-session.
 
+## Deprecated tools — Pyre is deprecated, use PyrePlus
+
+**Pyre** (`Runtime/Pyre/`, `Editor/Pyre/`, `BlastRenderer`) is deprecated as of 2026-08-18. **PyrePlus**
+(`Runtime/PyrePlus/`, `Editor/PyrePlus/`, `PyrePlusRenderer`) is its replacement and the one explosion/blast tool
+to build against going forward — do not author new Pyre-only content or point new tool integrations (Chunks
+included) at plain Pyre. The actual retirement/rename mechanics (whether old Pyre gets deleted, kept as a frozen
+shim, or PyrePlus is eventually renamed to plain "Pyre") are not yet executed — see project memory
+`todo-retire-pyre-for-pyreplus.md` for the open mechanics questions. Existing Pyre-referencing code and assets
+keep working in the meantime; this note is about what NEW work should target.
+
 ## Tool conventions (mirror for every Laubrary tool)
 
 - Runtime tool: `Runtime/<Tool>/` → asmdef `com.Lautaro-Arino.Laubrary.<Tool>`, rootNamespace `Laubrary.<Tool>`.

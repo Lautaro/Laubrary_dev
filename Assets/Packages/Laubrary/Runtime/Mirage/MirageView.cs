@@ -110,6 +110,12 @@ namespace Laubrary.Mirage
                  "fireWeapon/muzzleLayerId are stand-ins for real trigger logic.")]
         public Vector2 previewAimDirection = Vector2.right;
 
+        [Tooltip("Freeze this entry onto one named, real game-state pose (\"Idle N\", \"Moving E\") instead of " +
+                 "driving off Mirage's own stand-in input — picked from Laubrary.ZoetropeLaunimator.MotionPoseCatalog's " +
+                 "auto-derived list for this Zoe (never typed free-hand). Only meaningful for a Zoe whose parts " +
+                 "author a MotionPose. Empty = normal live-driven preview, unchanged.")]
+        public string previewPose = "";
+
         [Tooltip("A Mirage-only testing convenience — opt in to a self-contained Idle -> (Hurt) -> Death -> " +
                  "respawn loop for THIS preview entry, replacing the Clips list above. Uses the real spawn " +
                  "path, Health, and the Zoe's own hitReaction for the hurt/death clips (same as a real level " +

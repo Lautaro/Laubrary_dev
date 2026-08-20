@@ -7,7 +7,11 @@ using Laubrary.AssetKit.Editor;
 using Laubrary.Chunks;
 using Laubrary.Combat2D;
 using Laubrary.LaunimatorZounds.Editor;
+using Laubrary.Launimator;
+using Laubrary.ZoetropeLaunimator;
 using Laubrary.Zui;
+using Laubrary.Mirage;
+using Laubrary.Mirage.Editor;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -651,6 +655,11 @@ namespace Laubrary.Zoetrope.Editor
         // freshly created event is named by typing rather than by hunting for its field).
         int _focusEventIndex = -1;
 
+        // Rig section: which animation+frame represents each part in the schematic preview (scrubbing through
+        // directions without playing anything — Mirage is the real animated preview). Keyed by part name.
+        readonly Dictionary<string, int> _rigAnimIndex = new Dictionary<string, int>();
+        readonly Dictionary<string, int> _rigFrameIndex = new Dictionary<string, int>();
+
         void RunValidators() { for (int i = 0; i < _validators.Count; i++) _validators[i]?.Invoke(); }
 
         // Hand-curated rather than the base's generic loop: maxHealth/invulnerableAfterHit are two short
@@ -681,6 +690,8 @@ namespace Laubrary.Zoetrope.Editor
             BuildManagedRef(look, So.FindProperty("view"), "View", zoe);
             root.Add(look);
 
+            if (zoe.view is CompositeLauminaryView composite) BuildRig(root, zoe, composite);
+
             var reactions = Z.Section("Reactions",
                 "What plays when this character is hurt, when it dies, and on any custom event it declares.");
             reactions.Add(Z.Text("Hit", ZuiText.Section, "What happens on a non-killing hit."));
@@ -701,13 +712,412 @@ namespace Laubrary.Zoetrope.Editor
             root.Add(ZuiSerialized.Property(So.FindProperty("loadout"), "Loadout",
                 "Pluggable weapons + abilities the character can activate; triggered by the brain or by input. Unused today."));
 
-            var weapons = BuildObjectListProperty(root, So.FindProperty("weapons"), typeof(WeaponDef), "Weapon");
+            var weapons = BuildWeaponSlots(root, zoe);
             weapons.Add(IntFieldClamped("Default Active Weapon", "defaultActiveWeapon", zoe.defaultActiveWeapon,
                 "Which weapon slot is enabled when this character spawns.", v => Mathf.Max(0, v)));
 
             BuildCues(root, zoe);
 
             RunValidators();   // first paint of every warning badge, from the data as it stands right now
+        }
+
+        // ── Weapons: each slot names its OWN attach part + muzzle layer ───────────────────────
+        // Moved off WeaponDef 2026-08-17 (a WeaponDef baking in one specific Zoe's part/layer names could only
+        // ever be correctly configured for ONE character — see ZoeWeaponSlot's own doc comment for the full
+        // story). Custom list editor (not BuildObjectListProperty) because ZoeWeaponSlot is a plain serializable
+        // class, not a UnityEngine.Object list — no two-step delete dance needed, that quirk is specific to
+        // object-reference arrays.
+        VisualElement BuildWeaponSlots(VisualElement root, Zoe zoe)
+        {
+            var listProp = So.FindProperty("weapons");
+            var section = Z.Section($"Weapons  ({listProp.arraySize})",
+                "Switchable equipped weapon slots. Each slot names its OWN attach part + muzzle layer (on THIS " +
+                "Zoe), not the weapon's — so the same WeaponDef asset stays equippable by any character.",
+                "Zoe.weapons");
+            root.Add(section);
+
+            var partNames = WeaponAttachmentLibrary.FindPartNames(zoe);
+            var layerCandidates = WeaponAttachmentLibrary.FindMuzzleLayerCandidates(zoe);
+
+            for (int i = 0; i < listProp.arraySize; i++)
+            {
+                int idx = i;
+                var elemProp = listProp.GetArrayElementAtIndex(idx);
+                var weaponProp = elemProp.FindPropertyRelative("weapon");
+                var attachProp = elemProp.FindPropertyRelative("attachToPartName");
+                var layerProp = elemProp.FindPropertyRelative("muzzleLayerId");
+                var eventProp = elemProp.FindPropertyRelative("muzzleEventName");
+
+                var card = Z.Box($"Weapon {idx + 1}", "One equipped weapon slot.");
+
+                var weaponRow = Z.Row(LauAssetElement.Build(weaponProp.objectReferenceValue,
+                    picked => { Commit(weaponProp.propertyPath, p => p.objectReferenceValue = picked); Rebuild(); },
+                    typeof(WeaponDef), FieldThumbs, $"Weapon {idx}", DefaultFolder, "Which WeaponDef this slot equips."));
+                weaponRow.Add(Z.Button("X", "Remove this weapon slot.", () =>
+                {
+                    Commit(listProp.propertyPath, p => p.DeleteArrayElementAtIndex(idx));
+                    Rebuild();
+                }).W(24f));
+                card.Add(weaponRow);
+
+                {
+                    var ids = new List<string>(partNames);
+                    var options = new List<string>(partNames.Count + 2) { "(root)" };
+                    options.AddRange(partNames);
+                    string current = attachProp.stringValue;
+                    if (!string.IsNullOrEmpty(current) && !ids.Contains(current))
+                    { ids.Insert(0, current); options.Insert(1, $"{current} (unresolved)"); }
+                    int currentIdx = string.IsNullOrEmpty(current) ? 0 : Mathf.Max(0, ids.IndexOf(current) + 1);
+                    const string partTip = "Which named composite body part this weapon attaches to, so its " +
+                        "muzzle can read THAT part's own animation. Empty = the character root.";
+                    card.Add(Z.Field("Attach To Part", partTip, Z.Dropdown(currentIdx, options, partTip,
+                        v => Commit(attachProp.propertyPath, p => p.stringValue = v <= 0 ? "" : ids[v - 1]), 200f)));
+                }
+
+                {
+                    var ids = new List<string>();
+                    var options = new List<string> { "(none)" };
+                    foreach (var c in layerCandidates) { ids.Add(c.id); options.Add($"{c.id} ({c.mode})"); }
+                    string current = layerProp.stringValue;
+                    if (!string.IsNullOrEmpty(current) && !ids.Contains(current))
+                    { ids.Insert(0, current); options.Insert(1, $"{current} (unresolved)"); }
+                    int currentIdx = string.IsNullOrEmpty(current) ? 0 : Mathf.Max(0, ids.IndexOf(current) + 1);
+                    const string layerTip = "Which MetaLayer (Point or Vector, on this part's own animation) " +
+                        "carries this weapon's live muzzle position. Ignored when Muzzle Event Name is set.";
+                    card.Add(Z.Field("Muzzle Layer Id", layerTip, Z.Dropdown(currentIdx, options, layerTip,
+                        v => Commit(layerProp.propertyPath, p => p.stringValue = v <= 0 ? "" : ids[v - 1]), 200f)));
+                }
+
+                const string eventTip = "Alternative to Layer Id — a FrameEvent name (an authored pixel " +
+                    "position). Takes priority over Layer Id for the muzzle-flash VFX cue specifically.";
+                card.Add(Z.Field("Muzzle Event Name", eventTip, Z.TextInput(eventProp.stringValue, eventTip,
+                    v => Commit(eventProp.propertyPath, p => p.stringValue = v), ScalarFieldWidth)));
+
+                var (lauminary, animName) = WeaponAttachmentLibrary.ResolveLauminary(zoe, attachProp.stringValue);
+                var editBtn = Z.Button("Paint Muzzle...",
+                    lauminary != null
+                        ? $"Open the Laumination Builder on '{lauminary.name}' to paint this part's Muzzle MetaLayer."
+                        : "This part has no reachable Lauminary to open yet.",
+                    () => Laubrary.Launimator.Editor.LauminationBuilderWindow.OpenForEdit(lauminary, animName));
+                editBtn.SetEnabled(lauminary != null);
+                card.Add(editBtn);
+
+                section.Add(card);
+            }
+
+            section.Add(Z.Button("+ Add Weapon", "Append another weapon slot.", () =>
+            {
+                Commit(listProp.propertyPath, p => p.arraySize++);
+                Rebuild();
+            }).W(AddButtonWidth));
+            return section;
+        }
+
+        // ── Rig: composite body-part attachment authoring ─────────────────────────────────────
+        // Only shown when Zoe.view is a CompositeLauminaryView — a single-part Zoe has nothing to attach.
+        // Per T-0026's converged design: one connection per non-root part = a parent-side anchor + a
+        // child-side anchor (each independently Edge or MetaLayer) + a shared offset. The schematic preview
+        // is deliberately animation-free (boxes + connection dots only) — Mirage is the real, playing preview.
+        void BuildRig(VisualElement root, Zoe zoe, CompositeLauminaryView composite)
+        {
+            var rig = Z.Section("Rig", "How this composite body's parts attach to each other. Each connection " +
+                "resolves every frame from an anchor on each side — Edge (computed automatically from the " +
+                "current sprite bounds, no painting needed) or MetaLayer (a named painted point). The preview " +
+                "below is schematic only — boxes and connection dots, no animated art; open Mirage to see the " +
+                "real, playing result.");
+
+            rig.Add(Z.Button("Preview in Mirage", "Open Mirage with a throwaway preview of this Zoe, so you can " +
+                "see the real composited art (not just the schematic boxes above) and check alignment across " +
+                "every direction. The preview view is created in memory only — it is never saved as a project " +
+                "asset, so it never appears in Mirage's own Browse list or anywhere else; open this button again " +
+                "any time for a fresh one.", () => PreviewInMirage(zoe)));
+
+            var viewProp = So.FindProperty("view");
+            var partsProp = viewProp?.FindPropertyRelative("parts");
+
+            if (composite.parts != null && partsProp != null)
+                for (int i = 0; i < composite.parts.Count; i++)
+                {
+                    var part = composite.parts[i];
+                    if (part == null || string.IsNullOrEmpty(part.parentPartName)) continue; // root: nothing to attach
+                    var partProp = partsProp.GetArrayElementAtIndex(i);
+                    var parentAnchorProp = partProp.FindPropertyRelative("parentAnchor");
+                    var childAnchorProp = partProp.FindPropertyRelative("childAnchor");
+
+                    var card = Z.Box($"{part.name} → {part.parentPartName}",
+                        $"How '{part.name}' attaches to its parent part '{part.parentPartName}'.");
+                    card.Add(Z.Text("Parent side", ZuiText.Small,
+                        $"Where on '{part.parentPartName}''s current frame this connects."));
+                    if (parentAnchorProp != null) BuildAnchorRow(card, parentAnchorProp, part.parentAnchor);
+                    card.Add(Z.Text("This part's side", ZuiText.Small,
+                        $"Where on '{part.name}''s own current frame the connection lands."));
+                    if (childAnchorProp != null) BuildAnchorRow(card, childAnchorProp, part.childAnchor);
+                    rig.Add(card);
+                }
+
+            BuildRigSchematic(rig, composite);
+            root.Add(rig);
+        }
+
+        /// Opens Mirage on a throwaway <see cref="MirageView"/> holding just this Zoe, for real composited-art
+        /// vetting (vs. the boxes-only schematic above). Deliberately created via ScriptableObject.CreateInstance
+        /// and NEVER passed to AssetDatabase.CreateAsset — every browser/picker in the project (this window's own
+        /// Browse list included) enumerates via AssetLibrary&lt;T&gt;.Enumerate → AssetDatabase.FindAssets, so an
+        /// unsaved instance is structurally invisible to all of them with no separate "hidden" flag needed. Content
+        /// intentionally left otherwise blank — a composite Zoe with an authored MotionPose (ProtoGuy's case)
+        /// self-drives idle/aim every frame via its own MotionPoseAnimator with no Mirage-authored clip needed;
+        /// use Mirage's own HUD to move/interact once it's open.
+        static void PreviewInMirage(Zoe zoe)
+        {
+            if (zoe == null) return;
+            var view = ScriptableObject.CreateInstance<MirageView>();
+            view.name = $"{zoe.name} (Rig Preview)";
+            view.AddEntry(zoe, Vector2.zero);
+            MirageWindow.OpenFor(view);
+        }
+
+        void BuildAnchorRow(VisualElement host, SerializedProperty anchorProp, AttachAnchor anchor)
+        {
+            var modeProp = anchorProp.FindPropertyRelative("mode");
+            host.Add(EnumPicker(modeProp, "Mode", "Edge = computed automatically from the current sprite " +
+                "bounds, no painting needed. MetaLayer = read from a named painted point."));
+
+            if (anchor.mode == AttachAnchorMode.Edge)
+            {
+                var edgeProp = anchorProp.FindPropertyRelative("edge");
+                host.Add(EnumPicker(edgeProp, "Edge", "Which side of the current sprite's bounds."));
+            }
+            else
+            {
+                var layerProp = anchorProp.FindPropertyRelative("metaLayerId");
+                host.Add(Z.Field("MetaLayer Id", "The painted point's layer id (e.g. \"Waist\").",
+                    Z.TextInput(layerProp.stringValue, "The painted point's layer id (e.g. \"Waist\").",
+                        v => Commit(layerProp.propertyPath, p => p.stringValue = v), ScalarFieldWidth)));
+            }
+
+            var offsetProp = anchorProp.FindPropertyRelative("offset");
+            var xProp = offsetProp.FindPropertyRelative("x");
+            var yProp = offsetProp.FindPropertyRelative("y");
+            host.Add(Z.Row(
+                NumField("Offset X", xProp.propertyPath, xProp.floatValue,
+                    "Fine-tune nudge in world units, added on top of the computed/painted point."),
+                Z.HSpace(),
+                NumField("Offset Y", yProp.propertyPath, yProp.floatValue,
+                    "Fine-tune nudge in world units, added on top of the computed/painted point.")));
+        }
+
+        void BuildRigSchematic(VisualElement root, CompositeLauminaryView composite)
+        {
+            if (composite.parts == null || composite.parts.Count == 0) return;
+
+            root.Add(Z.Text("Preview (schematic)", ZuiText.Section,
+                "Boxes and connection dots only — no animated art. Scrub each part's direction/frame to check " +
+                "alignment across the whole set before opening Mirage to see it actually play."));
+
+            foreach (var part in composite.parts)
+            {
+                if (part == null) continue;
+                if (!(part.view is ZonedLauminaryView zlv) || zlv.version == null || zlv.version.animations.Count == 0) continue;
+
+                int ai = _rigAnimIndex.TryGetValue(part.name, out int a) ? a : 0;
+                ai = Mathf.Clamp(ai, 0, zlv.version.animations.Count - 1);
+                var animNames = zlv.version.animations.Select(x => x.name).ToList();
+                var la = zlv.version.animations[ai];
+
+                int fi = _rigFrameIndex.TryGetValue(part.name, out int f) ? f : 0;
+                fi = Mathf.Clamp(fi, 0, Mathf.Max(0, la.frames.Count - 1));
+
+                string pn = part.name;
+                var row = Z.Row(Z.Text(pn, ZuiText.Small, $"Which frame represents '{pn}' in the preview below.").W(56f));
+                row.Add(Z.Dropdown(ai, animNames, $"Which of '{pn}''s animations to preview.",
+                    v => { _rigAnimIndex[pn] = v; _rigFrameIndex[pn] = 0; Rebuild(); }, 130f));
+                row.Add(Z.Int(fi, $"Which frame of '{la.name}' to preview (0-based, {la.frames.Count} frame(s)).",
+                    v => { _rigFrameIndex[pn] = Mathf.Clamp(v, 0, Mathf.Max(0, la.frames.Count - 1)); Rebuild(); }, 40f));
+                root.Add(row);
+            }
+
+            var box = new IMGUIContainer(() => DrawRigSchematic(composite));
+            box.style.height = 220f;
+            root.Add(box);
+        }
+
+        void DrawRigSchematic(CompositeLauminaryView composite)
+        {
+            var rect = GUILayoutUtility.GetRect(10, 4000, 220, 220);
+            EditorGUI.DrawRect(rect, new Color(0.08f, 0.08f, 0.08f));
+
+            var sprite = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
+            var animOf = new Dictionary<string, Laumination>(StringComparer.OrdinalIgnoreCase);
+            var frameOf = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in composite.parts)
+            {
+                if (p == null || string.IsNullOrEmpty(p.name)) continue;
+                if (!(p.view is ZonedLauminaryView zlv) || zlv.version == null || zlv.version.animations.Count == 0) continue;
+                int ai = _rigAnimIndex.TryGetValue(p.name, out int a) ? Mathf.Clamp(a, 0, zlv.version.animations.Count - 1) : 0;
+                var la = zlv.version.animations[ai];
+                if (la.frames == null || la.frames.Count == 0) continue;
+                int fi = _rigFrameIndex.TryGetValue(p.name, out int f) ? Mathf.Clamp(f, 0, la.frames.Count - 1) : 0;
+                sprite[p.name] = la.frames[fi];
+                animOf[p.name] = la;
+                frameOf[p.name] = fi;
+            }
+
+            // Resolve each part's schematic-local origin by walking connections in dependency order (root
+            // first, then anything whose parent is already resolved) — same shape as CompositeZonedPlayer's
+            // runtime resolver, evaluated once against the chosen frames instead of live every frame.
+            var worldPos = new Dictionary<string, Vector2>(StringComparer.OrdinalIgnoreCase);
+            var resolved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in composite.parts)
+                if (p != null && !string.IsNullOrEmpty(p.name) && string.IsNullOrEmpty(p.parentPartName))
+                { worldPos[p.name] = Vector2.zero; resolved.Add(p.name); }
+
+            for (int pass = 0; pass < composite.parts.Count + 1; pass++)
+            {
+                bool any = false;
+                foreach (var p in composite.parts)
+                {
+                    if (p == null || string.IsNullOrEmpty(p.name) || resolved.Contains(p.name)) continue;
+                    if (string.IsNullOrEmpty(p.parentPartName) || !resolved.Contains(p.parentPartName)) continue;
+
+                    Vector2 parentOrigin = worldPos.TryGetValue(p.parentPartName, out var po) ? po : Vector2.zero;
+                    if (sprite.TryGetValue(p.parentPartName, out var parentSpr) && sprite.TryGetValue(p.name, out var childSpr))
+                    {
+                        Vector2 parentPoint = parentOrigin + ResolveAnchorLocal(parentSpr,
+                            animOf.TryGetValue(p.parentPartName, out var pa) ? pa : null,
+                            frameOf.TryGetValue(p.parentPartName, out var pf) ? pf : 0, p.parentAnchor);
+                        Vector2 childOffsetFromOrigin = ResolveAnchorLocal(childSpr,
+                            animOf.TryGetValue(p.name, out var ca) ? ca : null,
+                            frameOf.TryGetValue(p.name, out var cf) ? cf : 0, p.childAnchor);
+                        worldPos[p.name] = parentPoint - childOffsetFromOrigin;
+                    }
+                    else worldPos[p.name] = parentOrigin; // no previewable sprite on one side — just stack at the parent's origin
+                    resolved.Add(p.name);
+                    any = true;
+                }
+                if (!any) break;
+            }
+
+            float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue;
+            bool any2 = false;
+            foreach (var kv in worldPos)
+            {
+                if (!sprite.TryGetValue(kv.Key, out var s) || s == null) continue;
+                var b = s.bounds;
+                minX = Mathf.Min(minX, kv.Value.x + b.min.x); maxX = Mathf.Max(maxX, kv.Value.x + b.max.x);
+                minY = Mathf.Min(minY, kv.Value.y + b.min.y); maxY = Mathf.Max(maxY, kv.Value.y + b.max.y);
+                any2 = true;
+            }
+            if (!any2)
+            {
+                GUI.Label(rect, "No previewable parts — assign a Lauminary to each part's view.",
+                    new GUIStyle(EditorStyles.centeredGreyMiniLabel) { alignment = TextAnchor.MiddleCenter });
+                return;
+            }
+
+            float spanX = Mathf.Max(0.01f, maxX - minX), spanY = Mathf.Max(0.01f, maxY - minY);
+            float scale = Mathf.Min((rect.width - 20f) / spanX, (rect.height - 20f) / spanY);
+            Vector2 originScreen = new Vector2(
+                rect.x + rect.width * 0.5f - (minX + maxX) * 0.5f * scale,
+                rect.y + rect.height * 0.5f + (minY + maxY) * 0.5f * scale); // screen Y is flipped vs world Y
+
+            Vector2 ToScreen(Vector2 world) => new Vector2(originScreen.x + world.x * scale, originScreen.y - world.y * scale);
+
+            foreach (var p in composite.parts)
+            {
+                if (p == null || string.IsNullOrEmpty(p.name)) continue;
+                if (!worldPos.TryGetValue(p.name, out var wp) || !sprite.TryGetValue(p.name, out var s) || s == null) continue;
+
+                var b = s.bounds;
+                var topLeft = ToScreen(new Vector2(wp.x + b.min.x, wp.y + b.max.y));
+                var size = new Vector2((b.max.x - b.min.x) * scale, (b.max.y - b.min.y) * scale);
+                var boxRect = new Rect(topLeft.x, topLeft.y, size.x, size.y);
+                EditorGUI.DrawRect(boxRect, new Color(0.35f, 0.55f, 0.95f, 0.12f));
+                RigDrawRectOutline(boxRect, new Color(0.35f, 0.65f, 1f, 0.8f));
+                GUI.Label(new Rect(boxRect.x + 2, boxRect.y + 1, boxRect.width, 14), p.name, EditorStyles.whiteMiniLabel);
+
+                // This part's own attach dot (where it connects to ITS parent).
+                if (!string.IsNullOrEmpty(p.parentPartName) && animOf.ContainsKey(p.name))
+                {
+                    var childDot = ToScreen(wp + ResolveAnchorLocal(s, animOf[p.name], frameOf[p.name], p.childAnchor));
+                    RigDrawDot(childDot, new Color(1f, 0.55f, 0.2f));
+                }
+                // Every dot on THIS part where a CHILD attaches to it.
+                foreach (var child in composite.parts)
+                    if (child != null && !string.IsNullOrEmpty(child.name)
+                        && string.Equals(child.parentPartName, p.name, StringComparison.OrdinalIgnoreCase)
+                        && animOf.ContainsKey(p.name))
+                    {
+                        var parentDot = ToScreen(wp + ResolveAnchorLocal(s, animOf[p.name], frameOf[p.name], child.parentAnchor));
+                        RigDrawDot(parentDot, new Color(0.35f, 1f, 0.45f));
+                    }
+            }
+        }
+
+        static void RigDrawDot(Vector2 screenPos, Color c) =>
+            EditorGUI.DrawRect(new Rect(screenPos.x - 3, screenPos.y - 3, 6, 6), c);
+
+        static void RigDrawRectOutline(Rect r, Color c)
+        {
+            EditorGUI.DrawRect(new Rect(r.x, r.y, r.width, 1), c);
+            EditorGUI.DrawRect(new Rect(r.x, r.yMax - 1, r.width, 1), c);
+            EditorGUI.DrawRect(new Rect(r.x, r.y, 1, r.height), c);
+            EditorGUI.DrawRect(new Rect(r.xMax - 1, r.y, 1, r.height), c);
+        }
+
+        /// Offline (no live component) equivalent of CompositeZonedPlayer.ResolveAnchor — same anchor
+        /// semantics, evaluated against a chosen Laumination frame instead of a running ZonedAnimationPlayer,
+        /// for the schematic preview. Returns a LOCAL point (relative to the sprite's own pivot-centered
+        /// origin), not a world position — the caller adds the part's own schematic-space origin.
+        static Vector2 ResolveAnchorLocal(Sprite spr, Laumination anim, int frameIndex, AttachAnchor anchor)
+        {
+            if (spr == null) return anchor.offset;
+
+            if (anchor.mode == AttachAnchorMode.MetaLayer && !string.IsNullOrEmpty(anchor.metaLayerId) && anim?.metaLayers != null)
+            {
+                MetaLayer layer = null;
+                foreach (var L in anim.metaLayers)
+                    if (L != null && string.Equals(L.id, anchor.metaLayerId, StringComparison.OrdinalIgnoreCase)) { layer = L; break; }
+                if (layer != null && layer.frames != null && frameIndex >= 0 && frameIndex < layer.frames.Count
+                    && RigTryComputeCentroid(layer.frames[frameIndex], out double nx, out double ny))
+                {
+                    var mf = layer.frames[frameIndex];
+                    float spx = (float)nx * (spr.rect.width / mf.w);
+                    float spy = (float)ny * (spr.rect.height / mf.h);
+                    Vector2 pivotPx = spr.pivot;
+                    float ppu = spr.pixelsPerUnit <= 0f ? 16f : spr.pixelsPerUnit;
+                    return new Vector2((spx - pivotPx.x) / ppu, (spy - pivotPx.y) / ppu) + anchor.offset;
+                }
+                // Nothing painted this frame — degrade to Edge/Center, same rule the runtime resolver follows.
+            }
+
+            var b = spr.bounds;
+            Vector2 basePoint;
+            switch (anchor.edge)
+            {
+                case AttachEdge.Top: basePoint = new Vector2(b.center.x, b.max.y); break;
+                case AttachEdge.Bottom: basePoint = new Vector2(b.center.x, b.min.y); break;
+                case AttachEdge.Left: basePoint = new Vector2(b.min.x, b.center.y); break;
+                case AttachEdge.Right: basePoint = new Vector2(b.max.x, b.center.y); break;
+                default: basePoint = b.center; break;
+            }
+            return basePoint + anchor.offset;
+        }
+
+        static bool RigTryComputeCentroid(MetaFrame mf, out double nx, out double ny)
+        {
+            nx = 0; ny = 0;
+            if (mf == null || mf.cells == null || mf.cells.Length < mf.w * mf.h || mf.w <= 0 || mf.h <= 0) return false;
+            double sx = 0, sy = 0, sw = 0;
+            for (int y = 0; y < mf.h; y++)
+                for (int x = 0; x < mf.w; x++)
+                {
+                    int v = mf.cells[y * mf.w + x];
+                    if (v <= 0) continue;
+                    sx += (x + 0.5) * v; sy += (y + 0.5) * v; sw += v;
+                }
+            if (sw <= 0) return false;
+            nx = sx / sw; ny = sy / sw;
+            return true;
         }
 
         /// One ReactionFx (Hit or Death): the clip dropdown (sourced from the Zoe's own view, same reflection
@@ -1807,18 +2217,10 @@ namespace Laubrary.Zoetrope.Editor
 
             BuildObjectListProperty(root, So.FindProperty("ammoTypes"), typeof(AmmoDef), "Ammo Type");
 
-            var muzzle = Z.Section("Muzzle", "The flash/smoke played at the muzzle each shot, and where it spawns.");
+            var muzzle = Z.Section("Muzzle", "The flash/smoke played at the muzzle each shot. WHERE it plays " +
+                "(which part, which MetaLayer) is each equipping Zoe's own choice now — see that Zoe's Weapons " +
+                "list — so this same weapon stays equippable by any character.");
             BuildManagedRef(muzzle, So.FindProperty("muzzle"), "Effect");
-            muzzle.Add(Z.Field("Layer Id",
-                "Which meta-layer on the shooter's animation the muzzle effect spawns at. Ignored when Event Name is set.",
-                Z.TextInput(w.muzzleLayerId,
-                    "Which meta-layer on the shooter's animation the muzzle effect spawns at. Ignored when Event Name is set.",
-                    v => Commit("muzzleLayerId", p => p.stringValue = v), ScalarFieldWidth)));
-            muzzle.Add(Z.Field("Event Name",
-                "A frame event with an authored pixel position that spawns the muzzle effect instead. Takes priority over Layer Id.",
-                Z.TextInput(w.muzzleEventName,
-                    "A frame event with an authored pixel position that spawns the muzzle effect instead. Takes priority over Layer Id.",
-                    v => Commit("muzzleEventName", p => p.stringValue = v), ScalarFieldWidth)));
             muzzle.Add(Z.Text("Offset", ZuiText.Subtle,
                 "Fallback muzzle position for a shooter with no meta-layers — x is forward along the aim, y is up."));
             muzzle.Add(Z.Pad(w.muzzleOffset, new Rect(-2f, -2f, 4f, 4f),

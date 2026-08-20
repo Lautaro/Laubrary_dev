@@ -18,15 +18,43 @@ MonoBehaviour:
   invulnerableAfterHit: 0
   view:
     rid: 1452078146085191813
+  deathDisposal: 1
+  deathLinger: 1.5
+  pixelPerfectHits: 1
+  locomotion:
+    idleClip: 
+    moveClip: 
+    moveThreshold: 0.15
+  motionPose:
+    channel: 0
+    moveThreshold: 0.15
+    fixedAngleDeg: 0
+    rules: []
   hit:
-    rid: -2
+    clip: 
+    durationMode: 0
+    loops: 1
+    seconds: 0
+    stunSeconds: 0
+    bodyFx: {fileID: 0}
+    fx: []
   death:
-    rid: -2
+    clip: 
+    durationMode: 0
+    loops: 1
+    seconds: 0
+    stunSeconds: 0
+    bodyFx: {fileID: 0}
+    fx: []
+  events: []
   brain:
     rid: -2
   loadout: []
   weapons:
-  - {fileID: 11400000, guid: 7df0f19a2598a7147b1400a8ba53bdb5, type: 2}
+  - weapon: {fileID: 11400000, guid: 7df0f19a2598a7147b1400a8ba53bdb5, type: 2}
+    attachToPartName: 
+    muzzleLayerId: Muzzle
+    muzzleEventName: 
   defaultActiveWeapon: 0
   cues: []
   references:
@@ -35,7 +63,7 @@ MonoBehaviour:
     - rid: -2
       type: {class: , ns: , asm: }
     - rid: 1452078146085191813
-      type: {class: ZonedReelView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
+      type: {class: ZonedLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
       data:
         version: {fileID: 11400000, guid: 7111d851e7fb9144e96b9b74a461975a, type: 2}
         idleClip: Idle

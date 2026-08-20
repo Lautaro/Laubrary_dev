@@ -1,0 +1,523 @@
+{
+    "browserSettings": {
+        "multicolumn": false,
+        "itemWidth": 300.0,
+        "killOnPlay": false,
+        "showAudioClips": false,
+        "msOnly": false,
+        "showNameField": true,
+        "showVolume": true,
+        "showPitch": true,
+        "showChance": true,
+        "vpcShowSliderType": true,
+        "vpcShowInputBoxes": false,
+        "showTags": true,
+        "tagsOnOwnRow": false,
+        "showMute": true,
+        "showSolo": true,
+        "showOpenEditor": true,
+        "showConvertToZequence": true,
+        "showRouting": true,
+        "showDuplicate": true,
+        "showRemove": true,
+        "showAddZound": true,
+        "showStopAll": true,
+        "showMSClean": true,
+        "showMuteSel": true,
+        "showSoloSel": true,
+        "showMasterVolume": true,
+        "showSearch": true,
+        "showTypes": true,
+        "showTypeKlip": true,
+        "showTypeZeq": true,
+        "showTypeFiles": true,
+        "showTypeMissing": true,
+        "typesInlineToggle": false,
+        "showTagsFilter": true,
+        "buttonSizeMode": 2,
+        "showGroupBy": true,
+        "showColumnMode": true,
+        "showReferences": true,
+        "showPresetsAlways": false,
+        "highQualityWaveform": false,
+        "vpcPercentage": false,
+        "vpcCompactLabel": false,
+        "fancyTitle": true
+    },
+    "projectSettings": {
+        "playerVolume": 1.0,
+        "systemVolumeModifier": 1.0,
+        "editorVolume": 1.0,
+        "systemFolderPath": "Assets/ZoundsData/SystemFiles",
+        "libraryFolderPath": "Assets/ZoundsData/Library",
+        "sourcesFolderPath": "Assets/ZoundsData/Sources",
+        "themesFolderPath": "Assets/ZoundsData/Themes",
+        "cooldownDuration": 0.10000000149011612,
+        "maxPlayedZoundInstances": 10,
+        "cullFadeDuration": 0.4000000059604645,
+        "editorStyle": {
+            "playerHeadColor": {
+                "r": 0.10000000149011612,
+                "g": 0.10000000149011612,
+                "b": 0.8999999761581421,
+                "a": 0.75
+            },
+            "playerHeadThickness": 1.5,
+            "klipWaveformBGColor": {
+                "r": 0.9882352948188782,
+                "g": 0.7529411911964417,
+                "b": 0.027450980618596078,
+                "a": 1.0
+            },
+            "volumeEnvelopeColor": {
+                "r": 0.10000000149011612,
+                "g": 0.699999988079071,
+                "b": 0.10000000149011612,
+                "a": 1.0
+            },
+            "volumeEnvelopeThickness": 1.5,
+            "pitchEnvelopeColor": {
+                "r": 0.8999999761581421,
+                "g": 0.20000000298023225,
+                "b": 0.10000000149011612,
+                "a": 1.0
+            },
+            "pitchEnvelopeThickness": 1.5,
+            "trimHandleColor": {
+                "r": 1.0,
+                "g": 1.0,
+                "b": 1.0,
+                "a": 1.0
+            },
+            "trimHandleThickness": 2.0,
+            "waveformColor": {
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
+                "a": 1.0
+            },
+            "trimAreaColor": {
+                "r": 0.0,
+                "g": 0.0,
+                "b": 0.0,
+                "a": 0.5
+            },
+            "selectedEnvelopeLineColor": {
+                "r": 0.10000000149011612,
+                "g": 0.699999988079071,
+                "b": 0.8999999761581421,
+                "a": 1.0
+            },
+            "selectedEnvelopeHandleColor": {
+                "r": 0.10000000149011612,
+                "g": 0.75,
+                "b": 0.8500000238418579,
+                "a": 1.0
+            },
+            "autoRender": false,
+            "envelopeHandleSize": 4.0
+        }
+    },
+    "zoundLibrary": {
+        "klips": [
+            {
+                "id": -500736323,
+                "originalId": 0,
+                "parentId": 0,
+                "name": "Placeholder Klip 1",
+                "minVolume": 1.0,
+                "maxVolume": 1.0,
+                "minPitch": 1.0,
+                "maxPitch": 1.0,
+                "chance": 1.0,
+                "tags": [],
+                "mute": false,
+                "solo": false,
+                "manuallySetMixerGroupRef": {
+                    "m_AssetGUID": "",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                },
+                "gain": 1.0,
+                "gainEnabled": false,
+                "showRenderedWaveform": false,
+                "trimEnabled": true,
+                "trimStart": 0.0,
+                "trimEnd": 0.0,
+                "clampToTrim": true,
+                "volumeEnvelope": {
+                    "m_enabled": false,
+                    "m_xMin": 0.0,
+                    "m_xMax": 0.0,
+                    "m_yMin": 0.0,
+                    "m_yMax": 0.0,
+                    "m_points": []
+                },
+                "pitchEnvelope": {
+                    "m_enabled": false,
+                    "m_xMin": 0.0,
+                    "m_xMax": 0.0,
+                    "m_yMin": 0.0,
+                    "m_yMax": 0.0,
+                    "m_points": []
+                },
+                "subGain": 0.0,
+                "lowGain": 0.0,
+                "lowMidGain": 0.0,
+                "midGain": 0.0,
+                "highMidGain": 0.0,
+                "highGain": 0.0,
+                "airGain": 0.0,
+                "eqEnabled": false,
+                "lpFrequency": 22000.0,
+                "hpFrequency": 10.0,
+                "compressionEnabled": false,
+                "compThreshold": -10.0,
+                "compRatio": 4.0,
+                "compAttack": 10.0,
+                "compRelease": 100.0,
+                "compMakeupGain": 0.0,
+                "normalizationEnabled": false,
+                "normalizeTargetDB": -0.5,
+                "fadeEnabled": false,
+                "fadeInDuration": 0.0,
+                "fadeOutDuration": 0.0,
+                "fadeUseSCurve": false,
+                "audioClipPath": "Assets/ZoundsData/PlaceholderSources/Placeholder_Klip_1.wav",
+                "renderedClipPath": "",
+                "outputClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/Placeholder Klip 1.wav",
+                "externalSourcePath": "",
+                "needsRender": false,
+                "audioClipRef": {
+                    "m_AssetGUID": "fb8136da653802a4dbc3104fd71d0e54",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                },
+                "renderedClipRef": {
+                    "m_AssetGUID": "",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                },
+                "outputClipRef": {
+                    "m_AssetGUID": "f49eeadac39b52b45aac9b295dedf02b",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                }
+            },
+            {
+                "id": 1252080669,
+                "originalId": 0,
+                "parentId": 0,
+                "name": "Placeholder Klip 2",
+                "minVolume": 1.0,
+                "maxVolume": 1.0,
+                "minPitch": 1.0,
+                "maxPitch": 1.0,
+                "chance": 1.0,
+                "tags": [],
+                "mute": false,
+                "solo": false,
+                "manuallySetMixerGroupRef": {
+                    "m_AssetGUID": "",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                },
+                "gain": 1.0,
+                "gainEnabled": false,
+                "showRenderedWaveform": false,
+                "trimEnabled": true,
+                "trimStart": 0.0,
+                "trimEnd": 0.0,
+                "clampToTrim": true,
+                "volumeEnvelope": {
+                    "m_enabled": false,
+                    "m_xMin": 0.0,
+                    "m_xMax": 0.0,
+                    "m_yMin": 0.0,
+                    "m_yMax": 0.0,
+                    "m_points": []
+                },
+                "pitchEnvelope": {
+                    "m_enabled": false,
+                    "m_xMin": 0.0,
+                    "m_xMax": 0.0,
+                    "m_yMin": 0.0,
+                    "m_yMax": 0.0,
+                    "m_points": []
+                },
+                "subGain": 0.0,
+                "lowGain": 0.0,
+                "lowMidGain": 0.0,
+                "midGain": 0.0,
+                "highMidGain": 0.0,
+                "highGain": 0.0,
+                "airGain": 0.0,
+                "eqEnabled": false,
+                "lpFrequency": 22000.0,
+                "hpFrequency": 10.0,
+                "compressionEnabled": false,
+                "compThreshold": -10.0,
+                "compRatio": 4.0,
+                "compAttack": 10.0,
+                "compRelease": 100.0,
+                "compMakeupGain": 0.0,
+                "normalizationEnabled": false,
+                "normalizeTargetDB": -0.5,
+                "fadeEnabled": false,
+                "fadeInDuration": 0.0,
+                "fadeOutDuration": 0.0,
+                "fadeUseSCurve": false,
+                "audioClipPath": "Assets/ZoundsData/PlaceholderSources/Placeholder_Klip_2.wav",
+                "renderedClipPath": "",
+                "outputClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/Placeholder Klip 2.wav",
+                "externalSourcePath": "",
+                "needsRender": false,
+                "audioClipRef": {
+                    "m_AssetGUID": "d63cb0a7a7aeeaf4b9628bdac7ec456f",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                },
+                "renderedClipRef": {
+                    "m_AssetGUID": "",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                },
+                "outputClipRef": {
+                    "m_AssetGUID": "e14f7e1df307fa343a34507ebf243586",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                }
+            },
+            {
+                "id": 99818130,
+                "originalId": 0,
+                "parentId": 0,
+                "name": "Placeholder Klip 3",
+                "minVolume": 1.0,
+                "maxVolume": 1.0,
+                "minPitch": 1.0,
+                "maxPitch": 1.0,
+                "chance": 1.0,
+                "tags": [],
+                "mute": false,
+                "solo": false,
+                "manuallySetMixerGroupRef": {
+                    "m_AssetGUID": "",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                },
+                "gain": 1.0,
+                "gainEnabled": false,
+                "showRenderedWaveform": false,
+                "trimEnabled": true,
+                "trimStart": 0.0,
+                "trimEnd": 0.0,
+                "clampToTrim": true,
+                "volumeEnvelope": {
+                    "m_enabled": false,
+                    "m_xMin": 0.0,
+                    "m_xMax": 0.0,
+                    "m_yMin": 0.0,
+                    "m_yMax": 0.0,
+                    "m_points": []
+                },
+                "pitchEnvelope": {
+                    "m_enabled": false,
+                    "m_xMin": 0.0,
+                    "m_xMax": 0.0,
+                    "m_yMin": 0.0,
+                    "m_yMax": 0.0,
+                    "m_points": []
+                },
+                "subGain": 0.0,
+                "lowGain": 0.0,
+                "lowMidGain": 0.0,
+                "midGain": 0.0,
+                "highMidGain": 0.0,
+                "highGain": 0.0,
+                "airGain": 0.0,
+                "eqEnabled": false,
+                "lpFrequency": 22000.0,
+                "hpFrequency": 10.0,
+                "compressionEnabled": false,
+                "compThreshold": -10.0,
+                "compRatio": 4.0,
+                "compAttack": 10.0,
+                "compRelease": 100.0,
+                "compMakeupGain": 0.0,
+                "normalizationEnabled": false,
+                "normalizeTargetDB": -0.5,
+                "fadeEnabled": false,
+                "fadeInDuration": 0.0,
+                "fadeOutDuration": 0.0,
+                "fadeUseSCurve": false,
+                "audioClipPath": "Assets/ZoundsData/PlaceholderSources/Placeholder_Klip_3.wav",
+                "renderedClipPath": "",
+                "outputClipPath": "Assets/ZoundsData/SystemFiles/ZoundFiles/Placeholder Klip 3.wav",
+                "externalSourcePath": "",
+                "needsRender": false,
+                "audioClipRef": {
+                    "m_AssetGUID": "0caff0b3e7a253449809b469ca8a6e3d",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                },
+                "renderedClipRef": {
+                    "m_AssetGUID": "",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                },
+                "outputClipRef": {
+                    "m_AssetGUID": "ec08175060d1ade4a9972335300d7712",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                }
+            }
+        ],
+        "zequences": [
+            {
+                "id": 1435159950,
+                "originalId": 0,
+                "parentId": 0,
+                "name": "Placeholder Zeq 1",
+                "minVolume": 1.0,
+                "maxVolume": 1.0,
+                "minPitch": 1.0,
+                "maxPitch": 1.0,
+                "chance": 1.0,
+                "tags": [],
+                "mute": false,
+                "solo": false,
+                "manuallySetMixerGroupRef": {
+                    "m_AssetGUID": "",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                },
+                "mode": 0,
+                "noPlayWeight": 0,
+                "zoundEntries": [],
+                "localKlips": [],
+                "localZequences": [],
+                "editor_maxDuration": 3.0,
+                "masterVolumeEnvelope": {
+                    "m_enabled": false,
+                    "m_xMin": 0.0,
+                    "m_xMax": 1.0,
+                    "m_yMin": 0.0,
+                    "m_yMax": 1.0,
+                    "m_points": [
+                        {
+                            "time": 0.0,
+                            "value": 1.0,
+                            "exponent": 1.0,
+                            "editState": 0
+                        },
+                        {
+                            "time": 1.0,
+                            "value": 1.0,
+                            "exponent": 1.0,
+                            "editState": 0
+                        }
+                    ]
+                },
+                "renderedClipPath": "",
+                "renderedClipRef": {
+                    "m_AssetGUID": "",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                }
+            },
+            {
+                "id": 218149684,
+                "originalId": 0,
+                "parentId": 0,
+                "name": "Placeholder Zeq 2",
+                "minVolume": 1.0,
+                "maxVolume": 1.0,
+                "minPitch": 1.0,
+                "maxPitch": 1.0,
+                "chance": 1.0,
+                "tags": [],
+                "mute": false,
+                "solo": false,
+                "manuallySetMixerGroupRef": {
+                    "m_AssetGUID": "",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                },
+                "mode": 0,
+                "noPlayWeight": 0,
+                "zoundEntries": [],
+                "localKlips": [],
+                "localZequences": [],
+                "editor_maxDuration": 3.0,
+                "masterVolumeEnvelope": {
+                    "m_enabled": false,
+                    "m_xMin": 0.0,
+                    "m_xMax": 1.0,
+                    "m_yMin": 0.0,
+                    "m_yMax": 1.0,
+                    "m_points": [
+                        {
+                            "time": 0.0,
+                            "value": 1.0,
+                            "exponent": 1.0,
+                            "editState": 0
+                        },
+                        {
+                            "time": 1.0,
+                            "value": 1.0,
+                            "exponent": 1.0,
+                            "editState": 0
+                        }
+                    ]
+                },
+                "renderedClipPath": "",
+                "renderedClipRef": {
+                    "m_AssetGUID": "",
+                    "m_SubObjectName": "",
+                    "m_SubObjectType": "",
+                    "m_SubObjectGUID": "",
+                    "m_EditorAssetChanged": false
+                }
+            }
+        ],
+        "tags": []
+    },
+    "zoundRoutings": {
+        "rules": []
+    },
+    "references": {
+        "version": 2,
+        "RefIds": []
+    }
+}

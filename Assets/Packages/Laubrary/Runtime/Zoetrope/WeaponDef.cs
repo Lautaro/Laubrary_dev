@@ -32,22 +32,13 @@ namespace Laubrary.Zoetrope
         public List<AmmoDef> ammoTypes = new List<AmmoDef>();
 
         [Header("Muzzle")]
-        [Tooltip("Flash / smoke played at the muzzle each shot (pluggable effect).")]
+        [Tooltip("Flash / smoke played at the muzzle each shot (pluggable effect). WHERE it plays (which " +
+                 "character part, which MetaLayer) is each equipping Zoe's OWN choice — see ZoeWeaponSlot — " +
+                 "not this asset's, so the same weapon stays equippable by any character.")]
         [SerializeReference] public ICombatFx muzzle;
-        [Tooltip("Which MetaLayer id the shooter's animation must reach to trigger the muzzle effect AT ITS " +
-                 "LIVE PAINTED POINT (via ICueSink, e.g. CueRelay). Ignored when muzzleEventName below is set. " +
-                 "Falls back to a fixed muzzleOffset position triggered on every successful shot when the " +
-                 "shooter has no ICueSink (e.g. a plain SpriteView).")]
-        public string muzzleLayerId = "Muzzle";
-        [Tooltip("Alternative to muzzleLayerId — the name of a FrameEvent (with an authored pixel position, " +
-                 "set via the Laumination Builder's pixel tool) that triggers the muzzle effect at its point " +
-                 "instead. Takes priority over muzzleLayerId when set. Prefer this for a simple one-point-per-" +
-                 "frame muzzle/spawn signal — MetaLayer painting is still the right tool for anything needing " +
-                 "MULTIPLE pixels or MULTIPLE frames (e.g. hit detection).")]
-        public string muzzleEventName = "";
-        [Tooltip("Muzzle offset from the shooter, along its aim (x = forward, y = up). Only used by the " +
-                 "no-ICueSink fallback above — a ZonedLauminaryView shooter's muzzle position comes from the " +
-                 "MetaLayer/FrameEvent itself, not this offset.")]
+        [Tooltip("Muzzle offset from the shooter, along its aim (x = forward, y = up). Only used as the " +
+                 "last-resort fallback — when the equipping Zoe's ZoeWeaponSlot names no reachable MetaLayer " +
+                 "(e.g. a plain SpriteView shooter, or before that layer is painted).")]
         public Vector2 muzzleOffset = new Vector2(0.5f, 0f);
 
         [Header("Audio")]

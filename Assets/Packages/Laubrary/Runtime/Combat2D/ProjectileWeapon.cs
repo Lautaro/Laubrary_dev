@@ -33,6 +33,7 @@ namespace Laubrary.Combat2D
         public Vector2 aimDirection = Vector2.up;
 
         float cooldown;
+        IVectorAimSource _vectorAim;
 
         /// Fired for each spawned projectile (wire up muzzle flashes, sfx, colour tinting).
         public event Action<Projectile> Fired;
@@ -50,12 +51,20 @@ namespace Laubrary.Combat2D
 
         public bool TryFire() => TryFire(ResolvedAimDirection());
 
-        /// The direction TryFire()/autoFire use when not given an explicit one. Prefers the owning
-        /// Combatant's own aimDirection (set by player input, AI, or a Mirage preview override — see
-        /// Combatant.aimDirection) when present and non-zero; falls back to this weapon's own aimDirection
-        /// field for an ownerless/standalone weapon.
+        /// The direction TryFire()/autoFire use when not given an explicit one. Prefers a sibling
+        /// IVectorAimSource's live, animation-drawn direction (e.g. MuzzleVectorTracker reading a Vector
+        /// MetaLayer) when one is present AND currently resolved — a weapon whose drawn barrel angle should
+        /// override raw aim gets that automatically, with no call site needing to know this exists. Otherwise
+        /// prefers the owning Combatant's own aimDirection (player input, AI, or a Mirage preview override);
+        /// falls back to this weapon's own aimDirection field for an ownerless/standalone weapon.
         Vector2 ResolvedAimDirection()
         {
+            // Lazy, re-fetched whenever null (not cached-once) — a tracker attached AFTER this weapon (the
+            // normal equip order, but never guaranteed) must still be picked up, same reasoning
+            // AnimationArbiter/etc's own lazy GetComponent properties use elsewhere in this codebase.
+            if (_vectorAim == null) _vectorAim = GetComponent<IVectorAimSource>();
+            if (_vectorAim != null && _vectorAim.HasDirection) return _vectorAim.CurrentDirection;
+
             if (owner != null && owner.aimDirection.sqrMagnitude > 1e-6f) return owner.aimDirection;
             return aimDirection.sqrMagnitude > 1e-6f ? aimDirection : Vector2.up;
         }
@@ -165,6 +174,20 @@ namespace Laubrary.Combat2D
             if (cooldown > 0f || projectilePrefab == null) return false;
             cooldown = 1f / Mathf.Max(0.01f, fireRate);
             return FireInternal(originOverride, ResolvedAimDirection());
+        }
+
+        /// Fire from an explicit origin AND direction, overriding both — for a caller that already resolved a
+        /// Vector MetaLayer point itself (e.g. a scripted clip-sequence trigger, mirroring how
+        /// MirageSubject.HandleMetaLayerReached explicitly calls TryFireFrom for the Point case) and wants an
+        /// unambiguous one-shot override rather than relying on ResolvedAimDirection's automatic
+        /// IVectorAimSource preference above. Ordinary gameplay firing (TryFire()/autoFire) doesn't need this —
+        /// it already gets the same live direction automatically once a MuzzleVectorTracker is attached.
+        public bool TryFireFromVector(Vector3 origin, Vector2 direction)
+        {
+            if (cooldown > 0f || projectilePrefab == null) return false;
+            cooldown = 1f / Mathf.Max(0.01f, fireRate);
+            if (direction.sqrMagnitude < 1e-6f) direction = ResolvedAimDirection();
+            return FireInternal(origin, direction);
         }
 
         bool FireInternal(Vector3 pos, Vector2 dir)

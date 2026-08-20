@@ -1,0 +1,9 @@
+{
+  "tabs": [
+    {
+      "content": "See T-0031 (MASTER — Chunks 2.0: layered composite FX design).\n\nDesign doc: Assets/Packages/Laubrary/Runtime/Chunks/CHUNKS_OVERHAUL_DESIGN.md\n\nGreenlit + decomposed 2026-08-18. Children: T-0032 Layering primitive (foundational) · T-0033 Particle Splash · T-0034 Pyre Spawner (PyrePlus) · T-0035 Pyre Movement · T-0036 Fragment Slicer · T-0037 Layer Stack integration · T-0038 Timeline + events · T-0039 Mirage Preview.",
+      "id": "tab_e8h8r8u",
+      "name": "TO DO"
+    }
+  ]
+}

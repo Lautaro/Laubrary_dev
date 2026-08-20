@@ -31,71 +31,30 @@ MonoBehaviour:
     fixedAngleDeg: 0
     rules: []
   hit:
-    id: Hit
-    trigger:
-      rid: 1702917382465650769
     clip: 
     durationMode: 0
     loops: 1
     seconds: 0
     stunSeconds: 0
-    invulnerableSeconds: 0
-    endsCharacter: 0
-    disposal: 1
-    linger: 1.5
     bodyFx: {fileID: 0}
     fx: []
   death:
-    id: Death
-    trigger:
-      rid: 1702917382465650770
     clip: 
     durationMode: 0
     loops: 1
     seconds: 0
     stunSeconds: 0
-    invulnerableSeconds: 0
-    endsCharacter: 1
-    disposal: 1
-    linger: 1.5
     bodyFx: {fileID: 0}
     fx: []
   events: []
-  zoeEvents:
-  - id: Hit
-    trigger:
-      rid: 1702917382465650769
-    clip: 
-    durationMode: 0
-    loops: 1
-    seconds: 0
-    stunSeconds: 0
-    invulnerableSeconds: 0
-    endsCharacter: 0
-    disposal: 1
-    linger: 1.5
-    bodyFx: {fileID: 0}
-    fx: []
-  - id: Death
-    trigger:
-      rid: 1702917382465650770
-    clip: 
-    durationMode: 0
-    loops: 1
-    seconds: 0
-    stunSeconds: 0
-    invulnerableSeconds: 0
-    endsCharacter: 1
-    disposal: 1
-    linger: 1.5
-    bodyFx: {fileID: 0}
-    fx: []
-  eventsUpgraded: 1
   brain:
     rid: -2
   loadout: []
   weapons:
-  - {fileID: 11400000, guid: 30aaf3dc11627dd4f8b668e2944b0f3d, type: 2}
+  - weapon: {fileID: 11400000, guid: 30aaf3dc11627dd4f8b668e2944b0f3d, type: 2}
+    attachToPartName: Upper
+    muzzleLayerId: Muzzle
+    muzzleEventName: 
   defaultActiveWeapon: 0
   cues: []
   references:
@@ -111,7 +70,16 @@ MonoBehaviour:
           view:
             rid: 1702917371834400850
           parentPartName: 
-          attachMetaLayerId: 
+          parentAnchor:
+            mode: 0
+            edge: 0
+            metaLayerId: 
+            offset: {x: 0, y: 0}
+          childAnchor:
+            mode: 0
+            edge: 0
+            metaLayerId: 
+            offset: {x: 0, y: 0}
           motionPose:
             channel: 0
             moveThreshold: 0.15
@@ -129,7 +97,16 @@ MonoBehaviour:
           view:
             rid: 1702917371834400851
           parentPartName: Legs
-          attachMetaLayerId: 
+          parentAnchor:
+            mode: 0
+            edge: 1
+            metaLayerId: 
+            offset: {x: 0, y: 0}
+          childAnchor:
+            mode: 0
+            edge: 2
+            metaLayerId: 
+            offset: {x: 0.04889, y: 0.76}
           motionPose:
             channel: 1
             moveThreshold: 0.15
@@ -142,23 +119,12 @@ MonoBehaviour:
     - rid: 1702917371834400850
       type: {class: ZonedLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
       data:
-        version: {fileID: 11400000, guid: de368f474719db142a480875b0f983d8, type: 2}
-        idleClip: LegsIdle_N
+        version: {fileID: 11400000, guid: 1746a32381cbb804696d17b7cba0fda8, type: 2}
+        idleClip: LegsWalk_N
         height: 0
     - rid: 1702917371834400851
       type: {class: ZonedLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
       data:
-        version: {fileID: 11400000, guid: ac102d54aca8c9e428fb6e4a0f73c6a5, type: 2}
-        idleClip: Upper_N
+        version: {fileID: 11400000, guid: 1746a32381cbb804696d17b7cba0fda8, type: 2}
+        idleClip: LegsWalk_N
         height: 0
-    - rid: 1702917382465650769
-      type: {class: OnDamagedTrigger, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
-      data:
-        damageType: {fileID: 0}
-        minAmount: 0
-        requireCrit: 0
-    - rid: 1702917382465650770
-      type: {class: OnDiedTrigger, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
-      data:
-        damageType: {fileID: 0}
-        requireCrit: 0

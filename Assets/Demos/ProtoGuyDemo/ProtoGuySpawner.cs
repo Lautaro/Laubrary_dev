@@ -29,15 +29,6 @@ namespace Laubrary.Demos.ProtoGuyDemo
         [Tooltip("Units per second at full move input magnitude.")]
         public float moveSpeed = 3f;
 
-        [Tooltip("Upper and Legs were each exported from separate Aseprite documents, auto-trimmed to their " +
-                 "own content and re-centred in their own 56x56 canvas independently — so at local (0,0) their " +
-                 "content overlaps almost entirely instead of stacking. Measured against the reference art " +
-                 "(Prototype-Trooper.png): Upper's own content height (~24px) plus Legs' (~25px) very nearly " +
-                 "equals the combined reference character's height (~48px), so shifting Upper up by (roughly) " +
-                 "Upper's own content height puts them directly adjacent — torso above, legs below — matching " +
-                 "the reference. In world units at PPU 16: 23px / 16 = 1.4375.")]
-        public float upperYOffset = 1.4375f;
-
         void Start()
         {
             if (zoeDef == null) { Debug.LogError("ProtoGuySpawner: zoeDef not assigned."); return; }
@@ -45,12 +36,17 @@ namespace Laubrary.Demos.ProtoGuyDemo
             var host = ZoeSpawner.SpawnCharacter(zoeDef, transform.position);
             AddInputDriver(host);
 
-            var upper = host.transform.Find("Legs/Upper");
+            // Alignment itself is now the Rig's job (Zoe.view's composite parts, configured in the Zoe editor's
+            // Rig section — see AttachAnchor/ZoeBodyPart), resolved live every frame by CompositeZonedPlayer.
+            // Only sorting order is left here — a scene-composition concern (which sprite draws in front), not
+            // a rig-alignment one. Composite parts are flat children of the spawned host (never nested under
+            // each other — CompositeZonedPlayer.Build parents every part directly to the root and repositions
+            // them by anchor each frame instead of by Transform hierarchy), so this is a direct child lookup.
+            var upper = host.transform.Find("Upper");
             if (upper != null)
             {
                 var sr = upper.GetComponent<SpriteRenderer>();
                 if (sr != null) sr.sortingOrder = (int)upperSortingOrder;
-                upper.localPosition = new Vector3(0f, upperYOffset, 0f);
             }
         }
 

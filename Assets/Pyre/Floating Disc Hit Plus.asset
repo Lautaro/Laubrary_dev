@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Floating Disc Hit Plus
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.PyrePlus::Laubrary.PyrePlus.PyrePlusSpec
   canvasSize: 128
-  frameCount: 12
+  frameCount: 35
   seed: 1234
   previewLayerSel: 0
   background: {r: 0, g: 0, b: 0, a: 0}
@@ -79,7 +79,7 @@ MonoBehaviour:
   - enabled: 1
     name: Texture
     startFrame: 0
-    endFrame: 12
+    endFrame: -1
     matteEnabled: 0
     matteRole: 1
     matteChannel: 1
@@ -236,7 +236,7 @@ MonoBehaviour:
     rampRelief: 3
     rampLightAngle: 135
     rampRimScale: 0.35
-    shapeForm: 2
+    shapeForm: 17
     shapeFill:
       mode: 3
       color: {r: 1, g: 1, b: 1, a: 1}
@@ -1916,6 +1916,109 @@ MonoBehaviour:
       m_multiplierId: 
     infernoFlashReach: 0.4
     infernoFlashSoft: 0.45
+    forkProgress:
+      m_mode: 2
+      m_static: 1
+      m_min: 0
+      m_max: 1
+      m_points:
+      - time: 0
+        value: 0
+        exponent: 1
+        editState: 0
+      - time: 0.38434
+        value: 0.51585
+        exponent: 1
+        editState: 0
+      - time: 1
+        value: 0
+        exponent: 1
+        editState: 0
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    forkReach:
+      m_mode: 0
+      m_static: 0.51785
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    forkFlash:
+      m_mode: 0
+      m_static: 0.3431
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    forkSpread: 130
+    forkAim: 59
+    forkBias: 1.46407
+    forkPuffCount: 170
+    forkDrag: 2.91108
+    forkGrowth: 0.1509
+    forkSwell: 0.4
+    forkElong: 2
+    forkRoundAt: 0.3
+    forkBuoy: 0.11652
+    forkBlastSkew: 2.4
+    forkBlastSpan: 0.18541
+    forkVelSpread: 0.7
+    forkPuffLife: 0.55
+    forkJitter: 1.23054
+    forkCool: 1.6
+    forkHold: 1.7
+    forkShrink: 0.8
+    forkShrinkAt: 0.5
+    forkLeadDie: 0.42
+    forkOpaq: 0.98859
+    forkSoot: 0.3
+    forkGobCount: 16
+    forkGobReach: 0.85
+    forkGobSwell: 1.6
+    forkGobLifeMul: 1.3
+    forkGobAmp: 1.2
+    forkGobEarly: 0.45
+    forkPuffSizePx: 2.6
+    forkGobSizePx: 4.5
+    forkWarpAmount: 3
+    forkLo: 0.22
+    forkAutoExposure: 1
+    forkExposureMult: 0.85
+    forkHi: 1.2
+    forkCurve: 1
+    forkSoft: 0.6
     particlePathX:
       m_mode: 0
       m_static: 1.85209
@@ -2316,214 +2419,10 @@ MonoBehaviour:
       m_multiplierId: 
     modifiers:
     - rid: 1702917364542604257
-    auxMap:
-      enabled: 1
-      scope: 0
-      generator: 0
-      edgeThreshold: 0.18
-      distanceRadius: 8
-      hueCenter: 200
-      hueWidth: 45
-      gain:
-        m_mode: 0
-        m_static: 3.02994
-        m_min: 0
-        m_max: 1
-        m_points: []
-        m_yMin: 0
-        m_yMax: 1
-        m_duration: 4
-        m_warmup: 0
-        m_cooldown: -1
-        m_smoothness: 0
-        m_steps: []
-        m_oscMin: []
-        m_oscMax: []
-        m_oscRate: []
-        m_oscRateMax: 8
-        m_multiplierId: 
-      bias:
-        m_mode: 0
-        m_static: -0.66366
-        m_min: 0
-        m_max: 1
-        m_points: []
-        m_yMin: 0
-        m_yMax: 1
-        m_duration: 4
-        m_warmup: 0
-        m_cooldown: -1
-        m_smoothness: 0
-        m_steps: []
-        m_oscMin: []
-        m_oscMax: []
-        m_oscRate: []
-        m_oscRateMax: 8
-        m_multiplierId: 
-      power:
-        m_mode: 0
-        m_static: 0.4497
-        m_min: 0
-        m_max: 1
-        m_points: []
-        m_yMin: 0
-        m_yMax: 1
-        m_duration: 4
-        m_warmup: 0
-        m_cooldown: -1
-        m_smoothness: 0
-        m_steps: []
-        m_oscMin: []
-        m_oscMax: []
-        m_oscRate: []
-        m_oscRateMax: 8
-        m_multiplierId: 
-      threshold:
-        m_mode: 0
-        m_static: 0.37237
-        m_min: 0
-        m_max: 1
-        m_points: []
-        m_yMin: 0
-        m_yMax: 1
-        m_duration: 4
-        m_warmup: 0
-        m_cooldown: -1
-        m_smoothness: 0
-        m_steps: []
-        m_oscMin: []
-        m_oscMax: []
-        m_oscRate: []
-        m_oscRateMax: 8
-        m_multiplierId: 
-      blur: 0
-      invertMap: 0
-      respectAlpha: 1
-      strength:
-        m_mode: 0
-        m_static: 0.59281
-        m_min: 0
-        m_max: 1
-        m_points: []
-        m_yMin: 0
-        m_yMax: 1
-        m_duration: 4
-        m_warmup: 0
-        m_cooldown: -1
-        m_smoothness: 0
-        m_steps: []
-        m_oscMin: []
-        m_oscMax: []
-        m_oscRate: []
-        m_oscRateMax: 8
-        m_multiplierId: 
-      previewHeatmap: 0
     simulationModifier:
       rid: -2
   globalModifiers: []
-  globalAuxMap:
-    enabled: 0
-    scope: 0
-    generator: 0
-    edgeThreshold: 0.18
-    distanceRadius: 8
-    hueCenter: 200
-    hueWidth: 45
-    gain:
-      m_mode: 0
-      m_static: 1
-      m_min: 0
-      m_max: 1
-      m_points: []
-      m_yMin: 0
-      m_yMax: 1
-      m_duration: 4
-      m_warmup: 0
-      m_cooldown: -1
-      m_smoothness: 0
-      m_steps: []
-      m_oscMin: []
-      m_oscMax: []
-      m_oscRate: []
-      m_oscRateMax: 8
-      m_multiplierId: 
-    bias:
-      m_mode: 0
-      m_static: 0
-      m_min: 0
-      m_max: 1
-      m_points: []
-      m_yMin: 0
-      m_yMax: 1
-      m_duration: 4
-      m_warmup: 0
-      m_cooldown: -1
-      m_smoothness: 0
-      m_steps: []
-      m_oscMin: []
-      m_oscMax: []
-      m_oscRate: []
-      m_oscRateMax: 8
-      m_multiplierId: 
-    power:
-      m_mode: 0
-      m_static: 1
-      m_min: 0
-      m_max: 1
-      m_points: []
-      m_yMin: 0
-      m_yMax: 1
-      m_duration: 4
-      m_warmup: 0
-      m_cooldown: -1
-      m_smoothness: 0
-      m_steps: []
-      m_oscMin: []
-      m_oscMax: []
-      m_oscRate: []
-      m_oscRateMax: 8
-      m_multiplierId: 
-    threshold:
-      m_mode: 0
-      m_static: 0
-      m_min: 0
-      m_max: 1
-      m_points: []
-      m_yMin: 0
-      m_yMax: 1
-      m_duration: 4
-      m_warmup: 0
-      m_cooldown: -1
-      m_smoothness: 0
-      m_steps: []
-      m_oscMin: []
-      m_oscMax: []
-      m_oscRate: []
-      m_oscRateMax: 8
-      m_multiplierId: 
-    blur: 0
-    invertMap: 0
-    respectAlpha: 1
-    strength:
-      m_mode: 0
-      m_static: 1
-      m_min: 0
-      m_max: 1
-      m_points: []
-      m_yMin: 0
-      m_yMax: 1
-      m_duration: 4
-      m_warmup: 0
-      m_cooldown: -1
-      m_smoothness: 0
-      m_steps: []
-      m_oscMin: []
-      m_oscMax: []
-      m_oscRate: []
-      m_oscRateMax: 8
-      m_multiplierId: 
-    previewHeatmap: 0
-  previewZoom: 1
+  previewZoom: 2
   previewFps: 8
   previewGifScale: 1
   previewGifDither: 1
@@ -2533,7 +2432,7 @@ MonoBehaviour:
   previewStripSize: 96
   previewShowShape: 0
   previewShowTrace: 0
-  cherryEnabled: 1
+  cherryEnabled: 0
   cherryFrames:
   - sourceIndex: 0
     lengthMultiplier: 1
@@ -2567,34 +2466,16 @@ MonoBehaviour:
     multiFrame: 0
     multiFrameSources: 
     multiFrameRandomSeed: 0
-  previewDelay:
-    m_mode: 0
-    m_static: 0
-    m_min: 0
-    m_max: 1
-    m_points: []
-    m_yMin: 0
-    m_yMax: 1
-    m_duration: 4
-    m_warmup: 0
-    m_cooldown: -1
-    m_smoothness: 0
-    m_steps: []
-    m_oscMin: []
-    m_oscMax: []
-    m_oscRate: []
-    m_oscRateMax: 8
-    m_multiplierId: 
+  previewCherryStripSize: 48
+  previewDelay: 0
+  previewZoundFrame: 0
+  previewZoundName: 
   previewBackSplash:
     cameraColor: {r: 0.2830189, g: 0.25048652, b: 0.35686275, a: 1}
     image: {fileID: 21300000, guid: 866c877b4deb2864d99414e91ef88449, type: 3}
     imageTint: {r: 0.6283537, g: 0.59410226, b: 0.6771488, a: 1}
     imageZoom: 1.05496
     imagePos: {x: 0, y: 0}
-  previewZoundName: 
-  previewZoundFrame: 0
-  previewCherryPlaying: 1
-  previewCherryStripSize: 48
   references:
     version: 2
     RefIds:
@@ -2664,7 +2545,7 @@ MonoBehaviour:
       type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
       data:
         m_mode: 0
-        m_static: 0.41096
+        m_static: 0.62539
         m_min: 0
         m_max: 1
         m_points: []
@@ -3196,20 +3077,20 @@ MonoBehaviour:
       data:
         gradient:
           serializedVersion: 2
-          key0: {r: 0.09061921, g: 0.21597596, b: 0.28721172, a: 1}
-          key1: {r: 0.98742133, g: 0.98742133, b: 0.98742133, a: 1}
-          key2: {r: 0, g: 0, b: 0, a: 0}
-          key3: {r: 0, g: 0, b: 0, a: 0}
-          key4: {r: 0, g: 0, b: 0, a: 0}
-          key5: {r: 0, g: 0, b: 0, a: 0}
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 0.92, b: 0.5, a: 1}
+          key2: {r: 1, g: 0.55, b: 0.12, a: 0}
+          key3: {r: 0.7, g: 0.12, b: 0.05, a: 0}
+          key4: {r: 0.34591198, g: 0.093621016, b: 0.06272825, a: 0}
+          key5: {r: 0.17819703, g: 0.07708172, b: 0.06444231, a: 0}
           key6: {r: 0, g: 0, b: 0, a: 0}
           key7: {r: 0, g: 0, b: 0, a: 0}
           ctime0: 0
-          ctime1: 65535
-          ctime2: 0
-          ctime3: 0
-          ctime4: 0
-          ctime5: 0
+          ctime1: 9894
+          ctime2: 20689
+          ctime3: 37137
+          ctime4: 46132
+          ctime5: 65535
           ctime6: 0
           ctime7: 0
           atime0: 0
@@ -3221,11 +3102,11 @@ MonoBehaviour:
           atime6: 0
           atime7: 0
           m_Mode: 0
-          m_ColorSpace: 0
-          m_NumColorKeys: 2
+          m_ColorSpace: -1
+          m_NumColorKeys: 6
           m_NumAlphaKeys: 2
         reverse: 0
-        quantiseSteps: 10
+        quantiseSteps: 0
         hueShift: 0
         saturation: 1
         brightness: 1
@@ -4359,8 +4240,8 @@ MonoBehaviour:
           value: 2
           exponent: 1
           editState: 0
-        - time: 1
-          value: 0.41197
+        - time: 0.98472
+          value: 0.91901
           exponent: 1
           editState: 0
         m_yMin: 0
@@ -4538,7 +4419,7 @@ MonoBehaviour:
     - rid: 1702917364542604257
       type: {class: TintModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
       data:
-        enabled: 1
+        enabled: 0
         tint: {r: 1, g: 0, b: 0.89442396, a: 0.22352941}
         crossGradient:
           serializedVersion: 2

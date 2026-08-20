@@ -666,7 +666,7 @@ namespace Laubrary.TextSplash.Editor
 
             // The switch restates itself in place rather than rebuilding the column: nothing OUTSIDE this box
             // reads differently once the bevel is on, and the dials it reveals are its own children.
-            Toggle sw = null;
+            ZuiToggleButton sw = null;
             sw = Z.Toggle("Bevel the letters", BevelTip(s), b.enabled, v =>
             {
                 Edit("Toggle bevel", () => b.enabled = v);
@@ -760,7 +760,7 @@ namespace Laubrary.TextSplash.Editor
                         prefsKey: "splash.depth.tilty"))));
             body.Shown(d.enabled);
 
-            Toggle sw = null;
+            ZuiToggleButton sw = null;
             sw = Z.Toggle("Extrude the letters", DepthTip(s), d.enabled, v =>
             {
                 Edit("Toggle depth", () => d.enabled = v);
@@ -809,7 +809,7 @@ namespace Laubrary.TextSplash.Editor
         {
             // Held so the cutoff can restate it in place: a raised cutoff removes the very soft rim the fix
             // exists to correct, and a continuous drag can't rebuild the column it is being dragged in.
-            Toggle fixEdges = null;
+            ZuiToggleButton fixEdges = null;
             fixEdges = Z.Toggle("Fix edges", FixEdgesTip(s), px.fixEdgeAlpha,
                 v => Edit("Toggle pixel edge fix", () => px.fixEdgeAlpha = v));
 

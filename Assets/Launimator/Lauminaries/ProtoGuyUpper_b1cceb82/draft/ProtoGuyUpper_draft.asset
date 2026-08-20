@@ -1,0 +1,1098 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f47c6b625f5940a4983f47cb1f8f879d, type: 3}
+  m_Name: ProtoGuyUpper_draft
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Launimator::Laubrary.Launimator.LauminaryVersion
+  versionNumber: 0
+  createdUtc: 2026-08-17T05:37:35.8124259Z
+  animations:
+  - name: Upper_N
+    fps: 1
+    recipe:
+    - sourceTextureGuid: 28d62e9c6c38cd344bfb75ab96aa8bc6
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 7625353642974752303, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 651d70377d83ff94abaae41c73e7715c, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_NNE
+    fps: 1
+    recipe:
+    - sourceTextureGuid: c5cee51f082209a4a95f6e6d6a9b2edb
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -2992149269904028791, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 535d947601b4d1e4b8d93224db6cbc68, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_NE
+    fps: 1
+    recipe:
+    - sourceTextureGuid: 26911eac6f706ab4ba69337ea8ca2a0a
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 4380423772799078753, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 74d255f8fedd3d142a98aa28f50f6b23, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_ENE
+    fps: 1
+    recipe:
+    - sourceTextureGuid: 79113ae6c76b5c64e96ecd936b4513e0
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -8079936417545438962, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 17e97cc939c77d74abf76d6f74988b79, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_E
+    fps: 1
+    recipe:
+    - sourceTextureGuid: eaea7c2731f076f4d9df216c56b91f26
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 7744173869180012509, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 56fcbdc9a12e132419103130a3bdb286, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_ESE
+    fps: 1
+    recipe:
+    - sourceTextureGuid: 3631f0024b963964a8b115cc56f37b32
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -8132939431954792645, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: b736f3f0594d19e4897fd022e22a3f69, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_SE
+    fps: 1
+    recipe:
+    - sourceTextureGuid: d47b2a105605c9c44bb7eee8b763e6c8
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -2581692415788340439, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 92ca49965895ec548b0480175e2b82ba, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_SSE
+    fps: 1
+    recipe:
+    - sourceTextureGuid: 1f13d85233c0b084086e660289b550a1
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -1601596505656613747, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 1cff4b00ecac2004f8067a929a00e23f, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_S
+    fps: 1
+    recipe:
+    - sourceTextureGuid: bbb8f59ad26fc694fb50580a642a30c6
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -7547975583332683562, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 6892b24777c77c84a86140c806183ec5, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_SSW
+    fps: 1
+    recipe:
+    - sourceTextureGuid: 5cdc072626d2a6546ade696e325c76a1
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 6642023921975925791, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: f643e9838c582e045bb46ef82204b981, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_SW
+    fps: 1
+    recipe:
+    - sourceTextureGuid: 4d74770aeeea6a94eb982e2831c33081
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -3213947272084201502, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: c0267de0bc736a548bf60e6571ade4d2, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_WSW
+    fps: 1
+    recipe:
+    - sourceTextureGuid: 79c847ea4236d2443b8ea1a49ba1d25a
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 3683261985718490363, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 58009c4af5a592c48b83729ac9c1cc66, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_W
+    fps: 1
+    recipe:
+    - sourceTextureGuid: ae98a0e072021f145ad90c47f779c89d
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -4308503013214318697, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 07000e2383f69314289a2d5d6a25c867, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_WNW
+    fps: 1
+    recipe:
+    - sourceTextureGuid: 76ab838ba55a1434e9f744e6d0b5d92d
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -5764143536469989782, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 51ddac2eaf175ec4e95dbee49d8aa2e6, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_NW
+    fps: 1
+    recipe:
+    - sourceTextureGuid: 61cf9eca99fb7fe4b8a76a13e158f61d
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: -6217495546354138823, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 420ef71d014eca6448c6fd6dc0cdb614, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  - name: Upper_NNW
+    fps: 1
+    recipe:
+    - sourceTextureGuid: e1ccf993835672b4ca4ff4eb886e0a8d
+      cell:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 56
+        height: 56
+      pivot: {x: 0.5, y: 0.5}
+      transform:
+        flipX: 0
+        flipY: 0
+        rot90: 0
+        angle: 0
+        scaleX: 1
+        scaleY: 1
+        smooth: 0
+    events: []
+    bgKeyEnabled: 0
+    bgKey:
+      serializedVersion: 2
+      rgba: 4278190080
+    bgKeyTolerance: 12
+    fixedFrame: 0
+    frameWidth: 32
+    frameHeight: 32
+    framePivot: {x: 0.5, y: 0}
+    frames:
+    - {fileID: 2656628738997907869, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    spriteLayers: []
+    atlas: {fileID: 2800000, guid: 57e67b54543c80144b4cb276ed69c9ed, type: 3}
+    sourceTextureGuid: 
+    clip: {fileID: 7400000, guid: 00ffdcf3ef41ed74e89a5e7601c48626, type: 2}
+    metaLayersEnabled: 0
+    metaLayers: []
+    zonesEnabled: 0
+    zones: []
+    asepriteSourcePath: 
+  sets:
+  - name: UpperAim16
+    directionMode: 2
+    members:
+    - angleDegrees: 0
+      laumination:
+        name: Upper_N
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 28d62e9c6c38cd344bfb75ab96aa8bc6, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 22.5
+      laumination:
+        name: Upper_NNE
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: c5cee51f082209a4a95f6e6d6a9b2edb, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 45
+      laumination:
+        name: Upper_NE
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 26911eac6f706ab4ba69337ea8ca2a0a, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 67.5
+      laumination:
+        name: Upper_ENE
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 79113ae6c76b5c64e96ecd936b4513e0, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 90
+      laumination:
+        name: Upper_E
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: eaea7c2731f076f4d9df216c56b91f26, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 112.5
+      laumination:
+        name: Upper_ESE
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 3631f0024b963964a8b115cc56f37b32, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 135
+      laumination:
+        name: Upper_SE
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: d47b2a105605c9c44bb7eee8b763e6c8, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 157.5
+      laumination:
+        name: Upper_SSE
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 1f13d85233c0b084086e660289b550a1, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 180
+      laumination:
+        name: Upper_S
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: bbb8f59ad26fc694fb50580a642a30c6, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 202.5
+      laumination:
+        name: Upper_SSW
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 5cdc072626d2a6546ade696e325c76a1, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 225
+      laumination:
+        name: Upper_SW
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 4d74770aeeea6a94eb982e2831c33081, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 247.5
+      laumination:
+        name: Upper_WSW
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 79c847ea4236d2443b8ea1a49ba1d25a, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 270
+      laumination:
+        name: Upper_W
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: ae98a0e072021f145ad90c47f779c89d, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 292.5
+      laumination:
+        name: Upper_WNW
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 76ab838ba55a1434e9f744e6d0b5d92d, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 315
+      laumination:
+        name: Upper_NW
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: 61cf9eca99fb7fe4b8a76a13e158f61d, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    - angleDegrees: 337.5
+      laumination:
+        name: Upper_NNW
+        fps: 1
+        recipe: []
+        events: []
+        bgKeyEnabled: 0
+        bgKey:
+          serializedVersion: 2
+          rgba: 4278190080
+        bgKeyTolerance: 12
+        fixedFrame: 0
+        frameWidth: 32
+        frameHeight: 32
+        framePivot: {x: 0.5, y: 0}
+        frames:
+        - {fileID: 21300000, guid: e1ccf993835672b4ca4ff4eb886e0a8d, type: 3}
+        spriteLayers: []
+        atlas: {fileID: 0}
+        sourceTextureGuid: 
+        clip: {fileID: 0}
+        metaLayersEnabled: 0
+        metaLayers: []
+        zonesEnabled: 0
+        zones: []
+        asepriteSourcePath: 
+      pivotOverride: {x: 0.5, y: 0}
+    mirrorBuiltIn: 0
+    snapStepDeg: 0
+    framePivot: {x: 0.5, y: 0}
+  prefab: {fileID: 9089270097343244390, guid: bb4fcb7bb53a4e64d9363440b85d0b9f, type: 3}
+  controller: {fileID: 9100000, guid: 7ac57de657d4e124c8a0240d435543c9, type: 2}

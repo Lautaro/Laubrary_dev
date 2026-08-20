@@ -23,10 +23,15 @@ namespace Laubrary.Launimator
         /// nearest authored member's angle. Useful for "did the direction actually change?" debouncing
         /// — when ResolvedAngleDeg matches the last resolution, the runtime can skip the Play() call.
         public readonly float ResolvedAngleDeg;
+        /// Empty (default) = play Laumination normally, from frame 0, looping. Non-empty = the winning
+        /// member opted into "rotation sheet" mode (see LauminationSetMember.zoneName) — after selecting
+        /// Laumination, jump to this named zone instead of playing from the start. Purely additive: existing
+        /// callers that ignore this field see exactly today's behaviour.
+        public readonly string ZoneName;
 
-        public LauminationResolution(Laumination l, bool flipX, float rotDeg, float resolvedAngle)
+        public LauminationResolution(Laumination l, bool flipX, float rotDeg, float resolvedAngle, string zoneName = "")
         {
-            Laumination = l; FlipX = flipX; RotationDeg = rotDeg; ResolvedAngleDeg = resolvedAngle;
+            Laumination = l; FlipX = flipX; RotationDeg = rotDeg; ResolvedAngleDeg = resolvedAngle; ZoneName = zoneName;
         }
 
         public static LauminationResolution None => default;
@@ -88,7 +93,7 @@ namespace Laubrary.Launimator
             var m = FirstValid(set);
             return m == null
                 ? LauminationResolution.None
-                : new LauminationResolution(m.laumination, false, 0f, 0f);
+                : new LauminationResolution(m.laumination, false, 0f, 0f, m.zoneName);
         }
 
         static LauminationResolution ResolveMirror(LauminationSet set, float angleDeg)
@@ -97,7 +102,7 @@ namespace Laubrary.Launimator
             var m = FirstValid(set);
             if (m == null) return LauminationResolution.None;
             bool flip = angleDeg > 180f;
-            return new LauminationResolution(m.laumination, flip, 0f, flip ? 180f : 0f);
+            return new LauminationResolution(m.laumination, flip, 0f, flip ? 180f : 0f, m.zoneName);
         }
 
         static LauminationResolution ResolveMembers(LauminationSet set, float angleDeg)
@@ -105,7 +110,7 @@ namespace Laubrary.Launimator
             // Pick the nearest authored member, with optional built-in mirroring for odd-N sets.
             var m = NearestMember(set, angleDeg, out bool mirrored, out float resolvedAngle);
             if (m == null) return LauminationResolution.None;
-            return new LauminationResolution(m.laumination, mirrored, 0f, resolvedAngle);
+            return new LauminationResolution(m.laumination, mirrored, 0f, resolvedAngle, m.zoneName);
         }
 
         static LauminationResolution ResolveRotate(LauminationSet set, float angleDeg)
@@ -115,7 +120,7 @@ namespace Laubrary.Launimator
             if (m == null) return LauminationResolution.None;
             float rot = set.snapStepDeg > 0f ? Mathf.Round(angleDeg / set.snapStepDeg) * set.snapStepDeg
                                               : angleDeg;
-            return new LauminationResolution(m.laumination, false, rot, angleDeg);
+            return new LauminationResolution(m.laumination, false, rot, angleDeg, m.zoneName);
         }
 
         static LauminationResolution ResolveMembersRotate(LauminationSet set, float angleDeg)
@@ -125,7 +130,7 @@ namespace Laubrary.Launimator
             var m = NearestMember(set, angleDeg, out bool mirrored, out float resolvedAngle);
             if (m == null) return LauminationResolution.None;
             float delta = Mathf.DeltaAngle(resolvedAngle, angleDeg);
-            return new LauminationResolution(m.laumination, mirrored, delta, resolvedAngle);
+            return new LauminationResolution(m.laumination, mirrored, delta, resolvedAngle, m.zoneName);
         }
 
         // ── helpers ──

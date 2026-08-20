@@ -23,6 +23,7 @@ namespace Laubrary.Zui
         public readonly ZuiBox Adjust;         // the transforms, in a collapsible box
 
         readonly ZuiGradient _g;
+        readonly bool _lifeFollowsPosition;
         Texture2D _lut;
 
         /// Fires once per gesture before the first mutation — the Undo.RecordObject hook.
@@ -30,15 +31,24 @@ namespace Laubrary.Zui
         /// Fires after every mutation.
         public Action OnChanged;
 
-        public ZuiGradientEditor(ZuiGradient g, string tooltip = null)
+        /// <param name="lifeFollowsPosition">Set when `g` backs an OverLife ZuiFill, where the ramp position IS the
+        /// life (ZuiFill.EvalGrad samples both from the same value). The Output preview then bakes each texel's
+        /// colour transforms (hue/sat/brightness/contrast) at ITS OWN position instead of a fixed life-0 snapshot,
+        /// so an authored Curve shows the true per-position render instead of one flat value smeared across the
+        /// whole strip. Linear/Radial/Noise fills keep the life-0 snapshot (there, position and life are genuinely
+        /// independent — the transforms animate over TIME, not position, so a single frozen snapshot is correct).</summary>
+        public ZuiGradientEditor(ZuiGradient g, string tooltip = null, bool lifeFollowsPosition = false)
         {
             _g = g ?? throw new ArgumentNullException(nameof(g));
+            _lifeFollowsPosition = lifeFollowsPosition;
             _g.EnsureTransformAnim();   // non-null ZUIValue companions for the MultiCont controls
 
             Output = new Image
             {
                 scaleMode = ScaleMode.StretchToFill,
-                tooltip = "Objective preview — the ramp exactly as it renders, every transform applied (at life 0). Read-only.",
+                tooltip = _lifeFollowsPosition
+                    ? "Objective preview — the ramp exactly as it renders, every transform applied at EACH position's own life (this fill is Over Life, where position IS life). Read-only."
+                    : "Objective preview — the ramp exactly as it renders, every transform applied (at life 0). Read-only.",
             };
             Output.style.height = 22;   // fixed height; a column parent stretches it full-width (no flexGrow needed)
             Output.style.minWidth = 120f;
@@ -103,7 +113,7 @@ namespace Laubrary.Zui
         void Refresh()
         {
             DisposeLut();
-            _lut = _g.ToLut(256);
+            _lut = _g.ToLut(256, lifeFollowsPosition: _lifeFollowsPosition);
             _lut.hideFlags = HideFlags.HideAndDontSave;
             Output.image = _lut;
         }

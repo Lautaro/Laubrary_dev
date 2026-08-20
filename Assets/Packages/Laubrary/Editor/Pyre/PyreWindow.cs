@@ -370,7 +370,11 @@ namespace Laubrary.Pyre.Editor
                         v => Dial("Seed", () => spec.seed = v), 60f)),
                 Z.Field("Frames", "How many frames the baked animation has.",
                     Z.SliderInt(spec.frameCount, 1, 64, "How many frames the baked animation has.",
-                        v => Dial("Frame count", () => { spec.frameCount = Mathf.Max(1, v); frame = Mathf.Min(frame, FrameCount - 1); }), 120f)),
+                        v =>
+                        {
+                            Dial("Frame count", () => { spec.frameCount = Mathf.Max(1, v); frame = Mathf.Min(frame, FrameCount - 1); });
+                            RebuildLeft();
+                        }, 120f)),
                 Z.Field("Bake bg", "The actual pixel colour baked into every EXPORTED frame — usually fully transparent so it composites into a game scene. Different from 'Preview backdrop' below, which is cosmetic-only and never baked.",
                     Z.Color(spec.background, "The actual pixel colour baked into every EXPORTED frame — usually fully transparent so it composites into a game scene.",
                         v => Dial("Bake background", () => spec.background = v)))));

@@ -54,6 +54,9 @@ namespace Laubrary.Mirage
         [Tooltip("Stands in for whatever would drive Combatant.aimDirection in real gameplay (player input, " +
                  "AI) -- Mirage has neither, so a fixed preview value is needed to fire in a specific direction.")]
         public Vector2 previewAimDirection = Vector2.right;
+        [Tooltip("Freeze onto one named, real game-state pose (\"Idle N\", \"Moving E\") from " +
+                 "MotionPoseCatalog.Derive(zoe) instead of driving off live input. Empty = normal preview.")]
+        public string previewPose = "";
 
         [Header("Target Practice (a Mirage-only testing convenience, not saved onto the Zoe)")]
         [Tooltip("Opt in to a self-contained Idle -> (Hurt) -> Death -> respawn loop for THIS preview, " +
@@ -100,7 +103,7 @@ namespace Laubrary.Mirage
         void HandleAssetInvalidated(Object asset)
         {
             if (Spawned == null || zoe == null) return;
-            bool relevant = asset == zoe || (zoe.weapons != null && zoe.weapons.Contains(asset as WeaponDef));
+            bool relevant = asset == zoe || (zoe.weapons != null && zoe.weapons.Exists(s => s != null && s.weapon == asset));
             if (relevant) _pendingRebuild = true;
         }
 
@@ -156,6 +159,7 @@ namespace Laubrary.Mirage
             Health = Spawned.GetComponent<Health>();
             Player = Spawned.GetComponent<ZonedAnimationPlayer>();
             if (Combatant != null) Combatant.aimDirection = previewAimDirection;
+            ApplyPoseOverride();
 
             var switcher = Spawned.GetComponent<WeaponSwitcher>();
             Weapon = switcher != null ? switcher.ActiveWeapon : null;
@@ -171,6 +175,33 @@ namespace Laubrary.Mirage
                 Player.OnComplete += HandleSequenceStepComplete;
                 bool anyStepFires = clips != null && clips.Exists(s => s != null && s.fireWeapon);
                 if (anyStepFires) { Player.OnMetaLayerReached += HandleMetaLayerReached; Player.OnFrameEvent += HandleFrameEvent; }
+            }
+        }
+
+        // Applies/clears previewPose on every MotionPoseAnimator under Spawned (one per composite part, or
+        // one for a single-body Zoe) — looked up by label against MotionPoseCatalog.Derive(zoe), the SAME
+        // auto-derived list Mirage's own UI offers, so a stale/renamed label just falls back to normal live
+        // preview (ClearPoseOverride) rather than throwing. Called from both Spawn() and RebindToExisting()
+        // since a domain reload needs the override re-applied to the FRESH MotionPoseAnimator instances the
+        // reload's Awake/OnEnable produced, same reasoning DestroySpawned/RebindToExisting's own doc gives
+        // for re-subscribing event handlers there.
+        void ApplyPoseOverride()
+        {
+            if (Spawned == null) return;
+            var animators = Spawned.GetComponentsInChildren<MotionPoseAnimator>(true);
+            if (animators.Length == 0) return;
+
+            MotionPoseCatalog.Pose? match = null;
+            if (!string.IsNullOrEmpty(previewPose) && zoe != null)
+            {
+                foreach (var p in MotionPoseCatalog.Derive(zoe))
+                    if (p.label == previewPose) { match = p; break; }
+            }
+
+            foreach (var a in animators)
+            {
+                if (match.HasValue) a.SetPoseOverride(match.Value.bucket, match.Value.angleDeg);
+                else a.ClearPoseOverride();
             }
         }
 
@@ -218,6 +249,7 @@ namespace Laubrary.Mirage
             Health = Spawned.GetComponent<Health>();
             Player = Spawned.GetComponent<ZonedAnimationPlayer>();   // null if the Zoe's view isn't Zoned — fine.
             if (Combatant != null) Combatant.aimDirection = previewAimDirection;
+            ApplyPoseOverride();
 
             EnsureTargetPractice();
 
@@ -238,7 +270,7 @@ namespace Laubrary.Mirage
             var switcher = Spawned.GetComponent<WeaponSwitcher>();
             if (switcher != null)
             {
-                int idx = weapon != null && zoe.weapons != null ? zoe.weapons.IndexOf(weapon) : -1;
+                int idx = weapon != null && zoe.weapons != null ? zoe.weapons.FindIndex(s => s != null && s.weapon == weapon) : -1;
                 if (idx >= 0) switcher.SwitchTo(idx);
                 Weapon = switcher.ActiveWeapon;
             }

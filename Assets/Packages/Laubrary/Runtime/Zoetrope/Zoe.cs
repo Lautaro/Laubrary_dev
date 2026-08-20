@@ -106,8 +106,10 @@ namespace Laubrary.Zoetrope
         [Header("Weapons")]
         [Tooltip("Switchable slots, separate from Loadout above (which stays unused today). One child slot " +
                  "per weapon, only the active one enabled. Switch via the spawned character's WeaponSwitcher. " +
-                 "Empty = no weapon slots at all (today's single-EquipWeapon callers still work).")]
-        public List<WeaponDef> weapons = new List<WeaponDef>();
+                 "Empty = no weapon slots at all (today's single-EquipWeapon callers still work). Each slot " +
+                 "names its OWN attach part + muzzle layer (see ZoeWeaponSlot) — a WeaponDef itself carries no " +
+                 "character-specific wiring, so the same weapon asset can be equipped by any Zoe correctly.")]
+        public List<ZoeWeaponSlot> weapons = new List<ZoeWeaponSlot>();
         [Min(0)] public int defaultActiveWeapon = 0;
 
         [Header("Cues")]

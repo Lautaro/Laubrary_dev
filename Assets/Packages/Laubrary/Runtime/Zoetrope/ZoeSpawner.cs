@@ -154,7 +154,12 @@ namespace Laubrary.Zoetrope
 
         /// Configure (or add) a ProjectileWeapon on `shooter` from a WeaponDef: fire stats + a projectile template +
         /// muzzle VFX on each shot. `owner` supplies the firing faction; `muzzle` is the spawn point.
+        /// muzzleLayerId/muzzleEventName come from the EQUIPPING ZOE's own ZoeWeaponSlot (see its own doc
+        /// comment) — def itself carries no character-specific wiring, so the same weapon asset stays
+        /// equippable by any character. Both default to "" for a caller with no Zoe context at all (a bare
+        /// muzzle Transform / def.muzzleOffset fallback, same as before ZoeWeaponSlot existed).
         public static ProjectileWeapon EquipWeapon(GameObject shooter, WeaponDef def, Combatant owner, Transform muzzle,
+                                                   string muzzleLayerId = "", string muzzleEventName = "",
                                                    LayerMask projectileBlockers = default)
         {
             var w = shooter.GetComponent<ProjectileWeapon>();
@@ -178,24 +183,66 @@ namespace Laubrary.Zoetrope
             {
                 var cue = shooter.GetComponent<WeaponMuzzleCue>();
                 if (cue == null) cue = shooter.AddComponent<WeaponMuzzleCue>();
-                cue.Configure(def, w, muzzle);   // OnEnable already ran before we could set fields directly
+                cue.Configure(def, w, muzzle, muzzleLayerId, muzzleEventName);   // OnEnable already ran before we could set fields directly
+            }
+
+            // Real bullet spawn POSITION, independent of the muzzle-flash VFX cue above: probe once, right now,
+            // for whichever kind of data is actually painted under muzzleLayerId (Point → MuzzleTracker, Vector →
+            // MuzzleVectorTracker — never both, they'd fight over the same Transform every frame) and attach
+            // exactly that one tracker. GetComponentInParent mirrors WeaponMuzzleCue's own ICueSink lookup — for
+            // a composite Zoe this only reaches the right PART's IAnimatedView when the slot is actually parented
+            // under that part (see EquipWeaponSlots' attachToPartName handling); a single-body Zoe's root IS the
+            // view, so this always reaches it there. No match (nothing painted yet, or a plain SpriteView with
+            // no IAnimatedView at all) leaves muzzle exactly where def.muzzleOffset put it — the same graceful
+            // "optional capability, quiet no-op" rule every other consumer of these interfaces follows.
+            if (!string.IsNullOrEmpty(muzzleLayerId))
+            {
+                var animatedView = shooter.GetComponentInParent<IAnimatedView>();
+                if (animatedView != null)
+                {
+                    bool hasVector = animatedView.TryGetMetaVectorNearest(muzzleLayerId, out _, out _, out _);
+                    bool hasPoint = !hasVector && animatedView.TryGetMetaPointNearest(muzzleLayerId, out _);
+                    if (hasVector)
+                    {
+                        var t = shooter.GetComponent<MuzzleVectorTracker>();
+                        if (t == null) t = shooter.AddComponent<MuzzleVectorTracker>();
+                        t.Configure(muzzle, muzzleLayerId);
+                    }
+                    else if (hasPoint)
+                    {
+                        var t = shooter.GetComponent<MuzzleTracker>();
+                        if (t == null) t = shooter.AddComponent<MuzzleTracker>();
+                        t.Configure(muzzle, muzzleLayerId);
+                    }
+                }
             }
             return w;
         }
 
         /// Build one child slot per weapon (each with its own ProjectileWeapon/muzzle/projectile template via
         /// EquipWeapon), only `activeIndex` enabled. Returns the WeaponSwitcher that toggles between them.
-        public static WeaponSwitcher EquipWeaponSlots(GameObject root, System.Collections.Generic.List<WeaponDef> weapons,
+        public static WeaponSwitcher EquipWeaponSlots(GameObject root, System.Collections.Generic.List<ZoeWeaponSlot> weapons,
                                                        Combatant owner, LayerMask projectileBlockers, int activeIndex = 0)
         {
             var switcher = root.GetComponent<WeaponSwitcher>();
             if (switcher == null) switcher = root.AddComponent<WeaponSwitcher>();
 
+            // Resolved once for the whole root, not per-weapon — every composite Zoe host has at most one.
+            var partLookup = root.GetComponent<IPartLookup>();
+
             for (int i = 0; i < weapons.Count; i++)
             {
-                var def = weapons[i];
+                var slotDef = weapons[i];
+                var def = slotDef?.weapon;
                 var slot = new GameObject(def != null && !string.IsNullOrEmpty(def.displayName) ? def.displayName : $"Weapon_{i}");
-                slot.transform.SetParent(root.transform, false);
+                // A slot names which composite PART it belongs to (ZoeWeaponSlot.attachToPartName — THIS Zoe's
+                // own answer, not the weapon's) so its muzzle can read THAT part's own animation — see
+                // IPartLookup's own doc comment. Falls back to the character root when unset, not composite, or
+                // the named part doesn't exist.
+                var parent = slotDef != null && !string.IsNullOrEmpty(slotDef.attachToPartName) && partLookup != null
+                    ? partLookup.FindPartTransform(slotDef.attachToPartName)
+                    : null;
+                slot.transform.SetParent(parent != null ? parent : root.transform, false);
                 // Deactivate BEFORE EquipWeapon so AddComponent<WeaponMuzzleCue> doesn't fire OnEnable yet —
                 // it registers/unregisters correctly later, purely as a side effect of SwitchTo's SetActive.
                 slot.SetActive(false);
@@ -204,7 +251,8 @@ namespace Laubrary.Zoetrope
                 muzzleGo.transform.SetParent(slot.transform, false);
                 if (def != null) muzzleGo.transform.localPosition = def.muzzleOffset;
 
-                EquipWeapon(slot, def, owner, muzzleGo.transform, projectileBlockers);
+                EquipWeapon(slot, def, owner, muzzleGo.transform,
+                    slotDef?.muzzleLayerId ?? "", slotDef?.muzzleEventName ?? "", projectileBlockers);
                 switcher.slots.Add(slot);
             }
 

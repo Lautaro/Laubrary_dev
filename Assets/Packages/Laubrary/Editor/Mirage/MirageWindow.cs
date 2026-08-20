@@ -410,7 +410,8 @@ namespace Laubrary.Mirage.Editor
             // as MirageSubject.weapon's own doc comment. A dropdown over the Zoe's actual list, not a general
             // asset browser over every WeaponDef in the project, makes that constraint the only thing
             // physically choosable, not just a documented convention.
-            var zoeWeapons = zoe.weapons ?? new List<WeaponDef>();
+            var zoeWeapons = (zoe.weapons ?? new List<ZoeWeaponSlot>())
+                .Where(s => s != null && s.weapon != null).Select(s => s.weapon).ToList();
             if (zoeWeapons.Count == 0)
             {
                 zoeSection.Add(Z.Text("This Zoe has no weapons configured (add one to Zoe.weapons, not here).", ZuiText.Subtle));
@@ -425,6 +426,24 @@ namespace Laubrary.Mirage.Editor
                     i => Dial("Edit Previewable",
                         () => entry.weapon = i <= 0 ? null : zoeWeapons[Mathf.Clamp(i - 1, 0, zoeWeapons.Count - 1)]),
                     200f)));
+            }
+
+            // Freeze onto one named, real game-state pose ("Idle N", "Moving E") instead of driving off
+            // Mirage's own stand-in input — for a composite Zoe (independently-timed parts) there's no single
+            // "current clip" to preview by name, so this offers the actual COMBINATION every part would show
+            // for that game state. List is auto-derived, never typed: see MotionPoseCatalog's own doc for why.
+            var poses = MotionPoseCatalog.Derive(zoe);
+            if (poses.Count > 0)
+            {
+                const string poseTip = "Freeze this preview onto one named, real game-state pose (auto-derived " +
+                    "from this Zoe's authored MotionPose rules + LauminationSets) instead of driving off live " +
+                    "input. \"(live)\" = normal preview, unchanged.";
+                var poseOptions = new List<string>(poses.Count + 1) { "(live)" };
+                foreach (var p in poses) poseOptions.Add(p.label);
+                int currentPose = string.IsNullOrEmpty(entry.previewPose) ? 0
+                    : Mathf.Max(0, poseOptions.IndexOf(entry.previewPose));
+                zoeSection.Add(Z.Field("Preview Pose", poseTip, Z.Dropdown(currentPose, poseOptions, poseTip,
+                    i => Dial("Edit Previewable", () => entry.previewPose = i <= 0 ? "" : poseOptions[i]), 200f)));
             }
 
             var zonedView = zoe.view as ZonedLauminaryView;

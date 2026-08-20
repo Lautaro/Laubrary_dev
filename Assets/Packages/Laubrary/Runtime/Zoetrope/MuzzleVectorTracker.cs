@@ -1,4 +1,5 @@
 using UnityEngine;
+using Laubrary.Combat2D;
 
 namespace Laubrary.Zoetrope
 {
@@ -19,7 +20,7 @@ namespace Laubrary.Zoetrope
     /// when it decides to shoot.</para>
     /// </summary>
     [AddComponentMenu("")]
-    public class MuzzleVectorTracker : MonoBehaviour
+    public class MuzzleVectorTracker : MonoBehaviour, IVectorAimSource
     {
         [Tooltip("The transform a weapon spawns its shots from — moved to the authored origin each frame.")]
         public Transform muzzle;

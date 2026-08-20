@@ -63,6 +63,14 @@ namespace Laubrary.Launimator
                  "set's frame pivot. Useful when members of the same set want different registration " +
                  "points (rare).")]
         public Vector2 pivotOverride = new Vector2(0.5f, 0f);
+
+        [Tooltip("Empty (default) = play `laumination` from frame 0, looping — today's behaviour, unchanged. " +
+                 "Non-empty = after selecting `laumination`, jump to this named zone instead (zone must exist " +
+                 "on `laumination`, i.e. it has zonesEnabled + a matching AnimZone). Lets several members " +
+                 "share ONE multi-frame \"rotation sheet\" clip — each direction a single-frame Loop zone — " +
+                 "instead of each needing its own separate single-frame clip. Purely opt-in: this field being " +
+                 "empty means the member is repurposing nothing, it behaves exactly as before this existed.")]
+        public string zoneName = "";
     }
 
     /// <summary>

@@ -10,15 +10,19 @@ namespace Laubrary.ZoetropeLaunimator
     /// Owns N independently-timed named body parts for a composite <see cref="Zoe"/> — one child GameObject
     /// per <see cref="ZoeBodyPart"/>, built through that part's own pluggable <see cref="ICharacterView"/> (the
     /// SAME mechanism a simple Zoe's single <c>view</c> already uses, just once per part instead of once for
-    /// the whole body). A non-root part either Transform-parents statically under its parent part (no
-    /// <c>attachMetaLayerId</c>), or follows the parent's named MetaLayer point LIVE via
-    /// <see cref="ZonedAnimationPlayer.OnMetaLayerReached"/> — reusing the exact point mechanism already built
-    /// for muzzle alignment, not a second one. Game code addresses parts by name:
-    /// <c>zoe.Part("Legs").Play("Run"); zoe.Part("Torso").Play("Shot");</c> Lives in this bridge (not core
+    /// the whole body). A non-root part attaches to its parent every frame via one <see cref="AttachAnchor"/>
+    /// per side (<see cref="ZoeBodyPart.parentAnchor"/>/<see cref="ZoeBodyPart.childAnchor"/>) — each side
+    /// independently either computed from that part's current sprite bounds (<see cref="AttachAnchorMode.Edge"/>,
+    /// no authoring needed) or read from a named painted point (<see cref="AttachAnchorMode.MetaLayer"/>), so
+    /// two independently-authored sprite sheets that don't share a registration origin still line up: the
+    /// CHILD's own anchor point is pinned to the PARENT's, not the child's raw transform origin. Resolved every
+    /// frame in <see cref="LateUpdate"/> (not event-driven) since Edge mode has no "painted" event to hang off
+    /// and needs to react to whatever's currently showing regardless of source. Game code addresses parts by
+    /// name: <c>zoe.Part("Legs").Play("Run"); zoe.Part("Torso").Play("Shot");</c> Lives in this bridge (not core
     /// Zoetrope) because it directly touches Launimator's <see cref="ZonedAnimationPlayer"/> — same reason
     /// <see cref="ZonedLauminaryView"/> lives here instead of in core.
     /// </summary>
-    public class CompositeZonedPlayer : MonoBehaviour
+    public class CompositeZonedPlayer : MonoBehaviour, IPartLookup
     {
         class PartEntry
         {
@@ -26,8 +30,15 @@ namespace Laubrary.ZoetropeLaunimator
             public ZoeBodyPart def;
         }
 
+        class Connection
+        {
+            public GameObject parentGo;
+            public GameObject childGo;
+            public ZoeBodyPart def;
+        }
+
         readonly Dictionary<string, PartEntry> _byName = new Dictionary<string, PartEntry>(StringComparer.OrdinalIgnoreCase);
-        readonly List<Action> _unsubscribers = new List<Action>();
+        readonly List<Connection> _connections = new List<Connection>();
 
         /// <summary>
         /// Build one child GameObject per part and wire non-root attachments. Call once, right after
@@ -58,30 +69,58 @@ namespace Laubrary.ZoetropeLaunimator
             {
                 if (string.IsNullOrEmpty(entry.def.parentPartName)) continue;
                 if (!_byName.TryGetValue(entry.def.parentPartName, out var parentEntry)) continue;
-
-                if (string.IsNullOrEmpty(entry.def.attachMetaLayerId))
-                {
-                    // Static attach: Transform-parent under the parent part, so it moves automatically if the
-                    // parent's own transform ever does.
-                    entry.go.transform.SetParent(parentEntry.go.transform, false);
-                    continue;
-                }
-
-                var parentPlayer = parentEntry.go.GetComponent<ZonedAnimationPlayer>();
-                if (parentPlayer == null) continue; // parent's view isn't a ZonedAnimationPlayer-based one
-
-                var child = entry.go;
-                var wantLayer = entry.def.attachMetaLayerId;
-                void Handler(string layerId, Vector3 worldPos)
-                {
-                    if (string.Equals(layerId, wantLayer, StringComparison.OrdinalIgnoreCase))
-                        child.transform.position = worldPos;
-                }
-                parentPlayer.OnMetaLayerReached += Handler;
-                _unsubscribers.Add(() => parentPlayer.OnMetaLayerReached -= Handler);
+                _connections.Add(new Connection { parentGo = parentEntry.go, childGo = entry.go, def = entry.def });
             }
 
             return size == Vector2.zero ? Vector2.one : size;
+        }
+
+        void LateUpdate()
+        {
+            for (int i = 0; i < _connections.Count; i++)
+            {
+                var c = _connections[i];
+                if (c.parentGo == null || c.childGo == null) continue;
+
+                Vector3 parentPoint = ResolveAnchor(c.parentGo, c.def.parentAnchor);
+                // The child's own anchor is read BEFORE moving it (against its current position) so the
+                // offset-from-origin it implies is transform-independent — self-correcting every frame
+                // regardless of where the child currently sits, same reasoning the original two-point
+                // MetaLayer stitching used.
+                Vector3 childPointBefore = ResolveAnchor(c.childGo, c.def.childAnchor);
+                Vector3 childLocalOffset = childPointBefore - c.childGo.transform.position;
+                c.childGo.transform.position = parentPoint - childLocalOffset;
+            }
+        }
+
+        /// <summary>Resolve one side of a connection to a world-space point on <paramref name="partGo"/>'s
+        /// CURRENT frame. MetaLayer mode degrades to Edge mode when the named layer has nothing painted on the
+        /// current frame (or is unset) — a quiet frame gets a still-sensible point instead of freezing at the
+        /// last valid one, matching the "optional capability, graceful no-op" rule the rest of this codebase
+        /// follows.</summary>
+        static Vector3 ResolveAnchor(GameObject partGo, AttachAnchor anchor)
+        {
+            if (anchor.mode == AttachAnchorMode.MetaLayer && !string.IsNullOrEmpty(anchor.metaLayerId))
+            {
+                var player = partGo.GetComponent<ZonedAnimationPlayer>();
+                if (player != null && player.TryGetMetaPoint(anchor.metaLayerId, out var worldPos, out _))
+                    return worldPos + (Vector3)anchor.offset;
+            }
+
+            var sr = partGo.GetComponent<SpriteRenderer>();
+            if (sr == null || sr.sprite == null) return partGo.transform.position + (Vector3)anchor.offset;
+
+            var b = sr.bounds;
+            Vector3 basePoint;
+            switch (anchor.edge)
+            {
+                case AttachEdge.Top: basePoint = new Vector3(b.center.x, b.max.y, b.center.z); break;
+                case AttachEdge.Bottom: basePoint = new Vector3(b.center.x, b.min.y, b.center.z); break;
+                case AttachEdge.Left: basePoint = new Vector3(b.min.x, b.center.y, b.center.z); break;
+                case AttachEdge.Right: basePoint = new Vector3(b.max.x, b.center.y, b.center.z); break;
+                default: basePoint = b.center; break;
+            }
+            return basePoint + (Vector3)anchor.offset;
         }
 
         /// <summary>The named part's ZonedAnimationPlayer, or null if that part's view didn't build one (a
@@ -89,10 +128,9 @@ namespace Laubrary.ZoetropeLaunimator
         public ZonedAnimationPlayer Part(string name) =>
             _byName.TryGetValue(name, out var e) ? e.go.GetComponent<ZonedAnimationPlayer>() : null;
 
-        void OnDestroy()
-        {
-            foreach (var unsub in _unsubscribers) unsub();
-            _unsubscribers.Clear();
-        }
+        /// IPartLookup: lets ZoeSpawner.EquipWeaponSlots attach a weapon to a named composite part
+        /// (WeaponDef.attachToPartName) without core Zoetrope depending on this bridge.
+        public Transform FindPartTransform(string partName) =>
+            !string.IsNullOrEmpty(partName) && _byName.TryGetValue(partName, out var e) ? e.go.transform : null;
     }
 }

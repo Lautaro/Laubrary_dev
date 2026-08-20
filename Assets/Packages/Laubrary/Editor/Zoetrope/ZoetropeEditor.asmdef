@@ -13,7 +13,10 @@
         "com.Lautaro-Arino.Laubrary.SpriteFx",
         "com.Lautaro-Arino.Laubrary.SpriteFx.Editor",
         "com.Lautaro-Arino.Laubrary.Launimator",
-        "com.Lautaro-Arino.Laubrary.ZoetropeLaunimator"
+        "com.Lautaro-Arino.Laubrary.Launimator.Editor",
+        "com.Lautaro-Arino.Laubrary.Zoetrope.Launimator",
+        "com.Lautaro-Arino.Laubrary.Mirage",
+        "com.Lautaro-Arino.Laubrary.Mirage.Editor"
     ],
     "includePlatforms": [
         "Editor"

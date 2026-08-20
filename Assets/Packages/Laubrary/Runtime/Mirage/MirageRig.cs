@@ -252,6 +252,7 @@ namespace Laubrary.Mirage
                     ps.choreography = entry.choreography;
                     ps.clips = entry.clips;
                     ps.previewAimDirection = entry.previewAimDirection;
+                    ps.previewPose = entry.previewPose;
                     ps.targetPractice = entry.targetPractice;
                     ps.respawnDelay = entry.respawnDelay;
                     _pendingZoeScale.Add(entry.id);   // PPU not known until ps.Spawned exists — resolved in Update()

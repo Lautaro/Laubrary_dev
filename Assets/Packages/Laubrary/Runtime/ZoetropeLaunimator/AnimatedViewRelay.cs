@@ -12,7 +12,7 @@ namespace Laubrary.ZoetropeLaunimator
     /// for <c>ICueSink</c>. Added by <see cref="ZonedLauminaryView.Build"/> alongside the player it wraps.
     /// </summary>
     [RequireComponent(typeof(ZonedAnimationPlayer))]
-    public class AnimatedViewRelay : MonoBehaviour, IAnimatedView, IFlippableView, IMotionPoseHost
+    public class AnimatedViewRelay : MonoBehaviour, IAnimatedView, IFlippableView, IMotionPoseHost, IZonedView
     {
         ZonedAnimationPlayer _player;
         Action _pendingComplete;
@@ -62,6 +62,15 @@ namespace Laubrary.ZoetropeLaunimator
         {
             _pendingComplete = loop ? null : onComplete;
             return _player != null && _player.Play(clip, loop);
+        }
+
+        /// IZonedView: jump to a named zone within whatever clip is currently loaded — the mechanism a
+        /// "rotation sheet" LauminationSetMember uses (see IZonedView's own doc comment). Delegates straight
+        /// to the already-existing, already-idempotent ZonedAnimationPlayer.EnterAt.
+        public bool TryEnterZone(string zoneName)
+        {
+            if (_player == null) _player = GetComponent<ZonedAnimationPlayer>();
+            return _player != null && _player.EnterAt(zoneName);
         }
 
         /// Forwards ZonedAnimationPlayer.GetClipSeconds — frames / fps for a plain clip, 0 for an unknown name

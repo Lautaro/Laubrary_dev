@@ -203,7 +203,11 @@ namespace Laubrary.Zui
         // that keeps a custom header, unlike ZuiBox's whole-body title-fold).
         VisualElement GradientSection(VisualElement placement)
         {
-            var ed = new ZuiGradientEditor(_fill.gradientAnim ?? SeedGradientAnim(), _tooltip)
+            // OverLife is the one mode where the ramp POSITION is the LIFE (ZuiFill.EvalGrad samples both from the
+            // same clamped `life`) — so the Output preview must bake each texel's colour transforms at ITS OWN
+            // position, not a single life-0 snapshot, or an authored Brightness/Hue/etc curve reads as inert.
+            var ed = new ZuiGradientEditor(_fill.gradientAnim ?? SeedGradientAnim(), _tooltip,
+                lifeFollowsPosition: _fill.mode == ZuiFill.Mode.OverLife)
             {
                 OnBeforeMutate = () => OnBeforeMutate?.Invoke(),
                 OnChanged = () => { _swatch?.Refresh(); OnChanged?.Invoke(); },

@@ -79,6 +79,14 @@ namespace Laubrary.Launimator.Editor
         private class Region
         {
             public string label;
+            // Which source texture this region's cells were identified from (matches FrameRef.sourceTextureGuid,
+            // set on AssetDatabase.AssetPathToGUID(sheetPath) for anything created via the normal identify-
+            // sprites canvas). CRITICAL for recipe round-tripping: a Laumination's frames can legitimately come
+            // from several different source textures (see FindOrCreateCellForFrame's own doc comment) — without
+            // this, two frames from DIFFERENT textures that happen to share the same cell rect (e.g. two
+            // standalone same-size sprite files, each its own whole-image cell at (0,0,w,h)) would be silently
+            // treated as the SAME sprite, collapsing an N-direction animation down to one repeated frame.
+            public string sourceTextureGuid;
             public List<Rect> cells = new List<Rect>();
             public List<Vector2> pivots = new List<Vector2>();   // per-cell registration (normalized, BL origin)
             public List<CellTransform> transforms = new List<CellTransform>(); // per-cell flip/rotate/scale
@@ -177,6 +185,20 @@ namespace Laubrary.Launimator.Editor
         private bool _metaPanning; private Vector2 _metaPanLast;
         private struct MaskEntry { public int hash; public Texture2D tex; }
         private readonly Dictionary<long, MaskEntry> _maskCache = new Dictionary<long, MaskEntry>();
+
+        // Vector-mode drag state on the preview canvas: 0 = idle, 1 = dragging the origin dot, 2 = dragging
+        // the arrowhead (re-aiming, and length too when the layer allows it).
+        private int _vecDragMode;
+
+        // Preview/paint canvas size — user-resizable via the grip in its bottom-right corner (drag-adjustable,
+        // not persisted across window reopens, same as _metaZoom/_metaPan).
+        private float _playW = 320f, _playH = 220f;
+        private bool _playResizing; private Vector2 _playResizeStart; private float _playResizeStartW, _playResizeStartH;
+
+        // Single in-memory clipboard (last-copied wins), static so it survives closing/reopening the window —
+        // same pattern PyreWindow.Modifiers.cs uses for its modifier clipboard. Common case this exists for:
+        // a point (or mask) that's the same on most frames — copy once, "Paste to all", then repaint outliers.
+        private static MetaFrame _metaFrameClipboard;
 
         // ── Save target ──────────────────────────────────────────────────────
         // Bound mode: opened from the Lauminary Browser — save writes back to that lauminary's draft
@@ -353,6 +375,12 @@ namespace Laubrary.Launimator.Editor
                     h = h * 31 + reg.cells[cr.cell].GetHashCode();
                     h = h * 31 + reg.pivots[cr.cell].GetHashCode();
                     h = h * 31 + TransformHash(reg.transforms[cr.cell]);
+                    // WHICH TEXTURE this region resolves to must be part of the cache key too — region/cell
+                    // INDICES alone don't change when a fix only affects texture RESOLUTION behind those same
+                    // indices (exactly what happened here: BuildRecipe's texture-guid bug was fixed without
+                    // any region/cell index ever changing, so this hash never invalidated the stale preview
+                    // baked from the wrong texture, even after the underlying bug was already fixed).
+                    h = h * 31 + (reg.sourceTextureGuid != null ? reg.sourceTextureGuid.GetHashCode() : 0);
                 }
                 return h;
             }
@@ -963,8 +991,8 @@ namespace Laubrary.Launimator.Editor
             if (cell.width < 1 || cell.height < 1) return;
             RecordUndo("Add sprite");
 
-            int idx = _regions.FindIndex(r => r.label == BoxLabel);
-            if (idx < 0) { _regions.Add(new Region { label = BoxLabel, bounds = new Rect(0, 0, _texW, _texH) }); idx = _regions.Count - 1; }
+            int idx = _regions.FindIndex(r => r.label == BoxLabel && r.sourceTextureGuid == CurrentSheetGuid());
+            if (idx < 0) { _regions.Add(new Region { label = BoxLabel, bounds = new Rect(0, 0, _texW, _texH), sourceTextureGuid = CurrentSheetGuid() }); idx = _regions.Count - 1; }
             var reg = _regions[idx];
             reg.cells.Add(cell); reg.SyncPivots(GlobalPivot());
             SelectSingle(idx, reg.cells.Count - 1);
@@ -1067,11 +1095,17 @@ namespace Laubrary.Launimator.Editor
             var previewCol = new VisualElement();
             previewCol.style.width = 300f;
             previewCol.style.flexShrink = 0f;
+            // An IMGUIContainer's declared style.height isn't always honoured by the layout engine's OWN
+            // height reservation for this column (a known IMGUIContainer/flex measurement quirk) — without an
+            // explicit minHeight here, the section BELOW this one (Animation — sequence) can get positioned as
+            // if this column were shorter than it visually renders, overlapping its own trailing caption text.
+            previewCol.style.minHeight = 250f;
             _regCanvasIM = new IMGUIContainer(DrawRegistrationCanvasGUI)
             {
                 tooltip = "Registration stage: drag the selected sprite to move its pivot relative to the green crosshair."
             };
             _regCanvasIM.style.height = 220f;
+            _regCanvasIM.style.flexShrink = 0f;
             previewCol.Add(_regCanvasIM);
             previewCol.Add(Z.Text(HasSelectedCell()
                     ? (_fixedFrame ? "Drag to place the sprite in the box. Faint = other frames."
@@ -1748,7 +1782,7 @@ namespace Laubrary.Launimator.Editor
                     else
                     {
                         _regions[cr.region].SyncPivots(GlobalPivot());
-                        DrawCellAtAnchor(_regions[cr.region].cells[cr.cell], _regions[cr.region].pivots[cr.cell], crossX, crossY, scale, _ghostOpacity);
+                        DrawCellAtAnchor(_regions[cr.region].cells[cr.cell], _regions[cr.region].pivots[cr.cell], crossX, crossY, scale, _ghostOpacity, _regions[cr.region].sourceTextureGuid);
                     }
                 }
             }
@@ -1761,7 +1795,7 @@ namespace Laubrary.Launimator.Editor
                 else if (!reg.transforms[_selCell].IsIdentity)
                     DrawSelectedTransformed(crossX, crossY, scale);   // not sequenced but edited — show the edit
                 else
-                    DrawCellAtAnchor(reg.cells[_selCell], reg.pivots[_selCell], crossX, crossY, scale, 1f);
+                    DrawCellAtAnchor(reg.cells[_selCell], reg.pivots[_selCell], crossX, crossY, scale, 1f, reg.sourceTextureGuid);
             }
 
             // Registration crosshair.
@@ -1772,8 +1806,8 @@ namespace Laubrary.Launimator.Editor
             HandleRegistrationDrag(canvas, scale);
         }
 
-        private void DrawCellAtAnchor(Rect cell, Vector2 pivot, float cx, float cy, float scale, float alpha)
-            => DrawFrameRegistered(cell, pivot, cx, cy, scale, alpha);
+        private void DrawCellAtAnchor(Rect cell, Vector2 pivot, float cx, float cy, float scale, float alpha, string textureGuid = null)
+            => DrawFrameRegistered(cell, pivot, cx, cy, scale, alpha, textureGuid);
 
         // Draw the selected sprite WITH its transform applied (cached texture), anchored by the mapped pivot.
         private void DrawSelectedTransformed(float cx, float cy, float scale)
@@ -1807,9 +1841,12 @@ namespace Laubrary.Launimator.Editor
             _selXformHash = hash;
             if (_selXformTex != null) { Object.DestroyImmediate(_selXformTex); _selXformTex = null; }
 
-            var px = GetPixels();
+            bool foreign = !string.IsNullOrEmpty(reg.sourceTextureGuid) && reg.sourceTextureGuid != CurrentSheetGuid();
+            var px = foreign ? GetPixelsFor(reg.sourceTextureGuid) : GetPixels();
             if (px == null) return;
-            var block = AtlasBaker.TransformCell(px, _texW, _texH, reg.cells[_selCell], t, key, reg.pivots[_selCell],
+            var srcTex = foreign ? ResolveTexture(reg.sourceTextureGuid) : null;
+            int tw = foreign ? srcTex.width : _texW, th = foreign ? srcTex.height : _texH;
+            var block = AtlasBaker.TransformCell(px, tw, th, reg.cells[_selCell], t, key, reg.pivots[_selCell],
                 out int w, out int h, out Vector2 pvN);
             var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
             tex.SetPixels32(block); tex.Apply();
@@ -1821,17 +1858,23 @@ namespace Laubrary.Launimator.Editor
         /// the pivot→content offset to whole SOURCE pixels — so what you align here is pixel-identical to the
         /// baked atlas the Lauminary Browser previews. Previously this positioned in screen space without the
         /// source-pixel snap, so the editor showed a sub-pixel drift the bake didn't have (un-nudge-able).</summary>
-        private void DrawFrameRegistered(Rect cell, Vector2 pivot, float cx, float cy, float scale, float alpha)
+        private void DrawFrameRegistered(Rect cell, Vector2 pivot, float cx, float cy, float scale, float alpha, string textureGuid = null)
         {
-            AtlasBaker.FrameRegistration(GetPixels(), _texW, _texH, cell, pivot, CurrentColorKey(), out Rect b, out Vector2 off);
+            bool foreign = !string.IsNullOrEmpty(textureGuid) && textureGuid != CurrentSheetGuid();
+            var px = foreign ? GetPixelsFor(textureGuid) : GetPixels();
+            if (px == null) return;
+            var srcTex = foreign ? ResolveTexture(textureGuid) : null;
+            float tw = foreign ? srcTex.width : _texW, th = foreign ? srcTex.height : _texH;
+
+            AtlasBaker.FrameRegistration(px, (int)tw, (int)th, cell, pivot, CurrentColorKey(), out Rect b, out Vector2 off);
             int offX = AtlasBaker.SnapOffset(off.x), offY = AtlasBaker.SnapOffset(off.y); // consistent round-half-up — same as the bake
             float w = b.width * scale, h = b.height * scale;
             // Crosshair (cx,cy) IS the pivot. Content sits offX right / offY up from it (source px → screen,
             // y inverted). Round to whole screen pixels so an integer zoom stays crisp on the pixel grid.
             Rect draw = new Rect(Mathf.Round(cx - offX * scale), Mathf.Round(cy - (b.height - offY) * scale), w, h);
-            Rect uv = new Rect(b.x / _texW, b.y / _texH, b.width / _texW, b.height / _texH);
+            Rect uv = new Rect(b.x / tw, b.y / th, b.width / tw, b.height / th);
             Color prev = GUI.color; GUI.color = new Color(1f, 1f, 1f, alpha);
-            GUI.DrawTextureWithTexCoords(draw, SheetForDisplay(), uv, true);
+            GUI.DrawTextureWithTexCoords(draw, foreign ? srcTex : SheetForDisplay(), uv, true);
             GUI.color = prev;
         }
 
@@ -1915,30 +1958,34 @@ namespace Laubrary.Launimator.Editor
             root.Add(Z.Text($"5 · Animation — sequence ({_sequence.Count})", ZuiText.Section,
                 "The ordered frames this animation plays, plus everything saved alongside them."));
 
-            // Animation PREVIEW (doubles as the meta paint editor) on the LEFT, all tools on the RIGHT.
+            // Tools on the LEFT, animation PREVIEW (doubles as the meta paint/point/vector editor) on the
+            // RIGHT — one drag-resizable window, not a separate box per meta-layer mode.
             var row = new VisualElement();
             row.style.flexDirection = FlexDirection.Row;
             row.style.flexWrap = Wrap.Wrap;
             root.Add(row);
 
-            _playIM = new IMGUIContainer(DrawPlayAreaGUI)
-            {
-                tooltip = _metaEnabled
-                    ? "Meta paint editor: left-drag paints, right-drag erases, middle-drag pans."
-                    : "The live animation, played by the same AnimationPlayback the game uses."
-            };
-            _playIM.style.width = 320f;
-            _playIM.style.height = 220f;
-            _playIM.style.flexShrink = 0f;
-            row.Add(_playIM);
-
             var toolsCol = new VisualElement();
-            toolsCol.style.flexGrow = 1f;
-            toolsCol.style.minWidth = 240f;
-            toolsCol.style.marginLeft = 4f;
+            toolsCol.style.flexGrow = 0f;
+            toolsCol.style.flexShrink = 0f;
+            toolsCol.style.width = 380f;
+            toolsCol.style.marginRight = 4f;
             BuildAnimationTools(toolsCol);
             if (_metaEnabled) BuildMetaLayersPanel(toolsCol);
             row.Add(toolsCol);
+
+            _playIM = new IMGUIContainer(DrawPlayAreaGUI)
+            {
+                tooltip = _metaEnabled
+                    ? "Meta editor: left-drag paints/places, right-click erases, middle-drag pans. Drag the " +
+                      "bottom-right corner to resize."
+                    : "The live animation, played by the same AnimationPlayback the game uses. Drag the " +
+                      "bottom-right corner to resize."
+            };
+            _playIM.style.width = _playW;
+            _playIM.style.height = _playH;
+            _playIM.style.flexShrink = 0f;
+            row.Add(_playIM);
 
             _seqStripIM = new IMGUIContainer(DrawSequenceStripGUI)
             {
@@ -2005,6 +2052,20 @@ namespace Laubrary.Launimator.Editor
             delFrames.SetEnabled(selCount > 0);
             root.Add(WrapRow(reverse, dupFrames, delFrames));
 
+            const string addFileTip = "Append a STANDALONE image (its own file, not sliced from the loaded " +
+                "sheet above) as one new frame at the end of the sequence — the whole image becomes one cell. " +
+                "For an animation whose frames come from several separate source images (e.g. one file per " +
+                "facing direction), rather than one shared sprite sheet. Doesn't touch the loaded sheet or its " +
+                "own identified sprites.";
+            root.Add(Z.Field("+ Sprite from file", addFileTip,
+                Z.Object<Texture2D>(null, addFileTip, picked =>
+                {
+                    if (picked == null) return;
+                    RecordUndo("Add sprite from file");
+                    AppendStandaloneSpriteFrame(picked);
+                    Refresh();
+                }, 200f)));
+
             root.Add(WrapRow(
                 Z.Toggle("Meta layers", "Gameplay overlays (hitbox/muzzle/trail) drawn over the sequence. Off keeps the UI clean.",
                     _metaEnabled, v => { _metaEnabled = v; Refresh(); }),
@@ -2025,6 +2086,42 @@ namespace Laubrary.Launimator.Editor
             var box = new Rect(0f, 0f, _playIM.layout.width, _playIM.layout.height);
             if (!(box.width > 10f) || !(box.height > 10f)) return;
             if (_metaEnabled) DrawMetaEditor(box); else DrawPlayBox(box);
+            HandlePreviewResize(box);
+        }
+
+        /// <summary>Drag-resize grip in the preview/paint window's bottom-right corner.</summary>
+        private void HandlePreviewResize(Rect box)
+        {
+            const float gripSize = 14f;
+            var grip = new Rect(box.xMax - gripSize, box.yMax - gripSize, gripSize, gripSize);
+            EditorGUIUtility.AddCursorRect(grip, MouseCursor.ResizeUpLeft);
+
+            Handles.BeginGUI();
+            Handles.color = new Color(1f, 1f, 1f, 0.35f);
+            for (int i = 0; i < 3; i++)
+            {
+                float o = i * 4f;
+                Handles.DrawLine(new Vector3(grip.xMax - 3f - o, grip.yMax - 3f), new Vector3(grip.xMax - 3f, grip.yMax - 3f - o));
+            }
+            Handles.EndGUI();
+
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && e.button == 0 && grip.Contains(e.mousePosition))
+            {
+                _playResizing = true; _playResizeStart = e.mousePosition;
+                _playResizeStartW = _playW; _playResizeStartH = _playH;
+                e.Use();
+            }
+            else if (e.type == EventType.MouseDrag && _playResizing)
+            {
+                var d = e.mousePosition - _playResizeStart;
+                _playW = Mathf.Clamp(_playResizeStartW + d.x, 160f, 900f);
+                _playH = Mathf.Clamp(_playResizeStartH + d.y, 120f, 900f);
+                _playIM.style.width = _playW; _playIM.style.height = _playH;
+                e.Use(); Repaint();
+            }
+            else if (e.type == EventType.MouseUp && _playResizing)
+            { _playResizing = false; e.Use(); }
         }
 
         // ── Meta-layers: data sync + UI + paint editor ──────────────────────
@@ -2039,6 +2136,13 @@ namespace Laubrary.Launimator.Editor
                 if (L.frames == null) L.frames = new List<MetaFrame>();
                 while (L.frames.Count < n) L.frames.Add(new MetaFrame());
                 while (L.frames.Count > n) L.frames.RemoveAt(L.frames.Count - 1);
+
+                // Vector mode's per-frame data lives in its own parallel list (VectorMetaFrame, not the
+                // pixel-mask MetaFrame above) — kept in lockstep the same way, regardless of the layer's
+                // CURRENT mode, so switching a layer's mode later doesn't need a separate backfill pass.
+                if (L.vectorFrames == null) L.vectorFrames = new List<VectorMetaFrame>();
+                while (L.vectorFrames.Count < n) L.vectorFrames.Add(new VectorMetaFrame { authored = false });
+                while (L.vectorFrames.Count > n) L.vectorFrames.RemoveAt(L.vectorFrames.Count - 1);
             }
             if (_activeLayer >= _metaLayers.Count) _activeLayer = _metaLayers.Count - 1;
         }
@@ -2117,15 +2221,34 @@ namespace Laubrary.Launimator.Editor
                 return;
             }
 
+            const string modeTip = "Shape = a painted region (the original mechanism, e.g. a hitbox mask). " +
+                "Point = one pixel per frame (a lighter \"here's the one pixel that matters\" marker, e.g. a " +
+                "shockwave origin). Vector = an origin + a direction per frame (e.g. a muzzle's live position " +
+                "AND aim, read by MuzzleVectorTracker) — changing mode only affects how THIS layer is authored " +
+                "and read; a layer's mode is per-layer, never mixed within one.";
+            int modeIdx = (int)layer.mode;
+            root.Add(Z.Field("Mode", modeTip, Z.MiniRadio(modeIdx, new[] { "Shape", "Point", "Vector" }, modeTip,
+                v => { RecordUndo("Layer mode"); layer.mode = (MetaLayerMode)v; ClearMaskCache(); Refresh(); })));
+
+            if (layer.mode == MetaLayerMode.Vector) { BuildVectorLayerUI(root, layer); return; }
+
             root.Add(Z.Field("Opacity", "Display transparency for this layer's mask.",
                 Z.Slider(layer.color.a, 0.1f, 1f, "Display transparency for this layer's mask.",
                     v => { var c = layer.color; c.a = v; layer.color = c; ClearMaskCache(); Dirty(); }, 130f)));
 
-            int brushIdx = System.Array.FindIndex(BrushSizes, b => b.x == _brushW && b.y == _brushH);
-            root.Add(WrapRow(
-                Z.Text("Brush", ZuiText.Small, "Paint footprint, in mask cells.").W(44f),
-                Z.MiniRadio(Mathf.Max(0, brushIdx), BrushLabels, "Paint footprint, in mask cells.",
-                    v => { _brushW = BrushSizes[v].x; _brushH = BrushSizes[v].y; })));
+            if (layer.mode == MetaLayerMode.Shape)
+            {
+                int brushIdx = System.Array.FindIndex(BrushSizes, b => b.x == _brushW && b.y == _brushH);
+                root.Add(WrapRow(
+                    Z.Text("Brush", ZuiText.Small, "Paint footprint, in mask cells.").W(44f),
+                    Z.MiniRadio(Mathf.Max(0, brushIdx), BrushLabels, "Paint footprint, in mask cells.",
+                        v => { _brushW = BrushSizes[v].x; _brushH = BrushSizes[v].y; })));
+            }
+            else
+            {
+                root.Add(Z.Text("Point mode: exactly one cell per frame — drawing another moves it, it never adds a second.",
+                    ZuiText.Subtle, "Point mode paints a single movable marker, not a shape."));
+            }
 
             root.Add(WrapRow(
                 Z.Toggle("Values", "Per-pixel value 1–10 as a channel. Off = always paint value 5. Any value triggers a hit unless the consumer reads it.",
@@ -2133,6 +2256,38 @@ namespace Laubrary.Launimator.Editor
                 Z.Flexible(),
                 Z.Button("Clear frame", "Erase this layer's mask on the current frame.",
                     () => { ClearActiveFrame(); Dirty(); }).W(86f)));
+
+            {
+                var pasteBtn = Z.Button("Paste", "Paste the copied frame's mask + param onto the current frame.",
+                    () =>
+                    {
+                        RecordUndo("Paste frame");
+                        PasteMetaFrameInto(ActiveLayer(), ActiveFrameIndex());
+                        ClearMaskCache(); Dirty();
+                    }).W(52f);
+                var pasteAllBtn = Z.Button("Paste all", "Paste the copied frame's mask + param onto EVERY frame of " +
+                    "this layer — for when the same point/mask applies to most frames; repaint just the outliers " +
+                    "afterward.",
+                    () =>
+                    {
+                        RecordUndo("Paste to all frames");
+                        var L = ActiveLayer();
+                        if (L != null) for (int i = 0; i < L.frames.Count; i++) PasteMetaFrameInto(L, i);
+                        ClearMaskCache(); Dirty();
+                    }).W(64f);
+                pasteBtn.SetEnabled(_metaFrameClipboard != null);
+                pasteAllBtn.SetEnabled(_metaFrameClipboard != null);
+
+                root.Add(WrapRow(
+                    Z.Button("Copy frame", "Copy this layer's mask + param on the current frame, to paste onto others.",
+                        () =>
+                        {
+                            var L = ActiveLayer(); int at = ActiveFrameIndex();
+                            if (L != null && at >= 0 && at < L.frames.Count) _metaFrameClipboard = L.frames[at].Clone();
+                            Refresh();   // re-enables the Paste buttons above
+                        }).W(80f),
+                    pasteBtn, pasteAllBtn));
+            }
 
             if (_metaShowValues)
                 root.Add(WrapRow(
@@ -2167,7 +2322,51 @@ namespace Laubrary.Launimator.Editor
                 root.Add(wrap);
             }
             root.Add(Z.Text("Left-drag = paint · right-drag = erase · middle-drag = pan.", ZuiText.Subtle,
-                "How to paint on the editor to the left."));
+                "How to paint on the preview to the right."));
+        }
+
+        /// Vector-mode's side-panel controls. The actual drawing surface is NOT here — it's the same preview
+        /// canvas (DrawMetaEditor/HandleVectorInput) Shape/Point paint into; this is just this mode's options +
+        /// readout, same shape as the Brush/Values controls Shape/Point show above.
+        private void BuildVectorLayerUI(VisualElement root, MetaLayer layer)
+        {
+            int f = ActiveFrameIndex();
+            if (f < 0 || layer.vectorFrames == null || f >= layer.vectorFrames.Count)
+            {
+                root.Add(Z.Text("Add sprites to the sequence first — vector data is per-frame.", ZuiText.Subtle,
+                    "Vector data is per-frame."));
+                return;
+            }
+
+            root.Add(Z.Field("Opacity", "Display transparency for this layer's origin dot + arrow.",
+                Z.Slider(layer.color.a, 0.1f, 1f, "Display transparency for this layer's origin dot + arrow.",
+                    v => { var c = layer.color; c.a = v; layer.color = c; Dirty(); }, 130f)));
+
+            const string lenTip = "Whether dragging the arrow tip also edits length. Off (default) = always " +
+                "normalized (length 1) — most consumers (e.g. a muzzle direction) only care about direction.";
+            root.Add(WrapRow(
+                Z.Toggle("Allow Length", lenTip, layer.vectorAllowLength,
+                    v => { RecordUndo("Allow length"); layer.vectorAllowLength = v; Refresh(); }),
+                Z.Flexible(),
+                Z.Text($"F{f + 1}/{_sequence.Count}", ZuiText.Subtle, "Current frame.")));
+
+            var vf = layer.vectorFrames[f];
+            root.Add(WrapRow(
+                Z.Button("Clear frame", "Erase this layer's vector on the current frame.", () =>
+                {
+                    RecordUndo("Clear vector frame");
+                    vf.authored = false;
+                    Refresh();
+                }).W(86f),
+                Z.Text(vf.authored
+                    ? $"origin=({vf.origin.x:0.00},{vf.origin.y:0.00}) dir=({vf.direction.x:0.00},{vf.direction.y:0.00})"
+                        + (layer.vectorAllowLength ? $" len={vf.length:0.00}" : "")
+                    : "Not authored — click on the preview to place it.",
+                    ZuiText.Subtle, "Current frame's raw authored values.")));
+
+            root.Add(Z.Text("Click the preview to place the origin, then drag to aim · drag the origin dot to " +
+                "move it · drag the arrowhead to re-aim · right-click erases · middle-drag pans.", ZuiText.Subtle,
+                "How to draw on the preview to the right."));
         }
 
         private void ClearActiveFrame()
@@ -2181,8 +2380,27 @@ namespace Laubrary.Launimator.Editor
             ClearMaskCache();
         }
 
-        /// <summary>The preview box turned into a zoomable paint editor for the active layer on the current
-        /// (scrubbed) frame: baked sprite underneath, the layer's value mask on top, paint with the brush.</summary>
+        private int ActiveFrameIndex() => _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : -1;
+
+        /// <summary>Paste <see cref="_metaFrameClipboard"/> onto <paramref name="L"/>'s frame at <paramref
+        /// name="frameIndex"/>, resampling to that frame's own baked size (nearest-neighbor, via MetaFrame's
+        /// own EnsureSize) so copying between frames of different dimensions degrades gracefully instead of
+        /// corrupting the grid.</summary>
+        private void PasteMetaFrameInto(MetaLayer L, int frameIndex)
+        {
+            if (_metaFrameClipboard == null || L == null) return;
+            if (frameIndex < 0 || frameIndex >= L.frames.Count) return;
+            if (!BakedFrameSize(frameIndex, out int fw, out int fh)) return;
+            var pasted = _metaFrameClipboard.Clone();
+            pasted.EnsureSize(fw, fh);
+            L.frames[frameIndex] = pasted;
+        }
+
+        /// <summary>The preview box turned into a zoomable paint/mark editor for the active layer on the
+        /// current (scrubbed) frame: baked sprite underneath, then whatever the layer's MODE calls for on top —
+        /// Shape = a multi-cell brush mask, Point = a single movable marker, Vector = an origin+arrow. A layer's
+        /// mode is a hard gate here, not just a hint in the side panel: a Vector layer never lets you paint
+        /// pixels, and a Point layer never lets you paint more than one.</summary>
         private void DrawMetaEditor(Rect box)
         {
             EditorGUI.DrawRect(box, new Color(0.08f, 0.08f, 0.08f));
@@ -2196,8 +2414,9 @@ namespace Laubrary.Launimator.Editor
             { GUI.Label(box, "Baking…", new GUIStyle(EditorStyles.centeredGreyMiniLabel) { alignment = TextAnchor.MiddleCenter }); return; }
 
             var layer = ActiveLayer();
+            bool isVector = layer != null && layer.mode == MetaLayerMode.Vector;
             MetaFrame mf = null;
-            if (layer != null && f < layer.frames.Count) { mf = layer.frames[f]; mf.EnsureSize(fw, fh); }
+            if (!isVector && layer != null && f < layer.frames.Count) { mf = layer.frames[f]; mf.EnsureSize(fw, fh); }
 
             float z = _metaZoom, dw = fw * z, dh = fh * z;
             GUI.BeginClip(box);
@@ -2208,7 +2427,7 @@ namespace Laubrary.Launimator.Editor
             {
                 var t = sp.texture; if (t.filterMode != FilterMode.Point) t.filterMode = FilterMode.Point;
                 Rect uv = new Rect(sp.rect.x / t.width, sp.rect.y / t.height, sp.rect.width / t.width, sp.rect.height / t.height);
-                var pc = GUI.color; GUI.color = new Color(1f, 1f, 1f, mf != null ? 0.6f : 1f); // dim under the mask
+                var pc = GUI.color; GUI.color = new Color(1f, 1f, 1f, (mf != null || isVector) ? 0.6f : 1f); // dim under the overlay
                 GUI.DrawTextureWithTexCoords(new Rect(ox, oy, dw, dh), t, uv, true);
                 GUI.color = pc;
             }
@@ -2216,7 +2435,13 @@ namespace Laubrary.Launimator.Editor
             {
                 var mtex = MaskTexture(_activeLayer, f);
                 if (mtex != null) GUI.DrawTexture(new Rect(ox, oy, dw, dh), mtex, ScaleMode.StretchToFill, true);
-                HandleMetaPaint(box, ox, oy, z, fw, fh, mf);
+                HandleMetaPaint(box, ox, oy, z, fw, fh, mf, layer.mode == MetaLayerMode.Point);
+            }
+            else if (isVector && f < layer.vectorFrames.Count)
+            {
+                var vf = layer.vectorFrames[f];
+                DrawVectorOverlay(box, ox, oy, z, fw, fh, layer, vf);
+                HandleVectorInput(box, ox, oy, z, fw, fh, layer, vf);
             }
             GUI.EndClip();
 
@@ -2225,7 +2450,9 @@ namespace Laubrary.Launimator.Editor
                 EditorStyles.whiteMiniLabel);
         }
 
-        private void HandleMetaPaint(Rect box, float ox, float oy, float z, int fw, int fh, MetaFrame mf)
+        /// <param name="singlePoint">Point mode: every paint stroke first clears the mask, so there's never more
+        /// than one marked cell — placing a new one just moves the old one, it never accumulates a shape.</param>
+        private void HandleMetaPaint(Rect box, float ox, float oy, float z, int fw, int fh, MetaFrame mf, bool singlePoint)
         {
             var e = Event.current;
             Vector2 m = e.mousePosition; // local to the clip
@@ -2246,16 +2473,140 @@ namespace Laubrary.Launimator.Editor
             if (e.type == EventType.MouseDown && (e.button == 0 || e.button == 1) && inCell)
             {
                 RecordUndo("Paint");
-                PaintBrush(mf, cx, cy, fw, fh, (e.button == 1 || e.control) ? 0 : _paintValue);
+                if (singlePoint)
+                {
+                    if (mf.cells != null) System.Array.Clear(mf.cells, 0, mf.cells.Length);
+                    if (e.button == 0 && !e.control) mf.Set(cx, cy, _paintValue);
+                }
+                else PaintBrush(mf, cx, cy, fw, fh, (e.button == 1 || e.control) ? 0 : _paintValue);
                 _metaPainting = true; _metaLastX = cx; _metaLastY = cy; e.Use(); Repaint();
             }
             else if (e.type == EventType.MouseDrag && _metaPainting && inCell)
             {
                 if (cx != _metaLastX || cy != _metaLastY)
-                { PaintBrush(mf, cx, cy, fw, fh, (e.button == 1 || e.control) ? 0 : _paintValue); _metaLastX = cx; _metaLastY = cy; }
+                {
+                    if (singlePoint)
+                    {
+                        if (mf.cells != null) System.Array.Clear(mf.cells, 0, mf.cells.Length);
+                        if (e.button == 0 && !e.control) mf.Set(cx, cy, _paintValue); // moves the one point
+                    }
+                    else PaintBrush(mf, cx, cy, fw, fh, (e.button == 1 || e.control) ? 0 : _paintValue);
+                    _metaLastX = cx; _metaLastY = cy;
+                }
                 e.Use(); Repaint();
             }
             else if (e.type == EventType.MouseUp && _metaPainting) { _metaPainting = false; e.Use(); }
+        }
+
+        /// <summary>Draws Vector mode's origin dot + aim arrow directly on the preview canvas, in the layer's
+        /// own colour — the same window Shape/Point paint into, not a separate box.</summary>
+        private void DrawVectorOverlay(Rect box, float ox, float oy, float z, int fw, int fh, MetaLayer layer, VectorMetaFrame vf)
+        {
+            if (!vf.authored)
+            {
+                GUI.Label(box, "Click to place the origin, then drag to aim.\nRight-click erases.",
+                    new GUIStyle(EditorStyles.centeredGreyMiniLabel) { alignment = TextAnchor.MiddleCenter });
+                return;
+            }
+            Vector2 originScreen = VectorOriginToScreen(vf.origin, ox, oy, z, fw, fh);
+            Vector2 tipScreen = VectorTipScreen(originScreen, vf.direction, layer.vectorAllowLength ? vf.length : 1f, box, fh, z, layer.vectorAllowLength);
+
+            Handles.BeginGUI();
+            Handles.color = layer.color;
+            Handles.DrawAAPolyLine(3f, originScreen, tipScreen);
+            Vector2 back = (originScreen - tipScreen).normalized;
+            Vector2 perp = new Vector2(-back.y, back.x);
+            Handles.DrawAAConvexPolygon(tipScreen, tipScreen + back * 10f + perp * 5f, tipScreen + back * 10f - perp * 5f);
+
+            // Origin dot = exactly ONE source pixel, at the current zoom — big enough to see, small enough to
+            // actually pinpoint a pixel with, in the layer's own colour/opacity (not a fixed oversized blob).
+            float dotR = Mathf.Max(1f, z * 0.5f);
+            Handles.color = layer.color;
+            Handles.DrawSolidDisc(originScreen, Vector3.forward, dotR);
+            Handles.color = new Color(0f, 0f, 0f, layer.color.a);
+            Handles.DrawWireDisc(originScreen, Vector3.forward, dotR);
+            Handles.EndGUI();
+        }
+
+        private static Vector2 VectorOriginToScreen(Vector2 origin01, float ox, float oy, float z, int fw, int fh)
+            => new Vector2(ox + origin01.x * fw * z, oy + (fh - origin01.y * fh) * z);
+
+        private static Vector2 VectorScreenToOrigin(Vector2 s, float ox, float oy, float z, int fw, int fh)
+            => new Vector2(Mathf.Clamp01((s.x - ox) / (fw * z)), Mathf.Clamp01(1f - (s.y - oy) / (fh * z)));
+
+        /// <summary>Arrow length in screen px: a fixed, legible visual length when length isn't authorable, or
+        /// scaled from the authored length (1 = ~35% of the shorter box dimension) when it is.</summary>
+        private static Vector2 VectorTipScreen(Vector2 originScreen, Vector2 direction, float length, Rect box, int fh, float z, bool allowLength)
+        {
+            float baseLen = Mathf.Min(box.width, box.height) * 0.35f;
+            float px = allowLength ? baseLen * Mathf.Max(0.05f, length) : baseLen;
+            Vector2 dirScreen = direction.sqrMagnitude > 0.0001f ? new Vector2(direction.x, -direction.y).normalized : Vector2.up;
+            return originScreen + dirScreen * px;
+        }
+
+        /// <summary>Click-to-place, drag-the-dot-to-move, drag-the-arrowhead-to-aim, right-click-to-erase — all
+        /// on the same preview canvas Shape/Point paint into. No pixel mask involved for Vector mode.</summary>
+        private void HandleVectorInput(Rect box, float ox, float oy, float z, int fw, int fh, MetaLayer layer, VectorMetaFrame vf)
+        {
+            var e = Event.current;
+            Vector2 m = e.mousePosition; // local to the clip
+            bool insideBox = m.x >= 0 && m.y >= 0 && m.x < box.width && m.y < box.height;
+
+            // Middle-drag pans, same as Shape/Point.
+            if (e.type == EventType.MouseDown && e.button == 2 && insideBox)
+            { _metaPanning = true; _metaPanLast = m; e.Use(); return; }
+            else if (e.type == EventType.MouseDrag && _metaPanning)
+            { _metaPan += m - _metaPanLast; _metaPanLast = m; e.Use(); Repaint(); return; }
+            else if (e.type == EventType.MouseUp && e.button == 2 && _metaPanning)
+            { _metaPanning = false; e.Use(); return; }
+
+            if (!insideBox) return;
+
+            if (e.type == EventType.MouseDown && e.button == 1)
+            {
+                RecordUndo("Clear vector frame"); vf.authored = false; Dirty(); e.Use(); Repaint(); return;
+            }
+
+            const float hitR = 10f;
+            if (e.type == EventType.MouseDown && e.button == 0)
+            {
+                if (vf.authored)
+                {
+                    Vector2 originScreen = VectorOriginToScreen(vf.origin, ox, oy, z, fw, fh);
+                    Vector2 tipScreen = VectorTipScreen(originScreen, vf.direction, layer.vectorAllowLength ? vf.length : 1f, box, fh, z, layer.vectorAllowLength);
+                    if ((m - originScreen).sqrMagnitude <= hitR * hitR) { RecordUndo("Move vector origin"); _vecDragMode = 1; e.Use(); Repaint(); return; }
+                    if ((m - tipScreen).sqrMagnitude <= hitR * hitR) { RecordUndo("Aim vector"); _vecDragMode = 2; e.Use(); Repaint(); return; }
+                }
+                RecordUndo("Place vector");
+                vf.authored = true;
+                vf.origin = VectorScreenToOrigin(m, ox, oy, z, fw, fh);
+                vf.direction = Vector2.up;
+                if (layer.vectorAllowLength) vf.length = 1f;
+                _vecDragMode = 2; // start aiming immediately, matching "click to place, drag to aim"
+                Dirty(); e.Use(); Repaint();
+                return;
+            }
+
+            if (e.type == EventType.MouseDrag && _vecDragMode != 0)
+            {
+                if (_vecDragMode == 1) vf.origin = VectorScreenToOrigin(m, ox, oy, z, fw, fh);
+                else if (_vecDragMode == 2)
+                {
+                    Vector2 originScreen = VectorOriginToScreen(vf.origin, ox, oy, z, fw, fh);
+                    Vector2 fromOrigin = m - originScreen;
+                    if (fromOrigin.sqrMagnitude > 4f)
+                    {
+                        vf.direction = new Vector2(fromOrigin.x, -fromOrigin.y).normalized;
+                        if (layer.vectorAllowLength)
+                        {
+                            float baseLen = Mathf.Min(box.width, box.height) * 0.35f;
+                            vf.length = Mathf.Max(0.05f, fromOrigin.magnitude / baseLen);
+                        }
+                    }
+                }
+                Dirty(); e.Use(); Repaint();
+            }
+            else if (e.type == EventType.MouseUp && _vecDragMode != 0) { _vecDragMode = 0; e.Use(); }
         }
 
         /// <summary>Stamp the brush footprint (anchored at cx,cy, growing right/up) into the mask.</summary>
@@ -2397,7 +2748,7 @@ namespace Laubrary.Launimator.Editor
         private void DrawFrameAtCrosshair(CellRef cr, float cx, float cy, float scale, float alpha)
         {
             var reg = _regions[cr.region]; reg.SyncPivots(GlobalPivot());
-            DrawFrameRegistered(reg.cells[cr.cell], reg.pivots[cr.cell], cx, cy, scale, alpha);
+            DrawFrameRegistered(reg.cells[cr.cell], reg.pivots[cr.cell], cx, cy, scale, alpha, reg.sourceTextureGuid);
         }
 
         /// The sequence strip — an IMGUI island: a thumbnail grid with zone borders, playhead/selection
@@ -2602,12 +2953,18 @@ namespace Laubrary.Launimator.Editor
         /// NOT modified — the lauminary/orphan bakes its own atlas from this (see AtlasBaker).</summary>
         private List<FrameRef> BuildRecipe()
         {
-            string guid = AssetDatabase.AssetPathToGUID(_sheetPath);
+            // Each cell's OWN region says which texture it actually came from (Region.sourceTextureGuid) —
+            // NEVER assume every frame belongs to the currently-loaded sheet. That was the real bug behind
+            // "the Builder shows nonsense" (2026-08-17): every FrameRef got stamped with _sheetPath's guid
+            // regardless of which texture its cell rect was actually identified from, so both the live
+            // preview bake and — far more seriously — DoSave() itself would silently corrupt a real
+            // multi-texture recipe (like a rotation sheet's 16 separate source images) down to reading every
+            // frame's rect against the ONE wrong texture the moment Save was clicked.
             var recipe = new List<FrameRef>(_sequence.Count);
             foreach (var cr in _sequence)
             {
                 var reg = _regions[cr.region]; reg.SyncPivots(GlobalPivot());
-                recipe.Add(new FrameRef { sourceTextureGuid = guid, cell = reg.cells[cr.cell], pivot = reg.pivots[cr.cell], transform = reg.transforms[cr.cell] });
+                recipe.Add(new FrameRef { sourceTextureGuid = reg.sourceTextureGuid, cell = reg.cells[cr.cell], pivot = reg.pivots[cr.cell], transform = reg.transforms[cr.cell] });
             }
             return recipe;
         }
@@ -2714,8 +3071,15 @@ namespace Laubrary.Launimator.Editor
         /// source rect, different transform) independent across save/reload. Restores pivot + transform.</summary>
         private CellRef FindOrCreateCellForFrame(FrameRef f)
         {
+            // Match by SOURCE TEXTURE first, THEN rect+transform — two frames from different textures that
+            // happen to share the same cell rect (the common case for standalone same-size sprite files, each
+            // its own whole-image cell at (0,0,w,h)) must never be folded into one shared cell. This is the
+            // fix for the real bug found 2026-08-17: an animation built from several single-sprite source
+            // files was silently collapsing to one frame repeated N times, because the old match ignored which
+            // texture a cell actually came from.
             for (int ri = 0; ri < _regions.Count; ri++)
             {
+                if (_regions[ri].sourceTextureGuid != f.sourceTextureGuid) continue;
                 _regions[ri].SyncPivots(GlobalPivot());
                 for (int ci = 0; ci < _regions[ri].cells.Count; ci++)
                     if (RectApprox(_regions[ri].cells[ci], f.cell) && TransformEq(_regions[ri].transforms[ci], f.transform))
@@ -2725,8 +3089,12 @@ namespace Laubrary.Launimator.Editor
                     }
             }
 
-            int idx = _regions.FindIndex(r => r.label == "imported");
-            if (idx < 0) { _regions.Add(new Region { label = "imported", bounds = f.cell }); idx = _regions.Count - 1; }
+            int idx = _regions.FindIndex(r => r.label == "imported" && r.sourceTextureGuid == f.sourceTextureGuid);
+            if (idx < 0)
+            {
+                _regions.Add(new Region { label = "imported", bounds = f.cell, sourceTextureGuid = f.sourceTextureGuid });
+                idx = _regions.Count - 1;
+            }
             var reg = _regions[idx]; reg.SyncPivots(GlobalPivot());
             reg.cells.Add(f.cell);
             reg.pivots.Add(new Vector2(Mathf.Clamp01(f.pivot.x), Mathf.Clamp01(f.pivot.y)));
@@ -2862,6 +3230,43 @@ namespace Laubrary.Launimator.Editor
             _selRegion = -1; _selCell = -1;
         }
 
+        /// Append a whole standalone image file as ONE new frame — its own region (scoped to its own texture,
+        /// per Region.sourceTextureGuid), one cell covering the full image. This is the "single sprites" half
+        /// of "a Laumination can use sprites from several sheets or single sprites": it goes through the exact
+        /// same Region/CellRef data path as sheet-sliced sprites (so Zones, Meta Layers, and everything else
+        /// downstream just works on it identically), it just never needs the loaded-sheet canvas at all.
+        private void AppendStandaloneSpriteFrame(Texture2D tex)
+        {
+            string path = AssetDatabase.GetAssetPath(tex);
+            if (string.IsNullOrEmpty(path)) { _status = $"'{tex.name}' has no asset path — can't reference it."; return; }
+            tex = CrispenTextureImport(tex, path, out string sizeWarning);
+            string guid = AssetDatabase.AssetPathToGUID(path);
+            var whole = new Rect(0, 0, tex.width, tex.height);
+
+            var idx = _regions.FindIndex(r => r.label == "single" && r.sourceTextureGuid == guid);
+            if (idx < 0)
+            {
+                _regions.Add(new Region { label = "single", bounds = whole, sourceTextureGuid = guid });
+                idx = _regions.Count - 1;
+            }
+            var reg = _regions[idx]; reg.SyncPivots(GlobalPivot());
+            // A standalone single-sprite file is authored once per texture — reuse its existing cell if this
+            // exact texture was already added before, instead of piling up duplicate identical cells.
+            int cellIdx = reg.cells.FindIndex(c => RectApprox(c, whole));
+            if (cellIdx < 0)
+            {
+                reg.cells.Add(whole);
+                reg.pivots.Add(GlobalPivot());
+                reg.transforms.Add(CellTransform.Identity);
+                cellIdx = reg.cells.Count - 1;
+            }
+
+            _sequence.Add(new CellRef(idx, cellIdx));
+            SeqSelectSingle(_sequence.Count - 1);
+            if (_animFrame >= _sequence.Count) _animFrame = 0;
+            _status = !string.IsNullOrEmpty(sizeWarning) ? sizeWarning : $"Added '{tex.name}' as frame {_sequence.Count}.";
+        }
+
         private void AppendToSequence(int region, int cell)
         {
             RecordUndo("Add frame");
@@ -2893,7 +3298,7 @@ namespace Laubrary.Launimator.Editor
             if (cells.Count == 0) { _status = "Box produced no cells."; return; }
             RecordUndo("Add region");
             string label = _mode == RegionSlicer.GridMode.FixedCellSize ? $"{_cellW}×{_cellH}px" : $"{_cols}×{_rows}";
-            var region = new Region { label = label, cells = cells, bounds = _box };
+            var region = new Region { label = label, cells = cells, bounds = _box, sourceTextureGuid = CurrentSheetGuid() };
             region.SyncPivots(GlobalPivot());
             _regions.Add(region);
             _status = $"Added {cells.Count} cells. Marquee the next group.";
@@ -2909,12 +3314,42 @@ namespace Laubrary.Launimator.Editor
             if (empty) { _status = $"({texX},{texY}) is transparent — click on a sprite's pixels."; return; }
             RecordUndo("Pick sprite");
 
-            int idx = _regions.FindIndex(r => r.label == PickedLabel);
-            if (idx < 0) { _regions.Add(new Region { label = PickedLabel, bounds = whole }); idx = _regions.Count - 1; }
+            int idx = _regions.FindIndex(r => r.label == PickedLabel && r.sourceTextureGuid == CurrentSheetGuid());
+            if (idx < 0) { _regions.Add(new Region { label = PickedLabel, bounds = whole, sourceTextureGuid = CurrentSheetGuid() }); idx = _regions.Count - 1; }
             var reg = _regions[idx];
             reg.cells.Add(bbox); reg.SyncPivots(GlobalPivot());
             SelectSingle(idx, reg.cells.Count - 1);
             _status = $"Picked {bbox.width:0}×{bbox.height:0}px sprite. Double-click it in #4 to add to the sequence.";
+        }
+
+        /// Force pixel-art-correct import settings (readable, point-filtered, uncompressed, no mipmaps/NPOT
+        /// scaling, capped at Unity's max rather than silently downsampled) on ANY texture this window is
+        /// about to read pixels from — the loaded sheet (LoadSheet) or a standalone single-sprite file
+        /// (AppendStandaloneSpriteFrame). Returns the (possibly reloaded, if reimported) texture; sizeWarning
+        /// is non-null only if the source was too large and got downscaled anyway.
+        private static Texture2D CrispenTextureImport(Texture2D tex, string path, out string sizeWarning)
+        {
+            sizeWarning = null;
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null) return tex;
+
+            bool changed = false;
+            if (!importer.isReadable) { importer.isReadable = true; changed = true; }
+            if (importer.filterMode != FilterMode.Point) { importer.filterMode = FilterMode.Point; changed = true; }
+            if (importer.mipmapEnabled) { importer.mipmapEnabled = false; changed = true; }
+            if (importer.npotScale != TextureImporterNPOTScale.None) { importer.npotScale = TextureImporterNPOTScale.None; changed = true; }
+            if (importer.textureCompression != TextureImporterCompression.Uncompressed) { importer.textureCompression = TextureImporterCompression.Uncompressed; changed = true; }
+            // Rips are often very tall; cap at Unity's max so the sheet isn't downsampled — which blurs the
+            // pixel art and makes every slice imprecise.
+            if (importer.maxTextureSize < 16384) { importer.maxTextureSize = 16384; changed = true; }
+            if (changed) { importer.SaveAndReimport(); tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path); }
+
+            importer.GetSourceTextureWidthAndHeight(out int srcW, out int srcH);
+            if (tex.width < srcW || tex.height < srcH)
+                sizeWarning = $"⚠ '{tex.name}' is {srcW}×{srcH}, larger than Unity's {importer.maxTextureSize}px limit, so it was " +
+                              $"downscaled to {tex.width}×{tex.height} — it will look blurry and slice imprecisely. " +
+                              "Split the image into smaller files before extracting.";
+            return tex;
         }
 
         // ── sheet load + importer crispening + auto-restore ──────────────────
@@ -2932,26 +3367,8 @@ namespace Laubrary.Launimator.Editor
             _sheetPath = AssetDatabase.GetAssetPath(_sheet);
             _sheetDisplayName = SheetRegistry.GetDisplayName(_sheet);
 
-            var importer = AssetImporter.GetAtPath(_sheetPath) as TextureImporter;
-            if (importer != null)
-            {
-                bool changed = false;
-                if (!importer.isReadable) { importer.isReadable = true; changed = true; }
-                if (importer.filterMode != FilterMode.Point) { importer.filterMode = FilterMode.Point; changed = true; }
-                if (importer.mipmapEnabled) { importer.mipmapEnabled = false; changed = true; }
-                if (importer.npotScale != TextureImporterNPOTScale.None) { importer.npotScale = TextureImporterNPOTScale.None; changed = true; }
-                if (importer.textureCompression != TextureImporterCompression.Uncompressed) { importer.textureCompression = TextureImporterCompression.Uncompressed; changed = true; }
-                // Rips are often very tall; cap at Unity's max so the sheet isn't downsampled — which blurs the
-                // pixel art and makes every slice imprecise.
-                if (importer.maxTextureSize < 16384) { importer.maxTextureSize = 16384; changed = true; }
-                if (changed) { importer.SaveAndReimport(); _sheet = AssetDatabase.LoadAssetAtPath<Texture2D>(_sheetPath); }
-
-                importer.GetSourceTextureWidthAndHeight(out int srcW, out int srcH);
-                if (_sheet.width < srcW || _sheet.height < srcH)
-                    _status = $"⚠ This sheet is {srcW}×{srcH}, larger than Unity's {importer.maxTextureSize}px limit, so it was " +
-                              $"downscaled to {_sheet.width}×{_sheet.height} — it will look blurry and slice imprecisely. " +
-                              "Split the sheet into smaller images before extracting.";
-            }
+            _sheet = CrispenTextureImport(_sheet, _sheetPath, out string sizeWarning);
+            if (!string.IsNullOrEmpty(sizeWarning)) _status = sizeWarning;
             _texW = _sheet.width; _texH = _sheet.height;
             if (string.IsNullOrEmpty(_status)) _status = $"Loaded {_texW}×{_texH} sheet.";
 
@@ -3011,9 +3428,10 @@ namespace Laubrary.Launimator.Editor
             _framePivot = new Vector2(s.framePivotX, s.framePivotY);
 
             _regions.Clear();
+            string sheetGuid = CurrentSheetGuid();
             foreach (var rd in s.regions)
             {
-                var reg = new Region { label = rd.label ?? "" };
+                var reg = new Region { label = rd.label ?? "", sourceTextureGuid = sheetGuid };
                 if (rd.bounds != null) reg.bounds = rd.bounds.ToRect();
                 foreach (var c in rd.cells) reg.cells.Add(c.ToRect());
                 foreach (var p in rd.pivots) reg.pivots.Add(p.ToVec2());
@@ -3148,6 +3566,36 @@ namespace Laubrary.Launimator.Editor
             }
             return _pixelCache;
         }
+
+        private string CurrentSheetGuid() => string.IsNullOrEmpty(_sheetPath) ? null : AssetDatabase.AssetPathToGUID(_sheetPath);
+
+        // ── cross-texture resolution (a Laumination's frames may come from several source textures — see
+        // Region.sourceTextureGuid's own doc comment) — only used by the PALETTE/SEQUENCE thumbnail path,
+        // never by the Identify-Sprites canvas itself (that stays scoped to whichever ONE sheet is loaded,
+        // same as before this existed; you can only marquee/pick from what's actually on screen).
+        private readonly Dictionary<string, Texture2D> _foreignTexCache = new Dictionary<string, Texture2D>();
+        private readonly Dictionary<string, Color32[]> _foreignPixelCache = new Dictionary<string, Color32[]>();
+
+        private Texture2D ResolveTexture(string guid)
+        {
+            if (string.IsNullOrEmpty(guid) || guid == CurrentSheetGuid()) return _sheet;
+            if (_foreignTexCache.TryGetValue(guid, out var t) && t != null) return t;
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            t = string.IsNullOrEmpty(path) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            _foreignTexCache[guid] = t;
+            return t;
+        }
+
+        private Color32[] GetPixelsFor(string guid)
+        {
+            if (string.IsNullOrEmpty(guid) || guid == CurrentSheetGuid()) return GetPixels();
+            if (_foreignPixelCache.TryGetValue(guid, out var px) && px != null) return px;
+            var tex = ResolveTexture(guid);
+            if (tex == null) return null;
+            try { px = tex.GetPixels32(); } catch { px = null; }
+            _foreignPixelCache[guid] = px;
+            return px;
+        }
         private Rect TrimCell(Rect cell, out bool empty)
         {
             empty = false; var px = GetPixels();
@@ -3156,28 +3604,38 @@ namespace Laubrary.Launimator.Editor
         }
 
         // ── draw + coords ────────────────────────────────────────────────────
-        private void DrawCellTex(Rect dst, Rect texCell)
+        // textureGuid null/current-sheet = the fast, existing SheetForDisplay() path (a bg-keyed preview
+        // texture kept in sync with _sheet); any OTHER guid draws the raw resolved texture directly — a
+        // foreign sheet has no keyed preview prepared for it, which is fine, bg-key is a per-sheet setting.
+        private void DrawCellTex(Rect dst, Rect texCell, string textureGuid = null)
         {
-            Rect uv = new Rect(texCell.x / _texW, texCell.y / _texH, texCell.width / _texW, texCell.height / _texH);
+            bool foreign = !string.IsNullOrEmpty(textureGuid) && textureGuid != CurrentSheetGuid();
+            Texture2D tex = foreign ? ResolveTexture(textureGuid) : SheetForDisplay();
+            if (tex == null) return;
+            float tw = foreign ? tex.width : _texW, th = foreign ? tex.height : _texH;
+            Rect uv = new Rect(texCell.x / tw, texCell.y / th, texCell.width / tw, texCell.height / th);
             float aspect = texCell.width / Mathf.Max(1f, texCell.height);
             Rect draw = aspect > 1f
                 ? new Rect(dst.x, dst.y + (dst.height - dst.width / aspect) / 2, dst.width, dst.width / aspect)
                 : new Rect(dst.x + (dst.width - dst.height * aspect) / 2, dst.y, dst.height * aspect, dst.height);
-            GUI.DrawTextureWithTexCoords(draw, SheetForDisplay(), uv, true);
+            GUI.DrawTextureWithTexCoords(draw, tex, uv, true);
         }
 
         /// <summary>Draw a palette/sequence tile for (<paramref name="region"/>,<paramref name="cell"/>) WITH its
         /// edit applied, so an edited sprite's tile looks edited. Identity cells use the cheap raw path; edited
-        /// cells draw a cached transformed texture (rebuilt only when the cell or its transform changes).</summary>
+        /// cells draw a cached transformed texture (rebuilt only when the cell or its transform changes).
+        /// Resolves EACH region's OWN source texture (see Region.sourceTextureGuid) — a cell from a sheet that
+        /// isn't currently loaded still renders correctly here, it's just not paintable/re-identifiable until
+        /// that sheet is loaded again.</summary>
         private void DrawCellThumb(Rect dst, int region, int cell)
         {
             var reg = _regions[region]; reg.SyncPivots(GlobalPivot());
             Rect texCell = reg.cells[cell];
             var t = reg.transforms[cell];
-            if (t.IsIdentity) { DrawCellTex(dst, texCell); return; }
+            if (t.IsIdentity) { DrawCellTex(dst, texCell, reg.sourceTextureGuid); return; }
 
-            var tex = ThumbTexture(region, cell, texCell, t);
-            if (tex == null) { DrawCellTex(dst, texCell); return; }
+            var tex = ThumbTexture(region, cell, texCell, t, reg.sourceTextureGuid);
+            if (tex == null) { DrawCellTex(dst, texCell, reg.sourceTextureGuid); return; }
             float aspect = tex.width / Mathf.Max(1f, tex.height);
             Rect draw = aspect > 1f
                 ? new Rect(dst.x, dst.y + (dst.height - dst.width / aspect) / 2, dst.width, dst.width / aspect)
@@ -3185,7 +3643,7 @@ namespace Laubrary.Launimator.Editor
             GUI.DrawTexture(draw, tex, ScaleMode.StretchToFill, true);
         }
 
-        private Texture2D ThumbTexture(int region, int cell, Rect texCell, CellTransform t)
+        private Texture2D ThumbTexture(int region, int cell, Rect texCell, CellTransform t, string textureGuid = null)
         {
             long key = PackCell(region, cell);
             int hash;
@@ -3201,9 +3659,12 @@ namespace Laubrary.Launimator.Editor
             if (_thumbCache.TryGetValue(key, out var e) && e.hash == hash && e.tex != null) return e.tex;
 
             if (e.tex != null) Object.DestroyImmediate(e.tex);
-            var px = GetPixels();
+            bool foreign = !string.IsNullOrEmpty(textureGuid) && textureGuid != CurrentSheetGuid();
+            var px = foreign ? GetPixelsFor(textureGuid) : GetPixels();
             if (px == null) { _thumbCache.Remove(key); return null; }
-            var block = AtlasBaker.TransformCell(px, _texW, _texH, texCell, t, CurrentColorKey(),
+            var srcTex = foreign ? ResolveTexture(textureGuid) : null;
+            int tw = foreign ? srcTex.width : _texW, th = foreign ? srcTex.height : _texH;
+            var block = AtlasBaker.TransformCell(px, tw, th, texCell, t, CurrentColorKey(),
                 new Vector2(0.5f, 0.5f), out int w, out int h, out _);
             var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
             tex.SetPixels32(block); tex.Apply();

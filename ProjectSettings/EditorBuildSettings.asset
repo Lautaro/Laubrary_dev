@@ -41,4 +41,6 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Unity Technologies/QuizU - A UI Toolkit demo/Demos/0_DemoSelection/DemoSelection.unity
     guid: 749399c451e904d6c9f87009f1f91c22
-  m_configObjects: {}
+  m_configObjects:
+    com.unity.addressableassets: {fileID: 11400000, guid: 28230e97dc1bd0d4dbab6f33d930697d, type: 2}
+  m_UseUCBPForAssetBundles: 0

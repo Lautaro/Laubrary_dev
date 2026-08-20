@@ -21,13 +21,12 @@ MonoBehaviour:
   projectilesPerShot: 1
   ammoTypes:
   - {fileID: 11400000, guid: 90fb17f480489cc4fb40e04b2109be29, type: 2}
+  attachToPartName: Upper
   muzzle:
     rid: 1452078146085191871
   muzzleLayerId: Muzzle
   muzzleEventName: 
   muzzleOffset: {x: 0.5, y: 0}
-  muzzleVectorLayerId: MuzzleVec
-  attachToPartName: Upper
   fireZoundName: 
   references:
     version: 2

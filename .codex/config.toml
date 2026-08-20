@@ -1,0 +1,5 @@
+[mcp_servers.coplay-mcp]
+command = 'C:\Users\Lauta\.local\bin\coplay-mcp-server.exe'
+
+[mcp_servers.coplay-mcp.env]
+MCP_TOOL_TIMEOUT = "720000"

@@ -105,11 +105,17 @@ public class ZuiGradient : ISerializationCallbackReceiver
         return c;
     }
 
-    /// <summary>Bake the transformed ramp to a 1-D LUT texture (for the palette-cycle shader). Repeat-wrap +
-    /// bilinear so a shader's frac(t+phase) cycles smoothly. Bake at phase 0; the shader scrolls the phase. The
-    /// colour transforms are sampled at <paramref name="life"/> (0 = a life-0 snapshot, the default). The caller
-    /// owns the returned texture.</summary>
-    public Texture2D ToLut(int width = 256, float life = 0f)
+    /// <summary>Bake the transformed ramp to a 1-D LUT texture (for the palette-cycle shader, and for the editor's
+    /// objective preview). Repeat-wrap + bilinear so a shader's frac(t+phase) cycles smoothly. Bake at phase 0; the
+    /// shader scrolls the phase. The colour transforms are sampled at <paramref name="life"/> (0 = a life-0
+    /// snapshot, the default) — UNLESS <paramref name="lifeFollowsPosition"/> is set, in which case each texel's
+    /// `life` tracks its own ramp position instead of the fixed <paramref name="life"/>. That matches an OverLife
+    /// ZuiFill, where the ramp position IS the life (see ZuiFill.EvalGrad) — without this, a texel-independent life
+    /// would sample every colour-transform (hue/sat/BRIGHTNESS/contrast) at the SAME instant, so an authored Curve
+    /// would bake as one flat multiplier smeared across the whole strip instead of the per-position value it will
+    /// actually render — reading as "the transform does nothing, it just recolours the gradient" (task T-0030). The
+    /// caller owns the returned texture.</summary>
+    public Texture2D ToLut(int width = 256, float life = 0f, bool lifeFollowsPosition = false)
     {
         width = Mathf.Max(2, width);
         var tex = new Texture2D(width, 1, TextureFormat.RGBA32, false)
@@ -120,7 +126,10 @@ public class ZuiGradient : ISerializationCallbackReceiver
         };
         var px = new Color[width];
         for (int i = 0; i < width; i++)
-            px[i] = Evaluate(i / (float)(width - 1), 0f, life);
+        {
+            float t = i / (float)(width - 1);
+            px[i] = Evaluate(t, 0f, lifeFollowsPosition ? t : life);
+        }
         tex.SetPixels(px);
         tex.Apply();
         return tex;
