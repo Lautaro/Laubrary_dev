@@ -180,5 +180,45 @@ namespace Laubrary.PyrePlus.Tests
             bool varied = false; foreach (var v in g) if (Mathf.Abs(v - 1f) > 0.05f) varied = true;
             Assert.That(varied);
         }
+
+        [Test]
+        public void SmearShiftX_TrailsTowardMinusXWithGeometricWeights()
+        {
+            // One lit pixel at x = 5: normalised, the trail appears at x = 5, 4, 3 with weights 1, d, d² / (1 + d + d²);
+            // nothing to the RIGHT of the source (the leading edge stays crisp); unnormalised, the raw weights.
+            int W = 8, H = 1; float d = 0.5f;
+            var f = new float[W]; f[5] = 1f;
+            PlusFieldOps.SmearShiftX(f, W, H, 2, d, normalise: false);
+            Assert.That(f[5], Is.EqualTo(1f).Within(1e-6f)); Assert.That(f[4], Is.EqualTo(d).Within(1e-6f));
+            Assert.That(f[3], Is.EqualTo(d * d).Within(1e-6f)); Assert.That(f[2], Is.EqualTo(0f)); Assert.That(f[6], Is.EqualTo(0f));
+            var g = new float[W]; g[5] = 1f;
+            PlusFieldOps.SmearShiftX(g, W, H, 2, d, normalise: true);
+            float tot = 1f + d + d * d;
+            Assert.That(g[5] + g[4] + g[3], Is.EqualTo(1f).Within(1e-6f));
+            Assert.That(g[4], Is.EqualTo(d / tot).Within(1e-6f));
+            // a source at the right edge has nothing beyond it to pull from: zero-filled, so its value is just its own weight
+            var e = new float[W]; e[7] = 1f;
+            PlusFieldOps.SmearShiftX(e, W, H, 2, d, normalise: true);
+            Assert.That(e[7], Is.EqualTo(1f / tot).Within(1e-6f)); Assert.That(e[6], Is.EqualTo(d / tot).Within(1e-6f));
+        }
+
+        [Test]
+        public void BinomialBlur_IsZeroPaddedAndKeepsInteriorMass()
+        {
+            // A lone pixel in the middle of a 5×5 spreads into the [1 2 1]⊗[1 2 1]/16 kernel; one at the corner loses the
+            // mass that falls off the edge (zero padding, never a clamp).
+            int W = 5, H = 5;
+            var f = new float[W * H]; f[2 * W + 2] = 16f;
+            PlusFieldOps.BinomialBlur(f, W, H, 1);
+            Assert.That(f[2 * W + 2], Is.EqualTo(4f).Within(1e-5f)); Assert.That(f[2 * W + 1], Is.EqualTo(2f).Within(1e-5f));
+            Assert.That(f[1 * W + 1], Is.EqualTo(1f).Within(1e-5f)); Assert.That(f[0], Is.EqualTo(0f));
+            float sum = 0f; foreach (var v in f) sum += v;
+            Assert.That(sum, Is.EqualTo(16f).Within(1e-4f));
+            var c = new float[W * H]; c[0] = 16f;
+            PlusFieldOps.BinomialBlur(c, W, H, 1);
+            Assert.That(c[0], Is.EqualTo(4f).Within(1e-5f));
+            sum = 0f; foreach (var v in c) sum += v;
+            Assert.That(sum, Is.EqualTo(9f).Within(1e-4f));   // 4 + 2 + 2 + 1: the three quarters beyond the corner are gone
+        }
     }
 }

@@ -345,5 +345,39 @@ namespace Laubrary.PyrePlus
                 default: return null;
             }
         }
+
+        // ── the Energy Projectile agent2 (THE ORB, gen 2) signatures: orbcanvas.RAMPS verbatim ──
+        // Eight uneven control points per ramp, interpolated DIRECTLY IN sRGB (np.interp on 0..255 channels): the dark
+        // end is long (the halo and the wake live there), the white end short (only the nucleus is white-hot). No
+        // per-stop alpha — that agent's alpha is a window on the tone value, a dial of the form.
+        static PlusRamp Orb8(float[] pos, byte[,] c)
+        {
+            var r = new PlusRamp { space = PlusRampSpace.Srgb };
+            for (int i = 0; i < 8; i++) r.stops.Add(new PlusRampStop(pos[i], c[i, 0], c[i, 1], c[i, 2], 1f));
+            return r;
+        }
+        public static PlusRamp OrbEmber() => Orb8(new[] { 0f, 0.14f, 0.32f, 0.52f, 0.70f, 0.85f, 0.94f, 1f },
+            new byte[,] { { 26, 4, 2 }, { 86, 14, 4 }, { 172, 42, 8 }, { 232, 96, 18 }, { 252, 158, 44 }, { 255, 208, 108 }, { 255, 238, 178 }, { 255, 252, 232 } });
+        public static PlusRamp OrbFrost() => Orb8(new[] { 0f, 0.16f, 0.36f, 0.56f, 0.74f, 0.88f, 0.96f, 1f },
+            new byte[,] { { 6, 18, 40 }, { 12, 46, 92 }, { 22, 98, 164 }, { 52, 158, 220 }, { 118, 208, 246 }, { 186, 236, 252 }, { 226, 248, 255 }, { 250, 254, 255 } });
+        public static PlusRamp OrbGold() => Orb8(new[] { 0f, 0.15f, 0.34f, 0.54f, 0.72f, 0.86f, 0.95f, 1f },
+            new byte[,] { { 32, 12, 2 }, { 104, 40, 4 }, { 186, 92, 10 }, { 238, 148, 26 }, { 254, 200, 66 }, { 255, 232, 134 }, { 255, 248, 200 }, { 255, 255, 246 } });
+        public static PlusRamp OrbToxin() => Orb8(new[] { 0f, 0.16f, 0.36f, 0.56f, 0.74f, 0.88f, 0.96f, 1f },
+            new byte[,] { { 6, 24, 14 }, { 16, 62, 28 }, { 28, 118, 44 }, { 72, 176, 56 }, { 140, 220, 78 }, { 198, 244, 132 }, { 232, 252, 198 }, { 250, 255, 238 } });
+        public static PlusRamp OrbVolt() => Orb8(new[] { 0f, 0.15f, 0.34f, 0.54f, 0.72f, 0.86f, 0.95f, 1f },
+            new byte[,] { { 20, 6, 44 }, { 60, 14, 108 }, { 114, 30, 186 }, { 172, 62, 236 }, { 212, 118, 250 }, { 236, 176, 254 }, { 250, 222, 255 }, { 255, 246, 255 } });
+        /// The orb signature by its Kiln name ("ember", "frost", "gold", "toxin", "volt"); null for an unknown name.
+        public static PlusRamp Orb(string name)
+        {
+            switch ((name ?? "").Trim().ToLowerInvariant())
+            {
+                case "ember": return OrbEmber();
+                case "frost": return OrbFrost();
+                case "gold": return OrbGold();
+                case "toxin": return OrbToxin();
+                case "volt": return OrbVolt();
+                default: return null;
+            }
+        }
     }
 }

@@ -39,6 +39,19 @@ namespace Laubrary.PyrePlus.Editor.Parity
             public int layerIndex = -1;         // which layer's fill/form answers the ramp probe; -1 = first layer with a form, else 0
             public JObject meta;                // extra content for meta.json (FromContract's mapping report goes here)
             public string rampName;             // `"ramp": name` key in ramp_probe.json — which contract ramp to compare against
+            public int cropW, cropH;            // > 0: write the CENTRED cropW × cropH window of every frame and plane (a non-square
+                                                // contract letterboxed on PyrePlus's square canvas — Energy Projectile's 192 × 96 orbs)
+        }
+
+        /// The centred crop window of a W × H buffer in y-UP rows (renderer convention): null when no crop applies.
+        static T[] Crop<T>(T[] src, int W, int H, int cw, int ch)
+        {
+            if (cw <= 0 || ch <= 0 || (cw == W && ch == H)) return src;
+            cw = Mathf.Min(cw, W); ch = Mathf.Min(ch, H);
+            int x0 = (W - cw) / 2, y0 = H - (H - ch) / 2 - ch;   // the window's TOP row is (H−ch)/2 in y-down terms
+            var dst = new T[cw * ch];
+            for (int y = 0; y < ch; y++) Array.Copy(src, (y0 + y) * W + x0, dst, y * cw, cw);
+            return dst;
         }
 
         // ── dump ────────────────────────────────────────────────────────────────────────────────────────────
@@ -55,7 +68,8 @@ namespace Laubrary.PyrePlus.Editor.Parity
             if (opt.fields) Directory.CreateDirectory(fieldsDir);
 
             int W = spec.Width, H = spec.Height, frames = Mathf.Max(1, spec.frameCount);
-            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false, false);
+            int outW = opt.cropW > 0 ? Mathf.Min(opt.cropW, W) : W, outH = opt.cropH > 0 ? Mathf.Min(opt.cropH, H) : H;
+            var tex = new Texture2D(outW, outH, TextureFormat.RGBA32, false, false);
             var published = new List<(string name, float[] plane)>();
             var planeNames = new SortedSet<string>();
             Action<string, float[]> sink = (name, plane) => published.Add((name, plane));
@@ -66,7 +80,7 @@ namespace Laubrary.PyrePlus.Editor.Parity
                 for (int f = 0; f < frames; f++)
                 {
                     published.Clear();
-                    var buf = PyrePlusRenderer.RenderFrame(spec, f);
+                    var buf = Crop(PyrePlusRenderer.RenderFrame(spec, f), W, H, outW, outH);
                     tex.SetPixels32(buf);   // row 0 = bottom; EncodeToPNG writes the top row first ⇒ the PNG is y-down like the contract's
                     File.WriteAllBytes(Path.Combine(framesDir, $"{f:0000}.png"), ImageConversion.EncodeToPNG(tex));
                     if (opt.fields)
@@ -74,7 +88,7 @@ namespace Laubrary.PyrePlus.Editor.Parity
                         {
                             if (plane == null || plane.Length != W * H) continue;
                             planeNames.Add(name);
-                            WriteNpy(Path.Combine(fieldsDir, $"{f:0000}_{name}.npy"), plane, W, H, flipY: true);
+                            WriteNpy(Path.Combine(fieldsDir, $"{f:0000}_{name}.npy"), Crop(plane, W, H, outW, outH), outW, outH, flipY: true);
                         }
                 }
             }
@@ -104,6 +118,7 @@ namespace Laubrary.PyrePlus.Editor.Parity
             var meta = opt.meta != null ? (JObject)opt.meta.DeepClone() : new JObject();
             meta["renderer"] = "PyrePlusRenderer.RenderFrame";
             meta["spec"] = new JObject { ["name"] = spec.name, ["w"] = W, ["h"] = H, ["frames"] = frames, ["seed"] = spec.seed, ["layers"] = spec.layers?.Count ?? 0 };
+            if (outW != W || outH != H) meta["crop"] = new JObject { ["w"] = outW, ["h"] = outH, ["note"] = "centred window of the square canvas (y-down top row = (H - h) / 2)" };
             meta["form"] = layer?.form != null ? layer.form.GetType().FullName : (layer != null ? "enum:" + layer.shapeForm : null);
             meta["planes"] = new JArray(planeNames);
             meta["written_at"] = DateTime.UtcNow.ToString("o");

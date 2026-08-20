@@ -130,6 +130,63 @@ namespace Laubrary.PyrePlus
                 }
         }
 
+        /// Whole-pixel shift smear along −x (the Kiln "speed smudge"): out(x) = Σ_{k=0..taps} decay^k · field(x + k), the
+        /// content displaced toward −x in integer steps with geometric weights, zero-filled past the right edge — so the
+        /// leading edge stays crisp and only the trail spreads. `normalise` divides by Σ decay^k (a motion blur: energy
+        /// redistributed); off, it accumulates (a light streak brighter than its source). In place; `scratch` ≥ W·H.
+        public static void SmearShiftX(float[] field, int W, int H, int taps, float decay, bool normalise = true, float[] scratch = null)
+        {
+            taps = Mathf.Max(0, taps);
+            if (taps == 0) return;
+            if (scratch == null || scratch.Length < W * H) scratch = new float[W * H];
+            Array.Copy(field, scratch, W * H);
+            double tot = 1.0, w = 1.0;
+            for (int k = 1; k <= taps; k++) { w *= decay; tot += w; }
+            float inv = normalise ? (float)(1.0 / tot) : 1f;
+            for (int y = 0; y < H; y++)
+            {
+                int row = y * W;
+                for (int x = 0; x < W; x++)
+                {
+                    double acc = scratch[row + x];
+                    double wk = 1.0;
+                    int kMax = Math.Min(taps, W - 1 - x);
+                    for (int k = 1; k <= kMax; k++) { wk *= decay; acc += wk * scratch[row + x + k]; }
+                    field[row + x] = (float)(acc * inv);
+                }
+            }
+        }
+
+        /// Separable binomial [¼ ½ ¼] blur, x then y, ZERO-padded (a pixel at the edge sees empty space beyond it, not
+        /// itself), `passes` times — the Kiln "soften" that fuses the seams between summed shapes without moving the
+        /// composition. In place; `scratch` ≥ W·H.
+        public static void BinomialBlur(float[] field, int W, int H, int passes = 1, float[] scratch = null)
+        {
+            if (passes <= 0) return;
+            if (scratch == null || scratch.Length < W * H) scratch = new float[W * H];
+            for (int p = 0; p < passes; p++)
+            {
+                for (int y = 0; y < H; y++)
+                {
+                    int row = y * W;
+                    for (int x = 0; x < W; x++)
+                    {
+                        float l = x > 0 ? field[row + x - 1] : 0f, r = x < W - 1 ? field[row + x + 1] : 0f;
+                        scratch[row + x] = 0.25f * (l + r) + 0.5f * field[row + x];
+                    }
+                }
+                for (int y = 0; y < H; y++)
+                {
+                    int row = y * W;
+                    for (int x = 0; x < W; x++)
+                    {
+                        float u = y > 0 ? scratch[row - W + x] : 0f, d = y < H - 1 ? scratch[row + W + x] : 0f;
+                        field[row + x] = 0.25f * (u + d) + 0.5f * scratch[row + x];
+                    }
+                }
+            }
+        }
+
         /// Exponential (IIR) smear along `angleDeg`: out(p) = src(p) + decay · out(p − dir), swept so the predecessor is
         /// always already computed (a bilinear read between the two pixels of the previous column/row along the
         /// dominant axis). Unbounded trail with a geometric tail — the cheap "motion streak" most Kiln agents use.

@@ -168,6 +168,32 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             return a;
         }
 
+        /// numpy `Generator.uniform(low, high)`: `low + (high − low) · random()` (the scale is formed first, as numpy does).
+        public double Uniform(double low, double high) => low + (high - low) * NextDouble();
+
+        /// numpy `Generator.integers(low, high)` (half-open, int64 dtype) for ranges that fit 32 bits: Lemire's
+        /// multiply-shift with rejection on 32-bit halves — `buffered_bounded_lemire_uint32` — so it shares the
+        /// buffered high word with the previous 32-bit draw exactly as the C does. `choice([a, b])` is `Integers(0, 2)`.
+        public long Integers(long low, long high)
+        {
+            ulong rng = (ulong)(high - 1 - low);
+            if (rng == 0) return low;
+            if (rng > 0xFFFFFFFFUL) throw new ArgumentOutOfRangeException(nameof(high), "ranges wider than 32 bits are not replicated");
+            if (rng == 0xFFFFFFFFUL) return low + NextU32();
+            ulong rngExcl = rng + 1;
+            ulong m = NextU32() * rngExcl;
+            ulong leftover = m & 0xFFFFFFFFUL;
+            if (leftover < rngExcl)
+            {
+                ulong threshold = (0xFFFFFFFFUL - rng) % rngExcl;
+                while (leftover < threshold) { m = NextU32() * rngExcl; leftover = m & 0xFFFFFFFFUL; }
+            }
+            return low + (long)(m >> 32);
+        }
+
+        /// numpy `Generator.choice([-1.0, 1.0])`.
+        public double ChoiceSign() => Integers(0, 2) == 0 ? -1.0 : 1.0;
+
         /// numpy `random_interval(max)`: masked rejection on 32-bit draws while max fits in 32 bits.
         public ulong RandomInterval(ulong max)
         {
