@@ -48,7 +48,9 @@
 //
 // Engine seams used: the virtual stages `BuildSlots` / `Warp` / `Root` / `Emit` / `Rings` / `Sparks` / `Frame` and the
 // shade's `CeilingExponent`; helpers `LeadRank` / `StratifiedPermuted` / `Fade` / `Mod1` / `RoundHalfEven`. Seams added:
-// none. The polar warp is restated here rather than inherited because `RadialJetProgram` is sealed around its own
+// `JetSlots` unsealed (this table adds columns), `JetSettings.ShallowClone` (the swarm's per-particle blast), `hi` range
+// to 16, `JetFormBase.Shader` / `InstanceSettings` virtuals — attributes and hooks, no arithmetic; the base jet and the
+// radial jet render byte-identically (re-proven by their parity dumps). The polar warp is restated here rather than inherited because `RadialJetProgram` is sealed around its own
 // settings type — it is the same thirty lines the source duplicates between the two forks.
 using System;
 using System.Collections.Generic;

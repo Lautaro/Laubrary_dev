@@ -376,26 +376,46 @@ namespace Laubrary.PyrePlus
             new byte[,] { { 8, 26, 30 }, { 14, 52, 62 }, { 24, 88, 100 }, { 44, 132, 140 }, { 86, 176, 176 }, { 146, 212, 206 }, { 200, 236, 232 }, { 240, 252, 250 } },
             new float[] { 0.12f, 0.26f, 0.40f, 0.54f, 0.66f, 0.78f, 0.88f, 0.96f });
 
+        // ── Kiln Flame / agent3_fork_explosive gen 7 (the explosive jet; gen.py CORDITE / TOXIC — its EMBER / GOLD / DIRTY /
+        // WHIRL / SOLAR / GHOST / VIOLET are the presets above stop for stop).
+
+        /// `muzzle`: CORDITE — a near-black navy through a hard steel blue into a white with blue left in it; the top three
+        /// stops packed into the last eighth because a muzzle flash is a small very hot core inside a much cooler cloud.
+        public static PlusRamp JetCordite() => Stops(PlusRampSpace.LinearLight, new float[] { 0f, 0.10f, 0.24f, 0.40f, 0.56f, 0.72f, 0.86f, 1f },
+            new byte[,] { { 10, 10, 34 }, { 24, 28, 82 }, { 40, 60, 140 }, { 62, 106, 190 }, { 104, 156, 226 }, { 162, 200, 244 }, { 214, 232, 252 }, { 252, 254, 255 } },
+            new float[] { 0.20f, 0.44f, 0.64f, 0.78f, 0.88f, 0.95f, 0.99f, 1f });
+        /// CORDITE's second ramp — the burnt-propellant ORANGE the cloud crosses into as it soots (window 0.34..0.96).
+        public static PlusRamp JetCorditeSoot() => Stops(PlusRampSpace.LinearLight, new float[] { 0f, 0.25f, 0.50f, 0.75f, 1f },
+            new byte[,] { { 46, 16, 8 }, { 122, 48, 14 }, { 196, 96, 26 }, { 240, 158, 60 }, { 255, 214, 140 } },
+            new float[] { 0.24f, 0.52f, 0.74f, 0.90f, 1f });
+
+        /// `starshell`: TOXIC — the widest hue travel in the family: a black-green through a poison lime to a white that still
+        /// has green in it. Chemical fire, not wood fire.
+        public static PlusRamp JetToxic() => Stops(PlusRampSpace.LinearLight, new float[] { 0f, 0.11f, 0.25f, 0.40f, 0.55f, 0.70f, 0.84f, 0.94f, 1f },
+            new byte[,] { { 6, 26, 10 }, { 14, 62, 20 }, { 30, 112, 30 }, { 68, 162, 40 }, { 122, 202, 52 }, { 176, 230, 76 }, { 218, 246, 128 }, { 240, 252, 190 }, { 252, 255, 238 } },
+            new float[] { 0.20f, 0.42f, 0.62f, 0.76f, 0.86f, 0.93f, 0.98f, 1f, 1f });
+
         /// The jet family's primary ramp by its Kiln name (TORCH / EMBER / DIRTY / GOLD / WYRM / VIOLET / BURNER / WHIRL /
-        /// SOLAR / GHOST); null when unknown.
+        /// SOLAR / GHOST / CORDITE / TOXIC); null when unknown.
         public static PlusRamp Jet(string name) => name?.ToUpperInvariant() switch
         {
             "TORCH" => JetTorch(), "EMBER" => Ember(), "DIRTY" => JetDirty(), "GOLD" => JetGold(), "WYRM" => JetWyrm(), "VIOLET" => JetWyrm(),
-            "BURNER" => JetBurner(), "WHIRL" => JetWhirl(), "SOLAR" => JetSolar(), "GHOST" => JetGhost(), _ => null,
+            "BURNER" => JetBurner(), "WHIRL" => JetWhirl(), "SOLAR" => JetSolar(), "GHOST" => JetGhost(),
+            "CORDITE" => JetCordite(), "TOXIC" => JetToxic(), _ => null,
         };
 
-        /// The second ramp a jet ramp crosses into (EMBER / DIRTY: soot; GOLD: heat; BURNER: the orange tips); an empty ramp
-        /// when it has none.
+        /// The second ramp a jet ramp crosses into (EMBER / DIRTY / CORDITE: soot; GOLD: heat; BURNER: the orange tips); an
+        /// empty ramp when it has none.
         public static PlusRamp JetSecondary(string name) => name?.ToUpperInvariant() switch
         {
-            "EMBER" => EmberSoot(), "DIRTY" => JetDirtySoot(), "GOLD" => JetGoldHeat(), "BURNER" => JetBurnerTips(), _ => new PlusRamp(),
+            "EMBER" => EmberSoot(), "DIRTY" => JetDirtySoot(), "GOLD" => JetGoldHeat(), "BURNER" => JetBurnerTips(), "CORDITE" => JetCorditeSoot(), _ => new PlusRamp(),
         };
 
         /// The crossfade window (soot_lo, soot_hi) of a jet ramp's secondary; the JetSpec default (0.35, 0.95) when it has none.
         public static Vector2 JetSootWindow(string name) => name?.ToUpperInvariant() switch
         {
             "EMBER" => new Vector2(EmberSootLo, EmberSootHi), "DIRTY" => new Vector2(0.30f, 0.95f), "GOLD" => new Vector2(0.20f, 0.85f),
-            "BURNER" => new Vector2(0.18f, 0.88f), _ => new Vector2(0.35f, 0.95f),
+            "BURNER" => new Vector2(0.18f, 0.88f), "CORDITE" => new Vector2(0.34f, 0.96f), _ => new Vector2(0.35f, 0.95f),
         };
 
         static PlusRamp Stops(PlusRampSpace space, float[] pos, byte[,] rgb, float[] alpha)

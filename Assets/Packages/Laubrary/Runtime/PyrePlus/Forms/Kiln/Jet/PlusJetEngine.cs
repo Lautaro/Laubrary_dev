@@ -223,6 +223,10 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Range(0f, 1f)] public float sootHi = 0.95f;
 
         public bool HasSoot => sootRamp != null && !sootRamp.IsEmpty;
+
+        /// A field-for-field copy (lists and ramps shared by reference) — what a swarm member that hands each particle its own
+        /// variation of the box starts from.
+        public JetSettings ShallowClone() => (JetSettings)MemberwiseClone();
     }
 
     /// One jet to accumulate: where the source frame lands on the canvas. canvas(y-down) = anchor + u·R(rot)·(src − nozzle);
@@ -275,7 +279,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
     }
 
     /// The slot table: per-slot constants, a pure function of the seed and the emission dials (jet.py `_slot_table`).
-    public sealed class JetSlots
+    /// Not sealed: the explosive fork's table carries the detonation's extra per-slot columns (birth, lead, the plates).
+    public class JetSlots
     {
         public double[] phase, da, vs, rs, amp, ls, drift;
         public bool[] shed;
