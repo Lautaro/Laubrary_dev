@@ -379,5 +379,67 @@ namespace Laubrary.PyrePlus
                 default: return null;
             }
         }
+
+        // ── the Flame agent2 (the GROUNDED flame, gen 2) banded palettes: gen.py RAMP_* as the contract writes them ──
+        // NOT gradients: seven hard cel bands. A band starts at its threshold (in heat-field units) and runs to the next;
+        // the contract stores positions as threshold / top threshold with each step as a REPEATED position (the band
+        // before it, then the band starting there), sRGB, alpha 1 — reproduced here verbatim. Below the first
+        // threshold the first colour applies. The form keeps the top threshold (`rampTop`) as its own dial.
+        static PlusRamp Torch7(float[] th, byte[,] c)
+        {
+            var r = new PlusRamp { space = PlusRampSpace.Srgb };
+            float top = th[th.Length - 1];
+            r.stops.Add(new PlusRampStop(0f, c[0, 0], c[0, 1], c[0, 2], 1f));
+            for (int k = 1; k < th.Length; k++)
+            {
+                float p = th[k] / top;
+                r.stops.Add(new PlusRampStop(p, c[k - 1, 0], c[k - 1, 1], c[k - 1, 2], 1f));
+                r.stops.Add(new PlusRampStop(p, c[k, 0], c[k, 1], c[k, 2], 1f));
+            }
+            r.stops.Add(new PlusRampStop(1f, c[th.Length - 1, 0], c[th.Length - 1, 1], c[th.Length - 1, 2], 1f));
+            return r;
+        }
+        /// RAMP_HOT (draw `lash`, top 0.88): hot orange-red.
+        public static PlusRamp TorchHot() => Torch7(new[] { 0.055f, 0.13f, 0.24f, 0.38f, 0.54f, 0.72f, 0.88f },
+            new byte[,] { { 118, 22, 10 }, { 188, 48, 12 }, { 232, 96, 18 }, { 250, 150, 32 }, { 255, 200, 72 }, { 255, 236, 152 }, { 255, 252, 234 } });
+        /// RAMP_EMBER (draw `emberbed`, top 0.82): the dark end carries most of the range, so the bed reads as coals.
+        public static PlusRamp TorchEmber() => Torch7(new[] { 0.04f, 0.10f, 0.19f, 0.31f, 0.46f, 0.63f, 0.82f },
+            new byte[,] { { 92, 12, 6 }, { 150, 28, 8 }, { 198, 60, 12 }, { 232, 104, 22 }, { 248, 152, 46 }, { 254, 202, 104 }, { 255, 238, 186 } });
+        /// RAMP_WHITE (draw `surge`, top 1.12): pale, white-hot at the core — the top stop sits ABOVE the field's peak.
+        public static PlusRamp TorchWhite() => Torch7(new[] { 0.05f, 0.14f, 0.28f, 0.45f, 0.65f, 0.88f, 1.12f },
+            new byte[,] { { 128, 34, 14 }, { 196, 66, 16 }, { 238, 118, 24 }, { 252, 172, 48 }, { 255, 216, 104 }, { 255, 242, 182 }, { 255, 255, 250 } });
+        /// RAMP_RIM (draw `barbs`, top 1.15): 0115's scheme — a wide red rim, a yellow body, a white spine.
+        public static PlusRamp TorchRim() => Torch7(new[] { 0.05f, 0.16f, 0.30f, 0.46f, 0.66f, 0.90f, 1.15f },
+            new byte[,] { { 150, 16, 16 }, { 214, 40, 18 }, { 240, 92, 20 }, { 250, 148, 26 }, { 254, 202, 44 }, { 255, 238, 128 }, { 255, 255, 236 } });
+        /// RAMP_GOLD (draw `curl`, top 1.18): gold / amber for the rolling lobes.
+        public static PlusRamp TorchGold() => Torch7(new[] { 0.05f, 0.11f, 0.21f, 0.36f, 0.55f, 0.80f, 1.18f },
+            new byte[,] { { 112, 30, 8 }, { 192, 78, 16 }, { 228, 124, 28 }, { 246, 172, 56 }, { 252, 210, 104 }, { 255, 236, 168 }, { 255, 250, 230 } });
+        /// The top threshold (heat-field units) of each torch palette — what the form's `rampTop` dial holds.
+        public static float TorchTop(string name)
+        {
+            switch (Short(name))
+            {
+                case "hot": return 0.88f; case "ember": return 0.82f; case "white": return 1.12f;
+                case "rim": return 1.15f; case "gold": return 1.18f; default: return 0f;
+            }
+        }
+        /// The torch palette by its Kiln name ("RAMP_HOT" / "hot", "ember", "white", "rim", "gold"); null for an unknown name.
+        public static PlusRamp Torch(string name)
+        {
+            switch (Short(name))
+            {
+                case "hot": return TorchHot();
+                case "ember": return TorchEmber();
+                case "white": return TorchWhite();
+                case "rim": return TorchRim();
+                case "gold": return TorchGold();
+                default: return null;
+            }
+        }
+        static string Short(string name)
+        {
+            string s = (name ?? "").Trim().ToLowerInvariant();
+            return s.StartsWith("ramp_") ? s.Substring(5) : s;
+        }
     }
 }

@@ -361,7 +361,18 @@ namespace Laubrary.Zui
                 return Z.Field(nice, tip, Z.Gradient((Gradient)v, tip, nv => Set(nv), opt.ControlWidth));
 
             if (t == typeof(Vector2))
+            {
+                // A [Range]-bounded Vector2 is a min/max PAIR (x = low, y = high) → ONE two-handle range slider, per the
+                // layout rule that a pair is never two separate controls (the Kiln forms' `tongueX` / `emberRise`
+                // ranges). Unbounded stays the plain X/Y row.
+                if (range != null)
+                {
+                    var pair = (Vector2)v;
+                    return Z.Field(nice, tip, Z.MinMax(pair.x, pair.y, range.min, range.max, tip,
+                        (lo, hi) => Set(new Vector2(lo, hi)), opt.ControlWidth));
+                }
                 return Vector2Row(nice, (Vector2)v, tip, nv => Set(nv));
+            }
 
             if (t == typeof(Vector2Int))
                 return Vector2IntRow(nice, (Vector2Int)v, tip, nv => Set(nv));

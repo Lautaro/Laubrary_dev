@@ -414,6 +414,52 @@ namespace Laubrary.PyrePlus
             return new Vector2(dNdy, -dNdx);
         }
 
+        // ── classic gradient (Perlin) noise, periodic per axis ──
+
+        /// Classic 3-D Perlin GRADIENT noise (12 edge gradients, quintic fade), −1..1, periodic with INTEGER periods
+        /// (px, py, pz) per axis: the wrap is applied to the lattice INDEX before hashing, so the gradients on either
+        /// side of the seam agree (wrapping the coordinate instead leaves a one-lattice-cell discontinuity that reads
+        /// as a flicker once per loop). `perm` is a permutation of 0..255 DOUBLED to 512 entries — the Kiln flame
+        /// agents build it with numpy's `default_rng(seed).permutation(256)` (PlusNumpyRng reproduces it) — and the
+        /// hash is perm[(perm[(perm[ix] + iy) & 255] + iz) & 255] % 12. ix must stay below 512, i.e. px ≤ 512.
+        /// Seeded only by the table, so the same coordinates always give the same value.
+        public static double GradientNoise3Periodic(double x, double y, double z, int px, int py, int pz, int[] perm)
+        {
+            double fx = Math.Floor(x), fy = Math.Floor(y), fz = Math.Floor(z);
+            long xi = (long)fx, yi = (long)fy, zi = (long)fz;
+            double xf = x - fx, yf = y - fy, zf = z - fz;
+            int x0 = WrapL(xi, px), x1 = WrapL(xi + 1, px);
+            int y0 = WrapL(yi, py), y1 = WrapL(yi + 1, py);
+            int z0 = WrapL(zi, pz), z1 = WrapL(zi + 1, pz);
+            double u = FadeD(xf), v = FadeD(yf), w = FadeD(zf);
+            double xf1 = xf - 1.0, yf1 = yf - 1.0, zf1 = zf - 1.0;
+            double n000 = GradDot(perm, x0, y0, z0, xf, yf, zf), n100 = GradDot(perm, x1, y0, z0, xf1, yf, zf);
+            double n010 = GradDot(perm, x0, y1, z0, xf, yf1, zf), n110 = GradDot(perm, x1, y1, z0, xf1, yf1, zf);
+            double n001 = GradDot(perm, x0, y0, z1, xf, yf, zf1), n101 = GradDot(perm, x1, y0, z1, xf1, yf, zf1);
+            double n011 = GradDot(perm, x0, y1, z1, xf, yf1, zf1), n111 = GradDot(perm, x1, y1, z1, xf1, yf1, zf1);
+            double a = n000 + u * (n100 - n000), b = n010 + u * (n110 - n010);
+            double c = n001 + u * (n101 - n001), d = n011 + u * (n111 - n011);
+            double ab = a + v * (b - a);
+            return ab + w * ((c + v * (d - c)) - ab);
+        }
+
+        static readonly sbyte[] Grad3 =
+        {
+            1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1, 0,
+            1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, -1,
+            0, 1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1,
+        };
+
+        static double GradDot(int[] perm, int ix, int iy, int iz, double dx, double dy, double dz)
+        {
+            int h = perm[(perm[(perm[ix & 511] + iy) & 255] + iz) & 255] % 12;
+            int g = h * 3;
+            return Grad3[g] * dx + Grad3[g + 1] * dy + Grad3[g + 2] * dz;
+        }
+
+        static double FadeD(double t) => t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+        static int WrapL(long i, int p) { long m = i % p; return (int)(m < 0 ? m + p : m); }
+
         /// FNV-1a over (seed, a, b, c) → 0..1. The one hash behind every noise here.
         public static float Hash01(int seed, int a, int b, int c)
         {
