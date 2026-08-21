@@ -69,6 +69,15 @@
 //   byte-identical shared code (field.py / noise.py / lut.py are identical in all three dirs; grad.py differs only by
 //   `opaq`) and should not need touching.
 //
+//   PORT 06 ADDENDUM (the radial fork, done): it needed NO new seam — every difference landed inside the six virtual
+//   stages above (`Rings` delegates its edge-on branch to the base; `Emit` / `Sparks` / `Root` / `Warp` / `BuildSlots` are
+//   whole-stage overrides because the fork rewrote the arithmetic, not a constant inside it). The form plumbing shared by
+//   every family member lives in `JetFormBase` (placement, swarm instancing, LUT cache, publisher, `SetContractParam`);
+//   a new member declares its variant enum + boxes and overrides `Active` / `Program` / `TrySetVariant`. For Port 05:
+//   the gen-2 base's shed kick differs from BOTH forks' room-bounded kick — port the explosive `_emit` whole; its `Frame`
+//   should override `Frame` and call the shared stages in order around its inserted ones rather than re-doing
+//   `BeginInstance`; `slots` / `ringAmp` ranges were widened for the family, widen further only if a draw needs it.
+//
 //   DELIBERATELY LEFT OUT of the base (so the base stays the gen-2 contract): the polar warp, the stratified angle
 //   path, blast schedules, the death model, fracture, dust / gobs / chunks / flash, `opaq`. Their RNG streams are
 //   documented above so a fork's draws land on the contract's own numbers.
@@ -100,7 +109,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Range(-180f, 180f)] public float aim = 0f;
         [Tooltip("Travel of a puff over its whole life, in canvas WIDTHS of the source frame.")]
         [Range(0.05f, 1.5f)] public float reach = 0.80f;
-        [Tooltip("Half-angle of the emission cone, degrees. The cone is dense on the axis (angles biased by |x|^1.7), so the stream has a spine and a ragged fringe rather than a paper fan.")]
+        [Tooltip("Half-angle of the emission arc, degrees (180 = a full disc). The directional jet biases angles towards the axis by a fixed |x|^1.7 power, so the stream has a spine and a ragged fringe rather than a paper fan; the radial jet exposes that power as its Bias dial.")]
         [Range(0f, 180f)] public float spread = 10f;
 
         // ── the argument between the push and the air ──
