@@ -73,7 +73,7 @@ namespace Laubrary.PyrePlus.Tests
         {
             // barbs (seed 115): tongue_table → tongue 0 and 25; ember stream (seed + 977) x0 / phase / rise / drift of ember 0, x0 of ember 8.
             // The dials are float32 (1.2f is not 1.2), so a range's low/high carry ~6e-8 — the stream itself is exact (phase / hot at 1e-12).
-            var s = TorchSettings.Barbs();
+            var s = TorchSettings.Barbs(); s.ResolveStatic();   // driving Accumulate outside a frame: the Static dials
             var T = PlusTorch.TongueTable(s, 115);
             Assert.That(T.Length, Is.EqualTo(26));
             Assert.That(T[0].x0, Is.EqualTo(-10.34705401861505).Within(1e-6));
@@ -100,7 +100,7 @@ namespace Laubrary.PyrePlus.Tests
         /// the anchor at (cx, base_y)/3 makes Accumulate's supersample centres land exactly on those points.
         static void BarbsFrame0(out float[] H, out float[] C)
         {
-            var s = TorchSettings.Barbs();
+            var s = TorchSettings.Barbs(); s.ResolveStatic();   // driving Accumulate outside a frame: the Static dials
             H = new float[64 * 118]; C = new float[64 * 118];
             var fr = new TorchFrame { W2 = 64, H2 = 118, ox = 32.0 / 3, oy = 108.0 / 3, u = 1.0 / 3, amp = 1, seed = 115, src = TorchSource.Barbs };
             PlusTorch.Accumulate(s, fr, 0.0, new TorchScratch(), H, C);
@@ -135,10 +135,11 @@ namespace Laubrary.PyrePlus.Tests
                 var H0 = new float[n]; var C0 = new float[n]; var H1 = new float[n]; var C1 = new float[n];
                 var fr = new TorchFrame { W2 = src.W, H2 = src.H, ox = src.cx / 3, oy = src.baseY / 3, u = 1.0 / 3, amp = 1, seed = seed, src = src };
                 var sc = new TorchScratch();
+                s.ResolveStatic();
                 PlusTorch.Accumulate(s, fr, 0.0, sc, H0, C0);
                 PlusTorch.Accumulate(s, fr, 1.0, sc, H1, C1);
                 double err = 0, lit = 0;
-                for (int i = 0; i < n; i++) { err = System.Math.Max(err, System.Math.Abs(H0[i] - H1[i])); err = System.Math.Max(err, System.Math.Abs(C0[i] - C1[i])); if (H0[i] > s.aLo) lit++; }
+                for (int i = 0; i < n; i++) { err = System.Math.Max(err, System.Math.Abs(H0[i] - H1[i])); err = System.Math.Max(err, System.Math.Abs(C0[i] - C1[i])); if (H0[i] > s.live.aLo) lit++; }
                 Assert.That(err, Is.LessThan(1e-4), seed + " loop closes");
                 Assert.That(lit, Is.GreaterThan(200), seed + " is lit");
             }
@@ -242,7 +243,7 @@ namespace Laubrary.PyrePlus.Tests
             f.Render(Ctx(64, 24, 3), t64);
             f.Render(Ctx(128, 24, 3), t128);
             int lit64 = 0, lit128 = 0, below = 0;
-            int bedRow = Mathf.FloorToInt(f.ground * 64) - 2;   // y-up rows under the bed (two px of slack for the one-px alpha ramp)
+            int bedRow = Mathf.FloorToInt(f.ground.staticValue * 64) - 2;   // y-up rows under the bed (two px of slack for the one-px alpha ramp)
             for (int i = 0; i < t64.Length; i++) { if (t64[i].a > 0) { lit64++; if (i / 64 < bedRow) below++; } }
             foreach (var c in t128) if (c.a > 0) lit128++;
             Assert.That(below, Is.EqualTo(0), "grounded");
@@ -272,9 +273,9 @@ namespace Laubrary.PyrePlus.Tests
             Assert.That(f.variant, Is.EqualTo(TorchForm.Variant.Curl));
             // curl: 96 × 112 → S = 112, left 8, top 0; cx 48, base_y 104, h_flame 68
             f.SetContractParam("w", 96); f.SetContractParam("h", 112); f.SetContractParam("cx", 48.0); f.SetContractParam("base_y", 104.0); f.SetContractParam("h_flame", 68.0);
-            Assert.That(f.axisX, Is.EqualTo(56f / 112f).Within(1e-6));
-            Assert.That(f.ground, Is.EqualTo(8f / 112f).Within(1e-6));
-            Assert.That(f.height, Is.EqualTo(68f / 112f).Within(1e-6));
+            Assert.That(f.axisX.staticValue, Is.EqualTo(56f / 112f).Within(1e-6));   // the contract's placement lands as the Static value
+            Assert.That(f.ground.staticValue, Is.EqualTo(8f / 112f).Within(1e-6));
+            Assert.That(f.height.staticValue, Is.EqualTo(68f / 112f).Within(1e-6));
             Assert.That(f.curl.hFlame, Is.EqualTo(68f));
             Assert.That(f.SetContractParam("tongue_x", new System.Collections.Generic.List<object> { 15.0, 23.0 }), Is.True);
             Assert.That(f.curl.tongueX, Is.EqualTo(new Vector2(15f, 23f)));
@@ -283,9 +284,42 @@ namespace Laubrary.PyrePlus.Tests
             Assert.That(f.SetContractParam("abig", 0.56), Is.True);
             Assert.That(f.SetContractParam("toct", 3), Is.True);
             Assert.That(f.SetContractParam("ramp", "RAMP_GOLD"), Is.True);
-            Assert.That(f.curl.rampTop, Is.EqualTo(1.18f));
+            Assert.That(f.curl.rampTop.staticValue, Is.EqualTo(1.18f));
             Assert.That(f.SetContractParam("hand_tuned", "every value chosen by eye"), Is.False);
             Assert.That(f.SetContractParam("no_such_dial", 1.0), Is.False);
+        }
+
+        // ── envelopes (T-0063) ──
+        [Test]
+        public void Envelope_StaticEqualsFlatCurve_AndARampDrivesTheRender()
+        {
+            // the form's height and the active box's gain / glow: a flat Curve renders the Static bytes; a moving Curve
+            // changes the first and the last frame of the loop
+            var stat = EnvelopeTestUtil.Spec(new TorchForm(), 64, 10, 115);
+            var flat = EnvelopeTestUtil.Spec(new TorchForm { height = EnvelopeTestUtil.Flat(74f / 118f), barbs = { gain = EnvelopeTestUtil.Flat(TorchSettings.Barbs().gain.staticValue), glow = EnvelopeTestUtil.Flat(TorchSettings.Barbs().glow.staticValue) } }, 64, 10, 115);
+            var ramp = EnvelopeTestUtil.Spec(new TorchForm { height = EnvelopeTestUtil.Ramp(0.2f, 1.2f) }, 64, 10, 115);
+            try
+            {
+                Assert.That(EnvelopeTestUtil.FnvAll(flat), Is.EqualTo(EnvelopeTestUtil.FnvAll(stat)), "a flat Curve is the Static value");
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(stat, 0), PyrePlusRenderer.RenderFrame(ramp, 0)), Is.GreaterThan(0), "frame 0: height 0.2 vs 0.63");
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(stat, 9), PyrePlusRenderer.RenderFrame(ramp, 9)), Is.GreaterThan(0), "frame 9: height 1.2 vs 0.63");
+            }
+            finally { Object.DestroyImmediate(stat); Object.DestroyImmediate(flat); Object.DestroyImmediate(ramp); }
+        }
+
+        [Test]
+        public void Envelope_ABoxDialIsResolvedForTheActiveVariantOnly()
+        {
+            var lashS = EnvelopeTestUtil.Spec(new TorchForm { variant = TorchForm.Variant.Lash }, 64, 8, 707);
+            var lashR = EnvelopeTestUtil.Spec(new TorchForm { variant = TorchForm.Variant.Lash, lash = { cool = EnvelopeTestUtil.Ramp(0f, 0.6f) } }, 64, 8, 707);
+            var barbS = EnvelopeTestUtil.Spec(new TorchForm(), 64, 8, 115);
+            var barbR = EnvelopeTestUtil.Spec(new TorchForm { lash = { cool = EnvelopeTestUtil.Ramp(0f, 0.6f) } }, 64, 8, 115);
+            try
+            {
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(lashS, 7), PyrePlusRenderer.RenderFrame(lashR, 7)), Is.GreaterThan(0), "Lash frame 7: cool 0.6 vs its default");
+                Assert.That(EnvelopeTestUtil.FnvAll(barbR), Is.EqualTo(EnvelopeTestUtil.FnvAll(barbS)), "an inactive box's envelope is not read");
+            }
+            finally { Object.DestroyImmediate(lashS); Object.DestroyImmediate(lashR); Object.DestroyImmediate(barbS); Object.DestroyImmediate(barbR); }
         }
     }
 }

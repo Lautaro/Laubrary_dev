@@ -10,6 +10,13 @@
 // licking TORCH the form is named for. The shared placement dials default to barbs' own frame.
 //
 // Dial names in each box ARE the contract's parameter keys (h_flame → hFlame, tongue_x → tongueX …) so
+// Envelopes: a dial `Accumulate` or the shade reads as a per-frame AMOUNT (placement, the width / falloff / ceiling /
+// root profile, the breathing / sway / lean / lash / pulse / bulge amplitudes, the noise amplitudes and bias, the glow,
+// the tongue / ember gains, cooling, the alpha thresholds, the ramp top) is a ZUIValue — Static draws the same bytes as
+// a plain float, a Curve drives it over the layer's life. `Prepare` resolves the form's dials and the ACTIVE box's into
+// `live` structs the program reads. `hFlame` (the source-px reference every other px dial is relative to), noise
+// frequencies / scales / flicker speed (the texture would swim), phases, counts, the pulse schedule, the per-element
+// tongue / ember ranges and the noise kinds stay plain.
 // `SetContractParam` loads any draw and a reader of MANIFEST.md / Appendix A finds the same words; the meaning is in
 // every [Tooltip]. Units: the program runs in the draw's SOURCE px frame (X from the axis, Y above the fuel bed) and
 // is sampled through u = (Height × canvas) / hFlame, so every px value inside a box is in source px and the picture
@@ -20,6 +27,7 @@
 // lattice periods, integer surge / whip counts, population ages (t + phase) mod 1) — one period = the clip, whatever
 // the frame count; the seam frame N−1 → 0 is an ordinary step.
 using System;
+using Laubrary.SpriteFx;
 using System.Collections;
 using UnityEngine;
 
@@ -52,11 +60,11 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         // ── placement (shared) ──
         [Tooltip("Where the flame axis sits across the canvas, as a fraction of the width.")]
-        [Range(0.1f, 0.9f)] public float axisX = 0.5f;
+        [Range(0.1f, 0.9f)] public ZUIValue axisX = new ZUIValue(0.5f);
         [Tooltip("Height of the fuel bed (the flame's root) above the canvas bottom, as a fraction of the canvas height. Nothing burns below it. Source: barbs' bed is 10 px up a 118 px frame.")]
-        [Range(0f, 0.5f)] public float ground = 10f / 118f;
+        [Range(0f, 0.5f)] public ZUIValue ground = new ZUIValue(10f / 118f);
         [Tooltip("Reach of the flame (the variant's h_flame) as a fraction of the canvas height; every length inside the variant scales with it. Source: barbs reaches 74 px on its 118 px frame.")]
-        [Range(0.1f, 1.5f)] public float height = 74f / 118f;
+        [Range(0.1f, 1.5f)] public ZUIValue height = new ZUIValue(74f / 118f);
 
         // ── the variants ──
         [ZUIShowIf("variant", "Emberbed")] [Tooltip("emberbed's contract values (seed 811, 124 × 80, 26 frames @ 12 fps) — THE CALM END: a brazier burned down to coals, one slow breath per loop.")] public TorchSettings emberbed = TorchSettings.Emberbed();
@@ -68,13 +76,23 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         // ── swarm ──
         [PlusSwarmOnly]
         [Tooltip("Height of each swarm particle's flame as a fraction of the solo Height (the swarm's own size / depth shading multiplies it).")]
-        [Range(0.1f, 1f)] public float swarmSize = 0.5f;
+        [Range(0.1f, 1f)] public ZUIValue swarmSize = new ZUIValue(0.5f);
 
         // ── runtime ──
         [NonSerialized] float[] _Fp, _C, _pr, _pg, _pb, _pa, _A;
         [NonSerialized] float[] _dumpH, _dumpC, _dumpT, _dumpA;
         [NonSerialized] TorchScratch _scratch;
         [NonSerialized] float[] _thr; [NonSerialized] Color32[] _cols; [NonSerialized] int _bandHash;
+
+        /// The form's own envelopes resolved at one layer life (slots 0–3).
+        public struct Live { public float axisX, ground, height, swarmSize; }
+        [NonSerialized] public Live live;
+
+        public override void Prepare(in PlusFormPrepareCtx ctx)
+        {
+            live = new Live { axisX = ctx.Eval(axisX, 0), ground = ctx.Eval(ground, 1), height = ctx.Eval(height, 2), swarmSize = ctx.Eval(swarmSize, 3) };
+            Active.Resolve(ctx);
+        }
 
         public TorchSettings Active => variant switch
         {
@@ -121,6 +139,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         public override void Render(in PlusFormCtx ctx, Color32[] target)
         {
+            // The renderer Prepares before Render; a direct caller (a test, a probe) may not — same funnel, same life, idempotent.
+            Prepare(ctx.PrepareCtxAt(ctx.life));
             const int SS = PlusTorch.SS;
             int W = ctx.W, H = ctx.H, W2 = W * SS, H2 = H * SS, n2 = W2 * H2;
             if (_Fp == null || _Fp.Length != n2)
@@ -138,23 +158,23 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             // layers decorrelate by a large stride, swarm instances by their index.
             uint seed = unchecked((uint)((long)ctx.seed + (long)ctx.layerSalt * 1000003L));
             double t = ctx.frameIndex / (double)Math.Max(1, ctx.frameCount);
-            double uSolo = height * H / Math.Max(s.hFlame, 1f);
+            double uSolo = live.height * H / Math.Max(s.hFlame, 1f);
 
             if (ctx.swarm == null)
-                PlusTorch.Accumulate(s, Frame(W2, H2, axisX * W, H * (1.0 - ground), uSolo, 1.0, seed, src), t, _scratch, _Fp, _C);
+                PlusTorch.Accumulate(s, Frame(W2, H2, live.axisX * W, H * (1.0 - live.ground), uSolo, 1.0, seed, src), t, _scratch, _Fp, _C);
             else
                 for (int i = 0; i < ctx.swarm.Length; i++)
                 {
                     var sp = ctx.swarm[i];
                     if (sp.own < 0f || sp.own > 1f) continue;
-                    double u = uSolo * swarmSize * Math.Max(sp.sizeMul, 0.01f);
+                    double u = uSolo * live.swarmSize * Math.Max(sp.sizeMul, 0.01f);
                     // swarm positions are y-up canvas px; the program runs y-down, flipped back at the write
                     PlusTorch.Accumulate(s, Frame(W2, H2, sp.x, H - sp.y, u, sp.brightMul, unchecked(seed + (uint)(sp.index * 104729)), src), t, _scratch, _Fp, _C);
                 }
 
             // ── shade on the supersampled grid: hard bands on the cooled field, smoothstep alpha on the raw heat ──
             EnsureBands(s);
-            double top = Math.Max(s.rampTop, 1e-6f), aLo = s.aLo, aHi = s.aHi;
+            double top = Math.Max(s.live.rampTop, 1e-6f), aLo = s.live.aLo, aHi = s.live.aHi;
             float la = ctx.alpha;
             for (int k = 0; k < n2; k++)
             {
@@ -256,7 +276,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 case "ramp":
                 {
                     var r = PlusRampPresets.Torch(value?.ToString()); if (r == null) return false;
-                    Active.ramp = r; Active.rampTop = PlusRampPresets.TorchTop(value?.ToString()); return true;
+                    Active.ramp = r; Active.rampTop = new ZUIValue(PlusRampPresets.TorchTop(value?.ToString())); return true;
                 }
                 case "big_kind": return Enum.TryParse(value?.ToString(), true, out Active.bigKind);
                 case "turb_kind": return Enum.TryParse(value?.ToString(), true, out Active.turbKind);
@@ -273,9 +293,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         {
             if (_cW <= 0 || _cH <= 0) return;
             double S = Math.Max(_cW, _cH), left = Math.Floor((S - _cW) / 2.0), top = Math.Floor((S - _cH) / 2.0);
-            if (_cCx > 0) axisX = (float)((left + _cCx) / S);
-            if (_cBase > 0) ground = (float)((S - (top + _cBase)) / S);
-            if (_cHf > 0) height = (float)(_cHf / S);
+            if (_cCx > 0) axisX = new ZUIValue((float)((left + _cCx) / S));
+            if (_cBase > 0) ground = new ZUIValue((float)((S - (top + _cBase)) / S));
+            if (_cHf > 0) height = new ZUIValue((float)(_cHf / S));
         }
 
         static bool SetPair(object owner, string name, float lo, float hi)
@@ -297,6 +317,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 if (fi.FieldType == typeof(int)) fi.SetValue(owner, Convert.ToInt32(value));
                 else if (fi.FieldType == typeof(float)) fi.SetValue(owner, Convert.ToSingle(value));
                 else if (fi.FieldType == typeof(bool)) fi.SetValue(owner, value is bool b ? b : Convert.ToSingle(value) != 0f);
+                else if (fi.FieldType == typeof(ZUIValue)) fi.SetValue(owner, new ZUIValue(Convert.ToSingle(value)));   // a contract scalar = the Static value
                 else return false;
                 return true;
             }
