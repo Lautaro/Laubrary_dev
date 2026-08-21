@@ -185,6 +185,66 @@ namespace Laubrary.Launimator.Editor
         }
 
         // ── draft animation authoring ────────────────────────────────────────
+        /// <summary>Save an animation whose PIXELS are unchanged — meta-layers, zones, events, fps — without
+        /// re-baking anything. Returns false if the recipe differs at all, in which case the caller must fall
+        /// back to the full <see cref="SaveAnimationToDraft"/>.
+        ///
+        /// Worth its own path because the atlas is a pure function of the recipe: moving a painted point or
+        /// renaming a layer cannot change a single pixel, yet the normal save re-bakes every atlas in the
+        /// lauminary to persist it. That matters beyond speed — the re-bake carries a known reimport race that
+        /// has silently merged and dropped frames on real assets, so a workflow of "nudge the dot, save, look"
+        /// was rolling that dice on every nudge. This path touches only the draft ScriptableObject.</summary>
+        public static bool TrySaveAnimationDataOnly(Lauminary c, Laumination def)
+        {
+            if (c == null || def == null || string.IsNullOrWhiteSpace(def.name)) return false;
+            var draft = EnsureDraft(c);
+            int idx = draft.animations.FindIndex(a => NameEq(a.name, def.name));
+            if (idx < 0) return false;                       // new animation — needs a real bake
+
+            var existing = draft.animations[idx];
+            if (!RecipeEquals(existing.recipe, def.recipe)) return false;   // pixels changed — needs a real bake
+            if (existing.fixedFrame != def.fixedFrame || existing.frameWidth != def.frameWidth
+                || existing.frameHeight != def.frameHeight || existing.framePivot != def.framePivot
+                || existing.bgKeyEnabled != def.bgKeyEnabled || !SameColor(existing.bgKey, def.bgKey)
+                || existing.bgKeyTolerance != def.bgKeyTolerance) return false;   // registration/trim changed
+
+            // Carry across only what does NOT affect baking. frames/atlas/clip stay exactly as baked.
+            existing.fps = def.fps;
+            existing.events = def.events;
+            existing.metaLayersEnabled = def.metaLayersEnabled;
+            existing.metaLayers = def.metaLayers;
+            existing.zonesEnabled = def.zonesEnabled;
+            existing.zones = def.zones;
+
+            EditorUtility.SetDirty(draft);
+            AssetDatabase.SaveAssets();
+            // Announce it explicitly. The automatic bridge only fires on ObjectChangeKind
+            // .ChangeAssetObjectProperties, i.e. Undo-tracked edits — a code-path save like this one writes
+            // fields directly, so nothing would ever hear about it and a live Mirage preview would keep
+            // showing the pre-edit character with no clue why.
+            Laubrary.Caching.AssetCacheInvalidation.Invalidate(draft);
+            return true;
+        }
+
+        // Color32 has no != operator; compare the channels directly.
+        static bool SameColor(Color32 a, Color32 b) => a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+
+        static bool RecipeEquals(System.Collections.Generic.List<FrameRef> a, System.Collections.Generic.List<FrameRef> b)
+        {
+            if (a == null || b == null) return ReferenceEquals(a, b);
+            if (a.Count != b.Count) return false;
+            for (int i = 0; i < a.Count; i++)
+            {
+                FrameRef x = a[i], y = b[i];
+                if (x == null || y == null) { if (x != y) return false; continue; }
+                if (x.sourceTextureGuid != y.sourceTextureGuid) return false;
+                if (x.cell != y.cell) return false;
+                if (x.pivot != y.pivot) return false;
+                if (!x.transform.Equals(y.transform)) return false;
+            }
+            return true;
+        }
+
         /// <summary>Add or overwrite (by name) an animation on the draft, then rebuild the draft's assets.</summary>
         public static void SaveAnimationToDraft(Lauminary c, Laumination def)
         {
@@ -272,6 +332,8 @@ namespace Laubrary.Launimator.Editor
             EditorUtility.SetDirty(draft);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+            // Same reason as TrySaveAnimationDataOnly: announce the change so live previews rebuild.
+            Laubrary.Caching.AssetCacheInvalidation.Invalidate(draft);
         }
 
         // ── commit a new immutable version ───────────────────────────────────

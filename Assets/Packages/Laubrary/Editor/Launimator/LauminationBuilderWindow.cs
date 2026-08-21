@@ -3036,9 +3036,17 @@ namespace Laubrary.Launimator.Editor
                     if (!string.IsNullOrEmpty(_boundAnimName) &&
                         !string.Equals(_boundAnimName, _animName, System.StringComparison.OrdinalIgnoreCase))
                         LauminaryRepo.RemoveAnimationFromDraft(_boundLauminary, _boundAnimName);
-                    LauminaryRepo.SaveAnimationToDraft(_boundLauminary, def);
+                    // Prefer the no-rebake path. When only meta-layers/zones/events/fps changed, the atlas is
+                    // provably unaffected (it is a pure function of the recipe), so re-baking it would be pure
+                    // risk — that rebuild carries a reimport race that has silently merged and dropped frames
+                    // on real assets. Falls through to the full save the moment any pixel-affecting field
+                    // differs, so this can never skip a bake that was actually needed.
+                    bool dataOnly = LauminaryRepo.TrySaveAnimationDataOnly(_boundLauminary, def);
+                    if (!dataOnly) LauminaryRepo.SaveAnimationToDraft(_boundLauminary, def);
                     _boundAnimName = _animName;
-                    _status = $"Saved '{_animName}' ({def.recipe.Count} frames) to '{_boundLauminary.lauminaryName}'.";
+                    _status = dataOnly
+                        ? $"Saved '{_animName}' ({def.recipe.Count} frames) to '{_boundLauminary.lauminaryName}' — data only, no re-bake."
+                        : $"Saved '{_animName}' ({def.recipe.Count} frames) to '{_boundLauminary.lauminaryName}'.";
                     EditorGUIUtility.PingObject(_boundLauminary);
                 }
                 else
