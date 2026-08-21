@@ -13,10 +13,10 @@
 // Dial names in each box ARE the contract's parameter keys (round_at → roundAt, warp_cell → warpCell …) so
 // `SetContractParam` loads any draw and a reader of MANIFEST.md / Appendix A finds the same words; the meaning is in
 // every [Tooltip]. Units: the program runs in the draw's SOURCE px frame (w × h, y-down, +aim = down) sampled through
-// u = (Size × canvas W) / w, so every px value inside a box is in source px, `reach` / `buoy` / `grav` are canvas
-// WIDTHS of that frame, and the picture is the source's scaled to the dialled size — the same jet at PyrePlus's 64 px
+// u = (Scale × canvas W) / w, so every px value inside a box is in source px, `reach` / `buoy` / `grav` are canvas
+// WIDTHS of that frame, and the picture is the source's scaled to the dialled scale — the same jet at PyrePlus's 64 px
 // and at the contract's canvas. Shared dials are canvas fractions: Anchor X / Y (the nozzle; Y from the top, the
-// contract's convention), Size.
+// contract's convention), Scale.
 //
 // The loop: phase = frame / frameCount, exactly periodic by construction (slot ages mod 1, noise scrolled by whole
 // lattice periods per axis, integer pulse / sweep counts) — one period = the clip, whatever the frame count.
@@ -57,8 +57,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Range(0f, 1f)] public float anchorX = 0.06f;
         [Tooltip("Where the nozzle sits down the canvas, as a fraction of the height from the TOP (the source's y-down frame: a positive Aim points down). Source: gout's nozzle is 68 % down.")]
         [Range(0f, 1f)] public float anchorY = 0.68f;
-        [Tooltip("Width of the variant's source frame as a fraction of the canvas width; every length inside the variant scales with it (1 = the source frame spans the canvas).")]
-        [Range(0.2f, 2f)] public float size = 1f;
+        [Tooltip("Scale of the jet: the variant's source frame width as a fraction of the canvas width; every length inside the variant scales with it (1 = the source frame spans the canvas).")]
+        [Range(0.2f, 2f)] public float scale = 1f;
 
         // ── the variants ──
         [ZUIShowIf("variant", "Lance")] [Tooltip("lance's contract values (seed 11, 168 × 52, 28 frames @ 16 fps) — THE NEEDLE: a cutting torch, indigo → cyan → white, standing shock diamonds the gas travels through.")] public JetSettings lance = JetDraws.Lance();
@@ -69,7 +69,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         // ── swarm ──
         [PlusSwarmOnly]
-        [Tooltip("Size of each swarm particle's jet as a fraction of the solo Size (the swarm's own size / depth shading multiplies it).")]
+        [Tooltip("Scale of each swarm particle's jet as a fraction of the solo Scale (the swarm's own size / depth shading multiplies it).")]
         [Range(0.1f, 1f)] public float swarmSize = 0.5f;
 
         // ── runtime ──
@@ -129,7 +129,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             // layers decorrelate by a large stride, swarm instances by their index.
             int seed = unchecked(ctx.seed + ctx.layerSalt * 1000003);
             double phase = ctx.frameIndex / (double)Math.Max(1, ctx.frameCount);
-            double uSolo = size * W / Math.Max(s.w, 1);
+            double uSolo = scale * W / Math.Max(s.w, 1);
             var program = JetProgram.Default;
 
             if (ctx.swarm == null)
@@ -199,7 +199,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         /// Apply a contract param by its key: `tag`/`draw` picks the variant; `w`/`h`/`nozzle` set the active box's source
         /// frame AND the shared placement dials for PyrePlus's square max(w, h) canvas with the frame letterboxed at the
         /// centre (left column ⌊(S − w)/2⌋, top row ⌊(S − h)/2⌋ — what `PlusParityDump.DumpOptions.cropW/cropH` cuts back
-        /// out; Size = w / S); `ramp` (the contract's `extra.ramp` name) sets the box's ramps and crossfade window; every
+        /// out; Scale = w / S); `ramp` (the contract's `extra.ramp` name) sets the box's ramps and crossfade window; every
         /// other numeric key goes to the same-named field of the ACTIVE variant's box. Informational keys return true;
         /// unknown strings false.
         public bool SetContractParam(string key, object value)
@@ -234,7 +234,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var s = Active;
             if (s.w <= 0 || s.h <= 0) return;
             double S = Math.Max(s.w, s.h), left = Math.Floor((S - s.w) / 2.0), top = Math.Floor((S - s.h) / 2.0);
-            size = (float)(s.w / S);
+            scale = (float)(s.w / S);
             anchorX = (float)((left + s.nozzleX * s.w) / S);
             anchorY = (float)((top + s.nozzleY * s.h) / S);
         }

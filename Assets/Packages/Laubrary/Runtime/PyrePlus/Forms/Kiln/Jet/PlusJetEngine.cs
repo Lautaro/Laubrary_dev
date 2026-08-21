@@ -85,7 +85,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
     public class JetSettings
     {
         // ── the source frame ──
-        [Tooltip("Width of the draw's SOURCE frame in px — the reference every px dial and every canvas-width dial here is relative to (Size × canvas width / this = the scale).")]
+        [Tooltip("Width of the draw's SOURCE frame in px — the reference every px dial and every canvas-width dial here is relative to (Scale × canvas width / this = the scale).")]
         [Range(16, 400)] public int w = 160;
         [Tooltip("Height of the draw's source frame in px. Nothing is drawn outside the frame.")]
         [Range(16, 400)] public int h = 80;
