@@ -22,12 +22,17 @@ namespace Laubrary.Zui
         readonly ZuiMicroSlider _count;
         readonly Strip _strip;
 
-        public const float CountWidth = 110f;
-        public const float StripWidth = 220f;
+        // Sized so label + slider + strip fit a ~330px reflected card column beside its aligned label column
+        // (the strip was clipped at the card edge at 220px — measured live on the Torch card).
+        public const float CountWidth = 80f;
+        public const float StripWidth = 150f;
 
         public ZuiBandsControl(IZuiBands bands, string tooltip)
         {
             _bands = bands;
+            // An empty table has nothing to show or grab; seed it to its minimum so the first click has a band to edit
+            // (the same kind of fix-up ZuiReflect does for a null nested field — not an authored edit, so no Undo).
+            if (bands.Count == 0) bands.SetCount(bands.MinCount);
             AddToClassList("zui-bands");
             AddToClassList("zui-row");
             style.flexDirection = FlexDirection.Row;
