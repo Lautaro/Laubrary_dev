@@ -249,7 +249,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     double sx = Math.Max((nx - X) / L, 0.0), sxc = Math.Min(sx, 1.0);
                     double halfw = Math.Max(R * (1.02 - 0.46 * sxc), 1e-6);
                     double env = Math.Pow(Clip01(1.0 - sx), 1.05) * Math.Pow(Clip01(1.0 - Math.Abs(v) / halfw), 0.70);
-                    double n2 = s.turbW * turbA.Eval(X, Y, tph) + s.turbW2 * turbB.Eval(X, Y, tph);
+                    double n2 = s.own.turbW * turbA.Eval(X, Y, tph) + s.own.turbW2 * turbB.Eval(X, Y, tph);
                     double wake = Math.Max(env * (1.0 - 0.30 * sxc + (0.50 + 1.15 * sxc) * n2), 0.0) * 1.60;
                     // the smooth root underneath, so the torn tongues read as coming off the ball
                     wake += 0.60 * Math.Pow(Clip01(1.0 - sx), 1.30) * Math.Pow(Clip01(1.0 - Math.Abs(v) / (halfw * 0.60)), 0.80);
@@ -258,12 +258,12 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     A[row + px] = (float)(wake * fr.amp);
                 }
             }
-            Smear(A, fr, s.smearTaps, s.smearDecay, s.smearNorm, scratch);
+            Smear(A, fr, s.smearTaps, s.own.smearDecay, s.smearNorm, scratch);
             AddScaled(E, A, 1.0, W * H);
             // --- the core: the warp is applied to the DISTANCE so the whole body boils.
             var turbC = new OrbTurb(Seed(seed + s.turbSeedOffBody), s.turbOctBody, s.turbScaleBody, s.turbAnisoBody);
-            double reach = 1.0 + s.coreWarp;
-            fr.XRange(nx - reach * R * (2.0 - s.noseSquash), nx + reach * R, out x0, out x1);
+            double reach = 1.0 + s.own.coreWarp;
+            fr.XRange(nx - reach * R * (2.0 - s.live.noseSquash), nx + reach * R, out x0, out x1);
             fr.YRange(cy - reach * R, cy + reach * R, out y0, out y1);
             for (int py = y0; py <= y1; py++)
             {
@@ -272,9 +272,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 for (int px = x0; px <= x1; px++)
                 {
                     double X = fr.Xs(px), u = X - nx;
-                    double dw = Hyp(Nose(u, s.noseSquash) / R, v / R) - s.coreWarp * turbC.Eval(X, Y, tph);
+                    double dw = Hyp(Nose(u, s.live.noseSquash) / R, v / R) - s.own.coreWarp * turbC.Eval(X, Y, tph);
                     if (dw >= 1.0) continue;
-                    E[row + px] += (float)(fr.amp * s.coreAmp * Kern(Math.Max(dw, 0.0), 0.0, s.coreP));
+                    E[row + px] += (float)(fr.amp * s.own.coreAmp * Kern(Math.Max(dw, 0.0), 0.0, s.own.coreP));
                 }
             }
             // --- embers dispersing: fine, streaked along their own velocity, gone in `emitLife` frames.
@@ -290,10 +290,10 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     double x = nx - R * 0.5 + vx * age + rng.Uniform(-3, 3);
                     double y = cy + vy * age * 1.5 + rng.Uniform(-R * 0.55, R * 0.55);
                     double r = (1.1 + 0.9 * rng.NextDouble()) * (1.0 - 0.4 * f);
-                    AddStreak(E, fr, x, y, vx, vy, r, s.emberElong, s.emberAmp * Math.Pow(1.0 - f, s.emberFadeP));
+                    AddStreak(E, fr, x, y, vx, vy, r, s.own.emberElong, s.own.emberAmp * Math.Pow(1.0 - f, s.emberFadeP));
                 }
             }
-            AddGlow(E, fr, s.glowWide, s.glowTail, s.glowAmp);
+            AddGlow(E, fr, s.live.glowWide, s.live.glowTail, s.live.glowAmp);
         }
 
         public static void Wisp(OrbForm.WispSettings s, in OrbFrame fr, int t, int n, long seed, float[] E, float[] A, float[] scratch)
@@ -309,15 +309,15 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 double x = nx - R * 0.95 - sv * L;
                 double y = cy + 5.6 * Math.Pow(sv, 1.15) * Math.Sin(TAU * 1.35 * sv - 2.0 * tph);
                 double r = R * (0.46 - 0.40 * Math.Pow(sv, 0.80));   // 0.46R at the root closing to almost nothing
-                AddEllipse(A, fr, x, y, r * s.tubeXstretch, Math.Max(r, 0.5), 0.0, s.tubeP, 0.150 * Math.Pow(1.0 - sv, 1.60));
+                AddEllipse(A, fr, x, y, r * s.own.tubeXstretch, Math.Max(r, 0.5), 0.0, s.own.tubeP, 0.150 * Math.Pow(1.0 - sv, 1.60));
             }
-            Smear(A, fr, s.smearTaps, s.smearDecay, s.smearNorm, scratch);
-            AddScaled(E, A, s.smearPostScale, W * H);
+            Smear(A, fr, s.smearTaps, s.own.smearDecay, s.smearNorm, scratch);
+            AddScaled(E, A, s.own.smearPostScale, W * H);
             // --- the cloud, the nucleus (breathing) and a second one riding behind it.
-            AddNosed(E, fr, nx, cy, R * 1.62, R * 1.50, s.noseSquash, 0.0, s.cloudP, s.cloudAmp);
+            AddNosed(E, fr, nx, cy, R * 1.62, R * 1.50, s.live.noseSquash, 0.0, s.own.cloudP, s.own.cloudAmp);
             double pulse = 1.0 + 0.10 * Math.Sin(2.0 * tph);
-            AddNosed(E, fr, nx, cy, R * 0.98, R * 0.92, 0.88, s.nucleusFlat, s.nucleusP, s.nucleusAmp * pulse);
-            AddEllipse(E, fr, nx - R * 0.62, cy, R * 0.92, R * 0.66, 0.0, 1.70, s.nucleus2Amp);
+            AddNosed(E, fr, nx, cy, R * 0.98, R * 0.92, 0.88, s.own.nucleusFlat, s.own.nucleusP, s.own.nucleusAmp * pulse);
+            AddEllipse(E, fr, nx - R * 0.62, cy, R * 0.92, R * 0.66, 0.0, 1.70, s.own.nucleus2Amp);
             // --- veils: two faint sheets drifting back through the trail.
             var turb = new OrbTurb(Seed(seed + s.turbSeedOffVeil), s.turbOctVeil, s.turbScaleVeil, s.turbAnisoVeil);
             fr.XRange(nx - L, nx, out int x0, out int x1);
@@ -335,10 +335,10 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     if (sx <= 0.0 || sx >= 1.0) continue;
                     double n1 = Math.Max(turb.Eval(X, Y, tph), 0.0);
                     if (n1 <= 0.0) continue;
-                    E[row + px] += (float)(fr.amp * s.veilAmp * n1 * Math.Pow(sx, 0.55) * Math.Pow(1.0 - sx, 1.2) * vt);
+                    E[row + px] += (float)(fr.amp * s.own.veilAmp * n1 * Math.Pow(sx, 0.55) * Math.Pow(1.0 - sx, 1.2) * vt);
                 }
             }
-            AddGlow(E, fr, s.glowWide, s.glowTail, s.glowAmp);
+            AddGlow(E, fr, s.live.glowWide, s.live.glowTail, s.live.glowAmp);
         }
 
         public static void Coronal(OrbForm.CoronalSettings s, in OrbFrame fr, int t, int n, long seed, float[] E, float[] A, float[] scratch)
@@ -363,15 +363,15 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     double px = nx + rr * Math.Cos(th) - Math.Pow(sv, 1.7) * length * 1.30;
                     double py = cy + rr * Math.Sin(th) * (1.0 - 0.28 * sv);
                     double r = R * (0.26 - 0.14 * sv) * (0.8 + 0.4 * rng.NextDouble());
-                    AddEllipse(A, fr, px, py, r * 1.7, Math.Max(r, 0.4), 0.0, s.prominenceP, s.prominenceAmp * Math.Pow(1.0 - sv, 1.15));
+                    AddEllipse(A, fr, px, py, r * 1.7, Math.Max(r, 0.4), 0.0, s.own.prominenceP, s.own.prominenceAmp * Math.Pow(1.0 - sv, 1.15));
                 }
             }
-            Smear(A, fr, s.smearTaps, s.smearDecay, s.smearNorm, scratch);
+            Smear(A, fr, s.smearTaps, s.own.smearDecay, s.smearNorm, scratch);
             AddScaled(E, A, 1.0, W * H);
             // --- the star: granulated interior (the noise MULTIPLIES the body, the limb stays clean) and a bright limb.
             var turb = new OrbTurb(Seed(seed + s.turbSeedOffBody), s.turbOctBody, s.turbScaleBody, s.turbAnisoBody);
-            double reach = s.limbR + s.limbW;
-            fr.XRange(nx - reach * R * (2.0 - s.noseSquash), nx + reach * R, out int x0, out int x1);
+            double reach = s.own.limbR + s.own.limbW;
+            fr.XRange(nx - reach * R * (2.0 - s.live.noseSquash), nx + reach * R, out int x0, out int x1);
             fr.YRange(cy - reach * R, cy + reach * R, out int y0, out int y1);
             for (int py = y0; py <= y1; py++)
             {
@@ -380,15 +380,15 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 for (int px = x0; px <= x1; px++)
                 {
                     double X = fr.Xs(px), u = X - nx;
-                    double d = Hyp(Nose(u, s.noseSquash) / R, v / R);
+                    double d = Hyp(Nose(u, s.live.noseSquash) / R, v / R);
                     double e = 0.0;
-                    if (d < 1.0) e += s.coreAmp * Kern(d, 0.0, s.coreP) * (1.0 + s.coreGranulation * turb.Eval(X, Y, tph));
-                    double dl = Math.Abs(d - s.limbR) / s.limbW;
-                    if (dl < 1.0) e += s.limbAmp * Kern(dl, 0.0, s.limbP);
+                    if (d < 1.0) e += s.own.coreAmp * Kern(d, 0.0, s.own.coreP) * (1.0 + s.own.coreGranulation * turb.Eval(X, Y, tph));
+                    double dl = Math.Abs(d - s.own.limbR) / s.own.limbW;
+                    if (dl < 1.0) e += s.own.limbAmp * Kern(dl, 0.0, s.own.limbP);
                     if (e != 0.0) E[row + px] += (float)(fr.amp * e);
                 }
             }
-            AddGlow(E, fr, s.glowWide, s.glowTail, s.glowAmp);
+            AddGlow(E, fr, s.live.glowWide, s.live.glowTail, s.live.glowAmp);
         }
 
         public static void Membrane(OrbForm.MembraneSettings s, in OrbFrame fr, int t, int n, long seed, float[] E, float[] A, float[] scratch, List<(int, int)> emit)
@@ -418,11 +418,11 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                         if (dsh >= 1.0) continue;
                         // the break only ever SCALES (never clips), so it cannot draw an edge the shape did not have
                         double brk = fade * (0.62 + 0.38 * turb.Eval(X, Y, tph + f * 1.7));
-                        A[row + px] += (float)(fr.amp * s.shellAmp * Math.Max(brk, 0.0) * Kern(dsh, 0.0, s.shellP));
+                        A[row + px] += (float)(fr.amp * s.own.shellAmp * Math.Max(brk, 0.0) * Kern(dsh, 0.0, s.own.shellP));
                     }
                 }
             }
-            Smear(A, fr, s.smearTaps, s.smearDecay, s.smearNorm, scratch);
+            Smear(A, fr, s.smearTaps, s.own.smearDecay, s.smearNorm, scratch);
             AddScaled(E, A, 1.0, W * H);
             // --- motes: what the skin comes apart INTO — tiny, streaked, scattering laterally.
             Emit(t, n, s.emitPeriodMotes, s.emitLifeMotes, emit);
@@ -437,12 +437,12 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     double vy = rng.Uniform(-1.3, 1.3);
                     double x = nx - R * 0.7 + vx * age + R * 0.8 * Math.Cos(ang);
                     double y = cy + vy * age + R * 0.85 * Math.Sin(ang);
-                    AddStreak(E, fr, x, y, vx, vy, 1.6 + 1.2 * rng.NextDouble(), s.moteElong, s.moteAmp * Math.Pow(1.0 - f, 1.4));
+                    AddStreak(E, fr, x, y, vx, vy, 1.6 + 1.2 * rng.NextDouble(), s.own.moteElong, s.own.moteAmp * Math.Pow(1.0 - f, 1.4));
                 }
             }
             // --- the bubble: an interior fill you can see through, a skin that is a THICKENING not an outline, ripples.
-            double reach = Math.Max(s.skinR + s.skinW, s.ripR + s.ripW);
-            fr.XRange(nx - reach * R * (2.0 - s.noseSquash), nx + reach * R, out int bx0, out int bx1);
+            double reach = Math.Max(s.own.skinR + s.own.skinW, s.own.ripR + s.own.ripW);
+            fr.XRange(nx - reach * R * (2.0 - s.live.noseSquash), nx + reach * R, out int bx0, out int bx1);
             fr.YRange(cy - reach * R * 0.97, cy + reach * R * 0.97, out int by0, out int by1);
             for (int py = by0; py <= by1; py++)
             {
@@ -451,16 +451,16 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 for (int px = bx0; px <= bx1; px++)
                 {
                     double X = fr.Xs(px), u = X - nx;
-                    double d = Hyp(Nose(u, s.noseSquash) / R, v / (R * 0.97));
+                    double d = Hyp(Nose(u, s.live.noseSquash) / R, v / (R * 0.97));
                     double e = 0.0;
-                    if (d < 1.0) e += s.windowAmp * Kern(d, 0.0, s.windowP);
-                    double ds = Math.Abs(d - s.skinR) / s.skinW;
-                    if (ds < 1.0) e += s.skinAmp * Kern(ds, 0.0, s.skinP);
-                    double dr = Math.Abs(d - s.ripR) / s.ripW;
+                    if (d < 1.0) e += s.own.windowAmp * Kern(d, 0.0, s.own.windowP);
+                    double ds = Math.Abs(d - s.own.skinR) / s.own.skinW;
+                    if (ds < 1.0) e += s.own.skinAmp * Kern(ds, 0.0, s.own.skinP);
+                    double dr = Math.Abs(d - s.own.ripR) / s.own.ripW;
                     if (dr < 1.0)
                     {
-                        double rip = 1.0 + s.ripDepth * Math.Sin(s.ripOrder * Math.Atan2(v, u) - 3.0 * tph);
-                        e += s.ripAmp * rip * Kern(dr, 0.0, s.ripP);
+                        double rip = 1.0 + s.own.ripDepth * Math.Sin(s.ripOrder * Math.Atan2(v, u) - 3.0 * tph);
+                        e += s.own.ripAmp * rip * Kern(dr, 0.0, s.own.ripP);
                     }
                     if (e != 0.0) E[row + px] += (float)(fr.amp * e);
                 }
@@ -468,8 +468,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             // --- the nucleus on a figure-eight inside the bubble, biased forward.
             double nxp = nx + R * 0.20 + R * 0.26 * Math.Cos(tph);
             double nyp = cy + R * 0.24 * Math.Sin(2.0 * tph);
-            AddEllipse(E, fr, nxp, nyp, R * 0.40, R * 0.36, s.nucleusFlat, s.nucleusP, s.nucleusAmp);
-            AddGlow(E, fr, s.glowWide, s.glowTail, s.glowAmp);
+            AddEllipse(E, fr, nxp, nyp, R * 0.40, R * 0.36, s.own.nucleusFlat, s.own.nucleusP, s.own.nucleusAmp);
+            AddGlow(E, fr, s.live.glowWide, s.live.glowTail, s.live.glowAmp);
         }
 
         public static void Voltcore(OrbForm.VoltcoreSettings s, in OrbFrame fr, int t, int n, long seed, float[] E, float[] A, float[] scratch, List<(int, int)> emit)
@@ -497,12 +497,12 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                         x += dx * step - (5.0 + 2.5 * i / 9.0) * age * 0.62;
                         y += dy * step;
                         double r = (1.7 - 0.9 * i / 9.0) * (1.0 - 0.35 * f);
-                        AddStreak(A, fr, x, y, dx * step - 4.0 * age, dy * step, Math.Max(r, 0.55), s.filamentElong,
-                                  s.filamentAmp * Math.Pow(1.0 - f, 1.4) * (1.0 - 0.55 * i / 9.0));
+                        AddStreak(A, fr, x, y, dx * step - 4.0 * age, dy * step, Math.Max(r, 0.55), s.own.filamentElong,
+                                  s.own.filamentAmp * Math.Pow(1.0 - f, 1.4) * (1.0 - 0.55 * i / 9.0));
                     }
                 }
             }
-            Smear(A, fr, s.smearTaps, s.smearDecay, s.smearNorm, scratch);
+            Smear(A, fr, s.smearTaps, s.own.smearDecay, s.smearNorm, scratch);
             AddScaled(E, A, 1.0, W * H);
             // --- the plasma tail: a tapering tube of charged haze off the back, stamped then smeared unnormalised.
             Array.Clear(A, 0, W * H);
@@ -513,10 +513,10 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 double x = nx - R * 0.6 - sv * L;
                 double y = cy + R * 0.42 * Math.Pow(sv, 1.2) * Math.Sin(TAU * 1.15 * sv - 2.0 * tph);
                 double r = R * (0.70 - 0.54 * Math.Pow(sv, 0.9));
-                AddEllipse(A, fr, x, y, r * 1.8, Math.Max(r, 0.5), 0.0, s.tailP, 0.095 * Math.Pow(1.0 - sv, 1.35));
+                AddEllipse(A, fr, x, y, r * 1.8, Math.Max(r, 0.5), 0.0, s.own.tailP, 0.095 * Math.Pow(1.0 - sv, 1.35));
             }
-            Smear(A, fr, s.tailSmearTaps, s.tailSmearDecay, s.tailSmearNorm, scratch);
-            AddScaled(E, A, s.tailPostScale, W * H);
+            Smear(A, fr, s.tailSmearTaps, s.own.tailSmearDecay, s.tailSmearNorm, scratch);
+            AddScaled(E, A, s.own.tailPostScale, W * H);
             // --- the envelope (a halo the ball wears, not a region it sits in) with charge crawling through it.
             var turb = new OrbTurb(Seed(seed + s.turbSeedOffCharge), s.turbOctCharge, s.turbScaleCharge, s.turbAnisoCharge);
             double rx = R * 1.50, ry = R * 1.26;
@@ -531,17 +531,17 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     double X = fr.Xs(px), u = X - nx;
                     double de = Hyp((Nose(u, 0.94) + R * 0.08) / rx, v / ry);
                     if (de >= 1.0) continue;
-                    double e = s.envelopeAmp * Kern(de, 0.0, s.envelopeP);
+                    double e = s.own.envelopeAmp * Kern(de, 0.0, s.own.envelopeP);
                     double n1 = turb.Eval(X, Y, tph);
-                    if (n1 > 0.0) e += s.chargeAmp * n1 * Kern(de, 0.0, 1.9);
+                    if (n1 > 0.0) e += s.own.chargeAmp * n1 * Kern(de, 0.0, 1.9);
                     E[row + px] += (float)(fr.amp * e);
                 }
             }
             // --- the bead (the one near-opaque thing), its soft halo, and the ball around them.
-            AddNosed(E, fr, nx, cy, R * 0.34, R * 0.32, s.noseSquash, s.beadFlat, s.beadP, s.beadAmp);
-            AddNosed(E, fr, nx, cy, R * 0.70, R * 0.64, s.noseSquash, 0.0, 1.70, s.bead2Amp);
-            AddNosed(E, fr, nx, cy, R * 1.08, R * 1.00, s.noseSquash, 0.0, s.ballP, s.ballAmp);
-            AddGlow(E, fr, s.glowWide, s.glowTail, s.glowAmp);
+            AddNosed(E, fr, nx, cy, R * 0.34, R * 0.32, s.live.noseSquash, s.own.beadFlat, s.own.beadP, s.own.beadAmp);
+            AddNosed(E, fr, nx, cy, R * 0.70, R * 0.64, s.live.noseSquash, 0.0, 1.70, s.own.bead2Amp);
+            AddNosed(E, fr, nx, cy, R * 1.08, R * 1.00, s.live.noseSquash, 0.0, s.own.ballP, s.own.ballAmp);
+            AddGlow(E, fr, s.live.glowWide, s.live.glowTail, s.live.glowAmp);
         }
 
         /// A nose-squashed ellipse kern(hyp(nose(u)/rx, v/ry), flat, p) × amp centred on (cx, cy).

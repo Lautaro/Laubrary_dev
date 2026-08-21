@@ -178,16 +178,49 @@ namespace Laubrary.PyrePlus.Tests
             Assert.That(f.SetContractParam("w", 200.0)); Assert.That(f.SetContractParam("h", 80.0));
             Assert.That(f.SetContractParam("cy", 40.0)); Assert.That(f.SetContractParam("nx", 155.0));
             Assert.That(f.SetContractParam("R", 15.0)); Assert.That(f.SetContractParam("L", 132.0));
-            Assert.That(f.noseX, Is.EqualTo(0.775f).Within(1e-6f));
-            Assert.That(f.axisY, Is.EqualTo((60 + 40) / 200f).Within(1e-6f));   // letterboxed at the centre of the 200 px square canvas
-            Assert.That(f.radius, Is.EqualTo(15f / 200f).Within(1e-6f));
-            Assert.That(f.wake, Is.EqualTo(132f / 15f).Within(1e-5f));
+            Assert.That(f.noseX.staticValue, Is.EqualTo(0.775f).Within(1e-6f));   // the contract's placement lands as the Static value
+            Assert.That(f.axisY.staticValue, Is.EqualTo((60 + 40) / 200f).Within(1e-6f));   // letterboxed at the centre of the 200 px square canvas
+            Assert.That(f.radius.staticValue, Is.EqualTo(15f / 200f).Within(1e-6f));
+            Assert.That(f.wake.staticValue, Is.EqualTo(132f / 15f).Within(1e-5f));
             Assert.That(f.SetContractParam("smear_taps", 20.0)); Assert.That(f.wisp.smearTaps, Is.EqualTo(20));
             Assert.That(f.SetContractParam("smear_norm", false)); Assert.That(f.wisp.smearNorm, Is.False);
             Assert.That(f.SetContractParam("ramp", "frost")); Assert.That(f.wisp.ramp.stops.Count, Is.EqualTo(8));
             Assert.That(f.SetContractParam("floor", 3.0)); Assert.That(f.floor, Is.EqualTo(3));
             Assert.That(f.SetContractParam("tube_path", "x = nx - 0.95R - s*L"), Is.False, "formula strings are frozen literals");
             Assert.That(f.SetContractParam("no_such_key", 1.0), Is.False);
+        }
+
+        // ── envelopes (T-0063) ──
+        [Test]
+        public void Envelope_StaticEqualsFlatCurve_AndARampDrivesTheRender()
+        {
+            // a shared StyleSettings dial (gain), the form's (radius) and a variant's own (emberdrift.coreAmp): a flat
+            // Curve renders the Static bytes; a moving Curve changes the first and the last frame of the loop
+            var stat = EnvelopeTestUtil.Spec(new OrbForm(), 64, 10, 2101);
+            var flat = EnvelopeTestUtil.Spec(new OrbForm { radius = EnvelopeTestUtil.Flat(16f / 192f), emberdrift = { gain = EnvelopeTestUtil.Flat(0.58f), coreAmp = EnvelopeTestUtil.Flat(3.15f) } }, 64, 10, 2101);
+            var ramp = EnvelopeTestUtil.Spec(new OrbForm { emberdrift = { gain = EnvelopeTestUtil.Ramp(0.2f, 3f) } }, 64, 10, 2101);
+            try
+            {
+                Assert.That(EnvelopeTestUtil.FnvAll(flat), Is.EqualTo(EnvelopeTestUtil.FnvAll(stat)), "a flat Curve is the Static value");
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(stat, 0), PyrePlusRenderer.RenderFrame(ramp, 0)), Is.GreaterThan(0), "frame 0: gain 0.2 vs 0.58");
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(stat, 9), PyrePlusRenderer.RenderFrame(ramp, 9)), Is.GreaterThan(0), "frame 9: gain 3 vs 0.58");
+            }
+            finally { Object.DestroyImmediate(stat); Object.DestroyImmediate(flat); Object.DestroyImmediate(ramp); }
+        }
+
+        [Test]
+        public void Envelope_AVariantDialIsResolvedForTheActiveVariantOnly()
+        {
+            var voltS = EnvelopeTestUtil.Spec(new OrbForm { variant = OrbForm.Variant.Voltcore }, 64, 8, 2505);
+            var voltR = EnvelopeTestUtil.Spec(new OrbForm { variant = OrbForm.Variant.Voltcore, voltcore = { ballAmp = EnvelopeTestUtil.Ramp(0f, 3f) } }, 64, 8, 2505);
+            var emberS = EnvelopeTestUtil.Spec(new OrbForm(), 64, 8, 2101);
+            var emberR = EnvelopeTestUtil.Spec(new OrbForm { voltcore = { ballAmp = EnvelopeTestUtil.Ramp(0f, 3f) } }, 64, 8, 2101);
+            try
+            {
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(voltS, 7), PyrePlusRenderer.RenderFrame(voltR, 7)), Is.GreaterThan(0), "Voltcore frame 7: ballAmp 3 vs its default");
+                Assert.That(EnvelopeTestUtil.FnvAll(emberR), Is.EqualTo(EnvelopeTestUtil.FnvAll(emberS)), "an inactive variant's envelope is not read");
+            }
+            finally { Object.DestroyImmediate(voltS); Object.DestroyImmediate(voltR); Object.DestroyImmediate(emberS); Object.DestroyImmediate(emberR); }
         }
     }
 }

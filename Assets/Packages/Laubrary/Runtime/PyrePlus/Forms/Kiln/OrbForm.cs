@@ -10,6 +10,12 @@
 // turbulence, smear + soften" — describes it). The shared geometry dials default to emberdrift's frame.
 //
 // Dial names in each box ARE the contract's parameter keys (turb_scale → turbScale, emit_life → emitLife …) so
+// Envelopes: a dial the program reads as a per-frame AMOUNT (placement, the tone map, the glow, the nose squash, every
+// field amplitude / falloff exponent / radius / width, the smear decay, the tearing weights) is a ZUIValue — Static draws
+// the same bytes as a plain float, a Curve drives it over the layer's life. `Prepare` resolves the form's dials and the
+// ACTIVE variant's into `live` (the shared StyleSettings dials) and `own` (the variant's) structs the program reads. Noise
+// frequencies / anisotropy (the texture would swim), seeds, octaves, emit periods / lives / counts, smear taps, the
+// ember fade exponent and the finish (soften, floor, despeckle) stay plain.
 // `SetContractParam` loads any draw and a reader of MANIFEST.md / Appendix A finds the same words; the meaning is in
 // every [Tooltip]. Units: the orb's placement and radius are canvas fractions; the wake is in core radii; everything
 // inside a box is in the archetype's own source px / field units (see PlusOrb.cs — the picture is the source's,
@@ -18,6 +24,7 @@
 // The alpha window's a1 / acurve / amax carry the source's answered hardness (HARDNESS = 0.40 applied through its
 // mix(soft, hard)); they are dials here, so the "how hard" question the agent asked is a slider in the box.
 using System;
+using Laubrary.SpriteFx;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -49,13 +56,13 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         // ── placement (shared) ──
         [Tooltip("Where the orb's nose (the core centre) sits across the canvas, as a fraction of the width. The wake trails to the LEFT of it (travel is toward +x). Source: 0.755 of a 192 px frame.")]
-        [Range(0.2f, 0.95f)] public float noseX = 0.755f;
+        [Range(0.2f, 0.95f)] public ZUIValue noseX = new ZUIValue(0.755f);
         [Tooltip("The travel axis down the canvas, as a fraction of the height (0 = top). Source: 0.52.")]
-        [Range(0.1f, 0.9f)] public float axisY = 0.52f;
+        [Range(0.1f, 0.9f)] public ZUIValue axisY = new ZUIValue(0.52f);
         [Tooltip("Core radius R as a fraction of the canvas width; every length inside the variant scales with it (the source's 16 px core on a 192 px frame = 0.083). At 64 px that is a 5 px core.")]
-        [Range(0.03f, 0.25f)] public float radius = 16f / 192f;
+        [Range(0.03f, 0.25f)] public ZUIValue radius = new ZUIValue(16f / 192f);
         [Tooltip("Wake length L in core radii — how far behind the nose the trail, the shells or the tail reach. The source runs its wakes at 5–9 radii (emberdrift 7.6).")]
-        [Range(1f, 12f)] public float wake = 122f / 16f;
+        [Range(1f, 12f)] public ZUIValue wake = new ZUIValue(122f / 16f);
 
         // ── finish (shared) ──
         [Tooltip("Binomial soften passes over the summed field before the tone map — one pixel of radius per pass that fuses the seams between shapes. The source uses exactly 1 (a second pass blurs the head's definition back off).")]
@@ -78,7 +85,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         // ── swarm ──
         [PlusSwarmOnly]
         [Tooltip("Size of each swarm particle's orb as a fraction of the solo Radius (the swarm's own size/depth shading multiplies it).")]
-        [Range(0.1f, 1f)] public float swarmSize = 0.5f;
+        [Range(0.1f, 1f)] public ZUIValue swarmSize = new ZUIValue(0.5f);
 
         // ── settings boxes ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -89,28 +96,43 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("The signature colour ramp: position 0 = the faintest energy (the halo and the wake live there), 1 = the white-hot nucleus. Interpolated in sRGB like the source. Presets: PlusRampPresets.OrbEmber / Frost / Gold / Toxin / Volt.")]
             public PlusRamp ramp;
             [Tooltip("Scales the field into the tone map 1 − exp(−E·gain): higher = the same field reads hotter and further up the ramp. The one knob that rescales the whole picture against the ramp rather than its parts against each other.")]
-            [Range(0.2f, 3f)] public float gain = 1f;
+            [Range(0.2f, 3f)] public ZUIValue gain = new ZUIValue(1f);
             [Tooltip("Tone value where opacity lifts off (below it the pixel is transparent).")]
-            [Range(0f, 0.1f)] public float a0 = 0.02f;
+            [Range(0f, 0.1f)] public ZUIValue a0 = new ZUIValue(0.02f);
             [Tooltip("Tone value where opacity reaches its maximum — THE hardness dial: near 1 opacity is still climbing at the centre (fog with a bright patch), lower and the climb finishes inside the body (a solid nucleus, a gradient rim, no cliff). The source's answered value.")]
-            [Range(0.2f, 1f)] public float a1 = 0.92f;
+            [Range(0.2f, 1f)] public ZUIValue a1 = new ZUIValue(0.92f);
             [Tooltip("Power curve of the alpha climb: below 1 alpha rises fast early, which puts an EDGE on the head without drawing a line.")]
-            [Range(0.3f, 2f)] public float acurve = 1f;
+            [Range(0.3f, 2f)] public ZUIValue acurve = new ZUIValue(1f);
             [Tooltip("Opacity ceiling: below 1 the body is never fully opaque anywhere (Membrane keeps 0.89 — being a window is its whole subject).")]
-            [Range(0.1f, 1f)] public float amax = 1f;
+            [Range(0.1f, 1f)] public ZUIValue amax = new ZUIValue(1f);
             [Tooltip("Compression of the LEADING half of the body along the travel axis: every reference head is blunter in front than behind.")]
-            [Range(0.6f, 1f)] public float noseSquash = 0.9f;
+            [Range(0.6f, 1f)] public ZUIValue noseSquash = new ZUIValue(0.9f);
             [Tooltip("Halo width as a multiple of the core radius (the light the orb sits in, a low-amplitude term of the same field).")]
-            [Range(1f, 4f)] public float glowWide = 2.4f;
+            [Range(1f, 4f)] public ZUIValue glowWide = new ZUIValue(2.4f);
             [Tooltip("Strength of the halo's tail lobe behind the orb, relative to the halo.")]
-            [Range(0f, 1.5f)] public float glowTail = 0.6f;
+            [Range(0f, 1.5f)] public ZUIValue glowTail = new ZUIValue(0.6f);
             [Tooltip("Halo field amplitude: 0.11 lands at the ramp's dark end on its own.")]
-            [Range(0f, 0.4f)] public float glowAmp = 0.11f;
+            [Range(0f, 0.4f)] public ZUIValue glowAmp = new ZUIValue(0.11f);
+
+            /// The shared dials resolved at one layer life — what the programs and the tone map read (slots 10–18).
+            public struct Shared { public float gain, a0, a1, acurve, amax, noseSquash, glowWide, glowTail, glowAmp; }
+            [NonSerialized] public Shared live;
+            public virtual void Resolve(in PlusFormPrepareCtx ctx) => live = new Shared
+            {
+                gain = ctx.Eval(gain, 10), a0 = ctx.Eval(a0, 11), a1 = ctx.Eval(a1, 12), acurve = ctx.Eval(acurve, 13), amax = ctx.Eval(amax, 14),
+                noseSquash = ctx.Eval(noseSquash, 15), glowWide = ctx.Eval(glowWide, 16), glowTail = ctx.Eval(glowTail, 17), glowAmp = ctx.Eval(glowAmp, 18),
+            };
+            /// The Static values (no renderer funnel) — for the ramp probe, which runs outside a frame.
+            public void ResolveStatic() => live = new Shared
+            {
+                gain = gain.staticValue, a0 = a0.staticValue, a1 = a1.staticValue, acurve = acurve.staticValue, amax = amax.staticValue,
+                noseSquash = noseSquash.staticValue, glowWide = glowWide.staticValue, glowTail = glowTail.staticValue, glowAmp = glowAmp.staticValue,
+            };
         }
 
         [Serializable] public sealed class EmberdriftSettings : StyleSettings
         {
-            public EmberdriftSettings() { ramp = PlusRampPresets.OrbEmber(); gain = 0.58f; a0 = 0.018f; a1 = 0.684f; acurve = 0.788f; amax = 1f; noseSquash = 0.86f; glowWide = 2.5f; glowTail = 0.65f; glowAmp = 0.12f; }
+            public EmberdriftSettings() { ramp = PlusRampPresets.OrbEmber(); gain = new ZUIValue(0.58f); a0 = new ZUIValue(0.018f); a1 = new ZUIValue(0.684f); acurve = new ZUIValue(0.788f); amax = new ZUIValue(1f); noseSquash = new ZUIValue(0.86f); glowWide = new ZUIValue(2.5f); glowTail = new ZUIValue(0.65f); glowAmp = new ZUIValue(0.12f); }
             [Tooltip("Primary wake turbulence: base frequency in radians per source px (0.40 — a noise cell the same order as the wake is tall, or it tears into bars).")]
             [Range(0.05f, 1f)] public float turbScale = 0.40f;
             [Tooltip("Octaves of the primary wake turbulence (5 — fewer and three plane waves have a resultant direction: corduroy).")]
@@ -118,7 +140,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Anisotropy of the primary wake turbulence: cells this many times longer along the travel axis than tall.")]
             [Range(0.5f, 6f)] public float turbAniso = 3.0f;
             [Tooltip("Weight of the primary wake turbulence in the tearing mix.")]
-            [Range(0f, 1.5f)] public float turbW = 0.62f;
+            [Range(0f, 1.5f)] public ZUIValue turbW = new ZUIValue(0.62f);
             [Tooltip("Seed offset of the primary wake turbulence (a different realisation of the same texture).")]
             [Range(0, 99)] public int turbSeedOff = 7;
             [Tooltip("Secondary wake turbulence frequency (radians per source px) — a second field at another scale so no single octave can comb the wake.")]
@@ -128,13 +150,13 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Anisotropy of the secondary wake turbulence.")]
             [Range(0.5f, 6f)] public float turbAniso2 = 1.5f;
             [Tooltip("Weight of the secondary wake turbulence in the tearing mix.")]
-            [Range(0f, 1.5f)] public float turbW2 = 0.55f;
+            [Range(0f, 1.5f)] public ZUIValue turbW2 = new ZUIValue(0.55f);
             [Tooltip("Seed offset of the secondary wake turbulence.")]
             [Range(0, 99)] public int turbSeedOff2 = 23;
             [Tooltip("Speed smudge of the wake: taps in source px (9 at decay 0.80 ≈ 4 px of exposure trail — enough to pull every tongue into a streak without dissolving the tearing). The core is NOT smeared: the crisp nose / torn tail asymmetry is how a still frame shows direction.")]
             [Range(0, 30)] public int smearTaps = 9;
             [Tooltip("Weight ratio per px of the wake smear.")]
-            [Range(0.3f, 0.99f)] public float smearDecay = 0.80f;
+            [Range(0.3f, 0.99f)] public ZUIValue smearDecay = new ZUIValue(0.80f);
             [Tooltip("Normalise the smear (a motion blur: energy redistributed) rather than accumulate it (a light streak).")]
             public bool smearNorm = true;
             [Tooltip("Core-warp turbulence frequency (radians per source px): the noise is applied to the DISTANCE so the whole body boils rather than wearing a noisy outline.")]
@@ -146,11 +168,11 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Seed offset of the core-warp turbulence.")]
             [Range(0, 99)] public int turbSeedOffBody = 1;
             [Tooltip("How far the turbulence warps the core's radius (in radii).")]
-            [Range(0f, 0.6f)] public float coreWarp = 0.200f;
+            [Range(0f, 0.6f)] public ZUIValue coreWarp = new ZUIValue(0.200f);
             [Tooltip("Core field amplitude — steep and hot (3.15 at p 1.75): white only at the middle, then yellow, orange, deep red, nothing, across the same 16 px.")]
-            [Range(0.5f, 6f)] public float coreAmp = 3.15f;
+            [Range(0.5f, 6f)] public ZUIValue coreAmp = new ZUIValue(3.15f);
             [Tooltip("Core falloff exponent: above 1 leaves the plateau slowly and reaches zero with zero slope (no boundary anywhere); below 1 is a flat mid-tone with a hard edge.")]
-            [Range(0.5f, 4f)] public float coreP = 1.75f;
+            [Range(0.5f, 4f)] public ZUIValue coreP = new ZUIValue(1.75f);
             [Tooltip("An ember burst is shed every this many frames (must divide the frame count for an exact loop).")]
             [Range(1, 6)] public int emitPeriod = 2;
             [Tooltip("Frames an ember lives.")]
@@ -158,42 +180,47 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Embers per shed burst (3 — fine and dispersing, not countable beads on a line).")]
             [Range(0, 8)] public int embersPerPiece = 3;
             [Tooltip("Ember field amplitude at birth.")]
-            [Range(0f, 3f)] public float emberAmp = 1.30f;
+            [Range(0f, 3f)] public ZUIValue emberAmp = new ZUIValue(1.30f);
             [Tooltip("Ember fade exponent over its life: (1 − age)^p.")]
             [Range(0.5f, 3f)] public float emberFadeP = 1.5f;
             [Tooltip("Ember streak: how many times longer than wide along its own velocity.")]
-            [Range(1f, 5f)] public float emberElong = 2.4f;
+            [Range(1f, 5f)] public ZUIValue emberElong = new ZUIValue(2.4f);
+
+            /// This variant's own envelopes resolved at one layer life (slots 20 onward; variants share them — only the active one is resolved).
+            public struct Own { public float coreWarp, coreAmp, coreP, turbW, turbW2, smearDecay, emberAmp, emberElong; }
+            [NonSerialized] public Own own;
+            public override void Resolve(in PlusFormPrepareCtx ctx) { base.Resolve(ctx); own = new Own { coreWarp = ctx.Eval(coreWarp, 20), coreAmp = ctx.Eval(coreAmp, 21), coreP = ctx.Eval(coreP, 22), turbW = ctx.Eval(turbW, 23), turbW2 = ctx.Eval(turbW2, 24), smearDecay = ctx.Eval(smearDecay, 25), emberAmp = ctx.Eval(emberAmp, 26), emberElong = ctx.Eval(emberElong, 27) }; }
         }
 
         [Serializable] public sealed class WispSettings : StyleSettings
         {
-            public WispSettings() { ramp = PlusRampPresets.OrbFrost(); gain = 0.95f; a0 = 0.015f; a1 = 0.746f; acurve = 0.902f; amax = 1f; noseSquash = 0.90f; glowWide = 2.9f; glowTail = 0.55f; glowAmp = 0.10f; }
+            public WispSettings() { ramp = PlusRampPresets.OrbFrost(); gain = new ZUIValue(0.95f); a0 = new ZUIValue(0.015f); a1 = new ZUIValue(0.746f); acurve = new ZUIValue(0.902f); amax = new ZUIValue(1f); noseSquash = new ZUIValue(0.90f); glowWide = new ZUIValue(2.9f); glowTail = new ZUIValue(0.55f); glowAmp = new ZUIValue(0.10f); }
             [Tooltip("Stamps summed down the snaking trail path (90).")]
             [Range(10, 200)] public int tubeStamps = 90;
             [Tooltip("Falloff exponent of each trail stamp.")]
-            [Range(0.5f, 4f)] public float tubeP = 1.60f;
+            [Range(0.5f, 4f)] public ZUIValue tubeP = new ZUIValue(1.60f);
             [Tooltip("Each trail stamp is this many times wider (along x) than tall.")]
-            [Range(1f, 4f)] public float tubeXstretch = 2.2f;
+            [Range(1f, 4f)] public ZUIValue tubeXstretch = new ZUIValue(2.2f);
             [Tooltip("Speed smudge of the trail: taps in source px (20, long and unnormalised, so the trail reads as a light streak building up behind the head).")]
             [Range(0, 40)] public int smearTaps = 20;
             [Tooltip("Weight ratio per px of the trail smear.")]
-            [Range(0.3f, 0.99f)] public float smearDecay = 0.86f;
+            [Range(0.3f, 0.99f)] public ZUIValue smearDecay = new ZUIValue(0.86f);
             [Tooltip("Normalise the trail smear (off in the source: accumulate).")]
             public bool smearNorm = false;
             [Tooltip("Scale on the smeared trail before it joins the field (0.40 tames the accumulated streak).")]
-            [Range(0f, 1.5f)] public float smearPostScale = 0.40f;
+            [Range(0f, 1.5f)] public ZUIValue smearPostScale = new ZUIValue(0.40f);
             [Tooltip("Amplitude of the diffuse cloud round the nucleus (1.62R × 1.50R).")]
-            [Range(0f, 3f)] public float cloudAmp = 1.00f;
+            [Range(0f, 3f)] public ZUIValue cloudAmp = new ZUIValue(1.00f);
             [Tooltip("Cloud falloff exponent (2.1: a halo around a core, not the core itself).")]
-            [Range(0.5f, 4f)] public float cloudP = 2.10f;
+            [Range(0.5f, 4f)] public ZUIValue cloudP = new ZUIValue(2.10f);
             [Tooltip("Nucleus amplitude (breathes ±10 % at two cycles per loop).")]
-            [Range(0.5f, 6f)] public float nucleusAmp = 3.60f;
+            [Range(0.5f, 6f)] public ZUIValue nucleusAmp = new ZUIValue(3.60f);
             [Tooltip("Flat top of the nucleus as a fraction of its radius.")]
-            [Range(0f, 0.5f)] public float nucleusFlat = 0.06f;
+            [Range(0f, 0.5f)] public ZUIValue nucleusFlat = new ZUIValue(0.06f);
             [Tooltip("Nucleus falloff exponent.")]
-            [Range(0.5f, 4f)] public float nucleusP = 1.85f;
+            [Range(0.5f, 4f)] public ZUIValue nucleusP = new ZUIValue(1.85f);
             [Tooltip("Amplitude of the second nucleus riding 0.62R behind the first, so the centre has structure.")]
-            [Range(0f, 3f)] public float nucleus2Amp = 1.05f;
+            [Range(0f, 3f)] public ZUIValue nucleus2Amp = new ZUIValue(1.05f);
             [Tooltip("Veil turbulence frequency (radians per source px): two faint sheets drifting back through the trail.")]
             [Range(0.02f, 1f)] public float turbScaleVeil = 0.11f;
             [Tooltip("Octaves of the veil turbulence.")]
@@ -203,24 +230,29 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Seed offset of the veil turbulence.")]
             [Range(0, 99)] public int turbSeedOffVeil = 3;
             [Tooltip("Veil amplitude.")]
-            [Range(0f, 1.5f)] public float veilAmp = 0.30f;
+            [Range(0f, 1.5f)] public ZUIValue veilAmp = new ZUIValue(0.30f);
+
+            /// This variant's own envelopes resolved at one layer life (slots 20 onward; variants share them — only the active one is resolved).
+            public struct Own { public float smearDecay, smearPostScale, tubeP, tubeXstretch, cloudAmp, cloudP, nucleusAmp, nucleusFlat, nucleusP, nucleus2Amp, veilAmp; }
+            [NonSerialized] public Own own;
+            public override void Resolve(in PlusFormPrepareCtx ctx) { base.Resolve(ctx); own = new Own { smearDecay = ctx.Eval(smearDecay, 20), smearPostScale = ctx.Eval(smearPostScale, 21), tubeP = ctx.Eval(tubeP, 22), tubeXstretch = ctx.Eval(tubeXstretch, 23), cloudAmp = ctx.Eval(cloudAmp, 24), cloudP = ctx.Eval(cloudP, 25), nucleusAmp = ctx.Eval(nucleusAmp, 26), nucleusFlat = ctx.Eval(nucleusFlat, 27), nucleusP = ctx.Eval(nucleusP, 28), nucleus2Amp = ctx.Eval(nucleus2Amp, 29), veilAmp = ctx.Eval(veilAmp, 30) }; }
         }
 
         [Serializable] public sealed class CoronalSettings : StyleSettings
         {
-            public CoronalSettings() { ramp = PlusRampPresets.OrbGold(); gain = 0.95f; a0 = 0.018f; a1 = 0.716f; acurve = 0.834f; amax = 1f; noseSquash = 0.90f; glowWide = 2.6f; glowTail = 0.50f; glowAmp = 0.13f; }
+            public CoronalSettings() { ramp = PlusRampPresets.OrbGold(); gain = new ZUIValue(0.95f); a0 = new ZUIValue(0.018f); a1 = new ZUIValue(0.716f); acurve = new ZUIValue(0.834f); amax = new ZUIValue(1f); noseSquash = new ZUIValue(0.90f); glowWide = new ZUIValue(2.6f); glowTail = new ZUIValue(0.50f); glowAmp = new ZUIValue(0.13f); }
             [Tooltip("Prominences alive at once (13 — at seven they converged onto two streamlines and the star grew a moustache).")]
             [Range(1, 30)] public int prominences = 13;
             [Tooltip("Stamps along each prominence.")]
             [Range(3, 40)] public int prominenceSegments = 15;
             [Tooltip("Prominence stamp amplitude at the root (summed, so crossings are the hottest part of the fan).")]
-            [Range(0f, 2f)] public float prominenceAmp = 0.46f;
+            [Range(0f, 2f)] public ZUIValue prominenceAmp = new ZUIValue(0.46f);
             [Tooltip("Prominence stamp falloff exponent.")]
-            [Range(0.5f, 4f)] public float prominenceP = 1.55f;
+            [Range(0.5f, 4f)] public ZUIValue prominenceP = new ZUIValue(1.55f);
             [Tooltip("Speed smudge over the prominences only: taps in source px (5 — enough to knit them into one corona, not enough to stop them being thirteen).")]
             [Range(0, 20)] public int smearTaps = 5;
             [Tooltip("Weight ratio per px of the prominence smear.")]
-            [Range(0.3f, 0.99f)] public float smearDecay = 0.72f;
+            [Range(0.3f, 0.99f)] public ZUIValue smearDecay = new ZUIValue(0.72f);
             [Tooltip("Normalise the prominence smear.")]
             public bool smearNorm = true;
             [Tooltip("Granulation turbulence frequency (radians per source px): the noise MULTIPLIES the body, so the disc keeps a clean limb while its surface has cells.")]
@@ -232,32 +264,37 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Seed offset of the granulation.")]
             [Range(0, 99)] public int turbSeedOffBody = 5;
             [Tooltip("Star body amplitude.")]
-            [Range(0.5f, 6f)] public float coreAmp = 3.05f;
+            [Range(0.5f, 6f)] public ZUIValue coreAmp = new ZUIValue(3.05f);
             [Tooltip("Star body falloff exponent.")]
-            [Range(0.5f, 4f)] public float coreP = 1.80f;
+            [Range(0.5f, 4f)] public ZUIValue coreP = new ZUIValue(1.80f);
             [Tooltip("How much the granulation modulates the body (±30 %).")]
-            [Range(0f, 1f)] public float coreGranulation = 0.30f;
+            [Range(0f, 1f)] public ZUIValue coreGranulation = new ZUIValue(0.30f);
             [Tooltip("Limb amplitude: a bright soft ring just inside the edge that makes the disc a sphere with an edge-on atmosphere, kept low so it does not whiten the whole disc.")]
-            [Range(0f, 2f)] public float limbAmp = 0.62f;
+            [Range(0f, 2f)] public ZUIValue limbAmp = new ZUIValue(0.62f);
             [Tooltip("Limb radius as a fraction of the core radius.")]
-            [Range(0.3f, 1.2f)] public float limbR = 0.76f;
+            [Range(0.3f, 1.2f)] public ZUIValue limbR = new ZUIValue(0.76f);
             [Tooltip("Limb half-width as a fraction of the core radius (wide = a brightening, not a line).")]
-            [Range(0.05f, 1f)] public float limbW = 0.44f;
+            [Range(0.05f, 1f)] public ZUIValue limbW = new ZUIValue(0.44f);
             [Tooltip("Limb falloff exponent.")]
-            [Range(0.5f, 4f)] public float limbP = 1.60f;
+            [Range(0.5f, 4f)] public ZUIValue limbP = new ZUIValue(1.60f);
+
+            /// This variant's own envelopes resolved at one layer life (slots 20 onward; variants share them — only the active one is resolved).
+            public struct Own { public float coreAmp, coreP, smearDecay, prominenceAmp, prominenceP, coreGranulation, limbAmp, limbR, limbW, limbP; }
+            [NonSerialized] public Own own;
+            public override void Resolve(in PlusFormPrepareCtx ctx) { base.Resolve(ctx); own = new Own { coreAmp = ctx.Eval(coreAmp, 20), coreP = ctx.Eval(coreP, 21), smearDecay = ctx.Eval(smearDecay, 22), prominenceAmp = ctx.Eval(prominenceAmp, 23), prominenceP = ctx.Eval(prominenceP, 24), coreGranulation = ctx.Eval(coreGranulation, 25), limbAmp = ctx.Eval(limbAmp, 26), limbR = ctx.Eval(limbR, 27), limbW = ctx.Eval(limbW, 28), limbP = ctx.Eval(limbP, 29) }; }
         }
 
         [Serializable] public sealed class MembraneSettings : StyleSettings
         {
-            public MembraneSettings() { ramp = PlusRampPresets.OrbToxin(); gain = 0.90f; a0 = 0.015f; a1 = 0.70f; acurve = 0.98f; amax = 0.892f; noseSquash = 0.92f; glowWide = 2.3f; glowTail = 0.45f; glowAmp = 0.10f; }
+            public MembraneSettings() { ramp = PlusRampPresets.OrbToxin(); gain = new ZUIValue(0.90f); a0 = new ZUIValue(0.015f); a1 = new ZUIValue(0.70f); acurve = new ZUIValue(0.98f); amax = new ZUIValue(0.892f); noseSquash = new ZUIValue(0.92f); glowWide = new ZUIValue(2.3f); glowTail = new ZUIValue(0.45f); glowAmp = new ZUIValue(0.10f); }
             [Tooltip("A shell is shed every this many frames (must divide the frame count for an exact loop).")]
             [Range(1, 6)] public int emitPeriod = 2;
             [Tooltip("Frames a shed shell lives while it thins and breaks.")]
             [Range(1, 30)] public int emitLife = 12;
             [Tooltip("Shed shell amplitude at birth (filled soft blobs the noise eats holes in — a skin coming apart leaves haze, not rings).")]
-            [Range(0f, 4f)] public float shellAmp = 2.05f;
+            [Range(0f, 4f)] public ZUIValue shellAmp = new ZUIValue(2.05f);
             [Tooltip("Shed shell falloff exponent.")]
-            [Range(0.5f, 4f)] public float shellP = 1.50f;
+            [Range(0.5f, 4f)] public ZUIValue shellP = new ZUIValue(1.50f);
             [Tooltip("Shell-break turbulence frequency (radians per source px).")]
             [Range(0.05f, 1f)] public float turbScaleShell = 0.22f;
             [Tooltip("Octaves of the shell-break turbulence.")]
@@ -269,7 +306,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Speed smudge over the shed shells: taps in source px.")]
             [Range(0, 20)] public int smearTaps = 6;
             [Tooltip("Weight ratio per px of the shell smear.")]
-            [Range(0.3f, 0.99f)] public float smearDecay = 0.74f;
+            [Range(0.3f, 0.99f)] public ZUIValue smearDecay = new ZUIValue(0.74f);
             [Tooltip("Normalise the shell smear.")]
             public bool smearNorm = true;
             [Tooltip("A mote pair is shed every this many frames (2 — at 1 twenty 1 px motes were grain, not a spray).")]
@@ -279,44 +316,49 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Motes per shed event.")]
             [Range(0, 8)] public int motesPerPiece = 2;
             [Tooltip("Mote amplitude at birth (1.6–2.8 px streaks — the only countable objects in the generation).")]
-            [Range(0f, 3f)] public float moteAmp = 1.55f;
+            [Range(0f, 3f)] public ZUIValue moteAmp = new ZUIValue(1.55f);
             [Tooltip("Mote streak elongation along its velocity.")]
-            [Range(1f, 5f)] public float moteElong = 2.2f;
+            [Range(1f, 5f)] public ZUIValue moteElong = new ZUIValue(2.2f);
             [Tooltip("Interior fill amplitude — the WINDOW: chosen to land near 100/255, so the inside is see-through and not a dimmer shell.")]
-            [Range(0f, 3f)] public float windowAmp = 1.30f;
+            [Range(0f, 3f)] public ZUIValue windowAmp = new ZUIValue(1.30f);
             [Tooltip("Interior fill falloff exponent.")]
-            [Range(0.5f, 4f)] public float windowP = 1.45f;
+            [Range(0.5f, 4f)] public ZUIValue windowP = new ZUIValue(1.45f);
             [Tooltip("Skin amplitude — under a stop above the interior, so the bubble is a filled translucent sphere and not an eye.")]
-            [Range(0f, 3f)] public float skinAmp = 1.05f;
+            [Range(0f, 3f)] public ZUIValue skinAmp = new ZUIValue(1.05f);
             [Tooltip("Skin radius as a fraction of the core radius.")]
-            [Range(0.3f, 1.2f)] public float skinR = 0.78f;
+            [Range(0.3f, 1.2f)] public ZUIValue skinR = new ZUIValue(0.78f);
             [Tooltip("Skin half-width as a fraction of the core radius (0.55: a thickening toward the edge, not an outline).")]
-            [Range(0.05f, 1f)] public float skinW = 0.55f;
+            [Range(0.05f, 1f)] public ZUIValue skinW = new ZUIValue(0.55f);
             [Tooltip("Skin falloff exponent.")]
-            [Range(0.5f, 4f)] public float skinP = 1.70f;
+            [Range(0.5f, 4f)] public ZUIValue skinP = new ZUIValue(1.70f);
             [Tooltip("Amplitude of the surface-tension ripples running round the skin.")]
-            [Range(0f, 1.5f)] public float ripAmp = 0.38f;
+            [Range(0f, 1.5f)] public ZUIValue ripAmp = new ZUIValue(0.38f);
             [Tooltip("Ripple order: cycles round the skin (4-fold reads as a taut membrane).")]
             [Range(1, 12)] public int ripOrder = 4;
             [Tooltip("Ripple modulation depth (±16 %).")]
-            [Range(0f, 1f)] public float ripDepth = 0.16f;
+            [Range(0f, 1f)] public ZUIValue ripDepth = new ZUIValue(0.16f);
             [Tooltip("Ripple ring radius as a fraction of the core radius.")]
-            [Range(0.3f, 1.3f)] public float ripR = 0.90f;
+            [Range(0.3f, 1.3f)] public ZUIValue ripR = new ZUIValue(0.90f);
             [Tooltip("Ripple ring half-width as a fraction of the core radius.")]
-            [Range(0.05f, 1f)] public float ripW = 0.30f;
+            [Range(0.05f, 1f)] public ZUIValue ripW = new ZUIValue(0.30f);
             [Tooltip("Ripple ring falloff exponent.")]
-            [Range(0.5f, 4f)] public float ripP = 1.50f;
+            [Range(0.5f, 4f)] public ZUIValue ripP = new ZUIValue(1.50f);
             [Tooltip("Nucleus amplitude — the dense knot swimming a figure-eight inside the bubble, biased forward onto the leading wall.")]
-            [Range(0f, 5f)] public float nucleusAmp = 2.40f;
+            [Range(0f, 5f)] public ZUIValue nucleusAmp = new ZUIValue(2.40f);
             [Tooltip("Flat top of the nucleus as a fraction of its radius.")]
-            [Range(0f, 0.5f)] public float nucleusFlat = 0.05f;
+            [Range(0f, 0.5f)] public ZUIValue nucleusFlat = new ZUIValue(0.05f);
             [Tooltip("Nucleus falloff exponent.")]
-            [Range(0.5f, 4f)] public float nucleusP = 1.55f;
+            [Range(0.5f, 4f)] public ZUIValue nucleusP = new ZUIValue(1.55f);
+
+            /// This variant's own envelopes resolved at one layer life (slots 20 onward; variants share them — only the active one is resolved).
+            public struct Own { public float smearDecay, nucleusAmp, nucleusFlat, nucleusP, shellAmp, shellP, moteAmp, moteElong, windowAmp, windowP, skinAmp, skinR, skinW, skinP, ripAmp, ripDepth, ripR, ripW, ripP; }
+            [NonSerialized] public Own own;
+            public override void Resolve(in PlusFormPrepareCtx ctx) { base.Resolve(ctx); own = new Own { smearDecay = ctx.Eval(smearDecay, 20), nucleusAmp = ctx.Eval(nucleusAmp, 21), nucleusFlat = ctx.Eval(nucleusFlat, 22), nucleusP = ctx.Eval(nucleusP, 23), shellAmp = ctx.Eval(shellAmp, 24), shellP = ctx.Eval(shellP, 25), moteAmp = ctx.Eval(moteAmp, 26), moteElong = ctx.Eval(moteElong, 27), windowAmp = ctx.Eval(windowAmp, 28), windowP = ctx.Eval(windowP, 29), skinAmp = ctx.Eval(skinAmp, 30), skinR = ctx.Eval(skinR, 31), skinW = ctx.Eval(skinW, 32), skinP = ctx.Eval(skinP, 33), ripAmp = ctx.Eval(ripAmp, 34), ripDepth = ctx.Eval(ripDepth, 35), ripR = ctx.Eval(ripR, 36), ripW = ctx.Eval(ripW, 37), ripP = ctx.Eval(ripP, 38) }; }
         }
 
         [Serializable] public sealed class VoltcoreSettings : StyleSettings
         {
-            public VoltcoreSettings() { ramp = PlusRampPresets.OrbVolt(); gain = 1.00f; a0 = 0.016f; a1 = 0.726f; acurve = 0.856f; amax = 1f; noseSquash = 0.90f; glowWide = 2.2f; glowTail = 0.55f; glowAmp = 0.11f; }
+            public VoltcoreSettings() { ramp = PlusRampPresets.OrbVolt(); gain = new ZUIValue(1.00f); a0 = new ZUIValue(0.016f); a1 = new ZUIValue(0.726f); acurve = new ZUIValue(0.856f); amax = new ZUIValue(1f); noseSquash = new ZUIValue(0.90f); glowWide = new ZUIValue(2.2f); glowTail = new ZUIValue(0.55f); glowAmp = new ZUIValue(0.11f); }
             [Tooltip("A filament pair is shed every this many frames (1: there are always four at different stages of coming apart).")]
             [Range(1, 6)] public int emitPeriod = 1;
             [Tooltip("Frames a filament lives: brightest and tightest at birth, a scatter of sparks by the end.")]
@@ -326,31 +368,31 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Random-walk steps per filament (each step turns by up to ±0.85 rad and is dragged backward more the older the filament is).")]
             [Range(1, 20)] public int filamentSteps = 9;
             [Tooltip("Filament amplitude at birth.")]
-            [Range(0f, 3f)] public float filamentAmp = 1.55f;
+            [Range(0f, 3f)] public ZUIValue filamentAmp = new ZUIValue(1.55f);
             [Tooltip("Filament streak elongation along its step.")]
-            [Range(1f, 5f)] public float filamentElong = 1.9f;
+            [Range(1f, 5f)] public ZUIValue filamentElong = new ZUIValue(1.9f);
             [Tooltip("Speed smudge over the filaments: taps in source px.")]
             [Range(0, 20)] public int smearTaps = 7;
             [Tooltip("Weight ratio per px of the filament smear.")]
-            [Range(0.3f, 0.99f)] public float smearDecay = 0.78f;
+            [Range(0.3f, 0.99f)] public ZUIValue smearDecay = new ZUIValue(0.78f);
             [Tooltip("Normalise the filament smear.")]
             public bool smearNorm = true;
             [Tooltip("Stamps down the plasma tail (60).")]
             [Range(10, 200)] public int tailStamps = 60;
             [Tooltip("Tail stamp falloff exponent.")]
-            [Range(0.5f, 4f)] public float tailP = 1.70f;
+            [Range(0.5f, 4f)] public ZUIValue tailP = new ZUIValue(1.70f);
             [Tooltip("Speed smudge of the tail: taps in source px, accumulated (a light streak brighter than its source — right for a plasma tail).")]
             [Range(0, 30)] public int tailSmearTaps = 9;
             [Tooltip("Weight ratio per px of the tail smear.")]
-            [Range(0.3f, 0.99f)] public float tailSmearDecay = 0.80f;
+            [Range(0.3f, 0.99f)] public ZUIValue tailSmearDecay = new ZUIValue(0.80f);
             [Tooltip("Normalise the tail smear (off in the source).")]
             public bool tailSmearNorm = false;
             [Tooltip("Scale on the smeared tail before it joins the field (0.34: the construction stays, it just stops being the loudest thing).")]
-            [Range(0f, 1.5f)] public float tailPostScale = 0.34f;
+            [Range(0f, 1.5f)] public ZUIValue tailPostScale = new ZUIValue(0.34f);
             [Tooltip("Envelope amplitude (1.50R × 1.26R, nose-squashed 0.94 and nudged 0.08R forward): a haze the ball wears, sized against the ball.")]
-            [Range(0f, 3f)] public float envelopeAmp = 0.80f;
+            [Range(0f, 3f)] public ZUIValue envelopeAmp = new ZUIValue(0.80f);
             [Tooltip("Envelope falloff exponent (2.3 — at 0.5 it drew a literal purple circle).")]
-            [Range(0.5f, 4f)] public float envelopeP = 2.30f;
+            [Range(0.5f, 4f)] public ZUIValue envelopeP = new ZUIValue(2.30f);
             [Tooltip("Charge turbulence frequency (radians per source px): low-frequency noise gated to the inside of the envelope.")]
             [Range(0.05f, 1f)] public float turbScaleCharge = 0.20f;
             [Tooltip("Octaves of the charge turbulence.")]
@@ -360,19 +402,24 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             [Tooltip("Seed offset of the charge turbulence.")]
             [Range(0, 99)] public int turbSeedOffCharge = 2;
             [Tooltip("Charge amplitude.")]
-            [Range(0f, 2f)] public float chargeAmp = 0.60f;
+            [Range(0f, 2f)] public ZUIValue chargeAmp = new ZUIValue(0.60f);
             [Tooltip("Bead amplitude — the one thing allowed to be near-opaque, about 6 px of it.")]
-            [Range(0.5f, 6f)] public float beadAmp = 3.60f;
+            [Range(0.5f, 6f)] public ZUIValue beadAmp = new ZUIValue(3.60f);
             [Tooltip("Flat top of the bead as a fraction of its radius.")]
-            [Range(0f, 0.5f)] public float beadFlat = 0.12f;
+            [Range(0f, 0.5f)] public ZUIValue beadFlat = new ZUIValue(0.12f);
             [Tooltip("Bead falloff exponent.")]
-            [Range(0.5f, 4f)] public float beadP = 1.45f;
+            [Range(0.5f, 4f)] public ZUIValue beadP = new ZUIValue(1.45f);
             [Tooltip("Amplitude of the bead's soft halo (0.70R × 0.64R).")]
-            [Range(0f, 3f)] public float bead2Amp = 1.05f;
+            [Range(0f, 3f)] public ZUIValue bead2Amp = new ZUIValue(1.05f);
             [Tooltip("Ball amplitude — the round body the bead is a highlight ON (2.15 against an envelope of 0.80 wins the silhouette).")]
-            [Range(0f, 5f)] public float ballAmp = 2.15f;
+            [Range(0f, 5f)] public ZUIValue ballAmp = new ZUIValue(2.15f);
             [Tooltip("Ball falloff exponent (soft enough not to reintroduce an outline).")]
-            [Range(0.5f, 4f)] public float ballP = 1.95f;
+            [Range(0.5f, 4f)] public ZUIValue ballP = new ZUIValue(1.95f);
+
+            /// This variant's own envelopes resolved at one layer life (slots 20 onward; variants share them — only the active one is resolved).
+            public struct Own { public float smearDecay, filamentAmp, filamentElong, tailP, tailSmearDecay, tailPostScale, envelopeAmp, envelopeP, chargeAmp, beadAmp, beadFlat, beadP, bead2Amp, ballAmp, ballP; }
+            [NonSerialized] public Own own;
+            public override void Resolve(in PlusFormPrepareCtx ctx) { base.Resolve(ctx); own = new Own { smearDecay = ctx.Eval(smearDecay, 20), filamentAmp = ctx.Eval(filamentAmp, 21), filamentElong = ctx.Eval(filamentElong, 22), tailP = ctx.Eval(tailP, 23), tailSmearDecay = ctx.Eval(tailSmearDecay, 24), tailPostScale = ctx.Eval(tailPostScale, 25), envelopeAmp = ctx.Eval(envelopeAmp, 26), envelopeP = ctx.Eval(envelopeP, 27), chargeAmp = ctx.Eval(chargeAmp, 28), beadAmp = ctx.Eval(beadAmp, 29), beadFlat = ctx.Eval(beadFlat, 30), beadP = ctx.Eval(beadP, 31), bead2Amp = ctx.Eval(bead2Amp, 32), ballAmp = ctx.Eval(ballAmp, 33), ballP = ctx.Eval(ballP, 34) }; }
         }
 
         // ── runtime ──
@@ -381,6 +428,16 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [NonSerialized] float[] _dumpH, _dumpT, _dumpA;
         [NonSerialized] List<(int, int)> _emit;
         [NonSerialized] double[] _lut; [NonSerialized] int _lutHash;
+
+        /// The form's own envelopes resolved at one layer life (slots 0–4).
+        public struct Live { public float noseX, axisY, radius, wake, swarmSize; }
+        [NonSerialized] public Live live;
+
+        public override void Prepare(in PlusFormPrepareCtx ctx)
+        {
+            live = new Live { noseX = ctx.Eval(noseX, 0), axisY = ctx.Eval(axisY, 1), radius = ctx.Eval(radius, 2), wake = ctx.Eval(wake, 3), swarmSize = ctx.Eval(swarmSize, 4) };
+            Active.Resolve(ctx);
+        }
 
         StyleSettings Active => variant switch
         {
@@ -397,6 +454,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         /// one-decimal precision) and the window alpha at that entry's position i/255.
         Color IPlusRampProbe.ProbeRamp(float t)
         {
+            Active.ResolveStatic();   // the probe runs outside a frame: the Static values are the answer
             var st = MakeStyle(Active);
             double td = Math.Round((double)t, 1);
             int i = Mathf.Clamp((int)Math.Round(td * 255.0, MidpointRounding.ToEven), 0, 255);
@@ -415,7 +473,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         {
             int h = s.ramp != null ? RampHash(s.ramp) : 0;
             if (_lut == null || _lutHash != h) { _lut = PlusOrb.BakeLut(s.ramp); _lutHash = h; }
-            return new OrbStyle { gain = s.gain, a0 = s.a0, a1 = s.a1, acurve = s.acurve, amax = s.amax, floor = floor, lut = _lut };
+            return new OrbStyle { gain = s.live.gain, a0 = s.live.a0, a1 = s.live.a1, acurve = s.live.acurve, amax = s.live.amax, floor = floor, lut = _lut };
         }
 
         static int RampHash(PlusRamp r)
@@ -430,6 +488,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         public override void Render(in PlusFormCtx ctx, Color32[] target)
         {
+            // The renderer Prepares before Render; a direct caller (a test, a probe) may not — same funnel, same life, idempotent.
+            Prepare(ctx.PrepareCtxAt(ctx.life));
             int W = ctx.W, H = ctx.H, n = W * H;
             if (_E == null || _E.Length != n) { _E = new float[n]; _A = new float[n]; _scratch = new float[n]; _aBytes = new byte[n]; _tone = _alpha = null; }
             bool dump = PlusFormDebug.FieldSink != null;
@@ -443,16 +503,16 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var src = Source;
             var st = Active;
             int t = ctx.frameIndex, N = Math.Max(1, ctx.frameCount);
-            double uSolo = Math.Max(radius * W, 0.5) / src.R;
+            double uSolo = Math.Max(live.radius * W, 0.5) / src.R;
 
             if (ctx.swarm == null)
-                DrawOne(MakeFrame(W, H, noseX * W, axisY * H, uSolo, 1.0, src), t, N, seed, st);
+                DrawOne(MakeFrame(W, H, live.noseX * W, live.axisY * H, uSolo, 1.0, src), t, N, seed, st);
             else
                 for (int i = 0; i < ctx.swarm.Length; i++)
                 {
                     var sp = ctx.swarm[i];
                     if (sp.own < 0f || sp.own > 1f) continue;
-                    double u = uSolo * swarmSize * Math.Max(sp.sizeMul, 0.01f);
+                    double u = uSolo * live.swarmSize * Math.Max(sp.sizeMul, 0.01f);
                     // swarm positions are y-up canvas px; the programs run y-down, flipped back at the write
                     DrawOne(MakeFrame(W, H, sp.x, H - sp.y, u, sp.brightMul, src), t, N, seed + sp.index * 104729L, st);
                 }
@@ -474,7 +534,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         void DrawOne(OrbFrame fr, int t, int N, long seed, StyleSettings st)
         {
-            fr.L = wake * fr.R;
+            fr.L = live.wake * fr.R;
             switch (variant)
             {
                 case Variant.Wisp: PlusOrb.Wisp(wisp, fr, t, N, seed, _E, _A, _scratch); break;
@@ -552,10 +612,10 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         {
             if (_cW <= 0 || _cH <= 0) return;
             double S = Math.Max(_cW, _cH), top = Math.Floor((S - _cH) / 2.0);
-            if (_cNx > 0) noseX = (float)(_cNx / S);
-            if (_cCy > 0) axisY = (float)((top + _cCy) / S);
-            if (_cR > 0) radius = (float)(_cR / S);
-            if (_cR > 0 && _cL > 0) wake = (float)(_cL / _cR);
+            if (_cNx > 0) noseX = new ZUIValue((float)(_cNx / S));
+            if (_cCy > 0) axisY = new ZUIValue((float)((top + _cCy) / S));
+            if (_cR > 0) radius = new ZUIValue((float)(_cR / S));
+            if (_cR > 0 && _cL > 0) wake = new ZUIValue((float)(_cL / _cR));
         }
 
         static bool SetField(object owner, string name, object value)
@@ -566,6 +626,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 if (fi.FieldType == typeof(int)) fi.SetValue(owner, Convert.ToInt32(value));
                 else if (fi.FieldType == typeof(float)) fi.SetValue(owner, Convert.ToSingle(value));
                 else if (fi.FieldType == typeof(bool)) fi.SetValue(owner, value is bool b ? b : Convert.ToSingle(value) != 0f);
+                else if (fi.FieldType == typeof(ZUIValue)) fi.SetValue(owner, new ZUIValue(Convert.ToSingle(value)));   // a contract scalar = the Static value
                 else return false;
                 return true;
             }

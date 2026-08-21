@@ -257,9 +257,12 @@ namespace Laubrary.Zui
             if (!string.IsNullOrEmpty(label)) row.Add(FieldLabel(label));
             if (_opt.grow) { body.style.flexGrow = 1f; body.style.flexShrink = 1f; }
             else body.style.flexShrink = 0f;
-            // The body is the row's last child: the zui-row child gap after it would only widen this control past
-            // its controlWidth, so a value control packed beside plain MicroSliders would sit 6 px out of grid.
+            // The body is the row's last child and the control carries its own row margins: the zui-row child gap
+            // after it would only widen this control past its controlWidth and add a second bottom margin, so a
+            // value control packed beside plain MicroSliders would sit 6 px out of grid and 5 px taller than its row.
             body.style.marginRight = 0f;
+            body.style.marginBottom = 0f;
+            row.style.marginBottom = 0f;
             row.Add(body);
             _content.Add(row);
         }
