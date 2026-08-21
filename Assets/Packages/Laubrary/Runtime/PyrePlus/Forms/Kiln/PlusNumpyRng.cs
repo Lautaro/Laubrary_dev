@@ -215,5 +215,15 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 (x[i], x[j]) = (x[j], x[i]);
             }
         }
+
+        /// The same shuffle over doubles (numpy `permutation(float64 array)` = shuffle of a copy).
+        public void Shuffle(double[] x)
+        {
+            for (int i = x.Length - 1; i > 0; i--)
+            {
+                int j = (int)RandomInterval((ulong)i);
+                (x[i], x[j]) = (x[j], x[i]);
+            }
+        }
     }
 }

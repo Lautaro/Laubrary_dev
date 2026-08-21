@@ -316,6 +316,63 @@ namespace Laubrary.PyrePlus
         };
         public const float EmberSootLo = 0.28f, EmberSootHi = 0.92f;
 
+        // ── Kiln Flame / agent3 gen 2 (the directional jet; gen.py TORCH / EMBER / DIRTY / GOLD / WYRM, contract ramp.json:
+        // (pos, sRGB, opacity ceiling), linear light, pos 0 = the cold edge). EMBER is `Ember()` / `EmberSoot()` above —
+        // the explosive fork kept it verbatim. `Jet(name)` / `JetSecondary(name)` / `JetSootWindow(name)` by Kiln name.
+
+        /// `lance`: a gas cutting torch — indigo → blue → cyan → white, the only cool ramp that reaches white.
+        public static PlusRamp JetTorch() => Stops(PlusRampSpace.LinearLight, new float[] { 0f, 0.12f, 0.26f, 0.40f, 0.55f, 0.70f, 0.84f, 1f },
+            new byte[,] { { 6, 10, 62 }, { 14, 28, 132 }, { 22, 58, 190 }, { 30, 104, 232 }, { 54, 152, 250 }, { 104, 200, 255 }, { 176, 234, 255 }, { 248, 253, 255 } },
+            new float[] { 0.24f, 0.48f, 0.68f, 0.82f, 0.90f, 0.95f, 0.99f, 1f });
+
+        /// `sputter`: the low-contrast one — nine ember stops that never reach white, topping out at a pale apricot.
+        public static PlusRamp JetDirty() => Stops(PlusRampSpace.LinearLight, new float[] { 0f, 0.12f, 0.26f, 0.40f, 0.55f, 0.70f, 0.84f, 0.94f, 1f },
+            new byte[,] { { 28, 6, 6 }, { 66, 14, 8 }, { 112, 26, 10 }, { 154, 44, 13 }, { 188, 70, 18 }, { 214, 104, 30 }, { 234, 142, 52 }, { 245, 172, 84 }, { 252, 196, 120 } },
+            new float[] { 0.20f, 0.40f, 0.58f, 0.71f, 0.81f, 0.89f, 0.94f, 0.98f, 1f });
+        /// DIRTY's soot ramp (crossfade window 0.30..0.95).
+        public static PlusRamp JetDirtySoot() => Stops(PlusRampSpace.LinearLight, new float[] { 0f, 0.25f, 0.50f, 0.75f, 1f },
+            new byte[,] { { 16, 11, 9 }, { 38, 25, 17 }, { 66, 43, 27 }, { 98, 65, 39 }, { 132, 90, 53 } },
+            new float[] { 0.20f, 0.40f, 0.58f, 0.74f, 0.86f });
+
+        /// `whip`: reference 0135's two-tone — olive through ochre and gold to cream, no white.
+        public static PlusRamp JetGold() => Stops(PlusRampSpace.LinearLight, new float[] { 0f, 0.13f, 0.28f, 0.44f, 0.60f, 0.76f, 0.90f, 1f },
+            new byte[,] { { 44, 28, 8 }, { 92, 60, 13 }, { 144, 102, 22 }, { 188, 144, 36 }, { 218, 180, 60 }, { 238, 212, 108 }, { 250, 236, 166 }, { 255, 250, 216 } },
+            new float[] { 0.24f, 0.48f, 0.68f, 0.82f, 0.90f, 0.96f, 1f, 1f });
+        /// GOLD's second ramp — not soot but HEAT: the head of the swung stream crosses into a hot orange (window 0.20..0.85).
+        public static PlusRamp JetGoldHeat() => Stops(PlusRampSpace.LinearLight, new float[] { 0f, 0.22f, 0.45f, 0.68f, 0.86f, 1f },
+            new byte[,] { { 84, 20, 8 }, { 162, 44, 12 }, { 222, 88, 20 }, { 248, 146, 38 }, { 255, 196, 92 }, { 255, 236, 172 } },
+            new float[] { 0.30f, 0.56f, 0.76f, 0.90f, 0.98f, 1f });
+
+        /// `wyrm`: the coolest and most transparent — violet through periwinkle to a cyan-white.
+        public static PlusRamp JetWyrm() => Stops(PlusRampSpace.LinearLight, new float[] { 0f, 0.12f, 0.26f, 0.40f, 0.55f, 0.70f, 0.84f, 0.94f, 1f },
+            new byte[,] { { 20, 6, 52 }, { 44, 14, 104 }, { 76, 28, 162 }, { 104, 56, 212 }, { 120, 106, 240 }, { 128, 166, 248 }, { 152, 216, 252 }, { 200, 241, 254 }, { 246, 253, 255 } },
+            new float[] { 0.18f, 0.36f, 0.54f, 0.68f, 0.80f, 0.89f, 0.95f, 0.99f, 1f });
+
+        /// The jet family's primary ramp by its Kiln name (TORCH / EMBER / DIRTY / GOLD / WYRM); null when unknown.
+        public static PlusRamp Jet(string name) => name?.ToUpperInvariant() switch
+        {
+            "TORCH" => JetTorch(), "EMBER" => Ember(), "DIRTY" => JetDirty(), "GOLD" => JetGold(), "WYRM" => JetWyrm(), _ => null,
+        };
+
+        /// The second ramp a jet ramp crosses into (EMBER / DIRTY: soot; GOLD: heat); an empty ramp when it has none.
+        public static PlusRamp JetSecondary(string name) => name?.ToUpperInvariant() switch
+        {
+            "EMBER" => EmberSoot(), "DIRTY" => JetDirtySoot(), "GOLD" => JetGoldHeat(), _ => new PlusRamp(),
+        };
+
+        /// The crossfade window (soot_lo, soot_hi) of a jet ramp's secondary; the JetSpec default (0.35, 0.95) when it has none.
+        public static Vector2 JetSootWindow(string name) => name?.ToUpperInvariant() switch
+        {
+            "EMBER" => new Vector2(EmberSootLo, EmberSootHi), "DIRTY" => new Vector2(0.30f, 0.95f), "GOLD" => new Vector2(0.20f, 0.85f), _ => new Vector2(0.35f, 0.95f),
+        };
+
+        static PlusRamp Stops(PlusRampSpace space, float[] pos, byte[,] rgb, float[] alpha)
+        {
+            var r = new PlusRamp { space = space };
+            for (int i = 0; i < pos.Length; i++) r.stops.Add(new PlusRampStop(pos[i], rgb[i, 0], rgb[i, 1], rgb[i, 2], alpha[i]));
+            return r;
+        }
+
         // ── Kiln Energy Explosion / agent3_fork gen 5 (plasma.RAMPS, contract ramp.json: 6 stops each, sRGB lerp,
         // no per-stop alpha — that agent's alpha is a separate smoothstep on the field). Every one runs DEEP →
         // SATURATED → WHITE: the hottest part of a plasma is white whatever is burning, the hue shows in the skirts.
