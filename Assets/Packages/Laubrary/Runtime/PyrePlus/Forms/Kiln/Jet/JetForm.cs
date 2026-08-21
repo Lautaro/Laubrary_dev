@@ -53,7 +53,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [ZUIShowIf("variant", "Wyrm")] [Tooltip("wyrm's contract values (seed 71, 180 × 100, 30 frames @ 13 fps) — THE RINGED ONE: a coherent lance shedding three vortex rings a loop, violet → periwinkle → cyan-white, the most transparent, 32 shades.")] public JetSettings wyrm = JetDraws.Wyrm();
 
         /// The shared placement dials start on gout's own nozzle (6 % in, 68 % down).
-        public JetForm() { anchorX = 0.06f; anchorY = 0.68f; }
+        public JetForm() { anchorX = new ZUIValue(0.06f); anchorY = new ZUIValue(0.68f); }
 
         public override JetSettings Active => variant switch
         {

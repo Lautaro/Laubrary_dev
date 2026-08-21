@@ -84,6 +84,7 @@
 //   documented above so a fork's draws land on the contract's own numbers.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 using System;
+using Laubrary.SpriteFx;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -107,11 +108,11 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         // ── where it goes ──
         [Tooltip("Aim in degrees: 0 = straight right, + = downward (the source's y-down frame).")]
-        [Range(-180f, 180f)] public float aim = 0f;
+        [Range(-180f, 180f)] public ZUIValue aim = new ZUIValue(0f);
         [Tooltip("Travel of a puff over its whole life, in canvas WIDTHS of the source frame.")]
-        [Range(0.05f, 1.5f)] public float reach = 0.80f;
+        [Range(0.05f, 1.5f)] public ZUIValue reach = new ZUIValue(0.80f);
         [Tooltip("Half-angle of the emission arc, degrees (180 = a full disc). The directional jet biases angles towards the axis by a fixed |x|^1.7 power, so the stream has a spine and a ragged fringe rather than a paper fan; the radial jet exposes that power as its Bias dial.")]
-        [Range(0f, 180f)] public float spread = 10f;
+        [Range(0f, 180f)] public ZUIValue spread = new ZUIValue(10f);
 
         // ── the argument between the push and the air ──
         [Tooltip("Exponential drag: > 0 decelerates, the higher the sooner the puff stalls. Travel = reach·(1 − e^(−drag·s))/(1 − e^(−drag)).")]
@@ -121,11 +122,11 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Tooltip("Downward sag by the end of life, canvas widths — applied as s² (unburnt fuel is heavy).")]
         [Range(0f, 1f)] public float grav = 0f;
         [Tooltip("Puff radius at the nozzle, source px.")]
-        [Range(0.5f, 10f)] public float r0 = 2.6f;
+        [Range(0.5f, 10f)] public ZUIValue r0 = new ZUIValue(2.6f);
         [Tooltip("Radius gained per px travelled (entrainment): the cone fattens as it slows.")]
         [Range(0f, 0.3f)] public float growth = 0.075f;
         [Tooltip("Extra length-to-width of a puff at birth (a streak along its velocity); decays as it slows.")]
-        [Range(0f, 6f)] public float elong = 2.4f;
+        [Range(0f, 6f)] public ZUIValue elong = new ZUIValue(2.4f);
         [Tooltip("Age (fraction of life) by which a puff is round again: aspect = 1 + elong·e^(−s/round_at).")]
         [Range(0.02f, 1f)] public float roundAt = 0.30f;
 
@@ -135,43 +136,43 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Tooltip("A puff's life as a fraction of the loop.")]
         [Range(0.05f, 1f)] public float life = 0.55f;
         [Tooltip("Per-slot variation of speed / size / amplitude / life, 0..1 (scales the uniform jitters of the slot table).")]
-        [Range(0f, 1f)] public float jitter = 0.55f;
+        [Range(0f, 1f)] public ZUIValue jitter = new ZUIValue(0.55f);
         [Tooltip("Peak heat a puff deposits (the kernel's height); overlap sums.")]
-        [Range(0.05f, 3f)] public float strength = 1.15f;
+        [Range(0.05f, 3f)] public ZUIValue strength = new ZUIValue(1.15f);
         [Tooltip("Amplitude falloff exponent over a puff's life: amp ∝ (1 − s)^cool.")]
-        [Range(0.1f, 4f)] public float cool = 1.6f;
+        [Range(0.1f, 4f)] public ZUIValue cool = new ZUIValue(1.6f);
         [Tooltip("Soot tint gained by the end of a puff's life (tint = clip(soot·s)); drives the crossfade into the second ramp. 0 = the second ramp is never used.")]
-        [Range(0f, 2f)] public float soot = 0f;
+        [Range(0f, 2f)] public ZUIValue soot = new ZUIValue(0f);
         [Tooltip("Surges per loop frozen into each puff at birth; 0 = a steady jet.")]
         [Range(0, 6)] public int pulseN = 0;
         [Tooltip("Depth of the surges: amp × clip(1 + depth·cos(2π·pulse_n·birth), 0.05, 2.5).")]
-        [Range(0f, 1f)] public float pulseDepth = 0f;
+        [Range(0f, 1f)] public ZUIValue pulseDepth = new ZUIValue(0f);
         [Tooltip("Degrees the aim swings either side, frozen into each puff at birth — a swept stream CURVES because its tail still points where the nozzle was.")]
-        [Range(0f, 90f)] public float sweep = 0f;
+        [Range(0f, 90f)] public ZUIValue sweep = new ZUIValue(0f);
         [Tooltip("Sweeps per loop (integer, so the loop stays exact).")]
         [Range(1, 4)] public int sweepN = 1;
         [Tooltip("Shock diamonds: standing bright nodes down the axis, this many per reach; the gas travels through them. 0 = none.")]
         [Range(0f, 8f)] public float shockN = 0f;
         [Tooltip("Depth of the shock modulation: amp × (1 + depth·cos(2π·shock_n·d/reach)).")]
-        [Range(0f, 1f)] public float shockDepth = 0f;
+        [Range(0f, 1f)] public ZUIValue shockDepth = new ZUIValue(0f);
 
         // ── the root ──
         [Tooltip("Radius of the dense hot lump at the nozzle, source px; 0 = none. It is what makes the stream read as THROWN from a source rather than drifting.")]
-        [Range(0f, 10f)] public float rootR = 0f;
+        [Range(0f, 10f)] public ZUIValue rootR = new ZUIValue(0f);
         [Tooltip("Heat of the root lump.")]
-        [Range(0f, 4f)] public float rootAmp = 1.5f;
+        [Range(0f, 4f)] public ZUIValue rootAmp = new ZUIValue(1.5f);
 
         // ── things that leave the stream ──
         [Tooltip("Share of slots that detach: extra lateral throw, sideways drift, 0.72 amplitude and a longer life — fireballs tumbling off the end.")]
-        [Range(0f, 1f)] public float shed = 0f;
+        [Range(0f, 1f)] public ZUIValue shed = new ZUIValue(0f);
         [Tooltip("A shed puff's extra angular throw (× its own cone angle) and drift scale.")]
-        [Range(0f, 3f)] public float shedKick = 1.6f;
+        [Range(0f, 3f)] public ZUIValue shedKick = new ZUIValue(1.6f);
         [Tooltip("A shed puff's life as a multiple of Life.")]
         [Range(0.5f, 3f)] public float shedLife = 1.5f;
         [Tooltip("Tiny fast bright motes torn off the stream (own stream seed·104729 + 77).")]
         [Range(0, 40)] public int sparks = 0;
         [Tooltip("Spark radius, source px (never one pixel: 1.4 rasterises to a 9 px lump, the floor the reference sheets keep).")]
-        [Range(0.5f, 4f)] public float sparkR = 1.5f;
+        [Range(0.5f, 4f)] public ZUIValue sparkR = new ZUIValue(1.5f);
 
         // ── vortex rings ──
         [Tooltip("Vortex rings shed per loop, seen from the side as flattened O's travelling away; 0 = none.")]
@@ -179,21 +180,21 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Tooltip("Minimum puffs per ring; the count grows with the circumference so the ring stays closed.")]
         [Range(3, 48)] public int ringK = 8;
         [Tooltip("Ring radius at birth, source px.")]
-        [Range(0.5f, 10f)] public float ringR0 = 2f;
+        [Range(0.5f, 10f)] public ZUIValue ringR0 = new ZUIValue(2f);
         [Tooltip("Ring radius gained per px travelled.")]
         [Range(0f, 0.5f)] public float ringGrow = 0.16f;
         [Tooltip("Ring life as a multiple of Life — a ring has to OUTLIVE the stream to get clear of it.")]
         [Range(0.5f, 4f)] public float ringLife = 1.9f;
         [Tooltip("Ring travel as a multiple of Reach — and OUTRUN it.")]
-        [Range(0.5f, 3f)] public float ringReach = 1.45f;
+        [Range(0.5f, 3f)] public ZUIValue ringReach = new ZUIValue(1.45f);
         [Tooltip("Ring heat relative to Strength (rings cool slower than the stream: (1 − s)^(0.3·cool)).")]
-        [Range(0f, 4f)] public float ringAmp = 0.95f;
+        [Range(0f, 4f)] public ZUIValue ringAmp = new ZUIValue(0.95f);
 
         // ── turbulence ──
         [Tooltip("Domain-warp amplitude at the nozzle, source px (a jet is laminar while it is fast).")]
-        [Range(0f, 4f)] public float warp0 = 0.6f;
+        [Range(0f, 4f)] public ZUIValue warp0 = new ZUIValue(0.6f);
         [Tooltip("Warp amplitude added by the end of the reach, source px (it breaks up once it has slowed).")]
-        [Range(0f, 12f)] public float warp1 = 5.5f;
+        [Range(0f, 12f)] public ZUIValue warp1 = new ZUIValue(5.5f);
         [Tooltip("Source px per noise lattice cell — the texture scale. The downstream scroll is snapped to whole lattice periods per loop so the loop stays exact.")]
         [Range(2f, 24f)] public float warpCell = 9f;
         [Tooltip("Noise octaves (lacunarity 2, gain 0.5).")]
@@ -201,32 +202,45 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         // ── look ──
         [Tooltip("Field value at the silhouette's outer edge (lit = H·gain > lo).")]
-        [Range(0f, 1f)] public float lo = 0.20f;
+        [Range(0f, 1f)] public ZUIValue lo = new ZUIValue(0.20f);
         [Tooltip("Field value at which the ramp tops out. FITTED per draw by the source's tune2 solver against two style targets (average ramp position, share of lit area in the top tenth) — not a guess; the shipped values are the contract's.")]
-        [Range(0.3f, 16f)] public float hi = 1.20f;
+        [Range(0.3f, 16f)] public ZUIValue hi = new ZUIValue(1.20f);
         [Tooltip("Bends where the gradient is spent: t^curve, < 1 pushes area up the ramp (a hotter, fully developed flame). FITTED together with Hi.")]
-        [Range(0.2f, 2f)] public float curve = 1f;
+        [Range(0.2f, 2f)] public ZUIValue curve = new ZUIValue(1f);
         [Tooltip("Shades in the ramp: 0 = continuous; N quantises the ramp coordinate to N shades (floor, so the darkest shade reaches the edge). Never quantises the alpha.")]
         [Range(0, 64)] public int steps = 0;
         [Tooltip("Width of the edge falloff in field units: alpha = smoothstep((H − lo)/soft) × the ramp's opacity ceiling.")]
-        [Range(0.01f, 1f)] public float soft = 0.55f;
+        [Range(0.01f, 1f)] public ZUIValue soft = new ZUIValue(0.55f);
         [Tooltip("Multiplier on the heat before exposure.")]
-        [Range(0.1f, 3f)] public float gain = 1f;
+        [Range(0.1f, 3f)] public ZUIValue gain = new ZUIValue(1f);
 
         [Tooltip("The heat ramp: pos 0 = the cold outer edge, pos 1 = the hottest core; each stop's alpha is its OPACITY CEILING. Interpolated in linear light through a 1024-entry table.")]
         public PlusRamp ramp = PlusRampPresets.Ember();
         [Tooltip("The second ramp the gas crosses into as its soot tint rises (gout / sputter: greasy soot; whip: a HOT orange — the head of the swung stream). Empty = no crossfade.")]
         public PlusRamp sootRamp = new PlusRamp();
         [Tooltip("Tint (T/H) at which the crossfade into the second ramp starts — a WIDTH with Soot Hi, not a threshold.")]
-        [Range(0f, 1f)] public float sootLo = 0.35f;
+        [Range(0f, 1f)] public ZUIValue sootLo = new ZUIValue(0.35f);
         [Tooltip("Tint at which the crossfade is complete.")]
-        [Range(0f, 1f)] public float sootHi = 0.95f;
+        [Range(0f, 1f)] public ZUIValue sootHi = new ZUIValue(0.95f);
 
         public bool HasSoot => sootRamp != null && !sootRamp.IsEmpty;
 
         /// A field-for-field copy (lists and ramps shared by reference) — what a swarm member that hands each particle its own
         /// variation of the box starts from.
         public JetSettings ShallowClone() => (JetSettings)MemberwiseClone();
+
+        /// The envelopes above resolved at one layer life (slots 10 onward; a family's boxes share them — only the active
+        /// box is resolved) — what the program stages and the shade read. A fork with its own animatable dials overrides
+        /// `Resolve`, calls the base and fills its own struct.
+        public struct Live { public float aim, reach, spread, jitter, shed, r0, elong, strength, cool, soot, pulseDepth, sweep, shockDepth, rootR, rootAmp, shedKick, sparkR, ringR0, ringReach, ringAmp, warp0, warp1, lo, hi, curve, soft, gain, sootLo, sootHi; }
+        [NonSerialized] public Live live;
+        [NonSerialized] public bool liveResolved;
+        /// A caller driving a stage outside a frame (a test, a probe) gets the Static values; the renderer's Prepare has
+        /// already resolved this frame's before Render.
+        public void EnsureLive() { if (!liveResolved) ResolveStatic(); }
+        public virtual void Resolve(in PlusFormPrepareCtx ctx) { liveResolved = true; live = new Live { aim = ctx.Eval(aim, 10), reach = ctx.Eval(reach, 11), spread = ctx.Eval(spread, 12), jitter = ctx.Eval(jitter, 13), shed = ctx.Eval(shed, 14), r0 = ctx.Eval(r0, 15), elong = ctx.Eval(elong, 16), strength = ctx.Eval(strength, 17), cool = ctx.Eval(cool, 18), soot = ctx.Eval(soot, 19), pulseDepth = ctx.Eval(pulseDepth, 20), sweep = ctx.Eval(sweep, 21), shockDepth = ctx.Eval(shockDepth, 22), rootR = ctx.Eval(rootR, 23), rootAmp = ctx.Eval(rootAmp, 24), shedKick = ctx.Eval(shedKick, 25), sparkR = ctx.Eval(sparkR, 26), ringR0 = ctx.Eval(ringR0, 27), ringReach = ctx.Eval(ringReach, 28), ringAmp = ctx.Eval(ringAmp, 29), warp0 = ctx.Eval(warp0, 30), warp1 = ctx.Eval(warp1, 31), lo = ctx.Eval(lo, 32), hi = ctx.Eval(hi, 33), curve = ctx.Eval(curve, 34), soft = ctx.Eval(soft, 35), gain = ctx.Eval(gain, 36), sootLo = ctx.Eval(sootLo, 37), sootHi = ctx.Eval(sootHi, 38) }; }
+        /// The Static values (no renderer funnel) — for a caller that drives a program outside a frame (a test, a probe).
+        public virtual void ResolveStatic() { liveResolved = true; live = new Live { aim = aim.staticValue, reach = reach.staticValue, spread = spread.staticValue, jitter = jitter.staticValue, shed = shed.staticValue, r0 = r0.staticValue, elong = elong.staticValue, strength = strength.staticValue, cool = cool.staticValue, soot = soot.staticValue, pulseDepth = pulseDepth.staticValue, sweep = sweep.staticValue, shockDepth = shockDepth.staticValue, rootR = rootR.staticValue, rootAmp = rootAmp.staticValue, shedKick = shedKick.staticValue, sparkR = sparkR.staticValue, ringR0 = ringR0.staticValue, ringReach = ringReach.staticValue, ringAmp = ringAmp.staticValue, warp0 = warp0.staticValue, warp1 = warp1.staticValue, lo = lo.staticValue, hi = hi.staticValue, curve = curve.staticValue, soft = soft.staticValue, gain = gain.staticValue, sootLo = sootLo.staticValue, sootHi = sootHi.staticValue }; }
     }
 
     /// One jet to accumulate: where the source frame lands on the canvas. canvas(y-down) = anchor + u·R(rot)·(src − nozzle);
@@ -390,6 +404,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         /// Accumulate one jet instance into `sc.H` / `sc.T` at loop phase `phase` (0..1).
         public virtual void Frame(JetSettings s, JetFrame fr, double phase, JetScratch sc)
         {
+            s.EnsureLive();
             fr.NozzleX = s.nozzleX * s.w; fr.NozzleY = s.nozzleY * s.h;
             if (!BeginInstance(s, in fr, sc)) return;
             var slots = BuildSlots(s, fr.seed);
@@ -426,13 +441,14 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         // ── stage: the slot table ──
         public virtual JetSlots BuildSlots(JetSettings s, int seed)
         {
+            s.EnsureLive();
             var rng = new PlusNumpyRng(unchecked((uint)(seed * 7919 + 13)));
             int n = s.slots;
             var t = new JetSlots
             {
                 phase = new double[n], da = new double[n], vs = new double[n], rs = new double[n], amp = new double[n], ls = new double[n], drift = new double[n], shed = new bool[n],
             };
-            double j = s.jitter, spread = s.spread * Math.PI / 180.0;
+            double j = s.live.jitter, spread = s.live.spread * Math.PI / 180.0;
             for (int i = 0; i < n; i++) t.phase[i] = i / (double)n;
             for (int i = 0; i < n; i++) { double a = rng.Uniform(-1.0, 1.0); t.da[i] = Math.Sign(a) * Math.Pow(Math.Abs(a), 1.7) * spread; }
             for (int i = 0; i < n; i++) t.vs[i] = 1.0 + j * rng.Uniform(-0.42, 0.42);
@@ -440,7 +456,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             for (int i = 0; i < n; i++) t.amp[i] = 1.0 + j * rng.Uniform(-0.30, 0.30);
             for (int i = 0; i < n; i++) t.ls[i] = 1.0 + j * rng.Uniform(-0.25, 0.25);
             for (int i = 0; i < n; i++) t.drift[i] = rng.Uniform(-1.0, 1.0);
-            for (int i = 0; i < n; i++) t.shed[i] = rng.NextDouble() < s.shed;
+            for (int i = 0; i < n; i++) t.shed[i] = rng.NextDouble() < s.live.shed;
             return t;
         }
 
@@ -456,9 +472,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         {
             const int pu = 24, pv = 12, pw = 4;
             double cell = s.warpCell;
-            double reachPx = s.reach * s.w;
+            double reachPx = s.live.reach * s.w;
             double pxPerLoop = reachPx / Math.Max(s.life, 0.05);
-            double a = s.aim * Math.PI / 180.0, ca = Math.Cos(a), sa = Math.Sin(a);
+            double a = s.live.aim * Math.PI / 180.0, ca = Math.Cos(a), sa = Math.Sin(a);
             // both axes snapped to whole lattice periods per loop, separately — it is what makes the wrap exact
             int ku = Math.Max(1, RoundHalfEven(pxPerLoop * ca / (pu * cell)));
             int kv = RoundHalfEven(pxPerLoop * sa / (pv * cell));
@@ -478,7 +494,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     double dy = JetNoise.Sample(sc, fr.seed + 4409, u, v, ww, pu, pv, pw, s.warpOct);
                     double along = ((px - nx) * ca + (py - ny) * sa) * invReach;
                     if (along < 0) along = 0; else if (along > 1.35) along = 1.35;
-                    double amp = s.warp0 + s.warp1 * along;
+                    double amp = s.live.warp0 + s.live.warp1 * along;
                     dx *= amp; dy *= amp;
                     sc.sx[i] = px + dx; sc.sy[i] = py + dy;
                     double m = Math.Max(Math.Abs(dx), Math.Abs(dy));
@@ -490,10 +506,10 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         // ── stage: the root lump ──
         public virtual void Root(JetSettings s, in JetFrame fr, double phase, JetScratch sc)
         {
-            if (s.rootR <= 0) return;
+            if (s.live.rootR <= 0) return;
             double b = 1.0 + 0.14 * Math.Sin(TAU * 3.0 * phase);
-            double a = s.aim * Math.PI / 180.0;
-            JetField.Blob(sc, in fr, fr.NozzleX, fr.NozzleY, s.rootR * 1.7 * b, s.rootR * b, a, s.rootAmp);
+            double a = s.live.aim * Math.PI / 180.0;
+            JetField.Blob(sc, in fr, fr.NozzleX, fr.NozzleY, s.live.rootR * 1.7 * b, s.live.rootR * b, a, s.live.rootAmp);
         }
 
         // ── stage: every live puff at its own age ──
@@ -501,8 +517,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         {
             int n = tab.N;
             double nx = fr.NozzleX, ny = fr.NozzleY;
-            double reachPx = s.reach * s.w;
-            double aim0 = s.aim * Math.PI / 180.0, sweep = s.sweep * Math.PI / 180.0;
+            double reachPx = s.live.reach * s.w;
+            double aim0 = s.live.aim * Math.PI / 180.0, sweep = s.live.sweep * Math.PI / 180.0;
             double kd = Math.Max(s.drag, 1e-3), denom = 1.0 - Math.Exp(-kd);
             for (int i = 0; i < n; i++)
             {
@@ -511,29 +527,29 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 double sAge = age / Math.Max(life, 1e-3);
                 if (sAge >= 1.0) continue;
                 double ep = tab.phase[i];
-                double aim = s.sweep != 0f ? aim0 + sweep * Math.Sin(TAU * s.sweepN * ep) : aim0;
+                double aim = s.live.sweep != 0f ? aim0 + sweep * Math.Sin(TAU * s.sweepN * ep) : aim0;
                 double pulse = 1.0;
-                if (s.pulseN != 0 && s.pulseDepth != 0f)
+                if (s.pulseN != 0 && s.live.pulseDepth != 0f)
                 {
-                    pulse = 1.0 + s.pulseDepth * Math.Cos(TAU * s.pulseN * ep);
+                    pulse = 1.0 + s.live.pulseDepth * Math.Cos(TAU * s.pulseN * ep);
                     if (pulse < 0.05) pulse = 0.05; else if (pulse > 2.5) pulse = 2.5;
                 }
                 double d = reachPx * tab.vs[i] * (1.0 - Math.Exp(-kd * sAge)) / denom;
-                double theta = aim + tab.da[i] + (tab.shed[i] ? tab.da[i] * s.shedKick : 0.0);
+                double theta = aim + tab.da[i] + (tab.shed[i] ? tab.da[i] * s.live.shedKick : 0.0);
                 double px = nx + d * Math.Cos(theta);
                 double py = ny + d * Math.Sin(theta);
                 py += s.grav * reachPx * sAge * sAge - s.buoy * reachPx * Math.Pow(sAge, 2.4);
-                if (tab.shed[i]) py += tab.drift[i] * s.shedKick * 3.0 * sAge * sAge;
-                double r = s.r0 * tab.rs[i] + s.growth * d;
-                double aspect = 1.0 + s.elong * Math.Exp(-sAge / Math.Max(s.roundAt, 0.02));
-                double amp = s.strength * tab.amp[i] * pulse * Fade(sAge) * Math.Pow(Math.Max(1.0 - sAge, 0.0), s.cool);
-                if (s.shockN != 0f && s.shockDepth != 0f)
+                if (tab.shed[i]) py += tab.drift[i] * s.live.shedKick * 3.0 * sAge * sAge;
+                double r = s.live.r0 * tab.rs[i] + s.growth * d;
+                double aspect = 1.0 + s.live.elong * Math.Exp(-sAge / Math.Max(s.roundAt, 0.02));
+                double amp = s.live.strength * tab.amp[i] * pulse * Fade(sAge) * Math.Pow(Math.Max(1.0 - sAge, 0.0), s.live.cool);
+                if (s.shockN != 0f && s.live.shockDepth != 0f)
                 {
-                    amp *= 1.0 + s.shockDepth * Math.Cos(TAU * s.shockN * d / Math.Max(reachPx, 1.0));
+                    amp *= 1.0 + s.live.shockDepth * Math.Cos(TAU * s.shockN * d / Math.Max(reachPx, 1.0));
                     if (amp < 0) amp = 0;
                 }
                 if (tab.shed[i]) amp *= 0.72;
-                double tint = s.soot != 0f ? Math.Min(Math.Max(s.soot * sAge, 0.0), 1.0) : 0.0;
+                double tint = s.live.soot != 0f ? Math.Min(Math.Max(s.live.soot * sAge, 0.0), 1.0) : 0.0;
                 JetField.Blob(sc, in fr, px, py, r * aspect, r, theta, amp, tint);
             }
         }
@@ -543,17 +559,17 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         {
             if (s.ringN <= 0) return;
             double nx = fr.NozzleX, ny = fr.NozzleY;
-            double reachPx = s.reach * s.w;
-            double a = s.aim * Math.PI / 180.0, ca = Math.Cos(a), sa = Math.Sin(a);
+            double reachPx = s.live.reach * s.w;
+            double a = s.live.aim * Math.PI / 180.0, ca = Math.Cos(a), sa = Math.Sin(a);
             double kd = Math.Max(s.drag, 1e-3), denom = 1.0 - Math.Exp(-kd);
             for (int m = 0; m < s.ringN; m++)
             {
                 double sAge = Mod1(phase - m / (double)s.ringN) / Math.Max(s.life * s.ringLife, 1e-3);
                 if (sAge >= 1.0) continue;
-                double d = reachPx * s.ringReach * (1.0 - Math.Exp(-kd * sAge)) / denom;
-                double rr = s.ringR0 + s.ringGrow * d;
-                double amp0 = s.strength * s.ringAmp * Fade(sAge, 0.10) * Math.Pow(Math.Max(0.0, 1.0 - sAge), s.cool * 0.30);
-                double pr = s.r0 * 0.85 + s.growth * d * 0.34;
+                double d = reachPx * s.live.ringReach * (1.0 - Math.Exp(-kd * sAge)) / denom;
+                double rr = s.live.ringR0 + s.ringGrow * d;
+                double amp0 = s.live.strength * s.live.ringAmp * Fade(sAge, 0.10) * Math.Pow(Math.Max(0.0, 1.0 - sAge), s.live.cool * 0.30);
+                double pr = s.live.r0 * 0.85 + s.growth * d * 0.34;
                 int k = (int)Math.Max(s.ringK, Math.Min(48, RoundHalfEven(TAU * rr / Math.Max(pr * 1.05, 1e-3))));
                 double rot = 1.31 * m;
                 double wob = 0.17 + 0.05 * ((m * 7) % 3);
@@ -578,10 +594,10 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var rng = new PlusNumpyRng(unchecked((uint)(fr.seed * 104729 + 77)));
             int n = s.sparks;
             double nx = fr.NozzleX, ny = fr.NozzleY;
-            double reachPx = s.reach * s.w;
-            double a = s.aim * Math.PI / 180.0;
+            double reachPx = s.live.reach * s.w;
+            double a = s.live.aim * Math.PI / 180.0;
             var ph = new double[n]; var da = new double[n]; var vs = new double[n]; var rise = new double[n];
-            double spreadR = s.spread * 1.7 * Math.PI / 180.0;
+            double spreadR = s.live.spread * 1.7 * Math.PI / 180.0;
             for (int i = 0; i < n; i++) ph[i] = rng.NextDouble();
             for (int i = 0; i < n; i++) da[i] = rng.Uniform(-1.0, 1.0) * spreadR;
             for (int i = 0; i < n; i++) vs[i] = rng.Uniform(0.55, 1.45);
@@ -594,7 +610,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 double th = a + da[i];
                 double x = nx + d * Math.Cos(th);
                 double y = ny + d * Math.Sin(th) - rise[i] * reachPx * sAge * sAge;
-                JetField.Blob(sc, in fr, x, y, s.sparkR * 1.4, s.sparkR, th, 1.5 * Fade(sAge, 0.08) * Math.Pow(1.0 - sAge, 1.2));
+                JetField.Blob(sc, in fr, x, y, s.live.sparkR * 1.4, s.live.sparkR, th, 1.5 * Fade(sAge, 0.08) * Math.Pow(1.0 - sAge, 1.2));
             }
         }
 
@@ -704,11 +720,12 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         /// `rampT` (optional) receives the ramp coordinate before `steps` (the contract's `ramp_t`).
         public void Shade(JetSettings s, Lut hot, Lut soot, float[] H, float[] T, int W, int Hh, Color32[] target, float[] rampT = null)
         {
-            double lo = s.lo, hi = s.hi, curve = s.curve, invSpan = 1.0 / Math.Max(hi - lo, 1e-4), invSoft = 1.0 / Math.Max(s.soft, 1e-4);
-            double gain = s.gain;
+            s.EnsureLive();
+            double lo = s.live.lo, hi = s.live.hi, curve = s.live.curve, invSpan = 1.0 / Math.Max(hi - lo, 1e-4), invSoft = 1.0 / Math.Max(s.live.soft, 1e-4);
+            double gain = s.live.gain;
             bool quant = s.steps > 0; int steps = s.steps;
             bool useSoot = soot != null && s.HasSoot;
-            double sLo = s.sootLo, invSootSpan = 1.0 / Math.Max(s.sootHi - s.sootLo, 1e-4);
+            double sLo = s.live.sootLo, invSootSpan = 1.0 / Math.Max(s.live.sootHi - s.live.sootLo, 1e-4);
             double opaq = CeilingExponent(s);
             int n = W * Hh;
             for (int i = 0; i < n; i++)

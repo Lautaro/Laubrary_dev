@@ -73,7 +73,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [ZUIShowIf("variant", "Starshell")] [Tooltip("starshell's contract values (seed 293, 208 × 208, 30 frames @ 17 fps) — seven LOBES in three bangs, the chemical one; TOXIC, black-green through lime to white.")] public ExplosiveJetSettings starshell = ExplosiveJetDraws.Starshell();
 
         /// The shared placement dials start on detonate's own seat (50 % across, 52 % down).
-        public ExplosiveJetForm() { anchorX = 0.50f; anchorY = 0.52f; }
+        public ExplosiveJetForm() { anchorX = new ZUIValue(0.50f); anchorY = new ZUIValue(0.52f); }
 
         public override JetSettings Active => variant switch
         {

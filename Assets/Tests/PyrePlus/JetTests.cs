@@ -192,5 +192,38 @@ namespace Laubrary.PyrePlus.Tests
             Assert.That(PlusRampPresets.JetSootWindow("GOLD"), Is.EqualTo(new Vector2(0.20f, 0.85f)));
             Assert.That(PlusRampPresets.Jet("nope"), Is.Null);
         }
+
+        // ── envelopes (T-0063) ──
+        [Test]
+        public void Envelope_StaticEqualsFlatCurve_AndARampDrivesTheRender()
+        {
+            // the placement (scale) and the box's strength / aim: a flat Curve renders the Static bytes; a moving Curve
+            // changes the first and the last frame of the loop
+            var stat = EnvelopeTestUtil.Spec(new JetForm(), 64, 10, 23);
+            var flat = EnvelopeTestUtil.Spec(new JetForm { scale = EnvelopeTestUtil.Flat(1f), gout = { strength = EnvelopeTestUtil.Flat(JetDraws.Gout().strength.staticValue), aim = EnvelopeTestUtil.Flat(JetDraws.Gout().aim.staticValue) } }, 64, 10, 23);
+            var ramp = EnvelopeTestUtil.Spec(new JetForm { gout = { aim = EnvelopeTestUtil.Ramp(-60f, 60f) } }, 64, 10, 23);
+            try
+            {
+                Assert.That(EnvelopeTestUtil.FnvAll(flat), Is.EqualTo(EnvelopeTestUtil.FnvAll(stat)), "a flat Curve is the Static value");
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(stat, 0), PyrePlusRenderer.RenderFrame(ramp, 0)), Is.GreaterThan(0), "frame 0: aim -60 vs -1");
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(stat, 9), PyrePlusRenderer.RenderFrame(ramp, 9)), Is.GreaterThan(0), "frame 9: aim +60 vs -1");
+            }
+            finally { Object.DestroyImmediate(stat); Object.DestroyImmediate(flat); Object.DestroyImmediate(ramp); }
+        }
+
+        [Test]
+        public void Envelope_ABoxDialIsResolvedForTheActiveVariantOnly()
+        {
+            var wyrmS = EnvelopeTestUtil.Spec(new JetForm { variant = JetForm.Variant.Wyrm }, 64, 8, 71);
+            var wyrmR = EnvelopeTestUtil.Spec(new JetForm { variant = JetForm.Variant.Wyrm, wyrm = { ringAmp = EnvelopeTestUtil.Ramp(0f, 4f) } }, 64, 8, 71);
+            var goutS = EnvelopeTestUtil.Spec(new JetForm(), 64, 8, 23);
+            var goutR = EnvelopeTestUtil.Spec(new JetForm { wyrm = { ringAmp = EnvelopeTestUtil.Ramp(0f, 4f) } }, 64, 8, 23);
+            try
+            {
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(wyrmS, 7), PyrePlusRenderer.RenderFrame(wyrmR, 7)), Is.GreaterThan(0), "Wyrm frame 7: ringAmp 4 vs its default");
+                Assert.That(EnvelopeTestUtil.FnvAll(goutR), Is.EqualTo(EnvelopeTestUtil.FnvAll(goutS)), "an inactive box's envelope is not read");
+            }
+            finally { Object.DestroyImmediate(wyrmS); Object.DestroyImmediate(wyrmR); Object.DestroyImmediate(goutS); Object.DestroyImmediate(goutR); }
+        }
     }
 }

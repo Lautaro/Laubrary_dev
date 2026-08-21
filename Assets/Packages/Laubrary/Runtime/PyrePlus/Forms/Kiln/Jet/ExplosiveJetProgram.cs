@@ -342,6 +342,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         // ── stage: the slot table — WHEN each puff is born is the whole of generation 4 ──
         public override JetSlots BuildSlots(JetSettings bs, int seed)
         {
+            bs.EnsureLive();
             var s = E(bs);
             var rng = new PlusNumpyRng(unchecked((uint)(seed * 7919 + 13)));
             int n = s.slots;
@@ -350,7 +351,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 phase = new double[n], da = new double[n], vs = new double[n], rs = new double[n], amp = new double[n], ls = new double[n], drift = new double[n], shed = new bool[n],
                 birth = new double[n], ampk = new double[n], lead = null, ox = new double[n], oy = new double[n],
             };
-            double j = s.jitter, spread = s.spread * Math.PI / 180.0, bias = s.bias;
+            double j = s.live.jitter, spread = s.live.spread * Math.PI / 180.0, bias = s.bias;
             for (int i = 0; i < n; i++) t.phase[i] = i / (double)n;
 
             // `_blast_groups`: slot → detonation as contiguous blocks sized by share (np.round half-even of the cumsum)
@@ -373,7 +374,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             {
                 int a = k > 0 ? edges[g] : 0, b = k > 0 ? edges[g + 1] : n, m = b - a;
                 if (m <= 0) continue;
-                if (s.spread >= 60f) { var v = StratifiedPermuted(rng, m); Array.Copy(v, 0, baseA, a, m); }
+                if (s.live.spread >= 60f) { var v = StratifiedPermuted(rng, m); Array.Copy(v, 0, baseA, a, m); }
                 else for (int i = a; i < b; i++) baseA[i] = rng.Uniform(-1.0, 1.0);
             }
             for (int i = 0; i < n; i++) t.da[i] = Math.Sign(baseA[i]) * Math.Pow(Math.Abs(baseA[i]), bias) * spread;
@@ -388,7 +389,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             for (int i = 0; i < n; i++) t.amp[i] = 1.0 + j * rng.Uniform(-0.30, 0.30);
             for (int i = 0; i < n; i++) t.ls[i] = 1.0 + j * rng.Uniform(-0.25, 0.25);
             for (int i = 0; i < n; i++) t.drift[i] = rng.Uniform(-1.0, 1.0);
-            for (int i = 0; i < n; i++) t.shed[i] = rng.NextDouble() < s.shed;
+            for (int i = 0; i < n; i++) t.shed[i] = rng.NextDouble() < s.live.shed;
             BuildPlates(s, seed, t, grp, n);
 
             if (k == 0)
@@ -425,7 +426,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var p = new Plates { k = k };
             var wid = new double[k]; double wsum = 0;
             for (int i = 0; i < k; i++) { wid[i] = rng.Uniform(0.55, 1.45); wsum += wid[i]; }
-            p.half = Math.Min(s.spread, 180f) * Math.PI / 180.0; p.span = 2.0 * p.half;
+            p.half = Math.Min(s.live.spread, 180f) * Math.PI / 180.0; p.span = 2.0 * p.half;
             p.edges = new double[k + 1]; double cum = 0;
             for (int i = 0; i < k; i++) { cum += wid[i] / wsum; p.edges[i + 1] = cum * p.span; }
             p.edges[k] = p.span;
@@ -521,6 +522,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         // ── the frame: the shared stages with the detonation's own inserted between them ──
         public override void Frame(JetSettings bs, JetFrame fr, double phase, JetScratch sc)
         {
+            bs.EnsureLive();
             var s = E(bs);
             fr.NozzleX = s.nozzleX * s.w; fr.NozzleY = s.nozzleY * s.h;
             if (!BeginInstance(s, in fr, sc)) return;
@@ -542,7 +544,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var s = E(bs);
             const int pu = 24, pv = 16, pw = 4;   // angle, radius, time
             double cell = s.warpCell;
-            double reachPx = Math.Max(s.reach * s.w, 1.0);
+            double reachPx = Math.Max(s.live.reach * s.w, 1.0);
             double pxPerLoop = reachPx / Math.Max(s.life, 0.05);
             int kv = Math.Max(1, RoundHalfEven(pxPerLoop / (pv * cell)));
             double offV = phase * kv * pv, offU = s.warpSpin != 0 ? phase * s.warpSpin * pu : 0.0;
@@ -564,7 +566,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     double dt = JetNoise.Sample(sc, fr.seed + 4409, u, v, ww, pu, pv, pw, s.warpOct);
                     double along = rad * invReach; if (along > 1.35) along = 1.35;
                     double fade = rad / 7.0; if (fade > 1.0) fade = 1.0;
-                    double amp = (s.warp0 + s.warp1 * along) * fade;
+                    double amp = (s.live.warp0 + s.live.warp1 * along) * fade;
                     double ct = Math.Cos(th), st = Math.Sin(th);
                     double dx = (dr * ct - dt * st) * amp, dy = (dr * st + dt * ct) * amp;
                     sc.sx[i] = px + dx; sc.sy[i] = py + dy;
@@ -578,10 +580,10 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         public override void Root(JetSettings bs, in JetFrame fr, double phase, JetScratch sc)
         {
             var s = E(bs);
-            if (s.rootR <= 0) return;
+            if (s.live.rootR <= 0) return;
             double nx = fr.NozzleX, ny = fr.NozzleY;
             double b = 1.0 + 0.14 * Math.Sin(TAU * 3.0 * phase);
-            double a = s.aim * Math.PI / 180.0;
+            double a = s.live.aim * Math.PI / 180.0;
             if (s.HasSchedule)
             {
                 // a detonation has no standing source: the lump burns out with each blast, or every frame between bangs
@@ -593,7 +595,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     if (sAge < 1.0) env = Math.Max(env, bl.pw * Fade(sAge, 0.04) * (1.0 - sAge) * (1.0 - sAge));
                 }
                 if (env <= 0.002) return;
-                JetField.Blob(sc, in fr, nx, ny, s.rootR * (s.spread >= 60f ? 1.0 : 1.7) * b, s.rootR * b, a, s.rootAmp * env);
+                JetField.Blob(sc, in fr, nx, ny, s.live.rootR * (s.live.spread >= 60f ? 1.0 : 1.7) * b, s.live.rootR * b, a, s.live.rootAmp * env);
                 return;
             }
             if (s.srcR > 0f && s.rootK > 0)
@@ -603,12 +605,12 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 {
                     double th = TAU * j / s.rootK;
                     double bb = b * (1.0 + 0.10 * Math.Cos(3.0 * th + TAU * phase));
-                    JetField.Blob(sc, in fr, nx + rr * Math.Cos(th), ny + rr * Math.Sin(th), s.rootR * 1.5 * bb, s.rootR * bb, th + Math.PI / 2, s.rootAmp);
+                    JetField.Blob(sc, in fr, nx + rr * Math.Cos(th), ny + rr * Math.Sin(th), s.live.rootR * 1.5 * bb, s.live.rootR * bb, th + Math.PI / 2, s.live.rootAmp);
                 }
                 return;
             }
-            double ex = s.spread >= 60f ? 1.0 : 1.7;
-            JetField.Blob(sc, in fr, nx, ny, s.rootR * ex * b, s.rootR * b, a, s.rootAmp);
+            double ex = s.live.spread >= 60f ? 1.0 : 1.7;
+            JetField.Blob(sc, in fr, nx, ny, s.live.rootR * ex * b, s.live.rootR * b, a, s.live.rootAmp);
         }
 
         // ── stage: the instant itself ──
@@ -616,7 +618,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         {
             var f = s.flash;
             if (f.radius <= 0f || !s.HasSchedule) return;
-            double nx = fr.NozzleX, ny = fr.NozzleY, a = s.aim * Math.PI / 180.0;
+            double nx = fr.NozzleX, ny = fr.NozzleY, a = s.live.aim * Math.PI / 180.0;
             foreach (var bl in BlastList(s))
             {
                 double sAge = Mod1(phase - bl.at) / Math.Max(f.life, 1e-3);
@@ -634,11 +636,11 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var tab = (Slots)tab0;
             int n = tab.N;
             double nx = fr.NozzleX, ny = fr.NozzleY;
-            double reachPx = s.reach * s.w, srcPx = s.srcR * s.w;
-            double aim0 = s.aim * Math.PI / 180.0, sweep = s.sweep * Math.PI / 180.0, sw = s.swirl * Math.PI / 180.0;
+            double reachPx = s.live.reach * s.w, srcPx = s.srcR * s.w;
+            double aim0 = s.live.aim * Math.PI / 180.0, sweep = s.live.sweep * Math.PI / 180.0, sw = s.swirl * Math.PI / 180.0;
             double kd = Math.Max(s.drag, 1e-3), denom = 1.0 - Math.Exp(-kd);
-            bool fullCircle = s.spread >= 180f;
-            double lim = Math.Min(s.spread + 15.0, 180.0) * Math.PI / 180.0;
+            bool fullCircle = s.live.spread >= 180f;
+            double lim = Math.Min(s.live.spread + 15.0, 180.0) * Math.PI / 180.0;
             bool fracture = s.fracture.chance != 0f && s.fracture.pieces >= 2, second = fracture && s.fracture2.chance != 0f;
             double invShrink = 1.0 / Math.Max(1.0 - s.shrinkAt, 1e-3);
             for (int i = 0; i < n; i++)
@@ -651,12 +653,12 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 // the sweep, the spin and the pulse are frozen into the puff at its BIRTH phase
                 double ep = tab.birth[i];
                 double aim = aim0;
-                if (s.sweep != 0f) aim += sweep * Math.Sin(TAU * s.sweepN * ep);
+                if (s.live.sweep != 0f) aim += sweep * Math.Sin(TAU * s.sweepN * ep);
                 if (s.spin != 0) aim += TAU * s.spin * ep;
                 double pulse = 1.0;
-                if (s.pulseN != 0 && s.pulseDepth != 0f)
+                if (s.pulseN != 0 && s.live.pulseDepth != 0f)
                 {
-                    pulse = 1.0 + s.pulseDepth * Math.Cos(TAU * s.pulseN * ep);
+                    pulse = 1.0 + s.live.pulseDepth * Math.Cos(TAU * s.pulseN * ep);
                     if (pulse < 0.05) pulse = 0.05; else if (pulse > 2.5) pulse = 2.5;
                 }
                 double d = reachPx * tab.vs[i] * (1.0 - Math.Exp(-kd * sAge)) / denom;
@@ -665,7 +667,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 else
                 {
                     double room = Math.Max(lim - Math.Abs(da), 0.0);
-                    theta = aim + da + Math.Sign(da) * Math.Min(Math.Abs(da) * s.shedKick, room * 0.85);
+                    theta = aim + da + Math.Sign(da) * Math.Min(Math.Abs(da) * s.live.shedKick, room * 0.85);
                 }
                 double thetaP = s.swirl != 0f ? theta + sw * sAge : theta;
                 // the crack: smoothstepped and raised to 1.6 so the first frames of the break are almost nothing, weighted
@@ -703,9 +705,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     }
                 }
                 py += s.grav * reachPx * sAge * sAge - s.buoy * reachPx * Math.Pow(sAge, 2.4);
-                if (tab.shed[i]) py += tab.drift[i] * s.shedKick * 3.0 * sAge * sAge;
+                if (tab.shed[i]) py += tab.drift[i] * s.live.shedKick * 3.0 * sAge * sAge;
                 // entrainment per px travelled + swell per unit age (gas that goes nowhere still expands)
-                double r = s.r0 * tab.rs[i] + s.growth * d + s.swell * reachPx * sAge;
+                double r = s.live.r0 * tab.rs[i] + s.growth * d + s.swell * reachPx * sAge;
                 if (s.shrink != 0f && !tab.shed[i])
                 {
                     // it dies by getting SMALLER, from the outside in: the front loses `shrink` of itself, the slowest
@@ -714,7 +716,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     r *= 1.0 - s.shrink * Math.Pow(tab.lead[i], 1.4) * (u * u * (3.0 - 2.0 * u));
                 }
                 if (s.shedSwell != 0f && tab.shed[i]) r *= 1.0 + s.shedSwell * sAge;
-                double aspect = 1.0 + s.elong * Math.Exp(-sAge / Math.Max(s.roundAt, 0.02));
+                double aspect = 1.0 + s.live.elong * Math.Exp(-sAge / Math.Max(s.roundAt, 0.02));
                 double ori = thetaP;
                 if (s.swirl != 0f)
                 {
@@ -724,14 +726,14 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 // the transparency starts LATER: the decay pushed to the back of the life by `hold`
                 double decay = s.hold != 0f ? 1.0 - Math.Pow(sAge, 1.0 + s.hold) : 1.0 - sAge;
                 if (decay < 0) decay = 0; else if (decay > 1) decay = 1;
-                double amp = s.strength * tab.amp[i] * tab.ampk[i] * pulse * Fade(sAge) * Math.Pow(decay, s.cool);
-                if (s.shockN != 0f && s.shockDepth != 0f)
+                double amp = s.live.strength * tab.amp[i] * tab.ampk[i] * pulse * Fade(sAge) * Math.Pow(decay, s.live.cool);
+                if (s.shockN != 0f && s.live.shockDepth != 0f)
                 {
-                    amp *= 1.0 + s.shockDepth * Math.Cos(TAU * s.shockN * d / Math.Max(reachPx, 1.0));
+                    amp *= 1.0 + s.live.shockDepth * Math.Cos(TAU * s.shockN * d / Math.Max(reachPx, 1.0));
                     if (amp < 0) amp = 0;
                 }
                 if (tab.shed[i]) amp *= 0.72;
-                double tint = s.soot != 0f ? Math.Min(Math.Max(s.soot * sAge, 0.0), 1.0) : 0.0;
+                double tint = s.live.soot != 0f ? Math.Min(Math.Max(s.live.soot * sAge, 0.0), 1.0) : 0.0;
                 JetField.Blob(sc, in fr, px, py, r * aspect, r, ori, amp, tint);
             }
         }
@@ -743,8 +745,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             if (s.ringN <= 0) return;
             // without a schedule the edge-on branch is the base's, verbatim
             if (!s.HasSchedule && !s.ringFlat) { base.Rings(bs, in fr, phase, sc); return; }
-            double reachPx = s.reach * s.w, srcPx = s.srcR * s.w;
-            double a = s.aim * Math.PI / 180.0, ca = Math.Cos(a), sa = Math.Sin(a);
+            double reachPx = s.live.reach * s.w, srcPx = s.srcR * s.w;
+            double a = s.live.aim * Math.PI / 180.0, ca = Math.Cos(a), sa = Math.Sin(a);
             double kd = Math.Max(s.drag, 1e-3), denom = 1.0 - Math.Exp(-kd);
             var bl = s.HasSchedule ? BlastList(s) : null;
             bool fracture = s.fracture.chance != 0f && s.fracture.pieces >= 2 && s.ringFlat;
@@ -757,8 +759,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 else { at = m / (double)s.ringN; pw = 1.0; ox = 0.0; oy = 0.0; }
                 double sAge = Mod1(phase - at) / Math.Max(s.life * s.ringLife, 1e-3);
                 if (sAge >= 1.0) continue;
-                double d = reachPx * s.ringReach * pw * (1.0 - Math.Exp(-kd * sAge)) / denom;
-                double amp0 = s.strength * s.ringAmp * pw * Fade(sAge, 0.10) * Math.Pow(Math.Max(0.0, 1.0 - sAge), s.cool * (s.ringFlat ? 0.50 : 0.30));
+                double d = reachPx * s.live.ringReach * pw * (1.0 - Math.Exp(-kd * sAge)) / denom;
+                double amp0 = s.live.strength * s.live.ringAmp * pw * Fade(sAge, 0.10) * Math.Pow(Math.Max(0.0, 1.0 - sAge), s.live.cool * (s.ringFlat ? 0.50 : 0.30));
                 double rot = 1.31 * m;
                 double wob = 0.17 + 0.05 * ((m * 7) % 3);
                 double nx = fr.NozzleX + ox, ny = fr.NozzleY + oy;
@@ -766,7 +768,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 if (s.ringFlat)
                 {
                     double rr = srcPx + d;
-                    double pr = s.ringR0 + s.ringGrow * d * 0.42;
+                    double pr = s.live.ringR0 + s.ringGrow * d * 0.42;
                     double arc = Math.Min(s.ringArc, 180f) * Math.PI / 180.0;
                     bool full = arc >= Math.PI - 1e-6;
                     double span = full ? TAU : 2.0 * arc;
@@ -806,8 +808,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     }
                     continue;
                 }
-                double rr2 = s.ringR0 + s.ringGrow * d;
-                double pr2 = s.r0 * 0.85 + s.growth * d * 0.34;
+                double rr2 = s.live.ringR0 + s.ringGrow * d;
+                double pr2 = s.live.r0 * 0.85 + s.growth * d * 0.34;
                 int k2 = (int)Math.Max(s.ringK, Math.Min(48, RoundHalfEven(TAU * rr2 / Math.Max(pr2 * 1.05, 1e-3))));
                 for (int j = 0; j < k2; j++)
                 {
@@ -831,9 +833,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var c = s.chunks;
             if (c.count <= 0 || !s.HasSchedule) return;
             var rng = new PlusNumpyRng(unchecked((uint)(fr.seed * 6367 + 29)));
-            double nx = fr.NozzleX, ny = fr.NozzleY, reachPx = s.reach * s.w, a = s.aim * Math.PI / 180.0;
+            double nx = fr.NozzleX, ny = fr.NozzleY, reachPx = s.live.reach * s.w, a = s.live.aim * Math.PI / 180.0;
             var bl = BlastList(s);
-            double arc = Math.Min(s.spread * c.wide, 180.0) * Math.PI / 180.0;
+            double arc = Math.Min(s.live.spread * c.wide, 180.0) * Math.PI / 180.0;
             int n = c.count;
             var da = new double[n]; var vs = new double[n]; var rs = new double[n]; var sag = new double[n]; var lag = new double[n];
             for (int i = 0; i < n; i++) da[i] = rng.Uniform(-1.0, 1.0) * arc;
@@ -878,9 +880,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var g = s.gobs;
             if (g.count <= 0 || !s.HasSchedule) return;
             var rng = new PlusNumpyRng(unchecked((uint)(fr.seed * 3571 + 91)));
-            double nx = fr.NozzleX, ny = fr.NozzleY, reachPx = s.reach * s.w, a = s.aim * Math.PI / 180.0;
+            double nx = fr.NozzleX, ny = fr.NozzleY, reachPx = s.live.reach * s.w, a = s.live.aim * Math.PI / 180.0;
             var bl = BlastList(s);
-            double arc = Math.Min(s.spread * g.wide, 180.0) * Math.PI / 180.0;
+            double arc = Math.Min(s.live.spread * g.wide, 180.0) * Math.PI / 180.0;
             int n = g.count;
             var da = new double[n]; var vs = new double[n]; var rs = new double[n]; var sag = new double[n]; var born = new double[n];
             for (int i = 0; i < n; i++) da[i] = rng.Uniform(-1.0, 1.0) * arc;
@@ -900,7 +902,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 double baseD = reachPx * g.reach * vs[i] * b.pw;
                 double r = g.radius * rs[i] * (1.0 + g.swell * sAge);
                 double aspect = 1.0 + 1.30 * Math.Exp(-sAge / 0.34);   // stretched while moving, round once stalled
-                double tint = s.soot != 0f ? Math.Min(s.soot * sAge * 1.15, 1.0) : 0.0;
+                double tint = s.live.soot != 0f ? Math.Min(s.live.soot * sAge * 1.15, 1.0) : 0.0;
                 for (int j = 0; j < trail; j++)
                 {
                     double sj = sAge * (1.0 - 0.13 * j);
@@ -920,9 +922,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var du = s.dust;
             if (du.count <= 0) return;
             var rng = new PlusNumpyRng(unchecked((uint)(fr.seed * 2749 + 617)));
-            double nx = fr.NozzleX, ny = fr.NozzleY, reachPx = s.reach * s.w, srcPx = s.srcR * s.w, a = s.aim * Math.PI / 180.0;
+            double nx = fr.NozzleX, ny = fr.NozzleY, reachPx = s.live.reach * s.w, srcPx = s.srcR * s.w, a = s.live.aim * Math.PI / 180.0;
             int n = du.count;
-            double arc = Math.Min(s.spread * du.wide, 180.0) * Math.PI / 180.0;
+            double arc = Math.Min(s.live.spread * du.wide, 180.0) * Math.PI / 180.0;
             var th0 = new double[n]; var born = new double[n]; var onr = new double[n]; var vs = new double[n]; var rs = new double[n]; var sag = new double[n]; var scat = new double[n];
             for (int i = 0; i < n; i++) th0[i] = a + rng.Uniform(-1.0, 1.0) * arc;
             for (int i = 0; i < n; i++) born[i] = du.from + (du.to - du.from) * Math.Pow(rng.NextDouble(), du.bias);
@@ -944,7 +946,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 double rb = srcPx + reachPx * du.where * b.pw * (1.0 - Math.Exp(-kg * born[i])) / dg * onr[i];
                 double th = th0[i] + scat[i];
                 double baseD = reachPx * du.reach * vs[i] * b.pw;
-                double tint = s.soot != 0f ? Math.Min(s.soot * (born[i] + sAge * 0.5), 1.0) : 0.0;
+                double tint = s.live.soot != 0f ? Math.Min(s.live.soot * (born[i] + sAge * 0.5), 1.0) : 0.0;
                 double c0 = Math.Cos(th0[i]), s0 = Math.Sin(th0[i]), ct = Math.Cos(th), st = Math.Sin(th);
                 for (int j = 0; j < trail; j++)
                 {
@@ -967,9 +969,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             if (s.sparks <= 0) return;
             var rng = new PlusNumpyRng(unchecked((uint)(fr.seed * 104729 + 77)));
             int n = s.sparks;
-            double nx = fr.NozzleX, ny = fr.NozzleY, reachPx = s.reach * s.w, srcPx = s.srcR * s.w;
-            double a = s.aim * Math.PI / 180.0, sw = s.swirl * Math.PI / 180.0;
-            double arc = Math.Min(Math.Min(s.spread * 1.7, s.spread + 15.0), 180.0) * Math.PI / 180.0;
+            double nx = fr.NozzleX, ny = fr.NozzleY, reachPx = s.live.reach * s.w, srcPx = s.srcR * s.w;
+            double a = s.live.aim * Math.PI / 180.0, sw = s.swirl * Math.PI / 180.0;
+            double arc = Math.Min(Math.Min(s.live.spread * 1.7, s.live.spread + 15.0), 180.0) * Math.PI / 180.0;
             // a spark rises because the gas around it does: its lift is tied to buoy, not a fixed 0.10..0.55
             double lift = s.buoy / 0.18; if (lift < 0.35) lift = 0.35; else if (lift > 2.0) lift = 2.0;
             var ph = new double[n]; var da = new double[n]; var vs = new double[n]; var rise = new double[n];
@@ -989,7 +991,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 double th = a + da[i] + sw * sAge;
                 double x = nx + ox + d * Math.Cos(th);
                 double y = ny + oy + d * Math.Sin(th) - rise[i] * reachPx * sAge * sAge;
-                JetField.Blob(sc, in fr, x, y, s.sparkR * 1.4, s.sparkR, th, 1.5 * pw * Fade(sAge, 0.08) * Math.Pow(1.0 - sAge, 1.2));
+                JetField.Blob(sc, in fr, x, y, s.live.sparkR * 1.4, s.live.sparkR, th, 1.5 * pw * Fade(sAge, 0.08) * Math.Pow(1.0 - sAge, 1.2));
             }
         }
     }

@@ -53,7 +53,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [ZUIShowIf("variant", "Halo")] [Tooltip("halo's contract values (seed 181, 192 × 192, 32 frames @ 12 fps) — THE COLD ONE: a thin pale teal haze barely holding, drifting through standing concentric shells; the lowest ceilings in the set.")] public RadialJetSettings halo = RadialJetDraws.Halo();
 
         /// The shared placement dials start on corona's own centre (50 % across, 54 % down).
-        public RadialJetForm() { anchorX = 0.50f; anchorY = 0.54f; }
+        public RadialJetForm() { anchorX = new ZUIValue(0.50f); anchorY = new ZUIValue(0.54f); }
 
         public override JetSettings Active => variant switch
         {

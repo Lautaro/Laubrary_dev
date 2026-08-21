@@ -128,13 +128,13 @@ namespace Laubrary.PyrePlus.Tests
             var f = new RadialJetForm();
             Assert.That(f.SetContractParam("draw", "crown"), Is.True);
             Assert.That(f.variant, Is.EqualTo(RadialJetForm.Variant.Crown));
-            Assert.That(f.SetContractParam("src_r", 0.2), Is.True); Assert.That(f.crown.srcR, Is.EqualTo(0.2f));
-            Assert.That(f.SetContractParam("lobe_depth", 0.5), Is.True); Assert.That(f.crown.lobeDepth, Is.EqualTo(0.5f));
+            Assert.That(f.SetContractParam("src_r", 0.2), Is.True); Assert.That(f.crown.srcR.staticValue, Is.EqualTo(0.2f));
+            Assert.That(f.SetContractParam("lobe_depth", 0.5), Is.True); Assert.That(f.crown.lobeDepth.staticValue, Is.EqualTo(0.5f));
             Assert.That(f.SetContractParam("ring_flat", true), Is.True); Assert.That(f.crown.ringFlat, Is.True);
             Assert.That(f.SetContractParam("warp_spin", 2L), Is.True); Assert.That(f.crown.warpSpin, Is.EqualTo(2));
             Assert.That(f.SetContractParam("root_k", 8L), Is.True); Assert.That(f.crown.rootK, Is.EqualTo(8));
             Assert.That(f.SetContractParam("ramp", "BURNER"), Is.True);
-            Assert.That(f.crown.sootLo, Is.EqualTo(0.18f)); Assert.That(f.crown.sootHi, Is.EqualTo(0.88f));
+            Assert.That(f.crown.sootLo.staticValue, Is.EqualTo(0.18f)); Assert.That(f.crown.sootHi.staticValue, Is.EqualTo(0.88f));
             Assert.That(f.SetContractParam("draw", "gout"), Is.False, "a base-jet name is not a radial variant");
         }
 
@@ -152,6 +152,24 @@ namespace Laubrary.PyrePlus.Tests
             Assert.That(PlusRampPresets.JetSecondary("BURNER").stops.Count, Is.EqualTo(7));
             Assert.That(PlusRampPresets.JetSecondary("SOLAR").IsEmpty, Is.True);
             Assert.That(PlusRampPresets.JetSootWindow("BURNER"), Is.EqualTo(new Vector2(0.18f, 0.88f)));
+        }
+
+        // ── envelopes (T-0063) ──
+        [Test]
+        public void Envelope_StaticEqualsFlatCurve_AndARadialDialRampDrivesTheRender()
+        {
+            // a base dial (strength) and the radial box's own (swirl, through RadialJetSettings.Own): a flat Curve renders
+            // the Static bytes; a moving swirl Curve changes the first and the last frame of the loop
+            var stat = EnvelopeTestUtil.Spec(new RadialJetForm { variant = RadialJetForm.Variant.Whirl }, 64, 10, 139);
+            var flat = EnvelopeTestUtil.Spec(new RadialJetForm { variant = RadialJetForm.Variant.Whirl, whirl = { strength = EnvelopeTestUtil.Flat(RadialJetDraws.Whirl().strength.staticValue), swirl = EnvelopeTestUtil.Flat(RadialJetDraws.Whirl().swirl.staticValue) } }, 64, 10, 139);
+            var ramp = EnvelopeTestUtil.Spec(new RadialJetForm { variant = RadialJetForm.Variant.Whirl, whirl = { swirl = EnvelopeTestUtil.Ramp(0f, 300f) } }, 64, 10, 139);
+            try
+            {
+                Assert.That(EnvelopeTestUtil.FnvAll(flat), Is.EqualTo(EnvelopeTestUtil.FnvAll(stat)), "a flat Curve is the Static value");
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(stat, 0), PyrePlusRenderer.RenderFrame(ramp, 0)), Is.GreaterThan(0), "frame 0: swirl 0 vs 142");
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(stat, 9), PyrePlusRenderer.RenderFrame(ramp, 9)), Is.GreaterThan(0), "frame 9: swirl 300 vs 142");
+            }
+            finally { Object.DestroyImmediate(stat); Object.DestroyImmediate(flat); Object.DestroyImmediate(ramp); }
         }
     }
 }

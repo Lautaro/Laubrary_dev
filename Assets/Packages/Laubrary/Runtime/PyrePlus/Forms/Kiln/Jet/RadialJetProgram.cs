@@ -45,6 +45,7 @@
 // explosive `Frame` inserts stages — override `Frame` and call the shared stages in order rather than re-implementing
 // `BeginInstance`.
 using System;
+using Laubrary.SpriteFx;
 using UnityEngine;
 
 namespace Laubrary.PyrePlus.Forms.Kiln
@@ -55,21 +56,21 @@ namespace Laubrary.PyrePlus.Forms.Kiln
     {
         // ── the arc ──
         [Tooltip("Angle-distribution power across the arc: 1 = uniform (a disc is actually filled); > 1 biases towards the aim (the base jet's fixed 1.7 gives a beam a spine). Wide arcs (Spread ≥ 60°) also draw their base angles STRATIFIED and permuted, so a thin corona has no bald patch and no rotating arm.")]
-        [Range(0.5f, 3f)] public float bias = 1.7f;
+        [Range(0.5f, 3f)] public ZUIValue bias = new ZUIValue(1.7f);
         [Tooltip("Birth radius, canvas WIDTHS of the source frame: > 0 = the gas leaves a burner RING rather than a point, and the middle stays dark.")]
-        [Range(0f, 0.3f)] public float srcR = 0f;
+        [Range(0f, 0.3f)] public ZUIValue srcR = new ZUIValue(0f);
 
         // ── the three ways a disc stops being a disc ──
         [Tooltip("Degrees a puff is carried AROUND the source over its life — its track becomes a spiral and it is stretched along that track (a fire whirl). Applied at the puff's age, not to its birth angle.")]
-        [Range(-360f, 360f)] public float swirl = 0f;
+        [Range(-360f, 360f)] public ZUIValue swirl = new ZUIValue(0f);
         [Tooltip("Whole turns per loop the emission pattern rotates (integer, so the loop stays exact); a puff carries the aim it was born under, so a spinning source trails spiral arms.")]
         [Range(-3, 3)] public int spin = 0;
         [Tooltip("Gather the arc into N tongues with real gaps between them (the birth angles are REDISTRIBUTED by φ − depth·sin φ, never resampled, so the sheet keeps its gas). 0 = an even sheet.")]
         [Range(0, 12)] public int lobes = 0;
         [Tooltip("How hard the tongues clump, 0..0.95 (the remap stays crossing-free below 1).")]
-        [Range(0f, 0.95f)] public float lobeDepth = 0f;
+        [Range(0f, 0.95f)] public ZUIValue lobeDepth = new ZUIValue(0f);
         [Tooltip("Extra travel on a lobe axis against between them (speed × (1 − kick·(1 − cos-window))), so the tongues have length as well as density.")]
-        [Range(0f, 1f)] public float lobeKick = 0f;
+        [Range(0f, 1f)] public ZUIValue lobeKick = new ZUIValue(0f);
 
         // ── the root ──
         [Tooltip("With Src R > 0: the root is this many lumps laid round the birth circle (each stretched along the tangent); 0 = one lump at the centre.")]
@@ -82,6 +83,12 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         // ── turbulence ──
         [Tooltip("Whole turns per loop the polar noise texture rotates around the source (integer, so the loop stays exact).")]
         [Range(-3, 3)] public int warpSpin = 0;
+
+        /// The radial dials' envelopes resolved at one layer life (slots 40 onward).
+        public struct Own { public float bias, srcR, swirl, lobeDepth, lobeKick; }
+        [NonSerialized] public Own own;
+        public override void Resolve(in PlusFormPrepareCtx ctx) { base.Resolve(ctx); own = new Own { bias = ctx.Eval(bias, 40), srcR = ctx.Eval(srcR, 41), swirl = ctx.Eval(swirl, 42), lobeDepth = ctx.Eval(lobeDepth, 43), lobeKick = ctx.Eval(lobeKick, 44) }; }
+        public override void ResolveStatic() { base.ResolveStatic(); own = new Own { bias = bias.staticValue, srcR = srcR.staticValue, swirl = swirl.staticValue, lobeDepth = lobeDepth.staticValue, lobeKick = lobeKick.staticValue }; }
     }
 
     /// The gen-3 stage overrides on the shared engine (see the file header). Stateless, like the base.
@@ -94,6 +101,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         // ── stage: the slot table — the angle distribution IS the whole generation ──
         public override JetSlots BuildSlots(JetSettings bs, int seed)
         {
+            bs.EnsureLive();
             var s = R(bs);
             var rng = new PlusNumpyRng(unchecked((uint)(seed * 7919 + 13)));
             int n = s.slots;
@@ -101,25 +109,25 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             {
                 phase = new double[n], da = new double[n], vs = new double[n], rs = new double[n], amp = new double[n], ls = new double[n], drift = new double[n], shed = new bool[n],
             };
-            double j = s.jitter, spread = s.spread * Math.PI / 180.0, bias = s.bias;
+            double j = s.live.jitter, spread = s.live.spread * Math.PI / 180.0, bias = s.own.bias;
             for (int i = 0; i < n; i++) t.phase[i] = i / (double)n;
             double[] b;
-            if (s.spread >= 60f) b = StratifiedPermuted(rng, n);
+            if (s.live.spread >= 60f) b = StratifiedPermuted(rng, n);
             else { b = new double[n]; for (int i = 0; i < n; i++) b[i] = rng.Uniform(-1.0, 1.0); }
             for (int i = 0; i < n; i++) t.da[i] = Math.Sign(b[i]) * Math.Pow(Math.Abs(b[i]), bias) * spread;
-            if (s.lobes != 0 && s.lobeDepth != 0f)
-                for (int i = 0; i < n; i++) { double phi = t.da[i] * s.lobes; t.da[i] = (phi - s.lobeDepth * Math.Sin(phi)) / s.lobes; }
+            if (s.lobes != 0 && s.own.lobeDepth != 0f)
+                for (int i = 0; i < n; i++) { double phi = t.da[i] * s.lobes; t.da[i] = (phi - s.own.lobeDepth * Math.Sin(phi)) / s.lobes; }
             for (int i = 0; i < n; i++)
             {
                 // the lobe window: 1 on a lobe axis, 0 between — the on-axis puffs travel further
                 double lf = s.lobes != 0 ? 0.5 + 0.5 * Math.Cos(s.lobes * t.da[i]) : 1.0;
-                t.vs[i] = (1.0 + j * rng.Uniform(-0.42, 0.42)) * (1.0 - s.lobeKick * (1.0 - lf));
+                t.vs[i] = (1.0 + j * rng.Uniform(-0.42, 0.42)) * (1.0 - s.own.lobeKick * (1.0 - lf));
             }
             for (int i = 0; i < n; i++) t.rs[i] = 1.0 + j * rng.Uniform(-0.34, 0.50);
             for (int i = 0; i < n; i++) t.amp[i] = 1.0 + j * rng.Uniform(-0.30, 0.30);
             for (int i = 0; i < n; i++) t.ls[i] = 1.0 + j * rng.Uniform(-0.25, 0.25);
             for (int i = 0; i < n; i++) t.drift[i] = rng.Uniform(-1.0, 1.0);
-            for (int i = 0; i < n; i++) t.shed[i] = rng.NextDouble() < s.shed;
+            for (int i = 0; i < n; i++) t.shed[i] = rng.NextDouble() < s.live.shed;
             return t;
         }
 
@@ -129,7 +137,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var s = R(bs);
             const int pu = 24, pv = 16, pw = 4;   // angle, radius, time
             double cell = s.warpCell;
-            double reachPx = Math.Max(s.reach * s.w, 1.0);
+            double reachPx = Math.Max(s.live.reach * s.w, 1.0);
             double pxPerLoop = reachPx / Math.Max(s.life, 0.05);
             int kv = Math.Max(1, RoundHalfEven(pxPerLoop / (pv * cell)));
             double offV = phase * kv * pv, offU = s.warpSpin != 0 ? phase * s.warpSpin * pu : 0.0;
@@ -151,7 +159,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     double dt = JetNoise.Sample(sc, fr.seed + 4409, u, v, ww, pu, pv, pw, s.warpOct);
                     double along = rad * invReach; if (along > 1.35) along = 1.35;
                     double fade = rad / 7.0; if (fade > 1.0) fade = 1.0;
-                    double amp = (s.warp0 + s.warp1 * along) * fade;
+                    double amp = (s.live.warp0 + s.live.warp1 * along) * fade;
                     double ct = Math.Cos(th), st = Math.Sin(th);
                     double dx = (dr * ct - dt * st) * amp, dy = (dr * st + dt * ct) * amp;
                     sc.sx[i] = px + dx; sc.sy[i] = py + dy;
@@ -165,23 +173,23 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         public override void Root(JetSettings bs, in JetFrame fr, double phase, JetScratch sc)
         {
             var s = R(bs);
-            if (s.rootR <= 0) return;
+            if (s.live.rootR <= 0) return;
             double nx = fr.NozzleX, ny = fr.NozzleY;
             double b = 1.0 + 0.14 * Math.Sin(TAU * 3.0 * phase);
-            if (s.srcR > 0f && s.rootK > 0)
+            if (s.own.srcR > 0f && s.rootK > 0)
             {
-                double rr = s.srcR * s.w;
+                double rr = s.own.srcR * s.w;
                 for (int j = 0; j < s.rootK; j++)
                 {
                     double th = TAU * j / s.rootK;
                     double bb = b * (1.0 + 0.10 * Math.Cos(3.0 * th + TAU * phase));
-                    JetField.Blob(sc, in fr, nx + rr * Math.Cos(th), ny + rr * Math.Sin(th), s.rootR * 1.5 * bb, s.rootR * bb, th + Math.PI / 2, s.rootAmp);
+                    JetField.Blob(sc, in fr, nx + rr * Math.Cos(th), ny + rr * Math.Sin(th), s.live.rootR * 1.5 * bb, s.live.rootR * bb, th + Math.PI / 2, s.live.rootAmp);
                 }
                 return;
             }
             // a radial source has no downstream, so its lump is round rather than a streak
-            double ex = s.spread >= 60f ? 1.0 : 1.7;
-            JetField.Blob(sc, in fr, nx, ny, s.rootR * ex * b, s.rootR * b, s.aim * Math.PI / 180.0, s.rootAmp);
+            double ex = s.live.spread >= 60f ? 1.0 : 1.7;
+            JetField.Blob(sc, in fr, nx, ny, s.live.rootR * ex * b, s.live.rootR * b, s.live.aim * Math.PI / 180.0, s.live.rootAmp);
         }
 
         // ── stage: every live puff at its own age, thrown into the arc ──
@@ -190,13 +198,13 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var s = R(bs);
             int n = tab.N;
             double nx = fr.NozzleX, ny = fr.NozzleY;
-            double reachPx = s.reach * s.w, srcPx = s.srcR * s.w;
-            double aim0 = s.aim * Math.PI / 180.0, sweep = s.sweep * Math.PI / 180.0, sw = s.swirl * Math.PI / 180.0;
+            double reachPx = s.live.reach * s.w, srcPx = s.own.srcR * s.w;
+            double aim0 = s.live.aim * Math.PI / 180.0, sweep = s.live.sweep * Math.PI / 180.0, sw = s.own.swirl * Math.PI / 180.0;
             double kd = Math.Max(s.drag, 1e-3), denom = 1.0 - Math.Exp(-kd);
-            bool fullCircle = s.spread >= 180f;
+            bool fullCircle = s.live.spread >= 180f;
             // the shed kick is bounded by the room left in the arc (a clamp would FOLD every over-thrown puff onto the
             // limit — a hard bar through the disc); on a full circle there is no outside to be thrown to
-            double lim = Math.Min(s.spread + 15.0, 180.0) * Math.PI / 180.0;
+            double lim = Math.Min(s.live.spread + 15.0, 180.0) * Math.PI / 180.0;
             for (int i = 0; i < n; i++)
             {
                 double life = s.life * tab.ls[i] * (tab.shed[i] ? s.shedLife : 1.0);
@@ -205,12 +213,12 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 if (sAge >= 1.0) continue;
                 double ep = tab.phase[i];
                 double aim = aim0;
-                if (s.sweep != 0f) aim += sweep * Math.Sin(TAU * s.sweepN * ep);
+                if (s.live.sweep != 0f) aim += sweep * Math.Sin(TAU * s.sweepN * ep);
                 if (s.spin != 0) aim += TAU * s.spin * ep;
                 double pulse = 1.0;
-                if (s.pulseN != 0 && s.pulseDepth != 0f)
+                if (s.pulseN != 0 && s.live.pulseDepth != 0f)
                 {
-                    pulse = 1.0 + s.pulseDepth * Math.Cos(TAU * s.pulseN * ep);
+                    pulse = 1.0 + s.live.pulseDepth * Math.Cos(TAU * s.pulseN * ep);
                     if (pulse < 0.05) pulse = 0.05; else if (pulse > 2.5) pulse = 2.5;
                 }
                 double d = reachPx * tab.vs[i] * (1.0 - Math.Exp(-kd * sAge)) / denom;
@@ -219,32 +227,32 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 else
                 {
                     double room = Math.Max(lim - Math.Abs(da), 0.0);
-                    theta = aim + da + Math.Sign(da) * Math.Min(Math.Abs(da) * s.shedKick, room * 0.85);
+                    theta = aim + da + Math.Sign(da) * Math.Min(Math.Abs(da) * s.live.shedKick, room * 0.85);
                 }
-                double thetaP = s.swirl != 0f ? theta + sw * sAge : theta;
+                double thetaP = s.own.swirl != 0f ? theta + sw * sAge : theta;
                 double rr = srcPx + d;
                 double px = nx + rr * Math.Cos(thetaP);
                 double py = ny + rr * Math.Sin(thetaP);
                 py += s.grav * reachPx * sAge * sAge - s.buoy * reachPx * Math.Pow(sAge, 2.4);
-                if (tab.shed[i]) py += tab.drift[i] * s.shedKick * 3.0 * sAge * sAge;
-                double r = s.r0 * tab.rs[i] + s.growth * d;
-                double aspect = 1.0 + s.elong * Math.Exp(-sAge / Math.Max(s.roundAt, 0.02));
+                if (tab.shed[i]) py += tab.drift[i] * s.live.shedKick * 3.0 * sAge * sAge;
+                double r = s.live.r0 * tab.rs[i] + s.growth * d;
+                double aspect = 1.0 + s.live.elong * Math.Exp(-sAge / Math.Max(s.roundAt, 0.02));
                 // stretched along its VELOCITY — on a spiral that is the lead angle, not the radius
                 double ori = thetaP;
-                if (s.swirl != 0f)
+                if (s.own.swirl != 0f)
                 {
                     double drds = reachPx * tab.vs[i] * kd * Math.Exp(-kd * sAge) / denom;
                     ori = thetaP + Math.Atan2(rr * sw, Math.Max(drds, 1e-3));
                 }
-                double amp = s.strength * tab.amp[i] * pulse * Fade(sAge) * Math.Pow(Math.Max(1.0 - sAge, 0.0), s.cool);
-                if (s.shockN != 0f && s.shockDepth != 0f)
+                double amp = s.live.strength * tab.amp[i] * pulse * Fade(sAge) * Math.Pow(Math.Max(1.0 - sAge, 0.0), s.live.cool);
+                if (s.shockN != 0f && s.live.shockDepth != 0f)
                 {
                     // modulated by DISTANCE: on a disc the standing nodes are concentric bright shells
-                    amp *= 1.0 + s.shockDepth * Math.Cos(TAU * s.shockN * d / Math.Max(reachPx, 1.0));
+                    amp *= 1.0 + s.live.shockDepth * Math.Cos(TAU * s.shockN * d / Math.Max(reachPx, 1.0));
                     if (amp < 0) amp = 0;
                 }
                 if (tab.shed[i]) amp *= 0.72;
-                double tint = s.soot != 0f ? Math.Min(Math.Max(s.soot * sAge, 0.0), 1.0) : 0.0;
+                double tint = s.live.soot != 0f ? Math.Min(Math.Max(s.live.soot * sAge, 0.0), 1.0) : 0.0;
                 JetField.Blob(sc, in fr, px, py, r * aspect, r, ori, amp, tint);
             }
         }
@@ -256,18 +264,18 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             if (s.ringN <= 0) return;
             if (!s.ringFlat) { base.Rings(bs, in fr, phase, sc); return; }
             double nx = fr.NozzleX, ny = fr.NozzleY;
-            double reachPx = s.reach * s.w, srcPx = s.srcR * s.w;
+            double reachPx = s.live.reach * s.w, srcPx = s.own.srcR * s.w;
             double kd = Math.Max(s.drag, 1e-3), denom = 1.0 - Math.Exp(-kd);
             for (int m = 0; m < s.ringN; m++)
             {
                 double sAge = Mod1(phase - m / (double)s.ringN) / Math.Max(s.life * s.ringLife, 1e-3);
                 if (sAge >= 1.0) continue;
-                double d = reachPx * s.ringReach * (1.0 - Math.Exp(-kd * sAge)) / denom;
-                double amp0 = s.strength * s.ringAmp * Fade(sAge, 0.10) * Math.Pow(Math.Max(0.0, 1.0 - sAge), s.cool * 0.50);
+                double d = reachPx * s.live.ringReach * (1.0 - Math.Exp(-kd * sAge)) / denom;
+                double amp0 = s.live.strength * s.live.ringAmp * Fade(sAge, 0.10) * Math.Pow(Math.Max(0.0, 1.0 - sAge), s.live.cool * 0.50);
                 double rot = 1.31 * m;
                 double wob = 0.17 + 0.05 * ((m * 7) % 3);
                 double rr = srcPx + d;                        // face on: the radius IS the travel
-                double pr = s.ringR0 + s.ringGrow * d * 0.42;  // the cord stays thin as the ring gets wide
+                double pr = s.live.ringR0 + s.ringGrow * d * 0.42;  // the cord stays thin as the ring gets wide
                 int k = (int)Math.Max(s.ringK, Math.Min(140, RoundHalfEven(TAU * rr / Math.Max(pr * 0.80, 1e-3))));
                 double rise = s.buoy * reachPx * Math.Pow(sAge, 2.4);
                 for (int j = 0; j < k; j++)
@@ -288,9 +296,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var rng = new PlusNumpyRng(unchecked((uint)(fr.seed * 104729 + 77)));
             int n = s.sparks;
             double nx = fr.NozzleX, ny = fr.NozzleY;
-            double reachPx = s.reach * s.w, srcPx = s.srcR * s.w;
-            double a = s.aim * Math.PI / 180.0, sw = s.swirl * Math.PI / 180.0;
-            double arc = Math.Min(Math.Min(s.spread * 1.7, s.spread + 15.0), 180.0) * Math.PI / 180.0;
+            double reachPx = s.live.reach * s.w, srcPx = s.own.srcR * s.w;
+            double a = s.live.aim * Math.PI / 180.0, sw = s.own.swirl * Math.PI / 180.0;
+            double arc = Math.Min(Math.Min(s.live.spread * 1.7, s.live.spread + 15.0), 180.0) * Math.PI / 180.0;
             var ph = new double[n]; var da = new double[n]; var vs = new double[n]; var rise = new double[n];
             for (int i = 0; i < n; i++) ph[i] = rng.NextDouble();
             for (int i = 0; i < n; i++) da[i] = rng.Uniform(-1.0, 1.0) * arc;
@@ -304,7 +312,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 double th = a + da[i] + sw * sAge;
                 double x = nx + d * Math.Cos(th);
                 double y = ny + d * Math.Sin(th) - rise[i] * reachPx * sAge * sAge;
-                JetField.Blob(sc, in fr, x, y, s.sparkR * 1.4, s.sparkR, th, 1.5 * Fade(sAge, 0.08) * Math.Pow(1.0 - sAge, 1.2));
+                JetField.Blob(sc, in fr, x, y, s.live.sparkR * 1.4, s.live.sparkR, th, 1.5 * Fade(sAge, 0.08) * Math.Pow(1.0 - sAge, 1.2));
             }
         }
     }

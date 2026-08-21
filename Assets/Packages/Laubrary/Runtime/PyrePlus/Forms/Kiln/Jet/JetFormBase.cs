@@ -9,6 +9,7 @@
 // WIDTHS of that frame — the same picture at PyrePlus's 64 px and at the contract's canvas. Shared dials are canvas
 // fractions: Anchor X / Y (the nozzle or centre; Y from the TOP, the contract's convention), Scale.
 using System;
+using Laubrary.SpriteFx;
 using System.Collections;
 using UnityEngine;
 
@@ -22,18 +23,28 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         // ── placement (shared) ──
         [Tooltip("Where the nozzle (or, for a radial jet, the centre) sits across the canvas, as a fraction of the width.")]
-        [Range(0f, 1f)] public float anchorX = 0.5f;
+        [Range(0f, 1f)] public ZUIValue anchorX = new ZUIValue(0.5f);
         [Tooltip("Where the nozzle (or centre) sits down the canvas, as a fraction of the height from the TOP (the source's y-down frame: a positive Aim points down).")]
-        [Range(0f, 1f)] public float anchorY = 0.5f;
+        [Range(0f, 1f)] public ZUIValue anchorY = new ZUIValue(0.5f);
         [Tooltip("Scale of the jet: the variant's source frame width as a fraction of the canvas width; every length inside the variant scales with it (1 = the source frame spans the canvas).")]
-        [Range(0.2f, 2f)] public float scale = 1f;
+        [Range(0.2f, 2f)] public ZUIValue scale = new ZUIValue(1f);
 
         // ── swarm ──
         [PlusSwarmOnly]
         [Tooltip("Scale of each swarm particle's jet as a fraction of the solo Scale (the swarm's own size / depth shading multiplies it).")]
-        [Range(0.1f, 1f)] public float swarmSize = 0.5f;
+        [Range(0.1f, 1f)] public ZUIValue swarmSize = new ZUIValue(0.5f);
 
         // ── runtime ──
+        /// The placement envelopes resolved at one layer life (slots 0–3; the box's dials take 10 onward).
+        public struct Live { public float anchorX, anchorY, scale, swarmSize; }
+        [NonSerialized] public Live live;
+
+        public override void Prepare(in PlusFormPrepareCtx ctx)
+        {
+            live = new Live { anchorX = ctx.Eval(anchorX, 0), anchorY = ctx.Eval(anchorY, 1), scale = ctx.Eval(scale, 2), swarmSize = ctx.Eval(swarmSize, 3) };
+            Active.Resolve(ctx);
+        }
+
         [NonSerialized] JetScratch _scratch;
         [NonSerialized] JetShade.Lut _hot, _soot; [NonSerialized] int _hotHash, _sootHash;
         [NonSerialized] float[] _dumpH, _dumpT, _dumpRt;
@@ -88,6 +99,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         public override void Render(in PlusFormCtx ctx, Color32[] target)
         {
+            // The renderer Prepares before Render; a direct caller (a test, a probe) may not — same funnel, same life, idempotent.
+            Prepare(ctx.PrepareCtxAt(ctx.life));
             int W = ctx.W, H = ctx.H, n = W * H;
             _scratch ??= new JetScratch();
             _scratch.Ensure(n);
@@ -97,18 +110,18 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             // layers decorrelate by a large stride, swarm instances by their index.
             int seed = unchecked(ctx.seed + ctx.layerSalt * 1000003);
             double phase = ctx.frameIndex / (double)Math.Max(1, ctx.frameCount);
-            double uSolo = scale * W / Math.Max(s.w, 1);
+            double uSolo = live.scale * W / Math.Max(s.w, 1);
             var program = Program;
 
             if (ctx.swarm == null)
-                program.Frame(s, JetFrame.Solo(W, H, anchorX * W, anchorY * H, uSolo, seed), phase, _scratch);
+                program.Frame(s, JetFrame.Solo(W, H, live.anchorX * W, live.anchorY * H, uSolo, seed), phase, _scratch);
             else
                 for (int i = 0; i < ctx.swarm.Length; i++)
                 {
                     var sp = ctx.swarm[i];
                     if (sp.own < 0f || sp.own > 1f) continue;
                     // swarm positions are y-up canvas px and orientations CCW in that frame; the program runs y-down
-                    var fr = JetFrame.Solo(W, H, sp.x, H - sp.y, uSolo * swarmSize * Math.Max(sp.sizeMul, 0.01f), unchecked(seed + sp.index * 104729));
+                    var fr = JetFrame.Solo(W, H, sp.x, H - sp.y, uSolo * live.swarmSize * Math.Max(sp.sizeMul, 0.01f), unchecked(seed + sp.index * 104729));
                     fr.rot = -sp.orientDeg * Math.PI / 180.0;
                     fr.amp = Math.Max(sp.brightMul, 0f);
                     program.Frame(InstanceSettings(s, sp.index), fr, phase, _scratch);
@@ -132,7 +145,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     for (int x = 0; x < W; x++)
                     {
                         int i = y * W + x, o = (H - 1 - y) * W + x;
-                        _dumpH[o] = _scratch.H[i] * s.gain; _dumpT[o] = _scratch.T[i];
+                        _dumpH[o] = _scratch.H[i] * s.live.gain; _dumpT[o] = _scratch.T[i];
                     }
             }
             ApplyPixelModifiers(ctx, target);
@@ -186,7 +199,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     string name = value?.ToString();
                     var r = PlusRampPresets.Jet(name); if (r == null) return false;
                     Active.ramp = r; Active.sootRamp = PlusRampPresets.JetSecondary(name);
-                    var win = PlusRampPresets.JetSootWindow(name); Active.sootLo = win.x; Active.sootHi = win.y;
+                    var win = PlusRampPresets.JetSootWindow(name); Active.sootLo = new ZUIValue(win.x); Active.sootHi = new ZUIValue(win.y);
                     return true;
                 }
                 case "frames": case "fps": case "seed": return true;
@@ -201,9 +214,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             var s = Active;
             if (s.w <= 0 || s.h <= 0) return;
             double S = Math.Max(s.w, s.h), left = Math.Floor((S - s.w) / 2.0), top = Math.Floor((S - s.h) / 2.0);
-            scale = (float)(s.w / S);
-            anchorX = (float)((left + s.nozzleX * s.w) / S);
-            anchorY = (float)((top + s.nozzleY * s.h) / S);
+            scale = new ZUIValue((float)(s.w / S));
+            anchorX = new ZUIValue((float)((left + s.nozzleX * s.w) / S));
+            anchorY = new ZUIValue((float)((top + s.nozzleY * s.h) / S));
         }
 
         protected static bool SetField(object owner, string name, object value)
@@ -214,6 +227,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 if (fi.FieldType == typeof(int)) fi.SetValue(owner, Convert.ToInt32(value));
                 else if (fi.FieldType == typeof(float)) fi.SetValue(owner, Convert.ToSingle(value));
                 else if (fi.FieldType == typeof(bool)) fi.SetValue(owner, value is bool b ? b : Convert.ToSingle(value) != 0f);
+                else if (fi.FieldType == typeof(ZUIValue)) fi.SetValue(owner, new ZUIValue(Convert.ToSingle(value)));   // a contract scalar = the Static value
                 else return false;
                 return true;
             }

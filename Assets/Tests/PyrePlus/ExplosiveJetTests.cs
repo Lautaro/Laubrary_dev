@@ -200,7 +200,7 @@ namespace Laubrary.PyrePlus.Tests
             Assert.That(f.SetContractParam("opaq", 0.6), Is.True); Assert.That(f.frag.opaq, Is.EqualTo(0.6f));
             Assert.That(f.SetContractParam("ring_arc", 44.0), Is.True); Assert.That(f.frag.ringArc, Is.EqualTo(44f));
             Assert.That(f.SetContractParam("ramp", "CORDITE"), Is.True);
-            Assert.That(f.frag.sootLo, Is.EqualTo(0.34f)); Assert.That(f.frag.sootHi, Is.EqualTo(0.96f));
+            Assert.That(f.frag.sootLo.staticValue, Is.EqualTo(0.34f)); Assert.That(f.frag.sootHi.staticValue, Is.EqualTo(0.96f));
             Assert.That(f.SetContractParam("draw", "corona"), Is.False, "a radial name is not an explosive variant");
         }
 
@@ -226,12 +226,12 @@ namespace Laubrary.PyrePlus.Tests
         public void EveryDrawHoldsItsFittedExposure_NeverTheClassDefault()
         {
             // the contract's tune2-fitted hi / curve, frozen per draw (Appendix D row: per-FRAME fit vs once-per-CLIP)
-            Assert.That(ExplosiveJetDraws.Detonate().hi, Is.EqualTo(7.788f)); Assert.That(ExplosiveJetDraws.Detonate().curve, Is.EqualTo(0.55f));
-            Assert.That(ExplosiveJetDraws.Backdraft().hi, Is.EqualTo(15.116f)); Assert.That(ExplosiveJetDraws.Backdraft().curve, Is.EqualTo(0.439f));
-            Assert.That(ExplosiveJetDraws.Starshell().hi, Is.EqualTo(3.157f)); Assert.That(ExplosiveJetDraws.Starshell().curve, Is.EqualTo(0.553f));
+            Assert.That(ExplosiveJetDraws.Detonate().hi.staticValue, Is.EqualTo(7.788f)); Assert.That(ExplosiveJetDraws.Detonate().curve.staticValue, Is.EqualTo(0.55f));
+            Assert.That(ExplosiveJetDraws.Backdraft().hi.staticValue, Is.EqualTo(15.116f)); Assert.That(ExplosiveJetDraws.Backdraft().curve.staticValue, Is.EqualTo(0.439f));
+            Assert.That(ExplosiveJetDraws.Starshell().hi.staticValue, Is.EqualTo(3.157f)); Assert.That(ExplosiveJetDraws.Starshell().curve.staticValue, Is.EqualTo(0.553f));
             foreach (var s in new[] { ExplosiveJetDraws.Chain(), ExplosiveJetDraws.Frag(), ExplosiveJetDraws.Fuelair(), ExplosiveJetDraws.Lash(), ExplosiveJetDraws.Muzzle(), ExplosiveJetDraws.Shatter(), ExplosiveJetDraws.Shockfront() })
             {
-                Assert.That(s.hi, Is.Not.EqualTo(1.2f)); Assert.That(s.curve, Is.Not.EqualTo(1f)); Assert.That(s.lo, Is.EqualTo(0.2f));
+                Assert.That(s.hi.staticValue, Is.Not.EqualTo(1.2f)); Assert.That(s.curve.staticValue, Is.Not.EqualTo(1f)); Assert.That(s.lo.staticValue, Is.EqualTo(0.2f));
             }
         }
     }
