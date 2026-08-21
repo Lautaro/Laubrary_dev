@@ -44,7 +44,8 @@
 //   DATA — `JetSettings` is NOT sealed. A fork declares `sealed class RadialJetSettings : JetSettings` (or explosive)
 //   adding only its own fields; ZuiReflect draws inherited public fields, `JetForm.SetContractParam`'s reflection finds
 //   them by name, and every base stage reads the base fields through the base type. Ranges wide enough for the family
-//   are already on the base fields where a fork only changes a VALUE (`spread` up to 180, `reach` down to 0.05).
+//   are already on the base fields where a fork only changes a VALUE (`spread` up to 180, `reach` down to 0.05,
+//   `slots` up to 800, `ringAmp` up to 4 — the radial draws run 400–700 slots and shockring's rings at 3.4).
 //
 //   CODE — `JetProgram` is the stage pipeline; every stage is `virtual`. The base `Frame` runs
 //       Warp → Root → Emit → Rings → Sparks,
@@ -120,7 +121,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         // ── emission ──
         [Tooltip("Puff slots. Slot i is born at phase i/slots every loop, so the set of live puffs at phase 1 is the set at phase 0.")]
-        [Range(1, 400)] public int slots = 64;
+        [Range(1, 800)] public int slots = 64;
         [Tooltip("A puff's life as a fraction of the loop.")]
         [Range(0.05f, 1f)] public float life = 0.55f;
         [Tooltip("Per-slot variation of speed / size / amplitude / life, 0..1 (scales the uniform jitters of the slot table).")]
@@ -176,7 +177,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Tooltip("Ring travel as a multiple of Reach — and OUTRUN it.")]
         [Range(0.5f, 3f)] public float ringReach = 1.45f;
         [Tooltip("Ring heat relative to Strength (rings cool slower than the stream: (1 − s)^(0.3·cool)).")]
-        [Range(0f, 3f)] public float ringAmp = 0.95f;
+        [Range(0f, 4f)] public float ringAmp = 0.95f;
 
         // ── turbulence ──
         [Tooltip("Domain-warp amplitude at the nozzle, source px (a jet is laminar while it is fast).")]
