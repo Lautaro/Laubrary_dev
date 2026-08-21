@@ -44,6 +44,11 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         protected abstract JetProgram Program { get; }
         /// Select a variant by its contract name (`tag` / `draw`); false when the name is not one of this form's.
         protected abstract bool TrySetVariant(string name);
+        /// The shade pass (a stateless shared instance); a member whose settings carry `opaq` supplies its own subclass.
+        protected virtual JetShade Shader => JetShade.Default;
+        /// The settings one SWARM instance renders with; the default is the shared box (a member with an authored
+        /// schedule hands each particle one blast of it).
+        protected virtual JetSettings InstanceSettings(JetSettings s, int instanceIndex) => s;
 
         /// The primary ramp's colour at contract position t (the hot LUT's sRGB entry, alpha = its opacity ceiling).
         Color IPlusRampProbe.ProbeRamp(float t)
@@ -106,13 +111,13 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     var fr = JetFrame.Solo(W, H, sp.x, H - sp.y, uSolo * swarmSize * Math.Max(sp.sizeMul, 0.01f), unchecked(seed + sp.index * 104729));
                     fr.rot = -sp.orientDeg * Math.PI / 180.0;
                     fr.amp = Math.Max(sp.brightMul, 0f);
-                    program.Frame(s, fr, phase, _scratch);
+                    program.Frame(InstanceSettings(s, sp.index), fr, phase, _scratch);
                 }
 
             EnsureLuts(s);
             bool dump = PlusFormDebug.FieldSink != null;
             float[] rampT = dump ? new float[n] : null;
-            JetShade.Default.Shade(s, _hot, _soot, _scratch.H, _scratch.T, W, H, target, rampT);
+            Shader.Shade(s, _hot, _soot, _scratch.H, _scratch.T, W, H, target, rampT);
 
             // the layer's Alpha envelope, one overall multiplier (the contract has none — forced to 1 by the harness)
             if (ctx.alpha < 1f)
@@ -165,7 +170,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         /// out; Scale = w / S); `ramp` (the contract's `extra.ramp` name) sets the box's ramps and crossfade window; every
         /// other numeric / bool key goes to the same-named field of the ACTIVE variant's box. Informational keys return
         /// true; unknown strings false.
-        public bool SetContractParam(string key, object value)
+        public virtual bool SetContractParam(string key, object value)
         {
             switch (key)
             {
@@ -201,7 +206,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             anchorY = (float)((top + s.nozzleY * s.h) / S);
         }
 
-        static bool SetField(object owner, string name, object value)
+        protected static bool SetField(object owner, string name, object value)
         {
             foreach (var fi in owner.GetType().GetFields())
             {

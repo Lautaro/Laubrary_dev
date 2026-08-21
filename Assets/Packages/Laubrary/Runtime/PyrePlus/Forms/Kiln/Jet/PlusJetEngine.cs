@@ -45,7 +45,8 @@
 //   adding only its own fields; ZuiReflect draws inherited public fields, `JetForm.SetContractParam`'s reflection finds
 //   them by name, and every base stage reads the base fields through the base type. Ranges wide enough for the family
 //   are already on the base fields where a fork only changes a VALUE (`spread` up to 180, `reach` down to 0.05,
-//   `slots` up to 800, `ringAmp` up to 4 — the radial draws run 400–700 slots and shockring's rings at 3.4).
+//   `slots` up to 800, `ringAmp` up to 4, `hi` up to 16 — the radial draws run 400–700 slots and shockring's rings at 3.4; the
+//   explosive backdraft's fitted `hi` is 15.116).
 //
 //   CODE — `JetProgram` is the stage pipeline; every stage is `virtual`. The base `Frame` runs
 //       Warp → Root → Emit → Rings → Sparks,
@@ -202,7 +203,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Tooltip("Field value at the silhouette's outer edge (lit = H·gain > lo).")]
         [Range(0f, 1f)] public float lo = 0.20f;
         [Tooltip("Field value at which the ramp tops out. FITTED per draw by the source's tune2 solver against two style targets (average ramp position, share of lit area in the top tenth) — not a guess; the shipped values are the contract's.")]
-        [Range(0.3f, 8f)] public float hi = 1.20f;
+        [Range(0.3f, 16f)] public float hi = 1.20f;
         [Tooltip("Bends where the gradient is spent: t^curve, < 1 pushes area up the ramp (a hotter, fully developed flame). FITTED together with Hi.")]
         [Range(0.2f, 2f)] public float curve = 1f;
         [Tooltip("Shades in the ramp: 0 = continuous; N quantises the ramp coordinate to N shades (floor, so the darkest shade reaches the edge). Never quantises the alpha.")]
