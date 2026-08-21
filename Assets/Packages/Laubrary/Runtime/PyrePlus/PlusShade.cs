@@ -4,9 +4,9 @@
 //   (b) hard cel bands (a floor into N colours, no interpolation — any blending destroys the contour),
 //   (c) two ramps crossfaded by a second channel (soot / smoke / cooling) and a 2-D palette grid,
 //   (d) emergent additive RGB with a per-channel 1−exp(−k·L) tone map and white blow-out.
-// Plus `PlusRamp`, the serialisable ramp a form can carry as a field (ZuiReflect draws it: a list of stop cards; a HARD
-// band table is a `PlusBands` instead — see PlusBands.cs), and `PlusRampPresets`, where a port ships its source ramps
-// verbatim so they are never left on a default gradient.
+// Plus `PlusRamp`, the serialisable ramp a form can carry as a field (ZuiReflect draws it: a list of stop cards; a
+// HARD band table is a `ZuiGradient` LOCKED to banded sampling instead — see ZuiGradient.LockToBands), and
+// `PlusRampPresets`, where a port ships its source ramps verbatim so they are never left on a default gradient.
 //
 // Conventions: ramp position 0 = the COLD outer edge, 1 = the HOTTEST core (Kiln's contract convention); a LUT is
 // sampled by t in 0..1. Colours are UnityEngine.Color in sRGB (what the rest of PyrePlus composites).
@@ -161,6 +161,18 @@ namespace Laubrary.PyrePlus
                 float t = i / (float)(size - 1);
                 e[i] = fill != null ? fill.Evaluate(reverse ? 1f - t : t, 0.5f, 0.5f) : Color.white;
             }
+            return new PlusLut(e);
+        }
+
+        /// Bake a ZuiGradient into a PlusLut WITHOUT a Texture2D — safe to call from a form's Prepare/Render even on
+        /// a worker thread (PlusFrameFill renders frames concurrently; touching a UnityEngine.Object off the main
+        /// thread is forbidden by the PlusForm contract). `ZuiGradient.ToLut` bakes to a Texture2D and must NOT be
+        /// used here for exactly that reason — this samples the same `Evaluate` math directly into a plain array.
+        public static PlusLut BakeLut(ZuiGradient g, int size = 256, float phase = 0f, float life = 0f)
+        {
+            size = Mathf.Max(2, size);
+            var e = new Color[size];
+            for (int i = 0; i < size; i++) e[i] = g != null ? g.Evaluate(i / (float)(size - 1), phase, life) : Color.white;
             return new PlusLut(e);
         }
 
@@ -533,9 +545,53 @@ namespace Laubrary.PyrePlus
                 case "rim": return 1.15f; case "gold": return 1.18f; default: return 0f;
             }
         }
-        /// The torch palette by its Kiln name as the band table the form holds (the step stops collapsed to seven bands);
-        /// null for an unknown name.
-        public static PlusBands TorchBands(string name) { var r = Torch(name); return r == null ? null : PlusBands.FromStops(r); }
+        /// The torch palette by its Kiln name as a locked ZuiGradient (the band palette the form holds): the step
+        /// stops' REPEATED positions collapsed to one key per band (see CollapseSteps), banded via LockToBands so
+        /// it can never sample smooth. Positions/colours are identical anchors to the old PlusBands table — only
+        /// the storage changed. Null for an unknown name.
+        public static ZuiGradient TorchGradient(string name)
+        {
+            var r = Torch(name);
+            if (r == null) return null;
+            var stops = CollapseSteps(r);
+            var g = new ZuiGradient { gradient = StopsToGradient(stops) };
+            g.LockToBands(stops.Count);
+            return g;
+        }
+        /// Sort by position and collapse repeated positions to the LATER stop (the band that STARTS there) — the
+        /// same rule the retired PlusBands.Normalise used, kept here purely to read a step-encoded contract ramp
+        /// (Torch7's repeated-position boundaries) back into one key per band.
+        static List<PlusRampStop> CollapseSteps(PlusRamp ramp)
+        {
+            var src = new List<PlusRampStop>(ramp.stops);
+            src.Sort((a, b) => a.pos.CompareTo(b.pos));
+            var outList = new List<PlusRampStop>(src.Count);
+            foreach (var st in src)
+            {
+                if (outList.Count > 0 && outList[outList.Count - 1].pos == st.pos) outList[outList.Count - 1] = st;
+                else outList.Add(st);
+            }
+            // A closing stop at 1 repeating the top band's colour is not a distinct band — drop it (Torch7 always
+            // appends one).
+            int n = outList.Count;
+            if (n >= 2 && outList[n - 1].pos >= 1f && outList[n - 1].color == outList[n - 2].color) outList.RemoveAt(n - 1);
+            return outList;
+        }
+        /// A plain smooth UnityEngine.Gradient from (position, colour) stops — capped at Unity's own 8 colour/alpha
+        /// keys (fine for every band table in this file; none exceeds 8 bands).
+        static Gradient StopsToGradient(List<PlusRampStop> stops)
+        {
+            var g = new Gradient();
+            var ck = new GradientColorKey[stops.Count];
+            var ak = new GradientAlphaKey[stops.Count];
+            for (int i = 0; i < stops.Count; i++)
+            {
+                ck[i] = new GradientColorKey(stops[i].color, stops[i].pos);
+                ak[i] = new GradientAlphaKey(stops[i].color.a, stops[i].pos);
+            }
+            g.SetKeys(ck, ak);
+            return g;
+        }
         /// The torch palette by its Kiln name ("RAMP_HOT" / "hot", "ember", "white", "rim", "gold") as the contract writes
         /// it (a step-stop PlusRamp); null for an unknown name. The form holds TorchBands(name).
         public static PlusRamp Torch(string name)

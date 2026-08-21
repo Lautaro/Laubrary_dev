@@ -257,8 +257,8 @@ namespace Laubrary.Zui
         {
             var val = e as ZuiValueControl ?? e.Q<ZuiValueControl>();
             if (val != null) return val.IsCurveShaped;
-            return e is ZuiValue2DControl || e is ZuiGradientControl || e is ZuiBandsControl ||
-                   e.Q<ZuiValue2DControl>() != null || e.Q<ZuiGradientControl>() != null || e.Q<ZuiBandsControl>() != null;
+            return e is ZuiValue2DControl || e is ZuiGradientControl ||
+                   e.Q<ZuiValue2DControl>() != null || e.Q<ZuiGradientControl>() != null;
         }
 
         static ZUIPair2DAttribute PairAttributeOf(FieldInfo f)
@@ -474,17 +474,6 @@ namespace Laubrary.Zui
                 if (zg == null) { zg = new ZuiGradient(); field.SetValue(owner, zg); }
                 var gc = new ZuiGradientControl(zg, tip) { OnBeforeMutate = opt.OnBeforeChange, OnChanged = opt.OnChanged };
                 return Z.Field(nice, tip, gc);
-            }
-
-            // A HARD band table (IZuiBands — PyrePlus's PlusBands) → the bands control: ONE row, a band-count slider
-            // beside a stepped strip whose markers move the thresholds and whose bands open a colour popover. Without
-            // this case the generic nested-class fallback below would draw it as a card per stop — the very thing the
-            // control exists to replace. Mutates in place, so the host's Undo/dirty hooks are wired directly.
-            if (typeof(IZuiBands).IsAssignableFrom(t))
-            {
-                if (v == null) { v = Activator.CreateInstance(t); field.SetValue(owner, v); }
-                var bc = new ZuiBandsControl((IZuiBands)v, tip) { OnBeforeMutate = opt.OnBeforeChange, OnChanged = opt.OnChanged };
-                return Z.Field(nice, tip, bc);
             }
 
             // A ZuiSwatchRef (inline colour OR a named SwatchPalette swatch) → the Z.Swatch picker. It's a struct,

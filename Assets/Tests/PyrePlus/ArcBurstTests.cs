@@ -129,7 +129,8 @@ namespace Laubrary.PyrePlus.Tests
             b.bolt.trunks = 7;
             Assert.That(a.bolt.trunks, Is.EqualTo(5));
             Assert.That(b.ContentHash(), Is.Not.EqualTo(a.ContentHash()));
-            b.bolt.trunks = 5; b.palette.stops[2].color = Color.red;
+            b.bolt.trunks = 5;
+            var keys = b.palette.gradient.colorKeys; keys[2].color = Color.red; b.palette.gradient.colorKeys = keys;
             Assert.That(b.ContentHash(), Is.Not.EqualTo(a.ContentHash()), "a band colour edit changes the hash");
         }
 
@@ -140,7 +141,7 @@ namespace Laubrary.PyrePlus.Tests
             Assert.That(f.SetContractParam("draw", "cage"), Is.True);
             Assert.That(f.layout, Is.EqualTo(ArcBurstForm.Layout.Cage));
             Assert.That(f.SetContractParam("palette", "cyan"), Is.True);
-            Assert.That(f.palette.stops[1].color.g, Is.EqualTo(168f / 255f).Within(1e-6));
+            Assert.That(f.palette.gradient.colorKeys[1].color.g, Is.EqualTo(168f / 255f).Within(1e-6));
             Assert.That(f.SetContractParam("aref", 0.26), Is.True);
             Assert.That(f.aref.staticValue, Is.EqualTo(0.26f).Within(1e-6));   // a contract scalar lands as the Static value
             Assert.That(f.SetContractParam("bloom_radius", 2.6), Is.True);

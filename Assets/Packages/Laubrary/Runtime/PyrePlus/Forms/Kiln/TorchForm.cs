@@ -80,9 +80,10 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         // ── runtime ──
         [NonSerialized] float[] _Fp, _C, _pr, _pg, _pb, _pa, _A;
+        [NonSerialized] float[] _tFp, _tC;   // isolated per-particle scratch for the rotate-and-add Orient path
         [NonSerialized] float[] _dumpH, _dumpC, _dumpT, _dumpA;
         [NonSerialized] TorchScratch _scratch;
-        [NonSerialized] float[] _thr; [NonSerialized] Color32[] _cols;
+        [NonSerialized] PlusLut _lut;
 
         /// The form's own envelopes resolved at one layer life (slots 0–3).
         public struct Live { public float axisX, ground, height, swarmSize; }
@@ -109,7 +110,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         Color IPlusRampProbe.ProbeRamp(float t)
         {
             EnsureBands(Active);
-            return PlusShade.Banded(t, _thr, _cols);
+            return _lut.Sample(t);
         }
 
         void IPlusFieldPublisher.PublishFields(Action<string, float[]> sink)
@@ -121,11 +122,13 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             _dumpH = _dumpC = _dumpT = _dumpA = null;
         }
 
-        // The band table's own cached lookup arrays (PlusBands rebuilds them only when its content changes).
+        // Bake the palette (a locked ZuiGradient) into a plain-array LUT — texture-free, so this is safe on a
+        // PlusFrameFill worker thread (ZuiGradient.ToLut bakes a Texture2D and must never be called from here).
+        // Cheap enough (256 entries) to rebake once per Render call, no caching needed.
         void EnsureBands(TorchSettings s)
         {
-            s.ramp ??= new PlusBands();
-            _thr = s.ramp.Thresholds; _cols = s.ramp.Colors32;
+            s.ramp ??= PlusRampPresets.TorchGradient("rim");
+            _lut = PlusShade.BakeLut(s.ramp, 256);
         }
 
         public override void Render(in PlusFormCtx ctx, Color32[] target)
@@ -154,14 +157,47 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             if (ctx.swarm == null)
                 PlusTorch.Accumulate(s, Frame(W2, H2, live.axisX * W, H * (1.0 - live.ground), uSolo, 1.0, seed, src), t, _scratch, _Fp, _C);
             else
-                for (int i = 0; i < ctx.swarm.Length; i++)
+            {
+                // Per-particle facing (Swarm Orient): the flame kernel itself has no concept of rotation — its
+                // noise/curl/tongue math is written in a fixed up-is-up frame (PlusTorch.cs), bit-exact-parity-
+                // tested against the Python reference, so it is NOT touched. Instead: accumulate each particle's
+                // flame unrotated into an isolated scratch heat-field, then NEAREST-rotate+ADD that field into the
+                // shared accumulator about the particle's own root — the same inverse-warp convention
+                // PlusFormWarp already uses for whole-layer geometry (its header names "a per-instance warp for
+                // swarms" as the un-built refinement this is). Only the OUTPUT pixels rotate; the math doesn't.
+                // Gate on the WHOLE layer, not per particle: swarmOrient == None hands every particle orientDeg
+                // 0 as a placeholder (not "point right"), so a single coincidentally-0° Outward particle must
+                // still go through the rotate path — only "every particle is 0" (None) takes the original,
+                // byte-identical direct-accumulate path.
+                bool anyOriented = false;
+                for (int i = 0; i < ctx.swarm.Length; i++) if (ctx.swarm[i].orientDeg != 0f) { anyOriented = true; break; }
+
+                if (!anyOriented)
                 {
-                    var sp = ctx.swarm[i];
-                    if (sp.own < 0f || sp.own > 1f) continue;
-                    double u = uSolo * live.swarmSize * Math.Max(sp.sizeMul, 0.01f);
-                    // swarm positions are y-up canvas px; the program runs y-down, flipped back at the write
-                    PlusTorch.Accumulate(s, Frame(W2, H2, sp.x, H - sp.y, u, sp.brightMul, unchecked(seed + (uint)(sp.index * 104729)), src), t, _scratch, _Fp, _C);
+                    for (int i = 0; i < ctx.swarm.Length; i++)
+                    {
+                        var sp = ctx.swarm[i];
+                        if (sp.own < 0f || sp.own > 1f) continue;
+                        double u = uSolo * live.swarmSize * Math.Max(sp.sizeMul, 0.01f);
+                        // swarm positions are y-up canvas px; the program runs y-down, flipped back at the write
+                        PlusTorch.Accumulate(s, Frame(W2, H2, sp.x, H - sp.y, u, sp.brightMul, unchecked(seed + (uint)(sp.index * 104729)), src), t, _scratch, _Fp, _C);
+                    }
                 }
+                else
+                {
+                    if (_tFp == null || _tFp.Length != n2) { _tFp = new float[n2]; _tC = new float[n2]; }
+                    for (int i = 0; i < ctx.swarm.Length; i++)
+                    {
+                        var sp = ctx.swarm[i];
+                        if (sp.own < 0f || sp.own > 1f) continue;
+                        double u = uSolo * live.swarmSize * Math.Max(sp.sizeMul, 0.01f);
+                        double rox = sp.x, roy = H - sp.y;
+                        Array.Clear(_tFp, 0, n2); Array.Clear(_tC, 0, n2);
+                        PlusTorch.Accumulate(s, Frame(W2, H2, rox, roy, u, sp.brightMul, unchecked(seed + (uint)(sp.index * 104729)), src), t, _scratch, _tFp, _tC);
+                        RotateAddInto(_tFp, _tC, W2, H2, rox, roy, sp.orientDeg, _Fp, _C);
+                    }
+                }
+            }
 
             // ── shade on the supersampled grid: hard bands on the cooled field, smoothstep alpha on the raw heat ──
             EnsureBands(s);
@@ -172,7 +208,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 double a = PlusTorch.SmoothStep(aLo, aHi, _Fp[k]);
                 if (dump) _A[k] = (float)a;
                 if (a <= 0.0) { _pr[k] = _pg[k] = _pb[k] = _pa[k] = 0f; continue; }
-                var col = PlusShade.Banded((float)(_C[k] / top), _thr, _cols);
+                var col = _lut.Sample32((float)(_C[k] / top));
                 float af = (float)a * la;
                 _pr[k] = col.r / 255f * af; _pg[k] = col.g / 255f * af; _pb[k] = col.b / 255f * af; _pa[k] = af;
             }
@@ -192,6 +228,36 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         {
             W2 = W2, H2 = H2, ox = ox, oy = oy, u = u, amp = amp, seed = seed, src = src,
         };
+
+        /// Nearest-sample rotate `srcFp`/`srcC` (a flame already accumulated in its default UP orientation) about
+        /// its own root (`rox`,`roy` — CANVAS px, y-down) so its "up" axis points at world angle `orientDeg`
+        /// instead of its default 90° (0 = world +x/right, 90 = world +y/up, the same CCW-from-+x convention
+        /// ComputeSpawns uses), then ADDS the rotated result into `dstFp`/`dstC` — preserving Torch's "heats sum
+        /// where flames overlap" contract even across differently-rotated instances. Root is scaled by SS to
+        /// index the supersampled arrays (W2×H2). Nearest sampling matches PlusFormWarp's own convention (cheap,
+        /// no premultiplied-alpha correctness to worry about — these are raw scalar heat fields, not colour).
+        static void RotateAddInto(float[] srcFp, float[] srcC, int W2, int H2, double rox, double roy, float orientDeg,
+                                  float[] dstFp, float[] dstC)
+        {
+            double ox = rox * PlusTorch.SS, oy = roy * PlusTorch.SS;
+            double rot = -(orientDeg - 90.0) * (Math.PI / 180.0);   // inverse of the (orientDeg − 90°) forward rotation
+            double cr = Math.Cos(rot), sr = Math.Sin(rot);
+            for (int py = 0; py < H2; py++)
+            {
+                double ddy = -(py - oy);   // row (y-down) -> world offset (y-up)
+                double bx = -ddy * sr, by = ddy * cr;   // the ddx-independent half of the rotation, hoisted out of the inner loop
+                for (int px = 0; px < W2; px++)
+                {
+                    double ddx = px - ox;
+                    int si = (int)Math.Round(ox + ddx * cr + bx);
+                    int sj = (int)Math.Round(oy - (ddx * sr + by));
+                    if ((uint)si >= (uint)W2 || (uint)sj >= (uint)H2) continue;
+                    int sIdx = sj * W2 + si, dIdx = py * W2 + px;
+                    dstFp[dIdx] += srcFp[sIdx];
+                    dstC[dIdx] += srcC[sIdx];
+                }
+            }
+        }
 
         /// The contract's planes are the 3×3 box mean of the supersampled plane at frame resolution (y-down); the harness
         /// expects renderer buffers (y-up) and flips them itself, so the copy is written bottom row first.
@@ -266,7 +332,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 case "h_flame": _cHf = Convert.ToDouble(value); Active.hFlame = (float)_cHf; ResolveGeometry(); return true;
                 case "ramp":
                 {
-                    var r = PlusRampPresets.TorchBands(value?.ToString()); if (r == null) return false;
+                    var r = PlusRampPresets.TorchGradient(value?.ToString()); if (r == null) return false;
                     Active.ramp = r; Active.rampTop = new ZUIValue(PlusRampPresets.TorchTop(value?.ToString())); return true;
                 }
                 case "big_kind": return Enum.TryParse(value?.ToString(), true, out Active.bigKind);

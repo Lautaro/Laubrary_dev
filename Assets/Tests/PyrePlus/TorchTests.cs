@@ -179,19 +179,20 @@ namespace Laubrary.PyrePlus.Tests
         }
 
         [Test]
-        public void Bands_CollapseRepeatedPositionsToTheLaterStop()
+        public void TorchGradient_CollapsesStepEncodingToOneKeyPerBand_LockedToSevenBands()
         {
-            PlusTorch.Bands(PlusRampPresets.TorchRim(), out var thr, out var cols);
-            Assert.That(thr.Length, Is.EqualTo(7));     // 7 band starts (the top threshold IS position 1.0)
-            Assert.That(thr[0], Is.EqualTo(0f));
-            Assert.That(thr[1], Is.EqualTo(0.16f / 1.15f).Within(1e-6));
-            Assert.That(cols[0], Is.EqualTo(new Color32(150, 16, 16, 255)));
-            Assert.That(cols[1], Is.EqualTo(new Color32(214, 40, 18, 255)));
-            Assert.That(cols[6], Is.EqualTo(new Color32(255, 255, 236, 255)));
-            // shade(): colour = band of the highest threshold ≤ C; below the first → band 0
-            Assert.That(PlusShade.Banded(0.01f, thr, cols), Is.EqualTo(cols[0]));
-            Assert.That(PlusShade.Banded(0.30f / 1.15f + 1e-4f, thr, cols), Is.EqualTo(new Color32(240, 92, 20, 255)));
-            Assert.That(PlusShade.Banded(1f, thr, cols), Is.EqualTo(cols[6]));
+            // PlusTorch.Bands / PlusBands are retired (T-00xx, ZuiGradient migration): the step-encoded contract
+            // ramp's repeated positions now collapse into ONE key per band on a locked ZuiGradient instead of a
+            // separate thresholds/colours table. Band edges are evenly spaced now (quantiseSteps), not the
+            // original non-uniform positions, so this only checks the anchor colours survived, not exact edges.
+            var g = PlusRampPresets.TorchGradient("rim");
+            Assert.That(g.bandLocked, Is.True);
+            Assert.That(g.quantiseSteps, Is.EqualTo(7), "seven band starts, collapsed from the step-encoded contract ramp");
+            Assert.That((Color32)g.gradient.Evaluate(0f), Is.EqualTo(new Color32(150, 16, 16, 255)));
+            Assert.That((Color32)g.gradient.Evaluate(1f), Is.EqualTo(new Color32(255, 255, 236, 255)));
+            // a fully-quantised sample still lands on one of the seven original band colours
+            var lut = PlusShade.BakeLut(g, 256);
+            Assert.That(lut.Sample32(0.01f), Is.EqualTo(new Color32(150, 16, 16, 255)));
         }
 
         [Test]
@@ -260,9 +261,11 @@ namespace Laubrary.PyrePlus.Tests
             Assert.That(b.ContentHash(), Is.Not.EqualTo(a.ContentHash()), "a range dial is hashed");
             Assert.That(a.lash.tongueX, Is.EqualTo(TorchSettings.Lash().tongueX), "the copy owns its box");
             var c = (TorchForm)a.Clone();
-            c.lash.ramp.stops[3].color = Color.black;
-            Assert.That(c.ContentHash(), Is.Not.EqualTo(a.ContentHash()), "a ramp stop is hashed");
-            Assert.That(a.lash.ramp.stops[3].color, Is.Not.EqualTo(Color.black), "the copy owns its ramp");
+            var keys = c.lash.ramp.gradient.colorKeys;
+            keys[3].color = Color.black;
+            c.lash.ramp.gradient.colorKeys = keys;
+            Assert.That(c.ContentHash(), Is.Not.EqualTo(a.ContentHash()), "a ramp key is hashed");
+            Assert.That(a.lash.ramp.gradient.colorKeys[3].color, Is.Not.EqualTo(Color.black), "the copy owns its ramp");
         }
 
         [Test]

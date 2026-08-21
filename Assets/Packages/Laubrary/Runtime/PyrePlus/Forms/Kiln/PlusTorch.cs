@@ -255,8 +255,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Range(0f, 0.1f)] public ZUIValue aLo = new ZUIValue(0.013f);
         [Tooltip("Heat where opacity reaches 1 (field units). Alpha is a smoothstep between A Lo and A Hi on the raw heat — continuous, no threshold, no dither.")]
         [Range(0.005f, 0.3f)] public ZUIValue aHi = new ZUIValue(0.056f);
-        [Tooltip("The cel bands (seven in the source): each band starts at its threshold — a band threshold divided by Ramp Top — and is HARD; the only softening is the 3× supersample. Drag a marker to move a threshold, click a band to recolour it, the slider sets how many. Presets: PlusRampPresets.TorchBands(hot / ember / white / rim / gold).")]
-        public PlusBands ramp = PlusRampPresets.TorchBands("rim");
+        [Tooltip("The cel palette: a free gradient sampled into hard bands (thresholds evenly divide 0..Ramp Top). Edit the ramp freely; the Bands count only changes the sampling resolution, so it never loses a colour you've picked. Presets: PlusRampPresets.TorchGradient(hot / ember / white / rim / gold).")]
+        public ZuiGradient ramp = PlusRampPresets.TorchGradient("rim");
         [Tooltip("Field value of the ramp's top (position 1). Thresholds are compared against a heat that peaks near Gain, so this must sit ABOVE the peak or the whole core lands in the top band (the white-blob fix).")]
         [Range(0.3f, 2.5f)] public ZUIValue rampTop = new ZUIValue(1.15f);
 
@@ -271,7 +271,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             fbx = 0.60f, fby = 0.42f, bigKind = TorchNoiseKind.Fbm, abig = new ZUIValue(0.50f),
             ftx = 1.90f, fty = 0.55f, toct = 3, turbKind = TorchNoiseKind.Ridged, alick = new ZUIValue(0.38f),
             bias = new ZUIValue(0.12f), pexp = new ZUIValue(0.44f), still = new ZUIValue(0.10f), cool = new ZUIValue(0.26f), aLo = new ZUIValue(0.012f), aHi = new ZUIValue(0.056f),
-            ramp = PlusRampPresets.TorchBands("ember"), rampTop = new ZUIValue(0.82f),
+            ramp = PlusRampPresets.TorchGradient("ember"), rampTop = new ZUIValue(0.82f),
             breathe = new ZUIValue(0.075f), breathe2 = new ZUIValue(0.028f), bphase = 1.1f,
             glow = new ZUIValue(0.24f), glowW = new ZUIValue(24f), glowH = new ZUIValue(2.8f), glowY = new ZUIValue(0f),
             tongues = 13, tongueGain = new ZUIValue(0.40f), tongueX = new Vector2(2f, 32f), tongueY = new Vector2(16f, 28f),
@@ -291,7 +291,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             fbx = 0.80f, fby = 0.52f, bigKind = TorchNoiseKind.Fbm, abig = new ZUIValue(0.44f),
             ftx = 2.20f, fty = 0.70f, toct = 3, turbKind = TorchNoiseKind.Ridged, alick = new ZUIValue(0.46f),
             bias = new ZUIValue(0.13f), pexp = new ZUIValue(0.42f), still = new ZUIValue(0.10f), cool = new ZUIValue(0.30f), aLo = new ZUIValue(0.012f), aHi = new ZUIValue(0.058f),
-            ramp = PlusRampPresets.TorchBands("white"), rampTop = new ZUIValue(1.12f),
+            ramp = PlusRampPresets.TorchGradient("white"), rampTop = new ZUIValue(1.12f),
             breathe = new ZUIValue(0.05f), breathe2 = new ZUIValue(0.03f), bphase = 0.4f,
             pulse = new ZUIValue(0.34f), pulseN = 2, pulsePh = 0.70f, pulseGain = new ZUIValue(0.28f), bulge = new ZUIValue(0.34f), bulgeW = new ZUIValue(0.20f),
             glow = new ZUIValue(0.30f), glowW = new ZUIValue(7.5f), glowH = new ZUIValue(5f), glowY = new ZUIValue(0f),
@@ -316,7 +316,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             fbx = 0.44f, fby = 0.44f, bigKind = TorchNoiseKind.Billow, abig = new ZUIValue(0.56f),
             ftx = 1.10f, fty = 0.60f, toct = 3, turbKind = TorchNoiseKind.Billow, alick = new ZUIValue(0.24f),
             bias = new ZUIValue(0.12f), pexp = new ZUIValue(0.45f), still = new ZUIValue(0.07f), cool = new ZUIValue(0.16f), aLo = new ZUIValue(0.014f), aHi = new ZUIValue(0.054f),
-            ramp = PlusRampPresets.TorchBands("gold"), rampTop = new ZUIValue(1.18f),
+            ramp = PlusRampPresets.TorchGradient("gold"), rampTop = new ZUIValue(1.18f),
             breathe = new ZUIValue(0.10f), breathe2 = new ZUIValue(0.05f), bphase = 2.6f,
             curl = 8.0f, curlX = 0.55f, curlY = 0.42f,
             glow = new ZUIValue(0.08f), glowW = new ZUIValue(9f), glowH = new ZUIValue(3f), glowY = new ZUIValue(0f),
@@ -337,7 +337,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             fbx = 0.85f, fby = 0.52f, bigKind = TorchNoiseKind.Fbm, abig = new ZUIValue(0.50f),
             ftx = 2.30f, fty = 0.72f, toct = 4, turbKind = TorchNoiseKind.Ridged, alick = new ZUIValue(0.50f),
             bias = new ZUIValue(0.14f), pexp = new ZUIValue(0.40f), still = new ZUIValue(0.10f), cool = new ZUIValue(0.24f), aLo = new ZUIValue(0.012f), aHi = new ZUIValue(0.058f),
-            ramp = PlusRampPresets.TorchBands("hot"), rampTop = new ZUIValue(0.88f),
+            ramp = PlusRampPresets.TorchGradient("hot"), rampTop = new ZUIValue(0.88f),
             breathe = new ZUIValue(0.09f), breathe2 = new ZUIValue(0.05f), bphase = 0.9f,
             lash = new ZUIValue(13.0f), lashK = 1, lashWave = 3.4f, lashPh = 0.7f,
             glow = new ZUIValue(0.30f), glowW = new ZUIValue(9f), glowH = new ZUIValue(5f), glowY = new ZUIValue(0f),
@@ -664,13 +664,5 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         }
 
         static double Sq(double v) => v * v;
-
-        /// The hard bands of a stepped PlusRamp (PlusBands.FromStops): repeated positions collapse to the LATER stop's
-        /// colour (the band that STARTS there); thresholds ascend; below the first threshold the first colour applies.
-        public static void Bands(PlusRamp ramp, out float[] thresholds, out Color32[] colors)
-        {
-            var b = PlusBands.FromStops(ramp);
-            thresholds = b.Thresholds; colors = b.Colors32;
-        }
     }
 }

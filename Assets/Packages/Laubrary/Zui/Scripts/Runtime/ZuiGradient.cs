@@ -30,6 +30,24 @@ public class ZuiGradient : ISerializationCallbackReceiver
     public bool reverse = false;
     [Min(0), Tooltip("Snap the sample position to N discrete bands (0 = smooth). The gradient equivalent of Posterize.")]
     public int quantiseSteps = 0;
+    // Set from CODE (a form's field initializer via LockToBands), never by the author directly: this instance is a
+    // cel/band palette, not a free smooth ramp, so quantising is mandatory. Evaluate/ToLut floor the EFFECTIVE step
+    // count at 1 regardless of quantiseSteps' stored value (defensive — covers an old asset, a paste, a reset), and
+    // the editor (ZuiGradientEditor) floors the Quantise slider's own range at 1 and relabels it "Bands" so there is
+    // no reachable "0 = smooth" state to confuse a banded palette with. Everything else about the gradient (the base
+    // ramp, hue/sat/brightness/contrast/phase/cycle/reverse) stays exactly as versatile as an unlocked one.
+    [Tooltip("Internal: true for a gradient a form declared as an always-banded palette (set via LockToBands, not authored directly).")]
+    public bool bandLocked = false;
+
+    /// Mark this gradient as an always-banded palette: quantising can never go smooth again, in code or in the
+    /// editor. Idempotent — safe to call every time a form builds its default (a fresh instance) or migrates an old
+    /// one. Only raises quantiseSteps to `defaultCount` when it isn't already a valid band count, so re-calling it
+    /// (e.g. on deserialize) never disturbs an author's chosen count.
+    public void LockToBands(int defaultCount = 7)
+    {
+        bandLocked = true;
+        if (quantiseSteps <= 0) quantiseSteps = Mathf.Clamp(defaultCount, 1, 16);
+    }
 
     // ── colour transforms — LEGACY floats: the frozen serialized SOURCE + the fallback for a null companion ──
     [Range(-1f, 1f), Tooltip("Rotate the hue of the whole ramp. ±1 = ±180°.")]
@@ -74,8 +92,9 @@ public class ZuiGradient : ISerializationCallbackReceiver
         // plain Evaluate(1) must stay at the ramp END; PingPong/Repeat(1,1) would fold/wrap it to 0), so the
         // default (ph==0) is byte-identical to the pre-phase path.
         u = ph != 0f ? Mathf.PingPong(u + ph, 1f) : Mathf.Clamp01(u);
-        if (quantiseSteps > 0)
-            u = Mathf.Floor(u * quantiseSteps) / Mathf.Max(1, quantiseSteps - 1);
+        int steps = bandLocked ? Mathf.Max(1, quantiseSteps) : quantiseSteps;
+        if (steps > 0)
+            u = Mathf.Floor(u * steps) / Mathf.Max(1, steps - 1);
         u = Mathf.Clamp01(u);
 
         Color c = gradient != null ? gradient.Evaluate(u) : Color.white;

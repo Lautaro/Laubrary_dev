@@ -73,10 +73,18 @@ namespace Laubrary.Zui
                                                                     + "scrolls the gradient in a SEAMLESS loop, no jump, no shader. The mirrored second half is what makes "
                                                                     + "it smooth (the ramp mirrors instead of snapping from its end back to its start).",
                 v => _g.gradient != null ? _g.gradient.Evaluate(Mathf.PingPong(v, 1f)) : Color.clear);
-            Adjust.Add(Z.MicroSlider("Quantise", _g.quantiseSteps, 0, 16,
-                "Snap the ramp to N discrete bands (0 = smooth) — the gradient Posterize. Not animatable (a shifting "
-                + "band count reads as flicker, not motion).",
-                v => Mutate(() => _g.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0, prefsKey: "grad.quantise"));
+            // Locked (a form-declared band palette, e.g. Torch/ArcBurst): quantising can never go smooth again, so
+            // the slider floors at 1 (no reachable "0 = smooth") and reads as "Bands" — the domain word every other
+            // banded control in PyrePlus already uses — instead of "Quantise".
+            Adjust.Add(_g.bandLocked
+                ? Z.MicroSlider("Bands", _g.quantiseSteps, 1, 16,
+                    "How many discrete colour steps this palette samples from the ramp below. Purely a resolution "
+                    + "knob — it never touches the ramp itself, so raising/lowering it and coming back loses nothing.",
+                    v => Mutate(() => _g.quantiseSteps = Mathf.Max(1, Mathf.RoundToInt(v))), decimals: 0, prefsKey: "grad.bands")
+                : Z.MicroSlider("Quantise", _g.quantiseSteps, 0, 16,
+                    "Snap the ramp to N discrete bands (0 = smooth) — the gradient Posterize. Not animatable (a shifting "
+                    + "band count reads as flicker, not motion).",
+                    v => Mutate(() => _g.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0, prefsKey: "grad.quantise"));
             Adjust.Add(Z.Row(
                 Z.Toggle("Cycle", "This ramp wants to colour-cycle (a ZuiPaletteCycle driver advances the phase at runtime).",
                     _g.cycle, v => Mutate(() => _g.cycle = v)),

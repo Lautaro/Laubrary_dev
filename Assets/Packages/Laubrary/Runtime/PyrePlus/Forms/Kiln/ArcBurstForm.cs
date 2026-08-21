@@ -81,8 +81,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         public bool rerollPerFrame = true;
 
         // ── colour ──
-        [Tooltip("The cel bands (five in the source): each band starts at its ENERGY THRESHOLD and is hard — no interpolation; below the first threshold the pixel is absent. Drag a marker to move a threshold, click a band to recolour it, the slider sets how many. Presets: ArcBands.Ion / Violet / Acid / Plasma / Cyan / Magenta / Chroma / Steel / Crimson / Teal.")]
-        [UnityEngine.Serialization.FormerlySerializedAs("bands")] public PlusBands palette = ArcBands.Violet();
+        [Tooltip("The cel palette: a free gradient sampled into N hard bands (below the first band's start, the pixel is absent — the form's own energy floor). Edit the ramp freely; the Bands count only changes the sampling resolution, so it never loses a colour you've picked. Presets: ArcBands.Ion / Violet / Acid / Plasma / Cyan / Magenta / Chroma / Steel / Crimson / Teal.")]
+        public ZuiGradient palette = ArcBands.Violet();
 
         // ── per-layout settings (one box shows at a time) ──
         [ZUIShowIf("layout", "Core")] [Tooltip("draw_core's literals.")] public CoreSettings core = new CoreSettings();
@@ -410,8 +410,11 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         const int SourcePx = 128;
         [NonSerialized] float[] _E, _A, _sA, _sB, _pr, _pg, _pb, _pa;
         [NonSerialized] float[] _dumpH, _dumpT, _dumpA;
-        [NonSerialized] float[] _thr;
-        [NonSerialized] Color32[] _cols;
+        [NonSerialized] PlusLut _lut;
+
+        /// The energy threshold below which a pixel is absent (the source's floor) — a property of the FORM, not
+        /// the palette, now that the palette is a free gradient with no threshold of its own to borrow.
+        const float Floor = 0.045f;
 
         void IPlusFieldPublisher.PublishFields(Action<string, float[]> sink)
         {
@@ -425,21 +428,19 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         /// t = 0.3 the LUT's entry 76 (0.298) is still the band below, and so is this answer.
         Color IPlusRampProbe.ProbeRamp(float t)
         {
-            int n = ReadBands();
+            ReadBands();
             float tq = Mathf.Round(Mathf.Clamp01(t) * 255f) / 255f;
-            var c = PlusShade.Banded(tq, _thr, _cols);
-            float a = n > 0 && tq < _thr[0] ? 0f : 1f;
+            var c = _lut.Sample32(tq);
+            float a = tq < Floor ? 0f : 1f;
             return new Color(c.r / 255f, c.g / 255f, c.b / 255f, a);
         }
 
-        /// The palette's (threshold, colour) tables — PlusBands keeps them sorted and cached; returns the band count
-        /// (0 for an empty palette, which reads as one white band from the source's first threshold).
-        int ReadBands()
+        /// Bake the palette (a locked ZuiGradient) into a plain-array LUT — texture-free, so this is safe on a
+        /// PlusFrameFill worker thread. Cheap enough (256 entries) to rebake once per Render call, no caching needed.
+        void ReadBands()
         {
-            palette ??= new PlusBands(transparentBelowFirst: true);
-            if (palette.IsEmpty) { _thr = new[] { 0.045f }; _cols = new[] { new Color32(255, 255, 255, 255) }; return 0; }
-            _thr = palette.Thresholds; _cols = palette.Colors32;
-            return palette.Count;
+            palette ??= ArcBands.Violet();
+            _lut = PlusShade.BakeLut(palette, 256);
         }
 
         public override void Render(in PlusFormCtx ctx, Color32[] target)
@@ -487,15 +488,15 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
             // colorize: band by energy threshold, alpha = A (truncated to a byte like astype(uint8)), absent under the floor
             ReadBands();
-            float floor = _thr[0], alphaMul = Mathf.Clamp01(ctx.alpha);
+            float alphaMul = Mathf.Clamp01(ctx.alpha);
             bool dump = PlusFormDebug.FieldSink != null;
             for (int i = 0; i < n; i++)
             {
                 float e = _E[i], a = _A[i];
                 if (a > 1f) a = 1f; else if (a < 0f) a = 0f;
-                if (e < floor) a = 0f;
+                if (e < Floor) a = 0f;
                 a *= alphaMul;
-                var c = PlusShade.Banded(e, _thr, _cols);
+                var c = _lut.Sample32(e);
                 // premultiplied planes for the box-down; at k = 1 the quantisation below is the source's own
                 _pr[i] = c.r / 255f * a; _pg[i] = c.g / 255f * a; _pb[i] = c.b / 255f * a; _pa[i] = a;
             }
@@ -508,7 +509,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                         int i = y * S + x;
                         float a = _pa[i];
                         byte ab = (byte)Mathf.Clamp((int)(a * 255f), 0, 255);   // truncation, as the source
-                        var c = ab == 0 ? default : PlusShade.Banded(_E[i], _thr, _cols);
+                        var c = ab == 0 ? default : _lut.Sample32(_E[i]);
                         if (ab != 0) c.a = ab;
                         target[(H - 1 - y) * W + x] = c;                           // y-down plane → y-up buffer
                     }
