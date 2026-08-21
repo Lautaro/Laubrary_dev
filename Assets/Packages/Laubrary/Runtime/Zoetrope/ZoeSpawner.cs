@@ -200,19 +200,30 @@ namespace Laubrary.Zoetrope
                 var animatedView = shooter.GetComponentInParent<IAnimatedView>();
                 if (animatedView != null)
                 {
-                    bool hasVector = animatedView.TryGetMetaVectorNearest(muzzleLayerId, out _, out _, out _);
-                    bool hasPoint = !hasVector && animatedView.TryGetMetaPointNearest(muzzleLayerId, out _);
-                    if (hasVector)
+                    // Ask the DATA which kind of layer this is, never the live view. This runs inside Start(),
+                    // before any clip has been resolved — sampling the screen here meant asking "does the
+                    // clip that happened to load first have something painted on its current frame", which
+                    // for a composite Zoe is the version's first animation and is virtually never the one
+                    // carrying the muzzle. The answer was no, so NO tracker was attached, permanently, and
+                    // the muzzle stayed pinned to the weapon's fixed muzzleOffset no matter what was painted.
+                    switch (animatedView.GetMetaLayerKind(muzzleLayerId))
                     {
-                        var t = shooter.GetComponent<MuzzleVectorTracker>();
-                        if (t == null) t = shooter.AddComponent<MuzzleVectorTracker>();
-                        t.Configure(muzzle, muzzleLayerId);
-                    }
-                    else if (hasPoint)
-                    {
-                        var t = shooter.GetComponent<MuzzleTracker>();
-                        if (t == null) t = shooter.AddComponent<MuzzleTracker>();
-                        t.Configure(muzzle, muzzleLayerId);
+                        case MetaLayerKind.Vector:
+                        {
+                            var t = shooter.GetComponent<MuzzleVectorTracker>();
+                            if (t == null) t = shooter.AddComponent<MuzzleVectorTracker>();
+                            t.Configure(muzzle, muzzleLayerId);
+                            break;
+                        }
+                        case MetaLayerKind.Point:
+                        {
+                            var t = shooter.GetComponent<MuzzleTracker>();
+                            if (t == null) t = shooter.AddComponent<MuzzleTracker>();
+                            t.Configure(muzzle, muzzleLayerId);
+                            break;
+                        }
+                        // None: nothing painted anywhere under this id — leave the muzzle at def.muzzleOffset,
+                        // the same graceful no-op as before.
                     }
                 }
             }

@@ -80,6 +80,7 @@ MonoBehaviour:
             edge: 0
             metaLayerId: 
             offset: {x: 0, y: 0}
+          sortingOrder: 0
           motionPose:
             channel: 0
             moveThreshold: 0.15
@@ -91,8 +92,8 @@ MonoBehaviour:
               channel: 1
             - condition: 1
               setName: LegsWalk3
-              overrideChannel: 0
-              channel: 0
+              overrideChannel: 1
+              channel: 1
         - name: Upper
           view:
             rid: 1702917371834400851
@@ -103,10 +104,11 @@ MonoBehaviour:
             metaLayerId: 
             offset: {x: 0, y: 0}
           childAnchor:
-            mode: 0
+            mode: 1
             edge: 2
-            metaLayerId: 
-            offset: {x: 0.04889, y: 0.76}
+            metaLayerId: Waist
+            offset: {x: 0, y: 0}
+          sortingOrder: 1
           motionPose:
             channel: 1
             moveThreshold: 0.15

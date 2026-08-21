@@ -58,8 +58,117 @@ namespace Laubrary.Mirage
         void OnGUI()
         {
             DrawPanel();
+            DrawManualControls();
             HandleInput();
             DrawFlash();
+        }
+
+        static readonly string[] Compass16 =
+        {
+            "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
+        };
+
+        /// <summary>Hand controls for any subject whose entry ASKED for them — a facing dial, walk, fire.
+        ///
+        /// Every control here is generated from <see cref="MirageSubject.Capabilities"/>, never assumed: a Zoe
+        /// with no weapon grows no Fire toggle, one with a single facing grows no direction control. That is
+        /// what makes this work for an ENEMY as readily as for the player — the panel asks the character what
+        /// it can do rather than knowing anything about who is supposed to drive it.
+        ///
+        /// Nothing is drawn at all when no entry opted in, so a Mirage view assembled to look at an effect or a
+        /// backdrop is untouched by this.</summary>
+        void DrawManualControls()
+        {
+            // Walk the RIG's children rather than FindObjectsByType: the rig marks its live preview objects
+            // HideFlags.DontSave (they're transient scaffolding, not scene content), and FindObjectsByType
+            // EXCLUDES DontSave objects — so the find-based lookup returned nothing while the subjects sat
+            // right there in the hierarchy, and the panel silently never appeared.
+            if (rig == null) return;
+            var driven = new System.Collections.Generic.List<MirageSubject>();
+            foreach (var s in rig.GetComponentsInChildren<MirageSubject>(true))
+            {
+                if (s == null || !s.manualControls || !s.enabled) continue;
+                // Self-heal after a domain reload wiped the runtime-only Manual/Capabilities.
+                s.EnsureManualControls();
+                if (s.Manual != null && s.Capabilities.Zoe != null) driven.Add(s);
+            }
+            if (driven.Count == 0) return;
+
+            // Size the panel to what will actually be drawn, so it never reserves space for controls a
+            // character hasn't earned (ui-layout-rules: an empty slot is pure cost).
+            float h = 8f;
+            foreach (var s in driven)
+            {
+                var c = s.Capabilities;
+                h += 22f;                                   // header
+                if (c.CanAim) h += 46f;                     // facing slider + compass label
+                if (c.CanMove) h += 26f + 22f;              // walk toggle + lock-to-aim toggle
+                if (c.CanMove && !s.Manual.lockMoveToAim) h += 24f;
+                if (c.CanFire) h += 26f;
+                h += 8f;
+            }
+
+            var content = Zui.Panel(ZuiAnchor.BottomLeft, 250f, h, new Color(0f, 0f, 0f, 0.68f));
+            var stack = new ZuiStack(content, 4f);
+
+            foreach (var s in driven)
+            {
+                var caps = s.Capabilities;
+                var m = s.Manual;
+                stack.Label(caps.Zoe != null ? caps.Zoe.displayName : s.name, bold: true);
+
+                if (caps.CanAim)
+                {
+                    // A free 0..360 slider snapped to the directions the ART actually has — asking for a pose
+                    // between two authored frames is not a thing the character can do, so the control doesn't
+                    // let you express it.
+                    float raw = stack.Slider("Facing", m.aimAngleDeg, 0f, 359.9f);
+                    m.aimAngleDeg = SnapToNearest(raw, caps.AimAngles);
+                    stack.Label("   " + CompassLabel(m.aimAngleDeg) + "  (" + m.aimAngleDeg.ToString("0.#") + "°)");
+                }
+
+                if (caps.CanMove)
+                {
+                    m.walking = stack.Toggle(m.walking ? "Walking" : "Idle", m.walking);
+                    m.lockMoveToAim = stack.Toggle("Move = facing", m.lockMoveToAim);
+                    if (!m.lockMoveToAim)
+                    {
+                        // Unlocked is how backpedalling and strafing get previewed: travel one way, face another.
+                        float rawMove = stack.Slider("Travel", m.moveAngleDeg, 0f, 359.9f);
+                        m.moveAngleDeg = SnapToNearest(rawMove, caps.AimAngles);
+                    }
+                }
+
+                if (caps.CanFire) m.firing = stack.Toggle(m.firing ? "Firing" : "Hold fire", m.firing);
+
+                stack.Space(4f);
+            }
+        }
+
+        /// Nearest authored direction to a requested angle, wrapping across 0/360. Returns the request
+        /// unchanged when the character declares no specific directions.
+        static float SnapToNearest(float deg, System.Collections.Generic.IReadOnlyList<float> options)
+        {
+            if (options == null || options.Count == 0) return deg;
+            float best = options[0], bestDelta = float.MaxValue;
+            for (int i = 0; i < options.Count; i++)
+            {
+                float d = Mathf.Abs(Mathf.DeltaAngle(deg, options[i]));
+                if (d < bestDelta) { bestDelta = d; best = options[i]; }
+            }
+            return best;
+        }
+
+        /// Compass name for an angle when it lands on a 16-point direction, else the bare angle — so a set
+        /// authored at some other count still reads sensibly instead of being mislabelled.
+        static string CompassLabel(float deg)
+        {
+            float step = 360f / 16f;
+            float snapped = Mathf.Repeat(deg, 360f) / step;
+            int idx = Mathf.RoundToInt(snapped);
+            if (Mathf.Abs(snapped - idx) > 0.01f) return deg.ToString("0.#") + "°";
+            return Compass16[((idx % 16) + 16) % 16];
         }
 
         // Unity's native Ping/Selection only flashes the Project window / Hierarchy row — useless while

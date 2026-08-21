@@ -255,6 +255,7 @@ namespace Laubrary.Mirage
                     ps.previewPose = entry.previewPose;
                     ps.targetPractice = entry.targetPractice;
                     ps.respawnDelay = entry.respawnDelay;
+                    ps.manualControls = entry.manualControls;
                     _pendingZoeScale.Add(entry.id);   // PPU not known until ps.Spawned exists — resolved in Update()
                     break;
                 }

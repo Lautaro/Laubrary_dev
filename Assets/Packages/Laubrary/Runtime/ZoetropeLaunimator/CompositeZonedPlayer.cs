@@ -57,6 +57,14 @@ namespace Laubrary.ZoetropeLaunimator
                 go.transform.SetParent(transform, false);
                 var partSize = part.view != null ? part.view.Build(go) : Vector2.one;
                 size = Vector2.Max(size, partSize);
+
+                // Draw order comes from the PART, so every consumer agrees. It used to come from nowhere at
+                // all: parts share one position, so both sat at sortingOrder 0 and Unity broke the tie however
+                // it liked. The ProtoGuy demo scene only looked correct because its own spawner script patched
+                // the torso's renderer after spawn — which meant the demo was right and the real spawn path
+                // (a game, or Mirage) was wrong, with nothing to reveal the difference.
+                var partRenderer = go.GetComponent<SpriteRenderer>();
+                if (partRenderer != null) partRenderer.sortingOrder = part.sortingOrder;
                 _byName[part.name] = new PartEntry { go = go, def = part };
 
                 // Each part's own directional animator, if authored — see ZoeBodyPart.motionPose. Reads

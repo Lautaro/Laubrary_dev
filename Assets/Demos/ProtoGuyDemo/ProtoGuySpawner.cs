@@ -20,7 +20,6 @@ namespace Laubrary.Demos.ProtoGuyDemo
     public class ProtoGuySpawner : MonoBehaviour
     {
         public Zoe zoeDef;
-        public float upperSortingOrder = 1f;
 
         [Tooltip("Shared Laubrary.ZoeCharacter input asset (Player action map: Move/Aim/Fire). Reusable across " +
                  "any top-down/twin-stick Zoe, not specific to ProtoGuy.")]
@@ -36,18 +35,11 @@ namespace Laubrary.Demos.ProtoGuyDemo
             var host = ZoeSpawner.SpawnCharacter(zoeDef, transform.position);
             AddInputDriver(host);
 
-            // Alignment itself is now the Rig's job (Zoe.view's composite parts, configured in the Zoe editor's
-            // Rig section — see AttachAnchor/ZoeBodyPart), resolved live every frame by CompositeZonedPlayer.
-            // Only sorting order is left here — a scene-composition concern (which sprite draws in front), not
-            // a rig-alignment one. Composite parts are flat children of the spawned host (never nested under
-            // each other — CompositeZonedPlayer.Build parents every part directly to the root and repositions
-            // them by anchor each frame instead of by Transform hierarchy), so this is a direct child lookup.
-            var upper = host.transform.Find("Upper");
-            if (upper != null)
-            {
-                var sr = upper.GetComponent<SpriteRenderer>();
-                if (sr != null) sr.sortingOrder = (int)upperSortingOrder;
-            }
+            // Nothing else to do here. Both alignment AND draw order are the Zoe's own data now — anchors and
+            // ZoeBodyPart.sortingOrder, resolved by CompositeZonedPlayer for every consumer alike. This used
+            // to patch the torso's sortingOrder after spawn, which made THIS scene look correct while the real
+            // spawn path (a game, or Mirage) drew the character inside-out, with nothing to reveal the gap.
+            // A demo that fixes something up locally is a demo that hides a missing feature.
         }
 
         void AddInputDriver(GameObject host)
@@ -67,6 +59,13 @@ namespace Laubrary.Demos.ProtoGuyDemo
             source.enabled = true;
 
             host.AddComponent<TopDownMotionDriver>().moveSpeed = moveSpeed;
+
+            // Fire is a separate driver on purpose — TopDownMotionDriver owns a perspective-SPECIFIC
+            // locomotion model, while pulling a trigger is identical in every 2D perspective. Keeping them
+            // apart is what lets a platformer reuse the fire half verbatim and rewrite only the motion half.
+            // It finds ProtoGuy's equipped weapon itself through the WeaponSwitcher that
+            // ZoeSpawner.EquipWeaponSlots already put on the host, so there is nothing to wire here.
+            host.AddComponent<ZoeWeaponDriver>();
         }
     }
 }

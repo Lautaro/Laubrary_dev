@@ -28,10 +28,24 @@ namespace Laubrary.Launimator
         /// Laumination, jump to this named zone instead of playing from the start. Purely additive: existing
         /// callers that ignore this field see exactly today's behaviour.
         public readonly string ZoneName;
+        // Stored offset by one so that `default` (i.e. LauminationResolution.None) yields FrameIndex = -1,
+        // "no frame requested". A bare int field would default to 0 — a perfectly VALID frame — and any
+        // consumer that checked HasFrame before checking Laumination would silently hold frame 0 of nothing.
+        readonly int _frameIndexPlusOne;
 
-        public LauminationResolution(Laumination l, bool flipX, float rotDeg, float resolvedAngle, string zoneName = "")
+        /// -1 = play Laumination normally; the caller decides the frame. >= 0 = the set is a
+        /// <see cref="DirectionMode.Rotation"/> sheet and THIS frame of it is the resolved direction, so the
+        /// caller should hold that exact frame. Replaces the zone-name indirection for the regular case:
+        /// nothing needs naming when the frame index IS the direction.
+        public int FrameIndex => _frameIndexPlusOne - 1;
+        /// Whether this resolution names an explicit frame to hold (a Rotation sheet).
+        public bool HasFrame => _frameIndexPlusOne > 0;
+
+        public LauminationResolution(Laumination l, bool flipX, float rotDeg, float resolvedAngle,
+                                     string zoneName = "", int frameIndex = -1)
         {
-            Laumination = l; FlipX = flipX; RotationDeg = rotDeg; ResolvedAngleDeg = resolvedAngle; ZoneName = zoneName;
+            Laumination = l; FlipX = flipX; RotationDeg = rotDeg; ResolvedAngleDeg = resolvedAngle;
+            ZoneName = zoneName; _frameIndexPlusOne = frameIndex + 1;
         }
 
         public static LauminationResolution None => default;
@@ -82,6 +96,9 @@ namespace Laubrary.Launimator
                 case DirectionMode.MembersRotate:
                     return ResolveMembersRotate(set, a);
 
+                case DirectionMode.Rotation:
+                    return ResolveRotationSheet(set, a);
+
                 default:
                     return LauminationResolution.None;
             }
@@ -131,6 +148,30 @@ namespace Laubrary.Launimator
             if (m == null) return LauminationResolution.None;
             float delta = Mathf.DeltaAngle(resolvedAngle, angleDeg);
             return new LauminationResolution(m.laumination, mirrored, delta, resolvedAngle, m.zoneName);
+        }
+
+        /// <summary>One sheet whose FRAMES are the directions. Frame i faces i × (360/N), clockwise from up,
+        /// so the whole mapping is arithmetic — nothing per-direction is authored, named or stored.
+        ///
+        /// N is read from the sheet's own <c>frames.Count</c> rather than a count field on the set, so the
+        /// two can never disagree: re-bake the sheet with 32 directions and the set follows with no edit.
+        /// Returns <see cref="LauminationResolution.None"/> for an empty sheet (0 frames) — the modulo would
+        /// divide by zero, and "no frames" genuinely has no direction to resolve.</summary>
+        static LauminationResolution ResolveRotationSheet(LauminationSet set, float angleDeg)
+        {
+            var m = FirstValid(set);
+            if (m == null) return LauminationResolution.None;
+
+            var sheet = m.laumination;
+            int n = sheet != null && sheet.frames != null ? sheet.frames.Count : 0;
+            if (n <= 0) return LauminationResolution.None;
+
+            float step = 360f / n;
+            // Round (not floor) so each frame owns the half-step either side of its own angle — the same
+            // "nearest direction wins" rule Members mode uses, just computed instead of searched. The extra
+            // +n before the modulo keeps the wrap at 360° landing on frame 0, not on n.
+            int idx = ((Mathf.RoundToInt(angleDeg / step) % n) + n) % n;
+            return new LauminationResolution(sheet, false, 0f, idx * step, "", idx);
         }
 
         // ── helpers ──

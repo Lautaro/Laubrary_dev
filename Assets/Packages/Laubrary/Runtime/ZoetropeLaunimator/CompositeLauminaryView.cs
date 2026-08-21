@@ -64,6 +64,12 @@ namespace Laubrary.ZoetropeLaunimator
                  "point still lines up correctly.")]
         public AttachAnchor childAnchor = new AttachAnchor();
 
+        [Tooltip("Which part draws in FRONT. Higher wins — a torso over its legs is torso 1, legs 0. Composite " +
+                 "parts share one position, so without this the draw order is a tie Unity resolves however it " +
+                 "likes, and the character can render inside-out. This belongs to the Zoe, not to whoever spawns " +
+                 "it: the game, Mirage and any demo all go through the same spawn path and must all agree.")]
+        public int sortingOrder;
+
         [Tooltip("This part's own directional pose — a torso can read Aim while legs read Heading, " +
                  "independently, because each part gets its own MotionPoseAnimator all reading the SAME " +
                  "character-wide MotionState off the root. Additive and unauthored by default.")]

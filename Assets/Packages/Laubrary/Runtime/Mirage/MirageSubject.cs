@@ -66,6 +66,43 @@ namespace Laubrary.Mirage
         public bool targetPractice;
         [Min(0f)] public float respawnDelay = 2f;
 
+        [Header("Manual control (opt-in, requested by the editor that configured this view)")]
+        [Tooltip("Offer manual controls for this subject in the Mirage HUD. Opt-in, set by whichever editor " +
+                 "configured the view (see PreviewableEntry.manualControls).")]
+        public bool manualControls;
+
+        /// The hand-control driver, when <see cref="manualControls"/> asked for one — the HUD's handle on this
+        /// subject. Null otherwise, so a view that didn't opt in costs nothing.
+        public MirageManualDriver Manual { get; private set; }
+
+        /// What the spawned Zoe can actually be asked to do, derived once per spawn. The HUD builds its
+        /// controls from THIS, so a capability the character hasn't earned produces no button.
+        public ZoeCapabilities Capabilities { get; private set; }
+
+        // Hand-set pose, kept across a respawn (see Spawn's restore branch). Not serialized on purpose: it is
+        // transient test state, not authoring, and must never end up saved onto anything.
+        bool _hasKeptManual;
+        float _keptAim, _keptMove;
+        bool _keptWalking, _keptFiring, _keptLock = true;
+
+        /// <summary>Re-establish the manual-control state if it went missing, and do nothing if it didn't.
+        ///
+        /// <see cref="Manual"/> and <see cref="Capabilities"/> are plain properties, so a domain reload (any
+        /// script recompile) silently wipes them while the spawned GameObject itself survives — the same trap
+        /// this class's own Update() comment describes for Spawned/Player/Weapon, and that MotionPoseAnimator
+        /// and AnimatedViewRelay both hit before. Without this, the controls disappear after any recompile and
+        /// look like a broken feature; re-deriving is cheap and always correct, so it self-heals instead.</summary>
+        public void EnsureManualControls()
+        {
+            if (!manualControls || Spawned == null) return;
+            if (Capabilities.Zoe == null) Capabilities = ZoeCapabilities.Derive(zoe);
+            if (Manual == null)
+            {
+                Manual = Spawned.GetComponent<MirageManualDriver>();
+                if (Manual == null) Manual = Spawned.AddComponent<MirageManualDriver>();
+            }
+        }
+
         [Header("Combat")]
         public LayerMask projectileBlockers;
 
@@ -103,8 +140,27 @@ namespace Laubrary.Mirage
         void HandleAssetInvalidated(Object asset)
         {
             if (Spawned == null || zoe == null) return;
-            bool relevant = asset == zoe || (zoe.weapons != null && zoe.weapons.Exists(s => s != null && s.weapon == asset));
+            bool relevant = asset == zoe
+                         || (zoe.weapons != null && zoe.weapons.Exists(s => s != null && s.weapon == asset))
+                         || ReferencesLauminaryVersion(asset);
             if (relevant) _pendingRebuild = true;
+        }
+
+        /// <summary>Does this Zoe's view play out of <paramref name="asset"/>? The animation data — clips,
+        /// meta-layers, the painted points a rig anchor reads — lives in a LauminaryVersion the view points at,
+        /// NOT on the Zoe, so watching only the Zoe and its weapons meant editing an animation never refreshed
+        /// the preview. That is the half of "edit and watch it change" that was missing.</summary>
+        bool ReferencesLauminaryVersion(Object asset)
+        {
+            if (asset == null || zoe == null) return false;
+            if (zoe.view is CompositeLauminaryView composite)
+            {
+                if (composite.parts == null) return false;
+                foreach (var part in composite.parts)
+                    if (part?.view is ZonedLauminaryView pv && pv.version != null && pv.version == asset) return true;
+                return false;
+            }
+            return zoe.view is ZonedLauminaryView single && single.version != null && single.version == asset;
         }
 
         // Tears down the live spawn (and its event subscriptions) without touching this component's own
@@ -122,7 +178,18 @@ namespace Laubrary.Mirage
             {
                 if (Application.isPlaying) Destroy(Spawned); else DestroyImmediate(Spawned);
             }
+            // Remember the hand-set pose before the driver dies with the body, so an asset edit doesn't reset
+            // what you were looking at.
+            if (Manual != null)
+            {
+                _hasKeptManual = true;
+                _keptAim = Manual.aimAngleDeg; _keptMove = Manual.moveAngleDeg;
+                _keptWalking = Manual.walking; _keptFiring = Manual.firing; _keptLock = Manual.lockMoveToAim;
+            }
+            // Manual/Capabilities go with the rest: Manual lives ON the object just destroyed, so keeping the
+            // reference would leave the HUD driving a corpse.
             Spawned = null; Player = null; Weapon = null; Combatant = null; Health = null;
+            Manual = null; Capabilities = ZoeCapabilities.None;
             _sequenceIndex = 0;
         }
 
@@ -141,7 +208,7 @@ namespace Laubrary.Mirage
                 _pendingRebuild = false;
                 if (Spawned != null) DestroySpawned();
             }
-            if (Spawned != null) return;
+            if (Spawned != null) { EnsureManualControls(); return; }
             if (transform.childCount > 0) { RebindToExisting(transform.GetChild(0).gameObject); return; }
             Spawn();
         }
@@ -250,6 +317,35 @@ namespace Laubrary.Mirage
             Player = Spawned.GetComponent<ZonedAnimationPlayer>();   // null if the Zoe's view isn't Zoned — fine.
             if (Combatant != null) Combatant.aimDirection = previewAimDirection;
             ApplyPoseOverride();
+
+            // Manual control is opt-in per entry, so a view assembled to look at effects or a backdrop never
+            // grows character controls it has no use for. Capabilities are derived per spawn rather than
+            // cached on the asset — they must never be able to disagree with the Zoe they describe.
+            Capabilities = ZoeCapabilities.Derive(zoe);
+            if (manualControls)
+            {
+                Manual = Spawned.AddComponent<MirageManualDriver>();
+                if (_hasKeptManual)
+                {
+                    // Carry the hand-set pose across a respawn. An asset edit rebuilds the character, and
+                    // snapping it back to facing-north-and-idle every time you nudge a painted point would
+                    // make the edit-and-watch loop unusable — you'd lose the exact pose you were judging.
+                    Manual.aimAngleDeg = _keptAim;
+                    Manual.moveAngleDeg = _keptMove;
+                    Manual.walking = _keptWalking;
+                    Manual.firing = _keptFiring;
+                    Manual.lockMoveToAim = _keptLock;
+                }
+                else
+                {
+                    // First spawn: start facing wherever the entry was already pointing, so opening the
+                    // controls doesn't snap the character out of the pose being looked at.
+                    Manual.aimAngleDeg = previewAimDirection.sqrMagnitude > 1e-6f
+                        ? Mathf.Repeat(Mathf.Atan2(previewAimDirection.x, previewAimDirection.y) * Mathf.Rad2Deg, 360f)
+                        : 0f;
+                    Manual.moveAngleDeg = Manual.aimAngleDeg;
+                }
+            }
 
             EnsureTargetPractice();
 

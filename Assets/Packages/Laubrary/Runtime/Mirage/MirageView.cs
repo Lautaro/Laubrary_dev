@@ -125,6 +125,13 @@ namespace Laubrary.Mirage
         public bool targetPractice;
         [Tooltip("Seconds after the death reaction finishes (or immediately, if there's no death clip) before reviving.")]
         [Min(0f)] public float respawnDelay = 2f;
+
+        [Tooltip("Show manual controls for this entry in the Mirage HUD — a facing dial, walk and fire toggles, " +
+                 "built from whatever the Zoe can actually do. OPT-IN, set by whichever editor configured this " +
+                 "view: the Zoe editor turns it on when it opens Mirage to test a character, while a view " +
+                 "assembled to look at effects or a backdrop stays uncluttered. Nothing is offered for a " +
+                 "capability the Zoe hasn't earned, so a character with no weapon gets no fire button.")]
+        public bool manualControls;
     }
 
     /// <summary>

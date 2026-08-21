@@ -100,14 +100,19 @@ namespace Laubrary.ZoetropeLaunimator
         /// (90° = E) and would otherwise produce a confusing label like "Moving ENE" for what is really "E".
         static List<int> RepresentativeIndices(PartRef part, MotionCondition bucket)
         {
-            var seen = new HashSet<(string clip, string zone, bool flip, int rotSnap)>();
+            var seen = new HashSet<(string clip, string zone, bool flip, int rotSnap, int frame)>();
             var indices = new List<int>();
             for (int i = 0; i < 16; i++)
             {
                 float probeAngle = i * 22.5f;
                 var res = MotionPoseResolver.ResolveAt(part.pose, part.version, bucket, probeAngle);
                 if (res.Laumination == null) continue;
-                var key = (res.Laumination.name, res.ZoneName ?? "", res.FlipX, Mathf.RoundToInt(res.RotationDeg));
+                // FrameIndex belongs in the key alongside ZoneName: on a DirectionMode.Rotation sheet every
+                // direction shares one clip name, an empty zone, no flip and no rotation, so without it all
+                // 16 probes would dedup down to a SINGLE entry and the pose picker would offer one pose for
+                // a 16-way character.
+                var key = (res.Laumination.name, res.ZoneName ?? "", res.FlipX,
+                           Mathf.RoundToInt(res.RotationDeg), res.FrameIndex);
                 if (!seen.Add(key)) continue;
                 int labelIndex = ((Mathf.RoundToInt(res.ResolvedAngleDeg / 22.5f) % 16) + 16) % 16;
                 if (!indices.Contains(labelIndex)) indices.Add(labelIndex);

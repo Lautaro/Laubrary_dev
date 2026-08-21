@@ -41,7 +41,24 @@ namespace Laubrary.Launimator
         /// the resolver returns that member plus the angle delta to the requested angle so the runtime
         /// can rotate the transform for the in-between motion. The technique that buys smooth aiming
         /// from few sprites (e.g. 8 members + rotation reads as 32 directions to the eye).
-        MembersRotate
+        MembersRotate,
+
+        /// ONE laumination whose FRAMES ARE THE DIRECTIONS — a rotation sheet. Frame 0 is 0° (up) and the
+        /// frames run clockwise at exactly 360/N each, so direction is arithmetic: no members to author, no
+        /// zones to name, no per-direction data of any kind. N comes from the clip's own frame count, so it
+        /// can never drift out of step with the art.
+        ///
+        /// This replaces the <see cref="LauminationSetMember.zoneName"/> "rotation sheet" technique for the
+        /// regular case. That technique removed the need for N separate clip ASSETS, but not the cost: a set
+        /// still held N members, each serializing a COMPLETE copy of the same sheet (recipe, frames and its
+        /// whole zone table). ProtoGuy's 16-way torso cost 16 copies of one 16-frame clip plus 256 zone
+        /// records to express what is really "frame i faces i × 22.5°" — 91% of that lauminary file. Use
+        /// <see cref="Members"/> when the directions are genuinely different clips (a 3-way walk cycle with
+        /// mirroring); use this when they are frames of one sheet.
+        ///
+        /// <c>members</c> holds exactly ONE entry: the sheet itself. No mirroring (a full-circle sheet has
+        /// nothing to mirror) and no rotation (the art carries the facing).
+        Rotation
     }
 
     /// One authored member of a <see cref="LauminationSet"/>: which laumination, tagged at which angle,
@@ -97,7 +114,8 @@ namespace Laubrary.Launimator
                  "Mirror = 1; " +
                  "Members = 1..16 (typical 9 for a 16-way mirrored set, 3 for a 4-way mirrored set); " +
                  "Rotate = 1; " +
-                 "MembersRotate = 2..16.")]
+                 "MembersRotate = 2..16; " +
+                 "Rotation = 1 (the rotation sheet — its FRAME COUNT is the direction count).")]
         public List<LauminationSetMember> members = new List<LauminationSetMember>();
 
         [Tooltip("When true (only meaningful for Members mode), the resolver mirrors across the vertical " +

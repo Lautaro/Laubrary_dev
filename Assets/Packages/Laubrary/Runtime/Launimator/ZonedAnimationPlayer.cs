@@ -26,6 +26,13 @@ namespace Laubrary.Launimator
         [Tooltip("Global speed knob: 1 = authored fps, 0 = paused.")]
         public float speedScale = 1f;
 
+        [Tooltip("Play the strip BACKWARDS. For a walk cycle whose direction was chosen by where the character " +
+                 "is AIMING rather than where it is going: moving opposite your facing is a backpedal, and the " +
+                 "same clip run in reverse is what makes the feet push the right way. Only applies to a plain " +
+                 "(non-zoned) strip — a zoned strip's zones are ordered ranges with their own behaviours, so " +
+                 "stepping backwards through them has no defined meaning and it always advances forward.")]
+        public bool reversed;
+
         [Tooltip("Cap on how many distinct frames/second EndIn will show; above this it decimates (drops frames) " +
                  "while still finishing on time and always landing the final frame.")]
         public float maxFps = 24f;
@@ -167,6 +174,32 @@ namespace Laubrary.Launimator
             return true;
         }
 
+        /// <summary>Hold one exact frame of the current clip — the rotation-sheet counterpart of
+        /// <see cref="EnterAt"/>. A <see cref="DirectionMode.Rotation"/> set resolves a direction straight to a
+        /// frame index, so there is no zone to name and nothing to look up: park on that frame and stop
+        /// advancing (the sheet is a set of poses, not a cycle — letting it run would flip through every
+        /// other direction).
+        ///
+        /// Idempotent: already parked on that frame is a no-op rather than a restart, so calling it every
+        /// frame while the direction is unchanged costs nothing and cannot stutter. Returns false if there
+        /// are no frames or the index is out of range.</summary>
+        public bool EnterAtFrame(int frameIndex)
+        {
+            if (!HasFrames) return false;
+            int count = _anim.frames.Count;
+            if (frameIndex < 0 || frameIndex >= count) return false;
+            if (_i == frameIndex && !_playing && !_ending) return true; // already parked here — don't reset
+
+            _i = frameIndex; _t = 0f;
+            _ending = false;
+            _playing = false;   // a pose, not a cycle
+            _wantZone = null;
+            PushSprite();
+            FireFrameEvents();
+            FireMetaLayerReached();
+            return true;
+        }
+
         /// <summary>Ask to move to a named zone, but SMOOTHLY: a Loop zone keeps playing to its end (its last
         /// frame flows into the next zone), then switches there. Call it freely each frame — it just records the
         /// latest target. No-op if already in that zone, not zoned, or the zone is unknown. For an INSTANT cut
@@ -256,8 +289,10 @@ namespace Laubrary.Launimator
 
         void StepOne()
         {
-            _i++;
-            if (_zones != null && _zones.Count > 0)
+            bool zoned = _zones != null && _zones.Count > 0;
+            // Reverse applies only to a plain strip (see `reversed`'s own tooltip for why a zoned one can't).
+            _i += (!zoned && reversed) ? -1 : 1;
+            if (zoned)
             {
                 if (_zoneIdx < 0 || _zoneIdx >= _zones.Count)
                 {
@@ -284,7 +319,15 @@ namespace Laubrary.Launimator
             else
             {
                 int count = _anim.frames.Count;
-                if (_i >= count)
+                if (reversed)
+                {
+                    if (_i < 0)
+                    {
+                        if (_loop) _i = count - 1;
+                        else { _i = 0; _playing = false; FireComplete(); }
+                    }
+                }
+                else if (_i >= count)
                 {
                     if (_loop) _i = 0;
                     else { _i = count - 1; _playing = false; FireComplete(); }

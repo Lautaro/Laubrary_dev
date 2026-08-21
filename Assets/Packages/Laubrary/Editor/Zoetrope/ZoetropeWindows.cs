@@ -848,6 +848,13 @@ namespace Laubrary.Zoetrope.Editor
                         $"How '{part.name}' attaches to its parent part '{part.parentPartName}'.");
                     card.Add(Z.Text("Parent side", ZuiText.Small,
                         $"Where on '{part.parentPartName}''s current frame this connects."));
+                    var orderProp = partProp.FindPropertyRelative("sortingOrder");
+                    if (orderProp != null)
+                        card.Add(NumField("Draw order", orderProp.propertyPath, orderProp.intValue,
+                            "Which part draws in FRONT — higher wins. Composite parts share a position, so " +
+                            "without this the order is a tie the engine breaks arbitrarily. Torso over legs " +
+                            "is torso 1, legs 0."));
+
                     if (parentAnchorProp != null) BuildAnchorRow(card, parentAnchorProp, part.parentAnchor);
                     card.Add(Z.Text("This part's side", ZuiText.Small,
                         $"Where on '{part.name}''s own current frame the connection lands."));
@@ -867,12 +874,51 @@ namespace Laubrary.Zoetrope.Editor
         /// intentionally left otherwise blank — a composite Zoe with an authored MotionPose (ProtoGuy's case)
         /// self-drives idle/aim every frame via its own MotionPoseAnimator with no Mirage-authored clip needed;
         /// use Mirage's own HUD to move/interact once it's open.
+        /// <summary>Make sure the scene that actually RENDERS a Mirage preview is open.
+        ///
+        /// Opening the Mirage window only focuses a window and points it at a view — the live preview needs a
+        /// <see cref="MirageRig"/>, which lives in the Mirage stage scene. Without this, "Preview in Mirage"
+        /// dropped you into a window that silently showed nothing until you happened to know you had to open
+        /// that scene by hand: a missing step, not a workflow. An editor that says it will set up a preview has
+        /// to actually land you in one.
+        ///
+        /// No-op when a rig is already present (any scene providing one is fine — the stage is not special-cased
+        /// by name at runtime), and quietly does nothing if the stage scene isn't in the project, leaving the
+        /// window usable for editing the view itself.</summary>
+        static void EnsureMirageStageOpen()
+        {
+            if (Object.FindFirstObjectByType<MirageRig>() != null) return;
+
+            string path = null;
+            foreach (var guid in AssetDatabase.FindAssets("MirageStage t:Scene"))
+            {
+                var p = AssetDatabase.GUIDToAssetPath(guid);
+                if (!string.IsNullOrEmpty(p)) { path = p; break; }
+            }
+            if (string.IsNullOrEmpty(path)) return;
+
+            // The user clicked a button that opens a preview, so a save prompt here is expected and theirs to
+            // answer; a cancel means leave their scene alone and don't open anything.
+            if (!UnityEditor.SceneManagement.EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene(
+                path, UnityEditor.SceneManagement.OpenSceneMode.Single);
+        }
+
         static void PreviewInMirage(Zoe zoe)
         {
             if (zoe == null) return;
+            EnsureMirageStageOpen();
             var view = ScriptableObject.CreateInstance<MirageView>();
             view.name = $"{zoe.name} (Rig Preview)";
-            view.AddEntry(zoe, Vector2.zero);
+            var entry = view.AddEntry(zoe, Vector2.zero);
+
+            // THIS is the editor asking Mirage for a control surface. Manual controls are opt-in per entry, so
+            // a view assembled to look at an effect or a backdrop never grows character controls — but a view
+            // created BY the Zoe editor exists precisely to put a character through its paces, so it asks.
+            // What the controls end up being is not decided here: the HUD derives them from the Zoe's own
+            // capabilities, so a character with no weapon simply gets no fire toggle.
+            if (entry != null) entry.manualControls = true;
+
             MirageWindow.OpenFor(view);
         }
 

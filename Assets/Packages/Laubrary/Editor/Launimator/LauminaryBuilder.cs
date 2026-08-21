@@ -80,6 +80,24 @@ namespace Laubrary.Launimator.Editor
             if (packed != null)
             {
                 keepAtlasPaths.Clear(); // per-animation atlases are now redundant
+
+                // Corruption guard. This bake path has a known, unfixed reimport race (a rebuild can silently
+                // drop and MERGE frames — observed twice on the same asset: 56 sprites collapsing to 43 while
+                // the atlas tripled in size, showing up in-game as one sprite containing two characters). It
+                // is silent: nothing throws, the save reports success, and the damage is only noticed later
+                // when the character renders wrong. Until the race itself is fixed, at least refuse to let it
+                // pass unremarked — a loud error naming the file is the difference between reverting one edit
+                // and losing an afternoon's painting.
+                int expectedFrames = 0;
+                foreach (var def in baked) expectedFrames += def.frames != null ? def.frames.Count : 0;
+                int actualSprites = 0;
+                foreach (var sub in AssetDatabase.LoadAllAssetsAtPath(packedPath))
+                    if (sub is Sprite) actualSprites++;
+                if (actualSprites != expectedFrames)
+                    Debug.LogError($"Launimator: atlas rebuild for '{safeChar}' produced {actualSprites} sprites " +
+                                   $"but {expectedFrames} frames were baked — '{packedPath}' is CORRUPT. This is " +
+                                   $"the known rebuild race, not something you did. Undo/revert this lauminary " +
+                                   $"before editing further; saving again on top will not repair it.");
             }
             else if (baked.Count > 0)
             {

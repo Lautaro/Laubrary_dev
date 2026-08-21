@@ -33,6 +33,7 @@ namespace Laubrary.ZoetropeLaunimator
 
         string _lastClip;
         string _lastZone;
+        int _lastFrame = -1;   // -1 = no frame held (see LauminationResolution.FrameIndex)
         bool _started;
         IZonedView _zoned;
 
@@ -85,7 +86,37 @@ namespace Laubrary.ZoetropeLaunimator
             if (_arbiter != null) _arbiter.Reassert -= OnArbiterReassert;
         }
 
-        void OnArbiterReassert() { _started = false; _lastZone = null; }
+        void OnArbiterReassert() { _started = false; _lastZone = null; _lastFrame = -1; }
+
+        /// <summary>Is this part walking BACKWARDS — travelling roughly opposite the way it faces?
+        ///
+        /// Only meaningful when the matched rule steers by <see cref="DirectionChannel.Aim"/>. That is the
+        /// whole point: once the leg cycle's direction is chosen by where the torso AIMS rather than where the
+        /// body travels, "aiming west while moving east" is a backpedal, and the same clip reversed is what
+        /// makes the feet push the right way instead of moonwalking. A part still steering by Heading always
+        /// faces the way it moves, so it is never backpedalling and this returns false — which is why the
+        /// answer is gated on the channel and not just on the two vectors.
+        ///
+        /// Perpendicular movement (strafing) reports false, i.e. plays forward. With only forward-facing walk
+        /// art there is no sideways cycle to choose, and forward is the closer of the two available readings;
+        /// true strafing needs its own art, not a playback trick.</summary>
+        bool ShouldBackpedal()
+        {
+            if (_overrideBucket.HasValue) return false;   // frozen preview pose: no real motion to compare against
+            if (_pose == null || Motion == null) return false;
+
+            var state = Motion.Current;
+            if (state.speed <= _pose.moveThreshold) return false;   // standing still has no travel direction
+
+            var rule = _pose.Match(state);
+            if (rule == null) return false;
+            var channel = rule.overrideChannel ? rule.channel : _pose.channel;
+            if (channel != DirectionChannel.Aim) return false;
+
+            Vector2 travel = state.heading, facing = state.aim;
+            if (travel.sqrMagnitude < 1e-6f || facing.sqrMagnitude < 1e-6f) return false;
+            return Vector2.Dot(travel.normalized, facing.normalized) < 0f;
+        }
 
         void LateUpdate()
         {
@@ -110,21 +141,31 @@ namespace Laubrary.ZoetropeLaunimator
             if (res.Laumination == null) return;
 
             if (_flippable != null) _flippable.FlipX = res.FlipX;
+            _view?.SetPlaybackReversed(ShouldBackpedal());
             // World rotation, never local: a composite part's transform is parented under its owner (see
             // CompositeZonedPlayer), and local rotation would compound with a rotating parent's own facing.
             transform.rotation = Quaternion.Euler(0f, 0f, -res.RotationDeg);
 
             string clip = res.Laumination.name;
             string zone = res.ZoneName ?? "";
+            int frame = res.HasFrame ? res.FrameIndex : -1;
 
-            // Dedup key is (clip, zone), not just clip — several directions can share ONE "rotation sheet"
-            // clip (see LauminationSetMember.zoneName), so clip-name-only comparison would silently swallow
-            // every direction change after the first once that's in play. When zone is always "" (today's
-            // default, unchanged sets), zoneChanged is always false and this reduces to exactly the old
-            // "only re-issue PlayClip on a CHANGE" guard — zero behaviour change for anything not opted in.
+            // Dedup key is (clip, zone, frame), not just clip — several directions can share ONE "rotation
+            // sheet" clip (by zone name, or by frame index for a DirectionMode.Rotation set), so
+            // clip-name-only comparison would silently swallow every direction change after the first once
+            // that's in play. When zone is "" and frame is -1 (a plain per-direction-clip set), neither
+            // changes, and this reduces to exactly the old "only re-issue PlayClip on a CHANGE" guard.
             bool clipChanged = !_started || clip != _lastClip;
             bool zoneChanged = zone != (_lastZone ?? "");
-            if (!clipChanged && !zoneChanged) return;
+            bool frameChanged = frame != _lastFrame;
+            // A held FRAME is re-asserted every frame, not just when it changes. Unlike a clip or a zone, it is
+            // a position the player can be knocked off by anyone else — the arbiter re-playing, a reaction
+            // finishing, a domain reload — and Play() restarts at frame 0. Gating re-entry on "did the
+            // direction change" then leaves it stuck on frame 0 forever: the pose is wrong, `_lastFrame` still
+            // says it was handled, and nothing ever corrects it (observed as a composite torso frozen facing
+            // one way while the legs kept resolving). TryEnterFrame is idempotent and cheap when already
+            // parked, so asserting it unconditionally is self-healing at no cost.
+            if (!clipChanged && !zoneChanged && !frameChanged && frame < 0) return;
 
             if (clipChanged)
             {
@@ -154,6 +195,22 @@ namespace Laubrary.ZoetropeLaunimator
             else
             {
                 _lastZone = zone;
+            }
+
+            // Same contract for a Rotation sheet, one step simpler: the resolved direction IS a frame index,
+            // so hold it. _lastFrame only advances on a CONFIRMED entry, for exactly the reason _lastZone
+            // does — a failed TryEnterFrame (view not resolved yet the same frame Play() was issued) must not
+            // be recorded as done, or frameChanged would go permanently false and the pose would stick.
+            if (frame >= 0)
+            {
+                // Unconditional, for the reason above — this is a position to HOLD, so it must be restated
+                // rather than fired once and assumed to stick.
+                bool entered = _zoned != null && _zoned.TryEnterFrame(frame);
+                if (entered) _lastFrame = frame;
+            }
+            else
+            {
+                _lastFrame = -1;
             }
         }
     }

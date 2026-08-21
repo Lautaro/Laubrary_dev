@@ -1768,9 +1768,17 @@ namespace Laubrary.Launimator.Editor
             // for a selected sprite that isn't in the sequence yet (no baked frame exists for it).
             bool baked = _previewFrames != null && _previewFrames.Count == _sequence.Count;
 
-            if (_ghostOpacity > 0.001f)
+            // Ghost counts of 0/0 mean OFF, unconditionally. They used to be advisory: the window check below
+            // was gated on having an anchor, so with nothing selected it was skipped and EVERY frame ghosted
+            // no matter what the counts said — turning them down did nothing.
+            if (_ghostOpacity > 0.001f && (_ghostBefore > 0 || _ghostAfter > 0))
             {
+                // No selection = no anchor. Centre the onion-skin on the PLAYHEAD rather than falling back to
+                // "ghost the whole sequence": on a 3-frame walk cycle that fallback was harmless, but on a
+                // 16-direction rotation sheet it superimposes all 16 poses into an unreadable smear — which is
+                // what the Builder showed on OPEN (nothing is selected yet) for every rotation-sheet asset.
                 int anchor = AnchorSequenceIndex();
+                if (anchor < 0) anchor = ActiveFrameIndex();
                 for (int s = 0; s < _sequence.Count; s++)
                 {
                     var cr = _sequence[s];
@@ -1796,6 +1804,16 @@ namespace Laubrary.Launimator.Editor
                     DrawSelectedTransformed(crossX, crossY, scale);   // not sequenced but edited — show the edit
                 else
                     DrawCellAtAnchor(reg.cells[_selCell], reg.pivots[_selCell], crossX, crossY, scale, 1f, reg.sourceTextureGuid);
+            }
+            else if (baked)
+            {
+                // Nothing selected: show the frame the playhead is on, solid. Registration is judged against
+                // ONE frame sitting on the crosshair — so with no selection the useful default is the current
+                // frame, not an empty stage (and certainly not every frame at once, which is what this drew
+                // before). Selecting a sprite still takes over exactly as before.
+                int f = ActiveFrameIndex();
+                if (f >= 0 && f < _previewFrames.Count)
+                    FramePreview.DrawSpriteAtAnchor(_previewFrames[f], crossX, crossY, scale, 1f);
             }
 
             // Registration crosshair.
@@ -2068,7 +2086,21 @@ namespace Laubrary.Launimator.Editor
 
             root.Add(WrapRow(
                 Z.Toggle("Meta layers", "Gameplay overlays (hitbox/muzzle/trail) drawn over the sequence. Off keeps the UI clean.",
-                    _metaEnabled, v => { _metaEnabled = v; Refresh(); }),
+                    _metaEnabled, v =>
+                    {
+                        _metaEnabled = v;
+                        // Painting is per-frame, and the preview loops by default — so turning paint mode on
+                        // while the clip is running means "click the preview to place it" lands on whatever
+                        // frame happens to be up at that instant, silently authoring the wrong one. Pause on
+                        // entry; the ▶ button and clicking any strip frame both still work as before.
+                        if (v)
+                        {
+                            _animPlaying = false;
+                            // Keep the ▶/❚❚ button honest about the state we just forced.
+                            if (_playToggleButton != null) _playToggleButton.text = "▶";
+                        }
+                        Refresh();
+                    }),
                 Z.Flexible(),
                 Z.Button("Clear seq", "Empty the sequence (undoable).", () =>
                 {
@@ -2296,12 +2328,7 @@ namespace Laubrary.Launimator.Editor
                         "1 = darkest … 5 = layer colour … 10 = brightest. Erase = right-click.",
                         v => _paintValue = v + 1)));
 
-            root.Add(WrapRow(
-                Z.Field("Zoom", "Paint-editor magnification (screen px per source px).",
-                    Z.Slider(_metaZoom, 2f, 24f, "Paint-editor magnification (screen px per source px).",
-                        v => { _metaZoom = Mathf.Round(v); Dirty(); }, 110f)),
-                Z.Button("Center", "Recentre the paint view.",
-                    () => { _metaPan = Vector2.zero; Dirty(); }).W(56f)));
+            BuildMetaViewRow(root);
 
             int f = _sequence.Count > 0 ? Mathf.Clamp(_animFrame, 0, _sequence.Count - 1) : -1;
             if (f >= 0 && f < layer.frames.Count)
@@ -2328,6 +2355,21 @@ namespace Laubrary.Launimator.Editor
         /// Vector-mode's side-panel controls. The actual drawing surface is NOT here — it's the same preview
         /// canvas (DrawMetaEditor/HandleVectorInput) Shape/Point paint into; this is just this mode's options +
         /// readout, same shape as the Brush/Values controls Shape/Point show above.
+        /// <summary>Zoom + recentre for the paint view. Shared by EVERY layer mode: Vector needs it at least as
+        /// much as Shape/Point does, since placing a muzzle origin is pixel-precise work on a sprite that is
+        /// only tens of pixels across. (It used to live inline in the Shape/Point path only, below
+        /// <see cref="BuildVectorLayerUI"/>'s early return — so a Vector layer had no way to zoom or recentre
+        /// at all, and a stray middle-drag pan left the sprite off-view with nothing to undo it.)</summary>
+        private void BuildMetaViewRow(VisualElement root)
+        {
+            root.Add(WrapRow(
+                Z.Field("Zoom", "Paint-editor magnification (screen px per source px).",
+                    Z.Slider(_metaZoom, 2f, 24f, "Paint-editor magnification (screen px per source px).",
+                        v => { _metaZoom = Mathf.Round(v); Dirty(); }, 110f)),
+                Z.Button("Center", "Recentre the paint view.",
+                    () => { _metaPan = Vector2.zero; Dirty(); }).W(56f)));
+        }
+
         private void BuildVectorLayerUI(VisualElement root, MetaLayer layer)
         {
             int f = ActiveFrameIndex();
@@ -2363,6 +2405,8 @@ namespace Laubrary.Launimator.Editor
                         + (layer.vectorAllowLength ? $" len={vf.length:0.00}" : "")
                     : "Not authored — click on the preview to place it.",
                     ZuiText.Subtle, "Current frame's raw authored values.")));
+
+            BuildMetaViewRow(root);
 
             root.Add(Z.Text("Click the preview to place the origin, then drag to aim · drag the origin dot to " +
                 "move it · drag the arrowhead to re-aim · right-click erases · middle-drag pans.", ZuiText.Subtle,

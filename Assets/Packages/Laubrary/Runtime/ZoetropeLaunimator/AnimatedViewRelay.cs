@@ -73,6 +73,14 @@ namespace Laubrary.ZoetropeLaunimator
             return _player != null && _player.EnterAt(zoneName);
         }
 
+        /// IZonedView: hold one exact frame — what a Rotation set (a sheet whose frames are the directions)
+        /// resolves to. Same lazy re-fetch guard as TryEnterZone above.
+        public bool TryEnterFrame(int frameIndex)
+        {
+            if (_player == null) _player = GetComponent<ZonedAnimationPlayer>();
+            return _player != null && _player.EnterAtFrame(frameIndex);
+        }
+
         /// Forwards ZonedAnimationPlayer.GetClipSeconds — frames / fps for a plain clip, 0 for an unknown name
         /// or a zoned strip (whose end is not fixed). See IAnimatedView's own doc comment.
         public float GetClipSeconds(string clip) => _player != null ? _player.GetClipSeconds(clip) : 0f;
@@ -117,6 +125,41 @@ namespace Laubrary.ZoetropeLaunimator
             if (_player == null || !_player.TryGetMetaVectorNearest(layerId, out var o, out worldDirection, out worldLength)) return false;
             worldOrigin = o;
             return true;
+        }
+
+        /// IAnimatedView: what kind of layer is declared under this id, across EVERY animation of the version
+        /// this view plays — not just whatever clip is loaded right now. Scans the data rather than sampling
+        /// the screen, so the answer is the same whether it's asked during Start() or mid-animation. First
+        /// match wins; a layer id is meant to mean one thing across a character, and a Vector match is
+        /// preferred over a Point one if a character somehow declares both (the vector carries strictly more
+        /// information, so it's the safer default for a muzzle).
+        public MetaLayerKind GetMetaLayerKind(string layerId)
+        {
+            if (string.IsNullOrEmpty(layerId)) return MetaLayerKind.None;
+            if (_player == null) _player = GetComponent<ZonedAnimationPlayer>();
+            var version = _player != null ? _player.version : null;
+            if (version == null || version.animations == null) return MetaLayerKind.None;
+
+            var found = MetaLayerKind.None;
+            foreach (var anim in version.animations)
+            {
+                if (anim == null || anim.metaLayers == null) continue;
+                foreach (var layer in anim.metaLayers)
+                {
+                    if (layer == null || !string.Equals(layer.id, layerId, System.StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (layer.mode == MetaLayerMode.Vector) return MetaLayerKind.Vector;   // strongest, done
+                    found = MetaLayerKind.Point;                                           // Point or Shape
+                }
+            }
+            return found;
+        }
+
+        /// IAnimatedView: forward the backpedal flag to the player. Same lazy re-fetch guard as the rest.
+        public void SetPlaybackReversed(bool value)
+        {
+            if (_player == null) _player = GetComponent<ZonedAnimationPlayer>();
+            if (_player != null) _player.reversed = value;
         }
 
         void HandleFrameEvent(string name, int frame) => OnFrameEvent?.Invoke(name, frame);

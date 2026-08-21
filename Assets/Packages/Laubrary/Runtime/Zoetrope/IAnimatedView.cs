@@ -3,6 +3,20 @@ using UnityEngine;
 
 namespace Laubrary.Zoetrope
 {
+    /// <summary>What kind of data a named meta-layer carries. Mirrors Launimator's <c>MetaLayerMode</c>, but
+    /// declared here so core Zoetrope can ASK about a layer without referencing Launimator (Zoetrope doesn't,
+    /// and mustn't — the ZoetropeLaunimator bridge is what knows both). Shape reports as
+    /// <see cref="Point"/>: both are sampled through the point API.</summary>
+    public enum MetaLayerKind
+    {
+        /// No layer with that id exists on any of this view's animations.
+        None = 0,
+        /// A painted position (Point or Shape mode) — sampled via TryGetMetaPoint.
+        Point = 1,
+        /// An authored origin + direction (Vector mode) — sampled via TryGetMetaVector.
+        Vector = 2,
+    }
+
     /// <summary>
     /// Optional capability a spawned character's view MAY provide (discovered via GetComponent, same pattern
     /// as <see cref="ICueSink"/>) — lets core Zoetrope drive named-clip playback (hit reactions, Target
@@ -56,5 +70,23 @@ namespace Laubrary.Zoetrope
         /// Vector analog of <see cref="TryGetMetaPointNearest"/> — falls back to the nearest authored frame
         /// (either direction) when the current frame has nothing.
         bool TryGetMetaVectorNearest(string layerId, out Vector2 worldOrigin, out Vector2 worldDirection, out float worldLength);
+
+        /// What kind of layer this view declares under <paramref name="layerId"/>, looked up across ALL of its
+        /// animations — deliberately independent of what is playing right now, and of whether the current
+        /// frame happens to have anything authored on it.
+        ///
+        /// This exists because the Try* samplers above answer "is there data on screen THIS INSTANT", which is
+        /// the wrong question at equip time: <see cref="ZoeSpawner.EquipWeaponSlots"/> runs inside Start(),
+        /// before any clip has been resolved, so it saw whatever clip loaded first (for a composite Zoe, the
+        /// version's first animation) and concluded a painted muzzle layer didn't exist — attaching no tracker
+        /// at all, permanently, and leaving the muzzle pinned to the weapon's fixed offset. Asking the DATA
+        /// makes that decision order-independent.
+        MetaLayerKind GetMetaLayerKind(string layerId);
+
+        /// Play the current clip backwards (or forwards again). For a locomotion cycle whose DIRECTION was
+        /// chosen by where the character is aiming rather than where it is travelling: moving opposite your
+        /// facing is a backpedal, and the same clip reversed is what makes the feet push the right way instead
+        /// of moonwalking. Views with no notion of playback direction ignore it.
+        void SetPlaybackReversed(bool value);
     }
 }

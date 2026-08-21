@@ -374,8 +374,132 @@ namespace Laubrary.ZoeCharacter.Tests
         }
 
         // ─────────────────────────────────────────────────────────────────────────────
+        //  DirectionMode.Rotation — one sheet whose FRAMES are the directions
+        // ─────────────────────────────────────────────────────────────────────────────
+
+        [Test]
+        public void Rotation_ExactAngles_MapToTheirOwnFrame()
+        {
+            var set = BuildRotationSet("UpperAimRotation", 16);
+            for (int i = 0; i < 16; i++)
+            {
+                var r = LauminationSetResolver.Resolve(set, i * 22.5f);
+                Assert.IsTrue(r.HasFrame, $"angle {i * 22.5}° should resolve a frame");
+                Assert.AreEqual(i, r.FrameIndex, $"angle {i * 22.5}°");
+                Assert.AreEqual("UpperAimRotation", r.Laumination.name);
+                Assert.AreEqual(i * 22.5f, r.ResolvedAngleDeg, 0.01f);
+            }
+        }
+
+        [Test]
+        public void Rotation_HalfStepBoundary_RoundsToNearestFrame()
+        {
+            // Step is 22.5°, so each frame owns ±11.25°. Either side of that boundary must land differently,
+            // which is what stops a direction from sticking one frame past where the art changes.
+            var set = BuildRotationSet("Sheet", 16);
+            Assert.AreEqual(0, LauminationSetResolver.Resolve(set, 11.24f).FrameIndex);
+            Assert.AreEqual(1, LauminationSetResolver.Resolve(set, 11.26f).FrameIndex);
+            Assert.AreEqual(1, LauminationSetResolver.Resolve(set, 33.74f).FrameIndex);
+            Assert.AreEqual(2, LauminationSetResolver.Resolve(set, 33.76f).FrameIndex);
+        }
+
+        [Test]
+        public void Rotation_WrapsAtFullCircleAndHandlesNegatives()
+        {
+            var set = BuildRotationSet("Sheet", 16);
+            // The wrap must land on frame 0, never on frame n (which would be out of range).
+            Assert.AreEqual(0, LauminationSetResolver.Resolve(set, 359.99f).FrameIndex);
+            Assert.AreEqual(0, LauminationSetResolver.Resolve(set, 360f).FrameIndex);
+            Assert.AreEqual(0, LauminationSetResolver.Resolve(set, 720f).FrameIndex);
+            Assert.AreEqual(15, LauminationSetResolver.Resolve(set, -22.5f).FrameIndex);
+            Assert.AreEqual(0, LauminationSetResolver.Resolve(set, -0.01f).FrameIndex);
+        }
+
+        [Test]
+        public void Rotation_DirectionCountComesFromTheSheet_Not16()
+        {
+            // The whole point of deriving N from frames.Count: re-bake the sheet at a different direction
+            // count and the mapping follows with no edit to the set.
+            var set8 = BuildRotationSet("Eight", 8);
+            Assert.AreEqual(0, LauminationSetResolver.Resolve(set8, 0f).FrameIndex);
+            Assert.AreEqual(1, LauminationSetResolver.Resolve(set8, 45f).FrameIndex);
+            Assert.AreEqual(4, LauminationSetResolver.Resolve(set8, 180f).FrameIndex);
+            Assert.AreEqual(7, LauminationSetResolver.Resolve(set8, 315f).FrameIndex);
+            Assert.AreEqual(0, LauminationSetResolver.Resolve(set8, 359f).FrameIndex);
+
+            var set32 = BuildRotationSet("ThirtyTwo", 32);
+            Assert.AreEqual(1, LauminationSetResolver.Resolve(set32, 11.25f).FrameIndex);
+            Assert.AreEqual(16, LauminationSetResolver.Resolve(set32, 180f).FrameIndex);
+        }
+
+        [Test]
+        public void Rotation_EmptySheet_ReturnsNone()
+        {
+            // 0 frames would divide by zero in the step calculation, and genuinely has no direction to give.
+            var set = BuildRotationSet("Empty", 0);
+            var r = LauminationSetResolver.Resolve(set, 90f);
+            Assert.AreEqual(LauminationResolution.None, r);
+            Assert.IsFalse(r.HasFrame);
+        }
+
+        [Test]
+        public void Rotation_NeverFlipsOrRotates()
+        {
+            // A full-circle sheet has nothing to mirror and the art carries the facing.
+            var set = BuildRotationSet("Sheet", 16);
+            foreach (float a in new[] { 0f, 90f, 200f, 270f, 350f })
+            {
+                var r = LauminationSetResolver.Resolve(set, a);
+                Assert.IsFalse(r.FlipX, $"angle {a}°");
+                Assert.AreEqual(0f, r.RotationDeg, 0.001f, $"angle {a}°");
+            }
+        }
+
+        [Test]
+        public void DefaultResolution_RequestsNoFrame()
+        {
+            // FrameIndex is stored offset by one precisely so `default` reads as -1 rather than frame 0 —
+            // a bare int would make LauminationResolution.None look like a valid request to hold frame 0.
+            LauminationResolution none = default;
+            Assert.IsFalse(none.HasFrame);
+            Assert.AreEqual(-1, none.FrameIndex);
+            Assert.IsFalse(LauminationResolution.None.HasFrame);
+        }
+
+        [Test]
+        public void NonRotationModes_RequestNoFrame()
+        {
+            // Every pre-existing mode must keep going down the old path untouched.
+            Assert.IsFalse(LauminationSetResolver.Resolve(BuildMirrored9Set(), 45f).HasFrame);
+
+            var none = new LauminationSet
+            {
+                directionMode = DirectionMode.None,
+                members = new System.Collections.Generic.List<LauminationSetMember> { MakeMember(0f, "A") }
+            };
+            Assert.IsFalse(LauminationSetResolver.Resolve(none, 123f).HasFrame);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
         //  Helpers
         // ─────────────────────────────────────────────────────────────────────────────
+
+        /// A rotation sheet: ONE laumination with n frames. The resolver reads only frames.Count off it, so
+        /// null sprite slots are enough — no atlas or import needed to pin down the arithmetic.
+        static LauminationSet BuildRotationSet(string name, int n)
+        {
+            var sheet = MakeAnim(name);
+            for (int i = 0; i < n; i++) sheet.frames.Add(null);
+            return new LauminationSet
+            {
+                directionMode = DirectionMode.Rotation,
+                mirrorBuiltIn = false,
+                members = new System.Collections.Generic.List<LauminationSetMember>
+                {
+                    new LauminationSetMember { angleDegrees = 0f, laumination = sheet }
+                }
+            };
+        }
 
         static LauminationSet BuildMirrored9Set()
         {
