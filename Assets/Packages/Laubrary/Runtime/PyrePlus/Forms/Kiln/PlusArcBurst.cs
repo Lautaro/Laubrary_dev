@@ -502,9 +502,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             double go = Dissolve(t, c.dissolveStart, 1.05);
             double hollow = Ramp(t, 0.32, 0.80);
             double bR = (8.0 + 15.0 * EaseOut(t, 3.2)) * (1.0 + 0.75 * hollow);
-            double bamp = c.bodyAmp * (1.0 - Math.Pow(Ramp(t, 0.30, 0.78), 1.2));
+            double bamp = c.live.bodyAmp * (1.0 - Math.Pow(Ramp(t, 0.30, 0.78), 1.2));
             if (bamp > 0.03)
-                f.Blob(CX, CY, bR, bamp * F.ampK, prof, 0.95, 1.45, 0.80 * hollow, 0.45, go * (c.bodyOpa - 0.42 * Ramp(t, 0.15, 0.7)));
+                f.Blob(CX, CY, bR, bamp * F.ampK, prof, 0.95, 1.45, 0.80 * hollow, 0.45, go * (c.live.bodyOpa - 0.42 * Ramp(t, 0.15, 0.7)));
 
             double Rout = 15.0 + 47.0 * EaseOut(t, 2.1);
             double life = (0.40 + 0.60 * Pulse(t, 0.22, 2.4, 1.35)) * Cool(t, c.coolStart, 1.2);
@@ -516,11 +516,11 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 double L = Rout * reach[k];
                 double a1 = a0 + curl[k] * sweep;
                 var tip = Polar(CX, CY, L, a1);
-                var pts = Displace(root, tip, rng, c.detail, c.rough, 0.58);
+                var pts = Displace(root, tip, rng, c.detail, c.live.rough, 0.58);
                 var vr = F.Veil(31, k, 17);
                 var vv = VeilDeep(vr, pts.Count, op[k] * go, 1, 2, 0.04);
                 f.Channel(pts, (1.05 - 0.3 * t) * F.widthK, (3.0 - 0.9 * t) * F.widthK, 1.25 * life * F.KH(op[k]) * F.ampK, 0.5, 0.0, 0.32, 1.0, vv);
-                if (rng.Random() < c.forkP + 0.3 * t)
+                if (rng.Random() < c.live.forkP + 0.3 * t)
                 {
                     int j = (int)rng.RandRange(pts.Count / 3, pts.Count - 2);
                     double rr = Math.Sqrt((pts[j].x - CX) * (pts[j].x - CX) + (pts[j].y - CY) * (pts[j].y - CY));
@@ -569,7 +569,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 if (oa <= 0.01) continue;
                 double a0 = off[k] + t * 0.30;
                 double rr = R + band[k] * BW;
-                var pts = Jitter(ArcPts(CX, CY, rr, a0, a0 + span[k], 18), rng, c.jitter + 2.6 * t, 0.48, 4);
+                var pts = Jitter(ArcPts(CX, CY, rr, a0, a0 + span[k], 18), rng, c.live.jitter + 2.6 * t, 0.48, 4);
                 double lit = 0.75 + 0.25 * Math.Abs(band[k]);
                 var vr = F.Veil(53, k, 29);
                 var vv = VeilDeep(vr, pts.Count, oa, 1, 1 + (int)(2 * t), 0.04, 0.10, 0.30, 0.18 + 0.75 * t, 0.35 + 0.65 * t);
@@ -590,7 +590,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 f.Channel(Displace(p0, p1, rng, 3, 0.28), 0.8 * F.widthK, 1.9 * F.widthK, 0.95 * cl * F.ampK, 0.65, 0.5, 0.42, Dissolve(t, 0.58, 1.05) * rng.Uniform(0.25, 1.0));
             }
             double sw = Ramp(t, c.shutterStart, 0.86);   // THE SHUTTER: a widening transparent sector sweeps round the ring
-            if (sw > 0.01) f.FadeAngular(CX, CY, shutter + t * 3.4, 0.25 + 0.60 * sw, c.shutterDepth * sw, 1.1);
+            if (sw > 0.01) f.FadeAngular(CX, CY, shutter + t * 3.4, 0.25 + 0.60 * sw, c.live.shutterDepth * sw, 1.1);
         }
 
         // ═══════════════════════════ 3. BOLT — five enormous trunks with a travelling blow-out ═══════════════════
@@ -617,7 +617,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     var tip = Polar(CX, CY, L, a);
                     double r0 = 2.0 + 26.0 * Math.Pow(Ramp(t, 0.45, 1.0), 1.5);
                     var root = Polar(CX, CY, r0, a);
-                    var segs = Tree(rng, root, tip, c.detail, c.rough, c.depth, c.branchMin, c.branchMax, c.branchScale, c.branchSpread, c.branchAmp);
+                    var segs = Tree(rng, root, tip, c.detail, c.live.rough, c.depth, c.branchMin, c.branchMax, c.live.branchScale, c.live.branchSpread, c.live.branchAmp);
                     double u = Ramp(t, blow[k], 1.0) * 1.20 - 0.12;   // THE BLOW-OUT: a see-through gap travels root → tip
                     foreach (var sg in segs)
                     {
@@ -625,14 +625,14 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                         double bo = op[k] * go * (0.55 + 0.45 * sg.w);
                         double[] oo = null; double os = bo;
                         if (sg.w >= 0.99 && u > -0.10) oo = VeilAt(sg.pts.Count, u, 0.17, 0.55 + 0.42 * Ramp(t, 0.45, 0.92), bo, 0.03);
-                        else if (rng.Random() < c.veilP) oo = VeilDeep(rng, sg.pts.Count, bo, 1, 2);
+                        else if (rng.Random() < c.live.veilP) oo = VeilDeep(rng, sg.pts.Count, bo, 1, 2);
                         f.Channel(sg.pts, (1.25 - 0.45 * t) * kk * F.widthK, (4.0 - 1.6 * t) * kk * F.widthK,
                                   1.3 * life * sg.w * F.KH(op[k]) * F.ampK, 0.45, 0.25 * (1.0 - sg.w), 0.31, os, oo);
                     }
                 }
             double flash = 1.0 - Ramp(t, 0.0, 0.40);   // the flash the trunks are rooted in
             if (flash > 0.02)
-                f.Blob(CX, CY, 9.0 + 16.0 * EaseOut(t, 2.0), c.flashAmp * Math.Pow(flash, 1.2) * F.ampK, prof, 1.0, 1.5, 0.0, 0.30, 0.82);
+                f.Blob(CX, CY, 9.0 + 16.0 * EaseOut(t, 2.0), c.live.flashAmp * Math.Pow(flash, 1.2) * F.ampK, prof, 1.0, 1.5, 0.0, 0.30, 0.82);
         }
 
         // ═══════════════════════════ 4. CROWN — a gear-toothed heart with fat tapered lobes ═══════════════════════
@@ -671,12 +671,12 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     pts.Add(Polar(CX, CY, rad, aa));
                 }
                 double lo = op[k] * go * (1.0 - 0.35 * Ramp(t, 0.30, 1.0));
-                f.Polyline(pts, (6.2 - 2.2 * t) * lw[k] * F.widthK, c.lobeAmp * Cool(t, c.coolStart, 1.2) * (0.50 + 0.50 * op[k]) * F.ampK, 0.86, 0.45, lo, null);
+                f.Polyline(pts, (6.2 - 2.2 * t) * lw[k] * F.widthK, c.live.lobeAmp * Cool(t, c.coolStart, 1.2) * (0.50 + 0.50 * op[k]) * F.ampK, 0.86, 0.45, lo, null);
                 var fr = new PlusPyRandom(F.seed * 71 + k * 13 + F.i);   // the FILAMENT up its spine, re-rolled every frame
-                var sp = Displace(pts[0], pts[pts.Count - 1], fr, 4, c.rough, 0.6);
+                var sp = Displace(pts[0], pts[pts.Count - 1], fr, 4, c.live.rough, 0.6);
                 double fo = (0.45 + 0.55 * op[k]) * Dissolve(t, 0.68, 1.05) * (0.55 + 0.45 * EaseOut(t, 1.4));
                 f.Channel(sp, 0.95 * F.widthK, 2.2 * F.widthK, 1.45 * Cool(t, 0.94, 1.2) * F.ampK, 0.35, 0.0, 0.32, 1.0, VeilDeep(fr, sp.Count, fo, 1, 2, 0.05));
-                if (rng.Random() < c.crackleP * (1.0 - Ramp(t, 0.5, 0.95)))   // tooth-to-tooth crackle round the core
+                if (rng.Random() < c.live.crackleP * (1.0 - Ramp(t, 0.5, 0.95)))   // tooth-to-tooth crackle round the core
                 {
                     double b = la[(k + 1) % n];
                     f.Channel(Displace(Polar(CX, CY, R * 0.95, a), Polar(CX, CY, R * 0.95, b), rng, 3, 0.22), 0.75 * F.widthK, 1.7 * F.widthK, 1.2 * F.ampK, 0.35, 0.0, 0.31, go * rng.Uniform(0.25, 1.0));
@@ -696,8 +696,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             int N = nodes.Count;
             double tip = anchor.Uniform(0, TAU);
             double RimDepth(double k) => 0.5 + 0.5 * Math.Sin(k * TAU / outer + tip);
-            double OpOf(double d) => c.ghostFloor + (1.0 - c.ghostFloor) * Math.Pow(d, 1.4);
-            double RimOp(double d) => c.rimFloor + (1.0 - c.rimFloor) * Math.Pow(d, 1.3);
+            double OpOf(double d) => c.live.ghostFloor + (1.0 - c.live.ghostFloor) * Math.Pow(d, 1.4);
+            double RimOp(double d) => c.live.rimFloor + (1.0 - c.live.rimFloor) * Math.Pow(d, 1.3);
             var edges = new List<(int a, int b, double o, double p)>();
             for (int k = 0; k < outer; k++) edges.Add((k, (k + 1) % outer, RimOp(RimDepth(k + 0.5)), 0.97));
             for (int k = 0; k < outer; k++)
@@ -730,9 +730,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             foreach (var (a, b, baseO, pLit) in edges)
             {
                 if (rng.Random() > pLit * (1.0 - 0.80 * burst)) continue;
-                var pts = Displace(P[a], P[b], rng, c.detail, c.rough, 0.6);
+                var pts = Displace(P[a], P[b], rng, c.detail, c.live.rough, 0.6);
                 double oo = baseO * go; double[] ov = null;
-                if (rng.Random() < c.veilP) ov = VeilDeep(rng, pts.Count, oo, 1, 2, 0.04);
+                if (rng.Random() < c.live.veilP) ov = VeilDeep(rng, pts.Count, oo, 1, 2, 0.04);
                 f.Channel(pts, 0.9 * F.widthK, 2.2 * F.widthK, 1.25 * Cool(t, c.coolStart, 1.2) * F.KH(baseO) * F.ampK, 0.0, 0.0, 0.31, oo, ov);
             }
             for (int k = 0; k < N; k++)
@@ -777,7 +777,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 double spoke = hub * 0.85 + 0.15 * flare;
                 if (spoke > 0.04)
                 {
-                    var pts = Displace(new ArcPt(CX, CY), p, rng, c.detail, c.rough, 0.6);
+                    var pts = Displace(new ArcPt(CX, CY), p, rng, c.detail, c.live.rough, 0.6);
                     var vr = F.Veil(97, k, 31);
                     f.Channel(pts, 1.15 * F.widthK, 3.2 * F.widthK, 1.3 * (0.45 + 0.55 * flare) * spoke * F.ampK, 0.25, 0.0, 0.32, 1.0, VeilDeep(vr, pts.Count, op[k] * go, 1, 2));
                 }
@@ -804,7 +804,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 }
             }
             double d = Ramp(t, c.sweepStart, 1.0);   // THE SWEEP: the dissipation itself is directional
-            if (d > 0.01) f.FadeAngular(CX, CY, away, 0.15 + 2.7 * d, c.sweepDepth * d, 1.5);
+            if (d > 0.01) f.FadeAngular(CX, CY, away, 0.15 + 2.7 * d, c.live.sweepDepth * d, 1.5);
         }
 
         // ═══════════════════════════ 7. CAGE — arcs over a sphere, depth carried in alpha ═══════════════════════════
@@ -833,7 +833,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             double go = Dissolve(t, c.dissolveStart, 1.05);
             double bo = 1.0 - Ramp(t, 0.10, 0.62);   // the BALL behind the ribs
             if (bo > 0.02)
-                f.Blob(CX, CY, R * 0.97, (0.42 + 1.20 * (1.0 - Ramp(t, 0.0, 0.24))) * bo * F.ampK, prof, 1.0, 1.6, 0.60 * Ramp(t, 0.12, 0.55), 0.30, c.ballOpa);
+                f.Blob(CX, CY, R * 0.97, (0.42 + 1.20 * (1.0 - Ramp(t, 0.0, 0.24))) * bo * F.ampK, prof, 1.0, 1.6, 0.60 * Ramp(t, 0.12, 0.55), 0.30, c.live.ballOpa);
             for (int k = 0; k < NR; k++)
             {
                 var (u, v, th) = ribs[k];
@@ -848,9 +848,9 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     zz[q] = cth * u[2] + sth * v[2];
                     pts.Add(new ArcPt(CX + rr * sx, CY + rr * sy));
                 }
-                pts = Jitter(pts, rng, c.jitter + 5.0 * t + 5.0 * sn, 0.5, 4, ends: 1);
+                pts = Jitter(pts, rng, c.live.jitter + 5.0 * t + 5.0 * sn, 0.5, 4, ends: 1);
                 var oo = new double[m];
-                for (int q = 0; q < m; q++) oo[q] = (c.backOpa + (1.0 - c.backOpa) * Math.Pow(zz[q] * 0.5 + 0.5, c.depthGamma)) * go * rop[k];
+                for (int q = 0; q < m; q++) oo[q] = (c.live.backOpa + (1.0 - c.live.backOpa) * Math.Pow(zz[q] * 0.5 + 0.5, c.live.depthGamma)) * go * rop[k];
                 if (sn > 0.0)   // a snapped rib opens a widening transparent gap in its middle
                 {
                     var xs = Linspace(0, 1, m);
@@ -906,7 +906,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 for (int k = 0; k < arcs; k++)
                 {
                     double L = 12.0 + 40.0 * EaseOut(t, 2.6);
-                    var segs = Tree(rng, new ArcPt(CX, CY), Polar(CX, CY, L, aa[k]), 5, c.rough, c.depth, c.branchMin, c.branchMax, 0.5, 1.0);
+                    var segs = Tree(rng, new ArcPt(CX, CY), Polar(CX, CY, L, aa[k]), 5, c.live.rough, c.depth, c.branchMin, c.branchMax, 0.5, 1.0);
                     DrawTreeCh(f, segs, 1.0 * F.widthK, 3.0 * F.widthK, 1.3 * early * F.ampK, 0.5, 0.31, go * (0.55 + 0.45 * early), rng, 0.4, 0.6);
                 }
             for (int k = 0; k < m; k++)   // the pieces: keep brightness, lose LENGTH, then opacity
@@ -921,13 +921,13 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 double oo = (dop[k] + (1.0 - dop[k]) * solid) * go * (1.0 - 0.25 * age);
                 var pts = Displace(p0, p1, rng, 2, 0.14);
                 f.Channel(pts, (1.05 - 0.30 * age) * dw[k] * F.widthK, (2.35 - 0.85 * age) * dw[k] * F.widthK, 1.5 * Cool(t, c.coolStart, 1.2) * F.KH(dop[k]) * F.ampK, 0.4, 0.0, 0.32, oo);
-                if (rng.Random() < c.hairP * (1.0 - age))
+                if (rng.Random() < c.live.hairP * (1.0 - age))
                 {
                     double b = a + rng.Uniform(-1.2, 1.2);
                     var q = new ArcPt(p1.x + 7 * Math.Cos(b), p1.y + 7 * Math.Sin(b));
                     f.Channel(Displace(p1, q, rng, 3, 0.3), 0.65 * F.widthK, 1.6 * F.widthK, 1.1 * F.ampK, 0.7, 0.6, 0.30, oo * 0.9);
                 }
-                if (0.18 < t && t < 0.82 && rng.Random() < c.crossP)   // CROSS-TALK to the next piece round the ring
+                if (0.18 < t && t < 0.82 && rng.Random() < c.live.crossP)   // CROSS-TALK to the next piece round the ring
                 {
                     int j = ((k + (int)rng.Sign()) % m + m) % m;
                     double rj = 10.0 + 52.0 * EaseOut(Ramp(t, ab[j], 1.0), 1.7) * dv[j];
@@ -961,7 +961,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 var pr = new double[72];
                 // the lens is squeezed at 0.42 (its own literal), the ring at axisRatio (0.40) — two numbers in the source
                 for (int k = 0; k < 72; k++) { double ang = k * TAU / 72, cs = Math.Cos(ang), sn = Math.Sin(ang) / 0.42; pr[k] = 1.0 / Math.Sqrt(cs * cs + sn * sn); }
-                f.Blob(CX, CY, lw, 1.95 * lens * F.ampK, pr, 0.95, 1.45, 0.66 * Ramp(t, 0.20, 0.60), 0.36, c.lensOpa - 0.62 * Ramp(t, 0.34, 1.0));
+                f.Blob(CX, CY, lw, 1.95 * lens * F.ampK, pr, 0.95, 1.45, 0.66 * Ramp(t, 0.20, 0.60), 0.36, c.live.lensOpa - 0.62 * Ramp(t, 0.34, 1.0));
             }
             double jl = 8.0 + 56.0 * EaseOut(t, 2.8);   // the JETS
             foreach (var (sgn, rr) in jets)
@@ -969,14 +969,14 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 {
                     double x0 = 0.0, y0 = sgn * (3.0 + 5.0 * t);
                     double x1 = rng.Gauss(0, c.jetSpread), y1 = sgn * jl * rr[b];
-                    var segs = Tree(rng, Xf(x0, y0), Xf(x1, y1), 5, c.rough, c.depth, c.branchMin, c.branchMax, c.branchScale, c.branchSpread);
+                    var segs = Tree(rng, Xf(x0, y0), Xf(x1, y1), 5, c.live.rough, c.depth, c.branchMin, c.branchMax, c.live.branchScale, c.live.branchSpread);
                     DrawTreeCh(f, segs, (1.2 - 0.4 * t) * F.widthK, (3.6 - 1.3 * t) * F.widthK, 1.35 * Cool(t, c.coolStart, 1.2) * F.ampK, 0.5, 0.31, go * (0.92 + 0.08 * b), rng, 0.35, 0.45);
                 }
             double rgrow = Ramp(t, 0.16, 1.0);   // the RING, arriving late and outliving the jets
-            double Rx = 10.0 + 48.0 * EaseOut(rgrow, 1.8), Ry = Rx * c.axisRatio;
+            double Rx = 10.0 + 48.0 * EaseOut(rgrow, 1.8), Ry = Rx * c.live.axisRatio;
             for (int k = 0; k < nring; k++)
             {
-                var u = Linspace(ra[k], ra[k] + c.ringSpan, 14);
+                var u = Linspace(ra[k], ra[k] + c.live.ringSpan, 14);
                 double bw = 1.0 + 0.085 * rb[k] * (0.4 + 0.6 * rgrow);
                 var pts = new List<ArcPt>(14);
                 for (int q = 0; q < 14; q++) pts.Add(Xf(Rx * bw * Math.Cos(u[q]), Ry * bw * Math.Sin(u[q])));
@@ -1010,13 +1010,13 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             for (int k = 0; k < roots; k++)
             {
                 var tip = Polar(CX, CY, front * rr[k], ra[k]);
-                var segs = Tree(rng, new ArcPt(CX, CY), tip, c.detail, c.rough, c.depth, c.branchMin, c.branchMax, c.branchScale, c.branchSpread, c.branchAmp);
+                var segs = Tree(rng, new ArcPt(CX, CY), tip, c.detail, c.live.rough, c.depth, c.branchMin, c.branchMax, c.live.branchScale, c.live.branchSpread, c.live.branchAmp);
                 foreach (var sg in segs)
                 {
                     double kk = 0.5 + 0.5 * sg.w;
                     double bs = op[k] * go * (0.55 + 0.45 * sg.w);
                     var oo = RadialOpacity(sg.pts, r0, 13.0, bs);
-                    if (rng.Random() < c.veilP) oo = Mul(oo, VeilDeep(rng, sg.pts.Count, 1.0, 1, 2, 0.06));
+                    if (rng.Random() < c.live.veilP) oo = Mul(oo, VeilDeep(rng, sg.pts.Count, 1.0, 1, 2, 0.06));
                     f.Channel(sg.pts, 0.62 * kk * F.widthK, 1.9 * kk * F.widthK, 1.25 * sg.w * Cool(t, c.coolStart, 1.2) * F.ampK, 0.5, 0.2 * (1.0 - sg.w), 0.33, 1.0, oo);
                 }
             }
@@ -1026,7 +1026,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 f.Dot(CX + r * Math.Cos(a), CY + r * Math.Sin(a), rng.Uniform(0.5, 1.1) * F.widthK, 1.2 * F.ampK, go * rng.Uniform(0.5, 1.0));
             }
             if (r0 > 1.0) f.Hollow(CX, CY, r0 * 0.86, 15.0);   // the hole is cut in ENERGY too, before the bloom
-            f.ScaleAlpha(1.0 - c.fadeAmt * Ramp(t, 0.46, 1.0));
+            f.ScaleAlpha(1.0 - c.live.fadeAmt * Ramp(t, 0.46, 1.0));
         }
 
         /// The per-layout bloom literal (radius px @128, strength) — the source's `f.bloom(...)` call per draw.

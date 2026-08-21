@@ -142,13 +142,47 @@ namespace Laubrary.PyrePlus.Tests
             Assert.That(f.SetContractParam("palette", "cyan"), Is.True);
             Assert.That(f.bands.stops[1].color.g, Is.EqualTo(168f / 255f).Within(1e-6));
             Assert.That(f.SetContractParam("aref", 0.26), Is.True);
-            Assert.That(f.aref, Is.EqualTo(0.26f).Within(1e-6));
+            Assert.That(f.aref.staticValue, Is.EqualTo(0.26f).Within(1e-6));   // a contract scalar lands as the Static value
             Assert.That(f.SetContractParam("bloom_radius", 2.6), Is.True);
-            Assert.That(f.bloomRadius, Is.EqualTo(2.6f).Within(1e-6));
-            f.bloomStrength = 0.4f;
+            Assert.That(f.bloomRadius.staticValue, Is.EqualTo(2.6f).Within(1e-6));
+            f.bloomStrength = new ZUIValue(0.4f);
             Assert.That(f.SetContractParam("bloom_alpha_strength", 0.136), Is.True);
-            Assert.That(f.bloomAlpha, Is.EqualTo(0.34f).Within(1e-5));
+            Assert.That(f.bloomAlpha.staticValue, Is.EqualTo(0.34f).Within(1e-5));
             Assert.That(f.SetContractParam("nope", 1), Is.False);
+        }
+
+        // ── envelopes (T-0063) ──
+        [Test]
+        public void Envelope_StaticEqualsFlatCurve_AndARampDrivesTheRender()
+        {
+            // the form's own dials (ampScale, bloomStrength) and a layout's (bolt.flashAmp): a flat Curve renders the
+            // Static bytes; a moving Curve changes the first and the last frame
+            var stat = EnvelopeTestUtil.Spec(new ArcBurstForm(), 64, 10, 4303);
+            var flat = EnvelopeTestUtil.Spec(new ArcBurstForm { ampScale = EnvelopeTestUtil.Flat(1f), bloomStrength = EnvelopeTestUtil.Flat(0.48f), bolt = { flashAmp = EnvelopeTestUtil.Flat(1.95f) } }, 64, 10, 4303);
+            var ramp = EnvelopeTestUtil.Spec(new ArcBurstForm { ampScale = EnvelopeTestUtil.Ramp(0.3f, 2f) }, 64, 10, 4303);
+            try
+            {
+                Assert.That(EnvelopeTestUtil.FnvAll(flat), Is.EqualTo(EnvelopeTestUtil.FnvAll(stat)), "a flat Curve is the Static value");
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(stat, 0), PyrePlusRenderer.RenderFrame(ramp, 0)), Is.GreaterThan(0), "frame 0: ampScale 0.3 vs 1");
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(stat, 5), PyrePlusRenderer.RenderFrame(ramp, 5)), Is.GreaterThan(0), "frame 5: ampScale ≈ 1.24 vs 1 (the last frame has dissolved to nothing on both)");
+            }
+            finally { Object.DestroyImmediate(stat); Object.DestroyImmediate(flat); Object.DestroyImmediate(ramp); }
+        }
+
+        [Test]
+        public void Envelope_ALayoutDialIsResolvedForTheActiveLayoutOnly()
+        {
+            // cage.ballOpa ramped 0→1: the Cage frame changes, while the same edit on a form whose layout is Bolt changes nothing
+            var cageS = EnvelopeTestUtil.Spec(new ArcBurstForm { layout = ArcBurstForm.Layout.Cage }, 64, 8, 4303);
+            var cageR = EnvelopeTestUtil.Spec(new ArcBurstForm { layout = ArcBurstForm.Layout.Cage, cage = { ballOpa = EnvelopeTestUtil.Ramp(0f, 1f) } }, 64, 8, 4303);
+            var boltS = EnvelopeTestUtil.Spec(new ArcBurstForm(), 64, 8, 4303);
+            var boltR = EnvelopeTestUtil.Spec(new ArcBurstForm { cage = { ballOpa = EnvelopeTestUtil.Ramp(0f, 1f) } }, 64, 8, 4303);
+            try
+            {
+                Assert.That(EnvelopeTestUtil.DiffPixels(PyrePlusRenderer.RenderFrame(cageS, 1), PyrePlusRenderer.RenderFrame(cageR, 1)), Is.GreaterThan(0), "Cage frame 1: ballOpa ≈ 0.14 vs 0.42");
+                Assert.That(EnvelopeTestUtil.FnvAll(boltR), Is.EqualTo(EnvelopeTestUtil.FnvAll(boltS)), "an inactive layout's envelope is not read");
+            }
+            finally { Object.DestroyImmediate(cageS); Object.DestroyImmediate(cageR); Object.DestroyImmediate(boltS); Object.DestroyImmediate(boltR); }
         }
     }
 }
