@@ -150,5 +150,48 @@ namespace Laubrary.PyrePlus.Tests
             Assert.That(f.SetContractParam("expRate", 8.6)); Assert.That(f.expRate, Is.EqualTo(8.6f).Within(1e-6f));
             Assert.That(f.SetContractParam("nope", 1.0), Is.False);
         }
+
+        // ── envelopes (T-0063) ──
+        [Test]
+        public void Envelope_StaticEqualsFlatCurve_AndARampDrivesTheRender()
+        {
+            // Static (the plain-float behaviour) and a Curve holding the same value must render the same bytes; a Curve
+            // that actually moves must change the frame — at life 0 the ramp sits far from the static value, at life 1 too.
+            var stat = EnvelopeTestUtil.Spec(new PlasmaBloomForm(), 48, 10, 1147);
+            var flat = EnvelopeTestUtil.Spec(new PlasmaBloomForm { eNorm = EnvelopeTestUtil.Flat(1.22f), coreGain = EnvelopeTestUtil.Flat(2.0f) }, 48, 10, 1147);
+            var ramp = EnvelopeTestUtil.Spec(new PlasmaBloomForm { eNorm = EnvelopeTestUtil.Ramp(0.5f, 3f) }, 48, 10, 1147);
+            try
+            {
+                Assert.That(EnvelopeTestUtil.FnvAll(flat), Is.EqualTo(EnvelopeTestUtil.FnvAll(stat)), "a flat Curve is the Static value");
+                var s0 = PyrePlusRenderer.RenderFrame(stat, 0); var r0 = PyrePlusRenderer.RenderFrame(ramp, 0);
+                var s9 = PyrePlusRenderer.RenderFrame(stat, 9); var r9 = PyrePlusRenderer.RenderFrame(ramp, 9);
+                Assert.That(EnvelopeTestUtil.DiffPixels(s0, r0), Is.GreaterThan(0), "frame 0: eNorm 0.5 vs 1.22 must show");
+                Assert.That(EnvelopeTestUtil.DiffPixels(s9, r9), Is.GreaterThan(0), "frame 9: eNorm 3 vs 1.22 must show");
+            }
+            finally { Object.DestroyImmediate(stat); Object.DestroyImmediate(flat); Object.DestroyImmediate(ramp); }
+        }
+
+        [Test]
+        public void Envelope_FitResolvesTheDialPerClockSample_AndStillContains()
+        {
+            // The fit measures the clip at every clock sample with the envelope resolved there: a blast whose core and
+            // thickness grow over life is still placed inside the frame on its last frame, and the fit of a flat
+            // Curve equals the Static fit.
+            var stat = new PlasmaBloomForm();
+            var flat = new PlasmaBloomForm { w0 = EnvelopeTestUtil.Flat(0.34f) };
+            var grow = new PlasmaBloomForm { w0 = EnvelopeTestUtil.Ramp(0.34f, 0.8f), coreR = EnvelopeTestUtil.Ramp(0.055f, 0.3f) };
+            var a = EnvelopeTestUtil.Spec(stat, 64, 12, 1147); var b = EnvelopeTestUtil.Spec(flat, 64, 12, 1147); var c = EnvelopeTestUtil.Spec(grow, 64, 12, 1147);
+            try
+            {
+                PyrePlusRenderer.RenderFrame(a, 3); PyrePlusRenderer.RenderFrame(b, 3);
+                Assert.That(stat.TryGetFit(out float rA, out _, out _) && flat.TryGetFit(out float rB, out _, out _) && rA == rB, "flat Curve fit == Static fit");
+                var last = PyrePlusRenderer.RenderFrame(c, 11);
+                Assert.That(grow.TryGetFit(out float rC, out _, out _) && rC < rA, "a blast that grows over life is fitted smaller");
+                int W = 64, worst = 0;
+                for (int i = 0; i < W; i++) worst = Mathf.Max(worst, last[i].a, last[(W - 1) * W + i].a, last[i * W].a, last[i * W + W - 1].a);
+                Assert.That(worst, Is.LessThanOrEqualTo(grow.borderCap + 6), "contained on the last frame (fit grid vs shipped pixels may disagree by a few steps)");
+            }
+            finally { Object.DestroyImmediate(a); Object.DestroyImmediate(b); Object.DestroyImmediate(c); }
+        }
     }
 }

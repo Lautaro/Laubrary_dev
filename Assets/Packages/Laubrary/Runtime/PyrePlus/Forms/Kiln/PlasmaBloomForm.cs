@@ -17,8 +17,18 @@
 // Fitted values (Appendix D §B 9–12): rMax / orgX / orgY are SOLVED at clip level by the cached pre-pass
 // (`autoFit`, gen._place + gen._fit ported) — never per frame; `fill` stays a dial (the source's retry loop never
 // fired on a published draw). eNorm / cGamma / aLo / aHi / aGamma are hand-set in the source and stay dials.
+//
+// Envelopes: a dial the algorithm reads as a per-frame AMOUNT (thickness, bias, gate, drift, turbulence, warp, lobe /
+// plume / core / remnant / ring amplitudes and radii, rim mix, exposure, gamma) is a ZUIValue — Static draws the same
+// bytes as a plain float, a Curve drives it over the layer's life. `Prepare` resolves them into `live`, which is what
+// PlusPlasmaBloom reads; the fit pre-pass resolves them again at each clock sample it measures, so an animated blast
+// is still placed and contained by what it actually draws. Dials that define WHEN (clock, birth windows, time
+// constants, the dissipation curve), RATES multiplied by the clock (flow, swirl, growth), noise PERIODS / counts /
+// seeds and the per-piece population terms stay plain: animating a schedule or a rate re-writes the whole history
+// every frame instead of driving the present, and a population is drawn once from the seed.
 using System;
 using System.Collections.Generic;
+using Laubrary.SpriteFx;
 using UnityEngine;
 
 namespace Laubrary.PyrePlus.Forms.Kiln
@@ -49,7 +59,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Tooltip("Velocity ACROSS the ray (per piece × −1..1), as a fraction of the radial speed — takes each piece off its own ray so the smears do not all point at the centre.")]
         [Range(0f, 0.6f)] public float lat = 0.20f;
         [Tooltip("Brightness of this population (0 = off).")]
-        [Range(0f, 2f)] public float amp = 1.30f;
+        [Range(0f, 2f)] public ZUIValue amp = new ZUIValue(1.30f);
         [Tooltip("Multiplier on Exp rate for this population's expansion easing (lower = the pieces decelerate later than the front).")]
         [Range(0.2f, 2f)] public float ease = 0.85f;
         [Tooltip("Linear share of the pieces' travel: above 0 they never fully stop, so the back half of the clip keeps moving.")]
@@ -78,13 +88,16 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Tooltip("Angular width of each cluster, radians.")]
         [Range(0f, 2f)] public float clusterW = 0.6f;
 
+        /// `amp` resolved at the layer's life this frame (PlasmaBloomForm.Prepare) — the value the algorithm reads.
+        [NonSerialized] public float liveAmp;
+
         public PlasmaPopulation() { }
         public PlasmaPopulation(int n, float rhoLo, float rhoHi, float size, float grow, float stretch, float streak, float tilt,
                                 float spread, float lat, float amp, float ease, float lin, float farFade, float spdBase,
                                 float t0, float t1, float life, float ramp, float fade, float swirl, float spin, int clusters, float clusterW)
         {
             this.n = n; this.rhoLo = rhoLo; this.rhoHi = rhoHi; this.size = size; this.grow = grow; this.stretch = stretch;
-            this.streak = streak; this.tilt = tilt; this.spread = spread; this.lat = lat; this.amp = amp; this.ease = ease;
+            this.streak = streak; this.tilt = tilt; this.spread = spread; this.lat = lat; this.amp = new ZUIValue(amp); this.ease = ease;
             this.lin = lin; this.farFade = farFade; this.spdBase = spdBase; this.t0 = t0; this.t1 = t1; this.life = life;
             this.ramp = ramp; this.fade = fade; this.swirl = swirl; this.spin = spin; this.clusters = clusters; this.clusterW = clusterW;
         }
@@ -146,43 +159,43 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Tooltip("Linear share of the shell's travel, so the front never fully stops.")]
         [Range(0f, 0.6f)] public float shellLin = 0.20f;
         [Tooltip("Shell thickness as a fraction of its CURRENT radius (so the body is a dot on frame 1 and thick later, not a constant-width ring).")]
-        [Range(0.05f, 0.8f)] public float w0 = 0.34f;
+        [Range(0.05f, 0.8f)] public ZUIValue w0 = new ZUIValue(0.34f);
         [Tooltip("Thickness gained per unit clock, as a fraction of the blast radius (negative = the body thins as it dissolves into pieces).")]
         [Range(-0.2f, 0.2f)] public float wGrow = -0.05f;
 
         // ── direction ──
         [Tooltip("Cosine bias of the reach: the shell (and every piece's speed and amount) is stretched this much toward Bias dir and shrunk away from it. Reach only — the GATE is what makes a blast read as thrown.")]
-        [Range(0f, 1f)] public float biasAmt = 0f;
+        [Range(0f, 1f)] public ZUIValue biasAmt = new ZUIValue(0f);
         [Tooltip("Direction of the bias, radians (0 = right, +π/2 = down).")]
-        [Range(-3.1416f, 3.1416f)] public float biasDir = 0f;
+        [Range(-3.1416f, 3.1416f)] public ZUIValue biasDir = new ZUIValue(0f);
         [Tooltip("Harmonic of the bias: 1 = one lobe (a thrown blast), 2 = two opposite lobes (a bipolar jet with a thin waist).")]
         [Range(1f, 3f)] public float biasK = 1f;
         [Tooltip("Soft half-plane gate: how much of the BACK of the blast is removed (the empty side is what reads as direction).")]
-        [Range(0f, 1f)] public float halfAmt = 0f;
+        [Range(0f, 1f)] public ZUIValue halfAmt = new ZUIValue(0f);
         [Tooltip("Direction the gate keeps, radians.")]
-        [Range(-3.1416f, 3.1416f)] public float halfDir = 0f;
+        [Range(-3.1416f, 3.1416f)] public ZUIValue halfDir = new ZUIValue(0f);
         [Tooltip("Width of the gate's transition: small = a WALL (flat face, hard corner — an impact), large = a CONE thinning smoothly to nothing behind.")]
-        [Range(0.02f, 1.5f)] public float halfSoft = 0.35f;
+        [Range(0.02f, 1.5f)] public ZUIValue halfSoft = new ZUIValue(0.35f);
         [Tooltip("Harmonic of the gate: 2 keeps two opposite jets and empties the waist between them.")]
         [Range(1f, 3f)] public float halfK = 1f;
         [Tooltip("Drift direction X (−1..1): the whole burst is CARRIED this way as it expands (0,0 = no drift).")]
-        [Range(-1f, 1f)] public float driftX = 0f;
+        [Range(-1f, 1f)] public ZUIValue driftX = new ZUIValue(0f);
         [Tooltip("Drift direction Y (−1..1, +1 = down).")]
-        [Range(-1f, 1f)] public float driftY = 0f;
+        [Range(-1f, 1f)] public ZUIValue driftY = new ZUIValue(0f);
         [Tooltip("How far the source travels over the clock, as a fraction of the blast radius.")]
-        [Range(0f, 1.5f)] public float driftAmt = 0f;
+        [Range(0f, 1.5f)] public ZUIValue driftAmt = new ZUIValue(0f);
         [Tooltip("Multiplier on Exp rate for the drift's easing.")]
         [Range(0.2f, 2f)] public float driftEase = 0.9f;
         [Tooltip("Linear share of the drift.")]
         [Range(0f, 1f)] public float driftLin = 0.5f;
         [Tooltip("THE WAKE: a piece is let go where the source was at its birth and lags behind by this share of the distance the source has travelled since — a trail, falling out of the staggered births.")]
-        [Range(0f, 1f)] public float driftLag = 0f;
+        [Range(0f, 1f)] public ZUIValue driftLag = new ZUIValue(0f);
 
         // ── turbulence and warp ──
         [Tooltip("How much the polar noise modulates the body's brightness (ramps in over the first 7% of the clock so frame 1 is a smooth ball).")]
-        [Range(0f, 1.2f)] public float turb = 0.82f;
+        [Range(0f, 1.2f)] public ZUIValue turb = new ZUIValue(0.82f);
         [Tooltip("Contrast of the noise (noise^power): higher eats darker holes between the billows.")]
-        [Range(0.5f, 3f)] public float turbPow = 1.5f;
+        [Range(0.5f, 3f)] public ZUIValue turbPow = new ZUIValue(1.5f);
         [Tooltip("Noise cells around the angle (the texture wraps seamlessly on this period).")]
         [Range(2, 16)] public int ku = 7;
         [Tooltip("Noise cells per blast radius along the ray.")]
@@ -194,7 +207,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Tooltip("Rotation of the whole field with time, radians per unit clock at the blast radius (the noise, the pieces and the gate all turn) — the 'skew' look.")]
         [Range(-6f, 6f)] public float swirl = 0f;
         [Tooltip("Displacement of the front's RADIUS by a low-frequency angular noise — a ragged front whose parts travelled different distances, not a circle with brightness painted on.")]
-        [Range(0f, 0.6f)] public float warp = 0.26f;
+        [Range(0f, 0.6f)] public ZUIValue warp = new ZUIValue(0.26f);
         [Tooltip("How much the warp grows over the clock.")]
         [Range(0f, 3f)] public float warpGrow = 1.7f;
         [Tooltip("Angular period of the warp noise (its own integer period, so it closes on itself).")]
@@ -210,28 +223,28 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         public LobeMode lobeMode = LobeMode.Cos;
         [ZUIShowIf("lobes", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16")]
         [Tooltip("How much the lobe gate darkens the shell between lobes (Bloom mode only).")]
-        [Range(0f, 1f)] public float lobeAmp = 0f;
+        [Range(0f, 1f)] public ZUIValue lobeAmp = new ZUIValue(0f);
         [ZUIShowIf("lobes", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16")]
         [Tooltip("Sharpness of the lobes (gate^power): never flat-tops, so the silhouette curves everywhere.")]
-        [Range(0.3f, 3f)] public float lobePow = 1f;
+        [Range(0.3f, 3f)] public ZUIValue lobePow = new ZUIValue(1f);
         [ZUIShowIf("lobes", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16")]
         [Tooltip("Angular phase of the lobes, radians.")]
-        [Range(-3.1416f, 3.1416f)] public float lobePh = 0f;
+        [Range(-3.1416f, 3.1416f)] public ZUIValue lobePh = new ZUIValue(0f);
         [ZUIShowIf("lobeMode", "Noise")]
         [Tooltip("Gain on the noise lobe gate before clipping to 0..1.")]
-        [Range(0.5f, 2f)] public float gateGain = 1.25f;
+        [Range(0.5f, 2f)] public ZUIValue gateGain = new ZUIValue(1.25f);
         [ZUIShowIf("mode", "Plume")]
         [Tooltip("Brightness of the tongues.")]
-        [Range(0f, 2f)] public float plumeAmp = 0f;
+        [Range(0f, 2f)] public ZUIValue plumeAmp = new ZUIValue(0f);
         [ZUIShowIf("mode", "Plume")]
         [Tooltip("How far the tongues reach, as a multiple of the shell radius.")]
-        [Range(0.8f, 2f)] public float plumeReach = 1.0f;
+        [Range(0.8f, 2f)] public ZUIValue plumeReach = new ZUIValue(1.0f);
         [ZUIShowIf("mode", "Plume")]
         [Tooltip("Radial width of a tongue's tip, in shell thicknesses.")]
-        [Range(0.2f, 2f)] public float plumeW = 0.8f;
+        [Range(0.2f, 2f)] public ZUIValue plumeW = new ZUIValue(0.8f);
         [ZUIShowIf("mode", "Plume")]
         [Tooltip("Unequal tongue reach from the warp noise (equal tongues are a snowflake).")]
-        [Range(0f, 1f)] public float plumeVary = 0f;
+        [Range(0f, 1f)] public ZUIValue plumeVary = new ZUIValue(0f);
 
         // ── the fracture ──
         [Tooltip("When the body starts coming apart into chunks, on the blast clock.")]
@@ -239,7 +252,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Tooltip("When the body has finished coming apart (a smoothstep between the two, so it stops being able to hold itself over several frames rather than popping).")]
         [Range(0.02f, 0.8f)] public float fracT1 = 0.18f;
         [Tooltip("How much of the mass ends up as pieces: 1 = the body stops existing and the gaps between chunks go to zero.")]
-        [Range(0f, 1f)] public float fracMax = 0.88f;
+        [Range(0f, 1f)] public ZUIValue fracMax = new ZUIValue(0.88f);
 
         // ── populations ──
         [Tooltip("The CHUNKS the body fractures into (crossfaded with the shell, chewed by the same noise).")]
@@ -251,35 +264,35 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         // ── core, remnant, ghost ring ──
         [Tooltip("Brightness of the white-hot core flash at the source (additive, so it drives the middle past the top of the ramp).")]
-        [Range(0f, 4f)] public float coreGain = 2.0f;
+        [Range(0f, 4f)] public ZUIValue coreGain = new ZUIValue(2.0f);
         [Tooltip("Core radius as a fraction of the blast radius.")]
-        [Range(0.01f, 0.3f)] public float coreR = 0.055f;
+        [Range(0.01f, 0.3f)] public ZUIValue coreR = new ZUIValue(0.055f);
         [Tooltip("How much the core grows with the front's travel.")]
-        [Range(0f, 1f)] public float coreFollow = 0.30f;
+        [Range(0f, 1f)] public ZUIValue coreFollow = new ZUIValue(0.30f);
         [Tooltip("Time constant of the core's decay on the blast clock (gone in three or four frames).")]
         [Range(0.01f, 0.3f)] public float coreTau = 0.040f;
         [Tooltip("Extra spike on the core at the instant of detonation (spatially bounded — never on the whole field).")]
-        [Range(0f, 2f)] public float flash = 0.90f;
+        [Range(0f, 2f)] public ZUIValue flash = new ZUIValue(0.90f);
         [Tooltip("Time constant of the flash spike.")]
         [Range(0.01f, 0.3f)] public float flashTau = 0.05f;
         [Tooltip("A dim, slow core that arrives as the body leaves (it rides the fracture) and keeps the place the explosion came from warm. 0 = a hollow middle.")]
-        [Range(0f, 1f)] public float remnant = 0.40f;
+        [Range(0f, 1f)] public ZUIValue remnant = new ZUIValue(0.40f);
         [Tooltip("Remnant radius as a fraction of the blast radius.")]
-        [Range(0.05f, 0.6f)] public float remnantR = 0.26f;
+        [Range(0.05f, 0.6f)] public ZUIValue remnantR = new ZUIValue(0.26f);
         [Tooltip("Time constant of the remnant's decay.")]
         [Range(0.05f, 2f)] public float remnantTau = 0.95f;
         [Tooltip("Brightness of the ghost ring — a second, faster, much thinner front, the only thing moving at a different speed (0 = none).")]
-        [Range(0f, 1f)] public float ring2 = 0.45f;
+        [Range(0f, 1f)] public ZUIValue ring2 = new ZUIValue(0.45f);
         [Tooltip("How far the ring travels, as a multiple of the blast radius.")]
-        [Range(0.5f, 2f)] public float ring2R = 1.25f;
+        [Range(0.5f, 2f)] public ZUIValue ring2R = new ZUIValue(1.25f);
         [Tooltip("The ring's life as a fraction of the blast clock.")]
         [Range(0.1f, 1f)] public float ring2Life = 0.50f;
         [Tooltip("Ring thickness as a fraction of the blast radius.")]
-        [Range(0.01f, 0.2f)] public float ring2W = 0.05f;
+        [Range(0.01f, 0.2f)] public ZUIValue ring2W = new ZUIValue(0.05f);
         [Tooltip("Linear share of the ring's travel.")]
         [Range(0f, 1f)] public float ring2Lin = 0.26f;
         [Tooltip("How strongly the ring BEADS — an angular noise eats holes in it until only lumps travel on the old circle.")]
-        [Range(0f, 1f)] public float ring2Bead = 1.0f;
+        [Range(0f, 1f)] public ZUIValue ring2Bead = new ZUIValue(1.0f);
         [Tooltip("Angular period of the bead noise.")]
         [Range(3, 20)] public int ring2K = 11;
         [Tooltip("When the beading starts, on the blast clock.")]
@@ -305,15 +318,15 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [Tooltip("The rim ramp the colour crossfades into by RADIUS over the travelling front — the cool skirt round a hot core.")]
         public PlusRamp hueB = PlusRampPresets.PlasmaCryo();
         [Tooltip("How much of the rim ramp shows at the outer edge (0 = Hue A only).")]
-        [Range(0f, 1f)] public float rimMix = 0.62f;
+        [Range(0f, 1f)] public ZUIValue rimMix = new ZUIValue(0.62f);
         [Tooltip("Where the crossfade to Hue B starts, as a multiple of the front's radius.")]
-        [Range(0f, 1.5f)] public float rimLo = 0.40f;
+        [Range(0f, 1.5f)] public ZUIValue rimLo = new ZUIValue(0.40f);
         [Tooltip("Where the crossfade to Hue B is complete, as a multiple of the front's radius.")]
-        [Range(0.2f, 2f)] public float rimHi = 1.08f;
+        [Range(0.2f, 2f)] public ZUIValue rimHi = new ZUIValue(1.08f);
         [Tooltip("Energy that reaches the TOP of the colour ramp (lower = hotter / whiter overall). Hand-set in the source, not fitted — the field's amplitude is fixed by the dials above.")]
-        [Range(0.3f, 3f)] public float eNorm = 1.22f;
+        [Range(0.3f, 3f)] public ZUIValue eNorm = new ZUIValue(1.22f);
         [Tooltip("Gamma on the ramp coordinate: below 1 spends more of the ramp on the faint skirt.")]
-        [Range(0.3f, 2f)] public float cGamma = 0.78f;
+        [Range(0.3f, 2f)] public ZUIValue cGamma = new ZUIValue(0.78f);
         [Tooltip("Energy at which alpha lifts off (everything below is fully transparent).")]
         [Range(0f, 0.3f)] public float aLo = 0.06f;
         [Tooltip("Energy at which alpha reaches 1 (a smoothstep between the two — a falloff that spans pixels, not a cutoff).")]
@@ -324,9 +337,42 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         // ── swarm ──
         [PlusSwarmOnly]
         [Tooltip("Size of each swarm particle's bloom as a fraction of the solo blast's solved radius (the swarm's own size/depth shading multiplies it).")]
-        [Range(0.1f, 1f)] public float swarmSize = 0.5f;
+        [Range(0.1f, 1f)] public ZUIValue swarmSize = new ZUIValue(0.5f);
 
         // ── runtime ──
+        /// The animatable dials resolved at one layer life — what the algorithm reads (never the ZUIValues above).
+        public struct Live
+        {
+            public float w0, biasAmt, biasDir, halfAmt, halfDir, halfSoft, driftX, driftY, driftAmt, driftLag;
+            public float turb, turbPow, warp, lobeAmp, lobePow, lobePh, gateGain, plumeAmp, plumeReach, plumeW, plumeVary, fracMax;
+            public float coreGain, coreR, coreFollow, flash, remnant, remnantR, ring2, ring2R, ring2W, ring2Bead;
+            public float rimMix, rimLo, rimHi, eNorm, cGamma, swarmSize;
+        }
+        [NonSerialized] public Live live;
+
+        /// Resolve every envelope at the layer's life (one slot per dial; the populations' amps take the last three).
+        public override void Prepare(in PlusFormPrepareCtx ctx)
+        {
+            live = new Live
+            {
+                w0 = ctx.Eval(w0, 0), biasAmt = ctx.Eval(biasAmt, 1), biasDir = ctx.Eval(biasDir, 2),
+                halfAmt = ctx.Eval(halfAmt, 3), halfDir = ctx.Eval(halfDir, 4), halfSoft = ctx.Eval(halfSoft, 5),
+                driftX = ctx.Eval(driftX, 6), driftY = ctx.Eval(driftY, 7), driftAmt = ctx.Eval(driftAmt, 8), driftLag = ctx.Eval(driftLag, 9),
+                turb = ctx.Eval(turb, 10), turbPow = ctx.Eval(turbPow, 11), warp = ctx.Eval(warp, 12),
+                lobeAmp = ctx.Eval(lobeAmp, 13), lobePow = ctx.Eval(lobePow, 14), lobePh = ctx.Eval(lobePh, 15), gateGain = ctx.Eval(gateGain, 16),
+                plumeAmp = ctx.Eval(plumeAmp, 17), plumeReach = ctx.Eval(plumeReach, 18), plumeW = ctx.Eval(plumeW, 19), plumeVary = ctx.Eval(plumeVary, 20),
+                fracMax = ctx.Eval(fracMax, 21),
+                coreGain = ctx.Eval(coreGain, 22), coreR = ctx.Eval(coreR, 23), coreFollow = ctx.Eval(coreFollow, 24), flash = ctx.Eval(flash, 25),
+                remnant = ctx.Eval(remnant, 26), remnantR = ctx.Eval(remnantR, 27),
+                ring2 = ctx.Eval(ring2, 28), ring2R = ctx.Eval(ring2R, 29), ring2W = ctx.Eval(ring2W, 30), ring2Bead = ctx.Eval(ring2Bead, 31),
+                rimMix = ctx.Eval(rimMix, 32), rimLo = ctx.Eval(rimLo, 33), rimHi = ctx.Eval(rimHi, 34),
+                eNorm = ctx.Eval(eNorm, 35), cGamma = ctx.Eval(cGamma, 36), swarmSize = ctx.Eval(swarmSize, 37),
+            };
+            chunks.liveAmp = ctx.Eval(chunks.amp, 38);
+            embers.liveAmp = ctx.Eval(embers.amp, 39);
+            motes.liveAmp = ctx.Eval(motes.amp, 40);
+        }
+
         static readonly PlusPrepassCache<PlasmaFit> Cache = new PlusPrepassCache<PlasmaFit>();
         [NonSerialized] PlasmaFit _fit;
         [NonSerialized] float _canvasPx;
@@ -342,6 +388,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         /// life 0..1 → the blast clock t.
         float Clock(float life) => Mathf.Lerp(clockStart, Mathf.Max(clockEnd, clockStart + 1e-3f), Mathf.Clamp01(life));
+        /// the blast clock t → the layer life that draws it (clamped: the fit samples past Clock end resolve at life 1).
+        float LifeOf(float t) => Mathf.Clamp01((t - clockStart) / Mathf.Max(clockEnd - clockStart, 1e-3f));
 
         Color IPlusRampProbe.ProbeRamp(float t) => PlusShade.EvalStops(hueA?.stops, hueA?.space ?? PlusRampSpace.Srgb, t);
 
@@ -356,6 +404,11 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         public override void Render(in PlusFormCtx ctx, Color32[] target)
         {
+            // The renderer Prepares before Render; a direct caller (a test, a probe) may not. Resolving here again is
+            // the same funnel at the same life, so it is idempotent — and it is what lets the fit below borrow the
+            // instance to resolve other lives and hand it back.
+            var c = ctx;
+            Prepare(c.PrepareCtxAt(c.life));
             // The spec seed IS the Kiln seed (layer 0 of seed 1147 draws the contract's own populations and lattices);
             // further layers decorrelate by a large stride.
             int seed = unchecked(ctx.seed + ctx.layerSalt * 1000003);
@@ -363,7 +416,12 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             int fitFrames = Mathf.Clamp(Mathf.RoundToInt(ctx.frameCount / Mathf.Max(clockEnd, 0.05f)), 4, 128);
             _canvasPx = Mathf.Min(ctx.W, ctx.H);
             var self = this;
-            _fit = Cache.Get(ctx, this, () => PlusPlasmaBloom.Solve(self, self._canvasPx, fitFrames, seed), fitFrames ^ seed);
+            // The fit measures the field at clock samples t = (i+1)/N; an envelope is resolved at the layer life that
+            // clock sample corresponds to, so the solve contains what the animated blast actually draws. Static
+            // dials resolve to the same value at every life — the same fit as before.
+            Action<float> liveAt = t => self.Prepare(c.PrepareCtxAt(self.LifeOf(t)));
+            _fit = Cache.Get(ctx, this, () => PlusPlasmaBloom.Solve(self, self._canvasPx, fitFrames, seed, liveAt), fitFrames ^ seed);
+            Prepare(c.PrepareCtxAt(c.life));   // back to this frame's values (a cache miss just resolved other lives)
 
             // 2× supersampled field, shaded per sample, box-averaged in float and quantised ONCE (the source's path).
             const int k = PlusPlasmaBloom.SS;
@@ -398,7 +456,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     if (sp.own < 0f || sp.own > 1f) continue;
                     float ox = Mathf.Clamp(sp.x / Mathf.Max(1, ctx.W) * 2f - 1f, -1.5f, 1.5f);
                     float oy = Mathf.Clamp(1f - sp.y / Mathf.Max(1, ctx.H) * 2f, -1.5f, 1.5f);
-                    float rMax = fit.rMax * swarmSize * Mathf.Max(sp.sizeMul, 0.01f);
+                    float rMax = fit.rMax * live.swarmSize * Mathf.Max(sp.sizeMul, 0.01f);
                     var G = PlusPlasmaBloom.Grid.Make(S, _canvasPx, ox, oy);
                     float t = Clock(sp.own);
                     PlusPlasmaBloom.Energy(this, fit, rMax, ox, oy, t, G, floorPx, _E, _scratch, sp.brightMul, accumulate: true);
@@ -464,7 +522,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 sub = char.ToLowerInvariant(sub[0]) + sub.Substring(1);
                 var f = typeof(PlasmaPopulation).GetField(sub);
                 if (f == null) return false;
-                f.SetValue(pop, f.FieldType == typeof(int) ? (object)Convert.ToInt32(value) : (object)Convert.ToSingle(value));
+                if (f.FieldType == typeof(ZUIValue)) f.SetValue(pop, new ZUIValue(Convert.ToSingle(value)));
+                else f.SetValue(pop, f.FieldType == typeof(int) ? (object)Convert.ToInt32(value) : (object)Convert.ToSingle(value));
                 return true;
             }
             switch (key)
@@ -480,6 +539,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             if (fi.FieldType == typeof(int)) fi.SetValue(this, Convert.ToInt32(value));
             else if (fi.FieldType == typeof(float)) fi.SetValue(this, Convert.ToSingle(value));
             else if (fi.FieldType == typeof(bool)) fi.SetValue(this, Convert.ToSingle(value) != 0f);
+            else if (fi.FieldType == typeof(ZUIValue)) fi.SetValue(this, new ZUIValue(Convert.ToSingle(value)));   // a contract scalar = the Static value
             else return false;
             return true;
         }

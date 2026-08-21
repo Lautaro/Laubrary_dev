@@ -203,35 +203,35 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         static void DriftOf(PlasmaBloomForm f, float rMax, float t, out float sx, out float sy)
         {
-            if (f.driftX == 0f && f.driftY == 0f) { sx = sy = 0f; return; }
-            float d = rMax * f.driftAmt * Prog(t, f.expRate * f.driftEase, f.driftLin);
-            sx = f.driftX * d; sy = f.driftY * d;
+            if (f.live.driftX == 0f && f.live.driftY == 0f) { sx = sy = 0f; return; }
+            float d = rMax * f.live.driftAmt * Prog(t, f.expRate * f.driftEase, f.driftLin);
+            sx = f.live.driftX * d; sy = f.live.driftY * d;
         }
 
         /// The scalar radius the coherent mass currently occupies (gen._front) — what the chromatic rim is keyed to.
         static float Front(PlasmaBloomForm f, float rMax, float t, float floorPx)
         {
             float R0 = rMax * Prog(t, f.expRate, f.shellLin);
-            float W = Mathf.Max(rMax * (f.w0 + f.wGrow * t), floorPx);
+            float W = Mathf.Max(rMax * (f.live.w0 + f.wGrow * t), floorPx);
             return R0 + W;
         }
 
-        static float Frac(PlasmaBloomForm f, float t) => Smooth(f.fracT0, f.fracT1, t) * f.fracMax;
+        static float Frac(PlasmaBloomForm f, float t) => Smooth(f.fracT0, f.fracT1, t) * f.live.fracMax;
 
         // ── the piece populations summed into a plane (gen._blobs) ──
         static void Blobs(PlasmaBloomForm f, PlasmaPopulation p, PlasmaPop pop, float rMax, float t, in Grid G,
                           float cx0, float cy0, float dnowX, float dnowY, float[] outPlane, float scale)
         {
             int n = pop.n;
-            if (n <= 0 || p.amp <= 0f) return;
+            if (n <= 0 || p.liveAmp <= 0f) return;
             int S = G.S; float unit = G.unit;
             float Pt = Prog(t, f.expRate * p.ease, p.lin);
             float t0 = p.t0, t1 = p.t1, life = p.life, fade = p.fade, ramp = Mathf.Max(p.ramp, 1e-3f);
             float stretch0 = Mathf.Max(p.stretch, 0.05f);
-            float bias = f.biasAmt, bdir = f.biasDir, bk = f.biasK;
-            float halfA = f.halfAmt, halfD = f.halfDir, halfS = Mathf.Max(f.halfSoft, 1e-3f), halfK = f.halfK;
-            float lag = (f.driftX != 0f || f.driftY != 0f) ? f.driftLag : 0f;
-            float ampMul = p.amp * scale;
+            float bias = f.live.biasAmt, bdir = f.live.biasDir, bk = f.biasK;
+            float halfA = f.live.halfAmt, halfD = f.live.halfDir, halfS = Mathf.Max(f.live.halfSoft, 1e-3f), halfK = f.halfK;
+            float lag = (f.live.driftX != 0f || f.live.driftY != 0f) ? f.live.driftLag : 0f;
+            float ampMul = p.liveAmp * scale;
 
             for (int k = 0; k < n; k++)
             {
@@ -320,28 +320,28 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
             float R0c = rMax * Prog(t, f.expRate, f.shellLin);
             // THE WIDTH IS A FRACTION OF THE CURRENT RADIUS, NOT OF THE FINAL ONE.
-            float W = Mathf.Max(R0c * f.w0 + rMax * f.wGrow * t, floorPx);
-            bool bias = f.biasAmt > 0f;
-            bool warp = f.warp > 0f;
-            float wamp = warp ? f.warp * (1f + f.warpGrow * t) * Mathf.Clamp01(t / 0.05f) : 0f;
+            float W = Mathf.Max(R0c * f.live.w0 + rMax * f.wGrow * t, floorPx);
+            bool bias = f.live.biasAmt > 0f;
+            bool warp = f.live.warp > 0f;
+            float wamp = warp ? f.live.warp * (1f + f.warpGrow * t) * Mathf.Clamp01(t / 0.05f) : 0f;
             bool lobes = f.lobes >= 2;
             bool plume = f.mode == PlasmaBloomForm.Mode.Plume && lobes;
-            bool half = f.halfAmt > 0f;
-            float halfS = Mathf.Max(f.halfSoft, 1e-3f);
+            bool half = f.live.halfAmt > 0f;
+            float halfS = Mathf.Max(f.live.halfSoft, 1e-3f);
             float fr = Frac(f, t);
-            float amp = f.turb * Mathf.Clamp01(t / 0.07f);
-            bool core = f.coreGain > 0f;
-            float cr = core ? Mathf.Max(rMax * f.coreR + rMax * Prog(t, f.expRate, f.shellLin) * f.coreFollow, 1.2f * floorPx) : 1f;
-            float coreK = core ? f.coreGain * (1f + f.flash * Mathf.Exp(-t / Mathf.Max(f.flashTau, 1e-3f))) * Mathf.Exp(-t / Mathf.Max(f.coreTau, 1e-3f)) : 0f;
-            bool remnant = f.remnant > 0f;
-            float rr = remnant ? Mathf.Max(rMax * f.remnantR, 1.5f * floorPx) : 1f;
-            float remK = remnant ? f.remnant * (fr / Mathf.Max(f.fracMax, 1e-3f)) * Mathf.Exp(-t / Mathf.Max(f.remnantTau, 1e-3f)) : 0f;
-            bool ring2 = f.ring2 > 0f;
+            float amp = f.live.turb * Mathf.Clamp01(t / 0.07f);
+            bool core = f.live.coreGain > 0f;
+            float cr = core ? Mathf.Max(rMax * f.live.coreR + rMax * Prog(t, f.expRate, f.shellLin) * f.live.coreFollow, 1.2f * floorPx) : 1f;
+            float coreK = core ? f.live.coreGain * (1f + f.live.flash * Mathf.Exp(-t / Mathf.Max(f.flashTau, 1e-3f))) * Mathf.Exp(-t / Mathf.Max(f.coreTau, 1e-3f)) : 0f;
+            bool remnant = f.live.remnant > 0f;
+            float rr = remnant ? Mathf.Max(rMax * f.live.remnantR, 1.5f * floorPx) : 1f;
+            float remK = remnant ? f.live.remnant * (fr / Mathf.Max(f.live.fracMax, 1e-3f)) * Mathf.Exp(-t / Mathf.Max(f.remnantTau, 1e-3f)) : 0f;
+            bool ring2 = f.live.ring2 > 0f;
             float tl = Mathf.Min(1f, t / Mathf.Max(f.ring2Life, 1e-3f));
-            float R2c = rMax * f.ring2R * Prog(tl, 5.5f, f.ring2Lin);
-            float W2 = Mathf.Max(rMax * f.ring2W, floorPx);
+            float R2c = rMax * f.live.ring2R * Prog(tl, 5.5f, f.ring2Lin);
+            float W2 = Mathf.Max(rMax * f.live.ring2W, floorPx);
             float fade2 = Mathf.Pow(Mathf.Max(0f, 1f - tl), 1.4f);
-            float beadK = f.ring2Bead > 0f ? f.ring2Bead * Smooth(f.beadT0, f.beadT1, t) : 0f;
+            float beadK = f.live.ring2Bead > 0f ? f.live.ring2Bead * Smooth(f.beadT0, f.beadT1, t) : 0f;
             float gain = Gain(t, f.rise, f.hold, f.tailFast, f.tailSlow, f.tailMix) * scale;
             float invRmax = 1f / Mathf.Max(rMax, 1e-6f);
             float kuN = f.ku, kvN = f.kv, warpKN = f.warpK, lobesN = f.lobes, ring2KN = f.ring2K;
@@ -364,7 +364,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     float dx = (j - cx) * unit;
                     float r = Mathf.Sqrt(dx * dx + dy * dy);
                     float th = Mathf.Atan2(dy, dx);
-                    float R0 = bias ? R0c * (1f + f.biasAmt * Mathf.Cos(f.biasK * (th - f.biasDir))) : R0c;
+                    float R0 = bias ? R0c * (1f + f.live.biasAmt * Mathf.Cos(f.biasK * (th - f.live.biasDir))) : R0c;
                     float R = R0;
                     // turbulence coordinates: the angle wraps, the radius flows OUTWARD with time
                     float tha = th + f.swirl * (r * invRmax) * t;
@@ -377,17 +377,17 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                         nw = Fbm(uw, v * 0.5f, fit.warp);
                         R *= 1f + wamp * (nw - 0.5f) * 2f;
                     }
-                    float n = Mathf.Pow(Fbm(u, v, fit.body), f.turbPow);
+                    float n = Mathf.Pow(Fbm(u, v, fit.body), f.live.turbPow);
 
                     float gate = 0f;
                     if (lobes)
                     {
                         if (f.lobeMode == PlasmaBloomForm.LobeMode.Noise)
                         {
-                            float ul = (th - f.lobePh + Mathf.PI) / (2f * Mathf.PI) * lobesN;
-                            gate = Mathf.Pow(Mathf.Clamp01(Fbm(ul, 0.5f, fit.lobes) * f.gateGain), f.lobePow);
+                            float ul = (th - f.live.lobePh + Mathf.PI) / (2f * Mathf.PI) * lobesN;
+                            gate = Mathf.Pow(Mathf.Clamp01(Fbm(ul, 0.5f, fit.lobes) * f.live.gateGain), f.live.lobePow);
                         }
-                        else gate = Mathf.Pow(0.5f + 0.5f * Mathf.Cos(lobesN * (th - f.lobePh)), f.lobePow);
+                        else gate = Mathf.Pow(0.5f + 0.5f * Mathf.Cos(lobesN * (th - f.live.lobePh)), f.live.lobePow);
                     }
 
                     float dsh = (r - R) / W;
@@ -395,18 +395,18 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     if (plume)
                     {
                         // Tongues are an ADDED second shell at a longer radius, gated by angle, fading in and out.
-                        float Rt = R0 * f.plumeReach;
-                        if (warp && f.plumeVary > 0f) Rt *= 1f + f.plumeVary * (nw - 0.5f) * 2f;
+                        float Rt = R0 * f.live.plumeReach;
+                        if (warp && f.live.plumeVary > 0f) Rt *= 1f + f.live.plumeVary * (nw - 0.5f) * 2f;
                         float tin = Mathf.Clamp01(r / Mathf.Max(Rt * 0.45f, 1e-6f)); tin = tin * tin * (3f - 2f * tin);
-                        float o0 = Rt * 0.55f, o1 = Rt + W * f.plumeW;
+                        float o0 = Rt * 0.55f, o1 = Rt + W * f.live.plumeW;
                         float tout = Mathf.Clamp01((r - o0) / Mathf.Max(o1 - o0, 1e-6f)); tout = tout * tout * (3f - 2f * tout);
-                        shell += f.plumeAmp * gate * tin * (1f - tout);
+                        shell += f.live.plumeAmp * gate * tin * (1f - tout);
                     }
-                    else if (lobes) shell *= 1f - f.lobeAmp + f.lobeAmp * gate;
+                    else if (lobes) shell *= 1f - f.live.lobeAmp + f.live.lobeAmp * gate;
                     if (half)
                     {
-                        float hg = Smooth(-halfS, halfS, Mathf.Cos(f.halfK * (th - f.halfDir)));
-                        shell *= 1f - f.halfAmt + f.halfAmt * hg;
+                        float hg = Smooth(-halfS, halfS, Mathf.Cos(f.halfK * (th - f.live.halfDir)));
+                        shell *= 1f - f.live.halfAmt + f.live.halfAmt * hg;
                     }
 
                     float mass = chunks ? shell * (1f - fr) + scratch[row + j] * fr : shell;
@@ -416,8 +416,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                     if (ring2)
                     {
                         float R2 = R2c;
-                        if (bias) R2 *= 1f + f.biasAmt * 0.7f * Mathf.Cos(f.biasK * (th - f.biasDir));
-                        if (warp) R2 *= 1f + f.warp * 0.5f * (nw - 0.5f) * 2f;
+                        if (bias) R2 *= 1f + f.live.biasAmt * 0.7f * Mathf.Cos(f.biasK * (th - f.live.biasDir));
+                        if (warp) R2 *= 1f + f.live.warp * 0.5f * (nw - 0.5f) * 2f;
                         float d2 = (r - R2) / W2;
                         float ring = Mathf.Exp(-0.5f * d2 * d2);
                         if (beadK > 0f)
@@ -427,7 +427,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                             float gb = Fbm(ub, 0.5f, fit.beads);
                             ring *= Mathf.Pow(Mathf.Clamp01(1f - beadK * (1f - gb) * 2.2f), 1.3f);
                         }
-                        field += f.ring2 * fade2 * ring;
+                        field += f.live.ring2 * fade2 * ring;
                     }
                     if (accumulate) E[row + j] += field * gain; else E[row + j] = field * gain;
                 }
@@ -462,13 +462,14 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         // ── the measurement solve (gen._room / _extents / _place / _fit) ──
         /// The visible extent of the whole clock in each of the four directions from the source: left, right, up, down.
         static void Extents(PlasmaBloomForm f, PlasmaFit fit, float rMax, float orgX, float orgY, int frames, in Grid G,
-                            float vis, float[] E, float[] scratch, float[] ext)
+                            float vis, float[] E, float[] scratch, float[] ext, Action<float> liveAt)
         {
             ext[0] = ext[1] = ext[2] = ext[3] = 0f;
             int S = G.S; float unit = G.unit;
             for (int i = 0; i < frames; i++)
             {
                 float t = (i + 1f) / frames;
+                liveAt(t);
                 Energy(f, fit, rMax, orgX, orgY, t, G, 1f, E, scratch);
                 for (int y = 0; y < S; y++)
                 {
@@ -488,7 +489,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
 
         /// Solve the source placement and radius for this spec: gen._place (room ratio == extent ratio) then gen._fit
         /// (four-direction size, then the border-cap shrink loop). Pure in (form, canvasPx, frames, seed): the cache key.
-        public static PlasmaFit Solve(PlasmaBloomForm f, float canvasPx, int frames, int seed)
+        /// `liveAt(t)` resolves the form's envelopes at the clock sample about to be measured (into the form's `live`).
+        public static PlasmaFit Solve(PlasmaBloomForm f, float canvasPx, int frames, int seed, Action<float> liveAt)
         {
             var fit = new PlasmaFit
             {
@@ -517,7 +519,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             {
                 // _place: measured on a centred grid at a small trial radius so nothing clips; the ratio is scale-free.
                 var G0 = Grid.Make(S, canvasPx, 0f, 0f);
-                Extents(f, fit, 0.10f * canvasPx, 0f, 0f, frames, G0, vis, E, scratch, ext);
+                Extents(f, fit, 0.10f * canvasPx, 0f, 0f, frames, G0, vis, E, scratch, ext, liveAt);
                 float room0 = Mathf.Max(h - pad, 1f);
                 orgX = orgY = 0f;
                 if (ext[0] + ext[1] > 1e-6f) orgX = Mathf.Clamp(room0 * (ext[0] - ext[1]) / (ext[0] + ext[1]) * f.autoOrg / h, -0.55f, 0.55f);
@@ -536,7 +538,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             };
             for (int pass = 0; pass < 2; pass++)
             {
-                Extents(f, fit, rMax, orgX, orgY, frames, G, vis, E, scratch, ext);
+                Extents(f, fit, rMax, orgX, orgY, frames, G, vis, E, scratch, ext, liveAt);
                 float need = 0f;
                 for (int k = 0; k < 4; k++) need = Mathf.Max(need, ext[k] / room[k]);
                 if (need < 1e-3f) break;
@@ -550,6 +552,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 float b = 0f;
                 for (int i = 0; i < frames && b <= cap; i++)
                 {
+                    liveAt((i + 1f) / frames);
                     Energy(f, fit, rMax, orgX, orgY, (i + 1f) / frames, G, 1f, E, scratch);
                     for (int x = 0; x < S; x++)
                     {
@@ -572,15 +575,15 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         public static void Shade(PlasmaBloomForm f, PlasmaFit fit, int S, float[] E, float[] rn, float layerAlpha,
                                  float[] pr, float[] pg, float[] pb, float[] pa, float[] rampT, float[] alpha, float[] rim)
         {
-            float invNorm = 1f / Mathf.Max(f.eNorm, 1e-6f);
+            float invNorm = 1f / Mathf.Max(f.live.eNorm, 1e-6f);
             var A = fit.lutA.rgba; var B = fit.lutB.rgba;
             int n = S * S;
             for (int i = 0; i < n; i++)
             {
                 float e = E[i];
-                float q = Mathf.Pow(Mathf.Clamp01(e * invNorm), f.cGamma);
+                float q = Mathf.Pow(Mathf.Clamp01(e * invNorm), f.live.cGamma);
                 int idx = (int)(q * 255f); if (idx > 255) idx = 255;
-                float mix = Smooth(f.rimLo, f.rimHi, rn[i]) * f.rimMix;
+                float mix = Smooth(f.live.rimLo, f.live.rimHi, rn[i]) * f.live.rimMix;
                 float a = Mathf.Pow(Smooth(f.aLo, f.aHi, e), f.aGamma);
                 if (rampT != null) { rampT[i] = q; alpha[i] = a; rim[i] = mix; }
                 a *= layerAlpha;
