@@ -1072,31 +1072,31 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         }
     }
 
-    /// The ten Kiln cel palettes (generate.py `PAL`) as PlusRamp step tables: stop position = the energy threshold
-    /// at which that band starts, stop colour = the band. Five stops, sRGB, alpha 1 (the under-floor cut is the
-    /// form's own rule, not a stop).
+    /// The ten Kiln cel palettes (generate.py `PAL`) as band tables: band position = the energy threshold at which
+    /// that band starts, band colour = the band. Five bands, sRGB, alpha 1; the under-floor cut is the form's own
+    /// rule, so the table is flagged transparent below its first threshold for the preview.
     public static class ArcBands
     {
         static readonly float[] Thr = { 0.045f, 0.13f, 0.30f, 0.58f, 0.92f };
-        static PlusRamp Make(byte[,] c)
+        static PlusBands Make(byte[,] c)
         {
-            var r = new PlusRamp { space = PlusRampSpace.Srgb };
-            for (int i = 0; i < 5; i++) r.stops.Add(new PlusRampStop(Thr[i], c[i, 0], c[i, 1], c[i, 2], 1f));
-            return r;
+            var b = new PlusBands(transparentBelowFirst: true);
+            for (int i = 0; i < 5; i++) b.stops.Add(new PlusRampStop(Thr[i], c[i, 0], c[i, 1], c[i, 2], 1f));
+            return b;
         }
-        public static PlusRamp Ion() => Make(new byte[,] { { 10, 52, 104 }, { 26, 132, 214 }, { 118, 224, 255 }, { 214, 250, 255 }, { 255, 255, 255 } });
-        public static PlusRamp Violet() => Make(new byte[,] { { 52, 16, 96 }, { 124, 54, 214 }, { 198, 138, 255 }, { 240, 214, 255 }, { 255, 255, 255 } });
-        public static PlusRamp Acid() => Make(new byte[,] { { 16, 74, 24 }, { 56, 184, 58 }, { 150, 255, 118 }, { 226, 255, 198 }, { 255, 255, 255 } });
-        public static PlusRamp Plasma() => Make(new byte[,] { { 86, 34, 0 }, { 214, 116, 8 }, { 255, 198, 60 }, { 255, 244, 178 }, { 255, 255, 255 } });
-        public static PlusRamp Cyan() => Make(new byte[,] { { 0, 58, 74 }, { 0, 168, 196 }, { 120, 244, 255 }, { 222, 252, 255 }, { 255, 255, 255 } });
-        public static PlusRamp Magenta() => Make(new byte[,] { { 74, 6, 54 }, { 196, 26, 132 }, { 255, 110, 196 }, { 255, 206, 240 }, { 255, 255, 255 } });
-        public static PlusRamp Chroma() => Make(new byte[,] { { 104, 8, 78 }, { 214, 40, 150 }, { 96, 196, 255 }, { 206, 246, 255 }, { 255, 255, 255 } });
-        public static PlusRamp Steel() => Make(new byte[,] { { 16, 26, 62 }, { 46, 84, 186 }, { 116, 178, 255 }, { 214, 236, 255 }, { 255, 255, 255 } });
-        public static PlusRamp Crimson() => Make(new byte[,] { { 64, 0, 18 }, { 190, 18, 52 }, { 255, 96, 110 }, { 255, 202, 208 }, { 255, 255, 255 } });
-        public static PlusRamp Teal() => Make(new byte[,] { { 0, 58, 48 }, { 0, 160, 132 }, { 96, 255, 214 }, { 214, 255, 244 }, { 255, 255, 255 } });
+        public static PlusBands Ion() => Make(new byte[,] { { 10, 52, 104 }, { 26, 132, 214 }, { 118, 224, 255 }, { 214, 250, 255 }, { 255, 255, 255 } });
+        public static PlusBands Violet() => Make(new byte[,] { { 52, 16, 96 }, { 124, 54, 214 }, { 198, 138, 255 }, { 240, 214, 255 }, { 255, 255, 255 } });
+        public static PlusBands Acid() => Make(new byte[,] { { 16, 74, 24 }, { 56, 184, 58 }, { 150, 255, 118 }, { 226, 255, 198 }, { 255, 255, 255 } });
+        public static PlusBands Plasma() => Make(new byte[,] { { 86, 34, 0 }, { 214, 116, 8 }, { 255, 198, 60 }, { 255, 244, 178 }, { 255, 255, 255 } });
+        public static PlusBands Cyan() => Make(new byte[,] { { 0, 58, 74 }, { 0, 168, 196 }, { 120, 244, 255 }, { 222, 252, 255 }, { 255, 255, 255 } });
+        public static PlusBands Magenta() => Make(new byte[,] { { 74, 6, 54 }, { 196, 26, 132 }, { 255, 110, 196 }, { 255, 206, 240 }, { 255, 255, 255 } });
+        public static PlusBands Chroma() => Make(new byte[,] { { 104, 8, 78 }, { 214, 40, 150 }, { 96, 196, 255 }, { 206, 246, 255 }, { 255, 255, 255 } });
+        public static PlusBands Steel() => Make(new byte[,] { { 16, 26, 62 }, { 46, 84, 186 }, { 116, 178, 255 }, { 214, 236, 255 }, { 255, 255, 255 } });
+        public static PlusBands Crimson() => Make(new byte[,] { { 64, 0, 18 }, { 190, 18, 52 }, { 255, 96, 110 }, { 255, 202, 208 }, { 255, 255, 255 } });
+        public static PlusBands Teal() => Make(new byte[,] { { 0, 58, 48 }, { 0, 160, 132 }, { 96, 255, 214 }, { 214, 255, 244 }, { 255, 255, 255 } });
 
         /// By Kiln name (`PAL` key); null for an unknown name.
-        public static PlusRamp Get(string name) => (name ?? "").ToLowerInvariant() switch
+        public static PlusBands Get(string name) => (name ?? "").ToLowerInvariant() switch
         {
             "ion" => Ion(), "violet" => Violet(), "acid" => Acid(), "plasma" => Plasma(), "cyan" => Cyan(),
             "magenta" => Magenta(), "chroma" => Chroma(), "steel" => Steel(), "crimson" => Crimson(), "teal" => Teal(), _ => null,

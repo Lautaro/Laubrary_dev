@@ -41,7 +41,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             + "and an already-normalised alpha with MAXIMUM compositing (a solid arc crossing a ghost wins the "
             + "crossing), a 3-pass box bloom spreads colour further than opacity, and the energy snaps to five cel "
             + "bands (white core, saturated sheath). Half the arms are translucent to the core. The bolts are "
-            + "re-struck every frame, as the source does. Colour comes from the form's own Bands, NOT the layer Fill. "
+            + "re-struck every frame, as the source does. Colour comes from the form's own Palette bands, NOT the layer Fill. "
             + "SWARM: off = one centred burst; on = one burst per swarm particle at its position and life.";
 
         public override bool UsesFill => false;
@@ -81,8 +81,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         public bool rerollPerFrame = true;
 
         // ── colour ──
-        [Tooltip("The five cel bands: each stop's position is the ENERGY THRESHOLD at which that band starts, its colour the band (no interpolation; below the first threshold the pixel is absent). Presets: ArcBands.Ion / Violet / Acid / Plasma / Cyan / Magenta / Chroma / Steel / Crimson / Teal.")]
-        public PlusRamp bands = ArcBands.Violet();
+        [Tooltip("The cel bands (five in the source): each band starts at its ENERGY THRESHOLD and is hard — no interpolation; below the first threshold the pixel is absent. Drag a marker to move a threshold, click a band to recolour it, the slider sets how many. Presets: ArcBands.Ion / Violet / Acid / Plasma / Cyan / Magenta / Chroma / Steel / Crimson / Teal.")]
+        [UnityEngine.Serialization.FormerlySerializedAs("bands")] public PlusBands palette = ArcBands.Violet();
 
         // ── per-layout settings (one box shows at a time) ──
         [ZUIShowIf("layout", "Core")] [Tooltip("draw_core's literals.")] public CoreSettings core = new CoreSettings();
@@ -410,8 +410,8 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         const int SourcePx = 128;
         [NonSerialized] float[] _E, _A, _sA, _sB, _pr, _pg, _pb, _pa;
         [NonSerialized] float[] _dumpH, _dumpT, _dumpA;
-        [NonSerialized] readonly float[] _thr = new float[5];
-        [NonSerialized] readonly Color32[] _cols = new Color32[5];
+        [NonSerialized] float[] _thr;
+        [NonSerialized] Color32[] _cols;
 
         void IPlusFieldPublisher.PublishFields(Action<string, float[]> sink)
         {
@@ -432,21 +432,14 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             return new Color(c.r / 255f, c.g / 255f, c.b / 255f, a);
         }
 
-        /// Sorted (threshold, colour) pairs from `bands`; returns the count used (≤ 5, padded by repeating the last).
+        /// The palette's (threshold, colour) tables — PlusBands keeps them sorted and cached; returns the band count
+        /// (0 for an empty palette, which reads as one white band from the source's first threshold).
         int ReadBands()
         {
-            var st = bands?.stops;
-            int n = st == null ? 0 : Mathf.Min(st.Count, 5);
-            if (n == 0) { for (int i = 0; i < 5; i++) { _thr[i] = 0.045f; _cols[i] = new Color32(255, 255, 255, 255); } return 0; }
-            var sorted = new System.Collections.Generic.List<PlusRampStop>(st);
-            sorted.Sort((a, b) => a.pos.CompareTo(b.pos));
-            for (int i = 0; i < 5; i++)
-            {
-                var s = sorted[Mathf.Min(i, n - 1)];
-                _thr[i] = s.pos;
-                _cols[i] = new Color32((byte)Mathf.RoundToInt(Mathf.Clamp01(s.color.r) * 255f), (byte)Mathf.RoundToInt(Mathf.Clamp01(s.color.g) * 255f), (byte)Mathf.RoundToInt(Mathf.Clamp01(s.color.b) * 255f), 255);
-            }
-            return n;
+            palette ??= new PlusBands(transparentBelowFirst: true);
+            if (palette.IsEmpty) { _thr = new[] { 0.045f }; _cols = new[] { new Color32(255, 255, 255, 255) }; return 0; }
+            _thr = palette.Thresholds; _cols = palette.Colors32;
+            return palette.Count;
         }
 
         public override void Render(in PlusFormCtx ctx, Color32[] target)
@@ -603,7 +596,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 case "layout": case "draw": case "tag":
                     if (Enum.TryParse(value?.ToString(), true, out Layout l)) { layout = l; return true; }
                     return false;
-                case "palette": { var r = ArcBands.Get(value?.ToString()); if (r == null) return false; bands = r; return true; }
+                case "palette": { var r = ArcBands.Get(value?.ToString()); if (r == null) return false; palette = r; return true; }
                 case "bloom_alpha_strength": bloomAlpha = new ZUIValue(bloomStrength.staticValue > 0f ? Convert.ToSingle(value) / bloomStrength.staticValue : 0.34f); return true;
                 case "ghost": case "dissolve": case "cool": case "bands": case "keep_hue": case "stroke_profile": case "deposit_alpha": case "seg_cull":
                     return true;

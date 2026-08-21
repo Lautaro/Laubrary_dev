@@ -4,8 +4,9 @@
 //   (b) hard cel bands (a floor into N colours, no interpolation — any blending destroys the contour),
 //   (c) two ramps crossfaded by a second channel (soot / smoke / cooling) and a 2-D palette grid,
 //   (d) emergent additive RGB with a per-channel 1−exp(−k·L) tone map and white blow-out.
-// Plus `PlusRamp`, the serialisable ramp a form can carry as a field (ZuiReflect draws it: a list of stop cards), and
-// `PlusRampPresets`, where a port ships its source ramps verbatim so they are never left on a default gradient.
+// Plus `PlusRamp`, the serialisable ramp a form can carry as a field (ZuiReflect draws it: a list of stop cards; a HARD
+// band table is a `PlusBands` instead — see PlusBands.cs), and `PlusRampPresets`, where a port ships its source ramps
+// verbatim so they are never left on a default gradient.
 //
 // Conventions: ramp position 0 = the COLD outer edge, 1 = the HOTTEST core (Kiln's contract convention); a LUT is
 // sampled by t in 0..1. Colours are UnityEngine.Color in sRGB (what the rest of PyrePlus composites).
@@ -532,7 +533,11 @@ namespace Laubrary.PyrePlus
                 case "rim": return 1.15f; case "gold": return 1.18f; default: return 0f;
             }
         }
-        /// The torch palette by its Kiln name ("RAMP_HOT" / "hot", "ember", "white", "rim", "gold"); null for an unknown name.
+        /// The torch palette by its Kiln name as the band table the form holds (the step stops collapsed to seven bands);
+        /// null for an unknown name.
+        public static PlusBands TorchBands(string name) { var r = Torch(name); return r == null ? null : PlusBands.FromStops(r); }
+        /// The torch palette by its Kiln name ("RAMP_HOT" / "hot", "ember", "white", "rim", "gold") as the contract writes
+        /// it (a step-stop PlusRamp); null for an unknown name. The form holds TorchBands(name).
         public static PlusRamp Torch(string name)
         {
             switch (Short(name))

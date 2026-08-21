@@ -82,7 +82,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
         [NonSerialized] float[] _Fp, _C, _pr, _pg, _pb, _pa, _A;
         [NonSerialized] float[] _dumpH, _dumpC, _dumpT, _dumpA;
         [NonSerialized] TorchScratch _scratch;
-        [NonSerialized] float[] _thr; [NonSerialized] Color32[] _cols; [NonSerialized] int _bandHash;
+        [NonSerialized] float[] _thr; [NonSerialized] Color32[] _cols;
 
         /// The form's own envelopes resolved at one layer life (slots 0–3).
         public struct Live { public float axisX, ground, height, swarmSize; }
@@ -121,20 +121,11 @@ namespace Laubrary.PyrePlus.Forms.Kiln
             _dumpH = _dumpC = _dumpT = _dumpA = null;
         }
 
+        // The band table's own cached lookup arrays (PlusBands rebuilds them only when its content changes).
         void EnsureBands(TorchSettings s)
         {
-            int h = s.ramp != null ? RampHash(s.ramp) : 0;
-            if (_thr == null || _bandHash != h) { PlusTorch.Bands(s.ramp, out _thr, out _cols); _bandHash = h; }
-        }
-
-        static int RampHash(PlusRamp r)
-        {
-            unchecked
-            {
-                int h = (int)2166136261u ^ (int)r.space;
-                if (r.stops != null) foreach (var s in r.stops) { h = (h ^ s.pos.GetHashCode()) * 16777619; h = (h ^ s.color.GetHashCode()) * 16777619; }
-                return h;
-            }
+            s.ramp ??= new PlusBands();
+            _thr = s.ramp.Thresholds; _cols = s.ramp.Colors32;
         }
 
         public override void Render(in PlusFormCtx ctx, Color32[] target)
@@ -275,7 +266,7 @@ namespace Laubrary.PyrePlus.Forms.Kiln
                 case "h_flame": _cHf = Convert.ToDouble(value); Active.hFlame = (float)_cHf; ResolveGeometry(); return true;
                 case "ramp":
                 {
-                    var r = PlusRampPresets.Torch(value?.ToString()); if (r == null) return false;
+                    var r = PlusRampPresets.TorchBands(value?.ToString()); if (r == null) return false;
                     Active.ramp = r; Active.rampTop = new ZUIValue(PlusRampPresets.TorchTop(value?.ToString())); return true;
                 }
                 case "big_kind": return Enum.TryParse(value?.ToString(), true, out Active.bigKind);

@@ -49,7 +49,7 @@ namespace Laubrary.PyrePlus.Tests
             string rampPath = Path.Combine(ContractRoot, draw, "ramp.json");
             if (!File.Exists(rampPath)) Assert.Ignore("gen-4 contract not present on this machine");
             var ramp = (JObject)JObject.Parse(File.ReadAllText(rampPath))["ramps"][palette];
-            var form = new ArcBurstForm { bands = ArcBands.Get(palette) };
+            var form = new ArcBurstForm { palette = ArcBands.Get(palette) };
             var probe = (IPlusRampProbe)form;
             int size = ramp.Value<int>("lut_size");
             var rgb = (JArray)ramp["lut"]["rgb"]; var al = (JArray)ramp["lut"]["alpha"];
@@ -124,12 +124,12 @@ namespace Laubrary.PyrePlus.Tests
             var a = new ArcBurstForm();
             var b = (ArcBurstForm)a.Clone();
             Assert.That(b.bolt, Is.Not.SameAs(a.bolt));
-            Assert.That(b.bands, Is.Not.SameAs(a.bands));
+            Assert.That(b.palette, Is.Not.SameAs(a.palette));
             Assert.That(b.ContentHash(), Is.EqualTo(a.ContentHash()));
             b.bolt.trunks = 7;
             Assert.That(a.bolt.trunks, Is.EqualTo(5));
             Assert.That(b.ContentHash(), Is.Not.EqualTo(a.ContentHash()));
-            b.bolt.trunks = 5; b.bands.stops[2].color = Color.red;
+            b.bolt.trunks = 5; b.palette.stops[2].color = Color.red;
             Assert.That(b.ContentHash(), Is.Not.EqualTo(a.ContentHash()), "a band colour edit changes the hash");
         }
 
@@ -140,7 +140,7 @@ namespace Laubrary.PyrePlus.Tests
             Assert.That(f.SetContractParam("draw", "cage"), Is.True);
             Assert.That(f.layout, Is.EqualTo(ArcBurstForm.Layout.Cage));
             Assert.That(f.SetContractParam("palette", "cyan"), Is.True);
-            Assert.That(f.bands.stops[1].color.g, Is.EqualTo(168f / 255f).Within(1e-6));
+            Assert.That(f.palette.stops[1].color.g, Is.EqualTo(168f / 255f).Within(1e-6));
             Assert.That(f.SetContractParam("aref", 0.26), Is.True);
             Assert.That(f.aref.staticValue, Is.EqualTo(0.26f).Within(1e-6));   // a contract scalar lands as the Static value
             Assert.That(f.SetContractParam("bloom_radius", 2.6), Is.True);
