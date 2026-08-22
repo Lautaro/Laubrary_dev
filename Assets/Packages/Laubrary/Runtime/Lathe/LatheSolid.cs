@@ -46,6 +46,18 @@ namespace Laubrary.Lathe
         public Vector2 scrollSpeed = new Vector2(0.2f, 0f);   // UV units per full turntable loop
         [Range(0.2f, 10f)] public float tileScale = 1f;
 
+        // Second Texture Layer — OFF by default, same avoid-bloat gating. Blends a second texture (Layer B)
+        // over the Texture field above (Layer A), each independently tiled/scrolled, composited into one
+        // baked texture at render time (LatheTextureLayerBaker) — two textures animating differently on the
+        // same surface, e.g. a scrolling light strip decal layered over a slower conveyor-belt tile.
+        public bool secondTextureLayer = false;
+        public Texture2D texture2;
+        public LatheBlendMode blendMode = LatheBlendMode.Alpha;
+        [Range(0f, 1f)] public float blendAmount = 1f;
+        public bool animateTexture2 = false;
+        public Vector2 scrollSpeed2 = new Vector2(-0.15f, 0.1f);
+        [Range(0.2f, 10f)] public float tileScale2 = 1f;
+
         [SerializeReference] public LatheModule module = new PrimitiveSolidModule();
         [SerializeReference] public List<LatheMeshModifier> modifiers = new List<LatheMeshModifier>();
 
@@ -71,6 +83,13 @@ namespace Laubrary.Lathe
                 animateTexture = animateTexture,
                 scrollSpeed = scrollSpeed,
                 tileScale = tileScale,
+                secondTextureLayer = secondTextureLayer,
+                texture2 = texture2,
+                blendMode = blendMode,
+                blendAmount = blendAmount,
+                animateTexture2 = animateTexture2,
+                scrollSpeed2 = scrollSpeed2,
+                tileScale2 = tileScale2,
                 module = module?.Clone(),
                 modifiers = new List<LatheMeshModifier>(),
             };

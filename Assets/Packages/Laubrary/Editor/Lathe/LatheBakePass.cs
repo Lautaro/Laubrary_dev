@@ -77,17 +77,26 @@ namespace Laubrary.Lathe.Editor
                         if (litMat.HasProperty("_Metallic")) block.SetFloat("_Metallic", solid.metallic);
                         if (litMat.HasProperty("_Smoothness")) block.SetFloat("_Smoothness", solid.smoothness);
                         else if (litMat.HasProperty("_Glossiness")) block.SetFloat("_Glossiness", solid.smoothness);
-                        if (texProp != null)
+                        if (texProp != null || stProp != null)
                         {
                             Texture2D fillTex = solid.fill != null && solid.fill.kind != LatheFillKind.None
                                 ? LatheFillBaker.Bake(solid.fill, 64) : null;
                             if (fillTex != null) scratchTex.Add(fillTex);
-                            block.SetTexture(texProp, fillTex != null ? fillTex : solid.texture != null ? solid.texture : Texture2D.whiteTexture);
-                        }
-                        if (stProp != null)
-                        {
-                            Vector2 offs = solid.animateTexture ? solid.scrollSpeed * animT : Vector2.zero;
-                            block.SetVector(stProp, new Vector4(solid.tileScale, solid.tileScale, offs.x, offs.y));
+
+                            Texture2D layerTex = fillTex == null && solid.secondTextureLayer && solid.texture2 != null
+                                ? LatheTextureLayerBaker.Bake(solid, animT, 64) : null;
+                            if (layerTex != null) scratchTex.Add(layerTex);
+
+                            if (texProp != null)
+                                block.SetTexture(texProp, fillTex != null ? fillTex : layerTex != null ? layerTex
+                                    : solid.texture != null ? solid.texture : Texture2D.whiteTexture);
+
+                            if (stProp != null)
+                            {
+                                Vector2 offs = layerTex == null && solid.animateTexture ? solid.scrollSpeed * animT : Vector2.zero;
+                                float tile = layerTex == null ? solid.tileScale : 1f;
+                                block.SetVector(stProp, new Vector4(tile, tile, offs.x, offs.y));
+                            }
                         }
                         if (emissionProp != null)
                             block.SetColor(emissionProp, solid.emitLight ? solid.lightColor * solid.emissiveBoost : Color.black);

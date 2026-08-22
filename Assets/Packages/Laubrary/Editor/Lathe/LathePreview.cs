@@ -116,17 +116,30 @@ namespace Laubrary.Lathe.Editor
                         if (mat.HasProperty("_Metallic")) block.SetFloat("_Metallic", solid.metallic);
                         if (mat.HasProperty("_Smoothness")) block.SetFloat("_Smoothness", solid.smoothness);
                         else if (mat.HasProperty("_Glossiness")) block.SetFloat("_Glossiness", solid.smoothness);
-                        if (texProp != null)
+                        if (texProp != null || stProp != null)
                         {
                             Texture2D fillTex = solid.fill != null && solid.fill.kind != LatheFillKind.None
                                 ? LatheFillBaker.Bake(solid.fill, FillBakeResolution) : null;
                             if (fillTex != null) scratchTextures.Add(fillTex);
-                            block.SetTexture(texProp, fillTex != null ? fillTex : solid.texture != null ? solid.texture : Texture2D.whiteTexture);
-                        }
-                        if (stProp != null)
-                        {
-                            Vector2 offs = solid.animateTexture ? solid.scrollSpeed * animT : Vector2.zero;
-                            block.SetVector(stProp, new Vector4(solid.tileScale, solid.tileScale, offs.x, offs.y));
+
+                            Texture2D layerTex = fillTex == null && solid.secondTextureLayer && solid.texture2 != null
+                                ? LatheTextureLayerBaker.Bake(solid, animT, FillBakeResolution) : null;
+                            if (layerTex != null) scratchTextures.Add(layerTex);
+
+                            if (texProp != null)
+                                block.SetTexture(texProp, fillTex != null ? fillTex : layerTex != null ? layerTex
+                                    : solid.texture != null ? solid.texture : Texture2D.whiteTexture);
+
+                            if (stProp != null)
+                            {
+                                // A baked 2-layer composite already has each layer's own tiling/scroll applied
+                                // per-pixel — the material's own UV transform must stay identity so it isn't
+                                // applied a second time on top (which would move both layers together and
+                                // defeat "animate them differently").
+                                Vector2 offs = layerTex == null && solid.animateTexture ? solid.scrollSpeed * animT : Vector2.zero;
+                                float tile = layerTex == null ? solid.tileScale : 1f;
+                                block.SetVector(stProp, new Vector4(tile, tile, offs.x, offs.y));
+                            }
                         }
                         if (emissionProp != null)
                             block.SetColor(emissionProp, solid.emitLight ? solid.lightColor * solid.emissiveBoost : Color.black);

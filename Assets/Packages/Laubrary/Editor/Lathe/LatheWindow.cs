@@ -235,6 +235,33 @@ namespace Laubrary.Lathe.Editor
                     Z.MicroSlider("Tile", solid.tileScale, 0.2f, 10f, "Texture tiling repeat count.",
                         v => Dirty(() => solid.tileScale = v), 130f, showValue: true)));
 
+            box.Add(Z.Toggle("Second Texture Layer", "Blends a second texture over the one above, each "
+                + "independently tiled and scrolled — a scrolling light strip decal over a slower conveyor "
+                + "tile, for example. Composited into one baked texture at render time, no shader needed.",
+                solid.secondTextureLayer, v => { Dirty(() => solid.secondTextureLayer = v); Rebuild(); }));
+            if (solid.secondTextureLayer)
+            {
+                box.Add(Z.Field("Layer 2 Texture", "The second texture, blended over the surface's base texture.",
+                    ZuiReflect.ObjectByType(typeof(Texture2D), solid.texture2,
+                        "This layer's own texture.", v => Dirty(() => solid.texture2 = v as Texture2D), 160f)));
+                box.Add(Z.HGroup(
+                    Z.Field("Blend", "How Layer 2 combines with the base texture.",
+                        Z.MiniRadio((int)solid.blendMode, Enum.GetNames(typeof(LatheBlendMode)),
+                            "Blend mode.", i => Dirty(() => solid.blendMode = (LatheBlendMode)i))),
+                    Z.MicroSlider("Amount", solid.blendAmount, 0f, 1f, "How strongly Layer 2 shows through.",
+                        v => Dirty(() => solid.blendAmount = v), 130f, showValue: true)));
+                box.Add(Z.Toggle("Animate Layer 2", "Scrolls Layer 2's own UV offset over the turntable's "
+                    + "frame, independently of Layer 1's own scroll above.",
+                    solid.animateTexture2, v => { Dirty(() => solid.animateTexture2 = v); Rebuild(); }));
+                if (solid.animateTexture2)
+                    box.Add(Z.HGroup(
+                        Z.Field("Scroll Speed", "UV units scrolled per full turntable loop.", Z.Row(
+                            Z.Float(solid.scrollSpeed2.x, "Scroll speed (U).", v => Dirty(() => solid.scrollSpeed2 = new Vector2(v, solid.scrollSpeed2.y)), 60f),
+                            Z.Float(solid.scrollSpeed2.y, "Scroll speed (V).", v => Dirty(() => solid.scrollSpeed2 = new Vector2(solid.scrollSpeed2.x, v)), 60f))),
+                        Z.MicroSlider("Tile", solid.tileScale2, 0.2f, 10f, "Layer 2's own tiling repeat count.",
+                            v => Dirty(() => solid.tileScale2 = v), 130f, showValue: true)));
+            }
+
             box.Add(Z.Toggle("Emit Light", "Makes this solid glow AND spawns a real point light at its position "
                 + "that illuminates neighbouring solids too — a light bulb that actually lights up the hull "
                 + "around it, not just a bright mesh.", solid.emitLight, v => { Dirty(() => solid.emitLight = v); Rebuild(); }));
