@@ -7,13 +7,11 @@ using UnityEngine;
 
 namespace Laubrary.Lathe
 {
-    public enum MirrorAxis { X, Y, Z }
-
     [LatheModifierInfo("Mirror", "Symmetry")]
     [Serializable]
     public class MirrorMeshModifier : LatheMeshModifier
     {
-        public MirrorAxis axis = MirrorAxis.X;
+        public LatheAxis axis = LatheAxis.X;
         public float plane = 0f;
         public bool weldSeam = true;
         [Range(0.001f, 0.25f)] public float weldDistance = 0.02f;
@@ -26,7 +24,7 @@ namespace Laubrary.Lathe
 
         public override void Apply(LatheMeshData data)
         {
-            int axisIndex = axis == MirrorAxis.X ? 0 : axis == MirrorAxis.Y ? 1 : 2;
+            int axisIndex = axis == LatheAxis.X ? 0 : axis == LatheAxis.Y ? 1 : 2;
             int srcVertCount = data.verts.Count;
             var remap = new int[srcVertCount];
             for (int i = 0; i < srcVertCount; i++)

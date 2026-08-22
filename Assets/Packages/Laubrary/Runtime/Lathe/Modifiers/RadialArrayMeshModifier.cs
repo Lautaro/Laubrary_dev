@@ -7,14 +7,12 @@ using UnityEngine;
 
 namespace Laubrary.Lathe
 {
-    public enum ArrayAxis { X, Y, Z }
-
     [LatheModifierInfo("Radial Array", "Symmetry")]
     [Serializable]
     public class RadialArrayMeshModifier : LatheMeshModifier
     {
         [Range(2, 32)] public int count = 6;
-        public ArrayAxis axis = ArrayAxis.Y;
+        public LatheAxis axis = LatheAxis.Y;
         [Range(1f, 360f)] public float totalDegrees = 360f;
         // Shifts the source shape away from the axis before spinning it, so a shape centred at the origin
         // still fans out into a proper ring. 0 = spin the shape exactly where it is (right for a source
@@ -35,8 +33,8 @@ namespace Laubrary.Lathe
             var origNormals = data.normals.Count == n ? new List<Vector3>(data.normals) : null;
             var origTris = new List<int>(data.tris);
 
-            Vector3 axisVec = axis == ArrayAxis.X ? Vector3.right : axis == ArrayAxis.Y ? Vector3.up : Vector3.forward;
-            Vector3 radialDir = axis == ArrayAxis.Y ? Vector3.right : Vector3.up;
+            Vector3 axisVec = axis == LatheAxis.X ? Vector3.right : axis == LatheAxis.Y ? Vector3.up : Vector3.forward;
+            Vector3 radialDir = axis == LatheAxis.Y ? Vector3.right : Vector3.up;
             Vector3 radialOffset = radialDir * radius;
 
             for (int c = 1; c < count; c++)

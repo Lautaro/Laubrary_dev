@@ -7,13 +7,11 @@ using UnityEngine;
 
 namespace Laubrary.Lathe
 {
-    public enum TaperAxis { X, Y, Z }
-
     [LatheModifierInfo("Taper", "Shape")]
     [Serializable]
     public class TaperMeshModifier : LatheMeshModifier
     {
-        public TaperAxis axis = TaperAxis.Y;
+        public LatheAxis axis = LatheAxis.Y;
         [Range(-5f, 5f)] public float rangeMin = -1f;
         [Range(-5f, 5f)] public float rangeMax = 1f;
         [Range(0f, 3f)] public float scaleAtMin = 1f;
@@ -26,7 +24,7 @@ namespace Laubrary.Lathe
 
         public override void Apply(LatheMeshData data)
         {
-            int axisIdx = axis == TaperAxis.X ? 0 : axis == TaperAxis.Y ? 1 : 2;
+            int axisIdx = axis == LatheAxis.X ? 0 : axis == LatheAxis.Y ? 1 : 2;
             float lo = Mathf.Min(rangeMin, rangeMax), hi = Mathf.Max(rangeMin, rangeMax);
             float span = Mathf.Max(1e-5f, hi - lo);
 

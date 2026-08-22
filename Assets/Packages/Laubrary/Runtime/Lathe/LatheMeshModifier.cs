@@ -5,6 +5,10 @@ using System;
 
 namespace Laubrary.Lathe
 {
+    /// The shared X/Y/Z axis choice every axis-aware modifier (Mirror, Taper, Radial Array, Twist…) picks
+    /// from — one enum instead of each modifier declaring its own near-identical copy.
+    public enum LatheAxis { X, Y, Z }
+
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class LatheModifierInfoAttribute : Attribute
     {
