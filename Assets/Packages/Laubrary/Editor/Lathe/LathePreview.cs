@@ -13,7 +13,7 @@ namespace Laubrary.Lathe.Editor
     {
         PreviewRenderUtility util;
         Material litMat;
-        string colorProp;
+        string colorProp, texProp;
         readonly MaterialPropertyBlock block = new MaterialPropertyBlock();
         readonly List<Mesh> scratchMeshes = new List<Mesh>();
 
@@ -44,6 +44,7 @@ namespace Laubrary.Lathe.Editor
                 // be seen) — Cull Off sidesteps the whole question rather than risking inside-out geometry.
                 if (litMat.HasProperty("_Cull")) litMat.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
                 colorProp = litMat.HasProperty("_BaseColor") ? "_BaseColor" : "_Color";
+                texProp = litMat.HasProperty("_BaseMap") ? "_BaseMap" : litMat.HasProperty("_MainTex") ? "_MainTex" : null;
                 return litMat;
             }
         }
@@ -86,6 +87,8 @@ namespace Laubrary.Lathe.Editor
                         scratchMeshes.Add(mesh);
                         block.Clear();
                         block.SetColor(colorProp, solid.tint);
+                        if (texProp != null)
+                            block.SetTexture(texProp, solid.texture != null ? solid.texture : Texture2D.whiteTexture);
                         util.DrawMesh(mesh, solid.LocalToWorld(turntable), mat, 0, block);
                     }
                 util.camera.Render();

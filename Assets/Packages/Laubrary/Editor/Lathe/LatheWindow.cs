@@ -196,8 +196,12 @@ namespace Laubrary.Lathe.Editor
                 v => Dirty(() => solid.rotationEuler = v)));
             box.Add(Vector3Row("Scale", solid.scale, "Non-uniform scale.",
                 v => Dirty(() => solid.scale = v)));
-            box.Add(Z.Field("Tint", "This solid's colour in the preview.",
+            box.Add(Z.Field("Tint", "This solid's colour — multiplies the texture below, or shows alone when no texture is set.",
                 Z.Color(solid.tint, "This solid's colour.", v => Dirty(() => solid.tint = v), 110f)));
+            box.Add(Z.Field("Texture", "Optional — a box/triplanar-projected UV set is generated automatically, "
+                + "so any texture drops straight on with no per-shape unwrap work.",
+                ZuiReflect.ObjectByType(typeof(Texture2D), solid.texture,
+                    "This solid's surface texture.", v => Dirty(() => solid.texture = v as Texture2D), 160f)));
             return box;
         }
 

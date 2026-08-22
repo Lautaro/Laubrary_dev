@@ -12,7 +12,7 @@ namespace Laubrary.Lathe.Editor
     {
         PreviewRenderUtility util;
         Material litMat;
-        string colorProp;
+        string colorProp, texProp;
         readonly MaterialPropertyBlock block = new MaterialPropertyBlock();
 
         void EnsureUtil()
@@ -33,6 +33,7 @@ namespace Laubrary.Lathe.Editor
             litMat = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
             if (litMat.HasProperty("_Cull")) litMat.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
             colorProp = litMat.HasProperty("_BaseColor") ? "_BaseColor" : "_Color";
+            texProp = litMat.HasProperty("_BaseMap") ? "_BaseMap" : litMat.HasProperty("_MainTex") ? "_MainTex" : null;
         }
 
         /// Renders one turntable frame at `size` × `supersample`, then box-filters it down to `size`×`size`.
@@ -66,6 +67,8 @@ namespace Laubrary.Lathe.Editor
                         scratch.Add(mesh);
                         block.Clear();
                         block.SetColor(colorProp, solid.tint);
+                        if (texProp != null)
+                            block.SetTexture(texProp, solid.texture != null ? solid.texture : Texture2D.whiteTexture);
                         util.DrawMesh(mesh, solid.LocalToWorld(turntable), litMat, 0, block);
                     }
                 util.camera.Render();

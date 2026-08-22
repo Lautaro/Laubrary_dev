@@ -17,6 +17,10 @@ namespace Laubrary.Lathe
         public Vector3 rotationEuler = Vector3.zero;
         public Vector3 scale = Vector3.one;
         public Color tint = Color.white;
+        // Optional — a box/triplanar-projected UV set is generated automatically (LatheMeshData.ToMesh), so
+        // any texture drops straight on without per-shape unwrap work. Null = tint-only (a white texture
+        // multiplies through as a no-op), same look as before this field existed.
+        public Texture2D texture;
 
         [SerializeReference] public LatheModule module = new PrimitiveSolidModule();
         [SerializeReference] public List<LatheMeshModifier> modifiers = new List<LatheMeshModifier>();
@@ -31,6 +35,7 @@ namespace Laubrary.Lathe
                 rotationEuler = rotationEuler,
                 scale = scale,
                 tint = tint,
+                texture = texture,
                 module = module?.Clone(),
                 modifiers = new List<LatheMeshModifier>(),
             };
