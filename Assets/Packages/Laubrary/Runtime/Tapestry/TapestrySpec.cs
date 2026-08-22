@@ -14,6 +14,11 @@ namespace Laubrary.Tapestry
         public Color previewBackground = new Color(0.12f, 0.12f, 0.14f, 1f);
         public int seed = 1234;
 
+        // Animation loop — only matters to layers with Animate Transform on; a Tapestry with none of those
+        // is a single static texture and these are simply unused.
+        [Range(1, 120)] public int frameCount = 24;
+        [Range(1f, 60f)] public float previewFps = 12f;
+
         public List<TapestryLayer> layers = new List<TapestryLayer>();
         // Applied once, after every layer is composited — same "wraps every layer's own stack" role as
         // PyrePlus's spec.globalModifiers (confirmed precedent: PyrePlusSpec.cs, applied in FrameComposer.Finish

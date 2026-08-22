@@ -22,6 +22,22 @@ namespace Laubrary.Tapestry
         public TapestryBlendMode blendMode = TapestryBlendMode.Normal;
         [Range(0f, 1f)] public float opacity = 1f;
 
+        // Static transform — always available, useful even with no animation (e.g. offsetting the Lines
+        // layer's grid against Panels, or rotating one layer 45° against another).
+        public Vector2 position = Vector2.zero;
+        [Range(0f, 360f)] public float rotation = 0f;
+        public Vector2 scale = Vector2.one;
+
+        // Animate Transform — OFF by default, same avoid-bloat gating every other optional feature in this
+        // package uses. Drifts position/rotation/scale over the canvas's animation loop (TapestrySpec.
+        // frameCount), same "speed * animT" model as Lathe's Animate Texture. Deliberately allowed to break
+        // tileability — rotation and scale especially — since that's the user's own call to make, not a
+        // constraint this tool enforces.
+        public bool animateTransform = false;
+        public Vector2 positionSpeed = new Vector2(0.2f, 0f);   // UV units drifted per full loop
+        [Range(-4f, 4f)] public float rotationTurns = 0f;         // full 360° turns drifted per full loop
+        public Vector2 scaleSpeed = Vector2.zero;                 // scale delta drifted per full loop
+
         public TapestryLayer Clone()
         {
             var c = new TapestryLayer
@@ -31,6 +47,13 @@ namespace Laubrary.Tapestry
                 generator = generator?.Clone(),
                 blendMode = blendMode,
                 opacity = opacity,
+                position = position,
+                rotation = rotation,
+                scale = scale,
+                animateTransform = animateTransform,
+                positionSpeed = positionSpeed,
+                rotationTurns = rotationTurns,
+                scaleSpeed = scaleSpeed,
                 modifiers = new List<TapestryLayerModifier>(),
             };
             if (modifiers != null)
