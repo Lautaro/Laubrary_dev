@@ -81,14 +81,16 @@ namespace Laubrary.Lathe
         }
 
         /// The composed local-space mesh: the module's own Generate, then every enabled modifier in
-        /// order. Caller owns the returned Mesh (HideAndDontSave, never an asset) and must destroy it.
-        public Mesh BuildMesh()
+        /// order. `animT` (0..1, wraps) is the turntable's current frame fraction, passed straight through
+        /// to each modifier — only an animating modifier (Surface Wave) reads it. Caller owns the returned
+        /// Mesh (HideAndDontSave, never an asset) and must destroy it.
+        public Mesh BuildMesh(float animT = 0f)
         {
             var data = new LatheMeshData();
             module?.Generate(data);
             if (modifiers != null)
                 foreach (var m in modifiers)
-                    if (m != null && m.enabled) m.Apply(data);
+                    if (m != null && m.enabled) m.Apply(data, animT);
             return data.verts.Count > 0 && data.tris.Count > 0 ? data.ToMesh(name) : null;
         }
 

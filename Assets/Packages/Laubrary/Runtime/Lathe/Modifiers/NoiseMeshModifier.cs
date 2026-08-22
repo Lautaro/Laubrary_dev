@@ -20,7 +20,7 @@ namespace Laubrary.Lathe
             "Displaces each vertex along its own normal by a deterministic 3D-ish noise field — organic "
             + "surface roughness with no texture needed.";
 
-        public override void Apply(LatheMeshData data)
+        public override void Apply(LatheMeshData data, float animT)
         {
             float sx = seed * 17.13f, sy = seed * 9.71f, sz = seed * 5.37f;
             for (int i = 0; i < data.verts.Count; i++)

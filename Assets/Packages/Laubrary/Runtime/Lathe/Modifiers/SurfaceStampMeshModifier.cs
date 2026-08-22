@@ -28,7 +28,7 @@ namespace Laubrary.Lathe
             "Scatters a small primitive (a stud, a rivet, a spike) across the surface, one per tiled grid "
             + "cell — real appended geometry, not a texture.";
 
-        public override void Apply(LatheMeshData data)
+        public override void Apply(LatheMeshData data, float animT)
         {
             int n = data.verts.Count;
             if (n == 0) return;

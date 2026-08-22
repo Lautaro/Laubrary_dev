@@ -22,7 +22,7 @@ namespace Laubrary.Lathe
             + "side, get a symmetric whole. Vertices already on the plane are welded (not duplicated) when "
             + "'Weld Seam' is on, so the seam doesn't crack open.";
 
-        public override void Apply(LatheMeshData data)
+        public override void Apply(LatheMeshData data, float animT)
         {
             int axisIndex = axis == LatheAxis.X ? 0 : axis == LatheAxis.Y ? 1 : 2;
             int srcVertCount = data.verts.Count;

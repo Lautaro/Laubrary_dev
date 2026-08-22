@@ -23,7 +23,7 @@ namespace Laubrary.Lathe
             "Displaces the surface along each vertex's own normal by a repeating pattern — corrugated "
             + "ridges, cut-in grooves, a grid of raised bumps, or a 2D wave weave. Real geometry, not a texture.";
 
-        public override void Apply(LatheMeshData data)
+        public override void Apply(LatheMeshData data, float animT)
         {
             for (int i = 0; i < data.verts.Count; i++)
             {

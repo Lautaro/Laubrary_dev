@@ -108,7 +108,7 @@ namespace Laubrary.Lathe.Editor
                     foreach (var solid in spec.solids)
                     {
                         if (solid == null || !solid.enabled) continue;
-                        var mesh = solid.BuildMesh();
+                        var mesh = solid.BuildMesh(animT);
                         if (mesh == null) continue;
                         scratchMeshes.Add(mesh);
                         block.Clear();

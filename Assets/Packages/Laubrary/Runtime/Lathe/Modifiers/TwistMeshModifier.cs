@@ -19,7 +19,7 @@ namespace Laubrary.Lathe
             "Rotates the mesh progressively along an axis, like a barber pole or a drill bit — the twist "
             + "angle at each vertex is proportional to its own position along that axis.";
 
-        public override void Apply(LatheMeshData data)
+        public override void Apply(LatheMeshData data, float animT)
         {
             int axisIdx = axis == LatheAxis.X ? 0 : axis == LatheAxis.Y ? 1 : 2;
             Vector3 axisVec = axis == LatheAxis.X ? Vector3.right : axis == LatheAxis.Y ? Vector3.up : Vector3.forward;

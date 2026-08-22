@@ -22,7 +22,7 @@ namespace Laubrary.Lathe
             "Scales the mesh's cross-section along one axis, linearly between the two range positions — a "
             + "cylinder into a cone, a sweep tube tapering to a point, a box into a wedge.";
 
-        public override void Apply(LatheMeshData data)
+        public override void Apply(LatheMeshData data, float animT)
         {
             int axisIdx = axis == LatheAxis.X ? 0 : axis == LatheAxis.Y ? 1 : 2;
             float lo = Mathf.Min(rangeMin, rangeMax), hi = Mathf.Max(rangeMin, rangeMax);

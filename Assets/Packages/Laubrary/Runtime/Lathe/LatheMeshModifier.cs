@@ -31,8 +31,10 @@ namespace Laubrary.Lathe
         public abstract string DisplayName { get; }
         public virtual string Description => DisplayName + " modifier.";
 
-        /// Mutate `data` in place — append/remove verts and triangles as needed.
-        public abstract void Apply(LatheMeshData data);
+        /// Mutate `data` in place — append/remove verts and triangles as needed. `animT` (0..1, wraps) is
+        /// the turntable's current frame fraction, threaded down from LatheSolid.BuildMesh — a modifier that
+        /// wants to animate (Surface Wave's ripple/wobble) reads it; every other modifier just ignores it.
+        public abstract void Apply(LatheMeshData data, float animT);
 
         public virtual LatheMeshModifier Clone()
         {

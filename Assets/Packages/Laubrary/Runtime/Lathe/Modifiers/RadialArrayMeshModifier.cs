@@ -24,7 +24,7 @@ namespace Laubrary.Lathe
             "Duplicates this solid's mesh several times, spun evenly around one axis — gear teeth, a "
             + "flower's petals, spokes on a wheel.";
 
-        public override void Apply(LatheMeshData data)
+        public override void Apply(LatheMeshData data, float animT)
         {
             int n = data.verts.Count;
             if (n == 0 || count < 2) return;
