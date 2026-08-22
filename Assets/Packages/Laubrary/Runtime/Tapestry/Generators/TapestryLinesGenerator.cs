@@ -27,6 +27,11 @@ namespace Laubrary.Tapestry
         // schematic. Off restores the old "walkers can overlap" look (denser, more chaotic circuitry).
         public bool avoidOtherWalkers = true;
         [Range(0, 3)] public int spacing = 1;
+        // A walker whose path comes out shorter than this (boxed in early by the grid, other trails, or its
+        // own turning) is discarded entirely — not drawn at all — and retried from a new start instead, up
+        // to a generous bounded budget. Without this, "make the lines longer" is a game of nudging averages;
+        // this makes it a hard guarantee: nothing short ever reaches the canvas.
+        [Range(2, 60)] public int minLengthCells = 15;
         public TapestryLineMode mode = TapestryLineMode.Draw;
         public Color lineColor = new Color(0.75f, 0.88f, 1f, 1f);
         [Range(0f, 1f)] public float bevelStrength = 0.6f;
@@ -37,7 +42,9 @@ namespace Laubrary.Tapestry
         public override string Description =>
             "Self-avoiding walkers that only turn in 45° steps, drawn as bevelled traces — Draw paints them "
             + "as their own colour, Etch darkens/lightens the layers below instead, as a mask. Avoid Other "
-            + "Walkers + Spacing keep separate traces from crossing or crowding each other.";
+            + "Walkers + Spacing keep separate traces from crossing or crowding each other; Min Length "
+            + "Cells discards and retries any walker that comes out shorter than that, so nothing short "
+            + "ever reaches the canvas.";
 
         static readonly Vector2Int[] Dirs8 =
         {
@@ -58,12 +65,22 @@ namespace Laubrary.Tapestry
             // trail too — a fresh empty set per walker (the old behaviour) if off, so walkers only avoid
             // themselves and can freely cross.
             var sharedVisited = new HashSet<(int, int)>();
-            for (int w = 0; w < walkerCount; w++)
+            int placed = 0;
+            int maxAttempts = Mathf.Max(50, walkerCount * 20);   // bounded so a packed/small grid can't loop forever
+            for (int attempt = 0; placed < walkerCount && attempt < maxAttempts; attempt++)
             {
                 var visited = avoidOtherWalkers ? sharedVisited : new HashSet<(int, int)>();
                 var path = WalkOne(rng, grid, maxSteps, visited);
+                if (path.Count - 1 < minLengthCells)
+                {
+                    // Too short — give its cells back so a retry has the same room to try again, rather than
+                    // leaving a dead stub's footprint permanently blocking that area.
+                    foreach (var cell in path) visited.Remove((cell.x, cell.y));
+                    continue;
+                }
                 for (int i = 0; i < path.Count - 1; i++)
                     StampSegment(path[i], path[i + 1], grid, W, H, lineWidthPx, coverage, normalBuf);
+                placed++;
             }
 
             Vector2 lightDir = new Vector2(0.7f, 0.7f);
