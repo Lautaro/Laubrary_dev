@@ -16,6 +16,8 @@ namespace Laubrary.Lathe.Editor
         string colorProp, texProp;
         readonly MaterialPropertyBlock block = new MaterialPropertyBlock();
         readonly List<Mesh> scratchMeshes = new List<Mesh>();
+        readonly List<Texture2D> scratchTextures = new List<Texture2D>();
+        const int FillBakeResolution = 64;
 
         void EnsureUtil()
         {
@@ -57,6 +59,8 @@ namespace Laubrary.Lathe.Editor
         {
             foreach (var m in scratchMeshes) if (m != null) Object.DestroyImmediate(m);
             scratchMeshes.Clear();
+            foreach (var t in scratchTextures) if (t != null) Object.DestroyImmediate(t);
+            scratchTextures.Clear();
         }
 
         /// Renders one frame. `turntableDeg` spins the whole assembly (and each solid's own pivot) around
@@ -92,7 +96,12 @@ namespace Laubrary.Lathe.Editor
                         block.Clear();
                         block.SetColor(colorProp, solid.tint);
                         if (texProp != null)
-                            block.SetTexture(texProp, solid.texture != null ? solid.texture : Texture2D.whiteTexture);
+                        {
+                            Texture2D fillTex = solid.fill != null && solid.fill.kind != LatheFillKind.None
+                                ? LatheFillBaker.Bake(solid.fill, FillBakeResolution) : null;
+                            if (fillTex != null) scratchTextures.Add(fillTex);
+                            block.SetTexture(texProp, fillTex != null ? fillTex : solid.texture != null ? solid.texture : Texture2D.whiteTexture);
+                        }
                         util.DrawMesh(mesh, solid.LocalToWorld(turntable), mat, 0, block);
                     }
                 util.camera.Render();

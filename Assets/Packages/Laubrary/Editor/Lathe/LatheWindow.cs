@@ -141,6 +141,7 @@ namespace Laubrary.Lathe.Editor
             if (sel != null)
             {
                 col.Add(BuildTransformBox(sel));
+                col.Add(BuildFillBox(sel));
                 BuildModuleBox(col, sel);
                 BuildModifiersBox(col, sel);
             }
@@ -206,6 +207,23 @@ namespace Laubrary.Lathe.Editor
                 + "so any texture drops straight on with no per-shape unwrap work.",
                 ZuiReflect.ObjectByType(typeof(Texture2D), solid.texture,
                     "This solid's surface texture.", v => Dirty(() => solid.texture = v as Texture2D), 160f)));
+            return box;
+        }
+
+        VisualElement BuildFillBox(LatheSolid solid)
+        {
+            var box = Z.Section("Fill", "A procedural gradient — generated instead of imported, and (when its "
+                + "Kind isn't None) takes over the surface from the Texture field above.", "lathe.fill", icon: "palette");
+            solid.fill ??= new LatheSurfaceFill();
+            var opt = new ZuiReflect.Options
+            {
+                OnBeforeChange = () => { if (spec != null) Undo.RecordObject(spec, "Edit Lathe"); },
+                OnChanged = () => { if (spec != null) EditorUtility.SetDirty(spec); preview?.MarkDirtyRepaint(); },
+                OnStructureChanged = Rebuild,
+                TooltipFor = f => $"{ObjectNames.NicifyVariableName(f.Name)} — a Fill parameter.",
+                ControlWidth = 150f,
+            };
+            ZuiReflect.FlowFields(box, solid.fill, opt);
             return box;
         }
 

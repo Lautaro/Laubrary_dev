@@ -360,6 +360,13 @@ namespace Laubrary.Zui
                 // (SpriteFx, PyrePlus, Chunks) at once.
                 return Z.Field(nice, tip, Z.Gradient((Gradient)v, tip, nv => Set(nv), opt.ControlWidth));
 
+            if (t == typeof(AnimationCurve))
+            {
+                var ac = v as AnimationCurve;
+                if (ac == null) { ac = AnimationCurve.Linear(0f, 0f, 1f, 1f); field.SetValue(owner, ac); }
+                return Z.Field(nice, tip, Z.Curve(ac, tip, nv => Set(nv), opt.ControlWidth));
+            }
+
             if (t == typeof(Vector2))
             {
                 // A [Range]-bounded Vector2 is a min/max PAIR (x = low, y = high) → ONE two-handle range slider, per the

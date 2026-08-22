@@ -54,6 +54,7 @@ namespace Laubrary.Lathe.Editor
             util.camera.transform.LookAt(Vector3.zero);
 
             var scratch = new List<Mesh>();
+            var scratchTex = new List<Texture2D>();
             Texture result;
             util.BeginPreview(new Rect(0, 0, ss, ss), GUIStyle.none);
             try
@@ -68,7 +69,12 @@ namespace Laubrary.Lathe.Editor
                         block.Clear();
                         block.SetColor(colorProp, solid.tint);
                         if (texProp != null)
-                            block.SetTexture(texProp, solid.texture != null ? solid.texture : Texture2D.whiteTexture);
+                        {
+                            Texture2D fillTex = solid.fill != null && solid.fill.kind != LatheFillKind.None
+                                ? LatheFillBaker.Bake(solid.fill, 64) : null;
+                            if (fillTex != null) scratchTex.Add(fillTex);
+                            block.SetTexture(texProp, fillTex != null ? fillTex : solid.texture != null ? solid.texture : Texture2D.whiteTexture);
+                        }
                         util.DrawMesh(mesh, solid.LocalToWorld(turntable), litMat, 0, block);
                     }
                 util.camera.Render();
@@ -77,6 +83,7 @@ namespace Laubrary.Lathe.Editor
             finally
             {
                 foreach (var m in scratch) if (m != null) Object.DestroyImmediate(m);
+                foreach (var t in scratchTex) if (t != null) Object.DestroyImmediate(t);
             }
 
             var down = Downsample(result, size);

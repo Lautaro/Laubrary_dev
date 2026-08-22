@@ -21,6 +21,10 @@ namespace Laubrary.Lathe
         // any texture drops straight on without per-shape unwrap work. Null = tint-only (a white texture
         // multiplies through as a no-op), same look as before this field existed.
         public Texture2D texture;
+        // A procedural gradient (LatheFillKind != None) TAKES OVER the texture slot at render time — see
+        // LathePreview/LatheBakePass. Default None: the plain `texture` field above (or tint alone) applies
+        // exactly as before this field existed.
+        public LatheSurfaceFill fill = new LatheSurfaceFill();
 
         [SerializeReference] public LatheModule module = new PrimitiveSolidModule();
         [SerializeReference] public List<LatheMeshModifier> modifiers = new List<LatheMeshModifier>();
@@ -36,6 +40,7 @@ namespace Laubrary.Lathe
                 scale = scale,
                 tint = tint,
                 texture = texture,
+                fill = fill?.Clone(),
                 module = module?.Clone(),
                 modifiers = new List<LatheMeshModifier>(),
             };
