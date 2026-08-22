@@ -1,0 +1,335 @@
+// LatheWindow — the authoring window for Lathe: R&D tool for solid 3D-ish procgen shapes, laid out and
+// operated the way PyrePlus is (a Solids "layer" stack, per-solid plug-in Module + Modifiers, a live
+// preview with a transport/scrub), but generating swept/primitive 3D geometry instead of a 2D raster.
+// Deliberately a separate tool from PyrePlus — see the CLAUDE.md conversation this was scoped from: the
+// generation model (a solid stack sharing one 3D scene) is different enough from PyrePlus's shape/swarm
+// raster stack to earn its own window rather than co-opting PyrePlus's preview pane.
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Laubrary.AssetKit.Editor;
+using Laubrary.Zui;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace Laubrary.Lathe.Editor
+{
+    public partial class LatheWindow : ZuiAssetWindow<LatheSpec>
+    {
+        [MenuItem("Laubrary/Lathe")]
+        public static void Open() => GetWindow<LatheWindow>("Lathe");
+
+        LatheSpec spec => Current;
+        protected override string TypeLabel => "Lathe";
+        protected override string NewAssetName => "New Lathe";
+        protected override string DefaultFolder => "Assets/Lathe";
+
+        // ── preview / transport state ────────────────────────────────────────────────
+        IMGUIContainer preview;
+        LathePreview previewRenderer;
+        double lastTime;
+        float acc;
+        bool playing = true;
+        int frame;
+        Button playButton;
+        SliderInt scrubSlider;
+        Label frameReadout;
+        VisualElement transportHost;
+
+        // Orbit camera — independent of the turntable spin, mouse-controlled in DrawPreview.
+        float orbitYaw = 35f, orbitPitch = -20f, orbitDist = 5f;
+
+        protected override void OnEnable()
+        {
+            base.OnEnable();
+            lastTime = EditorApplication.timeSinceStartup;
+            EditorApplication.update += Tick;
+        }
+
+        protected override void OnDisable()
+        {
+            base.OnDisable();
+            EditorApplication.update -= Tick;
+            previewRenderer?.Dispose();
+            previewRenderer = null;
+        }
+
+        protected override void OnAssetChanged()
+        {
+            frame = 0;
+        }
+
+        void Tick()
+        {
+            if (this == null || spec == null || !playing) return;
+            double now = EditorApplication.timeSinceStartup;
+            float dt = Mathf.Clamp((float)(now - lastTime), 0f, 0.1f);
+            lastTime = now;
+            acc += dt * Mathf.Max(1f, spec.previewFps);
+            bool advanced = false;
+            while (acc >= 1f)
+            {
+                frame = (frame + 1) % Mathf.Max(1, spec.turntableFrames);
+                acc -= 1f;
+                advanced = true;
+            }
+            if (advanced) { preview?.MarkDirtyRepaint(); RefreshTransportReadout(); }
+        }
+
+        // ── mutation helpers (Laubrary Undo rule: every dial edit is undoable) ──────────
+        void Dirty(Action edit)
+        {
+            if (spec == null) return;
+            Undo.RecordObject(spec, "Edit Lathe");
+            edit();
+            EditorUtility.SetDirty(spec);
+            preview?.MarkDirtyRepaint();
+        }
+
+        // Cosmetic preview-only state (the backdrop colour) — no Undo, still dirtied so it persists.
+        void DirtyRepaintOnly(Action edit)
+        {
+            if (spec == null) return;
+            edit();
+            EditorUtility.SetDirty(spec);
+            preview?.MarkDirtyRepaint();
+        }
+
+        // ── selected solid ──────────────────────────────────────────────────────────
+        int solidSel
+        {
+            get => spec != null ? spec.previewSolidSel : 0;
+            set
+            {
+                if (spec == null || spec.previewSolidSel == value) return;
+                spec.previewSolidSel = value;
+                EditorUtility.SetDirty(spec);
+            }
+        }
+
+        LatheSolid SelSolid
+        {
+            get
+            {
+                if (spec == null || spec.solids == null || spec.solids.Count == 0) return null;
+                int clamped = Mathf.Clamp(spec.previewSolidSel, 0, spec.solids.Count - 1);
+                if (clamped != spec.previewSolidSel) spec.previewSolidSel = clamped;
+                return spec.solids[clamped];
+            }
+        }
+
+        // ── layout ───────────────────────────────────────────────────────────────────
+        protected override void BuildAsset(VisualElement root, LatheSpec s)
+        {
+            root.style.flexGrow = 1f;
+            root.style.minHeight = 0f;
+
+            var left = new ScrollView(ScrollViewMode.Vertical);
+            left.style.minWidth = 320f;
+            var col = left.contentContainer;
+            col.style.flexGrow = 1f;
+
+            BuildCanvasBox(col, s);
+            BuildSolidsList(col, s);
+
+            var sel = SelSolid;
+            if (sel != null)
+            {
+                col.Add(BuildTransformBox(sel));
+                BuildModuleBox(col, sel);
+                BuildModifiersBox(col, sel);
+            }
+
+            var rightPane = new VisualElement();
+            rightPane.style.flexGrow = 1f;
+            rightPane.style.minWidth = 260f;
+            rightPane.style.minHeight = 0f;
+
+            preview = new IMGUIContainer(() => DrawPreview(s));
+            preview.style.flexGrow = 1f;
+            preview.style.minHeight = 220f;
+            preview.AddToClassList("zui-stage");
+            preview.tooltip = "Drag to orbit, scroll to zoom. The turntable spin (below) is independent of this camera.";
+            rightPane.Add(preview);
+
+            var chrome = new VisualElement();
+            chrome.style.flexShrink = 0f;
+            BuildTransport(chrome, s);
+            chrome.Add(Z.Field("Background", "The preview's clear colour — cosmetic, never baked.",
+                Z.Color(s.previewBackground, "The preview's clear colour.",
+                    v => DirtyRepaintOnly(() => s.previewBackground = v), 110f)));
+            rightPane.Add(chrome);
+
+            root.Add(Z.Split("lathe.split", 340f, left, rightPane));
+        }
+
+        void BuildCanvasBox(VisualElement root, LatheSpec s)
+        {
+            var box = Z.Section("Canvas", "Output settings — canvasSize/PPU are a placeholder for an eventual "
+                + "sprite bake and aren't read by anything yet; Seed is available to any module/modifier that "
+                + "wants deterministic randomness.", "lathe.canvas", icon: "frame-corners");
+            box.Add(Z.HGroup(
+                Z.MicroSlider("Size", s.canvasSize, 16f, 256f,
+                    "Square output resolution in pixels — reserved for a future sprite bake, not read yet.",
+                    v => Dirty(() => s.canvasSize = Mathf.Clamp(Mathf.RoundToInt(v), 16, 256)), 150f, showValue: true, decimals: 0),
+                Z.MicroSlider("PPU", s.pixelsPerUnit, 1f, 64f, "Pixels per unit — reserved for a future sprite bake.",
+                    v => Dirty(() => s.pixelsPerUnit = Mathf.Clamp(v, 1f, 64f)), 150f, showValue: true)));
+            box.Add(Z.HGroup(
+                Z.MicroSlider("Turntable frames", s.turntableFrames, 1f, 120f,
+                    "How many steps the turntable spin is divided into — drives the transport's scrub range below.",
+                    v => { Dirty(() => s.turntableFrames = Mathf.Clamp(Mathf.RoundToInt(v), 1, 120)); RefreshTransportReadout(); },
+                    170f, showValue: true, decimals: 0),
+                Z.Field("Seed", "Reserved for any module/modifier that wants deterministic randomness.",
+                    Z.Int(s.seed, "Random seed.", v => Dirty(() => s.seed = v), 70f))));
+            root.Add(box);
+        }
+
+        VisualElement BuildTransformBox(LatheSolid solid)
+        {
+            var box = Z.Section("Transform", "This solid's position, rotation, scale and tint within the shared scene.",
+                "lathe.transform", icon: "move");
+            box.Add(Vector3Row("Position", solid.position,
+                "World position of this solid's pivot (also orbits with the turntable spin).",
+                v => Dirty(() => solid.position = v)));
+            box.Add(Vector3Row("Rotation", solid.rotationEuler, "Euler rotation, in degrees.",
+                v => Dirty(() => solid.rotationEuler = v)));
+            box.Add(Vector3Row("Scale", solid.scale, "Non-uniform scale.",
+                v => Dirty(() => solid.scale = v)));
+            box.Add(Z.Field("Tint", "This solid's colour in the preview.",
+                Z.Color(solid.tint, "This solid's colour.", v => Dirty(() => solid.tint = v), 110f)));
+            return box;
+        }
+
+        static VisualElement Vector3Row(string label, Vector3 v, string tooltip, Action<Vector3> onChanged)
+        {
+            var x = Z.Float(v.x, tooltip + " (X)", nv => onChanged(new Vector3(nv, v.y, v.z)), 60f);
+            var y = Z.Float(v.y, tooltip + " (Y)", nv => onChanged(new Vector3(v.x, nv, v.z)), 60f);
+            var z = Z.Float(v.z, tooltip + " (Z)", nv => onChanged(new Vector3(v.x, v.y, nv)), 60f);
+            return Z.Field(label, tooltip, Z.Row(
+                Z.Field("X", tooltip + " (X)", x), Z.Field("Y", tooltip + " (Y)", y), Z.Field("Z", tooltip + " (Z)", z)));
+        }
+
+        // ── transport ────────────────────────────────────────────────────────────────
+        void BuildTransport(VisualElement root, LatheSpec s)
+        {
+            transportHost = new VisualElement();
+            root.Add(transportHost);
+            RebuildTransport(s);
+        }
+
+        void RebuildTransport(LatheSpec s)
+        {
+            if (transportHost == null) return;
+            transportHost.Clear();
+            playButton = Z.Button(playing ? "❚❚ Pause" : "▶ Play", "Play or pause the turntable spin.", () =>
+            {
+                playing = !playing;
+                playButton.text = playing ? "❚❚ Pause" : "▶ Play";
+            });
+            var speedMs = Z.MicroSlider("Speed", s.previewFps, 1f, 30f,
+                "Turntable spin speed, in frames per second.",
+                v => Dirty(() => s.previewFps = Mathf.Clamp(Mathf.Round(v), 1f, 30f)), 150f, showValue: true, decimals: 0);
+            var bakeBtn = Z.Button("Bake Sprite Strip…",
+                "Render every turntable frame at Canvas Size, from the camera angle you're currently looking "
+                + "from (only the subject spins — the camera stays fixed, the correct sprite-sheet convention), "
+                + "and save it as one PNG strip (one tile per frame) ready for Unity's Sprite Editor grid slicer.",
+                () => BakeSpriteStrip(s));
+            transportHost.Add(Z.HGroup(playButton, speedMs, bakeBtn));
+
+            int fcHigh = Mathf.Max(1, s.turntableFrames);
+            scrubSlider = Z.SliderInt(Mathf.Clamp(frame, 0, fcHigh - 1) + 1, 1, fcHigh,
+                "Scrub the turntable to an exact frame — dragging pauses playback.",
+                v =>
+                {
+                    frame = Mathf.Clamp(v - 1, 0, Mathf.Max(0, s.turntableFrames - 1));
+                    playing = false;
+                    if (playButton != null) playButton.text = "▶ Play";
+                    preview?.MarkDirtyRepaint();
+                    RefreshTransportReadout();
+                }, 200f);
+            transportHost.Add(Z.Field("Frame", "Scrub the turntable to an exact frame.", scrubSlider));
+
+            frameReadout = Z.Text("", ZuiText.Subtle, "The turntable frame currently shown / the total frame count.");
+            transportHost.Add(frameReadout);
+            RefreshTransportReadout();
+        }
+
+        void BakeSpriteStrip(LatheSpec s)
+        {
+            if (s == null) return;
+            var strip = LatheBaker.BakeStrip(s, orbitYaw, orbitPitch);
+            if (strip == null) return;
+            string path = EditorUtility.SaveFilePanel("Export Lathe Sprite Strip", "",
+                (s.name ?? "Lathe") + "_strip.png", "png");
+            if (!string.IsNullOrEmpty(path))
+            {
+                File.WriteAllBytes(path, strip.EncodeToPNG());
+                EditorUtility.RevealInFinder(path);
+            }
+            UnityEngine.Object.DestroyImmediate(strip);
+        }
+
+        void RefreshTransportReadout()
+        {
+            if (spec == null) return;
+            int fc = Mathf.Max(1, spec.turntableFrames);
+            int cur = Mathf.Clamp(frame, 0, fc - 1);
+            if (scrubSlider != null)
+            {
+                scrubSlider.highValue = fc;
+                scrubSlider.SetValueWithoutNotify(cur + 1);
+            }
+            if (frameReadout != null) frameReadout.text = $"frame {cur + 1}/{fc}";
+        }
+
+        // ── preview draw + orbit input (plain IMGUI — the preview island is an IMGUIContainer) ──────
+        void DrawPreview(LatheSpec s)
+        {
+            var rect = GUILayoutUtility.GetRect(10, 10, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+            if (rect.width < 2f || rect.height < 2f) return;
+            HandleOrbitInput(rect);
+
+            previewRenderer ??= new LathePreview();
+            float turntableDeg = s.turntableFrames > 0 ? frame / (float)s.turntableFrames * 360f : 0f;
+            var tex = previewRenderer.Render(s, rect, turntableDeg, orbitYaw, orbitPitch, orbitDist);
+            if (tex != null) GUI.DrawTexture(rect, tex, ScaleMode.StretchToFill, true);
+        }
+
+        void HandleOrbitInput(Rect rect)
+        {
+            var e = Event.current;
+            int id = GUIUtility.GetControlID(FocusType.Passive, rect);
+            switch (e.GetTypeForControl(id))
+            {
+                case EventType.MouseDown:
+                    if (rect.Contains(e.mousePosition) && (e.button == 0 || e.button == 2))
+                    {
+                        GUIUtility.hotControl = id;
+                        e.Use();
+                    }
+                    break;
+                case EventType.MouseDrag:
+                    if (GUIUtility.hotControl == id)
+                    {
+                        orbitYaw += e.delta.x * 0.5f;
+                        orbitPitch = Mathf.Clamp(orbitPitch - e.delta.y * 0.5f, -89f, 89f);
+                        preview?.MarkDirtyRepaint();
+                        e.Use();
+                    }
+                    break;
+                case EventType.MouseUp:
+                    if (GUIUtility.hotControl == id) { GUIUtility.hotControl = 0; e.Use(); }
+                    break;
+                case EventType.ScrollWheel:
+                    if (rect.Contains(e.mousePosition))
+                    {
+                        orbitDist = Mathf.Clamp(orbitDist + e.delta.y * 0.3f, 0.5f, 40f);
+                        preview?.MarkDirtyRepaint();
+                        e.Use();
+                    }
+                    break;
+            }
+        }
+    }
+}
