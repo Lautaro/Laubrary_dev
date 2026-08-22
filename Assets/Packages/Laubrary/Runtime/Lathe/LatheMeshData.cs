@@ -38,6 +38,27 @@ namespace Laubrary.Lathe
             AddTri(a, c, d);
         }
 
+        /// Merges another LatheMeshData into this one under `matrix` — positions fully transformed, normals
+        /// rotated (MultiplyVector, so translation doesn't apply and non-uniform scale isn't inverse-
+        /// transposed; callers with a non-uniform-scale matrix should clear `normals` afterward to force a
+        /// clean recalculation in ToMesh, same escape hatch Taper/Noise/Twist already use). What
+        /// SkeletonSweepModule uses to drop a branch-joint sphere at a node, and SurfaceStampMeshModifier to
+        /// scatter a stud at each surface sample — build the primitive once at the origin via
+        /// LatheMeshBuilders, then place it wherever it's needed.
+        public void AppendTransformed(LatheMeshData other, Matrix4x4 matrix)
+        {
+            int baseIdx = verts.Count;
+            bool hasNormals = other.normals.Count == other.verts.Count;
+            for (int i = 0; i < other.verts.Count; i++)
+            {
+                Vector3 p = matrix.MultiplyPoint3x4(other.verts[i]);
+                Vector3 n = hasNormals ? matrix.MultiplyVector(other.normals[i]).normalized : Vector3.up;
+                AddVert(p, n);
+            }
+            for (int t = 0; t < other.tris.Count; t += 3)
+                AddTri(baseIdx + other.tris[t], baseIdx + other.tris[t + 1], baseIdx + other.tris[t + 2]);
+        }
+
         public Mesh ToMesh(string name)
         {
             var mesh = new Mesh { name = string.IsNullOrEmpty(name) ? "Lathe Solid" : name, hideFlags = HideFlags.HideAndDontSave };
@@ -62,15 +83,22 @@ namespace Laubrary.Lathe
             var uvs = new List<Vector2>(verts.Length);
             for (int i = 0; i < verts.Length; i++)
             {
-                Vector3 p = verts[i];
                 Vector3 n = i < normals.Length ? normals[i] : Vector3.up;
-                float ax = Mathf.Abs(n.x), ay = Mathf.Abs(n.y), az = Mathf.Abs(n.z);
-                Vector2 uv = ax >= ay && ax >= az ? new Vector2(p.z, p.y)
-                    : ay >= ax && ay >= az ? new Vector2(p.x, p.z)
-                    : new Vector2(p.x, p.y);
-                uvs.Add(uv * scale);
+                uvs.Add(BoxProject(verts[i], n) * scale);
             }
             return uvs;
+        }
+
+        /// The same box/triplanar projection ToMesh uses for UVs, exposed so a modifier that tiles
+        /// something across a surface (SurfaceReliefMeshModifier, SurfaceStampMeshModifier) samples in the
+        /// exact same 2D space the final texture UVs land in — a pattern and a texture assigned to the same
+        /// solid line up.
+        public static Vector2 BoxProject(Vector3 pos, Vector3 normal)
+        {
+            float ax = Mathf.Abs(normal.x), ay = Mathf.Abs(normal.y), az = Mathf.Abs(normal.z);
+            return ax >= ay && ax >= az ? new Vector2(pos.z, pos.y)
+                : ay >= ax && ay >= az ? new Vector2(pos.x, pos.z)
+                : new Vector2(pos.x, pos.y);
         }
     }
 }

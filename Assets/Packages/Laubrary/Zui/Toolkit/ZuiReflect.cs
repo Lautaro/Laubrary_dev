@@ -603,6 +603,21 @@ namespace Laubrary.Zui
                     Z.Float(cur.x, etip + " (X)", nv => Set(new Vector2(nv, ((Vector2)list[idx]).y)), 70f),
                     Z.Float(cur.y, etip + " (Y)", nv => Set(new Vector2(((Vector2)list[idx]).x, nv)), 70f));
             }
+            if (elemType == typeof(Vector3))
+            {
+                var cur = (Vector3)list[idx];
+                return Z.Row(
+                    Z.Float(cur.x, etip + " (X)", nv => { var c = (Vector3)list[idx]; Set(new Vector3(nv, c.y, c.z)); }, 70f),
+                    Z.Float(cur.y, etip + " (Y)", nv => { var c = (Vector3)list[idx]; Set(new Vector3(c.x, nv, c.z)); }, 70f),
+                    Z.Float(cur.z, etip + " (Z)", nv => { var c = (Vector3)list[idx]; Set(new Vector3(c.x, c.y, nv)); }, 70f));
+            }
+            if (elemType == typeof(Vector2Int))
+            {
+                var cur = (Vector2Int)list[idx];
+                return Z.Row(
+                    Z.Int(cur.x, etip + " (X)", nv => { var c = (Vector2Int)list[idx]; Set(new Vector2Int(nv, c.y)); }, 70f),
+                    Z.Int(cur.y, etip + " (Y)", nv => { var c = (Vector2Int)list[idx]; Set(new Vector2Int(c.x, nv)); }, 70f));
+            }
             return null;
         }
 
