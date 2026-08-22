@@ -12,7 +12,7 @@ namespace Laubrary.Lathe.Editor
     {
         PreviewRenderUtility util;
         Material litMat;
-        string colorProp, texProp;
+        string colorProp, texProp, stProp, emissionProp;
         readonly MaterialPropertyBlock block = new MaterialPropertyBlock();
 
         void EnsureUtil()
@@ -35,6 +35,9 @@ namespace Laubrary.Lathe.Editor
             if (litMat.HasProperty("_Cull")) litMat.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
             colorProp = litMat.HasProperty("_BaseColor") ? "_BaseColor" : "_Color";
             texProp = litMat.HasProperty("_BaseMap") ? "_BaseMap" : litMat.HasProperty("_MainTex") ? "_MainTex" : null;
+            stProp = litMat.HasProperty("_BaseMap_ST") ? "_BaseMap_ST" : litMat.HasProperty("_MainTex_ST") ? "_MainTex_ST" : null;
+            emissionProp = litMat.HasProperty("_EmissionColor") ? "_EmissionColor" : null;
+            if (emissionProp != null) litMat.EnableKeyword("_EMISSION");
         }
 
         /// Renders one turntable frame at `size` × `supersample`, then box-filters it down to `size`×`size`.
@@ -54,8 +57,10 @@ namespace Laubrary.Lathe.Editor
             util.camera.transform.position = camRot * new Vector3(0f, 0f, -Mathf.Max(0.2f, dist));
             util.camera.transform.LookAt(Vector3.zero);
 
+            float animT = Mathf.Repeat(turntableDeg / 360f, 1f);
             var scratch = new List<Mesh>();
             var scratchTex = new List<Texture2D>();
+            var scratchLights = new List<GameObject>();
             Texture result;
             util.BeginPreview(new Rect(0, 0, ss, ss), GUIStyle.none);
             try
@@ -79,7 +84,28 @@ namespace Laubrary.Lathe.Editor
                             if (fillTex != null) scratchTex.Add(fillTex);
                             block.SetTexture(texProp, fillTex != null ? fillTex : solid.texture != null ? solid.texture : Texture2D.whiteTexture);
                         }
-                        util.DrawMesh(mesh, solid.LocalToWorld(turntable), litMat, 0, block);
+                        if (stProp != null)
+                        {
+                            Vector2 offs = solid.animateTexture ? solid.scrollSpeed * animT : Vector2.zero;
+                            block.SetVector(stProp, new Vector4(solid.tileScale, solid.tileScale, offs.x, offs.y));
+                        }
+                        if (emissionProp != null)
+                            block.SetColor(emissionProp, solid.emitLight ? solid.lightColor * solid.emissiveBoost : Color.black);
+                        var worldMatrix = solid.LocalToWorld(turntable);
+                        util.DrawMesh(mesh, worldMatrix, litMat, 0, block);
+
+                        if (solid.emitLight)
+                        {
+                            var lightGo = new GameObject("LatheLight") { hideFlags = HideFlags.HideAndDontSave };
+                            var light = lightGo.AddComponent<Light>();
+                            light.type = LightType.Point;
+                            light.color = solid.lightColor;
+                            light.intensity = solid.lightIntensity;
+                            light.range = solid.lightRange;
+                            lightGo.transform.position = worldMatrix.MultiplyPoint3x4(Vector3.zero);
+                            util.AddSingleGO(lightGo);
+                            scratchLights.Add(lightGo);
+                        }
                     }
                 util.camera.Render();
                 result = util.EndPreview();
@@ -88,6 +114,7 @@ namespace Laubrary.Lathe.Editor
             {
                 foreach (var m in scratch) if (m != null) Object.DestroyImmediate(m);
                 foreach (var t in scratchTex) if (t != null) Object.DestroyImmediate(t);
+                foreach (var go in scratchLights) if (go != null) Object.DestroyImmediate(go);
             }
 
             var down = Downsample(result, size);

@@ -221,6 +221,33 @@ namespace Laubrary.Lathe.Editor
                 + "so any texture drops straight on with no per-shape unwrap work.",
                 ZuiReflect.ObjectByType(typeof(Texture2D), solid.texture,
                     "This solid's surface texture.", v => Dirty(() => solid.texture = v as Texture2D), 160f)));
+
+            // Both below are OFF by default and draw NOTHING beyond their own toggle until enabled — the
+            // avoid-bloat rule: an optional/modular feature's controls don't exist in the UI unless opted into.
+            box.Add(Z.Toggle("Animate Texture", "Scrolls the surface texture/fill's UV offset over the "
+                + "turntable's own frame — a tiled texture visibly scrolls across the baked sprite strip, not "
+                + "just in the live preview.", solid.animateTexture, v => { Dirty(() => solid.animateTexture = v); Rebuild(); }));
+            if (solid.animateTexture)
+                box.Add(Z.HGroup(
+                    Z.Field("Scroll Speed", "UV units scrolled per full turntable loop.", Z.Row(
+                        Z.Float(solid.scrollSpeed.x, "Scroll speed (U).", v => Dirty(() => solid.scrollSpeed = new Vector2(v, solid.scrollSpeed.y)), 60f),
+                        Z.Float(solid.scrollSpeed.y, "Scroll speed (V).", v => Dirty(() => solid.scrollSpeed = new Vector2(solid.scrollSpeed.x, v)), 60f))),
+                    Z.MicroSlider("Tile", solid.tileScale, 0.2f, 10f, "Texture tiling repeat count.",
+                        v => Dirty(() => solid.tileScale = v), 130f, showValue: true)));
+
+            box.Add(Z.Toggle("Emit Light", "Makes this solid glow AND spawns a real point light at its position "
+                + "that illuminates neighbouring solids too — a light bulb that actually lights up the hull "
+                + "around it, not just a bright mesh.", solid.emitLight, v => { Dirty(() => solid.emitLight = v); Rebuild(); }));
+            if (solid.emitLight)
+                box.Add(Z.HGroup(
+                    Z.Field("Colour", "The light's colour, and the surface glow's tint.",
+                        Z.Color(solid.lightColor, "Light colour.", v => Dirty(() => solid.lightColor = v), 100f)),
+                    Z.MicroSlider("Glow", solid.emissiveBoost, 0f, 5f, "How bright the surface itself glows (colour × this).",
+                        v => Dirty(() => solid.emissiveBoost = v), 120f, showValue: true),
+                    Z.MicroSlider("Intensity", solid.lightIntensity, 0f, 10f, "How brightly it lights up neighbouring solids.",
+                        v => Dirty(() => solid.lightIntensity = v), 130f, showValue: true),
+                    Z.MicroSlider("Range", solid.lightRange, 0.1f, 20f, "How far the light reaches.",
+                        v => Dirty(() => solid.lightRange = v), 120f, showValue: true)));
             return box;
         }
 
@@ -339,7 +366,8 @@ namespace Laubrary.Lathe.Editor
             // — spinning it while editing would mean the world-space ray no longer matches what's on screen.
             float turntableDeg = skel != null || gizmoSolid != null ? 0f
                 : s.turntableFrames > 0 ? frame / (float)s.turntableFrames * 360f : 0f;
-            var tex = previewRenderer.Render(s, rect, turntableDeg, orbitYaw, orbitPitch, orbitDist);
+            float animT = s.turntableFrames > 0 ? frame / (float)s.turntableFrames : 0f;
+            var tex = previewRenderer.Render(s, rect, turntableDeg, orbitYaw, orbitPitch, orbitDist, animT);
             if (tex != null) GUI.DrawTexture(rect, tex, ScaleMode.StretchToFill, true);
 
             if (skel != null) HandleSkeletonEditorInput(rect, skelSolid, skel);

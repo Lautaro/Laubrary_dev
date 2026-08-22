@@ -13,10 +13,11 @@ namespace Laubrary.Lathe.Editor
     {
         PreviewRenderUtility util;
         Material litMat;
-        string colorProp, texProp;
+        string colorProp, texProp, stProp, emissionProp;
         readonly MaterialPropertyBlock block = new MaterialPropertyBlock();
         readonly List<Mesh> scratchMeshes = new List<Mesh>();
         readonly List<Texture2D> scratchTextures = new List<Texture2D>();
+        readonly List<GameObject> scratchLights = new List<GameObject>();
         const int FillBakeResolution = 64;
 
         void EnsureUtil()
@@ -53,6 +54,13 @@ namespace Laubrary.Lathe.Editor
                 if (litMat.HasProperty("_Cull")) litMat.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
                 colorProp = litMat.HasProperty("_BaseColor") ? "_BaseColor" : "_Color";
                 texProp = litMat.HasProperty("_BaseMap") ? "_BaseMap" : litMat.HasProperty("_MainTex") ? "_MainTex" : null;
+                stProp = litMat.HasProperty("_BaseMap_ST") ? "_BaseMap_ST" : litMat.HasProperty("_MainTex_ST") ? "_MainTex_ST" : null;
+                emissionProp = litMat.HasProperty("_EmissionColor") ? "_EmissionColor" : null;
+                // A material property BLOCK can't toggle a shader KEYWORD per-draw — only the material
+                // itself can. Enabling it once, globally, is still correct: a black _EmissionColor (every
+                // non-emitting solid's default) contributes nothing, so leaving the keyword on costs nothing
+                // visually for the common case.
+                if (emissionProp != null) litMat.EnableKeyword("_EMISSION");
                 return litMat;
             }
         }
@@ -67,11 +75,15 @@ namespace Laubrary.Lathe.Editor
             scratchMeshes.Clear();
             foreach (var t in scratchTextures) if (t != null) Object.DestroyImmediate(t);
             scratchTextures.Clear();
+            foreach (var go in scratchLights) if (go != null) Object.DestroyImmediate(go);
+            scratchLights.Clear();
         }
 
         /// Renders one frame. `turntableDeg` spins the whole assembly (and each solid's own pivot) around
-        /// world Y; `orbitYaw/orbitPitch/orbitDist` place the camera independently of that spin.
-        public Texture Render(LatheSpec spec, Rect viewSize, float turntableDeg, float orbitYaw, float orbitPitch, float orbitDist)
+        /// world Y; `orbitYaw/orbitPitch/orbitDist` place the camera independently of that spin. `animT`
+        /// (0..1, wraps) drives Animate Texture's UV scroll — normally frame/turntableFrames, so a scrolling
+        /// surface animates across the baked sprite strip, not just in the live preview.
+        public Texture Render(LatheSpec spec, Rect viewSize, float turntableDeg, float orbitYaw, float orbitPitch, float orbitDist, float animT = 0f)
         {
             if (spec == null) return null;
             EnsureUtil();
@@ -111,7 +123,28 @@ namespace Laubrary.Lathe.Editor
                             if (fillTex != null) scratchTextures.Add(fillTex);
                             block.SetTexture(texProp, fillTex != null ? fillTex : solid.texture != null ? solid.texture : Texture2D.whiteTexture);
                         }
-                        util.DrawMesh(mesh, solid.LocalToWorld(turntable), mat, 0, block);
+                        if (stProp != null)
+                        {
+                            Vector2 offs = solid.animateTexture ? solid.scrollSpeed * animT : Vector2.zero;
+                            block.SetVector(stProp, new Vector4(solid.tileScale, solid.tileScale, offs.x, offs.y));
+                        }
+                        if (emissionProp != null)
+                            block.SetColor(emissionProp, solid.emitLight ? solid.lightColor * solid.emissiveBoost : Color.black);
+                        var worldMatrix = solid.LocalToWorld(turntable);
+                        util.DrawMesh(mesh, worldMatrix, mat, 0, block);
+
+                        if (solid.emitLight)
+                        {
+                            var lightGo = new GameObject("LatheLight") { hideFlags = HideFlags.HideAndDontSave };
+                            var light = lightGo.AddComponent<Light>();
+                            light.type = LightType.Point;
+                            light.color = solid.lightColor;
+                            light.intensity = solid.lightIntensity;
+                            light.range = solid.lightRange;
+                            lightGo.transform.position = worldMatrix.MultiplyPoint3x4(Vector3.zero);
+                            util.AddSingleGO(lightGo);
+                            scratchLights.Add(lightGo);
+                        }
                     }
                 util.camera.Render();
                 return util.EndPreview();

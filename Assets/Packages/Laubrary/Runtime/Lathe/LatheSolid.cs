@@ -28,6 +28,24 @@ namespace Laubrary.Lathe
         // exactly as before this field existed.
         public LatheSurfaceFill fill = new LatheSurfaceFill();
 
+        // Emit Light — OFF by default and its sub-fields aren't drawn in the UI unless enabled (avoid-bloat
+        // rule: optional/modular features stay invisible until opted into). Drives BOTH an emissive material
+        // look on this solid's own surface AND a real point Light spawned at its position, so it actually
+        // illuminates NEIGHBOURING solids too — "a light bulb on a spaceship" needs the hull around it lit,
+        // not just the bulb mesh itself glowing.
+        public bool emitLight = false;
+        public Color lightColor = Color.white;
+        [Range(0f, 10f)] public float lightIntensity = 2f;
+        [Range(0.1f, 20f)] public float lightRange = 5f;
+        [Range(0f, 5f)] public float emissiveBoost = 1f;   // how bright the surface itself glows (lightColor × this)
+
+        // Animate Texture — OFF by default, same avoid-bloat gating. Scrolls the surface texture/fill's UV
+        // offset over the turntable's own frame index, so a tiled texture (a conveyor belt, a scrolling
+        // light strip) visibly animates across a baked sprite strip, not just in the live preview.
+        public bool animateTexture = false;
+        public Vector2 scrollSpeed = new Vector2(0.2f, 0f);   // UV units per full turntable loop
+        [Range(0.2f, 10f)] public float tileScale = 1f;
+
         [SerializeReference] public LatheModule module = new PrimitiveSolidModule();
         [SerializeReference] public List<LatheMeshModifier> modifiers = new List<LatheMeshModifier>();
 
@@ -45,6 +63,14 @@ namespace Laubrary.Lathe
                 smoothness = smoothness,
                 texture = texture,
                 fill = fill?.Clone(),
+                emitLight = emitLight,
+                lightColor = lightColor,
+                lightIntensity = lightIntensity,
+                lightRange = lightRange,
+                emissiveBoost = emissiveBoost,
+                animateTexture = animateTexture,
+                scrollSpeed = scrollSpeed,
+                tileScale = tileScale,
                 module = module?.Clone(),
                 modifiers = new List<LatheMeshModifier>(),
             };
