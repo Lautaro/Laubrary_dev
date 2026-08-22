@@ -194,6 +194,11 @@ namespace Laubrary.Lathe.Editor
         {
             var box = Z.Section("Transform", "This solid's position, rotation, scale and tint within the shared scene.",
                 "lathe.transform", icon: "move");
+            box.Add(Z.Toggle(showGizmo ? "Move Gizmo — drag an axis in the preview" : "Show Move Gizmo",
+                "Draw a draggable red/green/blue axis handle over this solid in the preview — drag an axis "
+                + "line instead of typing X/Y/Z. Freezes the turntable at 0 while showing (and the camera "
+                + "stops responding to the left mouse button, same as Edit Skeleton) so drags land correctly.",
+                showGizmo, v => { showGizmo = v; preview?.MarkDirtyRepaint(); }));
             box.Add(Vector3Row("Position", solid.position,
                 "World position of this solid's pivot (also orbits with the turntable spin).",
                 v => Dirty(() => solid.position = v)));
@@ -317,17 +322,19 @@ namespace Laubrary.Lathe.Editor
 
             var skelSolid = editingSkeleton ? SelSolid : null;
             var skel = skelSolid?.module as SkeletonSweepModule;
-            HandleOrbitInput(rect, allowLeftButton: skel == null);
+            var gizmoSolid = showGizmo && skel == null ? SelSolid : null;
+            HandleOrbitInput(rect, allowLeftButton: skel == null && gizmoSolid == null);
 
             previewRenderer ??= new LathePreview();
-            // The skeleton editor measures clicks against the turntable frozen at 0 — spinning it while
-            // editing would mean the world-space ray-plane hit no longer matches the node you clicked.
-            float turntableDeg = skel != null ? 0f
+            // Both the skeleton editor and the move gizmo measure clicks against the turntable frozen at 0
+            // — spinning it while editing would mean the world-space ray no longer matches what's on screen.
+            float turntableDeg = skel != null || gizmoSolid != null ? 0f
                 : s.turntableFrames > 0 ? frame / (float)s.turntableFrames * 360f : 0f;
             var tex = previewRenderer.Render(s, rect, turntableDeg, orbitYaw, orbitPitch, orbitDist);
             if (tex != null) GUI.DrawTexture(rect, tex, ScaleMode.StretchToFill, true);
 
             if (skel != null) HandleSkeletonEditorInput(rect, skelSolid, skel);
+            else if (gizmoSolid != null) DrawAndHandleGizmo(rect, gizmoSolid);
         }
 
         void HandleOrbitInput(Rect rect, bool allowLeftButton = true)
