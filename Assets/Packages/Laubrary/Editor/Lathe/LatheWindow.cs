@@ -40,6 +40,10 @@ namespace Laubrary.Lathe.Editor
         // Orbit camera — independent of the turntable spin, mouse-controlled in DrawPreview.
         float orbitYaw = 35f, orbitPitch = -20f, orbitDist = 5f;
 
+        // Skeleton editor state — see LatheWindow.Skeleton.cs. Session-only (not persisted): re-enable
+        // "Edit Skeleton" on revisiting an asset, same as the orbit camera resets.
+        bool editingSkeleton;
+
         protected override void OnEnable()
         {
             base.OnEnable();
@@ -292,22 +296,30 @@ namespace Laubrary.Lathe.Editor
         {
             var rect = GUILayoutUtility.GetRect(10, 10, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
             if (rect.width < 2f || rect.height < 2f) return;
-            HandleOrbitInput(rect);
+
+            var skelSolid = editingSkeleton ? SelSolid : null;
+            var skel = skelSolid?.module as SkeletonSweepModule;
+            HandleOrbitInput(rect, allowLeftButton: skel == null);
 
             previewRenderer ??= new LathePreview();
-            float turntableDeg = s.turntableFrames > 0 ? frame / (float)s.turntableFrames * 360f : 0f;
+            // The skeleton editor measures clicks against the turntable frozen at 0 — spinning it while
+            // editing would mean the world-space ray-plane hit no longer matches the node you clicked.
+            float turntableDeg = skel != null ? 0f
+                : s.turntableFrames > 0 ? frame / (float)s.turntableFrames * 360f : 0f;
             var tex = previewRenderer.Render(s, rect, turntableDeg, orbitYaw, orbitPitch, orbitDist);
             if (tex != null) GUI.DrawTexture(rect, tex, ScaleMode.StretchToFill, true);
+
+            if (skel != null) HandleSkeletonEditorInput(rect, skelSolid, skel);
         }
 
-        void HandleOrbitInput(Rect rect)
+        void HandleOrbitInput(Rect rect, bool allowLeftButton = true)
         {
             var e = Event.current;
             int id = GUIUtility.GetControlID(FocusType.Passive, rect);
             switch (e.GetTypeForControl(id))
             {
                 case EventType.MouseDown:
-                    if (rect.Contains(e.mousePosition) && (e.button == 0 || e.button == 2))
+                    if (rect.Contains(e.mousePosition) && ((e.button == 0 && allowLeftButton) || e.button == 2))
                     {
                         GUIUtility.hotControl = id;
                         e.Use();

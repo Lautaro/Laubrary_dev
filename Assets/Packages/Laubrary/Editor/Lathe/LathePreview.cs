@@ -49,6 +49,10 @@ namespace Laubrary.Lathe.Editor
             }
         }
 
+        /// The live preview camera — valid immediately after Render() returns (same frame), used by
+        /// LatheWindow's skeleton editor to ray-cast clicks and project node positions to screen space.
+        public Camera Camera => util?.camera;
+
         void ClearScratch()
         {
             foreach (var m in scratchMeshes) if (m != null) Object.DestroyImmediate(m);

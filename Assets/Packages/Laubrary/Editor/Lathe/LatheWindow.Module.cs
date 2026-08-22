@@ -74,6 +74,7 @@ namespace Laubrary.Lathe.Editor
                 };
                 ZuiReflect.FlowFields(box, solid.module, opt);
             }
+            if (solid.module is SkeletonSweepModule skel) box.Add(BuildSkeletonEditorControls(skel));
             root.Add(box);
         }
 
