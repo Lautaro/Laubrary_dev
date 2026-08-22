@@ -208,6 +208,15 @@ namespace Laubrary.Lathe.Editor
                 v => Dirty(() => solid.scale = v)));
             box.Add(Z.Field("Tint", "This solid's colour — multiplies the texture below, or shows alone when no texture is set.",
                 Z.Color(solid.tint, "This solid's colour.", v => Dirty(() => solid.tint = v), 110f)));
+            box.Add(Z.HGroup(
+                Z.MicroSlider("Metallic", solid.metallic, 0f, 1f,
+                    "0 = a plain dielectric surface (plastic, wood, stone). 1 = a bare metal — its colour comes "
+                    + "entirely from reflections, not the Tint above.",
+                    v => Dirty(() => solid.metallic = v), 150f, showValue: true),
+                Z.MicroSlider("Smoothness", solid.smoothness, 0f, 1f,
+                    "How mirror-like the surface is — low is a rough, diffuse scatter; high is a sharp, "
+                    + "clear reflection. Most visible when Metallic is also high.",
+                    v => Dirty(() => solid.smoothness = v), 150f, showValue: true)));
             box.Add(Z.Field("Texture", "Optional — a box/triplanar-projected UV set is generated automatically, "
                 + "so any texture drops straight on with no per-shape unwrap work.",
                 ZuiReflect.ObjectByType(typeof(Texture2D), solid.texture,

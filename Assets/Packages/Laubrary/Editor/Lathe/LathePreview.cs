@@ -32,6 +32,12 @@ namespace Laubrary.Lathe.Editor
             util.lights[0].transform.rotation = Quaternion.Euler(40f, -30f, 0f);
             util.lights[1].intensity = 0.5f;
             util.lights[1].transform.rotation = Quaternion.Euler(-20f, 150f, 0f);
+            // A metallic/smooth material reflects its ENVIRONMENT, not the two directional lights — with no
+            // skybox or reflection probe in this isolated preview scene, a fully metallic solid would just
+            // render black. A flat ambient colour is what a shader's indirect/reflection term falls back to
+            // with nothing else to sample, so this is what makes "shiny" actually read as shiny here rather
+            // than as a black void with two hard specular dots.
+            util.ambientColor = new Color(0.45f, 0.47f, 0.5f);
         }
 
         Material LitMat
@@ -95,6 +101,9 @@ namespace Laubrary.Lathe.Editor
                         scratchMeshes.Add(mesh);
                         block.Clear();
                         block.SetColor(colorProp, solid.tint);
+                        if (mat.HasProperty("_Metallic")) block.SetFloat("_Metallic", solid.metallic);
+                        if (mat.HasProperty("_Smoothness")) block.SetFloat("_Smoothness", solid.smoothness);
+                        else if (mat.HasProperty("_Glossiness")) block.SetFloat("_Glossiness", solid.smoothness);
                         if (texProp != null)
                         {
                             Texture2D fillTex = solid.fill != null && solid.fill.kind != LatheFillKind.None

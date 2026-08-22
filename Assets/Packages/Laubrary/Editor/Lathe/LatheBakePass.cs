@@ -28,6 +28,7 @@ namespace Laubrary.Lathe.Editor
             util.lights[0].transform.rotation = Quaternion.Euler(40f, -30f, 0f);
             util.lights[1].intensity = 0.5f;
             util.lights[1].transform.rotation = Quaternion.Euler(-20f, 150f, 0f);
+            util.ambientColor = new Color(0.45f, 0.47f, 0.5f);   // see LathePreview's EnsureUtil for why
 
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             litMat = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
@@ -68,6 +69,9 @@ namespace Laubrary.Lathe.Editor
                         scratch.Add(mesh);
                         block.Clear();
                         block.SetColor(colorProp, solid.tint);
+                        if (litMat.HasProperty("_Metallic")) block.SetFloat("_Metallic", solid.metallic);
+                        if (litMat.HasProperty("_Smoothness")) block.SetFloat("_Smoothness", solid.smoothness);
+                        else if (litMat.HasProperty("_Glossiness")) block.SetFloat("_Glossiness", solid.smoothness);
                         if (texProp != null)
                         {
                             Texture2D fillTex = solid.fill != null && solid.fill.kind != LatheFillKind.None

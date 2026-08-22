@@ -17,6 +17,8 @@ namespace Laubrary.Lathe
         public Vector3 rotationEuler = Vector3.zero;
         public Vector3 scale = Vector3.one;
         public Color tint = Color.white;
+        [Range(0f, 1f)] public float metallic = 0f;
+        [Range(0f, 1f)] public float smoothness = 0.5f;
         // Optional — a box/triplanar-projected UV set is generated automatically (LatheMeshData.ToMesh), so
         // any texture drops straight on without per-shape unwrap work. Null = tint-only (a white texture
         // multiplies through as a no-op), same look as before this field existed.
@@ -39,6 +41,8 @@ namespace Laubrary.Lathe
                 rotationEuler = rotationEuler,
                 scale = scale,
                 tint = tint,
+                metallic = metallic,
+                smoothness = smoothness,
                 texture = texture,
                 fill = fill?.Clone(),
                 module = module?.Clone(),
