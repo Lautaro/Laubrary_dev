@@ -16,24 +16,60 @@ MonoBehaviour:
   pixelsPerUnit: 16
   seed: 1234
   turntableFrames: 24
-  previewFps: 12
+  previewFps: 2
   previewFrame: 0
   previewBackground: {r: 0.16, g: 0.16, b: 0.18, a: 1}
-  previewSolidSel: 0
+  previewSolidSel: 1
   solids:
   - name: Solid 1
     enabled: 1
-    position: {x: 0, y: 0, z: 0}
+    position: {x: 0, y: 0, z: 0.47111}
     rotationEuler: {x: 0, y: 0, z: 0}
     scale: {x: 1, y: 1, z: 1}
     tint: {r: 1, g: 1, b: 1, a: 1}
     module:
-      rid: 1702917501880107081
-    modifiers: []
+      rid: 1702917501880107083
+    modifiers:
+    - rid: 1702917501880107082
+  - name: Solid 2
+    enabled: 1
+    position: {x: 0, y: 0, z: 0}
+    rotationEuler: {x: 0, y: 0, z: 0}
+    scale: {x: 1, y: 1, z: 0.27556}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    module:
+      rid: 1702917501880107084
+    modifiers:
+    - rid: 1702917501880107085
   references:
     version: 2
     RefIds:
-    - rid: 1702917501880107081
+    - rid: 1702917501880107082
+      type: {class: MirrorMeshModifier, ns: Laubrary.Lathe, asm: com.Lautaro-Arino.Laubrary.Lathe}
+      data:
+        enabled: 1
+        axis: 2
+        plane: 0
+        weldSeam: 1
+        weldDistance: 0.06064
+    - rid: 1702917501880107083
+      type: {class: ProfileSweepModule, ns: Laubrary.Lathe, asm: com.Lautaro-Arino.Laubrary.Lathe}
+      data:
+        profile:
+        - {x: -0.1, y: -0.1}
+        - {x: 0.1, y: -0.1}
+        - {x: 0.1, y: 0.1}
+        - {x: -0.1, y: 0.1}
+        path: 0
+        length: 3.45868
+        radius: 1
+        arcDegrees: 180
+        helixTurns: 2
+        helixRise: 0.4
+        twistPerTurn: 0
+        pathSegments: 48
+        capEnds: 1
+    - rid: 1702917501880107084
       type: {class: PrimitiveSolidModule, ns: Laubrary.Lathe, asm: com.Lautaro-Arino.Laubrary.Lathe}
       data:
         kind: 0
@@ -43,3 +79,11 @@ MonoBehaviour:
         segments: 24
         rings: 12
         capEnds: 1
+    - rid: 1702917501880107085
+      type: {class: MirrorMeshModifier, ns: Laubrary.Lathe, asm: com.Lautaro-Arino.Laubrary.Lathe}
+      data:
+        enabled: 1
+        axis: 1
+        plane: -0.38667
+        weldSeam: 1
+        weldDistance: 0.03902
