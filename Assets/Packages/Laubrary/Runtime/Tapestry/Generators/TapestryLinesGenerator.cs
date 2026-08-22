@@ -22,6 +22,11 @@ namespace Laubrary.Tapestry
         [Range(0f, 1f)] public float turnChance = 0.35f;
         [Range(0f, 1f)] public float turn90Chance = 0.25f;
         [Range(1, 6)] public int lineWidthPx = 2;
+        // ON by default: every walker steers clear of every OTHER walker's trail too, not just its own —
+        // without this, walkers freely cross each other, which reads as a busy tangle rather than a clean
+        // schematic. Off restores the old "walkers can overlap" look (denser, more chaotic circuitry).
+        public bool avoidOtherWalkers = true;
+        [Range(0, 3)] public int spacing = 1;
         public TapestryLineMode mode = TapestryLineMode.Draw;
         public Color lineColor = new Color(0.75f, 0.88f, 1f, 1f);
         [Range(0f, 1f)] public float bevelStrength = 0.6f;
@@ -31,7 +36,8 @@ namespace Laubrary.Tapestry
         public override string DisplayName => "Lines";
         public override string Description =>
             "Self-avoiding walkers that only turn in 45° steps, drawn as bevelled traces — Draw paints them "
-            + "as their own colour, Etch darkens/lightens the layers below instead, as a mask.";
+            + "as their own colour, Etch darkens/lightens the layers below instead, as a mask. Avoid Other "
+            + "Walkers + Spacing keep separate traces from crossing or crowding each other.";
 
         static readonly Vector2Int[] Dirs8 =
         {
@@ -48,9 +54,14 @@ namespace Laubrary.Tapestry
             var coverage = new float[W * H];
             var normalBuf = new Vector2[W * H];
 
+            // One SHARED visited set when avoidOtherWalkers is on, so walker 2 steers clear of walker 1's
+            // trail too — a fresh empty set per walker (the old behaviour) if off, so walkers only avoid
+            // themselves and can freely cross.
+            var sharedVisited = new HashSet<(int, int)>();
             for (int w = 0; w < walkerCount; w++)
             {
-                var path = WalkOne(rng, grid, maxSteps);
+                var visited = avoidOtherWalkers ? sharedVisited : new HashSet<(int, int)>();
+                var path = WalkOne(rng, grid, maxSteps, visited);
                 for (int i = 0; i < path.Count - 1; i++)
                     StampSegment(path[i], path[i + 1], grid, W, H, lineWidthPx, coverage, normalBuf);
             }
@@ -80,11 +91,19 @@ namespace Laubrary.Tapestry
             }
         }
 
-        List<Vector2Int> WalkOne(System.Random rng, int grid, int steps)
+        List<Vector2Int> WalkOne(System.Random rng, int grid, int steps, HashSet<(int, int)> visited)
         {
-            var visited = new HashSet<(int, int)>();
             var path = new List<Vector2Int>();
-            int cx = rng.Next(grid), cy = rng.Next(grid);
+            int cx = 0, cy = 0;
+            bool foundStart = false;
+            for (int attempt = 0; attempt < 20; attempt++)
+            {
+                int tx = rng.Next(grid), ty = rng.Next(grid);
+                if (IsBlocked(visited, path, tx, ty, grid, spacing)) continue;
+                cx = tx; cy = ty; foundStart = true; break;
+            }
+            if (!foundStart) return path;   // grid too packed by earlier walkers — skip this one
+
             int dir = rng.Next(8);
             path.Add(new Vector2Int(cx, cy));
             visited.Add((cx, cy));
@@ -106,15 +125,47 @@ namespace Laubrary.Tapestry
                     var delta = Dirs8[d];
                     int nx = ((cx + delta.x) % grid + grid) % grid;
                     int ny = ((cy + delta.y) % grid + grid) % grid;
-                    if (visited.Contains((nx, ny))) continue;
+                    if (IsBlocked(visited, path, nx, ny, grid, spacing)) continue;
                     cx = nx; cy = ny; dir = d;
                     path.Add(new Vector2Int(cx, cy));
                     visited.Add((cx, cy));
                     moved = true;
                 }
-                if (!moved) break;   // fully boxed in by its own trail — stop this walker early
+                if (!moved) break;   // boxed in by another trail (or ran out of room) — stop this walker
             }
             return path;
+        }
+
+        // Blocked if the EXACT cell is already visited (hard rule — never revisit any cell, own or
+        // other's), OR any cell within `spacing` (wrapped) is visited AND does NOT belong to this walker's
+        // own most recent trail. That trail exclusion is essential: without it, spacing>0 blocks a walker
+        // from ever taking its FIRST step at all, since every neighbour of the cell it just came from sees
+        // that very cell inside its own spacing radius. Spacing is meant to keep SEPARATE traces apart, not
+        // stop a walker from following its own tail.
+        static bool IsBlocked(HashSet<(int, int)> visited, List<Vector2Int> ownPath, int cx, int cy, int grid, int spacing)
+        {
+            int ecx = ((cx % grid) + grid) % grid, ecy = ((cy % grid) + grid) % grid;
+            if (visited.Contains((ecx, ecy))) return true;
+            if (spacing <= 0) return false;
+
+            for (int oy = -spacing; oy <= spacing; oy++)
+            for (int ox = -spacing; ox <= spacing; ox++)
+            {
+                int wx = ((cx + ox) % grid + grid) % grid;
+                int wy = ((cy + oy) % grid + grid) % grid;
+                if (!visited.Contains((wx, wy))) continue;
+                if (IsOwnRecentTrail(ownPath, wx, wy, spacing)) continue;
+                return true;
+            }
+            return false;
+        }
+
+        static bool IsOwnRecentTrail(List<Vector2Int> path, int x, int y, int spacing)
+        {
+            int start = Mathf.Max(0, path.Count - (spacing + 1));
+            for (int i = start; i < path.Count; i++)
+                if (path[i].x == x && path[i].y == y) return true;
+            return false;
         }
 
         static void StampSegment(Vector2Int a, Vector2Int b, int grid, int W, int H, int lineWidthPxV,
