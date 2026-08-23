@@ -319,8 +319,12 @@ namespace Laubrary.PyrePlus.Editor
             // BuildAsset host), not rootVisualElement — `split` is added to `root` below BEFORE RestoreLast
             // runs, but the window has not yet parented `root` to its own rootVisualElement at this point. The
             // boxes still resolve through the flow's columns (Query walks the live tree), so the flow is transparent.
+            // T-0065 — Views is a normal ZuiSection too (green header, foldable, included in the toggle
+            // bar below), same as every other unit in this flow, rather than a bare bar with no fold.
             var viewBar = BuildViewBar(root);
-            flow.Add(viewBar);
+            viewsSection = Z.Section("Views", "Save and recall named presets of which boxes are folded open.", "pyreplus.views");
+            viewsSection.Add(viewBar);
+            flow.Add(viewsSection);
 
             // Selection is STICKY across rebuilds — only clamped to a valid index. (Defaulting to the
             // last layer on every rebuild silently jumped the overlay/sections to another layer after
@@ -333,7 +337,6 @@ namespace Laubrary.PyrePlus.Editor
             BuildShape(flow, s);
             BuildSwarm(flow, s);
             BuildModifiers(flow, s);   // PyrePlusWindow.Modifiers.cs
-            BuildImport(flow);         // PyrePlusWindow.Import.cs — "Import from Pyre…" converter (slice 9)
             // No standalone Matte section: matte is a property of a layer, authored per-row in the layer list
             // above (BuildMatteBox, folded under each row) — mirroring Pyre1, where a matte reads as belonging
             // to the layer in the STACK (where it acts) rather than as a dial in a separate section.
@@ -370,6 +373,14 @@ namespace Laubrary.PyrePlus.Editor
             split.Add(rightPane);
             root.style.flexGrow = 1f;
             root.style.minHeight = 0f;
+            // T-0065 — the section toggle bar sits ABOVE everything else, spanning the full window width, so
+            // it reads as the absolute top of the per-asset UI rather than a unit squeezed into the 360px
+            // dial column. TagsSection was already parented under the WINDOW's root by the base class
+            // (ZuiAssetWindow.BuildUI runs before BuildAsset) — VisualElement.Add always detaches an element
+            // from its current parent before reattaching, so re-adding it here pulls it out from above the
+            // bar and drops it back in right below it, where it reads as just another toggleable section.
+            root.Add(BuildSectionToggleBar());
+            if (TagsSection != null) root.Add(TagsSection);
             root.Add(split);
 
             // Whole tree is now under `root`; re-apply the view the user left this window in.
@@ -422,6 +433,7 @@ namespace Laubrary.PyrePlus.Editor
         // ── saved views (Z2 — the shared ZuiViewBar + committed ZuiViewStore) ──────────
         const string ViewStorePath = "Assets/PyrePlus/PyrePlusViews.asset";
         const string ViewPrefsKey = "PyrePlus.lastView";
+        ZuiSection viewsSection;   // T-0065 — the ZuiSection wrapping BuildViewBar's bar, so Views can join the toggle bar
 
         // Build the views bar. Capture/apply aggregate every ZuiBox under `paneRoot` via CaptureView/
         // ApplyView, so a view round-trips the Canvas / Solid / Transform / Modifiers boxes' fold + gear +
@@ -445,6 +457,25 @@ namespace Laubrary.PyrePlus.Editor
                 Capture,
                 Apply,
                 ViewPrefsKey);
+        }
+
+        // T-0065 — the shared ZuiSectionToggleBar (Zui/Toolkit/ZuiSectionToggleBar.cs) over PyrePlus's eight
+        // top-level sections: the base-class Tags section, the Views bar (also now a section), and the six
+        // built above. That shared widget owns the Sections-vs-Toggle-Bar mode switch and the mutual-exclusion
+        // with each section's own header click — nothing PyrePlus-specific left to do here beyond listing
+        // which sections it has. A null entry (a rare rebuild-ordering issue, or no asset saved yet so
+        // TagsSection is null) is skipped harmlessly by the bar itself.
+        VisualElement BuildSectionToggleBar()
+        {
+            return new ZuiSectionToggleBar("PyrePlus",
+                ("Tags", TagsSection),
+                ("Views", viewsSection),
+                ("Canvas", canvasSection),
+                ("Layers", layersSection),
+                ("Global Mod", globalModifiersSection),
+                ("Shape", shapeSection),
+                ("Swarm", swarmSection),
+                ("Modifiers", modifiersSection));
         }
 
         // Mint the PyrePlus views asset — only ever called from the bar's Save-as when none exists yet.
@@ -531,7 +562,14 @@ namespace Laubrary.PyrePlus.Editor
                     s.previewGifDither = v;
                     EditorUtility.SetDirty(spec);
                 }));
-            transportHost.Add(Z.HGroup(kids.ToArray()));   // Play + Frame/Strip/Tile/GIF/GIF-scale as one wrapping unit-row
+            // Bake (G — see PyrePlusBaker): writes a real, engine-usable PNG sprite sheet + AnimationClip beside
+            // the spec asset, same technique and same guard rails as Pyre1's own Bake button.
+            kids.Add(Z.Button("Bake",
+                "Bake a real sprite sheet PNG + AnimationClip for this blast, beside the spec asset — the same "
+                + "renderer as the live preview, so the bake is byte-identical to what you see here. Never "
+                + "overwrites an existing bake; a repeat bake gets a versioned name.",
+                () => PyrePlusBaker.Bake(s)));
+            transportHost.Add(Z.HGroup(kids.ToArray()));   // Play + Frame/Strip/Tile/GIF/GIF-scale/Bake as one wrapping unit-row
 
             // ── frame scrubber (transport parity with Pyre1's scrub field) ──────────────────────
             // A 1-based int slider over the whole frame range that drives the transport `frame`. Dragging it PAUSES
@@ -635,12 +673,16 @@ namespace Laubrary.PyrePlus.Editor
                 icon: "eye", owner: spec));
         }
 
+        // Held (not just a local var) so the section-toggle bar (BuildSectionToggleBar) can read/drive its
+        // IsOpen alongside the other five top-level sections.
+        ZuiSection canvasSection;
+
         void BuildCanvas(VisualElement root, PyrePlusSpec s)
         {
             // Green-header Section (matching Shape / Swarm / Modifiers) rather than a framed BoxKeyed, so the
             // window's top-level sections read consistently. The stable key keeps the fold state from orphaning
             // on a title/tooltip reword (ZuiSection persists fold per key, same idiom as the box did).
-            var box = Z.Section("Canvas", "The output resolution, frame count, seed and background.", "pyreplus.canvas",
+            var box = canvasSection = Z.Section("Canvas", "The output resolution, frame count, seed and background.", "pyreplus.canvas",
                 icon: "frame-corners");
             // Canvas Size drives the RANGES of every pixel-scaled control (Shape Size, Scale, offsets, Streak
             // length, Travel…), so a change must refresh those ranges — but a full Rebuild() recreates THIS very
@@ -704,13 +746,17 @@ namespace Laubrary.PyrePlus.Editor
         // its OWN Matte box, folded underneath it (BuildMatteBox), so a matte reads as a property of the layer in
         // the stack. Selection drives which layer the Shape / Swarm / Modifiers sections below edit. Mirrors
         // PyreWindow's layer-list chrome (row + folded matte box inside one drag wrap).
+        // Held (not just a local var) so the section-toggle bar (BuildSectionToggleBar) can read/drive its
+        // IsOpen alongside the other five top-level sections.
+        ZuiSection layersSection;
+
         void BuildLayerList(VisualElement root)
         {
             // Green-header Section (matching Canvas / Shape / Swarm / Modifiers) rather than a framed BoxKeyed,
             // so the top-level sections read consistently. The stable key keeps fold state from orphaning on a
             // title/tooltip reword (ZuiSection persists fold per key). Per-row Matte boxes inside stay ZuiBoxes,
             // so the saved-views bar still captures those.
-            var box = Z.Section("Layers",
+            var box = layersSection = Z.Section("Layers",
                 "The paint stack — earlier (higher) layers composite BEHIND later (lower) ones. Click a layer to "
                 + "edit its Shape / Swarm / Modifiers dials below; expand a row's Matte box to make it a stencil or "
                 + "clip it by another layer's mask; drag the grip to reorder.",
@@ -1055,10 +1101,13 @@ namespace Laubrary.PyrePlus.Editor
         // flips — the same mechanism BuildSwarm uses for swarmBody/RebuildSwarm, so the opt-in Travel/Spin
         // controls appear/disappear without rebuilding the whole window.
         VisualElement shapeBody;
+        // Held (not just a local var) so the section-toggle bar (BuildSectionToggleBar) can read/drive its
+        // IsOpen alongside the other five top-level sections.
+        ZuiSection shapeSection;
 
         void BuildShape(VisualElement root, PyrePlusSpec s)
         {
-            var sec = Z.Section("Shape", "The particle's own look — colour, opacity and size over its life.",
+            var sec = shapeSection = Z.Section("Shape", "The particle's own look — colour, opacity and size over its life.",
                 icon: "shapes");
             // The shape-FORM picker lives in a header context menu (the caret button, or a right-click on the title)
             // instead of three in-body radio rows — reclaiming that vertical space.

@@ -2,29 +2,36 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
-using Laubrary.Pyre;
 
-namespace Laubrary.Pyre.Editor
+namespace Laubrary.PyrePlus.Editor
 {
-    /// Bakes a Pyre into the SAME folder as the spec asset: a horizontal-ish sprite sheet PNG sliced into
-    /// per-frame sprites, plus an AnimationClip that cycles them. Renders through the shared BlastRenderer, so a
-    /// bake is byte-identical to the editor preview and the runtime player. No dedicated Assets/Pyre/ folder —
-    /// the outputs sit right next to the asset you baked (following the Laubrary flat-folder convention).
+    /// Bakes a PyrePlusSpec into the SAME folder as the spec asset: a horizontal-ish sprite sheet PNG sliced into
+    /// per-frame sprites, plus an AnimationClip that cycles them. Renders through the shared PyrePlusRenderer, so
+    /// a bake is byte-identical to the editor preview. No dedicated Assets/PyrePlus/ folder — the outputs sit
+    /// right next to the asset you baked (following the Laubrary flat-folder convention). Near-verbatim port of
+    /// Pyre1's Editor/Pyre/BlastBaker.cs — same technique, same guard rails.
+    ///
+    /// PyrePlusSpec has no per-shape `origin` field the way Pyre1's spec does (that field drives its baked sprite
+    /// pivot), so every baked sprite pivots at texture centre (0.5, 0.5) for now — the sane default for a blast
+    /// that's centred in its own canvas. If a future PyrePlus effect wants an off-centre pivot, that's a spec
+    /// field + UI to add then, not a reason to block this first bake pass.
     ///
     /// GUARD RAIL: never overwrites an existing user asset. If a target path is taken, the name is versioned
-    /// (blast_1, blast_2, …) and every created path is logged.
-    public static class BlastBaker
+    /// (pyreplus_1, pyreplus_2, …) and every created path is logged.
+    public static class PyrePlusBaker
     {
+        static readonly Vector2 CenterPivot = new Vector2(0.5f, 0.5f);
+
         // Written to the baked PNG's TextureImporter.userData — the shared "LauBrowser.BakedMarkerPrefix"
         // convention (see LauBrowser.cs) any baker opts into so a general Sprite browse can exclude derived
-        // bake output. A Pyre spec is already the correct pickable unit for other tools (via
-        // PyreChunkAnimation's IChunkAnimation adapter), so this bake's own sliced sub-sprites shouldn't
-        // clutter a general Sprite browse.
-        public const string BakedMarker = Laubrary.AssetKit.Editor.LauBrowser.BakedMarkerPrefix + "Blast";
+        // bake output. PyrePlusSpec is already the correct pickable unit for other tools (via
+        // PyrePlusChunkAnimation's IChunkAnimation adapter) — this bake's own sliced sub-sprites are a
+        // standalone drag-and-drop export, not meant to clutter a general Sprite browse.
+        public const string BakedMarker = Laubrary.AssetKit.Editor.LauBrowser.BakedMarkerPrefix + "PyrePlus";
 
-        public static void Bake(Pyre spec, int fps = 24)
+        public static void Bake(PyrePlusSpec spec)
         {
-            if (spec == null) { Debug.LogWarning("[Pyre] Bake skipped: no Pyre."); return; }
+            if (spec == null) { Debug.LogWarning("[PyrePlus] Bake skipped: no PyrePlusSpec."); return; }
 
             // Bake beside the spec asset; fall back to "Assets" if the spec is unsaved.
             string specPath = AssetDatabase.GetAssetPath(spec);
@@ -33,10 +40,10 @@ namespace Laubrary.Pyre.Editor
             dir = dir.Replace('\\', '/');
 
             int cw = spec.Width, ch = spec.Height;
-            var sheet = BlastRenderer.RenderSheet(spec, out int cols, out int rows, 8);
+            var sheet = PyrePlusRenderer.RenderSheet(spec, out int cols, out int rows, 8);
 
             // 1) write the PNG (never clobbering an existing file)
-            string baseName = SanitizeName(spec.name.Length > 0 ? spec.name : "Pyre");
+            string baseName = SanitizeName(spec.name.Length > 0 ? spec.name : "PyrePlus");
             string pngPath = UniquePath(dir, baseName, "png");
             File.WriteAllBytes(pngPath, sheet.EncodeToPNG());
             Object.DestroyImmediate(sheet);
@@ -50,19 +57,19 @@ namespace Laubrary.Pyre.Editor
             importer.mipmapEnabled = false;
             importer.textureCompression = TextureImporterCompression.Uncompressed;
             importer.spritePixelsPerUnit = spec.pixelsPerUnit;
-            importer.userData = BakedMarker;
+            importer.userData = BakedMarker;   // lets LauBrowser (and anything else) filter this out of a raw-Sprite browse
 
             int frames = Mathf.Max(1, spec.frameCount);
             var meta = new SpriteMetaData[frames];
             for (int f = 0; f < frames; f++)
             {
-                Rect r = BlastRenderer.FrameRect(f, cols, rows, cw, ch);
+                Rect r = PyrePlusRenderer.FrameRect(f, cols, rows, cw, ch);
                 meta[f] = new SpriteMetaData
                 {
-                    name = "blast_" + f,
+                    name = "pyreplus_" + f,
                     rect = r,
                     alignment = (int)SpriteAlignment.Custom,
-                    pivot = spec.origin
+                    pivot = CenterPivot
                 };
             }
 #pragma warning disable CS0618 // TextureImporter.spritesheet is legacy but is the documented slice-from-code path
@@ -76,10 +83,12 @@ namespace Laubrary.Pyre.Editor
             foreach (var obj in AssetDatabase.LoadAllAssetsAtPath(pngPath))
                 if (obj is Sprite s) sprites.Add(s);
             sprites.Sort((a, b) => FrameIndexOf(a.name).CompareTo(FrameIndexOf(b.name)));
-            if (sprites.Count == 0) { Debug.LogWarning("[Pyre] Bake produced no sprites from " + pngPath); return; }
+            if (sprites.Count == 0) { Debug.LogWarning("[PyrePlus] Bake produced no sprites from " + pngPath); return; }
 
-            // 4) build an AnimationClip that steps the SpriteRenderer through the frames
-            var clip = new AnimationClip { frameRate = Mathf.Max(1f, fps) };
+            // 4) build an AnimationClip that steps the SpriteRenderer through the frames, at the spec's own
+            //    authored preview rate — so the baked clip actually plays back at the speed it was designed at.
+            float fps = Mathf.Max(1f, spec.previewFps);
+            var clip = new AnimationClip { frameRate = fps };
             var keys = new ObjectReferenceKeyframe[sprites.Count];
             for (int i = 0; i < sprites.Count; i++)
                 keys[i] = new ObjectReferenceKeyframe { time = i / clip.frameRate, value = sprites[i] };
@@ -96,7 +105,7 @@ namespace Laubrary.Pyre.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            Debug.Log($"[Pyre] Baked '{spec.name}' → sheet: {pngPath}  ·  clip: {clipPath}  ({sprites.Count} frames @ {fps}fps)");
+            Debug.Log($"[PyrePlus] Baked '{spec.name}' → sheet: {pngPath}  ·  clip: {clipPath}  ({sprites.Count} frames @ {fps}fps)");
             EditorGUIUtility.PingObject(AssetDatabase.LoadAssetAtPath<Object>(pngPath));
         }
 
@@ -108,7 +117,7 @@ namespace Laubrary.Pyre.Editor
             int i = 1;
             while (File.Exists($"{dir}/{baseName}_{i}.{ext}")) i++;
             string versioned = $"{dir}/{baseName}_{i}.{ext}";
-            Debug.Log($"[Pyre] '{path}' exists — writing '{versioned}' instead (guard rail: never overwrite user assets).");
+            Debug.Log($"[PyrePlus] '{path}' exists — writing '{versioned}' instead (guard rail: never overwrite user assets).");
             return versioned;
         }
 

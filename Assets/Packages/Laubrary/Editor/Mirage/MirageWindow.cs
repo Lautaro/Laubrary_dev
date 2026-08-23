@@ -229,8 +229,9 @@ namespace Laubrary.Mirage.Editor
         {
             const string ppuTip = "Every previewable is scaled so its own source PPU maps to this — the " +
                 "\"no mixels\" guarantee. A 16-PPU Zoe and a 64-PPU Pyre blast render at the same pixel size.";
-            const string spriteTip = "Pick any Sprite in the project to add as a background previewable — " +
-                "not a LauAsset-registered type, so it's kept out of the Add Previewable browser.";
+            const string spriteTip = "Browse every Sprite in the project (search-driven — nothing loads until " +
+                "you type a name) to add as a background previewable. Not a LauAsset-registered type, so it's " +
+                "kept out of the Add Previewable browser above.";
 
             var addButton = Z.Button("Add Previewable",
                 "Browse Zoes and Blasts — the LauAsset-registered types this view can preview.", null);
@@ -242,12 +243,19 @@ namespace Laubrary.Mirage.Editor
                     asset => { AddEntry(view, asset); RebuildBody(); }, null, pickHint: "Zoe / Blast");
             };
 
+            var spriteBrowse = Z.Button("Browse Sprite...", spriteTip, null);
+            spriteBrowse.clicked += () =>
+            {
+                var wb = spriteBrowse.worldBound;
+                LauBrowser.Show(new Rect(wb.x, wb.y, wb.width, wb.height), "t:Sprite",
+                    picked => { if (picked != null) { AddEntry(view, picked); RebuildBody(); } }, null);
+            };
+
             root.Add(WrapRow(
                 Z.Field("Display PPU", ppuTip, Z.Float(view.displayPixelsPerUnit, ppuTip,
                     v => Dial("Display PPU", () => view.displayPixelsPerUnit = Mathf.Max(1f, v)), 60f)),
                 addButton,
-                Z.Field("Add sprite", spriteTip, Z.Object<Sprite>(null, spriteTip,
-                    v => { if (v != null) { AddEntry(view, v); RebuildBody(); } }, 150f)),
+                spriteBrowse,
                 Z.Flexible()));
         }
 
@@ -623,10 +631,17 @@ namespace Laubrary.Mirage.Editor
 
         VisualElement BuildContentRow(MirageView view, PreviewableEntry entry)
         {
-            const string spriteTip = "Pick any Sprite in the project as a background — not a LauAsset-registered " +
-                "type, so it's kept out of Recall.";
-            var spriteField = Z.Field("Sprite", spriteTip, Z.Object<Sprite>(entry.content as Sprite, spriteTip,
-                v => { if (v != null && !ReferenceEquals(v, entry.content)) SetContent(entry, v); }, 140f));
+            const string spriteTip = "Browse every Sprite in the project (search-driven — nothing loads until " +
+                "you type a name) to use as a background — not a LauAsset-registered type, so it's kept out " +
+                "of Recall above. The current pick is already shown by the swatch/name at the top of this row.";
+            var spriteBrowse = Z.Button("Browse Sprite...", spriteTip, null);
+            spriteBrowse.clicked += () =>
+            {
+                var wb = spriteBrowse.worldBound;
+                LauBrowser.Show(new Rect(wb.x, wb.y, wb.width, wb.height), "t:Sprite",
+                    picked => { if (picked != null && !ReferenceEquals(picked, entry.content)) SetContent(entry, picked); },
+                    entry.content as Sprite);
+            };
 
             // Scoped to MirageAssetPicker.SupportedTypes (Zoe/Pyre), not a typeof(Object) constraint —
             // that used to match every LauAssetEditors-registered type in the project (ChunkSpec, WareSpec…).
@@ -639,7 +654,7 @@ namespace Laubrary.Mirage.Editor
                     rect => LauAssetPicker.Show(rect, MirageAssetPicker.FindAll().ConvertAll(i => i.asset),
                         picked => SetContent(entry, picked), entry.content, pickHint: "Zoe / Blast"),
                     creatable, "Previewable", "Assets/Mirage/Content",
-                    picked => SetContent(entry, picked), spriteField));
+                    picked => SetContent(entry, picked), spriteBrowse));
         }
 
         void SetContent(PreviewableEntry entry, Object picked)

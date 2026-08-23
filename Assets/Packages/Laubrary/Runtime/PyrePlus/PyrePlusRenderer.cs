@@ -4740,5 +4740,91 @@ namespace Laubrary.PyrePlus
             tex.Apply();
             return tex;
         }
+
+        /// Pack every frame into a grid sheet (cols left→right, rows top→bottom) for baking / preview. Mirrors
+        /// Pyre1's BlastRenderer.RenderSheet exactly — same layout math, same PyrePlusBaker consumes it the way
+        /// BlastBaker consumes Pyre1's.
+        public static Texture2D RenderSheet(PyrePlusSpec spec, out int cols, out int rows, int maxCols = 8)
+        {
+            int W = spec != null ? spec.Width : 1;
+            int H = spec != null ? spec.Height : 1;
+            int frames = Mathf.Max(1, spec != null ? spec.frameCount : 1);
+            SheetLayout(frames, maxCols, out cols, out rows);
+
+            var sheet = new Texture2D(cols * W, rows * H, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                name = "PyrePlus_Sheet"
+            };
+            var clear = new Color32[cols * W * rows * H];
+            for (int i = 0; i < clear.Length; i++) clear[i] = Transparent;
+            sheet.SetPixels32(clear);
+
+            for (int f = 0; f < frames; f++)
+            {
+                var px = RenderFrame(spec, f);
+                Rect r = FrameRect(f, cols, rows, W, H);
+                sheet.SetPixels32((int)r.x, (int)r.y, W, H, px);
+            }
+            sheet.Apply();
+            return sheet;
+        }
+
+        /// Grid dimensions for a frame count. Shared by RenderSheet and PyrePlusBaker so their rects always agree.
+        public static void SheetLayout(int frameCount, int maxCols, out int cols, out int rows)
+        {
+            frameCount = Mathf.Max(1, frameCount);
+            cols = Mathf.Clamp(Mathf.Min(maxCols, frameCount), 1, frameCount);
+            rows = Mathf.CeilToInt(frameCount / (float)cols);
+        }
+
+        /// The texture-space rect (y-up) of a frame in the packed sheet. Row 0 sits at the top visually.
+        public static Rect FrameRect(int frame, int cols, int rows, int cellW, int cellH)
+        {
+            int col = frame % cols;
+            int row = frame / cols;
+            int px = col * cellW;
+            int py = (rows - 1 - row) * cellH;   // flip so row 0 is the top row in the image
+            return new Rect(px, py, cellW, cellH);
+        }
+
+        // ── IChunkAnimation adapter support ────────────────────────────────────────────
+        // Live-rendered per-instance Sprite cache, mirroring BlastPlayer.GetFrames exactly — this is the ONE
+        // path other Laubrary tools (Chunks, Zoetrope's AmmoDef/WeaponDef, anything taking an
+        // [RequireInterface(typeof(IChunkAnimation))] visual) should use to consume a PyrePlusSpec's animation.
+        // Deliberately independent of PyrePlusBaker's PNG bake — that bake is a standalone export (parity with
+        // Pyre1's own Bake button) for dragging into an Animator elsewhere; it is NOT what other Laubrary tools
+        // pick through, so its baked sub-sprites never need to appear in this path at all.
+        static readonly Dictionary<int, Sprite[]> chunkFrameCache = new();
+
+        /// Build (or reuse) the per-frame Sprite array for a spec. Cached by instance id so the same spec renders
+        /// once. PyrePlusSpec has no per-shape pivot field (unlike Pyre1's `origin`), so every frame pivots at
+        /// texture centre — the same default PyrePlusBaker uses for its own sliced sprites.
+        public static Sprite[] GetFrames(PyrePlusSpec spec)
+        {
+            if (spec == null) return null;
+            int key = spec.GetInstanceID();
+            if (chunkFrameCache.TryGetValue(key, out var cached) && cached != null && cached.Length > 0)
+                return cached;
+
+            int n = Mathf.Max(1, spec.frameCount);
+            var built = new Sprite[n];
+            var pivot = new Vector2(0.5f, 0.5f);
+            for (int f = 0; f < n; f++)
+            {
+                var tex = RenderFrameTexture(spec, f);
+                built[f] = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), pivot, spec.pixelsPerUnit);
+                built[f].name = "pyreplus_" + f;
+            }
+            chunkFrameCache[key] = built;
+            return built;
+        }
+
+        /// Drop a spec's cached frames (call after editing a spec at runtime so the next GetFrames re-renders).
+        public static void ClearFrameCache(PyrePlusSpec spec)
+        {
+            if (spec != null) chunkFrameCache.Remove(spec.GetInstanceID());
+        }
     }
 }
