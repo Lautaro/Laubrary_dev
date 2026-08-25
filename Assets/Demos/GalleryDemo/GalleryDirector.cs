@@ -10,8 +10,8 @@ namespace Laubrary.Demos.Gallery
 {
     /// A shooting gallery for the Codex battle-authoring layer: click to fire the equipped weapon at an idle target
     /// character; the target plays its hit/death VFX and respawns. It assembles sample Zoe/Weapon/Projectile
-    /// Defs at runtime from scene-assigned primitives (PyreAsset blasts, Chunks bursts, factions) + placeholder DemoSprites,
-    /// so it demonstrates the whole pipeline end-to-end (Def → ZoeSpawner → Colosseum funnel → CombatVfx).
+    /// Defs at runtime from scene-assigned primitives (Pyre blasts, Chunks bursts, factions) + placeholder
+    /// DemoSprites, so it demonstrates the whole pipeline end-to-end (Def → ZoeSpawner → Colosseum funnel → CombatVfx).
     public class GalleryDirector : MonoBehaviour
     {
         [Header("Factions")]

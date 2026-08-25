@@ -112,7 +112,7 @@ namespace Laubrary.Demos.ColosseumShmup
             go.transform.localScale = Vector3.one * Mathf.Max(0.05f, blastScale);
             var bsr = go.AddComponent<SpriteRenderer>();
             bsr.sortingOrder = 500;
-            var bp = go.AddComponent<BlastPlayer>();
+            var bp = go.AddComponent<PyreBlastPlayer>();
             bp.spec = s;
             bp.loop = false;
             bp.destroyOnFinish = true;

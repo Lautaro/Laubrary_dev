@@ -150,11 +150,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.Gallery.GalleryDirector
   playerFaction: {fileID: 11400000, guid: 5fd2acbf19e97e443b20b55834e32e42, type: 2}
   enemyFaction: {fileID: 11400000, guid: 489b6624ecd637745b8cf8e109236377, type: 2}
-  hitBlast: {fileID: 11400000, guid: f3a56bfdd8d49714ca35fe39e4ba04ad, type: 2}
+  hitBlast: {fileID: 11400000, guid: bb3300f0ceebd4f4f97e93518623183a, type: 2}
   deathBlast: {fileID: 11400000, guid: dc9d692eb5b775b4887e408b70590653, type: 2}
   deathDebris: {fileID: 11400000, guid: 2ed50980003258340b000f31eebe556a, type: 2}
-  muzzleFlash: {fileID: 11400000, guid: b841301cc982cfe45af164711126991c, type: 2}
-  impactBlast: {fileID: 11400000, guid: 53397d458b033cb4eb24f7ce3e674071, type: 2}
+  muzzleFlash: {fileID: 11400000, guid: 29c59001f8b0cec45ac78e975e14b88f, type: 2}
+  impactBlast: {fileID: 11400000, guid: 374ece290a7772943b90757595aa916c, type: 2}
   impactSparks: {fileID: 11400000, guid: c8649ffc24fd7b246b6e952e531c168a, type: 2}
   targetPos: {x: 0, y: 1.5, z: 0}
   shooterPos: {x: 0, y: -3.5, z: 0}

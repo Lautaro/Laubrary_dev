@@ -156,7 +156,7 @@ public class ArenaEnemy : MonoBehaviour
         go.transform.position = pos;
         var bsr = go.AddComponent<SpriteRenderer>();
         bsr.sortingOrder = 500;                 // over the enemies (~200)
-        var bp = go.AddComponent<BlastPlayer>();
+        var bp = go.AddComponent<PyreBlastPlayer>();
         bp.spec = s;
         bp.loop = false;
         bp.destroyOnFinish = true;

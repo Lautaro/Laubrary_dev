@@ -99,14 +99,14 @@ MonoBehaviour:
             rid: 1702917371834400851
           parentPartName: Legs
           parentAnchor:
-            mode: 0
+            mode: 2
             edge: 1
             metaLayerId: 
-            offset: {x: 0, y: 0}
+            offset: {x: 0, y: 1.3125}
           childAnchor:
-            mode: 1
+            mode: 2
             edge: 2
-            metaLayerId: Waist
+            metaLayerId: 
             offset: {x: 0, y: 0}
           sortingOrder: 1
           motionPose:
@@ -122,11 +122,11 @@ MonoBehaviour:
       type: {class: ZonedLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
       data:
         version: {fileID: 11400000, guid: 1746a32381cbb804696d17b7cba0fda8, type: 2}
-        idleClip: LegsWalk_N
+        idleClip: LegsIdleRotation
         height: 0
     - rid: 1702917371834400851
       type: {class: ZonedLauminaryView, ns: Laubrary.ZoetropeLaunimator, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Launimator}
       data:
         version: {fileID: 11400000, guid: 1746a32381cbb804696d17b7cba0fda8, type: 2}
-        idleClip: LegsWalk_N
+        idleClip: UpperAimRotation
         height: 0

@@ -7,18 +7,18 @@ using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespac
 
 namespace Laubrary.Demos.DaemonDemo
 {
-    // ── The integration seam: Daemon brain ↔ Colosseum body ↔ Pyre/Chunks VFX ↔ (optional) Zoetrope anim ────
+    // ── The integration seam: Daemon brain ↔ Colosseum body ↔ Pyre/Chunks VFX ↔ (optional) Zoetrope anim ──
     // One MonoBehaviour on the enemy that IS the agent's body + condition source. A Daemon Behaviour casts
     // ctx.Body to this to move / fire; the Brain's transition conditions call Evaluate(). It subscribes to
-    // Colosseum's Health.Died to fire the death VFX (PyreAsset blast + Chunks debris) — the "react to combat via events,
-    // don't poll" pattern. The Zoe hook is a plain Action<string> you wire to ZoePlayer.Play (kept out of this
-    // assembly's deps so the demo needs no Zoe asset): body.onAnim = clip => zoePlayer.Play(clip);
+    // Colosseum's Health.Died to fire the death VFX (Pyre blast + Chunks debris) — the "react to combat
+    // via events, don't poll" pattern. The Zoe hook is a plain Action<string> you wire to ZoePlayer.Play (kept
+    // out of this assembly's deps so the demo needs no Zoe asset): body.onAnim = clip => zoePlayer.Play(clip);
     public class ColosseumAgentBody : MonoBehaviour, IAgentBody, IAgentConditions
     {
         public Transform Target;
         public float AttackRange = 3f;
         public float MoveSpeed = 3f;
-        public PyreAsset deathBlast;                 // Pyre: played at death position
+        public PyreAsset deathBlast;          // Pyre: played at death position
         public Laubrary.Chunks.ChunkSpec debris;     // Chunks: flung at death position
         public Action<string> onAnim;               // optional: wire to a ZoePlayer
 
@@ -90,7 +90,7 @@ namespace Laubrary.Demos.DaemonDemo
                 var go = new GameObject("Blast");
                 go.transform.position = pos;
                 go.AddComponent<SpriteRenderer>().sortingOrder = 500;
-                var bp = go.AddComponent<BlastPlayer>();
+                var bp = go.AddComponent<PyreBlastPlayer>();
                 bp.spec = deathBlast; bp.loop = false; bp.destroyOnFinish = true; bp.playOnAwake = true;
             }
             if (debris != null) Laubrary.Chunks.Chunks.Burst(pos, debris);
