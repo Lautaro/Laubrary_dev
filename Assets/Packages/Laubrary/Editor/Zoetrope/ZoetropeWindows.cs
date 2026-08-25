@@ -53,17 +53,22 @@ namespace Laubrary.Zoetrope.Editor
         // label is exactly the no-infinite-width-controls case, and ZuiAudit flags it.
         protected const float AddButtonWidth = 160f;
 
-        protected SerializedObject So { get; private set; }
+        protected SerializedObject So { get; set; }
 
-        // Survives the rebuilds every dial edit triggers — see BuildAsset.
-        Vector2 _scrollOffset;
-        bool _restoringScroll;
-        ScrollView _scroll;
+        // Survives the rebuilds every dial edit triggers — see BuildAsset. Protected (not private): ZoeWindow
+        // overrides BuildAsset itself (to host the D-13 section toggle bar, T-0084) and reuses this same
+        // scroll-position-preservation dance rather than duplicating it.
+        protected Vector2 _scrollOffset;
+        protected bool _restoringScroll;
+        protected ScrollView _scroll;
 
         // Thumbnails for every LauAsset-typed field this window draws — owned here, cleared on the way out.
         protected readonly Dictionary<Object, Texture2D> FieldThumbs = new Dictionary<Object, Texture2D>();
 
-        protected sealed override void BuildAsset(VisualElement root, T asset)
+        // Not sealed (only): ZoeWindow overrides this further to host the section toggle bar (T-0084);
+        // every other subclass (WeaponDefWindow, AmmoDefWindow) keeps this default plain-scroll behaviour
+        // untouched.
+        protected override void BuildAsset(VisualElement root, T asset)
         {
             So = new SerializedObject(asset);
 
@@ -662,18 +667,117 @@ namespace Laubrary.Zoetrope.Editor
 
         void RunValidators() { for (int i = 0; i < _validators.Count; i++) _validators[i]?.Invoke(); }
 
+        // ── section toggle bar (T-0084) ─────────────────────────────────────────────────────
+        // Same idiom as ChunkWindow/MirageWindow/SpriteFxStackWindow/CartographerWindow — a roster rebuilt
+        // from scratch on every BuildAsset, populated by Unit() as each top-level section is built.
+        readonly List<(string label, ZuiSection section)> _barUnits = new List<(string label, ZuiSection section)>();
+
+        // Tallest layout the bar has taken at a given width, remembered for the window's lifetime — same
+        // stable-workspace guarantee as ChunkWindow.ReserveBarHeight.
+        float _barReservedW, _barReservedH;
+
+        /// Run one section builder and register whatever top-level ZuiSection it added under `label`. A
+        /// builder that adds nothing (e.g. BuildRigUnit on a non-composite Zoe) registers nothing rather than
+        /// parking a dead button in the bar. See ChunkWindow.Unit for the full rationale.
+        void Unit(VisualElement body, Zoe zoe, string label, Action<VisualElement, Zoe> build)
+        {
+            int before = body.childCount;
+            build(body, zoe);
+            for (int i = before; i < body.childCount; i++)
+                if (body[i] is ZuiSection sec) { _barUnits.Add((label, sec)); return; }
+        }
+
+        /// Stable-workspace rule — identical to ChunkWindow.ReserveBarHeight: remember the tallest height the
+        /// bar has laid out at the current width and pin it as the host's minHeight, so a mode switch or a
+        /// solo can only ever change what is IN the bar, never its size.
+        void ReserveBarHeight(VisualElement barHost, VisualElement bar)
+        {
+            bar.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                float w = bar.resolvedStyle.width, h = bar.resolvedStyle.height;
+                if (float.IsNaN(w) || float.IsNaN(h) || h <= 0f) return;
+                if (Mathf.Abs(w - _barReservedW) > 0.5f) { _barReservedW = w; _barReservedH = 0f; }
+                if (h <= _barReservedH + 0.5f) return;
+                _barReservedH = h;
+                barHost.style.minHeight = h;
+            });
+        }
+
+        // Overrides the base's plain-scroll BuildAsset (Zoe is the one Zoetrope window big enough to want the
+        // toggle bar — WeaponDefWindow/AmmoDefWindow keep the base's simple loop). Same shell as ChunkWindow's
+        // BuildAsset: bar host first, filled last; TagsSection re-parented below it; scroll-offset
+        // preservation copied verbatim from the base (now protected there for exactly this reuse).
+        protected override void BuildAsset(VisualElement root, Zoe zoe)
+        {
+            So = new SerializedObject(zoe);
+            _validators.Clear();
+
+            root.style.flexGrow = 1f;
+            root.style.minHeight = 0f;
+
+            var barHost = new VisualElement();
+            barHost.style.flexShrink = 0f;
+            if (_barReservedH > 0f) barHost.style.minHeight = _barReservedH;
+            root.Add(barHost);
+
+            if (TagsSection != null) root.Add(TagsSection);
+
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.flexGrow = 1f;
+            scroll.style.minHeight = 0f;
+            root.Add(scroll);
+            var body = scroll.contentContainer;
+
+            _barUnits.Clear();
+            if (TagsSection != null) _barUnits.Add(("Tags", TagsSection));
+
+            Unit(body, zoe, "Identity", BuildIdentity);
+            Unit(body, zoe, "Stats", BuildStats);
+            Unit(body, zoe, "Look", BuildLook);
+            Unit(body, zoe, "Rig", BuildRigUnit);   // no-op (registers nothing) on a non-composite view
+            Unit(body, zoe, "Reactions", BuildReactionsSection);
+            Unit(body, zoe, "AI", BuildAiSection);
+
+            // No enclosing section for these two: the PropertyField's own foldout already carries the name, and
+            // a section titled the same thing over a single field says it twice — so it isn't bar-addressable.
+            body.Add(ZuiSerialized.Property(So.FindProperty("loadout"), "Loadout",
+                "Pluggable weapons + abilities the character can activate; triggered by the brain or by input. Unused today."));
+
+            Unit(body, zoe, "Weapons", BuildWeaponsUnit);
+            Unit(body, zoe, "Cues", BuildCues);
+
+            var bar = new ZuiSectionToggleBar("Zoe", _barUnits.ToArray());
+            barHost.Add(bar);
+            ReserveBarHeight(barHost, bar);
+
+            RunValidators();   // first paint of every warning badge, from the data as it stands right now
+
+            // Keep the scroll position across rebuilds — see the base BuildAsset's own comment for the story.
+            _scroll = scroll;
+            scroll.verticalScroller.valueChanged += _ => { if (!_restoringScroll) _scrollOffset = scroll.scrollOffset; };
+            var wanted = _scrollOffset;
+            scroll.schedule.Execute(() =>
+            {
+                _restoringScroll = true;
+                scroll.scrollOffset = wanted;
+                _restoringScroll = false;
+            });
+        }
+
         // Hand-curated rather than the base's generic loop: maxHealth/invulnerableAfterHit are two short
         // related Stats fields (measured 480px wide each under the generic loop) that read far better sharing
         // one row, and the base has no notion that they belong together.
-        protected override void BuildBody(VisualElement root, Zoe zoe)
+        void BuildIdentity(VisualElement root, Zoe zoe)
         {
-            _validators.Clear();
             var identity = Z.Section("Identity", "What this character is called in-game.");
             identity.Add(Z.Field("Display Name", "The name shown to the player.",
                 Z.TextInput(zoe.displayName, "The name shown to the player.",
                     v => Commit("displayName", p => p.stringValue = v), ScalarFieldWidth)));
             root.Add(identity);
+        }
 
+        void BuildStats(VisualElement root, Zoe zoe)
+        {
             var stats = Z.Section("Stats", "Health, invulnerability window, and which team this character fights for.");
             stats.Add(Z.Row(
                 NumField("Max Health", "maxHealth", zoe.maxHealth,
@@ -685,13 +789,22 @@ namespace Laubrary.Zoetrope.Editor
             BuildSingleAssetRefField(stats, So.FindProperty("faction"), typeof(Faction), "Faction",
                 "Team this character belongs to (drives who can hurt it). None = an unaligned hazard.");
             root.Add(stats);
+        }
 
+        void BuildLook(VisualElement root, Zoe zoe)
+        {
             var look = Z.Section("Look", "How this character is drawn — a plain sprite, a Lauminary-driven animation, a composite body.");
             BuildManagedRef(look, So.FindProperty("view"), "View", zoe);
             root.Add(look);
+        }
 
+        void BuildRigUnit(VisualElement root, Zoe zoe)
+        {
             if (zoe.view is CompositeLauminaryView composite) BuildRig(root, zoe, composite);
+        }
 
+        void BuildReactionsSection(VisualElement root, Zoe zoe)
+        {
             var reactions = Z.Section("Reactions",
                 "What plays when this character is hurt, when it dies, and on any custom event it declares.");
             reactions.Add(Z.Text("Hit", ZuiText.Section, "What happens on a non-killing hit."));
@@ -702,23 +815,20 @@ namespace Laubrary.Zoetrope.Editor
             // thing — same ReactionFx, same editor — and only differ in being raised by a name you choose.
             BuildCustomEvents(reactions, zoe);
             root.Add(reactions);
+        }
 
+        void BuildAiSection(VisualElement root, Zoe zoe)
+        {
             var ai = Z.Section("AI", "Optional decision-making attached at spawn.");
             BuildManagedRef(ai, So.FindProperty("brain"), "Brain", zoe);
             root.Add(ai);
+        }
 
-            // No enclosing section for these two: the PropertyField's own foldout already carries the name, and
-            // a section titled the same thing over a single field says it twice.
-            root.Add(ZuiSerialized.Property(So.FindProperty("loadout"), "Loadout",
-                "Pluggable weapons + abilities the character can activate; triggered by the brain or by input. Unused today."));
-
+        void BuildWeaponsUnit(VisualElement root, Zoe zoe)
+        {
             var weapons = BuildWeaponSlots(root, zoe);
             weapons.Add(IntFieldClamped("Default Active Weapon", "defaultActiveWeapon", zoe.defaultActiveWeapon,
                 "Which weapon slot is enabled when this character spawns.", v => Mathf.Max(0, v)));
-
-            BuildCues(root, zoe);
-
-            RunValidators();   // first paint of every warning badge, from the data as it stands right now
         }
 
         // ── Weapons: each slot names its OWN attach part + muzzle layer ───────────────────────
@@ -925,15 +1035,18 @@ namespace Laubrary.Zoetrope.Editor
         void BuildAnchorRow(VisualElement host, SerializedProperty anchorProp, AttachAnchor anchor)
         {
             var modeProp = anchorProp.FindPropertyRelative("mode");
-            host.Add(EnumPicker(modeProp, "Mode", "Edge = computed automatically from the current sprite " +
-                "bounds, no painting needed. MetaLayer = read from a named painted point."));
+            host.Add(EnumPicker(modeProp, "Mode", "Pivot = the part's own registered origin (its baked sprite " +
+                "pivot) plus Offset — the right default when the artist drew both parts on a shared canvas, " +
+                "since one offset then joins them in every direction and on every clip. Edge = computed from " +
+                "the current sprite bounds, which move when the artwork does. MetaLayer = read from a named " +
+                "painted point, for a joint that genuinely travels inside the picture."));
 
             if (anchor.mode == AttachAnchorMode.Edge)
             {
                 var edgeProp = anchorProp.FindPropertyRelative("edge");
                 host.Add(EnumPicker(edgeProp, "Edge", "Which side of the current sprite's bounds."));
             }
-            else
+            else if (anchor.mode == AttachAnchorMode.MetaLayer)
             {
                 var layerProp = anchorProp.FindPropertyRelative("metaLayerId");
                 host.Add(Z.Field("MetaLayer Id", "The painted point's layer id (e.g. \"Waist\").",
@@ -1118,11 +1231,15 @@ namespace Laubrary.Zoetrope.Editor
         {
             if (spr == null) return anchor.offset;
 
-            if (anchor.mode == AttachAnchorMode.MetaLayer && !string.IsNullOrEmpty(anchor.metaLayerId) && anim?.metaLayers != null)
+            // Sprite.bounds is already pivot-centred, so the part's registered origin IS local (0,0).
+            if (anchor.mode == AttachAnchorMode.Pivot) return anchor.offset;
+
+            if (anchor.mode == AttachAnchorMode.MetaLayer)
             {
                 MetaLayer layer = null;
-                foreach (var L in anim.metaLayers)
-                    if (L != null && string.Equals(L.id, anchor.metaLayerId, StringComparison.OrdinalIgnoreCase)) { layer = L; break; }
+                if (!string.IsNullOrEmpty(anchor.metaLayerId) && anim?.metaLayers != null)
+                    foreach (var L in anim.metaLayers)
+                        if (L != null && string.Equals(L.id, anchor.metaLayerId, StringComparison.OrdinalIgnoreCase)) { layer = L; break; }
                 if (layer != null && layer.frames != null && frameIndex >= 0 && frameIndex < layer.frames.Count
                     && RigTryComputeCentroid(layer.frames[frameIndex], out double nx, out double ny))
                 {
@@ -1133,7 +1250,11 @@ namespace Laubrary.Zoetrope.Editor
                     float ppu = spr.pixelsPerUnit <= 0f ? 16f : spr.pixelsPerUnit;
                     return new Vector2((spx - pivotPx.x) / ppu, (spy - pivotPx.y) / ppu) + anchor.offset;
                 }
-                // Nothing painted this frame — degrade to Edge/Center, same rule the runtime resolver follows.
+                // Nothing painted this frame — degrade to the part's own origin, NOT to a bounds edge, which is
+                // the rule the runtime resolver follows (see CompositeZonedPlayer.ResolveAnchor). A bounds edge
+                // is a different reference frame entirely, so degrading to one made the schematic disagree with
+                // what actually rendered.
+                return anchor.offset;
             }
 
             var b = spr.bounds;

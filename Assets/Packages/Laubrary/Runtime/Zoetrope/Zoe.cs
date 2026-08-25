@@ -10,7 +10,7 @@ namespace Laubrary.Zoetrope
     /// ZonedLauminaryView, a Lazor shape) and effects (a Pyre blast + Chunks debris) from whatever bridge modules it includes.
     /// A small portable data asset; the runtime is assembled by <see cref="ZoeSpawner.SpawnCharacter"/>.
     [CreateAssetMenu(menuName = "Laubrary/Zoetrope/Zoe", fileName = "Zoe")]
-    public class Zoe : ScriptableObject, Laubrary.PreviewKit.IVisualPreview
+    public partial class Zoe : ScriptableObject, Laubrary.PreviewKit.IVisualPreview
     {
         [Header("Identity")]
         public string displayName = "New Zoe";

@@ -25,7 +25,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.45714286}
       transform:
         flipX: 0
         flipY: 0
@@ -41,7 +41,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.45714286}
       transform:
         flipX: 0
         flipY: 0
@@ -57,7 +57,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.45714286}
       transform:
         flipX: 0
         flipY: 0
@@ -73,7 +73,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.45714286}
       transform:
         flipX: 0
         flipY: 0
@@ -89,7 +89,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.45714286}
       transform:
         flipX: 0
         flipY: 0
@@ -105,7 +105,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.45714286}
       transform:
         flipX: 0
         flipY: 0
@@ -121,7 +121,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.45714286}
       transform:
         flipX: 0
         flipY: 0
@@ -137,7 +137,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.45714286}
       transform:
         flipX: 0
         flipY: 0
@@ -184,7 +184,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -200,7 +200,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -216,7 +216,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -232,7 +232,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -248,7 +248,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -264,7 +264,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -280,7 +280,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -296,7 +296,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -343,7 +343,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -359,7 +359,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -375,7 +375,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -391,7 +391,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -407,7 +407,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -423,7 +423,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -439,7 +439,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0
@@ -455,7 +455,7 @@ MonoBehaviour:
         y: 0
         width: 46
         height: 35
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0.5, y: 0.4857143}
       transform:
         flipX: 0
         flipY: 0

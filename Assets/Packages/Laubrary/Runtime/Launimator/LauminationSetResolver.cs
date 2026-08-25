@@ -218,8 +218,12 @@ namespace Laubrary.Launimator
             if (set.mirrorBuiltIn && !anyIn180Plus && angleDeg > 180f)
             {
                 // The angle is in the mirrored half. Find the equivalent angle in the authored
-                // half (180° wrap) and re-search.
-                float mirroredAngle = angleDeg - 180f;
+                // half and re-search. Mirroring is reflection about the VERTICAL axis, not a
+                // 180° rotation: in this file's convention (0° = up, increasing clockwise), a
+                // direction θ mirrors to 360° − θ (e.g. 90°/East ↔ 270°/West, 315°/NW ↔ 45°/NE),
+                // not θ ± 180° (which would be the OPPOSITE direction, e.g. North ↔ South). The
+                // transform is its own inverse, so the same formula undoes it below.
+                float mirroredAngle = 360f - angleDeg;
                 LauminationSetMember mirroredBest = null;
                 float mirroredBestDelta = float.MaxValue;
                 for (int i = 0; i < set.members.Count; i++)
@@ -233,7 +237,7 @@ namespace Laubrary.Launimator
                 if (mirroredBest != null)
                 {
                     mirrored = true;
-                    resolvedAngle = mirroredBest.angleDegrees + 180f; // for change-detection on caller side
+                    resolvedAngle = 360f - mirroredBest.angleDegrees; // inverse of the mirror above; for change-detection on caller side
                     return mirroredBest;
                 }
             }

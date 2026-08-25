@@ -167,14 +167,15 @@ namespace Laubrary.ZoeCharacter.Tests
         [Test]
         public void Members_Mirrored9_AngleInMirroredHalf_PicksMirrorMember_Flips()
         {
-            // 202.5° is in the mirrored half; mirrored target = 22.5°; nearest authored = UUR.
-            // The resolver returns the PICKED member's name (UUR) and a flipX flag. The visual
-            // mirror (UUL on screen) is produced by the runtime applying flipX to UUR — the
-            // resolver itself only emits data.
+            // Mirroring is reflection about the VERTICAL axis (0° = up, clockwise): θ mirrors to
+            // 360° − θ, not θ − 180°. 202.5° is in the mirrored half; mirrored target =
+            // 360 − 202.5 = 157.5° → nearest authored = DDR. The resolver returns the PICKED
+            // member's name (DDR) and a flipX flag. The visual mirror (DDL on screen) is produced
+            // by the runtime applying flipX to DDR — the resolver itself only emits data.
             var set = BuildMirrored9Set();
             var r = LauminationSetResolver.Resolve(set, 202.5f);
             Assert.IsTrue(r.FlipX, "202.5° is in the mirrored half, must flip");
-            Assert.AreEqual("UUR", r.Laumination.name, "picked member is the authored one, not the visual mirror");
+            Assert.AreEqual("DDR", r.Laumination.name, "picked member is the authored one, not the visual mirror");
         }
 
         [Test]
@@ -193,12 +194,12 @@ namespace Laubrary.ZoeCharacter.Tests
         {
             var set = BuildMirrored9Set();
             var r = LauminationSetResolver.Resolve(set, 180.1f);
-            // 180.1° is in the mirrored half; mirrored search runs against 0..180 with target 0.1°.
-            // Up (0°) and Down (180°) are EQUIDISTANT (0.1° each). First-match-wins picks Up because
-            // it comes earlier in the authored list. The C# resolver and node verifier agree on this
-            // tiebreak. Visually the player facing Up vs Down (both unflippable on the mirror axis)
-            // is only distinguishable by the flipX flag — the test verifies the flag, not the name.
+            // 180.1° is in the mirrored half; mirrored target = 360 − 180.1 = 179.9°, which is
+            // nearest to Down (180°, delta 0.1°) — not Up. Visually the player facing Down (on
+            // the mirror axis, unflippable either way) is only distinguishable by the flipX flag —
+            // the test verifies the flag, not the name.
             Assert.IsTrue(r.FlipX, "180.1° is in the mirrored half, must flip");
+            Assert.AreEqual("Down", r.Laumination.name);
         }
 
         [Test]
@@ -222,23 +223,55 @@ namespace Laubrary.ZoeCharacter.Tests
         }
 
         [Test]
-        public void Members_Mirrored9_AngleAt359_PicksMirrorOf179()
+        public void Members_Mirrored9_AngleAt359_PicksMirrorOf1()
         {
-            // 359° is in the mirrored half; mirrored target = 179°; nearest = Down (180°, delta 1°).
-            // Mirror of Down = Down (Down sits on the mirror axis). Visually no different from Down
-            // unmirrored; the resolver still emits flipX=true so the runtime sees the symmetry.
+            // 359° is in the mirrored half; mirrored target = 360 − 359 = 1°; nearest = Up (0°,
+            // delta 1°). 359° sits just west of Up (a near-North-North-West direction), so its
+            // vertical-axis mirror is just east of Up — Up itself is by far the nearest authored
+            // member, not Down (which is 179° away).
             var set = BuildMirrored9Set();
             var r = LauminationSetResolver.Resolve(set, 359f);
             Assert.IsTrue(r.FlipX);
-            Assert.AreEqual("Down", r.Laumination.name);
+            Assert.AreEqual("Up", r.Laumination.name);
         }
 
         [Test]
         public void Members_Mirrored9_NegativeAngleWrapsAndMirrors()
         {
-            // -22.5° wraps to 337.5°; mirrored target = 157.5°; nearest = DDR (157.5°).
+            // -22.5° wraps to 337.5° (just west of Up, i.e. UUL territory); mirrored target =
+            // 360 − 337.5 = 22.5°; nearest authored = UUR (22.5°) — the correct mirror of "just
+            // west of Up" is "just east of Up", not the unrelated DDR direction.
             var set = BuildMirrored9Set();
             var r = LauminationSetResolver.Resolve(set, -22.5f);
+            Assert.IsTrue(r.FlipX);
+            Assert.AreEqual("UUR", r.Laumination.name);
+        }
+
+        [Test]
+        public void Members_Mirrored9_AngleAt320_MirrorsToNorthSide_NotSouthSide()
+        {
+            // Regression test for the θ − 180° mirror bug: 320° is North-North-West (40° short of
+            // Up going the long way round through West). Its correct vertical-axis mirror sits on
+            // the NORTH side (target = 360 − 320 = 40° → nearest authored = UR, 45°). The old,
+            // buggy θ − 180° formula computed a target of 140° instead and picked DR (135°) — a
+            // SOUTH-side member — which is why walking north-west used to play the south walk cycle.
+            var set = BuildMirrored9Set();
+            var r = LauminationSetResolver.Resolve(set, 320f);
+            Assert.IsTrue(r.FlipX);
+            Assert.AreEqual("UR", r.Laumination.name);
+        }
+
+        [Test]
+        public void Members_Mirrored9_AngleAt210_MirrorsToSouthSide_NotNorthSide()
+        {
+            // Regression test for the θ − 180° mirror bug: 210° is South-South-West (30° into the
+            // mirrored half past Down). Its correct vertical-axis mirror sits on the SOUTH side
+            // (target = 360 − 210 = 150° → nearest authored = DDR, 157.5°). The old, buggy
+            // θ − 180° formula computed a target of 30° instead and picked UUR (22.5°) — a
+            // NORTH-side member — the same class of error that misplayed the N walk cycle for
+            // south-west-facing directions.
+            var set = BuildMirrored9Set();
+            var r = LauminationSetResolver.Resolve(set, 210f);
             Assert.IsTrue(r.FlipX);
             Assert.AreEqual("DDR", r.Laumination.name);
         }
@@ -309,10 +342,10 @@ namespace Laubrary.ZoeCharacter.Tests
         public void NegativeAngle_WrapsToPositive()
         {
             var set = BuildMirrored9Set();
-            // -22.5° wraps to 337.5°; mirrored half; target = 157.5°; nearest authored = DDR.
+            // -22.5° wraps to 337.5°; mirrored half; target = 360 − 337.5 = 22.5°; nearest authored = UUR.
             var r = LauminationSetResolver.Resolve(set, -22.5f);
             Assert.IsTrue(r.FlipX);
-            Assert.AreEqual("DDR", r.Laumination.name);
+            Assert.AreEqual("UUR", r.Laumination.name);
         }
 
         [Test]

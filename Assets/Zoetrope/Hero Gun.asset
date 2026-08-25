@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Hero Gun
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Zoetrope::Laubrary.Zoetrope.WeaponDef
   displayName: Hero Gun
+  automatic: 0
   fireRate: 6
   damage: 10
   projectileSpeed: 12
@@ -22,15 +23,15 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 90fb17f480489cc4fb40e04b2109be29, type: 2}
   muzzle:
     rid: 1452078146085191871
-  muzzleLayerId: Muzzle
   muzzleOffset: {x: 0.5, y: 0}
+  fireZoundName: 
   references:
     version: 2
     RefIds:
     - rid: 1452078146085191871
       type: {class: PyreChunksFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
       data:
-        blast: {fileID: 11400000, guid: e2ef9e4a117bae444bfb6d680f926210, type: 2}
+        blast: {fileID: 11400000, guid: b3e94ba87271dd14db73846e7f970ed7, type: 2}
         blastFps: 24
         chunks: {fileID: 0}
         sortingOrder: 10

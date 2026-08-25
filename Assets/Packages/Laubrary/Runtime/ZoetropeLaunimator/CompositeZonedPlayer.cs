@@ -102,17 +102,32 @@ namespace Laubrary.ZoetropeLaunimator
         }
 
         /// <summary>Resolve one side of a connection to a world-space point on <paramref name="partGo"/>'s
-        /// CURRENT frame. MetaLayer mode degrades to Edge mode when the named layer has nothing painted on the
-        /// current frame (or is unset) — a quiet frame gets a still-sensible point instead of freezing at the
-        /// last valid one, matching the "optional capability, graceful no-op" rule the rest of this codebase
-        /// follows.</summary>
+        /// CURRENT frame.
+        ///
+        /// MetaLayer mode degrades in two steps, and NEVER to a bounds edge. First to the nearest painted
+        /// frame (a quiet frame in an otherwise-painted layer is a gap, not a different joint), then to the
+        /// part's own registered origin — with a one-time warning naming the part and the layer. It used to
+        /// fall through to <c>switch (anchor.edge)</c>, which silently swapped the reference frame from "the
+        /// painted joint" to "the top of whatever box this clip happened to bake into": a per-clip constant,
+        /// so the torso visibly jumped when the legs changed gait, with nothing in the console to say why, and
+        /// with <c>edge</c> not even editable in the UI while the mode is MetaLayer. That is a configuration
+        /// error wearing a plausible disguise; failing loudly and landing on the origin is both cheaper to
+        /// debug and closer to right.</summary>
         static Vector3 ResolveAnchor(GameObject partGo, AttachAnchor anchor)
         {
-            if (anchor.mode == AttachAnchorMode.MetaLayer && !string.IsNullOrEmpty(anchor.metaLayerId))
+            if (anchor.mode == AttachAnchorMode.Pivot)
+                return partGo.transform.position + (Vector3)anchor.offset;
+
+            if (anchor.mode == AttachAnchorMode.MetaLayer)
             {
-                var player = partGo.GetComponent<ZonedAnimationPlayer>();
-                if (player != null && player.TryGetMetaPoint(anchor.metaLayerId, out var worldPos, out _))
-                    return worldPos + (Vector3)anchor.offset;
+                if (!string.IsNullOrEmpty(anchor.metaLayerId))
+                {
+                    var player = partGo.GetComponent<ZonedAnimationPlayer>();
+                    if (player != null && player.TryGetMetaPointNearest(anchor.metaLayerId, out var worldPos, out _))
+                        return worldPos + (Vector3)anchor.offset;
+                }
+                WarnOnce(partGo, anchor.metaLayerId);
+                return partGo.transform.position + (Vector3)anchor.offset;
             }
 
             var sr = partGo.GetComponent<SpriteRenderer>();
@@ -129,6 +144,23 @@ namespace Laubrary.ZoetropeLaunimator
                 default: basePoint = b.center; break;
             }
             return basePoint + (Vector3)anchor.offset;
+        }
+
+        // One warning per (part, layer), not per frame — LateUpdate would otherwise emit this 60x a second and
+        // bury the console. Static because the misconfiguration is in the Zoe's data, so every instance of
+        // that Zoe would repeat the identical message.
+        static readonly HashSet<string> _warned = new HashSet<string>();
+
+        static void WarnOnce(GameObject partGo, string layerId)
+        {
+            string key = partGo.name + "|" + layerId;
+            if (!_warned.Add(key)) return;
+            Debug.LogWarning(
+                $"CompositeZonedPlayer: part '{partGo.name}' anchors on MetaLayer " +
+                $"'{(string.IsNullOrEmpty(layerId) ? "<unset>" : layerId)}', but that layer has no painted point on " +
+                "any frame of its current animation. Falling back to the part's own origin, so the join will be " +
+                "off by however far the joint sits from it. Paint the layer, or switch this anchor to Pivot.",
+                partGo);
         }
 
         /// <summary>The named part's ZonedAnimationPlayer, or null if that part's view didn't build one (a

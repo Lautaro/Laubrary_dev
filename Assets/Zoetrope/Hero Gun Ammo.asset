@@ -17,7 +17,7 @@ MonoBehaviour:
   scale: 1
   spin: 0
   spinSpeed: 360
-  faceTravel: 0
+  faceTravel: 1
   lifetime: 3
   pierce: 0
   motion:

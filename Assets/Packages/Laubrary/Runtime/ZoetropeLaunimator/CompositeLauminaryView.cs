@@ -13,6 +13,13 @@ namespace Laubrary.ZoetropeLaunimator
         /// Read from a named, per-frame painted MetaLayer point — for content that genuinely shifts through
         /// the animation (e.g. a walk cycle's weight shift), where a fixed edge isn't enough.
         MetaLayer,
+        /// The part's own REGISTERED ORIGIN (its baked sprite pivot), plus <see cref="AttachAnchor.offset"/>.
+        /// The right default for two sheets an artist drew on a shared canvas: registration then belongs to
+        /// the sprite, so one authored offset joins the parts in EVERY direction and on EVERY clip at once.
+        /// Unlike <see cref="Edge"/> it does not move when the artwork's content bounds change — which is what
+        /// made a composite's torso jump the moment the legs switched from an idle sheet to a walk sheet, since
+        /// each clip is baked into its own content-sized box.
+        Pivot,
     }
 
     /// <summary>Which side of a part's current sprite bounds an <see cref="AttachAnchorMode.Edge"/> anchor
@@ -23,8 +30,9 @@ namespace Laubrary.ZoetropeLaunimator
     /// One side of a connection between two composite body parts — where, on THAT part's current frame, the
     /// attach point sits. Two of these (one per side) plus a shared connection form the whole attach
     /// definition; see <see cref="ZoeBodyPart.parentAnchor"/>/<see cref="ZoeBodyPart.childAnchor"/>. "Static"
-    /// attachment is not a separate mode — it's simply <see cref="AttachAnchorMode.Edge"/> with <see
-    /// cref="offset"/> left at its default, since Edge mode already needs no per-frame painting.
+    /// attachment is not a separate mode — it's simply <see cref="AttachAnchorMode.Pivot"/> with <see
+    /// cref="offset"/> carrying the join, since Pivot mode needs no per-frame painting and, unlike Edge, does
+    /// not drift when the art's content bounds change from clip to clip.
     /// </summary>
     [System.Serializable]
     public class AttachAnchor

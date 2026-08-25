@@ -235,6 +235,15 @@ namespace Laubrary.Launimator.Editor
         private Label _metaParamLabel;
         private TextField _metaParamField;
 
+        // ── section toggle bar (T-0084) ───────────────────────────────────────
+        // See the scope note above BuildUI for WHICH panels this addresses and why the other steps stay
+        // out of it. The roster is rebuilt from scratch every time the barred hosts are (re)built — by
+        // BuildUI on a full rebuild AND by Refresh() on its lighter in-place rebuild, since Refresh()
+        // replaces the ZuiSection instances those hosts contain (see RebuildBar's own comment).
+        private readonly List<(string label, ZuiSection section)> _barUnits = new List<(string label, ZuiSection section)>();
+        private VisualElement _barHost;
+        private float _barReservedW, _barReservedH;
+
         [MenuItem("Laubrary/Laumination Builder")]
         public static void Open()
         {
@@ -398,6 +407,7 @@ namespace Laubrary.Launimator.Editor
         protected override void OnBeforeRebuild()
         {
             _bannerHost = _topHost = _leftControlsHost = _paletteHost = _animHost = null;
+            _barHost = null;
             _leftPane = _splitRow = null;
             _statusLabel = null;
             _canvasIM = _regCanvasIM = _paletteGridIM = _playIM = _seqStripIM = _zoneBarIM = null;
@@ -450,6 +460,48 @@ namespace Laubrary.Launimator.Editor
 
             if (_sheet == null) { root.Add(_statusLabel); return; }
 
+            // T-0084 — section toggle bar. Added FIRST (empty) and filled LAST once every candidate section
+            // below exists, mirroring Pyre's/Chunks' placement at the very top of the per-content UI. It
+            // sits AFTER the sheet-null return rather than above the banner/step-1 area, because every entry
+            // this bar can ever address only exists once a sheet is bound — with no sheet loaded there is
+            // nothing yet to declutter, so no empty bar row shows in that state.
+            //
+            // SCOPE (investigated, not guessed — see the per-method comments this points at): this window's
+            // five numbered steps (1 Sheet, 2 Identify Sprites, 3 Canvas, 4 Sprite Palette, 5 Animation) are a
+            // SEQUENTIAL, load-bearing pipeline, unlike Pyre/Chunks' independent parallel dial sections — and
+            // three of its five steps (3 Canvas, and the palette-grid/registration-stage/play-area/sequence-
+            // strip surfaces embedded in 4 and 5) are the bespoke IMGUI islands this file's own class comment
+            // calls out as "must not regress": the tool's actual click/drag editing surfaces, not settings
+            // that merely configure them. Hiding one of those would make the step it belongs to unusable, so
+            // per the brief's own rule ("if in doubt, err toward excluding a primary-canvas panel"), none of
+            // them — nor the numbered headers that introduce them — join this bar; they stay exactly as they
+            // were, always visible, never wrapped in a Section.
+            //
+            // What DOES join: step 2's whole settings panel (BuildRegionGridUI — its canvas lives OUTSIDE it,
+            // added as a separate sibling by this method, so hiding it never hides anything you drag on), plus
+            // four control-only sub-panels nested one level inside steps 4/5 that are ALREADY structurally
+            // separated from their step's own canvas (BuildPaletteSection puts its registration canvas in one
+            // column and BuildRegistrationControls/BuildSelectedCellControls in a sibling column;
+            // BuildAnimationSection puts its play-area/sequence-strip canvases as plain siblings and
+            // BuildAnimationTools/BuildMetaLayersPanel in a sibling column) — Registration, Selected Sprite,
+            // Playback & Frames, Meta Layers, and Frame Events (BuildEvents, already a Z.Box — promoted to a
+            // Z.Section here). These five are true "dial" panels in the Pyre/Chunks sense: real settings/tool
+            // groups that can be tucked away without losing sight of the actual editing surface they configure.
+            // Because they are still built FROM WITHIN their step's own BuildPaletteSection/BuildAnimationSection
+            // rather than directly from BuildUI, Unit() is called at THEIR call sites (inside those methods)
+            // instead of here — it only needs the immediate parent container, so the extra nesting is transparent
+            // to it. BuildSaveRow (a save button, not a settings group — matches the brief's own "a save-row is
+            // not a good candidate" example) and BuildBindingBanner (one contextual sentence, nothing to hide)
+            // are deliberately left out for the same reason. BuildTopSection/BuildSheetSection (step 1) stay out
+            // too: BuildTopSection lives in the LauminationBuilderWindow.Browser.cs partial, outside this file's
+            // ownership for this pass, and its own layout (a collapse toggle plus a conditional two-column
+            // sheet/browser split) isn't a single clean block to wrap without touching that file.
+            _barHost = new VisualElement();
+            _barHost.style.flexShrink = 0f;
+            if (_barReservedH > 0f) _barHost.style.minHeight = _barReservedH;
+            root.Add(_barHost);
+            _barUnits.Clear();
+
             _splitRow = new VisualElement();
             _splitRow.style.flexDirection = FlexDirection.Row;
             _splitRow.style.flexGrow = 1f;
@@ -468,7 +520,7 @@ namespace Laubrary.Launimator.Editor
                 leftScroll.style.minHeight = 0f;
 
                 _leftControlsHost = new VisualElement();
-                BuildRegionGridUI(_leftControlsHost);
+                Unit(_leftControlsHost, "Identify Sprites", BuildRegionGridUI);
                 leftScroll.contentContainer.Add(_leftControlsHost);
 
                 _canvasIM = new IMGUIContainer(DrawCanvasGUI)
@@ -504,6 +556,8 @@ namespace Laubrary.Launimator.Editor
             _splitRow.Add(rightPane);
 
             root.Add(_statusLabel);
+
+            RebuildBar();
         }
 
         /// Keep the canvas viewport proportional as the window resizes (it was position.height-derived).
@@ -535,11 +589,69 @@ namespace Laubrary.Launimator.Editor
             if ((_sheet != null) != (_splitRow != null)) { Rebuild(); return; }
             _bannerHost.Clear(); BuildBindingBanner(_bannerHost);
             _topHost.Clear(); BuildTopSection(_topHost);
-            if (_leftControlsHost != null) { _leftControlsHost.Clear(); BuildRegionGridUI(_leftControlsHost); }
+            // T-0084 — every barred host is rebuilt here too, so _barUnits (and the bar itself, via
+            // RebuildBar below) stay in sync: this replaces the ZuiSection instances those hosts contain,
+            // and the bar can't be left pointing at now-detached ones. See RebuildBar's comment.
+            _barUnits.Clear();
+            if (_leftControlsHost != null) { _leftControlsHost.Clear(); Unit(_leftControlsHost, "Identify Sprites", BuildRegionGridUI); }
             if (_paletteHost != null) { _paletteHost.Clear(); BuildPaletteSection(_paletteHost); }
             if (_animHost != null) { _animHost.Clear(); BuildAnimationSection(_animHost); }
+            RebuildBar();
             SetStatus(_status);
             Dirty();
+        }
+
+        // ── section toggle bar helpers (T-0084) ─────────────────────────────────
+        /// Run one section builder and register whatever top-level ZuiSection it added under `label`, so the
+        /// toggle bar can address it — same idiom as ChunkWindow.Unit, adapted to this window's builders
+        /// (which take only a VisualElement, not a per-asset argument). `body` is the IMMEDIATE parent the
+        /// builder adds into; it does not need to be a direct child of BuildUI's root — several of this
+        /// window's candidate sections are built one level deeper, from inside BuildPaletteSection/
+        /// BuildAnimationSection (see the scope comment in BuildUI), and Unit() doesn't care either way.
+        private void Unit(VisualElement body, string label, System.Action<VisualElement> build)
+        {
+            int before = body.childCount;
+            build(body);
+            for (int i = before; i < body.childCount; i++)
+                if (body[i] is ZuiSection sec) { _barUnits.Add((label, sec)); return; }
+        }
+
+        /// (Re)build the toggle-bar host from the CURRENT `_barUnits` roster. Called at the end of BOTH
+        /// BuildUI and Refresh() — unlike Pyre/Chunks, whose bar is only ever (re)built by one monolithic
+        /// BuildAsset, this window ALSO rebuilds its barred hosts in place via Refresh() (any structural
+        /// edit: selection, add/remove layer, mode switch), which replaces their ZuiSection instances. Safe
+        /// to recreate on every call: a ZuiSection's open/closed state lives in a STATIC dictionary keyed by
+        /// its stateKey (ZuiSection.cs), so a fresh instance reads the same fold state right back — nothing
+        /// visibly flips. The one cost: ZuiSectionToggleBar's SOLO set is an instance field, not persisted,
+        /// so recreating the bar drops any active solo the moment a structural edit fires Refresh(). Disclosed
+        /// trade-off, not fixed here — ZuiSectionToggleBar.cs is shared chrome this task must not modify, and
+        /// the Sections/Toggle-Bar MODE choice plus every section's own shown/hidden state are unaffected
+        /// (mode is EditorPrefs-backed, shown/hidden is the same static IsOpen dictionary).
+        private void RebuildBar()
+        {
+            if (_barHost == null) return;
+            _barHost.Clear();
+            if (_barUnits.Count == 0) return;
+            var bar = new ZuiSectionToggleBar("Launimator", _barUnits.ToArray());
+            _barHost.Add(bar);
+            ReserveBarHeight(_barHost, bar);
+        }
+
+        /// Stable-workspace rule: chrome ABOVE the workspace must never change the geometry of what is below
+        /// it. Copied verbatim from ChunkWindow.ReserveBarHeight (generic — no Chunks-specific logic): pins
+        /// the bar host's minHeight to the tallest height the bar has ever measured at the current width, so
+        /// a Sections↔Toggle Bar mode switch (or a solo) can never jump the whole window under the user.
+        private void ReserveBarHeight(VisualElement barHost, VisualElement bar)
+        {
+            bar.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                float w = bar.resolvedStyle.width, h = bar.resolvedStyle.height;
+                if (float.IsNaN(w) || float.IsNaN(h) || h <= 0f) return;
+                if (Mathf.Abs(w - _barReservedW) > 0.5f) { _barReservedW = w; _barReservedH = 0f; }
+                if (h <= _barReservedH + 0.5f) return;
+                _barReservedH = h;
+                barHost.style.minHeight = h;
+            });
         }
 
         /// Show a one-line result/explanation without rebuilding anything.
@@ -667,12 +779,18 @@ namespace Laubrary.Launimator.Editor
         // ── 2 · region grid UI (mode-gated) ──────────────────────────────────
         private void BuildRegionGridUI(VisualElement root)
         {
-            root.Add(Z.Text("2 · Identify Sprites", ZuiText.Section,
-                "How the canvas marquee becomes sprite cells."));
+            // T-0084 — a real Z.Section (was a plain "2 ·" text heading) so this step can join the toggle
+            // bar; the numbering stays IN the title so the 1..5 sequence still reads even though this is now
+            // the only step whose header is a Section instead of plain text (see BuildUI's scope comment for
+            // why steps 1/3/4/5's own headers are untouched). The canvas this step feeds is a SEPARATE
+            // sibling added by BuildUI, not a child of `s` — hiding this section only hides the settings that
+            // configure a marquee, never the canvas you drag one on.
+            var s = Z.Section("2 · Identify Sprites", "How the canvas marquee becomes sprite cells.",
+                "launimator.identify");
 
             // Mode goes INSIDE step 2 now, as its first row — it is the choice everything below depends on,
             // and the rows that follow are mode-gated, so it belongs at the top of what it governs.
-            if (!_leftCollapsed) BuildModeBar(root);
+            if (!_leftCollapsed) BuildModeBar(s);
 
             if (_toolMode == ToolMode.Grid)
             {
@@ -706,7 +824,7 @@ namespace Laubrary.Launimator.Editor
                 gridRow.Add(Z.Field("Pad", "Shrink px INSIDE each cell.",
                     Z.Int(_padding, "Shrink px INSIDE each cell.",
                         v => { _padding = Mathf.Max(0, v); RefreshBoxDependentLabels(); Dirty(); }, 52f)));
-                root.Add(gridRow);
+                s.Add(gridRow);
             }
 
             // Shared: ppu + pivot.
@@ -725,7 +843,7 @@ namespace Laubrary.Launimator.Editor
                 pivotRow.Add(Z.Vector2Field("Custom pivot", () => _customPivot, v => _customPivot = v, this,
                     new ZuiValue2DControl.Options().WithRange(0f, 1f, 0f, 1f).WithPlotSize(64f),
                     "Where the pivot sits inside each cell (0..1, y bottom-up).", Dirty));
-            root.Add(pivotRow);
+            s.Add(pivotRow);
 
             // ONE "what counts as content" row: alpha trimming, the alpha threshold, and the background-colour
             // key are all the same question asked three ways, and they were three stacked rows. Wrapping means
@@ -752,7 +870,7 @@ namespace Laubrary.Launimator.Editor
             contentRow.Add(Z.Button(_pickingBgColor ? "Click sheet…" : "Pick ☉",
                 "Eyedropper: click a background pixel on the canvas to set the colour.",
                 () => { _pickingBgColor = !_pickingBgColor; if (_pickingBgColor) _bgKeyEnabled = true; Refresh(); }));
-            root.Add(contentRow);
+            s.Add(contentRow);
 
             if (_toolMode == ToolMode.Grid)
             {
@@ -787,17 +905,22 @@ namespace Laubrary.Launimator.Editor
                         () => { _hasBox = false; _box = default; Refresh(); }).W(74f),
                     _addRegionButton);
                 boxRow.SetEnabled(_hasBox);
-                root.Add(boxRow);
+                s.Add(boxRow);
             }
 
             // Zoom row (shared).
-            root.Add(WrapRow(
+            s.Add(WrapRow(
                 Z.Field("Zoom", "Canvas magnification (source pixels × zoom).",
                     Z.Slider(_zoom, 0.5f, 8f, "Canvas magnification (source pixels × zoom).",
                         v => { _zoom = v; Dirty(); }, 150f)),
                 Z.Button("Fit", "Re-fit the sheet to the canvas viewport.",
                     () => { _zoomInitialized = false; Refresh(); }).W(40f)));
 
+            root.Add(s);
+
+            // The "3 · Canvas" header stays OUTSIDE the section (a plain sibling, exactly as before) — the
+            // canvas it introduces is itself a sibling added by BuildUI, so this label must never disappear
+            // along with step 2's settings when the bar hides them.
             root.Add(Z.Text(
                 _pickingBgColor ? "3 · Canvas — click a background pixel to set the transparent colour"
                 : _toolMode == ToolMode.Grid ? "3 · Canvas — drag to marquee; drag interior/edges to move/resize"
@@ -1118,8 +1241,12 @@ namespace Laubrary.Launimator.Editor
             toolsCol.style.flexGrow = 1f;
             toolsCol.style.minWidth = 240f;
             toolsCol.style.marginLeft = 4f;
-            BuildRegistrationControls(toolsCol);
-            BuildSelectedCellControls(toolsCol);
+            // T-0084 — these two are structurally separate from the registration CANVAS above (it lives in
+            // `previewCol`, a sibling column, not in `toolsCol`), so promoting them to their own Sections and
+            // registering them on the toggle bar never risks hiding the thing you actually drag on. See
+            // BuildUI's scope comment for the full reasoning.
+            Unit(toolsCol, "Registration", BuildRegistrationControls);
+            Unit(toolsCol, "Selected Sprite", BuildSelectedCellControls);
             row.Add(toolsCol);
         }
 
@@ -1312,11 +1439,19 @@ namespace Laubrary.Launimator.Editor
 
         private void BuildSelectedCellControls(VisualElement root)
         {
+            // T-0084 — a real Z.Section wraps this whole panel (was raw content with no heading of its own),
+            // so it can join the toggle bar. Every exit path (including "nothing selected") adds to `s`, so
+            // the bar's Unit() scan always finds exactly one Section here regardless of selection state.
+            var s = Z.Section("Selected Sprite",
+                "Nudge, transform and manage whichever sprite(s) are selected in the palette above.",
+                "launimator.selectedSprite");
+
             var sel = SelectedCells();
             if (sel.Count == 0)
             {
-                root.Add(Z.Text("Select a sprite to nudge its registration (Ctrl/Shift-click for several).",
+                s.Add(Z.Text("Select a sprite to nudge its registration (Ctrl/Shift-click for several).",
                     ZuiText.Subtle, "Nothing is selected in the palette above."));
+                root.Add(s);
                 return;
             }
             bool multi = sel.Count > 1;
@@ -1324,7 +1459,7 @@ namespace Laubrary.Launimator.Editor
             string selLabel = multi
                 ? $"{sel.Count} selected"
                 : $"Sel {_regions[_selRegion].cells[_selCell].width:0}×{_regions[_selRegion].cells[_selCell].height:0}px";
-            root.Add(WrapRow(
+            s.Add(WrapRow(
                 Z.Text(selLabel, ZuiText.Small, "What the buttons on this row act on.").W(86f),
                 Z.Button("←", "Nudge the registration one source pixel left.", () => { NudgeSelectedPivot(-1, 0); Dirty(); }).W(24f),
                 Z.Button("→", "Nudge the registration one source pixel right.", () => { NudgeSelectedPivot(1, 0); Dirty(); }).W(24f),
@@ -1335,7 +1470,7 @@ namespace Laubrary.Launimator.Editor
                 Z.Button("Head", "Set pivot to content top-center (align heads — handy for climbing/hanging).",
                     () => { TopCenterSelected(); Dirty(); }).W(48f)));
 
-            root.Add(WrapRow(
+            s.Add(WrapRow(
                 Z.Button(multi ? $"Add {sel.Count} → seq" : "Add → seq",
                     "Append the selected sprite(s) to the animation sequence.",
                     () => { AddSelectedToSequence(); Refresh(); }).W(96f),
@@ -1350,7 +1485,7 @@ namespace Laubrary.Launimator.Editor
 
             // ── per-sprite EDIT (flip / rotate / squash-stretch) — baked into the frame ──────────────
             var prim = _regions[_selRegion].transforms.Count > _selCell ? _regions[_selRegion].transforms[_selCell] : CellTransform.Identity;
-            root.Add(WrapRow(
+            s.Add(WrapRow(
                 Z.Text("Edit", ZuiText.Small, "Lossless per-sprite edits, baked into the frame.").W(30f),
                 Z.Button("Flip H", "Mirror horizontally (lossless).",
                     () => { MutateSelectedTransforms(t => { t.flipX = !t.flipX; return t; }); Dirty(); }).W(48f),
@@ -1363,7 +1498,7 @@ namespace Laubrary.Launimator.Editor
                 Z.Button("Reset", "Clear all edits on the selected sprite(s).",
                     () => { MutateSelectedTransforms(_ => CellTransform.Identity); Refresh(); }).W(48f)));
 
-            root.Add(WrapRow(
+            s.Add(WrapRow(
                 Z.Text("Rot°", ZuiText.Small, "Arbitrary rotation (degrees, CCW). Resampled — use −/+ to step, or type an exact angle.").W(30f),
                 Z.Button("−", "Rotate −5° (stepwise).",
                     () => { MutateSelectedTransforms(t => { t.angle -= RotStepDeg; return t; }); Refresh(); }).W(24f),
@@ -1379,6 +1514,8 @@ namespace Laubrary.Launimator.Editor
                         v => { MutateSelectedTransforms(t => { t.scaleY = Mathf.Max(0.01f, v); return t; }); Dirty(); }, 48f)),
                 Z.Toggle("Smooth", "Bilinear sampling for rotate/scale (smooth but blurs); off = crisp nearest-neighbor.",
                     prim.smooth, v => { MutateSelectedTransforms(t => { t.smooth = v; return t; }); Dirty(); })));
+
+            root.Add(s);
         }
 
         // ── per-sprite transform edits (UI.4) ────────────────────────────────
@@ -1677,22 +1814,24 @@ namespace Laubrary.Launimator.Editor
 
         private void BuildRegistrationControls(VisualElement root)
         {
-            root.Add(WrapRow(
-                Z.Text("Registration", ZuiText.Section,
-                    "How big each baked frame is, and where the shared pivot sits inside it."),
-                Z.MiniRadio(_fixedFrame ? 1 : 0, RegistrationModeLabels,
-                    "Auto size fits the frame box to the sequence; Fixed box pins an exact W×H every frame is placed in.",
-                    v =>
-                    {
-                        bool wasFixed = _fixedFrame;
-                        _fixedFrame = v == 1;
-                        // Switching INTO fixed mode: seed the box from the current auto layout so nothing jumps.
-                        if (_fixedFrame && !wasFixed) FitFrameBox();
-                        Refresh();
-                    })));
+            // T-0084 — a real Z.Section (was a WrapRow carrying its own "Registration" text heading) so this
+            // panel can join the toggle bar; the heading text moves into the Section's own title/tooltip.
+            var s = Z.Section("Registration", "How big each baked frame is, and where the shared pivot sits inside it.",
+                "launimator.registration");
+
+            s.Add(Z.MiniRadio(_fixedFrame ? 1 : 0, RegistrationModeLabels,
+                "Auto size fits the frame box to the sequence; Fixed box pins an exact W×H every frame is placed in.",
+                v =>
+                {
+                    bool wasFixed = _fixedFrame;
+                    _fixedFrame = v == 1;
+                    // Switching INTO fixed mode: seed the box from the current auto layout so nothing jumps.
+                    if (_fixedFrame && !wasFixed) FitFrameBox();
+                    Refresh();
+                }));
 
             if (_fixedFrame)
-                root.Add(WrapRow(
+                s.Add(WrapRow(
                     Z.Field("W", "Fixed frame width in source pixels.",
                         Z.Int(_frameW, "Fixed frame width in source pixels.",
                             v => { _frameW = Mathf.Max(1, v); Dirty(); }, 52f)),
@@ -1702,7 +1841,7 @@ namespace Laubrary.Launimator.Editor
                     Z.Button("Fit", "Size the box to hold every frame at its current placement.",
                         () => { FitFrameBox(); Refresh(); }).W(40f)));
 
-            root.Add(WrapRow(
+            s.Add(WrapRow(
                 Z.Text("Ghosts", ZuiText.Small,
                     "Onion-skin: faint copies of the neighbouring sequence frames, drawn behind the one you're aligning.").W(46f),
                 Z.Field("<", "How many frames BEFORE the current one to ghost.",
@@ -1714,6 +1853,8 @@ namespace Laubrary.Launimator.Editor
                 Z.Field("Opacity", "Ghost transparency. Drag to 0 to hide ghosts.",
                     Z.Slider(_ghostOpacity, 0f, 1f, "Ghost transparency. Drag to 0 to hide ghosts.",
                         v => { _ghostOpacity = v; Dirty(); }, 110f))));
+
+            root.Add(s);
         }
 
         /// The registration stage — an IMGUI island: onion-skinned frame painting plus a drag-to-place gizmo.
@@ -1988,8 +2129,12 @@ namespace Laubrary.Launimator.Editor
             toolsCol.style.flexShrink = 0f;
             toolsCol.style.width = 380f;
             toolsCol.style.marginRight = 4f;
-            BuildAnimationTools(toolsCol);
-            if (_metaEnabled) BuildMetaLayersPanel(toolsCol);
+            // T-0084 — both are structurally separate from the play-area CANVAS (_playIM is a sibling added
+            // to `row` below, not a child of `toolsCol`), so promoting them to their own Sections and
+            // registering them on the toggle bar never risks hiding the live preview/paint surface. See
+            // BuildUI's scope comment for the full reasoning.
+            Unit(toolsCol, "Playback & Frames", BuildAnimationTools);
+            if (_metaEnabled) Unit(toolsCol, "Meta Layers", BuildMetaLayersPanel);
             row.Add(toolsCol);
 
             _playIM = new IMGUIContainer(DrawPlayAreaGUI)
@@ -2016,20 +2161,29 @@ namespace Laubrary.Launimator.Editor
                 ZuiText.Subtle, "How to work the sequence strip above."));
 
             BuildZoneTrack(root);
-            BuildEvents(root);
+            // T-0084 — Frame Events joins the bar (it already lived in its own Z.Box, so this is a straight
+            // chrome upgrade, no restructuring). BuildSaveRow deliberately does NOT join — a save action, not
+            // a settings/tool group, matching this task's own "a save-row is not a good candidate" guidance.
+            Unit(root, "Frame Events", BuildEvents);
             BuildSaveRow(root);
         }
 
         // The tools to the RIGHT of the animation preview: play, fps, loop gap, frame ops, meta toggle.
         private void BuildAnimationTools(VisualElement root)
         {
+            // T-0084 — a real Z.Section (was raw content with no heading of its own) so this panel can join
+            // the toggle bar.
+            var s = Z.Section("Playback & Frames",
+                "Play the preview, set its speed and loop gap, and reorder/duplicate/delete/add frames in the sequence.",
+                "launimator.animTools");
+
             _playToggleButton = Z.Button(_animPlaying ? "❚❚" : "▶", "Play or pause the looping preview.", () =>
             {
                 _animPlaying = !_animPlaying;
                 _playToggleButton.text = _animPlaying ? "❚❚" : "▶";
                 _playIM?.MarkDirtyRepaint();
             }).W(36f);
-            root.Add(WrapRow(
+            s.Add(WrapRow(
                 _playToggleButton,
                 Z.Field("FPS", "Preview playback speed — also what the saved animation plays at.",
                     Z.Slider(_animFps, 1f, 30f, "Preview playback speed — also what the saved animation plays at.",
@@ -2045,7 +2199,7 @@ namespace Laubrary.Launimator.Editor
                 loopRow.Add(Z.Field("s", "How long the loop gap lasts, in seconds.",
                     Z.Float(Mathf.Max(0f, _loopPause), "How long the loop gap lasts, in seconds.",
                         v => { _loopPause = Mathf.Max(0f, v); Dirty(); }, 52f)));
-            root.Add(loopRow);
+            s.Add(loopRow);
 
             if (_loopDivider == LoopDivider.IdleSprite)
             {
@@ -2053,7 +2207,7 @@ namespace Laubrary.Launimator.Editor
                     "Use the sprite selected in the palette as the frame shown during the loop gap.",
                     () => { _idleRef = new CellRef(_selRegion, _selCell); Refresh(); }).W(200f);
                 idleButton.SetEnabled(HasSelectedCell());
-                root.Add(idleButton);
+                s.Add(idleButton);
             }
 
             int selCount = _seqMultiSel.Count;
@@ -2068,14 +2222,14 @@ namespace Laubrary.Launimator.Editor
                 () => { DeleteSelectedFrames(); Refresh(); }).W(86f);
             dupFrames.SetEnabled(selCount > 0);
             delFrames.SetEnabled(selCount > 0);
-            root.Add(WrapRow(reverse, dupFrames, delFrames));
+            s.Add(WrapRow(reverse, dupFrames, delFrames));
 
             const string addFileTip = "Append a STANDALONE image (its own file, not sliced from the loaded " +
                 "sheet above) as one new frame at the end of the sequence — the whole image becomes one cell. " +
                 "For an animation whose frames come from several separate source images (e.g. one file per " +
                 "facing direction), rather than one shared sprite sheet. Doesn't touch the loaded sheet or its " +
                 "own identified sprites.";
-            root.Add(Z.Field("+ Sprite from file", addFileTip,
+            s.Add(Z.Field("+ Sprite from file", addFileTip,
                 Z.Object<Texture2D>(null, addFileTip, picked =>
                 {
                     if (picked == null) return;
@@ -2084,7 +2238,7 @@ namespace Laubrary.Launimator.Editor
                     Refresh();
                 }, 200f)));
 
-            root.Add(WrapRow(
+            s.Add(WrapRow(
                 Z.Toggle("Meta layers", "Gameplay overlays (hitbox/muzzle/trail) drawn over the sequence. Off keeps the UI clean.",
                     _metaEnabled, v =>
                     {
@@ -2108,6 +2262,8 @@ namespace Laubrary.Launimator.Editor
                     _sequence.Clear(); _seqSelected = -1; _animFrame = 0;
                     Refresh();
                 }).W(74f)));
+
+            root.Add(s);
         }
 
         /// The play box / meta paint editor — an IMGUI island either way (pivot-anchored atlas blits, and a
