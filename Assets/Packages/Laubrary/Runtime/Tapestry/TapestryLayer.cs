@@ -1,7 +1,7 @@
 // TapestryLayer — one layer in a Tapestry stack: a plug-in TapestryGenerator (its own algorithm + auto-drawn
-// UI, mirrors PyrePlus's Form/PlusForm) plus a per-layer modifier stack, composited with the layers below it
-// via a blend mode + opacity. Unlike PyrePlus's layers (straight-alpha Over only — confirmed by reading
-// PyrePlusLayer/FrameComposer, no blend-mode field exists there at all), Tapestry layers DO carry a blend
+// UI, mirrors Pyre's Form/PyreForm) plus a per-layer modifier stack, composited with the layers below it
+// via a blend mode + opacity. Unlike Pyre's layers (straight-alpha Over only — confirmed by reading
+// PyreLayer/FrameComposer, no blend-mode field exists there at all), Tapestry layers DO carry a blend
 // mode: the panel/line composition this tool targets explicitly needs Multiply (grooves that darken what's
 // below) and Add (highlight strokes) as first-class options, not just Normal-over.
 using System;

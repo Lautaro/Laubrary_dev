@@ -1,7 +1,7 @@
 // TapestryWindow.Modifiers — the modifier stack, reused for BOTH scopes TapestryLayerModifier serves: a
 // layer's own local stack (post-processes just that layer's buffer before it's blended into the composite)
 // and the spec-wide global stack (post-processes the whole finished composite, after every layer) — same
-// "one picker, two target lists" pattern PyrePlusWindow.Modifiers.cs uses for its own layer-local vs
+// "one picker, two target lists" pattern PyreWindow.Modifiers.cs uses for its own layer-local vs
 // spec.globalModifiers lists.
 using System;
 using System.Collections.Generic;

@@ -1,8 +1,8 @@
 // TapestryGenerator — the plug-in "one generator = one layer's content" model Tapestry uses in place of
-// PyrePlus's Form (PlusForm): each concrete generator is its own self-contained algorithm, discovered by
+// Pyre's Form (PyreForm): each concrete generator is its own self-contained algorithm, discovered by
 // assembly scan (TapestryWindow's "+ Add Generator"/"Change…" picker) and drawn with zero editor code via
-// ZuiReflect over its own public fields — same "a form needs zero editor code" convention PlusForm and
-// LatheModule both already rely on (confirmed by reading PyrePlus's PlusForm.cs + FormCatalog()).
+// ZuiReflect over its own public fields — same "a form needs zero editor code" convention PyreForm and
+// LatheModule both already rely on (confirmed by reading Pyre's PyreForm.cs + FormCatalog()).
 using System;
 using UnityEngine;
 

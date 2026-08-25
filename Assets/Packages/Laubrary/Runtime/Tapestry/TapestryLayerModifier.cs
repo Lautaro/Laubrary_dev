@@ -1,7 +1,7 @@
 // TapestryLayerModifier — a post-process stage over ONE layer's own rendered pixel buffer, or (in the spec-
-// wide globalModifiers list) over the whole finished composite — the same dual-scope role PyrePlus's
+// wide globalModifiers list) over the whole finished composite — the same dual-scope role Pyre's
 // PyreModifier/PostModifier plays for spec.layers[i].modifiers vs spec.globalModifiers (confirmed precedent:
-// PyrePlusSpec.cs's globalModifiers list + FrameComposer.Finish running PostModifiers over the composited
+// Pyre.cs's globalModifiers list + FrameComposer.Finish running PostModifiers over the composited
 // frame). One base class serves both scopes here, and both pickers (layer-local, global) reuse the same
 // catalog against different target lists.
 using System;

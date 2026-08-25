@@ -1,7 +1,7 @@
 // TapestrySpec — the top-level asset for Tapestry: a procedural, always-TILEABLE 2D texture, built as a
 // stack of generator layers (each layer = one plug-in TapestryGenerator + its own modifier stack + blend
 // mode/opacity), finished with a spec-wide global modifier pass over the whole composite — mirrors
-// PyrePlus's own layer/Form/modifier-stack + globalModifiers architecture, applied to a flat pixel buffer
+// Pyre's own layer/Form/modifier-stack + globalModifiers architecture, applied to a flat pixel buffer
 // instead of an animated raster stack.
 using System.Collections.Generic;
 using UnityEngine;
@@ -21,7 +21,7 @@ namespace Laubrary.Tapestry
 
         public List<TapestryLayer> layers = new List<TapestryLayer>();
         // Applied once, after every layer is composited — same "wraps every layer's own stack" role as
-        // PyrePlus's spec.globalModifiers (confirmed precedent: PyrePlusSpec.cs, applied in FrameComposer.Finish
+        // Pyre's spec.globalModifiers (confirmed precedent: Pyre.cs, applied in FrameComposer.Finish
         // as a dedicated post-composite pass, separate from and after any per-layer modifier application).
         [SerializeReference] public List<TapestryLayerModifier> globalModifiers = new List<TapestryLayerModifier>();
 

@@ -1,7 +1,7 @@
 // TapestryCompositor — composites a TapestrySpec's layer stack into one final Color32[] buffer: each
 // enabled layer's generator paints into its own scratch buffer (with everything composited so far handed in
 // as read-only feedback), the layer's own modifiers run over that buffer, then it's blended into the
-// accumulator via its blend mode + opacity — mirrors PyrePlus's FrameComposer applied to a single static
+// accumulator via its blend mode + opacity — mirrors Pyre's FrameComposer applied to a single static
 // image instead of an animated frame, then runs the spec-wide globalModifiers pass exactly like
 // FrameComposer.Finish does over the fully-composited frame.
 using UnityEngine;

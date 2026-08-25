@@ -1,5 +1,5 @@
 // TapestryWindow — the authoring window for Tapestry: a stack of procedural tileable-texture generator
-// layers, laid out the way Lathe/PyrePlus are (a layer list, per-layer plug-in Generator + modifier stack, a
+// layers, laid out the way Lathe/Pyre are (a layer list, per-layer plug-in Generator + modifier stack, a
 // live preview), but producing a single flat 2D texture instead of 3D geometry or an animated raster. Own
 // tool rather than a Lathe addition — see the CLAUDE.md conversation this was scoped from: this is a
 // fundamentally 2D generation model, sharing real pieces (the bake-to-Texture2D pattern, the SDF math) but

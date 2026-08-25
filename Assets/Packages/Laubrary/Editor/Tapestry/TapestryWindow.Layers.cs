@@ -1,6 +1,6 @@
-// TapestryWindow.Layers — the layer stack list (mirrors LatheWindow.Solids/PyrePlusWindow's layer-list
+// TapestryWindow.Layers — the layer stack list (mirrors LatheWindow.Solids/PyreWindow's layer-list
 // chrome: reorder grip, enable toggle, select, rename-in-place, remove, + add/duplicate). Layer 0 = bottom
-// of the stack, matching PyrePlus's own list-order-is-draw-order convention.
+// of the stack, matching Pyre's own list-order-is-draw-order convention.
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
