@@ -3,10 +3,10 @@
 // A module is self-contained: its dials are its own public fields ([Range]/[Tooltip] drive the editor
 // through ZuiReflect — a module needs zero editor code), it is discovered by assembly scan (LatheWindow's
 // module picker), and Generate is a PURE function of this instance's own serialized fields. This is the
-// same pattern PyrePlus's PlusForm uses for its shape plug-ins, applied to solid geometry instead of a
+// same pattern Pyre's PyreForm uses for its shape plug-ins, applied to solid geometry instead of a
 // per-pixel raster.
 //
-// UNLIKE PlusForm, Generate takes no frame/time input — a Lathe solid is static geometry for v1. Animating
+// UNLIKE PyreForm, Generate takes no frame/time input — a Lathe solid is static geometry for v1. Animating
 // a module's own dials over the turntable timeline (LatheSpec.turntableFrames today only orbits the camera
 // and the whole assembly, never the generated mesh itself) is a real next step, not built yet.
 using System;

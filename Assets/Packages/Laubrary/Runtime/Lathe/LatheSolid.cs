@@ -1,5 +1,5 @@
 // LatheSolid — one entry in a Lathe spec's solid stack: a transform + tint over a plug-in LatheModule's
-// generated geometry, with an optional LatheMeshModifier chain (mirrors PyrePlus's layer = form + modifiers).
+// generated geometry, with an optional LatheMeshModifier chain (mirrors Pyre's layer = form + modifiers).
 // Several solids share one 3D space (LatheSpec.solids), each with its own transform — the "a ring with a
 // cube in the middle" case is just two solids, a Ring-kind PrimitiveSolidModule and a Box-kind one.
 using System;

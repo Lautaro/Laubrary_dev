@@ -1,7 +1,7 @@
 // LatheBakePass — a one-shot-per-bake PreviewRenderUtility wrapper, separate from the live LathePreview so
 // a bake never fights the interactive preview's own render state. Renders supersampled then box-filters
 // down to the target pixel size — crisp edges on flat-lit solids without a soft-VFX bloom chain (contrast
-// PyrePlusPlayback3DPreview, which grades against a specific HDR VFX pack; Lathe's solids need none of that).
+// PyrePlayback3DPreview, which grades against a specific HDR VFX pack; Lathe's solids need none of that).
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -138,7 +138,7 @@ namespace Laubrary.Lathe.Editor
         }
 
         // Halves repeatedly (a box filter each step) rather than one big bilinear blit straight to the
-        // target — the same reasoning PyrePlusPlayback3DPreview documents: a single big downsample only
+        // target — the same reasoning PyrePlayback3DPreview documents: a single big downsample only
         // samples a small neighbourhood per output pixel and most of the frame is never read.
         static RenderTexture Downsample(Texture src, int targetSize)
         {

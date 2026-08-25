@@ -1,9 +1,9 @@
 // LatheWindow — the authoring window for Lathe: R&D tool for solid 3D-ish procgen shapes, laid out and
-// operated the way PyrePlus is (a Solids "layer" stack, per-solid plug-in Module + Modifiers, a live
+// operated the way Pyre is (a Solids "layer" stack, per-solid plug-in Module + Modifiers, a live
 // preview with a transport/scrub), but generating swept/primitive 3D geometry instead of a 2D raster.
-// Deliberately a separate tool from PyrePlus — see the CLAUDE.md conversation this was scoped from: the
-// generation model (a solid stack sharing one 3D scene) is different enough from PyrePlus's shape/swarm
-// raster stack to earn its own window rather than co-opting PyrePlus's preview pane.
+// Deliberately a separate tool from Pyre — see the CLAUDE.md conversation this was scoped from: the
+// generation model (a solid stack sharing one 3D scene) is different enough from Pyre's shape/swarm
+// raster stack to earn its own window rather than co-opting Pyre's preview pane.
 using System;
 using System.Collections.Generic;
 using System.IO;

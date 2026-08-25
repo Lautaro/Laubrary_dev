@@ -1,6 +1,6 @@
 // LatheWindow.Module — the plug-in Module half of a solid's card. A module needs ZERO editor code: the
 // picker lists every concrete LatheModule the loaded assemblies contain (grouped by [LatheModuleInfo]),
-// and its public fields are drawn by ZuiReflect — mirrors PyrePlusWindow.Forms.cs applied to LatheModule.
+// and its public fields are drawn by ZuiReflect — mirrors PyreWindow.Forms.cs applied to LatheModule.
 using System;
 using System.Collections.Generic;
 using Laubrary.Zui;

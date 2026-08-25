@@ -63,7 +63,7 @@ namespace Laubrary.Lathe.Editor
         // that's mid-dispatch whenever this fires from inside the click handler (itself called from
         // DrawPreview, the IMGUIContainer's own callback) — destroying that container while its callback is
         // still on the call stack is exactly the reentrancy Unity's UI Toolkit doesn't like. Deferring one
-        // tick (delayCall) is the same reasoning PyrePlusWindow's own drag-commit rebuilds use.
+        // tick (delayCall) is the same reasoning PyreWindow's own drag-commit rebuilds use.
         void DeferredRebuild()
         {
             EditorApplication.delayCall += () => { if (this != null) Rebuild(); };
@@ -92,7 +92,7 @@ namespace Laubrary.Lathe.Editor
         // World-space GUI position (rect-relative, y-down, in GUI POINTS) of a node given in the solid's
         // LOCAL space. Camera.WorldToScreenPoint answers in PHYSICAL pixels (PreviewRenderUtility allocates
         // its buffer at rect-size × EditorGUIUtility.pixelsPerPoint on a high-DPI display — see
-        // printwindow-editor-screenshot / PyrePlusPlayback3DPreview's own note on the same gotcha), so it
+        // printwindow-editor-screenshot / PyrePlayback3DPreview's own note on the same gotcha), so it
         // has to be divided back down to points before it means anything in GUI space.
         static Vector2 SkeletonGuiOf(Rect rect, Matrix4x4 local2world, Camera cam, Vector3 localPos)
         {

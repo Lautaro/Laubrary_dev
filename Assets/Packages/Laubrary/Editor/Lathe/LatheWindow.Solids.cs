@@ -1,4 +1,4 @@
-// LatheWindow.Solids — the solid stack list (mirrors PyrePlusWindow's layer-list chrome: reorder grip,
+// LatheWindow.Solids — the solid stack list (mirrors PyreWindow's layer-list chrome: reorder grip,
 // enable toggle, select, rename-in-place, remove, + add/duplicate).
 using Laubrary.Zui;
 using UnityEditor;

@@ -1,6 +1,6 @@
 // LatheSpec — the asset behind Lathe (see D:\Unity\Laubrary Dev CLAUDE.md's naming rule: a cool name
 // earned by an authoring UI, LatheWindow). Turns a profile/primitive into a solid, several of which can
-// share one 3D scene. R&D tool, deliberately separate from PyrePlus.
+// share one 3D scene. R&D tool, deliberately separate from Pyre.
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -14,7 +14,7 @@ namespace Laubrary.Lathe
         public float pixelsPerUnit = 16f;
         public int seed = 1234;
 
-        // ── turntable "frames" — the transport/scrub concept PyrePlus's preview uses, reused here to
+        // ── turntable "frames" — the transport/scrub concept Pyre's preview uses, reused here to
         // spin the whole solid assembly around world Y for inspection (and eventually a multi-angle sprite
         // export), NOT to re-bake per-frame geometry — a Lathe solid's shape is static per module dial set.
         [Min(1)] public int turntableFrames = 24;

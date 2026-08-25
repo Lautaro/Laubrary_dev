@@ -1,4 +1,4 @@
-// LatheWindow.Modifiers — the per-solid mesh-modifier stack (mirrors PyrePlusWindow.Modifiers.cs's
+// LatheWindow.Modifiers — the per-solid mesh-modifier stack (mirrors PyreWindow.Modifiers.cs's
 // add-menu + reflected card pattern, applied to LatheMeshModifier instead of PyreModifier).
 using System;
 using System.Collections.Generic;

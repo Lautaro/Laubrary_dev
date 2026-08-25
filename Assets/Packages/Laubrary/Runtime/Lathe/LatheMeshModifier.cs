@@ -1,4 +1,4 @@
-// LatheMeshModifier — a post-process stage over a generated solid's mesh data. Mirrors PyrePlus's
+// LatheMeshModifier — a post-process stage over a generated solid's mesh data. Mirrors Pyre's
 // modifier stack (PyreModifier), applied to geometry instead of pixels: discovered by assembly scan
 // (LatheWindow's "+ Add modifier" picker), drawn with zero editor code via ZuiReflect.
 using System;

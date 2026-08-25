@@ -1,6 +1,6 @@
 // LathePreview — a minimal PreviewRenderUtility scene for Lathe: draws every enabled solid's
 // freshly-generated mesh with a simple lit, double-sided material, camera orbit-controlled by the window.
-// No baking, no colour grade (contrast PyrePlusPlayback3DPreview, which matches a specific VFX pack's HDR
+// No baking, no colour grade (contrast PyrePlayback3DPreview, which matches a specific VFX pack's HDR
 // look) — Lathe's meshes are a few hundred verts each, cheap enough to rebuild every repaint
 // (LatheSolid.BuildMesh), so there is nothing here to cache either.
 using System.Collections.Generic;

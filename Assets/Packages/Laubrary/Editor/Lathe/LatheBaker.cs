@@ -9,7 +9,7 @@ namespace Laubrary.Lathe.Editor
     public static class LatheBaker
     {
         // Render at 4× canvasSize then box-filter down — crisp flat-shaded edges without a soft-VFX bloom
-        // chain (PyrePlusPlayback3DPreview needs that for HDR fire packs; Lathe's solids don't).
+        // chain (PyrePlayback3DPreview needs that for HDR fire packs; Lathe's solids don't).
         const int Supersample = 4;
 
         /// `orbitYaw`/`orbitPitch` are the window's CURRENT camera angle — the bake uses a FIXED camera (the
@@ -39,7 +39,7 @@ namespace Laubrary.Lathe.Editor
 
         // A FIXED camera has to frame every frame of the spin, not just one — samples the world radius (from
         // the Y axis, through the origin) every enabled solid's mesh bounds reach at a few turntable angles.
-        // Cheap approximation (4 samples), not an exact solve, matched to how PyrePlusPlayback3DPreview
+        // Cheap approximation (4 samples), not an exact solve, matched to how PyrePlayback3DPreview
         // samples a few representative moments rather than solving the true extremum.
         static float SolveFitRadius(LatheSpec spec)
         {
