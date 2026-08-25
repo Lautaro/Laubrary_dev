@@ -11,7 +11,7 @@ namespace Laubrary.BackSplash.Editor
     ///
     /// Operates on a caller-owned <see cref="BackSplashSettings"/> instance, NOT a shared BackSplash asset
     /// reference — editing the fields below only ever mutates the caller's own private copy. Recall and Save
-    /// both go through the same shared <see cref="LauAssetPicker"/> thumbnail browser (not a bespoke one) —
+    /// both go through the same shared <see cref="Laubrary.AssetKit.Editor.LauAssetBrowser"/> thumbnail browser (not a bespoke one) —
     /// Recall's click means "copy values from this," Save's click means "overwrite this," and Save adds the
     /// picker's optional create-new row for naming a fresh preset instead.
     ///
@@ -38,7 +38,7 @@ namespace Laubrary.BackSplash.Editor
             UnityEngine.Object owner = null, string editName = "BackSplash")
         {
             if (settings == null) return;
-            Laubrary.AssetKit.Editor.LauAssetPicker.Show(anchor, typeof(BackSplash), picked =>
+            Laubrary.AssetKit.Editor.LauAssetBrowser.Show(anchor, typeof(BackSplash), picked =>
             {
                 var src = (BackSplash)picked;
                 if (src == null) return;
@@ -53,7 +53,7 @@ namespace Laubrary.BackSplash.Editor
         public static void ShowSave(Rect anchor, BackSplashSettings settings)
         {
             if (settings == null) return;
-            Laubrary.AssetKit.Editor.LauAssetPicker.Show(anchor, typeof(BackSplash), picked =>
+            Laubrary.AssetKit.Editor.LauAssetBrowser.Show(anchor, typeof(BackSplash), picked =>
                 Overwrite(settings, (BackSplash)picked), null,
                 onCreateNew: name => CreateNew(settings, name),
                 pickHint: "Click an existing preset to overwrite it:");

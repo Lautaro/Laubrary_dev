@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Hit Glow
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.SpriteFx::Laubrary.SpriteFx.SpriteFxSpec
   modifiers:
-  - rid: 4538841274340082614
-  duration: 0.15
+  - rid: 1702917545006467387
+  duration: 0.32826
   envelope:
     serializedVersion: 2
     m_Curve:
@@ -45,78 +45,17 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 4538841274340082614
-      type: {class: OutlineModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
+    - rid: 1702917545006467387
+      type: {class: RelightModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
       data:
         enabled: 1
-        mode: 3
-        color:
-          serializedVersion: 2
-          key0: {r: 0, g: 0.8871305, b: 1, a: 1}
-          key1: {r: 0.98742133, g: 0.98742133, b: 0.98742133, a: 1}
-          key2: {r: 0, g: 0, b: 0, a: 0}
-          key3: {r: 0, g: 0, b: 0, a: 0}
-          key4: {r: 0, g: 0, b: 0, a: 0}
-          key5: {r: 0, g: 0, b: 0, a: 0}
-          key6: {r: 0, g: 0, b: 0, a: 0}
-          key7: {r: 0, g: 0, b: 0, a: 0}
-          ctime0: 0
-          ctime1: 65535
-          ctime2: 0
-          ctime3: 0
-          ctime4: 0
-          ctime5: 0
-          ctime6: 0
-          ctime7: 0
-          atime0: 386
-          atime1: 65535
-          atime2: 0
-          atime3: 0
-          atime4: 0
-          atime5: 0
-          atime6: 0
-          atime7: 0
-          m_Mode: 0
-          m_ColorSpace: 0
-          m_NumColorKeys: 2
-          m_NumAlphaKeys: 2
-        opacity:
-          m_mode: 2
-          m_static: 1
-          m_min: 0
-          m_max: 1
-          m_points:
-          - time: 0
-            value: 0
-            exponent: 1
-            editState: 0
-          - time: 0.10299
-            value: 0.89261
-            exponent: 1
-            editState: 0
-          - time: 0.5235
-            value: 0.9912
-            exponent: 1
-            editState: 0
-          - time: 1
-            value: 0
-            exponent: 1
-            editState: 0
-          m_yMin: 0
-          m_yMax: 1
-          m_duration: 4
-          m_warmup: 0
-          m_cooldown: -1
-          m_smoothness: 0
-          m_steps: []
-          m_oscMin: []
-          m_oscMax: []
-          m_oscRate: []
-          m_oscRateMax: 8
-          m_multiplierId: 
-        size:
+        heightSource: 2
+        depthRadius: 11
+        edgeThreshold: 0.20359
+        soften: 2
+        relief:
           m_mode: 0
-          m_static: 0.21622
+          m_static: 4.16766
           m_min: 0
           m_max: 1
           m_points: []
@@ -132,9 +71,10 @@ MonoBehaviour:
           m_oscRate: []
           m_oscRateMax: 8
           m_multiplierId: 
-        innerSize:
+        mode: 1
+        angle:
           m_mode: 0
-          m_static: 0
+          m_static: 45
           m_min: 0
           m_max: 1
           m_points: []
@@ -150,10 +90,9 @@ MonoBehaviour:
           m_oscRate: []
           m_oscRateMax: 8
           m_multiplierId: 
-        innerSoftness: 0
-        innerSoftnessValue:
+        elevation:
           m_mode: 0
-          m_static: 0
+          m_static: 35
           m_min: 0
           m_max: 1
           m_points: []
@@ -169,11 +108,9 @@ MonoBehaviour:
           m_oscRate: []
           m_oscRateMax: 8
           m_multiplierId: 
-        innerSoftnessUpgraded: 1
-        innerSoftnessCurve: 1
-        innerSoftnessCurveValue:
+        lightX:
           m_mode: 0
-          m_static: 0.21437
+          m_static: 1.24759
           m_min: 0
           m_max: 1
           m_points: []
@@ -189,11 +126,9 @@ MonoBehaviour:
           m_oscRate: []
           m_oscRateMax: 8
           m_multiplierId: 
-        innerSoftnessCurveUpgraded: 1
-        outerSoftness: 0
-        outerSoftnessValue:
+        lightY:
           m_mode: 0
-          m_static: 8.04791
+          m_static: 0.47588
           m_min: 0
           m_max: 1
           m_points: []
@@ -209,11 +144,9 @@ MonoBehaviour:
           m_oscRate: []
           m_oscRateMax: 8
           m_multiplierId: 
-        outerSoftnessUpgraded: 1
-        outerSoftnessCurve: 1
-        outerSoftnessCurveValue:
+        lightHeight:
           m_mode: 0
-          m_static: 5
+          m_static: 2.01961
           m_min: 0
           m_max: 1
           m_points: []
@@ -229,11 +162,9 @@ MonoBehaviour:
           m_oscRate: []
           m_oscRateMax: 8
           m_multiplierId: 
-        outerSoftnessCurveUpgraded: 1
-        alphaThreshold: 0.08
-        alphaThresholdValue:
+        radius:
           m_mode: 0
-          m_static: 1
+          m_static: 1.74625
           m_min: 0
           m_max: 1
           m_points: []
@@ -249,4 +180,148 @@ MonoBehaviour:
           m_oscRate: []
           m_oscRateMax: 8
           m_multiplierId: 
-        alphaThresholdUpgraded: 1
+        falloff:
+          m_mode: 0
+          m_static: 2.25973
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        ambient:
+          m_mode: 0
+          m_static: 0.4985
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        diffuse:
+          m_mode: 0
+          m_static: 0.56287
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        specular:
+          m_mode: 0
+          m_static: 1.49102
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        shine:
+          m_mode: 0
+          m_static: 25.40541
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        lightColor: {r: 0.9790357, g: 0.43170077, b: 0, a: 1}
+        shading:
+          m_mode: 0
+          m_static: 0.55389
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        tint:
+          m_mode: 0
+          m_static: 0.51051
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        add:
+          m_mode: 0
+          m_static: 1.69461
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 

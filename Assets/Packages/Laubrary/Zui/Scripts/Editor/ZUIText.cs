@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using ZuiRuntime;
-using Laubrary.UIAudit;
 
 public static partial class ZUI
 {
@@ -279,15 +278,6 @@ public static partial class ZUI
         string styleName = debugDef != null ? debugDef.name : debugStyle.ToString();
         DrawFlashOverlayIfNeeded(rect, styleName, 0, FlashDefType.Text);
 
-        if (Event.current.type == EventType.Repaint)
-        {
-            var size = style.CalcSize(content);
-            EditorZuiAudit.Record(new ZuiDrawRecord
-            {
-                Kind = "label", Rect = rect, Text = content.text, FontPx = style.fontSize,
-                NeededWidth = size.x, NeededHeight = size.y, Wrap = style.wordWrap,
-            });
-        }
     }
 
     // ── ZTextStyle enum ────────────────────────────────────────────────────────

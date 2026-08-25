@@ -39,7 +39,6 @@ namespace ZuiRuntime
             float h = style.CalcHeight(content, _area.width);
             var rect = Next(h);
             GUI.Label(rect, content, style);
-            Rec("label", rect, text, UIScale.Font(pts), 0f, h, wrap: true, interactive: false);
         }
 
         public void Header(string text, float pts = 18f, Color? color = null)
@@ -47,7 +46,7 @@ namespace ZuiRuntime
 
         /// <summary>
         /// Draw text into an EXPLICIT rect on the stack's baseline — the escape hatch that does NOT
-        /// auto-size, so text can clip if the rect is too small. Recorded, so UIAudit catches misuse.
+        /// auto-size, so text can clip if the rect is too small.
         /// </summary>
         public void LabelIn(Rect rect, string text, float pts = 15f, Color? color = null, bool wrap = true,
             TextAnchor align = TextAnchor.UpperLeft)
@@ -55,9 +54,6 @@ namespace ZuiRuntime
             var style = Zui.TextStyle(pts, color ?? Color.white, align, false, wrap);
             var content = new GUIContent(text);
             GUI.Label(rect, content, style);
-            float needH = style.CalcHeight(content, rect.width);
-            float needW = wrap ? 0f : style.CalcSize(content).x;
-            Rec("label", rect, text, UIScale.Font(pts), needW, needH, wrap, interactive: false);
         }
 
         /// <summary>A button sized from its label text — the label cannot be truncated.</summary>
@@ -69,7 +65,6 @@ namespace ZuiRuntime
             var r = Next(size.y + UIScale.S(6f));
             var rect = new Rect(r.x, r.y, w, r.height);
             bool clicked = GUI.Button(rect, label, style);
-            Rec("button", rect, label, UIScale.Font(pts), size.x, 0f, wrap: false, interactive: true);
             return clicked;
         }
 
@@ -86,7 +81,6 @@ namespace ZuiRuntime
             {
                 var rect = new Rect(row.x + i * (w + gap), row.y, w, h);
                 if (GUI.Button(rect, labels[i], style)) clicked = i;
-                Rec("button", rect, labels[i], UIScale.Font(pts), style.CalcSize(new GUIContent(labels[i])).x, 0f, wrap: false, interactive: true);
             }
             return clicked;
         }
@@ -97,7 +91,6 @@ namespace ZuiRuntime
             float h = Mathf.Max(style.CalcSize(new GUIContent(label)).y, UIScale.Font(pts) * 1.2f);
             var rect = Next(h);
             bool result = GUI.Toggle(rect, value, label, style);
-            Rec("toggle", rect, label, UIScale.Font(pts), 0f, 0f, wrap: false, interactive: true);
             return result;
         }
 
@@ -114,7 +107,6 @@ namespace ZuiRuntime
                 Zui.TextStyle(pts, Color.white, TextAnchor.MiddleRight, false, wrap: false));
             float sliderX = row.x + labelW;
             float sliderW = Mathf.Max(20f, row.width - labelW - valueW - UIScale.S(6f));
-            Rec("slider", row, label, UIScale.Font(pts), 0f, 0f, wrap: false, interactive: true);
             return GUI.HorizontalSlider(new Rect(sliderX, row.y + lh * 0.28f, sliderW, lh * 0.5f), value, min, max);
         }
 
@@ -128,18 +120,6 @@ namespace ZuiRuntime
             return r;
         }
 
-        // Emit an audit record for something drawn on this stack (Clipped when inside a scroll view,
-        // so the off-screen check skips content that scrolling can bring into view).
-        void Rec(string kind, Rect rect, string text, int fontPx, float needW, float needH, bool wrap, bool interactive)
-        {
-            if (!ZuiAudit.Recording) return;
-            ZuiAudit.Record(new ZuiDrawRecord
-            {
-                Kind = kind, Rect = rect, Text = text, FontPx = fontPx,
-                NeededWidth = needW, NeededHeight = needH, Wrap = wrap,
-                Interactive = interactive, Clipped = Scrolling,
-            });
-        }
     }
 
     public static partial class Zui

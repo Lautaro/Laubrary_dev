@@ -21,6 +21,10 @@ namespace Laubrary.Combat2D
         public LayerMask blockers = 0;
         [Tooltip("Rotate the sprite to face travel direction on launch.")]
         public bool faceDirection = true;
+        [Tooltip("Degrees added to the travel angle before rotating the sprite — compensates for how the " +
+                 "art is drawn. -90 (default) is for art drawn facing up/north, the usual case for " +
+                 "Launimator/Pyre-baked projectile art; use 0 for art drawn facing right/+X.")]
+        public float rotationOffsetDeg = -90f;
 
         public Faction faction;
         public GameObject source;
@@ -81,7 +85,7 @@ namespace Laubrary.Combat2D
             age = 0f;
             spent = false;
             if (faceDirection)
-                transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
+                transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg + rotationOffsetDeg);
         }
 
         void Update()

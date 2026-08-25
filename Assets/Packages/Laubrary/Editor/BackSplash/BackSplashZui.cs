@@ -26,7 +26,7 @@ namespace Laubrary.BackSplash.Editor
         /// asset, or null for a window-scoped, non-persisted copy like TextSplash's audition backdrop). When
         /// supplied, every edit here — including Recall — is wrapped in `Undo.RecordObject(owner, ...)` +
         /// `EditorUtility.SetDirty(owner)` BY THIS CONTROL, not by the caller. This used to be the caller's
-        /// job, and two of the three hosts (Pyre, PyrePlus) never did it: every OTHER dial in those windows
+        /// job, and two of the three hosts (Pyre, Pyre) never did it: every OTHER dial in those windows
         /// records undo, but the backdrop didn't, so a later Ctrl+Z elsewhere in the same session snapshotted
         /// and silently reverted the backdrop right along with whatever the user actually meant to undo —
         /// which reads as "the backsplash doesn't stick." Centralizing it here means every consumer gets the

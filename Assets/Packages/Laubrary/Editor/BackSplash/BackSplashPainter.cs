@@ -7,7 +7,7 @@ namespace Laubrary.BackSplash.Editor
     /// <summary>Paints a <see cref="BackSplashSettings"/> into an IMGUI viewport rect — the colour fill and, over
     /// it, the image at its authored zoom, position and tint.
     ///
-    /// This exists because the same twenty lines were written three times. Pyre's and PyrePlus's copies had drifted
+    /// This exists because the same twenty lines were written three times. Pyre's and Pyre's copies had drifted
     /// only in their fallback colour, but TextSplash's had drifted in a way nobody could see: it painted the fill,
     /// the sprite and the tint, and silently never read <c>imageZoom</c> or <c>imagePos</c> — so that window's Zoom
     /// slider and Position pad moved, saved, and did nothing at all, under a comment claiming it worked "exactly

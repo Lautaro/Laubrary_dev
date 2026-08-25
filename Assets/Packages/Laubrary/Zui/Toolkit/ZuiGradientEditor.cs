@@ -75,7 +75,7 @@ namespace Laubrary.Zui
                 v => _g.gradient != null ? _g.gradient.Evaluate(Mathf.PingPong(v, 1f)) : Color.clear);
             // Locked (a form-declared band palette, e.g. Torch/ArcBurst): quantising can never go smooth again, so
             // the slider floors at 1 (no reachable "0 = smooth") and reads as "Bands" — the domain word every other
-            // banded control in PyrePlus already uses — instead of "Quantise".
+            // banded control in Pyre already uses — instead of "Quantise".
             Adjust.Add(_g.bandLocked
                 ? Z.MicroSlider("Bands", _g.quantiseSteps, 1, 16,
                     "How many discrete colour steps this palette samples from the ramp below. Purely a resolution "

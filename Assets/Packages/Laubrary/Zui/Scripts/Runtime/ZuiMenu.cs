@@ -80,12 +80,6 @@ namespace ZuiRuntime
                 Zui.FillRect(new Rect(r.x - UIScale.S(4f), r.y, r.width + UIScale.S(8f), r.height), HighlightColor);
 
             bool clicked = GUI.Button(r, label, style);
-            if (ZuiAudit.Recording)
-                ZuiAudit.Record(new ZuiDrawRecord
-                {
-                    Kind = "menuitem", Rect = r, Text = label, FontPx = UIScale.Font(pts),
-                    NeededWidth = style.CalcSize(new GUIContent(label)).x, Interactive = true,
-                });
             bool activated = focused && _activate;
             return clicked || activated;
         }

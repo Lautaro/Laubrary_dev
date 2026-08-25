@@ -25,7 +25,7 @@ public class ZuiFill : ISerializationCallbackReceiver
 {
     // The FILL modes — a flat colour, a gradient over life, or a SPATIAL gradient (linear / radial). Noise is
     // NOT a mode any more: it moved into the Texture group below (a texture, not a fill). Removing it is free —
-    // no PyrePlus/ZuiFill assets exist to migrate.
+    // no Pyre/ZuiFill assets exist to migrate.
     public enum Mode { Solid, OverLife, Linear, Radial }
 
     // The TEXTURE group. When `texture` != None it REPLACES the fill mode entirely (Evaluate dispatches into the
@@ -117,7 +117,7 @@ public class ZuiFill : ISerializationCallbackReceiver
     ///
     /// Every consumer of a spatial fill should call THIS rather than dividing by hand — the divisor IS the
     /// setting, so a tool that rolls its own normalization silently ignores the dial. (That is exactly how the
-    /// codebase ended up with two conventions: TextSplash divided by the larger half-extent, PyrePlus's
+    /// codebase ended up with two conventions: TextSplash divided by the larger half-extent, Pyre's
     /// background divided per axis, and neither was a choice anyone could see or make.)</summary>
     /// <param name="p">The point, in the same units as <paramref name="half"/>.</param>
     /// <param name="origin">The box's centre.</param>
@@ -564,7 +564,7 @@ public class ZuiFill : ISerializationCallbackReceiver
         => 1f / Mathf.Max(0.05f, EvalCompanion(zoomAnim, life, zoom));
 
     /// <summary>Evaluate an animatable spatial companion (zoom / centre) over the 0..1 <paramref name="life"/> clock.
-    /// Mirrors PyrePlusRenderer.Eval's over-life convention (which this fill is sampled through): Static returns its
+    /// Mirrors PyreRenderer.Eval's over-life convention (which this fill is sampled through): Static returns its
     /// constant (⇒ a migrated fill is byte-identical), Curve samples its points DIRECTLY at clamped life (NOT via
     /// duration/warmup — that is ZUIValue's runtime-seconds API, which would sweep only the curve's first quarter).
     /// A null companion (not-yet-seeded in-memory fill) returns <paramref name="fallback"/> (the legacy scalar), so a

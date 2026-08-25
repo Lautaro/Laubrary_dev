@@ -134,6 +134,17 @@ namespace Laubrary.Cartographer.Editor
 
         VisualElement levelBox, layersList, paletteGrid, propsGrid, decalsList, tagsList;
 
+        // ── section toggle bar (T-0084) ─────────────────────────────────────────────────────
+        // The roster the shared ZuiSectionToggleBar addresses, rebuilt from scratch on every BuildAsset
+        // (same convention as ChunkWindow's _barUnits — see its comment for why: BuildUI/Rebuild() clears
+        // and reconstructs the whole tree, so nothing here needs to survive a rebuild except the height
+        // reservation below).
+        readonly List<(string label, ZuiSection section)> _barUnits = new List<(string label, ZuiSection section)>();
+
+        // Tallest layout the bar has taken at a given width, remembered for the window's lifetime so the
+        // bar's own Sections↔Toggle Bar mode switch can never shrink the chrome above the workspace.
+        float _barReservedW, _barReservedH;
+
         protected override void OnEnable()
         {
             base.OnEnable();
@@ -218,6 +229,14 @@ namespace Laubrary.Cartographer.Editor
             root.style.flexGrow = 1f;
             root.style.minHeight = 0f;
 
+            // T-0084 — the section toggle bar rides at the very top of the per-asset UI, spanning the full
+            // window width (same placement as Pyre/Chunks). Its host is added FIRST (empty) and filled LAST,
+            // once every section below exists for it to address.
+            var barHost = new VisualElement();
+            barHost.style.flexShrink = 0f;
+            if (_barReservedH > 0f) barHost.style.minHeight = _barReservedH;   // space reserved before anything paints
+            root.Add(barHost);
+
             var left = new VisualElement();
             left.style.minWidth = 260f;
             left.style.minHeight = 0f;
@@ -241,43 +260,99 @@ namespace Laubrary.Cartographer.Editor
             root.Add(Z.Split("cartographer", 380f, left, previewPane));
             RefreshLevelPreview();
 
+            _barUnits.Clear();
+
+            // T-0084 — these seven top-level panels were framed `Z.BoxKeyed`s; the shared ZuiSectionToggleBar
+            // only drives `ZuiSection`s, so they're converted to `Z.Section` here. Same call Pyre made for its
+            // own Layers box when it joined its toggle bar (PyreWindow.cs, BuildLayerList): a green-header
+            // Section reads consistently among top-level sections, and the stable state key below keeps each
+            // panel's fold state from orphaning on this conversion. `Z.Section` has no trailing-children
+            // params the way `Z.BoxKeyed` did, so each panel's content host (and, for Layers, its "+ Add
+            // layer" button) is `.Add()`ed onto the section after construction instead — same children, same
+            // order, same visible result.
             levelBox = new VisualElement();
-            body.Add(Z.BoxKeyed("Level", "The open level: its name, biome, extent and scene preview.",
-                "cartographer.level", levelBox));
+            var levelSection = Z.Section("Level", "The open level: its name, biome, extent and scene preview.",
+                "cartographer.level");
+            levelSection.Add(levelBox);
+            body.Add(levelSection);
+            _barUnits.Add(("Level", levelSection));
             RebuildLevelBox();
 
             layersList = new VisualElement();
-            body.Add(Z.BoxKeyed("Layers", "The level's drawing layers, back to front. The active layer is what painting affects.",
-                "cartographer.layers",
-                layersList,
-                Z.Button("+ Add layer", "Add a drawing layer in front of the others.",
-                    () => { Dial("Add layer", () => level.layers.Add(new LevelLayer { name = "Layer " + level.layers.Count })); RebuildLayers(); })));
+            var layersSection = Z.Section("Layers", "The level's drawing layers, back to front. The active layer is what painting affects.",
+                "cartographer.layers");
+            layersSection.Add(layersList);
+            layersSection.Add(Z.Button("+ Add layer", "Add a drawing layer in front of the others.",
+                () => { Dial("Add layer", () => level.layers.Add(new LevelLayer { name = "Layer " + level.layers.Count })); RebuildLayers(); }));
+            body.Add(layersSection);
+            _barUnits.Add(("Layers", layersSection));
             RebuildLayers();
 
             paletteGrid = new VisualElement();
-            body.Add(Z.BoxKeyed("Palette", "The active layer's tileset. Click a tile to make it the paint tile; a badge marks a tile with interchangeable variants.",
-                "cartographer.palette", paletteGrid));
+            var paletteSection = Z.Section("Palette", "The active layer's tileset. Click a tile to make it the paint tile; a badge marks a tile with interchangeable variants.",
+                "cartographer.palette");
+            paletteSection.Add(paletteGrid);
+            body.Add(paletteSection);
+            _barUnits.Add(("Palette", paletteSection));
             RebuildPalette();
 
             propsGrid = new VisualElement();
-            body.Add(Z.BoxKeyed("Props", "The biome's reusable structures. Click one to make it the stamp; Edit opens it in the prop editor.",
-                "cartographer.props", propsGrid));
+            var propsSection = Z.Section("Props", "The biome's reusable structures. Click one to make it the stamp; Edit opens it in the prop editor.",
+                "cartographer.props");
+            propsSection.Add(propsGrid);
+            body.Add(propsSection);
+            _barUnits.Add(("Props", propsSection));
             RebuildProps();
 
             decalsList = new VisualElement();
-            body.Add(Z.BoxKeyed("Decals", "Free sprites placed in this level, not bound to the grid.",
-                "cartographer.decals", decalsList));
+            var decalsSection = Z.Section("Decals", "Free sprites placed in this level, not bound to the grid.",
+                "cartographer.decals");
+            decalsSection.Add(decalsList);
+            body.Add(decalsSection);
+            _barUnits.Add(("Decals", decalsSection));
             RebuildDecals();
 
             toolBox = new VisualElement();
-            body.Add(Z.BoxKeyed("Tool", "What a click in the Scene view does, and its settings.",
-                "cartographer.tool", toolBox));
+            var toolSection = Z.Section("Tool", "What a click in the Scene view does, and its settings.",
+                "cartographer.tool");
+            toolSection.Add(toolBox);
+            body.Add(toolSection);
+            _barUnits.Add(("Tool", toolSection));
             RebuildToolBox();
 
             tagsList = new VisualElement();
-            body.Add(Z.BoxKeyed("Tags", "Gameplay labels on the ACTIVE layer, and the scene overlay that makes tagged cells visible — invisible metadata is unverifiable metadata.",
-                "cartographer.tags", tagsList));
+            var tagsSection = Z.Section("Tags", "Gameplay labels on the ACTIVE layer, and the scene overlay that makes tagged cells visible — invisible metadata is unverifiable metadata.",
+                "cartographer.tags");
+            tagsSection.Add(tagsList);
+            body.Add(tagsSection);
+            _barUnits.Add(("Tags", tagsSection));
             RebuildTagsBox();
+
+            var bar = new ZuiSectionToggleBar("Cartographer", _barUnits.ToArray());
+            barHost.Add(bar);
+            ReserveBarHeight(barHost, bar);
+        }
+
+        /// Stable-workspace rule: chrome ABOVE the workspace must never change the geometry of what is below
+        /// it. The bar hides its button strip with `display` when it is in Sections mode, which would collapse
+        /// its height and jump the whole window up the moment the user switched modes. So reserve the space:
+        /// remember the TALLEST height the bar has laid out at the current width and pin it as the host's
+        /// minHeight, so a mode switch (or a solo) can only ever change what is IN the bar, never its size.
+        /// A width change resets the reservation — that is the user resizing their own window, not contextual
+        /// UI moving under their cursor. Growing only, and measured on the BAR rather than the host, so
+        /// writing the host's minHeight cannot feed back into its own measurement. (Verbatim copy of
+        /// ChunkWindow.ReserveBarHeight.)
+        void ReserveBarHeight(VisualElement barHost, VisualElement bar)
+        {
+            bar.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                float w = bar.resolvedStyle.width, h = bar.resolvedStyle.height;
+                if (float.IsNaN(w) || float.IsNaN(h) || h <= 0f) return;
+                if (Mathf.Abs(w - _barReservedW) > 0.5f) { _barReservedW = w; _barReservedH = 0f; }
+                if (h <= _barReservedH + 0.5f) return;
+                _barReservedH = h;
+                barHost.style.minHeight = h;
+            });
         }
 
         void RebuildTagsBox()

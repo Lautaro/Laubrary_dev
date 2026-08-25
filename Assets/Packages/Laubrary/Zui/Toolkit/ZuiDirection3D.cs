@@ -2,7 +2,7 @@
 //
 // Across the tools the same shape kept recurring: a direction on a SPHERE — a yaw (azimuth) + a pitch
 // (elevation), sometimes with a distance — authored as two (or three) separate 1D sliders, or as a flat 2D
-// pad with no sense of the sphere it lives on. PyrePlus's Gem/solid KEY LIGHT is the prime example
+// pad with no sense of the sphere it lives on. Pyre's Gem/solid KEY LIGHT is the prime example
 // (gemLightYaw / gemLightPitch / gemLightDistance). This packages that primitive once, in ZUI, so every tool
 // gets the same control: a small DRAGGABLE LIT SPHERE that shows the direction as real 3D shading (the lit
 // hotspot IS the readout), numeric fallback fields for precise entry, an optional distance, and a larger
@@ -249,7 +249,7 @@ namespace Laubrary.Zui
         }
 
         // ── the shared cheap sphere shader (Blinn-Phong point light on a unit sphere) ──
-        // The light direction / position convention matches PyrePlusRenderer's Gem/solid light EXACTLY:
+        // The light direction / position convention matches PyreRenderer's Gem/solid light EXACTLY:
         //   Ldir = (cos p · sin y, sin p, cos p · cos y),  lightPos = Ldir · distance,  range = distance + 1.2
         // so the preview reads faithfully against the tool's real lighting. This is a GIZMO, not that renderer.
         static void RenderSphere(Texture2D tex, float yaw, float pitch, float distance, Options opt)

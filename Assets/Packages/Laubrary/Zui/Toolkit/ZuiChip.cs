@@ -25,6 +25,7 @@ namespace Laubrary.Zui
     public class ZuiChip : VisualElement
     {
         readonly Label _label = new Label();
+        readonly Label _pick = new Label("▾");
         Image _thumb;
         VisualElement _dot;
 
@@ -47,6 +48,24 @@ namespace Laubrary.Zui
             _label.AddToClassList("zui-chip__label");
             _label.pickingMode = PickingMode.Ignore;
             Add(_label);
+
+            // The affordance that says "clicking this opens a picker". Without it a chip is only a tinted
+            // name, and a cold user reads it as a VALUE — or, per a real complaint about the Chunks window,
+            // as a text field they are expected to type an asset name into. Tint and hover alone cannot
+            // carry that: hover requires the user to already suspect the thing is interactive.
+            //
+            // A caret rather than a bespoke picker glyph, because every other ZUI chooser (ZuiBox,
+            // ZuiFoldCard, ZuiManagedRef) already draws "▾" for "there is more here when you click" — the
+            // chip joins that language instead of inventing a second one, and "▾" is proven to render in
+            // the editor font. It is added ONCE, here, so no call site changes: the trailing position
+            // survives Thumbnail/SetColourDot, which both Insert(0, …) ahead of the label.
+            //
+            // PickingMode.Ignore: it is decoration. The whole pill is the click target, so the caret must
+            // never swallow the PointerDownEvent that drives OnActivate/OnContext.
+            _pick.AddToClassList("zui-chip__pick");
+            _pick.pickingMode = PickingMode.Ignore;
+            Add(_pick);
+
             Set(text, empty);
 
             // Pointer-down, not Clickable: right-click has to be distinguishable, and a Clickable would
@@ -97,8 +116,10 @@ namespace Laubrary.Zui
             return o != null && Accepts(o);
         }
 
-        /// The referenced thing's name, plus whether this is the EMPTY state (styled dimmer + dashed, so
-        /// "nothing picked yet" never reads as a picked thing called "· none ·").
+        /// The referenced thing's name, plus whether this is the EMPTY state — styled hollow (no reference
+        /// tint) with a dimmed italic name, so "nothing picked yet" never reads as a picked thing called
+        /// "· none ·". (This used to promise a DASHED border; UI Toolkit has no `border-style`, so that was
+        /// never expressible — see the .zui-chip--empty comment in ZuiToolkit.uss.)
         public void Set(string text, bool empty)
         {
             _label.text = string.IsNullOrEmpty(text) ? "· none ·" : text;

@@ -36,6 +36,24 @@ namespace Laubrary.Zui
         // ── optional collapsed-only header suffix (set by SetHeaderSuffix) ──
         Func<string> _headerSuffix;
 
+        /// Raised after the user folds/unfolds this section by clicking its own header (never on a
+        /// programmatic IsOpen set) — mirrors ZuiBox's ViewChanged. Lets an external "toggle bar" (a row of
+        /// buttons that shows/hides sections in bulk) stay in sync when the user instead folds a section the
+        /// OLD way, by clicking its header directly.
+        public event Action ViewChanged;
+
+        // ── header-fold disable (ZuiSectionToggleBar's "either headers OR the bar" mode) ──
+        bool _headerFoldDisabled;
+
+        /// When true, clicking the header does NOT fold/unfold the section — used by ZuiSectionToggleBar so
+        /// a group of sections is controlled ONLY by its bar, never fought over by two controls at once.
+        /// IsOpen can still be set programmatically (that's exactly how the bar drives it) while this is on.
+        public bool HeaderFoldDisabled
+        {
+            get => _headerFoldDisabled;
+            set { _headerFoldDisabled = value; _header.EnableInClassList("zui-section__header--nofold", value); Apply(); }
+        }
+
         /// Children go into the body, not next to the header.
         public override VisualElement contentContainer => _body;
 
@@ -91,7 +109,11 @@ namespace Laubrary.Zui
             // real click never reached it). Clickable is what Button itself uses — it owns the
             // pointer-down/up pair and the capture in between — so a header behaves exactly like the
             // buttons beside it, which are known to work in these windows.
-            header.AddManipulator(new Clickable(() => IsOpen = !IsOpen));
+            header.AddManipulator(new Clickable(() =>
+            {
+                if (_headerFoldDisabled) return;   // bar-controlled — only the toggle bar's own button folds it
+                IsOpen = !IsOpen; ViewChanged?.Invoke();
+            }));
             hierarchy.Add(header);
 
             _body = new VisualElement();
@@ -138,6 +160,13 @@ namespace Laubrary.Zui
             // where the content itself is visible. No provider ⇒ the title is exactly the base text.
             if (_title != null)
                 _title.text = _titleText + (open ? string.Empty : (_headerSuffix?.Invoke() ?? string.Empty));
+
+            // Toggle-bar mode (HeaderFoldDisabled): the header can't reopen a closed section anymore — only
+            // the bar's own button can — so a bare header for it is dead space, not an affordance. Hide the
+            // WHOLE section (header included) to actually save space, which is the point of the bar (T-0065).
+            // Classic mode always keeps the header visible even when closed, since clicking it IS how it
+            // reopens.
+            style.display = (_headerFoldDisabled && !open) ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         // ── collapsed-only header suffix ──────────────────────────────────────────────────────────────

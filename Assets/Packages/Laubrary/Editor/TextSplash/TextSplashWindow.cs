@@ -298,7 +298,7 @@ namespace Laubrary.TextSplash.Editor
             _transportHost.Add(BuildTransport(s));
             right.Add(_transportHost);
             // The backdrop belongs BESIDE the pixels it changes, not at the bottom of a 400px dial column a
-            // screen away — which is also what Pyre and PyrePlus already do. Rebuilding the tree (not just
+            // screen away — which is also what Pyre and Pyre already do. Rebuilding the tree (not just
             // repainting) is required: picking an image ADDS the pad/zoom/tint row, and EditorWindow.Repaint
             // does not rebuild a UITK tree, so those controls used to stay hidden until an unrelated edit.
             _backdropHost = new VisualElement();

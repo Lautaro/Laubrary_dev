@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using ZuiRuntime;
-using Laubrary.UIAudit;
 
 public static partial class ZUI
 {
@@ -449,8 +448,6 @@ public static partial class ZUI
             DrawButtonLabel(rect, content, def.GetLabelStyle(s, iconOnly), icon, placement, def, def.GetText(s));
         }
 
-        if (Event.current.type == EventType.Repaint)
-            EditorZuiAudit.Record(new ZuiDrawRecord { Kind = "button", Rect = rect, Text = content.text, Interactive = true });
 
         return clicked;
     }

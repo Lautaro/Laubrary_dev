@@ -82,7 +82,10 @@ namespace Laubrary.Zui
             }
 
             // ── filter toggles + save ──
+            // Carries the class, not just the inline equivalent: a child's align-self beats a parent's align-items,
+            // so the sheet's row exemption is what keeps these toggles vertically centred rather than top-aligned.
             var bar = new VisualElement();
+            bar.AddToClassList("zui-row");
             bar.style.flexDirection = FlexDirection.Row;
             bar.style.alignItems = Align.Center;
             bar.Add(Z.ToggleButton("Built-in", "Show the shapes that ship with ZUI.", showBuiltin,

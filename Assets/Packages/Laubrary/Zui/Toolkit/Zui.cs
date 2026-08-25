@@ -670,6 +670,21 @@ namespace Laubrary.Zui
             return c;
         }
 
+        /// A colour-ramp editor over anything that speaks IZuiRamp (Pyre's PyreRamp) — a strip painted from the
+        /// ramp's OWN Eval over a checker, with a draggable marker per stop, double-click to insert, right-click a
+        /// marker to remove, and the ramp's blend modes as a segmented row. Mutates the ramp IN PLACE, so
+        /// <paramref name="onBeforeMutate"/> is the Undo.RecordObject hook (fired once per gesture) and
+        /// <paramref name="onChanged"/> fires after every edit. ZuiReflect reaches for this automatically for a
+        /// reflected IZuiRamp field; this factory is for a hand-built window that wants one directly.
+        public static ZuiRampControl Ramp(IZuiRamp value, string tooltip, Action onBeforeMutate = null,
+            Action onChanged = null)
+        {
+            var c = new ZuiRampControl(value, tooltip);
+            if (onBeforeMutate != null) c.OnBeforeMutate += onBeforeMutate;
+            if (onChanged != null) c.OnChanged += onChanged;
+            return c;
+        }
+
         /// A ZuiSwatchRef picker — an inline colour OR a named swatch in a SwatchPalette (palette ObjectField +
         /// swatch-name dropdown + inline colour + a live RESOLVED preview). Since ZuiSwatchRef is a struct, onChanged
         /// delivers the NEW struct (the caller writes it back to its field).
@@ -782,7 +797,7 @@ namespace Laubrary.Zui
         /// (azimuth) + pitch (elevation), optionally with a distance, plus numeric fallback fields and a larger
         /// 3D preview that opens on hover (a non-modal Z.Popover) or pins open. The lit hotspot on the sphere IS
         /// the readout, so a direction reads as a real point on a ball, not two disconnected sliders. Reach for
-        /// this wherever a light/aim direction is authored (PyrePlus's Gem/solid key light is the reference use).
+        /// this wherever a light/aim direction is authored (Pyre's Gem/solid key light is the reference use).
         /// `onChanged` fires (yaw, pitch, distance) once per edit — wrap it in your Undo/Dirty helper. Distance
         /// is passed even when Options.showDistance is false (ignore it there). Wrap it in Z.Frame(title, ..) for
         /// a titled bordered unit.
@@ -861,6 +876,20 @@ namespace Laubrary.Zui
             if (onBeforeMutate != null) env.OnBeforeMutate += onBeforeMutate;
             return env;
         }
+
+        /// A scrub bar over a LOOP of a given number of seconds, split into consecutive coloured bands
+        /// (<see cref="ZuiTimelineSegment"/>) with a playhead, tick marks and numeric time labels. Click
+        /// anywhere on it to jump the playhead there; drag to scrub. <paramref name="onChanged"/> delivers
+        /// the new position in SECONDS.
+        ///
+        /// Set the bands with <c>SetSegments(...)</c> after construction (and again whenever a length the
+        /// host owns changes) — the total, and therefore the whole ruler, is derived from them. It stretches
+        /// to the width it is given, so give it a full-width row rather than parking it beside something.
+        /// Push a host clock in with <c>SetSecondsWithoutNotify</c>, never the <c>Seconds</c> setter, or a
+        /// play tick re-enters <paramref name="onChanged"/>.
+        public static ZuiTimeline Timeline(float seconds, string tooltip, Action<float> onChanged = null,
+            float height = 22f)
+            => new ZuiTimeline(seconds, tooltip, onChanged, height);
 
         // ── pixel-exact drawing (a bespoke IMGUI preview canvas) ─────────────────────
 

@@ -19,7 +19,6 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using ZuiRuntime;
-using Laubrary.UIAudit;
 
 public static partial class ZUI
 {
@@ -359,8 +358,6 @@ public static partial class ZUI
                 value = Mathf.Clamp(newVal, min, max);
         }
 
-        if (Event.current.type == EventType.Repaint)
-            EditorZuiAudit.Record(new ZuiDrawRecord { Kind = "slider", Rect = totalRect, Text = label, Interactive = true });
 
         return value;
     }
@@ -465,8 +462,6 @@ public static partial class ZUI
 
         DrawFlashOverlayIfNeeded(sliderRect, styleName, 0, FlashDefType.Slider);
 
-        if (Event.current.type == EventType.Repaint)
-            EditorZuiAudit.Record(new ZuiDrawRecord { Kind = "slider-vertical", Rect = totalRect, Text = label, Interactive = true });
 
         return value;
     }
@@ -779,8 +774,6 @@ public static partial class ZUI
             }
         }
 
-        if (Event.current.type == EventType.Repaint)
-            EditorZuiAudit.Record(new ZuiDrawRecord { Kind = "slider", Rect = totalRect, Text = label, Interactive = true });
     }
 
     // =========================================================================
@@ -1209,8 +1202,6 @@ public static partial class ZUI
 
         DrawFlashOverlayIfNeeded(trackRect, styleName, 0, FlashDefType.Slider);
 
-        if (Event.current.type == EventType.Repaint)
-            EditorZuiAudit.Record(new ZuiDrawRecord { Kind = "microslider", Rect = totalRect, Text = label, Interactive = true });
 
         return value;
     }

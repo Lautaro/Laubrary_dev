@@ -49,7 +49,6 @@ namespace ZuiRuntime
         {
             rect = ClampToScreen(rect);
             FillRect(rect, bg);
-            ZuiAudit.Record(new ZuiDrawRecord { Kind = "panel", Rect = rect });
             float p = UIScale.S(padPts);
             return new Rect(rect.x + p, rect.y + p, rect.width - 2f * p, rect.height - 2f * p);
         }
@@ -69,7 +68,6 @@ namespace ZuiRuntime
             var resolvedSheet = sheet ?? DefaultSheet;
             if (resolvedSheet == null) return rect;
             ZUISheet.DrawBox(resolvedSheet, styleName, rect);
-            ZuiAudit.Record(new ZuiDrawRecord { Kind = "panel", Rect = rect });
             float p = UIScale.S(padPts ?? resolvedSheet.contentPadding);
             return new Rect(rect.x + p, rect.y + p, rect.width - 2f * p, rect.height - 2f * p);
         }

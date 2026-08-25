@@ -32,7 +32,7 @@ namespace Laubrary.Zui
         public bool allowSegmentDrag = true;
         public bool showGrid = true;
         public int gridRows = 4;
-        public int minPoints = 2;
+        public int minPoints = 1;
         /// Draw each point's value as small text beside it.
         public bool showValueLabels = false;
         public Color curveColor = new Color(0.3f, 0.8f, 1f);
@@ -162,7 +162,10 @@ namespace Laubrary.Zui
 
         ZUIEnvelopeEditState StateOf(int i)
         {
-            if (_opt.anchorsLocked && (i == 0 || i == _points.Count - 1)) return ZUIEnvelopeEditState.NotEditable;
+            // A single remaining point is simultaneously "first" and "last" — anchorsLocked exists to pin
+            // the ENDS of a multi-point curve, not to freeze a 1-point envelope in place, so it's exempted
+            // here (that lone point must stay draggable anywhere, per its role as the whole envelope's value).
+            if (_opt.anchorsLocked && _points.Count > 1 && (i == 0 || i == _points.Count - 1)) return ZUIEnvelopeEditState.NotEditable;
             return _points[i].editState;
         }
 

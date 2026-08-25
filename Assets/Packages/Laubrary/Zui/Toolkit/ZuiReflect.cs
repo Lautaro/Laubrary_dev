@@ -257,8 +257,11 @@ namespace Laubrary.Zui
         {
             var val = e as ZuiValueControl ?? e.Q<ZuiValueControl>();
             if (val != null) return val.IsCurveShaped;
-            return e is ZuiValue2DControl || e is ZuiGradientControl ||
-                   e.Q<ZuiValue2DControl>() != null || e.Q<ZuiGradientControl>() != null;
+            // A ramp strip is wide by nature — leave it out of this list and it gets squeezed into the flow beside
+            // a slider, which is exactly the clipping the deleted bands control had to be re-fitted for.
+            return e is ZuiValue2DControl || e is ZuiGradientControl || e is ZuiRampControl ||
+                   e.Q<ZuiValue2DControl>() != null || e.Q<ZuiGradientControl>() != null ||
+                   e.Q<ZuiRampControl>() != null;
         }
 
         static ZUIPair2DAttribute PairAttributeOf(FieldInfo f)
@@ -328,7 +331,7 @@ namespace Laubrary.Zui
 
             if (t == typeof(int))
                 // Bounded int → a whole-number MicroSlider (decimals 0, rounded at the setter), matching how the
-                // hand-written windows render a bounded count (PyrePlus deliberately uses a MicroSlider, not a
+                // hand-written windows render a bounded count (Pyre deliberately uses a MicroSlider, not a
                 // thumbed SliderInt, for a count). Unbounded → a scrub Int wrapped in a Z.Field for its label.
                 return range != null
                     ? (VisualElement)Z.MicroSlider(nice, (int)v, range.min, range.max, tip,
@@ -357,7 +360,7 @@ namespace Laubrary.Zui
                 // A Gradient (e.g. TintModifier.crossGradient) via Z.Gradient — Unity's own gradient editor, sized
                 // not stretched. Previously unrendered by this drawer, so a reflected effect/modifier with a gradient
                 // field showed every field EXCEPT the gradient; this closes that gap for every reflected tool
-                // (SpriteFx, PyrePlus, Chunks) at once.
+                // (SpriteFx, Pyre, Chunks) at once.
                 return Z.Field(nice, tip, Z.Gradient((Gradient)v, tip, nv => Set(nv), opt.ControlWidth));
 
             if (t == typeof(AnimationCurve))
@@ -390,7 +393,7 @@ namespace Laubrary.Zui
             // An animatable ZUIValue → the FULL Static / Min-Max / Curve control (Z.Value / ZuiValueControl), not
             // just its static float. Toolkit rule (ui-layout-rules: "an animatable value → Z.Value, whose ⋯ menu
             // switches Static / Min-Max / Curve"). ZUIValue is a Zui type, so this drawer names it directly (no
-            // duck-typing) — and every tool that reflects modifier/serialized fields (PyrePlus, Chunks, a SpriteFx
+            // duck-typing) — and every tool that reflects modifier/serialized fields (Pyre, Chunks, a SpriteFx
             // stack) gains real curve authoring here at once, closing the old "static value only" limitation.
             // Placed BEFORE the generic float-wrapper fallback below, which would otherwise catch a ZUIValue by its
             // `staticValue` property and flatten it to one number. A [Range] on the field sets the bounds; without
@@ -492,10 +495,31 @@ namespace Laubrary.Zui
                 return Z.Field(nice, tip, sc);
             }
 
+            // A colour ramp that speaks IZuiRamp (Pyre's PyreRamp) → ONE ZuiRampControl: a strip painted from the
+            // ramp's own Eval with a marker per stop. This case has to sit BEFORE both the List<> branch and the
+            // nested-plain-class branch below, or a PyreRamp falls through to a titled box wrapping a list box of
+            // near-identical "Stop N" cards — ten of them for a Jet ramp, which is what this replaces. Type-level,
+            // so every authored ramp field in every form adopts it at once with no per-form edit. Mutates in place
+            // like the ZuiGradient case above, so the host's Undo/dirty hooks wire straight in rather than through
+            // Set; a null field gets a fresh instance the same way.
+            if (typeof(IZuiRamp).IsAssignableFrom(t) && t.IsClass && !t.IsAbstract
+                && t.GetConstructor(Type.EmptyTypes) != null)
+            {
+                var ramp = v as IZuiRamp;
+                if (ramp == null)
+                {
+                    var fresh = Activator.CreateInstance(t);
+                    field.SetValue(owner, fresh);
+                    ramp = (IZuiRamp)fresh;
+                }
+                var rc = new ZuiRampControl(ramp, tip) { OnBeforeMutate = opt.OnBeforeChange, OnChanged = opt.OnChanged };
+                return Z.Field(nice, tip, rc);
+            }
+
             if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>))
                 return BuildList(owner, field, nice, tip, opt);
 
-            // A nested plain [Serializable] settings object (a PyrePlus PlusRamp, a future grouped-options class):
+            // A nested plain [Serializable] settings object (a Pyre PyreRamp, a future grouped-options class):
             // a titled box flowing ITS fields, keyed stably by owner type + field name like a list. Null-valued
             // fields get a fresh instance so the box is never empty. Depth-guarded so a self-referential type
             // cannot recurse forever (a real-world nesting is one or two levels).
@@ -527,28 +551,58 @@ namespace Laubrary.Zui
 
             // A STABLE view-capture key (owner type + field name), never the title. The title carries a LIVE
             // element count, so a title-derived fallback key would DRIFT every time the list grows/shrinks —
-            // orphaning this box's captured fold/view state in any ZuiViewBar-carrying host (e.g. PyrePlus, whose
+            // orphaning this box's captured fold/view state in any ZuiViewBar-carrying host (e.g. Pyre, whose
             // bar captures every ZuiBox). BoxKeyed pins the key so the count stays visible in the title without
             // moving the key. (An untitled per-item card below stays a bare, non-captured Z.Box.)
             var box = Z.BoxKeyed($"{nice}  ({list.Count})", tip + $" A list of {PrettyTypeName(elemType)}.",
                 $"reflect.list.{owner.GetType().Name}.{field.Name}");
+            // A list whose element is NOTHING but a handful of bounded scalars (ExplosiveJetSettings.blasts: five
+            // [Range] floats and no more) does not need a header row above a body row — that spends two lines and a
+            // card title on saying "#3". Such an element collapses to ONE row: index, its fields inline, the ×.
+            // Deliberately narrow: any element carrying a colour, a string, a nested class, a list, an Object
+            // reference or a conditional field keeps the old card, because those are real sub-forms.
+            bool compact = isClass && IsCompactRowElement(elemType);
+            var elemOpt = compact ? CompactOptions(opt) : opt;
+
             for (int i = 0; i < list.Count; i++)
             {
                 int idx = i;
                 var card = Z.Box(null, null);
+                var remove = Z.Button("×", $"Remove {Singular(nice).ToLowerInvariant()} {idx + 1} from {nice}.", () =>
+                {
+                    opt.OnBeforeChange?.Invoke();
+                    list.RemoveAt(idx);
+                    opt.OnChanged?.Invoke();
+                    opt.OnStructureChanged?.Invoke();
+                }).W(22f);
+
+                if (compact)
+                {
+                    var elem = list[idx];
+                    if (elem == null) { elem = Activator.CreateInstance(elemType); list[idx] = elem; }
+                    var row = Z.Row();
+                    // NO wrap: a flexible gap in a wrapping row pushes the × onto a line of its own, which is the
+                    // "confusing empty space" failure the card-layout rule warns about. The dials shrink instead.
+                    row.style.flexDirection = FlexDirection.Row;
+                    row.style.flexWrap = Wrap.NoWrap;
+                    row.style.alignItems = Align.Center;
+                    row.Add(Z.Text($"#{idx + 1}", ZuiText.Small,
+                        $"{Singular(nice)} {idx + 1} of {nice}.").W(26f));
+                    BuildFields(row, elem, elemOpt);
+                    row.Add(Z.Flexible());
+                    row.Add(remove);
+                    card.Add(row);
+                    box.Add(card);
+                    continue;
+                }
+
                 // Named, not indexed. "[0]" tells the reader nothing they cannot already see from the order,
                 // and it names the ARRAY rather than the thing — this is the first replacement, not element
                 // zero of anything the author thinks about.
                 card.Add(Z.Row(
                     Z.Text($"{Singular(nice)} {idx + 1}", ZuiText.Small, $"{Singular(nice)} {idx + 1} of {nice}."),
                     Z.Flexible(),
-                    Z.Button("×", $"Remove {Singular(nice).ToLowerInvariant()} {idx + 1} from {nice}.", () =>
-                    {
-                        opt.OnBeforeChange?.Invoke();
-                        list.RemoveAt(idx);
-                        opt.OnChanged?.Invoke();
-                        opt.OnStructureChanged?.Invoke();
-                    }).W(22f)));
+                    remove));
 
                 if (isClass)
                 {
@@ -581,6 +635,57 @@ namespace Laubrary.Zui
             }));
             return box;
         }
+
+        static readonly Dictionary<Type, bool> s_compactRowCache = new();
+
+        /// Whether a list ELEMENT is nothing but a small set of bounded scalars, so its whole card can collapse to
+        /// one row. Strict on purpose — this must be an improvement for the lists it fires on and a no-op for every
+        /// other list in every other tool:
+        ///   • every public serialized field is a [Range] float/int or a bool — a colour, string, enum, Vector,
+        ///     nested class, list or Object reference disqualifies the element outright;
+        ///   • between 2 and 5 such fields (one field is already a one-liner; six-plus will not fit a row);
+        ///   • no [ZUIShowIf] and no [ZUIPair2D] anywhere on it, since a field that appears and disappears (or that
+        ///     swallows its partner into a 2D pad) makes the row's width jump around under the user.
+        static bool IsCompactRowElement(Type elemType)
+        {
+            if (s_compactRowCache.TryGetValue(elemType, out bool cached)) return cached;
+            bool ok = Compute();
+            s_compactRowCache[elemType] = ok;
+            return ok;
+
+            bool Compute()
+            {
+                if (!elemType.IsClass || elemType == typeof(string)) return false;
+                if (typeof(UnityEngine.Object).IsAssignableFrom(elemType)) return false;
+                int n = 0;
+                foreach (var f in FieldsOf(elemType))
+                {
+                    if (Attribute.IsDefined(f, typeof(ZUIShowIfAttribute))) return false;
+                    if (Attribute.IsDefined(f, typeof(ZUIPair2DAttribute))) return false;
+                    var ft = f.FieldType;
+                    if (ft == typeof(bool)) { n++; continue; }
+                    if ((ft == typeof(float) || ft == typeof(int))
+                        && Attribute.IsDefined(f, typeof(RangeAttribute))) { n++; continue; }
+                    return false;
+                }
+                return n >= 2 && n <= 5;
+            }
+        }
+
+        /// The element options for a compact row: identical to the host's, but with narrower dials so several fit
+        /// one line. They still shrink further in a narrow pane rather than overflowing (UITK's default flexShrink),
+        /// which is what keeps this from producing the horizontal scrollbar the layout rules call a bug signal.
+        static Options CompactOptions(Options o) => new Options
+        {
+            OnBeforeChange = o.OnBeforeChange,
+            OnChanged = o.OnChanged,
+            OnStructureChanged = o.OnStructureChanged,
+            TooltipFor = o.TooltipFor,
+            Skip = o.Skip,
+            FloatWrapperProperty = o.FloatWrapperProperty,
+            ConfigureValue = o.ConfigureValue,
+            ControlWidth = 100f,
+        };
 
         static VisualElement BuildElement(IList list, int idx, Type elemType, string tip, Options opt)
         {

@@ -1,8 +1,8 @@
 // ZuiThumbGrid — the multi-select + reorder MATH shared by every thumbnail-grid editor (Laumination Builder's
-// sequence strip, PyrePlus CherryFraming's cherry slots). Click=select, Shift=range, Ctrl/Cmd=toggle, drag a
+// sequence strip, Pyre CherryFraming's cherry slots). Click=select, Shift=range, Ctrl/Cmd=toggle, drag a
 // tile onto another to reorder. This class holds only the technology-agnostic pieces (selection-set mutation,
 // contiguous-block list reorder) — the actual mouse/pointer gesture recognition stays with the caller because
-// Laumination's strip is an IMGUI island and PyrePlus's grid is UI Toolkit, and there is no single event API
+// Laumination's strip is an IMGUI island and Pyre's grid is UI Toolkit, and there is no single event API
 // spanning both. Both callers apply the SAME algorithm through this class instead of hand-rolling it twice.
 using System.Collections.Generic;
 using UnityEngine;

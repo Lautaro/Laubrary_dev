@@ -1,6 +1,6 @@
 // ZuiFoldCard — make a "card" (a Z.Box(null,null) with a header row + a reflected field body) FOLDABLE:
 // a click anywhere on the header collapses the body to just that header, and a second click expands it.
-// Used by the parallel modifier-list UIs (PyrePlus, Chunks) so a long stack of modifier cards folds down
+// Used by the parallel modifier-list UIs (Pyre, Chunks) so a long stack of modifier cards folds down
 // to a scannable column of headers — each still showing its grip / enable / name / ✕, so you can reorder,
 // enable, remove or identify a modifier without expanding it. Only the field body hides.
 //

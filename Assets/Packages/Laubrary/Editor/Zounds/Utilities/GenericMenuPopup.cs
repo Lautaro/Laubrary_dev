@@ -175,7 +175,7 @@ namespace Laubrary.Zounds {
         }
 
         private static GUIStyle _plusStyle;
-        public static GUIStyle PlusStyle {
+        public static GUIStyle PyreStyle {
             get {
                 if (_plusStyle == null) {
                     _plusStyle = new GUIStyle();
@@ -1055,7 +1055,7 @@ namespace Laubrary.Zounds {
 
                 if (node.Nodes.Count > 0) {
                     Rect lastRect = GUILayoutUtility.GetLastRect();
-                    GUI.Label(new Rect(lastRect.x + lastRect.width - 16, lastRect.y - 2, 20, 20), "+", PlusStyle);
+                    GUI.Label(new Rect(lastRect.x + lastRect.width - 16, lastRect.y - 2, 20, 20), "+", PyreStyle);
                 }
             }
 

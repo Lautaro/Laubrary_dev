@@ -18,6 +18,13 @@
        label) — a soft near-white so the white glyph reads a touch quieter than the text, not brighter.
        A SECTION icon instead takes --zui-section-title (the green heading colour). */
     --zui-icon-neutral: rgba(220, 222, 228, 0.9);
+    /* Reference chips (ZuiChip). A REFERENCE tint: recognisably the accent hue, so "this points at
+       something else" is spottable across a window, but deliberately well BELOW --zui-accent-soft (0.35),
+       which already means "this toggle is latched ON" — a chip must never be misread as a pressed button.
+       Retune the whole toolkit's reference look here. */
+    --zui-chip-fill: rgba(90, 160, 255, 0.14);
+    --zui-chip-fill-hover: rgba(90, 160, 255, 0.3);
+    --zui-chip-line: rgba(90, 160, 255, 0.55);
     padding: 4px;
 }
 
@@ -197,6 +204,12 @@
     background-color: rgba(255, 255, 255, 0.05);
 }
 
+/* Bar-controlled (ZuiSectionToggleBar in "Toggle Bar" mode): header click no longer folds, so drop the
+   hover cue that would otherwise promise an action the header no longer performs. */
+.zui-section__header--nofold:hover {
+    background-color: transparent;
+}
+
 .zui-section__title {
     -unity-font-style: bold;
     font-size: 13px;
@@ -364,6 +377,27 @@
     flex-shrink: 0;
 }
 
+/* Same cross-axis guard as .unity-toggle above — and for the same reason. A ZuiToggleButton is a
+   Button, so it never picked up that rule when Z.Toggle was rerouted here; in a COLUMN body it
+   inherits align-items:stretch and blows out to the full pane width. Inside a row the cross axis
+   is height, so those contexts keep the row's vertical centring instead. */
+.zui-root .zui-togglebutton {
+    align-self: flex-start;
+}
+
+.zui-root .zui-row .zui-togglebutton,
+.zui-root .zui-field .zui-togglebutton,
+.zui-root .zui-hgroup .zui-togglebutton,
+.zui-root .zui-box__titlerow .zui-togglebutton,
+.zui-root .zui-section__header .zui-togglebutton {
+    align-self: center;
+}
+
+/* A menu row is deliberately full-width, read left like the item rows — opt it back in. */
+.zui-root .zui-menu .zui-togglebutton {
+    align-self: stretch;
+}
+
 .zui-togglebutton:hover {
     background-color: rgba(255, 255, 255, 0.06);
 }
@@ -418,6 +452,37 @@
     background-color: var(--zui-accent-soft);
 }
 
+/* Soloed segment (ZuiSectionToggleBar, T-0076) — a full green ring regardless of the seg's normal
+   first/last/on border rules, so a soloed section's button reads as "isolated" at a glance. */
+.zui-segmented > .zui-segmented__seg.zui-segmented__solo {
+    border-left-width: 2px;
+    border-right-width: 2px;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-color: #4caf50;
+}
+
+/* Quick view engaged (ZuiSectionToggleBar, T-0085) — the "Toggle Bar" segment goes amber while a
+   temporary Show all / Show none is overriding the user's own selection. Amber rather than solo's
+   green, so the two overrides never read as the same thing. Colour ONLY: no label change and no
+   border WIDTH, because either would resize the segment and re-wrap the bar sitting beside it. */
+.zui-segmented > .zui-segmented__seg.zui-segmented__quickview,
+.zui-segmented > .zui-segmented__seg.zui-segmented__on.zui-segmented__quickview,
+.zui-segmented > .zui-segmented__seg.zui-segmented__quickview:hover,
+.zui-segmented > .zui-segmented__seg.zui-segmented__on.zui-segmented__quickview:hover {
+    background-color: rgba(224, 160, 48, 0.22);
+    border-color: #e0a030;
+}
+
+/* ZuiSectionToggleBar — full-width mode-switch + per-section toggle row (T-0065). */
+.zui-section-togglebar {
+    padding: 4px 6px;
+    margin-bottom: 6px;
+    background-color: var(--zui-bg-inset);
+    border-bottom-width: 1px;
+    border-color: var(--zui-line);
+}
+
 /* Controls --------------------------------------------------------------- */
 
 .zui-radio {
@@ -452,6 +517,152 @@
 .zui-radio__on {
     background-color: var(--zui-accent-soft);
     -unity-font-style: bold;
+}
+
+/* Reference chip (ZuiChip) -------------------------------------------------
+   THE control for "this field points at another asset". Shaped on purpose NOT like a settings control: a
+   rounded, tinted pill, so a window full of references reads as references instead of as a wall of fields.
+
+   ⚠️ This block did not exist until 2026-08-25. ZuiChip styles itself ENTIRELY through these class names,
+   so with no rules behind them every chip in every tool rendered as a bare, unstyled VisualElement — which
+   defaults to flex-direction:column, i.e. the thumbnail stacked ABOVE the name with no frame of any kind
+   (measured live in the Chunks window: a 137x79 block with a 64px image band). A user reading that screen
+   reported it as "textinputs where the user has to type in what appears to be names of assets". A class the
+   C# adds with no rule behind it is invisible in code review and catastrophic on screen — if you add a new
+   zui-chip__* class in ZuiChip.cs, add its rule here in the SAME change. */
+.zui-chip {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    padding-left: 6px;
+    padding-right: 5px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    /* A pill: rounder than the toolkit's 3px buttons ON PURPOSE. The extra roundness is the cheapest
+       always-on signal that separates "points at something else" from "press me", and it still reads as
+       the same toolkit — same hairline weight, same palette, same padding scale. */
+    border-radius: 9px;
+    border-width: 1px;
+    border-color: var(--zui-chip-line);
+    background-color: var(--zui-chip-fill);
+    /* A default cap, matching .zui-mref__type's own 220px: an ASSET NAME is arbitrarily long, and a chip
+       that sizes to its text pushes whatever shares its row (a × remove button, a second field) off the
+       pane. MaxW() sets an INLINE max-width, which overrides this, so a call site that wants a tighter or
+       looser cap still wins — but no call site currently calls MaxW(), so without this the __label's
+       ellipsis rules below could never fire and every long name blew the row out. */
+    max-width: 220px;
+    /* Nothing escapes the pill — same treatment as .zui-microslider. */
+    overflow: hidden;
+}
+
+/* Cross-axis guard — the same bug, and the same fix, as .unity-toggle and .zui-togglebutton above.
+   flex-grow governs only the MAIN axis; a ZuiChip is a bare VisualElement, so sitting in a COLUMN body
+   (a ZuiBox/ZuiSection body) it inherits align-items:stretch and fills the entire pane. Inside a row the
+   cross axis is height, so those contexts keep the row's vertical centring instead. */
+.zui-root .zui-chip {
+    align-self: flex-start;
+}
+
+.zui-root .zui-row .zui-chip,
+.zui-root .zui-field .zui-chip,
+.zui-root .zui-hgroup .zui-chip,
+.zui-root .zui-box__titlerow .zui-chip,
+.zui-root .zui-section__header .zui-chip {
+    align-self: center;
+}
+
+/* The sanctioned opt-out, same class ZuiAudit already honours for the rulebook's name-field exception.
+   Declared LAST of the align-self rules: it ties the row selectors on specificity, so source order is
+   what makes it win. */
+.zui-root .zui-chip.zui-audit-allow-stretch {
+    align-self: stretch;
+}
+
+/* Hover is the main signal that a thing is clickable — a chip's whole job is to be pressed, so it answers
+   to the pointer at least as loudly as a menu row or a box title does. */
+.zui-chip:hover {
+    background-color: var(--zui-chip-fill-hover);
+    border-color: var(--zui-accent);
+}
+
+/* The name. Full body text size (it is the chip's content, not chrome), and it TRUNCATES rather than
+   pushing the rest of the row off screen — an asset name is arbitrarily long and MaxW() caps the pill. */
+.zui-chip__label {
+    flex-shrink: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    -unity-text-align: middle-left;
+}
+
+/* An INLINE pill icon, not a picture frame: a fixed small square in the toolkit's existing glyph-gutter
+   scale (.zui-menu__icon is 14px, header icons ~14px). The explicit size is load-bearing — a UITK Image
+   with no width/height measures to its TEXTURE, which is exactly how a 64px-tall image band ended up
+   inside a chip. flex-shrink:0 so the name eats the truncation, never the picture. */
+.zui-chip__thumb {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-right: 5px;
+    border-radius: 2px;
+}
+
+/* The colour-instead-of-picture case (a Faction, a tile tag): same footprint as the thumb it replaces,
+   fully rounded so it reads as a swatch/dot rather than a cropped image, with a hairline so a dark colour
+   is still visible against the pill. */
+.zui-chip__dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    margin-right: 5px;
+    border-width: 1px;
+    border-color: var(--zui-line);
+}
+
+/* The "this opens a picker" affordance. Same glyph language as every other ZUI chooser (ZuiBox,
+   ZuiFoldCard and ZuiManagedRef all draw "▾" for "there is more here when you click"), so the chip
+   inherits the convention rather than inventing a second one. Quiet at rest so it never competes with the
+   name; full strength on hover, where it confirms the pill is the click target. */
+.zui-chip__pick {
+    margin-left: 5px;
+    font-size: 10px;
+    opacity: 0.55;
+    flex-shrink: 0;
+    -unity-text-align: middle-center;
+}
+
+.zui-chip:hover .zui-chip__pick {
+    opacity: 1;
+}
+
+/* Empty state — "nothing picked yet" must never read as a picked thing called "· none ·". Hollow (no
+   reference tint at all), neutral hairline, dimmed italic name; the ▾ stays, because the empty state is
+   precisely when the user most needs to see that this is pickable.
+   ⚠️ UI Toolkit has no `border-style`, so ZuiChip's own doc comment's "dashed" border is simply not
+   expressible in USS. Hollow + neutral + dimmed + italic carries the same "this slot is unfilled" reading
+   using properties UITK actually supports. Do not add `border-style: dashed` — it is silently dropped. */
+.zui-chip--empty {
+    background-color: rgba(0, 0, 0, 0);
+    border-color: var(--zui-line);
+}
+
+.zui-chip--empty > .zui-chip__label {
+    opacity: 0.55;
+    -unity-font-style: italic;
+}
+
+/* Drag-hover accept state. Two classes so it outranks :hover (which is also active mid-drag) and lands
+   after it in source order. Only FILL and BORDER COLOUR change — never border WIDTH or padding, which
+   would reflow the pill's contents by a pixel every time a drag passes over it. */
+.zui-chip.zui-chip--drop {
+    background-color: var(--zui-accent-soft);
+    border-color: var(--zui-accent);
+}
+
+.zui-chip.zui-chip--drop > .zui-chip__label {
+    opacity: 1;
+    -unity-font-style: normal;
 }
 
 /* A PropertyField built through ZuiSerialized already carries the label we gave it, so the field's
@@ -571,6 +782,22 @@
     border-width: 1px;
     border-color: rgba(255, 255, 255, 0.08);
     flex-shrink: 0;
+}
+
+/* Timeline scrub bar (ZuiTimeline). Same inset/hairline treatment as the envelope, so the two painted
+   time-domain controls read as siblings. The bands themselves are painted from the host's own colours —
+   only the frame around them is styled here. */
+
+.zui-timeline__bar {
+    background-color: rgba(0, 0, 0, 0.35);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.zui-timeline__lane {
+    /* The ruler numbers sit flush under the bar; the lane's own height is reserved in code so the bar
+       never moves when a label appears or is dropped. */
+    margin-top: 1px;
 }
 
 /* Reorderable rows -------------------------------------------------------- */

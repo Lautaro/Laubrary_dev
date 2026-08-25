@@ -71,5 +71,10 @@ namespace Laubrary.Zui
         {
             for (int i = 0; i < _segs.Count; i++) _segs[i].EnableInClassList("zui-segmented__on", isOn(i));
         }
+
+        /// The underlying button for a segment, so a caller (e.g. ZuiSectionToggleBar's solo handling) can
+        /// wire extra behaviour — a right-click handler, an extra styling class — onto one segment without
+        /// this control needing to know about it.
+        public Button SegmentAt(int index) => _segs[index];
     }
 }

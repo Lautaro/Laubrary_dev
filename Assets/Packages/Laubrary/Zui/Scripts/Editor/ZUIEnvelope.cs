@@ -282,7 +282,10 @@ public static partial class ZUI
 
     static ZUIEnvelopeEditState EffectiveState(int idx, List<ZUIEnvelopePoint> points, ZUIEnvelopeRuntime rt)
     {
-        if (rt.anchorsLocked && (idx == 0 || idx == points.Count - 1))
+        // A single remaining point is simultaneously "first" and "last" — anchorsLocked exists to pin
+        // the ENDS of a multi-point curve, not to freeze a 1-point envelope in place, so it's exempted
+        // here (that lone point must stay draggable anywhere, per its role as the whole envelope's value).
+        if (rt.anchorsLocked && points.Count > 1 && (idx == 0 || idx == points.Count - 1))
             return ZUIEnvelopeEditState.NotEditable;
         return points[idx].editState;
     }
@@ -768,7 +771,7 @@ public static partial class ZUI
 
                 if (e.button == 0)
                 {
-                    if (e.clickCount == 2 && rt.allowRemovePoints && CanRemove(es))
+                    if (e.clickCount == 2 && rt.allowRemovePoints && CanRemove(es) && points.Count > 1)
                     {
                         rt.onDragStarted?.Invoke();
                         points.RemoveAt(pointHit);
@@ -800,7 +803,27 @@ public static partial class ZUI
             // which are distance-based and reach edge handles sitting in the padding).
             if (insidePlot)
             {
-                // 3) Line hit?
+                // 3) Line hit? (HitLine needs 2+ points for a real segment; a 1-point envelope still draws
+                // a flat line across the whole plot at that point's value — see EvaluateEnvelope — so it
+                // gets its own click-to-add band here, otherwise a collapsed-to-1-point envelope could
+                // never grow back past 1.)
+                if (points.Count == 1 && e.button == 0 && rt.allowAddPoints)
+                {
+                    float soloT = XToTime(e.mousePosition.x, rect, rt);
+                    float soloV = EvaluateEnvelope(points, soloT, rt.yMax);
+                    if (Mathf.Abs(e.mousePosition.y - ValueToY(soloV, rect, rt)) <= 6f)
+                    {
+                        rt.onDragStarted?.Invoke();
+                        int soloInsert = InsertSorted(points, new ZUIEnvelopePoint(soloT, soloV, 1f));
+                        state.dragPointIdx = soloInsert;
+                        state.selected.Clear();
+                        state.selected.Add(soloInsert);
+                        e.Use();
+                        rt.onMutated?.Invoke();
+                        return true;
+                    }
+                }
+
                 int lineHit = HitLine(rect, points, rt, e.mousePosition);
                 if (lineHit > 0)
                 {
@@ -854,6 +877,7 @@ public static partial class ZUI
             state.selected.Sort();
             for (int i = state.selected.Count - 1; i >= 0; i--)
             {
+                if (points.Count <= 1) break;   // never delete the last point — 1 is the floor
                 int idx = state.selected[i];
                 if (idx < 0 || idx >= points.Count) continue;
                 if (!CanRemove(EffectiveState(idx, points, rt))) continue;

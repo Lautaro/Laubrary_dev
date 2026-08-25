@@ -98,6 +98,25 @@ namespace Laubrary.Zui
                     && !ve.ClassListContains("zui-audit-allow-stretch"))
                     findings.Add(New("stretch", ve, $"BaseField resolved flex-grow {ve.resolvedStyle.flexGrow:0.##}"));
 
+                // A ZuiToggleButton is a Button, so it carries neither "unity-base-field" nor a flex-grow —
+                // it stretches across the CROSS axis instead, which the check above cannot see. That blind
+                // spot is why every Z.Toggle sitting in a column body silently filled the whole pane while
+                // this audit reported clean. Catch the cross-axis case explicitly.
+                // align-self:auto resolves to Auto, NOT to the parent's value, so testing for Stretch alone would
+                // never fire — inheriting the parent's align-items IS the failing case. Test both, and confirm
+                // against the laid-out geometry so the finding can't disagree with what is on screen.
+                if (ve.ClassListContains("zui-togglebutton") && !ve.ClassListContains("zui-audit-allow-stretch")
+                    && ve.hierarchy.parent is { } tbParent
+                    && tbParent.resolvedStyle.flexDirection is FlexDirection.Column or FlexDirection.ColumnReverse)
+                {
+                    var self = ve.resolvedStyle.alignSelf;
+                    bool stretches = self == Align.Stretch
+                                     || (self == Align.Auto && tbParent.resolvedStyle.alignItems == Align.Stretch);
+                    if (stretches && ve.worldBound.width > tbParent.worldBound.width - 4f)
+                        findings.Add(New("stretch", ve,
+                            $"toggle fills its column ({ve.worldBound.width:0}px) — needs align-self, not a hard width"));
+                }
+
                 // Foldouts are exempt as CONTAINERS — a foldout legitimately spans its content. But a
                 // PropertyField renders AS a Foldout whenever the property is a list or a nested class, and
                 // that is a control, not a container: unbounded, it stretches the whole window and strands
