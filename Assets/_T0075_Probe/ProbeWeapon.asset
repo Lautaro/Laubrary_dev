@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 8
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fb722b93d5302040a59b670a0262ca5, type: 3}
+  m_Name: ProbeWeapon
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Zoetrope::Laubrary.Zoetrope.WeaponDef
+  displayName: New Weapon
+  automatic: 0
+  fireRate: 6
+  damage: 10
+  projectileSpeed: 12
+  spreadDeg: 0
+  projectilesPerShot: 1
+  ammoTypes: []
+  muzzle:
+    rid: -2
+  muzzleOffset: {x: 0.5, y: 0}
+  fireZoundName: 
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
