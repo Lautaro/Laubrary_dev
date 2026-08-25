@@ -6,13 +6,14 @@ using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespac
 namespace Laubrary.ZoetropePyre
 {
     /// <summary>
-    /// An <see cref="IEffect"/> that spawns ONE Pyre blast at the event's resolved position, SCALED by the event's
-    /// resolved scalar param — the Spawn-Pyre entry of the Zoe-event effect palette (ZOE_EVENTS_DESIGN.md step 3).
-    /// It is the Pyre-only counterpart of the older bundled <see cref="PyreChunksFx"/> (which STAYS as the combined
-    /// blast+debris <see cref="ICombatFx"/>, still referenced by committed assets), promoted to a first-class
-    /// palette effect that reads its spawn point AND its size from the <see cref="EventContext"/> the trigger fills
-    /// — the new scalar-sizing capability over the fixed-size PyreChunksFx. Lives in the ZoetropePyre bridge module
-    /// so Zoetrope core stays Pyre-free.
+    /// An <see cref="IEffect"/> that spawns ONE Pyre blast at the event's resolved position, SCALED by the
+    /// event's resolved scalar param — the Spawn-Pyre entry of the Zoe-event effect palette
+    /// (ZOE_EVENTS_DESIGN.md step 3). It is the Pyre-only counterpart of the older bundled
+    /// <see cref="PyreChunksFx"/> (which STAYS as the combined blast+debris <see cref="ICombatFx"/>, still
+    /// referenced by committed assets), promoted to a first-class palette effect that reads its spawn point AND
+    /// its size from the <see cref="EventContext"/> the trigger fills — the new scalar-sizing capability over
+    /// the fixed-size PyreChunksFx. Lives in the ZoetropePyre bridge module so Zoetrope core stays Pyre-free.
+    /// Migrated 2026-08-23 from Pyre1 to Pyre as part of Pyre's retirement.
     /// </summary>
     [System.Serializable]
     public class SpawnPyreFx : IEffect, IEventParamUser

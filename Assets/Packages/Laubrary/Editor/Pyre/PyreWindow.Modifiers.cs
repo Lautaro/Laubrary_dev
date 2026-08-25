@@ -1,6 +1,19 @@
-// PyreWindow.Modifiers — the modifier stack UI (global + per-layer + the single simulation slot) and
-// every per-modifier body. Part of the UI Toolkit port; see PyreWindow.cs.
+// PyreWindow.Modifiers — the Modifiers section (see PYREPLUS_DESIGN.md, SLICE 3). Reuses Pyre's own
+// PyreModifier stack directly: the same enable / drag-reorder / "+ Add modifier" loop Pyre's own modifier UI
+// draws (ZuiReorder grip, a GenericMenu add flow), but per-modifier bodies go through the toolkit's shared
+// reflection drawer (ZuiReflect) rather than a hand-written per-type switch — so every Geometry/Pixel/Post
+// modifier Pyre ships is editable here with ZERO per-type code, and PyreRenderer applies them.
+//
+// Why the generic drawer instead of literally reusing Pyre's bodies: Pyre's PyreWindow.BuildModBody is a ~350-
+// line switch, and several of its cases are wired into Pyre's preview-overlay authoring state (pin/vortex/stroke
+// editing lives in PyreWindow.Preview.cs). Those aren't reusable across the assembly boundary (they're private,
+// and Pyre has no such overlay), which is exactly why the design points at a shared drawer. ZuiReflect
+// renders every ZUIValue param as the FULL MultiCont control (the old static-only limitation is closed);
+// bounds come from each param's own [Range], and ModifierDrawerOptions.ConfigureValue turns off the modes
+// that are meaningless for a baked modifier param (see its comment).
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Laubrary.SpriteFx;
 using Laubrary.Zui;
 using UnityEditor;
@@ -11,680 +24,400 @@ namespace Laubrary.Pyre.Editor
 {
     public partial class PyreWindow
     {
-        // Single in-memory clipboard (last-copied wins) — static so it survives closing/reopening the
-        // window within the session, like a real clipboard.
-        static PyreModifier modifierClipboard;
+        // Stable section header + a body cleared/refilled on every add / remove / reorder / enable — the same
+        // rebuild granularity BuildSwarm uses, so a structural change repaints just this section.
+        VisualElement modifiersBody;
+        // The section itself (persists across body refills) — held so its collapsed-count header suffix can be
+        // refreshed when the SELECTED layer (whose enabled-modifier count it shows) changes under a folded section.
+        ZuiSection modifiersSection;
 
-        // Modifiers whose ENTIRE body is one animatable value — drawn inline in the header row.
-        static bool TrySingleValueBody(PyreModifier m, out ZUIValue v, out float lo, out float hi, out float def)
+        void BuildModifiers(VisualElement root, Pyre s)
         {
-            v = null; lo = 0f; hi = 1f; def = 0f;
-            switch (m)
-            {
-                case SkewModifier s: v = s.amount; lo = -2f; hi = 2f; def = 0f; return true;
-                case ContrastModifier cm: v = cm.amount; lo = 0f; hi = 2f; def = 1f; return true;
-                case BrightnessModifier bm: v = bm.amount; lo = 0f; hi = 2f; def = 1f; return true;
-                case SaturationModifier sm: v = sm.amount; lo = 0f; hi = 2f; def = 1f; return true;
-                case OrderedDitherModifier od: v = od.strength; lo = 0f; hi = 1f; def = 1f; return true;
-                default: return false;
-            }
+            var sec = Z.Section("Modifiers",
+                "Opt-in effects, reusing Pyre's own modifier stack. Geometry modifiers bend each disc, pixel " +
+                "modifiers recolour or drop lit pixels, and post passes (Bloom / Outline / Kaleidoscope) run over " +
+                "the whole finished frame — all applied top-to-bottom in the order listed.",
+                icon: "sliders-horizontal");
+            modifiersSection = sec;
+            // Folded, this section hides its modifier stack. Surface the count of ENABLED modifiers (task #63) so a
+            // collapsed "Modifiers (2)" tells you two active effects are hidden below.
+            sec.SetHeaderSuffix(EnabledModifierSuffix);
+            modifiersBody = new VisualElement();
+            sec.Add(modifiersBody);
+            root.Add(sec);
+            RebuildModifiers();
         }
 
-        void BuildModifiers(VisualElement root, List<PyreModifier> list, bool isGlobal)
+        // The " (N)" suffix the COLLAPSED Modifiers header shows — N = the SELECTED layer's ENABLED modifier count
+        // (0 ⇒ "", no suffix). Reads live so it stays correct across layer selection and enable/disable.
+        string EnabledModifierSuffix()
         {
-            if (list == null) return;
-            float half = spec.canvasSize * 0.5f;
+            var s = SelLayer;
+            int n = 0;
+            if (s?.modifiers != null)
+                foreach (var m in s.modifiers) if (m != null && m.enabled) n++;
+            return n > 0 ? $" ({n})" : "";
+        }
 
+        void RebuildModifiers()
+        {
+            var s = SelLayer;   // the Modifiers section edits the SELECTED layer's own modifier stack
+            if (s == null || modifiersBody == null) { modifiersBody?.Clear(); return; }
+            s.modifiers ??= new List<PyreModifier>();
+            modifiersBody.Clear();
+            var list = s.modifiers;
+
+            // A dedicated host for the rows so ZuiReorder's insertion line + index math only ever see modifier
+            // blocks, never the "+ Add" button below (mirrors PyreWindow's own listHost split).
             var listHost = new VisualElement();
-            root.Add(listHost);
+            modifiersBody.Add(listHost);
             for (int i = 0; i < list.Count; i++)
             {
-                if (list[i] == null) { int nullAt = i; Dial("Remove modifier", () => list.RemoveAt(nullAt)); RebuildLeft(); return; }
-                listHost.Add(BuildModifierBlock(listHost, list, i, half));
+                if (list[i] == null) { int at = i; Dirty(() => list.RemoveAt(at)); RebuildModifiers(); return; }
+                listHost.Add(BuildModifierBlock(listHost, list, i, RebuildModifiers));
             }
 
-            var pasteButton = Z.Button(
-                $"Paste{(modifierClipboard != null ? " " + modifierClipboard.DisplayName : "")}",
-                "Append a copy of the last-copied modifier.",
-                () =>
-                {
-                    if (modifierClipboard == null) return;
-                    Dial("Paste modifier", () => list.Add(modifierClipboard.Clone()));
-                    RebuildLeft();
-                });
-            pasteButton.SetEnabled(modifierClipboard != null);
-            var addBtn = Z.Button("+ Add modifier", "Add a geometry/colour/alpha/post modifier to this stack.", null);
-            addBtn.clicked += () => ShowAddModifierMenu(addBtn, list, isGlobal);
-            root.Add(WrapRow(addBtn, pasteButton));
+            Button addModBtn = null;
+            addModBtn = Z.Button("+ Add modifier", "Add a geometry, pixel or post modifier to the stack.",
+                () => ShowAddModifierMenu(addModBtn, list, RebuildModifiers));
+            modifiersBody.Add(WrapRow(addModBtn));
+
+            // Simulation slot (slice 7): the layer's OWN stateful "always last" SimulationModifier — a SINGLE
+            // polymorphic slot separate from the modifier list above (it retains frame-to-frame state and replays on
+            // scrub, so it runs LAST within the layer, after every stateless modifier). Reuses the same reflection
+            // drawer + Undo/dirty wiring as a modifier block. Rebuilt inside RebuildModifiers so it re-points on layer
+            // selection with no extra wiring.
+            modifiersBody.Add(BuildSimSlot(s));
+
+            // Keep the collapsed-header count right when the section stays folded across a layer switch / an
+            // enable-toggle rebuild (the section instance persists; only its body is refilled here).
+            modifiersSection?.RefreshHeaderSuffix();
         }
 
-        VisualElement BuildModifierBlock(VisualElement listHost, List<PyreModifier> list, int index, float half)
+        // ── spec-wide Global Modifiers (task #56) ────────────────────────────────────────────────────────────────
+        // The SAME modifier-stack UI as the per-layer Modifiers section above (drag-reorder grip, enable, fold, the
+        // "+ Add modifier" reflection catalog, ZuiReflect bodies, Undo-safe), but editing the SPEC's globalModifiers
+        // list — which the renderer applies to EVERY layer (each layer's own stack, wrapped by these in Pyre1's
+        // order). Placed right after the Layers section (see PyreWindow.BuildAsset). Not selection-bound (spec-
+        // wide), so it is NOT re-pointed by RebuildAllForSelection — BuildAsset rebuilds it fresh on an asset change.
+        // No simulation slot here: the blast-wide SimulationModifier is a deferred follow-up (see PyreRenderer).
+        VisualElement globalModifiersBody;
+        ZuiSection globalModifiersSection;   // persists across body refills — held so its collapsed count can refresh
+
+        void BuildGlobalModifiers(VisualElement root, Pyre s)
+        {
+            var sec = Z.Section("Global Modifiers",
+                "Spec-wide modifiers applied to EVERY layer, on top of each layer's own stack (ported 1:1 from " +
+                "Pyre). Geometry warps wrap OUTERMOST — a global Rotate spins the whole animation as one — pixel " +
+                "effects run after each layer's own, and post passes run over the whole finished frame. Empty = no " +
+                "change; each layer renders exactly as its own Modifiers section dictates.",
+                icon: "globe");
+            globalModifiersSection = sec;
+            // Folded, this section hides the spec-wide stack — surface the count of ENABLED global modifiers (#63).
+            sec.SetHeaderSuffix(EnabledGlobalModifierSuffix);
+            globalModifiersBody = new VisualElement();
+            sec.Add(globalModifiersBody);
+            root.Add(sec);
+            RebuildGlobalModifiers();
+        }
+
+        // The " (N)" suffix the COLLAPSED Global Modifiers header shows — N = enabled spec-wide modifier count.
+        string EnabledGlobalModifierSuffix()
+        {
+            int n = 0;
+            if (spec?.globalModifiers != null)
+                foreach (var m in spec.globalModifiers) if (m != null && m.enabled) n++;
+            return n > 0 ? $" ({n})" : "";
+        }
+
+        void RebuildGlobalModifiers()
+        {
+            if (spec == null || globalModifiersBody == null) { globalModifiersBody?.Clear(); return; }
+            spec.globalModifiers ??= new List<PyreModifier>();
+            globalModifiersBody.Clear();
+            var list = spec.globalModifiers;
+
+            // A dedicated host for the rows so ZuiReorder's insertion line + index math only ever see modifier
+            // blocks, never the "+ Add" button below (mirrors the per-layer stack + PyreWindow's listHost split).
+            var listHost = new VisualElement();
+            globalModifiersBody.Add(listHost);
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] == null) { int at = i; Dirty(() => list.RemoveAt(at)); RebuildGlobalModifiers(); return; }
+                listHost.Add(BuildModifierBlock(listHost, list, i, RebuildGlobalModifiers));
+            }
+
+            Button addGlobalModBtn = null;
+            addGlobalModBtn = Z.Button("+ Add modifier", "Add a geometry, pixel or post modifier applied to every layer.",
+                () => ShowAddModifierMenu(addGlobalModBtn, list, RebuildGlobalModifiers));
+            globalModifiersBody.Add(WrapRow(addGlobalModBtn));
+
+            globalModifiersSection?.RefreshHeaderSuffix();   // keep the collapsed count right across body refills
+        }
+
+        // The layer's single stateful simulation slot. Null ⇒ an "+ Add simulation" affordance; otherwise an
+        // enable/clear header plus the modifier's own reflected fields (drawn exactly like a modifier block).
+        VisualElement BuildSimSlot(PyreLayer s)
+        {
+            // BoxKeyed (not Z.Box): this box is captured by the saved-views bar like every other stable Pyre
+            // box, so it needs an explicit stable key — an unkeyed box falls back to keying its view-state by
+            // title+tooltip (ZuiBox.cs), which orphans saved views the moment the title/tooltip is reworded.
+            var box = Z.BoxKeyed("Simulation (always last)",
+                "A stateful simulation that runs LAST on this layer — after its modifiers, before any matte. It " +
+                "keeps state frame-to-frame and replays deterministically on scrub. One per layer.",
+                "pyreplus.sim");
+            // Folded, the box hides an active simulation — mark it (task #63) so an enabled sim isn't invisible.
+            box.SetHeaderSuffix(() => (s.simulationModifier != null && s.simulationModifier.enabled) ? " (on)" : "");
+            var sim = s.simulationModifier;
+            if (sim == null)
+            {
+                var addSimBtn = Z.Button("+ Add simulation",
+                    "Attach a stateful simulation modifier (e.g. Pixel fluid) that advects and erodes this layer's " +
+                    "own pixels over the frames.", null);
+                addSimBtn.clicked += () => ShowAddSimMenu(addSimBtn, s);
+                box.Add(WrapRow(addSimBtn));
+                return box;
+            }
+
+            var header = new VisualElement();
+            header.AddToClassList("zui-row");
+            var enableToggle = Z.Toggle("",
+                "Enable or disable this simulation (disabled = the layer renders without it).",
+                sim.enabled, v =>
+            {
+                Dirty(() => sim.enabled = v);
+                RebuildModifiers();   // rebuild so the body appears / disappears
+            });
+            header.Add(enableToggle);
+            header.Add(Z.Text(sim.DisplayName, ZuiText.Body, sim.DisplayName + " simulation."));
+            header.Add(Z.Flexible());
+            var removeBtn = Z.Button("X", "Remove this simulation from the layer (undoable).", () =>
+            {
+                Dirty(() => s.simulationModifier = null);
+                RebuildModifiers();
+            }).W(22f);
+            header.Add(removeBtn);
+            box.Add(header);
+
+            // Body: every editable field of the sim modifier, drawn generically by the shared reflection drawer —
+            // the SAME Undo/dirty/rebuild contract a modifier block uses (ZUIValue params get the full MultiCont
+            // control). In its own container so the sim card FOLDS to just its header (task #52), keyed by the
+            // sim instance. Only when enabled (a disabled sim has nothing to fold).
+            VisualElement body = null;
+            if (sim.enabled)
+            {
+                body = new VisualElement();
+                ZuiReflect.BuildFields(body, sim, ModifierDrawerOptions(sim, RebuildModifiers));
+                box.Add(body);
+            }
+            ZuiFoldCard.Wire(sim, header, body, enableToggle, removeBtn);
+
+            return box;
+        }
+
+        void ShowAddSimMenu(VisualElement anchor, PyreLayer s)
+        {
+            var menu = Z.Menu(anchor);
+            foreach (var e in AddableSims())
+            {
+                var type = e.type;
+                string label = e.label;
+                menu.Item(label, $"Attach the {label} simulation to this layer.", () =>
+                {
+                    Dirty(() => s.simulationModifier = (SimulationModifier)Activator.CreateInstance(type));
+                    RebuildModifiers();
+                });
+            }
+            menu.Show();
+        }
+
+        // Every concrete SimulationModifier Pyre can drive (a parameterless-constructible SimulationModifier
+        // subclass — today only PixelFluidModifier), discovered by reflection so the slot tracks Pyre's set with zero
+        // hand-maintained catalog. Cached — the scan runs once per domain (mirrors AddableModifiers).
+        static List<AddEntry> _addableSims;
+        static IEnumerable<AddEntry> AddableSims()
+        {
+            if (_addableSims != null) return _addableSims;
+            var found = new List<AddEntry>();
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                Type[] types;
+                try { types = asm.GetTypes(); }
+                catch { continue; }   // skip dynamic / partially-loaded assemblies
+                foreach (var t in types)
+                {
+                    if (t.IsAbstract || !typeof(SimulationModifier).IsAssignableFrom(t)) continue;
+                    if (t.GetConstructor(Type.EmptyTypes) == null) continue;
+                    string label;
+                    try { label = ((PyreModifier)Activator.CreateInstance(t)).DisplayName; }
+                    catch { label = null; }
+                    if (string.IsNullOrEmpty(label)) label = ObjectNames.NicifyVariableName(t.Name);
+                    found.Add(new AddEntry { type = t, group = "Simulation", label = label });
+                }
+            }
+            found.Sort((a, b) => string.CompareOrdinal(a.label, b.label));
+            _addableSims = found;
+            return _addableSims;
+        }
+
+        // Build one modifier card. `rebuild` is the section rebuild to run on a structural edit (reorder / enable /
+        // remove / nested-list change) — RebuildModifiers for the per-layer stack, RebuildGlobalModifiers for the
+        // spec-wide Global Modifiers stack. Everything else is list-agnostic, so both stacks share this verbatim.
+        VisualElement BuildModifierBlock(VisualElement listHost, List<PyreModifier> list, int index, Action rebuild)
         {
             var m = list[index];
-            bool single = TrySingleValueBody(m, out var singleVal, out float singleLo, out float singleHi, out float singleDef);
-
             var box = Z.Box(null, null);
 
             var header = new VisualElement();
             header.AddToClassList("zui-row");
 
-            var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder this modifier within its stack.");
+            var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder — a modifier's position IS its apply order.");
             grip.style.unityFontStyleAndWeight = FontStyle.Bold;
             grip.style.width = 16f;
             ZuiReorder.MakeGrip(grip, box, listHost, (from, to) =>
             {
-                Dial("Reorder modifier", () =>
+                Dirty(() =>
                 {
                     var mm = list[from];
                     list.RemoveAt(from);
                     list.Insert(to, mm);
                 });
-                RebuildLeft();
+                rebuild();
             });
             header.Add(grip);
 
-            header.Add(Z.Toggle("", "Enable or disable this modifier.", m.enabled, v =>
+            var enableToggle = Z.Toggle("", "Enable or disable this modifier.", m.enabled, v =>
             {
-                Dial(v ? "Enable modifier" : "Disable modifier", () => m.enabled = v);
-                RebuildLeft();
-            }));
-            // A single-value modifier puts its NAME inside the microslider (label-inside, the ZUI point)
-            // rather than as a separate label beside a value-only slider. When disabled (no slider) or
-            // multi-value (a body below), the name is the plain header text.
-            if (single && m.enabled)
-                header.Add(PackedVal(m.DisplayName, m.DisplayName + " amount.", singleVal, singleLo, singleHi, singleDef));
-            else
-                header.Add(Z.Text(m.DisplayName, ZuiText.Body, m.DisplayName + " modifier."));
+                Dirty(() => m.enabled = v);
+                rebuild();   // rebuild so the body appears / disappears
+            });
+            header.Add(enableToggle);
+            header.Add(Z.Text(m.DisplayName, ZuiText.Body, m.DisplayName + " modifier."));
             header.Add(Z.Flexible());
-            header.Add(Z.Button("Copy", "Copy this modifier's settings to the modifier clipboard.", () =>
+            var removeBtn = Z.Button("X", "Remove this modifier (undoable).", () =>
             {
-                modifierClipboard = m.Clone();
-                RebuildLeft();   // refresh the Paste button's label/enabled state
-            }).W(40f));
-            header.Add(Z.Button("X", "Delete this modifier (undoable).", () =>
-            {
-                if (m == paintSmudge) { paintSmudge = null; draggingSmudge = false; }
-                if (m == editPin) { editPin = null; pinSel = -1; draggingPin = false; }
-                if (ReferenceEquals(m, editCurl)) { editCurl = null; vortexSel = -1; draggingVortex = false; }
                 int at = list.IndexOf(m);
-                if (at >= 0) Dial("Remove modifier", () => list.RemoveAt(at));
-                RebuildLeft();
-            }).W(22f));
+                if (at >= 0) { Dirty(() => list.RemoveAt(at)); rebuild(); }
+            }).W(22f);
+            header.Add(removeBtn);
             box.Add(header);
 
-            if (m.enabled && !single) BuildModBody(box, m, half);
+            // Body: every editable field of THIS modifier, drawn generically by the toolkit's reflection drawer,
+            // in its own container so the card can FOLD to just the header (task #52). Only when enabled (a
+            // disabled modifier is header-only, matching Pyre's own list — and has nothing to fold).
+            VisualElement body = null;
+            if (m.enabled)
+            {
+                body = new VisualElement();
+                ZuiReflect.BuildFields(body, m, ModifierDrawerOptions(m, rebuild));
+                box.Add(body);
+            }
+
+            // Clicking the header folds the field body away, leaving the grip / enable / name / ✕ visible;
+            // fold state is kept PER MODIFIER INSTANCE so it survives this window's rebuilds (undo / reorder /
+            // layer selection). The grip already guards its own drag; the toggle / ✕ must not fold on click.
+            ZuiFoldCard.Wire(m, header, body, enableToggle, removeBtn);
+
             return box;
         }
 
-        void BuildSimulationModifier(VisualElement root, string label,
-            System.Func<PyreModifier> get, System.Action<PyreModifier> set)
+        // The reflection drawer's Undo / dirty / rebuild contract for a modifier's fields — the same wiring
+        // Val/Val2D give the Shape/Swarm controls (record the asset before a mutation, mark it dirty + repaint
+        // after), plus a rebuild when a nested list gains/loses an element.
+        ZuiReflect.Options ModifierDrawerOptions(PyreModifier m, Action rebuild) => new ZuiReflect.Options
         {
-            root.Add(Z.Text(label, ZuiText.Section,
-                "The one always-last simulation slot — a genuinely iterative, stateful modifier."));
-            var current = get();
-            if (current == null)
-            {
-                root.Add(Z.Button("+ Add simulation", "Add the pixel-fluid simulation modifier to this slot.", () =>
-                {
-                    Dial("Add simulation modifier", () => set(new PixelFluidModifier()));
-                    RebuildLeft();
-                }));
-                return;
-            }
+            OnBeforeChange = () => { if (spec != null) Undo.RecordObject(spec, "Edit Pyre Plus modifier"); },
+            OnChanged = () => { if (spec != null) EditorUtility.SetDirty(spec); MarkDirty(); },
+            OnStructureChanged = rebuild,
+            // The enable toggle lives in the header row, so hide the base `enabled` field the drawer would
+            // otherwise surface.
+            Skip = f => f.Name == "enabled",
+            // A modifier param Evals frame-global (ModParticleIndex, no frame in the hash), so Min-Max resolves
+            // to ONE constant for the whole animation — hide the mode instead of offering a control that does
+            // nothing useful (Pyre1's hand-written rows pass allowMinMax:false for the same reason). The
+            // Duration/Warmup/Loop row is the runtime-seconds API, meaningless on the frame-baked timeline —
+            // hidden too. Steps stays: both renderers' Eval now hold-step it across the timeline like Curve.
+            ConfigureValue = (f, vopt) => { vopt.allowMinMax = false; vopt.hideCurveTiming = true; },
+            TooltipFor = f => $"{ObjectNames.NicifyVariableName(f.Name)} — a {m.DisplayName} parameter.",
+        };
 
-            var box = Z.Box(null, null);
-            var header = new VisualElement();
-            header.AddToClassList("zui-row");
-            header.Add(Z.Toggle("", "Enable or disable the simulation.", current.enabled, v =>
-            {
-                Dial(v ? "Enable simulation" : "Disable simulation", () => current.enabled = v);
-                RebuildLeft();
-            }));
-            header.Add(Z.Text(current.DisplayName, ZuiText.Body, current.DisplayName + " simulation."));
-            header.Add(Z.Flexible());
-            header.Add(Z.Button("X", "Remove the simulation modifier (undoable).", () =>
-            {
-                Dial("Remove simulation modifier", () => set(null));
-                RebuildLeft();
-            }).W(22f));
-            box.Add(header);
-            if (current.enabled) BuildModBody(box, current, spec.canvasSize * 0.5f);
-            root.Add(box);
-        }
-
-        // ── per-modifier bodies ─────────────────────────────────────────────────────────────
-        void BuildModBody(VisualElement box, PyreModifier m, float half)
+        // The add-modifier catalog, as a ZUI menu anchored to the "+ Add modifier" button (task #68 — the
+        // GenericMenu stand-in). AddableModifiers() is sorted group-then-label, so the Geometry/Pixel/Post
+        // groups that GenericMenu drew as slash-nested submenus become flat, always-visible SECTION headings
+        // here — one fewer click and the whole catalog scannable at a glance. Behaviour is otherwise
+        // identical: each row adds one modifier (undoable) and rebuilds the stack; the menu dismisses on the
+        // pick, an outside click, or Esc.
+        // Kept fully functional (still renders if an asset already has one authored, or if hand-authored in
+        // Pyre1's own live-canvas preview overlay) but the generic Add-menu offers none of them a real way to
+        // author their data — click-place/drag-keyframe/paint-stroke input only exists in PyreWindow.Preview.cs,
+        // never wired into this reflection-driven picker. Duplicated in SpriteFxStackView.cs's own add-menu.
+        static readonly Dictionary<Type, string> DisabledInPicker = new Dictionary<Type, string>
         {
-            ZuiValue2DControl.Options Range2D(float lo, float hi) =>
-                new ZuiValue2DControl.Options().WithRange(lo, hi, lo, hi).WithDefault(Vector2.zero);
+            { typeof(PinWarpModifier), "Needs click-to-place pins in Pyre1's own preview canvas — not authorable here." },
+            { typeof(SmudgeModifier), "Needs drag-to-paint strokes in Pyre1's own preview canvas — not authorable here." },
+            { typeof(CurlModifier), "Needs click-to-place vortices in Pyre1's own preview canvas — not authorable here." },
+            { typeof(CurlProgressModifier), "Needs click-to-place vortices in Pyre1's own preview canvas — not authorable here." },
+        };
 
-            switch (m)
-            {
-                case ScaleModifier sc:
-                    box.Add(Z.MiniRadio((int)sc.axis, ScaleAxisLabels, "Which axis the scale applies to.",
-                        v => { Dial("Scale axis", () => sc.axis = (ScaleAxis)v); RebuildLeft(); }));
-                    switch (sc.axis)
-                    {
-                        case ScaleAxis.Vertical: box.Add(ValRow("Vertical", "Vertical ×scale.", sc.vertical, 0f, 3f, 1f)); break;
-                        case ScaleAxis.Horizontal: box.Add(ValRow("Horizontal", "Horizontal ×scale.", sc.horizontal, 0f, 3f, 1f)); break;
-                        default: box.Add(ValRow("Both", "Uniform ×scale.", sc.both, 0f, 3f, 1f)); break;
-                    }
-                    break;
-                case RotateModifier r:
-                    box.Add(ValRow("Degrees", "Rotation in degrees (animatable).", r.degrees, -180f, 180f, 0f));
-                    // Was a raw Z.Pad over two plain floats; the pivot is now an animatable companion pair, so the
-                    // ZUIValue 2D control (same pad ergonomics, plus Static/Min-Max/Curve) replaces it.
-                    box.Add(Z.Value2D("Pivot", r.PivotX, r.PivotY, Range2D(-1f, 1f),
-                        "The point the rotation turns around.", DirtySpec, RecordSpec));
-                    break;
-                case WobbleModifier w:
-                    box.Add(ValRow("Amplitude", "Wobble displacement in pixels.", w.amplitude, 0f, Mathf.Max(4f, half), 0f));
-                    box.Add(ValRow("Frequency", "Wobble cycles per life.", w.frequency, 0f, 8f, 1f));
-                    break;
-                case SunburstWobbleModifier sw:
-                    box.Add(ValRow("Amplitude", "Beam displacement in pixels.", sw.amplitude, 0f, Mathf.Max(4f, half), 3f));
-                    box.Add(ValRow("Frequency (beams)", "How many beams around the circle.", sw.frequency, 1f, 24f, 6f));
-                    box.Add(ValRow("Rotation", "Rotates the beam pattern.", sw.rotation, -180f, 180f, 0f));
-                    break;
-                case ProfileModifier pm:
-                    pm.widthByHeight ??= ProfileModifier.DefaultProfile();
-                    box.Add(Z.Field("Width by height", "The silhouette profile — width multiplier from bottom to top.",
-                        Z.Envelope(pm.widthByHeight, new ZuiEnvelopeOptions { yMin = 0f, yMax = 2f },
-                            "The silhouette profile — width multiplier from bottom to top.",
-                            DirtySpec, RecordSpec, 200f, 70f)));
-                    box.Add(ValRow("Strength", "How strongly the profile molds the shape.", pm.strength, 0f, 1f, 1f));
-                    break;
-                case GroundModifier g:
-                    box.Add(ValRow("Grow angle", "Direction the shape grows from the surface.", g.angle, -180f, 180f, 0f));
-                    box.Add(ValRow("Surface", "Where the ground surface sits (-1 bottom … 1 top).", g.Surface, -1f, 1f, -1f));
-                    box.Add(ValRow("Stretch (height)", "Vertical stretch away from the surface.", g.stretch, 0f, 4f, 1f));
-                    box.Add(ValRow("Bury base", "How much of the base hides below the surface.", g.Bury, 0f, 1f, 0f));
-                    break;
-                case TintModifier t:
-                    box.Add(Z.Field("Tint", "Multiplies every pixel's colour.",
-                        Z.Color(t.tint, "Multiplies every pixel's colour.",
-                            v => Dial("Tint", () => t.tint = v))));
-                    t.crossGradient ??= Layer.WhiteGradient();
-                    box.Add(GradientRow("Cross grad", "A gradient crossed over the frame.",
-                        () => t.crossGradient, v => t.crossGradient = v));
-                    box.Add(ValRow("Cross amount", "How strongly the cross gradient applies.", t.crossAmount, 0f, 1f, 1f));
-                    break;
-                case DissolveModifier d:
-                    box.Add(ValRow("Amount", "Fraction of pixels dissolved away.", d.amount, 0f, 1f, 0f));
-                    box.Add(Z.MiniRadio((int)d.mode, DissolveModeLabels, "Erase removes pixels in place; Scatter flings them.",
-                        v => Dial("Dissolve mode", () => d.mode = (DissolveMode)v)));
-                    box.Add(ValRow("Smoothness", "Softens the dissolve pattern.", d.smoothness, 0f, 1f, 0f));
-                    break;
-                case LayerDissolveModifier ld:
-                    box.Add(ValRow("Amount", "Fraction of pixels dissolved away.", ld.amount, 0f, 1f, 0f));
-                    box.Add(Z.MiniRadio((int)ld.mode, DissolveModeLabels, "Erase removes pixels in place; Scatter flings them.",
-                        v => Dial("Dissolve mode", () => ld.mode = (DissolveMode)v)));
-                    box.Add(ValRow("Smoothness", "Softens the dissolve pattern.", ld.smoothness, 0f, 1f, 0f));
-                    break;
-                case WipeModifier w:
-                    box.Add(Z.MiniRadio((int)w.shape, WipeShapeLabels, "The form the reveal grows as.",
-                        v => { Dial("Wipe shape", () => w.shape = (WipeShape)v); RebuildLeft(); }));
-                    box.Add(ValRow("Progress", "The sweep: 0 hides everything, 1 reveals the whole sprite.", w.progress, 0f, 1f, 1f));
-                    box.Add(ValRow("Size", "×scale on the shape's footprint.", w.size, 0.05f, 4f, 1f));
-                    box.Add(ValRow("Rotation", "Rotates the shape.", w.rotation, -180f, 180f, 0f));
-                    box.Add(Z.Value2D("Offset", w.offsetX, w.offsetY, Range2D(-1.5f, 1.5f),
-                        "Moves the shape off-centre.", DirtySpec, RecordSpec));
-                    box.Add(ValRow("Strength", "How much of the sprite the mask actually takes away.", w.strength, 0f, 1f, 1f));
-                    box.Add(Z.MiniRadio((int)w.edge, WipeEdgeLabels, "Soft blurs the boundary; Solid cuts hard; " +
-                        "Directional fades the reveal along an angle.",
-                        v => { Dial("Wipe edge", () => w.edge = (WipeEdge)v); RebuildLeft(); }));
-                    if (w.edge == WipeEdge.Soft)
-                        box.Add(ValRow("Feather", "How wide the edge blur is.", w.Feather, 0f, 1f, 0.4f));
-                    if (w.edge == WipeEdge.Directional)
-                        box.Add(ValRow("Fade angle", "Compass direction the reveal fades along.", w.fadeAngle, 0f, 360f, 0f));
-                    if (w.shape == WipeShape.Crescent)
-                    {
-                        box.Add(ValRow("Crescent bite", "How far the bitten-out disc sits from the centre.", w.CrescentBite, 0f, 2f, 0.9f));
-                        box.Add(ValRow("Crescent thickness", "The bitten-out disc's own radius.", w.CrescentThickness, 0.1f, 2f, 1f));
-                    }
-                    if (w.shape == WipeShape.Noise)
-                    {
-                        box.Add(ValRow("Noise warp", "Domain-warp strength — how much the noise field bends on itself.", w.noiseWarp, 0f, 2f, 0.6f));
-                        box.Add(Z.Value2D("Noise drift", w.noiseDriftX, w.noiseDriftY, Range2D(-64f, 64f),
-                            "Extra drift added to the noise sample position over the wipe's progress.", DirtySpec, RecordSpec));
-                    }
-                    break;
-                case KaleidoscopeModifier km:
-                    box.Add(Z.Field("Arms relate by", "How the arms relate to each other.",
-                        Z.EnumDropdown(km.mode,
-                            "Rotate = the same image turned (a pinwheel). Mirror = alternate arms reflected, so " +
-                            "neighbouring arms meet at a seam — true kaleidoscope symmetry. Vary = each arm gets " +
-                            "its own seeded turn, flip and scale, so they read as related but not identical.",
-                            v => { Dial("Kaleidoscope mode", () => km.mode = v); RebuildLeft(); }, 130f)));
-                    box.Add(PackedSlider("Arms", "How many arms radiate from the centre. 1 leaves the layer alone.",
-                        km.arms, 1f, 16f, v => km.arms = Mathf.RoundToInt(v), 150f, isInt: true));
-                    box.Add(ValRow("Arc °", "Total arc the arms span. 360 = evenly around the circle; less bunches " +
-                        "them into a fan. Animate it to sweep a fan open.", km.arcDegrees, 0f, 360f, 360f));
-                    box.Add(ValRow("Rotation °", "Turn the whole arrangement. Animate it to spin the kaleidoscope.",
-                        km.rotationDegrees, -360f, 360f, 0f));
-                    if (km.mode == KaleidoMode.Vary)
-                        box.Add(ValRow("Variation", "How much each arm may differ. 0 = identical to Rotate, " +
-                            "1 = its own turn, flip and scale.", km.variation, 0f, 1f, 0.5f));
-                    box.Add(Z.Toggle("Keep original", "Also keep the un-repeated image underneath the arms. " +
-                        "Usually off, since arm 0 already is the original.", km.keepOriginal,
-                        v => Dial("Keep original", () => km.keepOriginal = v)));
-                    break;
-                case BloomModifier bm:
-                    box.Add(ValRow("Threshold", "Brightness above which pixels bloom.", bm.Threshold, 0f, 1f, 0.6f));
-                    box.Add(PackedSlider("Radius (px)", "Bloom spread radius.", bm.radius, 0f, 16f, v => bm.radius = Mathf.RoundToInt(v), 150f, isInt: true));
-                    box.Add(ValRow("Intensity", "Bloom strength.", bm.intensity, 0f, 3f, 1.2f));
-                    break;
-                case OutlineModifier om:
-                    box.Add(Z.MiniRadio((int)om.mode, OverLifeFillLabels, "How the outline's gradient reads: over life, or spatially in→out.",
-                        v => { Dial("Outline mode", () => om.mode = (ColorMode)v); RebuildLeft(); }));
-                    om.color ??= new Gradient();
-                    box.Add(GradientRow(om.mode == ColorMode.OverLife ? "Colour (over life)" : "Colour (in→out)",
-                        "The outline's colour ramp.", () => om.color, v => om.color = v));
-                    // Grouped by what the dials MEAN — the whole outline, then its inward edge, then its
-                    // outward edge — rather than packed to fill rows.
-                    // A prior recovery pass (AgentHQ T-0012) looked for an "opacity"/"innerSize" pair this
-                    // comment used to reference and found no trace of either ever existing: zero git history
-                    // (git log -S over this whole file), and the 2026-08-01 modifier-overhaul session that
-                    // touched Outline documented adding InnerSoftness/OuterSoftness/AlphaThreshold specifically
-                    // — no opacity, no innerSize. Outline's own alpha already comes from its colour gradient
-                    // (Fill/Over-life), so there's no known spec for what a separate opacity dial would even do.
-                    // Leaving as an open question rather than inventing fields with no history behind them.
-                    box.Add(
-                        PackedVal("Size (px)", "Solid thickness drawn OUTWARD from the shape's edge. Fractional: " +
-                            "0.5 draws the first ring at half strength, so it thickens smoothly.", om.size, 0f, 12f, 1f));
-                    box.Add(WrapRow(
-                        PackedVal("Inner softness (px)", "Feathers the inward spill deeper past Inner size. Only " +
-                            "ever adds fade further in — it never dims what Inner size earned.", om.InnerSoftness, 0f, 16f, 0f),
-                        PackedVal("Inner curve", "Shapes the inner feather: 1 is linear, higher holds strength " +
-                            "then drops sharply, lower drops fast then lingers.", om.InnerSoftnessCurve, 0.2f, 5f, 1f)));
-                    box.Add(WrapRow(
-                        PackedVal("Outer softness (px)", "Smudges the ring further OUTWARD past Size. Only ever " +
-                            "adds coverage outward — it never dims or erases the ring Size earned.", om.OuterSoftness, 0f, 16f, 0f),
-                        PackedVal("Outer curve", "Shapes the outer feather: 1 is linear, higher holds strength " +
-                            "then drops sharply, lower drops fast then lingers.", om.OuterSoftnessCurve, 0.2f, 5f, 1f)));
-                    // Last, and alone: on a hard-edged sprite it changes nothing at any setting — it only
-                    // decides where the trace sits on a genuinely soft edge.
-                    box.Add(ValRow("Edge sensitivity", "The alpha a pixel needs to count as shape rather than " +
-                        "background — it decides where the outline sits on a soft or semi-transparent edge. On a " +
-                        "hard-edged sprite it changes nothing at any setting.",
-                        om.AlphaThreshold, 0.01f, 1f, 0.08f));
-                    break;
-                case SmudgeModifier sm:
-                    box.Add(ValRow("Brush size (px)", "Stroke brush radius.", sm.size, 1f, half, 12f));
-                    box.Add(ValRow("Strength (px)", "How far pixels smear along the stroke.", sm.strength, 0f, half, 12f));
-                    box.Add(ValRow("Grow", "0→1 front advancing along each stroke (all strokes in parallel).", sm.grow, 0f, 1f, 1f));
-                    bool painting = paintSmudge == sm;
-                    box.Add(WrapRow(
-                        Z.Button(painting ? "● Painting — drag to add strokes" : "○ Paint stroke",
-                            "Arm stroke painting, then drag in the preview — each drag records a new stroke.",
-                            () => { paintSmudge = painting ? null : sm; draggingSmudge = false; RebuildLeft(); }),
-                        Z.Button("⌫ Last", "Remove the most recent stroke.", () =>
-                        {
-                            if (sm.strokes.Count == 0) return;
-                            Dial("Remove stroke", () => sm.strokes.RemoveAt(sm.strokes.Count - 1));
-                            RebuildLeft();
-                        }).W(56f),
-                        Z.Button("Clear", "Remove every stroke.", () =>
-                        {
-                            Dial("Clear strokes", () => sm.strokes.Clear());
-                            RebuildLeft();
-                        }).W(48f)));
-                    box.Add(Z.Text($"{sm.strokes.Count} stroke(s)", ZuiText.Small, "How many strokes are recorded."));
-                    break;
-                case DropShadowModifier ds:
-                    box.Add(Z.Value2D("Offset", ds.OffsetX, ds.OffsetY, Range2D(-16f, 16f),
-                        "Shadow offset in pixels (screen right/up).", DirtySpec, RecordSpec));
-                    box.Add(Z.Field("Shadow colour", "The shadow's colour. Its own alpha sets the base strength; " +
-                        "Opacity below multiplies on top of that.",
-                        Z.Color(ds.color, "The shadow's colour.", v => Dial("Shadow colour", () => ds.color = v))));
-                    box.Add(ValRow("Opacity", "Multiplies the shadow colour's own alpha. Animatable.", ds.opacity, 0f, 1f, 1f));
-                    box.Add(ValRow("Edge alpha", "Alpha threshold that counts as the silhouette.", ds.AlphaThreshold, 0.01f, 1f, 0.2f));
-                    break;
-                case PosterizeModifier pz:
-                    box.Add(PackedSlider("Levels", "How many colour levels remain.", pz.levels, 2f, 16f, v => pz.levels = Mathf.RoundToInt(v), 150f, isInt: true));
-                    box.Add(Z.Toggle("Affect alpha", "Also posterize the alpha channel.", pz.affectAlpha,
-                        v => Dial("Affect alpha", () => pz.affectAlpha = v)));
-                    break;
-                case TurbulenceModifier tb:
-                    box.Add(Z.MiniRadio((int)tb.noise, TurbulenceNoiseLabels, "Value = bilinear noise, faintly " +
-                        "blobby/grid-aligned at low frequency. Gradient = true gradient noise, sharper and more " +
-                        "organic at the same frequency.",
-                        v => Dial("Turbulence noise", () => tb.noise = (TurbulenceNoise)v)));
-                    box.Add(ValRow("Amplitude", "Churn displacement in pixels.", tb.amplitude, 0f, Mathf.Max(4f, half), 4f));
-                    box.Add(ValRow("Zoom", "Churn feature size.", tb.zoom, 1f, Mathf.Max(8f, half * 2f), 24f));
-                    box.Add(ValRow("Rotation", "Rotates the churn field.", tb.rotation, -720f, 720f, 0f));
-                    box.Add(Z.Value2D("Offset", tb.offsetX, tb.offsetY, Range2D(-half, half),
-                        "Scrolls the churn field.", DirtySpec, RecordSpec));
-                    box.Add(ValRow("Warp", "Distorts the churn field into itself.", tb.warp, 0f, 2f, 0.6f));
-                    break;
-                case EdgeSmoothModifier es:
-                    box.Add(ValRow("Radius (px)", "Smoothing kernel radius.", es.radius, 0f, 16f, 2f, allowMinMax: false));
-                    box.Add(ValRow("Strength", "How strongly edges smooth.", es.strength, 0f, 1f, 1f));
-                    break;
-                case RingWaveModifier rw:
-                    box.Add(ValRow("Amplitude", "Ripple displacement in pixels.", rw.amplitude, 0f, Mathf.Max(4f, half), 3f));
-                    box.Add(ValRow("Wavelength", "Distance between ripple crests.", rw.wavelength, 1f, Mathf.Max(8f, half), 10f));
-                    box.Add(ValRow("Phase (travel)", "Moves the ripples outward/inward over life.", rw.phase, -6f, 6f, 0f));
-                    break;
-                case PointBlastModifier bl:
-                    box.Add(WrapRow(
-                        PackedVal2D("Origin", "Where the blast pushes from.", bl.originX, bl.originY, Range2D(-half, half)),
-                        PackedVal("Angle", "Direction of a line/arc blast.", bl.angleDeg, -180f, 180f, 0f, allowMinMax: false)));
-                    box.Add(ValRow("Arc (360=disc, 0=line)", "The blast's angular coverage.", bl.ArcDegrees, 0f, 360f, 360f, allowMinMax: false));
-                    box.Add(WrapRow(
-                        PackedVal("Arc softness", "Softens the arc's angular edges.", bl.arcSoftness, 0f, 1f, 0.2f, allowMinMax: false),
-                        PackedVal("Band width (px)", "Thickness of the pushing band.", bl.bandWidth, 1f, Mathf.Max(8f, half * 0.5f), 12f, allowMinMax: false)));
-                    box.Add(WrapRow(
-                        PackedVal("Radius (px)", "How far the band has travelled.", bl.radius, 0f, Mathf.Max(4f, half), 0f, allowMinMax: false),
-                        PackedVal("Strength", "Push strength (negative pulls).", bl.strength, -20f, 20f, 6f, allowMinMax: false)));
-                    break;
-                case BallisticShockwaveModifier bs:
-                    box.Add(Z.Text("Projectile", ZuiText.Section, "The projectile that punches through."));
-                    box.Add(WrapRow(
-                        PackedVal("Angle", "Travel direction.", bs.angleDeg, -180f, 180f, 0f, allowMinMax: false),
-                        PackedVal("Offset (px)", "Sideways offset of the flight path.", bs.offset, -half, half, 0f, allowMinMax: false)));
-                    box.Add(ValRow("Depth", "How far through the projectile has flown.", bs.depth, 0f, 1f, allowMinMax: false));
-                    box.Add(WrapRow(
-                        PackedVal("Radius (px)", "The projectile's radius.", bs.projectileRadius, 0.5f, Mathf.Max(4f, half * 0.3f), 3f, allowMinMax: false),
-                        PackedVal("Force", "Push force along the tunnel.", bs.projectileForce, -20f, 20f, 6f, allowMinMax: false)));
-                    box.Add(ValRow("Erosion", "How much material the passage erodes.", bs.erosion, 0f, 1f, 0.75f, allowMinMax: false));
-                    box.Add(Z.Text("Shockwaves", ZuiText.Section, "Expanding rings shed behind the projectile."));
-                    box.Add(WrapRow(
-                        PackedVal("Spacing", "Depth interval between shed rings.", bs.waveSpacing, 0.01f, 0.5f, 0.06f, allowMinMax: false),
-                        PackedVal("Strength", "Ring push strength.", bs.waveStrength, -20f, 20f, 5f, allowMinMax: false)));
-                    box.Add(WrapRow(
-                        PackedVal("Expansion (px)", "How far each ring expands.", bs.waveExpansion, 0f, Mathf.Max(8f, half), 30f, allowMinMax: false),
-                        PackedVal("Decay", "How quickly rings fade.", bs.waveDecay, 0f, 20f, 6f, allowMinMax: false)));
-                    box.Add(ValRow("Thickness (px)", "Each ring's band thickness.", bs.waveThickness, 0.5f, Mathf.Max(4f, half * 0.2f), 2.5f, allowMinMax: false));
-                    box.Add(Z.Text("Vortices", ZuiText.Section, "The trailing vortex street."));
-                    box.Add(WrapRow(
-                        PackedVal("Spacing", "Depth interval between shed vortices.", bs.vortexSpacing, 0.01f, 0.5f, 0.05f, allowMinMax: false),
-                        PackedVal("Strength", "Vortex swirl strength.", bs.vortexStrength, -20f, 20f, 8f, allowMinMax: false)));
-                    box.Add(WrapRow(
-                        PackedVal("Radius (px)", "Each vortex's radius.", bs.vortexRadius, 0.5f, Mathf.Max(8f, half * 0.4f), 8f, allowMinMax: false),
-                        PackedVal("Decay", "How quickly vortices fade.", bs.vortexDecay, 0f, 20f, 5f, allowMinMax: false)));
-                    box.Add(ValRow("Pulse", "Pulsates vortex strength.", bs.vortexPulse, 0f, 5f, 1f, allowMinMax: false));
-                    break;
-                case PixelFluidModifier pf:
-                    box.Add(Z.Text("Projectile", ZuiText.Section, "The projectile that punches through the fluid."));
-                    box.Add(WrapRow(
-                        PackedVal("Angle", "Travel direction.", pf.angleDeg, -180f, 180f, 0f, allowMinMax: false),
-                        PackedVal("Offset (px)", "Sideways offset of the flight path.", pf.offset, -half, half, 0f, allowMinMax: false)));
-                    box.Add(ValRow("Depth", "How far through the projectile has flown.", pf.depth, 0f, 1f, allowMinMax: false));
-                    box.Add(WrapRow(
-                        PackedVal("Radius (px)", "The projectile's radius.", pf.projectileRadius, 0.5f, Mathf.Max(4f, half * 0.3f), 3f, allowMinMax: false),
-                        PackedVal("Force", "Push force along the tunnel.", pf.projectileForce, -20f, 20f, 10f, allowMinMax: false)));
-                    box.Add(WrapRow(
-                        PackedVal("Erosion rate", "How quickly the passage erodes material.", pf.erosionRate, 0f, 1f, 0.35f, allowMinMax: false),
-                        PackedVal("Erosion healing", "How quickly eroded material recovers.", pf.erosionHealing, 0f, 1f, 0.85f, allowMinMax: false)));
-                    box.Add(Z.Text("Shockwaves", ZuiText.Section, "Expanding rings shed behind the projectile."));
-                    box.Add(WrapRow(
-                        PackedVal("Spacing", "Depth interval between shed rings.", pf.waveSpacing, 0.01f, 0.5f, 0.06f, allowMinMax: false),
-                        PackedVal("Strength", "Ring push strength.", pf.waveStrength, -20f, 20f, 6f, allowMinMax: false)));
-                    box.Add(WrapRow(
-                        PackedVal("Expansion (px/f)", "Ring expansion per frame.", pf.waveExpansion, 0f, Mathf.Max(2f, half * 0.1f), 1.5f, allowMinMax: false),
-                        PackedVal("Persistence", "How much of each ring survives per frame.", pf.wavePersistence, 0f, 1f, 0.9f, allowMinMax: false)));
-                    box.Add(ValRow("Thickness (px)", "Each ring's band thickness.", pf.waveThickness, 0.5f, Mathf.Max(4f, half * 0.2f), 2.5f, allowMinMax: false));
-                    box.Add(Z.Text("Vortices", ZuiText.Section, "The trailing vortex street."));
-                    box.Add(WrapRow(
-                        PackedVal("Spacing", "Depth interval between shed vortices.", pf.vortexSpacing, 0.01f, 0.5f, 0.05f, allowMinMax: false),
-                        PackedVal("Strength", "Vortex swirl strength.", pf.vortexStrength, -20f, 20f, 10f, allowMinMax: false)));
-                    box.Add(WrapRow(
-                        PackedVal("Radius (px)", "Each vortex's radius.", pf.vortexRadius, 0.5f, Mathf.Max(8f, half * 0.4f), 8f, allowMinMax: false),
-                        PackedVal("Persistence", "How much of each vortex survives per frame.", pf.vortexPersistence, 0f, 1f, 0.94f, allowMinMax: false)));
-                    box.Add(WrapRow(
-                        PackedVal("Drift (px/f)", "Vortex downstream drift per frame.", pf.vortexDrift, -5f, 5f, 0.6f, allowMinMax: false),
-                        PackedVal("Child shed", "Chance a vortex sheds a child per frame.", pf.ChildShedChance, 0f, 0.5f, 0.05f, allowMinMax: false)));
-                    box.Add(Z.Text("Fluid", ZuiText.Section, "The velocity field itself."));
-                    box.Add(WrapRow(
-                        PackedVal("Drag", "Velocity damping per frame.", pf.velocityDrag, 0f, 1f, 0.85f, allowMinMax: false),
-                        PackedVal("Viscosity", "Velocity smoothing between neighbours.", pf.viscosity, 0f, 1f, 0.25f, allowMinMax: false)));
-                    box.Add(ValRow("Display scale", "×scale on the displayed displacement.", pf.displayScale, 0f, 5f, 1f, allowMinMax: false));
-                    break;
-                case SunburstModifier sb:
-                    box.Add(PackedSlider("Rays", "How many rays around the silhouette.", sb.rays, 2f, 32f, v => sb.rays = Mathf.RoundToInt(v), 150f, isInt: true));
-                    box.Add(ValRow("Strength", "How deep the rays cut.", sb.strength, 0f, 0.95f, 0.6f));
-                    box.Add(ValRow("Sharpness", "Hardness of the ray edges.", sb.Sharpness, 0.5f, 8f, 2f));
-                    box.Add(ValRow("Rotation", "Rotates the ray pattern.", sb.rotation, -180f, 180f, 0f));
-                    break;
-                case PulseRingsModifier pr:
-                    box.Add(PackedSlider("Rings", "How many concentric pulse rings.", pr.rings, 1f, 12f, v => pr.rings = Mathf.RoundToInt(v), 150f, isInt: true));
-                    box.Add(ValRow("Speed", "Ring travel speed (negative = inward).", pr.speed, -4f, 4f, 1f));
-                    box.Add(ValRow("Strength (px)", "Ring displacement in pixels.", pr.strength, 0f, Mathf.Max(4f, half), 3f));
-                    break;
-                case VoronoiCrackModifier vc:
-                    box.Add(ValRow("Zoom", "Crack cell size.", vc.zoom, 1f, Mathf.Max(8f, half), 10f));
-                    box.Add(ValRow("Rotation", "Rotates the crack field.", vc.rotation, -720f, 720f, 0f));
-                    box.Add(Z.Value2D("Drift", vc.driftX, vc.driftY, Range2D(-half, half),
-                        "Scrolls the crack field.", DirtySpec, RecordSpec));
-                    box.Add(ValRow("Seed offset", "Reseeds the cell pattern.", vc.seedOffset, -8f, 8f, 0f));
-                    box.Add(WrapRow(
-                        PackedVal("Crack width", "Seam thickness.", vc.crackWidth, 0.01f, 3f, 0.15f, allowMinMax: false),
-                        PackedVal("Seam sharpness", "Hardness of the seam edges.", vc.seamSharpness, 0.1f, 8f, 1f, allowMinMax: false)));
-                    box.Add(Z.MiniRadio((int)vc.mode, OverLifeFillLabels, "How the tint gradient reads: over life, or seam→away.",
-                        v => { Dial("Crack mode", () => vc.mode = (ColorMode)v); RebuildLeft(); }));
-                    vc.crackTint ??= new Gradient();
-                    box.Add(GradientRow(vc.mode == ColorMode.Fill ? "Tint (seam→away)" : "Tint (over life)",
-                        "The seams' tint ramp.", () => vc.crackTint, v => vc.crackTint = v));
-                    box.Add(ValRow("Strength", "How strongly the cracks apply.", vc.strength, 0f, 1f, 1f));
-                    box.Add(Z.Toggle("Tint cells", "Also shade each cell's interior.", vc.tintCells,
-                        v => { Dial("Tint cells", () => vc.tintCells = v); RebuildLeft(); }));
-                    if (vc.tintCells)
-                        box.Add(ValRow("Cell shade", "How strongly cells shade.", vc.cellShadeStrength, 0f, 1f, 0.25f));
-                    box.Add(Z.MiniRadio((int)vc.spreadMode, CrackSpreadModeLabels, "How the cracks spread across the shape over Spread.",
-                        v => { Dial("Crack spread", () => vc.spreadMode = (CrackSpreadMode)v); RebuildLeft(); }));
-                    if (vc.spreadMode != CrackSpreadMode.Uniform)
-                    {
-                        box.Add(ValRow("Spread", "How far the cracks have spread.", vc.spreadProgress, 0f, 1f, 1f));
-                        box.Add(ValRow("Spread softness", "Softens the spreading front.", vc.SpreadSoftness, 0f, 1f, 0.2f));
-                    }
-                    break;
-                case ChromaticAberrationModifier ca:
-                    box.Add(ValRow("Amount (px)", "Channel separation in pixels.", ca.amount, 0f, 8f, 1.5f));
-                    box.Add(ValRow("Alpha", "Opacity of the separated fringes.", ca.alpha, 0f, 1f, 1f));
-                    box.Add(Z.Toggle("Radial (from centre)", "Separate channels radially instead of along one angle.", ca.radial,
-                        v => { Dial("Radial", () => ca.radial = v); RebuildLeft(); }));
-                    if (!ca.radial)
-                        box.Add(ValRow("Angle", "Separation direction.", ca.angleDeg, -180f, 180f, 0f));
-                    break;
-                case PinWarpModifier pw:
-                    BuildPinWarpBody(box, pw);
-                    break;
-                case CurlModifier cu:
-                    BuildCurlBody(box, cu, half);
-                    break;
-                case CurlProgressModifier cp:
-                    BuildCurlProgressBody(box, cp, half);
-                    break;
-                case SphereModifier sp:
-                    box.Add(ValRow("Strength", "Bulge strength (negative dents).", sp.strength, -5f, 5f, 1f, allowMinMax: false));
-                    box.Add(WrapRow(
-                        PackedVal2D("Origin", "The bulge's centre.", sp.originX, sp.originY, Range2D(-half, half)),
-                        PackedVal("Radius (0=auto)", "The bulge's radius; 0 auto-fits.", sp.radius, 0f, Mathf.Max(4f, half), 0f, allowMinMax: false)));
-                    break;
-                case FuseModifier fu:
-                    box.Add(ValRow("Radius (px)", "Melt influence radius.", fu.radius, 0f, Mathf.Max(4f, half * 0.5f), 4f));
-                    box.Add(ValRow("Threshold", "Field level at which the melted surface forms.", fu.threshold, 0f, 1f, 0.5f));
-                    box.Add(ValRow("Softness", "Softness of the melted surface's edge.", fu.softness, 0.02f, 1f, 0.3f));
-                    box.Add(ValRow("Colour bleed", "How much colours blend where shapes melt.", fu.colorBleed, 0f, 1f, 0.4f));
-                    break;
-                case EdgeWarpModifier re:
-                    box.Add(ValRow("Amplitude", "Silhouette displacement in pixels.", re.amplitude, 0f, Mathf.Max(4f, half * 0.3f), 2f));
-                    box.Add(ValRow("Frequency", "Waves around the silhouette.", re.frequency, 1f, 24f, 6f));
-                    box.Add(ValRow("Jaggedness", "Blends smooth waves toward jagged noise.", re.jaggedness, 0f, 1f, 0.5f));
-                    box.Add(ValRow("Warp", "Distorts the wave field into itself.", re.warp, 0f, 2f, 0.4f));
-                    box.Add(ValRow("Softness (px)", "Softens the warped edge.", re.softness, 0f, Mathf.Max(4f, half * 0.2f), 0f));
-                    break;
-            }
-        }
-
-        void BuildPinWarpBody(VisualElement parent, PinWarpModifier pw)
-        {
-            var box = Z.Box("Pin warp — click the preview to add / drag pins",
-                "Hand-animated drag points: each pin records keyframes at the current scrubbed frame as you drag it in the preview.");
-            bool editing = editPin == pw;
-            box.Add(Z.Button(editing ? "● Editing pins — click preview to add, drag to move" : "○ Edit pins (click preview)",
-                "Arm pin editing, then click the preview to add pins / drag them to keyframe.",
-                () => { editPin = editing ? null : pw; pinSel = -1; draggingPin = false; RebuildLeft(); }));
-
-            int curFrame = CurrentFrame();
-            for (int i = 0; i < pw.dots.Count; i++)
-            {
-                int idx = i;
-                var d = pw.dots[idx];
-                if (d == null) continue;
-                var pinBox = Z.Box(null, null);
-                pinBox.Add(WrapRow(
-                    Z.Button(pinSel == idx ? "●" : "○", "Select this pin.", () => { pinSel = idx; RebuildLeft(); }).W(24f),
-                    Z.Text($"Pin #{d.id}", ZuiText.Small, "Pin id."),
-                    PackedSlider("Radius", "This pin's radius of influence in pixels.", d.radius, 2f, 128f, v => d.radius = v, 130f),
-                    Z.Button("X", "Delete this pin.", () =>
-                    {
-                        Dial("Remove pin", () => pw.dots.RemoveAt(idx));
-                        if (pinSel == idx) pinSel = -1;
-                        RebuildLeft();
-                    }).W(22f)));
-                bool hasKeyAtFrame = d.keyframes.Exists(k => k.frame == curFrame);
-                var keyRow = WrapRow(Z.Text($"{d.keyframes.Count} keyframe(s)", ZuiText.Small, "How many keyframes this pin has."));
-                var removeKey = Z.Button("Remove keyframe @ this frame", "Delete this pin's keyframe at the currently scrubbed frame.", () =>
-                {
-                    Dial("Remove keyframe", () => d.keyframes.RemoveAll(k => k.frame == curFrame));
-                    RebuildLeft();
-                });
-                removeKey.SetEnabled(hasKeyAtFrame && d.keyframes.Count > 1);
-                keyRow.Add(removeKey);
-                pinBox.Add(keyRow);
-                box.Add(pinBox);
-            }
-            box.Add(WrapRow(
-                Z.Button("Clear pins", "Delete every pin.", () =>
-                {
-                    Dial("Clear pins", () => pw.dots.Clear());
-                    pinSel = -1;
-                    RebuildLeft();
-                }),
-                Z.Text($"{pw.dots.Count} pin(s) — frame {curFrame}", ZuiText.Small, "Pin count and the frame keyframes record at.")));
-            parent.Add(box);
-        }
-
-        void BuildCurlBody(VisualElement parent, CurlModifier cu, float half)
-        {
-            var ambient = Z.Box("Curl — ambient swirl", "The whole-frame ambient swirl field.");
-            ambient.Add(WrapRow(
-                PackedVal("Strength", "Swirl displacement strength.", cu.strength, 0f, 24f, 4f, allowMinMax: false),
-                PackedVal("Zoom", "Swirl feature size.", cu.zoom, 1f, Mathf.Max(8f, half), 24f, allowMinMax: false),
-                PackedVal("Speed", "Swirl animation speed.", cu.speed, -4f, 4f, 1f, allowMinMax: false),
-                PackedVal("Warp", "Distorts the swirl field into itself.", cu.Warp, 0f, 2f, 0.6f, allowMinMax: false)));
-            parent.Add(ambient);
-            parent.Add(BuildVortexList(cu, "Curl — vortices (click the preview to add / drag to move)", half, progressNotSpeed: false));
-        }
-
-        void BuildCurlProgressBody(VisualElement parent, CurlProgressModifier cp, float half)
-        {
-            parent.Add(BuildVortexList(cp, "Vortex field (progress) — click the preview to add / drag to move", half, progressNotSpeed: true));
-        }
-
-        VisualElement BuildVortexList(IVortexHost host, string title, float half, bool progressNotSpeed)
-        {
-            var box = Z.Box(title, "Authored vortices — place and drag them directly in the preview.");
-            bool editing = ReferenceEquals(editCurl, host);
-            box.Add(Z.Button(editing ? "● Editing vortices — click preview to add, drag to move" : "○ Edit vortices (click preview)",
-                "Arm vortex editing, then click the preview to add / drag to move.",
-                () => { editCurl = editing ? null : host; vortexSel = -1; draggingVortex = false; RebuildLeft(); }));
-
-            for (int i = 0; i < host.Vortices.Count; i++)
-            {
-                int idx = i;
-                var v = host.Vortices[idx];
-                if (v == null) continue;
-                var vBox = Z.Box(null, null);
-                vBox.Add(WrapRow(
-                    Z.Button(vortexSel == idx ? "●" : "○", "Select this vortex.", () => { vortexSel = idx; RebuildLeft(); }).W(24f),
-                    Z.Text($"#{idx + 1}", ZuiText.Small, "Vortex number."),
-                    Z.Toggle(v.clockwise ? "CW" : "CCW", "Spin direction — clockwise or counter-clockwise.", v.clockwise,
-                        on => { Dial("Vortex direction", () => v.clockwise = on); RebuildLeft(); }),
-                    Z.Button("X", "Delete this vortex.", () =>
-                    {
-                        Dial("Remove vortex", () => host.Vortices.RemoveAt(idx));
-                        if (vortexSel == idx) vortexSel = -1;
-                        RebuildLeft();
-                    }).W(22f)));
-                var valueRow = WrapRow(
-                    PackedVal("Radius", "This vortex's influence radius in pixels.", v.radius, 2f, Mathf.Max(8f, half), 24f, allowMinMax: false),
-                    PackedVal("Strength°", "Swirl strength in degrees of turn.", v.strength, 0f, 50f, 25f, allowMinMax: false));
-                valueRow.Add(progressNotSpeed
-                    ? PackedVal("Progress", "How far this vortex's swirl has progressed.", ((VortexPoint)v).progress, 0f, 1f, null, allowMinMax: false)
-                    : PackedVal("Speed", "Swirl animation speed.", ((VortexPoint)v).speed, -4f, 4f, 1f, allowMinMax: false));
-                vBox.Add(valueRow);
-                box.Add(vBox);
-            }
-            box.Add(WrapRow(
-                Z.Button("Clear vortices", "Delete every vortex.", () =>
-                {
-                    Dial("Clear vortices", () => host.Vortices.Clear());
-                    vortexSel = -1;
-                    RebuildLeft();
-                }),
-                Z.Text($"{host.Vortices.Count} vortex(es)", ZuiText.Small, "How many vortices are placed.")));
-            return box;
-        }
-
-        void ShowAddModifierMenu(VisualElement anchor, List<PyreModifier> list, bool isGlobal)
+        void ShowAddModifierMenu(VisualElement anchor, List<PyreModifier> list, Action rebuild)
         {
             var menu = Z.Menu(anchor);
-            // The old menu nested items under "Group/Item" submenus; the ZUI popover is flat with a bold
-            // Section heading per group. Split each "Group/Label" path on its first '/' and emit a Section
-            // whenever the group changes (entries are already grouped by construction below).
             string lastGroup = null;
-            void Add(string path, System.Func<PyreModifier> make)
+            foreach (var e in AddableModifiers())
             {
-                int slash = path.IndexOf('/');
-                string group = slash >= 0 ? path.Substring(0, slash) : "";
-                string label = slash >= 0 ? path.Substring(slash + 1) : path;
-                if (group != lastGroup) { menu.Section(group); lastGroup = group; }
-                menu.Item(label, $"Add the {label} modifier to this stack.", () =>
+                if (e.group != lastGroup) { menu.Section(e.group); lastGroup = e.group; }
+                var type = e.type;
+                string label = e.label, group = e.group;
+                bool blocked = DisabledInPicker.TryGetValue(type, out var reason);
+                menu.Item(label, blocked ? reason : $"Add the {label} {group.ToLowerInvariant()} modifier to the stack.", () =>
                 {
-                    Dial("Add modifier", () => list.Add(make()));
-                    RebuildLeft();
-                });
+                    Dirty(() => list.Add((PyreModifier)Activator.CreateInstance(type)));
+                    rebuild();
+                }, enabled: !blocked);
             }
-            Add("Geometry/Skew", () => new SkewModifier());
-            Add("Geometry/Rotate", () => new RotateModifier());
-            Add("Geometry/Scale", () => new ScaleModifier());
-            Add("Geometry/Wobble", () => new WobbleModifier());
-            Add("Geometry/Sunburst wobble", () => new SunburstWobbleModifier());
-            Add("Geometry/Profile (mold shape)", () => new ProfileModifier());
-            Add("Geometry/Ground (grow from surface)", () => new GroundModifier());
-            Add("Geometry/Edge warp (jagged, wavy silhouette only)", () => new EdgeWarpModifier());
-            Add("Geometry/Smudge", () => new SmudgeModifier());
-            Add("Geometry/Turbulence (churn)", () => new TurbulenceModifier());
-            Add("Geometry/Curl (swirl)", () => new CurlModifier());
-            Add("Geometry/Vortex field (progress)", () => new CurlProgressModifier());
-            Add("Geometry/Sphere (fake depth)", () => new SphereModifier());
-            Add("Geometry/Ring wave (shockwave ripple)", () => new RingWaveModifier());
-            Add("Geometry/Pulse rings (radius-relative shockwave)", () => new PulseRingsModifier());
-            Add("Geometry/Blast (disc, arc, or line)", () => new PointBlastModifier());
-            Add("Geometry/Sunburst (star silhouette)", () => new SunburstModifier());
-            Add("Geometry/Pin warp (hand-animated drag)", () => new PinWarpModifier());
-            Add("Colour/Tint", () => new TintModifier());
-            Add("Colour/Contrast", () => new ContrastModifier());
-            Add("Colour/Brightness", () => new BrightnessModifier());
-            Add("Colour/Saturation", () => new SaturationModifier());
-            Add("Colour/Posterize", () => new PosterizeModifier());
-            Add("Colour/Voronoi crack", () => new VoronoiCrackModifier());
-            if (isGlobal) Add("Alpha/Dissolve", () => new DissolveModifier());
-            else Add("Alpha/Layer dissolve (follows this layer's own geometry warps)", () => new LayerDissolveModifier());
-            Add("Alpha/Ordered dither", () => new OrderedDitherModifier());
-            Add("Alpha/Wipe (mask reveal)", () => new WipeModifier());
-            Add("Post/Kaleidoscope (mirrored arms)", () => new KaleidoscopeModifier());
-            Add("Post/Bloom (glow)", () => new BloomModifier());
-            Add("Post/Outline", () => new OutlineModifier());
-            Add("Post/Edge smooth", () => new EdgeSmoothModifier());
-            Add("Post/Drop shadow", () => new DropShadowModifier());
-            Add("Post/Chromatic aberration", () => new ChromaticAberrationModifier());
-            Add("Post/Fuse (blob melt)", () => new FuseModifier());
-            Add("Post/Ballistic shockwave (rings + vortex street)", () => new BallisticShockwaveModifier());
             menu.Show();
+        }
+
+        // Every concrete PyreModifier Pyre can actually apply — a Geometry, Pixel or Post modifier with a
+        // parameterless constructor — discovered by reflection, so the add-menu tracks Pyre's modifier set with
+        // zero hand-maintained catalog (Pyre's own menu hand-lists them; there is no shared registry to call).
+        // EdgeModifier and SimulationModifier subclasses are deliberately EXCLUDED: Pyre's disc raster has no
+        // silhouette-edge stage and no iterative-simulation/replay stage, so offering them would add pure no-ops.
+        // Cached — the scan runs once per domain.
+        struct AddEntry { public Type type; public string group, label; }
+        static List<AddEntry> _addable;
+        static IEnumerable<AddEntry> AddableModifiers()
+        {
+            if (_addable != null) return _addable;
+            var found = new List<AddEntry>();
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                Type[] types;
+                try { types = asm.GetTypes(); }
+                catch { continue; }   // skip dynamic / partially-loaded assemblies
+                foreach (var t in types)
+                {
+                    if (t.IsAbstract || !typeof(PyreModifier).IsAssignableFrom(t)) continue;
+                    if (t.GetConstructor(Type.EmptyTypes) == null) continue;
+                    string group;
+                    if (typeof(GeometryModifier).IsAssignableFrom(t)) group = "Geometry";
+                    else if (typeof(PixelModifier).IsAssignableFrom(t)) group = "Pixel";
+                    else if (typeof(PostModifier).IsAssignableFrom(t)) group = "Post";
+                    else continue;   // Edge / Simulation / anything else Pyre cannot apply
+                    string label;
+                    try { label = ((PyreModifier)Activator.CreateInstance(t)).DisplayName; }
+                    catch { label = null; }
+                    if (string.IsNullOrEmpty(label)) label = ObjectNames.NicifyVariableName(t.Name);
+                    found.Add(new AddEntry { type = t, group = group, label = label });
+                }
+            }
+            found.Sort((a, b) =>
+            {
+                int g = string.CompareOrdinal(a.group, b.group);
+                return g != 0 ? g : string.CompareOrdinal(a.label, b.label);
+            });
+            _addable = found;
+            return _addable;
         }
     }
 }

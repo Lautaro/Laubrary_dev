@@ -1,0 +1,21 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Pyre.Forms.Kiln",
+    "rootNamespace": "Laubrary.Pyre.Forms.Kiln",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Pyre",
+        "com.Lautaro-Arino.Laubrary.SpriteFx",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "Unity.Burst",
+        "Unity.Collections",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -8,10 +8,14 @@ using ChunksFx = Laubrary.Chunks.Chunks;   // the class is shadowed by the names
 namespace Laubrary.ZoetropePyre
 {
     /// <summary>
-    /// An <see cref="ICombatFx"/> that plays a Pyre blast + a Chunks debris burst at a world point — the OPTIONAL
-    /// presentation bridge that lets a Zoetrope Def use Pyre/Chunks effects. Only projects that include Pyre +
-    /// Chunks pull this module in; Zoetrope core stays Combat2D-only. (This is the old coupled <c>CombatVfx</c>,
-    /// now a pluggable effect in its own module — the whole point of the decouple.)
+    /// An <see cref="ICombatFx"/> that plays a Pyre blast + a Chunks debris burst at a world point — the
+    /// OPTIONAL presentation bridge that lets a Zoetrope Def use Pyre/Chunks effects. Only projects that
+    /// include Pyre + Chunks pull this module in; Zoetrope core stays Combat2D-only. (This is the old
+    /// coupled <c>CombatVfx</c>, now a pluggable effect in its own module — the whole point of the decouple.)
+    /// Migrated 2026-08-23 from Pyre1 (BlastPlayer/PyreBlastPool) to Pyre (PyreBlastPlayer/Pool) as
+    /// part of Pyre's retirement — real committed content (Hero Gun, ProtoGuy Gun) referenced this via `blast`
+    /// pointing at a Pyre1 asset; those references were converted to equivalent Pyre assets and
+    /// repointed, not left dangling.
     /// </summary>
     [System.Serializable]
     public class PyreChunksFx : ICombatFx
@@ -44,7 +48,7 @@ namespace Laubrary.ZoetropePyre
             return bp != null ? bp.transform : null;
         }
 
-        BlastPlayer SpawnBlast(Vector2 worldPos)
+        PyreBlastPlayer SpawnBlast(Vector2 worldPos)
         {
             if (blast == null) return null;
 

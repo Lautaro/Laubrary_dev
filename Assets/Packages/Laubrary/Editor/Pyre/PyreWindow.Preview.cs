@@ -1,664 +1,717 @@
-// PyreWindow.Preview — the right pane: the IMGUI preview viewport (the ONE deliberate IMGUI island —
-// bespoke canvas painting + six gizmo interaction layers, pixel-identical to the pre-port window),
-// the UI Toolkit transport, and the backdrop / test-background / preview-subject panels.
-// Part of the UI Toolkit port; see PyreWindow.cs.
+// PyreWindow.Preview — the right-hand IMGUI preview island (the ONE sanctioned IMGUI surface) plus the
+// Swarm authoring overlay (SLICE 2 / T5). The overlay draws the CURRENT authored shape, a dot at every
+// particle's ACTUAL computed spawn point (straight from PyreRenderer.ComputeSpawns — the placement
+// truth), and drag handles for the shape's position and the Custom path's points. Gizmo-interaction style
+// mirrors Pyre's own Editor/Pyre/PyreWindow.Preview.cs: plain Rect hit tests, hot-drag with mouse capture,
+// mutate on mouse-up wrapped in Undo (via the Dirty helper), repaint on change. Interaction state is
+// non-serialized. See PYREPLUS_DESIGN.md → SLICE 2 "Preview authoring overlay".
 using System.Collections.Generic;
-using Laubrary.AssetKit.Editor;
-using Laubrary.BackSplash.Editor;
-using Laubrary.SpriteFx;
-using Laubrary.Zui;
 using UnityEditor;
+using Laubrary.BackSplash.Editor;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 namespace Laubrary.Pyre.Editor
 {
     public partial class PyreWindow
     {
-        SliderInt scrubSlider;
-        Label frameLabel;
-        Button playButton;
-        Label stageNameLabel;
-        VisualElement panelsHost;   // backdrop + test background + subject panels (rebuilt together)
+        // ── overlay tuning (every magic distance named) ───────────────────────────────
+        const int OutlineCircleSegments = 48;   // polyline segments approximating a Circle outline
+        const int OutlineCustomSegments = 64;    // samples along a Custom envelope-pair path
+        const float SpawnDotRadius = 2.2f;        // base spawn-dot radius (px), scaled by depth
+        const float CustomDotRadius = 4f;         // authored Custom-path control-point marker radius (px)
+        const float HandleHalf = 5f;              // half-size of the shape-position square (px)
+        const float HitRadius = 8f;               // click hit radius for the handle and Custom dots (px)
 
-        // Thumbnail cache for the preview-subject LauAsset picker swatch. Cleared at the top of its only builder
-        // (BuildPreviewSubjectOptions), so it stays bounded to the one selected subject. This partial can't reach
-        // the window's teardown (OnDisable lives in PyreWindow.cs, which this task may not touch), so the swatch
-        // texture is released on the next panel rebuild / a domain reload rather than on window close.
-        readonly Dictionary<Object, Texture2D> _subjectThumbs = new Dictionary<Object, Texture2D>();
+        static readonly Color OutlineColor = new Color(0.35f, 0.9f, 1f, 0.5f);       // ~50% cyan
+        static readonly Color SpawnDotColor = new Color(1f, 0.85f, 0.45f, 0.95f);    // warm placement dots
+        static readonly Color CustomDotColor = new Color(0.45f, 1f, 0.7f, 0.95f);    // editable path point
+        static readonly Color CustomDotHot = new Color(1f, 0.7f, 0.2f, 1f);          // the point being dragged
+        static readonly Color CustomDotDim = new Color(0.45f, 1f, 0.7f, 0.3f);       // non-draggable under tilt
+        static readonly Color HandleColor = new Color(0.4f, 0.85f, 1f, 0.9f);        // draggable position square
+        static readonly Color HandleHotColor = new Color(1f, 0.7f, 0.2f, 1f);        // while dragging
+        static readonly Color HandleDisabled = new Color(0.6f, 0.6f, 0.6f, 0.5f);    // hollow (animated offset)
+        const float TraceWidth = 2f;                                                 // spawner-trace polyline width (px)
+        static readonly Color TraceColor = new Color(1f, 0.6f, 0.15f, 0.6f);         // warm amber spine, distinct from the cyan outline
 
-        VisualElement BuildRightPane()
+        // The rect + zoom the current DrawPreview computed for the frame-texture blit. CanvasToScreen /
+        // ScreenToCanvas are the SINGLE mapping used for every overlay draw and hit test, so a mapping fix is
+        // one place; they read these two fields, refreshed every DrawPreview call (all event types).
+        Rect swarmRect;
+        float swarmZoom = 1f;
+
+        // Non-serialized interaction state (never persisted).
+        readonly List<PyreRenderer.SpawnPoint> swarmSpawns = new List<PyreRenderer.SpawnPoint>();
+        // The spawner-trace spine (Part B) — canonical absolute canvas points, refilled every repaint exactly like
+        // swarmSpawns above (per-repaint, no dirty flag: at ≈4×frameCount samples clamped 64..512 the recompute is
+        // trivial). `traceScreen` is the reused screen-space run buffer for the polyline (broken at the view edge).
+        readonly List<Vector2> swarmTrace = new List<Vector2>();
+        readonly List<Vector3> traceScreen = new List<Vector3>();
+        readonly List<Vector3> outlineScratch = new List<Vector3>();
+        bool draggingShapeHandle;
+        Vector2 shapeHandleDragOff;   // live (uncommitted) shape-centre offset while dragging the handle
+        bool draggingCustomPoint;
+        int hotCustomPoint = -1;
+        Vector2 customDragLocal;      // live (uncommitted) local offset of the Custom point being dragged
+
+        // Canvas pixels are y-UP with origin at buffer (0,0); IMGUI screen points are y-DOWN. GUI.DrawTexture
+        // blits the frame texture so its top row (highest buffer y = highest canvas y) lands at swarmRect.yMin,
+        // hence canvas y-up already displays up: worldY maps via swarmRect.yMax - worldY*zoom. THIS is the flip.
+        Vector2 CanvasToScreen(Vector2 world)
+            => new Vector2(swarmRect.x + world.x * swarmZoom, swarmRect.yMax - world.y * swarmZoom);
+        Vector2 ScreenToCanvas(Vector2 gui)
+            => new Vector2((gui.x - swarmRect.x) / swarmZoom, (swarmRect.yMax - gui.y) / swarmZoom);
+
+        // The last IMGUI rect DrawPreview computed for the frame blit, refreshed on every Repaint. The backdrop
+        // panel's auto-fit hook (fired when the user picks a new image, BEFORE the preview repaints at the new
+        // size) reads this to compute a sensible fit-zoom instead of guessing.
+        Rect lastPreviewView;
+
+        void DrawPreview(Pyre s)
         {
-            var right = new VisualElement();
-            right.style.flexGrow = 1f;
-            right.style.minWidth = 0f;
-            right.style.minHeight = 0f;
+            var view = GUILayoutUtility.GetRect(10, 10, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+            if (s == null) return;
+            if (Event.current.type == EventType.Repaint) lastPreviewView = view;
 
-            previewContainer = new IMGUIContainer(DrawViewportGUI)
+            // CherryFraming's blank-during-delay sentinel (frame == -1, see PyreWindow.CherryAdvanceOneBeat):
+            // just the backdrop, no frame texture, no overlay — the preview holds visually empty for the gap.
+            if (s.cherryEnabled && frame < 0)
             {
-                tooltip = "The live preview. Left-drag empty space (or middle-drag) pans the frame; the armed " +
-                    "authoring tool (orbs, pins, vortices, smudge), the origin ✛ and stage sprites all edit here.",
-            };
-            previewContainer.style.height = previewHeight;
-            previewContainer.style.flexShrink = 0f;
-            right.Add(previewContainer);
-            right.Add(BuildPreviewSplitter());
-
-            var scrollLower = new ScrollView(ScrollViewMode.Vertical);
-            scrollLower.style.flexGrow = 1f;
-            scrollLower.style.minHeight = 0f;
-            var lower = scrollLower.contentContainer;
-
-            BuildTransport(lower);
-            lower.Add(Z.VSpace());
-            panelsHost = new VisualElement();
-            BuildLowerPanels(panelsHost);
-            lower.Add(panelsHost);
-            right.Add(scrollLower);
-            return right;
-        }
-
-        void RebuildPanels()
-        {
-            if (panelsHost == null) return;
-            panelsHost.Clear();
-            BuildLowerPanels(panelsHost);
-            previewContainer?.MarkDirtyRepaint();
-        }
-
-        void BuildLowerPanels(VisualElement root)
-        {
-            BuildBackdropOptions(root);
-            BuildPreviewSubjectOptions(root);
-        }
-
-        // ── transport ───────────────────────────────────────────────────────────────────────
-        void BuildTransport(VisualElement root)
-        {
-            playButton = Z.Button(playing ? "❚❚ Pause" : "▶ Play", "Play or pause the looping preview.", () =>
-            {
-                playing = !playing;
-                scrub = -1;
-                playButton.text = playing ? "❚❚ Pause" : "▶ Play";
-            });
-            root.Add(WrapRow(
-                playButton,
-                Z.Button("|< Restart", "Rewind to frame 0 (also restarts the live subject).", () =>
+                if (Event.current.type == EventType.Repaint)
                 {
-                    frame = 0; acc = 0f; scrub = -1;
-                    previewSubject?.Restart();
-                    RefreshTransport();
-                    previewContainer?.MarkDirtyRepaint();
-                }),
-                Z.Button("Fit", "Fit the canvas to the viewport and recentre.", () => { FitZoom(); previewPan = Vector2.zero; }),
-                Z.Button("Centre", "Recentre the frame in the viewport.", () => { previewPan = Vector2.zero; previewContainer?.MarkDirtyRepaint(); }),
-                Z.Toggle("Frame", "Draw a thin border around the canvas.", showFrame,
-                    v => { showFrame = v; previewContainer?.MarkDirtyRepaint(); }),
-                Z.Button("Bake", "Bake the sprite sheet + AnimationClip for this blast.", () => BlastBaker.Bake(spec))));
-
-            scrubSlider = Z.SliderInt(CurrentFrame(), 0, Mathf.Max(0, FrameCount - 1),
-                "Scrub to an exact frame — dragging pauses playback and holds the frame.",
-                v =>
-                {
-                    scrub = v;
-                    playing = false;
-                    playButton.text = "▶ Play";
-                    previewContainer?.MarkDirtyRepaint();
-                    RefreshTransport();
-                }, 260f);
-            root.Add(Z.Field("Frame", "Scrub to an exact frame — dragging pauses playback and holds the frame.", scrubSlider));
-
-            frameLabel = Z.Text("", ZuiText.Subtle, "Current frame / total frames.");
-            var zoomMs = Z.MicroSlider("Zoom", zoom, 1f, 16f, "Preview magnification (canvas pixels × zoom).",
-                v => { zoom = Mathf.Max(1f, Mathf.Round(v)); DirtySpec(); }, 130f, showValue: true);
-            zoomMs.style.flexGrow = 1f; zoomMs.style.flexShrink = 1f; zoomMs.style.maxWidth = 260f;
-            var speedMs = Z.MicroSlider("Speed", speed, 0.1f, 3f, "Preview playback speed multiplier.",
-                v => { speed = (float)System.Math.Round(v, 1); DirtySpec(); }, 130f, showValue: true);
-            speedMs.style.flexGrow = 1f; speedMs.style.flexShrink = 1f; speedMs.style.maxWidth = 260f;
-            root.Add(WrapRow(zoomMs, speedMs, frameLabel));
-            RefreshTransport();
-        }
-
-        void RefreshTransport()
-        {
-            int cur = CurrentFrame();
-            scrubSlider?.SetValueWithoutNotify(cur);
-            if (scrubSlider != null) scrubSlider.highValue = Mathf.Max(0, FrameCount - 1);
-            if (frameLabel != null) frameLabel.text = $"frame {cur + 1}/{FrameCount}";
-        }
-
-        // ── backdrop options ────────────────────────────────────────────────
-        // One shared Zui control (BackSplashZui), used by Mirage too — this window used to hand-build its own
-        // copy of the same panel. Pyre's imagePos is added straight to a screen-space Rect in DrawBackdrop,
-        // so the pad's domain is PIXELS, which is BackSplashZui's default.
-        void BuildBackdropOptions(VisualElement root)
-        {
-            root.Add(BackSplashZui.Build(backSplash, "Preview backdrop",
-                "Renders live every repaint, purely as a visual aid for authoring — it's never baked into any asset and has no effect on the baked sprite sheet or the runtime blast. A private copy: Recall copies values FROM a preset, Save writes them TO one; nothing stays linked to a shared asset.",
-                onChanged: DirtySpec,
-                onStructureChanged: () => { DirtySpec(); RebuildPanels(); },
-                owner: spec));
-        }
-
-        // ── preview subject options ─────────────────────────────────────────────────────────
-        void BuildPreviewSubjectOptions(VisualElement root)
-        {
-            LauAssetGridGUI.ClearCache(_subjectThumbs);   // bounded to the one selected subject (see field note)
-            if (spec == null) return;
-            var box = Z.Box("Lauminary Preview",
-                "Plays through the same real gameplay components the subject uses in-game (a real SpriteRenderer-driven player, rendered via LiveScenePreview) — nothing here is baked. These fields are preview-time wiring only; they aren't part of the runtime blast. Attach id targets a MetaLayer painted on the Lauminary's clip.");
-
-            // The subject asset picker — the shared LauAsset picker+preview (thumbnail swatch + Recall…/New ▾/Edit ✎).
-            // constraint is UnityEngine.Object: the subject can be any bridge-resolvable asset, so Recall enumerates
-            // every IVisualPreview-able asset. Picking commits through the same Dial path as before, then rebuilds the
-            // panels so the swatch (and the "no bridge module" help below) reflect the new subject.
-            const string subjTip = "The subject asset a bridge module resolves (e.g. a Lauminary via Pyre.Launimator).";
-            var row = WrapRow(
-                Z.Field("Asset", subjTip,
-                    LauAssetElement.Build(spec.previewSubjectAsset,
-                        picked => { Dial("Change preview subject", () => spec.previewSubjectAsset = picked); RebuildPanels(); },
-                        typeof(UnityEngine.Object), _subjectThumbs, "Preview Subject", "Assets", subjTip)),
-                Z.Field("Clip", "Which of the subject's clips to play.",
-                    Z.TextInput(spec.previewSubjectClip, "Which of the subject's clips to play.",
-                        v => Dial("Change preview subject", () => spec.previewSubjectClip = v), 100f)),
-                Z.Field("Attach", "MetaLayer name on the clip the blast's origin aligns to.",
-                    Z.TextInput(spec.previewSubjectAttachId, "MetaLayer name on the clip the blast's origin aligns to.",
-                        v => Dial("Change attach id", () => spec.previewSubjectAttachId = v), 100f)));
-            var pickButton = Z.Button("▾", "Pick an attach id from the clip's painted MetaLayers.", null);
-            pickButton.W(20f);
-            pickButton.clicked += () =>
-            {
-                var options = PyrePreviewSubjectProvider.GetAttachPointOptions?.Invoke(spec.previewSubjectAsset, spec.previewSubjectClip);
-                if (options == null || options.Length == 0) return;
-                var menu = Z.Menu(pickButton);
-                foreach (var opt in options)
-                {
-                    string captured = opt;
-                    menu.Item(captured, "Align the blast's origin to this MetaLayer.",
-                        () => { Dial("Change attach id", () => spec.previewSubjectAttachId = captured); RebuildPanels(); },
-                        @checked: captured == spec.previewSubjectAttachId);
+                    DrawBackdrop(view);
+                    GUI.Label(new Rect(view.x + 6, view.yMax - 20, 200, 18), "…", EditorStyles.whiteMiniLabel);
                 }
-                menu.Show();
-            };
-            row.Add(pickButton);
-            box.Add(row);
+                return;
+            }
 
-            if (spec.previewSubjectAsset != null && PyrePreviewSubjectProvider.Resolve == null)
-                box.Add(Z.Help("No bridge module registered to resolve this asset type (e.g. Pyre.Launimator.Editor).",
-                    HelpBoxMessageType.Info));
-            root.Add(box);
-        }
+            // Playback 3D (PROOF OF CONCEPT) — when the SELECTED layer is this form, the preview island shows the
+            // live PreviewRenderUtility 3D render (or its pixelated downsample) INSTEAD of the normal composited
+            // 2D canvas: this form has no bake path into that canvas at all yet (see PyreRenderer's stub), so
+            // compositing it with the other layers would be a lie about what's actually happening. Filmstrip mode
+            // isn't meaningful for a live 3D sim either (there's no discrete authored frame to tile), so it's
+            // skipped for this form too — the 3D preview always shows the single live view.
+            var selForPlayback = SelLayer;
+            if (selForPlayback != null && selForPlayback.shapeForm == ShapeForm.Playback3D)
+            {
+                DrawPlayback3DPreview(view, selForPlayback);
+                return;
+            }
 
-        // ── the IMGUI viewport (unchanged painting + gizmo logic from the pre-port window) ──
-        void DrawViewportGUI()
-        {
-            if (previewContainer == null) return;
-            var view = new Rect(0f, 0f, previewContainer.layout.width, previewContainer.layout.height);
-            if (!(view.width > 10f) || !(view.height > 10f)) return;
-            lastView = view;
-            int cur = CurrentFrame();
+            // Filmstrip mode: the whole animation as a contact sheet instead of the single zoomed frame + overlay.
+            if (s.previewStrip) { DrawFilmstrip(view, s); return; }
+
+            float zoom = Mathf.Max(1f, s.previewZoom);
+            float w = s.Width * zoom, h = s.Height * zoom;
+            var rct = new Rect(view.center.x - w * 0.5f, view.center.y - h * 0.5f, w, h);
+            swarmRect = rct; swarmZoom = zoom;   // feed the one mapping (used by drawing AND hit-testing below)
+
+            // The frame currently on screen, and its normalized life — computed with the SAME formula the renderer
+            // uses (frameIndex → life), so the overlay's outline/handle transform snapshots at the same life the
+            // dots' particles were spawned/evaluated against. Hoisted out of the Repaint block because the overlay
+            // interacts (and re-evaluates the transform) on every event, not only on repaint.
+            int cur = Mathf.Clamp(frame, 0, Mathf.Max(0, s.frameCount - 1));
+            float life = s.frameCount > 1 ? cur / (float)(s.frameCount - 1) : 0f;
 
             if (Event.current.type == EventType.Repaint)
             {
                 DrawBackdrop(view);
-
-                var subject = ResolvePreviewSubject();
-                subjectAlignOffset = Vector2.zero;
-                if (subject != null && spec != null)
+                // The shared frame cache (PyreWindow.FrameCache.cs): a cache hit costs nothing, a miss renders
+                // just this frame now — playback only ever lands on cached frames, so a miss here is a scrub or an edit.
+                GUI.DrawTexture(rct, CachedFrame(s, cur), ScaleMode.StretchToFill, true);
+                if (s.previewShowFrame)
                 {
-                    var live = LivePreview;
-                    float screenPxPerWorldUnit = zoom * spec.pixelsPerUnit;
-                    Vector2 subjectAnchorScreen = new Vector2(view.center.x, view.yMax - view.height * 0.15f) + previewPan;
-                    float boxSize = view.height;
-                    Rect subjectRect = new Rect(subjectAnchorScreen.x - boxSize * 0.5f, subjectAnchorScreen.y - boxSize * 0.5f, boxSize, boxSize);
-
-                    subject.SpawnInto(live, Vector3.zero);
-                    live.Frame(Vector3.zero, boxSize / screenPxPerWorldUnit);
-                    GUI.BeginClip(view);
-                    live.Draw(new Rect(subjectRect.x - view.x, subjectRect.y - view.y, subjectRect.width, subjectRect.height));
-                    GUI.EndClip();
-
-                    if (subject.TryGetAttachWorldPos(out var attachWorld))
-                    {
-                        Vector3 sp = live.Camera.WorldToScreenPoint(attachWorld);
-                        float px2pt = subjectRect.width / Mathf.Max(1, live.Camera.pixelWidth);
-                        float py2pt = subjectRect.height / Mathf.Max(1, live.Camera.pixelHeight);
-                        Vector2 attachScreen = new Vector2(subjectRect.x + sp.x * px2pt, subjectRect.y + (subjectRect.height - sp.y * py2pt));
-                        float ow = spec.Width * zoom, oh = spec.Height * zoom;
-                        Vector2 originNoOffset = new Vector2(
-                            view.x + (view.width - ow) * 0.5f + previewPan.x + Mathf.Clamp01(spec.origin.x) * ow,
-                            view.y + (view.height - oh) * 0.5f + previewPan.y + oh - Mathf.Clamp01(spec.origin.y) * oh);
-                        subjectAlignOffset = attachScreen - originNoOffset;
-                    }
+                    // A thin border around the canvas edge (cosmetic — never baked). Toggled by the transport's Frame.
+                    var frameCol = new Color(1f, 1f, 1f, 0.55f);
+                    EditorGUI.DrawRect(new Rect(rct.x, rct.y, rct.width, 1f), frameCol);
+                    EditorGUI.DrawRect(new Rect(rct.x, rct.yMax - 1f, rct.width, 1f), frameCol);
+                    EditorGUI.DrawRect(new Rect(rct.x, rct.y, 1f, rct.height), frameCol);
+                    EditorGUI.DrawRect(new Rect(rct.xMax - 1f, rct.y, 1f, rct.height), frameCol);
                 }
+                GUI.Label(new Rect(view.x + 6, view.yMax - 20, 200, 18),
+                    $"frame {cur + 1}/{s.frameCount}", EditorStyles.whiteMiniLabel);
+            }
 
-                if (spec == null)
+            // The overlay draws + interacts on every event when the SELECTED layer's swarm is on; it never fights
+            // playback (it only paints over the already-blitted frame texture). It authors that one layer's swarm.
+            var sel = SelLayer;
+            if (sel != null && sel.swarmEnabled) DrawSwarmOverlay(view, s, sel, life);
+        }
+
+        // ── Playback 3D preview (PROOF OF CONCEPT) ──────────────────────────────────────
+        // Renders the assigned prefab's live ParticleSystem(s) via PyrePlayback3DPreview into the SAME view
+        // rect the normal canvas preview uses, backdrop first (so it reads consistently with every other shape),
+        // then either the raw 3D frame or (Pixelated preview on) the point-filtered downsampled grid, scaled to
+        // fill the view with point sampling so the pixelation is legible rather than blurred back out.
+        void DrawPlayback3DPreview(Rect view, PyreLayer sel)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            DrawBackdrop(view);
+            if (sel.playbackPrefab == null)
+            {
+                GUI.Label(new Rect(view.x + 6, view.yMax - 20, 320, 18),
+                    "Playback 3D — assign a Prefab to preview.", EditorStyles.whiteMiniLabel);
+                return;
+            }
+
+            playback3DPreview ??= new PyrePlayback3DPreview();
+            var tex = playback3DPreview.Render(sel, view, sel.playbackPixelated, sel.playbackPixelGrid);
+            if (tex == null) return;
+
+            var filterModeScope = tex.filterMode;   // remember so we can restore it (shared RT reused elsewhere)
+            if (sel.playbackPixelated)
+            {
+                tex.filterMode = FilterMode.Point;
+                // Draw the pixel grid at a WHOLE-NUMBER scale, centred. ScaleToFit picks a fractional scale, and a
+                // point-filtered texture drawn at (say) 7.6x gives some cells 7 screen pixels and some 8 — the grid
+                // visibly wobbles and stops reading as a pixel-art canvas. Falls back to ScaleToFit if the grid is
+                // somehow larger than the island (scale < 1).
+                float scale = Mathf.Floor(Mathf.Min(view.width / tex.width, view.height / tex.height));
+                if (scale >= 1f)
                 {
-                    GUI.Label(view, "No blast selected", EditorStyles.centeredGreyMiniLabel);
+                    float dw = tex.width * scale, dh = tex.height * scale;
+                    GUI.DrawTexture(new Rect(Mathf.Round(view.center.x - dw * 0.5f),
+                                             Mathf.Round(view.center.y - dh * 0.5f), dw, dh),
+                                    tex, ScaleMode.StretchToFill, true);
                 }
+                else GUI.DrawTexture(view, tex, ScaleMode.ScaleToFit, true);
+            }
+            else GUI.DrawTexture(view, tex, ScaleMode.ScaleToFit, true);
+            tex.filterMode = filterModeScope;
+
+            GUI.Label(new Rect(view.x + 6, view.yMax - 20, 320, 18),
+                sel.playbackPixelated
+                    // The ACTUAL grid, not grid×grid: only the long edge is the requested size, the short edge
+                    // follows the preview's aspect. Printing a square here would contradict what is on screen.
+                    ? $"Playback 3D (POC) — pixelated {playback3DPreview.LastPixelWidth}×{playback3DPreview.LastPixelHeight}"
+                    : "Playback 3D (POC) — live 3D",
+                EditorStyles.whiteMiniLabel);
+
+            // The live sim advances only when the transport is playing, exactly like every other form's frame
+            // stepping — Tick() already calls preview?.MarkDirtyRepaint() on each advanced beat, so no extra
+            // scheduling is needed here; a static Scrub position (paused) simply re-simulates to the same result.
+        }
+
+        // ── filmstrip / contact sheet (Part A) ────────────────────────────────────────
+        // Draws EVERY frame as a point-filtered tile of previewStripSize px (aspect = the canvas), laid
+        // left-to-right and WRAPPING to a new row when the next tile would overflow the view width. The block of
+        // rows is centred vertically; a block taller than the view just clips (no scrolling this round — the tile
+        // drawing runs inside a GUI.BeginClip(view)). The backdrop paints once behind the whole sheet; the Frame
+        // toggle outlines every tile; the current transport frame gets a bright highlight; clicking a tile jumps
+        // the transport to it. Tiles come from the shared frame cache — the loop never renders: a frame the
+        // background fill hasn't reached yet is simply an empty tile until it lands (the fill repaints as it goes).
+        // The layout (cols/rows/tile rects) is computed the SAME way for the click hit test and the draw, so a
+        // click always lands on the tile under the cursor.
+        void DrawFilmstrip(Rect view, Pyre s)
+        {
+            int n = Mathf.Max(1, s.frameCount);
+            float tileW = Mathf.Clamp(s.previewStripSize, 32f, 256f);
+            float tileH = tileW * s.Height / Mathf.Max(1, s.Width);   // aspect = canvas (square here → square tiles)
+            const float gap = 4f;
+            int cols = Mathf.Max(1, Mathf.FloorToInt((view.width + gap) / (tileW + gap)));
+            int rows = Mathf.CeilToInt(n / (float)cols);
+            int usedCols = Mathf.Min(n, cols);
+            float blockW = usedCols * tileW + (usedCols - 1) * gap;
+            float blockH = rows * tileH + (rows - 1) * gap;
+            float startX = view.x + (view.width - blockW) * 0.5f;
+            float startY = view.y + (view.height - blockH) * 0.5f;   // < view.y when the block overflows → top rows clip
+
+            // Click a tile → jump the transport there (playback pause state is left as-is). Absolute-rect hit test,
+            // gated to the visible view so clicks on clipped-away tiles don't register. Repaint only (no re-render).
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    var tr = new Rect(startX + (i % cols) * (tileW + gap), startY + (i / cols) * (tileH + gap), tileW, tileH);
+                    if (tr.Contains(e.mousePosition)) { frame = i; preview?.MarkDirtyRepaint(); RefreshTransportReadout(); e.Use(); break; }
+                }
+            }
+
+            if (Event.current.type != EventType.Repaint) return;
+
+            DrawBackdrop(view);            // one backdrop behind the whole sheet, exactly as the single-frame path
+            EnsureFrameCache(s);           // consume a pending invalidation so the tiles below read the right state
+
+            var frameCol = new Color(1f, 1f, 1f, 0.55f);        // the Frame toggle's tile border
+            var hotCol = new Color(1f, 0.85f, 0.2f, 1f);        // the current transport frame's highlight
+            int curFrame = Mathf.Clamp(frame, 0, n - 1);
+
+            // Clip to the view so an overflowing block (or the tile edges) can't spill past the preview island.
+            // Inside the clip, coordinates are relative to view's top-left, so subtract view.x/view.y.
+            GUI.BeginClip(view);
+            for (int i = 0; i < n; i++)
+            {
+                var tr = new Rect(startX - view.x + (i % cols) * (tileW + gap),
+                                  startY - view.y + (i / cols) * (tileH + gap), tileW, tileH);
+                if (IsFrameReady(i)) GUI.DrawTexture(tr, frameCache[i], ScaleMode.StretchToFill, true);
+                if (s.previewShowFrame) DrawRectOutline(tr, frameCol, 1f);
+                if (i == curFrame) DrawRectOutline(tr, hotCol, 2f);
+            }
+            GUI.EndClip();
+
+            GUI.Label(new Rect(view.x + 6, view.yMax - 20, 280, 18),
+                $"strip — {n} frames · frame {curFrame + 1}", EditorStyles.whiteMiniLabel);
+        }
+
+        // A 1-or-2-px rectangle outline via four EditorGUI.DrawRect edges (same idiom as the single-frame Frame
+        // border). `wd` is the edge thickness in px.
+        static void DrawRectOutline(Rect r, Color col, float wd)
+        {
+            EditorGUI.DrawRect(new Rect(r.x, r.y, r.width, wd), col);
+            EditorGUI.DrawRect(new Rect(r.x, r.yMax - wd, r.width, wd), col);
+            EditorGUI.DrawRect(new Rect(r.x, r.y, wd, r.height), col);
+            EditorGUI.DrawRect(new Rect(r.xMax - wd, r.y, wd, r.height), col);
+        }
+
+        // The BackSplash backdrop behind the frame texture — a flat camera-colour fill plus one optional image,
+        // drawn exactly like PyreWindow.DrawBackdrop (blit order: fill → image → the frame texture on top). backSplash
+        // is the window-held instance; null-safe with the old dark fill as a fallback.
+        // Shared painter — see BackSplashPainter; this used to be a byte-for-byte copy of Pyre's.
+        void DrawBackdrop(Rect view)
+            => BackSplashPainter.Draw(view, backSplash, new Color(0.1f, 0.1f, 0.12f));
+
+        // ── swarm authoring overlay ───────────────────────────────────────────────────
+        // `life` is the CURRENT preview frame's normalized life. The outline/handle transform is snapshotted at
+        // THIS life (not a fixed life 0), so as playback runs the drawn shape visibly rotates / grows / slides
+        // along its authored transform curves — matching the user's feedback that Rotation should make the spawn
+        // path rotate on screen. The spawn dots still come straight from ComputeSpawns (each particle's own
+        // spawn-frame snapshot), so they keep marking real placements while the outline animates over them.
+        void DrawSwarmOverlay(Rect view, Pyre s, PyreLayer sel, float life)
+        {
+            // Two independent visualisations (Part B), each spec-gated:
+            //   Show shape  → the authored spawn shape: its outline, the drag handle, the Custom path points, AND
+            //                 the numbered spawn dots. This whole cluster is the only INTERACTIVE chrome.
+            //   Show trace  → the objective spawner-trace spine (a read-only amber polyline), plus the same dots.
+            // The spawn dots belong to BOTH (they mark the real placements), so they draw when EITHER is on. Neither
+            // on ⇒ nothing draws (handle included) and no interaction runs.
+            bool showShape = s.previewShowShape;
+            bool showTrace = s.previewShowTrace;
+            if (!showShape && !showTrace) return;
+
+            // The shape the CURRENT frame presents: the whole transform snapshotted at `life`. Mirrors the
+            // renderer's per-particle transform (ComputeSpawns) so the outline/handle geometry reads the same
+            // curves the dots do. For a Static transform field EvalField(·, life) == EvalField(·, 0) (a constant),
+            // so a Static offset's handle is unaffected and drag stays correct; only animated fields move. Canvas
+            // dimensions come from the spec; every shape/swarm field comes from the SELECTED layer `sel`.
+            float cx = s.Width * 0.5f, cy = s.Height * 0.5f;
+            float half = Mathf.Max(1f, s.canvasSize * 0.5f);
+            float r = Mathf.Max(0f, EvalField(sel.shapeScale, life));
+            if (sel.shapeScaleSnap > 0f) r = Mathf.Round(r / sel.shapeScaleSnap) * sel.shapeScaleSnap;
+            float rot = EvalField(sel.shapeRotation, life);
+            float yaw = EvalField(sel.shapeYaw, life);
+            float pitch = EvalField(sel.shapePitch, life);
+            Vector2 baseOff = new Vector2(EvalField(sel.shapeOffsetX, life), EvalField(sel.shapeOffsetY, life));
+            // The position handle only drags when BOTH offset channels are plain Static numbers; an animated
+            // (Curve/MinMax) offset has no single value a drag could set, so it draws hollow + inert.
+            bool offsetDraggable = sel.shapeOffsetX.mode == ZUIValue.Mode.Static
+                                && sel.shapeOffsetY.mode == ZUIValue.Mode.Static;
+
+            // Interaction (hit priority): the shape-position handle first (it sits at the centre), then the
+            // Custom path points / click-to-add. Each Use()s the event it consumes, which turns e.type to Used
+            // and short-circuits the later handlers — the same chaining Pyre's viewport relies on. ONLY the shape
+            // chrome is interactive; when Show shape is off there is nothing to drag, so the handlers are skipped.
+            if (showShape)
+            {
+                HandlePositionHandle(view, sel, baseOff, offsetDraggable, cx, cy, half);
+                Vector2 drawOffI = draggingShapeHandle ? shapeHandleDragOff : baseOff;
+                HandleCustomPoints(view, sel, r, rot, yaw, pitch, drawOffI, cx, cy, half);
+            }
+
+            if (Event.current.type != EventType.Repaint) return;
+
+            Vector2 drawOff = draggingShapeHandle ? shapeHandleDragOff : baseOff;
+            Vector2 delta = drawOff - baseOff;   // live-shifts the spawn dots while the handle is dragged
+
+            Handles.BeginGUI();
+            var prevC = Handles.color;
+            // Trace first, so it reads as a spine UNDER the outline + dots.
+            if (showTrace) DrawSpawnTrace(view, s, sel, life);
+            if (showShape) DrawShapeOutline(sel, r, rot, yaw, pitch, drawOff, cx, cy);
+            DrawSpawnDots(view, s, sel, delta, life);   // the dots belong to both visualisations (life → live swarm spin)
+            if (showShape)
+            {
+                DrawCustomPoints(view, sel, r, rot, yaw, pitch, drawOff, cx, cy);
+                DrawPositionHandle(view, drawOff, offsetDraggable, cx, cy);
+            }
+            Handles.color = prevC;
+            Handles.EndGUI();
+        }
+
+        // The objective spawner-trace spine (Part B): the canonical, index-free path the spawn POINT sweeps over
+        // the whole timeline, from PyreRenderer.ComputeSpawnTrace — a warm-amber semi-transparent polyline
+        // beneath the cyan outline and the spawn dots. With a MinMax / per-index effect the real dots scatter
+        // around this spine; with a plain Static/Curve transform they sit right on it. Recomputed every repaint
+        // into swarmTrace (just like DrawSpawnDots recomputes swarmSpawns). Absolute canvas points → CanvasToScreen;
+        // the polyline BREAKS wherever it leaves the view so a wrapped (progress > 1) or off-canvas span doesn't
+        // draw a stray chord across the viewport (the same view-gating DrawSpawnDots applies to each dot).
+        void DrawSpawnTrace(Rect view, Pyre s, PyreLayer sel, float life)
+        {
+            int samples = Mathf.Clamp(s.frameCount * 4, 64, 512);
+            PyreRenderer.ComputeSpawnTrace(s, sel, samples, swarmTrace);
+            if (swarmTrace.Count < 2) return;
+
+            // ComputeSpawnTrace bakes a PER-t swarmScale into each spine point (centre + s_t·spun-offset), but the
+            // RENDER and the spawn DOTS apply ONE live swarmScale at the current frame (ApplySwarmScale at `life`)
+            // to the whole placed cloud — so an animated swarmScale makes the spine diverge from what actually
+            // renders. Re-normalise every point to that single live scale, PREVIEW-SIDE only (the render path is
+            // untouched): strip the per-t factor s_t (the SAME canonical eval ComputeSpawnTrace used, via the
+            // preview's EvalField) to recover the pre-scale/post-spin point, then re-apply the live scale through
+            // ApplySwarmScale — the exact helper the dots use — so the spine now matches the dots and the bake.
+            // The intentional per-t SPIN sweep is preserved (it's baked into the offset and untouched). s_t≈0
+            // collapsed the point onto the centre (its offset is unrecoverable), so that sample is dropped as a
+            // polyline break — harmless: it's one of 64+ samples and only where the cloud is scale-0 (invisible).
+            float cx = s.Width * 0.5f, cy = s.Height * 0.5f;
+            Vector2 centre = new Vector2(cx, cy);
+            int count = swarmTrace.Count;
+
+            Handles.color = TraceColor;
+            traceScreen.Clear();
+            for (int i = 0; i < count; i++)
+            {
+                float t = count > 1 ? i / (float)(count - 1) : 0f;
+                float sT = EvalField(sel.swarmScale, t);   // the per-t scale ComputeSpawnTrace applied (canonical)
+                if (Mathf.Abs(sT) <= 1e-4f)
+                {
+                    if (traceScreen.Count >= 2) Handles.DrawAAPolyLine(TraceWidth, traceScreen.ToArray());
+                    traceScreen.Clear();
+                    continue;
+                }
+                Vector2 unscaled = centre + (swarmTrace[i] - centre) / sT;                 // undo per-t scale
+                Vector2 live = PyreRenderer.ApplySwarmScale(s, sel, unscaled, life);    // re-apply single live scale
+                Vector2 sc = CanvasToScreen(live);
+                if (view.Contains(sc))
+                    traceScreen.Add(new Vector3(sc.x, sc.y, 0f));
                 else
                 {
-                    UpdatePreviewTexture(cur);
-                    if (previewTex != null)
-                    {
-                        float w = spec.Width * zoom, h = spec.Height * zoom;
-                        GUI.BeginClip(view);
-                        var local = new Rect((view.width - w) * 0.5f + previewPan.x + subjectAlignOffset.x,
-                                             (view.height - h) * 0.5f + previewPan.y + subjectAlignOffset.y, w, h);
-                        GUI.DrawTexture(local, previewTex, ScaleMode.StretchToFill, true);
-                        if (showFrame)
-                        {
-                            var frameCol = new Color(1f, 1f, 1f, 0.55f);
-                            EditorGUI.DrawRect(new Rect(local.x, local.y, local.width, 1f), frameCol);
-                            EditorGUI.DrawRect(new Rect(local.x, local.yMax - 1f, local.width, 1f), frameCol);
-                            EditorGUI.DrawRect(new Rect(local.x, local.y, 1f, local.height), frameCol);
-                            EditorGUI.DrawRect(new Rect(local.xMax - 1f, local.y, 1f, local.height), frameCol);
-                        }
-                        GUI.EndClip();
-                    }
+                    if (traceScreen.Count >= 2) Handles.DrawAAPolyLine(TraceWidth, traceScreen.ToArray());
+                    traceScreen.Clear();
                 }
             }
+            if (traceScreen.Count >= 2) Handles.DrawAAPolyLine(TraceWidth, traceScreen.ToArray());
+        }
 
-            // Interaction priority, identical to the pre-port window: smudge → pins → vortices → orbs →
-            // origin ✛ → stage sprites → pan. Each Use()s its event.
-            HandleSmudgePaint(view);
-            HandlePinWarp(view);
-            HandleCurlVortices(view);
-            HandleMetaBlob(view);
-            DrawMetaOrbMarkers(view);
-            DrawSmudgeStroke(view);
-            DrawPinMarkers(view);
-            DrawCurlVortexMarkers(view);
-            if (spec != null) DrawOriginHandle(view);
+        // 1) The current authored shape outline, transformed exactly like the renderer transforms placements.
+        void DrawShapeOutline(PyreLayer s, float r, float rot, float yaw, float pitch,
+                              Vector2 off, float cx, float cy)
+        {
+            Handles.color = OutlineColor;
+            var kind = s.swarmShapeKind;
+            var pts = outlineScratch; pts.Clear();
 
-            var pe = Event.current;
-            if (pe.type == EventType.MouseDown && (pe.button == 0 || pe.button == 2) && view.Contains(pe.mousePosition))
-            { draggingPan = true; pe.Use(); }
-            if (draggingPan)
+            if (s.swarmSpawnMode == SwarmSpawnMode.Path && kind == SwarmShapeKind.Custom)
             {
-                if (pe.type == EventType.MouseDrag) { previewPan += pe.delta; previewContainer.MarkDirtyRepaint(); pe.Use(); }
-                if (pe.type == EventType.MouseUp) { draggingPan = false; pe.Use(); }
+                // The two envelopes ARE the path — sample x(t)/y(t) as canvas-pixel local offsets (open, not
+                // closed). Reads committed values, so mid-drag it snaps consistent on mouse-up.
+                for (int i = 0; i <= OutlineCustomSegments; i++)
+                {
+                    float t = i / (float)OutlineCustomSegments;
+                    Vector2 local = new Vector2(EvalField(s.swarmCustomX, t), EvalField(s.swarmCustomY, t));
+                    pts.Add(ToScreen3(ApplyXform(local, r, rot, yaw, pitch, off.x, off.y, cx, cy)));
+                }
+            }
+            else if (kind == SwarmShapeKind.Circle)
+            {
+                for (int i = 0; i <= OutlineCircleSegments; i++)
+                {
+                    float a = i / (float)OutlineCircleSegments * Mathf.PI * 2f;
+                    Vector2 local = new Vector2(r * Mathf.Cos(a), r * Mathf.Sin(a));
+                    pts.Add(ToScreen3(ApplyXform(local, r, rot, yaw, pitch, off.x, off.y, cx, cy)));
+                }
+            }
+            else
+            {
+                int n = SideCount(kind);
+                if (n < 3) return;
+                // Vertex 0 top (+90°), counter-clockwise, closed — mirrors the renderer's PolyVertex convention.
+                for (int k = 0; k <= n; k++)
+                {
+                    float a = Mathf.PI / 2f + 2f * Mathf.PI * k / n;
+                    Vector2 local = new Vector2(r * Mathf.Cos(a), r * Mathf.Sin(a));
+                    pts.Add(ToScreen3(ApplyXform(local, r, rot, yaw, pitch, off.x, off.y, cx, cy)));
+                }
+            }
+            if (pts.Count >= 2) Handles.DrawAAPolyLine(1f, pts.ToArray());
+        }
+
+        // 2) A dot at every particle's ACTUAL computed spawn point — the placement truth, not the outline. `life`
+        //    is the current preview frame's normalized life: the render applies the LIVE whole-cloud swarm spin
+        //    (swarmTurn/Tilt/Roll at this life) to every placed particle, so each dot must carry that same spin to
+        //    keep marking the real rendered position when the swarm spins.
+        void DrawSpawnDots(Rect view, Pyre s, PyreLayer sel, Vector2 delta, float life)
+        {
+            PyreRenderer.ComputeSpawns(s, sel, swarmSpawns);
+            // Each dot is annotated with the FRAME it spawns on (1-based, matching the transport's "frame N/M"
+            // readout). Clutter guard: past 40 dots the labels overlap into an unreadable smear, so only the dots
+            // draw. (frameCount clamped so a 1-frame spec still maps every dot to frame 1 without dividing by zero.)
+            int frameCount = Mathf.Max(1, s.frameCount);
+            bool showLabels = swarmSpawns.Count <= 40;
+            Color prevContent = GUI.contentColor;
+            for (int i = 0; i < swarmSpawns.Count; i++)
+            {
+                var sp = swarmSpawns[i];
+                // FIX 3: spin the placement (plus the live handle-drag `delta`) by the whole-cloud swarm spin at the
+                // frame's life, EXACTLY as RenderSwarm does, via the shared renderer helper — so the dot lands on the
+                // particle's ACTUAL rendered position. All-zero spin ⇒ ApplySwarmSpin returns the point unchanged,
+                // so a non-spinning swarm's dots are byte-identical to before. Depth coding below still keys off
+                // sp.zNorm (the spawn-time tilt), which the render also discards the spin's z of — unchanged.
+                // Slice 0: then apply the live whole-cloud SCALE, AFTER the spin (centre + scale·spin(offset)), via
+                // the sibling ApplySwarmScale helper — the SAME order + math RenderSwarm uses — so the dots stay ON
+                // the scaled particles. Scale 1 (the default) is an exact no-op, byte-identical to before.
+                Vector2 spun = PyreRenderer.ApplySwarmSpin(s, sel, sp.pos + delta, life);
+                Vector2 screen = CanvasToScreen(PyreRenderer.ApplySwarmScale(s, sel, spun, life));
+                if (!view.Contains(screen)) continue;
+                // Depth-code loosely like the renderer's 0.35 / 0.30 factors: nearer (zNorm>0) = bigger, brighter.
+                float sizeMul = Mathf.Clamp(1f + 0.35f * sp.zNorm, 0.5f, 1.6f);
+                float brightMul = Mathf.Clamp(1f + 0.30f * sp.zNorm, 0.55f, 1.45f);
+                Handles.color = new Color(Mathf.Clamp01(SpawnDotColor.r * brightMul),
+                                          Mathf.Clamp01(SpawnDotColor.g * brightMul),
+                                          Mathf.Clamp01(SpawnDotColor.b * brightMul), SpawnDotColor.a);
+                Handles.DrawSolidDisc(new Vector3(screen.x, screen.y, 0f), Vector3.forward, SpawnDotRadius * sizeMul);
+
+                if (!showLabels) continue;
+                // The frame this particle spawns on — the SAME life→frame rounding the transport uses, +1 for the
+                // 1-based display. Drawn a few px up-right of the dot; a 1px dark shadow copy is drawn first so the
+                // white mini-label stays readable over a bright backdrop image.
+                int spawnFrame = Mathf.RoundToInt(sp.spawnLife * (frameCount - 1)) + 1;
+                string txt = spawnFrame.ToString();
+                var labelRect = new Rect(screen.x + 4f, screen.y - 7f, 30f, 14f);
+                GUI.contentColor = new Color(0f, 0f, 0f, 0.9f);
+                GUI.Label(new Rect(labelRect.x + 1f, labelRect.y + 1f, labelRect.width, labelRect.height), txt, EditorStyles.whiteMiniLabel);
+                GUI.contentColor = Color.white;
+                GUI.Label(labelRect, txt, EditorStyles.whiteMiniLabel);
+            }
+            GUI.contentColor = prevContent;
+        }
+
+        // 4) The authored Custom-path control points (Path + Custom only), each a draggable marker.
+        void DrawCustomPoints(Rect view, PyreLayer s, float r, float rot, float yaw, float pitch,
+                              Vector2 off, float cx, float cy)
+        {
+            if (s.swarmSpawnMode != SwarmSpawnMode.Path || s.swarmShapeKind != SwarmShapeKind.Custom) return;
+            var xv = s.swarmCustomX; var yv = s.swarmCustomY;
+            if (xv == null || yv == null) return;
+            bool tilted = yaw != 0f || pitch != 0f;   // dim + non-draggable while tilted (exact inverse overkill)
+            int count = Mathf.Min(xv.points.Count, yv.points.Count);
+            for (int i = 0; i < count; i++)
+            {
+                bool hot = draggingCustomPoint && hotCustomPoint == i;
+                Vector2 local = hot ? customDragLocal : new Vector2(xv.points[i].value, yv.points[i].value);
+                Vector2 screen = CanvasToScreen(ApplyXform(local, r, rot, yaw, pitch, off.x, off.y, cx, cy));
+                if (!view.Contains(screen)) continue;
+                Handles.color = tilted ? CustomDotDim : (hot ? CustomDotHot : CustomDotColor);
+                Handles.DrawSolidDisc(new Vector3(screen.x, screen.y, 0f), Vector3.forward, CustomDotRadius);
+                GUI.Label(new Rect(screen.x + 5f, screen.y - 9f, 26f, 14f), (i + 1).ToString(), EditorStyles.miniLabel);
             }
         }
 
-        // The painter is shared (BackSplashPainter) so the three viewports that draw a backdrop cannot drift —
-        // which they already had: TextSplash's copy silently ignored imageZoom/imagePos.
-        void DrawBackdrop(Rect view)
-            => BackSplashPainter.Draw(view, backSplash, new Color(0.08f, 0.08f, 0.10f));
-
-        void FitZoom()
+        // 3) The shape-position square: filled + interactive when draggable, hollow + grey when the offset is
+        //    animated (no single value to drag).
+        void DrawPositionHandle(Rect view, Vector2 off, bool draggable, float cx, float cy)
         {
-            if (lastView.width < 2f || spec == null) return;
-            float z = Mathf.Floor(Mathf.Min(lastView.width / Mathf.Max(1, spec.Width), lastView.height / Mathf.Max(1, spec.Height)));
-            zoom = Mathf.Clamp(z, 1f, 16f);
-            DirtySpec();
+            Vector2 screen = CanvasToScreen(new Vector2(cx + off.x, cy + off.y));
+            if (!view.Contains(screen)) return;
+            Rect sq = new Rect(screen.x - HandleHalf, screen.y - HandleHalf, HandleHalf * 2f, HandleHalf * 2f);
+            if (draggable)
+            {
+                EditorGUI.DrawRect(sq, draggingShapeHandle ? HandleHotColor : HandleColor);
+            }
+            else
+            {
+                Handles.color = HandleDisabled;
+                Handles.DrawAAPolyLine(1f,
+                    new Vector3(sq.x, sq.y), new Vector3(sq.xMax, sq.y),
+                    new Vector3(sq.xMax, sq.yMax), new Vector3(sq.x, sq.yMax), new Vector3(sq.x, sq.y));
+            }
         }
 
-        void UpdatePreviewTexture(int f)
+        // ── handlers ──────────────────────────────────────────────────────────────────
+        void HandlePositionHandle(Rect view, PyreLayer s, Vector2 baseOff, bool draggable,
+                                  float cx, float cy, float half)
         {
-            // Only re-render on a frame change or a real edit. Re-rendering the same frame on every one of the
-            // many repaints per displayed frame is wasted work in general, and for a Fire layer it forces a
-            // full simulation replay from 0 each time (the same frame isn't the sim's cheap forward step) —
-            // the "lags worse every loop" the flame preview showed.
-            if (previewTex != null && f == lastRenderedFrame && !previewDirty) return;
-            if (previewTex != null) DestroyImmediate(previewTex);
-            previewTex = BlastRenderer.RenderFrameTexture(spec, f);
-            lastRenderedFrame = f;
-            previewDirty = false;
-        }
-
-        // A draggable ✛ marking the blast's origin/pivot over the preview.
-        void DrawOriginHandle(Rect view)
-        {
-            float w = spec.Width * zoom, h = spec.Height * zoom;
-            Rect spr = new Rect(view.x + (view.width - w) * 0.5f + previewPan.x + subjectAlignOffset.x,
-                                view.y + (view.height - h) * 0.5f + previewPan.y + subjectAlignOffset.y, w, h);
-            float ox = spr.x + Mathf.Clamp01(spec.origin.x) * w;
-            float oy = spr.yMax - Mathf.Clamp01(spec.origin.y) * h;
-
             var e = Event.current;
-            Rect zone = new Rect(ox - 8f, oy - 8f, 16f, 16f);
-            if (view.Contains(new Vector2(ox, oy))) EditorGUIUtility.AddCursorRect(zone, MouseCursor.MoveArrow);
-
+            if (draggingShapeHandle)
+            {
+                // Live feedback only: track the dragged offset, DON'T touch the asset until mouse-up (so the one
+                // Undo covers exactly the whole drag with the correct before/after).
+                if (e.type == EventType.MouseDrag)
+                {
+                    Vector2 c = ScreenToCanvas(e.mousePosition);
+                    shapeHandleDragOff = new Vector2(Mathf.Clamp(c.x - cx, -half, half), Mathf.Clamp(c.y - cy, -half, half));
+                    preview?.MarkDirtyRepaint(); e.Use();
+                }
+                else if (e.type == EventType.MouseUp)
+                {
+                    Vector2 fin = shapeHandleDragOff;
+                    Dirty(() => { s.shapeOffsetX.staticValue = fin.x; s.shapeOffsetY.staticValue = fin.y; });
+                    draggingShapeHandle = false; e.Use();
+                }
+                return;
+            }
+            if (!draggable) return;
+            Vector2 screen = CanvasToScreen(new Vector2(cx + baseOff.x, cy + baseOff.y));
+            Rect zone = new Rect(screen.x - HitRadius, screen.y - HitRadius, HitRadius * 2f, HitRadius * 2f);
+            if (view.Contains(screen)) EditorGUIUtility.AddCursorRect(zone, MouseCursor.MoveArrow);
             if (e.type == EventType.MouseDown && e.button == 0 && zone.Contains(e.mousePosition) && view.Contains(e.mousePosition))
-            { Undo.RecordObject(spec, "Move origin"); draggingOrigin = true; e.Use(); }
-            if (draggingOrigin)
             {
-                if (e.type == EventType.MouseDrag)
-                {
-                    spec.origin = new Vector2(Mathf.Clamp01((e.mousePosition.x - spr.x) / Mathf.Max(1f, w)),
-                                              Mathf.Clamp01((spr.yMax - e.mousePosition.y) / Mathf.Max(1f, h)));
-                    EditorUtility.SetDirty(spec); previewContainer.MarkDirtyRepaint(); e.Use();
-                }
-                if (e.type == EventType.MouseUp) { draggingOrigin = false; e.Use(); }
-            }
-
-            if (e.type == EventType.Repaint && view.Contains(new Vector2(ox, oy)) && originMarkerAlpha > 0.001f)
-            {
-                bool white = Mathf.Repeat((float)(EditorApplication.timeSinceStartup * 6.0), 1f) < 0.5f;
-                Color c = white ? Color.white : Color.black; c.a = originMarkerAlpha;
-                EditorGUI.DrawRect(new Rect(ox - 7f, oy - 1f, 14f, 2f), c);
-                EditorGUI.DrawRect(new Rect(ox - 1f, oy - 7f, 2f, 14f), c);
+                draggingShapeHandle = true;
+                shapeHandleDragOff = baseOff;
+                e.Use();
             }
         }
 
-        Rect FrameRect(Rect view)
+        void HandleCustomPoints(Rect view, PyreLayer s, float r, float rot, float yaw, float pitch,
+                                Vector2 drawOff, float cx, float cy, float half)
         {
-            float w = spec.Width * zoom, h = spec.Height * zoom;
-            return new Rect(view.x + (view.width - w) * 0.5f + previewPan.x, view.y + (view.height - h) * 0.5f + previewPan.y, w, h);
-        }
-
-        void HandleMetaBlob(Rect view)
-        {
-            if (spec == null || layerSel < 0 || layerSel >= spec.layers.Count) return;
-            var l = spec.layers[layerSel];
-            if (l == null || l.shape != LayerShape.MetaBlob) return;
-
+            if (s.swarmSpawnMode != SwarmSpawnMode.Path || s.swarmShapeKind != SwarmShapeKind.Custom) return;
+            var xv = s.swarmCustomX; var yv = s.swarmCustomY;
+            if (xv == null || yv == null) return;
             var e = Event.current;
-            Vector2 ctr = FrameRect(view).center;
+            bool tilted = yaw != 0f || pitch != 0f;
+            int count = Mathf.Min(xv.points.Count, yv.points.Count);
 
-            if (placeMetaMode)
+            // Continue an in-flight point drag (mouse capture). Values are canvas-pixel offsets from the shape
+            // centre, so we inverse-transform the cursor by the same life-0 transform. Exact inversion under a
+            // pseudo-3D tilt is overkill, so tilt disables dragging entirely (handled below) — here we're only
+            // ever un-rotating + un-offsetting (no perspective) so the inverse is exact.
+            if (draggingCustomPoint)
             {
-                if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
+                if (e.type == EventType.MouseDrag && hotCustomPoint >= 0 && hotCustomPoint < count)
                 {
-                    float ox = (e.mousePosition.x - ctr.x) / Mathf.Max(0.01f, zoom);
-                    float oy = (ctr.y - e.mousePosition.y) / Mathf.Max(0.01f, zoom);
-                    float birth = Mathf.Clamp01(l.metaOrbs.Count * l.metaSpawnInterval);
-                    Undo.RecordObject(spec, "Place MetaBlob orb");
-                    l.metaOrbs.Add(new MetaOrb(new Vector2(ox, oy), 12f, birth, Mathf.Clamp(1f - birth, 0.25f, 1f)));
-                    metaSel = l.metaOrbs.Count - 1;
-                    EditorUtility.SetDirty(spec); e.Use();
-                    EditorApplication.delayCall += RebuildLeft;   // the orb list in the left pane changed
+                    customDragLocal = InverseXform(ScreenToCanvas(e.mousePosition), rot, drawOff, cx, cy, half);
+                    preview?.MarkDirtyRepaint(); e.Use();
+                }
+                else if (e.type == EventType.MouseUp)
+                {
+                    int idx = hotCustomPoint; Vector2 fin = customDragLocal;
+                    if (idx >= 0 && idx < count)
+                        Dirty(() => { xv.points[idx].value = fin.x; yv.points[idx].value = fin.y; });
+                    draggingCustomPoint = false; hotCustomPoint = -1; e.Use();
                 }
                 return;
             }
 
-            // A click near an orb's RING (rather than its centre) grabs a radius handle instead of the
-            // orb — only while that orb's radius is a plain Static number, since dragging one number
-            // can't meaningfully edit a curve. Centre-grab wins wherever the two zones overlap.
-            if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
-            {
-                for (int i = l.metaOrbs.Count - 1; i >= 0; i--)
-                {
-                    var o = l.metaOrbs[i];
-                    Vector2 mp = new Vector2(ctr.x + o.pos.x * zoom, ctr.y - o.pos.y * zoom);
-                    if ((mp - e.mousePosition).sqrMagnitude <= 100f)
-                    { Undo.RecordObject(spec, "Move MetaBlob orb"); metaSel = i; draggingMetaOrb = true; e.Use(); return; }
-                }
-                for (int i = l.metaOrbs.Count - 1; i >= 0; i--)
-                {
-                    var o = l.metaOrbs[i];
-                    if (!o.RadiusIsStatic) continue;
-                    Vector2 mp = new Vector2(ctr.x + o.pos.x * zoom, ctr.y - o.pos.y * zoom);
-                    float ringPx = o.RadiusAt(0f) * zoom;
-                    float dist = (mp - e.mousePosition).magnitude;
-                    if (Mathf.Abs(dist - ringPx) <= Mathf.Max(5f, 3f * zoom * 0.5f))
-                    { Undo.RecordObject(spec, "Resize MetaBlob orb"); metaSel = i; draggingMetaRadius = true; e.Use(); return; }
-                }
-            }
-            if (draggingMetaRadius && metaSel >= 0 && metaSel < l.metaOrbs.Count)
-            {
-                var o = l.metaOrbs[metaSel];
-                if (e.type == EventType.MouseDrag)
-                {
-                    Vector2 mp = new Vector2(ctr.x + o.pos.x * zoom, ctr.y - o.pos.y * zoom);
-                    float r = (mp - e.mousePosition).magnitude / Mathf.Max(0.01f, zoom);
-                    o.SetStaticRadius(Mathf.Clamp(r, 1f, spec.canvasSize));
-                    EditorUtility.SetDirty(spec); previewContainer.MarkDirtyRepaint(); e.Use();
-                }
-                if (e.type == EventType.MouseUp) { draggingMetaRadius = false; e.Use(); EditorApplication.delayCall += RebuildLeft; }
+            if (e.type != EventType.MouseDown || (e.button != 0 && e.button != 1) || !view.Contains(e.mousePosition))
                 return;
-            }
-            if (draggingMetaOrb && metaSel >= 0 && metaSel < l.metaOrbs.Count)
-            {
-                if (e.type == EventType.MouseDrag)
-                {
-                    l.metaOrbs[metaSel].pos += new Vector2(e.delta.x, -e.delta.y) / Mathf.Max(0.01f, zoom);
-                    EditorUtility.SetDirty(spec); previewContainer.MarkDirtyRepaint(); e.Use();
-                }
-                if (e.type == EventType.MouseUp) { draggingMetaOrb = false; e.Use(); EditorApplication.delayCall += RebuildLeft; }
-            }
-        }
 
-        void HandlePinWarp(Rect view)
-        {
-            if (editPin == null || spec == null) return;
-            var e = Event.current;
-            Vector2 ctr = FrameRect(view).center;
-            int curFrame = CurrentFrame();
-
-            if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
+            // Hit-test existing dots topmost-first: left = grab-drag, right = remove the pair.
+            for (int i = count - 1; i >= 0; i--)
             {
-                for (int i = editPin.dots.Count - 1; i >= 0; i--)
+                Vector2 local = new Vector2(xv.points[i].value, yv.points[i].value);
+                Vector2 screen = CanvasToScreen(ApplyXform(local, r, rot, yaw, pitch, drawOff.x, drawOff.y, cx, cy));
+                if ((screen - e.mousePosition).sqrMagnitude > HitRadius * HitRadius) continue;
+
+                if (e.button == 1)   // right-click removes; refuse below 2 points
                 {
-                    var d = editPin.dots[i];
-                    if (d == null) continue;
-                    Vector2 p = d.Evaluate(curFrame);
-                    Vector2 mp = new Vector2(ctr.x + p.x * zoom, ctr.y - p.y * zoom);
-                    if ((mp - e.mousePosition).sqrMagnitude <= 100f)
-                    { Undo.RecordObject(spec, "Move pin"); pinSel = i; draggingPin = true; e.Use(); return; }
+                    if (count > 2)
+                        Dirty(() => { xv.points.RemoveAt(i); yv.points.RemoveAt(i); RenormalizeTimes(xv); RenormalizeTimes(yv); });
+                    e.Use(); return;
                 }
-                float ox = (e.mousePosition.x - ctr.x) / Mathf.Max(0.01f, zoom);
-                float oy = (ctr.y - e.mousePosition.y) / Mathf.Max(0.01f, zoom);
-                int nextId = 0;
-                foreach (var d in editPin.dots) if (d != null) nextId = Mathf.Max(nextId, d.id + 1);
-                var dot = new PinDot { id = nextId, radius = 16f };
-                dot.SetKeyframe(curFrame, new Vector2(ox, oy));
-                Undo.RecordObject(spec, "Add pin");
-                editPin.dots.Add(dot);
-                pinSel = editPin.dots.Count - 1;
-                EditorUtility.SetDirty(spec); e.Use();
-                EditorApplication.delayCall += RebuildLeft;   // the pin list in the left pane changed
+                if (tilted) { e.Use(); return; }   // grabbed a dot, but tilt disables editing it
+                hotCustomPoint = i; customDragLocal = local; draggingCustomPoint = true; e.Use();
                 return;
             }
 
-            if (draggingPin && pinSel >= 0 && pinSel < editPin.dots.Count)
+            // Left-click on empty canvas appends a new pair AT THE END (point order = progress), then renormalizes
+            // every point's time to even spacing i/(n-1). Disabled under tilt (the inverse-transform is only exact
+            // without perspective).
+            if (e.button == 0 && !tilted)
             {
-                if (e.type == EventType.MouseDrag)
+                Vector2 local = InverseXform(ScreenToCanvas(e.mousePosition), rot, drawOff, cx, cy, half);
+                Dirty(() =>
                 {
-                    var d = editPin.dots[pinSel];
-                    Vector2 p = d.Evaluate(curFrame) + new Vector2(e.delta.x, -e.delta.y) / Mathf.Max(0.01f, zoom);
-                    d.SetKeyframe(curFrame, p);
-                    EditorUtility.SetDirty(spec); previewContainer.MarkDirtyRepaint(); e.Use();
-                }
-                if (e.type == EventType.MouseUp) { draggingPin = false; e.Use(); EditorApplication.delayCall += RebuildLeft; }
+                    xv.points.Add(new ZUIEnvelopePoint(1f, local.x));
+                    yv.points.Add(new ZUIEnvelopePoint(1f, local.y));
+                    RenormalizeTimes(xv); RenormalizeTimes(yv);
+                });
+                e.Use();
             }
         }
 
-        void DrawPinMarkers(Rect view)
+        // ── shared geometry / helpers ─────────────────────────────────────────────────
+
+        Vector3 ToScreen3(Vector2 canvas)
         {
-            if (Event.current.type != EventType.Repaint || editPin == null) return;
-            Vector2 ctr = FrameRect(view).center;
-            int curFrame = CurrentFrame();
-            Handles.BeginGUI();
-            var prevC = Handles.color;
-            for (int i = 0; i < editPin.dots.Count; i++)
-            {
-                var d = editPin.dots[i];
-                if (d == null) continue;
-                Vector2 p = d.Evaluate(curFrame);
-                Vector2 mp = new Vector2(ctr.x + p.x * zoom, ctr.y - p.y * zoom);
-                if (!view.Contains(mp)) continue;
-                bool sel = pinSel == i;
-                bool exactKeyframe = d.keyframes != null && d.keyframes.Exists(k => k.frame == curFrame);
-                Color c = sel ? new Color(1f, 0.7f, 0.2f) : new Color(0.4f, 1f, 0.6f, 0.9f);
-                Handles.color = new Color(c.r, c.g, c.b, 0.35f);
-                Handles.DrawWireDisc(new Vector3(mp.x, mp.y, 0f), Vector3.forward, d.radius * zoom);
-                Handles.color = c;
-                if (exactKeyframe) EditorGUI.DrawRect(new Rect(mp.x - 3f, mp.y - 3f, 6f, 6f), c);
-                else Handles.DrawWireDisc(new Vector3(mp.x, mp.y, 0f), Vector3.forward, 3f);
-                GUI.Label(new Rect(mp.x + 5f, mp.y - 9f, 26f, 14f), d.id.ToString(), EditorStyles.miniLabel);
-            }
-            Handles.color = prevC;
-            Handles.EndGUI();
+            Vector2 s = CanvasToScreen(canvas);
+            return new Vector3(s.x, s.y, 0f);
         }
 
-        void HandleCurlVortices(Rect view)
+        // Local reimplementation of PyreRenderer's per-particle transform (ComputeSpawns steps 2–6). Kept
+        // here — NOT by changing the renderer — so the overlay's outline + Custom markers land where the dots do.
+        // `local` = shape-local canvas-pixel offset (y-up); `r` = snapshot radius (only normalizes tilt depth).
+        static Vector2 ApplyXform(Vector2 local, float r, float rot, float yaw, float pitch,
+                                  float offX, float offY, float cx, float cy)
         {
-            if (editCurl == null || spec == null) return;
-            var e = Event.current;
-            Vector2 ctr = FrameRect(view).center;
-
-            if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
+            float x = local.x, y = local.y, z = 0f;
+            if (rot != 0f)   // 2D rotation, counter-clockwise (y-up)
             {
-                for (int i = editCurl.Vortices.Count - 1; i >= 0; i--)
-                {
-                    var v = editCurl.Vortices[i];
-                    if (v == null) continue;
-                    Vector2 mp = new Vector2(ctr.x + v.pos.x * zoom, ctr.y - v.pos.y * zoom);
-                    if ((mp - e.mousePosition).sqrMagnitude <= 100f)
-                    { Undo.RecordObject(spec, "Move vortex"); vortexSel = i; draggingVortex = true; e.Use(); return; }
-                }
-                float ox = (e.mousePosition.x - ctr.x) / Mathf.Max(0.01f, zoom);
-                float oy = (ctr.y - e.mousePosition.y) / Mathf.Max(0.01f, zoom);
-                Undo.RecordObject(spec, "Add vortex");
-                editCurl.Vortices.Add(new VortexPoint { pos = new Vector2(ox, oy) });
-                vortexSel = editCurl.Vortices.Count - 1;
-                EditorUtility.SetDirty(spec); e.Use();
-                EditorApplication.delayCall += RebuildLeft;   // the vortex list in the left pane changed
-                return;
+                float a = rot * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
+                float nx = x * c - y * s, ny = x * s + y * c; x = nx; y = ny;
             }
-
-            if (draggingVortex && vortexSel >= 0 && vortexSel < editCurl.Vortices.Count)
+            if (yaw != 0f)   // yaw about vertical y axis (x,z plane)
             {
-                if (e.type == EventType.MouseDrag)
-                {
-                    editCurl.Vortices[vortexSel].pos += new Vector2(e.delta.x, -e.delta.y) / Mathf.Max(0.01f, zoom);
-                    EditorUtility.SetDirty(spec); previewContainer.MarkDirtyRepaint(); e.Use();
-                }
-                if (e.type == EventType.MouseUp) { draggingVortex = false; e.Use(); }
+                float a = yaw * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
+                float nx = x * c - z * s, nz = x * s + z * c; x = nx; z = nz;
             }
+            if (pitch != 0f) // pitch about horizontal x axis (y,z plane)
+            {
+                float a = pitch * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
+                float ny = y * c - z * s, nz = y * s + z * c; y = ny; z = nz;
+            }
+            float zNorm = Mathf.Clamp(z / Mathf.Max(1e-3f, r), -1f, 1f);
+            float persp = 1f + 0.25f * zNorm;
+            return new Vector2(cx + offX + x * persp, cy + offY + y * persp);
         }
 
-        void DrawCurlVortexMarkers(Rect view)
+        // Inverse of ApplyXform WITHOUT the tilt (perspective) — un-offset then un-rotate. Valid only when
+        // yaw/pitch are 0, which is exactly when the caller allows a drag/add. Result clamped to the canvas half.
+        static Vector2 InverseXform(Vector2 canvasPos, float rot, Vector2 off, float cx, float cy, float half)
         {
-            if (Event.current.type != EventType.Repaint || editCurl == null) return;
-            Vector2 ctr = FrameRect(view).center;
-            Handles.BeginGUI();
-            var prevC = Handles.color;
-            for (int i = 0; i < editCurl.Vortices.Count; i++)
+            float x = canvasPos.x - cx - off.x;
+            float y = canvasPos.y - cy - off.y;
+            if (rot != 0f)
             {
-                var v = editCurl.Vortices[i];
-                if (v == null) continue;
-                Vector2 mp = new Vector2(ctr.x + v.pos.x * zoom, ctr.y - v.pos.y * zoom);
-                if (!view.Contains(mp)) continue;
-                bool sel = vortexSel == i;
-                Color c = sel ? new Color(1f, 0.7f, 0.2f) : new Color(0.5f, 0.8f, 1f, 0.9f);
-                Handles.color = new Color(c.r, c.g, c.b, 0.35f);
-                Handles.DrawWireDisc(new Vector3(mp.x, mp.y, 0f), Vector3.forward, v.radius.staticValue * zoom);
-                Handles.color = c;
-                EditorGUI.DrawRect(new Rect(mp.x - 3f, mp.y - 3f, 6f, 6f), c);
-                float tickAng = (v.clockwise ? -1f : 1f) * 40f * Mathf.Deg2Rad;
-                Vector2 tick = new Vector2(Mathf.Cos(tickAng), Mathf.Sin(tickAng)) * 14f;
-                Handles.DrawLine(new Vector3(mp.x, mp.y, 0f), new Vector3(mp.x + tick.x, mp.y - tick.y, 0f));
-                GUI.Label(new Rect(mp.x + 5f, mp.y - 9f, 60f, 14f), $"{i + 1} {(v.clockwise ? "CW" : "CCW")}", EditorStyles.miniLabel);
+                float a = -rot * Mathf.Deg2Rad, c = Mathf.Cos(a), s = Mathf.Sin(a);
+                float nx = x * c - y * s, ny = x * s + y * c; x = nx; y = ny;
             }
-            Handles.color = prevC;
-            Handles.EndGUI();
+            return new Vector2(Mathf.Clamp(x, -half, half), Mathf.Clamp(y, -half, half));
         }
 
-        void HandleSmudgePaint(Rect view)
+        // Representative evaluation of a transform ZUIValue for the OUTLINE/handle guide only (the dots use the
+        // renderer directly). Static → the value; Curve → the envelope at `life`; MinMax → the midpoint — a
+        // MinMax field has no single boundary, so the midpoint is the honest guide while the per-particle spread
+        // shows in the dots. Mirrors PyreRenderer.Eval's Static/Curve branches (Curve reads the normalized
+        // points at life, ignoring duration/warmup — the frame-baked timeline).
+        static float EvalField(ZUIValue v, float life)
         {
-            if (paintSmudge == null || spec == null) return;
-            var e = Event.current;
-            Vector2 ctr = FrameRect(view).center;
-            Vector2 ToCanvas(Vector2 mp) => new Vector2((mp.x - ctr.x) / Mathf.Max(0.01f, zoom),
-                                                        (ctr.y - mp.y) / Mathf.Max(0.01f, zoom));
-
-            if (e.type == EventType.MouseDown && e.button == 0 && view.Contains(e.mousePosition))
+            if (v == null) return 0f;
+            switch (v.mode)
             {
-                Undo.RecordObject(spec, "Paint smudge stroke");
-                var stroke = new SmudgeStroke();
-                stroke.points.Add(ToCanvas(e.mousePosition));
-                paintSmudge.strokes.Add(stroke);
-                draggingSmudge = true; EditorUtility.SetDirty(spec); e.Use();
-            }
-            else if (draggingSmudge && e.type == EventType.MouseDrag && paintSmudge.strokes.Count > 0)
-            {
-                var pts = paintSmudge.strokes[paintSmudge.strokes.Count - 1].points;
-                Vector2 p = ToCanvas(e.mousePosition);
-                if (pts.Count == 0 || (p - pts[pts.Count - 1]).sqrMagnitude >= 4f)
-                    pts.Add(p);
-                EditorUtility.SetDirty(spec); previewContainer.MarkDirtyRepaint(); e.Use();
-            }
-            else if (draggingSmudge && e.type == EventType.MouseUp)
-            {
-                var s = paintSmudge.strokes;
-                if (s.Count > 0 && s[s.Count - 1].points.Count < 2) s.RemoveAt(s.Count - 1);
-                draggingSmudge = false; EditorUtility.SetDirty(spec); e.Use();
-                EditorApplication.delayCall += RebuildLeft;   // the stroke count label changed
+                case ZUIValue.Mode.Static: return v.staticValue;
+                case ZUIValue.Mode.MinMax: return (v.min + v.max) * 0.5f;
+                case ZUIValue.Mode.Curve: return ZUIEnvelopeEvaluator.Evaluate(v.points, Mathf.Clamp01(life), v.yMax);
+                default: return v.staticValue;
             }
         }
 
-        void DrawSmudgeStroke(Rect view)
+        // Side count for a regular-polygon kind (0 for Circle/Custom). Mirrors the renderer's private SideCount.
+        static int SideCount(SwarmShapeKind kind)
         {
-            if (Event.current.type != EventType.Repaint || paintSmudge == null) return;
-            var strokes = paintSmudge.strokes;
-            if (strokes == null || strokes.Count == 0) return;
-            Vector2 ctr = FrameRect(view).center;
-            Vector2 ToScreen(Vector2 p) => new Vector2(ctr.x + p.x * zoom, ctr.y - p.y * zoom);
-
-            Handles.BeginGUI();
-            var prev = Handles.color;
-            Handles.color = new Color(0.4f, 0.85f, 1f, 0.9f);
-            foreach (var stroke in strokes)
+            switch (kind)
             {
-                var pts = stroke != null ? stroke.points : null;
-                if (pts == null || pts.Count < 2) continue;
-                for (int i = 1; i < pts.Count; i++)
-                {
-                    Vector2 a = ToScreen(pts[i - 1]), b = ToScreen(pts[i]);
-                    if (view.Contains(a) || view.Contains(b)) Handles.DrawAAPolyLine(3f, a, b);
-                }
+                case SwarmShapeKind.Triangle: return 3;
+                case SwarmShapeKind.Square:   return 4;
+                case SwarmShapeKind.Pentagon: return 5;
+                case SwarmShapeKind.Hexagon:  return 6;
+                default:                      return 0;
             }
-            var lastPts = strokes[strokes.Count - 1].points;
-            if (lastPts != null && lastPts.Count > 0)
-            {
-                Vector2 head = ToScreen(lastPts[lastPts.Count - 1]);
-                if (view.Contains(head))
-                {
-                    float r = Mathf.Max(1f, paintSmudge.size != null ? paintSmudge.size.staticValue : 12f) * zoom;
-                    Handles.color = new Color(0.4f, 0.85f, 1f, 0.35f);
-                    Handles.DrawWireDisc(new Vector3(head.x, head.y, 0f), Vector3.forward, r);
-                }
-            }
-            Handles.color = prev;
-            Handles.EndGUI();
         }
 
-        void DrawMetaOrbMarkers(Rect view)
+        // Even-space every point's time to i/(n-1) so "point order is progress" holds after an add/remove.
+        static void RenormalizeTimes(ZUIValue v)
         {
-            if (Event.current.type != EventType.Repaint || !showMetaMarkers) return;
-            if (spec == null || layerSel < 0 || layerSel >= spec.layers.Count) return;
-            var l = spec.layers[layerSel];
-            if (l == null || l.shape != LayerShape.MetaBlob) return;
-
-            Vector2 ctr = FrameRect(view).center;
-            Handles.BeginGUI();
-            var prevC = Handles.color;
-            // The ring is drawn at the orb's radius AS OF THE CURRENT FRAME (so an animated radius is
-            // visible while scrubbing); a static one also gets a small square grip on its right edge,
-            // marking the drag-to-resize handle HandleMetaBlob offers.
-            float lp = Mathf.Clamp01((CurrentFrame() - l.startFrame) / Mathf.Max(1f, l.endFrame - l.startFrame));
-            for (int i = 0; i < l.metaOrbs.Count; i++)
-            {
-                var o = l.metaOrbs[i];
-                Vector2 mp = new Vector2(ctr.x + o.pos.x * zoom, ctr.y - o.pos.y * zoom);
-                if (!view.Contains(mp)) continue;
-                bool sel = metaSel == i;
-                Color c = sel ? new Color(0.4f, 0.8f, 1f) : new Color(1f, 1f, 1f, 0.75f);
-                float orbT = Mathf.Clamp01((lp - o.birth) / Mathf.Max(0.02f, o.life));
-                float ringPx = o.RadiusAt(orbT) * zoom;
-                Handles.color = new Color(c.r, c.g, c.b, 0.4f);
-                Handles.DrawWireDisc(new Vector3(mp.x, mp.y, 0f), Vector3.forward, ringPx);
-                EditorGUI.DrawRect(new Rect(mp.x - 2f, mp.y - 2f, 4f, 4f), c);
-                if (o.RadiusIsStatic)
-                    EditorGUI.DrawRect(new Rect(mp.x + ringPx - 2.5f, mp.y - 2.5f, 5f, 5f),
-                        new Color(c.r, c.g, c.b, sel ? 1f : 0.7f));
-                GUI.Label(new Rect(mp.x + 4f, mp.y - 9f, 26f, 14f), (i + 1).ToString(), EditorStyles.miniLabel);
-            }
-            Handles.color = prevC;
-            Handles.EndGUI();
+            int n = v.points.Count;
+            for (int i = 0; i < n; i++)
+                v.points[i].time = n > 1 ? i / (float)(n - 1) : 0f;
         }
     }
 }

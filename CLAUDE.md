@@ -17,15 +17,13 @@ Unity editor, so before using any Coplay tool you MUST point the bridge at this 
 If `Application.dataPath` points elsewhere, `check_compile_errors` will look clean despite new code and
 reflection won't find new types — re-run steps 1–3. `set_unity_project_root` is per-session.
 
-## Deprecated tools — Pyre is deprecated, use PyrePlus
+## Pyre — the rename is DONE, there is no "PyrePlus"
 
-**Pyre** (`Runtime/Pyre/`, `Editor/Pyre/`, `BlastRenderer`) is deprecated as of 2026-08-18. **PyrePlus**
-(`Runtime/PyrePlus/`, `Editor/PyrePlus/`, `PyrePlusRenderer`) is its replacement and the one explosion/blast tool
-to build against going forward — do not author new Pyre-only content or point new tool integrations (Chunks
-included) at plain Pyre. The actual retirement/rename mechanics (whether old Pyre gets deleted, kept as a frozen
-shim, or PyrePlus is eventually renamed to plain "Pyre") are not yet executed — see project memory
-`todo-retire-pyre-for-pyreplus.md` for the open mechanics questions. Existing Pyre-referencing code and assets
-keep working in the meantime; this note is about what NEW work should target.
+**Executed 2026-08-23.** PyrePlus was renamed to plain **Pyre** and the ORIGINAL Pyre was deleted outright (not kept as a shim). `Runtime/Pyre/` + `Editor/Pyre/` hold the ex-PyrePlus code under plain-Pyre names — `PyreRenderer`, `PyreWindow`, `PyreBaker`, `PyreChunkAnimation`, asmdef `com.Lautaro-Arino.Laubrary.Pyre`, namespace `Laubrary.Pyre`. `[MovedFrom]` attributes were applied across the `SerializeReference` form types so existing authored assets still deserialize. `Runtime/PyrePlus/` and `Editor/PyrePlus/` are empty leftovers.
+
+**Write `Pyre` in all new code, comments and docs — never `PyrePlus`.** There is no old-vs-new split left to reason about. Any doc or memory still saying "PyrePlus" predates 2026-08-23; correct it rather than following it. The runtime spawn API is `PyreBlastPool.Get()` → set `spec`/`fps`/`loop` → subscribe `Finished` → `Play()` (worked example: `Runtime/ZoetropePyre/SpawnPyreFx.cs`).
+
+⚠️ As of 2026-08-24 the whole rename is **staged but uncommitted** on `feat/lathe` (~209 staged renames plus deletions of the old files). Do NOT run `git checkout`, `git restore`, `git stash` or any other tree-mutating git command here without checking that first.
 
 ## Tool conventions (mirror for every Laubrary tool)
 
@@ -101,6 +99,10 @@ before trusting this list — it drifts.)
 Laubrary editor that references `ZUI.Editor` compiles here but would NOT ship self-contained to a consumer
 project. To make "ZUI is part of Laubrary" real, ZUI needs to move into the package (or be a declared dependency).
 Until then, package tools referencing ZUI only work in this dev host.
+
+## Preview overlays — an effect draws its own, the window hardcodes none
+
+If ONE effect needs its own drawing on a preview (a light's radius, a mask's boundary, a warp's pivot), the effect implements a capability interface and the host discovers it — **never** hardcode a per-effect toggle into a preview window's chrome, where it then sits permanently for every stack that doesn't contain that effect (exactly what "Light radius" did to `SpriteFxStackWindow`). For SpriteFx that interface is `ISpriteFxPreviewOverlay` in `Runtime/SpriteFx/SpriteFxPreviewOverlay.cs`; the host half (collect → toggle strip → draw) is `Editor/SpriteFx/SpriteFxPreviewOverlays.cs` and needs no edit at all. Copy `RelightModifier` (`Runtime/SpriteFx/SpriteFxRelight.cs`) as the worked example. Another tool (Pyre layers, Chunks, Lathe…) gets its OWN small interface in its own Runtime asmdef, copying that shape — not a reference to the SpriteFx one. Full recipe: the laubrary skill's `references/authoring.md` §15.
 
 ## Naming — the Zoetrope/Launimator/Zoe triangle
 

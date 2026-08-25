@@ -5,13 +5,11 @@
         "com.Lautaro-Arino.Laubrary.SpriteFx",
         "com.Lautaro-Arino.Laubrary.Pyre",
         "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
-        "ZUI.Editor",
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.Zui.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.BackSplash",
         "com.Lautaro-Arino.Laubrary.BackSplash.Editor",
-        "com.Lautaro-Arino.Laubrary.Chunks.Editor",
-        "com.Lautaro-Arino.Laubrary.PreviewKit.Editor"
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"
