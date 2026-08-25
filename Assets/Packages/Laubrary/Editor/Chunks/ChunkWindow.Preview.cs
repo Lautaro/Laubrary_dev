@@ -42,10 +42,12 @@ namespace Laubrary.Chunks.Editor
         readonly List<Sprite> _debris = new List<Sprite>();   // owned sampled sprites (each owns its own texture)
 
         // live element refs (re-created every BuildPreview; nulled in OnBeforeRebuild)
-        UnityEngine.UIElements.Image _stageImage;
+        IMGUIContainer _stageView;        // the bespoke pixel-art canvas island (see DrawStage)
         Label _stageHint;
+        Label _stageReadout;              // fixed-height line: what is actually on screen, and at what zoom
         VisualElement _stageEl;
-        readonly List<UnityEngine.UIElements.Image> _debrisCells = new List<UnityEngine.UIElements.Image>();
+        readonly List<IMGUIContainer> _debrisCells = new List<IMGUIContainer>();
+        readonly Texture2D[] _debrisTex = new Texture2D[DebrisSamples];   // what each cell draws, by index
 
         void BuildPreview(VisualElement root, ChunkSpec c)
         {
@@ -58,10 +60,14 @@ namespace Laubrary.Chunks.Editor
                 _subjectSpecGuid = guid;
             }
 
-            var s = Z.Section("Preview",
+            // Titled "Cut Preview", not "Preview": what it shows is where the SAMPLED cuts above it land, and
+            // a bare "Preview" read as a rival to the window's own "Preview in Mirage" action. Keyed, so a
+            // later reword cannot orphan its fold state (an unkeyed section falls back to title+tooltip).
+            var s = Z.Section("Cut Preview",
                 "Cut debris from a real sprite to see this chunk's slicing while configuring. Everything here " +
                 "is preview-only — the subject sprite is never saved into the Chunk asset. At runtime debris " +
-                "is cut from the Sample Source (or uses the sprite list / procedural squares when none is set).");
+                "is cut from the Sample Source (or uses the sprite list / procedural squares when none is set).",
+                "chunks.preview");
 
             // Subject picker + Resample share a row (both short; vertical space is the scarce resource).
             const string subjectTip = "The sprite the preview cuts debris from — a live preview subject, never " +
@@ -80,8 +86,8 @@ namespace Laubrary.Chunks.Editor
             s.Add(Z.VSpace(4f));
 
             // The subject stage — a bespoke pixel-art canvas island (sanctioned raw painting). Fixed square box
-            // (stable layout: it never resizes with content), Point-filtered texture scaled to fit; a hint Label
-            // swaps in when there is nothing to render.
+            // (stable layout: it never resizes with content); a hint Label swaps in, inside that same fixed
+            // box, when there is nothing to render.
             _stageEl = new VisualElement();
             _stageEl.style.width = StageBox;
             _stageEl.style.height = StageBox;
@@ -91,12 +97,22 @@ namespace Laubrary.Chunks.Editor
             _stageEl.style.backgroundColor = new Color(0.11f, 0.11f, 0.12f, 1f);
             PreviewBorder(_stageEl);
             _stageEl.tooltip = "The subject sprite with the preview cuts outlined — each outline is where one " +
-                "debris piece below was cut from, scaled up point-filtered so pixels stay crisp.";
+                "debris piece below was cut from, blown up by a whole number of screen pixels with nearest-" +
+                "neighbour sampling, so an authored pixel is an identical square block and a 1px cut outline " +
+                "stays a clean line. The readout under it says how big the subject really is.";
 
-            _stageImage = new UnityEngine.UIElements.Image { scaleMode = ScaleMode.ScaleToFit };
-            _stageImage.style.width = StageBox - 4f;
-            _stageImage.style.height = StageBox - 4f;
-            _stageEl.Add(_stageImage);
+            // The stage is a bespoke pixel-art CANVAS — the sanctioned raw-IMGUI island — drawn through
+            // ZuiPixel rather than a UI Toolkit Image. The Image was blowing the subject up to fill this box
+            // at whatever fractional ratio fell out of it: a 15x15 subject into a 196pt box is 13.07 points
+            // per authored pixel, so identical pixels rasterized 13 or 14 device pixels wide, and the cut
+            // outlines — which are ONE pixel thick — smeared into the art they exist to sit on top of. ZuiPixel
+            // decides the size and the corner in DEVICE pixels, floors the zoom to a whole number, snaps the
+            // rect onto a pixel boundary and restates FilterMode.Point on every draw. See ZuiPixel.cs's header
+            // for the full points-versus-device-pixels trap; it is invisible at 100% display scaling.
+            _stageView = new IMGUIContainer(DrawStage);
+            _stageView.style.width = StageBox - 4f;
+            _stageView.style.height = StageBox - 4f;
+            _stageEl.Add(_stageView);
 
             _stageHint = new Label { pickingMode = PickingMode.Ignore };
             _stageHint.style.whiteSpace = WhiteSpace.Normal;
@@ -104,6 +120,21 @@ namespace Laubrary.Chunks.Editor
             _stageHint.style.maxWidth = StageBox - 20f;
             _stageEl.Add(_stageHint);
             s.Add(_stageEl);
+
+            // A permanently-reserved single line whose TEXT changes and whose geometry never does (fixed
+            // height, no wrapping) — the stable-workspace shape for a status readout. It exists so a tiny
+            // source can never masquerade as a detailed preview: it names the subject's real pixel size and
+            // the whole-number zoom it is being shown at.
+            _stageReadout = Z.Text("—", ZuiText.Subtle,
+                "The subject's real size in its own pixels, and the whole-number zoom the stage is showing it " +
+                "at. A small number here means the preview is coarse because the SOURCE is small, not because " +
+                "the preview is blurred.");
+            _stageReadout.style.height = 14f;
+            _stageReadout.style.whiteSpace = WhiteSpace.NoWrap;
+            _stageReadout.style.overflow = Overflow.Hidden;
+            _stageReadout.style.flexShrink = 0f;
+            _stageReadout.style.width = StageBox;
+            s.Add(_stageReadout);
 
             s.Add(Z.VSpace(4f));
 
@@ -127,17 +158,57 @@ namespace Laubrary.Chunks.Editor
                 cell.style.backgroundColor = new Color(0.11f, 0.11f, 0.12f, 1f);
                 PreviewBorder(cell);
                 cell.tooltip = strip.tooltip;
-                var img = new UnityEngine.UIElements.Image { scaleMode = ScaleMode.ScaleToFit };
-                img.style.width = DebrisCell - 6f;
-                img.style.height = DebrisCell - 6f;
-                cell.Add(img);
-                _debrisCells.Add(img);
+                // Same pixel-exact island as the stage, for the same reason: a cut is a handful of authored
+                // pixels, and a fractional blow-up is exactly where a few pixels stop reading as pixels.
+                int idx = i;
+                var view = new IMGUIContainer(() => DrawDebrisCell(idx));
+                view.style.width = DebrisCell - 6f;
+                view.style.height = DebrisCell - 6f;
+                cell.Add(view);
+                _debrisCells.Add(view);
                 strip.Add(cell);
             }
             s.Add(strip);
 
             root.Add(s);
             RefreshChunkPreview();
+        }
+
+        /// The subject stage's paint. Local rect, because ZuiPixel adds the island's own panel position
+        /// itself — where the island sits inside the window is half of whether a local coordinate lands on a
+        /// whole device pixel. Repaint only: GUI.DrawTexture is a repaint-time API.
+        void DrawStage()
+        {
+            if (Event.current == null || Event.current.type != EventType.Repaint) return;
+            if (_stageView == null || _stageTex == null) return;
+            var r = _stageView.contentRect;
+            if (float.IsNaN(r.width) || r.width < 1f || r.height < 1f) return;
+            var placement = Z.DrawPixels(new Rect(0f, 0f, r.width, r.height), _stageView, _stageTex);
+            SetStageReadout(_stageTex.width, _stageTex.height, placement.zoom);
+        }
+
+        /// One debris thumbnail's paint, by index into the fixed strip. A slot with no cut simply paints
+        /// nothing — the slot itself is always there, so filling or emptying the strip never reflows it.
+        void DrawDebrisCell(int i)
+        {
+            if (Event.current == null || Event.current.type != EventType.Repaint) return;
+            if (i < 0 || i >= _debrisTex.Length || i >= _debrisCells.Count) return;
+            var tex = _debrisTex[i];
+            var view = _debrisCells[i];
+            if (tex == null || view == null) return;
+            var r = view.contentRect;
+            if (float.IsNaN(r.width) || r.width < 1f || r.height < 1f) return;
+            Z.DrawPixels(new Rect(0f, 0f, r.width, r.height), view, tex);
+        }
+
+        /// Set the stage readout from what was ACTUALLY drawn — the buffer's own size and the zoom ZuiPixel
+        /// settled on. Guarded on change so a repaint that re-states the same numbers does not dirty the
+        /// label and ask for another repaint.
+        void SetStageReadout(int w, int h, int zoom)
+        {
+            if (_stageReadout == null) return;
+            string t = zoom > 0 ? "Subject " + w + " x " + h + " px  ·  " + zoom + "x" : "—";
+            if (_stageReadout.text != t) _stageReadout.text = t;
         }
 
         static void PreviewBorder(VisualElement v)
@@ -160,7 +231,7 @@ namespace Laubrary.Chunks.Editor
         /// every Dial calls it — the preview tracks every dial live, with the SAME cuts (deterministic per seed).
         void RefreshChunkPreview()
         {
-            if (_stageImage == null || _stageHint == null) return;   // section not built yet
+            if (_stageView == null || _stageHint == null) return;   // section not built yet
             DisposeDebris();
 
             var c = Spec;
@@ -212,18 +283,18 @@ namespace Laubrary.Chunks.Editor
                 }
                 finally { Random.state = savedState; }
 
-                for (int i = 0; i < _debrisCells.Count; i++)
-                    _debrisCells[i].image = i < _debris.Count ? _debris[i].texture : null;
+                for (int i = 0; i < _debrisTex.Length; i++)
+                    _debrisTex[i] = i < _debris.Count ? _debris[i].texture : null;
+                for (int i = 0; i < _debrisCells.Count; i++) _debrisCells[i]?.MarkDirtyRepaint();
 
                 foreach (var cut in cuts) OutlineCut(px, W, H, cut);
 
                 EnsureStageTex(W, H);
                 _stageTex.SetPixels32(px);
                 _stageTex.Apply(false);
-                _stageImage.image = _stageTex;
-                _stageImage.MarkDirtyRepaint();
+                _stageView.MarkDirtyRepaint();
                 _stageHint.Shown(false);
-                _stageImage.Shown(true);
+                _stageView.Shown(true);
             }
             catch (System.Exception e)
             {
@@ -236,8 +307,10 @@ namespace Laubrary.Chunks.Editor
         {
             _stageHint.text = msg;
             _stageHint.Shown(true);
-            _stageImage.Shown(false);
-            for (int i = 0; i < _debrisCells.Count; i++) _debrisCells[i].image = null;
+            _stageView.Shown(false);
+            for (int i = 0; i < _debrisTex.Length; i++) _debrisTex[i] = null;
+            for (int i = 0; i < _debrisCells.Count; i++) _debrisCells[i]?.MarkDirtyRepaint();
+            SetStageReadout(0, 0, 0);
         }
 
         // 1px border of one cut, in the subject's own bottom-left-origin pixel space (the same space the
@@ -268,6 +341,9 @@ namespace Laubrary.Chunks.Editor
         // cut) — destroy both halves or every refresh leaks a texture.
         void DisposeDebris()
         {
+            // Drop what the cells DRAW before destroying it — a painting island reads _debrisTex on every
+            // repaint, so clearing after the destroy would leave one frame pointing at a dead texture.
+            for (int i = 0; i < _debrisTex.Length; i++) _debrisTex[i] = null;
             for (int i = 0; i < _debris.Count; i++)
             {
                 var s = _debris[i];
@@ -277,8 +353,7 @@ namespace Laubrary.Chunks.Editor
                 if (t != null) DestroyImmediate(t);
             }
             _debris.Clear();
-            for (int i = 0; i < _debrisCells.Count; i++)
-                if (_debrisCells[i] != null) _debrisCells[i].image = null;
+            for (int i = 0; i < _debrisCells.Count; i++) _debrisCells[i]?.MarkDirtyRepaint();
         }
 
         void DisposeChunkPreview()
@@ -291,8 +366,9 @@ namespace Laubrary.Chunks.Editor
         {
             base.OnBeforeRebuild();   // AssetKit clears its thumbnail refs
             // Release element refs so a stale one is never touched between clearing the tree and rebuilding it.
-            _stageImage = null;
+            _stageView = null;
             _stageHint = null;
+            _stageReadout = null;
             _stageEl = null;
             _debrisCells.Clear();
         }

@@ -1,0 +1,20 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Chunks.Zounds.Editor",
+    "rootNamespace": "Laubrary.ChunksZounds.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Chunks",
+        "com.Lautaro-Arino.Laubrary.Chunks.Zounds",
+        "com.Lautaro-Arino.Laubrary.Chunks.Editor",
+        "com.Lautaro-Arino.Laubrary.Launimator.Zounds.Editor",
+        "com.Lautaro-Arino.Laubrary.Zounds"
+    ],
+    "includePlatforms": [ "Editor" ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

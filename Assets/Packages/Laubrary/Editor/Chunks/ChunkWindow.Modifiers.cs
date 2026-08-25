@@ -1,7 +1,7 @@
 // ChunkWindow.Modifiers — the "Modifiers" sub-box of the Sampled Pseudo-3D Debris section (task #48).
 // A ChunkSpec can carry a [SerializeReference] List<PixelModifier> stack baked ONCE into each SAMPLED
 // chunk's texture at spawn (SampledChunkSprites.ApplyModifiers → SpriteFxFilter.Apply → SpriteFxStack.
-// RunInline). This UI is the SAME polymorphic modifier-list pattern the Pyre / PyrePlus editors use — a
+// RunInline). This UI is the SAME polymorphic modifier-list pattern the Pyre / Pyre editors use — a
 // drag-reorder grip + enable + "+ Add modifier" loop, with each modifier's body drawn generically by the
 // shared reflection drawer (ZuiReflect) rather than a hand-written per-type switch — so every shaped
 // SpriteFx pixel modifier is editable here with zero per-type code, and every dial records Undo.
@@ -23,16 +23,20 @@ namespace Laubrary.Chunks.Editor
     public partial class ChunkWindow
     {
         // Stable body cleared/refilled on every add / remove / reorder / enable, so a structural change
-        // repaints just this sub-box (mirrors PyrePlus's modifiersBody + RebuildModifiers split).
+        // repaints just this sub-box (mirrors Pyre's modifiersBody + RebuildModifiers split).
         VisualElement _modifiersBody;
 
         void BuildModifiers(VisualElement parent, ChunkSpec c)
         {
-            var box = Z.Box("Modifiers",
+            // Keyed: a titled box is view-capturable, and an unkeyed one keys its saved state by title+tooltip,
+            // so a later reword would orphan every saved view. (Per-modifier cards below stay untitled and
+            // unkeyed — they are not captured.)
+            var box = Z.BoxKeyed("Modifiers",
                 "Optional SpriteFx pixel modifiers baked once into each cut chunk's texture at spawn, applied " +
                 "top-to-bottom — a cheap way to style sampled debris (tint, posterise, dither, dissolve, …). " +
                 "Empty = the raw sampled pixels, unchanged. Only affects SAMPLED debris, not authored sprites, " +
-                "procedural squares or animated content.");
+                "procedural squares or animated content.",
+                "chunks.sampled.modifiers");
             _modifiersBody = new VisualElement();
             box.Add(_modifiersBody);
             parent.Add(box);
@@ -125,7 +129,7 @@ namespace Laubrary.Chunks.Editor
         // The reflection drawer's Undo / dirty / rebuild contract for a modifier's fields — the same
         // record-before / dirty-after wiring ChunkWindow.Dial gives every other dial. A modifier's animatable
         // ZUIValue params surface as their plain static value (the accepted shared-drawer limitation — see
-        // PyrePlusWindow.Modifiers).
+        // PyreWindow.Modifiers).
         ZuiReflect.Options ModifierDrawerOptions(PixelModifier m) => new ZuiReflect.Options
         {
             OnBeforeChange = () => { var c = Spec; if (c != null) Undo.RecordObject(c, "Edit chunk modifier"); },
@@ -139,7 +143,7 @@ namespace Laubrary.Chunks.Editor
         };
 
         // The public `float staticValue { get; set; }` of a ZUIValue-like wrapper, or null — so an animatable
-        // param renders as its static value. Mirrors PyrePlusWindow.StaticValueProp.
+        // param renders as its static value. Mirrors PyreWindow.StaticValueProp.
         static PropertyInfo StaticValueProp(Type t)
         {
             if (t == null || t.IsPrimitive || t == typeof(string) || t.IsEnum) return null;

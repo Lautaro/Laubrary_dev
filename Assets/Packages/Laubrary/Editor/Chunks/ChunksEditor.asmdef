@@ -6,9 +6,12 @@
         "com.Lautaro-Arino.Laubrary.PreviewKit",
         "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
         "com.Lautaro-Arino.Laubrary.SpriteFx",
+        "com.Lautaro-Arino.Laubrary.Mirage",
+        "com.Lautaro-Arino.Laubrary.Mirage.Editor",
         "ZUI.Editor",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
-        "com.Lautaro-Arino.Laubrary.Zui.Editor"
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
+        "com.Lautaro-Arino.Laubrary.Layering"
     ],
     "includePlatforms": [
         "Editor"

@@ -113,11 +113,84 @@ namespace Laubrary.Chunks
                 chunk.Finished += onFinished;
             }
 
+            // Hand the composed-effect modules (splash, blast spawn, formation, fragments) their turn. They
+            // are all off by default, so a plain debris spec pays one early-out and nothing more.
+            ChunkModules.Run(spec, worldPos, container, sortingOrder, centerDeg, palette);
+
             // If we own the container, tear it down after the longest chunk could possibly live (plus slack).
             if (parent == null)
-                Destroy(container.gameObject, spec.lifeMax + 2f);
+                Destroy(container.gameObject, ContainerLifetime(spec));
 
             return container;
+        }
+
+        /// How long a self-owned burst container has to stay alive. It is the longest-lived thing the burst
+        /// spawns plus slack, but a composed burst can outlive its own debris — a blast group delayed on the
+        /// timeline may not have fired at all when the last chunk dies — so every module scheduling work into
+        /// the future extends it. Destroying the container early would silently cancel those coroutines
+        /// (ChunkModules.FireAfter and SpawnFormationRunner.FireStaggered both just bail on a dead container)
+        /// and drop the tail of the effect with nothing logged to explain it. Erring LONG here costs one idle
+        /// empty GameObject for a moment; erring short eats part of the effect, so every term is an upper
+        /// bound taken with Max, never an average.
+        public static float ContainerLifetime(ChunkSpec spec)
+        {
+            if (spec == null) return 2f;
+
+            // Base life = the longest-lived thing the burst can actually produce. spec.lifeMax alone is not
+            // that: a composed spec can have countMin/countMax 0 (no plain debris at all) and get everything
+            // on screen from the fragment slicer, whose pieces live by ITS lifeMax — sizing the container off
+            // a value nothing in the effect uses is how a fragment burst gets cut off mid-flight.
+            float life = spec.lifeMax;
+            if (spec.fragmentSlicer != null && spec.fragmentSlicer.Enabled)
+                life = Mathf.Max(life, spec.fragmentSlicer.lifeMax);
+            life += 2f;
+
+            if (!ChunkModules.AnyEnabled(spec)) return life;
+
+            // Scheduled tail = how far into the future the LAST thing fires. EVERY module the timeline can
+            // delay has to count, not just the formation — a recipe whose whole point is a late "Blast 3"
+            // schedules that blast on its own lane, and a lane left out of this sum is a blast that can fire
+            // after the container is gone and never appear at all.
+            float scheduled = 0f;
+            scheduled = Mathf.Max(scheduled, TimelineDelay(spec, ChunkModules.Splash));
+            scheduled = Mathf.Max(scheduled, TimelineDelay(spec, ChunkModules.Fragments));
+
+            if (spec.pyreSpawn != null && spec.pyreSpawn.Enabled)
+                scheduled = Mathf.Max(scheduled, TimelineDelay(spec, ChunkModules.PyreSpawn)
+                                                 + FormationTail(spec.pyreSpawn.useFormation ? spec.pyreSpawn.formation : null));
+
+            if (spec.spawnFormation != null && spec.spawnFormation.Enabled)
+                scheduled = Mathf.Max(scheduled, TimelineDelay(spec, ChunkModules.Formation)
+                                                 + FormationTail(spec.spawnFormation.formation));
+
+            // The extra blast groups, each keyed to its own timeline lane by POSITION — the same
+            // ChunkModules.BlastGroupTrack the dispatch uses, never a re-derived string, or this sum would go
+            // stale the moment that keying rule changed.
+            if (spec.blastGroups != null)
+                for (int i = 0; i < spec.blastGroups.Count; i++)
+                {
+                    var group = spec.blastGroups[i];
+                    if (group == null || !group.Enabled) continue;
+                    scheduled = Mathf.Max(scheduled, TimelineDelay(spec, ChunkModules.BlastGroupTrack(group, i))
+                                                     + FormationTail(group.useFormation ? group.formation : null));
+                }
+
+            return life + scheduled;
+        }
+
+        /// The delay the timeline schedules one module lane at, or 0 when there is no timeline (or it is off).
+        static float TimelineDelay(ChunkSpec spec, string trackName)
+            => (spec.timeline != null && spec.timeline.Enabled) ? spec.timeline.DelayFor(trackName) : 0f;
+
+        /// Seconds between a formation firing and its LAST point going off. The jitter term matches what
+        /// SpawnFormation.Resolve actually applies — jitter is clamped to staggerSeconds there, so adding the
+        /// raw staggerJitter here would over-estimate a wildly authored value rather than describe the tail.
+        /// Null (or an un-staggered formation) is a legitimate "everything fires at once" answer of 0.
+        static float FormationTail(SpawnFormation formation)
+        {
+            if (formation == null || formation.staggerSeconds <= 0f) return 0f;
+            return formation.staggerSeconds * Mathf.Max(0, formation.count - 1)
+                   + Mathf.Min(formation.staggerJitter, formation.staggerSeconds);
         }
     }
 

@@ -27,6 +27,22 @@ public class ChunksDemoSpawner : MonoBehaviour
     [Tooltip("Direction of the directional burst, degrees (0 = right, 90 = up).")]
     public float wallDirectionDeg = 60f;
 
+    [Header("Composed effect (Chunks 2.0)")]
+    [Tooltip("A fully AUTHORED composed burst. Everything it does — which character is fractured, which " +
+             "blasts go off, and whether each one sits behind, between or in front of the flying pieces — " +
+             "lives in the ChunkSpec asset itself. This script does not configure any of it; it only decides " +
+             "WHEN and WHERE the burst happens, which is the whole point: the effect is authored, not coded.")]
+    public ChunkSpec composedSpec;
+    [Tooltip("The character that blows up. The burst fires at this object's position and the object is " +
+             "hidden while its pieces are in the air, so the fracture reads as the character coming apart " +
+             "rather than as debris appearing next to it. Leave empty to fire at the mouse instead.")]
+    public SpriteRenderer composedTarget;
+    [Tooltip("How long the character stays hidden after it blows up, before it reappears so you can do it " +
+             "again. Roughly the lifetime of the pieces.")]
+    public float composedRespawnSeconds = 2.5f;
+    [Tooltip("Key that fires the composed burst.")]
+    public KeyCode composedKey = KeyCode.C;
+
     [Header("Floor visual")]
     [Tooltip("Draw a floor strip at the spec's floorY so the resting/bouncing is visible. Turn off if the scene " +
              "already provides a floor object.")]
@@ -51,6 +67,9 @@ public class ChunksDemoSpawner : MonoBehaviour
         if (directionalSpec != null && Input.GetKeyDown(directionalKey))
             Chunks.Burst(wallOrigin, directionalSpec, wallDirectionDeg);
 
+        if (composedSpec != null && Input.GetKeyDown(composedKey))
+            FireComposed();
+
         if (sampledSpec != null && Input.GetKeyDown(sampledKey))
         {
             // DemoSprites builds its sprite at runtime (no shipped assets), so the source is assigned
@@ -60,14 +79,41 @@ public class ChunksDemoSpawner : MonoBehaviour
         }
     }
 
+    /// Blow up the character. Deliberately the whole of it: pick a point, hide the thing that is coming
+    /// apart, fire the authored recipe. Nothing here reaches into the ChunkSpec to set a sprite or a blast —
+    /// an earlier version of this method did, and it silently overwrote whatever had been authored in the
+    /// Chunks window, so the window's own settings could never be seen in the demo.
+    void FireComposed()
+    {
+        Vector2 at = composedTarget != null ? (Vector2)composedTarget.transform.position : MouseWorld();
+        Chunks.Burst(at, composedSpec);
+
+        // The character goes away while its pieces are in the air, then comes back so the demo can be
+        // replayed. Only the RENDERER is toggled, never the GameObject: disabling the object would also stop
+        // anything else on it, and the demo's whole job is to be re-pressable.
+        if (composedTarget != null && composedTarget.enabled)
+        {
+            composedTarget.enabled = false;
+            CancelInvoke(nameof(ShowComposedTarget));
+            Invoke(nameof(ShowComposedTarget), Mathf.Max(0.1f, composedRespawnSeconds));
+        }
+    }
+
+    void ShowComposedTarget()
+    {
+        if (composedTarget != null) composedTarget.enabled = true;
+    }
+
     void OnGUI()
     {
         var s = new GUIStyle(GUI.skin.label) { fontSize = 14 };
         s.normal.textColor = Color.white;
-        GUI.Label(new Rect(10, 10, 500, 80),
+        GUI.Label(new Rect(10, 10, 620, 110),
             "Left-click: radial burst\n" +
             directionalKey + ": directional wall burst\n" +
-            sampledKey + " (at mouse): sampled pseudo-3D debris tumble", s);
+            sampledKey + " (at mouse): sampled pseudo-3D debris tumble\n" +
+            composedKey + ": blow up the character — it fractures, with blasts behind, between and in " +
+            "front of the pieces (all authored in the Chunks window)", s);
     }
 
     Vector2 MouseWorld()
