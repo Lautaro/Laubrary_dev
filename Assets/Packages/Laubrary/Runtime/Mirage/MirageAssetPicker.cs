@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using Laubrary.Chunks;
 using Laubrary.Zoetrope;
 using Laubrary.Pyre;
 using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespace inside a Laubrary.* namespace
@@ -35,15 +36,19 @@ namespace Laubrary.Mirage
         }
 
         /// The concrete types this picker's default (LauAsset) browse spans — shared with MirageWindow's own
-        /// "New ▾" scoping so that button offers exactly these two kinds, not every LauAssetEditors-registered
-        /// type in the project (a `typeof(Object)` constraint would otherwise match ChunkSpec/WareSpec/etc. too).
-        public static readonly System.Type[] SupportedTypes = { typeof(Zoe), typeof(PyreAsset) };
+        /// "New ▾" scoping so that button offers exactly these kinds, not every LauAssetEditors-registered
+        /// type in the project (a `typeof(Object)` constraint would otherwise match WareSpec and friends too).
+        /// ChunkSpec joined the list once MirageRig learned to realize a burst (2026-08-24): without it, a
+        /// Chunk could only reach Mirage through the Chunks window's own shortcut and could never be ADDED to
+        /// an existing view — a preview you cannot compose with anything else is half a preview.
+        public static readonly System.Type[] SupportedTypes = { typeof(Zoe), typeof(PyreAsset), typeof(ChunkSpec) };
 
         public static List<Item> FindAll()
         {
             var list = new List<Item>();
             AddType<Zoe>(list, "Zoe");
             AddType<PyreAsset>(list, "Pyre");
+            AddType<ChunkSpec>(list, "Chunk");
             return list;
         }
 

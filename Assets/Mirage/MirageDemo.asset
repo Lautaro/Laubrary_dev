@@ -72,8 +72,10 @@ MonoBehaviour:
       muzzleLayerId: Muzzle
       muzzleEventName: 
     previewAimDirection: {x: 1, y: 0}
+    previewPose: 
     targetPractice: 0
     respawnDelay: 2
+    manualControls: 0
   - id: 173a0771d1024c33bc2f8d4e722176a9
     content: {fileID: 11400000, guid: b4b8c5e9aa5985942ac604330e395f6e, type: 2}
     position: {x: -2.5837252, y: 2.2275324}
@@ -82,18 +84,22 @@ MonoBehaviour:
     choreography: {fileID: 0}
     clips: []
     previewAimDirection: {x: 1, y: 0}
+    previewPose: 
     targetPractice: 0
     respawnDelay: 2
+    manualControls: 0
   - id: 7c38a96a90914c71a96e60347f33ca9b
-    content: {fileID: 11400000, guid: b841301cc982cfe45af164711126991c, type: 2}
+    content: {fileID: 11400000, guid: 1854130e91419a94f9c580ea5030a45d, type: 2}
     position: {x: -2.600893, y: 3.5612478}
     scale: 1
     weapon: {fileID: 0}
     choreography: {fileID: 0}
     clips: []
     previewAimDirection: {x: 1, y: 0}
+    previewPose: 
     targetPractice: 0
     respawnDelay: 2
+    manualControls: 0
   - id: 21e02f0771784f878cd2ec905d7c1932
     content: {fileID: 21300000, guid: 391b7d433ed454ef3baed19a2a64b3e5, type: 3}
     position: {x: -3.9971917, y: 3.5955925}
@@ -102,8 +108,10 @@ MonoBehaviour:
     choreography: {fileID: 0}
     clips: []
     previewAimDirection: {x: 1, y: 0}
+    previewPose: 
     targetPractice: 0
     respawnDelay: 2
+    manualControls: 0
   backSplash:
     cameraColor: {r: 0.2830189, g: 0.25048652, b: 0.35686275, a: 1}
     image: {fileID: 21300000, guid: 866c877b4deb2864d99414e91ef88449, type: 3}

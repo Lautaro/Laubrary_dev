@@ -81,6 +81,17 @@ namespace Laubrary.Mirage.Editor
         bool _rebuildQueued;
         double _lastSync;
 
+        // ── section toggle bar (T-0084) ─────────────────────────────────────────────────────
+        // The roster the shared ZuiSectionToggleBar addresses — View / Previewables / Entry, whichever of
+        // those BuildBody actually built this pass (Entry is conditional on a selection). Rebuilt fresh at
+        // the top of every BuildBody call rather than only in BuildAsset, because RebuildBody below — the
+        // FAR more common rebuild path in this window (selecting/deselecting an entry, adding/removing a
+        // previewable, toggling Target Practice…) — rebuilds the body without ever going through the base's
+        // full BuildAsset/BuildUI pass. See ChunkWindow's own "section toggle bar (D-13)" for the pattern.
+        readonly List<(string label, ZuiSection section)> _barUnits = new List<(string label, ZuiSection section)>();
+        VisualElement _barHost;
+        float _barReservedW, _barReservedH;
+
         protected override void OnAssetChanged()
         {
             _selected = null;
@@ -174,6 +185,8 @@ namespace Laubrary.Mirage.Editor
                 ResetBodyRefs();
                 _bodyHost.Clear();
                 BuildBody(_bodyHost, Current);
+                RefreshBar();   // T-0084 — this path never goes through BuildAsset, so the bar needs its
+                                 // own refresh here too whenever the set of top-level sections can change.
             };
         }
 
@@ -187,7 +200,52 @@ namespace Laubrary.Mirage.Editor
         {
             base.OnBeforeRebuild();
             _bodyHost = null;
+            _barHost = null;
             ResetBodyRefs();
+        }
+
+        // ── section toggle bar (T-0084) ─────────────────────────────────────────────────────
+        /// Run one section builder and register whatever top-level ZuiSection it added under `label`, so the
+        /// toggle bar can address it — same convention as ChunkWindow's own Unit(). Only the FIRST ZuiSection
+        /// newly added to `root` is registered: BuildEntry adds more than one top-level section when a Zoe is
+        /// selected (Entry, then optionally Zoe options / Clips), but only "Entry" itself belongs in this bar
+        /// — the nested/sibling sections keep folding via their own headers, same as Chunks never bars a
+        /// module's inner sections.
+        void Unit(VisualElement root, MirageView view, string label, System.Action<VisualElement, MirageView> build)
+        {
+            int before = root.childCount;
+            build(root, view);
+            for (int i = before; i < root.childCount; i++)
+                if (root[i] is ZuiSection sec) { _barUnits.Add((label, sec)); return; }
+        }
+
+        /// (Re)builds the toggle bar from the current `_barUnits` snapshot and drops it into `_barHost`.
+        /// Called after both rebuild paths that can change which top-level sections exist for this asset —
+        /// BuildAsset's full pass and RebuildBody's lighter one — since RebuildBody never touches BuildAsset.
+        void RefreshBar()
+        {
+            if (_barHost == null) return;
+            _barHost.Clear();
+            var bar = new ZuiSectionToggleBar("Mirage", _barUnits.ToArray());
+            _barHost.Add(bar);
+            ReserveBarHeight(_barHost, bar);
+        }
+
+        /// Stable-workspace rule: chrome ABOVE the workspace must never change the geometry of what is below
+        /// it. Same helper as ChunkWindow.ReserveBarHeight — remembers the TALLEST height the bar has laid
+        /// out at the current width and pins it as the host's minHeight, so a mode switch (or a solo) can
+        /// only ever change what is IN the bar, never its size. A width change resets the reservation.
+        void ReserveBarHeight(VisualElement barHost, VisualElement bar)
+        {
+            bar.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                float w = bar.resolvedStyle.width, h = bar.resolvedStyle.height;
+                if (float.IsNaN(w) || float.IsNaN(h) || h <= 0f) return;
+                if (Mathf.Abs(w - _barReservedW) > 0.5f) { _barReservedW = w; _barReservedH = 0f; }
+                if (h <= _barReservedH + 0.5f) return;
+                _barReservedH = h;
+                barHost.style.minHeight = h;
+            });
         }
 
         // ── window build ────────────────────────────────────────────────────────────────────
@@ -195,6 +253,14 @@ namespace Laubrary.Mirage.Editor
         {
             root.style.flexGrow = 1f;
             root.style.minHeight = 0f;
+
+            // T-0084 — section toggle bar rides at the very top, spanning the full window width (Chunks/
+            // Pyre's placement). Host added FIRST so it reserves its space before anything paints; filled by
+            // RefreshBar once BuildBody below has registered this pass's top-level sections into _barUnits.
+            _barHost = new VisualElement();
+            _barHost.style.flexShrink = 0f;
+            if (_barReservedH > 0f) _barHost.style.minHeight = _barReservedH;
+            root.Add(_barHost);
 
             // The entry editor below (Weapon/Target Practice/Clips/Choreography) can grow well past window
             // height — a real scroll view, not window resizing, is the only fix for content overflow.
@@ -204,6 +270,8 @@ namespace Laubrary.Mirage.Editor
             _bodyHost = scroll.contentContainer;
             BuildBody(_bodyHost, view);
             root.Add(scroll);
+
+            RefreshBar();
         }
 
         // Every block is a Z.Section, which OWNS its body. A bare Z.Text(.., ZuiText.Section, ..) heading
@@ -213,15 +281,26 @@ namespace Laubrary.Mirage.Editor
         // (confirmed live, 9 siblings hidden). A section can't get its own extent wrong.
         void BuildBody(VisualElement root, MirageView view)
         {
+            // T-0084 — rebuilt fresh every pass; Unit() below re-registers whichever top-level sections
+            // this pass actually built (Entry only exists once something is selected).
+            _barUnits.Clear();
+
+            Unit(root, view, "View", BuildView);
+            Unit(root, view, "Previewables", BuildPreviewableList);
+
+            if (_selected != null && view.previewables.Contains(_selected))
+                Unit(root, view, "Entry", (r, v) => BuildEntry(r, v, _selected));
+        }
+
+        // Extracted so the toggle bar can address it the same way as Previewables/Entry — the shape is
+        // unchanged (one "View" section, filled by BuildViewRow + BuildBackSplashSection), just named so one
+        // Unit() call registers it instead of BuildBody building it inline.
+        void BuildView(VisualElement root, MirageView view)
+        {
             var viewSection = Z.Section("View", "Settings that apply to this whole preview arrangement.");
             BuildViewRow(viewSection, view);
             BuildBackSplashSection(viewSection, view);
             root.Add(viewSection);
-
-            BuildPreviewableList(root, view);
-
-            if (_selected != null && view.previewables.Contains(_selected))
-                BuildEntry(root, view, _selected);
         }
 
         // ── view-level row ──────────────────────────────────────────────────────────────────
@@ -238,7 +317,7 @@ namespace Laubrary.Mirage.Editor
             addButton.clicked += () =>
             {
                 var wb = addButton.worldBound;
-                LauAssetPicker.Show(new Rect(wb.x, wb.y, wb.width, wb.height),
+                LauAssetBrowser.Show(new Rect(wb.x, wb.y, wb.width, wb.height),
                     MirageAssetPicker.FindAll().ConvertAll(i => i.asset),
                     asset => { AddEntry(view, asset); RebuildBody(); }, null, pickHint: "Zoe / Blast");
             };
@@ -247,7 +326,7 @@ namespace Laubrary.Mirage.Editor
             spriteBrowse.clicked += () =>
             {
                 var wb = spriteBrowse.worldBound;
-                LauBrowser.Show(new Rect(wb.x, wb.y, wb.width, wb.height), "t:Sprite",
+                LauAssetBrowser.Show(new Rect(wb.x, wb.y, wb.width, wb.height), "t:Sprite",
                     picked => { if (picked != null) { AddEntry(view, picked); RebuildBody(); } }, null);
             };
 
@@ -638,7 +717,7 @@ namespace Laubrary.Mirage.Editor
             spriteBrowse.clicked += () =>
             {
                 var wb = spriteBrowse.worldBound;
-                LauBrowser.Show(new Rect(wb.x, wb.y, wb.width, wb.height), "t:Sprite",
+                LauAssetBrowser.Show(new Rect(wb.x, wb.y, wb.width, wb.height), "t:Sprite",
                     picked => { if (picked != null && !ReferenceEquals(picked, entry.content)) SetContent(entry, picked); },
                     entry.content as Sprite);
             };
@@ -651,7 +730,7 @@ namespace Laubrary.Mirage.Editor
                 Z.Text("Content", ZuiText.Subtle, "A Zoe, a Blast, or a Sprite — the kind is read from this object's own type."),
                 BuildAssetRow(entry.content,
                     "A Zoe, a Blast, or a Sprite — the kind is read from this object's own type.",
-                    rect => LauAssetPicker.Show(rect, MirageAssetPicker.FindAll().ConvertAll(i => i.asset),
+                    rect => LauAssetBrowser.Show(rect, MirageAssetPicker.FindAll().ConvertAll(i => i.asset),
                         picked => SetContent(entry, picked), entry.content, pickHint: "Zoe / Blast"),
                     creatable, "Previewable", "Assets/Mirage/Content",
                     picked => SetContent(entry, picked), spriteBrowse));
@@ -669,7 +748,7 @@ namespace Laubrary.Mirage.Editor
             const string tip = "Drives this entry's OWN motion (matches MirageSubject's existing semantics).";
             var creatable = LauAssetEditors.RegisteredTypesFor(typeof(Choreography)).Where(LauAssetEditors.CanCreate).ToList();
             return BuildAssetRow(entry.choreography, tip,
-                rect => LauAssetPicker.Show(rect, typeof(Choreography),
+                rect => LauAssetBrowser.Show(rect, typeof(Choreography),
                     picked => SetChoreography(entry, picked), entry.choreography),
                 creatable, "Choreography", "Assets/Choreographer",
                 picked => SetChoreography(entry, picked));

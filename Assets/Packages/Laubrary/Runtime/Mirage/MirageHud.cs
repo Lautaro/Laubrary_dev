@@ -69,14 +69,16 @@ namespace Laubrary.Mirage
             "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
         };
 
-        /// <summary>Hand controls for any subject whose entry ASKED for them — a facing dial, walk, fire.
+        /// <summary>Hand controls for the live previewables that have something a hand can do — a Zoe's facing
+        /// dial, walk and fire; a Chunks burst's replay.
         ///
-        /// Every control here is generated from <see cref="MirageSubject.Capabilities"/>, never assumed: a Zoe
-        /// with no weapon grows no Fire toggle, one with a single facing grows no direction control. That is
-        /// what makes this work for an ENEMY as readily as for the player — the panel asks the character what
-        /// it can do rather than knowing anything about who is supposed to drive it.
+        /// Every control here is generated from what the thing can actually do, never assumed: a Zoe's controls
+        /// come from <see cref="MirageSubject.Capabilities"/> (no weapon → no Fire toggle, one facing → no
+        /// direction control) and a burst's come from <see cref="MirageChunkBurst"/>. That is what makes this
+        /// work for an ENEMY as readily as for the player — the panel asks the content what it can do rather
+        /// than knowing anything about who is supposed to drive it.
         ///
-        /// Nothing is drawn at all when no entry opted in, so a Mirage view assembled to look at an effect or a
+        /// Nothing is drawn at all when there is nothing to drive, so a Mirage view assembled to look at a
         /// backdrop is untouched by this.</summary>
         void DrawManualControls()
         {
@@ -93,7 +95,19 @@ namespace Laubrary.Mirage
                 s.EnsureManualControls();
                 if (s.Manual != null && s.Capabilities.Zoe != null) driven.Add(s);
             }
-            if (driven.Count == 0) return;
+
+            // Chunk bursts are collected the same way and for the same DontSave reason — but they are NOT
+            // opt-in the way a Zoe's manual controls are, and that difference is the point. A Zoe keeps playing
+            // by itself, so hand controls are a convenience its entry can decline. A burst fires once and is
+            // gone: without a way to fire it again the entry is a preview you can watch exactly once, and the
+            // UI guide is explicit that a step the user has to be TOLD about is a missing feature, not a
+            // workflow. So the replay control is always there for a burst, never something another editor has
+            // to remember to switch on.
+            var bursts = new System.Collections.Generic.List<MirageChunkBurst>();
+            foreach (var b in rig.GetComponentsInChildren<MirageChunkBurst>(true))
+                if (b != null && b.enabled && b.spec != null) bursts.Add(b);
+
+            if (driven.Count == 0 && bursts.Count == 0) return;
 
             // Size the panel to what will actually be drawn, so it never reserves space for controls a
             // character hasn't earned (ui-layout-rules: an empty slot is pure cost).
@@ -106,6 +120,17 @@ namespace Laubrary.Mirage
                 if (c.CanMove) h += 26f + 22f;              // walk toggle + lock-to-aim toggle
                 if (c.CanMove && !s.Manual.lockMoveToAim) h += 24f;
                 if (c.CanFire) h += 26f;
+                h += 8f;
+            }
+            foreach (var b in bursts)
+            {
+                h += 22f;                                   // header
+                if (!b.CanFire) h += 20f;                   // the one honest line instead of dead controls
+                else
+                {
+                    h += 26f + 22f;                         // Replay button + Auto-replay toggle
+                    if (b.autoRepeat) h += 24f;             // interval slider
+                }
                 h += 8f;
             }
 
@@ -141,6 +166,34 @@ namespace Laubrary.Mirage
                 }
 
                 if (caps.CanFire) m.firing = stack.Toggle(m.firing ? "Firing" : "Hold fire", m.firing);
+
+                stack.Space(4f);
+            }
+
+            foreach (var b in bursts)
+            {
+                stack.Label(b.spec.name, bold: true);
+
+                if (!b.CanFire)
+                {
+                    // Honest rather than a dead button: nothing a burst spawns can move outside Play mode
+                    // (Chunk and ChunkModuleRunner both drive off Update/coroutines, neither is ExecuteAlways),
+                    // so there is no burst to replay yet. Say that, the same way DrawPanel already says it for
+                    // placement, instead of offering a control that would visibly do nothing.
+                    stack.Label("Enter Play Mode to fire this burst.");
+                }
+                else
+                {
+                    // Label = action: this fires the burst on press, it does not open anything.
+                    if (stack.Button("Replay burst")) b.Fire();
+
+                    // Off by default — see MirageChunkBurst on why an auto-detonating explosion is the thing
+                    // that makes this preview unreadable. The interval only appears once it can matter, the
+                    // same conditional-row shape the Travel slider above already uses.
+                    b.autoRepeat = stack.Toggle(b.autoRepeat ? "Auto-replaying" : "Manual replay", b.autoRepeat);
+                    if (b.autoRepeat)
+                        b.repeatInterval = stack.Slider("Every", b.repeatInterval, 0.25f, 10f);
+                }
 
                 stack.Space(4f);
             }

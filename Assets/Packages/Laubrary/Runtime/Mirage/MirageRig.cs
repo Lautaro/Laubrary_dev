@@ -4,6 +4,7 @@ using UnityEngine.Serialization;
 using Laubrary.Zoetrope;
 using Laubrary.Caching;
 using Laubrary.Pyre;
+using Laubrary.Chunks;
 using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespace inside a Laubrary.* namespace
 #if UNITY_EDITOR
 using UnityEditor;
@@ -261,11 +262,11 @@ namespace Laubrary.Mirage
                 }
                 case PyreAsset blast:
                 {
-                    // BlastPlayer.Awake() runs SYNCHRONOUSLY during AddComponent, before `spec` is assigned
-                    // below — it sees spec==null and never builds frames or starts playing (the same
+                    // PyreBlastPlayer.Awake() runs SYNCHRONOUSLY during AddComponent, before `spec` is
+                    // assigned below — it sees spec==null and never builds frames or starts playing (the same
                     // AddComponent-timing trap WeaponMuzzleCue.Configure() exists to avoid). Kick Play()
                     // explicitly once spec is actually set instead of relying on Awake's playOnAwake path.
-                    var bp = go.AddComponent<BlastPlayer>();
+                    var bp = go.AddComponent<PyreBlastPlayer>();
                     bp.spec = blast;
                     bp.loop = true;
                     bp.Play();
@@ -278,6 +279,25 @@ namespace Laubrary.Mirage
                     sr.sprite = sprite;
                     sr.sortingOrder = -100;   // background — draw behind everything else
                     ApplyScale(go, sprite.pixelsPerUnit, entry.scale);
+                    break;
+                }
+                case ChunkSpec spec:
+                {
+                    // A burst is NOT continuous content, so unlike the Pyre case above there is no `loop = true`
+                    // to lean on — MirageChunkBurst fires it and stands ready to fire it again, and MirageHud
+                    // draws the Replay control that does so. See that class for why replay beats auto-looping.
+                    //
+                    // Deliberately NOT ApplyScale'd, and this is the one real asymmetry with the cases above.
+                    // They normalize to the view's displayPixelsPerUnit because their size comes from a source
+                    // sprite's PPU. A ChunkSpec is authored in WORLD units instead — sizeMin/sizeMax ARE world
+                    // sizes, and spec.pixelsPerUnit only sets the PPU of the procedural sprite it generates so
+                    // that world size comes out right. Scaling this container would resize the debris sprites
+                    // while leaving their trajectories alone (Chunk integrates and writes transform.position in
+                    // WORLD space, which a parent scale does not touch), so the burst would visibly come apart.
+                    // Honouring entry.scale properly needs a scale multiplier inside Chunks' own spawn path,
+                    // which is not this seam's to add.
+                    var burst = go.AddComponent<MirageChunkBurst>();
+                    burst.spec = spec;
                     break;
                 }
                 default:
