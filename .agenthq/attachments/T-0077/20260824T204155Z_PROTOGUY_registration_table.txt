@@ -1,0 +1,44 @@
+T-0077 ProtoGuy registration table
+==================================
+
+Torso attach offset stays (0, 1.3125) world units = 21 source px. Legs sheets stay the
+canonical gauge. Everything below is a per-cell recipe pivot in the draft LauminaryVersion:
+  Assets/Launimator/Lauminaries/ProtoGuy_25cf2dfd/draft/ProtoGuy_draft.asset
+
+--- PART A: APPLIED (fixes running) ------------------------------------------
+LegsWalk_* cells are 46x35, cropped from the 56x56 canvas at (5,9).
+  ly = 40 - runDy  ;  pivot = (0.5, (35-ly)/35)
+
+sheet          runDy   ly        pivot.y   action
+LegsWalk_N        21   19      0.4571429   unchanged (already exact)
+LegsWalk_E        22   18      0.4857143   CHANGE  0.4571429 -> 0.4857143
+LegsWalk_S        22   18      0.4857143   CHANGE  0.4571429 -> 0.4857143
+
+All 8 cells of each sheet take the same value. pivot.x stays 0.5 everywhere (measured
+run dx = 0 for all three directions).
+
+--- PART B: NOT APPLIED (would make standing exact; a trade, see design doc s6.1) ---
+UpperAimRotation cells are 56x56, currently all pivot (0.5, 0.5).
+  pivot = ((28+dx)/56, (49-dy)/56)   with (dx,dy) from the 16-direction artist reference
+
+cell dir    dx  dy        pivot.x      pivot.y   note
+   0 N      +0  21      0.5000000    0.5000000
+   1 NNE    +1  20      0.5178571    0.5178571  <-- would change
+   2 NE     +0  21      0.5000000    0.5000000
+   3 ENE    +0  20      0.5000000    0.5178571  <-- would change
+   4 E      -1  22      0.4821429    0.4821429  <-- would change
+   5 ESE    -1  22      0.4821429    0.4821429  <-- would change
+   6 SE     -1  22      0.4821429    0.4821429  <-- would change
+   7 SSE    +0  22      0.5000000    0.4821429  <-- would change
+   8 S      +0  21      0.5000000    0.5000000
+   9 SSW    +3  20      0.5535714    0.5178571  <-- would change
+  10 SW     +2  21      0.5357143    0.5000000  <-- would change
+  11 WSW    +2  21      0.5357143    0.5000000  <-- would change
+  12 W      +4  22      0.5714286    0.4821429  <-- would change
+  13 WNW    +1  20      0.5178571    0.5178571  <-- would change
+  14 NW     +0  21      0.5000000    0.5000000
+  15 NNW    +0  20      0.5000000    0.5178571  <-- would change
+
+LegsIdleRotation: leave at (0.5, 0.5) in all 16 cells. Its ground-shadow centre is
+constant at 28 +/- 0.5 px in every direction, so the legs sheet is already consistently
+registered and the per-direction variation is on the torso side.

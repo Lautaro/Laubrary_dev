@@ -1,0 +1,6 @@
+Assets/Dev/PyrePlayback3D.meta
+Assets/Dev/PyrePlayback3D/
+Assets/Dev/PyrePlusPlayback3D/Playback3DVfxTest.unity
+Assets/Dev/PyrePlusPlayback3D/Playback3DVfxTest.unity.meta
+Assets/Dev/PyrePlusPlayback3D/README.md
+Assets/Dev/PyrePlusPlayback3D/README.md.meta

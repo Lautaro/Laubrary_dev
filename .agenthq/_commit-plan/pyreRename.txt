@@ -1,0 +1,424 @@
+Assets/Demos/PyreDemo/Bars Tentacle.asset
+Assets/Demos/PyreDemo/Bars Tentacle.asset.meta
+Assets/Demos/PyreDemo/Blob Explosion.asset
+Assets/Demos/PyreDemo/Blob Explosion.asset.meta
+Assets/Demos/PyreDemo/Directional Grenade Blast 1.asset
+Assets/Demos/PyreDemo/Directional Grenade Blast 1.asset.meta
+Assets/Demos/PyreDemo/Directional Grenade Blast 2.asset
+Assets/Demos/PyreDemo/Directional Grenade Blast 2.asset.meta
+Assets/Demos/PyreDemo/Directional Grenade Side Blast.asset
+Assets/Demos/PyreDemo/Directional Grenade Side Blast.asset.meta
+Assets/Demos/PyreDemo/Driectional Blast.asset
+Assets/Demos/PyreDemo/Driectional Blast.asset.meta
+Assets/Demos/PyreDemo/HollowBlast.asset
+Assets/Demos/PyreDemo/HollowBlast.asset.meta
+Assets/Demos/PyreDemo/MetaBall Blast.asset
+Assets/Demos/PyreDemo/MetaBall Blast.asset.meta
+Assets/Demos/PyreDemo/Metafield Pyre 1.asset
+Assets/Demos/PyreDemo/Metafield Pyre 1.asset.meta
+Assets/Demos/PyreDemo/Metafield Pyre.asset
+Assets/Demos/PyreDemo/Metafield Pyre.asset.meta
+Assets/Demos/PyreDemo/New Pyre.asset
+Assets/Demos/PyreDemo/New Pyre.asset.meta
+Assets/Demos/PyreDemo/NoiseField Ball.asset
+Assets/Demos/PyreDemo/NoiseField Ball.asset.meta
+Assets/Demos/PyreDemo/Old School Explo 2.asset
+Assets/Demos/PyreDemo/Old School Explo 2.asset.meta
+Assets/Demos/PyreDemo/Old School Explo.asset
+Assets/Demos/PyreDemo/Old School Explo.asset.meta
+Assets/Demos/PyreDemo/ProperBlast.asset
+Assets/Demos/PyreDemo/ProperBlast.asset.meta
+Assets/Demos/PyreDemo/PyreDemo.unity
+Assets/Demos/PyreDemo/PyreDemo.unity.meta
+Assets/Demos/PyreDemo/PyreDemoSpawner.cs
+Assets/Demos/PyreDemo/PyreDemoSpawner.cs.meta
+Assets/Demos/PyreDemo/PyrePlusDemo.meta
+Assets/Demos/PyreDemo/PyrePlusDemo/
+Assets/Demos/PyreDemo/PyreSprite.png
+Assets/Demos/PyreDemo/PyreSprite.png.meta
+Assets/Demos/PyreDemo/Rose Blast.asset
+Assets/Demos/PyreDemo/Rose Blast.asset.meta
+Assets/Demos/PyreDemo/SmokePuff.asset
+Assets/Demos/PyreDemo/SmokePuff.asset.meta
+Assets/Demos/PyreDemo/Sparkle Blast.asset
+Assets/Demos/PyreDemo/Sparkle Blast.asset.meta
+Assets/Demos/PyreDemo/SparkleBlast.asset
+Assets/Demos/PyreDemo/SparkleBlast.asset.meta
+Assets/Demos/PyreDemo/SparkleBurst.asset
+Assets/Demos/PyreDemo/SparkleBurst.asset.meta
+Assets/Demos/PyreDemo/Voronoi Abbility.asset
+Assets/Demos/PyreDemo/Voronoi Abbility.asset.meta
+Assets/Demos/PyreDemo/Voronoi Blast.asset
+Assets/Demos/PyreDemo/Voronoi Blast.asset.meta
+Assets/Demos/PyrePlusDemo/Playback3DStandIn.prefab
+Assets/Demos/PyrePlusDemo/Playback3DStandIn.prefab.meta
+Assets/Demos/PyrePlusDemo/Playback3DStandIn_Mat.mat
+Assets/Demos/PyrePlusDemo/Playback3DStandIn_Mat.mat.meta
+Assets/Packages/Laubrary/CHANGELOG.md
+Assets/Packages/Laubrary/Editor/Pyre/BlastBaker.cs
+Assets/Packages/Laubrary/Editor/Pyre/BlastBaker.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/IPyrePreviewSubject.cs
+Assets/Packages/Laubrary/Editor/Pyre/IPyrePreviewSubject.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/Parity.meta
+Assets/Packages/Laubrary/Editor/Pyre/Parity/
+Assets/Packages/Laubrary/Editor/Pyre/PyreBaker.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreBaker.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreChunkAnimationEditorLink.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreChunkAnimationEditorLink.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreEditor.asmdef
+Assets/Packages/Laubrary/Editor/Pyre/PyreEditor.asmdef.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreEditorLink.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreEditorLink.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreGif.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreGif.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreLayerLibrary.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreLayerLibrary.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyrePlayback3DPost.shader
+Assets/Packages/Laubrary/Editor/Pyre/PyrePlayback3DPost.shader.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyrePlayback3DPreview.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyrePlayback3DPreview.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreSpawnSourceEditorLink.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreSpawnSourceEditorLink.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.CherryFraming.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.CherryFraming.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.Forms.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.Forms.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.FrameCache.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.FrameCache.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.Layers.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.Layers.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.Modifiers.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.Modifiers.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.Preview.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.Preview.cs.meta
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.cs
+Assets/Packages/Laubrary/Editor/Pyre/PyreWindow.cs.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/Parity.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/Parity/PlusParityDump.cs
+Assets/Packages/Laubrary/Editor/PyrePlus/Parity/PlusParityDump.cs.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusBaker.cs
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusBaker.cs.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusEditor.asmdef
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusEditor.asmdef.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusGif.cs
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusGif.cs.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusPlayback3DPost.shader
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusPlayback3DPost.shader.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusPlayback3DPreview.cs
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusPlayback3DPreview.cs.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.CherryFraming.cs
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.CherryFraming.cs.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.Forms.cs
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.Forms.cs.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.FrameCache.cs
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.FrameCache.cs.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.Import.cs
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.Import.cs.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.Modifiers.cs
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.Modifiers.cs.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.Preview.cs
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.Preview.cs.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.cs
+Assets/Packages/Laubrary/Editor/PyrePlus/PyrePlusWindow.cs.meta
+Assets/Packages/Laubrary/Editor/PyrePlus/PyreToPlusConverter.cs
+Assets/Packages/Laubrary/Editor/PyrePlus/PyreToPlusConverter.cs.meta
+Assets/Packages/Laubrary/Editor/PyreZoetrope/PyreZoetropeEditor.asmdef
+Assets/Packages/Laubrary/Editor/PyreZoetrope/PyreZoetropeEditor.asmdef.meta
+Assets/Packages/Laubrary/Editor/PyreZoetrope/ZoetropePreviewSubject.cs
+Assets/Packages/Laubrary/Editor/PyreZoetrope/ZoetropePreviewSubject.cs.meta
+Assets/Packages/Laubrary/Editor/ZoetropePyre/ZoetropePyreEditor.asmdef
+Assets/Packages/Laubrary/Editor/ZoetropePyre/ZoetropePyreEditor.asmdef.meta
+Assets/Packages/Laubrary/PYREPLUS_DESIGN.md
+Assets/Packages/Laubrary/Runtime/Pyre/BlastPlayer.cs
+Assets/Packages/Laubrary/Runtime/Pyre/BlastPlayer.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/BlastRenderer.cs
+Assets/Packages/Laubrary/Runtime/Pyre/BlastRenderer.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/BlastTrailSource.cs
+Assets/Packages/Laubrary/Runtime/Pyre/BlastTrailSource.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/CherryFrame.cs
+Assets/Packages/Laubrary/Runtime/Pyre/CherryFrame.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/FireSim.cs
+Assets/Packages/Laubrary/Runtime/Pyre/FireSim.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/FireballSim.cs
+Assets/Packages/Laubrary/Runtime/Pyre/FireballSim.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/Forms.meta
+Assets/Packages/Laubrary/Runtime/Pyre/Forms/
+Assets/Packages/Laubrary/Runtime/Pyre/Layer.cs
+Assets/Packages/Laubrary/Runtime/Pyre/Layer.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/Pyre.asmdef
+Assets/Packages/Laubrary/Runtime/Pyre/Pyre.asmdef.meta
+Assets/Packages/Laubrary/Runtime/Pyre/Pyre.cs
+Assets/Packages/Laubrary/Runtime/Pyre/Pyre.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreBlastPlayer.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreBlastPlayer.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreBlastPool.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreBlastPool.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreChunkAnimation.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreChunkAnimation.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreChunksDirect.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreChunksDirect.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreClipStats.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreClipStats.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreEnums.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreEnums.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreField.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreField.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreFieldOps.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreFieldOps.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreFireSim.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreFireSim.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreForm.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreForm.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreFormWarp.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreFormWarp.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreFrameFill.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreFrameFill.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreLayerCache.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreLayerCache.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreLayerFill.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreLayerFill.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreLayerKey.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreLayerKey.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyrePrepassCache.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyrePrepassCache.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreRenderer.Layers.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreRenderer.Layers.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreRenderer.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreRenderer.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreShade.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreShade.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreSimulationModifiers.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreSimulationModifiers.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreSpawnSource.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreSpawnSource.cs.meta
+Assets/Packages/Laubrary/Runtime/Pyre/PyreSupersample.cs
+Assets/Packages/Laubrary/Runtime/Pyre/PyreSupersample.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/CherryFrame.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/CherryFrame.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/ArcBurstForm.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/ArcBurstForm.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/ArcRaster.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/ArcRaster.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/ForkBlastForm.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/ForkBlastForm.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/InfernoForm.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/InfernoForm.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/ExplosiveJetDraws.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/ExplosiveJetDraws.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/ExplosiveJetForm.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/ExplosiveJetForm.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/ExplosiveJetProgram.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/ExplosiveJetProgram.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/JetDraws.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/JetDraws.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/JetForm.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/JetForm.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/JetFormBase.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/JetFormBase.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/PlusJetEngine.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/PlusJetEngine.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/RadialJetDraws.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/RadialJetDraws.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/RadialJetForm.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/RadialJetForm.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/RadialJetProgram.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/Jet/RadialJetProgram.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/OrbForm.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/OrbForm.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlasmaBloomForm.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlasmaBloomForm.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusArcBurst.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusArcBurst.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusForkBlast.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusForkBlast.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusInferno.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusInferno.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusNumpyRng.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusNumpyRng.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusOrb.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusOrb.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusPlasmaBloom.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusPlasmaBloom.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusPyRandom.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusPyRandom.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusTorch.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PlusTorch.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PyrePlus.Forms.Kiln.asmdef
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/PyrePlus.Forms.Kiln.asmdef.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/TorchForm.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/Forms/Kiln/TorchForm.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusClipStats.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusClipStats.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusFieldOps.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusFieldOps.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusFireSim.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusFireSim.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusForm.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusForm.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusFormWarp.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusFormWarp.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusFrameFill.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusFrameFill.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusLayerCache.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusLayerCache.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusLayerFill.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusLayerFill.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusLayerKey.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusLayerKey.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusPrepassCache.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusPrepassCache.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusShade.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusShade.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusSupersample.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PlusSupersample.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PyrePlus.asmdef
+Assets/Packages/Laubrary/Runtime/PyrePlus/PyrePlus.asmdef.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PyrePlusChunkAnimation.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PyrePlusChunkAnimation.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PyrePlusField.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PyrePlusField.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PyrePlusRenderer.Layers.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PyrePlusRenderer.Layers.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PyrePlusRenderer.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PyrePlusRenderer.cs.meta
+Assets/Packages/Laubrary/Runtime/PyrePlus/PyrePlusSpec.cs
+Assets/Packages/Laubrary/Runtime/PyrePlus/PyrePlusSpec.cs.meta
+Assets/Packages/Laubrary/Runtime/ZoetropePyre/PyreChunksFx.cs
+Assets/Packages/Laubrary/Runtime/ZoetropePyre/SpawnPyreFx.cs
+Assets/Pyre/Curl.asset
+Assets/Pyre/Curl.asset.meta
+Assets/Pyre/Explotion Twirl.asset
+Assets/Pyre/Explotion Twirl.asset.meta
+Assets/Pyre/Floating Disc Hit Plus.asset
+Assets/Pyre/Floating Disc Hit Plus.asset.meta
+Assets/Pyre/Floating Disc Hit.asset
+Assets/Pyre/Floating Disc Hit.asset.meta
+Assets/Pyre/Fluid Blast.asset
+Assets/Pyre/Fluid Blast.asset.meta
+Assets/Pyre/Green Lantern.asset
+Assets/Pyre/Green Lantern.asset.meta
+Assets/Pyre/Green_Lantern.anim
+Assets/Pyre/Green_Lantern.anim.meta
+Assets/Pyre/Green_Lantern.png
+Assets/Pyre/Green_Lantern.png.meta
+Assets/Pyre/Heightballs.asset
+Assets/Pyre/Heightballs.asset.meta
+Assets/Pyre/Imported.meta
+Assets/Pyre/Imported/
+Assets/Pyre/New Pyre Plus 1.asset
+Assets/Pyre/New Pyre Plus 1.asset.meta
+Assets/Pyre/New Pyre Plus.asset
+Assets/Pyre/New Pyre Plus.asset.meta
+Assets/Pyre/New Pyre Plus§.asset
+Assets/Pyre/New Pyre Plus§.asset.meta
+Assets/Pyre/New Pyre.asset
+Assets/Pyre/New Pyre.asset.meta
+Assets/Pyre/Perlin Blast.asset
+Assets/Pyre/Perlin Blast.asset.meta
+Assets/Pyre/PyreLayerLibrary.asset
+Assets/Pyre/PyreLayerLibrary.asset.meta
+Assets/Pyre/Small Explosion.asset
+Assets/Pyre/Small Explosion.asset.meta
+Assets/PyrePlus/Green_Lantern.anim
+Assets/PyrePlus/Green_Lantern.anim.meta
+Assets/PyrePlus/Green_Lantern.png
+Assets/PyrePlus/Green_Lantern.png.meta
+Assets/PyrePlus/Imported.meta
+Assets/PyrePlus/Imported/Bars Tentacle Plus.asset
+Assets/PyrePlus/Imported/Bars Tentacle Plus.asset.meta
+Assets/PyrePlus/Imported/Blob Explosion Plus.asset
+Assets/PyrePlus/Imported/Blob Explosion Plus.asset.meta
+Assets/PyrePlus/Imported/Curl Plus.asset
+Assets/PyrePlus/Imported/Curl Plus.asset.meta
+Assets/PyrePlus/Imported/Directional Grenade Blast 1 Plus.asset
+Assets/PyrePlus/Imported/Directional Grenade Blast 1 Plus.asset.meta
+Assets/PyrePlus/Imported/Directional Grenade Blast 2 Plus.asset
+Assets/PyrePlus/Imported/Directional Grenade Blast 2 Plus.asset.meta
+Assets/PyrePlus/Imported/Directional Grenade Side Blast Plus.asset
+Assets/PyrePlus/Imported/Directional Grenade Side Blast Plus.asset.meta
+Assets/PyrePlus/Imported/Driectional Blast Plus.asset
+Assets/PyrePlus/Imported/Driectional Blast Plus.asset.meta
+Assets/PyrePlus/Imported/Explotion Twirl Plus.asset
+Assets/PyrePlus/Imported/Explotion Twirl Plus.asset.meta
+Assets/PyrePlus/Imported/Floating Disc Hit Plus.asset
+Assets/PyrePlus/Imported/Floating Disc Hit Plus.asset.meta
+Assets/PyrePlus/Imported/Fluid Blast Plus.asset
+Assets/PyrePlus/Imported/Fluid Blast Plus.asset.meta
+Assets/PyrePlus/Imported/Heightballs Plus.asset
+Assets/PyrePlus/Imported/Heightballs Plus.asset.meta
+Assets/PyrePlus/Imported/HollowBlast Plus.asset
+Assets/PyrePlus/Imported/HollowBlast Plus.asset.meta
+Assets/PyrePlus/Imported/MetaBall Blast Plus.asset
+Assets/PyrePlus/Imported/MetaBall Blast Plus.asset.meta
+Assets/PyrePlus/Imported/Metafield Pyre 1 Plus.asset
+Assets/PyrePlus/Imported/Metafield Pyre 1 Plus.asset.meta
+Assets/PyrePlus/Imported/Metafield Pyre Plus.asset
+Assets/PyrePlus/Imported/Metafield Pyre Plus.asset.meta
+Assets/PyrePlus/Imported/New Pyre Plus.asset
+Assets/PyrePlus/Imported/New Pyre Plus.asset.meta
+Assets/PyrePlus/Imported/NoiseField Ball Plus.asset
+Assets/PyrePlus/Imported/NoiseField Ball Plus.asset.meta
+Assets/PyrePlus/Imported/Old School Explo 2 Plus.asset
+Assets/PyrePlus/Imported/Old School Explo 2 Plus.asset.meta
+Assets/PyrePlus/Imported/Old School Explo Plus.asset
+Assets/PyrePlus/Imported/Old School Explo Plus.asset.meta
+Assets/PyrePlus/Imported/Perlin Blast Plus.asset
+Assets/PyrePlus/Imported/Perlin Blast Plus.asset.meta
+Assets/PyrePlus/Imported/ProperBlast Plus.asset
+Assets/PyrePlus/Imported/ProperBlast Plus.asset.meta
+Assets/PyrePlus/Imported/Rose Blast Plus.asset
+Assets/PyrePlus/Imported/Rose Blast Plus.asset.meta
+Assets/PyrePlus/Imported/SmokePuff Plus.asset
+Assets/PyrePlus/Imported/SmokePuff Plus.asset.meta
+Assets/PyrePlus/Imported/Sparkle Blast Plus.asset
+Assets/PyrePlus/Imported/Sparkle Blast Plus.asset.meta
+Assets/PyrePlus/Imported/SparkleBlast Plus.asset
+Assets/PyrePlus/Imported/SparkleBlast Plus.asset.meta
+Assets/PyrePlus/Imported/SparkleBurst Plus.asset
+Assets/PyrePlus/Imported/SparkleBurst Plus.asset.meta
+Assets/PyrePlus/Imported/Voronoi Abbility Plus.asset
+Assets/PyrePlus/Imported/Voronoi Abbility Plus.asset.meta
+Assets/PyrePlus/Imported/Voronoi Blast Plus.asset
+Assets/PyrePlus/Imported/Voronoi Blast Plus.asset.meta
+Assets/PyrePlus/New Pyre Plus.asset
+Assets/PyrePlus/New Pyre Plus.asset.meta
+Assets/PyrePlus/New Pyre Plus§.asset
+Assets/PyrePlus/New Pyre Plus§.asset.meta
+Assets/Tests/Pyre.meta
+Assets/Tests/Pyre/
+Assets/Tests/PyrePlus/ArcBurstTests.cs
+Assets/Tests/PyrePlus/ArcBurstTests.cs.meta
+Assets/Tests/PyrePlus/EnvelopeTestUtil.cs
+Assets/Tests/PyrePlus/EnvelopeTestUtil.cs.meta
+Assets/Tests/PyrePlus/ExplosiveJetTests.cs
+Assets/Tests/PyrePlus/ExplosiveJetTests.cs.meta
+Assets/Tests/PyrePlus/JetTests.cs
+Assets/Tests/PyrePlus/JetTests.cs.meta
+Assets/Tests/PyrePlus/Laubrary.PyrePlus.Tests.asmdef
+Assets/Tests/PyrePlus/Laubrary.PyrePlus.Tests.asmdef.meta
+Assets/Tests/PyrePlus/OrbTests.cs
+Assets/Tests/PyrePlus/OrbTests.cs.meta
+Assets/Tests/PyrePlus/PlasmaBloomTests.cs
+Assets/Tests/PyrePlus/PlasmaBloomTests.cs.meta
+Assets/Tests/PyrePlus/PlusCapabilityTests.cs
+Assets/Tests/PyrePlus/PlusCapabilityTests.cs.meta
+Assets/Tests/PyrePlus/PlusFieldOpsTests.cs
+Assets/Tests/PyrePlus/PlusFieldOpsTests.cs.meta
+Assets/Tests/PyrePlus/PlusFormWarpTests.cs
+Assets/Tests/PyrePlus/PlusFormWarpTests.cs.meta
+Assets/Tests/PyrePlus/PlusFrameFillTests.cs
+Assets/Tests/PyrePlus/PlusFrameFillTests.cs.meta
+Assets/Tests/PyrePlus/PlusLayerCacheTests.cs
+Assets/Tests/PyrePlus/PlusLayerCacheTests.cs.meta
+Assets/Tests/PyrePlus/PlusParityDumpTests.cs
+Assets/Tests/PyrePlus/PlusParityDumpTests.cs.meta
+Assets/Tests/PyrePlus/PlusShadeTests.cs
+Assets/Tests/PyrePlus/PlusShadeTests.cs.meta
+Assets/Tests/PyrePlus/RadialJetTests.cs
+Assets/Tests/PyrePlus/RadialJetTests.cs.meta
+Assets/Tests/PyrePlus/TorchTests.cs
+Assets/Tests/PyrePlus/TorchTests.cs.meta
+CLAUDE.md

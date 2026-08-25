@@ -1,0 +1,16 @@
+Assets/Lathe/Molds.meta
+Assets/Lathe/Molds/
+Assets/Packages/Laubrary/Editor/Lathe/LatheBakePass.cs
+Assets/Packages/Laubrary/Editor/Lathe/LatheBaker.cs
+Assets/Packages/Laubrary/Editor/Lathe/LathePreview.cs
+Assets/Packages/Laubrary/Editor/Lathe/LatheWindow.Modifiers.cs
+Assets/Packages/Laubrary/Editor/Lathe/LatheWindow.Module.cs
+Assets/Packages/Laubrary/Editor/Lathe/LatheWindow.Skeleton.cs
+Assets/Packages/Laubrary/Editor/Lathe/LatheWindow.Solids.cs
+Assets/Packages/Laubrary/Editor/Lathe/LatheWindow.cs
+Assets/Packages/Laubrary/Runtime/Lathe/LatheMeshModifier.cs
+Assets/Packages/Laubrary/Runtime/Lathe/LatheModule.cs
+Assets/Packages/Laubrary/Runtime/Lathe/LatheSolid.cs
+Assets/Packages/Laubrary/Runtime/Lathe/LatheSpec.cs
+Assets/Packages/Laubrary/Runtime/Lathe/Mold/LatheMoldCage.cs
+Assets/Packages/Laubrary/Runtime/Lathe/Mold/LatheMoldCage.cs.meta

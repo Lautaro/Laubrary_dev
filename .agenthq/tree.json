@@ -12,6 +12,7 @@
     },
     {
       "id": "Chunks",
+      "muted": true,
       "name": "Chunks",
       "parent": null
     },
@@ -37,6 +38,7 @@
     },
     {
       "id": "PyrePlus",
+      "muted": true,
       "name": "PyrePlus",
       "parent": null
     },
