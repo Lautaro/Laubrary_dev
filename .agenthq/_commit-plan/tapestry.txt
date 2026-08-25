@@ -1,9 +1,0 @@
-Assets/Packages/Laubrary/Editor/Tapestry/TapestryWindow.Layers.cs
-Assets/Packages/Laubrary/Editor/Tapestry/TapestryWindow.Modifiers.cs
-Assets/Packages/Laubrary/Editor/Tapestry/TapestryWindow.Preview.cs
-Assets/Packages/Laubrary/Editor/Tapestry/TapestryWindow.cs
-Assets/Packages/Laubrary/Runtime/Tapestry/TapestryCompositor.cs
-Assets/Packages/Laubrary/Runtime/Tapestry/TapestryGenerator.cs
-Assets/Packages/Laubrary/Runtime/Tapestry/TapestryLayer.cs
-Assets/Packages/Laubrary/Runtime/Tapestry/TapestryLayerModifier.cs
-Assets/Packages/Laubrary/Runtime/Tapestry/TapestrySpec.cs

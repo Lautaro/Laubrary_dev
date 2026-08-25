@@ -1,9 +1,0 @@
-Assets/Demos/ArenaDemo/ArenaEnemy.cs
-Assets/Demos/ArenaDemo/ArenaSpawner.cs
-Assets/Demos/ColosseumDemo/ShmupEnemy.cs
-Assets/Demos/DaemonDemo/ColosseumAgentBody.cs
-Assets/Demos/GalleryDemo/GalleryDemo.unity
-Assets/Demos/GalleryDemo/GalleryDirector.cs
-Assets/Demos/PreviewDemo/PreviewWeapon.asset
-Assets/Demos/ProtoGuyDemo/ProtoGuy Gun.asset
-Assets/Demos/ProtoGuyDemo/ProtoGuy.asset
