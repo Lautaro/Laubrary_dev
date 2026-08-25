@@ -1,0 +1,25 @@
+{
+    "name": "Laubrary.SpriteFx.Tests",
+    "rootNamespace": "Laubrary.SpriteFx.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "com.Lautaro-Arino.Laubrary.SpriteFx",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

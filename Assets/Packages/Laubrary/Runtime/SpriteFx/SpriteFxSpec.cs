@@ -9,7 +9,7 @@ namespace Laubrary.SpriteFx
     /// tint pulse — can be reused across many entities and browsed/tagged like every other Laubrary asset instead of
     /// being hand-copied inline onto each component.
     ///
-    /// (Named by Laubrary's asset convention — <c>ChunkSpec</c>, <c>PyrePlusSpec</c> — so it does not collide with
+    /// (Named by Laubrary's asset convention — <c>ChunkSpec</c>, <c>Pyre</c> — so it does not collide with
     /// the static stack-runner <see cref="SpriteFxStack"/>; the user-facing name everywhere is "SpriteFx Stack".)
     ///
     /// The field set mirrors <see cref="SpriteFxFilter"/>'s own inline fields exactly, so a filter can source them

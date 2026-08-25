@@ -1,0 +1,331 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00f25238ac06be849aa68b89b68e6e74, type: 3}
+  m_Name: Fake Light
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.SpriteFx::Laubrary.SpriteFx.SpriteFxSpec
+  modifiers:
+  - rid: 1702917545006467391
+  duration: 0.03778
+  envelope:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 1
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  envelopePoints: []
+  seed: 12345
+  targetFps: 0
+  references:
+    version: 2
+    RefIds:
+    - rid: 1702917545006467391
+      type: {class: RelightModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
+      data:
+        enabled: 1
+        heightSource: 0
+        depthRadius: 13
+        edgeThreshold: 0.72156
+        soften: 4
+        relief:
+          m_mode: 0
+          m_static: 12.07186
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        mode: 1
+        angle:
+          m_mode: 0
+          m_static: 45
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        elevation:
+          m_mode: 0
+          m_static: 35
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        lightX:
+          m_mode: 0
+          m_static: 0.96463
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        lightY:
+          m_mode: 0
+          m_static: 0.32155
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        lightHeight:
+          m_mode: 0
+          m_static: 1.12754
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        radius:
+          m_mode: 2
+          m_static: 1.2955
+          m_min: 0
+          m_max: 1
+          m_points:
+          - time: 0.42952
+            value: 1.7816
+            exponent: 1
+            editState: 0
+          m_yMin: 0.05
+          m_yMax: 4
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        falloff:
+          m_mode: 0
+          m_static: 0.78892
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        ambient:
+          m_mode: 0
+          m_static: 0.55556
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        diffuse:
+          m_mode: 0
+          m_static: 2
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        specular:
+          m_mode: 0
+          m_static: 1.11377
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        shine:
+          m_mode: 0
+          m_static: 58.13514
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        lightColor: {r: 1, g: 0.59483194, b: 0.043137252, a: 1}
+        shading:
+          m_mode: 0
+          m_static: 0
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        tint:
+          m_mode: 0
+          m_static: 0.31231
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        add:
+          m_mode: 0
+          m_static: 0.45509
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 

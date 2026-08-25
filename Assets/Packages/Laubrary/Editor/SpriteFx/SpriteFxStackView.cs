@@ -4,7 +4,7 @@
 // It edits a plain List<PyreModifier> (the exact type SpriteFxSpec.modifiers and SpriteFxFilter.modifiers both
 // carry), so ONE call site drives an authored "SpriteFx Stack" asset AND an inline filter list with zero adapter.
 //
-// Modelled on PyrePlusWindow.Modifiers' generic stack loop (ZuiReorder drag-reorder grip, a folding per-effect
+// Modelled on PyreWindow.Modifiers' generic stack loop (ZuiReorder drag-reorder grip, a folding per-effect
 // card, a GenericMenu "+ Add", per-effect bodies drawn by the shared reflection drawer ZuiReflect.BuildFields) —
 // but lifted OUT of any EditorWindow: no window/asset type is referenced. Everything the control needs to talk to
 // its owner (record Undo, mark dirty + repaint, repaint downstream of a structural change, the control width)
@@ -21,7 +21,7 @@
 // job can express; everything else was unreachable from a sprite, which was most of what an effect is usually FOR.
 // SpriteFxStack.RunStack dispatches each family and keeps the Burst fast path for runs of shaped ones. Edge modifiers
 // stay out: they deform a shape's outline mid-rasterisation, and a sprite arrives as finished pixels.
-// The catalog is scanned once per domain and cached, like PyrePlus's AddableModifiers.
+// The catalog is scanned once per domain and cached, like Pyre's AddableModifiers.
 using System;
 using System.Collections.Generic;
 using Laubrary.SpriteFx;
@@ -100,7 +100,7 @@ namespace Laubrary.SpriteFx.Editor
                 }
 
                 // A dedicated host for the rows so ZuiReorder's insertion line + index math only ever see effect
-                // cards, never the "+ Add" row below (mirrors PyrePlus's own listHost split).
+                // cards, never the "+ Add" row below (mirrors Pyre's own listHost split).
                 var listHost = new VisualElement();
                 body.Add(listHost);
                 for (int i = 0; i < stack.Count; i++)

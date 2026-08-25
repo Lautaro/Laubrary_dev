@@ -2,12 +2,25 @@
 // Stack" asset). Same AssetKit base every other Laubrary tool uses (ZuiAssetWindow<T>: assign / New / Duplicate /
 // Rename / Delete / thumbnail browser for free), so this window only has to lay out the per-asset editor.
 //
-// It hosts the reusable SpriteFxStackView control (slice 3) for the effect stack itself, a small Timeline
-// section (play-through duration / life-remap envelope / hashing seed), and a live input-sprite Preview
-// (pick a sprite, scrub, Play) that reuses the runtime SpriteFxFilter.Apply so what you see is what plays.
+// It hosts the reusable SpriteFxStackView control (slice 3) for the effect stack itself, a live input-sprite
+// Preview (pick a sprite, scrub the loop's timeline bar, Play) that reuses the runtime SpriteFxFilter.Apply
+// so what you see is what plays, and a small Hashing section for the seed.
+//
+// ONE CLOCK. The timebase used to be spread over unrelated dials in two sections, joined by a 0→1 "Life"
+// scrub slider that could not express any of them — so reading "what does one loop actually look like" was
+// guesswork, and there was no way to scrub the switched-off stretch between loops at all. Duration and Idle
+// gap now sit in ONE row directly under a ZuiTimeline bar that draws the loop they describe — Active | Gap,
+// to scale — and the scrub, the playhead and Play all run on that single seconds clock, resolved in exactly
+// one place (ResolveAt) so scrubbing and playback cannot disagree.
+//
+// The bar shows the REAL behaviour plus one deliberate fiction. Active is what the effect does in game; Gap
+// is the preview's own invention, the quiet stretch where the stack is switched off, which is what the game
+// is left with once a pass finishes. Nothing else is invented — to see the finished state, scrub to the end
+// of Active.
 //
 // Every dial routes through Dial(...) (Undo.RecordObject BEFORE the mutation, then SetDirty), matching ChunkWindow
 // so a whole session's edits don't coalesce into one Undo step.
+using System.Collections.Generic;
 using Laubrary.AssetKit.Editor;
 using Laubrary.SpriteFx;
 using Laubrary.Zui;
@@ -19,7 +32,8 @@ namespace Laubrary.SpriteFx.Editor
 {
     /// <summary>
     /// Authoring window for a <see cref="SpriteFxSpec"/> — the reusable colour/mask "SpriteFx Stack" asset.
-    /// Embeds the host-agnostic <see cref="SpriteFxStackView"/> for the effect stack and adds a Timeline section.
+    /// Embeds the host-agnostic <see cref="SpriteFxStackView"/> for the effect stack, and adds a preview whose
+    /// timeline bar and the lengths that shape it are the window's own.
     /// </summary>
     public class SpriteFxStackWindow : ZuiAssetWindow<SpriteFxSpec>
     {
@@ -54,23 +68,33 @@ namespace Laubrary.SpriteFx.Editor
         Label _subjectLine;                 // permanently reserved line naming what is being previewed
         string _prevSpecGuid;               // which spec's remembered sprite is currently loaded into _previewSprite
         Texture2D _previewTex;              // pooled output texture we paint the filtered pixels into (Point-filtered)
-        float _previewProgress;             // the resting scrub position (raw progress 0→1)
-        float _playProgress;                // transient progress while Play animates (does not overwrite the scrub)
+        // ONE clock, in SECONDS along the whole loop (Active + Gap) — not a 0→1 progress, because the gap has
+        // no progress to speak of. _scrubTime is where the playhead RESTS;
+        // _playTime is the transient position while Play runs, so stopping returns to the scrub untouched.
+        float _scrubTime;
+        float _playTime;
         int _previewFrame;                  // frame counter advanced across play ticks (for hashing effects)
         bool _previewPlaying;
-        bool _previewHeld;                  // resting on the last frame between loops
-        float _previewPause;                // seconds left of that rest
         bool _previewReversed;              // preview the stack against a reversed clock (the OnceReversed binding)
         bool _updateHooked;                 // guards the EditorApplication.update subscription
         double _lastTickTime;
+        // What the bar's bands were last built from, so a repaint only happens when a length actually moved
+        // (the hosted subject's length can change under us between rebuilds). -1 = "not built yet".
+        float _bandActive = -1f, _bandGap = -1f;
 
         // live element refs (re-created every BuildPreview; nulled in OnBeforeRebuild)
         UnityEngine.UIElements.Image _previewImage;
         Label _previewHint;
-        ZuiMicroSlider _lifeSlider;
+        ZuiTimeline _timeline;         // the loop's scrub bar — Active | Gap, drawn to scale
         Button _playButton;
         VisualElement _previewStage;   // fixed reserved area — keeps the panel from jumping
         VisualElement _frameBox;   // drawn at the SPRITE's size; its border marks the sprite's own boundary
+        VisualElement _overlayStrip;   // permanently reserved row of per-effect overlay toggles — added once, refilled
+
+        // Which effects in the current stack offer a preview overlay, and what their toggles are. Re-collected
+        // whenever the stack could have changed; read by every render. NOT a live query into the stack — the
+        // entries carry the disambiguated label the strip was built with, and name the effect each toggle owns.
+        List<SpriteFxPreviewOverlays.Entry> _overlayEntries = new List<SpriteFxPreviewOverlays.Entry>();
 
         const string PrevSpritePrefKey = "Laubrary.SpriteFx.Preview.Sprite.";
 
@@ -84,6 +108,42 @@ namespace Laubrary.SpriteFx.Editor
             EditorUtility.SetDirty(s);
         }
 
+        // ── section toggle bar (T-0084) ───────────────────────────────────────────────────────
+        // The roster the shared ZuiSectionToggleBar addresses, rebuilt from scratch on every BuildAsset.
+        // Populated by Unit() as each section is built — same shape as ChunkWindow's adoption.
+        readonly List<(string label, ZuiSection section)> _barUnits = new List<(string label, ZuiSection section)>();
+
+        // Tallest layout the bar has taken at a given width, remembered for the window's lifetime so the
+        // bar's own Sections↔Toggle Bar mode switch can never shrink the chrome above the workspace.
+        float _barReservedW, _barReservedH;
+
+        /// Run one section builder and register whatever top-level ZuiSection it added under `label`, so the
+        /// toggle bar can address it. Both BuildPreview and BuildStack add exactly ONE section each — see
+        /// ChunkWindow.Unit for the full rationale (reading the section back off the container rather than
+        /// having each builder return it).
+        void Unit(VisualElement body, SpriteFxSpec s, string label, System.Action<VisualElement, SpriteFxSpec> build)
+        {
+            int before = body.childCount;
+            build(body, s);
+            for (int i = before; i < body.childCount; i++)
+                if (body[i] is ZuiSection sec) { _barUnits.Add((label, sec)); return; }
+        }
+
+        /// Stable-workspace rule: chrome ABOVE the workspace must never change the geometry of what is below
+        /// it. See ChunkWindow.ReserveBarHeight — copied verbatim, no SpriteFx-specific changes needed.
+        void ReserveBarHeight(VisualElement barHost, VisualElement bar)
+        {
+            bar.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                float w = bar.resolvedStyle.width, h = bar.resolvedStyle.height;
+                if (float.IsNaN(w) || float.IsNaN(h) || h <= 0f) return;
+                if (Mathf.Abs(w - _barReservedW) > 0.5f) { _barReservedW = w; _barReservedH = 0f; }
+                if (h <= _barReservedH + 0.5f) return;
+                _barReservedH = h;
+                barHost.style.minHeight = h;
+            });
+        }
+
         protected override void BuildAsset(VisualElement root, SpriteFxSpec spec)
         {
             root.style.flexGrow = 1f;
@@ -91,15 +151,29 @@ namespace Laubrary.SpriteFx.Editor
 
             // Who hosts this stack is resolved BEFORE anything is drawn, because the answer decides what this
             // window is even allowed to own: on a Zoe event the duration and the visual are the event's, and
-            // the Timeline section below must render them as facts rather than as dials.
+            // the preview's Duration must render as a stated fact rather than as a dial.
             EnsureSubject(spec);
+
+            // T-0084 — the section toggle bar rides at the very top of the per-asset UI, spanning the full
+            // window width (same placement as Pyre/Chunks). Its host is added FIRST (empty, so it reserves
+            // space before anything below it builds) and filled LAST, once both sections below exist. Preview
+            // stays included as a toggle-bar entry even though it is deliberately pinned outside the scroller
+            // (see the BuildPreview call below) — the bar defaults to Sections mode, where nothing about that
+            // pinning changes; a user only hides Preview by explicitly switching into Toggle Bar mode and
+            // clicking it off, which is their own informed choice.
+            var barHost = new VisualElement();
+            barHost.style.flexShrink = 0f;
+            if (_barReservedH > 0f) barHost.style.minHeight = _barReservedH;   // space reserved before anything paints
+            root.Add(barHost);
+
+            _barUnits.Clear();
 
             // The preview is PINNED above the scroller, not inside it. It is the thing being judged, so
             // scrolling a stack of a dozen effects must never take it off screen — which is exactly what
             // happened while all three sections shared one ScrollView.
             var pinned = new VisualElement();
             pinned.style.flexShrink = 0f;
-            BuildPreview(pinned, spec);
+            Unit(pinned, spec, "Preview", BuildPreview);
             root.Add(pinned);
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
@@ -107,10 +181,13 @@ namespace Laubrary.SpriteFx.Editor
             scroll.style.minHeight = 0f;
             var body = scroll.contentContainer;
 
-            BuildStack(body, spec);
-            BuildTimeline(body, spec);
+            Unit(body, spec, "Stack", BuildStack);
 
             root.Add(scroll);
+
+            var bar = new ZuiSectionToggleBar("SpriteFx", _barUnits.ToArray());
+            barHost.Add(bar);
+            ReserveBarHeight(barHost, bar);
         }
 
         // ── who owns the timebase ───────────────────────────────────────────────────────────────────────────
@@ -163,11 +240,70 @@ namespace Laubrary.SpriteFx.Editor
         float PreviewSeconds(SpriteFxSpec spec)
             => Hosted ? _subject.Seconds : Mathf.Max(0.001f, spec != null ? spec.duration : 0.15f);
 
+        // ── the loop clock ──────────────────────────────────────────────────────────────────────────────────
+        // Two consecutive bands, and the bar under the preview draws exactly these:
+        //   ACTIVE  the stack plays, life 0→1 — the real, in-game behaviour
+        //   GAP     the stack is BYPASSED — the plain sprite, which is what the runtime is left with once a
+        //           pass finishes and SpriteFxFilter.Restore puts the original sprite back
+        // Gap is a viewing preference (EditorPrefs, shared across stacks); Active is the stack's own
+        // Duration, or the host event's length when there is one.
+
+        /// The ACTIVE band's length — never zero, because life = t / active divides by it.
+        float ActiveSeconds(SpriteFxSpec spec) => Mathf.Max(0.001f, PreviewSeconds(spec));
+
+        /// The whole loop, end to end. This is the bar's total and the clock's wrap point.
+        float LoopSeconds(SpriteFxSpec spec)
+            => ActiveSeconds(spec) + Mathf.Max(0f, IdleGap);
+
+        /// <summary>Resolve ONE instant on the loop clock into what the stage must draw. The scrub and Play
+        /// both go through this and nothing else, so the picture you scrub to and the picture Play shows at
+        /// the same instant cannot disagree — which they could, and did, when the two ran on separate state.
+        ///
+        /// <paramref name="t"/> is CLAMPED, not wrapped: the far right of the bar has to mean "the end of the
+        /// loop", and wrapping there would show the start instead. Playback wraps its own clock before it
+        /// calls in.
+        ///
+        /// It hands back PROGRESS rather than life on purpose. Life is progress (the stack-wide remap that
+        /// used to sit in between is gone — see SpriteFxSpec.SampleEnvelope), and RenderPreviewAt is the one
+        /// place that turns progress into life, because it is also the place that inverts it for Reverse.
+        /// Two definitions of life is exactly the drift this method exists to prevent. Progress also drives
+        /// the underlying animation frame, which must keep running forward even when life runs backward.</summary>
+        /// <param name="progress">0→1 through the ACTIVE band, reaching exactly 1 at its right edge; 0 during
+        /// the gap, where the loop is back at rest waiting to fire again.</param>
+        /// <param name="bypass">True only in the gap — apply no effects at all.</param>
+        void ResolveAt(float t, out float progress, out bool bypass)
+        {
+            var spec = Spec;
+            float active = ActiveSeconds(spec);
+            float total = active + Mathf.Max(0f, IdleGap);
+            t = Mathf.Clamp(t, 0f, total);
+
+            // ACTIVE is INCLUSIVE of its own right edge, and the gap starts strictly after it. The boundary
+            // instant is the one the user goes looking for — "scrub to the last part of active and see what
+            // it ends up looking like" — so it has to read as the FINISHED effect (progress 1, stack applied),
+            // not as the first instant of the switched-off gap. With no gap set, active IS the whole loop and
+            // the bar's right edge means the same thing for the same reason.
+            if (t <= active) { progress = Mathf.Min(1f, t / active); bypass = false; return; }   // ACTIVE
+            progress = 0f; bypass = true;                                                        // GAP
+        }
+
         void BuildStack(VisualElement root, SpriteFxSpec spec)
         {
             var s = Z.Section("Stack",
                 "The colour / mask effects applied in order while the stack plays. Each effect's animatable " +
                 "values are resolved at the current life every frame; drag the grip to reorder.");
+
+            // The seed belongs HERE, at the head of the list it governs, not in a section of its own. It used
+            // to share a "Timeline" section with Duration; Duration moved up beside the preview's timeline
+            // bar, where the loop it lengthens is actually drawn, and a titled section left wrapping a lone
+            // seed would be a box announcing one field — which the UI rules forbid, and rightly: the seed is
+            // an attribute OF the effects below it, and reads as one sitting above them.
+            const string seedTip = "Seed for any hashing effect below (LayerDissolve scatter, AlphaMask noise) " +
+                "— the same seed always produces the same grain, so a dissolve is reproducible instead of " +
+                "different on every play. Irrelevant for a plain Brightness / Tint flash.";
+            s.Add(Z.Field("Seed", seedTip,
+                Z.Int(spec.seed, seedTip, v => Dial("SpriteFx seed", () => spec.seed = v), Num)));
+            s.Add(Z.VSpace());   // a boundary, so the seed does not read as the first row of the effect list
 
             var host = new SpriteFxStackView.Host
             {
@@ -182,6 +318,11 @@ namespace Laubrary.SpriteFx.Editor
                 {
                     var sp = Spec;
                     if (sp != null) EditorUtility.SetDirty(sp);
+                    // A value edit can change WHICH effects have something to mark on the picture (an effect
+                    // could gate its overlay on any of its own dials), so the strip is re-collected here too —
+                    // cheaply, and it only rebuilds itself when the set actually differs. Structural edits are
+                    // already covered by Rebuild below; this closes the gap that route leaves open.
+                    RefreshOverlays();
                     if (!_previewPlaying) RenderPreview();
                 },
                 // A structural change (add / remove / reorder / enable): the control already rebuilt its own
@@ -191,46 +332,6 @@ namespace Laubrary.SpriteFx.Editor
                 ControlWidth = Wide,
             };
             s.Add(SpriteFxStackView.Build(spec.modifiers, host));
-            root.Add(s);
-        }
-
-        void BuildTimeline(VisualElement root, SpriteFxSpec spec)
-        {
-            var s = Z.Section("Timeline",
-                "How long one play-through lasts and how raw progress is remapped into the life value fed to " +
-                "every effect's curves.");
-
-            // WHO OWNS THE LENGTH. A stack is a shape over normalized life, not a schedule — its parameters
-            // run 0→1 and mean nothing in seconds — so whatever plays it says how long that 0→1 takes. When
-            // this stack is on a Zoe event, the event already answered, and offering a Duration dial here
-            // would be offering a number the runtime ignores.
-            if (Hosted)
-            {
-                string hostedTip = $"Set by the event using this stack ({_subject.Label}), not here. A stack is a " +
-                    "shape over its play-through, so the event it rides owns how long that takes — re-time the " +
-                    "animation and this effect re-times with it.";
-                s.Add(Z.Field("Duration", hostedTip,
-                    Z.Text($"{_subject.Seconds:0.###} s — from {_subject.Label}", ZuiText.Body, hostedTip)));
-            }
-            else
-            {
-                const string durTip = "How long one play-through lasts, in seconds. Used only when nothing else " +
-                    "says: put this stack on a Zoe event and that event's length wins instead.";
-                s.Add(Z.MicroSlider("Duration (s)", spec.duration, 0.02f, 2f, durTip,
-                    v => Dial("SpriteFx duration", () => spec.duration = Mathf.Max(0.001f, v)), Wide, showValue: true));
-            }
-
-            // The stack-wide "Life remap" envelope and the "Step rate" own-clock are GONE — see
-            // SpriteFxSpec.SampleEnvelope. Life is progress, and the only clock is the host's. The remap in
-            // particular was a trapdoor: it sat between the host and every effect, so a flattened one pinned
-            // life to a constant and silently collapsed every authored envelope in the stack to a single
-            // value, which reads as "animation does not work" with nothing pointing at the cause.
-
-            const string seedTip = "Seed for any hashing effect (LayerDissolve scatter, AlphaMask noise). " +
-                "Irrelevant for a plain Brightness / Tint flash.";
-            s.Add(Z.Field("Seed", seedTip,
-                Z.Int(spec.seed, seedTip, v => Dial("SpriteFx seed", () => spec.seed = v), Num)));
-
             root.Add(s);
         }
 
@@ -305,28 +406,9 @@ namespace Laubrary.SpriteFx.Editor
             _previewStage.Add(_previewHint);
 
 
-            // 3) + 4) Transport row: the Life scrub slider and Play/Stop, packed together (vertical space is scarce).
-            const string lifeTip = "Scrub position: raw progress 0→1 through the timeline. The stack is evaluated " +
-                "at life = the Timeline's Life-remap envelope applied to this progress — exactly as it plays at " +
-                "runtime (identity unless you shaped the envelope).";
-            _lifeSlider = Z.MicroSlider("Life", _previewProgress, 0f, 1f, lifeTip, OnScrub, Wide, showValue: true);
-
-            _playButton = Z.Button(_previewPlaying ? "Stop" : "Play",
-                Hosted
-                    ? $"Play the stack over the event's own length ({_subject.Seconds:0.###} s), on the event's " +
-                      "own visual, then start over. Stop returns to the scrub position."
-                    : "Play the stack over its Duration, then start over. Stop returns to the scrub position.",
-                TogglePlay);
+            // 3) Transport: Play/Stop plus the preview-only view toggles, packed beside the stage.
+            _playButton = Z.Button(_previewPlaying ? "Stop" : "Play", PlayTooltip(), TogglePlay);
             _playButton.style.width = 60f;
-
-            // How long the loop rests on the last frame before starting over. Preview-only and deliberately
-            // NOT on the asset: it is how you want to WATCH the effect, not part of the effect. A real, stable
-            // range, so a slider rather than a number — and one shared across stacks, since it is a viewing
-            // habit rather than a property of any one of them.
-            const string pauseTip = "How long the preview rests on the last frame before looping back to the " +
-                "start — room to actually see where the effect ended. Preview-only: never saved into the stack.";
-            var pauseSlider = Z.MicroSlider("Restart after", RestartPause, 0f, 2f, pauseTip,
-                v => { RestartPause = v; }, Wide, showValue: true);
 
             // Preview-only: the same stack against a reversed clock — what an attachment set to Once Reversed
             // shows. Nothing about the asset changes; this is how you check that one stack covers both
@@ -337,12 +419,23 @@ namespace Laubrary.SpriteFx.Editor
                 "counts forward, so a reversed dissolve un-dissolves through a different grain.",
                 _previewReversed, on => { _previewReversed = on; RenderPreview(); });
 
+            // Preview-only, like Reverse above: the per-effect diagnostic overlays. This window hardcodes NONE
+            // of them — an effect that has something worth marking on the picture implements
+            // ISpriteFxPreviewOverlay and its toggle appears here on its own, and disappears when the effect is
+            // removed, disabled or configured into a mode with nothing to show. The row is permanently reserved
+            // and empty when the stack offers nothing, so it can never shove the transport around by arriving.
+            //
+            // It goes on its own line under the Play/Reverse row rather than into it: that row's width is
+            // already spoken for, and this one has to be free to hold several toggles for a stack with several
+            // marked effects without wrapping the transport around.
+            _overlayEntries = SpriteFxPreviewOverlays.Collect(spec != null ? spec.modifiers : null);
+            _overlayStrip = SpriteFxPreviewOverlays.BuildStrip(_overlayEntries, RenderPreview);
+
             // The transport sits BESIDE the stage, not under it. The stage is a fixed 200pt square in a pane
             // that is realistically three times that wide, so a row underneath spent height to leave a large
             // empty rectangle to its right — and height is the scarce resource in a window whose whole point
             // is that the stack below stays reachable. Wraps back to stacked if the pane ever is that narrow.
-            var controls = Z.Column(_lifeSlider, Z.VSpace(2f), Z.Row(_playButton, reverseToggle),
-                                    Z.VSpace(2f), pauseSlider);
+            var controls = Z.Column(Z.Row(_playButton, reverseToggle), Z.VSpace(2f), _overlayStrip);
             controls.style.flexShrink = 1f;
             controls.style.minWidth = 0f;
 
@@ -351,18 +444,218 @@ namespace Laubrary.SpriteFx.Editor
             stageRow.style.alignItems = Align.FlexStart;
             s.Add(stageRow);
 
+            // 4) THE SCRUB, below the stage and FULL WIDTH. It goes under the preview rather than beside it
+            // because a ruler needs length: the stage is a fixed 200pt square, and a bar squeezed into the
+            // column next to it could not draw its bands to scale, let alone label them. This one control
+            // answers "what does one loop actually look like", which separate numbers never could.
+            _bandActive = _bandGap = -1f;   // a freshly built bar has no bands; force the first fill
+            _timeline = Z.Timeline(_scrubTime, BarTooltip(), OnScrub);
+            s.Add(Z.VSpace());
+            s.Add(_timeline);
+
+            // 5) The two lengths that shape the bar, in ONE row directly under it. They used to be dials in
+            // different sections with nothing tying them together, which is the confusion this layout exists
+            // to end — each now sits behind a chip in its own band's colour, so which stretch of the bar it
+            // lengthens needs no explaining.
+            //
+            // WHO OWNS THE LENGTH. A stack is a shape over normalized life, not a schedule — its parameters
+            // run 0→1 and mean nothing in seconds — so whatever plays it says how long that 0→1 takes. When
+            // this stack is on a Zoe event the event already answered, and offering a Duration dial would be
+            // offering a number the runtime ignores; it becomes a stated fact instead.
+            //
+            // (The stack-wide "Life remap" envelope and the "Step rate" own-clock that used to sit beside
+            // Duration are GONE — see SpriteFxSpec.SampleEnvelope. Life is progress, and the only clock is
+            // the host's. The remap in particular was a trapdoor: it sat between the host and every effect,
+            // so a flattened one pinned life to a constant and silently collapsed every authored envelope in
+            // the stack to a single value, which reads as "animation does not work" with nothing pointing at
+            // the cause.)
+            VisualElement durationControl;
+            string durationTip;
+            if (Hosted)
+            {
+                string hostedTip = $"Set by the event using this stack ({_subject.Label}), not here. A stack is a " +
+                    "shape over its play-through, so the event it rides owns how long that takes — re-time the " +
+                    "animation and this effect re-times with it. It is the ACTIVE band's length above.";
+                durationTip = hostedTip;
+                // Labelled "Duration (s)" like the dial it stands in for, and like the dial beside it — one
+                // row of lengths should not name one of them differently just because this one is a stated
+                // fact rather than a control. The unit moves out of the value for the same reason:
+                // "Duration (s)   0.4 — from Death" instead of the label and the value both saying seconds.
+                durationControl = Z.Field("Duration (s)", hostedTip,
+                    Z.Text($"{_subject.Seconds:0.###} — from {_subject.Label}", ZuiText.Body, hostedTip));
+            }
+            else
+            {
+                const string durTip = "How long one play-through lasts, in seconds — the ACTIVE band above. Used " +
+                    "only when nothing else says: put this stack on a Zoe event and that event's length wins " +
+                    "instead. The one value in this row that IS saved into the stack.";
+                durationTip = durTip;
+                // Undo still goes through Dial (the asset-mutation contract); the band refresh rides after it
+                // so the bar re-proportions on every drag increment rather than waiting for a rebuild.
+                // A ZuiMicroSlider is a plain VisualElement, not a BaseField — it never sends a
+                // ChangeEvent<float>, so a RegisterCallback here would silently never fire.
+                durationControl = Z.MicroSlider("Duration (s)", spec.duration, 0.02f, 2f, durTip,
+                    v => { Dial("SpriteFx duration", () => spec.duration = Mathf.Max(0.001f, v));
+                           RefreshTimelineBands(); },
+                    Wide, showValue: true);
+            }
+
+            // The rest between play-throughs. Preview-only and deliberately NOT on the asset: it is how you
+            // want to WATCH the effect, not part of the effect. A real, stable range, so a slider rather than
+            // a number — and shared across stacks, since a viewing habit belongs to no one of them.
+            const string idleTip = "The GAP band above: how long the preview shows the PLAIN sprite with the stack " +
+                "switched off before the loop starts again — what actually happens in game, where a finished pass " +
+                "restores the original sprite. At 0 there is no gap and the effect loops straight back into " +
+                "itself. Preview-only: never saved into the stack.";
+            var idleSlider = Z.MicroSlider("Idle gap (s)", IdleGap, 0f, 2f, idleTip,
+                v => { IdleGap = v; RefreshTimelineBands(); }, Wide, showValue: true);
+
+            // Z.HSpace() at its own default, not a hand-picked number: these are two separate fields that
+            // must not read as one run of dials, and the gap that marks a boundary is a sheet-wide value.
+            var paramRow = Z.Row(Banded(ActiveBand, durationTip, durationControl), Z.HSpace(),
+                                 Banded(GapBand, idleTip, idleSlider));
+            paramRow.style.flexWrap = Wrap.Wrap;
+            paramRow.style.alignItems = Align.Center;
+            s.Add(Z.VSpace());
+            s.Add(paramRow);
+
             root.Add(s);
 
-            RenderPreview();   // paint the current scrub state now
+            RefreshTimelineBands(rerender: false);   // bands first, so the scrub is clamped to a real total
+            RenderPreview();                         // then paint the current scrub state
         }
 
-        // The loop's rest on the last frame, in seconds. A viewing preference, so it lives in EditorPrefs and
-        // never touches a SpriteFx Stack asset.
-        const string RestartPausePrefKey = "Laubrary.SpriteFx.Preview.RestartPause";
-        static float RestartPause
+        // The two bands' colours. Shared by the bar and by the chip in front of each band's own dial — the
+        // chip is what ties "Idle gap (s)" to the dark stretch at the right of the bar without a word of
+        // on-screen explanation. Active reads as the accent, gap as near-off, which is exactly what it is.
+        static readonly Color ActiveBand = new Color(0.20f, 0.42f, 0.72f, 1f);
+        static readonly Color GapBand = new Color(0.17f, 0.17f, 0.19f, 1f);
+
+        /// <summary>The loop's shape in words. Assembled from the lengths that are ACTUALLY set rather than
+        /// written out once, because a tooltip naming a band that is currently zero seconds long describes a
+        /// picture the reader cannot find on screen — and a tooltip you can catch lying is worse than none.
+        /// Re-run by RefreshTimelineBands, so dialling Idle gap to 0 rewrites the sentence with it.</summary>
+        string LoopPhrase()
         {
-            get => EditorPrefs.GetFloat(RestartPausePrefKey, 0.35f);
-            set => EditorPrefs.SetFloat(RestartPausePrefKey, Mathf.Clamp(value, 0f, 2f));
+            string head = Hosted
+                ? $"the event's own {ActiveSeconds(Spec):0.###} s of stack"
+                : "the stack's own Duration";
+            return IdleGap > 0f
+                ? head + ", then a gap with the stack switched off"
+                : head + ", looping straight back into itself with no rest";
+        }
+
+        string PlayTooltip()
+            => "Run the whole loop below — " + LoopPhrase() + " — over and over" +
+               (Hosted ? ", on the event's own visual" : "") +
+               ". Stop returns the playhead to where you left it.";
+
+        string BarTooltip()
+            => "One whole loop of the preview, drawn to scale: " + LoopPhrase() +
+               ". Click or drag anywhere on it to scrub to that instant" +
+               (IdleGap > 0f
+                   ? " — in the gap band the stack is switched off entirely and you see the plain sprite, the " +
+                     "same picture the game shows once a pass has finished."
+                   : ". Raise Idle gap below to add the band where the stack is switched off entirely.");
+
+        /// A dial with a small chip of its band's colour in front of it — a legend key, not decoration. The
+        /// chip carries the dial's own tooltip, so hovering it explains the same thing the dial does (it is
+        /// passed in rather than read off the dial: Z.Field puts the tooltip on its label and control, not on
+        /// the wrapper it returns, so reading `dial.tooltip` would leave the hosted case's chip bare).
+        static VisualElement Banded(Color band, string tooltip, VisualElement dial)
+        {
+            var chip = new VisualElement { tooltip = tooltip };
+            chip.style.width = 8f;
+            chip.style.height = 14f;
+            chip.style.flexShrink = 0f;
+            chip.style.backgroundColor = band;
+            StageBorder(chip);
+            var row = Z.Row(chip, Z.HSpace(4f), dial);
+            row.style.alignItems = Align.Center;
+            return row;
+        }
+
+        /// <summary>Re-paint the bar's two bands from the CURRENT Duration / Idle gap, and keep
+        /// the scrub inside the new total. Cheap to over-call: it no-ops unless a length actually moved, which
+        /// is what lets the render path call it to catch a hosted subject that re-timed itself under us.</summary>
+        /// <param name="rerender">False when called from inside a render pass — the picture is already being
+        /// painted, and re-entering RenderPreviewAt from within itself would recurse.</param>
+        void RefreshTimelineBands(bool rerender = true)
+        {
+            if (_timeline == null) return;
+            var spec = Spec;
+            float active = ActiveSeconds(spec);
+            float gap = Mathf.Max(0f, IdleGap);
+            if (active == _bandActive && gap == _bandGap) return;
+            _bandActive = active; _bandGap = gap;
+
+            _timeline.SetSegments(
+                new ZuiTimelineSegment("Active", active, ActiveBand,
+                    (Hosted
+                        ? $"The stack playing, life 0→1, over the event's own {active:0.###} s."
+                        : "The stack playing, life 0→1, over the Duration set below.")
+                    + " Its right edge is the finished effect — scrub there to see where it ends up."),
+                new ZuiTimelineSegment("Gap", gap, GapBand,
+                    "The stack switched OFF: the plain, unfiltered sprite, exactly what the game shows once a " +
+                    "pass has finished — set by Idle gap below."));
+
+            // A band just appeared or vanished, so the two tooltips that describe the loop have to be re-said.
+            _timeline.tooltip = BarTooltip();
+            if (_playButton != null) _playButton.tooltip = PlayTooltip();
+
+            // The total just moved under the playhead; a scrub parked past the new end has to come back.
+            if (_scrubTime > _timeline.Total) _scrubTime = _timeline.Total;
+            if (!_previewPlaying) _timeline.SetSecondsWithoutNotify(_scrubTime);
+            if (rerender && !_previewPlaying) RenderPreview();
+        }
+
+        // The rest between loops, in seconds. A viewing preference, so it lives in EditorPrefs and never
+        // touches a SpriteFx Stack asset.
+        const string IdleGapPrefKey = "Laubrary.SpriteFx.Preview.IdleGap";
+        static float IdleGap
+        {
+            // Defaults NON-ZERO on purpose. The gap is the band this whole layout was asked for ("the timeline
+            // also shows the configured delay gap in between loop"), and a 0 default would ship it invisible:
+            // a first-run window would draw one unbroken band, the requested behaviour would never be
+            // demonstrated, and finding it would depend on noticing a slider whose band is not on screen.
+            // The empty state is the only state every user is guaranteed to see.
+            get => EditorPrefs.GetFloat(IdleGapPrefKey, 0.35f);
+            set => EditorPrefs.SetFloat(IdleGapPrefKey, Mathf.Clamp(value, 0f, 2f));
+        }
+
+        // ── per-effect preview overlays ──────────────────────────────────────────────────────────────────────
+        // This window owns no overlay of its own and knows no effect by name. It collects whatever the current
+        // stack offers (SpriteFxPreviewOverlays.Collect), keeps the reserved strip filled with their toggles, and
+        // hands the buffer over after each render. Everything about WHAT gets drawn lives on the effect, and each
+        // toggle's on/off state lives against the effect INSTANCE inside SpriteFxPreviewOverlays — this window
+        // stores none of it, so switching stacks can never carry one stack's diagnostics onto another's.
+
+        /// Recollect the overlays and, only if the SET changed, refill the strip.
+        ///
+        /// Every structural edit (add / remove / reorder / enable, and a mode switch, which ZUIShowIf promotes to
+        /// a structural change because it reveals and hides dials) already re-runs the whole panel, which rebuilds
+        /// the strip from scratch. This exists for the case that path does not cover: an effect whose answer to
+        /// "have I anything to show?" turns on a plain VALUE edit, which only ever fires OnChanged. Collecting is
+        /// a short scan over the stack, and the signature compare means a slider drag does not rebuild controls
+        /// under the user's cursor forty times a second.
+        void RefreshOverlays()
+        {
+            var spec = Spec;
+            var fresh = SpriteFxPreviewOverlays.Collect(spec != null ? spec.modifiers : null);
+            bool same = _overlayEntries != null && _overlayEntries.Count == fresh.Count;
+            if (same)
+                for (int i = 0; i < fresh.Count; i++)
+                    // Compare the EFFECT each toggle belongs to, not just its label: two Fake Lights swapping
+                    // places leaves the labels identical while the toggles now belong to different lights.
+                    if (!ReferenceEquals(_overlayEntries[i].Overlay, fresh[i].Overlay) ||
+                        _overlayEntries[i].Label != fresh[i].Label ||
+                        _overlayEntries[i].Members.Count != fresh[i].Members.Count) { same = false; break; }
+
+            // Always adopt the fresh list — Draw reads it, and its entries point at the modifiers as they are
+            // now. Only the STRIP is left alone when nothing about the set changed.
+            _overlayEntries = fresh;
+            if (!same && _overlayStrip != null)
+                SpriteFxPreviewOverlays.FillStrip(_overlayStrip, _overlayEntries, RenderPreview);
         }
 
         static void StageBorder(VisualElement v)
@@ -382,9 +675,11 @@ namespace Laubrary.SpriteFx.Editor
             RenderPreview();
         }
 
-        void OnScrub(float v)
+        /// The timeline bar hands back SECONDS along the whole loop, not a 0→1 progress — which is what makes
+        /// scrubbing into the gap mean anything at all.
+        void OnScrub(float seconds)
         {
-            _previewProgress = v;
+            _scrubTime = seconds;
             if (_previewPlaying) StopPlay();   // grabbing the scrub takes manual control (StopPlay re-renders)
             else RenderPreview();
         }
@@ -399,9 +694,7 @@ namespace Laubrary.SpriteFx.Editor
         {
             if (Spec == null) return;
             _previewPlaying = true;
-            _previewHeld = false;
-            _previewPause = 0f;
-            _playProgress = 0f;
+            _playTime = 0f;      // one clock, one reset — there is no separate gap state to clear any more
             _previewFrame = 0;
             _lastTickTime = EditorApplication.timeSinceStartup;
             if (!_updateHooked) { EditorApplication.update += OnPlayTick; _updateHooked = true; }
@@ -412,7 +705,7 @@ namespace Laubrary.SpriteFx.Editor
         {
             UnhookPlayUpdate();
             UpdatePlayButton();
-            if (_lifeSlider != null) _lifeSlider.value = _previewProgress;   // return to the scrub position
+            if (_timeline != null) _timeline.SetSecondsWithoutNotify(_scrubTime);   // back to the scrub position
             RenderPreview();
         }
 
@@ -440,39 +733,34 @@ namespace Laubrary.SpriteFx.Editor
             _lastTickTime = now;
             if (dt < 0f) dt = 0f;
 
-            // Rest on the last frame before looping back, so the end state is actually visible instead of
-            // being wiped a frame after it arrives. Nothing moves while held — not the effect, not the frame.
-            if (_previewHeld)
+            // ONE clock. The play-through and the switched-off gap used to be a multi-field state machine that
+            // had to be kept in step with the scrub by hand; they are now two stretches of a single advancing
+            // number, and ResolveAt is the only thing that knows where the boundary is. The gap band is what
+            // the runtime does when a pass finishes —
+            // SpriteFxFilter.Restore puts the original sprite back — so without it the preview loops from full
+            // blast straight into full blast and the effect never appears to switch off at all.
+            //
+            // The HOST's length, not the stack's, decides the active stretch: a flash on a death event plays
+            // over the death event. (LoopSeconds → ActiveSeconds → PreviewSeconds.)
+            float total = LoopSeconds(spec);
+            float active = ActiveSeconds(spec);
+            _playTime += dt;
+            if (_playTime >= total)
             {
-                _previewPause -= dt;
-                // Deliberately falls through to the render below rather than returning. What is held is the
-                // stack's END STATE — life 1, fully filtered — and it has to be REPAINTED each tick, not just
-                // left on screen from the last one: anything that rebuilds the panel mid-hold (an edit, an
-                // undo, the window regaining focus) re-creates the image element and repaints it at the SCRUB
-                // position, which is life 0. The pause would then show the unprocessed sprite for a third of a
-                // second and read as the effect switching itself off before looping.
-                if (_previewPause <= 0f)
-                {
-                    _previewHeld = false;
-                    _playProgress = 0f;
-                    _previewFrame = 0;
-                }
+                _playTime = total > 0f ? Mathf.Repeat(_playTime, total) : 0f;
+                _previewFrame = 0;                        // the grain restarts with the loop
             }
-            else
-            {
-                // The HOST's length, not the stack's: a flash on a death event plays over the death event.
-                float dur = Mathf.Max(0.001f, PreviewSeconds(spec));
-                _playProgress += dt / dur;
-                _previewFrame++;
-                if (_playProgress >= 1f)
-                {
-                    if (RestartPause > 0f) { _playProgress = 1f; _previewHeld = true; _previewPause = RestartPause; }
-                    else { _playProgress = Mathf.Repeat(_playProgress, 1f); _previewFrame = 0; }
-                }
-            }
+            else if (_playTime < active) _previewFrame++; // the hashing grain only advances while the stack runs,
+                                                          // so the gap does not shimmer under a bypassed stack
 
-            if (_lifeSlider != null) _lifeSlider.value = _playProgress;   // slider setter is notify:false (no loop)
-            RenderPreviewAt(_playProgress, _previewFrame);
+            ResolveAt(_playTime, out float progress, out bool bypass);
+            if (_timeline != null) _timeline.SetSecondsWithoutNotify(_playTime);   // never the Seconds setter:
+                                                                                   // that would re-enter OnScrub
+            // RENDER EVERY TICK, unconditionally — including while in the gap. Not an optimisation left on the
+            // table: anything that rebuilds the panel mid-loop (an edit, an undo, the window regaining focus)
+            // re-creates the image element and repaints it at the SCRUB position, which mid-gap would flash the
+            // effect back ON. Repainting from the play clock every tick is what makes a rebuild invisible.
+            RenderPreviewAt(progress, _previewFrame, bypass);
         }
 
         // ── render ───────────────────────────────────────────────────────────────────────────────────────────
@@ -502,11 +790,25 @@ namespace Laubrary.SpriteFx.Editor
             int i = _subject.Fps > 0f
                 ? Mathf.FloorToInt(p * PreviewSeconds(Spec) * _subject.Fps)
                 : Mathf.FloorToInt(p * f.Length);
+            // At progress EXACTLY 1 the play-through has ENDED, and floor() lands one past its last frame —
+            // which the wrap below turns into frame 0. Reachable at the right edge of the Active band, which
+            // is exactly where someone scrubs to judge the finished effect; without this it snapped the
+            // character back to the FIRST frame of its clip under a fully-finished effect. Step back one so
+            // "the end" means the last frame actually shown. Multi-loop subjects are unaffected — i-1 still
+            // wraps to the last frame of the final pass.
+            if (p >= 1f) i = Mathf.Max(0, i - 1);
             return f[((i % f.Length) + f.Length) % f.Length];
         }
 
         void UpdateSubjectLine()
         {
+            // The hosted subject's length is project data edited in another window entirely, so it can change
+            // between rebuilds — and the ACTIVE band is that length. Re-check it wherever this line is
+            // refreshed (which is every render), so the bar re-proportions with the fact it is describing
+            // instead of quietly drawing the old one. It no-ops unless a length really moved, and it is told
+            // NOT to re-render: it is already being called from inside a render.
+            RefreshTimelineBands(rerender: false);
+
             if (_subjectLine == null) return;
             string t;
             if (_subject != null && _subject.HasFrames)
@@ -526,9 +828,17 @@ namespace Laubrary.SpriteFx.Editor
             if (_subjectLine.text != t) _subjectLine.text = t;
         }
 
-        void RenderPreview() => RenderPreviewAt(_previewProgress, 0);   // static scrub → fixed hashing frame
+        /// Paint whatever the RESTING scrub position resolves to. Frame 0 on purpose: a parked playhead gets a
+        /// fixed hashing grain, so tuning a dissolve is not fighting a grain that changes under every edit.
+        void RenderPreview()
+        {
+            ResolveAt(_scrubTime, out float progress, out bool bypass);
+            RenderPreviewAt(progress, 0, bypass);
+        }
 
-        void RenderPreviewAt(float progress, int frame)
+        /// <param name="bypassStack">Draw the source frame with NO effects applied — the picture the runtime
+        /// is left with once a pass ends and the original sprite is restored.</param>
+        void RenderPreviewAt(float progress, int frame, bool bypassStack = false)
         {
             if (_previewImage == null || _previewHint == null) return;   // not built yet
             UpdateSubjectLine();
@@ -586,7 +896,10 @@ namespace Laubrary.SpriteFx.Editor
                 // stage is our own canvas with no Sprite semantics at all, so it can simply be drawn bigger.
                 // Seeing it is the whole point: how much is spilling is invisible otherwise, and it is exactly
                 // what decides whether an effect reads or gets cut in half.
-                int pad = SpriteFxStack.OutwardReach(spec.modifiers);
+                // Nothing draws outside the silhouette when the stack is off, so a bypassed frame takes the
+                // unpadded path — and ShowImage scales from the SOURCE frame either way, so the character is
+                // the same size on screen whether the effect is running or not.
+                int pad = bypassStack ? 0 : SpriteFxStack.OutwardReach(spec.modifiers);
                 if (pad > 0)
                 {
                     int pw = W + pad * 2, ph = H + pad * 2;
@@ -595,6 +908,9 @@ namespace Laubrary.SpriteFx.Editor
                         System.Array.Copy(px, row * W, padded, (row + pad) * pw + pad, W);
                     SpriteFxStack.RunStack(padded, pw, ph, W, H, pad, pad,
                                            spec.modifiers, frame, life, spec.seed, useBurst: false);
+                    // No bypass check here: pad is forced to 0 when bypassing, so this branch is only ever
+                    // reached with the stack actually running.
+                    SpriteFxPreviewOverlays.Draw(_overlayEntries, padded, pw, ph);
                     EnsurePreviewTex(pw, ph);
                     _previewTex.SetPixels32(padded);
                     _previewTex.Apply(false);
@@ -606,7 +922,11 @@ namespace Laubrary.SpriteFx.Editor
                     return;
                 }
                 // The SAME routine Tick uses at runtime — inline (useBurst:false) so the preview matches WYSIWYG.
-                SpriteFxFilter.Apply(px, W, H, spec.modifiers, frame, life, spec.seed, useBurst: false);
+                if (!bypassStack)
+                {
+                    SpriteFxFilter.Apply(px, W, H, spec.modifiers, frame, life, spec.seed, useBurst: false);
+                    SpriteFxPreviewOverlays.Draw(_overlayEntries, px, W, H);
+                }
 
                 EnsurePreviewTex(W, H);
                 _previewTex.SetPixels32(px);
@@ -710,7 +1030,11 @@ namespace Laubrary.SpriteFx.Editor
             // a transiently-null image and the elements are re-created immediately in BuildPreview.
             _previewImage = null;
             _previewHint = null;
-            _lifeSlider = null;
+            _overlayStrip = null;   // rebuilt (and refilled) by BuildPreview
+            // Not an element, but it points at modifiers and must not outlive the panel that collected them —
+            // empty rather than null so nothing has to guard for it.
+            _overlayEntries = new List<SpriteFxPreviewOverlays.Entry>();
+            _timeline = null;
             _playButton = null;
             _previewStage = null;
             _frameBox = null;

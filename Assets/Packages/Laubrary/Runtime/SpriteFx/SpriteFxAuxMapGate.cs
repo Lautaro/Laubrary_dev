@@ -10,8 +10,8 @@ using UnityEngine;
 namespace Laubrary.SpriteFx
 {
     /// How a gate judges "the picture" it bakes its map from, when the modifier list it drives belongs to a
-    /// SWARM of many small particles composited one after another onto a shared canvas (PyrePlus only — a
-    /// SpriteFx Stack, and a non-swarm PyrePlus layer, only ever have one such picture, so this choice is moot
+    /// SWARM of many small particles composited one after another onto a shared canvas (Pyre only — a
+    /// SpriteFx Stack, and a non-swarm Pyre layer, only ever have one such picture, so this choice is moot
     /// there). APPEND-ONLY: serialized as an int on every authored gate, so an existing gate's scope must never
     /// change index.
     public enum AuxMapScope
@@ -39,9 +39,9 @@ namespace Laubrary.SpriteFx
                  "instead of recolouring the whole picture uniformly.")]
         public bool enabled;
 
-        [Tooltip("PyrePlus swarms only: whether the map judges each particle on its own silhouette (Per Particle, " +
+        [Tooltip("Pyre swarms only: whether the map judges each particle on its own silhouette (Per Particle, " +
                  "cheap, available now) or the swarm's combined finished silhouette (Whole Swarm, not yet built — " +
-                 "see AuxMapScope). Irrelevant for a SpriteFx Stack and for a non-swarm PyrePlus layer, which only " +
+                 "see AuxMapScope). Irrelevant for a SpriteFx Stack and for a non-swarm Pyre layer, which only " +
                  "ever have one picture to judge either way.")]
         public AuxMapScope scope = AuxMapScope.PerParticle;
 

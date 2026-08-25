@@ -1762,6 +1762,21 @@ namespace Laubrary.SpriteFx
         protected int seed, frame;
         internal void SetSeed(int s) => seed = s;
         internal void SetFrameIndex(int f) => frame = f;
+
+        /// Where the PICTURE sits inside the buffer Apply is handed — the sprite is `pictureW`x`pictureH` at
+        /// (padX, padY). Set by SpriteFxStack.RunStack right before every post pass, alongside the three hooks
+        /// above. Any post pass that normalizes a POSITION or a REACH against the canvas must measure it against
+        /// this rect and not against W,H: the moment anything in the stack reaches outward, the buffer grows a
+        /// transparent margin, and normalizing against the margin walks an authored light off the thing it was
+        /// placed on (the margin is the SUM of the stack's reaches, so adding an unrelated glow moves it again).
+        ///
+        /// `pictureW`/`pictureH` stay 0 when nobody set them — a host that drives post passes through its own
+        /// path (Pyre's renderer reaches SetLife/SetSeed/SetFrameIndex by reflection and knows nothing about
+        /// this one) leaves them unset, and every reader MUST treat 0 as "fall back to the W,H you were handed"
+        /// so that host behaves exactly as it always did.
+        protected int pictureW, pictureH, padX, padY;
+        internal void SetPicture(int sw, int sh, int px, int py)
+        { pictureW = sw; pictureH = sh; padX = px; padY = py; }
     }
 
     /// Bloom / glow: bright pixels bleed a soft halo outward (additive), and the halo lifts alpha so it glows into
@@ -1894,7 +1909,7 @@ namespace Laubrary.SpriteFx
                  "when tracing the outline — it sets WHERE the outline sits on any soft/partial edge (outer " +
                  "softness, a gradient fill's own fade, a low-opacity fill, a Crescent bite). Low (the default 0.08) " +
                  "outlines even a faint, semi-transparent fill; raise it to trace further IN toward only the solid " +
-                 "core (so a low-opacity fill gets no outline). Tip: to outline a PyrePlus 2D shape's silhouette, its " +
+                 "core (so a low-opacity fill gets no outline). Tip: to outline a Pyre 2D shape's silhouette, its " +
                  "own first-class shape Border is cleaner than this post-pass.")]
         public ZUIValue alphaThresholdValue = new ZUIValue(0.08f);
         [HideInInspector] public bool alphaThresholdUpgraded;

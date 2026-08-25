@@ -650,6 +650,10 @@ namespace Laubrary.SpriteFx
                         post.SetLife(life);
                         post.SetSeed(seed);
                         post.SetFrameIndex(frame);
+                        // Where the picture sits inside this buffer, so a post pass that places something by a
+                        // normalized position measures it against the SPRITE and not against the overflow margin.
+                        // The unpadded overload forwards (W, H, 0, 0), so these are always meaningful here.
+                        post.SetPicture(srcW, srcH, padX, padY);
                         m.Prepare(eval);
                         post.Apply(px, W, H);
                         break;

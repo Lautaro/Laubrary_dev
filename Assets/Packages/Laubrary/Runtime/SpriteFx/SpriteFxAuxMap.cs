@@ -42,16 +42,29 @@ namespace Laubrary.SpriteFx
             if (px == null || w <= 0 || h <= 0 || px.Length < n) return new float[Mathf.Max(0, n)];
 
             var luma = new float[n];
-            var sat = new float[n];
-            var hue = new float[n];
             var alpha = new float[n];
             for (int i = 0; i < n; i++)
             {
                 Color32 c = px[i];
                 luma[i] = (0.299f * c.r + 0.587f * c.g + 0.114f * c.b) / 255f;
-                RgbToHsv(c.r, c.g, c.b, out float hh, out float ss);
-                hue[i] = hh; sat[i] = ss;
                 alpha[i] = c.a / 255f;
+            }
+
+            // Hue and saturation cost an HSV conversion per pixel plus two more whole-picture float arrays, and
+            // exactly two of the ten generators read them. Built on demand so every other generator — and this is
+            // called per frame by the whole package, not just by the gate — pays nothing for them. Same values,
+            // same formula, just not computed when nothing looks at them.
+            float[] sat = null, hue = null;
+            if (generator == AuxMapGenerator.Saturation || generator == AuxMapGenerator.HueProximity)
+            {
+                sat = new float[n];
+                hue = new float[n];
+                for (int i = 0; i < n; i++)
+                {
+                    Color32 c = px[i];
+                    RgbToHsv(c.r, c.g, c.b, out float hh, out float ss);
+                    hue[i] = hh; sat[i] = ss;
+                }
             }
 
             float[] map = new float[n];

@@ -5,7 +5,7 @@
 //   • a shared-Stack picker at the top (LauAssetElement — Recall / New / Edit for a SpriteFxSpec, which is already
 //     registered for pick/create/edit via SpriteFxStackEditorLink);
 //   • when NO Stack asset is assigned, the inline stack IS the recipe — so the embeddable SpriteFxStackView plus a
-//     small Timeline group (Duration / Life-remap / Seed) are shown and editable, exactly as the SpriteFx Stack
+//     small Timeline group (Duration / Seed) are shown and editable, exactly as the SpriteFx Stack
 //     window authors a spec;
 //   • when a Stack asset IS assigned it overrides every inline field, so the inline editor is hidden and a short
 //     note explains that the asset drives the effect (Edit it via the picker's pen).
@@ -83,7 +83,7 @@ namespace Laubrary.SpriteFx.Editor
 
             // 1) Shared-Stack picker. SpriteFxSpec is registered (SpriteFxStackEditorLink) so Recall / New / Edit work.
             const string stackTip = "Optional shared SpriteFx Stack asset. When assigned it WINS — the inline stack, " +
-                "duration, life-remap and seed below are ignored — so one authored effect can be reused across many " +
+                "duration and seed below are ignored — so one authored effect can be reused across many " +
                 "entities. Leave it empty to author the effect inline on this component.";
             _body.Add(LauAssetElement.Build(filter.stack, picked =>
             {
@@ -126,7 +126,7 @@ namespace Laubrary.SpriteFx.Editor
             _body.Add(SpriteFxStackView.Build(filter.modifiers, host));
 
             _body.Add(Z.Divider("Timeline",
-                "How long one Play() lasts and how raw progress is remapped into the life value fed to every effect's curves."));
+                "How long one Play() lasts. Life IS that raw progress — there is no stack-wide remap in between."));
 
             const string durTip = "How long one Play() lasts, in seconds.";
             _body.Add(Z.MicroSlider("Duration (s)", filter.duration, 0.02f, 2f, durTip,
@@ -146,10 +146,10 @@ namespace Laubrary.SpriteFx.Editor
         void BuildAssignedNote()
         {
             var note = Z.Text(
-                "Driven by the assigned Stack asset — the inline stack, duration, life-remap and seed are ignored. " +
+                "Driven by the assigned Stack asset — the inline stack, duration and seed are ignored. " +
                 "Use the pen above to edit the Stack.",
                 ZuiText.Subtle,
-                "SpriteFxFilter reads its modifiers, duration, envelope and seed from the Stack asset whenever one " +
+                "SpriteFxFilter reads its modifiers, duration and seed from the Stack asset whenever one " +
                 "is assigned (see EffectiveModifiers / EffectiveDuration / EffectiveSeed).");
             note.style.whiteSpace = WhiteSpace.Normal;
             _body.Add(note);
