@@ -104,3 +104,6 @@ Assets/TextMesh Pro/Examples & Extras/Resources/Fonts & Materials/Roboto-Bold SD
 UserSettings/EditorUserSettings.asset
 Assets/Plugins/ 
 Assets/Plugins.meta 
+
+# Agent scratch probes (throwaway eval_file scripts and screenshots)
+.scratch/
