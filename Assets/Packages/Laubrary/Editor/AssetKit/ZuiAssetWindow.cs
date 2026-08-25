@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Laubrary.Zui;
@@ -30,6 +31,11 @@ namespace Laubrary.AssetKit.Editor
         List<T> _browse;
         readonly Dictionary<T, Texture2D> _thumbs = new Dictionary<T, Texture2D>();
         readonly List<Image> _thumbImages = new List<Image>();
+        // Off by default — a browser full of animatable assets (e.g. 20 Pyres) shouldn't all animate at
+        // once: overwhelming to look at, and expensive (a tool's UpdateAnimatedThumbnail/an asset's own
+        // IVisualPreview.UpdateAnimatedPreview can be a real re-render). Off = static, hover to preview.
+        [SerializeField] bool _animateAllPreviews;
+        T _hoveredThumb;
 
         // ── override points (same contract as the IMGUI base) ───────────────────────
         /// Build the per-asset editor into <paramref name="root"/>. Only called when an asset is
@@ -52,6 +58,11 @@ namespace Laubrary.AssetKit.Editor
         protected T Current => asset;
         protected bool IsBrowsing => browsing;
 
+        /// The Tags section built by BuildUI for the current asset (null when no asset is selected/saved).
+        /// Rebuilt every BuildUI call; BuildUI sets this BEFORE calling BuildAsset, so a subclass's own
+        /// BuildAsset override can read it — e.g. to include it in its own ZuiSectionToggleBar.
+        protected ZuiSection TagsSection { get; private set; }
+
         protected void SetAsset(T next)
         {
             if (ReferenceEquals(asset, next)) return;
@@ -69,11 +80,15 @@ namespace Laubrary.AssetKit.Editor
         // ── lifecycle ───────────────────────────────────────────────────────────────
         const double ThumbAnimateInterval = 1.0 / 12.0;
         double _lastThumbTick;
+        Action _unwatchInvalidation;
 
         protected virtual void OnEnable()
         {
             EditorApplication.projectChanged += OnProjectChanged;
             if (AnimateThumbnails) EditorApplication.update += TickThumbAnimation;
+            // So an edited asset's browser thumbnail refreshes immediately instead of showing a stale
+            // render until the window is reopened — see LauAssetGridGUI.WatchInvalidation.
+            _unwatchInvalidation = LauAssetGridGUI.WatchInvalidation(_thumbs, Rebuild);
         }
 
         protected override void OnDisable()
@@ -81,6 +96,7 @@ namespace Laubrary.AssetKit.Editor
             base.OnDisable();
             EditorApplication.projectChanged -= OnProjectChanged;
             if (AnimateThumbnails) EditorApplication.update -= TickThumbAnimation;
+            _unwatchInvalidation?.Invoke();
             ClearThumbs();
         }
 
@@ -92,7 +108,12 @@ namespace Laubrary.AssetKit.Editor
             double now = EditorApplication.timeSinceStartup;
             if (now - _lastThumbTick < ThumbAnimateInterval) return;
             _lastThumbTick = now;
-            foreach (var kv in _thumbs) if (kv.Value != null) UpdateAnimatedThumbnail(kv.Key, kv.Value, now);
+            foreach (var kv in _thumbs)
+            {
+                if (kv.Value == null) continue;
+                if (!_animateAllPreviews && !EqualityComparer<T>.Default.Equals(kv.Key, _hoveredThumb)) continue;
+                UpdateAnimatedThumbnail(kv.Key, kv.Value, now);
+            }
             foreach (var img in _thumbImages) img?.MarkDirtyRepaint();
         }
 
@@ -107,11 +128,18 @@ namespace Laubrary.AssetKit.Editor
             // there is no UITK tag control), placed once here in the base so EVERY ZuiAssetWindow subclass surfaces
             // tags automatically — restoring the parity the IMGUI LaubraryAssetWindow base had (it drew LauTagField
             // in its toolbar). Same LauTagLibrary GUID side-table, so assets tag/filter identically.
+            // T-0065: wrapped in a normal ZuiSection (green header, foldable) instead of a bare island, so it
+            // reads as one of the tool's sections and — via the TagsSection field below — can be included in a
+            // subclass's own ZuiSectionToggleBar right alongside its other sections.
+            TagsSection = null;
             if (asset != null && !string.IsNullOrEmpty(AssetLibrary<T>.PathOf(asset)))
             {
+                var section = Z.Section("Tags", "Tags for this asset — filterable in the browser.");
                 var tagIsland = new IMGUIContainer(() => LauTagField.Draw(asset));
                 tagIsland.style.flexShrink = 0f;
-                root.Add(tagIsland);
+                section.Add(tagIsland);
+                root.Add(section);
+                TagsSection = section;
             }
 
             if (asset == null || browsing) root.Add(BuildBrowser());
@@ -241,11 +269,16 @@ namespace Laubrary.AssetKit.Editor
             var col = new VisualElement();
             col.style.flexGrow = 1f;
 
-            col.Add(Z.Row(
+            var headerRow = Z.Row(
                 Z.Text($"{TypeLabel} library ({_browse.Count})", ZuiText.Section,
                     $"Every {TypeLabel} asset found in the project."),
-                Z.Flexible(),
-                Z.Button("Refresh", "Re-scan the project for assets.", () => { RefreshBrowse(); Rebuild(); })));
+                Z.Flexible());
+            if (AnimateThumbnails)
+                headerRow.Add(Z.Toggle("▶ Animate all",
+                    "On: every animated preview plays at once. Off: previews stay static — hover one to preview it.",
+                    _animateAllPreviews, v => { _animateAllPreviews = v; if (!v) _hoveredThumb = default; }));
+            headerRow.Add(Z.Button("Refresh", "Re-scan the project for assets.", () => { RefreshBrowse(); Rebuild(); }));
+            col.Add(headerRow);
 
             if (_browse.Count == 0)
                 col.Add(Z.Text($"No {TypeLabel} assets yet — hit New to make one.", ZuiText.Subtle));
@@ -284,6 +317,11 @@ namespace Laubrary.AssetKit.Editor
                 img.style.height = ThumbSize - 6f;
                 thumbBox.Add(img);
                 if (_thumbs.ContainsKey(item)) _thumbImages.Add(img);
+                img.RegisterCallback<PointerEnterEvent>(_ => SetHoveredThumb(item));
+                img.RegisterCallback<PointerLeaveEvent>(_ =>
+                {
+                    if (EqualityComparer<T>.Default.Equals(_hoveredThumb, item)) SetHoveredThumb(null);
+                });
             }
             cell.Add(thumbBox);
 
@@ -321,11 +359,36 @@ namespace Laubrary.AssetKit.Editor
             return AssetPreview.GetAssetPreview(item);   // Unity-owned — never cached or destroyed here
         }
 
+        // Called on pointer enter/leave in hover-to-preview mode (ignored entirely while _animateAllPreviews
+        // is on). Leaving an item resets its cached texture's PIXELS back to a fresh static frame — the
+        // Image element keeps referencing the same Texture2D instance, so no rebuild is needed, matching
+        // the "mutate in place" contract UpdateAnimatedThumbnail already uses.
+        void SetHoveredThumb(T item)
+        {
+            if (EqualityComparer<T>.Default.Equals(_hoveredThumb, item)) return;
+            var outgoing = _hoveredThumb;
+            _hoveredThumb = item;
+            if (_animateAllPreviews || outgoing == null) return;
+            if (_thumbs.TryGetValue(outgoing, out var tex) && tex != null) ResetThumbToStatic(outgoing, tex);
+        }
+
+        void ResetThumbToStatic(T item, Texture2D tex)
+        {
+            Texture2D fresh = RenderThumbnail(item);
+            if (fresh == null && item is Laubrary.PreviewKit.IVisualPreview vis) fresh = vis.RenderPreviewTexture();
+            if (fresh == null) return;
+            if (fresh.width != tex.width || fresh.height != tex.height) tex.Reinitialize(fresh.width, fresh.height);
+            tex.SetPixels32(fresh.GetPixels32());
+            tex.Apply();
+            DestroyImmediate(fresh);
+        }
+
         void ClearThumbs()
         {
             foreach (var t in _thumbs.Values) if (t != null) DestroyImmediate(t);
             _thumbs.Clear();
             _thumbImages.Clear();
+            _hoveredThumb = default;
         }
     }
 }

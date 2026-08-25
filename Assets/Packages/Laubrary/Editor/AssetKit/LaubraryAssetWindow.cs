@@ -31,6 +31,12 @@ namespace Laubrary.AssetKit.Editor
         readonly Dictionary<Object, Texture2D> _thumbs = new Dictionary<Object, Texture2D>();
         Vector2 _browseScroll;
         Vector2 _assetScroll;
+        // Off by default — a browser full of animatable assets (e.g. 20 Pyres) shouldn't all animate at
+        // once, which is both overwhelming to look at and expensive (each opts-in tool's own
+        // UpdateAnimatedThumbnail can be a real re-render, not a cheap sprite-sheet flip). Off = every
+        // thumbnail sits on its static frame except whichever one the mouse is over.
+        [SerializeField] bool _animateAllPreviews;
+        Object _hoveredThumb;
 
         // ── override points ─────────────────────────────────────────────────────────────
         /// Draw the per-asset editor. Only called when an asset is selected (never null).
@@ -86,6 +92,7 @@ namespace Laubrary.AssetKit.Editor
         [System.NonSerialized] bool _hookedProjectChange;
         [System.NonSerialized] bool _hookedThumbAnimation;
         [System.NonSerialized] double _lastThumbTick;
+        [System.NonSerialized] System.Action _unwatchInvalidation;
         const double ThumbAnimateInterval = 1.0 / 12.0;   // a common baked-preview fps; smooth enough, cheap enough
 
         protected sealed override void OnZUI()
@@ -94,6 +101,9 @@ namespace Laubrary.AssetKit.Editor
             // ANYWHERE (Project window, external CRUD), not just via this window's own buttons. Hooked lazily here so
             // it works regardless of whether a subclass overrides OnZUIEnable without calling base.
             if (!_hookedProjectChange) { EditorApplication.projectChanged += OnProjectChanged; _hookedProjectChange = true; }
+            // So an edited asset's browser thumbnail refreshes immediately instead of showing a stale
+            // render until the window is reopened — see LauAssetGridGUI.WatchInvalidation.
+            _unwatchInvalidation ??= LauAssetGridGUI.WatchInvalidation(_thumbs, Repaint);
             // Same lazy-hook pattern for thumbnail animation — only subscribed at all when a subclass opts in via
             // AnimateThumbnails, so every other tool pays zero cost (not even an extra delegate on the update event).
             if (AnimateThumbnails && !_hookedThumbAnimation) { EditorApplication.update += TickThumbAnimation; _hookedThumbAnimation = true; }
@@ -124,6 +134,7 @@ namespace Laubrary.AssetKit.Editor
             foreach (var kv in _thumbs)
             {
                 if (kv.Value == null) continue;
+                if (!_animateAllPreviews && !ReferenceEquals(kv.Key, _hoveredThumb)) continue;
                 if (kv.Key is T typed) UpdateAnimatedThumbnail(typed, kv.Value, now);
                 if (kv.Key is IVisualPreview vp && vp.CanAnimatePreview) vp.UpdateAnimatedPreview(kv.Value, now);
             }
@@ -134,6 +145,8 @@ namespace Laubrary.AssetKit.Editor
         {
             if (_hookedProjectChange) { EditorApplication.projectChanged -= OnProjectChanged; _hookedProjectChange = false; }
             if (_hookedThumbAnimation) { EditorApplication.update -= TickThumbAnimation; _hookedThumbAnimation = false; }
+            _unwatchInvalidation?.Invoke();
+            _unwatchInvalidation = null;
             ClearThumbs();
         }
 
@@ -232,6 +245,13 @@ namespace Laubrary.AssetKit.Editor
             {
                 Label($"{TypeLabel} library ({_browse.Count})", ZUI.ZTextStyle.SectionHeader);
                 row.Flexible();
+                if (AnimateThumbnails)
+                {
+                    bool newAll = GUILayout.Toggle(_animateAllPreviews,
+                        new GUIContent("▶ Animate all", "On: every animated preview plays at once. Off: previews "
+                            + "stay static — hover one to preview it."), EditorStyles.toolbarButton, GUILayout.Width(90));
+                    if (newAll != _animateAllPreviews) _animateAllPreviews = newAll;
+                }
                 if (row.Button("Refresh")) RefreshBrowse();
             }
 
@@ -240,13 +260,21 @@ namespace Laubrary.AssetKit.Editor
 
             using (ScrollView(ref _browseScroll))
             {
-                LauAssetGridGUI.DrawGrid(position.width, _browse.ConvertAll(t => (Object)t), asset, (item, clickCount) =>
+                var hovered = LauAssetGridGUI.DrawGrid(position.width, _browse.ConvertAll(t => (Object)t), asset, (item, clickCount) =>
                 {
                     bool open = clickCount == 2;
                     SetAsset((T)item);
                     if (open) browsing = false;
                     Repaint();
                 }, _thumbs, item => RenderThumbnail((T)item), CellSize, ThumbSize);
+
+                if (!_animateAllPreviews && !ReferenceEquals(hovered, _hoveredThumb)
+                    && _hoveredThumb != null && _thumbs.TryGetValue(_hoveredThumb, out var outgoing) && outgoing != null)
+                {
+                    DestroyImmediate(outgoing);
+                    _thumbs.Remove(_hoveredThumb);
+                }
+                _hoveredThumb = hovered;
             }
         }
 

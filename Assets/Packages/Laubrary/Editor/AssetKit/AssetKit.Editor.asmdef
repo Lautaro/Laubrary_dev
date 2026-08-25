@@ -5,7 +5,8 @@
         "ZUI.Editor",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.PreviewKit",
-        "com.Lautaro-Arino.Laubrary.Zui.Editor"
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
+        "com.Lautaro-Arino.Laubrary.Caching"
     ],
     "includePlatforms": [
         "Editor"

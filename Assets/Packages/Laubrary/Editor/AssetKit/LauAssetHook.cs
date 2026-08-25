@@ -32,6 +32,11 @@ namespace Laubrary.AssetKit.Editor
         {
             ZuiAssetHook.Build = TryBuild;
             AssemblyReloadEvents.beforeAssemblyReload += () => LauAssetGridGUI.ClearCache(Thumbs);
+            // So a chip's thumbnail refreshes immediately after the asset it references is edited, instead
+            // of showing a stale render until the next domain reload — see LauAssetGridGUI.WatchInvalidation.
+            // Never unsubscribed: this hook lives for the process (domain reload clears it naturally, same
+            // as the beforeAssemblyReload subscription above).
+            LauAssetGridGUI.WatchInvalidation(Thumbs);
         }
 
         static VisualElement TryBuild(Type objectType, Object current, Action<Object> onChanged, string tooltip)

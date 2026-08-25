@@ -9,81 +9,69 @@ using Object = UnityEngine.Object;
 
 namespace Laubrary.AssetKit.Editor
 {
-    /// The retained-mode twin of <see cref="LauAssetField"/>: the same "pick or create a LauAsset" row —
-    /// thumbnail swatch, asset name, Recall (the shared <see cref="LauAssetPicker"/> browser), New ▾ (sourced
-    /// from LauAssetEditors' registered creators for the constraint) and an Edit pen — built as
-    /// <see cref="VisualElement"/>s so a UI Toolkit window gets it without an IMGUI island.
+    /// The one "reference to a LauAsset" control: a ZuiChip. Left-click (OnActivate) opens the shared
+    /// LauAssetBrowser to pick a different one; right-click (OnContext) opens New / Edit / Clear. Also
+    /// accepts a drag-and-drop of a matching asset from the Project window.
     ///
-    /// The picker itself stays IMGUI (it is a <c>PopupWindowContent</c>) and is opened from the Recall button's
-    /// own <c>worldBound</c>, the same way every other ported window anchors an IMGUI popup.
+    /// Replaces the older always-visible "thumbnail swatch + Recall… + New ▾ + ✎" button row per
+    /// LAUASSET_PICKER_SWEEP.md's own rules (no inline button row stealing a row of width; a reference reads
+    /// as a chip; everything besides picking lives on a right-click context card) — that doc claimed every
+    /// chip site was already rewritten this way, but this control itself never actually became one.
     public static class LauAssetElement
     {
-        /// <param name="onPick">Receives the newly assigned asset (from Recall or New). The caller rebuilds.</param>
+        /// <param name="onPick">Receives the newly assigned (or cleared, via the context menu) asset.</param>
         /// <param name="tooltip">What this field is FOR — required, like every Z control.</param>
         public static VisualElement Build(Object current, Action<Object> onPick, Type constraint,
-            Dictionary<Object, Texture2D> thumbCache, string suggestedName, string folder, string tooltip,
-            float swatchSize = 40f)
+            Dictionary<Object, Texture2D> thumbCache, string suggestedName, string folder, string tooltip)
         {
-            var row = new VisualElement { tooltip = tooltip };
-            row.AddToClassList("zui-row");
-
-            var swatch = new VisualElement { tooltip = tooltip };
-            swatch.AddToClassList("zui-cell__thumb");
-            swatch.style.width = swatchSize;
-            swatch.style.height = swatchSize;
-            swatch.style.flexShrink = 0f;
-            var tex = current != null ? LauAssetGridGUI.GetThumbnail(current, null, thumbCache) : null;
-            if (tex != null)
+            var chip = new ZuiChip(current != null ? current.name : null, tooltip, empty: current == null);
+            if (current != null)
             {
-                var img = new Image { image = tex, scaleMode = ScaleMode.ScaleToFit };
-                img.style.width = swatchSize - 4f;
-                img.style.height = swatchSize - 4f;
-                swatch.Add(img);
+                var tex = LauAssetGridGUI.GetThumbnail(current, null, thumbCache);
+                if (tex != null) chip.Thumbnail = tex;
             }
-            row.Add(swatch);
 
-            var name = Z.Text(current != null ? current.name : "· none ·", ZuiText.Small,
-                current != null ? $"{current.name} ({current.GetType().Name}) — the asset assigned here." : "No asset assigned yet.");
-            name.style.maxWidth = 160f;
-            name.style.overflow = Overflow.Hidden;
-            name.style.textOverflow = TextOverflow.Ellipsis;
-            row.Add(name);
-
-            var recall = Z.Button("Recall…", "Pick an existing asset from a thumbnail browser.", null);
-            recall.clicked += () =>
+            chip.OnActivate = c =>
             {
-                var wb = recall.worldBound;
-                LauAssetPicker.Show(new Rect(wb.x, wb.y, wb.width, wb.height), constraint,
+                var wb = c.worldBound;
+                LauAssetBrowser.Show(new Rect(wb.x, wb.y, wb.width, wb.height), constraint,
                     picked => onPick?.Invoke(picked), current);
             };
-            recall.style.width = 64f;
-            row.Add(recall);
+            chip.OnContext = _ => ShowContextMenu(current, onPick, constraint, suggestedName, folder);
+            chip.Accepts = o => o != null && constraint.IsInstanceOfType(o);
+            chip.OnDrop = o => onPick?.Invoke(o);
+            return chip;
+        }
 
+        static void ShowContextMenu(Object current, Action<Object> onPick, Type constraint, string suggestedName, string folder)
+        {
+            var menu = new GenericMenu();
             var creatable = LauAssetEditors.RegisteredTypesFor(constraint).Where(LauAssetEditors.CanCreate).ToList();
-            var makeNew = Z.Button("New ▾", "Create a brand new asset and assign it here.", null);
-            makeNew.style.width = 52f;
-            makeNew.SetEnabled(creatable.Count > 0);
-            makeNew.clicked += () =>
+            if (creatable.Count == 0)
             {
-                if (creatable.Count == 1) { CreateAndAssign(creatable[0], suggestedName, folder, onPick); return; }
-                var menu = Z.Menu(makeNew);
+                menu.AddDisabledItem(new GUIContent("New"));
+            }
+            else
+            {
                 foreach (var t in creatable)
                 {
                     var concrete = t;
-                    menu.Item(concrete.Name, $"Create a new {concrete.Name} and assign it here.",
-                        () => CreateAndAssign(concrete, suggestedName, folder, onPick));
+                    string label = creatable.Count == 1 ? "New" : "New/" + concrete.Name;
+                    menu.AddItem(new GUIContent(label), false, () => CreateAndAssign(concrete, suggestedName, folder, onPick));
                 }
-                menu.Show();
-            };
-            row.Add(makeNew);
+            }
 
-            var edit = Z.Button("✎", "Edit — open this asset in its own editor.",
-                () => { if (current != null) LauAssetEditors.Open(current); });
-            edit.style.width = 26f;
-            edit.SetEnabled(current != null && LauAssetEditors.CanOpen(current));
-            row.Add(edit);
+            if (current != null && LauAssetEditors.CanOpen(current))
+                menu.AddItem(new GUIContent("Edit"), false, () => LauAssetEditors.Open(current));
+            else
+                menu.AddDisabledItem(new GUIContent("Edit"));
 
-            return row;
+            if (current != null)
+                menu.AddItem(new GUIContent("Clear"), false, () => onPick?.Invoke(null));
+            else
+                menu.AddDisabledItem(new GUIContent("Clear"));
+
+            menu.ShowAsContext();
         }
 
         static void CreateAndAssign(Type concrete, string suggestedName, string folder, Action<Object> onPick)

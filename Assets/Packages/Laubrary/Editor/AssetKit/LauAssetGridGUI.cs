@@ -20,24 +20,88 @@ namespace Laubrary.AssetKit.Editor
             if (cache.TryGetValue(item, out var cached) && cached != null) return cached;
 
             Texture2D tex = custom?.Invoke(item);
-            if (tex == null && item is IVisualPreview vp) tex = vp.RenderPreviewTexture();
+            if (tex == null && item is IVisualPreview vp)
+            {
+                tex = vp.RenderPreviewTexture();
+                if (tex != null && IsBlank(tex) && !SeekVisibleFrame(vp, tex))
+                {
+                    // A fully transparent preview is the one thing the thumbnail rule forbids outright: the
+                    // slot claims its width and promises a picture, so an empty one reads as "this has a
+                    // picture and it failed to load" — a lie. The null guard above cannot catch it, because
+                    // the asset returned a perfectly valid texture with nothing in it. Measured live: the
+                    // Pyre blast "Proper Blast" renders 0 opaque pixels out of 4096 at its first frame while
+                    // "Old School Explo 2 Plus" renders 3607, so two chips side by side disagreed about
+                    // whether a blast has a picture at all. Drop it and let the fallback decide.
+                    Object.DestroyImmediate(tex);
+                    tex = null;
+                }
+            }
             if (tex != null) { cache[item] = tex; return tex; }
             return AssetPreview.GetAssetPreview(item);   // Unity-owned — never cached or destroyed here
         }
 
-        /// Advance every cached IVisualPreview thumbnail that opts into animation, throttled. Call from an
-        /// owner's EditorApplication.update hook while its grid is actually visible; returns true if anything
-        /// changed (so the caller knows to Repaint).
-        public static bool TickAnimatedPreviews(Dictionary<Object, Texture2D> cache, ref double lastTick, double interval = 1.0 / 12.0)
+        /// True when nothing in `tex` would be visible. Cheap enough to run once per asset because the result
+        /// is cached by the caller, and it early-outs on the first pixel that shows.
+        static bool IsBlank(Texture2D tex)
+        {
+            if (tex == null || tex.width == 0 || tex.height == 0) return true;
+            Color[] px;
+            try { px = tex.GetPixels(); }
+            catch (UnityException) { return false; }   // unreadable (Unity-owned) — assume it has content
+            for (int i = 0; i < px.Length; i++)
+                if (px[i].a > 0.02f) return false;
+            return true;
+        }
+
+        /// An animated preview whose FIRST frame is empty is not an empty preview — it is a preview sampled at
+        /// the wrong moment, which is the common case for an explosion that starts from nothing. Walk its own
+        /// timeline for a frame that actually shows something and keep that, mutating `tex` in place (which is
+        /// the contract UpdateAnimatedPreview already has). Returns false if the whole thing really is empty.
+        static bool SeekVisibleFrame(IVisualPreview vp, Texture2D tex)
+        {
+            if (!vp.CanAnimatePreview) return false;
+            float fps = vp.PreviewFps > 0.01f ? vp.PreviewFps : 12f;
+            const int framesToTry = 24;
+            for (int f = 1; f <= framesToTry; f++)
+            {
+                vp.UpdateAnimatedPreview(tex, f / fps);
+                if (!IsBlank(tex)) return true;
+            }
+            vp.UpdateAnimatedPreview(tex, 0d);   // put it back where it started rather than on a stray frame
+            return false;
+        }
+
+        /// Advance cached IVisualPreview thumbnails, throttled. When `animateAll` is true every animatable
+        /// cached thumbnail advances (everything plays at once); when false, only `hovered` advances — the
+        /// default "static unless you're pointing at it" mode, so a grid of 10s of animated assets doesn't
+        /// all animate simultaneously. Call from an owner's EditorApplication.update hook while its grid is
+        /// actually visible; returns true if anything changed (so the caller knows to Repaint).
+        public static bool TickAnimatedPreviews(Dictionary<Object, Texture2D> cache, ref double lastTick,
+            bool animateAll, Object hovered, double interval = 1.0 / 12.0)
         {
             double now = EditorApplication.timeSinceStartup;
             if (now - lastTick < interval) return false;
             lastTick = now;
             bool any = false;
             foreach (var kv in cache)
-                if (kv.Key is IVisualPreview vp && vp.CanAnimatePreview && kv.Value != null)
+                if (kv.Key is IVisualPreview vp && vp.CanAnimatePreview && kv.Value != null
+                    && (animateAll || ReferenceEquals(kv.Key, hovered)))
                 { vp.UpdateAnimatedPreview(kv.Value, now); any = true; }
             return any;
+        }
+
+        /// Call whenever the hovered item changes (including to/from null), only in hover-only mode (not
+        /// while `animateAll` is on) — destroys the OUTGOING item's cached texture so the next GetThumbnail
+        /// regenerates a fresh static frame instead of leaving it stuck on whatever frame it animated to.
+        public static void OnHoverChanged(Dictionary<Object, Texture2D> cache, Object previous, Object current)
+        {
+            if (ReferenceEquals(previous, current) || previous == null) return;
+            if (previous is IVisualPreview vp && vp.CanAnimatePreview
+                && cache.TryGetValue(previous, out var tex) && tex != null)
+            {
+                Object.DestroyImmediate(tex);
+                cache.Remove(previous);
+            }
         }
 
         public static void ClearCache(Dictionary<Object, Texture2D> cache)
@@ -46,14 +110,37 @@ namespace Laubrary.AssetKit.Editor
             cache.Clear();
         }
 
+        /// Subscribes `cache` to Laubrary.Caching.AssetCacheInvalidation so an edited asset's cached
+        /// thumbnail is dropped (and, via `repaint`, redrawn) the moment the edit happens — instead of
+        /// showing a stale render until the cache is cleared some other way (window reopen, Refresh).
+        /// AssetCacheInvalidation itself fires generically for ANY ScriptableObject edited through ANY means
+        /// (a ZUI window, the plain Inspector, Undo/Redo — see AssetCacheInvalidationBridge), so every
+        /// browsing surface gets live updates for free just by calling this once, typically from OnEnable/
+        /// OnOpen. Store and invoke the returned action from OnDisable/OnClose to unsubscribe.
+        public static Action WatchInvalidation<TKey>(Dictionary<TKey, Texture2D> cache, Action repaint = null) where TKey : Object
+        {
+            void Handler(Object asset)
+            {
+                if (!(asset is TKey key) || !cache.TryGetValue(key, out var tex) || tex == null) return;
+                Object.DestroyImmediate(tex);
+                cache.Remove(key);
+                repaint?.Invoke();
+            }
+            Laubrary.Caching.AssetCacheInvalidation.Invalidated += Handler;
+            return () => Laubrary.Caching.AssetCacheInvalidation.Invalidated -= Handler;
+        }
+
         /// Draws a GUILayout-flow thumbnail grid (fits inside a window body OR a PopupWindowContent.OnGUI —
         /// both are GUILayout contexts). onPick receives the clicked item and the click count, so a caller can
         /// tell single-click-to-select apart from double-click-to-commit (LaubraryAssetWindow's browser closes
-        /// on double-click; a Recall popup commits and closes on any click) however it likes.
-        public static void DrawGrid(float availableWidth, IList<Object> items, Object selected, Action<Object, int> onPick,
+        /// on double-click; a Recall popup commits and closes on any click) however it likes. Returns whichever
+        /// item the mouse is currently over (or null), so a caller can feed it into TickAnimatedPreviews/
+        /// OnHoverChanged for hover-to-preview mode.
+        public static Object DrawGrid(float availableWidth, IList<Object> items, Object selected, Action<Object, int> onPick,
             Dictionary<Object, Texture2D> thumbCache, Func<Object, Texture2D> customThumb = null,
             float cellSize = 104f, float thumbSize = 92f)
         {
+            Object hovered = null;
             int cols = Mathf.Max(1, Mathf.FloorToInt((availableWidth - 24f) / cellSize));
             int i = 0;
             while (i < items.Count)
@@ -61,19 +148,23 @@ namespace Laubrary.AssetKit.Editor
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     for (int c = 0; c < cols && i < items.Count; c++, i++)
-                        if (items[i] != null) DrawCell(items[i], selected, onPick, thumbCache, customThumb, cellSize, thumbSize);
+                        if (items[i] != null && DrawCell(items[i], selected, onPick, thumbCache, customThumb, cellSize, thumbSize))
+                            hovered = items[i];
                     GUILayout.FlexibleSpace();
                 }
             }
+            return hovered;
         }
 
-        static void DrawCell(Object item, Object selected, Action<Object, int> onPick, Dictionary<Object, Texture2D> cache,
+        /// Returns true if the mouse is over this cell's thumbnail.
+        static bool DrawCell(Object item, Object selected, Action<Object, int> onPick, Dictionary<Object, Texture2D> cache,
             Func<Object, Texture2D> customThumb, float cell, float thumb)
         {
             EditorGUILayout.BeginVertical(GUILayout.Width(cell));
             bool isSel = ReferenceEquals(selected, item);
 
             Rect tr = GUILayoutUtility.GetRect(thumb, thumb, GUILayout.Width(thumb), GUILayout.Height(thumb));
+            bool isHover = tr.Contains(Event.current.mousePosition);
             if (Event.current.type == EventType.Repaint)
             {
                 EditorGUI.DrawRect(tr, isSel ? new Color(0.35f, 0.55f, 0.95f, 0.35f) : new Color(0.11f, 0.12f, 0.15f));
@@ -102,6 +193,7 @@ namespace Laubrary.AssetKit.Editor
             }
             GUILayout.Label(new GUIContent(item.name, item.name), EditorStyles.miniLabel, GUILayout.Width(thumb));
             EditorGUILayout.EndVertical();
+            return isHover;
         }
     }
 }
