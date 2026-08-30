@@ -5,17 +5,28 @@ lives at `Assets/Packages/Laubrary/` (`Runtime/<Tool>/`, `Editor/<Tool>/`, `Samp
 consumer projects' `Packages/com.lautaro.arino.laubrary/`. Git repo: `Laubrary_dev` (branch `master`).
 The canonical Unity rules live in `D:\Unity\UNITY_DEV_GUIDE.md` (mandatory read).
 
+## ⚠️ YOU ARE IN THE SHAPER WORKING COPY — read this before anything else
+
+This folder is `D:\UNITY\Laubrary Dev - Shaper`, a **git worktree** of the same repository as the main copy at `D:\UNITY\Laubrary Dev`, checked out on branch **`feat/shaper`**. It exists so Shaper can be built in its own Unity editor without blocking the rest of Laubrary. Full setup notes, including the merge cadence, live in the main copy at `D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0100\SHAPER_WORKTREE_SETUP.md`.
+
+Four rules follow from that:
+
+1. **Point Coplay at THIS folder, never the main copy.** See the next section — the paths there are Shaper's. Two Unity editors are open on two folders whose `productName` is identical, so nothing inside the editor will tell you that you are driving the wrong one.
+2. **The AgentHQ task board is NOT here.** The live board lives in the main copy at `D:\UNITY\Laubrary Dev\.agenthq\`. The `.agenthq\` folder in *this* copy is a frozen snapshot from commit `272e6df7`: treat it as read-only junk, never create/edit/tick a task through it, and never let anything allocate a task id from its `counters.json` — that allocator has already moved on in the main copy. Talk to AgentHQ over its HTTP API (`http://127.0.0.1:8778`) as usual; the server is backed by the main copy.
+3. **Do not run `sync-laubrary-to-consumers.ps1` from here.** Its `$Src` is hardcoded to the main copy, so running it in this folder would silently publish the *main* copy's Laubrary to consumers rather than yours.
+4. **Shaper is additive — new files in new assemblies.** Do not edit Pyre's files here. The only files this branch and the main branch are expected to collide on are listed in the setup notes.
+
+This section, and the Shaper paths in the section below, are **worktree-local**: delete them when `feat/shaper` is merged back into the main branch.
+
 ## Coplay bridge — target THIS editor first (before any Coplay action)
 
-This project has a project-scoped `coplay-mcp` server (`.mcp.json`). The Coplay MCP discovers *every* open
-Unity editor, so before using any Coplay tool you MUST point the bridge at this project and verify it:
+This project has a project-scoped `coplay-mcp` server (`.mcp.json`). The Coplay MCP discovers *every* open Unity editor, so before using any Coplay tool you MUST point the bridge at **this working copy** and verify it:
 
-1. `list_unity_project_roots` — confirm `D:\Unity\Laubrary Dev` is present (open it in Unity if not).
-2. `set_unity_project_root` → `D:\Unity\Laubrary Dev`.
-3. Verify with `execute_script` logging `Application.dataPath` — it must resolve under `D:\Unity\Laubrary Dev`.
+1. `list_unity_project_roots` — confirm `D:\UNITY\Laubrary Dev - Shaper` is present (open it in Unity if not).
+2. `set_unity_project_root` → `D:\UNITY\Laubrary Dev - Shaper`.
+3. Verify with `execute_script` logging `Application.dataPath` — it must resolve under `D:\UNITY\Laubrary Dev - Shaper`. Check the **full path**: the project name alone is identical in both copies and cannot tell them apart.
 
-If `Application.dataPath` points elsewhere, `check_compile_errors` will look clean despite new code and
-reflection won't find new types — re-run steps 1–3. `set_unity_project_root` is per-session.
+If `Application.dataPath` points anywhere else — above all if it points at `D:\UNITY\Laubrary Dev`, the main copy — you are driving the wrong editor, and `check_compile_errors` will look clean despite new code while reflection won't find new types. Re-run steps 1–3. `set_unity_project_root` is per-session.
 
 ## Pyre — the rename is DONE, there is no "PyrePlus"
 
