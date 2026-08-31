@@ -31,7 +31,7 @@ MonoBehaviour:
     fixedAngleDeg: 0
     rules: []
   hit:
-    clip: 
+    clip: Hurt
     durationMode: 0
     loops: 1
     seconds: 0
@@ -48,16 +48,30 @@ MonoBehaviour:
       follow: 0
       fx:
         rid: 1452078234765099101
+      overrides: []
   death:
-    clip: 
+    clip: Death
     durationMode: 0
     loops: 1
     seconds: 0
     stunSeconds: 0
     bodyFx: {fileID: 0}
-    fx: []
+    fx:
+    - enabled: 1
+      trigger: 0
+      frame: 1
+      placement: 0
+      metaLayerId: 
+      direction: 0
+      scalar: 0
+      follow: 0
+      fx:
+        rid: 1702917591583949365
+      overrides: []
   events: []
   brain:
+    rid: -2
+  playerController:
     rid: -2
   loadout: []
   weapons: []
@@ -81,3 +95,11 @@ MonoBehaviour:
         blastFps: 24
         chunks: {fileID: 0}
         sortingOrder: 10
+    - rid: 1702917591583949365
+      type: {class: SpawnChunkFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
+      data:
+        chunks: {fileID: 11400000, guid: ee42fe208948c2a48a8e87646d878165, type: 2}
+        sampleLauminaryColours: 1
+        sampleCount: 6
+        baseScale: 1
+        scalePerAmount: 0
