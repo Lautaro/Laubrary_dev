@@ -1,0 +1,16 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Shaper",
+    "rootNamespace": "Laubrary.Shaper",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,173 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Laubrary.Shaper
+{
+    /// <summary>APPEND-ONLY: serialized as an int.</summary>
+    public enum ShaperNodeKind { Primitive = 0, Bag = 1 }
+
+    /// <summary>
+    /// The softness dials a member carries. Deliberately two separate fields rather than the reference app's
+    /// single overloaded <c>viscosity</c>, which is a band half-width in canvas units for a soft add and a
+    /// dimensionless fraction of the cut for a soft subtract — the same slider showing two different
+    /// quantities.
+    /// </summary>
+    [Serializable]
+    public class ShaperBlend
+    {
+        /// <summary>Blend band half-width in <b>canvas pixels</b>, for Add and Intersect. 0 = a hard combine.</summary>
+        public float width = 0f;
+        /// <summary>0..1, mapped to the profile exponent <c>n = pow(8, sharpness)</c>.</summary>
+        [Range(0f, 1f)] public float sharpness = 0.5f;
+        /// <summary>0..1 for Subtract: 1 = a full hard cut, 0 = an exact no-op everywhere in the field.</summary>
+        [Range(0f, 1f)] public float carveStrength = 1f;
+    }
+
+    /// <summary>
+    /// Sweep — an operator on the finished shape, not a change to any primitive's formula (design B12), so
+    /// every primitive gains it at once. The axis is declared by the child, never chosen here.
+    ///
+    /// The radial and longitudinal quantities are <b>four separate authored fields</b>, not two shared ones.
+    /// A single <c>start</c>/<c>extent</c> pair would mean degrees on a radial child and a dimensionless 0..1
+    /// length fraction on a longitudinal one, decided by an axis the user never sets — the identical "one
+    /// slider showing two different quantities" fault that <see cref="ShaperBlend"/> above was split to
+    /// avoid, and one that would have made a default <c>extent = 360</c> silently read "full length" for a
+    /// capsule while any UI showing a degree suffix was wrong half the time. Each field carries its own
+    /// identity default, so an enabled sweep with nothing authored is a no-op on either axis.
+    /// </summary>
+    [Serializable]
+    public class ShaperSweep
+    {
+        public bool enabled = false;
+
+        /// <summary>Radial only: where the kept arc starts, in degrees from +X, counter-clockwise.</summary>
+        public float startDegrees = 0f;
+        /// <summary>Radial only: degrees of arc kept. 360 (the default) is the identity.</summary>
+        public float extentDegrees = 360f;
+
+        /// <summary>Longitudinal only: where the kept slab starts, as a 0..1 fraction of the length.</summary>
+        [Range(0f, 1f)] public float startFraction = 0f;
+        /// <summary>Longitudinal only: the 0..1 fraction of the length kept. 1 (the default) is the identity.</summary>
+        [Range(0f, 1f)] public float extentFraction = 1f;
+    }
+
+    /// <summary>
+    /// Shell — keep only a band at a given distance from the surface, discarding the interior.
+    /// Its identity setting is <c>enabled == false</c>, which returns the child's value untouched.
+    /// </summary>
+    [Serializable]
+    public class ShaperShell
+    {
+        public bool enabled = false;
+        /// <summary>Wall thickness in canvas pixels — constant everywhere, which is the whole point.</summary>
+        public float thickness = 4f;
+        public ShaperShellAlignment alignment = ShaperShellAlignment.Centred;
+    }
+
+    /// <summary>
+    /// A node of the authored shape tree: either a primitive or a bag of ordered members.
+    ///
+    /// The combine mode lives <b>on the member</b>, not on the bag (R1) — a bag holds an ordered list of
+    /// children and each child carries its own mode. The bottom of the list (index 0) is evaluated first and
+    /// is the base of the silhouette; each member above it applies onto the accumulated result. No stage may
+    /// reorder a bag's members: not to batch the additive ones, not to group by generator, not to improve
+    /// cache locality, not to skip ahead.
+    /// </summary>
+    [Serializable]
+    public class ShaperNode
+    {
+        public string name = "Shape";
+        public bool enabled = true;
+        public ShaperNodeKind kind = ShaperNodeKind.Primitive;
+
+        /// <summary>How this node folds into its parent bag. Ignored on the root.</summary>
+        public ShaperCombineMode mode = ShaperCombineMode.Add;
+        public ShaperBlend blend = new ShaperBlend();
+
+        /// <summary>Applied to this node's whole content — for a bag, to the whole assembly before its members.</summary>
+        public ShaperTransformBlock transform = new ShaperTransformBlock();
+
+        public ShaperSweep sweep = new ShaperSweep();
+        public ShaperShell shell = new ShaperShell();
+
+        /// <summary>Used when <see cref="kind"/> is <see cref="ShaperNodeKind.Primitive"/>.</summary>
+        public ShaperPrimitiveDef primitive = new ShaperPrimitiveDef();
+
+        /// <summary>Used when <see cref="kind"/> is <see cref="ShaperNodeKind.Bag"/>. Order is authored data.</summary>
+        [SerializeReference] public List<ShaperNode> children = new List<ShaperNode>();
+
+        /// <summary>
+        /// The fill this node owns, or null (FILL-CONTRACT Part F3). <b>Null is the default and it is the
+        /// point:</b> C4 says "the default for a new bag is that the bag owns the fill and the children own
+        /// none — which is the 'fuse several shapes, then texture as one' case, made the default rather than a
+        /// mode", so a newly created MEMBER node's fill slot is empty and drilling into a bag never creates one
+        /// (FC-3.7). The clock then falls out with no second rule: R3 says a fill runs on the clock of the node
+        /// it is attached to, so the default answer is the bag's clock.
+        ///
+        /// Two rules bind this field and neither is enforced here, because a node does not know where it sits:
+        /// <list type="bullet">
+        /// <item><b>FC-3.2</b> — a LAYER ROOT always owns a fill and it cannot be removed. Making the
+        /// nearest-ancestor search TOTAL is worth more than the aesthetic default: it can never fail, so there
+        /// is no "no fill found" branch anywhere, no null owner and no undefined pixel inside a covered
+        /// silhouette. <see cref="ShaperFillResolver"/> substitutes
+        /// <see cref="ShaperFillDef.DefaultRootFill"/> when a root's slot is empty.</item>
+        /// <item><b>FC-3.3</b> — a member whose <see cref="mode"/> is
+        /// <see cref="ShaperCombineMode.Subtract"/> MAY NOT own a fill; the resolver refuses it with a reason.
+        /// A plain field cannot express that, and validating it here would put the rule in two places.</item>
+        /// </list>
+        /// </summary>
+        public ShaperFillDef fill;
+
+        /// <summary>
+        /// The border this node owns, or null (BORDER-CONTRACT Part B1). <b>Null is the default and it stays
+        /// the default at every level, including the root.</b>
+        ///
+        /// <b>BD-1.1</b> — a border attaches to a shape node, ANY shape node, and derives a strip from that
+        /// node's own field. That single rule answers every placement question by construction: a border on each
+        /// member outlines each blob separately, a border on the bag outlines the fused silhouette, and borders
+        /// on both give an outer outline plus interior division lines without fighting, because they are
+        /// different nodes tracing different fields. A node owns AT MOST ONE border; two strips on one node is a
+        /// bag with one child, which keeps B2's one nesting mechanism intact instead of adding a per-node list
+        /// that duplicates it.
+        ///
+        /// <b>BD-1.5</b> — a null, disabled or zero-width border is an EXACT no-op: no strip, no owner, no
+        /// dilation, and output bitwise identical to the same tree with this field left null.
+        ///
+        /// Like <see cref="fill"/>, the rules that depend on WHERE the node sits are not enforced here, because
+        /// a node does not know: <b>BD-3.7</b> refuses a border on a Subtract member (the way to outline a hole
+        /// is a border on the BAG, which already works — the bag's finished field is zero on the hole's boundary
+        /// just as it is on the outer one), and <b>BD-3.8</b> falls a refusing border fill back to the default
+        /// Solid rather than letting the outline vanish. Both live in <see cref="ShaperFillResolver"/>.
+        /// </summary>
+        public ShaperBorderDef border;
+
+        /// <summary>A primitive member.</summary>
+        public static ShaperNode Primitive(ShaperPrimitiveDef def, string name = "Shape",
+                                           ShaperCombineMode mode = ShaperCombineMode.Add)
+        {
+            return new ShaperNode
+            {
+                name = name,
+                kind = ShaperNodeKind.Primitive,
+                mode = mode,
+                primitive = def ?? new ShaperPrimitiveDef(),
+            };
+        }
+
+        /// <summary>A bag. Members fold bottom-up in the order given.</summary>
+        public static ShaperNode Bag(string name = "Bag", ShaperCombineMode mode = ShaperCombineMode.Add,
+                                     params ShaperNode[] members)
+        {
+            var node = new ShaperNode
+            {
+                name = name,
+                kind = ShaperNodeKind.Bag,
+                mode = mode,
+                children = new List<ShaperNode>(),
+            };
+            if (members != null) node.children.AddRange(members);
+            return node;
+        }
+    }
+}
