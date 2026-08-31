@@ -803,6 +803,8 @@ namespace Laubrary.Shaper
                 case ShaperFillKind.RampByQuantity: return "Ramp-by-quantity";
                 case ShaperFillKind.Texture: return "Texture";
                 case ShaperFillKind.IndexedStrip: return "Indexed strip";
+                case ShaperFillKind.HeightField: return "Height field";
+                case ShaperFillKind.TapestrySteel: return "Tapestry Steel";
                 default: return "Fill";
             }
         }

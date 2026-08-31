@@ -226,6 +226,71 @@ namespace Laubrary.Shaper
         /// </summary>
         public Color stripPlainColor = Color.white;
 
+        // ── Height field (FC-6.7, T-0111) ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// The imported/authored field, an <c>RFloat</c>, non-sRGB, Read/Write-enabled <see cref="Texture2D"/>
+        /// carrying the SIGNED raw height value per texel — see <see cref="ShaperHeightFieldPreset"/> for how
+        /// the 245 Kiln presets are shipped. Pixels are copied into host-owned bulk data at compile time,
+        /// exactly like <see cref="texture"/> (FC-5.5) — the op never holds the Texture2D reference.
+        /// </summary>
+        public Texture2D heightField;
+
+        /// <summary>
+        /// Multiplies the field's RAW sampled value before it becomes <see cref="ShaperFillEmit.heightDelta"/>.
+        /// Deliberately NOT a per-field auto-normalise: the 245 shipped presets are unnormalised (measured
+        /// range roughly −1.65..+2.21 across the set, and each field has its own local range within that), and
+        /// silently rescaling on import would make the SAME preset asset produce a different relief depending
+        /// on when it was imported. <see cref="ShaperHeightFieldPreset.measuredMin"/>/<c>measuredMax</c> are
+        /// informational only — this dial is the one and only place magnitude is decided, authored, on the
+        /// fill, the same way <see cref="heightDelta"/> already is.
+        /// </summary>
+        public ZUIValue heightFieldScale = new ZUIValue(1f);
+
+        /// <summary>
+        /// The flat albedo this kind paints — "a fill that emits height and no colour" (SHAPER_THE_DESIGN.md
+        /// B5) means no PATTERN in the colour, not a missing channel (FC-2.1 requires every fill to emit
+        /// albedo). Its alpha is not authored or read, same rule as every other flat-colour dial (FC-2.2).
+        /// </summary>
+        public Color heightFieldTint = Color.white;
+
+        // ── Tapestry Steel (FC-6.8, T-0111) ───────────────────────────────────────────────────────────────
+
+        /// <summary>Base grid resolution the fBm base tone hashes at, in <see cref="ShaperTapestryCanvas.Fbm"/>'s <c>baseCells</c>. Bigger = finer mottling.</summary>
+        public ZUIValue steelCells = new ZUIValue(6f);
+
+        /// <summary>fBm octave count for the base tone. Kiln's own default order of magnitude (its shade() pipeline uses 3-4).</summary>
+        public ZUIValue steelOctaves = new ZUIValue(4f);
+
+        /// <summary>Deterministic seed, rounded to a uint at compile — same role as <see cref="ShaperFillInputs.seed"/> but authored per-fill so two Steel fills on one document can differ.</summary>
+        public ZUIValue steelSeed = new ZUIValue(0f);
+
+        /// <summary>The base tone at the low end of the fBm sweep (Kiln's "dry" entry, simplified to one authored colour rather than a hue/sat/val palette table).</summary>
+        public Color steelBaseLow = new Color(0.30f, 0.31f, 0.33f);
+
+        /// <summary>The base tone at the high end of the fBm sweep.</summary>
+        public Color steelBaseHigh = new Color(0.55f, 0.56f, 0.58f);
+
+        /// <summary>Kiln's "rust growing out of the low ground of whatever shape it was handed" — the tint blended in with weight <see cref="steelRustAmount"/>, biased toward the shape's interior via <see cref="ShaperQuantity.EdgeDistance"/>.</summary>
+        public Color steelRustColor = new Color(0.42f, 0.20f, 0.10f);
+
+        /// <summary>How strongly the rust tint reaches in from the edge, and its overall weight. 0 = no rust.</summary>
+        public ZUIValue steelRustAmount = new ZUIValue(0.25f);
+
+        /// <summary>How far in from the silhouette (canvas pixels) the rust bias saturates. Larger = rust reaches further toward the centre.</summary>
+        public ZUIValue steelRustReachPixels = new ZUIValue(24f);
+
+        /// <summary>Additive fine-grain variation from a second, higher-frequency fBm octave set — Kiln's "grain" term, simplified to one amount dial.</summary>
+        public ZUIValue steelGrain = new ZUIValue(0.06f);
+
+        /// <summary>
+        /// T-0111's new palette-quantise stage (FC-6.9) — per-CHANNEL posterise in LINEAR space to N levels,
+        /// applied last. 0 or 1 = off (the fill stays continuous-tone). This is the "output stays pixel art
+        /// rather than photographic" requirement, and it did not exist anywhere in the fill contract before
+        /// this task — see <see cref="ShaperFillOps.Quantise"/>.
+        /// </summary>
+        public ZUIValue quantiseLevels = new ZUIValue(0f);
+
         // ── declarations (FC-4.1) ─────────────────────────────────────────────────────────────────────────
 
         /// <summary>
@@ -260,8 +325,13 @@ namespace Laubrary.Shaper
                     // FC-4.1b's reasoning for Ramp's own Coverage default.
                     return ShaperQuantitySet.EdgeDistance;
 
+                case ShaperFillKind.TapestrySteel:
+                    // T-0111: the rust bias always reads edge distance, unconditionally, same reasoning as
+                    // IndexedStrip's reach test above — every node publishes it, so this never greys out.
+                    return ShaperQuantitySet.EdgeDistance;
+
                 default:
-                    return ShaperQuantitySet.None;   // Solid, Texture
+                    return ShaperQuantitySet.None;   // Solid, Texture, HeightField
             }
         }
 

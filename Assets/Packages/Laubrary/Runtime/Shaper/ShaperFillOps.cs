@@ -84,7 +84,8 @@ namespace Laubrary.Shaper
             // exactly the same terms Gradient's one mode does.
             float[] edgeSheet = (op.kind == ShaperFillKind.Gradient &&
                                  op.gradientMode == ShaperGradientMode.ByEdgeDistance) ||
-                                op.kind == ShaperFillKind.IndexedStrip
+                                op.kind == ShaperFillKind.IndexedStrip ||
+                                op.kind == ShaperFillKind.TapestrySteel
                 ? sheets.edgeDistance : null;
 
             float[] albedo = emit.albedo;
@@ -346,10 +347,104 @@ namespace Laubrary.Shaper
                     return;
                 }
 
+                case ShaperFillKind.HeightField:
+                {
+                    r = op.colR; g = op.colG; b = op.colB;   // flat authored tint — "no colour" per B5, not "no albedo"
+
+                    if (op.heightFieldOffset < 0)
+                    {
+                        height = op.emitsHeight != 0 ? op.height : 0f;
+                        return;
+                    }
+
+                    Anchor(in op, x, y, out float u, out float v);
+                    // Always toroidally wrapped (T-0111): the 245 shipped fields are seamless by
+                    // construction (Kiln's own tileable-noise guarantee), so unlike Texture there is no
+                    // Fitted/Tiled distinction to author — a height field always tiles.
+                    float uu = u * 0.5f + 0.5f;
+                    float vv = v * 0.5f + 0.5f;
+                    uu -= Mathf.Floor(uu);
+                    vv -= Mathf.Floor(vv);
+
+                    int fx = (int)(uu * op.heightFieldWidth);
+                    int fy = (int)(vv * op.heightFieldHeight);
+                    if (fx < 0) fx = 0; else if (fx >= op.heightFieldWidth) fx = op.heightFieldWidth - 1;
+                    if (fy < 0) fy = 0; else if (fy >= op.heightFieldHeight) fy = op.heightFieldHeight - 1;
+
+                    float raw = bulk[op.heightFieldOffset + fy * op.heightFieldWidth + fx];
+                    // ADDED to the common heightDelta dial, same pattern as IndexedStrip's per-slot height
+                    // (FC-2.5: "ADDED to the shape's own height").
+                    height = (op.emitsHeight != 0 ? op.height : 0f) + raw * op.heightFieldScale;
+                    return;
+                }
+
+                case ShaperFillKind.TapestrySteel:
+                {
+                    Anchor(in op, x, y, out float u, out float v);
+                    float uu = u * 0.5f + 0.5f;
+                    float vv = v * 0.5f + 0.5f;
+                    uu -= Mathf.Floor(uu);
+                    vv -= Mathf.Floor(vv);
+
+                    // Base tone: one fBm sweep between the low and high authored colours (Kiln's
+                    // "_stretch"-normalised base-tone drive, simplified to a fixed two-colour ramp rather
+                    // than porting the multi-entry HSV palette table — see TAPESTRY-SPEC.md's accounting).
+                    float t = ShaperTapestryCanvas.Fbm(uu, vv, op.steelCells, op.steelOctaves, op.steelSeed, 0.5f);
+                    t = Mathf.Clamp01(t);
+                    r = Mathf.Lerp(op.steelBaseLowR, op.steelBaseHighR, t);
+                    g = Mathf.Lerp(op.steelBaseLowG, op.steelBaseHighG, t);
+                    b = Mathf.Lerp(op.steelBaseLowB, op.steelBaseHighB, t);
+
+                    // Rust bias: "growing out of the low ground" — biased toward the shape's INTERIOR, so
+                    // it reads the same negative-inside edge distance ByEdgeDistanceT already uses, just
+                    // saturating over the fill's own reach dial rather than Gradient's depth dial.
+                    if (op.steelRustAmount > 0f)
+                    {
+                        float depthT = Mathf.Clamp01(-edge * op.steelInvRustReach);
+                        float rustN = ShaperTapestryCanvas.WrappedValueNoiseAt(uu * 3f, vv * 3f, Mathf.Max(1, op.steelCells / 2), op.steelSeed, 991u);
+                        float rustT = depthT * op.steelRustAmount * Mathf.Lerp(0.4f, 1f, rustN);
+                        r = Mathf.Lerp(r, op.steelRustR, rustT);
+                        g = Mathf.Lerp(g, op.steelRustG, rustT);
+                        b = Mathf.Lerp(b, op.steelRustB, rustT);
+                    }
+
+                    // Fine grain: a second, higher-frequency noise pass, additive — Kiln's "grain" term.
+                    if (op.steelGrain > 0f)
+                    {
+                        float grainN = ShaperTapestryCanvas.WrappedValueNoiseAt(uu * 11f, vv * 11f, Mathf.Max(1, op.steelCells * 3), op.steelSeed, 4271u) - 0.5f;
+                        float gAmt = grainN * op.steelGrain;
+                        r = Mathf.Clamp01(r + gAmt);
+                        g = Mathf.Clamp01(g + gAmt);
+                        b = Mathf.Clamp01(b + gAmt);
+                    }
+
+                    if (op.quantiseLevels > 1)
+                        Quantise(op.quantiseLevels, ref r, ref g, ref b);
+
+                    return;
+                }
+
                 default:
                     r = op.colR; g = op.colG; b = op.colB;
                     return;
             }
+        }
+
+        /// <summary>
+        /// T-0111, FC-6.9 — the new palette-quantise stage: per-CHANNEL posterise in LINEAR space to
+        /// <paramref name="levels"/> discrete steps, <c>[0, N-1]/(N-1)</c>. Applied LAST, after every other
+        /// colour term, so it always quantises the finished tone rather than an intermediate one. This did
+        /// not exist anywhere in the fill contract before this task — it is the "output stays pixel art
+        /// rather than photographic" requirement T-0111 named explicitly as new work, not a rename of
+        /// something Gradient's LUT already did (the LUT quantises the ramp's POSITION; this quantises the
+        /// OUTPUT colour of an otherwise-continuous procedural expression).
+        /// </summary>
+        public static void Quantise(int levels, ref float r, ref float g, ref float b)
+        {
+            float steps = levels - 1;
+            r = Mathf.Round(Mathf.Clamp01(r) * steps) / steps;
+            g = Mathf.Round(Mathf.Clamp01(g) * steps) / steps;
+            b = Mathf.Round(Mathf.Clamp01(b) * steps) / steps;
         }
 
         /// <summary>

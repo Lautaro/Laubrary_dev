@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using UnityEditor;
 
 namespace Laubrary.Shaper.Editor
 {
@@ -3063,6 +3064,145 @@ namespace Laubrary.Shaper.Editor
                 outPixels[y * cell] = new Color32(90, 90, 100, 255);
                 outPixels[y * cell + cell - 1] = new Color32(90, 90, 100, 255);
             }
+        }
+
+        // ── T-0111 — HeightField / TapestrySteel contact sheet ───────────────────────────────────────────
+
+        static ShaperFillDef HeightFieldFill(ShaperHeightFieldPreset preset, float scale, ShaperFillSpace space)
+            => new ShaperFillDef
+            {
+                kind = ShaperFillKind.HeightField,
+                heightField = preset != null ? preset.field : null,
+                heightFieldScale = new ZUIValue(scale),
+                heightFieldTint = new Color(0.5f, 0.5f, 0.5f),
+                space = space,
+            };
+
+        static ShaperFillDef Steel(float rustAmount = 0.25f, float rustReach = 24f, int quantiseLevels = 0,
+                                   float seed = 0f)
+            => new ShaperFillDef
+            {
+                kind = ShaperFillKind.TapestrySteel,
+                steelCells = new ZUIValue(6f),
+                steelOctaves = new ZUIValue(4f),
+                steelSeed = new ZUIValue(seed),
+                steelBaseLow = new Color(0.30f, 0.31f, 0.33f),
+                steelBaseHigh = new Color(0.58f, 0.59f, 0.62f),
+                steelRustColor = new Color(0.46f, 0.22f, 0.11f),
+                steelRustAmount = new ZUIValue(rustAmount),
+                steelRustReachPixels = new ZUIValue(rustReach),
+                steelGrain = new ZUIValue(0.06f),
+                quantiseLevels = new ZUIValue(quantiseLevels),
+            };
+
+        /// <summary>
+        /// T-0111 — a contact sheet for the two new fill kinds: <see cref="ShaperFillKind.HeightField"/>
+        /// (an imported Tapestry Shape preset) and <see cref="ShaperFillKind.TapestrySteel"/> (the ported
+        /// albedo-only slice of Kiln's <c>steel</c>). See
+        /// <c>D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0111\VERIFICATION.md</c> for what each cell proves.
+        /// </summary>
+        public static string T0111_ContactSheet(string path)
+        {
+            const int Cell = 110, Cols = 3, Pad = 8;
+
+            var presetA = AssetDatabase.LoadAssetAtPath<ShaperHeightFieldPreset>(
+                "Assets/Demos/ShaperDemo/TapestryHeightFields/Presets/lines_GEN8_006.asset");
+            var presetB = AssetDatabase.LoadAssetAtPath<ShaperHeightFieldPreset>(
+                "Assets/Demos/ShaperDemo/TapestryHeightFields/Presets/plates_GEN7_006.asset");
+
+            var cells = new List<KeyValuePair<string, Action<Rig>>>();
+            var nodes = new List<ShaperNode>();
+            var heightCells = new HashSet<int>();
+
+            void AddHeight(string name, ShaperNode node) { heightCells.Add(nodes.Count); nodes.Add(node); cells.Add(new KeyValuePair<string, Action<Rig>>(name, null)); }
+            void AddColor(string name, ShaperNode node) { nodes.Add(node); cells.Add(new KeyValuePair<string, Action<Rig>>(name, null)); }
+
+            var big = Disc("Big", 40f, 0f, 0f);
+            big.fill = HeightFieldFill(presetA, 1f, ShaperFillSpace.Stamped);
+            AddHeight("01 HeightField lines_GEN8_006 scale=1", big);
+
+            var inv = Disc("Inv", 40f, 0f, 0f);
+            inv.fill = HeightFieldFill(presetA, -1f, ShaperFillSpace.Stamped);
+            AddHeight("02 same preset scale=-1 (inverted)", inv);
+
+            var presetBNode = Disc("PB", 40f, 0f, 0f);
+            presetBNode.fill = HeightFieldFill(presetB, 1f, ShaperFillSpace.Stamped);
+            AddHeight("03 HeightField plates_GEN7_006", presetBNode);
+
+            var smallStamped = Disc("SmallStamped", 16f, 0f, 0f);
+            smallStamped.fill = HeightFieldFill(presetA, 1f, ShaperFillSpace.Stamped);
+            AddHeight("04 small disc, Stamped (fills fully)", smallStamped);
+
+            var smallFixed = Disc("SmallFixed", 16f, 0f, 0f);
+            smallFixed.fill = HeightFieldFill(presetA, 1f, ShaperFillSpace.Fixed);
+            AddHeight("05 small disc, Fixed (cropped window)", smallFixed);
+
+            var steelPlain = Disc("SteelPlain", 40f, 0f, 0f);
+            steelPlain.fill = Steel(rustAmount: 0.25f, quantiseLevels: 0);
+            AddColor("06 TapestrySteel, continuous", steelPlain);
+
+            var steelQuant = Disc("SteelQuant", 40f, 0f, 0f);
+            steelQuant.fill = Steel(rustAmount: 0.25f, quantiseLevels: 5);
+            AddColor("07 same dials, quantiseLevels=5", steelQuant);
+
+            var steelRust = Disc("SteelRust", 40f, 0f, 0f);
+            steelRust.fill = Steel(rustAmount: 0.65f, rustReach: 40f, quantiseLevels: 0);
+            AddColor("08 rustAmount=0.65 reach=40", steelRust);
+
+            int rows = Mathf.CeilToInt(nodes.Count / (float)Cols);
+            int texW = Cols * (Cell + Pad) + Pad, texH = rows * (Cell + Pad) + Pad;
+            var sheet = new Texture2D(texW, texH, TextureFormat.RGBA32, false);
+            var bg = new Color32[texW * texH];
+            for (int i = 0; i < bg.Length; i++) bg[i] = new Color32(18, 18, 22, 255);
+            sheet.SetPixels32(bg);
+
+            var pixels = new Color32[Cell * Cell];
+            var missing = new List<string>();
+            for (int c = 0; c < nodes.Count; c++)
+            {
+                var rig = Build(nodes[c], 0f, 0u, ShaperQuantitySet.ShippedShapeEngine, Cell, Cell);
+                Paint(rig);
+                if (heightCells.Contains(c))
+                {
+                    if (rig.doc.owners[0].fill.diagnostic != null) missing.Add(cells[c].Key + ": " + rig.doc.owners[0].fill.diagnostic);
+                    CompositeHeightAsGrey(rig, pixels, Cell);
+                }
+                else
+                {
+                    CompositeOverBackdrop(rig.buf.dst, pixels, Cell);
+                }
+                DrawLabel(pixels, Cell, cells[c].Key);
+
+                int cx = Pad + (c % Cols) * (Cell + Pad);
+                int cy = texH - Pad - Cell - (c / Cols) * (Cell + Pad);
+                sheet.SetPixels32(cx, cy, Cell, Cell, pixels);
+            }
+            sheet.Apply();
+
+            byte[] png = sheet.EncodeToPNG();
+            System.IO.File.WriteAllBytes(path, png);
+
+            var sb = new StringBuilder("T-0111 contact sheet (HeightField + TapestrySteel)\n");
+            sb.AppendLine("  " + nodes.Count + " cells, " + Cols + " x " + rows + ", " + texW + "x" + texH +
+                          " px, written to " + path);
+            sb.AppendLine("  presetA (lines_GEN8_006) loaded: " + (presetA != null && presetA.field != null));
+            sb.AppendLine("  presetB (plates_GEN7_006) loaded: " + (presetB != null && presetB.field != null));
+            if (missing.Count > 0)
+            {
+                sb.AppendLine("  DIAGNOSTIC FALLBACKS FIRED (fill degraded to Solid, likely preset load failure):");
+                foreach (var m in missing) sb.AppendLine("    " + m);
+            }
+            sb.AppendLine("  01 vs 02: same preset, heightFieldScale flipped -1 -- inverted grey proves the scale dial multiplies the raw field.");
+            sb.AppendLine("  03: a second, independently imported preset -- proves the library holds more than one usable asset.");
+            sb.AppendLine("  04 vs 05: same preset and scale, only ShaperFillSpace differs -- Stamped fills the disc regardless of its size,");
+            sb.AppendLine("     Fixed shows a crop of a canvas-anchored field, smaller on the smaller disc -- this is FC-1.6's existing");
+            sb.AppendLine("     coordinate switch (todo 4), reused unmodified by HeightField, not a new mechanism.");
+            sb.AppendLine("  06 vs 07: identical dials except quantiseLevels -- 07 visibly bands into discrete tones, proving the NEW");
+            sb.AppendLine("     palette-quantise stage (todo 3) actually changes the output.");
+            sb.AppendLine("  08: rustAmount raised and reach widened against 06/07's defaults -- the rust tint should read visibly");
+            sb.AppendLine("     stronger and reach further toward the centre.");
+            sb.Append("  RESULT: " + Verdict(missing.Count == 0));
+            return sb.ToString();
         }
     }
 }

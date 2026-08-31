@@ -168,6 +168,26 @@ namespace Laubrary.Shaper
         public float stripInvReach;
         /// <summary>The "plain fill" colour beyond the reach, LINEAR.</summary>
         public float plainColR, plainColG, plainColB;
+
+        // HeightField (T-0111)
+        /// <summary>Index into <see cref="ShaperFillProgram.bulk"/> of texel 0 (one float per texel, raw signed height), or -1 when there is no field.</summary>
+        public int heightFieldOffset;
+        public int heightFieldWidth, heightFieldHeight;
+        /// <summary>Resolved <see cref="ShaperFillDef.heightFieldScale"/>.</summary>
+        public float heightFieldScale;
+
+        // Tapestry Steel (T-0111)
+        public int steelCells;
+        public int steelOctaves;
+        public uint steelSeed;
+        public float steelBaseLowR, steelBaseLowG, steelBaseLowB;
+        public float steelBaseHighR, steelBaseHighG, steelBaseHighB;
+        public float steelRustR, steelRustG, steelRustB;
+        public float steelRustAmount;
+        public float steelInvRustReach;
+        public float steelGrain;
+        /// <summary>0 or 1 = off. FC-6.9.</summary>
+        public int quantiseLevels;
     }
 
     /// <summary>
@@ -240,6 +260,7 @@ namespace Laubrary.Shaper
                 rampQuantity = def.rampQuantity,
                 lutOffset = -1,
                 texOffset = -1,
+                heightFieldOffset = -1,
             };
 
             // ── the two common dials (FC-6, "common to all four") ─────────────────────────────────────────
@@ -266,7 +287,9 @@ namespace Laubrary.Shaper
             op.positional = (def.kind == ShaperFillKind.Gradient &&
                              def.gradientMode != ShaperGradientMode.ByEdgeDistance) ||
                             def.kind == ShaperFillKind.Texture ||
-                            def.kind == ShaperFillKind.IndexedStrip
+                            def.kind == ShaperFillKind.IndexedStrip ||
+                            def.kind == ShaperFillKind.HeightField ||
+                            def.kind == ShaperFillKind.TapestrySteel
                 ? 1 : 0;
             op.fixedSpace = def.space == ShaperFillSpace.Fixed ? 1 : 0;
             BakeAnchor(def, anchor, ref op);
@@ -293,6 +316,14 @@ namespace Laubrary.Shaper
 
                 case ShaperFillKind.IndexedStrip:
                     BakeStrip(def, anchor, p, seed, prog, ref op);
+                    break;
+
+                case ShaperFillKind.HeightField:
+                    BakeHeightField(def, p, seed, prog, ref op);
+                    break;
+
+                case ShaperFillKind.TapestrySteel:
+                    BakeTapestrySteel(def, p, seed, prog, ref op);
                     break;
             }
 
@@ -647,6 +678,94 @@ namespace Laubrary.Shaper
             // height alongside the common heightDelta dial (FC-2.5) — Sample() adds the two — so the sheet
             // must be allocated when EITHER is live, not only when the common dial is.
             if (anySlotHeight) op.emitsHeight = 1;
+        }
+
+        // ── height field (T-0111, FC-6.7) ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Bakes a <see cref="ShaperFillKind.HeightField"/> fill. The field's raw signed texels are copied
+        /// ONCE into <see cref="ShaperFillProgram.bulk"/> — one float per texel, no decode (FC-5.5, mirrors
+        /// <see cref="BakeTexture"/>'s copy of Texture's pixels, minus the sRGB step since this is not a
+        /// colour). Always declares <c>emitsHeight</c>: unlike the common <see cref="ShaperFillDef.heightDelta"/>
+        /// dial (which costs a sheet only when non-zero), a HeightField fill's entire purpose is height, so
+        /// costing the sheet unconditionally is the honest declaration rather than a false economy.
+        /// </summary>
+        static void BakeHeightField(ShaperFillDef def, float p, uint seed, ShaperFillProgram prog, ref ShaperFillOp op)
+        {
+            ShaperSrgb.Decode(def.heightFieldTint, out op.colR, out op.colG, out op.colB);
+            op.heightFieldScale = ShaperValue.Sample(def.heightFieldScale, p, seed, 1f);
+
+            if (def.heightField == null)
+            {
+                op.kind = ShaperFillKind.Solid;
+                prog.diagnostic = "Height field fill has no field assigned; painting flat tint instead.";
+                return;
+            }
+            if (!def.heightField.isReadable)
+            {
+                op.kind = ShaperFillKind.Solid;
+                prog.diagnostic = "Height field '" + def.heightField.name +
+                                  "' is not marked Read/Write Enabled; painting flat tint instead.";
+                return;
+            }
+
+            int w = def.heightField.width, h = def.heightField.height;
+            float[] texels;
+            try
+            {
+                var raw = def.heightField.GetPixelData<float>(0);   // NativeArray<float>, RFloat texel = one float
+                texels = new float[raw.Length];
+                for (int i = 0; i < raw.Length; i++) texels[i] = raw[i];
+            }
+            catch (System.Exception e)
+            {
+                op.kind = ShaperFillKind.Solid;
+                prog.diagnostic = "Height field '" + def.heightField.name + "' could not be read (" +
+                                  e.GetType().Name + "); painting flat tint instead.";
+                return;
+            }
+            if (texels == null || texels.Length < w * h || w <= 0 || h <= 0)
+            {
+                op.kind = ShaperFillKind.Solid;
+                prog.diagnostic = "Height field '" + def.heightField.name + "' returned no data; painting flat tint instead.";
+                return;
+            }
+
+            op.heightFieldOffset = 0;
+            op.heightFieldWidth = w;
+            op.heightFieldHeight = h;
+            op.emitsHeight = 1;
+            prog.bulk = texels;
+        }
+
+        // ── Tapestry Steel (T-0111, FC-6.8) ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Bakes a <see cref="ShaperFillKind.TapestrySteel"/> fill. Every dial through
+        /// <see cref="ShaperValue.Sample"/> once (FC-5.3), exactly like every other kind — the noise itself
+        /// is evaluated per sample by <see cref="ShaperTapestryCanvas"/> from the baked scalars here, so
+        /// there is no LUT and no bulk data at all for this kind.
+        /// </summary>
+        static void BakeTapestrySteel(ShaperFillDef def, float p, uint seed, ShaperFillProgram prog, ref ShaperFillOp op)
+        {
+            op.steelCells = Mathf.Max(1, Mathf.RoundToInt(ShaperValue.Sample(def.steelCells, p, seed, 6f)));
+            op.steelOctaves = Mathf.Clamp(Mathf.RoundToInt(ShaperValue.Sample(def.steelOctaves, p, seed, 4f)), 1, 8);
+            op.steelSeed = (uint)Mathf.RoundToInt(ShaperValue.Sample(def.steelSeed, p, seed, 0f));
+
+            ShaperSrgb.Decode(def.steelBaseLow, out op.steelBaseLowR, out op.steelBaseLowG, out op.steelBaseLowB);
+            ShaperSrgb.Decode(def.steelBaseHigh, out op.steelBaseHighR, out op.steelBaseHighG, out op.steelBaseHighB);
+            ShaperSrgb.Decode(def.steelRustColor, out op.steelRustR, out op.steelRustG, out op.steelRustB);
+            // The fallback colour (a null case cannot arise for this kind — no asset dependency — but
+            // op.colR/G/B is read by the shared Solid-degeneration path elsewhere, so keep it sane).
+            op.colR = op.steelBaseLowR; op.colG = op.steelBaseLowG; op.colB = op.steelBaseLowB;
+
+            op.steelRustAmount = Mathf.Clamp01(ShaperValue.Sample(def.steelRustAmount, p, seed, 0.25f));
+            float reachPixels = Mathf.Max(1e-3f, ShaperValue.Sample(def.steelRustReachPixels, p, seed, 24f));
+            op.steelInvRustReach = 1f / reachPixels;
+            op.steelGrain = Mathf.Max(0f, ShaperValue.Sample(def.steelGrain, p, seed, 0.06f));
+
+            int levels = Mathf.RoundToInt(ShaperValue.Sample(def.quantiseLevels, p, seed, 0f));
+            op.quantiseLevels = levels;
         }
     }
 }

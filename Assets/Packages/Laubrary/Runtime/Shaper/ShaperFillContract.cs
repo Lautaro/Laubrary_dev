@@ -240,6 +240,31 @@ namespace Laubrary.Shaper
         /// <c>D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0110\STRIP-SPEC.md</c> for the full model.
         /// </summary>
         IndexedStrip = 4,
+
+        /// <summary>
+        /// T-0111 — an authored/imported single-channel height field (a ported Kiln Tapestry Shape
+        /// draw) sampled toroidally and emitted AS <see cref="ShaperFillEmit.heightDelta"/> ONLY, through
+        /// the same FC-2.5 interface <see cref="IndexedStrip"/> already proved. It emits a flat, authored
+        /// tint for albedo — "a fill that emits height and no colour" per SHAPER_THE_DESIGN.md B5, and a
+        /// fill must emit SOME albedo (FC-2.1), so "no colour" means "no pattern in the colour", not a
+        /// missing channel. Deliberately NOT a new <see cref="ShaperExtrusionTechnique"/>: that catalogue
+        /// is closed-form and monotone-in-<c>t</c> by construction (HS-5.1, HS-5.7's <c>Inverse</c>), and
+        /// an arbitrary imported field has neither property.
+        /// </summary>
+        HeightField = 5,
+
+        /// <summary>
+        /// T-0111 — a native port of Kiln Tapestry Surface's <c>steel</c> generator's ALBEDO-contributing
+        /// terms (base tone, an edge-distance-biased rust tint, fine grain, palette-quantise), using
+        /// <see cref="ShaperTapestryCanvas"/>'s verified noise primitives. Deliberately excludes the
+        /// reference's SHADING terms (GGX specular, an environment reflection map, an NdotL diffuse
+        /// falloff computed from a screen-space-differenced normal): those need neighbour reads the fill
+        /// contract forbids (BC-1.6/BC-2.1) AND belong to the document's light rig under this design's own
+        /// ruling (B4: "a fill emits albedo … shine belongs to the lights, not to the paint"), not to a
+        /// fill. See <c>D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0111\TAPESTRY-SPEC.md</c> for the full
+        /// accounting of what was and was not ported.
+        /// </summary>
+        TapestrySteel = 6,
     }
 
     /// <summary>
