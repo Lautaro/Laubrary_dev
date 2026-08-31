@@ -1,0 +1,21 @@
+=== V3c - attributing the 9.1 px omission, and measuring how broadly it fires ===
+  the failing ray: n=23 body=290 span=200  origin=(-400,0,197,72697) dir=(0,95394,0,-0,3)
+    got 2, true 4   Depth 319,0432
+    emitted: 291,6967I 610,7399O 
+    truth  : 291,6967 610,7398 615,1505 619,8554 
+    bracketCapped=0 stepsExhausted=False branch=General
+    MISSED true crossing at rayT=615,1505  x=186,8162 z=13,18181  d=-13,1838 t=0,065919  zeta=0,0454545  E(t)=0,045454547
+      InverseLowerBound(zeta) = 0,04347826   TRUE infimum = 0,04347826   over-report = 0,000E+000 t-units   (prism sound here)
+      slab 0 zetaLo=0  tauMinSlab=0  true=0   (slab prism sound)
+    MISSED true crossing at rayT=619,8554  x=191,3044 z=11,77034  d=-8,6956 t=0,043478  zeta=0,0405874  E(t)=0
+      InverseLowerBound(zeta) = 0,04347826   TRUE infimum = 0,04347826   over-report = 0,000E+000 t-units   (prism sound here)
+      slab 0 zetaLo=0  tauMinSlab=0  true=0   (slab prism sound)
+
+  breadth: every n in [2,32], every tread, 5 tilts x 3 offsets
+    rays = 7440,  rays losing a crossing = 28,  worst gap = 1,0000E+030 px
+    n=10 k=5 tilt-dz=0,6 off=-0,0003 true=2 got=0
+    step counts affected: 8 10 12 13 14 15 18 20 22 23 26 27 29 30 31 
+
+  containment of InverseLowerBound over a DENSE zeta grid, every n in [2,32]:
+    zeta probes = 124000   over-reports = 0   worst = 0,000E+000 t-units
+    step counts affected: 

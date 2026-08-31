@@ -1,0 +1,5 @@
+﻿focus
+sleep 250
+click 1188 1164
+sleep 400
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a14-burst-off.png

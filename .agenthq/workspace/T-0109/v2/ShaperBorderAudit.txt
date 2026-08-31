@@ -1,0 +1,100 @@
+=== Shaper BORDER audit (T-0107, BORDER-CONTRACT Part B5) ===
+BT-1 zero-width identity (bitwise: Color32 bytes and float distance bits)
+  width 0 from the start     byte diffs 0/16384  field bit diffs 0  extra ops 0  border owners 0 (expected 0)  owners 1 vs 1  PASS
+  width swept 6 -> 0         byte diffs 0/16384  field bit diffs 0  extra ops 0  border owners 0 (expected 0)  owners 1 vs 1  PASS
+  enabled = false at width 6 byte diffs 0/16384  field bit diffs 0  extra ops 0  border owners 0 (expected 0)  owners 1 vs 1  PASS
+  control: the SAME border at width 6 changes 1628 bytes (expected > 0, else the identity is vacuous)  PASS
+  RESULT: PASS
+BT-2 the strip field IS ShaperOps.Shell (bitwise, dense in d and w)
+  unjoined Centred   samples 24576  bitwise mismatches 0  worst abs delta 0  PASS
+  unjoined Inward    samples 24576  bitwise mismatches 0  worst abs delta 0  PASS
+  unjoined Outward   samples 24576  bitwise mismatches 0  worst abs delta 0  PASS
+  joined   Centred   samples 24576  bitwise mismatches 0  worst abs delta 0  PASS
+  joined   Inward    samples 24576  bitwise mismatches 0  worst abs delta 0  PASS
+  joined   Outward   samples 24576  bitwise mismatches 0  worst abs delta 0  PASS
+  RESULT: PASS
+BT-3 band placement and total thickness (BD-1.3 / BD-1.4)
+  Centred   w=6  crossings 2 (expected 2)  d = [-2.999, 3.001] expected [-3.000, 3.000]  thickness 6.000 expected 6.000  PASS
+  Inward    w=6  crossings 2 (expected 2)  d = [-6.000, 0.001] expected [-6.000, 0.000]  thickness 6.000 expected 6.000  PASS
+  Outward   w=6  crossings 2 (expected 2)  d = [0.001, 6.001] expected [0.000, 6.000]  thickness 6.000 expected 6.000  PASS
+  RESULT: PASS
+BT-4 inward strip == shape coverage on the boundary ring
+  Inward   Ellipse  strip vs shape  ring 208  max abs difference 0 (expected <= 0)  bitwise-identical 208/208  PASS
+  Inward   Rect     strip vs shape  ring 276  max abs difference 0 (expected <= 0)  bitwise-identical 276/276  PASS
+  Inward   Diamond  strip vs shape  ring 136  max abs difference 0 (expected <= 0)  bitwise-identical 136/136  PASS
+  Inward   Triangle strip vs shape  ring 136  max abs difference 0 (expected <= 0)  bitwise-identical 136/136  PASS
+  Inward   Star     strip vs shape  ring 248  max abs difference 0 (expected <= 0)  bitwise-identical 248/248  PASS
+  RESULT: PASS
+BT-5 outward strip + shape coverage == 1 on the boundary ring
+  Outward  Ellipse  strip+shape vs 1  ring 208  max abs difference 0 (expected <= 1.1920929E-07)  bitwise-identical 208/208  PASS
+  Outward  Rect     strip+shape vs 1  ring 276  max abs difference 0 (expected <= 1.1920929E-07)  bitwise-identical 276/276  PASS
+  Outward  Diamond  strip+shape vs 1  ring 136  max abs difference 5.96046448E-08 (expected <= 1.1920929E-07)  bitwise-identical 120/136  PASS
+  Outward  Triangle strip+shape vs 1  ring 136  max abs difference 5.96046448E-08 (expected <= 1.1920929E-07)  bitwise-identical 0/136  PASS
+  Outward  Star     strip+shape vs 1  ring 248  max abs difference 5.96046448E-08 (expected <= 1.1920929E-07)  bitwise-identical 232/248  PASS
+  RESULT: PASS
+BT-6 a border's positional gradient anchors on the NODE's box (FC-8.4)
+  precondition: the STRIP's anchor half-extent 54 differs from the NODE's 34 at reach 20 (else this leg cannot fail)  PASS
+  1px vs 20px outward, RESOLVER-bound anchor: bitwise colour diffs 0/4 (expected 0)  worst channel delta 0  PASS
+  control, the STRIP's own anchor instead: colour diffs 3/4 (expected > 0, else BD-3.2 is unfalsifiable)  PASS
+  control, anchor grown by the reach (the naive strip anchor): colour diffs 3/4 (expected > 0, else this leg cannot fail)  worst channel delta 0.300242305  PASS
+  bound border fill's anchor == the NODE's anchor, bitwise (invHx, anchorCx)  PASS
+  RESULT: PASS
+BT-7 a border's edgeDistance is the STRIP's field, and its ramp is a ridge
+  ownDistance[border] == strip field: 4096/4096 (expected all)   == node field: 0/4096 (expected fewer, else the two are indistinguishable)  PASS
+  strip ramp t at [inner face, centre line, outer face] = [0.0000, 1.0000, 0.0000]  expected [0, 1, 0]  PASS
+  control, the same ramp on the NODE's field = [1.0000, 0.0000, 0.0000]  expected NOT a ridge  PASS
+  RESULT: PASS
+BT-8 joining is a dilation, not a union (the BD-2.2 seam, measured)
+  interior samples judged 4792
+  d - reach  (the ruling):  samples below 0.999 = 0 (expected 0)  min coverage 1.000000  PASS
+  min(d, strip) (the naive union): samples below 0.999 = 192 (expected > 0)  min coverage 0.511026  PASS
+  RESULT: PASS
+BT-9 joinsCoverage = false: identical field, different picture
+  published field, opted out vs no border: bit diffs 0/16384 (expected 0)  PASS
+  control, the SAME border joined:         bit diffs 16384/16384 (expected > 0, else the field test cannot fail)  PASS
+  painted bytes, opted out vs no border:   diffs 1628 (expected > 0 — it is drawn, just not counted)  PASS
+  RESULT: PASS
+BT-10 the join grows the CULLING box and not the ANCHOR box
+  localSupport half-extents: 34 -> 34 (expected bitwise identical)  PASS
+  supportHalfW (the culling box) on an ISOTROPIC node: 34.0000 -> 42.0000, grew 8.0000 (expected the reach, 8)  PASS
+  scale (2.0, 0.5), reach 8, supportSpread 4: joined silhouette samples 5028, OUTSIDE the declared box 0 (expected 0), worst overshoot 0.000px  PASS
+  the same box test on the STRIP: samples 3216, OUTSIDE 0 (expected 0), worst overshoot 0.000px  PASS
+  the node's own gradient, sampled: bitwise diffs 0/1024 (expected 0)  PASS
+  control, an anchor box grown by the reach: diffs 640/1024 (expected > 0, else this leg cannot fail)  PASS
+  RESULT: PASS
+BT-11 a bag's border is above its members' borders and above their fills
+  overlapping rings, sample at d = -2.5: nearest authored colour is 'bag border' (distance 0.0000), expected 'bag border'  PASS
+  member owns the fill: rim reads 'bag border' (0.0000), core reads 'member fill' (0.0000), expected 'bag border' and 'member fill'  PASS
+  control, bag border removed: the same probe reads 'member border' (0.0000), expected 'member border'  PASS
+  A owns NO fill: where A's rim crosses B the sample reads 'B fill' (distance 0.0000), expected 'B fill'  PASS
+  control, A OWNS a fill (same z-order reached by a different route): reads 'B fill' (distance 0.0000), expected 'B fill' - the two configurations must AGREE  PASS
+  RESULT: PASS
+BT-12 a Subtract member may not own a border; the bag outlines the hole
+  border owners 1 (expected 1, the bag's)  on the Subtract member 0 (expected 0)  diagnostic 'Hole' x1  PASS
+    reason: Border on 'Hole' cannot be attached: a subtracted member removes coverage; it deposits nothing. Outline the hole with a border on the bag.
+  the refused border also does not dilate: field bit diffs 0 (expected 0)  PASS
+  the bag's border strip coverage at [hole rim, mid-material, outer rim] = [1.000, 0.000, 1.000]  expected [~1, ~0, ~1]  PASS
+  an Intersect member MAY own a border: border owners 1 (expected 1), subtract diagnostic False (expected False)  PASS
+  BD-3.4 ancestor clip: the member's rim inside a LATER Subtract member's hole has alpha 0.0000 (expected 0); on the intact side alpha 1.0000 and it is the rim colour (expected 1)  PASS
+  RESULT: PASS
+BT-13 instrument self-test: every measurement must be able to report a failure
+  M1  BT-1 vs a 0.25px border: 248 byte diffs (must be > 0)  detected True  PASS
+  M2  BT-2 vs abs(d) - w (the doubled Straddling): 64/64 mismatches (must be > 0)  detected True  PASS
+  M3  BT-3 with the doubled Straddling prediction: measurement passed = False (must be False)  detected True  PASS
+  M4  BT-4/BT-5 crossed: inward-as-complement passed = False, outward-as-identity passed = False (both must be False)  detected True  PASS
+  M5  BT-7's ridge test on the NODE's field: ridge detected = False (must be False)  detected True  PASS
+  M6  BT-12's refusal with mode = Add: border owners 1 (must be 1), diagnostic False (must be False)  detected True  PASS
+  M7  BT-14's IL decoder on methods that DO allocate: ShaperBorder.CompileStrip = 2 [newarr newobj ShaperProgram], ShaperFillDocument.Summary = 6 [newobj StringBuilder newarr newarr newarr newarr newarr]  both must be > 0  detected True  PASS
+  M8  GC.GetTotalMemory(false) calibration: one 65536-byte array -> 69632 bytes seen (must be > 0);  1 MB of 24-byte arrays -> 110592 bytes seen (a 0 here is the KNOWN blind spot, reported not asserted)  PASS
+  M9  BT-10's box bound with the BARE reach (the shipped growth): measurement passed = False (must be False)  detected True  PASS
+  M10 BT-6's anchor taken from the STRIP: colour diffs 3/4 (must be > 0)  detected True  PASS
+  M11 BT-11's hostless border with the later-sibling mask disabled: measurement passed = False (must be False)  detected True  PASS
+  inline controls already asserted by their own legs: BT-1 live border, BT-6 strip anchor + grown anchor, BT-8 naive union, BT-9 joined twin, BT-10 grown anchor + bare-reach bound, BT-11 removed bag border + A-owns-a-fill, BT-12 Intersect member.
+  RESULT: PASS
+BT-14 zero allocation in the border paint path
+  subject: 4 owners of which 2 borders (expected 2 - a document with no border owner would measure the wrong thing)  PASS
+  IL decode of the TRANSITIVE call graph from PaintTile: 50 methods reached, 0 heap allocations found (expected 0)  PASS
+    types reached: ShaperBorder, ShaperEvaluator, ShaperField, ShaperFillBuffers, ShaperFillOps, ShaperFillResolver, ShaperFillSheets, ShaperHeight, ShaperLightLaw, ShaperLightRigCompiled, ShaperNormals, ShaperOps, ShaperSdf, ShaperSolids
+  heap over 40 tiles x 16384 samples = 655360 samples: GetTotalMemory delta 20480 bytes, gen-0 collections 0 (process-wide, informational only - see BT-13 M8)
+  heap over 40000 calls on an 8x8 tile: GetTotalMemory delta 0 bytes, gen-0 collections 0 (process-wide, informational only - see BT-13 M8)
+  RESULT: PASS

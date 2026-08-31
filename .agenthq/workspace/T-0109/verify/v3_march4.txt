@@ -1,0 +1,9 @@
+=== V2-MARCH - adversarial attacks on the rebuilt QueryGeneral ===
+
+
+
+-- 4. rays nearly parallel to a vertical silhouette wall (hugging a slot face) --
+      30 rays, mismatches = 0
+
+
+

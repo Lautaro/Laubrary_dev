@@ -1,0 +1,315 @@
+=== Shaper field audit ===
+V1 sweep identity (bitwise, full extent vs no sweep)
+  Rect 120x80 r0               mismatched 0/14641
+  Rect 120x80 r18              mismatched 0/14641
+  Ellipse circle r50           mismatched 0/14641
+  Ellipse 60x25                mismatched 0/14641
+  Ellipse 20x70                mismatched 0/14641
+  Diamond 50x30                mismatched 0/14641
+  Triangle 90x70               mismatched 0/14641
+  Capsule 40+15                mismatched 0/14641
+  NGon 3 r50                   mismatched 0/14641
+  NGon 6 r50                   mismatched 0/14641
+  NGon 8 r50 corner12          mismatched 0/14641
+  NGon 12 r50 rot17            mismatched 0/14641
+  Star 5 len.62 bw1            mismatched 0/14641
+  Star 5 len.80 bw.5 skew20    mismatched 0/14641
+  Star 7 len.40 bw.8 skew-30   mismatched 0/14641
+  Star 2 len.9 bw1             mismatched 0/14641
+  Star 20 len.5 bw.3 skew60    mismatched 0/14641
+  RESULT: PASS — 0 mismatched bits over 248897 samples
+
+V2 shell identity (bitwise, disabled shell vs no shell)
+  Rect 120x80 r0               mismatched 0/14641
+  Rect 120x80 r18              mismatched 0/14641
+  Ellipse circle r50           mismatched 0/14641
+  Ellipse 60x25                mismatched 0/14641
+  Ellipse 20x70                mismatched 0/14641
+  Diamond 50x30                mismatched 0/14641
+  Triangle 90x70               mismatched 0/14641
+  Capsule 40+15                mismatched 0/14641
+  NGon 3 r50                   mismatched 0/14641
+  NGon 6 r50                   mismatched 0/14641
+  NGon 8 r50 corner12          mismatched 0/14641
+  NGon 12 r50 rot17            mismatched 0/14641
+  Star 5 len.62 bw1            mismatched 0/14641
+  Star 5 len.80 bw.5 skew20    mismatched 0/14641
+  Star 7 len.40 bw.8 skew-30   mismatched 0/14641
+  Star 2 len.9 bw1             mismatched 0/14641
+  Star 20 len.5 bw.3 skew60    mismatched 0/14641
+  RESULT: PASS — 0 mismatched bits over 248897 samples
+
+V3 soft-combine identities (bitwise where structural; algebra tested separately)
+  soft Add @ width 0 vs hard min : mismatched 0/14641
+  soft Subtract @ strength 0     : mismatched 0/14641 (+64 deep-interior probes)
+  soft Subtract @ strength 1     : mismatched 0/14641
+    (a)(b)(c) above are STRUCTURAL early-outs in ShaperOps.Combine — a bitwise pass
+    here verifies the branch, which is what the spec asks for, not the algebra.
+  (d) un-shortcut algebra, reach 100: band@s=1 = -5.245E-006 (NOT 0), band@s=0 = 0.000E+000
+      raw(s=1) vs max(a,-b): worst |diff| 7.629E-006 over 160801 (a,b) pairs
+      raw(s=0) vs a        : worst |diff| 0.000E+000
+      Reading: the algebra lands NEAR the hard cut, not ON it. Bit-identity comes
+      from the early-out, and that is exactly why the early-out is not optional.
+  RESULT: PASS
+
+V4 declared bounds, measured sup|grad f| (measured vs declared)
+  -- primitives --
+  Rect 120x80 r0                               GATE h=1.3E-001 1.0000   loc h=1.3E-003 1.0013 (res 0.0419)   declared 1.00  ok
+  Rect 120x80 r18                              GATE h=1.3E-001 1.0000   loc h=1.3E-003 1.0006 (res 0.0445)   declared 1.00  ok
+  Ellipse circle r50                           GATE h=1.3E-001 1.0000   loc h=1.3E-003 1.0021 (res 0.0491)   declared 1.00  ok
+  Ellipse 60x25                                GATE h=1.3E-001 1.0000   loc h=1.3E-003 1.0006 (res 0.0518)   declared 1.00  ok
+  Ellipse 20x70                                GATE h=1.3E-001 1.0000   loc h=1.3E-003 1.0016 (res 0.0509)   declared 1.00  ok
+  Diamond 50x30                                GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0013 (res 0.0552)   declared 1.00  ok
+  Triangle 90x70                               GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0037 (res 0.0585)   declared 1.00  ok
+  Capsule 40+15                                GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0008 (res 0.0514)   declared 1.00  ok
+  NGon 3 r50                                   GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0036 (res 0.0553)   declared 1.00  ok
+  NGon 6 r50                                   GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0045 (res 0.0486)   declared 1.00  ok
+  NGon 8 r50 corner12                          GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0043 (res 0.0476)   declared 1.00  ok
+  NGon 12 r50 rot17                            GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0033 (res 0.0476)   declared 1.00  ok
+  Star 5 len.62 bw1                            GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0041 (res 0.0506)   declared 1.00  ok
+  Star 5 len.80 bw.5 skew20                    GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0049 (res 0.0506)   declared 1.00  ok
+  Star 7 len.40 bw.8 skew-30                   GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0044 (res 0.0492)   declared 1.00  ok
+  Star 2 len.9 bw1                             GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0043 (res 0.0553)   declared 1.00  ok
+  Star 20 len.5 bw.3 skew60                    GATE h=1.2E-001 1.0001   loc h=1.2E-003 1.0078 (res 0.0480)   declared 1.00  ok
+  -- transforms (bound must pass through UNCHANGED) --
+  transform: identity                          GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0005 (res 0.0583)   declared 1.00  ok
+  transform: translate(30,-20)                 GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0007 (res 0.0659)   declared 1.00  ok
+  transform: rotate 30                         GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0006 (res 0.0607)   declared 1.00  ok
+  transform: scale(0.2,1)                      GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0001 (res 0.0468)   declared 1.00  ok
+  transform: scale(3,0.5)                      GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0000 (res 0.0452)   declared 1.00  ok
+  transform: skew(20,10)                       GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0000 (res 0.0606)   declared 1.00  ok
+  transform: origin(40,25)+rot45               GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0016 (res 0.0698)   declared 1.00  ok
+  transform: full stack                        GATE h=2.2E-001 0.9999   loc h=2.2E-003 1.0000 (res 0.0589)   declared 1.00  ok
+  -- combines --
+  combine: Add soft BRIDGE w=30 sharp 0        GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0513)   declared 1.00  ok
+  combine: Add soft BRIDGE w=30 sharp .5       GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0513)   declared 1.00  ok
+  combine: Add soft BRIDGE w=60 sharp 0        GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0513)   declared 1.00  ok
+  combine: Intersect soft BRIDGE w=30          GATE h=1.6E-001 0.9999   loc h=1.6E-003 0.9999 (res 0.0701)   declared 1.00  ok
+  combine: Subtract BRIDGE strength .5         GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0701)   declared 1.00  ok
+  combine: Subtract BRIDGE strength .25        GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0701)   declared 1.00  ok
+  combine: Add hard                            GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0518)   declared 1.00  ok
+  combine: Add soft w=14 sharp .0              GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0518)   declared 1.00  ok
+  combine: Add soft w=14 sharp .5              GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0518)   declared 1.00  ok
+  combine: Add soft w=14 sharp 1.              GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0518)   declared 1.00  ok
+  combine: Intersect hard                      GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0017 (res 0.0692)   declared 1.00  ok
+  combine: Intersect soft w=14                 GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0017 (res 0.0692)   declared 1.00  ok
+  combine: Subtract strength 1                 GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0017 (res 0.0518)   declared 1.00  ok
+  combine: Subtract strength 0.5               GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0002 (res 0.0518)   declared 1.00  ok
+  combine: Subtract strength 0.15              GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0002 (res 0.0518)   declared 1.00  ok
+  combine: Subtract strength 0.85              GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0002 (res 0.0518)   declared 1.00  ok
+  combine: Subtract strength 0                 GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0002 (res 0.0518)   declared 1.00  ok
+  -- operators --
+  sweep radial 140deg                          GATE h=1.4E-001 1.0000   loc h=1.4E-003 1.0027 (res 0.0612)   declared 1.00  ok
+  sweep radial 280deg (union)                  GATE h=1.4E-001 1.0000   loc h=1.4E-003 1.0027 (res 0.0512)   declared 1.00  ok
+  sweep longitudinal 0.25..0.75                GATE h=1.4E-001 1.0000   loc h=1.4E-003 1.0000 (res 0.0535)   declared 1.00  ok
+  shell Centred                                GATE h=1.4E-001 1.0000   loc h=1.4E-003 1.0014 (res 0.0505)   declared 1.00  ok
+  shell Inward                                 GATE h=1.4E-001 1.0000   loc h=1.4E-003 1.0023 (res 0.0522)   declared 1.00  ok
+  shell Outward                                GATE h=1.4E-001 1.0000   loc h=1.4E-003 1.0014 (res 0.0487)   declared 1.00  ok
+  -- compositions (depth 2-3) --
+  depth2: bag(bag(rect+ellipse), diamond-sub)  GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0003 (res 0.0576)   declared 1.00  ok
+  depth3: bag(bag(bag(...)))+intersect         GATE h=1.8E-001 1.0000   loc h=1.8E-003 1.0010 (res 0.0546)   declared 1.00  ok
+  combine with FOUR members                    GATE h=1.7E-001 1.0000   loc h=1.7E-003 1.0000 (res 0.0546)   declared 1.00  ok
+  combine UNDER transform (scale .35/1.9, rot) GATE h=2.0E-001 0.9999   loc h=2.0E-003 1.0004 (res 0.0638)   declared 1.00  ok
+  Star under transform (scale+skew+origin)     GATE h=1.8E-001 0.9999   loc h=1.8E-003 1.0003 (res 0.0576)   declared 1.00  ok
+  NGon 11 under transform (scale 1.8/0.4)      GATE h=1.8E-001 0.9999   loc h=1.8E-003 1.0000 (res 0.0583)   declared 1.00  ok
+  sweep radial 205deg OVER a bag               GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0584)   declared 1.00  ok
+  shell OVER a bag (star minus rect)           GATE h=1.5E-001 1.0000   loc h=1.5E-003 1.0029 (res 0.0527)   declared 1.00  ok
+  sweep+shell over a bag, under a transform    GATE h=1.8E-001 0.9998   loc h=1.8E-003 0.9998 (res 0.0649)   declared 1.00  ok
+  RESULT: PASS
+
+V5 ratio cross-check, reported/trueEuclidean against a boundary polyline
+  Every ratio is followed by the CLOUD's own worst-case relative error at the skip
+  radius, so the number can be read honestly: a ratio is only meaningful beyond it.
+  Rect 120x80 r0               in 1.0000 out 1.0000  declared 1.00  ok   [13899 pts used, 742 skipped closer than 3.30; cloud err <= 1.91E-005]
+  Rect 120x80 r15              in 1.0000 out 1.0000  declared 1.00  ok   [13943 pts used, 698 skipped closer than 3.30; cloud err <= 9.31E-006]
+  NGon 6 r50                   in 1.0000 out 1.0000  declared 1.00  ok   [14031 pts used, 610 skipped closer than 3.00; cloud err <= 4.57E-006]
+  NGon 8 r50                   in 1.0000 out 1.0000  declared 1.00  ok   [13985 pts used, 656 skipped closer than 3.00; cloud err <= 4.02E-006]
+  NGon 3 r50 corner15          in 1.0000 out 1.0000  declared 1.00  ok   [14032 pts used, 609 skipped closer than 3.00; cloud err <= 5.06E-006]
+  Star 5 len.62 bw1            in 1.0000 out 1.0000  declared 1.00  ok   [13868 pts used, 773 skipped closer than 3.00; cloud err <= 3.63E-005]
+  Star 5 len.80 bw.5 skew20    in 1.0000 out 1.0000  declared 1.00  ok   [13890 pts used, 751 skipped closer than 3.00; cloud err <= 7.87E-002]
+  Star 7 len.40 bw.8 skew-30   in 1.0000 out 1.0000  declared 1.00  ok   [13792 pts used, 849 skipped closer than 3.00; cloud err <= 4.62E-003]
+  Ellipse circle r50           in 1.0000 out 1.0000  declared 1.00  ok   [13969 pts used, 672 skipped closer than 3.00; cloud err <= 3.43E-006]
+  Ellipse 60x25                in 1.0000 out 1.0000  declared 1.00  ok   [14045 pts used, 596 skipped closer than 3.00; cloud err <= 6.81E-006]
+  Ellipse 100x2                in   n/a  out 1.0000  declared 1.00  ok   [14238 pts used, 403 skipped closer than 4.50; cloud err <= 2.26E-003]
+  Ellipse 80x10                in 1.0000 out 1.0000  declared 1.00  ok   [14083 pts used, 558 skipped closer than 3.90; cloud err <= 5.16E-005]
+  Ellipse 40x20                in 1.0000 out 1.0000  declared 1.00  ok   [14181 pts used, 460 skipped closer than 2.70; cloud err <= 3.14E-006]
+  Ellipse 20x70                in 1.0000 out 1.0000  declared 1.00  ok   [14105 pts used, 536 skipped closer than 3.60; cloud err <= 1.07E-005]
+  Ellipse 50x51 (near-circle)  in 1.0000 out 1.0000  declared 1.00  ok   [13955 pts used, 686 skipped closer than 3.00; cloud err <= 3.57E-006]
+  -- ellipse evolute region (major axis, inside the cusp, and just off it) --
+  evolute  60x25  cusp at  49.583  worst ratio 1.000000  ok   [2412/2412 probes beyond 1.250; exact oracle, no cloud]
+  evolute 100x2   cusp at  99.960  worst ratio 1.000000  ok   [2390/2412 probes beyond 0.100; exact oracle, no cloud]
+  evolute  80x10  cusp at  78.750  worst ratio 1.000000  ok   [2412/2412 probes beyond 0.500; exact oracle, no cloud]
+  evolute  40x20  cusp at  30.000  worst ratio 1.000000  ok   [2412/2412 probes beyond 1.000; exact oracle, no cloud]
+  evolute  20x70  cusp at  64.286  worst ratio 1.000000  ok   [2412/2412 probes beyond 1.000; exact oracle, no cloud]
+  RESULT: PASS
+
+V6 anisotropy — child under scale.x = 0.2
+  scale.x=0.2   GATE sup|grad| 1.0000  (localiser 1.0000, res 0.0468)  declared 1.00  ok
+           ratio inside 1.0000  outside 1.0000
+  scale.x=0.1   GATE sup|grad| 1.0000  (localiser 1.0000, res 0.0470)  declared 1.00  ok
+           ratio inside 1.0000  outside 1.0000
+  scale.x=5     GATE sup|grad| 1.0000  (localiser 1.0003, res 0.0391)  declared 1.00  ok
+           ratio inside 1.0000  outside 1.0000
+  RESULT: PASS
+
+V7 landmark trap — lobe tip vs field maximum
+  Shaper star : tip 1.0000   field max inside 1.0000 outside 1.0000   declared 1.00
+  reference flower (witness) : tip 1.0000   field max 3.1377
+  Reading: the landmark is 1.0000x on BOTH, and only one of them is actually bounded at 1.
+  RESULT: PASS
+
+V8 tile independence (bitwise, prime-sized decomposition)
+  mismatched 0/8633 samples (distance + coverage)
+  RESULT: PASS
+
+V9 shelled inside-ness (a shelled disc is an annulus)
+  centre  d =   44.0000  coverage 0.000  (must be OUTSIDE the annulus)
+  wall    d =   -6.0000  coverage 1.000  (must be INSIDE)
+  inner   d =   -1.0000
+  outside d =   24.0000
+  RESULT: PASS
+
+V10 degenerate inputs (no NaN / no Inf / no throw, plus correctness where known)
+  -- zero and negative sizes --
+  Rect 0x0                                     min      0.000  max    169.706  inside     1  ok
+  Rect -30x-10                                 min      0.000  max    169.706  inside     1  ok
+  Rect 60x40 corner 999                        min    -40.000  max    116.205  inside   921  ok
+  Ellipse 0x0                                  min      0.000  max    169.706  inside     1  ok
+  Ellipse -40x30                               min      0.000  max    150.000  inside    19  ok
+  Diamond 0x0                                  min      0.000  max    169.706  inside     1  ok
+  Triangle 0x0                                 min      0.000  max    169.706  inside     1  ok
+  Triangle -90x-70                             min      0.000  max    169.706  inside     1  ok
+  Capsule 0+0                                  min      0.000  max    169.706  inside     1  ok
+  -- counts below their legal minimum --
+  NGon sides 0                                 min    -25.000  max    138.924  inside   367  ok   clamped to 3
+  NGon sides -5                                min    -25.000  max    138.924  inside   367  ok   clamped to 3
+  NGon sides 1000                              min    -49.940  max    119.706  inside   877  ok   clamped to 64
+  NGon radius 0                                min      0.000  max    169.706  inside     1  ok
+  Star arms 0                                  min    -17.761  max    138.924  inside   213  ok   clamped to 2
+  Star arms 1                                  min    -17.761  max    138.924  inside   213  ok   clamped to 2
+  Star arms 200                                min    -19.000  max    120.575  inside   321  ok   clamped to 20
+  -- star valley floor vs tip radius (rIn <= R always; rIn < R whenever length > 0) --
+    scale-free at length 1: rIn/R = 0.010000 at R=0.4 and 0.010000 at R=100  ok
+    all rIn < R across R x length : ok
+  -- zero-thickness shell must EMPTY the interior, not restore the solid --
+    thickness 0, Centred : != |d| on 0/6561, interior points 0, still-solid 0  ok
+    thickness 0, Inward  : != |d| on 0/6561, interior points 0, still-solid 0  ok
+    thickness 0, Outward : != |d| on 0/6561, interior points 0, still-solid 0  ok
+  -- zero and negative sweep extents --
+  sweep radial extent 0                        min      0.000  max    163.923  inside     0  ok   nothing inside
+  sweep radial extent -90                      min      0.000  max    163.923  inside     0  ok   clamped to a zero wedge
+  sweep longitudinal extent 0                  min      0.000  max    129.222  inside     0  ok   zero-width slab
+  -- singular and extreme transforms --
+  transform scale (0,0)                        min 1000000000.000  max 1000000000.000  inside     0  ok
+    flag hasSingularTransform=True count=1 node='r'  ok
+  transform scale (1,0)                        min 1000000000.000  max 1000000000.000  inside     0  ok
+  transform skew (89,89)                       min  -1407.251  max  -1287.251  inside  6561  ok
+  -- empty trees and leading non-Add members --
+  empty Bag                                    min 1000000000.000  max 1000000000.000  inside     0  ok
+  null root                                    Empty everywhere, ok
+  bag with a leading Subtract                  min 1000000000.000  max 1000000000.000  inside     0  ok
+    flag hasLeadingNonAdd=True count=1 node='member'  ok
+    three offending bags -> count 3 (expect 3), first 'member'  ok
+    three singular transforms -> count 3 (expect 3), first 's1'  ok
+  RESULT: PASS
+
+V11 ellipse vs brute-force nearest-point oracle
+  -- the reported failing point: rx=60 ry=25, y=-29.65 (was 47.198 vs true 6.514) --
+    x=-23.27936    reported    6.51424   oracle    6.51424   ratio 1.000000  ok
+    x=-23.27736    reported    6.51391   oracle    6.51391   ratio 1.000000  ok
+    x=-23.27536    reported    6.51358   oracle    6.51358   ratio 1.000000  ok
+  -- fine 1-D chord scans (step 1e-3 of size) across the evolute, the cusp and both axes --
+     continuity = max |d(i)-d(i-1)| / step  (must be <= 1: the field is 1-Lipschitz)
+      100x2     22 chords, step 0.1000  continuity 1.000403  ratio 1.000000  ok   [57600 samples, 5755 oracle]
+       80x10    22 chords, step 0.0800  continuity 1.000402  ratio 1.000000  ok   [57600 samples, 5744 oracle]
+       60x25    22 chords, step 0.0600  continuity 1.000340  ratio 1.000000  ok   [57600 samples, 5702 oracle]
+       40x20    22 chords, step 0.0400  continuity 1.000402  ratio 1.000000  ok   [57600 samples, 5665 oracle]
+       20x70    22 chords, step 0.0700  continuity 1.000430  ratio 1.000000  ok   [57600 samples, 5719 oracle]
+       50x50    22 chords, step 0.0500  continuity 1.000508  ratio 1.000002  ok   [57600 samples, 5584 oracle]
+       50x51    22 chords, step 0.0510  continuity 1.000465  ratio 1.000000  ok   [57600 samples, 5597 oracle]
+       50x55    22 chords, step 0.0550  continuity 1.000352  ratio 1.000000  ok   [57600 samples, 5598 oracle]
+        2x100   22 chords, step 0.1000  continuity 1.000403  ratio 1.000000  ok   [57600 samples, 5754 oracle]
+        1x40    22 chords, step 0.0400  continuity 1.000402  ratio 1.000000  ok   [57600 samples, 5757 oracle]
+      200x3     22 chords, step 0.2000  continuity 1.000409  ratio 1.000000  ok   [57600 samples, 5757 oracle]
+       30x29    22 chords, step 0.0300  continuity 1.000396  ratio 1.000000  ok   [57600 samples, 5586 oracle]
+  WORST CONTINUITY over all scans: 1.000508  (50x50 at (-24.7213,-42.8186))
+  WORST SCAN RATIO  over all scans: 1.000002  (50x50 at (36.0914,36.0914))
+  -- 2-D sweep for breadth, |reported| / oracle --
+      100x2     worst ratio 1.000000 at (-150.000,-150.000)  [6555 pts beyond 1.00]  ok
+       80x10    worst ratio 1.000000 at (-120.000,-120.000)  [6501 pts beyond 0.80]  ok
+       60x25    worst ratio 1.000000 at ( -90.000, -90.000)  [6491 pts beyond 0.60]  ok
+       40x20    worst ratio 1.000000 at ( -60.000, -60.000)  [6497 pts beyond 0.40]  ok
+       20x70    worst ratio 1.000000 at (-105.000,-105.000)  [6525 pts beyond 0.70]  ok
+       50x50    worst ratio 1.000003 at (  -7.500, -48.750)  [6461 pts beyond 0.50]  ok
+       50x51    worst ratio 1.000000 at ( -76.500, -76.500)  [6471 pts beyond 0.51]  ok
+       50x55    worst ratio 1.000000 at ( -82.500, -82.500)  [6467 pts beyond 0.55]  ok
+        2x100   worst ratio 1.000000 at (-150.000,-150.000)  [6555 pts beyond 1.00]  ok
+        1x40    worst ratio 1.000000 at ( -60.000, -60.000)  [6557 pts beyond 0.40]  ok
+      200x3     worst ratio 1.000000 at (-300.000,-300.000)  [6547 pts beyond 2.00]  ok
+       30x29    worst ratio 1.000000 at (   0.000,  -4.500)  [6483 pts beyond 0.30]  ok
+  WORST OVER ALL ASPECT RATIOS: 1.000003  (50x50 at (-7.500,-48.750))
+  The oracle refines a 4096-angle coarse scan by 60 ternary steps, so its own
+  discretisation is below float32 resolution and the ratio can be read as exact.
+  -- circle fast path (in-band): ABSOLUTE error, since the ratio is unbounded here --
+          50x50.00049    in-band True  worst |err| 2.480E-004 <= 2.680E-004  ok
+             near-boundary march: ratio peaks at      63.00x  where true d = 3.815E-006 and |err| = 2.365E-004
+          50x49.99951    in-band True  worst |err| 2.480E-004 <= 2.680E-004  ok
+             near-boundary march: ratio peaks at 79742390000.00x  where true d = 3.062E-015 and |err| = 2.441E-004
+        1000x1000.01     in-band True  worst |err| 5.035E-003 <= 5.421E-003  ok
+             near-boundary march: ratio peaks at      80.00x  where true d = 6.104E-005 and |err| = 4.822E-003
+        1000x999.9901    in-band True  worst |err| 5.020E-003 <= 5.421E-003  ok
+             near-boundary march: ratio peaks at 80739160000.00x  where true d = 6.123E-014 and |err| = 4.944E-003
+         0.5x0.500004    in-band True  worst |err| 2.041E-006 <= 2.235E-006  ok
+             near-boundary march: ratio peaks at      32.50x  where true d = 5.960E-008 and |err| = 1.878E-006
+           7x7.00003     in-band True  worst |err| 1.574E-005 <= 1.836E-005  ok
+             near-boundary march: ratio peaks at      30.50x  where true d = 4.768E-007 and |err| = 1.407E-005
+      100000x100000.9    in-band True  worst |err| 4.609E-001 <= 4.969E-001  ok
+             near-boundary march: ratio peaks at      56.50x  where true d = 7.813E-003 and |err| = 4.336E-001
+     Read the two columns together: the |err| column is flat and bounded by |rx-ry|/2,
+     which is 5e-6 of the shape's size - under one float32 ulp of any distance
+     comparable to the shape. The ratio column runs away only because it divides by a
+     true distance heading to zero. That is the metric failing, not the field: the
+     field is a circle's exact SDF and stays perfectly Lipschitz-1 throughout.
+  RESULT: PASS
+
+V12 N-gon outer extent under rounding (authored radius must stay the circumradius)
+  sides |  corner 0    5    12.5   25    35    45    50 (= full round)
+      3 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+      4 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+      5 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+      6 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+      7 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+      8 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     10 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     12 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     16 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     20 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     24 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     32 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     40 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     48 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     56 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     64 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+  worst |measured circumradius - authored| = 0.0000 on sides 3, corner 50 (tolerance 0.100, = the 720-ray bisection's own resolution)
+  RESULT: PASS
+
+V13 instrument self-test — inject a known violation, check the gate flips
+  subject: k * exact Rect SDF (60x40), true Lipschitz constant = k exactly; declared bound 1.00, tolerance 1.0010
+    k=1.00000  measured   1.00001  gate says ok    expected ok    tracks k True   ok   (localiser 1.0013, res 0.0419)
+    k=1.00050  measured   1.00051  gate says ok    expected ok    tracks k True   ok   (localiser 1.0019, res 0.0419)
+    k=1.00090  measured   1.00091  gate says ok    expected ok    tracks k True   ok   (localiser 1.0023, res 0.0419)
+    k=1.00099  measured   1.00100  gate says ok    expected ok    tracks k True   ok   (localiser 1.0023, res 0.0419)
+    k=1.00100  measured   1.00101  gate says OVER  expected edge  tracks k True   ok   (localiser 1.0024, res 0.0419)
+    k=1.00101  measured   1.00102  gate says OVER  expected OVER  tracks k True   ok   (localiser 1.0024, res 0.0419)
+    k=1.00110  measured   1.00111  gate says OVER  expected OVER  tracks k True   ok   (localiser 1.0024, res 0.0419)
+    k=1.00200  measured   1.00201  gate says OVER  expected OVER  tracks k True   ok   (localiser 1.0034, res 0.0420)
+    k=1.05000  measured   1.05001  gate says OVER  expected OVER  tracks k True   ok   (localiser 1.0514, res 0.0440)
+    k=2.00000  measured   2.00002  gate says OVER  expected OVER  tracks k True   ok   (localiser 2.0027, res 0.0837)
+    k=7.24000  measured   7.24007  gate says OVER  expected OVER  tracks k True   ok   (localiser 7.2497, res 0.3031)
+  Reading: the gate is ok for every k strictly below 1.00100 and OVER for every k strictly above it,
+  so it flips exactly at the tolerance and nowhere else; k == the tolerance itself is a
+  float knife-edge and is reported, not asserted. A gross violation comes back at its
+  true magnitude (7.24 reads 7.240) rather than saturated or clipped.
+  Note the localiser column never decides anything here - that is the point of P2.
+  RESULT: PASS
+

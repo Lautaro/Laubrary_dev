@@ -1,0 +1,12 @@
+DIAL RESPONSIVENESS: does 'aspect' / 'depth' change anything, per solid form?
+  Orb      covered px=2828  aspect 1->0.4 differing px = 0   depth 1->0.4 differing px = 0
+  Box      covered px=3600  aspect 1->0.4 differing px = 2160   depth 1->0.4 differing px = 0
+  Can      covered px=3600  aspect 1->0.4 differing px = 2160   depth 1->0.4 differing px = 0
+  Gem      covered px=1078  aspect 1->0.4 differing px = 0   depth 1->0.4 differing px = 0
+  Ring     covered px=1980  aspect 1->0.4 differing px = 0   depth 1->0.4 differing px = 0
+  Pyramid  covered px=1246  aspect 1->0.4 differing px = 1264   depth 1->0.4 differing px = 1246
+
+D-6 DIRECTIONAL EQUIVALENCE  (Rot*N).L  vs  N.(Rot^-1*L)
+  samples 3600  bit-identical 1895/3600  worst |difference| = 5.960E-008
+  (a rotation is an ISOMETRY, so it also preserves |lightPos - P| exactly:
+   point-light distance  port=38.238780  Pyre-style=38.238780  |diff|=0.000E+000)

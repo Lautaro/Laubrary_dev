@@ -1,0 +1,46 @@
+=== V3-N4 - InverseAtEUpperBound (what ShaperResolve.cs:615 now calls) as an UPPER bound ===
+Same sweep as my V2A, but the t grid now INCLUDES t == tau exactly, which is where my
+second-pass worst case sat. Both functions measured side by side.
+  InverseAtE           (pre-fix per-step): checks=2974632  violations=2526  worst shortfall in zeta = 3,3379E-006
+      worst: Flat+Cove ang=45 a=0,05 zeta=0,995 tau=0,049999375 t=0,049999375 LowerG=0,99499667
+  InverseAtEUpperBound (SHIPPED per-step): checks=2974632  violations=40  worst shortfall in zeta = 1,1921E-007
+      worst: Dome+Rounded ang=45 a=1 zeta=1 tau=0,9998274 t=0,9998576 LowerG=0,9999999
+
+=== V3-N5 - is linearEGrad an upper bound MEASURED, not re-derived from the same four regimes? ===
+|grad E| sampled by central difference on the SHIPPED LocalNormalised+Profile over a dense
+grid that straddles every clamp boundary. The difference is formed in DOUBLE so the
+subtraction of two near-1 values stays honest.
+  configurations = 1650
+  configurations where the MEASURED |grad E| exceeds the baked bound by more than 2 percent: 0
+  worst measured/baked = 1,0165
+  angle=30 rot=73 skew=24 sx=0,4 halfH=40  measured=2,23537E-002 at (-37,3,14,5)  baked=2,19913E-002
+  (a central difference straddling a clamp edge under-reads, so a ratio slightly BELOW 1 is expected)
+
+=== V3-N1R - the residual ray in the 552-ray breakpoint sweep, examined ===
+  Stepped+Rounded  bp[8] zeta=0,500000 z=20,000000
+     got 2 crossings, true 6   Depth 200,0315 vs true 200,0321
+     emitted: 299,9830I 500,0145O 
+     truth  : 299,9829 299,9870 299,9880 500,0120 500,0130 500,0171 
+     air gap between span 0 and 1 = 1,0376E-003 px   (SurfaceResolution = 0,02)
+     air gap between span 1 and 2 = 1,0376E-003 px   (SurfaceResolution = 0,02)
+     duplicated rayT present (the N1 signature)? False
+     the same ray 4 ulps OFF the breakpoint (where N1 structurally cannot fire): got 2, true 2  -> agrees off the breakpoint
+  residual rays printed: 1
+
+=== V3-N3 - zero-width emitted pairs, hunted by MY OWN detector, not by H6 ===
+Two questions: (1) does the resolve still emit any pair of width 0 anywhere; (2) did the
+G > 0 convention LOSE anything the old closed reading contained (measured against a truth
+scan that still carries the OLD convention).
+  rays = 1008
+  emitted pairs of width <= 1e-5 px (the N3 signature): 0
+  true crossings (OLD closed convention) with no emitted one within 0.05 px: 0   worst gap 1,7548E-004 px  (Flat+Ogee tilt=38)
+  rays where Depth LOST solid vs the OLD convention: 0   worst loss 0,0000E+000 px
+
+=== V3-N6 - the Stepped inverses, exhaustively ===
+  (a) does floor(fl(k/n)*n) map back to k for every authored n and k?
+      indices where floor(fl(k/n)*n) < k : 4   n=22,k=13  n=23,k=7  n=23,k=14  n=29,k=15
+      bevel, k*(1/m) round trip failures : 0   
+  (b) |Ginv - Bisect| and reach shortfall over EVERY tread of EVERY step count, plus/minus 4 ulps
+      ProfileInverse(Stepped): probes=4681  worst |dt| = 3,448E-002 at n=29 k=15 zeta=0,5357143   worst reach shortfall = 0,000E+000
+      BevelInverseU(Stepped): probes=1245  worst |dt| = 5,960E-008 at m=6 k=5 zeta=0,83333343   worst reach shortfall = 0,000E+000
+  (c) containing prism: 520800 checks, 12 violations;  contained prism: 523404 checks, 0 violations

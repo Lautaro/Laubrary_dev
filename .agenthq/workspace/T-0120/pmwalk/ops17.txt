@@ -1,0 +1,4 @@
+﻿focus
+sleep 300
+click 414 597
+sleep 500

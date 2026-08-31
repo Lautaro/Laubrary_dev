@@ -1,0 +1,13 @@
+
+=== W3C - N1: half-open slabs under degenerate breakpoint sets and at the OUTER planes ===
+  (a) combinations with a DUPLICATED breakpoint in the emitted list: 0 / 42   longest equal run = 0
+      -> Insert()'s 1e-7 dedup means the shipped list is strictly increasing; the trailing-degenerate
+         case `lastSlab` guards against is therefore NOT REACHABLE from any authored dial today.
+  (b) Z-PARALLEL rays fired = 645 over 42 combinations (2 outer planes + every interior breakpoint)
+      rays wrong at the OUTER TOP plane    = 0   (the plane `lastSlab` exists to keep closed)
+      rays wrong at the OUTER BOTTOM plane = 0
+      interior rays still emitting a DUPLICATED rayT (the N1 signature) = 0
+      worst |solid-length error| = 0,0085 px   at Dome+None OUTER-top true 0,065 got 0,056
+  (c) the two XY support-box clips pass hiInclusive = default true (outer extents).
+      probe: a ray running exactly ALONG the support box's +X face, and along its top edge.
+      ray along y = supportCy + supportHalfH = 200,0000 : emitted 2, true flips 2

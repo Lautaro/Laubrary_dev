@@ -1,0 +1,60 @@
+=== V2-CANC - every closed form in ShaperHeight.cs vs a cancellation-free double reference ===
+Grid: 401 uniform + log-spaced to 1e-44 + every breakpoint +/- 4 ulps. 
+grid points = 563
+
+-- forward Bevel B(u), a = 1 so t == u --
+bevel      worst rel err  worst abs err at
+None          0,000E+000     0,000E+000 
+Linear        0,000E+000     0,000E+000 
+Rounded       8,512E-008     6,766E-008 u=1,375E-001 got=5,06057E-001 want=5,06057E-001
+Cove          1,000E+030     6,983E-008 u=1,000E-022 got=5,60519E-045 want=0,00000E+000
+Ogee          1,000E+030     5,109E-008 u=1,000E-022 got=9,80909E-045 want=0,00000E+000
+Stepped       2,980E-008     1,987E-008 u=0,000E+000 got=3,33333E-001 want=3,33333E-001
+
+-- forward Profile E(t) --
+tech        param  worst rel err at
+Dome      c=0,2 ta=1 n=4     1,000E+000 t=9,809E-045 got=0,00000E+000 want=5,39074E-110
+Round     c=0,2 ta=1 n=4     1,000E+000 t=9,809E-045 got=0,00000E+000 want=9,52957E-111
+Taper     c=1 ta=0,5 n=4     1,429E-002 t=9,809E-045 got=3,22299E-044 want=3,26970E-044
+Taper     c=1 ta=1 n=4     2,857E-002 t=9,809E-045 got=1,68156E-044 want=1,63485E-044
+  (only rows with rel err > 1e-5 printed)
+
+-- BevelDerivative B'(u), a = 1 --
+None          0,000E+000  
+Linear        0,000E+000  
+Rounded       1,299E-007  u=1,3750E-001 got=1,70435E+000 want=1,70435E+000
+Cove          1,184E-007  u=3,0000E-008 got=3,00000E-008 want=3,00000E-008
+Ogee          1,008E-007  u=4,1000E-001 got=1,43266E+000 want=1,43266E+000
+Stepped       0,000E+000  
+
+-- ProfileDerivative E'(t) --
+Dome      c=0,2       1,000E+000  t=9,8091E-045 got=0,00000E+000 want=1,37391E-065
+Round     c=0,2       1,000E+000  t=9,8091E-045 got=0,00000E+000 want=2,42876E-066
+  (only rows with rel err > 1e-5 printed)
+
+-- BevelInverseU B^-1(zeta) --
+Linear        0,000E+000  
+Rounded       1,000E+030  zeta=1,0000E-022 got=5,60519E-045 want=0,00000E+000
+Cove          1,000E+030  zeta=9,8091E-045 got=1,40065E-022 want=0,00000E+000
+Stepped       1,000E+000  zeta=3,3333E-001 got=0,00000E+000 want=3,33333E-001
+
+-- ProfileInverse E^-1(zeta) --
+Stepped   c=1     ta=1     n=4        5,000E-001  zeta=3,3333E-001 got=2,50000E-001 want=5,00000E-001
+Dome      c=0,2   ta=1     n=4        7,218E-001  zeta=3,0000E-041 got=3,08902E-017 want=1,11022E-016
+Dome      c=0,5   ta=1     n=4        5,496E-001  zeta=1,0000E-016 got=5,00000E-017 want=1,11022E-016
+Dome      c=1     ta=1     n=4        5,496E-001  zeta=1,0000E-008 got=5,00000E-017 want=1,11022E-016
+Dome      c=4     ta=1     n=4        5,496E-001  zeta=1,0000E-002 got=5,00000E-017 want=1,11022E-016
+Round     c=1     ta=1     n=4        1,000E+000  zeta=9,8091E-045 got=0,00000E+000 want=9,62182E-089
+Round     c=4     ta=1     n=4        1,000E+000  zeta=9,9999E-041 got=0,00000E+000 want=9,99989E-321
+Taper     c=1     ta=0,05  n=4        1,000E+000  zeta=9,8091E-045 got=0,00000E+000 want=4,90454E-046
+Taper     c=1     ta=0,5   n=4        4,762E-002  zeta=9,8091E-045 got=2,80260E-045 want=2,94273E-045
+Taper     c=1     ta=1     n=4        4,762E-002  zeta=9,8091E-045 got=5,60519E-045 want=5,88545E-045
+Pyramid   c=1     ta=1     n=4        1,000E+000  zeta=1,0000E-016 got=0,00000E+000 want=1,11022E-016
+  (only rows with rel err > 1e-5 printed)
+
+-- round trip G(Ginv(zeta)) >= zeta, all 42 combinations, log grid to 1e-30 --
+  round trips = 94416   worst reach shortfall = 3,3379E-006
+  Flat+Cove a=0,05 zeta=9,9500E-001 Ginv=4,99994E-002 reach=9,94997E-001
+
+-- denormal sweep: every fixed form from 1e0 down to 1e-45 --
+  non-finite (excluding declared +inf derivatives): 0   negative results: 0

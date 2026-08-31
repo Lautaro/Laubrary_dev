@@ -1,0 +1,5 @@
+click 601 579
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a04-pyre-flyout.png
+type {ESC}
+sleep 300
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a05-after-escape.png

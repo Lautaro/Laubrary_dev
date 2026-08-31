@@ -1,0 +1,7 @@
+BT-11 a bag's border is above its members' borders and above their fills
+  overlapping rings, sample at d = -2.5: nearest authored colour is 'bag border' (distance 0.0000), expected 'bag border'  PASS
+  member owns the fill: rim reads 'bag border' (0.0000), core reads 'member fill' (0.0000), expected 'bag border' and 'member fill'  PASS
+  control, bag border removed: the same probe reads 'member border' (0.0000), expected 'member border'  PASS
+  A owns NO fill: where A's rim crosses B the sample reads 'B fill' (distance 0.0000), expected 'B fill'  PASS
+  control, A OWNS a fill (same z-order reached by a different route): reads 'B fill' (distance 0.0000), expected 'B fill' - the two configurations must AGREE  PASS
+  RESULT: PASS

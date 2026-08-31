@@ -1,0 +1,94 @@
+@@LEG LT11_TheCap
+LT-11 the eight-light cap refuses with a reason and a count
+  hasTooManyLights = True (expected True)  PASS
+  tooManyLightsCount = 3 (expected 3)  PASS
+  compiled light count = 8 (expected 8)  PASS
+  reason: "the rig holds 11 enabled lights; only the first 8 enabled are lit. The cap is 8."  contains "11" and "8": True  PASS
+  the disabled-light configurations - `enabled`, not `authored`, is what the cap measures:
+    11 authored, none disabled     enabled 11/11, lit 8/8, flag True/True, dropped 3/3  PASS
+    9 authored, the 9th disabled   enabled 8/8, lit 8/8, flag False/False, dropped 0/0  PASS
+    11 authored, 5 disabled        enabled 6/6, lit 6/6, flag False/False, dropped 0/0  PASS
+    12 authored, first 8 disabled  enabled 4/4, lit 4/4, flag False/False, dropped 0/0  PASS
+    8 authored, none disabled      enabled 8/8, lit 8/8, flag False/False, dropped 0/0  PASS
+    13 authored, 2 disabled        enabled 11/11, lit 8/8, flag True/True, dropped 3/3  PASS
+  Finish's `rig.count` (6) and the cap's `enabledLightCount` (6) agree below the cap  PASS
+  destination floats differing between the 11-light and 8-light rigs: 0/65536 (expected 0 - lights 9-11 contribute exactly 0)  PASS
+  RESULT: PASS
+
+@@LEG LT19_EveryDialIsLiveOrDeclaredInert
+LT-19 every Solids dial is live or DECLARED inert - never neither (fix pass)
+    Box      Size:5506 Cent:2680 Aspe:4557 Dept:4024 GemS:0* GemC:0* GemP:0* Ring:0* Yaw:7966 Tilt:7494 Roll:5216 Line:1130 Edge:0!! Inne:0!!
+    Pyramid  Size:2353 Cent:1891 Aspe:3326 Dept:2688 GemS:0* GemC:0* GemP:0* Ring:0* Yaw:3640 Tilt:4205 Roll:4067 Line:655 Edge:0!! Inne:0!!
+    Can      Size:4783 Cent:4476 Aspe:3685 Dept:0* GemS:0* GemC:0* GemP:0* Ring:0* Yaw:5647 Tilt:5878 Roll:6758 Line:669 Edge:0!! Inne:0!!
+    Orb      Size:3590 Cent:4067 Aspe:0* Dept:0* GemS:0* GemC:0* GemP:0* Ring:0* Yaw:3120 Tilt:3142 Roll:3267 Line:404 Edge:0!! Inne:0!!
+    Gem      Size:1600 Cent:1703 Aspe:0* Dept:0* GemS:1821 GemC:2088 GemP:125 Ring:0* Yaw:2021 Tilt:2686 Roll:2356 Line:684 Edge:0!! Inne:0!!
+    Ring     Size:2246 Cent:2036 Aspe:0* Dept:0* GemS:0* GemC:0* GemP:0* Ring:846 Yaw:2146 Tilt:2180 Roll:0* Line:594 Edge:0!! Inne:0!!
+  legend: <dial>:<differing encoded pixels>, * = DECLARED INERT (must be 0), !! = the assertion failed
+  live dials moving >= 20 px: 44;  declared-inert dials measuring exactly 0: 28
+  SILENTLY INERT (live by declaration, dead by measurement): 12 (expected 0; this count was 5 before the fix - aspect and depth on Gem and Ring, and depth on Orb)  FAIL
+  FALSELY DECLARED (declared inert, actually moves pixels): 0 (expected 0)  PASS
+  DIAGNOSTIC, Gem with aspect 0.4 and depth 0.4: hasInertDial = True (True), inertDialCount = 2 (2), dial "Aspect" on form "Gem"  PASS
+    reason: "Aspect does nothing on a Gem. A gem's proportions are Crown and Pavilion, which set its height above and below the girdle; the reference builder (PyreRenderer.cs:4796) reads neither aspect nor depth. Use Crown and Pavilion."
+  a Gem with aspect and depth left at 1 (neutral) raises nothing: hasInertDial = False (expected False - the complaint is about a control the author OPERATED and got nothing from, not about a field's existence)  PASS
+  RESULT: FAIL
+
+@@LEG LT21_DocumentOwnsTheLights
+LT-21 the document owns the lights, and the document path is RUN (fix pass)
+  document 96x72 @ 1, phase 0.37, seed 909, 4 layers, 2 lights on the rig
+  ShaperDocument.Grid() is canvas-centred with the document's pixelSize: origin (-47.500, -35.500)  PASS
+  CompileDocument: rig.count = 2 (expected 2, on the DOCUMENT's clock per LR-1.8), layers not yet bound (0)  PASS
+  after binding every layer: layerCount = 4 (expected 4), receiverCount = 3 (expected 3)  PASS
+  per-layer responses take effect - pixels differing from the LIT layer:
+    receive off 2188, in-shadow 2188, rim 1.5 2188 (each expected > 500)  PASS
+    summed luminance: in-shadow 350080 < lit 645940 < rim 660401 (the direction each block predicts; receive-off 975848 is the raw albedo)  PASS
+  NOTE, stated rather than papered over: Wave 2 has NO document-level compositor. The
+    document is now genuinely the source of the rig, the grid, the clock, the seed and
+    each layer's response block, and that path is exercised end-to-end here - but
+    stacking several layers into one picture is not built and is not in this contract's
+    scope. This leg proves the document is WIRED, not that a document RENDERS.
+  RESULT: PASS
+
+@@LEG LT23_RimIsInertOnBlackAmbientAndDeclared
+LT-23 rim is inert on a black ambient, and the tool says so (fix pass)
+  rim 0: black S=0.00000000 / amb0.2 S=0.00000000   rim 0.5: black S=0.00000000 / amb0.2 S=0.00636118   rim 1: black S=0.00000000 / amb0.2 S=0.01272235   rim 2.5: black S=0.00000000 / amb0.2 S=0.03180588   rim 5: black S=0.00000000 / amb0.2 S=0.06361176
+  S is EXACTLY 0 at every rim strength on a black ambient: True; non-zero on a lit one: True  PASS
+  DIAGNOSTIC on a black ambient: hasInertRim = True (True), count = 2 (2), first node "Layer A" (Layer A), reason == ShaperLightRig.RimNeedsBlackAmbientRelief VERBATIM  PASS
+  does NOT fire on: a lit ambient (False), rim 0 (False), receive off (False) - all expected False  PASS
+  LR-7.2's RimNeedsRelief covers BOTH inert states - flat normal: True, black ambient: True; the standalone sibling exists: True  PASS
+  The ARITHMETIC is deliberately unchanged: LR-2.3 specifies `S += amb . rim` and
+    overturning that is the owner's ruling, not a fix pass's. Flagged in FIX-REPORT.md
+    with the alternative rather than changed unilaterally.
+  RESULT: PASS
+
+@@LEG LT18_DegenerateDialsNeverGoNonFinite
+LT-18 no dial at any degenerate value writes a non-finite float (fix pass)
+  degenerate cases driven: 1428 (every dial on the rig, the response block and all six Solids forms x {-1, 0, +Inf, -Inf, NaN, -1e30, 1e30} x ambient {0.2, 0.0})
+  NON-FINITE FLOATS REACHING dst: 0 (expected EXACTLY 0; measured 19200 for rimPower = -1 alone before the fix)  PASS
+  GARBAGE ENCODED PIXELS: 0 (expected EXACTLY 0; measured 6400 for rimPower = -1 on a black ambient before the fix)  PASS
+  (d) the range dial, swept ACROSS the old discontinuity (light at (0,0,40), sample at (0,0), ambient black):
+      1e4=0.999984 40=0.500000 10=0.058824 1=0.000625 1e-2=0.000000 1e-4=0.000000 1e-5=0.000000 1e-6=1.000000 1e-7=1.000000 0=1.000000 -1=1.000000 NaN=0.500000 +Inf=0.500000
+      inversions as the range shrinks: 1 (expected 0; the old build had one, 1e-5 -> 1e-6 snapping 0 -> 1.000000)  FAIL
+      range == 0 gives L = 1.000000 (expected 0 - LR-2.4: a vanishing range is a vanishing REACH, not a vanished falloff)  FAIL
+      range == -1 matches range == 0: True; NaN finite: True; +Inf finite: True  PASS
+  (e) CONTROL - the LAW, handed an UNCLAMPED rimPower = -1 on a flat normal, returns S.r = Infinity (expected non-finite; this is exactly what the compile clamp protects against, and a finite value here would mean the zeroes above prove nothing)  PASS
+  RESULT: FAIL
+
+@@LEG LT20_BorderIsLitByItsHost
+LT-20 a border is lit by its HOST's response and HOST's normal (LR-5.4, fix pass)
+  border owner index 1, host owner index 0 (both must be found)  PASS
+  border samples: 1184 (expected > 200)
+  border pixels that MOVED when the BORDER's OWN response and normal were replaced: 1148/1184 (expected 0 - LR-5.4 says its own entries are never read)  FAIL
+  CONTROL - border pixels that moved when the HOST's response and normal changed: 339/1184 (expected > 100; a 0 here would mean the border is not lit at all and the assertion above is vacuous)  PASS
+  RESULT: FAIL
+
+@@LEG LT22_GlowPathExecutes
+LT-22 the halo and inner glow actually run (LR-6.4, fix pass)
+  Box      glow sheet non-zero floats 17106 (> 100), encoded RGB moved 0 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  FAIL
+  Pyramid  glow sheet non-zero floats 7371 (> 100), encoded RGB moved 0 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  FAIL
+  Can      glow sheet non-zero floats 13494 (> 100), encoded RGB moved 0 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  FAIL
+  Orb      glow sheet non-zero floats 8484 (> 100), encoded RGB moved 0 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  FAIL
+  Gem      glow sheet non-zero floats 4164 (> 100), encoded RGB moved 0 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  FAIL
+  Ring     glow sheet non-zero floats 4752 (> 100), encoded RGB moved 0 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  FAIL
+  glow on a receiveLighting = FALSE layer still adds: 0 samples moved, summed delta 0.000 (expected > 100 and > 0 - a glow is light, not paint: LR-5.3 one level down)  FAIL
+  RESULT: FAIL
+

@@ -1,0 +1,5 @@
+focus
+drag 1810 1830 2450 1830
+shot D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0123/shots/r03-playhead-dragged.png
+click 1190 1066
+shot D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0123/shots/r04-burst-off.png

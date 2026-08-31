@@ -1,0 +1,6 @@
+=== W4A - N4 reconciliation: the bound invariant vs the monotonicity it relies on ===
+  (1) INVARIANT  LowerG(tau, e) >= zeta        : checks=167040   violations=0   worst 0,0000E+000
+  (2) MONOTONE   LowerG(t, e) >= zeta, t>=tau  : checks=6848640   violations=40   worst 1,1921E-007
+      Dome+Rounded a=1 e=1,00000 zeta=1,0000000 tau=0,9998274 t=0,9998576 G=0,999999881
+  1 ulp at 1.0 = 1,1921E-007  - a violation of this size in (2) and none in (1)
+  means the shortfall is the DOCUMENTED 1-ulp float non-monotonicity of G, not a bound failure.

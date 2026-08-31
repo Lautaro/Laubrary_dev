@@ -1,0 +1,8 @@
+
+=== W4E - H6's own omission fixture, re-aimed. Does the audit's arm miss the class by design? ===
+  H6 uses OpFor(..., depth 90, amount 0.25) with steps = 4 (its default) and ray heights
+  zf = 0.08 / 0.30 / 0.52 of the extent - fractions, never a tread. Two variants below.
+  ray heights H6's own fractions , step counts {4} (H6's) : rays=12  omissions=0  worst gap 0,0000 px  
+  ray heights H6's own fractions , step counts {4..31} : rays=156  omissions=4  worst gap 5,2395 px  n=13 tilt=44 zf=0,0800
+  ray heights AIMED AT A TREAD, step counts {4} (H6's) : rays=36  omissions=0  worst gap 0,0000 px  
+  ray heights AIMED AT A TREAD, step counts {4..31} : rays=468  omissions=8  worst gap 5,1270 px  n=14 tilt=44 zf=0,0769

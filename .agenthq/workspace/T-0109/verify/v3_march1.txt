@@ -1,0 +1,25 @@
+=== V2-MARCH - adversarial attacks on the rebuilt QueryGeneral ===
+
+-- 1. thin slot, HORIZONTAL +X ray, widths straddling SurfaceResolution = 0,02 canvas px --
+     slot px    true     got   worst gap px  spurious    capped 
+           5       4       4     3,052E-005         0     False ok
+           1       4       4     3,052E-005         0     False ok
+         0,5       4       4     3,052E-005         0     False ok
+         0,2       4       4     3,052E-005         0     False ok
+         0,1       4       4     3,052E-005         0     False ok
+        0,05       4       4     3,052E-005         0     False ok
+        0,03       4       4     3,052E-005         0     False ok
+       0,021       4       4     3,052E-005         0     False ok
+        0,02       4       4     3,052E-005         0     False ok
+       0,019       4       4     3,052E-005         0     False ok
+        0,01       4       2     1,600E+002         0     False MISS
+       0,005       4       2     1,600E+002         0     False MISS
+       0,002       4       2     1,600E+002         0     False MISS
+       0,001       4       4     3,052E-005         0     False ok
+  smallest slot resolved as 4 crossings: 0,001 canvas px
+
+
+
+
+
+

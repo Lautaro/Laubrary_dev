@@ -1,0 +1,7 @@
+﻿focus
+sleep 250
+click 443 1145
+sleep 300
+click 443 1389
+sleep 400
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a10-three-caps.png

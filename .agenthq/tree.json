@@ -116,7 +116,13 @@
       "id": "Shaper",
       "name": "Shaper",
       "parent": null,
-      "supervised": true
+      "supervised": false
+    },
+    {
+      "id": "ChunksMock-2026-08-31",
+      "name": "Chunks remake \u2014 mock editor UX blueprint",
+      "parent": "Chunks",
+      "supervised": false
     }
   ]
 }

@@ -1,0 +1,72 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+compileFailed=False
+type=True
+### H12_RegressionTraps  1999 ms
+H12  named regression traps: V1 contained-prism skip, V2 Stepped inverse, V3 branch test
+    V1 TRAP - 400x400 plate, Stepped n=8, bevel None, depth 290,
+      ray origin (-400, 0, 248.571732) direction (0.95394, 0, -0.3):
+      emitted 4 of 4 expected [314.4854 550.3495 552.3823 576.5566]
+      expected [314.4854 550.3496 552.3819 576.5567], worst residual 0.00043 px, tolerance 0.05  ok
+      (pre-fix: 2 crossings, the 24.1747 px span [552.3819, 576.5567] lost entirely)
+    V1 BREADTH - the 13 step counts the pre-fix sweep lost a crossing at:
+      234 rays, 392 true crossings, LOST 0  ok
+      (pre-fix: 26 of 7440 rays lost a true crossing, worst gap 26.207 px)
+    V2 TRAP - the four latent (n,k) risers (22,13) (23,7) (23,14) (29,15), each
+      tread's own zeta swept +/-8 ulps, HS-5.2 containment {G>=zeta} inside {t>=tauMin}:
+      68 probes (0 out of range), containing-prism violations 0  ok
+      (pre-fix: 12 violations in 520800 checks, worst 3.4481e-2 t-units - one whole tread -
+       costing 1 of 58 aimed rays a crossing, worst gap 7.1227 px)
+    V3 TRAP - Flat+Ogee at x=-190, the configuration the tolerance was worst at:
+      direction (0,0,-1) exactly   branch StraightDown   first crossing 396.8736
+      direction (2e-5,0,-1)        branch General        first crossing 396.8686
+      direction (1e-6,0,-1)        branch General        first crossing 396.8734
+      the retired StraightDownTolerance is 1E-005, so both off-axis rays used to take the closed form  ok
+      (pre-fix: the closed form was wrong 101 of 1008 branch-paired rays, worst 4.7018 px here)
+    VERDICT ok
+
+### H6_BranchAgreement  41658 ms
+H6  the two resolve branches agree at zero tilt (HS-9.2, HS-9.5)
+    branch ASSERTED, not assumed: straight-down taken 825 times, general taken 825 times  ok
+    1642 crossings compared. worst |d rayT| 0.01213, |d height| 0.01213, |d edgeDistance| 0.00800  ok
+    45-degree tilted ray: 1162 crossings, 0 on a wall, 1162/1162 cap crossings lie on the surface equation  ok
+      NOTE (T-0109 FIX F5): this sub-check asserts only that everything EMITTED lies
+      on the surface, which structurally CANNOT detect an OMISSION, and its fixture is
+      convex with nothing to omit. The OMISSION check below is the one that can fail.
+
+    OMISSION CHECK (T-0109 FIX F5) - a NON-CONVEX plate with two slots STRICTLY inside
+    the support box, all 42 combinations, emitted COUNT vs an independent scan:
+      rays                                 504 (all asserted General)
+      true crossings with NO emitted one within 0.05 px   0
+      worst gap, true crossing -> nearest emitted         1.5259E-005 canvas px
+      extra emitted pairs VERIFIED real by the predicate   0  (none - nothing was certified this run)
+      extra emitted pairs SPURIOUS                         0
+      extra emitted pairs DEGENERATE (zero measure)        0   T-0109 FIX N3: MUST be 0
+      march diagnostics: bracketCapped 0, rays hitting the step guard 0
+      VERDICT ok
+      step count SWEPT 4..31, ray heights H6's own fractions: 336 rays, 1362 true crossings
+        unmatched true crossings 0
+        of which features >= SurfaceResolution (0.02 px) - THE FAILING CLASS: 0
+        of which features BELOW it - resolution-limited, inside HS-5.5: 0
+        unmatched runs of ODD length (parity wrong, extent unbounded): 0  ok
+      step count SWEPT 4..31, ray heights AIMED AT A TREAD  : 1008 rays, 3796 true crossings
+        unmatched true crossings 2   worst distance to an emitted one 2.5660 px
+        of which features >= SurfaceResolution (0.02 px) - THE FAILING CLASS: 0
+        of which features BELOW it - resolution-limited, inside HS-5.5: 1   worst extent 0.01537 px at n=27 tilt 30 zf 0.1923 at t 60.0444
+        unmatched runs of ODD length (parity wrong, extent unbounded): 0  ok
+      (pre-fix, same two rows, counted the old way: 4 unmatched worst 5.2395 px, and 8 worst 5.1270 px)
+      (post-fix the AIMED row still shows 2 unmatched crossings, and they are NOT a regression:
+       n=27 tilt 30 zf 0.1923 has a 0.0154 px AIR SLIVER between two Stepped treads, which is
+       below SurfaceResolution and so inside HS-5.5's declared limit. Counting the FEATURE
+       EXTENT rather than the distance to the nearest emitted crossing is what makes that
+       visible - 2.566 px was never the size of anything, only how far away the march's
+       nearest answer happened to be.)
+      VERDICT ok
+    HS-6.6 depth = sum of entry-to-exit spans: 16.0000 vs surface height 16.0000  ok
+    HS-6.6 MULTI-SPAN, a tilted ray through a SLOTTED plate (features strictly inside
+      the support box - T-0109 FIX F5 replaced the hollow-shell fixture, whose walls
+      sat ON the box boundary and could not expose a missed span): 600 rays crossed 2+
+      disjoint spans, 600 report a summed depth strictly below the envelope,
+      600 would have been misreported by an envelope answer, and 600/600
+      match an INDEPENDENT scan of the true solid length to 0.05 px  ok
+    VERDICT ok
+

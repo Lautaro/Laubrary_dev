@@ -1,0 +1,5 @@
+=== DP - what the missed crossing pair does to HS-6.6's Depth ===
+  slot=  60  crossings reported=4  Depth reported= 340,000  true solid= 340,000  error=   0,000 canvas px
+  slot=  40  crossings reported=4  Depth reported= 360,000  true solid= 360,000  error=   0,000 canvas px
+  slot=  20  crossings reported=4  Depth reported= 380,000  true solid= 380,000  error=   0,000 canvas px
+  slot=   8  crossings reported=4  Depth reported= 392,000  true solid= 392,000  error=   0,000 canvas px

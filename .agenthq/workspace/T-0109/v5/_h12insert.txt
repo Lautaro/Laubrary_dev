@@ -1,0 +1,192 @@
+
+        // ═════════════════════════════════════════════════════════════════════════════════════════════════
+        // H12 — the third fix pass's three defects, as FIXED, NAMED traps.
+        // ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// <b>H12 — V1, V2 and V3 as named regression traps.</b>
+        ///
+        /// Each of the three was found by an adversarial pass and none of them was visible to any check in
+        /// this file, so each is pinned here by the EXACT configuration that exposed it rather than by a
+        /// family it belongs to. A trap that only tests the family can drift off the one ray that mattered;
+        /// these cannot, because the ray, the dials and the expected numbers are all literals.
+        ///
+        /// The three:
+        ///   <list type="bullet">
+        ///   <item><b>V1</b> — the contained-prism SOLID skip was taken while <c>mPrev</c> said air, so both
+        ///   sampled endpoints read air, the interior was never sampled and a whole 24.17 px solid span
+        ///   vanished. Both skips are now gated on <c>mPrev</c>.</item>
+        ///   <item><b>V2</b> — <c>SteppedProfileInverseExact</c>'s DOWN walk asked <c>SteppedE</c> at the raw
+        ///   <c>(k-1)/n</c>, the very float that needed the UP nudge, so at four step counts the containing
+        ///   prism over-reported by a whole tread and stopped containing (HS-5.2).</item>
+        ///   <item><b>V3</b> — <c>StraightDownTolerance</c> routed a NEARLY-vertical ray to the closed form,
+        ///   which is exact only ON the axis: measured 4.7018 px wrong at Flat+Ogee. The branch test is now
+        ///   exact equality, and no non-zero tolerance can be safe because every smooth bevel has unbounded
+        ///   <c>dG/dd</c> (HS-0.1).</item>
+        ///   </list>
+        /// </summary>
+        public static string H12_RegressionTraps()
+        {
+            var sb = new StringBuilder("H12  named regression traps: V1 contained-prism skip, V2 Stepped inverse, V3 branch test\n");
+            bool all = true;
+
+            // V1, the minimal repro, verbatim.
+            {
+                var prog = ShaperCompiler.Compile(Rect(200f, 200f, 0f));
+                var hop = OpFor(prog, ShaperExtrusionTechnique.Stepped, ShaperBevelTechnique.None,
+                                290f, 0f, 0f, 45f, 8f, 1f, 1f, 3f);
+                var scene = new ShaperResolveScene();
+                scene.Add(prog, hop);
+                var buf = new ShaperCrossing[64];
+
+                var r = ShaperResolve.Query(scene, -400f, 0f, 248.571732f, 0.95394f, 0f, -0.3f, buf);
+
+                bool ok = r.branch == ShaperResolveBranch.General && r.count == V1Truth.Length && !r.truncated;
+                float worst = 0f;
+                if (r.count == V1Truth.Length)
+                    for (int i = 0; i < V1Truth.Length; i++)
+                        worst = Mathf.Max(worst, Mathf.Abs(buf[i].rayT - V1Truth[i]));
+                else worst = float.NaN;
+                ok &= worst <= TrapTolerance;
+                all &= ok;
+
+                sb.AppendLine("    V1 TRAP - 400x400 plate, Stepped n=8, bevel None, depth 290,");
+                sb.AppendLine("      ray origin (-400, 0, 248.571732) direction (0.95394, 0, -0.3):");
+                sb.Append("      emitted " + r.count + " of 4 expected [");
+                for (int i = 0; i < r.count; i++) sb.Append((i > 0 ? " " : "") + buf[i].rayT.ToString("F4"));
+                sb.AppendLine("]");
+                sb.AppendLine("      expected [314.4854 550.3496 552.3819 576.5567], worst residual " +
+                              worst.ToString("F5") + " px, tolerance " + TrapTolerance.ToString("F2") + "  " + Verdict(ok));
+                sb.AppendLine("      (pre-fix: 2 crossings, the 24.1747 px span [552.3819, 576.5567] lost entirely)");
+            }
+
+            // V1 breadth: the thirteen step counts the pre-fix sweep lost a crossing at, against the oracle.
+            {
+                var prog = ShaperCompiler.Compile(Rect(200f, 200f, 0f));
+                var stack = prog.NewStack();
+                var buf = new ShaperCrossing[256];
+                int rays = 0, truths = 0, lost = 0;
+                float worst = 0f; string worstAt = "-";
+
+                for (int q = 0; q < V1AffectedSteps.Length; q++)
+                {
+                    int n = V1AffectedSteps[q];
+                    var hop = OpFor(prog, ShaperExtrusionTechnique.Stepped, ShaperBevelTechnique.None,
+                                    290f, 0f, 0f, 45f, (float)n, 1f, 1f, 3f);
+                    var scene = new ShaperResolveScene();
+                    scene.Add(prog, hop);
+
+                    for (int iz = 0; iz < 6; iz++)
+                    {
+                        float oz = 10f + iz * 48f;
+                        for (int ia = 0; ia < 3; ia++)
+                        {
+                            float ang = -0.12f - ia * 0.09f;
+                            float ddx = Mathf.Sqrt(1f - ang * ang);
+                            var rr = ShaperResolve.Query(scene, -400f, 0f, oz, ddx, 0f, ang, buf);
+                            if (rr.branch != ShaperResolveBranch.General) { all = false; continue; }
+                            rays++;
+                            var truth = TruthCrossings(prog, stack, hop, -400f, 0f, oz, ddx, 0f, ang, 1200f, 120000);
+                            truths += truth.Count;
+                            for (int j = 0; j < truth.Count; j++)
+                            {
+                                float best = float.MaxValue;
+                                for (int i = 0; i < rr.count; i++) best = Mathf.Min(best, Mathf.Abs(truth[j] - buf[i].rayT));
+                                if (best > 0.05f)
+                                {
+                                    lost++;
+                                    if (best > worst) { worst = best; worstAt = "n=" + n + " oz " + oz.ToString("F0") + " dz " + ang.ToString("F2"); }
+                                }
+                            }
+                        }
+                    }
+                }
+                bool ok = rays > 0 && lost == 0;
+                all &= ok;
+                sb.AppendLine("    V1 BREADTH - the 13 step counts the pre-fix sweep lost a crossing at:");
+                sb.AppendLine("      " + rays + " rays, " + truths + " true crossings, LOST " + lost +
+                              (lost == 0 ? "" : "   worst gap " + worst.ToString("F4") + " px at " + worstAt) + "  " + Verdict(ok));
+                sb.AppendLine("      (pre-fix: 26 of 7440 rays lost a true crossing, worst gap 26.207 px)");
+            }
+
+            // V2: HS-5.2 containment at the four float-latent risers, through the +/- ulp neighbourhood of
+            // each tread's own zeta. That neighbourhood is the whole point - two earlier passes measured 0
+            // over-reports on grids that never landed there.
+            {
+                var prog = ShaperCompiler.Compile(Rect(200f, 200f, 0f));
+                int probes = 0, violations = 0, skipped = 0;
+                float worst = 0f; string worstAt = "-";
+
+                for (int p = 0; p < V2LatentN.Length; p++)
+                {
+                    int n = V2LatentN[p], k = V2LatentK[p];
+                    var hop = OpFor(prog, ShaperExtrusionTechnique.Stepped, ShaperBevelTechnique.None,
+                                    290f, 0f, 0f, 45f, (float)n, 1f, 1f, 3f);
+                    float treadZeta = Mathf.Min(1f, k / (float)(n - 1));
+
+                    for (int u = -TrapUlps; u <= TrapUlps; u++)
+                    {
+                        float zeta = NextAfter(treadZeta, u);
+                        if (!(zeta > 0f) || zeta > 1f) { skipped++; continue; }
+                        float tauMin = ShaperHeight.InverseLowerBound(hop, zeta);
+                        if (ShaperHeight.IsNoCrossSection(tauMin)) { skipped++; continue; }
+                        probes++;
+
+                        for (int s = 0; s < 4096; s++)
+                        {
+                            float t = tauMin * s / 4096f;
+                            if (ShaperHeight.Composed(hop, t, 0f, 0f) >= zeta)
+                            {
+                                violations++;
+                                float over = tauMin - t;
+                                if (over > worst) { worst = over; worstAt = "n=" + n + " k=" + k + " zeta " + zeta.ToString("R"); }
+                                break;
+                            }
+                        }
+                    }
+                }
+                bool ok = probes > 0 && violations == 0;
+                all &= ok;
+                sb.AppendLine("    V2 TRAP - the four latent (n,k) risers (22,13) (23,7) (23,14) (29,15), each");
+                sb.AppendLine("      tread's own zeta swept +/-" + TrapUlps + " ulps, HS-5.2 containment {G>=zeta} inside {t>=tauMin}:");
+                sb.AppendLine("      " + probes + " probes (" + skipped + " out of range), containing-prism violations " + violations +
+                              (violations == 0 ? "" : "   worst over-report " + worst.ToString("E4") + " t-units at " + worstAt) +
+                              "  " + Verdict(ok));
+                sb.AppendLine("      (pre-fix: 12 violations in 520800 checks, worst 3.4481e-2 t-units - one whole tread -");
+                sb.AppendLine("       costing 1 of 58 aimed rays a crossing, worst gap 7.1227 px)");
+            }
+
+            // V3: the closed form is reachable ONLY on the exact axis.
+            {
+                var prog = ShaperCompiler.Compile(Rect(200f, 200f, 0f));
+                var hop = OpFor(prog, ShaperExtrusionTechnique.Flat, ShaperBevelTechnique.Ogee,
+                                150f, 0.35f, 0f, 45f, 4f, 1f, 1f, 3f);
+                var scene = new ShaperResolveScene();
+                scene.Add(prog, hop);
+                var buf = new ShaperCrossing[64];
+
+                var exact = ShaperResolve.Query(scene, -190f, 0f, 400f, 0f, 0f, -1f, buf);
+                float exactT = exact.count > 0 ? buf[0].rayT : float.NaN;
+                var off = ShaperResolve.Query(scene, -190f, 0f, 400f, 2e-5f, 0f, -1f, buf);
+                float offT = off.count > 0 ? buf[0].rayT : float.NaN;
+                // One ulp-scale offset too, two orders INSIDE the retired tolerance: "no tolerance at all" is
+                // the claim, so the smallest departure from the axis must already leave the closed form.
+                var tiny = ShaperResolve.Query(scene, -190f, 0f, 400f, 1e-6f, 0f, -1f, buf);
+                float tinyT = tiny.count > 0 ? buf[0].rayT : float.NaN;
+
+                bool ok = exact.branch == ShaperResolveBranch.StraightDown
+                       && off.branch == ShaperResolveBranch.General
+                       && tiny.branch == ShaperResolveBranch.General;
+                all &= ok;
+                sb.AppendLine("    V3 TRAP - Flat+Ogee at x=-190, the configuration the tolerance was worst at:");
+                sb.AppendLine("      direction (0,0,-1) exactly   branch " + exact.branch + "   first crossing " + exactT.ToString("F4"));
+                sb.AppendLine("      direction (2e-5,0,-1)        branch " + off.branch + "        first crossing " + offT.ToString("F4"));
+                sb.AppendLine("      direction (1e-6,0,-1)        branch " + tiny.branch + "        first crossing " + tinyT.ToString("F4"));
+                sb.AppendLine("      the retired StraightDownTolerance is " + ShaperResolve.StraightDownTolerance.ToString("E0") +
+                              ", so both off-axis rays used to take the closed form  " + Verdict(ok));
+                sb.AppendLine("      (pre-fix: the closed form was wrong 101 of 1008 branch-paired rays, worst 4.7018 px here)");
+            }
+
+            sb.AppendLine("    VERDICT " + Verdict(all));
+            return sb.ToString();
+        }

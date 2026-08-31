@@ -1,0 +1,5 @@
+﻿focus
+sleep 250
+drag 1440 1874 1980 1874
+sleep 300
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a13-playhead2.png

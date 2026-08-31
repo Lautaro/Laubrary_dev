@@ -1,0 +1,11 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+=== all omissions in the AIMED arm, 4..31 ===
+  OMISSION n=27 r=22 tilt=30 oy=0 zf=0.192308 oz=57.72221 missed truth t=60.0444 gap=2.5660 emitted=4 truth=6 capped=0 exhausted=False trunc=False
+     emitted: 39.7730I/Wall 62.6104O/Wall 106.7457I/Wall 115.4444O/Cap
+     truth  : 39.7730 60.0444 60.0598 62.6104 106.7457 115.4444
+     hop: body=90 supG=1 baseZ=0 span=60 n=27
+  OMISSION n=27 r=22 tilt=30 oy=0 zf=0.192308 oz=57.72221 missed truth t=60.0598 gap=2.5506 emitted=4 truth=6 capped=0 exhausted=False trunc=False
+     emitted: 39.7730I/Wall 62.6104O/Wall 106.7457I/Wall 115.4444O/Cap
+     truth  : 39.7730 60.0444 60.0598 62.6104 106.7457 115.4444
+     hop: body=90 supG=1 baseZ=0 span=60 n=27
+DIAGDONE

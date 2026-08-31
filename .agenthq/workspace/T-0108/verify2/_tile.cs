@@ -28,7 +28,7 @@ System.Func<int,int,bool,object[]> build = (W,H,solids) => {
      "N", Laubrary.Shaper.ShaperCombineMode.Add);
   if (!solids) {
     node = Laubrary.Shaper.ShaperNode.Primitive(
-     new Laubrary.Shaper.ShaperPrimitiveDef { kind=Laubrary.Shaper.ShaperPrimitiveKind.Circle, circleRadius=13f },
+     new Laubrary.Shaper.ShaperPrimitiveDef { kind=Laubrary.Shaper.ShaperPrimitiveKind.Ellipse, ellipseRx=13f, ellipseRy=13f },
      "D", Laubrary.Shaper.ShaperCombineMode.Add);
     node.border = new Laubrary.Shaper.ShaperBorderDef { enabled=true, width=new ZUIValue(2.5f) };
   }

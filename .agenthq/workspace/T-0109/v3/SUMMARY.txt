@@ -1,0 +1,8 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+compileFailed=False
+InverseAtEUpperBound present = True
+ShaperFieldAudit: 241487 ms  PASS=13  FAIL=0  VERDICT ok 0/0
+ShaperFillAudit: 11187 ms  PASS=85  FAIL=0  VERDICT ok 0/0
+ShaperBorderAudit: 5344 ms  PASS=79  FAIL=0  VERDICT ok 0/0
+ShaperLightAudit: 28971 ms  PASS=150  FAIL=0  VERDICT ok 0/0
+ShaperHeightAudit: 24768 ms  PASS=0  FAIL=0  VERDICT ok 11/12

@@ -1,0 +1,26 @@
+=== V2B-2 - the breakpoint-parallel duplication, over all 42 combinations ===
+A HORIZONTAL ray (|dz| < 1e-9) at z exactly equal to an INTERIOR slab breakpoint is accepted
+by the slab below AND the slab above, because ClipSlab's parallel branch is inclusive at both
+ends. Both slabs march the same range and emit the same flips.
+
+  combinations = 42,  interior-breakpoint rays fired = 552
+  combinations with at least one wrong ray = 1,  wrong rays = 1
+  worst |Depth error| = 0,001 canvas px
+  Stepped+Rounded bp[8] zeta=0,50000 z=20  got 2 true 6  Depth 200,032 vs 200,032
+
+=== V2-RIM - ShaperHeight.FillTile's hard cut at d = 0, now that the sheet IS read ===
+  a row across the rim (Flat, body 24, halfBand from the grid):
+         d     coverage       height     cov*body
+    2,5000      0,00000      0,00000      0,00000
+    1,5000      0,00000      0,00000      0,00000
+    0,5000      0,25926      0,00000      6,22222
+   -0,5000      0,74074     24,00000     17,77778
+   -1,5000      1,00000     24,00000     24,00000
+   -2,5000      1,00000     24,00000     24,00000
+   -2,5000      1,00000     24,00000     24,00000
+   -1,5000      1,00000     24,00000     24,00000
+   -0,5000      0,74074     24,00000     17,77778
+    0,5000      0,25926      0,00000      6,22222
+    1,5000      0,00000      0,00000      0,00000
+    2,5000      0,00000      0,00000      0,00000
+  worst (coverage*body - height) at a PARTIALLY covered sample outside the silhouette: 6,22222 canvas px

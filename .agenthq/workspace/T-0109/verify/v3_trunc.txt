@@ -1,0 +1,8 @@
+=== V2C-2 - truncation parity, broad sweep ===
+For every ray x every buffer cap: does the stamped `entering` match the crossing's TRUE parity,
+and does Depth ever OVER-report the true solid length (the answer HS-6.6 forbids by name)?
+
+  truncated cases exercised            : 237
+  cases whose retained set is NOT a ray-order prefix (i.e. emission WAS out of order): 0
+  cases with at least one MIS-STAMPED parity flag: 0   worst flags wrong in one case: 0
+  cases whose Depth OVER-reports true solid: 0   worst over-report: 0,000

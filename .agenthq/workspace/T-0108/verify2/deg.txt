@@ -1,0 +1,19 @@
+POINT-LIGHT RANGE GUARD (ShaperLightCompiler.cs:143  range > 1e-6 ? 1/r^2 : 0)
+  sample at canvas (0,0), light at (0,0,40):
+   range=4.0E+001  -> invRangeSq=6.250E-004  L=0.500000  S=0.000000
+   range=1.0E+000  -> invRangeSq=1.000E+000  L=0.000625  S=0.000000
+   range=1.0E-002  -> invRangeSq=1.000E+004  L=0.000000  S=0.000000
+   range=1.0E-004  -> invRangeSq=1.000E+008  L=0.000000  S=0.000000
+   range=1.0E-005  -> invRangeSq=1.000E+010  L=0.000000  S=0.000000
+   range=1.0E-006  -> invRangeSq=0.000E+000  L=1.000000  S=0.000000
+   range=1.0E-007  -> invRangeSq=0.000E+000  L=1.000000  S=0.000000
+   range=0.0E+000  -> invRangeSq=0.000E+000  L=1.000000  S=0.000000
+  NOTE: atten = 1/(1+dist^2*invRangeSq); invRangeSq=0 means atten==1 at EVERY distance.
+
+LIGHT EXACTLY AT THE SAMPLE POINT (dist = 0), range 40:
+   invRangeSq=6.250E-004  L=0.000000  S=0.000000
+LIGHT AT THE SAMPLE POINT WITH range 0 (both degeneracies at once):
+   invRangeSq=0.000E+000  L=0.000000  S=0.000000
+
+EIGHT COINCIDENT POINT LIGHTS, dist 0, range 0, intensity float.MaxValue, ZERO normal (0,0,0), specularPower 0:
+   L=0.1  S=0.1  finite

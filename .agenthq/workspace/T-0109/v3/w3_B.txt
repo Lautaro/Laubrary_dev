@@ -1,0 +1,27 @@
+
+=== W3B - minimal repro + the contained-prism / membership contradiction ===
+  fixture: 400x400 solid plate, Stepped n=8 bevel None, depth 290 (body=290, span=200)
+  ray: origin (-400,0,248,571732) dir (0,95394,0,-0,3)
+  EMITTED : 314,4854I 550,3496O    (branch=General capped=0 exhausted=False truncated=False)
+  TRUTH   : 314,4854 550,3496 552,3819 576,5567 
+  true solid length 260,0389 px
+  MISSED SOLID SPAN [552,3819, 576,5567]  width 24,1747 px
+  breakpoints = 8
+  slab boundaries in ray parameter, and the predicate either side:
+    k       zeta            z              s   P(s-e)     P(s)   P(s+e)
+    0   0,000000      0,00000      828,57239    False    False    False
+    1   0,142857     41,42857      690,47717    False    False    False
+    2   0,285714     82,85715      552,38190    False    False     True
+    3   0,428571    124,28572      414,28668     True     True     True
+    4   0,571429    165,71429      276,19144    False    False    False
+    5   0,714286    207,14287      138,09621    False    False    False
+    6   0,857143    248,57144        0,00097    False    False    False
+
+  THE CONTRADICTION - at the entry of the slab that contains the missed span:
+    slab k=1  zetaLo=0,142857 zetaHi=0,285714
+      slab entry s = 552,38190   exact predicate says solid = False
+      d = -73,06128  tauMaxSlab = 0,250000  gapIn = -d - tauMax*span = 23,06128
+      gapIn > 0  =>  the CONTAINED prism proves SOLID here and skips 24,1748 px forward, to s = 576,5567
+      predicate at the landing point = False
+      *** prism says SOLID, exact predicate says AIR - at the SAME point. One of them is wrong. ***
+      the true span end is 576,5567, so the skip lands past it and mPrev never flips.

@@ -1,0 +1,10 @@
+
+=== W4B - HS-5.2 containment of the CONTAINING prism, by dense FLOAT scan ===
+  The march skips air on { d > -tauMin*span }, i.e. it assumes no t < tauMin reaches zeta.
+  A single float t below tauMin with G(t) >= zeta breaks that. Scanned at 4e-6 t-resolution.
+  probes = 2542   zetas where some t < tauMin ALREADY reaches = 1
+  worst over-report = 3,4481E-002 t-units
+    n=29 k=15 ulp=1 zeta=0,5357143  tauMin=0,5517241  a float that already reaches: 0,5172436   gap 3,4481E-002 t-units (1 tread = 0,0344828)
+  step counts affected: 29
+  does any of this cost a crossing in the march? (rays aimed at the affected zetas)
+    rays = 58   losing a crossing = 1   worst gap 7,1227E+000 px

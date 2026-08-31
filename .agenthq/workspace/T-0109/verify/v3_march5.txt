@@ -1,0 +1,9 @@
+=== V2-MARCH - adversarial attacks on the rebuilt QueryGeneral ===
+
+
+
+
+-- 5. rays tangent to a circular silhouette --
+      24 rays, mismatches = 0  (a tangent ray's true count is scan-resolution dependent; read the gaps)
+
+

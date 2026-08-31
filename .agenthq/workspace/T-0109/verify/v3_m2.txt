@@ -1,0 +1,40 @@
+=== ATTACK 1 (take 2) - a thin SLOT strictly inside the support box ===
+shape: solid plate 400x400 canvas px, minus a slot of width `slot` at x = +40
+layer: Flat profile, no bevel, depth `body`. One slab (HS-5.5), so resStep = (a1-a0)/8.
+ray:   +X, tilted `tilt` deg downward; ground truth = 800k-sample scan of the exact predicate
+
+   slot    tilt    body    true     got   resStep    branch verdict
+     60       0      40       4       4     50,00   General ok
+     60      10     400       4       4     50,77   General ok
+     60      30     400       4       4     57,74   General ok
+     60      60     400       2       2    100,00   General ok
+     40       0      40       4       4     50,00   General ok
+     40      10     400       4       4     50,77   General ok
+     40      30     400       4       4     57,74   General ok
+     40      60     400       2       2    100,00   General ok
+     30       0      40       4       4     50,00   General ok
+     30      10     400       4       4     50,77   General ok
+     30      30     400       4       4     57,74   General ok
+     30      60     400       2       2    100,00   General ok
+     20       0      40       4       4     50,00   General ok
+     20      10     400       4       4     50,77   General ok
+     20      30     400       4       4     57,74   General ok
+     20      60     400       2       2    100,00   General ok
+     12       0      40       4       4     50,00   General ok
+     12      10     400       4       4     50,77   General ok
+     12      30     400       4       4     57,74   General ok
+     12      60     400       2       2    100,00   General ok
+      8       0      40       4       4     50,00   General ok
+      8      10     400       4       4     50,77   General ok
+      8      30     400       4       4     57,74   General ok
+      8      60     400       2       2    100,00   General ok
+      4       0      40       4       4     50,00   General ok
+      4      10     400       4       4     50,77   General ok
+      4      30     400       4       4     57,74   General ok
+      4      60     400       2       2    100,00   General ok
+      1       0      40       4       4     50,00   General ok
+      1      10     400       4       4     50,77   General ok
+      1      30     400       4       4     57,74   General ok
+      1      60     400       2       2    100,00   General ok
+
+total configurations that lost crossings: 0

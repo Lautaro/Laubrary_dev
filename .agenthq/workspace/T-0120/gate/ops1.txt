@@ -1,0 +1,4 @@
+focus
+click 2087 1845
+sleep 300
+shot D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0120/gate/shots/g1-playhead.png

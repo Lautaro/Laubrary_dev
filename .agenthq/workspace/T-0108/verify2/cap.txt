@@ -1,0 +1,30 @@
+A. 11 authored, all enabled  (the audit's LT-11 case)
+   authored=11 enabled=11 compiled(count)=8  TRULY dropped=3
+   hasTooManyLights=True  tooManyLightsCount=3
+   reason: the rig holds 11 lights; only the first 8 are lit. The cap is 8.
+   >>> FALSE ALARM (claims a drop, none happened): False   |  COUNT WRONG (says 3, truth 3): False
+
+B.  9 authored, the 9th DISABLED - nothing is actually dropped
+   authored=9 enabled=8 compiled(count)=8  TRULY dropped=0
+   hasTooManyLights=True  tooManyLightsCount=1
+   reason: the rig holds 9 lights; only the first 8 are lit. The cap is 8.
+   >>> FALSE ALARM (claims a drop, none happened): True   |  COUNT WRONG (says 1, truth 0): True
+
+C. 11 authored, 5 disabled -> only 6 enabled, all 6 fit
+   authored=11 enabled=6 compiled(count)=6  TRULY dropped=0
+   hasTooManyLights=True  tooManyLightsCount=3
+   reason: the rig holds 11 lights; only the first 8 are lit. The cap is 8.
+   >>> FALSE ALARM (claims a drop, none happened): True   |  COUNT WRONG (says 3, truth 0): True
+
+D. 12 authored, first 8 DISABLED -> 4 enabled, all 4 fit
+   authored=12 enabled=4 compiled(count)=4  TRULY dropped=0
+   hasTooManyLights=True  tooManyLightsCount=4
+   reason: the rig holds 12 lights; only the first 8 are lit. The cap is 8.
+   >>> FALSE ALARM (claims a drop, none happened): True   |  COUNT WRONG (says 4, truth 0): True
+
+E.  8 authored, all enabled (control, no diagnostic expected)
+   authored=8 enabled=8 compiled(count)=8  TRULY dropped=0
+   hasTooManyLights=False  tooManyLightsCount=0
+   reason: (none)
+   >>> FALSE ALARM (claims a drop, none happened): False   |  COUNT WRONG (says 0, truth 0): False
+

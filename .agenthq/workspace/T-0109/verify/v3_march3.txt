@@ -1,0 +1,9 @@
+=== V2-MARCH - adversarial attacks on the rebuilt QueryGeneral ===
+
+
+-- 3. all 42 combinations, two 12 px slots strictly inside, three tilts --
+      126 rays,  wrong = 0,  worst gap true->emitted = 3,052E-005 px  (Flat+None tilt=0)
+
+
+
+

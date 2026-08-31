@@ -1,0 +1,2 @@
+drag 450 631 610 631
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a07-count-dragged.png

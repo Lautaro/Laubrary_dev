@@ -1,0 +1,10 @@
+
+=== W3G - N4: InverseAtEUpperBound as an UPPER bound. My grid; the test is the SHIPPED one ===
+  The claim under test (ShaperResolve.cs, per-step bracket): tau = InverseAtEUpperBound(op, wHi, eLo)
+  is such that t >= tau  =>  G(t) >= wHi.  I check exactly that, at t = tau itself, in float,
+  using the SHIPPED Composed() - so no reference of mine can be blamed for a violation.
+  InverseAtE           (pre-N4): checks=125736  G(tau) < zeta in 3194   worst shortfall 3,3379E-006
+      worst: Flat+Cove a=0,05 zeta=0,9950000
+  InverseAtEUpperBound (shipped): checks=125736  G(tau) < zeta in 0   worst shortfall 0,0000E+000
+      worst: 
+  FIX-REPORT-2's N4 row claims 0 violations for the shipped function.

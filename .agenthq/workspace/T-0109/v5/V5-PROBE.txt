@@ -1,0 +1,15 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+compileFailed=False
+V1 repro: branch=General count=4 truncated=False
+   [0] rayT=314.4854 entering=True
+   [1] rayT=550.3495 entering=False
+   [2] rayT=552.3823 entering=True
+   [3] rayT=576.5566 entering=False
+V1 VERDICT: PASS - all four truth crossings present
+V1 breadth: 2496 rays, 3240 true transitions, LOST = 0, worst gap = 0.0000 px  
+V1 breadth VERDICT: PASS
+V3: exact (0,0,-1)   branch=StraightDown firstT=396.8736
+V3: 2e-5 off axis    branch=General firstT=396.8686
+V3 VERDICT: PASS - closed form on the axis only
+V2 traps: 68 probes, containing-prism violations = 0, worst over-report = 0.0000E+000 t-units  
+V2 VERDICT: PASS

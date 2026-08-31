@@ -1,0 +1,1054 @@
+PM VERIFY RUN — total legs discovered: 74
+
+===== [0] ShaperLightAudit.LT10_AddIsNotLit =====
+LT-10 Add fills are not lit (L = 0.5, ambient 0, S = 0)
+  Over destination R = 0.30191370  Add destination R = 0.60382740
+  Add/Over ratio = 2.00000000 (expected 2.00000000, tolerance 1e-6)  PASS
+  Add destination vs the raw linear albedo 0.60382740: |err| 0.000E+000 (expected 0 - an Add fill is written through UNLIT)  PASS
+  A lamp does not get dimmer because you put it in a dark room (LR-5.3); FC-2.6d records
+  that the fire and explosion palettes are usually authored to Add, so this is what keeps
+  a fire emissive under a rig that would otherwise plunge it into shadow.
+  RESULT: PASS
+
+===== [1] ShaperLightAudit.LT11_TheCap =====
+LT-11 the eight-light cap refuses with a reason and a count
+  hasTooManyLights = True (expected True)  PASS
+  tooManyLightsCount = 3 (expected 3)  PASS
+  compiled light count = 8 (expected 8)  PASS
+  reason: "the rig holds 11 enabled lights; only the first 8 enabled are lit. The cap is 8."  contains "11" and "8": True  PASS
+  the disabled-light configurations - `enabled`, not `authored`, is what the cap measures:
+    11 authored, none disabled     enabled 11/11, lit 8/8, flag True/True, dropped 3/3  PASS
+    9 authored, the 9th disabled   enabled 8/8, lit 8/8, flag False/False, dropped 0/0  PASS
+    11 authored, 5 disabled        enabled 6/6, lit 6/6, flag False/False, dropped 0/0  PASS
+    12 authored, first 8 disabled  enabled 4/4, lit 4/4, flag False/False, dropped 0/0  PASS
+    8 authored, none disabled      enabled 8/8, lit 8/8, flag False/False, dropped 0/0  PASS
+    13 authored, 2 disabled        enabled 11/11, lit 8/8, flag True/True, dropped 3/3  PASS
+  Finish's `rig.count` (6) and the cap's `enabledLightCount` (6) agree below the cap  PASS
+  destination floats differing between the 11-light and 8-light rigs: 0/65536 (expected 0 - lights 9-11 contribute exactly 0)  PASS
+  RESULT: PASS
+
+===== [2] ShaperLightAudit.LT12_ShadowsRecordedAndInert =====
+LT-12 shadow flags are recorded AND inert
+  (a) differing pixels between shadows-off and shadows-on: 0/16384 (expected 0 - INERT)  PASS
+  (b) hasUnimplementedShadow off/on = False/True (expected False/True)  PASS
+      unimplementedShadowCount = 1 (expected 1, the layer count)  PASS
+      unimplementedShadowNode = "Layer" (expected "Layer", the first layer that asked)  PASS
+      reason == ShaperLightRig.ShadowsNotComputed VERBATIM: True  PASS
+      reason still SAYS what it must (saved / not computed / straight down / ray): True  PASS  - the identity check alone is vacuous against a paraphrase of the const itself, measured, so the substance is asserted separately
+      "Cast and receive shadows are saved with the document, but no shadow is computed yet. The picture is resolved by looking straight down, and a shadow needs a ray pointed at the light."
+  (c) the flags are ABSENT from ShaperResponseCompiled, so the law cannot see them: True
+  (d) FOUR layers, three of which ask for shadows:
+      layerCount = 4 (expected 4)  PASS
+      unimplementedShadowCount = 3 (expected 3 - the number that asked, not the number of layers and not 1)  PASS
+      unimplementedShadowNode = "Backdrop" (expected "Backdrop", the FIRST that asked)  PASS
+  (e) 8 lights and ZERO receivers raises hasLightsButNoReceivers = True, receiverCount = 0 (expected True/0)  PASS
+      "the document holds 8 enabled lights and no layer receives lighting, so none of them changes a pixel. Turn on Receive Lighting on a layer."
+  RESULT: PASS
+
+===== [3] ShaperLightAudit.LT13_ProviderIsSwappable =====
+LT-13 the provider is swappable without touching the law
+  (a) centre-sample red byte: Constant(0,0,1) = 151, Constant(0.6,0,0.8) = 65, |delta| = 86 (expected >= 8)  PASS
+  (b) Shade parameters: 17 total, array types 0 (expected 0), reference types 0 (expected 0)  PASS
+      ShaperLightRigCompiled ShaperResponseCompiled Single Single Single Single Single Single Single Single Single Single Single Single Single Single Single
+  A signature with no array in it CANNOT difference a buffer. LR-3.3's prohibition is
+  therefore structural, not a convention someone has to remember.
+  (c) ShaperNormalKind cases present: Constant  - Profile is RESERVED and commented, so T-0109 is an addition, not a renumbering.
+  RESULT: PASS
+
+===== [4] ShaperLightAudit.LT14a_Convexity =====
+LT-14a convexity: at most one culled-visible face covers any sample
+  Box       32 rotations x 6561 samples = 209952; max STRICTLY-INTERIOR covering faces = 1 (expected 1)  PASS
+            samples lying exactly ON a shared triangle edge or vertex: 39 (max 2 faces there) - EXPECTED and harmless: InTri's test is inclusive (w >= 0), so a point on a shared edge is in both triangles, and the generator's `break` makes the winner deterministic.
+  Pyramid   32 rotations x 6561 samples = 209952; max STRICTLY-INTERIOR covering faces = 1 (expected 1)  PASS
+            samples lying exactly ON a shared triangle edge or vertex: 0 (max 1 faces there) - EXPECTED and harmless: InTri's test is inclusive (w >= 0), so a point on a shared edge is in both triangles, and the generator's `break` makes the winner deterministic.
+  Can       32 rotations x 6561 samples = 209952; max STRICTLY-INTERIOR covering faces = 1 (expected 1)  PASS
+            samples lying exactly ON a shared triangle edge or vertex: 2 (max 2 faces there) - EXPECTED and harmless: InTri's test is inclusive (w >= 0), so a point on a shared edge is in both triangles, and the generator's `break` makes the winner deterministic.
+  Gem       32 rotations x 6561 samples = 209952; max STRICTLY-INTERIOR covering faces = 1 (expected 1)  PASS
+            samples lying exactly ON a shared triangle edge or vertex: 51 (max 3 faces there) - EXPECTED and harmless: InTri's test is inclusive (w >= 0), so a point on a shared edge is in both triangles, and the generator's `break` makes the winner deterministic.
+  This is what makes 'break; // convex + culled: first hit wins' correct, and it is
+  exactly what a FUSED silhouette of several solids would break (LR-6.5a).
+  RESULT: PASS
+
+===== [5] ShaperLightAudit.LT14b_OrbSilhouetteIsRotationInvariant =====
+LT-14b Orb's silhouette is rotation-invariant, its shading is not
+  (a) alpha samples differing across the rotation: 0/16384 (expected 0; STRUCTURAL - Orb coverage never reads the rotation matrix, so (c) is the leg that can actually fail)  PASS
+  (b) RGB samples differing across the rotation: 3640/16384 (expected >= 100)  PASS
+  (c) samples where the ROTATED Orb's coverage disagrees with the independently computed disc d <= 34: 0/16384 (expected 0, over 3640 covered)  PASS
+  (d) CONTROL - a BOX's alpha differing across the SAME rotation: 1812/16384 (expected >= 100; a 0 here would mean the fixture never rotated anything and (a)/(c) were vacuous)  PASS
+  This generator rotates the published NORMAL forward rather than rotating the light
+  backward as Pyre does (PyreRenderer.cs:4442-4455) - it is the other side of Pyre's own
+  identity N.(Rot^-1.L) == (Rot.N).L, and it is forced by LR-1.1: a per-particle inverse-
+  rotated light IS a light owned by a generator, which LR-1.1 forbids outright.
+  RESULT: PASS
+
+===== [6] ShaperLightAudit.LT14c_RingEdgeOnPop =====
+LT-14c Ring's edge-on pop is a discontinuity, locked as a known defect
+  tilt  80.0 deg  |cos| = 0.17365  covered samples 604
+  tilt  87.0 deg  |cos| = 0.05234  covered samples 188
+  tilt  88.0 deg  |cos| = 0.03490  covered samples 80
+  tilt  88.8 deg  |cos| = 0.02094  covered samples 128
+  tilt  88.9 deg  |cos| = 0.01920  covered samples 0
+  tilt  89.4 deg  |cos| = 0.01047  covered samples 0
+  tilt  89.6 deg  |cos| = 0.00698  covered samples 0
+  covered through 88.8 deg: True (expected True)
+  exactly 0 from 88.9 deg on: True (expected True)
+  one-step drop 88.8 -> 88.9: 100.0% (expected >= 90%)  PASS
+  DEVIATION: Part 8 states the pop lies between 89.4 and 89.6 deg. acos(0.02) = 88.854 deg,
+  so 89.0 and 89.4 are ALREADY zero and the contract's expected values cannot hold against
+  the ported guard. The defect asserted is the same one; only the angles are corrected.
+  RESULT: PASS
+
+===== [7] ShaperLightAudit.LT15_NormalsAreUnit =====
+LT-15 every provider writes a UNIT, finite, non-zero normal at every sample
+  Constant (authored non-unit)   unwritten/NaN 0, zero 0, non-unit 0/16384, worst ||N|-1| = 6.245E-009 (expected 0,0,0 and <= 1e-4)  PASS
+  Constant (degenerate zero)     unwritten/NaN 0, zero 0, non-unit 0/16384, worst ||N|-1| = 0.000E+000 (expected 0,0,0 and <= 1e-4)  PASS
+  Solids Box                     unwritten/NaN 0, zero 0, non-unit 0/524288, worst ||N|-1| = 6.094E-008  PASS
+  Solids Pyramid                 unwritten/NaN 0, zero 0, non-unit 0/524288, worst ||N|-1| = 6.043E-008  PASS
+  Solids Can                     unwritten/NaN 0, zero 0, non-unit 0/524288, worst ||N|-1| = 8.327E-008  PASS
+  Solids Gem                     unwritten/NaN 0, zero 0, non-unit 0/524288, worst ||N|-1| = 7.736E-008  PASS
+  Solids Orb                     unwritten/NaN 0, zero 0, non-unit 0/524288, worst ||N|-1| = 1.330E-007  PASS
+  Solids Ring                    unwritten/NaN 0, zero 0, non-unit 0/524288, worst ||N|-1| = 7.025E-008  PASS
+  RESULT: PASS
+
+===== [8] ShaperLightAudit.LT16_SharedFrame =====
+LT-16 the two families share a FRAME, not only a law
+  Solids Box (+Z face, normal (0,0,1), surface point z = +20 px)  destination R = 0.50510450
+  Silhouette square, Constant(0,0,1), surface point z = 0        destination R = 0.50510450
+  |difference| = 0.000E+000 (expected <= 1e-6)  PASS
+  encoded bytes: Box (188,180,172)  square (188,180,172)  identical: True  PASS
+  (c) OFF-CENTRE at canvas (20,-12) under a POINT light at (0,0,30) range 30 -
+      the leg a directional light structurally cannot test:
+        Solids Box (depth ~0, front face on the base plane) R = 0.15731070
+        Silhouette square, same place, Constant(0,0,1)      R = 0.15730900
+      |difference| = 1.714E-006 (expected <= 1e-4)  PASS
+      CONTROL - the same solid at the canvas CENTRE reads 0.24627670, i.e. 8.897E-002 away, so the lamp genuinely
+      varies across the canvas and a solid lit in its own frame would be caught here.
+  OBSERVATION (not asserted) - under a POINT light at (0,0,40) range 40, the same two
+    read 1.07069100 and 0.69568060, differing by 3.750E-001. They SHOULD: the box's front face stands 20 px
+    out of the base plane, so it is genuinely 20 px nearer the lamp. Predicted atten
+    ratio 1.60000. That is ShaperLightRig.ConsistentNotIdentical, measured.
+  RESULT: PASS
+
+===== [9] ShaperLightAudit.LT18_DegenerateDialsNeverGoNonFinite =====
+LT-18 no dial at any degenerate value writes a non-finite float (fix pass)
+  degenerate cases driven: 1428 (every dial on the rig, the response block and all six Solids forms x {-1, 0, +Inf, -Inf, NaN, -1e30, 1e30} x ambient {0.2, 0.0})
+  NON-FINITE FLOATS REACHING dst: 0 (expected EXACTLY 0; measured 19200 for rimPower = -1 alone before the fix)  PASS
+  GARBAGE ENCODED PIXELS: 0 (expected EXACTLY 0; measured 6400 for rimPower = -1 on a black ambient before the fix)  PASS
+  (d) the range dial, swept ACROSS the old discontinuity (light at (0,0,40), sample at (0,0), ambient black):
+      1e4=0.999984 40=0.500000 10=0.058824 1=0.000625 1e-2=0.000000 1e-4=0.000000 1e-5=0.000000 1e-6=0.000000 1e-7=0.000000 0=0.000000 -1=0.000000 NaN=0.500000 +Inf=0.500000
+      inversions as the range shrinks: 0 (expected 0; the old build had one, 1e-5 -> 1e-6 snapping 0 -> 1.000000)  PASS
+      range == 0 gives L = 0.000000 (expected 0 - LR-2.4: a vanishing range is a vanishing REACH, not a vanished falloff)  PASS
+      range == -1 matches range == 0: True; NaN finite: True; +Inf finite: True  PASS
+  (e) CONTROL - the LAW, handed an UNCLAMPED rimPower = -1 on a flat normal, returns S.r = Infinity (expected non-finite; this is exactly what the compile clamp protects against, and a finite value here would mean the zeroes above prove nothing)  PASS
+  RESULT: PASS
+
+===== [10] ShaperLightAudit.LT19_EveryDialIsLiveOrDeclaredInert =====
+LT-19 every Solids dial is live or DECLARED inert - never neither (fix pass)
+    Box      Size:5506 Cent:2680 Aspe:4557 Dept:4024 GemS:0* GemC:0* GemP:0* Ring:0* Yaw:7966 Tilt:7494 Roll:5216 Line:1130 Edge:4004 Inne:6914
+    Pyramid  Size:2353 Cent:1891 Aspe:3326 Dept:2688 GemS:0* GemC:0* GemP:0* Ring:0* Yaw:3640 Tilt:4205 Roll:4067 Line:655 Edge:2227 Inne:2683
+    Can      Size:4783 Cent:4476 Aspe:3685 Dept:0* GemS:0* GemC:0* GemP:0* Ring:0* Yaw:5647 Tilt:5878 Roll:6758 Line:669 Edge:2405 Inne:5428
+    Orb      Size:3590 Cent:4067 Aspe:0* Dept:0* GemS:0* GemC:0* GemP:0* Ring:0* Yaw:3120 Tilt:3142 Roll:3267 Line:404 Edge:1494 Inne:3396
+    Gem      Size:1600 Cent:1703 Aspe:0* Dept:0* GemS:1821 GemC:2088 GemP:125 Ring:0* Yaw:2021 Tilt:2686 Roll:2356 Line:684 Edge:1790 Inne:1274
+    Ring     Size:2246 Cent:2036 Aspe:0* Dept:0* GemS:0* GemC:0* GemP:0* Ring:846 Yaw:2146 Tilt:2180 Roll:0* Line:594 Edge:1836 Inne:1520
+  legend: <dial>:<differing encoded pixels>, * = DECLARED INERT (must be 0), !! = the assertion failed
+  live dials moving >= 20 px: 56;  declared-inert dials measuring exactly 0: 28
+  SILENTLY INERT (live by declaration, dead by measurement): 0 (expected 0; this count was 5 before the fix - aspect and depth on Gem and Ring, and depth on Orb)  PASS
+  FALSELY DECLARED (declared inert, actually moves pixels): 0 (expected 0)  PASS
+  DIAGNOSTIC, Gem with aspect 0.4 and depth 0.4: hasInertDial = True (True), inertDialCount = 2 (2), dial "Aspect" on form "Gem"  PASS
+    reason: "Aspect does nothing on a Gem. A gem's proportions are Crown and Pavilion, which set its height above and below the girdle; the reference builder (PyreRenderer.cs:4796) reads neither aspect nor depth. Use Crown and Pavilion."
+  a Gem with aspect and depth left at 1 (neutral) raises nothing: hasInertDial = False (expected False - the complaint is about a control the author OPERATED and got nothing from, not about a field's existence)  PASS
+  RESULT: PASS
+
+===== [11] ShaperLightAudit.LT1_OneLawNumeric =====
+LT-1 one law, two families - numeric (64 normals x 8 rig configs)
+  cases run 512 (expected 512)  PASS
+  (i) the two PROVIDERS write the same direction: worst componentwise |dN| = 1.192E-007 (expected <= 1e-6)  PASS
+  (ii) where the two providers wrote BIT-IDENTICAL normals (400/512 cases), the law's six outputs are bit-identical at 400/400 (expected 400/400)  PASS
+  (iii) where they did not (112/512), worst total |dL|+|dS| = 4.917E-006 (expected <= 1e-4)  PASS
+  (iv) the same float triple fed twice is bit-identical at 512/512 (expected 512) - the law is a pure function of its arguments  PASS
+  DEVIATION FROM PART 8, measured rather than excused. LT-1 expects 'bit-identical,
+  512/512'. That is UNACHIEVABLE against LR-3.5, and the two clauses are in conflict:
+  LR-3.5 makes UNIT output a provider contract, so ShaperNormals re-normalises its
+  authored direction, while an Orb's N = P/R is unit only to float precision. The two
+  providers therefore differ in the last bit at 112 of 512 cases
+  (worst 1.2e-7), and a pow(nh, 24) specular amplifies that to ~5e-6 in the output. The
+  exact assertion that IS available is leg (ii): given the same bits in, the same bits
+  out, every time. LR-3.5 is the clause worth keeping; LT-1's wording is the one to fix.
+  the 64 normals are GEOMETRY-DERIVED (an Orb's N = P/R at 64 covered samples spread
+  across the disc), so the Constant provider is driven to values it did not choose - a
+  self-consistent constant would make this leg vacuous.
+  INSUFFICIENT ON ITS OWN, stated: this leg cannot see a DUPLICATE law that currently
+  agrees. LT-1b is the half that makes 'one law' falsifiable, and LT-16 is the half that
+  makes the shared FRAME falsifiable.
+  RESULT: PASS
+
+===== [12] ShaperLightAudit.LT1b_OneLawStructural =====
+LT-1b one law - structural (reflection + IL scan)
+  (a) public methods named Shade on ShaperLightLaw: 1 (expected 1)  PASS
+  (b) methods in the runtime assembly calling ShaperLightLaw.Shade: 1 (expected 1)  [ShaperFillResolver.LightSample]  PASS
+  (c) ShaperSolids methods touching a compiled-rig type in their IL, SIGNATURE, RETURN or LOCALS: 0 (expected 0)    PASS
+      Solids therefore CANNOT shade: it has no way to see a light, an ambient or a
+      response block. Its inline lighting block (PyreRenderer.cs:4341-4360, :4534-4553,
+      :4720-4740) is not reproduced anywhere in the ported generator.
+  RESULT: PASS
+
+===== [13] ShaperLightAudit.LT20_BorderIsLitByItsHost =====
+LT-20 a border is lit by its HOST's response and HOST's normal (LR-5.4, fix pass)
+  border owner index 1, host owner index 0 (both must be found)  PASS
+  border samples: 1184 (expected > 200)
+  border pixels that MOVED when the BORDER's OWN response and normal were replaced: 0/1184 (expected 0 - LR-5.4 says its own entries are never read)  PASS
+  CONTROL - border pixels that moved when the HOST's response and normal changed: 1184/1184 (expected > 100; a 0 here would mean the border is not lit at all and the assertion above is vacuous)  PASS
+  RESULT: PASS
+
+===== [14] ShaperLightAudit.LT21_DocumentOwnsTheLights =====
+LT-21 the document owns the lights, and the document path is RUN (fix pass)
+  document 96x72 @ 1, phase 0.37, seed 909, 4 layers, 2 lights on the rig
+  ShaperDocument.Grid() is canvas-centred with the document's pixelSize: origin (-47.500, -35.500)  PASS
+  CompileDocument: rig.count = 2 (expected 2, on the DOCUMENT's clock per LR-1.8), layers not yet bound (0)  PASS
+  after binding every layer: layerCount = 4 (expected 4), receiverCount = 3 (expected 3)  PASS
+  per-layer responses take effect - pixels differing from the LIT layer:
+    receive off 2188, in-shadow 2188, rim 1.5 2188 (each expected > 500)  PASS
+    summed luminance: in-shadow 350080 < lit 645940 < rim 660401 (the direction each block predicts; receive-off 975848 is the raw albedo)  PASS
+  NOTE, stated rather than papered over: Wave 2 has NO document-level compositor. The
+    document is now genuinely the source of the rig, the grid, the clock, the seed and
+    each layer's response block, and that path is exercised end-to-end here - but
+    stacking several layers into one picture is not built and is not in this contract's
+    scope. This leg proves the document is WIRED, not that a document RENDERS.
+  RESULT: PASS
+
+===== [15] ShaperLightAudit.LT22_GlowPathExecutes =====
+LT-22 the halo and inner glow actually run (LR-6.4, fix pass)
+  Box      glow sheet non-zero floats 17106 (> 100), encoded RGB moved 5702 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Pyramid  glow sheet non-zero floats 7371 (> 100), encoded RGB moved 2457 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Can      glow sheet non-zero floats 13494 (> 100), encoded RGB moved 4498 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Orb      glow sheet non-zero floats 8484 (> 100), encoded RGB moved 2825 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Gem      glow sheet non-zero floats 4164 (> 100), encoded RGB moved 1388 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Ring     glow sheet non-zero floats 4752 (> 100), encoded RGB moved 1584 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  glow on a receiveLighting = FALSE layer still adds: 1388 samples moved, summed delta 704.234 (expected > 100 and > 0 - a glow is light, not paint: LR-5.3 one level down)  PASS
+  RESULT: PASS
+
+===== [16] ShaperLightAudit.LT23_RimIsInertOnBlackAmbientAndDeclared =====
+LT-23 rim is inert on a black ambient, and the tool says so (fix pass)
+  rim 0: black S=0.00000000 / amb0.2 S=0.00000000   rim 0.5: black S=0.00000000 / amb0.2 S=0.00636118   rim 1: black S=0.00000000 / amb0.2 S=0.01272235   rim 2.5: black S=0.00000000 / amb0.2 S=0.03180588   rim 5: black S=0.00000000 / amb0.2 S=0.06361176
+  S is EXACTLY 0 at every rim strength on a black ambient: True; non-zero on a lit one: True  PASS
+  DIAGNOSTIC on a black ambient: hasInertRim = True (True), count = 2 (2), first node "Layer A" (Layer A), reason == ShaperLightRig.RimNeedsBlackAmbientRelief VERBATIM  PASS
+  does NOT fire on: a lit ambient (False), rim 0 (False), receive off (False) - all expected False  PASS
+  LR-7.2's RimNeedsRelief covers BOTH inert states - flat normal: True, black ambient: True; the standalone sibling exists: True  PASS
+  The ARITHMETIC is deliberately unchanged: LR-2.3 specifies `S += amb . rim` and
+    overturning that is the owner's ruling, not a fix pass's. Flagged in FIX-REPORT.md
+    with the alternative rather than changed unilaterally.
+  RESULT: PASS
+
+===== [17] ShaperLightAudit.LT2_ZeroAllocation =====
+LT-2 zero allocation in the lit tile loop (10000 samples per case)
+  instrument calibration, run IN-REGION and BEFORE the measurements (sink 1):
+    PRIMARY   IL opcode scan - newobj/newarr/box. NO detection floor: an allocation is an opcode, not a magnitude.
+    SECONDARY GC.GetTotalMemory(false), calibrated inside the measured loop: DETECTION FLOOR = 4096 BYTES PER PaintTile CALL (observed heap delta 532480 B over 65 reps)  PASS
+    DEAD      GC.GetAllocatedBytesForCurrentThread() reported 0 B across the whole calibration, in which 266240+ bytes were provably allocated. It is INERT at every size on this Mono runtime (verified separately up to 64 MB) and contributes NOTHING to this leg's verdict; it is printed only so the claim is visible rather than implied.
+    A per-tile temporary SMALLER than the floor above is invisible to the heap probe and is caught by the IL scan instead. That is the honest statement of what this leg proves, replacing the old and never-measured "exactly 0 bytes".
+  1 light / Over / Constant          x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  1 light / Over / Solids            x65 reps: heap 12288 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  1 light / Add / Constant           x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  1 light / Add / Solids             x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  8 lights / Over / Constant         x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  8 lights / Over / Solids           x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  8 lights / Add / Constant          x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  8 lights / Add / Solids            x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  IL scan across law + both providers + PaintTile + LightSample: raw byte hits 3, TOKEN-CONFIRMED allocations 0 (expected 0)  PASS
+    ShaperLightLaw.Shade(764B raw:0 confirmed:0) ShaperNormals.FillTile(186B raw:0 confirmed:0) ShaperSolids.InertReason(207B raw:0 confirmed:0) ShaperSolids.Neutral(76B raw:0 confirmed:0) ShaperSolids.Dial(33B raw:0 confirmed:0) ShaperSolids.DeclareInertDials(142B raw:0 confirmed:0) ShaperSolids.Check(110B raw:0 confirmed:0) ShaperSolids.FillTile(837B raw:0 confirmed:0) ShaperSolids.SampleFacet(422B raw:0 confirmed:0) ShaperSolids.NearestLine(85B raw:0 confirmed:0) ShaperSolids.SampleOrb(321B raw:0 confirmed:0) ShaperSolids.SampleRing(303B raw:2 confirmed:0) ShaperSolids.EdgeKey(18B raw:0 confirmed:0) ShaperSolids.InTri(166B raw:0 confirmed:0) ShaperSolids.DistSeg(107B raw:0 confirmed:0) ShaperFillResolver.PaintTile(2823B raw:1 confirmed:0) ShaperFillResolver.LightSample(392B raw:0 confirmed:0)
+    every raw hit failed token resolution, i.e. was an operand byte coinciding with an opcode value - the upper bound collapsing to zero.
+  RESULT: PASS
+
+===== [18] ShaperLightAudit.LT3_TileIndependence =====
+LT-3 tile independence with lighting on (7x5 prime decomposition, BC-1.6)
+  Constant provider    42x35 whole vs 7x5 tiles: differing pixels 0/1470 (expected 0)  PASS
+  Solids provider      42x35 whole vs 7x5 tiles: differing pixels 0/1470 (expected 0)  PASS
+  RESULT: PASS
+
+===== [19] ShaperLightAudit.LT4_Determinism =====
+LT-4 determinism (same inputs -> identical bytes, within one session)
+  light intensity mode Curve        differing pixels between two runs 0/4096 (expected 0)  PASS
+  light intensity mode MinMax       differing pixels between two runs 0/4096 (expected 0)  PASS
+  light intensity mode Static       differing pixels between two runs 0/4096 (expected 0)  PASS
+  NOT RUN: the across-a-domain-reload leg. An eval executes inside one domain, so a
+  reload cannot be observed from here. Reported as not-verified rather than assumed.
+  RESULT: PASS
+
+===== [20] ShaperLightAudit.LT5a_LinearSpace =====
+LT-5a linear space, hand-computed (sRGB 128 light on a white albedo)
+  destination float at the centre sample: 0.21586050 (expected 0.21586050, |err| 3.073E-008, tolerance 1e-6)  PASS
+  encoded byte: 128 (expected 128)  PASS
+  the naive-linear mutation reads 188 here, a 60-code error - the muddy-shading
+  artefact FC-2.3 names, made numeric.
+  RESULT: PASS
+
+===== [21] ShaperLightAudit.LT5b_OneEncodeBoundary =====
+LT-5b one encode boundary (IL scan of the runtime assembly)
+  callers of ShaperSrgb.EncodeToByte in the runtime assembly: 1 (expected 1)  [ShaperFillResolver.Encode]
+  RESULT: PASS
+
+===== [22] ShaperLightAudit.LT6_HandComputed =====
+LT-6 falloff, ambient, specular and rim against hand-computed values
+  P1  P=(0,0,0) N=(0,0,1) light z=20 range=20  [atten 0.5]
+      L      = 0.68000000 (expected 0.68000000)  PASS
+      S_spec = 0.45000000 (expected 0.45000000)  PASS
+      rim    = 0.00000000 (expected 0.00000000)  PASS
+  P2  P=(0,0,0) N=(0.866025,0,0.5)
+      L      = 0.43000000 (expected 0.43000000)  PASS
+      S_spec = 0.02812500 (expected 0.02812500)  PASS
+      rim    = 0.21763765 (expected 0.21763800)  PASS
+  P3  light z=40, range 20, N=(0,0,1)  [atten 0.2]
+      L      = 0.38000000 (expected 0.38000000)  PASS
+  P4  intensityScale = 0.5, N=(0.866025,0,0.5)  [the ORDER probe, LR-2.3]
+      L      = 0.30500000 (expected 0.30500000 = 0.18 unscaled ambient + 0.125 scaled diffuse; ambient-added-last reads 0.21500000)  PASS
+  RESULT: PASS
+
+===== [23] ShaperLightAudit.LT7_RimIsZeroOnFlat =====
+LT-7 rim is exactly zero on a flat normal, across 8 light directions
+  light 1 (yaw 0, pitch 0): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 2 (yaw 45, pitch 10): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 3 (yaw 90, pitch 0): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 4 (yaw 135, pitch -30): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 5 (yaw 180, pitch 60): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 6 (yaw -55, pitch 36): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 7 (yaw -120, pitch 5): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 8 (yaw 30, pitch 85): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  total across the sweep: 0/131072 (expected 0)
+  this is ARITHMETIC, not a bug: on a flat surface N.V == 1 so rim == 0 identically.
+  ShaperLightRig.RimNeedsRelief is the sentence a UI must show on the control.
+  RESULT: PASS
+
+===== [24] ShaperLightAudit.LT8_ReceiveOffIsBitIdentical =====
+LT-8 receiveLighting = false is bit-identical to the pre-lighting build
+  golden: 65536 B (expected 65536), from D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0108\golden\lt8-unlit-128x128.rgba
+  differing pixels, NULL-SCENE render vs the STORED GOLDEN: 0/16384 (expected 0)  PASS
+  differing pixels, RECEIVE-OFF render vs the STORED GOLDEN: 0/16384 (expected 0 - this is the assertion D-9 argued away)  PASS
+  rig: 8 enabled lights (expected 8), rimStrength 1 on the response
+  differing pixels vs the null-scene render: 0/16384 (expected 0; WEAK - both sides run the same branch, see the summary)  PASS
+  CONTROL - the same rig with receive ON differs at 5054/16384 pixels (expected > 1000; a 0 here would make this leg vacuous)  PASS
+  RESULT: PASS
+
+===== [25] ShaperLightAudit.LT9_ExclusivityUnperturbed =====
+LT-9 lighting does not perturb the exclusivity partition (FT-21's instrument)
+  (a) sum(paint over the chain) != rootCoverage at 0/16384 samples (expected 0), worst 0.00000  PASS
+  (b) composited alpha BELOW the shape's own coverage at 0/16384 samples (expected 0), total 0.000, worst 0.0000  PASS
+      Directly comparable to the pre-fix escalation's 244 / 29.288 / 0.2484 on the same
+      fixture and the same instrument - now with 8 lights, a rim and an Add owner running.
+  (c) destination ALPHA differing between the lit and unlit renders: 0/16384 (expected 0 - lighting touches colour only, LR-5.2)  PASS
+  (d) MIXED Over/Add, 8 lights: destination ALPHA differing lit vs unlit 0/16384 (expected 0)  PASS
+      the same fixture's Add-owner alpha 'deficit' is 1960/16384 in BOTH renders - reported, not asserted to be 0, because FC-2.6b says an Add
+      owner raises no alpha. Lighting neither creates nor removes one sample of it.
+  RESULT: PASS
+
+===== [26] ShaperFieldAudit.V10_DegenerateInputs =====
+V10 degenerate inputs (no NaN / no Inf / no throw, plus correctness where known)
+  -- zero and negative sizes --
+  Rect 0x0                                     min      0.000  max    169.706  inside     1  ok
+  Rect -30x-10                                 min      0.000  max    169.706  inside     1  ok
+  Rect 60x40 corner 999                        min    -40.000  max    116.205  inside   921  ok
+  Ellipse 0x0                                  min      0.000  max    169.706  inside     1  ok
+  Ellipse -40x30                               min      0.000  max    150.000  inside    19  ok
+  Diamond 0x0                                  min      0.000  max    169.706  inside     1  ok
+  Triangle 0x0                                 min      0.000  max    169.706  inside     1  ok
+  Triangle -90x-70                             min      0.000  max    169.706  inside     1  ok
+  Capsule 0+0                                  min      0.000  max    169.706  inside     1  ok
+  -- counts below their legal minimum --
+  NGon sides 0                                 min    -25.000  max    138.924  inside   367  ok   clamped to 3
+  NGon sides -5                                min    -25.000  max    138.924  inside   367  ok   clamped to 3
+  NGon sides 1000                              min    -49.940  max    119.706  inside   877  ok   clamped to 64
+  NGon radius 0                                min      0.000  max    169.706  inside     1  ok
+  Star arms 0                                  min    -17.761  max    138.924  inside   213  ok   clamped to 2
+  Star arms 1                                  min    -17.761  max    138.924  inside   213  ok   clamped to 2
+  Star arms 200                                min    -19.000  max    120.575  inside   321  ok   clamped to 20
+  -- star valley floor vs tip radius (rIn <= R always; rIn < R whenever length > 0) --
+    scale-free at length 1: rIn/R = 0.010000 at R=0.4 and 0.010000 at R=100  ok
+    all rIn < R across R x length : ok
+  -- zero-thickness shell must EMPTY the interior, not restore the solid --
+    thickness 0, Centred : != |d| on 0/6561, interior points 0, still-solid 0  ok
+    thickness 0, Inward  : != |d| on 0/6561, interior points 0, still-solid 0  ok
+    thickness 0, Outward : != |d| on 0/6561, interior points 0, still-solid 0  ok
+  -- zero and negative sweep extents --
+  sweep radial extent 0                        min      0.000  max    163.923  inside     0  ok   nothing inside
+  sweep radial extent -90                      min      0.000  max    163.923  inside     0  ok   clamped to a zero wedge
+  sweep longitudinal extent 0                  min      0.000  max    129.222  inside     0  ok   zero-width slab
+  -- singular and extreme transforms --
+  transform scale (0,0)                        min 1000000000.000  max 1000000000.000  inside     0  ok
+    flag hasSingularTransform=True count=1 node='r'  ok
+  transform scale (1,0)                        min 1000000000.000  max 1000000000.000  inside     0  ok
+  transform skew (89,89)                       min  -1407.251  max  -1287.251  inside  6561  ok
+  -- empty trees and leading non-Add members --
+  empty Bag                                    min 1000000000.000  max 1000000000.000  inside     0  ok
+  null root                                    Empty everywhere, ok
+  bag with a leading Subtract                  min 1000000000.000  max 1000000000.000  inside     0  ok
+    flag hasLeadingNonAdd=True count=1 node='member'  ok
+    three offending bags -> count 3 (expect 3), first 'member'  ok
+    three singular transforms -> count 3 (expect 3), first 's1'  ok
+  RESULT: PASS
+
+
+===== [27] ShaperFieldAudit.V11_EllipseAgainstOracle =====
+V11 ellipse vs brute-force nearest-point oracle
+  -- the reported failing point: rx=60 ry=25, y=-29.65 (was 47.198 vs true 6.514) --
+    x=-23.27936    reported    6.51424   oracle    6.51424   ratio 1.000000  ok
+    x=-23.27736    reported    6.51391   oracle    6.51391   ratio 1.000000  ok
+    x=-23.27536    reported    6.51358   oracle    6.51358   ratio 1.000000  ok
+  -- fine 1-D chord scans (step 1e-3 of size) across the evolute, the cusp and both axes --
+     continuity = max |d(i)-d(i-1)| / step  (must be <= 1: the field is 1-Lipschitz)
+      100x2     22 chords, step 0.1000  continuity 1.000403  ratio 1.000000  ok   [57600 samples, 5755 oracle]
+       80x10    22 chords, step 0.0800  continuity 1.000402  ratio 1.000000  ok   [57600 samples, 5744 oracle]
+       60x25    22 chords, step 0.0600  continuity 1.000340  ratio 1.000000  ok   [57600 samples, 5702 oracle]
+       40x20    22 chords, step 0.0400  continuity 1.000402  ratio 1.000000  ok   [57600 samples, 5665 oracle]
+       20x70    22 chords, step 0.0700  continuity 1.000430  ratio 1.000000  ok   [57600 samples, 5719 oracle]
+       50x50    22 chords, step 0.0500  continuity 1.000508  ratio 1.000002  ok   [57600 samples, 5584 oracle]
+       50x51    22 chords, step 0.0510  continuity 1.000465  ratio 1.000000  ok   [57600 samples, 5597 oracle]
+       50x55    22 chords, step 0.0550  continuity 1.000352  ratio 1.000000  ok   [57600 samples, 5598 oracle]
+        2x100   22 chords, step 0.1000  continuity 1.000403  ratio 1.000000  ok   [57600 samples, 5754 oracle]
+        1x40    22 chords, step 0.0400  continuity 1.000402  ratio 1.000000  ok   [57600 samples, 5757 oracle]
+      200x3     22 chords, step 0.2000  continuity 1.000409  ratio 1.000000  ok   [57600 samples, 5757 oracle]
+       30x29    22 chords, step 0.0300  continuity 1.000396  ratio 1.000000  ok   [57600 samples, 5586 oracle]
+  WORST CONTINUITY over all scans: 1.000508  (50x50 at (-24.7213,-42.8186))
+  WORST SCAN RATIO  over all scans: 1.000002  (50x50 at (36.0914,36.0914))
+  -- 2-D sweep for breadth, |reported| / oracle --
+      100x2     worst ratio 1.000000 at (-150.000,-150.000)  [6555 pts beyond 1.00]  ok
+       80x10    worst ratio 1.000000 at (-120.000,-120.000)  [6501 pts beyond 0.80]  ok
+       60x25    worst ratio 1.000000 at ( -90.000, -90.000)  [6491 pts beyond 0.60]  ok
+       40x20    worst ratio 1.000000 at ( -60.000, -60.000)  [6497 pts beyond 0.40]  ok
+       20x70    worst ratio 1.000000 at (-105.000,-105.000)  [6525 pts beyond 0.70]  ok
+       50x50    worst ratio 1.000003 at (  -7.500, -48.750)  [6461 pts beyond 0.50]  ok
+       50x51    worst ratio 1.000000 at ( -76.500, -76.500)  [6471 pts beyond 0.51]  ok
+       50x55    worst ratio 1.000000 at ( -82.500, -82.500)  [6467 pts beyond 0.55]  ok
+        2x100   worst ratio 1.000000 at (-150.000,-150.000)  [6555 pts beyond 1.00]  ok
+        1x40    worst ratio 1.000000 at ( -60.000, -60.000)  [6557 pts beyond 0.40]  ok
+      200x3     worst ratio 1.000000 at (-300.000,-300.000)  [6547 pts beyond 2.00]  ok
+       30x29    worst ratio 1.000000 at (   0.000,  -4.500)  [6483 pts beyond 0.30]  ok
+  WORST OVER ALL ASPECT RATIOS: 1.000003  (50x50 at (-7.500,-48.750))
+  The oracle refines a 4096-angle coarse scan by 60 ternary steps, so its own
+  discretisation is below float32 resolution and the ratio can be read as exact.
+  -- circle fast path (in-band): ABSOLUTE error, since the ratio is unbounded here --
+          50x50.00049    in-band True  worst |err| 2.480E-004 <= 2.680E-004  ok
+             near-boundary march: ratio peaks at      63.00x  where true d = 3.815E-006 and |err| = 2.365E-004
+          50x49.99951    in-band True  worst |err| 2.480E-004 <= 2.680E-004  ok
+             near-boundary march: ratio peaks at 79742390000.00x  where true d = 3.062E-015 and |err| = 2.441E-004
+        1000x1000.01     in-band True  worst |err| 5.035E-003 <= 5.421E-003  ok
+             near-boundary march: ratio peaks at      80.00x  where true d = 6.104E-005 and |err| = 4.822E-003
+        1000x999.9901    in-band True  worst |err| 5.020E-003 <= 5.421E-003  ok
+             near-boundary march: ratio peaks at 80739160000.00x  where true d = 6.123E-014 and |err| = 4.944E-003
+         0.5x0.500004    in-band True  worst |err| 2.041E-006 <= 2.235E-006  ok
+             near-boundary march: ratio peaks at      32.50x  where true d = 5.960E-008 and |err| = 1.878E-006
+           7x7.00003     in-band True  worst |err| 1.574E-005 <= 1.836E-005  ok
+             near-boundary march: ratio peaks at      30.50x  where true d = 4.768E-007 and |err| = 1.407E-005
+      100000x100000.9    in-band True  worst |err| 4.609E-001 <= 4.969E-001  ok
+             near-boundary march: ratio peaks at      56.50x  where true d = 7.813E-003 and |err| = 4.336E-001
+     Read the two columns together: the |err| column is flat and bounded by |rx-ry|/2,
+     which is 5e-6 of the shape's size - under one float32 ulp of any distance
+     comparable to the shape. The ratio column runs away only because it divides by a
+     true distance heading to zero. That is the metric failing, not the field: the
+     field is a circle's exact SDF and stays perfectly Lipschitz-1 throughout.
+  RESULT: PASS
+
+
+===== [28] ShaperFieldAudit.V12_NGonOuterExtent =====
+V12 N-gon outer extent under rounding (authored radius must stay the circumradius)
+  sides |  corner 0    5    12.5   25    35    45    50 (= full round)
+      3 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+      4 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+      5 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+      6 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+      7 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+      8 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     10 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     12 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     16 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     20 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     24 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     32 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     40 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     48 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     56 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+     64 |  50.000  50.000  50.000  50.000  50.000  50.000  50.000
+  worst |measured circumradius - authored| = 0.0000 on sides 3, corner 50 (tolerance 0.100, = the 720-ray bisection's own resolution)
+  RESULT: PASS
+
+
+===== [29] ShaperFieldAudit.V13_InstrumentSelfTest =====
+V13 instrument self-test — inject a known violation, check the gate flips
+  subject: k * exact Rect SDF (60x40), true Lipschitz constant = k exactly; declared bound 1.00, tolerance 1.0010
+    k=1.00000  measured   1.00001  gate says ok    expected ok    tracks k True   ok   (localiser 1.0013, res 0.0419)
+    k=1.00050  measured   1.00051  gate says ok    expected ok    tracks k True   ok   (localiser 1.0019, res 0.0419)
+    k=1.00090  measured   1.00091  gate says ok    expected ok    tracks k True   ok   (localiser 1.0023, res 0.0419)
+    k=1.00099  measured   1.00100  gate says ok    expected ok    tracks k True   ok   (localiser 1.0023, res 0.0419)
+    k=1.00100  measured   1.00101  gate says OVER  expected edge  tracks k True   ok   (localiser 1.0024, res 0.0419)
+    k=1.00101  measured   1.00102  gate says OVER  expected OVER  tracks k True   ok   (localiser 1.0024, res 0.0419)
+    k=1.00110  measured   1.00111  gate says OVER  expected OVER  tracks k True   ok   (localiser 1.0024, res 0.0419)
+    k=1.00200  measured   1.00201  gate says OVER  expected OVER  tracks k True   ok   (localiser 1.0034, res 0.0420)
+    k=1.05000  measured   1.05001  gate says OVER  expected OVER  tracks k True   ok   (localiser 1.0514, res 0.0440)
+    k=2.00000  measured   2.00002  gate says OVER  expected OVER  tracks k True   ok   (localiser 2.0027, res 0.0837)
+    k=7.24000  measured   7.24007  gate says OVER  expected OVER  tracks k True   ok   (localiser 7.2497, res 0.3031)
+  Reading: the gate is ok for every k strictly below 1.00100 and OVER for every k strictly above it,
+  so it flips exactly at the tolerance and nowhere else; k == the tolerance itself is a
+  float knife-edge and is reported, not asserted. A gross violation comes back at its
+  true magnitude (7.24 reads 7.240) rather than saturated or clipped.
+  Note the localiser column never decides anything here - that is the point of P2.
+  RESULT: PASS
+
+
+===== [30] ShaperFieldAudit.V1_SweepIdentity =====
+V1 sweep identity (bitwise, full extent vs no sweep)
+  Rect 120x80 r0               mismatched 0/14641
+  Rect 120x80 r18              mismatched 0/14641
+  Ellipse circle r50           mismatched 0/14641
+  Ellipse 60x25                mismatched 0/14641
+  Ellipse 20x70                mismatched 0/14641
+  Diamond 50x30                mismatched 0/14641
+  Triangle 90x70               mismatched 0/14641
+  Capsule 40+15                mismatched 0/14641
+  NGon 3 r50                   mismatched 0/14641
+  NGon 6 r50                   mismatched 0/14641
+  NGon 8 r50 corner12          mismatched 0/14641
+  NGon 12 r50 rot17            mismatched 0/14641
+  Star 5 len.62 bw1            mismatched 0/14641
+  Star 5 len.80 bw.5 skew20    mismatched 0/14641
+  Star 7 len.40 bw.8 skew-30   mismatched 0/14641
+  Star 2 len.9 bw1             mismatched 0/14641
+  Star 20 len.5 bw.3 skew60    mismatched 0/14641
+  RESULT: PASS — 0 mismatched bits over 248897 samples
+
+
+===== [31] ShaperFieldAudit.V2_ShellIdentity =====
+V2 shell identity (bitwise, disabled shell vs no shell)
+  Rect 120x80 r0               mismatched 0/14641
+  Rect 120x80 r18              mismatched 0/14641
+  Ellipse circle r50           mismatched 0/14641
+  Ellipse 60x25                mismatched 0/14641
+  Ellipse 20x70                mismatched 0/14641
+  Diamond 50x30                mismatched 0/14641
+  Triangle 90x70               mismatched 0/14641
+  Capsule 40+15                mismatched 0/14641
+  NGon 3 r50                   mismatched 0/14641
+  NGon 6 r50                   mismatched 0/14641
+  NGon 8 r50 corner12          mismatched 0/14641
+  NGon 12 r50 rot17            mismatched 0/14641
+  Star 5 len.62 bw1            mismatched 0/14641
+  Star 5 len.80 bw.5 skew20    mismatched 0/14641
+  Star 7 len.40 bw.8 skew-30   mismatched 0/14641
+  Star 2 len.9 bw1             mismatched 0/14641
+  Star 20 len.5 bw.3 skew60    mismatched 0/14641
+  RESULT: PASS — 0 mismatched bits over 248897 samples
+
+
+===== [32] ShaperFieldAudit.V3_SoftCombineIdentities =====
+V3 soft-combine identities (bitwise where structural; algebra tested separately)
+  soft Add @ width 0 vs hard min : mismatched 0/14641
+  soft Subtract @ strength 0     : mismatched 0/14641 (+64 deep-interior probes)
+  soft Subtract @ strength 1     : mismatched 0/14641
+    (a)(b)(c) above are STRUCTURAL early-outs in ShaperOps.Combine — a bitwise pass
+    here verifies the branch, which is what the spec asks for, not the algebra.
+  (d) un-shortcut algebra, reach 100: band@s=1 = -5.245E-006 (NOT 0), band@s=0 = 0.000E+000
+      raw(s=1) vs max(a,-b): worst |diff| 7.629E-006 over 160801 (a,b) pairs
+      raw(s=0) vs a        : worst |diff| 0.000E+000
+      Reading: the algebra lands NEAR the hard cut, not ON it. Bit-identity comes
+      from the early-out, and that is exactly why the early-out is not optional.
+  RESULT: PASS
+
+
+===== [33] ShaperFieldAudit.V4_DeclaredBounds =====
+V4 declared bounds, measured sup|grad f| (measured vs declared)
+  -- primitives --
+  Rect 120x80 r0                               GATE h=1.3E-001 1.0000   loc h=1.3E-003 1.0013 (res 0.0419)   declared 1.00  ok
+  Rect 120x80 r18                              GATE h=1.3E-001 1.0000   loc h=1.3E-003 1.0006 (res 0.0445)   declared 1.00  ok
+  Ellipse circle r50                           GATE h=1.3E-001 1.0000   loc h=1.3E-003 1.0021 (res 0.0491)   declared 1.00  ok
+  Ellipse 60x25                                GATE h=1.3E-001 1.0000   loc h=1.3E-003 1.0006 (res 0.0518)   declared 1.00  ok
+  Ellipse 20x70                                GATE h=1.3E-001 1.0000   loc h=1.3E-003 1.0016 (res 0.0509)   declared 1.00  ok
+  Diamond 50x30                                GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0013 (res 0.0552)   declared 1.00  ok
+  Triangle 90x70                               GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0037 (res 0.0585)   declared 1.00  ok
+  Capsule 40+15                                GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0008 (res 0.0514)   declared 1.00  ok
+  NGon 3 r50                                   GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0036 (res 0.0553)   declared 1.00  ok
+  NGon 6 r50                                   GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0045 (res 0.0486)   declared 1.00  ok
+  NGon 8 r50 corner12                          GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0043 (res 0.0476)   declared 1.00  ok
+  NGon 12 r50 rot17                            GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0033 (res 0.0476)   declared 1.00  ok
+  Star 5 len.62 bw1                            GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0041 (res 0.0506)   declared 1.00  ok
+  Star 5 len.80 bw.5 skew20                    GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0049 (res 0.0506)   declared 1.00  ok
+  Star 7 len.40 bw.8 skew-30                   GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0044 (res 0.0492)   declared 1.00  ok
+  Star 2 len.9 bw1                             GATE h=1.2E-001 1.0000   loc h=1.2E-003 1.0043 (res 0.0553)   declared 1.00  ok
+  Star 20 len.5 bw.3 skew60                    GATE h=1.2E-001 1.0001   loc h=1.2E-003 1.0078 (res 0.0480)   declared 1.00  ok
+  -- transforms (bound must pass through UNCHANGED) --
+  transform: identity                          GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0005 (res 0.0583)   declared 1.00  ok
+  transform: translate(30,-20)                 GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0007 (res 0.0659)   declared 1.00  ok
+  transform: rotate 30                         GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0006 (res 0.0607)   declared 1.00  ok
+  transform: scale(0.2,1)                      GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0001 (res 0.0468)   declared 1.00  ok
+  transform: scale(3,0.5)                      GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0000 (res 0.0452)   declared 1.00  ok
+  transform: skew(20,10)                       GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0000 (res 0.0606)   declared 1.00  ok
+  transform: origin(40,25)+rot45               GATE h=2.2E-001 1.0000   loc h=2.2E-003 1.0016 (res 0.0698)   declared 1.00  ok
+  transform: full stack                        GATE h=2.2E-001 0.9999   loc h=2.2E-003 1.0000 (res 0.0589)   declared 1.00  ok
+  -- combines --
+  combine: Add soft BRIDGE w=30 sharp 0        GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0513)   declared 1.00  ok
+  combine: Add soft BRIDGE w=30 sharp .5       GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0513)   declared 1.00  ok
+  combine: Add soft BRIDGE w=60 sharp 0        GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0513)   declared 1.00  ok
+  combine: Intersect soft BRIDGE w=30          GATE h=1.6E-001 0.9999   loc h=1.6E-003 0.9999 (res 0.0701)   declared 1.00  ok
+  combine: Subtract BRIDGE strength .5         GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0701)   declared 1.00  ok
+  combine: Subtract BRIDGE strength .25        GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0701)   declared 1.00  ok
+  combine: Add hard                            GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0518)   declared 1.00  ok
+  combine: Add soft w=14 sharp .0              GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0518)   declared 1.00  ok
+  combine: Add soft w=14 sharp .5              GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0518)   declared 1.00  ok
+  combine: Add soft w=14 sharp 1.              GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0518)   declared 1.00  ok
+  combine: Intersect hard                      GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0017 (res 0.0692)   declared 1.00  ok
+  combine: Intersect soft w=14                 GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0017 (res 0.0692)   declared 1.00  ok
+  combine: Subtract strength 1                 GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0017 (res 0.0518)   declared 1.00  ok
+  combine: Subtract strength 0.5               GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0002 (res 0.0518)   declared 1.00  ok
+  combine: Subtract strength 0.15              GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0002 (res 0.0518)   declared 1.00  ok
+  combine: Subtract strength 0.85              GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0002 (res 0.0518)   declared 1.00  ok
+  combine: Subtract strength 0                 GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0002 (res 0.0518)   declared 1.00  ok
+  -- operators --
+  sweep radial 140deg                          GATE h=1.4E-001 1.0000   loc h=1.4E-003 1.0027 (res 0.0612)   declared 1.00  ok
+  sweep radial 280deg (union)                  GATE h=1.4E-001 1.0000   loc h=1.4E-003 1.0027 (res 0.0512)   declared 1.00  ok
+  sweep longitudinal 0.25..0.75                GATE h=1.4E-001 1.0000   loc h=1.4E-003 1.0000 (res 0.0535)   declared 1.00  ok
+  shell Centred                                GATE h=1.4E-001 1.0000   loc h=1.4E-003 1.0014 (res 0.0505)   declared 1.00  ok
+  shell Inward                                 GATE h=1.4E-001 1.0000   loc h=1.4E-003 1.0023 (res 0.0522)   declared 1.00  ok
+  shell Outward                                GATE h=1.4E-001 1.0000   loc h=1.4E-003 1.0014 (res 0.0487)   declared 1.00  ok
+  -- compositions (depth 2-3) --
+  depth2: bag(bag(rect+ellipse), diamond-sub)  GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0003 (res 0.0576)   declared 1.00  ok
+  depth3: bag(bag(bag(...)))+intersect         GATE h=1.8E-001 1.0000   loc h=1.8E-003 1.0010 (res 0.0546)   declared 1.00  ok
+  combine with FOUR members                    GATE h=1.7E-001 1.0000   loc h=1.7E-003 1.0000 (res 0.0546)   declared 1.00  ok
+  combine UNDER transform (scale .35/1.9, rot) GATE h=2.0E-001 0.9999   loc h=2.0E-003 1.0004 (res 0.0638)   declared 1.00  ok
+  Star under transform (scale+skew+origin)     GATE h=1.8E-001 0.9999   loc h=1.8E-003 1.0003 (res 0.0576)   declared 1.00  ok
+  NGon 11 under transform (scale 1.8/0.4)      GATE h=1.8E-001 0.9999   loc h=1.8E-003 1.0000 (res 0.0583)   declared 1.00  ok
+  sweep radial 205deg OVER a bag               GATE h=1.6E-001 1.0000   loc h=1.6E-003 1.0019 (res 0.0584)   declared 1.00  ok
+  shell OVER a bag (star minus rect)           GATE h=1.5E-001 1.0000   loc h=1.5E-003 1.0029 (res 0.0527)   declared 1.00  ok
+  sweep+shell over a bag, under a transform    GATE h=1.8E-001 0.9998   loc h=1.8E-003 0.9998 (res 0.0649)   declared 1.00  ok
+  RESULT: PASS
+
+
+===== [34] ShaperFieldAudit.V5_RatioCrossCheck =====
+V5 ratio cross-check, reported/trueEuclidean against a boundary polyline
+  Every ratio is followed by the CLOUD's own worst-case relative error at the skip
+  radius, so the number can be read honestly: a ratio is only meaningful beyond it.
+  Rect 120x80 r0               in 1.0000 out 1.0000  declared 1.00  ok   [13899 pts used, 742 skipped closer than 3.30; cloud err <= 1.91E-005]
+  Rect 120x80 r15              in 1.0000 out 1.0000  declared 1.00  ok   [13943 pts used, 698 skipped closer than 3.30; cloud err <= 9.31E-006]
+  NGon 6 r50                   in 1.0000 out 1.0000  declared 1.00  ok   [14031 pts used, 610 skipped closer than 3.00; cloud err <= 4.57E-006]
+  NGon 8 r50                   in 1.0000 out 1.0000  declared 1.00  ok   [13985 pts used, 656 skipped closer than 3.00; cloud err <= 4.02E-006]
+  NGon 3 r50 corner15          in 1.0000 out 1.0000  declared 1.00  ok   [14032 pts used, 609 skipped closer than 3.00; cloud err <= 5.06E-006]
+  Star 5 len.62 bw1            in 1.0000 out 1.0000  declared 1.00  ok   [13868 pts used, 773 skipped closer than 3.00; cloud err <= 3.63E-005]
+  Star 5 len.80 bw.5 skew20    in 1.0000 out 1.0000  declared 1.00  ok   [13890 pts used, 751 skipped closer than 3.00; cloud err <= 7.87E-002]
+  Star 7 len.40 bw.8 skew-30   in 1.0000 out 1.0000  declared 1.00  ok   [13792 pts used, 849 skipped closer than 3.00; cloud err <= 4.62E-003]
+  Ellipse circle r50           in 1.0000 out 1.0000  declared 1.00  ok   [13969 pts used, 672 skipped closer than 3.00; cloud err <= 3.43E-006]
+  Ellipse 60x25                in 1.0000 out 1.0000  declared 1.00  ok   [14045 pts used, 596 skipped closer than 3.00; cloud err <= 6.81E-006]
+  Ellipse 100x2                in   n/a  out 1.0000  declared 1.00  ok   [14238 pts used, 403 skipped closer than 4.50; cloud err <= 2.26E-003]
+  Ellipse 80x10                in 1.0000 out 1.0000  declared 1.00  ok   [14083 pts used, 558 skipped closer than 3.90; cloud err <= 5.16E-005]
+  Ellipse 40x20                in 1.0000 out 1.0000  declared 1.00  ok   [14181 pts used, 460 skipped closer than 2.70; cloud err <= 3.14E-006]
+  Ellipse 20x70                in 1.0000 out 1.0000  declared 1.00  ok   [14105 pts used, 536 skipped closer than 3.60; cloud err <= 1.07E-005]
+  Ellipse 50x51 (near-circle)  in 1.0000 out 1.0000  declared 1.00  ok   [13955 pts used, 686 skipped closer than 3.00; cloud err <= 3.57E-006]
+  -- ellipse evolute region (major axis, inside the cusp, and just off it) --
+  evolute  60x25  cusp at  49.583  worst ratio 1.000000  ok   [2412/2412 probes beyond 1.250; exact oracle, no cloud]
+  evolute 100x2   cusp at  99.960  worst ratio 1.000000  ok   [2390/2412 probes beyond 0.100; exact oracle, no cloud]
+  evolute  80x10  cusp at  78.750  worst ratio 1.000000  ok   [2412/2412 probes beyond 0.500; exact oracle, no cloud]
+  evolute  40x20  cusp at  30.000  worst ratio 1.000000  ok   [2412/2412 probes beyond 1.000; exact oracle, no cloud]
+  evolute  20x70  cusp at  64.286  worst ratio 1.000000  ok   [2412/2412 probes beyond 1.000; exact oracle, no cloud]
+  RESULT: PASS
+
+
+===== [35] ShaperFieldAudit.V6_Anisotropy =====
+V6 anisotropy — child under scale.x = 0.2
+  scale.x=0.2   GATE sup|grad| 1.0000  (localiser 1.0000, res 0.0468)  declared 1.00  ok
+           ratio inside 1.0000  outside 1.0000
+  scale.x=0.1   GATE sup|grad| 1.0000  (localiser 1.0000, res 0.0470)  declared 1.00  ok
+           ratio inside 1.0000  outside 1.0000
+  scale.x=5     GATE sup|grad| 1.0000  (localiser 1.0003, res 0.0391)  declared 1.00  ok
+           ratio inside 1.0000  outside 1.0000
+  RESULT: PASS
+
+
+===== [36] ShaperFieldAudit.V7_LandmarkTrap =====
+V7 landmark trap — lobe tip vs field maximum
+  Shaper star : tip 1.0000   field max inside 1.0000 outside 1.0000   declared 1.00
+  reference flower (witness) : tip 1.0000   field max 3.1377
+  Reading: the landmark is 1.0000x on BOTH, and only one of them is actually bounded at 1.
+  RESULT: PASS
+
+
+===== [37] ShaperFieldAudit.V8_TileIndependence =====
+V8 tile independence (bitwise, prime-sized decomposition)
+  mismatched 0/8633 samples (distance + coverage)
+  RESULT: PASS
+
+
+===== [38] ShaperFieldAudit.V9_ShelledInsideness =====
+V9 shelled inside-ness (a shelled disc is an annulus)
+  centre  d =   44.0000  coverage 0.000  (must be OUTSIDE the annulus)
+  wall    d =   -6.0000  coverage 1.000  (must be INSIDE)
+  inner   d =   -1.0000
+  outside d =   24.0000
+  RESULT: PASS
+
+
+===== [39] ShaperFillAudit.FT10_Determinism =====
+FT-10 determinism (same inputs -> identical bytes, within one session)
+  Solid                mismatched 0/65536 floats (expected 0)  PASS
+  Gradient             mismatched 0/65536 floats (expected 0)  PASS
+  Ramp                 mismatched 0/65536 floats (expected 0)  PASS
+  Texture              mismatched 0/65536 floats (expected 0)  PASS
+  Solid + MinMax veil  mismatched 0/65536 floats (expected 0)  PASS
+  RESULT: PASS
+
+===== [40] ShaperFillAudit.FT11_TileIndependence =====
+FT-11 tile independence: whole grid vs a 7x5 prime decomposition (BC-1.6)
+  Stamped Solid              mismatched 0 floats (expected 0)  PASS
+  Stamped Gradient.Linear    mismatched 0 floats (expected 0)  PASS
+  Stamped Ramp.coverage      mismatched 0 floats (expected 0)  PASS
+  Stamped Texture.Tiled      mismatched 0 floats (expected 0)  PASS
+  Fixed   Solid              mismatched 0 floats (expected 0)  PASS
+  Fixed   Gradient.Linear    mismatched 0 floats (expected 0)  PASS
+  Fixed   Ramp.coverage      mismatched 0 floats (expected 0)  PASS
+  Fixed   Texture.Tiled      mismatched 0 floats (expected 0)  PASS
+  PaintTile (integrated: shape eval + claims + composite), 2 owners, Fixed Tiled texture,
+    whole grid vs the same 7x5 decomposition: 0/65536 floats differ (expected 0)  PASS
+  RESULT: PASS
+
+===== [41] ShaperFillAudit.FT12_DeclaredEqualsRead =====
+FT-12 declared read set == measured read set (BC-3.8)
+  Solid                      declared [None]  measured [None]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Gradient.Linear            declared [None]  measured [None]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Gradient.Radial            declared [None]  measured [None]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Gradient.Angular           declared [None]  measured [None]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Gradient.ByEdgeDistance    declared [EdgeDistance]  measured [EdgeDistance]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Ramp.coverage              declared [Coverage]  measured [Coverage]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Ramp.edgeDistance          declared [EdgeDistance]  measured [EdgeDistance]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Texture.Fitted             declared [None]  measured [None]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  RESULT: PASS
+
+===== [42] ShaperFillAudit.FT13_EverySampleWritten =====
+FT-13 every output sample is written (NaN sentinel must not survive)
+  Solid                      sentinels surviving 0/81920 (expected 0)  PASS
+  Ramp.coverage              sentinels surviving 0/81920 (expected 0)  PASS
+  Texture.Fitted             sentinels surviving 0/81920 (expected 0)  PASS
+  Texture.Tiled              sentinels surviving 0/81920 (expected 0)  PASS
+  Gradient.Linear            sentinels surviving 0/81920 (expected 0)  PASS
+  Gradient.Radial            sentinels surviving 0/81920 (expected 0)  PASS
+  Gradient.Angular           sentinels surviving 0/81920 (expected 0)  PASS
+  Gradient.ByEdgeDistance    sentinels surviving 0/81920 (expected 0)  PASS
+  RESULT: PASS
+
+===== [43] ShaperFillAudit.FT14_RangesHold =====
+FT-14 ranges hold over a parameter sweep
+  cases swept: 288 (veil x size x height x gradient mode), 16384 samples each
+  veil out of [0,1] or non-finite: 0 (expected 0)   observed veil range [0.0000, 1.0000]
+  albedo negative or non-finite:   0 (expected 0)   max albedo 1.0000
+  height non-finite:               0 (expected 0)
+  RESULT: PASS
+
+===== [44] ShaperFillAudit.FT15_DegenerateInputs =====
+FT-15 degenerate inputs: finite output, and a diagnostic where required
+  empty bag: bound=True (expected True — a degenerate anchor MUST still bind)  invHx/invHy = 0/0 (expected 0/0 — never divides)  non-finite 0 (expected 0)  PASS
+  |high-low| < 1e-6: hardStep=1 (expected 1)  non-finite 0 (expected 0)  samples not at a ramp end 0 (expected 0)  PASS
+  size = 0, all four gradient modes: non-finite 0 (expected 0)  PASS
+  null gradient        diagnostic="Gradient fill has no gradient authored; painting flat tint instead."  paints something True  non-finite 0  PASS
+  null ramp gradient   diagnostic="Ramp fill has no gradient authored; painting flat tint instead."  paints something True  non-finite 0  PASS
+  null texture         diagnostic="Texture fill has no texture assigned; painting flat tint instead."  paints something True  non-finite 0  PASS
+  unreadable texture  diagnostic="Texture '' is not marked Read/Write Enabled; painting flat tint instead."
+                      names the import setting = True (expected True — the asset looks fine in the inspector)  PASS
+  RESULT: PASS
+
+===== [45] ShaperFillAudit.FT16_NoInputMutation =====
+FT-16 a fill never writes to an input sheet (BC-3.7c)
+  Solid                      distance hash unchanged, coverage hash unchanged  PASS
+  Ramp.coverage              distance hash unchanged, coverage hash unchanged  PASS
+  Texture.Fitted             distance hash unchanged, coverage hash unchanged  PASS
+  Texture.Tiled              distance hash unchanged, coverage hash unchanged  PASS
+  Gradient.Linear            distance hash unchanged, coverage hash unchanged  PASS
+  Gradient.Radial            distance hash unchanged, coverage hash unchanged  PASS
+  Gradient.Angular           distance hash unchanged, coverage hash unchanged  PASS
+  Gradient.ByEdgeDistance    distance hash unchanged, coverage hash unchanged  PASS
+  RESULT: PASS
+
+===== [46] ShaperFillAudit.FT17_AddDoesNotRaiseAlpha =====
+FT-17 Add does not raise alpha (FC-2.6b)
+  samples with alpha != 0: 0/16384 (expected 0)  max alpha 0
+  samples with RGB   > 0: 5140/16384 (expected > 0)  max R 1.0000
+  the veil still applies in Add mode — it is a STRENGTH there, not an opacity:
+    veil 0 in Add mode: max R = 0.00E+000 (expected 0)  PASS
+  RESULT: PASS
+
+===== [47] ShaperFillAudit.FT18_HeightIgnoresComposite =====
+FT-18 Over vs Add produce identical height (FC-2.6c)
+  height mismatched 0/16384 (expected 0)  worst |delta| 0.00E+000
+  max height reached 2.9750 (expected > 0 — otherwise 'identical' would be vacuous; 4.25 x veil 0.7 x coverage 1 = 2.975)
+  the COLOUR result does differ between the two modes = True (expected True)
+  RESULT: PASS
+
+===== [48] ShaperFillAudit.FT19_EdgeDistancePolarity =====
+FT-19 ByEdgeDistance polarity: t=0 at the boundary, t=1 at depthPixels in
+  at the boundary   d = 0.0000  t = 0.000000 (expected 0)
+  8 px inside     d = -8.0000  t = 1.000000 (expected 1)
+  at the centre     d = -40.0000  t = 1.000000 (expected 1, saturated)
+  10 px outside     d = 10.0000  t = 0.000000 (expected 0)
+  the shipped field is NEGATIVE INSIDE, so t = clamp01(-d/depth). A reversed reading here
+  would mean Pyre's unsigned, growing-inward BorderInsideDistance was ported literally.
+  RESULT: PASS
+
+===== [49] ShaperFillAudit.FT1_SolidIdentity =====
+FT-1 Solid identity (albedo constant, veil all ones)
+  albedo != 1.000000000 at 0/16384 samples (expected 0)
+  veil   != 1 at 0/16384 samples (expected 0)
+  height != 0 at 0/16384 samples (expected 0)
+  emitsHeight declared = 0 (expected 0)
+  RESULT: PASS
+
+===== [50] ShaperFillAudit.FT21_ExclusivityIsConservative =====
+FT-21 exclusivity is conservative at fractional coverage, three owners deep
+  owners: A -> B -> C (concentric r42 / r28 / r14, so every pair is ancestor-descendant and the regions are disjoint)
+  fractional-coverage samples in the fixture: 244 (a 0 here would make this test vacuous)
+  (a) sum(paint over the chain) != rootCoverage at 0/16384 samples (expected 0), worst 0.00000  PASS
+  (b) composited alpha BELOW the shape's own coverage at 0/16384 samples (expected 0), total 0.000, worst 0.0000  PASS
+      SAME INSTRUMENT, SAME FIXTURE as the escalation that measured 244/16384, total 29.288,
+      worst 0.2484 on the build before the FC-3.5a amendment — so the before and after numbers
+      are directly comparable and this line is the whole evidence for the fix. Exclusive owners
+      hold DISJOINT sub-areas of a pixel; Over is the rule for INDEPENDENT ones and under-reports
+      (0.5 and 0.5 give 0.75 where coverage is 1.0). The chain now SUMS and only the fold into a
+      parent's siblings uses Over, which is what FC-2.6a was always describing.
+  (c) two OVERLAPPING siblings, veil 0.5 each, alpha where both cover = 0.75000 (expected 0.75000 — Over; a sum would read 1.00000)  PASS
+  RESULT: PASS
+
+===== [51] ShaperFillAudit.FT22_EncodeIsReadableBack =====
+FT-22 the Color32 write is readable back (FC-2.3)
+  (a) alpha 1.00: codes not round-tripping 0/256 (expected 0), worst |delta| 0 codes  PASS
+  (a) alpha 0.75: codes not round-tripping 0/256 (expected 0), worst |delta| 0 codes  PASS
+  (a) alpha 0.50: codes not round-tripping 0/256 (expected 0), worst |delta| 0 codes  PASS
+  (a) alpha 0.25: codes not round-tripping 0/256 (expected 0), worst |delta| 0 codes  PASS
+  (a) alpha 0.10: codes not round-tripping 0/256 (expected 0), worst |delta| 0 codes  PASS
+  (b) alpha byte round trip: 0/256 wrong (expected 0), worst 0 codes  PASS
+  (c) additive over transparent is still representable:
+        float dst  R 1.0000 > 0, alpha 0.0000 == 0, finite = True (expected True)
+        over an opaque backdrop, byte 111 -> 255 (brightened = True, expected True)
+        Encode's alpha<=1e-6 branch keeps the colour byte instead of dividing = True (expected True); alpha is honestly 0 and a straight-alpha
+        blender will discard it — which is why the float buffer and the backdrop
+        composite are the two real answers, not a second encoder.
+  RESULT: PASS
+
+===== [52] ShaperFillAudit.FT2_SrgbRoundTrip =====
+FT-2 sRGB round trip byte -> float -> linear -> float -> byte (FC-2.3)
+  byte round trip mismatches: 0/256 (expected 0)
+  raw transfer-pair mismatches: 0/256 (expected 0)
+  worst |encode(decode(s)) - s| = 1.520E-005 codes (of 255)
+  three channels are the same function, so 256 values covers all three (768 codes).
+  RESULT: PASS
+
+===== [53] ShaperFillAudit.FT3_CrossKindIdentity =====
+FT-3 cross-kind identity vs Solid (bitwise)
+  Gradient.Linear              albedo mismatched 0/49152  worst |delta| 0.00E+000   veil mismatched 0/16384
+  Gradient.Radial              albedo mismatched 0/49152  worst |delta| 0.00E+000   veil mismatched 0/16384
+  Gradient.Angular             albedo mismatched 0/49152  worst |delta| 0.00E+000   veil mismatched 0/16384
+  Gradient.ByEdgeDistance      albedo mismatched 0/49152  worst |delta| 0.00E+000   veil mismatched 0/16384
+  Texture 1x1 white x tint     albedo mismatched 0/49152  worst |delta| 0.00E+000   veil mismatched 0/16384
+  Ramp flat ramp               albedo mismatched 0/49152  worst |delta| 0.00E+000   veil mismatched 0/16384
+  (a flat texture's albedo is texel x tint; the reference Solid is decode(tint), so
+   equality here also measures that a white texel decodes to exactly 1.0.)
+  RESULT: PASS
+
+===== [54] ShaperFillAudit.FT4_RampByCoveragePassthrough =====
+FT-4 Ramp-by-coverage passthrough (albedo vs the coverage sheet)
+  worst |encode(albedo) - coverage| = 0.002912  (tolerance 0.003922 = one 8-bit code)
+  worst |albedo(linear) - coverage| = 0.278556  (NOT a failure — this is FC-2.3's linear albedo, reported so the gap is visible)
+  RESULT: PASS
+
+===== [55] ShaperFillAudit.FT5_VeilCannotCreateCoverage =====
+FT-5 veil cannot CREATE coverage, and cannot THICKEN the soft edge (FC-2.4)
+  authored veil 0.0  -> baked 0.0000   coverage created where cov==0: 0/16384 (expected 0)   worst coverageEff-coverage: 0.00E+000 (expected <= 0)
+  authored veil 0.5  -> baked 0.5000   coverage created where cov==0: 0/16384 (expected 0)   worst coverageEff-coverage: 0.00E+000 (expected <= 0)
+  authored veil 1.0  -> baked 1.0000   coverage created where cov==0: 0/16384 (expected 0)   worst coverageEff-coverage: 0.00E+000 (expected <= 0)
+  authored veil 2.0  -> baked 1.0000   coverage created where cov==0: 0/16384 (expected 0)   worst coverageEff-coverage: 0.00E+000 (expected <= 0)
+  nearest half-covered sample: coverage 0.453203 -> coverageEff 0.453203 with an AUTHORED veil of 2.0 (expected <= coverage; with BOTH clamps gone it would be coverage x 2 = 0.906406)
+  FC-2.4's BAKE-TIME clamp, asserted directly on the compiled op (the composite's own
+  second clamp would otherwise mask its removal): authored 2 -> 1.0000 (expected 1), -1 -> 0.0000 (expected 0), +Inf -> 1.0000 (expected 1), NaN -> 0.0000 (expected 0)  PASS
+  The NaN row is not decoration: Mathf.Clamp01 is `v<0?0:v>1?1:v` and every comparison
+  against NaN is false, so plain Clamp01 passes NaN through. A NaN veil measured
+  16384/16384 non-finite destination floats before the compiler's Clamp01OrZero landed.
+  RESULT: PASS
+
+===== [56] ShaperFillAudit.FT6_VeilZeroKills =====
+FT-6 veil = 0 with a non-zero heightDelta kills both (FC-2.5)
+  declared emitsHeight = 1 (expected 1 — heightDelta 7 is non-zero, so the sheet IS declared)
+  coverageEff != 0 at 0/16384 samples (expected 0), worst 0.00E+000
+  height     != 0 at 0/16384 samples (expected 0), worst 0.00E+000
+  RESULT: PASS
+
+===== [57] ShaperFillAudit.FT7_NearestAncestor =====
+FT-7 nearest-ancestor resolution on the FC-3.8 worked tree
+  owners, in paint order: Body -> Head -> Belt -> Iris   (expected Body -> Head -> Belt -> Iris)
+  Subtract member 'Eye' owns no fill, so it is absent by construction (FC-3.3).
+  Torso n Belt, not Head/Iris Body=0.000 Head=0.000 Belt=1.000 Iris=0.000 | top=Belt expected=Belt  ok
+  Torso n Head n Belt         Body=0.000 Head=1.000 Belt=1.000 Iris=0.000 | top=Belt expected=Belt  ok
+  Head n Belt, not Torso      Body=0.000 Head=1.000 Belt=1.000 Iris=0.000 | top=Belt expected=Belt  ok
+  Head, not Belt              Body=0.000 Head=0.000 Belt=0.000 Iris=0.000 | top=none expected=none  ok
+  Eye inside Head, not Belt   Body=0.000 Head=0.000 Belt=0.000 Iris=0.000 | top=none expected=none  ok
+  Iris, outside Belt          Body=0.000 Head=1.000 Belt=0.000 Iris=1.000 | top=Iris expected=Iris  ok
+  Iris n Belt n Torso         Body=0.000 Head=1.000 Belt=1.000 Iris=1.000 | top=Iris expected=Iris  ok
+  outside coverage_Body       Body=0.000 Head=0.000 Belt=0.000 Iris=0.000 | top=none expected=none  ok
+  samples where the BAG's own fill G_body paints: 0/16384 (expected 0)
+  FC-3.8's TABLE gives G_body three whole regions and is wrong on all three: FC-3.3 rules
+  that an Intersect member owning a fill paints the entire intersected result, and in this
+  tree Belt IS the last restrictor, so Belt's claim equals the bag's coverage everywhere the
+  bag has any. Under FC-3.5 the bag then paints NOWHERE, which is 0 and not 'three regions'.
+  It read 119 while exclusivity was multiplicative — c*(1-c) at every sample where Belt's
+  claim equalled the bag's, i.e. a fringe of the BAG's colour tracing the whole silhouette.
+  Subtractive exclusivity gives the 0 the rule actually states.
+  FT-7b fold order governs paint order (FC-3.4)
+    (a) literal swap of members [1] and [2]: composited bytes differ = True (expected True; note this also changes the SHAPE, so it does not isolate order)
+    (b) two overlapping Add siblings swapped (shape identical): R 0.2500 vs 0.5000, B 0.5000 vs 0.2500   differ = True (expected True)
+    verdict: PASS
+  RESULT: PASS
+
+===== [58] ShaperFillAudit.FT8_TheGate =====
+FT-8 the availability gate (FC-4.3 / FC-4.4)
+  FT-8   hasUnavailableFill=True (expected True)  count=1 (expected 1)  node='Torso' (expected 'Torso')
+         reason: "Ramp-by-quantity on 'Torso' needs heat, which this shape does not publish."
+         contains kind/node/quantity = True/True/True (all expected True)
+         owners bound = 1 (expected 1 — only the bag)   ancestor paints the region: alpha at centre = 1.000 (expected > 0.9; NOT transparent)
+         PASS
+  FT-8b  count=3 (expected 3)  first node='A' (expected 'A')  PASS
+         this is the ShaperProgram.leadingNonAddCount correction applied from the start.
+  FT-8c  hasSubtractFill=True (expected True)  count=1 (expected 1)  owners=1 (expected 1 — Eye did NOT bind)  PASS
+         reason: "Solid on 'Eye' cannot be attached: a subtracted member removes coverage; it deposits nothing."
+  FT-8d  hasTypeRefusedFill=True (expected True)  reported as UNAVAILABLE too = False (expected False)  PASS
+         type      : "Ramp-by-quantity on 'Torso' cannot use surface direction: surface direction is a direction, not a number."
+         availability: "Ramp-by-quantity on 'Torso' needs heat, which this shape does not publish."
+         messages differ = True (expected True — the two failures have different remedies)
+  FC-4.2 intersection: one member publishes all nine, one publishes two -> bag publishes ShippedShapeEngine (expected ShippedShapeEngine = Coverage|EdgeDistance)  PASS
+  FC-4.2 Subtract members are EXCLUDED from the intersection: bag publishes all nine = True (expected True — a subtractor deposits nothing)  PASS
+  RESULT: PASS
+
+===== [59] ShaperFillAudit.FT9_ZeroAllocation =====
+FT-9 zero allocation in the tile loop (655360 samples per kind)
+  Solid              reps 40  managed heap delta 0 bytes (process-wide, informational only)  gen-0 collections 0
+  Gradient.Linear    reps 40  managed heap delta 0 bytes (process-wide, informational only)  gen-0 collections 0
+  Ramp.coverage      reps 40  managed heap delta 0 bytes (process-wide, informational only)  gen-0 collections 0
+  Texture            reps 40  managed heap delta 0 bytes (process-wide, informational only)  gen-0 collections 0
+  instrument calibration: smallest allocation GC.GetTotalMemory(false) could see = 524288 bytes;  gen-0 collections for 1 MB of garbage = 0 (a 0 here means that leg is blind)
+  IL scan of every ShaperFillOps method for newobj/newarr/box: 0 occurrences (expected 0)  PASS
+    FillTile(364B:0) Sample(743B:0) Anchor(86B:0) ByEdgeDistanceT(10B:0) Lut(103B:0)
+  RESULT: PASS
+
+===== [60] ShaperBorderAudit.BT10_AnchorBoxDoesNotDilate =====
+BT-10 the join grows the CULLING box and not the ANCHOR box
+  localSupport half-extents: 34 -> 34 (expected bitwise identical)  PASS
+  supportHalfW (the culling box) on an ISOTROPIC node: 34.0000 -> 42.0000, grew 8.0000 (expected the reach, 8)  PASS
+  scale (2.0, 0.5), reach 8, supportSpread 4: joined silhouette samples 5028, OUTSIDE the declared box 0 (expected 0), worst overshoot 0.000px  PASS
+  the same box test on the STRIP: samples 3216, OUTSIDE 0 (expected 0), worst overshoot 0.000px  PASS
+  the node's own gradient, sampled: bitwise diffs 0/1024 (expected 0)  PASS
+  control, an anchor box grown by the reach: diffs 640/1024 (expected > 0, else this leg cannot fail)  PASS
+  RESULT: PASS
+
+===== [61] ShaperBorderAudit.BT11_Ordering =====
+BT-11 a bag's border is above its members' borders and above their fills
+  overlapping rings, sample at d = -2.5: nearest authored colour is 'bag border' (distance 0.0000), expected 'bag border'  PASS
+  member owns the fill: rim reads 'bag border' (0.0000), core reads 'member fill' (0.0000), expected 'bag border' and 'member fill'  PASS
+  control, bag border removed: the same probe reads 'member border' (0.0000), expected 'member border'  PASS
+  A owns NO fill: where A's rim crosses B the sample reads 'B fill' (distance 0.0000), expected 'B fill'  PASS
+  control, A OWNS a fill (same z-order reached by a different route): reads 'B fill' (distance 0.0000), expected 'B fill' - the two configurations must AGREE  PASS
+  RESULT: PASS
+
+===== [62] ShaperBorderAudit.BT12_SubtractRefusal =====
+BT-12 a Subtract member may not own a border; the bag outlines the hole
+  border owners 1 (expected 1, the bag's)  on the Subtract member 0 (expected 0)  diagnostic 'Hole' x1  PASS
+    reason: Border on 'Hole' cannot be attached: a subtracted member removes coverage; it deposits nothing. Outline the hole with a border on the bag.
+  the refused border also does not dilate: field bit diffs 0 (expected 0)  PASS
+  the bag's border strip coverage at [hole rim, mid-material, outer rim] = [1.000, 0.000, 1.000]  expected [~1, ~0, ~1]  PASS
+  an Intersect member MAY own a border: border owners 1 (expected 1), subtract diagnostic False (expected False)  PASS
+  BD-3.4 ancestor clip: the member's rim inside a LATER Subtract member's hole has alpha 0.0000 (expected 0); on the intact side alpha 1.0000 and it is the rim colour (expected 1)  PASS
+  RESULT: PASS
+
+===== [63] ShaperBorderAudit.BT13_InstrumentSelfTest =====
+BT-13 instrument self-test: every measurement must be able to report a failure
+  M1  BT-1 vs a 0.25px border: 248 byte diffs (must be > 0)  detected True  PASS
+  M2  BT-2 vs abs(d) - w (the doubled Straddling): 64/64 mismatches (must be > 0)  detected True  PASS
+  M3  BT-3 with the doubled Straddling prediction: measurement passed = False (must be False)  detected True  PASS
+  M4  BT-4/BT-5 crossed: inward-as-complement passed = False, outward-as-identity passed = False (both must be False)  detected True  PASS
+  M5  BT-7's ridge test on the NODE's field: ridge detected = False (must be False)  detected True  PASS
+  M6  BT-12's refusal with mode = Add: border owners 1 (must be 1), diagnostic False (must be False)  detected True  PASS
+  M7  BT-14's IL decoder on methods that DO allocate: ShaperBorder.CompileStrip = 2 [newarr newobj ShaperProgram], ShaperFillDocument.Summary = 6 [newobj StringBuilder newarr newarr newarr newarr newarr]  both must be > 0  detected True  PASS
+  M8  GC.GetTotalMemory(false) calibration: one 65536-byte array -> 69632 bytes seen (must be > 0);  1 MB of 24-byte arrays -> 12288 bytes seen (a 0 here is the KNOWN blind spot, reported not asserted)  PASS
+  M9  BT-10's box bound with the BARE reach (the shipped growth): measurement passed = False (must be False)  detected True  PASS
+  M10 BT-6's anchor taken from the STRIP: colour diffs 3/4 (must be > 0)  detected True  PASS
+  M11 BT-11's hostless border with the later-sibling mask disabled: measurement passed = False (must be False)  detected True  PASS
+  inline controls already asserted by their own legs: BT-1 live border, BT-6 strip anchor + grown anchor, BT-8 naive union, BT-9 joined twin, BT-10 grown anchor + bare-reach bound, BT-11 removed bag border + A-owns-a-fill, BT-12 Intersect member.
+  RESULT: PASS
+
+===== [64] ShaperBorderAudit.BT14_NoAllocation =====
+BT-14 zero allocation in the border paint path
+  subject: 4 owners of which 2 borders (expected 2 - a document with no border owner would measure the wrong thing)  PASS
+  IL decode of the TRANSITIVE call graph from PaintTile: 42 methods reached, 0 heap allocations found (expected 0)  PASS
+    types reached: ShaperBorder, ShaperEvaluator, ShaperField, ShaperFillBuffers, ShaperFillOps, ShaperFillResolver, ShaperFillSheets, ShaperLightLaw, ShaperLightRigCompiled, ShaperNormals, ShaperOps, ShaperSdf, ShaperSolids
+  heap over 40 tiles x 16384 samples = 655360 samples: GetTotalMemory delta 0 bytes, gen-0 collections 0 (process-wide, informational only - see BT-13 M8)
+  heap over 40000 calls on an 8x8 tile: GetTotalMemory delta 0 bytes, gen-0 collections 0 (process-wide, informational only - see BT-13 M8)
+  RESULT: PASS
+
+===== [65] ShaperBorderAudit.BT1_ZeroWidthIdentity =====
+BT-1 zero-width identity (bitwise: Color32 bytes and float distance bits)
+  width 0 from the start     byte diffs 0/16384  field bit diffs 0  extra ops 0  border owners 0 (expected 0)  owners 1 vs 1  PASS
+  width swept 6 -> 0         byte diffs 0/16384  field bit diffs 0  extra ops 0  border owners 0 (expected 0)  owners 1 vs 1  PASS
+  enabled = false at width 6 byte diffs 0/16384  field bit diffs 0  extra ops 0  border owners 0 (expected 0)  owners 1 vs 1  PASS
+  control: the SAME border at width 6 changes 1628 bytes (expected > 0, else the identity is vacuous)  PASS
+  RESULT: PASS
+
+===== [66] ShaperBorderAudit.BT2_ShellAgreement =====
+BT-2 the strip field IS ShaperOps.Shell (bitwise, dense in d and w)
+  unjoined Centred   samples 24576  bitwise mismatches 0  worst abs delta 0  PASS
+  unjoined Inward    samples 24576  bitwise mismatches 0  worst abs delta 0  PASS
+  unjoined Outward   samples 24576  bitwise mismatches 0  worst abs delta 0  PASS
+  joined   Centred   samples 24576  bitwise mismatches 0  worst abs delta 0  PASS
+  joined   Inward    samples 24576  bitwise mismatches 0  worst abs delta 0  PASS
+  joined   Outward   samples 24576  bitwise mismatches 0  worst abs delta 0  PASS
+  RESULT: PASS
+
+===== [67] ShaperBorderAudit.BT3_BandPlacement =====
+BT-3 band placement and total thickness (BD-1.3 / BD-1.4)
+  Centred   w=6  crossings 2 (expected 2)  d = [-2.999, 3.001] expected [-3.000, 3.000]  thickness 6.000 expected 6.000  PASS
+  Inward    w=6  crossings 2 (expected 2)  d = [-6.000, 0.001] expected [-6.000, 0.000]  thickness 6.000 expected 6.000  PASS
+  Outward   w=6  crossings 2 (expected 2)  d = [0.001, 6.001] expected [0.000, 6.000]  thickness 6.000 expected 6.000  PASS
+  RESULT: PASS
+
+===== [68] ShaperBorderAudit.BT4_InwardEdgeIdentity =====
+BT-4 inward strip == shape coverage on the boundary ring
+  Inward   Ellipse  strip vs shape  ring 208  max abs difference 0 (expected <= 0)  bitwise-identical 208/208  PASS
+  Inward   Rect     strip vs shape  ring 276  max abs difference 0 (expected <= 0)  bitwise-identical 276/276  PASS
+  Inward   Diamond  strip vs shape  ring 136  max abs difference 0 (expected <= 0)  bitwise-identical 136/136  PASS
+  Inward   Triangle strip vs shape  ring 136  max abs difference 0 (expected <= 0)  bitwise-identical 136/136  PASS
+  Inward   Star     strip vs shape  ring 248  max abs difference 0 (expected <= 0)  bitwise-identical 248/248  PASS
+  RESULT: PASS
+
+===== [69] ShaperBorderAudit.BT5_OutwardComplement =====
+BT-5 outward strip + shape coverage == 1 on the boundary ring
+  Outward  Ellipse  strip+shape vs 1  ring 208  max abs difference 0 (expected <= 1.1920929E-07)  bitwise-identical 208/208  PASS
+  Outward  Rect     strip+shape vs 1  ring 276  max abs difference 0 (expected <= 1.1920929E-07)  bitwise-identical 276/276  PASS
+  Outward  Diamond  strip+shape vs 1  ring 136  max abs difference 5.96046448E-08 (expected <= 1.1920929E-07)  bitwise-identical 120/136  PASS
+  Outward  Triangle strip+shape vs 1  ring 136  max abs difference 5.96046448E-08 (expected <= 1.1920929E-07)  bitwise-identical 0/136  PASS
+  Outward  Star     strip+shape vs 1  ring 248  max abs difference 5.96046448E-08 (expected <= 1.1920929E-07)  bitwise-identical 232/248  PASS
+  RESULT: PASS
+
+===== [70] ShaperBorderAudit.BT6_AnchorIsTheNodes =====
+BT-6 a border's positional gradient anchors on the NODE's box (FC-8.4)
+  precondition: the STRIP's anchor half-extent 54 differs from the NODE's 34 at reach 20 (else this leg cannot fail)  PASS
+  1px vs 20px outward, RESOLVER-bound anchor: bitwise colour diffs 0/4 (expected 0)  worst channel delta 0  PASS
+  control, the STRIP's own anchor instead: colour diffs 3/4 (expected > 0, else BD-3.2 is unfalsifiable)  PASS
+  control, anchor grown by the reach (the naive strip anchor): colour diffs 3/4 (expected > 0, else this leg cannot fail)  worst channel delta 0.300242305  PASS
+  bound border fill's anchor == the NODE's anchor, bitwise (invHx, anchorCx)  PASS
+  RESULT: PASS
+
+===== [71] ShaperBorderAudit.BT7_EdgeDistanceIsTheStrips =====
+BT-7 a border's edgeDistance is the STRIP's field, and its ramp is a ridge
+  ownDistance[border] == strip field: 4096/4096 (expected all)   == node field: 0/4096 (expected fewer, else the two are indistinguishable)  PASS
+  strip ramp t at [inner face, centre line, outer face] = [0.0000, 1.0000, 0.0000]  expected [0, 1, 0]  PASS
+  control, the same ramp on the NODE's field = [1.0000, 0.0000, 0.0000]  expected NOT a ridge  PASS
+  RESULT: PASS
+
+===== [72] ShaperBorderAudit.BT8_TheJoinIsADilation =====
+BT-8 joining is a dilation, not a union (the BD-2.2 seam, measured)
+  interior samples judged 4792
+  d - reach  (the ruling):  samples below 0.999 = 0 (expected 0)  min coverage 1.000000  PASS
+  min(d, strip) (the naive union): samples below 0.999 = 192 (expected > 0)  min coverage 0.511026  PASS
+  RESULT: PASS
+
+===== [73] ShaperBorderAudit.BT9_OptOutPublishesNothing =====
+BT-9 joinsCoverage = false: identical field, different picture
+  published field, opted out vs no border: bit diffs 0/16384 (expected 0)  PASS
+  control, the SAME border joined:         bit diffs 16384/16384 (expected > 0, else the field test cannot fail)  PASS
+  painted bytes, opted out vs no border:   diffs 1628 (expected > 0 — it is drawn, just not counted)  PASS
+  RESULT: PASS

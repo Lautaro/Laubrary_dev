@@ -1,0 +1,6 @@
+click 601 579
+sleep 250
+click 538 777
+sleep 250
+click 545 687
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a06-smokepuff-ring.png

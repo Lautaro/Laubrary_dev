@@ -1,0 +1,15 @@
+=== V2-MARCH - adversarial attacks on the rebuilt QueryGeneral ===
+
+
+-- 3. all 42 combinations, two 12 px slots strictly inside, three tilts --
+      Stepped  +None     tilt=  23  true=0 got=2 spurious=2 gap=0,000E+000 capped=False exhausted=False
+      Stepped  +Linear   tilt=  23  true=0 got=2 spurious=2 gap=0,000E+000 capped=False exhausted=False
+      Stepped  +Rounded  tilt=  23  true=0 got=2 spurious=2 gap=0,000E+000 capped=False exhausted=False
+      Stepped  +Cove     tilt=  23  true=0 got=2 spurious=2 gap=0,000E+000 capped=False exhausted=False
+      Stepped  +Ogee     tilt=  23  true=0 got=2 spurious=2 gap=0,000E+000 capped=False exhausted=False
+      Stepped  +Stepped  tilt=  23  true=0 got=2 spurious=2 gap=0,000E+000 capped=False exhausted=False
+      126 rays,  wrong = 6,  worst gap true->emitted = 3,052E-005 px  (Flat+None tilt=0)
+
+
+
+

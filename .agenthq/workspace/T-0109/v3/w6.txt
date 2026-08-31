@@ -1,0 +1,16 @@
+=== W6 - drilling the 4.70 px branch disagreement W5D found ===
+  x=-190  d=-10  t=0,250000  G=0,500000  body=300  span=40  a=0,5
+  closed-form surface z = base + body*G = 150,00000
+  STRAIGHT-DOWN (StraightDown): 250,00000I 400,00000O 
+  GENERAL eps=2,0E-005 (General capped=0 exh=False): 245,29823I 400,00000O 
+  GENERAL eps=1,0E-004 (General capped=0 exh=False): 239,62337I 400,00000O 
+  GENERAL eps=1,0E-003 (General capped=0 exh=False): 218,79419I 400,00018O 
+  GENERAL eps=1,0E-002 (General capped=0 exh=False): 167,01572I 400,01999O 
+  GENERAL eps=1,0E-001 (General capped=0 exh=False): 100,49876I 401,99506O 
+  TRUTH (my scan, eps=2e-5): 245,29823 400,00002 
+  true solid length = 154,70179
+
+  breadth - for every combination and x, compare BOTH branches to MY OWN scan:
+    samples = 1008
+    STRAIGHT-DOWN wrong vs my scan = 101   worst 4,7018 px   Flat+Ogee x=-190 got 150,0000 true 154,7018
+    GENERAL      wrong vs my scan = 0   worst 0,0000 px   

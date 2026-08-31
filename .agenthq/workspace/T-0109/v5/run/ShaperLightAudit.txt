@@ -1,0 +1,289 @@
+=== Shaper LIGHT audit (T-0108, LIGHT-RIG-CONTRACT Part 8) ===
+LT-1 one law, two families - numeric (64 normals x 8 rig configs)
+  cases run 512 (expected 512)  PASS
+  (i) the two PROVIDERS write the same direction: worst componentwise |dN| = 1.192E-007 (expected <= 1e-6)  PASS
+  (ii) where the two providers wrote BIT-IDENTICAL normals (400/512 cases), the law's six outputs are bit-identical at 400/400 (expected 400/400)  PASS
+  (iii) where they did not (112/512), worst total |dL|+|dS| = 4.917E-006 (expected <= 1e-4)  PASS
+  (iv) the same float triple fed twice is bit-identical at 512/512 (expected 512) - the law is a pure function of its arguments  PASS
+  DEVIATION FROM PART 8, measured rather than excused. LT-1 expects 'bit-identical,
+  512/512'. That is UNACHIEVABLE against LR-3.5, and the two clauses are in conflict:
+  LR-3.5 makes UNIT output a provider contract, so ShaperNormals re-normalises its
+  authored direction, while an Orb's N = P/R is unit only to float precision. The two
+  providers therefore differ in the last bit at 112 of 512 cases
+  (worst 1.2e-7), and a pow(nh, 24) specular amplifies that to ~5e-6 in the output. The
+  exact assertion that IS available is leg (ii): given the same bits in, the same bits
+  out, every time. LR-3.5 is the clause worth keeping; LT-1's wording is the one to fix.
+  the 64 normals are GEOMETRY-DERIVED (an Orb's N = P/R at 64 covered samples spread
+  across the disc), so the Constant provider is driven to values it did not choose - a
+  self-consistent constant would make this leg vacuous.
+  INSUFFICIENT ON ITS OWN, stated: this leg cannot see a DUPLICATE law that currently
+  agrees. LT-1b is the half that makes 'one law' falsifiable, and LT-16 is the half that
+  makes the shared FRAME falsifiable.
+  RESULT: PASS
+LT-1b one law - structural (reflection + IL scan)
+  (a) public methods named Shade on ShaperLightLaw: 1 (expected 1)  PASS
+  (b) methods in the runtime assembly calling ShaperLightLaw.Shade: 1 (expected 1)  [ShaperFillResolver.LightSample]  PASS
+  (c) ShaperSolids methods touching a compiled-rig type in their IL, SIGNATURE, RETURN or LOCALS: 0 (expected 0)    PASS
+      Solids therefore CANNOT shade: it has no way to see a light, an ambient or a
+      response block. Its inline lighting block (PyreRenderer.cs:4341-4360, :4534-4553,
+      :4720-4740) is not reproduced anywhere in the ported generator.
+  RESULT: PASS
+LT-2 zero allocation in the lit tile loop (10000 samples per case)
+  instrument calibration, run IN-REGION and BEFORE the measurements (sink 1):
+    PRIMARY   IL opcode scan - newobj/newarr/box. NO detection floor: an allocation is an opcode, not a magnitude.
+    SECONDARY GC.GetTotalMemory(false), calibrated inside the measured loop: DETECTION FLOOR = 4096 BYTES PER PaintTile CALL (observed heap delta 532480 B over 65 reps)  PASS
+    DEAD      GC.GetAllocatedBytesForCurrentThread() reported 0 B across the whole calibration, in which 266240+ bytes were provably allocated. It is INERT at every size on this Mono runtime (verified separately up to 64 MB) and contributes NOTHING to this leg's verdict; it is printed only so the claim is visible rather than implied.
+    A per-tile temporary SMALLER than the floor above is invisible to the heap probe and is caught by the IL scan instead. That is the honest statement of what this leg proves, replacing the old and never-measured "exactly 0 bytes".
+  1 light / Over / Constant          x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  1 light / Over / Solids            x65 reps: heap 4096 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  1 light / Add / Constant           x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  1 light / Add / Solids             x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  8 lights / Over / Constant         x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  8 lights / Over / Solids           x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  8 lights / Add / Constant          x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  8 lights / Add / Solids            x65 reps: heap 0 B (must be < 266240 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  IL scan across law + both providers + PaintTile + LightSample: raw byte hits 2, TOKEN-CONFIRMED allocations 0 (expected 0)  PASS
+    ShaperLightLaw.Shade(764B raw:0 confirmed:0) ShaperNormals.FillTile(285B raw:0 confirmed:0) ShaperNormals.FillProfile(1006B raw:1 confirmed:0) ShaperSolids.InertReason(207B raw:0 confirmed:0) ShaperSolids.Neutral(76B raw:0 confirmed:0) ShaperSolids.Dial(33B raw:0 confirmed:0) ShaperSolids.DeclareInertDials(142B raw:0 confirmed:0) ShaperSolids.Check(110B raw:0 confirmed:0) ShaperSolids.FillTile(837B raw:0 confirmed:0) ShaperSolids.SampleFacet(422B raw:0 confirmed:0) ShaperSolids.NearestLine(85B raw:0 confirmed:0) ShaperSolids.SampleOrb(321B raw:0 confirmed:0) ShaperSolids.SampleRing(303B raw:0 confirmed:0) ShaperSolids.EdgeKey(18B raw:0 confirmed:0) ShaperSolids.InTri(166B raw:0 confirmed:0) ShaperSolids.DistSeg(107B raw:0 confirmed:0) ShaperFillResolver.PaintTile(3174B raw:1 confirmed:0) ShaperFillResolver.LightSample(392B raw:0 confirmed:0)
+    every raw hit failed token resolution, i.e. was an operand byte coinciding with an opcode value - the upper bound collapsing to zero.
+  RESULT: PASS
+LT-3 tile independence with lighting on (7x5 prime decomposition, BC-1.6)
+  Constant provider    42x35 whole vs 7x5 tiles: differing pixels 0/1470 (expected 0)  PASS
+  Solids provider      42x35 whole vs 7x5 tiles: differing pixels 0/1470 (expected 0)  PASS
+  RESULT: PASS
+LT-4 determinism (same inputs -> identical bytes, within one session)
+  light intensity mode Curve        differing pixels between two runs 0/4096 (expected 0)  PASS
+  light intensity mode MinMax       differing pixels between two runs 0/4096 (expected 0)  PASS
+  light intensity mode Static       differing pixels between two runs 0/4096 (expected 0)  PASS
+  NOT RUN: the across-a-domain-reload leg. An eval executes inside one domain, so a
+  reload cannot be observed from here. Reported as not-verified rather than assumed.
+  RESULT: PASS
+LT-5a linear space, hand-computed (sRGB 128 light on a white albedo)
+  destination float at the centre sample: 0.21586050 (expected 0.21586050, |err| 3.073E-008, tolerance 1e-6)  PASS
+  encoded byte: 128 (expected 128)  PASS
+  the naive-linear mutation reads 188 here, a 60-code error - the muddy-shading
+  artefact FC-2.3 names, made numeric.
+  RESULT: PASS
+LT-5b one encode boundary (IL scan of the runtime assembly)
+  callers of ShaperSrgb.EncodeToByte in the runtime assembly: 1 (expected 1)  [ShaperFillResolver.Encode]
+  RESULT: PASS
+LT-6 falloff, ambient, specular and rim against hand-computed values
+  P1  P=(0,0,0) N=(0,0,1) light z=20 range=20  [atten 0.5]
+      L      = 0.68000000 (expected 0.68000000)  PASS
+      S_spec = 0.45000000 (expected 0.45000000)  PASS
+      rim    = 0.00000000 (expected 0.00000000)  PASS
+  P2  P=(0,0,0) N=(0.866025,0,0.5)
+      L      = 0.43000000 (expected 0.43000000)  PASS
+      S_spec = 0.02812500 (expected 0.02812500)  PASS
+      rim    = 0.21763765 (expected 0.21763800)  PASS
+  P3  light z=40, range 20, N=(0,0,1)  [atten 0.2]
+      L      = 0.38000000 (expected 0.38000000)  PASS
+  P4  intensityScale = 0.5, N=(0.866025,0,0.5)  [the ORDER probe, LR-2.3]
+      L      = 0.30500000 (expected 0.30500000 = 0.18 unscaled ambient + 0.125 scaled diffuse; ambient-added-last reads 0.21500000)  PASS
+  RESULT: PASS
+LT-7 rim is exactly zero on a flat normal, across 8 light directions
+  light 1 (yaw 0, pitch 0): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 2 (yaw 45, pitch 10): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 3 (yaw 90, pitch 0): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 4 (yaw 135, pitch -30): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 5 (yaw 180, pitch 60): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 6 (yaw -55, pitch 36): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 7 (yaw -120, pitch 5): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 8 (yaw 30, pitch 85): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  total across the sweep: 0/131072 (expected 0)
+  this is ARITHMETIC, not a bug: on a flat surface N.V == 1 so rim == 0 identically.
+  ShaperLightRig.RimNeedsRelief is the sentence a UI must show on the control.
+  RESULT: PASS
+LT-8 receiveLighting = false is bit-identical to the pre-lighting build
+  golden: 65536 B (expected 65536), from D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0108\golden\lt8-unlit-128x128.rgba
+  differing pixels, NULL-SCENE render vs the STORED GOLDEN: 0/16384 (expected 0)  PASS
+  differing pixels, RECEIVE-OFF render vs the STORED GOLDEN: 0/16384 (expected 0 - this is the assertion D-9 argued away)  PASS
+  rig: 8 enabled lights (expected 8), rimStrength 1 on the response
+  differing pixels vs the null-scene render: 0/16384 (expected 0; WEAK - both sides run the same branch, see the summary)  PASS
+  CONTROL - the same rig with receive ON differs at 5054/16384 pixels (expected > 1000; a 0 here would make this leg vacuous)  PASS
+  RESULT: PASS
+LT-9 lighting does not perturb the exclusivity partition (FT-21's instrument)
+  (a) sum(paint over the chain) != rootCoverage at 0/16384 samples (expected 0), worst 0.00000  PASS
+  (b) composited alpha BELOW the shape's own coverage at 0/16384 samples (expected 0), total 0.000, worst 0.0000  PASS
+      Directly comparable to the pre-fix escalation's 244 / 29.288 / 0.2484 on the same
+      fixture and the same instrument - now with 8 lights, a rim and an Add owner running.
+  (c) destination ALPHA differing between the lit and unlit renders: 0/16384 (expected 0 - lighting touches colour only, LR-5.2)  PASS
+  (d) MIXED Over/Add, 8 lights: destination ALPHA differing lit vs unlit 0/16384 (expected 0)  PASS
+      the same fixture's Add-owner alpha 'deficit' is 1960/16384 in BOTH renders - reported, not asserted to be 0, because FC-2.6b says an Add
+      owner raises no alpha. Lighting neither creates nor removes one sample of it.
+  RESULT: PASS
+LT-10 Add fills are not lit (L = 0.5, ambient 0, S = 0)
+  Over destination R = 0.30191370  Add destination R = 0.60382740
+  Add/Over ratio = 2.00000000 (expected 2.00000000, tolerance 1e-6)  PASS
+  Add destination vs the raw linear albedo 0.60382740: |err| 0.000E+000 (expected 0 - an Add fill is written through UNLIT)  PASS
+  A lamp does not get dimmer because you put it in a dark room (LR-5.3); FC-2.6d records
+  that the fire and explosion palettes are usually authored to Add, so this is what keeps
+  a fire emissive under a rig that would otherwise plunge it into shadow.
+  RESULT: PASS
+LT-11 the eight-light cap refuses with a reason and a count
+  hasTooManyLights = True (expected True)  PASS
+  tooManyLightsCount = 3 (expected 3)  PASS
+  compiled light count = 8 (expected 8)  PASS
+  reason: "the rig holds 11 enabled lights; only the first 8 enabled are lit. The cap is 8."  contains "11" and "8": True  PASS
+  the disabled-light configurations - `enabled`, not `authored`, is what the cap measures:
+    11 authored, none disabled     enabled 11/11, lit 8/8, flag True/True, dropped 3/3  PASS
+    9 authored, the 9th disabled   enabled 8/8, lit 8/8, flag False/False, dropped 0/0  PASS
+    11 authored, 5 disabled        enabled 6/6, lit 6/6, flag False/False, dropped 0/0  PASS
+    12 authored, first 8 disabled  enabled 4/4, lit 4/4, flag False/False, dropped 0/0  PASS
+    8 authored, none disabled      enabled 8/8, lit 8/8, flag False/False, dropped 0/0  PASS
+    13 authored, 2 disabled        enabled 11/11, lit 8/8, flag True/True, dropped 3/3  PASS
+  Finish's `rig.count` (6) and the cap's `enabledLightCount` (6) agree below the cap  PASS
+  destination floats differing between the 11-light and 8-light rigs: 0/65536 (expected 0 - lights 9-11 contribute exactly 0)  PASS
+  RESULT: PASS
+LT-12 shadow flags are recorded AND inert
+  (a) differing pixels between shadows-off and shadows-on: 0/16384 (expected 0 - INERT)  PASS
+  (b) hasUnimplementedShadow off/on = False/True (expected False/True)  PASS
+      unimplementedShadowCount = 1 (expected 1, the layer count)  PASS
+      unimplementedShadowNode = "Layer" (expected "Layer", the first layer that asked)  PASS
+      reason == ShaperLightRig.ShadowsNotComputed VERBATIM: True  PASS
+      reason still SAYS what it must (saved / not computed / straight down / ray): True  PASS  - the identity check alone is vacuous against a paraphrase of the const itself, measured, so the substance is asserted separately
+      "Cast and receive shadows are saved with the document, but no shadow is computed yet. The picture is resolved by looking straight down, and a shadow needs a ray pointed at the light."
+  (c) the flags are ABSENT from ShaperResponseCompiled, so the law cannot see them: True
+  (d) FOUR layers, three of which ask for shadows:
+      layerCount = 4 (expected 4)  PASS
+      unimplementedShadowCount = 3 (expected 3 - the number that asked, not the number of layers and not 1)  PASS
+      unimplementedShadowNode = "Backdrop" (expected "Backdrop", the FIRST that asked)  PASS
+  (e) 8 lights and ZERO receivers raises hasLightsButNoReceivers = True, receiverCount = 0 (expected True/0)  PASS
+      "the document holds 8 enabled lights and no layer receives lighting, so none of them changes a pixel. Turn on Receive Lighting on a layer."
+  RESULT: PASS
+LT-13 the provider is swappable without touching the law
+  (a) centre-sample red byte: Constant(0,0,1) = 151, Constant(0.6,0,0.8) = 65, |delta| = 86 (expected >= 8)  PASS
+  (b) Shade parameters: 17 total, array types 0 (expected 0), reference types 0 (expected 0)  PASS
+      ShaperLightRigCompiled ShaperResponseCompiled Single Single Single Single Single Single Single Single Single Single Single Single Single Single Single
+  A signature with no array in it CANNOT difference a buffer. LR-3.3's prohibition is
+  therefore structural, not a convention someone has to remember.
+  (c) ShaperNormalKind cases present: Constant, Profile  - Profile is RESERVED and commented, so T-0109 is an addition, not a renumbering.
+  RESULT: PASS
+LT-14a convexity: at most one culled-visible face covers any sample
+  Box       32 rotations x 6561 samples = 209952; max STRICTLY-INTERIOR covering faces = 1 (expected 1)  PASS
+            samples lying exactly ON a shared triangle edge or vertex: 39 (max 2 faces there) - EXPECTED and harmless: InTri's test is inclusive (w >= 0), so a point on a shared edge is in both triangles, and the generator's `break` makes the winner deterministic.
+  Pyramid   32 rotations x 6561 samples = 209952; max STRICTLY-INTERIOR covering faces = 1 (expected 1)  PASS
+            samples lying exactly ON a shared triangle edge or vertex: 0 (max 1 faces there) - EXPECTED and harmless: InTri's test is inclusive (w >= 0), so a point on a shared edge is in both triangles, and the generator's `break` makes the winner deterministic.
+  Can       32 rotations x 6561 samples = 209952; max STRICTLY-INTERIOR covering faces = 1 (expected 1)  PASS
+            samples lying exactly ON a shared triangle edge or vertex: 2 (max 2 faces there) - EXPECTED and harmless: InTri's test is inclusive (w >= 0), so a point on a shared edge is in both triangles, and the generator's `break` makes the winner deterministic.
+  Gem       32 rotations x 6561 samples = 209952; max STRICTLY-INTERIOR covering faces = 1 (expected 1)  PASS
+            samples lying exactly ON a shared triangle edge or vertex: 51 (max 3 faces there) - EXPECTED and harmless: InTri's test is inclusive (w >= 0), so a point on a shared edge is in both triangles, and the generator's `break` makes the winner deterministic.
+  This is what makes 'break; // convex + culled: first hit wins' correct, and it is
+  exactly what a FUSED silhouette of several solids would break (LR-6.5a).
+  RESULT: PASS
+LT-14b Orb's silhouette is rotation-invariant, its shading is not
+  (a) alpha samples differing across the rotation: 0/16384 (expected 0; STRUCTURAL - Orb coverage never reads the rotation matrix, so (c) is the leg that can actually fail)  PASS
+  (b) RGB samples differing across the rotation: 3640/16384 (expected >= 100)  PASS
+  (c) samples where the ROTATED Orb's coverage disagrees with the independently computed disc d <= 34: 0/16384 (expected 0, over 3640 covered)  PASS
+  (d) CONTROL - a BOX's alpha differing across the SAME rotation: 1812/16384 (expected >= 100; a 0 here would mean the fixture never rotated anything and (a)/(c) were vacuous)  PASS
+  This generator rotates the published NORMAL forward rather than rotating the light
+  backward as Pyre does (PyreRenderer.cs:4442-4455) - it is the other side of Pyre's own
+  identity N.(Rot^-1.L) == (Rot.N).L, and it is forced by LR-1.1: a per-particle inverse-
+  rotated light IS a light owned by a generator, which LR-1.1 forbids outright.
+  RESULT: PASS
+LT-14c Ring's edge-on pop is a discontinuity, locked as a known defect
+  tilt  80.0 deg  |cos| = 0.17365  covered samples 604
+  tilt  87.0 deg  |cos| = 0.05234  covered samples 188
+  tilt  88.0 deg  |cos| = 0.03490  covered samples 80
+  tilt  88.8 deg  |cos| = 0.02094  covered samples 128
+  tilt  88.9 deg  |cos| = 0.01920  covered samples 0
+  tilt  89.4 deg  |cos| = 0.01047  covered samples 0
+  tilt  89.6 deg  |cos| = 0.00698  covered samples 0
+  covered through 88.8 deg: True (expected True)
+  exactly 0 from 88.9 deg on: True (expected True)
+  one-step drop 88.8 -> 88.9: 100.0% (expected >= 90%)  PASS
+  DEVIATION: Part 8 states the pop lies between 89.4 and 89.6 deg. acos(0.02) = 88.854 deg,
+  so 89.0 and 89.4 are ALREADY zero and the contract's expected values cannot hold against
+  the ported guard. The defect asserted is the same one; only the angles are corrected.
+  RESULT: PASS
+LT-15 every provider writes a UNIT, finite, non-zero normal at every sample
+  Constant (authored non-unit)   unwritten/NaN 0, zero 0, non-unit 0/16384, worst ||N|-1| = 6.245E-009 (expected 0,0,0 and <= 1e-4)  PASS
+  Constant (degenerate zero)     unwritten/NaN 0, zero 0, non-unit 0/16384, worst ||N|-1| = 0.000E+000 (expected 0,0,0 and <= 1e-4)  PASS
+  Solids Box                     unwritten/NaN 0, zero 0, non-unit 0/524288, worst ||N|-1| = 6.094E-008  PASS
+  Solids Pyramid                 unwritten/NaN 0, zero 0, non-unit 0/524288, worst ||N|-1| = 6.043E-008  PASS
+  Solids Can                     unwritten/NaN 0, zero 0, non-unit 0/524288, worst ||N|-1| = 8.327E-008  PASS
+  Solids Gem                     unwritten/NaN 0, zero 0, non-unit 0/524288, worst ||N|-1| = 7.736E-008  PASS
+  Solids Orb                     unwritten/NaN 0, zero 0, non-unit 0/524288, worst ||N|-1| = 1.330E-007  PASS
+  Solids Ring                    unwritten/NaN 0, zero 0, non-unit 0/524288, worst ||N|-1| = 7.025E-008  PASS
+  RESULT: PASS
+LT-16 the two families share a FRAME, not only a law
+  Solids Box (+Z face, normal (0,0,1), surface point z = +20 px)  destination R = 0.50510450
+  Silhouette square, Constant(0,0,1), surface point z = 0        destination R = 0.50510450
+  |difference| = 0.000E+000 (expected <= 1e-6)  PASS
+  encoded bytes: Box (188,180,172)  square (188,180,172)  identical: True  PASS
+  (c) OFF-CENTRE at canvas (20,-12) under a POINT light at (0,0,30) range 30 -
+      the leg a directional light structurally cannot test:
+        Solids Box (depth ~0, front face on the base plane) R = 0.15731070
+        Silhouette square, same place, Constant(0,0,1)      R = 0.15730900
+      |difference| = 1.714E-006 (expected <= 1e-4)  PASS
+      CONTROL - the same solid at the canvas CENTRE reads 0.24627670, i.e. 8.897E-002 away, so the lamp genuinely
+      varies across the canvas and a solid lit in its own frame would be caught here.
+  OBSERVATION (not asserted) - under a POINT light at (0,0,40) range 40, the same two
+    read 1.07069100 and 0.69568060, differing by 3.750E-001. They SHOULD: the box's front face stands 20 px
+    out of the base plane, so it is genuinely 20 px nearer the lamp. Predicted atten
+    ratio 1.60000. That is ShaperLightRig.ConsistentNotIdentical, measured.
+  RESULT: PASS
+LT-18 no dial at any degenerate value writes a non-finite float (fix pass)
+  degenerate cases driven: 1428 (every dial on the rig, the response block and all six Solids forms x {-1, 0, +Inf, -Inf, NaN, -1e30, 1e30} x ambient {0.2, 0.0})
+  NON-FINITE FLOATS REACHING dst: 0 (expected EXACTLY 0; measured 19200 for rimPower = -1 alone before the fix)  PASS
+  GARBAGE ENCODED PIXELS: 0 (expected EXACTLY 0; measured 6400 for rimPower = -1 on a black ambient before the fix)  PASS
+  (d) the range dial, swept ACROSS the old discontinuity (light at (0,0,40), sample at (0,0), ambient black):
+      1e4=0.999984 40=0.500000 10=0.058824 1=0.000625 1e-2=0.000000 1e-4=0.000000 1e-5=0.000000 1e-6=0.000000 1e-7=0.000000 0=0.000000 -1=0.000000 NaN=0.500000 +Inf=0.500000
+      inversions as the range shrinks: 0 (expected 0; the old build had one, 1e-5 -> 1e-6 snapping 0 -> 1.000000)  PASS
+      range == 0 gives L = 0.000000 (expected 0 - LR-2.4: a vanishing range is a vanishing REACH, not a vanished falloff)  PASS
+      range == -1 matches range == 0: True; NaN finite: True; +Inf finite: True  PASS
+  (e) CONTROL - the LAW, handed an UNCLAMPED rimPower = -1 on a flat normal, returns S.r = Infinity (expected non-finite; this is exactly what the compile clamp protects against, and a finite value here would mean the zeroes above prove nothing)  PASS
+  RESULT: PASS
+LT-19 every Solids dial is live or DECLARED inert - never neither (fix pass)
+    Box      Size:5506 Cent:2680 Aspe:4557 Dept:4024 GemS:0* GemC:0* GemP:0* Ring:0* Yaw:7966 Tilt:7494 Roll:5216 Line:1130 Edge:4004 Inne:6914
+    Pyramid  Size:2353 Cent:1891 Aspe:3326 Dept:2688 GemS:0* GemC:0* GemP:0* Ring:0* Yaw:3640 Tilt:4205 Roll:4067 Line:655 Edge:2227 Inne:2683
+    Can      Size:4783 Cent:4476 Aspe:3685 Dept:0* GemS:0* GemC:0* GemP:0* Ring:0* Yaw:5647 Tilt:5878 Roll:6758 Line:669 Edge:2405 Inne:5428
+    Orb      Size:3590 Cent:4067 Aspe:0* Dept:0* GemS:0* GemC:0* GemP:0* Ring:0* Yaw:3120 Tilt:3142 Roll:3267 Line:404 Edge:1494 Inne:3396
+    Gem      Size:1600 Cent:1703 Aspe:0* Dept:0* GemS:1821 GemC:2088 GemP:125 Ring:0* Yaw:2021 Tilt:2686 Roll:2356 Line:684 Edge:1790 Inne:1274
+    Ring     Size:2246 Cent:2036 Aspe:0* Dept:0* GemS:0* GemC:0* GemP:0* Ring:846 Yaw:2146 Tilt:2180 Roll:0* Line:594 Edge:1836 Inne:1520
+  legend: <dial>:<differing encoded pixels>, * = DECLARED INERT (must be 0), !! = the assertion failed
+  live dials moving >= 20 px: 56;  declared-inert dials measuring exactly 0: 28
+  SILENTLY INERT (live by declaration, dead by measurement): 0 (expected 0; this count was 5 before the fix - aspect and depth on Gem and Ring, and depth on Orb)  PASS
+  FALSELY DECLARED (declared inert, actually moves pixels): 0 (expected 0)  PASS
+  DIAGNOSTIC, Gem with aspect 0.4 and depth 0.4: hasInertDial = True (True), inertDialCount = 2 (2), dial "Aspect" on form "Gem"  PASS
+    reason: "Aspect does nothing on a Gem. A gem's proportions are Crown and Pavilion, which set its height above and below the girdle; the reference builder (PyreRenderer.cs:4796) reads neither aspect nor depth. Use Crown and Pavilion."
+  a Gem with aspect and depth left at 1 (neutral) raises nothing: hasInertDial = False (expected False - the complaint is about a control the author OPERATED and got nothing from, not about a field's existence)  PASS
+  RESULT: PASS
+LT-20 a border is lit by its HOST's response and HOST's normal (LR-5.4, fix pass)
+  border owner index 1, host owner index 0 (both must be found)  PASS
+  border samples: 1184 (expected > 200)
+  border pixels that MOVED when the BORDER's OWN response and normal were replaced: 0/1184 (expected 0 - LR-5.4 says its own entries are never read)  PASS
+  CONTROL - border pixels that moved when the HOST's response and normal changed: 1184/1184 (expected > 100; a 0 here would mean the border is not lit at all and the assertion above is vacuous)  PASS
+  RESULT: PASS
+LT-21 the document owns the lights, and the document path is RUN (fix pass)
+  document 96x72 @ 1, phase 0.37, seed 909, 4 layers, 2 lights on the rig
+  ShaperDocument.Grid() is canvas-centred with the document's pixelSize: origin (-47.500, -35.500)  PASS
+  CompileDocument: rig.count = 2 (expected 2, on the DOCUMENT's clock per LR-1.8), layers not yet bound (0)  PASS
+  after binding every layer: layerCount = 4 (expected 4), receiverCount = 3 (expected 3)  PASS
+  per-layer responses take effect - pixels differing from the LIT layer:
+    receive off 2188, in-shadow 2188, rim 1.5 2188 (each expected > 500)  PASS
+    summed luminance: in-shadow 350080 < lit 645940 < rim 660401 (the direction each block predicts; receive-off 975848 is the raw albedo)  PASS
+  NOTE, stated rather than papered over: Wave 2 has NO document-level compositor. The
+    document is now genuinely the source of the rig, the grid, the clock, the seed and
+    each layer's response block, and that path is exercised end-to-end here - but
+    stacking several layers into one picture is not built and is not in this contract's
+    scope. This leg proves the document is WIRED, not that a document RENDERS.
+  RESULT: PASS
+LT-22 the halo and inner glow actually run (LR-6.4, fix pass)
+  Box      glow sheet non-zero floats 17106 (> 100), encoded RGB moved 5702 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Pyramid  glow sheet non-zero floats 7371 (> 100), encoded RGB moved 2457 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Can      glow sheet non-zero floats 13494 (> 100), encoded RGB moved 4498 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Orb      glow sheet non-zero floats 8484 (> 100), encoded RGB moved 2825 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Gem      glow sheet non-zero floats 4164 (> 100), encoded RGB moved 1388 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Ring     glow sheet non-zero floats 4752 (> 100), encoded RGB moved 1584 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  glow on a receiveLighting = FALSE layer still adds: 1388 samples moved, summed delta 704.234 (expected > 100 and > 0 - a glow is light, not paint: LR-5.3 one level down)  PASS
+  RESULT: PASS
+LT-23 rim is inert on a black ambient, and the tool says so (fix pass)
+  rim 0: black S=0.00000000 / amb0.2 S=0.00000000   rim 0.5: black S=0.00000000 / amb0.2 S=0.00636118   rim 1: black S=0.00000000 / amb0.2 S=0.01272235   rim 2.5: black S=0.00000000 / amb0.2 S=0.03180588   rim 5: black S=0.00000000 / amb0.2 S=0.06361176
+  S is EXACTLY 0 at every rim strength on a black ambient: True; non-zero on a lit one: True  PASS
+  DIAGNOSTIC on a black ambient: hasInertRim = True (True), count = 2 (2), first node "Layer A" (Layer A), reason == ShaperLightRig.RimNeedsBlackAmbientRelief VERBATIM  PASS
+  does NOT fire on: a lit ambient (False), rim 0 (False), receive off (False) - all expected False  PASS
+  LR-7.2's RimNeedsRelief covers BOTH inert states - flat normal: True, black ambient: True; the standalone sibling exists: True  PASS
+  The ARITHMETIC is deliberately unchanged: LR-2.3 specifies `S += amb . rim` and
+    overturning that is the owner's ruling, not a fix pass's. Flagged in FIX-REPORT.md
+    with the alternative rather than changed unilaterally.
+  RESULT: PASS
