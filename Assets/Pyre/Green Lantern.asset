@@ -309,8 +309,12 @@ MonoBehaviour:
         value: 1
         exponent: 1
         editState: 0
+      - time: 0.44195
+        value: 0.97359
+        exponent: 1
+        editState: 0
       - time: 1
-        value: 1
+        value: 0
         exponent: 1
         editState: 0
       m_yMin: 0
@@ -1607,12 +1611,12 @@ MonoBehaviour:
       m_multiplierId: 
     shapeAdvanced: 0
     swarmEnabled: 1
-    swarmCount: 18
+    swarmCount: 37
     swarmSpawnMode: 0
-    swarmShapeKind: 1
+    swarmShapeKind: 2
     swarmChaos: 0
     swarmGridReverse: 0
-    swarmSpawnChaos: 0
+    swarmSpawnChaos: 1
     swarmCustomX:
       m_mode: 2
       m_static: 1
@@ -1710,7 +1714,7 @@ MonoBehaviour:
         exponent: 1
         editState: 0
       - time: 1
-        value: 0.2412
+        value: 0.52993
         exponent: 1
         editState: 0
       m_yMin: 0
@@ -1728,7 +1732,7 @@ MonoBehaviour:
     swarmTiming: 0
     swarmFirstFrame: 0
     swarmFrameStep: 2
-    swarmParticleLife: 0.73754
+    swarmParticleLife: 0.41802
     swarmOrient: 1
     swarmScaleByIndex:
       m_mode: 0
@@ -1750,7 +1754,7 @@ MonoBehaviour:
       m_multiplierId: 
     swarmEvenPath: 1
     swarmPathSpread: 0.46108
-    swarmDieTogether: 1
+    swarmDieTogether: 0
     shapeOffsetX:
       m_mode: 0
       m_static: 1.7778015
@@ -1789,7 +1793,7 @@ MonoBehaviour:
       m_multiplierId: 
     shapeScale:
       m_mode: 0
-      m_static: 35.6259
+      m_static: 23.47188
       m_min: 0
       m_max: 1
       m_points:
@@ -6119,12 +6123,12 @@ MonoBehaviour:
             value: 0.1
             exponent: 1
             editState: 0
-          - time: 0.06763
-            value: 0.60546
+          - time: 0.06862
+            value: 0.73222
             exponent: 1
             editState: 0
-          - time: 0.62976
-            value: 0.59912
+          - time: 0.20107
+            value: 0.45018
             exponent: 1
             editState: 0
           - time: 1
