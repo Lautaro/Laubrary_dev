@@ -648,7 +648,31 @@ namespace Laubrary.SpriteFx
         // VoronoiCrackModifier) should read wx/wy, not x/y, so that pattern rides along with earlier geometry
         // warps instead of staying glued to the screen while the warped silhouette moves underneath it.
         public readonly float wx, wy;
-        public readonly float crossFrac;   // 0..1 across the shape (centre→edge, or bar back→tip)
+        /// <summary>
+        /// 0..1, the primary scalar a shaped/cross-gradient kernel (Tint, VoronoiCrack's spread mask, ...) keys
+        /// off. T-0114 traced every construction site (<c>grep -rn "new PixelInfo("</c>) and found this slot is
+        /// asked to carry TWO genuinely different concepts, not one bug repeated five times:
+        /// <list type="bullet">
+        /// <item><b>Geometric shape/picture-local progress</b> (centre→edge, or bar back→tip), 0 at the
+        /// shape's own centre, 1 at its own edge — <c>PyreRenderer.cs</c>'s per-particle raster sites compute
+        /// this from the shape's own analytic centre/radius; <c>SfxKernels.MakePixel</c>'s padded
+        /// overload computes the SAME concept from the picture rect when there is no analytic shape to ask
+        /// (a documented, correct fallback, not a second meaning of the field).</item>
+        /// <item><b>A host's own driving scalar</b>, reused deliberately so existing Tint/cross-gradient
+        /// authoring keeps working without a new dial: <c>PyreInferno.cs</c> passes its HEAT value here (own
+        /// comment: "crossFrac = the heat value") and <c>PyreForkBlast.cs</c> passes a fork/puff parameter.
+        /// This is named technical debt (a future host that wants BOTH a real geometric progress AND a
+        /// substance scalar at once has nowhere to put the second one), not an accident — unlike the one
+        /// genuine BUG T-0114 found and fixed, <c>SpriteFxRecolor.ApplyManaged</c> hardcoding this to <c>0f</c>
+        /// with no such justification, silently killing Tint's cross-gradient in that host.</item>
+        /// </list>
+        /// See <c>D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0114\SPEC.md</c> Part 5 for the full site-by-site
+        /// accounting. Deliberately NOT force-unified into one field/meaning here: splitting the second bullet
+        /// into its own named field is real, separate surgery (it means auditing every reader of a host's
+        /// PixelModifier stack for Inferno/ForkBlast content to confirm nothing already depends on the reuse),
+        /// named as future work rather than done silently under this task.
+        /// </summary>
+        public readonly float crossFrac;
         public readonly float life;        // the shape's own life, 0..1
         public readonly int hash;          // a stable per-pixel seed
         public readonly int W, H;

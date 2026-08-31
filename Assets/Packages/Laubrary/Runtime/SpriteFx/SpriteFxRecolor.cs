@@ -156,6 +156,17 @@ namespace Laubrary.SpriteFx
             }
             if (s_active.Count == 0) return;
 
+            // T-0114 fix: this used to hardcode crossFrac to 0f, silently killing TintModifier's cross-gradient
+            // (and any other shaped kernel) in this host — one of the "one number means five different things"
+            // sites named in P1-digest.md. Fixed by computing the SAME picture-local crossFrac
+            // SpriteFxBurst.MakePixel already uses elsewhere (picture centre → this pixel, normalised by the
+            // picture's own half-size) rather than inventing a second formula. This host has no padding concept
+            // of its own, so the "picture" is simply the whole W×H buffer — the padX=padY=0, srcW=W, srcH=H case
+            // MakePixel's own doc calls "arithmetically identical to what it always was" for everything BUT the
+            // crossFrac value itself, which is exactly the bug being fixed here.
+            float halfW = W * 0.5f, halfH = H * 0.5f;
+            float crossUnit = Mathf.Max(1f, Mathf.Min(halfW, halfH));
+
             for (int y = 0, idx = 0; y < H; y++)
             {
                 for (int x = 0; x < W; x++, idx++)
@@ -164,7 +175,9 @@ namespace Laubrary.SpriteFx
                     Color col = new Color(s.r / 255f, s.g / 255f, s.b / 255f, s.a / 255f);
                     float a = col.a;
                     int hash = unchecked(seed ^ (x * 73856093) ^ (y * 19349663));
-                    var info = new PixelInfo(x, y, x + 0.5f, y + 0.5f, frame, 0f, life, hash, W, H);
+                    float cdx = (x + 0.5f) - halfW, cdy = (y + 0.5f) - halfH;
+                    float crossFrac = Mathf.Clamp01(Mathf.Sqrt(cdx * cdx + cdy * cdy) / crossUnit);
+                    var info = new PixelInfo(x, y, x + 0.5f, y + 0.5f, frame, crossFrac, life, hash, W, H);
 
                     bool keep = true;
                     for (int i = 0; i < s_active.Count; i++)
