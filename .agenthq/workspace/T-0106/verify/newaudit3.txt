@@ -1,0 +1,24 @@
+FT-7 nearest-ancestor resolution on the FC-3.8 worked tree
+  owners, in paint order: Body -> Head -> Belt -> Iris   (expected Body -> Head -> Belt -> Iris)
+  Subtract member 'Eye' owns no fill, so it is absent by construction (FC-3.3).
+  Torso n Belt, not Head/Iris Body=0.000 Head=0.000 Belt=1.000 Iris=0.000 | top=Belt expected=Belt  ok
+  Torso n Head n Belt         Body=0.000 Head=1.000 Belt=1.000 Iris=0.000 | top=Belt expected=Belt  ok
+  Head n Belt, not Torso      Body=0.000 Head=1.000 Belt=1.000 Iris=0.000 | top=Belt expected=Belt  ok
+  Head, not Belt              Body=0.000 Head=0.000 Belt=0.000 Iris=0.000 | top=none expected=none  ok
+  Eye inside Head, not Belt   Body=0.000 Head=0.000 Belt=0.000 Iris=0.000 | top=none expected=none  ok
+  Iris, outside Belt          Body=0.000 Head=1.000 Belt=0.000 Iris=1.000 | top=Iris expected=Iris  ok
+  Iris n Belt n Torso         Body=0.000 Head=1.000 Belt=1.000 Iris=1.000 | top=Iris expected=Iris  ok
+  outside coverage_Body       Body=0.000 Head=0.000 Belt=0.000 Iris=0.000 | top=none expected=none  ok
+  samples where the BAG's own fill G_body paints: 0/16384 (expected 0)
+  FC-3.8's TABLE gives G_body three whole regions and is wrong on all three: FC-3.3 rules
+  that an Intersect member owning a fill paints the entire intersected result, and in this
+  tree Belt IS the last restrictor, so Belt's claim equals the bag's coverage everywhere the
+  bag has any. Under FC-3.5 the bag then paints NOWHERE, which is 0 and not 'three regions'.
+  It read 119 while exclusivity was multiplicative — c*(1-c) at every sample where Belt's
+  claim equalled the bag's, i.e. a fringe of the BAG's colour tracing the whole silhouette.
+  Subtractive exclusivity gives the 0 the rule actually states.
+  FT-7b fold order governs paint order (FC-3.4)
+    (a) literal swap of members [1] and [2]: composited bytes differ = True (expected True; note this also changes the SHAPE, so it does not isolate order)
+    (b) two overlapping Add siblings swapped (shape identical): R 0.2500 vs 0.5000, B 0.5000 vs 0.2500   differ = True (expected True)
+    verdict: PASS
+  RESULT: PASS

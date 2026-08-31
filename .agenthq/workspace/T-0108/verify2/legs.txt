@@ -1,0 +1,10 @@
+LT8_ReceiveOffIsBitIdentical
+LT10_AddIsNotLit
+LT3_TileIndependence
+LT9_ExclusivityUnperturbed
+LT16_SharedFrame
+LT6_HandComputed
+LT11_TheCap
+LT13_ProviderIsSwappable
+LT14b_OrbSilhouetteIsRotationInvariant
+LT7_RimIsZeroOnFlat

@@ -1,0 +1,32 @@
+== F: colour round trip through the WHOLE integrated path (Solid, veil 1, Over, opaque interior) ==
+  all 256 grey levels, opaque interior sample: worst |out - in| = 0 codes (at input -1)  expected 0
+
+== F: premultiplied (the default) vs straight-alpha encoder ==
+  alpha | premult RGB | straight RGB | agree?   (source colour is linear white in every row)
+  1.000 |     255     |     255      | yes
+  0.750 |     225     |     255      | NO  (delta 30)
+  0.500 |     188     |     255      | NO  (delta 67)
+  0.250 |     137     |     255      | NO  (delta 118)
+  0.100 |      89     |     255      | NO  (delta 166)
+  0.020 |      39     |     255      | NO  (delta 216)
+  0.004 |      13     |     255      | NO  (delta 242)
+  0.000 |       0     |       0      | yes
+  -> the two encoders agree ONLY at alpha == 1. FC-2.3 says albedo is NON-premultiplied; the
+     default writer emits sRGB(premultiplied-linear), which is neither straight nor a valid
+     premultiplied-sRGB pair for a gamma-space consumer.
+
+== F: ordinary Over of a half-veiled white over an opaque mid-grey ==
+  linear result 0.607930 (expected 0.607930), alpha 1.0000
+  encoded byte  205   (sRGB of that linear value = 205)
+  the same blend done in sRGB (what Pyre does) would be 192 - the expected, documented divergence
+
+== G: veil invariants under adversarial dials ==
+  veil = -1.0      : baked veil=0.0000  centre alpha=0.0000  non-finite dst floats=0  paint outside coverage=0  max alpha=0.0000
+  veil = +2.0      : baked veil=1.0000  centre alpha=1.0000  non-finite dst floats=0  paint outside coverage=0  max alpha=1.0000
+  veil = 1e30      : baked veil=1.0000  centre alpha=1.0000  non-finite dst floats=0  paint outside coverage=0  max alpha=1.0000
+  veil = NaN       : baked veil=0.0000  centre alpha=0.0000  non-finite dst floats=0  paint outside coverage=0  max alpha=0.0000
+  veil = +Infinity : baked veil=1.0000  centre alpha=1.0000  non-finite dst floats=0  paint outside coverage=0  max alpha=1.0000
+  veil = -Infinity : baked veil=0.0000  centre alpha=0.0000  non-finite dst floats=0  paint outside coverage=0  max alpha=0.0000
+  animated Curve veil min=-3 max=4 over phase: p=0.00->1.000 p=0.25->1.000 p=0.50->1.000 p=0.75->1.000 p=1.00->1.000
+  fog coverage (BC-3.3 unbounded): clamp01(1.7)*clamp01(1.0) = 1.0000 (expected 1.0)
+  Mathf.Clamp01(NaN) = NaN   <- the veil clamp's behaviour on NaN

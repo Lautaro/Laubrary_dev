@@ -1,0 +1,26 @@
+== A/FT-5 sensitivity: can FT-5 fail if FC-2.4's BAKE-TIME clamp is removed? ==
+   Method: bind normally, then overwrite the compiled op's veil with 2.0 (exactly what deleting the
+   bake clamp would produce), and re-measure the thing FT-5 measures - the dst alpha from PaintTile.
+   baked veil as shipped                = 1.0000
+   half-covered sample coverage         = 0.453203
+   coverageEff WITH the bake clamp      = 0.453203   (FT-5 asserts <= coverage)
+   coverageEff WITHOUT the bake clamp   = 0.453203   <- if this is still <= coverage, FT-5 CANNOT FAIL
+   FT-5 would report FAIL without the clamp? NO - the test is insensitive to the clause it is named for
+   reason: ShaperFillResolver.PaintTile applies a SECOND Mathf.Clamp01(veil) at use, so removing
+   the bake-time clamp changes nothing that FT-5 looks at.
+   the audit's own sentence says 'without the clamp it would be 1.0'; with BOTH clamps removed it
+   would be coverage*2 = 0.906406, not 1.0.
+
+== A: FillFit at a NON-axis-aligned gradient angle (my earlier theta=0 test was degenerate) ==
+   Linear theta=0   Uniform vs Stretch: 0 floats differ, max 0.0000  (correctly identical: theta=0 only reads u, divided by 30 either way)
+   Linear theta=90  Uniform vs Stretch: 2880 floats differ, max 0.5163  (MUST differ - this is ZuiFill's 'middle 18% of the ramp' case)
+   Linear theta=45  Uniform vs Stretch: 2880 floats differ, max 0.4028  (must differ)
+
+== A/FT-10 extended: determinism ACROSS a domain reload. This run's hashes are written to disk; ==
+   a second run after a forced reload compares against them.
+   PREVIOUS RUN's hashes found. Comparing:
+     Solid|10229645692724094491   vs Solid|10229645692724094491    IDENTICAL
+     Gradient|3804140659263604707 vs Gradient|3804140659263604707  IDENTICAL
+     Ramp|9727908319197009315     vs Ramp|9727908319197009315      IDENTICAL
+     Texture|5881115408890169347  vs Texture|5881115408890169347   IDENTICAL
+     MinMaxVeil|5863503630412560899 vs MinMaxVeil|5863503630412560899  IDENTICAL

@@ -1,0 +1,16 @@
+== E: the shape stage's OLD Compile(root, phase01, seed) signature ==
+   Nothing is committed, so no literal before/after diff exists. The strongest available substitute:
+   the ONLY way parentForward can perturb the old path is through Mul(parentForward, localToParent),
+   and the old code hardcoded Identity there. So: is Mul(Identity, X) BITWISE X, for adversarial X?
+   Mul(Identity, X) bitwise-equal to X: 20/24 matrices (expected all)   first mismatch: in 0,0,1 -> out 0,0,1
+
+   And: does the no-parentForward overload produce a program identical to the Identity-seeded one?
+   ops arrays: 9 ops, field-by-field bitwise differences = 0 (expected 0)
+   bound True, stackDepth True, supportBox True
+   the new fields on the same program: hasLocalSupport=True localHalf=11.000/11.000 rootInvertible=True
+
+   Does the localBox fold feed back into anything the old path used? Recompute the canvas support box
+   independently from the ops' own per-leaf boxes and compare against program.support*:
+   leaf op box  = (11.00000,-4.00000) half 31.18085/27.63808
+   program box  = (11.00000,-4.00000) half 31.18085/27.63808
+   equal: True

@@ -1,0 +1,16 @@
+GetAllocatedBytesForCurrentThread present: True
+raw probe value sampled 3x: 0, 0, 0
+  single alloc 1 KB -> thread-probe delta = 0
+  single alloc 64 KB -> thread-probe delta = 0
+  single alloc 512 KB -> thread-probe delta = 0
+  single alloc 4096 KB -> thread-probe delta = 0
+  single alloc 8192 KB -> thread-probe delta = 0
+  single alloc 16384 KB -> thread-probe delta = 0
+  single alloc 65536 KB -> thread-probe delta = 0
+  65 x 120000 B (= 7.8 MB, the STATED MUTATION's shape) -> thread delta = 0, heap delta = 7987200
+  65 x 128 B (total 8320) -> thread 0, heap 12288  => LT-2's own pass condition says PASS (MISSED)
+  65 x 1024 B (total 66560) -> thread 0, heap 0  => LT-2's own pass condition says PASS (MISSED)
+  65 x 8192 B (total 532480) -> thread 0, heap 798720  => LT-2's own pass condition says FAIL (caught)
+  65 x 65536 B (total 4259840) -> thread 0, heap 4526080  => LT-2's own pass condition says FAIL (caught)
+  65 x 120000 B (total 7800000) -> thread 0, heap 7987200  => LT-2's own pass condition says FAIL (caught)
+sink kept alive: True

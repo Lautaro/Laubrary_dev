@@ -1,0 +1,11 @@
+EDGE-LINE SPECULAR (Gem, lineWidth 1.1, specTint (0.9,0.95,1))
+  line samples with alpha>0: 370
+  specular ON  : blue-dominant (B>R) line samples = 80  worst (B-R) = 0.00000
+  specular OFF : blue-dominant (B>R) line samples = 0  worst (B-R) = 0.00000
+SPECULAR ON UNLIT FACETS (N.L <= 0 yet N.H > 0): 430 samples, worst spec term 5.042E-042
+  ALPHA sweep intensity 0.5 vs 0.0 : differing alpha samples 0/9216
+  ALPHA sweep intensity 1.0 vs 0.0 : differing alpha samples 0/9216
+  ALPHA sweep intensity 2.0 vs 0.0 : differing alpha samples 0/9216
+  ALPHA sweep intensity 4.0 vs 0.0 : differing alpha samples 0/9216
+  ALPHA sweep intensity 8.0 vs 0.0 : differing alpha samples 0/9216
+ALPHA INVARIANCE total differing = 0 (expected 0)

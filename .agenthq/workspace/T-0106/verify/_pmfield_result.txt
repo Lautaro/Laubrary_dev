@@ -1,0 +1,13 @@
+V10_DegenerateInputs pass=1 failTokens=0
+V11_EllipseAgainstOracle pass=1 failTokens=0
+V12_NGonOuterExtent pass=1 failTokens=0
+V13_InstrumentSelfTest pass=1 failTokens=0
+V1_SweepIdentity pass=1 failTokens=0
+V2_ShellIdentity pass=1 failTokens=0
+V3_SoftCombineIdentities pass=1 failTokens=0
+V4_DeclaredBounds pass=1 failTokens=0
+V5_RatioCrossCheck pass=1 failTokens=0
+V6_Anisotropy pass=1 failTokens=0
+V7_LandmarkTrap pass=1 failTokens=0
+V8_TileIndependence pass=1 failTokens=0
+V9_ShelledInsideness pass=1 failTokens=0

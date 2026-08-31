@@ -1,0 +1,68 @@
+=== T-0101 Pyre visual baseline ===
+Unity 6000.3.10f1  project=D:\UNITY\Laubrary Dev
+canvas=96  frameCount=16  seed=1234
+nominal representative frame index = 7  (life 0.467)
+sampling frames 2,4,6,7,9,11,13 per technique and keeping the one with the most visible pixels
+readable project sprite: Assets/Demos/CartographerDemo/Ground.png
+TMP_FontAsset candidates: 4
+readable TMP font: Assets/Demos/TextSplashDemo/Border Fonts/Splash Demo (LiberationSans SDF) Border Font.asset
+PyreForm plug-in types found: 9 -> ArcBurstForm, ExplosiveJetForm, ForkBlastForm, InfernoForm, JetForm, OrbForm, PlasmaBloomForm, RadialJetForm, TorchForm
+entries to render: 31
+  E01  Disc                   best f6  coverage  16.02%  meanRGB 255,150,056  [f2:3.3 f4:8.6 f6:16.0 f7:15.1 f9:13.3 f11:11.4 f13:9.5]  
+  E02  Gem                    best f6  coverage  17.36%  meanRGB 180,173,153  [f2:3.6 f4:9.2 f6:17.4 f7:16.3 f9:14.4 f11:12.4 f13:10.0]  
+  E03  Crescent               best f6  coverage  10.68%  meanRGB 255,150,056  [f2:2.3 f4:5.7 f6:10.7 f7:10.2 f9:9.0 f11:7.6 f13:6.1]  
+  E04  Sparkle                best f6  coverage   5.70%  meanRGB 255,150,056  [f2:1.2 f4:3.0 f6:5.7 f7:5.3 f9:4.7 f11:4.1 f13:3.5]  
+  E05  Sprite                 best f6  coverage  21.01%  meanRGB 070,061,014  [f2:4.3 f4:11.1 f6:21.0 f7:19.1 f9:17.4 f11:15.7 f13:12.5]  sprite=Ground
+  E06  Box                    best f6  coverage  34.90%  meanRGB 134,127,117  [f2:7.2 f4:18.8 f6:34.9 f7:33.5 f9:28.9 f11:25.7 f13:20.8]  
+  E07  Pyramid                best f6  coverage  17.64%  meanRGB 225,197,162  [f2:3.7 f4:9.4 f6:17.6 f7:16.2 f9:14.3 f11:12.5 f13:10.0]  
+  E08  Can                    best f6  coverage  29.93%  meanRGB 146,129,114  [f2:6.1 f4:15.9 f6:29.9 f7:27.9 f9:24.6 f11:21.7 f13:17.6]  
+  E09  Orb                    best f6  coverage  22.83%  meanRGB 147,140,128  [f2:4.7 f4:12.1 f6:22.8 f7:21.4 f9:18.5 f11:16.1 f13:13.3]  
+  E10  Ring                   best f6  coverage  19.53%  meanRGB 198,180,157  [f2:4.1 f4:10.2 f6:19.5 f7:18.4 f9:16.0 f11:13.9 f13:11.1]  
+  E11  Text                   best f6  coverage   7.30%  meanRGB 181,169,150  [f2:1.3 f4:3.4 f6:7.3 f7:6.4 f9:6.2 f11:5.2 f13:4.4]  font=Splash Demo (LiberationSans SDF) Border Font
+  E12  Streak                 best f6  coverage   0.56%  meanRGB 255,150,056  [f2:0.3 f4:0.4 f6:0.6 f7:0.5 f9:0.5 f11:0.5 f13:0.4]  
+  E13  Star                   best f6  coverage   5.77%  meanRGB 255,150,056  [f2:1.2 f4:3.0 f6:5.8 f7:5.2 f9:4.7 f11:4.2 f13:3.4]  
+  E14  Fire                   best f11 coverage   0.77%  meanRGB 227,139,067  [f2:0.4 f4:0.5 f6:0.7 f7:0.8 f9:0.8 f11:0.8 f13:0.7]  
+  E15  Fireball               best f13 coverage   7.88%  meanRGB 253,148,055  [f2:0.9 f4:1.7 f6:2.9 f7:3.6 f9:5.1 f11:6.3 f13:7.9]  
+  E16  Polygon                best f6  coverage   9.77%  meanRGB 255,150,056  [f2:2.1 f4:5.3 f6:9.8 f7:9.8 f9:8.5 f11:7.3 f13:6.3]  
+  E17  Playback3D             best f2  coverage   0.00%  meanRGB n/a  [f2:0.0 f4:0.0 f6:0.0 f7:0.0 f9:0.0 f11:0.0 f13:0.0]  editor-preview only; RenderFrame returns early (PyreRenderer.cs:269)
+  F01  Arc Burst              best f7  coverage  18.39%  meanRGB 124,084,169  [f2:9.3 f4:14.5 f6:17.2 f7:18.4 f9:17.4 f11:13.1 f13:4.5]  Laubrary.Pyre.Forms.Kiln.ArcBurstForm
+  F02  Explosive Jet          best f6  coverage  41.07%  meanRGB 186,062,016  [f2:16.6 f4:35.8 f6:41.1 f7:39.2 f9:11.8 f11:0.0 f13:0.0]  Laubrary.Pyre.Forms.Kiln.ExplosiveJetForm
+  F03  Fork Blast             best f6  coverage  76.78%  meanRGB 175,096,046  [f2:37.8 f4:73.7 f6:76.8 f7:66.4 f9:17.4 f11:0.0 f13:0.0]  Laubrary.Pyre.Forms.Kiln.ForkBlastForm
+  F04  Inferno                best f4  coverage  46.80%  meanRGB 192,151,083  [f2:43.2 f4:46.8 f6:45.4 f7:43.5 f9:39.3 f11:40.0 f13:37.0]  Laubrary.Pyre.Forms.Kiln.InfernoForm
+  F05  Jet                    best f13 coverage  10.26%  meanRGB 212,089,027  [f2:8.9 f4:10.0 f6:8.9 f7:9.6 f9:9.3 f11:10.1 f13:10.3]  Laubrary.Pyre.Forms.Kiln.JetForm
+  F06  Orb                    best f2  coverage   9.54%  meanRGB 135,049,013  [f2:9.5 f4:9.5 f6:9.3 f7:9.4 f9:9.2 f11:9.1 f13:8.5]  Laubrary.Pyre.Forms.Kiln.OrbForm
+  F07  Plasma Bloom           best f7  coverage  35.11%  meanRGB 103,036,155  [f2:29.2 f4:30.1 f6:34.6 f7:35.1 f9:28.3 f11:12.1 f13:0.6]  Laubrary.Pyre.Forms.Kiln.PlasmaBloomForm
+  F08  Radial Jet             best f7  coverage  28.09%  meanRGB 188,083,032  [f2:27.8 f4:27.8 f6:27.8 f7:28.1 f9:26.6 f11:27.6 f13:27.1]  Laubrary.Pyre.Forms.Kiln.RadialJetForm
+  F09  Torch                  best f2  coverage  15.82%  meanRGB 213,117,070  [f2:15.8 f4:14.4 f6:14.1 f7:14.5 f9:14.5 f11:13.6 f13:15.1]  Laubrary.Pyre.Forms.Kiln.TorchForm
+  P01  Fuse (metaball)        best f11 coverage  34.41%  meanRGB 190,104,056  [f2:1.6 f4:9.1 f6:19.0 f7:23.8 f9:31.5 f11:34.4 f13:33.9]  layer.coalesce = Fuse, swarm on
+  P02  Ramp (height balls)    best f13 coverage  48.16%  meanRGB 149,047,020  [f2:6.5 f4:17.2 f6:32.1 f7:38.7 f9:45.1 f11:47.9 f13:48.2]  layer.coalesce = Ramp, swarm on
+  P03  Height consumer        best f13 coverage  49.22%  meanRGB 244,148,058  [f2:5.5 f4:16.2 f6:30.9 f7:37.9 f9:45.2 f11:49.1 f13:49.2]  needs 2 layers: a WriteMatte writer below, a heightFromChannel consumer above
+  X16  Inferno (retired slot) best f6  coverage  16.02%  meanRGB 255,150,056  [f2:3.3 f4:8.6 f6:16.0 f7:15.1 f9:13.3 f11:11.4 f13:9.5]  documented to draw as a Disc
+  X17  ForkBlast (retired slot) best f6  coverage  16.02%  meanRGB 255,150,056  [f2:3.3 f4:8.6 f6:16.0 f7:15.1 f9:13.3 f11:11.4 f13:9.5]  documented to draw as a Disc
+-- pixel-identical-to-plain-Disc check (disc hash f938ab6f51af238d) --
+  X16 Inferno (retired slot)  IS PIXEL-IDENTICAL TO A PLAIN DISC
+  X17 ForkBlast (retired slot)  IS PIXEL-IDENTICAL TO A PLAIN DISC
+
+=== CHECK A - does editing a colour ramp actually change the picture? ===
+  Fire                     layer.shapeFill.gradient       repainted  102.8% of its own pixels (raw 0.79%)  maxDelta 243  f11  **responds**
+  Fireball                 layer.shapeFill.gradient       repainted  100.8% of its own pixels (raw 7.94%)  maxDelta 243  f13  **responds**
+  Text                     layer.shapeFill.gradient       repainted    0.0% of its own pixels (raw 0.00%)  maxDelta   0  f6  **NO EFFECT**
+  Text                     layer.textFill.gradient        repainted    6.5% of its own pixels (raw 0.48%)  maxDelta 226  f6  **partial** - only some of its pixels
+  Text                     layer.textBorder.gradient      repainted   93.5% of its own pixels (raw 6.83%)  maxDelta 243  f6  **responds**
+  Disc (control)           layer.shapeFill.gradient       repainted  103.5% of its own pixels (raw 16.58%)  maxDelta 233  f6  **responds**
+  Gem (control)            layer.shapeFill.gradient       repainted   47.8% of its own pixels (raw 8.29%)  maxDelta 172  f6  **responds**
+  Torch form (control)     layer.shapeFill.gradient       repainted    0.0% of its own pixels (raw 0.00%)  maxDelta   0  f2  **NO EFFECT**
+  Inferno form (control)   layer.shapeFill.gradient       repainted  100.2% of its own pixels (raw 46.88%)  maxDelta 241  f4  **responds**
+wrote check-A-colour-ramp.md
+
+=== TEXT GLYPH PROBE - E11 drew the wrong letters, is it the font or the path? ===
+  Splash Demo (LiberationSans SDF) Border Font  readable=True  "PYRE"  cover 7.30%
+  Splash Demo (LiberationSans SDF) Border Font  readable=True  "ABCDEFGH"  cover 9.36%
+  Inconsolata-SemiBold SDF  readable=True  "PYRE"  cover 8.51%
+  Inconsolata-SemiBold SDF  readable=True  "ABCDEFGH"  cover 9.29%
+  LiberationSans SDF - Fallback  readable=True  "PYRE"  cover 9.36%
+  LiberationSans SDF - Fallback  readable=True  "ABCDEFGH"  cover 9.35%
+  LiberationSans SDF  readable=False  "PYRE"  cover 16.02%
+  LiberationSans SDF  readable=False  "ABCDEFGH"  cover 16.02%
+wrote check-text-glyphs.md
+wrote manifest.txt (31 rows)

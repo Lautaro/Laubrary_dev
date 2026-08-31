@@ -1,0 +1,94 @@
+A kernel complement sweep: samples 400001  sum!=1: 10018  bitDiffs 10018  max|err| 1.1920929E-07 at d=-0.190815002
+B Ellipse  ring 628  inward max|diff| 0 bitDiffs 0  |  outward max|sum-1| 2.98023224E-08 bitDiffs 0
+B Rect  ring 800  inward max|diff| 0 bitDiffs 0  |  outward max|sum-1| 0 bitDiffs 0
+B Diamond  ring 600  inward max|diff| 0 bitDiffs 0  |  outward max|sum-1| 5.96046448E-08 bitDiffs 24
+B Triangle  ring 600  inward max|diff| 0 bitDiffs 0  |  outward max|sum-1| 5.96046448E-08 bitDiffs 200
+B Capsule  ring 592  inward max|diff| 0 bitDiffs 0  |  outward max|sum-1| 2.98023224E-08 bitDiffs 0
+B NGon  ring 600  inward max|diff| 0 bitDiffs 0  |  outward max|sum-1| 2.98023224E-08 bitDiffs 0
+B Star  ring 722  inward max|diff| 0 bitDiffs 0  |  outward max|sum-1| 5.96046448E-08 bitDiffs 27
+C Ellipse R34 band|d|<0.5 samples 208  non-bitwise-1 0  worst 0 at d=0
+C Rect R34 band|d|<0.5 samples 0  non-bitwise-1 0  worst 0 at d=0
+C Diamond R34 band|d|<0.5 samples 136  non-bitwise-1 16  worst 5.96046448E-08 at d=3.37174782E-07
+C Triangle R34 band|d|<0.5 samples 200  non-bitwise-1 200  worst 5.96046448E-08 at d=-0.223606795
+C Star R34 band|d|<0.5 samples 248  non-bitwise-1 16  worst 5.96046448E-08 at d=0.215457052
+D Ellipse reach 8  interior 4260  rule below0.999 0 (min 1.000000)  naive below0.999 172 (min 0.508377)  || originalRing 384  rule bad 0  naive bad 172
+D Star reach 8  interior 3934  rule below0.999 0 (min 1.000000)  naive below0.999 286 (min 0.505282)  || originalRing 566  rule bad 0  naive bad 286
+D Triangle reach 8  interior 4216  rule below0.999 0 (min 1.000000)  naive below0.999 140 (min 0.813050)  || originalRing 420  rule bad 0  naive bad 140
+[identity] anchorBox identical True  (24.0000,18.0000) -> (24.0000,18.0000)
+[identity] cullBox halfW 24.0000 -> 32.0000 (grew 8.0000); halfH 18.0000 -> 26.0000 (grew 8.0000); reach 8
+[identity] joined-node samples inside(d<=0) 2628  OUTSIDE declared box 0  worst overshoot x 0.000 y 0.000
+[identity] strip samples (s<=0) 1272  OUTSIDE declared box 0  worst overshoot x 0.000 y 0.000
+[rot37] anchorBox identical True  (24.0000,18.0000) -> (24.0000,18.0000)
+[rot37] cullBox halfW 29.9999 -> 37.9999 (grew 8.0000); halfH 28.8190 -> 36.8190 (grew 8.0000); reach 8
+[rot37] joined-node samples inside(d<=0) 2616  OUTSIDE declared box 0  worst overshoot x 0.000 y 0.000
+[rot37] strip samples (s<=0) 1262  OUTSIDE declared box 0  worst overshoot x 0.000 y 0.000
+[aniso2x] anchorBox identical True  (24.0000,18.0000) -> (24.0000,18.0000)
+[aniso2x] cullBox halfW 48.0000 -> 56.0000 (grew 8.0000); halfH 9.0000 -> 17.0000 (grew 8.0000); reach 8
+[aniso2x] joined-node samples inside(d<=0) 4288  OUTSIDE declared box 808  worst overshoot x 23.500 y 0.000
+[aniso2x] strip samples (s<=0) 2924  OUTSIDE declared box 808  worst overshoot x 23.500 y 0.000
+[full] anchorBox identical True  (24.0000,18.0000) -> (24.0000,18.0000)
+[full] cullBox halfW 36.9803 -> 44.9803 (grew 8.0000); halfH 37.2270 -> 45.2270 (grew 8.0000); reach 8
+[full] joined-node samples inside(d<=0) 4014  OUTSIDE declared box 304  worst overshoot x 8.520 y 0.000
+[full] strip samples (s<=0) 2510  OUTSIDE declared box 304  worst overshoot x 8.520 y 0.000
+E bag+anisoChild joined inside 4288  outsideBox 808  worst overshoot (23.500,0.000)  box half (56.000,17.000)
+F Shell(Outward,8) aniso2x inside 2924  outsideBox 808  worst overshoot (23.500,0.000)  box half (56.000,17.000)
+F2 plain aniso2x (no border) inside 1364  outsideBox 0  worst overshoot (0.000,0.000)  box half (48.000,9.000)
+G aniso2x sigmaMin 0.5 sigmaMax 2 ratio 4  -> reach 8 needs growth 32
+1 hostless(A has NO fill): colour at A's rim inside B = (1.000,0.000,1.000) a=1.000
+1 control (A OWNS a fill): colour at same point       = (1.000,0.000,0.000) a=1.000
+1 owners(noFill): bag ; A border[B host=-1 anc=0] ; B ; 
+1 owners(fill):   bag ; A ; A border[B host=1 anc=0] ; B ; 
+2 ancestorClip: rim inside the carved hole (31,0) = (0.000,0.000,0.000) a=0.000   [expect a=0]
+2 ancestorClip: rim on the intact side (-31,0)    = (1.000,0.000,1.000) a=1.000   [expect magenta a=1]
+3 seam scan: strictly-inside samples 4773  alpha<0.99 0  worst alpha 1.0000 at (0,0)   NaN samples 0
+closure from PaintTile: methods visited 31
+allocation sites in the closure: 0
+Laubrary types reached that are NOT in BT-14's hand-written type list: 1
+   OUTSIDE-LIST ShaperFillSheets.Sheet
+unresolved tokens: 0
+[identity] anchorBox identical True  (24.0000,18.0000) -> (24.0000,18.0000)
+[identity] cullBox halfW 24.0000 -> 32.0000 (grew 8.0000); halfH 18.0000 -> 26.0000 (grew 8.0000); reach 8
+[identity] joined-node samples inside(d<=0) 2628  OUTSIDE declared box 0  worst overshoot x 0.000 y 0.000
+[identity] strip samples (s<=0) 1272  OUTSIDE declared box 0  worst overshoot x 0.000 y 0.000
+[rot37] anchorBox identical True  (24.0000,18.0000) -> (24.0000,18.0000)
+[rot37] cullBox halfW 29.9999 -> 37.9999 (grew 8.0000); halfH 28.8190 -> 36.8190 (grew 8.0000); reach 8
+[rot37] joined-node samples inside(d<=0) 2616  OUTSIDE declared box 0  worst overshoot x 0.000 y 0.000
+[rot37] strip samples (s<=0) 1262  OUTSIDE declared box 0  worst overshoot x 0.000 y 0.000
+[aniso2x] anchorBox identical True  (24.0000,18.0000) -> (24.0000,18.0000)
+[aniso2x] cullBox halfW 48.0000 -> 80.0000 (grew 32.0000); halfH 9.0000 -> 41.0000 (grew 32.0000); reach 8
+[aniso2x] joined-node samples inside(d<=0) 4288  OUTSIDE declared box 0  worst overshoot x 0.000 y 0.000
+[aniso2x] strip samples (s<=0) 2924  OUTSIDE declared box 0  worst overshoot x 0.000 y 0.000
+[full] anchorBox identical True  (24.0000,18.0000) -> (24.0000,18.0000)
+[full] cullBox halfW 36.9803 -> 60.7059 (grew 23.7256); halfH 37.2270 -> 60.9526 (grew 23.7256); reach 8
+[full] joined-node samples inside(d<=0) 4014  OUTSIDE declared box 0  worst overshoot x 0.000 y 0.000
+[full] strip samples (s<=0) 2510  OUTSIDE declared box 0  worst overshoot x 0.000 y 0.000
+E bag+anisoChild joined inside 4288  outsideBox 0  worst overshoot (0.000,0.000)  box half (80.000,41.000)
+F Shell(Outward,8) aniso2x inside 2924  outsideBox 0  worst overshoot (0.000,0.000)  box half (80.000,41.000)
+F2 plain aniso2x (no border) inside 1364  outsideBox 0  worst overshoot (0.000,0.000)  box half (48.000,9.000)
+G aniso2x sigmaMin 0.5 sigmaMax 2 ratio 4  -> reach 8 needs growth 32
+1 hostless(A has NO fill): colour at A's rim inside B = (1.000,0.000,0.000) a=1.000
+1 control (A OWNS a fill): colour at same point       = (1.000,0.000,0.000) a=1.000
+1 owners(noFill): bag ; A border[B host=-1 anc=0] ; B ; 
+1 owners(fill):   bag ; A ; A border[B host=1 anc=0] ; B ; 
+2 ancestorClip: rim inside the carved hole (31,0) = (0.000,0.000,0.000) a=0.000   [expect a=0]
+2 ancestorClip: rim on the intact side (-31,0)    = (1.000,0.000,1.000) a=1.000   [expect magenta a=1]
+3 seam scan: strictly-inside samples 4773  alpha<0.99 0  worst alpha 1.0000 at (0,0)   NaN samples 0
+1 hostless(A has NO fill): colour at A's rim inside B = (1.000,0.000,0.000) a=1.000
+1 control (A OWNS a fill): colour at same point       = (1.000,0.000,0.000) a=1.000
+1 owners(noFill): bag ; A border[B host=-1 anc=0] ; B ; 
+1 owners(fill):   bag ; A ; A border[B host=1 anc=0] ; B ; 
+2 ancestorClip: rim inside the carved hole (31,0) = (0.000,0.000,0.000) a=0.000   [expect a=0]
+2 ancestorClip: rim on the intact side (-31,0)    = (1.000,0.000,1.000) a=1.000   [expect magenta a=1]
+3 seam scan: strictly-inside samples 4773  alpha<0.99 0  worst alpha 1.0000 at (0,0)   NaN samples 0
+F1 three borders            owners 6  inside 4773  alpha<0.99 0  worst 1.0000 at (0,0)  NaN/Inf 0  negative 0
+F2 additive border          owners 3  inside 2644  alpha<0.99 0  worst 1.0000 at (0,0)  NaN/Inf 0  negative 0
+F3 translucent border       owners 3  inside 3228  alpha<0.99 0  worst 1.0000 at (0,0)  NaN/Inf 0  negative 0
+F4 hole + bag border        owners 2  inside 3880  alpha<0.99 0  worst 1.0000 at (0,0)  NaN/Inf 0  negative 0
+F5 NaN veil on the border   owners 3  inside 2644  alpha<0.99 0  worst 1.0000 at (0,0)  NaN/Inf 0  negative 0
+F6 hostless + veil-0.5 sib  owners 3  inside 3888  alpha<0.99 2734  worst 0.5000 at (7.5,-28.5)  NaN/Inf 0  negative 0
+blend k=0 no border      inside 4344  outsideBox 0  worst overshoot (0.000,0.000)  spread 1  boxHalf (46.00,28.00)
+blend k=0 joined reach8  inside 6536  outsideBox 0  worst overshoot (0.000,0.000)  spread 1  boxHalf (54.00,36.00)
+blend k=20 no border      inside 4792  outsideBox 304  worst overshoot (0.000,4.500)  spread 1  boxHalf (46.00,28.00)
+blend k=20 joined reach8  inside 7064  outsideBox 408  worst overshoot (0.000,5.500)  spread 1  boxHalf (54.00,36.00)
+blend k=60 no border      inside 10044  outsideBox 4892  worst overshoot (11.500,26.500)  spread 1  boxHalf (46.00,28.00)
+blend k=60 joined reach8  inside 13152  outsideBox 5376  worst overshoot (11.500,26.500)  spread 1  boxHalf (54.00,36.00)

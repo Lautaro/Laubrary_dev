@@ -1,0 +1,22 @@
+== A/FT-9 re-measured: IL scan of the tile loop (definitive - an allocation is an IL opcode, not a heuristic) ==
+   opcodes hunted: newobj 0x73, newarr 0x8D, box 0x8C, initobj-of-ref n/a, ldstr 0x72 (string literal), call to a known allocator
+    ShaperFillOps.FillTile                     IL   343 bytes | newobj~0 newarr~0 box~0 ldstr~0
+    ShaperFillOps.Sample                       IL   743 bytes | newobj~0 newarr~0 box~0 ldstr~0
+    ShaperFillOps.Anchor                       IL    86 bytes | newobj~0 newarr~0 box~0 ldstr~0
+    ShaperFillOps.ByEdgeDistanceT              IL    10 bytes | newobj~0 newarr~0 box~0 ldstr~0
+    ShaperFillOps.Lut                          IL   103 bytes | newobj~0 newarr~0 box~0 ldstr~0
+   (byte-frequency scan is an UPPER bound - an operand byte can coincide with an opcode value - so a 0 is conclusive and a non-0 is not.)
+
+== A/FT-9: calibrated heap instrument, so the detection floor is a measured number ==
+   allocate     1 KB -> GetTotalMemory(false) delta 0
+   allocate     8 KB -> delta 0
+   allocate    64 KB -> delta 0
+   allocate   512 KB -> delta 217088
+   allocate  4096 KB -> delta 5140480
+   -> whatever the smallest RELIABLY-NONZERO row is, is FT-9's true detection floor.
+   FT-9 asserts 'delta <= 0 AND gen-0 collections == 0' over 40 x 16384 samples; if the floor is
+   e.g. 64 KB then a loop allocating up to ~1.6 KB per call would pass FT-9 undetected.
+
+   gen-0 collection counter, calibrated: 
+     1 MB of garbage in 1000 allocations -> gen-0 collections 0
+     960 bytes in 40 allocations (a 24-byte-per-call leak at FT-9's rep count) -> gen-0 collections 0 (0 means FT-9 could not see it)

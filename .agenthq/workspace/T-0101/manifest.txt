@@ -1,0 +1,31 @@
+E01|Enum form|Disc|E01_Disc.png|16.02|255,150,056|f938ab6f51af238d|||6|f2:3.3 f4:8.6 f6:16.0 f7:15.1 f9:13.3 f11:11.4 f13:9.5
+E02|Enum form|Gem|E02_Gem.png|17.36|180,173,153|0b87862bfd08d77f|||6|f2:3.6 f4:9.2 f6:17.4 f7:16.3 f9:14.4 f11:12.4 f13:10.0
+E03|Enum form|Crescent|E03_Crescent.png|10.68|255,150,056|fd816c051bd7f5ad|||6|f2:2.3 f4:5.7 f6:10.7 f7:10.2 f9:9.0 f11:7.6 f13:6.1
+E04|Enum form|Sparkle|E04_Sparkle.png|5.70|255,150,056|3effffba7fec3c2d|||6|f2:1.2 f4:3.0 f6:5.7 f7:5.3 f9:4.7 f11:4.1 f13:3.5
+E05|Enum form|Sprite|E05_Sprite.png|21.01|070,061,014|bd2f41522b936f8f|sprite=Ground||6|f2:4.3 f4:11.1 f6:21.0 f7:19.1 f9:17.4 f11:15.7 f13:12.5
+E06|Enum form|Box|E06_Box.png|34.90|134,127,117|3732e5ddd18ef369|||6|f2:7.2 f4:18.8 f6:34.9 f7:33.5 f9:28.9 f11:25.7 f13:20.8
+E07|Enum form|Pyramid|E07_Pyramid.png|17.64|225,197,162|2892f75731428027|||6|f2:3.7 f4:9.4 f6:17.6 f7:16.2 f9:14.3 f11:12.5 f13:10.0
+E08|Enum form|Can|E08_Can.png|29.93|146,129,114|d376380911eb575b|||6|f2:6.1 f4:15.9 f6:29.9 f7:27.9 f9:24.6 f11:21.7 f13:17.6
+E09|Enum form|Orb|E09_Orb.png|22.83|147,140,128|af7ba0f33fdb68dd|||6|f2:4.7 f4:12.1 f6:22.8 f7:21.4 f9:18.5 f11:16.1 f13:13.3
+E10|Enum form|Ring|E10_Ring.png|19.53|198,180,157|027770d2d56ca81d|||6|f2:4.1 f4:10.2 f6:19.5 f7:18.4 f9:16.0 f11:13.9 f13:11.1
+E11|Enum form|Text|E11_Text.png|7.30|181,169,150|8185535f85573449|font=Splash Demo (LiberationSans SDF) Border Font||6|f2:1.3 f4:3.4 f6:7.3 f7:6.4 f9:6.2 f11:5.2 f13:4.4
+E12|Enum form|Streak|E12_Streak.png|0.56|255,150,056|4710113b6184d88d|||6|f2:0.3 f4:0.4 f6:0.6 f7:0.5 f9:0.5 f11:0.5 f13:0.4
+E13|Enum form|Star|E13_Star.png|5.77|255,150,056|b1d0a9357b8f5bdc|||6|f2:1.2 f4:3.0 f6:5.8 f7:5.2 f9:4.7 f11:4.2 f13:3.4
+E14|Enum form|Fire|E14_Fire.png|0.77|227,139,067|176e6b8b520de39e|||11|f2:0.4 f4:0.5 f6:0.7 f7:0.8 f9:0.8 f11:0.8 f13:0.7
+E15|Enum form|Fireball|E15_Fireball.png|7.88|253,148,055|5711eed3d70e6d49|||13|f2:0.9 f4:1.7 f6:2.9 f7:3.6 f9:5.1 f11:6.3 f13:7.9
+E16|Enum form|Polygon|E16_Polygon.png|9.77|255,150,056|392f40959dafba80|||6|f2:2.1 f4:5.3 f6:9.8 f7:9.8 f9:8.5 f11:7.3 f13:6.3
+E17|Enum form|Playback3D|E17_Playback3D.png|0.00|n/a|be7134315f056325|editor-preview only; RenderFrame returns early (PyreRenderer.cs:269)||2|f2:0.0 f4:0.0 f6:0.0 f7:0.0 f9:0.0 f11:0.0 f13:0.0
+F01|Plug-in form|Arc Burst|F01_Arc-Burst.png|18.39|124,084,169|f619014999719728|Laubrary.Pyre.Forms.Kiln.ArcBurstForm||7|f2:9.3 f4:14.5 f6:17.2 f7:18.4 f9:17.4 f11:13.1 f13:4.5
+F02|Plug-in form|Explosive Jet|F02_Explosive-Jet.png|41.07|186,062,016|dc84be2416c0e878|Laubrary.Pyre.Forms.Kiln.ExplosiveJetForm||6|f2:16.6 f4:35.8 f6:41.1 f7:39.2 f9:11.8 f11:0.0 f13:0.0
+F03|Plug-in form|Fork Blast|F03_Fork-Blast.png|76.78|175,096,046|1f8a79bff8e26861|Laubrary.Pyre.Forms.Kiln.ForkBlastForm||6|f2:37.8 f4:73.7 f6:76.8 f7:66.4 f9:17.4 f11:0.0 f13:0.0
+F04|Plug-in form|Inferno|F04_Inferno.png|46.80|192,151,083|ede5adbc009117f8|Laubrary.Pyre.Forms.Kiln.InfernoForm||4|f2:43.2 f4:46.8 f6:45.4 f7:43.5 f9:39.3 f11:40.0 f13:37.0
+F05|Plug-in form|Jet|F05_Jet.png|10.26|212,089,027|900df6f99805c8c9|Laubrary.Pyre.Forms.Kiln.JetForm||13|f2:8.9 f4:10.0 f6:8.9 f7:9.6 f9:9.3 f11:10.1 f13:10.3
+F06|Plug-in form|Orb|F06_Orb.png|9.54|135,049,013|7bf8898bcd70059d|Laubrary.Pyre.Forms.Kiln.OrbForm||2|f2:9.5 f4:9.5 f6:9.3 f7:9.4 f9:9.2 f11:9.1 f13:8.5
+F07|Plug-in form|Plasma Bloom|F07_Plasma-Bloom.png|35.11|103,036,155|c19e4d3bdcb6c6c4|Laubrary.Pyre.Forms.Kiln.PlasmaBloomForm||7|f2:29.2 f4:30.1 f6:34.6 f7:35.1 f9:28.3 f11:12.1 f13:0.6
+F08|Plug-in form|Radial Jet|F08_Radial-Jet.png|28.09|188,083,032|91ffb94ed708ef37|Laubrary.Pyre.Forms.Kiln.RadialJetForm||7|f2:27.8 f4:27.8 f6:27.8 f7:28.1 f9:26.6 f11:27.6 f13:27.1
+F09|Plug-in form|Torch|F09_Torch.png|15.82|213,117,070|1cbdeaab7ca6204a|Laubrary.Pyre.Forms.Kiln.TorchForm||2|f2:15.8 f4:14.4 f6:14.1 f7:14.5 f9:14.5 f11:13.6 f13:15.1
+P01|Field pass|Fuse (metaball)|P01_Fuse--metaball.png|34.41|190,104,056|38da9464963f611e|layer.coalesce = Fuse, swarm on||11|f2:1.6 f4:9.1 f6:19.0 f7:23.8 f9:31.5 f11:34.4 f13:33.9
+P02|Field pass|Ramp (height balls)|P02_Ramp--height-balls.png|48.16|149,047,020|55493834d0cc274a|layer.coalesce = Ramp, swarm on||13|f2:6.5 f4:17.2 f6:32.1 f7:38.7 f9:45.1 f11:47.9 f13:48.2
+P03|Field pass|Height consumer|P03_Height-consumer.png|49.22|244,148,058|ad915bba9e5d8a78|needs 2 layers: a WriteMatte writer below, a heightFromChannel consumer above||13|f2:5.5 f4:16.2 f6:30.9 f7:37.9 f9:45.2 f11:49.1 f13:49.2
+X16|Retired slot|Inferno (retired slot)|X16_Inferno--retired-slot.png|16.02|255,150,056|f938ab6f51af238d|documented to draw as a Disc; PIXEL-IDENTICAL TO PLAIN DISC||6|f2:3.3 f4:8.6 f6:16.0 f7:15.1 f9:13.3 f11:11.4 f13:9.5
+X17|Retired slot|ForkBlast (retired slot)|X17_ForkBlast--retired-slot.png|16.02|255,150,056|f938ab6f51af238d|documented to draw as a Disc; PIXEL-IDENTICAL TO PLAIN DISC||6|f2:3.3 f4:8.6 f6:16.0 f7:15.1 f9:13.3 f11:11.4 f13:9.5

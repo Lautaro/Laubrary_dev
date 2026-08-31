@@ -1,0 +1,10 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+compileFailed=False
+compiling=True
+ShaperLightLaw=NULL
+----
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+compileFailed=False
+compiling=False
+ShaperLightLaw=Laubrary.Shaper.ShaperLightLaw
+----

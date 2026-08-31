@@ -1,0 +1,10 @@
+LT8_ReceiveOffIsBitIdentical|PASS=1|FAILTOK=0
+LT10_AddIsNotLit|PASS=0|FAILTOK=3
+LT3_TileIndependence|PASS=1|FAILTOK=0
+LT9_ExclusivityUnperturbed|PASS=1|FAILTOK=0
+LT16_SharedFrame|PASS=1|FAILTOK=0
+LT6_HandComputed|PASS=1|FAILTOK=0
+LT11_TheCap|PASS=1|FAILTOK=0
+LT13_ProviderIsSwappable|PASS=1|FAILTOK=0
+LT14b_OrbSilhouetteIsRotationInvariant|PASS=1|FAILTOK=0
+LT7_RimIsZeroOnFlat|PASS=1|FAILTOK=0

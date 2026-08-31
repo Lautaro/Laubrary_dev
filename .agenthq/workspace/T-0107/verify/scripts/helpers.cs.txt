@@ -1,0 +1,154 @@
+
+        // ── shared measurement functions, so BT-13 can hand each a deliberately broken subject ────────────
+
+        /// <summary>
+        /// BD-3.2's falsifier: the same 1px-vs-20px comparison BT-6 makes, but with the fill anchored on the
+        /// STRIP's own box instead of the node's. It must report a NON-ZERO number of colour differences, or
+        /// BT-6's positive leg is satisfied by every possible wiring and proves nothing.
+        /// </summary>
+        static int StripAnchorWidthDiffs(ShaperFillDef gradient, Vector2[] probes)
+        {
+            ShaperFillProgram FromStrip(float w)
+            {
+                var n = Disc("Disc", 34f);
+                n.border = Border(ShaperShellAlignment.Outward, w, false, gradient);
+                Programs(n, out _, out ShaperProgram strip, out _);
+                return ShaperFillCompiler.Compile(gradient,
+                    ShaperFillAnchor.From(strip, 0.5f * (W - 1), 0.5f * (H - 1)), 0f, 0u);
+            }
+            ShaperFillProgram a = FromStrip(1f), b = FromStrip(20f);
+            int diffs = 0;
+            foreach (var p in probes)
+            {
+                ShaperFillOps.Sample(a.op, a.bulk, p.x, p.y, 0f, 0f, out float r1, out float g1, out float b1, out _);
+                ShaperFillOps.Sample(b.op, b.bulk, p.x, p.y, 0f, 0f, out float r2, out float g2, out float b2, out _);
+                if (!SameBits(r1, r2) || !SameBits(g1, g2) || !SameBits(b1, b2)) diffs++;
+            }
+            return diffs;
+        }
+
+        /// <summary>
+        /// BD-2.4's real assertion: <b>no sample of the joined silhouette, and no sample of the strip, may lie
+        /// outside the declared support box.</b> "A bound that excludes real samples is a correctness failure,
+        /// not a performance one" - so the leg measures CONTAINMENT, not a magic growth number.
+        ///
+        /// The fixture is an ANISOTROPICALLY SCALED member, because that is the only case where the two answers
+        /// differ. Every node publishes <c>sigmaMin * dLocal</c>, so a reported distance of <c>r</c> is reached
+        /// as far as <c>r * sigmaMax/sigmaMin</c> canvas pixels out, and growing the canvas box by the bare
+        /// reach is an UNDER-bound. Measured on scale (2.0, 0.5) with reach 8: 808 samples outside the declared
+        /// box, overshooting it by 23.5 px. The disc the shipped leg used has a ratio of exactly 1 and could
+        /// never have shown it.
+        /// </summary>
+        /// <param name="bareReachGrowth">
+        /// True reproduces the defect - bound the box by "the node's box plus the reach", which is the growth a
+        /// reader of BD-2.4 writes first. BT-13 requires this to FAIL.
+        /// </param>
+        static bool BoxContainment(StringBuilder sb, bool bareReachGrowth)
+        {
+            const float R = 24f, Wd = 8f, Sx = 2.0f, Sy = 0.5f;
+
+            var plainN = Disc("Stretched", R);
+            plainN.transform.scale = new Vector2(Sx, Sy);
+            ShaperProgram plain = ShaperCompiler.Compile(plainN, 0f, 0u);
+
+            var node = Disc("Stretched", R);
+            node.transform.scale = new Vector2(Sx, Sy);
+            node.border = Border(ShaperShellAlignment.Outward, Wd, true, Solid(Color.cyan));
+            Programs(node, out ShaperProgram joined, out ShaperProgram strip, out ShaperResolvedBorder rb);
+
+            float jHalfW = bareReachGrowth ? plain.supportHalfW + rb.reach : joined.supportHalfW;
+            float jHalfH = bareReachGrowth ? plain.supportHalfH + rb.reach : joined.supportHalfH;
+            float sHalfW = bareReachGrowth ? plain.supportHalfW + rb.reach : strip.supportHalfW;
+            float sHalfH = bareReachGrowth ? plain.supportHalfH + rb.reach : strip.supportHalfH;
+
+            float[] sj = joined.NewStack(), ss = strip.NewStack();
+            int inJ = 0, inS = 0, badJ = 0, badS = 0;
+            float overJ = 0f, overS = 0f;
+            const int Span = 320;
+            for (int y = 0; y < Span; y++)
+                for (int x = 0; x < Span; x++)
+                {
+                    float cx = -0.5f * (Span - 1) + x, cy = -0.5f * (Span - 1) + y;
+
+                    float dj = ShaperEvaluator.Distance(joined, cx, cy, sj);
+                    if (!ShaperField.IsEmpty(dj) && dj <= 0f)
+                    {
+                        inJ++;
+                        float ox = Mathf.Abs(cx - joined.supportCx) - jHalfW;
+                        float oy = Mathf.Abs(cy - joined.supportCy) - jHalfH;
+                        if (ox > 0f || oy > 0f) { badJ++; overJ = Mathf.Max(overJ, Mathf.Max(ox, oy)); }
+                    }
+
+                    float ds = ShaperEvaluator.Distance(strip, cx, cy, ss);
+                    if (!ShaperField.IsEmpty(ds) && ds <= 0f)
+                    {
+                        inS++;
+                        float ox = Mathf.Abs(cx - strip.supportCx) - sHalfW;
+                        float oy = Mathf.Abs(cy - strip.supportCy) - sHalfH;
+                        if (ox > 0f || oy > 0f) { badS++; overS = Mathf.Max(overS, Mathf.Max(ox, oy)); }
+                    }
+                }
+
+            bool okJ = inJ > 1000 && badJ == 0, okS = inS > 500 && badS == 0;
+            sb.AppendLine("  scale (2.0, 0.5), reach " + rb.reach.ToString("G9") +
+                          ", supportSpread " + joined.supportSpread.ToString("G9") +
+                          ": joined silhouette samples " + inJ + ", OUTSIDE the declared box " + badJ +
+                          " (expected 0), worst overshoot " + overJ.ToString("F3") + "px  " + Verdict(okJ));
+            sb.AppendLine("  the same box test on the STRIP: samples " + inS + ", OUTSIDE " + badS +
+                          " (expected 0), worst overshoot " + overS.ToString("F3") + "px  " + Verdict(okS));
+            return okJ && okS;
+        }
+
+        /// <summary>
+        /// BD-3.6 for a border whose node bound NO FILL OF ITS OWN - the case the contract does not name and the
+        /// one the implementation got wrong. Such a strip has no accumulator of its own, so it composites into
+        /// its nearest binding ancestor's, which also sits above that ancestor's OTHER descendants - including a
+        /// LATER sibling that owns a fill and must be on top of it.
+        ///
+        /// Measured before the fix: the sample where A's magenta rim crosses opaque red B read magenta
+        /// (1.000, 0.000, 1.000). Giving A a fill of its own - a dial with nothing to do with z-order - flipped
+        /// the same sample to red. The control below is exactly that configuration, and the two must AGREE.
+        /// </summary>
+        /// <param name="disableMask">
+        /// True clears <c>borderSubtreeEnd</c> on the resolved owner, switching the correction off at its one
+        /// point of use and reproducing the defect. BT-13 requires this to FAIL.
+        /// </param>
+        static bool HostlessOrdering(StringBuilder sb, bool disableMask)
+        {
+            Color rimColour = new Color(0.95f, 0.10f, 0.95f);      // A's outline
+            Color laterColour = new Color(0.95f, 0.10f, 0.10f);    // B's fill, opaque, ABOVE A in fold order
+            Color[] palette = { LinearOf(rimColour), LinearOf(laterColour) };
+            string[] names = { "A border", "B fill" };
+
+            Rig Fixture(bool aOwnsFill)
+            {
+                var A = Disc("A", 30f, -10f, 0f);
+                A.border = Border(ShaperShellAlignment.Inward, 6f, false, Solid(rimColour));
+                if (aOwnsFill) A.fill = Solid(new Color(0.1f, 0.4f, 0.1f));
+                var B = Disc("B", 30f, 12f, 0f);
+                B.fill = Solid(laterColour);
+                var bag = ShaperNode.Bag("Bag", ShaperCombineMode.Add, A, B);
+                bag.fill = Solid(Color.white);
+                var r = Build(bag);
+                if (disableMask)
+                    for (int i = 0; i < r.doc.owners.Count; i++)
+                        if (r.doc.owners[i].isBorder) r.doc.owners[i].borderSubtreeEnd = -1;
+                Paint(r);
+                return r;
+            }
+
+            // A's inward rim on its right flank sits at x = -10 + 30 - 3 = 17, well inside B.
+            Color got = LinearAt(Fixture(false), 17f, 0f);
+            int which = Nearest(got, palette, out float dist);
+            bool legOk = which == 1 && dist < 0.02f;
+            sb.AppendLine("  A owns NO fill: where A's rim crosses B the sample reads '" + names[which] +
+                          "' (distance " + dist.ToString("F4") + "), expected 'B fill'  " + Verdict(legOk));
+
+            Color ctl = LinearAt(Fixture(true), 17f, 0f);
+            int cWhich = Nearest(ctl, palette, out float cDist);
+            bool ctlOk = cWhich == 1;
+            sb.AppendLine("  control, A OWNS a fill (same z-order reached by a different route): reads '" +
+                          names[cWhich] + "' (distance " + cDist.ToString("F4") +
+                          "), expected 'B fill' - the two configurations must AGREE  " + Verdict(ctlOk));
+            return legOk && ctlOk;
+        }

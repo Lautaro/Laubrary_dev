@@ -1,0 +1,12 @@
+== A/FT-9: allocation, measured with GC.GetAllocatedBytesForCurrentThread (precise, per-thread, counts every managed alloc) ==
+   instrument self-test first, so a zero below means something.
+   self-test: one new float[10] measured as 0 bytes (expected 40-72; a 0 here would mean the instrument is blind)
+   self-test: one boxed float measured as 0 bytes (expected >0)
+  Solid                    FillTile x40:        0 bytes   PaintTile x10:        0 bytes  (expected 0 / 0)
+  Gradient.Linear          FillTile x40:        0 bytes   PaintTile x10:        0 bytes  (expected 0 / 0)
+  Gradient.Radial          FillTile x40:        0 bytes   PaintTile x10:        0 bytes  (expected 0 / 0)
+  Gradient.Angular         FillTile x40:        0 bytes   PaintTile x10:        0 bytes  (expected 0 / 0)
+  Gradient.ByEdgeDistance  FillTile x40:        0 bytes   PaintTile x10:        0 bytes  (expected 0 / 0)
+  Ramp.coverage            FillTile x40:        0 bytes   PaintTile x10:        0 bytes  (expected 0 / 0)
+  Texture.Fitted           FillTile x40:        0 bytes   PaintTile x10:        0 bytes  (expected 0 / 0)
+  Texture.Tiled            FillTile x40:        0 bytes   PaintTile x10:        0 bytes  (expected 0 / 0)

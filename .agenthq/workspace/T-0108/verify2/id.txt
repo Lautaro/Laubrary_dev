@@ -1,0 +1,3 @@
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+compileFailed=False
+ShaperLightLaw found in 1 assemblies; asm=com.Lautaro-Arino.Laubrary.Shaper

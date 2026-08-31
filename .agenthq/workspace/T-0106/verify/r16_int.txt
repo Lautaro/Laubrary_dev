@@ -1,0 +1,32 @@
+== H: the INTEGRATED entry point (ShaperFillResolver.PaintTile) vs the DIRECT call (ShaperFillOps.FillTile) ==
+   For each case: (1) does the integrated dst equal a hand-composite of the direct output?  (2) does the
+   integrated output actually VARY across the shape, or is it flat (the 'Ramp rendered flat black' class)?
+
+   case                                 maxDelta(int vs direct) | distinct RGB values inside the disc | flat?
+   Solid/Over                            0.00E+000  |      1  | flat (expected)
+   Grad.Linear/Stamped/Uniform/Over      0.00E+000  |     71  | varies
+   Grad.Linear/Stamped/Stretch/Over      0.00E+000  |     71  | varies
+   Grad.Linear/Fixed/Uniform/Over        0.00E+000  |     71  | varies
+   Grad.Linear/Fixed/Stretch/Over        0.00E+000  |     71  | varies
+   Grad.Radial/Stamped/Uniform/Over      0.00E+000  |    206  | varies
+   Grad.Radial/Stamped/Stretch/Over      0.00E+000  |    206  | varies
+   Grad.Radial/Fixed/Uniform/Over        0.00E+000  |    162  | varies
+   Grad.Radial/Fixed/Stretch/Over        0.00E+000  |    162  | varies
+   Grad.Angular/Stamped/Uniform/Over     0.00E+000  |    253  | varies
+   Grad.Angular/Stamped/Stretch/Over     0.00E+000  |    253  | varies
+   Grad.Angular/Fixed/Uniform/Over       0.00E+000  |    253  | varies
+   Grad.Angular/Fixed/Stretch/Over       0.00E+000  |    253  | varies
+   Grad.ByEdgeDistance/Stamped/Uniform/Over  0.00E+000  |    148  | varies
+   Grad.ByEdgeDistance/Stamped/Stretch/Over  0.00E+000  |    148  | varies
+   Grad.ByEdgeDistance/Fixed/Uniform/Over  0.00E+000  |    148  | varies
+   Grad.ByEdgeDistance/Fixed/Stretch/Over  0.00E+000  |    148  | varies
+   Ramp.Coverage/Over                    0.00E+000  |      1  | *** FLAT - UNEXPECTED ***
+   Ramp.Coverage/Add                     0.00E+000  |      1  | *** FLAT - UNEXPECTED ***
+   Ramp.EdgeDistance/Over                0.00E+000  |    216  | varies
+   Tex.Fitted/Stamped/Over               0.00E+000  |      2  | varies
+   Tex.Fitted/Fixed/Over                 0.00E+000  |      2  | varies
+   Tex.Tiled/Stamped/Over                0.00E+000  |      2  | varies
+   Tex.Tiled/Fixed/Over                  0.00E+000  |      2  | varies
+
+   cases where integrated != hand-composite of direct: 0 (expected 0)
+   non-Solid cases rendering FLAT through the integrated path: 2 (expected 0)

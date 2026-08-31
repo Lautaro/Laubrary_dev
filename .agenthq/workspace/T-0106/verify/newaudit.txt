@@ -1,0 +1,106 @@
+FT-1 Solid identity (albedo constant, veil all ones)
+  albedo != 1.000000000 at 0/16384 samples (expected 0)
+  veil   != 1 at 0/16384 samples (expected 0)
+  height != 0 at 0/16384 samples (expected 0)
+  emitsHeight declared = 0 (expected 0)
+  RESULT: PASS
+FT-2 sRGB round trip byte -> float -> linear -> float -> byte (FC-2.3)
+  byte round trip mismatches: 0/256 (expected 0)
+  raw transfer-pair mismatches: 0/256 (expected 0)
+  worst |encode(decode(s)) - s| = 1.520E-005 codes (of 255)
+  three channels are the same function, so 256 values covers all three (768 codes).
+  RESULT: PASS
+FT-3 cross-kind identity vs Solid (bitwise)
+  Gradient.Linear              albedo mismatched 0/49152  worst |delta| 0.00E+000   veil mismatched 0/16384
+  Gradient.Radial              albedo mismatched 0/49152  worst |delta| 0.00E+000   veil mismatched 0/16384
+  Gradient.Angular             albedo mismatched 0/49152  worst |delta| 0.00E+000   veil mismatched 0/16384
+  Gradient.ByEdgeDistance      albedo mismatched 0/49152  worst |delta| 0.00E+000   veil mismatched 0/16384
+  Texture 1x1 white x tint     albedo mismatched 0/49152  worst |delta| 0.00E+000   veil mismatched 0/16384
+  Ramp flat ramp               albedo mismatched 0/49152  worst |delta| 0.00E+000   veil mismatched 0/16384
+  (a flat texture's albedo is texel x tint; the reference Solid is decode(tint), so
+   equality here also measures that a white texel decodes to exactly 1.0.)
+  RESULT: PASS
+FT-4 Ramp-by-coverage passthrough (albedo vs the coverage sheet)
+  worst |encode(albedo) - coverage| = 0.002912  (tolerance 0.003922 = one 8-bit code)
+  worst |albedo(linear) - coverage| = 0.278556  (NOT a failure — this is FC-2.3's linear albedo, reported so the gap is visible)
+  RESULT: PASS
+FT-5 veil cannot CREATE coverage, and cannot THICKEN the soft edge (FC-2.4)
+  authored veil 0.0  -> baked 0.0000   coverage created where cov==0: 0/16384 (expected 0)   worst coverageEff-coverage: 0.00E+000 (expected <= 0)
+  authored veil 0.5  -> baked 0.5000   coverage created where cov==0: 0/16384 (expected 0)   worst coverageEff-coverage: 0.00E+000 (expected <= 0)
+  authored veil 1.0  -> baked 1.0000   coverage created where cov==0: 0/16384 (expected 0)   worst coverageEff-coverage: 0.00E+000 (expected <= 0)
+  authored veil 2.0  -> baked 1.0000   coverage created where cov==0: 0/16384 (expected 0)   worst coverageEff-coverage: 0.00E+000 (expected <= 0)
+  nearest half-covered sample: coverage 0.453203 -> coverageEff 0.453203 with an AUTHORED veil of 2.0 (expected <= coverage; with BOTH clamps gone it would be coverage x 2 = 0.906406)
+  FC-2.4's BAKE-TIME clamp, asserted directly on the compiled op (the composite's own
+  second clamp would otherwise mask its removal): authored 2 -> 1.0000 (expected 1), -1 -> 0.0000 (expected 0), +Inf -> 1.0000 (expected 1), NaN -> 0.0000 (expected 0)  PASS
+  The NaN row is not decoration: Mathf.Clamp01 is `v<0?0:v>1?1:v` and every comparison
+  against NaN is false, so plain Clamp01 passes NaN through. A NaN veil measured
+  16384/16384 non-finite destination floats before the compiler's Clamp01OrZero landed.
+  RESULT: PASS
+FT-6 veil = 0 with a non-zero heightDelta kills both (FC-2.5)
+  declared emitsHeight = 1 (expected 1 — heightDelta 7 is non-zero, so the sheet IS declared)
+  coverageEff != 0 at 0/16384 samples (expected 0), worst 0.00E+000
+  height     != 0 at 0/16384 samples (expected 0), worst 0.00E+000
+  RESULT: PASS
+FT-7 nearest-ancestor resolution on the FC-3.8 worked tree
+  owners, in paint order: Body -> Head -> Belt -> Iris   (expected Body -> Head -> Belt -> Iris)
+  Subtract member 'Eye' owns no fill, so it is absent by construction (FC-3.3).
+  Torso n Belt, not Head/Iris Body=0.000 Head=0.000 Belt=1.000 Iris=0.000 | top=Belt expected=Belt  ok
+  Torso n Head n Belt         Body=0.000 Head=1.000 Belt=1.000 Iris=0.000 | top=Belt expected=Belt  ok
+  Head n Belt, not Torso      Body=0.000 Head=1.000 Belt=1.000 Iris=0.000 | top=Belt expected=Belt  ok
+  Head, not Belt              Body=0.000 Head=0.000 Belt=0.000 Iris=0.000 | top=none expected=none  ok
+  Eye inside Head, not Belt   Body=0.000 Head=0.000 Belt=0.000 Iris=0.000 | top=none expected=none  ok
+  Iris, outside Belt          Body=0.000 Head=1.000 Belt=0.000 Iris=1.000 | top=Iris expected=Iris  ok
+  Iris n Belt n Torso         Body=0.000 Head=1.000 Belt=1.000 Iris=1.000 | top=Iris expected=Iris  ok
+  outside coverage_Body       Body=0.000 Head=0.000 Belt=0.000 Iris=0.000 | top=none expected=none  ok
+  samples where the BAG's own fill G_body paints: 0/16384  (FC-3.8's table gives G_body three whole regions; FC-3.3's Intersect ruling
+  leaves it only the antialiasing fringe where Belt's own soft edge lets it through.)
+  FT-7b fold order governs paint order (FC-3.4)
+    (a) literal swap of members [1] and [2]: composited bytes differ = True (expected True; note this also changes the SHAPE, so it does not isolate order)
+    (b) two overlapping Add siblings swapped (shape identical): R 0.2500 vs 0.5000, B 0.5000 vs 0.2500   differ = True (expected True)
+    verdict: PASS
+  RESULT: PASS
+FT-8 the availability gate (FC-4.3 / FC-4.4)
+  FT-8   hasUnavailableFill=True (expected True)  count=1 (expected 1)  node='Torso' (expected 'Torso')
+         reason: "Ramp-by-quantity on 'Torso' needs heat, which this shape does not publish."
+         contains kind/node/quantity = True/True/True (all expected True)
+         owners bound = 1 (expected 1 — only the bag)   ancestor paints the region: alpha at centre = 1.000 (expected > 0.9; NOT transparent)
+         PASS
+  FT-8b  count=3 (expected 3)  first node='A' (expected 'A')  PASS
+         this is the ShaperProgram.leadingNonAddCount correction applied from the start.
+  FT-8c  hasSubtractFill=True (expected True)  count=1 (expected 1)  owners=1 (expected 1 — Eye did NOT bind)  PASS
+         reason: "Solid on 'Eye' cannot be attached: a subtracted member removes coverage; it deposits nothing."
+  FT-8d  hasTypeRefusedFill=True (expected True)  reported as UNAVAILABLE too = False (expected False)  PASS
+         type      : "Ramp-by-quantity on 'Torso' cannot use surface direction: surface direction is a direction, not a number."
+         availability: "Ramp-by-quantity on 'Torso' needs heat, which this shape does not publish."
+         messages differ = True (expected True — the two failures have different remedies)
+  FC-4.2 intersection: one member publishes all nine, one publishes two -> bag publishes ShippedShapeEngine (expected ShippedShapeEngine = Coverage|EdgeDistance)  PASS
+  FC-4.2 Subtract members are EXCLUDED from the intersection: bag publishes all nine = True (expected True — a subtractor deposits nothing)  PASS
+  RESULT: PASS
+FT-9 zero allocation in the tile loop (655360 samples per kind)
+  Solid              reps 40  managed heap delta 0 bytes (process-wide, informational only)  gen-0 collections 0
+  Gradient.Linear    reps 40  managed heap delta 0 bytes (process-wide, informational only)  gen-0 collections 0
+  Ramp.coverage      reps 40  managed heap delta 0 bytes (process-wide, informational only)  gen-0 collections 0
+  Texture            reps 40  managed heap delta 0 bytes (process-wide, informational only)  gen-0 collections 0
+  instrument calibration: smallest allocation GC.GetTotalMemory(false) could see = 524288 bytes;  gen-0 collections for 1 MB of garbage = 0 (a 0 here means that leg is blind)
+  IL scan of every ShaperFillOps method for newobj/newarr/box: 0 occurrences (expected 0)  PASS
+    FillTile(364B:0) Sample(743B:0) Anchor(86B:0) ByEdgeDistanceT(10B:0) Lut(103B:0)
+  RESULT: PASS
+FT-10 determinism (same inputs -> identical bytes, within one session)
+  Solid                mismatched 0/65536 floats (expected 0)  PASS
+  Gradient             mismatched 0/65536 floats (expected 0)  PASS
+  Ramp                 mismatched 0/65536 floats (expected 0)  PASS
+  Texture              mismatched 0/65536 floats (expected 0)  PASS
+  Solid + MinMax veil  mismatched 0/65536 floats (expected 0)  PASS
+  RESULT: PASS
+FT-11 tile independence: whole grid vs a 7x5 prime decomposition (BC-1.6)
+  Stamped Solid              mismatched 0 floats (expected 0)  PASS
+  Stamped Gradient.Linear    mismatched 0 floats (expected 0)  PASS
+  Stamped Ramp.coverage      mismatched 0 floats (expected 0)  PASS
+  Stamped Texture.Tiled      mismatched 0 floats (expected 0)  PASS
+  Fixed   Solid              mismatched 0 floats (expected 0)  PASS
+  Fixed   Gradient.Linear    mismatched 0 floats (expected 0)  PASS
+  Fixed   Ramp.coverage      mismatched 0 floats (expected 0)  PASS
+  Fixed   Texture.Tiled      mismatched 0 floats (expected 0)  PASS
+  PaintTile (integrated: shape eval + claims + composite), 2 owners, Fixed Tiled texture,
+    whole grid vs the same 7x5 decomposition: 0/65536 floats differ (expected 0)  PASS
+  RESULT: PASS
