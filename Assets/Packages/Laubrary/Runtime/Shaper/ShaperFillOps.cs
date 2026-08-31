@@ -31,6 +31,17 @@ namespace Laubrary.Shaper
         const float TwoPi = 6.2831853071795865f;
 
         /// <summary>
+        /// T-0110, B6 — the weight a strip slot's height is added at when the pixel is in the "plain fill"
+        /// zone (beyond the reach), against a weight of 1 when "patterned" (within it): "the renderer adds
+        /// that height into the pixel's depth at full weight where the strip is patterned and at a quarter
+        /// weight in plain fill." <see cref="Sample"/>'s <c>IndexedStrip</c> case interpolates this weight
+        /// continuously by the SAME <c>edgeCoverage</c> the colour blends by, so the height and the colour
+        /// never disagree about where the pattern is — a hard step in one and a soft ramp in the other would
+        /// show as a seam in the relief that the paint does not have.
+        /// </summary>
+        const float StripPlainHeightWeight = 0.25f;
+
+        /// <summary>
         /// Fill a rectangular tile in ONE call, writing into host-supplied flat arrays.
         ///
         /// The signature mirrors <c>ShaperEvaluator.FillTile</c> (<c>ShaperEvaluator.cs:133-136</c>) including
@@ -68,8 +79,12 @@ namespace Laubrary.Shaper
             // discarded moves nothing. It was still a real undeclared read: handing a Solid fill a shorter
             // edgeDistance array threw IndexOutOfRange, which is what a host allocating strictly by the
             // declared set (BC-3.7a, "declared-then-allocated") is entitled to do.
+            // T-0110: IndexedStrip's RequiredSet() is unconditionally EdgeDistance (its reach test always reads
+            // it, unlike Gradient's four modes where only ByEdgeDistance does) — so it belongs in this gate on
+            // exactly the same terms Gradient's one mode does.
             float[] edgeSheet = (op.kind == ShaperFillKind.Gradient &&
-                                 op.gradientMode == ShaperGradientMode.ByEdgeDistance)
+                                 op.gradientMode == ShaperGradientMode.ByEdgeDistance) ||
+                                op.kind == ShaperFillKind.IndexedStrip
                 ? sheets.edgeDistance : null;
 
             float[] albedo = emit.albedo;
@@ -96,8 +111,10 @@ namespace Laubrary.Shaper
                     float edge = edgeSheet != null ? edgeSheet[s] : 0f;
                     float q = rampSheet != null ? rampSheet[s] : 0f;
 
+                    // `sampleHeight`, not `height` — this method's own parameter `height` is the TILE's height
+                    // in samples, and C# forbids a nested local from shadowing it.
                     Sample(in op, bulk, x, y, edge, q,
-                           out float r, out float g, out float b, out float veil);
+                           out float r, out float g, out float b, out float veil, out float sampleHeight);
 
                     if (albedo != null)
                     {
@@ -109,8 +126,11 @@ namespace Laubrary.Shaper
                     if (veilOut != null) veilOut[d] = veil;
                     // A fill that did not DECLARE height still writes zero when the host allocated the sheet,
                     // so FT-13's "every output sample is written" holds for the whole tile rather than for a
-                    // kind-dependent subset.
-                    if (heightOut != null) heightOut[d] = op.emitsHeight != 0 ? op.height : 0f;
+                    // kind-dependent subset. T-0110: the height is now computed BY Sample() itself, per sample —
+                    // every kind but IndexedStrip returns the same `op.emitsHeight != 0 ? op.height : 0f` this
+                    // line used to compute inline, bit-identically; IndexedStrip is the one kind whose height
+                    // genuinely varies per sample (FC-2.5's "T-0110's whole interface").
+                    if (heightOut != null) heightOut[d] = sampleHeight;
                 }
             }
         }
@@ -123,10 +143,18 @@ namespace Laubrary.Shaper
         /// </summary>
         /// <param name="edge">The signed edge distance at this sample. <b>NEGATIVE INSIDE</b> — see the polarity note in <see cref="ByEdgeDistanceT"/>.</param>
         /// <param name="q">The ramp's picked quantity at this sample, already fetched from the right sheet.</param>
+        /// <param name="height">
+        /// T-0110 — the height delta at THIS sample, layer-local units. For every kind but
+        /// <see cref="ShaperFillKind.IndexedStrip"/> this is the same compile-time constant
+        /// <c>ShaperFillOps.FillTile</c> used to compute inline (<c>op.emitsHeight != 0 ? op.height : 0f</c>),
+        /// bit-identically — moving it into <c>Sample</c> is what lets IndexedStrip be the one kind whose
+        /// height genuinely varies per sample without touching <c>FillTile</c>'s loop or its signature.
+        /// </param>
         public static void Sample(in ShaperFillOp op, float[] bulk, float x, float y, float edge, float q,
-                                  out float r, out float g, out float b, out float veil)
+                                  out float r, out float g, out float b, out float veil, out float height)
         {
             veil = op.veil;
+            height = op.emitsHeight != 0 ? op.height : 0f;
 
             switch (op.kind)
             {
@@ -235,6 +263,86 @@ namespace Laubrary.Shaper
                     // alpha (FC-2.2) so there is nowhere else for it to go, and the veil is exactly right: a
                     // transparent texel means "this pattern does not cover here", which is what a veil says.
                     veil = Mathf.Clamp01(op.veil * bulk[o + 3]);
+                    return;
+                }
+
+                case ShaperFillKind.IndexedStrip:
+                {
+                    if (op.stripSlotOffset < 0 || op.stripSlotCount <= 0)
+                    {
+                        // Empty strip degenerated to Solid(plainColour) at compile time (BakeStrip); op.kind is
+                        // already Solid in that case, so this branch is unreachable in practice and exists only
+                        // as a defensive guard against a hand-built op.
+                        r = op.colR; g = op.colG; b = op.colB;
+                        return;
+                    }
+
+                    Anchor(in op, x, y, out float u, out float v);
+
+                    // B6: the parameter is the angle around the shape, or a projection across it.
+                    float t;
+                    if (op.stripAngular != 0)
+                    {
+                        // Angular — identical construction to Gradient's Angular mode (ShaperGradientMode.Angular
+                        // above): frac, not clamp, because the parameter is cyclic.
+                        float a = Mathf.Atan2(v, u) - Mathf.Atan2(op.stripSinTheta, op.stripCosTheta);
+                        t = a / TwoPi;
+                        t -= Mathf.Floor(t);
+                    }
+                    else
+                    {
+                        // Projection — a linear projection across the node's own ±1 anchor box, unscaled (the
+                        // strip always spans the shape edge-to-edge; there is no separate "size" dial the way
+                        // Gradient's Linear mode has, because whole-number `stripRepeats` is what subdivides it).
+                        float proj = u * op.stripCosTheta + v * op.stripSinTheta;
+                        t = Mathf.Clamp01(proj * 0.5f + 0.5f);
+                    }
+
+                    // Whole-number repeats (3D Shaper's improvement, B6) and the position offset, both wrapping.
+                    float raw = t * op.stripRepeats + op.stripOffset;
+                    float frac = raw - Mathf.Floor(raw);
+
+                    int slot = (int)(frac * op.stripSlotCount);
+                    if (slot < 0) slot = 0; else if (slot >= op.stripSlotCount) slot = op.stripSlotCount - 1;
+
+                    int o = op.stripSlotOffset + slot * 4;
+                    float slotR = bulk[o + 0], slotG = bulk[o + 1], slotB = bulk[o + 2], slotHeight = bulk[o + 3];
+
+                    // T-0110 fix pass: the constant here was 1, which put the START of the soft transition
+                    // exactly at the reach depth (edge == -reachPixels) rather than the END of it, so at the
+                    // documented, authored default reach == 1 (reachPixels == span) the shape's OWN deepest
+                    // point (e.g. a disc's centre, depthInto == 1 == reachFraction) landed exactly on
+                    // edgeCoverage == 0 — fully PLAIN — which contradicts both B6 ("turn it to maximum and it
+                    // covers the WHOLE shape") and this op's own BakeStrip/ShaperFillDef doc comments, which
+                    // already claimed the opposite. Measured before this fix: a 40px-radius disc at the default
+                    // reach, sampled at its exact centre, returned the plain colour and a quarter-weight height,
+                    // not the strip's.
+                    //
+                    // The correct constant is 2, derived from matching the reference's HARD rule
+                    // (`depthInto <= depth` -- REF-HEIGHT-MATHS.md SS-2.4) at its own transition point and then
+                    // softening ONLY on the far (plain) side, never pulling the near (patterned) side inward:
+                    // writing x = depthInto/reachFraction = -edge/reachPixels, the reference's hard rule is
+                    // "patterned iff x <= 1". The soft version used here is `coverage = clamp01(2 - x)`, which
+                    // is IDENTICALLY 1 (fully patterned, matching the hard rule exactly) for the whole core
+                    // region x in [0,1], and ramps linearly down to 0 over x in [1,2] -- a transition band one
+                    // reach-width wide, entirely beyond the hard rule's own cutoff. Substituting
+                    // x = -edge*invReach: `coverage = clamp01(2 - (-edge*invReach)) = clamp01(2 + edge*invReach)`.
+                    // At edge == 0 (the silhouette): 2 + 0 = 2, clamps to 1 (patterned) -- unchanged from before.
+                    // At the default reach == 1, for ANY point inside the shape (depthInto in [0,1], so x in
+                    // [0,1] too since reachFraction == 1): coverage == 1 identically -- the disc's centre now
+                    // reads fully patterned, matching B6.
+                    float edgeCoverage = Mathf.Clamp01(2f + edge * op.stripInvReach);
+
+                    r = Mathf.Lerp(op.plainColR, slotR, edgeCoverage);
+                    g = Mathf.Lerp(op.plainColG, slotG, edgeCoverage);
+                    b = Mathf.Lerp(op.plainColB, slotB, edgeCoverage);
+
+                    // B6: full weight ("patterned") / a quarter weight ("plain fill") — interpolated by the SAME
+                    // edgeCoverage the colour blends by (StripPlainHeightWeight's doc explains why), and ADDED
+                    // to the common heightDelta dial rather than replacing it (FC-2.5: "ADDED to the shape's own
+                    // height"), so the common dial still works as a uniform nudge on top of the strip's relief.
+                    float weight = Mathf.Lerp(StripPlainHeightWeight, 1f, edgeCoverage);
+                    height = (op.emitsHeight != 0 ? op.height : 0f) + slotHeight * weight;
                     return;
                 }
 

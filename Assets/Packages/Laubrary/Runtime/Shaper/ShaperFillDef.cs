@@ -1,8 +1,37 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Laubrary.Shaper
 {
+    /// <summary>
+    /// T-0110, B6 — one hand-painted slot of an <see cref="ShaperFillKind.IndexedStrip"/> fill's palette: a
+    /// colour AND a height (protrusion), together, on ONE authored row. That pairing is the whole point of the
+    /// fill — "one hand-painted strip paints and sculpts at once" — so the two are never split into parallel
+    /// arrays the author has to keep in sync by index.
+    ///
+    /// A plain <c>[Serializable]</c> class in a <c>List&lt;&gt;</c>, not a <c>SerializeReference</c> hierarchy —
+    /// a slot does not nest and never will, the same reasoning <see cref="ShaperFillDef"/> itself gives.
+    /// </summary>
+    [Serializable]
+    public class ShaperStripSlot
+    {
+        /// <summary>
+        /// The slot's colour. Its ALPHA CHANNEL IS NOT AUTHORED AND NOT READ (FC-2.2, same rule as
+        /// <see cref="ShaperFillDef.solidColor"/>): <see cref="ShaperFillCompiler.BakeStrip"/> decodes only R,
+        /// G, B into the baked palette. Stored as a <see cref="Color"/> only because that is what Unity's
+        /// picker gives, not because alpha means anything here.
+        /// </summary>
+        public Color color = Color.white;
+
+        /// <summary>
+        /// Layer-local height units (the same units as <see cref="ShaperFillDef.heightDelta"/>), signed. B6:
+        /// "a positive or negative protrusion over a wide range". Zero is a legal, common value — a slot that
+        /// only paints.
+        /// </summary>
+        public float height = 0f;
+    }
+
     /// <summary>
     /// The authored fill. One <c>[Serializable]</c> class carrying every kind's dials, exactly the shape
     /// <see cref="ShaperPrimitiveDef"/> already uses for the seven primitives — not a
@@ -149,6 +178,54 @@ namespace Laubrary.Shaper
         /// </summary>
         public Color textureTint = Color.white;
 
+        // ── Indexed strip (FC-6.6, T-0110) ────────────────────────────────────────────────────────────────
+
+        /// <summary>Angle-around or projection-across (B6). See <see cref="ShaperStripParameterisation"/>.</summary>
+        public ShaperStripParameterisation stripParameterisation = ShaperStripParameterisation.Angular;
+
+        /// <summary>
+        /// The hand-painted strip itself, in authored order. Selected by INDEX, never interpolated — this is
+        /// what "indexed" means and what keeps it a strip of discrete slots rather than a second gradient.
+        /// Empty is a legal, degenerate authoring state: the fill falls back to <see cref="stripPlainColor"/>
+        /// as a flat Solid (FC-6.5's "a half-configured fill never renders empty").
+        /// </summary>
+        public List<ShaperStripSlot> stripSlots = new List<ShaperStripSlot>();
+
+        /// <summary>
+        /// Whole-number repeats of the strip around the parameter's full cycle — 3D Shaper's improvement over
+        /// the reference (B6: "more slots, whole-number repeats, true arc-length"). Rounded and clamped to
+        /// >= 1 at compile; a non-integer authored value is not a partial repeat, it is the nearest whole one.
+        /// </summary>
+        public ZUIValue stripRepeats = new ZUIValue(1f);
+
+        /// <summary><c>Angular</c>: the phase where the parameter is 0. <c>Projection</c>: the axis direction.</summary>
+        public ZUIValue stripOrientationDegrees = new ZUIValue(0f);
+
+        /// <summary>A 0..1 phase shift of the whole strip along its parameter, wrapping. Position, in B6's words.</summary>
+        public ZUIValue stripOffset = new ZUIValue(0f);
+
+        /// <summary>
+        /// How far in from the outline the strip reaches, as a FRACTION of the node's own local half-extent
+        /// (never raw canvas pixels — a pixel count would mean a different fraction of the shape at every
+        /// size). <c>0</c> reaches no distance at all — the strip lives only on the silhouette's outermost
+        /// edge. <c>1</c> (the default) reaches the shape's own shorter local half-extent, which for a
+        /// symmetric primitive is close enough to the centre that B6's "turn it to maximum and it covers the
+        /// WHOLE shape" reads as intended — an angular strip becomes a full sunburst converging near the
+        /// centre rather than an outlined ring. Values above 1 are legal and simply saturate sooner.
+        /// </summary>
+        public ZUIValue stripReach = new ZUIValue(1f);
+
+        /// <summary>
+        /// The flat colour painted beyond the reach — B6's "plain fill". A single authored colour, not a slot
+        /// of the strip: the interior is deliberately NOT a multicoloured continuation of the pattern, only a
+        /// faint relief of it (via the height's quarter weight there) — see <see cref="ShaperFillOps.Sample"/>'s
+        /// <see cref="ShaperFillKind.IndexedStrip"/> case (STRIP-SPEC.md SS-7.4).
+        ///
+        /// Its ALPHA CHANNEL IS NOT AUTHORED AND NOT READ either (FC-2.2, same rule as
+        /// <see cref="ShaperStripSlot.color"/> and <see cref="solidColor"/>).
+        /// </summary>
+        public Color stripPlainColor = Color.white;
+
         // ── declarations (FC-4.1) ─────────────────────────────────────────────────────────────────────────
 
         /// <summary>
@@ -175,6 +252,13 @@ namespace Laubrary.Shaper
                     return ShaperQuantities.IsRampable(rampQuantity)
                         ? ShaperQuantities.Of(rampQuantity)
                         : ShaperQuantitySet.None;
+
+                case ShaperFillKind.IndexedStrip:
+                    // The reach test always reads the node's own edge distance (T-0110) — unconditionally,
+                    // unlike Gradient where only ONE of its four modes needs it. Every node publishes it
+                    // (ShaperQuantitySet.ShippedShapeEngine), so this never greys out on creation, matching
+                    // FC-4.1b's reasoning for Ramp's own Coverage default.
+                    return ShaperQuantitySet.EdgeDistance;
 
                 default:
                     return ShaperQuantitySet.None;   // Solid, Texture

@@ -646,8 +646,8 @@ namespace Laubrary.Shaper.Editor
             int diffs = 0;
             foreach (var p in probes)
             {
-                ShaperFillOps.Sample(a.op, a.bulk, p.x, p.y, 0f, 0f, out float r1, out float g1, out float b1, out _);
-                ShaperFillOps.Sample(b.op, b.bulk, p.x, p.y, 0f, 0f, out float r2, out float g2, out float b2, out _);
+                ShaperFillOps.Sample(a.op, a.bulk, p.x, p.y, 0f, 0f, out float r1, out float g1, out float b1, out _, out _);
+                ShaperFillOps.Sample(b.op, b.bulk, p.x, p.y, 0f, 0f, out float r2, out float g2, out float b2, out _, out _);
                 if (!SameBits(r1, r2) || !SameBits(g1, g2) || !SameBits(b1, b2)) diffs++;
             }
             return diffs;
@@ -852,9 +852,9 @@ namespace Laubrary.Shaper.Editor
             foreach (var p in probes)
             {
                 ShaperFillOps.Sample(thin.op, thin.bulk, p.x, p.y, 0f, 0f,
-                                     out float r1, out float g1, out float b1, out _);
+                                     out float r1, out float g1, out float b1, out _, out _);
                 ShaperFillOps.Sample(fat.op, fat.bulk, p.x, p.y, 0f, 0f,
-                                     out float r2, out float g2, out float b2, out _);
+                                     out float r2, out float g2, out float b2, out _, out _);
                 if (!SameBits(r1, r2) || !SameBits(g1, g2) || !SameBits(b1, b2)) diffs++;
                 worst = Mathf.Max(worst, Mathf.Abs(r1 - r2));
             }
@@ -879,8 +879,8 @@ namespace Laubrary.Shaper.Editor
             int naiveDiffs = 0; float naiveWorst = 0f;
             foreach (var p in probes)
             {
-                ShaperFillOps.Sample(thin.op, thin.bulk, p.x, p.y, 0f, 0f, out float r1, out _, out _, out _);
-                ShaperFillOps.Sample(naive.op, naive.bulk, p.x, p.y, 0f, 0f, out float r2, out _, out _, out _);
+                ShaperFillOps.Sample(thin.op, thin.bulk, p.x, p.y, 0f, 0f, out float r1, out _, out _, out _, out _);
+                ShaperFillOps.Sample(naive.op, naive.bulk, p.x, p.y, 0f, 0f, out float r2, out _, out _, out _, out _);
                 if (!SameBits(r1, r2)) naiveDiffs++;
                 naiveWorst = Mathf.Max(naiveWorst, Mathf.Abs(r1 - r2));
             }
@@ -1187,9 +1187,9 @@ namespace Laubrary.Shaper.Editor
                 for (int x = 0; x < W; x += 4)
                 {
                     float cx = -0.5f * (W - 1) + x, cy = -0.5f * (H - 1) + y;
-                    ShaperFillOps.Sample(fa.op, fa.bulk, cx, cy, 0f, 0f, out float r1, out float g1, out float b1, out _);
-                    ShaperFillOps.Sample(fb.op, fb.bulk, cx, cy, 0f, 0f, out float r2, out float g2, out float b2, out _);
-                    ShaperFillOps.Sample(fBroken.op, fBroken.bulk, cx, cy, 0f, 0f, out float r3, out _, out _, out _);
+                    ShaperFillOps.Sample(fa.op, fa.bulk, cx, cy, 0f, 0f, out float r1, out float g1, out float b1, out _, out _);
+                    ShaperFillOps.Sample(fb.op, fb.bulk, cx, cy, 0f, 0f, out float r2, out float g2, out float b2, out _, out _);
+                    ShaperFillOps.Sample(fBroken.op, fBroken.bulk, cx, cy, 0f, 0f, out float r3, out _, out _, out _, out _);
                     if (!SameBits(r1, r2) || !SameBits(g1, g2) || !SameBits(b1, b2)) diffs++;
                     if (!SameBits(r1, r3)) brokenDiffs++;
                     probes++;

@@ -151,6 +151,23 @@ namespace Laubrary.Shaper
         public float tilesX, tilesY;
         public float offsetU, offsetV;
         public float texCosTheta, texSinTheta;
+
+        // IndexedStrip (T-0110)
+        /// <summary>1 = <see cref="ShaperStripParameterisation.Angular"/>, 0 = <see cref="ShaperStripParameterisation.Projection"/>.</summary>
+        public int stripAngular;
+        /// <summary><c>Angular</c>: the phase origin. <c>Projection</c>: the axis direction.</summary>
+        public float stripCosTheta, stripSinTheta;
+        /// <summary>Whole-number repeat count, >= 1.</summary>
+        public int stripRepeats;
+        /// <summary>0..1 phase offset, wrapping.</summary>
+        public float stripOffset;
+        /// <summary>Index into <see cref="ShaperFillProgram.bulk"/> of slot 0's R, or -1 when the strip is empty.</summary>
+        public int stripSlotOffset;
+        public int stripSlotCount;
+        /// <summary>Reciprocal of the reach depth, already resolved to canvas pixels at compile time.</summary>
+        public float stripInvReach;
+        /// <summary>The "plain fill" colour beyond the reach, LINEAR.</summary>
+        public float plainColR, plainColG, plainColB;
     }
 
     /// <summary>
@@ -248,7 +265,8 @@ namespace Laubrary.Shaper
 
             op.positional = (def.kind == ShaperFillKind.Gradient &&
                              def.gradientMode != ShaperGradientMode.ByEdgeDistance) ||
-                            def.kind == ShaperFillKind.Texture
+                            def.kind == ShaperFillKind.Texture ||
+                            def.kind == ShaperFillKind.IndexedStrip
                 ? 1 : 0;
             op.fixedSpace = def.space == ShaperFillSpace.Fixed ? 1 : 0;
             BakeAnchor(def, anchor, ref op);
@@ -271,6 +289,10 @@ namespace Laubrary.Shaper
 
                 case ShaperFillKind.Texture:
                     BakeTexture(def, p, seed, prog, ref op);
+                    break;
+
+                case ShaperFillKind.IndexedStrip:
+                    BakeStrip(def, anchor, p, seed, prog, ref op);
                     break;
             }
 
@@ -551,6 +573,80 @@ namespace Laubrary.Shaper
             op.texWidth = w;
             op.texHeight = h;
             prog.bulk = texels;
+        }
+
+        // ── indexed strip (T-0110, B6, FC-6.6) ───────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Bakes an <see cref="ShaperFillKind.IndexedStrip"/> fill. Every dial through
+        /// <see cref="ShaperValue.Sample"/> once, exactly as every other kind (FC-5.3); the palette is copied
+        /// into <see cref="ShaperFillProgram.bulk"/> once, exactly as Gradient's LUT and Texture's texels are
+        /// (FC-5.5) — four floats per slot (linear R, G, B, height), no interpolation between entries: the
+        /// per-sample path indexes a slot, it never lerps two.
+        /// </summary>
+        static void BakeStrip(ShaperFillDef def, in ShaperFillAnchor anchor, float p, uint seed,
+                              ShaperFillProgram prog, ref ShaperFillOp op)
+        {
+            ShaperSrgb.Decode(def.stripPlainColor, out op.plainColR, out op.plainColG, out op.plainColB);
+
+            op.stripAngular = def.stripParameterisation == ShaperStripParameterisation.Angular ? 1 : 0;
+
+            float theta = ShaperValue.Sample(def.stripOrientationDegrees, p, seed, 0f) * Mathf.Deg2Rad;
+            op.stripCosTheta = Mathf.Cos(theta);
+            op.stripSinTheta = Mathf.Sin(theta);
+
+            op.stripRepeats = Mathf.Max(1, Mathf.RoundToInt(ShaperValue.Sample(def.stripRepeats, p, seed, 1f)));
+
+            float offset = ShaperValue.Sample(def.stripOffset, p, seed, 0f);
+            op.stripOffset = offset - Mathf.Floor(offset);
+
+            // The reach is a FRACTION of the node's own local half-extent (never raw canvas pixels — see
+            // ShaperFillDef.stripReach), resolved to canvas pixels once, here, exactly like every other
+            // compile-time scalar. Falls back to the canvas half-extent on a degenerate/absent local box, the
+            // same fallback FC-1.5b's anchor already uses for the positional coordinate.
+            float span = anchor.localValid
+                ? Mathf.Min(anchor.localHalfW, anchor.localHalfH)
+                : Mathf.Max(anchor.canvasHalfW, anchor.canvasHalfH);
+            float reachFraction = Mathf.Max(0f, ShaperValue.Sample(def.stripReach, p, seed, 1f));
+            float reachPixels = reachFraction * Mathf.Max(span, MinPositive);
+            op.stripInvReach = 1f / Mathf.Max(reachPixels, MinPositive);
+
+            int count = def.stripSlots != null ? def.stripSlots.Count : 0;
+            if (count <= 0)
+            {
+                // FC-6.5: a half-configured fill never renders empty. An empty strip degenerates to a flat
+                // Solid of the plain colour, bit-identically to Gradient's null-gradient and Texture's
+                // null-texture fallbacks.
+                op.kind = ShaperFillKind.Solid;
+                op.colR = op.plainColR; op.colG = op.plainColG; op.colB = op.plainColB;
+                op.stripSlotOffset = -1;
+                op.stripSlotCount = 0;
+                prog.diagnostic = "Indexed strip has no palette slots authored; painting the plain colour instead.";
+                return;
+            }
+
+            op.stripSlotOffset = 0;
+            op.stripSlotCount = count;
+
+            var bulk = new float[count * 4];
+            bool anySlotHeight = false;
+            for (int i = 0; i < count; i++)
+            {
+                ShaperStripSlot slot = def.stripSlots[i];
+                Color c = slot != null ? slot.color : Color.white;
+                float h = slot != null ? FiniteOrZero(slot.height) : 0f;
+                if (h != 0f) anySlotHeight = true;
+
+                int o = i * 4;
+                ShaperSrgb.Decode(c, out bulk[o + 0], out bulk[o + 1], out bulk[o + 2]);
+                bulk[o + 3] = h;
+            }
+            prog.bulk = bulk;
+
+            // DECLARED, not discovered (BC-3.7a): the strip's own per-slot heights are a SECOND source of
+            // height alongside the common heightDelta dial (FC-2.5) — Sample() adds the two — so the sheet
+            // must be allocated when EITHER is live, not only when the common dial is.
+            if (anySlotHeight) op.emitsHeight = 1;
         }
     }
 }

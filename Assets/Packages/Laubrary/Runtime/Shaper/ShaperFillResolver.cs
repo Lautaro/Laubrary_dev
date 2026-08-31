@@ -802,6 +802,7 @@ namespace Laubrary.Shaper
                 case ShaperFillKind.Gradient: return "Gradient";
                 case ShaperFillKind.RampByQuantity: return "Ramp-by-quantity";
                 case ShaperFillKind.Texture: return "Texture";
+                case ShaperFillKind.IndexedStrip: return "Indexed strip";
                 default: return "Fill";
             }
         }

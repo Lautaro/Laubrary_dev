@@ -64,6 +64,20 @@ namespace Laubrary.Shaper.Editor
             sb.AppendLine(FT19_EdgeDistancePolarity());
             sb.AppendLine(FT21_ExclusivityIsConservative());
             sb.AppendLine(FT22_EncodeIsReadableBack());
+            sb.AppendLine("=== IndexedStrip audit (T-0110) ===");
+            sb.AppendLine(ST1_StripEmptyDegeneratesToPlain());
+            sb.AppendLine(ST2_StripReachMaximumCoversWholeShape());
+            sb.AppendLine(ST3_StripReachNearZeroIsPlainInterior());
+            sb.AppendLine(ST4_StripHeightAddsCommonDelta());
+            sb.AppendLine(ST5_StripRequiredSetIsEdgeDistance());
+            sb.AppendLine(ST6_StripRepeatsRoundToWholeNumber());
+            sb.AppendLine(ST7_StripParameterisationVaries());
+            sb.AppendLine("=== IndexedStrip ADVERSARIAL audit (T-0110, independent review pass) ===");
+            sb.AppendLine(ST8_StripSlotCountExtremes());
+            sb.AppendLine(ST9_StripRepeatsExtremes());
+            sb.AppendLine(ST10_StripDialsNaNInfinityNeverReachOutput());
+            sb.AppendLine(ST11_StripOnDegenerateShape());
+            sb.AppendLine(ST12_ReachBoundaryIsAContinuousRampNotAHardSeam());
             return sb.ToString();
         }
 
@@ -98,6 +112,21 @@ namespace Laubrary.Shaper.Editor
                 veil = new ZUIValue(veil),
                 heightDelta = new ZUIValue(height),
                 composite = composite,
+            };
+
+        /// <summary>T-0110 fixture: an <see cref="ShaperFillKind.IndexedStrip"/> fill built from loose parts.</summary>
+        static ShaperFillDef Strip(ShaperStripParameterisation param, ShaperStripSlot[] slots, Color plainColor,
+                                   float repeats = 1f, float orientationDeg = 0f, float offset = 0f, float reach = 1f)
+            => new ShaperFillDef
+            {
+                kind = ShaperFillKind.IndexedStrip,
+                stripParameterisation = param,
+                stripSlots = new List<ShaperStripSlot>(slots),
+                stripRepeats = new ZUIValue(repeats),
+                stripOrientationDegrees = new ZUIValue(orientationDeg),
+                stripOffset = new ZUIValue(offset),
+                stripReach = new ZUIValue(reach),
+                stripPlainColor = plainColor,
             };
 
         static ZuiGradient FlatGradient(Color c)
@@ -174,6 +203,9 @@ namespace Laubrary.Shaper.Editor
         }
 
         static string Verdict(bool ok) => ok ? "PASS" : "FAIL";
+
+        /// <summary>T-0110 adversarial pass (ST-8..ST-12): a value is usable output only if it is neither NaN nor infinite.</summary>
+        static bool IsFinite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);
 
         // ── FT-1 ──────────────────────────────────────────────────────────────────────────────────────────
 
@@ -2413,6 +2445,623 @@ namespace Laubrary.Shaper.Editor
                                 px[cy * cell + cx] = new Color32(240, 240, 245, 255);
                             }
                     }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════════════════════════════════════
+        // T-0110 — IndexedStrip (B6): a hand-painted palette strip, selected per pixel by a parameterisation of
+        // the shape, whose slots carry colour AND height. These tests are additional to FT-1..FT-22 above —
+        // this fill kind is exercised by every kind-agnostic FT test too (FT-9's IL scan covers ShaperFillOps
+        // as a whole, FT-13/FT-14/FT-16 are generic over ANY op) — and cover only what is genuinely NEW here:
+        // the reach/edgeCoverage split, the two parameterisations, the whole-number repeat rounding, the
+        // degenerate empty-palette fallback, and the height composing with the common heightDelta dial.
+        // ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+        // ── ST-1 ──────────────────────────────────────────────────────────────────────────────────────────
+
+        public static string ST1_StripEmptyDegeneratesToPlain()
+        {
+            var sb = new StringBuilder("ST-1 IndexedStrip: an empty palette degenerates to Solid(plainColour) (FC-6.5)\n");
+
+            var plain = new Color(0.30f, 0.60f, 0.20f);
+            var root = Disc("Disc", 40f, 0f, 0f);
+            root.fill = Strip(ShaperStripParameterisation.Angular, new ShaperStripSlot[0], plain);
+            var rig = Build(root);
+            var owner = rig.doc.owners[0];
+
+            bool kindIsSolid = owner.fill.op.kind == ShaperFillKind.Solid;
+            float expected = ShaperSrgb.DecodeChannel(plain.r);
+            bool colourMatches = Mathf.Abs(owner.fill.op.colR - expected) < 1e-6f;
+            bool hasDiagnostic = owner.fill.diagnostic != null;
+
+            sb.AppendLine("  compiled op.kind = " + owner.fill.op.kind + " (expected Solid)");
+            sb.AppendLine("  op.colR = " + owner.fill.op.colR.ToString("F6") + " (expected " + expected.ToString("F6") + ")");
+            sb.AppendLine("  diagnostic set = " + hasDiagnostic + " (expected true)");
+            sb.Append("  RESULT: " + Verdict(kindIsSolid && colourMatches && hasDiagnostic));
+            return sb.ToString();
+        }
+
+        // ── ST-2 ──────────────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// ST-2: B6's headline claim — "turn [the reach] to maximum and it covers the WHOLE shape". A large
+        /// reach (relative to the node's own half-extent) should leave even the disc's dead centre patterned,
+        /// not plain.
+        /// </summary>
+        public static string ST2_StripReachMaximumCoversWholeShape()
+        {
+            var sb = new StringBuilder("ST-2 IndexedStrip: a large reach patterns the WHOLE shape, including the centre (B6)\n");
+
+            var slotColour = new Color(0.90f, 0.10f, 0.10f);
+            var plain = new Color(0.10f, 0.10f, 0.90f);
+            var root = Disc("Disc", 40f, 0f, 0f);
+            root.fill = Strip(ShaperStripParameterisation.Angular,
+                              new[] { new ShaperStripSlot { color = slotColour, height = 4f } },
+                              plain, reach: 1000f);
+            var rig = Build(root);
+            var sheets = MakeShapeSheets(rig, out _, out _);
+            var emit = new ShaperFillEmit
+            {
+                albedo = new float[W * H * 3], veil = new float[W * H], heightDelta = new float[W * H],
+            };
+            ShaperFillOps.FillTile(rig.doc.owners[0].fill, rig.grid, 0, 0, rig.width, rig.height,
+                                   sheets, emit, 0, rig.width, 0, rig.width);
+
+            int idx = Index(rig, 0f, 0f);
+            float expectedR = ShaperSrgb.DecodeChannel(slotColour.r);
+            float gotR = emit.albedo[idx * 3];
+            float gotH = emit.heightDelta[idx];
+            bool colourOk = Mathf.Abs(gotR - expectedR) < 0.02f;
+            bool heightOk = gotH > 3.9f;   // full weight * 4, at a centre where edgeCoverage is ~0.999
+
+            sb.AppendLine("  centre albedo.r = " + gotR.ToString("F4") + "  (slot decode " + expectedR.ToString("F4") +
+                          ", plain decode " + ShaperSrgb.DecodeChannel(plain.r).ToString("F4") + ")");
+            sb.AppendLine("  centre height   = " + gotH.ToString("F4") + "  (expected close to 4.0, the slot's full-weight height)");
+            sb.Append("  RESULT: " + Verdict(colourOk && heightOk));
+            return sb.ToString();
+        }
+
+        // ── ST-3 ──────────────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>ST-3: the other end of B6's reach dial — a near-zero reach leaves the interior PLAIN, at the quarter weight.</summary>
+        public static string ST3_StripReachNearZeroIsPlainInterior()
+        {
+            var sb = new StringBuilder("ST-3 IndexedStrip: a near-zero reach leaves the interior PLAIN, at a quarter weight (B6)\n");
+
+            var slotColour = new Color(0.90f, 0.10f, 0.10f);
+            var plain = new Color(0.10f, 0.10f, 0.90f);
+            var root = Disc("Disc", 40f, 0f, 0f);
+            root.fill = Strip(ShaperStripParameterisation.Angular,
+                              new[] { new ShaperStripSlot { color = slotColour, height = 4f } },
+                              plain, reach: 0.001f);
+            var rig = Build(root);
+            var sheets = MakeShapeSheets(rig, out _, out _);
+            var emit = new ShaperFillEmit
+            {
+                albedo = new float[W * H * 3], veil = new float[W * H], heightDelta = new float[W * H],
+            };
+            ShaperFillOps.FillTile(rig.doc.owners[0].fill, rig.grid, 0, 0, rig.width, rig.height,
+                                   sheets, emit, 0, rig.width, 0, rig.width);
+
+            int idx = Index(rig, 0f, 0f);   // ~40px from the edge, and the reach is a fraction of a pixel
+            float expectedPlainR = ShaperSrgb.DecodeChannel(plain.r);
+            float gotR = emit.albedo[idx * 3];
+            float gotH = emit.heightDelta[idx];
+            bool colourOk = Mathf.Abs(gotR - expectedPlainR) < 0.02f;
+            bool heightOk = Mathf.Abs(gotH - 1f) < 0.05f;   // 4.0 x the quarter weight (0.25) = 1.0
+
+            sb.AppendLine("  centre albedo.r = " + gotR.ToString("F4") + "  (expected the PLAIN decode " + expectedPlainR.ToString("F4") + ")");
+            sb.AppendLine("  centre height   = " + gotH.ToString("F4") + "  (expected close to 1.0 = 4.0 x the quarter weight)");
+            sb.Append("  RESULT: " + Verdict(colourOk && heightOk));
+            return sb.ToString();
+        }
+
+        // ── ST-4 ──────────────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>ST-4: the common <c>heightDelta</c> dial still ADDS on top of the per-slot height (FC-2.5), rather than being ignored.</summary>
+        public static string ST4_StripHeightAddsCommonDelta()
+        {
+            var sb = new StringBuilder("ST-4 IndexedStrip: the common heightDelta dial ADDS to the per-slot height (FC-2.5)\n");
+
+            var root = Disc("Disc", 40f, 0f, 0f);
+            var f = Strip(ShaperStripParameterisation.Angular,
+                          new[] { new ShaperStripSlot { color = Color.red, height = 4f } },
+                          Color.blue, reach: 1000f);
+            f.heightDelta = new ZUIValue(2f);
+            root.fill = f;
+            var rig = Build(root);
+            var sheets = MakeShapeSheets(rig, out _, out _);
+            var emit = new ShaperFillEmit
+            {
+                albedo = new float[W * H * 3], veil = new float[W * H], heightDelta = new float[W * H],
+            };
+            ShaperFillOps.FillTile(rig.doc.owners[0].fill, rig.grid, 0, 0, rig.width, rig.height,
+                                   sheets, emit, 0, rig.width, 0, rig.width);
+
+            int idx = Index(rig, 0f, 0f);
+            float got = emit.heightDelta[idx];
+            bool ok = Mathf.Abs(got - 6f) < 0.05f;   // 2.0 common + 4.0 slot (edgeCoverage ~1 at reach=1000)
+
+            sb.AppendLine("  centre height = " + got.ToString("F4") + "  (expected close to 6.0 = 2.0 common + 4.0 slot)");
+            sb.Append("  RESULT: " + Verdict(ok));
+            return sb.ToString();
+        }
+
+        // ── ST-5 ──────────────────────────────────────────────────────────────────────────────────────────
+
+        public static string ST5_StripRequiredSetIsEdgeDistance()
+        {
+            var sb = new StringBuilder("ST-5 IndexedStrip.RequiredSet() == EdgeDistance, unconditionally (FC-4.1a)\n");
+
+            var f = Strip(ShaperStripParameterisation.Projection,
+                          new[] { new ShaperStripSlot { color = Color.white } }, Color.grey);
+            ShaperQuantitySet required = f.RequiredSet();
+            bool ok = required == ShaperQuantitySet.EdgeDistance;
+
+            sb.AppendLine("  RequiredSet() = " + required + "  (expected EdgeDistance)");
+            sb.AppendLine("  every node publishes EdgeDistance (ShippedShapeEngine), so a fresh IndexedStrip");
+            sb.AppendLine("  never greys out on creation -- the same reasoning FC-4.1b gives for Ramp's Coverage default.");
+            sb.Append("  RESULT: " + Verdict(ok));
+            return sb.ToString();
+        }
+
+        // ── ST-6 ──────────────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>ST-6: 3D Shaper's improvement over the reference — "whole-number repeats" (B6) — is enforced at compile, not merely encouraged.</summary>
+        public static string ST6_StripRepeatsRoundToWholeNumber()
+        {
+            var sb = new StringBuilder("ST-6 IndexedStrip: stripRepeats rounds to a whole number, never a partial repeat (B6)\n");
+
+            var root = Disc("Disc", 40f, 0f, 0f);
+            root.fill = Strip(ShaperStripParameterisation.Angular,
+                              new[] { new ShaperStripSlot { color = Color.white } }, Color.grey, repeats: 3.7f);
+            var rig = Build(root);
+            int got = rig.doc.owners[0].fill.op.stripRepeats;
+            bool ok = got == 4;
+
+            sb.AppendLine("  authored 3.7 -> compiled stripRepeats = " + got + "  (expected 4, Mathf.RoundToInt, floored at 1)");
+            sb.Append("  RESULT: " + Verdict(ok));
+            return sb.ToString();
+        }
+
+        // ── ST-7 ──────────────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>ST-7: both parameterisations genuinely select DIFFERENT slots at different points — a sanity check that this is an indexed fill, not a disguised Solid.</summary>
+        public static string ST7_StripParameterisationVaries()
+        {
+            var sb = new StringBuilder("ST-7 IndexedStrip: both parameterisations select DIFFERENT slots around the shape\n");
+
+            var slots = new[]
+            {
+                new ShaperStripSlot { color = new Color(1f, 0f, 0f), height = 1f },
+                new ShaperStripSlot { color = new Color(0f, 1f, 0f), height = 2f },
+                new ShaperStripSlot { color = new Color(0f, 0f, 1f), height = 3f },
+                new ShaperStripSlot { color = new Color(1f, 1f, 0f), height = 4f },
+            };
+
+            bool all = true;
+            foreach (ShaperStripParameterisation param in Enum.GetValues(typeof(ShaperStripParameterisation)))
+            {
+                var root = Disc("Disc", 40f, 0f, 0f);
+                root.fill = Strip(param, slots, Color.grey, reach: 1000f);
+                var rig = Build(root);
+                var sheets = MakeShapeSheets(rig, out _, out _);
+                var emit = new ShaperFillEmit
+                {
+                    albedo = new float[W * H * 3], veil = new float[W * H], heightDelta = new float[W * H],
+                };
+                ShaperFillOps.FillTile(rig.doc.owners[0].fill, rig.grid, 0, 0, rig.width, rig.height,
+                                       sheets, emit, 0, rig.width, 0, rig.width);
+
+                var seen = new HashSet<int>();
+                for (int a = 0; a < 8; a++)
+                {
+                    float ang = a / 8f * 2f * Mathf.PI;
+                    int idx = Index(rig, Mathf.Cos(ang) * 30f, Mathf.Sin(ang) * 30f);
+                    int r = Mathf.RoundToInt(emit.albedo[idx * 3] * 1000f);
+                    int g = Mathf.RoundToInt(emit.albedo[idx * 3 + 1] * 1000f);
+                    int b = Mathf.RoundToInt(emit.albedo[idx * 3 + 2] * 1000f);
+                    seen.Add(r * 1000000 + g * 1000 + b);
+                }
+                bool variesHere = seen.Count > 1;
+                all &= variesHere;
+                sb.AppendLine("  " + param + ": distinct colours around an 8-point ring = " + seen.Count + "  (expected > 1)");
+            }
+            sb.Append("  RESULT: " + Verdict(all));
+            return sb.ToString();
+        }
+
+        // ── ST-8 (T-0110 adversarial pass) ───────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// ST-8: a large slot count (well beyond anything hand-authored) still bakes and samples without an
+        /// out-of-range index or a non-finite output. Also exercises a single-slot strip at the small end --
+        /// every sample must land on that one slot regardless of the running parameter, including negative
+        /// height.
+        /// </summary>
+        public static string ST8_StripSlotCountExtremes()
+        {
+            var sb = new StringBuilder("ST-8 IndexedStrip: extreme slot counts -- 200 slots and 1 slot, no crash, finite output\n");
+            bool all = true;
+
+            var many = new ShaperStripSlot[200];
+            for (int i = 0; i < many.Length; i++)
+                many[i] = new ShaperStripSlot { color = Color.HSVToRGB((float)i / many.Length, 1f, 1f), height = i * 0.1f };
+
+            var root = Disc("Disc", 40f, 0f, 0f);
+            root.fill = Strip(ShaperStripParameterisation.Angular, many, Color.grey, reach: 1000f);
+            var rig = Build(root);
+            var sheets = MakeShapeSheets(rig, out _, out _);
+            var emit = new ShaperFillEmit { albedo = new float[W * H * 3], veil = new float[W * H], heightDelta = new float[W * H] };
+            ShaperFillOps.FillTile(rig.doc.owners[0].fill, rig.grid, 0, 0, rig.width, rig.height, sheets, emit, 0, rig.width, 0, rig.width);
+
+            int nonFinite = 0;
+            for (int i = 0; i < W * H; i++)
+            {
+                if (!IsFinite(emit.albedo[i * 3]) || !IsFinite(emit.albedo[i * 3 + 1]) ||
+                    !IsFinite(emit.albedo[i * 3 + 2]) || !IsFinite(emit.heightDelta[i])) nonFinite++;
+            }
+            var seen = new HashSet<int>();
+            for (int a = 0; a < 32; a++)
+            {
+                float ang = a / 32f * 2f * Mathf.PI;
+                int idx = Index(rig, Mathf.Cos(ang) * 39f, Mathf.Sin(ang) * 39f);
+                seen.Add(Mathf.RoundToInt(emit.albedo[idx * 3] * 1000f) * 1000000 +
+                          Mathf.RoundToInt(emit.albedo[idx * 3 + 1] * 1000f) * 1000 +
+                          Mathf.RoundToInt(emit.albedo[idx * 3 + 2] * 1000f));
+            }
+            bool manyOk = nonFinite == 0 && seen.Count > 8;
+            all &= manyOk;
+            sb.AppendLine("  200 slots: non-finite samples = " + nonFinite + "/" + (W * H) + " (expected 0)" +
+                          "   distinct colours over a 32-point ring = " + seen.Count + " (expected > 8, many slots genuinely selected)  " +
+                          Verdict(manyOk));
+
+            var one = new[] { new ShaperStripSlot { color = new Color(0.2f, 0.7f, 0.4f), height = -3f } };
+            var root2 = Disc("Disc", 40f, 0f, 0f);
+            root2.fill = Strip(ShaperStripParameterisation.Projection, one, Color.grey, reach: 1000f, repeats: 5f);
+            var rig2 = Build(root2);
+            var sheets2 = MakeShapeSheets(rig2, out _, out _);
+            var emit2 = new ShaperFillEmit { albedo = new float[W * H * 3], veil = new float[W * H], heightDelta = new float[W * H] };
+            ShaperFillOps.FillTile(rig2.doc.owners[0].fill, rig2.grid, 0, 0, rig2.width, rig2.height, sheets2, emit2, 0, rig2.width, 0, rig2.width);
+
+            float expR = ShaperSrgb.DecodeChannel(0.2f);
+            int mismatched = 0, heightWrong = 0;
+            for (int a = 0; a < 16; a++)
+            {
+                float ang = a / 16f * 2f * Mathf.PI;
+                int idx = Index(rig2, Mathf.Cos(ang) * 39f, Mathf.Sin(ang) * 39f);
+                if (Mathf.Abs(emit2.albedo[idx * 3] - expR) > 0.02f) mismatched++;
+                if (emit2.heightDelta[idx] > 0f) heightWrong++;   // the one slot's height is negative (-3); full weight there must stay negative
+            }
+            bool oneOk = mismatched == 0 && heightWrong == 0;
+            all &= oneOk;
+            sb.AppendLine("  1 slot (negative height -3), 5 repeats: colour mismatches = " + mismatched + "/16, " +
+                          "positive-height samples = " + heightWrong + "/16 (both expected 0 -- a single negative-height slot must sink, never rise)  " +
+                          Verdict(oneOk));
+            sb.Append("  RESULT: " + Verdict(all));
+            return sb.ToString();
+        }
+
+        // ── ST-9 (T-0110 adversarial pass) ───────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// ST-9: stripRepeats has NO declared upper clamp in the shipped <c>BakeStrip</c> (only
+        /// <c>Mathf.Max(1, RoundToInt(...))</c>, unlike the superseded SS-4.2 design's [1,16]) -- confirms the
+        /// lower clamp and NaN/Infinity handling at bake time, and MEASURES what an enormous authored value
+        /// actually does at sample time rather than assuming it is safe because the field compiles.
+        /// </summary>
+        public static string ST9_StripRepeatsExtremes()
+        {
+            var sb = new StringBuilder("ST-9 IndexedStrip: stripRepeats extremes -- negative, NaN, +Infinity, and a huge finite value\n");
+            bool all = true;
+
+            int BakedRepeats(float authored)
+            {
+                var root = Disc("Disc", 40f, 0f, 0f);
+                root.fill = Strip(ShaperStripParameterisation.Angular,
+                                  new[] { new ShaperStripSlot { color = Color.white } }, Color.grey, repeats: authored);
+                return Build(root).doc.owners[0].fill.op.stripRepeats;
+            }
+
+            int negRepeats = BakedRepeats(-7f);
+            int nanRepeats = BakedRepeats(float.NaN);
+            int infRepeats = BakedRepeats(float.PositiveInfinity);
+            bool clampOk = negRepeats == 1 && nanRepeats >= 1 && infRepeats >= 1;
+            all &= clampOk;
+            sb.AppendLine("  authored -7 -> " + negRepeats + " (expected 1, floored)" +
+                          "   NaN -> " + nanRepeats + " (expected >= 1, never < 1)" +
+                          "   +Inf -> " + infRepeats + " (expected >= 1, never < 1)  " + Verdict(clampOk));
+
+            var slots = new[]
+            {
+                new ShaperStripSlot { color = new Color(1f, 0f, 0f) },
+                new ShaperStripSlot { color = new Color(0f, 1f, 0f) },
+            };
+            var rootHuge = Disc("Disc", 40f, 0f, 0f);
+            rootHuge.fill = Strip(ShaperStripParameterisation.Projection, slots, Color.grey, repeats: 1e7f, reach: 1000f);
+            var rigHuge = Build(rootHuge);
+            int bakedHuge = rigHuge.doc.owners[0].fill.op.stripRepeats;
+            var sheetsHuge = MakeShapeSheets(rigHuge, out _, out _);
+            var emitHuge = new ShaperFillEmit { albedo = new float[W * H * 3], veil = new float[W * H], heightDelta = new float[W * H] };
+            ShaperFillOps.FillTile(rigHuge.doc.owners[0].fill, rigHuge.grid, 0, 0, rigHuge.width, rigHuge.height,
+                                   sheetsHuge, emitHuge, 0, rigHuge.width, 0, rigHuge.width);
+
+            int nonFiniteHuge = 0;
+            var seenHuge = new HashSet<int>();
+            for (int i = 0; i < W * H; i++)
+            {
+                float r = emitHuge.albedo[i * 3], g = emitHuge.albedo[i * 3 + 1], b = emitHuge.albedo[i * 3 + 2];
+                if (!IsFinite(r) || !IsFinite(g) || !IsFinite(b)) nonFiniteHuge++;
+                seenHuge.Add(Mathf.RoundToInt(r * 1000f) * 1000000 + Mathf.RoundToInt(g * 1000f) * 1000 + Mathf.RoundToInt(b * 1000f));
+            }
+            bool noCrash = nonFiniteHuge == 0;
+            all &= noCrash;
+            sb.AppendLine("  authored 1e7 -> baked stripRepeats = " + bakedHuge +
+                          " (no upper clamp exists in BakeStrip -- named here, not silently fixed)");
+            sb.AppendLine("  non-finite samples at 1e7 repeats = " + nonFiniteHuge + "/" + (W * H) +
+                          " (expected 0 -- must never crash or NaN)  " + Verdict(noCrash));
+            sb.AppendLine("  distinct colours produced across the whole tile = " + seenHuge.Count +
+                          " (informational, not a pass/fail bar: float32 precision at t*1e7 collapses the running");
+            sb.AppendLine("   parameter's fractional part, so this is EXPECTED to degenerate toward very few colours");
+            sb.AppendLine("   rather than a fine 1e7-way tile -- a graceful precision limit on an unbounded dial, not a crash.");
+            sb.Append("  RESULT: " + Verdict(all));
+            return sb.ToString();
+        }
+
+        // ── ST-10 (T-0110 adversarial pass) ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// ST-10: NaN/Infinity authored on stripReach, stripOrientationDegrees and stripOffset -- none of these
+        /// three go through <see cref="ShaperFillCompiler"/>'s <c>FiniteOrZero</c> the way the per-slot height
+        /// and the common heightDelta do (confirmed by reading <c>BakeStrip</c> directly: only the palette
+        /// heights and the shared heightDelta dial are passed through it). This MEASURES whether that missing
+        /// bake-time guard actually lets a non-finite value reach the emitted albedo/height/veil, rather than
+        /// assuming the per-sample defensive slot-index clamp (<c>ShaperFillOps.Sample</c>'s
+        /// <c>if (slot &lt; 0) slot = 0</c>) is enough to save it on its own.
+        /// </summary>
+        public static string ST10_StripDialsNaNInfinityNeverReachOutput()
+        {
+            var sb = new StringBuilder("ST-10 IndexedStrip: NaN/Infinity on reach/orientation/offset must never reach the emitted output\n");
+            bool all = true;
+
+            var slots = new[]
+            {
+                new ShaperStripSlot { color = new Color(1f, 0f, 0f), height = 5f },
+                new ShaperStripSlot { color = new Color(0f, 1f, 0f), height = -5f },
+            };
+
+            void Probe(string label, ShaperFillDef def)
+            {
+                var root = Disc("Disc", 40f, 0f, 0f);
+                root.fill = def;
+                var rig = Build(root);
+                var sheets = MakeShapeSheets(rig, out _, out _);
+                var emit = new ShaperFillEmit { albedo = new float[W * H * 3], veil = new float[W * H], heightDelta = new float[W * H] };
+                ShaperFillOps.FillTile(rig.doc.owners[0].fill, rig.grid, 0, 0, rig.width, rig.height, sheets, emit, 0, rig.width, 0, rig.width);
+
+                int nonFinite = 0;
+                for (int i = 0; i < W * H; i++)
+                {
+                    if (!IsFinite(emit.albedo[i * 3]) || !IsFinite(emit.albedo[i * 3 + 1]) ||
+                        !IsFinite(emit.albedo[i * 3 + 2]) || !IsFinite(emit.heightDelta[i]) || !IsFinite(emit.veil[i]))
+                        nonFinite++;
+                }
+                bool ok = nonFinite == 0;
+                all &= ok;
+                sb.AppendLine("  " + label.PadRight(34) + " non-finite output samples = " + nonFinite + "/" + (W * H) +
+                              " (expected 0)  " + Verdict(ok));
+            }
+
+            Probe("reach = NaN", Strip(ShaperStripParameterisation.Angular, slots, Color.grey, reach: float.NaN));
+            Probe("reach = +Infinity", Strip(ShaperStripParameterisation.Angular, slots, Color.grey, reach: float.PositiveInfinity));
+            Probe("reach = -5 (negative, illegal)", Strip(ShaperStripParameterisation.Angular, slots, Color.grey, reach: -5f));
+            Probe("orientation = NaN", Strip(ShaperStripParameterisation.Projection, slots, Color.grey, orientationDeg: float.NaN, reach: 1000f));
+            Probe("orientation = +Infinity deg", Strip(ShaperStripParameterisation.Angular, slots, Color.grey, orientationDeg: float.PositiveInfinity, reach: 1000f));
+            Probe("offset = NaN", Strip(ShaperStripParameterisation.Angular, slots, Color.grey, offset: float.NaN, reach: 1000f));
+            Probe("offset = +Infinity", Strip(ShaperStripParameterisation.Projection, slots, Color.grey, offset: float.PositiveInfinity, reach: 1000f));
+
+            sb.AppendLine("  (per-slot height and the common heightDelta ARE guarded by ShaperFillCompiler.FiniteOrZero;");
+            sb.AppendLine("   reach/orientation/offset are NOT -- so a PASS here is evidence for the per-sample defensive");
+            sb.AppendLine("   slot-index clamp in ShaperFillOps.Sample, not for a bake-time guard that does not exist for these three.)");
+            sb.Append("  RESULT: " + Verdict(all));
+            return sb.ToString();
+        }
+
+        // ── ST-11 (T-0110 adversarial pass) ──────────────────────────────────────────────────────────────
+
+        /// <summary>ST-11: a zero-radius (degenerate) disc must still bake and sample without a divide-by-zero or a non-finite output.</summary>
+        public static string ST11_StripOnDegenerateShape()
+        {
+            var sb = new StringBuilder("ST-11 IndexedStrip on a degenerate (zero-radius) shape: finite output, no exception\n");
+
+            var slots = new[] { new ShaperStripSlot { color = Color.magenta, height = 3f } };
+            var root = Disc("Zero", 0f, 0f, 0f);
+            root.fill = Strip(ShaperStripParameterisation.Angular, slots, Color.grey, reach: 1f);
+            var rig = Build(root);
+            var sheets = MakeShapeSheets(rig, out _, out _);
+            var emit = new ShaperFillEmit { albedo = new float[W * H * 3], veil = new float[W * H], heightDelta = new float[W * H] };
+            ShaperFillOps.FillTile(rig.doc.owners[0].fill, rig.grid, 0, 0, rig.width, rig.height, sheets, emit, 0, rig.width, 0, rig.width);
+
+            int nonFinite = 0;
+            for (int i = 0; i < W * H; i++)
+                if (!IsFinite(emit.albedo[i * 3]) || !IsFinite(emit.albedo[i * 3 + 1]) ||
+                    !IsFinite(emit.albedo[i * 3 + 2]) || !IsFinite(emit.heightDelta[i]) || !IsFinite(emit.veil[i]))
+                    nonFinite++;
+
+            bool ok = nonFinite == 0;
+            sb.AppendLine("  zero-radius disc: non-finite output samples = " + nonFinite + "/" + (W * H) + " (expected 0)");
+            sb.Append("  RESULT: " + Verdict(ok));
+            return sb.ToString();
+        }
+
+        // ── ST-12 (T-0110 adversarial pass) ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// ST-12: direct measurement of the debated design choice SS-7.4 names -- a continuous edgeCoverage
+        /// blend vs. the reference app's hard patterned/plain cutoff. Walks a radial line from the centre to
+        /// the edge of a disc at a moderate reach and measures the largest single-sample jump in both height
+        /// and albedo red channel. A hard cutoff would show ONE jump of the full weight range (0.75 of the
+        /// 0.25..1.0 span, i.e. 0.75 x the slot height) between two adjacent samples; a genuinely continuous
+        /// ramp should show many small jumps, none anywhere near that size.
+        /// </summary>
+        public static string ST12_ReachBoundaryIsAContinuousRampNotAHardSeam()
+        {
+            var sb = new StringBuilder("ST-12 IndexedStrip: the reach boundary is a continuous ramp, not a hard-cutoff seam (SS-7.4's debated design choice)\n");
+
+            const float PlainWeight = 0.25f;   // ShaperFillOps.StripPlainHeightWeight, mirrored here since it is private to that class.
+            var slotColour = new Color(1f, 0f, 0f);
+            var plain = new Color(0f, 0f, 1f);
+            var root = Disc("Disc", 40f, 0f, 0f);
+            root.fill = Strip(ShaperStripParameterisation.Angular,
+                              new[] { new ShaperStripSlot { color = slotColour, height = 4f } },
+                              plain, reach: 0.5f);
+            var rig = Build(root);
+            var sheets = MakeShapeSheets(rig, out _, out _);
+            var emit = new ShaperFillEmit { albedo = new float[W * H * 3], veil = new float[W * H], heightDelta = new float[W * H] };
+            ShaperFillOps.FillTile(rig.doc.owners[0].fill, rig.grid, 0, 0, rig.width, rig.height, sheets, emit, 0, rig.width, 0, rig.width);
+
+            float worstHeightJump = 0f, worstColourJump = 0f;
+            float prevH = float.NaN, prevR = float.NaN;
+            for (int px = 0; px <= 40; px++)
+            {
+                int idx = Index(rig, px, 0f);
+                float h = emit.heightDelta[idx], r = emit.albedo[idx * 3];
+                if (!float.IsNaN(prevH))
+                {
+                    worstHeightJump = Mathf.Max(worstHeightJump, Mathf.Abs(h - prevH));
+                    worstColourJump = Mathf.Max(worstColourJump, Mathf.Abs(r - prevR));
+                }
+                prevH = h; prevR = r;
+            }
+
+            float fullWeightJump = (1f - PlainWeight) * 4f;   // what a hard cutoff would produce in ONE sample step: 0.75 * 4 = 3.0
+            bool ok = worstHeightJump < fullWeightJump * 0.5f;
+            sb.AppendLine("  worst single-sample height jump along a 40px radial walk = " + worstHeightJump.ToString("F4") +
+                          "  (a hard cutoff's single jump would be " + fullWeightJump.ToString("F4") + "; measured is " +
+                          (worstHeightJump / fullWeightJump * 100f).ToString("F1") + "% of that)");
+            sb.AppendLine("  worst single-sample albedo.r jump = " + worstColourJump.ToString("F4"));
+            sb.Append("  RESULT: " + Verdict(ok));
+            return sb.ToString();
+        }
+
+        // ── contact sheet ─────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// A dedicated contact sheet for T-0110, in the same rendered-not-verified spirit as FT-20: six cells,
+        /// composited over the same opaque checker backdrop, so a human can look at what the ST-* table above
+        /// only measures.
+        /// </summary>
+        public static string ST_ContactSheet(string path)
+        {
+            const int Cell = 110, Cols = 3, Pad = 8;
+
+            var cells = new List<KeyValuePair<string, ShaperNode>>();
+            Action<string, ShaperNode> Cellf = (n, node) => cells.Add(new KeyValuePair<string, ShaperNode>(n, node));
+            Func<ShaperFillDef, ShaperNode> OnDisc = f => { var d = Disc("Disc", 34f, 0f, 0f); d.fill = f; return d; };
+
+            var slots4 = new[]
+            {
+                new ShaperStripSlot { color = new Color(0.95f, 0.25f, 0.15f), height = 5f },
+                new ShaperStripSlot { color = new Color(0.98f, 0.80f, 0.15f), height = 1f },
+                new ShaperStripSlot { color = new Color(0.15f, 0.55f, 0.95f), height = 5f },
+                new ShaperStripSlot { color = new Color(0.20f, 0.85f, 0.35f), height = 1f },
+            };
+            var plain = new Color(0.35f, 0.10f, 0.45f);
+
+            Cellf("01 Angular reach=1 (whole shape)",
+                 OnDisc(Strip(ShaperStripParameterisation.Angular, slots4, plain, repeats: 6f, reach: 1f)));
+            Cellf("02 Angular reach=0.15 (rim only)",
+                 OnDisc(Strip(ShaperStripParameterisation.Angular, slots4, plain, repeats: 6f, reach: 0.15f)));
+            Cellf("03 Projection reach=1",
+                 OnDisc(Strip(ShaperStripParameterisation.Projection, slots4, plain, repeats: 4f, reach: 1f)));
+            Cellf("04 Angular orient=45 offset=0.2",
+                 OnDisc(Strip(ShaperStripParameterisation.Angular, slots4, plain, repeats: 3f,
+                              orientationDeg: 45f, offset: 0.2f, reach: 1f)));
+
+            // 05 — cell 01's own buf.height, remapped to greyscale (bright = tall). Rendered a SECOND way below
+            //      (CompositeHeightAsGrey), not composited normally, so this entry is a marker, not a real cell.
+            int reliefCellIndex = cells.Count;
+            Cellf("05 Cell 01's HEIGHT, as relief",
+                 OnDisc(Strip(ShaperStripParameterisation.Angular, slots4, plain, repeats: 6f, reach: 1f)));
+
+            // 06 — an inner plain disc UNDER an outer ring-only strip with tall slots. This is ORDINARY layer
+            //      compositing (the outer member simply paints over the inner one in fold order) — it is NOT
+            //      the reference app's cross-layer 3D depth test, because Wave 2 has no consumer of buf.height
+            //      across LAYERS at all yet (see VERIFICATION.md). It shows only the part of B6's "divider"
+            //      claim this wave can actually render: a raised, patterned rim reading as a visually distinct
+            //      boundary against a plain neighbour.
+            {
+                var inner = Disc("Inner", 30f, 0f, 0f); inner.fill = Solid(new Color(0.5f, 0.5f, 0.55f));
+                var outer = Disc("Outer", 34f, 0f, 0f);
+                outer.fill = Strip(ShaperStripParameterisation.Angular, slots4, plain, repeats: 8f, reach: 0.25f);
+                var bag = ShaperNode.Bag("Divider", ShaperCombineMode.Add, inner, outer);
+                Cellf("06 Rim-vs-plain divider (not yet a real depth test)", bag);
+            }
+
+            int rows = Mathf.CeilToInt(cells.Count / (float)Cols);
+            int texW = Cols * (Cell + Pad) + Pad, texH = rows * (Cell + Pad) + Pad;
+            var sheet = new Texture2D(texW, texH, TextureFormat.RGBA32, false);
+            var bg = new Color32[texW * texH];
+            for (int i = 0; i < bg.Length; i++) bg[i] = new Color32(18, 18, 22, 255);
+            sheet.SetPixels32(bg);
+
+            var pixels = new Color32[Cell * Cell];
+            for (int c = 0; c < cells.Count; c++)
+            {
+                var rig = Build(cells[c].Value, 0f, 0u, ShaperQuantitySet.ShippedShapeEngine, Cell, Cell);
+                Paint(rig);
+                if (c == reliefCellIndex) CompositeHeightAsGrey(rig, pixels, Cell);
+                else CompositeOverBackdrop(rig.buf.dst, pixels, Cell);
+                DrawLabel(pixels, Cell, cells[c].Key);
+
+                int cx = Pad + (c % Cols) * (Cell + Pad);
+                int cy = texH - Pad - Cell - (c / Cols) * (Cell + Pad);
+                sheet.SetPixels32(cx, cy, Cell, Cell, pixels);
+            }
+            sheet.Apply();
+
+            byte[] png = sheet.EncodeToPNG();
+            System.IO.File.WriteAllBytes(path, png);
+
+            var sb = new StringBuilder("ST contact sheet (T-0110 IndexedStrip)\n");
+            sb.AppendLine("  " + cells.Count + " cells, " + Cols + " x " + rows + ", " + texW + "x" + texH +
+                          " px, written to " + path);
+            sb.AppendLine("  01 vs 02 is B6's reach control, isolated: same palette, same repeats, only the reach differs --");
+            sb.AppendLine("     01 patterns the whole disc as a sunburst, 02 leaves a plain purple interior with only a narrow rim.");
+            sb.AppendLine("  05 is 01's OWN buf.height remapped to greyscale (bright = tall). It should show the same six-spoke");
+            sb.AppendLine("     rhythm as 01's colour, which is the picture that proves colour and height read the same slot index.");
+            sb.AppendLine("  06 is NOT a real cross-layer depth test -- see the note above cell 06's construction and");
+            sb.AppendLine("     VERIFICATION.md's honesty section. It shows only ordinary paint-order compositing.");
+            sb.Append("  RESULT: RENDERED -- NOT VERIFIED BY THE TABLE. A human must look at this PNG.");
+            return sb.ToString();
+        }
+
+        /// <summary>Remap one cell's <see cref="ShaperFillBuffers.height"/> to greyscale, min-max normalised within that cell.</summary>
+        static void CompositeHeightAsGrey(Rig rig, Color32[] outPixels, int cell)
+        {
+            float min = float.MaxValue, max = float.MinValue;
+            for (int i = 0; i < cell * cell; i++)
+            {
+                float h = rig.buf.height[i];
+                if (h < min) min = h;
+                if (h > max) max = h;
+            }
+            float range = Mathf.Max(max - min, 1e-6f);
+            for (int i = 0; i < cell * cell; i++)
+            {
+                float t = Mathf.Clamp01((rig.buf.height[i] - min) / range);
+                byte v = (byte)Mathf.RoundToInt(t * 255f);
+                outPixels[i] = new Color32(v, v, v, 255);
+            }
+            for (int x = 0; x < cell; x++)
+            {
+                outPixels[x] = new Color32(90, 90, 100, 255);
+                outPixels[(cell - 1) * cell + x] = new Color32(90, 90, 100, 255);
+            }
+            for (int y = 0; y < cell; y++)
+            {
+                outPixels[y * cell] = new Color32(90, 90, 100, 255);
+                outPixels[y * cell + cell - 1] = new Color32(90, 90, 100, 255);
             }
         }
     }

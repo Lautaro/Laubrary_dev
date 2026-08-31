@@ -217,11 +217,13 @@ namespace Laubrary.Shaper
     public enum ShaperFillFit { Uniform = 0, Stretch = 1 }
 
     /// <summary>
-    /// The four fill kinds T-0106 ships (Part F6). APPEND-ONLY: serialized as an int.
+    /// The fill kinds. APPEND-ONLY: serialized as an int. T-0106 shipped the first four (Part F6); T-0110 adds
+    /// the fifth, <see cref="IndexedStrip"/> — B6's "the reference app's pixel-border thing", restored with its
+    /// per-slot height.
     ///
     /// Deliberately NOT a class hierarchy. A fill does not nest — it is one object on one node with no children
     /// — so its compiled "program" is a single op struct and the flat form is a struct plus a switch, which is
-    /// strictly SIMPLER than an abstract class with four subclasses rather than a concession to it (FC-5.2).
+    /// strictly SIMPLER than an abstract class with five subclasses rather than a concession to it (FC-5.2).
     /// </summary>
     public enum ShaperFillKind
     {
@@ -229,6 +231,28 @@ namespace Laubrary.Shaper
         Gradient = 1,
         RampByQuantity = 2,
         Texture = 3,
+
+        /// <summary>
+        /// T-0110 — a hand-painted strip of palette slots, each carrying colour AND a height (protrusion),
+        /// selected per pixel by a parameterisation of the shape (<see cref="ShaperStripParameterisation"/>),
+        /// with a reach control gating a "patterned" (near-edge, indexed) region against a "plain" (interior,
+        /// flat) one. See <see cref="ShaperFillDef"/>'s Indexed strip section and
+        /// <c>D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0110\STRIP-SPEC.md</c> for the full model.
+        /// </summary>
+        IndexedStrip = 4,
+    }
+
+    /// <summary>
+    /// T-0110, B6 — how an <see cref="ShaperFillKind.IndexedStrip"/> fill's per-pixel parameter is derived from
+    /// the shape: "the shape is parameterised — either by the angle around it, or by projection across it".
+    /// APPEND-ONLY: serialized as an int.
+    /// </summary>
+    public enum ShaperStripParameterisation
+    {
+        /// <summary>The angle around the node's own local centre, like <see cref="ShaperGradientMode.Angular"/>.</summary>
+        Angular = 0,
+        /// <summary>A linear projection across the node's own local box, like <see cref="ShaperGradientMode.Linear"/>.</summary>
+        Projection = 1,
     }
 
     /// <summary>Gradient's four spatial parameterisations (FC-6.2). APPEND-ONLY.</summary>
