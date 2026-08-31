@@ -197,5 +197,34 @@ namespace Laubrary.Shaper
         /// a zero-length array, not a null check threaded through the evaluator.
         /// </summary>
         public ShaperCompiledComposite[] composites = System.Array.Empty<ShaperCompiledComposite>();
+
+        // ── T-0113 swarm — the structural "shown, not hidden" surface ──────────────────────────────────────
+        // Every field below is READ from the compiled program, never authored on ShaperSwarmDef, so which
+        // implementation ran can never be silently mis-declared by an author (ShaperSwarmDef's class doc).
+
+        /// <summary>True if at least one enabled, count&gt;1 swarm exists anywhere in this program.</summary>
+        public bool hasSwarm;
+        /// <summary>The FIRST swarmed node's resolved implementation. See <see cref="swarmNodeCount"/> for how
+        /// many there are in total when a tree swarms more than one node.</summary>
+        public ShaperSwarmImplementation swarmImplementation = ShaperSwarmImplementation.None;
+        /// <summary>The first swarmed node's name, for a one-line message — same pattern as
+        /// <see cref="singularNode"/>/<see cref="leadingNonAddNode"/> above.</summary>
+        public string swarmImplementationNode;
+        /// <summary>The first swarmed node's own resolved instance count (after any hard-cap clamp).</summary>
+        public int swarmCount;
+        /// <summary>How many swarm-enabled nodes exist in the whole program, not just the first.</summary>
+        public int swarmNodeCount;
+        /// <summary>True when the first swarmed node's authored count was clamped down by
+        /// <see cref="ShaperSwarmDef.SimulationHardCap"/> because its source is a declared stateful simulation
+        /// with no native batched path.</summary>
+        public bool swarmCapped;
+        /// <summary>Free-text reason for the clamp above, non-null only when <see cref="swarmCapped"/> is true —
+        /// the visible warning the task body requires for the hard-cap fallback.</summary>
+        public string swarmCapReason;
+        /// <summary>The first swarmed node's actual per-instance phases, in instance order — published purely
+        /// for measurement (<c>ShaperSwarmAudit</c>'s independent-lifetime check reads this directly rather
+        /// than inferring it indirectly), the same "measured, not asserted" posture the rest of this file
+        /// takes. Null when <see cref="hasSwarm"/> is false.</summary>
+        public float[] swarmInstancePhases;
     }
 }

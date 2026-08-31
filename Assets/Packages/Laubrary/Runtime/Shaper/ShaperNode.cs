@@ -95,6 +95,11 @@ namespace Laubrary.Shaper
         public ShaperSweep sweep = new ShaperSweep();
         public ShaperShell shell = new ShaperShell();
 
+        /// <summary>T-0113 — the swarm modifier. Available on EVERY node kind (Primitive, Bag, Composite), null
+        /// default is not the identity here (a class default, not a nullable field) — <see cref="ShaperSwarmDef.enabled"/>
+        /// is. See <see cref="ShaperSwarmDef"/> for the two implementations behind it.</summary>
+        public ShaperSwarmDef swarm = new ShaperSwarmDef();
+
         /// <summary>Used when <see cref="kind"/> is <see cref="ShaperNodeKind.Primitive"/>.</summary>
         public ShaperPrimitiveDef primitive = new ShaperPrimitiveDef();
 

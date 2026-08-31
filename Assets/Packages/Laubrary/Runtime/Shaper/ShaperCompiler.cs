@@ -205,7 +205,7 @@ namespace Laubrary.Shaper
             }
             else
             {
-                top = EmitNode(root, parentForward, st, true);
+                top = EmitNodeMaybeSwarm(root, parentForward, st, true);
             }
 
             st.program.ops = st.ops.ToArray();
@@ -309,6 +309,315 @@ namespace Laubrary.Shaper
             e.inverse = invertible ? inverse : ShaperMatrix.Identity;
             e.invertible = invertible && sigmaMin > 1e-9f;
             return e;
+        }
+
+        // ── T-0113 swarm ─────────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>An avalanche hash combining two inputs — never <c>System.Random</c>/<c>UnityEngine.Random</c>
+        /// (BC-1.3), same posture as <see cref="ShaperValue"/>'s own hash, restated here so swarm jitter is
+        /// deterministic per (seed, instance) and re-evaluates identically every compile.</summary>
+        static uint Hash(uint a, uint b)
+        {
+            uint x = a ^ (b * 0x9E3779B9u + 0x7f4a7c15u + (a << 6) + (a >> 2));
+            x ^= x >> 16; x *= 0x7feb352du;
+            x ^= x >> 15; x *= 0x846ca68bu;
+            x ^= x >> 16;
+            return x;
+        }
+
+        static float Unit(uint h) => (h & 0x00FFFFFFu) * (1f / 16777216f);
+
+        /// <summary>The one call site every ordinary caller of <c>EmitNode</c> now goes through — checks the
+        /// node's own <see cref="ShaperNode.swarm"/> and routes to <see cref="EmitSwarm"/> when it is enabled
+        /// with more than one instance; otherwise this is an exact pass-through to <see cref="EmitNode"/>, so an
+        /// un-swarmed tree compiles bit-identically to before this task (<c>ShaperSwarmAudit</c> CT-0).</summary>
+        static Emitted EmitNodeMaybeSwarm(ShaperNode node, in ShaperMatrix parentForward, State st, bool isRoot)
+        {
+            var swarm = node.swarm;
+            if (swarm == null || !swarm.enabled || swarm.count <= 1) return EmitNode(node, parentForward, st, isRoot);
+            return EmitSwarm(node, parentForward, st, isRoot);
+        }
+
+        /// <summary>
+        /// Decides which of the two implementations runs and publishes the decision onto
+        /// <see cref="ShaperProgram"/> (never authored — <see cref="ShaperSwarmImplementation"/>'s class doc),
+        /// then delegates. A Composite node whose source offers <see cref="IShaperSwarmNativeSource"/> AND
+        /// currently reports it supported gets Native; every other node kind, and every Composite source that
+        /// does not offer it, gets the Generic wrapper — a fully legitimate, not a degraded, outcome.
+        ///
+        /// A Composite source that also declares itself a stateful simulation
+        /// (<see cref="IShaperSimulationSource.IsStatefulSimulation"/>) and does NOT offer Native has its count
+        /// clamped to <see cref="ShaperSwarmDef.SimulationHardCap"/> — the explicit hard-cap-with-a-visible-
+        /// warning fallback the task body names, protecting against the measured non-linear cost of running an
+        /// independent full simulation per instance (SWARM-SPEC.md §5).
+        /// </summary>
+        static Emitted EmitSwarm(ShaperNode node, in ShaperMatrix parentForward, State st, bool isRoot)
+        {
+            var swarm = node.swarm;
+            int count = Mathf.Clamp(swarm.count, 1, 64);
+
+            var source = node.kind == ShaperNodeKind.Composite ? node.composite?.source : null;
+            bool isSim = source is IShaperSimulationSource simSrc && simSrc.IsStatefulSimulation;
+            bool hasNative = source is IShaperSwarmNativeSource nativeSrc && nativeSrc.SupportsNativeSwarm;
+
+            bool capped = false;
+            string capReason = null;
+            if (isSim && !hasNative && count > ShaperSwarmDef.SimulationHardCap)
+            {
+                capped = true;
+                capReason = "stateful simulation source with no native batched swarm path -- N independent " +
+                            "full simulations cost roughly N times one (SWARM-SPEC.md Part 5), so count is " +
+                            "held at " + ShaperSwarmDef.SimulationHardCap + " instead of the authored " + count + ".";
+                count = ShaperSwarmDef.SimulationHardCap;
+            }
+
+            ShaperSwarmImplementation impl = hasNative ? ShaperSwarmImplementation.Native : ShaperSwarmImplementation.Generic;
+
+            st.program.swarmNodeCount++;
+            if (!st.program.hasSwarm)
+            {
+                st.program.hasSwarm = true;
+                st.program.swarmImplementation = impl;
+                st.program.swarmImplementationNode = node.name;
+                st.program.swarmCount = count;
+                st.program.swarmCapped = capped;
+                st.program.swarmCapReason = capReason;
+            }
+
+            Emitted e = hasNative
+                ? EmitNativeSwarm(node, parentForward, count, st)
+                : EmitGenericSwarm(node, parentForward, count, st, isRoot);
+
+            // A swarm has no single coherent local frame (N differently-jittered instances) — the node's own
+            // BASE (un-jittered) transform stands in for the local-frame fields a parent bag's box fold or a
+            // fill-anchor subtree compile may read off this node, exactly as EmitNode publishes them for an
+            // ordinary node. Documented approximation, not a bug: SWARM-SPEC.md §4.
+            ShaperMatrix baseLocalToParent = (node.transform ?? new ShaperTransformBlock()).ToMatrix();
+            ShaperMatrix baseForward = ShaperMatrix.Mul(parentForward, baseLocalToParent);
+            bool baseInvertible = baseForward.TryInvert(out ShaperMatrix baseInverse);
+            baseForward.SingularValues(out float baseSigmaMin, out _);
+            e.localToParent = baseLocalToParent;
+            e.inverse = baseInvertible ? baseInverse : ShaperMatrix.Identity;
+            e.invertible = baseInvertible;
+            e.sigmaMinRaw = baseSigmaMin;
+            return e;
+        }
+
+        /// <summary>
+        /// The generic wrapper (default/fallback): compiles <paramref name="count"/> full copies of
+        /// <paramref name="node"/>'s own content -- kind dispatch, sweep, shell, border, everything a plain
+        /// <see cref="EmitNode"/> call would produce -- each with its own jittered transform/phase/seed, and
+        /// unions them exactly the way <see cref="EmitBag"/> unions sibling members. Works on EVERY node kind
+        /// with ZERO extra code from the generator, because the jitter is applied to the node's own
+        /// <see cref="ShaperNode.transform"/> and to the compiler's own <see cref="State.phase01"/>/<c>seed</c>
+        /// -- both already generic plumbing every node kind reads.
+        ///
+        /// Implementation note: mutates <paramref name="node"/>'s transform and its own <c>swarm.enabled</c> for
+        /// the duration of each instance's <see cref="EmitNode"/> call and restores them in a <c>finally</c> --
+        /// safe under Shaper's ownership model (a node is not shared by reference across two parents in one
+        /// tree) and the compiler's single-threaded, synchronous, non-reentrant-per-node call shape. The
+        /// <c>swarm.enabled</c> guard is what stops instance i's own <c>EmitNode</c> call from re-entering
+        /// <see cref="EmitSwarm"/> on the SAME node.
+        /// </summary>
+        static Emitted EmitGenericSwarm(ShaperNode node, in ShaperMatrix parentForward, int count, State st, bool isRoot)
+        {
+            var swarm = node.swarm;
+            var transform = node.transform ?? (node.transform = new ShaperTransformBlock());
+
+            EmitEmpty(st);
+            float bound = 1f;
+            Box box = Box.Invalid;
+            Box localBox = Box.Invalid;
+            bool anyAxis = false;
+            ShaperSweepAxis axis = ShaperSweepAxis.Radial;
+            bool axisAgrees = true;
+            float spread = 1f;
+
+            Vector2 originalTranslate = transform.translate;
+            float originalRotation = transform.rotation;
+            Vector2 originalScale = transform.scale;
+            bool originalSwarmEnabled = swarm.enabled;
+            float originalPhase = st.phase01;
+            uint originalSeed = st.seed;
+
+            var phasesUsed = new float[count];
+
+            swarm.enabled = false;
+            try
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    uint h0 = Hash(swarm.seed, (uint)i * 2654435761u + 1u);
+                    uint h1 = Hash(h0, 0x9E3779B1u);
+                    uint h2 = Hash(h1, 0x85EBCA77u);
+                    uint h3 = Hash(h2, 0xC2B2AE3Du);
+                    uint h4 = Hash(h3, 0x27D4EB2Fu);
+
+                    float jx = (Unit(h0) * 2f - 1f) * swarm.positionJitter.x;
+                    float jy = (Unit(h1) * 2f - 1f) * swarm.positionJitter.y;
+                    float jrot = (Unit(h2) * 2f - 1f) * swarm.rotationJitterDegrees;
+                    float jscale = 1f + (Unit(h3) * 2f - 1f) * swarm.scaleJitter;
+                    float jphaseRaw = Unit(h4);
+
+                    transform.translate = originalTranslate + new Vector2(jx, jy);
+                    transform.rotation = originalRotation + jrot;
+                    transform.scale = originalScale * jscale;
+
+                    // THE shared-clock fix: at lifetimeStagger=1 each instance's phase is drawn independently
+                    // across the whole cycle; at 0 every instance shares the node's own phase, the old broken
+                    // behaviour, kept selectable rather than deleted (ShaperSwarmDef.lifetimeStagger doc).
+                    st.phase01 = Mathf.Clamp01(Mathf.Lerp(originalPhase, jphaseRaw, Mathf.Clamp01(swarm.lifetimeStagger)));
+                    st.seed = Hash(originalSeed, h0);
+                    phasesUsed[i] = st.phase01;
+
+                    Emitted ce = EmitNode(node, parentForward, st, isRoot);
+
+                    if (!anyAxis) { axis = ce.sweepAxis; anyAxis = true; }
+                    else if (axis != ce.sweepAxis) axisAgrees = false;
+
+                    var merge = swarm.merge ?? new ShaperBlend();
+                    float width = Mathf.Max(0f, merge.width);
+                    float strength = Mathf.Clamp01(merge.carveStrength);
+
+                    Box combined = box.Union(ce.box);
+                    Box childLocal = ce.localBox.Map(ce.localToParent);
+                    Box combinedLocal = localBox.Union(childLocal);
+
+                    Box reachBox = box.Union(ce.box);
+                    float reach = reachBox.valid ? 0.55f * Mathf.Min(reachBox.HalfW * 2f, reachBox.HalfH * 2f) : 0f;
+
+                    st.ops.Add(new ShaperOp
+                    {
+                        kind = ShaperOpKind.Combine,
+                        mode = ShaperCombineMode.Add,
+                        p0 = width,
+                        p1 = ShaperOps.BlendExponent(merge.sharpness),
+                        p2 = strength,
+                        p3 = Mathf.Max(0f, reach),
+                        bound = ShaperBound.Combine(ShaperCombineMode.Add, bound, ce.bound, width, strength),
+                        distanceScale = 1f,
+                        boxCx = combined.valid ? combined.CentreX : 0f,
+                        boxCy = combined.valid ? combined.CentreY : 0f,
+                        boxHalfW = combined.valid ? combined.HalfW : 0f,
+                        boxHalfH = combined.valid ? combined.HalfH : 0f,
+                    });
+                    st.Pop();
+
+                    bound = ShaperBound.Combine(ShaperCombineMode.Add, bound, ce.bound, width, strength);
+                    box = combined;
+                    localBox = combinedLocal;
+                    if (ce.Spread > spread) spread = ce.Spread;
+                }
+            }
+            finally
+            {
+                transform.translate = originalTranslate;
+                transform.rotation = originalRotation;
+                transform.scale = originalScale;
+                swarm.enabled = originalSwarmEnabled;
+                st.phase01 = originalPhase;
+                st.seed = originalSeed;
+            }
+
+            if (st.program.swarmInstancePhases == null) st.program.swarmInstancePhases = phasesUsed;
+
+            return new Emitted
+            {
+                bound = bound,
+                box = box,
+                sweepAxis = (anyAxis && axisAgrees) ? axis : ShaperSweepAxis.Radial,
+                localBox = localBox,
+                spreadRaw = spread,
+            };
+        }
+
+        /// <summary>
+        /// The native path (T-0113): valid only for a <see cref="ShaperNodeKind.Composite"/> node whose source
+        /// implements <see cref="IShaperSwarmNativeSource"/> and currently supports it. All <paramref
+        /// name="count"/> instances are rendered by ONE <see cref="IShaperSwarmNativeSource.RenderSwarm"/> call
+        /// into ONE raster, baked into ONE <see cref="ShaperCompiledComposite"/> and sampled by exactly ONE
+        /// <see cref="ShaperOpKind.CompositeSample"/> op -- O(1) ops regardless of <paramref name="count"/>,
+        /// against the generic path's O(count). Mirrors <see cref="EmitComposite"/>'s tail (box/localBox
+        /// computation) exactly, duplicated rather than shared to keep T-0112's working path untouched.
+        /// </summary>
+        static Emitted EmitNativeSwarm(ShaperNode node, in ShaperMatrix parentForward, int count, State st)
+        {
+            var swarm = node.swarm;
+            var def = node.composite ?? new ShaperCompositeDef();
+            var native = (IShaperSwarmNativeSource)def.source;
+
+            float hx = Mathf.Max(1e-4f, def.halfExtentX);
+            float hy = Mathf.Max(1e-4f, def.halfExtentY);
+            int bw = Mathf.Max(1, def.bakeWidth);
+            int bh = Mathf.Max(1, def.bakeHeight);
+
+            var offsets = new Vector2[count];
+            var seeds = new uint[count];
+            var phases = new float[count];
+            for (int i = 0; i < count; i++)
+            {
+                uint h0 = Hash(swarm.seed, (uint)i * 2654435761u + 1u);
+                uint h1 = Hash(h0, 0x9E3779B1u);
+                uint h4 = Hash(Hash(Hash(h1, 0x85EBCA77u), 0xC2B2AE3Du), 0x27D4EB2Fu);
+                offsets[i] = new Vector2((Unit(h0) * 2f - 1f) * swarm.positionJitter.x,
+                                          (Unit(h1) * 2f - 1f) * swarm.positionJitter.y);
+                seeds[i] = Hash(st.seed, h0);
+                phases[i] = Mathf.Clamp01(Mathf.Lerp(st.phase01, Unit(h4), Mathf.Clamp01(swarm.lifetimeStagger)));
+            }
+            if (st.program.swarmInstancePhases == null) st.program.swarmInstancePhases = phases;
+
+            ShaperMatrix localToParent = (node.transform ?? new ShaperTransformBlock()).ToMatrix();
+            ShaperMatrix forward = ShaperMatrix.Mul(parentForward, localToParent);
+            bool invertible = forward.TryInvert(out ShaperMatrix inverse);
+            forward.SingularValues(out float sigmaMin, out _);
+            if (!invertible || sigmaMin <= 1e-9f)
+            {
+                st.program.singularTransformCount++;
+                if (!st.program.hasSingularTransform)
+                {
+                    st.program.hasSingularTransform = true;
+                    st.program.singularNode = node.name;
+                }
+                EmitEmpty(st);
+                return new Emitted { bound = 1f, box = Box.Invalid, sweepAxis = ShaperSweepAxis.Radial,
+                                      localBox = Box.Invalid, spreadRaw = 1f, sigmaMinRaw = 1f };
+            }
+
+            var baked = new ShaperCompiledComposite { width = bw, height = bh, coverage = new float[bw * bh] };
+            var pixels = new Color32[bw * bh];
+            native.RenderSwarm(bw, bh, st.phase01, seeds, offsets, phases, swarm.interact, pixels);
+            baked.pixels = pixels;
+            for (int i = 0; i < pixels.Length; i++) baked.coverage[i] = pixels[i].a / 255f;
+
+            int index = st.composites.Count;
+            st.composites.Add(baked);
+
+            float halfBand = 0.5f * Mathf.Max((2f * hx) / bw, (2f * hy) / bh);
+            var op = new ShaperOp
+            {
+                kind = ShaperOpKind.CompositeSample,
+                count = index,
+                p0 = hx, p1 = hy, p2 = halfBand,
+                m00 = inverse.m00, m01 = inverse.m01, m02 = inverse.m02,
+                m10 = inverse.m10, m11 = inverse.m11, m12 = inverse.m12,
+                distanceScale = sigmaMin,
+                bound = 1f,
+            };
+
+            float chw = Mathf.Abs(forward.m00) * hx + Mathf.Abs(forward.m01) * hy;
+            float chh = Mathf.Abs(forward.m10) * hx + Mathf.Abs(forward.m11) * hy;
+            Box box = Box.FromCentre(forward.m02, forward.m12, chw, chh);
+            op.boxCx = box.CentreX; op.boxCy = box.CentreY; op.boxHalfW = box.HalfW; op.boxHalfH = box.HalfH;
+
+            st.ops.Add(op);
+            st.Push();
+            return new Emitted
+            {
+                bound = 1f,
+                box = box,
+                sweepAxis = ShaperSweepAxis.Radial,
+                localBox = Box.FromCentre(0f, 0f, hx, hy),
+            };
         }
 
         static Emitted EmitLeaf(ShaperNode node, in ShaperMatrix forward, in ShaperMatrix inverse,
@@ -457,7 +766,7 @@ namespace Laubrary.Shaper
                     }
                 }
 
-                Emitted ce = EmitNode(child, forward, st, false);
+                Emitted ce = EmitNodeMaybeSwarm(child, forward, st, false);
 
                 if (!anyAxis) { axis = ce.sweepAxis; anyAxis = true; }
                 else if (axis != ce.sweepAxis) axisAgrees = false;
