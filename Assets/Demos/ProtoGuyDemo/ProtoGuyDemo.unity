@@ -119,6 +119,100 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &122828035
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 122828037}
+  - component: {fileID: 122828036}
+  m_Layer: 0
+  m_Name: Disc Spawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &122828036
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 122828035}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e144be52d83200489cb0c6aa6b75cac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.FlyingDiscSpawner
+  discDef: {fileID: 11400000, guid: df6d774acf094b948b983102c9ef9a34, type: 2}
+  choreography: {fileID: 11400000, guid: 64533a176305b9e4ea2a1040257636c5, type: 2}
+  discCount: 5
+  worldSize: {x: 10, y: 2.5}
+  respawnDelay: 1.5
+  overrideHealth: 30
+--- !u!4 &122828037
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 122828035}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.2, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1395470066
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1395470068}
+  - component: {fileID: 1395470067}
+  m_Layer: 0
+  m_Name: Demo Controls
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1395470067
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1395470066}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a4f44b7976be6e74f9b4044baea397ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.DemoWeaponSwitch
+--- !u!4 &1395470068
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1395470066}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1432643068
 GameObject:
   m_ObjectHideFlags: 0
@@ -149,10 +243,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Demos::Laubrary.Demos.ProtoGuyDemo.ProtoGuySpawner
   zoeDef: {fileID: 11400000, guid: 29e5104593a1376479445b0902ba1078, type: 2}
-  upperSortingOrder: 1
-  controls: {fileID: -944628639613478452, guid: f07f564b8fae19e4480da06f0437a047, type: 3}
-  moveSpeed: 3
-  upperYOffset: 1.4375
 --- !u!4 &1432643070
 Transform:
   m_ObjectHideFlags: 0
@@ -257,3 +347,5 @@ SceneRoots:
   m_Roots:
   - {fileID: 1627808700}
   - {fileID: 1432643070}
+  - {fileID: 122828037}
+  - {fileID: 1395470068}

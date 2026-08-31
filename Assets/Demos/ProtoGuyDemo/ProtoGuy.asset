@@ -46,12 +46,49 @@ MonoBehaviour:
     stunSeconds: 0
     bodyFx: {fileID: 0}
     fx: []
-  events: []
+  events:
+  - id: Fire
+    reaction:
+      clip: 
+      durationMode: 1
+      loops: 1
+      seconds: 0.15
+      stunSeconds: 0
+      bodyFx: {fileID: 0}
+      fx:
+      - enabled: 1
+        trigger: 0
+        frame: 0
+        placement: 3
+        metaLayerId: Muzzle
+        direction: 1
+        scalar: 0
+        follow: 0
+        fx:
+          rid: 1702917591583948899
+        overrides: []
+      - enabled: 1
+        trigger: 0
+        frame: 0
+        placement: 3
+        metaLayerId: Muzzle
+        direction: 1
+        scalar: 0
+        follow: 0
+        fx:
+          rid: 1702917591583948904
+        overrides: []
   brain:
     rid: -2
+  playerController:
+    rid: 1702917589271840520
   loadout: []
   weapons:
   - weapon: {fileID: 11400000, guid: 30aaf3dc11627dd4f8b668e2944b0f3d, type: 2}
+    attachToPartName: Upper
+    muzzleLayerId: Muzzle
+    muzzleEventName: 
+  - weapon: {fileID: 11400000, guid: 131a063c524930545b7322c63bb64232, type: 2}
     attachToPartName: Upper
     muzzleLayerId: Muzzle
     muzzleEventName: 
@@ -130,3 +167,21 @@ MonoBehaviour:
         version: {fileID: 11400000, guid: 1746a32381cbb804696d17b7cba0fda8, type: 2}
         idleClip: UpperAimRotation
         height: 0
+    - rid: 1702917589271840520
+      type: {class: TopDownPlayerControllerSpec, ns: Laubrary.ZoetropeZoeCharacter, asm: com.Lautaro-Arino.Laubrary.Zoetrope.ZoeCharacter}
+      data:
+        controls: {fileID: -944628639613478452, guid: f07f564b8fae19e4480da06f0437a047, type: 3}
+        moveSpeed: 3
+    - rid: 1702917591583948899
+      type: {class: PyreChunksFx, ns: Laubrary.ZoetropePyre, asm: com.Lautaro-Arino.Laubrary.Zoetrope.Pyre}
+      data:
+        blast: {fileID: 11400000, guid: b3e94ba87271dd14db73846e7f970ed7, type: 2}
+        blastFps: 18
+        chunks: {fileID: 0}
+        sortingOrder: 10
+    - rid: 1702917591583948904
+      type: {class: BodySpriteFxEffect, ns: Laubrary.Zoetrope, asm: com.Lautaro-Arino.Laubrary.Zoetrope}
+      data:
+        stack: {fileID: 11400000, guid: 1a284d1eac9d8c749ba89ebbb07fb642, type: 2}
+        playback: 0
+        fxSeconds: 0
