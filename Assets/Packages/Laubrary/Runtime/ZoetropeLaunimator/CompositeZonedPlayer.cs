@@ -39,6 +39,15 @@ namespace Laubrary.ZoetropeLaunimator
 
         readonly Dictionary<string, PartEntry> _byName = new Dictionary<string, PartEntry>(StringComparer.OrdinalIgnoreCase);
         readonly List<Connection> _connections = new List<Connection>();
+        // The same parts again, in AUTHORED order. The dictionary above is for lookup by name; this is for
+        // anything that has to walk every part deterministically — CompositeAnimatedView's fan-out, whose
+        // "which part answered first" fallbacks would otherwise depend on dictionary iteration order, i.e. on
+        // nothing an author can see or control.
+        readonly List<GameObject> _ordered = new List<GameObject>();
+
+        /// <summary>Every part GameObject, in the order they are authored on the Zoe. Read by
+        /// <see cref="CompositeAnimatedView"/> to fan a whole-body claim out across the parts.</summary>
+        public IReadOnlyList<GameObject> PartObjects => _ordered;
 
         /// <summary>
         /// Build one child GameObject per part and wire non-root attachments. Call once, right after
@@ -66,6 +75,16 @@ namespace Laubrary.ZoetropeLaunimator
                 var partRenderer = go.GetComponent<SpriteRenderer>();
                 if (partRenderer != null) partRenderer.sortingOrder = part.sortingOrder;
                 _byName[part.name] = new PartEntry { go = go, def = part };
+                _ordered.Add(go);
+
+                // One arbiter per PART that has something to play, unconditionally — the same rule ZoeSpawner
+                // applies to the character root, and for the same reason: a part with no arbiter has every
+                // claimant writing to its player directly and overwriting each other. It must exist even for a
+                // part with no authored motionPose (BindMotionPose below adds one only in that case), because a
+                // whole-body reaction fans its claim out across ALL parts and a part with no arbiter would be
+                // the one place that channel is unpoliced.
+                if (go.GetComponent<IAnimatedView>() != null && go.GetComponent<AnimationArbiter>() == null)
+                    go.AddComponent<AnimationArbiter>();
 
                 // Each part's own directional animator, if authored — see ZoeBodyPart.motionPose. Reads
                 // MotionState off the root via GetComponentInParent (MotionPoseAnimator itself does that

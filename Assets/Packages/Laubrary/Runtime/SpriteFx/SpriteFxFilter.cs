@@ -82,6 +82,12 @@ namespace Laubrary.SpriteFx
                  "flicker over a slow lauminary). Ignored when a Stack asset is assigned.")]
         [Min(0f)] public float targetFps = 0f;
 
+        /// Optional: fed by a host OUTSIDE SpriteFx (e.g. Zoetrope's ReactionFxPlayer) that knows how to
+        /// resolve an <see cref="IExternalPosition2D"/> modifier's key into a live position — a MetaLayer,
+        /// say. Not serialized: this filter's stack may be a SHARED asset played by many characters at once,
+        /// so the resolver (and therefore whose muzzle a light follows) is set fresh per character, not authored.
+        [System.NonSerialized] public IExternalPositionResolver externalPositionResolver;
+
         // ── live state ─────────────────────────────────────────────────────────────────────────────────────────
         SpriteRenderer _sr;
         Sprite _sourceSprite;     // the live UN-filtered source (a Lauminary frame, or the static sprite) we ride on top of
@@ -269,6 +275,8 @@ namespace Laubrary.SpriteFx
 
             if (!ReadSource(src, out Color32[] pixels, out int W, out int H)) return;
 
+            FeedExternalPositions();
+
             int pad = EffectiveReach;
             if (pad <= 0)
             {
@@ -441,6 +449,26 @@ namespace Laubrary.SpriteFx
             if (_overflowTex != null) { SafeDestroy(_overflowTex); _overflowTex = null; }
             if (_overflowGo != null) { SafeDestroy(_overflowGo); _overflowGo = null; _overflowSr = null; }
             _overflowW = _overflowH = -1;
+        }
+
+        // Feed each IExternalPosition2D modifier in the CURRENT stack its live position for THIS tick, fresh —
+        // never once-and-cached, because the stack may be a SHARED asset (EffectiveModifiers over `stack`) also
+        // playing on other characters right now. Safe despite the sharing: this runs synchronously right before
+        // RunStack below consumes it (Prepare reads it, Apply reads what Prepare wrote), on the same thread, in
+        // the same call — nothing else touches these modifiers between here and RunStack returning.
+        void FeedExternalPositions()
+        {
+            var mods = EffectiveModifiers;
+            if (mods == null) return;
+            for (int i = 0; i < mods.Count; i++)
+            {
+                if (!(mods[i] is IExternalPosition2D ext) || !ext.WantsExternalPosition) continue;
+                if (externalPositionResolver != null &&
+                    externalPositionResolver.TryResolve(ext.ExternalPositionKey, out var pos))
+                    ext.SetExternalPosition(pos);
+                else
+                    ext.ClearExternalPosition();
+            }
         }
 
         // ── effective source (a Stack asset, when assigned, overrides every inline field) ─────────────────────────

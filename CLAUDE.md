@@ -104,6 +104,29 @@ Until then, package tools referencing ZUI only work in this dev host.
 
 If ONE effect needs its own drawing on a preview (a light's radius, a mask's boundary, a warp's pivot), the effect implements a capability interface and the host discovers it — **never** hardcode a per-effect toggle into a preview window's chrome, where it then sits permanently for every stack that doesn't contain that effect (exactly what "Light radius" did to `SpriteFxStackWindow`). For SpriteFx that interface is `ISpriteFxPreviewOverlay` in `Runtime/SpriteFx/SpriteFxPreviewOverlay.cs`; the host half (collect → toggle strip → draw) is `Editor/SpriteFx/SpriteFxPreviewOverlays.cs` and needs no edit at all. Copy `RelightModifier` (`Runtime/SpriteFx/SpriteFxRelight.cs`) as the worked example. Another tool (Pyre layers, Chunks, Lathe…) gets its OWN small interface in its own Runtime asmdef, copying that shape — not a reference to the SpriteFx one. Full recipe: the laubrary skill's `references/authoring.md` §15.
 
+## Zoe palette — a character shows things only through its declared list
+
+A Zoe shows a visual **only** by being asked, by name, for a state it declares. Game code decides *which* named state
+plays and *when*; Laubrary alone decides what mechanically happens to the character (health, death, disposal, movement,
+aiming, hit detection). Those two halves never swap.
+
+**The rule, concretely.** If the look you need isn't on the character, **add a row to its declared list** and raise it by
+name. Do **NOT** reach around the palette by spawning a Pyre/Chunks/SpriteFx effect straight from game code onto a Zoe,
+by calling a view's `PlayClip` directly, or by bolting a bespoke "play this on hit" component onto the character. Those
+all work, and every one of them makes the character's own editor window lie about what it can do — which is precisely the
+bypass this model exists to prevent. This applies to **you, the assistant**, at least as much as to a human: the failure
+mode is quietly re-solving in native game code what Zoe is for.
+
+**Nothing plays on its own.** There is deliberately no built-in default-picker, not even when a character declares exactly
+one hurt look or one death look. If gameplay code did not explicitly answer "which look?", nothing plays. An "if there's
+only one, just use it" convenience must be written as ordinary game code that explicitly answers, never as a Laubrary
+behaviour that fires by itself. (Owner's decision, T-0089 — a hidden exception here would undo the whole split.)
+
+**Movement, aiming and hit detection are the exception, and stay Laubrary's.** For those, game code does not choose
+behaviour at all — you pick from a shelf of Laubrary modules, and when a project needs a kind that doesn't exist yet the
+answer is **a new module added to Laubrary**, not bespoke logic in one game. Laubrary is not a no-code game editor: it
+removes from game code only what is genuinely reusable, and native code still drives whatever is specific to that game.
+
 ## Naming — the Zoetrope/Launimator/Zoe triangle
 
 Three related but distinct things share this naming, easy to confuse:

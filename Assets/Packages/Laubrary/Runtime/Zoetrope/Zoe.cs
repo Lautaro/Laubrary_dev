@@ -69,13 +69,21 @@ namespace Laubrary.Zoetrope
                  "carries the same clip/body-FX/effect list the fixed reactions do.")]
         public List<NamedReaction> events = new List<NamedReaction>();
 
-        /// The reaction registered under `id`, or null. Case-sensitive and exact: a near-miss must fail
-        /// visibly rather than quietly play the wrong animation.
+        /// The reaction registered under `id`, or null. Case-INSENSITIVE, matching the one comparison rule
+        /// every other authored name in this module already uses (CueRelay's frame events and meta-layer ids,
+        /// the Zoe window's own clip/part/meta-layer lookups, FxEntry.Resolve's override names). This used to
+        /// be ordinal-exact, and that was the odd one out: "fire" typed in game code against a state declared
+        /// as "Fire" resolved as an override name and failed as a state name, on the same request, which is
+        /// precisely the "works here, mysteriously doesn't there" trap. Widening only ever makes a previously
+        /// failing near-miss resolve — no id already matching stops matching — and a genuinely wrong name
+        /// still misses, now loudly (see ReactionFxPlayer.Raise).
         public ReactionFx EventNamed(string id)
         {
             if (string.IsNullOrEmpty(id) || events == null) return null;
             for (int i = 0; i < events.Count; i++)
-                if (events[i] != null && events[i].id == id) return events[i].reaction;
+                if (events[i] != null &&
+                    string.Equals(events[i].id, id, System.StringComparison.OrdinalIgnoreCase))
+                    return events[i].reaction;
             return null;
         }
 
@@ -97,6 +105,12 @@ namespace Laubrary.Zoetrope
         [Tooltip("Optional decision-making attached at spawn. The game supplies the agent body " +
                  "(movement/perception). Pluggable — a Daemon brain via the Zoetrope.Daemon bridge.")]
         [SerializeReference] public IBrainSpec brain;
+
+        [Tooltip("Optional real input rig attached at spawn — a person drives this character instead of (or " +
+                 "as well as) a brain. Pluggable — the reusable gamepad/keyboard stack via the " +
+                 "Zoetrope.ZoeCharacter bridge. Its presence is what tells any spawner, Mirage included, that " +
+                 "this Zoe has a player controller configured.")]
+        [SerializeReference] public IPlayerControllerSpec playerController;
 
         [Header("Loadout")]
         [Tooltip("Pluggable weapons + abilities the character can activate; triggered by the brain (enemies) " +

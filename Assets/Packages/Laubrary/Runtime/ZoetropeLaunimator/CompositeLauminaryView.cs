@@ -131,7 +131,18 @@ namespace Laubrary.ZoetropeLaunimator
         public Vector2 Build(GameObject host)
         {
             var player = host.AddComponent<CompositeZonedPlayer>();
-            return player.Build(parts);
+            var size = player.Build(parts);
+
+            // The IAnimatedView for the WHOLE body. CompositeZonedPlayer is an IPartLookup, not an
+            // IAnimatedView — so before this line a composite Zoe's root had no IAnimatedView at all, and
+            // everything that discovers one by GetComponent silently got null: reactions could never play a
+            // clip (hurt, death or any named event), no OnFrame effect on any reaction could fire, the root
+            // AnimationArbiter had nothing to play through so it arbitrated nothing, and a MetaPoint-placed
+            // effect had no view to sample the painted layer from. Added AFTER the parts are built, since it
+            // binds to them. See CompositeAnimatedView for how a whole-body clip is fanned across the parts.
+            host.AddComponent<CompositeAnimatedView>().Bind(player);
+
+            return size;
         }
     }
 }

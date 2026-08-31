@@ -31,8 +31,35 @@ namespace Laubrary.Zoetrope
         TargetPosition,
         /// The character's transform.position (the registration anchor — "the crosshair in the Laumination Builder").
         TargetOrigin,
-        /// A named Point-mode MetaLayer's current pixel (see <see cref="FxEntry.metaLayerId"/>).
+        /// A named MetaLayer's current point (Point or Vector mode — see <see cref="FxEntry.metaLayerId"/>),
+        /// falling back to TargetPosition when nothing is authored under that id.
         MetaPoint,
+    }
+
+    /// <summary>One optional named ALTERNATIVE to an <see cref="FxEntry"/>'s default effect: "when the request
+    /// carries this name, play THIS instead of the default". The worked case is a gun whose muzzle look has an
+    /// ordinary flash by default plus a "FlamethrowerPowerup" slot that swaps in a flame effect while that
+    /// powerup is up.
+    ///
+    /// It exists because the only alternative was declaring a whole SECOND state row just to change ONE effect —
+    /// which also duplicates that row's clip, duration, stun and body flash, and those duplicates then drift
+    /// apart silently. A slot swaps the effect and leaves everything else on the one card.
+    ///
+    /// Deliberately NOT the same mechanism as passing a VALUE through to an effect ("the same flash, but
+    /// bigger"): a value tunes an effect that already exists, while a slot picks a DIFFERENT effect asset
+    /// entirely, which no value could express. Both are wanted; they solve different problems.</summary>
+    [System.Serializable]
+    public class FxOverride
+    {
+        [Tooltip("The name a request carries to select this effect instead of the entry's default. Typed ONCE, " +
+                 "here, where the slot is DECLARED — callers pick it rather than retyping it. An empty name can " +
+                 "never be selected, because an empty override name means 'no override' and yields the default.")]
+        public string name = "";
+
+        [Tooltip("The effect played INSTEAD of the entry's default when this slot is selected. Leave it empty " +
+                 "and the slot is inert and the default plays — a half-authored slot must not silently come to " +
+                 "mean 'play nothing'.")]
+        [SerializeReference] public IEffect fx;
     }
 
     /// <summary>One "spawn this effect, here, when this happens" binding inside a <see cref="ReactionFx"/>'s FX
@@ -56,7 +83,9 @@ namespace Laubrary.Zoetrope
         // fixed placement enum into the position picker; its four values are unchanged so existing data reads as
         // before (see EventContext.TryResolvePosition).
         public FxPlacementType placement = FxPlacementType.HitPosition;
-        [Tooltip("Point-mode MetaLayer id to sample, when placement == MetaPoint.")]
+        [Tooltip("MetaLayer id to sample (Point or Vector mode — whichever is actually authored), when " +
+                 "placement == MetaPoint. Falls back to the sprite's own visual centre if nothing is painted " +
+                 "under this id anywhere — the effect still spawns, just not tracking a live point yet.")]
         public string metaLayerId = "";
 
         [Tooltip("Which of the event's direction params aims this effect. HitDirection (default) reproduces the " +
@@ -75,7 +104,47 @@ namespace Laubrary.Zoetrope
         // Widened from ICombatFx to the general IEffect (SAME field name, so the ~SerializeReference concrete
         // refs — all PyreChunksFx — keep deserializing untouched). An ICombatFx IS an IEffect, so existing data
         // fits; a future slice adds other IEffect kinds. `entry.fx.IsEmpty` still works (IEffect declares it).
+        //
+        // This is the REQUIRED DEFAULT effect, and stays exactly as it was when `overrides` below was added —
+        // same name, same type, same ~SerializeReference — precisely so every already-authored asset keeps its
+        // existing `rid:` reference byte-for-byte. Overrides are additive alternatives; they never migrate,
+        // rewrite or displace what is stored here. Resolve() is how you read it.
         [SerializeReference] public IEffect fx;
+
+        [Tooltip("Optional named ALTERNATIVES to the effect above. A request to show this state may carry one " +
+                 "override name; if it matches a slot here, that slot's effect plays INSTEAD of the default. " +
+                 "No slots (the case for everything authored before this existed) = the default always plays.")]
+        public List<FxOverride> overrides = new List<FxOverride>();
+
+        /// <summary>The effect this entry actually plays for <paramref name="overrideName"/>: a matching,
+        /// non-empty <see cref="overrides"/> slot when there is one, otherwise <see cref="fx"/>, the required
+        /// default.
+        ///
+        /// An unmatched name deliberately yields the DEFAULT rather than nothing. An override is a SWAP, not a
+        /// gate: a typo'd, stale or unknown powerup name must still produce the ordinary muzzle flash, never a
+        /// gun that silently emits nothing — a missing effect is far harder to notice and diagnose than a wrong
+        /// one. A slot whose own effect is null or empty is skipped for exactly the same reason.</summary>
+        /// <param name="overrideName">The name the request carried. Null or empty = "no override", the path
+        /// every call site that predates this mechanism takes.</param>
+        public IEffect Resolve(string overrideName)
+        {
+            // Asking for nothing is the overwhelmingly common path, so it costs one check and never walks the
+            // list — this runs per effect, per spawn.
+            if (string.IsNullOrEmpty(overrideName) || overrides == null) return fx;
+            for (int i = 0; i < overrides.Count; i++)
+            {
+                var slot = overrides[i];
+                // Case-INSENSITIVE, matching the one comparison rule the rest of Zoetrope is being moved to
+                // (state-name lookup, the cue relay and the editor windows all agree on OrdinalIgnoreCase).
+                // Written this way from the start deliberately: an override name and a state name sit side by
+                // side on the same request, and two adjacent naming systems that disagree about case is exactly
+                // the "resolves here, mysteriously doesn't there" trap the case pass exists to close.
+                if (slot == null || !string.Equals(slot.name, overrideName, System.StringComparison.OrdinalIgnoreCase)) continue;
+                if (slot.fx == null || slot.fx.IsEmpty) continue;
+                return slot.fx;
+            }
+            return fx;
+        }
     }
 
     /// <summary>How long a reaction lasts — the event's OWN timebase, which everything riding it is measured
@@ -120,8 +189,17 @@ namespace Laubrary.Zoetrope
                  "repeats to fill it; with a static sprite, this is the only thing that gives the event a length.")]
         [Min(0f)] public float seconds = 0f;
 
-        [Tooltip("Seconds the character is stunned when this reaction fires — it stops moving and acting, so " +
-                 "a hit visibly INTERRUPTS rather than being something it walks through. 0 = no stun.")]
+        // The tooltip used to promise "it stops moving and acting". It does not: ZoeState.CanAct is consulted
+        // by the two ANIMATORS (Locomotion, MotionPoseAnimator) and by nothing else — the motion driver and
+        // the weapon driver never ask — so a stun today freezes the walk/idle cycle and leaves the character
+        // able to move and shoot. Widening what CanAct gates is a real behaviour change and its own task;
+        // until then the tooltip says what actually happens, because a dial that lies about its own effect is
+        // worse than one that admits a limit.
+        [Tooltip("Seconds the character is stunned when this reaction fires. Today a stun freezes its " +
+                 "walk/idle animation for that long, so a hit visibly INTERRUPTS rather than being something " +
+                 "it animates straight through — it does NOT yet stop it moving or firing. 0 = no stun. " +
+                 "Careful on a state that repeats: a 0.5s stun on a full-auto weapon's fire state leaves the " +
+                 "character permanently frozen.")]
         [Min(0f)] public float stunSeconds = 0f;
 
         [Tooltip("Optional SpriteFx Stack played on the character's OWN sprite the instant this reaction fires — a " +
@@ -181,7 +259,10 @@ namespace Laubrary.Zoetrope
         /// </summary>
         /// <param name="worldPos">Where to spawn the effects.</param>
         /// <param name="directionDeg">Aim for directional effects, in degrees; NaN = omni-directional.</param>
-        public void Play(Vector2 worldPos, float directionDeg = float.NaN)
+        /// <param name="overrideName">Optional <see cref="FxOverride"/> slot name, so this bare point-play can
+        /// honour a swap the same way a full <c>ReactionFxPlayer</c> run does. Omitted (the default) it behaves
+        /// exactly as before: every entry plays its required default effect.</param>
+        public void Play(Vector2 worldPos, float directionDeg = float.NaN, string overrideName = null)
         {
             if (fx == null) return;
             var ctx = EventContext.ForPoint(worldPos, directionDeg);
@@ -189,11 +270,15 @@ namespace Laubrary.Zoetrope
             {
                 var entry = fx[i];
                 if (entry == null || !entry.enabled || entry.trigger != FxTriggerType.Immediate) continue;
-                if (entry.fx == null || entry.fx.IsEmpty) continue;
+                // Resolve(null) returns entry.fx, so with no override name this is the identical effect the
+                // previous `entry.fx` read produced — resolved ONCE and reused, so the guard and the Apply can
+                // never disagree about which effect this entry is playing.
+                var effect = entry.Resolve(overrideName);
+                if (effect == null || effect.IsEmpty) continue;
                 // A bare point-play has no live view to resolve placement against, so every effect fires at the
                 // supplied point — the context's Position is worldPos, so an ICombatFx spawns exactly where the
                 // old entry.fx.Play(worldPos, directionDeg) did.
-                entry.fx.Apply(ctx);
+                effect.Apply(ctx);
             }
         }
     }

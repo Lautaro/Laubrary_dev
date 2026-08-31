@@ -24,6 +24,17 @@ namespace Laubrary.SpriteFx
         Point
     }
 
+    /// Where a Point-mode light's position comes from.
+    public enum SfxLightPositionSource
+    {
+        /// Hand-animate Light Position below (the original behaviour).
+        Painted,
+        /// A live position fed in each tick by an external resolver (see <see cref="IExternalPosition2D"/>) —
+        /// e.g. a Zoetrope MetaLayer painted on the character's own animation. Falls back to Painted's values
+        /// on any tick nothing is fed (an unrecognised key, a view with no such layer).
+        External
+    }
+
     /// Which signal from the sprite's own pixels becomes the invented surface.
     ///
     /// Deliberately its own small enum rather than reusing SpriteFxAuxMap's AuxMapGenerator: that one is
@@ -229,7 +240,7 @@ namespace Laubrary.SpriteFx
     /// reaches the rest of the character, and animate Add from 0 up and straight back down over the shot. Shading
     /// and Tint carry the form and the colour; Add is the flash itself.
     [Serializable]
-    public class RelightModifier : PostModifier, ISpriteFxPreviewOverlay
+    public class RelightModifier : PostModifier, ISpriteFxPreviewOverlay, IExternalPosition2D
     {
         // `heightSource` was briefly an AuxMapGenerator during this effect's first build and is now its own
         // three-value enum. No [FormerlySerializedAs] and no index-mapping shim: nothing has ever shipped with
@@ -282,19 +293,37 @@ namespace Laubrary.SpriteFx
                  "surface and maximises contrast; 90 is head-on and nearly flattens it. Animatable.")]
         public ZUIValue elevation = new ZUIValue(35f);
 
+        [ZUIShowIf("mode", "Point")]
+        [Tooltip("Painted: hand-animate Light Position below, same as ever. Meta Layer: skip painting a " +
+                 "position at all — the light rides wherever a named MetaLayer (Point or Vector mode, on the " +
+                 "SAME character's own animation) points, every frame, fed in by whatever plays this effect " +
+                 "(e.g. Zoetrope's Fire reaction). A muzzle flash that follows the actual painted muzzle, with " +
+                 "nothing to paint here.")]
+        public SfxLightPositionSource positionSource = SfxLightPositionSource.Painted;
+
+        [ZUIShowIf("positionSource", "External")]
+        [Tooltip("Which MetaLayer (Point or Vector mode) supplies this light's live position. Meaningless to " +
+                 "this effect beyond being a lookup key — whatever plays it (e.g. Zoetrope's ReactionFxPlayer) " +
+                 "is what actually reads the layer and converts it into this effect's own coordinate space. " +
+                 "Falls back to Light Position below on any tick nothing is fed (an unrecognised name, or a " +
+                 "view with no such layer).")]
+        public string metaLayerId = "Muzzle";
+
         [ZUIPair2D("lightY", "Light position")]
         [Range(-4f, 4f)]
         [ZUIShowIf("mode", "Point")]
         [Tooltip("Where the light sits over the picture. (0,0) is the centre of the frame and 1 unit is HALF the " +
                  "frame's shorter side, in both axes — so ±1 reaches the edge on the shorter axis, and the " +
                  "longer axis of a wide or tall frame runs further out than that. It may sit outside the frame " +
-                 "entirely. Animatable — drag it along a barrel or a swing.")]
+                 "entirely. Animatable — drag it along a barrel or a swing. Ignored while Light Position Source " +
+                 "above is set to Meta Layer.")]
         public ZUIValue lightX = new ZUIValue(0f);
 
         [Range(-4f, 4f)]
         [ZUIShowIf("mode", "Point")]
         [Tooltip("Where the light sits over the picture, vertically, in the same half-frame units as its " +
-                 "horizontal position. (0,0) is the centre of the frame. Animatable.")]
+                 "horizontal position. (0,0) is the centre of the frame. Animatable. Ignored while Light " +
+                 "Position Source above is set to Meta Layer.")]
         public ZUIValue lightY = new ZUIValue(0f);
 
         [Range(0.05f, 3f)]
@@ -361,18 +390,37 @@ namespace Laubrary.SpriteFx
         float reliefV, angleV, elevationV, lightXV, lightYV, lightHeightV, radiusV, falloffV;
         float ambientV, diffuseV, specularV, shineV, shadingV, tintV, addV;
 
+        // The live position an external resolver fed THIS tick (see IExternalPosition2D) — never cached past
+        // it: Prepare consumes it once below, and a resolver that stops feeding it simply stops overriding,
+        // rather than leaving the light stuck at the last position it was ever told.
+        Vector2? _externalPos;
+
         public override string DisplayName => "Fake light";
 
         // Only ever recolours where pixels already are — the light never paints into empty space.
         public override int OutwardReachPx() => 0;
+
+        // ── IExternalPosition2D ──────────────────────────────────────────────────────────────────────────────
+        public string ExternalPositionKey => metaLayerId;
+        public bool WantsExternalPosition => mode == SfxLightMode.Point && positionSource == SfxLightPositionSource.External;
+        public void SetExternalPosition(Vector2 localPosition) => _externalPos = localPosition;
+        public void ClearExternalPosition() => _externalPos = null;
 
         public override void Prepare(Func<ZUIValue, int, float> e)
         {
             reliefV = Mathf.Clamp(e(relief, 0), 0f, 16f);
             angleV = Mathf.Clamp(e(angle, 1), -180f, 180f);
             elevationV = Mathf.Clamp(e(elevation, 2), 0f, 90f);
-            lightXV = Mathf.Clamp(e(lightX, 3), -4f, 4f);
-            lightYV = Mathf.Clamp(e(lightY, 4), -4f, 4f);
+            if (positionSource == SfxLightPositionSource.External && _externalPos.HasValue)
+            {
+                lightXV = _externalPos.Value.x;
+                lightYV = _externalPos.Value.y;
+            }
+            else
+            {
+                lightXV = Mathf.Clamp(e(lightX, 3), -4f, 4f);
+                lightYV = Mathf.Clamp(e(lightY, 4), -4f, 4f);
+            }
             lightHeightV = Mathf.Clamp(e(lightHeight, 5), 0.05f, 3f);
             radiusV = Mathf.Clamp(e(radius, 6), 0.05f, 4f);
             falloffV = Mathf.Clamp(e(falloff, 7), 0.25f, 4f);

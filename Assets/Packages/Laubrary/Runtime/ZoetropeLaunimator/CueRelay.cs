@@ -93,9 +93,19 @@ namespace Laubrary.ZoetropeLaunimator
             if (b.fx != null && !b.fx.IsEmpty) b.fx.Play(worldPos);
             if (string.IsNullOrEmpty(b.raiseEvent)) return;
             var r = Reactions;
-            if (r == null || !r.Raise(b.raiseEvent))
-                Debug.LogWarning($"[Cue] Frame cue tried to raise '{b.raiseEvent}' but this character " +
-                                 $"declares no such event.", this);
+            // A cue's Raise name was PICKED, from this character's own declared list, so a miss here is
+            // always a bug (a rename, a cue copied onto a different character) and always worth saying.
+            // The complaint itself no longer lives here: Raise warns, once per name, and lists what the
+            // character DOES declare — a fact this method never had and the reader always needs. The old
+            // "[Cue]" prefix is gone with it, which is a fair trade for a message that names the character,
+            // points its log context at it, and reads identically wherever a raise misses.
+            //
+            // Not TryRaise: quiet is for a name offered on spec, and nothing about a cue is speculative.
+            if (r == null)
+                Debug.LogWarning($"[Cue] Frame cue tried to raise '{b.raiseEvent}' but this character has no " +
+                                 "ReactionFxPlayer, so it can show nothing by name.", this);
+            else
+                r.Raise(b.raiseEvent);
         }
 
         void TryFireLayer(CueBinding b, string layerId, Vector3 worldPos)

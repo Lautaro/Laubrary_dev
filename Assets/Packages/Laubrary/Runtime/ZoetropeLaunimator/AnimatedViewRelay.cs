@@ -60,8 +60,13 @@ namespace Laubrary.ZoetropeLaunimator
 
         public bool PlayClip(string clip, bool loop, Action onComplete = null)
         {
+            // Recorded only once the clip has actually STARTED. Assigning first meant a refused clip name (or
+            // no player at all) still swapped in a completion callback belonging to a clip that never played —
+            // which then fired at the end of whatever WAS playing, i.e. the wrong reaction announcing itself
+            // finished. On a refusal nothing changed, so whatever is still running keeps its own.
+            if (_player == null || !_player.Play(clip, loop)) return false;
             _pendingComplete = loop ? null : onComplete;
-            return _player != null && _player.Play(clip, loop);
+            return true;
         }
 
         /// IZonedView: jump to a named zone within whatever clip is currently loaded — the mechanism a
@@ -79,6 +84,15 @@ namespace Laubrary.ZoetropeLaunimator
         {
             if (_player == null) _player = GetComponent<ZonedAnimationPlayer>();
             return _player != null && _player.EnterAtFrame(frameIndex);
+        }
+
+        /// Forwards ZonedAnimationPlayer.HasClip — "would Play start this name?", asked without starting it.
+        /// Same lazy re-fetch guard as TryEnterZone above. See IAnimatedView.HasClip for why this cannot be
+        /// derived from GetClipSeconds.
+        public bool HasClip(string clip)
+        {
+            if (_player == null) _player = GetComponent<ZonedAnimationPlayer>();
+            return _player != null && _player.HasClip(clip);
         }
 
         /// Forwards ZonedAnimationPlayer.GetClipSeconds — frames / fps for a plain clip, 0 for an unknown name

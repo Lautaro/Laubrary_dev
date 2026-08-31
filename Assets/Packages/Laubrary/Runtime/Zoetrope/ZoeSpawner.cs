@@ -20,6 +20,14 @@ namespace Laubrary.Zoetrope
             Vector2 viewSize = Vector2.one;
             if (def != null && def.view != null) viewSize = def.view.Build(go);
 
+            // One arbiter per character, unconditionally — it is what decides which of locomotion, a hurt
+            // reaction and a death gets to drive the body, and a character without one has every claimant
+            // calling the view directly and overwriting each other (the "hurt animation never showed" bug).
+            // AFTER the view build (it resolves IAnimatedView off this same GameObject) and before anything
+            // that claims. Harmless no-op on a plain SpriteView Zoe: with no view to play through, every
+            // claim is simply refused and none is ever held.
+            if (go.GetComponent<AnimationArbiter>() == null) go.AddComponent<AnimationArbiter>();
+
             // Cues: only takes effect if the view provided an ICueSink (e.g. ZonedLauminaryView's CueRelay) —
             // a plain SpriteView Zoe has nothing to seed, and that's fine, not an error.
             if (def != null) go.GetComponent<ICueSink>()?.Seed(def.cues);
@@ -96,7 +104,11 @@ namespace Laubrary.Zoetrope
             var state = go.AddComponent<ZoeState>();
             if (def != null)
             {
-                state.hitStun = def.hit != null ? def.hit.stunSeconds : 0f;
+                // hitStun is deliberately NOT seeded from def.hit.stunSeconds any more. Copying it here froze
+                // the value at spawn — editing the hit reaction on a live character did nothing — and it only
+                // ever covered HIT, so the stun authored on a death or a named state was read by nothing at
+                // all. ReactionFxPlayer now applies stun from whichever reaction actually played, live, which
+                // covers all three and stays honest to the asset. Seeding it here as well would double it.
                 state.disposal = def.deathDisposal;
                 state.deathLinger = def.deathLinger;
             }
@@ -111,6 +123,13 @@ namespace Laubrary.Zoetrope
             // Switchable weapon slots — separate from the still-unused Loadout/IActivatable path.
             if (def != null && def.weapons != null && def.weapons.Count > 0)
                 EquipWeaponSlots(go, def.weapons, comb, projectileBlockers, def.defaultActiveWeapon);
+
+            // Pluggable player input: a bridge (Zoetrope.ZoeCharacter) attaches the real input-reading
+            // components. AFTER weapons, so the driver's fire half finds the WeaponSwitcher EquipWeaponSlots
+            // just put on the host. Every SpawnCharacter caller gets this "for free" — including Mirage, which
+            // is exactly what makes a Zoe's own playerController config work in a Mirage preview with no
+            // Mirage-side wiring at all.
+            if (def != null && def.playerController != null) def.playerController.Attach(go);
 
             return go;
         }
