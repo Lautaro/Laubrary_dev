@@ -127,6 +127,32 @@ namespace Laubrary.Zoetrope
                 if (e != null && e.role == role && !string.IsNullOrEmpty(e.id)) yield return e.id;
         }
 
+        /// Every declared state, as plain text — for someone writing gameplay code without Unity open in front
+        /// of them (ZOE_PALETTE_BUILD_PLAN.md task 7: "each character can print its own list of states on
+        /// demand"). Hit and Death are always legal (they're the built-in fallback, not name-raised), so they're
+        /// listed for context but marked as such; every custom event id is exactly what <see cref="Raise"/>-style
+        /// code should type, picker-sourced everywhere else. Deterministic order (declaration order) so pasting
+        /// this into a comment or a chat doesn't reshuffle between calls.
+        public string DescribeDeclaredStates()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append(string.IsNullOrEmpty(displayName) ? name : displayName).Append(" — declared states:\n");
+            sb.Append("  Hit    (built-in — plays automatically on a non-killing hit unless answered otherwise)\n");
+            sb.Append("  Death  (built-in — plays automatically on the killing blow unless answered otherwise)\n");
+            if (events == null || events.Count == 0)
+            {
+                sb.Append("  (no custom events declared)");
+                return sb.ToString();
+            }
+            foreach (var e in events)
+            {
+                if (e == null || string.IsNullOrEmpty(e.id)) continue;
+                string role = e.role == ReactionRole.None ? "" : $"  [{e.role} — legal answer]";
+                sb.Append("  ").Append(e.id).Append(role).Append('\n');
+            }
+            return sb.ToString().TrimEnd('\n');
+        }
+
         [Header("AI")]
         [Tooltip("Optional decision-making attached at spawn. The game supplies the agent body " +
                  "(movement/perception). Pluggable — a Daemon brain via the Zoetrope.Daemon bridge.")]

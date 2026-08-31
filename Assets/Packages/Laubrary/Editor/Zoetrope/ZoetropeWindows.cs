@@ -811,11 +811,13 @@ namespace Laubrary.Zoetrope.Editor
                 "same storage as always, just presented together (ZOE_PALETTE_TAKE.md's \"unified list\").");
             reactions.Add(RoleHeaderRow("Hit", "HURT",
                 "What happens on a non-killing hit. This is the built-in row Laubrary's own \"which hurt " +
-                "look?\" question falls back to — see Custom events below for role-chipped alternatives."));
+                "look?\" question falls back to — see Custom events below for role-chipped alternatives.",
+                () => ZoePalettePreview.PreviewHit(zoe)));
             BuildReactionFx(reactions, So.FindProperty("hit"), zoe);
             reactions.Add(RoleHeaderRow("Death", "DEATH",
                 "What happens on the killing blow. This is the built-in row Laubrary's own \"which death " +
-                "look?\" question falls back to — see Custom events below for role-chipped alternatives."));
+                "look?\" question falls back to — see Custom events below for role-chipped alternatives.",
+                () => ZoePalettePreview.PreviewDeath(zoe)));
             BuildReactionFx(reactions, So.FindProperty("death"), zoe);
             // Custom events live INSIDE Reactions, under Hit and Death, because they are the same kind of
             // thing — same ReactionFx, same editor — and only differ in being raised by a name you choose.
@@ -826,13 +828,19 @@ namespace Laubrary.Zoetrope.Editor
         /// A section-title row with a fixed, non-editable role chip beside it — the built-in Hit/Death rows'
         /// half of the role chip (ZOE_PALETTE_TAKE.md: "the two built-in hurt and death slots get the
         /// equivalent chip drawn for them... rather than stored", so nothing already authored is touched).
-        VisualElement RoleHeaderRow(string title, string roleLabel, string tip)
+        /// Also carries this row's Preview button (T-0096: "a play/preview button on each row so a state can
+        /// be previewed without the game running") — Hit/Death play automatically, never by name, so they get
+        /// no usage chip or copy-name button, only the preview every row gets.
+        VisualElement RoleHeaderRow(string title, string roleLabel, string tip, System.Action preview)
         {
             var row = Z.Row();
             row.Add(Z.Text(title, ZuiText.Section, tip));
             row.Add(Z.HSpace());
             var chip = Z.Text($"[{roleLabel}]", ZuiText.Subtle, tip);
             row.Add(chip);
+            row.Add(Z.Flexible());
+            row.Add(Z.Button("▶", $"Preview {title} — spawns a throwaway character in the open scene and " +
+                "plays this reaction for real, without needing Play mode.", preview).W(28f));
             return row;
         }
 
@@ -1613,6 +1621,15 @@ namespace Laubrary.Zoetrope.Editor
                 header.Add(EnumPicker(roleProp, null, roleTip));
             }
 
+            // The usage chip (T-0096: "each row shows whether anything in the project actually requests it").
+            // Same purpose ChunkTimelineEvents.HasListeners exists for — "so a tool can honestly report" —
+            // reused here for the mirror question: has anything actually asked FOR this row, by name, at any
+            // point this cache has observed (Play mode, or a Preview click, which goes through the identical
+            // real Raise() call). Green = yes; amber = declared and never once requested.
+            var usageChip = Z.Text("", ZuiText.Subtle, "");
+            header.Add(usageChip);
+            _validators.Add(() => UpdateUsageChip(usageChip, zoe, index));
+
             // A rename has to reach the Cues pickers (they list the declared ids), but rebuilding per keystroke
             // would tear the field out from under the caret — so it waits until the field is left.
             idField.RegisterCallback<FocusOutEvent>(_ =>
@@ -1633,9 +1650,36 @@ namespace Laubrary.Zoetrope.Editor
             });
 
             header.Add(Z.Flexible());
+
+            // Preview (T-0096: "a play/preview button on each row so a state can be previewed without the
+            // game running"). Reads the LIVE id off the asset, not idAtBuild, so it always fires whatever is
+            // currently typed even before a FocusOut rebuild.
+            header.Add(Z.Button("▶", "Preview this event — spawns a throwaway character in the open scene and " +
+                "raises this event for real, without needing Play mode.", () =>
+                {
+                    string liveId = zoe.events != null && index < zoe.events.Count && zoe.events[index] != null
+                        ? zoe.events[index].id : idAtBuild;
+                    ZoePalettePreview.PreviewEvent(zoe, liveId);
+                    RunValidators();   // refresh this row's usage chip immediately rather than on next rebuild
+                }).W(28f));
+
+            // Copy-name (T-0096: "a copy-name button for pasting a state's name into code" — the project's
+            // standing rule is a name is typed ONCE where declared, so this is how it gets into hand-typed
+            // gameplay code without retyping it, e.g. `player.Raise("...")`).
+            // Plain text, not an icon: the obvious copy-symbol candidates (⧉, ⎘, ❐) are missing from the
+            // default editor font and render as an unreadable fallback glyph — measured live, T-0096.
+            header.Add(Z.Button("Copy", "Copy this event's name to the clipboard, ready to paste into a " +
+                "Raise(\"...\") call.", () =>
+                {
+                    string liveId = zoe.events != null && index < zoe.events.Count && zoe.events[index] != null
+                        ? zoe.events[index].id : idAtBuild;
+                    EditorGUIUtility.systemCopyBuffer = liveId ?? "";
+                }).W(46f));
+
             var removeBtn = Z.Button("×",
                 "Remove this event (undoable). Anything raising it by name stops working.", () =>
                 {
+                    if (!ConfirmRemoveEvent(zoe, index)) return;
                     Commit(listPath, p => p.DeleteArrayElementAtIndex(index));
                     Rebuild();
                 }).W(22f);
@@ -1695,6 +1739,68 @@ namespace Laubrary.Zoetrope.Editor
         /// about whether two names are the same name.
         static bool SameEventId(string a, string b) =>
             string.Equals(a ?? "", b ?? "", System.StringComparison.OrdinalIgnoreCase);
+
+        /// The row usage chip's text/tooltip (T-0096) — from ZoePaletteUsageLog, keyed off the LIVE id at
+        /// `index`, so a rename shows its own fresh (empty) usage rather than the old name's history.
+        static void UpdateUsageChip(Label chip, Zoe zoe, int index)
+        {
+            string id = zoe?.events != null && index < zoe.events.Count && zoe.events[index] != null
+                ? zoe.events[index].id : null;
+            if (string.IsNullOrEmpty(id)) { chip.text = ""; chip.tooltip = ""; return; }
+
+            var (hitCount, lastHit, missCount, _) = ZoePaletteUsageLog.GetUsage(zoe, id);
+            if (hitCount > 0)
+            {
+                chip.text = $"● requested {hitCount}×";
+                chip.tooltip = $"Last requested {lastHit} UTC (observed since this cache was last cleared — " +
+                    "Play mode or this row's own Preview button both count).";
+            }
+            else
+            {
+                chip.text = "○ never requested";
+                chip.tooltip = "Nothing has asked for this state by name yet, as far as this project has " +
+                    "observed (Play mode or a Preview click). Not proof it is truly unused — only that nothing " +
+                    "has been SEEN asking for it." + (missCount > 0
+                        ? $" ({missCount} request(s) for this name missed BEFORE it was declared, or while " +
+                          "mis-typed — see Laubrary/Zoetrope/Palette Health.)"
+                        : "");
+            }
+        }
+
+        /// Delete-warns (T-0096: "deleting a row warns if anything still depends on it") — checks the two
+        /// things this window can actually know: a Cue on THIS SAME character that still raises the id (static,
+        /// checked right now), and whether anything has ever been OBSERVED requesting it at runtime
+        /// (ZoePaletteUsageLog — Play mode or a Preview click). Neither is exhaustive (a cue on a DIFFERENT
+        /// character, or gameplay code that simply hasn't run yet, can't be seen from here), so this warns
+        /// rather than blocks — same "ask, don't silently allow or silently refuse" shape as the rest of this
+        /// model.
+        static bool ConfirmRemoveEvent(Zoe zoe, int index)
+        {
+            string id = zoe?.events != null && index < zoe.events.Count && zoe.events[index] != null
+                ? zoe.events[index].id : null;
+            if (string.IsNullOrEmpty(id)) return true;   // nothing named yet — nothing could depend on it
+
+            var reasons = new List<string>();
+
+            int cueCount = 0;
+            if (zoe.cues != null)
+                foreach (var c in zoe.cues)
+                    if (c != null && SameEventId(c.raiseEvent, id)) cueCount++;
+            if (cueCount > 0)
+                reasons.Add($"{cueCount} cue(s) on this character raise it");
+
+            var (hitCount, lastHit, _, _) = ZoePaletteUsageLog.GetUsage(zoe, id);
+            if (hitCount > 0)
+                reasons.Add($"it has been requested {hitCount} time(s), last {lastHit} UTC");
+
+            if (reasons.Count == 0) return true;
+
+            return EditorUtility.DisplayDialog("Delete this event?",
+                $"\"{id}\" still looks used: {string.Join("; ", reasons)}.\n\n" +
+                "Deleting it makes every one of those a no-op (a cue that raises nothing, a gameplay call that " +
+                "warns and plays nothing). This cannot be undone from here.",
+                "Delete anyway", "Cancel");
+        }
 
         void AddEvent(string listPath, Zoe zoe)
         {

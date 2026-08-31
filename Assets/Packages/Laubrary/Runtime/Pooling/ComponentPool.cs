@@ -29,7 +29,13 @@ namespace Laubrary.Pooling
                               int defaultCapacity = 8, int maxSize = 256)
         {
             var rootGo = new GameObject(containerName);
-            UnityEngine.Object.DontDestroyOnLoad(rootGo);
+            // DontDestroyOnLoad is Play-mode-only — it throws outright in an editor script (T-0096: discovered
+            // when the new Zoe palette Preview button, which fires a real reaction in Edit mode, hit a pooled
+            // Pyre effect through this exact constructor). Surviving a scene load has no meaning in Edit mode
+            // anyway (nothing is loading), so this is a pure Play-mode concern to skip, not a behaviour change
+            // for the pool's actual job. Same root cause silently affected the pre-existing "Preview in Mirage"
+            // button for any Zoe whose Hit/Death/custom-event effects route through a pooled Pyre/Chunks blast.
+            if (Application.isPlaying) UnityEngine.Object.DontDestroyOnLoad(rootGo);
             _root = rootGo.transform;
 
             _pool = new ObjectPool<T>(

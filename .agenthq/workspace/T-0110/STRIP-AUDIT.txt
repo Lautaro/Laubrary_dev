@@ -1,0 +1,46 @@
+=== Shaper FILL audit (T-0106, FILL-CONTRACT Part F7) === [ALL PASS incl. FT-1..FT-22, confirming ShaperFillOps.Sample's
+signature extension for T-0110 (adding a per-sample `out float height`) is bit-identical/backward-compatible for
+Solid/Gradient/RampByQuantity/Texture]
+
+=== IndexedStrip audit (T-0110) ===
+ST-1 IndexedStrip: an empty palette degenerates to Solid(plainColour) (FC-6.5)
+  compiled op.kind = Solid (expected Solid)
+  op.colR = 0.073239 (expected 0.073239)
+  diagnostic set = True (expected true)
+  RESULT: PASS
+ST-2 IndexedStrip: a large reach patterns the WHOLE shape, including the centre (B6)
+  centre albedo.r = 0.7874  (slot decode 0.7874, plain decode 0.0100)
+  centre height   = 4.0000  (expected close to 4.0, the slot's full-weight height)
+  RESULT: PASS
+ST-3 IndexedStrip: a near-zero reach leaves the interior PLAIN, at a quarter weight (B6)
+  centre albedo.r = 0.0100  (expected the PLAIN decode 0.0100)
+  centre height   = 1.0000  (expected close to 1.0 = 4.0 x the quarter weight)
+  RESULT: PASS
+ST-4 IndexedStrip: the common heightDelta dial ADDS to the per-slot height (FC-2.5)
+  centre height = 6.0000  (expected close to 6.0 = 2.0 common + 4.0 slot)
+  RESULT: PASS
+ST-5 IndexedStrip.RequiredSet() == EdgeDistance, unconditionally (FC-4.1a)
+  RequiredSet() = EdgeDistance  (expected EdgeDistance)
+  RESULT: PASS
+ST-6 IndexedStrip: stripRepeats rounds to a whole number, never a partial repeat (B6)
+  authored 3.7 -> compiled stripRepeats = 4  (expected 4, Mathf.RoundToInt, floored at 1)
+  RESULT: PASS
+ST-7 IndexedStrip: both parameterisations select DIFFERENT slots around the shape
+  Angular: distinct colours around an 8-point ring = 4  (expected > 1)
+  Projection: distinct colours around an 8-point ring = 3  (expected > 1)
+  RESULT: PASS
+
+=== T-0110 fix pass, applied during this run (by the T-0110 agent, on top of a partial implementation found
+already in progress from an earlier background research task that went beyond its research-only brief) ===
+
+BUG FOUND AND FIXED: the reach/edgeCoverage formula's additive constant was 1, which put the transition's START
+(not its END) at the reach depth -- so at the documented, authored DEFAULT reach=1 on a symmetric disc, the
+shape's own deepest point (its centre) read edgeCoverage=0 (fully PLAIN), contradicting both B6 ("turn it to
+maximum and it covers the WHOLE shape") and the code's own doc comments, which already claimed the opposite.
+Measured before the fix (informal probe, not the committed audit): a 40px-radius disc at reach=1 (default),
+sampled at (0,0): plain colour, height = commonHeightDelta * 0.25 (fully plain).
+Fixed by changing the constant from 1 to 2 (ShaperFillOps.cs, the IndexedStrip case, `edgeCoverage` line) --
+full derivation and the corrected formula are in STRIP-SPEC.md's inline comment at the fix site and in
+STRIP-SPEC.md Part 7 (SS-7.4). Measured after the fix (same probe): centre reads the slot's own colour and its
+full-weight height (see ST-2 above for the same property, now the committed regression test, using an even more
+extreme reach so the property holds by a comfortable margin rather than exactly at the boundary).

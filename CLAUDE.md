@@ -117,6 +117,14 @@ all work, and every one of them makes the character's own editor window lie abou
 bypass this model exists to prevent. This applies to **you, the assistant**, at least as much as to a human: the failure
 mode is quietly re-solving in native game code what Zoe is for.
 
+**Check it, don't just assume it (T-0096).** Every row in a Zoe's declared list shows whether anything has actually
+requested it by name, and `Laubrary/Zoetrope/Palette Health` reports project-wide what got requested but never declared,
+plus a heuristic scan for exactly the bypass patterns above (a direct Pyre/Chunks/SpriteFx spawn, a raw `PlayClip`, a
+bolted-on reaction component) outside Laubrary's own package. Each row also has a ▶ Preview button (see it play without
+Play mode) and a copy-name button (paste the exact declared name into a `Raise("...")` call instead of retyping it), and
+`Zoe.DescribeDeclaredStates()` prints a character's whole declared list as text for writing gameplay code away from the
+editor. Use these — don't hand-roll a bypass because it's faster than opening the character asset.
+
 **Nothing plays on its own.** There is deliberately no built-in default-picker, not even when a character declares exactly
 one hurt look or one death look. If gameplay code did not explicitly answer "which look?", nothing plays. An "if there's
 only one, just use it" convenience must be written as ordinary game code that explicitly answers, never as a Laubrary

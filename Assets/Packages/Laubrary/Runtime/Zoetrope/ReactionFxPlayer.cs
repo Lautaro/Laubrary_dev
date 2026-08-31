@@ -255,6 +255,9 @@ namespace Laubrary.Zoetrope
         bool RaiseInternal(string id, in ReactionRequest req, bool warn)
         {
             var r = def != null ? def.EventNamed(id) : null;
+            // Honesty surface (T-0096): every attempt to raise a name by id, matched or not — see
+            // ZoeReactionTelemetry's own doc for why a miss reports too.
+            ZoeReactionTelemetry.Report(def, id, r != null);
             if (r == null)
             {
                 if (warn) WarnNoSuchState(id);
@@ -298,7 +301,11 @@ namespace Laubrary.Zoetrope
         {
             if (string.IsNullOrEmpty(answered) || def == null) return builtin;
             var entry = def.FindEvent(answered);
-            if (entry != null && entry.role == role) return entry.reaction;
+            bool legal = entry != null && entry.role == role;
+            // Honesty surface (T-0096): an IReactionLookAnswerer naming a row IS a request by name, same as
+            // Raise/TryRaise — report it so the row's usage chip and the project-wide miss check both see it.
+            ZoeReactionTelemetry.Report(def, answered, legal);
+            if (legal) return entry.reaction;
             WarnBadLookAnswer(answered, role, questionLabel);
             return builtin;
         }
