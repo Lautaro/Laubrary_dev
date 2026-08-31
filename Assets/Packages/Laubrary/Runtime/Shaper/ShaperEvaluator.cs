@@ -119,6 +119,22 @@ namespace Laubrary.Shaper
                         stack[sp - 1] = ShaperBorder.Dilate(ops[i].p0, stack[sp - 1]);
                         break;
                     }
+
+                    case ShaperOpKind.CompositeSample:
+                    {
+                        // T-0112 — a composite generator has no analytic distance, only a raster it rendered once
+                        // at compile time (ShaperCompiler.EmitComposite). Map the canvas point into the node's
+                        // own local frame exactly like Leaf does, sample that raster's coverage there, and invert
+                        // it back into a pseudo-distance so the rest of the fold (Combine, Sweep, Shell, Dilate)
+                        // needs no branch of its own for this op kind.
+                        float lx = ops[i].m00 * x + ops[i].m01 * y + ops[i].m02;
+                        float ly = ops[i].m10 * x + ops[i].m11 * y + ops[i].m12;
+                        ShaperCompiledComposite raster = program.composites[ops[i].count];
+                        float cov = SampleCompositeCoverage(raster, lx, ly, ops[i].p0, ops[i].p1);
+                        float dLocal = InverseCoverage(cov, ops[i].p2);
+                        stack[sp++] = dLocal * ops[i].distanceScale;
+                        break;
+                    }
                 }
             }
 
@@ -167,5 +183,63 @@ namespace Laubrary.Shaper
         public static void Fill(ShaperProgram program, in ShaperSampleGrid grid, int width, int height,
                                 float[] distance, float[] coverage, float[] stack)
             => FillTile(program, grid, 0, 0, width, height, distance, coverage, 0, width, stack);
+
+        /// <summary>
+        /// T-0112 — bilinear-sample a composite generator's baked coverage raster at a LOCAL-frame point
+        /// <paramref name="lx"/>/<paramref name="ly"/>, where the raster covers
+        /// <c>[-halfExtentX, halfExtentX] × [-halfExtentY, halfExtentY]</c>. CLAMPS at the box edge rather than
+        /// treating outside as automatically zero — <see cref="ShaperCompositeDef.halfExtentX"/>'s doc names
+        /// this as the reason an author must size the box to where the source has already faded out.
+        /// </summary>
+        static float SampleCompositeCoverage(ShaperCompiledComposite raster, float lx, float ly,
+                                             float halfExtentX, float halfExtentY)
+        {
+            if (raster == null || raster.coverage == null || raster.width <= 0 || raster.height <= 0) return 0f;
+
+            float u = halfExtentX > 1e-9f ? (lx + halfExtentX) / (2f * halfExtentX) : 0.5f;
+            float v = halfExtentY > 1e-9f ? (ly + halfExtentY) / (2f * halfExtentY) : 0.5f;
+            u = Mathf.Clamp01(u);
+            v = Mathf.Clamp01(v);
+
+            float fx = u * raster.width - 0.5f;
+            float fy = v * raster.height - 0.5f;
+            int x0 = Mathf.Clamp(Mathf.FloorToInt(fx), 0, raster.width - 1);
+            int y0 = Mathf.Clamp(Mathf.FloorToInt(fy), 0, raster.height - 1);
+            int x1 = Mathf.Clamp(x0 + 1, 0, raster.width - 1);
+            int y1 = Mathf.Clamp(y0 + 1, 0, raster.height - 1);
+            float tx = Mathf.Clamp01(fx - x0);
+            float ty = Mathf.Clamp01(fy - y0);
+
+            float c00 = raster.coverage[y0 * raster.width + x0];
+            float c10 = raster.coverage[y0 * raster.width + x1];
+            float c01 = raster.coverage[y1 * raster.width + x0];
+            float c11 = raster.coverage[y1 * raster.width + x1];
+            float top = Mathf.Lerp(c00, c10, tx);
+            float bot = Mathf.Lerp(c01, c11, tx);
+            return Mathf.Lerp(top, bot, ty);
+        }
+
+        /// <summary>
+        /// T-0112 — the exact closed-form inverse of <see cref="ShaperField.Coverage"/>'s smoothstep: given
+        /// coverage <paramref name="coverage"/> ∈ [0,1] and the same <paramref name="halfBand"/> the forward
+        /// direction used, returns a <c>d</c> such that
+        /// <c>ShaperField.Coverage(d, halfBand) == coverage</c> (to float precision).
+        ///
+        /// <b>Where this is honest and where it is not.</b> The formula is exact everywhere coverage is strictly
+        /// between 0 and 1 — the antialiased rim, roughly one bake texel wide. Outside that rim, coverage is
+        /// flatly 0 or 1 and the formula SATURATES at <c>±halfBand</c> rather than reporting how much further out
+        /// the sample really is — the raster carries no information past its own antialiasing, so there is none
+        /// to invert. That saturation is exactly why a composite generator gives up the border stage and any
+        /// soft-combine wider than about a texel (<see cref="ShaperCompiler"/>'s <c>EmitBorderJoin</c> refuses the
+        /// former outright); a HARD combine (Add/Subtract/Intersect, blend width 0) only needs the SIGN correct,
+        /// which this gives everywhere, saturated or not.
+        /// </summary>
+        static float InverseCoverage(float coverage, float halfBand)
+        {
+            if (halfBand <= 0f) return coverage >= 0.5f ? -1e-6f : 1e-6f;
+            float s = Mathf.Clamp01(1f - coverage);          // smoothstep(t) target
+            float t = 0.5f - Mathf.Sin(Mathf.Asin(Mathf.Clamp(1f - 2f * s, -1f, 1f)) / 3f);
+            return halfBand * (2f * t - 1f);
+        }
     }
 }

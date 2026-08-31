@@ -26,6 +26,18 @@ namespace Laubrary.Shaper
         /// <see cref="ShaperBorder.JoinOp"/> for the seam the <c>min</c> produces.
         /// </summary>
         Dilate = 5,
+
+        /// <summary>
+        /// T-0112 — pushes one <see cref="ShaperNodeKind.Composite"/> generator's PSEUDO-distance, in canvas
+        /// pixels. Structurally identical in shape to <see cref="Leaf"/> (a local-frame transform then one value
+        /// pushed) but the value is not an analytic SDF: it is read back from a raster the generator rendered
+        /// once at compile time (<see cref="ShaperCompiledComposite"/>, indexed by <see cref="ShaperOp.count"/>
+        /// into <see cref="ShaperProgram.composites"/>) and converted from sampled coverage via the exact
+        /// inverse of <see cref="ShaperField.Coverage"/>. Valid ONLY within roughly one texel of the generator's
+        /// own edge — see <see cref="ShaperEvaluator"/>'s case for the saturation this implies and why it is what
+        /// costs a composite node the border stage and any wide soft-combine.
+        /// </summary>
+        CompositeSample = 6,
     }
 
     /// <summary>
@@ -41,6 +53,9 @@ namespace Laubrary.Shaper
     /// <item><b>Shell</b> — p0 is the thickness, and it is the only slot Shell reads.</item>
     /// <item><b>Dilate</b> — p0 is the outward reach, and it is the only slot Dilate reads.</item>
     /// <item><b>Combine</b> — p0 blend width, p1 blend exponent, p2 carve strength, p3 reach.</item>
+    /// <item><b>CompositeSample</b> (T-0112) — p0/p1 the local half-extent X/Y the raster maps to, p2 the
+    /// texel half-band used to invert coverage into a pseudo-distance; <c>count</c> is the index into
+    /// <see cref="ShaperProgram.composites"/>.</item>
     /// </list>
     /// </summary>
     public struct ShaperOp
@@ -174,5 +189,13 @@ namespace Laubrary.Shaper
 
         /// <summary>A value stack of the right size. Allocate once per thread and reuse; never per sample.</summary>
         public float[] NewStack() => new float[Mathf.Max(1, stackDepth)];
+
+        /// <summary>
+        /// T-0112 — every <see cref="ShaperNodeKind.Composite"/> generator's baked picture, in the order its
+        /// <see cref="ShaperOpKind.CompositeSample"/> op was emitted. <see cref="ShaperOp.count"/> indexes this
+        /// array. Empty for any program with no composite node in it — the common case costs one allocation of
+        /// a zero-length array, not a null check threaded through the evaluator.
+        /// </summary>
+        public ShaperCompiledComposite[] composites = System.Array.Empty<ShaperCompiledComposite>();
     }
 }

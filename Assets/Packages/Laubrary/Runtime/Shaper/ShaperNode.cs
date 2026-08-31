@@ -4,8 +4,12 @@ using UnityEngine;
 
 namespace Laubrary.Shaper
 {
-    /// <summary>APPEND-ONLY: serialized as an int.</summary>
-    public enum ShaperNodeKind { Primitive = 0, Bag = 1 }
+    /// <summary>
+    /// APPEND-ONLY: serialized as an int. T-0112 adds <see cref="Composite"/> — a leaf like
+    /// <see cref="Primitive"/>, but hosting a rendered picture instead of an analytic SDF (see
+    /// <see cref="ShaperCompositeDef"/>).
+    /// </summary>
+    public enum ShaperNodeKind { Primitive = 0, Bag = 1, Composite = 2 }
 
     /// <summary>
     /// The softness dials a member carries. Deliberately two separate fields rather than the reference app's
@@ -98,6 +102,15 @@ namespace Laubrary.Shaper
         [SerializeReference] public List<ShaperNode> children = new List<ShaperNode>();
 
         /// <summary>
+        /// Used when <see cref="kind"/> is <see cref="ShaperNodeKind.Composite"/> (T-0112). A composite node's
+        /// own <see cref="fill"/> and <see cref="border"/> fields are structurally ignored — never read by the
+        /// compiler for a Composite node, so an old authored value left in either slot after a kind change is
+        /// inert rather than silently reappearing (<see cref="ShaperCompiler"/>'s <c>EmitBorderJoin</c> refuses a
+        /// Composite node's border by construction, and no code path ever resolves a fill for one).
+        /// </summary>
+        public ShaperCompositeDef composite = new ShaperCompositeDef();
+
+        /// <summary>
         /// The fill this node owns, or null (FILL-CONTRACT Part F3). <b>Null is the default and it is the
         /// point:</b> C4 says "the default for a new bag is that the bag owns the fill and the children own
         /// none — which is the 'fuse several shapes, then texture as one' case, made the default rather than a
@@ -168,6 +181,21 @@ namespace Laubrary.Shaper
             };
             if (members != null) node.children.AddRange(members);
             return node;
+        }
+
+        /// <summary>A composite member (T-0112) — the monolithic escape hatch. <paramref name="def"/> must carry
+        /// a <see cref="ShaperCompositeDef.reason"/> and a non-empty <see cref="ShaperCompositeDef.reasonNote"/>;
+        /// <see cref="ShaperCompositeDef.HasDeclaration"/> is what a compliance pass checks.</summary>
+        public static ShaperNode Composite(ShaperCompositeDef def, string name = "Composite",
+                                           ShaperCombineMode mode = ShaperCombineMode.Add)
+        {
+            return new ShaperNode
+            {
+                name = name,
+                kind = ShaperNodeKind.Composite,
+                mode = mode,
+                composite = def ?? new ShaperCompositeDef(),
+            };
         }
     }
 }

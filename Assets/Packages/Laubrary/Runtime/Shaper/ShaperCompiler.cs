@@ -140,6 +140,8 @@ namespace Laubrary.Shaper
         {
             public List<ShaperOp> ops = new List<ShaperOp>();
             public ShaperProgram program = new ShaperProgram();
+            /// <summary>T-0112 — every composite node's baked picture, collected in emission order.</summary>
+            public List<ShaperCompiledComposite> composites = new List<ShaperCompiledComposite>();
             public int depth;
             public int maxDepth;
             public float phase01;
@@ -207,6 +209,7 @@ namespace Laubrary.Shaper
             }
 
             st.program.ops = st.ops.ToArray();
+            st.program.composites = st.composites.ToArray();
             st.program.stackDepth = Mathf.Max(1, st.maxDepth);
             st.program.bound = top.bound;
             if (top.box.valid)
@@ -279,6 +282,13 @@ namespace Laubrary.Shaper
                 // r · σ_max/σ_min canvas pixels out. That ratio is this subtree's whole under-report factor.
                 e.spreadRaw = sigmaMax / sigmaMin;
             }
+            else if (node.kind == ShaperNodeKind.Composite)
+            {
+                e = EmitComposite(node, forward, inverse, sigmaMin, st);
+                // Same reasoning as a Leaf immediately above: this is this subtree's own under-report factor,
+                // even though a composite's reported value is a pseudo-distance rather than a true SDF.
+                e.spreadRaw = sigmaMax / sigmaMin;
+            }
             else
             {
                 e = EmitBag(node, forward, st);
@@ -339,6 +349,70 @@ namespace Laubrary.Shaper
                 // transform applied. These are fixed before any transform touches them, which is precisely what
                 // makes the fill anchor rotation-invariant and scale-stable.
                 localBox = Box.FromCentre(0f, 0f, baked.halfExtentX, baked.halfExtentY),
+            };
+        }
+
+        /// <summary>
+        /// T-0112 — a composite generator's picture, hosted unmodified. Renders <see cref="node"/>'s
+        /// <see cref="ShaperNode.composite"/> source ONCE, at this compile's own <c>phase01</c>/<c>seed</c>, into
+        /// a fixed-resolution raster (<see cref="ShaperCompositeDef.bakeWidth"/>/<c>Height</c>), decodes its
+        /// alpha channel as coverage, and emits a <see cref="ShaperOpKind.CompositeSample"/> leaf that reads it
+        /// back per sample — mirroring <see cref="EmitLeaf"/>'s shape (local transform, one value pushed, a
+        /// canvas support box carried out) with a raster lookup in place of an analytic SDF.
+        /// </summary>
+        static Emitted EmitComposite(ShaperNode node, in ShaperMatrix forward, in ShaperMatrix inverse,
+                                     float sigmaMin, State st)
+        {
+            ShaperCompositeDef def = node.composite ?? new ShaperCompositeDef();
+            float hx = Mathf.Max(1e-4f, def.halfExtentX);
+            float hy = Mathf.Max(1e-4f, def.halfExtentY);
+            int bw = Mathf.Max(1, def.bakeWidth);
+            int bh = Mathf.Max(1, def.bakeHeight);
+
+            var baked = new ShaperCompiledComposite { width = bw, height = bh, coverage = new float[bw * bh] };
+            var pixels = new Color32[bw * bh];
+            // A null source is a legal, if useless, authoring state (FC-6.5's posture) — it renders as empty
+            // coverage everywhere rather than throwing, the same way an unassigned Texture/Gradient fill does.
+            if (def.source != null) def.source.Render(bw, bh, st.phase01, st.seed, pixels);
+            baked.pixels = pixels;
+            for (int i = 0; i < pixels.Length; i++) baked.coverage[i] = pixels[i].a / 255f;
+
+            int index = st.composites.Count;
+            st.composites.Add(baked);
+
+            // Half a texel in local units — the finest antialiasing this raster can resolve, ShaperField's own
+            // "half a pixel" convention (ShaperField.HalfBand) applied to the BAKE grid instead of the canvas
+            // grid. This is the number that makes the derived pseudo-distance saturate a texel or so out from
+            // the generator's own edge — see ShaperEvaluator's CompositeSample case for the consequence.
+            float halfBand = 0.5f * Mathf.Max((2f * hx) / bw, (2f * hy) / bh);
+
+            var op = new ShaperOp
+            {
+                kind = ShaperOpKind.CompositeSample,
+                count = index,
+                p0 = hx, p1 = hy, p2 = halfBand,
+                m00 = inverse.m00, m01 = inverse.m01, m02 = inverse.m02,
+                m10 = inverse.m10, m11 = inverse.m11, m12 = inverse.m12,
+                distanceScale = sigmaMin,
+                // The declared bound is only meaningful within halfBand of the surface (see the op-kind doc
+                // comment) — 1 is the same value every exact primitive declares, kept for uniformity with the
+                // rest of the compiled program rather than invented meaning for a case with no Lipschitz proof.
+                bound = 1f,
+            };
+
+            float chw = Mathf.Abs(forward.m00) * hx + Mathf.Abs(forward.m01) * hy;
+            float chh = Mathf.Abs(forward.m10) * hx + Mathf.Abs(forward.m11) * hy;
+            Box box = Box.FromCentre(forward.m02, forward.m12, chw, chh);
+            op.boxCx = box.CentreX; op.boxCy = box.CentreY; op.boxHalfW = box.HalfW; op.boxHalfH = box.HalfH;
+
+            st.ops.Add(op);
+            st.Push();
+            return new Emitted
+            {
+                bound = 1f,
+                box = box,
+                sweepAxis = ShaperSweepAxis.Radial,
+                localBox = Box.FromCentre(0f, 0f, hx, hy),
             };
         }
 
@@ -613,6 +687,14 @@ namespace Laubrary.Shaper
         /// </summary>
         static Emitted EmitBorderJoin(ShaperNode node, bool isRoot, Emitted child, State st)
         {
+            // T-0112 — a composite generator gives up the border stage structurally, the same way BD-3.7 refuses
+            // a Subtract member's border a few lines below: SHAPER_THE_DESIGN.md B1 states it as one of exactly
+            // three things a composite loses (a swappable fill, the border stage, shape-local position), and the
+            // real reason is fidelity, not policy — a composite's field is only a trustworthy distance within
+            // about one bake texel of its own edge (see ShaperEvaluator's CompositeSample case), and a border can
+            // reach many pixels out. Refusing here means an authored border on a Composite node is INERT rather
+            // than drawing a strip from a saturated, meaningless field.
+            if (node.kind == ShaperNodeKind.Composite) return child;
             if (node.border == null) return child;
             if (!isRoot && node.mode == ShaperCombineMode.Subtract) return child;   // BD-3.7
 

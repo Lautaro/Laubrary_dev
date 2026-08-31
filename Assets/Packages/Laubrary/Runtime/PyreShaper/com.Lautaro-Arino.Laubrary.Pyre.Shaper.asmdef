@@ -1,0 +1,19 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Pyre.Shaper",
+    "rootNamespace": "Laubrary.PyreShaper",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Pyre",
+        "com.Lautaro-Arino.Laubrary.Shaper",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.SpriteFx"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
