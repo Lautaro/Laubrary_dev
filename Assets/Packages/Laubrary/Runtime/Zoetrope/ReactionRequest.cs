@@ -47,13 +47,22 @@ namespace Laubrary.Zoetrope
         /// fire state). Informational — nothing in the core reaction path branches on it. May be null.</summary>
         public readonly GameObject Source;
 
+        /// <summary>Which <see cref="FxOverride"/> slot this request selects, on every <see cref="FxEntry"/>
+        /// in the reaction it raises — "the same muzzle flash, but the flamethrower one" instead of a
+        /// duplicated second state (ZOE_PALETTE_BUILD_PLAN.md task 6 / round 4 §4). Null or empty = no
+        /// override, the path every call site that predates this field takes: every entry plays its required
+        /// default effect, exactly as before this existed. An unmatched name is likewise a no-op — see
+        /// <see cref="FxEntry.Resolve"/> — never a missing effect.</summary>
+        public readonly string OverrideName;
+
         public ReactionRequest(Vector2? position = null, Vector2 direction = default,
-                               float amount = 0f, GameObject source = null)
+                               float amount = 0f, GameObject source = null, string overrideName = null)
         {
             Position = position;
             Direction = direction;
             Amount = amount;
             Source = source;
+            OverrideName = overrideName;
         }
 
         /// <summary>The request a damage event makes — how Hit and Death reach the same code path a

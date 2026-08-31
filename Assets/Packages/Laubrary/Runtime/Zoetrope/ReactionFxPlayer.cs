@@ -40,6 +40,26 @@ namespace Laubrary.Zoetrope
         /// asked for would silently do nothing.
         ZoeState State => _state != null ? _state : (_state = GetComponent<ZoeState>());
 
+        IReactionLookAnswerer _lookAnswerer;
+        bool _lookAnswererSearched;
+
+        /// The optional game-supplied answerer to "which hurt/death look?" — discovered via
+        /// GetComponentInParent, same convention <see cref="IFireStateSource"/> already uses (and, like it,
+        /// most characters legitimately have none, so the search runs once and a miss is remembered rather
+        /// than repeated on every hit).
+        IReactionLookAnswerer LookAnswerer
+        {
+            get
+            {
+                if (!_lookAnswererSearched)
+                {
+                    _lookAnswerer = GetComponentInParent<IReactionLookAnswerer>();
+                    _lookAnswererSearched = true;
+                }
+                return _lookAnswerer;
+            }
+        }
+
         /// State names already complained about, so a full-auto weapon asking for a name nobody declared logs
         /// ONCE and not sixty lines a second. Never cleared: the point is to say it, not to keep saying it,
         /// and a name that was missing a second ago is still missing now. Case-insensitive to match
@@ -49,6 +69,10 @@ namespace Laubrary.Zoetrope
 
         ReactionFx _armed;
         EventContext _armedCtx;
+        // The FxOverride slot name this armed reaction was raised with, if any — read by every Fire() call
+        // for its whole lifetime (Immediate entries at arm time, OnFrame entries as they fire, and the flush
+        // when it ends), so a reaction picks one override for its ENTIRE play, not per-effect.
+        string _armedOverrideName;
         Action<int> _armedFrameHandler;
         // When the armed clip will finish (Time.time), so an OnFrame-fired effect knows how much event is left
         // (a Body-SpriteFx card's Loop / RunAtEnd / PingPong bindings time themselves off that remainder).
@@ -151,16 +175,23 @@ namespace Laubrary.Zoetrope
 
         void OnHit(DamageInfo info)
         {
-            var r = def != null ? def.hit : null;
+            // Ask, don't default (ZOE_PALETTE_TAKE.md/BUILD_PLAN.md item 2): with no answerer, or an answerer
+            // that answers nothing, this plays the built-in Hit reaction exactly as it always has. WHETHER a
+            // hurt happens is untouched — this only ever picks its appearance.
+            var builtin = def != null ? def.hit : null;
+            var r = ResolveLook(builtin, ReactionRole.Hurt, LookAnswerer?.HurtLookFor(info), "hurt");
             if (r == null) return;
             // Read from the reaction that ACTUALLY played, every time, not frozen at spawn. ZoeSpawner used to
             // copy def.hit.stunSeconds onto ZoeState once and never look again, so editing the value on a live
             // character (Mirage, a runtime Instantiate copy, a hot-reloaded asset) changed nothing — and the
             // stun on a death or on a named state was never read by anything at all.
             State?.ApplyStun(r.stunSeconds);
-            var ctx = BuildContext(ReactionRequest.From(info));
+            var req = ReactionRequest.From(info);
+            var ctx = BuildContext(req);
             float secs = EventSecondsOf(r);
             ctx.EventSecondsRemaining = secs;   // Immediate entries fire at the event's start — full length
+            // Held for the whole armed lifetime (Immediate now, OnFrame/flush later) — see the field's own doc.
+            _armedOverrideName = req.OverrideName;
             PlayBodyFx(r, secs);
             FireImmediate(r, ctx);
             var res = TryArmClip(r, ctx, AnimationArbiter.PriorityHurt,
@@ -237,6 +268,7 @@ namespace Laubrary.Zoetrope
             var ctx = BuildContext(req);
             float secs = EventSecondsOf(r);
             ctx.EventSecondsRemaining = secs;
+            _armedOverrideName = req.OverrideName;
             PlayBodyFx(r, secs);
             FireImmediate(r, ctx);
             // Not Disarm()-ing on failure: a reaction with no clip still fired its Immediate entries above,
@@ -254,6 +286,34 @@ namespace Laubrary.Zoetrope
             // played where the bool above can only say THAT nothing played.
             if (res == ArmResult.Refused) EventRefused?.Invoke(id);
             return true;
+        }
+
+        /// Which reaction actually plays for a hurt/death: the built-in <paramref name="builtin"/> when
+        /// nobody answered (or def is unavailable to check against), or the role-chipped custom row
+        /// <paramref name="answered"/> names. A row that doesn't exist, or exists but isn't chipped
+        /// <paramref name="role"/>, is treated as no legal answer — warned once, falling back to
+        /// <paramref name="builtin"/> — never played anyway. This is the ONLY place a hurt/death answer is
+        /// resolved, so OnHit and OnDeath can never disagree about what counts as legal.
+        ReactionFx ResolveLook(ReactionFx builtin, ReactionRole role, string answered, string questionLabel)
+        {
+            if (string.IsNullOrEmpty(answered) || def == null) return builtin;
+            var entry = def.FindEvent(answered);
+            if (entry != null && entry.role == role) return entry.reaction;
+            WarnBadLookAnswer(answered, role, questionLabel);
+            return builtin;
+        }
+
+        /// Say — once per (role, name) — that an <see cref="IReactionLookAnswerer"/> named a row that isn't a
+        /// legal answer to the question it was asked, and say which rows ARE.
+        void WarnBadLookAnswer(string answered, ReactionRole role, string questionLabel)
+        {
+            if (!_warnedMissing.Add($"__look:{role}:{answered}")) return;
+            var declared = new System.Collections.Generic.List<string>();
+            foreach (var e in def.EventIdsWithRole(role)) declared.Add($"\"{e}\"");
+            string list = declared.Count > 0 ? string.Join(", ", declared) : "(none)";
+            Debug.LogWarning($"[Zoe] '{def.name}' was told to show \"{answered}\" for its {questionLabel} look, " +
+                             $"but that row either doesn't exist or isn't chipped {role} — using the built-in " +
+                             $"{questionLabel} reaction instead. Rows chipped {role}: {list}.", this);
         }
 
         /// Say — once — that someone asked this character for a state it does not have, and say what it DOES
@@ -293,8 +353,17 @@ namespace Laubrary.Zoetrope
 
         void OnDeath(DamageInfo info)
         {
-            var r = def != null ? def.death : null;
-            var ctx = BuildContext(ReactionRequest.From(info));
+            // Same ask-don't-default rule as OnHit. Health hitting zero is what killed the character — that
+            // already happened, unconditionally, before this method runs — so an unanswered or bad answer
+            // here changes nothing about WHETHER it died, only what its death looks like.
+            var builtin = def != null ? def.death : null;
+            var r = ResolveLook(builtin, ReactionRole.Death, LookAnswerer?.DeathLookFor(info), "death");
+            var req = ReactionRequest.From(info);
+            var ctx = BuildContext(req);
+            // Reset even when nothing plays below (r == null): a stale value from an earlier Raise() with an
+            // override name must never leak onto a death's own effects. DamageInfo carries no override name
+            // of its own, so this is always null/empty here — see the field's own doc for why it's held.
+            _armedOverrideName = req.OverrideName;
             if (r != null)
             {
                 // A death's stun was authorable and read by absolutely nothing before this. It matters even on
@@ -522,7 +591,7 @@ namespace Laubrary.Zoetrope
             if (Arbiter != null)
                 return first
                     ? Arbiter.Play(claim, priority, r.clip, loop: false, durationSeconds: 0f,
-                                   onComplete: complete, onInterrupted: onInterrupted)
+                                   onComplete: complete, onInterrupted: onInterrupted, targetPart: r.targetPart)
                     : Arbiter.Replay(claim, onComplete: complete);
 
             return AnimView != null && AnimView.PlayClip(r.clip, loop: false, onComplete: complete);
@@ -608,7 +677,11 @@ namespace Laubrary.Zoetrope
         void Fire(FxEntry entry, EventContext ctx)
         {
             if (!entry.enabled) return;   // muted (task #8) — kept in the list but never fires
-            if (entry.fx == null || entry.fx.IsEmpty) return;
+            // Resolve ONCE, against whichever override name the currently-armed reaction was raised with (see
+            // _armedOverrideName's own doc) — an unmatched or absent name is a no-op inside Resolve() itself,
+            // yielding entry.fx, so this is exactly the pre-override behaviour when nothing asked for a swap.
+            var effect = entry.Resolve(_armedOverrideName);
+            if (effect == null || effect.IsEmpty) return;
             if (!ctx.TryResolvePosition(entry.placement, entry.metaLayerId, out var pos)) return;
 
             // Stamp the resolved params the effect reads. For an ICombatFx these are exactly the (pos, dir) the
@@ -617,11 +690,11 @@ namespace Laubrary.Zoetrope
             ctx.DirectionDeg = ctx.ResolveDirectionDeg(entry.direction);
             ctx.Scalar = ctx.ResolveScalar(entry.scalar);
 
-            if (!entry.follow) { entry.fx.Apply(ctx); return; }
+            if (!entry.follow) { effect.Apply(ctx); return; }
 
             // Follow re-homes a single spawned Transform each frame — an ICombatFx-only capability
             // (PlayFollowable). A non-ICombatFx effect has no Transform to hand back, so it just applies once.
-            if (!(entry.fx is ICombatFx combat)) { entry.fx.Apply(ctx); return; }
+            if (!(effect is ICombatFx combat)) { effect.Apply(ctx); return; }
 
             var t = combat.PlayFollowable(pos, ctx.DirectionDeg);
             if (t == null) return;   // this effect has nothing single/ongoing to follow (see PlayFollowable's own doc comment)

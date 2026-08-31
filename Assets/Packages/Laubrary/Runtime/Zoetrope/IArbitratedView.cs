@@ -31,8 +31,13 @@ namespace Laubrary.Zoetrope
         /// <paramref name="onComplete"/> fires ONCE, when the last still-running sub-view finishes (or is
         /// itself preempted, so a preempted part can never leave the whole reaction hanging forever waiting
         /// on a signal that is no longer coming). Ignored when looping, matching
-        /// <see cref="IAnimatedView.PlayClip"/>.</summary>
-        bool PlayClipArbitrated(string clip, bool loop, float priority, Action onComplete);
+        /// <see cref="IAnimatedView.PlayClip"/>.
+        /// <paramref name="targetPart"/> — empty/null (the default) fans to every part that knows the clip,
+        /// exactly as before this parameter existed. A named part restricts the fan-out to that ONE part (a
+        /// name matching nothing plays on nothing, same "refused" outcome as an unknown clip) — this is the
+        /// seam ZOE_PALETTE_BUILD_PLAN.md task 6's per-part reaction targeting plugs into; naming the subset
+        /// is this one parameter, not a new mechanism.</summary>
+        bool PlayClipArbitrated(string clip, bool loop, float priority, Action onComplete, string targetPart = null);
 
         /// <summary>The root claim is over — hand every sub-view back to whatever was driving it before.
         /// Called by <see cref="AnimationArbiter"/> when its own claim is released or expires. Without it the

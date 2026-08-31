@@ -101,6 +101,32 @@ namespace Laubrary.Zoetrope
             }
         }
 
+        /// The full <see cref="NamedReaction"/> (id + role chip + reaction) declared under `id`, or null.
+        /// Case-insensitive, same rule as <see cref="EventNamed"/>. Unlike EventNamed this returns the whole
+        /// entry, so a caller can check its <see cref="NamedReaction.role"/> chip — used by
+        /// <see cref="ReactionFxPlayer"/> to resolve an answered hurt/death look: a name that exists but
+        /// isn't chipped for the question being asked is "no legal answer", not "play it anyway".
+        public NamedReaction FindEvent(string id)
+        {
+            if (string.IsNullOrEmpty(id) || events == null) return null;
+            for (int i = 0; i < events.Count; i++)
+                if (events[i] != null && string.Equals(events[i].id, id, System.StringComparison.OrdinalIgnoreCase))
+                    return events[i];
+            return null;
+        }
+
+        /// Every declared event id carrying `role` — "which of this character's rows are legal answers to
+        /// the hurt-look / death-look question". Built-in Hit/Death themselves carry their role by POSITION,
+        /// not by a stored chip (see ZOE_PALETTE_TAKE.md — "the two built-in hurt and death slots get the
+        /// equivalent chip drawn for them... rather than stored"), so they are not part of this list; they are
+        /// always the implicit "no answer" fallback (see ReactionFxPlayer.OnHit/OnDeath).
+        public IEnumerable<string> EventIdsWithRole(ReactionRole role)
+        {
+            if (events == null) yield break;
+            foreach (var e in events)
+                if (e != null && e.role == role && !string.IsNullOrEmpty(e.id)) yield return e.id;
+        }
+
         [Header("AI")]
         [Tooltip("Optional decision-making attached at spawn. The game supplies the agent body " +
                  "(movement/perception). Pluggable — a Daemon brain via the Zoetrope.Daemon bridge.")]

@@ -37,6 +37,7 @@ namespace Laubrary.Zoetrope
         float _expiresAt = float.PositiveInfinity;
         string _clip;
         bool _loop;
+        string _targetPart;
         Action _onInterrupted;
 
         IAnimatedView View => _view != null ? _view : (_view = GetComponent<IAnimatedView>());
@@ -68,9 +69,13 @@ namespace Laubrary.Zoetrope
         /// <paramref name="durationSeconds"/> &lt;= 0 means "until released or superseded" (a looping idle/move
         /// clip); &gt; 0 auto-expires the claim, after which <see cref="Reassert"/> fires.
         /// <paramref name="onInterrupted"/> is called if a DIFFERENT owner later takes the claim away, which is
-        /// how a cut-short reaction gets to run its own teardown instead of being silently dropped.</summary>
+        /// how a cut-short reaction gets to run its own teardown instead of being silently dropped.
+        /// <paramref name="targetPart"/> — empty/null (the default) plays whole-body, unchanged from before
+        /// this parameter existed. A named part confines the claim to that one composite part (see
+        /// <see cref="IArbitratedView.PlayClipArbitrated"/>); ignored outright by a single-view character,
+        /// which has only ever had one part to play on.</summary>
         public bool Play(object owner, float priority, string clip, bool loop, float durationSeconds = 0f,
-                         Action onComplete = null, Action onInterrupted = null)
+                         Action onComplete = null, Action onInterrupted = null, string targetPart = null)
         {
             if (owner == null) return false;
 
@@ -83,7 +88,8 @@ namespace Laubrary.Zoetrope
 
             // Same owner asking for exactly what it already has: reassert without restarting the clip. This is
             // what lets a steady-state claimant call every frame without the body twitching on frame 0 forever.
-            if (sameOwner && active && priority == _priority && _clip == clip && _loop == loop) return true;
+            if (sameOwner && active && priority == _priority && _clip == clip && _loop == loop &&
+                _targetPart == targetPart) return true;
 
             // Snapshot, so a claim that turns out not to play can be rolled back. Committing the claim before
             // knowing whether the view accepted the clip let anyone lock the arbiter on nothing (an unknown
@@ -93,22 +99,25 @@ namespace Laubrary.Zoetrope
             float prevExpiresAt = _expiresAt;
             string prevClip = _clip;
             bool prevLoop = _loop;
+            string prevTargetPart = _targetPart;
             var prevInterrupted = _onInterrupted;
 
             _owner = owner;
             _priority = priority;
             _clip = clip;
             _loop = loop;
+            _targetPart = targetPart;
             _expiresAt = durationSeconds > 0f ? Time.time + durationSeconds : float.PositiveInfinity;
             _onInterrupted = onInterrupted;
 
-            if (!Dispatch(clip, loop, priority, onComplete))
+            if (!Dispatch(clip, loop, priority, onComplete, targetPart))
             {
                 _owner = prevOwner;
                 _priority = prevPriority;
                 _expiresAt = prevExpiresAt;
                 _clip = prevClip;
                 _loop = prevLoop;
+                _targetPart = prevTargetPart;
                 _onInterrupted = prevInterrupted;
                 return false;
             }
@@ -134,7 +143,7 @@ namespace Laubrary.Zoetrope
         public bool Replay(object owner, Action onComplete = null)
         {
             if (!ReferenceEquals(_owner, owner) || string.IsNullOrEmpty(_clip)) return false;
-            return Dispatch(_clip, _loop, _priority, onComplete);
+            return Dispatch(_clip, _loop, _priority, onComplete, _targetPart);
         }
 
         /// One place every actual "put this on screen" call goes through, so the composite case can never be
@@ -142,11 +151,11 @@ namespace Laubrary.Zoetrope
         /// sub-views (a composite body's parts) needs the PRIORITY, not just the clip name — see
         /// <see cref="IArbitratedView"/> for why calling the parts' views directly re-opens the exact stomping
         /// bug this class exists to close.
-        bool Dispatch(string clip, bool loop, float priority, Action onComplete)
+        bool Dispatch(string clip, bool loop, float priority, Action onComplete, string targetPart = null)
         {
             var view = View;
             if (view == null) return false;
-            if (view is IArbitratedView fanned) return fanned.PlayClipArbitrated(clip, loop, priority, onComplete);
+            if (view is IArbitratedView fanned) return fanned.PlayClipArbitrated(clip, loop, priority, onComplete, targetPart);
             return view.PlayClip(clip, loop, onComplete);
         }
 
@@ -174,6 +183,7 @@ namespace Laubrary.Zoetrope
             _expiresAt = float.PositiveInfinity;
             _clip = null;
             _loop = false;
+            _targetPart = null;
             _onInterrupted = null;
         }
 

@@ -806,15 +806,34 @@ namespace Laubrary.Zoetrope.Editor
         void BuildReactionsSection(VisualElement root, Zoe zoe)
         {
             var reactions = Z.Section("Reactions",
-                "What plays when this character is hurt, when it dies, and on any custom event it declares.");
-            reactions.Add(Z.Text("Hit", ZuiText.Section, "What happens on a non-killing hit."));
+                "What plays when this character is hurt, when it dies, and on any custom event it declares. " +
+                "Hit and Death are the top two rows of ONE list that also holds every custom event below — " +
+                "same storage as always, just presented together (ZOE_PALETTE_TAKE.md's \"unified list\").");
+            reactions.Add(RoleHeaderRow("Hit", "HURT",
+                "What happens on a non-killing hit. This is the built-in row Laubrary's own \"which hurt " +
+                "look?\" question falls back to — see Custom events below for role-chipped alternatives."));
             BuildReactionFx(reactions, So.FindProperty("hit"), zoe);
-            reactions.Add(Z.Text("Death", ZuiText.Section, "What happens on the killing blow."));
+            reactions.Add(RoleHeaderRow("Death", "DEATH",
+                "What happens on the killing blow. This is the built-in row Laubrary's own \"which death " +
+                "look?\" question falls back to — see Custom events below for role-chipped alternatives."));
             BuildReactionFx(reactions, So.FindProperty("death"), zoe);
             // Custom events live INSIDE Reactions, under Hit and Death, because they are the same kind of
             // thing — same ReactionFx, same editor — and only differ in being raised by a name you choose.
             BuildCustomEvents(reactions, zoe);
             root.Add(reactions);
+        }
+
+        /// A section-title row with a fixed, non-editable role chip beside it — the built-in Hit/Death rows'
+        /// half of the role chip (ZOE_PALETTE_TAKE.md: "the two built-in hurt and death slots get the
+        /// equivalent chip drawn for them... rather than stored", so nothing already authored is touched).
+        VisualElement RoleHeaderRow(string title, string roleLabel, string tip)
+        {
+            var row = Z.Row();
+            row.Add(Z.Text(title, ZuiText.Section, tip));
+            row.Add(Z.HSpace());
+            var chip = Z.Text($"[{roleLabel}]", ZuiText.Subtle, tip);
+            row.Add(chip);
+            return row;
         }
 
         void BuildAiSection(VisualElement root, Zoe zoe)
@@ -1320,6 +1339,7 @@ namespace Laubrary.Zoetrope.Editor
                     v => Commit(clipPath, p => p.stringValue = v), 200f));
             }
             BuildEventDuration(root, reactionProp, clipField, zoe);
+            BuildTargetPartField(root, reactionProp, zoe);
 
             int clipFrames = GetFrameCount(zoe.view, clipProp.stringValue);
             string[] pointLayerIds = GetPointLayerIds(zoe.view, clipProp.stringValue);
@@ -1454,6 +1474,36 @@ namespace Laubrary.Zoetrope.Editor
             return line;
         }
 
+        /// Which named composite body part this reaction speaks for — whole body (the default, and the only
+        /// option there has ever been) or one named part, e.g. "Legs" walking under "Upper" firing. Shown
+        /// ONLY on a composite Zoe (WeaponAttachmentLibrary.FindPartNames is empty otherwise, same source
+        /// BuildWeaponSlots' "Attach To Part" picker already uses) — a single-part Zoe has nothing to target,
+        /// so the field would be dead chrome on every non-composite character in the project.
+        void BuildTargetPartField(VisualElement root, SerializedProperty reactionProp, Zoe zoe)
+        {
+            var targetProp = reactionProp.FindPropertyRelative("targetPart");
+            if (targetProp == null) return;
+            var partNames = WeaponAttachmentLibrary.FindPartNames(zoe);
+            if (partNames.Count == 0) return;
+
+            const string tip = "Which named body part this reaction speaks for. Whole body (the default) " +
+                "plays the clip on every part that knows it — exactly today's behaviour. Naming one part " +
+                "confines this reaction to it, which is what lets the character show more than one thing at " +
+                "once — walking legs under a firing upper body.";
+
+            var options = new List<string>(partNames.Count + 1) { "(whole body)" };
+            options.AddRange(partNames);
+            string current = targetProp.stringValue ?? "";
+            var ids = new List<string>(partNames);
+            if (!string.IsNullOrEmpty(current) && !ids.Contains(current))
+            { ids.Insert(0, current); options.Insert(1, $"{current} (unresolved)"); }
+            int currentIdx = string.IsNullOrEmpty(current) ? 0 : Mathf.Max(0, ids.IndexOf(current) + 1);
+            string path = targetProp.propertyPath;
+
+            root.Add(Z.Field("Target Part", tip, Z.Dropdown(currentIdx, options, tip,
+                v => Commit(path, p => p.stringValue = v <= 0 ? "" : ids[v - 1]), 200f)));
+        }
+
         /// The live ReactionFx behind a serialized reaction property — Hit, Death, or one of the custom
         /// events. Read-only use: the duration line needs the real object to ask it for its own resolved
         /// length, which is the same method the runtime player calls.
@@ -1549,6 +1599,19 @@ namespace Laubrary.Zoetrope.Editor
                 RunValidators();   // the duplicate warning is a property of the WHOLE list, not of this card
             }, 150f);
             header.Add(Z.Field("Id", EventIdTip, idField));
+
+            // The role chip (ZOE_PALETTE_TAKE.md/BUILD_PLAN.md task 6): is this row a legal answer to
+            // Laubrary's built-in "which hurt look?" / "which death look?" question. Defaults to None, so
+            // nothing already authored changes meaning — it never gates or conditions playback, it only
+            // narrows which rows an IReactionLookAnswerer may name.
+            var roleProp = entryProp.FindPropertyRelative("role");
+            if (roleProp != null)
+            {
+                const string roleTip = "Is this row a legal answer to Laubrary's built-in \"which hurt look?\" " +
+                    "/ \"which death look?\" question. Nothing special = an ordinary custom event, raised only " +
+                    "by name like any other. This never decides WHETHER or WHEN a hurt or death happens.";
+                header.Add(EnumPicker(roleProp, null, roleTip));
+            }
 
             // A rename has to reach the Cues pickers (they list the declared ids), but rebuilding per keystroke
             // would tear the field out from under the caret — so it waits until the field is left.
@@ -2152,6 +2215,8 @@ namespace Laubrary.Zoetrope.Editor
                 BuildManagedRefChildren(compact ? picks : Group(), effectProp, effect, zoe);
             }
 
+            BuildFxOverrides(body, entryProp, zoe);
+
             // No body at all for an effect whose fields all fit the header (Zound, Invulnerable) — an empty
             // container still costs padding, and a card with nothing under its header should look like it.
             if (body.childCount == 0) body.style.display = DisplayStyle.None;
@@ -2161,6 +2226,66 @@ namespace Laubrary.Zoetrope.Editor
             // (undo / reorder / re-type). The grip guards its own drag; the × must not fold on click.
             ZuiFoldCard.Wire(effect, header, body, mute, removeBtn);
             listHost.Add(box);
+        }
+
+        // ── FxOverride slots (default+override effects, ZOE_PALETTE_BUILD_PLAN.md task 6 §4) ───────────────
+        // Every FxEntry keeps its ONE required default effect (above, unchanged); this draws the OPTIONAL
+        // named alternatives — "the same muzzle flash, but the flamethrower one while that powerup is up".
+        // Small and separate from the main effect card on purpose: an override slot is rare, and giving it
+        // the full card treatment (grip, mute, fold) would outweigh what it actually needs — a name and a
+        // type-switching effect picker, reusing BuildManagedRef exactly as every other pluggable field does.
+        const string OverridesTip = "Optional named ALTERNATIVES to the effect above. A request to show this " +
+            "state may carry one override name (ReactionRequest.OverrideName, or ReactionFxPlayer.Raise's " +
+            "override overload); a matching slot here plays INSTEAD of the default. No slots = the default " +
+            "always plays, exactly as before this existed. An unmatched or empty name also plays the default " +
+            "— an override SWAPS the effect, it never gates it.";
+
+        void BuildFxOverrides(VisualElement body, SerializedProperty entryProp, Zoe zoe)
+        {
+            var overridesProp = entryProp.FindPropertyRelative("overrides");
+            if (overridesProp == null) return;
+            string listPath = overridesProp.propertyPath;
+
+            var section = Z.Section($"Overrides  ({overridesProp.arraySize})", OverridesTip,
+                $"{entryProp.propertyPath}.overrides");
+
+            for (int i = 0; i < overridesProp.arraySize; i++)
+            {
+                int idx = i;
+                var slotProp = overridesProp.GetArrayElementAtIndex(idx);
+                var nameProp = slotProp.FindPropertyRelative("name");
+                var fxProp = slotProp.FindPropertyRelative("fx");
+                if (nameProp == null || fxProp == null) continue;
+
+                var card = Z.Box(null, null);
+                var row = Z.Row();
+                row.Add(Z.Field("Name", "The name a request carries to select this slot instead of the default.",
+                    Z.TextInput(nameProp.stringValue ?? "", OverridesTip,
+                        v => Commit(nameProp.propertyPath, p => p.stringValue = v), PairedFieldWidth)));
+                row.Add(Z.Flexible());
+                row.Add(Z.Button("×", "Remove this override slot (undoable).", () =>
+                {
+                    Commit(listPath, p => p.DeleteArrayElementAtIndex(idx));
+                    Rebuild();
+                }).W(22f));
+                card.Add(row);
+                BuildManagedRef(card, fxProp, "Effect", zoe);
+                section.Add(card);
+            }
+
+            section.Add(Z.Button("+ Add override", "Declare another named alternative to this effect's default.",
+                () =>
+                {
+                    Commit(listPath, p =>
+                    {
+                        p.arraySize++;
+                        var slot = p.GetArrayElementAtIndex(p.arraySize - 1);
+                        slot.FindPropertyRelative("name").stringValue = "";
+                        slot.FindPropertyRelative("fx").managedReferenceValue = null;
+                    });
+                    Rebuild();
+                }).W(AddButtonWidth));
+            body.Add(section);
         }
 
         // EnumPicker moved to ZoetropeDefWindow (the base) 2026-08-02, so the base's generic managed-ref child

@@ -37,6 +37,7 @@ namespace Laubrary.ZoetropeLaunimator
     {
         class Part
         {
+            public string name;
             public IAnimatedView view;
             public AnimationArbiter arbiter;
         }
@@ -59,7 +60,9 @@ namespace Laubrary.ZoetropeLaunimator
                 if (go == null) continue;
                 var view = go.GetComponent<IAnimatedView>();
                 if (view == null) continue;   // a part with nothing to play (a plain SpriteView part) is not a claimant
-                _parts.Add(new Part { view = view, arbiter = go.GetComponent<AnimationArbiter>() });
+                // go.name IS the part's authored name — CompositeZonedPlayer.Build names each child GameObject
+                // directly from ZoeBodyPart.name, so reading it back here needs no extra wiring or lookup.
+                _parts.Add(new Part { name = go.name, view = view, arbiter = go.GetComponent<AnimationArbiter>() });
             }
         }
 
@@ -103,12 +106,12 @@ namespace Laubrary.ZoetropeLaunimator
         /// not quietly upgraded into a claim — a claim it never asked for is a claim it would never know to
         /// release, and an unreleasable claim is exactly the failure this whole class of bug is made of.
         public bool PlayClip(string clip, bool loop, Action onComplete = null) =>
-            Fan(clip, loop, onComplete, arbitrated: false, priority: 0f);
+            Fan(clip, loop, onComplete, arbitrated: false, priority: 0f, targetPart: null);
 
         // ── IArbitratedView ───────────────────────────────────────────────────
 
-        public bool PlayClipArbitrated(string clip, bool loop, float priority, Action onComplete) =>
-            Fan(clip, loop, onComplete, arbitrated: true, priority);
+        public bool PlayClipArbitrated(string clip, bool loop, float priority, Action onComplete, string targetPart = null) =>
+            Fan(clip, loop, onComplete, arbitrated: true, priority, targetPart);
 
         public void ReleaseFannedClaims()
         {
@@ -125,7 +128,10 @@ namespace Laubrary.ZoetropeLaunimator
         /// <paramref name="arbitrated"/> false = write straight to each part's view (see PlayClip's own note);
         /// true = each part submits a claim to its own arbiter at <paramref name="priority"/>, owned by THIS
         /// facade, so the whole body is one logical claimant that a part's locomotion has to outrank.
-        bool Fan(string clip, bool loop, Action onComplete, bool arbitrated, float priority)
+        /// <paramref name="targetPart"/> — empty/null fans to every knowing part (unchanged); a name narrows
+        /// the candidate set to that ONE named part before the clip/priority filters run, so a part-targeted
+        /// reaction that also names an unknown clip fails the same "refused" way an unknown clip always has.
+        bool Fan(string clip, bool loop, Action onComplete, bool arbitrated, float priority, string targetPart)
         {
             if (string.IsNullOrEmpty(clip)) return false;
 
@@ -145,6 +151,7 @@ namespace Laubrary.ZoetropeLaunimator
             for (int i = 0; i < _parts.Count; i++)
             {
                 var p = _parts[i];
+                if (!string.IsNullOrEmpty(targetPart) && !string.Equals(p.name, targetPart, StringComparison.OrdinalIgnoreCase)) continue;
                 if (!p.view.HasClip(clip)) continue;
                 if (arbitrated && p.arbiter != null && !p.arbiter.WouldAccept(this, priority)) continue;
                 accepting.Add(p);

@@ -176,6 +176,13 @@ namespace Laubrary.Zoetrope
                  "FX still fire normally (this is what keeps a plain SpriteView Zoe's hit VFX working).")]
         public string clip = "";
 
+        [Tooltip("Which named composite body part this reaction speaks for — empty (the default) means the " +
+                 "WHOLE body, exactly as every reaction has always behaved: the clip plays on every part that " +
+                 "knows it. Naming one part (e.g. \"Legs\") confines it to that part alone, which is what lets " +
+                 "a character show more than one thing at once — walking legs under a firing upper body. " +
+                 "Meaningless on a single-part Zoe (there is only one part) and safely ignored there.")]
+        public string targetPart = "";
+
         [Tooltip("How long this event lasts. Clip loops = the clip played this many times. Fixed seconds = an " +
                  "explicit length, and the only mode a character whose visual is a static sprite can use, since " +
                  "a still has no length of its own. Everything riding the event is timed off the answer.")]
