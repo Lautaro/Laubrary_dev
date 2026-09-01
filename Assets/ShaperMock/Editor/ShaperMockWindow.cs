@@ -48,6 +48,17 @@ namespace ShaperMock.Editor
         CacheStrip cacheStrip;
         Label cacheSummary;
 
+        // ── section-toggle-bar roster (Pyre parity, T-0133) — every top-level and node-scoped ZuiSection
+        // this window builds, held as fields so ZuiSectionToggleBar can bulk show/hide them. The bar itself
+        // is thrown away and rebuilt (RefreshToggleBar) any time the roster's section INSTANCES change —
+        // a full window Rebuild() (Canvas/Light Rig/Layers get new instances) or a RebuildNodeBody()-only
+        // pass (Shape/Fill/Border/Swarm/Effects do) — because a stale bar would hold dead references.
+        // A null entry (Fill/Border/Effects absent per §B4's absence rule) is skipped harmlessly by the bar
+        // itself, exactly like Pyre's own null-safe TagsSection entry.
+        ZuiSection canvasSection, lightRigSection, layersSection;
+        ZuiSection shapeSection, fillSection, borderSection, swarmSection, effectsSection;
+        VisualElement toggleBarHost;
+
         // Rebuild() recreates the left ScrollView, so its offset has to be carried across by hand or the
         // pane snaps to the top under the control the user was just using (mirrors ChunksMockWindow).
         ScrollView leftPane;
@@ -57,6 +68,9 @@ namespace ShaperMock.Editor
         {
             EnsureDocument();
             root.style.minHeight = 0f;
+
+            toggleBarHost = new VisualElement();
+            root.Add(toggleBarHost);
 
             var left = new ScrollView(ScrollViewMode.Vertical);
             left.style.minWidth = 320f;
@@ -71,6 +85,25 @@ namespace ShaperMock.Editor
             BuildRight(right);
 
             root.Add(Z.Split("shaper.mock.split.v1", 400f, left, right));
+            RefreshToggleBar();
+        }
+
+        // ── section-toggle-bar (Pyre parity, T-0133) ────────────────────────────────────────────────────
+        // Mirrors PyreWindow.BuildSectionToggleBar exactly: nothing Shaper-specific beyond listing which
+        // sections exist right now. Placed at the very top of root, above the split, same as Pyre.
+        void RefreshToggleBar()
+        {
+            if (toggleBarHost == null) return;
+            toggleBarHost.Clear();
+            toggleBarHost.Add(new ZuiSectionToggleBar("ShaperMock",
+                ("Canvas", canvasSection),
+                ("Light Rig", lightRigSection),
+                ("Layers", layersSection),
+                ("Shape", shapeSection),
+                ("Fill", fillSection),
+                ("Border", borderSection),
+                ("Swarm", swarmSection),
+                ("Effects", effectsSection)));
         }
 
         protected override void OnBeforeRebuild()
@@ -155,7 +188,7 @@ namespace ShaperMock.Editor
 
         void BuildCanvas(VisualElement root)
         {
-            var box = Z.Section("Canvas", "The output resolution, frame count and seed.", "shaper.mock.canvas",
+            var box = canvasSection = Z.Section("Canvas", "The output resolution, frame count and seed.", "shaper.mock.canvas",
                 icon: "frame-corners");
             box.Add(Z.HGroup(
                 Dial("Width", "Canvas width in pixels.", document.canvas.width, 8f, 256f,
@@ -183,7 +216,7 @@ namespace ShaperMock.Editor
 
         void BuildLayers(VisualElement root)
         {
-            var box = Z.Section("Layers",
+            var box = layersSection = Z.Section("Layers",
                 "The document's layers. Click a layer to edit its Shape/Fill below; drag the grip to reorder.",
                 "shaper.mock.layers", icon: "stack");
             layerListHost = new VisualElement();
@@ -302,7 +335,7 @@ namespace ShaperMock.Editor
 
         void BuildLightRig(VisualElement root)
         {
-            var box = Z.Section("Light Rig",
+            var box = lightRigSection = Z.Section("Light Rig",
                 "The document's single light rig (one per document, shared by every layer).",
                 "shaper.mock.lightrig", icon: "sun");
             var rig = document.lightRig;
@@ -415,6 +448,13 @@ namespace ShaperMock.Editor
             bool isComposite = node.kind == ShaperMockNodeKind.Composite;
             bool subtractMember = path.Count > 1 && node.combineMode == ShaperMockCombineMode.Subtract;
 
+            // Reset the conditional entries every rebuild — a null roster entry is skipped harmlessly by
+            // ZuiSectionToggleBar (§C4/absence rule's own UI consequence, same pattern as the sections
+            // themselves), so a node kind that doesn't build Fill/Border/Effects just leaves them null here.
+            fillSection = null;
+            borderSection = null;
+            effectsSection = null;
+
             nodeBody.Add(BuildShapeSection(node, subtractMember));
 
             // Fill: absent entirely on a Composite (§B4/§B5) and on a Subtract bag member (§B4/FC-3.3) —
@@ -436,11 +476,13 @@ namespace ShaperMock.Editor
             // Primitive/Bag.
             if (isComposite)
                 nodeBody.Add(BuildEffectsSection(node));
+
+            RefreshToggleBar();
         }
 
         VisualElement BuildShapeSection(ShaperMockNode node, bool subtractMember)
         {
-            var box = Z.Section("Shape",
+            var box = shapeSection = Z.Section("Shape",
                 "This node's own geometry. The dial set shown depends entirely on its kind.",
                 "shaper.mock.shape", icon: "shapes");
 
@@ -702,7 +744,7 @@ namespace ShaperMock.Editor
 
         VisualElement BuildFillSection(ShaperMockNode node)
         {
-            var box = Z.Section("Fill", "How this node is painted.", "shaper.mock.fill", icon: "palette");
+            var box = fillSection = Z.Section("Fill", "How this node is painted.", "shaper.mock.fill", icon: "palette");
 
             if (node.fill == null)
             {
@@ -756,7 +798,7 @@ namespace ShaperMock.Editor
 
         VisualElement BuildBorderSection(ShaperMockNode node)
         {
-            var box = Z.Section("Border", "An outward strip around this node's own silhouette.",
+            var box = borderSection = Z.Section("Border", "An outward strip around this node's own silhouette.",
                 "shaper.mock.border", icon: "square");
 
             if (node.border == null)
@@ -798,7 +840,7 @@ namespace ShaperMock.Editor
 
         VisualElement BuildSwarmSection(ShaperMockNode node)
         {
-            var box = Z.Section("Swarm",
+            var box = swarmSection = Z.Section("Swarm",
                 "Scatter many instances of this node, jittered per-instance. Present on every node kind.",
                 "shaper.mock.swarm", icon: "sparkle");
             var s = node.swarm;
@@ -897,7 +939,7 @@ namespace ShaperMock.Editor
 
         VisualElement BuildEffectsSection(ShaperMockNode node)
         {
-            var box = Z.Section("Effects",
+            var box = effectsSection = Z.Section("Effects",
                 "A universal-effects pipeline — only available on Composite (baked-raster) nodes.",
                 "shaper.mock.effects", icon: "sliders-horizontal");
             var listHost = new VisualElement();
