@@ -3,7 +3,8 @@
     "rootNamespace": "Laubrary.Shaper.Editor",
     "references": [
         "com.Lautaro-Arino.Laubrary.Shaper",
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.AssetKit.Editor"
     ],
     "includePlatforms": [
         "Editor"

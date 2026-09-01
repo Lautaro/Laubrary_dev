@@ -2,7 +2,8 @@
     "name": "com.Lautaro-Arino.Laubrary.Shaper",
     "rootNamespace": "Laubrary.Shaper",
     "references": [
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.Pooling"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
