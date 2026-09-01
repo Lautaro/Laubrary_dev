@@ -84,7 +84,12 @@ namespace ShaperMock.Editor
             right.style.minHeight = 0f;
             BuildRight(right);
 
-            root.Add(Z.Split("shaper.mock.split.v1", 400f, left, right));
+            // 560, not the more common 400, as the INITIAL divider position (still user-draggable and
+            // persisted, same TwoPaneSplitView convention as every other Laubrary tool) — Shaper is meant
+            // to be operated as a dense workbench with the window given real width, and the packed-row
+            // dial groups above only pay off once the left pane is wide enough to show more than a pair
+            // per row on first open, rather than requiring a user to discover the drag-to-widen affordance.
+            root.Add(Z.Split("shaper.mock.split.v1", 560f, left, right));
             RefreshToggleBar();
         }
 
@@ -190,12 +195,14 @@ namespace ShaperMock.Editor
         {
             var box = canvasSection = Z.Section("Canvas", "The output resolution, frame count and seed.", "shaper.mock.canvas",
                 icon: "frame-corners");
+            // One packed row, not two stacked ones — all four are short scalars, none is a spatial pair, so
+            // they share a row per the UI Guide's row-packing rule and simply wrap to a second line at the
+            // mock's minimum window width instead of needing two hardcoded rows.
             box.Add(Z.HGroup(
                 Dial("Width", "Canvas width in pixels.", document.canvas.width, 8f, 256f,
                     v => document.canvas.width = Mathf.RoundToInt(v), decimals: 0),
                 Dial("Height", "Canvas height in pixels.", document.canvas.height, 8f, 256f,
-                    v => document.canvas.height = Mathf.RoundToInt(v), decimals: 0)));
-            box.Add(Z.HGroup(
+                    v => document.canvas.height = Mathf.RoundToInt(v), decimals: 0),
                 Z.MicroSlider("Frames", document.canvas.frameCount, 1f, 64f,
                     "How many frames the document bakes to. Changing this shows/hides the transport.",
                     v => SetFrameCount(Mathf.RoundToInt(v)), 140f, decimals: 0),
@@ -419,14 +426,20 @@ namespace ShaperMock.Editor
             header.Add(removeBtn);
             box.Add(header);
 
+            // Two packed rows of four instead of four stacked rows of two — none of these eight are a
+            // spatial pair on their own (Pos X/Y/Z are three independent 1D dials here, not a Vector2/3
+            // pad), so they all share rows and wrap down at narrow widths rather than always sitting one
+            // pair per line regardless of how much width the window actually has.
             var body = new VisualElement();
-            body.Add(Z.HGroup(Val("Intensity", "This light's brightness.", light.intensity, 0f, 4f),
-                Val("Range", "How far this light reaches.", light.range, 0.1f, 20f)));
-            body.Add(Z.HGroup(Val("Yaw", "Horizontal direction, in degrees.", light.yaw, -180f, 180f, cyclic: true, decimals: 0),
+            body.Add(Z.HGroup(
+                Val("Intensity", "This light's brightness.", light.intensity, 0f, 4f),
+                Val("Range", "How far this light reaches.", light.range, 0.1f, 20f),
+                Val("Yaw", "Horizontal direction, in degrees.", light.yaw, -180f, 180f, cyclic: true, decimals: 0),
                 Val("Pitch", "Vertical direction, in degrees.", light.pitch, -90f, 90f, decimals: 0)));
-            body.Add(Z.HGroup(Val("Pos X", "Light position X.", light.posX, -5f, 5f),
-                Val("Pos Y", "Light position Y.", light.posY, -5f, 5f)));
-            body.Add(Z.HGroup(Val("Pos Z", "Light position Z.", light.posZ, -5f, 5f),
+            body.Add(Z.HGroup(
+                Val("Pos X", "Light position X.", light.posX, -5f, 5f),
+                Val("Pos Y", "Light position Y.", light.posY, -5f, 5f),
+                Val("Pos Z", "Light position Z.", light.posZ, -5f, 5f),
                 Val("Specular", "This light's specular contribution.", light.specular, 0f, 1f)));
             box.Add(body);
 
@@ -534,12 +547,12 @@ namespace ShaperMock.Editor
                         break;
 
                     case ShaperMockShapeKind.Ngon:
+                        // One packed row of four instead of two stacked rows of two.
                         kindBody.Add(Z.HGroup(
                             Dial("Sides", "How many sides the polygon has.", node.ngonSides, 3f, 16f,
                                 v => node.ngonSides = Mathf.RoundToInt(v), decimals: 0),
                             Dial("Radius", "The polygon's circumradius.", node.ngonRadius, 0.02f, 1f,
-                                v => node.ngonRadius = v)));
-                        kindBody.Add(Z.HGroup(
+                                v => node.ngonRadius = v),
                             Dial("Rotation", "The polygon's rotation, in degrees.", node.ngonRotation, 0f, 360f,
                                 v => node.ngonRotation = v, decimals: 0),
                             Dial("Corner radius", "Rounds each corner by this fraction.", node.ngonCornerRadius,
@@ -547,18 +560,18 @@ namespace ShaperMock.Editor
                         break;
 
                     case ShaperMockShapeKind.Star:
+                        // One packed row of five instead of two stacked pairs plus an orphaned single row.
                         kindBody.Add(Z.HGroup(
                             Dial("Arms", "How many points the star has.", node.starArms, 3f, 12f,
                                 v => node.starArms = Mathf.RoundToInt(v), decimals: 0),
                             Dial("Radius", "The star's outer radius.", node.starRadius, 0.02f, 1f,
-                                v => node.starRadius = v)));
-                        kindBody.Add(Z.HGroup(
+                                v => node.starRadius = v),
                             Dial("Length", "How far the arms reach, relative to the outer radius.",
                                 node.starLength, 0.05f, 1f, v => node.starLength = v),
                             Dial("Base width", "How wide each arm's base is.", node.starBaseWidth, 0.02f, 1f,
-                                v => node.starBaseWidth = v)));
-                        kindBody.Add(Dial("Skew", "Twists the arms, in degrees.", node.starSkew, -180f, 180f,
-                            v => node.starSkew = v, decimals: 0));
+                                v => node.starBaseWidth = v),
+                            Dial("Skew", "Twists the arms, in degrees.", node.starSkew, -180f, 180f,
+                                v => node.starSkew = v, decimals: 0)));
                         break;
                 }
             }
@@ -619,13 +632,12 @@ namespace ShaperMock.Editor
                 var box = Z.BoxKeyed("Extrusion",
                     "Depth, bevel and taper — already envelope-ready in the real engine, so every row here "
                     + "is a Z.Value.", "shaper.mock.extrude:" + node.GetHashCode());
+                // One packed row of six rather than three stacked rows of two.
                 box.Add(Z.HGroup(
                     Val("Depth", "How far this shape extrudes.", node.extrudeDepth, 0f, 1f),
-                    Val("Angle", "The extrusion's lean angle, in degrees.", node.extrudeAngle, -90f, 90f, decimals: 0)));
-                box.Add(Z.HGroup(
+                    Val("Angle", "The extrusion's lean angle, in degrees.", node.extrudeAngle, -90f, 90f, decimals: 0),
                     Val("Curve", "Bulges or pinches the extrusion's profile.", node.extrudeCurve, -1f, 1f),
-                    Val("Taper", "Narrows the far end of the extrusion.", node.extrudeTaper, -1f, 1f)));
-                box.Add(Z.HGroup(
+                    Val("Taper", "Narrows the far end of the extrusion.", node.extrudeTaper, -1f, 1f),
                     Val("Bevel amt", "How much the extrusion's edge bevels.", node.bevelAmount, 0f, 1f),
                     Val("Bevel steps", "How many facets the bevel uses.", node.bevelSteps, 0f, 8f, decimals: 0)));
                 box.Add(Z.Button("Flatten", "Reset depth to 0 (collapses this block).", () =>
@@ -864,22 +876,24 @@ namespace ShaperMock.Editor
                   + $"per-instance state budget capped at {resolved}, so the effective count is {resolved}."
                 : "How many instances to scatter.";
 
+            // Count/Rot jitter/Scale jitter/Lifetime stagger are four independent scalars, so they share one
+            // packed row; Pos jitter is a spatial pair and stays on its own row per the UI Guide's explicit
+            // X/Y-pair exclusion from row-packing (a Z.Pad, never packed beside 1D fields).
             box.Add(Z.HGroup(
                 Z.MicroSlider(capped ? $"Count ({resolved} eff.)" : "Count", s.count, 1f, ShaperMockSwarm.HardCap,
                     countTip, v => Change(() => s.count = Mathf.RoundToInt(v)), 160f, decimals: 0),
-                Z.Field("Pos jitter", "How much each instance's position randomly varies.",
-                    Z.Pad(s.positionJitter, new Rect(-1f, -1f, 2f, 2f),
-                        "How much each instance's position randomly varies.",
-                        v => Change(() => s.positionJitter = v), 40f))));
-            box.Add(Z.HGroup(
                 Z.MicroSlider("Rot jitter", s.rotationJitterDegrees, 0f, 180f,
                     "Random rotation spread per instance, in degrees.",
                     v => Change(() => s.rotationJitterDegrees = v), 130f, decimals: 0),
                 Z.MicroSlider("Scale jitter", s.scaleJitter, 0f, 1f, "Random scale spread per instance.",
-                    v => Change(() => s.scaleJitter = v), 130f)));
-            box.Add(Z.MicroSlider("Lifetime stagger", s.lifetimeStagger, 0f, 1f,
-                "Randomly staggers each instance's life phase so a burst doesn't animate in lockstep.",
-                v => Change(() => s.lifetimeStagger = v), 150f));
+                    v => Change(() => s.scaleJitter = v), 130f),
+                Z.MicroSlider("Lifetime stagger", s.lifetimeStagger, 0f, 1f,
+                    "Randomly staggers each instance's life phase so a burst doesn't animate in lockstep.",
+                    v => Change(() => s.lifetimeStagger = v), 150f)));
+            box.Add(Z.Field("Pos jitter", "How much each instance's position randomly varies.",
+                Z.Pad(s.positionJitter, new Rect(-1f, -1f, 2f, 2f),
+                    "How much each instance's position randomly varies.",
+                    v => Change(() => s.positionJitter = v), 40f)));
 
             string badge = native
                 ? "Interact — active (Native: " + SourceName(node) + ")"
@@ -921,13 +935,12 @@ namespace ShaperMock.Editor
                     r.castShadows, v => Change(() => r.castShadows = v)),
                 Z.Toggle("Receive shadows", "Whether this node receives shadows from other layers.",
                     r.receiveShadows, v => Change(() => r.receiveShadows = v))));
+            // One packed row of five instead of three stacked rows of two.
             box.Add(Z.HGroup(
                 Val("Intensity ×", "Scales the light rig's effect on this node.", r.intensityScale, 0f, 3f),
-                Val("Rim strength", "How strong the rim-light response is.", r.rimStrength, 0f, 2f)));
-            box.Add(Z.HGroup(
+                Val("Rim strength", "How strong the rim-light response is.", r.rimStrength, 0f, 2f),
                 Val("Specular", "How strong the specular response is.", r.specular, 0f, 1f),
-                Val("Spec power", "How tight the specular highlight is.", r.specularPower, 1f, 128f)));
-            box.Add(Z.HGroup(
+                Val("Spec power", "How tight the specular highlight is.", r.specularPower, 1f, 128f),
                 Val("Rim power", "How tight the rim-light falloff is.", r.rimPower, 0.5f, 8f),
                 Z.Field("Spec tint", "Tints the specular highlight.",
                     Z.Color(r.specularTint, "Tints the specular highlight.",

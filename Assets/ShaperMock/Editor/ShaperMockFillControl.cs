@@ -147,19 +147,19 @@ namespace ShaperMock.Editor
                         v => Mutate(() => _fill.textureSourceIndex = v), wrap: true);
                     _content.Add(Z.Field("Source", "The source texture.", picker));
 
+                    // One packed row of five scalars instead of three stacked rows plus an orphaned field.
                     _content.Add(Z.HGroup(
                         Z.MicroSlider("Tiles X", _fill.textureTilesX, 0.1f, 8f, "Horizontal tile repeats.",
                             v => Mutate(() => _fill.textureTilesX = v), 120f),
                         Z.MicroSlider("Tiles Y", _fill.textureTilesY, 0.1f, 8f, "Vertical tile repeats.",
-                            v => Mutate(() => _fill.textureTilesY = v), 120f)));
-                    _content.Add(Z.HGroup(
+                            v => Mutate(() => _fill.textureTilesY = v), 120f),
                         Z.MicroSlider("Offset U", _fill.textureOffsetU, 0f, 1f, "Horizontal offset.",
                             v => Mutate(() => _fill.textureOffsetU = v), 120f),
                         Z.MicroSlider("Offset V", _fill.textureOffsetV, 0f, 1f, "Vertical offset.",
-                            v => Mutate(() => _fill.textureOffsetV = v), 120f)));
-                    _content.Add(Z.MicroSlider("Angle", _fill.textureAngleDegrees, 0f, 360f,
-                        "Rotation of the texture across the shape, in degrees.",
-                        v => Mutate(() => _fill.textureAngleDegrees = v), 150f, decimals: 0));
+                            v => Mutate(() => _fill.textureOffsetV = v), 120f),
+                        Z.MicroSlider("Angle", _fill.textureAngleDegrees, 0f, 360f,
+                            "Rotation of the texture across the shape, in degrees.",
+                            v => Mutate(() => _fill.textureAngleDegrees = v), 150f, decimals: 0)));
                     _content.Add(Z.Field("Tint", "Multiplies the sampled texture colour.",
                         Z.Color(_fill.textureTint, "Multiplies the sampled texture colour.",
                             c => Mutate(() => _fill.textureTint = c), 150f)));
@@ -178,12 +178,12 @@ namespace ShaperMock.Editor
                         v => Mutate(() => _fill.stripMode = (ShaperMockStripMode)v));
                     _content.Add(Z.Field("Mode", "How the strip is swept.", modePicker));
 
+                    // One packed row of four instead of two stacked rows of two.
                     _content.Add(Z.HGroup(
                         Z.MicroSlider("Repeats", _fill.stripRepeats, 0.25f, 8f, "How many times the strip repeats.",
                             v => Mutate(() => _fill.stripRepeats = v), 120f),
                         Z.MicroSlider("Orient.", _fill.stripOrientationDegrees, 0f, 360f, "The strip's orientation, in degrees.",
-                            v => Mutate(() => _fill.stripOrientationDegrees = v), 120f, decimals: 0)));
-                    _content.Add(Z.HGroup(
+                            v => Mutate(() => _fill.stripOrientationDegrees = v), 120f, decimals: 0),
                         Z.MicroSlider("Offset", _fill.stripOffset, 0f, 1f, "Shifts the strip along its sweep.",
                             v => Mutate(() => _fill.stripOffset = v), 120f),
                         Z.MicroSlider("Reach", _fill.stripReach, 0f, 1f, "How far the strip's slots reach across the shape.",
@@ -205,11 +205,12 @@ namespace ShaperMock.Editor
 
                     _content.Add(BuildHeightFieldGrid());
 
-                    _content.Add(Z.MicroSlider("Scale", _fill.heightFieldScale, 0.1f, 4f, "Scales the height field's relief.",
-                        v => Mutate(() => _fill.heightFieldScale = v), 150f));
-                    _content.Add(Z.Field("Tint", "Multiplies the height field's colour.",
-                        Z.Color(_fill.heightFieldTint, "Multiplies the height field's colour.",
-                            c => Mutate(() => _fill.heightFieldTint = c), 150f)));
+                    _content.Add(Z.HGroup(
+                        Z.MicroSlider("Scale", _fill.heightFieldScale, 0.1f, 4f, "Scales the height field's relief.",
+                            v => Mutate(() => _fill.heightFieldScale = v), 150f),
+                        Z.Field("Tint", "Multiplies the height field's colour.",
+                            Z.Color(_fill.heightFieldTint, "Multiplies the height field's colour.",
+                                c => Mutate(() => _fill.heightFieldTint = c), 150f))));
                     break;
                 }
 
@@ -220,12 +221,14 @@ namespace ShaperMock.Editor
                     header.style.alignItems = Align.Center;
                     _content.Add(header);
 
+                    // One packed row of four noise scalars, one row of three colours (a natural sub-group,
+                    // so it keeps its own row rather than joining the numeric row), one row of two rust
+                    // amount/reach scalars — five stacked rows collapsed to three.
                     _content.Add(Z.HGroup(
                         Z.MicroSlider("Cells", _fill.steelCells, 1f, 32f, "Cellular-noise cell count.",
                             v => Mutate(() => _fill.steelCells = v), 120f, decimals: 0),
                         Z.MicroSlider("Octaves", _fill.steelOctaves, 1f, 6f, "Noise octave count.",
-                            v => Mutate(() => _fill.steelOctaves = v), 120f, decimals: 0)));
-                    _content.Add(Z.HGroup(
+                            v => Mutate(() => _fill.steelOctaves = v), 120f, decimals: 0),
                         Z.MicroSlider("Seed", _fill.steelSeed, 0f, 999f, "Random seed for the noise.",
                             v => Mutate(() => _fill.steelSeed = v), 120f, decimals: 0),
                         Z.MicroSlider("Grain", _fill.steelGrain, 0f, 1f, "Fine surface grain amount.",
@@ -236,10 +239,10 @@ namespace ShaperMock.Editor
                                 c => Mutate(() => _fill.steelBaseLow = c), 90f)),
                         Z.Field("High", "The steel's brightest base colour.",
                             Z.Color(_fill.steelBaseHigh, "The steel's brightest base colour.",
-                                c => Mutate(() => _fill.steelBaseHigh = c), 90f))));
-                    _content.Add(Z.Field("Rust colour", "The rust patch colour.",
-                        Z.Color(_fill.steelRustColor, "The rust patch colour.",
-                            c => Mutate(() => _fill.steelRustColor = c), 150f)));
+                                c => Mutate(() => _fill.steelBaseHigh = c), 90f)),
+                        Z.Field("Rust colour", "The rust patch colour.",
+                            Z.Color(_fill.steelRustColor, "The rust patch colour.",
+                                c => Mutate(() => _fill.steelRustColor = c), 90f))));
                     _content.Add(Z.HGroup(
                         Z.MicroSlider("Rust amount", _fill.steelRustAmount, 0f, 1f, "How much of the surface rusts.",
                             v => Mutate(() => _fill.steelRustAmount = v), 120f),
