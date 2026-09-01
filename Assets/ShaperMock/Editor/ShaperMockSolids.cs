@@ -88,7 +88,13 @@ namespace ShaperMock.Editor
 
         /// Halo strength, 0..1.
         public ZUIValue edgeGlow = new ZUIValue(0f);
-        public Color edgeGlowColour = Color.white;
+        // T-0139 — demonstrates the design doc's own "colour-as-envelope" open question (§H3/J4#3), resolved
+        // by real research: ZuiGradient (Assets/Packages/Laubrary/Zui/Scripts/Runtime/ZuiGradient.cs) already
+        // ships a life-phase-sampled colour ramp, already used by Pyre's SpriteFx layer for colour-over-life
+        // — a proven, reusable mechanism, not an invented one. Every OTHER colour field in this mock stays a
+        // plain Color, matching the design doc's own "ship static-only in v1" posture (§7) — this is the one
+        // deliberate example proving the pattern actually works, not a wholesale promotion of every colour.
+        public ZuiGradient edgeGlowColour = new ZuiGradient();
 
         /// Inner-glow strength, 0..1.
         public ZUIValue innerGlow = new ZUIValue(0f);

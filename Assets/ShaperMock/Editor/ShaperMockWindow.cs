@@ -957,14 +957,27 @@ namespace ShaperMock.Editor
                 formHost.Add(Z.HGroup(
                     SolidVal("Edge glow", "Halo strength, 0..1.", s.edgeGlow, 0f, 1f,
                         s.form, ShaperMockSolidDial.EdgeGlow),
-                    Z.Field("Edge glow colour", "The halo's colour.",
-                        Z.Color(s.edgeGlowColour, "The halo's colour.",
-                            c => Change(() => s.edgeGlowColour = c), 90f)),
                     SolidVal("Inner glow", "Inner-glow strength, 0..1.", s.innerGlow, 0f, 1f,
                         s.form, ShaperMockSolidDial.InnerGlow),
                     Z.Field("Inner glow colour", "The inner glow's colour.",
                         Z.Color(s.innerGlowColour, "The inner glow's colour.",
                             c => Change(() => s.innerGlowColour = c), 90f))));
+
+                // T-0139 — demonstrates the design doc's own colour-as-envelope open question (§H3/J4#3):
+                // every OTHER colour field in this mock stays a plain Color (matching the design doc's
+                // deliberate "ship static-only in v1" posture), but this one shows the resolved answer is
+                // "yes, feasible" by actually wiring it through ZuiGradient — the same life-phase-sampled
+                // colour mechanism Pyre's own SpriteFx layer already ships for colour-over-lifetime, not an
+                // invented one. A WIDE control earns its own row per the UI Guide's card-layout rule.
+                var edgeGlowGradientCtrl = Z.Gradient(s.edgeGlowColour,
+                    "The halo's colour over the layer's life — proves ZuiGradient (already shipped, already "
+                    + "used by Pyre's SpriteFx for colour-over-lifetime) can carry a Shaper fill/glow colour "
+                    + "too. Every other colour on this card stays static on purpose; this is the one "
+                    + "deliberate example.",
+                    () => { EditorUtility.SetDirty(document); InvalidateCache(); RefreshPreview(); });
+                edgeGlowGradientCtrl.OnBeforeMutate = () => Undo.RecordObject(document, "Edit Shaper Mock");
+                formHost.Add(Z.Field("Edge glow colour (over life)", "The halo's colour over the layer's life.",
+                    edgeGlowGradientCtrl));
             }
             RebuildForm();
             wrap.Add(formHost);
@@ -1328,7 +1341,14 @@ namespace ShaperMock.Editor
             // STATEFUL-SIMULATION generator with no native swarm path, NOT to "native available" as this
             // used to assume (the mock previously invented 24 for that case). The general authored range
             // stays [1, HardCap] (64, matching the real [Range(1,64)] on ShaperSwarmDef.count) regardless.
-            bool native = NativeSwarmAvailable(node);
+            // T-0139 — SupportsNativeSwarm is CHECKED LIVE against authored state, not a fixed fact about
+            // which generator is selected: the real IShaperSwarmNativeSource.SupportsNativeSwarm doc is
+            // explicit that a source "may be able to batch only below some internal limit" — "checked by
+            // the compiler on EVERY compile, never assumed from the interface alone". Orb's own mock native
+            // path models exactly that: it can batch up to a capacity, past which it silently falls back to
+            // the generic wrapper — the same live-eligibility shape the real interface describes, not a
+            // static per-generator-type badge.
+            bool native = NativeSwarmAvailable(node, s);
             bool statefulSim = node.kind == ShaperMockNodeKind.Composite
                 && ShaperMockCompositeCatalog.All[Mathf.Clamp(node.compositeGeneratorIndex, 0,
                     ShaperMockCompositeCatalog.All.Length - 1)].IsStatefulSimulation;
@@ -1370,27 +1390,44 @@ namespace ShaperMock.Editor
                     "How sharply the merge's fillet tightens as it deepens.",
                     v => Change(() => s.merge.sharpness = v), 130f)));
 
+            bool nativeCapable = NativeCapableSource(node);
             string badge = native
                 ? "Interact — active (Native: " + SourceName(node) + ")"
-                : "Interact — has no effect here (Generic wrapper; this source has no native swarm path)";
+                : nativeCapable
+                    ? $"Interact — has no effect here (authored count {s.count} exceeds this source's native "
+                      + $"batching capacity of {NativeSwarmCapacity}; falls back to the Generic wrapper)"
+                    : "Interact — has no effect here (Generic wrapper; this source has no native swarm path)";
             box.Add(Z.Toggle(badge,
                 native
                     ? "Instances influence each other under this source's native swarm path (e.g. cross-"
                       + "instance heat diffusion)."
                     : "Shown, never hidden, because it changes what the control means: this toggle stays "
-                      + "interactive so you can set intent now, but it currently does nothing — this source "
-                      + "has no native swarm implementation, only the generic O(N) wrapper.",
+                      + "interactive so you can set intent now, but it currently does nothing. Native "
+                      + "eligibility is CHECKED LIVE against authored state, never assumed from the source "
+                      + "type alone (the real IShaperSwarmNativeSource.SupportsNativeSwarm is checked on "
+                      + "every compile) — " + (nativeCapable
+                          ? $"this source CAN batch natively, but only below {NativeSwarmCapacity} instances."
+                          : "this source has no native swarm implementation at all, only the generic O(N) wrapper."),
                 s.interact, v => Change(() => s.interact = v)));
 
             return box;
         }
 
-        // T-0138 #11 — was "any Composite node", which made the real SimulationHardCap unreachable (native
-        // and stateful-simulation are independent per-source facts, not implied by node kind alone;
-        // SWARM-SPEC.md §4: "Primitive and Bag nodes never resolve to Native today").
-        static bool NativeSwarmAvailable(ShaperMockNode node) => node.kind == ShaperMockNodeKind.Composite
+        // T-0139 — a source's own capacity, past which it falls back to Generic even though it CAN batch
+        // natively below that count. Distinct from ShaperMockSwarm.SimulationHardCap (the compiler-enforced
+        // clamp for a stateful-simulation source with NO native path at all, T-0138 #11) — this is the OTHER
+        // real case the interface's own doc names: "may be able to batch only below some internal limit".
+        const int NativeSwarmCapacity = 32;
+
+        static bool NativeCapableSource(ShaperMockNode node) => node.kind == ShaperMockNodeKind.Composite
             && ShaperMockCompositeCatalog.All[Mathf.Clamp(node.compositeGeneratorIndex, 0,
                 ShaperMockCompositeCatalog.All.Length - 1)].SupportsNativeSwarm;
+
+        // T-0138 #11 / T-0139 — was "any Composite node" (T-0138), then a fixed per-generator-type fact
+        // (still wrong per T-0139: the real interface is checked LIVE, not assumed from the source alone).
+        // Now: capable of native AND within this source's own batching capacity right now.
+        static bool NativeSwarmAvailable(ShaperMockNode node, ShaperMockSwarm swarm) =>
+            NativeCapableSource(node) && swarm.count <= NativeSwarmCapacity;
         static string SourceName(ShaperMockNode node) => node.kind == ShaperMockNodeKind.Composite
             ? ShaperMockCompositeCatalog.All[Mathf.Clamp(node.compositeGeneratorIndex, 0,
                 ShaperMockCompositeCatalog.All.Length - 1)].DisplayName
