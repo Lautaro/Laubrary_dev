@@ -25,9 +25,14 @@ reflection won't find new types — re-run steps 1–3. `set_unity_project_root`
 
 ⚠️ The `feat/lathe` branch was renamed to **`dev`** (2026-09-01) because its name no longer described its contents. The old `origin/feat/lathe` remote branch was deliberately left in place, untouched, pending an explicit decision to delete it.
 
-## Shaper — it lives in a SECOND worktree, not this one
+## Shaper — which folder am I in?
 
-**Shaper is not in this folder.** It is built in a git worktree of this same repo at **`D:\UNITY\Laubrary Dev - Shaper`**, on branch **`feat/shaper`**, with its own Unity editor. This folder (`dev`) holds the *mock* UI (`Assets/ShaperMock/`); the real engine is only in the other one. Both projects have an identical `productName`, so **nothing inside the editor tells you which one you are driving** — always verify `Application.dataPath` resolves to the folder you meant before trusting a `check_compile_errors` result, which will otherwise look clean while pointed at the wrong editor.
+Shaper spans **two worktrees of this same repo**, each with its own Unity editor. Check which one you are in before anything else:
+
+- **`D:\UNITY\Laubrary Dev`** (branch `dev`) — holds the *mock* UI at `Assets/ShaperMock/`. No Shaper engine here.
+- **`D:\UNITY\Laubrary Dev - Shaper`** (branch `feat/shaper`) — holds the real engine at `Assets/Packages/Laubrary/Runtime/Shaper/` + `Editor/Shaper/`, and since the 2026-09-01 merge it also has the mock, so the port can be done against both.
+
+Both projects have an identical `productName`, so **nothing inside the editor tells you which one you are driving.** Always verify `Application.dataPath` resolves to the folder you meant before trusting a `check_compile_errors` result — it will otherwise report clean while pointed at the wrong editor, which has bitten this project repeatedly.
 
 Load-bearing facts, each verified against source rather than docs (2026-09-01):
 
