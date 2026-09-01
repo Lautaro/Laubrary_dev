@@ -137,6 +137,18 @@ namespace ShaperMock.Editor
                     color = new Color(0.5f, 0.5f, 0.56f, 1f);
                     return inside;
                 }
+
+                case ShaperMockNodeKind.Solid:
+                {
+                    // No real pseudo-3D rasteriser in this UI mock (out of scope — Solids' actual facet
+                    // geometry and lighting live in the real ShaperSolids.cs compute path). A neutral
+                    // placeholder blob, same posture as Composite's above, so a Solid node still renders
+                    // SOMETHING here — it DOES have its own fill (unlike Composite), so paint it if present.
+                    float len = Mathf.Sqrt(x * x + y * y);
+                    bool inside = len <= 0.6f;
+                    color = inside && fill != null ? Evaluate(fill, x, y) : new Color(0.6f, 0.55f, 0.4f, 1f);
+                    return inside;
+                }
             }
             color = Color.clear;
             return false;

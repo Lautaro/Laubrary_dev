@@ -550,9 +550,10 @@ namespace ShaperMock.Editor
                 "This node's own geometry. The dial set shown depends entirely on its kind.",
                 "shaper.mock.shape", icon: "shapes");
 
-            var kindPicker = Z.MiniRadio((int)node.kind, new[] { "Primitive", "Bag", "Composite" },
-                "What kind of node this is — a Primitive shape, a Bag combining children, or a Composite "
-                + "(baked-raster) generator. Switching kind rebuilds every card below (§B4's absence rule).",
+            var kindPicker = Z.MiniRadio((int)node.kind, new[] { "Primitive", "Bag", "Composite", "Solid" },
+                "What kind of node this is — a Primitive shape, a Bag combining children, a Composite "
+                + "(baked-raster) generator, or a Solid (pseudo-3D facet shape). Switching kind rebuilds "
+                + "every card below (§B4's absence rule).",
                 v =>
                 {
                     Change(() => node.kind = (ShaperMockNodeKind)v);
@@ -581,6 +582,14 @@ namespace ShaperMock.Editor
                     SetupGeneratorHeaderMenu(box, node);
                     box.Add(BuildCompositeBody(node));
                     box.Add(BuildExtrusionBlock(node));
+                    break;
+
+                case ShaperMockNodeKind.Solid:
+                    // No BuildExtrusionBlock here, deliberately: the real ShaperSolidDef carries no
+                    // extrude/bevel fields at all — a Solid's depth already comes from its own analytic 3D
+                    // geometry (yaw/tilt/roll + form), not from a height-field extrusion of a 2D silhouette
+                    // the way Primitive/Composite need one.
+                    box.Add(BuildSolidBody(node));
                     break;
             }
 
@@ -860,6 +869,123 @@ namespace ShaperMock.Editor
             }
             RebuildBlock();
             return host;
+        }
+
+        // ── Solid (T-0138 #1) ────────────────────────────────────────────────────────────────────────
+        // Mirrors ShaperSolidDef (ShaperSolids.cs:32-82) field-for-field and ShaperSolids.InertReason
+        // (:312-368) behaviour-for-behaviour — see ShaperMockSolids.cs's header comment for the full
+        // real-vs-mock-placement distinction. A Solid "goes through the ordinary fill and light pipeline
+        // like everything else" per its own doc comment, so — unlike Composite — it keeps Fill/Border/
+        // Shell/Sweep/Swarm exactly as any other node kind gets them; RebuildNodeBody already does this for
+        // free since its `isComposite` gate only fires for ShaperMockNodeKind.Composite.
+
+        VisualElement BuildSolidBody(ShaperMockNode node)
+        {
+            var wrap = new VisualElement();
+            var s = node.solid;
+
+            // The one open engine-integration question, stated plainly here where a mock user actually
+            // sees it — not just in a code comment. See ShaperMockSolids.cs's header for the full version.
+            wrap.Add(Z.Help(
+                "This 'Solid' node kind is a UI-mock placement choice, not a confirmed real design decision. "
+                + "The real Shaper engine has a fully-built Solids generator (ShaperSolids.cs) but has not "
+                + "yet decided HOW a document authors one — a 4th node kind like this, a Composite-style "
+                + "alternate source, or a separate document/layer-level slot (the way the Light Rig is "
+                + "document-level rather than node-level). Treat this card as a demonstration of the "
+                + "authoring pattern, not as the real attachment point.", HelpBoxMessageType.Warning));
+
+            var formHost = new VisualElement();
+            void RebuildForm()
+            {
+                formHost.Clear();
+
+                var picker = Z.MiniRadio((int)s.form, new[] { "Box", "Pyramid", "Can", "Orb", "Gem", "Ring" },
+                    "Which solid this node generates. Switching form changes which dials below are live — "
+                    + "inert ones grey out and explain why, they never just vanish.",
+                    v => { Change(() => s.form = (ShaperMockSolidForm)v); RebuildForm(); });
+                formHost.Add(Z.Field("Form", "Which solid this node generates.", picker));
+
+                // Size / Centre / Aspect / Depth — one packed row, each individually greyed-with-reason via
+                // SolidVal when the current form makes it inert (real InertReason: Aspect inert on Orb/Gem/
+                // Ring, Depth inert on Can/Orb/Gem/Ring).
+                formHost.Add(Z.HGroup(
+                    SolidVal("Size", "The size envelope, in canvas pixels.", s.size, 1f, 128f,
+                        s.form, ShaperMockSolidDial.Size),
+                    SolidVal("Centre X", "Canvas position of the solid's centre.", s.centreX, -128f, 128f,
+                        s.form, ShaperMockSolidDial.Centre),
+                    SolidVal("Centre Y", "Canvas position of the solid's centre.", s.centreY, -128f, 128f,
+                        s.form, ShaperMockSolidDial.Centre),
+                    SolidVal("Aspect", "The Y half-extent multiplier.", s.aspect, 0.1f, 4f,
+                        s.form, ShaperMockSolidDial.Aspect),
+                    SolidVal("Depth", "The Z half-extent multiplier.", s.depth, 0.1f, 4f,
+                        s.form, ShaperMockSolidDial.Depth)));
+
+                // Gem-only and Ring-only sub-blocks: ALWAYS SHOWN, greyed with reason when the current form
+                // isn't the one they apply to — matching the real InertReason design's own literal standard
+                // ("declare inert with a reason, never hide"), the same consistency SolidVal already gives
+                // every dial above. This is a deliberate choice over the Fill section's per-kind-hides-the-
+                // whole-block precedent (§B4): the real system's OWN documented rule for these specific
+                // fields is "declare, don't hide", so that's what these two sub-blocks follow.
+                formHost.Add(Z.HGroup(
+                    SolidVal("Gem sides", "Girdle sides, 3..8.", s.gemSides, 3f, 8f,
+                        s.form, ShaperMockSolidDial.GemSides, decimals: 0),
+                    SolidVal("Gem crown", "Crown height as a fraction of R.", s.gemCrown, 0f, 2f,
+                        s.form, ShaperMockSolidDial.GemCrown),
+                    SolidVal("Gem pavilion", "Pavilion depth as a fraction of R.", s.gemPavilion, 0f, 2f,
+                        s.form, ShaperMockSolidDial.GemPavilion),
+                    SolidVal("Ring inner", "Hole radius as a fraction of R.", s.ringInner, 0.1f, 0.92f,
+                        s.form, ShaperMockSolidDial.RingInner)));
+
+                // Yaw / Tilt / Roll — one packed row; Roll greys out on Ring only.
+                formHost.Add(Z.HGroup(
+                    SolidVal("Yaw", "Rotation about Y, degrees.", s.yaw, -180f, 180f,
+                        s.form, ShaperMockSolidDial.Yaw, cyclic: true, decimals: 0),
+                    SolidVal("Tilt", "Rotation about X, degrees.", s.tilt, -180f, 180f,
+                        s.form, ShaperMockSolidDial.Tilt, cyclic: true, decimals: 0),
+                    SolidVal("Roll", "Rotation about Z in model space, applied first, degrees.", s.roll,
+                        -180f, 180f, s.form, ShaperMockSolidDial.Roll, cyclic: true, decimals: 0)));
+
+                // Facet edge line — "a facet edge line and never a border" per the real doc comment: it
+                // traces interior facet seams, which Border (drawn around the silhouette) can never produce.
+                formHost.Add(Z.HGroup(
+                    SolidVal("Line width", "Facet edge line half-width, canvas pixels.", s.lineWidth, 0f, 8f,
+                        s.form, ShaperMockSolidDial.LineWidth),
+                    Z.Field("Line colour", "The facet edge line's colour.",
+                        Z.Color(s.lineColour, "The facet edge line's colour.",
+                            c => Change(() => s.lineColour = c), 90f))));
+
+                formHost.Add(Z.HGroup(
+                    SolidVal("Edge glow", "Halo strength, 0..1.", s.edgeGlow, 0f, 1f,
+                        s.form, ShaperMockSolidDial.EdgeGlow),
+                    Z.Field("Edge glow colour", "The halo's colour.",
+                        Z.Color(s.edgeGlowColour, "The halo's colour.",
+                            c => Change(() => s.edgeGlowColour = c), 90f)),
+                    SolidVal("Inner glow", "Inner-glow strength, 0..1.", s.innerGlow, 0f, 1f,
+                        s.form, ShaperMockSolidDial.InnerGlow),
+                    Z.Field("Inner glow colour", "The inner glow's colour.",
+                        Z.Color(s.innerGlowColour, "The inner glow's colour.",
+                            c => Change(() => s.innerGlowColour = c), 90f))));
+            }
+            RebuildForm();
+            wrap.Add(formHost);
+            return wrap;
+        }
+
+        /// The ZUIValue analog of Val(), but for a Solids dial: greys the control and swaps its tooltip for
+        /// the real InertReason sentence when the CURRENT form makes it inert — mirroring
+        /// ShaperMockFillControl's RampByQuantity body's `body.SetEnabled(false); body.tooltip = "Greyed
+        /// out: ...";` pattern exactly, just applied per-dial instead of to a whole fill-kind body.
+        VisualElement SolidVal(string label, string tooltip, ZUIValue v, float lo, float hi,
+            ShaperMockSolidForm form, ShaperMockSolidDial dial, bool cyclic = false, int decimals = -1)
+        {
+            string reason = ShaperMockSolids.InertReason(form, dial);
+            var el = Val(label, reason ?? tooltip, v, lo, hi, cyclic, decimals);
+            if (reason != null)
+            {
+                el.SetEnabled(false);
+                el.tooltip = "Greyed out: " + reason;
+            }
+            return el;
         }
 
         // ── Bag members (§B2, §B4) ───────────────────────────────────────────────────────────────────

@@ -69,7 +69,12 @@ namespace ShaperMock.Editor
         public ShaperMockNode root = new ShaperMockNode { name = "Root" };
     }
 
-    public enum ShaperMockNodeKind { Primitive, Bag, Composite }
+    // "Solid" (T-0138 #1) — a UI-MOCK PLACEMENT CHOICE, not a confirmed real integration point. The real
+    // ShaperNodeKind (ShaperNode.cs) has exactly 3 values today; the real engine has not yet decided whether
+    // Solids becomes a 4th node kind, a Composite-style alternate source, or a separate document/layer-level
+    // slot. See ShaperMockSolids.cs's header comment for the full open question, and the Z.Help box
+    // ShaperMockWindow.BuildSolidBody adds when this kind is selected.
+    public enum ShaperMockNodeKind { Primitive, Bag, Composite, Solid }
     // Real ShaperPrimitiveKind order (T-0138 #8) — was {Disc, Ngon, Star}, a 3-of-7 stand-in. "Disc" had no
     // real analog; the real equal-radius case is Ellipse (a circle IS an equal-radius ellipse), so this
     // renames rather than adds a redundant 8th entry.
@@ -179,6 +184,12 @@ namespace ShaperMock.Editor
         public float compositeHalfExtentY = 64f;
         public int compositeBakeWidth = 128;
         public int compositeBakeHeight = 128;
+
+        // ── Solid (T-0138 #1) ────────────────────────────────────────────────────────────────────────
+        // Always-present, only READ when kind == Solid — same pattern as the Primitive shapeKind fields
+        // above and the Composite fields below, not the null-gated absence pattern Fill/Border use (a Solid
+        // has no "absent" state to represent; it's simply not the current kind). See ShaperMockSolids.cs.
+        public ShaperMockSolidDef solid = new ShaperMockSolidDef();
 
         // ── Extrusion / bevel (§D3) — already ZUIValue in the real engine, so the mock uses ZUIValue too.
         // Shown on Primitive and Composite (both are leaf shapes); a Bag has no own geometry to extrude.
