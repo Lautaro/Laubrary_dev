@@ -369,7 +369,11 @@ namespace Laubrary.Shaper
     /// rather than smuggled onto a node.
     ///
     /// Wave-2 content is exactly what LR-1.1 lists: a canvas size, an ordered list of layers, and one rig.
-    /// Frame count, rate and palette are C1's and are not in this task's scope.
+    ///
+    /// T-0144 then added the two C1 members that Wave 2 had deferred -- <see cref="frameCount"/> and
+    /// <see cref="frameRate"/> -- so the document finally states its own animation clock rather than having a
+    /// frame count handed to a transient <see cref="ShaperFrameCache"/> from outside. The palette is still
+    /// C1's and still outstanding.
     /// </summary>
     [Serializable]
     public class ShaperDocument
@@ -412,8 +416,47 @@ namespace Laubrary.Shaper
         /// </summary>
         public float phase01 = 0f;
 
-        /// <summary>The seed a <c>MinMax</c> dial on a light draws from (deterministically, LR-1.8 / LT-4).</summary>
+        /// <summary>The seed a <c>MinMax</c> dial on a light draws from (deterministically, LR-1.8 / LT-4).
+        /// <see cref="ShaperCherry"/>'s own draws are seeded from here too, for the same reason.</summary>
         public uint seed = 0u;
+
+        // ── The animation clock (T-0144, design C1) ──────────────────────────────────────────────────────
+        /// <summary>
+        /// How many frames this document resolves to (C1: "it resolves to a sequence of frames"). 1 means a
+        /// still document, which is the default so an existing document deserialises unchanged and behaves
+        /// exactly as it did before this field existed: at <c>frameCount == 1</c> every frame index maps to
+        /// <c>phase01 = 0</c>, which is already <c>ShaperCompiler.Compile</c>'s own default.
+        /// </summary>
+        [Min(1)] public int frameCount = 1;
+
+        /// <summary>
+        /// Playback rate in frames per second.
+        ///
+        /// Worth saying why a rate exists at all when everything is sampled from a normalised
+        /// <see cref="phase01"/> rather than from a wall clock: the phase answers "what does this document
+        /// look like at this point in its cycle", which is resolution-independent and has no units. The rate
+        /// answers a different question -- "how fast should those frames be shown to a human, and how fast
+        /// does a baked clip play". Nothing in the render pipeline reads this; it drives playback and it is
+        /// what a bake writes into the resulting animation.
+        /// </summary>
+        [Range(ShaperClock.MinFrameRate, ShaperClock.MaxFrameRate)]
+        public float frameRate = ShaperClock.DefaultFrameRate;
+
+        /// <summary><see cref="phase01"/> for a given frame of THIS document -- the single conversion, shared
+        /// with <see cref="ShaperFrameCache"/>. See <see cref="ShaperClock"/> for the convention.</summary>
+        public float PhaseOfFrame(int frameIndex) => ShaperClock.PhaseOfFrame(frameIndex, frameCount);
+
+        // ── Cherry framing (T-0143) ──────────────────────────────────────────────────────────────────────
+        // Playback-order state only: it selects WHICH of this document's own frames play and for how long,
+        // and never changes how any frame is rendered. Everything here defaults to a no-op, so a document
+        // saved before cherry framing existed deserialises and plays byte-identically.
+        /// <summary>When true, playback follows <see cref="cherryFrames"/> instead of the plain frame order.</summary>
+        public bool cherryEnabled = false;
+        /// <summary>The authored sub-sequence, in play order.</summary>
+        public List<ShaperCherryFrame> cherryFrames = new List<ShaperCherryFrame>();
+        /// <summary>Seconds of blank between one pass through the sequence and the next. 0 = loop with no
+        /// gap.</summary>
+        [Min(0f)] public float cherryLoopDelaySeconds = 0f;
 
         /// <summary>The grid this document's canvas describes, canvas-centred with +Y up (LR-1.5).</summary>
         public ShaperSampleGrid Grid(float edgeSoftness = 0f)

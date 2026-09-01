@@ -30,7 +30,7 @@ namespace Laubrary.Shaper
             switch (v.mode)
             {
                 case ZUIValue.Mode.Static: raw = v.staticValue; break;
-                case ZUIValue.Mode.MinMax: raw = Mathf.Lerp(v.min, v.max, Unit(Hash(seed))); break;
+                case ZUIValue.Mode.MinMax: raw = Mathf.Lerp(v.min, v.max, UnitOf(HashMix(seed))); break;
                 case ZUIValue.Mode.Curve: raw = v.EvaluateCurveAtNorm(phase01); break;
                 case ZUIValue.Mode.Steps: raw = v.EvaluateStepsAtNorm(phase01); break;
                 case ZUIValue.Mode.Oscillation: raw = v.EvaluateOscillationAtNorm(phase01); break;
@@ -39,8 +39,15 @@ namespace Laubrary.Shaper
             return raw * v.Multiplier();
         }
 
-        /// <summary>An integer avalanche hash (lowbias32), so every field id gets an uncorrelated draw.</summary>
-        static uint Hash(uint x)
+        /// <summary>
+        /// An integer avalanche hash (lowbias32), so every field id gets an uncorrelated draw.
+        ///
+        /// Public because it is the definition of "a deterministic draw" in this engine, and a second caller
+        /// now needs exactly that definition: <see cref="ShaperCherry"/>'s min/max hold lengths and
+        /// multi-frame picks (T-0143). Re-implementing the same avalanche there would leave two copies free to
+        /// drift, which for a hash means two things that are supposed to agree quietly stop agreeing.
+        /// </summary>
+        public static uint HashMix(uint x)
         {
             x ^= x >> 16; x *= 0x7feb352du;
             x ^= x >> 15; x *= 0x846ca68bu;
@@ -48,6 +55,7 @@ namespace Laubrary.Shaper
             return x;
         }
 
-        static float Unit(uint h) => (h & 0x00FFFFFFu) * (1f / 16777216f);
+        /// <summary>A hashed word folded to a unit float in [0,1).</summary>
+        public static float UnitOf(uint h) => (h & 0x00FFFFFFu) * (1f / 16777216f);
     }
 }

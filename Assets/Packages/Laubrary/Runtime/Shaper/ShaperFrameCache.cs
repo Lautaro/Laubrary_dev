@@ -55,12 +55,12 @@ namespace Laubrary.Shaper
 
         /// <summary>Frame 0 is phase 0, the LAST frame is phase 1 -- a single-frame document (frameCount == 1)
         /// is phase 0 throughout, the same convention <c>ShaperCompiler.Compile</c>'s own default parameter
-        /// (<c>phase01 = 0f</c>) already uses for a non-animated document.</summary>
-        public float PhaseOfFrame(int frameIndex)
-        {
-            if (frameCount <= 1) return 0f;
-            return Mathf.Clamp01((float)frameIndex / (frameCount - 1));
-        }
+        /// (<c>phase01 = 0f</c>) already uses for a non-animated document.
+        ///
+        /// T-0144 moved the arithmetic itself to <see cref="ShaperClock.PhaseOfFrame"/> without changing it,
+        /// so this cache and <see cref="ShaperDocument.PhaseOfFrame"/> cannot drift into two answers for one
+        /// question. This convention was set here first; see <see cref="ShaperClock"/> for why it stands.</summary>
+        public float PhaseOfFrame(int frameIndex) => ShaperClock.PhaseOfFrame(frameIndex, frameCount);
 
         public ShaperCacheKey RootKeyOfFrame(int frameIndex)
         {
