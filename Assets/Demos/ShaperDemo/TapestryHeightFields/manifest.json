@@ -1,0 +1,1962 @@
+[
+ {
+  "id": "plates_GEN10_001",
+  "sourceId": "plates/GEN10/001",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3458919525146484,
+  "sha256": "f1c4a0d46d81fc38"
+ },
+ {
+  "id": "plates_GEN10_002",
+  "sourceId": "plates/GEN10/002",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0431439876556396,
+  "sha256": "77a4f913eeb71591"
+ },
+ {
+  "id": "plates_GEN10_003",
+  "sourceId": "plates/GEN10/003",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0302013158798218,
+  "sha256": "5a3573d9e486e11e"
+ },
+ {
+  "id": "plates_GEN10_004",
+  "sourceId": "plates/GEN10/004",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0443089008331299,
+  "sha256": "9e73a1af74a9f7ab"
+ },
+ {
+  "id": "plates_GEN10_005",
+  "sourceId": "plates/GEN10/005",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.347461223602295,
+  "sha256": "7b085047ae85d803"
+ },
+ {
+  "id": "plates_GEN10_006",
+  "sourceId": "plates/GEN10/006",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0472862720489502,
+  "sha256": "b73cc0e6306e8acf"
+ },
+ {
+  "id": "plates_GEN10_007",
+  "sourceId": "plates/GEN10/007",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0673730373382568,
+  "sha256": "1e459a6d4f86c686"
+ },
+ {
+  "id": "plates_GEN10_008",
+  "sourceId": "plates/GEN10/008",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0344247817993164,
+  "sha256": "d954bbd20bcbe156"
+ },
+ {
+  "id": "plates_GEN10_009",
+  "sourceId": "plates/GEN10/009",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0451066493988037,
+  "sha256": "4d37057288aa37b0"
+ },
+ {
+  "id": "plates_GEN10_010",
+  "sourceId": "plates/GEN10/010",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.067435622215271,
+  "sha256": "4d21eff76f67b945"
+ },
+ {
+  "id": "plates_GEN10_011",
+  "sourceId": "plates/GEN10/011",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.294989824295044,
+  "sha256": "4a9bb0365f4ad8db"
+ },
+ {
+  "id": "plates_GEN10_012",
+  "sourceId": "plates/GEN10/012",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0774531364440918,
+  "sha256": "24b22708b8c45b32"
+ },
+ {
+  "id": "plates_GEN10_013",
+  "sourceId": "plates/GEN10/013",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.040466070175171,
+  "sha256": "921803cd282c0a9a"
+ },
+ {
+  "id": "plates_GEN10_014",
+  "sourceId": "plates/GEN10/014",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0491496324539185,
+  "sha256": "49ca33063b8d7dd5"
+ },
+ {
+  "id": "plates_GEN10_015",
+  "sourceId": "plates/GEN10/015",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0247671604156494,
+  "sha256": "5ded7e0ffa0840f6"
+ },
+ {
+  "id": "plates_GEN10_016",
+  "sourceId": "plates/GEN10/016",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.038979172706604,
+  "sha256": "940a3a04cac4f1be"
+ },
+ {
+  "id": "plates_GEN10_017",
+  "sourceId": "plates/GEN10/017",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3315956592559814,
+  "sha256": "4c58e011e67a018c"
+ },
+ {
+  "id": "plates_GEN10_018",
+  "sourceId": "plates/GEN10/018",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.326070785522461,
+  "sha256": "94c12ee817b7fd6f"
+ },
+ {
+  "id": "plates_GEN10_019",
+  "sourceId": "plates/GEN10/019",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.017288327217102,
+  "sha256": "a87fde76b0d5935c"
+ },
+ {
+  "id": "plates_GEN10_020",
+  "sourceId": "plates/GEN10/020",
+  "resolution": 256,
+  "min": -0.21733535826206207,
+  "max": 1.5800000429153442,
+  "sha256": "764d3003a87da1a8"
+ },
+ {
+  "id": "plates_GEN11_001",
+  "sourceId": "plates/GEN11/001",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0420172214508057,
+  "sha256": "6b163e9968097b27"
+ },
+ {
+  "id": "plates_GEN11_002",
+  "sourceId": "plates/GEN11/002",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.337701439857483,
+  "sha256": "b8040df535864ce3"
+ },
+ {
+  "id": "plates_GEN11_003",
+  "sourceId": "plates/GEN11/003",
+  "resolution": 256,
+  "min": 0.5600000023841858,
+  "max": 1.0401227474212646,
+  "sha256": "72f24a9e877a8f42"
+ },
+ {
+  "id": "plates_GEN11_004",
+  "sourceId": "plates/GEN11/004",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.1081634759902954,
+  "sha256": "b9f940a47fa67d61"
+ },
+ {
+  "id": "plates_GEN11_005",
+  "sourceId": "plates/GEN11/005",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.335628628730774,
+  "sha256": "55661bb98a82cc84"
+ },
+ {
+  "id": "plates_GEN11_006",
+  "sourceId": "plates/GEN11/006",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3249891996383667,
+  "sha256": "7a2dd969d865554b"
+ },
+ {
+  "id": "plates_GEN11_007",
+  "sourceId": "plates/GEN11/007",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0343453884124756,
+  "sha256": "8538bc911219a66a"
+ },
+ {
+  "id": "plates_GEN11_008",
+  "sourceId": "plates/GEN11/008",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3404510021209717,
+  "sha256": "4971b0fa09996506"
+ },
+ {
+  "id": "plates_GEN11_009",
+  "sourceId": "plates/GEN11/009",
+  "resolution": 256,
+  "min": -0.35386109352111816,
+  "max": 1.5800000429153442,
+  "sha256": "832c0cba082b1d25"
+ },
+ {
+  "id": "plates_GEN11_010",
+  "sourceId": "plates/GEN11/010",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.329835057258606,
+  "sha256": "221e492947b920f5"
+ },
+ {
+  "id": "plates_GEN11_011",
+  "sourceId": "plates/GEN11/011",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.299881100654602,
+  "sha256": "8fbb708f7cdfb40e"
+ },
+ {
+  "id": "plates_GEN11_012",
+  "sourceId": "plates/GEN11/012",
+  "resolution": 256,
+  "min": 0.5600000023841858,
+  "max": 1.0433087348937988,
+  "sha256": "64987bbb3be89a45"
+ },
+ {
+  "id": "plates_GEN11_013",
+  "sourceId": "plates/GEN11/013",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0698469877243042,
+  "sha256": "3cd86a5e3254a214"
+ },
+ {
+  "id": "plates_GEN11_014",
+  "sourceId": "plates/GEN11/014",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0378109216690063,
+  "sha256": "e38161a9a01abf1a"
+ },
+ {
+  "id": "plates_GEN11_015",
+  "sourceId": "plates/GEN11/015",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.6802202463150024,
+  "sha256": "d73843f753dab6b2"
+ },
+ {
+  "id": "plates_GEN11_016",
+  "sourceId": "plates/GEN11/016",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0694578886032104,
+  "sha256": "018c11538fce2fc9"
+ },
+ {
+  "id": "plates_GEN11_017",
+  "sourceId": "plates/GEN11/017",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0212574005126953,
+  "sha256": "2d2fb299a6431469"
+ },
+ {
+  "id": "plates_GEN11_018",
+  "sourceId": "plates/GEN11/018",
+  "resolution": 256,
+  "min": -0.4141862988471985,
+  "max": 1.5800000429153442,
+  "sha256": "473387c7e3c40c50"
+ },
+ {
+  "id": "plates_GEN11_019",
+  "sourceId": "plates/GEN11/019",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3217531442642212,
+  "sha256": "e55a6da4d719b774"
+ },
+ {
+  "id": "plates_GEN11_020",
+  "sourceId": "plates/GEN11/020",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.32609224319458,
+  "sha256": "1206be8771f20af7"
+ },
+ {
+  "id": "lines_GEN1_001",
+  "sourceId": "lines/GEN1/001",
+  "resolution": 256,
+  "min": -0.482766330242157,
+  "max": 0.0,
+  "sha256": "61b259a97f595678"
+ },
+ {
+  "id": "lines_GEN1_002",
+  "sourceId": "lines/GEN1/002",
+  "resolution": 256,
+  "min": -0.09375907480716705,
+  "max": 1.4242300987243652,
+  "sha256": "f419225efb3cd512"
+ },
+ {
+  "id": "lines_GEN1_003",
+  "sourceId": "lines/GEN1/003",
+  "resolution": 256,
+  "min": -0.4485003352165222,
+  "max": 0.0,
+  "sha256": "7fc17d8f5bda0a6c"
+ },
+ {
+  "id": "lines_GEN1_004",
+  "sourceId": "lines/GEN1/004",
+  "resolution": 256,
+  "min": -1.172399640083313,
+  "max": 1.2414982318878174,
+  "sha256": "a711aa694c570bee"
+ },
+ {
+  "id": "lines_GEN1_005",
+  "sourceId": "lines/GEN1/005",
+  "resolution": 256,
+  "min": -0.4131568670272827,
+  "max": 1.564371109008789,
+  "sha256": "0855db544adac077"
+ },
+ {
+  "id": "lines_GEN1_006",
+  "sourceId": "lines/GEN1/006",
+  "resolution": 256,
+  "min": -0.88349848985672,
+  "max": 1.176671028137207,
+  "sha256": "8ccb55603b04fc45"
+ },
+ {
+  "id": "lines_GEN1_007",
+  "sourceId": "lines/GEN1/007",
+  "resolution": 256,
+  "min": -0.6053155660629272,
+  "max": 1.4953153133392334,
+  "sha256": "35e7854ff5a62d6a"
+ },
+ {
+  "id": "lines_GEN1_008",
+  "sourceId": "lines/GEN1/008",
+  "resolution": 256,
+  "min": -0.8039355874061584,
+  "max": 0.0,
+  "sha256": "fce5665da9710db2"
+ },
+ {
+  "id": "lines_GEN2_001",
+  "sourceId": "lines/GEN2/001",
+  "resolution": 256,
+  "min": -0.41272175312042236,
+  "max": 1.760156512260437,
+  "sha256": "3c34815f262a07f6"
+ },
+ {
+  "id": "lines_GEN2_002",
+  "sourceId": "lines/GEN2/002",
+  "resolution": 256,
+  "min": -0.836532711982727,
+  "max": 0.0,
+  "sha256": "dd26de0fc45b260d"
+ },
+ {
+  "id": "lines_GEN2_003",
+  "sourceId": "lines/GEN2/003",
+  "resolution": 256,
+  "min": -0.2684093415737152,
+  "max": 1.3727188110351562,
+  "sha256": "cc83b4ec7c7e5cad"
+ },
+ {
+  "id": "lines_GEN2_004",
+  "sourceId": "lines/GEN2/004",
+  "resolution": 256,
+  "min": -0.9083143472671509,
+  "max": 0.0,
+  "sha256": "d4bb1fa3b4a21fc3"
+ },
+ {
+  "id": "lines_GEN2_005",
+  "sourceId": "lines/GEN2/005",
+  "resolution": 256,
+  "min": -1.5307211875915527,
+  "max": 1.9700175523757935,
+  "sha256": "17ceda8047195d5b"
+ },
+ {
+  "id": "lines_GEN2_006",
+  "sourceId": "lines/GEN2/006",
+  "resolution": 256,
+  "min": -0.431892067193985,
+  "max": 1.353044867515564,
+  "sha256": "76199baea8aaaa5b"
+ },
+ {
+  "id": "lines_GEN2_007",
+  "sourceId": "lines/GEN2/007",
+  "resolution": 256,
+  "min": -0.43036559224128723,
+  "max": 1.4121259450912476,
+  "sha256": "da8a9cd4c4f20957"
+ },
+ {
+  "id": "lines_GEN2_008",
+  "sourceId": "lines/GEN2/008",
+  "resolution": 256,
+  "min": -1.1049641370773315,
+  "max": 2.2057981491088867,
+  "sha256": "c931c4556cc15a5d"
+ },
+ {
+  "id": "lines_GEN2_009",
+  "sourceId": "lines/GEN2/009",
+  "resolution": 256,
+  "min": -0.8863152861595154,
+  "max": 0.0,
+  "sha256": "7b5846d7c8d6e032"
+ },
+ {
+  "id": "lines_GEN2_010",
+  "sourceId": "lines/GEN2/010",
+  "resolution": 256,
+  "min": -0.08160766959190369,
+  "max": 1.194679856300354,
+  "sha256": "17c42a770852bc9d"
+ },
+ {
+  "id": "lines_GEN2_011",
+  "sourceId": "lines/GEN2/011",
+  "resolution": 256,
+  "min": -0.8216793537139893,
+  "max": 0.0,
+  "sha256": "eec06816d2aa6e98"
+ },
+ {
+  "id": "lines_GEN2_012",
+  "sourceId": "lines/GEN2/012",
+  "resolution": 256,
+  "min": -0.5409022569656372,
+  "max": 0.0,
+  "sha256": "baa7e8f53403d83b"
+ },
+ {
+  "id": "plates_GEN2_001",
+  "sourceId": "plates/GEN2/001",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.2920076847076416,
+  "sha256": "c37e82a281783a22"
+ },
+ {
+  "id": "plates_GEN2_002",
+  "sourceId": "plates/GEN2/002",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.119314432144165,
+  "sha256": "2cc07852055a4dc7"
+ },
+ {
+  "id": "plates_GEN2_003",
+  "sourceId": "plates/GEN2/003",
+  "resolution": 256,
+  "min": -0.11999999731779099,
+  "max": 1.283715009689331,
+  "sha256": "a1506255ccf5c0a7"
+ },
+ {
+  "id": "plates_GEN2_004",
+  "sourceId": "plates/GEN2/004",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.4985201358795166,
+  "sha256": "0173a35e512a150b"
+ },
+ {
+  "id": "plates_GEN2_005",
+  "sourceId": "plates/GEN2/005",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.2877626419067383,
+  "sha256": "e4a567b889a18c46"
+ },
+ {
+  "id": "plates_GEN2_006",
+  "sourceId": "plates/GEN2/006",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.4087746143341064,
+  "sha256": "3cf89618676a6050"
+ },
+ {
+  "id": "plates_GEN2_007",
+  "sourceId": "plates/GEN2/007",
+  "resolution": 256,
+  "min": -0.06613238900899887,
+  "max": 1.7393008470535278,
+  "sha256": "f9df573589ec8e9f"
+ },
+ {
+  "id": "plates_GEN2_008",
+  "sourceId": "plates/GEN2/008",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.6214932203292847,
+  "sha256": "5aa6b893b91b6bbb"
+ },
+ {
+  "id": "lines_GEN3_001",
+  "sourceId": "lines/GEN3/001",
+  "resolution": 256,
+  "min": -0.8262271285057068,
+  "max": 0.0,
+  "sha256": "83efbbe8612e8ab5"
+ },
+ {
+  "id": "lines_GEN3_002",
+  "sourceId": "lines/GEN3/002",
+  "resolution": 256,
+  "min": -1.1070325374603271,
+  "max": 0.0,
+  "sha256": "c23b43bc0e2bb6d1"
+ },
+ {
+  "id": "lines_GEN3_003",
+  "sourceId": "lines/GEN3/003",
+  "resolution": 256,
+  "min": -0.6710890531539917,
+  "max": 0.0,
+  "sha256": "6eec01955b468ffa"
+ },
+ {
+  "id": "lines_GEN3_004",
+  "sourceId": "lines/GEN3/004",
+  "resolution": 256,
+  "min": -0.6360683441162109,
+  "max": 1.3649698495864868,
+  "sha256": "e6b73e18f365e561"
+ },
+ {
+  "id": "lines_GEN3_005",
+  "sourceId": "lines/GEN3/005",
+  "resolution": 256,
+  "min": -0.21118851006031036,
+  "max": 1.3303205966949463,
+  "sha256": "0e0ba8d7ad865c16"
+ },
+ {
+  "id": "lines_GEN3_006",
+  "sourceId": "lines/GEN3/006",
+  "resolution": 256,
+  "min": -0.1555458903312683,
+  "max": 1.6003105640411377,
+  "sha256": "56385ad7981b3635"
+ },
+ {
+  "id": "lines_GEN3_007",
+  "sourceId": "lines/GEN3/007",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0122286081314087,
+  "sha256": "b572b9a9dff652d2"
+ },
+ {
+  "id": "lines_GEN3_008",
+  "sourceId": "lines/GEN3/008",
+  "resolution": 256,
+  "min": -0.8401317596435547,
+  "max": 0.0,
+  "sha256": "5aa94dc9764addd2"
+ },
+ {
+  "id": "lines_GEN3_009",
+  "sourceId": "lines/GEN3/009",
+  "resolution": 256,
+  "min": -0.8028780221939087,
+  "max": 0.7454323172569275,
+  "sha256": "37b0bce88ba6cc35"
+ },
+ {
+  "id": "lines_GEN3_010",
+  "sourceId": "lines/GEN3/010",
+  "resolution": 256,
+  "min": -1.1865334510803223,
+  "max": 0.0,
+  "sha256": "0720405f1af4698a"
+ },
+ {
+  "id": "lines_GEN3_011",
+  "sourceId": "lines/GEN3/011",
+  "resolution": 256,
+  "min": -0.41515660285949707,
+  "max": 0.9424387812614441,
+  "sha256": "ce14a8d70851977e"
+ },
+ {
+  "id": "lines_GEN3_012",
+  "sourceId": "lines/GEN3/012",
+  "resolution": 256,
+  "min": -1.4541536569595337,
+  "max": 1.9700061082839966,
+  "sha256": "9823abdccd9939c7"
+ },
+ {
+  "id": "lines_GEN3_013",
+  "sourceId": "lines/GEN3/013",
+  "resolution": 256,
+  "min": -0.787042498588562,
+  "max": 1.3181289434432983,
+  "sha256": "fffaa1ae986fd2ee"
+ },
+ {
+  "id": "plates_GEN3_001",
+  "sourceId": "plates/GEN3/001",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.1257622241973877,
+  "sha256": "97609ecb47ba2bd8"
+ },
+ {
+  "id": "plates_GEN3_002",
+  "sourceId": "plates/GEN3/002",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.6316118240356445,
+  "sha256": "3ec13ffeb1390f09"
+ },
+ {
+  "id": "plates_GEN3_003",
+  "sourceId": "plates/GEN3/003",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3316528797149658,
+  "sha256": "ba3f5007ceaa8acf"
+ },
+ {
+  "id": "plates_GEN3_004",
+  "sourceId": "plates/GEN3/004",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.6393340826034546,
+  "sha256": "5c8210d717ec723a"
+ },
+ {
+  "id": "plates_GEN3_005",
+  "sourceId": "plates/GEN3/005",
+  "resolution": 256,
+  "min": -0.47350189089775085,
+  "max": 1.497331142425537,
+  "sha256": "fac08c95fda69fb8"
+ },
+ {
+  "id": "plates_GEN3_006",
+  "sourceId": "plates/GEN3/006",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.4025477170944214,
+  "sha256": "c3cd9909e8f53d22"
+ },
+ {
+  "id": "plates_GEN3_007",
+  "sourceId": "plates/GEN3/007",
+  "resolution": 256,
+  "min": -0.11999999731779099,
+  "max": 1.6067495346069336,
+  "sha256": "c20d5d76b0249a7e"
+ },
+ {
+  "id": "plates_GEN3_008",
+  "sourceId": "plates/GEN3/008",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3558324575424194,
+  "sha256": "5004141ac7c38d24"
+ },
+ {
+  "id": "plates_GEN3_009",
+  "sourceId": "plates/GEN3/009",
+  "resolution": 256,
+  "min": -0.1630619615316391,
+  "max": 1.4199999570846558,
+  "sha256": "9a6904ee9558b081"
+ },
+ {
+  "id": "plates_GEN3_010",
+  "sourceId": "plates/GEN3/010",
+  "resolution": 256,
+  "min": -0.2885381877422333,
+  "max": 1.4213758707046509,
+  "sha256": "87530010228cb89b"
+ },
+ {
+  "id": "plates_GEN3_011",
+  "sourceId": "plates/GEN3/011",
+  "resolution": 256,
+  "min": -0.11999999731779099,
+  "max": 1.2973366975784302,
+  "sha256": "135c93b9b75c2491"
+ },
+ {
+  "id": "plates_GEN3_012",
+  "sourceId": "plates/GEN3/012",
+  "resolution": 256,
+  "min": -0.36741459369659424,
+  "max": 1.5501892566680908,
+  "sha256": "27db57c16b168359"
+ },
+ {
+  "id": "lines_GEN4_001",
+  "sourceId": "lines/GEN4/001",
+  "resolution": 256,
+  "min": -0.8093812465667725,
+  "max": 0.0,
+  "sha256": "cc03645b52c159bd"
+ },
+ {
+  "id": "lines_GEN4_002",
+  "sourceId": "lines/GEN4/002",
+  "resolution": 256,
+  "min": -0.18215638399124146,
+  "max": 1.4760056734085083,
+  "sha256": "1f24843054f5910e"
+ },
+ {
+  "id": "lines_GEN4_003",
+  "sourceId": "lines/GEN4/003",
+  "resolution": 256,
+  "min": -1.275848150253296,
+  "max": 0.0,
+  "sha256": "575afe4e261f5404"
+ },
+ {
+  "id": "lines_GEN4_004",
+  "sourceId": "lines/GEN4/004",
+  "resolution": 256,
+  "min": -1.0027004480361938,
+  "max": 0.0,
+  "sha256": "2242f59fc7e85e9b"
+ },
+ {
+  "id": "lines_GEN4_005",
+  "sourceId": "lines/GEN4/005",
+  "resolution": 256,
+  "min": -0.05895176902413368,
+  "max": 1.4954180717468262,
+  "sha256": "282cbb767ccb8c4d"
+ },
+ {
+  "id": "lines_GEN4_006",
+  "sourceId": "lines/GEN4/006",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 0.8385274410247803,
+  "sha256": "ad7a7830bdb8f360"
+ },
+ {
+  "id": "lines_GEN4_007",
+  "sourceId": "lines/GEN4/007",
+  "resolution": 256,
+  "min": -0.5154016017913818,
+  "max": 0.0,
+  "sha256": "cc022a3c50e34268"
+ },
+ {
+  "id": "lines_GEN4_008",
+  "sourceId": "lines/GEN4/008",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 0.499941349029541,
+  "sha256": "99f611bb8e2699b9"
+ },
+ {
+  "id": "lines_GEN4_009",
+  "sourceId": "lines/GEN4/009",
+  "resolution": 256,
+  "min": -0.817157506942749,
+  "max": 0.0,
+  "sha256": "5bf03f940728186e"
+ },
+ {
+  "id": "lines_GEN4_010",
+  "sourceId": "lines/GEN4/010",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 0.6155659556388855,
+  "sha256": "1d71d1d15b57e89e"
+ },
+ {
+  "id": "lines_GEN4_011",
+  "sourceId": "lines/GEN4/011",
+  "resolution": 256,
+  "min": -0.18379735946655273,
+  "max": 1.7370834350585938,
+  "sha256": "d1622cb5c20d9c84"
+ },
+ {
+  "id": "lines_GEN4_012",
+  "sourceId": "lines/GEN4/012",
+  "resolution": 256,
+  "min": -0.26651713252067566,
+  "max": 1.3493412733078003,
+  "sha256": "8e1a126cd3013818"
+ },
+ {
+  "id": "lines_GEN4_013",
+  "sourceId": "lines/GEN4/013",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.4623466730117798,
+  "sha256": "fe0ff2882c9ce504"
+ },
+ {
+  "id": "lines_GEN5_001",
+  "sourceId": "lines/GEN5/001",
+  "resolution": 256,
+  "min": -1.573378086090088,
+  "max": 0.0,
+  "sha256": "a50b46ae59aca034"
+ },
+ {
+  "id": "lines_GEN5_002",
+  "sourceId": "lines/GEN5/002",
+  "resolution": 256,
+  "min": -0.8366675972938538,
+  "max": 0.0,
+  "sha256": "4f844e14643f0f9b"
+ },
+ {
+  "id": "lines_GEN5_003",
+  "sourceId": "lines/GEN5/003",
+  "resolution": 256,
+  "min": -0.8930450081825256,
+  "max": 0.0,
+  "sha256": "1f125695458f8c66"
+ },
+ {
+  "id": "lines_GEN5_004",
+  "sourceId": "lines/GEN5/004",
+  "resolution": 256,
+  "min": -0.20372889935970306,
+  "max": 1.7687504291534424,
+  "sha256": "8b66830ae467372a"
+ },
+ {
+  "id": "lines_GEN5_005",
+  "sourceId": "lines/GEN5/005",
+  "resolution": 256,
+  "min": -1.6242280006408691,
+  "max": 0.0,
+  "sha256": "4b24016ff71ef997"
+ },
+ {
+  "id": "lines_GEN5_006",
+  "sourceId": "lines/GEN5/006",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.2028064727783203,
+  "sha256": "4fbafc73f1be0424"
+ },
+ {
+  "id": "lines_GEN5_007",
+  "sourceId": "lines/GEN5/007",
+  "resolution": 256,
+  "min": -0.7636232376098633,
+  "max": 0.0,
+  "sha256": "5186ee0a74aee9b9"
+ },
+ {
+  "id": "lines_GEN5_008",
+  "sourceId": "lines/GEN5/008",
+  "resolution": 256,
+  "min": -0.8104478120803833,
+  "max": 0.0,
+  "sha256": "601f7e11bb43f302"
+ },
+ {
+  "id": "lines_GEN5_009",
+  "sourceId": "lines/GEN5/009",
+  "resolution": 256,
+  "min": -1.0733940601348877,
+  "max": 0.0,
+  "sha256": "834b53bec25a7fee"
+ },
+ {
+  "id": "lines_GEN5_010",
+  "sourceId": "lines/GEN5/010",
+  "resolution": 256,
+  "min": -0.8455988764762878,
+  "max": 1.7279582023620605,
+  "sha256": "c2e41a68a2c80f62"
+ },
+ {
+  "id": "lines_GEN5_011",
+  "sourceId": "lines/GEN5/011",
+  "resolution": 256,
+  "min": -1.3235890865325928,
+  "max": 1.128568172454834,
+  "sha256": "129929bbba037921"
+ },
+ {
+  "id": "lines_GEN5_012",
+  "sourceId": "lines/GEN5/012",
+  "resolution": 256,
+  "min": -0.23928795754909515,
+  "max": 1.804591417312622,
+  "sha256": "83abf43b519c3395"
+ },
+ {
+  "id": "lines_GEN5_013",
+  "sourceId": "lines/GEN5/013",
+  "resolution": 256,
+  "min": -1.1697008609771729,
+  "max": 1.0294195413589478,
+  "sha256": "5f8fae9c3ec378e5"
+ },
+ {
+  "id": "plates_GEN5_001",
+  "sourceId": "plates/GEN5/001",
+  "resolution": 256,
+  "min": -0.33069878816604614,
+  "max": 1.5800000429153442,
+  "sha256": "239b2b5c1f4ace1c"
+ },
+ {
+  "id": "plates_GEN5_002",
+  "sourceId": "plates/GEN5/002",
+  "resolution": 256,
+  "min": -0.2279840111732483,
+  "max": 1.4341403245925903,
+  "sha256": "ee054a7ca8dd421a"
+ },
+ {
+  "id": "plates_GEN5_003",
+  "sourceId": "plates/GEN5/003",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.6183733940124512,
+  "sha256": "73d7a13234936b95"
+ },
+ {
+  "id": "plates_GEN5_004",
+  "sourceId": "plates/GEN5/004",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.6054856777191162,
+  "sha256": "845b1cb1ff443740"
+ },
+ {
+  "id": "plates_GEN5_005",
+  "sourceId": "plates/GEN5/005",
+  "resolution": 256,
+  "min": -0.1823839694261551,
+  "max": 1.5756008625030518,
+  "sha256": "69bd743b5bfde7bf"
+ },
+ {
+  "id": "plates_GEN5_006",
+  "sourceId": "plates/GEN5/006",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3096705675125122,
+  "sha256": "f985fdbe837cf53b"
+ },
+ {
+  "id": "plates_GEN5_007",
+  "sourceId": "plates/GEN5/007",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.5361992120742798,
+  "sha256": "d118b4281453bbba"
+ },
+ {
+  "id": "plates_GEN5_008",
+  "sourceId": "plates/GEN5/008",
+  "resolution": 256,
+  "min": -0.39841529726982117,
+  "max": 1.3115222454071045,
+  "sha256": "4fb0627c512a40d6"
+ },
+ {
+  "id": "plates_GEN5_009",
+  "sourceId": "plates/GEN5/009",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.226753830909729,
+  "sha256": "f2125cca94fd513b"
+ },
+ {
+  "id": "plates_GEN5_010",
+  "sourceId": "plates/GEN5/010",
+  "resolution": 256,
+  "min": -0.23049838840961456,
+  "max": 1.5800000429153442,
+  "sha256": "4d4091f5e915a879"
+ },
+ {
+  "id": "plates_GEN5_011",
+  "sourceId": "plates/GEN5/011",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.343093991279602,
+  "sha256": "e536e2161e7e15d5"
+ },
+ {
+  "id": "plates_GEN5_012",
+  "sourceId": "plates/GEN5/012",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3775553703308105,
+  "sha256": "b8a77f89827da6c5"
+ },
+ {
+  "id": "plates_GEN5_013",
+  "sourceId": "plates/GEN5/013",
+  "resolution": 256,
+  "min": -0.11999999731779099,
+  "max": 1.2390319108963013,
+  "sha256": "04adc362300629fd"
+ },
+ {
+  "id": "plates_GEN5_014",
+  "sourceId": "plates/GEN5/014",
+  "resolution": 256,
+  "min": -0.177567720413208,
+  "max": 1.5800000429153442,
+  "sha256": "a33f85269cc1285c"
+ },
+ {
+  "id": "plates_GEN5_015",
+  "sourceId": "plates/GEN5/015",
+  "resolution": 256,
+  "min": -0.40523600578308105,
+  "max": 1.5800000429153442,
+  "sha256": "56377b5d58fdfab4"
+ },
+ {
+  "id": "lines_GEN6_001",
+  "sourceId": "lines/GEN6/001",
+  "resolution": 256,
+  "min": -0.08029618859291077,
+  "max": 1.4673347473144531,
+  "sha256": "97b61caa0df720f6"
+ },
+ {
+  "id": "lines_GEN6_002",
+  "sourceId": "lines/GEN6/002",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 0.8343644738197327,
+  "sha256": "e38a4902fea88f3b"
+ },
+ {
+  "id": "lines_GEN6_003",
+  "sourceId": "lines/GEN6/003",
+  "resolution": 256,
+  "min": -0.4774748980998993,
+  "max": 1.995875597000122,
+  "sha256": "140ae5f8419bb7bd"
+ },
+ {
+  "id": "lines_GEN6_004",
+  "sourceId": "lines/GEN6/004",
+  "resolution": 256,
+  "min": -0.9119996428489685,
+  "max": 0.0,
+  "sha256": "e92658165c7b3ebe"
+ },
+ {
+  "id": "lines_GEN6_005",
+  "sourceId": "lines/GEN6/005",
+  "resolution": 256,
+  "min": -0.7027459740638733,
+  "max": 1.0543949604034424,
+  "sha256": "9b8a23cafe46ad5c"
+ },
+ {
+  "id": "lines_GEN6_006",
+  "sourceId": "lines/GEN6/006",
+  "resolution": 256,
+  "min": -0.9452142119407654,
+  "max": 0.0,
+  "sha256": "dd535467ad5af53c"
+ },
+ {
+  "id": "lines_GEN6_007",
+  "sourceId": "lines/GEN6/007",
+  "resolution": 256,
+  "min": -1.1373798847198486,
+  "max": 1.873822808265686,
+  "sha256": "34503fc3c75b4ad8"
+ },
+ {
+  "id": "lines_GEN6_008",
+  "sourceId": "lines/GEN6/008",
+  "resolution": 256,
+  "min": -1.1915781497955322,
+  "max": 0.8379895687103271,
+  "sha256": "1b4c9f39d11e59a3"
+ },
+ {
+  "id": "lines_GEN6_009",
+  "sourceId": "lines/GEN6/009",
+  "resolution": 256,
+  "min": -0.3613244593143463,
+  "max": 1.7538843154907227,
+  "sha256": "54c81834d0e1ba49"
+ },
+ {
+  "id": "lines_GEN6_010",
+  "sourceId": "lines/GEN6/010",
+  "resolution": 256,
+  "min": -1.250036597251892,
+  "max": 0.0,
+  "sha256": "acb5ada20255f8e3"
+ },
+ {
+  "id": "lines_GEN6_011",
+  "sourceId": "lines/GEN6/011",
+  "resolution": 256,
+  "min": -1.2387062311172485,
+  "max": 0.0,
+  "sha256": "2c3aa5cc3aeea3c8"
+ },
+ {
+  "id": "lines_GEN6_012",
+  "sourceId": "lines/GEN6/012",
+  "resolution": 256,
+  "min": -0.4579832851886749,
+  "max": 1.8160731792449951,
+  "sha256": "f5c4be99a9bc737a"
+ },
+ {
+  "id": "lines_GEN6_013",
+  "sourceId": "lines/GEN6/013",
+  "resolution": 256,
+  "min": -0.46372076869010925,
+  "max": 1.780759572982788,
+  "sha256": "f90c46d68fc1173f"
+ },
+ {
+  "id": "plates_GEN6_001",
+  "sourceId": "plates/GEN6/001",
+  "resolution": 256,
+  "min": -0.4393968880176544,
+  "max": 1.5800000429153442,
+  "sha256": "9870d3e1e9dc99fe"
+ },
+ {
+  "id": "plates_GEN6_002",
+  "sourceId": "plates/GEN6/002",
+  "resolution": 256,
+  "min": -0.32381123304367065,
+  "max": 1.5800000429153442,
+  "sha256": "af9c7c951870ac04"
+ },
+ {
+  "id": "plates_GEN6_003",
+  "sourceId": "plates/GEN6/003",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3498520851135254,
+  "sha256": "fce05ff3c9820ad8"
+ },
+ {
+  "id": "plates_GEN6_004",
+  "sourceId": "plates/GEN6/004",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.8006720542907715,
+  "sha256": "98255112fb910dc3"
+ },
+ {
+  "id": "plates_GEN6_005",
+  "sourceId": "plates/GEN6/005",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.511927604675293,
+  "sha256": "e215aff828c0e054"
+ },
+ {
+  "id": "plates_GEN6_006",
+  "sourceId": "plates/GEN6/006",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.4062020778656006,
+  "sha256": "e5b16d5aaa33e4f8"
+ },
+ {
+  "id": "plates_GEN6_007",
+  "sourceId": "plates/GEN6/007",
+  "resolution": 256,
+  "min": -0.31333833932876587,
+  "max": 1.5800000429153442,
+  "sha256": "0b071a3ae7a244e1"
+ },
+ {
+  "id": "plates_GEN6_008",
+  "sourceId": "plates/GEN6/008",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.7278486490249634,
+  "sha256": "b0446b7c3f0536cc"
+ },
+ {
+  "id": "plates_GEN6_009",
+  "sourceId": "plates/GEN6/009",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.642907977104187,
+  "sha256": "30a093250af7d3cb"
+ },
+ {
+  "id": "plates_GEN6_010",
+  "sourceId": "plates/GEN6/010",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3139055967330933,
+  "sha256": "f9b2ef2f019d411f"
+ },
+ {
+  "id": "plates_GEN6_011",
+  "sourceId": "plates/GEN6/011",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.6841007471084595,
+  "sha256": "db8e999068652f6e"
+ },
+ {
+  "id": "plates_GEN6_012",
+  "sourceId": "plates/GEN6/012",
+  "resolution": 256,
+  "min": -0.20531876385211945,
+  "max": 1.159999966621399,
+  "sha256": "998ed536f9e2d085"
+ },
+ {
+  "id": "plates_GEN6_013",
+  "sourceId": "plates/GEN6/013",
+  "resolution": 256,
+  "min": -0.11999999731779099,
+  "max": 1.3530924320220947,
+  "sha256": "4dd7f14949661e91"
+ },
+ {
+  "id": "plates_GEN6_014",
+  "sourceId": "plates/GEN6/014",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.2073030471801758,
+  "sha256": "f9ea338b7634274c"
+ },
+ {
+  "id": "plates_GEN6_015",
+  "sourceId": "plates/GEN6/015",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3307206630706787,
+  "sha256": "f8165303cd7e153b"
+ },
+ {
+  "id": "lines_GEN7_001",
+  "sourceId": "lines/GEN7/001",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.386175274848938,
+  "sha256": "21214096572da11f"
+ },
+ {
+  "id": "lines_GEN7_002",
+  "sourceId": "lines/GEN7/002",
+  "resolution": 256,
+  "min": -0.41074007749557495,
+  "max": 1.1392940282821655,
+  "sha256": "47abb70c652f14d2"
+ },
+ {
+  "id": "lines_GEN7_003",
+  "sourceId": "lines/GEN7/003",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0137627124786377,
+  "sha256": "cb5c92499547a24c"
+ },
+ {
+  "id": "lines_GEN7_004",
+  "sourceId": "lines/GEN7/004",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.5013096332550049,
+  "sha256": "4305916f3343e7ef"
+ },
+ {
+  "id": "lines_GEN7_005",
+  "sourceId": "lines/GEN7/005",
+  "resolution": 256,
+  "min": -0.9850867390632629,
+  "max": 1.1368529796600342,
+  "sha256": "2bb9e6d1971b88d0"
+ },
+ {
+  "id": "lines_GEN7_006",
+  "sourceId": "lines/GEN7/006",
+  "resolution": 256,
+  "min": -0.7524100542068481,
+  "max": 0.0,
+  "sha256": "87b10eb4239ba489"
+ },
+ {
+  "id": "lines_GEN7_007",
+  "sourceId": "lines/GEN7/007",
+  "resolution": 256,
+  "min": -1.241743803024292,
+  "max": 0.0,
+  "sha256": "a73a7dfccc93a8a3"
+ },
+ {
+  "id": "lines_GEN7_008",
+  "sourceId": "lines/GEN7/008",
+  "resolution": 256,
+  "min": -1.2000057697296143,
+  "max": 0.0,
+  "sha256": "3579823913505711"
+ },
+ {
+  "id": "lines_GEN7_009",
+  "sourceId": "lines/GEN7/009",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.6180548667907715,
+  "sha256": "8da7d7c4034a4b76"
+ },
+ {
+  "id": "lines_GEN7_010",
+  "sourceId": "lines/GEN7/010",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.1498152017593384,
+  "sha256": "b48a0182864f339c"
+ },
+ {
+  "id": "lines_GEN7_011",
+  "sourceId": "lines/GEN7/011",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.419398307800293,
+  "sha256": "c614b015ebdbb791"
+ },
+ {
+  "id": "lines_GEN7_012",
+  "sourceId": "lines/GEN7/012",
+  "resolution": 256,
+  "min": -0.9708297252655029,
+  "max": 0.0,
+  "sha256": "d3c6e45352194b6c"
+ },
+ {
+  "id": "lines_GEN7_013",
+  "sourceId": "lines/GEN7/013",
+  "resolution": 256,
+  "min": -0.6146252751350403,
+  "max": 0.0,
+  "sha256": "815f91d066b99418"
+ },
+ {
+  "id": "plates_GEN7_001",
+  "sourceId": "plates/GEN7/001",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.2950212955474854,
+  "sha256": "397d4e9d696d5809"
+ },
+ {
+  "id": "plates_GEN7_002",
+  "sourceId": "plates/GEN7/002",
+  "resolution": 256,
+  "min": -0.2902252972126007,
+  "max": 1.5800000429153442,
+  "sha256": "246ec48516b8f166"
+ },
+ {
+  "id": "plates_GEN7_003",
+  "sourceId": "plates/GEN7/003",
+  "resolution": 256,
+  "min": -0.15492087602615356,
+  "max": 1.374849796295166,
+  "sha256": "8c3ed4863008ea50"
+ },
+ {
+  "id": "plates_GEN7_004",
+  "sourceId": "plates/GEN7/004",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3849529027938843,
+  "sha256": "c0b258d09bb9309f"
+ },
+ {
+  "id": "plates_GEN7_005",
+  "sourceId": "plates/GEN7/005",
+  "resolution": 256,
+  "min": -0.10735154896974564,
+  "max": 1.229828119277954,
+  "sha256": "626b869e4fc4b43a"
+ },
+ {
+  "id": "plates_GEN7_006",
+  "sourceId": "plates/GEN7/006",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.6661747694015503,
+  "sha256": "69764be661fe07ca"
+ },
+ {
+  "id": "plates_GEN7_007",
+  "sourceId": "plates/GEN7/007",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3965409994125366,
+  "sha256": "3c38eb1d241e73d8"
+ },
+ {
+  "id": "plates_GEN7_008",
+  "sourceId": "plates/GEN7/008",
+  "resolution": 256,
+  "min": -0.20185823738574982,
+  "max": 1.3297114372253418,
+  "sha256": "376e1f1398789e94"
+ },
+ {
+  "id": "plates_GEN7_009",
+  "sourceId": "plates/GEN7/009",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.4004546403884888,
+  "sha256": "9f3a9f469598fd66"
+ },
+ {
+  "id": "plates_GEN7_010",
+  "sourceId": "plates/GEN7/010",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.5667524337768555,
+  "sha256": "b748eda286d4d2c6"
+ },
+ {
+  "id": "plates_GEN7_011",
+  "sourceId": "plates/GEN7/011",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3329054117202759,
+  "sha256": "fcd6a238bf768866"
+ },
+ {
+  "id": "plates_GEN7_012",
+  "sourceId": "plates/GEN7/012",
+  "resolution": 256,
+  "min": -0.3814479112625122,
+  "max": 1.5800000429153442,
+  "sha256": "cbb38568a2655974"
+ },
+ {
+  "id": "plates_GEN7_013",
+  "sourceId": "plates/GEN7/013",
+  "resolution": 256,
+  "min": -0.08556618541479111,
+  "max": 1.404037356376648,
+  "sha256": "556d55c5668efbbb"
+ },
+ {
+  "id": "plates_GEN7_014",
+  "sourceId": "plates/GEN7/014",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 0.9463839530944824,
+  "sha256": "7446630d8a1e9879"
+ },
+ {
+  "id": "plates_GEN7_015",
+  "sourceId": "plates/GEN7/015",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3410478830337524,
+  "sha256": "379b10b56a3fb6b7"
+ },
+ {
+  "id": "lines_GEN8_001",
+  "sourceId": "lines/GEN8/001",
+  "resolution": 256,
+  "min": -0.02412625588476658,
+  "max": 1.4369417428970337,
+  "sha256": "b3c85495ba310d41"
+ },
+ {
+  "id": "lines_GEN8_002",
+  "sourceId": "lines/GEN8/002",
+  "resolution": 256,
+  "min": -1.6476733684539795,
+  "max": 0.0,
+  "sha256": "9dd9ee70f0b03ee8"
+ },
+ {
+  "id": "lines_GEN8_003",
+  "sourceId": "lines/GEN8/003",
+  "resolution": 256,
+  "min": -0.07811649143695831,
+  "max": 1.3273873329162598,
+  "sha256": "5dd85d697c650e5a"
+ },
+ {
+  "id": "lines_GEN8_004",
+  "sourceId": "lines/GEN8/004",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3601689338684082,
+  "sha256": "ea551e7a86e49753"
+ },
+ {
+  "id": "lines_GEN8_005",
+  "sourceId": "lines/GEN8/005",
+  "resolution": 256,
+  "min": -0.8158386945724487,
+  "max": 0.0,
+  "sha256": "522216892fff9a9d"
+ },
+ {
+  "id": "lines_GEN8_006",
+  "sourceId": "lines/GEN8/006",
+  "resolution": 256,
+  "min": -0.9684954285621643,
+  "max": 1.7856255769729614,
+  "sha256": "1b4794cfb95a27d6"
+ },
+ {
+  "id": "lines_GEN8_007",
+  "sourceId": "lines/GEN8/007",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.1915369033813477,
+  "sha256": "be92f0de10aafdf2"
+ },
+ {
+  "id": "lines_GEN8_008",
+  "sourceId": "lines/GEN8/008",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.734584093093872,
+  "sha256": "5135aae244121c30"
+ },
+ {
+  "id": "lines_GEN8_009",
+  "sourceId": "lines/GEN8/009",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.1839832067489624,
+  "sha256": "9d21173bafa132c0"
+ },
+ {
+  "id": "lines_GEN8_010",
+  "sourceId": "lines/GEN8/010",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0800817012786865,
+  "sha256": "04643ec9a6c28bd2"
+ },
+ {
+  "id": "lines_GEN8_011",
+  "sourceId": "lines/GEN8/011",
+  "resolution": 256,
+  "min": -0.7736354470252991,
+  "max": 1.3630620241165161,
+  "sha256": "b137ed2918a2a49b"
+ },
+ {
+  "id": "lines_GEN8_012",
+  "sourceId": "lines/GEN8/012",
+  "resolution": 256,
+  "min": -0.7375875115394592,
+  "max": 1.3964430093765259,
+  "sha256": "193bb0389a744092"
+ },
+ {
+  "id": "lines_GEN8_013",
+  "sourceId": "lines/GEN8/013",
+  "resolution": 256,
+  "min": -1.038508653640747,
+  "max": 0.0,
+  "sha256": "c4b9720791cefdbc"
+ },
+ {
+  "id": "lines_GEN8_014",
+  "sourceId": "lines/GEN8/014",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.1616917848587036,
+  "sha256": "9155c1dbc744e6ba"
+ },
+ {
+  "id": "lines_GEN8_015",
+  "sourceId": "lines/GEN8/015",
+  "resolution": 256,
+  "min": -0.8147878646850586,
+  "max": 1.381007194519043,
+  "sha256": "657bc1e12d2c215e"
+ },
+ {
+  "id": "lines_GEN8_016",
+  "sourceId": "lines/GEN8/016",
+  "resolution": 256,
+  "min": -1.1452819108963013,
+  "max": 0.0,
+  "sha256": "5372666cc3aa18bc"
+ },
+ {
+  "id": "lines_GEN8_017",
+  "sourceId": "lines/GEN8/017",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 0.8174791932106018,
+  "sha256": "d2c1747dfec5ba39"
+ },
+ {
+  "id": "lines_GEN8_018",
+  "sourceId": "lines/GEN8/018",
+  "resolution": 256,
+  "min": -0.8052477836608887,
+  "max": 0.0,
+  "sha256": "746afbabbc5310dc"
+ },
+ {
+  "id": "lines_GEN8_019",
+  "sourceId": "lines/GEN8/019",
+  "resolution": 256,
+  "min": -0.491194486618042,
+  "max": 1.5808008909225464,
+  "sha256": "fcb0f21eef0510c4"
+ },
+ {
+  "id": "lines_GEN8_020",
+  "sourceId": "lines/GEN8/020",
+  "resolution": 256,
+  "min": -0.8107075095176697,
+  "max": 1.7159842252731323,
+  "sha256": "543d0fc84e03a68d"
+ },
+ {
+  "id": "plates_GEN8_001",
+  "sourceId": "plates/GEN8/001",
+  "resolution": 256,
+  "min": -0.38192981481552124,
+  "max": 1.5800000429153442,
+  "sha256": "e1215c97a546411a"
+ },
+ {
+  "id": "plates_GEN8_002",
+  "sourceId": "plates/GEN8/002",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.5213901996612549,
+  "sha256": "947bb00fcbd6fbd6"
+ },
+ {
+  "id": "plates_GEN8_003",
+  "sourceId": "plates/GEN8/003",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 2.0103070735931396,
+  "sha256": "89588e372df2746c"
+ },
+ {
+  "id": "plates_GEN8_004",
+  "sourceId": "plates/GEN8/004",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3544305562973022,
+  "sha256": "323d27871fe9ead2"
+ },
+ {
+  "id": "plates_GEN8_005",
+  "sourceId": "plates/GEN8/005",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.5412440299987793,
+  "sha256": "308c3a031cd9eece"
+ },
+ {
+  "id": "plates_GEN8_006",
+  "sourceId": "plates/GEN8/006",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.068974494934082,
+  "sha256": "051123da9f6c6524"
+ },
+ {
+  "id": "plates_GEN8_007",
+  "sourceId": "plates/GEN8/007",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3173052072525024,
+  "sha256": "71861aed2a03735e"
+ },
+ {
+  "id": "plates_GEN8_008",
+  "sourceId": "plates/GEN8/008",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.6590200662612915,
+  "sha256": "d34ad792847fdcb3"
+ },
+ {
+  "id": "plates_GEN8_009",
+  "sourceId": "plates/GEN8/009",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.4902085065841675,
+  "sha256": "d170cee05f03d1dd"
+ },
+ {
+  "id": "plates_GEN8_010",
+  "sourceId": "plates/GEN8/010",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.525710105895996,
+  "sha256": "9979c25bbe755f75"
+ },
+ {
+  "id": "plates_GEN8_011",
+  "sourceId": "plates/GEN8/011",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.6011697053909302,
+  "sha256": "ca39d37cb254b1c9"
+ },
+ {
+  "id": "plates_GEN8_012",
+  "sourceId": "plates/GEN8/012",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.5017883777618408,
+  "sha256": "ee1067af18ec3cf0"
+ },
+ {
+  "id": "plates_GEN8_013",
+  "sourceId": "plates/GEN8/013",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.4110175371170044,
+  "sha256": "09321ae0bfdb3134"
+ },
+ {
+  "id": "plates_GEN8_014",
+  "sourceId": "plates/GEN8/014",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3835116624832153,
+  "sha256": "f13ba03c7d553d34"
+ },
+ {
+  "id": "plates_GEN8_015",
+  "sourceId": "plates/GEN8/015",
+  "resolution": 256,
+  "min": -0.3439132571220398,
+  "max": 1.4243626594543457,
+  "sha256": "a95de91328dc3a75"
+ },
+ {
+  "id": "plates_GEN9_001",
+  "sourceId": "plates/GEN9/001",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0540622472763062,
+  "sha256": "338d21da0374012f"
+ },
+ {
+  "id": "plates_GEN9_002",
+  "sourceId": "plates/GEN9/002",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3581572771072388,
+  "sha256": "667296afeda9e9f7"
+ },
+ {
+  "id": "plates_GEN9_003",
+  "sourceId": "plates/GEN9/003",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.1735681295394897,
+  "sha256": "ca1afccc61ed500f"
+ },
+ {
+  "id": "plates_GEN9_004",
+  "sourceId": "plates/GEN9/004",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.2672529220581055,
+  "sha256": "9d85c96a63c4ed16"
+ },
+ {
+  "id": "plates_GEN9_005",
+  "sourceId": "plates/GEN9/005",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0117543935775757,
+  "sha256": "a3caafc1dbb2b5cd"
+ },
+ {
+  "id": "plates_GEN9_006",
+  "sourceId": "plates/GEN9/006",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3657127618789673,
+  "sha256": "dece4ec6a7a01eea"
+ },
+ {
+  "id": "plates_GEN9_007",
+  "sourceId": "plates/GEN9/007",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.4353106021881104,
+  "sha256": "52e693c37a284088"
+ },
+ {
+  "id": "plates_GEN9_008",
+  "sourceId": "plates/GEN9/008",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.2581759691238403,
+  "sha256": "1d1b665e82ee0793"
+ },
+ {
+  "id": "plates_GEN9_009",
+  "sourceId": "plates/GEN9/009",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.6505048274993896,
+  "sha256": "4d8941b7fbb01b9d"
+ },
+ {
+  "id": "plates_GEN9_010",
+  "sourceId": "plates/GEN9/010",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0525139570236206,
+  "sha256": "9a82683951f7a916"
+ },
+ {
+  "id": "plates_GEN9_011",
+  "sourceId": "plates/GEN9/011",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3679970502853394,
+  "sha256": "35dac778c2117922"
+ },
+ {
+  "id": "plates_GEN9_012",
+  "sourceId": "plates/GEN9/012",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3089675903320312,
+  "sha256": "aeaa2f5c2628fe0c"
+ },
+ {
+  "id": "plates_GEN9_013",
+  "sourceId": "plates/GEN9/013",
+  "resolution": 256,
+  "min": -0.4343739151954651,
+  "max": 1.5800000429153442,
+  "sha256": "41377a65fc130330"
+ },
+ {
+  "id": "plates_GEN9_014",
+  "sourceId": "plates/GEN9/014",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.2982064485549927,
+  "sha256": "d8ebf6af26507cf8"
+ },
+ {
+  "id": "plates_GEN9_015",
+  "sourceId": "plates/GEN9/015",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.3570623397827148,
+  "sha256": "968a540736d3023f"
+ },
+ {
+  "id": "plates_GEN9_016",
+  "sourceId": "plates/GEN9/016",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.2802984714508057,
+  "sha256": "0eb608da7040787a"
+ },
+ {
+  "id": "plates_GEN9_017",
+  "sourceId": "plates/GEN9/017",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.325392484664917,
+  "sha256": "e6d677cd9ecc627f"
+ },
+ {
+  "id": "plates_GEN9_018",
+  "sourceId": "plates/GEN9/018",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 0.9938679337501526,
+  "sha256": "4edfe87d7b05effa"
+ },
+ {
+  "id": "plates_GEN9_019",
+  "sourceId": "plates/GEN9/019",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.0993614196777344,
+  "sha256": "3d9fb6295d6cb850"
+ },
+ {
+  "id": "plates_GEN9_020",
+  "sourceId": "plates/GEN9/020",
+  "resolution": 256,
+  "min": 0.0,
+  "max": 1.209802269935608,
+  "sha256": "b0828e9f8f30691a"
+ }
+]

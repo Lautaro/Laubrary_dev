@@ -107,3 +107,7 @@ Assets/Plugins.meta
 
 # Agent scratch probes (throwaway eval_file scripts and screenshots)
 .scratch/
+
+# Scratch: probe screenshots, throwaway verification scripts (both worktrees)
+/Assets/Temp/
+/Assets/Temp.meta

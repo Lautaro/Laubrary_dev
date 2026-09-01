@@ -1598,6 +1598,9 @@ MonoBehaviour:
     swarmCount: 8
     swarmSpawnMode: 0
     swarmShapeKind: 0
+    swarmChaos: 0
+    swarmGridReverse: 0
+    swarmSpawnChaos: 0
     swarmCustomX:
       m_mode: 2
       m_static: 1
