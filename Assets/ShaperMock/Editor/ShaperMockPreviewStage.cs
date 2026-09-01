@@ -1,7 +1,9 @@
-// ShaperMockPreviewStage — a pixel-exact live render of ONE selected layer's Primitive shape + fill. Not
-// a Mirage-quality preview and not real Shaper geometry (the shape math here is a mock's own rough
-// approximation, not ported from ShaperPrimitives.cs) — its whole job is to prove a dial visibly changes
-// something, the same spirit as ChunksMockWindow's own Painter2D spatial guide.
+// ShaperMockPreviewStage — a pixel-exact live render of ONE selected layer's node tree (Primitive shape +
+// fill, a Bag's members combined by their combine mode, a Composite rendered as a neutral placeholder
+// blob since it has no fill of its own). Not a Mirage-quality preview and not real Shaper geometry/CSG —
+// its whole job is to prove a dial visibly changes something, the same spirit as ChunksMockWindow's own
+// Painter2D spatial guide. Border/Light/Extrusion/Swarm/Effects/Cache are NOT rendered here — those are
+// editor-panel concepts this mock's own preview never claimed to visualise, in the first slice or now.
 //
 // Renders into a small Texture2D at the document's own canvas resolution and sets it as this element's
 // own background image (nearest-neighbour) — the same technique ZuiFillControl's FillSwatch uses,
@@ -60,7 +62,7 @@ namespace ShaperMock.Editor
             style.backgroundImage = Background.FromTexture2D(_tex);
         }
 
-        void PaintNode(ShaperMockNode node, int size)
+        void PaintNode(ShaperMockNode root, int size)
         {
             for (int y = 0; y < size; y++)
             {
@@ -69,13 +71,79 @@ namespace ShaperMock.Editor
                 for (int x = 0; x < size; x++)
                 {
                     float sx = Mathf.Lerp(-1f, 1f, (x + 0.5f) / size);
-                    if (!Inside(node, sx, sy)) continue;
-                    _buf[y * size + x] = Evaluate(node.fill, sx, sy);
+                    if (Sample(root, sx, sy, null, out var color))
+                        _buf[y * size + x] = color;
                 }
             }
         }
 
-        static bool Inside(ShaperMockNode node, float x, float y)
+        /// Recursively resolves whether (x,y) lands inside `node`'s subtree and, if so, what colour it
+        /// paints — a rough CSG stand-in for a Bag's members (first enabled member is the base; every
+        /// later one combines by its own combineMode), not real Shaper geometry.
+        static bool Sample(ShaperMockNode node, float x, float y, ShaperMockFill inherited, out Color32 color)
+        {
+            var fill = node.fill ?? inherited;
+
+            switch (node.kind)
+            {
+                case ShaperMockNodeKind.Primitive:
+                {
+                    bool inside = InsidePrimitive(node, x, y);
+                    color = inside && fill != null ? Evaluate(fill, x, y) : (Color32)Color.clear;
+                    return inside;
+                }
+
+                case ShaperMockNodeKind.Bag:
+                {
+                    bool mask = false;
+                    Color32 acc = Color.clear;
+                    bool haveBase = false;
+                    foreach (var m in node.bagMembers)
+                    {
+                        if (!m.enabled) continue;
+                        bool memberInside = Sample(m, x, y, fill, out var memberColor);
+                        if (!haveBase)
+                        {
+                            mask = memberInside;
+                            acc = memberColor;
+                            haveBase = true;
+                            continue;
+                        }
+                        switch (m.combineMode)
+                        {
+                            case ShaperMockCombineMode.Add:
+                            case ShaperMockCombineMode.Blend:
+                                if (memberInside) { mask = true; acc = memberColor; }
+                                break;
+                            case ShaperMockCombineMode.Subtract:
+                                if (memberInside) mask = false;
+                                break;
+                            case ShaperMockCombineMode.Intersect:
+                                mask = mask && memberInside;
+                                if (mask) acc = memberColor;
+                                break;
+                        }
+                    }
+                    color = acc;
+                    return mask;
+                }
+
+                case ShaperMockNodeKind.Composite:
+                {
+                    // A Composite has no fill of its own (§B4/§B5) — a neutral placeholder blob so it
+                    // still renders SOMETHING, proving the fill/border absence rule doesn't break the
+                    // picture rather than pretending to render the real baked generator.
+                    float len = Mathf.Sqrt(x * x + y * y);
+                    bool inside = len <= 0.55f;
+                    color = new Color(0.5f, 0.5f, 0.56f, 1f);
+                    return inside;
+                }
+            }
+            color = Color.clear;
+            return false;
+        }
+
+        static bool InsidePrimitive(ShaperMockNode node, float x, float y)
         {
             float len = Mathf.Sqrt(x * x + y * y);
             switch (node.shapeKind)
@@ -115,13 +183,72 @@ namespace ShaperMock.Editor
 
         static Color32 Evaluate(ShaperMockFill fill, float x, float y)
         {
-            if (fill.kind == ShaperMockFillKind.Solid || ShaperMockFill.IsUnseeded(fill.gradient))
-                return fill.solidColor;
+            Color c;
+            switch (fill.kind)
+            {
+                case ShaperMockFillKind.Gradient:
+                {
+                    if (ShaperMockFill.IsUnseeded(fill.gradient)) { c = fill.solidColor; break; }
+                    float rad = fill.gradientAngleDegrees * Mathf.Deg2Rad;
+                    Vector2 axis = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+                    float t = Mathf.InverseLerp(-1f, 1f, Vector2.Dot(new Vector2(x, y), axis));
+                    c = fill.gradient.Evaluate(Mathf.Clamp01(t));
+                    break;
+                }
 
-            float rad = fill.gradientAngleDegrees * Mathf.Deg2Rad;
-            Vector2 axis = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
-            float t = Mathf.InverseLerp(-1f, 1f, Vector2.Dot(new Vector2(x, y), axis));
-            return fill.gradient.Evaluate(Mathf.Clamp01(t));
+                case ShaperMockFillKind.RampByQuantity:
+                {
+                    // No real published quantity in this mock (§B4's "greyed out" case) — stand in with a
+                    // left-to-right ramp so the control still visibly does something when previewed.
+                    float t = Mathf.InverseLerp(-1f, 1f, x);
+                    c = Color.Lerp(Color.black, fill.rampTint, t);
+                    break;
+                }
+
+                case ShaperMockFillKind.Texture:
+                    c = fill.textureTint;
+                    break;
+
+                case ShaperMockFillKind.IndexedStrip:
+                {
+                    if (fill.stripSlots == null || fill.stripSlots.Count == 0) { c = fill.stripPlainColor; break; }
+                    float rad = fill.stripOrientationDegrees * Mathf.Deg2Rad;
+                    Vector2 axis = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+                    float raw = Mathf.InverseLerp(-1f, 1f, Vector2.Dot(new Vector2(x, y), axis));
+                    float t = Mathf.Repeat(raw * Mathf.Max(0.01f, fill.stripRepeats) + fill.stripOffset, 1f);
+                    int idx = Mathf.Clamp(Mathf.FloorToInt(t * fill.stripSlots.Count), 0, fill.stripSlots.Count - 1);
+                    c = fill.stripSlots[idx].color;
+                    break;
+                }
+
+                case ShaperMockFillKind.HeightField:
+                {
+                    var tints = ShaperMockFill.HeightFieldPresetTints;
+                    int idx = Mathf.Clamp(fill.heightFieldPresetIndex, 0, tints.Length - 1);
+                    c = tints[idx] * fill.heightFieldTint;
+                    break;
+                }
+
+                case ShaperMockFillKind.TapestrySteel:
+                {
+                    float wave = 0.5f + 0.5f * Mathf.Sin((x + y) * Mathf.Max(0.5f, fill.steelCells));
+                    c = Color.Lerp(fill.steelBaseLow, fill.steelBaseHigh, wave);
+                    break;
+                }
+
+                default:   // Solid
+                    c = fill.solidColor;
+                    break;
+            }
+
+            if (fill.quantiseLevels > 1)
+            {
+                float levels = fill.quantiseLevels;
+                c.r = Mathf.Floor(c.r * levels) / levels;
+                c.g = Mathf.Floor(c.g * levels) / levels;
+                c.b = Mathf.Floor(c.b * levels) / levels;
+            }
+            return c;
         }
     }
 }
