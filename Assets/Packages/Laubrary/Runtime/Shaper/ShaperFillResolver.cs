@@ -924,6 +924,11 @@ namespace Laubrary.Shaper
                 ShaperSolidGeometry sg = scene != null && o < scene.ownerCapacity ? scene.solid[o] : null;
                 if (sg != null)
                 {
+                    // T-0127 — `ow.fill` and `scene.normalOp[o]` are passed so a HeightField fill on THIS
+                    // Solids node can perturb the analytic normal FillTile just wrote (see its own doc comment
+                    // and the perturbation block inside it). Both are trailing/optional and every OTHER call to
+                    // ShaperSolids.FillTile (there are none today besides this one) would still compile and
+                    // behave identically without them.
                     ShaperSolids.FillTile(sg, scene.solidOp[o], grid, x0, y0, width, height,
                                           new ShaperSolidEmit
                                           {
@@ -934,7 +939,8 @@ namespace Laubrary.Shaper
                                               glow = scene.glow,
                                               pointZ = scene.pointZ,
                                           },
-                                          slab, width);
+                                          slab, width,
+                                          ow.fill, scene.normalOp[o]);
                     continue;
                 }
 

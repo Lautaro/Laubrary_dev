@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using UnityEngine;
+using UnityEditor;
 
 namespace Laubrary.Shaper.Editor
 {
@@ -141,6 +142,7 @@ namespace Laubrary.Shaper.Editor
             sb.AppendLine(LT21_DocumentOwnsTheLights());
             sb.AppendLine(LT22_GlowPathExecutes());
             sb.AppendLine(LT23_RimIsInertOnBlackAmbientAndDeclared());
+            sb.AppendLine(LT24_SolidsHeightFieldRelief());
             return sb.ToString();
         }
 
@@ -3071,6 +3073,318 @@ namespace Laubrary.Shaper.Editor
             sb.AppendLine("    overturning that is the owner's ruling, not a fix pass's. Flagged in FIX-REPORT.md");
             sb.AppendLine("    with the alternative rather than changed unilaterally.");
             sb.Append("  RESULT: " + Verdict(all));
+            return sb.ToString();
+        }
+
+        // ── LT-24 (T-0127) ────────────────────────────────────────────────────────────────────────────────
+
+        static ShaperFillDef HeightFieldFillLT(ShaperHeightFieldPreset preset, float scale)
+            => new ShaperFillDef
+            {
+                kind = ShaperFillKind.HeightField,
+                heightField = preset != null ? preset.field : null,
+                heightFieldScale = new ZUIValue(scale),
+                heightFieldTint = new Color(0.5f, 0.5f, 0.5f),
+                space = ShaperFillSpace.Stamped,
+            };
+
+        /// <summary>Population variance of the owner-0 normal vector, over samples where coverage is (near) 1.</summary>
+        static double NormalVarianceOnCoveredSamples(LRig r)
+        {
+            int n = r.width * r.height;
+            float[] cov = r.buf.ownCoverage;
+            float[] nrm = r.scene.normal;
+            double sx = 0, sy = 0, sz = 0; int cnt = 0;
+            for (int i = 0; i < n; i++)
+                if (cov[i] > 0.99f) { sx += nrm[i * 3]; sy += nrm[i * 3 + 1]; sz += nrm[i * 3 + 2]; cnt++; }
+            if (cnt < 2) return 0.0;
+            double mx = sx / cnt, my = sy / cnt, mz = sz / cnt;
+            double var = 0;
+            for (int i = 0; i < n; i++)
+                if (cov[i] > 0.99f)
+                {
+                    double dx = nrm[i * 3] - mx, dy = nrm[i * 3 + 1] - my, dz = nrm[i * 3 + 2] - mz;
+                    var += dx * dx + dy * dy + dz * dz;
+                }
+            return var / cnt;
+        }
+
+        /// <summary>
+        /// LT-24, T-0127 — a <see cref="ShaperFillKind.HeightField"/> fill perturbs a Solids owner's OWN
+        /// analytic normal, and only that: never coverage/edge distance, never a fill kind this task did not
+        /// scope in, never a degenerate (non-unit/NaN/zero) vector, at any rotation or at extreme height.
+        ///
+        /// <b>Mutation that makes leg 1 fail:</b> revert <c>ShaperSolids.FillTile</c>'s perturbation block —
+        /// the flat-vs-HeightField variance gap collapses to (0, 0), because a facet's normal is constant
+        /// again regardless of the fill.
+        /// </summary>
+        public static string LT24_SolidsHeightFieldRelief()
+        {
+            var sb = new StringBuilder("LT-24 T-0127: a HeightField fill perturbs Solids' own analytic normal\n");
+            bool all = true;
+
+            var presetPlates = AssetDatabase.LoadAssetAtPath<ShaperHeightFieldPreset>(
+                "Assets/Demos/ShaperDemo/TapestryHeightFields/Presets/plates_GEN10_001.asset");
+            if (presetPlates == null || presetPlates.field == null)
+            {
+                sb.AppendLine("  plates_GEN10_001 preset missing or unreadable -- cannot verify.  " + Verdict(false));
+                sb.Append("  RESULT: " + Verdict(false));
+                return sb.ToString();
+            }
+
+            var rig = RigOf(Color.white, 0.10f, Dir(-55f, 36f, new Color(1f, 0.94f, 0.85f), 1.0f, 0.9f));
+            var flatFill = Solid(new Color(0.5f, 0.5f, 0.5f));   // SAME grey as the HeightField's flat tint (B5)
+
+            // ── leg 1 — the headline claim, measured, not eyeballed ─────────────────────────────────────────
+            // yaw=tilt=roll=0 so exactly ONE facet (the +Z face) fills the frame -- no second facet's own,
+            // genuinely different constant normal to contaminate the "flat fill" baseline's variance. Same
+            // Box, same light, same MEAN albedo (B5's flat tint matches the Solid fill's colour exactly).
+            // Only the fill kind differs. A flat fill gives that one facet exactly one constant normal
+            // (variance 0 to float precision); a HeightField fill must NOT.
+            {
+                int w = 96, h = 96;
+                var flatR = BuildSolid(SolidDef(ShaperSolidForm.Box, 34f, 0f, 0f, 0f, 0f), rig, Resp(true, 1f, 0f), flatFill, w, h);
+                Paint(flatR);
+                var reliefR = BuildSolid(SolidDef(ShaperSolidForm.Box, 34f, 0f, 0f, 0f, 0f), rig, Resp(true, 1f, 0f), HeightFieldFillLT(presetPlates, 6f), w, h);
+                Paint(reliefR);
+
+                double flatVar = NormalVarianceOnCoveredSamples(flatR);
+                double reliefVar = NormalVarianceOnCoveredSamples(reliefR);
+                bool ok = flatVar < 1e-9 && reliefVar > 1e-6;
+                all &= ok;
+                sb.AppendLine("  normal variance across one Box's covered samples: flat fill " + flatVar.ToString("E3") +
+                              " (expect ~0), HeightField fill " + reliefVar.ToString("E3") + " (expect > 0)  " + Verdict(ok));
+            }
+
+            // ── leg 2 — geometry/silhouette untouched: coverage and edge distance are bit-identical ────────
+            // between the flat and HeightField fills above, proving the perturbation never reaches them.
+            {
+                int w = 64, h = 64;
+                var flatR = BuildSolid(SolidDef(ShaperSolidForm.Orb, 30f), rig, Resp(true, 1f, 0f), flatFill, w, h);
+                Paint(flatR);
+                var reliefR = BuildSolid(SolidDef(ShaperSolidForm.Orb, 30f), rig, Resp(true, 1f, 0f), HeightFieldFillLT(presetPlates, 6f), w, h);
+                Paint(reliefR);
+                int n = w * h, diffCov = 0, diffDist = 0;
+                for (int i = 0; i < n; i++)
+                {
+                    if (flatR.buf.ownCoverage[i] != reliefR.buf.ownCoverage[i]) diffCov++;
+                    if (flatR.buf.ownDistance[i] != reliefR.buf.ownDistance[i]) diffDist++;
+                }
+                bool ok = diffCov == 0 && diffDist == 0;
+                all &= ok;
+                sb.AppendLine("  silhouette untouched on an Orb: coverage differs on " + diffCov + "/" + n +
+                              " samples, edge distance differs on " + diffDist + "/" + n + " (expect 0, 0)  " + Verdict(ok));
+            }
+
+            // ── leg 3 — unit/finite normals hold under ROTATION and at an ADVERSARIALLY EXTREME height scale,
+            //           on every form. Mirrors LT-15's own check, scoped to the HeightField-perturbed path.
+            {
+                int w = 56, h = 56;
+                foreach (float scale in new[] { 6f, 60f, 600f })
+                {
+                    int unwritten = 0, nan = 0, zero = 0, notUnit = 0; double worst = 0;
+                    foreach (var form in new[] { ShaperSolidForm.Box, ShaperSolidForm.Orb, ShaperSolidForm.Ring })
+                        for (int t = 0; t < 12; t++)
+                        {
+                            float yaw = (t * 31f) % 360f, tilt = (t * 19f) % 80f, roll = (t * 53f) % 360f;
+                            var r = BuildSolid(SolidDef(form, 26f, yaw, tilt, roll, 0f), rig, Resp(true, 1f, 0f),
+                                               HeightFieldFillLT(presetPlates, scale), w, h);
+                            Paint(r);
+                            int n = w * h;
+                            for (int i = 0; i < n; i++)
+                            {
+                                if (r.buf.ownCoverage[i] <= 0f) continue;
+                                float x = r.scene.normal[i * 3], y = r.scene.normal[i * 3 + 1], z = r.scene.normal[i * 3 + 2];
+                                if (float.IsNaN(x) || float.IsNaN(y) || float.IsNaN(z)) { unwritten++; nan++; continue; }
+                                double len = Math.Sqrt((double)x * x + (double)y * y + (double)z * z);
+                                if (len == 0) zero++;
+                                double e = Math.Abs(len - 1.0);
+                                if (e > worst) worst = e;
+                                if (e > 1e-3) notUnit++;
+                            }
+                        }
+                    bool ok = unwritten == 0 && nan == 0 && zero == 0 && notUnit == 0;
+                    all &= ok;
+                    sb.AppendLine("  scale=" + scale.ToString("F0") + ", Box/Orb/Ring x12 rotations each: unwritten/NaN " +
+                                  unwritten + ", zero " + zero + ", non-unit " + notUnit +
+                                  ", worst ||N|-1| = " + worst.ToString("E3") + "  " + Verdict(ok));
+                }
+            }
+
+            // ── leg 4 — a fill kind this task explicitly did NOT scope in (Solid, IndexedStrip's constant-
+            //           height fallback path) never perturbs: default slopeGain=0 and non-HeightField kinds
+            //           both gate the block off, so a Solid fill is bit-for-bit its own pre-T-0127 render.
+            {
+                int w = 48, h = 48;
+                var a = BuildSolid(SolidDef(ShaperSolidForm.Gem, 24f, 15f, 10f, 0f, 0f), rig, Resp(true, 1f, 0f), flatFill, w, h);
+                Paint(a);
+                var b = BuildSolid(SolidDef(ShaperSolidForm.Gem, 24f, 15f, 10f, 0f, 0f), rig, Resp(true, 1f, 0f), flatFill, w, h);
+                Paint(b);
+                int n = w * h, diff = 0;
+                for (int i = 0; i < n * 3; i++) if (a.scene.normal[i] != b.scene.normal[i]) diff++;
+                bool ok = diff == 0;
+                all &= ok;
+                sb.AppendLine("  a non-HeightField fill (Solid) is unperturbed and deterministic: " + diff +
+                              "/" + (n * 3) + " components differ across two identical builds (expect 0)  " + Verdict(ok));
+            }
+
+            sb.Append("  RESULT: " + Verdict(all));
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// LT-24's own visual check, same convention as LT-17: RENDERED, KEPT, must be LOOKED AT.
+        /// Flat vs HeightField at three yaws each (rotation must not break the relief), the "lines" preset,
+        /// and one deliberately-extreme scale cell for the adversarial self-check.
+        /// </summary>
+        public static string LT24_ContactSheet(string path)
+        {
+            const int Cell = 110, Cols = 4, Pad = 8;
+
+            var plates = AssetDatabase.LoadAssetAtPath<ShaperHeightFieldPreset>(
+                "Assets/Demos/ShaperDemo/TapestryHeightFields/Presets/plates_GEN10_001.asset");
+            var lines = AssetDatabase.LoadAssetAtPath<ShaperHeightFieldPreset>(
+                "Assets/Demos/ShaperDemo/TapestryHeightFields/Presets/lines_GEN1_001.asset");
+
+            var rig = RigOf(Color.white, 0.10f, Dir(-55f, 36f, new Color(1f, 0.94f, 0.85f), 1.05f, 0.9f));
+            var flatFill = Solid(new Color(0.5f, 0.5f, 0.5f));
+
+            var cells = new List<KeyValuePair<string, Func<LRig>>>();
+            Action<string, Func<LRig>> C = (nm, f) => cells.Add(new KeyValuePair<string, Func<LRig>>(nm, f));
+
+            float[] yaws = { 15f, 95f, 210f };
+            for (int i = 0; i < yaws.Length; i++)
+            {
+                float yaw = yaws[i];
+                C((i * 2 + 1).ToString("00") + " Box FLAT yaw " + yaw.ToString("F0"),
+                  () => BuildSolid(SolidDef(ShaperSolidForm.Box, 34f, yaw, 20f, 0f, 0f), rig, Resp(true, 1f, 0f), flatFill, Cell, Cell));
+                C((i * 2 + 2).ToString("00") + " Box plates yaw " + yaw.ToString("F0"),
+                  () => BuildSolid(SolidDef(ShaperSolidForm.Box, 34f, yaw, 20f, 0f, 0f), rig, Resp(true, 1f, 0f), HeightFieldFillLT(plates, 6f), Cell, Cell));
+            }
+            C("07 Orb FLAT", () => BuildSolid(SolidDef(ShaperSolidForm.Orb, 34f), rig, Resp(true, 1f, 0f), flatFill, Cell, Cell));
+            C("08 Orb plates", () => BuildSolid(SolidDef(ShaperSolidForm.Orb, 34f), rig, Resp(true, 1f, 0f), HeightFieldFillLT(plates, 6f), Cell, Cell));
+            C("09 Box lines FLAT", () => BuildSolid(SolidDef(ShaperSolidForm.Box, 34f, 22f, 20f, 0f, 0f), rig, Resp(true, 1f, 0f), flatFill, Cell, Cell));
+            C("10 Box lines relief", () => BuildSolid(SolidDef(ShaperSolidForm.Box, 34f, 22f, 20f, 0f, 0f), rig, Resp(true, 1f, 0f), HeightFieldFillLT(lines, 6f), Cell, Cell));
+            C("11 Box plates scale=60 (10x)", () => BuildSolid(SolidDef(ShaperSolidForm.Box, 34f, 22f, 20f, 0f, 0f), rig, Resp(true, 1f, 0f), HeightFieldFillLT(plates, 60f), Cell, Cell));
+            C("12 Box plates scale=600 (100x, adversarial)", () => BuildSolid(SolidDef(ShaperSolidForm.Box, 34f, 22f, 20f, 0f, 0f), rig, Resp(true, 1f, 0f), HeightFieldFillLT(plates, 600f), Cell, Cell));
+
+            int rows = (cells.Count + Cols - 1) / Cols;
+            int texW = Cols * Cell + (Cols + 1) * Pad, texH = rows * Cell + (rows + 1) * Pad;
+            var sheet = new Texture2D(texW, texH, TextureFormat.RGBA32, false);
+            var bg = new Color32[texW * texH];
+            for (int i = 0; i < bg.Length; i++) bg[i] = new Color32(22, 22, 26, 255);
+            sheet.SetPixels32(bg);
+
+            var cellPx = new Color32[Cell * Cell];
+            for (int c = 0; c < cells.Count; c++)
+            {
+                var r = cells[c].Value();
+                Paint(r);
+                CompositeOverBackdrop(r.buf.dst, cellPx, Cell);
+                DrawLabel(cellPx, Cell, cells[c].Key);
+                int col = c % Cols, row = rows - 1 - (c / Cols);
+                sheet.SetPixels32(Pad + col * (Cell + Pad), Pad + row * (Cell + Pad), Cell, Cell, cellPx);
+            }
+            sheet.Apply();
+            System.IO.File.WriteAllBytes(path, sheet.EncodeToPNG());
+
+            var sb = new StringBuilder("LT-24 contact sheet (T-0127)\n");
+            sb.AppendLine("  " + cells.Count + " cells, " + Cols + " x " + rows + ", written to " + path);
+            sb.AppendLine("  01/03/05 vs 02/04/06: same Box, same yaw, flat fill vs plates_GEN10_001 -- the flat");
+            sb.AppendLine("     cells must look like a plain lit facet; the plates cells must show real raking-light");
+            sb.AppendLine("     relief that survives all three rotations without breaking up or flattening out.");
+            sb.AppendLine("  07/08: Orb flat vs plates -- confirms the perturbation composes on the non-facet forms too.");
+            sb.AppendLine("  09/10: lines_GEN1_001, thinner detail than plates -- the other T-0111/T-0124 preset named");
+            sb.AppendLine("     in the task, for the same visual check.");
+            sb.AppendLine("  11/12: scale x10 and x100 over the readable scale -- the adversarial self-check. Look for");
+            sb.AppendLine("     inverted-looking bumps, seams or hard discontinuities, not just 'louder'.");
+            sb.Append("  RESULT: RENDERED - NOT VERIFIED BY THE TABLE. A passing table is not a picture; this is " +
+                      "not a pass until a human has looked at it.");
+            return sb.ToString();
+        }
+
+        /// <summary>T-0127 — a close-up of the adversarial extreme-scale cells, big enough to actually read the artefact.</summary>
+        public static string LT24_ExtremeZoom(string path)
+        {
+            const int Cell = 220, Cols = 3, Pad = 10;
+            var plates = AssetDatabase.LoadAssetAtPath<ShaperHeightFieldPreset>(
+                "Assets/Demos/ShaperDemo/TapestryHeightFields/Presets/plates_GEN10_001.asset");
+            var rig = RigOf(Color.white, 0.10f, Dir(-55f, 36f, new Color(1f, 0.94f, 0.85f), 1.05f, 0.9f));
+
+            var cells = new List<KeyValuePair<string, Func<LRig>>>();
+            Action<string, Func<LRig>> C = (nm, f) => cells.Add(new KeyValuePair<string, Func<LRig>>(nm, f));
+            C("scale=6 (readable)", () => BuildSolid(SolidDef(ShaperSolidForm.Box, 34f, 22f, 20f, 0f, 0f), rig, Resp(true, 1f, 0f), HeightFieldFillLT(plates, 6f), Cell, Cell));
+            C("scale=60 (10x)", () => BuildSolid(SolidDef(ShaperSolidForm.Box, 34f, 22f, 20f, 0f, 0f), rig, Resp(true, 1f, 0f), HeightFieldFillLT(plates, 60f), Cell, Cell));
+            C("scale=600 (100x)", () => BuildSolid(SolidDef(ShaperSolidForm.Box, 34f, 22f, 20f, 0f, 0f), rig, Resp(true, 1f, 0f), HeightFieldFillLT(plates, 600f), Cell, Cell));
+
+            int rows = 1;
+            int texW = Cols * Cell + (Cols + 1) * Pad, texH = rows * Cell + (rows + 1) * Pad;
+            var sheet = new Texture2D(texW, texH, TextureFormat.RGBA32, false);
+            var bg = new Color32[texW * texH];
+            for (int i = 0; i < bg.Length; i++) bg[i] = new Color32(22, 22, 26, 255);
+            sheet.SetPixels32(bg);
+            var cellPx = new Color32[Cell * Cell];
+            for (int c = 0; c < cells.Count; c++)
+            {
+                var r = cells[c].Value();
+                Paint(r);
+                CompositeOverBackdrop(r.buf.dst, cellPx, Cell);
+                DrawLabel(cellPx, Cell, (c + 1).ToString("00") + " " + cells[c].Key);
+                sheet.SetPixels32(Pad + c * (Cell + Pad), Pad, Cell, Cell, cellPx);
+            }
+            sheet.Apply();
+            System.IO.File.WriteAllBytes(path, sheet.EncodeToPNG());
+            return "written to " + path;
+        }
+
+        /// <summary>T-0127 — precisely how much the RENDERED PICTURE changes as heightFieldScale climbs, so the
+        /// adversarial self-check's verdict rests on a number rather than a screenshot impression.</summary>
+        public static string LT24_ExtremeMetric()
+        {
+            var sb = new StringBuilder("T-0127 extreme-scale metric (Box, plates_GEN10_001)\n");
+            var plates = AssetDatabase.LoadAssetAtPath<ShaperHeightFieldPreset>(
+                "Assets/Demos/ShaperDemo/TapestryHeightFields/Presets/plates_GEN10_001.asset");
+            var rig = RigOf(Color.white, 0.10f, Dir(-55f, 36f, new Color(1f, 0.94f, 0.85f), 1.05f, 0.9f));
+            int w = 128, h = 128;
+
+            Color32[] Render(float scale)
+            {
+                var r = BuildSolid(SolidDef(ShaperSolidForm.Box, 34f, 22f, 20f, 0f, 0f), rig, Resp(true, 1f, 0f), HeightFieldFillLT(plates, scale), w, h);
+                Paint(r);
+                var px = new Color32[w * h];
+                CompositeOverBackdrop(r.buf.dst, px, w);
+                return px;
+            }
+
+            var r6 = Render(6f);
+            var r60 = Render(60f);
+            var r600 = Render(600f);
+
+            (int meanDelta, int maxDelta, int flips) Compare(Color32[] a, Color32[] b)
+            {
+                long sum = 0; int max = 0; int flips = 0;
+                for (int i = 0; i < a.Length; i++)
+                {
+                    int da = System.Math.Abs(a[i].r - b[i].r) + System.Math.Abs(a[i].g - b[i].g) + System.Math.Abs(a[i].b - b[i].b);
+                    sum += da; if (da > max) max = da;
+                    // A crude "flip" proxy: adjacent-pixel RELATIVE ordering reversed vs the other render,
+                    // i.e. did i and i-1 swap which is brighter -- a hallmark of a posterised/jagged edge.
+                    if (i > 0)
+                    {
+                        int aOrd = a[i].r - a[i - 1].r, bOrd = b[i].r - b[i - 1].r;
+                        if (aOrd > 4 && bOrd < -4) flips++;
+                        else if (aOrd < -4 && bOrd > 4) flips++;
+                    }
+                }
+                return ((int)(sum / a.Length), max, flips);
+            }
+
+            var c60 = Compare(r6, r60);
+            var c600 = Compare(r6, r600);
+            sb.AppendLine("  scale 6 vs 60:  mean |dRGB| " + c60.meanDelta + ", max |dRGB| " + c60.maxDelta + ", local-order flips " + c60.flips);
+            sb.AppendLine("  scale 6 vs 600: mean |dRGB| " + c600.meanDelta + ", max |dRGB| " + c600.maxDelta + ", local-order flips " + c600.flips);
+            sb.Append("  (context: max possible |dRGB| is 765; a flip count that grows sharply from 60x to 600x" +
+                      " is the numeric signature of the posterised/blocky look, not an opinion about the PNG)");
             return sb.ToString();
         }
 

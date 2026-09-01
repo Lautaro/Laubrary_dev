@@ -270,6 +270,13 @@ namespace Laubrary.Shaper
         /// What a Solids node publishes (BC-3.7a: DECLARED, not discovered). Coverage and edge distance, like
         /// the shipped shape engine, PLUS the surface direction that is the whole reason this generator
         /// exists.
+        ///
+        /// T-0127 — the surface direction is no longer PURELY the closed-form facet/sphere/plane normal: when
+        /// the node's own fill is a <see cref="ShaperFillKind.HeightField"/>, <see cref="FillTile"/> perturbs it
+        /// by that fill's height, so a carved-looking Solid actually shades as carved. The published QUANTITY
+        /// is unchanged (still SurfaceDirection, still one unit vector per sample) — what changed is how
+        /// faithfully that vector matches the SILHOUETTE's own geometry, which stays exactly as before: the
+        /// perturbation never touches Coverage or EdgeDistance, only the direction.
         /// </summary>
         public const ShaperQuantitySet Published =
             ShaperQuantitySet.Coverage | ShaperQuantitySet.EdgeDistance | ShaperQuantitySet.SurfaceDirection;
@@ -683,10 +690,28 @@ namespace Laubrary.Shaper
         /// every array. This is the discipline <c>PyreRenderer.cs:1803</c> and <c>:1857</c> violate today with
         /// a <c>new float[W * H]</c> per layer per frame.
         /// </summary>
+        /// <param name="fillProgram">
+        /// T-0127 — the node's OWN compiled fill (<c>ShaperFillOwner.fill</c>), optional and trailing so every
+        /// existing call site compiles untouched. Read ONLY to perturb the analytic normal below when it is a
+        /// <see cref="ShaperFillKind.HeightField"/> — never to touch <c>cov</c>/<c>dist</c>/<c>line</c>, which
+        /// stay entirely Solids' own closed-form geometry. See the perturbation block's own comment for why a
+        /// HeightField specifically is cheap and correct here where LR-3.3/LR-3.4 refused it in general.
+        /// </param>
+        /// <param name="normalOp">
+        /// T-0127 — the layer's compiled normal-provider dials (<c>ShaperLightScene.normalOp[owner]</c>), read
+        /// ONLY for <c>slopeGain</c>: the same per-layer "how hard does a unit height difference tilt a
+        /// normal" dial <see cref="ShaperNormals.FillTile"/>'s <c>Profile</c> case already uses (BC-3.6), reused
+        /// rather than reinvented so a HeightField fill tilts by the same amount under Solids as it would under
+        /// an extrusion. <c>normalZBase</c>/<c>reflectionFlatten</c> are NOT reused — they describe a flat base
+        /// plane's Z, which has no meaning for a facet whose own analytic Z the geometry below already supplies.
+        /// Default (all-zero) <c>slopeGain</c> is a silent no-op, so an unpassed argument is bit-for-bit the
+        /// pre-T-0127 behaviour.
+        /// </param>
         public static void FillTile(ShaperSolidGeometry geo, in ShaperSolidOp op, in ShaperSampleGrid grid,
                                     int x0, int y0, int width, int height,
                                     in ShaperSolidEmit emit,
-                                    int dstOffset, int dstStride)
+                                    int dstOffset, int dstStride,
+                                    ShaperFillProgram fillProgram = null, ShaperNormalOp normalOp = default)
         {
             if (geo == null) return;
 
@@ -728,6 +753,68 @@ namespace Laubrary.Shaper
                                 SampleFacet(geo, op, lx, ly, ref cov, ref dist, ref line,
                                             ref nx, ref ny, ref nz, ref px, ref py, ref pz);
                                 break;
+                        }
+
+                        // ── T-0127 — perturb THIS facet's analytic normal by a HeightField fill's height. ──
+                        //
+                        // The silhouette/coverage/edge-distance/base-normal above are untouched: this block
+                        // runs strictly AFTER the switch and only ever rewrites (nx,ny,nz), never cov/dist/line.
+                        //
+                        // Why HeightField specifically escapes LR-3.3/LR-3.4's refusal (ShaperNormals.cs:118-131):
+                        // that objection is about DIFFERENCING AN ACCUMULATED BUFFER (ShaperFillBuffers.height,
+                        // ShaperFillResolver.cs:1046) — fill-authored, no apron, expensive to grow one for.
+                        // ShaperFillOps.Sample's HeightField case never touches that buffer: it is a PURE
+                        // FUNCTION of (op, bulk, x, y) — Anchor()'s affine map plus one texel lookup — so
+                        // central-differencing it here is the same licence ShaperNormals.FillProfile already
+                        // takes on ShaperEvaluator.Distance for ∇d (LR-3.2), not the buffer read LR-3.3 forbids.
+                        //
+                        // IndexedStrip is deliberately excluded (same honest-scope-limit standard as LR-6.4):
+                        // its height depends on `edge`, and getting an accurate edge distance at four neighbour
+                        // taps means re-running SampleFacet/Orb/Ring's silhouette walk — exactly the cost LR-3.3
+                        // named, just against a different sheet. A general fix for every fill kind is explicitly
+                        // out of this task's scope.
+                        if (cov > 0f && fillProgram != null)
+                        {
+                            ShaperFillOp fop = fillProgram.op;
+                            if (fop.kind == ShaperFillKind.HeightField && fop.heightFieldOffset >= 0 &&
+                                normalOp.slopeGain != 0f)
+                            {
+                                float[] bulk = fillProgram.bulk;
+                                float hs = Mathf.Max(1e-3f, 0.25f * grid.pixelSize);
+                                float inv2h = 0.5f / hs;
+
+                                ShaperFillOps.Sample(in fop, bulk, cx + hs, cy, 0f, 0f,
+                                                     out _, out _, out _, out _, out float hxp);
+                                ShaperFillOps.Sample(in fop, bulk, cx - hs, cy, 0f, 0f,
+                                                     out _, out _, out _, out _, out float hxm);
+                                ShaperFillOps.Sample(in fop, bulk, cx, cy + hs, 0f, 0f,
+                                                     out _, out _, out _, out _, out float hyp);
+                                ShaperFillOps.Sample(in fop, bulk, cx, cy - hs, 0f, 0f,
+                                                     out _, out _, out _, out _, out float hym);
+
+                                float dhdx = (hxp - hxm) * inv2h;
+                                float dhdy = (hyp - hym) * inv2h;
+
+                                if (dhdx != 0f || dhdy != 0f)
+                                {
+                                    // Same construction ShaperNormals.FillProfile uses (index.html:1491's
+                                    // vx = -slopeGain*dhdx), generalised from an implicit flat (0,0,nzBase) base
+                                    // to THIS facet's own analytic (nx,ny,nz) — nzBase itself is not reused
+                                    // (see the parameter doc): it describes a flat plane's Z, and this facet
+                                    // already has a real one from the geometry above.
+                                    float vx = nx - normalOp.slopeGain * dhdx;
+                                    float vy = ny - normalOp.slopeGain * dhdy;
+                                    float vz = nz;
+                                    float len = Mathf.Sqrt(vx * vx + vy * vy + vz * vz);
+                                    if (len > 1e-12f && !float.IsNaN(len))
+                                    {
+                                        float inv = 1f / len;
+                                        nx = vx * inv; ny = vy * inv; nz = vz * inv;
+                                    }
+                                    // else: LR-3.5's last line of defence needs no repeat here — (nx,ny,nz)
+                                    // is already the valid unit vector the switch above wrote, untouched.
+                                }
+                            }
                         }
 
                         // Halo and inner glow, kept in the generator per LR-6.4. Emitted as an ADDITIVE,

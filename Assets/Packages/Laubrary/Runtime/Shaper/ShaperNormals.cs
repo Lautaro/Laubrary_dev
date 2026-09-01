@@ -126,9 +126,21 @@ namespace Laubrary.Shaper
     /// describing the wrong surface. LT-3 is the continuous check: a differencing provider seams at every tile
     /// boundary.
     ///
-    /// <b>LR-3.4 — a fill's height delta does not reach the normal in Wave 2.</b> It continues to accumulate
-    /// into <c>ShaperFillBuffers.height</c> and is consumed by nothing, which is exactly the state FC-2.5
-    /// shipped knowingly.
+    /// <b>LR-3.4 — a fill's height delta does not reach the normal THROUGH THIS TYPE.</b> It continues to
+    /// accumulate into <c>ShaperFillBuffers.height</c> and is consumed by nothing here, which is exactly the
+    /// state FC-2.5 shipped knowingly, and still the whole truth for every non-Solids generator and every fill
+    /// kind but one.
+    ///
+    /// <b>T-0127's exception, and why it does not reopen LR-3.3.</b> <see cref="ShaperSolids.FillTile"/> now
+    /// perturbs the facet/sphere/plane normal it JUST WROTE by a <see cref="ShaperFillKind.HeightField"/>
+    /// fill's height — but it does so WITHOUT going through this type, and WITHOUT differencing
+    /// <c>ShaperFillBuffers.height</c>. <c>ShaperFillOps.Sample</c>'s <c>HeightField</c> case is a PURE
+    /// FUNCTION of a canvas point (<c>Anchor()</c> plus one texel lookup, no buffer, no screen-space
+    /// neighbour), so central-differencing it at the sample point is LR-3.2's licence again, the same one
+    /// <see cref="FillProfile"/> already takes on <c>∇d</c> — not the buffer read LR-3.3 forbids. IndexedStrip
+    /// and every other height-emitting kind are still excluded, on the same cost argument LR-3.3 names: their
+    /// height depends on <c>edge</c>, which is not free to re-derive at neighbour taps the way a texel lookup
+    /// is. See <c>ShaperSolids.cs</c>'s own perturbation block for the full reasoning.
     /// </summary>
     public static class ShaperNormals
     {
