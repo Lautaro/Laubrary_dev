@@ -1,0 +1,9 @@
+T-0109 v5 FULL AUDIT RUN  2026-08-31 18:58:56
+dataPath=D:/UNITY/Laubrary Dev - Shaper/Assets
+compileFailed=False
+ShaperFieldAudit: 234762 ms  PASS=13  FAIL=0  VERDICT ok 0/0
+ShaperFillAudit: 10083 ms  PASS=85  FAIL=0  VERDICT ok 0/0
+ShaperBorderAudit: 5186 ms  PASS=79  FAIL=0  VERDICT ok 0/0
+ShaperLightAudit: 27266 ms  PASS=150  FAIL=0  VERDICT ok 0/0
+ShaperHeightAudit: 52956 ms  PASS=0  FAIL=0  VERDICT ok 14/15
+ALLDONE

@@ -1,0 +1,7 @@
+﻿focus
+sleep 250
+click 923 361
+sleep 350
+click 934 559
+sleep 500
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a17-barrel-pop.png

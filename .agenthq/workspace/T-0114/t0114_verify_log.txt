@@ -1,0 +1,4 @@
+CATALOG total=41 (expected 41) bufferFree=20 bufferPadded=7 needsSheets=13 stuck=1 buffer-only-sum=27
+GATE TintModifier coverage-only=False ("Needs edge distance, which this generator does not publish.") shippedShapeEngine=True ("")
+PADDING pad=8 paddedSize=112x112 (unpadded 96x96) bloomPixelsInMargin=772
+SWARM canvas=96x64 differingPixels=122 / 6144 preOpaque=705 postOpaque=690

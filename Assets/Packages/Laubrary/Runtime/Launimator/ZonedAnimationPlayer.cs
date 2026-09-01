@@ -243,6 +243,16 @@ namespace Laubrary.Launimator
         /// when it cannot be known: an unregistered name, no frames, a non-positive rate — or a ZONED strip,
         /// whose zones can hold/loop indefinitely so it has no fixed length. Consumers (reaction effects timing
         /// themselves to a clip) treat 0 as "unknown" and degrade to a single play.</summary>
+        /// <summary>Is <paramref name="clip"/> a name this player can actually start? Mirrors
+        /// <see cref="Play"/>'s own success condition exactly (registered name AND at least one frame), so a
+        /// true here means Play will return true — that equivalence is the whole point: it lets a caller find
+        /// out whether a clip will start WITHOUT starting it, and without having to tear down what it was
+        /// already doing first. <see cref="GetClipSeconds"/> cannot answer this, since it also returns 0 for a
+        /// valid zoned strip.</summary>
+        public bool HasClip(string clip) =>
+            !string.IsNullOrEmpty(clip) && _byName.TryGetValue(clip, out var def) &&
+            def.frames != null && def.frames.Count > 0;
+
         public float GetClipSeconds(string clip)
         {
             if (string.IsNullOrEmpty(clip) || !_byName.TryGetValue(clip, out var def)) return 0f;

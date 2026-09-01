@@ -1,0 +1,317 @@
+T-0109 HEIGHT AUDIT - extrusion, bevel and Z offset
+Measured versus declared. A bound is never reported as verified on the strength of
+the code compiling, and a declaration of +inf is verified by DIVERGENCE, not a number.
+run at 2026-08-31 16:34:15   dataPath D:/UNITY/Laubrary Dev - Shaper/Assets
+====================================================================================================
+
+H1  MONOTONICITY of G over all 42 profile x bevel combinations (HS-5.1)
+    G must be non-decreasing in t on [0,1]. Load-bearing: HS-5.2's nested cross-sections,
+    and therefore the whole slab march, are unsound without it.
+    combinations   42 (7 profiles x 6 bevels)
+    configurations 2160 over the full authored parameter ranges
+    samples        4860000
+    violations     0
+
+    ULP PROBE (T-0109 FIX F6) - adjacent-float pairs at every breakpoint AND spread over
+    the whole domain and the bevel band, over 7 bevel amounts incl. 0.05:
+      ordered pairs      24715935
+      drops observed     0
+      worst drop         0.0000E+000   (1 ulp at 1.0 = 1.1921E-007)
+      within the stated float tolerance 1.2E-007: ok
+      INJECTION - can this probe see a 1-ulp drop at all? 1962 injected drops detected, worst 5.9605E-008  ok
+
+    VERDICT        G is monotone as a THEOREM (exact arithmetic), and monotone TO WITHIN
+                   THE FLOAT TOLERANCE STATED ABOVE in float: ok
+                   The claim is deliberately NOT 'exactly monotone in float'. It is stated
+                   with its tolerance because an independent CoreCLR harness measured a
+                   1-ulp (5.96e-8) drop on THIS SOURCE, at Flat+Rounded a=0.05 near the band
+                   edge - 73 such drops over a 2001-point band sweep. This audit runs in
+                   Unity's own runtime and measures 0 there, so the two runtimes round
+                   the same expression differently and the DECLARATION must cover both.
+                   HS-5.2's containment argument survives at that magnitude either way:
+                   1 ulp is six orders below the march's own SurfaceResolution of 0.02 canvas px.
+
+H2  FINITE declared slope bounds, measured (HS-4.1, HS-4.2)
+    instrument: two-sided directional difference quotient at h = 0.001 of the t domain, numerator corrected by 8 ulps.
+    technique                         declared    measured     ratio  verdict
+    Flat p=0.0000                      0.00000     0.00000         -  ok
+    Linear p=-180.0000                 0.00000     0.00000         -  ok
+    Linear p=-135.0000                 0.00000     0.00000         -  ok
+    Linear p=-45.0000                  0.00000     0.00000         -  ok
+    Linear p=0.0000                    0.00000     0.00000         -  ok
+    Linear p=45.0000                   0.00000     0.00000         -  ok
+    Linear p=90.0000                   0.00000     0.00000         -  ok
+    Linear p=180.0000                  0.00000     0.00000         -  ok
+    Dome p=0.2000                      1.62380     1.62359   0.99987  ok
+    Dome p=0.3500                      1.50522     1.50505   0.99989  ok
+    Dome p=0.5000                      2.00000     1.99800   0.99900  ok
+    Round p=0.2000                     2.50000     2.49574   0.99829  ok
+    Round p=0.3500                     1.42857     1.42747   0.99923  ok
+    Round p=0.5000                     1.00000     1.00000   1.00000  ok
+    Taper p=0.0000                    20.00000    19.99998   1.00000  ok
+    Taper p=0.0500                    20.00000    19.99998   1.00000  ok
+    Taper p=0.0833                    20.00000    19.99998   1.00000  ok
+    Taper p=0.2500                     6.66667     6.66666   1.00000  ok
+    Taper p=0.5000                     3.33333     3.33333   1.00000  ok
+    Taper p=1.0000                     1.66667     1.66667   1.00000  ok
+    Pyramid p=0.0000                   0.00000     0.00000         -  ok
+    Pyramid p=0.0500                   0.05000     0.04956   0.99111  ok
+    Pyramid p=0.0833                   0.08330     0.08289   0.99508  ok
+    Pyramid p=0.2500                   0.25000     0.24965   0.99862  ok
+    Pyramid p=0.5000                   0.50000     0.49978   0.99957  ok
+    Pyramid p=1.0000                   1.00000     1.00000   1.00000  ok
+    Flat+Linear a=0.05                20.00000    19.99998   1.00000  ok
+    Flat+Linear a=0.25                 4.00000     4.00000   1.00000  ok
+    Flat+Linear a=0.50                 2.00000     2.00000   1.00000  ok
+    Flat+Linear a=1.00                 1.00000     1.00000   1.00000  ok
+    Pyramid t=0.25+Lin a=0.20          5.25000     4.24702   0.80896  ok
+    Pyramid t=0.25+Lin a=0.50          2.25000     1.99851   0.88823  ok
+    Pyramid t=0.25+Lin a=1.00          1.25000     1.24899   0.99919  ok
+    Pyramid t=0.50+Lin a=0.20          5.50000     3.49448   0.63536  ok
+    Pyramid t=0.50+Lin a=0.50          2.50000     1.99753   0.79901  ok
+    Pyramid t=0.50+Lin a=1.00          1.50000     1.49849   0.99899  ok
+    Pyramid t=1.00+Lin a=0.20          6.00000     1.98944   0.33157  ok
+    Pyramid t=1.00+Lin a=0.50          3.00000     1.99555   0.66518  ok
+    Pyramid t=1.00+Lin a=1.00          2.00000     1.99750   0.99875  ok
+    Linear |grad_(nx,ny)E|             0.60000     0.60000   1.00000  ok
+      (constant 0.6 for EVERY angle, and it is declared as a SEPARATE 2-vector:
+       HS-4.4 forbids summing it with the t-space figure - different variables.)
+    Linear supE at 45 deg              1.84853     1.84853            ok
+      supE = 1.84853 > 1, so `body` is NOT a height budget on this ONE technique.
+    39 finite declarations measured.  VERDICT ok
+
+H3  INFINITE declarations, demonstrated by DIVERGENCE under refinement (HS-4.1)
+    A declaration of +inf is verified by REFINEMENT, not by a number. Each row halves
+    the grid by an order of magnitude; the measured quotient must rise without bound.
+    This is exactly what the circulated figures round=16.4 / dome=23.1 fail: both are
+    one grid's reading at t ~ 9.3e-4 (their ratio is sqrt(2) to 0.4%), not maxima.
+    declaration                           h=0.01       h=0.001      h=0.0001       h=1E-05       h=1E-06
+    Round curve=1 (DEFAULT)              7.07106       22.3607       70.7106       223.607       707.106   DIVERGES ok
+    Round curve=4                        30.6619       229.931       1724.24         12930       96961.3   DIVERGES ok
+    Dome  curve=1 (DEFAULT)              9.94986       31.6069       99.9949       316.226       999.999   DIVERGES ok
+    Dome  curve=4                         33.395       250.711       1880.28       14100.2        105737   DIVERGES ok
+    Stepped n=4 (DEFAULT)                16.6667       166.669       1666.76       16656.4        165701   DIVERGES ok
+    Stepped n=32                          1.6129       16.1291        161.31       1613.11       16155.2   DIVERGES ok
+    bevel Rounded a=1                    9.94986       31.6069       99.9949       316.226       999.999   DIVERGES ok
+    bevel Cove a=1                       9.94983       31.6067       99.9818       315.964       992.941   DIVERGES ok
+    bevel Ogee a=1                       9.94985       31.6069       99.9918       315.988       993.176   DIVERGES ok
+    bevel Stepped m=3                    16.6667       166.669       1666.88         16644        164482   DIVERGES ok
+
+    DECLARED BLIND BAND (T-0109 FIX F6) - refinement cannot demonstrate divergence for
+    curve just above 0.5, though the declaration there is CORRECT. Not gated, reported.
+    curve                                 h=0.01       h=0.001      h=0.0001       h=1E-05       h=1E-06   declared
+    Dome curve=0.5                          1.98         1.998        1.9998       1.99998             2   2
+    Round curve=0.5                     0.999999      0.999999      0.999999      0.999999      0.999999   1
+    Dome curve=0.5001                    1.98128       2.00021       2.00293       2.00403       2.00497   +inf  BLIND - true but not demonstrable
+    Round curve=0.5001                   1.00078       1.00124        1.0017       1.00217       1.00263   +inf  BLIND - true but not demonstrable
+    Dome curve=0.55                      2.65551       3.30088       4.07281       5.02156       6.19086   +inf  BLIND - true but not demonstrable
+    Round curve=0.55                     1.42709       1.75938       2.16905       2.67411       3.29677   +inf  BLIND - true but not demonstrable
+    Dome curve=0.7                       4.98108       9.67932       18.6999       36.1061       69.7104   +inf  (demonstrable)
+    Round curve=0.7                      3.05787       5.90383       11.3985       22.0071        42.489   +inf  (demonstrable)
+    Dome curve=1                         9.94986       31.6069       99.9949       316.226       999.999   +inf  (demonstrable)
+    Round curve=1                        7.07106       22.3607       70.7106       223.607       707.106   +inf  (demonstrable)
+    The blind band is curve in (0.5, ~0.6]: the exponent 0.5/c - 1 is so close to 0 that
+    t must reach ~1e-15000 for the quotient to reach 10. DO NOT 'fix' the declaration to a
+    finite number on the strength of a flat measurement here - the measurement is the limit,
+    not the maths. Below curve = 0.5 the declaration is FINITE and H2 measures it instead.
+
+    Dome and Round at their OWN DEFAULT curve=1 declare +inf: ok
+    IsLipschitz over the twelve techniques at their defaults: 5 finite, 7 infinite (expected 5 / 7): ok
+      refused by name: Stepped Dome Round bevel Rounded bevel Cove bevel Ogee bevel Stepped
+    VERDICT ok
+
+H4  closed-form Ginv round-tripped against the bisection (HS-5.7)
+    Two properties per sampled zeta: |closed - bisected| within the bisection's own
+    resolution, and G(Ginv(zeta)) >= zeta (the prism of HS-5.3 must actually contain).
+    T-0109 FIX F3: the zeta grid is now LOG-spaced to 1e-9 as well as linear - the old
+    (i/200)*supG grid floored at 5e-3 and every cancellation defect lives below that.
+    combination                         worst |dt|   worst reach  verdict
+    Flat + None                         0.000E+000    0.000E+000  ok
+    Flat + Linear                       2.980E-008    0.000E+000  ok
+    Flat + Rounded                      1.726E-004    2.980E-008  ok
+    Flat + Cove                         5.960E-008    3.397E-006  ok
+    Flat + Ogee                         0.000E+000    0.000E+000  ok
+    Flat + Stepped                      2.980E-008    0.000E+000  ok
+    Linear + None                       0.000E+000    0.000E+000  ok
+    Linear + Linear                     2.980E-008    0.000E+000  ok
+    Linear + Rounded                    1.726E-004    2.980E-008  ok
+    Linear + Cove                       5.960E-008    3.397E-006  ok
+    Linear + Ogee                       0.000E+000    0.000E+000  ok
+    Linear + Stepped                    2.980E-008    0.000E+000  ok
+    Stepped + None                      0.000E+000    0.000E+000  ok
+    Stepped + Linear                    0.000E+000    0.000E+000  ok
+    Stepped + Rounded                   0.000E+000    0.000E+000  ok
+    Stepped + Cove                      0.000E+000    0.000E+000  ok
+    Stepped + Ogee                      0.000E+000    0.000E+000  ok
+    Stepped + Stepped                   0.000E+000    0.000E+000  ok
+    Dome + None                         4.567E-004    2.202E-006  ok
+    Dome + Linear                       4.567E-004    2.202E-006  ok
+    Dome + Rounded                      4.567E-004    2.202E-006  ok
+    Dome + Cove                         4.567E-004    2.202E-006  ok
+    Dome + Ogee                         4.567E-004    2.202E-006  ok
+    Dome + Stepped                      4.567E-004    2.202E-006  ok
+    Round + None                        1.788E-007    2.202E-006  ok
+    Round + Linear                      1.788E-007    2.202E-006  ok
+    Round + Rounded                     1.788E-007    2.202E-006  ok
+    Round + Cove                        1.788E-007    2.202E-006  ok
+    Round + Ogee                        1.788E-007    2.202E-006  ok
+    Round + Stepped                     1.788E-007    2.202E-006  ok
+    Taper + None                        2.980E-008    0.000E+000  ok
+    Taper + Linear                      2.980E-008    0.000E+000  ok
+    Taper + Rounded                     2.980E-008    0.000E+000  ok
+    Taper + Cove                        2.980E-008    0.000E+000  ok
+    Taper + Ogee                        2.980E-008    0.000E+000  ok
+    Taper + Stepped                     2.980E-008    0.000E+000  ok
+    Pyramid + None                      5.960E-007    0.000E+000  ok
+    Pyramid + Linear                    5.960E-007    0.000E+000  ok
+    Pyramid + Rounded                   5.960E-007    0.000E+000  ok
+    Pyramid + Cove                      5.960E-007    0.000E+000  ok
+    Pyramid + Ogee                      5.960E-007    0.000E+000  ok
+    Pyramid + Stepped                   5.960E-007    0.000E+000  ok
+
+    INJECTION (T-0109 FIX F3): perturb Ginv by a factor and re-measure the reach shortfall.
+    factor         worst reach shortfall   reads the perturbation back?
+    1.00                     2.9802E-008   (baseline)
+    0.95                     1.5401E-002   ok
+    0.50                     2.0467E-001   ok
+    0.00                     1.0000E+000   ok
+
+    zeta > sup G returns the NoCrossSection sentinel: ok
+    zeta <= G(0) returns exactly 0: ok
+    327360 round-trips.  VERDICT ok
+
+H5  identity early-outs are BIT-IDENTICAL (HS-2.2, HS-3.2)
+    Flat + None == a plain prism: 0 mismatched bit patterns over 100001 samples  ok
+    bevelAmount = 0 == None: 0 mismatched bit patterns over 35 x 20001 samples  ok
+    depth = 0: 0 non-zero height samples of 1024, wall height 0  ok
+    HS-1.4 published set: absent -> ShippedShapeEngine, present -> ShapeEngineWithHeight  ok
+    VERDICT ok
+
+H6  the two resolve branches agree at zero tilt (HS-9.2, HS-9.5)
+    branch ASSERTED, not assumed: straight-down taken 825 times, general taken 825 times  ok
+    1642 crossings compared. worst |d rayT| 0.01213, |d height| 0.01213, |d edgeDistance| 0.00800  ok
+    45-degree tilted ray: 1162 crossings, 0 on a wall, 1162/1162 cap crossings lie on the surface equation  ok
+      NOTE (T-0109 FIX F5): this sub-check asserts only that everything EMITTED lies
+      on the surface, which structurally CANNOT detect an OMISSION, and its fixture is
+      convex with nothing to omit. The OMISSION check below is the one that can fail.
+
+    OMISSION CHECK (T-0109 FIX F5) - a NON-CONVEX plate with two slots STRICTLY inside
+    the support box, all 42 combinations, emitted COUNT vs an independent scan:
+      rays                                 504 (all asserted General)
+      true crossings with NO emitted one within 0.05 px   0
+      worst gap, true crossing -> nearest emitted         1.5259E-005 canvas px
+      extra emitted pairs VERIFIED real by the predicate   0  (none - nothing was certified this run)
+      extra emitted pairs SPURIOUS                         0
+      extra emitted pairs DEGENERATE (zero measure)        0   T-0109 FIX N3: MUST be 0
+      march diagnostics: bracketCapped 0, rays hitting the step guard 0
+      VERDICT ok
+    HS-6.6 depth = sum of entry-to-exit spans: 16.0000 vs surface height 16.0000  ok
+    HS-6.6 MULTI-SPAN, a tilted ray through a SLOTTED plate (features strictly inside
+      the support box - T-0109 FIX F5 replaced the hollow-shell fixture, whose walls
+      sat ON the box boundary and could not expose a missed span): 600 rays crossed 2+
+      disjoint spans, 600 report a summed depth strictly below the envelope,
+      600 would have been misreported by an envelope answer, and 600/600
+      match an INDEPENDENT scan of the true solid length to 0.05 px  ok
+    VERDICT ok
+
+H7  HS-6.4's five mechanical statements about the side wall
+    1  at DEFAULT params, no wall on: Stepped, Dome, Round, Taper, Pyramid  (expected 5)  ok
+    2  full-height wall ONLY on: Flat=10.000, Linear=10.000  (expected Flat, Linear)  ok
+       Linear wall, body=10.000: at (nx,ny)=(0,0) it is 10.0000 - the ONE point where its tilt vanishes - but over
+       the support box it reaches 18.4853 = supG*body = 18.4853. HS-2.3: body is NOT a height budget on Linear.
+    3  bevel Linear/Rounded/Cove/Ogee removes the wall from every profile: 28/28  ok
+    4  Stepped bevel leaves a wall of exactly body*E(0)/m: ok
+    5  a wall exists exactly where G(0) > 0: 126/126  ok
+    HS-6.1 every Wall crossing publishes edgeDistance EXACTLY 0: 336/336 (a tilted ray on a Flat solid)  ok
+    VERDICT ok
+
+H8  hot-path allocation over >= 500,000 samples
+    samples exercised   1197824 (target >= 500,000)
+    managed heap delta  0 bytes
+    gen-0 collections   0
+    thread probe        0 bytes - INERT on this Mono runtime, reported for completeness only
+    paths covered: ShaperHeight.FillTile, Composed, ComposedDerivative, Inverse,
+                   Breakpoints, ShaperResolve.Query (both branches),
+                   ShaperNormals.FillTile (Profile case).
+    VERDICT ok
+
+H9  analytic G' vs a fine central difference of G (HS-8.2)
+    Points where G is genuinely non-differentiable are EXCLUDED BY NAME and counted:
+    stepped risers (t = k/n, u = k/m), the band edge t = a, taper's knee t = T, and t in {0,1}.
+    The gate is PER POINT: err <= max(2e-3 absolute, 5% relative). Both halves are
+    needed and neither alone works. Relative alone fails on Dome, where G' -> 0 near
+    t = 1 so a 7e-4 absolute error is a 10% relative one and means nothing. Absolute
+    alone fails next to a Rounded or Cove bevel's singular end, where G' ~ 12 and the
+    CENTRAL DIFFERENCE is the inaccurate half - its truncation error is O(h^2 |G'''|)
+    and |G'''| is enormous there, so an absolute gate would be testing the instrument.
+    combination                          tested  excluded    worst abs   worst rel  bad  verdict
+    Flat + None                            3997         2   0.000E+000  0.000E+000    0  ok
+    Flat + Linear                          3994         5   5.395E-004  1.619E-004    0  ok
+    Flat + Rounded                         3994         5   2.940E-001  1.884E-002    0  ok
+    Flat + Cove                            3994         5   2.897E-001  4.999E-003    0  ok
+    Flat + Ogee                            3931        68   5.121E-004  7.623E-003    0  ok
+    Flat + Stepped                         3985        14   0.000E+000  0.000E+000    0  ok
+    Linear + None                          3997         2   0.000E+000  0.000E+000    0  ok
+    Linear + Linear                        3994         5   7.560E-004  2.237E-004    0  ok
+    Linear + Rounded                       3994         5   2.981E-001  4.770E-002    0  ok
+    Linear + Cove                          3994         5   2.936E-001  4.997E-003    0  ok
+    Linear + Ogee                          3931        68   6.904E-004  1.751E-002    0  ok
+    Linear + Stepped                       3985        14   0.000E+000  0.000E+000    0  ok
+    Stepped + None                         3985        14   0.000E+000  0.000E+000    0  ok
+    Stepped + Linear                       3982        17   1.349E-004  1.619E-004    0  ok
+    Stepped + Rounded                      3982        17   1.064E-004  1.884E-002    0  ok
+    Stepped + Cove                         3982        17   7.242E-002  4.999E-003    0  ok
+    Stepped + Ogee                         3919        80   1.002E-004  7.623E-003    0  ok
+    Stepped + Stepped                      3973        26   0.000E+000  0.000E+000    0  ok
+    Dome + None                            3997         2   7.462E-004  1.059E-001    0  ok
+    Dome + Linear                          3994         5   7.462E-004  1.059E-001    0  ok
+    Dome + Rounded                         3994         5   7.462E-004  1.059E-001    0  ok
+    Dome + Cove                            3994         5   1.110E-001  1.059E-001    0  ok
+    Dome + Ogee                            3931        68   7.462E-004  1.059E-001    0  ok
+    Dome + Stepped                         3985        14   7.462E-004  1.059E-001    0  ok
+    Round + None                           3997         2   5.078E-004  1.646E-003    0  ok
+    Round + Linear                         3994         5   5.078E-004  4.073E-003    0  ok
+    Round + Rounded                        3994         5   5.078E-004  4.520E-004    0  ok
+    Round + Cove                           3994         5   5.186E-002  5.704E-003    0  ok
+    Round + Ogee                           3931        68   5.078E-004  1.008E-002    0  ok
+    Round + Stepped                        3985        14   5.078E-004  1.646E-003    0  ok
+    Taper + None                           3994         5   5.395E-004  1.619E-004    0  ok
+    Taper + Linear                         3994         5   1.302E-003  2.111E-004    0  ok
+    Taper + Rounded                        3994         5   9.313E-004  1.684E-003    0  ok
+    Taper + Cove                           3994         5   2.900E-001  1.316E-002    0  ok
+    Taper + Ogee                           3931        68   1.065E-003  1.316E-002    0  ok
+    Taper + Stepped                        3985        14   5.395E-004  1.619E-004    0  ok
+    Pyramid + None                         3997         2   2.151E-004  4.301E-004    0  ok
+    Pyramid + Linear                       3994         5   8.194E-004  4.301E-004    0  ok
+    Pyramid + Rounded                      3994         5   1.469E-001  5.062E-003    0  ok
+    Pyramid + Cove                         3994         5   1.886E-001  4.947E-003    0  ok
+    Pyramid + Ogee                         3931        68   6.187E-004  9.449E-004    0  ok
+    Pyramid + Stepped                      3985        14   2.358E-004  6.288E-004    0  ok
+    VERDICT ok
+
+H10 the three normal dials are GENUINELY READ, measured behaviourally
+    reflectionFlatten 1.5 -> 0 changed 2084 of 6912 normal components  ok
+    slopeGain 0.65 -> 0.20 changed    2084  ok
+    normalZBase 1.4 -> 3.0 changed    2084  ok
+    LR-3.5: 0 NaN-or-zero, 0 not unit to 1e-4  ok
+    VERDICT ok
+
+H11 the height stage is WIRED to the shipping paint pass (T-0109 FIX F4)
+    Before this fix ShaperHeight.FillTile had NO caller outside this audit, buf.height was
+    0 + heightDelta*ce, pointZ was Array.Clear'ed, and an authored Profile normal provider
+    silently degraded to (0,0,1). Each line below is the negation of one of those.
+    1  ShaperHeight.FillTile called from PaintTile: 656/1920 samples carry a height, max 23.975 canvas px  ok
+    2a FC-2.5 height_final carries height_shape (delta 0 document): 1920/1920 samples  ok
+    2b FC-2.5 is a real SUM, not a seed (T-0109 FIX N7 - 2a's document has
+       heightDelta = 0 identically, so it cannot tell `a+b` from `a`):
+         samples with height_shape != 0                 656/1920
+         samples with heightDelta   != 0                656/1920
+         samples with BOTH terms non-zero               656/1920   <- the sum is genuinely a sum
+         (height - height_shape)/delta a legal coverageEff in [0,1]: 1920/1920
+         max height_final with delta 3.0: 26.9752   with delta 0: 23.9752   rise 3.0000 (expected 3.0000)
+       ok
+    3  LR-1.5 pointZ = base + height (base 5.000 from HS-7.2, expected 5.000): 1920/1920 match, 0 still exactly 0  ok
+    4a Profile normal provider RUNS when authored: degenerate count 0, 1264/1920 samples still exactly (0,0,1)  ok
+    4b INJECTION - same authored Profile with NO height stage: degenerate count 1920/1920 (the fallback is LOUD, not silent)  ok
+    VERDICT ok
+

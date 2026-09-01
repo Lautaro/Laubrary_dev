@@ -69,13 +69,21 @@ namespace Laubrary.Zoetrope
                  "carries the same clip/body-FX/effect list the fixed reactions do.")]
         public List<NamedReaction> events = new List<NamedReaction>();
 
-        /// The reaction registered under `id`, or null. Case-sensitive and exact: a near-miss must fail
-        /// visibly rather than quietly play the wrong animation.
+        /// The reaction registered under `id`, or null. Case-INSENSITIVE, matching the one comparison rule
+        /// every other authored name in this module already uses (CueRelay's frame events and meta-layer ids,
+        /// the Zoe window's own clip/part/meta-layer lookups, FxEntry.Resolve's override names). This used to
+        /// be ordinal-exact, and that was the odd one out: "fire" typed in game code against a state declared
+        /// as "Fire" resolved as an override name and failed as a state name, on the same request, which is
+        /// precisely the "works here, mysteriously doesn't there" trap. Widening only ever makes a previously
+        /// failing near-miss resolve — no id already matching stops matching — and a genuinely wrong name
+        /// still misses, now loudly (see ReactionFxPlayer.Raise).
         public ReactionFx EventNamed(string id)
         {
             if (string.IsNullOrEmpty(id) || events == null) return null;
             for (int i = 0; i < events.Count; i++)
-                if (events[i] != null && events[i].id == id) return events[i].reaction;
+                if (events[i] != null &&
+                    string.Equals(events[i].id, id, System.StringComparison.OrdinalIgnoreCase))
+                    return events[i].reaction;
             return null;
         }
 
@@ -93,10 +101,68 @@ namespace Laubrary.Zoetrope
             }
         }
 
+        /// The full <see cref="NamedReaction"/> (id + role chip + reaction) declared under `id`, or null.
+        /// Case-insensitive, same rule as <see cref="EventNamed"/>. Unlike EventNamed this returns the whole
+        /// entry, so a caller can check its <see cref="NamedReaction.role"/> chip — used by
+        /// <see cref="ReactionFxPlayer"/> to resolve an answered hurt/death look: a name that exists but
+        /// isn't chipped for the question being asked is "no legal answer", not "play it anyway".
+        public NamedReaction FindEvent(string id)
+        {
+            if (string.IsNullOrEmpty(id) || events == null) return null;
+            for (int i = 0; i < events.Count; i++)
+                if (events[i] != null && string.Equals(events[i].id, id, System.StringComparison.OrdinalIgnoreCase))
+                    return events[i];
+            return null;
+        }
+
+        /// Every declared event id carrying `role` — "which of this character's rows are legal answers to
+        /// the hurt-look / death-look question". Built-in Hit/Death themselves carry their role by POSITION,
+        /// not by a stored chip (see ZOE_PALETTE_TAKE.md — "the two built-in hurt and death slots get the
+        /// equivalent chip drawn for them... rather than stored"), so they are not part of this list; they are
+        /// always the implicit "no answer" fallback (see ReactionFxPlayer.OnHit/OnDeath).
+        public IEnumerable<string> EventIdsWithRole(ReactionRole role)
+        {
+            if (events == null) yield break;
+            foreach (var e in events)
+                if (e != null && e.role == role && !string.IsNullOrEmpty(e.id)) yield return e.id;
+        }
+
+        /// Every declared state, as plain text — for someone writing gameplay code without Unity open in front
+        /// of them (ZOE_PALETTE_BUILD_PLAN.md task 7: "each character can print its own list of states on
+        /// demand"). Hit and Death are always legal (they're the built-in fallback, not name-raised), so they're
+        /// listed for context but marked as such; every custom event id is exactly what <see cref="Raise"/>-style
+        /// code should type, picker-sourced everywhere else. Deterministic order (declaration order) so pasting
+        /// this into a comment or a chat doesn't reshuffle between calls.
+        public string DescribeDeclaredStates()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append(string.IsNullOrEmpty(displayName) ? name : displayName).Append(" — declared states:\n");
+            sb.Append("  Hit    (built-in — plays automatically on a non-killing hit unless answered otherwise)\n");
+            sb.Append("  Death  (built-in — plays automatically on the killing blow unless answered otherwise)\n");
+            if (events == null || events.Count == 0)
+            {
+                sb.Append("  (no custom events declared)");
+                return sb.ToString();
+            }
+            foreach (var e in events)
+            {
+                if (e == null || string.IsNullOrEmpty(e.id)) continue;
+                string role = e.role == ReactionRole.None ? "" : $"  [{e.role} — legal answer]";
+                sb.Append("  ").Append(e.id).Append(role).Append('\n');
+            }
+            return sb.ToString().TrimEnd('\n');
+        }
+
         [Header("AI")]
         [Tooltip("Optional decision-making attached at spawn. The game supplies the agent body " +
                  "(movement/perception). Pluggable — a Daemon brain via the Zoetrope.Daemon bridge.")]
         [SerializeReference] public IBrainSpec brain;
+
+        [Tooltip("Optional real input rig attached at spawn — a person drives this character instead of (or " +
+                 "as well as) a brain. Pluggable — the reusable gamepad/keyboard stack via the " +
+                 "Zoetrope.ZoeCharacter bridge. Its presence is what tells any spawner, Mirage included, that " +
+                 "this Zoe has a player controller configured.")]
+        [SerializeReference] public IPlayerControllerSpec playerController;
 
         [Header("Loadout")]
         [Tooltip("Pluggable weapons + abilities the character can activate; triggered by the brain (enemies) " +

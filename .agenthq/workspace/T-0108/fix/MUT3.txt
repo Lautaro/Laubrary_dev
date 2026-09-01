@@ -1,0 +1,91 @@
+@@LEG LT18_DegenerateDialsNeverGoNonFinite
+LT-18 no dial at any degenerate value writes a non-finite float (fix pass)
+  degenerate cases driven: 1428 (every dial on the rig, the response block and all six Solids forms x {-1, 0, +Inf, -Inf, NaN, -1e30, 1e30} x ambient {0.2, 0.0})
+  NON-FINITE FLOATS REACHING dst: 0 (expected EXACTLY 0; measured 19200 for rimPower = -1 alone before the fix)  PASS
+  GARBAGE ENCODED PIXELS: 0 (expected EXACTLY 0; measured 6400 for rimPower = -1 on a black ambient before the fix)  PASS
+  (d) the range dial, swept ACROSS the old discontinuity (light at (0,0,40), sample at (0,0), ambient black):
+      1e4=0.999984 40=0.500000 10=0.058824 1=0.000625 1e-2=0.000000 1e-4=0.000000 1e-5=0.000000 1e-6=0.000000 1e-7=0.000000 0=0.000000 -1=0.000000 NaN=0.500000 +Inf=0.500000
+      inversions as the range shrinks: 0 (expected 0; the old build had one, 1e-5 -> 1e-6 snapping 0 -> 1.000000)  PASS
+      range == 0 gives L = 0.000000 (expected 0 - LR-2.4: a vanishing range is a vanishing REACH, not a vanished falloff)  PASS
+      range == -1 matches range == 0: True; NaN finite: True; +Inf finite: True  PASS
+  (e) CONTROL - the LAW, handed an UNCLAMPED rimPower = -1 on a flat normal, returns S.r = Infinity (expected non-finite; this is exactly what the compile clamp protects against, and a finite value here would mean the zeroes above prove nothing)  PASS
+  RESULT: PASS
+
+@@LEG LT20_BorderIsLitByItsHost
+LT-20 a border is lit by its HOST's response and HOST's normal (LR-5.4, fix pass)
+  border owner index 1, host owner index 0 (both must be found)  PASS
+  border samples: 1184 (expected > 200)
+  border pixels that MOVED when the BORDER's OWN response and normal were replaced: 0/1184 (expected 0 - LR-5.4 says its own entries are never read)  PASS
+  CONTROL - border pixels that moved when the HOST's response and normal changed: 1184/1184 (expected > 100; a 0 here would mean the border is not lit at all and the assertion above is vacuous)  PASS
+  RESULT: PASS
+
+@@LEG LT22_GlowPathExecutes
+LT-22 the halo and inner glow actually run (LR-6.4, fix pass)
+  Box      glow sheet non-zero floats 17106 (> 100), encoded RGB moved 5702 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Pyramid  glow sheet non-zero floats 7371 (> 100), encoded RGB moved 2457 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Can      glow sheet non-zero floats 13494 (> 100), encoded RGB moved 4498 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Orb      glow sheet non-zero floats 7596 (> 100), encoded RGB moved 2528 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Gem      glow sheet non-zero floats 4164 (> 100), encoded RGB moved 1388 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  Ring     glow sheet non-zero floats 4752 (> 100), encoded RGB moved 1584 px (> 100), ALPHA moved 0 px (expected 0 - D-7: hard coverage kills the outside spill)  PASS
+  glow on a receiveLighting = FALSE layer still adds: 1388 samples moved, summed delta 704.234 (expected > 100 and > 0 - a glow is light, not paint: LR-5.3 one level down)  PASS
+  RESULT: PASS
+
+@@LEG LT19_EveryDialIsLiveOrDeclaredInert
+LT-19 every Solids dial is live or DECLARED inert - never neither (fix pass)
+    Box      Size:5506 Cent:2680 Aspe:4557 Dept:4024 GemS:0* GemC:0* GemP:0* Ring:0* Yaw:7966 Tilt:7494 Roll:5216 Line:1130 Edge:4004 Inne:6914
+    Pyramid  Size:2353 Cent:1891 Aspe:3326 Dept:2688 GemS:0* GemC:0* GemP:0* Ring:0* Yaw:3640 Tilt:4205 Roll:4067 Line:655 Edge:2227 Inne:2683
+    Can      Size:4783 Cent:4476 Aspe:3685 Dept:0* GemS:0* GemC:0* GemP:0* Ring:0* Yaw:5647 Tilt:5878 Roll:6758 Line:669 Edge:2405 Inne:5428
+    Orb      Size:3224 Cent:3690 Aspe:0* Dept:0* GemS:0* GemC:0* GemP:0* Ring:0* Yaw:2850 Tilt:3015 Roll:2986 Line:384 Edge:1355 Inne:3072
+    Gem      Size:1600 Cent:1703 Aspe:0* Dept:0* GemS:1821 GemC:2088 GemP:125 Ring:0* Yaw:2021 Tilt:2686 Roll:2356 Line:684 Edge:1790 Inne:1274
+    Ring     Size:2246 Cent:2036 Aspe:0* Dept:0* GemS:0* GemC:0* GemP:0* Ring:846 Yaw:2146 Tilt:2180 Roll:0* Line:594 Edge:1836 Inne:1520
+  legend: <dial>:<differing encoded pixels>, * = DECLARED INERT (must be 0), !! = the assertion failed
+  live dials moving >= 20 px: 56;  declared-inert dials measuring exactly 0: 28
+  SILENTLY INERT (live by declaration, dead by measurement): 0 (expected 0; this count was 5 before the fix - aspect and depth on Gem and Ring, and depth on Orb)  PASS
+  FALSELY DECLARED (declared inert, actually moves pixels): 0 (expected 0)  PASS
+  DIAGNOSTIC, Gem with aspect 0.4 and depth 0.4: hasInertDial = True (True), inertDialCount = 2 (2), dial "Aspect" on form "Gem"  PASS
+    reason: "Aspect does nothing on a Gem. A gem's proportions are Crown and Pavilion, which set its height above and below the girdle; the reference builder (PyreRenderer.cs:4796) reads neither aspect nor depth. Use Crown and Pavilion."
+  a Gem with aspect and depth left at 1 (neutral) raises nothing: hasInertDial = False (expected False - the complaint is about a control the author OPERATED and got nothing from, not about a field's existence)  PASS
+  RESULT: PASS
+
+@@LEG LT8_ReceiveOffIsBitIdentical
+LT-8 receiveLighting = false is bit-identical to the pre-lighting build
+  golden: 65536 B (expected 65536), from D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0108\golden\lt8-unlit-128x128.rgba
+  differing pixels, NULL-SCENE render vs the STORED GOLDEN: 5242/16384 (expected 0)  FAIL
+  differing pixels, RECEIVE-OFF render vs the STORED GOLDEN: 5242/16384 (expected 0 - this is the assertion D-9 argued away)  FAIL
+  rig: 8 enabled lights (expected 8), rimStrength 1 on the response
+  differing pixels vs the null-scene render: 0/16384 (expected 0; WEAK - both sides run the same branch, see the summary)  PASS
+  CONTROL - the same rig with receive ON differs at 5056/16384 pixels (expected > 1000; a 0 here would make this leg vacuous)  PASS
+  RESULT: FAIL
+
+@@LEG LT14b_OrbSilhouetteIsRotationInvariant
+LT-14b Orb's silhouette is rotation-invariant, its shading is not
+  (a) alpha samples differing across the rotation: 612/16384 (expected 0; STRUCTURAL - Orb coverage never reads the rotation matrix, so (c) is the leg that can actually fail)  FAIL
+  (b) RGB samples differing across the rotation: 3640/16384 (expected >= 100)  PASS
+  (c) samples where the ROTATED Orb's coverage disagrees with the independently computed disc d <= 34: 612/16384 (expected 0, over 3640 covered)  FAIL
+  (d) CONTROL - a BOX's alpha differing across the SAME rotation: 1812/16384 (expected >= 100; a 0 here would mean the fixture never rotated anything and (a)/(c) were vacuous)  PASS
+  This generator rotates the published NORMAL forward rather than rotating the light
+  backward as Pyre does (PyreRenderer.cs:4442-4455) - it is the other side of Pyre's own
+  identity N.(Rot^-1.L) == (Rot.N).L, and it is forced by LR-1.1: a per-particle inverse-
+  rotated light IS a light owned by a generator, which LR-1.1 forbids outright.
+  RESULT: FAIL
+
+@@LEG LT2_ZeroAllocation
+LT-2 zero allocation in the lit tile loop (10000 samples per case)
+  instrument calibration, run IN-REGION and BEFORE the measurements (sink 1):
+    PRIMARY   IL opcode scan - newobj/newarr/box. NO detection floor: an allocation is an opcode, not a magnitude.
+    SECONDARY GC.GetTotalMemory(false), calibrated inside the measured loop: DETECTION FLOOR = 64 BYTES PER PaintTile CALL (observed heap delta 6078464 B over 65 reps)  PASS
+    DEAD      GC.GetAllocatedBytesForCurrentThread() reported 0 B across the whole calibration, in which 4160+ bytes were provably allocated. It is INERT at every size on this Mono runtime (verified separately up to 64 MB) and contributes NOTHING to this leg's verdict; it is printed only so the claim is visible rather than implied.
+    A per-tile temporary SMALLER than the floor above is invisible to the heap probe and is caught by the IL scan instead. That is the honest statement of what this leg proves, replacing the old and never-measured "exactly 0 bytes".
+  1 light / Over / Constant          x65 reps: heap 6074368 B (must be < 4160 B = the calibrated floor x 65; the mutation would show ~7800000 B)  FAIL   [dead thread probe: 0 B, ignored]
+  1 light / Over / Solids            x65 reps: heap 12226560 B (must be < 4160 B = the calibrated floor x 65; the mutation would show ~7800000 B)  FAIL   [dead thread probe: 0 B, ignored]
+  1 light / Add / Constant           x65 reps: heap 0 B (must be < 4160 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  1 light / Add / Solids             x65 reps: heap 12230656 B (must be < 4160 B = the calibrated floor x 65; the mutation would show ~7800000 B)  FAIL   [dead thread probe: 0 B, ignored]
+  8 lights / Over / Constant         x65 reps: heap 6074368 B (must be < 4160 B = the calibrated floor x 65; the mutation would show ~7800000 B)  FAIL   [dead thread probe: 0 B, ignored]
+  8 lights / Over / Solids           x65 reps: heap 12226560 B (must be < 4160 B = the calibrated floor x 65; the mutation would show ~7800000 B)  FAIL   [dead thread probe: 0 B, ignored]
+  8 lights / Add / Constant          x65 reps: heap 0 B (must be < 4160 B = the calibrated floor x 65; the mutation would show ~7800000 B)  PASS   [dead thread probe: 0 B, ignored]
+  8 lights / Add / Solids            x65 reps: heap 12230656 B (must be < 4160 B = the calibrated floor x 65; the mutation would show ~7800000 B)  FAIL   [dead thread probe: 0 B, ignored]
+  IL scan across law + both providers + PaintTile + LightSample: raw byte hits 4, TOKEN-CONFIRMED allocations 1 (expected 0)  FAIL
+    ShaperLightLaw.Shade(764B raw:0 confirmed:0) ShaperNormals.FillTile(186B raw:0 confirmed:0) ShaperSolids.InertReason(207B raw:0 confirmed:0) ShaperSolids.Neutral(76B raw:0 confirmed:0) ShaperSolids.Dial(33B raw:0 confirmed:0) ShaperSolids.DeclareInertDials(142B raw:0 confirmed:0) ShaperSolids.Check(110B raw:0 confirmed:0) ShaperSolids.FillTile(837B raw:0 confirmed:0) ShaperSolids.SampleFacet(422B raw:0 confirmed:0) ShaperSolids.NearestLine(85B raw:0 confirmed:0) ShaperSolids.SampleOrb(350B raw:0 confirmed:0) ShaperSolids.SampleRing(303B raw:2 confirmed:0) ShaperSolids.EdgeKey(18B raw:0 confirmed:0) ShaperSolids.InTri(166B raw:0 confirmed:0) ShaperSolids.DistSeg(107B raw:0 confirmed:0) ShaperFillResolver.PaintTile(2841B raw:1 confirmed:0) ShaperFillResolver.LightSample(418B raw:1 confirmed:1)
+    confirmed: LightSample -> newarr Single ;
+  RESULT: FAIL
+

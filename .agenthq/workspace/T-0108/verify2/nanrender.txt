@@ -1,0 +1,4 @@
+baseline  rimP=2.2 rimS=1 amb=0.2 specP=48 : dst NaN floats=0 (alpha NaN=0)  Inf floats=0  encoded r==0&a!=0 px=0
+rimP=-1   rimS=1 amb=0.2            : dst NaN floats=0 (alpha NaN=0)  Inf floats=19200  encoded r==0&a!=0 px=0
+rimP=-1   rimS=1 amb=0.0 (NaN case) : dst NaN floats=19200 (alpha NaN=0)  Inf floats=0  encoded r==0&a!=0 px=6400
+specP=-4  rimS=0 amb=0.2            : dst NaN floats=0 (alpha NaN=0)  Inf floats=0  encoded r==0&a!=0 px=0

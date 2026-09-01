@@ -15,6 +15,7 @@ MonoBehaviour:
   canvasSize: 64
   frameCount: 16
   seed: 1242
+  previewLayerSel: 1
   background: {r: 0, g: 0, b: 0, a: 0}
   pixelsPerUnit: 64
   backgroundUseFill: 0
@@ -51,10 +52,19 @@ MonoBehaviour:
       m_ColorSpace: -1
       m_NumColorKeys: 2
       m_NumAlphaKeys: 2
+    gradientAnim:
+      rid: 1000
     angleDeg: 0
     zoom: 1
     center: {x: 0, y: 0}
+    zoomAnim:
+      rid: 1001
+    centerXAnim:
+      rid: 1002
+    centerYAnim:
+      rid: 1003
     space: 0
+    fit: 0
     texture: 0
     textureSprite: {fileID: 0}
     noiseKind: 0
@@ -66,9 +76,12 @@ MonoBehaviour:
     dotSize: 0.5
     dotSpacing: 0.35
     dotStagger: 1
+    fillVersion: 1
   layers:
   - enabled: 1
     name: Fire body
+    startFrame: 0
+    endFrame: -1
     matteEnabled: 0
     matteRole: 0
     matteChannel: 0
@@ -95,6 +108,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     matteBlurAmount:
       m_mode: 0
@@ -108,6 +126,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     matteDisplaceAmount:
       m_mode: 0
@@ -121,6 +144,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     matteHueDegrees:
       m_mode: 0
@@ -134,6 +162,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     coalesce: 0
     fuseThreshold: 0.6
@@ -163,6 +196,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     heat:
       m_mode: 2
@@ -188,6 +226,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     rampFusion: 0.35
     rampCoverage: 8
@@ -196,6 +239,8 @@ MonoBehaviour:
     rampLightAngle: 135
     rampRimScale: 0.35
     shapeForm: 0
+    form:
+      rid: -2
     shapeFill:
       mode: 1
       color: {r: 1, g: 1, b: 1, a: 1}
@@ -229,10 +274,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 4
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1004
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1005
+      centerXAnim:
+        rid: 1006
+      centerYAnim:
+        rid: 1007
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -244,6 +298,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     alpha:
       m_mode: 2
       m_static: 1
@@ -268,6 +323,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     size:
       m_mode: 2
@@ -293,8 +353,15 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     edgeSoftness: 0.22752585
+    edgeSoftnessAnim:
+      rid: -2
     gemSides: 4
     gemCrown: 0.75
     gemPavilion: 1.55
@@ -310,6 +377,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     gemRoll:
       m_mode: 0
@@ -323,6 +395,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     gemLightYaw: -55
     gemLightPitch: 38
@@ -364,10 +441,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 2
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1008
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1009
+      centerXAnim:
+        rid: 1010
+      centerYAnim:
+        rid: 1011
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -379,6 +465,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     gemLineWidth: 1
     gemLineFill:
       mode: 0
@@ -413,10 +500,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 2
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1012
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1013
+      centerXAnim:
+        rid: 1014
+      centerYAnim:
+        rid: 1015
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -428,6 +524,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     gemEdgeGlow:
       m_mode: 0
       m_static: 0.5
@@ -440,6 +537,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     gemEdgeGlowFill:
       mode: 0
@@ -474,10 +576,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 2
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1016
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1017
+      centerXAnim:
+        rid: 1018
+      centerYAnim:
+        rid: 1019
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -489,6 +600,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     gemInnerGlow:
       m_mode: 0
       m_static: 0.35
@@ -501,6 +613,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     gemInnerGlowFill:
       mode: 0
@@ -535,10 +652,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 2
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1020
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1021
+      centerXAnim:
+        rid: 1022
+      centerYAnim:
+        rid: 1023
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -550,6 +676,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     solidAspect: 1
     solidDepth: 1
     ringInner: 0.55
@@ -589,10 +716,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 3
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1024
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1025
+      centerXAnim:
+        rid: 1026
+      centerYAnim:
+        rid: 1027
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -604,6 +740,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     textGradientAngle: 0
     textBorderWidth: 1
     textBorder:
@@ -639,10 +776,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 2
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1028
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1029
+      centerXAnim:
+        rid: 1030
+      centerYAnim:
+        rid: 1031
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -654,6 +800,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     textSpacing: 1
     textSolid: 1
     textDepth: 0.35
@@ -669,6 +816,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     crescentAngle:
       m_mode: 0
@@ -682,8 +834,17 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     crescentOffset: 0.5
+    crescentCenterXAnim:
+      rid: -2
+    crescentCenterYAnim:
+      rid: -2
     sparkleDensity:
       m_mode: 0
       m_static: 0.35
@@ -696,6 +857,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     sparkleSize: 1
     spriteImage: {fileID: 0}
@@ -724,6 +890,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     streakWidth:
       m_mode: 0
@@ -737,6 +908,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     streakAnchor: 0.5
     streakSoftTip: 0.5
@@ -754,6 +930,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     starBaseWidth:
       m_mode: 0
@@ -767,6 +948,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     starSkew:
       m_mode: 0
@@ -780,7 +966,91 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
+    polygonSides: 4
+    borderEnabled: 0
+    borderWidth:
+      m_mode: 0
+      m_static: 2
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    borderFill:
+      mode: 0
+      color: {r: 1, g: 1, b: 1, a: 1}
+      gradient:
+        serializedVersion: 2
+        key0: {r: 1, g: 1, b: 1, a: 1}
+        key1: {r: 1, g: 1, b: 1, a: 1}
+        key2: {r: 0, g: 0, b: 0, a: 0}
+        key3: {r: 0, g: 0, b: 0, a: 0}
+        key4: {r: 0, g: 0, b: 0, a: 0}
+        key5: {r: 0, g: 0, b: 0, a: 0}
+        key6: {r: 0, g: 0, b: 0, a: 0}
+        key7: {r: 0, g: 0, b: 0, a: 0}
+        ctime0: 0
+        ctime1: 65535
+        ctime2: 0
+        ctime3: 0
+        ctime4: 0
+        ctime5: 0
+        ctime6: 0
+        ctime7: 0
+        atime0: 0
+        atime1: 65535
+        atime2: 0
+        atime3: 0
+        atime4: 0
+        atime5: 0
+        atime6: 0
+        atime7: 0
+        m_Mode: 0
+        m_ColorSpace: -1
+        m_NumColorKeys: 2
+        m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1065
+      angleDeg: 0
+      zoom: 1
+      center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1066
+      centerXAnim:
+        rid: 1067
+      centerYAnim:
+        rid: 1068
+      space: 0
+      fit: 0
+      texture: 0
+      textureSprite: {fileID: 0}
+      noiseKind: 0
+      gridAngle: 0
+      gridSpacing: 0.5
+      gridLineWidth: 0.08
+      gridVertical: 1
+      gridHorizontal: 1
+      dotSize: 0.5
+      dotSpacing: 0.35
+      dotStagger: 1
+      fillVersion: 1
+    borderOverMatte: 0
     fireIntensity:
       m_mode: 2
       m_static: 1
@@ -809,6 +1079,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireArms: 1
     fireArmMode: 0
@@ -824,6 +1099,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireEmitterWidth:
       m_mode: 0
@@ -837,6 +1117,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireEmitterInset:
       m_mode: 0
@@ -850,6 +1135,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireHeat:
       m_mode: 0
@@ -863,6 +1153,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireFuel:
       m_mode: 0
@@ -876,6 +1171,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     firePulse:
       m_mode: 0
@@ -889,6 +1189,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireFlow:
       m_mode: 0
@@ -902,6 +1207,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireBuoyancy:
       m_mode: 0
@@ -915,6 +1225,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireCurl:
       m_mode: 0
@@ -928,6 +1243,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireCurlScale:
       m_mode: 0
@@ -941,6 +1261,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireFlicker:
       m_mode: 0
@@ -954,6 +1279,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireStretch:
       m_mode: 0
@@ -967,6 +1297,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     firePinch:
       m_mode: 0
@@ -980,6 +1315,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireBreakup:
       m_mode: 0
@@ -993,6 +1333,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireDissipation:
       m_mode: 0
@@ -1006,6 +1351,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireBurn:
       m_mode: 0
@@ -1019,6 +1369,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireReach:
       m_mode: 0
@@ -1032,6 +1387,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireEdgeCooling:
       m_mode: 0
@@ -1045,11 +1405,17 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireSteps: 2
     fireThreshold: 0.06
     fireContrast: 0.85
     fireSwarmEmitters: 0
+    fireEmitterOffset: {x: 0, y: 0}
     fireballSource:
       m_mode: 2
       m_static: 1
@@ -1078,6 +1444,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireballSourceRadius:
       m_mode: 0
@@ -1091,6 +1462,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireballCooling:
       m_mode: 0
@@ -1104,6 +1480,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireballSharpness:
       m_mode: 0
@@ -1117,6 +1498,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireballSpread:
       m_mode: 0
@@ -1130,6 +1516,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireballReach:
       m_mode: 0
@@ -1143,11 +1534,27 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireballArms: 1
     fireballMirror: 1
     fireballThreshold: 0.06
     fireballContrast: 0.85
+    playbackPrefab: {fileID: 0}
+    playbackSpeed: 1
+    playbackScale: 1
+    playbackTint: {r: 1, g: 1, b: 1, a: 1}
+    playbackZoom: 1
+    playbackGlow: 1
+    playbackScrub01: 0
+    playbackLoopDuration: 2
+    playbackPixelated: 0
+    playbackPixelGrid: 32
+    playbackPixelLevels: 0
     particlePathX:
       m_mode: 0
       m_static: 0
@@ -1160,6 +1567,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     particlePathY:
       m_mode: 0
@@ -1173,6 +1585,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     particleSpin:
       m_mode: 0
@@ -1186,12 +1603,20 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     shapeAdvanced: 0
     swarmEnabled: 1
     swarmCount: 10
     swarmSpawnMode: 0
     swarmShapeKind: 0
+    swarmChaos: 0
+    swarmGridReverse: 0
+    swarmSpawnChaos: 0
     swarmCustomX:
       m_mode: 2
       m_static: 1
@@ -1216,6 +1641,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmCustomY:
       m_mode: 2
@@ -1241,6 +1671,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmProgress:
       m_mode: 2
@@ -1262,6 +1697,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmSpawnTiming:
       m_mode: 0
@@ -1275,6 +1715,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmTiming: 0
     swarmFirstFrame: 0
@@ -1293,6 +1738,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmEvenPath: 0
     swarmPathSpread: 1
@@ -1309,6 +1759,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     shapeOffsetY:
       m_mode: 1
@@ -1322,6 +1777,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     shapeScale:
       m_mode: 0
@@ -1335,6 +1795,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     shapeScaleSnap: 0
     shapeRotation:
@@ -1349,6 +1814,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     shapePitch:
       m_mode: 0
@@ -1362,6 +1832,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     shapeYaw:
       m_mode: 0
@@ -1375,6 +1850,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmTurn:
       m_mode: 0
@@ -1388,6 +1868,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmTilt:
       m_mode: 0
@@ -1401,6 +1886,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmRoll:
       m_mode: 0
@@ -1414,6 +1904,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmScale:
       m_mode: 0
@@ -1427,6 +1922,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     modifiers:
     - rid: 1452078315147886685
@@ -1434,6 +1934,8 @@ MonoBehaviour:
       rid: -2
   - enabled: 1
     name: Sparks
+    startFrame: 0
+    endFrame: -1
     matteEnabled: 0
     matteRole: 0
     matteChannel: 0
@@ -1460,6 +1962,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     matteBlurAmount:
       m_mode: 0
@@ -1473,6 +1980,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     matteDisplaceAmount:
       m_mode: 0
@@ -1486,6 +1998,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     matteHueDegrees:
       m_mode: 0
@@ -1499,6 +2016,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     coalesce: 0
     fuseThreshold: 0.6
@@ -1528,6 +2050,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     heat:
       m_mode: 2
@@ -1553,6 +2080,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     rampFusion: 0.35
     rampCoverage: 8
@@ -1561,6 +2093,8 @@ MonoBehaviour:
     rampLightAngle: 135
     rampRimScale: 0.35
     shapeForm: 3
+    form:
+      rid: -2
     shapeFill:
       mode: 1
       color: {r: 1, g: 1, b: 1, a: 1}
@@ -1594,10 +2128,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 3
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1032
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1033
+      centerXAnim:
+        rid: 1034
+      centerYAnim:
+        rid: 1035
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -1609,6 +2152,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     alpha:
       m_mode: 2
       m_static: 1
@@ -1637,6 +2181,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     size:
       m_mode: 2
@@ -1653,13 +2202,20 @@ MonoBehaviour:
         exponent: 1
         editState: 0
       m_yMin: 0
-      m_yMax: 32
+      m_yMax: 64
       m_duration: 4
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     edgeSoftness: 0
+    edgeSoftnessAnim:
+      rid: -2
     gemSides: 4
     gemCrown: 0.75
     gemPavilion: 1.55
@@ -1675,6 +2231,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     gemRoll:
       m_mode: 0
@@ -1688,6 +2249,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     gemLightYaw: -55
     gemLightPitch: 38
@@ -1729,10 +2295,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 2
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1036
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1037
+      centerXAnim:
+        rid: 1038
+      centerYAnim:
+        rid: 1039
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -1744,6 +2319,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     gemLineWidth: 1
     gemLineFill:
       mode: 0
@@ -1778,10 +2354,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 2
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1040
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1041
+      centerXAnim:
+        rid: 1042
+      centerYAnim:
+        rid: 1043
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -1793,6 +2378,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     gemEdgeGlow:
       m_mode: 0
       m_static: 0.5
@@ -1805,6 +2391,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     gemEdgeGlowFill:
       mode: 0
@@ -1839,10 +2430,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 2
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1044
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1045
+      centerXAnim:
+        rid: 1046
+      centerYAnim:
+        rid: 1047
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -1854,6 +2454,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     gemInnerGlow:
       m_mode: 0
       m_static: 0.35
@@ -1866,6 +2467,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     gemInnerGlowFill:
       mode: 0
@@ -1900,10 +2506,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 2
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1048
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1049
+      centerXAnim:
+        rid: 1050
+      centerYAnim:
+        rid: 1051
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -1915,6 +2530,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     solidAspect: 1
     solidDepth: 1
     ringInner: 0.55
@@ -1954,10 +2570,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 3
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1052
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1053
+      centerXAnim:
+        rid: 1054
+      centerYAnim:
+        rid: 1055
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -1969,6 +2594,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     textGradientAngle: 0
     textBorderWidth: 1
     textBorder:
@@ -2004,10 +2630,19 @@ MonoBehaviour:
         m_ColorSpace: -1
         m_NumColorKeys: 2
         m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1056
       angleDeg: 0
       zoom: 1
       center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1057
+      centerXAnim:
+        rid: 1058
+      centerYAnim:
+        rid: 1059
       space: 0
+      fit: 0
       texture: 0
       textureSprite: {fileID: 0}
       noiseKind: 0
@@ -2019,6 +2654,7 @@ MonoBehaviour:
       dotSize: 0.5
       dotSpacing: 0.35
       dotStagger: 1
+      fillVersion: 1
     textSpacing: 1
     textSolid: 1
     textDepth: 0.35
@@ -2034,6 +2670,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     crescentAngle:
       m_mode: 0
@@ -2047,8 +2688,17 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     crescentOffset: 0.5
+    crescentCenterXAnim:
+      rid: -2
+    crescentCenterYAnim:
+      rid: -2
     sparkleDensity:
       m_mode: 0
       m_static: 0.1
@@ -2061,6 +2711,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     sparkleSize: 1
     spriteImage: {fileID: 0}
@@ -2089,6 +2744,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     streakWidth:
       m_mode: 0
@@ -2102,6 +2762,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     streakAnchor: 0.5
     streakSoftTip: 0.5
@@ -2119,6 +2784,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     starBaseWidth:
       m_mode: 0
@@ -2132,6 +2802,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     starSkew:
       m_mode: 0
@@ -2145,7 +2820,91 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
+    polygonSides: 4
+    borderEnabled: 0
+    borderWidth:
+      m_mode: 0
+      m_static: 2
+      m_min: 0
+      m_max: 1
+      m_points: []
+      m_yMin: 0
+      m_yMax: 1
+      m_duration: 4
+      m_warmup: 0
+      m_cooldown: -1
+      m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
+      m_multiplierId: 
+    borderFill:
+      mode: 0
+      color: {r: 1, g: 1, b: 1, a: 1}
+      gradient:
+        serializedVersion: 2
+        key0: {r: 1, g: 1, b: 1, a: 1}
+        key1: {r: 1, g: 1, b: 1, a: 1}
+        key2: {r: 0, g: 0, b: 0, a: 0}
+        key3: {r: 0, g: 0, b: 0, a: 0}
+        key4: {r: 0, g: 0, b: 0, a: 0}
+        key5: {r: 0, g: 0, b: 0, a: 0}
+        key6: {r: 0, g: 0, b: 0, a: 0}
+        key7: {r: 0, g: 0, b: 0, a: 0}
+        ctime0: 0
+        ctime1: 65535
+        ctime2: 0
+        ctime3: 0
+        ctime4: 0
+        ctime5: 0
+        ctime6: 0
+        ctime7: 0
+        atime0: 0
+        atime1: 65535
+        atime2: 0
+        atime3: 0
+        atime4: 0
+        atime5: 0
+        atime6: 0
+        atime7: 0
+        m_Mode: 0
+        m_ColorSpace: -1
+        m_NumColorKeys: 2
+        m_NumAlphaKeys: 2
+      gradientAnim:
+        rid: 1069
+      angleDeg: 0
+      zoom: 1
+      center: {x: 0, y: 0}
+      zoomAnim:
+        rid: 1070
+      centerXAnim:
+        rid: 1071
+      centerYAnim:
+        rid: 1072
+      space: 0
+      fit: 0
+      texture: 0
+      textureSprite: {fileID: 0}
+      noiseKind: 0
+      gridAngle: 0
+      gridSpacing: 0.5
+      gridLineWidth: 0.08
+      gridVertical: 1
+      gridHorizontal: 1
+      dotSize: 0.5
+      dotSpacing: 0.35
+      dotStagger: 1
+      fillVersion: 1
+    borderOverMatte: 0
     fireIntensity:
       m_mode: 2
       m_static: 1
@@ -2174,6 +2933,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireArms: 1
     fireArmMode: 0
@@ -2189,6 +2953,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireEmitterWidth:
       m_mode: 0
@@ -2202,6 +2971,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireEmitterInset:
       m_mode: 0
@@ -2215,6 +2989,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireHeat:
       m_mode: 0
@@ -2228,6 +3007,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireFuel:
       m_mode: 0
@@ -2241,6 +3025,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     firePulse:
       m_mode: 0
@@ -2254,6 +3043,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireFlow:
       m_mode: 0
@@ -2267,6 +3061,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireBuoyancy:
       m_mode: 0
@@ -2280,6 +3079,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireCurl:
       m_mode: 0
@@ -2293,6 +3097,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireCurlScale:
       m_mode: 0
@@ -2306,6 +3115,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireFlicker:
       m_mode: 0
@@ -2319,6 +3133,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireStretch:
       m_mode: 0
@@ -2332,6 +3151,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     firePinch:
       m_mode: 0
@@ -2345,6 +3169,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireBreakup:
       m_mode: 0
@@ -2358,6 +3187,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireDissipation:
       m_mode: 0
@@ -2371,6 +3205,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireBurn:
       m_mode: 0
@@ -2384,6 +3223,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireReach:
       m_mode: 0
@@ -2397,6 +3241,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireEdgeCooling:
       m_mode: 0
@@ -2410,11 +3259,17 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireSteps: 2
     fireThreshold: 0.06
     fireContrast: 0.85
     fireSwarmEmitters: 0
+    fireEmitterOffset: {x: 0, y: 0}
     fireballSource:
       m_mode: 2
       m_static: 1
@@ -2443,6 +3298,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireballSourceRadius:
       m_mode: 0
@@ -2456,6 +3316,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireballCooling:
       m_mode: 0
@@ -2469,6 +3334,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireballSharpness:
       m_mode: 0
@@ -2482,6 +3352,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireballSpread:
       m_mode: 0
@@ -2495,6 +3370,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireballReach:
       m_mode: 0
@@ -2508,11 +3388,27 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     fireballArms: 1
     fireballMirror: 1
     fireballThreshold: 0.06
     fireballContrast: 0.85
+    playbackPrefab: {fileID: 0}
+    playbackSpeed: 1
+    playbackScale: 1
+    playbackTint: {r: 1, g: 1, b: 1, a: 1}
+    playbackZoom: 1
+    playbackGlow: 1
+    playbackScrub01: 0
+    playbackLoopDuration: 2
+    playbackPixelated: 0
+    playbackPixelGrid: 32
+    playbackPixelLevels: 0
     particlePathX:
       m_mode: 0
       m_static: 0
@@ -2525,6 +3421,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     particlePathY:
       m_mode: 0
@@ -2538,6 +3439,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     particleSpin:
       m_mode: 0
@@ -2551,12 +3457,20 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     shapeAdvanced: 0
     swarmEnabled: 0
     swarmCount: 8
     swarmSpawnMode: 0
     swarmShapeKind: 0
+    swarmChaos: 0
+    swarmGridReverse: 0
+    swarmSpawnChaos: 0
     swarmCustomX:
       m_mode: 2
       m_static: 1
@@ -2581,6 +3495,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmCustomY:
       m_mode: 2
@@ -2606,6 +3525,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmProgress:
       m_mode: 2
@@ -2627,6 +3551,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmSpawnTiming:
       m_mode: 2
@@ -2648,6 +3577,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmTiming: 0
     swarmFirstFrame: 0
@@ -2666,6 +3600,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmEvenPath: 0
     swarmPathSpread: 1
@@ -2682,6 +3621,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     shapeOffsetY:
       m_mode: 0
@@ -2695,6 +3639,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     shapeScale:
       m_mode: 0
@@ -2708,6 +3657,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     shapeScaleSnap: 0
     shapeRotation:
@@ -2722,6 +3676,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     shapePitch:
       m_mode: 0
@@ -2735,6 +3694,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     shapeYaw:
       m_mode: 0
@@ -2748,6 +3712,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmTurn:
       m_mode: 0
@@ -2761,6 +3730,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmTilt:
       m_mode: 0
@@ -2774,6 +3748,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmRoll:
       m_mode: 0
@@ -2787,6 +3766,11 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     swarmScale:
       m_mode: 0
@@ -2800,24 +3784,3647 @@ MonoBehaviour:
       m_warmup: 0
       m_cooldown: -1
       m_smoothness: 0
+      m_steps: []
+      m_oscMin: []
+      m_oscMax: []
+      m_oscRate: []
+      m_oscRateMax: 8
       m_multiplierId: 
     modifiers: []
     simulationModifier:
       rid: -2
+  globalModifiers: []
   previewZoom: 4
   previewFps: 12
   previewGifScale: 4
+  previewGifDither: 1
   previewFrame: 0
   previewShowFrame: 1
   previewStrip: 0
   previewStripSize: 96
   previewShowShape: 1
   previewShowTrace: 0
+  cherryEnabled: 0
+  cherryFrames: []
+  previewCherryStripSize: 96
+  previewDelay: 0
+  previewZoundFrame: -1
+  previewZoundName: 
+  previewBackSplash:
+    cameraColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
+    image: {fileID: 0}
+    imageTint: {r: 1, g: 1, b: 1, a: 1}
+    imageZoom: 1
+    imagePos: {x: 0, y: 0}
   references:
     version: 2
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
+    - rid: 1000
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1073
+        saturationAnim:
+          rid: 1074
+        brightnessAnim:
+          rid: 1075
+        contrastAnim:
+          rid: 1076
+        phaseAnim:
+          rid: 1077
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1001
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1002
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1003
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1004
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 0.92, b: 0.5, a: 1}
+          key2: {r: 1, g: 0.55, b: 0.12, a: 0}
+          key3: {r: 0.7, g: 0.12, b: 0.05, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 16384
+          ctime2: 39321
+          ctime3: 65535
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 4
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1078
+        saturationAnim:
+          rid: 1079
+        brightnessAnim:
+          rid: 1080
+        contrastAnim:
+          rid: 1081
+        phaseAnim:
+          rid: 1082
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1005
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1006
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1007
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1008
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1083
+        saturationAnim:
+          rid: 1084
+        brightnessAnim:
+          rid: 1085
+        contrastAnim:
+          rid: 1086
+        phaseAnim:
+          rid: 1087
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1009
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1010
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1011
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1012
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1088
+        saturationAnim:
+          rid: 1089
+        brightnessAnim:
+          rid: 1090
+        contrastAnim:
+          rid: 1091
+        phaseAnim:
+          rid: 1092
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1013
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1014
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1015
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1016
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1093
+        saturationAnim:
+          rid: 1094
+        brightnessAnim:
+          rid: 1095
+        contrastAnim:
+          rid: 1096
+        phaseAnim:
+          rid: 1097
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1017
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1018
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1019
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1020
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1098
+        saturationAnim:
+          rid: 1099
+        brightnessAnim:
+          rid: 1100
+        contrastAnim:
+          rid: 1101
+        phaseAnim:
+          rid: 1102
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1021
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1022
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1023
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1024
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 0.55, g: 0.08, b: 0.1, a: 1}
+          key1: {r: 0.95, g: 0.45, b: 0.1, a: 1}
+          key2: {r: 1, g: 0.86, b: 0.35, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 32768
+          ctime2: 65535
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 3
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1103
+        saturationAnim:
+          rid: 1104
+        brightnessAnim:
+          rid: 1105
+        contrastAnim:
+          rid: 1106
+        phaseAnim:
+          rid: 1107
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1025
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1026
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1027
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1028
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 0.97, b: 0.88, a: 1}
+          key1: {r: 1, g: 0.97, b: 0.88, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1108
+        saturationAnim:
+          rid: 1109
+        brightnessAnim:
+          rid: 1110
+        contrastAnim:
+          rid: 1111
+        phaseAnim:
+          rid: 1112
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1029
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1030
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1031
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1032
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 0.9, b: 0.35, a: 1}
+          key2: {r: 1, g: 0.55, b: 0.15, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 26214
+          ctime2: 65535
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 3
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1060
+        saturationAnim:
+          rid: 1061
+        brightnessAnim:
+          rid: 1062
+        contrastAnim:
+          rid: 1063
+        phaseAnim:
+          rid: 1064
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1033
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1034
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1035
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1036
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1113
+        saturationAnim:
+          rid: 1114
+        brightnessAnim:
+          rid: 1115
+        contrastAnim:
+          rid: 1116
+        phaseAnim:
+          rid: 1117
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1037
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1038
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1039
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1040
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1118
+        saturationAnim:
+          rid: 1119
+        brightnessAnim:
+          rid: 1120
+        contrastAnim:
+          rid: 1121
+        phaseAnim:
+          rid: 1122
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1041
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1042
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1043
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1044
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1123
+        saturationAnim:
+          rid: 1124
+        brightnessAnim:
+          rid: 1125
+        contrastAnim:
+          rid: 1126
+        phaseAnim:
+          rid: 1127
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1045
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1046
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1047
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1048
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1128
+        saturationAnim:
+          rid: 1129
+        brightnessAnim:
+          rid: 1130
+        contrastAnim:
+          rid: 1131
+        phaseAnim:
+          rid: 1132
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1049
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1050
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1051
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1052
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 0.55, g: 0.08, b: 0.1, a: 1}
+          key1: {r: 0.95, g: 0.45, b: 0.1, a: 1}
+          key2: {r: 1, g: 0.86, b: 0.35, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 32768
+          ctime2: 65535
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 3
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1133
+        saturationAnim:
+          rid: 1134
+        brightnessAnim:
+          rid: 1135
+        contrastAnim:
+          rid: 1136
+        phaseAnim:
+          rid: 1137
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1053
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1054
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1055
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1056
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 0.97, b: 0.88, a: 1}
+          key1: {r: 1, g: 0.97, b: 0.88, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1138
+        saturationAnim:
+          rid: 1139
+        brightnessAnim:
+          rid: 1140
+        contrastAnim:
+          rid: 1141
+        phaseAnim:
+          rid: 1142
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1057
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1058
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1059
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1060
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1061
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1062
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1063
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1064
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1065
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1143
+        saturationAnim:
+          rid: 1144
+        brightnessAnim:
+          rid: 1145
+        contrastAnim:
+          rid: 1146
+        phaseAnim:
+          rid: 1147
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1066
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1067
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1068
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1069
+      type: {class: ZuiGradient, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        gradient:
+          serializedVersion: 2
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
+          key2: {r: 0, g: 0, b: 0, a: 0}
+          key3: {r: 0, g: 0, b: 0, a: 0}
+          key4: {r: 0, g: 0, b: 0, a: 0}
+          key5: {r: 0, g: 0, b: 0, a: 0}
+          key6: {r: 0, g: 0, b: 0, a: 0}
+          key7: {r: 0, g: 0, b: 0, a: 0}
+          ctime0: 0
+          ctime1: 65535
+          ctime2: 0
+          ctime3: 0
+          ctime4: 0
+          ctime5: 0
+          ctime6: 0
+          ctime7: 0
+          atime0: 0
+          atime1: 65535
+          atime2: 0
+          atime3: 0
+          atime4: 0
+          atime5: 0
+          atime6: 0
+          atime7: 0
+          m_Mode: 0
+          m_ColorSpace: -1
+          m_NumColorKeys: 2
+          m_NumAlphaKeys: 2
+        reverse: 0
+        quantiseSteps: 0
+        bandLocked: 0
+        hueShift: 0
+        saturation: 1
+        brightness: 1
+        contrast: 1
+        hueShiftAnim:
+          rid: 1148
+        saturationAnim:
+          rid: 1149
+        brightnessAnim:
+          rid: 1150
+        contrastAnim:
+          rid: 1151
+        phaseAnim:
+          rid: 1152
+        cycle: 0
+        cycleSpeed: 0.5
+    - rid: 1070
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1071
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1072
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1073
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1074
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1075
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1076
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1077
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1078
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1079
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1080
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1081
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1082
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1083
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1084
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1085
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1086
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1087
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1088
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1089
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1090
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1091
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1092
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1093
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1094
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1095
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1096
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1097
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1098
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1099
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1100
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1101
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1102
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1103
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1104
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1105
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1106
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1107
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1108
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1109
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1110
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1111
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1112
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1113
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1114
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1115
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1116
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1117
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1118
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1119
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1120
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1121
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1122
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1123
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1124
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1125
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1126
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1127
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1128
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1129
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1130
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1131
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1132
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1133
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1134
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1135
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1136
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1137
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1138
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1139
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1140
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1141
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1142
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1143
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1144
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1145
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1146
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1147
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1148
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1149
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1150
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1151
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 1
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
+    - rid: 1152
+      type: {class: ZUIValue, ns: , asm: com.Lautaro-Arino.Laubrary.ZuiRuntime}
+      data:
+        m_mode: 0
+        m_static: 0
+        m_min: 0
+        m_max: 1
+        m_points: []
+        m_yMin: 0
+        m_yMax: 1
+        m_duration: 4
+        m_warmup: 0
+        m_cooldown: -1
+        m_smoothness: 0
+        m_steps: []
+        m_oscMin: []
+        m_oscMax: []
+        m_oscRate: []
+        m_oscRateMax: 8
+        m_multiplierId: 
     - rid: 1452078315147886685
       type: {class: DissolveModifier, ns: Laubrary.SpriteFx, asm: com.Lautaro-Arino.Laubrary.SpriteFx}
       data:
@@ -2846,6 +7453,11 @@ MonoBehaviour:
           m_warmup: 0
           m_cooldown: -1
           m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
           m_multiplierId: 
         mode: 0
         smoothness:
@@ -2860,4 +7472,9 @@ MonoBehaviour:
           m_warmup: 0
           m_cooldown: -1
           m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
           m_multiplierId: 

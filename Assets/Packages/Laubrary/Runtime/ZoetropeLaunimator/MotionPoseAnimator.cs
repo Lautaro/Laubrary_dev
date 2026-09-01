@@ -19,7 +19,9 @@ namespace Laubrary.ZoetropeLaunimator
     [RequireComponent(typeof(Transform))]
     public class MotionPoseAnimator : MonoBehaviour
     {
-        public const float Priority = LocomotionAnimator.Priority;
+        // The ladder lives on AnimationArbiter — named there once, referenced here, so this and
+        // LocomotionAnimator cannot end up claiming at different levels.
+        public const float Priority = AnimationArbiter.PriorityLocomotion;
 
         MotionPose _pose;
         LauminaryVersion _version;
@@ -87,6 +89,13 @@ namespace Laubrary.ZoetropeLaunimator
         }
 
         void OnArbiterReassert() { _started = false; _lastZone = null; _lastFrame = -1; }
+
+        /// Give up for now: forget everything we believe we issued, so that when the body comes back to us
+        /// (Reassert, or simply the next accepted claim) the clip, the zone AND the held frame are all
+        /// re-stated from scratch instead of being deduped away as "already handled". Half-remembering here is
+        /// what strands a part on frame 0 forever — `_lastFrame` says the pose was applied while the player is
+        /// somewhere else entirely, and nothing ever corrects it.
+        void Yield() { _started = false; _lastClip = null; _lastZone = null; _lastFrame = -1; }
 
         /// <summary>Is this part walking BACKWARDS — travelling roughly opposite the way it faces?
         ///
@@ -169,13 +178,35 @@ namespace Laubrary.ZoetropeLaunimator
 
             if (clipChanged)
             {
-                _lastClip = clip;
-                _started = true;
                 // A clip switch already restarts at frame 0 / its first zone — only re-issue Play when the
                 // CLIP itself changes, so an already-loaded rotation sheet doesn't restart just because the
                 // zone target moved.
-                if (Arbiter != null) Arbiter.Play(this, Priority, clip, loop: true);
+                if (Arbiter != null)
+                {
+                    // The arbiter's ANSWER is the whole point of asking it. This used to discard the return
+                    // value and record the clip as started regardless, so a refused claim still convinced this
+                    // component it owned the body.
+                    if (!Arbiter.Play(this, Priority, clip, loop: true)) { Yield(); return; }
+                }
                 else _view?.PlayClip(clip, loop: true);
+                _lastClip = clip;
+                _started = true;
+            }
+            else if (Arbiter != null && !Arbiter.HasControl(this))
+            {
+                // We hold nothing, and there is no clip change to re-ask about — so stop here rather than
+                // falling through to the zone/frame writes below.
+                //
+                // This gate is the point of the whole method. TryEnterZone/TryEnterFrame are a SECOND, direct
+                // channel onto the very same player, and they used to be issued unconditionally every
+                // LateUpdate no matter what the arbiter had said. The failure that produced: a character whose
+                // hitStun is shorter than its hurt clip — the stun ends, CanAct goes true, the arbiter
+                // correctly refuses locomotion because the hurt reaction still holds the body… and the frame
+                // write yanks the player onto the locomotion pose anyway, every frame, stomping the hurt
+                // animation through a channel the arbiter never saw. Exactly the bug the arbiter exists to
+                // prevent, arriving by the back door.
+                Yield();
+                return;
             }
 
             // Jump to the requested zone whenever it's non-empty and either the clip just (re)started or the

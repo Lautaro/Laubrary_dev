@@ -1,0 +1,6 @@
+starting
+ShaperFieldAudit: 224706 ms, chars=26665, lines-with-FAIL=0, VERDICT ok 0/0
+ShaperFillAudit: 9526 ms, chars=16880, lines-with-FAIL=0, VERDICT ok 0/0
+ShaperBorderAudit: 4842 ms, chars=9950, lines-with-FAIL=0, VERDICT ok 0/0
+ShaperLightAudit: 24999 ms, chars=28644, lines-with-FAIL=0, VERDICT ok 0/0
+ALL DONE

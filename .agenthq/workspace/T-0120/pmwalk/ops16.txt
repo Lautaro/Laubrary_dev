@@ -1,0 +1,8 @@
+﻿focus
+sleep 400
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a18-after-reload.png
+click 923 361
+sleep 400
+click 949 511
+sleep 600
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a19-crate-smash.png

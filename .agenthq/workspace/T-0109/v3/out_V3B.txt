@@ -1,0 +1,19 @@
+=== V3b - the containing-prism violations, isolated ===
+HS-5.2 needs {G >= zeta} subset of {t >= tauMin}. A violation means some t BELOW tauMin
+already reaches zeta, i.e. the containing prism does NOT contain, and the march can step
+clean through solid. This is the one direction HS-5.4 explicitly does not cover.
+
+  zeta probes = 2604   Ginv OVER-reports the true infimum in 1 of them
+  worst over-report = 3,448E-002 t-units
+    n=29 k=15 ulp=1 zeta=0,5357143  tauMin=0,55172414  trueInf=0,5172414  over-report=3,448E-002 t-units (1 tread = 3,448E-002)  E(trueInf)=0,5357143 >= zeta
+
+  WHY: the DOWN walk asks SteppedE at the UN-NUDGED (k-1)/n, which is exactly the float
+  that needed the UP nudge at the four latent indices, so it breaks immediately.
+    n=22 k=13: fl(k/n)=0,59090906  floor(fl(k/n)*n)=12 (want 13)  SteppedE(raw)=0,5714286  SteppedE(nudged)=0,61904764
+    n=23 k=7: fl(k/n)=0,3043478  floor(fl(k/n)*n)=6 (want 7)  SteppedE(raw)=0,27272728  SteppedE(nudged)=0,3181818
+    n=23 k=14: fl(k/n)=0,6086956  floor(fl(k/n)*n)=13 (want 14)  SteppedE(raw)=0,5909091  SteppedE(nudged)=0,6363636
+    n=29 k=15: fl(k/n)=0,51724136  floor(fl(k/n)*n)=14 (want 15)  SteppedE(raw)=0,5  SteppedE(nudged)=0,5357143
+
+=== does the un-contained prism lose a crossing in the actual march? ===
+  rays = 180,  rays with a true crossing unmatched within 0.05 px = 1
+  worst gap = 9,1155E+000 px   n=23 k=15 dz=0,3 off=-0,0003 true=4 got=2

@@ -1,0 +1,114 @@
+
+########## LT8_ReceiveOffIsBitIdentical
+LT-8 receiveLighting = false is bit-identical to the pre-lighting build
+  rig: 8 enabled lights (expected 8), rimStrength 1 on the response
+  differing pixels vs the null-scene (pre-T-0108) render: 0/16384 (expected 0)  PASS
+  CONTROL - the same rig with receive ON differs at 5056/16384 pixels (expected > 1000; a 0 here would make this leg vacuous)  PASS
+  RESULT: PASS
+
+########## LT10_AddIsNotLit
+LT-10 Add fills are not lit (L = 0.5, ambient 0, S = 0)
+  Over destination R = 0.30191370  Add destination R = 0.54344460
+  Add/Over ratio = 1.79999986 (expected 2.00000000, tolerance 1e-6)  FAIL
+  Add destination vs the raw linear albedo 0.60382740: |err| 6.038E-002 (expected 0 - an Add fill is written through UNLIT)  FAIL
+  A lamp does not get dimmer because you put it in a dark room (LR-5.3); FC-2.6d records
+  that the fire and explosion palettes are usually authored to Add, so this is what keeps
+  a fire emissive under a rig that would otherwise plunge it into shadow.
+  RESULT: FAIL
+
+########## LT3_TileIndependence
+LT-3 tile independence with lighting on (7x5 prime decomposition, BC-1.6)
+  Constant provider    42x35 whole vs 7x5 tiles: differing pixels 0/1470 (expected 0)  PASS
+  Solids provider      42x35 whole vs 7x5 tiles: differing pixels 0/1470 (expected 0)  PASS
+  RESULT: PASS
+
+########## LT9_ExclusivityUnperturbed
+LT-9 lighting does not perturb the exclusivity partition (FT-21's instrument)
+  (a) sum(paint over the chain) != rootCoverage at 0/16384 samples (expected 0), worst 0.00000  PASS
+  (b) composited alpha BELOW the shape's own coverage at 0/16384 samples (expected 0), total 0.000, worst 0.0000  PASS
+      Directly comparable to the pre-fix escalation's 244 / 29.288 / 0.2484 on the same
+      fixture and the same instrument - now with 8 lights, a rim and an Add owner running.
+  (c) destination ALPHA differing between the lit and unlit renders: 0/16384 (expected 0 - lighting touches colour only, LR-5.2)  PASS
+  (d) MIXED Over/Add, 8 lights: destination ALPHA differing lit vs unlit 0/16384 (expected 0)  PASS
+      the same fixture's Add-owner alpha 'deficit' is 1960/16384 in BOTH renders - reported, not asserted to be 0, because FC-2.6b says an Add
+      owner raises no alpha. Lighting neither creates nor removes one sample of it.
+  RESULT: PASS
+
+########## LT16_SharedFrame
+LT-16 the two families share a FRAME, not only a law
+  Solids Box (+Z face, normal (0,0,1), surface point z = +20 px)  destination R = 0.50510450
+  Silhouette square, Constant(0,0,1), surface point z = 0        destination R = 0.50510450
+  |difference| = 0.000E+000 (expected <= 1e-6)  PASS
+  encoded bytes: Box (188,180,172)  square (188,180,172)  identical: True  PASS
+  (c) OFF-CENTRE at canvas (20,-12) under a POINT light at (0,0,30) range 30 -
+      the leg a directional light structurally cannot test:
+        Solids Box (depth ~0, front face on the base plane) R = 0.15731070
+        Silhouette square, same place, Constant(0,0,1)      R = 0.15730900
+      |difference| = 1.714E-006 (expected <= 1e-4)  PASS
+      CONTROL - the same solid at the canvas CENTRE reads 0.24627670, i.e. 8.897E-002 away, so the lamp genuinely
+      varies across the canvas and a solid lit in its own frame would be caught here.
+  OBSERVATION (not asserted) - under a POINT light at (0,0,40) range 40, the same two
+    read 1.07069100 and 0.69568060, differing by 3.750E-001. They SHOULD: the box's front face stands 20 px
+    out of the base plane, so it is genuinely 20 px nearer the lamp. Predicted atten
+    ratio 1.60000. That is ShaperLightRig.ConsistentNotIdentical, measured.
+  RESULT: PASS
+
+########## LT6_HandComputed
+LT-6 falloff, ambient, specular and rim against hand-computed values
+  P1  P=(0,0,0) N=(0,0,1) light z=20 range=20  [atten 0.5]
+      L      = 0.68000000 (expected 0.68000000)  PASS
+      S_spec = 0.45000000 (expected 0.45000000)  PASS
+      rim    = 0.00000000 (expected 0.00000000)  PASS
+  P2  P=(0,0,0) N=(0.866025,0,0.5)
+      L      = 0.43000000 (expected 0.43000000)  PASS
+      S_spec = 0.02812500 (expected 0.02812500)  PASS
+      rim    = 0.21763765 (expected 0.21763800)  PASS
+  P3  light z=40, range 20, N=(0,0,1)  [atten 0.2]
+      L      = 0.38000000 (expected 0.38000000)  PASS
+  P4  intensityScale = 0.5, N=(0.866025,0,0.5)  [the ORDER probe, LR-2.3]
+      L      = 0.30500000 (expected 0.30500000 = 0.18 unscaled ambient + 0.125 scaled diffuse; ambient-added-last reads 0.21500000)  PASS
+  RESULT: PASS
+
+########## LT11_TheCap
+LT-11 the eight-light cap refuses with a reason and a count
+  hasTooManyLights = True (expected True)  PASS
+  tooManyLightsCount = 3 (expected 3)  PASS
+  compiled light count = 8 (expected 8)  PASS
+  reason: "the rig holds 11 lights; only the first 8 are lit. The cap is 8."  contains "11" and "8": True  PASS
+  destination floats differing between the 11-light and 8-light rigs: 0/65536 (expected 0 - lights 9-11 contribute exactly 0)  PASS
+  RESULT: PASS
+
+########## LT13_ProviderIsSwappable
+LT-13 the provider is swappable without touching the law
+  (a) centre-sample red byte: Constant(0,0,1) = 151, Constant(0.6,0,0.8) = 65, |delta| = 86 (expected >= 8)  PASS
+  (b) Shade parameters: 17 total, array types 0 (expected 0), reference types 0 (expected 0)  PASS
+      ShaperLightRigCompiled ShaperResponseCompiled Single Single Single Single Single Single Single Single Single Single Single Single Single Single Single
+  A signature with no array in it CANNOT difference a buffer. LR-3.3's prohibition is
+  therefore structural, not a convention someone has to remember.
+  (c) ShaperNormalKind cases present: Constant  - Profile is RESERVED and commented, so T-0109 is an addition, not a renumbering.
+  RESULT: PASS
+
+########## LT14b_OrbSilhouetteIsRotationInvariant
+LT-14b Orb's silhouette is rotation-invariant, its shading is not
+  alpha samples differing across the rotation: 0/16384 (expected 0)  PASS
+  RGB samples differing across the rotation: 3640/16384 (expected >= 100)  PASS
+  This generator rotates the published NORMAL forward rather than rotating the light
+  backward as Pyre does (PyreRenderer.cs:4442-4455) - it is the other side of Pyre's own
+  identity N.(Rot^-1.L) == (Rot.N).L, and it is forced by LR-1.1: a per-particle inverse-
+  rotated light IS a light owned by a generator, which LR-1.1 forbids outright.
+  RESULT: PASS
+
+########## LT7_RimIsZeroOnFlat
+LT-7 rim is exactly zero on a flat normal, across 8 light directions
+  light 1 (yaw 0, pitch 0): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 2 (yaw 45, pitch 10): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 3 (yaw 90, pitch 0): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 4 (yaw 135, pitch -30): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 5 (yaw 180, pitch 60): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 6 (yaw -55, pitch 36): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 7 (yaw -120, pitch 5): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  light 8 (yaw 30, pitch 85): samples with a non-zero rim term 0/16384 (expected 0)  PASS
+  total across the sweep: 0/131072 (expected 0)
+  this is ARITHMETIC, not a bug: on a flat surface N.V == 1 so rim == 0 identically.
+  ShaperLightRig.RimNeedsRelief is the sentence a UI must show on the control.
+  RESULT: PASS

@@ -60,23 +60,29 @@ namespace Laubrary.Zui
             Adjust = Z.Box("Adjust",
                 "Non-destructive transforms applied on top of the base ramp. Hue / Saturation / Brightness / Contrast "
                 + "/ Phase are animatable over the particle's life (Static / Min-Max / Curve via the ⋯ menu).");
-            AddVal(Adjust, "Hue",        _g.hueShiftAnim,   -1f, 1f, "Rotate the hue of the whole ramp (±1 = ±180°). Animatable over life.");
-            AddVal(Adjust, "Saturation", _g.saturationAnim,  0f, 2f, "Multiply saturation across the ramp (1 = unchanged). Animatable over life.");
-            AddVal(Adjust, "Brightness", _g.brightnessAnim,  0f, 2f, "Multiply brightness across the ramp (1 = unchanged). Animatable over life.");
-            AddVal(Adjust, "Contrast",   _g.contrastAnim,    0f, 2f, "Contrast around mid-grey (1 = unchanged). Animatable over life.");
+            // T-0140 — packed 2-3 per row instead of six stacked full-width rows (caught live by a project
+            // owner screenshot): these are all compact Z.Value rows (controlWidth 150), the same "share a
+            // row, don't stack" rule already applied everywhere else in this codebase.
+            var hue = BuildVal("Hue",        _g.hueShiftAnim,   -1f, 1f, "Rotate the hue of the whole ramp (±1 = ±180°). Animatable over life.");
+            var sat = BuildVal("Saturation", _g.saturationAnim,  0f, 2f, "Multiply saturation across the ramp (1 = unchanged). Animatable over life.");
+            var bri = BuildVal("Brightness", _g.brightnessAnim,  0f, 2f, "Multiply brightness across the ramp (1 = unchanged). Animatable over life.");
+            var con = BuildVal("Contrast",   _g.contrastAnim,    0f, 2f, "Contrast around mid-grey (1 = unchanged). Animatable over life.");
             // Phase gets a Y-axis colour legend (#9): at phase v the ramp origin shows the base colour at v, so the
             // envelope's vertical strip + tinted points read as "this phase lands on THIS colour". The whole-ramp
             // transforms (Hue/Sat/Brightness/Contrast) act on every stop at once, so a single "colour at value v" is
             // undefined for them — deliberately no strip there.
-            AddVal(Adjust, "Phase",      _g.phaseAnim,       0f, 2f, "Scroll the ramp along its length, 0..2. 0→1 plays it FORWARD, 1→2 plays it "
+            var pha = BuildVal("Phase",      _g.phaseAnim,       0f, 2f, "Scroll the ramp along its length, 0..2. 0→1 plays it FORWARD, 1→2 plays it "
                                                                     + "back REVERSED, and 2 lands exactly where 0 did — so animating Phase over life (a rising Curve 0→2) "
                                                                     + "scrolls the gradient in a SEAMLESS loop, no jump, no shader. The mirrored second half is what makes "
                                                                     + "it smooth (the ramp mirrors instead of snapping from its end back to its start).",
                 v => _g.gradient != null ? _g.gradient.Evaluate(Mathf.PingPong(v, 1f)) : Color.clear);
+            Adjust.Add(Z.HGroup(hue, sat, bri));
+            Adjust.Add(Z.HGroup(con, pha));
+
             // Locked (a form-declared band palette, e.g. Torch/ArcBurst): quantising can never go smooth again, so
             // the slider floors at 1 (no reachable "0 = smooth") and reads as "Bands" — the domain word every other
             // banded control in Pyre already uses — instead of "Quantise".
-            Adjust.Add(_g.bandLocked
+            var quantiseCtrl = _g.bandLocked
                 ? Z.MicroSlider("Bands", _g.quantiseSteps, 1, 16,
                     "How many discrete colour steps this palette samples from the ramp below. Purely a resolution "
                     + "knob — it never touches the ramp itself, so raising/lowering it and coming back loses nothing.",
@@ -84,8 +90,9 @@ namespace Laubrary.Zui
                 : Z.MicroSlider("Quantise", _g.quantiseSteps, 0, 16,
                     "Snap the ramp to N discrete bands (0 = smooth) — the gradient Posterize. Not animatable (a shifting "
                     + "band count reads as flicker, not motion).",
-                    v => Mutate(() => _g.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0, prefsKey: "grad.quantise"));
-            Adjust.Add(Z.Row(
+                    v => Mutate(() => _g.quantiseSteps = Mathf.RoundToInt(v)), decimals: 0, prefsKey: "grad.quantise");
+            Adjust.Add(Z.HGroup(
+                quantiseCtrl,
                 Z.Toggle("Cycle", "This ramp wants to colour-cycle (a ZuiPaletteCycle driver advances the phase at runtime).",
                     _g.cycle, v => Mutate(() => _g.cycle = v)),
                 Z.Toggle("Reverse", "Sample the gradient backwards (1-t).",
@@ -96,8 +103,9 @@ namespace Laubrary.Zui
 
         // A colour transform as a MultiCont (Z.Value) over life. The wall-clock timing (Dur/Warm/Loop) + Value-range
         // rows are hidden — a gradient transform is sampled over the 0..1 life with a fixed range, so they're noise
-        // (matches Pyre's own Val()). Edits re-bake the Output preview.
-        void AddVal(VisualElement parent, string label, ZUIValue v, float min, float max, string tip, Func<float, Color> yColor = null)
+        // (matches Pyre's own Val()). Edits re-bake the Output preview. Returns the built control (T-0140 — was
+        // "AddVal", adding itself straight into the parent; now the caller packs several into one Z.HGroup row).
+        VisualElement BuildVal(string label, ZUIValue v, float min, float max, string tip, Func<float, Color> yColor = null)
         {
             var o = new ZuiValueControl.Options
             {
@@ -105,9 +113,9 @@ namespace Laubrary.Zui
             };
             o.WithRange(min, max);
             if (yColor != null) o.WithYColor(yColor);
-            parent.Add(Z.Value(label, v, o, tip,
+            return Z.Value(label, v, o, tip,
                 () => { Refresh(); OnChanged?.Invoke(); },
-                () => OnBeforeMutate?.Invoke()));
+                () => OnBeforeMutate?.Invoke());
         }
 
         void Mutate(Action apply)

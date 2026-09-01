@@ -1,0 +1,10 @@
+=== W3A - general march: does it lose a genuine crossing? (my truth, my grid) ===
+Truth = a 1.2e6-sample scan of MY OWN amended-HS-1.1 predicate + 44-step bisection.
+A ray FAILS if a true flip has no emitted crossing within 0.05 px, or Depth differs > 0.05 px.
+  rays = 4743
+  rays LOSING a true crossing (gap > 0.05 px) = 25   worst gap = 2,6207E+001 px
+    worst: n=8 k=6 dz=-0,3 off=0,0003 true=4 got=2
+  rays with a SPURIOUS emitted crossing        = 0
+  worst SOLID LENGTH under-report              = 24,1747 px
+    at: n=8 k=6 dz=-0,3 off=0,0003  true 260,0389 got 235,8642
+  step counts affected: 8 12 13 14 15 18 20 22 23 27 29 31

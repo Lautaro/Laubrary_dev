@@ -1,0 +1,9 @@
+
+=== W3F - N3: no zero-width pairs; nothing lost vs the OLD closed reading; G nearly-zero ===
+  rays = 252
+  emitted pairs of width <= 1e-5 px (the N3 signature) = 0
+  rays where Depth LOST solid vs the OLD CLOSED reading = 0   worst 0,0000 px 
+  G *nearly* zero (FIX-REPORT-2 open question 3): Round curve=4, smallest positive G on a fine t grid:
+    smallest positive G = 1,6307E-001 at t = 5,0000E-007  -> solid thickness there = 4,8921E+001 canvas px
+    (a span this thin is far below SurfaceResolution 0.02 px; the march resolves 0.019 px)
+    Round curve=4, 12 tilted rays: emitted pairs narrower than 1e-4 px = 0

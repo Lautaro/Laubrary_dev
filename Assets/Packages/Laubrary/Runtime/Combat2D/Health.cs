@@ -37,6 +37,11 @@ namespace Laubrary.Combat2D
         public event Action<float> Healed;
         /// Fired once, when health reaches 0. Carries the killing blow.
         public event Action<DamageInfo> Died;
+        /// Fired when a dead character is brought back — the counterpart to <see cref="Died"/>. Consumers undo
+        /// whatever they did on death. Exists because reviving used to be a silent field write: nothing that
+        /// reacted to a death (hit-detection off, a pending body cleanup, a death animation holding the view)
+        /// was ever told to undo itself, so a respawned character came back permanently unhittable.
+        public event Action Revived;
 
         // ── UnityEvents (designer wiring) ────────────────────────────────────────
         // A concrete subclass is required for Unity to serialize a UnityEvent that carries a float.
@@ -46,6 +51,8 @@ namespace Laubrary.Combat2D
         public HealthChangedEvent onHealthChanged = new();
         [Tooltip("Fires once when health hits 0.")]
         public UnityEvent onDied = new();
+        [Tooltip("Fires when a dead character is brought back (Revive). The designer-wiring counterpart to onDied.")]
+        public UnityEvent onRevived = new();
 
         void Awake() => EnsureInit();
 
@@ -102,6 +109,12 @@ namespace Laubrary.Combat2D
             inited = true;
             invulnTimer = 0f;
             onHealthChanged?.Invoke(Normalized);
+            // Fired unconditionally, NOT gated on "was it actually dead": Revive is already idempotent, and
+            // every listener's job here is to undo death effects, which is a no-op when there were none. A
+            // gate would instead have to be right about a question (was this a real revival?) that the caller
+            // already answered by calling at all — and being wrong means a character that stays unhittable.
+            Revived?.Invoke();
+            onRevived?.Invoke();
         }
     }
 }

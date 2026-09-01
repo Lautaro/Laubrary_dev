@@ -1,0 +1,42 @@
+
+        // ── T-0109 FIX V4 — the re-aimed omission fixture and the three named traps ───────────────────────
+
+        /// <summary>
+        /// The step counts H6's omission arm now sweeps. It used to run at 4 and only 4 — <c>OpFor</c>'s
+        /// default — which is a step count at which neither V1 nor V2 can arise, so the arm reported 0
+        /// omissions while four existed. Contiguous rather than a hand-picked set, because the point is that
+        /// the fixture no longer depends on knowing WHICH counts fail.
+        /// </summary>
+        const int SweepStepLo = 4;
+        const int SweepStepHi = 31;
+
+        /// <summary>
+        /// Both aims the swept omission arm runs: H6's original ray heights (fractions of the extent, which
+        /// land BETWEEN treads) and heights that are a tread of the step count under test. The second is
+        /// where the contained prism's proof and the exact predicate are entitled to disagree, and it found
+        /// twice as many omissions as the first against the pre-fix code (8 versus 4).
+        /// </summary>
+        static readonly bool[] AimedAtTread = { false, true };
+
+        /// <summary>V1's four truth crossings, in canvas px along the repro ray. Literals on purpose.</summary>
+        static readonly float[] V1Truth = { 314.4854f, 550.3496f, 552.3819f, 576.5567f };
+
+        /// <summary>
+        /// The PASS threshold on a trap's residual against its quoted truth. 0.05 canvas px — the same
+        /// threshold H6's omission arm uses to call a true crossing matched, and two orders above the
+        /// residual actually measured (4e-4 px), so a drift is visible long before it fails.
+        /// </summary>
+        const float TrapTolerance = 0.05f;
+
+        /// <summary>The 13 step counts at which the pre-fix contained-prism skip lost a true crossing.</summary>
+        static readonly int[] V1AffectedSteps = { 8, 12, 13, 14, 15, 18, 20, 22, 23, 26, 27, 29, 31 };
+
+        /// <summary>
+        /// The four <c>(n, k)</c> pairs where <c>⌊fl(k/n)·n⌋ &lt; k</c> over the authored step range — the
+        /// complete list, found exhaustively, not a sample.
+        /// </summary>
+        static readonly int[] V2LatentN = { 22, 23, 23, 29 };
+        static readonly int[] V2LatentK = { 13, 7, 14, 15 };
+
+        /// <summary>How many ulps either side of a tread's own ζ the V2 trap sweeps.</summary>
+        const int TrapUlps = 8;

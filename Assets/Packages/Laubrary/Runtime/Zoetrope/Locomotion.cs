@@ -33,14 +33,15 @@ namespace Laubrary.Zoetrope
     [RequireComponent(typeof(Transform))]
     public class LocomotionAnimator : MonoBehaviour
     {
-        // Steady-state claim priority for the AnimationArbiter (see Runtime/Zoetrope/AnimationArbiter.cs) —
-        // reactions (ZoeEventPlayer) claim at 100 and preempt this. MotionPoseAnimator, the directional
-        // replacement for this class, claims at the same priority so a reaction preempts either equally.
-        public const float Priority = 0f;
+        // Steady-state claim priority. Points at the ladder on AnimationArbiter rather than restating a
+        // number, so this and MotionPoseAnimator (the directional replacement for this class, which claims at
+        // the same level so a reaction preempts either equally) cannot silently drift apart.
+        public const float Priority = AnimationArbiter.PriorityLocomotion;
 
         Locomotion clips;
         IAnimatedView view;
         ZoeState _state;
+        AnimationArbiter _arbiter;
         Vector3 lastPos;
 
         // Resolved LAZILY, never cached at Bind time. ZoeSpawner attaches this animator while building the
@@ -50,8 +51,10 @@ namespace Laubrary.Zoetrope
         // if the character was ALREADY stunned, because a stopped character produces no moving/idle change,
         // so locomotion had no reason to re-issue its clip over the top.
         ZoeState State => _state != null ? _state : (_state = GetComponent<ZoeState>());
+        /// Same lazy rule, same reason: the arbiter is attached by the spawner and this animator can be added
+        /// before or after it depending on the path.
+        AnimationArbiter Arbiter => _arbiter != null ? _arbiter : (_arbiter = GetComponent<AnimationArbiter>());
         bool moving, started;
-        float suppressedUntil;
 
         public void Bind(Locomotion locomotion, IAnimatedView animatedView)
         {
@@ -60,14 +63,21 @@ namespace Laubrary.Zoetrope
             lastPos = transform.position;
         }
 
-        /// Hand control away for a moment — for a one-shot that must not be stomped on the next state change
-        /// (a hit reaction, a fire animation). Locomotion resumes on its own afterwards, so a caller never has
-        /// to remember to give control back, which is the failure mode of a plain enable/disable flag.
-        public void SuppressFor(float seconds)
+        void OnEnable()
         {
-            suppressedUntil = Mathf.Max(suppressedUntil, Time.time + Mathf.Max(0f, seconds));
-            started = false;   // force a re-play when locomotion resumes, whatever the reaction left showing
+            if (Arbiter != null) Arbiter.Reassert += OnArbiterReassert;
         }
+
+        void OnDisable()
+        {
+            if (_arbiter != null) _arbiter.Reassert -= OnArbiterReassert;
+        }
+
+        // The body became free again (a reaction finished, a claim expired). Forget what we last issued so the
+        // next LateUpdate re-plays the current clip instead of concluding nothing changed — otherwise a
+        // character stands frozen on the last frame of its hurt animation until it happens to start or stop
+        // moving. Exactly MotionPoseAnimator's OnArbiterReassert.
+        void OnArbiterReassert() { started = false; }
 
         void LateUpdate()
         {
@@ -76,8 +86,6 @@ namespace Laubrary.Zoetrope
             var pos = transform.position;
             float speed = Time.deltaTime > 0f ? (pos - lastPos).magnitude / Time.deltaTime : 0f;
             lastPos = pos;
-
-            if (Time.time < suppressedUntil) return;
 
             // Never speak over a hurt or death reaction. Locomotion re-issuing its clip on the next
             // moving/idle change is exactly why the hurt animation "never showed": ReactionFxPlayer started
@@ -94,7 +102,12 @@ namespace Laubrary.Zoetrope
             started = true;
 
             string clip = moving ? clips.moveClip : clips.idleClip;
-            if (!string.IsNullOrEmpty(clip)) view.PlayClip(clip, loop: true);
+            if (string.IsNullOrEmpty(clip)) return;
+            // Submit a claim rather than playing directly, so a reaction already holding the body refuses this
+            // instead of being overwritten a frame later. A refusal is not an error — the reaction is showing,
+            // and Reassert brings us back when it lets go.
+            if (Arbiter != null) { if (!Arbiter.Play(this, Priority, clip, loop: true)) started = false; }
+            else view.PlayClip(clip, loop: true);
         }
     }
 }

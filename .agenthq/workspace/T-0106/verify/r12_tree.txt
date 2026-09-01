@@ -1,0 +1,13 @@
+== B: FC-3.8's worked tree. owners: Body -> Head -> Belt -> Iris ==
+  Body   paints      0 samples, area 0.00, max per-sample 0.0000
+  Head   paints     32 samples, area 28.95, max per-sample 1.0000
+  Belt   paints   1122 samples, area 1104.46, max per-sample 1.0000
+  Iris   paints     32 samples, area 28.95, max per-sample 1.0000
+  --- the same, under SUBTRACTIVE exclusivity max(0, claim - descendantClaim) ---
+  Body   paints      0 samples, area 0.00, max per-sample 0.0000
+  Head   paints     32 samples, area 28.95, max per-sample 1.0000
+  Belt   paints   1122 samples, area 1104.46, max per-sample 1.0000
+  Iris   paints     32 samples, area 28.95, max per-sample 1.0000
+  --- where G_body leaks (multiplicative), first 6 leaking samples ---
+  ALPHA DEFICIT vs shape coverage: 0 samples, total 0.000, worst 0.0000
+  painted area: multiplicative 1162.354  subtractive 1162.354  root coverage 1133.406

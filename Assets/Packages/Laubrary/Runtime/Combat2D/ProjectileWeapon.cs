@@ -57,7 +57,13 @@ namespace Laubrary.Combat2D
         /// override raw aim gets that automatically, with no call site needing to know this exists. Otherwise
         /// prefers the owning Combatant's own aimDirection (player input, AI, or a Mirage preview override);
         /// falls back to this weapon's own aimDirection field for an ownerless/standalone weapon.
-        Vector2 ResolvedAimDirection()
+        ///
+        /// Public because it is the SHOT's aim, and things outside this weapon legitimately need it — a fire
+        /// pose on the shooter faces where the shot went. Reading a spawned Projectile's own direction instead
+        /// would answer a different question: a shotgun's pellets each carry their own spread-jittered
+        /// direction, and a character aiming along pellet #1 is aiming slightly wrong. Purely additive; no
+        /// serialized field, no behaviour change.
+        public Vector2 ResolvedAimDirection()
         {
             // Lazy, re-fetched whenever null (not cached-once) — a tracker attached AFTER this weapon (the
             // normal equip order, but never guaranteed) must still be picked up, same reasoning

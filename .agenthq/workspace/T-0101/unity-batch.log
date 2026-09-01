@@ -1,0 +1,529 @@
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.3/staging' branch; Version is '6000.3.10f1 (e35f0c77bd8e) revision 14901004'; Using compiler version '194234433'; Build Type 'Release'
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Lauta" at "2026-08-30T18:59:07.8745338Z"
+OS: 'Windows 11  (10.0.26200) Core' Language: 'en' Physical Memory: 64668 MB
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+System  architecture: x64
+Process architecture: x64
+Date: 2026-08-30T18:59:07Z
+
+COMMAND LINE ARGUMENTS:
+C:\Program Files\Unity\Hub\Editor\6000.3.10f1\Editor\Unity.exe
+-batchmode
+-projectPath
+D:\UNITY\Laubrary Dev
+-executeMethod
+T0101PyreBaseline.Run
+-logFile
+D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0101\unity-batch.log
+Successfully changed project path to: D:\UNITY\Laubrary Dev
+D:/UNITY/Laubrary Dev
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+Player connection [134852]  Target information:
+
+Player connection [134852]  * "[IP] 192.168.1.67 [Port] 55505 [Flags] 2 [Guid] 2515509878 [EditorId] 2515509878 [Version] 1048832 [Id] WindowsEditor(7,StOOOOraDatorn) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [134852]  * "[IP] 100.123.184.96 [Port] 55505 [Flags] 2 [Guid] 2515509878 [EditorId] 2515509878 [Version] 1048832 [Id] WindowsEditor(7,StOOOOraDatorn) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [134852] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [134852] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Package Manager] Connected to IPC stream "Upm-49512" after 0.5 seconds.
+[Licensing::Module] Licensing is not yet initialized.
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.17.4+4293ba1
+  Session Id:              29f0161d659845849f233804a323963c
+  Correlation Id:          2a9597b262d59ea53da5b0c71122836c
+  External correlation Id: 2466454583197282625
+  Machine Id:              KYWjm31ZsNNjiYjRafTrTVBOm8o=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-Lauta" (connect: 0.00s, validation: 0.00s, handshake: 0.71s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Lauta-notifications" at "2026-08-30T18:59:08.5816999Z"
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: 1402227-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.00
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 0.72s
+[Licensing::Module] Licensing is initialized (took 0.20s).
+[Licensing::Client] Successfully resolved entitlement details
+Library Redirect Path: Library/
+[Physics::Module] Selected backend.
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Refreshing native plugins compatible for Editor in 0.21 ms, found 0 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Initialize engine version: 6000.3.10f1 (e35f0c77bd8e)
+[Subsystems] Discovering subsystems at path C:/Program Files/Unity/Hub/Editor/6000.3.10f1/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path D:/UNITY/Laubrary Dev/Assets
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+Direct3D:
+    Version:  Direct3D 11.0 [level 11.1]
+    Renderer: NVIDIA GeForce RTX 5070 Ti (ID=0x2c05)
+    Vendor:   NVIDIA
+    VRAM:     15995 MB
+    Driver:   32.0.15.9621
+Initialize mono
+Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/6000.3.10f1/Editor/Data/Managed'
+Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/6000.3.10f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
+Mono config path = 'C:/Program Files/Unity/Hub/Editor/6000.3.10f1/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56512
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.3.10f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
+Registered in 0.001121 seconds.
+- Loaded All Assemblies, in  0.274 seconds
+Native extension for WindowsStandalone target not found
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:True
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  0.275 seconds
+Domain Reload Profiling: 548ms
+	BeginReloadAssembly (89ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (0ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (2ms)
+	RebuildCommonClasses (26ms)
+	RebuildNativeTypeToScriptingClass (9ms)
+	initialDomainReloadingComplete (32ms)
+	LoadAllAssembliesAndSetupDomain (116ms)
+		LoadAssemblies (86ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (114ms)
+			TypeCache.Refresh (113ms)
+				TypeCache.ScanAssembly (104ms)
+			BuildScriptInfoCaches (0ms)
+			ResolveRequiredComponents (0ms)
+	FinalizeReload (276ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (249ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (32ms)
+			SetLoadedEditorAssemblies (3ms)
+			BeforeProcessingInitializeOnLoad (55ms)
+			ProcessInitializeOnLoadAttributes (108ms)
+			ProcessInitializeOnLoadMethodAttributes (51ms)
+			AfterProcessingInitializeOnLoad (0ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (0ms)
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+Package Manager log level set to [2]
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 71 packages:
+  Packages from [https://packages.unity.com]:
+    com.unity.addressables@2.9.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.addressables@de8760a788ae)
+    com.unity.ai.navigation@2.0.10 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.ai.navigation@c33a115e9883)
+    com.unity.burst@1.8.28 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.burst@07790c2d06d9)
+    com.unity.cloud.assets@1.10.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.cloud.assets@4d725e71374a)
+    com.unity.cloud.identity@1.7.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.cloud.identity@fc5d4a19bfce)
+    com.unity.collab-proxy@2.11.3 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.collab-proxy@e566cd3e7623)
+    com.unity.collections@2.6.2 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.collections@aea9d3bd5e19)
+    com.unity.editorcoroutines@1.0.1 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.editorcoroutines@54394ed3283c)
+    com.unity.ide.rider@3.0.39 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.ide.rider@4504839d03f7)
+    com.unity.ide.visualstudio@2.0.26 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.ide.visualstudio@a99d56dec63f)
+    com.unity.inputsystem@1.18.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.inputsystem@57d0e36f6123)
+    com.unity.mathematics@1.3.3 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.mathematics@19a9377c4ffa)
+    com.unity.nuget.newtonsoft-json@3.2.2 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.nuget.newtonsoft-json@4dfd81071c64)
+    com.unity.sharp-zip-lib@1.4.1 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.sharp-zip-lib@f6e4ef34e4d8)
+    com.unity.timeline@1.8.10 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.timeline@7f8b2fb101b6)
+    com.unity.visualscripting@1.9.9 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.visualscripting@191c0d7e3b69)
+    com.unity.pipeline@0.4.0-exp.1 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.pipeline@f49636739437)
+    com.unity.nuget.mono-cecil@1.11.6 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.nuget.mono-cecil@ecb9724e46ff)
+    com.unity.test-framework.performance@3.2.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.test-framework.performance@0840f58e4562)
+    com.unity.cloud.common@1.3.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.cloud.common@64659993c787)
+    com.unity.profiling.core@1.0.3 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.profiling.core@8a49f7027d06)
+    com.unity.scriptablebuildpipeline@2.6.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.scriptablebuildpipeline@a633a2d168ec)
+    com.unity.cloud.gltfast@6.14.1 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.cloud.gltfast@0847aee0f6da)
+    com.unity.searcher@4.9.4 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.searcher@d45a78918735)
+  Built-in packages:
+    com.unity.2d.sprite@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.2d.sprite@d14b9d497a24)
+    com.unity.multiplayer.center@1.0.1 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.multiplayer.center@f01f4ba8d00a)
+    com.unity.render-pipelines.universal@17.3.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.render-pipelines.universal@37e0d4fc2503)
+    com.unity.test-framework@1.6.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.test-framework@0b7a23ab2e1d)
+    com.unity.ugui@2.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.ugui@bb329a87fcdc)
+    com.unity.modules.accessibility@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.accessibility)
+    com.unity.modules.adaptiveperformance@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.adaptiveperformance)
+    com.unity.modules.ai@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.ai)
+    com.unity.modules.androidjni@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.androidjni)
+    com.unity.modules.animation@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.animation)
+    com.unity.modules.assetbundle@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.assetbundle)
+    com.unity.modules.audio@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.audio)
+    com.unity.modules.cloth@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.cloth)
+    com.unity.modules.director@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.director)
+    com.unity.modules.imageconversion@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.imageconversion)
+    com.unity.modules.imgui@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.imgui)
+    com.unity.modules.jsonserialize@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.jsonserialize)
+    com.unity.modules.particlesystem@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.particlesystem)
+    com.unity.modules.physics@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.physics)
+    com.unity.modules.physics2d@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.physics2d)
+    com.unity.modules.screencapture@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.screencapture)
+    com.unity.modules.terrain@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.terrain)
+    com.unity.modules.terrainphysics@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.terrainphysics)
+    com.unity.modules.tilemap@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.tilemap)
+    com.unity.modules.ui@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.ui)
+    com.unity.modules.uielements@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.uielements)
+    com.unity.modules.umbra@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.umbra)
+    com.unity.modules.unityanalytics@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.unityanalytics)
+    com.unity.modules.unitywebrequest@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.unitywebrequest)
+    com.unity.modules.unitywebrequestassetbundle@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.unitywebrequestassetbundle)
+    com.unity.modules.unitywebrequestaudio@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.unitywebrequestaudio)
+    com.unity.modules.unitywebrequesttexture@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.unitywebrequesttexture)
+    com.unity.modules.unitywebrequestwww@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.unitywebrequestwww)
+    com.unity.modules.vectorgraphics@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.vectorgraphics)
+    com.unity.modules.vehicles@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.vehicles)
+    com.unity.modules.video@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.video)
+    com.unity.modules.vr@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.vr)
+    com.unity.modules.wind@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.wind)
+    com.unity.modules.xr@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.xr)
+    com.unity.modules.subsystems@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.subsystems)
+    com.unity.modules.hierarchycore@1.0.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.modules.hierarchycore)
+    com.unity.ext.nunit@2.0.5 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.ext.nunit@d8c07649098d)
+    com.unity.render-pipelines.core@17.3.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.render-pipelines.core@04ab0eefa0c3)
+    com.unity.shadergraph@17.3.0 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.shadergraph@c8830f61858d)
+    com.unity.render-pipelines.universal-config@17.0.3 (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.unity.render-pipelines.universal-config@8dc1aab4af1d)
+  Embedded packages:
+    com.bezi.sidekick@file:D:\UNITY\Laubrary Dev\Packages\com.bezi.sidekick (location: D:\UNITY\Laubrary Dev\Packages\com.bezi.sidekick)
+  Git packages:
+    com.coplaydev.coplay@https://github.com/CoplayDev/coplay-unity-plugin.git#beta (location: D:\UNITY\Laubrary Dev\Library\PackageCache\com.coplaydev.coplay@377ff5d3e14e)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.02 seconds
+[ScriptCompilation] Requested script compilation because: Assetdatabase observed changes in script compilation related files
+Duplicate assembly 'Microsoft.CodeAnalysis.dll' with different versions detected, using 'Packages/com.bezi.sidekick/Editor/Plugins/Microsoft.CodeAnalysis.dll, AssemblyName=Microsoft.CodeAnalysis, Version=4.11.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35' and ignoring 'Packages/com.unity.pipeline/Runtime/Plugins/CodeAnalysis/Microsoft.CodeAnalysis.dll, AssemblyName=Microsoft.CodeAnalysis, Version=3.11.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Duplicate assembly 'Microsoft.CodeAnalysis.CSharp.dll' with different versions detected, using 'Packages/com.bezi.sidekick/Editor/Plugins/Microsoft.CodeAnalysis.CSharp.dll, AssemblyName=Microsoft.CodeAnalysis.CSharp, Version=4.11.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35' and ignoring 'Packages/com.unity.pipeline/Runtime/Plugins/CodeAnalysis/Microsoft.CodeAnalysis.CSharp.dll, AssemblyName=Microsoft.CodeAnalysis.CSharp, Version=3.11.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Duplicate assembly 'System.Runtime.CompilerServices.Unsafe.dll' with different versions detected, using 'Packages/com.bezi.sidekick/Editor/Plugins/System.Runtime.CompilerServices.Unsafe.dll, AssemblyName=System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a' and ignoring 'Packages/com.unity.pipeline/Runtime/Plugins/CodeAnalysis/System.Runtime.CompilerServices.Unsafe.dll, AssemblyName=System.Runtime.CompilerServices.Unsafe, Version=4.0.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.Starting: C:\Program Files\Unity\Hub\Editor\6000.3.10f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1900b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: D:/UNITY/Laubrary Dev
+DisplayProgressbar: Compiling Scripts
+ExitCode: 0 Duration: 1s837ms
+[1682/2281  0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[2277/2281  1s] Csc Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp-Editor.dll (+2 others)
+[2278/2281  0s] ILPostProcess Library/Bee/artifacts/1900b0aE.dag/post-processed/Assembly-CSharp-Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp-Editor.dll, with 139 defines and 476 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, Unity.Pipeline.CodeGen.HotReloadInPlaceILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+
+running Unity.Pipeline.CodeGen.HotReloadInPlaceILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[2279/2281  0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp-Editor.pdb
+[2280/2281  0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp-Editor.dll
+*** Tundra build success (1.77 seconds), 5 items updated, 2281 evaluated
+AssetDatabase: script compilation time: 2.199532s
+Begin MonoManager ReloadAssembly
+Duplicate assembly 'Microsoft.CodeAnalysis.dll' with different versions detected, using 'Packages/com.bezi.sidekick/Editor/Plugins/Microsoft.CodeAnalysis.dll, AssemblyName=Microsoft.CodeAnalysis, Version=4.11.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35' and ignoring 'Packages/com.unity.pipeline/Runtime/Plugins/CodeAnalysis/Microsoft.CodeAnalysis.dll, AssemblyName=Microsoft.CodeAnalysis, Version=3.11.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Duplicate assembly 'Microsoft.CodeAnalysis.CSharp.dll' with different versions detected, using 'Packages/com.bezi.sidekick/Editor/Plugins/Microsoft.CodeAnalysis.CSharp.dll, AssemblyName=Microsoft.CodeAnalysis.CSharp, Version=4.11.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35' and ignoring 'Packages/com.unity.pipeline/Runtime/Plugins/CodeAnalysis/Microsoft.CodeAnalysis.CSharp.dll, AssemblyName=Microsoft.CodeAnalysis.CSharp, Version=3.11.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Duplicate assembly 'System.Runtime.CompilerServices.Unsafe.dll' with different versions detected, using 'Packages/com.bezi.sidekick/Editor/Plugins/System.Runtime.CompilerServices.Unsafe.dll, AssemblyName=System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a' and ignoring 'Packages/com.unity.pipeline/Runtime/Plugins/CodeAnalysis/System.Runtime.CompilerServices.Unsafe.dll, AssemblyName=System.Runtime.CompilerServices.Unsafe, Version=4.0.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.- Loaded All Assemblies, in  1.188 seconds
+Refreshing native plugins compatible for Editor in 1.66 ms, found 3 plugins.
+Native extension for WindowsStandalone target not found
+Refreshing native plugins compatible for Editor in 1.09 ms, found 3 plugins.
+Duplicate assembly 'Microsoft.CodeAnalysis.dll' with different versions detected, using 'Packages/com.bezi.sidekick/Editor/Plugins/Microsoft.CodeAnalysis.dll, AssemblyName=Microsoft.CodeAnalysis, Version=4.11.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35' and ignoring 'Packages/com.unity.pipeline/Runtime/Plugins/CodeAnalysis/Microsoft.CodeAnalysis.dll, AssemblyName=Microsoft.CodeAnalysis, Version=3.11.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Duplicate assembly 'Microsoft.CodeAnalysis.CSharp.dll' with different versions detected, using 'Packages/com.bezi.sidekick/Editor/Plugins/Microsoft.CodeAnalysis.CSharp.dll, AssemblyName=Microsoft.CodeAnalysis.CSharp, Version=4.11.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35' and ignoring 'Packages/com.unity.pipeline/Runtime/Plugins/CodeAnalysis/Microsoft.CodeAnalysis.CSharp.dll, AssemblyName=Microsoft.CodeAnalysis.CSharp, Version=3.11.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Duplicate assembly 'System.Runtime.CompilerServices.Unsafe.dll' with different versions detected, using 'Packages/com.bezi.sidekick/Editor/Plugins/System.Runtime.CompilerServices.Unsafe.dll, AssemblyName=System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a' and ignoring 'Packages/com.unity.pipeline/Runtime/Plugins/CodeAnalysis/System.Runtime.CompilerServices.Unsafe.dll, AssemblyName=System.Runtime.CompilerServices.Unsafe, Version=4.0.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.Start HTTP server: port:7800
+ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  4.155 seconds
+Domain Reload Profiling: 5342ms
+	BeginReloadAssembly (252ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (18ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (144ms)
+	RebuildCommonClasses (23ms)
+	RebuildNativeTypeToScriptingClass (10ms)
+	initialDomainReloadingComplete (34ms)
+	LoadAllAssembliesAndSetupDomain (866ms)
+		LoadAssemblies (436ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (494ms)
+			TypeCache.Refresh (400ms)
+				TypeCache.ScanAssembly (380ms)
+			BuildScriptInfoCaches (78ms)
+			ResolveRequiredComponents (10ms)
+	FinalizeReload (4157ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (3983ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (13ms)
+			SetLoadedEditorAssemblies (5ms)
+			BeforeProcessingInitializeOnLoad (148ms)
+			ProcessInitializeOnLoadAttributes (3668ms)
+			ProcessInitializeOnLoadMethodAttributes (145ms)
+			AfterProcessingInitializeOnLoad (4ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (5ms)
+Refreshing native plugins compatible for Editor in 1.99 ms, found 3 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=8bc11e35c06f11e49877275d539d3ce8): Total: 8.686 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	Summary:
+		Imports: total=0 (actual=0, local cache=0, cache server=0)
+		Asset DB Process Time: managed=0 ms, native=4707 ms
+		Asset DB Callback time: managed=490 ms, native=37 ms
+		Scripting: domain reloads=1, domain reload time=1188 ms, compile time=2201 ms, other=60 ms
+		Project Asset Count: scripts=2157, non-scripts=4500
+		Asset File Changes: new=0, changed=1, moved=0, deleted=0
+		Scan Filter Count: 0
+	InvokeCustomDependenciesCallbacks: 0.001ms
+	InvokePackagesCallback: 20.773ms
+	ApplyChangesToAssetFolders: 0.475ms
+	Scan: 191.867ms
+	OnSourceAssetsModified: 0.727ms
+	CategorizeAssetsWithTransientArtifact: 60.369ms
+	ProcessAssetsWithTransientArtifactChanges: 86.659ms
+	CategorizeAssets: 63.996ms
+	ImportOutOfDateAssets: 4167.898ms (1964.002ms without children)
+		CompileScripts: 2201.153ms
+		ReloadNativeAssets: 0.043ms
+		UnloadImportedAssets: 1.307ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.841ms
+		InitializingProgressBar: 0.000ms
+		PostProcessAllAssetNotificationsAddChangedAssets: 0.001ms
+		OnDemandSchedulerStart: 0.550ms
+	PostProcessAllAssets: 504.133ms
+	Hotreload: 4.181ms
+	GatherAllCurrentPrimaryArtifactRevisions: 0.002ms
+	UnloadStreamsBegin: 4.831ms
+	PersistCurrentRevisions: 0.139ms
+	UnloadStreamsEnd: 0.001ms
+	GenerateScriptTypeHashes: 3.969ms
+	Untracked: 3579.919ms
+
+Application.AssetDatabase Initial Refresh End
+Launched and connected shader compiler UnityShaderCompiler.exe after 0.01 seconds
+Scanning for USB devices : 13.717ms
+Initializing Unity extensions:
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-Package Developer
+Unloading 19 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 9308 unused Assets / (5.5 MB). Loaded Objects now: 10337.
+Memory consumption went from 272.6 MB to 267.1 MB.
+Total: 11.535000 ms (FindLiveObjects: 0.792600 ms CreateObjectMapping: 0.689600 ms MarkObjects: 7.681200 ms  DeleteObjects: 2.370900 ms)
+
+[T0101] === T-0101 Pyre visual baseline ===
+[T0101] Unity 6000.3.10f1  project=D:\UNITY\Laubrary Dev
+[T0101] canvas=96  frameCount=16  seed=1234
+[T0101] nominal representative frame index = 7  (life 0.467)
+[T0101] sampling frames 2,4,6,7,9,11,13 per technique and keeping the one with the most visible pixels
+[T0101] readable project sprite: Assets/Demos/CartographerDemo/Ground.png
+[T0101] TMP_FontAsset candidates: 4
+[T0101] readable TMP font: Assets/Demos/TextSplashDemo/Border Fonts/Splash Demo (LiberationSans SDF) Border Font.asset
+[T0101] PyreForm plug-in types found: 9 -> ArcBurstForm, ExplosiveJetForm, ForkBlastForm, InfernoForm, JetForm, OrbForm, PlasmaBloomForm, RadialJetForm, TorchForm
+[T0101] entries to render: 31
+[T0101]   E01  Disc                   best f6  coverage  16.02%  meanRGB 255,150,056  [f2:3.3 f4:8.6 f6:16.0 f7:15.1 f9:13.3 f11:11.4 f13:9.5]  
+[T0101]   E02  Gem                    best f6  coverage  17.36%  meanRGB 180,173,153  [f2:3.6 f4:9.2 f6:17.4 f7:16.3 f9:14.4 f11:12.4 f13:10.0]  
+[T0101]   E03  Crescent               best f6  coverage  10.68%  meanRGB 255,150,056  [f2:2.3 f4:5.7 f6:10.7 f7:10.2 f9:9.0 f11:7.6 f13:6.1]  
+[T0101]   E04  Sparkle                best f6  coverage   5.70%  meanRGB 255,150,056  [f2:1.2 f4:3.0 f6:5.7 f7:5.3 f9:4.7 f11:4.1 f13:3.5]  
+[T0101]   E05  Sprite                 best f6  coverage  21.01%  meanRGB 070,061,014  [f2:4.3 f4:11.1 f6:21.0 f7:19.1 f9:17.4 f11:15.7 f13:12.5]  sprite=Ground
+[T0101]   E06  Box                    best f6  coverage  34.90%  meanRGB 134,127,117  [f2:7.2 f4:18.8 f6:34.9 f7:33.5 f9:28.9 f11:25.7 f13:20.8]  
+[T0101]   E07  Pyramid                best f6  coverage  17.64%  meanRGB 225,197,162  [f2:3.7 f4:9.4 f6:17.6 f7:16.2 f9:14.3 f11:12.5 f13:10.0]  
+[T0101]   E08  Can                    best f6  coverage  29.93%  meanRGB 146,129,114  [f2:6.1 f4:15.9 f6:29.9 f7:27.9 f9:24.6 f11:21.7 f13:17.6]  
+[T0101]   E09  Orb                    best f6  coverage  22.83%  meanRGB 147,140,128  [f2:4.7 f4:12.1 f6:22.8 f7:21.4 f9:18.5 f11:16.1 f13:13.3]  
+[T0101]   E10  Ring                   best f6  coverage  19.53%  meanRGB 198,180,157  [f2:4.1 f4:10.2 f6:19.5 f7:18.4 f9:16.0 f11:13.9 f13:11.1]  
+[T0101]   E11  Text                   best f6  coverage   7.30%  meanRGB 181,169,150  [f2:1.3 f4:3.4 f6:7.3 f7:6.4 f9:6.2 f11:5.2 f13:4.4]  font=Splash Demo (LiberationSans SDF) Border Font
+[T0101]   E12  Streak                 best f6  coverage   0.56%  meanRGB 255,150,056  [f2:0.3 f4:0.4 f6:0.6 f7:0.5 f9:0.5 f11:0.5 f13:0.4]  
+[T0101]   E13  Star                   best f6  coverage   5.77%  meanRGB 255,150,056  [f2:1.2 f4:3.0 f6:5.8 f7:5.2 f9:4.7 f11:4.2 f13:3.4]  
+[T0101]   E14  Fire                   best f11 coverage   0.77%  meanRGB 227,139,067  [f2:0.4 f4:0.5 f6:0.7 f7:0.8 f9:0.8 f11:0.8 f13:0.7]  
+[T0101]   E15  Fireball               best f13 coverage   7.88%  meanRGB 253,148,055  [f2:0.9 f4:1.7 f6:2.9 f7:3.6 f9:5.1 f11:6.3 f13:7.9]  
+[T0101]   E16  Polygon                best f6  coverage   9.77%  meanRGB 255,150,056  [f2:2.1 f4:5.3 f6:9.8 f7:9.8 f9:8.5 f11:7.3 f13:6.3]  
+[T0101]   E17  Playback3D             best f2  coverage   0.00%  meanRGB n/a  [f2:0.0 f4:0.0 f6:0.0 f7:0.0 f9:0.0 f11:0.0 f13:0.0]  editor-preview only; RenderFrame returns early (PyreRenderer.cs:269)
+[T0101]   F01  Arc Burst              best f7  coverage  18.39%  meanRGB 124,084,169  [f2:9.3 f4:14.5 f6:17.2 f7:18.4 f9:17.4 f11:13.1 f13:4.5]  Laubrary.Pyre.Forms.Kiln.ArcBurstForm
+[T0101]   F02  Explosive Jet          best f6  coverage  41.07%  meanRGB 186,062,016  [f2:16.6 f4:35.8 f6:41.1 f7:39.2 f9:11.8 f11:0.0 f13:0.0]  Laubrary.Pyre.Forms.Kiln.ExplosiveJetForm
+[T0101]   F03  Fork Blast             best f6  coverage  76.78%  meanRGB 175,096,046  [f2:37.8 f4:73.7 f6:76.8 f7:66.4 f9:17.4 f11:0.0 f13:0.0]  Laubrary.Pyre.Forms.Kiln.ForkBlastForm
+[T0101]   F04  Inferno                best f4  coverage  46.80%  meanRGB 192,151,083  [f2:43.2 f4:46.8 f6:45.4 f7:43.5 f9:39.3 f11:40.0 f13:37.0]  Laubrary.Pyre.Forms.Kiln.InfernoForm
+[T0101]   F05  Jet                    best f13 coverage  10.26%  meanRGB 212,089,027  [f2:8.9 f4:10.0 f6:8.9 f7:9.6 f9:9.3 f11:10.1 f13:10.3]  Laubrary.Pyre.Forms.Kiln.JetForm
+[T0101]   F06  Orb                    best f2  coverage   9.54%  meanRGB 135,049,013  [f2:9.5 f4:9.5 f6:9.3 f7:9.4 f9:9.2 f11:9.1 f13:8.5]  Laubrary.Pyre.Forms.Kiln.OrbForm
+[T0101]   F07  Plasma Bloom           best f7  coverage  35.11%  meanRGB 103,036,155  [f2:29.2 f4:30.1 f6:34.6 f7:35.1 f9:28.3 f11:12.1 f13:0.6]  Laubrary.Pyre.Forms.Kiln.PlasmaBloomForm
+[T0101]   F08  Radial Jet             best f7  coverage  28.09%  meanRGB 188,083,032  [f2:27.8 f4:27.8 f6:27.8 f7:28.1 f9:26.6 f11:27.6 f13:27.1]  Laubrary.Pyre.Forms.Kiln.RadialJetForm
+[T0101]   F09  Torch                  best f2  coverage  15.82%  meanRGB 213,117,070  [f2:15.8 f4:14.4 f6:14.1 f7:14.5 f9:14.5 f11:13.6 f13:15.1]  Laubrary.Pyre.Forms.Kiln.TorchForm
+[T0101]   P01  Fuse (metaball)        best f11 coverage  34.41%  meanRGB 190,104,056  [f2:1.6 f4:9.1 f6:19.0 f7:23.8 f9:31.5 f11:34.4 f13:33.9]  layer.coalesce = Fuse, swarm on
+[T0101]   P02  Ramp (height balls)    best f13 coverage  48.16%  meanRGB 149,047,020  [f2:6.5 f4:17.2 f6:32.1 f7:38.7 f9:45.1 f11:47.9 f13:48.2]  layer.coalesce = Ramp, swarm on
+[T0101]   P03  Height consumer        best f13 coverage  49.22%  meanRGB 244,148,058  [f2:5.5 f4:16.2 f6:30.9 f7:37.9 f9:45.2 f11:49.1 f13:49.2]  needs 2 layers: a WriteMatte writer below, a heightFromChannel consumer above
+[T0101]   X16  Inferno (retired slot) best f6  coverage  16.02%  meanRGB 255,150,056  [f2:3.3 f4:8.6 f6:16.0 f7:15.1 f9:13.3 f11:11.4 f13:9.5]  documented to draw as a Disc
+[T0101]   X17  ForkBlast (retired slot) best f6  coverage  16.02%  meanRGB 255,150,056  [f2:3.3 f4:8.6 f6:16.0 f7:15.1 f9:13.3 f11:11.4 f13:9.5]  documented to draw as a Disc
+[T0101] -- pixel-identical-to-plain-Disc check (disc hash f938ab6f51af238d) --
+[T0101]   X16 Inferno (retired slot)  IS PIXEL-IDENTICAL TO A PLAIN DISC
+[T0101]   X17 ForkBlast (retired slot)  IS PIXEL-IDENTICAL TO A PLAIN DISC
+[T0101] 
+[T0101] === CHECK A - does editing a colour ramp actually change the picture? ===
+[T0101]   Fire                     layer.shapeFill.gradient       repainted  102.8% of its own pixels (raw 0.79%)  maxDelta 243  f11  **responds**
+[T0101]   Fireball                 layer.shapeFill.gradient       repainted  100.8% of its own pixels (raw 7.94%)  maxDelta 243  f13  **responds**
+[T0101]   Text                     layer.shapeFill.gradient       repainted    0.0% of its own pixels (raw 0.00%)  maxDelta   0  f6  **NO EFFECT**
+[T0101]   Text                     layer.textFill.gradient        repainted    6.5% of its own pixels (raw 0.48%)  maxDelta 226  f6  **partial** - only some of its pixels
+[T0101]   Text                     layer.textBorder.gradient      repainted   93.5% of its own pixels (raw 6.83%)  maxDelta 243  f6  **responds**
+[T0101]   Disc (control)           layer.shapeFill.gradient       repainted  103.5% of its own pixels (raw 16.58%)  maxDelta 233  f6  **responds**
+[T0101]   Gem (control)            layer.shapeFill.gradient       repainted   47.8% of its own pixels (raw 8.29%)  maxDelta 172  f6  **responds**
+[T0101]   Torch form (control)     layer.shapeFill.gradient       repainted    0.0% of its own pixels (raw 0.00%)  maxDelta   0  f2  **NO EFFECT**
+[T0101]   Inferno form (control)   layer.shapeFill.gradient       repainted  100.2% of its own pixels (raw 46.88%)  maxDelta 241  f4  **responds**
+[T0101] wrote check-A-colour-ramp.md
+[T0101] 
+[T0101] === TEXT GLYPH PROBE - E11 drew the wrong letters, is it the font or the path? ===
+[T0101]   Splash Demo (LiberationSans SDF) Border Font  readable=True  "PYRE"  cover 7.30%
+[T0101]   Splash Demo (LiberationSans SDF) Border Font  readable=True  "ABCDEFGH"  cover 9.36%
+[T0101]   Inconsolata-SemiBold SDF  readable=True  "PYRE"  cover 8.51%
+[T0101]   Inconsolata-SemiBold SDF  readable=True  "ABCDEFGH"  cover 9.29%
+[T0101]   LiberationSans SDF - Fallback  readable=True  "PYRE"  cover 9.36%
+[T0101]   LiberationSans SDF - Fallback  readable=True  "ABCDEFGH"  cover 9.35%
+[T0101]   LiberationSans SDF  readable=False  "PYRE"  cover 16.02%
+[T0101]   LiberationSans SDF  readable=False  "ABCDEFGH"  cover 16.02%
+[T0101] wrote check-text-glyphs.md
+[T0101] wrote manifest.txt (31 rows)
+=== T-0101 Pyre visual baseline ===
+Unity 6000.3.10f1  project=D:\UNITY\Laubrary Dev
+canvas=96  frameCount=16  seed=1234
+nominal representative frame index = 7  (life 0.467)
+sampling frames 2,4,6,7,9,11,13 per technique and keeping the one with the most visible pixels
+readable project sprite: Assets/Demos/CartographerDemo/Ground.png
+TMP_FontAsset candidates: 4
+readable TMP font: Assets/Demos/TextSplashDemo/Border Fonts/Splash Demo (LiberationSans SDF) Border Font.asset
+PyreForm plug-in types found: 9 -> ArcBurstForm, ExplosiveJetForm, ForkBlastForm, InfernoForm, JetForm, OrbForm, PlasmaBloomForm, RadialJetForm, TorchForm
+entries to render: 31
+  E01  Disc                   best f6  coverage  16.02%  meanRGB 255,150,056  [f2:3.3 f4:8.6 f6:16.0 f7:15.1 f9:13.3 f11:11.4 f13:9.5]  
+  E02  Gem                    best f6  coverage  17.36%  meanRGB 180,173,153  [f2:3.6 f4:9.2 f6:17.4 f7:16.3 f9:14.4 f11:12.4 f13:10.0]  
+  E03  Crescent               best f6  coverage  10.68%  meanRGB 255,150,056  [f2:2.3 f4:5.7 f6:10.7 f7:10.2 f9:9.0 f11:7.6 f13:6.1]  
+  E04  Sparkle                best f6  coverage   5.70%  meanRGB 255,150,056  [f2:1.2 f4:3.0 f6:5.7 f7:5.3 f9:4.7 f11:4.1 f13:3.5]  
+  E05  Sprite                 best f6  coverage  21.01%  meanRGB 070,061,014  [f2:4.3 f4:11.1 f6:21.0 f7:19.1 f9:17.4 f11:15.7 f13:12.5]  sprite=Ground
+  E06  Box                    best f6  coverage  34.90%  meanRGB 134,127,117  [f2:7.2 f4:18.8 f6:34.9 f7:33.5 f9:28.9 f11:25.7 f13:20.8]  
+  E07  Pyramid                best f6  coverage  17.64%  meanRGB 225,197,162  [f2:3.7 f4:9.4 f6:17.6 f7:16.2 f9:14.3 f11:12.5 f13:10.0]  
+  E08  Can                    best f6  coverage  29.93%  meanRGB 146,129,114  [f2:6.1 f4:15.9 f6:29.9 f7:27.9 f9:24.6 f11:21.7 f13:17.6]  
+  E09  Orb                    best f6  coverage  22.83%  meanRGB 147,140,128  [f2:4.7 f4:12.1 f6:22.8 f7:21.4 f9:18.5 f11:16.1 f13:13.3]  
+  E10  Ring                   best f6  coverage  19.53%  meanRGB 198,180,157  [f2:4.1 f4:10.2 f6:19.5 f7:18.4 f9:16.0 f11:13.9 f13:11.1]  
+  E11  Text                   best f6  coverage   7.30%  meanRGB 181,169,150  [f2:1.3 f4:3.4 f6:7.3 f7:6.4 f9:6.2 f11:5.2 f13:4.4]  font=Splash Demo (LiberationSans SDF) Border Font
+  E12  Streak                 best f6  coverage   0.56%  meanRGB 255,150,056  [f2:0.3 f4:0.4 f6:0.6 f7:0.5 f9:0.5 f11:0.5 f13:0.4]  
+  E13  Star                   best f6  coverage   5.77%  meanRGB 255,150,056  [f2:1.2 f4:3.0 f6:5.8 f7:5.2 f9:4.7 f11:4.2 f13:3.4]  
+  E14  Fire                   best f11 coverage   0.77%  meanRGB 227,139,067  [f2:0.4 f4:0.5 f6:0.7 f7:0.8 f9:0.8 f11:0.8 f13:0.7]  
+  E15  Fireball               best f13 coverage   7.88%  meanRGB 253,148,055  [f2:0.9 f4:1.7 f6:2.9 f7:3.6 f9:5.1 f11:6.3 f13:7.9]  
+  E16  Polygon                best f6  coverage   9.77%  meanRGB 255,150,056  [f2:2.1 f4:5.3 f6:9.8 f7:9.8 f9:8.5 f11:7.3 f13:6.3]  
+  E17  Playback3D             best f2  coverage   0.00%  meanRGB n/a  [f2:0.0 f4:0.0 f6:0.0 f7:0.0 f9:0.0 f11:0.0 f13:0.0]  editor-preview only; RenderFrame returns early (PyreRenderer.cs:269)
+  F01  Arc Burst              best f7  coverage  18.39%  meanRGB 124,084,169  [f2:9.3 f4:14.5 f6:17.2 f7:18.4 f9:17.4 f11:13.1 f13:4.5]  Laubrary.Pyre.Forms.Kiln.ArcBurstForm
+  F02  Explosive Jet          best f6  coverage  41.07%  meanRGB 186,062,016  [f2:16.6 f4:35.8 f6:41.1 f7:39.2 f9:11.8 f11:0.0 f13:0.0]  Laubrary.Pyre.Forms.Kiln.ExplosiveJetForm
+  F03  Fork Blast             best f6  coverage  76.78%  meanRGB 175,096,046  [f2:37.8 f4:73.7 f6:76.8 f7:66.4 f9:17.4 f11:0.0 f13:0.0]  Laubrary.Pyre.Forms.Kiln.ForkBlastForm
+  F04  Inferno                best f4  coverage  46.80%  meanRGB 192,151,083  [f2:43.2 f4:46.8 f6:45.4 f7:43.5 f9:39.3 f11:40.0 f13:37.0]  Laubrary.Pyre.Forms.Kiln.InfernoForm
+  F05  Jet                    best f13 coverage  10.26%  meanRGB 212,089,027  [f2:8.9 f4:10.0 f6:8.9 f7:9.6 f9:9.3 f11:10.1 f13:10.3]  Laubrary.Pyre.Forms.Kiln.JetForm
+  F06  Orb                    best f2  coverage   9.54%  meanRGB 135,049,013  [f2:9.5 f4:9.5 f6:9.3 f7:9.4 f9:9.2 f11:9.1 f13:8.5]  Laubrary.Pyre.Forms.Kiln.OrbForm
+  F07  Plasma Bloom           best f7  coverage  35.11%  meanRGB 103,036,155  [f2:29.2 f4:30.1 f6:34.6 f7:35.1 f9:28.3 f11:12.1 f13:0.6]  Laubrary.Pyre.Forms.Kiln.PlasmaBloomForm
+  F08  Radial Jet             best f7  coverage  28.09%  meanRGB 188,083,032  [f2:27.8 f4:27.8 f6:27.8 f7:28.1 f9:26.6 f11:27.6 f13:27.1]  Laubrary.Pyre.Forms.Kiln.RadialJetForm
+  F09  Torch                  best f2  coverage  15.82%  meanRGB 213,117,070  [f2:15.8 f4:14.4 f6:14.1 f7:14.5 f9:14.5 f11:13.6 f13:15.1]  Laubrary.Pyre.Forms.Kiln.TorchForm
+  P01  Fuse (metaball)        best f11 coverage  34.41%  meanRGB 190,104,056  [f2:1.6 f4:9.1 f6:19.0 f7:23.8 f9:31.5 f11:34.4 f13:33.9]  layer.coalesce = Fuse, swarm on
+  P02  Ramp (height balls)    best f13 coverage  48.16%  meanRGB 149,047,020  [f2:6.5 f4:17.2 f6:32.1 f7:38.7 f9:45.1 f11:47.9 f13:48.2]  layer.coalesce = Ramp, swarm on
+  P03  Height consumer        best f13 coverage  49.22%  meanRGB 244,148,058  [f2:5.5 f4:16.2 f6:30.9 f7:37.9 f9:45.2 f11:49.1 f13:49.2]  needs 2 layers: a WriteMatte writer below, a heightFromChannel consumer above
+  X16  Inferno (retired slot) best f6  coverage  16.02%  meanRGB 255,150,056  [f2:3.3 f4:8.6 f6:16.0 f7:15.1 f9:13.3 f11:11.4 f13:9.5]  documented to draw as a Disc
+  X17  ForkBlast (retired slot) best f6  coverage  16.02%  meanRGB 255,150,056  [f2:3.3 f4:8.6 f6:16.0 f7:15.1 f9:13.3 f11:11.4 f13:9.5]  documented to draw as a Disc
+-- pixel-identical-to-plain-Disc check (disc hash f938ab6f51af238d) --
+  X16 Inferno (retired slot)  IS PIXEL-IDENTICAL TO A PLAIN DISC
+  X17 ForkBlast (retired slot)  IS PIXEL-IDENTICAL TO A PLAIN DISC
+
+=== CHECK A - does editing a colour ramp actually change the picture? ===
+  Fire                     layer.shapeFill.gradient       repainted  102.8% of its own pixels (raw 0.79%)  maxDelta 243  f11  **responds**
+  Fireball                 layer.shapeFill.gradient       repainted  100.8% of its own pixels (raw 7.94%)  maxDelta 243  f13  **responds**
+  Text                     layer.shapeFill.gradient       repainted    0.0% of its own pixels (raw 0.00%)  maxDelta   0  f6  **NO EFFECT**
+  Text                     layer.textFill.gradient        repainted    6.5% of its own pixels (raw 0.48%)  maxDelta 226  f6  **partial** - only some of its pixels
+  Text                     layer.textBorder.gradient      repainted   93.5% of its own pixels (raw 6.83%)  maxDelta 243  f6  **responds**
+  Disc (control)           layer.shapeFill.gradient       repainted  103.5% of its own pixels (raw 16.58%)  maxDelta 233  f6  **responds**
+  Gem (control)            layer.shapeFill.gradient       repainted   47.8% of its own pixels (raw 8.29%)  maxDelta 172  f6  **responds**
+  Torch form (control)     layer.shapeFill.gradient       repainted    0.0% of its own pixels (raw 0.00%)  maxDelta   0  f2  **NO EFFECT**
+  Inferno form (control)   layer.shapeFill.gradient       repainted  100.2% of its own pixels (raw 46.88%)  maxDelta 241  f4  **responds**
+wrote check-A-colour-ramp.md
+
+=== TEXT GLYPH PROBE - E11 drew the wrong letters, is it the font or the path? ===
+  Splash Demo (LiberationSans SDF) Border Font  readable=True  "PYRE"  cover 7.30%
+  Splash Demo (LiberationSans SDF) Border Font  readable=True  "ABCDEFGH"  cover 9.36%
+  Inconsolata-SemiBold SDF  readable=True  "PYRE"  cover 8.51%
+  Inconsolata-SemiBold SDF  readable=True  "ABCDEFGH"  cover 9.29%
+  LiberationSans SDF - Fallback  readable=True  "PYRE"  cover 9.36%
+  LiberationSans SDF - Fallback  readable=True  "ABCDEFGH"  cover 9.35%
+  LiberationSans SDF  readable=False  "PYRE"  cover 16.02%
+  LiberationSans SDF  readable=False  "ABCDEFGH"  cover 16.02%
+wrote check-text-glyphs.md
+wrote manifest.txt (31 rows)
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+T0101PyreBaseline:Run () (at Assets/Editor/T0101PyreBaseline.cs:100)
+
+(Filename: Assets/Editor/T0101PyreBaseline.cs Line: 100)
+
+Pipeline Server stopped
+Clearing [LiberationSans SDF - Fallback] dynamic font asset data.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+TMPro.EditorEventCallbacks/<>c:<InitializeFontAssetResourceChangeCallBacks>b__0_0 () (at ./Library/PackageCache/com.unity.ugui@bb329a87fcdc/Editor/TMP/TMP_EditorResourceManager.cs:36)
+UnityEditor.EditorApplication:Internal_EditorApplicationQuit ()
+T0101PyreBaseline:Run () (at Assets/Editor/T0101PyreBaseline.cs:101)
+
+(Filename: ./Library/PackageCache/com.unity.ugui@bb329a87fcdc/Editor/TMP/TMP_EditorResourceManager.cs Line: 36)
+
+Start importing Assets/Plugins/Shapes/Textures/Inconsolata/Inconsolata-SemiBold SDF.asset using Guid(65eb82dda5212f2448aff7de410823bd) (NativeFormatImporter) -> (artifact id: 'e1e82fc4d2464b73a9e1246b5040c415') in 0.0093713 seconds
+Start importing Assets/Demos/TextSplashDemo/Border Fonts/Splash Demo (LiberationSans SDF) Border Font.asset using Guid(b74bed57a67d471468222d2f6e13142d) (NativeFormatImporter) -> (artifact id: 'c9746e2dd97b19539949641b231680f0') in 0.0029998 seconds
+Start importing Assets/Plugins/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset using Guid(2e498d1c8094910479dc3e1b768306a4) (NativeFormatImporter) -> (artifact id: 'a94a4c034600aa8bc24910f0b0d76159') in 0.0010306 seconds
+Refreshing native plugins compatible for Editor in 0.92 ms, found 3 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=dc93a73fa54d23040beab51658f1ef80): Total: 0.092 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input System polling thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-Lauta-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-Lauta channel disconnected successfully.
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+Checking for leaked weakptr:
+  Found no leaked weakptrs.
+[Package Manager] Server process was shutdown
+##utp:{"type":"MemoryLeaks","version":2,"phase":"Immediate","time":1788116369687,"processId":49512,"allocatedMemory":18832505,"memoryLabels":[{"Default":29313},{"Permanent":15236},{"NewDelete":67747},{"Thread":4230384},{"Manager":33181},{"VertexData":8},{"Geometry":816},{"Texture":160},{"Shader":83989},{"Material":24},{"GfxDevice":55257},{"Animation":392},{"Audio":2664},{"FreeType":8},{"FontEngine":736},{"Physics":2090},{"Physics2D":16},{"Serialization":656},{"Input":14984},{"JobScheduler":33024},{"TextLib":216},{"Mono":32},{"MonoCode":64},{"ScriptingNativeRuntime":155060},{"BaseObject":1620208},{"Resource":1336},{"Renderer":3000},{"Transform":4685},{"File":1016},{"WebCam":616},{"Culling":32},{"Terrain":11394},{"Wind":24},{"STL":40},{"String":15886},{"DynamicArray":132293},{"HashMap":83883},{"Utility":2660278},{"Curl":2547},{"PoolAlloc":2248},{"AI":80},{"TypeTree":5341},{"ScriptManager":512},{"RuntimeInitializeOnLoadManager":64},{"SpriteAtlas":112},{"GI":7792},{"Director":8240},{"CloudService":7632},{"WebRequest":845},{"VR":47994},{"SceneManager":504},{"Video":64},{"LazyScriptCache":32},{"Camera":17},{"Secure":2465},{"SerializationCache":1576},{"APIUpdating":10320},{"Subsystems":336},{"VirtualTexturing":57888},{"StaticSafetyDebugInfo":278528},{"Analytics":384},{"Hierarchy":608},{"CoreStats":13032},{"Identifiers":12960},{"Gui":96},{"EditorUtility":135676},{"VersionControl":4},{"Undo":947},{"AssetDatabase":8924461},{"EditorGi":328},{"UnityConnect":29208},{"Upm":1896},{"AssetCompliance":64},{"DrivenProperties":72},{"LocalIPC":211},{"ProfilerEditor":9746},{"CoreBusinessMetrics":2867},{"TLS":3436},{"Licensing":664},{"AssetReference":32},{"IPCStream":32}]}

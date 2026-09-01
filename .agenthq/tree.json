@@ -73,39 +73,33 @@
       "parent": null
     },
     {
-      "id": "IncidentRecovery-2026-08-16",
-      "name": "Incident Recovery 2026-08-16",
-      "parent": null
-    },
-    {
-      "id": "IncidentRecovery-2026-08-16.PyrePlusModifierCulling",
-      "name": "PyrePlus modifier culling",
-      "parent": "IncidentRecovery-2026-08-16"
-    },
-    {
-      "id": "IncidentRecovery-2026-08-16.CherryFraming",
-      "name": "CherryFraming",
-      "parent": "IncidentRecovery-2026-08-16"
-    },
-    {
-      "id": "IncidentRecovery-2026-08-16.ProtoGuyZoe",
-      "name": "ProtoGuy / Zoe movement",
-      "parent": "IncidentRecovery-2026-08-16"
-    },
-    {
-      "id": "IncidentRecovery-2026-08-16.VectorMetaLayer",
-      "name": "Vector MetaLayer / shooting-aiming",
-      "parent": "IncidentRecovery-2026-08-16"
-    },
-    {
-      "id": "IncidentRecovery-2026-08-16.Unrelated",
-      "name": "Pre-existing, unrelated to this incident",
-      "parent": "IncidentRecovery-2026-08-16"
-    },
-    {
       "id": "PyrePlus.KilnPorts",
       "name": "Kiln algorithm ports (2026-08-20)",
       "parent": "PyrePlus"
+    },
+    {
+      "id": "ZoePalette-2026-08-26",
+      "muted": true,
+      "name": "Zoe palette model \u2014 build plan (T-0089 round 4)",
+      "parent": null
+    },
+    {
+      "id": "Shaper",
+      "name": "Shaper",
+      "parent": null,
+      "supervised": false
+    },
+    {
+      "id": "ChunksMock-2026-08-31",
+      "name": "Chunks remake \u2014 mock editor UX blueprint",
+      "parent": "Chunks",
+      "supervised": false
+    },
+    {
+      "id": "ShaperMock-2026-09-01",
+      "name": "Shaper UI \u2014 vision, design plan and mock editor",
+      "parent": "Shaper",
+      "supervised": false
     }
   ]
 }

@@ -1,0 +1,14 @@
+== A: do the space / fit / mapping dials actually change the picture? (rotated 25deg, offset, non-square rect) ==
+  Gradient Linear Stamped/Uniform vs Fixed/Uniform  : 3001 floats differ, max 0.7200   (must differ)
+  Gradient Linear Stamped/Uniform vs Stamped/Stretch: 0 floats differ, max 0.0000   (must differ on a non-square node)
+  Gradient Radial Stamped/Uniform vs Stamped/Stretch: 2774 floats differ, max 0.7994   (Uniform=circle, Stretch=ellipse)
+  Texture Fitted vs Tiled                           : 2958 floats differ, max 0.9945   (must differ)
+  Texture Fitted Stamped vs Fixed                   : 3003 floats differ, max 0.9945   (must differ)
+  Texture Fitted angle 0 vs 37deg                   : 3240 floats differ, max 0.9945   (must differ)
+
+== A/FT-11 extended: tile independence of the INTEGRATED path (PaintTile), which FT-11 does not test ==
+  PaintTile whole-grid vs 7x5 decomposition (Texture.Tiled, Fixed space): 0 floats differ (expected 0), max 0.00E+000
+
+== A/FT-12: instrumented read test. FT-12 measures BEHAVIOURALLY, so a read whose value is discarded is invisible to it. ==
+  Solid (declared [None]) handed a 1-element edgeDistance array: no throw - the sheet was NOT touched
+  Ramp.Coverage (declared [Coverage]) handed a 1-element edgeDistance array: no throw

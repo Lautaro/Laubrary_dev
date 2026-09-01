@@ -1,0 +1,39 @@
+FT-20 contact sheet
+  20 cells, 5 x 4, 516x414 px, written to D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0106\fill-contact-sheet.png
+  Each cell is composited over an OPAQUE 8px mid-grey checkerboard and the PNG is fully
+  opaque, so nothing can render invisibly against a viewer's own background — the failure
+  the previous sheet had in cells [0,0] and [0,1]. Where the checker shows THROUGH a shape,
+  that is the veil or a texel alpha doing its job, not a hole. Each cell carries its own
+  two-digit index bottom-left, drawn in a 3x5 bitmap font, so the legend below is unambiguous.
+    row 0 col 0  01 Solid, tinted
+    row 0 col 1  02 Solid, WHITE
+    row 0 col 2  03 Solid, veil 0.45
+    row 0 col 3  04 Gradient.Linear
+    row 0 col 4  05 Gradient.Radial
+    row 1 col 0  06 Gradient.Angular
+    row 1 col 1  07 Gradient.ByEdgeDistance
+    row 1 col 2  08 Ramp by coverage
+    row 1 col 3  09 Ramp by edgeDist
+    row 1 col 4  10 Texture.Fitted
+    row 2 col 0  11 Texture.Tiled
+    row 2 col 1  12 Stamped/Uniform
+    row 2 col 2  13 Stamped/Stretch
+    row 2 col 3  14 Fixed/Uniform
+    row 2 col 4  15 Fixed/Stretch
+    row 3 col 0  16 Composite Over
+    row 3 col 1  17 Composite Add
+    row 3 col 2  18 FC-3.8 tree
+    row 3 col 3  19 Nested ownership
+    row 3 col 4  20 Gate falls back
+  Three cells look wrong at a glance and are not, so the reading is stated rather than left to be re-derived:
+    08 is FLAT inside on purpose. Coverage is 1 everywhere inside a silhouette, so a ramp BY coverage
+       is one colour there; the ramp itself is the one-pixel rim. Cell 09 is the same fill on a quantity
+       that actually varies across the interior, and that is the pair's point.
+    14 and 15 are IDENTICAL, correctly. Fixed space normalises by the CANVAS half-extents, this canvas is
+       square, and Uniform vs Stretch is a choice of one divisor vs two — which on a square box is the same
+       number twice. The dial is doing nothing here because there is nothing for it to do; cells 12 vs 13
+       are the pair where it bites, because a node's own box is not square.
+    18 is nearly all ONE colour, which is FC-3.3's ruling made visible rather than a bug. Belt is the last
+       restrictor in the fold, so the intersected result IS Belt, so Belt's fill owns all of it and Head's
+       claim is annihilated. The bag's own fill paints 0 samples. FC-3.8's table says otherwise and is wrong.
+  RESULT: RENDERED — NOT VERIFIED BY THE TABLE. A passing table is not a picture; this is not a pass until a human has looked at it.

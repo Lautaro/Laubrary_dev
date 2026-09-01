@@ -1,0 +1,4 @@
+focus
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a01-empty.png
+click 443 504
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a02-addcap-menu.png

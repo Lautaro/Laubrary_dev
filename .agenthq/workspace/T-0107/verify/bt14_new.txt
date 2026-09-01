@@ -1,0 +1,253 @@
+        public static string BT14_NoAllocation()
+        {
+            var sb = new StringBuilder("BT-14 zero allocation in the border paint path\n");
+            bool ok = true;
+
+            var member = Disc("Member", 26f, -6f, 0f);
+            member.fill = LinearGradient(Color.black, Color.white);
+            member.border = Border(ShaperShellAlignment.Outward, 4f, true, Solid(Color.cyan));
+            var bag = ShaperNode.Bag("Bag", ShaperCombineMode.Add, member);
+            bag.fill = Solid(new Color(0.3f, 0.2f, 0.5f));
+            bag.border = Border(ShaperShellAlignment.Centred, 5f, false,
+                                EdgeGradient(Color.red, Color.yellow, 2.5f));
+
+            var rig = Build(bag);
+            int borderOwners = 0;
+            for (int i = 0; i < rig.doc.owners.Count; i++) if (rig.doc.owners[i].isBorder) borderOwners++;
+            bool subjectOk = borderOwners == 2;
+            ok &= subjectOk;
+            sb.AppendLine("  subject: " + rig.doc.owners.Count + " owners of which " + borderOwners +
+                          " borders (expected 2 - a document with no border owner would measure the wrong " +
+                          "thing)  " + Verdict(subjectOk));
+
+            // ── instrument 1: an EXACT IL DECODE of the whole per-tile call graph ──────────────────────────
+            //
+            // This is the instrument that ESTABLISHES the claim; the heap measurement below only corroborates
+            // it. An allocation is an opcode, not a heuristic: `newobj` on a reference type, `newarr` and `box`
+            // are the only ways managed memory is taken, and none of them can hide from a decode of the body.
+            //
+            // It is a DECODE and not the byte-frequency scan FT-9 used. That scan is an upper bound — an
+            // operand byte can coincide with an opcode value — so it is conclusive only when it reports zero,
+            // and on a method the size of PaintTile a coincidental byte is likely. This walks the IL stream
+            // with the real opcode table, skips each operand by its declared width, and resolves every `newobj`
+            // token to check whether the constructed type is a REFERENCE type: `new Color32(r,g,b,a)` is a
+            // newobj that allocates nothing at all, and counting it would be a false positive that no amount of
+            // measurement could then clear.
+            //
+            // Its ability to report a non-zero is measured in BT-13's M7, against two methods that do allocate.
+            {
+                var types = new[]
+                {
+                    typeof(ShaperFillResolver), typeof(ShaperFillOps), typeof(ShaperEvaluator),
+                    typeof(ShaperOps), typeof(ShaperSdf), typeof(ShaperField), typeof(ShaperBorder),
+                };
+                // Only the methods actually reachable per tile or per sample. The compile-time entries are
+                // EXCLUDED BY NAME and the list is printed, because they allocate by design — that is where
+                // BC-1.2 puts every dial, every LUT and every array, and hiding them would be the dishonest
+                // road to a zero.
+                var excluded = new List<string>
+                {
+                    "Resolve", "Walk", "Refuse", "BindBorder", "Bind", "UnavailableReason", "Published",
+                    "HasContributingMember", "FillKindName", "CompileStrip", "JoinOp",
+                };
+
+                int total = 0, scanned = 0;
+                var offenders = new StringBuilder();
+                foreach (var t in types)
+                {
+                    foreach (var m in t.GetMethods(System.Reflection.BindingFlags.Public |
+                                                   System.Reflection.BindingFlags.NonPublic |
+                                                   System.Reflection.BindingFlags.Static))
+                    {
+                        if (m.DeclaringType != t) continue;
+                        if (excluded.Contains(m.Name)) continue;
+                        int hits = CountAllocations(m, out string why);
+                        scanned++;
+                        total += hits;
+                        if (hits > 0) offenders.Append(t.Name + "." + m.Name + "=" + hits + " (" + why + ") ");
+                    }
+                }
+                // ClearDestination is an INSTANCE method called once per tile, so it is scanned explicitly
+                // rather than being missed by the static-only sweep above.
+                {
+                    int hits = CountAllocations(typeof(ShaperFillBuffers).GetMethod("ClearDestination"),
+                                                out string why);
+                    scanned++;
+                    total += hits;
+                    if (hits > 0) offenders.Append("ShaperFillBuffers.ClearDestination=" + hits + " (" + why + ") ");
+                }
+
+                bool ilOk = total == 0;
+                ok &= ilOk;
+                sb.AppendLine("  IL decode of the per-tile call graph: " + scanned + " methods across " +
+                              (types.Length + 1) + " types, " + total +
+                              " heap allocations found (expected 0)  " + Verdict(ilOk));
+                if (total > 0) sb.AppendLine("    offenders: " + offenders.ToString().TrimEnd());
+                sb.AppendLine("    excluded by name, because they allocate BY DESIGN at compile time: " +
+                              string.Join(", ", excluded.ToArray()));
+            }
+
+            // ── instrument 2: the heap, over a large loop, with its blind spot stated ──────────────────────
+            //
+            // Reported and asserted only for what it can actually see. Its calibration is BT-13's M8: on this
+            // editor GC.GetTotalMemory(false) sees a single 64 KB array and is BLIND to 1 MB of 24-byte
+            // transient objects. So a zero here bounds the large-object case and nothing finer, and the IL
+            // decode above is what carries the claim. Saying so is the point — T-0106's allocation leg reported
+            // a zero from an instrument it had already measured to be blind, and this file will not repeat it.
+            {
+                var sheets = new ShaperFillSheets { published = ShaperQuantitySet.ShippedShapeEngine };
+
+                for (int i = 0; i < 3; i++)          // warm-up: JIT every path, settle every LUT
+                    ShaperFillResolver.PaintTile(rig.doc, rig.grid, 0, 0, W, H, rig.buf, sheets);
+
+                int reps = AllocSamples / (W * H);
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                long before = GC.GetTotalMemory(false);
+                int gc0 = GC.CollectionCount(0);
+                for (int i = 0; i < reps; i++)
+                    ShaperFillResolver.PaintTile(rig.doc, rig.grid, 0, 0, W, H, rig.buf, sheets);
+                long delta = GC.GetTotalMemory(false) - before;
+                int collections = GC.CollectionCount(0) - gc0;
+
+                bool heapOk = delta <= 0 && collections == 0;
+                ok &= heapOk;
+                sb.AppendLine("  heap over " + reps + " tiles x " + (W * H) + " samples = " + (reps * W * H) +
+                              " samples: GetTotalMemory delta " + delta + " bytes (expected <= 0)" +
+                              "  gen-0 collections " + collections + " (expected 0)  " + Verdict(heapOk));
+
+                // A high-CALL-COUNT loop on a tiny tile, which is the regime a per-INVOCATION allocation shows
+                // up in and the 128x128 loop above does not reach: 40 tiles could hide a 1 KB-per-call
+                // allocation under any heap instrument's floor; 40,000 cannot.
+                const int Calls = 40000;
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                long before2 = GC.GetTotalMemory(false);
+                int gc0b = GC.CollectionCount(0);
+                for (int i = 0; i < Calls; i++)
+                    ShaperFillResolver.PaintTile(rig.doc, rig.grid, 0, 0, 8, 8, rig.buf, sheets);
+                long delta2 = GC.GetTotalMemory(false) - before2;
+                int collections2 = GC.CollectionCount(0) - gc0b;
+
+                bool callOk = delta2 <= 0 && collections2 == 0;
+                ok &= callOk;
+                sb.AppendLine("  heap over " + Calls + " calls on an 8x8 tile: GetTotalMemory delta " + delta2 +
+                              " bytes (expected <= 0)  gen-0 collections " + collections2 +
+                              " (expected 0)  " + Verdict(callOk));
+            }
+
+            sb.Append("  RESULT: " + Verdict(ok));
+            return sb.ToString();
+        }
+
+        // ── the IL decoder ────────────────────────────────────────────────────────────────────────────────
+
+        static readonly System.Reflection.Emit.OpCode[] IlSingle = new System.Reflection.Emit.OpCode[256];
+        static readonly System.Reflection.Emit.OpCode[] IlMulti = new System.Reflection.Emit.OpCode[256];
+        static bool ilTableBuilt;
+
+        static void BuildIlTable()
+        {
+            if (ilTableBuilt) return;
+            foreach (var f in typeof(System.Reflection.Emit.OpCodes).GetFields(
+                         System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
+            {
+                if (f.FieldType != typeof(System.Reflection.Emit.OpCode)) continue;
+                var op = (System.Reflection.Emit.OpCode)f.GetValue(null);
+                if (op.Size == 1) IlSingle[op.Value & 0xFF] = op;
+                else IlMulti[op.Value & 0xFF] = op;
+            }
+            ilTableBuilt = true;
+        }
+
+        static int OperandSize(System.Reflection.Emit.OperandType t)
+        {
+            switch (t)
+            {
+                case System.Reflection.Emit.OperandType.InlineNone: return 0;
+                case System.Reflection.Emit.OperandType.ShortInlineBrTarget:
+                case System.Reflection.Emit.OperandType.ShortInlineI:
+                case System.Reflection.Emit.OperandType.ShortInlineVar: return 1;
+                case System.Reflection.Emit.OperandType.InlineVar: return 2;
+                case System.Reflection.Emit.OperandType.InlineI8:
+                case System.Reflection.Emit.OperandType.InlineR: return 8;
+                default: return 4;
+            }
+        }
+
+        /// <summary>
+        /// The number of HEAP allocations in one method's IL, decoded exactly.
+        ///
+        /// Counts <c>newarr</c> and <c>box</c> unconditionally, and <c>newobj</c> ONLY when the constructed type
+        /// is a reference type — <c>new Color32(r,g,b,a)</c> is a <c>newobj</c> that takes no managed memory at
+        /// all, and counting it would be a false positive that no later measurement could clear. A token that
+        /// cannot be resolved is counted CONSERVATIVELY as an allocation and named, so an unresolvable case can
+        /// never be silently swallowed into a zero.
+        /// </summary>
+        static int CountAllocations(System.Reflection.MethodBase method, out string detail)
+        {
+            detail = "";
+            if (method == null) { detail = "method is null"; return 0; }
+            BuildIlTable();
+
+            byte[] il;
+            try
+            {
+                var body = method.GetMethodBody();
+                il = body != null ? body.GetILAsByteArray() : null;
+            }
+            catch (Exception e) { detail = "unreadable: " + e.GetType().Name; return 0; }
+            if (il == null) { detail = "no body"; return 0; }
+
+            Type[] typeArgs = null, methodArgs = null;
+            try
+            {
+                if (method.DeclaringType != null && method.DeclaringType.IsGenericType)
+                    typeArgs = method.DeclaringType.GetGenericArguments();
+                if (method.IsGenericMethod) methodArgs = method.GetGenericArguments();
+            }
+            catch { }
+
+            int hits = 0;
+            var found = new StringBuilder();
+            int i = 0;
+            while (i < il.Length)
+            {
+                System.Reflection.Emit.OpCode op;
+                if (il[i] == 0xFE && i + 1 < il.Length) { op = IlMulti[il[i + 1]]; i += 2; }
+                else { op = IlSingle[il[i]]; i += 1; }
+
+                if (op.OperandType == System.Reflection.Emit.OperandType.InlineSwitch)
+                {
+                    if (i + 4 > il.Length) break;
+                    int n = BitConverter.ToInt32(il, i);
+                    i += 4 + 4 * n;
+                    continue;
+                }
+
+                int operandAt = i;
+                i += OperandSize(op.OperandType);
+
+                if (op == System.Reflection.Emit.OpCodes.Newarr) { hits++; found.Append("newarr "); }
+                else if (op == System.Reflection.Emit.OpCodes.Box) { hits++; found.Append("box "); }
+                else if (op == System.Reflection.Emit.OpCodes.Newobj)
+                {
+                    bool heap = true;
+                    string name = "unresolved";
+                    try
+                    {
+                        int token = BitConverter.ToInt32(il, operandAt);
+                        var ctor = method.Module.ResolveMethod(token, typeArgs, methodArgs);
+                        if (ctor != null && ctor.DeclaringType != null)
+                        {
+                            name = ctor.DeclaringType.Name;
+                            heap = !ctor.DeclaringType.IsValueType;
+                        }
+                    }
+                    catch { }
+                    if (heap) { hits++; found.Append("newobj " + name + " "); }
+                }
+            }
+
+            detail = hits > 0 ? found.ToString().TrimEnd() : "clean";
+            return hits;
+        }
+

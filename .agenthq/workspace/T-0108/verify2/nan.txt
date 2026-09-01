@@ -1,0 +1,8 @@
+A base rimP=2.2 rimS=1 amb=0.2 flatN -> L=1.2 S=0.9  finite
+B rimP=-1 rimS=1 amb=0.2 flatN -> L=1.2 S=Infinity  *** Inf Inf Inf 
+C rimP=-1 rimS=1 amb=0.0 flatN -> L=1 S=NaN  *** NaN NaN NaN 
+D rimP=0  rimS=1 amb=0.2 flatN -> L=1.2 S=1.1  finite
+E specP=0 flatN -> L=1.2 S=0.9  finite
+F specP=-4 grazing -> L=0.201 S=8.999998E+11  finite
+G rimS=5 amb=0 tiltedN(0.7,0,0.714) -> L=0.71414 S=0  finite
+H rimS=5 amb=0.2 tiltedN same -> L=0.91414 S=0.06361176  finite

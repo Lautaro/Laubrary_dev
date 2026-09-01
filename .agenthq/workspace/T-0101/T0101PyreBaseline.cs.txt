@@ -1,0 +1,669 @@
+// T-0101 "Wave 0" — render one still frame from every Pyre picture-making technique.
+//
+// TEMPORARY PROBE SCRIPT. It is invoked once from Unity batch mode via -executeMethod and is
+// deleted afterwards. It writes ONLY outside Assets/ (into .agenthq/workspace/T-0101/) so there is
+// no AssetDatabase churn and nothing in the project is dirtied or saved.
+//
+// Deliberately does not touch PyreWindow, the frame cache, or any incremental API — only the
+// public one-shot entry point PyreRenderer.RenderFrame(spec, frameIndex).
+
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+using Laubrary.Pyre;
+using PyreSpec = Laubrary.Pyre.Pyre;
+
+public static class T0101PyreBaseline
+{
+    const int Canvas = 96;
+    const int Frames = 16;
+    const int Seed = 1234;
+
+    // Frames sampled per technique. Several generators are near-empty at any single fixed frame
+    // (Fire builds over time, Streak is a thin sliver early), so the sheet keeps whichever of these
+    // has the most visible pixels and records which one that was.
+    static readonly int[] Probe = { 2, 4, 6, 7, 9, 11, 13 };
+
+    static string OutRoot => Path.Combine(Directory.GetCurrentDirectory(), ".agenthq", "workspace", "T-0101");
+    static string FrameDir => Path.Combine(OutRoot, "frames");
+    static string StripDir => Path.Combine(OutRoot, "strips");
+
+    static readonly StringBuilder Log = new StringBuilder();
+    static readonly List<string> Manifest = new List<string>();
+    static readonly Dictionary<string, string> Hashes = new Dictionary<string, string>();
+
+    class Entry
+    {
+        public string id;      // file-name prefix, e.g. "E01"
+        public string group;   // "Enum form" / "Plug-in form" / "Field pass" / "Retired slot"
+        public string label;   // human label
+        public string note = "";
+        public Action<PyreSpec> build;
+    }
+
+    // ------------------------------------------------------------------ entry point
+
+    public static void Run()
+    {
+        int exit = 0;
+        try
+        {
+            Directory.CreateDirectory(FrameDir);
+            Directory.CreateDirectory(StripDir);
+            Say("=== T-0101 Pyre visual baseline ===");
+            Say("Unity " + Application.unityVersion + "  project=" + Directory.GetCurrentDirectory());
+            Say("canvas=" + Canvas + "  frameCount=" + Frames + "  seed=" + Seed);
+
+            int frame = Mathf.RoundToInt(0.45f * (Frames - 1));
+            Say("nominal representative frame index = " + frame + "  (life " +
+                (frame / (float)(Frames - 1)).ToString("0.000", CultureInfo.InvariantCulture) + ")");
+            Say("sampling frames " + string.Join(",", Probe.Select(x => x.ToString()).ToArray()) +
+                " per technique and keeping the one with the most visible pixels");
+
+            var sprite = FindReadableSprite();
+            var font = FindReadableTmpFont();
+
+            var entries = BuildEntries(sprite, font);
+            Say("entries to render: " + entries.Count);
+
+            foreach (var e in entries) RenderOne(e, frame);
+
+            FlagDiscFallbacks();
+
+            RampChecks(frame, font);
+
+            TextProbe();
+
+            File.WriteAllText(Path.Combine(OutRoot, "manifest.txt"),
+                string.Join("\n", Manifest.ToArray()), new UTF8Encoding(false));
+            Say("wrote manifest.txt (" + Manifest.Count + " rows)");
+        }
+        catch (Exception ex)
+        {
+            exit = 1;
+            Say("FATAL: " + ex);
+        }
+        finally
+        {
+            try
+            {
+                Directory.CreateDirectory(OutRoot);
+                File.WriteAllText(Path.Combine(OutRoot, "render-log.txt"), Log.ToString(), new UTF8Encoding(false));
+            }
+            catch { }
+            Debug.Log(Log.ToString());
+            EditorApplication.Exit(exit);
+        }
+    }
+
+    // ------------------------------------------------------------------ the 29 (+2 retired)
+
+    static List<Entry> BuildEntries(Sprite sprite, UnityEngine.Object font)
+    {
+        var list = new List<Entry>();
+
+        // ---- 17 live ShapeForm enum entries -------------------------------------------------
+        var live = new[]
+        {
+            ShapeForm.Disc, ShapeForm.Gem, ShapeForm.Crescent, ShapeForm.Sparkle, ShapeForm.Sprite,
+            ShapeForm.Box, ShapeForm.Pyramid, ShapeForm.Can, ShapeForm.Orb, ShapeForm.Ring,
+            ShapeForm.Text, ShapeForm.Streak, ShapeForm.Star, ShapeForm.Fire, ShapeForm.Fireball,
+            ShapeForm.Polygon, ShapeForm.Playback3D
+        };
+        for (int i = 0; i < live.Length; i++)
+        {
+            var f = live[i];
+            var e = new Entry
+            {
+                id = "E" + (i + 1).ToString("00"),
+                group = "Enum form",
+                label = Pretty(f.ToString()),
+                build = s =>
+                {
+                    var L = NewLayer();
+                    L.shapeForm = f;
+                    if (f == ShapeForm.Sprite && sprite != null) L.spriteImage = sprite;
+                    if (f == ShapeForm.Text && font != null) SetField(L, "textFont", font);
+                    s.layers.Add(L);
+                }
+            };
+            if (f == ShapeForm.Sprite) e.note = sprite != null ? "sprite=" + sprite.name : "NO READABLE SPRITE FOUND";
+            if (f == ShapeForm.Text) e.note = font != null ? "font=" + font.name : "NO READABLE TMP FONT FOUND";
+            if (f == ShapeForm.Playback3D) e.note = "editor-preview only; RenderFrame returns early (PyreRenderer.cs:269)";
+            list.Add(e);
+        }
+
+        // ---- 9 PyreForm plug-ins (found by reflection, exactly like the picker) --------------
+        var formTypes = FindFormTypes();
+        Say("PyreForm plug-in types found: " + formTypes.Count + " -> " +
+            string.Join(", ", formTypes.Select(t => t.Name).ToArray()));
+        for (int i = 0; i < formTypes.Count; i++)
+        {
+            var t = formTypes[i];
+            list.Add(new Entry
+            {
+                id = "F" + (i + 1).ToString("00"),
+                group = "Plug-in form",
+                label = Pretty(t.Name.EndsWith("Form") ? t.Name.Substring(0, t.Name.Length - 4) : t.Name),
+                note = t.FullName,
+                build = s =>
+                {
+                    var L = NewLayer();
+                    L.form = (PyreForm)Activator.CreateInstance(t);
+                    s.layers.Add(L);
+                }
+            });
+        }
+
+        // ---- 3 field-pass modes --------------------------------------------------------------
+        list.Add(new Entry
+        {
+            id = "P01",
+            group = "Field pass",
+            label = "Fuse (metaball)",
+            note = "layer.coalesce = Fuse, swarm on",
+            build = s =>
+            {
+                var L = NewLayer();
+                L.shapeForm = ShapeForm.Disc;
+                L.coalesce = LayerCoalesce.Fuse;
+                L.swarmEnabled = true;
+                L.swarmCount = 14;
+                L.swarmParticleLife = 1f;
+                s.layers.Add(L);
+            }
+        });
+        list.Add(new Entry
+        {
+            id = "P02",
+            group = "Field pass",
+            label = "Ramp (height balls)",
+            note = "layer.coalesce = Ramp, swarm on",
+            build = s =>
+            {
+                var L = NewLayer();
+                L.shapeForm = ShapeForm.Disc;
+                L.coalesce = LayerCoalesce.Ramp;
+                L.swarmEnabled = true;
+                L.swarmCount = 14;
+                L.swarmParticleLife = 1f;
+                s.layers.Add(L);
+            }
+        });
+        list.Add(new Entry
+        {
+            id = "P03",
+            group = "Field pass",
+            label = "Height consumer",
+            note = "needs 2 layers: a WriteMatte writer below, a heightFromChannel consumer above",
+            build = s =>
+            {
+                var writer = NewLayer();
+                writer.matteEnabled = true;
+                writer.matteRole = MatteRole.WriteMatte;
+                writer.matteChannel = 0;
+                writer.matteCombine = MatteCombine.Max;
+                writer.matteWriteLuma = true;
+                writer.shapeForm = ShapeForm.Disc;
+                writer.swarmEnabled = true;
+                writer.swarmCount = 12;
+                writer.swarmParticleLife = 1f;
+
+                var consumer = NewLayer();
+                consumer.matteEnabled = true;
+                consumer.matteRole = MatteRole.Draw;
+                consumer.heightFromChannel = 0;
+                consumer.heightRelief = 3f;
+                consumer.heightLightAngle = 135f;
+
+                s.layers.Add(writer);
+                s.layers.Add(consumer);
+            }
+        });
+
+        // ---- 2 retired enum slots (NOT part of the 29 — rendered as a control) ---------------
+        foreach (var pair in new[] { new { v = 16, n = "Inferno (retired slot)" }, new { v = 17, n = "ForkBlast (retired slot)" } })
+        {
+            int val = pair.v;
+            list.Add(new Entry
+            {
+                id = "X" + val,
+                group = "Retired slot",
+                label = pair.n,
+                note = "documented to draw as a Disc",
+                build = s =>
+                {
+                    var L = NewLayer();
+                    L.shapeForm = (ShapeForm)val;
+                    s.layers.Add(L);
+                }
+            });
+        }
+
+        return list;
+    }
+
+    // ------------------------------------------------------------------ rendering
+
+    static void RenderOne(Entry e, int nominalFrame)
+    {
+        string file = e.id + "_" + Safe(e.label) + ".png";
+        string cov = "-", mean = "-", hash = "-", err = "", chosen = "-", covByFrame = "";
+        Color32[] best = null;
+        int bestLit = -1, bestFrame = nominalFrame;
+
+        try
+        {
+            foreach (int f in Probe)
+            {
+                var spec = NewSpec();
+                try
+                {
+                    e.build(spec);
+                    var px = PyreRenderer.RenderFrame(spec, f);
+                    if (px == null || px.Length != Canvas * Canvas)
+                        throw new Exception("RenderFrame returned " + (px == null ? "null" : px.Length + " px, expected " + (Canvas * Canvas)));
+
+                    SavePng(px, Path.Combine(StripDir, e.id + "_f" + f.ToString("00") + ".png"));
+
+                    int lit = 0;
+                    for (int i = 0; i < px.Length; i++) if (px[i].a > 8) lit++;
+                    covByFrame += (covByFrame.Length > 0 ? " " : "") + "f" + f + ":" +
+                                  (100.0 * lit / px.Length).ToString("0.0", CultureInfo.InvariantCulture);
+                    if (lit > bestLit) { bestLit = lit; best = px; bestFrame = f; }
+                }
+                finally { UnityEngine.Object.DestroyImmediate(spec); }
+            }
+
+            SavePng(best, Path.Combine(FrameDir, file));
+            chosen = bestFrame.ToString();
+
+            int n = 0; double r = 0, g = 0, b = 0;
+            for (int i = 0; i < best.Length; i++)
+            {
+                if (best[i].a <= 8) continue;
+                n++; r += best[i].r; g += best[i].g; b += best[i].b;
+            }
+            cov = (100.0 * n / best.Length).ToString("0.00", CultureInfo.InvariantCulture);
+            mean = n == 0 ? "n/a" : string.Format(CultureInfo.InvariantCulture, "{0:000},{1:000},{2:000}", r / n, g / n, b / n);
+            hash = Hash(best);
+            Hashes[e.id] = hash;
+            Say(string.Format("  {0,-4} {1,-22} best f{2,-2} coverage {3,6}%  meanRGB {4}  [{5}]  {6}",
+                e.id, e.label, chosen, cov, mean, covByFrame, e.note));
+        }
+        catch (Exception ex)
+        {
+            err = ex.GetType().Name + ": " + ex.Message;
+            Say("  " + e.id + " " + e.label + "  *** THREW *** " + err);
+        }
+        Manifest.Add(string.Join("|", new[] { e.id, e.group, e.label, file, cov, mean, hash, e.note, err, chosen, covByFrame }));
+    }
+
+    static void FlagDiscFallbacks()
+    {
+        string discHash;
+        if (!Hashes.TryGetValue("E01", out discHash)) return;
+        Say("-- pixel-identical-to-plain-Disc check (disc hash " + discHash + ") --");
+        for (int i = 0; i < Manifest.Count; i++)
+        {
+            var c = Manifest[i].Split('|');
+            if (c[0] == "E01") continue;
+            if (c[6] == discHash)
+            {
+                Say("  " + c[0] + " " + c[2] + "  IS PIXEL-IDENTICAL TO A PLAIN DISC");
+                c[7] = (c[7].Length > 0 ? c[7] + "; " : "") + "PIXEL-IDENTICAL TO PLAIN DISC";
+                Manifest[i] = string.Join("|", c);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ Check A: colour ramps
+
+    static void RampChecks(int frame, UnityEngine.Object font)
+    {
+        Say("");
+        Say("=== CHECK A - does editing a colour ramp actually change the picture? ===");
+        var report = new StringBuilder();
+        report.AppendLine("# T-0101 Check A - colour-ramp responsiveness");
+        report.AppendLine();
+        report.AppendLine("Same spec, same frame, only the named gradient changed (stock fire ramp -> a blue/cyan ramp).");
+        report.AppendLine("`repainted` = share of the generator's OWN visible pixels that changed by >2 in any channel.");
+        report.AppendLine("That normalisation matters: Fire covers under 1% of the canvas, so a raw canvas-wide");
+        report.AppendLine("percentage makes a total repaint look like nothing happened.");
+        report.AppendLine();
+        report.AppendLine("| Generator | Field edited | repainted | of canvas | max channel delta | frame | verdict |");
+        report.AppendLine("|---|---|---|---|---|---|---|");
+
+        Action<PyreLayer> text = L => { L.shapeForm = ShapeForm.Text; if (font != null) SetField(L, "textFont", font); };
+
+        RampCase(report, "Fire", "layer.shapeFill.gradient", L => { L.shapeForm = ShapeForm.Fire; }, (L, blue) => L.shapeFill.gradient = blue);
+        RampCase(report, "Fireball", "layer.shapeFill.gradient", L => { L.shapeForm = ShapeForm.Fireball; }, (L, blue) => L.shapeFill.gradient = blue);
+        RampCase(report, "Text", "layer.shapeFill.gradient", text, (L, blue) => L.shapeFill.gradient = blue);
+        RampCase(report, "Text", "layer.textFill.gradient", text, (L, blue) => L.textFill.gradient = blue);
+        RampCase(report, "Text", "layer.textBorder.gradient", text, (L, blue) => L.textBorder.gradient = blue);
+        // controls
+        RampCase(report, "Disc (control)", "layer.shapeFill.gradient", L => { L.shapeForm = ShapeForm.Disc; }, (L, blue) => L.shapeFill.gradient = blue);
+        RampCase(report, "Gem (control)", "layer.shapeFill.gradient", L => { L.shapeForm = ShapeForm.Gem; }, (L, blue) => L.shapeFill.gradient = blue);
+        RampCase(report, "Torch form (control)", "layer.shapeFill.gradient", L => { L.form = MakeForm("TorchForm"); }, (L, blue) => L.shapeFill.gradient = blue);
+        RampCase(report, "Inferno form (control)", "layer.shapeFill.gradient", L => { L.form = MakeForm("InfernoForm"); }, (L, blue) => L.shapeFill.gradient = blue);
+
+        File.WriteAllText(Path.Combine(OutRoot, "check-A-colour-ramp.md"), report.ToString(), new UTF8Encoding(false));
+        Say("wrote check-A-colour-ramp.md");
+    }
+
+    static void RampCase(StringBuilder report, string name, string field,
+                         Action<PyreLayer> setup, Action<PyreLayer, Gradient> edit)
+    {
+        Color32[] a = null, b = null;
+        int usedFrame = -1;
+        string err = "";
+        try
+        {
+            // measure at the frame where this generator is most visible, so the comparison is fair
+            int bestLit = -1;
+            foreach (int f in Probe)
+            {
+                var s = NewSpec();
+                try
+                {
+                    var L = NewLayer(); setup(L); s.layers.Add(L);
+                    var px = PyreRenderer.RenderFrame(s, f);
+                    int lit = 0; for (int i = 0; i < px.Length; i++) if (px[i].a > 8) lit++;
+                    if (lit > bestLit) { bestLit = lit; a = px; usedFrame = f; }
+                }
+                finally { UnityEngine.Object.DestroyImmediate(s); }
+            }
+            var s2 = NewSpec();
+            try
+            {
+                var L2 = NewLayer(); setup(L2); edit(L2, BlueRamp()); s2.layers.Add(L2);
+                b = PyreRenderer.RenderFrame(s2, usedFrame);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(s2); }
+        }
+        catch (Exception ex) { err = ex.GetType().Name + ": " + ex.Message; }
+
+        if (err.Length > 0 || a == null || b == null || a.Length != b.Length)
+        {
+            report.AppendLine("| " + name + " | `" + field + "` | - | - | - | - | ERROR " + err + " |");
+            Say("  " + name + " / " + field + "  ERROR " + err);
+            return;
+        }
+
+        int diff = 0, maxd = 0, visible = 0;
+        for (int i = 0; i < a.Length; i++)
+        {
+            if (a[i].a > 8 || b[i].a > 8) visible++;
+            int dr = Mathf.Abs(a[i].r - b[i].r), dg = Mathf.Abs(a[i].g - b[i].g),
+                db = Mathf.Abs(a[i].b - b[i].b), da = Mathf.Abs(a[i].a - b[i].a);
+            int m = Mathf.Max(Mathf.Max(dr, dg), Mathf.Max(db, da));
+            if (m > maxd) maxd = m;
+            if (m > 2) diff++;
+        }
+        double norm = visible == 0 ? 0 : 100.0 * diff / visible;
+        double raw = 100.0 * diff / a.Length;
+        string verdict = norm < 0.5 ? "**NO EFFECT**" : (norm < 20 ? "**partial** - only some of its pixels" : "**responds**");
+        report.AppendLine("| " + name + " | `" + field + "` | " + norm.ToString("0.0", CultureInfo.InvariantCulture) +
+                          "% | " + raw.ToString("0.00", CultureInfo.InvariantCulture) + "% | " + maxd + " | " +
+                          usedFrame + " | " + verdict + " |");
+        Say(string.Format("  {0,-24} {1,-30} repainted {2,6}% of its own pixels (raw {3}%)  maxDelta {4,3}  f{5}  {6}",
+            name, field, norm.ToString("0.0", CultureInfo.InvariantCulture),
+            raw.ToString("0.00", CultureInfo.InvariantCulture), maxd, usedFrame, verdict));
+
+        // keep the two frames so the difference can be seen, not just measured
+        SavePng(a, Path.Combine(FrameDir, "checkA_" + Safe(name) + "_" + Safe(field) + "_A.png"));
+        SavePng(b, Path.Combine(FrameDir, "checkA_" + Safe(name) + "_" + Safe(field) + "_B.png"));
+    }
+
+    // ------------------------------------------------------------------ Text glyph probe
+    // The baseline sheet showed ShapeForm.Text drawing the WRONG letters. This isolates whether
+    // that is the font Pyre auto-picked or the Text path itself, by rendering a known string
+    // against every TMP font asset in the project.
+
+    static void TextProbe()
+    {
+        Say("");
+        Say("=== TEXT GLYPH PROBE - E11 drew the wrong letters, is it the font or the path? ===");
+        Type tmp = null;
+        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            tmp = asm.GetType("TMPro.TMP_FontAsset");
+            if (tmp != null) break;
+        }
+        if (tmp == null) { Say("  TMP type unavailable"); return; }
+
+        var report = new StringBuilder();
+        report.AppendLine("# T-0101 Text glyph probe");
+        report.AppendLine();
+        report.AppendLine("`ShapeForm.Text` with `textString` set as shown, rendered against every TMP font asset in the project.");
+        report.AppendLine("Images are in `frames/`. Compare what the PNG spells against the `string` column.");
+        report.AppendLine();
+        report.AppendLine("| font asset | atlas readable | string | coverage% | png |");
+        report.AppendLine("|---|---|---|---|---|");
+
+        var guids = AssetDatabase.FindAssets("t:TMP_FontAsset");
+        foreach (var gid in guids)
+        {
+            var path = AssetDatabase.GUIDToAssetPath(gid);
+            var obj = AssetDatabase.LoadAssetAtPath(path, tmp);
+            if (obj == null) continue;
+            var prop = tmp.GetProperty("atlasTexture", BindingFlags.Public | BindingFlags.Instance);
+            var atlas = prop == null ? null : prop.GetValue(obj, null) as Texture2D;
+            bool readable = atlas != null && atlas.isReadable;
+
+            foreach (var str in new[] { "PYRE", "ABCDEFGH" })
+            {
+                var s = NewSpec();
+                string png = "textprobe_" + Safe(obj.name) + "_" + Safe(str) + ".png";
+                string cov = "-";
+                try
+                {
+                    var L = NewLayer();
+                    L.shapeForm = ShapeForm.Text;
+                    L.textString = str;
+                    SetField(L, "textFont", obj);
+                    s.layers.Add(L);
+                    var px = PyreRenderer.RenderFrame(s, 6);
+                    int lit = 0; for (int i = 0; i < px.Length; i++) if (px[i].a > 8) lit++;
+                    cov = (100.0 * lit / px.Length).ToString("0.00", CultureInfo.InvariantCulture);
+                    SavePng(px, Path.Combine(FrameDir, png));
+                }
+                catch (Exception ex) { cov = "ERR " + ex.Message; }
+                finally { UnityEngine.Object.DestroyImmediate(s); }
+
+                report.AppendLine("| `" + path + "` | " + (readable ? "yes" : "no") + " | `" + str + "` | " + cov + " | `" + png + "` |");
+                Say("  " + obj.name + "  readable=" + readable + "  \"" + str + "\"  cover " + cov + "%");
+            }
+        }
+        File.WriteAllText(Path.Combine(OutRoot, "check-text-glyphs.md"), report.ToString(), new UTF8Encoding(false));
+        Say("wrote check-text-glyphs.md");
+    }
+
+    static Gradient BlueRamp()
+    {
+        var g = new Gradient();
+        g.SetKeys(
+            new[]
+            {
+                new GradientColorKey(new Color(0.05f, 0.10f, 0.55f), 0f),
+                new GradientColorKey(new Color(0.10f, 0.75f, 1.00f), 0.5f),
+                new GradientColorKey(new Color(0.85f, 1.00f, 1.00f), 1f)
+            },
+            new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
+        return g;
+    }
+
+    // ------------------------------------------------------------------ helpers
+
+    static PyreSpec NewSpec()
+    {
+        var s = ScriptableObject.CreateInstance<PyreSpec>();
+        s.canvasSize = Canvas;
+        s.frameCount = Frames;
+        s.seed = Seed;
+        s.background = new Color(0f, 0f, 0f, 0f);
+        s.layers = new List<PyreLayer>();
+        return s;
+    }
+
+    static PyreLayer NewLayer()
+    {
+        var L = new PyreLayer();
+        L.enabled = true;
+        L.matteEnabled = false;
+        L.startFrame = 0;
+        L.endFrame = -1;
+        return L;
+    }
+
+    static PyreForm MakeForm(string typeName)
+    {
+        var t = FindFormTypes().FirstOrDefault(x => x.Name == typeName);
+        return t == null ? null : (PyreForm)Activator.CreateInstance(t);
+    }
+
+    static List<Type> FindFormTypes()
+    {
+        var res = new List<Type>();
+        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            var n = asm.GetName().Name;
+            if (n.EndsWith(".Tests")) continue;
+            Type[] types;
+            try { types = asm.GetTypes(); } catch { continue; }
+            foreach (var t in types)
+            {
+                if (t.IsAbstract || !typeof(PyreForm).IsAssignableFrom(t)) continue;
+                if (t == typeof(PyreForm)) continue;
+                if (t.GetConstructor(Type.EmptyTypes) == null) continue;
+                res.Add(t);
+            }
+        }
+        return res.OrderBy(t => t.Name, StringComparer.Ordinal).ToList();
+    }
+
+    static Sprite FindReadableSprite()
+    {
+        var guids = AssetDatabase.FindAssets("t:Sprite");
+        int looked = 0;
+        foreach (var g in guids)
+        {
+            if (++looked > 6000) break;
+            var path = AssetDatabase.GUIDToAssetPath(g);
+            var imp = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (imp == null || !imp.isReadable) continue;
+            var sp = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (sp != null && sp.texture != null && sp.texture.isReadable)
+            {
+                Say("readable project sprite: " + path);
+                return sp;
+            }
+        }
+        Say("no readable project sprite in " + guids.Length + " candidates (looked at " + looked + ") -> synthesising one");
+        var tex = new Texture2D(48, 48, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Point;
+        var px = new Color32[48 * 48];
+        for (int y = 0; y < 48; y++)
+            for (int x = 0; x < 48; x++)
+            {
+                bool on = ((x / 6) + (y / 6)) % 2 == 0;
+                float d = Vector2.Distance(new Vector2(x, y), new Vector2(23.5f, 23.5f));
+                byte a = (byte)(d < 22f ? 255 : 0);
+                px[y * 48 + x] = on ? new Color32(255, 230, 120, a) : new Color32(200, 60, 40, a);
+            }
+        tex.SetPixels32(px);
+        tex.Apply();
+        var s = Sprite.Create(tex, new Rect(0, 0, 48, 48), new Vector2(0.5f, 0.5f), 48f);
+        s.name = "SYNTHETIC checker disc";
+        return s;
+    }
+
+    static UnityEngine.Object FindReadableTmpFont()
+    {
+        Type tmp = null;
+        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            tmp = asm.GetType("TMPro.TMP_FontAsset");
+            if (tmp != null) break;
+        }
+        if (tmp == null) { Say("TMPro.TMP_FontAsset type not found in any loaded assembly"); return null; }
+
+        var guids = AssetDatabase.FindAssets("t:TMP_FontAsset");
+        Say("TMP_FontAsset candidates: " + guids.Length);
+        foreach (var g in guids)
+        {
+            var path = AssetDatabase.GUIDToAssetPath(g);
+            var obj = AssetDatabase.LoadAssetAtPath(path, tmp);
+            if (obj == null) continue;
+            var prop = tmp.GetProperty("atlasTexture", BindingFlags.Public | BindingFlags.Instance);
+            var atlas = prop == null ? null : prop.GetValue(obj, null) as Texture2D;
+            if (atlas != null && atlas.isReadable)
+            {
+                Say("readable TMP font: " + path);
+                return obj;
+            }
+        }
+        Say("NO readable TMP font found - Text will silently fall back to a Disc");
+        return null;
+    }
+
+    static void SetField(object target, string name, object value)
+    {
+        var f = target.GetType().GetField(name, BindingFlags.Public | BindingFlags.Instance);
+        if (f != null && (value == null || f.FieldType.IsInstanceOfType(value))) f.SetValue(target, value);
+        else Say("  (could not set " + name + " on " + target.GetType().Name + ")");
+    }
+
+    static void SavePng(Color32[] px, string path)
+    {
+        var tex = new Texture2D(Canvas, Canvas, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Point;
+        tex.SetPixels32(px);
+        tex.Apply();
+        File.WriteAllBytes(path, tex.EncodeToPNG());
+        UnityEngine.Object.DestroyImmediate(tex);
+    }
+
+    static string Hash(Color32[] px)
+    {
+        ulong h = 14695981039346656037UL;
+        for (int i = 0; i < px.Length; i++)
+        {
+            h = (h ^ px[i].r) * 1099511628211UL;
+            h = (h ^ px[i].g) * 1099511628211UL;
+            h = (h ^ px[i].b) * 1099511628211UL;
+            h = (h ^ px[i].a) * 1099511628211UL;
+        }
+        return h.ToString("x16");
+    }
+
+    static string Pretty(string s)
+    {
+        var sb = new StringBuilder();
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (i > 0 && char.IsUpper(s[i]) && char.IsLower(s[i - 1])) sb.Append(' ');
+            sb.Append(s[i]);
+        }
+        return sb.ToString();
+    }
+
+    static string Safe(string s)
+    {
+        var sb = new StringBuilder();
+        foreach (var c in s) sb.Append(char.IsLetterOrDigit(c) ? c : '-');
+        return sb.ToString().Trim('-');
+    }
+
+    static void Say(string s)
+    {
+        Log.AppendLine(s);
+        Console.WriteLine("[T0101] " + s);
+    }
+}

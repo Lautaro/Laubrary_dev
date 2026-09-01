@@ -1,0 +1,4 @@
+=== ILB - InverseLowerBound must be a LOWER bound over the WHOLE canvas (HS-5.2 / impl 2.5) ===
+Property: for every (nx,ny) and every t < tauMin, G(t,nx,ny) < zeta. A violation means the
+containing prism does NOT contain, which is how a marcher steps through solid geometry.
+  checks=829316800  violations=0  worst overshoot in zeta = 0,000E+000

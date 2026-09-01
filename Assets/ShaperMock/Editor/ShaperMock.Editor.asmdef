@@ -1,0 +1,20 @@
+{
+    "name": "ShaperMock.Editor",
+    "rootNamespace": "ShaperMock.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.BackSplash",
+        "com.Lautaro-Arino.Laubrary.BackSplash.Editor"
+    ],
+    "includePlatforms": [ "Editor" ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,5 @@
+=== V2-H6 - H6's omission fixture replicated, and its 12 'verified real' extras inspected ===
+
+  rays=504  omissions=0  worst gap=1,5259E-005
+  extra VERIFIED=0  extra SPURIOUS=0
+  of the 'verified' extras: ZERO-WIDTH 0, sitting exactly ON the base plane 0

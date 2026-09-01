@@ -86,7 +86,10 @@ namespace Laubrary.Zoetrope
         /// <summary>Resolve a position PICKER (<see cref="FxPlacementType"/>) against this context — the promoted
         /// form of the old placement resolution, mirroring it exactly: HitPosition → the (fallback-resolved) hit
         /// point; TargetOrigin → the transform anchor; TargetPosition → the sprite-bounds centre; MetaPoint → a
-        /// named meta-layer's live world point (false when nothing is painted / there's no view).
+        /// named meta-layer's live world point, falling back to the sprite-bounds centre when the layer has
+        /// nothing authored anywhere (or there's no view) — same "an unpainted frame costs accuracy, not the
+        /// whole effect" rule <see cref="MuzzleTracker"/>/<see cref="ZoeMetaPositionResolver"/> already apply, so
+        /// an effect placed at MetaPoint always spawns SOMEWHERE instead of silently never firing.
         /// <paramref name="metaLayerId"/> is only read for MetaPoint.</summary>
         public bool TryResolvePosition(FxPlacementType placement, string metaLayerId, out Vector2 pos)
         {
@@ -96,12 +99,27 @@ namespace Laubrary.Zoetrope
                 case FxPlacementType.TargetOrigin:   pos = ZoePosition;  return true;
                 case FxPlacementType.TargetPosition: pos = SpriteCenter; return true;
                 case FxPlacementType.MetaPoint:
-                    if (View != null && View.TryGetMetaPoint(metaLayerId, out var w)) { pos = w; return true; }
-                    pos = default;
-                    return false;
+                    pos = TryResolveMetaPoint(metaLayerId, out var w) ? w : SpriteCenter;
+                    return true;
                 default:
                     pos = default;
                     return false;
+            }
+        }
+
+        /// Ask the DATA which kind of layer this is (Point or Vector — never both), then sample it via whichever
+        /// *Nearest lookup falls back across frames, exactly the convention MuzzleTracker/MuzzleVectorTracker and
+        /// ZoeMetaPositionResolver already use for the same "Muzzle" id. False only when nothing is authored on
+        /// this layer anywhere on the view (or there's no view at all).
+        bool TryResolveMetaPoint(string metaLayerId, out Vector2 worldPos)
+        {
+            worldPos = default;
+            if (View == null || string.IsNullOrEmpty(metaLayerId)) return false;
+            switch (View.GetMetaLayerKind(metaLayerId))
+            {
+                case MetaLayerKind.Point:  return View.TryGetMetaPointNearest(metaLayerId, out worldPos);
+                case MetaLayerKind.Vector: return View.TryGetMetaVectorNearest(metaLayerId, out worldPos, out _, out _);
+                default: return false;
             }
         }
 

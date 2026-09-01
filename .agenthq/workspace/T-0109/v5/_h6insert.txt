@@ -1,0 +1,90 @@
+
+            // ═════════════════════════════════════════════════════════════════════════════════════════════
+            // T-0109 FIX V4 — THE OMISSION CHECK, RE-AIMED, AND THIS IS THE POINT OF THE WHOLE PASS.
+            //
+            // The arm above reported 0 omissions while FOUR existed, and it did so BY CONSTRUCTION rather
+            // than by luck. `OpFor` defaults `steps` to 4, the arm never overrides it, and the ray heights
+            // are FRACTIONS of the extent (0.08 / 0.30 / 0.52) — never a tread. Both defects the third
+            // verification pass found need exactly what that fixture excludes:
+            //
+            //   * V1 (the contained-prism solid skip taken while `mPrev` said air) needs a skip whose start
+            //     point sits ON a slab boundary the exact predicate reads as air, which is a Stepped riser
+            //     landing inside the marched interval — it cannot arise at n = 4 on these rays;
+            //   * V2 (`SteppedProfileInverseExact`'s DOWN walk asking the raw `(k−1)/n`) is latent at four
+            //     step counts only — n = 22 k = 13, n = 23 k = 7, n = 23 k = 14, n = 29 k = 15.
+            //
+            // Measured against the PRE-FIX code, H6's own rays with the step count swept 4..31: 4 omissions,
+            // worst gap 5.2395 px (n = 13, tilt 44 deg, zf 0.08). Aimed AT a tread with the same sweep:
+            // 8 omissions, worst 5.1270 px (n = 14, tilt 44 deg). Same march, same predicate, same 0.05 px
+            // threshold as the arm above — only the aim changed.
+            //
+            // A clean row here is therefore a statement about a fixture that CAN fail. That is the whole
+            // difference between this arm and the one above it before V4.
+            // ═════════════════════════════════════════════════════════════════════════════════════════════
+            {
+                // The W4E fixture that exposed the class: a wide plate with two subtracted slots strictly
+                // inside it, so interior air exists that only the march itself can find.
+                var swept = ShaperNode.Bag("sweptplate", ShaperCombineMode.Add,
+                    ShaperNode.Primitive(new ShaperPrimitiveDef { kind = ShaperPrimitiveKind.Rect, rectHalfW = 120f, rectHalfH = 60f }, "plate", ShaperCombineMode.Add),
+                    SlotAt(-50f, 8f, 120f),
+                    SlotAt(50f, 8f, 120f));
+                var sprog = ShaperCompiler.Compile(swept);
+                var sstack = sprog.NewStack();
+                var sbuf = new ShaperCrossing[256];
+
+                bool sweepAll = true;
+                foreach (bool aimed in AimedAtTread)
+                {
+                    int rays = 0, omissions = 0, truths = 0;
+                    float worst = 0f; string worstAt = "-";
+                    for (int n = SweepStepLo; n <= SweepStepHi; n++)
+                    {
+                        var op = OpFor(sprog, ShaperExtrusionTechnique.Stepped, ShaperBevelTechnique.None,
+                                       90f, 0.25f, 0f, 45f, (float)n, 1f, 1f, 3f);
+                        var ss = new ShaperResolveScene();
+                        ss.Add(sprog, op);
+
+                        int rayCount = aimed ? 36 : 12;
+                        for (int r = 0; r < rayCount; r++)
+                        {
+                            float tilt = (r % 4) * 14f + 2f;                 // 2..44 degrees, never vertical
+                            float rad = tilt * Mathf.Deg2Rad;
+                            float ddx = Mathf.Cos(rad), ddz = -Mathf.Sin(rad);
+                            float ox = -130f, oy = (r % 3 - 1) * 14f;
+                            // AIMED: the ray's height IS a tread of this very step count, which is where the
+                            // contained prism's proof and the exact predicate are allowed to disagree.
+                            float zf = aimed
+                                ? ((r / 4) % Mathf.Max(1, n)) / (float)Mathf.Max(1, n - 1)
+                                : 0.08f + 0.22f * (r / 4);
+                            float oz = op.baseZ + zf * op.body * op.supG + 70f * Mathf.Tan(rad);
+
+                            var rr = ShaperResolve.Query(ss, ox, oy, oz, ddx, 0f, ddz, sbuf);
+                            if (rr.branch != ShaperResolveBranch.General) { sweepAll = false; continue; }
+                            rays++;
+
+                            var truth = TruthCrossings(sprog, sstack, op, ox, oy, oz, ddx, 0f, ddz, 400f, 100000);
+                            truths += truth.Count;
+                            for (int j = 0; j < truth.Count; j++)
+                            {
+                                float best = float.MaxValue;
+                                for (int i = 0; i < rr.count; i++) best = Mathf.Min(best, Mathf.Abs(truth[j] - sbuf[i].rayT));
+                                if (best > 0.05f)
+                                {
+                                    omissions++;
+                                    if (best > worst) { worst = best; worstAt = "n=" + n + " tilt " + tilt.ToString("F0") + " zf " + zf.ToString("F4"); }
+                                }
+                            }
+                        }
+                    }
+                    bool ok = rays > 0 && omissions == 0;
+                    sweepAll &= ok;
+                    sb.AppendLine("      step count SWEPT " + SweepStepLo + ".." + SweepStepHi +
+                                  ", ray heights " + (aimed ? "AIMED AT A TREAD  " : "H6's own fractions") +
+                                  ": " + rays + " rays, " + truths + " true crossings, omissions " + omissions +
+                                  (omissions == 0 ? "" : "   worst gap " + worst.ToString("F4") + " px at " + worstAt) +
+                                  "  " + Verdict(ok));
+                }
+                all &= sweepAll;
+                sb.AppendLine("      (pre-fix, same two rows: 4 omissions worst 5.2395 px, and 8 omissions worst 5.1270 px)");
+                sb.AppendLine("      VERDICT " + Verdict(sweepAll));
+            }

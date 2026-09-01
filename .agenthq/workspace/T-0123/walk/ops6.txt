@@ -1,0 +1,4 @@
+click 601 579
+sleep 250
+click 538 777
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0123\walk\shots\w1-05-pyre-picked.png

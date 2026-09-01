@@ -24,6 +24,12 @@ namespace Laubrary.Zoetrope
         Health health;
         IAnimatedView view;
         ReactionFxPlayer reaction;
+        AnimationArbiter _arbiter;
+
+        /// Resolved lazily, never cached at Awake — MirageSubject adds this controller to an already-built
+        /// character, so the arbiter may or may not exist yet at that moment. Same rule LocomotionAnimator and
+        /// ReactionFxPlayer follow, for the same spawn-ordering reason.
+        AnimationArbiter Arbiter => _arbiter != null ? _arbiter : (_arbiter = GetComponent<AnimationArbiter>());
 
         void Awake()
         {
@@ -40,23 +46,65 @@ namespace Laubrary.Zoetrope
         void OnEnable()
         {
             if (reaction == null) reaction = GetComponent<ReactionFxPlayer>();
-            if (reaction != null) { reaction.HurtFinished += PlayIdle; reaction.DeathFinished += BeginRespawn; }
+            if (reaction != null) { reaction.HurtFinished += OnHurtEnded; reaction.DeathFinished += BeginRespawn; }
         }
 
         void OnDisable()
         {
-            if (reaction != null) { reaction.HurtFinished -= PlayIdle; reaction.DeathFinished -= BeginRespawn; }
+            if (reaction != null) { reaction.HurtFinished -= OnHurtEnded; reaction.DeathFinished -= BeginRespawn; }
+        }
+
+        // Back to idle only when the hurt reaction actually reached its own end. INTERRUPTED means something
+        // else — a death, a named state — has just taken the body and is about to show its own thing, so
+        // pushing Idle here would flash over it. That mattered the moment death interruption started working:
+        // a killing blow retires the hurt reaction from INSIDE the death's own arming, so this fires while the
+        // death clip is still being set up, and it only ever looked correct because the death happened to play
+        // a fraction of a millisecond later and overwrite it.
+        //
+        // The clip-less case is skipped for a different reason: HurtFinished now fires for EVERY hit, including
+        // one whose reaction has no clip at all (the finished-signal contract on ReactionFxPlayer — a consumer
+        // must never be left waiting). Nothing took the body in that case, so nothing needs putting back, and
+        // re-issuing Idle would restart the animation from frame 0 on every single hit.
+        void OnHurtEnded(bool interrupted)
+        {
+            if (interrupted || HurtClipEmpty()) return;
+            PlayIdle();
+        }
+
+        bool HurtClipEmpty()
+        {
+            var hurt = reaction != null && reaction.def != null ? reaction.def.hit : null;
+            return hurt == null || string.IsNullOrEmpty(hurt.clip);
         }
 
         void PlayIdle()
         {
             SetBodyVisible(true);   // idle / respawn always re-shows the body (undoing a clip-less-death hide, #6)
             if (view == null) view = GetComponent<IAnimatedView>();
-            if (view != null && !string.IsNullOrEmpty(idleClip))
-                view.PlayClip(idleClip, loop: true);
+            if (string.IsNullOrEmpty(idleClip)) return;
+
+            var arbiter = Arbiter;
+            if (arbiter == null) { if (view != null) view.PlayClip(idleClip, loop: true); return; }
+
+            // Claim, then hand straight back. Two things are wrong with writing to the view directly, and the
+            // claim fixes both: a dummy's idle must never be able to paint over a hurt or a death that is
+            // holding the body (at 200/1000 this claim is simply refused, which is the correct outcome — the
+            // reaction is showing), and a body played through the raw view would never reach a COMPOSITE
+            // character's parts at all, since those arbitrate individually.
+            //
+            // Handing it back immediately, rather than holding, is deliberate: this is "put idle up now", not
+            // a state to own. Holding it would starve a real steady-state claimant — a locomotion or motion-pose
+            // animator claims at the same PriorityLocomotion rung and, since equal priority never steals, the
+            // one that claimed first would keep the body forever. Since this component's Start() runs before
+            // any animator's first LateUpdate, that first one would always be this, and a walking dummy would
+            // stand frozen on its idle frame. Releasing also fires Reassert, which is exactly how a real
+            // animator takes the body back on its very next frame.
+            var claim = new object();
+            if (arbiter.Play(claim, AnimationArbiter.PriorityLocomotion, idleClip, loop: true))
+                arbiter.Release(claim);
         }
 
-        void BeginRespawn()
+        void BeginRespawn(bool interrupted)
         {
             // A death with NO death clip has nothing to animate — so show NOTHING while dead instead of leaving the
             // body sitting on its last idle frame until respawn (task #6), so it can be replaced by an explosion FX.

@@ -1,0 +1,3 @@
+focus
+click 1190 1066
+shot D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0123/shots/r02-burst-off.png

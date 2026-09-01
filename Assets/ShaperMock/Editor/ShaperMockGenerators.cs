@@ -1,0 +1,168 @@
+// ShaperMockGenerators — T-0137. The composite-generator catalog was wrong: it shipped nine INVENTED names
+// (Blob, Sparkle, Mesh, Wisp, Halo, Bolt, Cloud, Ripple, Shard) instead of the REAL nine T-0112 already
+// catalogued in the Shaper engine worktree (`PyreCompositeCatalog`, `D:\UNITY\Laubrary Dev - Shaper\Assets\
+// Packages\Laubrary\Runtime\PyreShaper\PyreCompositeCatalog.cs`) — caught live by the project owner asking
+// directly whether per-generator UI had been considered at all. It had not: the Composite card showed a
+// name picker and nothing else, no matter which of the nine was selected, the same gap the effect catalog
+// had before T-0135 grew it to real scale. This file fixes both: the real nine names + their REAL
+// palette-indifferent/veil-multiplied classification (a sourced fact, not invented), and a small
+// representative parameter set per generator (or per real Pyre-form FAMILY — Jet/Radial Jet/Explosive Jet
+// share JetFormBase in the real engine, so they share one mock param class here too) so picking a generator
+// visibly changes what you can author, mirroring how the effect catalog proves the same "picking X shows
+// X's own dials" pattern via ZuiReflect.
+//
+// These are NOT the real Orb/Torch/ArcBurst/... field lists — each class below is a plausible,
+// clearly-labelled STAND-IN, the same posture ShaperMockEffect's generic entries already take for the
+// effect catalog's own top-up entries.
+//
+// T-0141 field-type pass: which of these stand-in dials should be ZUIValue (animatable over life) vs plain
+// was itself checked against real ground truth, not guessed — a spot-check across the real Pyre composite
+// forms (Runtime/Pyre/Forms/Kiln/*.cs, e.g. ArcBurstForm.cs's aref/agamma/bloomRadius/bloomStrength/
+// bloomAlpha/widthScale/ampScale/keepHueFloor/swarmSize) shows every real creative intensity/shape dial on
+// these forms is ZUIValue, with only occasional plain exceptions for things that are NOT creative dials
+// (ArcBurstForm's ghostDeepLo/Hi). Since these mock classes have no 1:1 real field to point at, each
+// dial below follows that same real-world split: a continuous magnitude/intensity a particle could
+// plausibly vary over its life is ZUIValue; a structural topology COUNT or an index INTO something stays
+// plain (mirrors the already-verified real rule for ShaperPrimitives — ngonSides/starArms stay plain ints
+// while starLength/starBaseWidth/starSkew are ZUIValue).
+using UnityEngine;
+
+namespace ShaperMock.Editor
+{
+    public readonly struct ShaperMockGeneratorEntry
+    {
+        public readonly string DisplayName;
+        public readonly bool PaletteIndifferent;
+        public readonly string ReasonNote;
+        public readonly System.Func<ShaperMockGeneratorParams> NewParams;
+        // T-0138 #11 — UNLIKE PaletteIndifferent (a sourced T-0112 fact), this is an ILLUSTRATIVE mock
+        // stand-in for the real IShaperSimulationSource marker (ShaperSwarmDef.cs): whether a generator is a
+        // stateful per-frame simulation (measured ~200x cell updates for a realistic swarm size in the real
+        // engine), which the compiler holds to ShaperSwarmDef.SimulationHardCap when the generator does NOT
+        // also implement a native swarm path. Flame/fluid-like generators are the plausible candidates; this
+        // mock has no real per-generator classification for it the way T-0112 supplied for PaletteIndifferent.
+        public readonly bool IsStatefulSimulation;
+        // T-0138 #11 — ALSO illustrative (same caveat as IsStatefulSimulation above): whether this generator
+        // implements the real IShaperSwarmNativeSource (ShaperSwarmDef.cs). Replaces the mock's PRE-EXISTING
+        // "every Composite is native" heuristic (NativeSwarmAvailable in ShaperMockWindow.cs), which — left
+        // unchanged — would make SimulationHardCap dead code, since real native/stateful-simulation are
+        // independent facts about ONE source, not "any Composite gets native for free". SWARM-SPEC.md §4:
+        // "Primitive and Bag nodes never resolve to Native today", and only a source that implements the
+        // interface offers it — not every Composite.
+        public readonly bool SupportsNativeSwarm;
+
+        public ShaperMockGeneratorEntry(string displayName, bool paletteIndifferent, string reasonNote,
+            System.Func<ShaperMockGeneratorParams> newParams, bool isStatefulSimulation = false,
+            bool supportsNativeSwarm = false)
+        {
+            DisplayName = displayName;
+            PaletteIndifferent = paletteIndifferent;
+            ReasonNote = reasonNote;
+            NewParams = newParams;
+            IsStatefulSimulation = isStatefulSimulation;
+            SupportsNativeSwarm = supportsNativeSwarm;
+        }
+    }
+
+    [System.Serializable]
+    public abstract class ShaperMockGeneratorParams { }
+
+    // Orb / Torch / Arc Burst / Plasma Bloom — the four REAL palette-indifferent generators (their edge
+    // rule has zero dependency on the palette, per PyreCompositeCatalog's own doc comment).
+    [System.Serializable]
+    public sealed class MockOrbParams : ShaperMockGeneratorParams
+    {
+        [Range(0f, 1f)] public ZUIValue energy = new ZUIValue(0.6f);
+        [Range(0, 255)] public int lutIndex = 128;   // an index INTO the LUT, not a magnitude — stays plain
+        [Range(0f, 1f)] public ZUIValue glowSharpness = new ZUIValue(0.4f);
+    }
+
+    [System.Serializable]
+    public sealed class MockTorchParams : ShaperMockGeneratorParams
+    {
+        [Range(0f, 1f)] public ZUIValue cooling = new ZUIValue(0.5f);
+        [Range(0f, 2f)] public ZUIValue flameHeight = new ZUIValue(1f);
+        [Range(0f, 1f)] public ZUIValue flicker = new ZUIValue(0.3f);
+    }
+
+    [System.Serializable]
+    public sealed class MockArcBurstParams : ShaperMockGeneratorParams
+    {
+        [Range(1, 12)] public int arcCount = 5;   // arm/topology count, not a magnitude — stays plain
+        [Range(0f, 360f)] public ZUIValue burstSpread = new ZUIValue(120f);
+        [Range(0f, 1f)] public ZUIValue jitter = new ZUIValue(0.25f);
+    }
+
+    [System.Serializable]
+    public sealed class MockPlasmaBloomParams : ShaperMockGeneratorParams
+    {
+        [Range(0f, 1f)] public ZUIValue bloomRadius = new ZUIValue(0.5f);
+        [Range(0f, 2f)] public ZUIValue turbulence = new ZUIValue(0.8f);
+        [Range(-1f, 1f)] public ZUIValue swirl = new ZUIValue(0f);
+    }
+
+    // Inferno / Fork Blast / Jet / Radial Jet / Explosive Jet — the five REAL veil-multiplied generators
+    // (the palette's transparency multiplies into an edge rule the generator computed on its own).
+    [System.Serializable]
+    public sealed class MockInfernoParams : ShaperMockGeneratorParams
+    {
+        [Range(0f, 1f)] public ZUIValue veilStrength = new ZUIValue(0.7f);
+        [Range(0f, 2f)] public ZUIValue turbulence = new ZUIValue(1f);
+        [Range(0f, 4f)] public ZUIValue heatFalloff = new ZUIValue(1.5f);
+    }
+
+    [System.Serializable]
+    public sealed class MockForkBlastParams : ShaperMockGeneratorParams
+    {
+        [Range(1, 8)] public int forkCount = 3;   // fork/topology count, not a magnitude — stays plain
+        [Range(0f, 2f)] public ZUIValue blastRadius = new ZUIValue(0.8f);
+        [Range(0f, 180f)] public ZUIValue spreadAngle = new ZUIValue(45f);
+    }
+
+    /// Jet, Radial Jet and Explosive Jet share this one param class — the real engine's own JetFormBase
+    /// family (PyreCompositeCatalog: "same JetFormBase family as Jet").
+    [System.Serializable]
+    public sealed class MockJetParams : ShaperMockGeneratorParams
+    {
+        [Range(0f, 4f)] public ZUIValue jetLength = new ZUIValue(2f);
+        [Range(0f, 1f)] public ZUIValue rampHeat = new ZUIValue(0.6f);
+        [Range(0f, 180f)] public ZUIValue spread = new ZUIValue(20f);
+    }
+
+    public static class ShaperMockCompositeCatalog
+    {
+        const string ProceduralNote = "Procedural generator — an energy field / turbulence sum / LUT read, "
+            + "never a baked sprite — so it's still NotYetSplit (reason 2), not authored data (reason 1).";
+
+        /// The REAL nine (T-0112's PyreCompositeCatalog.All), in the same order, with the REAL
+        /// palette-indifferent/veil-multiplied split. Representative (not real) per-generator dials.
+        public static readonly ShaperMockGeneratorEntry[] All =
+        {
+            new ShaperMockGeneratorEntry("Inferno", false, ProceduralNote + " Palette-dependent (veil-multiplied).",
+                () => new MockInfernoParams(), isStatefulSimulation: true),
+            new ShaperMockGeneratorEntry("Fork Blast", false, ProceduralNote + " Palette-dependent (veil-multiplied).",
+                () => new MockForkBlastParams()),
+            new ShaperMockGeneratorEntry("Orb", true, ProceduralNote + " Palette-indifferent.",
+                () => new MockOrbParams(), supportsNativeSwarm: true),
+            new ShaperMockGeneratorEntry("Torch", true, ProceduralNote + " Palette-indifferent.",
+                () => new MockTorchParams(), isStatefulSimulation: true),
+            new ShaperMockGeneratorEntry("Arc Burst", true, ProceduralNote + " Palette-indifferent.",
+                () => new MockArcBurstParams()),
+            new ShaperMockGeneratorEntry("Plasma Bloom", true, ProceduralNote + " Palette-indifferent.",
+                () => new MockPlasmaBloomParams()),
+            new ShaperMockGeneratorEntry("Jet", false, ProceduralNote + " Palette-dependent (veil-multiplied; JetFormBase family).",
+                () => new MockJetParams()),
+            new ShaperMockGeneratorEntry("Radial Jet", false, ProceduralNote + " Palette-dependent (veil-multiplied; JetFormBase family).",
+                () => new MockJetParams()),
+            new ShaperMockGeneratorEntry("Explosive Jet", false, ProceduralNote + " Palette-dependent (veil-multiplied; JetFormBase family).",
+                () => new MockJetParams()),
+        };
+
+        /// A generator "publishes sheets" for the effect catalog's NeedsSheets gate when it is
+        /// palette-indifferent — a real, sourced stand-in relationship (an edge rule computed independently
+        /// of the palette is the kind of generator likely to publish its own edge-distance/heat data),
+        /// replacing the earlier `index % 2 == 0` placeholder that had no basis at all.
+        public static bool PublishesSheets(int generatorIndex)
+            => generatorIndex >= 0 && generatorIndex < All.Length && All[generatorIndex].PaletteIndifferent;
+    }
+}

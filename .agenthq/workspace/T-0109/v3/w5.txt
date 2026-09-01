@@ -1,0 +1,66 @@
+=== W5A - H4 re-implemented independently (closed Ginv vs MY bisection, and reach) ===
+  combination                worst |dt|    worst reach    H4 says
+  Flat + None                8,674E-019     0,000E+000
+  Flat + Linear              0,000E+000     0,000E+000
+  Flat + Rounded             4,315E-005     5,960E-008
+  Flat + Cove                1,490E-008     1,550E-006
+  Flat + Ogee                0,000E+000     0,000E+000
+  Flat + Stepped             8,674E-019     0,000E+000
+  Linear + None              8,674E-019     0,000E+000
+  Linear + Linear            0,000E+000     0,000E+000
+  Linear + Rounded           7,451E-008     5,960E-008
+  Linear + Cove              1,490E-008     1,729E-006
+  Linear + Ogee              0,000E+000     0,000E+000
+  Linear + Stepped           8,674E-019     0,000E+000
+  Stepped + None             0,000E+000     0,000E+000
+  Stepped + Linear           0,000E+000     0,000E+000
+  Stepped + Rounded          0,000E+000     0,000E+000
+  Stepped + Cove             0,000E+000     0,000E+000
+  Stepped + Ogee             0,000E+000     0,000E+000
+  Stepped + Stepped          0,000E+000     0,000E+000
+  Dome + None                1,726E-004     5,960E-008
+  Dome + Linear              1,726E-004     5,960E-008
+  Dome + Rounded             1,726E-004     5,960E-008
+  Dome + Cove                1,726E-004     5,960E-008
+  Dome + Ogee                1,726E-004     5,960E-008
+  Dome + Stepped             1,726E-004     5,960E-008
+  Round + None               5,960E-008     0,000E+000
+  Round + Linear             5,960E-008     0,000E+000
+  Round + Rounded            5,960E-008     0,000E+000
+  Round + Cove               5,960E-008     0,000E+000
+  Round + Ogee               5,960E-008     0,000E+000
+  Round + Stepped            5,960E-008     0,000E+000
+  Taper + None               2,980E-008     0,000E+000
+  Taper + Linear             2,980E-008     0,000E+000
+  Taper + Rounded            2,980E-008     0,000E+000
+  Taper + Cove               2,980E-008     0,000E+000
+  Taper + Ogee               2,980E-008     0,000E+000
+  Taper + Stepped            2,980E-008     0,000E+000
+  Pyramid + None             2,980E-008     2,980E-008
+  Pyramid + Linear           2,980E-008     2,980E-008
+  Pyramid + Rounded          2,980E-008     2,980E-008
+  Pyramid + Cove             2,980E-008     2,980E-008
+  Pyramid + Ogee             2,980E-008     2,980E-008
+  Pyramid + Stepped          2,980E-008     2,980E-008
+  round-trips = 24318   worst |dt| overall = 1,726E-004   worst reach shortfall = 1,729E-006
+  H4 (editor) reports worst |dt| 4.567E-004 (Dome) and worst reach 3.397E-006 (Flat+Cove).
+  INJECTION - can MY probe see a broken Ginv? multiply it by 0.95 and re-measure reach:
+    perturbed reach shortfall = 1,8877E-002  (must be >> the baseline above)
+
+=== W5B - 'G nearly zero': does the march emit a sub-resolution pair on Dome/Round c=0.2? ===
+  Dome c=0,2: rays=24  emitted pairs narrower than SurfaceResolution(0.02) = 0   bracketCapped=0  stepsExhausted rays=0
+  Dome c=1: rays=24  emitted pairs narrower than SurfaceResolution(0.02) = 0   bracketCapped=0  stepsExhausted rays=0
+  Round c=0,2: rays=24  emitted pairs narrower than SurfaceResolution(0.02) = 0   bracketCapped=0  stepsExhausted rays=0
+  Round c=1: rays=24  emitted pairs narrower than SurfaceResolution(0.02) = 0   bracketCapped=0  stepsExhausted rays=0
+  Taper c=0,2: rays=24  emitted pairs narrower than SurfaceResolution(0.02) = 0   bracketCapped=0  stepsExhausted rays=0
+  Taper c=1: rays=24  emitted pairs narrower than SurfaceResolution(0.02) = 0   bracketCapped=0  stepsExhausted rays=0
+  Pyramid c=0,2: rays=24  emitted pairs narrower than SurfaceResolution(0.02) = 0   bracketCapped=0  stepsExhausted rays=0
+  Pyramid c=1: rays=24  emitted pairs narrower than SurfaceResolution(0.02) = 0   bracketCapped=0  stepsExhausted rays=0
+
+=== W5C - hot-path allocation, measured with GC.GetAllocatedBytesForCurrentThread ===
+  ShaperResolve.Query calls = 33600 (both branches)
+  managed heap bytes allocated = 0   gen-0 collections = 0
+
+=== W5D - BC-2.3: straight-down vs general at the branch tolerance, and Depth agreement ===
+  branch-paired rays = 1008   crossing-COUNT mismatches = 0
+  worst |d rayT| = 4,7018E+000 px   worst |d Depth| = 4,7018E+000 px   Flat+Ogee x=-190

@@ -952,6 +952,16 @@ namespace Laubrary.Zui
             ZuiPopover.Options options = null)
             => ZuiPopover.Show(anchor, build, options);
 
+        /// A horizontal path strip ("Layer › Bag 2 › Bag 2.1"): the last segment is where you are now
+        /// (non-interactive), every other segment is a link back up. See ZuiBreadcrumb for the truncation
+        /// and layout rules.
+        public static ZuiBreadcrumb Breadcrumb(IReadOnlyList<string> segments, Action<int> onSegmentClicked)
+        {
+            var b = new ZuiBreadcrumb();
+            b.SetPath(segments, onSegmentClicked);
+            return b;
+        }
+
         /// A ZUI-styled, richer stand-in for GenericMenu (a fluent builder over Z.Popover): section
         /// headers, labelled items with an optional icon + checkmark, separators, and persistent toggle /
         /// MiniRadio rows. `Z.Menu(anchor).Section(..).Item(..).Show()` — Show() opens it and returns the

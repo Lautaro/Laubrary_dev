@@ -1,0 +1,2 @@
+focus
+shot D:/UNITY/Laubrary Dev/.agenthq/workspace/T-0123/shots/r01-crate-smash.png

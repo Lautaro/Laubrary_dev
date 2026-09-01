@@ -1,0 +1,30 @@
+=== V3d - the 28 lost-crossing rays: what is actually happening ===
+  n=10 body=290 supG=1 zHi=290
+  ray origin z = 161,110809  dir=(0,80000,0,-0,6)
+  got 0, true 2  branch=General capped=0 exhausted=False truncated=False
+  emitted: 
+  truth  : 268,5180 268,5180 
+
+  the true span, sampled by BOTH predicates:
+        rayT          x          z            d          t       E(t)       body*E OLD-inside
+    268,5180  -185,1856    0,00000    -14,81441   0,074072          0      0,00000       True
+    268,5180  -185,1856    0,00000    -14,81441   0,074072          0      0,00000       True
+    268,5180  -185,1856    0,00000    -14,81441   0,074072          0      0,00000       True
+    268,5180  -185,1856    0,00000    -14,81441   0,074072          0      0,00000       True
+    268,5180  -185,1856    0,00000    -14,81441   0,074072          0      0,00000       True
+    268,5180  -185,1856    0,00000    -14,81441   0,074072          0      0,00000       True
+    268,5180  -185,1856    0,00000    -14,81441   0,074072          0      0,00000       True
+    268,5180  -185,1856    0,00000    -14,81441   0,074072          0      0,00000       True
+    268,5180  -185,1856    0,00000    -14,81441   0,074072          0      0,00000       True
+    268,5180  -185,1856    0,00000    -14,81441   0,074072          0      0,00000       True
+    268,5180  -185,1856    0,00000    -14,81441   0,074072          0      0,00000       True
+    268,5180  -185,1856    0,00000    -14,81441   0,074072          0      0,00000       True
+    268,5180  -185,1856   -0,00002    -14,81444   0,074072          0      0,00000      False
+  span width = 0,00003 canvas px   (SurfaceResolution = 0,02)
+  every sample in the span has E(t) == 0 : True    any sample has E(t) > 0 : False
+  -> the span exists ONLY under the OLD closed convention (the zero-height membrane N3 removed); the march is CORRECT and my truth predicate is the stale one
+
+  the same 7440-ray sweep, judged against a truth predicate carrying the AMENDED HS-1.1:
+    rays = 7440,  rays losing a crossing = 26,  worst gap = 2,6207E+001 px
+    n=8 k=6 dz=0,3 off=0,0003 true=4 got=2
+    step counts affected: 8 12 13 14 15 18 20 22 23 26 27 29 31 

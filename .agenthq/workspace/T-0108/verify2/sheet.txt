@@ -1,0 +1,25 @@
+sheet 618x414
+cell 01  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 02  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 03  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 04  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 05  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 06  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 07  blue-dominant(B-R>12) px = 59   worst B-R = 24  rgba(128,127,152,255) @(51,189)
+cell 08  blue-dominant(B-R>12) px = 126   worst B-R = 134  rgba(120,187,254,255) @(174,163)
+cell 09  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 10  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 11  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 12  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 13  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 14  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 15  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 16  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 17  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 18  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 19  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 20  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 21  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 22  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 23  blue-dominant(B-R>12) px = 0   worst B-R = 0  
+cell 24  blue-dominant(B-R>12) px = 0   worst B-R = 0  

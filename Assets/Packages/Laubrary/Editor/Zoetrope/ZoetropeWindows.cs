@@ -806,10 +806,18 @@ namespace Laubrary.Zoetrope.Editor
         void BuildReactionsSection(VisualElement root, Zoe zoe)
         {
             var reactions = Z.Section("Reactions",
-                "What plays when this character is hurt, when it dies, and on any custom event it declares.");
-            reactions.Add(Z.Text("Hit", ZuiText.Section, "What happens on a non-killing hit."));
+                "What plays when this character is hurt, when it dies, and on any custom event it declares. " +
+                "Hit and Death are the top two rows of ONE list that also holds every custom event below — " +
+                "same storage as always, just presented together (ZOE_PALETTE_TAKE.md's \"unified list\").");
+            reactions.Add(RoleHeaderRow("Hit", "HURT",
+                "What happens on a non-killing hit. This is the built-in row Laubrary's own \"which hurt " +
+                "look?\" question falls back to — see Custom events below for role-chipped alternatives.",
+                () => ZoePalettePreview.PreviewHit(zoe)));
             BuildReactionFx(reactions, So.FindProperty("hit"), zoe);
-            reactions.Add(Z.Text("Death", ZuiText.Section, "What happens on the killing blow."));
+            reactions.Add(RoleHeaderRow("Death", "DEATH",
+                "What happens on the killing blow. This is the built-in row Laubrary's own \"which death " +
+                "look?\" question falls back to — see Custom events below for role-chipped alternatives.",
+                () => ZoePalettePreview.PreviewDeath(zoe)));
             BuildReactionFx(reactions, So.FindProperty("death"), zoe);
             // Custom events live INSIDE Reactions, under Hit and Death, because they are the same kind of
             // thing — same ReactionFx, same editor — and only differ in being raised by a name you choose.
@@ -817,10 +825,32 @@ namespace Laubrary.Zoetrope.Editor
             root.Add(reactions);
         }
 
+        /// A section-title row with a fixed, non-editable role chip beside it — the built-in Hit/Death rows'
+        /// half of the role chip (ZOE_PALETTE_TAKE.md: "the two built-in hurt and death slots get the
+        /// equivalent chip drawn for them... rather than stored", so nothing already authored is touched).
+        /// Also carries this row's Preview button (T-0096: "a play/preview button on each row so a state can
+        /// be previewed without the game running") — Hit/Death play automatically, never by name, so they get
+        /// no usage chip or copy-name button, only the preview every row gets.
+        VisualElement RoleHeaderRow(string title, string roleLabel, string tip, System.Action preview)
+        {
+            var row = Z.Row();
+            row.Add(Z.Text(title, ZuiText.Section, tip));
+            row.Add(Z.HSpace());
+            var chip = Z.Text($"[{roleLabel}]", ZuiText.Subtle, tip);
+            row.Add(chip);
+            row.Add(Z.Flexible());
+            row.Add(Z.Button("▶", $"Preview {title} — spawns a throwaway character in the open scene and " +
+                "plays this reaction for real, without needing Play mode.", preview).W(28f));
+            return row;
+        }
+
         void BuildAiSection(VisualElement root, Zoe zoe)
         {
-            var ai = Z.Section("AI", "Optional decision-making attached at spawn.");
+            var ai = Z.Section("AI / Control", "Optional decision-making OR player input attached at spawn — " +
+                "a Brain drives the character itself (enemies); a Player Controller hands it to a person " +
+                "(gamepad/keyboard). Whichever is set is what any spawner, Mirage's Preview included, attaches.");
             BuildManagedRef(ai, So.FindProperty("brain"), "Brain", zoe);
+            BuildManagedRef(ai, So.FindProperty("playerController"), "Player Controller", zoe);
             root.Add(ai);
         }
 
@@ -1317,6 +1347,7 @@ namespace Laubrary.Zoetrope.Editor
                     v => Commit(clipPath, p => p.stringValue = v), 200f));
             }
             BuildEventDuration(root, reactionProp, clipField, zoe);
+            BuildTargetPartField(root, reactionProp, zoe);
 
             int clipFrames = GetFrameCount(zoe.view, clipProp.stringValue);
             string[] pointLayerIds = GetPointLayerIds(zoe.view, clipProp.stringValue);
@@ -1353,6 +1384,7 @@ namespace Laubrary.Zoetrope.Editor
             var modeProp = reactionProp.FindPropertyRelative("durationMode");
             var loopsProp = reactionProp.FindPropertyRelative("loops");
             var secondsProp = reactionProp.FindPropertyRelative("seconds");
+            var stunProp = reactionProp.FindPropertyRelative("stunSeconds");
             if (modeProp == null || loopsProp == null || secondsProp == null) { root.Add(clipField); return; }
 
             var mode = (EventDurationMode)modeProp.enumValueIndex;
@@ -1387,6 +1419,29 @@ namespace Laubrary.Zoetrope.Editor
             // the row's geometry identical in both modes, which is the property that matters.
             row.Add(loopsField);
             row.Add(secondsField);
+
+            // Stun joins this row rather than starting one: it is a short numeric that belongs to the same
+            // question the row already asks ("how does this reaction sit in time"), and vertical space is the
+            // scarce resource in a card that stacks an effect list underneath.
+            //
+            // It is drawn AT ALL because it is now obeyed. The field has existed on every reaction since
+            // reactions did, and was reachable only through Unity's default inspector — so the moment
+            // ReactionFxPlayer started reading it, a value that changes what a character does became one the
+            // tool that owns the character cannot show or set. A numeric input rather than a slider on
+            // purpose: a stun has no stable natural ceiling, and inventing one to earn a slider is the trade
+            // the layout rulebook explicitly says not to make (Z.Float is scrub-draggable regardless).
+            if (stunProp != null)
+            {
+                const string stunTip = "Seconds the character is stunned when this reaction fires. Today that " +
+                    "freezes its walk/idle animation for that long, so the reaction visibly INTERRUPTS rather " +
+                    "than being animated straight through — it does not yet stop it moving or firing. 0 = no " +
+                    "stun. Careful on a state that repeats: half a second on a full-auto weapon's fire state " +
+                    "leaves the character permanently frozen.";
+                row.Add(Z.HSpace());
+                row.Add(NumField("Stun", stunProp.propertyPath, stunProp.floatValue, stunTip,
+                                 v => Mathf.Max(0f, v)));
+            }
+
             root.Add(row);
 
             root.Add(EventDurationLine(zoe, reactionProp));
@@ -1427,6 +1482,36 @@ namespace Laubrary.Zoetrope.Editor
             return line;
         }
 
+        /// Which named composite body part this reaction speaks for — whole body (the default, and the only
+        /// option there has ever been) or one named part, e.g. "Legs" walking under "Upper" firing. Shown
+        /// ONLY on a composite Zoe (WeaponAttachmentLibrary.FindPartNames is empty otherwise, same source
+        /// BuildWeaponSlots' "Attach To Part" picker already uses) — a single-part Zoe has nothing to target,
+        /// so the field would be dead chrome on every non-composite character in the project.
+        void BuildTargetPartField(VisualElement root, SerializedProperty reactionProp, Zoe zoe)
+        {
+            var targetProp = reactionProp.FindPropertyRelative("targetPart");
+            if (targetProp == null) return;
+            var partNames = WeaponAttachmentLibrary.FindPartNames(zoe);
+            if (partNames.Count == 0) return;
+
+            const string tip = "Which named body part this reaction speaks for. Whole body (the default) " +
+                "plays the clip on every part that knows it — exactly today's behaviour. Naming one part " +
+                "confines this reaction to it, which is what lets the character show more than one thing at " +
+                "once — walking legs under a firing upper body.";
+
+            var options = new List<string>(partNames.Count + 1) { "(whole body)" };
+            options.AddRange(partNames);
+            string current = targetProp.stringValue ?? "";
+            var ids = new List<string>(partNames);
+            if (!string.IsNullOrEmpty(current) && !ids.Contains(current))
+            { ids.Insert(0, current); options.Insert(1, $"{current} (unresolved)"); }
+            int currentIdx = string.IsNullOrEmpty(current) ? 0 : Mathf.Max(0, ids.IndexOf(current) + 1);
+            string path = targetProp.propertyPath;
+
+            root.Add(Z.Field("Target Part", tip, Z.Dropdown(currentIdx, options, tip,
+                v => Commit(path, p => p.stringValue = v <= 0 ? "" : ids[v - 1]), 200f)));
+        }
+
         /// The live ReactionFx behind a serialized reaction property — Hit, Death, or one of the custom
         /// events. Read-only use: the duration line needs the real object to ask it for its own resolved
         /// length, which is the same method the runtime player calls.
@@ -1458,10 +1543,10 @@ namespace Laubrary.Zoetrope.Editor
             "picker under Cues) and carries the same clip and effect list the fixed reactions do.";
 
         const string EventIdTip = "The name this reaction is raised by. It is typed ONCE, here; everywhere else " +
-            "picks it from a list. Case-sensitive, and it must be unique — two events sharing an id means only " +
-            "the first can ever play. Renaming it does NOT update whatever already raises it: a frame cue " +
-            "pointing at the old name shows up as undeclared under Cues, and a gameplay call raising it does " +
-            "nothing.";
+            "picks it from a list. Case does NOT matter when it is raised, and it must be unique — two events " +
+            "whose names differ only in case are the same name, and only the first can ever play. Renaming it " +
+            "does NOT update whatever already raises it: a frame cue pointing at the old name shows up as " +
+            "undeclared under Cues, and a gameplay call raising it logs a warning and plays nothing.";
 
         void BuildCustomEvents(VisualElement root, Zoe zoe)
         {
@@ -1523,6 +1608,28 @@ namespace Laubrary.Zoetrope.Editor
             }, 150f);
             header.Add(Z.Field("Id", EventIdTip, idField));
 
+            // The role chip (ZOE_PALETTE_TAKE.md/BUILD_PLAN.md task 6): is this row a legal answer to
+            // Laubrary's built-in "which hurt look?" / "which death look?" question. Defaults to None, so
+            // nothing already authored changes meaning — it never gates or conditions playback, it only
+            // narrows which rows an IReactionLookAnswerer may name.
+            var roleProp = entryProp.FindPropertyRelative("role");
+            if (roleProp != null)
+            {
+                const string roleTip = "Is this row a legal answer to Laubrary's built-in \"which hurt look?\" " +
+                    "/ \"which death look?\" question. Nothing special = an ordinary custom event, raised only " +
+                    "by name like any other. This never decides WHETHER or WHEN a hurt or death happens.";
+                header.Add(EnumPicker(roleProp, null, roleTip));
+            }
+
+            // The usage chip (T-0096: "each row shows whether anything in the project actually requests it").
+            // Same purpose ChunkTimelineEvents.HasListeners exists for — "so a tool can honestly report" —
+            // reused here for the mirror question: has anything actually asked FOR this row, by name, at any
+            // point this cache has observed (Play mode, or a Preview click, which goes through the identical
+            // real Raise() call). Green = yes; amber = declared and never once requested.
+            var usageChip = Z.Text("", ZuiText.Subtle, "");
+            header.Add(usageChip);
+            _validators.Add(() => UpdateUsageChip(usageChip, zoe, index));
+
             // A rename has to reach the Cues pickers (they list the declared ids), but rebuilding per keystroke
             // would tear the field out from under the caret — so it waits until the field is left.
             idField.RegisterCallback<FocusOutEvent>(_ =>
@@ -1543,9 +1650,36 @@ namespace Laubrary.Zoetrope.Editor
             });
 
             header.Add(Z.Flexible());
+
+            // Preview (T-0096: "a play/preview button on each row so a state can be previewed without the
+            // game running"). Reads the LIVE id off the asset, not idAtBuild, so it always fires whatever is
+            // currently typed even before a FocusOut rebuild.
+            header.Add(Z.Button("▶", "Preview this event — spawns a throwaway character in the open scene and " +
+                "raises this event for real, without needing Play mode.", () =>
+                {
+                    string liveId = zoe.events != null && index < zoe.events.Count && zoe.events[index] != null
+                        ? zoe.events[index].id : idAtBuild;
+                    ZoePalettePreview.PreviewEvent(zoe, liveId);
+                    RunValidators();   // refresh this row's usage chip immediately rather than on next rebuild
+                }).W(28f));
+
+            // Copy-name (T-0096: "a copy-name button for pasting a state's name into code" — the project's
+            // standing rule is a name is typed ONCE where declared, so this is how it gets into hand-typed
+            // gameplay code without retyping it, e.g. `player.Raise("...")`).
+            // Plain text, not an icon: the obvious copy-symbol candidates (⧉, ⎘, ❐) are missing from the
+            // default editor font and render as an unreadable fallback glyph — measured live, T-0096.
+            header.Add(Z.Button("Copy", "Copy this event's name to the clipboard, ready to paste into a " +
+                "Raise(\"...\") call.", () =>
+                {
+                    string liveId = zoe.events != null && index < zoe.events.Count && zoe.events[index] != null
+                        ? zoe.events[index].id : idAtBuild;
+                    EditorGUIUtility.systemCopyBuffer = liveId ?? "";
+                }).W(46f));
+
             var removeBtn = Z.Button("×",
                 "Remove this event (undoable). Anything raising it by name stops working.", () =>
                 {
+                    if (!ConfirmRemoveEvent(zoe, index)) return;
                     Commit(listPath, p => p.DeleteArrayElementAtIndex(index));
                     Rebuild();
                 }).W(22f);
@@ -1569,6 +1703,11 @@ namespace Laubrary.Zoetrope.Editor
         /// What is wrong with the id at `index`, as a short badge plus the explanation behind it. Empty text
         /// means it is fine. Surfaced at AUTHOR time because both failures are silent at runtime: an empty id
         /// is skipped by Zoe.EventIds, and EventNamed returns the FIRST match for a duplicate.
+        ///
+        /// The duplicate test is case-INSENSITIVE because Zoe.EventNamed is: "Fire" and "fire" are one state
+        /// at runtime, so leaving this comparison ordinal would let the window bless a pair it had just made
+        /// unplayable — the second card would show a clean badge and never play for a reason nothing on
+        /// screen could explain.
         static (string text, string tooltip) EventIdIssue(Zoe zoe, int index)
         {
             var list = zoe?.events;
@@ -1580,18 +1719,87 @@ namespace Laubrary.Zoetrope.Editor
                                         "a picker. Type a name to make it playable.");
 
             for (int i = 0; i < index; i++)
-                if (list[i] != null && list[i].id == id)
+                if (list[i] != null && SameEventId(list[i].id, id))
                     return ("! duplicate — never plays",
-                        $"An earlier event is already called \"{id}\", and raising that name always plays THAT " +
-                        "one. This event can never run until it is renamed.");
+                        $"An earlier event is already called \"{list[i].id}\", and raising that name always plays " +
+                        "THAT one — names are matched ignoring case, so a different capitalisation is not a " +
+                        "different name. This event can never run until it is renamed.");
 
             for (int i = index + 1; i < list.Count; i++)
-                if (list[i] != null && list[i].id == id)
+                if (list[i] != null && SameEventId(list[i].id, id))
                     return ("! duplicate id",
-                        $"Another event below is also called \"{id}\". Raising the name plays this one and the " +
-                        "other never runs. Ids must be unique.");
+                        $"Another event below is also called \"{list[i].id}\". Names are matched ignoring case, " +
+                        "so raising the name plays this one and the other never runs. Ids must be unique.");
 
             return ("", "");
+        }
+
+        /// THE comparison, in the editor, for two event ids — the same one Zoe.EventNamed uses at runtime.
+        /// Routed through one helper so the window can never drift back into disagreeing with the resolver
+        /// about whether two names are the same name.
+        static bool SameEventId(string a, string b) =>
+            string.Equals(a ?? "", b ?? "", System.StringComparison.OrdinalIgnoreCase);
+
+        /// The row usage chip's text/tooltip (T-0096) — from ZoePaletteUsageLog, keyed off the LIVE id at
+        /// `index`, so a rename shows its own fresh (empty) usage rather than the old name's history.
+        static void UpdateUsageChip(Label chip, Zoe zoe, int index)
+        {
+            string id = zoe?.events != null && index < zoe.events.Count && zoe.events[index] != null
+                ? zoe.events[index].id : null;
+            if (string.IsNullOrEmpty(id)) { chip.text = ""; chip.tooltip = ""; return; }
+
+            var (hitCount, lastHit, missCount, _) = ZoePaletteUsageLog.GetUsage(zoe, id);
+            if (hitCount > 0)
+            {
+                chip.text = $"● requested {hitCount}×";
+                chip.tooltip = $"Last requested {lastHit} UTC (observed since this cache was last cleared — " +
+                    "Play mode or this row's own Preview button both count).";
+            }
+            else
+            {
+                chip.text = "○ never requested";
+                chip.tooltip = "Nothing has asked for this state by name yet, as far as this project has " +
+                    "observed (Play mode or a Preview click). Not proof it is truly unused — only that nothing " +
+                    "has been SEEN asking for it." + (missCount > 0
+                        ? $" ({missCount} request(s) for this name missed BEFORE it was declared, or while " +
+                          "mis-typed — see Laubrary/Zoetrope/Palette Health.)"
+                        : "");
+            }
+        }
+
+        /// Delete-warns (T-0096: "deleting a row warns if anything still depends on it") — checks the two
+        /// things this window can actually know: a Cue on THIS SAME character that still raises the id (static,
+        /// checked right now), and whether anything has ever been OBSERVED requesting it at runtime
+        /// (ZoePaletteUsageLog — Play mode or a Preview click). Neither is exhaustive (a cue on a DIFFERENT
+        /// character, or gameplay code that simply hasn't run yet, can't be seen from here), so this warns
+        /// rather than blocks — same "ask, don't silently allow or silently refuse" shape as the rest of this
+        /// model.
+        static bool ConfirmRemoveEvent(Zoe zoe, int index)
+        {
+            string id = zoe?.events != null && index < zoe.events.Count && zoe.events[index] != null
+                ? zoe.events[index].id : null;
+            if (string.IsNullOrEmpty(id)) return true;   // nothing named yet — nothing could depend on it
+
+            var reasons = new List<string>();
+
+            int cueCount = 0;
+            if (zoe.cues != null)
+                foreach (var c in zoe.cues)
+                    if (c != null && SameEventId(c.raiseEvent, id)) cueCount++;
+            if (cueCount > 0)
+                reasons.Add($"{cueCount} cue(s) on this character raise it");
+
+            var (hitCount, lastHit, _, _) = ZoePaletteUsageLog.GetUsage(zoe, id);
+            if (hitCount > 0)
+                reasons.Add($"it has been requested {hitCount} time(s), last {lastHit} UTC");
+
+            if (reasons.Count == 0) return true;
+
+            return EditorUtility.DisplayDialog("Delete this event?",
+                $"\"{id}\" still looks used: {string.Join("; ", reasons)}.\n\n" +
+                "Deleting it makes every one of those a no-op (a cue that raises nothing, a gameplay call that " +
+                "warns and plays nothing). This cannot be undone from here.",
+                "Delete anyway", "Cancel");
         }
 
         void AddEvent(string listPath, Zoe zoe)
@@ -1624,7 +1832,9 @@ namespace Laubrary.Zoetrope.Editor
         /// exists, so the first thing an author sees is a working card rather than an error to clear.
         static string UniqueEventId(Zoe zoe)
         {
-            var taken = new HashSet<string>();
+            // Case-insensitive, like every other id comparison here: "Event" already taken means "event" is
+            // taken too, and handing out a name the duplicate badge would immediately flag is not a start.
+            var taken = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
             if (zoe?.events != null)
                 foreach (var e in zoe.events)
                     if (e?.id != null) taken.Add(e.id);
@@ -1774,7 +1984,9 @@ namespace Laubrary.Zoetrope.Editor
             int index = 0;
             if (!string.IsNullOrEmpty(current))
             {
-                index = shown.IndexOf(current);
+                // Ignoring case, because the runtime does: a cue storing "fire" against a state declared as
+                // "Fire" resolves fine and must not be shown as "fire  (undeclared)".
+                index = IndexOfIgnoreCase(shown, current);
                 if (index < 0) { shown.Add(current + UndeclaredSuffix); index = shown.Count - 1; }
             }
 
@@ -1790,7 +2002,7 @@ namespace Laubrary.Zoetrope.Editor
             {
                 var live = So?.FindProperty(path);
                 string v = live != null ? live.stringValue ?? "" : current;
-                bool broken = !string.IsNullOrEmpty(v) && !DeclaredEventIds(zoe).Contains(v);
+                bool broken = !string.IsNullOrEmpty(v) && IndexOfIgnoreCase(DeclaredEventIds(zoe), v) < 0;
                 badge.text = broken ? "! no such event" : "";
                 badge.tooltip = broken
                     ? $"This cue raises \"{v}\", which this character does not declare — at runtime it logs a " +
@@ -1818,14 +2030,28 @@ namespace Laubrary.Zoetrope.Editor
 
         // ── shared picker / validation plumbing ─────────────────────────────────────────────
 
-        /// Every id this Zoe declares, de-duplicated, straight from the model's own picker feed.
+        /// Every id this Zoe declares, de-duplicated, straight from the model's own picker feed. The de-dupe
+        /// ignores case for the same reason EventIdIssue's does — two spellings of one name resolve to one
+        /// reaction, so offering both in a picker would present a choice that does not exist.
         static List<string> DeclaredEventIds(Zoe zoe)
         {
             var ids = new List<string>();
             if (zoe == null) return ids;
+            var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
             foreach (var id in zoe.EventIds)
-                if (!string.IsNullOrWhiteSpace(id) && !ids.Contains(id)) ids.Add(id);
+                if (!string.IsNullOrWhiteSpace(id) && seen.Add(id)) ids.Add(id);
             return ids;
+        }
+
+        /// Where `value` sits in `options`, ignoring case, or -1. Used wherever a stored id has to be found
+        /// again in a picker's list: an ordinal IndexOf would fail to find a value the RUNTIME resolves
+        /// perfectly well, and the picker would then badge a working reference as undeclared.
+        static int IndexOfIgnoreCase(IList<string> options, string value)
+        {
+            if (options == null || value == null) return -1;
+            for (int i = 0; i < options.Count; i++)
+                if (string.Equals(options[i], value, System.StringComparison.OrdinalIgnoreCase)) return i;
+            return -1;
         }
 
         /// A dropdown over an authored-name vocabulary that may legitimately be empty, and that must never
@@ -2095,6 +2321,8 @@ namespace Laubrary.Zoetrope.Editor
                 BuildManagedRefChildren(compact ? picks : Group(), effectProp, effect, zoe);
             }
 
+            BuildFxOverrides(body, entryProp, zoe);
+
             // No body at all for an effect whose fields all fit the header (Zound, Invulnerable) — an empty
             // container still costs padding, and a card with nothing under its header should look like it.
             if (body.childCount == 0) body.style.display = DisplayStyle.None;
@@ -2104,6 +2332,66 @@ namespace Laubrary.Zoetrope.Editor
             // (undo / reorder / re-type). The grip guards its own drag; the × must not fold on click.
             ZuiFoldCard.Wire(effect, header, body, mute, removeBtn);
             listHost.Add(box);
+        }
+
+        // ── FxOverride slots (default+override effects, ZOE_PALETTE_BUILD_PLAN.md task 6 §4) ───────────────
+        // Every FxEntry keeps its ONE required default effect (above, unchanged); this draws the OPTIONAL
+        // named alternatives — "the same muzzle flash, but the flamethrower one while that powerup is up".
+        // Small and separate from the main effect card on purpose: an override slot is rare, and giving it
+        // the full card treatment (grip, mute, fold) would outweigh what it actually needs — a name and a
+        // type-switching effect picker, reusing BuildManagedRef exactly as every other pluggable field does.
+        const string OverridesTip = "Optional named ALTERNATIVES to the effect above. A request to show this " +
+            "state may carry one override name (ReactionRequest.OverrideName, or ReactionFxPlayer.Raise's " +
+            "override overload); a matching slot here plays INSTEAD of the default. No slots = the default " +
+            "always plays, exactly as before this existed. An unmatched or empty name also plays the default " +
+            "— an override SWAPS the effect, it never gates it.";
+
+        void BuildFxOverrides(VisualElement body, SerializedProperty entryProp, Zoe zoe)
+        {
+            var overridesProp = entryProp.FindPropertyRelative("overrides");
+            if (overridesProp == null) return;
+            string listPath = overridesProp.propertyPath;
+
+            var section = Z.Section($"Overrides  ({overridesProp.arraySize})", OverridesTip,
+                $"{entryProp.propertyPath}.overrides");
+
+            for (int i = 0; i < overridesProp.arraySize; i++)
+            {
+                int idx = i;
+                var slotProp = overridesProp.GetArrayElementAtIndex(idx);
+                var nameProp = slotProp.FindPropertyRelative("name");
+                var fxProp = slotProp.FindPropertyRelative("fx");
+                if (nameProp == null || fxProp == null) continue;
+
+                var card = Z.Box(null, null);
+                var row = Z.Row();
+                row.Add(Z.Field("Name", "The name a request carries to select this slot instead of the default.",
+                    Z.TextInput(nameProp.stringValue ?? "", OverridesTip,
+                        v => Commit(nameProp.propertyPath, p => p.stringValue = v), PairedFieldWidth)));
+                row.Add(Z.Flexible());
+                row.Add(Z.Button("×", "Remove this override slot (undoable).", () =>
+                {
+                    Commit(listPath, p => p.DeleteArrayElementAtIndex(idx));
+                    Rebuild();
+                }).W(22f));
+                card.Add(row);
+                BuildManagedRef(card, fxProp, "Effect", zoe);
+                section.Add(card);
+            }
+
+            section.Add(Z.Button("+ Add override", "Declare another named alternative to this effect's default.",
+                () =>
+                {
+                    Commit(listPath, p =>
+                    {
+                        p.arraySize++;
+                        var slot = p.GetArrayElementAtIndex(p.arraySize - 1);
+                        slot.FindPropertyRelative("name").stringValue = "";
+                        slot.FindPropertyRelative("fx").managedReferenceValue = null;
+                    });
+                    Rebuild();
+                }).W(AddButtonWidth));
+            body.Add(section);
         }
 
         // EnumPicker moved to ZoetropeDefWindow (the base) 2026-08-02, so the base's generic managed-ref child

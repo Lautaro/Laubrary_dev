@@ -1,0 +1,8 @@
+﻿focus
+sleep 250
+click 923 361
+sleep 350
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a15-recipes-menu.png
+click 1700 1000
+sleep 350
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a16-clickaway.png

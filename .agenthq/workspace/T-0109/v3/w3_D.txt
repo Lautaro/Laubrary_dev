@@ -1,0 +1,10 @@
+
+=== W3D - N2: `descending = dz < 0f` at dz == 0f and dz == -0f, + emission monotonicity ===
+  -0f < 0f is FALSE in IEEE, so a negative-zero dz takes the ASCENDING branch. Does that matter?
+  It cannot: |dz| < 1e-9 means the ray never leaves one z, so every slab it is accepted by
+  spans the whole [s0,s1] and slab ORDER cannot change the ray parameters. Measured below.
+  dz=+0f vs dz=-0f over 42 combinations x every breakpoint plane: cases = 645   results DIFFERING = 0   worst |rayT diff| = 0,0000E+000 px
+  emission monotone in rayT per layer (probed by re-running with a buffer large enough that
+  nothing is dropped, then checking the array BEFORE the final global sort could matter):
+    rays = 672   non-monotone after Query = 0 (Query's global sort makes this a tautology; the
+    real N2 property is the TRUNCATION prefix, measured in W3E)

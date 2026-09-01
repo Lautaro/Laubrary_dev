@@ -76,6 +76,10 @@ namespace Laubrary.Zoetrope
             var filter = sr.GetComponent<SpriteFxFilter>();
             if (filter == null) filter = sr.gameObject.AddComponent<SpriteFxFilter>();
             filter.stack = stack;
+            // Same resolver ReactionFxPlayer.PlayBodyFx wires for the legacy slot this effect promotes: without
+            // it, a stack whose modifier reads an External/MetaLayer position (e.g. RelightModifier "Follow" a
+            // painted muzzle) silently falls back to a fixed spot the instant it's authored as a list card instead.
+            filter.externalPositionResolver = new ZoeMetaPositionResolver(ctx.View, sr);
 
             float remaining = ctx.EventSecondsRemaining;   // 0 = unknown → every timed mode degrades to a single play
 

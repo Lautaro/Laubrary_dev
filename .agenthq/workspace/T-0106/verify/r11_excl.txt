@@ -1,0 +1,25 @@
+== C: three-deep nesting A(r42,red) > B(r28,green) > C(r14,blue), all Over, veil 1 ==
+owners in paint order: A -> B -> C
+
+  r  | ownCovA ownCovB ownCovC | claimA claimB claimC | paintA paintB paintC | SUM  | dstAlpha | rootCov | alpha-rootCov
+  0.0|  1.000  1.000  1.000 |  1.000  1.000  1.000 | 0.000  0.000  1.000 | 1.000 |  1.0000  |  1.000  | 0.0000
+  4.0|  1.000  1.000  1.000 |  1.000  1.000  1.000 | 0.000  0.000  1.000 | 1.000 |  1.0000  |  1.000  | 0.0000
+  8.0|  1.000  1.000  1.000 |  1.000  1.000  1.000 | 0.000  0.000  1.000 | 1.000 |  1.0000  |  1.000  | 0.0000
+ 12.0|  1.000  1.000  1.000 |  1.000  1.000  1.000 | 0.000  0.000  1.000 | 1.000 |  1.0000  |  1.000  | 0.0000
+ 13.5|  1.000  1.000  1.000 |  1.000  1.000  1.000 | 0.000  0.000  1.000 | 1.000 |  0.9997  |  1.000  | -0.0003
+ 16.0|  1.000  1.000  0.000 |  1.000  1.000  0.000 | 0.000  1.000  0.000 | 1.000 |  1.0000  |  1.000  | 0.0000
+ 20.0|  1.000  1.000  0.000 |  1.000  1.000  0.000 | 0.000  1.000  0.000 | 1.000 |  1.0000  |  1.000  | 0.0000
+ 24.0|  1.000  1.000  0.000 |  1.000  1.000  0.000 | 0.000  1.000  0.000 | 1.000 |  1.0000  |  1.000  | 0.0000
+ 28.0|  1.000  0.000  0.000 |  1.000  0.000  0.000 | 1.000  0.000  0.000 | 1.000 |  1.0000  |  1.000  | 0.0000
+ 32.0|  1.000  0.000  0.000 |  1.000  0.000  0.000 | 1.000  0.000  0.000 | 1.000 |  1.0000  |  1.000  | 0.0000
+ 36.0|  1.000  0.000  0.000 |  1.000  0.000  0.000 | 1.000  0.000  0.000 | 1.000 |  1.0000  |  1.000  | 0.0000
+ 40.0|  1.000  0.000  0.000 |  1.000  0.000  0.000 | 1.000  0.000  0.000 | 1.000 |  1.0000  |  1.000  | 0.0000
+ 44.0|  0.000  0.000  0.000 |  0.000  0.000  0.000 | 0.000  0.000  0.000 | 0.000 |  0.0000  |  0.000  | 0.0000
+  worst |dstAlpha - rootCoverage| = 0.0003 at r=13.5
+  ENERGY: sum(paint) vs rootCoverage -- samples over-counted 0, total excess 0.000, total deficit 0.000, worst per-sample 0.0000
+  ALPHA DEFICIT vs the shape's own coverage: 244 samples, total 29.288, worst 0.2484
+
+== C(ii): multiplicative claim*(1-dc) vs subtractive max(0, claim-dc) ==
+  total painted area: multiplicative 5543.69  subtractive 5543.69  (true area = sum of root coverage)
+  root coverage area = 5543.69  -> multiplicative excess 0.00, subtractive excess 0.00
+  samples where multiplicative paints MORE than subtractive: 0, worst per-sample surplus 0.0000

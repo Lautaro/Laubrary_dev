@@ -1,0 +1,16 @@
+=== V3f - is the lost crossing a membership flip sitting exactly ON a slab boundary? ===
+  the ray meets each slab boundary at ray parameter s = (oz - (baseZ + body*zeta)) / |dz|:
+     k       zeta            z  s at boundary Member(s - 1e-3) Member(s + 1e-3)
+     0   0,000000       0,0000       828,5724            False            False
+     1   0,142857      41,4286       690,4772            False            False
+     2   0,285714      82,8571       552,3819            False             True   <- MEMBERSHIP FLIPS AT THE SLAB BOUNDARY
+     3   0,428571     124,2857       414,2867             True             True
+     4   0,571429     165,7143       276,1914            False            False
+     5   0,714286     207,1429       138,0962            False            False
+     6   0,857143     248,5714         0,0010            False            False
+  boundaries at which membership flips: 1
+  emitted: 314,4854I 550,3496O 
+
+  breadth: 42 combinations, rays aimed so a crossing lands on a slab boundary
+profile    bevel         rays       lost    worst gap
+  total rays = 5265,  rays losing a crossing = 0   (only rows with a loss printed)

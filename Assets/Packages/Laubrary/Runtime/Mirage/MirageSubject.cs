@@ -96,6 +96,10 @@ namespace Laubrary.Mirage
         {
             if (!manualControls || Spawned == null) return;
             if (Capabilities.Zoe == null) Capabilities = ZoeCapabilities.Derive(zoe);
+            // A Zoe with its own playerController configured is driven by REAL input (ZoeSpawner already
+            // attached it) — the hand-control rig would fight it every frame (see Spawn()'s own comment), so
+            // it's skipped entirely rather than added and left to conflict.
+            if (zoe != null && zoe.playerController != null) return;
             if (Manual == null)
             {
                 Manual = Spawned.GetComponent<MirageManualDriver>();
@@ -293,6 +297,14 @@ namespace Laubrary.Mirage
             var zonedView = zoe != null ? zoe.view as ZonedLauminaryView : null;
             tpc.idleClip = zonedView != null ? zonedView.idleClip : "";
             tpc.respawnDelay = respawnDelay;
+            // A dummy that respawns must never be cleaned up on death — the whole point is that this same
+            // object comes back. Without this the body is destroyed after the Zoe's own deathLinger (1.5s by
+            // default), which is SHORTER than the default respawnDelay (2s), so the respawn coroutine dies
+            // with the object it was going to revive and Target Practice silently stops after one kill.
+            // Set here rather than in TargetPracticeController because "this is a Mirage-only convenience" is
+            // already this method's job, and that controller deliberately holds no Zoe/ZoeState reference.
+            var state = Spawned.GetComponent<ZoeState>();
+            if (state != null) state.disposal = DeathDisposal.Leave;
         }
 
         // Only unsubscribes Player's events (mirrors DestroySpawned above) -- doesn't null Spawned/etc. or
@@ -322,7 +334,11 @@ namespace Laubrary.Mirage
             // grows character controls it has no use for. Capabilities are derived per spawn rather than
             // cached on the asset — they must never be able to disagree with the Zoe they describe.
             Capabilities = ZoeCapabilities.Derive(zoe);
-            if (manualControls)
+            // A Zoe with its own playerController configured is driven by REAL input instead — ZoeSpawner
+            // above already attached it (that's the whole point: any spawner gets it for free, Mirage
+            // included), and the hand-control rig would fight it every frame (its Update() unconditionally
+            // publishes a MotionState override, which would freeze/override real movement's inferred state).
+            if (manualControls && (zoe == null || zoe.playerController == null))
             {
                 Manual = Spawned.AddComponent<MirageManualDriver>();
                 if (_hasKeptManual)
@@ -420,6 +436,17 @@ namespace Laubrary.Mirage
         // ZonedAnimationPlayer.OnComplete fires exactly once when a NON-looping clip finishes — playing each
         // step with loop:false and stepping to the next (wrapping) on that event is what turns a plain "play
         // one clip" player into "cycle this list forever" with no engine changes needed.
+        //
+        // Deliberately NOT routed through AnimationArbiter, unlike every runtime clip channel (T-0094). Three
+        // reasons, all specific to this one: `Player` is the raw Launimator player on the subject's ROOT, which
+        // only exists for a single-body Zoe at all (a composite keeps its players on the parts, so this whole
+        // engine is already inert there); the Clips list is a MIRAGE AUTHORING preview that is meant to be the
+        // only thing driving the subject, not one claimant among several; and it is skipped outright whenever
+        // Target Practice is on — the one mode where real hurt/death reactions play and could be stomped. The
+        // residual case it does NOT cover, stated rather than hidden: a previewed Zoe that also authors plain
+        // `locomotion` clips will have its locomotion animator and this sequence writing to the same player.
+        // That is pre-existing and Mirage-only; if it ever bites, the fix is a claim here at
+        // AnimationArbiter.PriorityNamedState, not another special case.
         void PlaySequenceStep()
         {
             if (Player == null || clips == null || clips.Count == 0 || clips[_sequenceIndex] == null) return;

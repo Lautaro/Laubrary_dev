@@ -1,0 +1,20 @@
+var t = System.AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetType("ChunksMock.Editor.ChunksMockWindow")).FirstOrDefault(x => x != null);
+if (t == null) return "TYPE NOT FOUND";
+var win = Resources.FindObjectsOfTypeAll<EditorWindow>().FirstOrDefault(w => w.GetType() == t);
+if (win == null) return "WINDOW GONE";
+var sb = new System.Text.StringBuilder();
+sb.AppendLine("window alive, pos=" + win.position);
+int labels = 0, buttons = 0; string firstField = "<none>";
+System.Action<UnityEngine.UIElements.VisualElement> walk = null;
+walk = ve => {
+  if (ve is UnityEngine.UIElements.Button) buttons++;
+  if (ve is UnityEngine.UIElements.Label) labels++;
+  var tf = ve as UnityEngine.UIElements.TextField;
+  if (tf != null && firstField == "<none>") firstField = tf.value;
+  foreach (var c in ve.hierarchy.Children()) walk(c);
+};
+walk(win.rootVisualElement);
+sb.AppendLine("labels=" + labels + " buttons=" + buttons);
+sb.AppendLine("recipe name field = '" + firstField + "'");
+sb.AppendLine("compileFailed=" + EditorUtility.scriptCompilationFailed);
+return sb.ToString();

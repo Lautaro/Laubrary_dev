@@ -1,0 +1,10 @@
+=== V2-MARCH - adversarial attacks on the rebuilt QueryGeneral ===
+
+-- 2. tilted rays at, just below and just above every interior slab breakpoint --
+      breakpoints: 7  ->  6 slabs
+      cases=45  wrong=0
+
+
+
+
+

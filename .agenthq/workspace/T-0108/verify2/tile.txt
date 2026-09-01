@@ -1,0 +1,6 @@
+HARDER TILE INDEPENDENCE - 8 lights (4 point, incl. lights near tile seams), canvas 41x29 (prime-ish)
+  tiles 7x5 : Constant+border differing px = 0/1189   Solids Gem differing px = 0/1189
+  tiles 3x2 : Constant+border differing px = 0/1189   Solids Gem differing px = 0/1189
+  tiles 13x11 : Constant+border differing px = 0/1189   Solids Gem differing px = 0/1189
+  tiles 1x1 : Constant+border differing px = 0/1189   Solids Gem differing px = 0/1189
+  tiles 41x29 : Constant+border differing px = 0/1189   Solids Gem differing px = 0/1189

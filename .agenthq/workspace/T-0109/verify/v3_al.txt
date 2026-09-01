@@ -1,0 +1,6 @@
+
+=== AL - allocation on the per-sample hot path ===
+  ShaperHeight.FillTile        bytes/call = 0   gen0 collections = 0
+  ShaperNormals.FillTile(Prof)  bytes/call = 0   gen0 collections = 0
+  ShaperResolve.Query down     bytes/call = 0   gen0 collections = 0
+  ShaperResolve.Query general  bytes/call = 0   gen0 collections = 0

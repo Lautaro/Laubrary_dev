@@ -1,0 +1,18 @@
+== E detail: characterise the 4/24 Mul(Identity,X) mismatches ==
+   component-level mismatches that are ONLY the sign bit of a zero (-0.0 -> +0.0): 6
+   component-level mismatches that are anything else:                              0 (expected 0)
+   -0.0 and +0.0 compare equal and are indistinguishable downstream here (nothing divides by a
+   matrix component; TryInvert divides by the determinant, which is 0 either way), and a transform
+   block cannot produce -0.0 through translate/rotate/scale/skew authoring in the first place.
+
+== D limitation: the Fixed-space anchor assumes the CANVAS IS CENTRED ON THE ORIGIN ==
+   Fixed anchor bake: anchorC = (0.000, 0.000), invH = (0.03175, 0.03175)
+   ShaperSampleGrid.Centred(64,64,1) origin = (-31.50, -31.50) -> canvas centre = (0.00, 0.00)
+   Fixed u,v at canvas (0,0)   = (0.0000, 0.0000)  (0,0 is correct only because Centred puts the canvas centre at the origin)
+   ShaperFillAnchor carries canvasHalfW/H but NO canvas CENTRE, so a host using a grid whose origin
+   is not -halfExtent would get an off-centre Fixed pattern. Every shipped path uses Centred, so this
+   is latent, not live. FC-1.6 says 'normalised by the layer canvas half-extents' and does not say where
+   the canvas centre is, so the contract does not catch it either.
+
+== FT-20 legend claim: are contact-sheet cells 14 and 15 (Fixed/Uniform vs Fixed/Stretch) really identical? ==
+   Fixed/Uniform vs Fixed/Stretch on a SQUARE canvas: 0 floats differ (expected 0 - one divisor vs two identical divisors)

@@ -1,0 +1,34 @@
+BORDER contact sheet
+  16 cells, 8 x 2, 822x210 px, written to D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0107\border-contact-sheet.png
+    row 0 col 0  01 Inward w4
+    row 0 col 1  02 Outward w4
+    row 0 col 2  03 Straddling w4
+    row 0 col 3  04 Width 0 (no-op)
+    row 0 col 4  05 Width 1
+    row 0 col 5  06 Width 10
+    row 0 col 6  07 Joined
+    row 0 col 7  08 Not counted
+    row 1 col 0  09 Gradient outline
+    row 1 col 1  10 Texture outline
+    row 1 col 2  11 ByEdgeDist ridge
+    row 1 col 3  12 Bag + members
+    row 1 col 4  13 Subtract + hole rim
+    row 1 col 5  14 Join seam probe
+    row 1 col 6  15 Hostless rim under B
+    row 1 col 7  16 ...A owns a fill
+  Cell 04 must be an UNADORNED disc — that is BD-1.5's exact no-op as a picture.
+  Cells 07 and 08 differ only in joinsCoverage, and only because the bordered node is a
+  MEMBER. Opted out, the parent never learned about the strip, so the parent's coverage clips
+  it: an OUTWARD strip lies entirely outside the node, so 08 keeps only the half-pixel of it
+  that falls inside the parent's antialiased edge - a faint fringe where 07 has a thick ring.
+  Cell 11 must be BRIGHT ALONG THE STRIP'S CENTRE LINE and dark at both of its faces —
+  the BD-3.3 ridge. A monotone band there would be the failure, and would look deliberate.
+  Cell 13's magenta border is authored on the SUBTRACT member and must be absent: it is
+  refused by BD-3.7. Any magenta in cell 13 is a failure of the refusal.
+  Cell 14 marks in MAGENTA every interior sample of the dilated silhouette whose published
+  coverage fell below 0.999. Marks in this render: 0 (expected 0).
+  Cells 15 and 16 must MATCH wherever the magenta rim crosses the red disc: the rim belongs
+  to the LEFT member, which is below the red one in fold order, so the red must be on top in
+  both. They differ only in whether the left member also owns a fill of its own - a dial with
+  nothing to do with z-order. Magenta over the red disc in 15 is the BD-3.6 failure.
+  RESULT: RENDERED — NOT VERIFIED BY THE TABLE. A passing table is not a picture; this is not a pass until a human has looked at it.

@@ -1,0 +1,2 @@
+click 601 579
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0123\walk\shots\w1-04-pyre-flyout.png

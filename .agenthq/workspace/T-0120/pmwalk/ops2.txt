@@ -1,0 +1,2 @@
+click 439 607
+shot D:\UNITY\Laubrary Dev\.agenthq\workspace\T-0120\pmwalk\shots\a03-formation-added.png

@@ -1,0 +1,127 @@
+D:\UNITY\Chunks Dev\Assets\Pyre\Floating Disc Hit Plus.asset
+D:\UNITY\Chunks Dev\Assets\Pyre\PyreLayerLibrary.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Bars Tentacle Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Blob Explosion Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Curl Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Directional Grenade Blast 1 Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Directional Grenade Blast 2 Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Directional Grenade Side Blast Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Driectional Blast Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Explotion Twirl Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Floating Disc Hit Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Fluid Blast Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Heightballs Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\HollowBlast Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\MetaBall Blast Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Metafield Pyre 1 Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Metafield Pyre Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\New Pyre Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\NoiseField Ball Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Old School Explo 2 Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Old School Explo Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Perlin Blast Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\ProperBlast Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Rose Blast Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\SmokePuff Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Sparkle Blast Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\SparkleBlast Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\SparkleBurst Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Voronoi Abbility Plus.asset
+D:\UNITY\Chunks Dev\Assets\PyrePlus\Imported\Voronoi Blast Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Green Lantern.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Bars Tentacle Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Blob Explosion Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Curl Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Directional Grenade Blast 1 Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Directional Grenade Blast 2 Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Directional Grenade Side Blast Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Driectional Blast Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Explotion Twirl Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Floating Disc Hit Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Fluid Blast Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Heightballs Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\HollowBlast Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\MetaBall Blast Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Metafield Pyre 1 Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Metafield Pyre Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\New Pyre Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\NoiseField Ball Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Old School Explo 2 Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Perlin Blast Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Proper Blast.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\ProperBlast Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Rose Blast Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\SmokePuff Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Sparkle Blast Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\SparkleBlast Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\SparkleBurst Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Voronoi Abbility Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\Imported\Voronoi Blast Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\New Pyre Plus 1.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\New Pyre Plus.asset
+D:\UNITY\Laubrary Dev\Assets\Pyre\New Pyre Plus§.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\Pyre\Floating Disc Hit Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\Pyre\PyreLayerLibrary.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Bars Tentacle Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Blob Explosion Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Curl Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Directional Grenade Blast 1 Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Directional Grenade Blast 2 Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Directional Grenade Side Blast Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Driectional Blast Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Explotion Twirl Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Floating Disc Hit Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Fluid Blast Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Heightballs Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\HollowBlast Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\MetaBall Blast Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Metafield Pyre 1 Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Metafield Pyre Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\New Pyre Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\NoiseField Ball Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Old School Explo 2 Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Old School Explo Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Perlin Blast Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\ProperBlast Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Rose Blast Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\SmokePuff Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Sparkle Blast Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\SparkleBlast Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\SparkleBurst Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Voronoi Abbility Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\Imported\Voronoi Blast Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\New Pyre Plus.asset
+D:\UNITY\Laubrary Dev - TapestryPort\Assets\PyrePlus\New Pyre Plus§.asset
+D:\UNITY\OutBurner\Assets\Pyre\PyreLayerLibrary.asset
+D:\UNITY\SplashText\Assets\Pyre\Floating Disc Hit Plus.asset
+D:\UNITY\SplashText\Assets\Pyre\New Pyre Plus.asset
+D:\UNITY\SplashText\Assets\Pyre\PyreLayerLibrary.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Bars Tentacle Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Blob Explosion Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Curl Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Directional Grenade Blast 1 Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Directional Grenade Blast 2 Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Directional Grenade Side Blast Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Driectional Blast Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Explotion Twirl Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Floating Disc Hit Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Fluid Blast Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Heightballs Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\HollowBlast Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\MetaBall Blast Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Metafield Pyre 1 Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Metafield Pyre Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\New Pyre Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\NoiseField Ball Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Old School Explo 2 Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Old School Explo Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Perlin Blast Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\ProperBlast Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Rose Blast Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\SmokePuff Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Sparkle Blast Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\SparkleBlast Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\SparkleBurst Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Voronoi Abbility Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\Imported\Voronoi Blast Plus.asset
+D:\UNITY\SplashText\Assets\PyrePlus\New Pyre Plus.asset

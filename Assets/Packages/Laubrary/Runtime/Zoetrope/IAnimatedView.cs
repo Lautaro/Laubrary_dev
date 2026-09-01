@@ -31,6 +31,20 @@ namespace Laubrary.Zoetrope
         /// Returns false if the clip name is unknown to this view.
         bool PlayClip(string clip, bool loop, Action onComplete = null);
 
+        /// Does this view KNOW <paramref name="clip"/> — would <see cref="PlayClip"/> start it? Answers the
+        /// name question ONLY, with no side effect and without playing anything.
+        ///
+        /// Deliberately separate from <see cref="GetClipSeconds"/>, which cannot answer it: that returns 0 for
+        /// an unknown name AND for a perfectly valid zoned strip (whose end is not fixed), so "0" cannot tell
+        /// a typo from a clip that simply has no measurable length.
+        ///
+        /// This exists because a caller has to know whether the clip will start BEFORE it tears down whatever
+        /// was running. <see cref="ReactionFxPlayer"/> used to find out only from <see cref="PlayClip"/>'s
+        /// return value, by which point it had already retired the reaction in flight — so a misspelled or
+        /// deleted clip name cost a perfectly good in-flight reaction its remaining effects and fired its
+        /// "finished" signal, and then played nothing at all.
+        bool HasClip(string clip);
+
         /// Length of a named clip in seconds, or 0 when unknown — an unrecognised name, or a clip whose end
         /// is not fixed (a zoned strip can hold/loop indefinitely). Lets reaction effects time themselves to
         /// the event (loop-for-its-duration, run-at-its-end); 0 makes them degrade to a single play.

@@ -88,9 +88,15 @@ namespace Laubrary.Mirage
             // right there in the hierarchy, and the panel silently never appeared.
             if (rig == null) return;
             var driven = new System.Collections.Generic.List<MirageSubject>();
+            var playerControlled = new System.Collections.Generic.List<MirageSubject>();
             foreach (var s in rig.GetComponentsInChildren<MirageSubject>(true))
             {
                 if (s == null || !s.manualControls || !s.enabled) continue;
+                // A Zoe with its own playerController configured is driven by real gamepad/keyboard input
+                // instead of this hand-control rig (see MirageSubject.Spawn's own comment) — say so rather
+                // than just silently drawing nothing, same "no unexplained missing step" rule this HUD
+                // already follows for placement/flash.
+                if (s.zoe != null && s.zoe.playerController != null) { playerControlled.Add(s); continue; }
                 // Self-heal after a domain reload wiped the runtime-only Manual/Capabilities.
                 s.EnsureManualControls();
                 if (s.Manual != null && s.Capabilities.Zoe != null) driven.Add(s);
@@ -107,7 +113,7 @@ namespace Laubrary.Mirage
             foreach (var b in rig.GetComponentsInChildren<MirageChunkBurst>(true))
                 if (b != null && b.enabled && b.spec != null) bursts.Add(b);
 
-            if (driven.Count == 0 && bursts.Count == 0) return;
+            if (driven.Count == 0 && playerControlled.Count == 0 && bursts.Count == 0) return;
 
             // Size the panel to what will actually be drawn, so it never reserves space for controls a
             // character hasn't earned (ui-layout-rules: an empty slot is pure cost).
@@ -122,6 +128,7 @@ namespace Laubrary.Mirage
                 if (c.CanFire) h += 26f;
                 h += 8f;
             }
+            foreach (var s in playerControlled) h += 22f + 20f + 8f;   // header + one note line
             foreach (var b in bursts)
             {
                 h += 22f;                                   // header
@@ -167,6 +174,13 @@ namespace Laubrary.Mirage
 
                 if (caps.CanFire) m.firing = stack.Toggle(m.firing ? "Firing" : "Hold fire", m.firing);
 
+                stack.Space(4f);
+            }
+
+            foreach (var s in playerControlled)
+            {
+                stack.Label(s.zoe.displayName, bold: true);
+                stack.Label("   Player Controller active — use gamepad/keyboard");
                 stack.Space(4f);
             }
 

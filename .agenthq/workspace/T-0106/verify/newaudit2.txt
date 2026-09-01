@@ -1,0 +1,76 @@
+FT-12 declared read set == measured read set (BC-3.8)
+  Solid                      declared [None]  measured [None]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Gradient.Linear            declared [None]  measured [None]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Gradient.Radial            declared [None]  measured [None]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Gradient.Angular           declared [None]  measured [None]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Gradient.ByEdgeDistance    declared [EdgeDistance]  measured [EdgeDistance]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Ramp.coverage              declared [Coverage]  measured [Coverage]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Ramp.edgeDistance          declared [EdgeDistance]  measured [EdgeDistance]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  Texture.Fitted             declared [None]  measured [None]  undeclared sheets INDEXED 0 (expected 0)  PASS
+  RESULT: PASS
+FT-13 every output sample is written (NaN sentinel must not survive)
+  Solid                      sentinels surviving 0/81920 (expected 0)  PASS
+  Ramp.coverage              sentinels surviving 0/81920 (expected 0)  PASS
+  Texture.Fitted             sentinels surviving 0/81920 (expected 0)  PASS
+  Texture.Tiled              sentinels surviving 0/81920 (expected 0)  PASS
+  Gradient.Linear            sentinels surviving 0/81920 (expected 0)  PASS
+  Gradient.Radial            sentinels surviving 0/81920 (expected 0)  PASS
+  Gradient.Angular           sentinels surviving 0/81920 (expected 0)  PASS
+  Gradient.ByEdgeDistance    sentinels surviving 0/81920 (expected 0)  PASS
+  RESULT: PASS
+FT-14 ranges hold over a parameter sweep
+  cases swept: 288 (veil x size x height x gradient mode), 16384 samples each
+  veil out of [0,1] or non-finite: 0 (expected 0)   observed veil range [0.0000, 1.0000]
+  albedo negative or non-finite:   0 (expected 0)   max albedo 1.0000
+  height non-finite:               0 (expected 0)
+  RESULT: PASS
+FT-15 degenerate inputs: finite output, and a diagnostic where required
+  empty bag: bound=True (expected True — a degenerate anchor MUST still bind)  invHx/invHy = 0/0 (expected 0/0 — never divides)  non-finite 0 (expected 0)  PASS
+  |high-low| < 1e-6: hardStep=1 (expected 1)  non-finite 0 (expected 0)  samples not at a ramp end 0 (expected 0)  PASS
+  size = 0, all four gradient modes: non-finite 0 (expected 0)  PASS
+  null gradient        diagnostic="Gradient fill has no gradient authored; painting flat tint instead."  paints something True  non-finite 0  PASS
+  null ramp gradient   diagnostic="Ramp fill has no gradient authored; painting flat tint instead."  paints something True  non-finite 0  PASS
+  null texture         diagnostic="Texture fill has no texture assigned; painting flat tint instead."  paints something True  non-finite 0  PASS
+  unreadable texture  diagnostic="Texture '' is not marked Read/Write Enabled; painting flat tint instead."
+                      names the import setting = True (expected True — the asset looks fine in the inspector)  PASS
+  RESULT: PASS
+FT-16 a fill never writes to an input sheet (BC-3.7c)
+  Solid                      distance hash unchanged, coverage hash unchanged  PASS
+  Ramp.coverage              distance hash unchanged, coverage hash unchanged  PASS
+  Texture.Fitted             distance hash unchanged, coverage hash unchanged  PASS
+  Texture.Tiled              distance hash unchanged, coverage hash unchanged  PASS
+  Gradient.Linear            distance hash unchanged, coverage hash unchanged  PASS
+  Gradient.Radial            distance hash unchanged, coverage hash unchanged  PASS
+  Gradient.Angular           distance hash unchanged, coverage hash unchanged  PASS
+  Gradient.ByEdgeDistance    distance hash unchanged, coverage hash unchanged  PASS
+  RESULT: PASS
+FT-17 Add does not raise alpha (FC-2.6b)
+  samples with alpha != 0: 0/16384 (expected 0)  max alpha 0
+  samples with RGB   > 0: 5140/16384 (expected > 0)  max R 1.0000
+  the veil still applies in Add mode — it is a STRENGTH there, not an opacity:
+    veil 0 in Add mode: max R = 0.00E+000 (expected 0)  PASS
+  RESULT: PASS
+FT-18 Over vs Add produce identical height (FC-2.6c)
+  height mismatched 0/16384 (expected 0)  worst |delta| 0.00E+000
+  max height reached 2.9750 (expected > 0 — otherwise 'identical' would be vacuous; 4.25 x veil 0.7 x coverage 1 = 2.975)
+  the COLOUR result does differ between the two modes = True (expected True)
+  RESULT: PASS
+FT-19 ByEdgeDistance polarity: t=0 at the boundary, t=1 at depthPixels in
+  at the boundary   d = 0.0000  t = 0.000000 (expected 0)
+  8 px inside     d = -8.0000  t = 1.000000 (expected 1)
+  at the centre     d = -40.0000  t = 1.000000 (expected 1, saturated)
+  10 px outside     d = 10.0000  t = 0.000000 (expected 0)
+  the shipped field is NEGATIVE INSIDE, so t = clamp01(-d/depth). A reversed reading here
+  would mean Pyre's unsigned, growing-inward BorderInsideDistance was ported literally.
+  RESULT: PASS
+FT-21 exclusivity is conservative at fractional coverage, three owners deep
+  owners: A -> B -> C (concentric r42 / r28 / r14, so every pair is ancestor-descendant and the regions are disjoint)
+  fractional-coverage samples in the fixture: 244 (a 0 here would make this test vacuous)
+  (a) sum(paint over the chain) != rootCoverage at 0/16384 samples (expected 0), worst 0.00000  PASS
+  (b) composited alpha BELOW the shape's own coverage at 244/16384 samples, total 29.288, worst 0.2484
+      KNOWN OPEN — not a failure of this build. Over composites two DISJOINT sub-areas as
+      if they were independent, so an ancestor at 0.5 and a descendant at 0.5 give 0.75
+      where the shape's coverage is 1.0. Visible as a 1px, up-to-25%-transparent ring at
+      every internal fill boundary. Fixing it means summing along the ancestor chain while
+      keeping Over between siblings, which contradicts FC-2.6a/FC-3.4 as written.
+  RESULT: PASS on (a); (b) is reported, not asserted

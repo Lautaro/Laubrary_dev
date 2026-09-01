@@ -1,0 +1,14 @@
+BT1_ZeroWidthIdentity
+BT2_ShellAgreement
+BT3_BandPlacement
+BT4_InwardEdgeIdentity
+BT5_OutwardComplement
+BT6_AnchorIsTheNodes
+BT7_EdgeDistanceIsTheStrips
+BT8_TheJoinIsADilation
+BT9_OptOutPublishesNothing
+BT10_AnchorBoxDoesNotDilate
+BT11_Ordering
+BT12_SubtractRefusal
+BT13_InstrumentSelfTest
+BT14_NoAllocation

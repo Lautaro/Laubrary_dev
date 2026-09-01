@@ -1,0 +1,6 @@
+
+=== W3E - truncation: Depth must never OVER-report (HS-6.6), single AND multi layer ===
+  SINGLE LAYER: truncated cases = 87   non-prefix = 0   mis-stamped parity = 0   Depth OVER-reporting = 0   worst over-report = 0,000 px
+  MULTI LAYER (FIX-REPORT-2's open question 2 - layer 0 starving layer 1):
+    two layers (base 0 and base 120), truncated cases = 20   non-prefix = 10   mis-stamped = 0   Depth OVER-reporting = 0
+    worst over-report = 0,000 px

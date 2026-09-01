@@ -34,7 +34,24 @@ If `Application.dataPath` points anywhere else — above all if it points at `D:
 
 **Write `Pyre` in all new code, comments and docs — never `PyrePlus`.** There is no old-vs-new split left to reason about. Any doc or memory still saying "PyrePlus" predates 2026-08-23; correct it rather than following it. The runtime spawn API is `PyreBlastPool.Get()` → set `spec`/`fps`/`loop` → subscribe `Finished` → `Play()` (worked example: `Runtime/ZoetropePyre/SpawnPyreFx.cs`).
 
-⚠️ As of 2026-08-24 the whole rename is **staged but uncommitted** on `feat/lathe` (~209 staged renames plus deletions of the old files). Do NOT run `git checkout`, `git restore`, `git stash` or any other tree-mutating git command here without checking that first.
+⚠️ The `feat/lathe` branch was renamed to **`dev`** (2026-09-01) because its name no longer described its contents. The old `origin/feat/lathe` remote branch was deliberately left in place, untouched, pending an explicit decision to delete it.
+
+## Shaper — which folder am I in?
+
+Shaper spans **two worktrees of this same repo**, each with its own Unity editor. Check which one you are in before anything else:
+
+- **`D:\UNITY\Laubrary Dev`** (branch `dev`) — holds the *mock* UI at `Assets/ShaperMock/`. No Shaper engine here.
+- **`D:\UNITY\Laubrary Dev - Shaper`** (branch `feat/shaper`) — holds the real engine at `Assets/Packages/Laubrary/Runtime/Shaper/` + `Editor/Shaper/`.
+
+Both projects have an identical `productName`, so **nothing inside the editor tells you which one you are driving.** Always verify `Application.dataPath` resolves to the folder you meant before trusting a `check_compile_errors` result — it will otherwise report clean while pointed at the wrong editor, which has bitten this project repeatedly.
+
+Load-bearing facts, each verified against source rather than docs (2026-09-01):
+
+- **`ShaperDocument` is a `ScriptableObject`** with `[CreateAssetMenu("Laubrary/Shaper Document")]`, matching Pyre's own spec-asset pattern. It has no custom `name` field — use `Object.name`. It carries `frameCount` + `frameRate` (the animation clock) alongside `phase01`.
+- **The frame→phase mapping is `i/(N-1)`, and is NOT open for revision.** `ShaperNodeIdentity` folds `phase01` into every cache key, so changing it silently invalidates every key and re-points every authored Curve dial. `ShaperClock` is the single home for that conversion; never write a second one.
+- **`ZUIValue` vs plain float is per-field, never a category rule.** The engine mixes both inside one struct (Star's sides/radius are plain, its length/baseWidth/skew are `ZUIValue`). Always check the real field before drawing a control.
+- **The nine composite generators expose ~775 authored fields** (ArcBurst alone 187). Any generator UI must be reflection-driven over the assigned `PyreForm`; hand-listing dials is not maintainable and will silently expose a fraction of the engine.
+- Deterministic draws only: `UnityEngine.Random` and `System.Random` are banned in generator paths (BC-1.3). Hash from `seed` instead.
 
 ## Tool conventions (mirror for every Laubrary tool)
 
@@ -106,14 +123,42 @@ too, but `ZUI.ScrollView(ref scroll)`/`ZUI.ScrollScope` (`ZUIFields.cs`) already
 e.g. `LaubraryAssetWindow`'s browser, `MirageWindow.DrawAsset`. Verify a claimed gap against the actual code
 before trusting this list — it drifts.)
 
-**Open packaging gap:** `Assets/ZUI/` currently lives OUTSIDE the package (`Assets/Packages/Laubrary/`), so a
-Laubrary editor that references `ZUI.Editor` compiles here but would NOT ship self-contained to a consumer
-project. To make "ZUI is part of Laubrary" real, ZUI needs to move into the package (or be a declared dependency).
-Until then, package tools referencing ZUI only work in this dev host.
+**Packaging gap: CLOSED (verified 2026-09-01).** This section used to say ZUI lived outside the package and so wouldn't ship self-contained. That is no longer true and was misleading work as recently as this session: all **132** ZUI `.cs` files live INSIDE the package at `Assets/Packages/Laubrary/Zui/`, under three asmdefs (`ZUI.Editor`, `ZuiRuntime`, `com.Lautaro-Arino.Laubrary.Zui.Editor`), and many package editor asmdefs already reference `ZUI.Editor` (AssetKit, BackSplash, Cabinets, Cartographer, Chunks…). The only thing still at `Assets/ZUI/` is a single authored asset, `ZUIEnvelopePresets.asset` — no code, no asmdef. A new package editor tool may reference ZUI freely.
 
 ## Preview overlays — an effect draws its own, the window hardcodes none
 
 If ONE effect needs its own drawing on a preview (a light's radius, a mask's boundary, a warp's pivot), the effect implements a capability interface and the host discovers it — **never** hardcode a per-effect toggle into a preview window's chrome, where it then sits permanently for every stack that doesn't contain that effect (exactly what "Light radius" did to `SpriteFxStackWindow`). For SpriteFx that interface is `ISpriteFxPreviewOverlay` in `Runtime/SpriteFx/SpriteFxPreviewOverlay.cs`; the host half (collect → toggle strip → draw) is `Editor/SpriteFx/SpriteFxPreviewOverlays.cs` and needs no edit at all. Copy `RelightModifier` (`Runtime/SpriteFx/SpriteFxRelight.cs`) as the worked example. Another tool (Pyre layers, Chunks, Lathe…) gets its OWN small interface in its own Runtime asmdef, copying that shape — not a reference to the SpriteFx one. Full recipe: the laubrary skill's `references/authoring.md` §15.
+
+## Zoe palette — a character shows things only through its declared list
+
+A Zoe shows a visual **only** by being asked, by name, for a state it declares. Game code decides *which* named state
+plays and *when*; Laubrary alone decides what mechanically happens to the character (health, death, disposal, movement,
+aiming, hit detection). Those two halves never swap.
+
+**The rule, concretely.** If the look you need isn't on the character, **add a row to its declared list** and raise it by
+name. Do **NOT** reach around the palette by spawning a Pyre/Chunks/SpriteFx effect straight from game code onto a Zoe,
+by calling a view's `PlayClip` directly, or by bolting a bespoke "play this on hit" component onto the character. Those
+all work, and every one of them makes the character's own editor window lie about what it can do — which is precisely the
+bypass this model exists to prevent. This applies to **you, the assistant**, at least as much as to a human: the failure
+mode is quietly re-solving in native game code what Zoe is for.
+
+**Check it, don't just assume it (T-0096).** Every row in a Zoe's declared list shows whether anything has actually
+requested it by name, and `Laubrary/Zoetrope/Palette Health` reports project-wide what got requested but never declared,
+plus a heuristic scan for exactly the bypass patterns above (a direct Pyre/Chunks/SpriteFx spawn, a raw `PlayClip`, a
+bolted-on reaction component) outside Laubrary's own package. Each row also has a ▶ Preview button (see it play without
+Play mode) and a copy-name button (paste the exact declared name into a `Raise("...")` call instead of retyping it), and
+`Zoe.DescribeDeclaredStates()` prints a character's whole declared list as text for writing gameplay code away from the
+editor. Use these — don't hand-roll a bypass because it's faster than opening the character asset.
+
+**Nothing plays on its own.** There is deliberately no built-in default-picker, not even when a character declares exactly
+one hurt look or one death look. If gameplay code did not explicitly answer "which look?", nothing plays. An "if there's
+only one, just use it" convenience must be written as ordinary game code that explicitly answers, never as a Laubrary
+behaviour that fires by itself. (Owner's decision, T-0089 — a hidden exception here would undo the whole split.)
+
+**Movement, aiming and hit detection are the exception, and stay Laubrary's.** For those, game code does not choose
+behaviour at all — you pick from a shelf of Laubrary modules, and when a project needs a kind that doesn't exist yet the
+answer is **a new module added to Laubrary**, not bespoke logic in one game. Laubrary is not a no-code game editor: it
+removes from game code only what is genuinely reusable, and native code still drives whatever is specific to that game.
 
 ## Naming — the Zoetrope/Launimator/Zoe triangle
 

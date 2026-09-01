@@ -1,0 +1,10 @@
+=== V2-MARCH - adversarial attacks on the rebuilt QueryGeneral ===
+
+
+
+
+
+
+-- 7. support box 800x800, solid is a 2 px sliver at the centre --
+      support box halfW=400 halfH=400  span=400
+      14 rays, mismatches = 0

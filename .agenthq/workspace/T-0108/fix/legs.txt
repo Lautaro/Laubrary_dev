@@ -1,0 +1,7 @@
+LT18_DegenerateDialsNeverGoNonFinite
+LT20_BorderIsLitByItsHost
+LT22_GlowPathExecutes
+LT19_EveryDialIsLiveOrDeclaredInert
+LT8_ReceiveOffIsBitIdentical
+LT14b_OrbSilhouetteIsRotationInvariant
+LT2_ZeroAllocation

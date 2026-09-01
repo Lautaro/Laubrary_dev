@@ -1,0 +1,5 @@
+
+=== W3H - N6: Stepped inverse round-trip, and the CONTAINING prism (HS-5.2) ===
+  (a) reach: probes=4495  G(Ginv(zeta)) < zeta in 0   worst 0,0000E+000 
+  (b) CONTAINMENT (HS-5.2, the unsound direction): probes=4495   Ginv OVER-reports the true infimum in 0
+      worst over-report = 0,0000E+000 t-units

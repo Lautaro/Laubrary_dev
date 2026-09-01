@@ -1,0 +1,10 @@
+
+=== W4C - N5: linearEGrad as a LIPSCHITZ constant for the SHIPPED E (pairs, not derivatives) ===
+  configurations = 1650 x 4000 random point PAIRS each
+  configurations where a pair needs MORE than the baked bound = 70
+  worst needed/baked ratio = 1,000456
+    at angle=0 rot=41 skew=12 sx=2,3 halfH=120 baked=2,41979E-003  h=1,14E-001 |dE|=2,7561E-004
+  NOTE: a Lipschitz test is the right instrument here - E is piecewise linear with
+  kinks at the clamp edges, so a finite difference that takes its x-partial in one
+  regime and its y-partial in another synthesises a |grad| no straight segment can
+  realise. Pairs cannot do that: they measure the actual variation over a segment.

@@ -1,0 +1,106 @@
+
+        /// <summary>
+        /// Every heap allocation reachable from <paramref name="root"/>, following the CALL GRAPH rather than a
+        /// hand-written list of types.
+        ///
+        /// <b>Why the closure and not a type list.</b> The shipped instrument swept the static methods of seven
+        /// named types plus one instance method. That is a decode of the right kind over possibly the wrong set:
+        /// nothing checks that the set still covers what <c>PaintTile</c> actually calls, so a future per-sample
+        /// helper placed in an eighth type would be invisible and the leg would keep reporting zero. Measured on
+        /// this build, the true closure from <c>PaintTile</c> is 31 methods and reaches exactly one Laubrary type
+        /// the list did not name - so the list was correct today and unowned tomorrow, which is the shape of a
+        /// leg that stops being able to fail without anyone editing it.
+        ///
+        /// Only <c>Laubrary</c> methods are followed. That boundary is deliberate and is stated rather than
+        /// hidden: <c>Mathf</c>, <c>Array.Copy</c> and <c>Array.Clear</c> are BCL entry points whose bodies are
+        /// not ours to audit, and they are documented non-allocating. Everything inside the package is walked.
+        ///
+        /// The decoder's sensitivity is BT-13's M7, which runs it against two methods that DO allocate.
+        /// </summary>
+        static int ClosureAllocations(System.Reflection.MethodBase root, out int visited,
+                                      out string offenders, out string reached)
+        {
+            BuildIlTable();
+            var seen = new HashSet<string>();
+            var queue = new Queue<System.Reflection.MethodBase>();
+            var offend = new StringBuilder();
+            var types = new SortedSet<string>();
+            queue.Enqueue(root);
+            visited = 0;
+            int hits = 0;
+
+            while (queue.Count > 0 && visited < 4000)
+            {
+                System.Reflection.MethodBase m = queue.Dequeue();
+                string key = (m.DeclaringType != null ? m.DeclaringType.FullName : "?") + "::" +
+                             m.Name + "::" + m.MetadataToken;
+                if (!seen.Add(key)) continue;
+                visited++;
+                if (m.DeclaringType != null) types.Add(m.DeclaringType.Name);
+
+                byte[] il;
+                try { var body = m.GetMethodBody(); il = body != null ? body.GetILAsByteArray() : null; }
+                catch { continue; }
+                if (il == null) continue;
+
+                Type[] typeArgs = null, methodArgs = null;
+                try
+                {
+                    if (m.DeclaringType != null && m.DeclaringType.IsGenericType)
+                        typeArgs = m.DeclaringType.GetGenericArguments();
+                    if (m.IsGenericMethod) methodArgs = m.GetGenericArguments();
+                }
+                catch { }
+
+                int i = 0;
+                while (i < il.Length)
+                {
+                    System.Reflection.Emit.OpCode op;
+                    if (il[i] == 0xFE && i + 1 < il.Length) { op = IlMulti[il[i + 1]]; i += 2; }
+                    else { op = IlSingle[il[i]]; i += 1; }
+
+                    if (op.OperandType == System.Reflection.Emit.OperandType.InlineSwitch)
+                    {
+                        if (i + 4 > il.Length) break;
+                        int n = BitConverter.ToInt32(il, i);
+                        i += 4 + 4 * n;
+                        continue;
+                    }
+
+                    int operandAt = i;
+                    i += OperandSize(op.OperandType);
+
+                    if (op == System.Reflection.Emit.OpCodes.Newarr)
+                    { hits++; offend.Append(Where(m) + "=newarr "); }
+                    else if (op == System.Reflection.Emit.OpCodes.Box)
+                    { hits++; offend.Append(Where(m) + "=box "); }
+
+                    bool isCall = op == System.Reflection.Emit.OpCodes.Call ||
+                                  op == System.Reflection.Emit.OpCodes.Callvirt ||
+                                  op == System.Reflection.Emit.OpCodes.Ldftn ||
+                                  op == System.Reflection.Emit.OpCodes.Newobj;
+                    if (!isCall) continue;
+
+                    try
+                    {
+                        int token = BitConverter.ToInt32(il, operandAt);
+                        var callee = m.Module.ResolveMethod(token, typeArgs, methodArgs);
+                        if (callee == null || callee.DeclaringType == null) continue;
+
+                        if (op == System.Reflection.Emit.OpCodes.Newobj && !callee.DeclaringType.IsValueType)
+                        { hits++; offend.Append(Where(m) + "=newobj " + callee.DeclaringType.Name + " "); }
+
+                        string ns = callee.DeclaringType.Namespace ?? "";
+                        if (ns.StartsWith("Laubrary")) queue.Enqueue(callee);
+                    }
+                    catch { }
+                }
+            }
+
+            offenders = offend.ToString().TrimEnd();
+            reached = string.Join(", ", new List<string>(types).ToArray());
+            return hits;
+        }
+
+        static string Where(System.Reflection.MethodBase m)
+            => (m.DeclaringType != null ? m.DeclaringType.Name : "?") + "." + m.Name;
