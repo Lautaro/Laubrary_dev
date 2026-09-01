@@ -1042,7 +1042,10 @@ namespace ShaperMock.Editor
 
         void ShowAddEffectMenu(VisualElement anchor, ShaperMockNode node, Action rebuild)
         {
-            var menu = Z.Menu(anchor);
+            // .Search(): the real catalog this stands in for is 41 entries (T-0114) — comfortably more than
+            // fits in one screenful, so this menu needs the filter + capped-scroll behaviour ZuiMenu now
+            // offers (T-0135), not just a longer flat list.
+            var menu = Z.Menu(anchor).Search("Search effects…");
             bool publishesSheets = ShaperMockCompositeCatalog.PublishesSheets(node.compositeGeneratorIndex);
             string lastGroup = null;
             foreach (var factory in ShaperMockEffectCatalog.Addable)

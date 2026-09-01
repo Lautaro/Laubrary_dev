@@ -33,7 +33,32 @@ namespace Laubrary.Zui
         float _minWidth = 190f;
         ZuiPopover.Options _opt = new ZuiPopover.Options();
 
+        // ── search/filter (T-0135) — a huge catalog (Shaper's 41-effect list, its composite-generator
+        // catalog, any future long menu) needs to be findable and needs to not simply run off the bottom of
+        // the window: ZuiPopover.Place clamps the panel's POSITION, never its height, so an unbounded tall
+        // menu "sits pinned at the top" with real rows below the fold and invisible (its own doc comment).
+        // Search() opts a menu into both fixes at once: a filter field, and a capped, scrollable body.
+        sealed class SectionEntry { public VisualElement header; }
+        readonly List<(VisualElement row, string text, SectionEntry section)> _searchableItems = new();
+        SectionEntry _currentSection;
+        bool _searchEnabled;
+        string _searchPlaceholder = "Search…";
+        float _maxBodyHeight = 360f;
+
         internal ZuiMenu(VisualElement anchor) { _anchor = anchor; }
+
+        /// Opt this menu into a filter field + a capped/scrollable body — for any catalog that can plausibly
+        /// outgrow a screenful (Shaper's effect and generator catalogs are the first consumers). Filters
+        /// `Item`/`IconItem` rows by label substring (case-insensitive); a `Section` header hides itself once
+        /// every item under it is filtered out. `Toggle`/`Radio`/`IconRow`/`Custom` rows are never filtered —
+        /// a persistent setting has nothing to "search" and must stay visible regardless of the query.
+        public ZuiMenu Search(string placeholder = "Search…", float maxBodyHeight = 360f)
+        {
+            _searchEnabled = true;
+            _searchPlaceholder = placeholder;
+            _maxBodyHeight = maxBodyHeight;
+            return this;
+        }
 
         /// Override the menu's minimum width (default 190).
         public ZuiMenu Width(float px) { _minWidth = px; return this; }
@@ -52,6 +77,7 @@ namespace Laubrary.Zui
                 var l = new Label(title) { tooltip = tooltip, pickingMode = PickingMode.Ignore };
                 l.AddToClassList("zui-menu__section");
                 menu.Add(l);
+                _currentSection = new SectionEntry { header = l };
             });
             return this;
         }
@@ -75,7 +101,20 @@ namespace Laubrary.Zui
         public ZuiMenu Item(string label, string tooltip, Action onClick,
             bool @checked = false, bool enabled = true, string icon = null)
         {
-            _rows.Add((menu, close) => menu.Add(BuildItem(label, tooltip, onClick, @checked, enabled, icon, close)));
+            // _currentSection must be read INSIDE the deferred lambda, not here at chain-build time: every
+            // row (this Item's own included) is only a queued Action until Show() actually runs `_rows` in
+            // order, and that is also when Section()'s OWN lambda updates `_currentSection` — reading it
+            // eagerly here always sees whatever it was before the whole fluent chain started (null on a
+            // fresh menu), so every item silently landed in no section at all. Found live, T-0135: the
+            // per-item search filter worked (it doesn't depend on section), but not one section header ever
+            // hid, because the hide-check never had a real section to test against.
+            _rows.Add((menu, close) =>
+            {
+                var section = _currentSection;
+                var row = BuildItem(label, tooltip, onClick, @checked, enabled, icon, close);
+                menu.Add(row);
+                if (_searchEnabled) _searchableItems.Add((row, (label ?? "").ToLowerInvariant(), section));
+            });
             return this;
         }
 
@@ -188,10 +227,58 @@ namespace Laubrary.Zui
                 var menu = new VisualElement { name = "zui-menu" };
                 menu.AddToClassList("zui-menu");
                 Action close = () => holder[0]?.Close();
-                foreach (var r in _rows) r(menu, close);
+
+                VisualElement rowHost = menu;
+                if (_searchEnabled)
+                {
+                    var search = Z.TextInput("", _searchPlaceholder, q => ApplyFilter(q), 0f);
+                    search.AddToClassList("zui-menu__search");
+                    search.style.width = StyleKeyword.Auto;
+                    search.style.marginBottom = 2f;
+                    menu.Add(search);
+
+                    // Capped + scrollable body — the fix for ZuiPopover.Place's own documented limit that it
+                    // clamps the panel's POSITION, never its height, so an unbounded menu just runs off the
+                    // bottom of the window with the tail invisible instead of scrolling into view.
+                    var scroll = new ScrollView(ScrollViewMode.Vertical) { name = "zui-menu-scroll" };
+                    scroll.style.maxHeight = _maxBodyHeight;
+                    menu.Add(scroll);
+                    rowHost = scroll.contentContainer;
+
+                    // Focus the field the moment the menu lands, so typing to filter needs no extra click —
+                    // the whole point of opening a searchable menu is almost always "I know what I want, let
+                    // me type it", not "let me click into a box first".
+                    search.schedule.Execute(() => search.Focus()).ExecuteLater(0);
+                }
+
+                foreach (var r in _rows) r(rowHost, close);
                 panel.Add(menu);
             }, _opt);
             return holder[0];
+        }
+
+        /// Hide every Item/IconItem row whose label doesn't contain `query` (case-insensitive, empty query =
+        /// show everything), then hide each Section header whose every item is now hidden. Rows outside a
+        /// Section (added before any Section() call) are never hidden by the header pass since they carry a
+        /// null `section` — only their own text match governs them.
+        void ApplyFilter(string query)
+        {
+            query = (query ?? "").Trim().ToLowerInvariant();
+            var visibleInSection = new Dictionary<SectionEntry, int>();
+            foreach (var (row, text, section) in _searchableItems)
+            {
+                bool match = query.Length == 0 || text.Contains(query);
+                row.style.display = match ? DisplayStyle.Flex : DisplayStyle.None;
+                if (match && section != null)
+                    visibleInSection[section] = visibleInSection.TryGetValue(section, out int n) ? n + 1 : 1;
+            }
+            var seen = new HashSet<SectionEntry>();
+            foreach (var (_, _, section) in _searchableItems)
+            {
+                if (section == null || section.header == null || !seen.Add(section)) continue;
+                section.header.style.display =
+                    visibleInSection.TryGetValue(section, out int n) && n > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            }
         }
 
         static VisualElement BuildItem(string label, string tooltip, Action onClick,

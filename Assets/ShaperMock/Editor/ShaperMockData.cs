@@ -217,17 +217,45 @@ namespace ShaperMock.Editor
             return g;
         }
 
-        /// The names a HeightField source picker shows — a stand-in for the real 245-entry preset library.
-        public static readonly string[] HeightFieldPresetNames =
+        // A stand-in for the real 245-entry preset library (T-0111) — T-0135 grew this from 8 to 64 because
+        // 8 always fit on screen unscrolled, which never actually tested whether the picker holds up at
+        // anything resembling real scale (the same reason the effect catalog grew to its own real count).
+        public static readonly string[] HeightFieldPresetNames = BuildHeightFieldPresetNames();
+        public static readonly Color[] HeightFieldPresetTints = BuildHeightFieldPresetTints();
+
+        static string[] BuildHeightFieldPresetNames()
         {
-            "Cobble", "Planks", "Brick", "Scale Mail", "Rivets", "Cracked Mud", "Woven Cane", "Honeycomb",
-        };
-        public static readonly Color[] HeightFieldPresetTints =
+            var families = new[]
+            {
+                "Cobble", "Planks", "Brick", "Scale Mail", "Rivets", "Cracked Mud", "Woven Cane", "Honeycomb",
+                "Slate", "Thatch", "Chainmail", "Tile", "Bark", "Sand Ripple", "Corrugated", "Basalt",
+            };
+            var variants = new[] { "", " Fine", " Coarse", " Worn" };
+            var names = new List<string>();
+            foreach (var v in variants)
+                foreach (var f in families)
+                    names.Add(f + v);
+            return names.ToArray();
+        }
+
+        static Color[] BuildHeightFieldPresetTints()
         {
-            new Color(0.55f,0.52f,0.5f), new Color(0.5f,0.36f,0.22f), new Color(0.6f,0.28f,0.22f),
-            new Color(0.65f,0.66f,0.7f), new Color(0.45f,0.4f,0.32f), new Color(0.42f,0.32f,0.22f),
-            new Color(0.6f,0.5f,0.3f), new Color(0.7f,0.55f,0.2f),
-        };
+            var baseTints = new[]
+            {
+                new Color(0.55f,0.52f,0.5f), new Color(0.5f,0.36f,0.22f), new Color(0.6f,0.28f,0.22f),
+                new Color(0.65f,0.66f,0.7f), new Color(0.45f,0.4f,0.32f), new Color(0.42f,0.32f,0.22f),
+                new Color(0.6f,0.5f,0.3f), new Color(0.7f,0.55f,0.2f), new Color(0.35f,0.37f,0.4f),
+                new Color(0.75f,0.65f,0.35f), new Color(0.5f,0.5f,0.53f), new Color(0.6f,0.58f,0.5f),
+                new Color(0.45f,0.32f,0.2f), new Color(0.8f,0.72f,0.5f), new Color(0.55f,0.45f,0.3f),
+                new Color(0.3f,0.3f,0.33f),
+            };
+            var shades = new[] { 1f, 0.85f, 1.15f, 0.7f };   // matches the four name variants above
+            var tints = new List<Color>();
+            foreach (var s in shades)
+                foreach (var c in baseTints)
+                    tints.Add(new Color(Mathf.Clamp01(c.r * s), Mathf.Clamp01(c.g * s), Mathf.Clamp01(c.b * s)));
+            return tints.ToArray();
+        }
 
         /// The names a Texture source picker shows — a stand-in, same reasoning as the height-field set.
         public static readonly string[] TextureSourceNames = { "Grunge A", "Grunge B", "Noise", "Hatch" };

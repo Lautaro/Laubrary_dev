@@ -333,13 +333,21 @@ namespace ShaperMock.Editor
             return host;
         }
 
+        // 64 presets (a stand-in for the real 245, T-0111) is too many to always show unscrolled and
+        // un-filtered, the same reasoning ZuiMenu's own Search() now applies to a huge add-menu (T-0135) —
+        // this picker isn't a ZuiMenu (it's inline in the fill card, not a popover), so it gets its own
+        // small filter field + capped ScrollView rather than reusing that control.
         VisualElement BuildHeightFieldGrid()
         {
+            var host = new VisualElement();
+            var names = ShaperMockFill.HeightFieldPresetNames;
+            var tints = ShaperMockFill.HeightFieldPresetTints;
+
             var grid = new VisualElement();
             grid.style.flexDirection = FlexDirection.Row;
             grid.style.flexWrap = Wrap.Wrap;
-            var names = ShaperMockFill.HeightFieldPresetNames;
-            var tints = ShaperMockFill.HeightFieldPresetTints;
+            var tiles = new VisualElement[names.Length];
+
             for (int i = 0; i < names.Length; i++)
             {
                 int idx = i;
@@ -365,9 +373,27 @@ namespace ShaperMock.Editor
                     RebuildAll();
                     e.StopPropagation();
                 });
+                tiles[i] = tile;
                 grid.Add(tile);
             }
-            return grid;
+
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.maxHeight = 176f;   // ~4 rows at 44px — enough to orient in, not a wall of tiles
+            scroll.Add(grid);
+
+            var search = Z.TextInput("", "Filter presets by name.", q =>
+            {
+                q = (q ?? "").Trim().ToLowerInvariant();
+                for (int i = 0; i < tiles.Length; i++)
+                    tiles[i].style.display = q.Length == 0 || names[i].ToLowerInvariant().Contains(q)
+                        ? DisplayStyle.Flex : DisplayStyle.None;
+            }, 0f);
+            search.style.width = StyleKeyword.Auto;
+            search.style.marginBottom = 3f;
+
+            host.Add(Z.Field("Filter", "Filter the " + names.Length + " presets by name.", search));
+            host.Add(scroll);
+            return host;
         }
 
         static Label FieldLabel(string text)
