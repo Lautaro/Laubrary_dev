@@ -375,10 +375,27 @@ namespace Laubrary.Shaper
     /// frame count handed to a transient <see cref="ShaperFrameCache"/> from outside. The palette is still
     /// C1's and still outstanding.
     /// </summary>
-    [Serializable]
-    public class ShaperDocument
+    /// T-0152 made this a ScriptableObject. It had been a plain [Serializable] class, which meant Shaper had
+    /// no document ASSET at all -- the only ScriptableObject in the whole runtime was ShaperHeightFieldPreset.
+    /// Two consequences, both found by the bake and runtime-playback work rather than by design review: an
+    /// editor window had nothing to author against (Pyre's window authors a `Pyre : ScriptableObject` spec,
+    /// and this is the direct analogue), and no scene could reference a Shaper document, which is why runtime
+    /// playback had to take a baked clip instead of a document.
+    ///
+    /// The promotion is safe rather than lucky: the ONLY ShaperDocument-typed field anywhere is ShaperClip's
+    /// explicitly [NonSerialized] _playbackDoc, so nothing serialized this type BY VALUE and nothing therefore
+    /// silently changes from inline data to a reference. Every other use is a method parameter.
+    /// The former `public string name = "Document"` field is GONE rather than shadowed with `new`: a
+    /// ScriptableObject already has UnityEngine.Object.name, and a shadowing field of the same name is a
+    /// genuine trap (two names serialized separately, and `doc.name` meaning different things depending on
+    /// the static type at the call site). Object.name is also strictly better here -- renaming the asset in
+    /// the Project window now updates it, which an authored string field could never do. The one consumer,
+    /// ShaperBaker's bake filename, already falls back when the name is empty, which is exactly the state a
+    /// freshly CreateInstance'd document is in. Pyre agrees: its own spec SO has no custom name field either
+    /// (the `public string name` in Pyre.cs:184 is on its Layer class, not the asset).
+    [CreateAssetMenu(menuName = "Laubrary/Shaper Document", fileName = "Shaper Document")]
+    public class ShaperDocument : ScriptableObject
     {
-        public string name = "Document";
 
         /// <summary>Canvas width in samples. B9's authorable range is 32-256.</summary>
         public int canvasWidth = 96;

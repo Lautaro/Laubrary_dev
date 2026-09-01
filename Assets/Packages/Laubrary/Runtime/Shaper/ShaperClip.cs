@@ -96,7 +96,15 @@ namespace Laubrary.Shaper
         {
             get
             {
-                _playbackDoc ??= new ShaperDocument();
+                // CreateInstance, not `new`: T-0152 promoted ShaperDocument to a ScriptableObject so it could
+                // be an authorable asset, and `new` on a ScriptableObject yields an object Unity never
+                // initialises. hideFlags keeps this throwaway playback header out of the scene and out of
+                // any save -- it is rebuilt from the clip on every read and owns no authored state.
+                if (_playbackDoc == null)
+                {
+                    _playbackDoc = ScriptableObject.CreateInstance<ShaperDocument>();
+                    _playbackDoc.hideFlags = HideFlags.HideAndDontSave;
+                }
 
                 _playbackDoc.frameCount = Mathf.Max(1, FrameCount);
                 _playbackDoc.frameRate = frameRate;
