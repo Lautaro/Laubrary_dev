@@ -313,6 +313,14 @@ namespace ShaperMock.Editor
             name.RegisterCallback<PointerDownEvent>(_ => { if (selectedLayer != li) SelectLayer(li); });
             row.Add(name);
 
+            // T-0140 — the real ShaperLayer.zOffset (ShaperLightRig.cs), packed beside the existing
+            // enable/name/reorder controls per the design doc's own §D3 call ("a Z.Value row in the Layers
+            // section's per-layer row"), which was never actually built. Already ZUIValue in the real
+            // engine, so this is a real Z.Value row, not a plain slider.
+            row.Add(Val("Z", "This layer's own Z-position offset, canvas pixels — added to the ordering "
+                + "base (layer index × layer spacing) to give this layer's base plane. Signed: can push a "
+                + "layer forward as well as back.", layer.zOffset, -256f, 256f));
+
             var remove = Z.Button("×", "Remove this layer (undoable).", () => RemoveLayer(li)).W(20f);
             remove.SetEnabled(document.layers.Count > 1);   // always keep at least one layer to edit
             row.Add(remove);
@@ -534,7 +542,14 @@ namespace ShaperMock.Editor
             // Swarm: universal — every node kind gets this card, starting collapsed.
             nodeBody.Add(BuildSwarmSection(node));
 
-            nodeBody.Add(BuildLightResponseBox(node));
+            // T-0140 — Lighting response moved to layer-root-only, same reasoning as Extrusion just above:
+            // the real ShaperLightResponse lives on ShaperLayer (ShaperLightRig.cs), not ShaperNode — a
+            // direct grep of ShaperNode.cs found none. Previously shown on EVERY node including bag
+            // members, which repeated per-layer authored data on every shape inside a bag and (per the
+            // project owner's own observation) crowded out room for genuinely per-layer UI, leaving the
+            // Layers section itself looking sparse by comparison.
+            if (path.Count == 1)
+                nodeBody.Add(BuildLightResponseBox(node));
 
             // Effects: only a Composite-sourced node gets this pipeline (§B4) — absent, not disabled, for
             // Primitive/Bag.
@@ -565,7 +580,6 @@ namespace ShaperMock.Editor
             {
                 case ShaperMockNodeKind.Primitive:
                     box.Add(BuildPrimitiveBody(node));
-                    box.Add(BuildExtrusionBlock(node));
                     break;
 
                 case ShaperMockNodeKind.Bag:
@@ -581,17 +595,23 @@ namespace ShaperMock.Editor
                     // a brand new one, so this never double-registers).
                     SetupGeneratorHeaderMenu(box, node);
                     box.Add(BuildCompositeBody(node));
-                    box.Add(BuildExtrusionBlock(node));
                     break;
 
                 case ShaperMockNodeKind.Solid:
-                    // No BuildExtrusionBlock here, deliberately: the real ShaperSolidDef carries no
-                    // extrude/bevel fields at all — a Solid's depth already comes from its own analytic 3D
-                    // geometry (yaw/tilt/roll + form), not from a height-field extrusion of a 2D silhouette
-                    // the way Primitive/Composite need one.
                     box.Add(BuildSolidBody(node));
                     break;
             }
+
+            // T-0140 — Extrusion moved OUT of the per-kind switch above: the real ShaperHeightDef lives on
+            // ShaperLayer, not ShaperNode (confirmed by a direct grep of ShaperNode.cs returning zero
+            // matches for any height/extrude field) — it is the LAYER's own height stage, applied to
+            // whatever the layer's root resolves to, Bag included, not a property of one node inside a
+            // tree. Shown only at the layer ROOT (path.Count == 1, i.e. Current == Selected.root), never on
+            // a drilled-into bag member — a member has no "own" extrusion to author, because the real field
+            // doesn't exist at that level. Solid is still excluded: its depth already comes from its own
+            // analytic 3D geometry (yaw/tilt/roll + form), not a height-field extrusion of a 2D silhouette.
+            if (path.Count == 1 && node.kind != ShaperMockNodeKind.Solid)
+                box.Add(BuildExtrusionBlock(node));
 
             if (subtractMember)
                 box.Add(Z.Help("Subtract members carve; they don't paint — put a fill on the bag or a "

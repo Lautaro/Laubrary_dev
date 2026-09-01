@@ -67,6 +67,9 @@ namespace ShaperMock.Editor
         public string name = "Layer 1";
         public bool enabled = true;
         public ShaperMockNode root = new ShaperMockNode { name = "Root" };
+        // Real ShaperLayer.zOffset (ShaperLightRig.cs) — this layer's own Z-position offset, canvas pixels,
+        // SIGNED, already ZUIValue in the real engine. Was simply missing from the mock entirely (T-0140).
+        public ZUIValue zOffset = new ZUIValue(0f);
     }
 
     // "Solid" (T-0138 #1) — a UI-MOCK PLACEMENT CHOICE, not a confirmed real integration point. The real
