@@ -8,8 +8,14 @@ namespace Laubrary.Shaper
     /// APPEND-ONLY: serialized as an int. T-0112 adds <see cref="Composite"/> — a leaf like
     /// <see cref="Primitive"/>, but hosting a rendered picture instead of an analytic SDF (see
     /// <see cref="ShaperCompositeDef"/>).
+    ///
+    /// T-0155 adds <see cref="Solid"/>. Until it existed, <see cref="ShaperSolidDef"/> was a fully built
+    /// generator — six forms, ~19 authored dials, a real <c>InertReason</c> table across 6 forms × 14 dials,
+    /// and T-0127's HeightField-into-surface-normal relief shading — that NO DOCUMENT COULD REFERENCE. A
+    /// repo-wide search for a <c>ShaperSolidDef</c> field in <c>Runtime/</c> returned nothing; the only thing
+    /// that ever compiled one was an editor audit. Finished engine work no user could reach.
     /// </summary>
-    public enum ShaperNodeKind { Primitive = 0, Bag = 1, Composite = 2 }
+    public enum ShaperNodeKind { Primitive = 0, Bag = 1, Composite = 2, Solid = 3 }
 
     /// <summary>
     /// The softness dials a member carries. Deliberately two separate fields rather than the reference app's
@@ -114,6 +120,23 @@ namespace Laubrary.Shaper
         /// Composite node's border by construction, and no code path ever resolves a fill for one).
         /// </summary>
         public ShaperCompositeDef composite = new ShaperCompositeDef();
+
+        /// <summary>
+        /// Used when <see cref="kind"/> is <see cref="ShaperNodeKind.Solid"/> (T-0155).
+        ///
+        /// A Solids node keeps its <see cref="fill"/> — unlike a Composite, whose fill is structurally ignored.
+        /// That is not an inconsistency, it is LR-6.3: a Solid's MATERIAL COLOUR *is* an ordinary Shaper fill,
+        /// which is what buys Solids Gradient, Ramp-by-quantity, Texture and the availability gate for free.
+        /// Pyre's own <c>shapeFill</c> has no equivalent here on purpose.
+        ///
+        /// What the generator replaces is the SHAPE stage for this owner, and only that (LR-6.1): its
+        /// coverage, edge distance and surface normal are its own closed-form geometry, written by
+        /// <see cref="ShaperSolids.FillTile"/> straight over this owner's slab in
+        /// <see cref="ShaperFillResolver.PaintTile"/>. Everything downstream — the claim, the exclusivity
+        /// partition, the fill, the border, the composite — is byte-identical to any other owner's, which is
+        /// what "goes through the ordinary pipeline like every other generator" has to mean to mean anything.
+        /// </summary>
+        public ShaperSolidDef solid = new ShaperSolidDef();
 
         /// <summary>
         /// The fill this node owns, or null (FILL-CONTRACT Part F3). <b>Null is the default and it is the

@@ -4,36 +4,13 @@ using Laubrary.SpriteFx;
 
 namespace Laubrary.PyreShaper
 {
-    /// <summary>
-    /// T-0114 — WHERE in the pipeline an effect runs, relative to the point several instances of one node fold
-    /// into one picture (a swarm's per-instance union, or any future multi-layer composite). This is a real,
-    /// user-visible property, not an implementation detail to hide: for a single un-swarmed shape the two stages
-    /// produce an IDENTICAL picture, but for overlapping instances they do not, because a stage that can drop a
-    /// pixel (<c>PixelModifier.ApplyPixel</c> returning <c>false</c>, or any non-linear kernel — posterise,
-    /// contrast, ordered dither, colour replace) behaves differently once other content is already under or over
-    /// it. An earlier design report claimed this distinction could be collapsed into a single stage with "zero
-    /// behavioural cost" — that claim is WITHDRAWN (see the T-0098 digest, error E2): non-linear kernels differ
-    /// whenever instances overlap, linear kernels differ once anything lies underneath (Over-compositing algebra
-    /// does not commute with per-source scaling), and a pixel-dropping kernel drops a PARTICLE's contribution
-    /// pre-composite but the WHOLE merged result post-composite. Both stages are therefore built for real here,
-    /// never folded into one.
-    ///
-    /// APPEND-ONLY: serialized as an int, same posture <see cref="ShaperSwarmImplementation"/> and
-    /// <see cref="ShaperCompositeReason"/> already take.
-    /// </summary>
-    public enum ShaperEffectStage
-    {
-        /// <summary>Runs once per instance, on that instance's OWN buffer, before instances fold into one
-        /// picture. The native semantic of Pyre's per-particle Geometry/Pixel modifiers today
-        /// (<c>PyreRenderer.ApplyGeo</c>/<c>ApplyPix</c>, run inside <c>DrawParticle</c> before the Over-composite
-        /// at <c>PyreRenderer.cs:3089-3092</c>).</summary>
-        PreComposite = 0,
-
-        /// <summary>Runs once on the FINISHED, folded picture. The native semantic of Pyre's whole-frame Post
-        /// modifiers today (<c>PyreRenderer.ApplyLayerPost</c>) — the only stage that can read a pixel's
-        /// NEIGHBOURS, since Pre-composite modifiers only ever see one instance's own buffer.</summary>
-        PostComposite = 1,
-    }
+    // ShaperEffectStage MOVED to Laubrary.Shaper (Runtime/Shaper/ShaperEffects.cs) by T-0156, and had to
+    // move: the authored ShaperEffectRef that names a stage lives on ShaperDocument in that assembly, and
+    // this assembly REFERENCES it, so naming the enum from there would have been an assembly cycle. The enum
+    // has no dependencies of its own so the move is free, and every use in this file still resolves through
+    // the `using Laubrary.Shaper` already at the top. Its full rationale — why the two stages are built for
+    // real and never folded into one, including the WITHDRAWN T-0098 E2 claim that collapsing them was free —
+    // travelled with it and is unchanged.
 
     /// <summary>
     /// T-0114 — which of the three preconditions (SHAPER_THE_DESIGN.md C8) an effect actually needs, measured

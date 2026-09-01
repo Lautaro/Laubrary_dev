@@ -475,6 +475,24 @@ namespace Laubrary.Shaper
         /// gap.</summary>
         [Min(0f)] public float cherryLoopDelaySeconds = 0f;
 
+        /// <summary>
+        /// T-0156 — the effects applied to this document's FINISHED picture, in list order.
+        ///
+        /// T-0114 built the whole universal-effects system and nothing could reference it: no node and no
+        /// layer held a list, so the 41-entry catalog was static classification and an effect could not be
+        /// applied to anything. This is that list.
+        ///
+        /// It lives on the DOCUMENT rather than a node or a layer because the stage decides it:
+        /// <see cref="ShaperEffectStage.PostComposite"/> runs "once on the FINISHED, folded picture", and the
+        /// only fold in the shipped renderer is <see cref="ShaperDocumentRenderer"/>'s layer composite — so
+        /// the finished picture IS the document's. See <c>ShaperEffects.cs</c>'s header for why a per-layer
+        /// pre-composite list is deliberately not here too (it would force every layer through an 8-bit
+        /// round trip inside a premultiplied-float composite).
+        ///
+        /// Empty by default, so every existing document renders exactly as it did.
+        /// </summary>
+        public List<ShaperEffectRef> effects = new List<ShaperEffectRef>();
+
         /// <summary>The grid this document's canvas describes, canvas-centred with +Y up (LR-1.5).</summary>
         public ShaperSampleGrid Grid(float edgeSoftness = 0f)
             => ShaperSampleGrid.Centred(canvasWidth, canvasHeight, pixelSize, edgeSoftness);

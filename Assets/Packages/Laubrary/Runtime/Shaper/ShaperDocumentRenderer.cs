@@ -52,21 +52,24 @@ namespace Laubrary.Shaper
         /// <see cref="ShaperDocument.PhaseOfFrame"/>, so this file introduces no second frame→phase rule
         /// (T-0144 consolidated that into <see cref="ShaperClock"/> precisely so it could not drift).
         /// </summary>
-        public static Color32[] RenderFrame(ShaperDocument doc, int frameIndex)
+        public static Color32[] RenderFrame(ShaperDocument doc, int frameIndex,
+                                            IShaperEffectApplier effects = null)
             => doc == null ? Array.Empty<Color32>()
-             : RenderPhase(doc, doc.PhaseOfFrame(ShaperClock.WrapFrame(frameIndex, Mathf.Max(1, doc.frameCount))));
+             : RenderPhase(doc, doc.PhaseOfFrame(ShaperClock.WrapFrame(frameIndex, Mathf.Max(1, doc.frameCount))),
+                           effects);
 
         /// <summary>
         /// Render at an explicit phase to straight-alpha sRGB pixels. Row 0 of the returned array is the BOTTOM
         /// row, matching both <see cref="ShaperSampleGrid"/>'s +Y-up sampling and <c>Texture2D.SetPixels32</c>,
         /// so nothing between the evaluator and a PNG needs to flip.
         /// </summary>
-        public static Color32[] RenderPhase(ShaperDocument doc, float phase01)
+        public static Color32[] RenderPhase(ShaperDocument doc, float phase01,
+                                            IShaperEffectApplier effects = null)
         {
             int n = SampleCount(doc);
             if (n == 0) return Array.Empty<Color32>();
             var px = new Color32[n];
-            RenderPhase(doc, phase01, px);
+            RenderPhase(doc, phase01, px, effects);
             return px;
         }
 
@@ -75,14 +78,27 @@ namespace Laubrary.Shaper
         /// <see cref="SampleCount"/> entries. Still allocates the float destination internally; a caller
         /// scrubbing frames should prefer <see cref="RenderPhaseInto"/> plus one <see cref="Encode"/> so it
         /// owns both buffers.
+        ///
+        /// <paramref name="effects"/> (T-0156) runs <see cref="ShaperDocument.effects"/> over the finished
+        /// picture. It is applied HERE, after <see cref="Encode"/>, and that placement is the whole reason the
+        /// parameter is on this overload rather than on <see cref="RenderPhaseInto"/>: every effect in the
+        /// catalog is a pixel kernel over 8-bit colour, while the float destination is premultiplied linear.
+        /// Running them before the encode would mean inventing a float form of every kernel; running them
+        /// after means they see exactly the picture a viewer sees. Passing null is a first-class case — the
+        /// render is then bit-identical to one from before effects existed.
         /// </summary>
-        public static void RenderPhase(ShaperDocument doc, float phase01, Color32[] outPixels)
+        public static void RenderPhase(ShaperDocument doc, float phase01, Color32[] outPixels,
+                                       IShaperEffectApplier effects = null)
         {
             int n = SampleCount(doc);
             if (n == 0 || outPixels == null || outPixels.Length < n) return;
             var acc = new float[n * FloatsPerSample];
             RenderPhaseInto(doc, phase01, acc);
             Encode(acc, outPixels, n);
+
+            if (effects == null || doc.effects == null || doc.effects.Count == 0) return;
+            effects.Apply(doc.effects, ShaperEffectStage.PostComposite, outPixels,
+                          Mathf.Max(1, doc.canvasWidth), Mathf.Max(1, doc.canvasHeight), phase01, doc.seed);
         }
 
         /// <summary>
@@ -136,6 +152,7 @@ namespace Laubrary.Shaper
                                                           ShaperQuantitySet.ShippedShapeEngine);
                     var buf = new ShaperFillBuffers(n, Mathf.Max(1, fdoc.owners.Count));
                     var scene = ShaperLightCompiler.BindLayer(doc, li, prog, buf.sampleCapacity, buf.ownerCapacity);
+                    BindSolids(fdoc, scene, phase01, doc.seed, prog);
                     ShaperFillResolver.PaintTile(fdoc, grid, 0, 0, w, h, buf,
                                                  new ShaperFillSheets { published = ShaperQuantitySet.ShippedShapeEngine },
                                                  scene);
@@ -143,6 +160,40 @@ namespace Laubrary.Shaper
                 }
             }
             finally { doc.phase01 = savedPhase; }
+        }
+
+        /// <summary>
+        /// T-0155 — bind every <see cref="ShaperNodeKind.Solid"/> owner's compiled generator onto the layer's
+        /// light scene, which is the step that made Solids reachable at all.
+        ///
+        /// The seam already existed and nothing in the shipped runtime ever used it:
+        /// <see cref="ShaperFillResolver.PaintTile"/> reads <c>scene.solid[owner]</c> and, when it is non-null,
+        /// hands that owner's slab to the Solids generator instead of the shape stage (LR-6.1). But the ONLY
+        /// caller of <see cref="ShaperLightScene.SetSolid"/> was an editor audit, so in a real document the
+        /// array was always null and a Solids node could not exist to fill it. This connects the two using
+        /// <see cref="ShaperFillOwner.node"/>, rather than inventing a second path into the fill resolver.
+        ///
+        /// <b>Existing documents are untouched by construction.</b> The loop only ever calls
+        /// <c>SetSolid</c> for a node whose <c>kind</c> is <c>Solid</c>, and <c>Solid</c> is a value no
+        /// previously-serialized node can hold — the enum is append-only and <c>kind</c> defaults to
+        /// <c>Primitive</c>. Every other document leaves <c>scene.solid</c> exactly as
+        /// <see cref="ShaperLightCompiler.BindLayer"/> left it, so <c>PaintTile</c>'s null check takes the same
+        /// branch it always did and the render is bit-identical.
+        ///
+        /// <paramref name="prog"/> is forwarded so the generator can raise LR-7.3's inert-dial diagnostic at
+        /// compile time — without it the whole <see cref="ShaperSolids.InertReason"/> declaration table would be
+        /// code nothing ever runs.
+        /// </summary>
+        static void BindSolids(ShaperFillDocument fdoc, ShaperLightScene scene, float phase01, uint seed,
+                               ShaperLightProgram prog)
+        {
+            if (fdoc == null || scene == null) return;
+            for (int o = 0; o < fdoc.owners.Count && o < scene.ownerCapacity; o++)
+            {
+                var node = fdoc.owners[o]?.node;
+                if (node == null || node.kind != ShaperNodeKind.Solid || node.solid == null) continue;
+                scene.SetSolid(o, ShaperSolids.Compile(node.solid, phase01, seed, prog));
+            }
         }
 
         /// <summary>Render one frame index into a caller-owned float destination. See <see cref="RenderPhaseInto"/>.</summary>

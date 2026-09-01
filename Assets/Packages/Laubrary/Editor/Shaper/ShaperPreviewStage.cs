@@ -11,6 +11,7 @@
 // rather than approximately true; if the orientation is ever wrong it is wrong in BOTH, which is a renderer
 // bug to fix once, not a preview bug to paper over with a flip that would then hide it.
 using System;
+using Laubrary.PyreShaper;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -78,7 +79,11 @@ namespace Laubrary.Shaper.Editor
                 };
             }
 
-            var px = ShaperDocumentRenderer.RenderFrame(doc, _frame?.Invoke() ?? 0);
+            // The applier is passed here for the same reason the baker passes it (T-0156): without it a
+            // document's authored effects render as a no-op. Passing it in BOTH places is also what keeps the
+            // "preview is what you bake" guarantee true — a preview that skipped effects would disagree with
+            // its own bake on every document that uses one.
+            var px = ShaperDocumentRenderer.RenderFrame(doc, _frame?.Invoke() ?? 0, ShaperEffectApplier.Instance);
             if (px == null || px.Length != w * h) return;   // canvas changed under us; next Refresh resizes
 
             _tex.SetPixels32(px);

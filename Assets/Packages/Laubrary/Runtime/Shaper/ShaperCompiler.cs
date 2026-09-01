@@ -289,6 +289,11 @@ namespace Laubrary.Shaper
                 // even though a composite's reported value is a pseudo-distance rather than a true SDF.
                 e.spreadRaw = sigmaMax / sigmaMin;
             }
+            else if (node.kind == ShaperNodeKind.Solid)
+            {
+                e = EmitSolid(node, forward, inverse, sigmaMin, st);
+                e.spreadRaw = sigmaMax / sigmaMin;
+            }
             else
             {
                 e = EmitBag(node, forward, st);
@@ -622,8 +627,18 @@ namespace Laubrary.Shaper
 
         static Emitted EmitLeaf(ShaperNode node, in ShaperMatrix forward, in ShaperMatrix inverse,
                                 float sigmaMin, State st)
+            => EmitLeafFrom(node.primitive, forward, inverse, sigmaMin, st);
+
+        /// <summary>
+        /// T-0155 — <see cref="EmitLeaf"/>'s body, taking the primitive DEFINITION rather than reading it off a
+        /// node, so a <see cref="ShaperNodeKind.Solid"/> node can emit a carrier leaf from a synthesized
+        /// primitive without either duplicating this code or growing a phantom <c>primitive</c> the user can see
+        /// and edit. Behaviour for the ordinary Primitive path is unchanged — same bake, same op, same box.
+        /// </summary>
+        static Emitted EmitLeafFrom(ShaperPrimitiveDef primitive, in ShaperMatrix forward, in ShaperMatrix inverse,
+                                    float sigmaMin, State st)
         {
-            ShaperBakedPrimitive baked = ShaperPrimitives.Bake(node.primitive, st.phase01, st.seed);
+            ShaperBakedPrimitive baked = ShaperPrimitives.Bake(primitive, st.phase01, st.seed);
 
             var op = new ShaperOp
             {
@@ -659,6 +674,48 @@ namespace Laubrary.Shaper
                 // makes the fill anchor rotation-invariant and scale-stable.
                 localBox = Box.FromCentre(0f, 0f, baked.halfExtentX, baked.halfExtentY),
             };
+        }
+
+        /// <summary>
+        /// T-0155 — a <see cref="ShaperNodeKind.Solid"/> node's CARRIER leaf.
+        ///
+        /// A Solids node does not emit its own silhouette here, and it deliberately cannot: LR-6.1 says the
+        /// generator REPLACES the shape stage for its owner, and it does that downstream —
+        /// <see cref="ShaperFillResolver.PaintTile"/> hands this owner's slab to
+        /// <see cref="ShaperSolids.FillTile"/>, which writes coverage, edge distance and the surface normal as
+        /// its own closed-form facet geometry over EVERY sample of the tile. Anything this method emitted as a
+        /// silhouette would be overwritten in full before a single pixel was painted.
+        ///
+        /// So what this leaf is FOR is the two things the pipeline still needs and the generator does not
+        /// supply: an entry in <see cref="ShaperFillDocument.owners"/> (no owner, no slab, no paint — the
+        /// generator would never be reached), and a canvas support box for the stages that bound their work by
+        /// it. The box is therefore deliberately CONSERVATIVE rather than tight: half-extents are the solid's
+        /// own radius scaled by its aspect, plus the absolute centre offset, so the box contains the solid for
+        /// any authored centre without this method having to re-derive the facet projection that
+        /// <see cref="ShaperSolids.Build"/> already owns. A box that is too large costs bounding work; one that
+        /// is too small would clip a generator that is entitled to the whole tile.
+        ///
+        /// The dials are read through <see cref="ShaperSolids.Compile"/> rather than off the def, so the
+        /// envelope sampling (phase, seed) is the SAME one the renderer will use when it binds this solid —
+        /// two samplings of one ZUIValue at one phase must not disagree about how big the shape is.
+        /// </summary>
+        static Emitted EmitSolid(ShaperNode node, in ShaperMatrix forward, in ShaperMatrix inverse,
+                                 float sigmaMin, State st)
+        {
+            ShaperSolidOp op = ShaperSolids.Compile(node.solid ?? new ShaperSolidDef(), st.phase01, st.seed);
+
+            float r = Mathf.Max(1e-4f, op.r);
+            float reach = r * Mathf.Max(1f, Mathf.Abs(op.aspect));
+            float hx = Mathf.Abs(op.centreX) + reach;
+            float hy = Mathf.Abs(op.centreY) + reach;
+
+            var carrier = new ShaperPrimitiveDef
+            {
+                kind = ShaperPrimitiveKind.Rect,
+                rectHalfW = hx,
+                rectHalfH = hy,
+            };
+            return EmitLeafFrom(carrier, forward, inverse, sigmaMin, st);
         }
 
         /// <summary>

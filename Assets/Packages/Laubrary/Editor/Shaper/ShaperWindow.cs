@@ -390,11 +390,11 @@ namespace Laubrary.Shaper.Editor
 
             // Enum names come from the enum itself rather than a hardcoded list: ShaperNodeKind is append-only,
             // so a future kind appears here automatically instead of silently missing.
-            box.Add(Z.Field("Kind", "Whether this node is a single primitive, a bag combining children, or a "
-                + "composite generator.",
+            box.Add(Z.Field("Kind", "Whether this node is a single primitive, a bag combining children, a "
+                + "composite generator, or a pseudo-3D solid.",
                 Z.MiniRadio((int)node.kind, Enum.GetNames(typeof(ShaperNodeKind)),
-                    "Whether this node is a single primitive, a bag combining children, or a composite "
-                    + "generator.",
+                    "Whether this node is a single primitive, a bag combining children, a composite "
+                    + "generator, or a pseudo-3D solid.",
                     v => { Change(() => node.kind = (ShaperNodeKind)v); Rebuild(); })));
 
             if (node.kind == ShaperNodeKind.Primitive)

@@ -54,7 +54,8 @@ namespace Laubrary.Shaper.Editor
         // Sections owned by THIS file. Declared here rather than in the shell so the split stays clean:
         // each file declares the chrome it builds.
         ZuiSection fillSection, borderSection, modifiersSection, swarmSection,
-                   compositeSection, childrenSection, responseSection, heightSection, effectsSection;
+                   compositeSection, childrenSection, responseSection, heightSection, effectsSection,
+                   solidSection;
 
         /// Which bag member is being edited, as a path of child indices from the layer root. Empty = the
         /// root itself. This is VIEW state, not authored data — it is deliberately not [SerializeField]'d
@@ -96,6 +97,7 @@ namespace Laubrary.Shaper.Editor
             // Absence rule: a card that cannot apply to this node kind is not drawn at all.
             if (node.kind == ShaperNodeKind.Composite) BuildCompositeSection(root, node);
             if (node.kind == ShaperNodeKind.Bag) BuildChildrenSection(root, node);
+            if (node.kind == ShaperNodeKind.Solid) BuildSolidSection(root, node);
 
             BuildFillSection(root, node);
             BuildBorderSection(root, node);
@@ -119,8 +121,99 @@ namespace Laubrary.Shaper.Editor
         {
             ("Fill", fillSection), ("Border", borderSection), ("Modifiers", modifiersSection),
             ("Swarm", swarmSection), ("Generator", compositeSection), ("Children", childrenSection),
+            ("Solid", solidSection),
             ("Lighting", responseSection), ("Height", heightSection), ("Effects", effectsSection),
         };
+
+        // ── Solids (T-0155) ──────────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// A Solids generator's dials, with the engine's own inertness table driving the greying.
+        ///
+        /// <see cref="ShaperSolids.InertReason"/> is a real, shipped 6-form × 14-dial table stating which dial
+        /// does nothing on which form AND why — Aspect on an Orb, Depth on a Can, Roll on a Ring, the Gem-only
+        /// trio everywhere else. The engine's rule for it is "declare inert with a reason, never hide", so an
+        /// inert dial is drawn, disabled, and carries the reason as its tooltip rather than vanishing and
+        /// leaving the user to wonder whether they imagined it.
+        /// </summary>
+        VisualElement SolidVal(string label, string tip, ZUIValue v, float lo, float hi,
+                               ShaperSolidForm form, ShaperSolidDial dial, int decimals = -1)
+        {
+            string reason = ShaperSolids.InertReason(form, dial);
+            var el = Val(label, reason ?? tip, v, lo, hi, decimals: decimals);
+            if (reason != null)
+            {
+                el.SetEnabled(false);
+                el.tooltip = "Does nothing on a " + form + ": " + reason;
+            }
+            return el;
+        }
+
+        void BuildSolidSection(VisualElement root, ShaperNode node)
+        {
+            var s = node.solid ?? (node.solid = new ShaperSolidDef());
+            var box = solidSection = Z.Section("Solid",
+                "A pseudo-3D facet shape. It replaces the shape stage for this node and then goes through the "
+                + "ordinary fill, border and light pipeline like any other generator.",
+                "shaper.window.solid", icon: "cube");
+
+            box.Add(Z.Field("Form", "Which solid this generates. The form decides which dials below do anything.",
+                Z.MiniRadio((int)s.form, Enum.GetNames(typeof(ShaperSolidForm)),
+                    "Which solid this generates.",
+                    v => { Change(() => s.form = (ShaperSolidForm)v); Rebuild(); }, wrap: true)));
+
+            box.Add(Z.HGroup(
+                SolidVal("Size", "The solid's radius, in canvas pixels.", s.size, 1f, 128f,
+                    s.form, ShaperSolidDial.Size),
+                SolidVal("Centre X", "Canvas position of the solid's centre.", s.centreX, -128f, 128f,
+                    s.form, ShaperSolidDial.Centre),
+                SolidVal("Centre Y", "Canvas position of the solid's centre.", s.centreY, -128f, 128f,
+                    s.form, ShaperSolidDial.Centre),
+                SolidVal("Aspect", "The Y half-extent multiplier.", s.aspect, 0.1f, 4f,
+                    s.form, ShaperSolidDial.Aspect),
+                SolidVal("Depth", "The Z half-extent multiplier.", s.depth, 0.1f, 4f,
+                    s.form, ShaperSolidDial.Depth)));
+
+            box.Add(Z.HGroup(
+                SolidVal("Gem sides", "Girdle sides, 3..8.", s.gemSides, 3f, 8f,
+                    s.form, ShaperSolidDial.GemSides, decimals: 0),
+                SolidVal("Gem crown", "Crown height as a fraction of the radius.", s.gemCrown, 0f, 2f,
+                    s.form, ShaperSolidDial.GemCrown),
+                SolidVal("Gem pavilion", "Pavilion depth as a fraction of the radius.", s.gemPavilion, 0f, 2f,
+                    s.form, ShaperSolidDial.GemPavilion),
+                SolidVal("Ring inner", "Hole radius as a fraction of the radius.", s.ringInner, 0.1f, 0.92f,
+                    s.form, ShaperSolidDial.RingInner)));
+
+            box.Add(Z.HGroup(
+                SolidVal("Yaw", "Rotation about Y, in degrees.", s.yaw, -180f, 180f,
+                    s.form, ShaperSolidDial.Yaw, decimals: 0),
+                SolidVal("Tilt", "Rotation about X, in degrees.", s.tilt, -180f, 180f,
+                    s.form, ShaperSolidDial.Tilt, decimals: 0),
+                SolidVal("Roll", "Rotation about Z in model space, applied first, in degrees.", s.roll,
+                    -180f, 180f, s.form, ShaperSolidDial.Roll, decimals: 0)));
+
+            // "A facet edge line and never a border" (BD-4.1): these trace INTERIOR facet seams, which are
+            // nowhere in the zero set of any 2D field, so no border stage could produce them. The label says
+            // line, not border, for that reason.
+            box.Add(Z.HGroup(
+                SolidVal("Line width", "Facet edge line half-width, in canvas pixels.", s.lineWidth, 0f, 8f,
+                    s.form, ShaperSolidDial.LineWidth),
+                Z.Field("Line colour", "The facet edge line's colour.",
+                    Z.Color(s.lineColour, "The facet edge line's colour.",
+                        c => Change(() => s.lineColour = c), 90f)),
+                SolidVal("Edge glow", "Halo strength.", s.edgeGlow, 0f, 1f,
+                    s.form, ShaperSolidDial.EdgeGlow),
+                Z.Field("Edge glow colour", "The halo's colour.",
+                    Z.Color(s.edgeGlowColour, "The halo's colour.",
+                        c => Change(() => s.edgeGlowColour = c), 90f)),
+                SolidVal("Inner glow", "Inner-glow strength.", s.innerGlow, 0f, 1f,
+                    s.form, ShaperSolidDial.InnerGlow),
+                Z.Field("Inner glow colour", "The inner glow's colour.",
+                    Z.Color(s.innerGlowColour, "The inner glow's colour.",
+                        c => Change(() => s.innerGlowColour = c), 90f))));
+
+            root.Add(box);
+        }
 
         // ── breadcrumb ───────────────────────────────────────────────────────────────────────────────────
 
@@ -906,9 +999,8 @@ namespace Laubrary.Shaper.Editor
         void BuildEffectsSection(VisualElement root, ShaperLayer layer)
         {
             var box = effectsSection = Z.Section("Effects",
-                "Which imported effects can run against what this document publishes. Read-only: the engine "
-                + "has no authored effect stack yet.", "shaper.window.effects", icon: "sparkles");
-            box.IsOpen = false;   // informational, so it does not push the authoring cards down by default
+                "Effects applied to this document's finished picture, in order.",
+                "shaper.window.effects", icon: "sparkles");
 
             // Which sheets are published decides which effects are usable. A layer with a height stage
             // publishes height as well — that is the difference between the two shipped sets, so it is
@@ -917,37 +1009,119 @@ namespace Laubrary.Shaper.Editor
                 ? ShaperQuantitySet.ShapeEngineWithHeight
                 : ShaperQuantitySet.ShippedShapeEngine;
 
-            box.Add(Z.Field("Published sheets",
-                "What this layer publishes for effects to read. A height stage publishes height too.",
-                Z.Text(published.ToString(), ZuiText.Body, published.ToString())));
-
             var listHost = new VisualElement();
-            foreach (var e in ShaperEffectCatalog.All)
+            var stack = document.effects;
+
+            for (int i = 0; i < stack.Count; i++)
             {
-                bool ok = ShaperEffectCatalog.IsAvailable(in e, published, out string reason);
+                int index = i;
+                var entry = stack[index];
                 var row = new VisualElement();
                 row.AddToClassList("zui-row");
-                row.Add(Z.Text(e.typeName, ZuiText.Body,
-                    ok ? $"{e.stageKind} · runs at {e.defaultStage}"
-                       : "Unavailable: " + reason));
+
+                var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder — effects apply in list order.");
+                grip.style.width = 16f;
+                ZuiReorder.MakeGrip(grip, row, listHost, (from, to) =>
+                {
+                    Change(() =>
+                    {
+                        var moved = stack[from];
+                        stack.RemoveAt(from);
+                        stack.Insert(to, moved);
+                    });
+                    Rebuild();
+                });
+                row.Add(grip);
+
+                row.Add(Z.Toggle("", "Run this effect.", entry.enabled,
+                    v => { Change(() => entry.enabled = v); RefreshPreview(); }));
+
+                // The catalog is the source of truth for whether this entry can run at all. An entry naming a
+                // type the catalog no longer lists is shown too, rather than dropped — a silently vanishing
+                // row would read as "I never authored that", which is worse than an honest unknown.
+                int cat = Array.FindIndex(ShaperEffectCatalog.All,
+                                          c => string.Equals(c.typeName, entry.typeName, StringComparison.Ordinal));
+                bool known = cat >= 0;
+                bool ok = false;
+                string reason = "Not in the effect catalog — its type may have been removed or renamed.";
+                if (known) ok = ShaperEffectCatalog.IsAvailable(in ShaperEffectCatalog.All[cat], published, out reason);
+
+                row.Add(Z.Text(entry.typeName ?? "(unnamed)", ZuiText.Body,
+                    ok ? "Runs at " + entry.stage + "." : "Will not run — " + reason));
                 row.Add(Z.Flexible());
-                row.Add(Z.Text(e.stageKind, ZuiText.Subtle, "Which stage this effect belongs to."));
-                row.Add(Z.Text(e.bothStagesPossible ? "either stage" : e.defaultStage.ToString(),
-                    ZuiText.Subtle,
-                    e.bothStagesPossible
-                        ? "Running this at the other stage is structurally legal too."
-                        : "This effect only runs at " + e.defaultStage + "."));
+                row.Add(Z.Text(ok ? entry.stage.ToString() : "inert", ZuiText.Subtle,
+                    ok ? "The stage this entry runs at." : reason));
+
+                row.Add(Z.Button("×", "Remove this effect.", () =>
+                {
+                    Change(() => stack.RemoveAt(index));
+                    Rebuild();
+                }));
+
                 if (!ok)
                 {
-                    // Greyed WITH its reason, never hidden — an absent row would read as "this effect does
-                    // not exist" when the truth is "it exists and cannot run here, for this reason".
+                    // Declared, greyed, WITH the reason — the same posture ShaperSolids.InertReason and the
+                    // fill availability gate already take. Never hidden.
                     row.SetEnabled(false);
-                    row.tooltip = "Unavailable: " + reason;
+                    row.tooltip = "Will not run — " + reason;
                 }
                 listHost.Add(row);
             }
+
+            if (stack.Count == 0)
+                listHost.Add(Z.Text("No effects.", ZuiText.Subtle,
+                    "Add one to apply it to this document's finished picture."));
+
             box.Add(listHost);
+
+            Button add = null;
+            add = Z.Button("+ Add effect", "Choose an effect to apply to the finished picture.",
+                () => ShowAddEffectMenu(add, published));
+            box.Add(add);
             root.Add(box);
+        }
+
+        /// <summary>
+        /// The add-effect picker: the whole 41-entry catalog, grouped by stage kind and searchable, with every
+        /// unavailable entry shown DISABLED and carrying its own reason rather than filtered out. Hiding them
+        /// would answer "why can't I find Voronoi crack?" with silence; showing it greyed answers it with
+        /// "because this generator publishes no edge-distance sheet".
+        /// </summary>
+        void ShowAddEffectMenu(VisualElement anchor, ShaperQuantitySet published)
+        {
+            var menu = Z.Menu(anchor).Width(340f).Search("Search effects…");
+
+            var entries = ShaperEffectCatalog.All
+                .Select((e, i) => (e, i))
+                .OrderBy(x => x.e.stageKind, StringComparer.Ordinal)
+                .ThenBy(x => x.e.typeName, StringComparer.Ordinal)
+                .ToArray();
+
+            string lastGroup = null;
+            foreach (var x in entries)
+            {
+                var e = x.e;
+                if (e.stageKind != lastGroup)
+                {
+                    menu.Section(e.stageKind, e.stageKind + " effects.");
+                    lastGroup = e.stageKind;
+                }
+
+                bool ok = ShaperEffectCatalog.IsAvailable(in ShaperEffectCatalog.All[x.i], published, out string reason);
+                var captured = e;
+                menu.Item(e.typeName,
+                    ok ? "Runs at " + captured.defaultStage
+                         + (captured.bothStagesPossible ? " (either stage is legal)." : ".")
+                       : "Unavailable — " + reason,
+                    () =>
+                    {
+                        Change(() => document.effects.Add(
+                            new ShaperEffectRef(captured.typeName, captured.defaultStage)));
+                        Rebuild();
+                    },
+                    enabled: ok);
+            }
+            menu.Show();
         }
     }
 }

@@ -51,6 +51,14 @@ namespace Laubrary.Shaper
             {
                 case ShaperNodeKind.Primitive:
                 case ShaperNodeKind.Composite:
+                // T-0155 — a Solid is leaf-like HERE, and what it evaluates to is its CARRIER box, not its
+                // facet silhouette. That is correct for this path and worth stating: this evaluator produces a
+                // node's DISTANCE FIELD for the node cache, whereas a Solid's real geometry is coverage the
+                // generator writes per owner during PaintTile (LR-6.1), which has no distance-field form to
+                // cache. Routing it here keeps it out of the `default` arm — which would return an EMPTY
+                // buffer and silently erase the node from any cached evaluation — at the cost of a
+                // conservative field rather than an exact one.
+                case ShaperNodeKind.Solid:
                     return EvaluateLeafLike(node, parentForward, phase01, seed, grid, width, height, cache);
                 case ShaperNodeKind.Bag:
                     return EvaluateBag(node, parentForward, phase01, seed, grid, width, height, cache);

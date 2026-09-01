@@ -38,6 +38,7 @@ namespace Laubrary.Shaper
         const string SaltPrimitive = "shaper.node.primitive.v1";
         const string SaltBag = "shaper.node.bag.v1";
         const string SaltComposite = "shaper.node.composite.v1";
+        const string SaltSolid = "shaper.node.solid.v1";
         const string SaltFold = "shaper.fold.v1";
         const string SaltSwarmInstance = "shaper.swarm.instance.v1";
         const string SaltSwarmWhole = "shaper.swarm.whole.v1";
@@ -59,6 +60,7 @@ namespace Laubrary.Shaper
                 case ShaperNodeKind.Primitive: return PrimitiveHash(node, phase01, seed);
                 case ShaperNodeKind.Composite: return CompositeHash(node, phase01, seed);
                 case ShaperNodeKind.Bag: return BagOwnHash(node, phase01, seed);
+                case ShaperNodeKind.Solid: return SolidHash(node, phase01, seed);
                 default: return ShaperCacheKey.Empty;
             }
         }
@@ -110,6 +112,54 @@ namespace Laubrary.Shaper
             m.MixFloat(s.merge != null ? s.merge.width : 0f);
             m.MixFloat(s.merge != null ? s.merge.sharpness : 0f);
             m.MixFloat(s.merge != null ? s.merge.carveStrength : 0f);
+        }
+
+        /// <summary>
+        /// T-0155 — a Solids node's own identity.
+        ///
+        /// <b>This method is load-bearing, not bookkeeping.</b> Adding <see cref="ShaperNodeKind.Solid"/>
+        /// without it would have left <see cref="OwnHash"/> falling through to <c>default</c> and returning
+        /// <see cref="ShaperCacheKey.Empty"/>, while <see cref="IsCacheable"/> — which only ever special-cases
+        /// Primitive — kept returning TRUE. Every Solid in a document would then have shared one cache key:
+        /// two different solids would render as whichever of them compiled first, and it would look like a
+        /// plausible picture rather than a crash. Every authored dial is mixed here for that reason.
+        ///
+        /// The colours are mixed too. They are not geometry, but they ARE resolved into
+        /// <see cref="ShaperSolidOp"/> at compile and painted from it, so two solids differing only in line or
+        /// glow colour are genuinely different pictures and must not collide.
+        /// </summary>
+        static ShaperCacheKey SolidHash(ShaperNode node, float phase01, uint seed)
+        {
+            var m = ShaperCacheMixer.Begin(SaltSolid);
+            m = MixCommon(m, node, phase01, seed);
+            MixSwarmDef(ref m, node.swarm);
+
+            var s = node.solid ?? new ShaperSolidDef();
+            m.MixInt((int)s.form);
+            MixZuiValue(ref m, s.size, phase01);
+            MixZuiValue(ref m, s.centreX, phase01);
+            MixZuiValue(ref m, s.centreY, phase01);
+            MixZuiValue(ref m, s.aspect, phase01);
+            MixZuiValue(ref m, s.depth, phase01);
+            MixZuiValue(ref m, s.gemSides, phase01);
+            MixZuiValue(ref m, s.gemCrown, phase01);
+            MixZuiValue(ref m, s.gemPavilion, phase01);
+            MixZuiValue(ref m, s.ringInner, phase01);
+            MixZuiValue(ref m, s.yaw, phase01);
+            MixZuiValue(ref m, s.tilt, phase01);
+            MixZuiValue(ref m, s.roll, phase01);
+            MixZuiValue(ref m, s.lineWidth, phase01);
+            MixZuiValue(ref m, s.edgeGlow, phase01);
+            MixZuiValue(ref m, s.innerGlow, phase01);
+            MixColour(ref m, s.lineColour);
+            MixColour(ref m, s.edgeGlowColour);
+            MixColour(ref m, s.innerGlowColour);
+            return m.Key;
+        }
+
+        static void MixColour(ref ShaperCacheMixer m, Color c)
+        {
+            m.MixFloat(c.r); m.MixFloat(c.g); m.MixFloat(c.b); m.MixFloat(c.a);
         }
 
         static ShaperCacheKey PrimitiveHash(ShaperNode node, float phase01, uint seed)
@@ -217,6 +267,22 @@ namespace Laubrary.Shaper
             {
                 var p = node.primitive;
                 if (IsNonDeterministic(p.starLength) || IsNonDeterministic(p.starBaseWidth) || IsNonDeterministic(p.starSkew))
+                    return false;
+            }
+            // T-0155 — the same rule for Solids, and it needs every dial rather than a chosen few: unlike a
+            // primitive, where only three fields are ZUIValue, EVERY authored dial on a ShaperSolidDef is one,
+            // so any of them can be MinMax. A MinMax dial re-draws per evaluation, which is exactly what a
+            // cache must not memoise.
+            if (node.kind == ShaperNodeKind.Solid && node.solid != null)
+            {
+                var s = node.solid;
+                if (IsNonDeterministic(s.size) || IsNonDeterministic(s.centreX) || IsNonDeterministic(s.centreY) ||
+                    IsNonDeterministic(s.aspect) || IsNonDeterministic(s.depth) ||
+                    IsNonDeterministic(s.gemSides) || IsNonDeterministic(s.gemCrown) ||
+                    IsNonDeterministic(s.gemPavilion) || IsNonDeterministic(s.ringInner) ||
+                    IsNonDeterministic(s.yaw) || IsNonDeterministic(s.tilt) || IsNonDeterministic(s.roll) ||
+                    IsNonDeterministic(s.lineWidth) || IsNonDeterministic(s.edgeGlow) ||
+                    IsNonDeterministic(s.innerGlow))
                     return false;
             }
             return true;

@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Laubrary.AssetKit.Editor;
+using Laubrary.PyreShaper;
 using UnityEditor;
 using UnityEngine;
 
@@ -155,15 +156,18 @@ namespace Laubrary.Shaper.Editor
 
             // 1) render every distinct frame into the sheet buffer.
             var sheetPx = new Color32[sheetW * sheetH];   // default is (0,0,0,0) — transparent padding cells
-            var acc = new float[w * h * ShaperDocumentRenderer.FloatsPerSample];
             var framePx = new Color32[w * h];
             for (int i = 0; i < distinct.Count; i++)
             {
-                // The canonical Runtime renderer, not a local pixel path — see the file header. Both buffers
-                // are hoisted out of the loop and reused, which is why the `Into` overload is used rather than
-                // the allocating one: a long sequence would otherwise churn two arrays per frame.
-                ShaperDocumentRenderer.RenderPhaseInto(doc, doc.PhaseOfFrame(distinct[i]), acc);
-                ShaperDocumentRenderer.Encode(acc, framePx, w * h);
+                // The canonical Runtime renderer, not a local pixel path — see the file header. The
+                // Color32-destination overload is used (not RenderPhaseInto + Encode) because effects are
+                // 8-BIT PIXEL KERNELS that run AFTER the encode: the float accumulator path is pre-encode and
+                // therefore has no effect hook at all, by design rather than omission. Using it here would
+                // silently render every authored effect as a no-op — the exact "built but inert" failure the
+                // effects work existed to fix (T-0156). This overload still writes into the hoisted framePx,
+                // so the loop does not churn an output array per frame.
+                ShaperDocumentRenderer.RenderPhase(doc, doc.PhaseOfFrame(distinct[i]), framePx,
+                                                   ShaperEffectApplier.Instance);
                 BlitFrame(framePx, w, h, sheetPx, sheetW, i, cols, rows);
             }
 
@@ -338,13 +342,18 @@ namespace Laubrary.Shaper.Editor
         // reaches for, and keeping them means a future Phase C window that already found ShaperBaker.RenderFrame
         // lands on the canonical renderer instead of being tempted to write its own.
 
-        /// <summary>Render one frame index to straight-alpha sRGB pixels. Forwards to <see cref="ShaperDocumentRenderer"/>.</summary>
-        public static Color32[] RenderFrame(ShaperDocument doc, int frameIndex)
-            => ShaperDocumentRenderer.RenderFrame(doc, frameIndex);
+        // Both forwarders pass ShaperEffectApplier.Instance (T-0156). The applier lives in the PyreShaper
+        // bridge because the effect kernels are SpriteFx and Runtime/Shaper cannot name them without an
+        // assembly cycle; an EDITOR caller sits above both, so this is the layer where the two meet. Omitting
+        // it is not a neutral default — it silently renders every authored effect as a no-op.
 
-        /// <summary>Render at an explicit phase to straight-alpha sRGB pixels. Forwards to <see cref="ShaperDocumentRenderer"/>.</summary>
+        /// <summary>Render one frame index to straight-alpha sRGB pixels, effects applied. Forwards to <see cref="ShaperDocumentRenderer"/>.</summary>
+        public static Color32[] RenderFrame(ShaperDocument doc, int frameIndex)
+            => ShaperDocumentRenderer.RenderFrame(doc, frameIndex, ShaperEffectApplier.Instance);
+
+        /// <summary>Render at an explicit phase to straight-alpha sRGB pixels, effects applied. Forwards to <see cref="ShaperDocumentRenderer"/>.</summary>
         public static Color32[] RenderPhase(ShaperDocument doc, float phase01)
-            => ShaperDocumentRenderer.RenderPhase(doc, phase01);
+            => ShaperDocumentRenderer.RenderPhase(doc, phase01, ShaperEffectApplier.Instance);
 
         // ── playback order ──────────────────────────────────────────────────────────────────────────────
 
