@@ -56,7 +56,7 @@ namespace ShaperMock.Editor
         // A null entry (Fill/Border/Effects absent per §B4's absence rule) is skipped harmlessly by the bar
         // itself, exactly like Pyre's own null-safe TagsSection entry.
         ZuiSection canvasSection, lightRigSection, layersSection;
-        ZuiSection shapeSection, fillSection, borderSection, swarmSection, effectsSection;
+        ZuiSection shapeSection, fillSection, borderSection, shellSection, sweepSection, swarmSection, effectsSection;
         VisualElement toggleBarHost;
 
         // Rebuild() recreates the left ScrollView, so its offset has to be carried across by hand or the
@@ -111,6 +111,8 @@ namespace ShaperMock.Editor
                 ("Shape", shapeSection),
                 ("Fill", fillSection),
                 ("Border", borderSection),
+                ("Shell", shellSection),
+                ("Sweep", sweepSection),
                 ("Swarm", swarmSection),
                 ("Effects", effectsSection)));
         }
@@ -218,6 +220,16 @@ namespace ShaperMock.Editor
                 Z.Field("Seed", "Random seed — every dial's randomness (once this mock has any) derives from it.",
                     Z.Int(document.canvas.seed, "Random seed.",
                         v => Change(() => document.canvas.seed = v), 70f))));
+            // Document-level fields (T-0138 #14, real ShaperDocument.layerSpacing/pixelSize) — a second
+            // packed row rather than crowding the first, which already sits at its own measured width limit
+            // (T-0136's comment above).
+            box.Add(Z.HGroup(
+                Z.MicroSlider("Layer spacing", document.canvas.layerSpacing, 0f, 8f,
+                    "Canvas pixels between consecutive layers' base planes.",
+                    v => Change(() => document.canvas.layerSpacing = v), 140f),
+                Z.MicroSlider("Pixel size", document.canvas.pixelSize, 0.1f, 4f,
+                    "Canvas units per sample — 1 makes a canvas pixel in a dial equal one sample.",
+                    v => Change(() => document.canvas.pixelSize = v), 140f)));
             root.Add(box);
         }
 
@@ -435,30 +447,45 @@ namespace ShaperMock.Editor
             header.Add(removeBtn);
             box.Add(header);
 
-            // Two packed rows of four instead of four stacked rows of two — none of these eight are a
-            // spatial pair on their own (Pos X/Y/Z are three independent 1D dials here, not a Vector2/3
-            // pad), so they all share rows and wrap down at narrow widths rather than always sitting one
-            // pair per line regardless of how much width the window actually has.
-            // ONE continuous HGroup for all eight dials, not two separate groups of four: splitting them
-            // gave each group its own independent wrap boundary, so whichever dial didn't fit on a group's
-            // first line became the LAST item in that group with nothing after it to share the line with —
-            // an orphaned single control with a wasted gap beside it (caught live by the project owner,
-            // T-0136: exactly the anti-pattern the earlier packing fix was supposed to remove, just
-            // relocated). Merged into one flow, an item that doesn't fit falls onto the SAME wrapped line as
-            // whatever comes after it in this group, not alone — Pitch lands beside Pos X, Pos Y instead of
-            // by itself; Specular only ever ends up alone if the whole group's count happens to leave
-            // exactly one item on the last line, which a single 8-item group makes far less likely than two
-            // independent 4-item ones.
+            // Kind picker (T-0138 #9, real ShaperLightKind) — Directional and Point genuinely differ in
+            // which dials apply: Directional is driven by Yaw/Pitch, Point by a position + range. Switching
+            // kind rebuilds the dial set below rather than showing all eight regardless of relevance.
             var body = new VisualElement();
-            body.Add(Z.HGroup(
-                Val("Intensity", "This light's brightness.", light.intensity, 0f, 4f),
-                Val("Range", "How far this light reaches.", light.range, 0.1f, 20f),
-                Val("Yaw", "Horizontal direction, in degrees.", light.yaw, -180f, 180f, cyclic: true, decimals: 0),
-                Val("Pitch", "Vertical direction, in degrees.", light.pitch, -90f, 90f, decimals: 0),
-                Val("Pos X", "Light position X.", light.posX, -5f, 5f),
-                Val("Pos Y", "Light position Y.", light.posY, -5f, 5f),
-                Val("Pos Z", "Light position Z.", light.posZ, -5f, 5f),
-                Val("Specular", "This light's specular contribution.", light.specular, 0f, 1f)));
+            var dialHost = new VisualElement();
+            void RebuildDials()
+            {
+                dialHost.Clear();
+                // None of these are a spatial pair on their own (Pos X/Y/Z are three independent 1D dials
+                // here, not a Vector2/3 pad), so they share ONE HGroup and wrap together rather than
+                // orphaning a lone item (T-0136's own lesson on this exact card, kept here).
+                if (light.kind == ShaperMockLightKind.Directional)
+                {
+                    dialHost.Add(Z.HGroup(
+                        Val("Intensity", "This light's brightness.", light.intensity, 0f, 4f),
+                        Val("Yaw", "Directional: where the light comes from, in degrees.", light.yaw, -180f, 180f,
+                            cyclic: true, decimals: 0),
+                        Val("Pitch", "Directional: vertical direction, in degrees.", light.pitch, -90f, 90f, decimals: 0),
+                        Val("Specular", "This light's specular contribution.", light.specular, 0f, 1f)));
+                }
+                else
+                {
+                    dialHost.Add(Z.HGroup(
+                        Val("Intensity", "This light's brightness.", light.intensity, 0f, 4f),
+                        Val("Pos X", "Point: absolute canvas position X.", light.posX, -5f, 5f),
+                        Val("Pos Y", "Point: absolute canvas position Y.", light.posY, -5f, 5f),
+                        Val("Pos Z", "Point: absolute canvas position Z, +Z toward the viewer.", light.posZ, -5f, 5f),
+                        Val("Range", "Point only: the distance at which attenuation reaches half.", light.range, 0.1f, 20f),
+                        Val("Specular", "This light's specular contribution.", light.specular, 0f, 1f)));
+                }
+            }
+            RebuildDials();
+
+            var kindPicker = Z.MiniRadio((int)light.kind, new[] { "Directional", "Point" },
+                "Whether this light shines from a fixed direction or radiates from a position.",
+                v => Change(() => { light.kind = (ShaperMockLightKind)v; RebuildDials(); }));
+            body.Add(Z.Field("Kind", "Whether this light shines from a fixed direction or radiates from a position.",
+                kindPicker));
+            body.Add(dialHost);
             box.Add(body);
 
             ZuiFoldCard.Wire(light, header, body, enableToggle, removeBtn, swatch, name);
@@ -497,6 +524,12 @@ namespace ShaperMock.Editor
             // Border: absent by default at every level, and entirely absent (not greyed) on a Composite.
             if (!isComposite)
                 nodeBody.Add(BuildBorderSection(node));
+
+            // Shell/Sweep (T-0138 #12/#13, real ShaperNode.shell/sweep): universal, like Swarm below — the
+            // real engine declares both fields unconditionally on every node kind, with no Composite
+            // exception the way Fill/Border have one.
+            nodeBody.Add(BuildShellSection(node));
+            nodeBody.Add(BuildSweepSection(node));
 
             // Swarm: universal — every node kind gets this card, starting collapsed.
             nodeBody.Add(BuildSwarmSection(node));
@@ -566,9 +599,44 @@ namespace ShaperMock.Editor
                 kindBody.Clear();
                 switch (node.shapeKind)
                 {
-                    case ShaperMockShapeKind.Disc:
-                        kindBody.Add(Dial("Radius", "The disc's radius.", node.discRadius, 0.02f, 1f,
-                            v => node.discRadius = v));
+                    case ShaperMockShapeKind.Rect:
+                        kindBody.Add(Z.HGroup(
+                            Dial("Half W", "Half-width.", node.rectHalfW, 0.02f, 1f, v => node.rectHalfW = v),
+                            Dial("Half H", "Half-height.", node.rectHalfH, 0.02f, 1f, v => node.rectHalfH = v),
+                            Dial("Corner radius", "Rounds each corner.", node.rectCornerRadius, 0f, 1f,
+                                v => node.rectCornerRadius = v)));
+                        break;
+
+                    case ShaperMockShapeKind.Ellipse:
+                        kindBody.Add(Z.HGroup(
+                            Dial("Radius X", "The ellipse's horizontal radius.", node.ellipseRx, 0.02f, 1f,
+                                v => node.ellipseRx = v),
+                            Dial("Radius Y", "The ellipse's vertical radius.", node.ellipseRy, 0.02f, 1f,
+                                v => node.ellipseRy = v)));
+                        break;
+
+                    case ShaperMockShapeKind.Diamond:
+                        kindBody.Add(Z.HGroup(
+                            Dial("Radius X", "Horizontal vertex distance from centre.", node.diamondRx, 0.02f, 1f,
+                                v => node.diamondRx = v),
+                            Dial("Radius Y", "Vertical vertex distance from centre.", node.diamondRy, 0.02f, 1f,
+                                v => node.diamondRy = v)));
+                        break;
+
+                    case ShaperMockShapeKind.Triangle:
+                        kindBody.Add(Z.HGroup(
+                            Dial("Base", "The triangle's base width.", node.triangleBase, 0.02f, 1f,
+                                v => node.triangleBase = v),
+                            Dial("Height", "The triangle's height, apex up.", node.triangleHeight, 0.02f, 1f,
+                                v => node.triangleHeight = v)));
+                        break;
+
+                    case ShaperMockShapeKind.Capsule:
+                        kindBody.Add(Z.HGroup(
+                            Dial("Half length", "Half the centre segment's length.", node.capsuleHalfLength, 0f, 1f,
+                                v => node.capsuleHalfLength = v),
+                            Dial("Radius", "The capsule's radius.", node.capsuleRadius, 0.02f, 1f,
+                                v => node.capsuleRadius = v)));
                         break;
 
                     case ShaperMockShapeKind.Ngon:
@@ -602,13 +670,14 @@ namespace ShaperMock.Editor
             }
             RebuildKindBody();
 
-            var picker = Z.MiniRadio((int)node.shapeKind, new[] { "Disc", "N-gon", "Star" },
+            var picker = Z.MiniRadio((int)node.shapeKind,
+                new[] { "Rect", "Ellipse", "Diamond", "Triangle", "Capsule", "N-gon", "Star" },
                 "Which primitive this node generates. Switching kind rebuilds the dial set below.",
                 v => Change(() =>
                 {
                     node.shapeKind = (ShaperMockShapeKind)v;
                     RebuildKindBody();
-                }));
+                }), wrap: true);
             var wrap = new VisualElement();
             wrap.Add(Z.Field("Kind", "Which primitive this node generates.", picker));
             wrap.Add(kindBody);
@@ -701,6 +770,22 @@ namespace ShaperMock.Editor
                     v => { Undo.RecordObject(document, "Edit Shaper Mock"); node.compositeReasonNote = v;
                         EditorUtility.SetDirty(document); }, 220f)));
 
+            // Buffer-sizing fields (T-0138 #15, real ShaperCompositeDef) — plain sliders, not Z.Value, same
+            // posture as Canvas width/height.
+            body.Add(Z.HGroup(
+                Z.MicroSlider("Half extent X", node.compositeHalfExtentX, 8f, 256f,
+                    "Half-extent, in local canvas units, of the box this generator's picture bakes into.",
+                    v => Change(() => node.compositeHalfExtentX = v), 130f, decimals: 0),
+                Z.MicroSlider("Half extent Y", node.compositeHalfExtentY, 8f, 256f,
+                    "Half-extent, in local canvas units, of the box this generator's picture bakes into.",
+                    v => Change(() => node.compositeHalfExtentY = v), 130f, decimals: 0),
+                Z.MicroSlider("Bake W", node.compositeBakeWidth, 16f, 512f,
+                    "Bake resolution in texels — independent of the canvas's own sampling resolution.",
+                    v => Change(() => node.compositeBakeWidth = Mathf.RoundToInt(v)), 130f, decimals: 0),
+                Z.MicroSlider("Bake H", node.compositeBakeHeight, 16f, 512f,
+                    "Bake resolution in texels — independent of the canvas's own sampling resolution.",
+                    v => Change(() => node.compositeBakeHeight = Mathf.RoundToInt(v)), 130f, decimals: 0)));
+
             // The selected generator's OWN authored dials (T-0137) — reflected with zero per-generator UI
             // code, the same ZuiReflect pattern the effect list already uses, proving "picking a generator
             // shows that generator's own fields" is a real, demonstrated capability, not an empty promise.
@@ -741,14 +826,31 @@ namespace ShaperMock.Editor
                 var box = Z.BoxKeyed("Extrusion",
                     "Depth, bevel and taper — already envelope-ready in the real engine, so every row here "
                     + "is a Z.Value.", "shaper.mock.extrude:" + node.GetHashCode());
-                // One packed row of six rather than three stacked rows of two.
+
+                // Technique/Bevel pickers (T-0138 #4, real ShaperExtrusionTechnique/ShaperBevelTechnique) —
+                // were missing entirely; only their dependent dials existed.
+                box.Add(Z.Field("Technique", "Which extrusion profile raises this shape's surface.",
+                    Z.MiniRadio((int)node.extrudeTechnique,
+                        new[] { "Flat", "Linear", "Stepped", "Dome", "Round", "Taper", "Pyramid" },
+                        "Which extrusion profile raises this shape's surface.",
+                        v => Change(() => node.extrudeTechnique = (ShaperMockExtrusionTechnique)v), wrap: true)));
+                box.Add(Z.Field("Bevel", "How the extrusion's rim bevels.",
+                    Z.MiniRadio((int)node.bevelTechnique,
+                        new[] { "None", "Linear", "Rounded", "Cove", "Ogee", "Stepped" },
+                        "How the extrusion's rim bevels. None is a real, serialized value — a sharp edge, not "
+                        + "an absent bevel.",
+                        v => Change(() => node.bevelTechnique = (ShaperMockBevelTechnique)v), wrap: true)));
+
+                // One packed row of seven rather than stacked pairs — Steps is the tread-count dial
+                // (Stepped extrusion only) that was missing from the mock entirely alongside the pickers.
                 box.Add(Z.HGroup(
                     Val("Depth", "How far this shape extrudes.", node.extrudeDepth, 0f, 1f),
-                    Val("Angle", "The extrusion's lean angle, in degrees.", node.extrudeAngle, -90f, 90f, decimals: 0),
-                    Val("Curve", "Bulges or pinches the extrusion's profile.", node.extrudeCurve, -1f, 1f),
-                    Val("Taper", "Narrows the far end of the extrusion.", node.extrudeTaper, -1f, 1f),
+                    Val("Angle", "Linear only: the extrusion's lean angle, in degrees.", node.extrudeAngle, -90f, 90f, decimals: 0),
+                    Val("Steps", "Stepped extrusion only: tread count.", node.extrudeSteps, 2f, 32f, decimals: 0),
+                    Val("Curve", "Dome/Round only: bulges or pinches the extrusion's profile.", node.extrudeCurve, -1f, 1f),
+                    Val("Taper", "Taper/Pyramid only: narrows the far end of the extrusion.", node.extrudeTaper, -1f, 1f),
                     Val("Bevel amt", "How much the extrusion's edge bevels.", node.bevelAmount, 0f, 1f),
-                    Val("Bevel steps", "How many facets the bevel uses.", node.bevelSteps, 0f, 8f, decimals: 0)));
+                    Val("Bevel steps", "Stepped bevel only: micro-terrace count.", node.bevelSteps, 0f, 8f, decimals: 0)));
                 box.Add(Z.Button("Flatten", "Reset depth to 0 (collapses this block).", () =>
                 {
                     Change(() => node.extrudeDepth.staticValue = 0f);
@@ -772,7 +874,7 @@ namespace ShaperMock.Editor
             {
                 listHost.Clear();
                 for (int i = 0; i < bag.bagMembers.Count; i++)
-                    listHost.Add(BuildMemberRow(bag, listHost, i, RebuildMembers));
+                    listHost.Add(BuildMemberWrap(bag, listHost, i, RebuildMembers));
             }
             RebuildMembers();
 
@@ -785,7 +887,43 @@ namespace ShaperMock.Editor
             return host;
         }
 
-        VisualElement BuildMemberRow(ShaperMockNode bag, VisualElement listHost, int i, Action rebuildList)
+        VisualElement BuildMemberWrap(ShaperMockNode bag, VisualElement listHost, int i, Action rebuildList)
+        {
+            var wrap = new VisualElement();
+            wrap.Add(BuildMemberRow(bag, listHost, wrap, i, rebuildList));
+            // Blend (T-0138 #3, real ShaperNode.blend) — only meaningful once this member folds into an
+            // accumulated shape, same gate as the combine-mode picker itself (i > 0).
+            if (i > 0) wrap.Add(BuildMemberBlendRow(bag.bagMembers[i]));
+            return wrap;
+        }
+
+        VisualElement BuildMemberBlendRow(ShaperMockNode member)
+        {
+            var b = member.blend;
+            var row = new VisualElement();
+            row.AddToClassList("zui-row");
+            row.style.marginLeft = 20f;
+            if (member.combineMode == ShaperMockCombineMode.Subtract)
+            {
+                row.Add(Z.MicroSlider("Carve strength", b.carveStrength, 0f, 1f,
+                    "0..1 for Subtract: 1 = a full hard cut, 0 = an exact no-op everywhere in the field.",
+                    v => Change(() => b.carveStrength = v), 150f));
+            }
+            else
+            {
+                row.Add(Z.HGroup(
+                    Z.MicroSlider("Blend width", b.width, 0f, 32f,
+                        "Blend band half-width in canvas pixels, for Add and Intersect. 0 = a hard combine.",
+                        v => Change(() => b.width = v), 130f),
+                    Z.MicroSlider("Sharpness", b.sharpness, 0f, 1f,
+                        "How sharply the blend's fillet tightens as it deepens.",
+                        v => Change(() => b.sharpness = v), 130f)));
+            }
+            return row;
+        }
+
+        VisualElement BuildMemberRow(ShaperMockNode bag, VisualElement listHost, VisualElement dragWrap, int i,
+            Action rebuildList)
         {
             var member = bag.bagMembers[i];
             var row = new VisualElement();
@@ -794,7 +932,7 @@ namespace ShaperMock.Editor
             var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder this member.");
             grip.style.unityFontStyleAndWeight = FontStyle.Bold;
             grip.style.width = 16f;
-            ZuiReorder.MakeGrip(grip, row, listHost, (from, to) =>
+            ZuiReorder.MakeGrip(grip, dragWrap, listHost, (from, to) =>
             {
                 Change(() =>
                 {
@@ -829,15 +967,21 @@ namespace ShaperMock.Editor
             // base shape, so a combine picker on it would offer a choice with no visible effect.
             if (i > 0)
             {
-                var combine = Z.MiniRadio((int)member.combineMode, new[] { "Add", "Sub", "Int", "Blend" },
+                // 3 real values (T-0138 #2, real ShaperCombineMode) — "Blend" was invented; softness is a
+                // property every mode has (the blend row below this one), not a 4th mode.
+                var combine = Z.MiniRadio((int)member.combineMode, new[] { "Add", "Sub", "Int" },
                     "How this member combines with the accumulated shape above it.",
-                    v => Change(() =>
+                    v =>
                     {
-                        member.combineMode = (ShaperMockCombineMode)v;
-                        // A Subtract member may not own a fill (§B4/FC-3.3) — enforced structurally, not
-                        // just hidden in the UI.
-                        if (member.combineMode == ShaperMockCombineMode.Subtract) member.fill = null;
-                    }));
+                        Change(() =>
+                        {
+                            member.combineMode = (ShaperMockCombineMode)v;
+                            // A Subtract member may not own a fill (§B4/FC-3.3) — enforced structurally, not
+                            // just hidden in the UI.
+                            if (member.combineMode == ShaperMockCombineMode.Subtract) member.fill = null;
+                        });
+                        rebuildList();   // the blend row below switches between width/sharpness and carve strength
+                    });
                 row.Add(combine);
             }
 
@@ -937,8 +1081,14 @@ namespace ShaperMock.Editor
             if (node.border == null) return box;
 
             var b = node.border;
-            box.Add(Val("Width", "How far the strip extends outward, in shape units. Already envelope-ready.",
-                b.width, 0f, 0.3f));
+            box.Add(Z.HGroup(
+                Val("Width", "The TOTAL strip thickness, in shape units, in all three alignments. Already envelope-ready.",
+                    b.width, 0f, 0.3f),
+                Z.Field("Alignment", "Where the strip sits relative to this node's edge.",
+                    Z.MiniRadio((int)b.alignment, new[] { "Centred", "Inward", "Outward" },
+                        "Centred straddles the edge (half in, half out). Inward is the default — the only "
+                        + "alignment today's Pyre can do. Outward sits entirely past the edge.",
+                        v => Change(() => b.alignment = (ShaperMockShellAlignment)v)))));
             box.Add(Z.Toggle("Joins coverage",
                 "Include the outward strip in this node's own published coverage (default on).",
                 b.joinsCoverage, v => Change(() => b.joinsCoverage = v)));
@@ -952,6 +1102,78 @@ namespace ShaperMock.Editor
             };
             box.Add(stripFillControl);
 
+            return box;
+        }
+
+        // ── Shell (T-0138 #12) — built from scratch; real ShaperNode.shell, absent-by-default like Swarm ──
+
+        VisualElement BuildShellSection(ShaperMockNode node)
+        {
+            var box = shellSection = Z.Section("Shell",
+                "Keep only a band of constant thickness at this node's own edge, discarding the interior — "
+                + "unlike Border, which adds an outward strip, Shell REPLACES the shape with its own wall.",
+                "shaper.mock.shell", icon: "square-half");
+            var s = node.shell;
+
+            // Same header-checkbox treatment as Border/Swarm (Pyre parity, T-0136): present/absent is this
+            // whole section's one job.
+            box.SetHeaderToggle(s.enabled,
+                "Off = this node's own silhouette, untouched. On = only a band of constant thickness at this "
+                + "node's own edge survives; the interior is discarded.",
+                v => { Change(() => s.enabled = v); RebuildNodeBody(); });
+
+            if (!s.enabled) return box;
+
+            box.Add(Z.HGroup(
+                Z.MicroSlider("Thickness", s.thickness, 0.5f, 32f,
+                    "Wall thickness in canvas pixels — constant everywhere, which is the whole point.",
+                    v => Change(() => s.thickness = v), 140f),
+                Z.Field("Alignment", "Which side of the surface the shell's band sits on.",
+                    Z.MiniRadio((int)s.alignment, new[] { "Centred", "Inward", "Outward" },
+                        "Which side of the surface the shell's band sits on.",
+                        v => Change(() => s.alignment = (ShaperMockShellAlignment)v)))));
+            return box;
+        }
+
+        // ── Sweep (T-0138 #13) — built from scratch; real ShaperNode.sweep, absent-by-default like Swarm ──
+
+        VisualElement BuildSweepSection(ShaperMockNode node)
+        {
+            var box = sweepSection = Z.Section("Sweep",
+                "Keep only an arc or a slab of this node's own finished shape — radial around it, or "
+                + "longitudinal along it, an axis the shape itself declares rather than one you pick.",
+                "shaper.mock.sweep", icon: "compass");
+            var sw = node.sweep;
+
+            box.SetHeaderToggle(sw.enabled,
+                "Off = the whole shape. On = only the kept arc (radial) or slab (longitudinal) survives.",
+                v => { Change(() => sw.enabled = v); RebuildNodeBody(); });
+
+            if (!sw.enabled) return box;
+
+            // The axis is declared by the child, never chosen here (design B12) — only a Capsule primitive
+            // declares Longitudinal; every other primitive, and a Bag/Composite, is Radial.
+            bool longitudinal = node.kind == ShaperMockNodeKind.Primitive && node.shapeKind == ShaperMockShapeKind.Capsule;
+            if (longitudinal)
+            {
+                box.Add(Z.HGroup(
+                    Z.MicroSlider("Start", sw.startFraction, 0f, 1f,
+                        "Longitudinal only: where the kept slab starts, as a fraction of the length.",
+                        v => Change(() => sw.startFraction = v), 130f),
+                    Z.MicroSlider("Extent", sw.extentFraction, 0f, 1f,
+                        "Longitudinal only: the fraction of the length kept. 1 (the default) is the identity.",
+                        v => Change(() => sw.extentFraction = v), 130f)));
+            }
+            else
+            {
+                box.Add(Z.HGroup(
+                    Z.MicroSlider("Start", sw.startDegrees, 0f, 360f,
+                        "Radial only: where the kept arc starts, in degrees from +X, counter-clockwise.",
+                        v => Change(() => sw.startDegrees = v), 130f, decimals: 0),
+                    Z.MicroSlider("Extent", sw.extentDegrees, 0f, 360f,
+                        "Radial only: degrees of arc kept. 360 (the default) is the identity.",
+                        v => Change(() => sw.extentDegrees = v), 130f, decimals: 0)));
+            }
             return box;
         }
 
@@ -976,13 +1198,21 @@ namespace ShaperMock.Editor
 
             if (!s.enabled) return box;
 
+            // T-0138 #11 — the real hard cap is ShaperSwarmDef.SimulationHardCap == 6, and it applies to a
+            // STATEFUL-SIMULATION generator with no native swarm path, NOT to "native available" as this
+            // used to assume (the mock previously invented 24 for that case). The general authored range
+            // stays [1, HardCap] (64, matching the real [Range(1,64)] on ShaperSwarmDef.count) regardless.
             bool native = NativeSwarmAvailable(node);
-            int cap = native ? 24 : ShaperMockSwarm.HardCap;
-            bool capped = s.count > cap;
-            int resolved = capped ? cap : s.count;
+            bool statefulSim = node.kind == ShaperMockNodeKind.Composite
+                && ShaperMockCompositeCatalog.All[Mathf.Clamp(node.compositeGeneratorIndex, 0,
+                    ShaperMockCompositeCatalog.All.Length - 1)].IsStatefulSimulation;
+            bool simCapped = statefulSim && !native;
+            int resolved = simCapped ? Mathf.Min(s.count, ShaperMockSwarm.SimulationHardCap) : s.count;
+            bool capped = simCapped && s.count > ShaperMockSwarm.SimulationHardCap;
             string countTip = capped
-                ? $"How many instances to scatter — authored {s.count}, but this node's swarm path holds a "
-                  + $"per-instance state budget capped at {resolved}, so the effective count is {resolved}."
+                ? $"How many instances to scatter — authored {s.count}, but this generator is a stateful "
+                  + $"simulation with no native swarm path, so the compiler holds it to a hard cap of "
+                  + $"{ShaperMockSwarm.SimulationHardCap}, so the effective count is {resolved}."
                 : "How many instances to scatter.";
 
             // Count/Rot jitter/Scale jitter/Lifetime stagger are four independent scalars, so they share one
@@ -991,6 +1221,8 @@ namespace ShaperMock.Editor
             box.Add(Z.HGroup(
                 Z.MicroSlider(capped ? $"Count ({resolved} eff.)" : "Count", s.count, 1f, ShaperMockSwarm.HardCap,
                     countTip, v => Change(() => s.count = Mathf.RoundToInt(v)), 160f, decimals: 0),
+                Z.Field("Seed", "Base seed each instance's own jitter draws from (hashed per instance, never System.Random).",
+                    Z.Int(s.seed, "Base seed.", v => Change(() => s.seed = v), 70f)),
                 Z.MicroSlider("Rot jitter", s.rotationJitterDegrees, 0f, 180f,
                     "Random rotation spread per instance, in degrees.",
                     v => Change(() => s.rotationJitterDegrees = v), 130f, decimals: 0),
@@ -999,10 +1231,18 @@ namespace ShaperMock.Editor
                 Z.MicroSlider("Lifetime stagger", s.lifetimeStagger, 0f, 1f,
                     "Randomly staggers each instance's life phase so a burst doesn't animate in lockstep.",
                     v => Change(() => s.lifetimeStagger = v), 150f)));
-            box.Add(Z.Field("Pos jitter", "How much each instance's position randomly varies.",
-                Z.Pad(s.positionJitter, new Rect(-1f, -1f, 2f, 2f),
-                    "How much each instance's position randomly varies.",
-                    v => Change(() => s.positionJitter = v), 40f)));
+            box.Add(Z.HGroup(
+                Z.Field("Pos jitter", "How much each instance's position randomly varies.",
+                    Z.Pad(s.positionJitter, new Rect(-1f, -1f, 2f, 2f),
+                        "How much each instance's position randomly varies.",
+                        v => Change(() => s.positionJitter = v), 40f)),
+                Z.MicroSlider("Merge width", s.merge.width, 0f, 32f,
+                    "How swarm instances fold into one field — the same organic-blend knob a Bag member's "
+                    + "combine mode uses. 0 = a hard union.",
+                    v => Change(() => s.merge.width = v), 130f),
+                Z.MicroSlider("Merge sharpness", s.merge.sharpness, 0f, 1f,
+                    "How sharply the merge's fillet tightens as it deepens.",
+                    v => Change(() => s.merge.sharpness = v), 130f)));
 
             string badge = native
                 ? "Interact — active (Native: " + SourceName(node) + ")"
@@ -1019,7 +1259,12 @@ namespace ShaperMock.Editor
             return box;
         }
 
-        static bool NativeSwarmAvailable(ShaperMockNode node) => node.kind == ShaperMockNodeKind.Composite;
+        // T-0138 #11 — was "any Composite node", which made the real SimulationHardCap unreachable (native
+        // and stateful-simulation are independent per-source facts, not implied by node kind alone;
+        // SWARM-SPEC.md §4: "Primitive and Bag nodes never resolve to Native today").
+        static bool NativeSwarmAvailable(ShaperMockNode node) => node.kind == ShaperMockNodeKind.Composite
+            && ShaperMockCompositeCatalog.All[Mathf.Clamp(node.compositeGeneratorIndex, 0,
+                ShaperMockCompositeCatalog.All.Length - 1)].SupportsNativeSwarm;
         static string SourceName(ShaperMockNode node) => node.kind == ShaperMockNodeKind.Composite
             ? ShaperMockCompositeCatalog.All[Mathf.Clamp(node.compositeGeneratorIndex, 0,
                 ShaperMockCompositeCatalog.All.Length - 1)].DisplayName
@@ -1049,6 +1294,13 @@ namespace ShaperMock.Editor
                 Z.Field("Spec tint", "Tints the specular highlight.",
                     Z.Color(r.specularTint, "Tints the specular highlight.",
                         c => Change(() => r.specularTint = c), 90f))));
+            box.Add(Z.Field("Normal kind",
+                "Which surface-direction provider this node's lighting reads.",
+                Z.MiniRadio((int)r.normalKind, new[] { "Constant", "Profile" },
+                    "Constant = an authored fixed direction (Wave 2's only provider until extrusion). "
+                    + "Profile = the extrusion/bevel profile's own analytic surface normal — needs a height "
+                    + "stage to produce any relief.",
+                    v => Change(() => r.normalKind = (ShaperMockNormalKind)v))));
             return box;
         }
 

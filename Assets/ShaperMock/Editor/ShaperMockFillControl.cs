@@ -93,8 +93,16 @@ namespace ShaperMock.Editor
                         g => Mutate(() => _fill.gradient = g), 200f);
                     _content.Add(grad);
 
+                    var modePicker = Z.MiniRadio((int)_fill.gradientMode,
+                        new[] { "Linear", "Radial", "Angular", "By edge dist." },
+                        "How the gradient is parameterised across the shape — Linear/Radial/Angular read the "
+                        + "shape's own anchor box; By edge distance reads how far in from the outline a "
+                        + "sample sits.",
+                        v => Mutate(() => _fill.gradientMode = (ShaperMockGradientMode)v));
+                    _content.Add(Z.Field("Mode", "How the gradient is parameterised across the shape.", modePicker));
+
                     _content.Add(Z.MicroSlider("Angle", _fill.gradientAngleDegrees, 0f, 360f,
-                        "Rotation of the gradient's axis across the shape, in degrees.",
+                        "Linear: the axis direction. Angular: the phase where t = 0. Unused by Radial/By edge distance.",
                         v => Mutate(() => _fill.gradientAngleDegrees = v), 150f, decimals: 0));
                     break;
                 }
@@ -110,10 +118,11 @@ namespace ShaperMock.Editor
                     // literal "greyed out with the reason shown, not hidden" case), the mode selector
                     // itself stays a legitimate, always-visible choice.
                     var picker = Z.MiniRadio((int)_fill.rampQuantity,
-                        new[] { "Heat", "Density", "Height" },
-                        "Which published quantity the ramp reads. None of these are published by the "
-                        + "current shape in this mock, so the ramp body below is greyed out.",
-                        v => Mutate(() => _fill.rampQuantity = (ShaperMockRampQuantity)v));
+                        new[] { "Coverage", "Height", "Edge Dist.", "Heat", "Density", "Soot", "Depth", "Age", "Surface Dir." },
+                        "Which published quantity the ramp reads (the real engine's closed 9-value "
+                        + "vocabulary). None of these are published by the current shape in this mock, so "
+                        + "the ramp body below is greyed out.",
+                        v => Mutate(() => _fill.rampQuantity = (ShaperMockRampQuantity)v), wrap: true);
                     _content.Add(Z.Field("Quantity", "Which published quantity drives the ramp.", picker));
 
                     var body = new VisualElement();
@@ -126,10 +135,10 @@ namespace ShaperMock.Editor
                             v => Mutate(() => _fill.rampInputHigh = v), 120f)));
                     body.SetEnabled(false);
                     body.tooltip = "Greyed out: this shape does not publish a "
-                        + _fill.rampQuantity.ToString().ToLowerInvariant() + " quantity for the ramp to read.";
+                        + ShaperMockFill.RampQuantityName(_fill.rampQuantity) + " quantity for the ramp to read.";
                     _content.Add(body);
                     _content.Add(Z.Help(
-                        "This shape publishes no " + _fill.rampQuantity.ToString().ToLowerInvariant()
+                        "This shape publishes no " + ShaperMockFill.RampQuantityName(_fill.rampQuantity)
                         + " quantity, so the ramp has nothing to sample yet — the kind is still a "
                         + "legitimate choice to pre-author.", HelpBoxMessageType.Info));
                     break;
@@ -141,6 +150,12 @@ namespace ShaperMock.Editor
                     var header = Z.Row(_swatch, FieldLabel(_label ?? "Fill"));
                     header.style.alignItems = Align.Center;
                     _content.Add(header);
+
+                    var mappingPicker = Z.MiniRadio((int)_fill.textureMapping, new[] { "Fitted", "Tiled" },
+                        "Fitted = the anchor box maps to the texture's full UV exactly once, never repeating. "
+                        + "Tiled = the image repeats at an authored density independent of the node's size.",
+                        v => Mutate(() => _fill.textureMapping = (ShaperMockTextureMapping)v));
+                    _content.Add(Z.Field("Mapping", "How the texture's UVs are derived.", mappingPicker));
 
                     var picker = Z.MiniRadio(_fill.textureSourceIndex, ShaperMockFill.TextureSourceNames,
                         "Which source texture paints this fill — a picker, never a typed path.",
@@ -251,6 +266,26 @@ namespace ShaperMock.Editor
                     break;
                 }
             }
+
+            // Shared composite/space/fit (T-0138 #5, real ShaperFillDef.composite/space/fit) — applies to
+            // EVERY fill kind, not authored per-kind, so it sits once at the bottom of the body rather than
+            // being duplicated per-kind (same posture as the quantise row below it).
+            _content.Add(Z.HGroup(
+                Z.Field("Composite", "How this fill's colour composites against the accumulated destination.",
+                    Z.MiniRadio((int)_fill.composite, new[] { "Over", "Add" },
+                        "Over = standard alpha compositing, the common case. Add = additive light — does not "
+                        + "raise alpha, so a glow over nothing stays transparent-but-bright.",
+                        v => Mutate(() => _fill.composite = (ShaperMockFillComposite)v))),
+                Z.Field("Space", "Whether this fill's pattern is anchored to the shape or to the canvas.",
+                    Z.MiniRadio((int)_fill.space, new[] { "Stamped", "Fixed" },
+                        "Stamped (default) = the pattern travels with the shape. Fixed = canvas-anchored; the "
+                        + "shape moves through a stationary pattern.",
+                        v => Mutate(() => _fill.space = (ShaperMockFillSpace)v))),
+                Z.Field("Fit", "How a non-square anchor box normalises into the pattern.",
+                    Z.MiniRadio((int)_fill.fit, new[] { "Uniform", "Stretch" },
+                        "Uniform keeps a radial gradient a true circle on a non-square box. Stretch runs a "
+                        + "ramp end to end on every axis instead.",
+                        v => Mutate(() => _fill.fit = (ShaperMockFillFit)v)))));
 
             // Shared palette-quantise post-stage (§C1) — applies after every fill kind above, so it sits
             // once at the bottom of the body rather than being duplicated per-kind.

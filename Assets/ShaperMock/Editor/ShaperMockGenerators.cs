@@ -25,14 +25,32 @@ namespace ShaperMock.Editor
         public readonly bool PaletteIndifferent;
         public readonly string ReasonNote;
         public readonly System.Func<ShaperMockGeneratorParams> NewParams;
+        // T-0138 #11 — UNLIKE PaletteIndifferent (a sourced T-0112 fact), this is an ILLUSTRATIVE mock
+        // stand-in for the real IShaperSimulationSource marker (ShaperSwarmDef.cs): whether a generator is a
+        // stateful per-frame simulation (measured ~200x cell updates for a realistic swarm size in the real
+        // engine), which the compiler holds to ShaperSwarmDef.SimulationHardCap when the generator does NOT
+        // also implement a native swarm path. Flame/fluid-like generators are the plausible candidates; this
+        // mock has no real per-generator classification for it the way T-0112 supplied for PaletteIndifferent.
+        public readonly bool IsStatefulSimulation;
+        // T-0138 #11 — ALSO illustrative (same caveat as IsStatefulSimulation above): whether this generator
+        // implements the real IShaperSwarmNativeSource (ShaperSwarmDef.cs). Replaces the mock's PRE-EXISTING
+        // "every Composite is native" heuristic (NativeSwarmAvailable in ShaperMockWindow.cs), which — left
+        // unchanged — would make SimulationHardCap dead code, since real native/stateful-simulation are
+        // independent facts about ONE source, not "any Composite gets native for free". SWARM-SPEC.md §4:
+        // "Primitive and Bag nodes never resolve to Native today", and only a source that implements the
+        // interface offers it — not every Composite.
+        public readonly bool SupportsNativeSwarm;
 
         public ShaperMockGeneratorEntry(string displayName, bool paletteIndifferent, string reasonNote,
-            System.Func<ShaperMockGeneratorParams> newParams)
+            System.Func<ShaperMockGeneratorParams> newParams, bool isStatefulSimulation = false,
+            bool supportsNativeSwarm = false)
         {
             DisplayName = displayName;
             PaletteIndifferent = paletteIndifferent;
             ReasonNote = reasonNote;
             NewParams = newParams;
+            IsStatefulSimulation = isStatefulSimulation;
+            SupportsNativeSwarm = supportsNativeSwarm;
         }
     }
 
@@ -111,13 +129,13 @@ namespace ShaperMock.Editor
         public static readonly ShaperMockGeneratorEntry[] All =
         {
             new ShaperMockGeneratorEntry("Inferno", false, ProceduralNote + " Palette-dependent (veil-multiplied).",
-                () => new MockInfernoParams()),
+                () => new MockInfernoParams(), isStatefulSimulation: true),
             new ShaperMockGeneratorEntry("Fork Blast", false, ProceduralNote + " Palette-dependent (veil-multiplied).",
                 () => new MockForkBlastParams()),
             new ShaperMockGeneratorEntry("Orb", true, ProceduralNote + " Palette-indifferent.",
-                () => new MockOrbParams()),
+                () => new MockOrbParams(), supportsNativeSwarm: true),
             new ShaperMockGeneratorEntry("Torch", true, ProceduralNote + " Palette-indifferent.",
-                () => new MockTorchParams()),
+                () => new MockTorchParams(), isStatefulSimulation: true),
             new ShaperMockGeneratorEntry("Arc Burst", true, ProceduralNote + " Palette-indifferent.",
                 () => new MockArcBurstParams()),
             new ShaperMockGeneratorEntry("Plasma Bloom", true, ProceduralNote + " Palette-indifferent.",

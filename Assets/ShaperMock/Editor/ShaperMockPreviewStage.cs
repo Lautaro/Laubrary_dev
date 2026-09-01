@@ -112,7 +112,6 @@ namespace ShaperMock.Editor
                         switch (m.combineMode)
                         {
                             case ShaperMockCombineMode.Add:
-                            case ShaperMockCombineMode.Blend:
                                 if (memberInside) { mask = true; acc = memberColor; }
                                 break;
                             case ShaperMockCombineMode.Subtract:
@@ -148,8 +147,51 @@ namespace ShaperMock.Editor
             float len = Mathf.Sqrt(x * x + y * y);
             switch (node.shapeKind)
             {
-                case ShaperMockShapeKind.Disc:
-                    return len <= node.discRadius;
+                case ShaperMockShapeKind.Rect:
+                {
+                    float hw = Mathf.Max(0.001f, node.rectHalfW);
+                    float hh = Mathf.Max(0.001f, node.rectHalfH);
+                    float r = Mathf.Clamp(node.rectCornerRadius, 0f, Mathf.Min(hw, hh));
+                    float qx = Mathf.Abs(x) - hw + r;
+                    float qy = Mathf.Abs(y) - hh + r;
+                    float dist = Mathf.Sqrt(Mathf.Max(qx, 0f) * Mathf.Max(qx, 0f) + Mathf.Max(qy, 0f) * Mathf.Max(qy, 0f))
+                        + Mathf.Min(Mathf.Max(qx, qy), 0f) - r;
+                    return dist <= 0f;
+                }
+
+                case ShaperMockShapeKind.Ellipse:
+                {
+                    float rx = Mathf.Max(0.001f, node.ellipseRx);
+                    float ry = Mathf.Max(0.001f, node.ellipseRy);
+                    return (x * x) / (rx * rx) + (y * y) / (ry * ry) <= 1f;
+                }
+
+                case ShaperMockShapeKind.Diamond:
+                {
+                    float rx = Mathf.Max(0.001f, node.diamondRx);
+                    float ry = Mathf.Max(0.001f, node.diamondRy);
+                    return Mathf.Abs(x) / rx + Mathf.Abs(y) / ry <= 1f;
+                }
+
+                case ShaperMockShapeKind.Triangle:
+                {
+                    float halfBase = Mathf.Max(0.001f, node.triangleBase * 0.5f);
+                    float height = Mathf.Max(0.001f, node.triangleHeight);
+                    float apexY = height * 0.5f, baseY = -height * 0.5f;
+                    if (y > apexY || y < baseY) return false;
+                    float t = Mathf.InverseLerp(baseY, apexY, y);
+                    float halfWidthAtY = Mathf.Lerp(halfBase, 0f, t);
+                    return Mathf.Abs(x) <= halfWidthAtY;
+                }
+
+                case ShaperMockShapeKind.Capsule:
+                {
+                    float half = Mathf.Max(0f, node.capsuleHalfLength);
+                    float r = Mathf.Max(0.001f, node.capsuleRadius);
+                    float cx = Mathf.Clamp(x, -half, half);
+                    float dx = x - cx;
+                    return Mathf.Sqrt(dx * dx + y * y) <= r;
+                }
 
                 case ShaperMockShapeKind.Ngon:
                 {

@@ -55,6 +55,10 @@ namespace ShaperMock.Editor
         public int height = 64;
         public int frameCount = 1;
         public int seed = 0;
+        // Real ShaperDocument.layerSpacing/pixelSize (ShaperLightRig.cs) — document-level fields the mock's
+        // Canvas section didn't show at all (T-0138 #14).
+        public float layerSpacing = 0.75f;
+        public float pixelSize = 1f;
     }
 
     [Serializable]
@@ -66,9 +70,57 @@ namespace ShaperMock.Editor
     }
 
     public enum ShaperMockNodeKind { Primitive, Bag, Composite }
-    public enum ShaperMockShapeKind { Disc, Ngon, Star }
-    public enum ShaperMockCombineMode { Add, Subtract, Intersect, Blend }
+    // Real ShaperPrimitiveKind order (T-0138 #8) — was {Disc, Ngon, Star}, a 3-of-7 stand-in. "Disc" had no
+    // real analog; the real equal-radius case is Ellipse (a circle IS an equal-radius ellipse), so this
+    // renames rather than adds a redundant 8th entry.
+    public enum ShaperMockShapeKind { Rect, Ellipse, Diamond, Triangle, Capsule, Ngon, Star }
+    // Real ShaperCombineMode (ShaperOps.cs) is exactly 3 values — "Blend" was invented (T-0138 #2). Softness
+    // is a property every mode has (ShaperMockNode.blend below), not a 4th mode.
+    public enum ShaperMockCombineMode { Add, Subtract, Intersect }
     public enum ShaperMockCompositeReason { NotYetSplit, AuthoredData }
+
+    /// Mirrors the real ShaperBlend (ShaperNode.cs) — the softness dials a node carries for folding into its
+    /// parent (Add/Intersect blend width+sharpness, Subtract carve strength), reused unchanged for a swarm's
+    /// own instance-merge dial (T-0138 #11, real ShaperSwarmDef.merge is the same type).
+    [Serializable]
+    public sealed class ShaperMockBlend
+    {
+        public float width = 0f;
+        [Range(0f, 1f)] public float sharpness = 0.5f;
+        [Range(0f, 1f)] public float carveStrength = 1f;
+    }
+
+    // Real ShaperShellAlignment (ShaperOps.cs) — shared by Shell and Border, same as the real engine.
+    public enum ShaperMockShellAlignment { Centred, Inward, Outward }
+
+    /// Mirrors the real ShaperSweep (ShaperNode.cs) — an operator on the finished shape, present on every
+    /// node kind. Radial fields (start/extent degrees) and longitudinal fields (start/extent fraction) are
+    /// four SEPARATE authored fields, not one pair reinterpreted per axis — the same "one field showing two
+    /// quantities" fault ShaperBlend was split to avoid.
+    [Serializable]
+    public sealed class ShaperMockSweep
+    {
+        public bool enabled = false;
+        public float startDegrees = 0f;
+        public float extentDegrees = 360f;
+        [Range(0f, 1f)] public float startFraction = 0f;
+        [Range(0f, 1f)] public float extentFraction = 1f;
+    }
+
+    /// Mirrors the real ShaperShell (ShaperNode.cs) — keep only a band at a constant distance from a node's
+    /// own edge. Present on every node kind, identity is enabled == false.
+    [Serializable]
+    public sealed class ShaperMockShell
+    {
+        public bool enabled = false;
+        public float thickness = 4f;
+        public ShaperMockShellAlignment alignment = ShaperMockShellAlignment.Centred;
+    }
+
+    // Real ShaperExtrusionTechnique / ShaperBevelTechnique (ShaperHeight.cs) — APPEND-ONLY order in the real
+    // engine; mirrored here for the same reason (T-0138 #4).
+    public enum ShaperMockExtrusionTechnique { Flat, Linear, Stepped, Dome, Round, Taper, Pyramid }
+    public enum ShaperMockBevelTechnique { None, Linear, Rounded, Cove, Ogee, Stepped }
 
     [Serializable]
     public sealed class ShaperMockNode
@@ -80,10 +132,26 @@ namespace ShaperMock.Editor
         public string name = "Node";
         public bool enabled = true;
         public ShaperMockCombineMode combineMode = ShaperMockCombineMode.Add;
+        // The softness dials this node carries for folding into its parent (T-0138 #3) — real ShaperNode.blend.
+        public ShaperMockBlend blend = new ShaperMockBlend();
+
+        // ── Sweep / Shell (T-0138 #12/#13) — real ShaperNode.sweep/shell, present on every node kind. ──────
+        public ShaperMockSweep sweep = new ShaperMockSweep();
+        public ShaperMockShell shell = new ShaperMockShell();
 
         // ── Primitive (§B4) ──────────────────────────────────────────────────────────────────────────
-        public ShaperMockShapeKind shapeKind = ShaperMockShapeKind.Disc;
-        public float discRadius = 0.6f;
+        public ShaperMockShapeKind shapeKind = ShaperMockShapeKind.Rect;
+        public float rectHalfW = 0.5f;
+        public float rectHalfH = 0.5f;
+        public float rectCornerRadius = 0f;
+        public float ellipseRx = 0.6f;
+        public float ellipseRy = 0.6f;
+        public float diamondRx = 0.5f;
+        public float diamondRy = 0.5f;
+        public float triangleBase = 0.8f;
+        public float triangleHeight = 0.8f;
+        public float capsuleHalfLength = 0.35f;
+        public float capsuleRadius = 0.2f;
         public int ngonSides = 6;
         public float ngonRadius = 0.6f;
         public float ngonRotation = 0f;
@@ -105,13 +173,22 @@ namespace ShaperMock.Editor
         // generator's own fields", the same pattern the effect catalog already demonstrates via ZuiReflect.
         // Re-created (never left stale) whenever compositeGeneratorIndex changes.
         [SerializeReference] public ShaperMockGeneratorParams generatorParams = ShaperMockCompositeCatalog.All[0].NewParams();
+        // Real ShaperCompositeDef's buffer-sizing fields (T-0138 #15) — plain fields, not ZUIValue, matching
+        // the design doc's own precedent for buffer-sizing dials (Canvas width/height).
+        public float compositeHalfExtentX = 64f;
+        public float compositeHalfExtentY = 64f;
+        public int compositeBakeWidth = 128;
+        public int compositeBakeHeight = 128;
 
         // ── Extrusion / bevel (§D3) — already ZUIValue in the real engine, so the mock uses ZUIValue too.
         // Shown on Primitive and Composite (both are leaf shapes); a Bag has no own geometry to extrude.
+        public ShaperMockExtrusionTechnique extrudeTechnique = ShaperMockExtrusionTechnique.Flat;
         public ZUIValue extrudeDepth = new ZUIValue(0f);
         public ZUIValue extrudeAngle = new ZUIValue(0f);
+        public ZUIValue extrudeSteps = new ZUIValue(4f);
         public ZUIValue extrudeCurve = new ZUIValue(0f);
         public ZUIValue extrudeTaper = new ZUIValue(0f);
+        public ShaperMockBevelTechnique bevelTechnique = ShaperMockBevelTechnique.None;
         public ZUIValue bevelAmount = new ZUIValue(0f);
         public ZUIValue bevelSteps = new ZUIValue(0f);
 
@@ -139,13 +216,31 @@ namespace ShaperMock.Editor
 
     // ── Fill (§C1–§C3) ──────────────────────────────────────────────────────────────────────────────
     public enum ShaperMockFillKind { Solid, Gradient, RampByQuantity, Texture, IndexedStrip, HeightField, TapestrySteel }
-    public enum ShaperMockRampQuantity { Heat, Density, Height }
+    // Real ShaperQuantity (ShaperFillContract.cs) is the closed 9-value vocabulary — was a 3-value stand-in
+    // {Heat, Density, Height} (T-0138 #17). Order/values match the real enum.
+    public enum ShaperMockRampQuantity { Coverage, Height, EdgeDistance, Heat, Density, Soot, Depth, Age, SurfaceDirection }
     public enum ShaperMockStripMode { Angular, Projection }
+    // Real ShaperFillComposite/ShaperFillSpace/ShaperFillFit (ShaperFillContract.cs) — shared by EVERY fill
+    // kind, not authored on any one of them (T-0138 #5).
+    public enum ShaperMockFillComposite { Over, Add }
+    public enum ShaperMockFillSpace { Stamped, Fixed }
+    public enum ShaperMockFillFit { Uniform, Stretch }
+    // Real ShaperGradientMode (ShaperFillContract.cs) — Gradient's own mode, missing entirely from the mock
+    // before this task (T-0138 #6).
+    public enum ShaperMockGradientMode { Linear, Radial, Angular, ByEdgeDistance }
+    // Real ShaperTextureMapping (ShaperFillContract.cs) — Texture's own mapping, missing entirely before
+    // this task (T-0138 #7).
+    public enum ShaperMockTextureMapping { Fitted, Tiled }
 
     [Serializable]
     public sealed class ShaperMockFill
     {
         public ShaperMockFillKind kind = ShaperMockFillKind.Solid;
+
+        // ── shared across every fill kind (T-0138 #5) — real ShaperFillDef.composite/space/fit. ───────────
+        public ShaperMockFillComposite composite = ShaperMockFillComposite.Over;
+        public ShaperMockFillSpace space = ShaperMockFillSpace.Stamped;
+        public ShaperMockFillFit fit = ShaperMockFillFit.Uniform;
 
         // Solid
         public Color solidColor = new Color(0.35f, 0.7f, 1f, 1f);
@@ -156,17 +251,19 @@ namespace ShaperMock.Editor
         // touched the document. A real default from construction has nothing to race against.
         public Gradient gradient = DefaultGradient();
         public float gradientAngleDegrees;
+        public ShaperMockGradientMode gradientMode = ShaperMockGradientMode.Linear;
 
         // RampByQuantity (§C1) — greyed out with the reason when the shape publishes no such quantity
         // (§B4's own literal-follow-the-rule case). This mock has no real quantity pipeline, so every
         // Primitive/Bag/Composite is treated as NOT publishing one — the greyed state is always shown,
         // demonstrating the rule rather than a real gate.
-        public ShaperMockRampQuantity rampQuantity = ShaperMockRampQuantity.Heat;
+        public ShaperMockRampQuantity rampQuantity = ShaperMockRampQuantity.Coverage;
         public Color rampTint = new Color(1f, 0.4f, 0.15f, 1f);
         public float rampInputLow = 0f;
         public float rampInputHigh = 1f;
 
         // Texture — the source is a picker over a small mock texture-name library, never a typed path.
+        public ShaperMockTextureMapping textureMapping = ShaperMockTextureMapping.Fitted;
         public int textureSourceIndex = 0;
         public float textureTilesX = 1f;
         public float textureTilesY = 1f;
@@ -219,6 +316,26 @@ namespace ShaperMock.Editor
                 new[] { new GradientColorKey(new Color(1f, 0.85f, 0.3f), 0f), new GradientColorKey(new Color(0.6f, 0.1f, 0.8f), 1f) },
                 new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) });
             return g;
+        }
+
+        /// Author-facing names for the 9-value ramp quantity (T-0138 #17) — mirrors the real
+        /// ShaperQuantities.Name (ShaperFillContract.cs), used in place of a raw ToString() so a CamelCase
+        /// enum member (EdgeDistance) still reads as a phrase in a greyed-reason sentence.
+        public static string RampQuantityName(ShaperMockRampQuantity q)
+        {
+            switch (q)
+            {
+                case ShaperMockRampQuantity.Coverage: return "coverage";
+                case ShaperMockRampQuantity.Height: return "height";
+                case ShaperMockRampQuantity.EdgeDistance: return "edge distance";
+                case ShaperMockRampQuantity.Heat: return "heat";
+                case ShaperMockRampQuantity.Density: return "density";
+                case ShaperMockRampQuantity.Soot: return "soot";
+                case ShaperMockRampQuantity.Depth: return "depth";
+                case ShaperMockRampQuantity.Age: return "age";
+                case ShaperMockRampQuantity.SurfaceDirection: return "surface direction";
+                default: return "unknown";
+            }
         }
 
         // A stand-in for the real 245-entry preset library (T-0111) — T-0135 grew this from 8 to 64 because
@@ -278,6 +395,9 @@ namespace ShaperMock.Editor
     {
         public ZUIValue width = new ZUIValue(0.05f);
         public bool joinsCoverage = true;
+        // Real ShaperBorderDef.alignment (ShaperBorderDef.cs) — default Inward, NOT Shell's Centred default:
+        // "Inward is the default because it is the only one today's Pyre can do" (T-0138 #12).
+        public ShaperMockShellAlignment alignment = ShaperMockShellAlignment.Inward;
         [SerializeReference] public ShaperMockFill stripFill = new ShaperMockFill
         {
             kind = ShaperMockFillKind.Solid,
@@ -291,13 +411,24 @@ namespace ShaperMock.Editor
     {
         public bool enabled = false;
         public int count = 8;
+        // Real ShaperSwarmDef.seed (T-0138 #11) — base seed each instance's own jitter hashes from.
+        public int seed = 0;
         public Vector2 positionJitter = new Vector2(0.1f, 0.1f);
         public float rotationJitterDegrees = 15f;
         public float scaleJitter = 0.2f;
         public float lifetimeStagger = 0.3f;
+        // Real ShaperSwarmDef.merge (T-0138 #11) — the same ShaperBlend knobs a Bag member's combine mode
+        // uses, reused here for how swarm instances fold into one field.
+        public ShaperMockBlend merge = new ShaperMockBlend();
         public bool interact = false;
 
+        // The real engine's authored count RANGE is [1,64] ([Range(1,64)] on ShaperSwarmDef.count) — this
+        // is that range, not a runtime clamp.
         public const int HardCap = 64;
+        // Real ShaperSwarmDef.SimulationHardCap — the SEPARATE clamp applied when a Composite generator is a
+        // stateful simulation (IShaperSimulationSource) with no native swarm path. T-0138 #11: the mock
+        // previously conflated this with "native available" and invented 24 instead of the real 6.
+        public const int SimulationHardCap = 6;
     }
 
     // ── Light rig (§D2) ─────────────────────────────────────────────────────────────────────────────
@@ -309,11 +440,15 @@ namespace ShaperMock.Editor
         public Color ambientColour = new Color(0.5f, 0.55f, 0.65f);
     }
 
+    // Real ShaperLightKind (ShaperLightRig.cs) — was missing from the mock's lights entirely (T-0138 #9).
+    public enum ShaperMockLightKind { Directional, Point }
+
     [Serializable]
     public sealed class ShaperMockLight
     {
         public string name = "Light";
         public bool enabled = true;
+        public ShaperMockLightKind kind = ShaperMockLightKind.Directional;
         public Color colour = Color.white;
         public ZUIValue intensity = new ZUIValue(1f);
         public ZUIValue yaw = new ZUIValue(45f);
@@ -327,6 +462,10 @@ namespace ShaperMock.Editor
         public static ShaperMockLight CreateDefault(string name) => new ShaperMockLight { name = name };
     }
 
+    // Real ShaperNormalKind (ShaperNormals.cs) — was missing from the mock's lighting response entirely
+    // (T-0138 #10).
+    public enum ShaperMockNormalKind { Constant, Profile }
+
     [Serializable]
     public sealed class ShaperMockLightResponse
     {
@@ -339,6 +478,7 @@ namespace ShaperMock.Editor
         public ZUIValue specularPower = new ZUIValue(32f);
         public Color specularTint = Color.white;
         public ZUIValue rimPower = new ZUIValue(2f);
+        public ShaperMockNormalKind normalKind = ShaperMockNormalKind.Constant;
     }
 
     // ── Effects (§F) ────────────────────────────────────────────────────────────────────────────────
