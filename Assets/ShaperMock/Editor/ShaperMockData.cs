@@ -101,6 +101,10 @@ namespace ShaperMock.Editor
         public int compositeGeneratorIndex = 0;
         public ShaperMockCompositeReason compositeReason = ShaperMockCompositeReason.NotYetSplit;
         public string compositeReasonNote = "";
+        // The SELECTED generator's own authored dials (T-0137) — proves "picking a generator shows that
+        // generator's own fields", the same pattern the effect catalog already demonstrates via ZuiReflect.
+        // Re-created (never left stale) whenever compositeGeneratorIndex changes.
+        [SerializeReference] public ShaperMockGeneratorParams generatorParams = ShaperMockCompositeCatalog.All[0].NewParams();
 
         // ── Extrusion / bevel (§D3) — already ZUIValue in the real engine, so the mock uses ZUIValue too.
         // Shown on Primitive and Composite (both are leaf shapes); a Bag has no own geometry to extrude.
@@ -341,17 +345,8 @@ namespace ShaperMock.Editor
     public enum ShaperMockEffectStage { Pre, Post }
     public enum ShaperMockEffectBucket { BufferFree, BufferPadded, NeedsSheets, Stuck }
 
-    // ── Composite catalog (§B5) — a stand-in for T-0112's real 9-entry PyreCompositeCatalog.All. ────
-    public static class ShaperMockCompositeCatalog
-    {
-        public static readonly string[] Names =
-        {
-            "Blob", "Sparkle", "Mesh", "Wisp", "Halo", "Bolt", "Cloud", "Ripple", "Shard",
-        };
-
-        /// Mock stand-in for "does this generator publish an edge-distance/heat sheet" (§F2's gate for
-        /// NeedsSheets-bucket effects). No real per-generator data exists in this mock, so a simple parity
-        /// rule stands in — enough to demonstrate the greyed-with-reason add-menu behaviour honestly.
-        public static bool PublishesSheets(int generatorIndex) => generatorIndex % 2 == 0;
-    }
+    // ── Composite catalog (§B5) moved to ShaperMockGenerators.cs (T-0137) — it now carries the REAL nine
+    // names + real palette-indifferent classification from T-0112's PyreCompositeCatalog, plus a
+    // representative per-generator parameter set, instead of nine invented placeholder names with no
+    // per-generator data at all.
 }

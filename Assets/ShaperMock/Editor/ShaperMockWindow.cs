@@ -539,6 +539,13 @@ namespace ShaperMock.Editor
                     break;
 
                 case ShaperMockNodeKind.Composite:
+                    // The generator picker lives in the SECTION HEADER (Pyre parity — PyreWindow's own
+                    // shape-FORM picker: "a header context menu... instead of in-body radio rows —
+                    // reclaiming vertical space", ShowShapeMenu), not an in-body radio grid. Caught live by
+                    // the project owner (T-0137): "look at how Pyre does it... choosing generators will be
+                    // the same." Wired here, once per fresh Section instance (RebuildNodeBody always builds
+                    // a brand new one, so this never double-registers).
+                    SetupGeneratorHeaderMenu(box, node);
                     box.Add(BuildCompositeBody(node));
                     box.Add(BuildExtrusionBlock(node));
                     break;
@@ -608,23 +615,107 @@ namespace ShaperMock.Editor
             return wrap;
         }
 
+        // A caret button in the "Shape" section header opens this menu (also right-click anywhere on the
+        // header) — mirrors PyreWindow.ShowShapeMenu exactly, including its column grouping. Pyre groups
+        // its forms 3D / 2D / Special; here the two columns are the REAL classification T-0112 measured
+        // (PyreCompositeCatalog's own doc comment) — Palette-indifferent vs. Veil-multiplied — a sourced
+        // fact, not an arbitrary split invented to mimic the shape of Pyre's menu.
+        void SetupGeneratorHeaderMenu(ZuiSection box, ShaperMockNode node)
+        {
+            string CurrentName() => ShaperMockCompositeCatalog.All[
+                Mathf.Clamp(node.compositeGeneratorIndex, 0, ShaperMockCompositeCatalog.All.Length - 1)].DisplayName;
+            box.SetHeaderSuffix(() => " — " + CurrentName());
+            box.SetHeaderMenu("caret-down", "Choose the composite generator (or right-click the title).",
+                anchor => ShowGeneratorMenu(node, anchor));
+        }
+
+        void ShowGeneratorMenu(ShaperMockNode node, VisualElement anchor)
+        {
+            var menu = Z.Menu(anchor).Width(360f);
+            menu.Custom((body, close) =>
+            {
+                var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
+                row.Add(GeneratorColumn(node, "Palette-indifferent", true, close));
+                row.Add(GeneratorColumn(node, "Veil-multiplied", false, close));
+                body.Add(row);
+            });
+            menu.Show();
+        }
+
+        VisualElement GeneratorColumn(ShaperMockNode node, string title, bool paletteIndifferent, Action close)
+        {
+            var col = new VisualElement { style = { flexDirection = FlexDirection.Column, marginRight = 12f, minWidth = 150f } };
+            var head = new Label(title) { tooltip = paletteIndifferent
+                ? "This generator's outline is completely indifferent to the palette."
+                : "The palette's transparency is multiplied into an edge rule this generator computed on its own." };
+            head.AddToClassList("zui-menu__section");
+            col.Add(head);
+            var all = ShaperMockCompositeCatalog.All;
+            for (int i = 0; i < all.Length; i++)
+            {
+                if (all[i].PaletteIndifferent != paletteIndifferent) continue;
+                int idx = i;
+                bool selected = node.compositeGeneratorIndex == idx;
+                var item = new VisualElement { tooltip = all[idx].ReasonNote };
+                item.AddToClassList("zui-menu__item");
+                var check = new Label(selected ? "✓" : "") { pickingMode = PickingMode.Ignore };
+                check.AddToClassList("zui-menu__check");
+                item.Add(check);
+                item.Add(new Label(all[idx].DisplayName) { pickingMode = PickingMode.Ignore });
+                item.AddManipulator(new Clickable(() =>
+                {
+                    Change(() =>
+                    {
+                        node.compositeGeneratorIndex = idx;
+                        node.generatorParams = all[idx].NewParams();
+                        node.compositeReasonNote = all[idx].ReasonNote;
+                    });
+                    RebuildNodeBody();
+                    close?.Invoke();
+                }));
+                col.Add(item);
+            }
+            return col;
+        }
+
         VisualElement BuildCompositeBody(ShaperMockNode node)
         {
             var body = new VisualElement();
-            var picker = Z.MiniRadio(node.compositeGeneratorIndex, ShaperMockCompositeCatalog.Names,
-                "Which composite generator this node hosts — a picker, never free text.",
-                v => Change(() => node.compositeGeneratorIndex = v), wrap: true);
-            body.Add(Z.Field("Generator", "Which composite generator this node hosts.", picker));
+            var entry = ShaperMockCompositeCatalog.All[
+                Mathf.Clamp(node.compositeGeneratorIndex, 0, ShaperMockCompositeCatalog.All.Length - 1)];
 
-            body.Add(Z.Field("Reason",
-                "Why this node is still a Composite rather than split into Primitives — a structural "
-                + "compliance fact the audit checks, not authoring data.",
-                Z.Text(node.compositeReason.ToString(), ZuiText.Body, node.compositeReason.ToString())));
+            body.Add(Z.HGroup(
+                Z.Field("Reason",
+                    "Why this node is still a Composite rather than split into Primitives — a structural "
+                    + "compliance fact the audit checks, not authoring data.",
+                    Z.Text(node.compositeReason.ToString(), ZuiText.Body, node.compositeReason.ToString())),
+                Z.Field("Palette", "Whether this generator's own outline depends on the palette at all — a "
+                    + "sourced fact from T-0112's classification, not an authored choice.",
+                    Z.Text(entry.PaletteIndifferent ? "Indifferent" : "Veil-multiplied", ZuiText.Body,
+                        entry.PaletteIndifferent
+                            ? "This generator's outline is completely indifferent to the palette."
+                            : "The palette's transparency is multiplied into this generator's own edge rule."))));
 
             body.Add(Z.Field("Reason note", "The one free-text field this card has — a declaration of why.",
                 Z.TextInput(node.compositeReasonNote ?? "", "Why is this still a composite?",
                     v => { Undo.RecordObject(document, "Edit Shaper Mock"); node.compositeReasonNote = v;
                         EditorUtility.SetDirty(document); }, 220f)));
+
+            // The selected generator's OWN authored dials (T-0137) — reflected with zero per-generator UI
+            // code, the same ZuiReflect pattern the effect list already uses, proving "picking a generator
+            // shows that generator's own fields" is a real, demonstrated capability, not an empty promise.
+            if (node.generatorParams == null) node.generatorParams = entry.NewParams();
+            var paramsBox = Z.BoxKeyed(entry.DisplayName + " parameters",
+                "This generator's own authored dials — representative stand-ins for the real Pyre form's "
+                + "fields, hosted unmodified per T-0112's composite escape hatch.",
+                "shaper.mock.genparams:" + node.GetHashCode());
+            ZuiReflect.BuildFields(paramsBox, node.generatorParams, new ZuiReflect.Options
+            {
+                OnBeforeChange = () => Undo.RecordObject(document, "Edit Shaper Mock generator"),
+                OnChanged = () => { EditorUtility.SetDirty(document); InvalidateCache(); RefreshPreview(); },
+            });
+            body.Add(paramsBox);
+
             return body;
         }
 
@@ -930,8 +1021,8 @@ namespace ShaperMock.Editor
 
         static bool NativeSwarmAvailable(ShaperMockNode node) => node.kind == ShaperMockNodeKind.Composite;
         static string SourceName(ShaperMockNode node) => node.kind == ShaperMockNodeKind.Composite
-            ? ShaperMockCompositeCatalog.Names[Mathf.Clamp(node.compositeGeneratorIndex, 0,
-                ShaperMockCompositeCatalog.Names.Length - 1)]
+            ? ShaperMockCompositeCatalog.All[Mathf.Clamp(node.compositeGeneratorIndex, 0,
+                ShaperMockCompositeCatalog.All.Length - 1)].DisplayName
             : "n/a";
 
         // ── Lighting response (§D2) ─────────────────────────────────────────────────────────────────
