@@ -23,7 +23,19 @@ reflection won't find new types — re-run steps 1–3. `set_unity_project_root`
 
 **Write `Pyre` in all new code, comments and docs — never `PyrePlus`.** There is no old-vs-new split left to reason about. Any doc or memory still saying "PyrePlus" predates 2026-08-23; correct it rather than following it. The runtime spawn API is `PyreBlastPool.Get()` → set `spec`/`fps`/`loop` → subscribe `Finished` → `Play()` (worked example: `Runtime/ZoetropePyre/SpawnPyreFx.cs`).
 
-⚠️ As of 2026-08-24 the whole rename is **staged but uncommitted** on `feat/lathe` (~209 staged renames plus deletions of the old files). Do NOT run `git checkout`, `git restore`, `git stash` or any other tree-mutating git command here without checking that first.
+⚠️ The `feat/lathe` branch was renamed to **`dev`** (2026-09-01) because its name no longer described its contents. The old `origin/feat/lathe` remote branch was deliberately left in place, untouched, pending an explicit decision to delete it.
+
+## Shaper — it lives in a SECOND worktree, not this one
+
+**Shaper is not in this folder.** It is built in a git worktree of this same repo at **`D:\UNITY\Laubrary Dev - Shaper`**, on branch **`feat/shaper`**, with its own Unity editor. This folder (`dev`) holds the *mock* UI (`Assets/ShaperMock/`); the real engine is only in the other one. Both projects have an identical `productName`, so **nothing inside the editor tells you which one you are driving** — always verify `Application.dataPath` resolves to the folder you meant before trusting a `check_compile_errors` result, which will otherwise look clean while pointed at the wrong editor.
+
+Load-bearing facts, each verified against source rather than docs (2026-09-01):
+
+- **`ShaperDocument` is a `ScriptableObject`** with `[CreateAssetMenu("Laubrary/Shaper Document")]`, matching Pyre's own spec-asset pattern. It has no custom `name` field — use `Object.name`. It carries `frameCount` + `frameRate` (the animation clock) alongside `phase01`.
+- **The frame→phase mapping is `i/(N-1)`, and is NOT open for revision.** `ShaperNodeIdentity` folds `phase01` into every cache key, so changing it silently invalidates every key and re-points every authored Curve dial. `ShaperClock` is the single home for that conversion; never write a second one.
+- **`ZUIValue` vs plain float is per-field, never a category rule.** The engine mixes both inside one struct (Star's sides/radius are plain, its length/baseWidth/skew are `ZUIValue`). Always check the real field before drawing a control.
+- **The nine composite generators expose ~775 authored fields** (ArcBurst alone 187). Any generator UI must be reflection-driven over the assigned `PyreForm`; hand-listing dials is not maintainable and will silently expose a fraction of the engine.
+- Deterministic draws only: `UnityEngine.Random` and `System.Random` are banned in generator paths (BC-1.3). Hash from `seed` instead.
 
 ## Tool conventions (mirror for every Laubrary tool)
 
@@ -95,10 +107,7 @@ too, but `ZUI.ScrollView(ref scroll)`/`ZUI.ScrollScope` (`ZUIFields.cs`) already
 e.g. `LaubraryAssetWindow`'s browser, `MirageWindow.DrawAsset`. Verify a claimed gap against the actual code
 before trusting this list — it drifts.)
 
-**Open packaging gap:** `Assets/ZUI/` currently lives OUTSIDE the package (`Assets/Packages/Laubrary/`), so a
-Laubrary editor that references `ZUI.Editor` compiles here but would NOT ship self-contained to a consumer
-project. To make "ZUI is part of Laubrary" real, ZUI needs to move into the package (or be a declared dependency).
-Until then, package tools referencing ZUI only work in this dev host.
+**Packaging gap: CLOSED (verified 2026-09-01).** This section used to say ZUI lived outside the package and so wouldn't ship self-contained. That is no longer true and was misleading work as recently as this session: all **132** ZUI `.cs` files live INSIDE the package at `Assets/Packages/Laubrary/Zui/`, under three asmdefs (`ZUI.Editor`, `ZuiRuntime`, `com.Lautaro-Arino.Laubrary.Zui.Editor`), and many package editor asmdefs already reference `ZUI.Editor` (AssetKit, BackSplash, Cabinets, Cartographer, Chunks…). The only thing still at `Assets/ZUI/` is a single authored asset, `ZUIEnvelopePresets.asset` — no code, no asmdef. A new package editor tool may reference ZUI freely.
 
 ## Preview overlays — an effect draws its own, the window hardcodes none
 
