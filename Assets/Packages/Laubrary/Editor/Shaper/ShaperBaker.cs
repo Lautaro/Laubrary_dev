@@ -10,30 +10,25 @@
 // "WHAT THE ENGINE COULD NOT GIVE THIS BAKE" below.
 //
 // ── How "the bake is identical to what you saw" is guaranteed ────────────────────────────────────────────
-// Not by discipline, but by construction: RenderPhase below IS the only document→pixels path this file has,
-// and it is the same call sequence the light audit already uses to render a real document
-// (ShaperLightAudit.cs:2851-2868 — CompileDocument → per layer Resolve → BindLayer → PaintTile → Encode).
-// A future preview window is expected to call RenderFrame/RenderPhase rather than grow a second renderer;
-// the moment two exist, this guarantee is gone. That is why these two are public and documented as the
-// shared entry point, not private helpers of the bake.
+// By construction, and as of T-0153 by a stronger construction than before: there is exactly ONE
+// document→pixels implementation in the whole engine — ShaperDocumentRenderer, in Runtime/Shaper. This baker
+// calls it and owns no pixel path of its own. Phase C's preview window must call the same one. The guarantee
+// therefore holds because a second renderer does not exist, not because two implementations agree.
 //
-// ── WHAT THE ENGINE COULD NOT GIVE THIS BAKE (real findings, not papered over) ───────────────────────────
-// 1. THERE IS NO LAYER COMPOSITOR. ShaperFillResolver paints ONE layer at a time into its own buffer; the
-//    audits compare per-layer results and never combine them, and a search of Runtime/Shaper for any
-//    layer-compositing / src-over step returns nothing. So a document with two layers had, until now, no
-//    defined final image anywhere in the engine. CompositeOver below is that missing step, written here
-//    because a bake cannot exist without it. It composites in the float destination — linear, premultiplied
-//    — which is exactly where ShaperFillResolver.Encode's own doc comment says a further composite belongs
-//    ("read the float destination directly ... this is what a light stage or a further composite should
-//    do", ShaperFillResolver.cs:1507-1511). It is a candidate to MOVE into Runtime/Shaper later so a runtime
-//    player composites identically; it lives here now only because this task owns the editor side.
-// 2. THERE IS NO DOCUMENT ASSET. ShaperDocument is a plain [Serializable] class (ShaperLightRig.cs:379),
-//    not a ScriptableObject — the only ScriptableObject in the whole runtime is ShaperHeightFieldPreset.
-//    So "bake beside the source asset", which is how Pyre chooses its folder, has no source asset to be
-//    beside. The caller supplies the folder instead (decision 3).
-// 3. THERE IS NO PIXELS-PER-UNIT. Pyre's spec carries pixelsPerUnit; ShaperDocument does not, and its
+// ── WHAT THE ENGINE COULD NOT GIVE THIS BAKE (the original three findings, and what happened to them) ────
+// 1. THERE WAS NO LAYER COMPOSITOR — FIXED (T-0153). ShaperFillResolver paints ONE layer at a time into its
+//    own buffer; the audits compare per-layer results and never combine them. So a two-layer document had no
+//    defined final image anywhere in the engine, and this file originally had to supply the missing step to
+//    bake at all. That step is now ShaperDocumentRenderer.CompositeOver in Runtime, composited in the float
+//    destination (linear, premultiplied) exactly where ShaperFillResolver.Encode's own doc comment says a
+//    further composite belongs (ShaperFillResolver.cs:1507-1511).
+// 2. THERE WAS NO DOCUMENT ASSET — FIXED (T-0152, commit a205a82b). ShaperDocument is now a ScriptableObject
+//    with [CreateAssetMenu], so Pyre's "bake beside the source asset" is finally expressible; Bake now
+//    derives its folder from the document's own asset path when the document is saved, and only falls back
+//    to the caller's folder when it is not (decision 3, updated).
+// 3. THERE IS STILL NO PIXELS-PER-UNIT. Pyre's spec carries pixelsPerUnit; ShaperDocument does not, and its
 //    pixelSize is canvas units per SAMPLE (LR-1.5) — a sampling density, not a display scale. Reusing it as
-//    PPU would be a category error that silently mis-scales every baked sprite (decision 1).
+//    PPU would be a category error that silently mis-scales every baked sprite (decision 1). Still open.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -84,7 +79,10 @@ namespace Laubrary.Shaper.Editor
         {
             public bool ok;
             public string sheetPath;
+            /// <summary>The Unity AnimationClip. Plays in any Animator; CANNOT express cherry framing.</summary>
             public string clipPath;
+            /// <summary>The <see cref="ShaperClip"/> asset ShaperPlayer consumes. Preserves cherry framing.</summary>
+            public string shaperClipPath;
             /// <summary>Distinct source frames written into the sheet.</summary>
             public int sheetFrames;
             /// <summary>Keyframes in the clip — more than <see cref="sheetFrames"/> when a cherry sequence
@@ -99,11 +97,13 @@ namespace Laubrary.Shaper.Editor
         /// <summary>
         /// Bake <paramref name="doc"/> into <paramref name="folder"/> as a sliced sheet + clip.
         ///
-        /// DECISION 3 (where it lands). Pyre bakes beside its spec asset; Shaper has no document asset to be
-        /// beside (see the file header), so the folder is the caller's to choose and defaults to "Assets".
-        /// When the Phase C window exists and documents become real assets, the natural follow-up is an
-        /// overload that derives the folder from the asset path exactly as PyreBaker does — the guard rails
-        /// here (unique naming, never overwriting) already behave correctly under that change.
+        /// DECISION 3 (where it lands), UPDATED by T-0152. Pyre bakes beside its spec asset, and now that
+        /// ShaperDocument is a real ScriptableObject that is finally possible: when <paramref name="doc"/> is
+        /// a saved asset, the bake lands in that asset's own folder, matching PyreBaker. The
+        /// <paramref name="folder"/> argument is the fallback for an unsaved, in-memory document (which is what
+        /// a freshly created or window-owned document is) and remains an explicit override for a caller that
+        /// wants the output elsewhere. The guard rails are unchanged and already behaved correctly under this:
+        /// unique naming, never overwriting.
         ///
         /// Does not mutate authored data: the document's <c>phase01</c> is driven per frame and restored in a
         /// finally, so no Undo record is needed and an exception mid-bake cannot leave the document scrubbed
@@ -155,12 +155,15 @@ namespace Laubrary.Shaper.Editor
 
             // 1) render every distinct frame into the sheet buffer.
             var sheetPx = new Color32[sheetW * sheetH];   // default is (0,0,0,0) — transparent padding cells
-            var acc = new float[w * h * 4];
+            var acc = new float[w * h * ShaperDocumentRenderer.FloatsPerSample];
             var framePx = new Color32[w * h];
             for (int i = 0; i < distinct.Count; i++)
             {
-                RenderPhaseInto(doc, doc.PhaseOfFrame(distinct[i]), acc);
-                ShaperFillResolver.Encode(acc, framePx, w * h);
+                // The canonical Runtime renderer, not a local pixel path — see the file header. Both buffers
+                // are hoisted out of the loop and reused, which is why the `Into` overload is used rather than
+                // the allocating one: a long sequence would otherwise churn two arrays per frame.
+                ShaperDocumentRenderer.RenderPhaseInto(doc, doc.PhaseOfFrame(distinct[i]), acc);
+                ShaperDocumentRenderer.Encode(acc, framePx, w * h);
                 BlitFrame(framePx, w, h, sheetPx, sheetW, i, cols, rows);
             }
 
@@ -169,7 +172,13 @@ namespace Laubrary.Shaper.Editor
             sheet.Apply(false, false);
 
             // 2) write the PNG, never clobbering an existing file.
-            string dir = string.IsNullOrEmpty(folder) ? "Assets" : folder.Replace('\\', '/').TrimEnd('/');
+            // Beside the document's own asset when it has one (Pyre parity, unblocked by T-0152); otherwise the
+            // caller's folder. An in-memory document — which is what a window-owned or freshly created one is —
+            // has an empty asset path, and that is the case `folder` exists to serve.
+            string docAssetPath = AssetDatabase.GetAssetPath(doc);
+            string dir = !string.IsNullOrEmpty(docAssetPath)
+                ? Path.GetDirectoryName(docAssetPath).Replace('\\', '/')
+                : (string.IsNullOrEmpty(folder) ? "Assets" : folder.Replace('\\', '/').TrimEnd('/'));
             if (!AssetDatabase.IsValidFolder(dir)) dir = "Assets";
             string name = SanitizeName(!string.IsNullOrEmpty(baseName) ? baseName
                                      : (!string.IsNullOrEmpty(doc.name) ? doc.name : "Shaper"));
@@ -258,113 +267,84 @@ namespace Laubrary.Shaper.Editor
 
             string clipPath = UniquePath(dir, name, "anim");
             AssetDatabase.CreateAsset(clip, clipPath);
+
+            // 6) the ShaperClip (T-0154). The AnimationClip above and this are NOT equivalent outputs, and the
+            //    difference is not cosmetic:
+            //
+            //      • A Unity AnimationClip has a FIXED keyframe order. Cherry framing's per-pass variation is
+            //        drawn from ShaperCherryState.loopIndex, so pass 2 legitimately differs from pass 1 — an
+            //        AnimationClip has nowhere to put that and freezes whatever pass 0 happened to be.
+            //      • A ShaperClip carries the cherry DATA (enabled flag, slots, loop delay, seed) and rebuilds
+            //        a playback document, so ShaperPlayer re-runs ShaperCherry.AdvanceOneBeat live and the
+            //        variation survives.
+            //
+            //    So: use the AnimationClip for Animator-driven, Unity-native consumption; use the ShaperClip
+            //    when the authored sequence must play as authored. Both are emitted because neither subsumes
+            //    the other.
+            //
+            //    INDEXING TRAP, handled here: frames is indexed by SOURCE DOCUMENT FRAME, not by sheet order.
+            //    A cherry slot's sourceIndex is a document frame index, and ShaperPlayer does
+            //    frames[Mathf.Clamp(_frame, 0, frames.Length-1)] (ShaperPlayer.cs:196-197). If this array were
+            //    packed to just the distinct frames, a slot pointing at document frame 7 in a 3-sprite sheet
+            //    would CLAMP to sprite 2 and silently play the wrong picture. The array is therefore full
+            //    frameCount length with unused slots left null — and a null draws nothing, which is already
+            //    how the player renders an authored blank beat (:192).
+            var shaperClip = ScriptableObject.CreateInstance<ShaperClip>();
+            var clipFrames = new Sprite[Mathf.Max(1, doc.frameCount)];
+            foreach (var kv in spriteOfFrame)
+                if (kv.Key >= 0 && kv.Key < clipFrames.Length) clipFrames[kv.Key] = kv.Value;
+            shaperClip.frames = clipFrames;
+            shaperClip.frameRate = fps;
+            shaperClip.seed = doc.seed;
+            shaperClip.cherryEnabled = doc.cherryEnabled;
+            shaperClip.cherryFrames = doc.cherryFrames != null
+                ? new List<ShaperCherryFrame>(doc.cherryFrames) : new List<ShaperCherryFrame>();
+            shaperClip.cherryLoopDelaySeconds = doc.cherryLoopDelaySeconds;
+            shaperClip.sourceDocumentName = name;
+
+            string shaperClipPath = UniquePath(dir, name + " Clip", "asset");
+            AssetDatabase.CreateAsset(shaperClip, shaperClipPath);
+
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
             result.ok = true;
             result.sheetPath = pngPath;
             result.clipPath = clipPath;
+            result.shaperClipPath = shaperClipPath;
             result.sheetFrames = distinct.Count;
             result.clipKeys = keys.Count;
             result.columns = cols;
             result.rows = rows;
-            result.message = $"Baked '{name}' → sheet: {pngPath} · clip: {clipPath} " +
+            result.message = $"Baked '{name}' → sheet: {pngPath} · clip: {clipPath} · ShaperClip: {shaperClipPath} " +
                              $"({distinct.Count} frames in a {cols}x{rows} sheet, {keys.Count} keys over " +
-                             $"{order.Count} beats @ {fps}fps{(doc.cherryEnabled ? ", cherry sequence" : "")})";
+                             $"{order.Count} beats @ {fps}fps" +
+                             (doc.cherryEnabled
+                                ? ", cherry sequence — the ShaperClip preserves its per-pass variation, the AnimationClip freezes pass 0"
+                                : "") + ")";
             Debug.Log("[Shaper] " + result.message);
             EditorGUIUtility.PingObject(AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(pngPath));
             return result;
         }
 
-        // ── the shared document→pixels path (see the file header's identical-to-preview note) ───────────
+        // ── document→pixels: FORWARDERS ONLY ────────────────────────────────────────────────────────────
+        // T-0153 moved the real implementation to Runtime/Shaper/ShaperDocumentRenderer.cs. What used to live
+        // here — the layer walk and CompositeOver — was the engine's missing document renderer, written in the
+        // editor only because a bake could not exist without it. It belongs in Runtime so that a bake, a
+        // preview and a runtime consumer all composite identically, and so that "the bake is what you saw" is
+        // true because ONE renderer exists rather than because two agree.
+        //
+        // These two remain as named forwarders rather than being deleted: they are the shape an editor caller
+        // reaches for, and keeping them means a future Phase C window that already found ShaperBaker.RenderFrame
+        // lands on the canonical renderer instead of being tempted to write its own.
 
-        /// <summary>Render one frame index of <paramref name="doc"/> to straight-alpha sRGB pixels.</summary>
+        /// <summary>Render one frame index to straight-alpha sRGB pixels. Forwards to <see cref="ShaperDocumentRenderer"/>.</summary>
         public static Color32[] RenderFrame(ShaperDocument doc, int frameIndex)
-            => doc == null ? Array.Empty<Color32>()
-             : RenderPhase(doc, doc.PhaseOfFrame(ShaperClock.WrapFrame(frameIndex, Mathf.Max(1, doc.frameCount))));
+            => ShaperDocumentRenderer.RenderFrame(doc, frameIndex);
 
-        /// <summary>
-        /// Render <paramref name="doc"/> at an explicit phase. Row 0 of the returned array is the BOTTOM row,
-        /// matching both <see cref="ShaperSampleGrid"/>'s +Y-up sampling and Texture2D.SetPixels32, so no flip
-        /// is needed anywhere between the evaluator and the PNG.
-        /// </summary>
+        /// <summary>Render at an explicit phase to straight-alpha sRGB pixels. Forwards to <see cref="ShaperDocumentRenderer"/>.</summary>
         public static Color32[] RenderPhase(ShaperDocument doc, float phase01)
-        {
-            if (doc == null) return Array.Empty<Color32>();
-            int w = Mathf.Max(1, doc.canvasWidth), h = Mathf.Max(1, doc.canvasHeight), n = w * h;
-            var acc = new float[n * 4];
-            RenderPhaseInto(doc, phase01, acc);
-            var px = new Color32[n];
-            ShaperFillResolver.Encode(acc, px, n);
-            return px;
-        }
-
-        /// <summary>
-        /// The layer walk. Mirrors ShaperLightAudit.cs:2851-2868 — the one place in the codebase that already
-        /// renders a real document — and adds the layer composite the engine does not have (file header, 1).
-        /// </summary>
-        static void RenderPhaseInto(ShaperDocument doc, float phase01, float[] acc)
-        {
-            int w = Mathf.Max(1, doc.canvasWidth), h = Mathf.Max(1, doc.canvasHeight), n = w * h;
-            Array.Clear(acc, 0, n * 4);
-            if (doc.layers == null || doc.layers.Count == 0) return;
-
-            // The rig is sampled on the DOCUMENT's clock (LR-1.8), so the document must BE at this phase while
-            // its lights compile — driving only the per-layer Resolve would light every frame as if it were
-            // the frame the user happened to be parked on. Restored in the finally: the bake is a read.
-            float savedPhase = doc.phase01;
-            try
-            {
-                doc.phase01 = phase01;
-                var grid = doc.Grid();
-                var prog = ShaperLightCompiler.CompileDocument(doc);
-                float halfW = 0.5f * (w - 1) * doc.pixelSize;
-                float halfH = 0.5f * (h - 1) * doc.pixelSize;
-
-                for (int li = 0; li < doc.layers.Count; li++)
-                {
-                    var lay = doc.layers[li];
-                    // A disabled layer is skipped entirely rather than painted and discarded: it must not cast
-                    // shadows either, and BindLayer is index-addressed (li is explicit), so skipping cannot
-                    // shift any other layer's binding.
-                    if (lay == null || !lay.enabled || lay.root == null) continue;
-
-                    var fdoc = ShaperFillResolver.Resolve(lay.root, phase01, doc.seed, halfW, halfH,
-                                                          ShaperQuantitySet.ShippedShapeEngine);
-                    var buf = new ShaperFillBuffers(n, Mathf.Max(1, fdoc.owners.Count));
-                    var scene = ShaperLightCompiler.BindLayer(doc, li, prog, buf.sampleCapacity, buf.ownerCapacity);
-                    ShaperFillResolver.PaintTile(fdoc, grid, 0, 0, w, h, buf,
-                                                 new ShaperFillSheets { published = ShaperQuantitySet.ShippedShapeEngine },
-                                                 scene);
-                    CompositeOver(acc, buf.dst, n);
-                }
-            }
-            finally { doc.phase01 = savedPhase; }
-        }
-
-        /// <summary>
-        /// Premultiplied source-over, layer on top of everything already accumulated beneath it. Layers are
-        /// ordered bottom-most first and are never reordered (ShaperResolve.cs:120), so walking the list in
-        /// order and compositing each one OVER the accumulator is the document's stacking order by definition.
-        ///
-        /// Done in the float destination, which is linear and premultiplied (ShaperFillResolver.cs:241-242) —
-        /// the encode to straight-alpha sRGB happens ONCE, after every layer has landed. Compositing after
-        /// encoding instead would mean un-premultiplying and re-encoding per layer, losing an additive glow's
-        /// colour at every step for exactly the reason Encode's own doc comment gives.
-        /// </summary>
-        static void CompositeOver(float[] acc, float[] src, int n)
-        {
-            for (int i = 0; i < n; i++)
-            {
-                int k = i * 4;
-                float sa = src[k + 3];
-                float inv = 1f - sa;
-                acc[k + 0] = src[k + 0] + acc[k + 0] * inv;
-                acc[k + 1] = src[k + 1] + acc[k + 1] * inv;
-                acc[k + 2] = src[k + 2] + acc[k + 2] * inv;
-                acc[k + 3] = sa + acc[k + 3] * inv;
-            }
-        }
+            => ShaperDocumentRenderer.RenderPhase(doc, phase01);
 
         // ── playback order ──────────────────────────────────────────────────────────────────────────────
 
