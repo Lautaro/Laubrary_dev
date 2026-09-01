@@ -520,20 +520,36 @@ namespace Laubrary.Shaper.Editor
             previewSection.contentContainer.style.flexGrow = 1f;
             previewSection.contentContainer.style.minHeight = 0f;
 
-            stage = new ShaperPreviewStage(() => document, () => currentFrame);
+            // `previewFrame` rather than `currentFrame`: under cherry framing the frame on screen is the
+            // one the beat sequencer resolved, which may be ShaperCherry.BlankFrame (a deliberate gap).
+            stage = new ShaperPreviewStage(() => document, () => previewFrame);
             stage.style.flexGrow = 1f;
             previewSection.Add(stage);
+            ApplyPreviewChromeToStage();
+
+            previewSection.Add(BuildPreviewChrome());
 
             // Transport only exists for an animated document — a still one has nothing to scrub or play.
             if (document.frameCount > 1) previewSection.Add(BuildTransport());
 
             root.Add(previewSection);
 
+            // Backdrop and cherry framing sit below the preview, in Pyre's own order (backdrop chrome, then
+            // the cherry panel), so the things that change what the preview LOOKS like are grouped together.
+            BuildBackdropPanel(root);
+            if (document.frameCount > 1) root.Add(BuildCherryPanel());
+
             root.Add(Z.Button("Bake",
                 "Bake this document to a sprite sheet PNG, an AnimationClip and a ShaperClip, beside the "
                 + "document's own asset. Never overwrites an existing bake — a repeat bake is versioned.",
                 DoBake));
         }
+
+        /// What the preview should actually show. Under cherry framing that is the beat sequencer's resolved
+        /// frame (possibly a blank); otherwise it is the transport's own frame.
+        int previewFrame => document != null && document.cherryEnabled && cherryRunning
+            ? cherryState.frame
+            : currentFrame;
 
         VisualElement BuildTransport()
         {
@@ -549,6 +565,9 @@ namespace Laubrary.Shaper.Editor
                 {
                     lastPlayTick = EditorApplication.timeSinceStartup;
                     playAcc = 0f;
+                    // Start the cherry sequence from its first slot on every press, so Play always means the
+                    // same thing rather than resuming a half-finished loop from whenever you last paused.
+                    ResetCherryPlayback();
                     EditorApplication.update -= PlaybackTick;
                     EditorApplication.update += PlaybackTick;
                 }
@@ -564,6 +583,10 @@ namespace Laubrary.Shaper.Editor
                 {
                     currentFrame = v;
                     playing = false;
+                    // Hand control back to the scrubber. Without this the cherry sequencer would still be
+                    // "running", so previewFrame would keep returning its last resolved beat and the scrub
+                    // would appear to do nothing — the drag would move the handle and not the picture.
+                    cherryRunning = false;
                     if (playButton != null) playButton.text = "▶ Play";
                     RefreshPreview();
                 }, 220f);
@@ -589,6 +612,25 @@ namespace Laubrary.Shaper.Editor
             // The engine owns the stepping rule; this window does not keep a second accumulator.
             int steps = ShaperClock.AdvanceFrames(ref playAcc, dt, document.frameRate);
             if (steps <= 0) return;
+
+            if (document.cherryEnabled)
+            {
+                // Cherry framing replaces the frame ORDER, not the clock: the same beats elapse, but which
+                // frame each beat shows comes from the authored sequence. AdvanceCherry may return
+                // ShaperCherry.BlankFrame, which the preview stage renders as nothing — the loop gap and an
+                // empty sequence are both real authored states, not error cases to substitute frame 0 for.
+                int shown = AdvanceCherry(steps);
+
+                // Keep the scrubber meaningful: it tracks the SOURCE frame being shown, and simply holds
+                // its last position through a blank beat rather than jumping to 0 and back.
+                if (shown >= 0)
+                {
+                    currentFrame = Mathf.Clamp(shown, 0, Mathf.Max(0, document.frameCount - 1));
+                    scrubber?.SetValueWithoutNotify(currentFrame);
+                }
+                RefreshPreview();
+                return;
+            }
 
             currentFrame = ShaperClock.WrapFrame(currentFrame + steps, Mathf.Max(1, document.frameCount));
             scrubber?.SetValueWithoutNotify(currentFrame);

@@ -475,6 +475,28 @@ namespace Laubrary.Shaper
         /// gap.</summary>
         [Min(0f)] public float cherryLoopDelaySeconds = 0f;
 
+        // ── Preview backdrop (T-0157) ────────────────────────────────────────────────────────────────────
+        /// <summary>
+        /// The editor preview's backdrop — a flat colour plus one optional image, drawn BEHIND the render.
+        /// Purely cosmetic and deliberately per-DOCUMENT, matching Pyre's own <c>spec.previewBackSplash</c>:
+        /// which backdrop reads a given effect (a dark one for a spark, a lit interior for smoke) is a
+        /// property of that effect, so it belongs with the effect rather than with whoever last opened a
+        /// window.
+        ///
+        /// <b>It can never reach a bake.</b> Nothing in this file's render path reads it: the only consumers
+        /// are the editor preview stage's own backdrop layer, and the panel that edits it.
+        /// <see cref="ShaperDocumentRenderer"/> never mentions it, so a baked sheet is identical whether a
+        /// backdrop is set or not — which is the property that lets a user light their preview for
+        /// legibility without silently changing the shipped asset.
+        ///
+        /// Null until first edited; the panel creates it on demand, so an untouched document serialises
+        /// exactly as it did before this field existed.
+        /// </summary>
+        /// Fully qualified deliberately: `Laubrary.BackSplash` is BOTH a namespace and a class inside it
+        /// (BackSplash the ScriptableObject preset), so the short form `BackSplash.BackSplashSettings` is the
+        /// same shadowing hazard ZUI's own header documents for `Zui.Zui`. Pyre.cs:1257 qualifies it too.
+        [HideInInspector] public Laubrary.BackSplash.BackSplashSettings previewBackSplash;
+
         /// <summary>
         /// T-0156 — the effects applied to this document's FINISHED picture, in list order.
         ///

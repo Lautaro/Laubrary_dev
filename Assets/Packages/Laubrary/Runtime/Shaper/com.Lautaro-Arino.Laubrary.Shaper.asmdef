@@ -3,7 +3,8 @@
     "rootNamespace": "Laubrary.Shaper",
     "references": [
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
-        "com.Lautaro-Arino.Laubrary.Pooling"
+        "com.Lautaro-Arino.Laubrary.Pooling",
+        "com.Lautaro-Arino.Laubrary.BackSplash"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
