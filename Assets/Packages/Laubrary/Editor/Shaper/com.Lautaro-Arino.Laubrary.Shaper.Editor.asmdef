@@ -6,7 +6,9 @@
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
         "com.Lautaro-Arino.Laubrary.AssetKit.Editor",
         "com.Lautaro-Arino.Laubrary.Zui.Editor",
-        "ZUI.Editor"
+        "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.Pyre",
+        "com.Lautaro-Arino.Laubrary.Pyre.Shaper"
     ],
     "includePlatforms": [
         "Editor"

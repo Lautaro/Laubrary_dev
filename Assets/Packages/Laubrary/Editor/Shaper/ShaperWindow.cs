@@ -25,6 +25,7 @@
 //   • response / height / zOffset are LAYER fields (ShaperLayer, ShaperLightRig.cs), not node fields.
 //   • The document is a ScriptableObject with no custom `name` field — use Object.name.
 using System;
+using System.Collections.Generic;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
@@ -126,12 +127,18 @@ namespace Laubrary.Shaper.Editor
         {
             if (toggleBarHost == null) return;
             toggleBarHost.Clear();
-            // Null section entries are skipped by the bar itself, so an absent card costs nothing here.
-            toggleBarHost.Add(new ZuiSectionToggleBar("ShaperWindow",
+            // Null section entries are skipped by the bar itself, so an absent card costs nothing here —
+            // which is what lets the shell list every card unconditionally while the absence rule decides
+            // at build time which ones actually exist for the current node kind.
+            var entries = new List<(string, ZuiSection)>
+            {
                 ("Canvas", canvasSection),
                 ("Layers", layersSection),
                 ("Shape", shapeSection),
-                ("Transform", transformSection)));
+                ("Transform", transformSection),
+            };
+            entries.AddRange(SectionBarEntries());   // the cards ShaperWindow.Sections.cs owns
+            toggleBarHost.Add(new ZuiSectionToggleBar("ShaperWindow", entries.ToArray()));
         }
 
         void RestoreScroll(ScrollView view)
@@ -360,10 +367,10 @@ namespace Laubrary.Shaper.Editor
                 ? null
                 : document.layers[Mathf.Clamp(selectedLayer, 0, document.layers.Count - 1)];
 
-        /// The node the authoring cards edit. This slice always edits the selected layer's ROOT; a later
-        /// slice adds bag drill-down with a breadcrumb, at which point this returns the drilled node instead
-        /// and every card that reads it keeps working unchanged.
-        internal ShaperNode CurrentNode => CurrentLayer?.root;
+        /// The node the authoring cards edit. Phase C2 added bag drill-down, so this now resolves through the
+        /// drill path (ShaperWindow.Sections.cs) instead of always returning the layer root — exactly the
+        /// swap this property's own comment anticipated, and every card that reads it kept working unchanged.
+        internal ShaperNode CurrentNode => ResolveCurrentNode();
 
         void BuildSelectedLayerSections(VisualElement root)
         {
@@ -372,6 +379,7 @@ namespace Laubrary.Shaper.Editor
 
             BuildShapeSection(root, node);
             BuildTransformSection(root, node);
+            BuildAuthoringSections(root, node);
         }
 
         void BuildShapeSection(VisualElement root, ShaperNode node)
