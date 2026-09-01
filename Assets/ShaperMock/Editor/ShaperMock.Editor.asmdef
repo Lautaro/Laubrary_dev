@@ -4,7 +4,9 @@
     "references": [
         "com.Lautaro-Arino.Laubrary.Zui.Editor",
         "com.Lautaro-Arino.Laubrary.ZuiRuntime",
-        "ZUI.Editor"
+        "ZUI.Editor",
+        "com.Lautaro-Arino.Laubrary.BackSplash",
+        "com.Lautaro-Arino.Laubrary.BackSplash.Editor"
     ],
     "includePlatforms": [ "Editor" ],
     "excludePlatforms": [],

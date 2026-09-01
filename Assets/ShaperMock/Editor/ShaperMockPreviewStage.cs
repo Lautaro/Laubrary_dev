@@ -11,6 +11,8 @@
 // a retained-mode VisualElement's own backgroundImage already blits without any device-pixel rounding
 // concern at this preview's scale.
 using System;
+using Laubrary.BackSplash;
+using Laubrary.BackSplash.Editor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -20,6 +22,8 @@ namespace ShaperMock.Editor
     {
         readonly ShaperMockDocument _doc;
         readonly Func<ShaperMockLayer> _selected;
+        readonly IMGUIContainer _backdrop;
+        readonly VisualElement _shapeLayer;
         Texture2D _tex;
         Color32[] _buf;
 
@@ -29,9 +33,22 @@ namespace ShaperMock.Editor
             _selected = selected;
             AddToClassList("zui-stage");
             style.overflow = Overflow.Hidden;
-            style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
             tooltip = "A pixel-exact live render of the selected layer's shape and fill — not a "
                 + "Mirage-quality preview.";
+
+            // BackSplash backdrop (a cosmetic colour+image aid, never baked) painted BEHIND the shape render,
+            // mirroring Pyre's own blit order (PyreWindow.Preview.cs DrawBackdrop: fill → image → frame on
+            // top) — here as two absolutely-positioned layers instead of one IMGUI Rect draw, since this
+            // stage is a retained-mode VisualElement rather than Pyre's IMGUIContainer-hosted preview.
+            _backdrop = new IMGUIContainer(() =>
+                BackSplashPainter.Draw(_backdrop.contentRect, _doc?.previewBackSplash, new Color(0.08f, 0.08f, 0.09f)));
+            _backdrop.StretchToParentSize();
+            _shapeLayer = new VisualElement { pickingMode = PickingMode.Ignore };
+            _shapeLayer.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
+            _shapeLayer.StretchToParentSize();
+            Add(_backdrop);
+            Add(_shapeLayer);
+
             RegisterCallback<DetachFromPanelEvent>(_ =>
             {
                 if (_tex != null) { UnityEngine.Object.DestroyImmediate(_tex); _tex = null; }
@@ -52,14 +69,17 @@ namespace ShaperMock.Editor
                 _buf = new Color32[size * size];
             }
 
-            var clear = new Color32(20, 20, 24, 255);
+            // Fully transparent outside the shape (was an opaque dark-grey fill) — the BackSplash backdrop
+            // layered behind this texture is the whole point of showing anything there now.
+            var clear = new Color32(0, 0, 0, 0);
             for (int i = 0; i < _buf.Length; i++) _buf[i] = clear;
 
             if (layer != null && layer.enabled && layer.root != null) PaintNode(layer.root, size);
 
             _tex.SetPixels32(_buf);
             _tex.Apply(false);
-            style.backgroundImage = Background.FromTexture2D(_tex);
+            _shapeLayer.style.backgroundImage = Background.FromTexture2D(_tex);
+            _backdrop.MarkDirtyRepaint();
         }
 
         void PaintNode(ShaperMockNode root, int size)
@@ -221,13 +241,13 @@ namespace ShaperMock.Editor
                 case ShaperMockShapeKind.Star:
                 {
                     int arms = Mathf.Max(3, node.starArms);
-                    float theta = Mathf.Atan2(y, x) - node.starSkew * Mathf.Deg2Rad;
+                    float theta = Mathf.Atan2(y, x) - node.starSkew.EvaluateNow() * Mathf.Deg2Rad;
                     // A smooth "flower" radius wave rather than a pointed polygon-star — simpler math, and
                     // still visibly responds to every one of the five star dials.
                     float wave = 0.5f + 0.5f * Mathf.Cos(arms * theta);
                     float outer = node.starRadius;
-                    float inner = Mathf.Clamp(node.starRadius * node.starBaseWidth, 0.01f, outer);
-                    float sharp = Mathf.Lerp(1f, 4f, Mathf.Clamp01(node.starLength));
+                    float inner = Mathf.Clamp(node.starRadius * node.starBaseWidth.EvaluateNow(), 0.01f, outer);
+                    float sharp = Mathf.Lerp(1f, 4f, Mathf.Clamp01(node.starLength.EvaluateNow()));
                     float edge = Mathf.Lerp(inner, outer, Mathf.Pow(wave, sharp));
                     return len <= Mathf.Max(0.001f, edge);
                 }

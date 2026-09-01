@@ -14,6 +14,8 @@
 // container, so breadcrumb drilling never refolds or resizes them (§J2, the stable-workspace rule).
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Laubrary.BackSplash.Editor;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
@@ -47,6 +49,16 @@ namespace ShaperMock.Editor
         ShaperMockPreviewStage stage;
         CacheStrip cacheStrip;
         Label cacheSummary;
+        VisualElement backdropHost;
+
+        // Transport playback (T-0141) — Pyre's own Play/Pause posture (PyreWindow.cs Tick/RebuildTransport):
+        // a looping EditorApplication.update tick that steps `currentFrame` at `previewFps`, independent of
+        // the cache-bake simulation tick above.
+        bool playing;
+        Button playButton;
+        SliderInt scrubber;
+        double lastPlayTick;
+        float playAcc;
 
         // ── section-toggle-bar roster (Pyre parity, T-0133) — every top-level and node-scoped ZuiSection
         // this window builds, held as fields so ZuiSectionToggleBar can bulk show/hide them. The bar itself
@@ -127,6 +139,7 @@ namespace ShaperMock.Editor
         {
             base.OnDisable();
             EditorApplication.update -= BakeTick;
+            EditorApplication.update -= PlaybackTick;
         }
 
         void RestoreScroll(ScrollView view)
@@ -562,19 +575,18 @@ namespace ShaperMock.Editor
         VisualElement BuildShapeSection(ShaperMockNode node, bool subtractMember)
         {
             var box = shapeSection = Z.Section("Shape",
-                "This node's own geometry. The dial set shown depends entirely on its kind.",
+                "This node's own geometry — choose it from the ▾ caret above (or right-click the title).",
                 "shaper.mock.shape", icon: "shapes");
 
-            var kindPicker = Z.MiniRadio((int)node.kind, new[] { "Primitive", "Bag", "Composite", "Solid" },
-                "What kind of node this is — a Primitive shape, a Bag combining children, a Composite "
-                + "(baked-raster) generator, or a Solid (pseudo-3D facet shape). Switching kind rebuilds "
-                + "every card below (§B4's absence rule).",
-                v =>
-                {
-                    Change(() => node.kind = (ShaperMockNodeKind)v);
-                    RebuildNodeBody();
-                });
-            box.Add(Z.Field("Node kind", "What kind of node this is.", kindPicker));
+            // ONE generator picker in the section header covers EVERY kind of thing this node can generate —
+            // a Primitive shape, Bag, a Composite generator, or a Solid form — not a "Node kind" gate you
+            // pick first and a second, kind-scoped picker after it. Caught live by the project owner: "You
+            // still have node kind like some over category for generator. Remove that. ALL GENERATORS GO IN
+            // THE GENERATOR MENU!" Mirrors PyreWindow.ShowShapeMenu exactly: Pyre has no separate "kind"
+            // concept at all — picking a shape from its one menu IS the whole choice. Wired here, once per
+            // fresh Section instance (RebuildNodeBody always builds a brand new one, so this never
+            // double-registers).
+            SetupShapeHeaderMenu(box, node);
 
             switch (node.kind)
             {
@@ -587,13 +599,6 @@ namespace ShaperMock.Editor
                     break;
 
                 case ShaperMockNodeKind.Composite:
-                    // The generator picker lives in the SECTION HEADER (Pyre parity — PyreWindow's own
-                    // shape-FORM picker: "a header context menu... instead of in-body radio rows —
-                    // reclaiming vertical space", ShowShapeMenu), not an in-body radio grid. Caught live by
-                    // the project owner (T-0137): "look at how Pyre does it... choosing generators will be
-                    // the same." Wired here, once per fresh Section instance (RebuildNodeBody always builds
-                    // a brand new one, so this never double-registers).
-                    SetupGeneratorHeaderMenu(box, node);
                     box.Add(BuildCompositeBody(node));
                     break;
 
@@ -688,29 +693,17 @@ namespace ShaperMock.Editor
                                 v => node.starArms = Mathf.RoundToInt(v), decimals: 0),
                             Dial("Radius", "The star's outer radius.", node.starRadius, 0.02f, 1f,
                                 v => node.starRadius = v),
-                            Dial("Length", "How far the arms reach, relative to the outer radius.",
-                                node.starLength, 0.05f, 1f, v => node.starLength = v),
-                            Dial("Base width", "How wide each arm's base is.", node.starBaseWidth, 0.02f, 1f,
-                                v => node.starBaseWidth = v),
-                            Dial("Skew", "Twists the arms, in degrees.", node.starSkew, -180f, 180f,
-                                v => node.starSkew = v, decimals: 0)));
+                            Val("Length", "How far the arms reach, relative to the outer radius. Animatable over life (real ShaperPrimitives.cs).",
+                                node.starLength, 0.05f, 1f),
+                            Val("Base width", "How wide each arm's base is. Animatable over life (real ShaperPrimitives.cs).",
+                                node.starBaseWidth, 0.02f, 1f),
+                            Val("Skew", "Twists the arms, in degrees. Animatable over life (real ShaperPrimitives.cs).",
+                                node.starSkew, -180f, 180f, decimals: 0)));
                         break;
                 }
             }
             RebuildKindBody();
-
-            var picker = Z.MiniRadio((int)node.shapeKind,
-                new[] { "Rect", "Ellipse", "Diamond", "Triangle", "Capsule", "N-gon", "Star" },
-                "Which primitive this node generates. Switching kind rebuilds the dial set below.",
-                v => Change(() =>
-                {
-                    node.shapeKind = (ShaperMockShapeKind)v;
-                    RebuildKindBody();
-                }), wrap: true);
-            var wrap = new VisualElement();
-            wrap.Add(Z.Field("Kind", "Which primitive this node generates.", picker));
-            wrap.Add(kindBody);
-            return wrap;
+            return kindBody;
         }
 
         // A caret button in the "Shape" section header opens this menu (also right-click anywhere on the
@@ -718,62 +711,109 @@ namespace ShaperMock.Editor
         // its forms 3D / 2D / Special; here the two columns are the REAL classification T-0112 measured
         // (PyreCompositeCatalog's own doc comment) — Palette-indifferent vs. Veil-multiplied — a sourced
         // fact, not an arbitrary split invented to mimic the shape of Pyre's menu.
-        void SetupGeneratorHeaderMenu(ZuiSection box, ShaperMockNode node)
+        static readonly string[] PrimitiveShapeNames = { "Rect", "Ellipse", "Diamond", "Triangle", "Capsule", "N-gon", "Star" };
+        static readonly string[] SolidFormNames = { "Box", "Pyramid", "Can", "Orb", "Gem", "Ring" };
+
+        string CurrentGeneratorName(ShaperMockNode node)
         {
-            string CurrentName() => ShaperMockCompositeCatalog.All[
-                Mathf.Clamp(node.compositeGeneratorIndex, 0, ShaperMockCompositeCatalog.All.Length - 1)].DisplayName;
-            box.SetHeaderSuffix(() => " — " + CurrentName());
-            box.SetHeaderMenu("caret-down", "Choose the composite generator (or right-click the title).",
-                anchor => ShowGeneratorMenu(node, anchor));
+            switch (node.kind)
+            {
+                case ShaperMockNodeKind.Primitive: return PrimitiveShapeNames[(int)node.shapeKind];
+                case ShaperMockNodeKind.Bag: return "Bag";
+                case ShaperMockNodeKind.Composite:
+                    return ShaperMockCompositeCatalog.All[Mathf.Clamp(node.compositeGeneratorIndex, 0,
+                        ShaperMockCompositeCatalog.All.Length - 1)].DisplayName;
+                case ShaperMockNodeKind.Solid: return SolidFormNames[(int)node.solid.form];
+                default: return "?";
+            }
         }
 
-        void ShowGeneratorMenu(ShaperMockNode node, VisualElement anchor)
+        void SetupShapeHeaderMenu(ZuiSection box, ShaperMockNode node)
         {
-            var menu = Z.Menu(anchor).Width(360f);
-            menu.Custom((body, close) =>
-            {
-                var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
-                row.Add(GeneratorColumn(node, "Palette-indifferent", true, close));
-                row.Add(GeneratorColumn(node, "Veil-multiplied", false, close));
-                body.Add(row);
-            });
-            menu.Show();
+            box.SetHeaderSuffix(() => " — " + CurrentGeneratorName(node));
+            box.SetHeaderMenu("caret-down", "Choose what this node generates (or right-click the title).",
+                anchor => ShowShapeMenu(node, anchor));
         }
 
-        VisualElement GeneratorColumn(ShaperMockNode node, string title, bool paletteIndifferent, Action close)
+        // T-0142 — ONE menu for EVERYTHING a node can generate: Primitives, Bag, every Composite generator,
+        // every Solid form. No separate "Node kind" gate above it — picking an item here both chooses the
+        // generator AND sets node.kind, in one action, mirroring PyreWindow.ShowShapeMenu exactly (Pyre has
+        // no "kind" concept at all; its one shape menu IS the whole choice). Composite generators keep their
+        // existing Section split (T-0141): grouped by the REAL Palette-indifferent/Veil-multiplied
+        // classification (T-0112), not the catalog's own interleaved declaration order (same anti-
+        // fragmentation fix as before — sort into groups before ever opening a Section).
+        void ShowShapeMenu(ShaperMockNode node, VisualElement anchor)
         {
-            var col = new VisualElement { style = { flexDirection = FlexDirection.Column, marginRight = 12f, minWidth = 150f } };
-            var head = new Label(title) { tooltip = paletteIndifferent
-                ? "This generator's outline is completely indifferent to the palette."
-                : "The palette's transparency is multiplied into an edge rule this generator computed on its own." };
-            head.AddToClassList("zui-menu__section");
-            col.Add(head);
-            var all = ShaperMockCompositeCatalog.All;
-            for (int i = 0; i < all.Length; i++)
+            var menu = Z.Menu(anchor).Width(280f);
+
+            menu.Section("Primitives", "A single authored 2D shape.");
+            for (int i = 0; i < PrimitiveShapeNames.Length; i++)
             {
-                if (all[i].PaletteIndifferent != paletteIndifferent) continue;
                 int idx = i;
-                bool selected = node.compositeGeneratorIndex == idx;
-                var item = new VisualElement { tooltip = all[idx].ReasonNote };
-                item.AddToClassList("zui-menu__item");
-                var check = new Label(selected ? "✓" : "") { pickingMode = PickingMode.Ignore };
-                check.AddToClassList("zui-menu__check");
-                item.Add(check);
-                item.Add(new Label(all[idx].DisplayName) { pickingMode = PickingMode.Ignore });
-                item.AddManipulator(new Clickable(() =>
+                menu.Item(PrimitiveShapeNames[i], null, () =>
                 {
                     Change(() =>
                     {
-                        node.compositeGeneratorIndex = idx;
-                        node.generatorParams = all[idx].NewParams();
-                        node.compositeReasonNote = all[idx].ReasonNote;
+                        node.kind = ShaperMockNodeKind.Primitive;
+                        node.shapeKind = (ShaperMockShapeKind)idx;
                     });
                     RebuildNodeBody();
-                    close?.Invoke();
-                }));
-                col.Add(item);
+                }, node.kind == ShaperMockNodeKind.Primitive && (int)node.shapeKind == idx);
             }
-            return col;
+
+            menu.Section("Structural", "Combines this node's own children instead of generating a shape itself.");
+            menu.Item("Bag", "Combines children by their own combine modes (Add/Subtract/Intersect).", () =>
+            {
+                Change(() => node.kind = ShaperMockNodeKind.Bag);
+                RebuildNodeBody();
+            }, node.kind == ShaperMockNodeKind.Bag);
+
+            var all = ShaperMockCompositeCatalog.All
+                .Select((entry, index) => (entry, index))
+                .OrderBy(x => x.entry.PaletteIndifferent ? 0 : 1)
+                .ToArray();
+            string lastGroup = null;
+            for (int i = 0; i < all.Length; i++)
+            {
+                int idx = all[i].index;
+                var entry = all[i].entry;
+                string group = entry.PaletteIndifferent ? "Palette-indifferent" : "Veil-multiplied";
+                if (group != lastGroup)
+                {
+                    menu.Section(group, entry.PaletteIndifferent
+                        ? "This generator's outline is completely indifferent to the palette."
+                        : "The palette's transparency is multiplied into an edge rule this generator computed on its own.");
+                    lastGroup = group;
+                }
+                menu.Item(entry.DisplayName, entry.ReasonNote, () =>
+                {
+                    Change(() =>
+                    {
+                        node.kind = ShaperMockNodeKind.Composite;
+                        node.compositeGeneratorIndex = idx;
+                        node.generatorParams = entry.NewParams();
+                        node.compositeReasonNote = entry.ReasonNote;
+                    });
+                    RebuildNodeBody();
+                }, node.kind == ShaperMockNodeKind.Composite && node.compositeGeneratorIndex == idx);
+            }
+
+            menu.Section("Solids", "A pseudo-3D facet shape, rendered as a real generator (coverage + surface normal) like everything else.");
+            for (int i = 0; i < SolidFormNames.Length; i++)
+            {
+                int idx = i;
+                menu.Item(SolidFormNames[i], null, () =>
+                {
+                    Change(() =>
+                    {
+                        node.kind = ShaperMockNodeKind.Solid;
+                        node.solid.form = (ShaperMockSolidForm)idx;
+                    });
+                    RebuildNodeBody();
+                }, node.kind == ShaperMockNodeKind.Solid && (int)node.solid.form == idx);
+            }
+
+            menu.Show();
         }
 
         VisualElement BuildCompositeBody(ShaperMockNode node)
@@ -904,26 +944,16 @@ namespace ShaperMock.Editor
             var wrap = new VisualElement();
             var s = node.solid;
 
-            // The one open engine-integration question, stated plainly here where a mock user actually
-            // sees it — not just in a code comment. See ShaperMockSolids.cs's header for the full version.
-            wrap.Add(Z.Help(
-                "This 'Solid' node kind is a UI-mock placement choice, not a confirmed real design decision. "
-                + "The real Shaper engine has a fully-built Solids generator (ShaperSolids.cs) but has not "
-                + "yet decided HOW a document authors one — a 4th node kind like this, a Composite-style "
-                + "alternate source, or a separate document/layer-level slot (the way the Light Rig is "
-                + "document-level rather than node-level). Treat this card as a demonstration of the "
-                + "authoring pattern, not as the real attachment point.", HelpBoxMessageType.Warning));
+            // The one open engine-integration question — kept OUT of the UI itself (the owner's rule: mock
+            // UI shouldn't carry big warning text unless that warning is also meant for the real UI, and
+            // this isn't). Full version in ShaperMockSolids.cs's header: the real Shaper engine has a
+            // fully-built Solids generator but hasn't yet decided HOW a document authors one — a 4th node
+            // kind like this, a Composite-style alternate source, or a separate document/layer-level slot.
 
             var formHost = new VisualElement();
             void RebuildForm()
             {
                 formHost.Clear();
-
-                var picker = Z.MiniRadio((int)s.form, new[] { "Box", "Pyramid", "Can", "Orb", "Gem", "Ring" },
-                    "Which solid this node generates. Switching form changes which dials below are live — "
-                    + "inert ones grey out and explain why, they never just vanish.",
-                    v => { Change(() => s.form = (ShaperMockSolidForm)v); RebuildForm(); });
-                formHost.Add(Z.Field("Form", "Which solid this node generates.", picker));
 
                 // Size / Centre / Aspect / Depth — one packed row, each individually greyed-with-reason via
                 // SolidVal when the current form makes it inert (real InertReason: Aspect inert on Orb/Gem/
@@ -1627,6 +1657,130 @@ namespace ShaperMock.Editor
                 previewSection.Add(BuildTransport());
 
             root.Add(previewSection);
+
+            BuildBackdropPanel(root);
+
+            if (document.canvas.frameCount > 1)
+                root.Add(BuildCherrySection());
+        }
+
+        // ── Cherry Framing (T-0141) — real Pyre has this (PyreWindow.CherryFraming.cs: cherry-pick frames
+        // from the baked animation into a sub-sequence); the owner has confirmed Shaper will get a task to
+        // adopt it before merge, so this mock builds its real UI now rather than a flagged placeholder — no
+        // on-screen caveat, matching the owner's "big warning texts don't belong in mock UI unless they're
+        // also meant for the real UI" rule. A header-toggle Section, a list of picked source frames with a
+        // length multiplier each (fixed or randomised min/max), reorderable via the same ZuiReorder grip
+        // idiom every other list in this window already uses (Effects/Lights/Layers).
+        VisualElement cherryListHost;
+
+        VisualElement BuildCherrySection()
+        {
+            var box = Z.Section("Cherry Framing",
+                "Cherry-pick frames from this document's own frames into a sub-sequence. While the header "
+                + "checkbox is on, the transport plays this sequence instead of the plain frame order.",
+                "shaper.mock.cherry", icon: "shuffle");
+            box.SetHeaderToggle(document.cherryEnabled,
+                "Play the cherry sequence in the preview instead of the plain frame order.",
+                v => Change(() => document.cherryEnabled = v));
+
+            cherryListHost = new VisualElement();
+            box.Add(cherryListHost);
+            RebuildCherryList();
+
+            box.Add(Z.Button("+ Add slot", "Cherry-pick another source frame into the sequence.", () =>
+            {
+                Change(() => document.cherryFrames.Add(new ShaperMockCherryFrame { sourceIndex = currentFrame }));
+                RebuildCherryList();
+            }));
+            return box;
+        }
+
+        void RebuildCherryList()
+        {
+            if (cherryListHost == null) return;
+            cherryListHost.Clear();
+            int max = Mathf.Max(0, document.canvas.frameCount - 1);
+            for (int i = 0; i < document.cherryFrames.Count; i++)
+                cherryListHost.Add(BuildCherryRow(document.cherryFrames[i], max));
+        }
+
+        VisualElement BuildCherryRow(ShaperMockCherryFrame slot, int maxFrame)
+        {
+            var box = Z.Box(null, null);
+            var header = new VisualElement();
+            header.AddToClassList("zui-row");
+
+            var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder — a slot's position is its play order.");
+            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
+            grip.style.width = 16f;
+            ZuiReorder.MakeGrip(grip, box, cherryListHost, (from, to) =>
+            {
+                Change(() =>
+                {
+                    var f = document.cherryFrames[from];
+                    document.cherryFrames.RemoveAt(from);
+                    document.cherryFrames.Insert(to, f);
+                });
+                RebuildCherryList();
+            });
+            header.Add(grip);
+
+            header.Add(Z.Field("Source frame", "Which of this document's own frames this slot plays.",
+                Z.SliderInt(slot.sourceIndex, 0, maxFrame, "Which of this document's own frames this slot plays.",
+                    v => Change(() => slot.sourceIndex = v), 120f)));
+            header.Add(Z.Flexible());
+            var removeBtn = Z.Button("×", "Remove this slot.", () =>
+            {
+                Change(() => document.cherryFrames.Remove(slot));
+                RebuildCherryList();
+            }).W(22f);
+            header.Add(removeBtn);
+            box.Add(header);
+
+            var lenRow = new VisualElement();
+            lenRow.Add(Z.Toggle("Randomise length", "Pick a random length multiplier per play-through instead "
+                + "of always using the fixed one.", slot.useMinMaxLength, v =>
+                { Change(() => slot.useMinMaxLength = v); RebuildCherryList(); }));
+            box.Add(lenRow);
+
+            if (slot.useMinMaxLength)
+                box.Add(Z.HGroup(
+                    Z.MicroSlider("Min ×", slot.minLengthMultiplier, 0.1f, 4f,
+                        "The shortest this slot's hold length can randomise to.",
+                        v => Change(() => slot.minLengthMultiplier = v), 110f),
+                    Z.MicroSlider("Max ×", slot.maxLengthMultiplier, 0.1f, 4f,
+                        "The longest this slot's hold length can randomise to.",
+                        v => Change(() => slot.maxLengthMultiplier = v), 110f)));
+            else
+                box.Add(Z.MicroSlider("Length ×", slot.lengthMultiplier, 0.1f, 4f,
+                    "How long this slot holds, as a multiple of one plain frame's hold time.",
+                    v => Change(() => slot.lengthMultiplier = v), 110f));
+
+            return box;
+        }
+
+        // The shared BackSplash backdrop panel (Laubrary.BackSplash — also used by Pyre/Mirage), mirroring
+        // Pyre's own BuildBackdropPanel/FillBackdropPanel (PyreWindow.cs:676-694) byte-for-byte in structure.
+        // onStructureChanged rebuilds the panel when the backdrop image is picked/cleared (adds/removes
+        // controls); onChanged just repaints the stage.
+        void BuildBackdropPanel(VisualElement root)
+        {
+            backdropHost = new VisualElement();
+            root.Add(backdropHost);
+            FillBackdropPanel();
+        }
+
+        void FillBackdropPanel()
+        {
+            if (backdropHost == null) return;
+            backdropHost.Clear();
+            document.previewBackSplash ??= new Laubrary.BackSplash.BackSplashSettings();
+            backdropHost.Add(BackSplashZui.Build(document.previewBackSplash, "Preview backdrop",
+                "A cosmetic backdrop for the preview only — a solid colour plus one optional image. Never affects "
+                + "the real Shaper render. Persisted per document, same as Pyre's own preview backdrop.",
+                onChanged: RefreshPreview,
+                onStructureChanged: () => { RefreshPreview(); FillBackdropPanel(); },
+                icon: "eye", owner: document));
         }
 
         VisualElement BuildTransport()
@@ -1635,9 +1789,31 @@ namespace ShaperMock.Editor
             int max = Mathf.Max(0, document.canvas.frameCount - 1);
             currentFrame = Mathf.Clamp(currentFrame, 0, max);
 
-            var scrubber = Z.SliderInt(currentFrame, 0, max, "Scrub the frame.", v =>
+            // Play/Pause — Pyre's own transport posture (PyreWindow.cs:530-534): a button that flips its own
+            // label, driving a looping EditorApplication.update tick (PlaybackTick below) rather than a
+            // separate "is playing" toggle control.
+            playButton = Z.Button(playing ? "❚❚ Pause" : "▶ Play",
+                "Play or pause the looping preview.", () =>
+                {
+                    playing = !playing;
+                    playButton.text = playing ? "❚❚ Pause" : "▶ Play";
+                    if (playing) { lastPlayTick = EditorApplication.timeSinceStartup; playAcc = 0f; StartPlayback(); }
+                });
+
+            var speed = Z.MicroSlider("Speed", document.canvas.previewFps, 1f, 30f,
+                "Preview playback rate, frames per second. Preview-only — not a real Shaper document field; "
+                + "the real document's animation clock is a continuous phase, not discrete frames.",
+                v => document.canvas.previewFps = Mathf.Clamp(Mathf.Round(v), 1f, 30f), 120f,
+                showValue: true, decimals: 0);
+
+            host.Add(Z.HGroup(playButton, speed));
+
+            scrubber = Z.SliderInt(currentFrame, 0, max,
+                "Scrub to an exact frame — dragging pauses playback and holds that frame.", v =>
             {
                 currentFrame = v;
+                playing = false;
+                if (playButton != null) playButton.text = "▶ Play";
                 RefreshPreview();
             }, 220f);
             host.Add(Z.Field("Frame", "Scrub the frame.", scrubber));
@@ -1685,6 +1861,35 @@ namespace ShaperMock.Editor
         {
             EditorApplication.update -= BakeTick;
             EditorApplication.update += BakeTick;
+        }
+
+        // ── transport playback (T-0141) — separate tick from the cache-bake simulation above ─────────
+        void StartPlayback()
+        {
+            EditorApplication.update -= PlaybackTick;
+            EditorApplication.update += PlaybackTick;
+        }
+
+        void PlaybackTick()
+        {
+            if (this == null || document == null || !playing) { EditorApplication.update -= PlaybackTick; return; }
+            double now = EditorApplication.timeSinceStartup;
+            float dt = Mathf.Clamp((float)(now - lastPlayTick), 0f, 0.1f);
+            lastPlayTick = now;
+            playAcc += dt * Mathf.Max(1f, document.canvas.previewFps);
+            int max = Mathf.Max(0, document.canvas.frameCount - 1);
+            bool advanced = false;
+            while (playAcc >= 1f)
+            {
+                currentFrame = max > 0 ? (currentFrame + 1) % (max + 1) : 0;
+                playAcc -= 1f;
+                advanced = true;
+            }
+            if (advanced)
+            {
+                scrubber?.SetValueWithoutNotify(currentFrame);
+                RefreshPreview();
+            }
         }
 
         double lastBakeTick;

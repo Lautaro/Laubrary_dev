@@ -11,10 +11,20 @@
 // visibly changes what you can author, mirroring how the effect catalog proves the same "picking X shows
 // X's own dials" pattern via ZuiReflect.
 //
-// These are NOT the real Orb/Torch/ArcBurst/... field lists (that would mean reading five separate real
-// Pyre form source files field-by-field, out of scope for a UI mock) — each class below is a plausible,
+// These are NOT the real Orb/Torch/ArcBurst/... field lists — each class below is a plausible,
 // clearly-labelled STAND-IN, the same posture ShaperMockEffect's generic entries already take for the
 // effect catalog's own top-up entries.
+//
+// T-0141 field-type pass: which of these stand-in dials should be ZUIValue (animatable over life) vs plain
+// was itself checked against real ground truth, not guessed — a spot-check across the real Pyre composite
+// forms (Runtime/Pyre/Forms/Kiln/*.cs, e.g. ArcBurstForm.cs's aref/agamma/bloomRadius/bloomStrength/
+// bloomAlpha/widthScale/ampScale/keepHueFloor/swarmSize) shows every real creative intensity/shape dial on
+// these forms is ZUIValue, with only occasional plain exceptions for things that are NOT creative dials
+// (ArcBurstForm's ghostDeepLo/Hi). Since these mock classes have no 1:1 real field to point at, each
+// dial below follows that same real-world split: a continuous magnitude/intensity a particle could
+// plausibly vary over its life is ZUIValue; a structural topology COUNT or an index INTO something stays
+// plain (mirrors the already-verified real rule for ShaperPrimitives — ngonSides/starArms stay plain ints
+// while starLength/starBaseWidth/starSkew are ZUIValue).
 using UnityEngine;
 
 namespace ShaperMock.Editor
@@ -62,33 +72,33 @@ namespace ShaperMock.Editor
     [System.Serializable]
     public sealed class MockOrbParams : ShaperMockGeneratorParams
     {
-        [Range(0f, 1f)] public float energy = 0.6f;
-        [Range(0, 255)] public int lutIndex = 128;
-        [Range(0f, 1f)] public float glowSharpness = 0.4f;
+        [Range(0f, 1f)] public ZUIValue energy = new ZUIValue(0.6f);
+        [Range(0, 255)] public int lutIndex = 128;   // an index INTO the LUT, not a magnitude — stays plain
+        [Range(0f, 1f)] public ZUIValue glowSharpness = new ZUIValue(0.4f);
     }
 
     [System.Serializable]
     public sealed class MockTorchParams : ShaperMockGeneratorParams
     {
-        [Range(0f, 1f)] public float cooling = 0.5f;
-        [Range(0f, 2f)] public float flameHeight = 1f;
-        [Range(0f, 1f)] public float flicker = 0.3f;
+        [Range(0f, 1f)] public ZUIValue cooling = new ZUIValue(0.5f);
+        [Range(0f, 2f)] public ZUIValue flameHeight = new ZUIValue(1f);
+        [Range(0f, 1f)] public ZUIValue flicker = new ZUIValue(0.3f);
     }
 
     [System.Serializable]
     public sealed class MockArcBurstParams : ShaperMockGeneratorParams
     {
-        [Range(1, 12)] public int arcCount = 5;
-        [Range(0f, 360f)] public float burstSpread = 120f;
-        [Range(0f, 1f)] public float jitter = 0.25f;
+        [Range(1, 12)] public int arcCount = 5;   // arm/topology count, not a magnitude — stays plain
+        [Range(0f, 360f)] public ZUIValue burstSpread = new ZUIValue(120f);
+        [Range(0f, 1f)] public ZUIValue jitter = new ZUIValue(0.25f);
     }
 
     [System.Serializable]
     public sealed class MockPlasmaBloomParams : ShaperMockGeneratorParams
     {
-        [Range(0f, 1f)] public float bloomRadius = 0.5f;
-        [Range(0f, 2f)] public float turbulence = 0.8f;
-        [Range(-1f, 1f)] public float swirl = 0f;
+        [Range(0f, 1f)] public ZUIValue bloomRadius = new ZUIValue(0.5f);
+        [Range(0f, 2f)] public ZUIValue turbulence = new ZUIValue(0.8f);
+        [Range(-1f, 1f)] public ZUIValue swirl = new ZUIValue(0f);
     }
 
     // Inferno / Fork Blast / Jet / Radial Jet / Explosive Jet — the five REAL veil-multiplied generators
@@ -96,17 +106,17 @@ namespace ShaperMock.Editor
     [System.Serializable]
     public sealed class MockInfernoParams : ShaperMockGeneratorParams
     {
-        [Range(0f, 1f)] public float veilStrength = 0.7f;
-        [Range(0f, 2f)] public float turbulence = 1f;
-        [Range(0f, 4f)] public float heatFalloff = 1.5f;
+        [Range(0f, 1f)] public ZUIValue veilStrength = new ZUIValue(0.7f);
+        [Range(0f, 2f)] public ZUIValue turbulence = new ZUIValue(1f);
+        [Range(0f, 4f)] public ZUIValue heatFalloff = new ZUIValue(1.5f);
     }
 
     [System.Serializable]
     public sealed class MockForkBlastParams : ShaperMockGeneratorParams
     {
-        [Range(1, 8)] public int forkCount = 3;
-        [Range(0f, 2f)] public float blastRadius = 0.8f;
-        [Range(0f, 180f)] public float spreadAngle = 45f;
+        [Range(1, 8)] public int forkCount = 3;   // fork/topology count, not a magnitude — stays plain
+        [Range(0f, 2f)] public ZUIValue blastRadius = new ZUIValue(0.8f);
+        [Range(0f, 180f)] public ZUIValue spreadAngle = new ZUIValue(45f);
     }
 
     /// Jet, Radial Jet and Explosive Jet share this one param class — the real engine's own JetFormBase
@@ -114,9 +124,9 @@ namespace ShaperMock.Editor
     [System.Serializable]
     public sealed class MockJetParams : ShaperMockGeneratorParams
     {
-        [Range(0f, 4f)] public float jetLength = 2f;
-        [Range(0f, 1f)] public float rampHeat = 0.6f;
-        [Range(0f, 180f)] public float spread = 20f;
+        [Range(0f, 4f)] public ZUIValue jetLength = new ZUIValue(2f);
+        [Range(0f, 1f)] public ZUIValue rampHeat = new ZUIValue(0.6f);
+        [Range(0f, 180f)] public ZUIValue spread = new ZUIValue(20f);
     }
 
     public static class ShaperMockCompositeCatalog

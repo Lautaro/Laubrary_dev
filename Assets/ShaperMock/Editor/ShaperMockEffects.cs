@@ -31,8 +31,11 @@ namespace ShaperMock.Editor
     [System.Serializable]
     public sealed class MockBloomEffect : ShaperMockEffect
     {
-        [Range(0f, 2f)] public float threshold = 0.8f;
-        [Range(0f, 3f)] public float intensity = 1f;
+        // T-0141 — verified against the real BloomModifier (Runtime/SpriteFx/SpriteFxModifiers.cs:1811):
+        // threshold/intensity are ZUIValue there; radius is explicitly commented "stays a plain int — a
+        // perf knob (blur cost scales with it), not a creative dial" — kept plain here too, on purpose.
+        [Range(0f, 2f)] public ZUIValue threshold = new ZUIValue(0.8f);
+        [Range(0f, 3f)] public ZUIValue intensity = new ZUIValue(1f);
         [Range(0f, 16f)] public float radius = 4f;
         public override string DisplayName => "Bloom";
         public override ShaperMockEffectStage Stage => ShaperMockEffectStage.Post;
@@ -42,8 +45,10 @@ namespace ShaperMock.Editor
     [System.Serializable]
     public sealed class MockOutlineEffect : ShaperMockEffect
     {
-        [Range(0f, 8f)] public float width = 1f;
-        [Range(0f, 1f)] public float softness = 0f;
+        // T-0141 — real OutlineModifier (SpriteFxModifiers.cs:1911): size (→ width here) and innerSoftness
+        // (→ softness here) are both ZUIValue.
+        [Range(0f, 8f)] public ZUIValue width = new ZUIValue(1f);
+        [Range(0f, 1f)] public ZUIValue softness = new ZUIValue(0f);
         public override string DisplayName => "Outline";
         public override ShaperMockEffectStage Stage => ShaperMockEffectStage.Post;
         public override ShaperMockEffectBucket Bucket => ShaperMockEffectBucket.BufferFree;
@@ -52,7 +57,8 @@ namespace ShaperMock.Editor
     [System.Serializable]
     public sealed class MockTintEffect : ShaperMockEffect
     {
-        [Range(0f, 1f)] public float amount = 0.5f;
+        // T-0141 — real TintModifier (SpriteFxModifiers.cs:710): crossAmount is ZUIValue.
+        [Range(0f, 1f)] public ZUIValue amount = new ZUIValue(0.5f);
         public override string DisplayName => "Edge Tint";
         public override ShaperMockEffectStage Stage => ShaperMockEffectStage.Pre;
         public override ShaperMockEffectBucket Bucket => ShaperMockEffectBucket.NeedsSheets;
@@ -61,7 +67,10 @@ namespace ShaperMock.Editor
     [System.Serializable]
     public sealed class MockPosterizeEffect : ShaperMockEffect
     {
-        [Range(2, 16)] public int levels = 6;
+        // T-0141 — real PosterizeModifier (SpriteFxModifiers.cs:893): levelsValue is ZUIValue, tagged
+        // [ZUIWholeNumber] so the control snaps to whole steps (a discrete band count) while still
+        // animating smoothly through them, exactly like the real one.
+        [Range(2f, 16f)] [ZUIWholeNumber] public ZUIValue levels = new ZUIValue(6f);
         public override string DisplayName => "Posterize";
         public override ShaperMockEffectStage Stage => ShaperMockEffectStage.Pre;
         public override ShaperMockEffectBucket Bucket => ShaperMockEffectBucket.BufferFree;
@@ -70,7 +79,8 @@ namespace ShaperMock.Editor
     [System.Serializable]
     public sealed class MockChromaticAberrationEffect : ShaperMockEffect
     {
-        [Range(0f, 8f)] public float shift = 2f;
+        // T-0141 — real ChromaticAberrationModifier (SpriteFxModifiers.cs:2126): amount is ZUIValue.
+        [Range(0f, 8f)] public ZUIValue shift = new ZUIValue(2f);
         public override string DisplayName => "Chromatic Aberration";
         public override ShaperMockEffectStage Stage => ShaperMockEffectStage.Post;
         public override ShaperMockEffectBucket Bucket => ShaperMockEffectBucket.BufferPadded;
@@ -79,9 +89,10 @@ namespace ShaperMock.Editor
     [System.Serializable]
     public sealed class MockDropShadowEffect : ShaperMockEffect
     {
-        [Range(-8f, 8f)] public float offsetX = 2f;
-        [Range(-8f, 8f)] public float offsetY = -2f;
-        [Range(0f, 1f)] public float opacity = 0.6f;
+        // T-0141 — real DropShadowModifier (SpriteFxModifiers.cs:3410): offsetX/offsetY/opacity are all ZUIValue.
+        [Range(-8f, 8f)] public ZUIValue offsetX = new ZUIValue(2f);
+        [Range(-8f, 8f)] public ZUIValue offsetY = new ZUIValue(-2f);
+        [Range(0f, 1f)] public ZUIValue opacity = new ZUIValue(0.6f);
         public override string DisplayName => "Drop Shadow";
         public override ShaperMockEffectStage Stage => ShaperMockEffectStage.Post;
         public override ShaperMockEffectBucket Bucket => ShaperMockEffectBucket.NeedsSheets;
@@ -91,8 +102,12 @@ namespace ShaperMock.Editor
     [System.Serializable]
     public sealed class MockNoiseEffect : ShaperMockEffect
     {
-        [Range(0f, 1f)] public float amount = 0.3f;
-        [Range(1f, 50f)] public float scale = 12f;
+        // T-0141 — no real "Noise" SpriteFx modifier exists to check against (judgment call, not a sourced
+        // fact): both are continuous creative dials, matching every OTHER real modifier's own posture
+        // (Bloom/Outline/Tint/Posterize/ChromaticAberration/DropShadow all make their creative dials
+        // ZUIValue), so both go ZUIValue for consistency.
+        [Range(0f, 1f)] public ZUIValue amount = new ZUIValue(0.3f);
+        [Range(1f, 50f)] public ZUIValue scale = new ZUIValue(12f);
         public override string DisplayName => "Noise";
         public override ShaperMockEffectStage Stage => ShaperMockEffectStage.Pre;
         public override ShaperMockEffectBucket Bucket => ShaperMockEffectBucket.BufferFree;
@@ -104,7 +119,7 @@ namespace ShaperMock.Editor
     [System.Serializable]
     public sealed class MockGlitchEffect : ShaperMockEffect
     {
-        [Range(0f, 1f)] public float amount = 0.5f;
+        [Range(0f, 1f)] public ZUIValue amount = new ZUIValue(0.5f);
         public override string DisplayName => "Glitch";
         public override ShaperMockEffectStage Stage => ShaperMockEffectStage.Post;
         public override ShaperMockEffectBucket Bucket => ShaperMockEffectBucket.Stuck;
@@ -118,7 +133,8 @@ namespace ShaperMock.Editor
     [System.Serializable]
     public sealed class MockGenericEffect : ShaperMockEffect
     {
-        [Range(0f, 1f)] public float amount = 0.5f;
+        // T-0141 — consistent with every hand-authored effect's own creative dial(s) going ZUIValue.
+        [Range(0f, 1f)] public ZUIValue amount = new ZUIValue(0.5f);
         readonly string _name;
         readonly ShaperMockEffectStage _stage;
         readonly ShaperMockEffectBucket _bucket;

@@ -28,6 +28,20 @@ namespace ShaperMock.Editor
         public List<ShaperMockLayer> layers = new List<ShaperMockLayer>();
         public ShaperMockLightRig lightRig = new ShaperMockLightRig();
 
+        // The shared BackSplash backdrop (Laubrary.BackSplash — a cosmetic colour+image preview aid already
+        // used by Pyre/Mirage), persisted per document exactly like Pyre's `spec.previewBackSplash`. Genuinely
+        // shared, tool-agnostic Laubrary infrastructure, not a Shaper-specific type — allowed under T-0129's
+        // ground rule the same way ZUI itself is.
+        public Laubrary.BackSplash.BackSplashSettings previewBackSplash;
+
+        // Cherry Framing (T-0141) — real Pyre has this (PyreWindow.CherryFraming.cs: cherry-pick frames from
+        // a spec's own baked animation into a sub-sequence). The real Shaper engine doesn't have it yet, but
+        // the owner has confirmed it will get a task to adopt it before merge — so this mock builds it as a
+        // real UI, no on-screen caveat (the owner's rule: mock UI shouldn't carry big warning text unless
+        // that warning is also meant for the real UI).
+        public bool cherryEnabled;
+        public List<ShaperMockCherryFrame> cherryFrames = new List<ShaperMockCherryFrame>();
+
         // Cache-state (§G) — entirely simulated view state, not a real bake. Cleared on any structural
         // edit (mirrors real per-node dirty propagation invalidating the cache) and refilled progressively
         // by a non-blocking EditorApplication.update tick, so the strip visibly "bakes" over real time
@@ -48,6 +62,19 @@ namespace ShaperMock.Editor
         }
     }
 
+    /// One cherry-picked slot — mirrors the real Pyre CherryFrame's shape (sourceIndex + a length multiplier,
+    /// either fixed or randomised min/max per play-through). Speculative for Shaper — see cherryEnabled's
+    /// comment on ShaperMockDocument.
+    [Serializable]
+    public sealed class ShaperMockCherryFrame
+    {
+        public int sourceIndex;
+        public bool useMinMaxLength;
+        public float lengthMultiplier = 1f;
+        public float minLengthMultiplier = 0.5f;
+        public float maxLengthMultiplier = 1.5f;
+    }
+
     [Serializable]
     public sealed class ShaperMockCanvas
     {
@@ -59,6 +86,11 @@ namespace ShaperMock.Editor
         // Canvas section didn't show at all (T-0138 #14).
         public float layerSpacing = 0.75f;
         public float pixelSize = 1f;
+        // Preview-only playback speed (Pyre's own `previewFps` precedent). NOT a real ShaperDocument field —
+        // the real document's animation clock is `phase01` (a continuous 0..1 the whole doc is sampled at,
+        // ShaperLightRig.cs:409-413), not a discrete frame count + fps. This mock kept the frameCount/cache
+        // model from its first slice; previewFps is purely how fast THIS mock's transport steps through it.
+        public float previewFps = 12f;
     }
 
     [Serializable]
@@ -166,9 +198,12 @@ namespace ShaperMock.Editor
         public float ngonCornerRadius = 0f;
         public int starArms = 5;
         public float starRadius = 0.65f;
-        public float starLength = 0.55f;
-        public float starBaseWidth = 0.35f;
-        public float starSkew = 0f;
+        // Real ShaperPrimitives.cs:96/98/100 — length/base width/skew are ZUIValue on the real Star primitive
+        // (sides + radius are plain there too), unlike every other primitive's dims which are all plain floats.
+        // Found via a direct field-by-field source check, not assumed from the rest of the struct being plain.
+        public ZUIValue starLength = new ZUIValue(0.55f);
+        public ZUIValue starBaseWidth = new ZUIValue(0.35f);
+        public ZUIValue starSkew = new ZUIValue(0f);
 
         // ── Bag (§B2, §B4) ───────────────────────────────────────────────────────────────────────────
         public List<ShaperMockNode> bagMembers = new List<ShaperMockNode>();
