@@ -8,6 +8,7 @@
 // reflection drawer, `PyreWindow.Modifiers.cs`) works on these fields unmodified: floats/ints get a
 // [Range] for their slider bounds, bool becomes a toggle, Color becomes a colour field. `enabled` is
 // skipped by the drawer's own Options.Skip the same way a Pyre modifier's is (the header owns that toggle).
+using System.Linq;
 using UnityEngine;
 
 namespace ShaperMock.Editor
@@ -189,7 +190,15 @@ namespace ShaperMock.Editor
                 list.Add(() => new MockGenericEffect(name, ShaperMockEffectStage.Pre, ShaperMockEffectBucket.NeedsSheets,
                     "needs " + name.ToLowerInvariant() + " data, which this generator does not publish"));
             }
-            return list.ToArray();
+
+            // Grouped by bucket (stable sort — items keep their relative order within a bucket) before
+            // returning: the 7 hand-authored effects above interleave buckets in their declaration order
+            // (Padded, Free, NeedsSheets, Free, Padded, NeedsSheets, Free), and ShowAddEffectMenu opens a
+            // NEW Section header every time the bucket changes as it walks this list in order — left
+            // ungrouped, that produced six tiny one-item section headers before the list ever settled into
+            // its real per-bucket runs, exactly the "fragmented menu" a real 40-entry catalog would never
+            // ship with. Caught live via a screenshot at real scale, T-0136.
+            return list.OrderBy(f => (int)f().Bucket).ToArray();
         }
     }
 }

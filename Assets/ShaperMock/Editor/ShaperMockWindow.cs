@@ -89,6 +89,10 @@ namespace ShaperMock.Editor
             // to be operated as a dense workbench with the window given real width, and the packed-row
             // dial groups above only pay off once the left pane is wide enough to show more than a pair
             // per row on first open, rather than requiring a user to discover the drag-to-widen affordance.
+            // Kept at 560 rather than pushed wider to clear every packed row: the window's OWN measured
+            // minimum (820x520, §J4.1) reserves 260 for the right pane, so the left pane cannot grow much
+            // past 560 at that minimum without the two panes' own minimums conflicting — Canvas's remaining
+            // few pixels of overflow (§Canvas below) are closed by trimming its own control widths instead.
             root.Add(Z.Split("shaper.mock.split.v1", 560f, left, right));
             RefreshToggleBar();
         }
@@ -197,15 +201,20 @@ namespace ShaperMock.Editor
                 icon: "frame-corners");
             // One packed row, not two stacked ones — all four are short scalars, none is a spatial pair, so
             // they share a row per the UI Guide's row-packing rule and simply wrap to a second line at the
-            // mock's minimum window width instead of needing two hardcoded rows.
+            // mock's minimum window width instead of needing two hardcoded rows. Sliders sized 125 (not
+            // Dial()'s usual 140) specifically so all four measure comfortably inside the section body at
+            // the coded minimum window size — at 140 each, the four needed 553px against a measured 547px
+            // section width, six pixels short, so Seed always wrapped alone onto an otherwise-empty second
+            // line (caught live by the project owner, T-0136). 125 clears it with real margin, not a
+            // hairline fit.
             box.Add(Z.HGroup(
-                Dial("Width", "Canvas width in pixels.", document.canvas.width, 8f, 256f,
-                    v => document.canvas.width = Mathf.RoundToInt(v), decimals: 0),
-                Dial("Height", "Canvas height in pixels.", document.canvas.height, 8f, 256f,
-                    v => document.canvas.height = Mathf.RoundToInt(v), decimals: 0),
+                Z.MicroSlider("Width", document.canvas.width, 8f, 256f, "Canvas width in pixels.",
+                    v => Change(() => document.canvas.width = Mathf.RoundToInt(v)), 125f, decimals: 0),
+                Z.MicroSlider("Height", document.canvas.height, 8f, 256f, "Canvas height in pixels.",
+                    v => Change(() => document.canvas.height = Mathf.RoundToInt(v)), 125f, decimals: 0),
                 Z.MicroSlider("Frames", document.canvas.frameCount, 1f, 64f,
                     "How many frames the document bakes to. Changing this shows/hides the transport.",
-                    v => SetFrameCount(Mathf.RoundToInt(v)), 140f, decimals: 0),
+                    v => SetFrameCount(Mathf.RoundToInt(v)), 125f, decimals: 0),
                 Z.Field("Seed", "Random seed — every dial's randomness (once this mock has any) derives from it.",
                     Z.Int(document.canvas.seed, "Random seed.",
                         v => Change(() => document.canvas.seed = v), 70f))));
@@ -430,13 +439,22 @@ namespace ShaperMock.Editor
             // spatial pair on their own (Pos X/Y/Z are three independent 1D dials here, not a Vector2/3
             // pad), so they all share rows and wrap down at narrow widths rather than always sitting one
             // pair per line regardless of how much width the window actually has.
+            // ONE continuous HGroup for all eight dials, not two separate groups of four: splitting them
+            // gave each group its own independent wrap boundary, so whichever dial didn't fit on a group's
+            // first line became the LAST item in that group with nothing after it to share the line with —
+            // an orphaned single control with a wasted gap beside it (caught live by the project owner,
+            // T-0136: exactly the anti-pattern the earlier packing fix was supposed to remove, just
+            // relocated). Merged into one flow, an item that doesn't fit falls onto the SAME wrapped line as
+            // whatever comes after it in this group, not alone — Pitch lands beside Pos X, Pos Y instead of
+            // by itself; Specular only ever ends up alone if the whole group's count happens to leave
+            // exactly one item on the last line, which a single 8-item group makes far less likely than two
+            // independent 4-item ones.
             var body = new VisualElement();
             body.Add(Z.HGroup(
                 Val("Intensity", "This light's brightness.", light.intensity, 0f, 4f),
                 Val("Range", "How far this light reaches.", light.range, 0.1f, 20f),
                 Val("Yaw", "Horizontal direction, in degrees.", light.yaw, -180f, 180f, cyclic: true, decimals: 0),
-                Val("Pitch", "Vertical direction, in degrees.", light.pitch, -90f, 90f, decimals: 0)));
-            body.Add(Z.HGroup(
+                Val("Pitch", "Vertical direction, in degrees.", light.pitch, -90f, 90f, decimals: 0),
                 Val("Pos X", "Light position X.", light.posX, -5f, 5f),
                 Val("Pos Y", "Light position Y.", light.posY, -5f, 5f),
                 Val("Pos Z", "Light position Z.", light.posZ, -5f, 5f),
@@ -813,16 +831,19 @@ namespace ShaperMock.Editor
             var box = borderSection = Z.Section("Border", "An outward strip around this node's own silhouette.",
                 "shaper.mock.border", icon: "square");
 
-            if (node.border == null)
-            {
-                box.Add(Z.Button("+ Add border", "Give this node an outward strip with its own width and fill.",
-                    () =>
-                    {
-                        Change(() => node.border = new ShaperMockBorder());
-                        RebuildNodeBody();
-                    }).W(100f));
-                return box;
-            }
+            // Same header-checkbox treatment as Swarm (Pyre parity, T-0136): present/absent IS this whole
+            // section's one job, so it belongs on the header rather than a body-level "+ Add"/"Remove" pair
+            // that costs a row only while the section happens to be open.
+            box.SetHeaderToggle(node.border != null,
+                "Off = no border. On = an outward strip around this node's own silhouette, with its own "
+                + "width and fill.",
+                v =>
+                {
+                    Change(() => node.border = v ? new ShaperMockBorder() : null);
+                    RebuildNodeBody();
+                });
+
+            if (node.border == null) return box;
 
             var b = node.border;
             box.Add(Val("Width", "How far the strip extends outward, in shape units. Already envelope-ready.",
@@ -840,11 +861,6 @@ namespace ShaperMock.Editor
             };
             box.Add(stripFillControl);
 
-            box.Add(Z.Button("Remove border", "Remove this node's border (undoable).", () =>
-            {
-                Change(() => node.border = null);
-                RebuildNodeBody();
-            }).W(100f));
             return box;
         }
 
@@ -857,15 +873,17 @@ namespace ShaperMock.Editor
                 "shaper.mock.swarm", icon: "sparkle");
             var s = node.swarm;
 
-            if (!s.enabled)
-            {
-                box.Add(Z.Button("+ Enable swarm", "Turn this node into a scattered swarm of instances.", () =>
-                {
-                    Change(() => s.enabled = true);
-                    RebuildNodeBody();
-                }).W(120f));
-                return box;
-            }
+            // A HEADER checkbox (Pyre parity — PyreWindow.RebuildSwarm's own swarmSection.SetHeaderToggle),
+            // not a body-level "+ Enable swarm" button: the enable/disable IS this whole section's one job,
+            // so it belongs on the header everyone already sees whether the section is folded or not,
+            // rather than costing its own full row inside the body only when open (caught live by the
+            // project owner, T-0136 — "look at how Pyre does it").
+            box.SetHeaderToggle(s.enabled,
+                "Off = a single instance (this node's own Shape alone). On = Count instances scattered with "
+                + "per-instance jitter.",
+                v => { Change(() => s.enabled = v); RebuildNodeBody(); });
+
+            if (!s.enabled) return box;
 
             bool native = NativeSwarmAvailable(node);
             int cap = native ? 24 : ShaperMockSwarm.HardCap;
@@ -907,11 +925,6 @@ namespace ShaperMock.Editor
                       + "has no native swarm implementation, only the generic O(N) wrapper.",
                 s.interact, v => Change(() => s.interact = v)));
 
-            box.Add(Z.Button("Disable swarm", "Turn swarm off for this node (keeps its dial values).", () =>
-            {
-                Change(() => s.enabled = false);
-                RebuildNodeBody();
-            }).W(110f));
             return box;
         }
 
