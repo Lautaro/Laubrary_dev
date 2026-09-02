@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: ShaperDemoDoc
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Shaper::Laubrary.Shaper.ShaperDocument
   canvasWidth: 96
-  canvasHeight: 96
-  pixelSize: 1
+  canvasHeight: 152
+  pixelSize: 2.48778
   pixelsPerUnit: 16
   background: {r: 0, g: 0, b: 0, a: 0}
   layers:
@@ -146,7 +146,7 @@ MonoBehaviour:
     contributesToPicture: 1
     zOffset:
       m_mode: 0
-      m_static: 0
+      m_static: 0.67545
       m_min: 0
       m_max: 1
       m_points: []
@@ -163,7 +163,7 @@ MonoBehaviour:
       m_oscRateMax: 8
       m_multiplierId: 
     height:
-      rid: 2235495212426461256
+      rid: 4065707089338829529
     startFrame: 0
     endFrame: -1
     effects: []
@@ -316,7 +316,7 @@ MonoBehaviour:
     startFrame: 0
     endFrame: -1
     effects: []
-  layerSpacing: 0.75
+  layerSpacing: 0.97749
   lightRig:
     ambientColour: {r: 1, g: 1, b: 1, a: 1}
     ambientIntensity:
@@ -1626,13 +1626,25 @@ MonoBehaviour:
             m_oscRateMax: 8
             m_multiplierId: 
           starBaseWidth:
-            m_mode: 0
-            m_static: 1
+            m_mode: 2
+            m_static: 0.05805
             m_min: 0
             m_max: 1
-            m_points: []
+            m_points:
+            - time: 0
+              value: 0.05805
+              exponent: 1
+              editState: 0
+            - time: 0.52637
+              value: 1.05282
+              exponent: 1
+              editState: 0
+            - time: 1
+              value: 0
+              exponent: 1
+              editState: 0
             m_yMin: 0
-            m_yMax: 1
+            m_yMax: 2
             m_duration: 4
             m_warmup: 0
             m_cooldown: -1
@@ -3851,137 +3863,6 @@ MonoBehaviour:
               m_oscRate: []
               m_oscRateMax: 8
               m_multiplierId: 
-    - rid: 2235495212426461256
-      type: {class: ShaperHeightDef, ns: Laubrary.Shaper, asm: com.Lautaro-Arino.Laubrary.Shaper}
-      data:
-        technique: 3
-        depth:
-          m_mode: 0
-          m_static: 10
-          m_min: 0
-          m_max: 1
-          m_points: []
-          m_yMin: 0
-          m_yMax: 1
-          m_duration: 4
-          m_warmup: 0
-          m_cooldown: -1
-          m_smoothness: 0
-          m_steps: []
-          m_oscMin: []
-          m_oscMax: []
-          m_oscRate: []
-          m_oscRateMax: 8
-          m_multiplierId: 
-        angle:
-          m_mode: 0
-          m_static: 45
-          m_min: 0
-          m_max: 1
-          m_points: []
-          m_yMin: 0
-          m_yMax: 1
-          m_duration: 4
-          m_warmup: 0
-          m_cooldown: -1
-          m_smoothness: 0
-          m_steps: []
-          m_oscMin: []
-          m_oscMax: []
-          m_oscRate: []
-          m_oscRateMax: 8
-          m_multiplierId: 
-        steps:
-          m_mode: 0
-          m_static: 4
-          m_min: 0
-          m_max: 1
-          m_points: []
-          m_yMin: 0
-          m_yMax: 1
-          m_duration: 4
-          m_warmup: 0
-          m_cooldown: -1
-          m_smoothness: 0
-          m_steps: []
-          m_oscMin: []
-          m_oscMax: []
-          m_oscRate: []
-          m_oscRateMax: 8
-          m_multiplierId: 
-        curve:
-          m_mode: 0
-          m_static: 1
-          m_min: 0
-          m_max: 1
-          m_points: []
-          m_yMin: 0
-          m_yMax: 1
-          m_duration: 4
-          m_warmup: 0
-          m_cooldown: -1
-          m_smoothness: 0
-          m_steps: []
-          m_oscMin: []
-          m_oscMax: []
-          m_oscRate: []
-          m_oscRateMax: 8
-          m_multiplierId: 
-        taper:
-          m_mode: 0
-          m_static: 1
-          m_min: 0
-          m_max: 1
-          m_points: []
-          m_yMin: 0
-          m_yMax: 1
-          m_duration: 4
-          m_warmup: 0
-          m_cooldown: -1
-          m_smoothness: 0
-          m_steps: []
-          m_oscMin: []
-          m_oscMax: []
-          m_oscRate: []
-          m_oscRateMax: 8
-          m_multiplierId: 
-        bevel: 2
-        bevelAmount:
-          m_mode: 0
-          m_static: 0.3
-          m_min: 0
-          m_max: 1
-          m_points: []
-          m_yMin: 0
-          m_yMax: 1
-          m_duration: 4
-          m_warmup: 0
-          m_cooldown: -1
-          m_smoothness: 0
-          m_steps: []
-          m_oscMin: []
-          m_oscMax: []
-          m_oscRate: []
-          m_oscRateMax: 8
-          m_multiplierId: 
-        bevelSteps:
-          m_mode: 0
-          m_static: 4
-          m_min: 0
-          m_max: 1
-          m_points: []
-          m_yMin: 0
-          m_yMax: 1
-          m_duration: 4
-          m_warmup: 0
-          m_cooldown: -1
-          m_smoothness: 0
-          m_steps: []
-          m_oscMin: []
-          m_oscMax: []
-          m_oscRate: []
-          m_oscRateMax: 8
-          m_multiplierId: 
     - rid: 2235495212426461257
       type: {class: ShaperNode, ns: Laubrary.Shaper, asm: com.Lautaro-Arino.Laubrary.Shaper}
       data:
@@ -5147,10 +5028,10 @@ MonoBehaviour:
             the palette lookup) but it has not been executed. Hosted unmodified via
             the T-0112 composite escape hatch in the meantime. Palette-INDIFFERENT
             (ArcBurstForm.cs:496-504)."
-          halfExtentX: 48
-          halfExtentY: 48
+          halfExtentX: 119.413445
+          halfExtentY: 189.07129
           bakeWidth: 96
-          bakeHeight: 96
+          bakeHeight: 152
         solid:
           form: 0
           size:
@@ -9954,3 +9835,134 @@ MonoBehaviour:
         m_oscRate: []
         m_oscRateMax: 8
         m_multiplierId: 
+    - rid: 4065707089338829529
+      type: {class: ShaperHeightDef, ns: Laubrary.Shaper, asm: com.Lautaro-Arino.Laubrary.Shaper}
+      data:
+        technique: 3
+        depth:
+          m_mode: 0
+          m_static: 10
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        angle:
+          m_mode: 0
+          m_static: 45
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        steps:
+          m_mode: 0
+          m_static: 4
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        curve:
+          m_mode: 0
+          m_static: 1
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        taper:
+          m_mode: 0
+          m_static: 1
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        bevel: 2
+        bevelAmount:
+          m_mode: 0
+          m_static: 0.3
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
+        bevelSteps:
+          m_mode: 0
+          m_static: 4
+          m_min: 0
+          m_max: 1
+          m_points: []
+          m_yMin: 0
+          m_yMax: 1
+          m_duration: 4
+          m_warmup: 0
+          m_cooldown: -1
+          m_smoothness: 0
+          m_steps: []
+          m_oscMin: []
+          m_oscMax: []
+          m_oscRate: []
+          m_oscRateMax: 8
+          m_multiplierId: 
