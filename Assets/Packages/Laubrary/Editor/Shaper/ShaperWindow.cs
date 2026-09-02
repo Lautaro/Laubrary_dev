@@ -192,7 +192,7 @@ namespace Laubrary.Shaper.Editor
 
         // ── chrome ───────────────────────────────────────────────────────────────────────────────────────
         ShaperPreviewStage stage;
-        VisualElement layerListHost, toggleBarHost;
+        VisualElement layerListHost, toggleBarHost, selectedLayerCardsHost;
         ZuiSection canvasSection, layersSection, shapeSection, transformSection;
         ScrollView leftPane;
         Vector2 carriedScroll;
@@ -583,30 +583,48 @@ namespace Laubrary.Shaper.Editor
                     Rebuild();
                 })));
 
+            // T-0197 — the SELECTED layer's Z/Lifetime/Height/Mask cards live in their own host so picking a
+            // different layer (BuildLayerRow's select button) can refresh just this pane via
+            // RefreshSelectedLayerCards() instead of a full window Rebuild() — a window Rebuild() is what was
+            // dropping ZuiSectionToggleBar's solo/quick-view state on every layer click before this task.
+            selectedLayerCardsHost = new VisualElement();
+            box.Add(selectedLayerCardsHost);
+            RefreshSelectedLayerCards();
+
+            root.Add(box);
+        }
+
+        /// Rebuilds only the SELECTED layer's Z / Lifetime / Height / Mask cards (the pane below the layer
+        /// list), without touching the rest of the window — the layer-list row selection dot is refreshed
+        /// separately via RebuildLayerList(). Call both together when selection changes; call this alone when
+        /// only a card's own content needs to reflect a data edit that doesn't change WHICH layer is selected.
+        void RefreshSelectedLayerCards()
+        {
+            if (selectedLayerCardsHost == null) return;
+            selectedLayerCardsHost.Clear();
+            if (CurrentLayer == null) return;
+
             // T-0192 — the SELECTED layer's Z (depth) dial, on its own row below the list rather than crammed
             // into every layer's row, where it overflowed a 3-column dial pane (see BuildLayerRow's comment
             // for the width arithmetic). Not gated on frameCount — depth ordering matters on a still document
             // too, unlike Lifetime below which is meaningless without a frame axis.
-            if (CurrentLayer != null)
-            {
-                var zLay = CurrentLayer;
-                box.Add(Val("Z", "Moves the selected layer (“" + (zLay.name ?? "Layer") + "”) in depth, in "
-                    + "canvas pixels, on top of its place in the list (layer index × layer spacing). It "
-                    + "re-orders as well as shades: push a layer back far enough and the ones below it come "
-                    + "through, and two raised shapes at different depths intersect along a curve instead of "
-                    + "one hiding the other.", zLay.zOffset, -256f, 256f));
-            }
+            var zLay = CurrentLayer;
+            selectedLayerCardsHost.Add(Val("Z", "Moves the selected layer (“" + (zLay.name ?? "Layer") + "”) in "
+                + "depth, in canvas pixels, on top of its place in the list (layer index × layer spacing). It "
+                + "re-orders as well as shades: push a layer back far enough and the ones below it come "
+                + "through, and two raised shapes at different depths intersect along a curve instead of "
+                + "one hiding the other.", zLay.zOffset, -256f, 256f));
 
             // T-0166 — the SELECTED layer's lifetime window, on its own row below the list rather than crammed
             // into every layer's row (PM by-eye vet, pm-vet-wave2-light-crop.png: a bare unlabeled slider was
             // overlapping the Dup button). Gated on frameCount > 1 like the transport — a still document has no
             // frame axis for "outside its window" to mean anything against.
-            if (document.frameCount > 1 && CurrentLayer != null)
+            if (document.frameCount > 1)
             {
                 var lay = CurrentLayer;
                 int lo = lay.startFrame;
                 int hi = lay.endFrame < 0 ? document.frameCount - 1 : lay.endFrame;
-                box.Add(Z.Field("Lifetime",
+                selectedLayerCardsHost.Add(Z.Field("Lifetime",
                     "The SELECTED layer's (“" + (lay.name ?? "Layer") + "”) frame lifetime window — "
                     + "the frames it contributes to. Outside this range the layer renders nothing, exactly as a "
                     + "disabled layer does.",
@@ -627,13 +645,8 @@ namespace Laubrary.Shaper.Editor
             // feedback) and become foldable cards here instead, right beside the Lifetime card, for the
             // SELECTED layer only. Built in ShaperWindow.Sections.cs (same file that used to own them as
             // sections) — this call site only decides WHERE they land now.
-            if (CurrentLayer != null)
-            {
-                BuildHeightSection(box, CurrentLayer);
-                BuildMaskSection(box, CurrentLayer);
-            }
-
-            root.Add(box);
+            BuildHeightSection(selectedLayerCardsHost, CurrentLayer);
+            BuildMaskSection(selectedLayerCardsHost, CurrentLayer);
         }
 
         void RebuildLayerList()
@@ -673,8 +686,11 @@ namespace Laubrary.Shaper.Editor
             row.Add(Z.Toggle("", "Show or hide this layer. A disabled layer paints nothing.",
                 layer.enabled, v => { Change(() => layer.enabled = v); RefreshPreview(); }));
 
+            // T-0197 — selection alone doesn't add/remove/reorder a layer, so it refreshes only the layer
+            // list's own selection dots and the selected-layer cards pane, not the whole window: a full
+            // Rebuild() here is what dropped ZuiSectionToggleBar's solo/quick-view choice on every click.
             row.Add(Z.Button(sel ? "●" : "○", "Select this layer to edit its shape below.",
-                () => { selectedLayer = li; Rebuild(); }).W(24f));
+                () => { selectedLayer = li; RebuildLayerList(); RefreshSelectedLayerCards(); }).W(24f));
 
             row.Add(Z.TextInput(layer.name ?? "", "This layer's name.",
                 v => Change(() => layer.name = v), 150f));
