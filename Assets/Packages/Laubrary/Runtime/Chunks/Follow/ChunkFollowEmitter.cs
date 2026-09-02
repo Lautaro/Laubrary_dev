@@ -130,9 +130,7 @@ namespace Laubrary.Chunks
         /// Whether anything at all can be emitted right now: a spec is assigned and at least one of the two
         /// modules this emitter drives is switched on in it. The editor surfaces this; a caller can check it
         /// before wondering why Play() looked like it did nothing.
-        public bool CanEmit => spec != null
-            && ((spec.particleSplash != null && spec.particleSplash.Enabled)
-                || (spec.pyreSpawn != null && spec.pyreSpawn.Enabled));
+        public bool CanEmit => spec != null && (spec.Has<PaletteSplash>() || spec.Has<PyreBlast>());
 
         /// Whether the spec's Particle Splash will actually AIM at the direction this emitter computes. It only
         /// does so when the splash's own `inheritBurstDirection` is on — otherwise the splash uses its own
@@ -140,8 +138,14 @@ namespace Laubrary.Chunks
         /// does NOT flip that flag on the user's behalf (it is another module's authored setting, and a tool
         /// that edits data you did not point it at is worse than one that tells you); it reports the state so
         /// the UI can show it.
-        public bool SplashWillAim => spec != null && spec.particleSplash != null
-                                     && spec.particleSplash.Enabled && spec.particleSplash.inheritBurstDirection;
+        public bool SplashWillAim
+        {
+            get
+            {
+                var splash = spec != null ? spec.FirstEnabled<PaletteSplash>() : null;
+                return splash != null && splash.inheritBurstDirection;
+            }
+        }
 
         /// Colours sampled off whatever this emitter represents, handed to modules exactly as
         /// ChunkEmitter.Burst's palette overload does. Optional — null means "the modules resolve their own
@@ -185,7 +189,7 @@ namespace Laubrary.Chunks
             _travel.minSpeed = minTravelSpeed;
             _travel.Reset(t.position);
 
-            spec.pyreSpawn?.ResetRandom();
+            spec.FirstEnabled<PyreBlast>()?.ResetRandom();
 
             _elapsed = 0f;
             _splashTimer = 0f;
@@ -310,8 +314,8 @@ namespace Laubrary.Chunks
         /// the number an author can actually picture.
         void TickSplash(float dt, Vector3 pos, float dirDeg)
         {
-            var splash = spec.particleSplash;
-            if (splash == null || !splash.Enabled) return;
+            var splash = spec.FirstEnabled<PaletteSplash>();
+            if (splash == null) return;
 
             float interval = Mathf.Max(0.01f, splashInterval);
             _splashTimer += dt;
@@ -325,18 +329,17 @@ namespace Laubrary.Chunks
 
         void TickSpawn(float dt, Vector3 pos, float dirDeg)
         {
-            var spawn = spec.pyreSpawn;
-            if (spawn == null || !spawn.Enabled) return;
+            var blast = spec.FirstEnabled<PyreBlast>();
+            if (blast == null) return;
 
             float interval = Mathf.Max(0.02f, spawnInterval);
             _spawnTimer += dt;
             if (_spawnTimer < interval) return;
             _spawnTimer = _spawnTimer >= interval * 2f ? 0f : _spawnTimer - interval;
 
-            // SpawnOne, not Fire: Fire would ResetRandom on every single spawn (making a seeded spawner repeat
-            // one identical flare forever) and would re-apply the module's own offset from ctx.Origin, which
-            // it already gets since we pass the tracked position as the origin.
-            spawn.SpawnOne(BuildContext(pos, dirDeg), pos + (Vector3)spawn.offset, _spawnOrderOffset);
+            // SpawnOne, not Fire: Fire would ResetRandom on every single spawn (making a seeded blast repeat
+            // one identical flare forever) and would lay out its whole pattern again each tick.
+            blast.SpawnOne(BuildContext(pos, dirDeg), pos + (Vector3)blast.offset, _spawnOrderOffset);
             _spawnOrderOffset = (_spawnOrderOffset + 1) % OrderCycle;
         }
 
@@ -345,7 +348,8 @@ namespace Laubrary.Chunks
         /// sortingOrder fallback, and ChunkModuleContext.OrderFor/ApplyOrder makes that decision for every
         /// module in one place.
         ChunkModuleContext BuildContext(Vector3 pos, float dirDeg)
-            => new ChunkModuleContext(pos, _container, dirDeg, spec, spec.layers, sortingOrder, _runner, _palette);
+            => new ChunkModuleContext(pos, _container, dirDeg, spec, spec.ResolveLayers(), sortingOrder,
+                                      _runner, _palette);
 
 #if UNITY_EDITOR
         /// The aim is the single most likely thing to LOOK broken (a spray pointing the wrong way reads as a

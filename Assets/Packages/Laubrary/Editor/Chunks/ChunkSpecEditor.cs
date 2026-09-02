@@ -100,8 +100,7 @@ namespace Laubrary.Chunks.Editor
 
             void Refresh()
             {
-                var spec = target as ChunkSpec;
-                var source = spec != null ? spec.animationSource : null;
+                var source = AnimationSourceOf(target as ChunkSpec);
 
                 if (source != lastSource)
                 {
@@ -118,9 +117,10 @@ namespace Laubrary.Chunks.Editor
                     // No animation source still means a LOOK — procedural squares tinted along colorOverLife —
                     // and the spec can draw it. Leaving the reserved 96px slot empty would read as a picture
                     // that failed to load, which is the one thing the thumbnail rules forbid outright.
-                    if (previewTex == null && !previewUnavailable && spec != null)
+                    var self = target as ChunkSpec;
+                    if (previewTex == null && !previewUnavailable && self != null)
                     {
-                        previewTex = ((IVisualPreview)spec).RenderPreviewTexture();
+                        previewTex = ((IVisualPreview)self).RenderPreviewTexture();
                         previewUnavailable = previewTex == null;
                         image.image = previewTex;
                     }
@@ -166,8 +166,8 @@ namespace Laubrary.Chunks.Editor
 
             editButton.clicked += () =>
             {
-                var spec = target as ChunkSpec;
-                if (spec != null && spec.animationSource != null) LauAssetEditors.Open(spec.animationSource);
+                var source = AnimationSourceOf(target as ChunkSpec);
+                if (source != null) LauAssetEditors.Open(source);
             };
 
             // One scheduled tick covers both jobs the IMGUI version needed a per-frame OnInspectorGUI for:
@@ -177,8 +177,7 @@ namespace Laubrary.Chunks.Editor
             {
                 if (root.panel == null || root.resolvedStyle.display == DisplayStyle.None) return;
                 Refresh();
-                var spec = target as ChunkSpec;
-                if (spec?.animationSource is IVisualPreview p && p.CanAnimatePreview && previewTex != null)
+                if (AnimationSourceOf(target as ChunkSpec) is IVisualPreview p && p.CanAnimatePreview && previewTex != null)
                 {
                     double now = EditorApplication.timeSinceStartup;
                     if (now - lastTick >= AnimateInterval)
@@ -197,6 +196,15 @@ namespace Laubrary.Chunks.Editor
             editButton.style.visibility = Visibility.Hidden;
             Refresh();
             return root;
+        }
+
+        /// The recipe's animated debris content, if any capability names one. Read through the stack rather
+        /// than off a field on the spec: which capability owns the animation is the recipe's business, and an
+        /// inspector that reached for a fixed field would go blind the moment a second scatter was added.
+        static Object AnimationSourceOf(ChunkSpec spec)
+        {
+            var debris = spec != null ? spec.FirstEnabled<DebrisScatter>() : null;
+            return debris != null ? debris.animationSource : null;
         }
 
         void DisposePreview()

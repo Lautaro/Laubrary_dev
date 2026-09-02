@@ -5,34 +5,34 @@ using Laubrary.Combat2D;
 namespace Laubrary.Chunks
 {
     /// The game-facing component: hold a <see cref="ChunkSpec"/> and call <see cref="Burst()"/> when something
-    /// explodes. It spawns the randomised swarm of <see cref="Chunk"/> GameObjects (a SpriteRenderer + a Chunk each)
-    /// that then fly and clean themselves up. For a fire-and-forget burst with no component in the scene, use the
-    /// static <see cref="Chunks.Burst(Vector2,ChunkSpec,float)"/>. A caller that has sampled the colours of the thing
-    /// that exploded (à la Larder's WareDebris) can pass a <c>tintPalette</c> so the debris matches those colours.
+    /// explodes. It owns the container the burst lives in and its lifetime, and nothing else — what actually
+    /// appears is entirely the recipe's own stack of capabilities. For a fire-and-forget burst with no
+    /// component in the scene, use the static <see cref="Chunks.Burst(Vector2,ChunkSpec,float)"/>. A caller
+    /// that has sampled the colours of the thing that exploded (à la Larder's WareDebris) can pass a
+    /// <c>tintPalette</c> so the debris matches those colours.
     [DisallowMultipleComponent]
     public class ChunkEmitter : MonoBehaviour
     {
-        [Tooltip("The burst recipe this emitter fires.")]
+        [Tooltip("The recipe this emitter fires.")]
         public ChunkSpec spec;
-        [Tooltip("Sorting order applied to every spawned chunk's SpriteRenderer.")]
+        [Tooltip("Draw order for anything the recipe does not put in a named layer slot.")]
         public int sortingOrder = 500;
-        [Tooltip("Combatant dealing damage via chunks that have spec.useHitDetection on (its faction decides who " +
-                 "can be hit — see Combat2D.Hitbox). Auto-found in parents if null. Unused when the spec doesn't " +
-                 "use hit detection.")]
+        [Tooltip("Combatant dealing damage through a recipe that has a Hits capability (its faction decides " +
+                 "who can be hit — see Combat2D.Hitbox). Auto-found in parents if null.")]
         public Combatant owner;
 
         void Reset() { owner = GetComponentInParent<Combatant>(); }
         void Awake() { if (owner == null) owner = GetComponentInParent<Combatant>(); }
 
-        /// Burst at this emitter's own position, using the spec's direction.
+        /// Burst at this emitter's own position, using the recipe's direction.
         public void Burst() => Burst((Vector2)transform.position, float.NaN);
 
-        /// Burst at a world position; pass a direction (degrees) to override the spec's directionDeg for this burst.
-        /// animationOverride, if supplied, plays instead of the spec's own animationSource for this burst only.
-        /// Signature deliberately stays Combatant-free (unlike SpawnBurst) — this.owner is forwarded internally —
-        /// so existing callers in assemblies that don't reference Combat2D keep compiling unchanged; a Combatant
-        /// PARAMETER here would force every caller's assembly to reference Combat2D just to resolve the overload,
-        /// even when they never touch it (a real C#/Unity gotcha: unused defaulted params still need their type
+        /// Burst at a world position; pass a direction (degrees) to override the recipe's own for this burst.
+        /// animationOverride, if supplied, plays instead of the recipe's own animated debris content.
+        /// Signature deliberately stays Combatant-free (unlike SpawnBurst) — this.owner is forwarded
+        /// internally — so existing callers in assemblies that don't reference Combat2D keep compiling; a
+        /// Combatant PARAMETER here would force every caller's assembly to reference Combat2D just to resolve
+        /// the overload, even when they never touch it (unused defaulted params still need their type
         /// resolvable). ZoetropePyre's Chunks.Burst(...) call is exactly the case that broke before this fix.
         public void Burst(Vector2 worldPos, float directionDegOverride = float.NaN, IChunkAnimation animationOverride = null)
             => SpawnBurst(worldPos, spec, null, directionDegOverride, transform, sortingOrder, animationOverride, owner);
@@ -42,10 +42,8 @@ namespace Laubrary.Chunks
                           IChunkAnimation animationOverride = null)
             => SpawnBurst(worldPos, spec, tintPalette, directionDegOverride, transform, sortingOrder, animationOverride, owner);
 
-        /// The one place chunks are actually created. Shared by the component and the static API.
-        /// parent may be null (a temporary self-destroying container is made). Returns the container transform.
-        /// animationOverride wins over spec.AnimationSource when both are set. owner is only used when
-        /// spec.useHitDetection is on (see Combat2D.Hitbox.owner) — harmless to leave null otherwise.
+        /// The one place a burst is actually created. Shared by the component and the static API. parent may
+        /// be null (a temporary self-destroying container is made). Returns the container transform.
         public static Transform SpawnBurst(Vector2 worldPos, ChunkSpec spec, IList<Color32> palette,
                                            float directionDegOverride, Transform parent, int sortingOrder,
                                            IChunkAnimation animationOverride = null, Combatant owner = null)
@@ -56,154 +54,37 @@ namespace Laubrary.Chunks
             container.position = worldPos;
             if (parent != null) container.SetParent(parent, true);
 
-            int count = Random.Range(spec.countMin, spec.countMax + 1);
+            // The composition's own aim, unless this particular burst was told otherwise. Producers that
+            // inherit the burst direction read exactly this.
             float centerDeg = float.IsNaN(directionDegOverride) ? spec.directionDeg : directionDegOverride;
-            bool haveSprites = spec.sprites != null && spec.sprites.Count > 0;
-            bool havePalette = palette != null && palette.Count > 0;
-            IChunkAnimation anim = animationOverride ?? spec.AnimationSource;
 
-            for (int i = 0; i < count; i++)
-            {
-                var chunk = ChunkPool.Get();
-                var go = chunk.gameObject;
-                go.transform.SetParent(container, false);
-                go.transform.localPosition = Vector3.zero;
+            ChunkModules.Run(spec, worldPos, container, sortingOrder, centerDeg, palette, animationOverride, owner);
 
-                var sr = go.GetComponent<SpriteRenderer>();
-                sr.sortingOrder = sortingOrder;
-                bool sampled = false;
-                if (anim == null)
-                {
-                    Sprite sampledSprite = spec.UsesSampledDebris
-                        ? SampledChunkSprites.Sample(spec.sampleSource, spec.samplePxMin, spec.samplePxMax, spec.pixelsPerUnit,
-                            spec.tintMode, spec.tintColor, spec.tintStrength, spec.edgeThicknessPx, spec.modifiers)
-                        : null;
-                    if (sampledSprite != null)
-                    {
-                        sr.sprite = sampledSprite;
-                        sampled = true;
-                    }
-                    else
-                    {
-                        sr.sprite = haveSprites
-                            ? spec.sprites[Random.Range(0, spec.sprites.Count)]
-                            : ChunkSprites.Random(spec.pixelsPerUnit);
-                    }
-                }
-                bool tumbling = sampled && spec.tumble;
-
-                Color baseColor = havePalette ? (Color)palette[Random.Range(0, palette.Count)] : Color.white;
-
-                float angleDeg = centerDeg + Random.Range(-spec.spreadDeg, spec.spreadDeg);
-                float angleRad = angleDeg * Mathf.Deg2Rad;
-                float speed = Random.Range(spec.speedMin, spec.speedMax);
-                Vector2 vel = new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * speed;
-                vel.y += spec.upwardBias;
-
-                float angular = tumbling
-                    ? Random.Range(spec.tumbleSpeedMin, spec.tumbleSpeedMax) * (Random.value < 0.5f ? -1f : 1f)
-                    : Random.Range(spec.angularSpeedMin, spec.angularSpeedMax) * (Random.value < 0.5f ? -1f : 1f);
-                float life = Random.Range(spec.lifeMin, spec.lifeMax);
-                float size = Random.Range(spec.sizeMin, spec.sizeMax);
-
-                chunk.Init(spec, vel, angular, life, size, baseColor, anim, tumbling, owner);
-
-                System.Action onFinished = null;
-                onFinished = () => { chunk.Finished -= onFinished; ChunkPool.Release(chunk); };
-                chunk.Finished += onFinished;
-            }
-
-            // Hand the composed-effect modules (splash, blast spawn, formation, fragments) their turn. They
-            // are all off by default, so a plain debris spec pays one early-out and nothing more.
-            ChunkModules.Run(spec, worldPos, container, sortingOrder, centerDeg, palette);
-
-            // If we own the container, tear it down after the longest chunk could possibly live (plus slack).
+            // If we own the container, tear it down once the recipe's clock has run out.
             if (parent == null)
                 Destroy(container.gameObject, ContainerLifetime(spec));
 
             return container;
         }
 
-        /// How long a self-owned burst container has to stay alive. It is the longest-lived thing the burst
-        /// spawns plus slack, but a composed burst can outlive its own debris — a blast group delayed on the
-        /// timeline may not have fired at all when the last chunk dies — so every module scheduling work into
-        /// the future extends it. Destroying the container early would silently cancel those coroutines
-        /// (ChunkModules.FireAfter and SpawnFormationRunner.FireStaggered both just bail on a dead container)
-        /// and drop the tail of the effect with nothing logged to explain it. Erring LONG here costs one idle
-        /// empty GameObject for a moment; erring short eats part of the effect, so every term is an upper
-        /// bound taken with Max, never an average.
+        /// How long a self-owned burst container has to stay alive: the recipe's own clock plus slack.
+        ///
+        /// Destroying it early silently cancels whatever the recipe still had scheduled — a blast a second
+        /// after the debris dies simply never appears, with nothing logged to explain it — so the slack is
+        /// deliberate and erring long costs one idle empty GameObject for a moment. The clock itself is
+        /// <see cref="ChunkClock"/>'s to compute, and only its: the window scrubs over the same number, and
+        /// two answers to "how long is this?" is how a lane ends up past the end of its own container.
         public static float ContainerLifetime(ChunkSpec spec)
-        {
-            if (spec == null) return 2f;
-
-            // Base life = the longest-lived thing the burst can actually produce. spec.lifeMax alone is not
-            // that: a composed spec can have countMin/countMax 0 (no plain debris at all) and get everything
-            // on screen from the fragment slicer, whose pieces live by ITS lifeMax — sizing the container off
-            // a value nothing in the effect uses is how a fragment burst gets cut off mid-flight.
-            float life = spec.lifeMax;
-            if (spec.fragmentSlicer != null && spec.fragmentSlicer.Enabled)
-                life = Mathf.Max(life, spec.fragmentSlicer.lifeMax);
-            life += 2f;
-
-            if (!ChunkModules.AnyEnabled(spec)) return life;
-
-            // Scheduled tail = how far into the future the LAST thing fires. EVERY module the timeline can
-            // delay has to count, not just the formation — a recipe whose whole point is a late "Blast 3"
-            // schedules that blast on its own lane, and a lane left out of this sum is a blast that can fire
-            // after the container is gone and never appear at all.
-            float scheduled = 0f;
-            scheduled = Mathf.Max(scheduled, TimelineDelay(spec, ChunkModules.Splash));
-            scheduled = Mathf.Max(scheduled, TimelineDelay(spec, ChunkModules.Fragments));
-
-            if (spec.pyreSpawn != null && spec.pyreSpawn.Enabled)
-                scheduled = Mathf.Max(scheduled, TimelineDelay(spec, ChunkModules.PyreSpawn)
-                                                 + FormationTail(spec.pyreSpawn.useFormation ? spec.pyreSpawn.formation : null));
-
-            if (spec.spawnFormation != null && spec.spawnFormation.Enabled)
-                scheduled = Mathf.Max(scheduled, TimelineDelay(spec, ChunkModules.Formation)
-                                                 + FormationTail(spec.spawnFormation.formation));
-
-            // The extra blast groups, each keyed to its own timeline lane by POSITION — the same
-            // ChunkModules.BlastGroupTrack the dispatch uses, never a re-derived string, or this sum would go
-            // stale the moment that keying rule changed.
-            if (spec.blastGroups != null)
-                for (int i = 0; i < spec.blastGroups.Count; i++)
-                {
-                    var group = spec.blastGroups[i];
-                    if (group == null || !group.Enabled) continue;
-                    scheduled = Mathf.Max(scheduled, TimelineDelay(spec, ChunkModules.BlastGroupTrack(group, i))
-                                                     + FormationTail(group.useFormation ? group.formation : null));
-                }
-
-            return life + scheduled;
-        }
-
-        /// The delay the timeline schedules one module lane at, or 0 when there is no timeline (or it is off).
-        static float TimelineDelay(ChunkSpec spec, string trackName)
-            => (spec.timeline != null && spec.timeline.Enabled) ? spec.timeline.DelayFor(trackName) : 0f;
-
-        /// Seconds between a formation firing and its LAST point going off. The jitter term matches what
-        /// SpawnFormation.Resolve actually applies — jitter is clamped to staggerSeconds there, so adding the
-        /// raw staggerJitter here would over-estimate a wildly authored value rather than describe the tail.
-        /// Null (or an un-staggered formation) is a legitimate "everything fires at once" answer of 0.
-        static float FormationTail(SpawnFormation formation)
-        {
-            if (formation == null || formation.staggerSeconds <= 0f) return 0f;
-            return formation.staggerSeconds * Mathf.Max(0, formation.count - 1)
-                   + Mathf.Min(formation.staggerJitter, formation.staggerSeconds);
-        }
+            => spec == null ? 2f : ChunkClock.Length(spec) + 2f;
     }
 
     /// Fire-and-forget static API so a game can throw a burst without wiring a component.
-    /// Note: in this pure-runtime assembly bare <c>Random</c> is <c>UnityEngine.Random</c>, which is what we want —
-    /// runtime debris wants variety, not determinism.
     public static class Chunks
     {
-        /// Throw a burst at a world point. Pass directionDeg to override the spec's direction. Returns the
+        /// Throw a burst at a world point. Pass directionDeg to override the recipe's direction. Returns the
         /// container. No owner param here on purpose (see ChunkEmitter.Burst's own comment on why) — a burst
-        /// fired via this fire-and-forget API with useHitDetection on just deals damage as an unowned hit
-        /// (Hitbox.owner null); use ChunkEmitter (component, with its own owner field) or call
-        /// ChunkEmitter.SpawnBurst directly if you need an attributed owner.
+        /// fired through this API by a recipe with a Hits capability just deals damage as an unowned hit; use
+        /// ChunkEmitter (component, with its own owner field) or call SpawnBurst directly for an attributed one.
         public static Transform Burst(Vector2 worldPos, ChunkSpec spec, float directionDeg = float.NaN,
                                       IChunkAnimation animationOverride = null)
             => ChunkEmitter.SpawnBurst(worldPos, spec, null, directionDeg, null, 500, animationOverride);

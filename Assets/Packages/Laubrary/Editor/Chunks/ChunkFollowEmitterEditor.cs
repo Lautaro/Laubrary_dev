@@ -63,7 +63,7 @@ namespace Laubrary.Chunks.Editor
             var box = Z.Box("Source", "What this emitter fires, and what it chases while firing.");
 
             const string specTip = "The burst recipe this emitter repeatedly fires. It drives exactly two of the " +
-                "recipe's modules — Particle Splash and Pyre Spawn — each on its own interval.";
+                "recipe's capabilities — Palette Splash and Pyre Blast — each on its own interval.";
             box.Add(Z.Field("Chunk Spec", specTip,
                 Z.Object<ChunkSpec>(_e.spec, specTip, v => Dial("Follow emitter spec", () => _e.spec = v), Ref)));
 
@@ -88,7 +88,7 @@ namespace Laubrary.Chunks.Editor
         {
             var box = Z.Box("Emission", "The two things this emitter repeats, each on its own interval.");
 
-            const string sprayTip = "Spray the spec's Particle Splash on an interval, at the tracked position.";
+            const string sprayTip = "Spray the recipe's Palette Splash on an interval, at the tracked position.";
             const string sprayEveryTip = "Seconds between sprays. Small values read as a continuous trail, " +
                 "larger ones as separate puffs.";
             _sprayToggle = Z.Toggle("Spray Splash", sprayTip, _e.spraySplash,
@@ -97,7 +97,7 @@ namespace Laubrary.Chunks.Editor
                 v => Dial("Splash interval", () => _e.splashInterval = v), Wide, showValue: true);
             box.Add(Z.Row(_sprayToggle, Z.HSpace(), _splashInterval));
 
-            const string spawnTip = "Re-fire the spec's Pyre Spawn module on an interval — the flare-up behind " +
+            const string spawnTip = "Re-fire the recipe's Pyre Blast on an interval — the flare-up behind " +
                 "the target.";
             const string spawnEveryTip = "Seconds between spawns. This is the rate the emitter flares up.";
             _spawnToggle = Z.Toggle("Repeat Spawn", spawnTip, _e.repeatSpawn,
@@ -194,8 +194,8 @@ namespace Laubrary.Chunks.Editor
 
             var spec = _e.spec;
             bool hasSpec = spec != null;
-            bool splashOn = hasSpec && spec.particleSplash != null && spec.particleSplash.Enabled;
-            bool spawnOn = hasSpec && spec.pyreSpawn != null && spec.pyreSpawn.Enabled;
+            bool splashOn = hasSpec && spec.Has<PaletteSplash>();
+            bool spawnOn = hasSpec && spec.Has<PyreBlast>();
             bool aimsAtTravel = _e.aim != ChunkFollowAim.SpecDirection;
 
             // (a) + (b): a control for a module that is not there, or is switched off in the spec, is not a
@@ -203,20 +203,20 @@ namespace Laubrary.Chunks.Editor
             // that changes nothing observable.
             _sprayToggle.SetEnabled(splashOn);
             _sprayToggle.tooltip = !hasSpec
-                ? "Assign a Chunk Spec first — there is no Particle Splash to spray."
+                ? "Assign a Chunk Spec first — there is no Palette Splash to spray."
                 : splashOn
-                    ? "Spray the spec's Particle Splash on an interval, at the tracked position."
-                    : "The assigned spec's Particle Splash module is switched OFF, so nothing would be sprayed. " +
-                      "Turn it on in the Chunks window.";
+                    ? "Spray the recipe's Palette Splash on an interval, at the tracked position."
+                    : "The assigned recipe has no Palette Splash, so nothing would be sprayed. " +
+                      "Add one in the Chunks window.";
             _splashInterval.SetEnabled(splashOn && _e.spraySplash);
 
             _spawnToggle.SetEnabled(spawnOn);
             _spawnToggle.tooltip = !hasSpec
-                ? "Assign a Chunk Spec first — there is no Pyre Spawn module to fire."
+                ? "Assign a Chunk Spec first — there is no Pyre Blast to fire."
                 : spawnOn
-                    ? "Re-fire the spec's Pyre Spawn module on an interval — the flare-up behind the target."
-                    : "The assigned spec's Pyre Spawn module is switched OFF, so nothing would be spawned. " +
-                      "Turn it on in the Chunks window.";
+                    ? "Re-fire the recipe's Pyre Blast on an interval — the flare-up behind the target."
+                    : "The assigned recipe has no Pyre Blast, so nothing would be spawned. " +
+                      "Add one in the Chunks window.";
             _spawnInterval.SetEnabled(spawnOn && _e.repeatSpawn);
 
             _aim.SetEnabled(_e.CanEmit);
@@ -227,13 +227,13 @@ namespace Laubrary.Chunks.Editor
             // On the ENABLED wrapper, never on the disabled toggle — see BuildEmission. Composed per state,
             // so it never reads as "when X is set…" while X is off.
             _aimsRow.tooltip = !splashOn
-                ? "Whether the spec's Particle Splash aims itself at this emitter's direction. There is no " +
+                ? "Whether the recipe's Palette Splash aims itself at this emitter's direction. There is no " +
                   "splash enabled to aim right now."
                 : _e.SplashWillAim
-                    ? "On: the spec's Particle Splash has 'Follow Burst Direction' enabled, so the spray aims " +
+                    ? "On: the recipe's Palette Splash has 'Follow Burst Direction' enabled, so the spray aims " +
                       "where this emitter points it."
-                    : "OFF: the spec's Particle Splash uses its own fixed angle, so 'Behind'/'Ahead' will NOT " +
-                      "aim the spray. Turn on 'Follow Burst Direction' in the spec's Particle Splash section " +
+                    : "OFF: the recipe's Palette Splash uses its own fixed angle, so 'Behind'/'Ahead' will NOT " +
+                      "aim the spray. Turn on 'Follow Burst Direction' in the recipe's Palette Splash section " +
                       "(the Chunks window) — this inspector will not change another module's setting for you.";
 
             bool playing = Application.isPlaying;
@@ -247,7 +247,7 @@ namespace Laubrary.Chunks.Editor
         {
             if (!hasSpec) return "No Chunk Spec assigned — this emitter will do nothing.";
             if (!splashOn && !spawnOn)
-                return "Spec has neither Particle Splash nor Pyre Spawn enabled — nothing to emit.";
+                return "The recipe has neither a Palette Splash nor a Pyre Blast — nothing to emit.";
             if (!_e.spraySplash && !_e.repeatSpawn)
                 return "Both repeats are switched off above — nothing to emit.";
             if (splashOn && _e.spraySplash && aimsAtTravel && !_e.SplashWillAim)

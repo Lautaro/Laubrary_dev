@@ -7,7 +7,8 @@ namespace Laubrary.Chunks
     /// One flying debris bit. It carries its own velocity, spin and lifetime and self-manages every frame:
     /// integrate gravity + air drag, move, spin (or face its travel direction), bounce/settle on an optional floor,
     /// evaluate size / alpha / tint over its normalised life, and destroy itself when its life ends (or shortly
-    /// after it settles). The <see cref="ChunkEmitter"/> creates it, adds a SpriteRenderer, and calls <see cref="Init"/>.
+    /// after it settles). A <see cref="DebrisScatter"/> capability creates it from the pool and calls
+    /// <see cref="Init"/>, handing over the capability itself plus whichever modifiers were aimed at it.
     /// If handed an <see cref="IChunkAnimation"/> it also cycles that animation's frames instead of showing a
     /// static sprite — the size/alpha/tint-over-life curves still apply on top, so a Pyre fireball instance can
     /// shrink/fade via the spec exactly like a plain chunk does.
@@ -15,7 +16,7 @@ namespace Laubrary.Chunks
     [DisallowMultipleComponent]
     public class Chunk : MonoBehaviour
     {
-        ChunkSpec spec;
+        DebrisScatter debris;
         SpriteRenderer sr;
 
         Vector2 velocity;
@@ -33,7 +34,9 @@ namespace Laubrary.Chunks
 
         bool tumbling;          // pseudo-3D squash+shade mode instead of a flat 2D spin (sampled debris only)
 
-        float trailClock;       // seconds since the last trail puff (see spec.trailSource)
+        IChunkTrailSource trail; // the puff a Trail modifier leaves behind, or null
+        float trailInterval;
+        float trailClock;       // seconds since the last puff
         CircleCollider2D hitCollider;
         Hitbox hitbox;
 
@@ -49,13 +52,15 @@ namespace Laubrary.Chunks
         const float FloorEps = 0.0001f;
 
         /// Configure a freshly created chunk. worldSize is the desired on-screen size in world units.
-        /// animation, if supplied, is cycled instead of the sprite the emitter assigned. tumble requests
-        /// the pseudo-3D squash+shade mode (see ChunkTumble) instead of a flat 2D spin/faceVelocity — the
-        /// emitter only ever passes true for a chunk it actually sourced via SampledChunkSprites.
-        public void Init(ChunkSpec spec, Vector2 velocity, float angularVel, float life, float worldSize, Color baseColor,
-                         IChunkAnimation animation = null, bool tumble = false, Combatant owner = null)
+        /// animation, if supplied, is cycled instead of the sprite the scatter assigned. tumble requests the
+        /// pseudo-3D squash+shade mode (see ChunkTumble) instead of a flat 2D spin/faceVelocity — the scatter
+        /// only ever passes true for a chunk it actually sourced via SampledChunkSprites. trailModifier and
+        /// hitsModifier are whichever of those the recipe aimed at this scatter, or null.
+        public void Init(DebrisScatter debris, Vector2 velocity, float angularVel, float life, float worldSize,
+                         Color baseColor, IChunkAnimation animation = null, bool tumble = false,
+                         Combatant owner = null, Trail trailModifier = null, Hits hitsModifier = null)
         {
-            this.spec = spec;
+            this.debris = debris;
             this.velocity = velocity;
             this.angularVel = angularVel;
             this.maxLife = Mathf.Max(0.01f, life);
@@ -64,6 +69,8 @@ namespace Laubrary.Chunks
             this.settled = false;
             this.tumbling = tumble;
             this.spinAngle = 0f;   // a reused (pooled) chunk must not inherit its previous life's rotation
+            this.trail = trailModifier != null ? trailModifier.Source : null;
+            this.trailInterval = trailModifier != null ? Mathf.Max(0.01f, trailModifier.interval) : 0f;
             this.trailClock = 0f;
 
             sr = GetComponent<SpriteRenderer>();
@@ -82,29 +89,11 @@ namespace Laubrary.Chunks
             transform.localScale = Vector3.one * baseScale;
             ApplyLook(0f);
 
-            if (spec.useHitDetection)
+            if (hitsModifier != null)
             {
-                // Trigger callbacks need a Rigidbody2D on at least one side of the pair — Chunk moves itself via
-                // plain transform math (not physics), so this is Kinematic purely to make OnTriggerEnter2D fire
-                // against a static target's own collider; it never gets pushed by real Physics2D forces.
-                var rb = GetComponent<Rigidbody2D>();
-                if (rb == null) rb = gameObject.AddComponent<Rigidbody2D>();
-                rb.bodyType = RigidbodyType2D.Kinematic;
-                rb.simulated = true;
-
+                hitsModifier.Attach(gameObject, spriteUnit * 0.5f, owner);
                 hitCollider = GetComponent<CircleCollider2D>();
-                if (hitCollider == null) hitCollider = gameObject.AddComponent<CircleCollider2D>();
-                hitCollider.isTrigger = true;
-                hitCollider.radius = spriteUnit * 0.5f * spec.hitRadiusScale;
-                hitCollider.enabled = true;
-
                 hitbox = GetComponent<Hitbox>();
-                if (hitbox == null) hitbox = gameObject.AddComponent<Hitbox>();
-                hitbox.owner = owner;
-                hitbox.damage = spec.hitDamage;
-                hitbox.oncePerTarget = true;
-                hitbox.enabled = true;
-                hitbox.Arm();
             }
             else
             {
@@ -117,7 +106,7 @@ namespace Laubrary.Chunks
 
         void Update()
         {
-            if (spec == null) { Destroy(gameObject); return; }
+            if (debris == null) { Destroy(gameObject); return; }
 
             float dt = Time.deltaTime;
             life += dt;
@@ -125,22 +114,22 @@ namespace Laubrary.Chunks
             if (!settled)
             {
                 // integrate: gravity, then exponential air drag, then move
-                velocity.y -= spec.gravity * dt;
-                if (spec.drag > 0f) velocity *= Mathf.Exp(-spec.drag * dt);
+                velocity.y -= debris.gravity * dt;
+                if (debris.drag > 0f) velocity *= Mathf.Exp(-debris.drag * dt);
 
                 Vector3 pos = transform.position;
                 pos.x += velocity.x * dt;
                 pos.y += velocity.y * dt;
 
-                if (spec.useFloor && pos.y <= spec.floorY + FloorEps && velocity.y <= 0f)
+                if (debris.useFloor && pos.y <= debris.floorY + FloorEps && velocity.y <= 0f)
                 {
-                    pos.y = spec.floorY;
-                    velocity.y = -velocity.y * spec.bounciness;
-                    velocity.x *= 1f - spec.floorFriction;
+                    pos.y = debris.floorY;
+                    velocity.y = -velocity.y * debris.bounciness;
+                    velocity.x *= 1f - debris.floorFriction;
 
                     if (velocity.magnitude < SettleSpeed)
                     {
-                        if (spec.restOnFloor)
+                        if (debris.restOnFloor)
                         {
                             settled = true;
                             velocity = Vector2.zero;
@@ -164,7 +153,7 @@ namespace Laubrary.Chunks
                     // spinAngle here is reused purely as the tumble phase accumulator, in degrees.
                     spinAngle += angularVel * dt;
                 }
-                else if (spec.faceVelocity)
+                else if (debris.faceVelocity)
                 {
                     if (velocity.sqrMagnitude > 0.0001f)
                     {
@@ -191,14 +180,13 @@ namespace Laubrary.Chunks
                 sr.sprite = animFrames[frame];
             }
 
-            var trailSource = spec.TrailSource;
-            if (trailSource != null && !settled)
+            if (trail != null && !settled)
             {
                 trailClock += dt;
-                if (trailClock >= spec.trailInterval)
+                if (trailClock >= trailInterval)
                 {
-                    trailClock -= spec.trailInterval;
-                    trailSource.SpawnPuff(transform.position, sr != null ? sr.sortingOrder : 0);
+                    trailClock -= trailInterval;
+                    trail.SpawnPuff(transform.position, sr != null ? sr.sortingOrder : 0);
                 }
             }
 
@@ -215,21 +203,21 @@ namespace Laubrary.Chunks
         // width and shade their colour per ChunkTumble, faking a lit 3D fragment turning in place.
         void ApplyLook(float t)
         {
-            float sizeMul = spec.sizeOverLife != null ? spec.sizeOverLife.Evaluate(t) : 1f;
+            float sizeMul = debris.sizeOverLife != null ? debris.sizeOverLife.Evaluate(t) : 1f;
             float scaleY = baseScale * Mathf.Max(0f, sizeMul);
             float scaleX = scaleY;
             float shade = 1f;
             if (tumbling)
             {
-                (float squashX, float tumbleShade) = ChunkTumble.Evaluate(spinAngle, spec.tumbleShadeStrength);
+                (float squashX, float tumbleShade) = ChunkTumble.Evaluate(spinAngle, debris.tumbleShadeStrength);
                 scaleX = scaleY * squashX;
                 shade = tumbleShade;
             }
             transform.localScale = new Vector3(scaleX, scaleY, 1f);
 
             if (sr == null) return;
-            Color tint = spec.colorOverLife != null ? spec.colorOverLife.Evaluate(t) : Color.white;
-            float alpha = spec.alphaOverLife != null ? spec.alphaOverLife.Evaluate(t) : 1f;
+            Color tint = debris.colorOverLife != null ? debris.colorOverLife.Evaluate(t) : Color.white;
+            float alpha = debris.alphaOverLife != null ? debris.alphaOverLife.Evaluate(t) : 1f;
             Color c = baseColor * tint * shade;
             c.a = baseColor.a * tint.a * Mathf.Clamp01(alpha);
             sr.color = c;

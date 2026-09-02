@@ -29,8 +29,7 @@ namespace Laubrary.Chunks
     /// <summary>
     /// WHERE a set of spawn points sits and WHEN each one fires — nothing about what gets spawned there.
     /// That separation is the point: this is the placement half, and whatever consumes a
-    /// <see cref="SpawnPlacement"/> (a Chunks burst today, a Pyre blast spawner once T-0034 lands) is the
-    /// picking half. A plain serializable field bag, not a ScriptableObject, so it can be embedded in any
+    /// <see cref="SpawnPlacement"/> (a Pyre Blast capability, today) is the picking half. A plain serializable field bag, not a ScriptableObject, so it can be embedded in any
     /// asset that wants a formation without dragging a second file around.
     /// </summary>
     [System.Serializable]
@@ -107,14 +106,13 @@ namespace Laubrary.Chunks
 
         // ── resolver ──────────────────────────────────────────────────────────────
         // Turns the authored fields above into concrete world-space SpawnPlacements. This is the ONLY place a
-        // formation is laid out — the module (SpawnFormationModule) never computes a position itself, and the
-        // editor preview calls the very same method, so "what you see" and "what fires" cannot drift apart.
+        // formation is laid out — the Pyre Blast capability never computes a position itself, and the editor
+        // preview calls the very same method, so "what you see" and "what fires" cannot drift apart.
 
         /// <summary>
         /// Resolves this formation into <paramref name="results"/> (cleared first), each placement's position
-        /// already offset by <paramref name="origin"/>. Reads <see cref="seed"/> for its randomness — 0 draws
-        /// from <c>UnityEngine.Random</c> (reroll every play), non-zero from a private <c>System.Random</c>
-        /// seeded from it (identical every time).
+        /// already offset by <paramref name="origin"/>. Reads <see cref="seed"/> for its randomness — 0 means
+        /// reroll every play, non-zero resolves identically every time.
         /// </summary>
         public void Resolve(Vector3 origin, List<SpawnPlacement> results) => Resolve(origin, results, seed);
 
@@ -130,8 +128,10 @@ namespace Laubrary.Chunks
             results.Clear();
 
             int n = Mathf.Max(1, count);
-            System.Random rng = seedOverride != 0 ? new System.Random(seedOverride) : null;
-            float Next01() => rng != null ? (float)rng.NextDouble() : Random.value;
+            // One draw off Unity's shared generator when the layout is unseeded ("reroll every play"), then
+            // everything downstream comes off ChunkRng — so the whole arrangement is reproducible from one
+            // integer, which is what lets a preview draw exactly the formation a burst will make.
+            var rng = new ChunkRng(seedOverride != 0 ? seedOverride : Random.Range(1, int.MaxValue));
 
             // ── 1. base positions, in the formation's own local space (origin folded in at the end) ──────────
             var positions = new Vector3[n];
@@ -169,14 +169,14 @@ namespace Laubrary.Chunks
             {
                 for (int i = 0; i < n; i++)
                 {
-                    float r = positionJitter * Mathf.Sqrt(Next01());   // sqrt(u) = uniform over the disc's AREA
-                    float a = Next01() * Mathf.PI * 2f;
+                    float r = positionJitter * Mathf.Sqrt(rng.Next01());   // sqrt(u) = uniform over the disc's AREA
+                    float a = rng.Next01() * Mathf.PI * 2f;
                     positions[i] += new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f) * r;
                 }
             }
 
             // ── 3. stagger rank — WHICH point counts as Nth for the delay formula below ─────────────────────
-            int[] rank = ComputeStaggerRanks(n, staggerOrder, rng);
+            int[] rank = ComputeStaggerRanks(n, staggerOrder, ref rng);
 
             // ── 4. delays ─────────────────────────────────────────────────────────────────────────────────
             // staggerSeconds == 0 must yield an all-zero-delay formation (the field's own tooltip promises the
@@ -196,7 +196,7 @@ namespace Laubrary.Chunks
                 if (staggerSeconds > 0f)
                 {
                     delay = staggerSeconds * rank[i];
-                    if (jitter > 0f) delay += (Next01() * 2f - 1f) * jitter;
+                    if (jitter > 0f) delay += (rng.Next01() * 2f - 1f) * jitter;
                     delay = Mathf.Max(0f, delay);
                 }
                 results.Add(new SpawnPlacement(origin + positions[i], delay, i));
@@ -214,7 +214,7 @@ namespace Laubrary.Chunks
 
         /// The firing RANK (0 = first) of every point index, per <paramref name="order"/>. Symmetric pairs in
         /// FromCentre intentionally share a rank — that is what makes them fire together.
-        static int[] ComputeStaggerRanks(int n, FormationStaggerOrder order, System.Random rng)
+        static int[] ComputeStaggerRanks(int n, FormationStaggerOrder order, ref ChunkRng rng)
         {
             var rank = new int[n];
             switch (order)
@@ -250,7 +250,7 @@ namespace Laubrary.Chunks
                     // play, non-zero = identical every time" holds for the shuffle too, not just the jitter.
                     for (int i = n - 1; i > 0; i--)
                     {
-                        int j = rng != null ? rng.Next(i + 1) : Random.Range(0, i + 1);
+                        int j = rng.Next(i + 1);
                         (rank[i], rank[j]) = (rank[j], rank[i]);
                     }
                     break;
