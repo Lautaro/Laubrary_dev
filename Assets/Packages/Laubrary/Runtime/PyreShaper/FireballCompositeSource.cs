@@ -81,6 +81,17 @@ namespace Laubrary.PyreShaper
                + "each frame advances the burst exactly once; a smaller number makes it play out sooner.")]
         public int simFrames = 8;
 
+        /// <summary>
+        /// T-0202 — overall opacity over the burst's life, the row Pyre's Shape section shows for a Fireball
+        /// layer. Pyre evaluates the layer's Alpha envelope and hands it to the sim's own renderer
+        /// (<c>PyreRenderer.cs:800</c>, <c>sim.Render(target, ramp, alpha, …)</c>); this source hardcoded 1, so a
+        /// hosted burst was still at full strength in the frames where Pyre's had already gone out. Defaulted
+        /// from a throwaway <see cref="PyreLayer"/> so the two tools' defaults cannot drift apart.
+        /// </summary>
+        [Tooltip("Overall opacity across the burst's life, multiplied into what the simulation paints. "
+               + "Fading it to nothing at the end is what makes the burst go out rather than stop.")]
+        public ZUIValue alpha = new PyreLayer().alpha;
+
         // Replay state — private so neither Unity's serializer nor the window's reflection drawer can see it.
         FireballSim _sim;
         ShaperCacheKey _lastKey;
@@ -107,7 +118,13 @@ namespace Laubrary.PyreShaper
 
             // Unlike FireSim, FireballSim.Render writes every pixel including the empty ones
             // (FireballSim.cs:146 clears below threshold), so the buffer needs no pre-clear.
-            _sim.Render(target, ramp, 1f, threshold, contrast);
+            // The layer Alpha envelope at this life, exactly where PyreRenderer.cs:800 applies it. Null only on a
+            // document authored before the field existed, which keeps rendering as it did until its card repairs it.
+            float a = alpha != null
+                ? Mathf.Clamp01(PyreShaperEval.Eval(alpha, Mathf.Clamp01(phase01), sd,
+                                                    PyreRenderer.ModParticleIndex, PyreShaperEval.FieldIdAlpha, 0))
+                : 1f;
+            _sim.Render(target, ramp, a, threshold, contrast);
         }
 
         /// One cellular step. There are NO substeps here, and that is not an omission: FireballSim.Step takes the

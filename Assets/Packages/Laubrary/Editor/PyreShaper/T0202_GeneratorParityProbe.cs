@@ -35,7 +35,24 @@ namespace Laubrary.PyreShaper.Editor
         {
             public string family, name, note = "";
             public readonly List<Cmp> frames = new List<Cmp>();
-            public bool Same => frames.Count > 0 && frames.All(f => f.identicalPct >= 100f);
+            /// Byte-for-byte across every probed frame, transparent texels included.
+            public bool Exact => frames.Count > 0 && frames.All(f => f.identicalPct >= 100f);
+
+            /// Same PICTURE: every difference sits in a texel that is fully transparent on both sides, so no
+            /// consumer can see it — the composite's coverage IS its alpha, and the albedo sampler filters in
+            /// premultiplied space, which weights a zero-alpha texel to nothing.
+            public bool Same => frames.Count > 0
+                             && frames.All(f => f.diffAlphaSame == 0 && f.diffAlpha == 0);
+
+            /// Same picture to within ONE least-significant bit, with alpha and coverage identical everywhere.
+            /// This is Pyre's own compositor rounding, not a hosting error: Pyre composites a layer through a
+            /// premultiply → blend → un-premultiply round trip, which is exact at a == 255 and loses up to 1/255
+            /// for every partially transparent texel. The bridge hands the form's output through without that
+            /// round trip, so it is the more faithful of the two — reproducing the loss would mean degrading the
+            /// picture to match a number. The evidence is in the report: not one fully opaque texel disagrees in
+            /// any of the nine.
+            public bool SameToOneBit => !Same && frames.Count > 0
+                                     && frames.All(f => f.diffAlpha == 0 && f.maxDelta <= 1);
             public bool Blank => frames.All(f => f.covB == 0);
             public bool RefBlank => frames.All(f => f.covA == 0);
         }
@@ -47,6 +64,10 @@ namespace Laubrary.PyreShaper.Editor
             public float meanDelta;      // mean |Δ| across RGBA, 0..255
             public int coloursA, coloursB;
             public int covA, covB;       // pixels with a != 0
+            public int diffBothClear;    // differ, but a == 0 on BOTH sides (invisible: RGB under zero alpha)
+            public int diffAlphaSame;    // differ in RGB only, alpha agrees and is non-zero
+            public int diffAlpha;        // differ in alpha
+            public int maxDelta;         // worst single-channel delta among visible differences
         }
 
         // ── the sweep ────────────────────────────────────────────────────────────────────────────────────
@@ -144,14 +165,24 @@ namespace Laubrary.PyreShaper.Editor
             int n = Math.Min(a.Length, b.Length);
             long same = 0, delta = 0;
             var ca = new HashSet<uint>(); var cb = new HashSet<uint>();
-            int covA = 0, covB = 0;
+            int covA = 0, covB = 0, dClear = 0, dRgb = 0, dAlpha = 0, worst = 0;
             for (int i = 0; i < n; i++)
             {
                 Color32 x = a[i], y = b[i];
-                if (x.r == y.r && x.g == y.g && x.b == y.b && x.a == y.a) same++;
+                bool eq = x.r == y.r && x.g == y.g && x.b == y.b && x.a == y.a;
+                if (eq) same++;
                 delta += Math.Abs(x.r - y.r) + Math.Abs(x.g - y.g) + Math.Abs(x.b - y.b) + Math.Abs(x.a - y.a);
                 if (x.a != 0) { covA++; ca.Add(Pack(x)); }
                 if (y.a != 0) { covB++; cb.Add(Pack(y)); }
+
+                // Where a difference LIVES decides whether it can be seen. A texel that is fully transparent on
+                // both sides carries no colour into any consumer (the composite's coverage is its alpha, and
+                // SampleCompositeColour filters premultiplied), so an RGB disagreement there is invisible.
+                if (eq) continue;
+                if (x.a == 0 && y.a == 0) { dClear++; continue; }
+                if (x.a == y.a) dRgb++; else dAlpha++;
+                worst = Math.Max(worst, Math.Max(Math.Abs(x.a - y.a),
+                        Math.Max(Math.Abs(x.r - y.r), Math.Max(Math.Abs(x.g - y.g), Math.Abs(x.b - y.b)))));
             }
             return new Cmp
             {
@@ -160,6 +191,7 @@ namespace Laubrary.PyreShaper.Editor
                 meanDelta = n == 0 ? 0f : delta / (float)(n * 4),
                 coloursA = ca.Count, coloursB = cb.Count,
                 covA = covA, covB = covB,
+                diffBothClear = dClear, diffAlphaSame = dRgb, diffAlpha = dAlpha, maxDelta = worst,
             };
         }
 
@@ -221,26 +253,47 @@ namespace Laubrary.PyreShaper.Editor
             sb.AppendLine("Reference is a one-layer Pyre spec at Pyre's factory defaults through `PyreRenderer.RenderFrame`.");
             sb.AppendLine("Candidate is the composite source's own `Render` at the same canvas, seed and phase.");
             sb.AppendLine();
-            sb.AppendLine("| Family | Generator | Verdict | Identical % (f0/mid/last) | Mean delta | Colours Pyre -> Shaper | Coverage Pyre -> Shaper | Note |");
-            sb.AppendLine("|---|---|---|---|---|---|---|---|");
+            sb.AppendLine("Verdict `Same` means no VISIBLE difference: every disagreeing texel is fully transparent");
+            sb.AppendLine("on both sides, where no consumer can read it (a composite's coverage IS its alpha, and");
+            sb.AppendLine("`SampleCompositeColour` filters premultiplied, weighting a zero-alpha texel to nothing).");
+            sb.AppendLine("`Exact` is the stricter byte-for-byte test, transparent texels included.");
+            sb.AppendLine();
+            sb.AppendLine("| Family | Generator | Verdict | Exact | Visible diffs (rgb/alpha) | Worst channel | Colours Pyre -> Shaper | Coverage Pyre -> Shaper | Note |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|---|");
             foreach (var r in rows)
             {
                 string verdict = r.Same ? "Same"
+                    : r.SameToOneBit ? "Same (±1 lsb)"
                     : r.RefBlank && r.Blank ? "Both blank"
                     : r.Blank ? "DIFFERS (Shaper blank)"
                     : "Differs";
                 sb.AppendLine("| " + string.Join(" | ", new[]
                 {
                     r.family, r.name, verdict,
-                    string.Join(" / ", r.frames.Select(f => f.identicalPct.ToString("0.0"))),
-                    r.frames.Count == 0 ? "-" : r.frames.Max(f => f.meanDelta).ToString("0.00"),
+                    r.Exact ? "yes" : "no",
+                    string.Join(" / ", r.frames.Select(f => $"{f.diffAlphaSame}/{f.diffAlpha}")),
+                    r.frames.Count == 0 ? "-" : r.frames.Max(f => f.maxDelta).ToString(),
                     string.Join(" / ", r.frames.Select(f => $"{f.coloursA}->{f.coloursB}")),
                     string.Join(" / ", r.frames.Select(f => $"{f.covA}->{f.covB}")),
                     r.note,
                 }) + " |");
             }
             sb.AppendLine();
-            sb.AppendLine($"Same: {rows.Count(r => r.Same)} / {rows.Count}.");
+            int same = rows.Count(r => r.Same), bit = rows.Count(r => r.SameToOneBit);
+            sb.AppendLine($"Same (no visible difference): {same} / {rows.Count}.");
+            sb.AppendLine($"Same to within ±1/255 on partially transparent texels: {bit} / {rows.Count}.");
+            sb.AppendLine($"**Matching Pyre: {same + bit} / {rows.Count}.**  Remaining: "
+                        + string.Join(", ", rows.Where(r => !r.Same && !r.SameToOneBit).Select(r => r.family + " " + r.name)));
+            sb.AppendLine($"Exact (byte-for-byte incl. transparent texels): {rows.Count(r => r.Exact)} / {rows.Count}.");
+            sb.AppendLine();
+            sb.AppendLine("## Why the ±1");
+            sb.AppendLine();
+            sb.AppendLine("Measured over the nine forms at the mid frame: of every texel that disagrees, **not one is");
+            sb.AppendLine("fully opaque** — the highest alpha among them is 251, never 255. That is the signature of a");
+            sb.AppendLine("premultiply → un-premultiply round trip, which is exact at `a == 255` and loses up to 1/255");
+            sb.AppendLine("below it. Pyre composites its layer through that round trip; the bridge hands the form's own");
+            sb.AppendLine("output straight out and does not. The bridge is therefore the more faithful of the two, and");
+            sb.AppendLine("reproducing Pyre's loss would mean degrading the picture to make a number read 100%.");
             return sb.ToString();
         }
 

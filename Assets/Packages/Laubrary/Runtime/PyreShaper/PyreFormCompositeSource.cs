@@ -97,12 +97,6 @@ namespace Laubrary.PyreShaper
         // inlined) because every Eval call below and ContentHash must agree on it.
         const int LayerSalt = 0;
 
-        // PyreRenderer's field id for the Shape alpha envelope (PyreRenderer.cs:36). Private there, restated here
-        // rather than widened in Pyre: the id only has to MATCH, and PyreShaperEval already duplicates the
-        // evaluator's switch for the same reason. Wrong id would still evaluate — it would only decorrelate a
-        // MinMax draw from the one a real hosted layer makes, which is exactly the parity this task measures.
-        const int FldAlpha = 2;
-
         public string SourceLabel => form != null ? form.DisplayName : "(no form assigned)";
 
         /// The square canvas a form is hosted on when the bake box is not square. Reused across frames and
@@ -137,7 +131,7 @@ namespace Laubrary.PyreShaper
             // PyreRenderer uses (PyreRenderer.cs:292). Null only on a source authored before the field existed;
             // 1 keeps that document rendering as it did until its card repairs the field.
             float layerAlpha = alpha != null
-                ? Mathf.Clamp01(PyreShaperEval.Eval(alpha, life, sd, PyreRenderer.ModParticleIndex, FldAlpha, LayerSalt))
+                ? Mathf.Clamp01(PyreShaperEval.Eval(alpha, life, sd, PyreRenderer.ModParticleIndex, PyreShaperEval.FieldIdAlpha, LayerSalt))
                 : 1f;
 
             // A PyreForm is written for PYRE'S canvas, and Pyre's canvas is SQUARE (Pyre.cs:1259-1260 — Width

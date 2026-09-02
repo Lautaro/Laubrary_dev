@@ -27,6 +27,15 @@ namespace Laubrary.PyreShaper
     public static class PyreShaperEval
     {
         /// <summary>
+        /// T-0202 — <c>PyreRenderer</c>'s field id for the Shape ALPHA envelope (<c>PyreRenderer.cs:36</c>).
+        /// Private there, restated once here rather than widened in Pyre, for the reason this whole class
+        /// exists: the id only has to MATCH, so that a MinMax alpha dial hosted in Shaper draws from the same
+        /// RNG stream a real Pyre layer would. Every hosted source that applies a layer alpha reads it from
+        /// here, so the value is stated in exactly one place on this side of the bridge.
+        /// </summary>
+        public const int FieldIdAlpha = 2;
+
+        /// <summary>
         /// Deterministically resolves <paramref name="v"/> at <paramref name="life"/> (the Shaper phase, already
         /// clamped by the caller). Static reads the value; Curve samples the envelope at life (points are
         /// authored 0..1, no duration/warmup/cooldown — the frame-baked timeline convention, not the runtime-

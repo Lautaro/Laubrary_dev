@@ -161,6 +161,18 @@ namespace Laubrary.PyreShaper
                + "each frame advances the flame exactly once; a smaller number makes the burn play out sooner.")]
         public int simFrames = 16;
 
+        /// <summary>
+        /// T-0202 — overall opacity over the sim's life, the row Pyre's Shape section shows for a Fire layer.
+        /// Pyre evaluates the layer's Alpha envelope and hands it to the sim's own renderer
+        /// (<c>PyreRenderer.cs:618</c>, <c>sim.Render(target, ramp, alpha, …)</c>); this source hardcoded 1, so a
+        /// hosted flame kept burning at full strength through the frames where Pyre's had already died back.
+        /// Defaulted from a throwaway <see cref="PyreLayer"/> for the same reason
+        /// <see cref="PyreFormCompositeSource"/> does it: so the two tools' defaults cannot drift apart.
+        /// </summary>
+        [Tooltip("Overall opacity across the flame's life, multiplied into what the simulation paints. "
+               + "Fading it to nothing at the end is what makes the flame go out rather than stop.")]
+        public ZUIValue alpha = new PyreLayer().alpha;
+
         // ── replay state (never serialized, never drawn) ─────────────────────────────────────────────────
         // Private rather than [NonSerialized] public: Unity skips private fields anyway, and the window's
         // reflection drawer only ever reads PUBLIC instance fields (ZuiReflect.cs:130), so keeping these private
@@ -198,7 +210,13 @@ namespace Laubrary.PyreShaper
             // A composite bake buffer carries no such promise, so it is cleared first; without this a previous
             // frame's flame would show through wherever this one is cold.
             Array.Clear(target, 0, width * height);
-            _sim.Render(target, ramp, 1f, threshold, contrast);
+            // The layer Alpha envelope at this life, exactly where PyreRenderer.cs:618 applies it. Null only on a
+            // document authored before the field existed, which keeps rendering as it did until its card repairs it.
+            float a = alpha != null
+                ? Mathf.Clamp01(PyreShaperEval.Eval(alpha, Mathf.Clamp01(phase01), sd,
+                                                    PyreRenderer.ModParticleIndex, PyreShaperEval.FieldIdAlpha, 0))
+                : 1f;
+            _sim.Render(target, ramp, a, threshold, contrast);
         }
 
         /// One frame of the sim, replayed identically every time that frame is reached. The dials are read at the
