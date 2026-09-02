@@ -744,27 +744,9 @@ namespace Laubrary.Shaper.Editor
                 Dial("Rate", "Playback rate in frames per second.", document.frameRate,
                     ShaperClock.MinFrameRate, ShaperClock.MaxFrameRate, v => document.frameRate = v, decimals: 0)));
 
-            // GIF export (T-0160, Pyre parity — PyreWindow.cs:557-584): the button opens a Save dialog and
-            // writes an animated GIF over the SAME playback order the Bake button writes to the sheet/clip
-            // (ShaperBaker.PlaybackOrder, cherry framing and blanks included). Scale/dither are window state
-            // (previewGifScale/previewGifDither, ShaperWindow.Preview.cs) — cosmetic to the export only, never
-            // read by the renderer, so they need no Undo/Change wrapper.
-            host.Add(Z.HGroup(
-                Z.Button("GIF…",
-                    "Export the whole animation as an animated GIF — transparent background, loops forever, at "
-                    + "the frame rate above. Opens a Save dialog for the file location.",
-                    ExportGif),
-                Z.MicroSlider("GIF scale", previewGifScale, 1f, 8f,
-                    "Nearest-neighbour upscale applied ONLY to the exported GIF (1–8×) — it does NOT change the "
-                    + "live preview, only the pixel size of the saved .gif file.",
-                    v => previewGifScale = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8), 150f,
-                    showValue: true, decimals: 0),
-                Z.Toggle("GIF dither",
-                    "GIF transparency is one bit — every pixel is either fully opaque or fully invisible, so a "
-                    + "soft edge has to be kept or dropped. On (recommended) stipples the partly-transparent "
-                    + "band so soft rims and fades still read as fading; off cuts them at 50% opacity, which "
-                    + "turns a feathered edge into a hard silhouette. Export only — the live preview is unaffected.",
-                    previewGifDither, v => previewGifDither = v)));
+            // GIF export moved into the Bake box (T-0177 PM vet — one home for the feature instead of two):
+            // the toggle, scale and dither controls now live beside the other output toggles in
+            // ShaperWindow.Bake.cs, and the Bake button writes the GIF when that toggle is on.
 
             scrubber = Z.SliderInt(currentFrame, 0, max,
                 "Scrub to an exact frame. Dragging pauses playback and holds that frame.", v =>
@@ -874,19 +856,8 @@ namespace Laubrary.Shaper.Editor
             RefreshPreview();
         }
 
-        // GIF export (T-0160, Pyre parity — PyreWindow.cs:665-672). The path comes from a user Save dialog
-        // (cancel = empty path = no-op); RevealInFinder opens the result folder. No AssetDatabase work here —
-        // if the user saves inside Assets/ the caller owns any import-refresh implications, matching Pyre.
-        void ExportGif()
-        {
-            if (document == null) return;
-            string path = EditorUtility.SaveFilePanel("Export GIF", "", (document.name ?? "Shaper") + ".gif", "gif");
-            if (string.IsNullOrEmpty(path)) return;
-            ShaperGif.Export(document, path, Mathf.Clamp(previewGifScale, 1, 8), previewGifDither);
-            EditorUtility.RevealInFinder(path);
-        }
-
-        // DoBake moved to ShaperWindow.Bake.cs (T-0177) — it now honours the Bake box's per-output toggles.
+        // ExportGif and DoBake moved to ShaperWindow.Bake.cs (T-0177 PM vet) — GIF export now lives in the
+        // Bake box only (one home for the feature), not also as a separate transport quick-export.
 
         // ── SHARED HELPERS — the contract for every ShaperWindow.*.cs file ───────────────────────────────
 

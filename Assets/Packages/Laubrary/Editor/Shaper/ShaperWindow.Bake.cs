@@ -23,8 +23,19 @@
 // The sprite-sheet PNG is infrastructure the other two asset outputs slice their sprites FROM (ShaperBaker.cs
 // step 4 builds spriteOfFrame from it before either the clip or the ShaperClip can be written), so it cannot
 // be turned off independently without breaking whichever of them is still ticked. It is shown as an always-on,
-// disabled toggle rather than omitted — the brief calls for four rows, and a truthful disabled row says more
-// than silently dropping the row would.
+// disabled toggle in the outputs row rather than omitted — a truthful disabled entry says more than silently
+// dropping it would.
+//
+// ── One row, not four (PM vet, T-0177) ─────────────────────────────────────────────────────────────────────
+// The four output toggles are one set of options over one artefact (ui-layout-rules.md "Space economy"), so
+// they are one Z.HGroup, not four stacked full-width rows. Z.SegmentedMulti was the rulebook's first-choice
+// control for a flag set, but it takes exactly ONE shared tooltip for the whole row — this brief's entire
+// point is that each output needs its OWN tooltip stating what it preserves, so the rulebook's own fallback
+// ("at minimum one Z.HGroup of Z.Toggles") is what actually keeps that requirement true; a plain HGroup of
+// Z.Toggles, not a wrong-fit SegmentedMulti. GIF export also has exactly one home now: its scale/dither
+// controls moved here from the transport (which used to duplicate them beside its own "GIF…" quick-export
+// button), sitting directly under the toggle row, greyed out — not hidden, so the values stay visible — while
+// GIF is unticked.
 using System.IO;
 using Laubrary.Zui;
 using UnityEditor;
@@ -41,6 +52,7 @@ namespace Laubrary.Shaper.Editor
         [SerializeField] bool bakeGif = false;
 
         Button bakeButton;
+        VisualElement gifOptionsRow;
 
         /// The destination folder a bake will land in — mirrors ShaperBaker.cs:182-190 exactly (beside the
         /// document's own asset when it is saved, else "Assets"), so the readout can never disagree with
@@ -89,10 +101,36 @@ namespace Laubrary.Shaper.Editor
                 bakeShaperClip, v => { bakeShaperClip = v; RefreshBakeButtonTooltip(); });
 
             var gifToggle = Z.Toggle("GIF",
-                "Also export an animated GIF into the destination folder above, using the GIF scale/dither "
-                + "settings in the transport. A GIF plays the same source frame order as the other outputs "
-                + "but, like AnimationClip, has no way to carry cherry's per-pass variation across loops.",
-                bakeGif, v => { bakeGif = v; RefreshBakeButtonTooltip(); });
+                "Also export an animated GIF into the destination folder above, using the scale/dither "
+                + "settings below. A GIF plays the same source frame order as the other outputs but, like "
+                + "AnimationClip, has no way to carry cherry's per-pass variation across loops.",
+                bakeGif, v =>
+                {
+                    bakeGif = v;
+                    RefreshBakeButtonTooltip();
+                    gifOptionsRow?.SetEnabled(v);
+                });
+
+            // One row for the four output toggles (ui-layout-rules "Space economy": one set of options over
+            // one artefact is one row, not four stacked full-width rows).
+            var outputsRow = Z.HGroup(sheetToggle, clipToggle, shaperClipToggle, gifToggle);
+
+            // GIF's own two settings sit directly beneath the toggle row they belong to (T-0177 PM vet: one
+            // home for GIF export — the transport's separate "GIF…"/scale/dither row and quick-export button
+            // are gone). Greyed out, not hidden, while GIF is unticked, so the values are still visible.
+            var gifScale = Z.MicroSlider("GIF scale", previewGifScale, 1f, 8f,
+                "Nearest-neighbour upscale applied ONLY to the exported GIF (1–8×) — it does NOT change the "
+                + "live preview, only the pixel size of the saved .gif file.",
+                v => previewGifScale = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8), 140f,
+                showValue: true, decimals: 0);
+            var gifDither = Z.Toggle("GIF dither",
+                "GIF transparency is one bit — every pixel is either fully opaque or fully invisible, so a "
+                + "soft edge has to be kept or dropped. On (recommended) stipples the partly-transparent "
+                + "band so soft rims and fades still read as fading; off cuts them at 50% opacity, which "
+                + "turns a feathered edge into a hard silhouette. Export only — the live preview is unaffected.",
+                previewGifDither, v => previewGifDither = v);
+            gifOptionsRow = Z.HGroup(gifScale, gifDither);
+            gifOptionsRow.SetEnabled(bakeGif);
 
             bakeButton = Z.Button("Bake", BakeButtonTooltip(), DoBake);
 
@@ -102,10 +140,8 @@ namespace Laubrary.Shaper.Editor
                 Z.Column(
                     destinationRow,
                     ppuRow,
-                    sheetToggle,
-                    clipToggle,
-                    shaperClipToggle,
-                    gifToggle,
+                    outputsRow,
+                    gifOptionsRow,
                     bakeButton));
             return box;
         }
@@ -146,9 +182,9 @@ namespace Laubrary.Shaper.Editor
             if (sheet != null) EditorGUIUtility.PingObject(sheet);
 
             // The GIF toggle rides the Bake button rather than needing its own click: it shares the same
-            // destination-folder convention as the other outputs (unlike the transport's own "GIF…" button,
-            // which always asks via a Save dialog — this one does not, because it belongs to a batch that
-            // already knows where it is going).
+            // destination-folder convention as the other outputs, with no Save dialog — it belongs to a
+            // batch that already knows where it is going (T-0177 PM vet: one home for GIF export, no
+            // separate transport quick-export any more).
             if (bakeGif && document != null)
             {
                 string gifPath = BakeDestinationFolder() + "/" + (document.name ?? "Shaper") + ".gif";
