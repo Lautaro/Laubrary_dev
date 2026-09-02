@@ -976,13 +976,18 @@ namespace Laubrary.Shaper.Editor
                 "The imported effect this node hosts, and its own dials.",
                 "shaper.window.composite", icon: "sparkle");
 
+            // What the dials are read off. A hosted Pyre form declares them on the FORM, so the wrapper's own two
+            // fields must not be what gets reflected; a source that is not a form (a stateful simulation) declares
+            // them on itself. Resolving it to one object here is what lets the whole card below stay generic —
+            // the card never learns which kind it is showing.
             var src = c.source as PyreFormCompositeSource;
-            var form = src?.form;
+            object dialOwner = src != null ? (object)src.form : c.source;
+
             box.SetHeaderSuffix(() => " — " + (c.source?.SourceLabel ?? "(none)"));
             box.SetHeaderMenu("caret-down", "Choose the generator (or right-click the title).",
                 anchor => ShowGeneratorMenu(anchor, node));
 
-            if (form == null)
+            if (dialOwner == null)
             {
                 box.Add(Z.Field("Generator", "No generator assigned yet.",
                     Z.Button("Choose generator…", "Pick which imported effect this node hosts.",
@@ -1008,13 +1013,13 @@ namespace Laubrary.Shaper.Editor
             // a hundred fields and an unfolded dump would bury every other card on the page. FlowFields packs
             // them into shared rows rather than one control per row, which is the same row-packing rule the
             // hand-built cards follow.
-            var dials = Z.BoxKeyed(form.DisplayName + " dials",
-                "Every dial this generator declares, read straight off the form — so it cannot drift out of "
-                + "date as the generator changes. A hosted form's dials resolve to their STATIC value when "
-                + "rendered through this path, so animating one has no effect here today.",
+            var dials = Z.BoxKeyed(c.source.SourceLabel + " dials",
+                "Every dial this generator declares, read straight off the generator itself — so it cannot drift "
+                + "out of date as the generator changes. A dial set to a curve is read at each frame's own phase, "
+                + "so animating one animates the picture.",
                 "shaper.window.composite.dials");
             var host = new VisualElement();
-            ZuiReflect.FlowFields(host, form, new ZuiReflect.Options
+            ZuiReflect.FlowFields(host, dialOwner, new ZuiReflect.Options
             {
                 OnBeforeChange = () =>
                 {
@@ -1034,31 +1039,79 @@ namespace Laubrary.Shaper.Editor
             root.Add(box);
         }
 
-        /// Every concrete PyreForm in the domain, grouped by the Group its own PyreFormInfoAttribute
-        /// declares. Read from the attribute rather than a hardcoded catalog so a newly added form appears
-        /// here automatically instead of silently missing — the same reason the shell reads enum names from
-        /// the enum. Searchable, because there are enough of them that scanning is worse than typing.
+        /// Everything this node can host, grouped and searchable. TWO families feed it, and neither is a
+        /// hardcoded list: every concrete PyreForm in the domain, named by its own PyreFormInfoAttribute, plus
+        /// (T-0173) every composite source that is not a form but declares itself author-pickable with a
+        /// ShaperCompositeSourceInfoAttribute — the stateful Fire and Fireball simulations today. Reading both
+        /// from attributes is what stops a newly written generator from silently missing here.
         void ShowGeneratorMenu(VisualElement anchor, ShaperNode node)
         {
             var menu = Z.Menu(anchor).Width(300f).Search("Search generators…");
 
-            var types = TypeCache.GetTypesDerivedFrom<PyreForm>()
+            var forms = TypeCache.GetTypesDerivedFrom<PyreForm>()
                 .Where(t => !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) != null)
                 .Select(t => (type: t, info: t.GetCustomAttribute<PyreFormInfoAttribute>()))
                 .Select(x => (x.type, name: x.info?.DisplayName ?? x.type.Name,
-                              group: x.info?.Group ?? "Forms"))
+                              group: x.info?.Group ?? "Forms", isForm: true));
+
+            // A source is offered only if it SAYS it is pickable: IShaperCompositeSource is also implemented by
+            // plumbing types that other code paths assemble, and those must never appear as something an author
+            // can choose. See ShaperCompositeSourceInfoAttribute for why membership is a declaration.
+            var sources = TypeCache.GetTypesDerivedFrom<IShaperCompositeSource>()
+                .Where(t => !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) != null)
+                .Select(t => (type: t, info: t.GetCustomAttribute<ShaperCompositeSourceInfoAttribute>()))
+                .Where(x => x.info != null)
+                .Select(x => (x.type, name: x.info.DisplayName, group: x.info.Group, isForm: false));
+
+            var entries = forms.Concat(sources)
                 .OrderBy(x => x.group).ThenBy(x => x.name)
                 .ToArray();
 
             string lastGroup = null;
-            var current = (node.composite.source as PyreFormCompositeSource)?.form?.GetType();
-            foreach (var t in types)
+            var assigned = node.composite.source;
+            var currentForm = (assigned as PyreFormCompositeSource)?.form?.GetType();
+            var currentSource = assigned != null && !(assigned is PyreFormCompositeSource)
+                ? assigned.GetType() : null;
+
+            foreach (var t in entries)
             {
                 if (t.group != lastGroup) { menu.Section(t.group); lastGroup = t.group; }
                 var type = t.type;
-                menu.Item(t.name, null, () => AssignGenerator(node, type), current == type);
+                bool isForm = t.isForm;
+                bool on = isForm ? currentForm == type : currentSource == type;
+                menu.Item(t.name, null,
+                    () => { if (isForm) AssignGenerator(node, type); else AssignSourceGenerator(node, type); },
+                    on);
             }
             menu.Show();
+        }
+
+        /// T-0173 — assign a generator that is a composite SOURCE rather than a hosted form. The bake box is
+        /// carried across from whatever the node already had, exactly as AssignGenerator does, so switching
+        /// generator never silently resizes the node's footprint. The declaration comes from the catalog by
+        /// display name for the same reason it does there: the classification is the catalog's to own, and
+        /// re-deriving it here would be a second source of truth.
+        void AssignSourceGenerator(ShaperNode node, Type sourceType)
+        {
+            Change(() =>
+            {
+                var source = (IShaperCompositeSource)Activator.CreateInstance(sourceType);
+                var entry = PyreCompositeCatalog.Find(source.SourceLabel);
+                node.composite = entry.displayName != null
+                    ? PyreCompositeCatalog.BuildSource(source, entry,
+                        node.composite.halfExtentX, node.composite.halfExtentY,
+                        node.composite.bakeWidth, node.composite.bakeHeight)
+                    : new ShaperCompositeDef
+                    {
+                        source = source,
+                        reason = ShaperCompositeReason.NotYetSplit,
+                        halfExtentX = node.composite.halfExtentX,
+                        halfExtentY = node.composite.halfExtentY,
+                        bakeWidth = node.composite.bakeWidth,
+                        bakeHeight = node.composite.bakeHeight,
+                    };
+            });
+            Rebuild();
         }
 
         /// Assign a generator by instantiating the form and wrapping it in the source the engine expects.
