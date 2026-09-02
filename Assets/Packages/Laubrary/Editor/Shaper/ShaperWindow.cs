@@ -583,6 +583,20 @@ namespace Laubrary.Shaper.Editor
                     Rebuild();
                 })));
 
+            // T-0192 — the SELECTED layer's Z (depth) dial, on its own row below the list rather than crammed
+            // into every layer's row, where it overflowed a 3-column dial pane (see BuildLayerRow's comment
+            // for the width arithmetic). Not gated on frameCount — depth ordering matters on a still document
+            // too, unlike Lifetime below which is meaningless without a frame axis.
+            if (CurrentLayer != null)
+            {
+                var zLay = CurrentLayer;
+                box.Add(Val("Z", "Moves the selected layer (“" + (zLay.name ?? "Layer") + "”) in depth, in "
+                    + "canvas pixels, on top of its place in the list (layer index × layer spacing). It "
+                    + "re-orders as well as shades: push a layer back far enough and the ones below it come "
+                    + "through, and two raised shapes at different depths intersect along a curve instead of "
+                    + "one hiding the other.", zLay.zOffset, -256f, 256f));
+            }
+
             // T-0166 — the SELECTED layer's lifetime window, on its own row below the list rather than crammed
             // into every layer's row (PM by-eye vet, pm-vet-wave2-light-crop.png: a bare unlabeled slider was
             // overlapping the Dup button). Gated on frameCount > 1 like the transport — a still document has no
@@ -665,17 +679,20 @@ namespace Laubrary.Shaper.Editor
             row.Add(Z.TextInput(layer.name ?? "", "This layer's name.",
                 v => Change(() => layer.name = v), 150f));
 
-            // zOffset is ZUIValue on the real ShaperLayer, so it is a real Z.Value row, not a plain slider.
-            row.Add(Val("Z", "Moves this layer in depth, in canvas pixels, on top of its place in the list "
-                + "(layer index × layer spacing). It re-orders as well as shades: push a layer back far "
-                + "enough and the ones below it come through, and two raised shapes at different depths "
-                + "intersect along a curve instead of one hiding the other.", layer.zOffset, -256f, 256f));
-
             // T-0166 — the lifetime window used to live HERE as a bare, unlabeled slider, and PM's by-eye vet
             // (pm-vet-wave2-light-crop.png) caught it: no label, no readable min/max, running underneath the
-            // Dup button. The row is already tight (grip/toggle/select/name/Z/Dup/×), so per ui-layout-rules'
+            // Dup button. The row is already tight (grip/toggle/select/name/Dup/×), so per ui-layout-rules'
             // "Card layout" a control this wide earns its OWN row instead of being crammed into every layer's —
             // see BuildLayersSection's "Lifetime" card below the list, which edits the SELECTED layer only.
+            //
+            // T-0192 — Z (zOffset) used to sit HERE too, on every row (row.Add(Val("Z", ...))). It is a real
+            // Z.Value row (zOffset is ZUIValue, not a plain float), and even at its 170px norm the row —
+            // grip(16) + toggle + select(24) + name(150) + Z(170) + Dup(40) + ×(22), ~440px of fixed content
+            // before any gap — cannot fit the ≥360px column ui-layout-rules requires once the dial pane
+            // reflows to 3 ColumnFlow columns: Z clipped and Dup/× painted over the neighbouring column
+            // (PM by-eye, workspace/T-0180/walk2-03-strip-off.png). Moved beside Lifetime below, for the
+            // SELECTED layer only — the same move T-0166 already made for Lifetime, for the same reason,
+            // and it needs no frameCount gate since depth ordering means something even on a still document.
 
             row.Add(Z.Flexible());
 
@@ -1395,10 +1412,18 @@ namespace Laubrary.Shaper.Editor
             {
                 absMin = lo, absMax = hi,
                 hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true,
-                // T-0186 — was controlWidth 130f / grow false, which squeezed the envelope well below Pyre's
-                // own Val() (PyreWindow.cs:2589-2593: controlWidth 170f, grow true). Match Pyre exactly so a
-                // curve/oscillation envelope renders at Pyre's size and grows to fill a packed row's slack.
-                controlWidth = 170f, grow = true, cyclic = cyclic, decimals = decimals,
+                // T-0186 set controlWidth 170f to match Pyre's own Val() (PyreWindow.cs:2589-2593) — kept.
+                // T-0192 turns `grow` back OFF: Pyre packs its Vals into wide multi-item rows where growing
+                // to share a row's slack is the point, but Shaper's dial pane reflows into ~360-500px
+                // ColumnFlow columns (ShaperWindow.cs:253) where most Vals sit ALONE in their row/column —
+                // there `grow`'s up-to-3.2× cap (544px) let a single control balloon to the whole column's
+                // width (PM by-eye, workspace/T-0180/walk2-03-strip-off.png: Rotation/Border Width/Half
+                // width/Lighting Intensity ×/etc. all doing this while paired Vals stayed at the 170px norm).
+                // ui-layout-rules' "No stretched controls; sane widths" says leftover row space is fine to
+                // leave — not something every control must fight to fill — so every Val in this window now
+                // sits at its explicit 170px norm (ZuiValueControl.cs's non-grow branch gives it a real
+                // `width`, not just min/max, so a parent's `align-items: stretch` cannot override it either).
+                controlWidth = 170f, grow = false, cyclic = cyclic, decimals = decimals,
                 frameCount = document != null ? document.frameCount : 0,
             };
             return Z.Value(label, v, o, tooltip,

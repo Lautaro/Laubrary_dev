@@ -1014,10 +1014,23 @@ namespace Laubrary.Shaper.Editor
                 return;
             }
 
+            // The reasonNote sentence behind Reason's one-word classification is written by
+            // PyreCompositeCatalog (PyreCompositeCatalog.cs:168) and read by the audit
+            // (PyreShaperCompositeAudit.cs:276) — it is READ-ONLY here on purpose: SHAPER_THE_DESIGN §6.2's
+            // "monolithic must be a declared reason" makes the declaration the GENERATOR's to own, so a text
+            // field on the node would let one document quietly disagree with the catalog every other document
+            // reads. `HasDeclaration` is the engine's own non-blank test (ShaperCompositeDef.cs:134).
+            //
+            // T-0192 (PM addendum) — this sentence used to be its own on-screen "Note" paragraph body text
+            // below the row. The labeling rule is that an explanation lives in a tooltip, never as body text
+            // (ui-layout-rules), so the sentence now lives on the Reason chip's hover instead and there is no
+            // second row for it — a short chip, not a paragraph.
+            string reasonTooltip = "Why this is still a composite rather than split into primitives — a "
+                + "structural fact the audit checks, not an authored dial."
+                + (c.HasDeclaration ? "  ·  " + c.reasonNote : "");
             box.Add(Z.HGroup(
-                Z.Field("Reason", "Why this is still a composite rather than split into primitives — a "
-                    + "structural fact the audit checks, not an authored dial.",
-                    Z.Text(c.reason.ToString(), ZuiText.Body, c.reason.ToString())),
+                Z.Field("Reason", reasonTooltip,
+                    Z.Text(c.reason.ToString(), ZuiText.Body, reasonTooltip)),
                 Dial("Half extent X", "Half the width of the box this generator bakes into, in canvas units.",
                     c.halfExtentX, 8f, 256f, v => c.halfExtentX = v, decimals: 0),
                 Dial("Half extent Y", "Half the height of the box this generator bakes into, in canvas units.",
@@ -1026,25 +1039,6 @@ namespace Laubrary.Shaper.Editor
                     c.bakeWidth, 16f, 512f, v => c.bakeWidth = Mathf.RoundToInt(v), decimals: 0),
                 Dial("Bake H", "Bake resolution in texels, independent of the canvas resolution.",
                     c.bakeHeight, 16f, 512f, v => c.bakeHeight = Mathf.RoundToInt(v), decimals: 0)));
-
-            // The reason above is a one-word classification; reasonNote is the sentence behind it, and it was
-            // being written by PyreCompositeCatalog (PyreCompositeCatalog.cs:168) and read by the audit
-            // (PyreShaperCompositeAudit.cs:276) without ever reaching the author. It is READ-ONLY here on
-            // purpose: SHAPER_THE_DESIGN §6.2's "monolithic must be a declared reason" makes the declaration
-            // the GENERATOR's to own, so a text field on the node would let one document quietly disagree with
-            // the catalog every other document reads. `HasDeclaration` is the engine's own non-blank test
-            // (ShaperCompositeDef.cs:134), so an undeclared generator shows no empty line at all.
-            if (c.HasDeclaration)
-            {
-                // The note is a [TextArea(2,5)] sentence, not a label, so it wraps instead of running off the
-                // pane — the sanctioned wrapping help-paragraph Label, and the reason this one control does
-                // not get a fixed width from the norms.
-                var note = Z.Text(c.reasonNote, ZuiText.Subtle, c.reasonNote);
-                note.style.whiteSpace = WhiteSpace.Normal;
-                note.style.flexShrink = 1f;
-                box.Add(Z.Field("Note", "The declaration behind that reason, written where the generator is "
-                    + "catalogued. Shown here, owned there.", note));
-            }
 
             // A generator family with a DESIGNED card draws it instead of the reflected dump below (T-0183).
             // The window does not know which families those are — it asks the registry, so a hosted Pyre layer

@@ -194,7 +194,11 @@ namespace Laubrary.PyreShaper.Editor
                 {
                     absMin = lo, absMax = hi,
                     hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true,
-                    controlWidth = 170f, grow = true,
+                    // T-0192 — grow off, same reasoning as ShaperWindow.Val (ShaperWindow.cs:1391-1417): a
+                    // hosted Pyre layer's shape cards (PyreShapeCards.cs, read-only reference) land in this
+                    // window's own ~360-500px ColumnFlow columns, not Pyre's own wide single-column body, so
+                    // a solo Val growing to its 3.2× cap overflows exactly like the plain Shaper dials did.
+                    controlWidth = 170f, grow = false,
                     cyclic = cyclic,
                     frameCount = FrameCount,
                 }, tooltip, ctx.Touch, RecordUndo);

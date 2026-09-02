@@ -167,6 +167,17 @@ namespace Laubrary.Zui
                 style.minWidth = _opt.controlWidth;
                 style.maxWidth = _opt.controlWidth * Mathf.Max(1f, _opt.maxWidthFactor);
             }
+            else
+            {
+                // T-0192 — a non-growing Value control used to leave `width` at its CSS default (auto), so a
+                // column body's default `align-items: stretch` (ui-layout-rules "Stretching is a CROSS-axis
+                // bug") filled it to the FULL column width regardless of controlWidth — width, unlike
+                // min/max-width, is the property that actually opts a flex item OUT of stretch. Give it one
+                // explicitly, matching what Z.MicroSlider already does for itself (Zui.cs: `s.style.width =
+                // width`), so a solo Val sits at the same compact norm as a solo Dial instead of ballooning.
+                style.width = _opt.controlWidth;
+                style.flexShrink = 0f;
+            }
 
             _content = new VisualElement();
             Add(_content);
