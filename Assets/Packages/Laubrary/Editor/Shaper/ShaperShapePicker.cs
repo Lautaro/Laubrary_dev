@@ -174,7 +174,9 @@ namespace Laubrary.Shaper.Editor
                 yield return new ShaperShapeEntry
                 {
                     Category = "Primitives",
-                    Label = ObjectNames.NicifyVariableName(kind.ToString()),
+                    // Not NicifyVariableName: it splits every internal capital, so NGon reads "N Gon".
+                    // The enum's own name is already the name of the shape.
+                    Label = kind.ToString(),
                     Icon = icon,
                     Tooltip = tip ?? ("Draw a " + kind + "."),
                     IsCurrent = n => n.kind == ShaperNodeKind.Primitive && n.primitive != null && n.primitive.kind == kind,
@@ -211,7 +213,7 @@ namespace Laubrary.Shaper.Editor
                 yield return new ShaperShapeEntry
                 {
                     Category = "Solids",
-                    Label = ObjectNames.NicifyVariableName(form.ToString()),
+                    Label = form.ToString(),
                     Icon = icon,
                     Tooltip = "Draw a shaded pseudo-3D " + form.ToString().ToLowerInvariant()
                         + " — it replaces the shape stage and then takes the ordinary fill, border and light "
@@ -345,10 +347,11 @@ namespace Laubrary.Shaper.Editor
     {
         // The picker menu is sized to show every column at once. The owner's constraint is the shape of the
         // screen, quoted: "We have a lot of width but less height. Don't make a big menu narrow and force it
-        // to scroll. At least 4 columns is totally acceptable." Eight columns at Pyre's own 104px column +
-        // 12px gutter is ~940, so that is the width asked for; the column row WRAPS rather than scrolls, so a
-        // narrower screen loses a row of columns instead of turning into one tall scrolling list.
-        const float ShapeMenuWidth = 940f;
+        // to scroll. At least 4 columns is totally acceptable." The catalog currently yields NINE categories,
+        // and at Pyre's own 104px column + 12px gutter that is ~1044 — so the menu is 1060 wide and every
+        // category is visible in one row. The column row WRAPS rather than scrolls, so a screen too narrow
+        // for all of them loses a row of columns instead of turning into one tall scrolling list.
+        const float ShapeMenuWidth = 1060f;
         const float ShapeMenuColumnWidth = 104f;
 
         /// The one control that decides what this node draws. Reads back the current choice by name and
@@ -366,10 +369,22 @@ namespace Laubrary.Shaper.Editor
             // No "Shape" label beside it: the card is already called Shape, and a field labelled the same as
             // the box it sits in is the redundant title the layout rules forbid. The button's own content —
             // the icon and the name of what this node draws — is the label.
+            // The button's content is built from CHILDREN, not from Button.text: a Button paints its own
+            // text in its content box, so an icon added as a child would be drawn over the word rather
+            // than before it. Icon, then name, then the caret that says this opens a list.
             UnityEngine.UIElements.Button btn = null;
-            btn = Z.Button(label + "  ▾", tip, () => ShowShapeMenu(node, btn));
+            btn = Z.Button("", tip, () => ShowShapeMenu(node, btn));
+            btn.style.flexDirection = FlexDirection.Row;
+            btn.style.alignItems = Align.Center;
+            btn.style.minWidth = 168f;      // wide enough for the longest generator name without truncating
             var icon = Z.Icon(current?.Icon, 14f);
-            if (icon != null) { icon.style.marginRight = 5f; btn.Insert(0, icon); }
+            if (icon != null) { icon.style.marginRight = 5f; btn.Add(icon); }
+            var name = new Label(label) { pickingMode = PickingMode.Ignore };
+            name.style.flexGrow = 1f;
+            btn.Add(name);
+            var caret = new Label("▾") { pickingMode = PickingMode.Ignore };
+            caret.style.marginLeft = 6f;
+            btn.Add(caret);
 
             var row = new VisualElement();
             row.AddToClassList("zui-row");
