@@ -52,6 +52,11 @@ namespace Laubrary.Shaper.Editor
 
         VisualElement backdropHost;
 
+        // T-0188 — the transport's status line. See BuildTransportStatus for why the transport needed a
+        // second voice at all.
+        Label transportStatus;
+        string transportStatusText;
+
         // ── preview chrome ───────────────────────────────────────────────────────────────────────────────
 
         /// The row that sits under the preview: frame border + zoom. The filmstrip contact sheet is a
@@ -79,7 +84,87 @@ namespace Laubrary.Shaper.Editor
                     RefreshPreview();
                 }, 140f, decimals: 1);
 
-            return Z.HGroup(frameToggle, zoom);
+            return Z.HGroup(frameToggle, zoom, BuildTransportStatus());
+        }
+
+        /// The transport's status line (T-0188).
+        ///
+        /// ── Why the transport needed a second voice ───────────────────────────────────────────────────
+        /// The Frame slider is a SOURCE-frame index, but under cherry framing the playhead is a (slot, beat)
+        /// pair: a two-slot sequence over a sixteen-frame document parks the slider on two of its sixteen
+        /// positions and holds it there, and the loop gap blanks the picture outright (a real authored
+        /// state — ShaperCherry.BlankFrame, honoured by ShaperPreviewStage.Refresh). One control was being
+        /// asked to mean two different things, and in the cherry meaning it looks exactly like a transport
+        /// that has stopped. That is the whole of the owner's "I pressed play, the transport did not move,
+        /// the preview turned empty": playback was running correctly and had no way to say so.
+        ///
+        /// The fix is to name the second meaning rather than to remove it. Substituting frame 0 for a blank
+        /// beat, or falling back to the plain frame order when a cherry sequence is empty, would hide an
+        /// authoring state the user deliberately created — swapping a confusing preview for a lying one.
+        ///
+        /// The same line covers the other way Play can look dead: while the pre-baker has not reached the
+        /// next frame yet, PlaybackTick deliberately holds the current one (ShaperWindow.cs), so the status
+        /// says it is caching instead of leaving the user with a frozen picture and no explanation.
+        VisualElement BuildTransportStatus()
+        {
+            transportStatusText = null;
+            transportStatus = Z.Text("", ZuiText.Body,
+                "What playback is doing right now. Under cherry framing the Frame slider shows the SOURCE "
+                + "frame the sequence chose, so it only visits the frames the sequence names and the picture "
+                + "goes blank during the loop gap — this line says so instead of leaving that looking broken.");
+            // Stable-workspace rule: a status line is a PERMANENTLY reserved single line whose text changes,
+            // never its geometry — a line that grows from zero height would shove the preview above it every
+            // time playback started, which is the exact jitter that rule exists to prevent. Truncates rather
+            // than wraps for the same reason, and sits LAST in its row so nothing follows it to be pushed.
+            transportStatus.style.height = 16f;
+            transportStatus.style.flexGrow = 1f;
+            transportStatus.style.whiteSpace = WhiteSpace.NoWrap;
+            transportStatus.style.overflow = Overflow.Hidden;
+            transportStatus.style.unityTextAlign = TextAnchor.MiddleRight;
+            // Polled rather than pushed: the states it reports change on the editor's own clock (a pre-baker
+            // tick, a held cherry beat) and two of them occur on exactly the paths that do NOT call
+            // RefreshPreview — that is what made playback look dead in the first place. The work is one
+            // string build compared against the last, so a poll is cheaper than threading a new event
+            // through the transport, and it cannot go stale the way a push from one call site would.
+            transportStatus.schedule.Execute(RefreshTransportStatus).Every(120);
+            RefreshTransportStatus();
+            return transportStatus;
+        }
+
+        void RefreshTransportStatus()
+        {
+            if (transportStatus == null) return;
+            string t = DescribeTransport();
+            if (t == transportStatusText) return;
+            transportStatusText = t;
+            transportStatus.text = t;
+        }
+
+        string DescribeTransport()
+        {
+            if (document == null || document.frameCount <= 1) return string.Empty;
+
+            if (document.cherryEnabled)
+            {
+                int slots = document.cherryFrames?.Count ?? 0;
+                // Cherry on with nothing to play is a dead end the engine renders as a permanent blank
+                // (ShaperCherry.AdvanceOneBeat returns BlankFrame every beat). Say that, rather than let it
+                // read as a broken Play button.
+                if (slots == 0)
+                    return "Cherry framing is on with no slots — nothing to play. Add a slot, or switch it off.";
+                if (!playing)
+                    return $"Cherry framing: Play follows {slots} slot{(slots == 1 ? "" : "s")}, not the frame order.";
+                return cherryState.frame < 0
+                    ? $"Cherry gap — blank between loops ({document.cherryLoopDelaySeconds:0.##}s)"
+                    : $"Cherry slot {cherryState.slot + 1}/{slots} → frame {cherryState.frame}";
+            }
+
+            if (!playing) return string.Empty;
+
+            int cached = stage != null ? stage.CountCachedFrames() : 0;
+            return cached < document.frameCount
+                ? $"Playing — frame {currentFrame}, caching {cached}/{document.frameCount}"
+                : $"Playing — frame {currentFrame}/{document.frameCount - 1}";
         }
 
         /// Push the window's cosmetic state onto a freshly built stage. Called right after the stage is

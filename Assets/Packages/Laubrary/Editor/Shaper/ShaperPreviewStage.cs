@@ -409,21 +409,6 @@ namespace Laubrary.Shaper.Editor
             int w = Mathf.Max(1, doc.canvasWidth);
             int h = Mathf.Max(1, doc.canvasHeight);
 
-            if (_tex == null || _tex.width != w || _tex.height != h)
-            {
-                // Dispose() also stops the pre-baker; StartPrebakeIfNeeded below restarts it once the cache
-                // has been re-shaped for the new canvas, so a mid-bake canvas resize does not leave it
-                // running against stale dimensions.
-                Dispose();
-                _tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
-                {
-                    // Point + no mips: this is pixel art, and any filtering makes the preview lie about the
-                    // bake, whose importer settings ShaperBaker pins to exactly this.
-                    filterMode = FilterMode.Point,
-                    hideFlags = HideFlags.HideAndDontSave,
-                };
-            }
-
             // T-0165 — read through the frame cache rather than rendering unconditionally. EnsureShape drops
             // the cache itself when the canvas or frame count actually changed (a document edit already
             // called InvalidateFrameCache for content changes; this additionally catches the shape changing
@@ -433,7 +418,28 @@ namespace Laubrary.Shaper.Editor
             _frameCache.EnsureShape(Mathf.Max(1, doc.frameCount), w, h);
             var px = _frameCache.ComputeFrame(frame, doc);
             StartPrebakeIfNeeded();
-            if (px == null || px.Length != w * h) return;   // canvas changed under us; next Refresh resizes
+
+            // T-0188 — nothing to show yet: HOLD the picture already on screen. The pixels are obtained
+            // BEFORE the texture is touched precisely so this early-out cannot blank the preview. Tearing the
+            // texture down first (as this did) destroyed the very image the element was displaying, so a
+            // canvas resize that raced a not-yet-rendered frame left the preview empty on exactly the path
+            // where the user most needs to keep seeing something.
+            if (px == null || px.Length != w * h) return;
+
+            if (_tex == null || _tex.width != w || _tex.height != h)
+            {
+                // Only the texture is replaced, never the pre-baker: the cache has already been re-shaped
+                // for the new canvas above, so stopping and restarting the bake here would cost a full
+                // re-walk to arrive back where it already is.
+                if (_tex != null) UnityEngine.Object.DestroyImmediate(_tex);
+                _tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
+                {
+                    // Point + no mips: this is pixel art, and any filtering makes the preview lie about the
+                    // bake, whose importer settings ShaperBaker pins to exactly this.
+                    filterMode = FilterMode.Point,
+                    hideFlags = HideFlags.HideAndDontSave,
+                };
+            }
 
             _tex.SetPixels32(px);
             _tex.Apply(false);
