@@ -682,7 +682,22 @@ namespace Laubrary.Shaper
 
             var baked = new ShaperCompiledComposite { width = bw, height = bh, coverage = new float[bw * bh] };
             var pixels = new Color32[bw * bh];
-            native.RenderSwarm(bw, bh, st.phase01, seeds, offsets, phases, swarm.interact, pixels);
+            // T-0198 — same posture as the single-instance path (see SafeRender): a generator that throws
+            // publishes an empty swarm and a status message, never an exception through the whole render.
+            try
+            {
+                native.RenderSwarm(bw, bh, st.phase01, seeds, offsets, phases, swarm.interact, pixels);
+                def.lastRenderError = null;
+            }
+            catch (System.Exception ex)
+            {
+                System.Array.Clear(pixels, 0, pixels.Length);
+                string where = !string.IsNullOrEmpty(node.name) ? node.name : "composite";
+                string msg = $"“{where}” ({def.source.SourceLabel}) drew no swarm at {bw}×{bh}: "
+                           + ex.GetType().Name + ". The rest of the document still renders.";
+                if (def.lastRenderError != msg) Debug.LogException(ex);
+                def.lastRenderError = msg;
+            }
             baked.pixels = pixels;
             for (int i = 0; i < pixels.Length; i++) baked.coverage[i] = pixels[i].a / 255f;
 
@@ -938,6 +953,39 @@ namespace Laubrary.Shaper
         }
 
         /// <summary>
+        /// T-0198 — run a generator's own render, and treat a throw as an EMPTY PICTURE rather than as the end
+        /// of the frame. A composite source is, by the escape hatch's own premise, code the shape engine does
+        /// not own and cannot verify: it may be handed a canvas shape it was never written for. Before this, one
+        /// such generator threw straight out through <c>RenderPhaseInto</c> and the preview stopped rendering
+        /// altogether — a document that looked broken everywhere because one node was. The node now publishes no
+        /// coverage and says why on the transport status line (<see cref="ShaperCompositeDef.lastRenderError"/>),
+        /// which is the same posture a null source already had: useless, visible, and survivable.
+        ///
+        /// The catch is deliberately broad. Narrowing it to the exception a known-bad generator happens to raise
+        /// today would only mean the NEXT generator's different exception takes the preview down instead.
+        /// </summary>
+        static void SafeRender(ShaperCompositeDef def, ShaperNode node, int bw, int bh, Color32[] pixels, State st)
+        {
+            try
+            {
+                def.source.Render(bw, bh, st.phase01, st.seed, pixels);
+                def.lastRenderError = null;
+            }
+            catch (System.Exception ex)
+            {
+                System.Array.Clear(pixels, 0, pixels.Length);
+                string where = node != null && !string.IsNullOrEmpty(node.name) ? node.name : "composite";
+                string msg = $"“{where}” ({def.source.SourceLabel}) drew nothing at {bw}×{bh}: "
+                           + ex.GetType().Name + ". The rest of the document still renders.";
+                // A preview recompiles every frame, so the console is told once per DISTINCT failure — the
+                // status line is the live channel, and a stack trace repeated sixty times a second is noise
+                // that buries the one occurrence anybody would read.
+                if (def.lastRenderError != msg) Debug.LogException(ex);
+                def.lastRenderError = msg;
+            }
+        }
+
+        /// <summary>
         /// T-0112 — a composite generator's picture, hosted unmodified. Renders <see cref="node"/>'s
         /// <see cref="ShaperNode.composite"/> source ONCE, at this compile's own <c>phase01</c>/<c>seed</c>, into
         /// a fixed-resolution raster (<see cref="ShaperCompositeDef.bakeWidth"/>/<c>Height</c>), decodes its
@@ -958,7 +1006,7 @@ namespace Laubrary.Shaper
             var pixels = new Color32[bw * bh];
             // A null source is a legal, if useless, authoring state (FC-6.5's posture) — it renders as empty
             // coverage everywhere rather than throwing, the same way an unassigned Texture/Gradient fill does.
-            if (def.source != null) def.source.Render(bw, bh, st.phase01, st.seed, pixels);
+            if (def.source != null) SafeRender(def, node, bw, bh, pixels, st);
             baked.pixels = pixels;
             for (int i = 0; i < pixels.Length; i++) baked.coverage[i] = pixels[i].a / 255f;
 

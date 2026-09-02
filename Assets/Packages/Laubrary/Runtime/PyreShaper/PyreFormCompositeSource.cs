@@ -39,9 +39,15 @@ namespace Laubrary.PyreShaper
 
         public string SourceLabel => form != null ? form.DisplayName : "(no form assigned)";
 
+        /// The square canvas a form is hosted on when the bake box is not square. Reused across frames and
+        /// grown on demand, the same shape <c>PyreSupersample</c>'s own scratch takes: a form is rendered once
+        /// per compile, so a fresh allocation per frame would be pure garbage at canvas resolution.
+        [NonSerialized] Color32[] _square;
+
         public void Render(int width, int height, float phase01, uint seed, Color32[] target)
         {
-            if (form == null || target == null) return;
+            if (form == null || target == null || width <= 0 || height <= 0) return;
+            if (target.Length < width * height) return;
 
             float life = Mathf.Clamp01(phase01);
             int sd = unchecked((int)seed);
@@ -52,9 +58,50 @@ namespace Laubrary.PyreShaper
 
             Func<ZUIValue, int, float, float> evalAtLife = (v, fid, atLife) =>
                 PyreShaperEval.Eval(v, atLife, sd, PyreRenderer.ModParticleIndex, fid, LayerSalt);
-            var ctx = new PyreFormCtx(width, height, life, sd, LayerSalt, null, 1f,
+
+            // A PyreForm is written for PYRE'S canvas, and Pyre's canvas is SQUARE (Pyre.cs:1259-1260 — Width
+            // and Height are both canvasSize). Several forms take that literally and build a square internal
+            // field from one edge: ArcBurst sizes its plane S = min(W,H)·k and then box-filters S×S down into a
+            // W×H target (ArcBurstForm.cs:454-456,520), which reads off the end of that plane the moment H > W,
+            // and PlasmaBloom does the same (PlasmaBloomForm.cs:469). Shaper's canvas is free-form and its bake
+            // box is now the canvas itself (ShaperCompositeDef.FitTo), so a 96×152 document handed the form a
+            // rectangle it has no representation for. The bridge therefore hands every form the square canvas
+            // its contract assumes and reads the node's box out of the middle — the same treatment a hosted
+            // whole LAYER already gets (PyreLayerCompositeSource.cs:88-92), and for the same reason. The larger
+            // edge is chosen so the picture is never shrunk to fit; what falls outside the box is discarded,
+            // which is a framing choice the author can see rather than a silent rescale.
+            int canvas = Mathf.Max(width, height);
+            if (canvas == width && canvas == height)
+            {
+                // Square: the form draws straight into the node's own buffer, byte-for-byte what it did before.
+                var square = new PyreFormCtx(width, height, life, sd, LayerSalt, null, 1f,
+                                             null, null, null, 0f, 0, 1, evalAtLife);
+                form.Render(square, target);
+                return;
+            }
+
+            int n = canvas * canvas;
+            if (_square == null || _square.Length < n) _square = new Color32[n];
+            else Array.Clear(_square, 0, n);
+
+            var ctx = new PyreFormCtx(canvas, canvas, life, sd, LayerSalt, null, 1f,
                                       null, null, null, 0f, 0, 1, evalAtLife);
-            form.Render(ctx, target);
+            form.Render(ctx, _square);
+
+            // Row 0 is the bottom in both conventions (ShaperCompositeDef.cs:49-52 states Shaper's, and it is
+            // Pyre's own), so centring is a straight row-for-row window with no flip.
+            int dx = (canvas - width) / 2, dy = (canvas - height) / 2;
+            for (int y = 0; y < height; y++)
+            {
+                int sy = y + dy;
+                if (sy < 0 || sy >= canvas) { Array.Clear(target, y * width, width); continue; }
+                int srcRow = sy * canvas + dx;
+                for (int x = 0; x < width; x++)
+                {
+                    int sx = dx + x;
+                    target[y * width + x] = (sx < 0 || sx >= canvas) ? default : _square[srcRow + x];
+                }
+            }
         }
 
         /// <summary>

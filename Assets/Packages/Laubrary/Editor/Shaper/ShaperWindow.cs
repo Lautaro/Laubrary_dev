@@ -1006,7 +1006,7 @@ namespace Laubrary.Shaper.Editor
             // and what an edit costs in Undo, stay the window's business.
             stage.SelectedNode = () => CurrentNode;
             stage.SelectedLayerRoot = () => CurrentLayer?.root;
-            stage.RecordUndo = () => { if (document != null) Undo.RecordObject(document, "Move Shaper Node"); };
+            stage.RecordUndo = () => { if (document != null) Undo.RegisterCompleteObjectUndo(document, "Move Shaper Node"); };
             stage.Changed = () =>
             {
                 if (document != null) EditorUtility.SetDirty(document);
@@ -1406,12 +1406,22 @@ namespace Laubrary.Shaper.Editor
 
         // ── SHARED HELPERS — the contract for every ShaperWindow.*.cs file ───────────────────────────────
 
-        /// Wrap EVERY authored mutation. Records Undo on the document BEFORE the mutation (RecordObject
-        /// snapshots the pre-edit state, so recording afterwards would store the value just written and make
-        /// Ctrl+Z appear to do nothing), then dirties the asset and refreshes the preview.
+        /// Wrap EVERY authored mutation. Records Undo on the document BEFORE the mutation (the snapshot is of
+        /// the pre-edit state, so recording afterwards would store the value just written and make Ctrl+Z
+        /// appear to do nothing), then dirties the asset and refreshes the preview.
+        ///
+        /// <b>T-0198 — this MUST be RegisterCompleteObjectUndo, not RecordObject.</b> A Shaper document is built
+        /// almost entirely out of <c>[SerializeReference]</c> graphs: every node, every fill, every composite
+        /// source, every effect and each layer's height stage (<c>ShaperLightRig.cs:388</c>). RecordObject
+        /// snapshots an object's serialized VALUES but not its managed-reference registry, so undoing an edit
+        /// restored the document with references the snapshot never held — they came back null, the entries
+        /// were dropped from the asset's <c>references:</c> block on the next save, and the authored data was
+        /// gone with no error anywhere. That is how the demo document lost a layer's whole height stage. The
+        /// complete-object undo costs a full snapshot per edit, which for a document asset is nothing next to
+        /// silently deleting a stage the author built.
         internal void Change(Action apply)
         {
-            if (document != null) Undo.RecordObject(document, "Edit Shaper Document");
+            if (document != null) Undo.RegisterCompleteObjectUndo(document, "Edit Shaper Document");
             apply();
             if (document != null) EditorUtility.SetDirty(document);
             // T-0165 — every authored edit invalidates the preview frame cache before refreshing, so the
@@ -1466,7 +1476,7 @@ namespace Laubrary.Shaper.Editor
                     InvalidateCherryThumbs();
                     RefreshPreview();
                 },
-                () => { if (document != null) Undo.RecordObject(document, "Edit Shaper Document"); });
+                () => { if (document != null) Undo.RegisterCompleteObjectUndo(document, "Edit Shaper Document"); });
         }
 
         /// The 2D analog of Val — one control over an X/Y PAIR of animatable dials, so a spatial value is aimed
@@ -1480,7 +1490,7 @@ namespace Laubrary.Shaper.Editor
                     stage?.InvalidateFrameCache();
                     RefreshPreview();
                 },
-                () => { if (document != null) Undo.RecordObject(document, "Edit Shaper Document"); });
+                () => { if (document != null) Undo.RegisterCompleteObjectUndo(document, "Edit Shaper Document"); });
 
         /// Re-render the preview. T-0165 — this now reads through ShaperPreviewStage's own frame cache
         /// (ShaperPreviewFrameCache), so a frame already visited this session is a dictionary hit rather than

@@ -648,7 +648,7 @@ namespace Laubrary.Shaper.Editor
             });
             ctrl.OnBeforeMutate = () =>
             {
-                if (document != null) Undo.RecordObject(document, "Edit Shaper Document");
+                if (document != null) Undo.RegisterCompleteObjectUndo(document, "Edit Shaper Document");
             };
             return ctrl;
         }
@@ -1128,7 +1128,7 @@ namespace Laubrary.Shaper.Editor
             {
                 OnBeforeChange = () =>
                 {
-                    if (document != null) Undo.RecordObject(document, "Edit Shaper Document");
+                    if (document != null) Undo.RegisterCompleteObjectUndo(document, "Edit Shaper Document");
                 },
                 OnChanged = () =>
                 {
@@ -1625,7 +1625,7 @@ namespace Laubrary.Shaper.Editor
         /// </summary>
         ZuiReflect.Options EffectDrawerOptions(string displayName) => new ZuiReflect.Options
         {
-            OnBeforeChange = () => { if (document != null) Undo.RecordObject(document, "Edit Shaper effect"); },
+            OnBeforeChange = () => { if (document != null) Undo.RegisterCompleteObjectUndo(document, "Edit Shaper effect"); },
             OnChanged = () => { if (document != null) EditorUtility.SetDirty(document); RefreshPreview(); },
             OnStructureChanged = Rebuild,
             // The enable toggle lives in the header row; drawing the modifier's own `enabled` field too would

@@ -284,7 +284,9 @@ namespace Laubrary.Shaper
                     // next to Pyre's Size", because they are two ways of saying the same thing and only one of
                     // them is the generator's own. So the box is fitted to the canvas here, at the one place
                     // that knows the canvas, for every composite in the tree. The window no longer shows them.
-                    ShaperCompositeDef.FitTree(lay.root, w, h);
+                    // T-0198 — pixelSize goes in too: the box is in CANVAS UNITS and the canvas is
+                    // (w−1)·pixelSize wide, so fitting it in samples alone shrank every composite by 1/pixelSize.
+                    ShaperCompositeDef.FitTree(lay.root, w, h, doc.pixelSize);
 
                     // T-0171 — this layer's base plane, the same HS-7.2 value BindLayer below compiles its
                     // height stage against (ShaperLightCompiler.cs:492), read from the one function that

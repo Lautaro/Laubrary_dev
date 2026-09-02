@@ -35,7 +35,9 @@ namespace Laubrary.Shaper.Editor
         /// Where the card is added.
         public VisualElement Body;
 
-        /// The document, for <c>Undo.RecordObject</c> before a control that mutates a value in place.
+        /// The document, for <c>Undo.RegisterCompleteObjectUndo</c> before a control that mutates a value in
+        /// place. Complete-object, never <c>RecordObject</c>: a document is a graph of
+        /// <c>[SerializeReference]</c>s and RecordObject does not snapshot them, so undo nulls them (T-0198).
         public UnityEngine.Object UndoTarget;
 
         /// The document's frame count — what a Curve envelope draws its frame markers against, so an authored

@@ -154,6 +154,20 @@ namespace Laubrary.Shaper.Editor
         string DescribeTransport()
         {
             if (document == null) return string.Empty;
+
+            // T-0198 — a generator that failed to draw outranks every transport message below. It is the only
+            // state in which the picture is missing content the author authored, and it used to be reported
+            // nowhere at all: the exception went to the console and the preview simply stopped. Reading the
+            // node's own record rather than a global keeps this honest — the message exists only while a node
+            // that actually failed is still in the document, and a successful re-render clears it.
+            if (document.layers != null)
+                for (int i = 0; i < document.layers.Count; i++)
+                {
+                    var l = document.layers[i];
+                    string err = l != null ? ShaperCompositeDef.FirstError(l.root) : null;
+                    if (err != null) return err;
+                }
+
             // T-0190 — the transport is built for a still document too, so this line is what explains the
             // disabled Play button rather than leaving a dead control unexplained.
             if (document.frameCount <= 1)

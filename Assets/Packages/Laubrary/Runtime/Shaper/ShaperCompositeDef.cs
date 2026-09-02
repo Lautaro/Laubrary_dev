@@ -244,11 +244,20 @@ namespace Laubrary.Shaper
         /// nothing, and because <see cref="ShaperNodeIdentity"/> folds these fields into the composite's own
         /// hash, resizing the canvas correctly invalidates every cached frame that was baked at the old size.
         /// </summary>
-        public void FitTo(int canvasWidth, int canvasHeight)
+        /// <param name="pixelSize">T-0198 — the canvas's own sample spacing (<see cref="ShaperDocument.pixelSize"/>).
+        /// The half-extents are in CANVAS UNITS, not samples, and the canvas spans
+        /// <c>0.5·(w−1)·pixelSize</c> either side of the origin (<c>ShaperDocumentRenderer.cs:237-238</c>), so a
+        /// box sized in samples alone is only right while pixelSize is 1. At the owner's 2.49 it made every
+        /// composite cover four tenths of the canvas it was supposed to fill, which reads as "the generator
+        /// shrank" rather than as a unit error.</param>
+        public void FitTo(int canvasWidth, int canvasHeight, float pixelSize)
         {
             int w = Mathf.Max(1, canvasWidth), h = Mathf.Max(1, canvasHeight);
-            halfExtentX = w * 0.5f;
-            halfExtentY = h * 0.5f;
+            float ps = pixelSize > 0f ? pixelSize : 1f;
+            // Half a sample wider each side than the grid's own half-extent, because the box bounds the sample
+            // AREAS while the grid bounds their CENTRES — the same half-texel convention halfBand already uses.
+            halfExtentX = w * 0.5f * ps;
+            halfExtentY = h * 0.5f * ps;
             // One bake texel per canvas pixel. Any other ratio would resample the generator's own picture on
             // the way in for no gain: the raster is sampled at canvas resolution, and a composite root now
             // paints with these very texels (T-0191), so 1:1 is the only ratio that carries the generator's
@@ -258,14 +267,45 @@ namespace Laubrary.Shaper
         }
 
         /// <summary>Fit every composite in a subtree. A no-op on a tree with none.</summary>
-        public static void FitTree(ShaperNode node, int canvasWidth, int canvasHeight)
+        public static void FitTree(ShaperNode node, int canvasWidth, int canvasHeight, float pixelSize)
         {
             if (node == null || !node.enabled) return;
             if (node.kind == ShaperNodeKind.Composite && node.composite != null)
-                node.composite.FitTo(canvasWidth, canvasHeight);
+                node.composite.FitTo(canvasWidth, canvasHeight, pixelSize);
             if (node.children == null) return;
             for (int i = 0; i < node.children.Count; i++)
-                FitTree(node.children[i], canvasWidth, canvasHeight);
+                FitTree(node.children[i], canvasWidth, canvasHeight, pixelSize);
+        }
+
+        /// <summary>
+        /// T-0198 — why this node's last bake produced nothing, or null when it produced a picture. A generator
+        /// is third-party code from the shape engine's point of view (that is the whole premise of the escape
+        /// hatch), so it can throw; the compiler catches that and records it here rather than letting one
+        /// generator take the whole preview down with it (<c>ShaperCompiler.EmitComposite</c>). Never serialized:
+        /// it describes the last RENDER, not the authored document, and a stale one saved into an asset would
+        /// report a failure that no longer happens.
+        /// </summary>
+        [NonSerialized] public string lastRenderError;
+
+        /// <summary>
+        /// The first composite failure anywhere in a subtree, formatted for a status line, or null when every
+        /// generator in it rendered. Walks disabled nodes too: a node the author has just switched off should
+        /// stop REPORTING as well as stop drawing, and it does — <see cref="lastRenderError"/> is only ever set
+        /// by a bake that actually ran.
+        /// </summary>
+        public static string FirstError(ShaperNode node)
+        {
+            if (node == null) return null;
+            if (node.kind == ShaperNodeKind.Composite && node.composite != null
+                && !string.IsNullOrEmpty(node.composite.lastRenderError))
+                return node.composite.lastRenderError;
+            if (node.children == null) return null;
+            for (int i = 0; i < node.children.Count; i++)
+            {
+                string e = FirstError(node.children[i]);
+                if (e != null) return e;
+            }
+            return null;
         }
     }
 }

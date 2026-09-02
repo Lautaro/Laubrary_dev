@@ -182,7 +182,7 @@ namespace Laubrary.PyreShaper.Editor
             public void MarkDirty() => ctx.Touch();
             public void RecordUndo()
             {
-                if (ctx.UndoTarget != null) Undo.RecordObject(ctx.UndoTarget, "Edit Shaper Document");
+                if (ctx.UndoTarget != null) Undo.RegisterCompleteObjectUndo(ctx.UndoTarget, "Edit Shaper Document");
             }
             public void RebuildShape() => ctx.Rebuild();
             // Shaper has no swarm section of Pyre's kind to rebuild; the whole card is rebuilt instead, which
