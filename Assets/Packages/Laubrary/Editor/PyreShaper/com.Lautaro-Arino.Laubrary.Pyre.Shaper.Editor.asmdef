@@ -3,10 +3,14 @@
     "rootNamespace": "Laubrary.PyreShaper.Editor",
     "references": [
         "com.Lautaro-Arino.Laubrary.Pyre",
+        "com.Lautaro-Arino.Laubrary.Pyre.Editor",
         "com.Lautaro-Arino.Laubrary.Pyre.Forms.Kiln",
         "com.Lautaro-Arino.Laubrary.Shaper",
+        "com.Lautaro-Arino.Laubrary.Shaper.Editor",
         "com.Lautaro-Arino.Laubrary.Pyre.Shaper",
-        "com.Lautaro-Arino.Laubrary.ZuiRuntime"
+        "com.Lautaro-Arino.Laubrary.ZuiRuntime",
+        "com.Lautaro-Arino.Laubrary.Zui.Editor",
+        "ZUI.Editor"
     ],
     "includePlatforms": [
         "Editor"

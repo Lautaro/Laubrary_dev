@@ -303,10 +303,15 @@ namespace Laubrary.Pyre
             }
         }
 
-        static int Mix(int h, int v) { unchecked { return (h ^ v) * 16777619; } }
+        // PUBLIC (T-0183) so a host outside Pyre can hash a Pyre object it holds — Shaper's PyreLayerCompositeSource
+        // hosts a whole PyreLayer and has to invalidate its cache on any authored edit, and a PyreLayer carries
+        // [SerializeReference] ZUIValue dials that JsonUtility silently omits. Reusing this mixer rather than
+        // writing a second one is what keeps the two from disagreeing about what counts as a change. Behaviour is
+        // unchanged: visibility only, no logic touched.
+        public static int Mix(int h, int v) { unchecked { return (h ^ v) * 16777619; } }
         static int MixF(int h, float v) => Mix(h, v.GetHashCode());
 
-        static int MixValue(int h, object v)
+        public static int MixValue(int h, object v)
         {
             unchecked
             {

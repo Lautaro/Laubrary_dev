@@ -1046,6 +1046,31 @@ namespace Laubrary.Shaper.Editor
                     + "catalogued. Shown here, owned there.", note));
             }
 
+            // A generator family with a DESIGNED card draws it instead of the reflected dump below (T-0183).
+            // The window does not know which families those are — it asks the registry, so a hosted Pyre layer
+            // showing Pyre's own Solid / Light / Lines / Glow boxes needs no branch here. See
+            // ShaperCompositeSourceUI.cs for why this is a registry and not an `is` test.
+            var sourceUI = ShaperCompositeSourceUICatalog.For(c.source);
+            if (sourceUI != null)
+            {
+                sourceUI.Build(new ShaperSourceUIContext
+                {
+                    Body = box,
+                    UndoTarget = document,
+                    FrameCount = document != null ? document.frameCount : 0,
+                    CanvasExtent = document != null
+                        ? Mathf.Max(document.canvasWidth, document.canvasHeight) : 128f,
+                    Change = Change,
+                    Touch = () =>
+                    {
+                        if (document != null) EditorUtility.SetDirty(document);
+                        RefreshPreview();
+                    },
+                    Rebuild = Rebuild,
+                }, c.source);
+                return;
+            }
+
             // The generator's own dials. Folded into a keyed box because the biggest forms declare well over
             // a hundred fields and an unfolded dump would bury every other card on the page. FlowFields packs
             // them into shared rows rather than one control per row, which is the same row-packing rule the
