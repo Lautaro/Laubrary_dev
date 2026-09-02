@@ -14,8 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Chunks::Laubrary.Chunks.ChunkSpec
   schemaVersion: 1
   capabilities:
-  - rid: 1702917732139271078
+  - rid: 2235495221543567513
   directionDeg: 90
+  previewBackSplash:
+    cameraColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
+    image: {fileID: 0}
+    imageTint: {r: 1, g: 1, b: 1, a: 1}
+    imageZoom: 1
+    imagePos: {x: 0, y: 0}
   countMin: 12
   countMax: 22
   speedMin: 3.5
@@ -265,10 +271,10 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1702917732139271078
+    - rid: 2235495221543567513
       type: {class: DebrisScatter, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
-        id: c8a249c7a2b5405ab39e5f27b372b852
+        id: 3d68197f58b64ccc88a12c21f4956d46
         enabled: 1
         displayName: 
         delay: 0
@@ -289,21 +295,21 @@ MonoBehaviour:
         edgeThicknessPx: 1
         modifiers: []
         animationSource: {fileID: 0}
-        countMin: 12
-        countMax: 22
-        speedMin: 3.5
+        countMin: 10
+        countMax: 18
+        speedMin: 4
         speedMax: 8
         spreadDeg: 180
-        upwardBias: 2
-        gravity: 24
+        upwardBias: 1
+        gravity: 18
         drag: 0.5
-        angularSpeedMin: 180
-        angularSpeedMax: 720
+        angularSpeedMin: 90
+        angularSpeedMax: 480
         faceVelocity: 0
-        lifeMin: 0.6
-        lifeMax: 1.2
-        sizeMin: 0.06
-        sizeMax: 0.16
+        lifeMin: 0.35
+        lifeMax: 0.6
+        sizeMin: 0.05
+        sizeMax: 0.1
         sizeOverLife:
           serializedVersion: 2
           m_Curve:
@@ -363,8 +369,8 @@ MonoBehaviour:
           m_RotationOrder: 4
         colorOverLife:
           serializedVersion: 2
-          key0: {r: 1, g: 0.95, b: 0.7, a: 1}
-          key1: {r: 1, g: 0.5, b: 0.15, a: 1}
+          key0: {r: 1, g: 1, b: 1, a: 1}
+          key1: {r: 1, g: 1, b: 1, a: 1}
           key2: {r: 0, g: 0, b: 0, a: 0}
           key3: {r: 0, g: 0, b: 0, a: 0}
           key4: {r: 0, g: 0, b: 0, a: 0}
@@ -391,9 +397,9 @@ MonoBehaviour:
           m_ColorSpace: -1
           m_NumColorKeys: 2
           m_NumAlphaKeys: 2
-        useFloor: 1
-        floorY: -3.5
-        bounciness: 0.42
+        useFloor: 0
+        floorY: 0
+        bounciness: 0.35
         floorFriction: 0.5
         restOnFloor: 1
         seed: 0

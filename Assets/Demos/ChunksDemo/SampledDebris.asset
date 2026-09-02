@@ -14,8 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Chunks::Laubrary.Chunks.ChunkSpec
   schemaVersion: 1
   capabilities:
-  - rid: 1702917732139271075
+  - rid: 2235495221543567512
   directionDeg: 90
+  previewBackSplash:
+    cameraColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
+    image: {fileID: 0}
+    imageTint: {r: 1, g: 1, b: 1, a: 1}
+    imageZoom: 1
+    imagePos: {x: 0, y: 0}
   countMin: 10
   countMax: 18
   speedMin: 3
@@ -265,24 +271,24 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 1702917732139271075
+    - rid: 2235495221543567512
       type: {class: DebrisScatter, ns: Laubrary.Chunks, asm: com.Lautaro-Arino.Laubrary.Chunks}
       data:
-        id: 26e1c4aad2fe4b55b55efd80763e8d33
+        id: 719fd69fbce74d6bb89b2a43af44ac37
         enabled: 1
         displayName: 
         delay: 0
         layerName: 
-        visual: 0
+        visual: 2
         sprites: []
         pixelsPerUnit: 32
         sampleSource: {fileID: 0}
-        samplePxMin: 8
-        samplePxMax: 24
+        samplePxMin: 5
+        samplePxMax: 20
         tumble: 1
         tumbleSpeedMin: 180
-        tumbleSpeedMax: 450
-        tumbleShadeStrength: 0.7
+        tumbleSpeedMax: 720
+        tumbleShadeStrength: 0.6
         tintMode: 0
         tintColor: {r: 1, g: 0.35, b: 0.08, a: 1}
         tintStrength: 0.6
@@ -290,20 +296,20 @@ MonoBehaviour:
         modifiers: []
         animationSource: {fileID: 0}
         countMin: 10
-        countMax: 18
-        speedMin: 3
-        speedMax: 6
+        countMax: 16
+        speedMin: 2.5
+        speedMax: 5
         spreadDeg: 180
-        upwardBias: 1.5
-        gravity: 12
+        upwardBias: 1.2
+        gravity: 16
         drag: 0.5
         angularSpeedMin: 90
         angularSpeedMax: 540
         faceVelocity: 0
-        lifeMin: 1.2
-        lifeMax: 2
-        sizeMin: 0.35
-        sizeMax: 0.6
+        lifeMin: 0.6
+        lifeMax: 1
+        sizeMin: 0.08
+        sizeMax: 0.16
         sizeOverLife:
           serializedVersion: 2
           m_Curve:
@@ -392,7 +398,7 @@ MonoBehaviour:
           m_NumColorKeys: 2
           m_NumAlphaKeys: 2
         useFloor: 1
-        floorY: -3
+        floorY: 0
         bounciness: 0.35
         floorFriction: 0.5
         restOnFloor: 1
