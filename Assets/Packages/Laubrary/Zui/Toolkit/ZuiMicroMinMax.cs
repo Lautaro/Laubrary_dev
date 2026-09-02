@@ -163,6 +163,22 @@ namespace Laubrary.Zui
                     break;
                 default: // Both — pan, span held fixed, clamped so neither handle leaves [min,max]
                     float span = _panHigh - _panLow;
+                    // T-0204 — a band that already spans the WHOLE track (a fresh layer's default full-range
+                    // Lifetime: low==min, high==max) has nowhere to pan: `_max - span` equals `_min`, so the
+                    // clamp below always resolves to the same low/high pair and the drag is a silent no-op.
+                    // Since a full-width band also means almost every press classifies as Grab.Both (the only
+                    // way in is a razor-thin HandleGrabPx sliver at each edge), this made the control read as
+                    // "there is no way to change it" (owner) even though pointer events were arriving fine —
+                    // degrade to the same nearer-handle move an OUTSIDE-the-band press already gets, so a press
+                    // anywhere in a full (or nearly full) band still does something.
+                    if (span >= _max - _min - 1e-4f)
+                    {
+                        if (Mathf.Abs(x - XFromValue(_panLow)) <= Mathf.Abs(x - XFromValue(_panHigh)))
+                            SetValues(absolute ? ValueFromX(x) : _low + FineDelta(x), _high, notify: true);
+                        else
+                            SetValues(_low, absolute ? ValueFromX(x) : _high + FineDelta(x), notify: true);
+                        break;
+                    }
                     float target = absolute ? ValueFromX(x) - span * 0.5f
                         : _low + FineDelta(x);
                     target = Mathf.Clamp(target, _min, _max - span);

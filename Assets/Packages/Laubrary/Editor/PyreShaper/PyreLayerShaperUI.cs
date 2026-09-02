@@ -129,22 +129,31 @@ namespace Laubrary.PyreShaper.Editor
                 var box = Z.BoxKeyed(src.SourceLabel,
                     "Pyre's own Shape-section cards for this layer — the same controls, in the same boxes, as "
                     + "the Pyre window shows. Every envelope is read at each frame's own phase, so the layer "
-                    + "animates across the document's frames.",
+                    + "animates across the document's frames. Its own frame count and Life window are no "
+                    + "longer authored here: they follow the SHAPER LAYER above, so a Pyre shape hosted in "
+                    + "Shaper has exactly one lifetime.",
                     "shaper.window.composite.pyrelayer");
 
-                // How many frames the layer thinks it spans. It is the source's own dial, not the layer's, and
-                // it decides what the Life-window row below is measured in — so it is drawn FIRST, above the
-                // cards it scales, rather than lost among them.
-                // The MicroSlider carries its own caption, so it is NOT wrapped in a Z.Field — a field labelled
-                // the same as the control inside it is the redundant title the layout rules forbid.
-                box.Add(Z.MicroSlider("Layer frames", src.frames, 1f, 120f,
-                    "How many frames this layer's own animation spans. Match the document's Frames for exact "
-                    + "one-to-one playback; a smaller number plays the layer's whole life out sooner.",
-                    v => { ctx.Change(() => src.frames = Mathf.Max(1, Mathf.RoundToInt(v))); ctx.Rebuild(); },
-                    170f, showValue: true, decimals: 0));
+                // T-0204 — "Layer frames" and the Life-window row are GONE. The owner: "Pyre Box has its own
+                // Life (frames)?! Each layer can have its own lifetime as long as it's not larger than canvas
+                // framecount. What happens if a layer has 80 frames but the canvas 10? Makes no sense. This
+                // shouldn't be more complex than in Pyre." A hosted layer used to author a SECOND, independent
+                // frame axis and a SECOND Life window that could silently disagree with the Shaper layer's own
+                // Lifetime (BuildLayersSection, ShaperWindow.cs). Both are now silently kept in lock-step with
+                // the document/layer instead of exposed as a second pair of dials: `frames` always mirrors
+                // ctx.FrameCount (the document's own Frames), which is what makes `phase01 · (frames − 1)`
+                // land on the SAME frame index the document's own clock is on, and the hosted layer's own
+                // startFrame/endFrame mirror the Shaper layer's Lifetime verbatim (same document-frame space,
+                // same -1 "last frame" sentinel) once `frames` agrees. No Undo entry for this: it is bookkeeping
+                // that keeps two numbers equal, not an authored edit — the actual edit happened on the layer's
+                // own Lifetime row, which already recorded its own Undo.
+                bool changed = false;
+                if (ctx.FrameCount > 0 && src.frames != ctx.FrameCount) { src.frames = ctx.FrameCount; changed = true; }
+                if (src.layer.startFrame != ctx.LayerStartFrame) { src.layer.startFrame = ctx.LayerStartFrame; changed = true; }
+                if (src.layer.endFrame != ctx.LayerEndFrame) { src.layer.endFrame = ctx.LayerEndFrame; changed = true; }
+                if (changed) ctx.Touch();
 
                 var host = new CardHost(ctx, box, src);
-                PyreShapeCards.BuildLifeWindow(host, src.layer);
                 PyreShapeCards.BuildLegacyForm(host, src.layer);
 
                 ctx.Body.Add(box);

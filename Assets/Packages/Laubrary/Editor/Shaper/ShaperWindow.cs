@@ -232,10 +232,16 @@ namespace Laubrary.Shaper.Editor
             toggleBarHost = new VisualElement();
             root.Add(toggleBarHost);
 
-            // T-0187 — Tags renders BELOW the toggle bar, in its own permanently-placed row, so folding it
-            // never moves the bar above it (the owner: "the toggle bar jumps up and down if you toggle the
-            // tags"). The base builds TagsSection but, because AutoInsertTagsSection is overridden false
-            // below, leaves placing it to us instead of adding it above the toolbar/host split itself.
+            // T-0187 — Tags is PLACED below the toggle bar, in its own row, so folding it never moves the bar
+            // above it (the owner: "the toggle bar jumps up and down if you toggle the tags"). The base builds
+            // TagsSection but, because AutoInsertTagsSection is overridden false below, leaves placing it to
+            // us instead of adding it above the toolbar/host split itself.
+            //
+            // T-0204 — placement and bar membership are separate questions. Tags stays physically pinned here
+            // (still true above), but now ALSO joins RefreshToggleBar's roster, so the bar's own button can
+            // show/hide it in bulk like every other section — "Tags and View sections cannot be toggled in the
+            // taskbar. Why?" (owner). ZuiSectionToggleBar toggles a section's VISIBILITY wherever it already
+            // sits in the tree; it never moves it, so Tags folding via the bar still can't reposition the bar.
             if (TagsSection != null) root.Add(TagsSection);
 
             var left = new ScrollView(ScrollViewMode.Vertical);
@@ -280,16 +286,20 @@ namespace Laubrary.Shaper.Editor
         }
 
         // T-0187 — fixed roster and order: "the toggle bar should only have sections that almost all cases
-        // use" (owner). Tags no longer appears here at all — it renders below the bar via its own header
-        // fold (see BuildAsset) instead of being bar-controlled. Height and Mask no longer appear here
-        // either — they moved into the Layers section as per-layer cards (BuildLayersSection). Built as a
-        // label→section lookup rather than the old fixed interleave, so the exact order below is the only
-        // thing that decides what the bar shows and in what sequence, regardless of which file owns which
-        // section instance.
+        // use" (owner). Height and Mask no longer appear here — they moved into the Layers section as
+        // per-layer cards/toggles (BuildLayersSection). Built as a label→section lookup rather than the old
+        // fixed interleave, so the exact order below is the only thing that decides what the bar shows and in
+        // what sequence, regardless of which file owns which section instance.
+        //
+        // T-0204 — Tags and Views REJOIN the roster: both used to be permanently-placed, un-toggleable rows,
+        // and the owner asked why ("Tags and View sections cannot be toggled in the taskbar"). They are
+        // ordinary ZuiSections like every other bar entry — Tags happens to also stay physically placed BELOW
+        // the bar (BuildAsset) so folding it can never move the bar itself, which is a layout choice, not a
+        // reason to keep it out of the bar's own show/hide roster.
         static readonly string[] ToggleBarOrder =
         {
-            "Canvas", "Layers", "Shape", "Transform", "Fill", "Border",
-            "SpriteFX", "Global SpriteFX", "Swarm", "Lights", "Lighting",
+            "Views", "Canvas", "Layers", "Shape", "Transform", "Fill", "Border",
+            "SpriteFX", "Global SpriteFX", "Swarm", "Lights", "Lighting", "Tags",
         };
 
         void RefreshToggleBar()
@@ -303,6 +313,8 @@ namespace Laubrary.Shaper.Editor
                 ["Layers"] = layersSection,
                 ["Shape"] = shapeSection,
                 ["Transform"] = transformSection,
+                ["Views"] = viewsSection,
+                ["Tags"] = TagsSection,   // base ZuiAssetWindow field — see BuildAsset's own placement comment
             };
             foreach (var (label, section) in SectionBarEntries())   // the cards ShaperWindow.Sections.cs owns
                 byLabel[label] = section;
@@ -606,37 +618,35 @@ namespace Laubrary.Shaper.Editor
             root.Add(box);
         }
 
-        /// Rebuilds only the SELECTED layer's Z / Lifetime / Height / Mask cards (the pane below the layer
-        /// list), without touching the rest of the window — the layer-list row selection dot is refreshed
-        /// separately via RebuildLayerList(). Call both together when selection changes; call this alone when
-        /// only a card's own content needs to reflect a data edit that doesn't change WHICH layer is selected.
+        /// Rebuilds only the SELECTED layer's Lifetime/Z row and its Height/Mask cards (the pane below the
+        /// layer list), without touching the rest of the window — the layer-list row selection dot is
+        /// refreshed separately via RebuildLayerList(). Call both together when selection changes; call this
+        /// alone when only a card's own content needs to reflect a data edit that doesn't change WHICH layer
+        /// is selected.
+        ///
+        /// T-0204 — copies Pyre's own Layers-section model (Editor/Pyre/PyreWindow.cs:779-926): ONE row for
+        /// the selected layer, always visible and editable — Lifetime and Z stacked HORIZONTALLY ("Lifetime
+        /// and Z should stack horizontally", owner) — with Height and Mask as TOGGLES on that same row rather
+        /// than always-present cards ("Both mask and height create a whole section each without being used.
+        /// Make them a toggle right after the layer input box; if enabled the sections can show", owner). The
+        /// Height/Mask CARDS below the row exist only while their toggle is on — the same absence rule every
+        /// other card in this window already follows.
         void RefreshSelectedLayerCards()
         {
             if (selectedLayerCardsHost == null) return;
             selectedLayerCardsHost.Clear();
-            if (CurrentLayer == null) return;
+            var lay = CurrentLayer;
+            if (lay == null) return;
 
-            // T-0192 — the SELECTED layer's Z (depth) dial, on its own row below the list rather than crammed
-            // into every layer's row, where it overflowed a 3-column dial pane (see BuildLayerRow's comment
-            // for the width arithmetic). Not gated on frameCount — depth ordering matters on a still document
-            // too, unlike Lifetime below which is meaningless without a frame axis.
-            var zLay = CurrentLayer;
-            selectedLayerCardsHost.Add(Val("Z", "Moves the selected layer (“" + (zLay.name ?? "Layer") + "”) in "
-                + "depth, in canvas pixels, on top of its place in the list (layer index × layer spacing). It "
-                + "re-orders as well as shades: push a layer back far enough and the ones below it come "
-                + "through, and two raised shapes at different depths intersect along a curve instead of "
-                + "one hiding the other.", zLay.zOffset, -256f, 256f));
+            var row = new List<VisualElement>();
 
-            // T-0166 — the SELECTED layer's lifetime window, on its own row below the list rather than crammed
-            // into every layer's row (PM by-eye vet, pm-vet-wave2-light-crop.png: a bare unlabeled slider was
-            // overlapping the Dup button). Gated on frameCount > 1 like the transport — a still document has no
-            // frame axis for "outside its window" to mean anything against.
+            // T-0166/T-0185 — the SELECTED layer's lifetime window. Gated on frameCount > 1 like the transport
+            // — a still document has no frame axis for "outside its window" to mean anything against.
             if (document.frameCount > 1)
             {
-                var lay = CurrentLayer;
                 int lo = lay.startFrame;
                 int hi = lay.endFrame < 0 ? document.frameCount - 1 : lay.endFrame;
-                selectedLayerCardsHost.Add(Z.Field("Lifetime",
+                row.Add(Z.Field("Lifetime",
                     "The SELECTED layer's (“" + (lay.name ?? "Layer") + "”) frame lifetime window — "
                     + "the frames it contributes to. Outside this range the layer renders nothing, exactly as a "
                     + "disabled layer does.",
@@ -652,13 +662,81 @@ namespace Laubrary.Shaper.Editor
                         }), 200f, decimals: 0)));
             }
 
-            // T-0187 — Height and Mask stop being their own toggle-bar sections ("I get the feeling you
-            // shouldn't make them into sections... perhaps part of the layer item in the layer list", owner
-            // feedback) and become foldable cards here instead, right beside the Lifetime card, for the
-            // SELECTED layer only. Built in ShaperWindow.Sections.cs (same file that used to own them as
-            // sections) — this call site only decides WHERE they land now.
-            BuildHeightSection(selectedLayerCardsHost, CurrentLayer);
-            BuildMaskSection(selectedLayerCardsHost, CurrentLayer);
+            // T-0192 — the SELECTED layer's Z (depth) dial. Not gated on frameCount — depth ordering matters
+            // on a still document too, unlike Lifetime above which is meaningless without a frame axis.
+            row.Add(Val("Z", "Moves the selected layer (“" + (lay.name ?? "Layer") + "”) in "
+                + "depth, in canvas pixels, on top of its place in the list (layer index × layer spacing). It "
+                + "re-orders as well as shades: push a layer back far enough and the ones below it come "
+                + "through, and two raised shapes at different depths intersect along a curve instead of "
+                + "one hiding the other.", lay.zOffset, -256f, 256f));
+
+            // T-0187/T-0204 — Height and Mask are TOGGLES on this row now, not their own always-present cards.
+            // The card each one summons (BuildHeightSection/BuildMaskSection, ShaperWindow.Sections.cs)
+            // appears ONLY while its toggle is on — see the calls below.
+            row.Add(Z.Toggle("Height", "Extrude this layer's silhouette into relief. The card below appears "
+                + "while this is on.", lay.height != null,
+                v => { Change(() => lay.height = v ? new ShaperHeightDef() : null); RefreshSelectedLayerCards(); }));
+
+            row.Add(Z.Toggle("Mask", "Cut this layer with another layer of the same document. Turning this on "
+                + "opens the source picker; the card below appears once a source is picked.",
+                lay.mask != null && lay.mask.IsSet,
+                v =>
+                {
+                    if (v) { ShowMaskSourceMenu(lay); return; }
+                    Change(() => { if (lay.mask != null) lay.mask.sourceLayerId = 0; });
+                    RefreshSelectedLayerCards();
+                }));
+
+            // T-0204 — relocated out of the (now conditional) Mask card: whether this layer draws into the
+            // picture is a property of it being used as a mask SOURCE by some OTHER layer, unrelated to
+            // whether it has a mask of its own, so it must stay visible even when this layer's own Mask card
+            // is absent.
+            row.Add(Z.Toggle("Draws into the picture",
+                "Turn this off to make THIS layer a pure mask: it still resolves, and other layers may still "
+                + "be cut by it, but it never paints into the picture itself. Disabling the layer instead "
+                + "turns it off as a mask source too.",
+                lay.contributesToPicture, v => Change(() => lay.contributesToPicture = v)));
+
+            selectedLayerCardsHost.Add(Z.HGroup(row.ToArray()));
+
+            if (lay.height != null) BuildHeightSection(selectedLayerCardsHost, lay);
+            if (lay.mask != null && lay.mask.IsSet) BuildMaskSection(selectedLayerCardsHost, lay);
+        }
+
+        /// Opens the "which other layer masks this one" menu directly, for the Mask toggle's on-click
+        /// (T-0204): a mask cannot exist without a chosen source (the "never type a reference string" rule —
+        /// there is no meaningful "on but nothing picked" state), so turning the toggle on goes straight to
+        /// picking one instead of opening a card with nothing in it yet. The picker inside BuildMaskSection's
+        /// own card (ShaperWindow.Sections.cs) offers the same menu again, for switching to a different source
+        /// once one is already set.
+        void ShowMaskSourceMenu(ShaperLayer layer)
+        {
+            if (layer.mask == null) layer.mask = new ShaperLayerMask();
+            var m = layer.mask;
+
+            bool any = false;
+            for (int i = 0; i < document.layers.Count; i++)
+                if (document.layers[i] != null && document.layers[i] != layer) any = true;
+            if (!any)
+            {
+                ShowNotification(new GUIContent(
+                    "This document has no other layer to mask with. Add a second layer first."));
+                return;
+            }
+
+            var anchor = selectedLayerCardsHost;
+            var menu = Z.Menu(anchor).Width(240f);
+            for (int i = 0; i < document.layers.Count; i++)
+            {
+                var cand = document.layers[i];
+                if (cand == null || cand == layer) continue;
+                var captured = cand;
+                string nm = string.IsNullOrEmpty(cand.name) ? "Layer " + (i + 1) : cand.name;
+                menu.Item(nm, "Cut this layer with “" + nm + "”. " + ShaperLayerMask.SourceIsReadUnmasked,
+                    () => { Change(() => m.sourceLayerId = document.IdOf(captured)); RefreshSelectedLayerCards(); },
+                    @checked: captured.id != 0 && captured.id == m.sourceLayerId);
+            }
+            menu.Show();
         }
 
         void RebuildLayerList()
@@ -1025,12 +1103,7 @@ namespace Laubrary.Shaper.Editor
             stage.SelectedNode = () => CurrentNode;
             stage.SelectedLayerRoot = () => CurrentLayer?.root;
             stage.RecordUndo = () => { if (document != null) Undo.RegisterCompleteObjectUndo(document, "Move Shaper Node"); };
-            stage.Changed = () =>
-            {
-                if (document != null) EditorUtility.SetDirty(document);
-                stage.InvalidateFrameCache();
-                RefreshPreview();
-            };
+            stage.Changed = AfterEdit;
             // Only once the drag has settled: the Transform card's own numeric readout has to catch up with
             // where the handle was dropped, and rebuilding the panel mid-gesture would pull the control out
             // from under the pointer.
@@ -1446,18 +1519,39 @@ namespace Laubrary.Shaper.Editor
         {
             if (document != null) Undo.RegisterCompleteObjectUndo(document, "Edit Shaper Document");
             apply();
-            if (document != null) EditorUtility.SetDirty(document);
-            // T-0165 — every authored edit invalidates the preview frame cache before refreshing, so the
-            // scrubber never shows a frame cached from before the edit. Pure VIEW changes (scrub, zoom, frame
-            // border, backdrop) call RefreshPreview() directly instead and deliberately do NOT invalidate —
-            // that is the whole point of the cache existing.
-            stage?.InvalidateFrameCache();
-            filmstrip?.Invalidate();
-            InvalidateCherryThumbs();
             // T-0190 — an edit can change WHICH features have marks to show (enabling a swarm, giving it a
             // shape), so the reserved overlay strip is re-collected here rather than only on a full rebuild:
             // a toggle that appears one window-rebuild after the feature it belongs to reads as not existing.
             RefreshOverlayStrip();
+            AfterEdit();
+        }
+
+        /// <summary>
+        /// <b>The one thing that must happen after ANY authored mutation, wherever it was made.</b> Dirties the
+        /// asset, drops the caches the edit could have made stale, and re-renders. Every control that writes
+        /// authored data lands here — <see cref="Change"/> and <see cref="Val"/> for the hand-built cards, and
+        /// the reflection-drawn dials (a hosted generator's, a hosted Pyre layer's, an effect modifier's) and
+        /// the gradient control through their own hooks.
+        ///
+        /// <b>T-0201 — why this is a method and not four copies.</b> Those four reflection/gradient hooks did
+        /// <c>SetDirty</c> + <see cref="RefreshPreview"/> and nothing else. RefreshPreview reads THROUGH
+        /// <see cref="ShaperPreviewFrameCache"/>, so it re-served the frame rendered before the edit: an Orb or
+        /// Plasma Bloom dial, or any dial on a hosted Pyre layer, moved the data and left the picture exactly as
+        /// it was, until some unrelated edit that did route through <see cref="Change"/> flushed the cache and
+        /// every held-back edit appeared at once (the owner's "didn't make any difference until I disabled and
+        /// re-enabled Auto Exposure"). Invalidation is not a per-control decision; it belongs to the act of
+        /// editing, which is why it now has exactly one home.
+        ///
+        /// T-0165's distinction still holds and is the reason this is NOT folded into
+        /// <see cref="RefreshPreview"/>: a pure VIEW change (scrub, zoom, frame border, backdrop, playback)
+        /// calls RefreshPreview alone and must NOT invalidate, or the cache would never hold anything.
+        /// </summary>
+        internal void AfterEdit()
+        {
+            if (document != null) EditorUtility.SetDirty(document);
+            stage?.InvalidateFrameCache();
+            filmstrip?.Invalidate();
+            InvalidateCherryThumbs();
             RefreshFrameReadout();
             RefreshPreview();
         }
@@ -1487,18 +1581,10 @@ namespace Laubrary.Shaper.Editor
                 controlWidth = 170f, grow = true, cyclic = cyclic, decimals = decimals,
                 frameCount = document != null ? document.frameCount : 0,
             };
-            return Z.Value(label, v, o, tooltip,
-                () =>
-                {
-                    if (document != null) EditorUtility.SetDirty(document);
-                    // T-0165 — same reasoning as Change(): a ZUIValue edit is a data edit, so it invalidates
-                    // the frame cache too. Val() never routes through Change() itself (Z.Value manages its own
-                    // Undo timing via the second callback below), so this is hooked here instead.
-                    stage?.InvalidateFrameCache();
-                    filmstrip?.Invalidate();
-                    InvalidateCherryThumbs();
-                    RefreshPreview();
-                },
+            // T-0165 — a ZUIValue edit is a data edit, so it takes the same post-edit path as Change(). Val()
+            // never routes through Change() itself (Z.Value manages its own Undo timing via the second callback
+            // below), so AfterEdit is hooked here instead.
+            return Z.Value(label, v, o, tooltip, AfterEdit,
                 () => { if (document != null) Undo.RegisterCompleteObjectUndo(document, "Edit Shaper Document"); });
         }
 
@@ -1506,13 +1592,7 @@ namespace Laubrary.Shaper.Editor
         /// by dragging a point rather than by nudging two sliders. Same Undo/dirty/cache contract as Val.
         internal VisualElement Val2D(string label, string tooltip, ZUIValue x, ZUIValue y,
                                      ZuiValue2DControl.Options o)
-            => Z.Value2D(label, x, y, o, tooltip,
-                () =>
-                {
-                    if (document != null) EditorUtility.SetDirty(document);
-                    stage?.InvalidateFrameCache();
-                    RefreshPreview();
-                },
+            => Z.Value2D(label, x, y, o, tooltip, AfterEdit,
                 () => { if (document != null) Undo.RegisterCompleteObjectUndo(document, "Edit Shaper Document"); });
 
         /// Re-render the preview. T-0165 — this now reads through ShaperPreviewStage's own frame cache

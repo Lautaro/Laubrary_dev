@@ -1386,8 +1386,12 @@ namespace Laubrary.Shaper.Editor
                     Val("Bevel steps", "How many discrete steps a stepped bevel uses.",
                         h.bevelSteps, 1f, 16f, decimals: 0)));
 
+            // T-0204 — RefreshSelectedLayerCards(), not Rebuild(): this button turns the layer's own Height
+            // toggle back off (layer.height == null), which is exactly the transition the toggle itself makes
+            // — a full window Rebuild() here would be the same ZuiSectionToggleBar solo/quick-view-dropping
+            // bug T-0197 already fixed for layer selection, reintroduced through the back door.
             box.Add(Z.Button("Remove height", "Drop this layer's height stage and leave it flat.",
-                () => { Change(() => layer.height = null); Rebuild(); }));
+                () => { Change(() => layer.height = null); RefreshSelectedLayerCards(); }));
             root.Add(box);
         }
 
@@ -1433,12 +1437,16 @@ namespace Laubrary.Shaper.Editor
             if (s_layerCardDefaultedClosed.Add(key)) box.IsOpen = false;
             box.SetHeaderSuffix(() => ": " + (m.IsSet ? pickLabel : "none"));
 
+            // T-0204 — every one of these mutates m.sourceLayerId, i.e. whether this card is even still on
+            // screen (the Mask toggle's own absence rule reads m.IsSet), so they refresh the SAME pane the
+            // toggle refreshes (RefreshSelectedLayerCards) rather than the whole window: a full Rebuild() here
+            // is the ZuiSectionToggleBar solo/quick-view-dropping bug T-0197 already fixed for layer selection.
             Button pick = null;
             pick = Z.Button(pickLabel, pickTip, () =>
             {
                 var menu = Z.Menu(pick).Width(240f);
                 menu.Item("None", "Remove this layer's mask.",
-                    () => { Change(() => m.sourceLayerId = 0); Rebuild(); }, @checked: !m.IsSet);
+                    () => { Change(() => m.sourceLayerId = 0); RefreshSelectedLayerCards(); }, @checked: !m.IsSet);
                 for (int i = 0; i < document.layers.Count; i++)
                 {
                     var cand = document.layers[i];
@@ -1448,7 +1456,7 @@ namespace Laubrary.Shaper.Editor
                     menu.Item(nm, "Cut this layer with “" + nm + "”. " + ShaperLayerMask.SourceIsReadUnmasked,
                         // IdOf allocates the source's stable id on first reference, so it happens INSIDE the
                         // Undo scope — a Ctrl+Z takes the id back with the reference that caused it.
-                        () => { Change(() => m.sourceLayerId = document.IdOf(captured)); Rebuild(); },
+                        () => { Change(() => m.sourceLayerId = document.IdOf(captured)); RefreshSelectedLayerCards(); },
                         @checked: captured.id != 0 && captured.id == m.sourceLayerId);
                 }
                 menu.Show();
@@ -1458,7 +1466,7 @@ namespace Laubrary.Shaper.Editor
             var pickRow = Z.HGroup(Z.Field("Mask by", pickTip, pick));
             if (missing)
                 pickRow.Add(Z.Button("Clear", "Drop the reference to the deleted layer.",
-                    () => { Change(() => m.sourceLayerId = 0); Rebuild(); }));
+                    () => { Change(() => m.sourceLayerId = 0); RefreshSelectedLayerCards(); }));
             box.Add(pickRow);
 
             if (m.IsSet)

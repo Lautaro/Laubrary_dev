@@ -47,6 +47,14 @@ namespace Laubrary.Shaper.Editor
         /// The larger canvas edge in pixels, the natural upper bound for a positional or size dial.
         public float CanvasExtent;
 
+        /// T-0204 — the SELECTED layer's own Lifetime window (ShaperLayer.startFrame/endFrame, document-frame
+        /// space, -1 sentinel on <see cref="LayerEndFrame"/> meaning "the last frame"). A source that hosts a
+        /// whole sub-timeline of its own (a hosted Pyre layer's Life window) reads these instead of authoring
+        /// a second, independent lifetime that could disagree with the layer's — "Pyre Box has its own Life
+        /// (frames)?!" (owner). A source with no such concept simply never looks at them.
+        public int LayerStartFrame;
+        public int LayerEndFrame;
+
         /// One authored edit: record Undo, apply, mark dirty, refresh the preview. Every mutation a card makes
         /// goes through this — it is the window's single Undo contract, not a convenience.
         public Action<Action> Change;

@@ -57,12 +57,21 @@ namespace Laubrary.PyreShaper
         /// (<c>startFrame</c>/<c>endFrame</c>) is authored in FRAMES, and the envelopes' frame markers are drawn
         /// against a frame count. So the phase is mapped onto this many frames and the layer is rendered at that
         /// frame — the same "the sim spans this many steps" dial <see cref="FireCompositeSource.simFrames"/>
-        /// already carries. Set it to the document's own Frames and the mapping is exact; leave it lower and the
-        /// layer's whole animation plays out sooner.
+        /// already carries.
+        ///
+        /// <b>T-0204 — no longer an authored dial.</b> This used to be a user-facing "Layer frames" slider that
+        /// could disagree with the document's own Frames, which is exactly what let a hosted layer run a SECOND,
+        /// independent lifetime alongside the Shaper layer's own Lifetime ("Pyre Box has its own Life (frames)?!
+        /// ... This shouldn't be more complex than in Pyre.", owner). The editor card
+        /// (<c>Editor/PyreShaper/PyreLayerShaperUI.cs</c>'s Drawer) now silently keeps it equal to the document's
+        /// own <c>frameCount</c> on every rebuild, which is what makes <c>phase · (frames − 1)</c> land on the
+        /// document's own frame index — the field survives only because <see cref="Render"/> still needs a
+        /// frame count to convert phase into a frame index and a headless bake (no editor window ever opened)
+        /// must still see something sane here.
         /// </summary>
         [Min(1)]
-        [Tooltip("How many frames this layer's own animation spans. Match the document's Frames for an exact "
-               + "one-to-one playback; a smaller number plays the layer's whole life out before the document ends.")]
+        [Tooltip("How many frames this layer's own animation spans — kept equal to the document's own Frames "
+               + "automatically; no longer authored here.")]
         public int frames = 16;
 
         // The synthetic host spec. Pyre's renderer takes a whole Pyre asset, so hosting one layer means handing it
