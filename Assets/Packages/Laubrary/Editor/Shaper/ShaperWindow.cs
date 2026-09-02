@@ -270,7 +270,6 @@ namespace Laubrary.Shaper.Editor
             var right = new ScrollView(ScrollViewMode.Vertical);
             right.style.minWidth = 260f;
             right.style.minHeight = 0f;
-            right.contentContainer.style.flexGrow = 1f;
             BuildRight(right);
 
             // 560 initial divider, matching the mock's own measured reasoning: Shaper is a dense workbench and
@@ -994,9 +993,18 @@ namespace Laubrary.Shaper.Editor
             var previewSection = Z.Section("Preview",
                 "The whole document rendered at the current frame, through the same renderer the bake uses.",
                 "shaper.window.preview", icon: "eye");
-            previewSection.style.flexGrow = 1f;
+            // T-0195 — flexGrow:1 here used to be safe because `right` (this section's parent) had a definite
+            // height handed down from the Split. Now that `right` is a ScrollView (added this same task, so the
+            // Bake box stays reachable at a tall previewHeight), the content main-axis is unbounded, and a
+            // flexGrow child of an unbounded flex container resolves to ZERO height instead of "fill what's
+            // left" — every row below the stage (Frame/Zoom, transport, status, backdrop, cherry) collapsed
+            // onto the same Y and rendered stacked on top of one another (T-0199's walk caught this). The
+            // stage already carries its own explicit height, so nothing here needs to grow any more — the
+            // whole card is content-sized like everything else in a scroll view, and overflow scrolls instead.
+            previewSection.style.flexGrow = 0f;
+            previewSection.style.flexShrink = 0f;
             previewSection.style.minHeight = 0f;
-            previewSection.contentContainer.style.flexGrow = 1f;
+            previewSection.contentContainer.style.flexGrow = 0f;
             previewSection.contentContainer.style.minHeight = 0f;
 
             // `previewFrame` rather than `currentFrame`: under cherry framing the frame on screen is the
