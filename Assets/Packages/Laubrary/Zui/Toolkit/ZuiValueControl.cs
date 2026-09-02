@@ -255,8 +255,16 @@ namespace Laubrary.Zui
             row.AddToClassList("zui-row");
             row.style.alignItems = Align.FlexStart;
             if (!string.IsNullOrEmpty(label)) row.Add(FieldLabel(label));
-            if (_opt.grow) { body.style.flexGrow = 1f; body.style.flexShrink = 1f; }
-            else body.style.flexShrink = 0f;
+            // T-0192 — this method only ever builds the Static (a bare Z.MicroSlider) or MinMax body: a
+            // scalar value display, not a curve graph. `_opt.grow` exists for the CURVE/Steps/Oscillation
+            // envelope bodies (BuildCurve/BuildSteps/BuildOscillation, which size themselves directly and
+            // never call this method) — applying it here too used to let a solo Static Val balloon to fill
+            // its row exactly like a bare Dial()'d MicroSlider must never do (PM by-eye, shaper_3col.png:
+            // Rotation/Width/Specular/Thickness/Height Δ/Quantise/Extent ƒ all stretching while their
+            // row-mates stayed at the ~150-170px norm). A Static/MinMax body now always sits at its own
+            // explicit width, the same as Dial()'s bare MicroSlider.
+            body.style.flexGrow = 0f;
+            body.style.flexShrink = 0f;
             // The body is the row's last child and the control carries its own row margins: the zui-row child gap
             // after it would only widen this control past its controlWidth and add a second bottom margin, so a
             // value control packed beside plain MicroSliders would sit 6 px out of grid and 5 px taller than its row.

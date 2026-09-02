@@ -63,6 +63,14 @@ namespace Laubrary.AssetKit.Editor
         /// BuildAsset override can read it — e.g. to include it in its own ZuiSectionToggleBar.
         protected ZuiSection TagsSection { get; private set; }
 
+        /// True (default) — the base places the built Tags section into root itself, right after the
+        /// toolbar/create/rename rows, exactly as every current subclass (Pyre included) already relies on.
+        /// Override false when a subclass's own chrome needs Tags placed somewhere else in its layout (e.g.
+        /// below a toggle bar, so folding Tags never moves the bar above it — T-0187, ShaperWindow); the
+        /// base still BUILDS the section into TagsSection either way, it just stops adding it to root, and
+        /// the subclass becomes responsible for adding TagsSection into its own layout during BuildAsset.
+        protected virtual bool AutoInsertTagsSection => true;
+
         protected void SetAsset(T next)
         {
             if (ReferenceEquals(asset, next)) return;
@@ -138,7 +146,7 @@ namespace Laubrary.AssetKit.Editor
                 var tagIsland = new IMGUIContainer(() => LauTagField.Draw(asset));
                 tagIsland.style.flexShrink = 0f;
                 section.Add(tagIsland);
-                root.Add(section);
+                if (AutoInsertTagsSection) root.Add(section);
                 TagsSection = section;
             }
 

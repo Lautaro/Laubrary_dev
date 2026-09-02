@@ -41,6 +41,12 @@
 // Leaving Toggle Bar mode ENDS a sweep (the user's set goes back first, then the flag drops) — a sweep
 // that could be carried out of bar mode and back in would look like the user's own arrangement, and the
 // next right-click would save it over the real one.
+//
+// T-0197 — the SOLO set and its pre-solo snapshot are persisted the same way, for the same reason: a
+// window that rebuilds on nearly every edit (Shaper, unlike Pyre which rebuilds rarely) was recreating
+// this control mid-solo constantly, and `_solo`/`_preSolo` being instance-only fields meant every one of
+// those rebuilds silently dropped the solo the user had just set. Both are keyed by section LABEL like
+// the user selection above, for the same conditional-roster reason.
 using System;
 using System.Collections.Generic;
 using UnityEditor;
@@ -58,6 +64,8 @@ namespace Laubrary.Zui
         readonly string _modeKey;
         readonly string _quickKey;
         readonly string _userSelKey;
+        readonly string _soloKey;
+        readonly string _preSoloKey;
         readonly ZuiSegmented _mode;
         readonly ZuiSegmented _bar;
 
@@ -90,6 +98,8 @@ namespace Laubrary.Zui
             _modeKey = "ZuiSectionToggleBar." + prefsKey + ".barMode";
             _quickKey = "ZuiSectionToggleBar." + prefsKey + ".quickView";
             _userSelKey = "ZuiSectionToggleBar." + prefsKey + ".userSel";
+            _soloKey = "ZuiSectionToggleBar." + prefsKey + ".solo";
+            _preSoloKey = "ZuiSectionToggleBar." + prefsKey + ".preSolo";
             AddToClassList("zui-section-togglebar");
             style.width = new StyleLength(Length.Percent(100));
             style.flexDirection = FlexDirection.Row;
@@ -165,9 +175,34 @@ namespace Laubrary.Zui
             // that a domain reload wipes back to "everything open" while these prefs survive — so without
             // it a recompile silently loses the user's arrangement, and the first hand-toggle afterwards
             // saves the wrong set on top of it. In steady state it is a no-op: every hand-toggle already
-            // stored exactly this set. It also re-asserts the selection over a solo mask left behind by a
-            // rebuild that happened mid-solo (_solo/_preSolo are instance state and do not survive one).
-            if (BarMode) ApplyQuickView(Quick);
+            // stored exactly this set.
+            //
+            // T-0197 — solo takes priority over whatever quick view was showing: if a solo was active when
+            // this control was last torn down (a Rebuild() mid-solo, or a domain reload), restore THAT
+            // instead, before first layout, so nothing flashes and nothing resets under the user's cursor.
+            if (BarMode)
+            {
+                var soloLabels = LoadSoloLabels();
+                if (soloLabels != null)
+                    for (int i = 0; i < _sections.Length; i++)
+                        if (soloLabels.Contains(_sections[i].label)) _solo.Add(i);
+
+                if (_solo.Count > 0)
+                {
+                    var preSel = LoadPreSolo();
+                    _preSolo = new bool[_sections.Length];
+                    for (int i = 0; i < _sections.Length; i++)
+                        _preSolo[i] = preSel == null || !preSel.TryGetValue(_sections[i].label, out bool open) || open;
+
+                    ApplySoloMask();
+                    for (int i = 0; i < _sections.Length; i++)
+                        _bar.SegmentAt(i).EnableInClassList("zui-segmented__solo", _solo.Contains(i));
+                }
+                else
+                {
+                    ApplyQuickView(Quick);
+                }
+            }
         }
 
         void Apply()
@@ -208,13 +243,14 @@ namespace Laubrary.Zui
                 _preSolo = new bool[_sections.Length];
                 for (int i = 0; i < _sections.Length; i++)
                     _preSolo[i] = _sections[i].section != null && _sections[i].section.IsOpen;
+                SavePreSolo();
             }
+
+            SaveSolo();
 
             if (_solo.Count > 0)
             {
-                for (int i = 0; i < _sections.Length; i++)
-                    if (_sections[i].section != null) _sections[i].section.IsOpen = _solo.Contains(i);
-                _bar.SetOn(i => _solo.Contains(i));
+                ApplySoloMask();
             }
             else
             {
@@ -225,6 +261,15 @@ namespace Laubrary.Zui
                 _bar.SegmentAt(i).EnableInClassList("zui-segmented__solo", _solo.Contains(i));
         }
 
+        /// Push the current solo set onto every section and relight the bar — the same mask logic used both
+        /// from a live right-click (ToggleSolo) and when restoring a solo persisted from before a rebuild.
+        void ApplySoloMask()
+        {
+            for (int i = 0; i < _sections.Length; i++)
+                if (_sections[i].section != null) _sections[i].section.IsOpen = _solo.Contains(i);
+            _bar.SetOn(i => _solo.Contains(i));
+        }
+
         /// Restore every section to the snapshot taken when solo began. No-op if solo was never engaged.
         void RestoreNormal()
         {
@@ -233,6 +278,7 @@ namespace Laubrary.Zui
                 if (_sections[i].section != null) _sections[i].section.IsOpen = _preSolo[i];
             _bar.SetOn(i => _sections[i].section != null && _sections[i].section.IsOpen);
             _preSolo = null;
+            ClearPersistedSolo();
         }
 
         /// Drop every solo (e.g. the bar just left Toggle Bar mode), restoring the normal set.
@@ -329,6 +375,68 @@ namespace Laubrary.Zui
                 if (eq > 0) sel[entry.Substring(0, eq)] = entry[eq + 1] == '1';
             }
             return sel.Count > 0 ? sel : null;
+        }
+
+        // ── solo persistence (T-0197) ────────────────────────────────────────────────────────────────
+
+        /// Remember the CURRENT solo set, keyed by section label like SaveUserSelection above. An empty set
+        /// deletes the key rather than writing an empty string, so LoadSoloLabels' "nothing stored" and
+        /// "solo is empty" both read back as null without a separate sentinel.
+        void SaveSolo()
+        {
+            if (_solo.Count == 0) { EditorPrefs.DeleteKey(_soloKey); return; }
+            var sb = new System.Text.StringBuilder();
+            foreach (int i in _solo)
+            {
+                if (sb.Length > 0) sb.Append(';');
+                sb.Append(_sections[i].label);
+            }
+            EditorPrefs.SetString(_soloKey, sb.ToString());
+        }
+
+        /// The persisted solo set as labels, or null when nothing is soloed.
+        HashSet<string> LoadSoloLabels()
+        {
+            string s = EditorPrefs.GetString(_soloKey, string.Empty);
+            if (string.IsNullOrEmpty(s)) return null;
+            var set = new HashSet<string>(s.Split(';'));
+            return set.Count > 0 ? set : null;
+        }
+
+        /// Remember the pre-solo snapshot (the normal set to return to once every solo clears), keyed by
+        /// label exactly like SaveUserSelection — the snapshot is itself a label → visible selection.
+        void SavePreSolo()
+        {
+            if (_preSolo == null) { EditorPrefs.DeleteKey(_preSoloKey); return; }
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < _sections.Length; i++)
+            {
+                if (sb.Length > 0) sb.Append(';');
+                sb.Append(_sections[i].label).Append('=').Append(_preSolo[i] ? '1' : '0');
+            }
+            EditorPrefs.SetString(_preSoloKey, sb.ToString());
+        }
+
+        /// The persisted pre-solo snapshot as label → visible, or null when nothing is stored.
+        Dictionary<string, bool> LoadPreSolo()
+        {
+            string s = EditorPrefs.GetString(_preSoloKey, string.Empty);
+            if (string.IsNullOrEmpty(s)) return null;
+            var sel = new Dictionary<string, bool>();
+            foreach (string entry in s.Split(';'))
+            {
+                int eq = entry.LastIndexOf('=');
+                if (eq > 0) sel[entry.Substring(0, eq)] = entry[eq + 1] == '1';
+            }
+            return sel.Count > 0 ? sel : null;
+        }
+
+        /// Drop both persisted solo keys — called once the normal set is restored, so a later rebuild finds
+        /// nothing to re-engage.
+        void ClearPersistedSolo()
+        {
+            EditorPrefs.DeleteKey(_soloKey);
+            EditorPrefs.DeleteKey(_preSoloKey);
         }
 
         /// Repaint the "Toggle Bar" segment's state cue and rewrite its tooltip for the CURRENT state.

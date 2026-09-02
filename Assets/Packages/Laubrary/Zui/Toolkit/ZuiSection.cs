@@ -36,6 +36,9 @@ namespace Laubrary.Zui
         // ── optional collapsed-only header suffix (set by SetHeaderSuffix) ──
         Func<string> _headerSuffix;
 
+        // ── the help-icon element, kept so SetTooltip can update it alongside the header/title (T-0200) ──
+        Label _help;
+
         /// Raised after the user folds/unfolds this section by clicking its own header (never on a
         /// programmatic IsOpen set) — mirrors ZuiBox's ViewChanged. Lets an external "toggle bar" (a row of
         /// buttons that shows/hides sections in bulk) stay in sync when the user instead folds a section the
@@ -101,6 +104,7 @@ namespace Laubrary.Zui
                 var help = Z.HelpIcon(tooltip);
                 help.pickingMode = PickingMode.Ignore;
                 header.Add(help);
+                _help = help;
             }
 
             // Toggle via a Clickable manipulator rather than a raw PointerDownEvent. A bare
@@ -185,6 +189,19 @@ namespace Laubrary.Zui
 
         /// Re-evaluate the header-suffix provider now. No-op when none was set.
         public void RefreshHeaderSuffix() => Apply();
+
+        /// T-0200 — update the header's tooltip (and its help-icon, when the section was built with one) AFTER
+        /// construction, for a section whose true state — "no lights, so every layer renders unlit" is the
+        /// worked case — can only be known once the caller has looked at live data the constructor never saw.
+        /// The title's own tooltip is included so a mouse-over of either the icon-less text or the "?" reads
+        /// the same sentence. A section built with no tooltip (nothing to update) leaves the header silently as
+        /// it was — SetTooltip does not itself grow a help icon that was never there.
+        public void SetTooltip(string tooltip)
+        {
+            _header.tooltip = tooltip;
+            _title.tooltip = tooltip;
+            if (_help != null) _help.tooltip = tooltip;
+        }
 
         // ── header checkbox ──────────────────────────────────────────────────────────────────────────
 

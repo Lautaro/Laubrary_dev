@@ -812,6 +812,21 @@ namespace Laubrary.Zui
             return Row(lowField, slider, highField);
         }
 
+        /// The embedded-style range control the "MicroMinMax not built yet" note asked for: one two-handle
+        /// slider drawn in the MicroSlider idiom (label + "low – high" readout INSIDE the track, no flanking
+        /// numeric fields, no native `MinMaxSlider`). Use in place of Z.MinMax wherever a min/max pair should
+        /// read as compact as a single MicroSlider — `decimals: 0` + an int-rounding setter for a discrete
+        /// range (e.g. a frame window), same convention as Z.MicroSlider.
+        public static ZuiMicroMinMax MicroMinMax(string label, float low, float high, float min, float max,
+            string tooltip, Action<float, float> onChanged, float width = 150f, bool showValue = true,
+            float? lowDefault = null, float? highDefault = null, int decimals = -1, Action onBeforeMutate = null)
+        {
+            var s = new ZuiMicroMinMax(label, low, high, min, max, tooltip, onChanged, showValue,
+                lowDefault, highDefault, onBeforeMutate, decimals);
+            s.style.width = width;
+            return s;
+        }
+
         /// A collapsible framed section — the FoldoutBox pattern. The tooltip lands on the Foldout
         /// AND its internal disclosure Toggle (which does not inherit it — a known UI Toolkit trap).
         public static Foldout Foldout(string title, string tooltip, bool open, params VisualElement[] children)

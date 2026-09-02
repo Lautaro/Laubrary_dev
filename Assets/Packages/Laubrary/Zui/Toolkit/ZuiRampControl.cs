@@ -35,6 +35,7 @@ namespace Laubrary.Zui
         readonly IZuiRamp _ramp;
         readonly Strip _strip;
         readonly ZuiSegmented _mode;
+        readonly Button _library;
 
         // The width lesson from the deleted ZuiBandsControl: a strip sized for a narrow card gets CLIPPED at the
         // reflected card's column edge. This one starts at a readable minimum and takes whatever the pane gives it.
@@ -66,6 +67,16 @@ namespace Laubrary.Zui
             add.style.marginLeft = 6f;
             Add(add);
 
+            // T-0205 — the SAME project gradient library Z.Gradient's "★" reaches, via ZuiRampGradientBridge:
+            // "Load" replaces every stop with a saved gradient's colour keys (always exact — a Gradient has at
+            // most 8 keys, this ramp has no upper bound); "Save" pushes the ramp's own stops out as a Gradient
+            // (exact up to 8 stops, evenly subsampled beyond that — stated in the bridge's own file header).
+            // This does NOT touch this ramp's data on its own; it only acts when the author presses one of these.
+            _library = Z.Button("★", "This project's saved gradients — Load one into this ramp, or Save this "
+                                  + "ramp's stops as a new one.", OpenLibrary).W(AddWidth);
+            _library.style.marginLeft = 4f;
+            Add(_library);
+
             // Two short options => Segmented, never a dropdown and never MiniRadio (ui-layout-rules: control choice).
             var names = _ramp.BlendModeNames;
             if (names != null && names.Length > 0)
@@ -94,6 +105,17 @@ namespace Laubrary.Zui
         void EndGesture() => _gestureOpen = false;
         void Apply(Action edit) { edit(); _strip.MarkDirtyRepaint(); OnChanged?.Invoke(); }
         void Mutate(Action edit) { BeginGesture(); Apply(edit); EndGesture(); }
+
+        // T-0205 — opens the SAME saved-gradient popup Z.Gradient's "★" opens. "Save" reads this ramp's current
+        // stops (via the bridge, subsampled beyond 8 as stated in ZuiRampGradientBridge's header) and adds them
+        // to the shared ZuiGradientPresetLibrary; picking a saved entry REPLACES every stop on this ramp — one
+        // gesture, recorded through the normal Mutate() Undo wrapper, never applied silently.
+        void OpenLibrary()
+        {
+            ZuiGradientPresetPopup.Show(_library,
+                current: () => ZuiRampGradientBridge.ToGradient(_ramp),
+                apply: g => Mutate(() => ZuiRampGradientBridge.ApplyGradient(_ramp, g)));
+        }
 
         // ── the per-stop popover ─────────────────────────────────────────────────────────────────────────
 
