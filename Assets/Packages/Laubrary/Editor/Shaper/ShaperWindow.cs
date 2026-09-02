@@ -2,7 +2,8 @@
 //
 // Split as a partial class, mirroring how PyreWindow is split (PyreWindow.cs / .Forms.cs / .Preview.cs /
 // .Modifiers.cs / .CherryFraming.cs). This file owns:
-//   • the window, its one menu item, and the document binding
+//   • the window, its one menu item, and the ZuiAssetWindow chrome (library browser, New/Duplicate/Rename/
+//     Delete, Tags) that binds it to a document
 //   • the layout skeleton (toggle bar + split, left = authoring, right = preview/transport)
 //   • Canvas, Layers, and the selected layer's Shape/Transform cards
 //   • THE SHARED HELPERS every later file must use: Change / Dial / Val / RefreshPreview / Current*
@@ -26,6 +27,8 @@
 //   • The document is a ScriptableObject with no custom `name` field — use Object.name.
 using System;
 using System.Collections.Generic;
+using Laubrary.AssetKit.Editor;
+using Laubrary.PyreShaper;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
@@ -33,7 +36,10 @@ using UnityEngine.UIElements;
 
 namespace Laubrary.Shaper.Editor
 {
-    public partial class ShaperWindow : ZuiWindow
+    // On ZuiAssetWindow, the same base Pyre's window uses: it owns the asset chrome — a thumbnail browser of
+    // every document in the project, New into a conventional folder, Duplicate, Rename, Delete-behind-a-
+    // confirm, and a Tags section — so opening Shaper offers a library rather than an empty object field.
+    public partial class ShaperWindow : ZuiAssetWindow<ShaperDocument>
     {
         // Exactly ONE menu item, named for the tool. Nothing speculative — the project has repeatedly had to
         // hunt down and delete unrequested Laubrary/ entries.
@@ -44,11 +50,86 @@ namespace Laubrary.Shaper.Editor
             w.minSize = new Vector2(820f, 520f);
         }
 
-        // Serialized so the binding survives a domain reload — an EditorWindow field with [SerializeField]
-        // persists across recompiles, which is exactly what you want for "which asset am I editing".
-        [SerializeField] ShaperDocument document;
+        // The edited document is the BASE's asset — one binding, serialized there, so the browser, New,
+        // Duplicate, Rename and Delete all act on the same thing this window draws. Every partial reads
+        // `document`, so the whole tool follows the browser with no other change.
+        // The setter exists so an outside entry point can bind a document by writing the same name the rest of
+        // the tool reads; it routes to the base's SetAsset, which is what makes the browser, the toolbar and
+        // OnAssetChanged all agree about what is being edited.
+        ShaperDocument document { get => Current; set => SetAsset(value); }
         [SerializeField] int selectedLayer;
         [SerializeField] int currentFrame;
+
+        // ── the asset chrome (ZuiAssetWindow contract) ───────────────────────────────────────────────────
+
+        protected override string TypeLabel => "Shaper";
+        protected override string NewAssetName => "New Shaper";
+        protected override string DefaultFolder => "Assets/Shaper";
+
+        /// A document with no layer has nothing to render and no affordance that suggests what to do, so a
+        /// new one starts with a single primitive layer — the first run is the only run every user gets.
+        protected override void InitializeNewAsset(ShaperDocument item)
+        {
+            if (item == null) return;
+            item.layers.Add(NewLayer("Layer 1", item));
+        }
+
+        /// Browsing to another document must not carry the previous one's layer selection, frame or a running
+        /// playback loop — a stale layer index would land on a different shape, and a live tick would keep
+        /// driving the old asset's clock.
+        protected override void OnAssetChanged()
+        {
+            selectedLayer = 0;
+            currentFrame = 0;
+            playing = false;
+            EditorApplication.update -= PlaybackTick;
+        }
+
+        /// The browser cell. Rendered through the SAME document renderer as the preview and the bake, WITH
+        /// the effect applier the bridge assembly supplies — so a document whose look depends on its effects
+        /// is shown as it actually is. (ShaperDocument's own IVisualPreview cannot reach the applier from
+        /// Runtime; that path is the fallback for consumers outside this assembly.)
+        protected override Texture2D RenderThumbnail(ShaperDocument item)
+        {
+            if (item == null) return null;
+            int mid = Mathf.Clamp(item.frameCount / 2, 0, Mathf.Max(0, item.frameCount - 1));
+            return RenderDocumentInto(item, mid, null);
+        }
+
+        // A Shaper frame costs tens of milliseconds to evaluate, so this is deliberately paired with the
+        // base's default "hover to preview" mode rather than animating every cell at once.
+        protected override bool AnimateThumbnails => true;
+
+        protected override void UpdateAnimatedThumbnail(ShaperDocument item, Texture2D tex, double time)
+        {
+            if (item == null || tex == null || item.frameCount <= 1) return;
+            int f = ShaperClock.WrapFrame(
+                Mathf.Abs(Mathf.FloorToInt((float)(time * Mathf.Max(1f, item.frameRate)))), item.frameCount);
+            RenderDocumentInto(item, f, tex);
+        }
+
+        /// Render one frame into <paramref name="into"/>, or into a fresh texture when it is null (which the
+        /// base then owns and destroys). Point-filtered and unmipped, matching the preview stage and the
+        /// bake's own importer settings — a filtered thumbnail would lie about a pixel-art asset.
+        static Texture2D RenderDocumentInto(ShaperDocument doc, int frame, Texture2D into)
+        {
+            int w = Mathf.Max(1, doc.canvasWidth), h = Mathf.Max(1, doc.canvasHeight);
+            var px = ShaperDocumentRenderer.RenderFrame(doc, frame, ShaperEffectApplier.Instance);
+            if (px == null || px.Length != w * h) return into;
+
+            var tex = into;
+            if (tex == null)
+                tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
+                {
+                    filterMode = FilterMode.Point,
+                    hideFlags = HideFlags.HideAndDontSave,
+                };
+            else if (tex.width != w || tex.height != h) tex.Reinitialize(w, h);
+
+            tex.SetPixels32(px);
+            tex.Apply(false);
+            return tex;
+        }
 
         // ── transport ────────────────────────────────────────────────────────────────────────────────────
         bool playing;
@@ -68,6 +149,7 @@ namespace Laubrary.Shaper.Editor
 
         protected override void OnBeforeRebuild()
         {
+            base.OnBeforeRebuild();
             if (leftPane != null) carriedScroll = leftPane.scrollOffset;
             leftPane = null;
             // The stage owns a Texture2D. A rebuild drops the element without detaching it in every path, so
@@ -83,7 +165,10 @@ namespace Laubrary.Shaper.Editor
             stage?.Dispose();
         }
 
-        protected override void BuildUI(VisualElement root)
+        /// The per-document editor. The base owns everything above it — the toolbar, the New/Rename prompts,
+        /// the Tags section and the browser — and only calls this once a document is selected, so the empty
+        /// state IS the library browser rather than a disabled workbench.
+        protected override void BuildAsset(VisualElement root, ShaperDocument item)
         {
             root.style.minHeight = 0f;
 
@@ -94,17 +179,6 @@ namespace Laubrary.Shaper.Editor
             left.style.minWidth = 320f;
             left.style.minHeight = 0f;
             leftPane = left;
-
-            BuildDocumentBar(left.contentContainer);
-
-            if (document == null)
-            {
-                // The empty state is a first-class screen, not a neutral one: the document bar above already
-                // carries both ways out (pick an existing document, or create one), so there is no dead end.
-                root.Add(left);
-                RefreshToggleBar();
-                return;
-            }
 
             BuildCanvasSection(left.contentContainer);
             BuildLayersSection(left.contentContainer);
@@ -132,6 +206,9 @@ namespace Laubrary.Shaper.Editor
             // at build time which ones actually exist for the current node kind.
             var entries = new List<(string, ZuiSection)>
             {
+                // The base's Tags section is one of this tool's sections, so it folds from the same bar as
+                // the rest rather than sitting outside the tool's own chrome.
+                ("Tags", TagsSection),
                 ("Canvas", canvasSection),
                 ("Layers", layersSection),
                 ("Shape", shapeSection),
@@ -148,58 +225,7 @@ namespace Laubrary.Shaper.Editor
             view.schedule.Execute(() => view.scrollOffset = wanted).ExecuteLater(0);
         }
 
-        // ── document binding ─────────────────────────────────────────────────────────────────────────────
-
-        void BuildDocumentBar(VisualElement root)
-        {
-            var row = new VisualElement();
-            row.AddToClassList("zui-row");
-
-            row.Add(Z.Field("Document",
-                "The Shaper document this window edits. A document is a normal asset — pick one here, or "
-                + "create one with New.",
-                Z.Object<ShaperDocument>(document,
-                    "The Shaper document this window edits.",
-                    v =>
-                    {
-                        document = v;
-                        selectedLayer = 0;
-                        currentFrame = 0;
-                        playing = false;
-                        Rebuild();
-                    }, 240f)));
-
-            row.Add(Z.Button("New…",
-                "Create a new Shaper document asset and start editing it. Opens a save dialog for its "
-                + "location.",
-                CreateDocumentAsset));
-
-            row.Add(Z.Flexible());
-            root.Add(row);
-        }
-
-        void CreateDocumentAsset()
-        {
-            string path = EditorUtility.SaveFilePanelInProject(
-                "New Shaper Document", "Shaper Document", "asset",
-                "Where should the new Shaper document live?");
-            if (string.IsNullOrEmpty(path)) return;
-
-            var doc = CreateInstance<ShaperDocument>();
-            // A document with no layer has nothing to render and no affordance that suggests what to do, so a
-            // new one starts with a single primitive layer — the first run is the only run every user gets.
-            doc.layers.Add(NewLayer("Layer 1", doc));
-
-            AssetDatabase.CreateAsset(doc, path);
-            Undo.RegisterCreatedObjectUndo(doc, "Create Shaper Document");
-            AssetDatabase.SaveAssets();
-
-            document = doc;
-            selectedLayer = 0;
-            currentFrame = 0;
-            EditorGUIUtility.PingObject(doc);
-            Rebuild();
-        }
+        // ── document seeding ─────────────────────────────────────────────────────────────────────────────
 
         /// A layer with a null root resolves to nothing. FC-3.2 also guarantees a layer ROOT always owns a
         /// fill (the resolver substitutes ShaperFillDef.DefaultRootFill when the slot is empty), so a bare
@@ -578,6 +604,28 @@ namespace Laubrary.Shaper.Editor
                 Dial("Rate", "Playback rate in frames per second.", document.frameRate,
                     ShaperClock.MinFrameRate, ShaperClock.MaxFrameRate, v => document.frameRate = v, decimals: 0)));
 
+            // GIF export (T-0160, Pyre parity — PyreWindow.cs:557-584): the button opens a Save dialog and
+            // writes an animated GIF over the SAME playback order the Bake button writes to the sheet/clip
+            // (ShaperBaker.PlaybackOrder, cherry framing and blanks included). Scale/dither are window state
+            // (previewGifScale/previewGifDither, ShaperWindow.Preview.cs) — cosmetic to the export only, never
+            // read by the renderer, so they need no Undo/Change wrapper.
+            host.Add(Z.HGroup(
+                Z.Button("GIF…",
+                    "Export the whole animation as an animated GIF — transparent background, loops forever, at "
+                    + "the frame rate above. Opens a Save dialog for the file location.",
+                    ExportGif),
+                Z.MicroSlider("GIF scale", previewGifScale, 1f, 8f,
+                    "Nearest-neighbour upscale applied ONLY to the exported GIF (1–8×) — it does NOT change the "
+                    + "live preview, only the pixel size of the saved .gif file.",
+                    v => previewGifScale = Mathf.Clamp(Mathf.RoundToInt(v), 1, 8), 150f,
+                    showValue: true, decimals: 0),
+                Z.Toggle("GIF dither",
+                    "GIF transparency is one bit — every pixel is either fully opaque or fully invisible, so a "
+                    + "soft edge has to be kept or dropped. On (recommended) stipples the partly-transparent "
+                    + "band so soft rims and fades still read as fading; off cuts them at 50% opacity, which "
+                    + "turns a feathered edge into a hard silhouette. Export only — the live preview is unaffected.",
+                    previewGifDither, v => previewGifDither = v)));
+
             scrubber = Z.SliderInt(currentFrame, 0, max,
                 "Scrub to an exact frame. Dragging pauses playback and holds that frame.", v =>
                 {
@@ -635,6 +683,18 @@ namespace Laubrary.Shaper.Editor
             currentFrame = ShaperClock.WrapFrame(currentFrame + steps, Mathf.Max(1, document.frameCount));
             scrubber?.SetValueWithoutNotify(currentFrame);
             RefreshPreview();
+        }
+
+        // GIF export (T-0160, Pyre parity — PyreWindow.cs:665-672). The path comes from a user Save dialog
+        // (cancel = empty path = no-op); RevealInFinder opens the result folder. No AssetDatabase work here —
+        // if the user saves inside Assets/ the caller owns any import-refresh implications, matching Pyre.
+        void ExportGif()
+        {
+            if (document == null) return;
+            string path = EditorUtility.SaveFilePanel("Export GIF", "", (document.name ?? "Shaper") + ".gif", "gif");
+            if (string.IsNullOrEmpty(path)) return;
+            ShaperGif.Export(document, path, Mathf.Clamp(previewGifScale, 1, 8), previewGifDither);
+            EditorUtility.RevealInFinder(path);
         }
 
         void DoBake()
