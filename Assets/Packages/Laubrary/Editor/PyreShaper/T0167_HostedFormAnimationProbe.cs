@@ -4,8 +4,21 @@
 // ZUIValue dials actually animate over the Shaper phase now that PyreFormCompositeSource.Render resolves them
 // through PyreShaperEval.Eval instead of freezing at their static value. For every form: creates a fresh
 // instance, finds every public animatable ZUIValue field via reflection, switches each one to Curve mode with a
-// distinct 0->1 ramp (EnsureCurveDefaults, then forces yMin/yMax apart so the ramp is never a flat 0->0), renders
-// at phase 0 / 0.5 / 1 into a small buffer, and reports whether the three renders differ.
+// ramp spanning the field's OWN authored [Range] (EnsureCurveDefaults, then forces yMin/yMax apart so the ramp is
+// never a flat 0->0), renders at phase 0 / 0.5 / 1 into a small buffer, and reports whether the three renders
+// differ.
+//
+// Range-respecting, not a blanket 0..1: the first version of this probe pinned EVERY field's Curve to a literal
+// 0..1 span regardless of its own [Range] attribute. For a field whose real authored range sits nowhere near
+// [0,1] -- Scale [0.2,2], R0 [0.5,10 source px], Hi [0.3,16] -- that forced Lo and Hi to the SAME degenerate
+// number at every phase (Hi-Lo == 0, guarded to a tiny epsilon) and Scale/R0/RootR down to near-zero source px,
+// which on a source frame 150-300 px wide maps to a WELL sub-canvas-pixel blob radius no per-pixel sample could
+// ever land inside -- the jet family (RadialJetForm's default Corona variant, 700 slots into a 176 px frame) can
+// render fully transparent at every one of the three sampled phases purely from that scale collapse, which
+// LOOKS like "phase never reaches the draw" but is actually the probe dialling every jet form to a combination
+// no author could ever reach through the real ZUI slider (its own [Range] never lets Scale below 0.2 or R0 below
+// 0.5). Reading each field's own [Range(min,max)] for the Curve's Y span (falling back to 0..1 only when a field
+// carries none) keeps every forced dial inside the same bounds ZUI's own control would clamp it to.
 using System;
 using System.Reflection;
 using System.Text;
@@ -18,7 +31,9 @@ namespace Laubrary.PyreShaper.Editor
 {
     public static class T0167_HostedFormAnimationProbe
     {
-        const int W = 24, H = 24;
+        // Bumped from 24x24: the jet family's source frames run 144-300 px wide, and a too-small canvas leaves
+        // even a properly-mid-range-scaled blob sub-pixel (see the class doc above).
+        const int W = 64, H = 64;
 
         public static string RunAll()
         {
@@ -79,8 +94,10 @@ namespace Laubrary.PyreShaper.Editor
                     var v = (ZUIValue)f.GetValue(obj);
                     if (v == null) { v = new ZUIValue(); f.SetValue(obj, v); }
 
-                    v.yMin = 0f;
-                    v.yMax = 1f;
+                    var range = f.GetCustomAttribute<RangeAttribute>();
+                    v.yMin = range != null ? range.min : 0f;
+                    v.yMax = range != null ? range.max : 1f;
+                    if (v.yMax <= v.yMin) v.yMax = v.yMin + 1f; // never a flat ramp regardless of an odd Range
                     v.mode = ZUIValue.Mode.Curve;
                     v.points.Clear();
                     v.EnsureCurveDefaults(); // seeds (0, yMin) -> (1, yMax): guaranteed to differ across phase
