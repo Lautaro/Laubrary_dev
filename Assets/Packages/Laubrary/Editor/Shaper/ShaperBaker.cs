@@ -111,8 +111,14 @@ namespace Laubrary.Shaper.Editor
         /// finally, so no Undo record is needed and an exception mid-bake cannot leave the document scrubbed
         /// to some arbitrary frame.
         /// </summary>
+        /// <param name="bakeAnimationClip">T-0177 — the transport's Bake box lets the AnimationClip output be
+        /// skipped. The sheet is never optional: both clip formats slice their sprites from it, so it is
+        /// always produced regardless of these flags.</param>
+        /// <param name="bakeShaperClip">T-0177 — same as <paramref name="bakeAnimationClip"/>, for the
+        /// ShaperClip output (the only one of the two that preserves cherry framing).</param>
         public static BakeResult Bake(ShaperDocument doc, string folder = "Assets", string baseName = null,
-                                      float pixelsPerUnit = DefaultPixelsPerUnit)
+                                      float pixelsPerUnit = DefaultPixelsPerUnit,
+                                      bool bakeAnimationClip = true, bool bakeShaperClip = true)
         {
             var result = new BakeResult();
             if (doc == null)
@@ -247,31 +253,40 @@ namespace Laubrary.Shaper.Editor
             //    slot that holds for three beats is one key followed by three beats of silence, which is what
             //    a hold IS in a sprite curve, and a blank beat is a key with a null sprite (a SpriteRenderer
             //    with no sprite draws nothing).
+            //
+            //    T-0177 — SKIPPABLE via bakeAnimationClip: the Bake box lets a user who only wants the
+            //    cherry-preserving ShaperClip opt out of the AnimationClip Unity would otherwise also write.
             float fps = Mathf.Clamp(doc.frameRate, ShaperClock.MinFrameRate, ShaperClock.MaxFrameRate);
-            var clip = new AnimationClip { frameRate = fps };
-            var keys = new List<ObjectReferenceKeyframe>(order.Count);
-            Sprite previous = null;
-            bool first = true;
-            for (int beat = 0; beat < order.Count; beat++)
+            string clipPath = null;
+            int clipKeyCount = 0;
+            if (bakeAnimationClip)
             {
-                int f = order[beat];
-                Sprite s = null;
-                if (f != ShaperCherry.BlankFrame) spriteOfFrame.TryGetValue(f, out s);
-                if (!first && ReferenceEquals(s, previous)) continue;
-                keys.Add(new ObjectReferenceKeyframe { time = beat / fps, value = s });
-                previous = s;
-                first = false;
+                var clip = new AnimationClip { frameRate = fps };
+                var keys = new List<ObjectReferenceKeyframe>(order.Count);
+                Sprite previous = null;
+                bool first = true;
+                for (int beat = 0; beat < order.Count; beat++)
+                {
+                    int f = order[beat];
+                    Sprite s = null;
+                    if (f != ShaperCherry.BlankFrame) spriteOfFrame.TryGetValue(f, out s);
+                    if (!first && ReferenceEquals(s, previous)) continue;
+                    keys.Add(new ObjectReferenceKeyframe { time = beat / fps, value = s });
+                    previous = s;
+                    first = false;
+                }
+
+                var binding = new EditorCurveBinding { type = typeof(SpriteRenderer), path = "", propertyName = "m_Sprite" };
+                AnimationUtility.SetObjectReferenceCurve(clip, binding, keys.ToArray());
+
+                var settings = AnimationUtility.GetAnimationClipSettings(clip);
+                settings.loopTime = true;
+                AnimationUtility.SetAnimationClipSettings(clip, settings);
+
+                clipPath = UniquePath(dir, name, "anim");
+                AssetDatabase.CreateAsset(clip, clipPath);
+                clipKeyCount = keys.Count;
             }
-
-            var binding = new EditorCurveBinding { type = typeof(SpriteRenderer), path = "", propertyName = "m_Sprite" };
-            AnimationUtility.SetObjectReferenceCurve(clip, binding, keys.ToArray());
-
-            var settings = AnimationUtility.GetAnimationClipSettings(clip);
-            settings.loopTime = true;
-            AnimationUtility.SetAnimationClipSettings(clip, settings);
-
-            string clipPath = UniquePath(dir, name, "anim");
-            AssetDatabase.CreateAsset(clip, clipPath);
 
             // 6) the ShaperClip (T-0154). The AnimationClip above and this are NOT equivalent outputs, and the
             //    difference is not cosmetic:
@@ -294,21 +309,27 @@ namespace Laubrary.Shaper.Editor
             //    would CLAMP to sprite 2 and silently play the wrong picture. The array is therefore full
             //    frameCount length with unused slots left null — and a null draws nothing, which is already
             //    how the player renders an authored blank beat (:192).
-            var shaperClip = ScriptableObject.CreateInstance<ShaperClip>();
-            var clipFrames = new Sprite[Mathf.Max(1, doc.frameCount)];
-            foreach (var kv in spriteOfFrame)
-                if (kv.Key >= 0 && kv.Key < clipFrames.Length) clipFrames[kv.Key] = kv.Value;
-            shaperClip.frames = clipFrames;
-            shaperClip.frameRate = fps;
-            shaperClip.seed = doc.seed;
-            shaperClip.cherryEnabled = doc.cherryEnabled;
-            shaperClip.cherryFrames = doc.cherryFrames != null
-                ? new List<ShaperCherryFrame>(doc.cherryFrames) : new List<ShaperCherryFrame>();
-            shaperClip.cherryLoopDelaySeconds = doc.cherryLoopDelaySeconds;
-            shaperClip.sourceDocumentName = name;
+            // T-0177 — SKIPPABLE via bakeShaperClip. Unlike the AnimationClip, this is the ONLY output that can
+            // express cherry framing (file header, decision explained above) — the Bake box's tooltip says so.
+            string shaperClipPath = null;
+            if (bakeShaperClip)
+            {
+                var shaperClip = ScriptableObject.CreateInstance<ShaperClip>();
+                var clipFrames = new Sprite[Mathf.Max(1, doc.frameCount)];
+                foreach (var kv in spriteOfFrame)
+                    if (kv.Key >= 0 && kv.Key < clipFrames.Length) clipFrames[kv.Key] = kv.Value;
+                shaperClip.frames = clipFrames;
+                shaperClip.frameRate = fps;
+                shaperClip.seed = doc.seed;
+                shaperClip.cherryEnabled = doc.cherryEnabled;
+                shaperClip.cherryFrames = doc.cherryFrames != null
+                    ? new List<ShaperCherryFrame>(doc.cherryFrames) : new List<ShaperCherryFrame>();
+                shaperClip.cherryLoopDelaySeconds = doc.cherryLoopDelaySeconds;
+                shaperClip.sourceDocumentName = name;
 
-            string shaperClipPath = UniquePath(dir, name + " Clip", "asset");
-            AssetDatabase.CreateAsset(shaperClip, shaperClipPath);
+                shaperClipPath = UniquePath(dir, name + " Clip", "asset");
+                AssetDatabase.CreateAsset(shaperClip, shaperClipPath);
+            }
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -318,14 +339,18 @@ namespace Laubrary.Shaper.Editor
             result.clipPath = clipPath;
             result.shaperClipPath = shaperClipPath;
             result.sheetFrames = distinct.Count;
-            result.clipKeys = keys.Count;
+            result.clipKeys = clipKeyCount;
             result.columns = cols;
             result.rows = rows;
-            result.message = $"Baked '{name}' → sheet: {pngPath} · clip: {clipPath} · ShaperClip: {shaperClipPath} " +
-                             $"({distinct.Count} frames in a {cols}x{rows} sheet, {keys.Count} keys over " +
+            result.message = $"Baked '{name}' → sheet: {pngPath}" +
+                             (clipPath != null ? $" · clip: {clipPath}" : "") +
+                             (shaperClipPath != null ? $" · ShaperClip: {shaperClipPath}" : "") +
+                             $" ({distinct.Count} frames in a {cols}x{rows} sheet, {clipKeyCount} keys over " +
                              $"{order.Count} beats @ {fps}fps" +
                              (doc.cherryEnabled
-                                ? ", cherry sequence — the ShaperClip preserves its per-pass variation, the AnimationClip freezes pass 0"
+                                ? (bakeShaperClip
+                                    ? ", cherry sequence — the ShaperClip preserves its per-pass variation, the AnimationClip freezes pass 0"
+                                    : ", cherry sequence — NOT preserved by the outputs baked this time")
                                 : "") + ")";
             Debug.Log("[Shaper] " + result.message);
             EditorGUIUtility.PingObject(AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(pngPath));

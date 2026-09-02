@@ -686,10 +686,9 @@ namespace Laubrary.Shaper.Editor
             BuildBackdropPanel(root);
             if (document.frameCount > 1) root.Add(BuildCherryPanel());
 
-            root.Add(Z.Button("Bake",
-                "Bake this document to a sprite sheet PNG, an AnimationClip and a ShaperClip, beside the "
-                + "document's own asset. Never overwrites an existing bake — a repeat bake is versioned.",
-                DoBake));
+            // T-0177 — destination + PPU + per-output toggles (Sprite sheet PNG / AnimationClip / ShaperClip /
+            // GIF), each honest about whether it preserves cherry framing. Built in ShaperWindow.Bake.cs.
+            root.Add(BuildBakeBox());
         }
 
         /// What the preview should actually show. Under cherry framing that is the beat sequencer's resolved
@@ -867,19 +866,7 @@ namespace Laubrary.Shaper.Editor
             EditorUtility.RevealInFinder(path);
         }
 
-        void DoBake()
-        {
-            var result = ShaperBaker.Bake(document, pixelsPerUnit: document.pixelsPerUnit);
-            if (!result.ok)
-            {
-                Debug.LogError("[Shaper] Bake failed: " + result.message, document);
-                return;
-            }
-
-            Debug.Log($"[Shaper] Baked {result.sheetFrames} frame(s) → {result.sheetPath}", document);
-            var sheet = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(result.sheetPath);
-            if (sheet != null) EditorGUIUtility.PingObject(sheet);
-        }
+        // DoBake moved to ShaperWindow.Bake.cs (T-0177) — it now honours the Bake box's per-output toggles.
 
         // ── SHARED HELPERS — the contract for every ShaperWindow.*.cs file ───────────────────────────────
 
