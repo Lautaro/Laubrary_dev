@@ -54,22 +54,31 @@ namespace Laubrary.Shaper
         /// </summary>
         public static Color32[] RenderFrame(ShaperDocument doc, int frameIndex,
                                             IShaperEffectApplier effects = null)
-            => doc == null ? Array.Empty<Color32>()
-             : RenderPhase(doc, doc.PhaseOfFrame(ShaperClock.WrapFrame(frameIndex, Mathf.Max(1, doc.frameCount))),
-                           effects);
+        {
+            if (doc == null) return Array.Empty<Color32>();
+            int wrapped = ShaperClock.WrapFrame(frameIndex, Mathf.Max(1, doc.frameCount));
+            return RenderPhase(doc, doc.PhaseOfFrame(wrapped), effects, wrapped);
+        }
 
         /// <summary>
         /// Render at an explicit phase to straight-alpha sRGB pixels. Row 0 of the returned array is the BOTTOM
         /// row, matching both <see cref="ShaperSampleGrid"/>'s +Y-up sampling and <c>Texture2D.SetPixels32</c>,
         /// so nothing between the evaluator and a PNG needs to flip.
         /// </summary>
+        /// <param name="frameIndex">(T-0166) The RAW, already-wrapped frame this phase corresponds to, used only
+        /// to test each layer's <see cref="ShaperLayer.startFrame"/>/<see cref="ShaperLayer.endFrame"/> window.
+        /// -1 (the default) means "unknown" — the phase is inverted back to a frame index via
+        /// <c>phase01 × (frameCount − 1)</c>, ShaperClock's own mapping run in reverse, which is exact for every
+        /// phase this file itself ever produces (it always comes from <see cref="ShaperClock.PhaseOfFrame"/> on
+        /// an integer frame) and only approximates for a caller-supplied arbitrary phase — which is also the
+        /// case a lifetime window has no exact frame to test against anyway.</param>
         public static Color32[] RenderPhase(ShaperDocument doc, float phase01,
-                                            IShaperEffectApplier effects = null)
+                                            IShaperEffectApplier effects = null, int frameIndex = -1)
         {
             int n = SampleCount(doc);
             if (n == 0) return Array.Empty<Color32>();
             var px = new Color32[n];
-            RenderPhase(doc, phase01, px, effects);
+            RenderPhase(doc, phase01, px, effects, frameIndex);
             return px;
         }
 
@@ -88,12 +97,12 @@ namespace Laubrary.Shaper
         /// render is then bit-identical to one from before effects existed.
         /// </summary>
         public static void RenderPhase(ShaperDocument doc, float phase01, Color32[] outPixels,
-                                       IShaperEffectApplier effects = null)
+                                       IShaperEffectApplier effects = null, int frameIndex = -1)
         {
             int n = SampleCount(doc);
             if (n == 0 || outPixels == null || outPixels.Length < n) return;
             var acc = new float[n * FloatsPerSample];
-            RenderPhaseInto(doc, phase01, acc);
+            RenderPhaseInto(doc, phase01, acc, frameIndex);
             Encode(acc, outPixels, n);
 
             if (effects == null || doc.effects == null || doc.effects.Count == 0) return;
@@ -126,14 +135,36 @@ namespace Laubrary.Shaper
         /// index-addressed (the layer's own index is passed explicitly), so omitting one cannot shift another
         /// layer's binding.
         /// </summary>
-        public static void RenderPhaseInto(ShaperDocument doc, float phase01, float[] dst)
+        public static void RenderPhaseInto(ShaperDocument doc, float phase01, float[] dst, int frameIndex = -1)
         {
             int n = SampleCount(doc);
             if (n == 0 || dst == null || dst.Length < n * FloatsPerSample) return;
             Array.Clear(dst, 0, n * FloatsPerSample);
+
+            // T-0166 — the document background, composited FIRST so every layer paints over it. Uniform across
+            // every sample, so writing it directly is exactly what CompositeOver would do against a
+            // freshly-cleared (all-zero) destination — no need to build a whole-canvas source buffer for it.
+            if (doc.background.a > 0f)
+            {
+                ShaperSrgb.Decode(doc.background, out float br, out float bg, out float bb);
+                float ba = doc.background.a;
+                float pr = br * ba, pg = bg * ba, pb = bb * ba;
+                for (int i = 0; i < n; i++)
+                {
+                    int k = i * FloatsPerSample;
+                    dst[k + 0] = pr; dst[k + 1] = pg; dst[k + 2] = pb; dst[k + 3] = ba;
+                }
+            }
+
             if (doc.layers == null || doc.layers.Count == 0) return;
 
             int w = Mathf.Max(1, doc.canvasWidth), h = Mathf.Max(1, doc.canvasHeight);
+
+            // T-0166 — the frame this phase corresponds to, for each layer's lifetime window test below. See
+            // this method's own public overload doc for why an unknown (-1) index is inverted back from phase.
+            int fc = Mathf.Max(1, doc.frameCount);
+            int fi = frameIndex >= 0 ? frameIndex : Mathf.RoundToInt(phase01 * Mathf.Max(0, fc - 1));
+
             float savedPhase = doc.phase01;
             try
             {
@@ -147,6 +178,11 @@ namespace Laubrary.Shaper
                 {
                     var lay = doc.layers[li];
                     if (lay == null || !lay.enabled || lay.root == null) continue;
+
+                    // T-0166 — the layer's lifetime window. endFrame == -1 means "the document's last frame",
+                    // matching Pyre's own convention, so a window never needs updating when frameCount changes.
+                    int end = lay.endFrame < 0 ? fc - 1 : lay.endFrame;
+                    if (fi < lay.startFrame || fi > end) continue;
 
                     var fdoc = ShaperFillResolver.Resolve(lay.root, phase01, doc.seed, halfW, halfH,
                                                           ShaperQuantitySet.ShippedShapeEngine);
@@ -200,7 +236,8 @@ namespace Laubrary.Shaper
         public static void RenderFrameInto(ShaperDocument doc, int frameIndex, float[] dst)
         {
             if (doc == null) return;
-            RenderPhaseInto(doc, doc.PhaseOfFrame(ShaperClock.WrapFrame(frameIndex, Mathf.Max(1, doc.frameCount))), dst);
+            int wrapped = ShaperClock.WrapFrame(frameIndex, Mathf.Max(1, doc.frameCount));
+            RenderPhaseInto(doc, doc.PhaseOfFrame(wrapped), dst, wrapped);
         }
 
         /// <summary>

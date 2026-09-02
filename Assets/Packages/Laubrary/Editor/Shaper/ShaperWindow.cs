@@ -300,6 +300,20 @@ namespace Laubrary.Shaper.Editor
                         "Seed for this document's deterministic draws (0…2147483647).",
                         v => Change(() => document.seed = (uint)Mathf.Max(0, v)), 80f))));
 
+            box.Add(Z.HGroup(
+                Z.Field("Background",
+                    "Composited UNDER every layer, so a bake, a GIF and a baked clip all carry it. Transparent "
+                    + "by default. Distinct from the preview-only backdrop below — this one reaches the shipped "
+                    + "picture, that one never does.",
+                    Z.Color(document.background,
+                        "Composited UNDER every layer, so a bake, a GIF and a baked clip all carry it. "
+                        + "Transparent by default.",
+                        v => Change(() => document.background = v))),
+                Dial("PPU", "Screen pixels per world unit for a baked sprite — the same convention Pyre's own "
+                    + "pixelsPerUnit carries. Not the same as Pixel size above, which is a sampling density, not "
+                    + "a display scale.", document.pixelsPerUnit, 1f, 64f,
+                    v => document.pixelsPerUnit = Mathf.Clamp(Mathf.RoundToInt(v), 1, 64), decimals: 0)));
+
             root.Add(box);
         }
 
@@ -316,12 +330,27 @@ namespace Laubrary.Shaper.Editor
             box.Add(layerListHost);
             RebuildLayerList();
 
-            box.Add(Z.Button("+ Add layer", "Add a new layer above the current top layer.", () =>
-            {
-                Change(() => document.layers.Add(NewLayer("Layer " + (document.layers.Count + 1), document)));
-                selectedLayer = document.layers.Count - 1;
-                Rebuild();
-            }));
+            box.Add(Z.HGroup(
+                Z.Button("+ Add layer", "Add a new layer above the current top layer.", () =>
+                {
+                    Change(() => document.layers.Add(NewLayer("Layer " + (document.layers.Count + 1), document)));
+                    selectedLayer = document.layers.Count - 1;
+                    Rebuild();
+                }),
+                Z.Button("Duplicate", "Duplicate the selected layer just after itself (undoable).", () =>
+                {
+                    var src = CurrentLayer;
+                    if (src == null) return;
+                    Change(() =>
+                    {
+                        var copy = src.Clone();
+                        copy.name = (src.name ?? "Layer") + " copy";
+                        int at = Mathf.Clamp(selectedLayer + 1, 0, document.layers.Count);
+                        document.layers.Insert(at, copy);
+                        selectedLayer = at;
+                    });
+                    Rebuild();
+                })));
 
             root.Add(box);
         }
@@ -374,7 +403,44 @@ namespace Laubrary.Shaper.Editor
                 + "(layer index × layer spacing) to give its base plane. Signed — it can pull a layer forward "
                 + "as well as push it back.", layer.zOffset, -256f, 256f));
 
+            // T-0166 — the lifetime window, gated on frameCount > 1 like the transport: a still document has
+            // no frame axis for "outside its window" to mean anything against. -1 (endFrame's default) reads
+            // as "the document's last frame", so isInt's low/high fields still show real numbers rather than -1.
+            if (document.frameCount > 1)
+            {
+                int lo = layer.startFrame;
+                int hi = layer.endFrame < 0 ? document.frameCount - 1 : layer.endFrame;
+                row.Add(Z.MinMax(lo, hi, 0f, document.frameCount - 1,
+                    "This layer's lifetime window — the frames it contributes to. Outside this range the layer "
+                    + "renders nothing, exactly as a disabled layer does.",
+                    (newLo, newHi) => Change(() =>
+                    {
+                        layer.startFrame = Mathf.RoundToInt(newLo);
+                        // Only write a real endFrame when it no longer means "the last frame" — keeps an
+                        // unauthored window at its -1 default through a later frameCount change.
+                        int rh = Mathf.RoundToInt(newHi);
+                        layer.endFrame = rh >= document.frameCount - 1 ? -1 : rh;
+                    }), 90f, isInt: true));
+            }
+
             row.Add(Z.Flexible());
+
+            // Per-row Duplicate (T-0166, Pyre parity — PyreWindow.cs:887). Deep-clones THIS row's layer,
+            // inserts the copy just after it, and selects the copy. The Layers toolbar's own "Duplicate"
+            // button duplicates the SELECTED layer; this is the per-layer one, by the row it belongs to.
+            row.Add(Z.Button("Dup", "Duplicate this layer just after itself (undoable).", () =>
+            {
+                Change(() =>
+                {
+                    var copy = layer.Clone();
+                    copy.name = (layer.name ?? "Layer") + " copy";
+                    int at = Mathf.Clamp(li + 1, 0, document.layers.Count);
+                    document.layers.Insert(at, copy);
+                    selectedLayer = at;
+                });
+                Rebuild();
+            }).W(40f));
+
             row.Add(Z.Button("×", "Remove this layer.", () =>
             {
                 Change(() => document.layers.Remove(layer));
@@ -699,7 +765,7 @@ namespace Laubrary.Shaper.Editor
 
         void DoBake()
         {
-            var result = ShaperBaker.Bake(document);
+            var result = ShaperBaker.Bake(document, pixelsPerUnit: document.pixelsPerUnit);
             if (!result.ok)
             {
                 Debug.LogError("[Shaper] Bake failed: " + result.message, document);

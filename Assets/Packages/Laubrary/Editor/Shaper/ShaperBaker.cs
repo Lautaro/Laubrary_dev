@@ -26,9 +26,11 @@
 //    with [CreateAssetMenu], so Pyre's "bake beside the source asset" is finally expressible; Bake now
 //    derives its folder from the document's own asset path when the document is saved, and only falls back
 //    to the caller's folder when it is not (decision 3, updated).
-// 3. THERE IS STILL NO PIXELS-PER-UNIT. Pyre's spec carries pixelsPerUnit; ShaperDocument does not, and its
-//    pixelSize is canvas units per SAMPLE (LR-1.5) — a sampling density, not a display scale. Reusing it as
-//    PPU would be a category error that silently mis-scales every baked sprite (decision 1). Still open.
+// 3. THERE WAS NO PIXELS-PER-UNIT — FIXED (T-0166). ShaperDocument.pixelsPerUnit now carries it, distinct from
+//    pixelSize (a SAMPLING density, LR-1.5) by construction — a document author sets a display scale without
+//    touching sampling. The caller-facing `pixelsPerUnit` parameter below still exists and still defaults to
+//    DefaultPixelsPerUnit, for a caller with no document convention of its own to reach for; ShaperWindow's own
+//    Bake call now passes document.pixelsPerUnit explicitly (decision 1).
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -54,11 +56,10 @@ namespace Laubrary.Shaper.Editor
         public const string BakedMarker = LauAssetBrowser.BakedMarkerPrefix + "Shaper";
 
         /// <summary>
-        /// DECISION 1 (pixels per unit). The document cannot answer this: it has no PPU field, and its
-        /// <c>pixelSize</c> means canvas units per sample (LR-1.5), not screen pixels per world unit —
-        /// feeding it in as PPU would mis-scale every baked sprite while looking plausible. So the project
-        /// convention governs instead: 16, the PPU this project standardised on. Exposed as a Bake parameter
-        /// so a caller with a different convention is never forced through this default.
+        /// DECISION 1 (pixels per unit), UPDATED by T-0166. <see cref="ShaperDocument.pixelsPerUnit"/> now
+        /// answers this and <c>ShaperWindow</c>'s own Bake call passes it explicitly; this constant remains
+        /// the fallback for a caller with no document convention of its own (the project's own standard, 16,
+        /// matching <c>ShaperDocument.pixelsPerUnit</c>'s own default so the two never quietly disagree).
         /// </summary>
         public const float DefaultPixelsPerUnit = 16f;
 
@@ -167,7 +168,7 @@ namespace Laubrary.Shaper.Editor
                 // effects work existed to fix (T-0156). This overload still writes into the hoisted framePx,
                 // so the loop does not churn an output array per frame.
                 ShaperDocumentRenderer.RenderPhase(doc, doc.PhaseOfFrame(distinct[i]), framePx,
-                                                   ShaperEffectApplier.Instance);
+                                                   ShaperEffectApplier.Instance, distinct[i]);
                 BlitFrame(framePx, w, h, sheetPx, sheetW, i, cols, rows);
             }
 

@@ -57,6 +57,27 @@ namespace Laubrary.Shaper
         /// <summary>Canvas units per sample. 1 makes a "canvas pixel" in a dial equal a sample (LR-1.5).</summary>
         public float pixelSize = 1f;
 
+        /// <summary>
+        /// T-0166 — screen pixels per world unit, the same convention <c>Pyre.pixelsPerUnit</c> carries
+        /// (<c>Pyre.cs:1195</c>). NOT the same quantity as <see cref="pixelSize"/>, which is a SAMPLING
+        /// density (canvas units per sample); this is a DISPLAY scale, read by <c>ShaperBaker</c> when it
+        /// slices the baked sheet (<c>TextureImporter.spritePixelsPerUnit</c>) and, through the baked
+        /// <c>Sprite</c>'s own import setting, by every runtime consumer (<c>ShaperPlayer</c>,
+        /// <c>MirageRig.cs:289</c>) with no separate field needed on <c>ShaperClip</c>.
+        ///
+        /// Default 16 matches the project's own PPU convention (<c>ShaperBaker.DefaultPixelsPerUnit</c>,
+        /// already 16 before this field existed) so an existing document's bake is unchanged until authored.
+        /// </summary>
+        [Range(1, 64)] public int pixelsPerUnit = 16;
+
+        /// <summary>
+        /// T-0166 — composited UNDER every layer by <see cref="ShaperDocumentRenderer"/>, so a bake/GIF/clip
+        /// carries it. Distinct from <see cref="previewBackSplash"/>, which is preview-only and never reaches
+        /// a bake (see that field's own doc). Default fully transparent, so an existing document renders
+        /// bit-identically until authored.
+        /// </summary>
+        public Color background = new Color(0f, 0f, 0f, 0f);
+
         /// <summary>Ordered, bottom-most first. Order is authored data and no stage may reorder it.</summary>
         public List<ShaperLayer> layers = new List<ShaperLayer>();
 

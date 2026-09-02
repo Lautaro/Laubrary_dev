@@ -355,5 +355,97 @@ namespace Laubrary.Shaper
         /// <c>null</c> by default, so every existing document renders bit-identically to before.
         /// </summary>
         [SerializeReference] public ShaperHeightDef height;
+
+        /// <summary>
+        /// T-0166 — this layer's lifetime window, first frame INCLUSIVE. Honoured by
+        /// <see cref="ShaperDocumentRenderer"/>: a frame outside <see cref="startFrame"/>..<see cref="endFrame"/>
+        /// contributes nothing from this layer, exactly as a disabled layer does. Default 0 so an existing
+        /// document's window is the whole animation and nothing changes until authored.
+        /// </summary>
+        public int startFrame = 0;
+
+        /// <summary>Last frame INCLUSIVE, or <b>-1</b> for "the document's last frame" — matching Pyre's own
+        /// convention (<c>Pyre.cs:197-199</c>) so a window never needs updating when <c>frameCount</c> changes.</summary>
+        public int endFrame = -1;
+
+        /// <summary>
+        /// Deep copy for the layer list's Duplicate action (T-0166), so the copy shares no mutable reference
+        /// with its source. <b>Deliberately NOT a JsonUtility round-trip</b>, even though that is the shape
+        /// Pyre's own layer-duplicate task description suggests: JsonUtility does not serialize
+        /// <c>[SerializeReference]</c> fields at all — <see cref="ShaperNode.children"/>,
+        /// <see cref="ShaperCompositeDef.source"/>, this layer's own <see cref="root"/> and <see cref="height"/>
+        /// are every one of them <c>[SerializeReference]</c>, and ZUIValue's own clipboard code already
+        /// documents the failure mode a JsonUtility round-trip hits here: it "does not serialize managed
+        /// references at all" (<c>ZUIValue.cs:63-64</c>) — a JsonUtility clone of this layer would silently
+        /// come back with an EMPTY shape tree. <see cref="ShaperDeepClone"/> walks the real object graph
+        /// instead, so it clones a <c>[SerializeReference]</c> polymorphic field by its actual runtime type
+        /// with no special-casing needed, and shares (never clones) any <c>UnityEngine.Object</c> asset
+        /// reference it meets along the way, matching every other "Duplicate" in the codebase.
+        /// </summary>
+        public ShaperLayer Clone() => ShaperDeepClone.Clone(this);
+    }
+
+    /// <summary>
+    /// A small generic deep-clone over a plain C# object graph, built for <see cref="ShaperLayer.Clone"/> —
+    /// see that method's doc for why a JsonUtility round-trip cannot do this job. Value types (structs) and
+    /// strings are shared/copied by value (this engine's authored structs — Vector2, Color, ZUIEnvelopePoint —
+    /// carry no reference fields of their own); Lists and arrays are rebuilt element-by-element; every other
+    /// reference field is recursively cloned via its OWN <c>MemberwiseClone</c> plus field reflection, keyed
+    /// by the object's ACTUAL runtime type so a <c>[SerializeReference]</c> polymorphic field clones correctly
+    /// with no per-type special case. A <c>UnityEngine.Object</c> (an asset reference) is shared, never cloned.
+    /// </summary>
+    static class ShaperDeepClone
+    {
+        public static T Clone<T>(T obj) where T : class
+            => (T)CloneValue(obj, new Dictionary<object, object>());
+
+        static object CloneValue(object obj, Dictionary<object, object> seen)
+        {
+            if (obj == null) return null;
+            if (obj is UnityEngine.Object || obj is string) return obj;   // shared, never cloned
+
+            var type = obj.GetType();
+            if (type.IsValueType) return obj;   // struct: no reference fields in this engine's authored data
+
+            if (seen.TryGetValue(obj, out var already)) return already;
+
+            if (type.IsArray)
+            {
+                var srcArr = (Array)obj;
+                var elemType = type.GetElementType();
+                var dstArr = Array.CreateInstance(elemType, srcArr.Length);
+                seen[obj] = dstArr;
+                for (int i = 0; i < srcArr.Length; i++)
+                    dstArr.SetValue(elemType.IsValueType ? srcArr.GetValue(i) : CloneValue(srcArr.GetValue(i), seen), i);
+                return dstArr;
+            }
+
+            if (obj is System.Collections.IList list)
+            {
+                var dstList = (System.Collections.IList)Activator.CreateInstance(type);
+                seen[obj] = dstList;
+                var elemType = type.IsGenericType ? type.GetGenericArguments()[0] : typeof(object);
+                foreach (var item in list)
+                    dstList.Add(elemType.IsValueType ? item : CloneValue(item, seen));
+                return dstList;
+            }
+
+            var clone = MemberwiseCloneMethod.Invoke(obj, null);
+            seen[obj] = clone;
+            for (var t = type; t != null && t != typeof(object); t = t.BaseType)
+            {
+                foreach (var f in t.GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                                              | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly))
+                {
+                    if (f.FieldType.IsValueType || f.FieldType == typeof(string)) continue;
+                    var val = f.GetValue(obj);
+                    if (val != null) f.SetValue(clone, CloneValue(val, seen));
+                }
+            }
+            return clone;
+        }
+
+        static readonly System.Reflection.MethodInfo MemberwiseCloneMethod =
+            typeof(object).GetMethod("MemberwiseClone", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
     }
 }
