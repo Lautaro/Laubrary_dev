@@ -1412,18 +1412,14 @@ namespace Laubrary.Shaper.Editor
             {
                 absMin = lo, absMax = hi,
                 hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true,
-                // T-0186 set controlWidth 170f to match Pyre's own Val() (PyreWindow.cs:2589-2593) — kept.
-                // T-0192 turns `grow` back OFF: Pyre packs its Vals into wide multi-item rows where growing
-                // to share a row's slack is the point, but Shaper's dial pane reflows into ~360-500px
-                // ColumnFlow columns (ShaperWindow.cs:253) where most Vals sit ALONE in their row/column —
-                // there `grow`'s up-to-3.2× cap (544px) let a single control balloon to the whole column's
-                // width (PM by-eye, workspace/T-0180/walk2-03-strip-off.png: Rotation/Border Width/Half
-                // width/Lighting Intensity ×/etc. all doing this while paired Vals stayed at the 170px norm).
-                // ui-layout-rules' "No stretched controls; sane widths" says leftover row space is fine to
-                // leave — not something every control must fight to fill — so every Val in this window now
-                // sits at its explicit 170px norm (ZuiValueControl.cs's non-grow branch gives it a real
-                // `width`, not just min/max, so a parent's `align-items: stretch` cannot override it either).
-                controlWidth = 170f, grow = false, cyclic = cyclic, decimals = decimals,
+                // T-0186 — controlWidth 170f / grow true, matching Pyre's own Val() (PyreWindow.cs:2589-2593,
+                // pyre_1col.png: a solo envelope (Alpha, Radius) fills the row it has to itself, exactly like
+                // grow is meant to). T-0192 tried turning `grow` off here and confirmed by eye against Pyre's
+                // own reference captures that it undershoots Pyre's parity size — reverted; `grow` stays ON,
+                // matching Pyre. The real T-0192 overflow (a card's Z dial fighting Dup/× for space, PM
+                // by-eye workspace/T-0180/walk2-03-strip-off.png) was the layer row's own width budget, fixed
+                // by moving Z off every row (BuildLayerRow's comment), not by fighting Val's own sizing.
+                controlWidth = 170f, grow = true, cyclic = cyclic, decimals = decimals,
                 frameCount = document != null ? document.frameCount : 0,
             };
             return Z.Value(label, v, o, tooltip,
