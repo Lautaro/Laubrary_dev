@@ -792,7 +792,8 @@ namespace Laubrary.Shaper.Editor
                 "How far each instance can be displaced, in canvas pixels. Animate it to make the swarm "
                 + "spread out or gather over the document's frames.",
                 s.positionJitterX, s.positionJitterY,
-                new ZuiValue2DControl.Options().WithRange(0f, 128f, 0f, 128f).WithPlotSize(110f)
+                // T-0186 — dropped the 110px WithPlotSize override; matches Pyre's default 140px plot.
+                new ZuiValue2DControl.Options().WithRange(0f, 128f, 0f, 128f)
                     .WithDefault(new Vector2(24f, 24f)).WithPrefKey("shaper.swarm.positionJitter")));
 
             BuildSwarmShapeBox(box, s);
@@ -866,7 +867,8 @@ namespace Laubrary.Shaper.Editor
             box.Add(Val2D("Centre offset",
                 "Where the figure's centre sits, relative to the node's own position, in canvas pixels.",
                 s.spawnerOffsetX, s.spawnerOffsetY,
-                new ZuiValue2DControl.Options().WithRange(-128f, 128f, -128f, 128f).WithPlotSize(110f)
+                // T-0186 — dropped the 110px WithPlotSize override; matches Pyre's default 140px plot.
+                new ZuiValue2DControl.Options().WithRange(-128f, 128f, -128f, 128f)
                     .WithDefault(Vector2.zero).WithPrefKey("shaper.swarm.spawnerOffset")));
 
             if (!line && !path)

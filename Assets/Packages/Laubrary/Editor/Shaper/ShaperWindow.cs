@@ -686,20 +686,24 @@ namespace Laubrary.Shaper.Editor
                 Val2D("Translate", "Move this node's content, in canvas pixels. Animate it to make the node "
                     + "travel across the canvas over the document's frames.",
                     t.translateX, t.translateY,
-                    new ZuiValue2DControl.Options().WithRange(-ext, ext, -ext, ext).WithPlotSize(110f)
+                    // T-0186 — no plot-size override: Pyre's own Val2D (PyreWindow.cs:2607) never overrides it
+                    // either, so this now matches Pyre's default 140px plot (ZuiValue2DControl.Options.plotSize)
+                    // instead of the squished 110px this row used to pass. ZuiHGroup wraps, so a 360px column
+                    // still shows 2 envelopes per line rather than overflowing at the wider size.
+                    new ZuiValue2DControl.Options().WithRange(-ext, ext, -ext, ext)
                         .WithPrefKey("shaper.transform.translate")),
                 Val2D("Origin", "The point this node rotates and scales around, in canvas pixels.",
                     t.originX, t.originY,
-                    new ZuiValue2DControl.Options().WithRange(-ext, ext, -ext, ext).WithPlotSize(110f)
+                    new ZuiValue2DControl.Options().WithRange(-ext, ext, -ext, ext)
                         .WithPrefKey("shaper.transform.origin")),
                 Val2D("Scale", "Scale this node's content on each axis. 1 is unscaled. Animate it to make the "
                     + "node grow or shrink over the document's frames.",
                     t.scaleX, t.scaleY,
-                    new ZuiValue2DControl.Options().WithRange(0.05f, 4f, 0.05f, 4f).WithPlotSize(110f)
+                    new ZuiValue2DControl.Options().WithRange(0.05f, 4f, 0.05f, 4f)
                         .WithDefault(Vector2.one).WithPrefKey("shaper.transform.scale")),
                 Val2D("Skew", "Slant this node's content on each axis, in degrees.",
                     t.skewX, t.skewY,
-                    new ZuiValue2DControl.Options().WithRange(-80f, 80f, -80f, 80f).WithPlotSize(110f)
+                    new ZuiValue2DControl.Options().WithRange(-80f, 80f, -80f, 80f)
                         .WithPrefKey("shaper.transform.skew"))));
 
             box.Add(Val("Rotation", "Rotate this node's content around its origin, in degrees. Animate it to "
@@ -954,7 +958,10 @@ namespace Laubrary.Shaper.Editor
             {
                 absMin = lo, absMax = hi,
                 hideCurveTiming = true, hideCurveRange = true, hideLiveReadout = true,
-                controlWidth = 130f, grow = false, cyclic = cyclic, decimals = decimals,
+                // T-0186 — was controlWidth 130f / grow false, which squeezed the envelope well below Pyre's
+                // own Val() (PyreWindow.cs:2589-2593: controlWidth 170f, grow true). Match Pyre exactly so a
+                // curve/oscillation envelope renders at Pyre's size and grows to fill a packed row's slack.
+                controlWidth = 170f, grow = true, cyclic = cyclic, decimals = decimals,
                 frameCount = document != null ? document.frameCount : 0,
             };
             return Z.Value(label, v, o, tooltip,

@@ -165,7 +165,9 @@ namespace Laubrary.Shaper.Editor
                       + "degrees. Animate either axis to sweep the light over the document's frames."
                     : dirReason,
                 light.yaw, light.pitch,
-                new ZuiValue2DControl.Options().WithRange(0f, 360f, -90f, 90f).WithPlotSize(110f)
+                // T-0186 — dropped the 110px WithPlotSize override so this matches Pyre's default 140px plot
+                // (ZuiValue2DControl.Options.plotSize; Pyre's own Val2D never overrides it either).
+                new ZuiValue2DControl.Options().WithRange(0f, 360f, -90f, 90f)
                     .WithAxisLabels("Yaw", "Pitch").WithPrefKey("shaper.light.direction." + li));
             if (!isDirectional) dirRow.SetEnabled(false);
 
@@ -174,7 +176,7 @@ namespace Laubrary.Shaper.Editor
                     : "This Point light's absolute canvas position, X and Y, canvas pixels. Animate either axis "
                       + "to move the light over the document's frames.",
                 light.posX, light.posY,
-                new ZuiValue2DControl.Options().WithRange(-256f, 256f, -256f, 256f).WithPlotSize(110f)
+                new ZuiValue2DControl.Options().WithRange(-256f, 256f, -256f, 256f)
                     .WithPrefKey("shaper.light.position." + li));
             if (isDirectional) posRow.SetEnabled(false);
 
