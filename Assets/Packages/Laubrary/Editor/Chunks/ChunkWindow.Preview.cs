@@ -6,9 +6,11 @@
 // at wall-clock speed, everything that shows a time reads the same field, and dialling a card while it runs
 // changes the next frame rather than restarting the run.
 //
-// The stage's own drawing is a placeholder until the schematic lands: it paints the backdrop, the origin and
-// the playhead, which is exactly enough to see that the clock is moving and that the backdrop panel below it
-// is connected to something.
+// The stage draws a SCHEMATIC, not a rehearsal of the burst: where each capability throws things, how far and
+// in what order, at the instant the clock is on. It is worked out from the recipe every repaint (see
+// ChunkPreviewSim), which is what lets a dial moved mid-play change the very next frame instead of restarting
+// the run — nothing here is a cached render that would have to be thrown away and rebuilt.
+using System;
 using Laubrary.BackSplash;
 using Laubrary.BackSplash.Editor;
 using Laubrary.Mirage;
@@ -29,6 +31,31 @@ namespace Laubrary.Chunks.Editor
         VisualElement backdropHost;
         double lastTick;
 
+        // ── what the stage draws with ─────────────────────────────────────────────────────────────────────
+        // Both frames are reused for the life of the window: a preview that runs at wall-clock speed must not
+        // allocate a fresh scene graph sixty times a second.
+
+        ChunkPreviewFrame frame;
+        ChunkPreviewFrame reachScratch;
+
+        /// Bumped by InvalidatePreview — the one signal that says "the recipe is not what it was". Only the
+        /// measurements that must NOT be redone per frame (how far the recipe reaches, which sets the stage's
+        /// zoom) are keyed off it; the picture itself is recomputed from live data every repaint.
+        internal int previewGeneration;
+
+        float cachedReach = 1f;
+        int cachedReachGeneration = -1;
+        int cachedReachSpec;
+
+        /// Room left round the outermost thing the recipe throws, so a chunk at full reach is inside the
+        /// stage rather than clipped by its edge.
+        const float StageMargin = 1.18f;
+
+        /// The clock's own strip along the bottom edge. The playhead lives HERE rather than as a bar across
+        /// the picture: once the stage shows where things are in space, a vertical line sweeping across it
+        /// reads as a moving object in the scene, which is exactly the wrong thing for it to say.
+        const float StripHeight = 12f;
+
         /// The backdrop lives on the RECIPE, so the one a burst was tuned against comes back with the burst
         /// rather than with whichever window happened to be open. Allocated on first use so simply opening an
         /// older recipe never rewrites it.
@@ -47,6 +74,12 @@ namespace Laubrary.Chunks.Editor
         {
             previewSection = Z.Section("Preview",
                 "What this recipe puts on screen, over its own clock.", "Chunks.preview", "eye");
+
+            // A rebuild is the one moment worth re-measuring the assets the cards point at: a Pyre's own size
+            // is asked for by rendering its first frame, which is far too expensive to redo per dial edit, and
+            // far too stale to keep for the life of the editor.
+            ChunkPreviewSim.ClearCaches();
+            previewGeneration++;
 
             stage = new IMGUIContainer(() => DrawStage(c));
             stage.style.height = Mathf.Clamp(previewHeight, PreviewHeightMin, PreviewHeightMax);
@@ -211,9 +244,10 @@ namespace Laubrary.Chunks.Editor
 
         // ── the stage ─────────────────────────────────────────────────────────────────────────────────────
 
-        // A placeholder, deliberately honest about being one: it paints the backdrop the panel below edits,
-        // the origin every recipe has, and a bar that moves with the clock. The schematic that draws each
-        // capability's own guide replaces the middle of this method and nothing else.
+        // The picture is rebuilt from the recipe on every repaint rather than cached and invalidated, because
+        // the thing it has to survive is an edit MADE WHILE IT RUNS — and a cache is precisely the mechanism
+        // that shows a stale frame after one. Only the zoom is cached, because zooming in and out while the
+        // clock runs would make everything appear to move when nothing did.
         void DrawStage(ChunkSpec c)
         {
             var view = new Rect(0f, 0f, stage.contentRect.width, stage.contentRect.height);
@@ -221,18 +255,216 @@ namespace Laubrary.Chunks.Editor
 
             BackSplashPainter.Draw(view, Backdrop, new Color(0.1f, 0.1f, 0.12f));
 
-            var centre = new Vector2(view.width * 0.5f, view.height * 0.5f);
+            // The picture keeps the whole rect except the clock strip, so the stage's own height (owned by the
+            // resize bar, and by nothing else) is what decides how big the picture is.
+            var field = new Rect(0f, 0f, view.width, Mathf.Max(24f, view.height - StripHeight));
+            var centre = field.center;
+
+            float reach = StageReach(c);
+            float scale = Mathf.Min(field.width, field.height) / (2f * Mathf.Max(0.01f, reach) * StageMargin);
+
             var cross = new Color(1f, 1f, 1f, 0.35f);
             EditorGUI.DrawRect(new Rect(centre.x - 8f, centre.y - 1f, 16f, 2f), cross);
             EditorGUI.DrawRect(new Rect(centre.x - 1f, centre.y - 8f, 2f, 16f), cross);
 
-            float length = Mathf.Max(0.0001f, ChunkClock.Length(c));
-            float x = view.width * Mathf.Clamp01(previewTime / length);
-            EditorGUI.DrawRect(new Rect(x - 1f, 0f, 2f, view.height), new Color(1f, 0.75f, 0.2f, 0.8f));
+            DrawClockStrip(c, view);
+
+            if (Event.current.type != EventType.Repaint) return;
+
+            frame ??= new ChunkPreviewFrame();
+            ChunkPreviewSim.Build(c, previewTime, frame);
+            DrawGuides(frame, centre, scale);
 
             var label = new GUIStyle(EditorStyles.boldLabel);
             label.normal.textColor = new Color(1f, 1f, 1f, 0.75f);
             GUI.Label(new Rect(8f, 6f, view.width - 16f, 18f), c != null ? c.name : "", label);
+        }
+
+        /// How far the recipe reaches, in world units — cached, because it samples the whole clock and would
+        /// otherwise be paid for on every frame of playback. Recomputed only when the recipe changed, which
+        /// is also what stops the zoom drifting while the clock runs.
+        float StageReach(ChunkSpec c)
+        {
+            int id = c != null ? c.GetInstanceID() : 0;
+            if (cachedReachGeneration == previewGeneration && cachedReachSpec == id) return cachedReach;
+
+            reachScratch ??= new ChunkPreviewFrame();
+            cachedReach = ChunkPreviewSim.Reach(c, reachScratch);
+            cachedReachGeneration = previewGeneration;
+            cachedReachSpec = id;
+            return cachedReach;
+        }
+
+        // Painted back to front: aim cones, then flight paths, then the things themselves. Within each, the
+        // capability's own order — its Layer-Plan slot first, its place in the stack second — decides depth,
+        // so what draws in front on the stage is what will draw in front in the burst.
+        static readonly Comparison<ChunkGuide> ByOrder = (a, b) => a.order.CompareTo(b.order);
+        static readonly Comparison<ChunkGuidePath> PathsByOrder = (a, b) => a.order.CompareTo(b.order);
+
+        void DrawGuides(ChunkPreviewFrame f, Vector2 centre, float scale)
+        {
+            Vector2 ToScreen(Vector2 p) => new Vector2(centre.x + p.x * scale, centre.y - p.y * scale);
+
+            f.Guides.Sort(ByOrder);
+            f.Paths.Sort(PathsByOrder);
+
+            Handles.BeginGUI();
+            var previous = Handles.color;
+
+            for (int i = 0; i < f.Cones.Count; i++) DrawCone(f.Cones[i], ToScreen, scale);
+
+            for (int i = 0; i < f.Paths.Count; i++)
+            {
+                var path = f.Paths[i];
+                if (path.points == null || path.points.Length < 2) continue;
+                var line = new Vector3[path.points.Length];
+                for (int p = 0; p < path.points.Length; p++)
+                {
+                    var s = ToScreen(path.points[p]);
+                    line[p] = new Vector3(s.x, s.y, 0f);
+                }
+                Handles.color = Fade(path.color, path.alpha * 0.7f);
+                Handles.DrawAAPolyLine(1.5f, line);
+            }
+
+            for (int i = 0; i < f.Guides.Count; i++) DrawGuide(f.Guides[i], ToScreen, scale);
+
+            Handles.color = previous;
+            Handles.EndGUI();
+
+            DrawGuideLabels(f, ToScreen);
+        }
+
+        static void DrawGuide(ChunkGuide g, Func<Vector2, Vector2> toScreen, float scale)
+        {
+            var at = toScreen(g.pos);
+            float r = Mathf.Max(1.5f, g.radius * scale);   // a guide smaller than this is a fleck nobody can see
+            Handles.color = Fade(g.color, g.alpha);
+
+            switch (g.shape)
+            {
+                case ChunkGuideShape.Square:
+                {
+                    // An oriented square rather than a dot, so a spinning chunk reads as spinning: the
+                    // rotation is the only thing on a schematic that can show spin at all.
+                    float rad = -g.angleDeg * Mathf.Deg2Rad;     // screen y runs down, so the turn inverts
+                    float cos = Mathf.Cos(rad) * r, sin = Mathf.Sin(rad) * r;
+                    var quad = new[]
+                    {
+                        new Vector3(at.x - cos + sin, at.y - sin - cos, 0f),
+                        new Vector3(at.x + cos + sin, at.y + sin - cos, 0f),
+                        new Vector3(at.x + cos - sin, at.y + sin + cos, 0f),
+                        new Vector3(at.x - cos - sin, at.y - sin + cos, 0f),
+                    };
+                    Handles.DrawAAConvexPolygon(quad);
+                    break;
+                }
+                case ChunkGuideShape.Dot:
+                    Handles.DrawSolidDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, Mathf.Max(1f, r));
+                    break;
+                case ChunkGuideShape.Disc:
+                    // Footprint, not a solid object: a recipe's whole point is several blasts overlapping,
+                    // and an opaque disc would hide every one behind the last one drawn. The rim carries the
+                    // size and the fade; the fill only says "something is here".
+                    Handles.color = Fade(g.color, g.alpha * 0.3f);
+                    Handles.DrawSolidDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);
+                    Handles.color = Fade(g.color, Mathf.Min(1f, g.alpha * 1.1f));
+                    Handles.DrawWireDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);
+                    break;
+                case ChunkGuideShape.Ring:
+                    Handles.DrawWireDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);
+                    break;
+            }
+        }
+
+        static void DrawCone(ChunkGuideCone cone, Func<Vector2, Vector2> toScreen, float scale)
+        {
+            var at = toScreen(cone.pos);
+            float r = Mathf.Max(6f, cone.radius * scale);
+
+            // The wedge is faint context; the arrow down its middle is the part that answers "which way".
+            // A cone that covers the whole circle is drawn as an OUTLINE rather than a filled disc: a full
+            // circle says "every direction", and painting it solid buries every guide inside it under the one
+            // statement that constrains them least.
+            if (cone.halfSpreadDeg >= 179.5f)
+            {
+                Handles.color = Fade(cone.color, cone.alpha * 0.45f);
+                Handles.DrawWireDisc(new Vector3(at.x, at.y, 0f), Vector3.forward, r);
+            }
+            else
+            {
+                int steps = Mathf.Clamp(Mathf.CeilToInt(cone.halfSpreadDeg * 2f / 6f), 2, 64);
+                var wedge = new Vector3[steps + 2];
+                wedge[0] = new Vector3(at.x, at.y, 0f);
+                for (int i = 0; i <= steps; i++)
+                {
+                    float a = (cone.centreDeg - cone.halfSpreadDeg + 2f * cone.halfSpreadDeg * i / steps) * Mathf.Deg2Rad;
+                    wedge[i + 1] = new Vector3(at.x + Mathf.Cos(a) * r, at.y - Mathf.Sin(a) * r, 0f);
+                }
+                Handles.color = Fade(cone.color, cone.alpha * 0.18f);
+                Handles.DrawAAConvexPolygon(wedge);
+            }
+
+            float rad = cone.centreDeg * Mathf.Deg2Rad;
+            var tip = new Vector3(at.x + Mathf.Cos(rad) * r, at.y - Mathf.Sin(rad) * r, 0f);
+            var head = 8f;
+            Handles.color = Fade(cone.color, Mathf.Min(1f, cone.alpha * 1.4f));
+            Handles.DrawAAPolyLine(2f, new Vector3(at.x, at.y, 0f), tip);
+            Handles.DrawAAPolyLine(2f,
+                new Vector3(tip.x - Mathf.Cos(rad - 0.4f) * head, tip.y + Mathf.Sin(rad - 0.4f) * head, 0f),
+                tip,
+                new Vector3(tip.x - Mathf.Cos(rad + 0.4f) * head, tip.y + Mathf.Sin(rad + 0.4f) * head, 0f));
+        }
+
+        // A formation's numbers say the order the points GO OFF in, so changing the stagger order renumbers
+        // the picture rather than leaving the labels describing a sweep that no longer happens.
+        void DrawGuideLabels(ChunkPreviewFrame f, Func<Vector2, Vector2> toScreen)
+        {
+            var style = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleCenter };
+            style.normal.textColor = new Color(1f, 1f, 1f, 0.9f);
+            for (int i = 0; i < f.Guides.Count; i++)
+            {
+                var g = f.Guides[i];
+                if (string.IsNullOrEmpty(g.label)) continue;
+                var at = toScreen(g.pos);
+                GUI.Label(new Rect(at.x - 12f, at.y - 8f, 24f, 16f), g.label, style);
+            }
+        }
+
+        /// The clock along the bottom edge: how far through the recipe we are, plus a tick for every cue.
+        /// A cue gets no mark on the picture itself — it is a sound or a code hook, and it happens at a
+        /// moment, not at a place.
+        void DrawClockStrip(ChunkSpec c, Rect view)
+        {
+            var strip = new Rect(0f, view.height - StripHeight, view.width, StripHeight);
+            EditorGUI.DrawRect(strip, new Color(0f, 0f, 0f, 0.45f));
+
+            float length = Mathf.Max(0.0001f, ChunkClock.Length(c));
+
+            var stack = c != null ? c.capabilities : null;
+            if (stack != null)
+                for (int i = 0; i < stack.Count; i++)
+                {
+                    if (!(stack[i] is Cues cues) || !cues.enabled || cues.cues == null) continue;
+                    for (int m = 0; m < cues.cues.Count; m++)
+                    {
+                        var cue = cues.cues[m];
+                        if (cue == null || cue.IsEmpty) continue;
+                        float cx = strip.x + strip.width * Mathf.Clamp01(cue.time / length);
+                        bool crossing = Mathf.Abs(previewTime - cue.time) < 0.1f;
+                        EditorGUI.DrawRect(new Rect(cx - 1f, strip.y + 2f, 2f, strip.height - 4f),
+                            crossing ? new Color(1f, 1f, 1f, 0.95f) : new Color(0.6f, 0.85f, 1f, 0.6f));
+                    }
+                }
+
+            float x = strip.x + strip.width * Mathf.Clamp01(previewTime / length);
+            EditorGUI.DrawRect(new Rect(x - 1f, strip.y, 2f, strip.height), new Color(1f, 0.75f, 0.2f, 0.95f));
+        }
+
+        static Color Fade(Color c, float alpha)
+        {
+            c.a = Mathf.Clamp01(alpha);
+            return c;
         }
 
         // ── backdrop ──────────────────────────────────────────────────────────────────────────────────────

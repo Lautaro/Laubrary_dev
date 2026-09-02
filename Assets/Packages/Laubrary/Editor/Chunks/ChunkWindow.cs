@@ -244,7 +244,14 @@ namespace Laubrary.Chunks.Editor
         /// What the preview drew is out of date. The stage repaints from live data, so this is a repaint
         /// request rather than a cache drop — and it never stops or resets the clock, because dialling while
         /// something is playing has to change the next frame, not restart the run.
-        internal void InvalidatePreview() => stage?.MarkDirtyRepaint();
+        internal void InvalidatePreview()
+        {
+            // The picture itself is recomputed from live data every repaint, so it needs nothing dropped. The
+            // counter is for the one thing that CANNOT be redone per frame — how far the recipe reaches, which
+            // sets the stage's zoom — and which must not go stale after an edit either.
+            previewGeneration++;
+            stage?.MarkDirtyRepaint();
+        }
 
         void RestoreScroll(Vector2 offset)
         {
