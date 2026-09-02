@@ -53,11 +53,12 @@ namespace Laubrary.Shaper
         /// (T-0144 consolidated that into <see cref="ShaperClock"/> precisely so it could not drift).
         /// </summary>
         public static Color32[] RenderFrame(ShaperDocument doc, int frameIndex,
-                                            IShaperEffectApplier effects = null)
+                                            IShaperEffectApplier effects = null,
+                                            ShaperRenderBufferPool pool = null)
         {
             if (doc == null) return Array.Empty<Color32>();
             int wrapped = ShaperClock.WrapFrame(frameIndex, Mathf.Max(1, doc.frameCount));
-            return RenderPhase(doc, doc.PhaseOfFrame(wrapped), effects, wrapped);
+            return RenderPhase(doc, doc.PhaseOfFrame(wrapped), effects, wrapped, pool);
         }
 
         /// <summary>
@@ -73,12 +74,13 @@ namespace Laubrary.Shaper
         /// an integer frame) and only approximates for a caller-supplied arbitrary phase — which is also the
         /// case a lifetime window has no exact frame to test against anyway.</param>
         public static Color32[] RenderPhase(ShaperDocument doc, float phase01,
-                                            IShaperEffectApplier effects = null, int frameIndex = -1)
+                                            IShaperEffectApplier effects = null, int frameIndex = -1,
+                                            ShaperRenderBufferPool pool = null)
         {
             int n = SampleCount(doc);
             if (n == 0) return Array.Empty<Color32>();
             var px = new Color32[n];
-            RenderPhase(doc, phase01, px, effects, frameIndex);
+            RenderPhase(doc, phase01, px, effects, frameIndex, pool);
             return px;
         }
 
@@ -97,12 +99,17 @@ namespace Laubrary.Shaper
         /// render is then bit-identical to one from before effects existed.
         /// </summary>
         public static void RenderPhase(ShaperDocument doc, float phase01, Color32[] outPixels,
-                                       IShaperEffectApplier effects = null, int frameIndex = -1)
+                                       IShaperEffectApplier effects = null, int frameIndex = -1,
+                                       ShaperRenderBufferPool pool = null)
         {
             int n = SampleCount(doc);
             if (n == 0 || outPixels == null || outPixels.Length < n) return;
             var acc = new float[n * FloatsPerSample];
-            RenderPhaseInto(doc, phase01, acc, frameIndex);
+            // The SAME applier is handed to the layer walk, so a layer's own PRE-composite list runs on that
+            // layer's buffer inside the walk, and the document's POST list runs below on the folded picture.
+            // One applier, one render path — which is what keeps the bake and the preview identical (they both
+            // arrive here, and neither owns a pixel path of its own).
+            RenderPhaseInto(doc, phase01, acc, frameIndex, pool, effects);
             Encode(acc, outPixels, n);
 
             if (effects == null || doc.effects == null || doc.effects.Count == 0) return;
@@ -134,8 +141,21 @@ namespace Laubrary.Shaper
         /// contribute shadowing either. Skipping is safe because <see cref="ShaperLightCompiler.BindLayer"/> is
         /// index-addressed (the layer's own index is passed explicitly), so omitting one cannot shift another
         /// layer's binding.
+        ///
+        /// <b>Per-layer PRE-composite effects (T-0163), and what they cost.</b> When
+        /// <paramref name="effects"/> is supplied and a layer's <see cref="ShaperLayer.effects"/> holds an
+        /// enabled entry, that layer's own picture is encoded to straight-alpha sRGB
+        /// <see cref="Color32"/>, run through the effect list, and decoded back to premultiplied linear before
+        /// it composites — because every catalogued effect is a SpriteFx kernel over 8-bit colour and there is
+        /// no float form of any of them. The round trip is lossy in exactly one way worth naming: a
+        /// premultiplied colour ABOVE its own alpha (an additive glow over transparency, which
+        /// <c>ShaperFillResolver.Encode</c>'s own comment names as the thing 8-bit cannot carry) is clamped by
+        /// the encode and does not come back. A layer with no enabled effect never enters that path — it takes
+        /// the float composite untouched, so every existing document is bit-identical.
         /// </summary>
-        public static void RenderPhaseInto(ShaperDocument doc, float phase01, float[] dst, int frameIndex = -1)
+        public static void RenderPhaseInto(ShaperDocument doc, float phase01, float[] dst, int frameIndex = -1,
+                                           ShaperRenderBufferPool pool = null,
+                                           IShaperEffectApplier effects = null)
         {
             int n = SampleCount(doc);
             if (n == 0 || dst == null || dst.Length < n * FloatsPerSample) return;
@@ -174,6 +194,12 @@ namespace Laubrary.Shaper
                 float halfW = 0.5f * (w - 1) * doc.pixelSize;
                 float halfH = 0.5f * (h - 1) * doc.pixelSize;
 
+                // The 8-bit scratch for the per-layer effect stage below, allocated LAZILY on the first layer
+                // that actually needs it and then shared by every later one — a document with no per-layer
+                // effects allocates neither buffer, which is what keeps its render cost unchanged.
+                Color32[] layerPx = null;
+                float[] layerAcc = null;
+
                 for (int li = 0; li < doc.layers.Count; li++)
                 {
                     var lay = doc.layers[li];
@@ -186,16 +212,71 @@ namespace Laubrary.Shaper
 
                     var fdoc = ShaperFillResolver.Resolve(lay.root, phase01, doc.seed, halfW, halfH,
                                                           ShaperQuantitySet.ShippedShapeEngine);
-                    var buf = new ShaperFillBuffers(n, Mathf.Max(1, fdoc.owners.Count));
+                    // T-0165 (T-0146 T21): reuse this layer's own ShaperFillBuffers across calls when a pool
+                    // is supplied and the capacity is unchanged from last time -- see ShaperRenderBufferPool's
+                    // header for why an exact-match-only policy was chosen. `pool == null` keeps every
+                    // existing caller's behaviour byte-for-byte (a fresh buffer every call, as before).
+                    var buf = pool != null
+                        ? pool.Rent(li, n, Mathf.Max(1, fdoc.owners.Count))
+                        : new ShaperFillBuffers(n, Mathf.Max(1, fdoc.owners.Count));
                     var scene = ShaperLightCompiler.BindLayer(doc, li, prog, buf.sampleCapacity, buf.ownerCapacity);
                     BindSolids(fdoc, scene, phase01, doc.seed, prog);
                     ShaperFillResolver.PaintTile(fdoc, grid, 0, 0, w, h, buf,
                                                  new ShaperFillSheets { published = ShaperQuantitySet.ShippedShapeEngine },
                                                  scene);
+
+                    // T-0163 — the layer's own PRE-composite list, on the layer's own picture, before the fold.
+                    if (effects != null && HasEnabled(lay.effects))
+                    {
+                        if (layerPx == null || layerPx.Length < n) layerPx = new Color32[n];
+                        if (layerAcc == null || layerAcc.Length < n * FloatsPerSample)
+                            layerAcc = new float[n * FloatsPerSample];
+                        Encode(buf.dst, layerPx, n);
+                        effects.Apply(lay.effects, ShaperEffectStage.PreComposite, layerPx, w, h, phase01, doc.seed);
+                        DecodeToPremultiplied(layerPx, layerAcc, n);
+                        CompositeOver(dst, layerAcc, n);
+                        continue;
+                    }
+
                     CompositeOver(dst, buf.dst, n);
                 }
             }
             finally { doc.phase01 = savedPhase; }
+        }
+
+        /// <summary>True when <paramref name="list"/> holds at least one entry that would actually run — the
+        /// test that decides whether a layer pays for the 8-bit round trip at all.</summary>
+        static bool HasEnabled(System.Collections.Generic.List<ShaperEffectRef> list)
+        {
+            if (list == null) return false;
+            for (int i = 0; i < list.Count; i++)
+                if (list[i] != null && list[i].enabled) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// The exact inverse of <see cref="Encode"/>: straight-alpha sRGB <see cref="Color32"/> back to the
+        /// premultiplied LINEAR destination the layer composite reads.
+        ///
+        /// Written as the mirror of <c>ShaperFillResolver.Encode</c> (<c>:1516-1529</c>) rather than as a new
+        /// colour rule — it decodes each channel through <see cref="ShaperSrgb.DecodeChannel"/>, the same
+        /// transfer function Encode's <c>EncodeToByte</c> inverts, and re-premultiplies by alpha, which is the
+        /// un-premultiply Encode performs run backwards. Round-tripping an untouched buffer therefore returns
+        /// the original values to within 8-bit quantisation, and the ONE thing it cannot return is a colour
+        /// that was above 1 after un-premultiplying (an additive glow) — clamped by the encode, gone by here.
+        /// </summary>
+        static void DecodeToPremultiplied(Color32[] src, float[] dst, int sampleCount)
+        {
+            for (int i = 0; i < sampleCount; i++)
+            {
+                var c = src[i];
+                float a = c.a / 255f;
+                int k = i * FloatsPerSample;
+                dst[k + 0] = ShaperSrgb.DecodeChannel(c.r / 255f) * a;
+                dst[k + 1] = ShaperSrgb.DecodeChannel(c.g / 255f) * a;
+                dst[k + 2] = ShaperSrgb.DecodeChannel(c.b / 255f) * a;
+                dst[k + 3] = a;
+            }
         }
 
         /// <summary>
@@ -233,11 +314,12 @@ namespace Laubrary.Shaper
         }
 
         /// <summary>Render one frame index into a caller-owned float destination. See <see cref="RenderPhaseInto"/>.</summary>
-        public static void RenderFrameInto(ShaperDocument doc, int frameIndex, float[] dst)
+        public static void RenderFrameInto(ShaperDocument doc, int frameIndex, float[] dst,
+                                           ShaperRenderBufferPool pool = null)
         {
             if (doc == null) return;
             int wrapped = ShaperClock.WrapFrame(frameIndex, Mathf.Max(1, doc.frameCount));
-            RenderPhaseInto(doc, doc.PhaseOfFrame(wrapped), dst, wrapped);
+            RenderPhaseInto(doc, doc.PhaseOfFrame(wrapped), dst, wrapped, pool);
         }
 
         /// <summary>

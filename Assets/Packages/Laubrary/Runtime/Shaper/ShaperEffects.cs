@@ -6,21 +6,21 @@
 // ShaperEffectCatalog was static classification and nothing else: finished engine work that no user could
 // reach, exactly like Solids before T-0155.
 //
-// ── Why the list lives on the DOCUMENT, and why there is only one list ──────────────────────────────────
-// The stage enum below decides this, and it is worth stating rather than asserting. PostComposite "runs once
-// on the FINISHED, folded picture"; PreComposite "runs once per instance, on that instance's OWN buffer,
-// before instances fold into one picture". The only fold that exists in the shipped renderer is
-// ShaperDocumentRenderer's layer composite, so the finished picture is the DOCUMENT's picture — which makes
-// the document the honest owner of a post-composite list.
+// ── Two lists, and the stage is WHERE THE LIST LIVES ────────────────────────────────────────────────────
+// T-0163. PostComposite "runs once on the FINISHED, folded picture"; PreComposite "runs once per instance,
+// on that instance's OWN buffer, before instances fold into one picture". The only fold in the shipped
+// renderer is ShaperDocumentRenderer's layer composite, so the finished picture is the DOCUMENT's picture and
+// one layer's buffer is the pre-fold picture. That makes the stage a property of WHICH LIST an entry sits in,
+// never a per-entry dropdown: ShaperLayer.effects is pre-composite by construction, ShaperDocument.effects is
+// post-composite by construction, and no authored value can disagree with where the list is.
 //
-// A per-layer PRE-composite list is deliberately NOT added here, and not because it was forgotten. A layer's
-// own buffer inside the renderer is a PREMULTIPLIED LINEAR float destination, and every effect in the catalog
-// is a SpriteFx PixelModifier operating on Color32. Running one per layer would mean encoding that layer to
-// 8-bit, applying, and decoding back before the float composite — a silent precision regression on every
-// layer of every document, introduced to serve a feature nobody asked for yet. That is a real design
-// decision about where the picture becomes 8-bit, and it belongs to whoever wants per-layer effects, not to
-// the task that made effects authorable at all. Until then there is one list, it runs at one stage, and
-// everything a user can author does something — no inert authoring, no on-screen apology for it.
+// The 8-bit boundary T-0156 refused to cross is now crossed DELIBERATELY and only where it is paid for. A
+// layer's own buffer is a PREMULTIPLIED LINEAR float destination and every catalogued effect is a SpriteFx
+// kernel over Color32, so a layer that carries effects is encoded to 8-bit, run, and decoded back to
+// premultiplied linear before the composite. That round trip cannot carry an additive glow whose premultiplied
+// colour exceeds its alpha — the one thing the float destination expresses and 8-bit straight alpha does not.
+// A layer with an EMPTY effect list never takes that path at all, so every existing document, and every layer
+// the author did not put an effect on, still composites bit-identically in float.
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -53,32 +53,63 @@ namespace Laubrary.Shaper
     }
 
     /// <summary>
-    /// One authored entry in a document's effect list.
+    /// T-0163 — the authored SETTINGS of one effect, held polymorphically so a document carries real dial
+    /// values instead of a type name the renderer has to construct at defaults.
     ///
-    /// The effect is named by TYPE NAME rather than held as an instance, and that is deliberate: the concrete
-    /// modifier types live in <c>Laubrary.SpriteFx</c> and the catalog that classifies them lives in
-    /// <c>Laubrary.PyreShaper</c>, both of which sit ABOVE this assembly. A string keeps the authored document
-    /// free of a dependency it must not have, and it is the same key
-    /// <c>ShaperEffectCatalogEntry.typeName</c> already uses, so the catalog lookup is an exact match rather
-    /// than a mapping table that could drift.
+    /// It is an abstract base declared HERE, with its one concrete subclass declared in the bridge assembly
+    /// (<c>Laubrary.PyreShaper.ShaperModifierEffect</c>), because that is the only shape that gives a document
+    /// a serialized effect instance without this assembly learning what an effect IS. The concrete modifier
+    /// types are <c>Laubrary.SpriteFx.PyreModifier</c> subclasses and the catalog that classifies them is
+    /// <c>Laubrary.PyreShaper</c>'s, both ABOVE this assembly; a <c>[SerializeReference]</c> field typed to a
+    /// base declared below its subclasses is exactly how Unity's managed references are meant to cross that
+    /// line (the field records the concrete type's assembly, so the subclass need not be visible from here).
+    /// It is the same seam <see cref="IShaperEffectApplier"/> already uses for execution, extended to data.
+    /// </summary>
+    [Serializable]
+    public abstract class ShaperEffectInstance
+    {
+        /// <summary>The catalog key this instance answers to — <c>ShaperEffectCatalogEntry.typeName</c>. Used
+        /// for classification and cache identity, so it must not be a display string.</summary>
+        public abstract string TypeName { get; }
+
+        /// <summary>What a human calls it in the effect list.</summary>
+        public abstract string DisplayName { get; }
+    }
+
+    /// <summary>
+    /// One authored entry in an effect list — the settings, plus whether the entry runs.
+    ///
+    /// <b>The entry does not name its own stage.</b> Stage is derived from which list holds it (see this
+    /// file's header): <see cref="ShaperLayer.effects"/> is pre-composite, <see cref="ShaperDocument.effects"/>
+    /// is post-composite. <see cref="stage"/> survives only so that documents authored before T-0163 keep
+    /// deserializing; nothing reads it.
     /// </summary>
     [Serializable]
     public class ShaperEffectRef
     {
-        /// <summary>The modifier's type name, e.g. <c>BloomModifier</c> — <c>ShaperEffectCatalogEntry.typeName</c>.</summary>
+        /// <summary>The modifier's type name, e.g. <c>BloomModifier</c> — <c>ShaperEffectCatalogEntry.typeName</c>.
+        /// Kept alongside <see cref="instance"/> so an entry still identifies itself in the UI when its
+        /// instance fails to deserialize (an effect class removed or renamed), rather than becoming a blank row
+        /// with nothing to say about what it was.</summary>
         public string typeName;
 
-        /// <summary>Which stage this entry runs at. Only <see cref="ShaperEffectStage.PostComposite"/> is run
-        /// by the shipped renderer today; see this file's header for why.</summary>
+        /// <summary>
+        /// This entry's authored settings. Null on an entry written before T-0163 — such an entry had no
+        /// settings to lose (every effect ran at class defaults, and none of them ran at all), so the editor
+        /// upgrades it in place by constructing the modifier <see cref="typeName"/> names.
+        /// </summary>
+        [SerializeReference] public ShaperEffectInstance instance;
+
+        /// <summary>LEGACY (pre-T-0163). Read by nothing: stage is where the list lives.</summary>
         public ShaperEffectStage stage = ShaperEffectStage.PostComposite;
 
         public bool enabled = true;
 
         public ShaperEffectRef() { }
-        public ShaperEffectRef(string typeName, ShaperEffectStage stage)
+        public ShaperEffectRef(string typeName, ShaperEffectInstance instance)
         {
             this.typeName = typeName;
-            this.stage = stage;
+            this.instance = instance;
         }
     }
 
@@ -97,10 +128,11 @@ namespace Laubrary.Shaper
     public interface IShaperEffectApplier
     {
         /// <summary>
-        /// Apply every enabled entry of <paramref name="effects"/> whose stage is <paramref name="stage"/>, in
-        /// list order, in place over <paramref name="pixels"/>. An entry naming a type that cannot be resolved,
-        /// or one the catalog reports unavailable, must be SKIPPED rather than throwing — a document must not
-        /// fail to render because one effect is missing.
+        /// Apply every enabled entry of <paramref name="effects"/>, in list order, in place over
+        /// <paramref name="pixels"/>. <paramref name="stage"/> is the stage THIS LIST runs at — derived by the
+        /// caller from where the list lives, never from an entry — and an entry the catalog reports unavailable
+        /// at that stage must be SKIPPED rather than throwing, as must one whose instance cannot be resolved. A
+        /// document must not fail to render because one effect is missing.
         /// </summary>
         void Apply(IReadOnlyList<ShaperEffectRef> effects, ShaperEffectStage stage,
                    Color32[] pixels, int width, int height, float phase01, uint seed);

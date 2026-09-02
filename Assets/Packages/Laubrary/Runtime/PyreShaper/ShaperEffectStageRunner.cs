@@ -84,8 +84,12 @@ namespace Laubrary.PyreShaper
         /// <c>false</c>) is erased to fully transparent, matching <c>BlastRenderer.ApplyPix</c>'s own convention.</summary>
         static void ApplyInPlace(Color32[] buf, int W, int H, float life, uint seed, PixelModifier effect)
         {
-            effect.Prepare((v, fieldId) => v != null ? v.staticValue : 0f);
+            // T-0163 — resolve the effect's ZUIValue dials at THIS phase, not at their static value. The
+            // previous static-only closure froze every animated dial, which made a stage comparison between two
+            // phases show the same effect settings on both. SpriteFxStack.LifeEval is the same evaluator
+            // RunStack itself Prepares with, so this proxy and the production path read a dial identically.
             int sd = unchecked((int)seed);
+            effect.Prepare(SpriteFxStack.LifeEval(life, sd));
             for (int y = 0, idx = 0; y < H; y++)
             {
                 for (int x = 0; x < W; x++, idx++)

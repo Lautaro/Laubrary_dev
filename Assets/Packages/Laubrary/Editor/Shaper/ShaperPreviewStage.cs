@@ -27,6 +27,22 @@ namespace Laubrary.Shaper.Editor
         readonly VisualElement _frameBorder;
         Texture2D _tex;
 
+        // ── frame cache + background pre-baker (T-0165) ─────────────────────────────────────────────────────
+        // See ShaperPreviewFrameCache.cs's own header for why this is a new pixel-level cache rather than the
+        // Runtime geometry cache (ShaperFrameCache/ShaperNodeCache/ShaperCachedEvaluator) the task named --
+        // those cache a NODE's distance field, not the finished picture RenderFrame actually costs ~30ms for.
+        readonly ShaperPreviewFrameCache _frameCache = new ShaperPreviewFrameCache();
+        readonly ShaperPreviewFramePrebaker _prebaker;
+
+        /// <summary>Fires whenever the background pre-baker makes progress OR finishes, so the window can
+        /// repaint its cache tick strip / "N/M cached" readout without touching the (expensive) preview
+        /// image itself.</summary>
+        public event Action CacheProgressed;
+
+        public bool IsFrameCached(int frameIndex) => _frameCache.IsFrameCached(frameIndex);
+        public int CountCachedFrames() => _frameCache.CountCachedFrames();
+        public int CachedFrameCount => _frameCache.frameCount;
+
         /// Cosmetic view state, owned by the window and pushed in — see ShaperWindow.Preview.cs for why these
         /// live on the window rather than the document.
         public bool ShowFrameBorder;
@@ -36,6 +52,9 @@ namespace Laubrary.Shaper.Editor
         {
             _doc = doc;
             _frame = frame;
+            _prebaker = new ShaperPreviewFramePrebaker(_frameCache, _doc);
+            _prebaker.Progressed += _ => CacheProgressed?.Invoke();
+            _prebaker.Completed += _ => CacheProgressed?.Invoke();
 
             AddToClassList("zui-stage");
             style.overflow = Overflow.Hidden;
@@ -129,9 +148,26 @@ namespace Laubrary.Shaper.Editor
 
         public void Dispose()
         {
+            _prebaker.Stop();
             if (_tex == null) return;
             UnityEngine.Object.DestroyImmediate(_tex);
             _tex = null;
+        }
+
+        /// <summary>Drop every cached frame's pixels and start the background pre-baker filling them back
+        /// in. Called by the window on every authored edit (never on a pure view change like scrubbing,
+        /// zoom or the backdrop — see ShaperWindow.cs's Change/Val, which is where this is hooked).</summary>
+        public void InvalidateFrameCache()
+        {
+            _frameCache.Invalidate();
+            CacheProgressed?.Invoke();
+            StartPrebakeIfNeeded();
+        }
+
+        void StartPrebakeIfNeeded()
+        {
+            var doc = _doc?.Invoke();
+            if (doc != null && doc.frameCount > 1) _prebaker.Start();
         }
 
         public void Refresh()
@@ -166,6 +202,9 @@ namespace Laubrary.Shaper.Editor
 
             if (_tex == null || _tex.width != w || _tex.height != h)
             {
+                // Dispose() also stops the pre-baker; StartPrebakeIfNeeded below restarts it once the cache
+                // has been re-shaped for the new canvas, so a mid-bake canvas resize does not leave it
+                // running against stale dimensions.
                 Dispose();
                 _tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
                 {
@@ -176,11 +215,15 @@ namespace Laubrary.Shaper.Editor
                 };
             }
 
-            // The applier is passed here for the same reason the baker passes it (T-0156): without it a
-            // document's authored effects render as a no-op. Passing it in BOTH places is also what keeps the
-            // "preview is what you bake" guarantee true — a preview that skipped effects would disagree with
-            // its own bake on every document that uses one.
-            var px = ShaperDocumentRenderer.RenderFrame(doc, frame, ShaperEffectApplier.Instance);
+            // T-0165 — read through the frame cache rather than rendering unconditionally. EnsureShape drops
+            // the cache itself when the canvas or frame count actually changed (a document edit already
+            // called InvalidateFrameCache for content changes; this additionally catches the shape changing
+            // under a resident cache). The applier is passed inside ComputeFrame for the same reason the
+            // baker passes it (T-0156): without it a document's authored effects render as a no-op, and
+            // passing it in both places is what keeps "preview is what you bake" true.
+            _frameCache.EnsureShape(Mathf.Max(1, doc.frameCount), w, h);
+            var px = _frameCache.ComputeFrame(frame, doc);
+            StartPrebakeIfNeeded();
             if (px == null || px.Length != w * h) return;   // canvas changed under us; next Refresh resizes
 
             _tex.SetPixels32(px);

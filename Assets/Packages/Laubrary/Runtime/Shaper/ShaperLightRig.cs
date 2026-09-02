@@ -369,6 +369,19 @@ namespace Laubrary.Shaper
         public int endFrame = -1;
 
         /// <summary>
+        /// T-0163 — this layer's PRE-COMPOSITE effects, applied to the layer's own resolved picture before it
+        /// composites into the document. The document's own list
+        /// (<see cref="ShaperDocument.effects"/>) is the post-composite half; an entry's stage is which of the
+        /// two lists holds it and nothing else (<c>ShaperEffects.cs</c> header).
+        ///
+        /// This is what Pyre's per-layer modifier stack is, and what design C2 promised. It is not free: a
+        /// layer carrying any enabled effect leaves the premultiplied-float composite for one 8-bit round trip
+        /// (<see cref="ShaperDocumentRenderer.RenderPhaseInto"/> documents the cost). Empty by default, and an
+        /// empty list takes the old float path exactly, so every existing document is bit-identical.
+        /// </summary>
+        public List<ShaperEffectRef> effects = new List<ShaperEffectRef>();
+
+        /// <summary>
         /// Deep copy for the layer list's Duplicate action (T-0166), so the copy shares no mutable reference
         /// with its source. <b>Deliberately NOT a JsonUtility round-trip</b>, even though that is the shape
         /// Pyre's own layer-duplicate task description suggests: JsonUtility does not serialize

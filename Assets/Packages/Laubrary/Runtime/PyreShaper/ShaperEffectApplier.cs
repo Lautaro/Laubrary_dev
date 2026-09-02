@@ -6,12 +6,13 @@
 // ShaperEffectCatalog, and BOTH sit above Shaper in the dependency graph. So the document names an effect
 // with a string and takes an IShaperEffectApplier; this class is the implementation the editor hands it.
 //
-// The per-pixel kernel below is deliberately NOT a second formula: it is the same construction
-// ShaperEffectStageRunner.ApplyInPlace already uses (SfxKernels.MakePixel for the PixelInfo, and a dropped
-// pixel erased to fully transparent, matching BlastRenderer.ApplyPix's own convention). Two ways of running
-// one modifier would be two things to keep in agreement, and the whole point of T-0114's stage work was that
-// the difference between stages is REAL while the kernel itself must not vary.
-using System;
+// T-0163 rewrote what this does, and deleted a kernel rather than adding one. It used to run its own per-pixel
+// loop over PixelModifier.ApplyPixel — which meant that of the 41 catalogued effects, only the twelve that
+// happen to derive from PixelModifier could even be cast, and a geometry warp or a whole-frame pass (bloom,
+// outline, drop shadow — half the reason anyone adds an effect) was silently dropped by an `as` returning
+// null. SpriteFxStack.RunStack (Runtime/SpriteFx/SpriteFxBurst.cs:596) already dispatches every family in
+// authored order, resolving each modifier's ZUIValue dials against the life it is handed. Calling it is what
+// makes an effect list mean what it looks like, and it removes the second formula this file used to carry.
 using System.Collections.Generic;
 using Laubrary.Shaper;
 using Laubrary.SpriteFx;
@@ -20,39 +21,22 @@ using UnityEngine;
 namespace Laubrary.PyreShaper
 {
     /// <summary>
-    /// Runs a <see cref="ShaperDocument"/>'s authored <see cref="ShaperEffectRef"/> list over a finished
-    /// picture. Stateless and cheap to construct; the type cache below is shared and built once.
+    /// Runs an authored <see cref="ShaperEffectRef"/> list over a picture — a layer's own buffer at
+    /// <see cref="ShaperEffectStage.PreComposite"/>, the document's folded picture at
+    /// <see cref="ShaperEffectStage.PostComposite"/>. Stateless and cheap to construct.
     /// </summary>
     public sealed class ShaperEffectApplier : IShaperEffectApplier
     {
         /// <summary>A ready-to-use instance — the applier holds no per-document state.</summary>
         public static readonly ShaperEffectApplier Instance = new ShaperEffectApplier();
 
-        static Dictionary<string, Type> _byName;
-
         /// <summary>
-        /// Resolve a catalog <c>typeName</c> to a concrete <see cref="PixelModifier"/> type.
-        ///
-        /// Built by scanning the assembly <see cref="PixelModifier"/> itself lives in, rather than by
-        /// <c>Type.GetType</c> on an assembly-qualified string: the authored document stores the SHORT name
-        /// (exactly <c>ShaperEffectCatalogEntry.typeName</c>), which keeps the asset free of assembly
-        /// identity — a document must not stop resolving because an assembly was renamed or a type moved
-        /// namespace.
+        /// Managed, not Burst. <see cref="SpriteFxStack.RunStack"/>'s two runners are documented as producing
+        /// the same maths, but the Burst path copies the whole buffer into a <c>NativeArray</c> and back for
+        /// every batch — a real cost per frame on a canvas this small, paid to accelerate a loop that is not the
+        /// bottleneck. It is also one fewer thing that can differ between the preview and the bake.
         /// </summary>
-        static Type Resolve(string typeName)
-        {
-            if (string.IsNullOrEmpty(typeName)) return null;
-            if (_byName == null)
-            {
-                _byName = new Dictionary<string, Type>(StringComparer.Ordinal);
-                foreach (var t in typeof(PixelModifier).Assembly.GetTypes())
-                {
-                    if (t.IsAbstract || !typeof(PixelModifier).IsAssignableFrom(t)) continue;
-                    _byName[t.Name] = t;
-                }
-            }
-            return _byName.TryGetValue(typeName, out var found) ? found : null;
-        }
+        const bool UseBurst = false;
 
         /// <inheritdoc/>
         public void Apply(IReadOnlyList<ShaperEffectRef> effects, ShaperEffectStage stage,
@@ -62,45 +46,37 @@ namespace Laubrary.PyreShaper
             int n = width * height;
             if (pixels.Length < n) return;
 
+            // The list is built first, then run ONCE, because RunStack's batching is what makes a run of
+            // consecutive colour effects a single pass — feeding it one modifier at a time would defeat that
+            // and change nothing about the result.
+            List<PyreModifier> mods = null;
             for (int i = 0; i < effects.Count; i++)
             {
                 var e = effects[i];
-                if (e == null || !e.enabled || e.stage != stage) continue;
+                if (e == null || !e.enabled) continue;
 
-                // An unresolvable or unavailable entry is SKIPPED, never thrown on. A document that names an
-                // effect whose type has gone must still render — the alternative is one missing modifier
-                // taking the whole picture down, which is a far worse failure than one absent effect.
-                var type = Resolve(e.typeName);
-                if (type == null) continue;
+                // An entry whose type has gone, or which cannot run at THIS stage, is SKIPPED rather than
+                // thrown on: a document must still render when one effect is missing or misplaced. The window
+                // greys the same rows with the same reason, so what is skipped here is never a surprise there.
+                var mod = (e.instance as ShaperModifierEffect)?.modifier;
+                if (mod == null || !mod.enabled) continue;
+                if (!ShaperEffectRuntime.CanRun(mod.GetType().Name, stage, out _)) continue;
 
-                var modifier = Activator.CreateInstance(type) as PixelModifier;
-                if (modifier == null || !modifier.enabled) continue;
-
-                ApplyInPlace(pixels, width, height, phase01, seed, modifier);
+                (mods ??= new List<PyreModifier>()).Add(mod);
             }
-        }
+            if (mods == null) return;
 
-        /// <summary>
-        /// The same per-pixel pass as <see cref="ShaperEffectStageRunner"/>'s, kept identical on purpose — see
-        /// this file's header. A pixel the effect drops is erased to fully transparent.
-        /// </summary>
-        static void ApplyInPlace(Color32[] buf, int W, int H, float life, uint seed, PixelModifier effect)
-        {
-            effect.Prepare((v, fieldId) => v != null ? v.staticValue : 0f);
-            int sd = unchecked((int)seed);
-            for (int y = 0, idx = 0; y < H; y++)
-            {
-                for (int x = 0; x < W; x++, idx++)
-                {
-                    var s = buf[idx];
-                    if (s.a == 0) continue;   // nothing to recolour or drop on an already-empty pixel
-                    var col = new Color(s.r / 255f, s.g / 255f, s.b / 255f, s.a / 255f);
-                    float a = col.a;
-                    var info = SfxKernels.MakePixel(x, y, W, H, 0, life, sd);
-                    bool keep = effect.ApplyPixel(ref col, ref a, info);
-                    buf[idx] = keep ? (Color32)new Color(col.r, col.g, col.b, a) : new Color32(0, 0, 0, 0);
-                }
-            }
+            // `life` is the Shaper phase, so every ZUIValue dial inside these modifiers resolves at the frame
+            // being rendered — RunStack Prepares each one through SpriteFxStack.LifeEval(life, seed), which is
+            // why an animated Bloom radius pulses here instead of freezing at its static value.
+            //
+            // `frame` is a PHASE-DERIVED stamp, not the document's frame index, because this interface is
+            // handed a phase and not a frame. Only the hash-per-pixel Post effects (Dissolve's erase/scatter
+            // masks) read it, and all they need of it is that it is deterministic and distinct per frame —
+            // which a fixed quantisation of the phase is, since phase is a fixed function of the frame
+            // (ShaperClock, i/(N-1)). Scrubbing back to a frame therefore reproduces its picture exactly.
+            int frame = Mathf.RoundToInt(Mathf.Clamp01(phase01) * 1000f);
+            SpriteFxStack.RunStack(pixels, width, height, mods, frame, phase01, unchecked((int)seed), UseBurst);
         }
     }
 }

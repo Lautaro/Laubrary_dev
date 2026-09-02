@@ -138,6 +138,11 @@ namespace Laubrary.Shaper.Editor
         double lastPlayTick;
         float playAcc;
 
+        // T-0165 — the cached-frame ticks + "N/M cached" readout under the scrubber. Owned here (not
+        // ShaperWindow.Preview.cs) because they live inside BuildTransport, which this file owns.
+        ShaperCacheTickStrip cacheTickStrip;
+        Label cacheReadoutLabel;
+
         // ── chrome ───────────────────────────────────────────────────────────────────────────────────────
         ShaperPreviewStage stage;
         VisualElement layerListHost, toggleBarHost;
@@ -618,6 +623,9 @@ namespace Laubrary.Shaper.Editor
             // one the beat sequencer resolved, which may be ShaperCherry.BlankFrame (a deliberate gap).
             stage = new ShaperPreviewStage(() => document, () => previewFrame);
             stage.style.flexGrow = 1f;
+            // T-0165 — repaint the cache tick strip / "N/M cached" readout whenever the background pre-baker
+            // makes progress, without touching the (expensive) preview image itself.
+            stage.CacheProgressed += RefreshCacheReadout;
             previewSection.Add(stage);
             ApplyPreviewChromeToStage();
 
@@ -708,7 +716,31 @@ namespace Laubrary.Shaper.Editor
                 }, 220f);
             host.Add(Z.Field("Frame", "Scrub to an exact frame.", scrubber));
 
+            // T-0165 — cached-frame ticks + "N/M cached" readout, in a PERMANENTLY reserved row (stable-
+            // workspace rule): this row is built once here and only ever has its paint/text updated
+            // (ShaperCacheTickStrip.Refresh / RefreshCacheReadout), never added or removed, so it cannot
+            // reflow the scrubber above it. The tick strip takes the growable space; the "N/M cached" count
+            // goes last, matching the "variable-width content goes LAST in its row" rule.
+            cacheTickStrip = new ShaperCacheTickStrip(
+                () => document != null ? document.frameCount : 1,
+                i => stage != null && stage.IsFrameCached(i),
+                () => currentFrame);
+            cacheReadoutLabel = Z.Text("", ZuiText.Body,
+                "How many of this document's frames already have their picture cached.");
+            cacheReadoutLabel.style.width = 90f;
+            host.Add(Z.HGroup(cacheTickStrip, cacheReadoutLabel));
+            RefreshCacheReadout();
+
             return host;
+        }
+
+        /// Repaint the tick strip and update the "N/M cached" text. Cheap — no layout pass, just a
+        /// MarkDirtyRepaint and a label text write — so it is safe to call on every pre-baker tick.
+        void RefreshCacheReadout()
+        {
+            cacheTickStrip?.Refresh();
+            if (cacheReadoutLabel == null || stage == null) return;
+            cacheReadoutLabel.text = $"{stage.CountCachedFrames()}/{stage.CachedFrameCount} cached";
         }
 
         void PlaybackTick()
@@ -748,7 +780,17 @@ namespace Laubrary.Shaper.Editor
                 return;
             }
 
-            currentFrame = ShaperClock.WrapFrame(currentFrame + steps, Mathf.Max(1, document.frameCount));
+            int nextFrame = ShaperClock.WrapFrame(currentFrame + steps, Mathf.Max(1, document.frameCount));
+
+            // T-0165 — playback only steps onto CACHED frames (Pyre's own behaviour). Advancing onto an
+            // uncached frame would mean a synchronous ~30ms render mid-tick, which is exactly the stutter a
+            // background pre-baker exists to avoid. Instead, hold the currently-shown frame: the accumulator
+            // above has already been debited for this tick's beats, so playback simply catches up once the
+            // pre-baker (running via InvalidateFrameCache/Refresh) fills the frame in — no synchronous block,
+            // and no picture shown that was never actually requested to render.
+            if (stage != null && !stage.IsFrameCached(nextFrame)) return;
+
+            currentFrame = nextFrame;
             scrubber?.SetValueWithoutNotify(currentFrame);
             RefreshPreview();
         }
@@ -789,6 +831,11 @@ namespace Laubrary.Shaper.Editor
             if (document != null) Undo.RecordObject(document, "Edit Shaper Document");
             apply();
             if (document != null) EditorUtility.SetDirty(document);
+            // T-0165 — every authored edit invalidates the preview frame cache before refreshing, so the
+            // scrubber never shows a frame cached from before the edit. Pure VIEW changes (scrub, zoom, frame
+            // border, backdrop) call RefreshPreview() directly instead and deliberately do NOT invalidate —
+            // that is the whole point of the cache existing.
+            stage?.InvalidateFrameCache();
             RefreshPreview();
         }
 
@@ -811,14 +858,23 @@ namespace Laubrary.Shaper.Editor
                 frameCount = document != null ? document.frameCount : 0,
             };
             return Z.Value(label, v, o, tooltip,
-                () => { if (document != null) EditorUtility.SetDirty(document); RefreshPreview(); },
+                () =>
+                {
+                    if (document != null) EditorUtility.SetDirty(document);
+                    // T-0165 — same reasoning as Change(): a ZUIValue edit is a data edit, so it invalidates
+                    // the frame cache too. Val() never routes through Change() itself (Z.Value manages its own
+                    // Undo timing via the second callback below), so this is hooked here instead.
+                    stage?.InvalidateFrameCache();
+                    RefreshPreview();
+                },
                 () => { if (document != null) Undo.RecordObject(document, "Edit Shaper Document"); });
         }
 
-        /// Re-render the preview. There is deliberately no cache-invalidation call here: the renderer
-        /// allocates its fill buffers per layer per frame today (T-0153's own finding), so there is nothing
-        /// cached at this level to invalidate. When a preview cache lands, it hooks in here and every call
-        /// site keeps working.
+        /// Re-render the preview. T-0165 — this now reads through ShaperPreviewStage's own frame cache
+        /// (ShaperPreviewFrameCache), so a frame already visited this session is a dictionary hit rather than
+        /// a ~30ms recompute. Deliberately does NOT invalidate anything itself — Change()/Val() invalidate at
+        /// the point of an actual data edit, and every other caller of this method (scrub, zoom, frame
+        /// border, backdrop, playback) is a pure view change that must NOT throw the cache away.
         internal void RefreshPreview() => stage?.Refresh();
     }
 }
