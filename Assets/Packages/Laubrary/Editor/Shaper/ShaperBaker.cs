@@ -164,6 +164,13 @@ namespace Laubrary.Shaper.Editor
             // 1) render every distinct frame into the sheet buffer.
             var sheetPx = new Color32[sheetW * sheetH];   // default is (0,0,0,0) — transparent padding cells
             var framePx = new Color32[w * h];
+            // T-0194 — the bake takes the SAME per-layer buffer cache the preview does, which is what keeps
+            // "the bake is what the preview showed" true rather than merely likely: a cache hit returns the
+            // arrays the miss path would have produced, so a sheet is byte-identical either way, and a still
+            // layer across sixteen frames is resolved once instead of sixteen times. The cache is local to this
+            // bake so nothing survives into a later one.
+            var bakeLayers = new ShaperLayerBufferCache();
+            var bakePool = new ShaperRenderBufferPool();
             for (int i = 0; i < distinct.Count; i++)
             {
                 // The canonical Runtime renderer, not a local pixel path — see the file header. The
@@ -174,7 +181,8 @@ namespace Laubrary.Shaper.Editor
                 // effects work existed to fix (T-0156). This overload still writes into the hoisted framePx,
                 // so the loop does not churn an output array per frame.
                 ShaperDocumentRenderer.RenderPhase(doc, doc.PhaseOfFrame(distinct[i]), framePx,
-                                                   ShaperEffectApplier.Instance, distinct[i]);
+                                                   ShaperEffectApplier.Instance, distinct[i],
+                                                   bakePool, bakeLayers);
                 BlitFrame(framePx, w, h, sheetPx, sheetW, i, cols, rows);
             }
 

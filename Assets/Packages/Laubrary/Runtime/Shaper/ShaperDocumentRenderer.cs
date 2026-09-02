@@ -67,11 +67,12 @@ namespace Laubrary.Shaper
         /// </summary>
         public static Color32[] RenderFrame(ShaperDocument doc, int frameIndex,
                                             IShaperEffectApplier effects = null,
-                                            ShaperRenderBufferPool pool = null)
+                                            ShaperRenderBufferPool pool = null,
+                                            ShaperLayerBufferCache layerCache = null)
         {
             if (doc == null) return Array.Empty<Color32>();
             int wrapped = ShaperClock.WrapFrame(frameIndex, Mathf.Max(1, doc.frameCount));
-            return RenderPhase(doc, doc.PhaseOfFrame(wrapped), effects, wrapped, pool);
+            return RenderPhase(doc, doc.PhaseOfFrame(wrapped), effects, wrapped, pool, layerCache);
         }
 
         /// <summary>
@@ -88,12 +89,13 @@ namespace Laubrary.Shaper
         /// case a lifetime window has no exact frame to test against anyway.</param>
         public static Color32[] RenderPhase(ShaperDocument doc, float phase01,
                                             IShaperEffectApplier effects = null, int frameIndex = -1,
-                                            ShaperRenderBufferPool pool = null)
+                                            ShaperRenderBufferPool pool = null,
+                                            ShaperLayerBufferCache layerCache = null)
         {
             int n = SampleCount(doc);
             if (n == 0) return Array.Empty<Color32>();
             var px = new Color32[n];
-            RenderPhase(doc, phase01, px, effects, frameIndex, pool);
+            RenderPhase(doc, phase01, px, effects, frameIndex, pool, layerCache);
             return px;
         }
 
@@ -113,7 +115,8 @@ namespace Laubrary.Shaper
         /// </summary>
         public static void RenderPhase(ShaperDocument doc, float phase01, Color32[] outPixels,
                                        IShaperEffectApplier effects = null, int frameIndex = -1,
-                                       ShaperRenderBufferPool pool = null)
+                                       ShaperRenderBufferPool pool = null,
+                                       ShaperLayerBufferCache layerCache = null)
         {
             int n = SampleCount(doc);
             if (n == 0 || outPixels == null || outPixels.Length < n) return;
@@ -122,7 +125,7 @@ namespace Laubrary.Shaper
             // layer's buffer inside the walk, and the document's POST list runs below on the folded picture.
             // One applier, one render path — which is what keeps the bake and the preview identical (they both
             // arrive here, and neither owns a pixel path of its own).
-            RenderPhaseInto(doc, phase01, acc, frameIndex, pool, effects);
+            RenderPhaseInto(doc, phase01, acc, frameIndex, pool, effects, layerCache);
             Encode(acc, outPixels, n);
 
             if (effects == null || doc.effects == null || doc.effects.Count == 0) return;
@@ -182,9 +185,17 @@ namespace Laubrary.Shaper
         /// curve instead of one hiding the other. See <see cref="CompositeDepth"/> for the rule, the boundary
         /// blend, and why a document that never contradicts its own list order is untouched.
         /// </summary>
+        /// <param name="layerCache">T-0194 — the per-layer resolved-buffer cache. When supplied, a layer whose
+        /// CONTENT key (<see cref="ShaperLayerKey.PaintKey"/>) is already resident skips Resolve, BindLayer,
+        /// PaintTile, its mask and its own effects entirely and composites the stored buffers instead. That is
+        /// what makes hiding a layer, nudging a Z offset or recolouring the background a re-COMPOSITE rather
+        /// than a full re-resolve: none of those changes any other layer's key. Passing null keeps every
+        /// existing caller's behaviour byte-for-byte, and a hit is byte-identical to a miss by construction —
+        /// the stored arrays are the very ones the miss path would have produced.</param>
         public static void RenderPhaseInto(ShaperDocument doc, float phase01, float[] dst, int frameIndex = -1,
                                            ShaperRenderBufferPool pool = null,
-                                           IShaperEffectApplier effects = null)
+                                           IShaperEffectApplier effects = null,
+                                           ShaperLayerBufferCache layerCache = null)
         {
             int n = SampleCount(doc);
             if (n == 0 || dst == null || dst.Length < n * FloatsPerSample) return;
@@ -219,7 +230,10 @@ namespace Laubrary.Shaper
             {
                 doc.phase01 = phase01;
                 var grid = doc.Grid();
-                var prog = ShaperLightCompiler.CompileDocument(doc);
+                // T-0194 — the light program is compiled LAZILY: a frame every one of whose layers hits the
+                // buffer cache needs no light scene at all, and compiling one anyway would put a document-wide
+                // cost back on the composite-only path this cache exists to make cheap.
+                ShaperLightProgram prog = null;
                 float halfW = 0.5f * (w - 1) * doc.pixelSize;
                 float halfH = 0.5f * (h - 1) * doc.pixelSize;
 
@@ -245,6 +259,12 @@ namespace Laubrary.Shaper
                 var accZ = new float[n];
                 var accZw = new float[n];
 
+                // T-0194 — re-key the document's layers on EVERY render, never across one. A memo carried into
+                // a later render can only be wrong in the one direction that matters: a layer edited since it
+                // was built keys as unchanged and composites a stale buffer. Measured cost of the rebuild is
+                // 0.22 ms for four layers against a resolve of ~20 ms per layer, so this is not a trade-off.
+                layerCache?.Keys.Rebuild(doc);
+
                 for (int li = 0; li < doc.layers.Count; li++)
                 {
                     var lay = doc.layers[li];
@@ -265,6 +285,29 @@ namespace Laubrary.Shaper
                     // them is the generator's own. So the box is fitted to the canvas here, at the one place
                     // that knows the canvas, for every composite in the tree. The window no longer shows them.
                     ShaperCompositeDef.FitTree(lay.root, w, h);
+
+                    // T-0171 — this layer's base plane, the same HS-7.2 value BindLayer below compiles its
+                    // height stage against (ShaperLightCompiler.cs:492), read from the one function that
+                    // computes it so the composite cannot drift from the shading. Hoisted above the resolve
+                    // (T-0194) because it is also part of the layer's cache key: the height and light stages
+                    // both compile against it, so two different base planes are two different pictures.
+                    float baseZ = ShaperHeightCompiler.LayerBase(doc, li, phase01, doc.seed);
+
+                    // T-0194 — the cache probe. The key is taken AFTER FitTree, because FitTree writes the
+                    // derived bake box into the composite nodes it walks: keying the unfitted tree would key
+                    // a state the document only ever holds for the first render after a load.
+                    ShaperCacheKey layerKey = default;
+                    if (layerCache != null)
+                    {
+                        layerKey = layerCache.Keys.PaintKey(doc, li, phase01, baseZ, fi, effects != null);
+                        if (layerCache.TryGet(layerKey, n, out var cachedDst, out var cachedHeight))
+                        {
+                            CompositeDepth(dst, accZ, accZw, cachedDst, cachedHeight, baseZ, n);
+                            continue;
+                        }
+                    }
+
+                    prog ??= ShaperLightCompiler.CompileDocument(doc);
 
                     var fdoc = ShaperFillResolver.Resolve(lay.root, phase01, doc.seed, halfW, halfH,
                                                           ShaperQuantitySet.ShippedShapeEngine);
@@ -290,14 +333,10 @@ namespace Laubrary.Shaper
                                           ref maskBuf, ref maskField))
                         ApplyMask(buf.dst, maskField, n, lay.mask.mode);
 
-                    // T-0171 — this layer's base plane, the same HS-7.2 value BindLayer above compiled its
-                    // height stage against (ShaperLightCompiler.cs:492), read from the one function that
-                    // computes it so the composite cannot drift from the shading.
-                    float baseZ = ShaperHeightCompiler.LayerBase(doc, li, phase01, doc.seed);
-
                     // T-0163 — the layer's own PRE-composite list, on the layer's own picture, before the fold.
                     // The effect stage rewrites the layer's COLOUR, never its height, so the depth it composites
                     // at is still the layer's own surface.
+                    float[] contribution = buf.dst;
                     if (effects != null && HasEnabled(lay.effects))
                     {
                         if (layerPx == null || layerPx.Length < n) layerPx = new Color32[n];
@@ -306,11 +345,14 @@ namespace Laubrary.Shaper
                         Encode(buf.dst, layerPx, n);
                         effects.Apply(lay.effects, ShaperEffectStage.PreComposite, layerPx, w, h, phase01, doc.seed);
                         DecodeToPremultiplied(layerPx, layerAcc, n);
-                        CompositeDepth(dst, accZ, accZw, layerAcc, buf.height, baseZ, n);
-                        continue;
+                        contribution = layerAcc;
                     }
 
-                    CompositeDepth(dst, accZ, accZw, buf.dst, buf.height, baseZ, n);
+                    // T-0194 — store AFTER the mask and the layer's own effects, because that pair is what the
+                    // composite actually reads; caching the raw paint would re-run both on every later frame.
+                    layerCache?.Store(layerKey, contribution, buf.height, n);
+
+                    CompositeDepth(dst, accZ, accZw, contribution, buf.height, baseZ, n);
                 }
             }
             finally { doc.phase01 = savedPhase; }
@@ -531,11 +573,12 @@ namespace Laubrary.Shaper
 
         /// <summary>Render one frame index into a caller-owned float destination. See <see cref="RenderPhaseInto"/>.</summary>
         public static void RenderFrameInto(ShaperDocument doc, int frameIndex, float[] dst,
-                                           ShaperRenderBufferPool pool = null)
+                                           ShaperRenderBufferPool pool = null,
+                                           ShaperLayerBufferCache layerCache = null)
         {
             if (doc == null) return;
             int wrapped = ShaperClock.WrapFrame(frameIndex, Mathf.Max(1, doc.frameCount));
-            RenderPhaseInto(doc, doc.PhaseOfFrame(wrapped), dst, wrapped, pool);
+            RenderPhaseInto(doc, doc.PhaseOfFrame(wrapped), dst, wrapped, pool, null, layerCache);
         }
 
         /// <summary>

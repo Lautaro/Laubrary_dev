@@ -118,7 +118,10 @@ namespace Laubrary.Shaper.Editor
             if (doc == null) return;
             if (Mathf.Max(1, doc.frameCount) != _tex.Length) { Rebuild(); return; }
 
-            _cache.Invalidate();
+            // T-0194 — signature-aware, exactly as the preview stage: an edit that changes no layer's content
+            // key leaves the strip's tiles resident and re-composites them, so the contact sheet stops going
+            // black on a layer toggle.
+            _cache.Invalidate(doc);
             DestroyTextures();
             for (int i = 0; i < _row.childCount; i++) _row[i].style.backgroundImage = null;
             _prebaker.Stop();

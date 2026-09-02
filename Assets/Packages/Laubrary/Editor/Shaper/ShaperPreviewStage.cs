@@ -372,12 +372,17 @@ namespace Laubrary.Shaper.Editor
             _tex = null;
         }
 
-        /// <summary>Drop every cached frame's pixels and start the background pre-baker filling them back
-        /// in. Called by the window on every authored edit (never on a pure view change like scrubbing,
-        /// zoom or the backdrop — see ShaperWindow.cs's Change/Val, which is where this is hooked).</summary>
+        /// <summary>Re-key every cached frame against the document as it now stands and start the background
+        /// pre-baker on whatever genuinely has to be recomputed. Called by the window on every authored edit
+        /// (never on a pure view change like scrubbing, zoom or the backdrop — see ShaperWindow.cs's
+        /// Change/Val, which is where this is hooked).
+        ///
+        /// T-0194 — the document is passed in rather than the cache being emptied, which is what lets a
+        /// composite-only edit (a layer toggled, a Z offset, the background) keep its frames resident and
+        /// re-composite them from the per-layer buffers instead of flashing the whole strip.</summary>
         public void InvalidateFrameCache()
         {
-            _frameCache.Invalidate();
+            _frameCache.Invalidate(_doc?.Invoke());
             CacheProgressed?.Invoke();
             StartPrebakeIfNeeded();
         }
