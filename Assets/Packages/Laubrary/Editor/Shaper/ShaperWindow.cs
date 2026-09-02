@@ -263,9 +263,14 @@ namespace Laubrary.Shaper.Editor
             // drop the folds of the sections that had not been built yet.
             viewBar?.RestoreLast();
 
-            var right = new VisualElement();
+            // T-0195 — a ScrollView, not a plain VisualElement: once the preview island has a user-draggable
+            // height (BuildPreviewResizeBar, ShaperWindow.Preview.cs) it can be sized taller than the window,
+            // and the transport + Bake box that follow it must stay reachable rather than being clipped off
+            // the bottom. Scrolling is the escape hatch; nothing below is skipped when it fires.
+            var right = new ScrollView(ScrollViewMode.Vertical);
             right.style.minWidth = 260f;
             right.style.minHeight = 0f;
+            right.contentContainer.style.flexGrow = 1f;
             BuildRight(right);
 
             // 560 initial divider, matching the mock's own measured reasoning: Shaper is a dense workbench and
@@ -997,7 +1002,12 @@ namespace Laubrary.Shaper.Editor
             // `previewFrame` rather than `currentFrame`: under cherry framing the frame on screen is the
             // one the beat sequencer resolved, which may be ShaperCherry.BlankFrame (a deliberate gap).
             stage = new ShaperPreviewStage(() => document, () => previewFrame);
-            stage.style.flexGrow = 1f;
+            // T-0195 — an explicit, user-draggable height (BuildPreviewResizeBar, ShaperWindow.Preview.cs),
+            // not flexGrow: Pyre's preview island is sized the same way (PyreWindow.cs:96-98, 371-375) and the
+            // task asked for parity. flexGrow/flexShrink off so nothing but the drag bar ever changes it.
+            stage.style.flexGrow = 0f;
+            stage.style.flexShrink = 0f;
+            stage.style.height = Mathf.Clamp(previewHeight, PreviewHeightMin, PreviewHeightMax);
             // T-0165 — repaint the cache tick strip / "N/M cached" readout whenever the background pre-baker
             // makes progress, without touching the (expensive) preview image itself.
             stage.CacheProgressed += RefreshCacheReadout;
@@ -1027,6 +1037,11 @@ namespace Laubrary.Shaper.Editor
 
             previewSection.Add(stage);
             ApplyPreviewChromeToStage();
+
+            // T-0195 — the vertical drag bar, directly under the stage (mirrors Pyre's BuildPreviewResizeBar,
+            // PyreWindow.cs:435-451). Sits between the picture and the chrome so it reads as the picture's own
+            // bottom edge, not a divider inside the chrome.
+            previewSection.Add(BuildPreviewResizeBar());
 
             previewSection.Add(BuildPreviewChrome());
 

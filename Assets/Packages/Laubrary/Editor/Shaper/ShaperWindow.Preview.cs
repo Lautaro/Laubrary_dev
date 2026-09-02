@@ -39,6 +39,14 @@ namespace Laubrary.Shaper.Editor
         [SerializeField] bool previewShowFrame;
         [SerializeField] float previewZoom = 1f;
 
+        // T-0195 — the preview island's height, dragged via BuildPreviewResizeBar below. Window state for the
+        // same reason previewZoom is: it steers the picture's own furniture, never the document. [SerializeField]
+        // is what makes it survive a domain reload — Unity re-serializes the EditorWindow instance across one,
+        // the same mechanism previewZoom already relies on. Min/max match Pyre's own (PyreWindow.cs:96-98).
+        [SerializeField] float previewHeight = 320f;
+        const float PreviewHeightMin = 140f;
+        const float PreviewHeightMax = 900f;
+
         // GIF export (T-0160, Pyre parity): the scale/dither pair rides the window for the same reason as
         // previewZoom above — they steer the ONE-TIME export call, never the document the bake reads from.
         [SerializeField] int previewGifScale = 1;
@@ -91,6 +99,30 @@ namespace Laubrary.Shaper.Editor
             // its own reserved line under the transport (BuildRight), which is also where it belongs: it
             // describes playback, not the picture's cosmetics.
             return Z.HGroup(frameToggle, zoom);
+        }
+
+        // T-0195 — a 6px draggable divider on the preview's BOTTOM edge, mirroring Pyre's own
+        // (Editor/Pyre/PyreWindow.cs:435-451) look-for-look: same height, same tooltip-only affordance (UITK's
+        // `cursor` style doesn't accept MouseCursor in this Unity version, so there is no cursor hint here
+        // either), same drag math. Dragging only ever changes `stage`'s height style — the stage re-fits the
+        // picture inside that on its own GeometryChangedEvent (ShaperPreviewStage.cs), so this never re-renders
+        // a frame and never touches the dial pane on the left.
+        VisualElement BuildPreviewResizeBar()
+        {
+            var bar = new VisualElement { tooltip = "Drag to resize the preview vertically." };
+            bar.style.height = 6f;
+            bar.style.flexShrink = 0f;
+            bar.style.backgroundColor = new Color(0f, 0f, 0f, 0.25f);
+            bar.RegisterCallback<PointerDownEvent>(e => { if (e.button == 0) { bar.CapturePointer(e.pointerId); e.StopPropagation(); } });
+            bar.RegisterCallback<PointerMoveEvent>(e =>
+            {
+                if (!bar.HasPointerCapture(e.pointerId)) return;
+                previewHeight = Mathf.Clamp(previewHeight + e.deltaPosition.y, PreviewHeightMin, PreviewHeightMax);
+                if (stage != null) stage.style.height = previewHeight;
+                e.StopPropagation();
+            });
+            bar.RegisterCallback<PointerUpEvent>(e => { if (bar.HasPointerCapture(e.pointerId)) bar.ReleasePointer(e.pointerId); });
+            return bar;
         }
 
         /// The transport's status line (T-0188).
