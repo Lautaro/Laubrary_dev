@@ -1,0 +1,32 @@
+ZuiAudit.Audit(ShaperWindow, out foldedSkipped) after ZuiAudit.ExpandAll(win) — T-0185 verification pass, 2026-09-02
+Document: ShaperDemoDoc (16 frames), Star layer selected.
+
+Result:
+  expanded=1 (ZuiSection/ZuiBox/ZuiSectionLabel already open except one)
+  foldedSkipped=144
+  findingCount=1
+
+Findings:
+  [over-width] Button "Bake" [unity-text-element,unity-button] — 911px wide (cap 600) — NOT one of T-0185's rows (the
+  Bake button belongs to ShaperWindow.Bake.cs / T-0177's box); left untouched, out of this task's scope.
+
+Zero findings against the Frame scrubber, the Lifetime row, or the cherry-slot Source frame picker — the three
+rows T-0185 touched.
+
+foldedSkipped investigation: the 144 skipped subtrees are NOT collapsed ZuiSection/ZuiBox folds (ExpandAll already
+opened every one of those; only 1 needed opening). A per-type breakdown of every display:none node found:
+  Label x67, FloatField x58, VisualElement x18, ZuiSegmented x1
+These are legitimately-hidden BY-DESIGN alternate-mode UI, not collapsed content the audit is meant to catch:
+  - Every existing ZuiMicroSlider's optional numeric-input FloatField (Zui/Toolkit/ZuiMicroSlider.cs:83-90,
+    _numField.style.display = _showNumInput ? Flex : None) is hidden unless the user has opted into it via the
+    slider's own right-click "Numeric input" toggle — most of the ~58 hidden FloatFields are this, and every one
+    predates T-0185 (Dial()/Val() have built MicroSliders this way throughout Shaper already).
+  - ZuiValueControl (Z.Value / the Val() wrapper) shows exactly one of Static/Min-Max/Curve/Steps/Oscillation at a
+    time and hides the other modes' Labels/panels via display:none rather than removing them.
+None of these belong to T-0185's own rows: ZuiMicroMinMax (the new control) has no hidden numeric-input field at
+all, and the scrubber's hidden numField is the same pre-existing MicroSlider behaviour every other Dial() call in
+this window already carries.
+
+Conclusion: foldedSkipped != 0 here reflects ZuiAudit's Walk() counting ANY display:none subtree (a known
+characteristic, not something introduced by this task) rather than an actually-unaudited collapsed section.
+Nothing flagged against T-0185's rows; the one real finding is pre-existing and out of scope.

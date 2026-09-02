@@ -1,0 +1,10 @@
+isPlaying=True
+playerFound=True
+hasPlayer=True
+clip=ShaperDemoDoc Clip
+clipFrames=16
+playing=True
+sprite=null
+pos=(0.00, 0.00, 0.00)
+mainCam=True
+camPos=(0.00, 0.00, -10.00) ortho=True size=4

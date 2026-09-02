@@ -1,0 +1,50 @@
+T-0198 composite size probe — final run (post-fix, post-restore)
+Unity editor: D:/UNITY/Laubrary Dev - Shaper/Assets (verified via Application.dataPath), compileFailed=False
+
+P1  non-square 96x152, pixelSize 2.48778, ArcBurst composite
+      threw: no  expected no
+      mean alpha: 0.1217  expected > 0
+      RESULT: PASS
+      the failing call itself (ArcBurstForm.cs:520 with a 96x152 target): IndexOutOfRangeException
+        expected an exception — the defect is still in the form, the bridge no longer reaches it
+      the same call with a square target (96x96): no exception  expected no exception
+P2  square 96x96, pixelSize 1, ArcBurst composite (control)
+      threw: no  expected no
+      mean alpha: 0.0841  expected > 0
+      RESULT: PASS
+P3  FitTo carries pixelSize and clamps
+      halfExtent = (119.413, 189.071)  expected (119.413, 189.071)
+      bake       = 96x152  expected 96x152
+      FitTo(0,-3,0) clamped to 1x1, half (0.50,0.50)  expected >= 1 and > 0
+      RESULT: PASS
+P4  fitted box vs the canvas the grid spans
+      box/grid = (1.0105, 1.0066)  expected ~1.00 (pre-fix this was ~0.40)
+      RESULT: PASS
+P5  a throwing generator degrades to empty + a status line
+      render threw: no  expected no
+      ink: 0.0000  expected 0
+      status: "Broken" (Deliberately broken) drew nothing at 64x64: IndexOutOfRangeException. The rest of the document still renders.
+      RESULT: PASS
+P6  Undo vs [SerializeReference] — how a height stage disappears
+      Undo.RecordObject          -> height after undo: alive
+      Undo.RegisterCompleteObjectUndo -> height after undo: alive
+      two-step (add height, then undo a LATER edit):
+        Undo.RecordObject               -> height alive (canvasWidth back to 32)
+        Undo.RegisterCompleteObjectUndo -> height alive (canvasWidth back to 32)
+      RESULT: PASS
+      *** BUT THIS DID NOT REPRODUCE THE DEFECT. RecordObject kept the reference alive in both
+      *** sequences, so the undo path is NOT the demonstrated cause of the nulled height stage.
+P7  a layer with no height stage renders flat
+      threw: no  expected no
+      mean alpha: 0.1107  expected > 0
+      RESULT: PASS
+P8  the demo document (duplicate) at 96x152 / pixelSize 2.48778
+      layers: 2, of which with no height stage: 1   (was 2 before the restore)
+      threw: no  expected no
+      mean alpha: 0.1229  expected > 0
+      RESULT: PASS
+P9  edit -> undo -> save -> reload, on a duplicate document
+      RegisterCompleteObjectUndo: null managed refs 3 -> 3  (ok)
+      RecordObject (the old path): null managed refs 3 -> 3  (ok)
+      RESULT: PASS
+      *** Again: no growth under EITHER API. The persisted round trip does not reproduce it either.

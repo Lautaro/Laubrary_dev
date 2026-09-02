@@ -1,0 +1,6 @@
+phase=0.00 nonZeroAlphaPixels=111 maxAlpha=252
+phase=0.20 nonZeroAlphaPixels=599 maxAlpha=255
+phase=0.40 nonZeroAlphaPixels=821 maxAlpha=255
+phase=0.60 nonZeroAlphaPixels=916 maxAlpha=235
+phase=0.80 nonZeroAlphaPixels=676 maxAlpha=111
+phase=1.00 nonZeroAlphaPixels=0 maxAlpha=0

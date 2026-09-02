@@ -1,0 +1,43 @@
+clip=True
+cherryEnabled=True
+frames.Length=16
+  frame[0]=NULL
+  frame[1]=NULL
+  frame[2]=NULL
+  frame[3]=NULL
+  frame[4]=NULL
+  frame[5]=NULL
+  frame[6]=ShaperDemoDoc_6
+  frame[7]=NULL
+  frame[8]=NULL
+  frame[9]=ShaperDemoDoc_9
+  frame[10]=NULL
+  frame[11]=NULL
+  frame[12]=NULL
+  frame[13]=NULL
+  frame[14]=NULL
+  frame[15]=NULL
+PlaybackDocument=True
+doc.cherryEnabled=True
+doc.cherryFrames.Count=2
+begin: slot=0 frame=6 delayActive=False delayBeatsLeft=0 beatsLeft=1
+beat[0]: slot=1 frame=9 delayActive=False loopIndex=0
+beat[1]: slot=1 frame=9 delayActive=False loopIndex=0
+beat[2]: slot=1 frame=-1 delayActive=True loopIndex=1
+beat[3]: slot=1 frame=-1 delayActive=True loopIndex=1
+beat[4]: slot=0 frame=6 delayActive=False loopIndex=1
+beat[5]: slot=1 frame=9 delayActive=False loopIndex=1
+beat[6]: slot=1 frame=9 delayActive=False loopIndex=1
+beat[7]: slot=1 frame=-1 delayActive=True loopIndex=2
+beat[8]: slot=1 frame=-1 delayActive=True loopIndex=2
+beat[9]: slot=0 frame=6 delayActive=False loopIndex=2
+beat[10]: slot=1 frame=9 delayActive=False loopIndex=2
+beat[11]: slot=1 frame=9 delayActive=False loopIndex=2
+beat[12]: slot=1 frame=-1 delayActive=True loopIndex=3
+beat[13]: slot=1 frame=-1 delayActive=True loopIndex=3
+beat[14]: slot=0 frame=6 delayActive=False loopIndex=3
+beat[15]: slot=1 frame=9 delayActive=False loopIndex=3
+beat[16]: slot=1 frame=9 delayActive=False loopIndex=3
+beat[17]: slot=1 frame=-1 delayActive=True loopIndex=4
+beat[18]: slot=1 frame=-1 delayActive=True loopIndex=4
+beat[19]: slot=0 frame=6 delayActive=False loopIndex=4

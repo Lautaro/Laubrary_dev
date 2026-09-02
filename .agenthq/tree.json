@@ -12,7 +12,7 @@
     },
     {
       "id": "Chunks",
-      "muted": true,
+      "muted": false,
       "name": "Chunks",
       "parent": null
     },
@@ -100,6 +100,16 @@
       "name": "Shaper UI \u2014 vision, design plan and mock editor",
       "parent": "Shaper",
       "supervised": false
+    },
+    {
+      "id": "ShaperCompletion-2026-09-02",
+      "name": "Shaper completion (T-0158 programme)",
+      "parent": "Shaper"
+    },
+    {
+      "id": "ChunksEditor-2026-09-02",
+      "name": "Chunks editor \u2014 capability stack in Pyre's style",
+      "parent": "Chunks"
     }
   ]
 }

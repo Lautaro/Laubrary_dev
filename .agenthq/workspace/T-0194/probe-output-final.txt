@@ -1,0 +1,17 @@
+== 4-layer 16-frame layers=4 frames=16 canvas=96x152
+A baseline cold                 : 89.83
+B layer-cache cold              : 90.79  (h0/m64)
+C toggle  baseline              : 65.17
+C toggle  cached                : 5.15  (h48/m0)
+C2 background cached            : 7.58  (h64/m0)
+D one-layer dial cached         : 26.39  (h48/m16)   <- must be h48/m16, NOT h64/m0
+E invalidation keying total     : 4.19 ms
+F parity uncached/cold/warm     : SAME / SAME  [3c7c6fe6517c8c85]
+
+== where one layer's time goes (96x152, 8 reps)
+Resolve (compile + bake rasters): 0.08 ms
+BindLayer (light+height compile): 0.04 ms
+PaintTile (SDF+fill+light)      : 20.89 ms
+CompositeDepth                  : 0.39 ms
+Encode                          : 0.38 ms
+  of which ShaperEvaluator.FillTile (root owner only): 9.44 ms   owners=2 ops=1
