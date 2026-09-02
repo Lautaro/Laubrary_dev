@@ -540,12 +540,28 @@ namespace Laubrary.Pyre.Editor
                         v => EditAll((s, idx) => { s.maxLengthMultiplier = v; host.WriteCherrySlot(idx, s); }),
                         100f, showValue: true)));
 
+                // The host's extra rows can DEPEND on a value this popover edits (Shaper shows a MultiFrame
+                // slot's candidate-frame list only while MultiFrame is on), so they live in their own
+                // container that is refilled in place when such a value changes. Rebuilding the whole popover
+                // would close it under the cursor mid-edit.
+                var extras = new VisualElement();
+                void RefillExtras()
+                {
+                    extras.Clear();
+                    host.BuildExtraCherryPopoverRows(i, multi, extras);
+                }
+
                 panel.Add(Z.Toggle("MultiFrame",
                     "Pick a random source frame from this slot's own list, each time it plays, instead of a fixed source frame.",
                     first.multiFrame,
-                    v => EditAll((s, idx) => { s.multiFrame = v; host.WriteCherrySlot(idx, s); })));
+                    v =>
+                    {
+                        EditAll((s, idx) => { s.multiFrame = v; host.WriteCherrySlot(idx, s); });
+                        RefillExtras();
+                    }));
 
-                host.BuildExtraCherryPopoverRows(i, multi, panel);
+                RefillExtras();
+                panel.Add(extras);
 
                 panel.Add(PyreShapeCards.WrapRow(
                     Z.Button("Duplicate", "Duplicate the selected slot(s) right after themselves.",
