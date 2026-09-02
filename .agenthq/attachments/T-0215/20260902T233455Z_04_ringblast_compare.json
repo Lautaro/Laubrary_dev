@@ -1,0 +1,90 @@
+{
+  "predicted": [
+    {
+      "index": 0,
+      "delay": 0.0,
+      "pos": {
+        "x": -6.802965,
+        "y": -3.716902
+      }
+    },
+    {
+      "index": 1,
+      "delay": 0.088204354,
+      "pos": {
+        "x": -6.617278,
+        "y": -2.5992322
+      }
+    },
+    {
+      "index": 2,
+      "delay": 0.1583402,
+      "pos": {
+        "x": -7.29145575,
+        "y": -1.82965446
+      }
+    },
+    {
+      "index": 3,
+      "delay": 0.243240744,
+      "pos": {
+        "x": -8.384436,
+        "y": -1.60505617
+      }
+    },
+    {
+      "index": 4,
+      "delay": 0.306178719,
+      "pos": {
+        "x": -9.224371,
+        "y": -2.3415246
+      }
+    }
+  ],
+  "predictedCount": 5,
+  "actualCount": 5,
+  "actual": [
+    {
+      "pos": {
+        "x": -6.617278,
+        "y": -2.5992322
+      },
+      "firstSeenSecAfterFire": 0.0159713
+    },
+    {
+      "pos": {
+        "x": -6.377904,
+        "y": -4.10306835
+      },
+      "firstSeenSecAfterFire": 0.0159713
+    },
+    {
+      "pos": {
+        "x": -7.29145575,
+        "y": -1.82965446
+      },
+      "firstSeenSecAfterFire": 0.0864265
+    },
+    {
+      "pos": {
+        "x": -8.384436,
+        "y": -1.60505617
+      },
+      "firstSeenSecAfterFire": 0.1719507
+    },
+    {
+      "pos": {
+        "x": -9.224371,
+        "y": -2.3415246
+      },
+      "firstSeenSecAfterFire": 0.2399478
+    }
+  ],
+  "wallOrigin": {
+    "x": -8.0,
+    "y": -3.0
+  },
+  "wallDirectionDeg": 60.0,
+  "formationSeed": 7,
+  "blastSeed": 7
+}
