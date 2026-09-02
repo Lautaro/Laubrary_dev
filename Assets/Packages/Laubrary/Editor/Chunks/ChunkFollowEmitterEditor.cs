@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using Laubrary.AssetKit.Editor;
 using Laubrary.Zui;
 using UnityEditor;
 using UnityEngine;
@@ -32,7 +34,11 @@ namespace Laubrary.Chunks.Editor
         VisualElement _splashInterval, _spawnInterval, _aim;
         // The enabled carrier for _aimsIndicator's tooltip — a disabled control cannot show one itself.
         VisualElement _aimsRow;
-        Button _playButton, _stopButton;
+        Button _playButton, _finishButton, _stopButton;
+
+        // Thumbnail cache for the spec's LauAsset chip — kept alive across the periodic Refresh() so the
+        // picker doesn't re-fetch a thumbnail twelve times a second (matches ChunkSpecEditor/ChunkWindow.Recipe.cs).
+        readonly Dictionary<UnityEngine.Object, Texture2D> _thumbCache = new Dictionary<UnityEngine.Object, Texture2D>();
 
         public override VisualElement CreateInspectorGUI()
         {
@@ -64,8 +70,16 @@ namespace Laubrary.Chunks.Editor
 
             const string specTip = "The burst recipe this emitter repeatedly fires. It drives exactly two of the " +
                 "recipe's capabilities — Palette Splash and Pyre Blast — each on its own interval.";
+            // A reference is always a picker, never a raw ObjectField — the same LauAssetElement chip every
+            // other ChunkSpec reference in the package uses (ChunkWindow.Recipe.cs's AssetPicker helper).
+            // Picking through it doesn't rebuild this inspector's tree (nothing here rebuilds mid-edit), so —
+            // exactly like ChunkWindow.PyreBlastCard's own plain-Dial asset pickers — the chip's own label
+            // catches up on the next Refresh() rather than instantly; that is the established convention,
+            // not a shortcut taken here.
             box.Add(Z.Field("Chunk Spec", specTip,
-                Z.Object<ChunkSpec>(_e.spec, specTip, v => Dial("Follow emitter spec", () => _e.spec = v), Ref)));
+                LauAssetElement.Build(_e.spec,
+                    v => Dial("Follow emitter spec", () => _e.spec = v as ChunkSpec),
+                    typeof(ChunkSpec), _thumbCache, "Follow Emitter Spec", "Assets/Chunks", specTip)));
 
             const string targetTip = "The transform this emitter follows every frame. Leave empty to follow the " +
                 "emitter's own transform. A target destroyed mid-flight stops the emitter cleanly.";
@@ -178,11 +192,20 @@ namespace Laubrary.Chunks.Editor
 
             _playButton = Z.Button("Play", "Start emitting now. Only available while the game is playing.",
                 () => { _e.Play(); Refresh(); });
-            _stopButton = Z.Button("Stop", "Stop emitting and tear down everything this emitter spawned.",
+            // Two distinct stops, both surfaced: StopEmitting lets whatever is already in flight finish
+            // naturally (a grace period before the container is destroyed); Stop tears everything down
+            // immediately. Collapsing them into one button would hide a real behavioural difference.
+            _finishButton = Z.Button("Finish",
+                "Stop emitting but let everything already in flight finish naturally, instead of cutting it " +
+                "off mid-air.",
+                () => { _e.StopEmitting(); Refresh(); });
+            _stopButton = Z.Button("Stop",
+                "Stop emitting and tear down everything this emitter spawned immediately.",
                 () => { _e.Stop(); Refresh(); });
             _playButton.style.width = 70f;
+            _finishButton.style.width = 70f;
             _stopButton.style.width = 70f;
-            box.Add(Z.Row(_playButton, Z.HSpace(), _stopButton));
+            box.Add(Z.Row(_playButton, Z.HSpace(), _finishButton, Z.HSpace(), _stopButton));
             return box;
         }
 
@@ -238,6 +261,7 @@ namespace Laubrary.Chunks.Editor
 
             bool playing = Application.isPlaying;
             _playButton.SetEnabled(playing && _e.CanEmit);
+            _finishButton.SetEnabled(playing && _e.IsPlaying);
             _stopButton.SetEnabled(playing && _e.IsPlaying);
 
             _status.text = StatusText(hasSpec, splashOn, spawnOn, aimsAtTravel, playing);

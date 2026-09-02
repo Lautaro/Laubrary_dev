@@ -72,6 +72,63 @@ namespace Laubrary.Chunks.Editor
             actions.style.flexWrap = Wrap.NoWrap;
             root.Add(actions);
 
+            // The doorway's SUMMARY, not a second editor: kind, on/off, delay — read-only, one line per
+            // capability. Anything more (adding, reordering, dialling a field) belongs in the Chunks window,
+            // which is why this never builds a card. Rebuilt only when the stack's own shape actually changes
+            // (see the signature guard below), not on every scheduled tick, so it doesn't flicker while the
+            // recipe is untouched.
+            var capsSection = Z.Section("Capabilities",
+                "This recipe's capability stack, at a glance. Add, remove, reorder or edit any of it in the " +
+                "Chunks window.");
+            root.Add(capsSection);
+
+            var capsBody = new VisualElement();
+            capsSection.Add(capsBody);
+            string capsSignature = null;
+
+            void RefreshCapabilities()
+            {
+                var spec = target as ChunkSpec;
+                var caps = spec != null ? spec.capabilities : null;
+
+                var sig = new System.Text.StringBuilder();
+                sig.Append(caps != null ? caps.Count : 0);
+                if (caps != null)
+                    for (int i = 0; i < caps.Count; i++)
+                    {
+                        var c = caps[i];
+                        sig.Append('|').Append(c?.id).Append(':').Append(c?.enabled).Append(':')
+                           .Append(c != null ? c.delay.ToString("0.###") : "").Append(':').Append(c?.Title);
+                    }
+                var newSig = sig.ToString();
+                if (newSig == capsSignature) return;
+                capsSignature = newSig;
+
+                capsBody.Clear();
+                if (caps == null || caps.Count == 0)
+                {
+                    capsBody.Add(Z.Text("No capabilities yet — open in Chunks to add one.", ZuiText.Subtle,
+                        "This recipe's capability stack is empty."));
+                    return;
+                }
+
+                for (int i = 0; i < caps.Count; i++)
+                {
+                    var cap = caps[i];
+                    if (cap == null) continue;
+                    string delayText = cap.OccupiesTime ? $" · {cap.delay:0.00}s" : "";
+                    string line = (cap.enabled ? "On" : "Off") + "  " + cap.Title + delayText;
+                    string tip = !cap.enabled
+                        ? $"{cap.KindName} is switched off in the recipe — its values are kept but nothing plays."
+                        : cap.OccupiesTime
+                            ? $"{cap.KindName}, fires {cap.delay:0.00}s into the recipe."
+                            : $"{cap.KindName} — no timing of its own.";
+                    var row = Z.Text(line, ZuiText.Body, tip);
+                    if (!cap.enabled) row.style.opacity = 0.45f;
+                    capsBody.Add(row);
+                }
+            }
+
             var section = Z.Section("Animation preview",
                 "The optional animated content every chunk plays, drawn by the asset itself.");
             root.Add(section);
@@ -177,6 +234,7 @@ namespace Laubrary.Chunks.Editor
             {
                 if (root.panel == null || root.resolvedStyle.display == DisplayStyle.None) return;
                 Refresh();
+                RefreshCapabilities();
                 if (AnimationSourceOf(target as ChunkSpec) is IVisualPreview p && p.CanAnimatePreview && previewTex != null)
                 {
                     double now = EditorApplication.timeSinceStartup;
@@ -195,6 +253,7 @@ namespace Laubrary.Chunks.Editor
             editVisible = false;
             editButton.style.visibility = Visibility.Hidden;
             Refresh();
+            RefreshCapabilities();
             return root;
         }
 
