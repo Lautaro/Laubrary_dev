@@ -59,3 +59,16 @@ The Chunks preview is a fast, deterministic **schematic** of the recipe over its
 - Flipping the Pyre→Chunks assembly reference (`attachments/T-0119/…DEPENDENCY_CORRECTION.md`). The window uses the `IChunkEffectSpawner` picker, which already shows Pyre assets.
 - A Unity ParticleSystem wrapper capability ("Generic Particle Burst").
 - Retiring the mock at `Assets/ChunksMock/` (untracked; leave it).
+
+## 8. Resolved questions (raised by the behaviour checklist, T-0207, 2026-09-02)
+
+1. **"Inherit burst direction"** means the direction the CALLER passes (`SpawnBurst`'s override) or, when none is passed, the recipe's own `ChunkSpec.directionDeg`, which stays a recipe-level field (the composition's default aim, not a Debris Scatter dial). The preview shows it as one `Burst direction` MicroSlider in the transport/chrome row, because it is the one composition-level input every producer can inherit.
+2. **Spin is visible in the preview**: debris and fragment dots are small oriented squares, so their spin reads as rotation.
+3. **Hits has a schematic tell**: a faint circle of radius `hitRadiusScale × size` around each dot of its target producer.
+4. **Timing lane order follows the live stack order** (reordering a card reorders its lane).
+5. **A cue crossing** highlights its tick on the Timing ruler while `|t − cue| < 0.1 s`; no stage drawing.
+6. **An unassigned Layer slot** draws in stack order behind every slotted output — the same flat sorting fallback `ChunkModuleContext` uses today. The slot picker offers `(stack order)` as its first entry.
+7. **Layer references are by name** (`LayerSpec.layers` is a `List<string>`); renaming a layer in the Layer Plan card rewrites every capability's slot that referenced the old name, inside the same Undo step. Removing a layer resets referencing slots to `(stack order)`.
+8. **Hits greys in the Add-capability menu** until a Debris Scatter or Fragment Fracture exists; Trajectory until a Pyre Blast exists; Trail until a Debris Scatter or Fragment Fracture exists.
+9. **A Pyre Blast's pool pick is deterministic in the preview**: hash(seed, instance index) selects the alternate; the runtime may keep its random pick.
+10. `LayerSpec` has no opacity/blend fields today — the Layer Plan card shows name + reorder + remove only; do not add fields the runtime cannot honour.
