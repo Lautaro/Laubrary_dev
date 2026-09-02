@@ -35,6 +35,13 @@ namespace Laubrary.Chunks
                  "along, unless the caller passes one for a particular burst.")]
         public float directionDeg = 90f;
 
+        // A cosmetic backdrop for the authoring window's preview only — never spawned, never baked. Held on
+        // the recipe rather than in the window so the backdrop a burst was tuned against comes back with the
+        // recipe instead of with whichever window happened to be open (same field, same reasoning, as
+        // Pyre.previewBackSplash). Lazily allocated by the window: an asset saved before this field existed
+        // has no block for it in its YAML and must not be rewritten just for opening it.
+        [HideInInspector] public Laubrary.BackSplash.BackSplashSettings previewBackSplash;
+
         // ── legacy layout (schemaVersion 0) ───────────────────────────────────────────────────────────────
         // The fixed module slots a recipe used to be. Hidden, never edited, and read by exactly one thing: the
         // one-time upgrade in UpgradeIfNeeded. They stay for one release so an asset that has not been re-saved
@@ -376,6 +383,24 @@ namespace Laubrary.Chunks
             untilTargetEnds = pyreMotion.untilTargetEnds, lifeSeconds = pyreMotion.lifeSeconds,
             seed = pyreMotion.seed,
         };
+
+        /// A BRAND-NEW recipe is empty, and this is the only hook that can say so.
+        ///
+        /// A fresh instance and a legacy asset are indistinguishable at deserialization time — both arrive
+        /// with schemaVersion 0 and an empty stack, because the legacy default is what an old asset's missing
+        /// field leaves behind — so the upgrade cannot tell them apart and hands a new recipe the debris
+        /// capability the legacy defaults describe. Reset is the editor's CREATION hook: Unity calls it when
+        /// an instance is made in the editor (and when someone deliberately resets one), and never when an
+        /// asset is loaded from disk. So stamping the current layout here is exactly "this recipe was born
+        /// after the stack existed", which is the one fact the upgrade was missing.
+        void Reset()
+        {
+            capabilities = new List<ChunkCapability>();
+            schemaVersion = CurrentSchemaVersion;
+            // Nothing was upgraded — the recipe was born current — so it owes the disk nothing beyond the
+            // ordinary save its creation already does.
+            MarkSaved();
+        }
 
         void OnEnable() => UpgradeIfNeeded();
 

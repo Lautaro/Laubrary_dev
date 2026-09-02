@@ -6,7 +6,8 @@
         "com.Lautaro-Arino.Laubrary.PreviewKit",
         "com.Lautaro-Arino.Laubrary.Combat2D",
         "com.Lautaro-Arino.Laubrary.SpriteFx",
-        "com.Lautaro-Arino.Laubrary.Layering"
+        "com.Lautaro-Arino.Laubrary.Layering",
+        "com.Lautaro-Arino.Laubrary.BackSplash"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
