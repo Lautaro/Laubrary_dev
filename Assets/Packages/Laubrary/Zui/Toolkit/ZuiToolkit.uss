@@ -832,6 +832,47 @@
     margin-top: 1px;
 }
 
+/* Multi-lane clock (ZuiLanes). Same inset/hairline frame as the timeline and the envelope, so all three
+   painted time-domain controls read as siblings. The bands, markers and playhead are painted (Painter2D
+   cannot read a USS variable, so their tones live in the control); everything here is the text and the frame
+   around them. */
+
+.zui-lanes__bar {
+    background-color: rgba(0, 0, 0, 0.35);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.zui-lanes__gutter {
+    /* The lane names sit to the LEFT of the bar rather than inside the bands: a band narrow enough to be
+       interesting is never wide enough to hold its own name, and a name that appears and disappears with the
+       band's width is worse than one that always reads. */
+    padding-right: 4px;
+}
+
+.zui-lanes__gutter-label {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.zui-lanes__ruler {
+    /* Flush under the bar; the ruler's height is reserved in code so the bar never moves when a number is
+       dropped for the playhead's readout. */
+    margin-top: 1px;
+}
+
+.zui-lanes__tick {
+    color: rgba(255, 255, 255, 0.42);
+}
+
+/* A named instant reads louder than the second it happens at — it wins the space when the two collide. */
+.zui-lanes__marker-label {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.zui-lanes__playhead-label {
+    color: rgba(255, 255, 255, 0.95);
+}
+
 /* Reorderable rows -------------------------------------------------------- */
 
 .zui-reorder__dragging {

@@ -74,6 +74,12 @@ namespace Laubrary.Zui
         /// The standard tool-window shape: controls on the LEFT, workspace/preview on the RIGHT, with a
         /// user-draggable divider whose position persists per `stateKey` (EditorPrefs, machine-local view
         /// state). Wraps UITK's TwoPaneSplitView; the left pane is the fixed one.
+        ///
+        /// DOUBLE-CLICK THE DIVIDER TO RESET the left pane to `initialLeftWidth` and forget the saved
+        /// position. That route is not a nicety: because the width persists, a COLD OPEN is not a first run —
+        /// a window reopened from its menu item with every prior instance closed still comes up at whatever
+        /// extreme the divider was last dragged to, and without this there is no way back to the width the
+        /// tool was designed at.
         public static TwoPaneSplitView Split(string stateKey, float initialLeftWidth,
             VisualElement left, VisualElement right)
         {
@@ -87,13 +93,50 @@ namespace Laubrary.Zui
             if (right != null) split.Add(right);
 
             // Persist the divider wherever the user leaves it. The fixed pane's width IS the state.
+            bool restoring = false;
             left?.RegisterCallback<GeometryChangedEvent>(_ =>
             {
+                if (restoring) return;
                 float w = left.resolvedStyle.width;
                 if (w > 1f && !Mathf.Approximately(w, EditorPrefs.GetFloat(prefKey, -1f)))
                     EditorPrefs.SetFloat(prefKey, w);
             });
+
+            // The divider only exists once TwoPaneSplitView has built its own children, so the tooltip is
+            // applied on attach rather than queried for here.
+            split.RegisterCallback<AttachToPanelEvent>(_ => TipDivider(split));
+
+            // Registered on the SPLIT in the TRICKLE-DOWN phase, not on the divider itself, for two reasons
+            // that are both about the divider not being ours: TwoPaneSplitView re-creates it whenever it
+            // re-inits (so a handler bound to the element would go missing after the first reset), and its
+            // own resizer stops propagation on pointer-down (so a bubble-phase handler would never run).
+            split.RegisterCallback<PointerDownEvent>(e =>
+            {
+                if (e.button != 0 || e.clickCount < 2) return;
+                if (!(e.target is VisualElement t)) return;
+                if (t.name != "unity-dragline-anchor" && t.name != "unity-dragline") return;
+
+                // Forget the saved width FIRST, and hold the geometry writer off while the pane settles:
+                // resizing fires the geometry callback, which would otherwise save the width straight back
+                // and leave the key it was asked to clear in place.
+                restoring = true;
+                EditorPrefs.DeleteKey(prefKey);
+                if (!Mathf.Approximately(split.fixedPaneInitialDimension, initialLeftWidth))
+                    split.fixedPaneInitialDimension = initialLeftWidth;
+                if (left != null) left.style.width = initialLeftWidth;   // what the drag itself writes
+                split.schedule.Execute(() => { restoring = false; TipDivider(split); }).ExecuteLater(120);
+                e.StopPropagation();
+            }, TrickleDown.TrickleDown);
             return split;
+        }
+
+        /// The divider is TwoPaneSplitView's own element and carries no tooltip of its own; this says what it
+        /// does, including the reset, which is otherwise undiscoverable.
+        static void TipDivider(VisualElement split)
+        {
+            var handle = split.Q("unity-dragline-anchor") ?? split.Q("unity-dragline");
+            if (handle != null)
+                handle.tooltip = "Drag to resize this pane. Double-click to put it back to the width the tool ships with.";
         }
 
         /// A masonry column layout: items are dealt round-robin into `n` equal-width columns, each an
@@ -890,6 +933,28 @@ namespace Laubrary.Zui
         public static ZuiTimeline Timeline(float seconds, string tooltip, Action<float> onChanged = null,
             float height = 22f)
             => new ZuiTimeline(seconds, tooltip, onChanged, height);
+
+        /// A MULTI-LANE clock: N named bands (<see cref="ZuiLane"/>), each placed by its own ABSOLUTE start
+        /// and end, on one shared ruler of <paramref name="lengthSeconds"/> seconds, with named instants
+        /// (<see cref="ZuiLaneMarker"/>) and one draggable playhead. Click or drag anywhere to move it;
+        /// <paramref name="onTimeChanged"/> delivers SECONDS.
+        ///
+        /// Reach for this — not <c>Z.Timeline</c> — whenever two things on one clock can OVERLAP.
+        /// <c>Z.Timeline</c> is by contract a single strip of CONSECUTIVE bands, so on it a "starts at 0.15 s"
+        /// dial silently means "starts 0.15 s after the previous one ended", and the dial and the picture stop
+        /// agreeing.
+        ///
+        /// THE HOST OWNS THE LENGTH: pass the clock's full length (computed over every lane, disabled ones
+        /// included) and keep it with <c>SetLength</c>, or a lane switched off rescales the ruler and slides
+        /// every remaining band sideways. Feed the lanes with <c>SetLanes(...)</c> and the instants with
+        /// <c>SetMarkers(...)</c> — both REPLACE the data on the live element, so a host that rebuilds one
+        /// card does not lose the playhead or the drag. Push a host transport's clock in with
+        /// <c>SetTime</c>, never the <c>Seconds</c> setter, or a play tick re-enters
+        /// <paramref name="onTimeChanged"/>. A lane whose owner is disabled is passed with <c>dim: true</c>,
+        /// never omitted — omitting it changes the control's height and moves whatever sits above it.
+        public static ZuiLanes Lanes(float lengthSeconds, string tooltip, Action<float> onTimeChanged = null,
+            float laneHeight = 16f, float gutterWidth = 96f)
+            => new ZuiLanes(lengthSeconds, tooltip, onTimeChanged, laneHeight, gutterWidth);
 
         // ── pixel-exact drawing (a bespoke IMGUI preview canvas) ─────────────────────
 

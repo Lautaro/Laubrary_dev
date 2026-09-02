@@ -338,7 +338,11 @@ namespace Laubrary.Zui
         }
 
         /// The playhead's readout is the number actually being read, so it WINS every collision: any static
-        /// tick it covers is hidden (visibility, never display — hiding must not move the surviving ones).
+        /// tick it covers is DROPPED OUT OF THE LANE, not merely made invisible behind it. Dropping is safe
+        /// here (every tick is absolutely positioned, so removing one cannot move another) and it is what
+        /// makes the rule true rather than approximately true — an invisible label still answers a hit test
+        /// and still shows its own tooltip from under the readout. The label objects are kept in `_ticks`, so
+        /// a dropped number comes straight back the moment the playhead moves off it.
         void PlacePlayhead()
         {
             float w = BarWidth;
@@ -348,8 +352,17 @@ namespace Laubrary.Zui
             Span(_playLabel.text, X(_seconds), w, out float left, out float right);
             _playLabel.style.left = left;
             _playLabel.style.width = right - left;
+            bool restored = false;
             for (int i = 0; i < _ticks.Count; i++)
-                _ticks[i].El.visible = !(right > _ticks[i].Left && left < _ticks[i].Right);
+            {
+                var t = _ticks[i];
+                bool occluded = right > t.Left && left < t.Right;
+                if (occluded) t.El.RemoveFromHierarchy();
+                else if (t.El.parent == null) { _lane.Add(t.El); restored = true; }
+            }
+            // A restored tick is appended AFTER the readout, so put the readout back on top — and only then,
+            // because a reorder every drag frame is churn for nothing.
+            if (restored) _playLabel.BringToFront();
         }
 
         /// Where a label of this text, centred on x, ends up once clamped inside the bar.
