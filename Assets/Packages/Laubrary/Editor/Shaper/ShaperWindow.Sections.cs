@@ -57,8 +57,16 @@ namespace Laubrary.Shaper.Editor
         // draws is ONE question answered by the Shape card's picker, so those bodies are now drawn inside
         // that card and appear only for the shape that has them.
         ZuiSection fillSection, borderSection, swarmSection,
-                   responseSection, heightSection, effectsSection,
-                   layerEffectsSection, maskSection;
+                   responseSection, effectsSection,
+                   layerEffectsSection;
+
+        // T-0187 — Height and Mask stopped being toggle-bar ZuiSections (the owner: "I get the feeling you
+        // shouldn't make them into sections... perhaps part of the layer item in the layer list") and became
+        // foldable Z.BoxKeyed cards under the SELECTED layer's row instead — built by BuildLayersSection
+        // (ShaperWindow.cs), not here. This set makes each card start FOLDED the first time it is ever built
+        // in this editor session; after that, ZuiBox's own static fold dictionary remembers the user's choice
+        // like every other box, exactly as ShaperWindow.Lights.cs's per-light cards already do.
+        static readonly HashSet<string> s_layerCardDefaultedClosed = new HashSet<string>();
 
         /// Which bag member is being edited, as a path of child indices from the layer root. Empty = the
         /// root itself. This is VIEW state, not authored data — it is deliberately not [SerializeField]'d
@@ -107,12 +115,10 @@ namespace Laubrary.Shaper.Editor
             // LAYER-level cards. These bind to ShaperLayer, not to the node — the mock had them on the node
             // and that was corrected. Shown only at the layer root, because a bag member has no layer of its
             // own to author and drawing them while drilled in would be a lie about what is being edited.
-            if (drillPath.Count == 0)
-            {
-                BuildResponseSection(root, layer);
-                BuildHeightSection(root, layer);
-                BuildMaskSection(root, layer);
-            }
+            // T-0187 — Height and Mask no longer build here: they moved into BuildLayersSection
+            // (ShaperWindow.cs), which draws them for the SELECTED layer regardless of drillPath, since they
+            // are layer-level, not node-level, and the Layers section isn't about node drilling at all.
+            if (drillPath.Count == 0) BuildResponseSection(root, layer);
 
             BuildEffectsSection(root, layer);
         }
@@ -122,7 +128,7 @@ namespace Laubrary.Shaper.Editor
         {
             ("Fill", fillSection), ("Border", borderSection),
             ("Swarm", swarmSection),
-            ("Lighting", responseSection), ("Height", heightSection), ("Mask", maskSection),
+            ("Lighting", responseSection),
             ("SpriteFX", layerEffectsSection), ("Global SpriteFX", effectsSection),
         };
 
@@ -1208,21 +1214,32 @@ namespace Laubrary.Shaper.Editor
 
         // ShaperLayer.height is NULLABLE, and null is not the same as Flat: a layer with no height stage has
         // no height pass at all. So this card adds/removes the stage rather than only offering dials.
+        //
+        // T-0187 — moved from a toggle-bar ZuiSection into a foldable Z.BoxKeyed card under the Layers
+        // section's SELECTED-layer row (BuildLayersSection, ShaperWindow.cs), next to the Lifetime card:
+        // "Height, Mask? ... perhaps part of the layer item in the layer list" (owner). Keyed by ordinal —
+        // same fold-drift-on-reorder trade-off ShaperWindow.Lights.cs's per-light cards already accept, low
+        // cost here since it only affects which card starts folded, never any authored value.
         void BuildHeightSection(VisualElement root, ShaperLayer layer)
         {
-            var box = heightSection = Z.Section("Height",
-                "Extrude this LAYER's silhouette into relief.", "shaper.window.height", icon: "mountains");
+            string key = "shaper.window.height." + document.layers.IndexOf(layer);
 
             if (layer.height == null)
             {
-                box.Add(Z.Field("Height", "This layer has no height stage, so it stays flat.",
+                var empty = Z.BoxKeyed("Height", "Extrude this LAYER's silhouette into relief.", key, "mountains");
+                if (s_layerCardDefaultedClosed.Add(key)) empty.IsOpen = false;
+                empty.SetHeaderSuffix(() => ": none");
+                empty.Add(Z.Field("Height", "This layer has no height stage, so it stays flat.",
                     Z.Button("Add height", "Give this layer an extrusion stage.",
                         () => { Change(() => layer.height = new ShaperHeightDef()); Rebuild(); })));
-                root.Add(box);
+                root.Add(empty);
                 return;
             }
 
             var h = layer.height;
+            var box = Z.BoxKeyed("Height", "Extrude this LAYER's silhouette into relief.", key, "mountains");
+            if (s_layerCardDefaultedClosed.Add(key)) box.IsOpen = false;
+            box.SetHeaderSuffix(() => ": " + ObjectNames.NicifyVariableName(h.technique.ToString()));
             box.Add(Z.Field("Technique", "How the silhouette is raised.",
                 Z.MiniRadio((int)h.technique, Enum.GetNames(typeof(ShaperExtrusionTechnique)),
                     "Flat leaves it unraised; the others differ in how the surface climbs from edge to centre.",
@@ -1258,6 +1275,9 @@ namespace Laubrary.Shaper.Editor
         // "never type a reference string" rule sets for whether a picker is buildable at all. With no other
         // layer the control says so and offers nothing else, rather than degrading to a text field.
 
+        // T-0187 — moved from a toggle-bar ZuiSection into a foldable Z.BoxKeyed card under the Layers
+        // section's SELECTED-layer row, next to Height and the Lifetime card — see BuildHeightSection's
+        // comment above for the reasoning and the ordinal-key trade-off.
         void BuildMaskSection(VisualElement root, ShaperLayer layer)
         {
             // A document serialized before this field existed deserializes with the field initializer, so a
@@ -1265,11 +1285,7 @@ namespace Laubrary.Shaper.Editor
             // and NOT through Change(), because restoring a default is not an authored edit.
             if (layer.mask == null) layer.mask = new ShaperLayerMask();
             var m = layer.mask;
-
-            var box = maskSection = Z.Section("Mask",
-                "Cut this LAYER with another layer of the same document. The mask is held here, on the layer "
-                + "being cut, so one shape can mask several layers and dragging the list never re-points it.",
-                "shaper.window.mask", icon: "stack");
+            string key = "shaper.window.mask." + document.layers.IndexOf(layer);
 
             var source = document.LayerById(m.sourceLayerId);
             bool missing = m.IsSet && source == null;
@@ -1286,6 +1302,13 @@ namespace Laubrary.Shaper.Editor
                                         + "remove the mask."
                                       : "This document has no other layer to mask with. Add a second layer "
                                         + "first — a layer cannot mask itself.";
+
+            var box = Z.BoxKeyed("Mask",
+                "Cut this LAYER with another layer of the same document. The mask is held here, on the layer "
+                + "being cut, so one shape can mask several layers and dragging the list never re-points it.",
+                key, "stack");
+            if (s_layerCardDefaultedClosed.Add(key)) box.IsOpen = false;
+            box.SetHeaderSuffix(() => ": " + (m.IsSet ? pickLabel : "none"));
 
             Button pick = null;
             pick = Z.Button(pickLabel, pickTip, () =>

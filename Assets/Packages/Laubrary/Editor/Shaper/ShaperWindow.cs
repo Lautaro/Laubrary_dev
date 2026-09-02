@@ -65,6 +65,10 @@ namespace Laubrary.Shaper.Editor
         protected override string TypeLabel => "Shaper";
         protected override string NewAssetName => "New Shaper";
         protected override string DefaultFolder => "Assets/Shaper";
+        // T-0187 — place TagsSection ourselves, below the toggle bar, instead of the base's default
+        // above-everything placement (see BuildAsset). Pyre and every other ZuiAssetWindow subclass leaves
+        // this true and is unaffected.
+        protected override bool AutoInsertTagsSection => false;
 
         /// A document with no layer has nothing to render and no affordance that suggests what to do, so a
         /// new one starts with a single primitive layer — the first run is the only run every user gets.
@@ -190,6 +194,12 @@ namespace Laubrary.Shaper.Editor
             toggleBarHost = new VisualElement();
             root.Add(toggleBarHost);
 
+            // T-0187 — Tags renders BELOW the toggle bar, in its own permanently-placed row, so folding it
+            // never moves the bar above it (the owner: "the toggle bar jumps up and down if you toggle the
+            // tags"). The base builds TagsSection but, because AutoInsertTagsSection is overridden false
+            // below, leaves placing it to us instead of adding it above the toolbar/host split itself.
+            if (TagsSection != null) root.Add(TagsSection);
+
             var left = new ScrollView(ScrollViewMode.Vertical);
             left.style.minWidth = 320f;
             left.style.minHeight = 0f;
@@ -223,25 +233,40 @@ namespace Laubrary.Shaper.Editor
             RefreshToggleBar();
         }
 
+        // T-0187 — fixed roster and order: "the toggle bar should only have sections that almost all cases
+        // use" (owner). Tags no longer appears here at all — it renders below the bar via its own header
+        // fold (see BuildAsset) instead of being bar-controlled. Height and Mask no longer appear here
+        // either — they moved into the Layers section as per-layer cards (BuildLayersSection). Built as a
+        // label→section lookup rather than the old fixed interleave, so the exact order below is the only
+        // thing that decides what the bar shows and in what sequence, regardless of which file owns which
+        // section instance.
+        static readonly string[] ToggleBarOrder =
+        {
+            "Canvas", "Layers", "Shape", "Transform", "Fill", "Border",
+            "SpriteFX", "Global SpriteFX", "Swarm", "Lights", "Lighting",
+        };
+
         void RefreshToggleBar()
         {
             if (toggleBarHost == null) return;
             toggleBarHost.Clear();
+            var byLabel = new Dictionary<string, ZuiSection>
+            {
+                ["Canvas"] = canvasSection,
+                ["Lights"] = lightsSection,   // ShaperWindow.Lights.cs (T-0164)
+                ["Layers"] = layersSection,
+                ["Shape"] = shapeSection,
+                ["Transform"] = transformSection,
+            };
+            foreach (var (label, section) in SectionBarEntries())   // the cards ShaperWindow.Sections.cs owns
+                byLabel[label] = section;
+
             // Null section entries are skipped by the bar itself, so an absent card costs nothing here —
             // which is what lets the shell list every card unconditionally while the absence rule decides
             // at build time which ones actually exist for the current node kind.
-            var entries = new List<(string, ZuiSection)>
-            {
-                // The base's Tags section is one of this tool's sections, so it folds from the same bar as
-                // the rest rather than sitting outside the tool's own chrome.
-                ("Tags", TagsSection),
-                ("Canvas", canvasSection),
-                ("Lights", lightsSection),   // ShaperWindow.Lights.cs (T-0164)
-                ("Layers", layersSection),
-                ("Shape", shapeSection),
-                ("Transform", transformSection),
-            };
-            entries.AddRange(SectionBarEntries());   // the cards ShaperWindow.Sections.cs owns
+            var entries = new List<(string, ZuiSection)>(ToggleBarOrder.Length);
+            foreach (var label in ToggleBarOrder)
+                entries.Add((label, byLabel.TryGetValue(label, out var s) ? s : null));
             toggleBarHost.Add(new ZuiSectionToggleBar("ShaperWindow", entries.ToArray()));
         }
 
@@ -404,6 +429,17 @@ namespace Laubrary.Shaper.Editor
                             int rh = Mathf.RoundToInt(newHi);
                             lay.endFrame = rh >= document.frameCount - 1 ? -1 : rh;
                         }), 200f, decimals: 0)));
+            }
+
+            // T-0187 — Height and Mask stop being their own toggle-bar sections ("I get the feeling you
+            // shouldn't make them into sections... perhaps part of the layer item in the layer list", owner
+            // feedback) and become foldable cards here instead, right beside the Lifetime card, for the
+            // SELECTED layer only. Built in ShaperWindow.Sections.cs (same file that used to own them as
+            // sections) — this call site only decides WHERE they land now.
+            if (CurrentLayer != null)
+            {
+                BuildHeightSection(box, CurrentLayer);
+                BuildMaskSection(box, CurrentLayer);
             }
 
             root.Add(box);
