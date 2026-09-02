@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Laubrary.Chunks;
 
 namespace Laubrary.Shaper
 {
@@ -35,7 +36,7 @@ namespace Laubrary.Shaper
     /// output of baking, not something authored from scratch -- so it is deliberately not offered in the
     /// Create menu, matching the project rule against menu entries nobody asked for.
     /// </summary>
-    public class ShaperClip : ScriptableObject
+    public class ShaperClip : ScriptableObject, Laubrary.PreviewKit.IVisualPreview, IChunkAnimation, IChunkEffectSpawner
     {
         /// <summary>The baked frames in document order, frame 0 first. A clip with none is not playable.</summary>
         public Sprite[] frames;
@@ -115,5 +116,63 @@ namespace Laubrary.Shaper
                 return _playbackDoc;
             }
         }
+
+        // ── IVisualPreview (T-0159) ──────────────────────────────────────────────────────────────────────
+        // Self-contained block: a clip is a visual asset, so every picker and browser can show it without a
+        // per-window renderer. It reads the ALREADY BAKED sprites rather than re-rendering the document —
+        // the frames are the clip's whole content, and re-rendering would both cost ~30 ms a frame and risk
+        // disagreeing with what was actually baked.
+
+        /// <inheritdoc/>
+        public Texture2D RenderPreviewTexture()
+            => IsPlayable ? Laubrary.PreviewKit.PreviewTex.CropSprite(frames[FrameCount / 2]) : null;
+
+        /// <inheritdoc/>
+        public bool CanAnimatePreview => FrameCount > 1;
+
+        /// <inheritdoc/>
+        public float PreviewFps => frameRate > 0f ? frameRate : ShaperClock.DefaultFrameRate;
+
+        /// <inheritdoc/>
+        public void UpdateAnimatedPreview(Texture2D tex, double time)
+        {
+            if (tex == null || FrameCount <= 1) return;
+            // Plain frame order, deliberately: the cherry sequence is playback state that needs a running
+            // beat sequencer, and a browser thumbnail has no session to keep one in.
+            int i = Mathf.Abs(Mathf.FloorToInt((float)(time * PreviewFps))) % FrameCount;
+            Laubrary.PreviewKit.PreviewTex.BlitInto(tex, frames[i]);
+        }
+
+        // ── IChunkAnimation / IChunkEffectSpawner (T-0161) ───────────────────────────────────────────────
+        // Mirrors Runtime/Pyre/PyreChunksDirect.cs's `Pyre : IChunkEffectSpawner, IChunkAnimation` exactly, so
+        // any [RequireInterface(typeof(IChunkAnimation))] field (Chunks, Zoetrope's AmmoDef/WeaponDef, etc.)
+        // can pick a baked ShaperClip as a visual the same way it already picks a Pyre. GetFrames hands over
+        // the ALREADY BAKED sprites -- never a re-render, for the same cost/consistency reasons the class doc
+        // above gives for playback. Implicit (not explicit) interface implementation is safe: ShaperClip
+        // declares no member literally named Fps, Loop or GetFrames -- frameRate is the nearest name, and Fps
+        // below is exactly what it reports.
+
+        /// <see cref="IChunkAnimation.GetFrames"/> -- the clip's own baked frames, verbatim. Callers must not
+        /// mutate the returned array (same contract PyreRenderer.GetFrames' cached result carries).
+        public Sprite[] GetFrames() => frames;
+
+        /// <see cref="IChunkAnimation.Fps"/> -- the document's authored playback rate.
+        public float Fps => frameRate;
+
+        /// True: same reasoning as <c>Pyre.Loop</c> -- a chunk lives until its own lifetime ends, and freezing
+        /// a handed-over animation partway through reads as broken rather than finished. A one-shot-and-freeze
+        /// visual is the override case a caller builds by driving <see cref="ShaperPlayer"/> directly with
+        /// loop=false, not something this hand-over contract needs to express.
+        public bool Loop => true;
+
+        /// <see cref="IChunkEffectSpawner.SpawnEffect"/> -- spawn one pooled, one-shot <see cref="ShaperPlayer"/>
+        /// at worldPos, angled by rotationDeg, scaled uniformly. Returns the spawned transform so a caller
+        /// (Chunks' Pyre-Movement-style module) can fly it. The body is not re-derived here -- it is the
+        /// shared <see cref="ShaperDirectSpawn.Spawn"/> helper, mirroring PyreDirectSpawn, so the
+        /// pooling/Finished/sorting-layer/loop-leak discipline has exactly one implementation to keep right.
+        public Transform SpawnEffect(Vector3 worldPos, float rotationDeg, float scale,
+                                     string sortingLayerName, int sortingOrder)
+            => ShaperDirectSpawn.Spawn(this, Fps, false, 0f,
+                                       worldPos, rotationDeg, scale, sortingLayerName, sortingOrder);
     }
 }

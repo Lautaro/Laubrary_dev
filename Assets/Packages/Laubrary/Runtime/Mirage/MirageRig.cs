@@ -5,6 +5,7 @@ using Laubrary.Zoetrope;
 using Laubrary.Caching;
 using Laubrary.Pyre;
 using Laubrary.Chunks;
+using Laubrary.Shaper;
 using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespace inside a Laubrary.* namespace
 #if UNITY_EDITOR
 using UnityEditor;
@@ -271,6 +272,23 @@ namespace Laubrary.Mirage
                     bp.loop = true;
                     bp.Play();
                     ApplyScale(go, blast.pixelsPerUnit, entry.scale);
+                    break;
+                }
+                case ShaperClip shaperClip:
+                {
+                    // Same AddComponent-timing note as the Pyre case above: ShaperPlayer.Awake() runs
+                    // synchronously during AddComponent, before `clip` is assigned, so playOnAwake would start
+                    // with nothing to show. Kick Play() explicitly once clip is actually set.
+                    var sp = go.AddComponent<ShaperPlayer>();
+                    sp.clip = shaperClip;
+                    sp.loop = true;
+                    sp.Play();
+                    // A ShaperClip has no pixelsPerUnit field of its own (unlike a Pyre asset) — its baked
+                    // frames are ordinary Sprites, so the first frame's own import PPU stands in for it,
+                    // matching how the Sprite case below reads pixelsPerUnit straight off the sprite.
+                    float shaperPpu = shaperClip.frames != null && shaperClip.frames.Length > 0
+                        ? shaperClip.frames[0].pixelsPerUnit : 100f;
+                    ApplyScale(go, shaperPpu, entry.scale);
                     break;
                 }
                 case Sprite sprite:

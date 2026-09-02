@@ -6,6 +6,7 @@ using Laubrary.Chunks;
 using Laubrary.Zoetrope;
 using Laubrary.Pyre;
 using PyreAsset = Laubrary.Pyre.Pyre;   // the class is shadowed by the namespace inside a Laubrary.* namespace
+using Laubrary.Shaper;
 
 namespace Laubrary.Mirage
 {
@@ -40,8 +41,11 @@ namespace Laubrary.Mirage
         /// type in the project (a `typeof(Object)` constraint would otherwise match WareSpec and friends too).
         /// ChunkSpec joined the list once MirageRig learned to realize a burst (2026-08-24): without it, a
         /// Chunk could only reach Mirage through the Chunks window's own shortcut and could never be ADDED to
-        /// an existing view — a preview you cannot compose with anything else is half a preview.
-        public static readonly System.Type[] SupportedTypes = { typeof(Zoe), typeof(PyreAsset), typeof(ChunkSpec) };
+        /// an existing view — a preview you cannot compose with anything else is half a preview. ShaperClip
+        /// (T-0161) is Shaper's own IChunkAnimation counterpart to Pyre, browsed the same way for the same
+        /// reason.
+        public static readonly System.Type[] SupportedTypes =
+            { typeof(Zoe), typeof(PyreAsset), typeof(ChunkSpec), typeof(ShaperClip) };
 
         public static List<Item> FindAll()
         {
@@ -49,6 +53,7 @@ namespace Laubrary.Mirage
             AddType<Zoe>(list, "Zoe");
             AddType<PyreAsset>(list, "Pyre");
             AddType<ChunkSpec>(list, "Chunk");
+            AddType<ShaperClip>(list, "Shaper");
             return list;
         }
 
