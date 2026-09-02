@@ -21,16 +21,26 @@ namespace Laubrary.Shaper.Editor
             var sb = new StringBuilder();
             sb.AppendLine("T-0175 Sprite-shape probe");
 
-            // ── find any sprite in the project ──────────────────────────────────────────────────────────
+            // ── find a small sprite in the project ──────────────────────────────────────────────────────
+            // Prefers anything under 256px on both sides — the EDT bake grid clamps to 128 texels regardless
+            // of source size, so a large source (a full BackSplash background, easily 1000+ px) only costs an
+            // expensive Graphics.Blit downsample for no extra bake fidelity; picking small keeps the probe fast.
+            const float MaxPreferredDim = 256f;
             string[] guids = AssetDatabase.FindAssets("t:Sprite");
-            Sprite sprite = null;
-            string spritePath = null;
+            Sprite sprite = null, fallbackSprite = null;
+            string spritePath = null, fallbackPath = null;
             foreach (var guid in guids)
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
                 var candidate = AssetDatabase.LoadAllAssetsAtPath(path).OfType<Sprite>().FirstOrDefault();
-                if (candidate != null) { sprite = candidate; spritePath = path; break; }
+                if (candidate == null) continue;
+                if (fallbackSprite == null) { fallbackSprite = candidate; fallbackPath = path; }
+                if (candidate.rect.width <= MaxPreferredDim && candidate.rect.height <= MaxPreferredDim)
+                {
+                    sprite = candidate; spritePath = path; break;
+                }
             }
+            if (sprite == null) { sprite = fallbackSprite; spritePath = fallbackPath; }
             if (sprite == null)
             {
                 sb.AppendLine("FAIL: no Sprite asset found anywhere in the project (t:Sprite search empty).");

@@ -232,6 +232,14 @@ namespace Laubrary.Shaper
             return new ShaperProgram
             {
                 ops = ops,
+                // T-0175 fix — the copied ops can include a CompositeSample/SpriteSample leaf, and both index
+                // INTO these two arrays by ShaperOp.count. Omitting them here left the strip program with the
+                // Array.Empty<> defaults while its ops still carried a real index, throwing
+                // IndexOutOfRangeException in ShaperEvaluator.Distance the instant a bordered node contained one
+                // — unreachable for CompositeSample (EmitBorderJoin structurally refuses a border on a Composite
+                // node) but live for Sprite, which has no such refusal.
+                composites = nodeProgram.composites,
+                spriteFields = nodeProgram.spriteFields,
                 stackDepth = nodeProgram.stackDepth,          // Shell is unary: it pops one and pushes one
                 bound = ShaperBound.Shell(nodeProgram.bound),
                 supportCx = nodeProgram.supportCx,
