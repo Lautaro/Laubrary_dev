@@ -142,6 +142,44 @@ namespace Laubrary.Shaper.Editor
         double lastPlayTick;
         float playAcc;
 
+        // T-0190 — the transport lives in a host that can be REFILLED without rebuilding the window. Raising
+        // Frames has to widen the scrubber's range, re-tick the cache strip and re-tile the filmstrip, and a
+        // ZuiMicroSlider's range is fixed at construction; a whole-window Rebuild would do it but would also
+        // pull the Frames dial out from under the pointer mid-drag. Refilling only the right pane's transport
+        // leaves the control being dragged untouched.
+        VisualElement transportHost;
+        Label frameReadout;
+
+        // T-0190 — the cherry playhead. Under cherry framing the Frame slider is a SOURCE-frame index that
+        // only ever visits the frames the sequence names, which looks like a transport that has stopped; the
+        // playhead says where playback really is, as (slot, beat).
+        ZuiMicroSlider cherryScrubber;
+
+        // T-0190 — Pyre's Strip mode (Editor/Pyre/PyreWindow.cs:542-552). Window state, not document state,
+        // for the same reason previewZoom is: it is a view preference, and a preference that dirties an
+        // authored asset every time somebody reclaims some height is worse than one that resets. Defaults ON
+        // because that is what the tool already shipped — the toggle is here so the owner can take the height
+        // back, not to hide a feature that was visible yesterday.
+        [SerializeField] bool previewStrip = true;
+        [SerializeField] float previewStripTile = 40f;
+
+        // T-0190 — how long playback may hold, waiting for the next frame to finish caching, before it steps
+        // on regardless. Holding is what keeps a fresh document smooth (see PlaybackTick); holding WITHOUT a
+        // bound is what pinned the transport when a sustained dial-drag re-invalidated the cache faster than
+        // the pre-baker could refill it, which is the checklist's row 4.3.
+        const double MaxCacheHoldSeconds = 0.25;
+        double holdingSince = -1.0;
+
+        // T-0190 — the plain loop's blank gap. Wall-clock, because a gap is a duration and not a frame; while
+        // it runs, previewFrame reports the engine's own blank sentinel so the stage shows nothing rather than
+        // a held frame, which is the same honesty the cherry gap already had.
+        double plainLoopBlankUntil = -1.0;
+
+        // T-0190 — the preview-overlay toggle strip's PERMANENTLY reserved row (authoring.md §15). Built once
+        // and only ever refilled, so it cannot reflow the preview above it when a swarm is enabled.
+        VisualElement overlayStripHost;
+        List<ShaperPreviewOverlays.Entry> overlayEntries = new List<ShaperPreviewOverlays.Entry>();
+
         // T-0165 — the cached-frame ticks + "N/M cached" readout under the scrubber. Owned here (not
         // ShaperWindow.Preview.cs) because they live inside BuildTransport, which this file owns.
         ShaperCacheTickStrip cacheTickStrip;
@@ -215,11 +253,15 @@ namespace Laubrary.Shaper.Editor
             var flow = Z.ColumnFlow(360f);
             left.contentContainer.Add(flow);
 
+            BuildViewsSection(flow);    // T-0190 — saved views, Pyre's own bar (Editor/Pyre/PyreWindow.cs:453)
             BuildCanvasSection(flow);
             BuildLightsSection(flow);   // ShaperWindow.Lights.cs (T-0164) — document-level, sits beside Canvas
             BuildLayersSection(flow);
             BuildSelectedLayerSections(flow);
             RestoreScroll(left);
+            // After every card exists, or the bar would restore a view against half a window and silently
+            // drop the folds of the sections that had not been built yet.
+            viewBar?.RestoreLast();
 
             var right = new VisualElement();
             right.style.minWidth = 260f;
@@ -270,6 +312,65 @@ namespace Laubrary.Shaper.Editor
             toggleBarHost.Add(new ZuiSectionToggleBar("ShaperWindow", entries.ToArray()));
         }
 
+        // ── saved views (T-0190, checklist 11.2 — the shared ZuiViewBar + a committed ZuiViewStore) ──────
+        // Shaper is the densest workbench in the package: nine-plus cards over ~775 authored fields, most of
+        // which any given session does not touch. Pyre answers that with named view presets and Shaper had
+        // nothing, so the only way to get a workable layout was to re-fold the same cards every time the
+        // window rebuilt. Same store class, same bar, same shape — a second dialect of "saved views" would be
+        // the mistake, not a second store.
+        const string ViewStorePath = "Assets/Shaper/ShaperViews.asset";
+        const string ViewPrefsKey = "Shaper.lastView";
+        ZuiSection viewsSection;
+        ZuiViewBar viewBar;
+
+        void BuildViewsSection(VisualElement root)
+        {
+            viewBar = BuildViewBar(root);
+            viewsSection = Z.Section("Views",
+                "Save and recall named layouts of this window — which cards are folded open and which optional "
+                + "controls are shown. View state only: no authored value is ever stored in a view.",
+                "shaper.window.views", icon: "bookmarks-simple");
+            viewsSection.Add(viewBar);
+            root.Add(viewsSection);
+        }
+
+        /// Capture/apply aggregate every ZuiBox under <paramref name="paneRoot"/>, so a view round-trips every
+        /// card's fold + gear + shown-control state without this window listing its own cards — a list that
+        /// would go stale the first time a section was added. The store asset is committed and shared; only
+        /// the per-user "last view" pointer is in EditorPrefs. The bar never touches AssetDatabase itself.
+        ZuiViewBar BuildViewBar(VisualElement paneRoot)
+        {
+            Dictionary<string, bool> Capture()
+            {
+                var d = new Dictionary<string, bool>();
+                foreach (var b in paneRoot.Query<ZuiBox>().ToList()) b.CaptureView(d);
+                return d;
+            }
+            void Apply(IReadOnlyDictionary<string, bool> from)
+            {
+                foreach (var b in paneRoot.Query<ZuiBox>().ToList()) b.ApplyView(from);
+            }
+            return new ZuiViewBar(
+                () => AssetDatabase.LoadAssetAtPath<ZuiViewStore>(ViewStorePath),
+                CreateViewStore,
+                Capture,
+                Apply,
+                ViewPrefsKey);
+        }
+
+        /// Mint the Shaper views asset — only ever called from the bar's Save-as, and only when none exists.
+        /// Undo-registered per the Laubrary Undo rule; creates the conventional folder if it is missing, which
+        /// is the same folder a new document is written into (DefaultFolder above).
+        ZuiViewStore CreateViewStore()
+        {
+            if (!AssetDatabase.IsValidFolder("Assets/Shaper"))
+                AssetDatabase.CreateFolder("Assets", "Shaper");
+            var store = ScriptableObject.CreateInstance<ZuiViewStore>();
+            AssetDatabase.CreateAsset(store, ViewStorePath);
+            Undo.RegisterCreatedObjectUndo(store, "Create Shaper Views");
+            return store;
+        }
+
         void RestoreScroll(ScrollView view)
         {
             if (carriedScroll == Vector2.zero) return;
@@ -294,6 +395,20 @@ namespace Laubrary.Shaper.Editor
         /// A quarter-canvas rect leaves margin on every side at any canvas size, so the first render reads
         /// as a shape sitting ON a canvas. Engine defaults are deliberately NOT touched — this is the
         /// window's seeding choice, and a document authored by any other route keeps the engine's own values.
+        ///
+        /// ── T-0190: a fresh layer MOVES ─────────────────────────────────────────────────────────────────
+        /// Checklist row 5.3. Every engine default is a Static ZUIValue (ShaperPrimitives.cs), so before this
+        /// a new document played sixteen identical pictures: Play worked perfectly and looked broken. Pyre
+        /// solves the same problem by defaulting two dials to CURVES — `alpha` (fade in, hold, fade out) and
+        /// `size` (grow, overshoot, settle), Pyre.cs:325-326 and its DefaultAlpha/DefaultSize. The two are
+        /// chosen for a reason worth restating: SIZE is the motion you can see at any colour, and ALPHA is the
+        /// motion you can see at any size, so between them a first render animates whatever else the author
+        /// then does to it.
+        ///
+        /// Seeded here, and only here, exactly like the quarter-canvas sizing above: this is the WINDOW's
+        /// first-run choice, so the engine defaults stay Static and a document authored by any other route —
+        /// a script, a test, a bake — is bit-identical to what it always was. Switching an existing node to
+        /// another shape does NOT re-seed either, because that would overwrite dials the author has tuned.
         static ShaperLayer NewLayer(string name, ShaperDocument doc)
         {
             var layer = new ShaperLayer
@@ -302,12 +417,65 @@ namespace Laubrary.Shaper.Editor
                 enabled = true,
                 root = new ShaperNode { name = "Shape" },
             };
-            if (doc != null && layer.root.primitive != null)
+            var p = layer.root.primitive;
+            if (doc != null && p != null)
             {
-                layer.root.primitive.rectHalfW = Mathf.Max(2f, doc.canvasWidth * 0.25f);
-                layer.root.primitive.rectHalfH = Mathf.Max(2f, doc.canvasHeight * 0.25f);
+                p.EnsureDials();
+                float hw = Mathf.Max(2f, doc.canvasWidth * 0.25f);
+                float hh = Mathf.Max(2f, doc.canvasHeight * 0.25f);
+                // Grow in, overshoot, settle — Pyre's DefaultSize shape, expressed against THIS canvas rather
+                // than Pyre's fixed 0..24 pixel radius, so the seeded animation is in proportion at 32×32 and
+                // at 256×256 alike. The settle point is the same quarter-canvas rect the still default was, so
+                // the shape a user sees at rest is unchanged by this seeding.
+                p.rectHalfWDial = SeededGrowth(hw);
+                p.rectHalfHDial = SeededGrowth(hh);
             }
+            // The layer ROOT's fill is normally left null (the resolver substitutes DefaultRootFill), but a
+            // null fill has no dial to animate — so the seed materialises that same default and puts Pyre's
+            // alpha envelope on its veil. Identical in colour and compositing to the substituted default; the
+            // only difference is that it now fades.
+            var fill = ShaperFillDef.DefaultRootFill();
+            fill.veil = SeededVeil();
+            layer.root.fill = fill;
             return layer;
+        }
+
+        /// Pyre's DefaultSize curve shape (grow, overshoot, settle), rescaled to a canvas-relative settle
+        /// value: 0.55 → overshoot 1.15 → settle 1.0, as fractions of <paramref name="settle"/>.
+        ///
+        /// Pyre starts its own size curve at a sixth of its peak, which on a particle reads as a spark
+        /// appearing. Measured here on a fresh 96×64 document that gave frame 0 sixty lit pixels out of six
+        /// thousand — an animation that begins, correctly, with almost nothing on screen, which is the same
+        /// "did it work?" first run this seeding exists to fix. Starting at just over half keeps the growth
+        /// plainly visible (frame 0 to the peak is still a doubling) while frame 0 is unmistakably a shape.
+        static ZUIValue SeededGrowth(float settle)
+        {
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = Mathf.Max(1f, settle * 1.25f) };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, settle * 0.55f));
+            v.points.Add(new ZUIEnvelopePoint(0.45f, settle * 1.15f));
+            v.points.Add(new ZUIEnvelopePoint(1f, settle));
+            return v;
+        }
+
+        /// Pyre's DefaultAlpha envelope (fade in fast, hold, fade out) on the root fill's veil — Shaper's own
+        /// "how much of this fill reaches the picture" dial.
+        ///
+        /// One deliberate departure from Pyre's exact numbers: the ends are 0.45 and 0.5, not 0. A PARTICLE
+        /// may be born from nothing and die to nothing, because the frame it is invisible on is one of
+        /// thousands. A DOCUMENT's frame 0 is the first and often the only thing a user sees — it is the
+        /// thumbnail, it is what a paused transport shows, it is what a still bake writes. Seeding a fade from
+        /// zero would fix "the animation does not move" by replacing it with "the picture is empty", which is
+        /// the same first-run failure wearing a different hat.
+        static ZUIValue SeededVeil()
+        {
+            var v = new ZUIValue { mode = ZUIValue.Mode.Curve, yMin = 0f, yMax = 1f };
+            v.points.Clear();
+            v.points.Add(new ZUIEnvelopePoint(0f, 0.45f));
+            v.points.Add(new ZUIEnvelopePoint(0.15f, 1f));
+            v.points.Add(new ZUIEnvelopePoint(0.7f, 1f));
+            v.points.Add(new ZUIEnvelopePoint(1f, 0.5f));
+            return v;
         }
 
         // ── Canvas ───────────────────────────────────────────────────────────────────────────────────────
@@ -334,9 +502,18 @@ namespace Laubrary.Shaper.Editor
                     document.layerSpacing, 0f, 8f, v => document.layerSpacing = v)));
 
             box.Add(Z.HGroup(
+                // T-0190 (checklist 2.2) — the frame axis is the one dial the TRANSPORT is built from, so it
+                // refills the transport as it moves: a new scrubber range, re-shaped cache ticks, a re-tiled
+                // filmstrip and a corrected "frame N/M" readout, immediately rather than at the next window
+                // rebuild. FillTransport touches only the right pane, so the dial being dragged is untouched.
                 Dial("Frames", "How many frames this document resolves to. 1 is a still document, where every "
-                    + "frame maps to phase 0.", document.frameCount, 1f, 120f,
-                    v => document.frameCount = Mathf.Max(1, Mathf.RoundToInt(v)), decimals: 0),
+                    + "frame maps to phase 0 — the transport stays, with Play disabled.",
+                    document.frameCount, 1f, 120f,
+                    v =>
+                    {
+                        document.frameCount = Mathf.Max(1, Mathf.RoundToInt(v));
+                        FillTransport();
+                    }, decimals: 0),
                 Dial("Rate", "Playback rate in frames per second — how fast frames are shown here and how fast "
                     + "a baked clip plays. Nothing in the render pipeline reads it; the render is driven by "
                     + "phase, not by a wall clock.", document.frameRate,
@@ -518,12 +695,27 @@ namespace Laubrary.Shaper.Editor
                 Rebuild();
             }).W(40f));
 
-            row.Add(Z.Button("×", "Remove this layer.", () =>
-            {
-                Change(() => document.layers.Remove(layer));
-                selectedLayer = Mathf.Clamp(selectedLayer, 0, Mathf.Max(0, document.layers.Count - 1));
-                Rebuild();
-            }).W(22f));
+            row.Add(Z.Button("×",
+                document.layers.Count <= 1
+                    ? "This is the document's only layer, so it cannot be removed — a document with no layers "
+                      + "renders nothing and offers no way back. Add another layer first."
+                    : "Remove this layer.",
+                () =>
+                {
+                    // T-0190 (checklist 3.6, Pyre's own guard at Editor/Pyre/PyreWindow.cs:902). A zero-layer
+                    // document is renderable-as-nothing and has no affordance suggesting what to do — exactly
+                    // the dead end InitializeNewAsset seeds a layer to avoid, reachable again through delete.
+                    // Refused with a notification rather than a dialog: the answer is "not this one", not a
+                    // decision the user has to make.
+                    if (document.layers.Count <= 1)
+                    {
+                        ShowNotification(new GUIContent("A Shaper document needs at least one layer."));
+                        return;
+                    }
+                    Change(() => document.layers.Remove(layer));
+                    selectedLayer = Mathf.Clamp(selectedLayer, 0, Mathf.Max(0, document.layers.Count - 1));
+                    Rebuild();
+                }).W(22f));
 
             return row;
         }
@@ -785,20 +977,47 @@ namespace Laubrary.Shaper.Editor
             // from under the pointer.
             stage.DragCommitted = Rebuild;
 
+            // T-0190 — preview overlays. The stage owes them a buffer and nothing else; which features have
+            // marks to draw, and which are switched on, is decided here (ShaperPreviewOverlays).
+            stage.WantsOverlays = AnyOverlayOn;
+            stage.DrawOverlays = (px, w, h, frame) =>
+                ShaperPreviewOverlays.Draw(overlayEntries, px, w, h, document,
+                    document.PhaseOfFrame(Mathf.Max(0, frame)));
+
             previewSection.Add(stage);
             ApplyPreviewChromeToStage();
 
             previewSection.Add(BuildPreviewChrome());
 
-            // Transport only exists for an animated document — a still one has nothing to scrub or play.
-            if (document.frameCount > 1) previewSection.Add(BuildTransport());
+            // T-0190 — the overlay toggle strip: a PERMANENTLY reserved row, built once and only refilled
+            // (authoring.md §15). It sits LAST above the transport so the one direction it can grow has the
+            // transport, not the picture, after it.
+            overlayStripHost = new VisualElement();
+            overlayStripHost.style.minHeight = 18f;
+            previewSection.Add(overlayStripHost);
+            RefreshOverlayStrip();
+
+            // T-0190 — the transport is ALWAYS built, never gated on frameCount. Gating it was the single
+            // biggest reason a new document looked like a tool that did not work: a fresh document had one
+            // frame, so there was no Play button, no scrubber, no filmstrip and no cherry panel until the user
+            // found a dial they had no reason to look for. A still document now shows the same transport with
+            // Play disabled and a tooltip that says why — an explained dead control beats an absent one.
+            transportHost = new VisualElement();
+            previewSection.Add(transportHost);
+            FillTransport();
+
+            // T-0188/T-0190 — the status line gets its OWN permanently reserved row UNDER the transport. It
+            // used to share the Frame-border/Zoom row, where a long cherry message ran over the Zoom slider.
+            previewSection.Add(BuildTransportStatus());
 
             root.Add(previewSection);
 
             // Backdrop and cherry framing sit below the preview, in Pyre's own order (backdrop chrome, then
             // the cherry panel), so the things that change what the preview LOOKS like are grouped together.
+            // The cherry panel is ungated for the same reason the transport is: it is how a user discovers
+            // that cherry framing exists at all.
             BuildBackdropPanel(root);
-            if (document.frameCount > 1) root.Add(BuildCherryPanel());
+            root.Add(BuildCherryPanel());
 
             // T-0177 — destination + PPU + per-output toggles (Sprite sheet PNG / AnimationClip / ShaperClip /
             // GIF), each honest about whether it preserves cherry framing. Built in ShaperWindow.Bake.cs.
@@ -806,47 +1025,114 @@ namespace Laubrary.Shaper.Editor
         }
 
         /// What the preview should actually show. Under cherry framing that is the beat sequencer's resolved
-        /// frame (possibly a blank); otherwise it is the transport's own frame.
-        int previewFrame => document != null && document.cherryEnabled && cherryRunning
-            ? cherryState.frame
-            : currentFrame;
-
-        VisualElement BuildTransport()
+        /// frame (possibly a blank); during the PLAIN loop's own gap it is the same blank sentinel; otherwise
+        /// it is the transport's own frame.
+        int previewFrame
         {
-            var host = new VisualElement();
+            get
+            {
+                if (document == null) return currentFrame;
+                if (document.cherryEnabled && cherryRunning) return cherryState.frame;
+                // The plain loop's blank gap (T-0190). ShaperCherry.BlankFrame is reused rather than a second
+                // sentinel invented: the stage already renders it as nothing, and a gap is a gap whichever
+                // loop produced it.
+                if (plainLoopBlankUntil > 0.0 && EditorApplication.timeSinceStartup < plainLoopBlankUntil)
+                    return ShaperCherry.BlankFrame;
+                return currentFrame;
+            }
+        }
+
+        /// Whether ANY collected overlay is switched on — the stage asks before paying for the buffer copy.
+        bool AnyOverlayOn()
+        {
+            for (int i = 0; i < overlayEntries.Count; i++)
+                if (ShaperPreviewOverlays.IsOn(overlayEntries[i].Overlay)) return true;
+            return false;
+        }
+
+        /// Re-collect the document's overlays and refill their reserved strip. Cheap enough to call on every
+        /// authored edit: it walks the node tree, which is the same walk a single frame's compile already does
+        /// many times over.
+        internal void RefreshOverlayStrip()
+        {
+            if (overlayStripHost == null) return;
+            overlayEntries = ShaperPreviewOverlays.Collect(document,
+                document != null ? document.PhaseOfFrame(Mathf.Max(0, currentFrame)) : 0f);
+            ShaperPreviewOverlays.FillStrip(overlayStripHost, overlayEntries, RefreshPreview);
+        }
+
+        /// Rebuild the transport's controls in place. Called on build and whenever the FRAME AXIS changes —
+        /// a ZuiMicroSlider's range is fixed at construction, so raising Frames has to make a new scrubber,
+        /// and the tick strip and filmstrip have to re-shape with it (checklist 2.2). Refilling this host
+        /// rather than rebuilding the window is what keeps the Frames dial under the user's pointer.
+        void FillTransport()
+        {
+            if (transportHost == null || document == null) return;
+            transportHost.Clear();
+            filmstrip?.Dispose();
+            filmstrip = null;
+
+            bool animated = document.frameCount > 1;
             int max = Mathf.Max(0, document.frameCount - 1);
             currentFrame = Mathf.Clamp(currentFrame, 0, max);
 
-            playButton = Z.Button(playing ? "❚❚ Pause" : "▶ Play", "Play or pause the looping preview.", () =>
-            {
-                playing = !playing;
-                playButton.text = playing ? "❚❚ Pause" : "▶ Play";
-                if (playing)
+            playButton = Z.Button(playing ? "❚❚ Pause" : "▶ Play",
+                animated
+                    ? "Play or pause the looping preview."
+                    : "This document is one frame long, so there is nothing to play. Raise Frames in the "
+                      + "Canvas card and this starts the loop.",
+                () =>
                 {
-                    lastPlayTick = EditorApplication.timeSinceStartup;
-                    playAcc = 0f;
-                    // Start the cherry sequence from its first slot on every press, so Play always means the
-                    // same thing rather than resuming a half-finished loop from whenever you last paused.
-                    ResetCherryPlayback();
-                    EditorApplication.update -= PlaybackTick;
-                    EditorApplication.update += PlaybackTick;
-                }
-            });
+                    playing = !playing;
+                    playButton.text = playing ? "❚❚ Pause" : "▶ Play";
+                    if (playing)
+                    {
+                        lastPlayTick = EditorApplication.timeSinceStartup;
+                        playAcc = 0f;
+                        holdingSince = -1.0;
+                        plainLoopBlankUntil = -1.0;
+                        // Start the cherry sequence from its first slot on every press, so Play always means
+                        // the same thing rather than resuming a half-finished loop from whenever you paused.
+                        ResetCherryPlayback();
+                        EditorApplication.update -= PlaybackTick;
+                        EditorApplication.update += PlaybackTick;
+                    }
+                });
+            // Disabled rather than absent: the control stays where the user learned it is, and its tooltip
+            // says the one thing they need to change. A missing button teaches nothing.
+            playButton.SetEnabled(animated);
 
-            host.Add(Z.HGroup(
+            transportHost.Add(Z.HGroup(
                 playButton,
                 Dial("Rate", "Playback rate in frames per second.", document.frameRate,
-                    ShaperClock.MinFrameRate, ShaperClock.MaxFrameRate, v => document.frameRate = v, decimals: 0)));
+                    ShaperClock.MinFrameRate, ShaperClock.MaxFrameRate, v => document.frameRate = v, decimals: 0),
+                Dial("Loop gap", "Seconds of blank between one pass through the frames and the next. 0 loops "
+                    + "with no gap. The gap plays as nothing on screen, not as a held frame, and is preview "
+                    + "playback only — a baked sheet is frames and has nowhere to put a pause.",
+                    document.loopDelaySeconds, 0f, 4f,
+                    v => document.loopDelaySeconds = Mathf.Max(0f, v), decimals: 2),
+                Z.Toggle("Strip",
+                    previewStrip
+                        ? "Showing the whole animation as a contact sheet of every frame under the transport. "
+                          + "Click to reclaim that height."
+                        : "Show the whole animation as a contact sheet of every frame under the transport; "
+                          + "click a tile to jump the transport there.",
+                    previewStrip, v => { previewStrip = v; FillTransport(); })));
 
             // GIF export moved into the Bake box (T-0177 PM vet — one home for the feature instead of two):
             // the toggle, scale and dither controls now live beside the other output toggles in
             // ShaperWindow.Bake.cs, and the Bake button writes the GIF when that toggle is on.
 
             // A MicroSlider carries its own caption inside the track (matching Dial() above), so it is added
-            // directly rather than wrapped in Z.Field — a Field label would just duplicate "Frame". Full row
-            // width per the owner's "we have width, not height" feedback, rather than the old 220px fixed size.
+            // directly rather than wrapped in Z.Field — a Field label would just duplicate "Frame". The
+            // "frame N/M" readout goes LAST in the row (variable-width content last), and is the one place
+            // that answers "where is playback" without the reader decoding a slider's fill.
             scrubber = Z.MicroSlider("Frame", currentFrame, 0, max,
-                "Scrub to an exact frame. Dragging pauses playback and holds that frame.", v =>
+                animated
+                    ? "Scrub to an exact frame. Dragging pauses playback and holds that frame."
+                    : "This document is one frame long, so there is nothing to scrub through. Raise Frames in "
+                      + "the Canvas card to give it a timeline.",
+                v =>
                 {
                     currentFrame = Mathf.RoundToInt(v);
                     playing = false;
@@ -854,13 +1140,46 @@ namespace Laubrary.Shaper.Editor
                     // "running", so previewFrame would keep returning its last resolved beat and the scrub
                     // would appear to do nothing — the drag would move the handle and not the picture.
                     cherryRunning = false;
+                    plainLoopBlankUntil = -1.0;
                     if (playButton != null) playButton.text = "▶ Play";
+                    RefreshFrameReadout();
                     RefreshPreview();
                 }, decimals: 0);
-            // `host` stacks its children in a COLUMN, so flex-grow (the main axis, vertical here) would not
-            // widen the scrubber — a percentage width is what actually fills the row.
-            scrubber.style.width = new Length(100f, LengthUnit.Percent);
-            host.Add(scrubber);
+            scrubber.style.flexGrow = 1f;
+            // Under cherry framing the SOURCE frame is the sequence's to choose, not the user's: dragging this
+            // would fight the sequencer for the same value and lose on the next beat. It stays visible (it is
+            // still the honest readout of which source frame is on screen) and stops accepting a drag, with
+            // the cherry playhead below taking over as the control.
+            scrubber.SetEnabled(animated && !document.cherryEnabled);
+
+            frameReadout = Z.Text("", ZuiText.Body,
+                "Which frame is on screen, out of how many this document has. Counts from 1, like the "
+                + "filmstrip's own tiles.");
+            frameReadout.style.width = 74f;
+            frameReadout.style.unityTextAlign = TextAnchor.MiddleRight;
+            transportHost.Add(Z.HGroup(scrubber, frameReadout));
+            RefreshFrameReadout();
+
+            // T-0190 — the cherry playhead. Only when there is a sequence to follow (the absence rule): with
+            // cherry off this control would report a position in a sequence nobody authored.
+            if (animated && document.cherryEnabled)
+            {
+                int slots = Mathf.Max(1, document.cherryFrames?.Count ?? 0);
+                cherryScrubber = Z.MicroSlider("Cherry slot", Mathf.Clamp(cherryState.slot, 0, slots - 1),
+                    0, slots - 1,
+                    "Where playback is in the CHERRY sequence — which slot, not which source frame. Drag it to "
+                    + "park playback on a slot and see the frame that slot names.",
+                    v =>
+                    {
+                        int slot = Mathf.RoundToInt(v);
+                        playing = false;
+                        if (playButton != null) playButton.text = "▶ Play";
+                        JumpToCherrySlot(slot);
+                    }, decimals: 0);
+                cherryScrubber.style.flexGrow = 1f;
+                transportHost.Add(cherryScrubber);
+            }
+            else cherryScrubber = null;
 
             // T-0165 — cached-frame ticks + "N/M cached" readout, in a PERMANENTLY reserved row (stable-
             // workspace rule): this row is built once here and only ever has its paint/text updated
@@ -874,10 +1193,18 @@ namespace Laubrary.Shaper.Editor
             cacheReadoutLabel = Z.Text("", ZuiText.Body,
                 "How many of this document's frames already have their picture cached.");
             cacheReadoutLabel.style.width = 90f;
-            host.Add(Z.HGroup(cacheTickStrip, cacheReadoutLabel));
+            transportHost.Add(Z.HGroup(cacheTickStrip, cacheReadoutLabel));
             RefreshCacheReadout();
 
             // T-0176 — filmstrip contact sheet: click a tile to jump the transport there (Pyre parity).
+            // T-0190 — now a MODE, with Pyre's own Tile-px slider beside its toggle above.
+            if (!previewStrip) return;
+
+            transportHost.Add(Z.MicroSlider("Tile px", previewStripTile, 24f, 128f,
+                "How big each frame tile in the contact sheet is. Only changes how the strip is drawn — no "
+                + "frame is re-rendered and no bake is affected.",
+                v => { previewStripTile = Mathf.Clamp(v, 24f, 128f); FillTransport(); }, 150f, decimals: 0));
+
             filmstrip = new ShaperFilmstripElement(() => document,
                 () => currentFrame,
                 jumpTo =>
@@ -885,14 +1212,50 @@ namespace Laubrary.Shaper.Editor
                     currentFrame = Mathf.Clamp(jumpTo, 0, Mathf.Max(0, document.frameCount - 1));
                     playing = false;
                     cherryRunning = false;
+                    plainLoopBlankUntil = -1.0;
                     if (playButton != null) playButton.text = "▶ Play";
                     if (scrubber != null) scrubber.value = currentFrame;
+                    RefreshFrameReadout();
                     RefreshPreview();
-                });
-            host.Add(filmstrip);
+                },
+                previewStripTile);
+            transportHost.Add(filmstrip);
             filmstrip.Rebuild();
+        }
 
-            return host;
+        /// The "frame N/M" readout (checklist 8.9). 1-based, matching the filmstrip's own tile tooltips, and
+        /// updated from every path that moves the playhead — playback, scrub, filmstrip click — so the three
+        /// can never disagree about where the transport is.
+        void RefreshFrameReadout()
+        {
+            if (frameReadout == null || document == null) return;
+            int shown = previewFrame;
+            frameReadout.text = shown < 0
+                ? "gap"
+                : $"frame {Mathf.Clamp(shown, 0, Mathf.Max(0, document.frameCount - 1)) + 1}/{Mathf.Max(1, document.frameCount)}";
+        }
+
+        /// Park cherry playback on one slot and show the frame it names — what dragging the cherry playhead
+        /// does. Begins a fresh sequence state and walks it forward, rather than writing a slot index straight
+        /// in, so the beat counter and the loop-gap state stay consistent with the engine's own rule.
+        void JumpToCherrySlot(int slot)
+        {
+            if (document == null || document.cherryFrames == null || document.cherryFrames.Count == 0) return;
+            slot = Mathf.Clamp(slot, 0, document.cherryFrames.Count - 1);
+            cherryState = ShaperCherry.Begin(document);
+            cherryRunning = true;
+            // Guarded: a slot with a length multiplier takes several beats to leave, so stepping "one slot"
+            // is stepping until the slot index changes — with a bound, because a degenerate sequence must not
+            // spin the editor.
+            for (int guard = 0; guard < 4096 && cherryState.slot != slot; guard++)
+                cherryState = ShaperCherry.AdvanceOneBeat(cherryState, document);
+            if (cherryState.frame >= 0)
+            {
+                currentFrame = Mathf.Clamp(cherryState.frame, 0, Mathf.Max(0, document.frameCount - 1));
+                if (scrubber != null) scrubber.value = currentFrame;
+            }
+            RefreshFrameReadout();
+            RefreshPreview();
         }
 
         /// Repaint the tick strip and update the "N/M cached" text. Cheap — no layout pass, just a
@@ -918,6 +1281,19 @@ namespace Laubrary.Shaper.Editor
             float dt = (float)(now - lastPlayTick);
             lastPlayTick = now;
 
+            // T-0190 — the plain loop's blank gap. Held on the wall clock rather than on beats, because it is
+            // authored in seconds; the accumulator is reset on the way out so the first frame after the gap
+            // gets a whole frame's worth of time rather than the leftovers of the gap.
+            if (plainLoopBlankUntil > 0.0)
+            {
+                if (now < plainLoopBlankUntil) { RefreshPreview(); return; }
+                plainLoopBlankUntil = -1.0;
+                playAcc = 0f;
+                RefreshFrameReadout();
+                RefreshPreview();
+                return;
+            }
+
             // The engine owns the stepping rule; this window does not keep a second accumulator.
             int steps = ShaperClock.AdvanceFrames(ref playAcc, dt, document.frameRate);
             if (steps <= 0) return;
@@ -937,22 +1313,42 @@ namespace Laubrary.Shaper.Editor
                     currentFrame = Mathf.Clamp(shown, 0, Mathf.Max(0, document.frameCount - 1));
                     if (scrubber != null) scrubber.value = currentFrame;
                 }
+                if (cherryScrubber != null) cherryScrubber.value = cherryState.slot;
+                RefreshFrameReadout();
                 RefreshPreview();
                 return;
             }
 
-            int nextFrame = ShaperClock.WrapFrame(currentFrame + steps, Mathf.Max(1, document.frameCount));
+            int frames = Mathf.Max(1, document.frameCount);
+            int nextFrame = ShaperClock.WrapFrame(currentFrame + steps, frames);
 
-            // T-0165 — playback only steps onto CACHED frames (Pyre's own behaviour). Advancing onto an
-            // uncached frame would mean a synchronous ~30ms render mid-tick, which is exactly the stutter a
-            // background pre-baker exists to avoid. Instead, hold the currently-shown frame: the accumulator
-            // above has already been debited for this tick's beats, so playback simply catches up once the
-            // pre-baker (running via InvalidateFrameCache/Refresh) fills the frame in — no synchronous block,
-            // and no picture shown that was never actually requested to render.
-            if (stage != null && !stage.IsFrameCached(nextFrame)) return;
+            // T-0165 — playback prefers to step onto CACHED frames (Pyre's own behaviour): advancing onto an
+            // uncached one means a synchronous ~30ms render mid-tick, exactly the stutter a background
+            // pre-baker exists to avoid. Holding lets playback catch up once the pre-baker fills the frame in.
+            //
+            // T-0190 — but the hold is now BOUNDED, and that is the whole of checklist row 4.3. Change()
+            // invalidates the entire frame cache on every authored edit, so a sustained dial-drag re-empties
+            // the cache faster than the pre-baker can refill it and the unbounded hold parked the transport
+            // for as long as the drag lasted — the owner's "I pressed play and the transport did not move".
+            // After MaxCacheHoldSeconds playback steps on and pays for the render, which stutters; a stutter
+            // is a tool working hard, a frozen playhead is a tool that looks broken. The picture never blanks
+            // either way: ShaperPreviewStage holds the last good image when a frame is not ready.
+            if (stage != null && !stage.IsFrameCached(nextFrame))
+            {
+                if (holdingSince < 0.0) holdingSince = now;
+                if (now - holdingSince < MaxCacheHoldSeconds) return;
+            }
+            holdingSince = -1.0;
+
+            // A wrap is what a loop gap sits in: the sequence has just finished a pass, so the gap goes here,
+            // before the first frame of the next one is shown.
+            bool wrapped = nextFrame <= currentFrame && steps > 0 && frames > 1;
+            if (wrapped && document.loopDelaySeconds > 0f)
+                plainLoopBlankUntil = now + document.loopDelaySeconds;
 
             currentFrame = nextFrame;
             if (scrubber != null) scrubber.value = currentFrame;
+            RefreshFrameReadout();
             RefreshPreview();
         }
 
@@ -976,6 +1372,11 @@ namespace Laubrary.Shaper.Editor
             stage?.InvalidateFrameCache();
             filmstrip?.Invalidate();
             InvalidateCherryThumbs();
+            // T-0190 — an edit can change WHICH features have marks to show (enabling a swarm, giving it a
+            // shape), so the reserved overlay strip is re-collected here rather than only on a full rebuild:
+            // a toggle that appears one window-rebuild after the feature it belongs to reads as not existing.
+            RefreshOverlayStrip();
+            RefreshFrameReadout();
             RefreshPreview();
         }
 

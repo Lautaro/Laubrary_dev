@@ -108,7 +108,7 @@ namespace Laubrary.Shaper
     /// silently mis-declare its own implementation.
     /// </summary>
     [Serializable]
-    public class ShaperSwarmDef : ISerializationCallbackReceiver
+    public class ShaperSwarmDef : ISerializationCallbackReceiver, IShaperPreviewOverlay
     {
         const uint FldPosJitterX = 0x7E00_0001u, FldPosJitterY = 0x7E00_0002u;
         const uint FldRotJitter = 0x7E00_0003u, FldScaleJitter = 0x7E00_0004u;
@@ -443,6 +443,72 @@ namespace Laubrary.Shaper
             // tangent: a facing the user can see is better than silently no facing at all.
             if (placed.sqrMagnitude > 1e-8f)
                 orientDegrees = Mathf.Atan2(placed.y, placed.x) * Mathf.Rad2Deg - 90f;
+        }
+
+        // ── preview overlay (IShaperPreviewOverlay) ──────────────────────────────────────────────────────
+        // A swarm is the one authored thing in Shaper whose result cannot be read off the picture: the
+        // instances are UNIONED into a single field, so a cloud of eight overlapping shapes and a cloud of
+        // three look the same, and moving a spawner dial changes a silhouette without saying where anything
+        // actually went. Marking the spawner figure and every real placement is what makes the dials
+        // author-able by eye instead of by trial.
+        //
+        // See ShaperPreviewOverlay.cs for why this is an interface the swarm implements rather than a toggle
+        // in the preview chrome.
+
+        public string OverlayLabel => "Swarm spawns";
+
+        public string OverlayTooltip =>
+            "Marks this swarm's spawn figure — a cyan outline — and a warm dot at every place it puts an "
+            + "instance, sampled at the frame on screen, so the marks turn and grow with an animated spawner "
+            + "instead of freezing at frame 0.\n\n"
+            + "The dots are PLACEMENTS, before the position-jitter dials scatter each instance off its own "
+            + "spot: a dot says where the swarm decided to put something, and how far the drawn shape sits "
+            + "from its dot is how much jitter you have authored. Preview only — nothing drawn here can reach "
+            + "a bake.";
+
+        /// A configuration question, not an enabled one: a swarm with no shape leaves every instance on the
+        /// node's own origin, so the whole overlay would be one dot under one dot. Offering a toggle for that
+        /// is worse than offering none.
+        public bool WantsPreviewOverlay => enabled && count > 1 && shape != ShaperSwarmShape.None;
+
+        public void DrawPreviewOverlay(ShaperOverlayCanvas canvas)
+        {
+            if (canvas?.pixels == null || !WantsPreviewOverlay) return;
+
+            // The SAME sampling call the compiler makes (ShaperCompiler.cs:463, 643), at the frame on screen —
+            // so a rotating or expanding spawner is drawn where it is now, not where it started. The seed is
+            // the document's, which is what the compile state carries at a layer root; a MinMax spawner dial
+            // under a differently-seeded ancestor would draw a placement one draw away from the rendered one,
+            // which is a mark being approximate rather than a mark being wrong.
+            var spawner = SampleSpawner(canvas.phase01, canvas.seed);
+            Vector2 centre = canvas.origin + spawner.offset;
+
+            var outline = new Color32(90, 220, 255, 190);
+            var dotColor = new Color32(255, 190, 70, 230);
+
+            // The figure. Only the two closed forms have an outline worth tracing at canvas resolution; every
+            // other shape is described honestly by its own placements, which are drawn below either way.
+            if (spawnMode == ShaperSwarmSpawnMode.Area || shape != ShaperSwarmShape.Line)
+                canvas.Circle(centre, spawner.radius, outline);
+            if (shape == ShaperSwarmShape.Line)
+            {
+                float rad = spawner.rotationDegrees * Mathf.Deg2Rad;
+                var dir = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad)) * spawner.radius;
+                canvas.Line(centre - dir, centre + dir, outline);
+            }
+
+            // The placements themselves — the truth the outline only approximates once distribution, spawn
+            // order or an animated path progress is authored. Each is asked for exactly as the compiler asks
+            // (same PlaceInstance, same permutation) so a dot marks a real instance, never an estimate.
+            int n = Mathf.Clamp(count, 1, 64);
+            int[] perm = ShaperSwarmPlacement.BuildSpawnPermutation(shape, spawnMode, spawner.radius, n,
+                Mathf.Clamp01(spawnOrderChaos), distribution, gridReverse, seed);
+            for (int i = 0; i < n; i++)
+            {
+                PlaceInstance(perm != null ? perm[i] : i, n, spawner, canvas.phase01, canvas.seed,
+                              out Vector2 place, out _);
+                canvas.Dot(canvas.origin + place, 1.5f, dotColor);
+            }
         }
     }
 

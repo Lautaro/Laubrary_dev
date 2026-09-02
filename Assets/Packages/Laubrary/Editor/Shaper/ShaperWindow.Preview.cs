@@ -27,6 +27,7 @@
 using System.Collections.Generic;
 using Laubrary.BackSplash.Editor;
 using Laubrary.Zui;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -84,7 +85,12 @@ namespace Laubrary.Shaper.Editor
                     RefreshPreview();
                 }, 140f, decimals: 1);
 
-            return Z.HGroup(frameToggle, zoom, BuildTransportStatus());
+            // T-0190 (PM vet of T-0188): the status line is NOT in this row any more. It shared the row with
+            // Frame and Zoom, and a long cherry message ("Cherry framing: Play follows 2 slots…") ran straight
+            // over the Zoom slider — a variable-width string competing for space with a control. It now has
+            // its own reserved line under the transport (BuildRight), which is also where it belongs: it
+            // describes playback, not the picture's cosmetics.
+            return Z.HGroup(frameToggle, zoom);
         }
 
         /// The transport's status line (T-0188).
@@ -117,10 +123,15 @@ namespace Laubrary.Shaper.Editor
             // time playback started, which is the exact jitter that rule exists to prevent. Truncates rather
             // than wraps for the same reason, and sits LAST in its row so nothing follows it to be pushed.
             transportStatus.style.height = 16f;
-            transportStatus.style.flexGrow = 1f;
+            transportStatus.style.flexShrink = 0f;
+            // Its OWN row, full width, under the transport (T-0190): nothing shares the line, so a long
+            // message truncates against the panel edge instead of over a neighbouring control. Left-aligned
+            // now that it starts the line rather than ending someone else's.
+            transportStatus.style.width = new Length(100f, LengthUnit.Percent);
             transportStatus.style.whiteSpace = WhiteSpace.NoWrap;
             transportStatus.style.overflow = Overflow.Hidden;
-            transportStatus.style.unityTextAlign = TextAnchor.MiddleRight;
+            transportStatus.style.textOverflow = TextOverflow.Ellipsis;
+            transportStatus.style.unityTextAlign = TextAnchor.MiddleLeft;
             // Polled rather than pushed: the states it reports change on the editor's own clock (a pre-baker
             // tick, a held cherry beat) and two of them occur on exactly the paths that do NOT call
             // RefreshPreview — that is what made playback look dead in the first place. The work is one
@@ -142,7 +153,11 @@ namespace Laubrary.Shaper.Editor
 
         string DescribeTransport()
         {
-            if (document == null || document.frameCount <= 1) return string.Empty;
+            if (document == null) return string.Empty;
+            // T-0190 — the transport is built for a still document too, so this line is what explains the
+            // disabled Play button rather than leaving a dead control unexplained.
+            if (document.frameCount <= 1)
+                return "One frame — nothing to play. Raise Frames in the Canvas card to give this a timeline.";
 
             if (document.cherryEnabled)
             {
@@ -161,10 +176,15 @@ namespace Laubrary.Shaper.Editor
 
             if (!playing) return string.Empty;
 
+            // The plain loop's own gap (T-0190) — the picture is deliberately blank, exactly as it is under
+            // cherry, so it gets the same explanation rather than reading as a stall.
+            if (plainLoopBlankUntil > 0.0 && EditorApplication.timeSinceStartup < plainLoopBlankUntil)
+                return $"Loop gap — blank between passes ({document.loopDelaySeconds:0.##}s)";
+
             int cached = stage != null ? stage.CountCachedFrames() : 0;
             return cached < document.frameCount
-                ? $"Playing — frame {currentFrame}, caching {cached}/{document.frameCount}"
-                : $"Playing — frame {currentFrame}/{document.frameCount - 1}";
+                ? $"Playing — frame {currentFrame + 1}/{document.frameCount}, caching {cached}/{document.frameCount}"
+                : $"Playing — frame {currentFrame + 1}/{document.frameCount}";
         }
 
         /// Push the window's cosmetic state onto a freshly built stage. Called right after the stage is

@@ -66,6 +66,16 @@ namespace Laubrary.Shaper.Editor
         /// Called once, after the drag has settled — for anything too heavy to run per mouse-move.
         public Action DragCommitted;
 
+        // ── preview overlays (T-0190) ───────────────────────────────────────────────────────────────────────
+        // The stage knows nothing about what an overlay IS — which features can mark something, and which of
+        // them are switched on, is the window's business (ShaperPreviewOverlays). All the stage owes them is
+        // the buffer, and the guarantee that what they write NEVER reaches the frame cache: the marks are
+        // painted into a scratch copy, so a cached frame stays exactly what the renderer produced and toggling
+        // an overlay off cannot leave its marks behind on a frame that is never recomputed.
+        public Func<bool> WantsOverlays;
+        public Action<Color32[], int, int, int> DrawOverlays;
+        Color32[] _overlayScratch;
+
         readonly VisualElement _handle;
         bool _dragging;
         Vector2 _dragStartTranslate;
@@ -441,7 +451,19 @@ namespace Laubrary.Shaper.Editor
                 };
             }
 
-            _tex.SetPixels32(px);
+            // The marks go on a COPY (see the WantsOverlays field's own comment). The copy is skipped entirely
+            // when nothing is switched on, so the ordinary path costs exactly what it did before.
+            var shown = px;
+            if (WantsOverlays != null && DrawOverlays != null && WantsOverlays())
+            {
+                if (_overlayScratch == null || _overlayScratch.Length != px.Length)
+                    _overlayScratch = new Color32[px.Length];
+                Array.Copy(px, _overlayScratch, px.Length);
+                DrawOverlays(_overlayScratch, w, h, frame);
+                shown = _overlayScratch;
+            }
+
+            _tex.SetPixels32(shown);
             _tex.Apply(false);
             _image.style.backgroundImage = Background.FromTexture2D(_tex);
 

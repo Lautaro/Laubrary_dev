@@ -253,11 +253,20 @@ namespace Laubrary.Shaper.Editor
         /// appears here without anyone remembering to list it.
         static IEnumerable<ShaperShapeEntry> Generators()
         {
+            // T-0190 (PM vet of T-0182) — a form is OFFERED only if it has been declared for authoring: a
+            // PyreFormInfoAttribute naming a group, or a PyreCompositeCatalog entry for its display name.
+            // Without this, every concrete PyreForm in the domain lands in a fallback "Forms" column,
+            // including test and fixture types — the picker screenshot showed "Test Disc Form" alone in a
+            // column of its own, offering the author a shape that exists to be asserted about. The filter is
+            // a declaration check rather than a name blacklist on purpose: a real generator declares itself
+            // (that is what the attribute is FOR), and a fixture, by not declaring, opts out for free.
             var forms = TypeCache.GetTypesDerivedFrom<PyreForm>()
                 .Where(t => !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) != null)
                 .Select(t => (type: t, info: t.GetCustomAttribute<PyreFormInfoAttribute>()))
+                .Where(x => !string.IsNullOrEmpty(x.info?.Group) || IsInShaperCatalog(x.type, x.info))
                 .Select(x => (x.type, name: x.info?.DisplayName ?? ObjectNames.NicifyVariableName(x.type.Name),
-                              group: x.info?.Group ?? "Forms", icon: x.info?.Icon, isForm: true));
+                              group: string.IsNullOrEmpty(x.info?.Group) ? "Forms" : x.info.Group,
+                              icon: x.info?.Icon, isForm: true));
 
             var sources = TypeCache.GetTypesDerivedFrom<IShaperCompositeSource>()
                 .Where(t => !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) != null)
@@ -294,6 +303,23 @@ namespace Laubrary.Shaper.Editor
                     },
                 };
             }
+        }
+
+        /// The second half of the offer test above: a form with no attribute group is still offered if Shaper's
+        /// own composite catalog names it, because that catalog IS a declaration that the form is authorable
+        /// here. Instantiating to read DisplayName is what the assignment path already does; this runs once per
+        /// domain reload behind ShaperShapeCatalog's cache, and a form whose constructor throws is simply not
+        /// offered rather than taking the picker down with it.
+        static bool IsInShaperCatalog(Type formType, PyreFormInfoAttribute info)
+        {
+            try
+            {
+                string name = info?.DisplayName;
+                if (string.IsNullOrEmpty(name))
+                    name = (Activator.CreateInstance(formType) as PyreForm)?.DisplayName;
+                return !string.IsNullOrEmpty(name) && PyreCompositeCatalog.Find(name).displayName != null;
+            }
+            catch { return false; }
         }
 
         // ── the two composite assignments (pure mutations) ───────────────────────────────────────────

@@ -13,25 +13,25 @@ MonoBehaviour:
   m_Name: ShaperDemoDoc Clip
   m_EditorClassIdentifier: com.Lautaro-Arino.Laubrary.Shaper::Laubrary.Shaper.ShaperClip
   frames:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 7472595799207222067, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: 3066440968417481145, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: -1086212121457973998, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: -288388796012085676, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: -4313562055276215021, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: 2017867272103646672, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
   - {fileID: -8476570793016743487, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 8640372780678384055, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: -2740319225305724509, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
   - {fileID: 2301235174926699277, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 3968899693346686500, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: -8389081715100887903, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: 688264819179117091, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: 5559868599080010486, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: -5841277715417186998, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
+  - {fileID: 3539484484808939772, guid: a7aea7116fac0774280f68a01df6816d, type: 3}
   frameRate: 12
   seed: 424242
-  cherryEnabled: 1
+  cherryEnabled: 0
   cherryFrames:
   - sourceIndex: 6
     lengthMultiplier: 1

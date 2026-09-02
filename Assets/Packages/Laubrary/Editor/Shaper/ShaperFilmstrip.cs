@@ -27,21 +27,26 @@ namespace Laubrary.Shaper.Editor
         readonly VisualElement _row;
         Texture2D[] _tex = Array.Empty<Texture2D>();
 
-        const float TileSize = 40f;
+        // T-0190 — the tile size is the host's to set (Pyre's own "Tile px" slider,
+        // Editor/Pyre/PyreWindow.cs:549). Purely how the strip is DRAWN: every tile's source texture is the
+        // full canvas either way (see this file's header), so changing it re-renders nothing.
+        readonly float _tile;
         static readonly Color CurrentColor = new Color(1f, 0.84f, 0.22f, 1f);
         static readonly Color EdgeColor = new Color(0f, 0f, 0f, 0.25f);
 
-        public ShaperFilmstripElement(Func<ShaperDocument> doc, Func<int> current, Action<int> onJump)
+        public ShaperFilmstripElement(Func<ShaperDocument> doc, Func<int> current, Action<int> onJump,
+                                      float tileSize = 40f)
         {
             _doc = doc;
             _current = current;
             _onJump = onJump;
+            _tile = Mathf.Clamp(tileSize, 16f, 256f);
             _prebaker = new ShaperPreviewFramePrebaker(_cache, _doc);
             _prebaker.Progressed += _ => RefreshTiles();
             _prebaker.Completed += _ => RefreshTiles();
 
             tooltip = "Every frame of this document, in order. Click a tile to jump the transport there.";
-            style.height = TileSize + 6f;
+            style.height = _tile + 6f;
             style.flexShrink = 0f;
 
             var scroll = new ScrollView(ScrollViewMode.Horizontal);
@@ -87,7 +92,7 @@ namespace Laubrary.Shaper.Editor
             {
                 int idx = i;
                 var tile = new VisualElement { tooltip = $"Frame {idx + 1}. Click to jump the transport here." };
-                tile.style.width = TileSize; tile.style.height = TileSize;
+                tile.style.width = _tile; tile.style.height = _tile;
                 tile.style.marginRight = 2f;
                 tile.style.borderTopWidth = tile.style.borderBottomWidth = 2f;
                 tile.style.borderLeftWidth = tile.style.borderRightWidth = 2f;

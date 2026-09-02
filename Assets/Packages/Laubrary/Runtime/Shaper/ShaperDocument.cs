@@ -113,12 +113,17 @@ namespace Laubrary.Shaper
 
         // ── The animation clock (T-0144, design C1) ──────────────────────────────────────────────────────
         /// <summary>
-        /// How many frames this document resolves to (C1: "it resolves to a sequence of frames"). 1 means a
-        /// still document, which is the default so an existing document deserialises unchanged and behaves
-        /// exactly as it did before this field existed: at <c>frameCount == 1</c> every frame index maps to
-        /// <c>phase01 = 0</c>, which is already <c>ShaperCompiler.Compile</c>'s own default.
+        /// How many frames this document resolves to (C1: "it resolves to a sequence of frames").
+        /// <c>frameCount == 1</c> is a still document, where every frame index maps to <c>phase01 = 0</c> --
+        /// which is <c>ShaperCompiler.Compile</c>'s own default and what the field used to default to.
+        ///
+        /// <para>The default is now 16, Pyre's (<c>Runtime/Pyre/Pyre.cs:1186</c>), because a NEW document is
+        /// the only document whose default anyone experiences: at 1 there is no frame axis, so a first-run
+        /// user meets an animation tool with nothing to animate and no reason to suspect a hidden dial is the
+        /// reason. Deserialisation is untouched -- a serialised field carries its own written value, so every
+        /// existing asset opens exactly as it was saved and only assets created from here on start at 16.</para>
         /// </summary>
-        [Min(1)] public int frameCount = 1;
+        [Min(1)] public int frameCount = 16;
 
         /// <summary>
         /// Playback rate in frames per second.
@@ -132,6 +137,22 @@ namespace Laubrary.Shaper
         /// </summary>
         [Range(ShaperClock.MinFrameRate, ShaperClock.MaxFrameRate)]
         public float frameRate = ShaperClock.DefaultFrameRate;
+
+        /// <summary>
+        /// Seconds of blank between one pass through the PLAIN frame order and the next. 0 = loop with no gap.
+        ///
+        /// <para>Distinct from <see cref="cherryLoopDelaySeconds"/>, which is the same idea for the cherry
+        /// sequence, and deliberately a second field rather than one shared one: the two loops are different
+        /// lengths and a document can want a beat between cherry passes and none between plain ones. Pyre's
+        /// own blank Delay applies to its plain loop (<c>Editor/Pyre/PyreWindow.cs:217</c>); Shaper only had
+        /// the cherry half, so the pause a user authored was unreachable unless they also took on cherry
+        /// framing.</para>
+        ///
+        /// <para>Preview-and-playback only, exactly like the cherry delay: a gap is an absence of frames, and
+        /// neither <c>ShaperBaker</c> nor <c>ShaperDocumentRenderer</c> has anywhere to put one -- a sheet is
+        /// frames, not time.</para>
+        /// </summary>
+        [Min(0f)] public float loopDelaySeconds = 0f;
 
         /// <summary><see cref="phase01"/> for a given frame of THIS document -- the single conversion, shared
         /// with <see cref="ShaperFrameCache"/>. See <see cref="ShaperClock"/> for the convention.</summary>
