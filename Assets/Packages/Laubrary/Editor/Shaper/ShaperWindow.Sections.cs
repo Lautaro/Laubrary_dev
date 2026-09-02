@@ -801,13 +801,29 @@ namespace Laubrary.Shaper.Editor
             BuildSwarmShapeBox(box, s);
             BuildSwarmTimingBox(box, s);
 
+            // ShaperBlend carries THREE dials and the swarm's merge had a control for only two, which left the
+            // third editable from the Inspector and invisible here. It is drawn now — but disabled, with the
+            // reason as its tooltip, because it genuinely does nothing on a swarm: the swarm unions its
+            // instances with a hard-coded ShaperCombineMode.Add, and carve strength is read only under
+            // Subtract, by the field (ShaperOps.cs:70-79) and by the Lipschitz bound (ShaperBound.cs:84-87)
+            // alike. Presenting it as live would be the lie; hiding it would leave the author wondering where
+            // the node blend's third dial went. Same "declare inert with a reason, never hide" posture
+            // ShaperSolids.InertReason takes for a dial that does nothing on a given solid form.
+            var mergeCarve = Val("Merge carve", "How strongly a Subtract carves.",
+                s.merge.carveStrengthDial, 0f, 1f);
+            mergeCarve.SetEnabled(false);
+            mergeCarve.tooltip = "Does nothing on a swarm: instances are unioned, and carve strength is read "
+                + "only where a node subtracts. The merge keeps the value so a blend that does carve still "
+                + "has it.";
+
             box.Add(Z.HGroup(
                 Z.Toggle("Interact", "Let instances affect one another rather than being independent.",
                     s.interact, v => Change(() => s.interact = v)),
                 Val("Merge width", "How far neighbouring instances blend into each other.",
                     s.merge.widthDial, 0f, 32f),
                 Val("Merge sharpness", "How abruptly that blend falls off.",
-                    s.merge.sharpnessDial, 0f, 1f)));
+                    s.merge.sharpnessDial, 0f, 1f),
+                mergeCarve));
 
             root.Add(box);
         }
@@ -1008,6 +1024,25 @@ namespace Laubrary.Shaper.Editor
                     c.bakeWidth, 16f, 512f, v => c.bakeWidth = Mathf.RoundToInt(v), decimals: 0),
                 Dial("Bake H", "Bake resolution in texels, independent of the canvas resolution.",
                     c.bakeHeight, 16f, 512f, v => c.bakeHeight = Mathf.RoundToInt(v), decimals: 0)));
+
+            // The reason above is a one-word classification; reasonNote is the sentence behind it, and it was
+            // being written by PyreCompositeCatalog (PyreCompositeCatalog.cs:168) and read by the audit
+            // (PyreShaperCompositeAudit.cs:276) without ever reaching the author. It is READ-ONLY here on
+            // purpose: SHAPER_THE_DESIGN §6.2's "monolithic must be a declared reason" makes the declaration
+            // the GENERATOR's to own, so a text field on the node would let one document quietly disagree with
+            // the catalog every other document reads. `HasDeclaration` is the engine's own non-blank test
+            // (ShaperCompositeDef.cs:134), so an undeclared generator shows no empty line at all.
+            if (c.HasDeclaration)
+            {
+                // The note is a [TextArea(2,5)] sentence, not a label, so it wraps instead of running off the
+                // pane — the sanctioned wrapping help-paragraph Label, and the reason this one control does
+                // not get a fixed width from the norms.
+                var note = Z.Text(c.reasonNote, ZuiText.Subtle, c.reasonNote);
+                note.style.whiteSpace = WhiteSpace.Normal;
+                note.style.flexShrink = 1f;
+                box.Add(Z.Field("Note", "The declaration behind that reason, written where the generator is "
+                    + "catalogued. Shown here, owned there.", note));
+            }
 
             // The generator's own dials. Folded into a keyed box because the biggest forms declare well over
             // a hundred fields and an unfolded dump would bury every other card on the page. FlowFields packs
@@ -1218,13 +1253,23 @@ namespace Laubrary.Shaper.Editor
                 "How this LAYER responds to the document's light rig.",
                 "shaper.window.response", icon: "sun");
 
+            // LR-4.5 declares ShaperLightRig.ShadowsNotComputed (ShaperLightRig.cs:194) as the sentence to show
+            // on the Cast/Receive Shadows controls "whenever either is ticked", and the compiler raises it on
+            // the program under exactly that condition (ShaperLightCompiler.cs:422). Neither control was
+            // quoting it, so ticking one read as "this now casts a shadow" when nothing is computed. The
+            // string is composed in per state rather than pinned on permanently, because a conditional tooltip
+            // has to read true for the state it is actually in: with both off, no shadow is being claimed. The
+            // toggles Rebuild so the tooltip recomposes the moment the state it describes changes.
+            bool shadowClaimed = r.castShadows || r.receiveShadows;
+            string shadowLimit = shadowClaimed ? " " + ShaperLightRig.ShadowsNotComputed : "";
+
             box.Add(Z.HGroup(
                 Z.Toggle("Receive lighting", "Let the rig light this layer at all.",
                     r.receiveLighting, v => { Change(() => r.receiveLighting = v); Rebuild(); }),
-                Z.Toggle("Cast shadows", "Let this layer cast shadows.",
-                    r.castShadows, v => Change(() => r.castShadows = v)),
-                Z.Toggle("Receive shadows", "Let this layer be shadowed.",
-                    r.receiveShadows, v => Change(() => r.receiveShadows = v))));
+                Z.Toggle("Cast shadows", "Let this layer cast shadows." + shadowLimit,
+                    r.castShadows, v => { Change(() => r.castShadows = v); Rebuild(); }),
+                Z.Toggle("Receive shadows", "Let this layer be shadowed." + shadowLimit,
+                    r.receiveShadows, v => { Change(() => r.receiveShadows = v); Rebuild(); })));
 
             if (!r.receiveLighting) { root.Add(box); return; }
 
