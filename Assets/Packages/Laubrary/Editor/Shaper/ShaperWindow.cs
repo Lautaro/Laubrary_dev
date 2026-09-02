@@ -359,6 +359,31 @@ namespace Laubrary.Shaper.Editor
                     Rebuild();
                 })));
 
+            // T-0166 — the SELECTED layer's lifetime window, on its own row below the list rather than crammed
+            // into every layer's row (PM by-eye vet, pm-vet-wave2-light-crop.png: a bare unlabeled slider was
+            // overlapping the Dup button). Gated on frameCount > 1 like the transport — a still document has no
+            // frame axis for "outside its window" to mean anything against.
+            if (document.frameCount > 1 && CurrentLayer != null)
+            {
+                var lay = CurrentLayer;
+                int lo = lay.startFrame;
+                int hi = lay.endFrame < 0 ? document.frameCount - 1 : lay.endFrame;
+                box.Add(Z.Field("Lifetime",
+                    "The SELECTED layer's (“" + (lay.name ?? "Layer") + "”) frame lifetime window — "
+                    + "the frames it contributes to. Outside this range the layer renders nothing, exactly as a "
+                    + "disabled layer does.",
+                    Z.MinMax(lo, hi, 0f, document.frameCount - 1,
+                        "The selected layer's frame lifetime window — the frames it contributes to.",
+                        (newLo, newHi) => Change(() =>
+                        {
+                            lay.startFrame = Mathf.RoundToInt(newLo);
+                            // Only write a real endFrame when it no longer means "the last frame" — keeps an
+                            // unauthored window at its -1 default through a later frameCount change.
+                            int rh = Mathf.RoundToInt(newHi);
+                            lay.endFrame = rh >= document.frameCount - 1 ? -1 : rh;
+                        }), 200f, isInt: true)));
+            }
+
             root.Add(box);
         }
 
@@ -410,25 +435,11 @@ namespace Laubrary.Shaper.Editor
                 + "(layer index × layer spacing) to give its base plane. Signed — it can pull a layer forward "
                 + "as well as push it back.", layer.zOffset, -256f, 256f));
 
-            // T-0166 — the lifetime window, gated on frameCount > 1 like the transport: a still document has
-            // no frame axis for "outside its window" to mean anything against. -1 (endFrame's default) reads
-            // as "the document's last frame", so isInt's low/high fields still show real numbers rather than -1.
-            if (document.frameCount > 1)
-            {
-                int lo = layer.startFrame;
-                int hi = layer.endFrame < 0 ? document.frameCount - 1 : layer.endFrame;
-                row.Add(Z.MinMax(lo, hi, 0f, document.frameCount - 1,
-                    "This layer's lifetime window — the frames it contributes to. Outside this range the layer "
-                    + "renders nothing, exactly as a disabled layer does.",
-                    (newLo, newHi) => Change(() =>
-                    {
-                        layer.startFrame = Mathf.RoundToInt(newLo);
-                        // Only write a real endFrame when it no longer means "the last frame" — keeps an
-                        // unauthored window at its -1 default through a later frameCount change.
-                        int rh = Mathf.RoundToInt(newHi);
-                        layer.endFrame = rh >= document.frameCount - 1 ? -1 : rh;
-                    }), 90f, isInt: true));
-            }
+            // T-0166 — the lifetime window used to live HERE as a bare, unlabeled slider, and PM's by-eye vet
+            // (pm-vet-wave2-light-crop.png) caught it: no label, no readable min/max, running underneath the
+            // Dup button. The row is already tight (grip/toggle/select/name/Z/Dup/×), so per ui-layout-rules'
+            // "Card layout" a control this wide earns its OWN row instead of being crammed into every layer's —
+            // see BuildLayersSection's "Lifetime" card below the list, which edits the SELECTED layer only.
 
             row.Add(Z.Flexible());
 
