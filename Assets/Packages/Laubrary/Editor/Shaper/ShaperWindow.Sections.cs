@@ -108,8 +108,17 @@ namespace Laubrary.Shaper.Editor
             // The per-shape bodies (generator dials, bag members, solid dials) and the combine/sweep/shell
             // ops moved INTO the Shape card in T-0182 — see ShaperWindow.BuildShapeSection. They are drawn
             // by the same absence rule, one card closer to the choice that summons them.
-            BuildFillSection(root, node);
-            BuildBorderSection(root, node);
+            // T-0191 — A COMPOSITE NODE GETS NEITHER CARD, AND THEY ARE ABSENT RATHER THAN DISABLED.
+            // SHAPER_THE_DESIGN §6.2: a composite "produces a finished picture directly" and "may not be
+            // re-filled"; its colour is authored on the GENERATOR (the hosted Pyre card's own fill ramp) and
+            // its edge is a raster, so a Shaper fill would be a second authority over the same pixel and a
+            // border has no analytic edge to trace. A greyed card would still be a promise — it says "this
+            // exists, you just cannot reach it today" — where the truth is that it does not apply at all.
+            if (node.kind != ShaperNodeKind.Composite)
+            {
+                BuildFillSection(root, node);
+                BuildBorderSection(root, node);
+            }
             BuildSwarmSection(root, node);
 
             // LAYER-level cards. These bind to ShaperLayer, not to the node — the mock had them on the node
@@ -1028,17 +1037,14 @@ namespace Laubrary.Shaper.Editor
             string reasonTooltip = "Why this is still a composite rather than split into primitives — a "
                 + "structural fact the audit checks, not an authored dial."
                 + (c.HasDeclaration ? "  ·  " + c.reasonNote : "");
+            // T-0191 — the Half extent X/Y and Bake W/H dials are GONE, on the owner's report that on
+            // Pyre › Disc they "scale the disc and make no sense to a human next to Pyre's Size". They were a
+            // second size authority sitting beside the generator's own, and an author turning one had no way
+            // to tell which of the two he was turning. The box is now fitted to the canvas by the renderer
+            // (ShaperCompositeDef.FitTo), so there is nothing left here to author — only the declaration.
             box.Add(Z.HGroup(
                 Z.Field("Reason", reasonTooltip,
-                    Z.Text(c.reason.ToString(), ZuiText.Body, reasonTooltip)),
-                Dial("Half extent X", "Half the width of the box this generator bakes into, in canvas units.",
-                    c.halfExtentX, 8f, 256f, v => c.halfExtentX = v, decimals: 0),
-                Dial("Half extent Y", "Half the height of the box this generator bakes into, in canvas units.",
-                    c.halfExtentY, 8f, 256f, v => c.halfExtentY = v, decimals: 0),
-                Dial("Bake W", "Bake resolution in texels, independent of the canvas resolution.",
-                    c.bakeWidth, 16f, 512f, v => c.bakeWidth = Mathf.RoundToInt(v), decimals: 0),
-                Dial("Bake H", "Bake resolution in texels, independent of the canvas resolution.",
-                    c.bakeHeight, 16f, 512f, v => c.bakeHeight = Mathf.RoundToInt(v), decimals: 0)));
+                    Z.Text(c.reason.ToString(), ZuiText.Body, reasonTooltip))));
 
             // A generator family with a DESIGNED card draws it instead of the reflected dump below (T-0183).
             // The window does not know which families those are — it asks the registry, so a hosted Pyre layer

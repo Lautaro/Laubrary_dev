@@ -246,6 +246,127 @@ namespace Laubrary.Shaper
         }
 
         /// <summary>
+        /// T-0191 — write a composite root's OWN PICTURE into the albedo sheet for one tile: the consumer
+        /// <see cref="ShaperCompiledComposite.pixels"/> was always written for. Called by
+        /// <c>ShaperFillResolver.PaintTile</c> immediately after the owner's fill has emitted, replacing what
+        /// that fill wrote — see <see cref="ShaperCompositeAlbedo"/> for the four clauses that decide WHEN.
+        ///
+        /// Straight LINEAR albedo, no alpha: the composite's alpha is already the node's published coverage
+        /// (<see cref="ShaperCompiledComposite.coverage"/>), it has already become <c>ownCoverage</c> and then
+        /// <c>coverageEff</c>, and the paint pass multiplies albedo by that. Returning a premultiplied colour
+        /// here would apply alpha twice and darken every antialiased edge against its own background.
+        /// </summary>
+        /// <param name="albedo">Three floats per sample, addressed exactly as <c>ShaperFillEmit.albedo</c> is.</param>
+        public static void FillCompositeAlbedoTile(ShaperCompositeAlbedo src, in ShaperSampleGrid grid,
+                                                   int x0, int y0, int width, int height,
+                                                   float[] albedo, int dstOffset, int dstStride)
+        {
+            if (src == null || src.raster == null || albedo == null) return;
+
+            for (int j = 0; j < height; j++)
+            {
+                float y = grid.originY + (y0 + j) * grid.pixelSize;
+                int row = dstOffset + j * dstStride;
+                for (int i = 0; i < width; i++)
+                {
+                    float x = grid.originX + (x0 + i) * grid.pixelSize;
+                    // The SAME mapping the CompositeSample case uses for coverage, so colour and coverage are
+                    // read at one point rather than at two that differ by a fraction of a texel.
+                    float lx = src.m00 * x + src.m01 * y + src.m02;
+                    float ly = src.m10 * x + src.m11 * y + src.m12;
+                    SampleCompositeColour(src.raster, lx, ly, src.halfExtentX, src.halfExtentY,
+                                          out float r, out float g, out float b);
+                    int a3 = (row + i) * 3;
+                    albedo[a3 + 0] = r;
+                    albedo[a3 + 1] = g;
+                    albedo[a3 + 2] = b;
+                }
+            }
+        }
+
+        /// <summary>
+        /// T-0191 — bilinear-sample a composite's baked picture as STRAIGHT LINEAR RGB, with the same clamping
+        /// box as <see cref="SampleCompositeCoverage"/> so colour and coverage agree everywhere including
+        /// outside the box.
+        ///
+        /// <b>Filtered in PREMULTIPLIED space, then un-premultiplied.</b> The raster is straight alpha, and
+        /// lerping straight colour across an edge texel mixes in the colour a fully transparent texel merely
+        /// happens to carry — a dark or arbitrary halo one texel wide around every silhouette. Weighting each
+        /// texel by its own alpha is the alpha-weighted mean of the COVERED texels, which is the same
+        /// correction <c>PyreSupersample.Downsample</c> makes when it collapses a supersampled block
+        /// (<c>Runtime/Pyre/PyreSupersample.cs:58</c>).
+        ///
+        /// Where the whole neighbourhood is transparent the weighted mean is undefined, so the nearest texel's
+        /// own colour is returned rather than a division by zero. Coverage there is 0, so nothing is painted;
+        /// the value exists only so the sheet never carries a NaN into the accumulator.
+        /// </summary>
+        static void SampleCompositeColour(ShaperCompiledComposite raster, float lx, float ly,
+                                          float halfExtentX, float halfExtentY,
+                                          out float r, out float g, out float b)
+        {
+            r = g = b = 0f;
+            if (raster == null || raster.pixels == null || raster.width <= 0 || raster.height <= 0) return;
+
+            float u = halfExtentX > 1e-9f ? (lx + halfExtentX) / (2f * halfExtentX) : 0.5f;
+            float v = halfExtentY > 1e-9f ? (ly + halfExtentY) / (2f * halfExtentY) : 0.5f;
+            u = Mathf.Clamp01(u);
+            v = Mathf.Clamp01(v);
+
+            float fx = u * raster.width - 0.5f;
+            float fy = v * raster.height - 0.5f;
+            int x0 = Mathf.Clamp(Mathf.FloorToInt(fx), 0, raster.width - 1);
+            int y0 = Mathf.Clamp(Mathf.FloorToInt(fy), 0, raster.height - 1);
+            int x1 = Mathf.Clamp(x0 + 1, 0, raster.width - 1);
+            int y1 = Mathf.Clamp(y0 + 1, 0, raster.height - 1);
+            float tx = Mathf.Clamp01(fx - x0);
+            float ty = Mathf.Clamp01(fy - y0);
+
+            Color32 p00 = raster.pixels[y0 * raster.width + x0];
+            Color32 p10 = raster.pixels[y0 * raster.width + x1];
+            Color32 p01 = raster.pixels[y1 * raster.width + x0];
+            Color32 p11 = raster.pixels[y1 * raster.width + x1];
+
+            Premul(p00, out float r00, out float g00, out float b00, out float a00);
+            Premul(p10, out float r10, out float g10, out float b10, out float a10);
+            Premul(p01, out float r01, out float g01, out float b01, out float a01);
+            Premul(p11, out float r11, out float g11, out float b11, out float a11);
+
+            float pr = Mathf.Lerp(Mathf.Lerp(r00, r10, tx), Mathf.Lerp(r01, r11, tx), ty);
+            float pg = Mathf.Lerp(Mathf.Lerp(g00, g10, tx), Mathf.Lerp(g01, g11, tx), ty);
+            float pb = Mathf.Lerp(Mathf.Lerp(b00, b10, tx), Mathf.Lerp(b01, b11, tx), ty);
+            float pa = Mathf.Lerp(Mathf.Lerp(a00, a10, tx), Mathf.Lerp(a01, a11, tx), ty);
+
+            if (pa > 1e-6f)
+            {
+                float inv = 1f / pa;
+                r = pr * inv; g = pg * inv; b = pb * inv;
+            }
+            else
+            {
+                // `tx/ty >= 0.5` picks the texel the sample actually sits nearest, which is what "nearest" has
+                // to mean for this to be a defined value rather than an arbitrary corner.
+                Color32 near = tx < 0.5f ? (ty < 0.5f ? p00 : p01) : (ty < 0.5f ? p10 : p11);
+                r = ShaperSrgb.DecodeChannel(near.r * (1f / 255f));
+                g = ShaperSrgb.DecodeChannel(near.g * (1f / 255f));
+                b = ShaperSrgb.DecodeChannel(near.b * (1f / 255f));
+            }
+        }
+
+        /// <summary>
+        /// One straight-alpha sRGB texel as premultiplied LINEAR RGB plus its straight alpha. RGB is decoded
+        /// through <see cref="ShaperSrgb.DecodeChannel"/> and alpha is NOT — alpha is a coverage, not a colour,
+        /// the same split <c>ShaperFillCompiler</c> makes when it decodes a Texture fill's pixels
+        /// (<c>ShaperFillCompiler.cs:630-635</c>).
+        /// </summary>
+        static void Premul(Color32 c, out float r, out float g, out float b, out float a)
+        {
+            a = c.a * (1f / 255f);
+            r = ShaperSrgb.DecodeChannel(c.r * (1f / 255f)) * a;
+            g = ShaperSrgb.DecodeChannel(c.g * (1f / 255f)) * a;
+            b = ShaperSrgb.DecodeChannel(c.b * (1f / 255f)) * a;
+        }
+
+        /// <summary>
         /// T-0175 — bilinear-sample a Sprite primitive's baked distance raster at a LOCAL-frame point
         /// <paramref name="lx"/>/<paramref name="ly"/>, where the raster covers
         /// <c>[-halfExtentX, halfExtentX] x [-halfExtentY, halfExtentY]</c>. CLAMPS at the box edge exactly like

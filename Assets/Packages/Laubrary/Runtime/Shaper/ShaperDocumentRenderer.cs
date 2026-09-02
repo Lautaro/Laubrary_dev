@@ -259,6 +259,13 @@ namespace Laubrary.Shaper
                     int end = lay.endFrame < 0 ? fc - 1 : lay.endFrame;
                     if (fi < lay.startFrame || fi > end) continue;
 
+                    // T-0191 — a composite's bake box is DERIVED, not authored. The owner's report: on
+                    // Pyre > Disc the Half extent and Bake dials "scale the disc and make no sense to a human
+                    // next to Pyre's Size", because they are two ways of saying the same thing and only one of
+                    // them is the generator's own. So the box is fitted to the canvas here, at the one place
+                    // that knows the canvas, for every composite in the tree. The window no longer shows them.
+                    ShaperCompositeDef.FitTree(lay.root, w, h);
+
                     var fdoc = ShaperFillResolver.Resolve(lay.root, phase01, doc.seed, halfW, halfH,
                                                           ShaperQuantitySet.ShippedShapeEngine);
                     // T-0165 (T-0146 T21): reuse this layer's own ShaperFillBuffers across calls when a pool

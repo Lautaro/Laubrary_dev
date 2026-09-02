@@ -71,10 +71,109 @@ namespace Laubrary.Shaper
         /// <summary>Alpha channel of the render, decoded to 0..1 — this IS the node's published coverage.</summary>
         public float[] coverage;
 
-        /// <summary>The full render, kept for a composite ROOT layer's own albedo (§6.2: "its fill picker shows
-        /// exactly one entry — itself"). A composite nested in a Bag never reads this; the bag's own fill paints
-        /// the fused silhouette instead, and this generator contributes only its (pseudo-)distance to the fold.</summary>
+        /// <summary>
+        /// The full render — a composite ROOT layer's own albedo (§6.2: "its fill picker shows exactly one
+        /// entry — itself"). A composite nested in a Bag never reads this; the bag's own fill paints the fused
+        /// silhouette instead, and this generator contributes only its (pseudo-)distance to the fold.
+        ///
+        /// <b>T-0191 built the consumer this field was always written for.</b> It is STRAIGHT-alpha sRGB, not
+        /// premultiplied — <c>PyreRenderer.Over</c> un-premultiplies back out after every blend
+        /// (<c>Runtime/PyreShaper/ShaperEffectStageRunner.cs:108-109</c> states the same law) and
+        /// <c>PyreSupersample.Downsample</c> un-premultiplies the block average
+        /// (<c>Runtime/Pyre/PyreSupersample.cs:58</c>) — so it decodes exactly the way a Texture fill's pixels
+        /// do (<c>ShaperFillCompiler.cs:626-635</c>): RGB through <see cref="ShaperSrgb.DecodeChannel"/>, alpha
+        /// NOT decoded because alpha is a coverage and not a colour. See <see cref="ShaperCompositeAlbedo"/>.
+        /// </summary>
         public Color32[] pixels;
+    }
+
+    /// <summary>
+    /// T-0191 — the binding that makes a composite root's own picture its albedo: one baked
+    /// <see cref="ShaperCompiledComposite"/> plus the canvas→node-local transform and half-extents its
+    /// <see cref="ShaperOpKind.CompositeSample"/> op carries, lifted out of the compiled program ONCE at bind
+    /// time so the paint pass never walks ops to find them.
+    ///
+    /// <b>The rule, stated once and in full.</b> A composite generator "produces a finished picture directly"
+    /// (SHAPER_THE_DESIGN.md C1/§6.2) and "may not be re-filled". Until T-0191 only its ALPHA reached the
+    /// document — <see cref="ShaperCompiledComposite.pixels"/> was written by
+    /// <c>ShaperCompiler.EmitComposite</c> and read nowhere — so every composite painted as a one-colour
+    /// silhouette in the default root fill's grey. Measured on Pyre's Gem at 96×96: 608 distinct RGB values in
+    /// Pyre's own window, exactly 1 inside a Shaper document. The finished picture must therefore BE the
+    /// layer's albedo, and these four clauses say precisely where:
+    ///
+    /// <list type="number">
+    /// <item><b>A composite has no Shaper fill to lose to.</b> The window offers neither a Fill nor a Border
+    /// card on a composite node (the owner's ruling, T-0191: "absent, not greyed"), because §6.2 already says
+    /// a composite "may not be re-filled" — its colour is authored on the GENERATOR, in the hosted card's own
+    /// fill ramp, and a second Shaper fill beside it would be two authorities over one pixel. So the FC-3.2
+    /// default root fill this owner holds is a structural placeholder, and the binding is unconditional.</item>
+    /// <item><b>Only where the composite is itself a fill owner.</b> Which, given FC-3.2 ("a shape layer's root
+    /// node always owns a fill, and nothing else is given one by default") and clause 1, can only be the LAYER
+    /// ROOT. A composite nested in a Bag never becomes an owner, so it still publishes coverage and nothing
+    /// else, exactly as B1 requires, and its colour never leaks up into the bag that fused it. This is the
+    /// nearest-ancestor fill-ownership rule applied unchanged, not a second rule beside it.</item>
+    /// <item><b>No height.</b> <see cref="IShaperCompositeSource"/> has one output — a picture — so there is no
+    /// height channel to read and the height DELTA is zero. The layer's own height stage
+    /// (<see cref="ShaperHeightOp"/>, driven by the composite's edge distance) is untouched.</item>
+    /// <item><b>Unlit.</b> The picture is already finished: Pyre's Gem arrives with its facets lit, its edge
+    /// lines drawn and its glows applied. Running Shaper's rig over it a second time is double-lighting, which
+    /// is the same objection LR-5.3 already makes of lighting an ADDITIVE fill ("a lamp does not get dimmer
+    /// because you put it in a dark room"). So a composite-albedo owner takes the unlit branch regardless of
+    /// its layer's <c>receiveLighting</c>. Shading a composite is the GENERATOR's job — Pyre's own Light card
+    /// is right there on the hosted layer — which is the same place clause 1 sends its colour.</item>
+    /// </list>
+    /// </summary>
+    public sealed class ShaperCompositeAlbedo
+    {
+        /// <summary>The baked picture this owner paints with.</summary>
+        public ShaperCompiledComposite raster;
+
+        /// <summary>Canvas → node-local, copied from the op so the paint pass maps points exactly the way
+        /// <c>ShaperEvaluator</c>'s <see cref="ShaperOpKind.CompositeSample"/> case does. Any other mapping
+        /// would put the colour a fraction of a texel off its own coverage.</summary>
+        public float m00, m01, m02, m10, m11, m12;
+
+        /// <summary>The raster's local-frame box, <c>[-halfExtentX, halfExtentX] × [-halfExtentY, halfExtentY]</c>.</summary>
+        public float halfExtentX, halfExtentY;
+
+        /// <summary>
+        /// Lift the binding out of a fill owner's compiled program, or null when there is nothing unambiguous
+        /// to lift.
+        ///
+        /// <b>Exactly one <see cref="ShaperOpKind.CompositeSample"/> op and exactly one baked picture</b> — the
+        /// shape a lone Composite node compiles to, and equally the shape a NATIVE swarm compiles to
+        /// (<c>ShaperCompiler.EmitCompositeSwarmNative</c> bakes the whole swarm into ONE raster, which is then
+        /// genuinely the picture to paint with). A generic swarm fans out to N sampled instances with N
+        /// rasters and no single picture, so it binds nothing and keeps the pre-T-0191 flat fill rather than
+        /// silently picking one member's colours for all of them.
+        /// </summary>
+        public static ShaperCompositeAlbedo From(ShaperProgram program)
+        {
+            if (program == null || program.ops == null || program.composites == null) return null;
+            if (program.composites.Length != 1) return null;
+
+            int found = -1;
+            for (int i = 0; i < program.ops.Length; i++)
+            {
+                if (program.ops[i].kind != ShaperOpKind.CompositeSample) continue;
+                if (found >= 0) return null;
+                found = i;
+            }
+            if (found < 0) return null;
+
+            ShaperCompiledComposite raster = program.composites[program.ops[found].count];
+            if (raster == null || raster.pixels == null || raster.width <= 0 || raster.height <= 0) return null;
+            if (raster.pixels.Length < raster.width * raster.height) return null;
+
+            return new ShaperCompositeAlbedo
+            {
+                raster = raster,
+                m00 = program.ops[found].m00, m01 = program.ops[found].m01, m02 = program.ops[found].m02,
+                m10 = program.ops[found].m10, m11 = program.ops[found].m11, m12 = program.ops[found].m12,
+                halfExtentX = program.ops[found].p0,
+                halfExtentY = program.ops[found].p1,
+            };
+        }
     }
 
     /// <summary>
@@ -132,5 +231,41 @@ namespace Laubrary.Shaper
         /// <summary>True when §6.2's declaration is actually present — a compliance pass (<c>ShaperCompositeAudit</c>)
         /// counts this the same way <c>ShaperCompositeDef.HasDeclaration</c>'s doc promises.</summary>
         public bool HasDeclaration => !string.IsNullOrWhiteSpace(reasonNote);
+
+        /// <summary>
+        /// T-0191 — fit the bake box to the canvas. The four fields above stopped being AUTHORED here: the
+        /// owner's report was that on Pyre › Disc "Half extent X/Y and Bake W/H scale the disc and make no
+        /// sense to a human next to Pyre's Size", and he is right — the generator already owns a size dial, so
+        /// a second one beside it is two authorities over one number and the author has no way to know which
+        /// one he is turning. The generator keeps its size; the box it draws into is simply the canvas.
+        ///
+        /// Called from <see cref="ShaperDocumentRenderer.RenderPhaseInto"/>, the one place that knows the
+        /// canvas, before the layer resolves. A plain field write on a serializable sub-object: it dirties
+        /// nothing, and because <see cref="ShaperNodeIdentity"/> folds these fields into the composite's own
+        /// hash, resizing the canvas correctly invalidates every cached frame that was baked at the old size.
+        /// </summary>
+        public void FitTo(int canvasWidth, int canvasHeight)
+        {
+            int w = Mathf.Max(1, canvasWidth), h = Mathf.Max(1, canvasHeight);
+            halfExtentX = w * 0.5f;
+            halfExtentY = h * 0.5f;
+            // One bake texel per canvas pixel. Any other ratio would resample the generator's own picture on
+            // the way in for no gain: the raster is sampled at canvas resolution, and a composite root now
+            // paints with these very texels (T-0191), so 1:1 is the only ratio that carries the generator's
+            // colours across without a filtering step nobody asked for.
+            bakeWidth = w;
+            bakeHeight = h;
+        }
+
+        /// <summary>Fit every composite in a subtree. A no-op on a tree with none.</summary>
+        public static void FitTree(ShaperNode node, int canvasWidth, int canvasHeight)
+        {
+            if (node == null || !node.enabled) return;
+            if (node.kind == ShaperNodeKind.Composite && node.composite != null)
+                node.composite.FitTo(canvasWidth, canvasHeight);
+            if (node.children == null) return;
+            for (int i = 0; i < node.children.Count; i++)
+                FitTree(node.children[i], canvasWidth, canvasHeight);
+        }
     }
 }

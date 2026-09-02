@@ -32,6 +32,14 @@ namespace Laubrary.Shaper
         public bool isSubstitutedRootFill;
 
         /// <summary>
+        /// T-0191 — non-null when this owner is a COMPOSITE node painting with its own finished picture rather
+        /// than with a fill. Its four clauses — an authored fill wins, only where the composite itself owns a
+        /// fill, no height, unlit — are stated in full on <see cref="ShaperCompositeAlbedo"/>. Null on every
+        /// other owner, and the paint pass then takes the pre-T-0191 path unchanged.
+        /// </summary>
+        public ShaperCompositeAlbedo compositeAlbedo;
+
+        /// <summary>
         /// BORDER-CONTRACT BD-3.5 — true when this owner is a node's BORDER STRIP rather than a node's fill.
         ///
         /// A border owner is deliberately <b>NOT part of the exclusivity partition</b>. It contributes nothing to
@@ -407,6 +415,25 @@ namespace Laubrary.Shaper
                                         ancestorOwner, phase01, seed, canvasHalfW, canvasHalfH, true);
                     myFillOwner = myOwnerIndex;
                 }
+                // T-0191 — CLAUSE 1 of the composite-albedo rule: WHERE A COMPOSITE OWNS THE PAINT, IT PAINTS
+                // WITH ITS OWN PICTURE. Unconditional, because a composite has no Shaper fill to lose to: the
+                // window does not offer a Fill or Border card on a composite node at all (the owner's ruling,
+                // T-0191), so the FC-3.2 default this owner is holding is a structural placeholder rather than
+                // anything an author chose. It is still resolved, because what it writes to `veil` is what
+                // gates this owner's coverage; only its colour is replaced, in PaintTile.
+                //
+                // CLAUSE 2, "only where the composite is itself a fill owner", needs no code of its own: it is
+                // exactly where this line sits — inside the `myFillOwner >= 0` case. FC-3.2 gives a default
+                // fill to the LAYER ROOT and to nothing else, and no card can put one on a nested composite,
+                // so a composite inside a Bag never becomes an owner and never reaches here. It therefore
+                // still publishes coverage and nothing else (B1) and its colour cannot leak into the bag that
+                // fused it — the nearest-ancestor ownership rule doing the work, not a second rule beside it.
+                if (myFillOwner >= 0 && node.kind == ShaperNodeKind.Composite)
+                {
+                    doc.owners[myFillOwner].compositeAlbedo =
+                        ShaperCompositeAlbedo.From(doc.owners[myFillOwner].shape);
+                }
+
                 // Otherwise: NO owner is created, so this node's region falls through to the nearest BINDING
                 // ancestor — which is at worst the root's Solid. FC-4.4: it never falls back to a different
                 // quantity, never substitutes a default value for the missing one, and NEVER PAINTS NOTHING.
@@ -457,6 +484,22 @@ namespace Laubrary.Shaper
                               ShaperQuantitySet leafPublished, Func<ShaperNode, ShaperQuantitySet> perLeaf)
         {
             if (node.border == null) return -1;
+
+            // T-0191 — A COMPOSITE NODE HAS NO BORDER, and this is a structural fact rather than a refusal to
+            // report. A border is ShaperOps.Shell applied to the node's field (BD-1.3), and a composite's field
+            // is not a distance function at all: it is a coverage raster inverted into a pseudo-distance that
+            // ShaperEvaluator's own CompositeSample case documents as "valid ONLY within roughly one texel of
+            // the generator's own edge". A strip traced on that saturates immediately, so a border on a
+            // composite could only ever draw the wrong band. §6.2's "may not be re-filled" says the same thing
+            // about its colour, and the window now offers neither card on a composite node.
+            //
+            // It has to be refused HERE and not only in the window, because `ShaperNode.border` is a plain
+            // [Serializable] class field: Unity's serializer never writes null for one, so a composite node
+            // saved into an asset comes back with a default border object whether or not anyone authored it.
+            // Measured on a freshly saved single-Gem document: two owners instead of one, the phantom strip
+            // painting the FC-3.2 default over the generator's own picture and cutting a 608-colour gem down
+            // to 51 flat-looking ones.
+            if (node.kind == ShaperNodeKind.Composite) return -1;
 
             // BD-1.5 — null, disabled or zero-width is an EXACT no-op: no owner, no strip, nothing recorded.
             ShaperResolvedBorder border = ShaperBorder.Resolve(node.border, phase01, seed);
@@ -1146,6 +1189,24 @@ namespace Laubrary.Shaper
                                                             heightDelta = buf.heightDelta },
                                        baseO, width, 0, width);
 
+                // T-0191 — A COMPOSITE ROOT'S PICTURE IS ITS ALBEDO. The fill above still runs, and is still
+                // the FC-3.2 default by clause 1, because what it writes to `veil` is what gates this owner's
+                // coverage and must not be skipped; only the COLOUR it wrote is replaced. Placed here, before
+                // the lighting branch and a very long way before premultiplication, because that is where an
+                // albedo is defined to exist (LR-5.2) — this is a different SOURCE for the albedo, not a new
+                // stage after it, so nothing downstream needs a branch.
+                if (ow.compositeAlbedo != null)
+                {
+                    ShaperEvaluator.FillCompositeAlbedoTile(ow.compositeAlbedo, grid, x0, y0, width, height,
+                                                            buf.albedo, 0, width);
+
+                    // CLAUSE 3 — no height. IShaperCompositeSource publishes ONE thing, a picture; there is no
+                    // height channel to read, so the delta is zero rather than whatever the substituted default
+                    // fill happened to leave here. The LAYER's own height stage is untouched: it is driven by
+                    // this node's edge distance (step 1's ShaperHeight.FillTile) and is a separate authority.
+                    Array.Clear(buf.heightDelta, 0, n);
+                }
+
                 bool add = ow.fill.op.composite == ShaperFillComposite.Add;
 
                 // ── LR-5.1 / LR-5.3: is this owner lit, and does it carry a Solids overlay? ───────────────
@@ -1161,7 +1222,21 @@ namespace Laubrary.Shaper
                 // can still raise a surface that an Over fill on the same node gets lit by. Worth the line
                 // because "Add mode" reads like it should change everything.
                 bool solidOwner = scene != null && o < scene.ownerCapacity && scene.solid[o] != null;
-                bool doLight = scene != null && o < scene.ownerCapacity && !add && scene.response[o].receive != 0;
+
+                // T-0191 CLAUSE 4 — A COMPOSITE ROOT'S OWN PICTURE IS NOT LIT AGAIN. It arrives finished: Pyre's
+                // Gem already carries its lit facets, its edge lines and its two glows, computed by Pyre's own
+                // light model at bake time. Multiplying that by an incident-light term shades an image of a lit
+                // object as though it were a flat albedo, which is double-lighting and reads as a mid-grey
+                // wash over exactly the detail the generator was hosted for. It is the same objection LR-5.3
+                // already makes of an ADDITIVE fill one branch down, for the same reason: the value is already
+                // an outgoing radiance, not a reflectance.
+                //
+                // It overrides the layer's `receiveLighting`, which defaults to ON (ShaperLightRig.cs:217) —
+                // honouring it would make the default double-light every composite in the project. The escape
+                // hatch is clause 1 and costs no dial: author a fill on the composite and that fill is an
+                // ordinary albedo, lit like every other owner's.
+                bool doLight = scene != null && o < scene.ownerCapacity && !add &&
+                               ow.compositeAlbedo == null && scene.response[o].receive != 0;
                 int nslab = o * buf.sampleCapacity;
 
                 for (int i = 0; i < n; i++)
