@@ -51,13 +51,12 @@ namespace Laubrary.Shaper.Editor
         bool cherryRunning;
 
         VisualElement backdropHost;
-        VisualElement cherryListHost;
-        ZuiSection cherrySection;
 
         // ── preview chrome ───────────────────────────────────────────────────────────────────────────────
 
-        /// The row that sits under the preview: frame border + zoom. Deliberately NOT a filmstrip/contact
-        /// sheet — see BuildCherryPanel's note on why a thumbnail strip is its own task here.
+        /// The row that sits under the preview: frame border + zoom. The filmstrip contact sheet is a
+        /// separate row inside BuildTransport (ShaperWindow.cs, T-0176) — it needs the transport's own
+        /// currentFrame/jump plumbing, not this chrome row's cosmetic-only state.
         VisualElement BuildPreviewChrome()
         {
             var frameToggle = Z.Toggle("Frame",
@@ -124,157 +123,8 @@ namespace Laubrary.Shaper.Editor
                 icon: "eye", owner: document));
         }
 
-        // ── cherry framing ───────────────────────────────────────────────────────────────────────────────
-
-        /// Cherry framing authoring. The engine half (ShaperCherry) and the bake half (ShaperBaker) already
-        /// existed and shipped; this is the authoring surface they never had.
-        ///
-        /// <b>Slot rows, not Pyre's thumbnail card grid — a deliberate scope call.</b> Pyre draws a grid of
-        /// rendered frame thumbnails and reorders by dragging cards, backed by its own `cherryStripCache`.
-        /// Shaper has no such cache, and T-0115 measured this renderer at roughly 30 ms per uncached frame,
-        /// so a live thumbnail strip would stall the main thread in proportion to frameCount every time the
-        /// panel rebuilt. Building it properly means building a thumbnail cache first, which is its own
-        /// task. Rows with the ZuiReorder grip already used by every other list in this window give the
-        /// same authoring power (pick a source frame, hold it, reorder, randomise) without that cost.
-        ///
-        /// Consequence worth stating: Pyre's two documented gotchas do NOT apply here. The
-        /// pointer-capture-breaks-drop-targets rule and the anchor-the-popover-to-the-card rule are both
-        /// properties of its card-grid gesture; ZuiReorder already solves reordering, and there is no
-        /// popover. The one Pyre lesson that DID carry over is its blit order, honoured structurally in
-        /// ShaperPreviewStage.
-        VisualElement BuildCherryPanel()
-        {
-            cherrySection = Z.Section("Cherry Framing",
-                "Play a sub-sequence of this document's own frames instead of the plain frame order: pick "
-                + "which frames play, in what order, and how long each is held.",
-                "shaper.window.cherry", icon: "shuffle");
-
-            cherrySection.SetHeaderToggle(document.cherryEnabled,
-                "Play the cherry sequence in the preview instead of the plain frame order. The bake follows "
-                + "this too — a cherry-enabled document bakes the sub-sequence.",
-                v =>
-                {
-                    Change(() => document.cherryEnabled = v);
-                    ResetCherryPlayback();
-                    RebuildCherryList();
-                });
-
-            cherryListHost = new VisualElement();
-            cherrySection.Add(cherryListHost);
-            RebuildCherryList();
-            return cherrySection;
-        }
-
-        void RebuildCherryList()
-        {
-            if (cherryListHost == null || document == null) return;
-            cherryListHost.Clear();
-
-            // While cherry is off the slot list is inert, so building it would be showing controls that
-            // change nothing — the absence rule this window follows everywhere else.
-            if (!document.cherryEnabled) return;
-
-            document.cherryFrames ??= new List<ShaperCherryFrame>();
-            for (int i = 0; i < document.cherryFrames.Count; i++)
-                cherryListHost.Add(BuildCherrySlotRow(document.cherryFrames[i]));
-
-            cherryListHost.Add(Z.HGroup(
-                Z.Button("+ Add slot",
-                    "Append a slot playing the frame currently shown in the preview.", () =>
-                    {
-                        Change(() => document.cherryFrames.Add(new ShaperCherryFrame
-                        {
-                            sourceIndex = Mathf.Clamp(Mathf.Max(0, currentFrame), 0,
-                                                      Mathf.Max(0, document.frameCount - 1)),
-                        }));
-                        ResetCherryPlayback();
-                        RebuildCherryList();
-                    }),
-                Z.MicroSlider("Loop gap", document.cherryLoopDelaySeconds, 0f, 4f,
-                    "Seconds of blank between one pass through the sequence and the next. 0 loops with no "
-                    + "gap. A gap plays as nothing on screen, not as a held frame.",
-                    v => Change(() => document.cherryLoopDelaySeconds = Mathf.Max(0f, v)), 150f, decimals: 2)));
-        }
-
-        VisualElement BuildCherrySlotRow(ShaperCherryFrame slot)
-        {
-            var box = Z.Box(null, null);
-            int maxFrame = Mathf.Max(0, document.frameCount - 1);
-
-            var header = new VisualElement();
-            header.AddToClassList("zui-row");
-
-            var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder — a slot's position is its play order.");
-            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
-            grip.style.width = 16f;
-            ZuiReorder.MakeGrip(grip, box, cherryListHost, (from, to) =>
-            {
-                // Guard the indices: the grip reports positions among the CONTAINER's children, and the
-                // container also holds the trailing add-row, so a drop past the last slot would otherwise
-                // index outside the data list.
-                if (from < 0 || from >= document.cherryFrames.Count) { RebuildCherryList(); return; }
-                to = Mathf.Clamp(to, 0, document.cherryFrames.Count - 1);
-                Change(() =>
-                {
-                    var f = document.cherryFrames[from];
-                    document.cherryFrames.RemoveAt(from);
-                    document.cherryFrames.Insert(to, f);
-                });
-                ResetCherryPlayback();
-                RebuildCherryList();
-            });
-            header.Add(grip);
-
-            header.Add(Z.Field("Source frame",
-                "Which of this document's own frames this slot plays.",
-                Z.SliderInt(Mathf.Clamp(slot.sourceIndex, 0, maxFrame), 0, maxFrame,
-                    "Which of this document's own frames this slot plays.",
-                    v => { Change(() => slot.sourceIndex = v); ResetCherryPlayback(); }, 130f)));
-
-            header.Add(Z.Flexible());
-            header.Add(Z.Button("×", "Remove this slot.", () =>
-            {
-                Change(() => document.cherryFrames.Remove(slot));
-                ResetCherryPlayback();
-                RebuildCherryList();
-            }).W(22f));
-            box.Add(header);
-
-            // Length: one fixed multiplier, or a randomised min/max re-drawn on each pass. The toggle
-            // rebuilds the row because the two modes need different controls — showing both at once would
-            // leave whichever is inactive lying about what it does.
-            var lengthRow = new List<VisualElement>
-            {
-                Z.Toggle("Randomise length",
-                    "Draw a new hold length on every pass through the sequence instead of always using the "
-                    + "fixed one. The draw is seeded from the document, so a given pass is reproducible.",
-                    slot.useMinMaxLength, v =>
-                    {
-                        Change(() => slot.useMinMaxLength = v);
-                        ResetCherryPlayback();
-                        RebuildCherryList();
-                    }),
-            };
-
-            if (slot.useMinMaxLength)
-            {
-                lengthRow.Add(Z.MicroSlider("Min ×", slot.minLengthMultiplier, 0.25f, 8f,
-                    "Shortest hold, in beats, this slot can draw.",
-                    v => { Change(() => slot.minLengthMultiplier = v); ResetCherryPlayback(); }, 120f, decimals: 2));
-                lengthRow.Add(Z.MicroSlider("Max ×", slot.maxLengthMultiplier, 0.25f, 8f,
-                    "Longest hold, in beats, this slot can draw.",
-                    v => { Change(() => slot.maxLengthMultiplier = v); ResetCherryPlayback(); }, 120f, decimals: 2));
-            }
-            else
-            {
-                lengthRow.Add(Z.MicroSlider("Length ×", slot.lengthMultiplier, 0.25f, 8f,
-                    "How long this slot holds, in beats. 1 = one frame's worth of time at the playback rate.",
-                    v => { Change(() => slot.lengthMultiplier = v); ResetCherryPlayback(); }, 120f, decimals: 2));
-            }
-
-            box.Add(Z.HGroup(lengthRow.ToArray()));
-            return box;
-        }
+        // ── cherry framing authoring lives in ShaperWindow.Cherry.cs (T-0176: thumbnail grid, drag,
+        // multi-select, right-click editor, Delete, Zound trigger) ─────────────────────────────────────────
 
         // ── cherry playback ──────────────────────────────────────────────────────────────────────────────
 
@@ -302,9 +152,27 @@ namespace Laubrary.Shaper.Editor
             // a time (rather than scaling) is what keeps a slot's authored hold honest when the editor drops
             // frames: three beats' worth of real time advances three beats, not one long one.
             for (int i = 0; i < steps; i++)
+            {
+                int prevSlot = cherryState.slot;
                 cherryState = ShaperCherry.AdvanceOneBeat(cherryState, document);
+                // T-0176 — fire on ENTRY into the named slot (a slot change, not merely "is this the slot"),
+                // so a held slot with lengthMultiplier > 1 fires once per visit rather than once per beat.
+                if (cherryState.slot != prevSlot) FireZoundCueIfMatch(cherryState.slot);
+            }
 
             return cherryState.frame;
+        }
+
+        /// Preview-only Zound cue (T-0176, Pyre parity — Runtime/Pyre/Pyre.cs:1251-1252 records the same idea
+        /// but Pyre never wired the fire itself, per PyreWindow.cs:281's own comment). Fires once per entry
+        /// into the cherry slot document.previewZoundFrame names; never reaches ShaperBaker or
+        /// ShaperDocumentRenderer, so it can never affect a bake.
+        void FireZoundCueIfMatch(int enteredSlot)
+        {
+            if (document == null || document.previewZoundFrame < 0 || enteredSlot != document.previewZoundFrame)
+                return;
+            if (string.IsNullOrEmpty(document.previewZoundName)) return;
+            ShaperZoundPickerHook.Preview?.Invoke(document.previewZoundName);
         }
     }
 }

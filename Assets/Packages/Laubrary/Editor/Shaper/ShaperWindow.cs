@@ -143,6 +143,11 @@ namespace Laubrary.Shaper.Editor
         ShaperCacheTickStrip cacheTickStrip;
         Label cacheReadoutLabel;
 
+        // T-0176 — the filmstrip contact sheet, same ownership reasoning as cacheTickStrip above (built
+        // inside BuildTransport). Its own cache (ShaperFilmstrip.cs) — see that file's header for why it does
+        // not share ShaperPreviewStage's.
+        ShaperFilmstripElement filmstrip;
+
         // ── chrome ───────────────────────────────────────────────────────────────────────────────────────
         ShaperPreviewStage stage;
         VisualElement layerListHost, toggleBarHost;
@@ -161,6 +166,9 @@ namespace Laubrary.Shaper.Editor
             // dispose explicitly rather than relying on DetachFromPanel alone.
             stage?.Dispose();
             stage = null;
+            filmstrip?.Dispose();
+            filmstrip = null;
+            DisposeCherryThumbs();
         }
 
         protected override void OnDisable()
@@ -168,6 +176,8 @@ namespace Laubrary.Shaper.Editor
             base.OnDisable();
             EditorApplication.update -= PlaybackTick;
             stage?.Dispose();
+            filmstrip?.Dispose();
+            DisposeCherryThumbs();
         }
 
         /// The per-document editor. The base owns everything above it — the toolbar, the New/Rename prompts,
@@ -742,6 +752,21 @@ namespace Laubrary.Shaper.Editor
             host.Add(Z.HGroup(cacheTickStrip, cacheReadoutLabel));
             RefreshCacheReadout();
 
+            // T-0176 — filmstrip contact sheet: click a tile to jump the transport there (Pyre parity).
+            filmstrip = new ShaperFilmstripElement(() => document,
+                () => currentFrame,
+                jumpTo =>
+                {
+                    currentFrame = Mathf.Clamp(jumpTo, 0, Mathf.Max(0, document.frameCount - 1));
+                    playing = false;
+                    cherryRunning = false;
+                    if (playButton != null) playButton.text = "▶ Play";
+                    scrubber?.SetValueWithoutNotify(currentFrame);
+                    RefreshPreview();
+                });
+            host.Add(filmstrip);
+            filmstrip.Rebuild();
+
             return host;
         }
 
@@ -847,6 +872,8 @@ namespace Laubrary.Shaper.Editor
             // border, backdrop) call RefreshPreview() directly instead and deliberately do NOT invalidate —
             // that is the whole point of the cache existing.
             stage?.InvalidateFrameCache();
+            filmstrip?.Invalidate();
+            InvalidateCherryThumbs();
             RefreshPreview();
         }
 
@@ -876,6 +903,8 @@ namespace Laubrary.Shaper.Editor
                     // the frame cache too. Val() never routes through Change() itself (Z.Value manages its own
                     // Undo timing via the second callback below), so this is hooked here instead.
                     stage?.InvalidateFrameCache();
+                    filmstrip?.Invalidate();
+                    InvalidateCherryThumbs();
                     RefreshPreview();
                 },
                 () => { if (document != null) Undo.RecordObject(document, "Edit Shaper Document"); });
@@ -886,6 +915,12 @@ namespace Laubrary.Shaper.Editor
         /// a ~30ms recompute. Deliberately does NOT invalidate anything itself — Change()/Val() invalidate at
         /// the point of an actual data edit, and every other caller of this method (scrub, zoom, frame
         /// border, backdrop, playback) is a pure view change that must NOT throw the cache away.
-        internal void RefreshPreview() => stage?.Refresh();
+        internal void RefreshPreview()
+        {
+            stage?.Refresh();
+            // Repaint (never invalidate) the filmstrip's current-frame highlight on every view change — a
+            // scrub or playback tick moves which tile is "current" without touching any tile's pixels.
+            filmstrip?.RefreshTiles();
+        }
     }
 }

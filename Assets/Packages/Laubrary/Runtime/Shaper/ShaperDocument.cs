@@ -149,6 +149,16 @@ namespace Laubrary.Shaper
         /// gap.</summary>
         [Min(0f)] public float cherryLoopDelaySeconds = 0f;
 
+        /// <summary>Preview-only Zound cue (Pyre parity, <c>Runtime/Pyre/Pyre.cs:1251-1252</c>): the cherry
+        /// slot index this fires on, once per entry into that slot. -1 = never fires. Never baked -- neither
+        /// <see cref="ShaperBaker"/> nor <see cref="ShaperDocumentRenderer"/> (Editor/Shaper) reads this
+        /// field or the one below; it only steers the editor's own live preview.</summary>
+        [HideInInspector] public int previewZoundFrame = -1;
+        /// <summary>Name of the Zound <see cref="previewZoundFrame"/> fires. Always set through a picker
+        /// (ShaperZoundPickerHook), never typed -- a typed name compiles, saves and looks authored, then
+        /// silently plays nothing the moment it's misspelled.</summary>
+        [HideInInspector] public string previewZoundName;
+
         // ── Preview backdrop (T-0157) ────────────────────────────────────────────────────────────────────
         /// <summary>
         /// The editor preview's backdrop — a flat colour plus one optional image, drawn BEHIND the render.

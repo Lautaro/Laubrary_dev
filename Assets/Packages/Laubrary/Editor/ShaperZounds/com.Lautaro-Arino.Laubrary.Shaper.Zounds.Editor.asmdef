@@ -1,0 +1,20 @@
+{
+    "name": "com.Lautaro-Arino.Laubrary.Shaper.Zounds.Editor",
+    "rootNamespace": "Laubrary.ShaperZounds.Editor",
+    "references": [
+        "com.Lautaro-Arino.Laubrary.Shaper.Editor",
+        "com.Lautaro-Arino.Laubrary.Launimator.Zounds.Editor",
+        "com.Lautaro-Arino.Laubrary.Zounds"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
