@@ -151,48 +151,31 @@ namespace Laubrary.Shaper.Editor
             string posReason = "Position and range only apply to a Point light, which falls off with distance "
                 + "(LR-2.4). This light is Directional, which has no location — only a direction it comes from.";
 
-            // Direction/Position are spatial X/Y pairs, so they take the SAME Z.Pad the Transform section uses
-            // (ShaperWindow.cs BuildTransformSection's Translate/Origin/Scale/Skew), not the animatable
-            // Z.Value2D this card used before the PM's by-eye pass (2026-09-02) flagged the inconsistency:
-            // ui-layout-rules.md says the same KIND of value uses the same control everywhere, and the "…"
-            // config affordance Z.Value2D's side panel exposes is deprecated by user decree.
-            //
-            // The real cost, stated rather than hidden: yaw/pitch and posX/posY are ZUIValue
-            // (ShaperLightRig.cs:46,55,58,60) and therefore individually animatable, but Z.Pad edits a plain
-            // Vector2 — so this pad reads/writes only each field's STATIC value (ZUIValue.staticValue) and
-            // drops the curve/min-max/steps/oscillation modes from THIS control. An author can still animate
-            // yaw, pitch, posX or posY — nothing here forces Static — just not from this pad; the same
-            // limitation Transform's own plain-Vector2 translate/origin/scale/skew dials already carry.
-            var dirRow = Z.Field("Direction", isDirectional
+            // Direction/Position are spatial X/Y pairs of animatable ZUIValues (ShaperLightRig.cs:46,55,58,60),
+            // so they take Val2D — the SAME shared helper and control T-0168 (commit cc02e986) promoted the
+            // Transform section's Translate/Origin/Scale/Skew to (ShaperWindow.cs:937-947): the standard
+            // collapsed Value2D row (label + thumbnail + right-click mode menu), not this file's own control.
+            // T-0168 also retired the plain Z.Pad this card used between the two PM vet passes — Transform's
+            // pairs are envelope-driven now too, so Pad's static-only edit was never the settled shape, only
+            // an intermediate one. Reusing ShaperWindow.cs's Val2D (rather than redeclaring a second one, as
+            // this file briefly did) keeps Undo/dirty/frame-cache invalidation identical to every other 2D
+            // dial in the tool, including the one this exact helper now shares with Transform.
+            var dirRow = Val2D("Direction", isDirectional
                     ? "Where this Directional light comes FROM, in the canvas frame — yaw (X) then pitch (Y), "
-                      + "degrees. Edits the static value only."
+                      + "degrees. Animate either axis to sweep the light over the document's frames."
                     : dirReason,
-                Z.Pad(new Vector2(light.yaw.staticValue, light.pitch.staticValue),
-                    new Rect(0f, -90f, 360f, 180f),
-                    isDirectional
-                        ? "Where this Directional light comes FROM — yaw (X) then pitch (Y), degrees."
-                        : dirReason,
-                    v => Change(() =>
-                    {
-                        light.yaw.staticValue = v.x;
-                        light.pitch.staticValue = v.y;
-                    })));
+                light.yaw, light.pitch,
+                new ZuiValue2DControl.Options().WithRange(0f, 360f, -90f, 90f).WithPlotSize(110f)
+                    .WithAxisLabels("Yaw", "Pitch").WithPrefKey("shaper.light.direction." + li));
             if (!isDirectional) dirRow.SetEnabled(false);
 
-            var posRow = Z.Field("Position", isDirectional
+            var posRow = Val2D("Position", isDirectional
                     ? posReason
-                    : "This Point light's absolute canvas position, X and Y. Canvas pixels. Edits the static "
-                      + "value only.",
-                Z.Pad(new Vector2(light.posX.staticValue, light.posY.staticValue),
-                    new Rect(-256f, -256f, 512f, 512f),
-                    isDirectional
-                        ? posReason
-                        : "This Point light's absolute canvas position, X and Y. Canvas pixels.",
-                    v => Change(() =>
-                    {
-                        light.posX.staticValue = v.x;
-                        light.posY.staticValue = v.y;
-                    })));
+                    : "This Point light's absolute canvas position, X and Y, canvas pixels. Animate either axis "
+                      + "to move the light over the document's frames.",
+                light.posX, light.posY,
+                new ZuiValue2DControl.Options().WithRange(-256f, 256f, -256f, 256f).WithPlotSize(110f)
+                    .WithPrefKey("shaper.light.position." + li));
             if (isDirectional) posRow.SetEnabled(false);
 
             card.Add(Z.HGroup(dirRow, posRow));
