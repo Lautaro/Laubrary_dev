@@ -77,3 +77,5 @@ The Chunks preview is a fast, deterministic **schematic** of the recipe over its
 13. **Only one Cues capability per recipe**: the Add menu greys `Cues` once one exists.
 14. **`PyreBlast.Pattern`** (Single/Line/Ring) is the single authored control over `useFormation` + `formation.shape`; cards write the property, never the two fields.
 15. **Lone-capability rule lives in `ChunkClock.NeedsTimingSurface(spec)`** — it gates the Timing section AND whether any card shows a Delay dial.
+16. **The runtime's sorting is the truth for draw order** (revises 6): an unslotted output sorts at `sortingOrder + stackIndex`, exactly as `ChunkModuleContext` computes it; the preview must derive its draw order from the SAME resolver the runtime uses, not from a "behind everything slotted" rule. T-0216 aligns the preview.
+17. **Preview framing**: fit the recipe's reach, but a reach dominated by one far-flung particle must not shrink the whole picture to a dot — fit to the extent that holds ~90 % of drawn positions at the clock's midpoint, clamped so the origin cross and every formation point stay inside. T-0216 tunes it.
