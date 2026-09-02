@@ -14,8 +14,8 @@ namespace Laubrary.Chunks
     {
         public override string KindName => "Fragment Fracture";
 
-        [Tooltip("Which layer-stack slot the pieces draw in. Empty draws them in stack order, behind every " +
-                 "slotted output.")]
+        [Tooltip("Which layer-stack slot the pieces draw in. Empty leaves them out of the plan, drawing " +
+                 "in stack order in FRONT of every slotted output.")]
         public string layerName = "";
 
         public override string LayerName => layerName;

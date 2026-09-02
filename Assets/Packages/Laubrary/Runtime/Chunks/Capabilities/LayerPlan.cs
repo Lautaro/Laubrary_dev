@@ -8,8 +8,8 @@ namespace Laubrary.Chunks
     ///
     /// A COORDINATOR: it puts nothing on screen and has no moment, so it never fires and never takes a timing
     /// lane. It contributes the one thing every producer reads — the layer stack the burst's context carries.
-    /// With no Layer Plan in the recipe every producer draws in stack order behind everything slotted, which
-    /// is exactly the pre-layering behaviour and the reason the slot picker is absent until this exists.
+    /// With no Layer Plan in the recipe every producer simply draws in stack order, which is exactly the
+    /// pre-layering behaviour and the reason the slot picker is absent until this exists.
     [System.Serializable]
     public class LayerPlan : ChunkCapability
     {

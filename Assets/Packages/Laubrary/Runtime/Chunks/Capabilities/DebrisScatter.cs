@@ -28,8 +28,8 @@ namespace Laubrary.Chunks
     {
         public override string KindName => "Debris Scatter";
 
-        [Tooltip("Which layer-stack slot the debris draws in. Empty draws it in stack order, behind every " +
-                 "slotted output.")]
+        [Tooltip("Which layer-stack slot the debris draws in. Empty leaves it out of the plan, drawing " +
+                 "in stack order in FRONT of every slotted output.")]
         public string layerName = "";
 
         public override string LayerName => layerName;

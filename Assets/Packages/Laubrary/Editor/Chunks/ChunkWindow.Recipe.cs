@@ -327,7 +327,8 @@ namespace Laubrary.Chunks.Editor
         /// Which named depth slot this capability draws in — or NULL when the recipe has no Layer Plan, in
         /// which case there are no slots to pick from and everything draws in stack order anyway.
         /// `(stack order)` is offered first because it is the honest name for an empty slot: unslotted output
-        /// draws behind everything slotted, in the order the stack is authored.
+        /// takes the emitter's own draw order plus its place in the stack, which sits IN FRONT of the plan's
+        /// slots rather than behind them.
         internal VisualElement LayerSlotRow(ChunkSpec c, Func<string> get, Action<string> set)
         {
             var plan = FirstOfKind<LayerPlan>(c);
@@ -344,8 +345,8 @@ namespace Laubrary.Chunks.Editor
                 if (layers[i] == current) { index = i + 1; break; }
 
             return Z.Field("Layer",
-                "Which named depth slot this draws in. (stack order) draws it behind everything slotted, in " +
-                "the order the recipe is authored.",
+                "Which named depth slot this draws in. (stack order) leaves it out of the plan: it draws in " +
+                "front of every slotted output, in the order the recipe is authored.",
                 Z.MiniRadio(index, options,
                     "Which named depth slot this draws in.",
                     i => Dial("Set Layer Slot", () => set(i <= 0 ? "" : layers[i - 1])), true));

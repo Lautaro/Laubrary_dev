@@ -13,10 +13,14 @@ namespace Laubrary.Chunks
     [DisallowMultipleComponent]
     public class ChunkEmitter : MonoBehaviour
     {
+        /// Where an unslotted output's draw order starts from. Named rather than typed in three places
+        /// because the editor preview has to assume the same number to predict what will be in front.
+        public const int DefaultSortingOrder = 500;
+
         [Tooltip("The recipe this emitter fires.")]
         public ChunkSpec spec;
         [Tooltip("Draw order for anything the recipe does not put in a named layer slot.")]
-        public int sortingOrder = 500;
+        public int sortingOrder = DefaultSortingOrder;
         [Tooltip("Combatant dealing damage through a recipe that has a Hits capability (its faction decides " +
                  "who can be hit — see Combat2D.Hitbox). Auto-found in parents if null.")]
         public Combatant owner;
@@ -87,11 +91,11 @@ namespace Laubrary.Chunks
         /// ChunkEmitter (component, with its own owner field) or call SpawnBurst directly for an attributed one.
         public static Transform Burst(Vector2 worldPos, ChunkSpec spec, float directionDeg = float.NaN,
                                       IChunkAnimation animationOverride = null)
-            => ChunkEmitter.SpawnBurst(worldPos, spec, null, directionDeg, null, 500, animationOverride);
+            => ChunkEmitter.SpawnBurst(worldPos, spec, null, directionDeg, null, ChunkEmitter.DefaultSortingOrder, animationOverride);
 
         /// Throw a burst tinted to a supplied palette (e.g. colours sampled off the exploded object).
         public static Transform Burst(Vector2 worldPos, ChunkSpec spec, IList<Color32> tintPalette, float directionDeg = float.NaN,
                                       IChunkAnimation animationOverride = null)
-            => ChunkEmitter.SpawnBurst(worldPos, spec, tintPalette, directionDeg, null, 500, animationOverride);
+            => ChunkEmitter.SpawnBurst(worldPos, spec, tintPalette, directionDeg, null, ChunkEmitter.DefaultSortingOrder, animationOverride);
     }
 }

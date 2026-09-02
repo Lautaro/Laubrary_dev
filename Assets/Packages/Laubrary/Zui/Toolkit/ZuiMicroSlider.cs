@@ -35,6 +35,7 @@ namespace Laubrary.Zui
         bool _showNumInput;
         readonly int _decimals;
         bool _dragging, _gestureOpen;
+        int _undoGroup = -1;   // the Undo group the open gesture collapses into — see ZuiUndoGesture
         float _lastMoveX;   // local-space x of the previous applied move (for Shift fine/relative dragging)
 
         // Shift fine-drag sensitivity: the value moves this fraction of the NORMAL value-per-pixel while Shift
@@ -155,7 +156,16 @@ namespace Laubrary.Zui
         {
             if (_gestureOpen) return;
             _gestureOpen = true;
+            _undoGroup = ZuiUndoGesture.Begin();   // one drag is one Undo step, however many moves it raises
             _onBeforeMutate?.Invoke();   // fires once per drag, before the first mutation (the Undo contract)
+        }
+
+        void CloseGesture()
+        {
+            if (!_gestureOpen) return;
+            _gestureOpen = false;
+            ZuiUndoGesture.End(_undoGroup);
+            _undoGroup = -1;
         }
 
         void OnDown(PointerDownEvent e)
@@ -171,7 +181,7 @@ namespace Laubrary.Zui
             {
                 OpenGesture();
                 SetValue(_default.Value, notify: true);
-                _gestureOpen = false;
+                CloseGesture();
                 e.StopPropagation();
                 return;
             }
@@ -205,7 +215,7 @@ namespace Laubrary.Zui
         {
             if (!_dragging) return;
             _dragging = false;
-            _gestureOpen = false;
+            CloseGesture();
             this.ReleasePointer(e.pointerId);
             e.StopPropagation();
         }

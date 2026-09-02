@@ -70,10 +70,9 @@ namespace Laubrary.Chunks.Editor
                 v => Dial("Edit Spread", () => cap.spreadDeg = v), 150f, showValue: true, decimals: 0));
 
             body.Add(Z.HGroup(
-                Z.Field("Gravity",
+                Z.MicroSlider("Gravity", cap.gravity, 0f, 40f,
                     "Downward acceleration, world units/sec².",
-                    Z.Float(cap.gravity, "Downward acceleration, world units/sec².",
-                        v => Dial("Edit Gravity", () => cap.gravity = Mathf.Max(0f, v)), 70f)),
+                    v => Dial("Edit Gravity", () => cap.gravity = v), 150f, showValue: true, decimals: 1),
                 Z.MicroSlider("Drag", cap.drag, 0f, 5f,
                     "Air resistance: per-second damping of velocity.",
                     v => Dial("Edit Drag", () => cap.drag = v), 150f, showValue: true, decimals: 2)));

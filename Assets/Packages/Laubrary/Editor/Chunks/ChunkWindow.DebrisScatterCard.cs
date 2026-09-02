@@ -81,10 +81,10 @@ namespace Laubrary.Chunks.Editor
                     "Launch speed, world units/sec. Each chunk picks one random speed in between.",
                     (lo, hi) => Dial("Edit Speed", () => { cap.speedMin = lo; cap.speedMax = hi; }),
                     150f, showValue: true, decimals: 2),
-                Z.Field("Upward bias",
-                    "Extra upward velocity on every chunk, so even a radial burst pops.",
-                    Z.Float(cap.upwardBias, "Extra upward velocity on every chunk.",
-                        v => Dial("Edit Upward Bias", () => cap.upwardBias = v), 70f))));
+                Z.MicroSlider("Upward bias", cap.upwardBias, -10f, 10f,
+                    "Extra upward velocity on every chunk, so even a radial burst pops. Below zero it presses " +
+                    "them down instead.",
+                    v => Dial("Edit Upward Bias", () => cap.upwardBias = v), 150f, showValue: true, decimals: 2)));
 
             body.Add(Z.MicroSlider("Spread", cap.spreadDeg, 0f, 180f,
                 "Cone half-angle around the recipe's own aim. 0 = a tight jet; 180 = a full circle.",
@@ -92,10 +92,9 @@ namespace Laubrary.Chunks.Editor
 
             // ── flight ─────────────────────────────────────────────────────────────
             body.Add(Z.HGroup(
-                Z.Field("Gravity",
+                Z.MicroSlider("Gravity", cap.gravity, 0f, 40f,
                     "Downward acceleration, world units/sec². Higher = snappier arcs that fall fast.",
-                    Z.Float(cap.gravity, "Downward acceleration, world units/sec².",
-                        v => Dial("Edit Gravity", () => cap.gravity = Mathf.Max(0f, v)), 70f)),
+                    v => Dial("Edit Gravity", () => cap.gravity = v), 150f, showValue: true, decimals: 1),
                 Z.MicroSlider("Drag", cap.drag, 0f, 5f,
                     "Air resistance: per-second damping of velocity. 0 = none, ~1 = noticeable, ~3 = soupy.",
                     v => Dial("Edit Drag", () => cap.drag = v), 150f, showValue: true, decimals: 2)));

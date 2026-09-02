@@ -157,6 +157,7 @@ namespace Laubrary.Zui
 
             bool _dragging;
             int _pointer = -1;
+            int _undoGroup = -1;      // one scrub is one Undo step — see ZuiUndoGesture
             float _lastX;             // panel-space x at the previous applied move
             double _value;            // unrounded running value so slow drags never lose sub-steps
 
@@ -191,6 +192,7 @@ namespace Laubrary.Zui
                 _pointer = e.pointerId;
                 _value = _read();
                 _lastX = e.position.x;
+                _undoGroup = ZuiUndoGesture.Begin();
                 target.CapturePointer(e.pointerId);
                 e.StopPropagation();
             }
@@ -214,6 +216,7 @@ namespace Laubrary.Zui
                 if (_dragging && target.HasPointerCapture(e.pointerId)) target.ReleasePointer(e.pointerId);
                 _dragging = false;
                 _pointer = -1;
+                EndGesture();
                 e.StopPropagation();
             }
 
@@ -222,6 +225,13 @@ namespace Laubrary.Zui
                 // Capture lost for any reason (panel change, another element grabbed it) — end cleanly.
                 _dragging = false;
                 _pointer = -1;
+                EndGesture();
+            }
+
+            void EndGesture()
+            {
+                ZuiUndoGesture.End(_undoGroup);
+                _undoGroup = -1;
             }
         }
 

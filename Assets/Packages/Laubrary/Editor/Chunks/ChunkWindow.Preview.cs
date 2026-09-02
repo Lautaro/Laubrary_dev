@@ -273,7 +273,11 @@ namespace Laubrary.Chunks.Editor
 
             frame ??= new ChunkPreviewFrame();
             ChunkPreviewSim.Build(c, previewTime, frame);
-            DrawGuides(frame, centre, scale);
+            // A cone says WHICH WAY, not how far, so it is the one thing allowed to be cut down to fit: the
+            // framing is now sized to the composition rather than to its furthest particle, and a fast
+            // long-lived producer's wedge would otherwise be drawn straight off the edge with its arrowhead
+            // — the half that answers the question — outside the stage.
+            DrawGuides(frame, centre, scale, Mathf.Min(field.width, field.height) * 0.46f);
 
             var label = new GUIStyle(EditorStyles.boldLabel);
             label.normal.textColor = new Color(1f, 1f, 1f, 0.75f);
@@ -301,7 +305,7 @@ namespace Laubrary.Chunks.Editor
         static readonly Comparison<ChunkGuide> ByOrder = (a, b) => a.order.CompareTo(b.order);
         static readonly Comparison<ChunkGuidePath> PathsByOrder = (a, b) => a.order.CompareTo(b.order);
 
-        void DrawGuides(ChunkPreviewFrame f, Vector2 centre, float scale)
+        void DrawGuides(ChunkPreviewFrame f, Vector2 centre, float scale, float maxConePixels)
         {
             Vector2 ToScreen(Vector2 p) => new Vector2(centre.x + p.x * scale, centre.y - p.y * scale);
 
@@ -311,7 +315,7 @@ namespace Laubrary.Chunks.Editor
             Handles.BeginGUI();
             var previous = Handles.color;
 
-            for (int i = 0; i < f.Cones.Count; i++) DrawCone(f.Cones[i], ToScreen, scale);
+            for (int i = 0; i < f.Cones.Count; i++) DrawCone(f.Cones[i], ToScreen, scale, maxConePixels);
 
             for (int i = 0; i < f.Paths.Count; i++)
             {
@@ -377,10 +381,10 @@ namespace Laubrary.Chunks.Editor
             }
         }
 
-        static void DrawCone(ChunkGuideCone cone, Func<Vector2, Vector2> toScreen, float scale)
+        static void DrawCone(ChunkGuideCone cone, Func<Vector2, Vector2> toScreen, float scale, float maxPixels)
         {
             var at = toScreen(cone.pos);
-            float r = Mathf.Max(6f, cone.radius * scale);
+            float r = Mathf.Clamp(cone.radius * scale, 6f, Mathf.Max(6f, maxPixels));
 
             // The wedge is faint context; the arrow down its middle is the part that answers "which way".
             // A cone that covers the whole circle is drawn as an OUTLINE rather than a filled disc: a full

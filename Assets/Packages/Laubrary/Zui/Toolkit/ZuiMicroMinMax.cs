@@ -28,6 +28,7 @@ namespace Laubrary.Zui
         // Which handle a drag gesture is moving: both == a pan (span held fixed).
         enum Grab { Low, High, Both }
         bool _dragging, _gestureOpen;
+        int _undoGroup = -1;   // the Undo group the open gesture collapses into — see ZuiUndoGesture
         Grab _grab;
         float _lastMoveX;
         float _panLow, _panHigh; // low/high at gesture start, for a Both (pan) drag's relative math
@@ -109,7 +110,16 @@ namespace Laubrary.Zui
         {
             if (_gestureOpen) return;
             _gestureOpen = true;
+            _undoGroup = ZuiUndoGesture.Begin();   // one drag is one Undo step, however many moves it raises
             _onBeforeMutate?.Invoke();
+        }
+
+        void CloseGesture()
+        {
+            if (!_gestureOpen) return;
+            _gestureOpen = false;
+            ZuiUndoGesture.End(_undoGroup);
+            _undoGroup = -1;
         }
 
         void OnDown(PointerDownEvent e)
@@ -120,7 +130,7 @@ namespace Laubrary.Zui
                 OpenGesture();
                 float rlo = _lowDefault ?? _min, rhi = _highDefault ?? _max;
                 SetValues(rlo, rhi, notify: true);
-                _gestureOpen = false;
+                CloseGesture();
                 e.StopPropagation();
                 return;
             }
@@ -198,7 +208,7 @@ namespace Laubrary.Zui
         {
             if (!_dragging) return;
             _dragging = false;
-            _gestureOpen = false;
+            CloseGesture();
             this.ReleasePointer(e.pointerId);
             e.StopPropagation();
         }

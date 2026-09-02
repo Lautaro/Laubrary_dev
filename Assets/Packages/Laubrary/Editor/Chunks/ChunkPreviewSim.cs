@@ -85,12 +85,19 @@ namespace Laubrary.Chunks.Editor
         /// How far from the origin anything in this frame reached, world units.
         public float Reach;
 
+        /// How far out the stage MUST reach to stay honest, whatever the framing decides — the recipe's
+        /// authored placements (a formation's points), which say where the recipe puts things rather than
+        /// where physics happened to fling one particle. Framing may crop a far-flung dot; cropping a
+        /// formation point would hide part of the shape the author laid out.
+        public float Required;
+
         public void Clear()
         {
             Cones.Clear();
             Paths.Clear();
             Guides.Clear();
             Reach = 0f;
+            Required = 0f;
         }
     }
 
@@ -161,7 +168,7 @@ namespace Laubrary.Chunks.Editor
                 if (!cap.enabled && !includeDisabled) continue;
 
                 var colour = ColorFor(cap, layers, planned, slot);
-                int order = OrderFor(cap, layers, planned, i);
+                int order = OrderFor(cap, layers, i);
 
                 float delay = Mathf.Max(0f, cap.delay);
                 float duration = Mathf.Max(0f, cap.DurationSeconds(spec));
@@ -196,26 +203,60 @@ namespace Laubrary.Chunks.Editor
                 into.Reach = Mathf.Max(into.Reach, into.Cones[c].pos.magnitude + into.Cones[c].radius);
         }
 
-        /// How far out this recipe ever reaches, world units — the number the stage frames itself against.
+        /// How far out the stage frames, world units.
         ///
-        /// It samples the WHOLE clock rather than the current instant, so the picture does not zoom itself in
-        /// and out while the clock runs; and it counts SWITCHED-OFF capabilities too, exactly as the clock's
-        /// own length does, so flicking one off to look at the rest cannot rescale everything else under the
-        /// cursor. Expensive enough to be worth caching — the window recomputes it only when the recipe
-        /// changed, never per frame.
+        /// NOT the recipe's furthest reach: framing to the outermost thing that ever happens lets ONE
+        /// far-flung particle at the very end of the clock shrink the whole composition to a dot for the
+        /// entire run, which is the opposite of what a preview is for. So the frame is sized to hold about
+        /// nine tenths of what is on screen at the clock's MIDPOINT — the instant a burst is most itself,
+        /// with the early producers still alive and the late ones already out — and then widened, never
+        /// narrowed, so the origin and every authored formation point are inside it. A handful of outliers
+        /// leaving the picture is the intended trade.
+        ///
+        /// It is one instant rather than the running one, so the picture does not zoom in and out while the
+        /// clock runs; and it counts SWITCHED-OFF capabilities, exactly as the clock's own length does, so
+        /// flicking one off to look at the rest cannot rescale everything else under the cursor. Expensive
+        /// enough to be worth caching — the window recomputes it only when the recipe changed, never per frame.
         internal static float Reach(ChunkSpec spec, ChunkPreviewFrame scratch)
         {
             if (spec == null || scratch == null) return 1f;
 
-            float reach = 0f;
             float length = Mathf.Max(0.05f, ChunkClock.Length(spec));
-            const int Samples = 24;
-            for (int s = 0; s <= Samples; s++)
+            Build(spec, length * 0.5f, scratch, includeDisabled: true);
+            float fit = Fit(scratch);
+            float required = scratch.Required;
+
+            // A recipe whose output is all early or all late can have nothing at all on screen at its
+            // midpoint. Framing that to the floor would open the recipe zoomed into empty space, so fall
+            // back to the fullest instant instead of to nothing.
+            if (fit <= 0f)
             {
-                Build(spec, length * s / Samples, scratch, includeDisabled: true);
-                reach = Mathf.Max(reach, scratch.Reach);
+                const int Samples = 24;
+                for (int s = 0; s <= Samples; s++)
+                {
+                    Build(spec, length * s / Samples, scratch, includeDisabled: true);
+                    fit = Mathf.Max(fit, Fit(scratch));
+                    required = Mathf.Max(required, scratch.Required);
+                }
             }
-            return Mathf.Max(0.5f, reach);
+
+            return Mathf.Max(0.5f, Mathf.Max(fit, required));
+        }
+
+        static readonly List<float> Extents = new List<float>(256);
+
+        /// The distance that holds ~90 % of this frame's drawn things, world units. 0 when nothing is drawn.
+        static float Fit(ChunkPreviewFrame f)
+        {
+            Extents.Clear();
+            for (int i = 0; i < f.Guides.Count; i++)
+                Extents.Add(f.Guides[i].pos.magnitude + f.Guides[i].radius);
+            if (Extents.Count == 0) return 0f;
+
+            Extents.Sort();
+            // Ceil, so a frame of one thing frames that thing rather than nine tenths of it.
+            int index = Mathf.Clamp(Mathf.CeilToInt(0.9f * (Extents.Count - 1)), 0, Extents.Count - 1);
+            return Extents[index];
         }
 
         // ── Debris Scatter ────────────────────────────────────────────────────────────────────────────────
@@ -475,6 +516,10 @@ namespace Laubrary.Chunks.Editor
             }
 
             float radius = BlastRadius(b, seed);
+            for (int i = 0; i < Placements.Count; i++)
+                into.Required = Mathf.Max(into.Required,
+                                          ((Vector2)Placements[i].Position).magnitude + radius);
+
             float blast = Mathf.Max(0.05f, b.blastSeconds);
             var flight = spec != null ? spec.FindModifier<Trajectory>(b) : null;
             if (flight != null && !flight.enabled) flight = null;
@@ -657,8 +702,9 @@ namespace Laubrary.Chunks.Editor
         // ── colour, order, sizes ──────────────────────────────────────────────────────────────────────────
 
         /// A capability's colour: its Layer-Plan slot's when it has one, grey when a plan exists and it is in
-        /// no slot, and its place in the stack when there is no plan at all — which is exactly what decides
-        /// its draw order in each of those three cases, so the colour never says something the depth denies.
+        /// no slot, and its place in the stack when there is no plan at all. Colour says which SLOT, never
+        /// which depth — depth is the runtime's own answer (see OrderFor), and grey is exactly the reading
+        /// "this one is not in the plan", which is the thing worth seeing at a glance.
         static Color ColorFor(ChunkCapability cap, LayerSpec layers, bool planned, int stackSlot)
         {
             if (!planned) return SlotColors[stackSlot % SlotColors.Length];
@@ -666,15 +712,20 @@ namespace Laubrary.Chunks.Editor
             return index < 0 ? UnslottedColor : SlotColors[index % SlotColors.Length];
         }
 
-        /// Painted low first. With a Layer Plan the slot decides and the stack breaks ties, so a capability
-        /// added last but slotted early really does draw behind one added first and slotted late; unslotted
-        /// output sits behind every slotted one, which is what the slot picker's "(stack order)" entry means.
-        static int OrderFor(ChunkCapability cap, LayerSpec layers, bool planned, int stackIndex)
-        {
-            if (!planned) return stackIndex * 8;
-            int index = layers != null ? layers.IndexOf(cap.LayerName) : -1;
-            return index < 0 ? stackIndex * 8 : (index + 1) * 4096 + stackIndex * 8;
-        }
+        /// Painted low first, from the SAME resolver the burst stamps on its renderers — so what is in front
+        /// on the stage is what will be in front on screen, including the case a rule of its own would get
+        /// wrong: an unslotted output falls back to the emitter's own sortingOrder plus its place in the
+        /// stack, which is a much LARGER number than a named slot's, so it draws in FRONT of slotted output
+        /// rather than behind it. The preview has to assume a default emitter, since a recipe does not know
+        /// which one will fire it.
+        ///
+        /// Multiplied by four only to leave room underneath each capability for the things drawn beneath its
+        /// own output (a trajectory arc, a trail), which the runtime has no equivalent of: consecutive
+        /// unslotted capabilities resolve one apart, so without the gap a trail would sort onto its
+        /// neighbour's own number and the two would interleave unpredictably.
+        static int OrderFor(ChunkCapability cap, LayerSpec layers, int stackIndex)
+            => ChunkModuleContext.ResolveOrder(layers, cap.LayerName,
+                                               ChunkEmitter.DefaultSortingOrder + stackIndex) * 4;
 
         /// One blast's radius in world units: half the size of the FIRST FRAME of whatever it spawns, times
         /// the scale it comes out at. Chunks cannot ask a spawner how big it is — IChunkEffectSpawner says

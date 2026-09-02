@@ -52,7 +52,7 @@ namespace Laubrary.Chunks
         public ChunkSpec spec;
 
         [Tooltip("Sorting order every spawned particle/blast falls back to when the spec has no layer stack.")]
-        public int sortingOrder = 500;
+        public int sortingOrder = ChunkEmitter.DefaultSortingOrder;
 
         // ── playback ─────────────────────────────────────────────────────────────
         [Tooltip("Start emitting as soon as this component wakes up. Off means nothing happens until game code " +

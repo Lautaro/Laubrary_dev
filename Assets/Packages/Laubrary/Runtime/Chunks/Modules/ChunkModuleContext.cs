@@ -62,10 +62,17 @@ namespace Laubrary.Chunks
         /// The concrete sortingOrder a capability should stamp on what it spawns: the named layer slot when
         /// the stack declares one, else its own place in the recipe. This is the ONE place that decision is
         /// made, so "a Layer Plan is optional" stays true without every capability re-implementing it.
-        public int OrderFor(string layerName, int offset = 0)
+        public int OrderFor(string layerName, int offset = 0) => ResolveOrder(Layers, layerName, SortingOrder, offset);
+
+        /// The same decision as <see cref="OrderFor"/>, asked without a live burst. It exists because the
+        /// editor preview has to answer "what is in front of what?" before anything has been spawned, and a
+        /// preview that decided depth by its own rule would confidently show an order the burst then
+        /// contradicts. <paramref name="flatOrder"/> is what an unslotted output falls back to — the emitter's
+        /// own sortingOrder plus the capability's place in the stack.
+        public static int ResolveOrder(LayerSpec layers, string layerName, int flatOrder, int offset = 0)
         {
-            if (Layers != null && Layers.Has(layerName)) return Layers.OrderOf(layerName, offset);
-            return SortingOrder + offset;
+            if (layers != null && layers.Has(layerName)) return layers.OrderOf(layerName, offset);
+            return flatOrder + offset;
         }
 
         /// Applies OrderFor plus the stack's sorting LAYER (when it names a real one) to a renderer. No-op for

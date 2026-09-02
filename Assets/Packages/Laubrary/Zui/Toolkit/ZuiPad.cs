@@ -14,6 +14,7 @@ namespace Laubrary.Zui
         readonly bool _flipY;
         readonly VisualElement _dot;
         Vector2 _value;
+        int _undoGroup = -1;   // the Undo group the open drag collapses into — see ZuiUndoGesture
 
         /// Fired with the new value on every drag update.
         public event Action<Vector2> OnChanged;
@@ -49,6 +50,9 @@ namespace Laubrary.Zui
             {
                 if (e.button != 0) return;
                 this.CapturePointer(e.pointerId);
+                // One drag of the pad is one Undo step, not one per pointer move — aiming a 2D value is a
+                // long gesture, so it is the control that suffers most from a per-move record.
+                _undoGroup = ZuiUndoGesture.Begin();
                 SetFromLocal(e.localPosition);
                 e.StopPropagation();
             });
@@ -61,6 +65,8 @@ namespace Laubrary.Zui
             RegisterCallback<PointerUpEvent>(e =>
             {
                 if (this.HasPointerCapture(e.pointerId)) this.ReleasePointer(e.pointerId);
+                ZuiUndoGesture.End(_undoGroup);
+                _undoGroup = -1;
             });
             RegisterCallback<GeometryChangedEvent>(_ => PlaceDot());
         }

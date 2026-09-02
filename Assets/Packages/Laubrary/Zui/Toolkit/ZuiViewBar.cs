@@ -86,7 +86,11 @@ namespace Laubrary.Zui
                 tooltip = "Pick a saved view to apply it. Switching a view changes only how the window is "
                     + "arranged — never the asset's authored values — and never dirties the views asset."
             };
-            _picker.style.minWidth = 150f;
+            // Wide enough for a real preset name, but free to shrink in a narrow dials pane: a fixed minimum
+            // here is what pushed Update/Delete onto a line of their own before the row even ran out of space.
+            _picker.style.minWidth = 90f;
+            _picker.style.width = 150f;
+            _picker.style.flexShrink = 1f;
             _picker.style.marginRight = 6f;
             _picker.choices = PresetNames();
             if (_picker.choices.Count > 0) _picker.SetValueWithoutNotify(_picker.choices[0]);
@@ -94,19 +98,26 @@ namespace Laubrary.Zui
             {
                 if (!string.IsNullOrEmpty(ev.newValue)) ApplyPreset(ev.newValue);
             });
-            Add(_picker);
-
-            Add(Z.Button("Update", "Overwrite the selected view with the window's current arrangement.",
+            // Two groups, each of which refuses to wrap inside itself: pick-a-view (the picker and the two
+            // things you can do to the one picked) and make-a-view (a name and the button that uses it). The
+            // bar as a whole still wraps in a narrow pane, but it now breaks BETWEEN those two thoughts
+            // instead of stranding "Delete" on a line with nothing to say which view it deletes.
+            var pick = Row();
+            pick.Add(_picker);
+            pick.Add(Z.Button("Update", "Overwrite the selected view with the window's current arrangement.",
                 () => { if (!string.IsNullOrEmpty(_picker.value)) SaveInto(_picker.value); }));
-            Add(Z.Button("Delete", "Remove the selected view from the shared views asset.",
+            pick.Add(Z.Button("Delete", "Remove the selected view from the shared views asset.",
                 () => { if (!string.IsNullOrEmpty(_picker.value)) DeletePreset(_picker.value); }));
+            Add(pick);
 
             _newName = Z.TextInput("",
                 "Type a name, then Save as, to store the current arrangement as a new view.",
                 _ => { }, 120f);
-            _newName.style.marginLeft = 10f;
-            Add(_newName);
-            Add(Z.Button("Save as",
+
+            var make = Row();
+            make.style.marginLeft = 10f;
+            make.Add(_newName);
+            make.Add(Z.Button("Save as",
                 "Save the window's current arrangement as a new view under the typed name (creates the "
                 + "views asset the first time).",
                 () =>
@@ -115,6 +126,18 @@ namespace Laubrary.Zui
                     SaveInto(_newName.value);
                     _newName.SetValueWithoutNotify("");
                 }));
+            Add(make);
+        }
+
+        /// A group that stays on one line: the bar wraps between groups, never through one.
+        static VisualElement Row()
+        {
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+            row.style.flexWrap = Wrap.NoWrap;
+            row.style.flexShrink = 1f;
+            return row;
         }
 
         // ── preset CRUD (Save-as / Update / Delete are the sanctioned save path) ─────
