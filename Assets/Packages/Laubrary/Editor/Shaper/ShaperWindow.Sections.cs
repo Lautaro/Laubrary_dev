@@ -124,7 +124,7 @@ namespace Laubrary.Shaper.Editor
             ("Swarm", swarmSection), ("Generator", compositeSection), ("Children", childrenSection),
             ("Solid", solidSection),
             ("Lighting", responseSection), ("Height", heightSection), ("Mask", maskSection),
-            ("Layer effects", layerEffectsSection), ("Effects", effectsSection),
+            ("SpriteFX", layerEffectsSection), ("Global SpriteFX", effectsSection),
         };
 
         // ── Solids (T-0155) ──────────────────────────────────────────────────────────────────────────────
@@ -1475,7 +1475,7 @@ namespace Laubrary.Shaper.Editor
             root.Add(box);
         }
 
-        // ── Effects (T-0163) ─────────────────────────────────────────────────────────────────────────────
+        // ── Effects, i.e. "SpriteFX" (T-0163, renamed + given a real add-menu T-0184) ────────────────────────
         //
         // Two lists, and an entry's STAGE is which list it is in — never a per-row dropdown, because the two
         // lists are applied at genuinely different points and nothing authored may disagree with where the
@@ -1486,18 +1486,34 @@ namespace Laubrary.Shaper.Editor
         // catalog what sheets an effect needs, then whether it may run at this stage, then whether the shared
         // SpriteFxStack kernel can dispatch its family at all. Anything that fails is shown GREYED with the
         // reason — the same "declare, don't hide" posture ShaperSolids.InertReason takes.
+        //
+        // T-0184 — owner: "Effects is what is called Modifiers in Pyre — that's the same thing as the SpriteFX
+        // stack. So let's call them SpriteFX." The per-layer list is titled "SpriteFX" (Pyre's per-layer
+        // "Modifiers"), the document-wide list "Global SpriteFX" (Pyre's spec-wide "Global Modifiers") — labels
+        // and tooltips only; type names, C# member names (effectsSection/layerEffectsSection/BuildEffectsSection/
+        // etc.) and view-state keys are unchanged. The add picker (ShowAddEffectMenu) was also rebuilt to match
+        // Pyre's own "+ Add modifier" menu (PyreWindow.Modifiers.cs:344-378) content-for-content — a section
+        // per family, an item per effect, unavailable entries greyed with their reason — but laid out as one
+        // COLUMN per family instead of Pyre's flat vertical list, per the owner's separate standing feedback
+        // this wave ("we have a lot of width but less height... at least 4 columns is totally acceptable").
 
         void BuildEffectsSection(VisualElement root, ShaperLayer layer)
         {
             // LAYER effects are a property of the layer, so — like Lighting and Height — they are only drawn
             // at the layer root. Drilled into a bag member there is no layer being edited to attach them to.
+            //
+            // T-0184 — owner: "Effects is what is called Modifiers in Pyre — that's the same thing as the
+            // SpriteFX stack. So let's call them SpriteFX." Renamed labels/tooltips only (type names, view
+            // keys and the effectsSection/layerEffectsSection field names are unchanged): per-layer → "SpriteFX"
+            // (mirrors Pyre's per-layer "Modifiers"), document-wide → "Global SpriteFX" (mirrors Pyre's
+            // spec-wide "Global Modifiers").
             layerEffectsSection = null;   // so a stale section from the layer root never lingers in the bar
             if (drillPath.Count == 0)
-                BuildEffectListSection(root, ref layerEffectsSection, "Layer effects",
+                BuildEffectListSection(root, ref layerEffectsSection, "SpriteFX",
                     "Effects applied to THIS layer's own picture before it composites into the document.",
                     "shaper.window.layereffects", layer.effects, ShaperEffectStage.PreComposite);
 
-            BuildEffectListSection(root, ref effectsSection, "Effects",
+            BuildEffectListSection(root, ref effectsSection, "Global SpriteFX",
                 "Effects applied to the document's finished picture, after every layer has composited.",
                 "shaper.window.effects", document.effects, ShaperEffectStage.PostComposite);
         }
@@ -1528,7 +1544,7 @@ namespace Laubrary.Shaper.Editor
             box.Add(listHost);
 
             Button add = null;
-            add = Z.Button("+ Add effect", tooltip, () => ShowAddEffectMenu(add, list, stage));
+            add = Z.Button("+ Add SpriteFX", tooltip, () => ShowAddEffectMenu(add, list, stage));
             box.Add(add);
             root.Add(box);
         }
@@ -1662,48 +1678,111 @@ namespace Laubrary.Shaper.Editor
         }
 
         /// <summary>
-        /// The add-effect picker: the whole 41-entry catalog, grouped by family and searchable, with every
-        /// entry that cannot run AT THIS STAGE shown DISABLED and carrying its own reason rather than filtered
-        /// out. Hiding them would answer "why can't I find Voronoi crack?" with silence; showing it greyed
-        /// answers it with "it needs an edge-distance sheet, which a folded picture does not publish".
+        /// T-0184 — the add-SpriteFX picker. Owner: "I don't see a way to choose what modifier to add. Look at
+        /// how it's done in Pyre and copy it." Pyre's own "+ Add modifier" (<c>PyreWindow.Modifiers.cs:344-378</c>)
+        /// opens a flat vertical <c>Z.Menu</c> with a bold section heading per family and items stacked beneath
+        /// each — fine at Pyre's window width, but the owner's separate standing feedback for this wave is "we
+        /// have a lot of width but less height... at least 4 columns is totally acceptable" rather than a tall
+        /// scrolling list. So the CONTENT is Pyre's (one section per family, an item per effect, every entry
+        /// that cannot run AT THIS STAGE shown DISABLED with its own reason rather than filtered out — hiding
+        /// Voronoi crack would answer "where is it?" with silence; showing it greyed answers "it needs an
+        /// edge-distance sheet, which a folded picture does not publish"), but the LAYOUT is a wide grid: one
+        /// column per family (Geometry / Pixel / Post / Simulation / Edge — 5 here, still "≥4 columns"), each
+        /// its own vertical list, so the whole 41-entry catalog reads at a glance with no scroll for the common
+        /// case. Built with <c>menu.Custom(...)</c> rather than repeated <c>menu.Item(...)</c> calls because
+        /// <c>ZuiMenu</c>'s row list is one flat vertical stack (<c>ZuiMenu.cs:32</c>) with no per-row column
+        /// placement — Custom hands us a real element to lay out a Row of columns into, reusing the SAME
+        /// "zui-menu__item"/"zui-menu__label" chrome every other menu row uses (BuildEffectMenuItem below) so a
+        /// column entry looks identical to a Pyre menu item, just placed in a grid instead of one long list.
         /// </summary>
         void ShowAddEffectMenu(VisualElement anchor, List<ShaperEffectRef> list, ShaperEffectStage stage)
         {
-            var menu = Z.Menu(anchor).Width(360f).Search("Search effects…");
-
-            var entries = ShaperEffectCatalog.All
-                .Select((e, i) => (e, i))
-                .OrderBy(x => x.e.stageKind, StringComparer.Ordinal)
-                .ThenBy(x => x.e.typeName, StringComparer.Ordinal)
-                .ToArray();
-
             string stageSentence = stage == ShaperEffectStage.PreComposite
                 ? "Will run on this layer's own picture, before it composites."
                 : "Will run on the finished picture, after every layer has composited.";
 
-            string lastGroup = null;
-            foreach (var x in entries)
+            // Canonical family order — Pyre's own Geometry/Pixel/Post + Shaper's Simulation slot, plus Edge
+            // (the one genuinely-stuck effect, T-0114) shown rather than hidden, matching the catalog's own
+            // "declared, greyed-out-with-a-reason" posture.
+            string[] groupOrder = { "Geometry", "Pixel", "Post", "Simulation", "Edge" };
+            var byGroup = new Dictionary<string, List<int>>();
+            foreach (var g in groupOrder) byGroup[g] = new List<int>();
+            for (int i = 0; i < ShaperEffectCatalog.All.Length; i++)
             {
-                var e = x.e;
-                if (e.stageKind != lastGroup)
+                var kind = ShaperEffectCatalog.All[i].stageKind;
+                if (!byGroup.TryGetValue(kind, out var bucket)) byGroup[kind] = bucket = new List<int>();
+                bucket.Add(i);
+            }
+            foreach (var bucket in byGroup.Values)
+                bucket.Sort((a, b) => string.CompareOrdinal(ShaperEffectCatalog.All[a].typeName, ShaperEffectCatalog.All[b].typeName));
+
+            int columnCount = groupOrder.Count(g => byGroup.TryGetValue(g, out var b) && b.Count > 0);
+            var menu = Z.Menu(anchor).Width(Mathf.Max(220f, columnCount * 190f));
+            menu.Custom((body, close) =>
+            {
+                var row = new VisualElement();
+                row.style.flexDirection = FlexDirection.Row;
+                row.style.flexWrap = Wrap.Wrap;
+
+                foreach (var g in groupOrder)
                 {
-                    menu.Section(e.stageKind, e.stageKind + " effects.");
-                    lastGroup = e.stageKind;
+                    if (!byGroup.TryGetValue(g, out var bucket) || bucket.Count == 0) continue;
+
+                    var col = new VisualElement();
+                    col.style.flexGrow = 1f;
+                    col.style.flexShrink = 1f;
+                    col.style.flexBasis = 0f;
+                    col.style.minWidth = 170f;
+                    col.style.marginRight = 8f;
+
+                    var header = new Label(g) { tooltip = g + " effects." };
+                    header.AddToClassList("zui-menu__section");
+                    col.Add(header);
+
+                    foreach (var i in bucket)
+                    {
+                        var e = ShaperEffectCatalog.All[i];
+                        bool ok = ShaperEffectRuntime.CanRun(in ShaperEffectCatalog.All[i], stage, out string reason);
+                        string typeName = e.typeName;
+                        col.Add(BuildEffectMenuItem(typeName, ok ? stageSentence : "Unavailable — " + reason, ok,
+                            () =>
+                            {
+                                var made = ShaperEffectRuntime.Create(typeName);
+                                if (made == null) return;
+                                Change(() => list.Add(new ShaperEffectRef(typeName, made)));
+                                Rebuild();
+                            }, close));
+                    }
+
+                    row.Add(col);
                 }
 
-                bool ok = ShaperEffectRuntime.CanRun(in ShaperEffectCatalog.All[x.i], stage, out string reason);
-                var captured = e;
-                menu.Item(e.typeName, ok ? stageSentence : "Unavailable — " + reason,
-                    () =>
-                    {
-                        var made = ShaperEffectRuntime.Create(captured.typeName);
-                        if (made == null) return;
-                        Change(() => list.Add(new ShaperEffectRef(captured.typeName, made)));
-                        Rebuild();
-                    },
-                    enabled: ok);
-            }
+                body.Add(row);
+            });
             menu.Show();
+        }
+
+        /// <summary>One catalog row inside the grouped add-SpriteFX grid — the same look and click/dismiss
+        /// contract as a plain <c>ZuiMenu.Item</c> row (<c>ZuiMenu.cs</c>'s private <c>BuildItem</c>, which a
+        /// <c>Custom</c> row cannot call directly), reused here so a column entry is visually identical to a
+        /// one-column Pyre menu item.</summary>
+        static VisualElement BuildEffectMenuItem(string label, string tooltip, bool enabled, Action onClick, Action close)
+        {
+            var itemRow = new VisualElement { tooltip = tooltip };
+            itemRow.AddToClassList("zui-menu__item");
+
+            var lbl = new Label(label) { pickingMode = PickingMode.Ignore };
+            lbl.AddToClassList("zui-menu__label");
+            itemRow.Add(lbl);
+
+            if (enabled)
+                itemRow.AddManipulator(new Clickable(() => { onClick?.Invoke(); close?.Invoke(); }));
+            else
+            {
+                itemRow.AddToClassList("zui-menu__item--disabled");
+                itemRow.SetEnabled(false);
+            }
+            return itemRow;
         }
     }
 }
