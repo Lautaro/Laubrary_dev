@@ -320,6 +320,37 @@ namespace Laubrary.Shaper
         public ShaperLightResponse response = new ShaperLightResponse();
 
         /// <summary>
+        /// T-0170 — this layer's STABLE identity within its document, and the only thing another layer's
+        /// <see cref="mask"/> may point at. <b>0 means "not yet allocated"</b>; ids are handed out from 1 by
+        /// <see cref="ShaperDocument.IdOf"/> at the moment a reference to the layer is first made, so a
+        /// document nobody has masked serialises exactly as it did before this field existed.
+        ///
+        /// It exists because the two obvious alternatives are both broken: a NAME is a typed reference (the
+        /// project's standing rule against those) that breaks on rename and matches the wrong layer when two
+        /// share a name, and a list INDEX re-points itself every time the author drags the list, which is
+        /// authored data specifically meant to be dragged.
+        /// </summary>
+        public int id = 0;
+
+        /// <summary>
+        /// T-0170 — which OTHER layer of this document cuts this one, and how. Default is an unset mask
+        /// (<c>sourceLayerId == 0</c>), which the renderer skips entirely, so every existing document renders
+        /// bit-identically.
+        /// </summary>
+        public ShaperLayerMask mask = new ShaperLayerMask();
+
+        /// <summary>
+        /// T-0170 — false makes this layer a PURE MASK: it still resolves, and other layers may still read it
+        /// as a mask source, but it never composites into the picture.
+        ///
+        /// Without it a masking shape has to be drawn to be usable, so every mask arrives with its own stencil
+        /// visibly painted over the picture. Hiding it with <see cref="enabled"/> instead would be wrong and
+        /// is deliberately NOT what that flag does: a disabled layer is OFF, including as a mask source, which
+        /// is the answer an author expects from an eye/enable toggle.
+        /// </summary>
+        public bool contributesToPicture = true;
+
+        /// <summary>
         /// T-0109, HS-7.1 — this layer's Z POSITION offset, in canvas pixels, <b>SIGNED</b>, added to the
         /// ordering base <c>layerIndex × <see cref="ShaperDocument.layerSpacing"/></c> to give the layer's
         /// base plane (HS-7.2, computed by <see cref="ShaperHeightCompiler.LayerBase"/>).
@@ -395,7 +426,18 @@ namespace Laubrary.Shaper
         /// with no special-casing needed, and shares (never clones) any <c>UnityEngine.Object</c> asset
         /// reference it meets along the way, matching every other "Duplicate" in the codebase.
         /// </summary>
-        public ShaperLayer Clone() => ShaperDeepClone.Clone(this);
+        /// <remarks>
+        /// T-0170 — the copy's own <see cref="id"/> is CLEARED, so the duplicate is a new layer rather than a
+        /// second layer claiming the original's identity (which would make every mask naming the original
+        /// resolve to whichever of the two the lookup reached first). Its <see cref="mask"/> reference is
+        /// deliberately kept: a duplicate should be masked by the same source its original was.
+        /// </remarks>
+        public ShaperLayer Clone()
+        {
+            var copy = ShaperDeepClone.Clone(this);
+            copy.id = 0;
+            return copy;
+        }
     }
 
     /// <summary>

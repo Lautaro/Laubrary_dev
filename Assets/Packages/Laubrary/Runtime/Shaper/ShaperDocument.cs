@@ -199,6 +199,54 @@ namespace Laubrary.Shaper
         /// </summary>
         public List<ShaperEffectRef> effects = new List<ShaperEffectRef>();
 
+        // ── Layer identity (T-0170) ──────────────────────────────────────────────────────────────────────
+        //
+        // Ids are allocated LAZILY — only when something first needs to refer to a layer — rather than being
+        // stamped on every layer up front. Two reasons, both practical: a document that nobody has masked is
+        // then byte-identical to one authored before ids existed, and nothing has to mutate (and dirty) the
+        // asset merely because a window drew a picker over it.
+
+        /// <summary>
+        /// This layer's <see cref="ShaperLayer.id"/>, allocating one if it has none. 0 for a null layer or one
+        /// that is not in this document — an id is only meaningful inside the document that hands it out.
+        ///
+        /// <b>Call this inside the caller's own Undo scope</b>: it can mutate the layer.
+        /// </summary>
+        public int IdOf(ShaperLayer layer)
+        {
+            if (layer == null || layers == null || !layers.Contains(layer)) return 0;
+            if (layer.id != 0) return layer.id;
+
+            // Max-plus-one over the whole list, so an id is never reused after a delete. Reuse would silently
+            // re-point every mask that named the deleted layer at whatever took its place, which is a far
+            // worse failure than running the counter up.
+            int max = 0;
+            for (int i = 0; i < layers.Count; i++)
+                if (layers[i] != null && layers[i].id > max) max = layers[i].id;
+            layer.id = max + 1;
+            return layer.id;
+        }
+
+        /// <summary>The layer with this id, or <c>null</c> — for id 0 (no reference) and for an id whose layer
+        /// has been deleted alike. Never throws; a caller distinguishes the two by testing the id itself.</summary>
+        public ShaperLayer LayerById(int id)
+        {
+            if (id == 0 || layers == null) return null;
+            for (int i = 0; i < layers.Count; i++)
+                if (layers[i] != null && layers[i].id == id) return layers[i];
+            return null;
+        }
+
+        /// <summary>The list POSITION of the layer with this id, or -1. The renderer needs the index, not just
+        /// the layer, because <c>ShaperLightCompiler.BindLayer</c> is index-addressed.</summary>
+        public int LayerIndexById(int id)
+        {
+            if (id == 0 || layers == null) return -1;
+            for (int i = 0; i < layers.Count; i++)
+                if (layers[i] != null && layers[i].id == id) return i;
+            return -1;
+        }
+
         /// <summary>The grid this document's canvas describes, canvas-centred with +Y up (LR-1.5).</summary>
         public ShaperSampleGrid Grid(float edgeSoftness = 0f)
             => ShaperSampleGrid.Centred(canvasWidth, canvasHeight, pixelSize, edgeSoftness);

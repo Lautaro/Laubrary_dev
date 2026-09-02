@@ -55,7 +55,7 @@ namespace Laubrary.Shaper.Editor
         // each file declares the chrome it builds.
         ZuiSection fillSection, borderSection, modifiersSection, swarmSection,
                    compositeSection, childrenSection, responseSection, heightSection, effectsSection,
-                   layerEffectsSection, solidSection;
+                   layerEffectsSection, solidSection, maskSection;
 
         /// Which bag member is being edited, as a path of child indices from the layer root. Empty = the
         /// root itself. This is VIEW state, not authored data — it is deliberately not [SerializeField]'d
@@ -111,6 +111,7 @@ namespace Laubrary.Shaper.Editor
             {
                 BuildResponseSection(root, layer);
                 BuildHeightSection(root, layer);
+                BuildMaskSection(root, layer);
             }
 
             BuildEffectsSection(root, layer);
@@ -122,7 +123,7 @@ namespace Laubrary.Shaper.Editor
             ("Fill", fillSection), ("Border", borderSection), ("Modifiers", modifiersSection),
             ("Swarm", swarmSection), ("Generator", compositeSection), ("Children", childrenSection),
             ("Solid", solidSection),
-            ("Lighting", responseSection), ("Height", heightSection),
+            ("Lighting", responseSection), ("Height", heightSection), ("Mask", maskSection),
             ("Layer effects", layerEffectsSection), ("Effects", effectsSection),
         };
 
@@ -1256,6 +1257,123 @@ namespace Laubrary.Shaper.Editor
 
             box.Add(Z.Button("Remove height", "Drop this layer's height stage and leave it flat.",
                 () => { Change(() => layer.height = null); Rebuild(); }));
+            root.Add(box);
+        }
+
+        // ── Mask (LAYER, T-0170) ─────────────────────────────────────────────────────────────────────────
+        //
+        // The source is PICKED, never typed. The list is always derivable here because the owner is always
+        // known — a layer's siblings are the document's other layers — which is the test the project's
+        // "never type a reference string" rule sets for whether a picker is buildable at all. With no other
+        // layer the control says so and offers nothing else, rather than degrading to a text field.
+
+        void BuildMaskSection(VisualElement root, ShaperLayer layer)
+        {
+            // A document serialized before this field existed deserializes with the field initializer, so a
+            // null here is only reachable through hand-edited YAML — repaired silently rather than throwing,
+            // and NOT through Change(), because restoring a default is not an authored edit.
+            if (layer.mask == null) layer.mask = new ShaperLayerMask();
+            var m = layer.mask;
+
+            var box = maskSection = Z.Section("Mask",
+                "Cut this LAYER with another layer of the same document. The mask is held here, on the layer "
+                + "being cut, so one shape can mask several layers and dragging the list never re-points it.",
+                "shaper.window.mask", icon: "stack");
+
+            var source = document.LayerById(m.sourceLayerId);
+            bool missing = m.IsSet && source == null;
+
+            bool hasOther = false;
+            for (int i = 0; i < document.layers.Count && !hasOther; i++)
+                if (document.layers[i] != null && document.layers[i] != layer) hasOther = true;
+
+            string pickLabel = missing ? "Missing layer"
+                             : source != null ? (string.IsNullOrEmpty(source.name) ? "(unnamed layer)" : source.name)
+                             : hasOther ? "None" : "No other layers";
+            string pickTip = missing ? ShaperLayerMask.MissingSource
+                           : hasOther ? "Which other layer of this document cuts this one. Pick “None” to "
+                                        + "remove the mask."
+                                      : "This document has no other layer to mask with. Add a second layer "
+                                        + "first — a layer cannot mask itself.";
+
+            Button pick = null;
+            pick = Z.Button(pickLabel, pickTip, () =>
+            {
+                var menu = Z.Menu(pick).Width(240f);
+                menu.Item("None", "Remove this layer's mask.",
+                    () => { Change(() => m.sourceLayerId = 0); Rebuild(); }, @checked: !m.IsSet);
+                for (int i = 0; i < document.layers.Count; i++)
+                {
+                    var cand = document.layers[i];
+                    if (cand == null || cand == layer) continue;
+                    var captured = cand;
+                    string nm = string.IsNullOrEmpty(cand.name) ? "Layer " + (i + 1) : cand.name;
+                    menu.Item(nm, "Cut this layer with “" + nm + "”. " + ShaperLayerMask.SourceIsReadUnmasked,
+                        // IdOf allocates the source's stable id on first reference, so it happens INSIDE the
+                        // Undo scope — a Ctrl+Z takes the id back with the reference that caused it.
+                        () => { Change(() => m.sourceLayerId = document.IdOf(captured)); Rebuild(); },
+                        @checked: captured.id != 0 && captured.id == m.sourceLayerId);
+                }
+                menu.Show();
+            });
+            if (!hasOther && !m.IsSet) pick.SetEnabled(false);
+
+            var pickRow = Z.HGroup(Z.Field("Mask by", pickTip, pick));
+            if (missing)
+                pickRow.Add(Z.Button("Clear", "Drop the reference to the deleted layer.",
+                    () => { Change(() => m.sourceLayerId = 0); Rebuild(); }));
+            box.Add(pickRow);
+
+            if (m.IsSet)
+            {
+                box.Add(Z.HGroup(
+                    Z.Field("Mode", "Clip keeps what the source covers, Subtract cuts it away, and Intersect "
+                        + "keeps the lesser of the two — which differ only where the mask is soft.",
+                        Z.Segmented((int)m.mode, Enum.GetNames(typeof(ShaperMaskMode)),
+                            "Clip keeps what the source covers, Subtract cuts it away, Intersect keeps the "
+                            + "lesser of the two.",
+                            v => { Change(() => m.mode = (ShaperMaskMode)v); Rebuild(); })),
+                    Z.Toggle("Invert", "Read the source backwards, so it cuts where it is empty instead of "
+                        + "where it is solid.", m.invert, v => Change(() => m.invert = v))));
+
+                // Availability is the SOURCE's own answer: a layer with no height stage publishes only
+                // Coverage and Edge Distance (HS-1.4), and the renderer falls back to Coverage rather than
+                // reading an empty sheet and cutting the whole layer away. Declared with its reason rather
+                // than hidden, the same posture ShaperSolids.InertReason takes for an inert dial.
+                bool heightUnavailable = source != null && source.height == null;
+                bool quantityUnavailable = heightUnavailable && m.quantity == ShaperMaskQuantity.Height;
+                string qTip = "Which of the source's quantities is read as the mask. Coverage is its "
+                    + "silhouette, Edge Distance ramps inward from its outline, Height needs it to be "
+                    + "extruded, and Luma reads how bright it is."
+                    + (heightUnavailable ? "\n\n" + ShaperLayerMask.QuantityNotPublished : "");
+
+                var qRow = Z.HGroup(
+                    Z.Field("Quantity", qTip,
+                        Z.MiniRadio((int)m.quantity, Enum.GetNames(typeof(ShaperMaskQuantity)), qTip,
+                            v => { Change(() => m.quantity = (ShaperMaskQuantity)v); Rebuild(); }, wrap: true)));
+
+                // Coverage is already 0..1, so it has no scale to set and the dial is not drawn for it —
+                // a second amplitude dial on a normalized quantity is the "two dials for one quantity"
+                // defect ShaperLight.range refuses by name.
+                if (m.quantity != ShaperMaskQuantity.Coverage)
+                    qRow.Add(Val("Full at", "The source value that reads as a fully solid mask — canvas pixels "
+                        + "for Height and Edge Distance, linear brightness for Luma. At 0 it becomes a hard "
+                        + "test with no ramp.", m.fullAt, 0f, 64f));
+                box.Add(qRow);
+
+                if (quantityUnavailable)
+                    box.Add(Z.Text("Falling back to Coverage.", ZuiText.Subtle,
+                        ShaperLayerMask.QuantityNotPublished));
+            }
+
+            // Lives here rather than on the layer row because it is only ever set for a layer that is being
+            // used as a mask, and this is the card that explains what that means.
+            box.Add(Z.Toggle("Draws into the picture",
+                "Turn this off to make THIS layer a pure mask: it still resolves, and other layers may still "
+                + "be cut by it, but it never paints into the picture itself. Disabling the layer instead "
+                + "turns it off as a mask source too.",
+                layer.contributesToPicture, v => Change(() => layer.contributesToPicture = v)));
+
             root.Add(box);
         }
 

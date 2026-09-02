@@ -142,6 +142,12 @@ namespace Laubrary.Shaper
         /// index-addressed (the layer's own index is passed explicitly), so omitting one cannot shift another
         /// layer's binding.
         ///
+        /// <b>Cross-layer masking (T-0170).</b> A layer naming another in its <see cref="ShaperLayer.mask"/>
+        /// has that source resolved separately (<see cref="BuildMaskField"/>) and its own buffer cut by the
+        /// result before it composites; a layer with <see cref="ShaperLayer.contributesToPicture"/> off is
+        /// skipped here entirely and exists only to be read as such a source. An unset mask costs nothing —
+        /// no extra resolve, no extra buffer — so an unmasked document is bit-identical.
+        ///
         /// <b>Per-layer PRE-composite effects (T-0163), and what they cost.</b> When
         /// <paramref name="effects"/> is supplied and a layer's <see cref="ShaperLayer.effects"/> holds an
         /// enabled entry, that layer's own picture is encoded to straight-alpha sRGB
@@ -200,10 +206,21 @@ namespace Laubrary.Shaper
                 Color32[] layerPx = null;
                 float[] layerAcc = null;
 
+                // T-0170 — the mask scratch, allocated only for a document that actually masks something and
+                // then shared by every masked layer in the pass. It is deliberately NOT rented from `pool`:
+                // the pool is keyed by LAYER INDEX, and a mask source is very often a layer that also renders
+                // itself, so renting its slot here would hand the same arrays to two live uses in one pass.
+                ShaperFillBuffers maskBuf = null;
+                float[] maskField = null;
+
                 for (int li = 0; li < doc.layers.Count; li++)
                 {
                     var lay = doc.layers[li];
                     if (lay == null || !lay.enabled || lay.root == null) continue;
+
+                    // T-0170 — a layer that does not contribute to the picture is resolved only when some
+                    // other layer asks for it as a mask, so it is skipped here exactly as a disabled one is.
+                    if (!lay.contributesToPicture) continue;
 
                     // T-0166 — the layer's lifetime window. endFrame == -1 means "the document's last frame",
                     // matching Pyre's own convention, so a window never needs updating when frameCount changes.
@@ -224,6 +241,14 @@ namespace Laubrary.Shaper
                     ShaperFillResolver.PaintTile(fdoc, grid, 0, 0, w, h, buf,
                                                  new ShaperFillSheets { published = ShaperQuantitySet.ShippedShapeEngine },
                                                  scene);
+
+                    // T-0170 — the cross-layer mask, applied to this layer's own finished buffer and BEFORE
+                    // its pre-composite effects, so a blur or a glow may bleed past the cut the way an author
+                    // expects an effect on a masked layer to behave.
+                    if (lay.mask != null && lay.mask.IsSet
+                        && BuildMaskField(doc, lay, li, prog, grid, phase01, w, h, n, halfW, halfH, fi, fc,
+                                          ref maskBuf, ref maskField))
+                        ApplyMask(buf.dst, maskField, n, lay.mask.mode);
 
                     // T-0163 — the layer's own PRE-composite list, on the layer's own picture, before the fold.
                     if (effects != null && HasEnabled(lay.effects))
@@ -252,6 +277,120 @@ namespace Laubrary.Shaper
             for (int i = 0; i < list.Count; i++)
                 if (list[i] != null && list[i].enabled) return true;
             return false;
+        }
+
+        /// <summary>
+        /// <b>T-0170 — resolve the mask field a layer's <see cref="ShaperLayer.mask"/> names.</b> Returns false
+        /// when there is nothing to mask WITH, in which case the layer renders unmasked; every one of those
+        /// cases is an ordinary authoring state rather than an error, so none of them throws or logs:
+        ///
+        /// <list type="bullet">
+        /// <item>the named layer has been deleted (<see cref="ShaperDocument.LayerIndexById"/> gives -1) — the
+        /// reference is KEPT so Undo can restore both halves, and the window shows the missing state;</item>
+        /// <item>the source is the masked layer itself, which would be a mask of a shape by itself;</item>
+        /// <item>the source is disabled, has no shape, or is outside its own lifetime window — a layer that is
+        /// off is off, including as a mask source.</item>
+        /// </list>
+        ///
+        /// <b>The source is resolved UNMASKED</b> (its own <see cref="ShaperLayer.mask"/> is not applied
+        /// here), which is what makes cycles unrepresentable rather than merely unlikely: a mask is one level
+        /// deep by construction, so no depth guard, no visited-set and no recursion exists to get wrong.
+        /// <see cref="ShaperLayerMask.SourceIsReadUnmasked"/> is the sentence the UI shows for it.
+        ///
+        /// It resolves and paints the source through exactly the same three calls the layer walk above uses —
+        /// Resolve → BindLayer (+ <see cref="BindSolids"/>) → PaintTile, at the source's OWN layer index so its
+        /// height base and lighting are the ones it would have had — because a mask that disagreed with the
+        /// picture about where the source's shape is would be worse than no mask at all.
+        /// </summary>
+        static bool BuildMaskField(ShaperDocument doc, ShaperLayer target, int targetIndex,
+                                   ShaperLightProgram prog, in ShaperSampleGrid grid, float phase01,
+                                   int w, int h, int n, float halfW, float halfH, int fi, int fc,
+                                   ref ShaperFillBuffers scratch, ref float[] field)
+        {
+            var m = target.mask;
+            int si = doc.LayerIndexById(m.sourceLayerId);
+            if (si < 0 || si == targetIndex) return false;
+
+            var src = doc.layers[si];
+            if (src == null || !src.enabled || src.root == null) return false;
+
+            int srcEnd = src.endFrame < 0 ? fc - 1 : src.endFrame;
+            if (fi < src.startFrame || fi > srcEnd) return false;
+
+            var sdoc = ShaperFillResolver.Resolve(src.root, phase01, doc.seed, halfW, halfH,
+                                                  ShaperQuantitySet.ShippedShapeEngine);
+            int owners = Mathf.Max(1, sdoc.owners.Count);
+            if (scratch == null || scratch.sampleCapacity < n || scratch.ownerCapacity < owners)
+                scratch = new ShaperFillBuffers(n, owners);
+
+            var sscene = ShaperLightCompiler.BindLayer(doc, si, prog, scratch.sampleCapacity, scratch.ownerCapacity);
+            BindSolids(sdoc, sscene, phase01, doc.seed, prog);
+            ShaperFillResolver.PaintTile(sdoc, grid, 0, 0, w, h, scratch,
+                                         new ShaperFillSheets { published = ShaperQuantitySet.ShippedShapeEngine },
+                                         sscene);
+
+            if (field == null || field.Length < n) field = new float[n];
+
+            // HS-1.4: a layer with no height stage publishes ShippedShapeEngine and has no Height sheet, so a
+            // mask asking for one falls back to coverage rather than reading an all-zero slab and cutting the
+            // whole layer away. ShaperLayerMask.QuantityNotPublished is the sentence the UI shows for it.
+            var q = m.quantity;
+            if (q == ShaperMaskQuantity.Height && src.height == null) q = ShaperMaskQuantity.Coverage;
+
+            float fullAt = ShaperValue.Sample(m.fullAt, phase01, doc.seed, 1f);
+
+            // Owner 0 is the source layer's ROOT: ShaperFillDocument.owners is paint order and "a node appears
+            // before its own members" (ShaperFillResolver.cs:123), so slab 0 is the whole layer's silhouette,
+            // which is what "mask by that layer" means.
+            for (int i = 0; i < n; i++)
+            {
+                float raw;
+                switch (q)
+                {
+                    case ShaperMaskQuantity.Height: raw = scratch.ownHeight[i]; break;
+                    // Negated: the engine's edgeDistance is a SIGNED distance, negative inside the shape, and
+                    // a mask ramps INWARD from the source's edge.
+                    case ShaperMaskQuantity.EdgeDistance: raw = -scratch.ownDistance[i]; break;
+                    case ShaperMaskQuantity.Luma:
+                        {
+                            int k = i * FloatsPerSample;
+                            // Rec.709 luminance of the PREMULTIPLIED linear sample, so a transparent pixel is
+                            // dark by construction and a bright opaque one is light — which is what "mask by
+                            // how bright that layer is" means to someone looking at the picture.
+                            raw = 0.2126f * scratch.dst[k + 0] + 0.7152f * scratch.dst[k + 1]
+                                  + 0.0722f * scratch.dst[k + 2];
+                            break;
+                        }
+                    default: raw = scratch.ownCoverage[i]; break;
+                }
+                field[i] = ShaperMaskOps.MaskValue(raw, q, fullAt, m.invert);
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// T-0170 — scale a layer's premultiplied buffer by its mask. All four floats take the SAME factor,
+        /// which is what keeps the buffer premultiplied: it cuts the sample's alpha and leaves the colour it
+        /// would un-premultiply to untouched, so a masked edge fades out rather than fading to black.
+        ///
+        /// <c>ShaperFillBuffers.height</c> is deliberately not scaled: it is a per-layer accumulator that
+        /// nothing cross-layer reads (no depth-resolved composite exists — see <see cref="CompositeOver"/>),
+        /// so scaling it would change no pixel and would invent a second, unverifiable rule.
+        /// </summary>
+        static void ApplyMask(float[] dst, float[] field, int sampleCount, ShaperMaskMode mode)
+        {
+            for (int i = 0; i < sampleCount; i++)
+            {
+                int k = i * FloatsPerSample;
+                float f = ShaperMaskOps.Factor(mode, dst[k + 3], field[i]);
+                if (f >= 1f) continue;
+                if (f <= 0f)
+                {
+                    dst[k + 0] = 0f; dst[k + 1] = 0f; dst[k + 2] = 0f; dst[k + 3] = 0f;
+                    continue;
+                }
+                dst[k + 0] *= f; dst[k + 1] *= f; dst[k + 2] *= f; dst[k + 3] *= f;
+            }
         }
 
         /// <summary>
