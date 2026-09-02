@@ -237,8 +237,17 @@ namespace Laubrary.Shaper
         /// A SIZE, not a frequency — same convention as <see cref="gradientSize"/> (bigger spreads the pattern
         /// further; the reciprocal is taken once at compile). For Grid/Dots this is the cell size; for Noise
         /// the noise wavelength.
+        ///
+        /// <b>Default 0.5, not 1.</b> The anchor coordinate this divides is already ±1 across the whole node
+        /// box (the same <c>u,v</c> <see cref="gradientSize"/> itself divides), so a scale of 1 leaves only
+        /// ONE grid line/dot cell inside the box — measured on a PM by-eye pass of T-0172's contact sheet as
+        /// "one solid block" for Grid and "invisible" for Dots. 0.5 reproduces <c>ZuiFill</c>'s own Grid
+        /// default EXACTLY (<c>ZuiFill.cs:145</c>'s <c>gridSpacing = 0.5f</c>, divided into the same ±1 range),
+        /// giving ~4 cells across the box for Grid/Dots and, with Noise's own ×3 sample-time multiplier
+        /// (<c>ShaperFillOps.Sample</c>'s <c>ValueNoise2Octave(px·3, py·3)</c>), a comparable few-cells-across
+        /// frequency for Noise too — all three sub-modes read as a pattern rather than a flat average colour.
         /// </summary>
-        public ZUIValue proceduralScale = new ZUIValue(1f);
+        public ZUIValue proceduralScale = new ZUIValue(0.5f);
 
         /// <summary>Animatable — slides the pattern, which is how it scrolls/drifts over the node's phase.</summary>
         public ZUIValue proceduralOffsetU = new ZUIValue(0f);
