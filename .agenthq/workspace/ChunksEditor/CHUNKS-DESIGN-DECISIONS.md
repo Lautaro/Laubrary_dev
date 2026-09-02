@@ -72,3 +72,8 @@ The Chunks preview is a fast, deterministic **schematic** of the recipe over its
 8. **Hits greys in the Add-capability menu** until a Debris Scatter or Fragment Fracture exists; Trajectory until a Pyre Blast exists; Trail until a Debris Scatter or Fragment Fracture exists.
 9. **A Pyre Blast's pool pick is deterministic in the preview**: hash(seed, instance index) selects the alternate; the runtime may keep its random pick.
 10. `LayerSpec` has no opacity/blend fields today — the Layer Plan card shows name + reorder + remove only; do not add fields the runtime cannot honour.
+11. **Modifiers (Trajectory, Trail, Hits) occupy no time**: no lane, no Delay dial — they act on their target's own timing. (T-0208; supersedes §2's wording that only coordinators are timeless.)
+12. **A NEW recipe starts EMPTY** (blueprint §1/§7: the empty state is a first-class screen with `Add capability…`). T-0208 shipped it born with one Debris Scatter because a fresh instance is indistinguishable from legacy YAML at deserialize time; the fix is `ChunkSpec.Reset()` (editor-only creation hook, never called on deserialization) setting `schemaVersion = 1`, so the upgrade only ever runs for assets loaded from legacy YAML. Done in T-0210.
+13. **Only one Cues capability per recipe**: the Add menu greys `Cues` once one exists.
+14. **`PyreBlast.Pattern`** (Single/Line/Ring) is the single authored control over `useFormation` + `formation.shape`; cards write the property, never the two fields.
+15. **Lone-capability rule lives in `ChunkClock.NeedsTimingSurface(spec)`** — it gates the Timing section AND whether any card shows a Delay dial.
