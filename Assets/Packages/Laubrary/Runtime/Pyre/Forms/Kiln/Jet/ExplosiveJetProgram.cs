@@ -477,9 +477,18 @@ namespace Laubrary.Pyre.Forms.Kiln
 
         /// `_rep`: the piece bisector nearest THIS puff and the puff's signed offset from it (the wrap matters on a
         /// turned crack pattern — a bisector a whole span away points the opposite way).
+        ///
+        /// T-0167: `span` is `2 * p.half`, and `p.half` is `Min(s.live.spread, 180) * PI/180` (PlateGeom) — spread
+        /// is an animatable ZUIValue, so an authored Curve that passes through (or starts at) 0 makes span exactly
+        /// 0 here at that frame. The un-guarded `(da - cenDa) / span` then divides by zero — Infinity, or NaN when
+        /// da == cenDa — and `Math.Round`/`Math.Sign` on that NaN downstream throws `ArithmeticException` ("Function
+        /// does not accept floating point Not-a-Number values."). Guarded the same way every other division in this
+        /// file already guards its denominator (Math.Max(x, epsilon)); at span ~ 0 the puffs collapse onto one
+        /// bisector (da ≈ bis, dphi ≈ 0), which is the sane degenerate answer for a needle-thin (spread ≈ 0) burst.
         static void Rep(double da, double cenDa, double span, out double dphi, out double bis)
         {
-            bis = cenDa + span * Math.Round((da - cenDa) / span, MidpointRounding.ToEven);
+            double safeSpan = Math.Max(span, 1e-6);
+            bis = cenDa + safeSpan * Math.Round((da - cenDa) / safeSpan, MidpointRounding.ToEven);
             dphi = da - bis;
         }
 

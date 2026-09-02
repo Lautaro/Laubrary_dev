@@ -110,7 +110,17 @@ namespace Laubrary.Pyre.Forms.Kiln
             // The spec seed IS the Kiln seed (layer 0 of seed 23 draws gout's own slot table, sparks and lattices); further
             // layers decorrelate by a large stride, swarm instances by their index.
             int seed = unchecked(ctx.seed + ctx.layerSalt * 1000003);
-            double phase = ctx.frameIndex / (double)Math.Max(1, ctx.frameCount);
+            // T-0167: frameIndex/frameCount (never reaching exactly 1 for the last real frame, index max = N-1) is
+            // deliberately NOT ctx.life's frameIndex/(frameCount-1) convention — using ctx.life here would make the
+            // clip's last frame phase-equal (mod 1) to its first, duplicating a frame on every loop wrap. That
+            // matters only when frameCount is a REAL multi-frame timeline; a host with no such timeline (frameCount
+            // <= 1, e.g. the Shaper composite bridge, which renders one phase sample per call with no frame index
+            // of its own) always divided 0/1 = 0 here, freezing every phase-driven draw regardless of ctx.life —
+            // the bug behind JetForm/RadialJetForm never animating when hosted. Falling back to ctx.life exactly
+            // when there is no real timeline reaches the same value a real single-frame Pyre clip already got
+            // (frameIndex 0 / frameCount 1 = 0 = ctx.life at frame 0), so this changes nothing for existing
+            // multi-frame Pyre usage and only fixes the previously-frozen no-timeline host case.
+            double phase = ctx.frameCount > 1 ? ctx.frameIndex / (double)ctx.frameCount : ctx.life;
             double uSolo = live.scale * W / Math.Max(s.w, 1);
             var program = Program;
 
