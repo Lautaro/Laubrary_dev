@@ -320,6 +320,15 @@ namespace Laubrary.Shaper
                     var buf = pool != null
                         ? pool.Rent(li, n, Mathf.Max(1, fdoc.owners.Count))
                         : new ShaperFillBuffers(n, Mathf.Max(1, fdoc.owners.Count));
+
+                    // T-0201 — a layer whose tree resolves to NO owners (its root node disabled, or every
+                    // member of its bag disabled) never reaches PaintTile's own ClearDestination: PaintTile
+                    // returns on `k <= 0` before it. A freshly allocated buffer is already zero, so the
+                    // unpooled path was correct by accident; a POOLED slot still holds the pixels this layer
+                    // painted on the previous render, and they were composited AND stored in the layer cache
+                    // under the new key. Disabling a shape left it on screen, in the preview only — the one
+                    // place a pool is used — and the sweep caught it on four separate documents.
+                    if (fdoc.owners == null || fdoc.owners.Count == 0) buf.ClearDestination(n);
                     var scene = ShaperLightCompiler.BindLayer(doc, li, prog, buf.sampleCapacity,
                                                               buf.ownerCapacity, RootProgram(fdoc), doc.pixelSize);
                     BindSolids(fdoc, scene, phase01, doc.seed, prog);

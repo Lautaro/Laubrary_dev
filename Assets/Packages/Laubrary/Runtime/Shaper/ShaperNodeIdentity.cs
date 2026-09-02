@@ -300,9 +300,36 @@ namespace Laubrary.Shaper
                 m.MixFloat(v.yMin); m.MixFloat(v.yMax); m.MixFloat(v.duration);
                 m.MixFloat(v.warmup); m.MixFloat(v.cooldown); m.MixFloat(v.smoothness);
                 m.MixFloat(phase01);   // the timed modes' output genuinely depends on where phase01 lands
+                // T-0201 — the ENVELOPES themselves, which are the whole content of these modes. Without them
+                // a dragged curve point, a retyped step or a reshaped oscillation changed the value the dial
+                // evaluates to while leaving this key identical, so anything reading it (ShaperNodeCache via
+                // ShaperCachedEvaluator, and the audits that assert on these keys) would have kept the buffer
+                // baked from the old envelope. The dial's own range/timing is not a substitute for its shape.
+                MixEnvelope(ref m, v.points);
+                if (v.mode == ZUIValue.Mode.Steps && v.steps != null)
+                {
+                    m.MixInt(v.steps.Count);
+                    for (int i = 0; i < v.steps.Count; i++) m.MixFloat(v.steps[i]);
+                }
+                if (v.mode == ZUIValue.Mode.Oscillation)
+                {
+                    MixEnvelope(ref m, v.oscMin); MixEnvelope(ref m, v.oscMax); MixEnvelope(ref m, v.oscRate);
+                    m.MixFloat(v.oscRateMax);
+                }
             }
             if (v.mode == ZUIValue.Mode.MinMax) { m.MixFloat(v.min); m.MixFloat(v.max); }
             m.MixString(v.multiplierId);
+        }
+
+        static void MixEnvelope(ref ShaperCacheMixer m, System.Collections.Generic.List<ZUIEnvelopePoint> pts)
+        {
+            if (pts == null) { m.MixInt(-1); return; }
+            m.MixInt(pts.Count);
+            for (int i = 0; i < pts.Count; i++)
+            {
+                var p = pts[i];
+                m.MixFloat(p.time); m.MixFloat(p.value); m.MixFloat(p.exponent);
+            }
         }
 
         /// <summary>
