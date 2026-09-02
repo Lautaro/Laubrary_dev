@@ -53,9 +53,12 @@ namespace Laubrary.Shaper.Editor
     {
         // Sections owned by THIS file. Declared here rather than in the shell so the split stays clean:
         // each file declares the chrome it builds.
-        ZuiSection fillSection, borderSection, modifiersSection, swarmSection,
-                   compositeSection, childrenSection, responseSection, heightSection, effectsSection,
-                   layerEffectsSection, solidSection, maskSection;
+        // T-0182 — Generator, Children, Solid and Modifiers are no longer sections of their own: what a node
+        // draws is ONE question answered by the Shape card's picker, so those bodies are now drawn inside
+        // that card and appear only for the shape that has them.
+        ZuiSection fillSection, borderSection, swarmSection,
+                   responseSection, heightSection, effectsSection,
+                   layerEffectsSection, maskSection;
 
         /// Which bag member is being edited, as a path of child indices from the layer root. Empty = the
         /// root itself. This is VIEW state, not authored data — it is deliberately not [SerializeField]'d
@@ -94,14 +97,11 @@ namespace Laubrary.Shaper.Editor
 
             BuildBreadcrumb(root, layer);
 
-            // Absence rule: a card that cannot apply to this node kind is not drawn at all.
-            if (node.kind == ShaperNodeKind.Composite) BuildCompositeSection(root, node);
-            if (node.kind == ShaperNodeKind.Bag) BuildChildrenSection(root, node);
-            if (node.kind == ShaperNodeKind.Solid) BuildSolidSection(root, node);
-
+            // The per-shape bodies (generator dials, bag members, solid dials) and the combine/sweep/shell
+            // ops moved INTO the Shape card in T-0182 — see ShaperWindow.BuildShapeSection. They are drawn
+            // by the same absence rule, one card closer to the choice that summons them.
             BuildFillSection(root, node);
             BuildBorderSection(root, node);
-            BuildModifiersSection(root, node);
             BuildSwarmSection(root, node);
 
             // LAYER-level cards. These bind to ShaperLayer, not to the node — the mock had them on the node
@@ -120,9 +120,8 @@ namespace Laubrary.Shaper.Editor
         /// The sections this file adds, for the shell's toggle bar. Null entries are skipped by the bar.
         internal (string, ZuiSection)[] SectionBarEntries() => new[]
         {
-            ("Fill", fillSection), ("Border", borderSection), ("Modifiers", modifiersSection),
-            ("Swarm", swarmSection), ("Generator", compositeSection), ("Children", childrenSection),
-            ("Solid", solidSection),
+            ("Fill", fillSection), ("Border", borderSection),
+            ("Swarm", swarmSection),
             ("Lighting", responseSection), ("Height", heightSection), ("Mask", maskSection),
             ("SpriteFX", layerEffectsSection), ("Global SpriteFX", effectsSection),
         };
@@ -151,18 +150,12 @@ namespace Laubrary.Shaper.Editor
             return el;
         }
 
-        void BuildSolidSection(VisualElement root, ShaperNode node)
+        /// The solid dials, drawn inside the Shape card for a node whose picked shape is a solid (T-0182).
+        /// The form itself is no longer chosen here — it is one of the Solids column's entries in the shape
+        /// picker, because "which solid" is the same question as "what does this node draw".
+        internal void BuildSolidBody(VisualElement box, ShaperNode node)
         {
             var s = node.solid ?? (node.solid = new ShaperSolidDef());
-            var box = solidSection = Z.Section("Solid",
-                "A pseudo-3D facet shape. It replaces the shape stage for this node and then goes through the "
-                + "ordinary fill, border and light pipeline like any other generator.",
-                "shaper.window.solid", icon: "cube");
-
-            box.Add(Z.Field("Form", "Which solid this generates. The form decides which dials below do anything.",
-                Z.MiniRadio((int)s.form, Enum.GetNames(typeof(ShaperSolidForm)),
-                    "Which solid this generates.",
-                    v => { Change(() => s.form = (ShaperSolidForm)v); Rebuild(); }, wrap: true)));
 
             box.Add(Z.HGroup(
                 SolidVal("Size", "The solid's radius, in canvas pixels.", s.size, 1f, 128f,
@@ -213,8 +206,6 @@ namespace Laubrary.Shaper.Editor
                 Z.Field("Inner glow colour", "The inner glow's colour.",
                     Z.Color(s.innerGlowColour, "The inner glow's colour.",
                         c => Change(() => s.innerGlowColour = c), 90f))));
-
-            root.Add(box);
         }
 
         // ── breadcrumb ───────────────────────────────────────────────────────────────────────────────────
@@ -691,33 +682,41 @@ namespace Laubrary.Shaper.Editor
             root.Add(box);
         }
 
-        // ── Shape modifiers: Blend / Sweep / Shell ───────────────────────────────────────────────────────
+        // ── Combine / Sweep / Shell — part of the SHAPE, not modifiers of it (T-0182) ────────────────────
 
+        // These used to sit in a card called "Modifiers", which they never were: a modifier is an effect
+        // applied to the finished picture, while combine/blend decide how this node folds into its parent
+        // and sweep/shell carve the node's own geometry. They now live in the Shape card beside the picker
+        // that produced that geometry.
+        //
         // Every dial here is a ZUIValue on the engine side (ShaperNode.cs), so all Val — right-click one to
         // author a Curve and the join, the slice or the wall thickness moves over the document's frames.
-        void BuildModifiersSection(VisualElement root, ShaperNode node)
+        internal void BuildShapeOpsBody(VisualElement box, ShaperNode node)
         {
-            var box = modifiersSection = Z.Section("Modifiers",
-                "How this node folds into its parent, and the sweep/shell applied to its own shape.",
-                "shaper.window.modifiers", icon: "sliders-horizontal");
-
             node.blend.EnsureDials();
             node.sweep.EnsureDials();
             node.shell.EnsureDials();
 
-            // Blend governs how this node combines with its siblings, so the combine mode belongs with it.
-            box.Add(Z.HGroup(
-                Z.Field("Combine", "How this node combines with what is already there.",
-                    Z.Segmented((int)node.mode, Enum.GetNames(typeof(ShaperCombineMode)),
-                        "Add unions; Subtract carves; Intersect keeps only the overlap.",
-                        v => Change(() => node.mode = (ShaperCombineMode)v))),
-                Val("Blend width", "How far the join between this node and its neighbours is softened, "
-                    + "in canvas pixels. 0 is a hard edge.",
-                    node.blend.widthDial, 0f, 32f),
-                Val("Sharpness", "How abruptly the softened join falls off.",
-                    node.blend.sharpnessDial, 0f, 1f),
-                Val("Carve strength", "How strongly a Subtract carves. 1 removes fully.",
-                    node.blend.carveStrengthDial, 0f, 1f)));
+            // Absence rule: a node with no siblings has nothing to combine WITH, so the combine op and the
+            // join dials are drawn only for a bag member (drillPath non-empty = editing a member).
+            if (drillPath.Count > 0)
+            {
+                var combine = Z.BoxKeyed("Combine",
+                    "How this member folds into the bag it belongs to.", "shaper.window.combine");
+                combine.Add(Z.HGroup(
+                    Z.Field("Combine", "How this node combines with what is already there.",
+                        Z.Segmented((int)node.mode, Enum.GetNames(typeof(ShaperCombineMode)),
+                            "Add unions; Subtract carves; Intersect keeps only the overlap.",
+                            v => Change(() => node.mode = (ShaperCombineMode)v))),
+                    Val("Blend width", "How far the join between this node and its neighbours is softened, "
+                        + "in canvas pixels. 0 is a hard edge.",
+                        node.blend.widthDial, 0f, 32f),
+                    Val("Sharpness", "How abruptly the softened join falls off.",
+                        node.blend.sharpnessDial, 0f, 1f),
+                    Val("Carve strength", "How strongly a Subtract carves. 1 removes fully.",
+                        node.blend.carveStrengthDial, 0f, 1f)));
+                box.Add(combine);
+            }
 
             var sweep = Z.BoxKeyed("Sweep", "Keep only an angular or fractional slice of the shape.",
                 "shaper.window.sweep");
@@ -747,8 +746,6 @@ namespace Laubrary.Shaper.Editor
                         "Centred straddles the surface; Inward keeps material inside it; Outward outside.",
                         v => Change(() => node.shell.alignment = (ShaperShellAlignment)v)))));
             box.Add(shell);
-
-            root.Add(box);
         }
 
         // ── Swarm ────────────────────────────────────────────────────────────────────────────────────────
@@ -985,12 +982,12 @@ namespace Laubrary.Shaper.Editor
         // Those declarations are enormous (ArcBurstForm alone declares 187 authored fields), so they are
         // reflected, never hand-listed — a hand-written list could not be kept correct and would silently
         // expose a fraction of the engine.
-        void BuildCompositeSection(VisualElement root, ShaperNode node)
+        /// The generator's dials, drawn inside the Shape card under the picker that chose it (T-0182).
+        /// WHICH generator is no longer asked here — it is one of the picker's columns, because a generator
+        /// is one more answer to "what does this node draw", not a separate kind of question.
+        internal void BuildCompositeBody(VisualElement box, ShaperNode node)
         {
             var c = node.composite;
-            var box = compositeSection = Z.Section("Generator",
-                "The imported effect this node hosts, and its own dials.",
-                "shaper.window.composite", icon: "sparkle");
 
             // What the dials are read off. A hosted Pyre form declares them on the FORM, so the wrapper's own two
             // fields must not be what gets reflected; a source that is not a form (a stateful simulation) declares
@@ -999,16 +996,13 @@ namespace Laubrary.Shaper.Editor
             var src = c.source as PyreFormCompositeSource;
             object dialOwner = src != null ? (object)src.form : c.source;
 
-            box.SetHeaderSuffix(() => " — " + (c.source?.SourceLabel ?? "(none)"));
-            box.SetHeaderMenu("caret-down", "Choose the generator (or right-click the title).",
-                anchor => ShowGeneratorMenu(anchor, node));
-
+            // A Composite node with no source assigned is a state a document can genuinely hold. The picker
+            // above is the way out of it, so this says so rather than offering a second, competing chooser.
             if (dialOwner == null)
             {
-                box.Add(Z.Field("Generator", "No generator assigned yet.",
-                    Z.Button("Choose generator…", "Pick which imported effect this node hosts.",
-                        () => ShowGeneratorMenu(box, node))));
-                root.Add(box);
+                box.Add(Z.Text("No generator picked yet — choose one from the Shape picker above.",
+                    ZuiText.Subtle,
+                    "This node is set to host a generator but none is assigned, so it draws nothing."));
                 return;
             }
 
@@ -1070,120 +1064,17 @@ namespace Laubrary.Shaper.Editor
             });
             dials.Add(host);
             box.Add(dials);
-
-            root.Add(box);
-        }
-
-        /// Everything this node can host, grouped and searchable. TWO families feed it, and neither is a
-        /// hardcoded list: every concrete PyreForm in the domain, named by its own PyreFormInfoAttribute, plus
-        /// (T-0173) every composite source that is not a form but declares itself author-pickable with a
-        /// ShaperCompositeSourceInfoAttribute — the stateful Fire and Fireball simulations today. Reading both
-        /// from attributes is what stops a newly written generator from silently missing here.
-        void ShowGeneratorMenu(VisualElement anchor, ShaperNode node)
-        {
-            var menu = Z.Menu(anchor).Width(300f).Search("Search generators…");
-
-            var forms = TypeCache.GetTypesDerivedFrom<PyreForm>()
-                .Where(t => !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) != null)
-                .Select(t => (type: t, info: t.GetCustomAttribute<PyreFormInfoAttribute>()))
-                .Select(x => (x.type, name: x.info?.DisplayName ?? x.type.Name,
-                              group: x.info?.Group ?? "Forms", isForm: true));
-
-            // A source is offered only if it SAYS it is pickable: IShaperCompositeSource is also implemented by
-            // plumbing types that other code paths assemble, and those must never appear as something an author
-            // can choose. See ShaperCompositeSourceInfoAttribute for why membership is a declaration.
-            var sources = TypeCache.GetTypesDerivedFrom<IShaperCompositeSource>()
-                .Where(t => !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) != null)
-                .Select(t => (type: t, info: t.GetCustomAttribute<ShaperCompositeSourceInfoAttribute>()))
-                .Where(x => x.info != null)
-                .Select(x => (x.type, name: x.info.DisplayName, group: x.info.Group, isForm: false));
-
-            var entries = forms.Concat(sources)
-                .OrderBy(x => x.group).ThenBy(x => x.name)
-                .ToArray();
-
-            string lastGroup = null;
-            var assigned = node.composite.source;
-            var currentForm = (assigned as PyreFormCompositeSource)?.form?.GetType();
-            var currentSource = assigned != null && !(assigned is PyreFormCompositeSource)
-                ? assigned.GetType() : null;
-
-            foreach (var t in entries)
-            {
-                if (t.group != lastGroup) { menu.Section(t.group); lastGroup = t.group; }
-                var type = t.type;
-                bool isForm = t.isForm;
-                bool on = isForm ? currentForm == type : currentSource == type;
-                menu.Item(t.name, null,
-                    () => { if (isForm) AssignGenerator(node, type); else AssignSourceGenerator(node, type); },
-                    on);
-            }
-            menu.Show();
-        }
-
-        /// T-0173 — assign a generator that is a composite SOURCE rather than a hosted form. The bake box is
-        /// carried across from whatever the node already had, exactly as AssignGenerator does, so switching
-        /// generator never silently resizes the node's footprint. The declaration comes from the catalog by
-        /// display name for the same reason it does there: the classification is the catalog's to own, and
-        /// re-deriving it here would be a second source of truth.
-        void AssignSourceGenerator(ShaperNode node, Type sourceType)
-        {
-            Change(() =>
-            {
-                var source = (IShaperCompositeSource)Activator.CreateInstance(sourceType);
-                var entry = PyreCompositeCatalog.Find(source.SourceLabel);
-                node.composite = entry.displayName != null
-                    ? PyreCompositeCatalog.BuildSource(source, entry,
-                        node.composite.halfExtentX, node.composite.halfExtentY,
-                        node.composite.bakeWidth, node.composite.bakeHeight)
-                    : new ShaperCompositeDef
-                    {
-                        source = source,
-                        reason = ShaperCompositeReason.NotYetSplit,
-                        halfExtentX = node.composite.halfExtentX,
-                        halfExtentY = node.composite.halfExtentY,
-                        bakeWidth = node.composite.bakeWidth,
-                        bakeHeight = node.composite.bakeHeight,
-                    };
-            });
-            Rebuild();
-        }
-
-        /// Assign a generator by instantiating the form and wrapping it in the source the engine expects.
-        /// When the form matches a PyreCompositeCatalog entry by display name, its declared reason/note come
-        /// across too — that is authored classification the catalog already owns, and re-deriving it here
-        /// would be a second source of truth.
-        void AssignGenerator(ShaperNode node, Type formType)
-        {
-            Change(() =>
-            {
-                var form = (PyreForm)Activator.CreateInstance(formType);
-                var entry = PyreCompositeCatalog.All.FirstOrDefault(e => e.displayName == form.DisplayName);
-                var built = entry.displayName != null
-                    ? PyreCompositeCatalog.Build(form, entry,
-                        node.composite.halfExtentX, node.composite.halfExtentY,
-                        node.composite.bakeWidth, node.composite.bakeHeight)
-                    : new ShaperCompositeDef
-                    {
-                        source = new PyreFormCompositeSource { form = form },
-                        reason = ShaperCompositeReason.NotYetSplit,
-                        halfExtentX = node.composite.halfExtentX,
-                        halfExtentY = node.composite.halfExtentY,
-                        bakeWidth = node.composite.bakeWidth,
-                        bakeHeight = node.composite.bakeHeight,
-                    };
-                node.composite = built;
-            });
-            Rebuild();
         }
 
         // ── Bag children ─────────────────────────────────────────────────────────────────────────────────
 
-        void BuildChildrenSection(VisualElement root, ShaperNode node)
+        /// The bag's members, drawn inside the Shape card for a node whose picked shape is "Combine
+        /// children" (T-0182). It was its own section; a bag's members ARE its shape, so they belong under
+        /// the picker that said so rather than in a card that existed for one node kind out of four.
+        internal void BuildChildrenBody(VisualElement outer, ShaperNode node)
         {
-            var box = childrenSection = Z.Section("Children",
-                "The members this bag combines. Open one to author it.",
-                "shaper.window.children", icon: "layers");
+            var box = Z.BoxKeyed("Members", "The members this bag combines. Open one to author it.",
+                "shaper.window.children");
 
             var listHost = new VisualElement();
             box.Add(listHost);
@@ -1239,7 +1130,7 @@ namespace Laubrary.Shaper.Editor
                 });
                 RebuildChildren();
             }));
-            root.Add(box);
+            outer.Add(box);
         }
 
         // ── Light response (LAYER) ───────────────────────────────────────────────────────────────────────

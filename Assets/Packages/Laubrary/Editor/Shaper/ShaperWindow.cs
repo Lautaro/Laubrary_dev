@@ -195,10 +195,20 @@ namespace Laubrary.Shaper.Editor
             left.style.minHeight = 0f;
             leftPane = left;
 
-            BuildCanvasSection(left.contentContainer);
-            BuildLightsSection(left.contentContainer);   // ShaperWindow.Lights.cs (T-0164) — document-level, sits beside Canvas
-            BuildLayersSection(left.contentContainer);
-            BuildSelectedLayerSections(left.contentContainer);
+            // T-0182 — the dial pane is ONE width-driven column flow, as Pyre's is (PyreWindow.cs:328-334).
+            // Each Build* below adds exactly one top-level unit, in the order they read down column 1, then
+            // column 2, …; dragging the splitter past 2×360 splits the stack into two columns, past 3×360
+            // into three, up to four. Nothing reaches inside a unit, so every section's own rebuild helper
+            // keeps working wherever its card lands. The ScrollView's content container is content-sized by
+            // default — stretching it is what lets the flow see the pane's width and ever split at all.
+            left.contentContainer.style.flexGrow = 1f;
+            var flow = Z.ColumnFlow(360f);
+            left.contentContainer.Add(flow);
+
+            BuildCanvasSection(flow);
+            BuildLightsSection(flow);   // ShaperWindow.Lights.cs (T-0164) — document-level, sits beside Canvas
+            BuildLayersSection(flow);
+            BuildSelectedLayerSections(flow);
             RestoreScroll(left);
 
             var right = new VisualElement();
@@ -507,32 +517,44 @@ namespace Laubrary.Shaper.Editor
 
         void BuildShapeSection(VisualElement root, ShaperNode node)
         {
+            // ONE section, ONE question (T-0182). "Shape" and "Generator" were two cards asking the same
+            // thing — what does this node draw? — so the kind/primitive radios and the separate Generator
+            // card are gone, replaced by a single picker (ShaperShapePicker.cs) listing every source there
+            // is. What the picker chose then decides which dials appear below it: the absence rule, so a
+            // node never shows the dials of a shape it is not.
             var box = shapeSection = Z.Section("Shape",
-                "What this layer's root node generates.",
+                "What this node draws, and the dials that shape it.",
                 "shaper.window.shape", icon: "shapes");
 
-            // Enum names come from the enum itself rather than a hardcoded list: ShaperNodeKind is append-only,
-            // so a future kind appears here automatically instead of silently missing.
-            box.Add(Z.Field("Kind", "Whether this node is a single primitive, a bag combining children, a "
-                + "composite generator, or a pseudo-3D solid.",
-                Z.MiniRadio((int)node.kind, Enum.GetNames(typeof(ShaperNodeKind)),
-                    "Whether this node is a single primitive, a bag combining children, a composite "
-                    + "generator, or a pseudo-3D solid.",
-                    v => { Change(() => node.kind = (ShaperNodeKind)v); Rebuild(); })));
+            // The suffix is what a FOLDED Shape card says — without it a collapsed card hides the single
+            // most important fact about the node. The caret opens the same picker as the button below, so
+            // the choice is reachable whether the card is open or shut.
+            box.SetHeaderSuffix(() => " — " + (ShaperShapeCatalog.Current(node)?.Label ?? "(none)"));
+            box.SetHeaderMenu("caret-down", "Choose what this node draws (or right-click the title).",
+                anchor => ShowShapeMenu(node, anchor));
 
-            if (node.kind == ShaperNodeKind.Primitive)
-                BuildPrimitiveBody(box, node.primitive);
+            box.Add(BuildShapePickerRow(node));
+
+            switch (node.kind)
+            {
+                case ShaperNodeKind.Primitive: BuildPrimitiveBody(box, node.primitive); break;
+                case ShaperNodeKind.Solid: BuildSolidBody(box, node); break;
+                case ShaperNodeKind.Composite: BuildCompositeBody(box, node); break;
+                case ShaperNodeKind.Bag: BuildChildrenBody(box, node); break;
+            }
+
+            // The combine op and the join dials only mean something for a node that has siblings to combine
+            // WITH, so they are drawn only for a bag member; the sweep and shell carve this node's own
+            // geometry and apply wherever it sits, so they are not gated. (Both used to live in a card
+            // called "Modifiers", which they never were — a modifier is an effect on the picture, these
+            // are part of the shape.)
+            BuildShapeOpsBody(box, node);
 
             root.Add(box);
         }
 
         void BuildPrimitiveBody(VisualElement box, ShaperPrimitiveDef p)
         {
-            box.Add(Z.Field("Primitive", "Which primitive shape this node generates.",
-                Z.MiniRadio((int)p.kind, Enum.GetNames(typeof(ShaperPrimitiveKind)),
-                    "Which primitive shape this node generates. Switching it changes the dials below.",
-                    v => { Change(() => p.kind = (ShaperPrimitiveKind)v); Rebuild(); })));
-
             // Only the selected primitive's own dials are shown — the others do not apply, and showing every
             // shape's dials at once would bury the four that matter. Ranges are in canvas pixels, so they are
             // sized against the canvas rather than a fixed guess.
