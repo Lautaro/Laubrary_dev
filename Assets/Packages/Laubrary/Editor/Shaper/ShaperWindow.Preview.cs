@@ -38,6 +38,11 @@ namespace Laubrary.Shaper.Editor
         [SerializeField] bool previewShowFrame;
         [SerializeField] float previewZoom = 1f;
 
+        // GIF export (T-0160, Pyre parity): the scale/dither pair rides the window for the same reason as
+        // previewZoom above — they steer the ONE-TIME export call, never the document the bake reads from.
+        [SerializeField] int previewGifScale = 1;
+        [SerializeField] bool previewGifDither = true;
+
         // ── cherry playback state ────────────────────────────────────────────────────────────────────────
         // The window HOLDS the state; the engine OWNS the rule. ShaperCherry.AdvanceOneBeat is a pure
         // function of (state, document), which is exactly why T-0143 gave it an explicit state struct
