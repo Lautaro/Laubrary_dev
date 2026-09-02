@@ -30,9 +30,9 @@
 //     inertness table, but a document cannot reference one, so there is nothing for a Solids card to bind
 //     to. Building one would mean an engine change (a 4th node kind + ShaperNode.solid + compiler
 //     routing), which is an open owner decision and outside this file. No card is drawn.
-//   • THERE IS NO AUTHORED EFFECT STACK. ShaperEffectCatalog (PyreShaper/ShaperEffectContract.cs:118) is a
-//     static classification of 41 effects; no node or layer holds a list of them. So the Effects card here
-//     is a read-only browser of what the catalog says and whether each entry is usable, NOT an editor.
+//   • (SUPERSEDED by T-0163.) This used to say there was no authored effect stack to edit. There are now two:
+//     ShaperLayer.effects (pre-composite) and ShaperDocument.effects (post-composite), each holding real
+//     serialized modifier instances, so the Effects cards below are editors and not a read-only catalog view.
 //   • A hosted composite form's dials resolve to their STATIC value only when rendered
 //     (PyreFormCompositeSource.cs:22,44), so animating one has no effect through this path today. The
 //     generator card says so on the control rather than letting a user animate into a no-op.
@@ -55,7 +55,7 @@ namespace Laubrary.Shaper.Editor
         // each file declares the chrome it builds.
         ZuiSection fillSection, borderSection, modifiersSection, swarmSection,
                    compositeSection, childrenSection, responseSection, heightSection, effectsSection,
-                   solidSection;
+                   layerEffectsSection, solidSection;
 
         /// Which bag member is being edited, as a path of child indices from the layer root. Empty = the
         /// root itself. This is VIEW state, not authored data — it is deliberately not [SerializeField]'d
@@ -122,7 +122,8 @@ namespace Laubrary.Shaper.Editor
             ("Fill", fillSection), ("Border", borderSection), ("Modifiers", modifiersSection),
             ("Swarm", swarmSection), ("Generator", compositeSection), ("Children", childrenSection),
             ("Solid", solidSection),
-            ("Lighting", responseSection), ("Height", heightSection), ("Effects", effectsSection),
+            ("Lighting", responseSection), ("Height", heightSection),
+            ("Layer effects", layerEffectsSection), ("Effects", effectsSection),
         };
 
         // ── Solids (T-0155) ──────────────────────────────────────────────────────────────────────────────
@@ -990,112 +991,211 @@ namespace Laubrary.Shaper.Editor
             root.Add(box);
         }
 
-        // ── Effects catalog (READ-ONLY) ──────────────────────────────────────────────────────────────────
+        // ── Effects (T-0163) ─────────────────────────────────────────────────────────────────────────────
+        //
+        // Two lists, and an entry's STAGE is which list it is in — never a per-row dropdown, because the two
+        // lists are applied at genuinely different points and nothing authored may disagree with where the
+        // renderer actually runs them (ShaperDocumentRenderer.RenderPhaseInto for the layer half, RenderPhase
+        // for the document half). Each row says its stage as a plain sentence rather than an enum name.
+        //
+        // Availability is the engine's own answer, not this file's: ShaperEffectRuntime.CanRun asks the
+        // catalog what sheets an effect needs, then whether it may run at this stage, then whether the shared
+        // SpriteFxStack kernel can dispatch its family at all. Anything that fails is shown GREYED with the
+        // reason — the same "declare, don't hide" posture ShaperSolids.InertReason takes.
 
-        // Deliberately NOT an authoring card: nothing in the engine holds a list of effects to author. What
-        // exists is ShaperEffectCatalog — 41 entries classified by stage, portability and the sheets they
-        // need. Surfacing availability here is the point: an effect that cannot run says WHY, which is the
-        // engine's own "declare, don't hide" posture (the same rule ShaperSolids.InertReason follows).
         void BuildEffectsSection(VisualElement root, ShaperLayer layer)
         {
-            var box = effectsSection = Z.Section("Effects",
-                "Effects applied to this document's finished picture, in order.",
-                "shaper.window.effects", icon: "sparkles");
+            // LAYER effects are a property of the layer, so — like Lighting and Height — they are only drawn
+            // at the layer root. Drilled into a bag member there is no layer being edited to attach them to.
+            layerEffectsSection = null;   // so a stale section from the layer root never lingers in the bar
+            if (drillPath.Count == 0)
+                BuildEffectListSection(root, ref layerEffectsSection, "Layer effects",
+                    "Effects applied to THIS layer's own picture before it composites into the document.",
+                    "shaper.window.layereffects", layer.effects, ShaperEffectStage.PreComposite);
 
-            // Which sheets are published decides which effects are usable. A layer with a height stage
-            // publishes height as well — that is the difference between the two shipped sets, so it is
-            // derived from the layer rather than assumed.
-            var published = layer.height != null
-                ? ShaperQuantitySet.ShapeEngineWithHeight
-                : ShaperQuantitySet.ShippedShapeEngine;
+            BuildEffectListSection(root, ref effectsSection, "Effects",
+                "Effects applied to the document's finished picture, after every layer has composited.",
+                "shaper.window.effects", document.effects, ShaperEffectStage.PostComposite);
+        }
+
+        /// <summary>One effect list as a section: the cards, the enabled count on the collapsed header, and the
+        /// add picker. Both stages share it verbatim — the only difference between them is the list and the
+        /// stage, which is exactly the claim the two-list design makes.</summary>
+        void BuildEffectListSection(VisualElement root, ref ZuiSection slot, string title, string tooltip,
+                                    string key, List<ShaperEffectRef> list, ShaperEffectStage stage)
+        {
+            MigrateLegacyEntries(list);
+
+            var box = Z.Section(title, tooltip, key, icon: "sparkles");
+            slot = box;
+            box.SetHeaderSuffix(() =>
+            {
+                int n = 0;
+                for (int i = 0; i < list.Count; i++) if (list[i] != null && list[i].enabled) n++;
+                return n > 0 ? $" ({n})" : "";
+            });
 
             var listHost = new VisualElement();
-            var stack = document.effects;
+            for (int i = 0; i < list.Count; i++)
+                listHost.Add(BuildEffectCard(listHost, list, i, stage));
 
-            for (int i = 0; i < stack.Count; i++)
-            {
-                int index = i;
-                var entry = stack[index];
-                var row = new VisualElement();
-                row.AddToClassList("zui-row");
-
-                var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder — effects apply in list order.");
-                grip.style.width = 16f;
-                ZuiReorder.MakeGrip(grip, row, listHost, (from, to) =>
-                {
-                    Change(() =>
-                    {
-                        var moved = stack[from];
-                        stack.RemoveAt(from);
-                        stack.Insert(to, moved);
-                    });
-                    Rebuild();
-                });
-                row.Add(grip);
-
-                row.Add(Z.Toggle("", "Run this effect.", entry.enabled,
-                    v => { Change(() => entry.enabled = v); RefreshPreview(); }));
-
-                // The catalog is the source of truth for whether this entry can run at all. An entry naming a
-                // type the catalog no longer lists is shown too, rather than dropped — a silently vanishing
-                // row would read as "I never authored that", which is worse than an honest unknown.
-                int cat = Array.FindIndex(ShaperEffectCatalog.All,
-                                          c => string.Equals(c.typeName, entry.typeName, StringComparison.Ordinal));
-                bool known = cat >= 0;
-                bool ok = false;
-                string reason = "Not in the effect catalog — its type may have been removed or renamed.";
-                if (known) ok = ShaperEffectCatalog.IsAvailable(in ShaperEffectCatalog.All[cat], published, out reason);
-
-                row.Add(Z.Text(entry.typeName ?? "(unnamed)", ZuiText.Body,
-                    ok ? "Runs at " + entry.stage + "." : "Will not run — " + reason));
-                row.Add(Z.Flexible());
-                row.Add(Z.Text(ok ? entry.stage.ToString() : "inert", ZuiText.Subtle,
-                    ok ? "The stage this entry runs at." : reason));
-
-                row.Add(Z.Button("×", "Remove this effect.", () =>
-                {
-                    Change(() => stack.RemoveAt(index));
-                    Rebuild();
-                }));
-
-                if (!ok)
-                {
-                    // Declared, greyed, WITH the reason — the same posture ShaperSolids.InertReason and the
-                    // fill availability gate already take. Never hidden.
-                    row.SetEnabled(false);
-                    row.tooltip = "Will not run — " + reason;
-                }
-                listHost.Add(row);
-            }
-
-            if (stack.Count == 0)
-                listHost.Add(Z.Text("No effects.", ZuiText.Subtle,
-                    "Add one to apply it to this document's finished picture."));
-
+            if (list.Count == 0)
+                listHost.Add(Z.Text("No effects.", ZuiText.Subtle, tooltip));
             box.Add(listHost);
 
             Button add = null;
-            add = Z.Button("+ Add effect", "Choose an effect to apply to the finished picture.",
-                () => ShowAddEffectMenu(add, published));
+            add = Z.Button("+ Add effect", tooltip, () => ShowAddEffectMenu(add, list, stage));
             box.Add(add);
             root.Add(box);
         }
 
         /// <summary>
-        /// The add-effect picker: the whole 41-entry catalog, grouped by stage kind and searchable, with every
-        /// unavailable entry shown DISABLED and carrying its own reason rather than filtered out. Hiding them
-        /// would answer "why can't I find Voronoi crack?" with silence; showing it greyed answers it with
-        /// "because this generator publishes no edge-distance sheet".
+        /// One effect card — the same shape as Pyre's modifier card (grip / enable / name / stage / ×, with the
+        /// dials reflection-drawn in a foldable body), because a Shaper effect IS one of Pyre's modifiers and
+        /// authoring it should not feel like a different thing in a different window.
         /// </summary>
-        void ShowAddEffectMenu(VisualElement anchor, ShaperQuantitySet published)
+        VisualElement BuildEffectCard(VisualElement listHost, List<ShaperEffectRef> list, int index,
+                                      ShaperEffectStage stage)
         {
-            var menu = Z.Menu(anchor).Width(340f).Search("Search effects…");
+            var entry = list[index];
+            var box = Z.Box(null, null);
+
+            var header = new VisualElement();
+            header.AddToClassList("zui-row");
+
+            var grip = Z.Text("≡", ZuiText.Body, "Drag to reorder — an effect's position IS its apply order.");
+            grip.style.unityFontStyleAndWeight = FontStyle.Bold;
+            grip.style.width = 16f;
+            ZuiReorder.MakeGrip(grip, box, listHost, (from, to) =>
+            {
+                Change(() =>
+                {
+                    var moved = list[from];
+                    list.RemoveAt(from);
+                    list.Insert(to, moved);
+                });
+                Rebuild();
+            });
+            header.Add(grip);
+
+            var enableToggle = Z.Toggle("", "Run this effect.", entry.enabled, v =>
+            {
+                Change(() => entry.enabled = v);
+                Rebuild();   // the dial body appears / disappears with the toggle, as Pyre's card does
+            });
+            header.Add(enableToggle);
+
+            var inst = entry.instance as ShaperModifierEffect;
+            bool ok = ShaperEffectRuntime.CanRun(entry.typeName, stage, out string reason);
+            if (inst == null || inst.Settings == null)
+            {
+                ok = false;
+                reason = "Its effect class could not be loaded — it may have been removed or renamed.";
+            }
+
+            string stageSentence = stage == ShaperEffectStage.PreComposite
+                ? "Runs on this layer's own picture, before it composites into the document."
+                : "Runs on the finished picture, after every layer has composited.";
+
+            header.Add(Z.Text(inst != null ? inst.DisplayName : (entry.typeName ?? "(unnamed)"), ZuiText.Body,
+                ok ? stageSentence : "Will not run — " + reason));
+            header.Add(Z.Flexible());
+            header.Add(Z.Text(ok ? (stage == ShaperEffectStage.PreComposite ? "pre-composite" : "post-composite")
+                                 : "inert",
+                              ZuiText.Subtle, ok ? stageSentence : reason));
+
+            var removeBtn = Z.Button("×", "Remove this effect (undoable).", () =>
+            {
+                int at = list.IndexOf(entry);
+                if (at >= 0) { Change(() => list.RemoveAt(at)); Rebuild(); }
+            }).W(22f);
+            header.Add(removeBtn);
+            box.Add(header);
+
+            // The dials. Reflection-drawn over the modifier itself, so every parameter the effect declares is
+            // authorable without this window listing any of them by hand — the same drawer, with the same
+            // Undo contract, that Pyre's own stack uses.
+            VisualElement body = null;
+            if (entry.enabled && ok)
+            {
+                body = new VisualElement();
+                ZuiReflect.BuildFields(body, inst.Settings, EffectDrawerOptions(inst.DisplayName));
+                box.Add(body);
+            }
+
+            if (!ok)
+            {
+                box.SetEnabled(false);
+                box.tooltip = "Will not run — " + reason;
+            }
+
+            // Fold state is kept per ENTRY instance so it survives a rebuild (undo, reorder, layer change).
+            ZuiFoldCard.Wire(entry, header, body, enableToggle, removeBtn);
+            return box;
+        }
+
+        /// <summary>
+        /// The reflection drawer's Undo / dirty / rebuild contract for an effect's dials — the same wiring
+        /// <see cref="Val"/> gives every other control in this window (record the document BEFORE the mutation,
+        /// dirty it and refresh the preview after).
+        /// </summary>
+        ZuiReflect.Options EffectDrawerOptions(string displayName) => new ZuiReflect.Options
+        {
+            OnBeforeChange = () => { if (document != null) Undo.RecordObject(document, "Edit Shaper effect"); },
+            OnChanged = () => { if (document != null) EditorUtility.SetDirty(document); RefreshPreview(); },
+            OnStructureChanged = Rebuild,
+            // The enable toggle lives in the header row; drawing the modifier's own `enabled` field too would
+            // put two controls for one idea on one card.
+            Skip = f => f.Name == "enabled",
+            // A Min-Max dial hashes without the frame, so it resolves to ONE constant for the whole animation —
+            // offering the mode would offer a control that cannot animate. Curve and Steps DO read the Shaper
+            // phase (SpriteFxStack.LifeEval, which RunStack Prepares every effect with), so they stay. The
+            // Duration/Warmup row is the runtime-seconds API and means nothing on a frame-baked timeline.
+            ConfigureValue = (f, vopt) => { vopt.allowMinMax = false; vopt.hideCurveTiming = true; },
+            TooltipFor = f => $"{ObjectNames.NicifyVariableName(f.Name)} — a {displayName} parameter.",
+        };
+
+        /// <summary>
+        /// Upgrade entries authored before T-0163, which named a type and carried no settings. Constructing the
+        /// modifier at defaults loses nothing: until this task no effect had authorable parameters and none of
+        /// them ran, so class defaults ARE what the document meant. Done without <c>Undo.RecordObject</c>
+        /// because it is an asset-format upgrade rather than an edit — putting it on the undo stack would offer
+        /// Ctrl+Z on "open the window", which would silently downgrade the asset again.
+        /// </summary>
+        void MigrateLegacyEntries(List<ShaperEffectRef> list)
+        {
+            bool changed = false;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var e = list[i];
+                if (e == null || e.instance != null || string.IsNullOrEmpty(e.typeName)) continue;
+                var made = ShaperEffectRuntime.Create(e.typeName);
+                if (made == null) continue;
+                e.instance = made;
+                changed = true;
+            }
+            if (changed && document != null) EditorUtility.SetDirty(document);
+        }
+
+        /// <summary>
+        /// The add-effect picker: the whole 41-entry catalog, grouped by family and searchable, with every
+        /// entry that cannot run AT THIS STAGE shown DISABLED and carrying its own reason rather than filtered
+        /// out. Hiding them would answer "why can't I find Voronoi crack?" with silence; showing it greyed
+        /// answers it with "it needs an edge-distance sheet, which a folded picture does not publish".
+        /// </summary>
+        void ShowAddEffectMenu(VisualElement anchor, List<ShaperEffectRef> list, ShaperEffectStage stage)
+        {
+            var menu = Z.Menu(anchor).Width(360f).Search("Search effects…");
 
             var entries = ShaperEffectCatalog.All
                 .Select((e, i) => (e, i))
                 .OrderBy(x => x.e.stageKind, StringComparer.Ordinal)
                 .ThenBy(x => x.e.typeName, StringComparer.Ordinal)
                 .ToArray();
+
+            string stageSentence = stage == ShaperEffectStage.PreComposite
+                ? "Will run on this layer's own picture, before it composites."
+                : "Will run on the finished picture, after every layer has composited.";
 
             string lastGroup = null;
             foreach (var x in entries)
@@ -1107,16 +1207,14 @@ namespace Laubrary.Shaper.Editor
                     lastGroup = e.stageKind;
                 }
 
-                bool ok = ShaperEffectCatalog.IsAvailable(in ShaperEffectCatalog.All[x.i], published, out string reason);
+                bool ok = ShaperEffectRuntime.CanRun(in ShaperEffectCatalog.All[x.i], stage, out string reason);
                 var captured = e;
-                menu.Item(e.typeName,
-                    ok ? "Runs at " + captured.defaultStage
-                         + (captured.bothStagesPossible ? " (either stage is legal)." : ".")
-                       : "Unavailable — " + reason,
+                menu.Item(e.typeName, ok ? stageSentence : "Unavailable — " + reason,
                     () =>
                     {
-                        Change(() => document.effects.Add(
-                            new ShaperEffectRef(captured.typeName, captured.defaultStage)));
+                        var made = ShaperEffectRuntime.Create(captured.typeName);
+                        if (made == null) return;
+                        Change(() => list.Add(new ShaperEffectRef(captured.typeName, made)));
                         Rebuild();
                     },
                     enabled: ok);
