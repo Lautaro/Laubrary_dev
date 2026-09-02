@@ -1163,6 +1163,12 @@ namespace Laubrary.Shaper.Editor
                     RefreshPreview();
                 }, decimals: 0);
             scrubber.style.flexGrow = 1f;
+            // T-0192 — deliberate, unlike a dial-pane MicroSlider: this is the transport scrubber, packed
+            // beside the fixed-width frame readout (not alone in its row), and growing to fill the transport
+            // is the whole point — same as Pyre's own Frame scrubber (pyre_1col.png). ZuiAudit's stretch
+            // check now also covers bare MicroSliders (they used to be invisible to it entirely), so this
+            // needs the same sanctioned opt-out a legitimately-flexing name field gets.
+            scrubber.AddToClassList("zui-audit-allow-stretch");
             // Under cherry framing the SOURCE frame is the sequence's to choose, not the user's: dragging this
             // would fight the sequencer for the same value and lose on the next beat. It stays visible (it is
             // still the honest readout of which source frame is on screen) and stops accepting a drag, with
@@ -1194,6 +1200,8 @@ namespace Laubrary.Shaper.Editor
                         JumpToCherrySlot(slot);
                     }, decimals: 0);
                 cherryScrubber.style.flexGrow = 1f;
+                // T-0192 — same deliberate transport-row exception as the Frame scrubber above.
+                cherryScrubber.AddToClassList("zui-audit-allow-stretch");
                 transportHost.Add(cherryScrubber);
             }
             else cherryScrubber = null;

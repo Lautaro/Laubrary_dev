@@ -7,8 +7,9 @@
 //   • tooltip-missing — an interactive control with no tooltip on itself or any ancestor;
 //   • off-screen     — a control whose right edge extends past the window (the horizontal-
 //                      scrollbar smell / IMGUI audit's OffScreen check);
-//   • stretch        — a BaseField-derived control that resolved to flex-grow > 0 (the "fills
-//                      whatever's left" failure class ZuiToolkit.uss globally forbids);
+//   • stretch        — a BaseField-derived control (or, T-0192, a ZuiMicroSlider/ZuiMicroMinMax) that
+//                      resolved to flex-grow > 0 (the "fills whatever's left" failure class
+//                      ZuiToolkit.uss globally forbids);
 //   • over-width     — a plain field control wider than a generous cap (600px), excluding
 //                      containers/plots, per the no-infinite-width-controls rule.
 // Row-packing waste, redundant titles, and explanatory labels stay a human's job — same as always.
@@ -39,6 +40,13 @@ namespace Laubrary.Zui
             // Foldout. It was invisible to every check here until the Chunks sprite list turned up spanning
             // the whole window with a clean audit.
             typeof(PropertyField),
+            // T-0192 — a bare Z.MicroSlider/Z.MicroMinMax is a real input control (drag/click to set a
+            // value) but was invisible to every check here, which is exactly why a solo one growing to fill
+            // its row (ZuiValueControl's Static/MinMax body, or any future bare-MicroSlider misuse) passed a
+            // clean audit while visibly stretching (PM by-eye, shaper_3col.png). Neither is a BaseField, so
+            // they also need the dedicated stretch check below — being interactive alone only buys them the
+            // tooltip/over-width/off-screen checks.
+            typeof(ZuiMicroSlider), typeof(ZuiMicroMinMax),
         };
 
         const float OverWidthCap = 600f;
@@ -97,6 +105,15 @@ namespace Laubrary.Zui
                 if (ve is not Foldout && ve.resolvedStyle.flexGrow > 0f && ve.ClassListContains("unity-base-field")
                     && !ve.ClassListContains("zui-audit-allow-stretch"))
                     findings.Add(New("stretch", ve, $"BaseField resolved flex-grow {ve.resolvedStyle.flexGrow:0.##}"));
+
+                // T-0192 — ZuiMicroSlider/ZuiMicroMinMax carry neither "unity-base-field" nor a BaseField
+                // base type, so the check above cannot see them stretch. They also aren't the cross-axis
+                // (align-self) case the toggle/chip checks cover below — a growing MicroSlider resolves a
+                // real flex-grow on the MAIN axis (it sits in a horizontal zui-row), same mechanism as a
+                // BaseField, just a different base class. Same opt-out class applies.
+                if ((ve is ZuiMicroSlider || ve is ZuiMicroMinMax) && ve.resolvedStyle.flexGrow > 0f
+                    && !ve.ClassListContains("zui-audit-allow-stretch"))
+                    findings.Add(New("stretch", ve, $"MicroSlider resolved flex-grow {ve.resolvedStyle.flexGrow:0.##}"));
 
                 // A ZuiToggleButton is a Button, so it carries neither "unity-base-field" nor a flex-grow —
                 // it stretches across the CROSS axis instead, which the check above cannot see. That blind
